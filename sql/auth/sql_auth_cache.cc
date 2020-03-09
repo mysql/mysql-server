@@ -619,12 +619,17 @@ int wild_case_compare(CHARSET_INFO *cs, const char *str, size_t str_len,
 
   while (wildstr != wildstr_end && str != str_end) {
     while (wildstr != wildstr_end && *wildstr != wild_many &&
-           *wildstr != wild_one) {
+           *wildstr != wild_one && str != str_end) {
       if (*wildstr == wild_prefix && wildstr[1]) wildstr++;
       if (my_toupper(cs, *wildstr++) != my_toupper(cs, *str++)) return 1;
     }
     if (wildstr == wildstr_end) {
       return str != str_end;
+    }
+    if (str == str_end) {
+      if (*wildstr == '%' && wildstr + 1 == wildstr_end)
+        return 0; /* % match empty string */
+      return (wildstr != wildstr_end);
     }
     if (*wildstr++ == wild_one) {
       ++str;
@@ -632,10 +637,8 @@ int wild_case_compare(CHARSET_INFO *cs, const char *str, size_t str_len,
       {
         return wildstr != wildstr_end;
       }
-    } else { /* Found '*' */
-      if (wildstr == wildstr_end) {
-        return 0; /* '*' as last char: OK */
-      }
+    } else {                                 /* Found wild_many */
+      if (wildstr == wildstr_end) return 0;  // empty matches wild_many
       flag = (*wildstr != wild_many && *wildstr != wild_one);
       do {
         if (flag) {
@@ -646,8 +649,9 @@ int wild_case_compare(CHARSET_INFO *cs, const char *str, size_t str_len,
           if (str == str_end) return 1;
         }
         if (wild_case_compare(cs, str, str_end - str, wildstr,
-                              wildstr_end - wildstr) == 0)
+                              wildstr_end - wildstr) == 0) {
           return 0;
+        }
         ++str;
       } while (str != str_end);
       return 1;
