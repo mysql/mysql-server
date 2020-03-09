@@ -1113,12 +1113,7 @@ share_error:
 
 	if (!thd_tablespace_op(thd) && no_tablespace) {
                 set_my_errno(ENOENT);
-
-		lock_shared_ha_data();
-		m_part_share->close_table_parts();
-		unlock_shared_ha_data();
-		m_part_share = NULL;
-
+		close();
 		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
 	}
 
@@ -1461,8 +1456,10 @@ ha_innopart::close()
 
 	/* Prevent double close of m_prebuilt->table. The real one was done
 	done in m_part_share->close_table_parts(). */
-	m_prebuilt->table = NULL;
-	row_prebuilt_free(m_prebuilt, FALSE);
+	if (m_prebuilt != NULL) {
+		m_prebuilt->table = NULL;
+		row_prebuilt_free(m_prebuilt, FALSE);
+        }
 
 	if (m_upd_buf != NULL) {
 		ut_ad(m_upd_buf_size != 0);

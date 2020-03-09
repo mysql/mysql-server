@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -937,6 +937,7 @@ public:
   bool Double(double, bool is_int= false) { return seeing_scalar(); }
   bool String(const char*, SizeType, bool) { return seeing_scalar(); }
   bool Key(const char*, SizeType, bool) { return seeing_scalar(); }
+  bool RawNumber(const char*, SizeType, bool) { return seeing_scalar(); }
 };
 
 

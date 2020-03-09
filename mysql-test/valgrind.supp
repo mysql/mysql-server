@@ -1,4 +1,4 @@
-# Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -1185,6 +1185,109 @@
    obj:*
    obj:*
    obj:*
+}
+
+{
+   OpenSSL leak 1 static SSL
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:CRYPTO_malloc
+   ...
+   fun:pthread_once
+}
+
+{
+   OpenSSL leak 2 static SSL
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:realloc
+   fun:CRYPTO_realloc
+   ...
+   fun:pthread_once
+}
+
+{
+   OpenSSL leak 1 static SSL pthread_once_slow
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:CRYPTO_malloc
+   ...
+   fun:__pthread_once_slow
+}
+
+{
+   OpenSSL leak 2 static SSL pthread_once_slow
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:realloc
+   fun:CRYPTO_realloc
+   ...
+   fun:__pthread_once_slow
+}
+
+{
+   OpenSSL leak 3 static SSL
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:CRYPTO_malloc
+   ...
+   fun:RAND_priv_bytes
+}
+
+{
+   OpenSSL leak 4 static SSL
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:CRYPTO_malloc
+   ...
+   fun:RAND_bytes
+}
+
+# http://www.openldap.org/its/index.cgi/Software%20Bugs?id=9081;page=23
+# Memory leak in ldap_initialize/ldap_unbind
+# Version: 2.4.48
+# Fixed in RE24 (2.4.49)
+{
+   OpenLDAP bug 9081
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:calloc
+   fun:ber_memcalloc_x
+   fun:ber_memcalloc
+   fun:ber_sockbuf_alloc
+   fun:ldap_create
+   fun:ldap_initialize
+}
+
+{
+   cyrus libsasl2 still reachable one
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:sasl_client_init
+}
+
+{
+   cyrus libsasl2 still reachable two
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:calloc
+   ...
+   fun:sasl_client_init
+}
+
+{
+   cyrus libsasl2 still reachable three
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:sasl_set_path
 }
 
 {

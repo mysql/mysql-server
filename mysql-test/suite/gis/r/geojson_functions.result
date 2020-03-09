@@ -2161,7 +2161,7 @@ SELECT ST_SRID(ST_GEOMFROMGEOJSON(
 "          { \"name\": { \"urn:ogc:def:crs:OGC:1.3:CRS84\" } }     "
 "        }                                                         "
 "  }", 1));
-ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Missing a colon after a name of object member." at position 239.
+ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Missing a colon after a name of object member." at position 238.
 SELECT ST_SRID(ST_GEOMFROMGEOJSON(
 "  { \"type\": \"Point\", \"coordinates\": [10, 20],               "
 "      \"crs\":                                                    "
@@ -2169,7 +2169,7 @@ SELECT ST_SRID(ST_GEOMFROMGEOJSON(
 "          { \"name\": \"urn:ogc:def:crs:OGC:1.3:CRS84\" }         "
 "        }                                                         "
 "  }", 1));
-ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Missing a comma or '}' after an object member." at position 149.
+ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Missing a comma or '}' after an object member." at position 148.
 SELECT ST_SRID(ST_GEOMFROMGEOJSON(
 "  { \"type\": \"Point\", \"coordinates\": [10, 20],               "
 "      \"crs\":                                                    "
@@ -2177,7 +2177,7 @@ SELECT ST_SRID(ST_GEOMFROMGEOJSON(
 "          { \"name\": \"urn:ogc:def:crs:OGC:1.3:CRS84\" }         "
 "        }                                                         "
 "  }", 1));
-ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Missing a comma or '}' after an object member." at position 155.
+ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Missing a comma or '}' after an object member." at position 154.
 SELECT ST_SRID(ST_GEOMFROMGEOJSON(
 "  { \"type\": \"Point\", \"coordinates\": [10, 20],               "
 "      \"crs\":                                                    "
@@ -2360,7 +2360,7 @@ SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
 ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
 "{ \"type\": { \"Point\" }, \"coordinates\": [10, 15] }", 1, 0));
-ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Missing a colon after a name of object member." at position 21.
+ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Missing a colon after a name of object member." at position 20.
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"LineString\", \"coordinates\": [[100.0, 0.0, 1.0, 2.0], [101.0, 0.0]] }"));
 ERROR HY000: Unsupported number of coordinate dimensions in function st_geomfromgeojson: Found 4, expected 2
@@ -2417,7 +2417,7 @@ SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
 "      \"popupContent\": \"This is where the Rockies play!\"      "
 "    }                                                            "
 "  }"));
-ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Missing a colon after a name of object member." at position 476.
+ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Missing a colon after a name of object member." at position 475.
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
 "  {                                                              "
 "  \"type\": \"Feature\", \"geometry\":                           "
@@ -2577,7 +2577,7 @@ SELECT ST_GEOMFROMGEOJSON(
 "  \"type\" : \"firstName\": \"John\"   "
 "}                                      "
 );
-ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Missing a comma or '}' after an object member." at position 62.
+ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Missing a comma or '}' after an object member." at position 61.
 PREPARE stmt FROM "SELECT ST_GEOMFROMGEOJSON(?, 0, 0)";
 PREPARE stmt FROM "SELECT ST_GEOMFROMGEOJSON('', ?, 0)";
 PREPARE stmt FROM "SELECT ST_GEOMFROMGEOJSON('', 0, ?)";
@@ -2586,9 +2586,9 @@ PREPARE stmt FROM "SELECT ST_GEOMFROMGEOJSON(?, 0, ?)";
 PREPARE stmt FROM "SELECT ST_GEOMFROMGEOJSON('', ?, ?)";
 PREPARE stmt FROM "SELECT ST_GEOMFROMGEOJSON(?, ?, ?)";
 SELECT ST_GEOMFROMGEOJSON("{}foo");
-ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "The document root must not follow by other values." at position 2.
+ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "The document root must not be followed by other values." at position 2.
 SELECT ST_GEOMFROMGEOJSON("[12 foo 13]");
-ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Missing a comma or ']' after an array element." at position 5.
+ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Missing a comma or ']' after an array element." at position 4.
 SELECT ST_GEOMFROMGEOJSON("{ \"type\": nul123 } ");
 ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Invalid value." at position 13.
 SELECT ST_GEOMFROMGEOJSON("{ \"true\": true, \"false\": false } ");
@@ -2598,21 +2598,21 @@ ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "In
 SELECT ST_GEOMFROMGEOJSON("{ \"false\": fals123 } ");
 ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Invalid value." at position 15.
 SELECT ST_GEOMFROMGEOJSON("{ \"hex\": \"\\u0Aa\" } ");
-ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Incorrect hex digit after \u escape in string." at position 15.
+ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Incorrect hex digit after \u escape in string." at position 10.
 SELECT ST_GEOMFROMGEOJSON("{ \"hex\": \"\\\\0000b\" } ");
 ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'type'
 SELECT ST_GEOMFROMGEOJSON("{ \"hex\": \"\\uD811b\" } ");
-ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "The surrogate pair in string is invalid." at position 15.
+ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "The surrogate pair in string is invalid." at position 10.
 SELECT ST_GEOMFROMGEOJSON("{ \"hex\": \"\\uD811\\uDB99\" } ");
-ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "The surrogate pair in string is invalid." at position 20.
+ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "The surrogate pair in string is invalid." at position 10.
 SELECT ST_GEOMFROMGEOJSON("{ \"hex\": \"\\uD811\\uDC01\" } ");
 ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'type'
 SELECT ST_GEOMFROMGEOJSON("{ \"hex\": \"\\e000G\" } ");
-ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Invalid escape character in string." at position 11.
+ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Invalid escape character in string." at position 10.
 SELECT ST_GEOMFROMGEOJSON("{ \"test ");
-ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Missing a closing quotation mark in string." at position 7.
+ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Missing a closing quotation mark in string." at position 8.
 SELECT ST_GEOMFROMGEOJSON("{ \"\nabel\": 123 ");
-ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Invalid escape character in string." at position 2.
+ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Invalid encoding in string." at position 3.
 SELECT ST_GEOMFROMGEOJSON("[ -2147483651, 4294967395 ] ");
 ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson
 SELECT ST_GEOMFROMGEOJSON("[ -9223372036854775900, 184467440737095516700] ");
@@ -2623,11 +2623,11 @@ SELECT ST_GEOMFROMGEOJSON("["
   "000000000000000000000000000000000000000000000000000000000000000000000000000000"
   "000000000000000000000000000000000000000000000000000000000000000000000000000"
 "]");
-ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Number too big to be stored in double." at position 309.
+ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Number too big to be stored in double." at position 1.
 SELECT ST_GEOMFROMGEOJSON("[ 1. ] ");
 ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Miss fraction part in number." at position 4.
 SELECT ST_GEOMFROMGEOJSON("[ 1e1000 ] ");
-ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Number too big to be stored in double." at position 8.
+ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Number too big to be stored in double." at position 2.
 SELECT ST_GEOMFROMGEOJSON("[ 1e ] ");
 ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Miss exponent in number." at position 4.
 SELECT ST_GEOMFROMGEOJSON("[ -92233720368547759, 1844674407370955167] ");
@@ -2637,11 +2637,11 @@ ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson
 SELECT ST_GEOMFROMGEOJSON("[ -0 ]");
 ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson
 SELECT ST_GEOMFROMGEOJSON("{ \"\\u0000\" }");
-ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Missing a colon after a name of object member." at position 12.
+ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Missing a colon after a name of object member." at position 11.
 SELECT ST_GEOMFROMGEOJSON("{ \"\\u06FF\" }");
-ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Missing a colon after a name of object member." at position 12.
+ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Missing a colon after a name of object member." at position 11.
 SELECT ST_GEOMFROMGEOJSON("{ \"\\uFFFF\" }");
-ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Missing a colon after a name of object member." at position 12.
+ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Missing a colon after a name of object member." at position 11.
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON("{ \"type\": \"Point\", \"coordinates\": [4294967295, 9223372036854775807] }"));
 ST_ASTEXT(ST_GEOMFROMGEOJSON("{ \"type\": \"Point\", \"coordinates\": [4294967295, 9223372036854775807] }"))
 POINT(4294967295 9.223372036854776e18)
@@ -4162,9 +4162,9 @@ ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson
 SELECT ST_GEOMFROMGEOJSON('-1E-36181012216111515851075235238');
 ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson
 SELECT ST_GEOMFROMGEOJSON('1E+36181012216111515851075235238');
-ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Number too big to be stored in double." at position 6.
+ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Number too big to be stored in double." at position 0.
 SELECT ST_GEOMFROMGEOJSON('-1E+36181012216111515851075235238');
-ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Number too big to be stored in double." at position 7.
+ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Number too big to be stored in double." at position 0.
 #
 # Bug#21389101 ST_GEOMFROMGEOJSON: STACK OVERFLOW IN
 #              RAPIDJSON::GENERICREADER

@@ -41,7 +41,289 @@ BEGIN;
 COMMIT;
 SET GTID_NEXT=AUTOMATIC;
 include/start_slave_sql.inc
+include/rpl_reset.inc
+[connection master]
+CREATE PROCEDURE p1()
+BEGIN
+INSERT INTO t1 VALUES (1,1);
+END//
+SET SESSION SQL_MODE= '';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+GRANT PROCESS ON `invalid_db`.* TO u1@h, u2@h IDENTIFIED BY 'pass', u3;
+ERROR HY000: Incorrect usage of DB GRANT and GLOBAL PRIVILEGES
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=1590]
+include/rpl_reset.inc
+[connection master]
+SET SQL_LOG_BIN=0;
+GRANT ALL ON *.* TO u2@h;
+SET SQL_LOG_BIN=1;
+REVOKE PROCESS ON `invalid_db`.* FROM u2@h, u3;
+ERROR HY000: Incorrect usage of DB GRANT and GLOBAL PRIVILEGES
+[connection slave]
+include/stop_slave.inc
+[connection master]
+DROP USER u2@h;
+include/rpl_reset.inc
+GRANT PROXY ON `proxy_user` TO u1@h, u2@h IDENTIFIED BY 'pass', u3;
+ERROR 42000: Can't find any matching row in the user table
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=1590]
+include/rpl_reset.inc
+[connection master]
+SET SQL_LOG_BIN=0;
+GRANT ALL ON *.* TO u2@h;
+SET SQL_LOG_BIN=1;
+REVOKE PROXY ON `proxy_user` FROM u2@h, u3;
+ERROR 42000: There is no such grant defined for user 'u3' on host '%'
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=1590]
+[connection slave]
+include/stop_slave.inc
+[connection master]
+DROP USER u2@h;
+include/rpl_reset.inc
+GRANT EXECUTE ON PROCEDURE p1 TO u1@h, u2@h IDENTIFIED BY 'pass', u3;
+ERROR 42000: Can't find any matching row in the user table
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=1590]
+include/rpl_reset.inc
+[connection master]
+SET SQL_LOG_BIN=0;
+GRANT ALL ON *.* TO u2@h;
+SET SQL_LOG_BIN=1;
+REVOKE EXECUTE ON PROCEDURE p1 FROM u2@h, u3;
+ERROR 42000: There is no such grant defined for user 'u3' on host '%'
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=1590]
+[connection slave]
+include/stop_slave.inc
+[connection master]
+DROP USER u2@h;
+include/rpl_reset.inc
+GRANT SELECT(a) ON `test`.`t1` TO u1@h, u2@h IDENTIFIED BY 'pass', u3;
+ERROR 42000: Can't find any matching row in the user table
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=1590]
+include/rpl_reset.inc
+[connection master]
+SET SQL_LOG_BIN=0;
+GRANT ALL ON *.* TO u2@h;
+SET SQL_LOG_BIN=1;
+REVOKE SELECT(a) ON `test`.`t1` FROM u2@h, u3;
+ERROR 42000: There is no such grant defined for user 'u3' on host '%'
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=1590]
+[connection slave]
+include/stop_slave.inc
+[connection master]
+DROP USER u2@h;
+include/rpl_reset.inc
+GRANT SELECT ON `test`.`t1` TO u1@h, u2@h IDENTIFIED BY 'pass', u3;
+ERROR 42000: Can't find any matching row in the user table
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=1590]
+include/rpl_reset.inc
+[connection master]
+SET SQL_LOG_BIN=0;
+GRANT ALL ON *.* TO u2@h;
+SET SQL_LOG_BIN=1;
+REVOKE SELECT ON `test`.`t1` FROM u2@h, u3;
+ERROR 42000: There is no such grant defined for user 'u3' on host '%'
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=1590]
+[connection slave]
+include/stop_slave.inc
+[connection master]
+DROP USER u2@h;
+include/rpl_reset.inc
+GRANT UPDATE ON `test`.* TO u1@h, u2@h IDENTIFIED BY 'pass', u3;
+ERROR 42000: Can't find any matching row in the user table
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=1590]
+include/rpl_reset.inc
+[connection master]
+SET SQL_LOG_BIN=0;
+GRANT ALL ON *.* TO u2@h;
+SET SQL_LOG_BIN=1;
+REVOKE UPDATE ON `test`.* FROM u2@h, u3;
+ERROR 42000: There is no such grant defined for user 'u3' on host '%'
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=1590]
+[connection slave]
+include/stop_slave.inc
+[connection master]
+DROP USER u2@h;
+include/rpl_reset.inc
+GRANT ALL ON *.* TO u1@h, u2@h IDENTIFIED BY 'pass', u3;
+ERROR 42000: Can't find any matching row in the user table
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=1590]
+include/rpl_reset.inc
+[connection master]
+SET SQL_LOG_BIN=0;
+GRANT ALL ON *.* TO u2@h;
+SET SQL_LOG_BIN=1;
+REVOKE ALL ON *.* FROM u2@h, u3;
+ERROR 42000: There is no such grant defined for user 'u3' on host '%'
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=1590]
+[connection slave]
+include/stop_slave.inc
+[connection master]
+DROP USER u2@h;
+include/rpl_reset.inc
+SET SESSION SQL_MODE= default;
+GRANT PROCESS ON `invalid_db`.* TO u1@h, u2@h IDENTIFIED BY 'pass', u3;
+ERROR HY000: Incorrect usage of DB GRANT and GLOBAL PRIVILEGES
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=1590]
+include/rpl_reset.inc
+[connection master]
+SET SQL_LOG_BIN=0;
+GRANT ALL ON *.* TO u2@h;
+SET SQL_LOG_BIN=1;
+REVOKE PROCESS ON `invalid_db`.* FROM u2@h, u3;
+ERROR HY000: Incorrect usage of DB GRANT and GLOBAL PRIVILEGES
+[connection slave]
+include/stop_slave.inc
+[connection master]
+DROP USER u2@h;
+include/rpl_reset.inc
+GRANT PROXY ON `proxy_user` TO u1@h, u2@h IDENTIFIED BY 'pass', u3;
+ERROR 42000: Can't find any matching row in the user table
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=1590]
+include/rpl_reset.inc
+[connection master]
+SET SQL_LOG_BIN=0;
+GRANT ALL ON *.* TO u2@h;
+SET SQL_LOG_BIN=1;
+REVOKE PROXY ON `proxy_user` FROM u2@h, u3;
+ERROR 42000: There is no such grant defined for user 'u3' on host '%'
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=1590]
+[connection slave]
+include/stop_slave.inc
+[connection master]
+DROP USER u2@h;
+include/rpl_reset.inc
+GRANT EXECUTE ON PROCEDURE p1 TO u1@h, u2@h IDENTIFIED BY 'pass', u3;
+ERROR 42000: Can't find any matching row in the user table
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=1590]
+include/rpl_reset.inc
+[connection master]
+SET SQL_LOG_BIN=0;
+GRANT ALL ON *.* TO u2@h;
+SET SQL_LOG_BIN=1;
+REVOKE EXECUTE ON PROCEDURE p1 FROM u2@h, u3;
+ERROR 42000: There is no such grant defined for user 'u3' on host '%'
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=1590]
+[connection slave]
+include/stop_slave.inc
+[connection master]
+DROP USER u2@h;
+include/rpl_reset.inc
+GRANT SELECT(a) ON `test`.`t1` TO u1@h, u2@h IDENTIFIED BY 'pass', u3;
+ERROR 42000: Can't find any matching row in the user table
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=1590]
+include/rpl_reset.inc
+[connection master]
+SET SQL_LOG_BIN=0;
+GRANT ALL ON *.* TO u2@h;
+SET SQL_LOG_BIN=1;
+REVOKE SELECT(a) ON `test`.`t1` FROM u2@h, u3;
+ERROR 42000: There is no such grant defined for user 'u3' on host '%'
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=1590]
+[connection slave]
+include/stop_slave.inc
+[connection master]
+DROP USER u2@h;
+include/rpl_reset.inc
+GRANT SELECT ON `test`.`t1` TO u1@h, u2@h IDENTIFIED BY 'pass', u3;
+ERROR 42000: Can't find any matching row in the user table
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=1590]
+include/rpl_reset.inc
+[connection master]
+SET SQL_LOG_BIN=0;
+GRANT ALL ON *.* TO u2@h;
+SET SQL_LOG_BIN=1;
+REVOKE SELECT ON `test`.`t1` FROM u2@h, u3;
+ERROR 42000: There is no such grant defined for user 'u3' on host '%'
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=1590]
+[connection slave]
+include/stop_slave.inc
+[connection master]
+DROP USER u2@h;
+include/rpl_reset.inc
+GRANT UPDATE ON `test`.* TO u1@h, u2@h IDENTIFIED BY 'pass', u3;
+ERROR 42000: Can't find any matching row in the user table
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=1590]
+include/rpl_reset.inc
+[connection master]
+SET SQL_LOG_BIN=0;
+GRANT ALL ON *.* TO u2@h;
+SET SQL_LOG_BIN=1;
+REVOKE UPDATE ON `test`.* FROM u2@h, u3;
+ERROR 42000: There is no such grant defined for user 'u3' on host '%'
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=1590]
+[connection slave]
+include/stop_slave.inc
+[connection master]
+DROP USER u2@h;
+include/rpl_reset.inc
+GRANT ALL ON *.* TO u1@h, u2@h IDENTIFIED BY 'pass', u3;
+ERROR 42000: Can't find any matching row in the user table
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=1590]
+include/rpl_reset.inc
+[connection master]
+SET SQL_LOG_BIN=0;
+GRANT ALL ON *.* TO u2@h;
+SET SQL_LOG_BIN=1;
+REVOKE ALL ON *.* FROM u2@h, u3;
+ERROR 42000: There is no such grant defined for user 'u3' on host '%'
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=1590]
+[connection slave]
+include/stop_slave.inc
+[connection master]
+DROP USER u2@h;
+include/rpl_reset.inc
+# Adding debug point 'simulate_cache_creation_failure' to @@GLOBAL.debug
+SET GLOBAL binlog_error_action = IGNORE_ERROR;
+GRANT SELECT(a) ON t1 TO u1@h, u2@h;
+ERROR 42000: Can't find any matching row in the user table
+SHOW BINARY LOGS;
+ERROR HY000: You are not using binary logging
+include/assert_grep.inc [Found the message about the failure of cache creation in the error log.]
+include/rpl_restart_server.inc [server_number=1]
+[connection master]
+# Adding debug point 'simulate_cache_creation_failure' to @@GLOBAL.debug
+GRANT SELECT(a) ON t1 TO u1@h, u2@h;
+ERROR HY000: Binary logging not possible. Message: Could not create IO cache while writing an incident event to the binary log for query: 'GRANT SELECT(a) ON t1 TO u1@h, u2@h'. Since GTID_MODE= ON, server is unable to proceed with logging. Hence aborting the server.
+# Restart the master server
+include/rpl_reconnect.inc
+include/assert_grep.inc [Found the message about the failure of cache creation in the error log.]
+[connection master]
+CALL mtr.add_suppression("REVOKE/GRANT failed while granting/revoking privileges in databases. An incident event has been written to the binary log which will stop the slaves.");
+CALL mtr.add_suppression("REVOKE/GRANT failed while storing routine level grants in the privilege tables. An incident event has been written to the binary log which will stop the slaves.");
+CALL mtr.add_suppression("Attempting backtrace. You can use the following information to find out*");
+CALL mtr.add_suppression("ERROR.*Could not create IO cache while writing an incident event to the binary log.*");
+[connection slave]
+CALL mtr.add_suppression("Slave SQL for channel '': The incident LOST_EVENTS occured on the master. Message: REVOKE/GRANT failed while granting/revoking privileges in databases.") ;
+CALL mtr.add_suppression("Slave SQL for channel '': The incident LOST_EVENTS occured on the master. Message: REVOKE/GRANT failed while storing routine level grants in the privilege tables.");
 [connection master]
 DROP USER u1@h;
+DROP PROCEDURE p1;
 DROP TABLE t1;
 include/rpl_end.inc

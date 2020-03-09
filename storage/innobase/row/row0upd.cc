@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -2589,7 +2589,7 @@ check_fk:
 
 	err = row_ins_clust_index_entry(
 		index, entry, thr,
-		node->upd_ext ? node->upd_ext->n_ext : 0, false);
+		entry->get_n_ext(), false);
 	node->state = UPD_NODE_INSERT_CLUSTERED;
 
 	mem_heap_free(heap);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1606,7 +1606,7 @@ exp:    /* [ E [ <sign> ] <unsigned integer> ] */
   {
     ulonglong d, r;
     
-    if (-shift >= DIGITS_IN_ULONGLONG)
+    if (shift == INT_MIN32 || -shift >= DIGITS_IN_ULONGLONG)
       goto ret_zero; /* Exponent is a big negative number, return 0 */
     
     d= d10[-shift];

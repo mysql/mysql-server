@@ -4129,3 +4129,57 @@ FROM t3 AS subquery4_t1);
 field3
 SET optimizer_switch = default;
 DROP TABLE t1, t2, t3, t4;
+# Bug#30488700: Mysql chooses different execution plan in 5.7
+CREATE TABLE tbl1 (
+id BIGINT NOT NULL,
+rec_id INTEGER NOT NULL,
+id_value2 BIGINT DEFAULT NULL,
+PRIMARY KEY (id, rec_id)
+) ENGINE=INNODB;
+CREATE TABLE tbl2 (
+t_id BIGINT NOT NULL,
+s_date DATETIME DEFAULT NULL,
+PRIMARY KEY (t_id)
+) ENGINE=INNODB;
+SET @ROWNUM = 0;
+SELECT t1.rec_id
+FROM tbl1 AS t1 INNER JOIN
+(SELECT a.id, a.rec_id,s_date
+FROM tbl2 AS b, tbl1 AS a
+WHERE a.id_value2 = b.t_id AND a.id = 6889877970355107670
+ORDER BY s_date DESC) t2
+ON t1.id = t2.id AND t1.rec_id = t2.rec_id;
+rec_id
+UPDATE tbl1 AS t1 INNER JOIN
+(SELECT a.id, a.rec_id, b.s_date
+FROM tbl2 AS b, tbl1 AS a
+WHERE a.id_value2 = b.t_id AND a.id = 6889877970355107670
+ORDER BY s_date DESC) t2
+ON t1.id = t2.id AND t1.rec_id = t2.rec_id
+SET t1.rec_id = @ROWNUM:= @ROWNUM+1;
+explain SELECT t1.rec_id
+FROM tbl1 AS t1 INNER JOIN
+(SELECT a.id, a.rec_id,s_date
+FROM tbl2 AS b, tbl1 AS a
+WHERE a.id_value2 = b.t_id AND a.id = 6889877970355107670
+ORDER BY s_date DESC) t2
+ON t1.id = t2.id AND t1.rec_id = t2.rec_id;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	PRIMARY	PRIMARY	8	const	1	100.00	Using index
+1	SIMPLE	a	NULL	eq_ref	PRIMARY	PRIMARY	12	const,test.t1.rec_id	1	100.00	Using where
+1	SIMPLE	b	NULL	eq_ref	PRIMARY	PRIMARY	8	test.a.id_value2	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`rec_id` AS `rec_id` from `test`.`tbl1` `t1` join `test`.`tbl2` `b` join `test`.`tbl1` `a` where ((`test`.`b`.`t_id` = `test`.`a`.`id_value2`) and (`test`.`a`.`rec_id` = `test`.`t1`.`rec_id`) and (`test`.`t1`.`id` = 6889877970355107670) and (`test`.`a`.`id` = 6889877970355107670))
+explain UPDATE tbl1 AS t1 INNER JOIN
+(SELECT a.id, a.rec_id, b.s_date
+FROM tbl2 AS b, tbl1 AS a
+WHERE a.id_value2 = b.t_id AND a.id = 6889877970355107670
+ORDER BY s_date DESC) t2
+ON t1.id = t2.id AND t1.rec_id = t2.rec_id
+SET t1.rec_id = @ROWNUM:= @ROWNUM+1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	12	test.t1.id,test.t1.rec_id	2	100.00	NULL
+2	DERIVED	a	NULL	ref	PRIMARY	PRIMARY	8	const	1	100.00	Using where; Using temporary; Using filesort
+2	DERIVED	b	NULL	eq_ref	PRIMARY	PRIMARY	8	test.a.id_value2	1	100.00	NULL
+DROP TABLE tbl1, tbl2;

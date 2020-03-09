@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -148,25 +148,37 @@ static void check_foreign_key(TABLE *table, THD *thd,
 }
 
 #ifndef DBUG_OFF
-static void debug_check_for_write_sets(std::vector<std::string> &key_list_to_hash)
+static void debug_check_for_write_sets(std::vector<std::string> &key_list_to_hash,
+                                       std::vector<uint64> &hash_list)
 {
   DBUG_EXECUTE_IF("PKE_assert_single_primary_key_generated_insert",
                   DBUG_ASSERT(key_list_to_hash.size() == 2);
                   DBUG_ASSERT(key_list_to_hash[1] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
-                                                     HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1"););
+                                                     HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1");
+                  DBUG_ASSERT(hash_list.size() == 2);
+                  DBUG_ASSERT(hash_list[0] == 2897372530352804122ULL);
+                  DBUG_ASSERT(hash_list[1] == 340395741608101502ULL););
 
   DBUG_EXECUTE_IF("PKE_assert_single_primary_key_generated_insert_collation",
                   DBUG_ASSERT(key_list_to_hash.size() == 2);
                   DBUG_ASSERT(key_list_to_hash[0] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                      HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1" &&
-                              key_list_to_hash[1] == key_list_to_hash[0]););
+                              key_list_to_hash[1] == key_list_to_hash[0]);
+                  DBUG_ASSERT(hash_list.size() == 2);
+                  DBUG_ASSERT(hash_list[0] == 340395741608101502ULL);
+                  DBUG_ASSERT(hash_list[1] == hash_list[0]););
 
   DBUG_EXECUTE_IF("PKE_assert_single_primary_key_generated_update",
                   DBUG_ASSERT(key_list_to_hash.size() == 2);
                   DBUG_ASSERT(key_list_to_hash[1] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                      HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1" ||
                               key_list_to_hash[1] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
-                                                     HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1"););
+                                                     HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1");
+                  DBUG_ASSERT(hash_list.size() == 2);
+                  DBUG_ASSERT(hash_list[0] == 8147168586610610204ULL ||
+                              hash_list[0] == 2897372530352804122ULL);
+                  DBUG_ASSERT(hash_list[1] == 8563267070232261320ULL ||
+                              hash_list[1] == 340395741608101502ULL););
 
   DBUG_EXECUTE_IF("PKE_assert_single_primary_key_generated_update_collation",
                   DBUG_ASSERT(key_list_to_hash.size() == 2);
@@ -175,20 +187,29 @@ static void debug_check_for_write_sets(std::vector<std::string> &key_list_to_has
                                key_list_to_hash[1] == key_list_to_hash[0]) ||
                               (key_list_to_hash[0] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                      HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[1] == key_list_to_hash[0])););
+                               key_list_to_hash[1] == key_list_to_hash[0]));
+                  DBUG_ASSERT(hash_list.size() == 2);
+                  DBUG_ASSERT((hash_list[0] == 8563267070232261320ULL && hash_list[0] == hash_list[1]) ||
+                              (hash_list[0] == 340395741608101502ULL && hash_list[0] == hash_list[1])););
 
   DBUG_EXECUTE_IF("PKE_assert_multi_primary_key_generated_insert",
                   DBUG_ASSERT(key_list_to_hash.size() == 2);
                   DBUG_ASSERT(key_list_to_hash[1] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                      HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "12"
-                                                     HASH_STRING_SEPARATOR "1"););
+                                                     HASH_STRING_SEPARATOR "1");
+                  DBUG_ASSERT(hash_list.size() == 2);
+                  DBUG_ASSERT(hash_list[0] == 1691122509389864327ULL);
+                  DBUG_ASSERT(hash_list[1] == 13655149628280894901ULL););
 
   DBUG_EXECUTE_IF("PKE_assert_multi_primary_key_generated_insert_collation",
                   DBUG_ASSERT(key_list_to_hash.size() == 2);
                   DBUG_ASSERT(key_list_to_hash[0] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                      HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "12"
                                                      HASH_STRING_SEPARATOR "1" &&
-                              key_list_to_hash[1] == key_list_to_hash[0]););
+                              key_list_to_hash[1] == key_list_to_hash[0]);
+                  DBUG_ASSERT(hash_list.size() == 2);
+                  DBUG_ASSERT(hash_list[0] == 13655149628280894901ULL);
+                  DBUG_ASSERT(hash_list[1] == hash_list[0]););
 
   DBUG_EXECUTE_IF("PKE_assert_multi_primary_key_generated_update",
                   DBUG_ASSERT(key_list_to_hash.size() == 2);
@@ -197,7 +218,12 @@ static void debug_check_for_write_sets(std::vector<std::string> &key_list_to_has
                                                      HASH_STRING_SEPARATOR "1" ||
                               key_list_to_hash[1] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                      HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "12"
-                                                     HASH_STRING_SEPARATOR "1"););
+                                                     HASH_STRING_SEPARATOR "1");
+                  DBUG_ASSERT(hash_list.size() == 2);
+                  DBUG_ASSERT(hash_list[0] == 3905848172375270818ULL ||
+                              hash_list[0] == 1691122509389864327ULL);
+                  DBUG_ASSERT(hash_list[1] == 16833405476607614310ULL ||
+                              hash_list[1] == 13655149628280894901ULL););
 
   DBUG_EXECUTE_IF("PKE_assert_multi_primary_key_generated_update_collation",
                   DBUG_ASSERT(key_list_to_hash.size() == 2);
@@ -208,7 +234,10 @@ static void debug_check_for_write_sets(std::vector<std::string> &key_list_to_has
                               (key_list_to_hash[0] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                      HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "12"
                                                      HASH_STRING_SEPARATOR "1" &&
-                               key_list_to_hash[1] == key_list_to_hash[0])););
+                               key_list_to_hash[1] == key_list_to_hash[0]));
+                  DBUG_ASSERT(hash_list.size() == 2);
+                  DBUG_ASSERT((hash_list[0] == 16833405476607614310ULL && hash_list[0] == hash_list[1]) ||
+                              (hash_list[0] == 13655149628280894901ULL && hash_list[0] == hash_list[1])););
 
   DBUG_EXECUTE_IF("PKE_assert_single_primary_unique_key_generated_insert",
                   DBUG_ASSERT(key_list_to_hash.size() == 6);
@@ -217,8 +246,14 @@ static void debug_check_for_write_sets(std::vector<std::string> &key_list_to_has
                               key_list_to_hash[3] == "c2" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                      HASH_STRING_SEPARATOR "22" HASH_STRING_SEPARATOR "1" &&
                               key_list_to_hash[5] == "c3" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
-                                                     HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1"););
-
+                                                     HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1");
+                  DBUG_ASSERT(hash_list.size() == 6);
+                  DBUG_ASSERT(hash_list[0] == 2897372530352804122ULL);
+                  DBUG_ASSERT(hash_list[1] == 340395741608101502ULL);
+                  DBUG_ASSERT(hash_list[2] == 18399953872590645955ULL);
+                  DBUG_ASSERT(hash_list[3] == 12796928550717161120ULL);
+                  DBUG_ASSERT(hash_list[4] == 11353180532661898235ULL);
+                  DBUG_ASSERT(hash_list[5] == 11199547876733116431ULL););
 
   DBUG_EXECUTE_IF("PKE_assert_single_primary_unique_key_generated_insert_collation",
                   DBUG_ASSERT(key_list_to_hash.size() == 6);
@@ -230,7 +265,11 @@ static void debug_check_for_write_sets(std::vector<std::string> &key_list_to_has
                                                      HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1" &&
                               key_list_to_hash[1] == key_list_to_hash[0] &&
                               key_list_to_hash[3] == key_list_to_hash[2] &&
-                              key_list_to_hash[5] == key_list_to_hash[4]););
+                              key_list_to_hash[5] == key_list_to_hash[4]);
+                  DBUG_ASSERT(hash_list.size() == 6);
+                  DBUG_ASSERT(hash_list[0] == 340395741608101502ULL && hash_list[1] == hash_list[0]);
+                  DBUG_ASSERT(hash_list[2] == 12796928550717161120ULL && hash_list[3] == hash_list[2]);
+                  DBUG_ASSERT(hash_list[4] == 11199547876733116431ULL && hash_list[5] == hash_list[4]););
 
   DBUG_EXECUTE_IF("PKE_assert_single_primary_unique_key_generated_update",
                   DBUG_ASSERT(key_list_to_hash.size() == 6);
@@ -245,7 +284,20 @@ static void debug_check_for_write_sets(std::vector<std::string> &key_list_to_has
                                key_list_to_hash[3] == "c2" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                       HASH_STRING_SEPARATOR "22" HASH_STRING_SEPARATOR "1" &&
                                key_list_to_hash[5] == "c3" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
-                                                      HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1")););
+                                                      HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1"));
+                  DBUG_ASSERT(hash_list.size() == 6);
+                  DBUG_ASSERT((hash_list[0] == 14771035529829851738ULL &&
+                               hash_list[1] == 7803002059431370747ULL &&
+                               hash_list[2] == 18399953872590645955ULL &&
+                               hash_list[3] == 12796928550717161120ULL &&
+                               hash_list[4] == 11353180532661898235ULL &&
+                               hash_list[5] == 11199547876733116431ULL) ||
+                              (hash_list[0] == 2897372530352804122ULL &&
+                               hash_list[1] == 340395741608101502ULL &&
+                               hash_list[2] == 18399953872590645955ULL &&
+                               hash_list[3] == 12796928550717161120ULL &&
+                               hash_list[4] == 11353180532661898235ULL &&
+                               hash_list[5] == 11199547876733116431ULL)););
 
   DBUG_EXECUTE_IF("PKE_assert_single_primary_unique_key_generated_update_collation",
                   DBUG_ASSERT(key_list_to_hash.size() == 6);
@@ -266,7 +318,20 @@ static void debug_check_for_write_sets(std::vector<std::string> &key_list_to_has
                                                       HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1" &&
                                key_list_to_hash[1] == key_list_to_hash[0] &&
                                key_list_to_hash[3] == key_list_to_hash[2] &&
-                               key_list_to_hash[5] == key_list_to_hash[4])););
+                               key_list_to_hash[5] == key_list_to_hash[4]));
+                  DBUG_ASSERT(hash_list.size() == 6);
+                  DBUG_ASSERT((hash_list[0] == 7803002059431370747ULL &&
+                               hash_list[2] == 12796928550717161120ULL &&
+                               hash_list[4] == 11199547876733116431ULL &&
+                               hash_list[1] == hash_list[0] &&
+                               hash_list[3] == hash_list[2] &&
+                               hash_list[5] == hash_list[4]) ||
+                              (hash_list[0] == 340395741608101502ULL &&
+                               hash_list[2] == 12796928550717161120ULL &&
+                               hash_list[4] == 11199547876733116431ULL &&
+                               hash_list[1] == hash_list[0] &&
+                               hash_list[3] == hash_list[2] &&
+                               hash_list[5] == hash_list[4])););
 
   DBUG_EXECUTE_IF("PKE_assert_multi_primary_unique_key_generated_insert",
                   DBUG_ASSERT(key_list_to_hash.size() == 6);
@@ -276,7 +341,14 @@ static void debug_check_for_write_sets(std::vector<std::string> &key_list_to_has
                               key_list_to_hash[3] == "b" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                      HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1" &&
                               key_list_to_hash[5] == "c" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
-                                                     HASH_STRING_SEPARATOR "24" HASH_STRING_SEPARATOR "1"););
+                                                     HASH_STRING_SEPARATOR "24" HASH_STRING_SEPARATOR "1");
+                  DBUG_ASSERT(hash_list.size() == 6);
+                  DBUG_ASSERT(hash_list[0] == 1691122509389864327ULL);
+                  DBUG_ASSERT(hash_list[1] == 13655149628280894901ULL);
+                  DBUG_ASSERT(hash_list[2] == 12533984864941331840ULL);
+                  DBUG_ASSERT(hash_list[3] == 8954424140835647185ULL);
+                  DBUG_ASSERT(hash_list[4] == 14184162977259375422ULL);
+                  DBUG_ASSERT(hash_list[5] == 3520344117573337805ULL););
 
   DBUG_EXECUTE_IF("PKE_assert_multi_primary_unique_key_generated_insert_collation",
                   DBUG_ASSERT(key_list_to_hash.size() == 6);
@@ -289,7 +361,11 @@ static void debug_check_for_write_sets(std::vector<std::string> &key_list_to_has
                                                      HASH_STRING_SEPARATOR "24" HASH_STRING_SEPARATOR "1" &&
                               key_list_to_hash[1] == key_list_to_hash[0] &&
                               key_list_to_hash[3] == key_list_to_hash[2] &&
-                              key_list_to_hash[5] == key_list_to_hash[4]););
+                              key_list_to_hash[5] == key_list_to_hash[4]);
+                  DBUG_ASSERT(hash_list.size() == 6);
+                  DBUG_ASSERT(hash_list[0] == 13655149628280894901ULL && hash_list[1] == hash_list[0]);
+                  DBUG_ASSERT(hash_list[2] == 8954424140835647185ULL && hash_list[3] == hash_list[2]);
+                  DBUG_ASSERT(hash_list[4] == 3520344117573337805ULL && hash_list[5] == hash_list[4]););
 
   DBUG_EXECUTE_IF("PKE_assert_multi_primary_unique_key_generated_update",
                   DBUG_ASSERT(key_list_to_hash.size() == 6);
@@ -306,7 +382,20 @@ static void debug_check_for_write_sets(std::vector<std::string> &key_list_to_has
                                key_list_to_hash[3] == "b" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                        HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1" &&
                                key_list_to_hash[5] == "c" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
-                                                       HASH_STRING_SEPARATOR "24" HASH_STRING_SEPARATOR "1")););
+                                                       HASH_STRING_SEPARATOR "24" HASH_STRING_SEPARATOR "1"));
+                  DBUG_ASSERT(hash_list.size() == 6);
+                  DBUG_ASSERT((hash_list[0] == 1691122509389864327ULL &&
+                               hash_list[1] == 13655149628280894901ULL &&
+                               hash_list[2] == 12533984864941331840ULL &&
+                               hash_list[3] == 8954424140835647185ULL &&
+                               hash_list[4] == 14184162977259375422ULL &&
+                               hash_list[5] == 3520344117573337805ULL) ||
+                              (hash_list[0] == 3950570981230755523ULL &&
+                               hash_list[1] == 17122769277112661326ULL &&
+                               hash_list[2] == 12533984864941331840ULL &&
+                               hash_list[3] == 8954424140835647185ULL &&
+                               hash_list[4] == 14184162977259375422ULL &&
+                               hash_list[5] == 3520344117573337805ULL)););
 
   DBUG_EXECUTE_IF("PKE_assert_multi_primary_unique_key_generated_update_collation",
                   DBUG_ASSERT(key_list_to_hash.size() == 6);
@@ -329,6 +418,19 @@ static void debug_check_for_write_sets(std::vector<std::string> &key_list_to_has
                                                        HASH_STRING_SEPARATOR "24" HASH_STRING_SEPARATOR "1" &&
                                key_list_to_hash[1] == key_list_to_hash[0] &&
                                key_list_to_hash[3] == key_list_to_hash[2] &&
+                               key_list_to_hash[5] == key_list_to_hash[4]));
+                  DBUG_ASSERT(hash_list.size() == 6);
+                  DBUG_ASSERT((hash_list[1] == 13655149628280894901ULL &&
+                               hash_list[3] == 8954424140835647185ULL &&
+                               hash_list[5] == 3520344117573337805ULL &&
+                               key_list_to_hash[1] == key_list_to_hash[0] &&
+                               key_list_to_hash[3] == key_list_to_hash[2] &&
+                               key_list_to_hash[5] == key_list_to_hash[4]) ||
+                              (hash_list[1] == 17122769277112661326ULL &&
+                               hash_list[3] == 8954424140835647185ULL &&
+                               hash_list[5] == 3520344117573337805ULL &&
+                               key_list_to_hash[1] == key_list_to_hash[0] &&
+                               key_list_to_hash[3] == key_list_to_hash[2] &&
                                key_list_to_hash[5] == key_list_to_hash[4])););
 
   DBUG_EXECUTE_IF("PKE_assert_multi_foreign_key_generated_insert",
@@ -341,7 +443,16 @@ static void debug_check_for_write_sets(std::vector<std::string> &key_list_to_has
                               key_list_to_hash[5] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                       HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1" &&
                               key_list_to_hash[7] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t2"
-                                                      HASH_STRING_SEPARATOR "25" HASH_STRING_SEPARATOR "1"););
+                                                      HASH_STRING_SEPARATOR "25" HASH_STRING_SEPARATOR "1");
+                  DBUG_ASSERT(hash_list.size() == 8);
+                  DBUG_ASSERT(hash_list[0] == 4888980339825597978ULL);
+                  DBUG_ASSERT(hash_list[1] == 3283233640848908273ULL);
+                  DBUG_ASSERT(hash_list[2] == 274016005206261698ULL);
+                  DBUG_ASSERT(hash_list[3] == 17221725733811443497ULL);
+                  DBUG_ASSERT(hash_list[4] == 2897372530352804122ULL);
+                  DBUG_ASSERT(hash_list[5] == 340395741608101502ULL);
+                  DBUG_ASSERT(hash_list[6] == 3473606527244955984ULL);
+                  DBUG_ASSERT(hash_list[7] == 14682037479339770823ULL););
 
   DBUG_EXECUTE_IF("PKE_assert_multi_foreign_key_generated_insert_collation",
                   DBUG_ASSERT(key_list_to_hash.size() == 8);
@@ -357,7 +468,12 @@ static void debug_check_for_write_sets(std::vector<std::string> &key_list_to_has
                               key_list_to_hash[1] == key_list_to_hash[0] &&
                               key_list_to_hash[3] == key_list_to_hash[2] &&
                               key_list_to_hash[5] == key_list_to_hash[4] &&
-                              key_list_to_hash[7] == key_list_to_hash[6]););
+                              key_list_to_hash[7] == key_list_to_hash[6]);
+                  DBUG_ASSERT(hash_list.size() == 8);
+                  DBUG_ASSERT(hash_list[1] == 3283233640848908273ULL && hash_list[1] == hash_list[0]);
+                  DBUG_ASSERT(hash_list[3] == 17221725733811443497ULL && hash_list[3] == hash_list[2]);
+                  DBUG_ASSERT(hash_list[5] == 340395741608101502ULL && hash_list[5] == hash_list[4]);
+                  DBUG_ASSERT(hash_list[7] == 14682037479339770823ULL && hash_list[7] == hash_list[6]););
 
   DBUG_EXECUTE_IF("PKE_assert_multi_foreign_key_generated_update",
                   DBUG_ASSERT(key_list_to_hash.size() == 8);
@@ -378,7 +494,24 @@ static void debug_check_for_write_sets(std::vector<std::string> &key_list_to_has
                                key_list_to_hash[5] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t1"
                                                        HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1" &&
                                key_list_to_hash[7] == "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR "4t2"
-                                                       HASH_STRING_SEPARATOR "25" HASH_STRING_SEPARATOR "1")););
+                                                       HASH_STRING_SEPARATOR "25" HASH_STRING_SEPARATOR "1"));
+                  DBUG_ASSERT(hash_list.size() == 8);
+                  DBUG_ASSERT((hash_list[0] == 4888980339825597978ULL &&
+                               hash_list[1] == 3283233640848908273ULL &&
+                               hash_list[2] == 274016005206261698ULL &&
+                               hash_list[3] == 17221725733811443497ULL &&
+                               hash_list[4] == 2897372530352804122ULL &&
+                               hash_list[5] == 340395741608101502ULL &&
+                               hash_list[6] == 3473606527244955984ULL &&
+                               hash_list[7] == 14682037479339770823ULL) ||
+                              (hash_list[0] == 8035853452724126883ULL &&
+                               hash_list[1] == 12666755939597291234ULL &&
+                               hash_list[2] == 274016005206261698ULL &&
+                               hash_list[3] == 17221725733811443497ULL &&
+                               hash_list[4] == 8147168586610610204ULL &&
+                               hash_list[5] == 8563267070232261320ULL &&
+                               hash_list[6] == 3473606527244955984ULL &&
+                               hash_list[7] == 14682037479339770823ULL)););
 
   DBUG_EXECUTE_IF("PKE_assert_multi_foreign_key_generated_update_collation",
                   DBUG_ASSERT(key_list_to_hash.size() == 8);
@@ -407,7 +540,16 @@ static void debug_check_for_write_sets(std::vector<std::string> &key_list_to_has
                                key_list_to_hash[1] == key_list_to_hash[0] &&
                                key_list_to_hash[3] == key_list_to_hash[2] &&
                                key_list_to_hash[4] == key_list_to_hash[4] &&
-                               key_list_to_hash[7] == key_list_to_hash[6])););
+                               key_list_to_hash[7] == key_list_to_hash[6]));
+                  DBUG_ASSERT(hash_list.size() == 8);
+                  DBUG_ASSERT((hash_list[1] == 3283233640848908273ULL && hash_list[1] == hash_list[0] &&
+                               hash_list[3] == 17221725733811443497ULL && hash_list[3] == hash_list[2] &&
+                               hash_list[5] == 340395741608101502ULL && hash_list[5] == hash_list[4] &&
+                               hash_list[7] == 14682037479339770823ULL && hash_list[7] == hash_list[6]) ||
+                              (hash_list[1] == 12666755939597291234ULL && hash_list[1] == hash_list[0] &&
+                               hash_list[3] == 17221725733811443497ULL && hash_list[3] == hash_list[2] &&
+                               hash_list[5] == 8563267070232261320ULL && hash_list[5] == hash_list[4] &&
+                               hash_list[7] == 14682037479339770823ULL && hash_list[7] == hash_list[6])););
 }
 #endif
 
@@ -423,9 +565,16 @@ static void debug_check_for_write_sets(std::vector<std::string> &key_list_to_has
                                                   support conversion algorithm
 
   @param[in] thd - THD object pointing to current thread.
+  @param[in] write_sets - list of all write sets
+  @param[in] hash_list - list of all hashes
 */
 
-static void generate_hash_pke(const std::string &pke, uint collation_conversion_algorithm, THD* thd)
+static void generate_hash_pke(const std::string &pke, uint collation_conversion_algorithm, THD* thd
+#ifndef DBUG_OFF
+                              , std::vector<std::string> &write_sets
+                              , std::vector<uint64> &hash_list
+#endif
+)
 {
   DBUG_ENTER("generate_hash_pke");
   DBUG_ASSERT(thd->variables.transaction_write_set_extraction !=
@@ -437,6 +586,10 @@ static void generate_hash_pke(const std::string &pke, uint collation_conversion_
                                        pke.c_str(), length);
   thd->get_transaction()->get_transaction_write_set_ctx()->add_write_set(hash);
 
+#ifndef DBUG_OFF
+  write_sets.push_back(pke);
+  hash_list.push_back(hash);
+#endif
   DBUG_PRINT("info", ("pke: %s; hash: %llu", pke.c_str(), hash));
   DBUG_VOID_RETURN;
 }
@@ -516,6 +669,7 @@ void add_pke(TABLE *table, THD *thd)
 
 #ifndef DBUG_OFF
     std::vector<std::string> write_sets;
+    std::vector<uint64> hash_list;
 #endif
 
     for (uint key_number=0; key_number < table->s->keys; key_number++)
@@ -615,11 +769,12 @@ void add_pke(TABLE *table, THD *thd)
         */
         if (i == table->key_info[key_number].user_defined_key_parts)
         {
-          generate_hash_pke(pke, collation_conversion_algorithm, thd);
-          writeset_hashes_added++;
+          generate_hash_pke(pke, collation_conversion_algorithm, thd
 #ifndef DBUG_OFF
-          write_sets.push_back(pke);
+                            , write_sets, hash_list
 #endif
+          );
+          writeset_hashes_added++;
         }
         else
         {
@@ -717,11 +872,12 @@ void add_pke(TABLE *table, THD *thd)
                                          &value_length_buffer[VALUE_LENGTH_BUFFER_SIZE-1]);
               pke_prefix.append(value_length);
 
-              generate_hash_pke(pke_prefix, collation_conversion_algorithm, thd);
-              writeset_hashes_added++;
+              generate_hash_pke(pke_prefix, collation_conversion_algorithm, thd
 #ifndef DBUG_OFF
-              write_sets.push_back(pke_prefix);
+                                , write_sets, hash_list
 #endif
+              );
+              writeset_hashes_added++;
             }
           }
         }
@@ -734,7 +890,7 @@ void add_pke(TABLE *table, THD *thd)
     my_free(pk_value);
 
 #ifndef DBUG_OFF
-    debug_check_for_write_sets(write_sets);
+    debug_check_for_write_sets(write_sets, hash_list);
 #endif
   }
 

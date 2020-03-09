@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -45,6 +45,11 @@ ENDIF()
 # On windows the LDAP system header is Winldap.h and is in some Windows SDK.
 IF(NOT WIN32 AND NOT HAVE_LBER_H)
   CROAK_AND_RETURN("Required LBER header is missing.")
+ENDIF()
+
+IF(FREEBSD)
+  # To locate /usr/local/include/sasl/sasl.h
+  INCLUDE_DIRECTORIES(SYSTEM /usr/local/include)
 ENDIF()
 
 MYSQL_ADD_PLUGIN(authentication_ldap_sasl_client

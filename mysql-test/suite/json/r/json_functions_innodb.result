@@ -5525,10 +5525,10 @@ json_type(ifnull(cast(3 as json), NULL))
 INTEGER
 SELECT JSON_TYPE(IFNULL(JSON_EXTRACT(CONCAT(t1.j, 'abc'), '$'), t2.j))
 FROM t t1, t t2;
-ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "The document root must not follow by other values." at position 9.
+ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "The document root must not be followed by other values." at position 9.
 SELECT JSON_TYPE(IFNULL(t1.j, JSON_EXTRACT(CONCAT(t2.j, 'abc'), '$')))
 FROM t t1, t t2;
-ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "The document root must not follow by other values." at position 9.
+ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "The document root must not be followed by other values." at position 9.
 # ----------------------------------------------------------------------
 # Json values used in text contexts
 # ----------------------------------------------------------------------
@@ -9048,7 +9048,7 @@ SET NAMES latin1;
 CREATE TABLE t (j JSON);
 INSERT INTO t VALUES ('{}');
 UPDATE t SET j='1', j='1111-11-11', j=('1' NOT BETWEEN j AND '1');
-ERROR 22032: Invalid JSON text: "The document root must not follow by other values." at position 4 in value for column 't.j'.
+ERROR 22032: Invalid JSON text: "The document root must not be followed by other values." at position 4 in value for column 't.j'.
 SELECT * FROM t;
 j
 {}

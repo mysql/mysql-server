@@ -7,6 +7,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 CREATE TABLE t1 (a INT);
 include/sync_slave_sql_with_master.inc
 include/stop_slave_sql.inc
+CALL mtr.add_suppression(".*You need to use --log-bin to make --binlog-format work.*");
 CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
 CALL mtr.add_suppression(".*The use of replication filters with XA transactions is not supported, and can lead to an undefined state in the replication slave.*");
 CHANGE REPLICATION FILTER Replicate_Ignore_Table=(test.t1);

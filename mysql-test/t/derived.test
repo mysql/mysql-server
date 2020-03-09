@@ -2899,3 +2899,44 @@ eval $query1;
 SET optimizer_switch = default;
 
 DROP TABLE t1, t2, t3, t4;
+
+--echo # Bug#30488700: Mysql chooses different execution plan in 5.7
+
+CREATE TABLE tbl1 (
+  id BIGINT NOT NULL,
+  rec_id INTEGER NOT NULL,
+  id_value2 BIGINT DEFAULT NULL,
+  PRIMARY KEY (id, rec_id)
+) ENGINE=INNODB;
+
+CREATE TABLE tbl2 (
+  t_id BIGINT NOT NULL,
+  s_date DATETIME DEFAULT NULL,
+  PRIMARY KEY (t_id)
+) ENGINE=INNODB;
+
+let select_statement =
+SELECT t1.rec_id
+FROM tbl1 AS t1 INNER JOIN
+       (SELECT a.id, a.rec_id,s_date
+        FROM tbl2 AS b, tbl1 AS a
+        WHERE a.id_value2 = b.t_id AND a.id = 6889877970355107670
+        ORDER BY s_date DESC) t2
+     ON t1.id = t2.id AND t1.rec_id = t2.rec_id;
+
+let update_statement =
+UPDATE tbl1 AS t1 INNER JOIN
+       (SELECT a.id, a.rec_id, b.s_date
+        FROM tbl2 AS b, tbl1 AS a
+        WHERE a.id_value2 = b.t_id AND a.id = 6889877970355107670
+        ORDER BY s_date DESC) t2
+       ON t1.id = t2.id AND t1.rec_id = t2.rec_id
+SET t1.rec_id = @ROWNUM:= @ROWNUM+1;
+
+SET @ROWNUM = 0;
+eval $select_statement;
+eval $update_statement;
+eval explain $select_statement;
+eval explain $update_statement;
+
+DROP TABLE tbl1, tbl2;

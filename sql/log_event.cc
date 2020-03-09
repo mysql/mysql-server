@@ -4784,6 +4784,10 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         if (thd->m_digest != NULL)
           thd->m_digest->reset(thd->m_token_array, max_digest_length);
 
+        /*
+          Prevent "hanging" of previous rewritten query in SHOW PROCESSLIST.
+        */
+        thd->reset_rewritten_query();
         mysql_parse(thd, &parser_state);
 
         /*
@@ -4859,20 +4863,21 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
     if (!thd->is_error() ||
         thd->get_stmt_da()->mysql_errno() != ER_SLAVE_IGNORED_TABLE)
     {
-      /* log the rewritten query if the query was rewritten 
-         and the option to log raw was not set.
-        
-         There is an assumption here. We assume that query log
-         events can never have multi-statement queries, thus the
-         parsed statement is the same as the raw one.
-       */
-      if (opt_general_log_raw || thd->rewritten_query.length() == 0)
+      /*
+        Log the rewritten query if the query was rewritten
+        and the option to log raw was not set.
+
+        There is an assumption here. We assume that query log
+        events can never have multi-statement queries, thus the
+        parsed statement is the same as the raw one.
+      */
+      if (opt_general_log_raw || thd->rewritten_query().length() == 0)
         query_logger.general_log_write(thd, COM_QUERY, thd->query().str,
                                        thd->query().length);
       else
         query_logger.general_log_write(thd, COM_QUERY,
-                                       thd->rewritten_query.c_ptr_safe(),
-                                       thd->rewritten_query.length());
+                                       thd->rewritten_query().ptr(),
+                                       thd->rewritten_query().length());
     }
 
 compare_errors:
@@ -11198,11 +11203,6 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
     DBUG_PRINT_BITSET("debug", "Setting table's read_set from: %s", &m_cols);
 
-    bitmap_set_all(table->read_set);
-    if (get_general_type_code() == binary_log::DELETE_ROWS_EVENT ||
-        get_general_type_code() == binary_log::UPDATE_ROWS_EVENT)
-        bitmap_intersect(table->read_set,&m_cols);
-
     /*
       Call mark_generated_columns() to set read_set/write_set bits of the
       virtual generated columns as required in order to get these computed.
@@ -11220,15 +11220,31 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       into the binlog).
     */
 
-    if (m_table->vfield)
-      m_table->mark_generated_columns(get_general_type_code() == binary_log::UPDATE_ROWS_EVENT);
-
+    bitmap_set_all(table->read_set);
     bitmap_set_all(table->write_set);
 
-    /* WRITE ROWS EVENTS store the bitmap in m_cols instead of m_cols_ai */
-    MY_BITMAP *after_image= ((get_general_type_code() == binary_log::UPDATE_ROWS_EVENT) ?
-                             &m_cols_ai : &m_cols);
-    bitmap_intersect(table->write_set, after_image);
+    switch (get_general_type_code()) {
+      case binary_log::DELETE_ROWS_EVENT:
+        bitmap_intersect(table->read_set, &m_cols);
+        bitmap_intersect(table->write_set, &m_cols);
+        if (m_table->vfield)
+          m_table->mark_generated_columns(false);
+        break;
+      case binary_log::UPDATE_ROWS_EVENT:
+        bitmap_intersect(table->read_set, &m_cols);
+        bitmap_intersect(table->write_set, &m_cols_ai);
+        if (m_table->vfield)
+          m_table->mark_generated_columns(true);
+        break;
+      case binary_log::WRITE_ROWS_EVENT:
+        /* WRITE ROWS EVENTS store the bitmap in m_cols instead of m_cols_ai */
+        bitmap_intersect(table->write_set, &m_cols);
+        if (m_table->vfield)
+          m_table->mark_generated_columns(false);
+        break;
+      default:
+        DBUG_ASSERT(false);
+    }
 
     if (thd->slave_thread) // set the mode for slave
       this->rbr_exec_mode= slave_exec_mode_options;

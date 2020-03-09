@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 Copyright (c) 2012, Facebook Inc.
@@ -602,20 +602,22 @@ srv_mbr_debug(const byte* data)
 	ut_ad(a && b && c &&d);
 }
 #endif
-/*************************************************************//**
-Check whether valid argument given to innodb_ft_*_stopword_table.
+
+/**Check whether valid argument given to innobase_*_stopword_table.
 This function is registered as a callback with MySQL.
+@param[in]	thd		thread handle
+@param[in]	var		pointer to system variable
+@param[out]	save		immediate result for update function
+@param[in]	value		incoming string
 @return 0 for valid stopword table */
 static
 int
 innodb_stopword_table_validate(
 /*===========================*/
-	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to system
-						variable */
-	void*				save,	/*!< out: immediate result
-						for update function */
-	struct st_mysql_value*		value);	/*!< in: incoming string */
+	THD*				thd,
+	struct st_mysql_sys_var*	var,
+	void*				save,
+	struct st_mysql_value*		value);
 
 /** Validate passed-in "value" is a valid directory name.
 This function is registered as a callback with MySQL.
@@ -17736,20 +17738,20 @@ innodb_undo_logs_update(
 	*static_cast<ulong*>(var_ptr) = *static_cast<const ulong*>(save);
 }
 
-/*************************************************************//**
-Check whether valid argument given to innobase_*_stopword_table.
+/**Check whether valid argument given to innobase_*_stopword_table.
 This function is registered as a callback with MySQL.
+@param[in]	thd		thread handle
+@param[in]	var		pointer to system variable
+@param[out]	save		immediate result for update function
+@param[in]	value		incoming string
 @return 0 for valid stopword table */
 static
 int
 innodb_stopword_table_validate(
-/*===========================*/
-	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to system
-						variable */
-	void*				save,	/*!< out: immediate result
-						for update function */
-	struct st_mysql_value*		value)	/*!< in: incoming string */
+	THD*				thd,
+	struct st_mysql_sys_var*	var,
+	void*				save,
+	struct st_mysql_value*		value)
 {
 	const char*	stopword_table_name;
 	char		buff[STRING_BUFFER_USUAL_SIZE];
@@ -17761,6 +17763,15 @@ innodb_stopword_table_validate(
 	ut_a(value != NULL);
 
 	stopword_table_name = value->val_str(value, buff, &len);
+
+	if (stopword_table_name != NULL) {
+		if (stopword_table_name == buff) {
+			/* Allocate from thd's memroot */
+			stopword_table_name = thd_strmake(thd,
+							  stopword_table_name,
+							  len);
+		}
+	}
 
 	trx = check_trx_exists(thd);
 
@@ -17805,20 +17816,20 @@ innodb_buffer_pool_size_update(
 		<< " (new size: " << in_val << " bytes)";
 }
 
-/*************************************************************//**
-Check whether valid argument given to "innodb_fts_internal_tbl_name"
+/** Check whether valid argument given to "innodb_fts_internal_tbl_name"
 This function is registered as a callback with MySQL.
+@param[in]	thd		thread handle
+@param[in]	var		pointer to system variable
+@param[out]	save		immediate result for update function
+@param[in]	value		incoming string
 @return 0 for valid stopword table */
 static
 int
 innodb_internal_table_validate(
-/*===========================*/
-	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to system
-						variable */
-	void*				save,	/*!< out: immediate result
-						for update function */
-	struct st_mysql_value*		value)	/*!< in: incoming string */
+	THD*				thd,
+	struct st_mysql_sys_var*	var,
+	void*				save,
+	struct st_mysql_value*		value)
 {
 	const char*	table_name;
 	char		buff[STRING_BUFFER_USUAL_SIZE];
@@ -17834,6 +17845,9 @@ innodb_internal_table_validate(
 	if (!table_name) {
 		*static_cast<const char**>(save) = NULL;
 		return(0);
+	} else if (table_name == buff) {
+		/* Allocate memory from thd's mem_root */
+		table_name = thd_strmake(thd, table_name, len);
 	}
 
 	user_table = dict_table_open_on_name(
@@ -17855,50 +17869,6 @@ innodb_internal_table_validate(
 	}
 
 	return(ret);
-}
-
-/****************************************************************//**
-Update global variable "fts_internal_tbl_name" with the "saved"
-stopword table name value. This function is registered as a callback
-with MySQL. */
-static
-void
-innodb_internal_table_update(
-/*=========================*/
-	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to
-						system variable */
-	void*				var_ptr,/*!< out: where the
-						formal string goes */
-	const void*			save)	/*!< in: immediate result
-						from check function */
-{
-	const char*	table_name;
-	char*		old;
-
-	ut_a(save != NULL);
-	ut_a(var_ptr != NULL);
-
-	table_name = *static_cast<const char*const*>(save);
-	old = *(char**) var_ptr;
-
-	if (table_name) {
-		*(char**) var_ptr =  my_strdup(PSI_INSTRUMENT_ME,
-					       table_name,  MYF(0));
-	} else {
-		*(char**) var_ptr = NULL;
-	}
-
-	if (old) {
-		my_free(old);
-	}
-
-	fts_internal_tbl_name2 = *(char**) var_ptr;
-	if (fts_internal_tbl_name2 == NULL) {
-		fts_internal_tbl_name = const_cast<char*>("default");
-	} else {
-		fts_internal_tbl_name = fts_internal_tbl_name2;
-	}
 }
 
 /****************************************************************//**
@@ -18601,23 +18571,22 @@ exit:
 	return;
 }
 
-#ifdef _WIN32
-/*************************************************************//**
-Validate if passed-in "value" is a valid value for
+/** Validate if passed-in "value" is a valid value for
 innodb_buffer_pool_filename. On Windows, file names with colon (:)
-are not allowed.
-
+are not allowed. Don't allow NULL as filename
+@param[in]	thd		thread handle
+@param[in]	var		pointer to system variable
+@param[out]	save		immediate result for update function
+@param[in]	value		incoming string
 @return 0 for valid name */
 static
 int
 innodb_srv_buf_dump_filename_validate(
 /*==================================*/
-	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to system
-						variable */
-	void*				save,	/*!< out: immediate result
-						for update function */
-	struct st_mysql_value*		value)	/*!< in: incoming string */
+	THD*				thd,
+	struct st_mysql_sys_var*	var,
+	void*				save,
+	struct st_mysql_value*		value)
 {
 	char		buff[OS_FILE_MAX_PATH];
 	int		len = sizeof(buff);
@@ -18627,25 +18596,35 @@ innodb_srv_buf_dump_filename_validate(
 
 	const char*	buf_name = value->val_str(value, buff, &len);
 
-	if (buf_name != NULL) {
-		if (is_filename_allowed(buf_name, len, FALSE)){
-			*static_cast<const char**>(save) = buf_name;
-			return(0);
-		} else {
-			push_warning_printf(thd,
-				Sql_condition::SL_WARNING,
-				ER_WRONG_ARGUMENTS,
-				"InnoDB: innodb_buffer_pool_filename"
-				" cannot have colon (:) in the file name.");
-
-		}
+	if (buf_name == NULL)  {
+		return(1);
 	}
 
-	return(1);
-}
+	if (buf_name == buff) {
+		ut_ad(len <= OS_FILE_MAX_PATH);
+		/* Allocate from thd's memroot */
+		buf_name = thd_strmake(thd, buf_name, len);
+	}
+
+#ifdef _WIN32
+	if (is_filename_allowed(buf_name, len, FALSE)){
+		*static_cast<const char**>(save) = buf_name;
+		return(0);
+	} else {
+		push_warning_printf(thd,
+			Sql_condition::SL_WARNING,
+			ER_WRONG_ARGUMENTS,
+			"InnoDB: innodb_buffer_pool_filename"
+			" cannot have colon (:) in the file name.");
+		return(1);
+
+	}
 #else /* _WIN32 */
-# define innodb_srv_buf_dump_filename_validate NULL
+		*static_cast<const char**>(save) = buf_name;
+		return(0);
 #endif /* _WIN32 */
+}
+
 
 #ifdef UNIV_DEBUG
 static char* srv_buffer_pool_evict;
@@ -18678,6 +18657,14 @@ innodb_buffer_pool_evict_uncompressed(void)
 
 			if (!buf_LRU_free_page(&block->page, false)) {
 				all_evicted = false;
+			} else {
+				/* buf_LRU_free_page() might release
+				buf_pool_mutex temporarily.
+				have to restart the unzip_LRU scan for
+				consistency. */
+				block = UT_LIST_GET_LAST(
+					buf_pool->unzip_LRU);
+				continue;
 			}
 
 			block = prev_block;
@@ -19851,11 +19838,11 @@ static MYSQL_SYSVAR_BOOL(disable_sort_file_cache, srv_disable_sort_file_cache,
   "Whether to disable OS system file cache for sort I/O",
   NULL, NULL, FALSE);
 
-static MYSQL_SYSVAR_STR(ft_aux_table, fts_internal_tbl_name2,
-  PLUGIN_VAR_NOCMDARG,
+static MYSQL_SYSVAR_STR(ft_aux_table, fts_internal_tbl_name,
+  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_MEMALLOC ,
   "FTS internal auxiliary table to be checked",
   innodb_internal_table_validate,
-  innodb_internal_table_update, NULL);
+  NULL, NULL);
 
 static MYSQL_SYSVAR_ULONG(ft_cache_size, fts_max_cache_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
