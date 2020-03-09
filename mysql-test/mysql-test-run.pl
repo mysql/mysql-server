@@ -167,7 +167,7 @@ my $build_thread       = 0;
 my $daemonize_mysqld   = 0;
 my $debug_d            = "d";
 my $exe_ndbmtd_counter = 0;
-my $ports_per_thread   = 20;
+my $ports_per_thread   = 30;
 my $source_dist        = 0;
 my $valgrind_reports   = 0;
 
@@ -2204,31 +2204,27 @@ sub set_build_thread_ports($) {
   $baseport = $build_thread * 10 + 10000;
 
   if (lc($opt_mysqlx_baseport) eq "auto") {
-    if ($ports_per_thread > 10) {
-      # Reserving last 10 ports in the current port range for X plugin.
-      $mysqlx_baseport = $baseport + $ports_per_thread - 10;
-    } else {
-      # Reserving the last port in the range for X plugin
-      $mysqlx_baseport = $baseport + 9;
-    }
+    # Reserving last 10 ports in the current port range for X plugin.
+    $mysqlx_baseport = $baseport + $ports_per_thread - 10;
   } else {
     $mysqlx_baseport = $opt_mysqlx_baseport;
   }
 
   if ($secondary_engine_support) {
     # Reserve a port for secondary engine server
-    if ($group_replication and $ports_per_thread == 40) {
+    if ($group_replication and $ports_per_thread == 50) {
       # When both group replication and secondary engine are enabled,
-      # ports_per_thread value should be 40.
-      # - First set of 10 ports are reserved for mysqld servers
+      # ports_per_thread value should be 50.
+      # - First set of 20 ports are reserved for mysqld servers (10 each for
+      #   standard and admin connections)
       # - Second set of 10 ports are reserver for Group replication
       # - Third set of 10 ports are reserved for secondary engine server
-      # - Fourth and last set of 10 porst are reserved for X plugin
-      $::secondary_engine_port = $baseport + 20;
+      # - Fourth and last set of 10 ports are reserved for X plugin
+      $::secondary_engine_port = $baseport + 30;
     } else {
-      # ports_per_thread value should be 30, reserve second set of
+      # ports_per_thread value should be 40, reserve second set of
       # 10 ports for secondary engine server.
-      $::secondary_engine_port = $baseport + 10;
+      $::secondary_engine_port = $baseport + 20;
     }
   }
 
@@ -6476,7 +6472,7 @@ sub start_servers($) {
       # enough for allocating extra Group replication ports.
       $ENV{$xcom_server} = -1;
     } else {
-      my $xcom_port = $baseport + 9 + $server_id;
+      my $xcom_port = $baseport + 19 + $server_id;
       $ENV{$xcom_server} = $xcom_port;
     }
 

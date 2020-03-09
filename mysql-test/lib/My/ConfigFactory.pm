@@ -105,6 +105,12 @@ sub fix_port {
   return $self->{HOSTS}->{$hostname}++;
 }
 
+sub fix_admin_port {
+  my ($self, $config, $group_name, $group) = @_;
+  my $hostname = $group->value('#host');
+  return $self->{HOSTS}->{$hostname}++;
+}
+
 sub fix_x_port {
   my ($self, $config, $group_name, $group) = @_;
   return $self->{ARGS}->{mysqlxbaseport}++;
@@ -268,6 +274,7 @@ my @mysqld_rules = (
   { 'character-sets-dir'                           => \&fix_charset_dir },
   { 'datadir'                                      => \&fix_datadir },
   { 'port'                                         => \&fix_port },
+  { 'admin-port'                                   => \&fix_admin_port },
   { 'general_log'                                  => 1 },
   { 'general_log_file'                             => \&fix_log },
   { 'loose-mysqlx-port'                            => \&fix_x_port },
