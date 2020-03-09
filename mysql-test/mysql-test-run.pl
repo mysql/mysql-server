@@ -133,6 +133,7 @@ my $opt_max_save_datadir   = env_or_val(MTR_MAX_SAVE_DATADIR => 20);
 my $opt_max_test_fail      = env_or_val(MTR_MAX_TEST_FAIL => 10);
 my $opt_mysqlx_baseport    = $ENV{'MYSQLXPLUGIN_PORT'} || "auto";
 my $opt_port_base          = $ENV{'MTR_PORT_BASE'} || "auto";
+my $opt_port_exclude       = $ENV{'MTR_PORT_EXCLUDE'} || "none";
 my $opt_reorder            = 1;
 my $opt_retry              = 3;
 my $opt_retry_failure      = env_or_val(MTR_RETRY_FAILURE => 2);
@@ -1456,6 +1457,7 @@ sub command_line_setup {
     'build-thread|mtr-build-thread=i' => \$opt_build_thread,
     'mysqlx-port=i'                   => \$opt_mysqlx_baseport,
     'port-base|mtr-port-base=i'       => \$opt_port_base,
+    'port-exclude|mtr-port-exclude=s' => \$opt_port_exclude,
 
     # Test case authoring
     'check-testcases!' => \$opt_check_testcases,
@@ -2130,13 +2132,36 @@ sub set_build_thread_ports($) {
   my $build_threads_per_thread = int($ports_per_thread / 10);
 
   if (lc($opt_build_thread) eq 'auto') {
+    my $lower_bound = 0;
+    my $upper_bound = 0;
+    if ($opt_port_exclude ne 'none') {
+      mtr_report("Port exclusion is $opt_port_exclude");
+      ($lower_bound, $upper_bound) = split(/-/, $opt_port_exclude, 2);
+      if (not (defined $lower_bound and defined $upper_bound)) {
+        mtr_error("Port exclusion range must consist of two integers ",
+                  "separated by '-'");
+      }
+      if ($lower_bound !~ /^\d+$/ || $upper_bound !~ /^\d+$/) {
+        mtr_error("Port exclusion range $opt_port_exclude is not valid.",
+                  "Range must be specified as integers");
+      }
+      $lower_bound = int($lower_bound / 10 - 1000);
+      $upper_bound = int($upper_bound / 10 - 1000);
+      mtr_report("$lower_bound to $upper_bound");
+      if ($lower_bound > $upper_bound) {
+        mtr_error("Port exclusion range $opt_port_exclude is not valid.",
+                  "Lower bound is larger than upper bound")
+      }
+      mtr_report("Excluding unique ids $lower_bound to $upper_bound");
+    }
+
     # Start searching for build thread ids from here
     $build_thread = 300;
     my $max_parallel = $opt_parallel * $build_threads_per_thread;
 
     # Calucalte the upper limit value for build thread id
     my $build_thread_upper =
-      $max_parallel > 39 ? $max_parallel + int($max_parallel / 2) : 49;
+      $max_parallel > 79 ? $max_parallel + int($max_parallel / 2) : 99;
 
     # Check the number of available processors and accordingly set
     # the upper limit value for the build thread id.
@@ -2148,7 +2173,8 @@ sub set_build_thread_ports($) {
     my $found_free = 0;
     while (!$found_free) {
       $build_thread = mtr_get_unique_id($build_thread, $build_thread_upper,
-                                        $build_threads_per_thread);
+                                        $build_threads_per_thread,
+                                        $lower_bound, $upper_bound);
 
       if (!defined $build_thread) {
         mtr_error("Could not get a unique build thread id");
@@ -7386,6 +7412,8 @@ Options that specify ports
                         a build thread id that is unique to current host.
   mtr-build-thread=#    Specify unique number to calculate port number(s) from.
   mtr-port-base=#       Base for port numbers.
+  mtr-port-exclude=#-#  Specify the range of ports to exclude when searching
+                        for available port ranges to use.
   mysqlx-port           Specify the port number to be used for mysqlxplugin.
                         Can be set in environment variable MYSQLXPLUGIN_PORT.
                         If not specified will create its own ports. This option
@@ -7394,6 +7422,8 @@ Options that specify ports
                         it will be rounded down. Value can be set with
                         environment variable MTR_PORT_BASE. If this value is set
                         and is not "auto", it overrides build-thread.
+  port-exclude=#-#      Specify the range of ports to exclude when searching
+                        for available port ranges to use.
 
 Options for test case authoring
 
