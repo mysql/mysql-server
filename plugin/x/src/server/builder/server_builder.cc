@@ -38,45 +38,7 @@
 #include "plugin/x/src/variables/system_variables.h"
 #include "plugin/x/src/xpl_log.h"
 
-extern bool check_address_is_wildcard(const char *address_value,
-                                      size_t address_length);
-
 namespace xpl {
-
-namespace details {
-
-bool parse_bind_address_value(const char *begin_address_value,
-                              std::string *address_value,
-                              std::string *network_namespace) {
-  const char *namespace_separator = strchr(begin_address_value, '/');
-
-  if (namespace_separator != nullptr) {
-    if (begin_address_value == namespace_separator)
-      /*
-        Parse error: there is no character before '/',
-        that is missed address value
-      */
-      return true;
-
-    if (*(namespace_separator + 1) == 0)
-      /*
-        Parse error: there is no character immediately after '/',
-        that is missed namespace name.
-      */
-      return true;
-
-    /*
-      Found namespace delimiter. Extract namespace and address values
-    */
-    *address_value = std::string(begin_address_value, namespace_separator);
-    *network_namespace = std::string(namespace_separator + 1);
-  } else {
-    *address_value = begin_address_value;
-  }
-  return false;
-}
-
-}  // namespace details
 
 using Monitor_interface_ptr =
     std::unique_ptr<ngs::Scheduler_dynamic::Monitor_interface>;
@@ -95,27 +57,9 @@ std::shared_ptr<iface::Server_task> Server_builder::get_result_acceptor_task()
       50 + xpl::Plugin_system_variables::m_max_connections / 5;
   if (listen_backlog > 900) listen_backlog = 900;
 
-  std::string address_value, network_namespace;
-  if (details::parse_bind_address_value(
-          xpl::Plugin_system_variables::m_bind_address, &address_value,
-          &network_namespace)) {
-    log_error(ER_XPLUGIN_STARTUP_FAILED,
-              "Invalid value for command line option mysqlx-bind-address");
-
-    return {};
-  }
-
-  if (!network_namespace.empty() &&
-      check_address_is_wildcard(address_value.c_str(),
-                                address_value.length())) {
-    log_error(ER_NETWORK_NAMESPACE_NOT_ALLOWED_FOR_WILDCARD_ADDRESS);
-    log_error(ER_XPLUGIN_STARTUP_FAILED,
-              "Invalid value for command line option mysqlx-bind-address");
-    return {};
-  }
-
   auto acceptors = ngs::allocate_shared<ngs::Socket_acceptors_task>(
-      std::ref(m_listener_factory), address_value, network_namespace,
+      std::ref(m_listener_factory),
+      xpl::Plugin_system_variables::m_bind_address,
       xpl::Plugin_system_variables::m_port,
       xpl::Plugin_system_variables::m_port_open_timeout,
       xpl::Plugin_system_variables::m_socket, listen_backlog, m_events);

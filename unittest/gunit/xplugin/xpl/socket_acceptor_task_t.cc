@@ -79,9 +79,8 @@ TEST_F(Socket_acceptors_task_suite, prepare_without_any_interface) {
                   Ref(*(iface::Socket_events *)m_mock_event.get()), k_backlog));
 #endif
 
-  ngs::Socket_acceptors_task sut(m_mock_factory, k_host, "", k_port,
-                                 k_open_timeout, k_unix_file, k_backlog,
-                                 m_mock_event);
+  ngs::Socket_acceptors_task sut(m_mock_factory, k_host, k_port, k_open_timeout,
+                                 k_unix_file, k_backlog, m_mock_event);
 
   iface::Server_task::Task_context context;
   ASSERT_FALSE(sut.prepare(&context));

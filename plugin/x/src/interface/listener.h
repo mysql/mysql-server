@@ -52,11 +52,11 @@ class Listener {
 
   virtual ~Listener() = default;
 
-  virtual Sync_variable_state &get_state() = 0;
-  virtual std::string get_last_error() const = 0;
-  virtual std::string get_name_and_configuration() const = 0;
-  virtual std::vector<std::string> get_configuration_variables() const = 0;
+  virtual void set_state(const State state) = 0;
+  virtual const Sync_variable_state &get_state() const = 0;
   virtual void report_properties(On_report_properties on_status) = 0;
+  virtual bool report_status() const = 0;
+  virtual std::string get_configuration_variable() const = 0;
 
   virtual bool setup_listener(On_connection) = 0;
   virtual void close_listener() = 0;

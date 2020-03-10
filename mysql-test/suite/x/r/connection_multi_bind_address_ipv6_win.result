@@ -1,0 +1,90 @@
+
+
+## Table of testing
+#
+# 1. localhost bindings
+# 2. "not existing hosts" bindings
+# 3. skipped "*" binding
+# 4. skipped "::" binding
+# 5. skipped "empty address" binding
+# 6. skipped "empty network namespace" binding
+# 7. skipped "wildcard with namespace" binding
+# 8. skipped "wrong network namespace" binding
+# 9. skipped "distanthost" binding
+# 10. default bindings
+#
+
+#
+# 1. localhost bindings
+# restart: --mysqlx_bind_address=localhost,::1
+include/assert.inc [There status variable must point to 127.0.0.1,::1]
+include/assert.inc [There variable must point to localhost,::1]
+
+#
+# 2. "not existing hosts" bindings
+call mtr.add_suppression("Plugin mysqlx reported: 'Value 'otherhost' set to `Mysqlx_bind_address`, X Plugin can't bind to it. Skipping this value.'");
+call mtr.add_suppression("Plugin mysqlx reported: 'Setup of bind-address: 'otherhost' port: [0-9]* failed, can't resolve `hostname`'");
+call mtr.add_suppression("Plugin mysqlx reported: 'Value 'anotherhost' set to `Mysqlx_bind_address`, X Plugin can't bind to it. Skipping this value.'");
+call mtr.add_suppression("Plugin mysqlx reported: 'Setup of bind-address: 'anotherhost' port: [0-9]* failed, can't resolve `hostname`'");
+call mtr.add_suppression("Plugin mysqlx reported: 'Preparation of I/O interfaces failed, X Protocol won't be accessible'");
+# restart: --mysqlx_bind_address=otherhost,anotherhost
+include/assert.inc [There status variable must point to UNDEFINED]
+include/assert.inc [There variable must point to otherhost,anotherhost]
+
+#
+# 3. skipped "*" binding
+call mtr.add_suppression("Plugin mysqlx reported: 'Validation of value '\\*' set to `Mysqlx_bind_address` failed: wildcards are not allowed when there are more than one address. Skipping this value.'");
+# restart: --mysqlx_bind_address=*,::1
+include/assert.inc [There status variable must point to ::1]
+include/assert.inc [There variable must point to *,::1]
+
+#
+# 4. skipped "::" binding
+call mtr.add_suppression("Plugin mysqlx reported: 'Validation of value '::' set to `Mysqlx_bind_address` failed: wildcards are not allowed when there are more than one address. Skipping this value.'");
+# restart: --mysqlx_bind_address=::,::1
+include/assert.inc [There status variable must point to ::1]
+include/assert.inc [There variable must point to ::,::1]
+
+#
+# 5. skipped "empty address" binding
+call mtr.add_suppression("Plugin mysqlx reported: 'Validation of value '' set to `Mysqlx_bind_address` failed: wildcards are not allowed when there are more than one address. Skipping this value.'");
+# restart: --mysqlx_bind_address=,::1
+include/assert.inc [There status variable must point to ::1]
+include/assert.inc [There variable must point to ,::1]
+
+#
+# 6. skipped "empty network namespace" binding
+call mtr.add_suppression("Plugin mysqlx reported: 'Validation of value '::1/' set to `Mysqlx_bind_address` failed: can't be parsed as an address. Skipping this value.'");
+# restart: --mysqlx_bind_address=::1/,::1
+include/assert.inc [There status variable must point to ::1]
+include/assert.inc [There variable must point to ::1/,::1]
+
+#
+# 7. skipped "wildcard with namespace" binding
+call mtr.add_suppression("Plugin mysqlx reported: 'Validation of value '::/wrong' set to `Mysqlx_bind_address` failed: network namespace are not allowed for wildcards. Skipping this value.'");
+# restart: --mysqlx_bind_address=::/wrong,::1
+include/assert.inc [There status variable must point to ::1]
+include/assert.inc [There variable must point to ::/wrong,::1]
+
+#
+# 8. skipped "wrong network namespace" binding
+call mtr.add_suppression("Plugin mysqlx reported: 'Value '::1/wrong' set to `Mysqlx_bind_address`, X Plugin can't bind to it. Skipping this value.'");
+call mtr.add_suppression("Plugin mysqlx reported: 'Setup of bind-address: '::1/wrong' port: [0-9]* failed, '");
+call mtr.add_suppression("Plugin mysqlx reported: 'Network Namespaces is not supported on this platform'");
+# restart: --mysqlx_bind_address=::1/wrong,::1
+include/assert.inc [There status variable must point to ::1]
+include/assert.inc [There variable must point to ::1/wrong,::1]
+
+#
+# 9. skipped "distanthost" binding
+call mtr.add_suppression("Plugin mysqlx reported: 'Value 'distanthost' set to `Mysqlx_bind_address`, X Plugin can't bind to it. Skipping this value.'");
+call mtr.add_suppression("Plugin mysqlx reported: 'Setup of bind-address: 'distanthost' port: [0-9]* failed, can't resolve `hostname`'");
+# restart: --mysqlx_bind_address=distanthost,::1
+include/assert.inc [There status variable must point to ::1]
+include/assert.inc [There variable must point to distanthost,::1]
+
+#
+# 10. default bindings
+# restart:
+include/assert.inc [There status variable must point to ::]
+include/assert.inc [There variable must point to *]

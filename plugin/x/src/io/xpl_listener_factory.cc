@@ -42,11 +42,11 @@ std::unique_ptr<iface::Listener> Listener_factory::create_unix_socket_listener(
 }
 
 std::unique_ptr<iface::Listener> Listener_factory::create_tcp_socket_listener(
-    std::string *bind_address, const std::string &network_namespace,
-    const unsigned short port, const uint32_t port_open_timeout,
+    const std::string &bind_address, const std::string &network_namespace,
+    const uint16_t port, const uint32_t port_open_timeout,
     iface::Socket_events *event, const uint32_t backlog) const {
   return std::make_unique<Listener_tcp>(
-      m_operations_factory, std::ref(*bind_address), network_namespace, port,
+      m_operations_factory, bind_address, network_namespace, port,
       port_open_timeout, std::ref(*event), backlog);
 }
 
