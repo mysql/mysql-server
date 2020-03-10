@@ -4177,7 +4177,7 @@ int RefOrNullIterator::Read() {
         HA_READ_KEY_EXACT);
   } else {
     error = table()->file->ha_index_next_same(
-        table()->record[0], key_buff_and_map.first, key_buff_and_map.second);
+        table()->record[0], key_buff_and_map.first, m_ref->key_length);
   }
 
   if (error == 0) {
