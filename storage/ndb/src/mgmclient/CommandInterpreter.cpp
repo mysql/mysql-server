@@ -31,6 +31,7 @@
 #include <util/Vector.hpp>
 #include <kernel/BlockNumbers.h>
 #include <kernel/signaldata/DumpStateOrd.hpp>
+#include <NdbTCP.h>
 
 /**
  *  @class CommandInterpreter
@@ -1013,7 +1014,7 @@ CommandInterpreter::connect(bool interactive)
   unsigned port= ndb_mgm_get_connected_port(m_mgmsrv);
   if (interactive) {
     BaseString constr;
-    constr.assfmt("%s:%d",host,port);
+    constr.assfmt("%s %d",host,port);
     if(!ndb_mgm_set_connectstring(m_mgmsrv2, constr.c_str()) &&
        !ndb_mgm_connect(m_mgmsrv2, m_try_reconnect-1, m_connect_retry_delay, 1))
     {
@@ -1071,11 +1072,16 @@ CommandInterpreter::connect(bool interactive)
     }
   }
   m_connected= true;
-  DBUG_PRINT("info",("Connected to Management Server at: %s:%d", host, port));
+
+  char buf[512];
+  const char *sockaddr_string = Ndb_combine_address_port(buf, sizeof(buf),
+                                                   host, port);
+
+    DBUG_PRINT("info",("Connected to Management Server at: %s", sockaddr_string));
+
   if (m_verbose)
   {
-    printf("Connected to Management Server at: %s:%d\n",
-           host, port);
+      printf("Connected to Management Server at: %s\n", sockaddr_string);
   }
 
   DBUG_RETURN(m_connected);
@@ -1777,7 +1783,7 @@ const char *status_string(ndb_mgm_node_status status)
 }
 
 static void
-print_nodes(ndb_mgm_cluster_state *state, ndb_mgm_configuration_iterator *it,
+print_nodes(ndb_mgm_cluster_state2 *state, ndb_mgm_configuration_iterator *it,
 	    const char *proc_name, int no_proc, ndb_mgm_node_type type,
 	    int master_id)
 { 
@@ -1785,8 +1791,8 @@ print_nodes(ndb_mgm_cluster_state *state, ndb_mgm_configuration_iterator *it,
   ndbout << "[" << proc_name
 	 << "(" << ndb_mgm_get_node_type_string(type) << ")]\t"
 	 << no_proc << " node(s)" << endl;
-  for(i=0; i < state->no_of_nodes; i++) {
-    struct ndb_mgm_node_state *node_state= &(state->node_states[i]);
+  for(i=0; i < ndb_mgm_get_status_node_count(state); i++) {
+    struct ndb_mgm_node_state2 *node_state = ndb_mgm_get_node_status(state, i);
     if(node_state->node_type == type) {
       int node_id= node_state->node_id;
       ndbout << "id=" << node_id;
@@ -1794,10 +1800,19 @@ print_nodes(ndb_mgm_cluster_state *state, ndb_mgm_configuration_iterator *it,
 	const char *hostname= node_state->connect_address;
 	if (hostname == 0
 	    || strlen(hostname) == 0
-	    || native_strcasecmp(hostname,"0.0.0.0") == 0)
+	    || native_strcasecmp(hostname,"0.0.0.0") == 0
+	    || native_strcasecmp(hostname,"::") == 0)
 	  ndbout << " ";
 	else
+	{
+	  // Display IPv4 address in w.x.y.z format
+	  const char* mapped_prefix = "::ffff:";
+	  if (strncmp(mapped_prefix, hostname, strlen(mapped_prefix)) == 0)
+	  {
+	    hostname += strlen(mapped_prefix);
+	  }
 	  ndbout << "\t@" << hostname;
+	}
 
 	char tmp[100];
 	ndbout << "  (" << ndbGetVersionString(node_state->version,
@@ -1899,7 +1914,7 @@ CommandInterpreter::executeShow(char* parameters)
 { 
   int i;
   if (emptyString(parameters)) {
-    ndb_mgm_cluster_state *state = ndb_mgm_get_status(m_mgmsrv);
+    ndb_mgm_cluster_state2 *state = ndb_mgm_get_status3(m_mgmsrv, nullptr);
     if(state == NULL) {
       ndbout_c("Could not get status");
       printError();
@@ -1930,23 +1945,25 @@ CommandInterpreter::executeShow(char* parameters)
       api_nodes= 0,
       mgm_nodes= 0;
 
-    for(i=0; i < state->no_of_nodes; i++) {
-      if(state->node_states[i].node_type == NDB_MGM_NODE_TYPE_NDB &&
-	 state->node_states[i].version != 0){
-	master_id= state->node_states[i].dynamic_id;
+    for(i=0; i < ndb_mgm_get_status_node_count(state); i++) {
+      ndb_mgm_node_state2 * ns = ndb_mgm_get_node_status(state, i);
+      if(ns->node_type == NDB_MGM_NODE_TYPE_NDB &&
+	 ns->version != 0){
+	master_id= ns->dynamic_id;
 	break;
       }
     }
     
-    for(i=0; i < state->no_of_nodes; i++) {
-      switch(state->node_states[i].node_type) {
+    for(i=0; i < ndb_mgm_get_status_node_count(state); i++) {
+      ndb_mgm_node_state2 * ns = ndb_mgm_get_node_status(state, i);
+      switch(ns->node_type) {
       case NDB_MGM_NODE_TYPE_API:
 	api_nodes++;
 	break;
       case NDB_MGM_NODE_TYPE_NDB:
-	if (state->node_states[i].dynamic_id &&
-	    state->node_states[i].dynamic_id < master_id)
-	  master_id= state->node_states[i].dynamic_id;
+	if (ns->dynamic_id &&
+	    ns->dynamic_id < master_id)
+	  master_id= ns->dynamic_id;
 	ndb_nodes++;
 	break;
       case NDB_MGM_NODE_TYPE_MGM:

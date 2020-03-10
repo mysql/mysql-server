@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -319,15 +319,36 @@ ndb_mgm_set_bindaddress(NdbMgmHandle handle, const char * arg)
 
   if (arg)
   {
-    handle->m_bindaddress = strdup(arg);
-    char *port = strchr(handle->m_bindaddress, ':');
-    if (port != 0)
+    char hostbuf[NI_MAXHOST];
+    char servbuf[NI_MAXSERV];
+    if (Ndb_split_string_address_port(arg, hostbuf, sizeof(hostbuf),
+                             servbuf, sizeof(servbuf)) == 0)
     {
-      handle->m_bindaddress_port = atoi(port+1);
-      *port = 0;
+      char *endp = nullptr;
+      errno = 0;
+      long val = strtol(servbuf, &endp, 10);
+
+      if ((errno == ERANGE && (val == LONG_MAX || val == LONG_MIN))
+          || (errno != 0)
+          || (*endp != '\0')
+          || (val > UINT16_MAX)
+          || (val < 0))
+      {
+        // invalid address
+        SET_ERROR(handle, NDB_MGM_ILLEGAL_BIND_ADDRESS,
+                  "Illegal bind address");
+        DBUG_RETURN(-1);
+      }
+
+      handle->m_bindaddress = strdup(hostbuf);
+      handle->m_bindaddress_port = val;
     }
     else
-      handle->m_bindaddress_port = 0;
+    {
+      // invalid address
+      SET_ERROR(handle, NDB_MGM_ILLEGAL_BIND_ADDRESS, "Illegal bind address");
+      DBUG_RETURN(-1);
+    }
   }
   else
   {
@@ -810,16 +831,23 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
             // retry with next mgmt server
             continue;
           }
-          fprintf(handle->errstream, 
-                  "Unable to bind local address '%s:%d' errno: %d, "
+
+          char buf[512];
+          char* sockaddr_string = Ndb_combine_address_port(buf,
+                                                           sizeof(buf),
+                                                           bind_address,
+                                                           bind_address_port);
+
+          fprintf(handle->errstream,
+                  "Unable to bind local address '%s' errno: %d, "
                   "while trying to connect with connect string: '%s'\n",
-                  bind_address, (int)bind_address_port, err,
+                  sockaddr_string, err,
                   cfg.makeConnectString(buf,sizeof(buf)));
-      
+
           setError(handle, NDB_MGM_BIND_ADDRESS, __LINE__,
-                   "Unable to bind local address '%s:%d' errno: %d, "
+                   "Unable to bind local address '%s' errno: %d, "
                    "while trying to connect with connect string: '%s'\n",
-                   bind_address, (int)bind_address_port, err,
+                   sockaddr_string, err,
                    cfg.makeConnectString(buf,sizeof(buf)));
           DBUG_RETURN(-1);
         }
@@ -1066,15 +1094,47 @@ status_ackumulate(struct ndb_mgm_node_state * state,
     state->node_group = atoi(value);
   } else if(strcmp("version", field) == 0){
     state->version = atoi(value);
-  } else if(strcmp("mysql_version", field) == 0){
-    state->mysql_version = atoi(value);
   } else if(strcmp("connect_count", field) == 0){
     state->connect_count = atoi(value);    
   } else if(strcmp("address", field) == 0){
     strncpy(state->connect_address, value, sizeof(state->connect_address));
     state->connect_address[sizeof(state->connect_address)-1]= 0;
+  } else if(strcmp("mysql_version", field) == 0){
+    state->mysql_version = atoi(value);
+  } else if(strcmp("is_single_user", field) == 0){
+    // Do nothing
+  } else {
+    ndbout_c("Unknown field: %s", field);
+  }
+  return 0;
+}
+
+static int
+status_ackumulate2(struct ndb_mgm_node_state2 * state,
+      const char * field,
+      const char * value)
+{
+  if(strcmp("type", field) == 0){
+    state->node_type = ndb_mgm_match_node_type(value);
+  } else if(strcmp("status", field) == 0){
+    state->node_status = ndb_mgm_match_node_status(value);
+  } else if(strcmp("startphase", field) == 0){
+    state->start_phase = atoi(value);
+  } else if(strcmp("dynamic_id", field) == 0){
+    state->dynamic_id = atoi(value);
+  } else if(strcmp("node_group", field) == 0){
+    state->node_group = atoi(value);
+  } else if(strcmp("version", field) == 0){
+    state->version = atoi(value);
+  } else if(strcmp("connect_count", field) == 0){
+    state->connect_count = atoi(value);
+  } else if(strcmp("mysql_version", field) == 0){
+    state->mysql_version = atoi(value);
   } else if(strcmp("is_single_user", field) == 0){
     state->is_single_user = atoi(value);
+  } else if(strcmp("address", field) == 0){
+    strncpy(state->connect_address, value, sizeof(state->connect_address));
+    state->connect_address[sizeof(state->connect_address)-1]= 0;
   } else {
     ndbout_c("Unknown field: %s", field);
   }
@@ -1224,7 +1284,6 @@ ndb_mgm_get_status2(NdbMgmHandle handle, const enum ndb_mgm_node_type types[])
   int i;
   for (i= 0; i < noOfNodes; i++) {
     state->node_states[i].connect_address[0]= 0;
-    state->node_states[i].is_single_user = 0;
   }
   i = -1; ptr--;
   for(; i<noOfNodes; ){
@@ -1274,6 +1333,227 @@ ndb_mgm_get_status2(NdbMgmHandle handle, const enum ndb_mgm_node_type types[])
 
   qsort(state->node_states, state->no_of_nodes, sizeof(state->node_states[0]),
 	cmp_state);
+  DBUG_RETURN(state);
+}
+
+struct ndb_mgm_cluster_state2 {
+  // Number of entries in the node_states array
+  int no_of_nodes;
+  // node states
+  struct ndb_mgm_node_state2 node_states[
+          1
+  ];
+};
+
+struct ndb_mgm_node_state2 *
+ndb_mgm_get_node_status(ndb_mgm_cluster_state2 *cs, int i) {
+  if (i < 0 || i >= cs->no_of_nodes) return nullptr;
+
+  return (struct ndb_mgm_node_state2*)
+    &cs->node_states[i];
+}
+
+extern "C"
+int
+ndb_mgm_get_status_node_count(ndb_mgm_cluster_state2 *cs)
+{
+  return cs->no_of_nodes;
+}
+
+void
+ndb_mgm_node_state2::init()
+{
+  node_id = 0;
+  node_type = NDB_MGM_NODE_TYPE_UNKNOWN;
+  node_status = NDB_MGM_NODE_STATUS_UNKNOWN;
+  start_phase = 0;
+  dynamic_id = 0;
+  node_group = 0;
+  version = 0;
+  connect_count = 0;
+  mysql_version = 0;
+  is_single_user = 0;
+  memset(connect_address, 0, sizeof(connect_address));
+}
+
+extern "C"
+struct ndb_mgm_cluster_state2 *
+ndb_mgm_get_status3(NdbMgmHandle handle, const enum ndb_mgm_node_type types[])
+{
+  DBUG_ENTER("ndb_mgm_get_status3");
+  CHECK_HANDLE(handle, NULL);
+  SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_get_status3");
+  CHECK_CONNECTED(handle, NULL);
+
+  if (!get_mgmd_version(handle))
+    DBUG_RETURN(NULL);
+
+  char typestring[1024];
+  typestring[0] = 0;
+  if (types != 0)
+  {
+    int pos = 0;
+    for (Uint32 i = 0; types[i] != NDB_MGM_NODE_TYPE_UNKNOWN; i++)
+    {
+      if (int(types[i]) < NDB_MGM_NODE_TYPE_MIN ||
+          int(types[i]) > NDB_MGM_NODE_TYPE_MAX)
+      {
+        SET_ERROR(handle, EINVAL,
+                  "Incorrect node type for ndb_mgm_get_status3");
+        DBUG_RETURN(0);
+      }
+      /**
+       * Check for duplicates
+       */
+      for (Int32 j = i - 1; j >= 0; j--)
+      {
+        if (types[i] == types[j])
+        {
+          SET_ERROR(handle, EINVAL,
+                    "Duplicate types for ndb_mgm_get_status3");
+          DBUG_RETURN(0);
+        }
+      }
+
+      int left = sizeof(typestring) - pos;
+      int len = BaseString::snprintf(typestring+pos, left, "%s ",
+                                     ndb_mgm_get_node_type_string(types[i]));
+
+      if (len >= left)
+      {
+        SET_ERROR(handle, EINVAL,
+                  "Out of memory for type-string for ndb_mgm_get_status3");
+        DBUG_RETURN(0);
+      }
+      pos += len;
+    }
+  }
+
+  SocketOutputStream out(handle->socket, handle->timeout);
+  SocketInputStream in(handle->socket, handle->timeout);
+
+  const char *get_status_str = "get status";
+  out.println("%s", get_status_str);
+  if (types)
+  {
+    out.println("types: %s", typestring);
+  }
+  out.println("%s", "");
+
+  CHECK_TIMEDOUT_RET(handle, in, out, NULL, get_status_str);
+  /**
+   * Expected reply format:
+   * "node status\n"
+   * "nodes: <no_of_nodes>\n"
+   *
+   * Then, a series of:
+   * "node.<node_id>.<field_name>: <value>\n"
+   * E.g node.1.type: NDB
+   * ...
+   */
+  char buf[1024];
+  if(!in.gets(buf, sizeof(buf)))
+  {
+    CHECK_TIMEDOUT_RET(handle, in, out, NULL, get_status_str);
+    SET_ERROR(handle, NDB_MGM_ILLEGAL_SERVER_REPLY, "Probably disconnected");
+    DBUG_RETURN(NULL);
+  }
+  if(strcmp("node status\n", buf) != 0) {
+    CHECK_TIMEDOUT_RET(handle, in, out, NULL, get_status_str);
+    ndbout << in.timedout() << " " << out.timedout() << buf << endl;
+    SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, buf);
+    DBUG_RETURN(NULL);
+  }
+  if(!in.gets(buf, sizeof(buf)))
+  {
+    CHECK_TIMEDOUT_RET(handle, in, out, NULL, get_status_str);
+    SET_ERROR(handle, NDB_MGM_ILLEGAL_SERVER_REPLY, "Probably disconnected");
+    DBUG_RETURN(NULL);
+  }
+
+  BaseString tmp(buf);
+  Vector<BaseString> split;
+  tmp.split(split, ":");
+  if(split.size() != 2){
+    CHECK_TIMEDOUT_RET(handle, in, out, NULL, get_status_str);
+    SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, buf);
+    DBUG_RETURN(NULL);
+  }
+
+  if(!(split[0].trim() == "nodes")){
+    SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, buf);
+    DBUG_RETURN(NULL);
+  }
+
+  const int noOfNodes = atoi(split[1].c_str());
+
+  ndb_mgm_cluster_state2 *state = (ndb_mgm_cluster_state2*)
+    malloc(sizeof(ndb_mgm_cluster_state2)+
+     (noOfNodes - 1) * sizeof(ndb_mgm_node_state2));
+
+  if(!state)
+  {
+    SET_ERROR(handle, NDB_MGM_OUT_OF_MEMORY,
+              "Allocating ndb_mgm_cluster_state2");
+    DBUG_RETURN(NULL);
+  }
+
+  state->no_of_nodes= noOfNodes;
+  ndb_mgm_node_state2 * ptr = &state->node_states[0];
+  int nodeId = 0;
+  int i;
+  for (i= 0; i < noOfNodes; i++) {
+    state->node_states[i].connect_address[0]= 0;
+    state->node_states[i].is_single_user = 0;
+  }
+  i = -1; ptr--;
+  for(; i<noOfNodes; ){
+    if(!in.gets(buf, sizeof(buf)))
+    {
+      free(state);
+      if(in.timedout() || out.timedout())
+        SET_ERROR(handle, ETIMEDOUT,
+                  "Time out talking to management server");
+      else
+        SET_ERROR(handle, NDB_MGM_ILLEGAL_SERVER_REPLY,
+                  "Probably disconnected");
+      DBUG_RETURN(NULL);
+    }
+    tmp.assign(buf);
+
+    if(tmp.trim() == ""){
+      break;
+    }
+
+    Vector<BaseString> split2;
+    tmp.split(split2, ":.", 4);
+    if(split2.size() != 4)
+      break;
+
+    const int id = atoi(split2[1].c_str());
+    if(id != nodeId){
+      ptr++;
+      i++;
+      nodeId = id;
+      ptr->node_id = id;
+    }
+
+    split2[3].trim(" \t\n");
+
+    if(status_ackumulate2(ptr,split2[2].c_str(), split2[3].c_str()) != 0) {
+      break;
+    }
+  }
+
+  if(i+1 != noOfNodes){
+    free(state);
+    CHECK_TIMEDOUT_RET(handle, in, out, NULL, get_status_str);
+    SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, "Node count mismatch");
+    DBUG_RETURN(NULL);
+  }
+
+  qsort(state->node_states, state->no_of_nodes, sizeof(state->node_states[0]),
+  cmp_state);
   DBUG_RETURN(state);
 }
 

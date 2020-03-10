@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,15 +66,20 @@ class ApiVersionConf {
 
   friend bool printAPI_VERSION_CONF(FILE *, const Uint32 *, Uint32, Uint16);
 
-  STATIC_CONST( SignalLengthWithoutSingleUser = 5 );
-  STATIC_CONST( SignalLength = 6 );
+  STATIC_CONST( SignalLengthWithoutSingleUser =  5 );
+  STATIC_CONST( SignalLengthIPv4 = 6);
+  STATIC_CONST( AddrLenWords = (16 * sizeof(unsigned char)) / sizeof(Uint32) );
+  STATIC_CONST( SignalLength = 6 + AddrLenWords );
 
   Uint32 senderRef;
   Uint32 nodeId; //api node id
   Uint32 version; // Version of API node
-  Uint32 m_inet_addr; // The bare name "inet_addr" can conflict with arpa/inet.h
+  // for backward compatibility only
+  // The bare name "inet_addr" can conflict with arpa/inet.h
+  Uint32 m_inet_addr;
   Uint32 mysql_version; // MySQL version
   Uint32 isSingleUser; // Node is the single user
+  unsigned char m_inet6_addr[16];
 };
 
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -522,13 +522,12 @@ Trpman::execDBINFO_SCANREQ(Signal *signal)
         row.write_uint32(rnode); // Remote node id
         row.write_uint32(globalTransporterRegistry.getPerformState(rnode)); // State
 
+        struct in6_addr conn_addr = globalTransporterRegistry.get_connect_address(rnode);
         /* Connect address */
-        if (globalTransporterRegistry.get_connect_address(rnode).s_addr != 0)
+        if (!IN6_IS_ADDR_UNSPECIFIED(&conn_addr))
         {
           jam();
-          struct in_addr conn_addr = globalTransporterRegistry.
-                                       get_connect_address(rnode);
-          char *addr_str = Ndb_inet_ntop(AF_INET,
+          char *addr_str = Ndb_inet_ntop(AF_INET6,
                                          static_cast<void*>(&conn_addr),
                                          addr_buf,
                                          sizeof(addr_buf));

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -123,21 +123,21 @@ int ndb_socket_nonblock(ndb_socket_t s, int enable)
 }
 
 static inline
-int ndb_bind_inet(ndb_socket_t s, const struct sockaddr_in *addr)
+int ndb_bind_inet(ndb_socket_t s, const struct sockaddr_in6 *addr)
 {
-  return bind(s.s, (const struct sockaddr*)addr, sizeof(struct sockaddr_in));
+  return bind(s.s, (const struct sockaddr*)addr, sizeof(struct sockaddr_in6));
 }
 
 static inline
 int ndb_socket_get_port(ndb_socket_t s, unsigned short *port)
 {
-  struct sockaddr_in servaddr;
+  struct sockaddr_in6 servaddr;
   ndb_socket_len_t sock_len = sizeof(servaddr);
   if(getsockname(s.s, (struct sockaddr*)&servaddr, &sock_len) < 0) {
     return 1;
   }
 
-  *port= ntohs(servaddr.sin_port);
+  *port= ntohs(servaddr.sin6_port);
   return 0;
 }
 
@@ -164,6 +164,13 @@ int ndb_connect_inet(ndb_socket_t s, const struct sockaddr_in *addr)
 }
 
 static inline
+int ndb_connect_inet6(ndb_socket_t s, const struct sockaddr_in6 *addr)
+{
+  return connect(s.s, (const struct sockaddr*) addr,
+                 sizeof(struct sockaddr_in6));
+}
+
+static inline
 int ndb_getsockopt(ndb_socket_t s, int level, int optname,
                    void *optval, ndb_socket_len_t *optlen)
 {
@@ -178,14 +185,14 @@ int ndb_setsockopt(ndb_socket_t s, int level, int optname,
 }
 
 static inline
-int ndb_socket_connect_address(ndb_socket_t s, struct in_addr *a)
+int ndb_socket_connect_address(ndb_socket_t s, struct in6_addr *a)
 {
-  struct sockaddr_in addr;
+  struct sockaddr_in6 addr;
   ndb_socket_len_t addrlen= sizeof(addr);
   if(getpeername(s.s, (struct sockaddr*)&addr, &addrlen)==SOCKET_ERROR)
     return ndb_socket_errno();
 
-  *a= addr.sin_addr;
+  *a= addr.sin6_addr;
   return 0;
 }
 

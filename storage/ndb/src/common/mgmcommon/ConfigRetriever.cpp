@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -348,10 +348,10 @@ ConfigRetriever::verifyConfig(const struct ndb_mgm_configuration * conf,
     remoteNodeId = (nodeid == nodeId1 ? nodeId2 : nodeId1);
 
     const char * name;
-    struct in_addr addr;
+    struct in6_addr addr;
     BaseString tmp;
     if(!iter.get(CFG_CONNECTION_HOSTNAME_1, &name) && strlen(name)){
-      if(Ndb_getInAddr(&addr, name) != 0){
+      if(Ndb_getInAddr6(&addr, name) != 0){
 	tmp.assfmt("Unable to lookup/illegal hostname %s, "
 		   "connection from node %d to node %d",
 		   name, nodeid, remoteNodeId);
@@ -361,7 +361,7 @@ ConfigRetriever::verifyConfig(const struct ndb_mgm_configuration * conf,
     }
 
     if(!iter.get(CFG_CONNECTION_HOSTNAME_2, &name) && strlen(name)){
-      if(Ndb_getInAddr(&addr, name) != 0){
+      if(Ndb_getInAddr6(&addr, name) != 0){
 	tmp.assfmt("Unable to lookup/illegal hostname %s, "
 		   "connection from node %d to node %d",
 		   name, nodeid, remoteNodeId);

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -288,7 +288,7 @@ protected:
   NDB_SOCKET_TYPE theSocket;
 private:
   SocketClient *m_socket_client;
-  struct in_addr m_connect_address;
+  struct in6_addr m_connect_address;
 
   virtual bool send_is_possible(int timeout_millisec) const = 0;
   virtual bool send_limit_reached(int bufsize) = 0;

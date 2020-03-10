@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -189,10 +189,10 @@ void ProcessInfo::setHostAddress(const struct sockaddr * addr, socklen_t len) {
   getnameinfo(addr, len, host_address, AddressStringLength, 0, 0, NI_NUMERICHOST);
 }
 
-void ProcessInfo::setHostAddress(const struct in_addr * addr) {
+void ProcessInfo::setHostAddress(const struct in6_addr * addr) {
   /* If address passed in is a wildcard address, do not use it. */
-  if(addr->s_addr != htonl(INADDR_ANY))
-    Ndb_inet_ntop(AF_INET, addr, host_address, AddressStringLength);
+  if (!IN6_IS_ADDR_UNSPECIFIED(addr))
+    Ndb_inet_ntop(AF_INET6, addr, host_address, AddressStringLength);
 }
 
 void ProcessInfo::setAngelPid(Uint32 pid) {
@@ -235,12 +235,37 @@ int ProcessInfo::getServiceUri(char * buffer, size_t buf_len) const {
     path_prefix = "/";
   }
 
-  if(application_port > 0) {
-    len = BaseString::snprintf(buffer, buf_len, "%s://%s:%d%s%s", uri_scheme,
-                               host_address, application_port, path_prefix, uri_path);
-  } else {
+  int ipv4_mapped_ipv6_prefix_len = strlen("::ffff:");
+  const char* host_address_copy = host_address;
+  if ((strncmp("::ffff:", host_address, ipv4_mapped_ipv6_prefix_len) == 0) &&
+      (strchr(host_address + ipv4_mapped_ipv6_prefix_len, ':') == nullptr) &&
+      (strchr(host_address + ipv4_mapped_ipv6_prefix_len, '.') != nullptr))
+  {
+    host_address_copy += ipv4_mapped_ipv6_prefix_len;
+  }
+
+  char buf[512];
+  if (application_port > 0)
+  {
+    char* sockaddr_string = Ndb_combine_address_port(buf,
+                                                     sizeof(buf),
+                                                     host_address_copy,
+                                                     application_port);
     len = BaseString::snprintf(buffer, buf_len, "%s://%s%s%s", uri_scheme,
-                               host_address, path_prefix, uri_path);
+                               sockaddr_string, path_prefix, uri_path);
+  }
+  else
+  {
+    if (strchr(host_address_copy, ':') == nullptr)
+    {
+      len = BaseString::snprintf(buffer, buf_len, "%s://%s%s%s", uri_scheme,
+                                 host_address_copy, path_prefix, uri_path);
+    }
+    else
+    {
+      len = BaseString::snprintf(buffer, buf_len, "%s://[%s]%s%s", uri_scheme,
+                                 host_address_copy, path_prefix, uri_path);
+    }
   }
   return len;
 }

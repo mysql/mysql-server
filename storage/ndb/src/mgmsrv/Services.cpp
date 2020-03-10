@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -360,16 +360,16 @@ MgmApiSession::MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock, Uint64 
   m_errorInsert= 0;
   m_vMajor = m_vMinor = m_vBuild = 0;
 
-  struct sockaddr_in addr;
+  struct sockaddr_in6 addr;
   ndb_socket_len_t addrlen= sizeof(addr);
   if (ndb_getpeername(sock, (struct sockaddr*)&addr, &addrlen) == 0)
   {
     char addr_buf[NDB_ADDR_STRLEN];
-    char *addr_str = Ndb_inet_ntop(AF_INET,
-                                   static_cast<void*>(&addr.sin_addr),
+    char *addr_str = Ndb_inet_ntop(AF_INET6,
+                                   static_cast<void*>(&addr.sin6_addr),
                                    addr_buf,
                                    sizeof(addr_buf));
-    m_name.assfmt("%s:%d", addr_str, ntohs(addr.sin_port));
+    m_name.assfmt("%s %d", addr_str, ntohs(addr.sin6_port));
   }
   DBUG_PRINT("info", ("new connection from: %s", m_name.c_str()));
 
@@ -546,7 +546,7 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
     return;
   }
 
-  struct sockaddr_in addr;
+  struct sockaddr_in6 addr;
   {
     ndb_socket_len_t addrlen= sizeof(addr);
     int r = ndb_getpeername(m_socket, (struct sockaddr*)&addr, &addrlen);
@@ -1123,7 +1123,7 @@ MgmApiSession::getStatus(Parser<MgmApiSession>::Context &,
     if (NDB_MAKE_VERSION(m_vMajor,
                          m_vMinor,
                          m_vBuild) >=
-        NDB_MAKE_VERSION(8,0,20))
+        NDB_MAKE_VERSION(8, 0, 22))
     {
       /* Support single user mode info in client */
       include_single_user_state = true;

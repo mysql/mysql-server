@@ -449,7 +449,7 @@ private:
 
   bool m_need_restart;
 
-  struct in_addr m_connect_address[MAX_NODES];
+  struct in6_addr m_connect_address[MAX_NODES];
   const char *get_connect_address(NodeId node_id,
                                   char *addr_buf,
                                   size_t addr_buf_size);

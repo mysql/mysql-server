@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -77,6 +77,7 @@ Transporter::Transporter(TransporterRegistry &t_reg,
     m_bytes_sent(0), m_bytes_received(0),
     m_connect_count(0),
     m_overload_count(0), m_slowdown_count(0),
+    m_connect_address(IN6ADDR_ANY_INIT),
     isMgmConnection(_isMgmConnection),
     m_connected(false),
     m_type(_type),
@@ -122,8 +123,6 @@ Transporter::Transporter(TransporterRegistry &t_reg,
   signalIdUsed    = _signalId;
 
   m_timeOutMillis = 3000;
-
-  m_connect_address.s_addr= 0;
 
   if (isServer)
     m_socket_client= 0;

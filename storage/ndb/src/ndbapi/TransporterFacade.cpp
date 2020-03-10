@@ -4468,7 +4468,7 @@ TransporterFacade::ext_set_max_api_reg_req_interval(Uint32 interval)
   theClusterMgr->set_max_api_reg_req_interval(interval);
 }
 
-struct in_addr
+struct in6_addr
 TransporterFacade::ext_get_connect_address(Uint32 nodeId)
 {
   return theTransporterRegistry->get_connect_address(nodeId);

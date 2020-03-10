@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2020 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -63,6 +63,7 @@ TAPTEST(mgmapi)
     OK(ndb_mgm_disconnect(h) == -1);
     OK(ndb_mgm_get_status(h) == NULL);
     OK(ndb_mgm_get_status2(h, NULL) == NULL);
+    OK(ndb_mgm_get_status3(h, NULL) == NULL);
     OK(ndb_mgm_enter_single_user(h, 1, NULL) == -1);
     OK(ndb_mgm_exit_single_user(h, NULL) == -1);
     OK(ndb_mgm_stop(h, 1, NULL) == -1);

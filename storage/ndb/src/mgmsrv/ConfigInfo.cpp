@@ -4991,7 +4991,9 @@ static bool checkLocalhostHostnameMix(InitConfigFileParser::Context & ctx, const
     DBUG_RETURN(true);
 
   Uint32 localhost_used= 0;
-  if(!strcmp(hostname, "localhost") || !strcmp(hostname, "127.0.0.1")){
+  if(!strcmp(hostname, "localhost") ||
+     !strcmp(hostname, "127.0.0.1") ||
+     !strcmp(hostname, "::1")){
     localhost_used= 1;
     ctx.m_userProperties.put("$computer-localhost-used", localhost_used);
     if(!ctx.m_userProperties.get("$computer-localhost", &hostname))
@@ -5882,7 +5884,7 @@ static bool
 checkTCPConstraints(InitConfigFileParser::Context & ctx, const char * data){
   
   const char * host;
-  struct in_addr addr;
+  struct in6_addr addr;
   static std::unordered_map<std::string, bool> host_map;
   bool ret = true;
 
@@ -5898,7 +5900,7 @@ checkTCPConstraints(InitConfigFileParser::Context & ctx, const char * data){
       const bool valid_host = ent->second;
       ret = valid_host;
     }
-    else if (Ndb_getInAddr(&addr, host) == 0)
+    else if (Ndb_getInAddr6(&addr, host) == 0)
     {
       host_map[host] = true;
     }

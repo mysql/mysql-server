@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 #include "ProcessInfo.hpp"
 #include "OwnProcessInfo.hpp"
 #include <NdbMutex.h>
+#include <ndb_socket.h>
 
 const char * ndb_basename(const char *path);
 
@@ -45,10 +46,10 @@ void setOwnProcessInfoAngelPid(Uint32 pid)
   theApiMutex.unlock();
 }
 
-void setOwnProcessInfoServerAddress(struct in_addr * addr)
+void setOwnProcessInfoServerAddress(struct sockaddr * addr)
 {
   theApiMutex.lock();
-  singletonInfo.setHostAddress(addr);
+  singletonInfo.setHostAddress(addr, sizeof(sockaddr_in6));
   theApiMutex.unlock();
 }
 

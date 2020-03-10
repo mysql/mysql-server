@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,6 +40,31 @@
 
 extern "C"
 int
+Ndb_getInAddr6(struct in6_addr * dst, const char *address)
+{
+  struct addrinfo hints;
+  memset(&hints, 0, sizeof(hints));
+  hints.ai_flags = AI_V4MAPPED;
+  hints.ai_family = AF_INET6; // IPv6 or IPv4-mapped address
+  hints.ai_socktype = SOCK_STREAM;
+  hints.ai_protocol = IPPROTO_TCP;
+
+  struct addrinfo* ai_list;
+  if (getaddrinfo(address, NULL, &hints, &ai_list) != 0)
+  {
+    return -1;
+  }
+
+  /* Return sin_addr for the first address returned */
+  struct sockaddr_in6* sin = (struct sockaddr_in6*)ai_list->ai_addr;
+  memcpy(dst, &sin->sin6_addr, sizeof(struct in6_addr));
+
+  freeaddrinfo(ai_list);
+  return 0;
+}
+
+extern "C"
+int
 Ndb_getInAddr(struct in_addr * dst, const char *address)
 {
   struct addrinfo hints;
@@ -62,6 +87,7 @@ Ndb_getInAddr(struct in_addr * dst, const char *address)
   freeaddrinfo(ai_list);
   return 0;
 }
+
 
 char*
 Ndb_inet_ntop(int af,
@@ -128,6 +154,105 @@ Ndb_inet_ntop(int af,
   dst[dst_size-1] = 0;
 
   return dst;
+}
+
+/**
+ * This function takes a string splits it into the address/hostname part
+ * and port/service part.
+ * It does not do deep verification that passed string makes sense.
+ * It is quite optimistic only checking for []: (ipv6-address) and
+ * single : (ipv4-address or hostname).
+ * Else, assumes valid address/hostname without port/service.
+ *
+ * @param arg The input string
+ * @param host Buffer into which the address/hostname will be written.
+ * @param hostlen Size of host in bytes. Address/hostname will be trimmed
+ * if longer than hostlen
+ * @param serv Buffer into which the port/service will be writeen
+ * @param servlen Size of serv in bytes
+ * @return 0 for success and -1 for invalid address.
+ */
+int
+Ndb_split_string_address_port(const char *arg, char *host, size_t hostlen,
+                         char *serv, size_t servlen)
+{
+  const char *port_colon = nullptr;
+
+  if (*arg == '[')
+  {
+    // checking for [IPv6_address]:port
+    const char *check_closing_bracket = strchr(arg, ']');
+
+    if (check_closing_bracket == nullptr)
+      return -1;
+
+    port_colon = check_closing_bracket + 1;
+
+    if ((*port_colon == ':') || (*port_colon == '\0'))
+    {
+      size_t copy_bytes = port_colon - arg - 2;
+      if ((copy_bytes >= hostlen) || (strlen(port_colon + 1) >= servlen))
+        return -1; // fail on truncate
+
+      // Check if host has at least one colon
+      const char* first_colon = strchr(arg + 1, ':');
+      if (first_colon == nullptr || first_colon >= port_colon)
+        return -1;
+
+      strncpy(host, arg + 1, copy_bytes);
+      host[copy_bytes] = '\0';
+      if (*port_colon == ':')
+      {
+        strncpy(serv, port_colon + 1, servlen);
+      }
+      else
+      {
+        serv[0] = '\0';
+      }
+      return 0;
+    }
+    return -1;
+  }
+  else if ((port_colon = strchr(arg, ':')) &&
+            (strchr(port_colon + 1, ':') == nullptr))
+  {
+    // checking for IPv4_address:port or hostname:port
+    size_t copy_bytes = port_colon - arg;
+    if ((copy_bytes >= hostlen) || (strlen(port_colon + 1) >= servlen))
+      return -1; // fail on truncate
+    strncpy(host, arg, copy_bytes);
+    host[port_colon - arg] = '\0';
+    strncpy(serv, port_colon + 1, servlen);
+    serv[servlen - 1] = '\0';
+    return 0;
+  }
+  if (strlen(arg) >= hostlen)
+    return -1; // fail on truncate
+  strncpy(host, arg, hostlen);
+  host[hostlen - 1] = '\0';
+  serv[0] = '\0';
+  return 0;
+}
+
+char*
+Ndb_combine_address_port(char *buf,
+                         size_t bufsize,
+                         const char *host,
+                         Uint16 port)
+{
+   if ((host == nullptr))
+   {
+    snprintf(buf, bufsize, "*:%d", port);
+   }
+   else if (strchr(host, ':') == nullptr)
+   {
+     snprintf(buf, bufsize, "%s:%d", host, port);
+   }
+   else
+   {
+     snprintf(buf, bufsize, "[%s]:%d", host, port);
+   }
+   return buf;
 }
 
 #ifdef TEST_NDBGETINADDR

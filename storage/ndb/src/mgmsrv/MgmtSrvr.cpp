@@ -491,6 +491,10 @@ MgmtSrvr::start_mgm_service(const Config* config)
     DBUG_RETURN(false);
   }
 
+  char buf[512];
+  char *sockaddr_string = Ndb_combine_address_port(buf, sizeof(buf),
+                                                   m_opts.bind_address,
+                                                   port);
   {
     int count= 5; // no of retries for tryBind
     while(!m_socket_server.tryBind(port, m_opts.bind_address))
@@ -500,12 +504,11 @@ MgmtSrvr::start_mgm_service(const Config* config)
 	NdbSleep_SecSleep(1);
 	continue;
       }
-      g_eventLogger->error("Unable to bind management service port: %s:%d!\n"
+      g_eventLogger->error("Unable to bind management service to address %s!\n"
                            "Please check if the port is already used,\n"
                            "(perhaps a ndb_mgmd is already running),\n"
                            "and if you are executing on the correct computer",
-                           (m_opts.bind_address ? m_opts.bind_address : "*"),
-                           port);
+                           sockaddr_string);
       DBUG_RETURN(false);
     }
   }
@@ -521,12 +524,11 @@ MgmtSrvr::start_mgm_service(const Config* config)
     if(!m_socket_server.setup(mapi, &port, m_opts.bind_address))
     {
       delete mapi; // Will be deleted by SocketServer in all other cases
-      g_eventLogger->error("Unable to setup management service port: %s:%d!\n"
+      g_eventLogger->error("Unable to setup management service port: %s!\n"
                            "Please check if the port is already used,\n"
                            "(perhaps a ndb_mgmd is already running),\n"
                            "and if you are executing on the correct computer",
-                           (m_opts.bind_address ? m_opts.bind_address : "*"),
-                           port);
+                           sockaddr_string);
       DBUG_RETURN(false);
     }
 
@@ -542,10 +544,9 @@ MgmtSrvr::start_mgm_service(const Config* config)
 
   m_socket_server.startServer();
 
-  g_eventLogger->info("Id: %d, Command port: %s:%d",
+  g_eventLogger->info("Id: %d, Command port: %s",
                       _ownNodeId,
-                      m_opts.bind_address ? m_opts.bind_address : "*",
-                      port);
+                      sockaddr_string);
   DBUG_RETURN(true);
 }
 
@@ -1025,6 +1026,8 @@ MgmtSrvr::~MgmtSrvr()
 
   delete m_local_config;
 
+  if (m_opts.bind_address != nullptr)
+    free((void*)m_opts.bind_address);
   NdbMutex_Destroy(m_local_config_mutex);
   NdbMutex_Destroy(m_reserved_nodes_mutex);
 }
@@ -1170,12 +1173,24 @@ MgmtSrvr::sendVersionReq(int v_nodeId,
 
       version = conf->version;
       mysql_version = conf->mysql_version;
-      struct in_addr in;
-      in.s_addr= conf->m_inet_addr;
-      *address= Ndb_inet_ntop(AF_INET,
-                              static_cast<void*>(&in),
-                              addr_buf,
-                              addr_buf_size);
+      if (signal->getLength() <= ApiVersionConf::SignalLengthIPv4)
+      {
+        struct in_addr in;
+        in.s_addr = conf->m_inet_addr;
+        *address= Ndb_inet_ntop(AF_INET,
+                                static_cast<void*>(&in),
+                                addr_buf,
+                                addr_buf_size);
+      }
+      else
+      {
+        struct in6_addr in;
+        memcpy(in.s6_addr, conf->m_inet6_addr, sizeof(in.s6_addr));
+        *address= Ndb_inet_ntop(AF_INET6,
+                                static_cast<void*>(&in),
+                                addr_buf,
+                                addr_buf_size);
+      }
       is_single_user = false;
       if (signal->getLength() > ApiVersionConf::SignalLengthWithoutSingleUser) {
         // New nodes will return info about single user
@@ -1264,7 +1279,7 @@ int MgmtSrvr::sendStopMgmd(NodeId nodeId,
       return SEND_OR_RECEIVE_FAILED;
 
   }
-  connect_string.assfmt("%s:%u",hostname,port);
+  connect_string.assfmt("%s %u",hostname,port);
 
   DBUG_PRINT("info",("connect string: %s",connect_string.c_str()));
 
@@ -2522,10 +2537,10 @@ MgmtSrvr::status_mgmd(NodeId node_id,
         Try to convert HostName to numerical ip address
         (to get same output as if ndbd had replied)
       */
-      struct in_addr addr;
-      if (Ndb_getInAddr(&addr, *address) == 0)
+      struct in6_addr addr;
+      if (Ndb_getInAddr6(&addr, *address) == 0)
       {
-        *address = Ndb_inet_ntop(AF_INET,
+        *address = Ndb_inet_ntop(AF_INET6,
                                  static_cast<void*>(&addr),
                                  addr_buf,
                                  addr_buf_size);
@@ -3670,7 +3685,7 @@ MgmtSrvr::get_connect_address(NodeId node_id,
 {
   assert(node_id < NDB_ARRAY_SIZE(m_connect_address));
 
-  if (m_connect_address[node_id].s_addr == 0)
+  if (IN6_IS_ADDR_UNSPECIFIED(&m_connect_address[node_id]))
   {
     // No cached connect address available
     const trp_node &node= getNodeInfo(node_id);
@@ -3683,7 +3698,7 @@ MgmtSrvr::get_connect_address(NodeId node_id,
   }
 
   // Return the cached connect address
-  return Ndb_inet_ntop(AF_INET,
+  return Ndb_inet_ntop(AF_INET6,
                        static_cast<void*>(&m_connect_address[node_id]),
                        addr_buf,
                        addr_buf_size);
@@ -3696,7 +3711,7 @@ MgmtSrvr::clear_connect_address_cache(NodeId nodeid)
   assert(nodeid < NDB_ARRAY_SIZE(m_connect_address));
   if (nodeid < NDB_ARRAY_SIZE(m_connect_address))
   {
-    m_connect_address[nodeid].s_addr = 0;
+    m_connect_address[nodeid] = IN6ADDR_ANY_INIT;
   }
 }
 
@@ -3986,14 +4001,14 @@ match_hostname(const struct sockaddr *clnt_addr,
 {
   if (clnt_addr)
   {
-    const struct in_addr *clnt_in_addr = &((sockaddr_in*)clnt_addr)->sin_addr;
+    const struct in6_addr *clnt_in_addr = &((sockaddr_in6*)clnt_addr)->sin6_addr;
 
-    struct in_addr config_addr;
-    if (Ndb_getInAddr(&config_addr, config_hostname) != 0
+    struct in6_addr config_addr;
+    if (Ndb_getInAddr6(&config_addr, config_hostname) != 0
         || memcmp(&config_addr, clnt_in_addr, sizeof(config_addr)) != 0)
     {
-      struct in_addr tmp_addr;
-      if (Ndb_getInAddr(&tmp_addr, "localhost") != 0
+      struct in6_addr tmp_addr;
+      if (Ndb_getInAddr6(&tmp_addr, "localhost") != 0
           || memcmp(&tmp_addr, clnt_in_addr, sizeof(config_addr)) != 0)
       {
         // not localhost
@@ -4124,10 +4139,10 @@ MgmtSrvr::find_node_type(NodeId node_id,
       char addr_buf[NDB_ADDR_STRLEN];
       {
         // Append error describing which host the faulty connection was from
-        struct in_addr conn_addr =
-          ((struct sockaddr_in*)(client_addr))->sin_addr;
+        struct in6_addr conn_addr =
+          ((struct sockaddr_in6*)(client_addr))->sin6_addr;
         char* addr_str =
-            Ndb_inet_ntop(AF_INET,
+            Ndb_inet_ntop(AF_INET6,
                           static_cast<void*>(&conn_addr),
                           addr_buf,
                           sizeof(addr_buf));
@@ -4136,10 +4151,10 @@ MgmtSrvr::find_node_type(NodeId node_id,
       }
       {
         // Append error describing which was the expected host
-        struct in_addr config_addr;
-        int r_config_addr= Ndb_getInAddr(&config_addr, found_config_hostname);
+        struct in6_addr config_addr;
+        int r_config_addr= Ndb_getInAddr6(&config_addr, found_config_hostname);
         char* addr_str =
-            Ndb_inet_ntop(AF_INET,
+            Ndb_inet_ntop(AF_INET6,
                           static_cast<void*>(&config_addr),
                           addr_buf,
                           sizeof(addr_buf));
@@ -4157,9 +4172,9 @@ MgmtSrvr::find_node_type(NodeId node_id,
   if (found_config_hostname)
   {
     char addr_buf[NDB_ADDR_STRLEN];
-    struct in_addr conn_addr =
-      ((struct sockaddr_in*)(client_addr))->sin_addr;
-    char *addr_str = Ndb_inet_ntop(AF_INET,
+    struct in6_addr conn_addr =
+      ((struct sockaddr_in6*)(client_addr))->sin6_addr;
+    char *addr_str = Ndb_inet_ntop(AF_INET6,
                                    static_cast<void*>(&conn_addr),
                                    addr_buf,
                                    sizeof(addr_buf));
@@ -4507,9 +4522,9 @@ MgmtSrvr::alloc_node_id(NodeId& nodeid,
                         Uint32 timeout_s)
 {
   char addr_buf[NDB_ADDR_STRLEN];
-  struct in_addr conn_addr = ((sockaddr_in*)client_addr)->sin_addr;
+  struct in6_addr conn_addr = ((sockaddr_in6*)client_addr)->sin6_addr;
   const char* type_str = ndb_mgm_get_node_type_string(type);
-  char* addr_str = Ndb_inet_ntop(AF_INET,
+  char* addr_str = Ndb_inet_ntop(AF_INET6,
                                  static_cast<void*>(&conn_addr),
                                  addr_buf,
                                  sizeof(addr_buf));
@@ -4956,7 +4971,7 @@ bool MgmtSrvr::connect_to_self()
   BaseString buf;
   NdbMgmHandle mgm_handle= ndb_mgm_create_handle();
 
-  buf.assfmt("%s:%u",
+  buf.assfmt("%s %u",
              m_opts.bind_address ? m_opts.bind_address : "localhost",
              m_port);
   ndb_mgm_set_connectstring(mgm_handle, buf.c_str());

@@ -91,17 +91,17 @@ create unique index new_index on t1 (b,c);
 Cluster Configuration
 ---------------------
 [ndbd(NDB)]	2 node(s)
-id=1	@127.0.0.1  (MYSQL_VERSION NDB_VERSION, single user mode, Nodegroup: 0, *)
-id=2	@127.0.0.1  (MYSQL_VERSION NDB_VERSION, single user mode, Nodegroup: 0)
+id=1	LOCALHOST  (MYSQL_VERSION NDB_VERSION, single user mode, Nodegroup: 0, *)
+id=2	LOCALHOST  (MYSQL_VERSION NDB_VERSION, single user mode, Nodegroup: 0)
 
 [ndb_mgmd(MGM)]	1 node(s)
-id=3	@127.0.0.1  (MYSQL_VERSION NDB_VERSION)
+id=3	LOCALHOST  (MYSQL_VERSION NDB_VERSION)
 
 [MYSQL_VERSION NDB_VERSION)]	14 node(s)
-id=16	@127.0.0.1  (MYSQL_VERSION NDB_VERSION)
+id=16	LOCALHOST  (MYSQL_VERSION NDB_VERSION)
 id=32 (not connected, accepting connect from localhost)
 id=48 (not connected, accepting connect from localhost)
-id=49	@127.0.0.1  (MYSQL_VERSION NDB_VERSION, allowed single user)
+id=49	LOCALHOST  (MYSQL_VERSION NDB_VERSION, allowed single user)
 id=63 (not connected, accepting connect from localhost)
 id=127 (not connected, accepting connect from localhost)
 id=192 (not connected, accepting connect from localhost)

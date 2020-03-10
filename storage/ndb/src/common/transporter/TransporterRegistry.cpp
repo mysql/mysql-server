@@ -95,7 +95,7 @@ private:
 };
 
 
-struct in_addr
+struct in6_addr
 TransporterRegistry::get_connect_address(NodeId node_id) const
 {
   return theNodeIdTransporters[node_id]->m_connect_address;
@@ -3451,10 +3451,18 @@ TransporterRegistry::start_service(SocketServer& socket_server)
 	 * If it wasn't a dynamically allocated port, or
 	 * our attempts at getting a new dynamic port failed
 	 */
-        g_eventLogger->error("Unable to setup transporter service port: %s:%d!\n"
+
+        char buf[512];
+        char* sockaddr_string =
+            Ndb_combine_address_port(buf,
+                                     sizeof(buf),
+                                     t.m_interface,
+                                     t.m_s_service_port);
+        g_eventLogger->error("Unable to setup transporter service port: %s!\n"
                              "Please check if the port is already used,\n"
                              "(perhaps the node is already running)",
-                             t.m_interface ? t.m_interface : "*", t.m_s_service_port);
+                             sockaddr_string);
+
 	delete transporter_service;
 	DBUG_RETURN(false);
       }
@@ -3669,7 +3677,7 @@ TransporterRegistry::connect_ndb_mgmd(const char* server_name,
    */
   {
     BaseString cs;
-    cs.assfmt("%s:%u", server_name, server_port);
+    cs.assfmt("%s %u", server_name, server_port);
     ndb_mgm_set_connectstring(h, cs.c_str());
   }
 
