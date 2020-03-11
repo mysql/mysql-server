@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -365,6 +365,44 @@ checksum_config(void)
   delete c2;
 }
 
+
+static void
+test_config_v1_with_dyn_ports(void)
+{
+  Config* c1=
+    create_config("[ndbd]", "[ndbd]",
+                  "[ndb_mgmd]", "HostName=localhost",
+                  "[mysqld]", NULL);
+  CHECK(c1);
+
+  ndbout_c("== check config v1 ==");
+
+  // Set all dynamic ports
+  ConfigIter iter(c1, CFG_SECTION_CONNECTION);
+  for(;iter.valid();iter.next()) {
+    Uint32 port = 0;
+    if (iter.get(CFG_CONNECTION_SERVER_PORT, &port) != 0 ||
+        port != 0)
+      continue; // Not configured as dynamic port
+    ConfigValues::Iterator i2(c1->m_configValues->m_config,
+                              iter.m_config);
+    const Uint32 dummy_port = 37;
+    CHECK(i2.set(CFG_CONNECTION_SERVER_PORT, dummy_port));
+  }
+
+  // c1->print();
+
+  UtilBuffer buf;
+  c1->pack(buf, false /* v2 */);
+
+  ConfigValuesFactory cvf;
+  CHECK(cvf.unpack_v1_buf(buf));
+
+  delete c1;
+
+  ndbout_c("==================");
+}
+
 static void
 test_param_values(void)
 {
@@ -488,6 +526,7 @@ TAPTEST(MgmConfig)
   test_hostname_mycnf();
   if (false)
     print_restart_info();
+  test_config_v1_with_dyn_ports();
   ndb_end(0);
   return 1; // OK
 }
