@@ -33,8 +33,8 @@ perl mysql-test-run.pl --force --timer  --parallel=auto --experimental=collectio
 perl mysql-test-run.pl --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=binlog_gtid --vardir=var-binlog_gtid --suite=binlog --mysqld=--binlog-checksum=CRC32 --mysqld=--enforce-gtid-consistency --mysqld=--log-slave-updates --mysqld=--gtid-mode=on --skip-test-list=collections/disabled-gtid-on.list
 
 # Run innodb suite including big-test with innodb-page-size=4k and 8k
-perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60  --parallel=auto --comment=n_mix_4k_size --vardir=var-n_mix_4k --experimental=collections/default.experimental --skip-test-list=collections/disabled-daily.list --mysqld=--innodb-page-size=4k --skip-test=innodb_ignore_builtin --suite=innodb
-perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60  --parallel=auto --comment=n_mix_8k_size --vardir=var-n_mix_8k --experimental=collections/default.experimental --skip-test-list=collections/disabled-daily.list --mysqld=--innodb-page-size=8k --skip-test=innodb_ignore_builtin --suite=innodb
+perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60  --parallel=auto --comment=all_default_4k_size --vardir=var-all_default_4k --experimental=collections/default.experimental --skip-test-list=collections/disabled-daily.list --mysqld=--innodb-page-size=4k --skip-test=innodb_ignore_builtin --suite=innodb
+perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60  --parallel=auto --comment=all_default_8k_size --vardir=var-all_default_8k --experimental=collections/default.experimental --skip-test-list=collections/disabled-daily.list --mysqld=--innodb-page-size=8k --skip-test=innodb_ignore_builtin --suite=innodb
 
 
 # Run innodb_undo suite with innodb_undo_tablespace set to > 0
