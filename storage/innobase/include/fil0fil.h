@@ -615,9 +615,13 @@ class Fil_path {
     return (path);
   }
 
-  /** @return true if the path is a relative path. */
-  bool is_relative_path() const MY_ATTRIBUTE((warn_unused_result)) {
-    return (type_of_path(m_path) == relative);
+  /** Determine if a path is a relative path or not.
+  @param[in]  path  OS directory or file path to evaluate
+  @retval true if the path is relative
+  @retval false if the path is absolute or file_name_only */
+  static bool is_relative_path(const std::string &path)
+      MY_ATTRIBUTE((warn_unused_result)) {
+    return (type_of_path(path) == relative);
   }
 
   /** @return true if the path is an absolute path. */
@@ -626,14 +630,15 @@ class Fil_path {
   }
 
   /** Determine if a path is an absolute path or not.
-  @param[in]	path		OS directory or file path to evaluate
-  @retval true if an absolute path
-  @retval false if a relative path */
-  static bool is_absolute_path(const std::string &path) {
+  @param[in]  path  OS directory or file path to evaluate
+  @retval true if the path is absolute
+  @retval false if the path is relative or file_name_only */
+  static bool is_absolute_path(const std::string &path)
+      MY_ATTRIBUTE((warn_unused_result)) {
     return (type_of_path(path) == absolute);
   }
 
-  /** Determine what type a path is provided.
+  /** Determine what type of path is provided.
   @param[in]  path  OS directory or file path to evaluate
   @return the type of filepath; 'absolute', 'relative',
   'file_name_only', or 'invalid' if the path is empty. */
