@@ -39,7 +39,7 @@ void Compression_zlib_writer::process_buffer(bool flush_stream) {
 
     if (res == Z_STREAM_ERROR) {
       this->pass_message(Mysql::Tools::Base::Message_data(
-          0, "zlib compression failed",
+          1, "zlib compression failed",
           Mysql::Tools::Base::Message_type_error));
     }
 
@@ -76,7 +76,7 @@ bool Compression_zlib_writer::init() {
   int ret = deflateInit(&m_compression_context, m_compression_level);
   if (ret != Z_OK) {
     this->pass_message(Mysql::Tools::Base::Message_data(
-        0, "zlib compression initialization failed",
+        1, "zlib compression initialization failed",
         Mysql::Tools::Base::Message_type_error));
     return true;
   }

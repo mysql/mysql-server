@@ -38,7 +38,7 @@ void Compression_lz4_writer::prepare_buffer(size_t src_size) {
 void Compression_lz4_writer::process_buffer(size_t lz4_result) {
   if (LZ4F_isError(lz4_result)) {
     this->pass_message(Mysql::Tools::Base::Message_data(
-        0, "LZ4 compression failed", Mysql::Tools::Base::Message_type_error));
+        1, "LZ4 compression failed", Mysql::Tools::Base::Message_type_error));
   } else if (lz4_result > 0) {
     this->append_output(std::string(&m_buffer[0], lz4_result));
   }

@@ -72,6 +72,7 @@ void Program::error(const Mysql::Tools::Base::Message_data &message) {
   if (message.get_message_type() == Mysql::Tools::Base::Message_type_error) {
     std::cerr << "Dump process encountered error and will not continue."
               << std::endl;
+    assert((int)message.get_code() != 0);
     m_error_code.store((int)message.get_code());
   }
 }
