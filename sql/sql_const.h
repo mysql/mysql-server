@@ -353,8 +353,10 @@ static const ulong EVENT_DEF_CACHE_MIN = 256;
 #define OPTIMIZER_SWITCH_USE_INVISIBLE_INDEXES (1ULL << 19)
 #define OPTIMIZER_SKIP_SCAN (1ULL << 20)
 #define OPTIMIZER_SWITCH_HASH_JOIN (1ULL << 21)
-#define OPTIMIZER_SWITCH_LAST (1ULL << 22)
+#define OPTIMIZER_SWITCH_SUBQUERY_TO_DERIVED (1ULL << 22)
+#define OPTIMIZER_SWITCH_LAST (1ULL << 23)
 
+// Including the switch in this set, makes its default 'on'
 #define OPTIMIZER_SWITCH_DEFAULT                                          \
   (OPTIMIZER_SWITCH_INDEX_MERGE | OPTIMIZER_SWITCH_INDEX_MERGE_UNION |    \
    OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION |                              \

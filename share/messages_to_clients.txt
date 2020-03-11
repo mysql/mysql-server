@@ -9327,6 +9327,9 @@ ER_GROUP_REPLICATION_USER_MANDATORY_MSG
 ER_GROUP_REPLICATION_PASSWORD_LENGTH
   eng "The START GROUP_REPLICATION command failed since the password provided for the recovery channel exceeds the maximum length of 32 characters."
 
+ER_SUBQUERY_TRANSFORM_REJECTED
+  eng "Statement requires a transform of a subquery to a non-SET operation (like IN2EXISTS). This is not allowed with optimizer switch 'subquery_to_derived' on".
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

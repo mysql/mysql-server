@@ -413,7 +413,8 @@ bool SELECT_LEX::prepare(THD *thd) {
   // otherwise get done.
 
   if (!(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW) &&
-      ((((parent_lex->m_sql_cmd != nullptr &&
+      (((thd->optimizer_switch_flag(OPTIMIZER_SWITCH_SUBQUERY_TO_DERIVED) ||
+         (parent_lex->m_sql_cmd != nullptr &&
           thd->secondary_engine_optimization() ==
               Secondary_engine_optimization::SECONDARY)) &&
         thd->stmt_arena->get_state() != Query_arena::STMT_EXECUTED /* [1] */) ||
@@ -5923,9 +5924,11 @@ static bool walk_join_conditions(
  engine, it may need to be rolled back before falling back on primary engine
  execution.
  */
-static void remember_transform(THD *, SELECT_LEX *select) {
-  // Transform was enabled not by switch, but by secondary enginee
-  select->parent_lex->m_sql_cmd->set_optional_transform_prepared(true);
+static void remember_transform(THD *thd, SELECT_LEX *select) {
+  if (!thd->optimizer_switch_flag(OPTIMIZER_SWITCH_SUBQUERY_TO_DERIVED)) {
+    // Transform was enabled not by switch, but by secondary enginee
+    select->parent_lex->m_sql_cmd->set_optional_transform_prepared(true);
+  }
 }
 
 /**

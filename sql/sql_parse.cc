@@ -2652,6 +2652,9 @@ int mysql_execute_command(THD *thd, bool first_level) {
 
   thd->work_part_info = nullptr;
 
+  if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_SUBQUERY_TO_DERIVED))
+    lex->add_statement_options(OPTION_NO_CONST_TABLES);
+
   /*
     Each statement or replication event which might produce deadlock
     should handle transaction rollback on its own. So by the start of

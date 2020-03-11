@@ -563,4 +563,20 @@ select * from information_schema.OPTIMIZER_TRACE;
 
 drop table t1,t2;
 DROP TABLE t5,t6;
-set optimizer_trace=default;
+
+
+--echo # Trace for transformation scalar subquery to derived table
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(a INT);
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+INSERT INTO t2 VALUES (1),(2);
+ANALYZE TABLE t1, t2;
+
+SET optimizer_switch='subquery_to_derived=on';
+SELECT a + (SELECT SUM(a) + (SELECT COUNT(a) FROM t1) FROM t1) AS cnt FROM t2;
+SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SET optimizer_switch='subquery_to_derived=default';
+
+DROP TABLE t1, t2;
+
+SET optimizer_trace=default;

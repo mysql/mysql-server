@@ -743,8 +743,8 @@ The following options may be given as the first argument:
  subquery_materialization_cost_based, skip_scan,
  block_nested_loop, batched_key_access,
  use_index_extensions, condition_fanout_filter,
- derived_merge, hash_join} and val is one of {on, off,
- default}
+ derived_merge, hash_join, subquery_to_derived} and val is
+ one of {on, off, default}
  --optimizer-trace=name 
  Controls tracing of the Optimizer:
  optimizer_trace=option=val[,option=val...], where option
