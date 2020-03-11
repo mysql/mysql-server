@@ -1001,6 +1001,10 @@ class HARNESS_EXPORT Loader {
   std::string program_;
   AppInfo appinfo_;
 
+  void spawn_signal_handler_thread();
+
+  std::thread signal_thread_;
+
 #ifdef FRIEND_TEST
   friend class ::TestLoader;
   friend class ::LifecycleTest;

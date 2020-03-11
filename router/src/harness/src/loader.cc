@@ -207,47 +207,6 @@ static void register_fatal_signal_handler() {
 #endif
 }
 
-static void start_and_detach_signal_handler_thread() {
-#ifdef USE_POSIX_SIGNALS
-  std::promise<void> signal_handler_thread_setup_done;
-
-  std::thread signal_thread([&signal_handler_thread_setup_done] {
-    mysql_harness::rename_thread("sig handler");
-
-    sigset_t ss;
-    sigemptyset(&ss);
-    sigaddset(&ss, SIGINT);
-    sigaddset(&ss, SIGTERM);
-    sigaddset(&ss, SIGHUP);
-
-    signal_handler_thread_setup_done.set_value();
-    int sig = 0;
-
-    while (true) {
-      if (0 == sigwait(&ss, &sig)) {
-        if (sig == SIGHUP) {
-          request_log_reopen();
-        } else {
-          harness_assert(sig == SIGINT || sig == SIGTERM);
-          request_application_shutdown();
-          return;
-        }
-      } else {
-        // man sigwait() says, it should only fail if we provided invalid
-        // signals.
-        harness_assert_this_should_not_execute();
-      }
-    }
-  });
-
-  // wait until the signal handler is setup
-  signal_handler_thread_setup_done.get_future().wait();
-
-  // let the signal handler thread be independent of the rest of the app
-  signal_thread.detach();
-#endif
-}
-
 static void log_reopen_thread_function() {
   auto &logging_registry = mysql_harness::DIM::instance().get_LoggingRegistry();
   bool request_shutdown{false};
@@ -511,7 +470,53 @@ void PluginThreads::wait_all_stopped(std::exception_ptr &first_exc) {
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-Loader::~Loader() {}
+Loader::~Loader() {
+  if (signal_thread_.joinable()) {
+#ifdef USE_POSIX_SIGNALS
+    // as the signal thread is blocked on sigwait(), interrupt it with a SIGTERM
+    pthread_kill(signal_thread_.native_handle(), SIGTERM);
+#endif
+    signal_thread_.join();
+  }
+}
+
+void Loader::spawn_signal_handler_thread() {
+#ifdef USE_POSIX_SIGNALS
+  std::promise<void> signal_handler_thread_setup_done;
+
+  signal_thread_ = std::thread([&signal_handler_thread_setup_done] {
+    mysql_harness::rename_thread("sig handler");
+
+    sigset_t ss;
+    sigemptyset(&ss);
+    sigaddset(&ss, SIGINT);
+    sigaddset(&ss, SIGTERM);
+    sigaddset(&ss, SIGHUP);
+
+    signal_handler_thread_setup_done.set_value();
+    int sig = 0;
+
+    while (true) {
+      if (0 == sigwait(&ss, &sig)) {
+        if (sig == SIGHUP) {
+          request_log_reopen();
+        } else {
+          harness_assert(sig == SIGINT || sig == SIGTERM);
+          request_application_shutdown();
+          return;
+        }
+      } else {
+        // man sigwait() says, it should only fail if we provided invalid
+        // signals.
+        harness_assert_this_should_not_execute();
+      }
+    }
+  });
+
+  // wait until the signal handler is setup
+  signal_handler_thread_setup_done.get_future().wait();
+#endif
+}
 
 Loader::PluginInfo::PluginInfo(const std::string &folder,
                                const std::string &libname) {
@@ -938,6 +943,18 @@ static void call_plugin_function(PluginFuncEnv *env, std::exception_ptr &eptr,
 
 // returns first exception triggered by init()
 std::exception_ptr Loader::init_all() {
+  // block non-fatal signal handling for all threads
+  //
+  // - no other thread than the signal-handler thread should receive signals
+  // - syscalls should not get interrupted by signals either
+  //
+  // on windows, this is a no-op
+  block_all_nonfatal_signals();
+
+  // for the fatal signals we want to have a handler that prints the stack-trace
+  // if possible
+  register_fatal_signal_handler();
+
   log_debug("Initializing all plugins.");
 
   if (!topsort()) throw std::logic_error("Circular dependencies in plugins");
@@ -980,18 +997,6 @@ std::exception_ptr Loader::init_all() {
 // forwards first exception triggered by start() to main_loop()
 void Loader::start_all() {
   log_debug("Starting all plugins.");
-
-  // block non-fatal signal handling for all threads
-  //
-  // - no other thread than the signal-handler thread should receive signals
-  // - syscalls should not get interrupted by signals either
-  //
-  // on windows, this is a no-op
-  block_all_nonfatal_signals();
-
-  // for the fatal signals we want to have a handler that prints the stack-trace
-  // if possible
-  register_fatal_signal_handler();
 
   try {
     // start all the plugins (call plugin's start() function)
@@ -1060,7 +1065,7 @@ void Loader::start_all() {
     // We wait with this until after we launch all plugin threads, to avoid
     // a potential race if a signal was received while plugins were still
     // launching.
-    start_and_detach_signal_handler_thread();
+    spawn_signal_handler_thread();
   } catch (const std::system_error &e) {
     // should we unblock the signals again?
     throw std::system_error(e.code(), "starting signal-handler-thread failed");
