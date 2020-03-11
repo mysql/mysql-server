@@ -414,9 +414,15 @@ int mysql_audit_notify(THD *thd, mysql_event_connection_subclass_t subclass,
                        const char *subclass_name, int errcode) {
   mysql_event_connection event;
 
+  /*
+    Do not take into account m_auditing_activated flag. Always generate
+    events of the MYSQL_AUDIT_CONNECTION_CLASS class.
+  */
   if (mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_CONNECTION_CLASS,
-                                  static_cast<unsigned long>(subclass)))
+                                  static_cast<unsigned long>(subclass),
+                                  false)) {
     return 0;
+  }
 
   event.event_subclass = subclass;
   event.status = errcode;
@@ -1063,14 +1069,20 @@ static bool acquire_plugins(THD *thd, plugin_ref plugin, void *arg) {
   @param thd            MySQL thread handle.
   @param event_class    Audit event class.
   @param event_subclass Audit event subclass.
+  @param check_audited  Take into account m_auditing_activated flag
+                        of the THD.
 
   @return Zero, when there is a plugins interested in the event specified
           by event_class and event_subclass. Otherwise non zero value is
           returned.
 */
 int mysql_audit_acquire_plugins(THD *thd, mysql_event_class_t event_class,
-                                unsigned long event_subclass) {
+                                unsigned long event_subclass,
+                                bool check_audited) {
   DBUG_TRACE;
+
+  if (check_audited && thd && thd->m_audited == false) return 1;
+
   unsigned long global_mask = mysql_global_audit_mask[event_class];
 
   if (thd && !check_audit_mask(global_mask, event_subclass) &&
@@ -1150,6 +1162,8 @@ void mysql_audit_release(THD *thd) {
   thd->audit_class_mask.clear();
   thd->audit_class_mask.resize(MYSQL_AUDIT_CLASS_MASK_SIZE);
 }
+
+void mysql_audit_enable_auditing(THD *thd) { thd->m_audited = true; }
 
 /**
   Initialize thd variables used by Audit

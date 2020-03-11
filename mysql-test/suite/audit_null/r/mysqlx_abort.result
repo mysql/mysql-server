@@ -1,0 +1,45 @@
+INSTALL PLUGIN null_audit SONAME 'adt_null.so';
+CREATE USER audit_user@localhost IDENTIFIED BY 'audit_pw';
+GRANT ALL PRIVILEGES ON *.* TO audit_user@localhost WITH GRANT OPTION;
+RUN CREATE USER user1_mysqlx@localhost
+            IDENTIFIED WITH 'mysql_native_password' BY 'auth_string1'
+
+0 rows affected
+RUN CREATE USER user3_mysqlx@localhost
+IDENTIFIED WITH 'mysql_native_password' BY 'auth_string3'
+REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
+SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
+ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
+PASSWORD EXPIRE NEVER
+
+0 rows affected
+RUN CREATE USER user5_mysqlx@localhost
+            IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
+            REQUIRE SSL
+
+0 rows affected
+RUN GRANT ALL ON *.* TO user1_mysqlx@localhost
+
+0 rows affected
+RUN GRANT ALL ON *.* TO user3_mysqlx@localhost
+
+0 rows affected
+RUN GRANT ALL ON *.* TO user5_mysqlx@localhost
+
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+SET GLOBAL null_audit_event_order_check_consume_ignore_count = 6;
+SET GLOBAL null_audit_event_order_check = "MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE;;ABORT_RET";
+in main, line 0:ERROR: Aborted by Audit API ('MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE';1). (code 3164)
+not ok
+in main, line 0:ERROR: Aborted by Audit API ('MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE';1). (code 3164)
+not ok
+in main, line 0:ERROR: Aborted by Audit API ('MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE';1). (code 3164)
+not ok
+UNINSTALL PLUGIN null_audit;
+DROP USER user1_mysqlx@localhost,user3_mysqlx@localhost,
+user5_mysqlx@localhost,audit_user@localhost;
+# END OF TEST

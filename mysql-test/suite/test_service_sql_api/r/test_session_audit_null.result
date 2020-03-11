@@ -50,9 +50,9 @@ deinit thread
 SHOW STATUS LIKE 'audit_null_connection%';
 Variable_name	Value
 Audit_null_connection_change_user	0
-Audit_null_connection_connect	10
-Audit_null_connection_disconnect	10
-Audit_null_connection_pre_authenticate	10
+Audit_null_connection_connect	0
+Audit_null_connection_disconnect	0
+Audit_null_connection_pre_authenticate	0
 ##########################################
 # Stop audit_null plugin
 ##########################################

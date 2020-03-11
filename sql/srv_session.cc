@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -775,6 +775,7 @@ Srv_session::Srv_session(srv_session_error_cb err_cb, void *err_cb_ctx)
       state(SRV_SESSION_CREATED),
       vio_type(NO_VIO_TYPE) {
   thd.mark_as_srv_session();
+  thd.m_audited = false;
 }
 
 /**
@@ -834,12 +835,6 @@ bool Srv_session::open() {
   thd.set_plugin(plugin);
 
   server_session_list.add(&thd, plugin, this);
-
-  if (mysql_audit_notify(
-          &thd, AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE))) {
-    Connection_handler_manager::dec_connection_count();
-    return true;
-  }
 
   return false;
 }
@@ -908,9 +903,6 @@ bool Srv_session::attach() {
       At first attach the security context should have been already set and
       and this will report corect information.
     */
-    if (mysql_audit_notify(&thd, AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_CONNECT)))
-      return true;
-
 #ifdef HAVE_PSI_THREAD_INTERFACE
     PSI_THREAD_CALL(notify_session_connect)(thd.get_psi());
 #endif /* HAVE_PSI_THREAD_INTERFACE */
@@ -1001,7 +993,6 @@ bool Srv_session::close() {
     current_thd will be different then.
   */
   query_logger.general_log_print(&thd, COM_QUIT, NullS);
-  mysql_audit_notify(&thd, AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_DISCONNECT), 0);
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
   PSI_THREAD_CALL(notify_session_disconnect)(thd.get_psi());
@@ -1108,6 +1099,11 @@ int Srv_session::execute_command(enum enum_server_command command,
   int ret = dispatch_command(&thd, data, command);
 
   thd.pop_protocol();
+  /*
+    At the end of the query execution, DA state is set as DA_EOF.
+    The only way of clearing it is to explicitely clear DA's state.
+  */
+  thd.get_stmt_da()->reset_diagnostics_area();
   DBUG_ASSERT(thd.get_protocol() == &protocol_error);
   return ret;
 }

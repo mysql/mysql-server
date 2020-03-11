@@ -2524,6 +2524,14 @@ class THD : public MDL_context_owner,
     ~Permanent_transform() { m_thd->m_permanent_transform = m_old_value; }
   };
 
+  /*
+    Audit API events are generated, when this flag is true. The flag
+    is initially true, but it can be set false in some cases, e.g.
+    Session Service's THDs are created with auditing disabled. Auditing
+    is enabled on MYSQL_AUDIT_CONNECTION_CONNECT event.
+  */
+  bool m_audited;
+
   THD(bool enable_plugins = true);
 
   /*

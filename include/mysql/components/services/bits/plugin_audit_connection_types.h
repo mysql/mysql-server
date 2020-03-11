@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -11,6 +11,11 @@ documentation.  The authors of MySQL hereby grant you an additional
 permission to link the program and your derivative works with the
 separately licensed software that they have included with MySQL.
 
+Without limiting anything contained in the foregoing, this file,
+which is part of C Driver for MySQL (Connector/C), is also subject to the
+Universal FOSS Exception, version 1.0, a copy of which can be found at
+http://oss.oracle.com/licenses/universal-foss-exception.
+
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -20,18 +25,23 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "plugin/x/src/services/services.h"
+#ifndef PLUGIN_AUDIT_CONNECTION_TYPES_H
+#define PLUGIN_AUDIT_CONNECTION_TYPES_H
 
-#include "plugin/x/src/services/service_audit_api_connection.h"
-#include "plugin/x/src/services/service_runtime_error.h"
-#include "plugin/x/src/services/service_sys_variables.h"
+/**
+  @enum mysql_event_connection_subclass_t
 
-namespace xpl {
+  Events for MYSQL_AUDIT_CONNECTION_CLASS event class.
+*/
+typedef enum {
+  /** occurs after authentication phase is completed. */
+  MYSQL_AUDIT_CONNECTION_CONNECT = 1 << 0,
+  /** occurs after connection is terminated. */
+  MYSQL_AUDIT_CONNECTION_DISCONNECT = 1 << 1,
+  /** occurs after COM_CHANGE_USER RPC is completed. */
+  MYSQL_AUDIT_CONNECTION_CHANGE_USER = 1 << 2,
+  /** occurs before authentication. */
+  MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE = 1 << 3
+} mysql_event_connection_subclass_t;
 
-Services::Services() {
-  m_system_variable_register.reset(new Service_sys_variables(&m_registry));
-  m_audit_api.reset(new Service_audit_api_connection(&m_registry));
-  m_runtime_error.reset(new Service_runtime_error(&m_registry));
-}
-
-}  // namespace xpl
+#endif /* PLUGIN_AUDIT_CONNECTION_TYPES_H */

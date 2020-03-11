@@ -435,6 +435,7 @@ THD::THD(bool enable_plugins)
       debug_sync_control(nullptr),
 #endif /* defined(ENABLED_DEBUG_SYNC) */
       m_enable_plugins(enable_plugins),
+      m_audited(true),
 #ifdef HAVE_GTID_NEXT_LIST
       owned_gtid_set(global_sid_map),
 #endif

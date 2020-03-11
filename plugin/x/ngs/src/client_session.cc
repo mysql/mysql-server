@@ -257,7 +257,8 @@ bool Session::can_forward_error_code_to_client(const int error_code) {
   static const std::set<int> allowed_error_codes{
       ER_DBACCESS_DENIED_ERROR,   ER_MUST_CHANGE_PASSWORD_LOGIN,
       ER_ACCOUNT_HAS_BEEN_LOCKED, ER_SECURE_TRANSPORT_REQUIRED,
-      ER_SERVER_OFFLINE_MODE,     ER_BAD_DB_ERROR};
+      ER_SERVER_OFFLINE_MODE,     ER_BAD_DB_ERROR,
+      ER_AUDIT_API_ABORT};
 
   return 0 < allowed_error_codes.count(error_code);
 }
