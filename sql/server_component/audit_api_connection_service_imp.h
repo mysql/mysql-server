@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -20,18 +20,23 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "plugin/x/src/services/services.h"
+#ifndef AUDIT_API_CONNECTION_IMP_H
+#define AUDIT_API_CONNECTION_IMP_H
 
-#include "plugin/x/src/services/service_audit_api_connection.h"
-#include "plugin/x/src/services/service_runtime_error.h"
-#include "plugin/x/src/services/service_sys_variables.h"
+#include <mysql/components/service_implementation.h>
+#include <mysql/components/services/audit_api_connection_service.h>
 
-namespace xpl {
+/**
+  @class mysql_audit_api_connection_imp
 
-Services::Services() {
-  m_system_variable_register.reset(new Service_sys_variables(&m_registry));
-  m_audit_api.reset(new Service_audit_api_connection(&m_registry));
-  m_runtime_error.reset(new Service_runtime_error(&m_registry));
-}
+  Audit API connection service implementation.
 
-}  // namespace xpl
+  @sa @ref s_mysql_mysql_audit_api_connection
+*/
+class mysql_audit_api_connection_imp {
+ public:
+  static DEFINE_METHOD(int, emit,
+                       (void *thd, mysql_event_connection_subclass_t type));
+};
+
+#endif /* AUDIT_API_CONNECTION_IMP_H */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -20,18 +20,32 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "plugin/x/src/services/services.h"
-
 #include "plugin/x/src/services/service_audit_api_connection.h"
-#include "plugin/x/src/services/service_runtime_error.h"
-#include "plugin/x/src/services/service_sys_variables.h"
+
+#include "plugin/x/src/interface/service_audit_api_connection.h"
+#include "plugin/x/src/interface/service_registry.h"
 
 namespace xpl {
 
-Services::Services() {
-  m_system_variable_register.reset(new Service_sys_variables(&m_registry));
-  m_audit_api.reset(new Service_audit_api_connection(&m_registry));
-  m_runtime_error.reset(new Service_runtime_error(&m_registry));
+Service_audit_api_connection::Service_audit_api_connection(
+    iface::Service_registry *registry)
+    : m_registry(registry) {
+  m_audit_api =
+      reinterpret_cast<SERVICE_TYPE_NO_CONST(mysql_audit_api_connection) *>(
+          m_registry->acquire("mysql_audit_api_connection"));
+}
+
+Service_audit_api_connection::~Service_audit_api_connection() {
+  m_registry->release(reinterpret_cast<my_h_service>(m_audit_api));
+}
+
+int Service_audit_api_connection::emit(void *thd,
+                                       mysql_event_connection_subclass_t type) {
+  return m_audit_api->emit(thd, type);
+}
+
+bool Service_audit_api_connection::is_valid() const {
+  return nullptr != m_audit_api;
 }
 
 }  // namespace xpl
