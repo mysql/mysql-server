@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -223,35 +223,10 @@ public:
     return NULL;
   }
 
-  String *get_field_val_str(String *str)
-  {
-    Field *field= get_field();
-    if (field)
-      return field->val_str(str);
-
-    return NULL;
+  const Item *get_item() const {
+    DBUG_ASSERT(this->type == NDB_VALUE);
+    return value.item;
   }
-
-  bool is_const_func()
-  {
-    const Item *item= value.item;
-
-    if (item->type() == Item::FUNC_ITEM)
-    {
-      Item_func *func_item= (Item_func *) item;
-      if (func_item->const_item())
-        return true;
-    }
-    return false;
-  }
-
-  bool is_cached()
-  {
-    const Item *item= value.item;
-
-    return (item->type() == Item::CACHE_ITEM);
-  }
-
 
   uint32 save_in_field(Ndb_item *field_item)
   {
