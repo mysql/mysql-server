@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,14 +26,16 @@
  * HTTP server plugin.
  */
 
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <future>
+#include <memory>  // shared_ptr
 #include <mutex>
 #include <stdexcept>
 #include <thread>
 
-#include <sys/types.h>
+#include <sys/types.h>  // timeval
 
 #include <event2/buffer.h>
 #include <event2/bufferevent.h>
@@ -64,11 +66,6 @@
 IMPORT_LOG_FUNCTIONS()
 
 static constexpr const char kSectionName[]{"http_server"};
-
-using mysql_harness::ARCHITECTURE_DESCRIPTOR;
-using mysql_harness::Plugin;
-using mysql_harness::PLUGIN_ABI_VERSION;
-using mysql_harness::PluginFuncEnv;
 
 std::promise<void> stopper;
 std::future<void> stopped = stopper.get_future();
@@ -406,7 +403,7 @@ void HttpServer::remove_route(const std::string &url_regex) {
   }
 }
 
-class PluginConfig : public mysqlrouter::BasePluginConfig {
+class HttpServerPluginConfig : public mysqlrouter::BasePluginConfig {
  public:
   std::string static_basedir;
   std::string srv_address;
@@ -419,7 +416,7 @@ class PluginConfig : public mysqlrouter::BasePluginConfig {
   bool with_ssl;
   uint16_t srv_port;
 
-  explicit PluginConfig(const mysql_harness::ConfigSection *section)
+  explicit HttpServerPluginConfig(const mysql_harness::ConfigSection *section)
       : mysqlrouter::BasePluginConfig(section),
         static_basedir(get_option_string(section, "static_folder")),
         srv_address(get_option_string(section, "bind_address")),
@@ -459,7 +456,8 @@ static std::map<std::string, std::shared_ptr<HttpServer>> http_servers;
 
 class HttpServerFactory {
  public:
-  static std::shared_ptr<HttpServer> create(const PluginConfig &config) {
+  static std::shared_ptr<HttpServer> create(
+      const HttpServerPluginConfig &config) {
     if (config.with_ssl) {
       // init the TLS Server context according to our config-values
       TlsServerContext tls_ctx;
@@ -493,7 +491,7 @@ class HttpServerFactory {
   }
 };
 
-static void init(PluginFuncEnv *env) {
+static void init(mysql_harness::PluginFuncEnv *env) {
   const mysql_harness::AppInfo *info = get_app_info(env);
   bool has_started = false;
 
@@ -526,7 +524,7 @@ static void init(PluginFuncEnv *env) {
 
       has_started = true;
 
-      PluginConfig config{section};
+      HttpServerPluginConfig config{section};
 
       if (config.with_ssl &&
           (config.ssl_cert.empty() || config.ssl_key.empty())) {
@@ -569,7 +567,7 @@ static void init(PluginFuncEnv *env) {
   }
 }
 
-static void start(PluginFuncEnv *env) {
+static void start(mysql_harness::PluginFuncEnv *env) {
   // - version string
   // - hostname
   // - active-connections vs. max-connections
@@ -615,16 +613,20 @@ static void start(PluginFuncEnv *env) {
   }
 }
 
+const static std::array<const char *, 1> required = {{
+    "logger",
+}};
+
 extern "C" {
-Plugin HTTP_SERVER_EXPORT harness_plugin_http_server = {
-    PLUGIN_ABI_VERSION,
-    ARCHITECTURE_DESCRIPTOR,
-    "HTTP_SERVER",
+mysql_harness::Plugin HTTP_SERVER_EXPORT harness_plugin_http_server = {
+    mysql_harness::PLUGIN_ABI_VERSION,       // abi-version
+    mysql_harness::ARCHITECTURE_DESCRIPTOR,  // arch
+    "HTTP_SERVER",                           // name
     VERSION_NUMBER(0, 0, 1),
-    0,
-    nullptr,  // requires
-    0,
-    nullptr,  // conflicts
+    // requires
+    required.size(), required.data(),
+    // conflicts
+    0, nullptr,
     init,     // init
     nullptr,  // deinit
     start,    // start

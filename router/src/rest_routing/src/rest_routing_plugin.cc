@@ -1118,22 +1118,22 @@ static void start(mysql_harness::PluginFuncEnv *env) {
   if (!spec_adder_executed) rest_api_srv.remove_process_spec(spec_adder);
 }
 
-const char *rest_routing_plugin_requires[] = {
+static std::array<const char *, 2> required = {{
+    "logger",
     // "routing",
     "rest_api",
-};
+}};
 
 extern "C" {
 mysql_harness::Plugin REST_ROUTING_EXPORT harness_plugin_rest_routing = {
-    mysql_harness::PLUGIN_ABI_VERSION,
-    mysql_harness::ARCHITECTURE_DESCRIPTOR,
-    "REST_ROUTING",
+    mysql_harness::PLUGIN_ABI_VERSION,       // abi-version
+    mysql_harness::ARCHITECTURE_DESCRIPTOR,  // arch
+    "REST_ROUTING",                          // name
     VERSION_NUMBER(0, 0, 1),
-    sizeof(rest_routing_plugin_requires) /
-        sizeof(rest_routing_plugin_requires[0]),
-    rest_routing_plugin_requires,  // requires
-    0,
-    nullptr,  // conflicts
+    // requires
+    required.size(), required.data(),
+    // conflicts
+    0, nullptr,
     init,     // init
     nullptr,  // deinit
     start,    // start

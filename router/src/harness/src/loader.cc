@@ -662,8 +662,10 @@ const Plugin *Loader::load(const std::string &plugin_name,
 
   if (BuiltinPlugins::instance().has(plugin_name)) {
     Plugin *plugin = BuiltinPlugins::instance().get_plugin(plugin_name);
-    PluginInfo info(plugin);
-    plugins_.emplace(plugin_name, std::move(info));
+    // if plugin isn't registered yet, add it
+    if (plugins_.find(plugin_name) == plugins_.end()) {
+      plugins_.emplace(plugin_name, plugin);
+    }
     return plugin;
   } else {
     ConfigSection &plugin =
@@ -676,6 +678,20 @@ const Plugin *Loader::load(const std::string &plugin_name,
 
 const Plugin *Loader::load(const std::string &plugin_name) {
   log_debug("  plugin '%s' loading", plugin_name.c_str());
+
+  if (BuiltinPlugins::instance().has(plugin_name)) {
+    Plugin *plugin = BuiltinPlugins::instance().get_plugin(plugin_name);
+    if (plugins_.find(plugin_name) == plugins_.end()) {
+      plugins_.emplace(plugin_name, plugin);
+
+      // add config-section for builtin plugins, in case it isn't there yet
+      // as the the "start()" function otherwise isn't called by load_all()
+      if (!config_.has_any(plugin_name)) {
+        config_.add(plugin_name);
+      }
+    }
+    return plugin;
+  }
 
   Config::SectionList plugins = config_.get(plugin_name);  // throws bad_section
   if (plugins.size() > 1) {
@@ -960,13 +976,6 @@ std::exception_ptr Loader::init_all() {
   if (!topsort()) throw std::logic_error("Circular dependencies in plugins");
   order_.reverse();  // we need reverse-topo order for non-built-in plugins
 
-  // we put the built-in plugins at the beginning
-  for (const std::pair<const std::string, PluginInfo> &plugin : plugins_) {
-    if (BuiltinPlugins::instance().has(plugin.first)) {
-      order_.push_front(plugin.first);
-    }
-  }
-
   for (auto it = order_.begin(); it != order_.end(); ++it) {
     const std::string &plugin_name = *it;
     PluginInfo &info = plugins_.at(plugin_name);
@@ -1223,13 +1232,9 @@ bool Loader::topsort() {
   std::map<std::string, Loader::Status> status;
   std::list<std::string> order;
 
-  // for the non-builtin plugins do the sorting that takes their dependencies
-  // into account
   for (std::pair<const std::string, PluginInfo> &plugin : plugins_) {
-    if (!BuiltinPlugins::instance().has(plugin.first)) {
-      bool succeeded = visit(plugin.first, &status, &order);
-      if (!succeeded) return false;
-    }
+    bool succeeded = visit(plugin.first, &status, &order);
+    if (!succeeded) return false;
   }
 
   order_.swap(order);
