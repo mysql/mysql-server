@@ -488,14 +488,14 @@ bool str_to_datetime(const char *str, std::size_t length, MYSQL_TIME *l_time,
       tmp_value =
           tmp_value * 10 + static_cast<ulong>(static_cast<uchar>(*str - '0'));
       str++;
+      if (tmp_value > 999999) /* Impossible date part */
+      {
+        status->warnings = MYSQL_TIME_WARN_TRUNCATED;
+        l_time->time_type = MYSQL_TIMESTAMP_NONE;
+        return true;
+      }
     }
     date_len[i] = static_cast<uint>(str - start);
-    if (tmp_value > 999999) /* Impossible date part */
-    {
-      status->warnings = MYSQL_TIME_WARN_TRUNCATED;
-      l_time->time_type = MYSQL_TIMESTAMP_NONE;
-      return true;
-    }
     date[i] = tmp_value;
     not_zero_date |= tmp_value;
 

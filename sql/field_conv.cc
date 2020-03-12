@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -924,8 +924,13 @@ type_conversion_status field_conv(Field *to, const Field *from) {
       default:
         DBUG_ASSERT(0);
     }
-    if (res) return TYPE_ERR_BAD_VALUE;
-    return to->store_time(&ltime);
+    /*
+      Field_json::get_time and get_date set ltime to zero, and we store it in
+      the `to` field, so in case conversion errors are ignored we can read zeros
+      instead of garbage.
+    */
+    type_conversion_status store_res = to->store_time(&ltime);
+    return res ? TYPE_ERR_BAD_VALUE : store_res;
   } else if ((from->result_type() == STRING_RESULT &&
               (to->result_type() == STRING_RESULT ||
                (from->real_type() != MYSQL_TYPE_ENUM &&

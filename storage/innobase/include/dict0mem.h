@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -642,7 +642,7 @@ struct dict_v_col_t {
   /** array of base column ptr */
   dict_col_t **base_col;
 
-  /** number of base column */
+  /** number of base columns */
   ulint num_base;
 
   /** column pos in table */
