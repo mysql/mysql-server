@@ -1418,3 +1418,25 @@ i
 2
 1
 DROP TABLE t1;
+#
+# Bug #30664660 GCOLS, CRASH AND CORRUPTIONS WITH DELETE IGNORE + JSON
+#
+CREATE TABLE t (
+a JSON NOT NULL,
+b TIMESTAMP GENERATED ALWAYS AS (a) VIRTUAL NOT NULL,
+KEY (b)
+) ENGINE=INNODB;
+INSERT IGNORE INTO t(a) VALUES ('{}');
+Warnings:
+Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column a at row 1
+Warning	1264	Out of range value for column 'b' at row 1
+DELETE IGNORE FROM t;
+Warnings:
+Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column a at row 1
+Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'b' at row 1
+Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column a at row 1
+Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'b' at row 1
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
