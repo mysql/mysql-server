@@ -35,7 +35,7 @@ class PopulateWorker(threading.Thread):
     threading.Thread.__init__(self)
     self.con = con
     con.autocommit(False)
-    self.log = open('/%s/populate-%d.log' % (LG_TMP_DIR, i), 'a')
+    self.log = open('%s/populate-%d.log' % (LG_TMP_DIR, i), 'a')
     self.num = i
     self.start_id = start_id
     self.end_id = end_id
@@ -138,7 +138,7 @@ class ChecksumWorker(threading.Thread):
     threading.Thread.__init__(self)
     self.con = con
     con.autocommit(False)
-    self.log = open('/%s/worker-checksum.log' % LG_TMP_DIR, 'a')
+    self.log = open('%s/worker-checksum.log' % LG_TMP_DIR, 'a')
     self.checksum = checksum
     print >> self.log, "given checksum=%d" % checksum
     self.start()
@@ -202,7 +202,7 @@ class Worker(threading.Thread):
     self.num_deletes = 0
     self.num_updates = 0
     self.time_spent = 0
-    self.log = open('/%s/worker%02d.log' % (LG_TMP_DIR, self.xid), 'a')
+    self.log = open('%s/worker%02d.log' % (LG_TMP_DIR, self.xid), 'a')
     if fake_changes:
         cur.execute("SET innodb_fake_changes=1")
     self.secondary_checks = secondary_checks
@@ -392,7 +392,7 @@ if  __name__ == '__main__':
   checksum_worker = None
   workers = []
   server_pid = int(open(pid_file).read())
-  log = open('/%s/main.log' % LG_TMP_DIR, 'a')
+  log = open('%s/main.log' % LG_TMP_DIR, 'a')
 
 #  print  "kill_db_after = ",kill_db_after," num_records_before = ", \
 #num_records_before, " num_workers= ",num_workers, "num_xactions_per_worker =",\
@@ -421,7 +421,11 @@ if  __name__ == '__main__':
   if kill_db_after:
     print >> log, "kill mysqld"
     time.sleep(kill_db_after)
-    os.kill(server_pid, signal.SIGKILL)
+    if hasattr(signal, 'SIGKILL'):
+      os.kill(server_pid, signal.SIGKILL)
+    else:
+      # On Windows only SIGTERM is available.
+      os.kill(server_pid, signal.SIGTERM)
 
   print >> log, "wait for threads"
   for w in workers:

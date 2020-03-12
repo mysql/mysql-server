@@ -12,11 +12,11 @@
 #--let $innodb_index_cluster_optimization_save_slave = `SELECT @@innodb_prefix_index_cluster_optimization`
 
 # create the directory for temporary log files.
---exec mkdir -p $MYSQL_TMP_DIR/load_generator
+--mkdir $MYSQL_TMP_DIR/load_generator
 
 if ($fake_changes)
 {
-  --exec mkdir -p $MYSQL_TMP_DIR/load_generator_slave
+  --mkdir $MYSQL_TMP_DIR/load_generator_slave
 }
 
 --connection master
@@ -168,7 +168,11 @@ let $slave_sync_timeout = 7200;
 
 connection master;
 
---exec rm -rf $MYSQL_TMP_DIR/load_generator
+--force-rmdir $MYSQL_TMP_DIR/load_generator
+if ($fake_changes)
+{
+  --force-rmdir $MYSQL_TMP_DIR/load_generator_slave
+}
 
 --connection slave
 # Restore the value of variable on slave
