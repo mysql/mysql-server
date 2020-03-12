@@ -46,20 +46,31 @@ static const int INPUT_BUFFER_SIZE = 1024 * 1024;
 static const int OUTPUT_BUFFER_SIZE = 1024 * 1024;
 
 int main(int argc, char **argv) {
+  FILE *input_file;
+  FILE *output_file;
   MY_INIT(argv[0]);
-  if (argc != 3) {
+  if (argc == 3) {
+    input_file = fopen(argv[1], "rb");
+    output_file = fopen(argv[2], "wb");
+  } else if (argc == 2) {
+    input_file = fopen(argv[1], "rb");
+    output_file = stdout;
+  } else if (argc == 1) {
+    input_file = stdin;
+    output_file = stdout;
+  } else {
     usage();
     exit(1);
   }
-  FILE *input_file = fopen(argv[1], "rb");
-  FILE *output_file = fopen(argv[2], "wb");
   if (input_file == NULL) {
     fprintf(stderr,
             "zlib_decompress: [Error] Cannot open input file for reading.\n");
+    usage();
     exit(1);
   }
   if (output_file == NULL) {
     fprintf(stderr, "zlib_decompress: [Error] Cannot create output file.\n");
+    usage();
     exit(1);
   }
   z_stream decompression_context;
