@@ -2962,9 +2962,8 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
       }
 
       /*
-        outer_tbl is replaced by wrap_nest.
-        For subselects, update embedding_join_nest to point to wrap_nest
-        instead of outer_tbl.
+        outer_tbl is replaced by wrap_nest. Any subquery which was attached to
+        outer_tbl must be attached to embedding_join_nest instead.
       */
       for (Item_exists_subselect *subquery : (*sj_candidates)) {
         if (subquery->embedding_join_nest == outer_tbl)
@@ -3038,16 +3037,6 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
       wrap_nest->nested_join->join_list.push_back(outer_tbl);
       outer_tbl->embedding = wrap_nest;
       outer_tbl->join_list = &wrap_nest->nested_join->join_list;
-
-      /*
-        outer_tbl is replaced by wrap_nest.
-        For subselects, update embedding_join_nest to point to wrap_nest
-        instead of outer_tbl.
-      */
-      for (Item_exists_subselect *subquery : (*sj_candidates)) {
-        if (subquery->embedding_join_nest == outer_tbl)
-          subquery->embedding_join_nest = wrap_nest;
-      }
     }
     // FROM clause is now only the new left nest
     emb_join_list->clear();
