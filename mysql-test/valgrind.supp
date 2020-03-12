@@ -854,6 +854,15 @@
 }
 
 {
+   cyrus libsasl2 still reachable four
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:_sasl_build_mechlist
+}
+
+{
    OpenSSL still reachable.
    Memcheck:Leak
    fun:malloc
@@ -2429,8 +2438,9 @@
    Memcheck:Leak
    match-leak-kinds: reachable
    fun:malloc
-   fun:_dl_close_worker
+   ...
    fun:_dl_close
+   ...
    fun:_dl_catch_error
    fun:_dlerror_run
    fun:dlclose
