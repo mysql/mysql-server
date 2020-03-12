@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2000-2003 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1369,31 +1368,19 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
     case NDB_LIKE_FUNC:
     {
       if (!value || !field) break;
-      bool is_string= (value->qualification.value_type == Item::STRING_ITEM);
-      // Save value in right format for the field type
-      uint32 val_len= value->save_in_field(field);
+      DBUG_ASSERT(field == a && value == b);
       char buff[MAX_FIELD_WIDTH];
-      String str(buff,sizeof(buff),field->get_field_charset());
-      if (val_len > field->get_field()->field_length)
-        str.set(value->get_val(), val_len, field->get_field_charset());
-      else
-        field->get_field_val_str(&str);
-      uint32 len=
-        ((value->is_const_func() || value->is_cached()) && is_string)?
-        str.length():
-        value->pack_length();
-      const char *val=
-        ((value->is_const_func() || value->is_cached()) && is_string)?
-        str.ptr()
-        : value->get_val();
-      DBUG_PRINT("info", ("Generating LIKE filter: like(%d,%s,%d)", 
+      String str(buff, sizeof(buff), field->get_field_charset());
+      Item *value_item = const_cast<Item *>(value->get_item());
+      const String *pattern = value_item->val_str(&str);
+      DBUG_PRINT("info", ("Generating LIKE filter: like(%d,%s,%zu)",
                           field->get_field_no(),
-                          val,
-                          len));
-      if (filter->cmp(NdbScanFilter::COND_LIKE, 
+                          pattern->ptr(),
+                          pattern->length()));
+      if (filter->cmp(NdbScanFilter::COND_LIKE,
                       field->get_field_no(),
-                      val,
-                      len) == -1)
+                      pattern->ptr(),
+                      pattern->length()) == -1)
         DBUG_RETURN(1);
       cond= cond->next->next->next;
       DBUG_RETURN(0);
@@ -1401,31 +1388,19 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
     case NDB_NOTLIKE_FUNC:
     {
       if (!value || !field) break;
-      bool is_string= (value->qualification.value_type == Item::STRING_ITEM);
-      // Save value in right format for the field type
-      uint32 val_len= value->save_in_field(field);
+      DBUG_ASSERT(field == a && value == b);
       char buff[MAX_FIELD_WIDTH];
-      String str(buff,sizeof(buff),field->get_field_charset());
-      if (val_len > field->get_field()->field_length)
-        str.set(value->get_val(), val_len, field->get_field_charset());
-      else
-        field->get_field_val_str(&str);
-      uint32 len=
-        ((value->is_const_func() || value->is_cached()) && is_string)?
-        str.length():
-        value->pack_length();
-      const char *val=
-        ((value->is_const_func() || value->is_cached()) && is_string)?
-        str.ptr()
-        : value->get_val();
-      DBUG_PRINT("info", ("Generating NOTLIKE filter: notlike(%d,%s,%d)", 
+      String str(buff, sizeof(buff), field->get_field_charset());
+      Item *value_item = const_cast<Item *>(value->get_item());
+      const String *pattern = value_item->val_str(&str);
+      DBUG_PRINT("info", ("Generating NOTLIKE filter: notlike(%d,%s,%zu)",
                           field->get_field_no(),
-                          (value->pack_length() > len)?value->get_val():val,
-                          (value->pack_length() > len)?value->pack_length():len));
-      if (filter->cmp(NdbScanFilter::COND_NOT_LIKE, 
+                          pattern->ptr(),
+                          pattern->length()));
+      if (filter->cmp(NdbScanFilter::COND_NOT_LIKE,
                       field->get_field_no(),
-                      (value->pack_length() > len)?value->get_val():val,
-                      (value->pack_length() > len)?value->pack_length():len) == -1)
+                      pattern->ptr(),
+                      pattern->length()) == -1)
         DBUG_RETURN(1);
       cond= cond->next->next->next;
       DBUG_RETURN(0);
