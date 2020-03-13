@@ -120,8 +120,6 @@ ngs::Error_code Sql_data_context::init(const bool is_admin) {
 }
 
 void Sql_data_context::report_error(int error, ...) {
-  if (attach()) return;
-
   va_list args;
   va_start(args, error);
 
@@ -129,17 +127,11 @@ void Sql_data_context::report_error(int error, ...) {
       m_authentication_code.error, MYF(0), args);
 
   va_end(args);
-  detach();
 }
 
 void Sql_data_context::deinit() {
   if (m_mysql_session) {
-    srv_session_detach(m_mysql_session);
-
-    log_debug("sqlsession deinit: %p [%i]", m_mysql_session,
-              srv_session_info_get_session_id(m_mysql_session));
-
-    if (m_pre_authenticate_event_fired) {
+    if (m_pre_authenticate_event_fired && !attach()) {
       if (!m_authentication_code) {
         // In case of successfull login, connect event has been generated
         // earlier. Time for generating disconnect event.
@@ -190,6 +182,11 @@ void Sql_data_context::deinit() {
 
     m_pre_authenticate_event_fired = false;
     m_authentication_code = ngs::Error_code();
+
+    srv_session_detach(m_mysql_session);
+
+    log_debug("sqlsession deinit: %p [%i]", m_mysql_session,
+              srv_session_info_get_session_id(m_mysql_session));
 
     srv_session_close(m_mysql_session);
     m_mysql_session = nullptr;
