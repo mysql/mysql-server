@@ -183,8 +183,12 @@ MACRO(FIND_CUSTOM_KERBEROS)
 ENDMACRO()
 
 MACRO(MYSQL_CHECK_KERBEROS)
-  # No Kerberos support for Windows.
-  IF(WIN32)
+  # No Kerberos support for these platforms:
+  IF( APPLE OR
+      FREEBSD OR
+      SOLARIS OR
+      WIN32
+      )
     SET(WITH_KERBEROS "none")
     SET(WITH_KERBEROS "none" CACHE INTERNAL "")
   ENDIF()
