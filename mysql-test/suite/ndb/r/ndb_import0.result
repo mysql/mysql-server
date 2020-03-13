@@ -160,5 +160,11 @@ and (x.c = y.c or (x.c is null and y.c is null));
 count(*)
 6
 # run backup
+SELECT * FROM t6 WHERE a > 30 order by a;
+a	b
+31	xyz
+32	Rfc
+33	
+34	
 drop table t1, t1ver, t2, t2ver, t3, t3ver, t4, t5a, t5b, t5c,
 t6, t6ver, t7, t7ver, t8, t8ver, t9, t9ver;
