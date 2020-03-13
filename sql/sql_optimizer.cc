@@ -159,7 +159,7 @@ JOIN::JOIN(THD *thd_arg, SELECT_LEX *select)
       found_const_table_map(INNER_TABLE_BIT),
       // Needed in case optimizer short-cuts, set properly in
       // make_tmp_tables_info()
-      fields(&select->item_list),
+      fields(&select->fields_list),
       tmp_table_param(thd_arg->mem_root),
       lock(thd->lock),
       // @todo Can this be substituted with select->is_implicitly_grouped()?
@@ -10442,7 +10442,7 @@ static void calculate_materialization_costs(JOIN *join, TABLE_LIST *sj_nest,
   } else {
     mat_cost = join->best_read;
     mat_rowcount = static_cast<double>(join->best_rowcount);
-    inner_expr_list = &join->select_lex->item_list;
+    inner_expr_list = &join->select_lex->fields_list;
   }
 
   /*

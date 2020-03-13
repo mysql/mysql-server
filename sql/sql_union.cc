@@ -462,7 +462,6 @@ bool SELECT_LEX_UNIT::prepare(THD *thd, Query_result *sel_result,
     // All query blocks get their options in this phase
     sl->set_query_result(tmp_result);
     sl->make_active_options(added_options | SELECT_NO_UNLOCK, removed_options);
-    sl->fields_list = sl->item_list;
     /*
       setup_tables_done_option should be set only for very first SELECT,
       because it protect from second setup_tables call for select-like non
@@ -496,10 +495,10 @@ bool SELECT_LEX_UNIT::prepare(THD *thd, Query_result *sel_result,
       information about fields lengths and exact types
     */
     if (!is_union())
-      types = first_select()->item_list;
+      types = first_select()->fields_list;
     else if (sl == first_select()) {
       types.empty();
-      List_iterator_fast<Item> it(sl->item_list);
+      List_iterator_fast<Item> it(sl->fields_list);
       Item *item_tmp;
       while ((item_tmp = it++)) {
         /*
@@ -529,7 +528,7 @@ bool SELECT_LEX_UNIT::prepare(THD *thd, Query_result *sel_result,
         types.push_back(holder);
       }
     } else {
-      if (types.elements != sl->item_list.elements) {
+      if (types.elements != sl->fields_list.elements) {
         my_error(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT, MYF(0));
         goto err;
       }
@@ -544,7 +543,7 @@ bool SELECT_LEX_UNIT::prepare(THD *thd, Query_result *sel_result,
           needed here.
         */
       } else {
-        List_iterator_fast<Item> it(sl->item_list);
+        List_iterator_fast<Item> it(sl->fields_list);
         List_iterator_fast<Item> tp(types);
         Item *type, *item_tmp;
         while ((type = tp++, item_tmp = it++)) {
@@ -1377,7 +1376,7 @@ bool SELECT_LEX_UNIT::change_query_result(
 List<Item> *SELECT_LEX_UNIT::get_unit_column_types() {
   DBUG_ASSERT(is_prepared());
 
-  return is_union() ? &types : &first_select()->item_list;
+  return is_union() ? &types : &first_select()->fields_list;
 }
 
 /**

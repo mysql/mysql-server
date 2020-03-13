@@ -229,7 +229,7 @@ void Item_subselect::accumulate_properties() {
   @param select Reference to query block
 */
 void Item_subselect::accumulate_properties(SELECT_LEX *select) {
-  List_iterator<Item> li(select->item_list);
+  List_iterator<Item> li(select->fields_list);
   Item *item;
   while ((item = li++)) accumulate_expression(item);
 
@@ -386,10 +386,10 @@ bool Item_in_subselect::finalize_exists_transform(THD *thd,
   */
   if (thd->stmt_arena->is_regular())  // not prepared stmt
   {
-    uint cnt = select_lex->item_list.elements;
-    select_lex->item_list.empty();
+    uint cnt = select_lex->fields_list.elements;
+    select_lex->fields_list.empty();
     for (; cnt > 0; cnt--)
-      select_lex->item_list.push_back(new Item_int(
+      select_lex->fields_list.push_back(new Item_int(
           NAME_STRING("Not_used"), (longlong)1, MY_INT64_NUM_DECIMAL_DIGITS));
     Opt_trace_context *const trace = &thd->opt_trace;
     OPT_TRACE_TRANSFORM(trace, oto0, oto1, select_lex->select_number,
@@ -1080,9 +1080,9 @@ Item_subselect::trans_res Item_singlerow_subselect::select_transformer(
   SELECT_LEX *outer = select->outer_select();
 
   if (!unit->is_union() && !select->table_list.elements &&
-      select->item_list.elements == 1 &&
-      !select->item_list.head()->has_aggregation() &&
-      !select->item_list.head()->has_wf() &&
+      select->fields_list.elements == 1 &&
+      !select->fields_list.head()->has_aggregation() &&
+      !select->fields_list.head()->has_wf() &&
       /*
         We cant change name of Item_field or Item_ref, because it will
         prevent it's correct resolving, but we should save name of
@@ -1090,8 +1090,8 @@ Item_subselect::trans_res Item_singlerow_subselect::select_transformer(
         list is field or reference.
         TODO: Fix this when WL#6570 is implemented.
       */
-      (select->item_list.head()->const_item() ||
-       select->item_list.head()->type() == SUBSELECT_ITEM) &&
+      (select->fields_list.head()->const_item() ||
+       select->fields_list.head()->type() == SUBSELECT_ITEM) &&
       !select->where_cond() && !select->having_cond() &&
       /*
         For prepared statement, a subquery (SELECT 1) in the GROUP BY
@@ -1107,7 +1107,7 @@ Item_subselect::trans_res Item_singlerow_subselect::select_transformer(
       sprintf(warn_buff, ER_THD(thd, ER_SELECT_REDUCED), select->select_number);
       push_warning(thd, Sql_condition::SL_NOTE, ER_SELECT_REDUCED, warn_buff);
     }
-    substitution = select->item_list.head();
+    substitution = select->fields_list.head();
     if (substitution->type() == SUBSELECT_ITEM) {
       Item_subselect *subs = (Item_subselect *)substitution;
       subs->unit->set_explain_marker_from(thd, unit);
@@ -1378,7 +1378,7 @@ Item *Item_exists_subselect::truth_transformer(THD *, enum Bool_test test) {
   // truth test Item at the outside.
   if (!unit->is_union() && unit->first_select()->table_list.elements == 0 &&
       unit->first_select()->where_cond() == nullptr && substype() == IN_SUBS &&
-      unit->first_select()->item_list.elements == 1)
+      unit->first_select()->fields_list.elements == 1)
     return nullptr;
 
   // Combine requested test with already present test, if any.
@@ -1515,7 +1515,7 @@ bool Item_exists_subselect::choose_semijoin_or_antijoin() {
     // antijoin/semijoin cannot work with NULLs on either side of IN
     if (down_cast<Item_in_subselect *>(this)->left_expr->maybe_null)
       return false;
-    List_iterator<Item> it(unit->first_select()->item_list);
+    List_iterator<Item> it(unit->first_select()->fields_list);
     Item *inner;
     while ((inner = it++))
       if (inner->maybe_null) return false;
@@ -1665,7 +1665,7 @@ Item_subselect::trans_res Item_in_subselect::single_value_transformer(
     column. E.g. in SELECT 1 IN (SELECT * ..) the right part is (SELECT * ...)
   */
   // psergey: duplicated_subselect_card_check
-  if (select->item_list.elements > 1) {
+  if (select->fields_list.elements > 1) {
     my_error(ER_OPERAND_COLUMNS, MYF(0), 1);
     return RES_ERROR;
   }
@@ -1673,13 +1673,13 @@ Item_subselect::trans_res Item_in_subselect::single_value_transformer(
   /*
     Check the nullability of the subquery. The subquery should return
     only one column, so we check the nullability of the first item in
-    SELECT_LEX::item_list. In case the subquery is a union, check the
+    SELECT_LEX::fields_list. In case the subquery is a union, check the
     nullability of the first item of each query block belonging to the
     union.
   */
   for (SELECT_LEX *sel = unit->first_select(); sel != nullptr;
        sel = sel->next_select()) {
-    if ((subquery_maybe_null = sel->item_list.head()->maybe_null)) break;
+    if ((subquery_maybe_null = sel->fields_list.head()->maybe_null)) break;
   }
   /*
     If this is an ALL/ANY single-value subquery predicate, try to rewrite
@@ -1741,7 +1741,7 @@ Item_subselect::trans_res Item_in_subselect::single_value_transformer(
       if (upper_item) upper_item->set_sum_test(item);
       select->base_ref_items[0] = item;
       {
-        List_iterator<Item> it(select->item_list);
+        List_iterator<Item> it(select->fields_list);
         it++;
         it.replace(item);
 
@@ -1993,7 +1993,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(THD *thd,
     /*
       Grep for "WL#6570" to see the relevant comment about real_item.
     */
-    Item *orig_item = select->item_list.head()->real_item();
+    Item *orig_item = select->fields_list.head()->real_item();
 
     if (!select->source_table_is_one_row() || select->where_cond()) {
       bool tmp;
@@ -2144,7 +2144,7 @@ Item_subselect::trans_res Item_in_subselect::row_value_transformer(
   DBUG_TRACE;
 
   // psergey: duplicated_subselect_card_check
-  if (select->item_list.elements != left_expr->cols()) {
+  if (select->fields_list.elements != left_expr->cols()) {
     my_error(ER_OPERAND_COLUMNS, MYF(0), left_expr->cols());
     return RES_ERROR;
   }
@@ -2952,7 +2952,7 @@ static bool guaranteed_one_row(const SELECT_LEX *select_lex) {
 }
 
 void SubqueryWithResult::fix_length_and_dec(Item_cache **row) {
-  DBUG_ASSERT(row || unit->first_select()->item_list.elements == 1);
+  DBUG_ASSERT(row || unit->first_select()->fields_list.elements == 1);
 
   // A UNION is possibly empty only if all of its SELECTs are possibly empty.
   bool possibly_empty = true;
@@ -2964,12 +2964,12 @@ void SubqueryWithResult::fix_length_and_dec(Item_cache **row) {
   }
 
   if (unit->is_simple()) {
-    set_row(unit->first_select()->item_list, row, possibly_empty);
+    set_row(unit->first_select()->fields_list, row, possibly_empty);
   } else {
     set_row(unit->item_list, row, possibly_empty);
   }
 
-  if (unit->first_select()->item_list.elements == 1)
+  if (unit->first_select()->fields_list.elements == 1)
     item->collation.set(row[0]->collation);
 }
 

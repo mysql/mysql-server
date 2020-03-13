@@ -25,6 +25,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <time.h>
+
 #include <memory>
 #include <string>
 
@@ -356,7 +357,7 @@ static bool fill_dd_view_columns(THD *thd, View *view_obj,
         is created with type holder item, store name from first SELECT_LEX.
       */
       cr_field->field_name =
-          thd->lex->select_lex->item_list[i - 1]->item_name.ptr();
+          thd->lex->select_lex->fields_list[i - 1]->item_name.ptr();
     }
 
     cr_field->after = nullptr;
@@ -565,7 +566,7 @@ static bool fill_dd_view_definition(THD *thd, View *view_obj,
     metadata stored with column information. Fill view columns only when view
     metadata is stored with column information.
   */
-  if ((thd->lex->select_lex->item_list.elements > 0) &&
+  if ((thd->lex->select_lex->fields_list.elements > 0) &&
       fill_dd_view_columns(thd, view_obj, view))
     return true;
 

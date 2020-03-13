@@ -4005,8 +4005,9 @@ Query_log_event::Query_log_event(THD *thd_arg, const char *query_arg,
             lex->drop_temporary && thd->in_multi_stmt_transaction_mode();
         break;
       case SQLCOM_CREATE_TABLE:
-        cmd_must_go_to_trx_cache = lex->select_lex->get_item_list()->elements &&
-                                   thd->is_current_stmt_binlog_format_row();
+        cmd_must_go_to_trx_cache =
+            lex->select_lex->get_fields_list()->elements &&
+            thd->is_current_stmt_binlog_format_row();
         cmd_can_generate_row_events =
             ((lex->create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
              thd->in_multi_stmt_transaction_mode()) ||

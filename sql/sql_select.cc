@@ -178,7 +178,6 @@ bool handle_query(THD *thd, LEX *lex, Query_result *result,
     select->context.resolve_in_select_list = true;
     select->set_query_result(result);
     select->make_active_options(added_options, removed_options);
-    select->fields_list = select->item_list;
 
     if (select->prepare(thd)) goto err;
 
@@ -591,7 +590,6 @@ bool Sql_cmd_select::prepare_inner(THD *thd) {
     unit->set_query_result(result);
     // Unlock the table as soon as possible, so don't set SELECT_NO_UNLOCK.
     select->make_active_options(0, 0);
-    select->fields_list = select->item_list;
 
     if (select->prepare(thd)) return true;
 

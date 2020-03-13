@@ -1140,7 +1140,7 @@ bool Sql_cmd_create_table::prepare(THD *thd) {
   if (create_table_precheck(thd, query_expression_tables, create_table))
     return true;
 
-  if (select_lex->item_list.elements) {
+  if (select_lex->fields_list.elements) {
     /* Base table and temporary table are not in the same name space. */
     if (!(lex->create_info->options & HA_LEX_CREATE_TMP_TABLE))
       create_table->open_type = OT_BASE_ONLY;
@@ -3054,8 +3054,8 @@ bool Prepared_statement::validate_metadata(Prepared_statement *copy) {
   */
   if (is_sql_prepare() || lex->is_explain()) return false;
 
-  if (lex->select_lex->item_list.elements !=
-      copy->lex->select_lex->item_list.elements) {
+  if (lex->select_lex->fields_list.elements !=
+      copy->lex->select_lex->fields_list.elements) {
     /** Column counts mismatch, update the client */
     thd->server_status |= SERVER_STATUS_METADATA_CHANGED;
   }

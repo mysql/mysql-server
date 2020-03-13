@@ -4700,7 +4700,7 @@ static Item **resolve_ref_in_select_and_group(THD *thd, Item_ident *ref,
     clause of the current select.
   */
   if (!(select_ref =
-            find_item_in_list(thd, ref, *(select->get_item_list()), &counter,
+            find_item_in_list(thd, ref, *(select->get_fields_list()), &counter,
                               REPORT_EXCEPT_NOT_FOUND, &resolution)))
     return nullptr; /* Some error occurred. */
   if (resolution == RESOLVED_AGAINST_ALIAS) ref->set_alias_of_expr();
@@ -5265,9 +5265,9 @@ bool Item_field::fix_fields(THD *thd, Item **reference) {
       if (thd->lex->current_select()->is_item_list_lookup) {
         uint counter;
         enum_resolution_type resolution;
-        Item **res =
-            find_item_in_list(thd, this, thd->lex->current_select()->item_list,
-                              &counter, REPORT_EXCEPT_NOT_FOUND, &resolution);
+        Item **res = find_item_in_list(
+            thd, this, thd->lex->current_select()->fields_list, &counter,
+            REPORT_EXCEPT_NOT_FOUND, &resolution);
         if (!res) return true;
         if (resolution == RESOLVED_AGAINST_ALIAS) set_alias_of_expr();
         if (res != not_found_item) {
@@ -9941,7 +9941,7 @@ bool Item_ident::aggregate_check_distinct(uchar *arg) {
   uint counter;
   enum_resolution_type resolution;
   Item **const res =
-      find_item_in_list(current_thd, this, sl->item_list, &counter,
+      find_item_in_list(current_thd, this, sl->fields_list, &counter,
                         REPORT_EXCEPT_NOT_FOUND, &resolution);
 
   if (res == not_found_item) {

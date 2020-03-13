@@ -2527,7 +2527,7 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all) {
     cache_mngr->stmt_cache.reset();
   } else if (!cache_mngr->stmt_cache.is_binlog_empty()) {
     if (thd->lex->sql_command == SQLCOM_CREATE_TABLE &&
-        thd->lex->select_lex->get_item_list()->elements && /* With select */
+        thd->lex->select_lex->get_fields_list()->elements && /* With select */
         !(thd->lex->create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
         thd->is_current_stmt_binlog_format_row()) {
       /*
@@ -10577,14 +10577,14 @@ bool THD::is_ddl_gtid_compatible() {
               lex->sql_command == SQLCOM_CREATE_TABLE,
               (lex->sql_command == SQLCOM_CREATE_TABLE &&
                (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE)),
-              lex->select_lex->item_list.elements,
+              lex->select_lex->fields_list.elements,
               lex->sql_command == SQLCOM_DROP_TABLE,
               (lex->sql_command == SQLCOM_DROP_TABLE && lex->drop_temporary),
               in_multi_stmt_transaction_mode()));
 
   if (lex->sql_command == SQLCOM_CREATE_TABLE &&
       !(lex->create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
-      lex->select_lex->get_item_list()->elements) {
+      lex->select_lex->get_fields_list()->elements) {
     /*
       CREATE ... SELECT (without TEMPORARY) is unsafe because if
       binlog_format=row it will be logged as a CREATE TABLE followed

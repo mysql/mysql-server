@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -546,9 +546,9 @@ class sp_instr_set : public sp_lex_instr {
   virtual void invalidate() { m_value_item = nullptr; }
 
   virtual bool on_after_expr_parsing(THD *thd) {
-    DBUG_ASSERT(thd->lex->select_lex->item_list.elements == 1);
+    DBUG_ASSERT(thd->lex->select_lex->fields_list.elements == 1);
 
-    m_value_item = thd->lex->select_lex->item_list.head();
+    m_value_item = thd->lex->select_lex->fields_list.head();
 
     return false;
   }
@@ -675,9 +675,9 @@ class sp_instr_freturn : public sp_lex_instr {
   }
 
   virtual bool on_after_expr_parsing(THD *thd) {
-    DBUG_ASSERT(thd->lex->select_lex->item_list.elements == 1);
+    DBUG_ASSERT(thd->lex->select_lex->fields_list.elements == 1);
 
-    m_expr_item = thd->lex->select_lex->item_list.head();
+    m_expr_item = thd->lex->select_lex->fields_list.head();
 
     return false;
   }
@@ -890,9 +890,9 @@ class sp_instr_jump_if_not : public sp_lex_branch_instr {
   virtual bool exec_core(THD *thd, uint *nextp);
 
   virtual bool on_after_expr_parsing(THD *thd) {
-    DBUG_ASSERT(thd->lex->select_lex->item_list.elements == 1);
+    DBUG_ASSERT(thd->lex->select_lex->fields_list.elements == 1);
 
-    m_expr_item = thd->lex->select_lex->item_list.head();
+    m_expr_item = thd->lex->select_lex->fields_list.head();
 
     return false;
   }
@@ -965,9 +965,9 @@ class sp_instr_set_case_expr : public sp_lex_branch_instr {
   virtual bool exec_core(THD *thd, uint *nextp);
 
   virtual bool on_after_expr_parsing(THD *thd) {
-    DBUG_ASSERT(thd->lex->select_lex->item_list.elements == 1);
+    DBUG_ASSERT(thd->lex->select_lex->fields_list.elements == 1);
 
-    m_expr_item = thd->lex->select_lex->item_list.head();
+    m_expr_item = thd->lex->select_lex->fields_list.head();
 
     return false;
   }

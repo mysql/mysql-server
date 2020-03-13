@@ -579,7 +579,7 @@ bool SELECT_LEX::prepare_values(THD *thd) {
     if (resolve_subquery(thd)) return true;
   }
 
-  if (query_result() && query_result()->prepare(thd, item_list, unit))
+  if (query_result() && query_result()->prepare(thd, fields_list, unit))
     return true; /* purecov: inspected */
 
   return false;
@@ -797,7 +797,7 @@ static bool simplify_const_condition(THD *thd, Item **cond, bool remove_cond,
 
 bool Item_in_subselect::subquery_allows_materialization(
     THD *thd, SELECT_LEX *select_lex, const SELECT_LEX *outer) {
-  const uint elements = unit->first_select()->item_list.elements;
+  const uint elements = unit->first_select()->fields_list.elements;
   DBUG_TRACE;
   DBUG_ASSERT(elements >= 1);
   DBUG_ASSERT(left_expr->cols() == elements);
@@ -850,7 +850,7 @@ bool Item_in_subselect::subquery_allows_materialization(
     // @see comment in Item_subselect::element_index()
     bool has_nullables = left_expr->maybe_null;
 
-    List_iterator<Item> it(unit->first_select()->item_list);
+    List_iterator<Item> it(unit->first_select()->fields_list);
     for (uint i = 0; i < elements; i++) {
       Item *const inner_item = it++;
       Item *const outer_item = left_expr->element_index(i);
@@ -1294,7 +1294,7 @@ bool SELECT_LEX::resolve_subquery(THD *thd) {
       TODO why do we have this duplicated in IN->EXISTS transformers?
       psergey-todo: fix these: grep for duplicated_subselect_card_check
     */
-    if (item_list.elements != in_predicate->left_expr->cols()) {
+    if (fields_list.elements != in_predicate->left_expr->cols()) {
       my_error(ER_OPERAND_COLUMNS, MYF(0), in_predicate->left_expr->cols());
       return true;
     }
@@ -2195,7 +2195,7 @@ void SELECT_LEX::fix_after_pullout(SELECT_LEX *parent_select,
   if (having_cond())
     having_cond()->fix_after_pullout(parent_select, removed_select);
 
-  List_iterator<Item> li(item_list);
+  List_iterator<Item> li(fields_list);
   Item *item;
   while ((item = li++)) item->fix_after_pullout(parent_select, removed_select);
 
@@ -4859,10 +4859,10 @@ bool SELECT_LEX::resolve_table_value_constructor_values(THD *thd) {
         // Make sure to also replace the reference in item_list. In the case
         // where fix_fields transforms an item, it.ref() will only update the
         // reference of values_row.
-        if (first_execution) item_list.replace(item_index, item);
+        if (first_execution) fields_list.replace(item_index, item);
       } else {
         Item_values_column *column =
-            down_cast<Item_values_column *>(item_list[item_index]);
+            down_cast<Item_values_column *>(fields_list[item_index]);
         if (column->join_types(thd, item)) return true;
         column->add_used_tables(item);
         column->fixed = true;  // Does not have regular fix_fields()
@@ -4884,7 +4884,7 @@ bool SELECT_LEX::resolve_table_value_constructor_values(THD *thd) {
     return true; /* purecov: inspected */
 
   size_t item_index = 0;
-  for (Item &column : item_list) {
+  for (Item &column : fields_list) {
     base_ref_items[item_index] = &column;
 
     // Name the columns column_0, column_1, ...
@@ -5577,7 +5577,7 @@ bool SELECT_LEX::transform_grouped_to_derived(THD *thd, bool *break_off) {
       // will be rolled back (if at all) to resolve in new_derived too by
       // changing its rollback record, and giving it the correct alias and
       // context
-      Item **place = new_derived->item_list.tail_ref();
+      Item **place = new_derived->fields_list.tail_ref();
       Item *old_value = thd->replace_rollback_place(place);
       if (old_value != nullptr) {
         old_value->item_name.set(vr->item_name.ptr());

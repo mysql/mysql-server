@@ -1787,7 +1787,7 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
   want_priv =
       (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE)
           ? CREATE_TMP_ACL
-          : (CREATE_ACL | (select_lex->item_list.elements ? INSERT_ACL : 0));
+          : (CREATE_ACL | (select_lex->fields_list.elements ? INSERT_ACL : 0));
 
   if (check_access(thd, want_priv, create_table->db,
                    &create_table->grant.privilege,
@@ -1841,7 +1841,7 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
       check_grant(thd, want_priv, create_table, false, 1, false))
     goto err;
 
-  if (select_lex->item_list.elements) {
+  if (select_lex->fields_list.elements) {
     /* Check permissions for used tables in CREATE TABLE ... SELECT */
     if (tables &&
         check_table_access(thd, SELECT_ACL, tables, false, UINT_MAX, false))

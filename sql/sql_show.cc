@@ -3788,9 +3788,9 @@ bool mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list) {
 
       return false;
     }
-    List_iterator_fast<Item> it(sel->item_list);
+    List_iterator_fast<Item> it(sel->fields_list);
     if (!(transl = (Field_translator *)(thd->stmt_arena->alloc(
-              sel->item_list.elements * sizeof(Field_translator))))) {
+              sel->fields_list.elements * sizeof(Field_translator))))) {
       return true;
     }
     for (org_transl = transl; (item = it++); transl++) {

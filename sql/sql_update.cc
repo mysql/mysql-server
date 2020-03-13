@@ -298,7 +298,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
       has_update_triggers &&
       table->triggers->has_triggers(TRG_EVENT_UPDATE, TRG_ACTION_AFTER);
 
-  List<Item> *update_field_list = &select_lex->item_list;
+  List<Item> *update_field_list = &select_lex->fields_list;
 
   if (unit->set_limit(thd, unit->global_parameters()))
     return true; /* purecov: inspected */
@@ -1314,7 +1314,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
 
   TABLE_LIST *single_table_updated = nullptr;
 
-  List<Item> *update_fields = &select->item_list;
+  List<Item> *update_fields = &select->fields_list;
   table_map tables_for_update;
   const bool using_lock_tables = thd->locked_tables_mode != LTM_NONE;
 
@@ -2633,7 +2633,7 @@ bool Sql_cmd_update::accept(THD *thd, Select_lex_visitor *visitor) {
 
   // Update list
   List_iterator<Item> it_value(*update_value_list),
-      it_column(select->item_list);
+      it_column(select->fields_list);
   Item *column, *value;
   while ((column = it_column++) && (value = it_value++))
     if (walk_item(column, visitor) || walk_item(value, visitor)) return true;

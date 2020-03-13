@@ -778,7 +778,7 @@ Sql_cmd *PT_update::make_cmd(THD *thd) {
   if (column_list->contextualize(&pc) || value_list->contextualize(&pc)) {
     return nullptr;
   }
-  select->item_list = column_list->value;
+  select->fields_list = column_list->value;
 
   // Ensure we're resetting parsing context of the right select
   DBUG_ASSERT(select->parsing_place == CTX_UPDATE_VALUE);
@@ -1078,7 +1078,7 @@ bool PT_table_value_constructor::contextualize(Parse_context *pc) {
   // Some queries, such as CREATE TABLE with SELECT, require item_list to
   // contain items to call SELECT_LEX::prepare.
   for (Item &item : *pc->select->row_value_list->head()) {
-    pc->select->item_list.push_back(&item);
+    pc->select->fields_list.push_back(&item);
   }
 
   return false;
@@ -2703,7 +2703,7 @@ Sql_cmd *PT_load_table::make_cmd(THD *thd) {
 
 bool PT_select_item_list::contextualize(Parse_context *pc) {
   if (super::contextualize(pc)) return true;
-  pc->select->item_list = value;
+  pc->select->fields_list = value;
   return false;
 }
 

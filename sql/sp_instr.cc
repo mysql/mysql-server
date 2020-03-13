@@ -290,7 +290,8 @@ class SP_instr_error_handler : public Internal_error_handler {
       CREATE TABLE ... SELECT statement.
     */
     if (thd->lex && thd->lex->sql_command == SQLCOM_CREATE_TABLE &&
-        thd->lex->select_lex && thd->lex->select_lex->item_list.elements > 0 &&
+        thd->lex->select_lex &&
+        thd->lex->select_lex->fields_list.elements > 0 &&
         sql_errno == ER_TABLE_EXISTS_ERROR)
       cts_table_exists_error = true;
 
@@ -1039,9 +1040,9 @@ void sp_instr_set_trigger_field::print(const THD *thd, String *str) {
 }
 
 bool sp_instr_set_trigger_field::on_after_expr_parsing(THD *thd) {
-  DBUG_ASSERT(thd->lex->select_lex->item_list.elements == 1);
+  DBUG_ASSERT(thd->lex->select_lex->fields_list.elements == 1);
 
-  m_value_item = thd->lex->select_lex->item_list.head();
+  m_value_item = thd->lex->select_lex->fields_list.head();
 
   DBUG_ASSERT(!m_trigger_field);
 
@@ -1251,9 +1252,9 @@ bool sp_instr_jump_case_when::on_after_expr_parsing(THD *thd) {
   //     item from its list.
 
   if (!m_expr_item) {
-    DBUG_ASSERT(thd->lex->select_lex->item_list.elements == 1);
+    DBUG_ASSERT(thd->lex->select_lex->fields_list.elements == 1);
 
-    m_expr_item = thd->lex->select_lex->item_list.head();
+    m_expr_item = thd->lex->select_lex->fields_list.head();
   }
 
   // Setup main expression item (m_expr_item).

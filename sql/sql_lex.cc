@@ -2036,8 +2036,7 @@ SELECT_LEX_UNIT::SELECT_LEX_UNIT(enum_parsing_context parsing_context)
 */
 
 SELECT_LEX::SELECT_LEX(MEM_ROOT *mem_root, Item *where, Item *having)
-    : fields_list(item_list),
-      ftfunc_list(&ftfunc_list_alloc),
+    : ftfunc_list(&ftfunc_list_alloc),
       sj_nests(mem_root),
       first_context(&context),
       top_join_list(mem_root),
@@ -2375,7 +2374,7 @@ void SELECT_LEX::add_order_to_list(ORDER *order) {
 bool SELECT_LEX::add_item_to_list(Item *item) {
   DBUG_TRACE;
   DBUG_PRINT("info", ("Item: %p", item));
-  return item_list.push_back(item);
+  return fields_list.push_back(item);
 }
 
 bool SELECT_LEX::add_ftfunc_to_list(Item_func_match *func) {
@@ -2405,7 +2404,7 @@ bool SELECT_LEX::setup_base_ref_items(THD *thd) {
   if (is_distinct()) {
     uint bitcount = 0;
     Item *item;
-    List_iterator<Item> li(item_list);
+    List_iterator<Item> li(fields_list);
     while ((item = li++)) {
       /*
         Same test as in create_distinct_group, when it pushes new items to the
@@ -2424,13 +2423,13 @@ bool SELECT_LEX::setup_base_ref_items(THD *thd) {
     prepared statement
   */
   Query_arena *arena = thd->stmt_arena;
-  const uint n_elems = (n_sum_items + n_child_sum_items + item_list.elements +
+  const uint n_elems = (n_sum_items + n_child_sum_items + fields_list.elements +
                         select_n_having_items + select_n_where_fields +
                         order_group_num + n_scalar_subqueries);
   DBUG_PRINT("info",
              ("setup_ref_array this %p %4u : %4u %4u %4u %4u %4u %4u %4u", this,
               n_elems,  // :
-              n_sum_items, n_child_sum_items, item_list.elements,
+              n_sum_items, n_child_sum_items, fields_list.elements,
               select_n_having_items, select_n_where_fields, order_group_num,
               n_scalar_subqueries));
   if (!base_ref_items.is_null()) {
@@ -2862,7 +2861,7 @@ void SELECT_LEX::print_update(const THD *thd, String *str,
     auto *t = table_list.first;
     t->print(thd, str, query_type);  // table identifier
     str->append(STRING_WITH_LEN(" set "));
-    print_update_list(thd, str, query_type, item_list,
+    print_update_list(thd, str, query_type, fields_list,
                       *sql_cmd_update->update_value_list);
     /*
       Print join condition (may happen with a merged view's WHERE condition
@@ -2881,7 +2880,7 @@ void SELECT_LEX::print_update(const THD *thd, String *str,
     // Multi table update
     print_join(thd, str, &top_join_list, query_type);
     str->append(STRING_WITH_LEN(" set "));
-    print_update_list(thd, str, query_type, item_list,
+    print_update_list(thd, str, query_type, fields_list,
                       *sql_cmd_update->update_value_list);
     print_where_cond(thd, str, query_type);
   }
@@ -3097,7 +3096,7 @@ void SELECT_LEX::print_item_list(const THD *thd, String *str,
                                  enum_query_type query_type) {
   // Item List
   bool first = true;
-  List_iterator_fast<Item> it(item_list);
+  List_iterator_fast<Item> it(fields_list);
   Item *item;
   while ((item = it++)) {
     if (first)
@@ -3329,7 +3328,7 @@ bool accept_table(TABLE_LIST *t, Select_lex_visitor *visitor) {
 
 bool SELECT_LEX::accept(Select_lex_visitor *visitor) {
   // Select clause
-  List_iterator<Item> it(item_list);
+  List_iterator<Item> it(fields_list);
   Item *end = nullptr;
   for (Item *item = it++; item != end; item = it++)
     if (walk_item(item, visitor)) return true;
@@ -4520,7 +4519,7 @@ enum_parsing_context SELECT_LEX_UNIT::place() const {
 }
 
 bool SELECT_LEX::walk(Item_processor processor, enum_walk walk, uchar *arg) {
-  List_iterator<Item> li(item_list);
+  List_iterator<Item> li(fields_list);
   Item *item;
 
   while ((item = li++)) {

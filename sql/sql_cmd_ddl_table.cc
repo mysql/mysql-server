@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -176,7 +176,7 @@ bool Sql_cmd_create_table::execute(THD *thd) {
 
   bool res = false;
 
-  if (select_lex->item_list.elements)  // With select
+  if (select_lex->fields_list.elements)  // With select
   {
     Query_result *result;
 
@@ -204,7 +204,7 @@ bool Sql_cmd_create_table::execute(THD *thd) {
     if (thd->query_name_consts && mysql_bin_log.is_open() &&
         thd->variables.binlog_format == BINLOG_FORMAT_STMT &&
         !mysql_bin_log.is_query_in_union(thd, thd->query_id)) {
-      List_iterator_fast<Item> it(select_lex->item_list);
+      List_iterator_fast<Item> it(select_lex->fields_list);
       Item *item;
       uint splocal_refs = 0;
       /* Count SP local vars in the top-level SELECT list */
@@ -279,7 +279,7 @@ bool Sql_cmd_create_table::execute(THD *thd) {
       needs to be created for every execution of a PS/SP.
     */
     if ((result = new (thd->mem_root) Query_result_create(
-             create_table, &create_info, &alter_info, select_lex->item_list,
+             create_table, &create_info, &alter_info, select_lex->fields_list,
              lex->duplicates, query_expression_tables))) {
       // For objects acquired during table creation.
       dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());

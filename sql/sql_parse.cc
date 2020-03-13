@@ -6734,7 +6734,7 @@ void create_table_set_open_action_and_adjust_tables(LEX *lex) {
   else
     create_table->open_type = OT_BASE_ONLY;
 
-  if (!lex->select_lex->item_list.elements) {
+  if (!lex->select_lex->fields_list.elements) {
     /*
       Avoid opening and locking target table for ordinary CREATE TABLE
       or CREATE TABLE LIKE for write (unlike in CREATE ... SELECT we

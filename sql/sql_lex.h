@@ -1195,7 +1195,7 @@ class SELECT_LEX {
   TABLE_LIST *nest_last_join(THD *thd, size_t table_cnt = 2);
   bool add_joined_table(TABLE_LIST *table);
   TABLE_LIST *convert_right_join();
-  List<Item> *get_item_list() { return &item_list; }
+  List<Item> *get_fields_list() { return &fields_list; }
 
   // Check privileges for views that are merged into query block
   bool check_view_privileges(THD *thd, ulong want_privilege_first,
@@ -1622,14 +1622,6 @@ class SELECT_LEX {
   // * Members (most of these should not be public) *
   // ************************************************
 
-  List<Item> &fields_list;  ///< hold field list
-  /**
-    All expressions needed after join and filtering, ie
-    select list, group by list, having clause, window clause, order by clause.
-    Does not include join conditions nor where clause.
-  */
-  List<Item> all_fields{};
-
   /**
     List of columns and expressions:
     SELECT: Columns and expressions in the SELECT list.
@@ -1637,7 +1629,13 @@ class SELECT_LEX {
 
     @see is_item_list_lookup
   */
-  List<Item> item_list{};
+  List<Item> fields_list{};  ///< hold field list
+  /**
+    All expressions needed after join and filtering, ie
+    select list, group by list, having clause, window clause, order by clause.
+    Does not include join conditions nor where clause.
+  */
+  List<Item> all_fields{};
 
   /**
     All windows defined on the select, both named and inlined

@@ -798,7 +798,7 @@ static bool check_view_insertability(THD *thd, TABLE_LIST *view,
                                      const TABLE_LIST *insert_table_ref) {
   DBUG_TRACE;
 
-  const uint num = view->view_query()->select_lex->item_list.elements;
+  const uint num = view->view_query()->select_lex->fields_list.elements;
   TABLE *const table = insert_table_ref->table;
   MY_BITMAP used_fields;
   enum_mark_columns save_mark_used_columns = thd->mark_used_columns;

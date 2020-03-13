@@ -8727,7 +8727,7 @@ bool mysql_create_table_no_lock(THD *thd, const char *db,
 
   // Only needed for CREATE TABLE LIKE / SELECT, as warnings for
   // pure CREATE TABLE is reported in the parser.
-  if (thd->lex->select_lex->item_list.elements) {
+  if (thd->lex->select_lex->fields_list.elements) {
     for (const Create_field &sql_field : alter_info->create_list) {
       warn_on_deprecated_float_precision(thd, sql_field);
       warn_on_deprecated_float_unsigned(thd, sql_field);

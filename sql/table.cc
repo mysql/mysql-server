@@ -4504,7 +4504,7 @@ bool TABLE_LIST::merge_where(THD *thd) {
 bool TABLE_LIST::create_field_translation(THD *thd) {
   Item *item;
   SELECT_LEX *select = derived->first_select();
-  List_iterator_fast<Item> it(select->item_list);
+  List_iterator_fast<Item> it(select->fields_list);
   uint field_count = 0;
 
   DBUG_ASSERT(derived->is_prepared());
@@ -4515,7 +4515,7 @@ bool TABLE_LIST::create_field_translation(THD *thd) {
 
   // Create view fields translation table
   Field_translator *transl = (Field_translator *)thd->stmt_arena->alloc(
-      select->item_list.elements * sizeof(Field_translator));
+      select->fields_list.elements * sizeof(Field_translator));
   if (!transl) return true; /* purecov: inspected */
 
   while ((item = it++)) {

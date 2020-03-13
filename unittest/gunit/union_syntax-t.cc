@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,7 @@ class UnionSyntaxTest : public ParserTest {
     SELECT_LEX *term1 = parse(query, expect_syntax_error ? ER_PARSE_ERROR : 0);
     EXPECT_EQ(nullptr, term1->first_inner_unit());
     EXPECT_EQ(nullptr, term1->next_select_in_list());
-    EXPECT_EQ(1, term1->get_item_list()->head()->val_int());
+    EXPECT_EQ(1, term1->get_fields_list()->head()->val_int());
 
     SELECT_LEX_UNIT *top_union = term1->master_unit();
     EXPECT_EQ(nullptr, top_union->outer_select());
@@ -56,7 +56,7 @@ class UnionSyntaxTest : public ParserTest {
 
       EXPECT_EQ(nullptr, term2->first_inner_unit());
       EXPECT_EQ(term1, term2->next_select_in_list());
-      EXPECT_EQ(2, term2->get_item_list()->head()->val_int());
+      EXPECT_EQ(2, term2->get_fields_list()->head()->val_int());
 
       if (num_terms > 2) {
       } else
@@ -81,7 +81,7 @@ class UnionSyntaxTest : public ParserTest {
 
     EXPECT_EQ(nullptr, term2->first_inner_unit());
     EXPECT_EQ(term1, term2->next_select_in_list());
-    EXPECT_EQ(2, term2->get_item_list()->head()->val_int());
+    EXPECT_EQ(2, term2->get_fields_list()->head()->val_int());
 
     return term1;
   }
@@ -183,9 +183,9 @@ TEST_F(UnionSyntaxTest, Simple) {
   SELECT_LEX *block2 = block1->next_select();
   SELECT_LEX *block3 = block2->next_select();
 
-  EXPECT_EQ(1, block1->get_item_list()->head()->val_int());
-  EXPECT_EQ(2, block2->get_item_list()->head()->val_int());
-  EXPECT_EQ(3, block3->get_item_list()->head()->val_int());
+  EXPECT_EQ(1, block1->get_fields_list()->head()->val_int());
+  EXPECT_EQ(2, block2->get_fields_list()->head()->val_int());
+  EXPECT_EQ(3, block3->get_fields_list()->head()->val_int());
 }
 
 TEST_F(UnionSyntaxTest, ThreeWay) {
@@ -298,7 +298,7 @@ TEST_F(UnionSyntaxTest, NestedQueryExpWithLimit) {
 TEST_F(UnionSyntaxTest, IgnoredTrailingLimitOnQueryTerm) {
   SELECT_LEX *block1 = parse("(SELECT 1) UNION SELECT 2 LIMIT 123");
   SELECT_LEX *block2 = block1->next_select();
-  EXPECT_EQ(2, block2->get_item_list()->head()->val_int());
+  EXPECT_EQ(2, block2->get_fields_list()->head()->val_int());
 
   // Neither query block should have a limit clause.
   EXPECT_EQ(nullptr, block1->select_limit);
