@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -246,7 +246,12 @@ void ProcessManager::dump_all() {
 
 void ProcessManager::ensure_clean_exit() {
   for (auto &proc : processes_) {
-    check_exit_code(std::get<0>(proc), std::get<1>(proc));
+    try {
+      check_exit_code(std::get<0>(proc), std::get<1>(proc));
+    } catch (const std::exception &e) {
+      FAIL() << "PID: " << std::get<0>(proc).get_pid()
+             << " didn't exit as expected";
+    }
   }
 }
 

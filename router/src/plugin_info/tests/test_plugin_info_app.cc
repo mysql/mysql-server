@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -302,7 +302,10 @@ const Plugin_data router_plugins[]{
     Plugin_data{"routing",
                 "Routing MySQL connections between MySQL clients/connectors "
                 "and servers",
-                "0.0.1", "", ""},
+                "0.0.1", R"(
+        "logger"
+    )",
+                ""},
     Plugin_data{
         "metadata_cache",
         "Metadata Cache, managing information fetched from the Metadata Server",

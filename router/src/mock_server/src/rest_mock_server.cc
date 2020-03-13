@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,8 +25,10 @@
 /**
  */
 
+#include <array>
 #include <atomic>
 #include <chrono>
+#include <string>
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
 // if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
@@ -71,11 +73,6 @@ using JsonDocument =
     rapidjson::GenericDocument<rapidjson::UTF8<>, rapidjson::CrtAllocator>;
 using JsonValue =
     rapidjson::GenericValue<rapidjson::UTF8<>, rapidjson::CrtAllocator>;
-
-using mysql_harness::ARCHITECTURE_DESCRIPTOR;
-using mysql_harness::Plugin;
-using mysql_harness::PLUGIN_ABI_VERSION;
-using mysql_harness::PluginFuncEnv;
 
 class RestApiV1MockServerGlobals : public BaseRequestHandler {
  public:
@@ -249,7 +246,7 @@ class RestApiV1MockServerConnections : public BaseRequestHandler {
   }
 };
 
-static void init(PluginFuncEnv *env) {
+static void init(mysql_harness::PluginFuncEnv *env) {
   const mysql_harness::AppInfo *info = get_app_info(env);
 
   if (nullptr == info->config) {
@@ -265,7 +262,7 @@ static void init(PluginFuncEnv *env) {
   }
 }
 
-static void start(PluginFuncEnv *) {
+static void start(mysql_harness::PluginFuncEnv *) {
   auto &srv = HttpServerComponent::get_instance();
 
   srv.add_route(kRestGlobalsUri, std::unique_ptr<BaseRequestHandler>(
@@ -274,7 +271,7 @@ static void start(PluginFuncEnv *) {
                                          new RestApiV1MockServerConnections()));
 }
 
-static void stop(PluginFuncEnv *) {
+static void stop(mysql_harness::PluginFuncEnv *) {
   auto &srv = HttpServerComponent::get_instance();
 
   srv.remove_route(kRestConnectionsUri);
@@ -288,21 +285,22 @@ static void stop(PluginFuncEnv *) {
 #define DLLEXPORT
 #endif
 
-const char *plugin_requires[] = {
+static const std::array<const char *, 2> plugin_requires = {
+    "logger",
     // "mock_server",
     "http_server",
 };
 
 extern "C" {
-Plugin DLLEXPORT harness_plugin_rest_mock_server = {
-    PLUGIN_ABI_VERSION,
-    ARCHITECTURE_DESCRIPTOR,
-    "REST_MOCK_SERVER",
+mysql_harness::Plugin DLLEXPORT harness_plugin_rest_mock_server = {
+    mysql_harness::PLUGIN_ABI_VERSION,       // abi-version
+    mysql_harness::ARCHITECTURE_DESCRIPTOR,  // arch
+    "REST_MOCK_SERVER",                      // name
     VERSION_NUMBER(0, 0, 1),
-    sizeof(plugin_requires) / sizeof(plugin_requires[0]),
-    plugin_requires,  // requires
-    0,
-    nullptr,  // conflicts
+    // requires
+    plugin_requires.size(), plugin_requires.data(),
+    // conflicts
+    0, nullptr,
     init,     // init
     nullptr,  // deinit
     start,    // start

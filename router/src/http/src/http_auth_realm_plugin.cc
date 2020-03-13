@@ -39,6 +39,12 @@
 
 #include <sys/types.h>
 
+#include <array>
+#include <map>
+#include <memory>  // shared_ptr
+#include <stdexcept>
+#include <string>
+
 // Harness interface include files
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/loader.h"
@@ -57,20 +63,15 @@ using namespace std::string_literals;
 
 static constexpr const char kSectionName[]{"http_auth_realm"};
 
-using mysql_harness::ARCHITECTURE_DESCRIPTOR;
-using mysql_harness::Plugin;
-using mysql_harness::PLUGIN_ABI_VERSION;
-using mysql_harness::PluginFuncEnv;
-
-namespace {
-class PluginConfig : public mysqlrouter::BasePluginConfig {
+class HttpAuthRealmPluginConfig : public mysqlrouter::BasePluginConfig {
  public:
   std::string backend;
   std::string method;
   std::string require;
   std::string name;
 
-  explicit PluginConfig(const mysql_harness::ConfigSection *section)
+  explicit HttpAuthRealmPluginConfig(
+      const mysql_harness::ConfigSection *section)
       : mysqlrouter::BasePluginConfig(section),
         backend(get_option_string(section, "backend")),
         method(get_option_string(section, "method")),
@@ -96,12 +97,11 @@ class PluginConfig : public mysqlrouter::BasePluginConfig {
     return false;
   }
 };
-}  // namespace
 
 std::shared_ptr<HttpAuthRealmComponent::value_type> auth_realms;
 constexpr const char kMethodNameBasic[]{"basic"};
 
-static void init(PluginFuncEnv *env) {
+static void init(mysql_harness::PluginFuncEnv *env) {
   const mysql_harness::AppInfo *info = get_app_info(env);
 
   if (nullptr == info->config) {
@@ -132,7 +132,7 @@ static void init(PluginFuncEnv *env) {
         return;
       }
 
-      PluginConfig config(section);
+      HttpAuthRealmPluginConfig config(section);
 
       if (config.method != kMethodNameBasic) {
         throw std::invalid_argument(
@@ -172,16 +172,20 @@ static void init(PluginFuncEnv *env) {
   }
 }
 
+static const std::array<const char *, 1> required = {{
+    "logger",
+}};
+
 extern "C" {
-Plugin HTTP_AUTH_REALM_EXPORT harness_plugin_http_auth_realm = {
-    PLUGIN_ABI_VERSION,
-    ARCHITECTURE_DESCRIPTOR,
-    "HTTP_AUTH_REALM",
+mysql_harness::Plugin HTTP_AUTH_REALM_EXPORT harness_plugin_http_auth_realm = {
+    mysql_harness::PLUGIN_ABI_VERSION,       // abi-version
+    mysql_harness::ARCHITECTURE_DESCRIPTOR,  // arch
+    "HTTP_AUTH_REALM",                       // name
     VERSION_NUMBER(0, 0, 1),
-    0,
-    nullptr,  // requires
-    0,
-    nullptr,  // conflicts
+    // requires
+    required.size(), required.data(),
+    // conflicts
+    0, nullptr,
     init,     // init
     nullptr,  // deinit
     nullptr,  // start

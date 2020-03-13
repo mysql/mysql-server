@@ -207,47 +207,6 @@ static void register_fatal_signal_handler() {
 #endif
 }
 
-static void start_and_detach_signal_handler_thread() {
-#ifdef USE_POSIX_SIGNALS
-  std::promise<void> signal_handler_thread_setup_done;
-
-  std::thread signal_thread([&signal_handler_thread_setup_done] {
-    mysql_harness::rename_thread("sig handler");
-
-    sigset_t ss;
-    sigemptyset(&ss);
-    sigaddset(&ss, SIGINT);
-    sigaddset(&ss, SIGTERM);
-    sigaddset(&ss, SIGHUP);
-
-    signal_handler_thread_setup_done.set_value();
-    int sig = 0;
-
-    while (true) {
-      if (0 == sigwait(&ss, &sig)) {
-        if (sig == SIGHUP) {
-          request_log_reopen();
-        } else {
-          harness_assert(sig == SIGINT || sig == SIGTERM);
-          request_application_shutdown();
-          return;
-        }
-      } else {
-        // man sigwait() says, it should only fail if we provided invalid
-        // signals.
-        harness_assert_this_should_not_execute();
-      }
-    }
-  });
-
-  // wait until the signal handler is setup
-  signal_handler_thread_setup_done.get_future().wait();
-
-  // let the signal handler thread be independent of the rest of the app
-  signal_thread.detach();
-#endif
-}
-
 static void log_reopen_thread_function() {
   auto &logging_registry = mysql_harness::DIM::instance().get_LoggingRegistry();
   bool request_shutdown{false};
@@ -511,7 +470,53 @@ void PluginThreads::wait_all_stopped(std::exception_ptr &first_exc) {
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-Loader::~Loader() {}
+Loader::~Loader() {
+  if (signal_thread_.joinable()) {
+#ifdef USE_POSIX_SIGNALS
+    // as the signal thread is blocked on sigwait(), interrupt it with a SIGTERM
+    pthread_kill(signal_thread_.native_handle(), SIGTERM);
+#endif
+    signal_thread_.join();
+  }
+}
+
+void Loader::spawn_signal_handler_thread() {
+#ifdef USE_POSIX_SIGNALS
+  std::promise<void> signal_handler_thread_setup_done;
+
+  signal_thread_ = std::thread([&signal_handler_thread_setup_done] {
+    mysql_harness::rename_thread("sig handler");
+
+    sigset_t ss;
+    sigemptyset(&ss);
+    sigaddset(&ss, SIGINT);
+    sigaddset(&ss, SIGTERM);
+    sigaddset(&ss, SIGHUP);
+
+    signal_handler_thread_setup_done.set_value();
+    int sig = 0;
+
+    while (true) {
+      if (0 == sigwait(&ss, &sig)) {
+        if (sig == SIGHUP) {
+          request_log_reopen();
+        } else {
+          harness_assert(sig == SIGINT || sig == SIGTERM);
+          request_application_shutdown();
+          return;
+        }
+      } else {
+        // man sigwait() says, it should only fail if we provided invalid
+        // signals.
+        harness_assert_this_should_not_execute();
+      }
+    }
+  });
+
+  // wait until the signal handler is setup
+  signal_handler_thread_setup_done.get_future().wait();
+#endif
+}
 
 Loader::PluginInfo::PluginInfo(const std::string &folder,
                                const std::string &libname) {
@@ -657,8 +662,10 @@ const Plugin *Loader::load(const std::string &plugin_name,
 
   if (BuiltinPlugins::instance().has(plugin_name)) {
     Plugin *plugin = BuiltinPlugins::instance().get_plugin(plugin_name);
-    PluginInfo info(plugin);
-    plugins_.emplace(plugin_name, std::move(info));
+    // if plugin isn't registered yet, add it
+    if (plugins_.find(plugin_name) == plugins_.end()) {
+      plugins_.emplace(plugin_name, plugin);
+    }
     return plugin;
   } else {
     ConfigSection &plugin =
@@ -671,6 +678,20 @@ const Plugin *Loader::load(const std::string &plugin_name,
 
 const Plugin *Loader::load(const std::string &plugin_name) {
   log_debug("  plugin '%s' loading", plugin_name.c_str());
+
+  if (BuiltinPlugins::instance().has(plugin_name)) {
+    Plugin *plugin = BuiltinPlugins::instance().get_plugin(plugin_name);
+    if (plugins_.find(plugin_name) == plugins_.end()) {
+      plugins_.emplace(plugin_name, plugin);
+
+      // add config-section for builtin plugins, in case it isn't there yet
+      // as the the "start()" function otherwise isn't called by load_all()
+      if (!config_.has_any(plugin_name)) {
+        config_.add(plugin_name);
+      }
+    }
+    return plugin;
+  }
 
   Config::SectionList plugins = config_.get(plugin_name);  // throws bad_section
   if (plugins.size() > 1) {
@@ -938,17 +959,22 @@ static void call_plugin_function(PluginFuncEnv *env, std::exception_ptr &eptr,
 
 // returns first exception triggered by init()
 std::exception_ptr Loader::init_all() {
+  // block non-fatal signal handling for all threads
+  //
+  // - no other thread than the signal-handler thread should receive signals
+  // - syscalls should not get interrupted by signals either
+  //
+  // on windows, this is a no-op
+  block_all_nonfatal_signals();
+
+  // for the fatal signals we want to have a handler that prints the stack-trace
+  // if possible
+  register_fatal_signal_handler();
+
   log_debug("Initializing all plugins.");
 
   if (!topsort()) throw std::logic_error("Circular dependencies in plugins");
   order_.reverse();  // we need reverse-topo order for non-built-in plugins
-
-  // we put the built-in plugins at the beginning
-  for (const std::pair<const std::string, PluginInfo> &plugin : plugins_) {
-    if (BuiltinPlugins::instance().has(plugin.first)) {
-      order_.push_front(plugin.first);
-    }
-  }
 
   for (auto it = order_.begin(); it != order_.end(); ++it) {
     const std::string &plugin_name = *it;
@@ -980,18 +1006,6 @@ std::exception_ptr Loader::init_all() {
 // forwards first exception triggered by start() to main_loop()
 void Loader::start_all() {
   log_debug("Starting all plugins.");
-
-  // block non-fatal signal handling for all threads
-  //
-  // - no other thread than the signal-handler thread should receive signals
-  // - syscalls should not get interrupted by signals either
-  //
-  // on windows, this is a no-op
-  block_all_nonfatal_signals();
-
-  // for the fatal signals we want to have a handler that prints the stack-trace
-  // if possible
-  register_fatal_signal_handler();
 
   try {
     // start all the plugins (call plugin's start() function)
@@ -1060,7 +1074,7 @@ void Loader::start_all() {
     // We wait with this until after we launch all plugin threads, to avoid
     // a potential race if a signal was received while plugins were still
     // launching.
-    start_and_detach_signal_handler_thread();
+    spawn_signal_handler_thread();
   } catch (const std::system_error &e) {
     // should we unblock the signals again?
     throw std::system_error(e.code(), "starting signal-handler-thread failed");
@@ -1218,13 +1232,9 @@ bool Loader::topsort() {
   std::map<std::string, Loader::Status> status;
   std::list<std::string> order;
 
-  // for the non-builtin plugins do the sorting that takes their dependencies
-  // into account
   for (std::pair<const std::string, PluginInfo> &plugin : plugins_) {
-    if (!BuiltinPlugins::instance().has(plugin.first)) {
-      bool succeeded = visit(plugin.first, &status, &order);
-      if (!succeeded) return false;
-    }
+    bool succeeded = visit(plugin.first, &status, &order);
+    if (!succeeded) return false;
   }
 
   order_.swap(order);

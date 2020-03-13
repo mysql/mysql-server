@@ -25,7 +25,9 @@
 #include "http_auth_method_basic.h"
 
 #include <algorithm>  // std::find
+#include <iterator>   // std::back_inserter
 #include <string>
+#include <system_error>  // std::errc
 #include <vector>
 
 #include "../src/base64.h"

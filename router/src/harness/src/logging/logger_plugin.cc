@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,13 +24,13 @@
 
 #define MYSQL_ROUTER_LOG_DOMAIN "logger"
 #include "mysql/harness/logging/logger_plugin.h"
-#include "mysql/harness/string_utils.h"
 
 #include <sstream>
 
 #include "consolelog_plugin.h"
 #include "dim.h"
 #include "filelog_plugin.h"
+#include "mysql/harness/string_utils.h"
 
 #ifdef _WIN32
 #include "mysql/harness/logging/eventlog_plugin.h"
@@ -38,12 +38,8 @@
 #include "syslog_plugin.h"
 #endif
 
-using mysql_harness::AppInfo;
-using mysql_harness::ARCHITECTURE_DESCRIPTOR;
 using mysql_harness::DIM;
 using mysql_harness::LoaderConfig;
-using mysql_harness::Plugin;
-using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::logging::Handler;
 using mysql_harness::logging::log_level_from_string;
 using mysql_harness::logging::log_timestamp_precision_from_string;
@@ -284,10 +280,10 @@ static void init(mysql_harness::PluginFuncEnv *env) {
   switch_to_loggers_in_config(config, logger_handlers);
 }
 
-Plugin harness_plugin_logger = {
-    PLUGIN_ABI_VERSION,
-    ARCHITECTURE_DESCRIPTOR,
-    "Logging using eventlog",
+mysql_harness::Plugin harness_plugin_logger = {
+    mysql_harness::PLUGIN_ABI_VERSION,
+    mysql_harness::ARCHITECTURE_DESCRIPTOR,
+    "Logger",
     VERSION_NUMBER(0, 0, 1),
     0,
     nullptr,  // Requires

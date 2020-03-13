@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@
  */
 #include "rest_api_plugin.h"
 
+#include <array>
 #include <string>
 
 #include "mysql/harness/config_parser.h"
@@ -261,20 +262,19 @@ static void deinit(mysql_harness::PluginFuncEnv * /* env */) {
 #define DLLEXPORT
 #endif
 
-const char *plugin_requires[] = {
+static const std::array<const char *, 2> plugin_requires = {{
     "http_server",
-};
+    "logger",
+}};
 
 extern "C" {
 mysql_harness::Plugin DLLEXPORT harness_plugin_rest_api = {
-    mysql_harness::PLUGIN_ABI_VERSION,
-    mysql_harness::ARCHITECTURE_DESCRIPTOR,
-    "REST_API",
-    VERSION_NUMBER(0, 0, 1),
-    sizeof(plugin_requires) / sizeof(plugin_requires[0]),
-    plugin_requires,  // requires
-    0,
-    nullptr,  // conflicts
+    mysql_harness::PLUGIN_ABI_VERSION, mysql_harness::ARCHITECTURE_DESCRIPTOR,
+    "REST_API", VERSION_NUMBER(0, 0, 1),
+    // requires
+    plugin_requires.size(), plugin_requires.data(),
+    // conflicts
+    0, nullptr,
     init,     // init
     deinit,   // deinit
     start,    // start
