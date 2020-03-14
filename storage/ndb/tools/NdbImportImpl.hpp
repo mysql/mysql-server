@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,7 @@
 #include "NdbImport.hpp"
 #include "NdbImportUtil.hpp"
 #include "NdbImportCsv.hpp"
+#include "my_byteorder.h"
 // STL
 #include <map>
 #include <algorithm>
@@ -764,6 +765,8 @@ public:
     virtual void state_send();
     virtual void state_poll();
     void asynch_callback(Tx* tx);
+    void set_auto_inc_val(const Attr& attr, Row *row,
+                          Uint64 val, Error& error);
   };
 
   // diag team
