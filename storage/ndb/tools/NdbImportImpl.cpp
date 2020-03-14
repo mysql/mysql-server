@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3018,6 +3018,102 @@ NdbImportImpl::ExecOpWorkerAsynch::asynch_callback(Tx* tx)
 }
 
 void
+NdbImportImpl::ExecOpWorkerAsynch::set_auto_inc_val(const Attr& attr,
+                                                     Row *row,
+                                                     Uint64 val,
+                                                     Error& error)
+{
+  int err = m_util.int_val_ok(attr.m_type, val, error);
+  if (err == -2)
+  {
+    m_util.set_error_data(
+                          error, __LINE__, Error::Type_data,
+                          " field %u: set_auto_inc_val %s failed:"
+                          " bad type",
+                          attr.m_attrno, attr.m_sqltype);
+    return;
+  }
+  if (err == -1)
+  {
+    m_util.set_error_data(
+                          error, __LINE__, Error::Type_data,
+                          "field %u: set_auto_inc_val for %s failed: "
+                          "value %llu out of range",
+                          attr.m_attrno, attr.m_sqltype, val);
+    return;
+  }
+
+  switch (attr.m_type)
+  {
+  case NdbDictionary::Column::Tinyint:
+    {
+      const int8 byteval = val;
+      attr.set_value(row, &byteval, 1);
+    }
+    break;
+  case NdbDictionary::Column::Tinyunsigned:
+    {
+      const uint8 byteval = val;
+      attr.set_value(row, &byteval, 1);
+    }
+    break;
+  case NdbDictionary::Column::Smallint:
+    {
+      const int16 shortval = val;
+      attr.set_value(row, &shortval, 2);
+    }
+    break;
+  case NdbDictionary::Column::Smallunsigned:
+    {
+      const uint16 shortval = val;
+      attr.set_value(row, &shortval, 2);
+    }
+    break;
+  case NdbDictionary::Column::Mediumint:
+    {
+      uchar val3[3];
+      int3store(val3, val);
+      attr.set_value(row, val3, 3);
+    }
+    break;
+  case NdbDictionary::Column::Mediumunsigned:
+    {
+      uchar val3[3];
+      int3store(val3, val);
+      attr.set_value(row, val3, 3);
+    }
+    break;
+  case NdbDictionary::Column::Int:
+    {
+      const Int32 intval = val;
+      attr.set_value(row, &intval, 4);
+    }
+    break;
+  case NdbDictionary::Column::Unsigned:
+    {
+      const Uint32 uintval = val;
+      attr.set_value(row, &uintval, 4);
+    }
+    break;
+  case NdbDictionary::Column::Bigint:
+    {
+      const Int64 int64val = val;
+      attr.set_value(row, &int64val, 8);
+    }
+    break;
+  case NdbDictionary::Column::Bigunsigned:
+    {
+      // val is of type Uint64, no conversion needed
+      attr.set_value(row, &val, 8);
+    }
+    break;
+  default:
+    require(false);
+    break;
+  }
+}
+
+void
 NdbImportImpl::ExecOpWorkerAsynch::state_define()
 {
   log_debug(2, "state_define/asynch");
@@ -3037,12 +3133,10 @@ NdbImportImpl::ExecOpWorkerAsynch::state_define()
     Row* row = op->m_row;
     require(row != 0);
     const Table& table = m_util.get_table(row->m_tabid);
-    if (table.m_has_hidden_pk)
+    if (table.m_autoIncAttrId != Inval_uint)
     {
       const Attrs& attrs = table.m_attrs;
-      const uint attrcnt = attrs.size();
-      const Attr& attr = attrs[attrcnt - 1];
-      require(attr.m_type == NdbDictionary::Column::Bigunsigned);
+      const Attr& attr = attrs[table.m_autoIncAttrId];
       Uint64 val;
       if (m_ndb->getAutoIncrementValue(table.m_tab, val,
                                        opt.m_ai_prefetch_sz,
@@ -3076,7 +3170,11 @@ NdbImportImpl::ExecOpWorkerAsynch::state_define()
           break;
         }
       }
-      attr.set_value(row, &val, 8);
+      set_auto_inc_val(attr, row, val, m_error);
+      if (m_util.has_error())
+      {
+        break;
+      }
     }
     const bool no_hint = opt.m_no_hint;
     Tx* tx = 0;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -363,6 +363,7 @@ public:
     void do_eval();
     void eval_line(Row* row, Line* line);
     void eval_field(Row* row, Line* line, Field* field);
+    void eval_auto_inc_field(Row* row, Line* line, Field* field);
     void eval_null(Row* row, Line* line, Field* field);
     Input& m_input;
     NdbImportCsv& m_csv;
