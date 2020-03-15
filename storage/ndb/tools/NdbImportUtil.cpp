@@ -412,6 +412,14 @@ NdbImportUtil::List::remove(ListEnt* ent)
     m_stat_occup->add(m_cnt);
 }
 
+NdbImportUtil::ListEnt*
+NdbImportUtil::List::pop_back()
+{
+  ListEnt *ent = m_back;
+  remove(ent);
+  return ent;
+}
+
 void
 NdbImportUtil::List::push_back_from(List& src)
 {

@@ -181,6 +181,7 @@ public:
     void push_before(ListEnt* ent1, ListEnt* ent2);
     ListEnt* pop_front();
     void remove(ListEnt* ent);
+    ListEnt* pop_back();
     void push_back_from(List& src);
 #if defined(VM_TRACE) || defined(TEST_NDBIMPORTUTIL)
     void validate() const;

@@ -377,6 +377,14 @@ NdbImportCsv::Alloc::free_field_list(FieldList& field_list)
   m_field_free.push_back_from(field_list);
 }
 
+void
+NdbImportCsv::Alloc::free_field(Field *field)
+{
+  free_data_list(field->m_data_list);
+  m_field_free.push_back(field);
+  m_free_field_cnt++;
+}
+
 NdbImportCsv::Line*
 NdbImportCsv::Alloc::alloc_line()
 {
@@ -1085,7 +1093,7 @@ NdbImportCsv::Eval::eval_line(Row* row, Line* line)
   row->m_linenr = linenr;
   row->m_startpos = m_input.m_startpos + line->m_pos;
   row->m_endpos = m_input.m_startpos + line->m_end;
-  const uint fieldcnt = line->m_field_list.cnt();
+  uint fieldcnt = line->m_field_list.cnt();
   const uint auto_inc_field_id = (uint)table.m_autoIncAttrId;
   const uint expect_attrcnt = (auto_inc_field_id == attrcnt - 1) ?
     attrcnt - 1 : attrcnt;
@@ -1099,6 +1107,15 @@ NdbImportCsv::Eval::eval_line(Row* row, Line* line)
         error, __LINE__, 0,
         "line %" PRIu64 ": too few fields (%u < %u)",
         linenr, fieldcnt, attrcnt);
+      break;
+    }
+    if(fieldcnt == expect_attrcnt + 1 &&
+       line->m_field_list.final_field_is_empty())
+    {
+      /* Handle field terminator at end of line */
+      Field * empty_field = line->m_field_list.pop_back();
+      fieldcnt--;
+      m_input.free_field(empty_field);
       break;
     }
     if (fieldcnt > expect_attrcnt)
