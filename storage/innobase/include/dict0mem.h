@@ -319,11 +319,12 @@ before proceeds. */
 @param[in]	len		length
 @param[in]	pos		position in a table
 @param[in]	num_base	number of base columns
+@param[in]	is_visible	True if virtual column is visible to user
 @return the virtual column definition */
 dict_v_col_t *dict_mem_table_add_v_col(dict_table_t *table, mem_heap_t *heap,
                                        const char *name, ulint mtype,
                                        ulint prtype, ulint len, ulint pos,
-                                       ulint num_base);
+                                       ulint num_base, bool is_visible);
 
 /** Adds a stored column definition to a table.
 @param[in,out]	table		table
@@ -506,6 +507,9 @@ struct dict_col_t {
                             this column. Our current max limit is
                             3072 (REC_VERSION_56_MAX_INDEX_COL_LEN)
                             bytes. */
+
+  /* True, if the column is visible */
+  bool is_visible;
 
   /** Returns the minimum size of the column.
   @return minimum size */

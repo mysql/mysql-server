@@ -594,14 +594,15 @@ static const char *dict_load_column_low(
       dict_v_col_t *vcol =
 #endif
           dict_mem_table_add_v_col(table, heap, name, mtype, prtype, col_len,
-                                   dict_get_v_col_mysql_pos(pos), num_base);
+                                   dict_get_v_col_mysql_pos(pos), num_base,
+                                   true);
       ut_ad(vcol->v_pos == dict_get_v_col_pos(pos));
     } else {
       ut_ad(num_base == 0);
-      dict_mem_table_add_col(table, heap, name, mtype, prtype, col_len);
+      dict_mem_table_add_col(table, heap, name, mtype, prtype, col_len, true);
     }
   } else {
-    dict_mem_fill_column_struct(column, pos, mtype, prtype, col_len);
+    dict_mem_fill_column_struct(column, pos, mtype, prtype, col_len, true);
   }
 
   /* Report the virtual column number */

@@ -10953,7 +10953,7 @@ inline MY_ATTRIBUTE((warn_unused_result)) int create_table_info_t::
           dtype_form_prtype((ulint)field->type() | nulls_allowed |
                                 unsigned_type | binary_type | long_true_varchar,
                             charset_no),
-          col_len);
+          col_len, !field->is_hidden_from_user());
     } else {
       if (is_multi_val) {
         col_len = field->key_length();
@@ -10964,7 +10964,8 @@ inline MY_ATTRIBUTE((warn_unused_result)) int create_table_info_t::
                                 unsigned_type | binary_type |
                                 long_true_varchar | is_virtual | is_multi_val,
                             charset_no),
-          col_len, i, field->gcol_info->non_virtual_base_columns());
+          col_len, i, field->gcol_info->non_virtual_base_columns(),
+          !field->is_hidden_from_user());
     }
 
     if (is_stored) {
@@ -22945,7 +22946,7 @@ static void innodb_fill_fake_column_struct(
 
   memset(col, 0, sizeof(dict_col_t));
   dict_mem_fill_column_struct(col, 0 /* fake col_pos */, mtype, fake_prtype,
-                              col_len);
+                              col_len, true);
 }
 
 /** Check if types of child and parent columns in foreign key are compatible.

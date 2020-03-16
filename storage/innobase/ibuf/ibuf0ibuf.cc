@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1363,7 +1363,7 @@ static void ibuf_dummy_index_add_col(
 {
   ulint i = index->table->n_def;
   dict_mem_table_add_col(index->table, nullptr, nullptr, dtype_get_mtype(type),
-                         dtype_get_prtype(type), dtype_get_len(type));
+                         dtype_get_prtype(type), dtype_get_len(type), true);
   dict_index_add_col(index, index->table, index->table->get_col(i), len, true);
 }
 /** Deallocates a dummy index for inserting a record to a non-clustered index.

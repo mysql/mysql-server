@@ -1150,14 +1150,15 @@ void dict_table_add_system_columns(dict_table_t *table, /*!< in/out: table */
   for these tables. */
 
   dict_mem_table_add_col(table, heap, "DB_ROW_ID", DATA_SYS,
-                         DATA_ROW_ID | DATA_NOT_NULL, DATA_ROW_ID_LEN);
+                         DATA_ROW_ID | DATA_NOT_NULL, DATA_ROW_ID_LEN, false);
 
   dict_mem_table_add_col(table, heap, "DB_TRX_ID", DATA_SYS,
-                         DATA_TRX_ID | DATA_NOT_NULL, DATA_TRX_ID_LEN);
+                         DATA_TRX_ID | DATA_NOT_NULL, DATA_TRX_ID_LEN, false);
 
   if (!table->is_intrinsic()) {
     dict_mem_table_add_col(table, heap, "DB_ROLL_PTR", DATA_SYS,
-                           DATA_ROLL_PTR | DATA_NOT_NULL, DATA_ROLL_PTR_LEN);
+                           DATA_ROLL_PTR | DATA_NOT_NULL, DATA_ROLL_PTR_LEN,
+                           false);
 
     /* This check reminds that if a new system column is added to
     the program, it should be dealt with here */
@@ -4276,7 +4277,7 @@ void dict_ind_init(void) {
   /* create dummy table and index for REDUNDANT infimum and supremum */
   table = dict_mem_table_create("SYS_DUMMY1", DICT_HDR_SPACE, 1, 0, 0, 0, 0);
   dict_mem_table_add_col(table, nullptr, nullptr, DATA_CHAR,
-                         DATA_ENGLISH | DATA_NOT_NULL, 8);
+                         DATA_ENGLISH | DATA_NOT_NULL, 8, true);
 
   dict_ind_redundant =
       dict_mem_index_create("SYS_DUMMY1", "SYS_DUMMY1", DICT_HDR_SPACE, 0, 1);
@@ -5105,13 +5106,14 @@ void DDTableBuffer::open() {
       MYSQL_TYPE_LONGLONG | DATA_NOT_NULL | DATA_UNSIGNED | DATA_BINARY_TYPE,
       0);
 
-  dict_mem_table_add_col(table, heap, table_id_name, DATA_INT, prtype, 8);
-  dict_mem_table_add_col(table, heap, version_name, DATA_INT, prtype, 8);
+  dict_mem_table_add_col(table, heap, table_id_name, DATA_INT, prtype, 8, true);
+  dict_mem_table_add_col(table, heap, version_name, DATA_INT, prtype, 8, true);
 
   prtype =
       dtype_form_prtype(MYSQL_TYPE_BLOB | DATA_NOT_NULL | DATA_BINARY_TYPE, 63);
 
-  dict_mem_table_add_col(table, heap, metadata_name, DATA_BLOB, prtype, 10);
+  dict_mem_table_add_col(table, heap, metadata_name, DATA_BLOB, prtype, 10,
+                         true);
 
   dict_table_add_system_columns(table, heap);
 
