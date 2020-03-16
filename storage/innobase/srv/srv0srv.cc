@@ -2276,6 +2276,10 @@ static void srv_master_do_active_tasks(void) {
 
   srv_update_cpu_usage();
 
+  if (trx_sys->rseg_history_len > 0) {
+    srv_wake_purge_thread_if_not_active();
+  }
+
   if (cur_time % SRV_MASTER_DICT_LRU_INTERVAL == 0) {
     srv_main_thread_op_info = "enforcing dict cache limit";
     ulint n_evicted = srv_master_evict_from_table_cache(50);
@@ -2328,6 +2332,10 @@ static void srv_master_do_idle_tasks(void) {
   }
 
   srv_update_cpu_usage();
+
+  if (trx_sys->rseg_history_len > 0) {
+    srv_wake_purge_thread_if_not_active();
+  }
 
   srv_main_thread_op_info = "enforcing dict cache limit";
   ulint n_evicted = srv_master_evict_from_table_cache(100);
