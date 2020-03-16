@@ -997,7 +997,7 @@ void thr_multi_unlock(THR_LOCK_DATA **data, uint count) {
     if ((*pos)->type != TL_UNLOCK)
       thr_unlock(*pos);
     else {
-      DBUG_PRINT("lock", ("Free lock: lock: %p", *pos, (*pos)->lock));
+      DBUG_PRINT("lock", ("Free lock: data: %p  lock: %p", *pos, (*pos)->lock));
       if ((*pos)->owner) {
         DBUG_PRINT("lock",
                    ("Free lock: thread: 0x%x", (*pos)->owner->thread_id));
