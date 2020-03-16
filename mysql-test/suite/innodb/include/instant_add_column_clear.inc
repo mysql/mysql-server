@@ -121,7 +121,7 @@ SELECT count(*) AS `Expect 3` FROM information_schema.innodb_columns WHERE has_d
 ALTER TABLE t1 ADD PARTITION (PARTITION p4 VALUES LESS THAN(40));
 
 SELECT count(*) AS `Expect 3` FROM information_schema.innodb_tables WHERE instant_cols != 0;
-SELECT count(*) AS `Expect 4` FROM information_schema.innodb_columns WHERE has_default = 1;
+SELECT count(*) AS `Expect 3` FROM information_schema.innodb_columns WHERE has_default = 1;
 SELECT instant_cols FROM information_schema.innodb_tables WHERE name LIKE '%p4%';
 
 # The new partition should have no instant column information
@@ -131,7 +131,7 @@ SELECT * FROM t1 WHERE a > 20 AND a < 30;
 SELECT * FROM t1 WHERE a > 10 AND a < 20;
 
 SELECT count(*) AS `Expect 2` FROM information_schema.innodb_tables WHERE instant_cols != 0;
-SELECT count(*) AS `Expect 5` FROM information_schema.innodb_columns WHERE has_default = 1;
+SELECT count(*) AS `Expect 2` FROM information_schema.innodb_columns WHERE has_default = 1;
 SELECT instant_cols FROM information_schema.innodb_tables WHERE name LIKE '%p3%';
 
 # The truncated partition should not have instant information
@@ -140,7 +140,7 @@ ALTER TABLE t1 TRUNCATE PARTITION p1;
 SELECT * FROM t1 WHERE a < 10;
 
 SELECT count(*) AS `Expect 1` FROM information_schema.innodb_tables WHERE instant_cols != 0;
-SELECT count(*) AS `Expect 5` FROM information_schema.innodb_columns WHERE has_default = 1;
+SELECT count(*) AS `Expect 1` FROM information_schema.innodb_columns WHERE has_default = 1;
 SELECT instant_cols FROM information_schema.innodb_tables WHERE name LIKE '%p1%';
 
 # Truncate all partitions, the table instant information should be clean
@@ -162,7 +162,7 @@ SELECT count(*) AS `Expect 5` FROM information_schema.innodb_columns WHERE has_d
 ALTER TABLE t1 TRUNCATE PARTITION p1;
 
 SELECT count(*) AS `Expect 4` FROM information_schema.innodb_tables WHERE instant_cols != 0;
-SELECT count(*) AS `Expect 5` FROM information_schema.innodb_columns WHERE has_default = 1;
+SELECT count(*) AS `Expect 4` FROM information_schema.innodb_columns WHERE has_default = 1;
 SELECT instant_cols FROM information_schema.innodb_tables WHERE name LIKE '%p1%';
 
 
@@ -171,7 +171,7 @@ SELECT instant_cols FROM information_schema.innodb_tables WHERE name LIKE '%p1%'
 ALTER TABLE t1 DROP PARTITION p2, p4;
 
 SELECT count(*) AS `Expect 2` FROM information_schema.innodb_tables WHERE instant_cols != 0;
-SELECT count(*) AS `Expect 3` FROM information_schema.innodb_columns WHERE has_default = 1;
+SELECT count(*) AS `Expect 2` FROM information_schema.innodb_columns WHERE has_default = 1;
 
 ALTER TABLE t1 DROP PARTITION p31, p32;
 

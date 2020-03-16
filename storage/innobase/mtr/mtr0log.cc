@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -593,7 +593,7 @@ byte *mlog_parse_index(byte *ptr,            /*!< in: buffer */
       dict_mem_table_add_col(
           table, nullptr, nullptr,
           ((len + 1) & 0x7fff) <= 1 ? DATA_BINARY : DATA_FIXBINARY,
-          len & 0x8000 ? DATA_NOT_NULL : 0, len & 0x7fff);
+          len & 0x8000 ? DATA_NOT_NULL : 0, len & 0x7fff, true);
 
       /* The is_ascending flag does not matter during
       redo log apply, because we do not compare for

@@ -4537,11 +4537,13 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
         dict_mem_table_add_v_col(
             ctx->new_table, ctx->heap, field->field_name, col_type,
             dtype_form_prtype(field_type, charset_no), col_len, i,
-            field->gcol_info->non_virtual_base_columns());
+            field->gcol_info->non_virtual_base_columns(),
+            !field->is_hidden_from_user());
       } else {
-        dict_mem_table_add_col(
-            ctx->new_table, ctx->heap, field->field_name, col_type,
-            dtype_form_prtype(field_type, charset_no), col_len);
+        dict_mem_table_add_col(ctx->new_table, ctx->heap, field->field_name,
+                               col_type,
+                               dtype_form_prtype(field_type, charset_no),
+                               col_len, !field->is_hidden_from_user());
       }
     }
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -61,23 +61,29 @@ dict_index_t *dict_mem_index_create(
                             DICT_CLUSTERED, ... ORed */
     ulint n_fields);        /*!< in: number of fields */
 
-/** Adds a column definition to a table. */
-void dict_mem_table_add_col(
-    dict_table_t *table, /*!< in: table */
-    mem_heap_t *heap,    /*!< in: temporary memory heap, or NULL */
-    const char *name,    /*!< in: column name, or NULL */
-    ulint mtype,         /*!< in: main datatype */
-    ulint prtype,        /*!< in: precise type */
-    ulint len);          /*!< in: precision */
+/** Adds a column definition to a table.
+@param[in] table        table
+@param[in] heap         temporary memory heap, or NULL
+@param[in] name         column name, or NULL
+@param[in] mtype        main datatype
+@param[in] prtype       precise type
+@param[in] len          length of column
+@param[in] is_visible   true if column is visible */
+void dict_mem_table_add_col(dict_table_t *table, mem_heap_t *heap,
+                            const char *name, ulint mtype, ulint prtype,
+                            ulint len, bool is_visible);
 
 /** This function populates a dict_col_t memory structure with
- supplied information. */
-void dict_mem_fill_column_struct(dict_col_t *column, /*!< out: column struct to
-                                                     be filled */
-                                 ulint col_pos,      /*!< in: column position */
-                                 ulint mtype,        /*!< in: main data type */
-                                 ulint prtype,       /*!< in: precise type */
-                                 ulint col_len);     /*!< in: column length */
+supplied information.
+@param[out] column      column struct to be filled
+@param[in]  col_pos     column position
+@param[in]  mtype       main data type
+@param[in]  prtype      precise type
+@param[in]  col_len     column length
+@param[in]  is_visible  true if column is visible */
+void dict_mem_fill_column_struct(dict_col_t *column, ulint col_pos, ulint mtype,
+                                 ulint prtype, ulint col_len, bool is_visible);
+
 /** Append 'name' to 'col_names'.  @see dict_table_t::col_names
  @return new column names array */
 const char *dict_add_col_name(const char *col_names, /*!< in: existing column
