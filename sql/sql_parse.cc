@@ -3905,6 +3905,10 @@ int mysql_execute_command(THD *thd, bool first_level) {
         }
       }
       if (first_table) {
+        if (lex->dynamic_privileges.elements > 0) {
+          my_error(ER_ILLEGAL_PRIVILEGE_LEVEL, MYF(0), all_tables->table_name);
+          goto error;
+        }
         if (lex->type == TYPE_ENUM_PROCEDURE ||
             lex->type == TYPE_ENUM_FUNCTION) {
           uint grants = lex->all_privileges
@@ -3922,11 +3926,6 @@ int mysql_execute_command(THD *thd, bool first_level) {
           if (check_grant(thd, (lex->grant | lex->grant_tot_col | GRANT_ACL),
                           all_tables, false, UINT_MAX, false))
             goto error;
-          if (lex->dynamic_privileges.elements > 0) {
-            my_error(ER_ILLEGAL_PRIVILEGE_LEVEL, MYF(0),
-                     all_tables->table_name);
-            goto error;
-          }
           /* Conditionally writes to binlog */
           res =
               mysql_table_grant(thd, all_tables, lex->users_list, lex->columns,
