@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -175,6 +175,11 @@ public:
       @retval !=0    Error
   */
   int initialize_applier_thread();
+
+  /**
+     Return the local applier stats.
+  */
+  Pipeline_member_stats *get_local_pipeline_stats();
 
   /**
     Terminates the applier thread.
