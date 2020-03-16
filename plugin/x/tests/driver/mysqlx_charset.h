@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -37,11 +37,11 @@ class Charset {
   static uint32_t id_from_collation_name(const std::string &collation_name);
 
  private:
-  typedef struct {
+  struct Charset_entry {
     uint32_t id;
     std::string name;
     std::string collation;
-  } Charset_entry;
+  };
 
   static const Charset_entry m_charsets_info[];
 

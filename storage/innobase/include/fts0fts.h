@@ -163,10 +163,10 @@ extern bool fts_enable_diag_print;
 typedef float fts_rank_t;
 
 /** Structure to manage FTS AUX table name and MDL during its drop */
-typedef struct {
+struct aux_name_vec_t {
   /** AUX table name */
   std::vector<char *> aux_name;
-} aux_name_vec_t;
+};
 
 /** Type of a row during a transaction. FTS_NOTHING means the row can be
 forgotten from the FTS system's POV, FTS_INVALID is an internal value used

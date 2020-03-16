@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -78,10 +78,10 @@ extern "C" void *test_lf_pinbox(void *arg) {
   thread local data area, allocated using lf_alloc.
   union is required to enforce the minimum required element size (sizeof(ptr))
 */
-typedef union {
+union TLA {
   std::atomic<int32> data;
   void *not_used;
-} TLA;
+};
 
 // SUPPRESS_UBSAN: integer overflow when generating random data.
 extern "C" void *test_lf_alloc(void *arg) SUPPRESS_UBSAN;

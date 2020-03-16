@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -115,7 +115,7 @@ class Country_index_by_name : public Country_index {
 };
 
 /* A structure to define a handle for table in plugin/component code. */
-typedef struct {
+struct Country_Table_Handle {
   /* Current position instance */
   Country_POS m_pos;
   /* Next position instance */
@@ -129,7 +129,7 @@ typedef struct {
 
   /* Index indicator */
   unsigned int index_num;
-} Country_Table_Handle;
+};
 
 PSI_table_handle *country_open_table(PSI_pos **pos);
 void country_close_table(PSI_table_handle *handle);
