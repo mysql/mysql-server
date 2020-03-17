@@ -246,5 +246,10 @@ call mtr.add_suppression("The group communication engine is not ready for the me
 call mtr.add_suppression("The member was unable to join the group.*");
 set session sql_log_bin=1;
 
+RESET PERSIST group_replication_group_name;
+RESET PERSIST group_replication_local_address;
+RESET PERSIST group_replication_group_seeds;
+RESET PERSIST group_replication_start_on_boot;
+
 --source include/clean_monitoring_process.inc
 --source include/group_replication_end.inc
