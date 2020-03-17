@@ -434,7 +434,7 @@ ENDIF()
 # DEB layout
 #
 SET(ROUTER_INSTALL_CONFIGDIR_DEB  "/etc/mysqlrouter")
-SET(ROUTER_INSTALL_DATADIR_DEB    "/var/run/mysqlrouter")
+SET(ROUTER_INSTALL_DATADIR_DEB    "/var/lib/mysqlrouter")
 SET(ROUTER_INSTALL_LOGDIR_DEB     "/var/log/mysqlrouter")
 SET(ROUTER_INSTALL_RUNTIMEDIR_DEB "/var/run/mysqlrouter")
 
