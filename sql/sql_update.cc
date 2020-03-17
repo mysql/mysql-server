@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2047,7 +2047,7 @@ bool Query_result_update::initialize_tables(JOIN *join)
     TABLE *table=table_ref->table;
     uint cnt= table_ref->shared;
     List<Item> temp_fields;
-    ORDER     group;
+    ORDER *group = NULL;
     Temp_table_param *tmp_param;
     if (table->vfield &&
         validate_gc_assignment(thd, fields, values, table))
@@ -2202,19 +2202,20 @@ loop_end:
     temp_fields.concat(fields_for_table[cnt]);
 
     /* Make an unique key over the first field to avoid duplicated updates */
-    memset(&group, 0, sizeof(group));
-    group.direction= ORDER::ORDER_ASC;
-    group.item= temp_fields.head_ref();
+    group = new ORDER;
+    memset(group, 0, sizeof(*group));
+    group->direction = ORDER::ORDER_ASC;
+    group->item = temp_fields.head_ref();
 
     tmp_param->quick_group=1;
     tmp_param->field_count=temp_fields.elements;
     tmp_param->group_parts=1;
     tmp_param->group_length= table->file->ref_length;
     /* small table, ignore SQL_BIG_TABLES */
-    my_bool save_big_tables= thd->variables.big_tables; 
+    my_bool save_big_tables= thd->variables.big_tables;
     thd->variables.big_tables= FALSE;
     tmp_tables[cnt]=create_tmp_table(thd, tmp_param, temp_fields,
-                                     &group, 0, 0,
+                                     group, 0, 0,
                                      TMP_TABLE_ALL_COLUMNS, HA_POS_ERROR, "");
     thd->variables.big_tables= save_big_tables;
     if (!tmp_tables[cnt])
@@ -2229,6 +2230,7 @@ loop_end:
     */
     tmp_tables[cnt]->triggers= table->triggers;
     tmp_tables[cnt]->file->extra(HA_EXTRA_WRITE_CACHE);
+    tmp_tables[cnt]->file->ha_index_init(0, false /*sorted*/);
   }
   DBUG_RETURN(0);
 }
@@ -2250,6 +2252,8 @@ Query_result_update::~Query_result_update()
     {
       if (tmp_tables[cnt])
       {
+        tmp_tables[cnt]->file->ha_index_or_rnd_end();
+        delete tmp_tables[cnt]->group;
 	free_tmp_table(thd, tmp_tables[cnt]);
 	tmp_table_param[cnt].cleanup();
       }
@@ -2416,19 +2420,24 @@ bool Query_result_update::send_data(List<Item> &not_used_values)
                   1 + unupdated_check_opt_tables.elements,
                   *values_for_table[offset], NULL, NULL);
 
+      // check if a record exists with the same hash value
+      if (!check_unique_constraint(tmp_table))
+        DBUG_RETURN(0); // skip adding duplicate record to the temp table
+
       /* Write row, ignoring duplicated updates to a row */
       error= tmp_table->file->ha_write_row(tmp_table->record[0]);
       if (error != HA_ERR_FOUND_DUPP_KEY && error != HA_ERR_FOUND_DUPP_UNIQUE)
       {
         if (error &&
-            create_ondisk_from_heap(thd, tmp_table,
-                                         tmp_table_param[offset].start_recinfo,
-                                         &tmp_table_param[offset].recinfo,
-                                         error, TRUE, NULL))
-        {
-          do_update= 0;
-	  DBUG_RETURN(1);			// Not a table_is_full error
-	}
+            (create_ondisk_from_heap(thd, tmp_table,
+                                     tmp_table_param[offset].start_recinfo,
+                                     &tmp_table_param[offset].recinfo,
+                                     error, TRUE, NULL) ||
+             tmp_table->file->ha_index_init(0, false /*sorted*/)))
+         {
+           do_update= 0;
+           DBUG_RETURN(1);			// Not a table_is_full error
+         }
         found++;
       }
     }
@@ -2568,6 +2577,7 @@ int Query_result_update::do_updates()
       continue;                                        // Already updated
     org_updated= updated;
     tmp_table= tmp_tables[cur_table->shared];
+    tmp_table->file->ha_index_or_rnd_end();
     tmp_table->file->extra(HA_EXTRA_CACHE);	// Change to read cache
     if ((local_error= table->file->ha_rnd_init(0)))
     {
