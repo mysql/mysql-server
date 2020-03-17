@@ -13,7 +13,7 @@
     "events": "~1.0.2",
     "express": "~4.10.1",
     "http": "0.0.0",
-    "minimist": "~1.1.0",
+    "minimist": "~1.2.5",
     "readline": "0.0.5",
     "recursive-readdir-sync": "^1.0.6",
     "socket.io": "~1.2.1",
