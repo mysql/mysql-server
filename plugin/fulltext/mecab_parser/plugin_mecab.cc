@@ -22,7 +22,14 @@
 
 #include "my_config.h"
 
+#include "my_compiler.h"
+
+MY_COMPILER_DIAGNOSTIC_PUSH()
+// include/mecab.h:1384:22: warning: empty paragraph passed to '@param' command
+// [-Wdocumentation]
+MY_COMPILER_CLANG_DIAGNOSTIC_IGNORE("-Wdocumentation")
 #include <mecab.h>
+MY_COMPILER_DIAGNOSTIC_POP()
 #include <string>
 
 #include <mysql/components/my_service.h>

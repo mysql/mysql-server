@@ -7564,8 +7564,6 @@ static const uchar *set_extra_data(uchar *arr) {
    function above.
 
    Will assert(false) if not.
-
-   @param extra_row_ndb_info
 */
 static void check_extra_row_ndb_info(uchar *extra_row_ndb_info) {
   assert(extra_row_ndb_info);

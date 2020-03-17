@@ -921,10 +921,7 @@ Latches *LatchDebug::check_order(const latch_t *latch,
 }
 
 /** Removes a latch from the thread level array if it is found there.
-@param[in]	latch		that was released/unlocked
-@return true if found in the array; it is not an error if the latch is
-not found, as we presently are not able to determine the level for
-every latch reservation the program does */
+@param[in]	latch		that was released/unlocked */
 void LatchDebug::unlock(const latch_t *latch) UNIV_NOTHROW {
   if (latch->get_level() == SYNC_LEVEL_VARYING) {
     // We don't have varying level mutexes
