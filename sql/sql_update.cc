@@ -1891,7 +1891,7 @@ bool Query_result_update::optimize() {
     TABLE *table = table_ref->table;
     uint cnt = table_ref->shared;
     List<Item> temp_fields;
-    ORDER group;
+    ORDER *group = nullptr;
     Temp_table_param *tmp_param;
 
     if (thd->lex->is_ignore()) table->file->ha_extra(HA_EXTRA_IGNORE_DUP_KEY);
@@ -2038,17 +2038,18 @@ bool Query_result_update::optimize() {
 
     temp_fields.concat(fields_for_table[cnt]);
 
+    group = new (thd->mem_root) ORDER;
     /* Make an unique key over the first field to avoid duplicated updates */
-    memset(&group, 0, sizeof(group));
-    group.direction = ORDER_ASC;
-    group.item = temp_fields.head_ref();
+    memset(group, 0, sizeof(*group));
+    group->direction = ORDER_ASC;
+    group->item = temp_fields.head_ref();
 
     tmp_param->allow_group_via_temp_table = true;
     tmp_param->field_count = temp_fields.elements;
     tmp_param->group_parts = 1;
     tmp_param->group_length = table->file->ref_length;
     tmp_tables[cnt] =
-        create_tmp_table(thd, tmp_param, temp_fields, &group, false, false,
+        create_tmp_table(thd, tmp_param, temp_fields, group, false, false,
                          TMP_TABLE_ALL_COLUMNS, HA_POS_ERROR, "");
     if (!tmp_tables[cnt]) return true;
 
@@ -2060,6 +2061,7 @@ bool Query_result_update::optimize() {
       calling fill_record() to assign values to the temporary table's fields.
     */
     tmp_tables[cnt]->triggers = table->triggers;
+    tmp_tables[cnt]->file->ha_index_init(0, false /*sorted*/);
   }
   return false;
 }
@@ -2073,6 +2075,11 @@ void Query_result_update::cleanup(THD *thd) {
   if (tmp_tables) {
     for (uint cnt = 0; cnt < update_table_count; cnt++) {
       if (tmp_tables[cnt]) {
+        /*
+          Cleanup can get called without the send_eof() call, close
+          the index if open.
+        */
+        tmp_tables[cnt]->file->ha_index_or_rnd_end();
         free_tmp_table(thd, tmp_tables[cnt]);
         tmp_table_param[cnt].cleanup();
       }
@@ -2230,11 +2237,16 @@ bool Query_result_update::send_data(THD *thd, List<Item> &) {
                       unupdated_check_opt_tables.elements,
                   *values_for_table[offset], nullptr, nullptr, false);
 
+      // check if a record exists with the same hash value
+      if (!check_unique_constraint(tmp_table))
+        return false;  // skip adding duplicate record to the temp table
+
       /* Write row, ignoring duplicated updates to a row */
       error = tmp_table->file->ha_write_row(tmp_table->record[0]);
       if (error != HA_ERR_FOUND_DUPP_KEY && error != HA_ERR_FOUND_DUPP_UNIQUE) {
         if (error &&
-            create_ondisk_from_heap(thd, tmp_table, error, true, nullptr)) {
+            (create_ondisk_from_heap(thd, tmp_table, error, true, nullptr) ||
+             tmp_table->file->ha_index_init(0, false /*sorted*/))) {
           update_completed = true;
           return true;  // Not a table_is_full error
         }
@@ -2381,6 +2393,8 @@ bool Query_result_update::do_updates(THD *thd) {
     }
     copy_field_end = copy_field_ptr;
 
+    // Before initializing for random scan, close the index opened for insert.
+    tmp_table->file->ha_index_or_rnd_end();
     if ((local_error = tmp_table->file->ha_rnd_init(true))) {
       if (table->file->is_fatal_error(local_error))
         error_flags |= ME_FATALERROR;
