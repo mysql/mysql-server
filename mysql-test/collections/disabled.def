@@ -62,6 +62,7 @@ max_parts.innodb_partition_open_files_limit                 : BUG#27423163 Test 
 # perfschema suite test
 perfschema.threads_history      : BUG#27712231
 perfschema.ssl                  : BUG#30910698
+perfschema.idx_compare_events_waits_current : BUG#27865960
 
 # rpl_gtid suite tests
 rpl_gtid.rpl_gtid_delete_memory_table_after_start_server : BUG#24351040
