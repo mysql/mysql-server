@@ -44,6 +44,11 @@ while(!$_done)
 
 if (!$_start_timeout)
 {
+  --echo Timed out waiting for backup to start
+  --echo Pre backup id $_pre_backup_id
+  --echo The backup id $the_backup_id
+  --echo Start backup records in use $start_backup_records_in_use
+  --echo Backup records in use $_backup_records_in_use
   die "Timed out waiting for backup to start.";
 }
 
