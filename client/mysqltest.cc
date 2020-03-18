@@ -689,8 +689,7 @@ class AsyncTimer {
 /*
   Check if any data is available in the socket to be read or written.
 */
-static int socket_event_listen(net_async_block_state async_blocking_state,
-                               my_socket fd) {
+static int socket_event_listen(my_socket fd) {
   int result;
   fd_set readfds, writefds, exceptfds;
 
@@ -699,18 +698,9 @@ static int socket_event_listen(net_async_block_state async_blocking_state,
   FD_ZERO(&exceptfds);
 
   FD_SET(fd, &exceptfds);
+  FD_SET(fd, &readfds);
+  FD_SET(fd, &writefds);
 
-  switch (async_blocking_state) {
-    case NET_NONBLOCKING_READ:
-      FD_SET(fd, &readfds);
-      break;
-    case NET_NONBLOCKING_WRITE:
-    case NET_NONBLOCKING_CONNECT:
-      FD_SET(fd, &writefds);
-      break;
-    default:
-      DBUG_ASSERT(false);
-  }
   result = select((int)(fd + 1), &readfds, &writefds, &exceptfds, NULL);
   if (result < 0) {
     perror("select");
@@ -718,24 +708,15 @@ static int socket_event_listen(net_async_block_state async_blocking_state,
   return result;
 }
 #else
-static int socket_event_listen(net_async_block_state async_blocking_state,
-                               my_socket fd) {
+static int socket_event_listen(my_socket fd) {
   int result;
   pollfd pfd;
   pfd.fd = fd;
-  switch (async_blocking_state) {
-    case NET_NONBLOCKING_READ:
-      pfd.events = POLLIN;
-      break;
-    case NET_NONBLOCKING_WRITE:
-      pfd.events = POLLOUT;
-      break;
-    case NET_NONBLOCKING_CONNECT:
-      pfd.events = POLLIN | POLLOUT;
-      break;
-    default:
-      DBUG_ASSERT(false);
-  }
+  /*
+    Listen to both in/out because SSL can perform reads during writes (and
+    vice versa).
+  */
+  pfd.events = POLLIN | POLLOUT;
   result = poll(&pfd, 1, -1);
   if (result < 0) {
     perror("poll");
@@ -754,9 +735,7 @@ static MYSQL_ROW async_mysql_fetch_row_wrapper(MYSQL_RES *res) {
   AsyncTimer t(__func__);
   while (mysql_fetch_row_nonblocking(res, &row) == NET_ASYNC_NOT_READY) {
     t.check();
-    NET_ASYNC *net_async = NET_ASYNC_DATA((&(mysql->net)));
-    int result = socket_event_listen(net_async->async_blocking_state,
-                                     mysql_get_socket_descriptor(mysql));
+    int result = socket_event_listen(mysql_get_socket_descriptor(mysql));
     if (result == -1) return nullptr;
   }
   return row;
@@ -768,9 +747,7 @@ static MYSQL_RES *async_mysql_store_result_wrapper(MYSQL *mysql) {
   while (mysql_store_result_nonblocking(mysql, &mysql_result) ==
          NET_ASYNC_NOT_READY) {
     t.check();
-    NET_ASYNC *net_async = NET_ASYNC_DATA(&(mysql->net));
-    int result = socket_event_listen(net_async->async_blocking_state,
-                                     mysql_get_socket_descriptor(mysql));
+    int result = socket_event_listen(mysql_get_socket_descriptor(mysql));
     if (result == -1) return nullptr;
   }
   return mysql_result;
@@ -783,9 +760,7 @@ static int async_mysql_real_query_wrapper(MYSQL *mysql, const char *query,
   while ((status = mysql_real_query_nonblocking(mysql, query, length)) ==
          NET_ASYNC_NOT_READY) {
     t.check();
-    NET_ASYNC *net_async = NET_ASYNC_DATA(&(mysql->net));
-    int result = socket_event_listen(net_async->async_blocking_state,
-                                     mysql_get_socket_descriptor(mysql));
+    int result = socket_event_listen(mysql_get_socket_descriptor(mysql));
     if (result == -1) return 1;
   }
   if (status == NET_ASYNC_ERROR) {
@@ -804,9 +779,7 @@ static int async_mysql_send_query_wrapper(MYSQL *mysql, const char *query,
   while ((status = mysql_send_query_nonblocking(mysql, query, length)) ==
          NET_ASYNC_NOT_READY) {
     t.check();
-    NET_ASYNC *net_async = NET_ASYNC_DATA(&(mysql->net));
-    int result = socket_event_listen(net_async->async_blocking_state,
-                                     mysql_get_socket_descriptor(mysql));
+    int result = socket_event_listen(mysql_get_socket_descriptor(mysql));
     if (result == -1) return 1;
   }
   if (status == NET_ASYNC_ERROR) {
@@ -821,9 +794,7 @@ static bool async_mysql_read_query_result_wrapper(MYSQL *mysql) {
   while ((status = (*mysql->methods->read_query_result_nonblocking)(mysql)) ==
          NET_ASYNC_NOT_READY) {
     t.check();
-    NET_ASYNC *net_async = NET_ASYNC_DATA(&(mysql->net));
-    int result = socket_event_listen(net_async->async_blocking_state,
-                                     mysql_get_socket_descriptor(mysql));
+    int result = socket_event_listen(mysql_get_socket_descriptor(mysql));
     if (result == -1) return true;
   }
   if (status == NET_ASYNC_ERROR) {
@@ -838,9 +809,7 @@ static int async_mysql_next_result_wrapper(MYSQL *mysql) {
   while ((status = mysql_next_result_nonblocking(mysql)) ==
          NET_ASYNC_NOT_READY) {
     t.check();
-    NET_ASYNC *net_async = NET_ASYNC_DATA(&(mysql->net));
-    int result = socket_event_listen(net_async->async_blocking_state,
-                                     mysql_get_socket_descriptor(mysql));
+    int result = socket_event_listen(mysql_get_socket_descriptor(mysql));
     if (result == -1) return 1;
   }
   if (status == NET_ASYNC_ERROR)
@@ -874,9 +843,7 @@ static int async_mysql_query_wrapper(MYSQL *mysql, const char *query) {
   while ((status = mysql_real_query_nonblocking(mysql, query, strlen(query))) ==
          NET_ASYNC_NOT_READY) {
     t.check();
-    NET_ASYNC *net_async = NET_ASYNC_DATA(&(mysql->net));
-    int result = socket_event_listen(net_async->async_blocking_state,
-                                     mysql_get_socket_descriptor(mysql));
+    int result = socket_event_listen(mysql_get_socket_descriptor(mysql));
     if (result == -1) return 1;
   }
   if (status == NET_ASYNC_ERROR) {
@@ -890,9 +857,7 @@ static void async_mysql_free_result_wrapper(MYSQL_RES *result) {
   while (mysql_free_result_nonblocking(result) == NET_ASYNC_NOT_READY) {
     t.check();
     MYSQL *mysql = result->handle;
-    NET_ASYNC *net_async = NET_ASYNC_DATA(&(mysql->net));
-    int listen_result = socket_event_listen(net_async->async_blocking_state,
-                                            mysql_get_socket_descriptor(mysql));
+    int listen_result = socket_event_listen(mysql_get_socket_descriptor(mysql));
     if (listen_result == -1) return;
   }
   return;
