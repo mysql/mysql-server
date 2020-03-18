@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -533,7 +533,7 @@ static int check_connection(THD *thd) {
                                                 main_sctx_ip.length);
     if (!(specialflag & SPECIAL_NO_RESOLVE)) {
       int rc;
-      char *host;
+      char *host = nullptr;
       LEX_CSTRING main_sctx_host;
 
 #ifdef HAVE_SETNS
@@ -584,6 +584,11 @@ static int check_connection(THD *thd) {
               min<size_t>(main_sctx_host.length, HOSTNAME_LENGTH));
         thd->m_main_security_ctx.set_host_or_ip_ptr(main_sctx_host.str,
                                                     main_sctx_host.length);
+      }
+
+      if (rc == RC_LONG_HOSTNAME) {
+        my_error(ER_HOSTNAME_TOO_LONG, MYF(0), HOSTNAME_LENGTH);
+        return 1;
       }
 
       if (rc == RC_BLOCKED_HOST) {
