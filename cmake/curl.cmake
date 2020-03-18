@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -142,21 +142,22 @@ MACRO(MYSQL_CHECK_CURL_DLLS)
 
       SET(ZLIB_DLL_REQUIRED 1)
       FIND_OBJECT_DEPENDENCIES("${HAVE_CURL_DLL}" DEPENDENCY_LIST)
-      LIST(FIND DEPENDENCY_LIST "zlib1.dll" FOUNDIT)
+      LIST(FIND DEPENDENCY_LIST "zlib.dll" FOUNDIT1)
+      LIST(FIND DEPENDENCY_LIST "zlib1.dll" FOUNDIT2)
       MESSAGE(STATUS "${CURL_DLL_NAME} DEPENDENCY_LIST ${DEPENDENCY_LIST}")
-      IF(FOUNDIT LESS 0)
+      IF(FOUNDIT1 LESS 0 AND FOUNDIT2 LESS 0)
         UNSET(ZLIB_DLL_REQUIRED)
       ENDIF()
 
       FIND_FILE(HAVE_ZLIB_DLL
-        NAMES zlib1.dll
+        NAMES zlib.dll zlib1.dll
         PATHS "${WITH_CURL_PATH}/lib"
         NO_DEFAULT_PATH
         )
       MESSAGE(STATUS "HAVE_ZLIB_DLL ${HAVE_ZLIB_DLL}")
 
       IF(ZLIB_DLL_REQUIRED AND NOT HAVE_ZLIB_DLL)
-        MESSAGE(FATAL_ERROR "libcurl.dll depends on zlib1.dll")
+        MESSAGE(FATAL_ERROR "libcurl.dll depends on zlib.dll or zlib1.dll")
       ENDIF()
 
       IF(ZLIB_DLL_REQUIRED AND HAVE_ZLIB_DLL)
