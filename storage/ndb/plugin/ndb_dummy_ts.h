@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,7 @@ namespace ndb_dummy_ts {
   @retval		false		success
   @retval		true		failure
 */
-static bool sdi_create(dd::Tablespace *) {
+static bool sdi_create(dd::Tablespace *tablespace MY_ATTRIBUTE((unused))) {
   DBUG_ASSERT(false);  // Never called
   return false;        // Success
 }
@@ -56,7 +56,7 @@ static bool sdi_create(dd::Tablespace *) {
   @retval		false		success
   @retval		true		failure
 */
-static bool sdi_drop(dd::Tablespace *) {
+static bool sdi_drop(dd::Tablespace *tablespace MY_ATTRIBUTE((unused))) {
   DBUG_ASSERT(false);  // Never called
   return false;        // Success
 }
@@ -68,7 +68,9 @@ static bool sdi_drop(dd::Tablespace *) {
   @retval		false		success
   @retval		true		failure
 */
-static bool sdi_get_keys(const dd::Tablespace &, sdi_vector_t &) {
+static bool sdi_get_keys(const dd::Tablespace &tablespace
+                             MY_ATTRIBUTE((unused)),
+                         sdi_vector_t &vector MY_ATTRIBUTE((unused))) {
   DBUG_ASSERT(false);  // Never called
   return false;        // Success
 }
@@ -82,8 +84,10 @@ static bool sdi_get_keys(const dd::Tablespace &, sdi_vector_t &) {
   @retval		false		success
   @retval		true		failure
 */
-static bool sdi_get(const dd::Tablespace &, const sdi_key_t *, void *,
-                    uint64 *) {
+static bool sdi_get(const dd::Tablespace &tablespace MY_ATTRIBUTE((unused)),
+                    const sdi_key_t *sdi_key MY_ATTRIBUTE((unused)),
+                    void *sdi MY_ATTRIBUTE((unused)),
+                    uint64 *sdi_len MY_ATTRIBUTE((unused))) {
   DBUG_ASSERT(false);  // Never called
   return false;        // Success
 }
@@ -99,8 +103,12 @@ static bool sdi_get(const dd::Tablespace &, const sdi_key_t *, void *,
   @retval		false		success
   @retval		true		failure
 */
-static bool sdi_set(handlerton *, const dd::Tablespace &, const dd::Table *,
-                    const sdi_key_t *, const void *, uint64) {
+static bool sdi_set(handlerton *hton MY_ATTRIBUTE((unused)),
+                    const dd::Tablespace &tablespace MY_ATTRIBUTE((unused)),
+                    const dd::Table *table MY_ATTRIBUTE((unused)),
+                    const sdi_key_t *sdi_key MY_ATTRIBUTE((unused)),
+                    const void *sdi MY_ATTRIBUTE((unused)),
+                    uint64 sdi_len MY_ATTRIBUTE((unused))) {
   return false;  // Success
 }
 
@@ -113,8 +121,9 @@ static bool sdi_set(handlerton *, const dd::Tablespace &, const dd::Table *,
   @retval		false		success
   @retval		true		failure
 */
-static bool sdi_delete(const dd::Tablespace &, const dd::Table *,
-                       const sdi_key_t *) {
+static bool sdi_delete(const dd::Tablespace &tablespace MY_ATTRIBUTE((unused)),
+                       const dd::Table *table MY_ATTRIBUTE((unused)),
+                       const sdi_key_t *sdi_key MY_ATTRIBUTE((unused))) {
   return false;  // Success
 }
 }  // namespace ndb_dummy_ts

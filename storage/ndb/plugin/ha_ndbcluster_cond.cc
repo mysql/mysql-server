@@ -1378,7 +1378,7 @@ static int create_or_conditions(Item_cond *cond, List<Item> pushed_list,
                        from the condition terms pushed down.
   @param pushed_cond   The (part of) the condition term we may push
                        down to the ndbcluster storage engine.
-  @param remainder     The remainder (part of) the condition term
+  @param remainder_cond The remainder (part of) the condition term
                        still needed to be evaluated by the server.
 
   @return a List of Ndb_item objects representing the serialized

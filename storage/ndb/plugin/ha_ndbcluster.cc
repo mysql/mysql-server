@@ -6891,15 +6891,6 @@ int ha_ndbcluster::reset() {
   return 0;
 }
 
-/**
-  Start of an insert, remember number of rows to be inserted, it will
-  be used in write_row and get_autoincrement to send an optimal number
-  of rows in each roundtrip to the server.
-
-  @param
-   rows     number of rows to insert, 0 if unknown
-*/
-
 int ha_ndbcluster::flush_bulk_insert(bool allow_batch) {
   NdbTransaction *trans = m_thd_ndb->trans;
   DBUG_TRACE;
@@ -6937,6 +6928,15 @@ int ha_ndbcluster::flush_bulk_insert(bool allow_batch) {
 
   return 0;
 }
+
+/**
+  Start of an insert, remember number of rows to be inserted, it will
+  be used in write_row and get_autoincrement to send an optimal number
+  of rows in each roundtrip to the server.
+
+  @param
+   rows     number of rows to insert, 0 if unknown
+*/
 
 void ha_ndbcluster::start_bulk_insert(ha_rows rows) {
   DBUG_TRACE;
@@ -12066,7 +12066,7 @@ static Ndb_server_hooks ndb_server_hooks;
   @param thd                Thread context.
   @param mdl_key            MDL key identifying table which is going to be
                             or was ALTERed.
-  @param notification_type  Indicates whether this is pre-ALTER TABLE or
+  @param notification       Indicates whether this is pre-ALTER TABLE or
                             post-ALTER TABLE notification.
 
   @note This is an additional notification that spans the duration
@@ -12121,7 +12121,7 @@ static bool ndbcluster_notify_alter_table(
   @param thd                Thread context.
   @param mdl_key            MDL key identifying object on which exclusive
                             lock is to be acquired/was released.
-  @param notification_type  Indicates whether this is pre-acquire or
+  @param notification       Indicates whether this is pre-acquire or
                             post-release notification.
   @param victimized        'true' if locking failed as we were choosen
                             as a victim in order to avoid possible deadlocks.
@@ -13269,8 +13269,9 @@ ha_rows ha_ndbcluster::multi_range_read_info(uint keyno, uint n_ranges,
   @retval false  NDB-MRR implementation should be used
 */
 
-bool ha_ndbcluster::choose_mrr_impl(uint keyno, uint n_ranges, ha_rows n_rows,
-                                    uint *bufsz, uint *flags, Cost_estimate *) {
+bool ha_ndbcluster::choose_mrr_impl(
+    uint keyno, uint n_ranges, ha_rows n_rows, uint *bufsz, uint *flags,
+    Cost_estimate *cost MY_ATTRIBUTE((unused))) {
   THD *thd = current_thd;
   NDB_INDEX_TYPE key_type = get_index_type(keyno);
 
@@ -14129,8 +14130,6 @@ bool ha_ndbcluster::maybe_pushable_join(const char *&reason) const {
  *
  * @param type This is the operation type that the server want to execute.
  * @param idx  Index used whenever relevant for operation type
- * @param needSorted True if the root operation is an ordered index scan
- * with sorted results.
  * @return True if the operation may be pushed.
  */
 bool ha_ndbcluster::check_if_pushable(int type,  // NdbQueryOperationDef::Type,
@@ -16406,12 +16405,9 @@ static bool drop_logfile_group_from_NDB(const char *logfile_group_name,
 /**
   Create, drop or alter tablespace or logfile group
 
-  @param          hton        Handlerton of the SE.
   @param          thd         Thread context.
   @param          alter_info  Description of tablespace and specific
                               operation on it.
-  @param          old_ts_def  dd::Tablespace object describing old version
-                              of tablespace.
   @param [in,out] new_ts_def  dd::Tablespace object describing new version
                               of tablespace. Engines which support atomic DDL
                               can adjust this object. The updated information
@@ -17040,7 +17036,8 @@ bool ha_ndbcluster::get_num_parts(const char *name, uint *num_parts) {
   @return false on success, true on failure
 */
 
-bool ha_ndbcluster::upgrade_table(THD *thd, const char *,
+bool ha_ndbcluster::upgrade_table(THD *thd,
+                                  const char *db_name MY_ATTRIBUTE((unused)),
                                   const char *table_name, dd::Table *dd_table) {
   Ndb *ndb = check_ndb_in_thd(thd);
 

@@ -129,7 +129,7 @@ extern "C" {
      *
      * @param interface The highest interface level the server supports
      * @param get_server_api function to get the server API from
-     * @param Where to store the interface handle
+     * @param handle Where to store the interface handle
      * @return See description of ENGINE_ERROR_CODE
      */
     typedef ENGINE_ERROR_CODE (*CREATE_INSTANCE)(uint64_t interface,
@@ -484,7 +484,8 @@ extern "C" {
          * @param handle the engine that owns the object
          * @param cookie connection cookie for this item
          * @param item the item to request information about
-         * @param item_info
+         * @param[out] item_info destination where item_info shall be stored on
+         * success
          * @return true if successful
          */
         bool (*get_item_info)(ENGINE_HANDLE *handle,

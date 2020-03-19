@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,8 +47,6 @@ class Ndb_binlog_client {
   /**
    * @brief log_warning, push the message as warning for user threads and
    *                     write the message to log file for other threads
-   * @param code
-   * @param fmt
    */
   void log_warning(uint code, const char *fmt, ...) const
       MY_ATTRIBUTE((format(printf, 3, 4)));
@@ -56,10 +54,10 @@ class Ndb_binlog_client {
   /**
    * @brief event_name_for_table, generate name for the event for this table
    *
-   * @param event_name     the returned event name
    * @param db             database of table
-   * @param tbl            name of table
+   * @param table_name     name of table
    * @param full           create name for event with all columns
+   * @return the returned event name
    */
   static std::string event_name_for_table(const char *db,
                                           const char *table_name, bool full);

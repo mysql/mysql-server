@@ -722,12 +722,13 @@ private:
   /**
    * Take ownership of specified object: From now on it is the
    * responsibility of this NdbQueryBuilderImpl to manage the
-   * lifetime of the object. If takeOwnership() fails, the 
+   * lifetime of the object. If takeOwnership() fails, the
    * specified object is deleted before it returns.
-   * @param[in] operand to take ownership for (may be NULL).
+   *
+   * @param[in] operand operand to take ownership for (may be NULL).
    * @return 0 if ok, else there has been an 'Err_MemoryAlloc'
    */
-  int takeOwnership(NdbQueryOperandImpl*);
+  int takeOwnership(NdbQueryOperandImpl* operand);
   int takeOwnership(NdbQueryOperationDefImpl*);
 
   bool contains(const NdbQueryOperationDefImpl*);

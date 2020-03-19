@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,7 +68,6 @@ int show_ndb_status_injector(THD *, SHOW_VAR *var, char *);
 /**
  @brief Validate the blacklist of objects
  @param thd  Thread handle
- @return void
 */
 void ndbcluster_binlog_validate_sync_blacklist(THD *thd);
 

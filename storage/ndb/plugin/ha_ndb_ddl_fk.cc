@@ -908,7 +908,6 @@ class Fk_util {
     This can be called either by ha_ndbcluster::get_error_message
     or ha_ndbcluster:get_foreign_key_create_info.
 
-    @param    thd               Current thread.
     @param    ndb               Pointer to the Ndb Object
     @param    fk                The foreign key object whose info
                                 has to be printed.
@@ -1282,7 +1281,6 @@ int ndb_fk_util_rename_foreign_keys(THD *thd, NdbDictionary::Dictionary *dict,
   @param thd            thread handle
   @param parent_db      Parent table's database name
   @param parent_name    Parent table's name
-  @return Void
 */
 static void flush_parent_table_for_fk(THD *thd, const char *parent_db,
                                       const char *parent_name) {

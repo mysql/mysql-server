@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,17 +32,17 @@
 #include <kernel/BlockNumbers.h>
 #include <kernel/signaldata/DumpStateOrd.hpp>
 
-/** 
+/**
  *  @class CommandInterpreter
  *  @brief Reads command line in management client
  *
  *  For command syntax, see the HELP command.
- */ 
+ */
 class CommandInterpreter {
 public:
   /**
    *   Constructor
-   *   @param host: Management server to use when executing commands
+   *   @param host Management server to use when executing commands
    */
   CommandInterpreter(const char* host,
                      const char* default_prompt,
@@ -67,13 +67,13 @@ private:
   /**
    *   Analyse the command line, after the first token.
    *
-   *   @param  processId:           DB process id to send command to or -1 if
+   *   @param  processId            DB process id to send command to or -1 if
    *                                command will be sent to all DB processes.
-   *   @param  allAfterFirstToken:  What the client gave after the 
+   *   @param  allAfterFirstToken   What the client gave after the
    *                                first token on the command line
-   *   @return: 0 if analyseAfterFirstToken succeeds, otherwise -1 
+   *   @return 0 if analyseAfterFirstToken succeeds, otherwise -1
    */
-  int  analyseAfterFirstToken(int processId, char* allAfterFirstTokenCstr);
+  int  analyseAfterFirstToken(int processId, char* allAfterFirstToken);
 
   int  executeCommand(Vector<BaseString> &command_list,
                       unsigned command_pos,
@@ -82,19 +82,19 @@ private:
    *   Parse the block specification part of the LOG* commands,
    *   things after LOG*: [BLOCK = {ALL|<blockName>+}]
    *
-   *   @param  allAfterLog: What the client gave after the second token 
+   *   @param  allAfterLog  What the client gave after the second token
    *                        (LOG*) on the command line
-   *   @param  blocks, OUT: ALL or name of all the blocks
-   *   @return: true if correct syntax, otherwise false
+   *   @param[out]  blocks  ALL or name of all the blocks
+   *   @return true if correct syntax, otherwise false
    */
-  bool parseBlockSpecification(const char* allAfterLog, 
+  bool parseBlockSpecification(const char* allAfterLog,
 			       Vector<BaseString>& blocks);
-  
-  /**
+
+  /*
    *   A bunch of execute functions: Executes one of the commands
    *
-   *   @param  processId:   DB process id to send command to
-   *   @param  parameters:  What the client gave after the command name 
+   *   @param  processId    DB process id to send command to
+   *   @param  parameters   What the client gave after the command name
    *                        on the command line.
    *   For example if complete input from user is: "1 LOGLEVEL 22" then the
    *   parameters argument is the string with everything after LOGLEVEL, in
@@ -1500,13 +1500,13 @@ CommandInterpreter::executeCommand(Vector<BaseString> &command_list,
  * set to the next node_id in the list. node_id should be set
  * to 0 (zero) on the first call.
  *
- * @param handle the NDB management handle
+ * @param cl cluster state
  * @param node_id last node_id retreived, 0 at first call
  * @param type type of node to look for
  * @return 1 if a node was found, 0 if no more node exist
  */
-static 
-int 
+static
+int
 get_next_nodeid(struct ndb_mgm_cluster_state *cl,
 		int *node_id,
 		enum ndb_mgm_node_type type)

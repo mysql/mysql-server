@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -719,7 +719,7 @@ extern "C" {
    * @param handle the NDB management handle.
    * @param nodeId the node id.
    * @param args integer array
-   * @param number of args in int array
+   * @param num_args number of args in int array
    * @param reply the reply message.
    * @return 0 if successful or an error code.
    */
@@ -733,7 +733,7 @@ extern "C" {
    * Get the current configuration from a node.
    *
    * @param handle the NDB management handle.
-   * @param nodeId of the node for which the configuration is requested.
+   * @param nodeid of the node for which the configuration is requested.
    * @return the current configuration from the requested node.
    */
   struct ndb_mgm_configuration *
@@ -965,7 +965,7 @@ extern "C" {
    *
    * @param   handle        NDB management handle
    *
-   * @param loglevel        A vector of seven (NDB_MGM_EVENT_SEVERITY_ALL)
+   * @param severity        A vector of seven (NDB_MGM_EVENT_SEVERITY_ALL)
    *                        elements of struct ndb_mgm_severity,
    *                        where each element contains
    *                        1 if a severity indicator is enabled and 0 if not.
@@ -1102,7 +1102,7 @@ extern "C" {
    *
    * @return       NdbLogEventHandle
    */
-  NdbLogEventHandle ndb_mgm_create_logevent_handle(NdbMgmHandle,
+  NdbLogEventHandle ndb_mgm_create_logevent_handle(NdbMgmHandle handle,
 						   const int filter[]);
   void ndb_mgm_destroy_logevent_handle(NdbLogEventHandle*);
 

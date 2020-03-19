@@ -72,7 +72,7 @@ public:
                        unsigned len);
 
   /**
-   * assign - Set all bits in <em>dst</em> to corresponding in <em>src/<em>
+   * assign - Set all bits in <em>dst</em> to corresponding in <em>src</em>
    */
   static void assign(unsigned size, Uint32 dst[], const Uint32 src[]);
 
@@ -882,12 +882,12 @@ public:
   unsigned max_size() const { return (size * 32) - 1; }
 
   /**
-   * assign - Set all bits in <em>dst</em> to corresponding in <em>src/<em>
+   * assign - Set all bits in <em>dst</em> to corresponding in <em>src</em>
    */
   void assign(const typename BitmaskPOD<size>::Data & src);
 
   /**
-   * assign - Set all bits in <em>dst</em> to corresponding in <em>src/<em>
+   * assign - Set all bits in <em>dst</em> to corresponding in <em>src</em>
    */
   static void assign(Uint32 dst[], const Uint32 src[]);
   static void assign(Uint32 dst[], const BitmaskPOD<size> & src);
@@ -897,9 +897,9 @@ public:
    * copy this to <em>dst</em>
    */
   void copyto(unsigned sz, Uint32 dst[]) const;
-  
+
   /**
-   * assign <em>this</em> according to <em>src/em>
+   * assign <em>this</em> according to <em>src</em>
    */
   void assign(unsigned sz, const Uint32 src[]);
 

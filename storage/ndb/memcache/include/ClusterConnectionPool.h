@@ -1,6 +1,6 @@
 /*
- Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
- 
+ Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
  as published by the Free Software Foundation.
@@ -44,13 +44,13 @@ class ClusterConnectionPool {
 
 /* public instance variables */
 public:
-  const char * const connect_string;   /*< cluster connect string */
-  unsigned int usec_rtt;         /*< estimated newtork latency within cluster */
+  const char * const connect_string;   /*!< cluster connect string */
+  unsigned int usec_rtt;         /*!< estimated newtork latency within cluster */
 
 /* private instance variables */
 private:
-  Ndb_cluster_connection *main_conn;                                      
-  unsigned int pool_size;                  
+  Ndb_cluster_connection *main_conn;
+  unsigned int pool_size;
   Ndb_cluster_connection * pool_connections[MAX_CONNECT_POOL];
   void * custom_data_ptr;
 
@@ -61,10 +61,10 @@ public:
 /* public instance methods */
 public:
   ClusterConnectionPool(const char *s = 0);
-  ~ClusterConnectionPool();  
+  ~ClusterConnectionPool();
   void setMainConnection(Ndb_cluster_connection *);                  // inlined
   Ndb_cluster_connection *getMainConnection() const      { return main_conn; }
-  unsigned int getPoolSize() const                       { return pool_size; } 
+  unsigned int getPoolSize() const                       { return pool_size; }
 
   /** After startup time, create an additional connection in the pool.
       Returns the new connection

@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3260,17 +3260,6 @@ void Dbacc::insertElement(const Element   elem,
  *
  * In case the container is empty it is either the bucket header container
  * or a new container created by caller (insertElement).
- *
- * @param[in]   elem
- * @param[in]   oprecptr
- * @param[in]   pageptr
- * @param[in]   conidx
- * @param[in]   isforward
- * @param[out]  conptr
- * @param[out]  containerhead
- * @param[in]   conScanMask
- * @param[in]   newContainer
- * @param[out]  result
  */
 void Dbacc::insertContainer(const Element          elem,
                             const OperationrecPtr  oprecptr,
@@ -8372,7 +8361,7 @@ void Dbacc::releaseScanBucket(Page8Ptr pageptr,
  *
  * @param[in]  pageptr  Pointer to page holding container.
  * @param[in]  conptr   Pointer within page to container.
- * @param[in]  forward  Container growing direction.
+ * @param[in]  isforward  Container growing direction.
  * @param[in]  conlen   Containers current size.
  * @param[in]  scanMask   Scan bits that should be cleared if set
  * @param[in]  allScanned All elements should have this bits set (debug)

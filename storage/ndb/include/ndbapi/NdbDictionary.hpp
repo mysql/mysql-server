@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2515,7 +2515,7 @@ public:
     /**
      * Start table optimization given defined table object
      * @param t Object of table to optimize
-     * @param Pre-allocated OptimizeTableHandle
+     * @param h Pre-allocated OptimizeTableHandle
      * @return 0 if successful otherwise -1.
      */
     int
@@ -2524,7 +2524,7 @@ public:
     /**
      * Start index optimization given defined index object
      * @param ind Object of index to optimize
-     * @param Pre-allocated OptimizeIndexHandle
+     * @param h Pre-allocated OptimizeIndexHandle
      * @return 0 if successful otherwise -1.
      */
     int

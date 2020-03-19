@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -829,11 +829,18 @@ extern "C" {
     unsigned time;
     unsigned data[1];
   };
-
+#if defined(__clang__)
+// workaround false positive warning about @see @ref with clang and -Wdocumentation
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdocumentation"
+#endif
   /**
    * Structure to store and retrieve log event information.
    * @see @ref secSLogEvents
    */
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
   struct ndb_logevent {
     /** NdbLogEventHandle (to be used for comparing only)
      *  set in ndb_logevent_get_next()

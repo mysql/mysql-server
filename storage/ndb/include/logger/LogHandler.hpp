@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -189,16 +189,16 @@ protected:
 
   /**
    * Write the header to the log.
-   * 
+   *
    * @param pCategory the category to tag the log with.
    * @param level the log level.
    */
-  virtual void writeHeader(const char* category, Logger::LoggerLevel level,
+  virtual void writeHeader(const char* pCategory, Logger::LoggerLevel level,
                            time_t now) = 0;
 
   /**
    * Write the message to the log.
-   * 
+   *
    * @param pMsg the message to log.
    */
   virtual void writeMessage(const char* pMsg) = 0;

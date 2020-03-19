@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -229,7 +229,7 @@ class Ndb_schema_dist_client {
            The rename case is different as two different "keys" may be used
            and need to be prepared.
     @param db database name
-    @param table_name table name
+    @param tabname table name
     @param new_db new database name
     @param new_tabname new table name
     @note Always done early to avoid changing metadata which is
@@ -256,7 +256,7 @@ class Ndb_schema_dist_client {
           code(or none at all) should be returned for this error.
     @note Always done early to avoid changing metadata which is
           hard to rollback at a later stage.
-    @param invalid_identifer The name of the identifier that failed the check
+    @param invalid_identifier The name of the identifier that failed the check
     @return true if check succeed
   */
   bool check_identifier_limits(std::string &invalid_identifier);
@@ -282,7 +282,6 @@ class Ndb_schema_dist_client {
 
   /**
    * @brief Convert SCHEMA_OP_TYPE to string
-   * @param type
    * @return string describing the type
    */
   static const char *type_name(SCHEMA_OP_TYPE type);

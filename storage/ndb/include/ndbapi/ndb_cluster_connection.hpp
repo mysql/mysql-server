@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -69,7 +69,7 @@ public:
    *
    * @param connectstring The connectstring for where to find the
    *                      management server
-   * @param force_api_node The nodeid to use for this API node, will
+   * @param force_api_nodeid The nodeid to use for this API node, will
    *                       override any nodeid=<nodeid> specified in
    *                       connectstring
    */
@@ -105,9 +105,6 @@ public:
    * Set a name on the connection, which will be reported in cluster log
    * and in ndbinfo.processes.
    * For the name to be visible, this must be called prior to connect().
-   *
-   * @param name
-   *
    */
   void set_name(const char *name);
 
@@ -242,9 +239,9 @@ public:
    *
    * See Ndb::ClientStatistics for suggested array size and offset
    * meanings
-   * 
+   *
    * @param statsArr   Pointer to array of Uint64 values for stats
-   * @param szz        Size of array
+   * @param sz         Size of array
    * @return Number of stats array values written
    */
   Uint32 collect_client_stats(Uint64* statsArr, Uint32 sz);
