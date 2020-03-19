@@ -1,4 +1,4 @@
-# Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -323,4 +323,32 @@ IF(LOCAL_BOOST_DIR OR LOCAL_BOOST_ZIP)
   SET(USING_LOCAL_BOOST 1)
 ELSE()
   SET(USING_SYSTEM_BOOST 1)
+ENDIF()
+
+IF(NOT WIN32)
+  FILE(GLOB_RECURSE BOOST_PATCHES_LIST
+    RELATIVE ${BOOST_PATCHES_DIR}
+    ${BOOST_PATCHES_DIR}/*.hpp
+    )
+
+  SET(DIFF_COMMAND_LIST "#! /bin/bash")
+  FOREACH(PATCHED_FILE ${BOOST_PATCHES_LIST})
+    SET(ORIGINAL_FILE_PATH "${BOOST_INCLUDE_DIR}/${PATCHED_FILE}")
+    SET(PATCHED_FILE_PATH "${BOOST_PATCHES_DIR}/${PATCHED_FILE}")
+    LIST(APPEND DIFF_COMMAND_LIST "diff -u ${ORIGINAL_FILE_PATH} ${PATCHED_FILE_PATH}")
+  ENDFOREACH()
+  # Add true, to get zero exit status.
+  LIST(APPEND DIFF_COMMAND_LIST "true")
+
+  STRING(REPLACE ";" "\n" DIFF_COMMAND_LINES "${DIFF_COMMAND_LIST}")
+
+  FILE(GENERATE
+    OUTPUT ${CMAKE_BINARY_DIR}/boost_patch_diffs
+    CONTENT "${DIFF_COMMAND_LINES}"
+    )
+
+  ADD_CUSTOM_TARGET(show_boost_patches
+    COMMAND bash ${CMAKE_BINARY_DIR}/boost_patch_diffs
+    DEPENDS ${CMAKE_BINARY_DIR}/boost_patch_diffs
+    )
 ENDIF()
