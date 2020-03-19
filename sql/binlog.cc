@@ -10053,15 +10053,6 @@ int THD::decide_logging_format(TABLE_LIST *tables) {
       DBUG_PRINT("info", ("table: %s; ha_table_flags: 0x%llx",
                           table->table_name, flags));
 
-      if (table->lock_descriptor().type >= TL_WRITE_ALLOW_WRITE) {
-        if (prev_write_table &&
-            prev_write_table->file->ht != table->table->file->ht)
-          multi_write_engine = true;
-
-        flags_write_some_set |= flags;
-        prev_write_table = table->table;
-      }
-
       if (table->table->no_replicate) {
         if (!warned_gtid_executed_table) {
           warned_gtid_executed_table =
@@ -10105,6 +10096,10 @@ int THD::decide_logging_format(TABLE_LIST *tables) {
         write_to_some_non_transactional_table =
             write_to_some_non_transactional_table || !trans;
 
+        if (prev_write_table &&
+            prev_write_table->file->ht != table->table->file->ht)
+          multi_write_engine = true;
+
         if (table->table->s->tmp_table)
           lex->set_stmt_accessed_table(
               trans ? LEX::STMT_WRITES_TEMP_TRANS_TABLE
@@ -10125,7 +10120,10 @@ int THD::decide_logging_format(TABLE_LIST *tables) {
               table->table->s->tmp_table;
 
         flags_write_all_set &= flags;
+        flags_write_some_set |= flags;
         is_write = true;
+
+        prev_write_table = table->table;
 
         /*
           It should be marked unsafe if a table which uses a fulltext parser
