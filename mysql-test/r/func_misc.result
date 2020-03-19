@@ -1163,6 +1163,20 @@ inet_aton("255.255.255.2551")
 NULL
 Warnings:
 Warning	1411	Incorrect string value: ''255.255.255.2551'' for function inet_aton
+#
+# Bug #26319675:"ILLEGAL MIX OF COLLATIONS" HAPPENS IN CONCAT WITH
+# NAME_CONST
+#
+SELECT CONCAT(NAME_CONST('char_col',_cp932'test' COLLATE 'cp932_japanese_ci'), NAME_CONST('num_col',0)) AS a;
+a
+test0
+CREATE TABLE t1 AS SELECT CONCAT(NAME_CONST('char_col',_cp932'test' COLLATE 'cp932_japanese_ci'), NAME_CONST('num_col',0)) AS a;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(5) CHARACTER SET cp932 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+DROP TABLE t1;
 
 # -- Done.
 

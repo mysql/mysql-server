@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2119,7 +2119,8 @@ bool Item_name_const::fix_fields(THD *thd, Item **ref)
   {
     item_name.copy(tmp->ptr(), (uint) tmp->length(), system_charset_info);
   }
-  collation.set(value_item->collation.collation, DERIVATION_IMPLICIT,
+  collation.set(value_item->collation.collation,
+                value_item->collation.derivation,
                 value_item->collation.repertoire);
   max_length= value_item->max_length;
   decimals= value_item->decimals;

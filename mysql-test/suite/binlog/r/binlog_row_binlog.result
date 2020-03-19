@@ -538,7 +538,7 @@ DROP TEMPORARY TABLE tmp1;
 END//
 CALL p1();
 c1	c2	c3	d1	d2	d3
-utf8_general_ci	utf8_unicode_ci	utf8_unicode_ci	2	2	2
+utf8_general_ci	utf8_unicode_ci	utf8_unicode_ci	4	0	2
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	CREATE DATABASE bug39182 DEFAULT CHARACTER SET utf8 COLLATE utf8_unicode_ci
