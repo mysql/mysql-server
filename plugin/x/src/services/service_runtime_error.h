@@ -20,48 +20,45 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef PLUGIN_X_SRC_SERVICES_SERVICE_AUDIT_API_CONNECTION_H_
-#define PLUGIN_X_SRC_SERVICES_SERVICE_AUDIT_API_CONNECTION_H_
+#ifndef PLUGIN_X_SRC_SERVICES_SERVICE_RUNTIME_ERROR_H_
+#define PLUGIN_X_SRC_SERVICES_SERVICE_RUNTIME_ERROR_H_
 
-#include "mysql/components/services/audit_api_connection_service.h"
-#include "plugin/x/src/interface/service_audit_api_connection.h"
+#include "plugin/x/src/interface/service_runtime_error.h"
+
+#include "mysql/components/services/mysql_runtime_error.h"
 #include "plugin/x/src/interface/service_registry.h"
 
 namespace xpl {
 
 /*
-  Audit API event generation using the mysql_audit_api_connection service.
+  Error reporting implementation using the mysql_runtime_error service.
 
-  @class Service_audit_api_connection
+  @class Service_runtime_error
 */
-class Service_audit_api_connection
-    : public iface::Service_audit_api_connection {
+class Service_runtime_error : public iface::Service_runtime_error {
  public:
   /*
     Construction of the object by acquiring the service from the registry.
 
     @param[in] registry Service registry service pointer.
   */
-  explicit Service_audit_api_connection(iface::Service_registry *registry);
+  explicit Service_runtime_error(iface::Service_registry *registry);
   /*
     Destruction of the object that releases the service handle.
   */
-  ~Service_audit_api_connection() override;
+  ~Service_runtime_error() override;
+
   /*
-    Generate audit event of the connection class using the service.
+    Emit error code using the error service.
 
-    @param[in] thd  THD used for error reporting.
-    @param[in] type Connection event subtype.
-
-    @return Value returned by the Audit API handling mechanism.
+    @param[in] error_id Error code.
+    @param[in] flags    Error flags.
+    @param[in] args     Variadic argument list.
   */
-  int emit(void *thd, mysql_event_connection_subclass_t type) override;
+  void emit(int error_id, int flags, va_list args) override;
 
   /*
-    Check validity of the object.
-
-    @retval true  Object has been successfully constructed.
-    @retval false Object has not been successfully constructed.
+    Check, whether the object has benn correctly created.
   */
   bool is_valid() const override;
 
@@ -71,11 +68,11 @@ class Service_audit_api_connection
   */
   iface::Service_registry *m_registry;
   /*
-    Audit API service pointer acquired during the object construction.
+    Runtime error service pointer acquired during the object construction.
   */
-  SERVICE_TYPE_NO_CONST(mysql_audit_api_connection) * m_audit_api;
+  SERVICE_TYPE_NO_CONST(mysql_runtime_error) * m_runtime_error;
 };
 
 }  // namespace xpl
 
-#endif  // PLUGIN_X_SRC_SERVICES_SERVICE_AUDIT_API_CONNECTION_H_
+#endif  // PLUGIN_X_SRC_SERVICES_SERVICE_RUNTIME_ERROR_H_

@@ -26,6 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <memory>
 
 #include "plugin/x/src/interface/service_audit_api_connection.h"
+#include "plugin/x/src/interface/service_runtime_error.h"
 #include "plugin/x/src/interface/service_sys_variables.h"
 #include "plugin/x/src/services/service_registry.h"
 
@@ -40,6 +41,7 @@ class Services {
  public:
   using Sys_variables_ptr = std::unique_ptr<iface::Service_sys_variables>;
   using Audit_api_ptr = std::unique_ptr<iface::Service_audit_api_connection>;
+  using Runtime_error_ptr = std::unique_ptr<iface::Service_runtime_error>;
 
  public:
   /*
@@ -51,7 +53,8 @@ class Services {
     Check, whether all services has been correctly acquired.
   */
   bool is_valid() const {
-    return m_system_variable_register->is_valid() && m_audit_api->is_valid();
+    return m_system_variable_register->is_valid() && m_audit_api->is_valid() &&
+           m_runtime_error->is_valid();
   }
 
   /*
@@ -66,6 +69,10 @@ class Services {
     Audit API service pointer.
   */
   Audit_api_ptr m_audit_api;
+  /*
+    Runtime error service pointer.
+  */
+  Runtime_error_ptr m_runtime_error;
 };
 
 }  // namespace xpl

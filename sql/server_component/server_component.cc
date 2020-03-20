@@ -303,10 +303,6 @@ mysql_server_runnable_imp::run END_SERVICE_IMPLEMENTATION();
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_audit_api_connection)
 mysql_audit_api_connection_imp::emit END_SERVICE_IMPLEMENTATION();
 
-BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
-                             mysql_audit_api_connection_with_error)
-mysql_audit_api_connection_with_error_imp::emit END_SERVICE_IMPLEMENTATION();
-
 BEGIN_COMPONENT_PROVIDES(mysql_server)
 PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, persistent_dynamic_loader),

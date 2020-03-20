@@ -33,22 +33,10 @@ Service_audit_api_connection::Service_audit_api_connection(
   m_audit_api =
       reinterpret_cast<SERVICE_TYPE_NO_CONST(mysql_audit_api_connection) *>(
           m_registry->acquire("mysql_audit_api_connection"));
-
-  if (m_audit_api == nullptr) return;
-
-  m_audit_api_error = reinterpret_cast<SERVICE_TYPE_NO_CONST(
-      mysql_audit_api_connection_with_error) *>(
-      m_registry->acquire("mysql_audit_api_connection_with_error"));
-
-  if (m_audit_api_error == nullptr) {
-    m_registry->release(reinterpret_cast<my_h_service>(m_audit_api));
-    m_audit_api = nullptr;
-  }
 }
 
 Service_audit_api_connection::~Service_audit_api_connection() {
   m_registry->release(reinterpret_cast<my_h_service>(m_audit_api));
-  m_registry->release(reinterpret_cast<my_h_service>(m_audit_api_error));
 }
 
 int Service_audit_api_connection::emit(void *thd,
@@ -56,13 +44,8 @@ int Service_audit_api_connection::emit(void *thd,
   return m_audit_api->emit(thd, type);
 }
 
-int Service_audit_api_connection::emit_with_errorcode(
-    void *thd, mysql_event_connection_subclass_t type, int errcode) {
-  return m_audit_api_error->emit(thd, type, errcode);
-}
-
 bool Service_audit_api_connection::is_valid() const {
-  return nullptr != m_audit_api && nullptr != m_audit_api_error;
+  return nullptr != m_audit_api;
 }
 
 }  // namespace xpl
