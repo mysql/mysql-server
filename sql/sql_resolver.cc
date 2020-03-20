@@ -1653,7 +1653,6 @@ void SELECT_LEX::reset_nj_counters(mem_root_deque<TABLE_LIST *> *join_list) {
       SELECT * FROM t1, t2 ON t2.a=t1.a WHERE t2.b < 5 AND t2.a=t1.a
     @endcode
 
-
     Similarly the following query:
     @code
       SELECT * from t1 LEFT JOIN (t2, t3) ON t2.a=t1.a t3.b=t1.b
@@ -1662,7 +1661,6 @@ void SELECT_LEX::reset_nj_counters(mem_root_deque<TABLE_LIST *> *join_list) {
     is converted to:
     @code
       SELECT * FROM t1, (t2, t3) WHERE t2.c < 5 AND t2.a=t1.a t3.b=t1.b
-
     @endcode
 
     One conversion might trigger another:
@@ -1674,7 +1672,7 @@ void SELECT_LEX::reset_nj_counters(mem_root_deque<TABLE_LIST *> *join_list) {
         WHERE t3 IS NOT NULL AND t3.b=t2.b =>
       SELECT * FROM t1, t2, t3
         WHERE t3 IS NOT NULL AND t3.b=t2.b AND t2.a=t1.a
-  @endcode
+    @endcode
 
     The function removes all unnecessary parentheses from the expression
     produced by the conversions.
@@ -1685,9 +1683,7 @@ void SELECT_LEX::reset_nj_counters(mem_root_deque<TABLE_LIST *> *join_list) {
     finally is converted to:
     @code
       SELECT * FROM t1, t2, t3 WHERE t2.c < 5 AND t2.a=t1.a AND t3.b=t1.b
-
     @endcode
-
 
     It also will remove parentheses from the following queries:
     @code
@@ -2406,12 +2402,12 @@ static bool decorrelate_equality(TABLE_LIST *sj_nest, Item_func *func,
 
   if (left_used_tables == OUTER_REF_TABLE_BIT) {
     outer = left;
-  } else if (left_used_tables && !(left_used_tables & OUTER_REF_TABLE_BIT)) {
+  } else if (!(left_used_tables & OUTER_REF_TABLE_BIT)) {
     inner = left;
   }
   if (right_used_tables == OUTER_REF_TABLE_BIT) {
     outer = right;
-  } else if (right_used_tables && !(right_used_tables & OUTER_REF_TABLE_BIT)) {
+  } else if (!(right_used_tables & OUTER_REF_TABLE_BIT)) {
     inner = right;
   }
   if (inner == nullptr || outer == nullptr) return false;

@@ -1006,6 +1006,42 @@ t AS upper JOIN LATERAL
 DROP TABLE t;
 
 --echo #
+--echo # Verify that decorrelation works for WHERE outer_col=constant
+--echo #
+
+CREATE TABLE t1 (a INTEGER, b INTEGER);
+CREATE TABLE t2 (a INTEGER);
+INSERT INTO t1 VALUES(1,10),(2,10),(3,30);
+INSERT INTO t2 VALUES(2),(3),(2),(4);
+ANALYZE TABLE t1,t2;
+
+set optimizer_switch='semijoin=on,materialization=on,loosescan=off,firstmatch=off,duplicateweedout=off';
+
+let $query=
+SELECT * FROM t1 WHERE (t1.a,t1.b) IN (SELECT t2.a,10 FROM t2);
+
+# SJ-materialization was not chosen as equalities were not
+# decorrelated
+
+eval EXPLAIN $query;
+eval $query;
+
+let $query=
+SELECT * FROM t1 WHERE t1.a IN (SELECT t2.a FROM t2 WHERE 10=t1.b);
+
+eval EXPLAIN $query;
+eval $query;
+
+let $query=
+SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t2 WHERE 10=t1.b AND t1.a=t2.a);
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1,t2;
+set optimizer_switch=default;
+
+--echo #
 --echo # Bug #30717861: WL#13377 REGRESSION, ITEM REFS ARE SUBSTITUTED TO REFER TABLES NOT YET AVAILABLE
 --echo #
 

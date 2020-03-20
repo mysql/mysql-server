@@ -1287,6 +1287,53 @@ a	rn
 2	1
 DROP TABLE t;
 #
+# Verify that decorrelation works for WHERE outer_col=constant
+#
+CREATE TABLE t1 (a INTEGER, b INTEGER);
+CREATE TABLE t2 (a INTEGER);
+INSERT INTO t1 VALUES(1,10),(2,10),(3,30);
+INSERT INTO t2 VALUES(2),(3),(2),(4);
+ANALYZE TABLE t1,t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+set optimizer_switch='semijoin=on,materialization=on,loosescan=off,firstmatch=off,duplicateweedout=off';
+EXPLAIN SELECT * FROM t1 WHERE (t1.a,t1.b) IN (SELECT t2.a,10 FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	9	test.t1.a,test.t1.b	1	100.00	NULL
+2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t1`.`b` = 10) and (`<subquery2>`.`a` = `test`.`t1`.`a`))
+SELECT * FROM t1 WHERE (t1.a,t1.b) IN (SELECT t2.a,10 FROM t2);
+a	b
+2	10
+EXPLAIN SELECT * FROM t1 WHERE t1.a IN (SELECT t2.a FROM t2 WHERE 10=t1.b);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	9	test.t1.a,test.t1.b	1	100.00	NULL
+2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.b' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t1`.`b` = 10) and (`<subquery2>`.`a` = `test`.`t1`.`a`))
+SELECT * FROM t1 WHERE t1.a IN (SELECT t2.a FROM t2 WHERE 10=t1.b);
+a	b
+2	10
+EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t2 WHERE 10=t1.b AND t1.a=t2.a);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	9	test.t1.b,test.t1.a	1	100.00	NULL
+2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.b' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t2`) where ((`<subquery2>`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`b` = 10))
+SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t2 WHERE 10=t1.b AND t1.a=t2.a);
+a	b
+2	10
+DROP TABLE t1,t2;
+set optimizer_switch=default;
+#
 # Bug #30717861: WL#13377 REGRESSION, ITEM REFS ARE SUBSTITUTED TO REFER TABLES NOT YET AVAILABLE
 #
 CREATE TABLE t1 (
