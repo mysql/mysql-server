@@ -1423,12 +1423,12 @@ void ndb_pushed_builder_ctx::validate_join_nest(ndb_table_access_map inner_nest,
     ndb_table_access_map filter_cond;
 
     /**
-     * Check conditions inside nest(s) for possible trigger conditions.
+     * Check conditions inside nest(s) for possible FOUND_MATCH-triggers.
      * These are effectively evaluated 'higher up' in the nest structure
      * when we have found a join-match, or created a null-extension
      * for all 'used_tables()' in the trigger condition.
      * So we collect the aggregated map of tables possibly affected by
-     * such trigger conditions in 'filter_cond'
+     * these MATCH-filters in 'filter_cond'
      *
      * Example: select straight_join *
      *          from
@@ -1446,8 +1446,8 @@ void ndb_pushed_builder_ctx::validate_join_nest(ndb_table_access_map inner_nest,
      * For some (legacy?) reason the optimizer will attach the trigger condition
      * to table t2 in the query plan 't1,t2,t3', as all referred tables(t1,t2)
      * are available at this point.
-     * However, this ignores the encapsulating (t2,t3) trigger, which require
-     * the condition to be evaluated after t2 & t3 rows are produced. The
+     * However, this ignores the encapsulating FOUND_MATCH(t2,t3) trigger,
+     * which require the condition to also have a matching t3 row. The
      * WalkItem below will identify such triggers and calculate the real table
      * coverage of them.
      *
@@ -1469,28 +1469,52 @@ void ndb_pushed_builder_ctx::validate_join_nest(ndb_table_access_map inner_nest,
       AQP::Table_access *table = m_plan.get_table_access(tab_no);
       const Item *cond = table->get_condition();
       if (cond != nullptr) {
-        // Check 'cond' for match trigger / filters
-        table_map filtered_tables = 0;
+        struct {
+          table_map nest_scope;   // Aggregated 'inner_tables' scope of triggers
+          table_map found_match;  // FOUND_MATCH-trigger scope
+        } trig_cond = {0, 0};
 
+        // Check 'cond' for match trigger / filters
         WalkItem(const_cast<Item *>(cond), enum_walk::PREFIX,
-                 [&filtered_tables](Item *item) {
+                 [&trig_cond](Item *item) {
                    if (item->type() == Item::FUNC_ITEM) {
                      const Item_func *func_item =
                          static_cast<const Item_func *>(item);
                      if (func_item->functype() == Item_func::TRIG_COND_FUNC) {
                        const Item_func_trig_cond *func_trig =
                            static_cast<const Item_func_trig_cond *>(func_item);
-                       // is a FOUND_MATCH or IS_NOT_NULL_COMPL trigger
-                       // Trigger is evaluated 'on top' of the inner_tables
-                       filtered_tables |= func_trig->get_inner_tables();
+
+                       /**
+                        * The FOUND_MATCH-trigger may be encapsulated inside
+                        * multiple IS_NOT_NULL_COMPL-triggers, which defines
+                        * the scope of the triggers. Aggregate these
+                        * 'inner_tables' scopes.
+                        */
+                       trig_cond.nest_scope |= func_trig->get_inner_tables();
+
+                       if (func_trig->get_trig_type() ==
+                           Item_func_trig_cond::FOUND_MATCH) {
+                         // The FOUND_MATCH-trigger is evaluated on top of
+                         // the collected trigger nest_scope.
+                         trig_cond.found_match |= trig_cond.nest_scope;
+                         return true;  // break out of this cond-branch
+                       }
                      }
                    }
                    return false;  // continue WalkItem
                  });              // End WalkItem' and lambda func
 
-        if (filtered_tables != 0) {
-          ndb_table_access_map map = get_table_map(filtered_tables);
-          filter_cond.add(map);
+        if (trig_cond.found_match != 0) {
+          const ndb_table_access_map map = get_table_map(trig_cond.found_match);
+
+          /**
+           * Only FOUND_MATCH-triggers partly overlapping join_scope will
+           * restrict push. (Else it is completely evaluated either before
+           * or after the pushed_join, thus does not affect it.
+           */
+          if (map.is_overlapping(m_join_scope) && !map.contain(m_join_scope)) {
+            filter_cond.add(map);
+          }
         }
       }
     }
