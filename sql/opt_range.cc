@@ -13351,6 +13351,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::reset(void) {
     Request ordered index access as usage of ::index_last(),
     ::index_first() within QUICK_GROUP_MIN_MAX_SELECT depends on it.
   */
+  if (head->file->inited) head->file->ha_index_or_rnd_end();
   if ((result = head->file->ha_index_init(index, true))) {
     head->file->print_error(result, MYF(0));
     return result;
