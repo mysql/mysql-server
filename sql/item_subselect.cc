@@ -366,8 +366,8 @@ bool Item_in_subselect::mark_as_outer(Item *left_row, size_t col) {
 
 bool Item_in_subselect::finalize_exists_transform(THD *thd,
                                                   SELECT_LEX *select_lex) {
-  DBUG_ASSERT(exec_method == SubqueryExecMethod::EXEC_EXISTS_OR_MAT ||
-              exec_method == SubqueryExecMethod::EXEC_EXISTS);
+  DBUG_ASSERT(strategy == Subquery_strategy::CANDIDATE_FOR_IN2EXISTS_OR_MAT ||
+              strategy == Subquery_strategy::SUBQ_EXISTS);
   /*
     Note that if the subquery is "SELECT1 UNION SELECT2" then this is not
     working optimally (Bug#14215895).
@@ -381,7 +381,7 @@ bool Item_in_subselect::finalize_exists_transform(THD *thd,
     return true; /* purecov: inspected */
 
   select_lex->join->allow_outer_refs = true;  // for JOIN::set_prefix_tables()
-  exec_method = SubqueryExecMethod::EXEC_EXISTS;
+  strategy = Subquery_strategy::SUBQ_EXISTS;
   return false;
 }
 
@@ -425,7 +425,7 @@ Item *Item_in_subselect::remove_in2exists_conds(Item *conds) {
 
 bool Item_in_subselect::finalize_materialization_transform(THD *thd,
                                                            JOIN *join) {
-  DBUG_ASSERT(exec_method == SubqueryExecMethod::EXEC_EXISTS_OR_MAT);
+  DBUG_ASSERT(strategy == Subquery_strategy::CANDIDATE_FOR_IN2EXISTS_OR_MAT);
 
   DBUG_ASSERT(join == subquery->single_select_lex()->join);
   // No UNION in materialized subquery so this holds:
@@ -433,7 +433,7 @@ bool Item_in_subselect::finalize_materialization_transform(THD *thd,
   DBUG_ASSERT(join->unit == unit);
   DBUG_ASSERT(unit->global_parameters()->select_limit == nullptr);
 
-  exec_method = SubqueryExecMethod::EXEC_MATERIALIZATION;
+  strategy = Subquery_strategy::SUBQ_MATERIALIZATION;
 
   /*
     We need to undo several changes which IN->EXISTS had done. But we first
@@ -488,20 +488,20 @@ void Item_in_subselect::cleanup() {
   left_expr_cache_filled = false;
   need_expr_cache = true;
 
-  switch (exec_method) {
-    case SubqueryExecMethod::EXEC_MATERIALIZATION:
+  switch (strategy) {
+    case Subquery_strategy::SUBQ_MATERIALIZATION:
       if (in2exists_info->dependent_after) {
         unit->first_select()->uncacheable |= UNCACHEABLE_DEPENDENT;
         unit->uncacheable |= UNCACHEABLE_DEPENDENT;
       }
       // fall through
-    case SubqueryExecMethod::EXEC_EXISTS:
+    case Subquery_strategy::SUBQ_EXISTS:
       /*
         Back to EXISTS_OR_MAT, so that next execution of this statement can
         choose between the two.
       */
       unit->global_parameters()->select_limit = nullptr;
-      exec_method = SubqueryExecMethod::EXEC_EXISTS_OR_MAT;
+      strategy = Subquery_strategy::CANDIDATE_FOR_IN2EXISTS_OR_MAT;
       break;
     default:
       break;
@@ -514,7 +514,7 @@ RowIterator *Item_in_subselect::root_iterator() const {
   // Only subselect_hash_sj_engine owns its own iterator;
   // for subselect_indexsubquery_engine, the unit still has it, since it's a
   // normally executed query block. Thus, we should never get called otherwise.
-  DBUG_ASSERT(exec_method == SubqueryExecMethod::EXEC_MATERIALIZATION &&
+  DBUG_ASSERT(strategy == Subquery_strategy::SUBQ_MATERIALIZATION &&
               indexsubquery_engine->engine_type() ==
                   subselect_indexsubquery_engine::HASH_SJ_ENGINE);
   return down_cast<subselect_hash_sj_engine *>(indexsubquery_engine)
@@ -699,10 +699,9 @@ Item *Item_in_subselect::transform(Item_transformer transformer, uchar *arg) {
 
 bool Item_in_subselect::exec(THD *thd) {
   DBUG_TRACE;
-  DBUG_ASSERT(exec_method != SubqueryExecMethod::EXEC_MATERIALIZATION ||
-              (exec_method == SubqueryExecMethod::EXEC_MATERIALIZATION &&
-               indexsubquery_engine->engine_type() ==
-                   subselect_indexsubquery_engine::HASH_SJ_ENGINE));
+  DBUG_ASSERT(strategy != Subquery_strategy::SUBQ_MATERIALIZATION ||
+              indexsubquery_engine->engine_type() ==
+                  subselect_indexsubquery_engine::HASH_SJ_ENGINE);
   /*
     Initialize the cache of the left predicate operand. This has to be done as
     late as now, because Cached_item directly contains a resolved field (not
@@ -717,7 +716,7 @@ bool Item_in_subselect::exec(THD *thd) {
       lookup, the cache hit rate, and the savings per cache hit.
   */
   if (need_expr_cache && !left_expr_cache &&
-      exec_method == SubqueryExecMethod::EXEC_MATERIALIZATION &&
+      strategy == Subquery_strategy::SUBQ_MATERIALIZATION &&
       init_left_expr_cache(thd))
     return true;
 
@@ -760,9 +759,10 @@ Item *Item_subselect::get_tmp_table_item(THD *thd_arg) {
 }
 
 void Item_subselect::update_used_tables() {
-  // did all used tables become const?
   if (!unit->uncacheable)
-    used_tables_cache &= ~subquery->upper_select_const_tables();
+    // There is no expression with outer reference, randomness or side-effect,
+    // so the subquery's content depends only on its inner tables:
+    used_tables_cache &= INNER_TABLE_BIT;
 }
 
 void Item_subselect::print(const THD *thd, String *str,
@@ -1439,7 +1439,7 @@ bool Item_exists_subselect::resolve_type(THD *thd) {
   set_data_type_longlong();
   max_length = 1;
   max_columns = unit_cols();
-  if (exec_method == SubqueryExecMethod::EXEC_EXISTS) {
+  if (strategy == Subquery_strategy::SUBQ_EXISTS) {
     Prepared_stmt_arena_holder ps_arena_holder(thd);
     /*
       We need only 1 row to determine existence.
@@ -1480,7 +1480,7 @@ bool Item_exists_subselect::choose_semijoin_or_antijoin() {
     default:
       return false;
   }
-  DBUG_ASSERT(might_do_sj || might_do_aj);
+  DBUG_ASSERT((might_do_sj ^ might_do_aj) == 1);
   if (substype() == EXISTS_SUBS)  // never returns NULL
     null_problem = false;
   if (null_problem) {
@@ -2450,8 +2450,8 @@ Item_subselect::trans_res Item_in_subselect::select_in_like_transformer(
     If we didn't choose an execution method up to this point, we choose
     the IN=>EXISTS transformation, at least temporarily.
   */
-  if (exec_method == SubqueryExecMethod::EXEC_UNSPECIFIED)
-    exec_method = SubqueryExecMethod::EXEC_EXISTS_OR_MAT;
+  if (strategy == Subquery_strategy::UNSPECIFIED)
+    strategy = Subquery_strategy::CANDIDATE_FOR_IN2EXISTS_OR_MAT;
 
   /*
     Both transformers call fix_fields() only for Items created inside them,
@@ -2486,8 +2486,8 @@ void Item_in_subselect::print(const THD *thd, String *str,
   const char *tail = Item_bool_func::bool_transform_names[value_transform];
   if (implicit_is_op) tail = "";
   bool paren = false;
-  if (exec_method == SubqueryExecMethod::EXEC_EXISTS_OR_MAT ||
-      exec_method == SubqueryExecMethod::EXEC_EXISTS) {
+  if (strategy == Subquery_strategy::CANDIDATE_FOR_IN2EXISTS_OR_MAT ||
+      strategy == Subquery_strategy::SUBQ_EXISTS) {
     if (value_transform == BOOL_NEGATED) {  // NOT has low associativity, but
                                             // we're inside Item_in_optimizer,
       // so () are needed only if IS TRUE/FALSE is coming.
@@ -2517,12 +2517,9 @@ bool Item_in_subselect::fix_fields(THD *thd_arg, Item **ref) {
   abort_on_null =
       value_transform == BOOL_IS_TRUE || value_transform == BOOL_NOT_TRUE;
 
-  if (exec_method == SubqueryExecMethod::EXEC_SEMI_JOIN)
-    return !((*ref) = new Item_func_true());
-
   if ((thd_arg->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW) &&
       left_expr && !left_expr->fixed) {
-    Disable_semijoin_flattening DSF(thd_arg->lex->current_select(), true);
+    Condition_context CCT(thd_arg->lex->current_select());
     result = left_expr->fix_fields(thd_arg, &left_expr);
   }
 
@@ -2684,8 +2681,8 @@ bool Item_subselect::is_evaluated() const { return unit->is_executed(); }
 
 void Item_allany_subselect::print(const THD *thd, String *str,
                                   enum_query_type query_type) const {
-  if (exec_method == SubqueryExecMethod::EXEC_EXISTS_OR_MAT ||
-      exec_method == SubqueryExecMethod::EXEC_EXISTS)
+  if (strategy == Subquery_strategy::CANDIDATE_FOR_IN2EXISTS_OR_MAT ||
+      strategy == Subquery_strategy::SUBQ_EXISTS)
     str->append(STRING_WITH_LEN("<exists>"));
   else {
     left_expr->print(thd, str, query_type);
@@ -3018,16 +3015,6 @@ uint Item_subselect::unit_cols() const {
 }
 
 bool Item_subselect::is_uncacheable() const { return unit->uncacheable; }
-
-table_map SubqueryWithResult::upper_select_const_tables() const {
-  TABLE_LIST *table = unit->outer_select()->leaf_tables;
-  table_map map = 0;
-  for (; table; table = table->next_leaf) {
-    TABLE *tbl = table->table;
-    if (tbl && tbl->const_table) map |= table->map();
-  }
-  return map;
-}
 
 void SubqueryWithResult::print(const THD *thd, String *str,
                                enum_query_type query_type) {

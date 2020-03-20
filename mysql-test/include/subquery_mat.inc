@@ -1098,6 +1098,7 @@ where (t2.a,t2.a) in (select a,a from t2 as t3);
 --echo then rejected (due to outer join), and in that case, the
 --echo fallback is IN->EXISTS, subq-materialization is not tried...
 eval explain $query;
+--sorted_result
 eval $query;
 
 --echo

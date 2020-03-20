@@ -419,8 +419,8 @@ semijoin_strategy:
 
 subquery_strategy:
           MATERIALIZATION_HINT { $$=
-                                   static_cast<long>(SubqueryExecMethod::EXEC_MATERIALIZATION); }
-        | INTOEXISTS_HINT      { $$= static_cast<long>(SubqueryExecMethod::EXEC_EXISTS); }
+                                   static_cast<long>(Subquery_strategy::SUBQ_MATERIALIZATION); }
+        | INTOEXISTS_HINT      { $$= static_cast<long>(Subquery_strategy::SUBQ_EXISTS); }
         ;
 
 

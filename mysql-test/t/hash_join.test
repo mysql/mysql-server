@@ -1999,6 +1999,7 @@ let $query =
 # conditions refer to something on the outside, we cannot use hash join),
 # but that the antijoin stays a hash join.
 eval EXPLAIN FORMAT=tree $query;
+--sorted_result
 eval $query;
 
 DROP TABLE t1;

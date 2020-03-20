@@ -806,14 +806,14 @@ bool JOIN::optimize() {
 
   DBUG_EXECUTE("info", TEST_join(this););
 
+  if (alloc_qep(tables)) return (error = 1); /* purecov: inspected */
+
   if (!plan_is_const()) {
     // Test if we can use an index instead of sorting
     test_skip_sort();
 
     if (finalize_table_conditions()) return true;
   }
-
-  if (alloc_qep(tables)) return (error = 1); /* purecov: inspected */
 
   if (make_join_readinfo(this, no_jbuf_after))
     return true; /* purecov: inspected */
@@ -1174,7 +1174,7 @@ int JOIN::replace_index_subquery() {
 
   JOIN_TAB *const first_join_tab = best_ref[0];
 
-  if (in_subs->exec_method == SubqueryExecMethod::EXEC_MATERIALIZATION) {
+  if (in_subs->strategy == Subquery_strategy::SUBQ_MATERIALIZATION) {
     // We cannot have two engines at the same time
   } else if (first_join_tab->table_ref->is_view_or_derived() &&
              first_join_tab->table_ref->derived_unit()->is_recursive()) {
@@ -10549,16 +10549,16 @@ bool JOIN::decide_subquery_strategy() {
   Item_in_subselect *const in_pred =
       static_cast<Item_in_subselect *>(unit->item);
 
-  SubqueryExecMethod chosen_method = in_pred->exec_method;
+  Subquery_strategy chosen_method = in_pred->strategy;
   // Materialization does not allow UNION so this can't happen:
-  DBUG_ASSERT(chosen_method != SubqueryExecMethod::EXEC_MATERIALIZATION);
+  DBUG_ASSERT(chosen_method != Subquery_strategy::SUBQ_MATERIALIZATION);
 
-  if ((chosen_method == SubqueryExecMethod::EXEC_EXISTS_OR_MAT) &&
+  if ((chosen_method == Subquery_strategy::CANDIDATE_FOR_IN2EXISTS_OR_MAT) &&
       compare_costs_of_subquery_strategies(&chosen_method))
     return true;
 
   switch (chosen_method) {
-    case SubqueryExecMethod::EXEC_EXISTS:
+    case Subquery_strategy::SUBQ_EXISTS:
       if (select_lex->m_windows.elements > 0)  // grep for WL#10431
       {
         my_error(ER_NOT_SUPPORTED_YET, MYF(0),
@@ -10567,7 +10567,7 @@ bool JOIN::decide_subquery_strategy() {
         return true;
       }
       return in_pred->finalize_exists_transform(thd, select_lex);
-    case SubqueryExecMethod::EXEC_MATERIALIZATION:
+    case Subquery_strategy::SUBQ_MATERIALIZATION:
       return in_pred->finalize_materialization_transform(thd, this);
     default:
       DBUG_ASSERT(false);
@@ -10594,10 +10594,10 @@ bool JOIN::decide_subquery_strategy() {
                        here.
    @returns false if success
 */
-bool JOIN::compare_costs_of_subquery_strategies(SubqueryExecMethod *method) {
-  *method = SubqueryExecMethod::EXEC_EXISTS;
+bool JOIN::compare_costs_of_subquery_strategies(Subquery_strategy *method) {
+  *method = Subquery_strategy::SUBQ_EXISTS;
 
-  SubqueryExecMethod allowed_strategies = select_lex->subquery_strategy(thd);
+  Subquery_strategy allowed_strategies = select_lex->subquery_strategy(thd);
 
   /*
     A non-deterministic subquery should not use materialization, unless forced.
@@ -10605,14 +10605,15 @@ bool JOIN::compare_costs_of_subquery_strategies(SubqueryExecMethod *method) {
     Here, the same logic is applied also for subqueries that are not converted
     to semi-join.
   */
-  if (allowed_strategies == SubqueryExecMethod::EXEC_EXISTS_OR_MAT &&
+  if (allowed_strategies == Subquery_strategy::CANDIDATE_FOR_IN2EXISTS_OR_MAT &&
       (unit->uncacheable & UNCACHEABLE_RAND))
-    allowed_strategies = SubqueryExecMethod::EXEC_EXISTS;
+    allowed_strategies = Subquery_strategy::SUBQ_EXISTS;
 
-  if (allowed_strategies == SubqueryExecMethod::EXEC_EXISTS) return false;
+  if (allowed_strategies == Subquery_strategy::SUBQ_EXISTS) return false;
 
-  DBUG_ASSERT(allowed_strategies == SubqueryExecMethod::EXEC_EXISTS_OR_MAT ||
-              allowed_strategies == SubqueryExecMethod::EXEC_MATERIALIZATION);
+  DBUG_ASSERT(allowed_strategies ==
+                  Subquery_strategy::CANDIDATE_FOR_IN2EXISTS_OR_MAT ||
+              allowed_strategies == Subquery_strategy::SUBQ_MATERIALIZATION);
 
   const JOIN *parent_join = unit->outer_select()->join;
   if (!parent_join || !parent_join->child_subquery_can_materialize)
@@ -10679,7 +10680,7 @@ bool JOIN::compare_costs_of_subquery_strategies(SubqueryExecMethod *method) {
   const double cost_mat =
       cost_mat_table + subq_executions * sjm.lookup_cost.total_cost();
   const bool mat_chosen =
-      (allowed_strategies == SubqueryExecMethod::EXEC_EXISTS_OR_MAT)
+      (allowed_strategies == Subquery_strategy::CANDIDATE_FOR_IN2EXISTS_OR_MAT)
           ? (cost_mat < cost_exists)
           : true;
   trace_subq_mat_decision
@@ -10690,7 +10691,7 @@ bool JOIN::compare_costs_of_subquery_strategies(SubqueryExecMethod *method) {
       .add("cost_of_EXISTS", cost_exists)
       .add("chosen", mat_chosen);
   if (mat_chosen) {
-    *method = SubqueryExecMethod::EXEC_MATERIALIZATION;
+    *method = Subquery_strategy::SUBQ_MATERIALIZATION;
   } else {
     best_read = saved_best_read;
     best_rowcount = saved_best_rowcount;

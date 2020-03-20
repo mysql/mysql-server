@@ -9331,7 +9331,7 @@ ER_GROUP_REPLICATION_PASSWORD_LENGTH
   eng "The START GROUP_REPLICATION command failed since the password provided for the recovery channel exceeds the maximum length of 32 characters."
 
 ER_SUBQUERY_TRANSFORM_REJECTED
-  eng "Statement requires a transform of a subquery to a non-SET operation (like IN2EXISTS). This is not allowed with optimizer switch 'subquery_to_derived' on".
+  eng "Statement requires a transform of a subquery to a non-SET operation (like IN2EXISTS, or subquery-to-LATERAL-derived-table). This is not allowed with optimizer switch 'subquery_to_derived' on".
 
 ER_DA_GRP_RPL_RECOVERY_ENDPOINT_FORMAT
   eng "Invalid input value for recovery socket endpoints '%s'. Please, provide a valid, comma separated, list of endpoints (IP:port)".

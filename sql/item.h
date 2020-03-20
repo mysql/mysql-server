@@ -2577,7 +2577,7 @@ class Item : public Parse_tree_node {
     When walking the item tree seeing an Item_singlerow_subselect matching
     a target, replace it with a substitute field used when transforming
     scalar subqueries into derived tables. Cf.
-    SELECT_LEX::transform_scalar_subqueries_to_derived.
+    SELECT_LEX::transform_scalar_subqueries_to_join_with_derived.
   */
   virtual Item *replace_scalar_subquery(uchar *) { return this; }
 

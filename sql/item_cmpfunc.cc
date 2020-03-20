@@ -5033,16 +5033,17 @@ bool Item_cond::fix_fields(THD *thd, Item **ref) {
   Item *item;
   SELECT_LEX *select = thd->lex->current_select();
 
-  /*
-    Semi-join flattening should only be performed for predicates on
-    the AND-top-level. Disable it if this condition is not an AND.
-  */
-  Disable_semijoin_flattening DSF(select, functype() != COND_AND_FUNC);
+  auto func_type = functype();
+  DBUG_ASSERT(func_type == COND_AND_FUNC || func_type == COND_OR_FUNC);
+  // For semi-join flattening, indicate that we're traversing an AND, or an OR:
+  Condition_context CCT(select, func_type == COND_AND_FUNC
+                                    ? enum_condition_context::ANDS
+                                    : enum_condition_context::ANDS_ORS);
 
   uchar buff[sizeof(char *)];  // Max local vars in function
   used_tables_cache = 0;
 
-  if (functype() == COND_AND_FUNC && ignore_unknown())
+  if (func_type == COND_AND_FUNC && ignore_unknown())
     not_null_tables_cache = 0;
   else
     not_null_tables_cache = ~(table_map)0;
@@ -5071,7 +5072,7 @@ bool Item_cond::fix_fields(THD *thd, Item **ref) {
     Item_cond *cond;
     while (item->type() == Item::COND_ITEM &&
            (cond = down_cast<Item_cond *>(item)) &&
-           cond->functype() == functype() &&
+           cond->functype() == func_type &&
            !cond->list.is_empty()) {  // Identical function
       li.replace(cond->list);
       cond->list.empty();
@@ -5141,7 +5142,7 @@ bool Item_cond::fix_fields(THD *thd, Item **ref) {
     }
     used_tables_cache |= item->used_tables();
 
-    if (functype() == COND_AND_FUNC && ignore_unknown())
+    if (func_type == COND_AND_FUNC && ignore_unknown())
       not_null_tables_cache |= item->not_null_tables();
     else
       not_null_tables_cache &= item->not_null_tables();
@@ -5157,7 +5158,7 @@ bool Item_cond::fix_fields(THD *thd, Item **ref) {
   if (remove_condition) {
     new_item->fix_fields(thd, ref);
     used_tables_cache = 0;
-    if (functype() == COND_AND_FUNC && ignore_unknown())
+    if (func_type == COND_AND_FUNC && ignore_unknown())
       not_null_tables_cache = 0;
     else
       not_null_tables_cache = ~(table_map)0;
@@ -5628,7 +5629,8 @@ bool Item_func_isnull::fix_fields(THD *thd, Item **ref) {
     */
     if (thd->lex->current_select()->resolve_place ==
             SELECT_LEX::RESOLVE_CONDITION &&
-        !thd->lex->current_select()->semijoin_disallowed &&
+        thd->lex->current_select()->condition_context ==
+            enum_condition_context::ANDS &&
         thd->lex->current_select()->first_execution &&
         (field->type() == MYSQL_TYPE_DATE ||
          field->type() == MYSQL_TYPE_DATETIME) &&
@@ -5902,7 +5904,7 @@ bool Item_func_like::check_covering_prefix_keys(THD *thd) {
 bool Item_func_like::fix_fields(THD *thd, Item **ref) {
   DBUG_ASSERT(fixed == 0);
 
-  Disable_semijoin_flattening DSF(thd->lex->current_select(), true);
+  Condition_context CCT(thd->lex->current_select());
 
   args[0]->real_item()->set_can_use_prefix_key();
 

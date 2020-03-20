@@ -3465,6 +3465,13 @@ struct TABLE_LIST {
   */
   bool m_was_grouped2derived{false};
 
+  /// If this is a derived table created by transforming a quantified subquery.
+  /// @todo remove after WL#6570.
+  bool m_was_table_subquery{false};
+  /// Usable only if was_table_subquery==true; contains the index of the
+  /// first SJ-inner expression of the subquery predicate.
+  int m_first_sj_inner_expr_of_subquery{0};
+
   /* View creation context. */
 
   View_creation_ctx *view_creation_ctx{nullptr};

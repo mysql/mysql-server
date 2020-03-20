@@ -1431,8 +1431,8 @@ select t1.a, t2.a
 from t1 join t2 on t1.a+t2.a=3
 where (t2.a,t2.a) in (select a,a from t2 as t3);
 a	a
-2	1
 1	2
+2	1
 
 cols not nullable => subq materialization
 explain select t1.a, t2.a

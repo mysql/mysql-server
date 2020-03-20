@@ -2423,9 +2423,44 @@ bool SELECT_LEX::setup_base_ref_items(THD *thd) {
     prepared statement
   */
   Query_arena *arena = thd->stmt_arena;
-  const uint n_elems = (n_sum_items + n_child_sum_items + fields_list.elements +
-                        select_n_having_items + select_n_where_fields +
-                        order_group_num + n_scalar_subqueries);
+  uint n_elems = n_sum_items + n_child_sum_items + fields_list.elements +
+                 select_n_having_items + select_n_where_fields +
+                 order_group_num + n_scalar_subqueries;
+
+  /*
+    If it is possible that we transform IN(subquery) to a join to a derived
+    table, we will be adding DISTINCT (this possibly has the problem of BIT
+    columns as in the logic above), and we will also be adding one expression to
+    the SELECT list per decorrelated equality in WHERE. So we have to allocate
+    more space.
+
+    The number of decorrelatable equalities is bounded by
+    select_n_where_fields. Indeed an equality isn't counted in
+    select_n_where_fields if it's:
+    expr-without_Item_field = expr-without_Item_field;
+    but we decorrelate an equality if one member has OUTER_REF_TABLE_BIT, so
+    it has an Item_field inside.
+
+    Note that cond_count cannot be used, as setup_cond() hasn't run yet. So we
+    use select_n_where_fields instead.
+  */
+  if (master_unit()->item &&
+      (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_SUBQUERY_TO_DERIVED) ||
+       (thd->lex->m_sql_cmd != nullptr &&
+        thd->secondary_engine_optimization() ==
+            Secondary_engine_optimization::SECONDARY))) {
+    Item_subselect *subq_predicate = master_unit()->item;
+    if (subq_predicate->substype() == Item_subselect::EXISTS_SUBS ||
+        subq_predicate->substype() == Item_subselect::IN_SUBS) {
+      // might be transformed to derived table, so:
+      n_elems +=
+          // possible additions to SELECT list from decorrelation of WHERE
+          select_n_where_fields +
+          // add size of new SELECT list, for DISTINCT and BIT type
+          (select_n_where_fields + fields_list.elements);
+    }
+  }
+
   DBUG_PRINT("info",
              ("setup_ref_array this %p %4u : %4u %4u %4u %4u %4u %4u %4u", this,
               n_elems,  // :
@@ -2439,6 +2474,9 @@ bool SELECT_LEX::setup_base_ref_items(THD *thd) {
       MIN/MAX rewrite in Item_in_subselect::single_value_transformer.
       In the usual case we can reuse the array from the prepare phase.
       If we need a bigger array, we must allocate a new one.
+      It looks like this branch is used for a MIN/MAX transformed subquery
+      when we prepare it for the 2nd time (prepared statement), and could go
+      away after WL#6570.
      */
     if (base_ref_items.size() >= n_elems) return false;
   }
@@ -4331,7 +4369,7 @@ bool SELECT_LEX::get_optimizable_conditions(THD *thd, Item **new_where,
   return get_optimizable_join_conditions(thd, top_join_list);
 }
 
-SubqueryExecMethod SELECT_LEX::subquery_strategy(THD *thd) const {
+Subquery_strategy SELECT_LEX::subquery_strategy(THD *thd) const {
   if (m_windows.elements > 0)
     /*
       A window function is in the SELECT list.
@@ -4341,20 +4379,20 @@ SubqueryExecMethod SELECT_LEX::subquery_strategy(THD *thd) const {
       rows over which the WF is supposed to be calculated.
       So, subquery materialization is imposed. Grep for (and read) WL#10431.
     */
-    return SubqueryExecMethod::EXEC_MATERIALIZATION;
+    return Subquery_strategy::SUBQ_MATERIALIZATION;
 
   if (opt_hints_qb) {
-    SubqueryExecMethod strategy = opt_hints_qb->subquery_strategy();
-    if (strategy != SubqueryExecMethod::EXEC_UNSPECIFIED) return strategy;
+    Subquery_strategy strategy = opt_hints_qb->subquery_strategy();
+    if (strategy != Subquery_strategy::UNSPECIFIED) return strategy;
   }
 
   // No SUBQUERY hint given, base possible strategies on optimizer_switch
   if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MATERIALIZATION))
     return thd->optimizer_switch_flag(OPTIMIZER_SWITCH_SUBQ_MAT_COST_BASED)
-               ? SubqueryExecMethod::EXEC_EXISTS_OR_MAT
-               : SubqueryExecMethod::EXEC_MATERIALIZATION;
+               ? Subquery_strategy::CANDIDATE_FOR_IN2EXISTS_OR_MAT
+               : Subquery_strategy::SUBQ_MATERIALIZATION;
 
-  return SubqueryExecMethod::EXEC_EXISTS;
+  return Subquery_strategy::SUBQ_EXISTS;
 }
 
 bool SELECT_LEX::semijoin_enabled(THD *thd) const {

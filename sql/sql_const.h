@@ -452,4 +452,16 @@ class Item;
 /// Processor type for {Item,SELECT_LEX[_UNIT],Table_function}::walk
 typedef bool (Item::*Item_processor)(uchar *arg);
 
+/// Enumeration for SELECT_LEX::condition_context.
+/// If the expression being resolved belongs to a condition clause (WHERE, etc),
+/// it is connected to the clause's root through a chain of Items; tells if this
+/// chain matches ^(AND)*$ ("is top-level"), ^(AND|OR)*$, or neither.
+enum class enum_condition_context {
+  NEITHER,
+  ANDS,
+  ANDS_ORS,
+};
+
+/// Used to uniquely name expressions in derived tables
+#define SYNTHETIC_FIELD_NAME "Name_exp_"
 #endif /* SQL_CONST_INCLUDED */

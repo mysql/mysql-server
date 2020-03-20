@@ -815,7 +815,7 @@ bool MaterializeIterator::Init() {
       // before we start our own.
       //
       // If we're in a recursive CTE, this also provides a signal to
-      // FollowTailIterator that we're starting a new recursive materalization.
+      // FollowTailIterator that we're starting a new recursive materialization.
       table()->file->ha_index_or_rnd_end();
     }
     table()->file->ha_delete_all_rows();

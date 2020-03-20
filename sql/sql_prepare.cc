@@ -2891,11 +2891,12 @@ reexecute:
         error = reprepare();
       }
 
-      // If preparation or optimization failed and the statement used
+      // If (re-?)preparation or optimization failed and it was for
       // a secondary storage engine, disable the secondary storage
       // engine and try again without it.
       if (error && lex->m_sql_cmd != nullptr &&
-          lex->m_sql_cmd->using_secondary_storage_engine() &&
+          thd->secondary_engine_optimization() ==
+              Secondary_engine_optimization::SECONDARY &&
           !lex->unit->is_executed()) {
         thd->clear_error();
         thd->set_secondary_engine_optimization(

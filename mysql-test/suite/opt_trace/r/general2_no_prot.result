@@ -744,14 +744,6 @@ TRACE
                   "transformation": {
                     "select#": 2,
                     "from": "IN (SELECT)",
-                    "to": "semijoin",
-                    "chosen": false
-                  } /* transformation */
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
                     "to": "EXISTS (CORRELATED SELECT)",
                     "chosen": true,
                     "evaluating_constant_having_conditions": [
@@ -1616,14 +1608,6 @@ jump_if_not 2(2) exists(select 1)	{
         "steps": [
           {
             "expanded_query": "/* select#2 */ select 1"
-          },
-          {
-            "transformation": {
-              "select#": 2,
-              "from": "EXISTS (SELECT)",
-              "to": "semijoin",
-              "chosen": false
-            } /* transformation */
           }
         ] /* steps */
       } /* join_preparation */
@@ -1663,14 +1647,6 @@ jump_if_not 4(4) exists(select 2)	{
         "steps": [
           {
             "expanded_query": "/* select#2 */ select 2"
-          },
-          {
-            "transformation": {
-              "select#": 2,
-              "from": "EXISTS (SELECT)",
-              "to": "semijoin",
-              "chosen": false
-            } /* transformation */
           }
         ] /* steps */
       } /* join_preparation */
@@ -2824,14 +2800,6 @@ from t0 where a in
               "steps": [
                 {
                   "expanded_query": "/* select#2 */ select (`t2`.`a` + `t3`.`a`) from (`t1` left join (`t2` join `t3`) on(((`t2`.`a` = `t1`.`a`) and (`t3`.`a` = `t1`.`a`))))"
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
-                    "to": "semijoin",
-                    "chosen": false
-                  } /* transformation */
                 },
                 {
                   "transformation": {

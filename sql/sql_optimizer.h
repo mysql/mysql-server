@@ -880,7 +880,7 @@ class JOIN {
   bool add_having_as_tmp_table_cond(uint curr_tmp_table);
   bool make_tmp_tables_info();
   void set_plan_state(enum_plan_state plan_state_arg);
-  bool compare_costs_of_subquery_strategies(SubqueryExecMethod *method);
+  bool compare_costs_of_subquery_strategies(Subquery_strategy *method);
   ORDER *remove_const(ORDER *first_order, Item *cond, bool change_list,
                       bool *simple_order, bool group_by);
 

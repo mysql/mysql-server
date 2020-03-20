@@ -723,10 +723,10 @@ class SELECT_LEX_UNIT {
   /// Points to subquery if this query expression is used in one, otherwise NULL
   Item_subselect *item;
   /**
-    Used by transform_scalar_subqueries_to_derived to remember where we came
-    from, i.e. the place value of SELECT_LEX_UNIT::item. This is needed because
-    at EXECUTE time, we re-resolve the subquery that was transformed into
-    a derived table during PREPARE, in the position where it was originally
+    Used by transform_scalar_subqueries_to_join_with_derived to remember where
+    we came from, i.e. the place value of SELECT_LEX_UNIT::item. This is needed
+    because at EXECUTE time, we re-resolve the subquery that was transformed
+    into a derived table during PREPARE, in the position where it was originally
     located, i.e. in the SELECT list. For this resolution to work, we need the
     correct place information. This helps us get that, cf.
     SELECT_LEX_UNIT::place. Can be removed after WL#6570.
@@ -970,6 +970,7 @@ class SELECT_LEX_UNIT {
 };
 
 typedef Bounds_checked_array<Item *> Ref_item_array;
+class Semijoin_decorrelation;
 
 /**
   SELECT_LEX type enum
@@ -1067,8 +1068,6 @@ class SELECT_LEX {
   /// @returns a map of all tables references in the query block
   table_map all_tables_map() const { return (1ULL << leaf_table_count) - 1; }
 
-  TABLE_LIST *synthesize_derived(THD *thd, SELECT_LEX_UNIT *unit,
-                                 Item *join_cond, uint i, bool left_outer);
   bool field_of_table_present(TABLE_LIST *tl, bool *found);
   void remove_derived(THD *thd, TABLE_LIST *tl);
   bool remove_aggregates(THD *thd, SELECT_LEX *select);
@@ -1148,6 +1147,26 @@ class SELECT_LEX {
           can return max. 1 row.
   */
   bool is_ordered() const { return order_list.elements > 0; }
+
+  /**
+    Based on the structure of the query at resolution time, it is possible to
+    conclude that DISTINCT is useless and remove it.
+    This is the case if:
+    - all GROUP BY expressions are in SELECT list, so resulting group rows are
+    distinct,
+    - and ROLLUP is not specified, so it adds no row for NULLs.
+
+    @returns true if we can remove DISTINCT.
+
+    @todo could refine this to if ROLLUP were specified and all GROUP
+    expressions were non-nullable, because ROLLUP then adds only NULL values.
+    Currently, ROLLUP+DISTINCT is rejected because executor cannot handle
+    it in all cases.
+  */
+  bool can_skip_distinct() const {
+    return is_grouped() && hidden_group_field_count == 0 &&
+           olap == UNSPECIFIED_OLAP_TYPE;
+  }
 
   /// @return true if this query block has a LIMIT clause
   bool has_limit() const { return select_limit != nullptr; }
@@ -1251,11 +1270,11 @@ class SELECT_LEX {
     @param thd  Pointer to THD object for session.
                 Used to access optimizer_switch
 
-    @retval EXEC_MATERIALIZATION  Subquery Materialization should be used
-    @retval EXEC_EXISTS           In-to-exists execution should be used
-    @retval EXEC_EXISTS_OR_MAT    A cost-based decision should be made
+    @retval SUBQ_MATERIALIZATION  Subquery Materialization should be used
+    @retval SUBQ_EXISTS           In-to-exists execution should be used
+    @retval CANDIDATE_FOR_IN2EXISTS_OR_MAT A cost-based decision should be made
   */
-  SubqueryExecMethod subquery_strategy(THD *thd) const;
+  Subquery_strategy subquery_strategy(THD *thd) const;
 
   void set_sj_candidates(Mem_root_array<Item_exists_subselect *> *sj_cand) {
     sj_candidates = sj_cand;
@@ -1870,6 +1889,9 @@ class SELECT_LEX {
   /// Indicates whether this query block contains the WITH ROLLUP clause
   olap_type olap{UNSPECIFIED_OLAP_TYPE};
 
+  /// @see enum_condition_context
+  enum_condition_context condition_context{enum_condition_context::ANDS};
+
   /// If set, the query block is of the form VALUES row_list.
   bool is_table_value_constructor{false};
 
@@ -1904,13 +1926,6 @@ class SELECT_LEX {
   /// Used by nested scalar_to_derived transformations
   bool m_was_implicitly_grouped{false};
 
-  /**
-    Disables semi-join flattening when resolving a subtree in which flattening
-    is not allowed. The flag should be true while resolving items that are not
-    on the AND-top-level of a condition tree.
-  */
-  bool semijoin_disallowed{false};
-
   /// True: skip local transformations during prepare() call (used by INSERT)
   bool skip_local_transforms{false};
 
@@ -1944,6 +1959,7 @@ class SELECT_LEX {
 
  private:
   friend class SELECT_LEX_UNIT;
+  friend class Condition_context;
 
   bool record_join_nest_info(mem_root_deque<TABLE_LIST *> *tables);
   bool simplify_joins(THD *thd, mem_root_deque<TABLE_LIST *> *join_list,
@@ -1955,9 +1971,19 @@ class SELECT_LEX {
   bool build_sj_cond(THD *thd, NESTED_JOIN *nested_join,
                      SELECT_LEX *subq_select, table_map outer_tables_map,
                      Item **sj_cond);
-  bool decorrelate_condition(TABLE_LIST *sj_nest, TABLE_LIST *join_nest);
+  bool decorrelate_condition(Semijoin_decorrelation &sj_decor,
+                             TABLE_LIST *join_nest);
 
   bool convert_subquery_to_semijoin(THD *thd, Item_exists_subselect *subq_pred);
+  TABLE_LIST *synthesize_derived(THD *thd, SELECT_LEX_UNIT *unit,
+                                 Item *join_cond, bool left_outer,
+                                 bool use_inner_join);
+  bool transform_subquery_to_derived(THD *thd, TABLE_LIST **out_tl,
+                                     SELECT_LEX_UNIT *subs_unit,
+                                     Item_subselect *subq, bool use_inner_join,
+                                     Item *join_condition);
+  bool transform_table_subquery_to_join_with_derived(
+      THD *thd, Item_exists_subselect *subq_pred);
   void remap_tables(THD *thd);
   bool resolve_subquery(THD *thd);
   void mark_item_as_maybe_null_if_rollup_item(Item *item);
@@ -2004,7 +2030,7 @@ class SELECT_LEX {
     @param[in,out] thd the session context
     @returns       true on error
   */
-  bool transform_scalar_subqueries_to_derived(THD *thd);
+  bool transform_scalar_subqueries_to_join_with_derived(THD *thd);
   bool transform_grouped_to_derived(THD *thd, bool *break_off);
   bool replace_subquery_in_expr(THD *thd, Item_singlerow_subselect *subquery,
                                 Item **expr);
@@ -2136,27 +2162,30 @@ inline bool SELECT_LEX_UNIT::is_union() const {
          first_select()->next_select()->linkage == UNION_TYPE;
 }
 
-/**
-  Utility RAII class to save/modify/restore the
-  semijoin_disallowed flag.
-*/
-class Disable_semijoin_flattening {
+/// Utility RAII class to save/modify/restore the condition_context information
+/// of a query block. @see enum_condition_context.
+class Condition_context {
  public:
-  Disable_semijoin_flattening(SELECT_LEX *select_ptr, bool apply)
+  Condition_context(SELECT_LEX *select_ptr, enum_condition_context new_type =
+                                                enum_condition_context::NEITHER)
       : select(nullptr), saved_value() {
-    if (select_ptr && apply) {
+    if (select_ptr) {
       select = select_ptr;
-      saved_value = select->semijoin_disallowed;
-      select->semijoin_disallowed = true;
+      saved_value = select->condition_context;
+      // More restrictive wins over less restrictive:
+      if (new_type == enum_condition_context::NEITHER ||
+          (new_type == enum_condition_context::ANDS_ORS &&
+           saved_value == enum_condition_context::ANDS))
+        select->condition_context = new_type;
     }
   }
-  ~Disable_semijoin_flattening() {
-    if (select) select->semijoin_disallowed = saved_value;
+  ~Condition_context() {
+    if (select) select->condition_context = saved_value;
   }
 
  private:
   SELECT_LEX *select;
-  bool saved_value;
+  enum_condition_context saved_value;
 };
 
 bool walk_join_list(mem_root_deque<TABLE_LIST *> &list,

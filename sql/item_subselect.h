@@ -374,20 +374,32 @@ class Item_maxmin_subselect final : public Item_singlerow_subselect {
 
 /* exists subselect */
 
-enum class SubqueryExecMethod : int {
-  EXEC_UNSPECIFIED,  ///< No execution method specified yet.
-  EXEC_SEMI_JOIN,    ///< Predicate is converted to semi-join nest.
-  /// IN was converted to correlated EXISTS, and this is a final decision.
-  EXEC_EXISTS,
-  /**
-     Decision between EXISTS and MATERIALIZATION is not yet taken.
-     IN was temporarily converted to correlated EXISTS.
-     All descendants of Item_in_subselect must go through this method
-     before they can reach EXISTS.
-  */
-  EXEC_EXISTS_OR_MAT,
-  /// Predicate executed via materialization, and this is a final decision.
-  EXEC_MATERIALIZATION
+/**
+  Strategy which will be used to handle this subquery: flattening to a
+  semi-join, conversion to a derived table, rewrite of IN to EXISTS...
+  Sometimes the strategy is first only a candidate, then the real decision
+  happens in a second phase. Other times the first decision is final.
+ */
+enum class Subquery_strategy : int {
+  /// Nothing decided yet
+  UNSPECIFIED,
+  /// Candidate for rewriting IN(subquery) to EXISTS, or subquery
+  /// materialization
+  CANDIDATE_FOR_IN2EXISTS_OR_MAT,
+  /// Candidate for semi-join flattening
+  CANDIDATE_FOR_SEMIJOIN,
+  /// Candidate for rewriting to joined derived table
+  CANDIDATE_FOR_DERIVED_TABLE,
+  /// Semi-join flattening
+  SEMIJOIN,
+  /// Subquery's WHERE is always false, replace predicate with "false"
+  ALWAYS_FALSE,
+  /// Rewrite to joined derived table
+  DERIVED_TABLE,
+  /// Evaluate as EXISTS subquery (possibly after rewriting from another type)
+  SUBQ_EXISTS,
+  /// Subquery materialization (HASH_SJ_ENGINE)
+  SUBQ_MATERIALIZATION,
 };
 
 class Item_exists_subselect : public Item_subselect {
@@ -398,24 +410,13 @@ class Item_exists_subselect : public Item_subselect {
   bool value{false};
 
  public:
-  /**
-    The method chosen to execute the predicate, currently used for IN, =ANY
-    and EXISTS predicates.
-  */
-  SubqueryExecMethod exec_method{SubqueryExecMethod::EXEC_UNSPECIFIED};
   /// Priority of this predicate in the convert-to-semi-join-nest process.
   int sj_convert_priority{0};
-  /// Decision on whether predicate is selected for semi-join transformation
-  enum enum_sj_selection {
-    /// Not selected for semi-join, evaluate as subquery predicate, or
-    /// replace with a substitution for the Item (e.g. Item_in_optimizer)
-    SJ_NOT_SELECTED,
-    /// Selected for semi-join, replace predicate with "true"
-    SJ_SELECTED,
-    /// Subquery's WHERE is always false, replace predicate with "false"
-    SJ_ALWAYS_FALSE
-  };
-  enum_sj_selection sj_selection{SJ_NOT_SELECTED};
+  /// Execution strategy chosen for this Item
+  Subquery_strategy strategy{Subquery_strategy::UNSPECIFIED};
+  /// Used by the transformation to derived table
+  enum_condition_context outer_condition_context{enum_condition_context::ANDS};
+
   /**
     Used by subquery optimizations to keep track about where this subquery
     predicate is located, and whether it is a candidate for transformation.
@@ -428,8 +429,8 @@ class Item_exists_subselect : public Item_subselect {
 
     As for the second case above (the join nest pointer), note that this value
     may change if scalar subqueries are transformed to derived tables,
-    cf. transform_scalar_subqueries_to_derived, due to the need to build new
-    join nests. The change is performed in SELECT_LEX::nest_derived.
+    cf. transform_scalar_subqueries_to_join_with_derived, due to the need to
+    build new join nests. The change is performed in SELECT_LEX::nest_derived.
   */
   TABLE_LIST *embedding_join_nest{nullptr};
 
@@ -440,7 +441,7 @@ class Item_exists_subselect : public Item_subselect {
   explicit Item_exists_subselect(const POS &pos) : super(pos) {}
 
   trans_res select_transformer(THD *, SELECT_LEX *) override {
-    exec_method = SubqueryExecMethod::EXEC_EXISTS;
+    strategy = Subquery_strategy::SUBQ_EXISTS;
     return RES_OK;
   }
   subs_type substype() const override { return EXISTS_SUBS; }
@@ -734,7 +735,6 @@ class SubqueryWithResult {
       true  - Execution error.
   */
   bool exec(THD *thd);
-  table_map upper_select_const_tables() const;
   void print(const THD *thd, String *str, enum_query_type query_type);
   bool change_query_result(THD *thd, Item_subselect *si,
                            Query_result_subquery *result);

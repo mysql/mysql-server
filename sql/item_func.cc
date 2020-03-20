@@ -268,12 +268,7 @@ bool Item_func::fix_fields(THD *thd, Item **) {
   Item **arg, **arg_end;
   uchar buff[STACK_BUFF_ALLOC];  // Max argument in function
 
-  /*
-    Semi-join flattening should only be performed for top-level
-    predicates. Disable it for predicates that live under an
-    Item_func.
-  */
-  Disable_semijoin_flattening DSF(thd->lex->current_select(), true);
+  Condition_context CCT(thd->lex->current_select());
 
   used_tables_cache = get_initial_pseudo_tables();
   not_null_tables_cache = 0;

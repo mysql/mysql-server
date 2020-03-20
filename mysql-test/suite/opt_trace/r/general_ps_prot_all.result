@@ -999,14 +999,6 @@ SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SEL
               "steps": [
                 {
                   "expanded_query": "/* select#2 */ select 1 from `t6` where ((`t6`.`d` = ifnull(`t5`.`c`,NULL)) and (<cache>(5) = 1))"
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
-                    "to": "semijoin",
-                    "chosen": false
-                  } /* transformation */
                 }
               ] /* steps */
             } /* join_preparation */
@@ -1017,14 +1009,6 @@ SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SEL
               "steps": [
                 {
                   "expanded_query": "/* select#3 */ select 2 from `t6` where ((`t6`.`d` = ifnull(`t5`.`c`,NULL)) and (<cache>(5) = 2))"
-                },
-                {
-                  "transformation": {
-                    "select#": 3,
-                    "from": "IN (SELECT)",
-                    "to": "semijoin",
-                    "chosen": false
-                  } /* transformation */
                 }
               ] /* steps */
             } /* join_preparation */
@@ -1310,8 +1294,8 @@ Warning	1287	Setting user variables within expressions is deprecated and will be
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select length(@trace);
 length(@trace)
-12753
-set @max_mem_size=13807;
+12219
+set @max_mem_size=13307;
 set optimizer_trace_max_mem_size=@max_mem_size;
 select length(@query)+length(@trace) > @@optimizer_trace_max_mem_size;
 length(@query)+length(@trace) > @@optimizer_trace_max_mem_size
@@ -1333,7 +1317,7 @@ select length(@trace2),
 (length(@trace2) + @missing_bytes) = length(@trace),
 @query2 = @query;
 length(@trace2)	(length(@trace2) + @missing_bytes) = length(@trace)	@query2 = @query
-12753	1	1
+12219	1	1
 select length(@query2) + length(@trace2)
 between (@@optimizer_trace_max_mem_size-200) and (@@optimizer_trace_max_mem_size+200);
 length(@query2) + length(@trace2)
@@ -1377,14 +1361,6 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
               "steps": [
                 {
                   "expanded_query": "/* select#2 */ select (`t6`.`d` + 1) from `t6` where (`t6`.`d` is null)"
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
-                    "to": "semijoin",
-                    "chosen": true
-                  } /* transformation */
                 }
               ] /* steps */
             } /* join_preparation */
@@ -1728,14 +1704,6 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
               "steps": [
                 {
                   "expanded_query": "/* select#2 */ select (`t6`.`d` + 1) from `t6` where (`t6`.`d` is null)"
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
-                    "to": "semijoin",
-                    "chosen": false
-                  } /* transformation */
                 },
                 {
                   "transformation": {
@@ -2387,14 +2355,6 @@ explain select * from t1 where s1 in (select s2 from t1)	{
                   "transformation": {
                     "select#": 2,
                     "from": "IN (SELECT)",
-                    "to": "semijoin",
-                    "chosen": false
-                  } /* transformation */
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
                     "to": "EXISTS (CORRELATED SELECT)",
                     "chosen": true,
                     "evaluating_constant_where_conditions": [
@@ -2678,14 +2638,6 @@ explain select * from t1 where (s1,s2) in (select s2,s1 from t1)	{
               "steps": [
                 {
                   "expanded_query": "/* select#2 */ select `t1`.`s2`,`t1`.`s1` from `t1`"
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
-                    "to": "semijoin",
-                    "chosen": false
-                  } /* transformation */
                 },
                 {
                   "transformation": {
@@ -3319,14 +3271,6 @@ where a1 in (select b1 from t2_16 where b1 > '0')	{
               "steps": [
                 {
                   "expanded_query": "/* select#2 */ select `t2_16`.`b1` from `t2_16` where (`t2_16`.`b1` > '0')"
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
-                    "to": "semijoin",
-                    "chosen": false
-                  } /* transformation */
                 },
                 {
                   "transformation": {
@@ -4468,14 +4412,6 @@ concat(c1,'y') IN
                   "transformation": {
                     "select#": 2,
                     "from": "IN (SELECT)",
-                    "to": "semijoin",
-                    "chosen": false
-                  } /* transformation */
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
                     "to": "EXISTS (CORRELATED SELECT)",
                     "chosen": true,
                     "evaluating_constant_where_conditions": [
@@ -4491,14 +4427,6 @@ concat(c1,'y') IN
               "steps": [
                 {
                   "expanded_query": "/* select#3 */ select left(`t2`.`c2`,9) from `t2`"
-                },
-                {
-                  "transformation": {
-                    "select#": 3,
-                    "from": "IN (SELECT)",
-                    "to": "semijoin",
-                    "chosen": false
-                  } /* transformation */
                 },
                 {
                   "transformation": {
@@ -5145,14 +5073,6 @@ trace
               "steps": [
                 {
                   "expanded_query": "/* select#2 */ select `t1`.`a`,`t2`.`a`,`t4`.`a` from `t1` join `t2` join `t4`"
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
-                    "to": "semijoin",
-                    "chosen": true
-                  } /* transformation */
                 }
               ] /* steps */
             } /* join_preparation */
@@ -6514,14 +6434,6 @@ select * from t1 where (t1.a,t1.b) not in (select c,d from t2 where c>0)	{
               "steps": [
                 {
                   "expanded_query": "/* select#2 */ select `t2`.`c`,`t2`.`d` from `t2` where ((`t2`.`c` > 0) and <if>(outer_field_is_not_null, ((<cache>(`t1`.`a`) = `t2`.`c`) or (`t2`.`c` is null)), true) and <if>(outer_field_is_not_null, ((<cache>(`t1`.`b`) = `t2`.`d`) or (`t2`.`d` is null)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`t2`.`c`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`t2`.`d`), true))"
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
-                    "to": "semijoin",
-                    "chosen": false
-                  } /* transformation */
                 }
               ] /* steps */
             } /* join_preparation */
@@ -8261,14 +8173,6 @@ select * from t6 where d in (select f1() from t2 where s="c")	{
               "steps": [
                 {
                   "expanded_query": "/* select#2 */ select `f1`() from `t2` where (`t2`.`s` = 'c')"
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
-                    "to": "semijoin",
-                    "chosen": true
-                  } /* transformation */
                 }
               ] /* steps */
             } /* join_preparation */
@@ -9288,14 +9192,6 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
               "steps": [
                 {
                   "expanded_query": "/* select#2 */ select `f1`() from `t2` where (`t2`.`s` = arg@0)"
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
-                    "to": "semijoin",
-                    "chosen": true
-                  } /* transformation */
                 }
               ] /* steps */
             } /* join_preparation */
@@ -11449,14 +11345,6 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
               "steps": [
                 {
                   "expanded_query": "/* select#2 */ select `f1`() from `t2` where (`t2`.`s` = arg@0)"
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
-                    "to": "semijoin",
-                    "chosen": true
-                  } /* transformation */
                 }
               ] /* steps */
             } /* join_preparation */
@@ -13215,7 +13103,7 @@ SELECT a + (SELECT SUM(a) + (SELECT COUNT(a) FROM t1) FROM t1) AS cnt FROM t2	{
                 },
                 {
                   "derived": {
-                    "table": " `derived_2_0`",
+                    "table": " `derived_2_4`",
                     "select#": 4,
                     "materialized": true
                   }
@@ -13231,36 +13119,42 @@ SELECT a + (SELECT SUM(a) + (SELECT COUNT(a) FROM t1) FROM t1) AS cnt FROM t2	{
                   }
                 },
                 {
-                  "expanded_query": "/* select#2 */ select (`derived_2_0`.`tmp_aggr_1` + (/* select#5 */ select count(`t1`.`a`) AS `COUNT(a)` from `t1`)) AS `SUM(a) + (SELECT COUNT(a) FROM t1)` from (/* select#4 */ select sum(`t1`.`a`) AS `tmp_aggr_1` from `t1`) `derived_2_0` left join (/* select#5 */ select count(`t1`.`a`) AS `COUNT(a)` from `t1`) `derived_2_1` on(true)"
+                  "expanded_query": "/* select#2 */ select (`derived_2_4`.`tmp_aggr_1` + (/* select#5 */ select count(`t1`.`a`) AS `COUNT(a)` from `t1`)) AS `SUM(a) + (SELECT COUNT(a) FROM t1)` from (/* select#4 */ select sum(`t1`.`a`) AS `tmp_aggr_1` from `t1`) `derived_2_4` left join (/* select#5 */ select count(`t1`.`a`) AS `COUNT(a)` from `t1`) `derived_2_5` on(true)"
                 },
                 {
                   "derived": {
-                    "table": " `derived_2_1`",
+                    "table": " `derived_2_5`",
                     "select#": 5,
                     "materialized": true
                   }
                 },
                 {
-                  "transform_scalar_subquery_to_derived": {
-                    "expanded_query": "/* select#2 */ select (`derived_2_0`.`tmp_aggr_1` + `derived_2_1`.`COUNT(a)`) AS `SUM(a) + (SELECT COUNT(a) FROM t1)` from (/* select#4 */ select sum(`t1`.`a`) AS `tmp_aggr_1` from `t1`) `derived_2_0` left join (/* select#5 */ select count(`t1`.`a`) AS `COUNT(a)` from `t1`) `derived_2_1` on(true)"
+                  "transformation": {
+                    "select#": 5,
+                    "from": "scalar subquery",
+                    "to": "derived table",
+                    "expanded_query": "/* select#2 */ select (`derived_2_4`.`tmp_aggr_1` + `derived_2_5`.`COUNT(a)`) AS `SUM(a) + (SELECT COUNT(a) FROM t1)` from (/* select#4 */ select sum(`t1`.`a`) AS `tmp_aggr_1` from `t1`) `derived_2_4` left join (/* select#5 */ select count(`t1`.`a`) AS `COUNT(a)` from `t1`) `derived_2_5` on(true)"
                   }
                 }
               ]
             }
           },
           {
-            "expanded_query": "/* select#1 */ select (`t2`.`a` + (/* select#2 */ select (`derived_2_0`.`tmp_aggr_1` + `derived_2_1`.`COUNT(a)`) AS `SUM(a) + (SELECT COUNT(a) FROM t1)` from (/* select#4 */ select sum(`t1`.`a`) AS `tmp_aggr_1` from `t1`) `derived_2_0` left join (/* select#5 */ select count(`t1`.`a`) AS `COUNT(a)` from `t1`) `derived_2_1` on(true))) AS `cnt` from `t2` left join (/* select#2 */ select (`derived_2_0`.`tmp_aggr_1` + `derived_2_1`.`COUNT(a)`) AS `SUM(a) + (SELECT COUNT(a) FROM t1)` from (/* select#4 */ select sum(`t1`.`a`) AS `tmp_aggr_1` from `t1`) `derived_2_0` left join (/* select#5 */ select count(`t1`.`a`) AS `COUNT(a)` from `t1`) `derived_2_1` on(true)) `derived_1_0` on(true)"
+            "expanded_query": "/* select#1 */ select (`t2`.`a` + (/* select#2 */ select (`derived_2_4`.`tmp_aggr_1` + `derived_2_5`.`COUNT(a)`) AS `SUM(a) + (SELECT COUNT(a) FROM t1)` from (/* select#4 */ select sum(`t1`.`a`) AS `tmp_aggr_1` from `t1`) `derived_2_4` left join (/* select#5 */ select count(`t1`.`a`) AS `COUNT(a)` from `t1`) `derived_2_5` on(true))) AS `cnt` from `t2` left join (/* select#2 */ select (`derived_2_4`.`tmp_aggr_1` + `derived_2_5`.`COUNT(a)`) AS `SUM(a) + (SELECT COUNT(a) FROM t1)` from (/* select#4 */ select sum(`t1`.`a`) AS `tmp_aggr_1` from `t1`) `derived_2_4` left join (/* select#5 */ select count(`t1`.`a`) AS `COUNT(a)` from `t1`) `derived_2_5` on(true)) `derived_1_2` on(true)"
           },
           {
             "derived": {
-              "table": " `derived_1_0`",
+              "table": " `derived_1_2`",
               "select#": 2,
               "materialized": true
             }
           },
           {
-            "transform_scalar_subquery_to_derived": {
-              "expanded_query": "/* select#1 */ select (`t2`.`a` + `derived_1_0`.`SUM(a) + (SELECT COUNT(a) FROM t1)`) AS `cnt` from `t2` left join (/* select#2 */ select (`derived_2_0`.`tmp_aggr_1` + `derived_2_1`.`COUNT(a)`) AS `SUM(a) + (SELECT COUNT(a) FROM t1)` from (/* select#4 */ select sum(`t1`.`a`) AS `tmp_aggr_1` from `t1`) `derived_2_0` left join (/* select#5 */ select count(`t1`.`a`) AS `COUNT(a)` from `t1`) `derived_2_1` on(true)) `derived_1_0` on(true)"
+            "transformation": {
+              "select#": 2,
+              "from": "scalar subquery",
+              "to": "derived table",
+              "expanded_query": "/* select#1 */ select (`t2`.`a` + `derived_1_2`.`SUM(a) + (SELECT COUNT(a) FROM t1)`) AS `cnt` from `t2` left join (/* select#2 */ select (`derived_2_4`.`tmp_aggr_1` + `derived_2_5`.`COUNT(a)`) AS `SUM(a) + (SELECT COUNT(a) FROM t1)` from (/* select#4 */ select sum(`t1`.`a`) AS `tmp_aggr_1` from `t1`) `derived_2_4` left join (/* select#5 */ select count(`t1`.`a`) AS `COUNT(a)` from `t1`) `derived_2_5` on(true)) `derived_1_2` on(true)"
             }
           }
         ]
@@ -13362,7 +13256,7 @@ SELECT a + (SELECT SUM(a) + (SELECT COUNT(a) FROM t1) FROM t1) AS cnt FROM t2	{
                 {
                   "creating_tmp_table": {
                     "tmp_table_info": {
-                      "table": " `derived_2_0`",
+                      "table": " `derived_2_4`",
                       "columns": 1,
                       "row_length": 16,
                       "key_length": 0,
@@ -13468,7 +13362,7 @@ SELECT a + (SELECT SUM(a) + (SELECT COUNT(a) FROM t1) FROM t1) AS cnt FROM t2	{
                 {
                   "creating_tmp_table": {
                     "tmp_table_info": {
-                      "table": " `derived_2_1`",
+                      "table": " `derived_2_5`",
                       "columns": 1,
                       "row_length": 9,
                       "key_length": 0,
@@ -13501,14 +13395,14 @@ SELECT a + (SELECT SUM(a) + (SELECT COUNT(a) FROM t1) FROM t1) AS cnt FROM t2	{
                 {
                   "table_dependencies": [
                     {
-                      "table": " `derived_2_0`",
+                      "table": " `derived_2_4`",
                       "row_may_be_null": false,
                       "map_bit": 0,
                       "depends_on_map_bits": [
                       ]
                     },
                     {
-                      "table": " `derived_2_1`",
+                      "table": " `derived_2_5`",
                       "row_may_be_null": true,
                       "map_bit": 1,
                       "depends_on_map_bits": [
@@ -13524,14 +13418,14 @@ SELECT a + (SELECT SUM(a) + (SELECT COUNT(a) FROM t1) FROM t1) AS cnt FROM t2	{
                 {
                   "rows_estimation": [
                     {
-                      "table": " `derived_2_0`",
+                      "table": " `derived_2_4`",
                       "table_scan": {
                         "rows": 1,
                         "cost": 2.5125
                       }
                     },
                     {
-                      "table": " `derived_2_1`",
+                      "table": " `derived_2_5`",
                       "table_scan": {
                         "rows": 1,
                         "cost": 2.5125
@@ -13544,7 +13438,7 @@ SELECT a + (SELECT SUM(a) + (SELECT COUNT(a) FROM t1) FROM t1) AS cnt FROM t2	{
                     {
                       "plan_prefix": [
                       ],
-                      "table": " `derived_2_0`",
+                      "table": " `derived_2_4`",
                       "best_access_path": {
                         "considered_access_paths": [
                           {
@@ -13562,9 +13456,9 @@ SELECT a + (SELECT SUM(a) + (SELECT COUNT(a) FROM t1) FROM t1) AS cnt FROM t2	{
                       "rest_of_plan": [
                         {
                           "plan_prefix": [
-                            " `derived_2_0`"
+                            " `derived_2_4`"
                           ],
-                          "table": " `derived_2_1`",
+                          "table": " `derived_2_5`",
                           "best_access_path": {
                             "considered_access_paths": [
                               {
@@ -13598,12 +13492,12 @@ SELECT a + (SELECT SUM(a) + (SELECT COUNT(a) FROM t1) FROM t1) AS cnt FROM t2	{
                     ],
                     "attached_conditions_summary": [
                       {
-                        "table": " `derived_2_0`",
+                        "table": " `derived_2_4`",
                         "attached": null
                       },
                       {
-                        "table": " `derived_2_1`",
-                        "attached": "<if>(is_not_null_compl(derived_2_1), true, true)"
+                        "table": " `derived_2_5`",
+                        "attached": "<if>(is_not_null_compl(derived_2_5), true, true)"
                       }
                     ]
                   }
@@ -13611,19 +13505,19 @@ SELECT a + (SELECT SUM(a) + (SELECT COUNT(a) FROM t1) FROM t1) AS cnt FROM t2	{
                 {
                   "finalizing_table_conditions": [
                     {
-                      "table": " `derived_2_1`",
-                      "original_table_condition": "<if>(is_not_null_compl(derived_2_1), true, true)",
-                      "final_table_condition   ": "<if>(is_not_null_compl(derived_2_1), true, true)"
+                      "table": " `derived_2_5`",
+                      "original_table_condition": "<if>(is_not_null_compl(derived_2_5), true, true)",
+                      "final_table_condition   ": "<if>(is_not_null_compl(derived_2_5), true, true)"
                     }
                   ]
                 },
                 {
                   "refine_plan": [
                     {
-                      "table": " `derived_2_0`"
+                      "table": " `derived_2_4`"
                     },
                     {
-                      "table": " `derived_2_1`"
+                      "table": " `derived_2_5`"
                     }
                   ]
                 }
@@ -13652,7 +13546,7 @@ SELECT a + (SELECT SUM(a) + (SELECT COUNT(a) FROM t1) FROM t1) AS cnt FROM t2	{
                 ]
               },
               {
-                "table": " `derived_1_0`",
+                "table": " `derived_1_2`",
                 "row_may_be_null": true,
                 "map_bit": 1,
                 "depends_on_map_bits": [
@@ -13675,7 +13569,7 @@ SELECT a + (SELECT SUM(a) + (SELECT COUNT(a) FROM t1) FROM t1) AS cnt FROM t2	{
                 }
               },
               {
-                "table": " `derived_1_0`",
+                "table": " `derived_1_2`",
                 "table_scan": {
                   "rows": 2,
                   "cost": 2.525
@@ -13708,7 +13602,7 @@ SELECT a + (SELECT SUM(a) + (SELECT COUNT(a) FROM t1) FROM t1) AS cnt FROM t2	{
                     "plan_prefix": [
                       "`t2`"
                     ],
-                    "table": " `derived_1_0`",
+                    "table": " `derived_1_2`",
                     "best_access_path": {
                       "considered_access_paths": [
                         {
@@ -13746,8 +13640,8 @@ SELECT a + (SELECT SUM(a) + (SELECT COUNT(a) FROM t1) FROM t1) AS cnt FROM t2	{
                   "attached": null
                 },
                 {
-                  "table": " `derived_1_0`",
-                  "attached": "<if>(is_not_null_compl(derived_1_0), true, true)"
+                  "table": " `derived_1_2`",
+                  "attached": "<if>(is_not_null_compl(derived_1_2), true, true)"
                 }
               ]
             }
@@ -13755,9 +13649,9 @@ SELECT a + (SELECT SUM(a) + (SELECT COUNT(a) FROM t1) FROM t1) AS cnt FROM t2	{
           {
             "finalizing_table_conditions": [
               {
-                "table": " `derived_1_0`",
-                "original_table_condition": "<if>(is_not_null_compl(derived_1_0), true, true)",
-                "final_table_condition   ": "<if>(is_not_null_compl(derived_1_0), true, true)"
+                "table": " `derived_1_2`",
+                "original_table_condition": "<if>(is_not_null_compl(derived_1_2), true, true)",
+                "final_table_condition   ": "<if>(is_not_null_compl(derived_1_2), true, true)"
               }
             ]
           },
@@ -13767,7 +13661,7 @@ SELECT a + (SELECT SUM(a) + (SELECT COUNT(a) FROM t1) FROM t1) AS cnt FROM t2	{
                 "table": "`t2`"
               },
               {
-                "table": " `derived_1_0`"
+                "table": " `derived_1_2`"
               }
             ]
           }
@@ -13781,7 +13675,7 @@ SELECT a + (SELECT SUM(a) + (SELECT COUNT(a) FROM t1) FROM t1) AS cnt FROM t2	{
           {
             "creating_tmp_table": {
               "tmp_table_info": {
-                "table": " `derived_1_0`",
+                "table": " `derived_1_2`",
                 "in_plan_at_position": 1,
                 "columns": 1,
                 "row_length": 16,

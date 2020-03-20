@@ -183,6 +183,11 @@ class Sql_cmd {
 
   /**
     Is this statement using a secondary storage engine?
+    @note that this is reliable during optimization and afterwards; during
+    preparation, if this is an explicit preparation (SQL PREPARE, C API
+    PREPARE, and automatic repreparation), it may be false as RAPID tables have
+    not yet been opened. Therefore, during preparation, it is safer to test
+    THD::secondary_engine_optimization().
   */
   bool using_secondary_storage_engine() const {
     return m_secondary_engine != nullptr;
