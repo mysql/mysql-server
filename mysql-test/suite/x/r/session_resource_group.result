@@ -3,7 +3,8 @@ CREATE RESOURCE GROUP my_group TYPE=USER;
 USR_default
 ===========
 RUN SET RESOURCE GROUP USR_default
-in main, line 18:ERROR: Command not supported by pluggable protocols (code 3130)
+
+0 rows affected
 RUN SELECT RESOURCE_GROUP FROM performance_schema.threads WHERE THREAD_ID = PS_CURRENT_THREAD_ID()
 Verify [Resource group needs to be 'USR_default']
 RUN SELECT /*+ RESOURCE_GROUP(SYS_default) */ 1 AS value
@@ -34,11 +35,10 @@ ok
 my_group
 ========
 RUN SET RESOURCE GROUP my_group
-in main, line 18:ERROR: Command not supported by pluggable protocols (code 3130)
+
+0 rows affected
 RUN SELECT RESOURCE_GROUP FROM performance_schema.threads WHERE THREAD_ID = PS_CURRENT_THREAD_ID()
 Verify [Resource group needs to be 'my_group']
-in main, line 20:in macro Assert_resource_group, line 4:ERROR: Execution of 'assert_eq %GROUP%	%WORKER_RESOURCE_GROUP%', resulted in an error.
-Where argument0='USR_default', argument1='my_group'
 RUN SELECT /*+ RESOURCE_GROUP(SYS_default) */ 1 AS value
 value
 1
@@ -47,26 +47,20 @@ Warnings generated:
 WARNING | 3661 | Unable to bind resource group SYS_default with thread id (ID).(System resource group can't be bound with a session thread).
 RUN SELECT RESOURCE_GROUP FROM performance_schema.threads WHERE THREAD_ID = PS_CURRENT_THREAD_ID()
 Verify [Resource group needs to be 'my_group']
-in main, line 23:in macro Assert_resource_group, line 4:ERROR: Execution of 'assert_eq %GROUP%	%WORKER_RESOURCE_GROUP%', resulted in an error.
-Where argument0='USR_default', argument1='my_group'
 RUN SELECT /*+ RESOURCE_GROUP(my_group) */ 1 AS value
 value
 1
 0 rows affected
 RUN SELECT RESOURCE_GROUP FROM performance_schema.threads WHERE THREAD_ID = PS_CURRENT_THREAD_ID()
 Verify [Resource group needs to be 'my_group']
-in main, line 26:in macro Assert_resource_group, line 4:ERROR: Execution of 'assert_eq %GROUP%	%WORKER_RESOURCE_GROUP%', resulted in an error.
-Where argument0='USR_default', argument1='my_group'
 RUN SELECT /*+ RESOURCE_GROUP(USR_default) */ 1 AS value
 value
 1
 0 rows affected
 RUN SELECT RESOURCE_GROUP FROM performance_schema.threads WHERE THREAD_ID = PS_CURRENT_THREAD_ID()
 Verify [Resource group needs to be 'my_group']
-in main, line 29:in macro Assert_resource_group, line 4:ERROR: Execution of 'assert_eq %GROUP%	%WORKER_RESOURCE_GROUP%', resulted in an error.
-Where argument0='USR_default', argument1='my_group'
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-DROP RESOURCE GROUP my_group;
+DROP RESOURCE GROUP my_group FORCE;
