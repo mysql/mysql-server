@@ -1097,11 +1097,6 @@ int Srv_session::execute_command(enum enum_server_command command,
   int ret = dispatch_command(&thd, data, command);
 
   thd.pop_protocol();
-  /*
-    At the end of the query execution, DA state is set as DA_EOF.
-    The only way of clearing it is to explicitely clear DA's state.
-  */
-  thd.get_stmt_da()->reset_diagnostics_area();
   DBUG_ASSERT(thd.get_protocol() == &protocol_error);
   return ret;
 }

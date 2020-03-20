@@ -53,6 +53,19 @@ class Service_audit_api_connection {
   virtual int emit(void *thd, mysql_event_connection_subclass_t type) = 0;
 
   /*
+    Generate audit event of the connection class.
+
+    @param[in] thd     THD used for error reporting.
+    @param[in] type    Connection event subtype.
+    @param[in] errcode Error code that replaces Diagnostic Area result code.
+
+    @return Value returned by the Audit API handling mechanism.
+  */
+  virtual int emit_with_errorcode(void *thd,
+                                  mysql_event_connection_subclass_t type,
+                                  int errcode) = 0;
+
+  /*
     Check validity of the object.
 
     @retval true  Object has been successfully constructed.

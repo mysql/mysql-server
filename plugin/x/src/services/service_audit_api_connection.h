@@ -50,13 +50,23 @@ class Service_audit_api_connection
   /*
     Generate audit event of the connection class using the service.
 
-    @param[in] thd  THD used for error reporting.
-    @param[in] type Connection event subtype.
+    @param[in] thd     THD used for error reporting.
+    @param[in] type    Connection event subtype.
 
     @return Value returned by the Audit API handling mechanism.
   */
   int emit(void *thd, mysql_event_connection_subclass_t type) override;
+  /*
+    Generate audit event of the connection class using the service.
 
+    @param[in] thd     THD used for error reporting.
+    @param[in] type    Connection event subtype.
+    @param[in] errcode Error code.
+
+    @return Value returned by the Audit API handling mechanism.
+  */
+  int emit_with_errorcode(void *thd, mysql_event_connection_subclass_t type,
+                          int errcode) override;
   /*
     Check validity of the object.
 
@@ -74,6 +84,11 @@ class Service_audit_api_connection
     Audit API service pointer acquired during the object construction.
   */
   SERVICE_TYPE_NO_CONST(mysql_audit_api_connection) * m_audit_api;
+  /*
+    Audit API service pointer acquired during the object construction.
+  */
+  SERVICE_TYPE_NO_CONST(mysql_audit_api_connection_with_error) *
+      m_audit_api_error;
 };
 
 }  // namespace xpl
