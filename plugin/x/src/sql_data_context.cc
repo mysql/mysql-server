@@ -119,6 +119,16 @@ ngs::Error_code Sql_data_context::init(const bool is_admin) {
   return ngs::Error_code();
 }
 
+void Sql_data_context::report_error(int error, ...) {
+  va_list args;
+  va_start(args, error);
+
+  modules::Module_mysqlx::get_instance_services()->m_runtime_error->emit(
+      m_authentication_code.error, MYF(0), args);
+
+  va_end(args);
+}
+
 void Sql_data_context::deinit() {
   if (m_mysql_session) {
     if (m_pre_authenticate_event_fired && !attach()) {
@@ -128,10 +138,45 @@ void Sql_data_context::deinit() {
         modules::Module_mysqlx::get_instance_services()->m_audit_api->emit(
             get_thd(), MYSQL_AUDIT_CONNECTION_DISCONNECT);
       } else {
-        modules::Module_mysqlx::get_instance_services()
-            ->m_audit_api->emit_with_errorcode(get_thd(),
-                                               MYSQL_AUDIT_CONNECTION_CONNECT,
-                                               m_authentication_code.error);
+        // In case of unsuccessfull login, report failed connect on session
+        // deinit. On assert failure, please extend the code to support specific
+        // error.
+        DBUG_ASSERT(
+            m_authentication_code.error == ER_ACCESS_DENIED_ERROR ||
+            m_authentication_code.error == ER_MUST_CHANGE_PASSWORD_LOGIN ||
+            m_authentication_code.error == ER_ACCOUNT_HAS_BEEN_LOCKED ||
+            m_authentication_code.error == ER_SECURE_TRANSPORT_REQUIRED ||
+            m_authentication_code.error == ER_SERVER_OFFLINE_MODE ||
+            m_authentication_code.error == ER_DBACCESS_DENIED_ERROR ||
+            m_authentication_code.error == ER_BAD_DB_ERROR ||
+            m_authentication_code.error == ER_X_SERVICE_ERROR);
+        if (m_authentication_code.error == ER_MUST_CHANGE_PASSWORD_LOGIN) {
+          report_error(ER_MUST_CHANGE_PASSWORD_LOGIN);
+        } else if (m_authentication_code.error == ER_ACCOUNT_HAS_BEEN_LOCKED) {
+          report_error(ER_ACCOUNT_HAS_BEEN_LOCKED, m_username->c_str(),
+                       m_hostname->c_str());
+        } else if (m_authentication_code.error ==
+                   ER_SECURE_TRANSPORT_REQUIRED) {
+          report_error(ER_SECURE_TRANSPORT_REQUIRED);
+        } else if (m_authentication_code.error == ER_SERVER_OFFLINE_MODE) {
+          report_error(ER_SERVER_OFFLINE_MODE);
+        } else if (m_authentication_code.error == ER_DBACCESS_DENIED_ERROR) {
+          report_error(ER_DBACCESS_DENIED_ERROR, m_username->c_str(),
+                       m_hostname->c_str(), m_db->c_str());
+        } else if (m_authentication_code.error == ER_BAD_DB_ERROR) {
+          report_error(ER_BAD_DB_ERROR, m_db->c_str());
+        } else if (m_authentication_code.error == ER_X_SERVICE_ERROR) {
+          report_error(ER_X_SERVICE_ERROR);
+        } else {
+          // Make sure this error code is placed as the last else block
+          report_error(ER_ACCESS_DENIED_ERROR, m_username->c_str(),
+                       m_hostname->c_str(),
+                       m_using_password ? my_get_err_msg(ER_YES)
+                                        : my_get_err_msg(ER_NO));
+        }
+
+        modules::Module_mysqlx::get_instance_services()->m_audit_api->emit(
+            get_thd(), MYSQL_AUDIT_CONNECTION_CONNECT);
       }
     }
 

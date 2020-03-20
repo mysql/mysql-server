@@ -22,35 +22,36 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef PLUGIN_X_SRC_INTERFACE_SERVICE_AUDIT_API_CONNECTION_H_
-#define PLUGIN_X_SRC_INTERFACE_SERVICE_AUDIT_API_CONNECTION_H_
+#ifndef PLUGIN_X_SRC_INTERFACE_SERVICE_RUNTIME_ERROR_H_
+#define PLUGIN_X_SRC_INTERFACE_SERVICE_RUNTIME_ERROR_H_
 
-#include "mysql/components/services/bits/plugin_audit_connection_types.h"
+//! @cond Doxygen_Suppress
+#include <stdarg.h>
+//! @endcond
 
 namespace xpl {
 namespace iface {
 
 /*
-  Audit API events generating interface.
+  Error reporting interface.
 
   @class Service_runtime_error
 */
-class Service_audit_api_connection {
+class Service_runtime_error {
  public:
   /*
     Virtual destructor.
   */
-  virtual ~Service_audit_api_connection() = default;
+  virtual ~Service_runtime_error() = default;
 
   /*
-    Generate audit event of the connection class.
+    Emit error using custom implementation.
 
-    @param[in] thd  THD used for error reporting.
-    @param[in] type Connection event subtype.
-
-    @return Value returned by the Audit API handling mechanism.
+    @param[in] error_id Error code.
+    @param[in] flags    Error flags.
+    @param[in] args     Variadic argument list.
   */
-  virtual int emit(void *thd, mysql_event_connection_subclass_t type) = 0;
+  virtual void emit(int error_id, int flags, va_list args) = 0;
 
   /*
     Check validity of the object.
@@ -64,4 +65,4 @@ class Service_audit_api_connection {
 }  // namespace iface
 }  // namespace xpl
 
-#endif  // PLUGIN_X_SRC_INTERFACE_SERVICE_AUDIT_API_CONNECTION_H_
+#endif  // PLUGIN_X_SRC_INTERFACE_SERVICE_RUNTIME_ERROR_H_
