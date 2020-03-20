@@ -45,4 +45,22 @@ class mysql_audit_api_connection_imp {
                        (void *thd, mysql_event_connection_subclass_t type));
 };
 
+/**
+  @class mysql_audit_api_connection_with_error_imp
+
+  Audit API connection service implementation.
+*/
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
+/**
+  @sa @ref s_mysql_mysql_audit_api_connection_with_error
+*/
+MY_COMPILER_DIAGNOSTIC_POP()
+class mysql_audit_api_connection_with_error_imp {
+ public:
+  static DEFINE_METHOD(int, emit,
+                       (void *thd, mysql_event_connection_subclass_t type,
+                        int errcode));
+};
+
 #endif /* AUDIT_API_CONNECTION_IMP_H */
