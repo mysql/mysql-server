@@ -118,10 +118,6 @@ class Sql_data_context : public iface::Sql_session {
   ngs::Error_code init(const int client_port, const Connection_type type,
                        const bool is_admin = false);
 
-  // Report error on the THD associated with the session.
-  //
-  // @param[in] error Error code to be reported.
-  void report_error(int error, ...);
   void deinit();
 
   MYSQL_THD get_thd() const;
