@@ -2913,10 +2913,10 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE VIEW v1 AS SELECT t1.a AS a, t1.b AS b,t1.c AS c, 1 AS
-`1`, 1 AS `My_exp_1`, 1 AS `My_exp_1_1` FROM t1 UNION SELECT -(1) AS `-1`,
+`1`, 1 AS `Name_exp_1`, 1 AS `Name_exp_1_1` FROM t1 UNION SELECT -(1) AS `-1`,
 -(1) AS `-1`, -(1) AS `-1`, -(1) AS `-1`, -(1) AS `-1`, -(1) AS `-1`;
-CREATE VIEW v2 AS SELECT 1 AS `1`, 1 AS `My_exp_1`, 1 AS `My_exp_1_1`,
--(1) AS `-1`, -(1) AS `My_exp_-1`, -(1) AS `My_exp_1_-1`;
+CREATE VIEW v2 AS SELECT 1 AS `1`, 1 AS `Name_exp_1`, 1 AS `Name_exp_1_1`,
+-(1) AS `-1`, -(1) AS `Name_exp_-1`, -(1) AS `Name_exp_1_-1`;
 CREATE VIEW v3 AS SELECT t1.a AS a, t1.b AS b, t1.c AS c FROM t1;
 DESCRIBE v1;
 Field	Type	Null	Key	Default	Extra
@@ -2924,16 +2924,16 @@ a	bigint	YES		NULL
 b	bigint	YES		NULL	
 c	bigint	YES		NULL	
 1	bigint	NO		0	
-My_exp_1	bigint	NO		0	
-My_exp_1_1	bigint	NO		0	
+Name_exp_1	bigint	NO		0	
+Name_exp_1_1	bigint	NO		0	
 DESCRIBE v2;
 Field	Type	Null	Key	Default	Extra
 1	int	NO		0	
-My_exp_1	int	NO		0	
-My_exp_1_1	int	NO		0	
+Name_exp_1	int	NO		0	
+Name_exp_1_1	int	NO		0	
 -1	int	NO		0	
-My_exp_-1	int	NO		0	
-My_exp_1_-1	int	NO		0	
+Name_exp_-1	int	NO		0	
+Name_exp_1_-1	int	NO		0	
 DESCRIBE v3;
 Field	Type	Null	Key	Default	Extra
 a	tinyint	YES		NULL	

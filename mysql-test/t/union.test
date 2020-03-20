@@ -1969,11 +1969,11 @@ CREATE TABLE t1(
 );
 
 CREATE VIEW v1 AS SELECT t1.a AS a, t1.b AS b,t1.c AS c, 1 AS
-`1`, 1 AS `My_exp_1`, 1 AS `My_exp_1_1` FROM t1 UNION SELECT -(1) AS `-1`,
+`1`, 1 AS `Name_exp_1`, 1 AS `Name_exp_1_1` FROM t1 UNION SELECT -(1) AS `-1`,
 -(1) AS `-1`, -(1) AS `-1`, -(1) AS `-1`, -(1) AS `-1`, -(1) AS `-1`;
 
-CREATE VIEW v2 AS SELECT 1 AS `1`, 1 AS `My_exp_1`, 1 AS `My_exp_1_1`,
--(1) AS `-1`, -(1) AS `My_exp_-1`, -(1) AS `My_exp_1_-1`;
+CREATE VIEW v2 AS SELECT 1 AS `1`, 1 AS `Name_exp_1`, 1 AS `Name_exp_1_1`,
+-(1) AS `-1`, -(1) AS `Name_exp_-1`, -(1) AS `Name_exp_1_-1`;
 
 CREATE VIEW v3 AS SELECT t1.a AS a, t1.b AS b, t1.c AS c FROM t1;
 
