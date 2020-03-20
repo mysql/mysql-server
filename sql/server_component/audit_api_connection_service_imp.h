@@ -30,13 +30,23 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   @class mysql_audit_api_connection_imp
 
   Audit API connection service implementation.
-
-  @sa @ref s_mysql_mysql_audit_api_connection
 */
 class mysql_audit_api_connection_imp {
  public:
   static DEFINE_METHOD(int, emit,
                        (void *thd, mysql_event_connection_subclass_t type));
+};
+
+/**
+  @class mysql_audit_api_connection_with_error_imp
+
+  Audit API connection service implementation.
+*/
+class mysql_audit_api_connection_with_error_imp {
+ public:
+  static DEFINE_METHOD(int, emit,
+                       (void *thd, mysql_event_connection_subclass_t type,
+                        int errcode));
 };
 
 #endif /* AUDIT_API_CONNECTION_IMP_H */

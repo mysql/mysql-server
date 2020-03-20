@@ -25,8 +25,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/current_thd.h"
 #include "sql/sql_audit.h"
 
-void mysql_audit_api_connection_service_init() { return; }
-
 DEFINE_METHOD(int, mysql_audit_api_connection_imp::emit,
               (void *thd, mysql_event_connection_subclass_t type)) {
   THD *t = static_cast<THD *>(thd);
@@ -46,6 +44,35 @@ DEFINE_METHOD(int, mysql_audit_api_connection_imp::emit,
     case MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE:
       return mysql_audit_notify(
           t, AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE));
+      break;
+    default:
+      break;
+  }
+
+  return 0;
+}
+
+DEFINE_METHOD(int, mysql_audit_api_connection_with_error_imp::emit,
+              (void *thd, mysql_event_connection_subclass_t type,
+               int errcode)) {
+  THD *t = static_cast<THD *>(thd);
+  switch (type) {
+    case MYSQL_AUDIT_CONNECTION_CONNECT:
+      mysql_audit_enable_auditing(t);
+      return mysql_audit_notify(t, AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_CONNECT),
+                                errcode);
+      break;
+    case MYSQL_AUDIT_CONNECTION_DISCONNECT:
+      return mysql_audit_notify(
+          t, AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_DISCONNECT), errcode);
+      break;
+    case MYSQL_AUDIT_CONNECTION_CHANGE_USER:
+      return mysql_audit_notify(
+          t, AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_CHANGE_USER), errcode);
+      break;
+    case MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE:
+      return mysql_audit_notify(
+          t, AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE), errcode);
       break;
     default:
       break;
