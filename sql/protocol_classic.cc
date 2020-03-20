@@ -667,7 +667,7 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
   @page page_protocol_basic_ok_packet OK_Packet
 
   An OK packet is sent from the server to the client to signal successful
-  completion of a command. As of MySQL 5.7.5, OK packes are also used to
+  completion of a command. As of MySQL 5.7.5, OK packets are also used to
   indicate EOF, and EOF packets are deprecated.
 
   if ::CLIENT_PROTOCOL_41 is set, the packet contains a warning count.

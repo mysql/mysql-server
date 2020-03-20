@@ -1075,37 +1075,18 @@ net_async_status cli_safe_read_with_ok_nonblocking(MYSQL *mysql, bool parse_ok,
                                                    bool *is_data_packet,
                                                    ulong *res) {
   NET *net = &mysql->net;
-  NET_ASYNC *net_async = NET_ASYNC_DATA(net);
-
-  ulong len = 0, complen = 0;
+  ulong len = 0;
   DBUG_TRACE;
+  DBUG_ASSERT(net->vio);
 
-  if (net_async->async_multipacket_read_started == false) {
-    net_async->async_multipacket_read_started = true;
-    net_async->async_multipacket_read_saved_whereb = net->where_b;
-    net_async->async_multipacket_read_total_len = 0;
+  if (NET_ASYNC_NOT_READY == my_net_read_nonblocking(net, &len)) {
+    return NET_ASYNC_NOT_READY;
   }
 
-  if (net->vio != nullptr) {
-    net_async_status status = my_net_read_nonblocking(net, &len, &complen);
-    if (len != packet_error) {
-      net_async->async_multipacket_read_total_len += len;
-      net->where_b += len;
-    }
+  DBUG_PRINT("info",
+             ("total nb read: %lu,  net->where_b: %lu", len, net->where_b));
 
-    if (status == NET_ASYNC_NOT_READY) {
-      return NET_ASYNC_NOT_READY;
-    }
-  }
-
-  net->where_b = net_async->async_multipacket_read_saved_whereb;
-  net->read_pos = net->buff + net->where_b;
-
-  DBUG_PRINT("info", ("total nb read: %lu",
-                      net_async->async_multipacket_read_total_len));
-  *res = cli_safe_read_with_ok_complete(
-      mysql, parse_ok, is_data_packet,
-      net_async->async_multipacket_read_total_len);
+  *res = cli_safe_read_with_ok_complete(mysql, parse_ok, is_data_packet, len);
 
   /*
     In case, packet is too large or connection is lost, net_end() is called to
@@ -1114,10 +1095,6 @@ net_async_status cli_safe_read_with_ok_nonblocking(MYSQL *mysql, bool parse_ok,
   if ((*res == packet_error) && (NET_ASYNC_DATA(net) == nullptr)) {
     return NET_ASYNC_ERROR;
   }
-
-  net_async->async_multipacket_read_started = false;
-  net_async->async_multipacket_read_saved_whereb = 0;
-
   return NET_ASYNC_COMPLETE;
 }
 
@@ -3008,6 +2985,7 @@ MYSQL_DATA *cli_read_rows(MYSQL *mysql, MYSQL_FIELD *mysql_fields,
 static int read_one_row_complete(MYSQL *mysql, ulong pkt_len,
                                  bool is_data_packet, uint fields,
                                  MYSQL_ROW row, ulong *lengths) {
+  DBUG_TRACE;
   uint field;
   ulong len;
   uchar *pos, *prev_pos, *end_pos;
@@ -3077,6 +3055,7 @@ static int read_one_row(MYSQL *mysql, uint fields, MYSQL_ROW row,
 static net_async_status read_one_row_nonblocking(MYSQL *mysql, uint fields,
                                                  MYSQL_ROW row, ulong *lengths,
                                                  int *res) {
+  DBUG_TRACE;
   ulong pkt_len;
   bool is_data_packet;
   net_async_status status;
@@ -5568,7 +5547,8 @@ MYSQL *STDCALL mysql_real_connect(MYSQL *mysql, const char *host,
   ctx.user = user;
   ctx.passwd = passwd;
   ctx.unix_socket = unix_socket;
-  ctx.client_flag = client_flag;
+  mysql->options.client_flag |= client_flag;
+  ctx.client_flag = mysql->options.client_flag;
   ctx.state_function = csm_begin_connect;
   ctx.ssl_state = SSL_NONE;
 
@@ -5587,7 +5567,7 @@ MYSQL *STDCALL mysql_real_connect(MYSQL *mysql, const char *host,
     /* Free alloced memory */
     end_server(mysql);
     mysql_close_free(mysql);
-    if (!(client_flag & CLIENT_REMEMBER_OPTIONS))
+    if (!(ctx.client_flag & CLIENT_REMEMBER_OPTIONS))
       mysql_close_free_options(mysql);
     if (ctx.scramble_buffer_allocated) my_free(ctx.scramble_buffer);
   }
@@ -5621,10 +5601,6 @@ net_async_status STDCALL mysql_real_connect_nonblocking(
   mysql_state_machine_status status;
   mysql_async_connect *ctx = ASYNC_DATA(mysql)->connect_context;
 
-  if (client_flag & MYSQL_OPT_COMPRESS) {
-    set_mysql_error(mysql, CR_COMPRESSION_NOT_SUPPORTED, unknown_sqlstate);
-    return NET_ASYNC_ERROR;
-  }
   if (!ctx) {
     ctx = static_cast<mysql_async_connect *>(
         my_malloc(key_memory_MYSQL, sizeof(*ctx), MYF(MY_WME | MY_ZEROFILL)));
@@ -5637,7 +5613,8 @@ net_async_status STDCALL mysql_real_connect_nonblocking(
     ctx->user = user;
     ctx->passwd = passwd;
     ctx->unix_socket = unix_socket;
-    ctx->client_flag = client_flag;
+    mysql->options.client_flag |= client_flag;
+    ctx->client_flag = mysql->options.client_flag;
     ctx->non_blocking = true;
     ctx->state_function = csm_begin_connect;
     ctx->ssl_state = SSL_NONE;

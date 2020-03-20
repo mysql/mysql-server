@@ -48,6 +48,7 @@
 #include "mysql_client_fw.cc"
 
 #include <list>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -8175,6 +8176,7 @@ static void test_ts() {
   ts.minute = 07;
   ts.second = 46;
   ts.second_part = 0;
+  ts.time_type = MYSQL_TIMESTAMP_DATETIME;
   length = (long)(my_stpcpy(strts, "2003-07-12 21:07:46") - strts);
 
   /*
@@ -14772,6 +14774,7 @@ static void test_bug20152() {
   tm.hour = 14;
   tm.minute = 9;
   tm.second = 42;
+  tm.time_type = MYSQL_TIMESTAMP_DATETIME;
 
   rc = mysql_query(mysql, "DROP TABLE IF EXISTS t1");
   myquery(rc);
@@ -16564,6 +16567,7 @@ static void test_wl4166_3() {
   tm[0].second = 1;
   tm[0].second_part = 0;
   tm[0].neg = false;
+  tm[0].time_type = MYSQL_TIMESTAMP_DATETIME;
 
   /* Cause a statement reprepare */
   rc = mysql_query(mysql, "alter table t1 add column c int");
@@ -18187,8 +18191,8 @@ static void test_wl6587() {
                                current_db, opt_port, opt_unix_socket, 0);
   DIE_UNLESS(l_mysql != nullptr);
 
-  rc = mysql_change_user(l_mysql, "wl6587_cli", "wl6587", "test");
-  DIE_UNLESS(rc == true);
+  can = mysql_change_user(l_mysql, "wl6587_cli", "wl6587", "test");
+  DIE_UNLESS(can == true);
 
   mysql_close(l_mysql);
 
@@ -20166,7 +20170,7 @@ static void test_bug27443252() {
   myquery(rc);
 }
 
-void perform_arithmatic() { fprintf(stdout, "\n Do some other stuff."); }
+void perform_arithmatic() { fprintf(stdout, "\n Do some other stuff.\n"); }
 
 static void test_wl11381() {
   MYSQL *mysql_local;
@@ -20627,6 +20631,271 @@ static void test_wl13168() {
   /* clean up */
   mysql_close(l_mysql);
 }
+static void test_wl13510() {
+  DBUG_TRACE;
+  /*
+    Lambda to tests the following in various combinations of arguments
+    1. Send a SELECT 'XXXXXXX....<packet_size>'; to server.
+    2. Recieve the response from the server which must be same as sent by the
+       client.
+    3. To verify the veracity of the string:
+       (a) Calculate the MD5 digest of the recieved the string
+       (b) Get the digest from the server directly for the similar length string
+       (c) Test fails if the digests mismatch
+  */
+  auto test = [](size_t packet_size, unsigned long client_flag,
+                 const char *compress_method, unsigned int compress_level = 0) {
+    MYSQL *mysql_local;
+    MYSQL_RES *select_result, *select_digest_result, *digest_result;
+    MYSQL_ROW select_row, digest_row;
+    net_async_status status;
+    const ulong max_allowed_packet = 134217728; /* 128MB */
+    std::stringstream ss;
+    ss << "test_wl13510_#" << packet_size << "#" << client_flag << "#"
+       << compress_method << "#" << compress_level;
+    myheader(ss.str().c_str());
+    /* make new non blocking connection to do asynchronous operations */
+    DIE_IF(!(mysql_local = mysql_client_init(nullptr)));
+    DIE_IF(mysql_options(mysql_local, MYSQL_OPT_COMPRESSION_ALGORITHMS,
+                         compress_method));
+    DIE_IF(mysql_options(mysql_local, MYSQL_OPT_MAX_ALLOWED_PACKET,
+                         &max_allowed_packet));
+    DIE_IF(compress_level &&
+           mysql_options(mysql_local, MYSQL_OPT_ZSTD_COMPRESSION_LEVEL,
+                         &compress_level));
+
+    status = mysql_real_connect_nonblocking(mysql_local, opt_host, opt_user,
+                                            opt_password, opt_db, opt_port,
+                                            opt_unix_socket, client_flag);
+    perform_arithmatic(); /* do some other task */
+    while (status == NET_ASYNC_NOT_READY) {
+      status = mysql_real_connect_nonblocking(mysql_local, opt_host, opt_user,
+                                              opt_password, opt_db, opt_port,
+                                              opt_unix_socket, client_flag);
+    }
+
+    if (status == NET_ASYNC_ERROR) {
+      fprintf(stdout, "\n connection failed(%s)", mysql_error(mysql_local));
+      exit(1);
+    }
+
+    mysql_autocommit(mysql_local, true);
+
+    /*  Send and Recieve the packet using nonblocking client APIs */
+    std::string query("SELECT (\"");
+    for (size_t i = 0; i < packet_size; i++) {
+      query += "X";
+    }
+    query += ("\")");
+    status = mysql_real_query_nonblocking(mysql_local, query.c_str(),
+                                          (ulong)query.length());
+    perform_arithmatic(); /* do some other task */
+    while (status == NET_ASYNC_NOT_READY) {
+      status = mysql_real_query_nonblocking(mysql_local, query.c_str(),
+                                            (ulong)query.length());
+    }
+
+    if (status == NET_ASYNC_ERROR) {
+      fprintf(stdout, "\n Query failed(%s)", mysql_error(mysql_local));
+      exit(1);
+    }
+    status = mysql_store_result_nonblocking(mysql_local, &select_result);
+    perform_arithmatic(); /* do some other task */
+    while (status == NET_ASYNC_NOT_READY) {
+      status = mysql_store_result_nonblocking(mysql_local, &select_result);
+    }
+    DIE_IF(!select_result);
+    while ((status = mysql_fetch_row_nonblocking(select_result, &select_row)) !=
+           NET_ASYNC_COMPLETE)
+      ;
+
+    DIE_IF(!select_row[0]);
+
+    /* Determine the digest of the string client has receieved. */
+    std::stringstream().swap(ss);  // Clear the stringstream contents
+    ss << "SELECT MD5('" << select_row[0] << "')";
+
+    status = mysql_real_query_nonblocking(mysql_local, ss.str().c_str(),
+                                          (ulong)ss.str().length());
+    perform_arithmatic(); /* do some other task */
+    while (status == NET_ASYNC_NOT_READY) {
+      status = mysql_real_query_nonblocking(mysql_local, ss.str().c_str(),
+                                            (ulong)ss.str().length());
+    }
+
+    if (status == NET_ASYNC_ERROR) {
+      fprintf(stdout, "\n Query failed(%s)", mysql_error(mysql_local));
+      exit(1);
+    }
+
+    status = mysql_store_result_nonblocking(mysql_local, &select_digest_result);
+    /* do some other task */
+    perform_arithmatic();
+    while (status == NET_ASYNC_NOT_READY) {
+      status =
+          mysql_store_result_nonblocking(mysql_local, &select_digest_result);
+    }
+    DIE_IF(!select_result);
+    while ((status = mysql_fetch_row_nonblocking(
+                select_digest_result, &select_row)) != NET_ASYNC_COMPLETE)
+      ;
+    DIE_IF(!select_row[0]);
+    fprintf(stdout, "\n digest : %s\n", select_row[0]);
+
+    /* Get the digest directly from server */
+    query = "SELECT MD5(REPEAT('X'," + std::to_string(packet_size) + "))";
+    myquery(
+        mysql_real_query(mysql_local, query.c_str(), (ulong)query.length()));
+    digest_result = mysql_store_result(mysql_local);
+    digest_row = mysql_fetch_row(digest_result);
+
+    /* Fail test if digests mismatch */
+    DIE_IF((strncmp(digest_row[0], digest_row[0], strlen(digest_row[0]))));
+
+    /* Cleanup */
+    while ((status = mysql_free_result_nonblocking(select_result)) !=
+           NET_ASYNC_COMPLETE)
+      ;
+    while ((status = mysql_free_result_nonblocking(select_digest_result)) !=
+           NET_ASYNC_COMPLETE)
+      ;
+    mysql_free_result(digest_result);
+    mysql_close(mysql_local);
+  };
+
+  size_t packet_size = 1 * 1024 * 1024;
+  unsigned long client_flag = 0;
+  unsigned int compress_level = 22;
+  const char *compress_method = "zstd";
+  test(packet_size, client_flag, compress_method);
+  test(packet_size, client_flag, compress_method, compress_level);
+  compress_method = "zlib";
+  test(packet_size, client_flag, compress_method);
+  // Disabled this test for asynchronous clients due to Bug#31047717
+  // Remove the check once this bug is fixed.
+  // compress_method = "uncompressed";
+  // test(packet_size, client_flag, compress_method);
+}
+
+static void test_wl13510_multi_statements() {
+  const char *stmt_text =
+      "DROP TABLE IF EXISTS test_multi_tab;\
+       CREATE TABLE test_multi_tab(id int, name char(20));\
+       INSERT INTO test_multi_tab(id) VALUES(10), (20);\
+       INSERT INTO test_multi_tab VALUES(20, 'insert;comma');\
+       SELECT * FROM test_multi_tab;\
+       UPDATE test_multi_tab SET name='new;name' WHERE id=20;\
+       DELETE FROM test_multi_tab WHERE name='new;name';\
+       SELECT * FROM test_multi_tab;\
+       DELETE FROM test_multi_tab WHERE id=10;\
+       SELECT * FROM test_multi_tab;\
+       DROP TABLE test_multi_tab;\
+       SELECT repeat('ABC', 4096);\
+       DROP TABLE IF EXISTS test_multi_tab";
+
+  uint rows[] = {0, 0, 2, 1, 3, 2, 2, 1, 1, 0, 0, 1, 0};
+  auto test = [&stmt_text, &rows](unsigned long client_flags,
+                                  const char *compress_method) {
+    MYSQL *mysql_local;
+    MYSQL_RES *result;
+    net_async_status status;
+    int rc;
+
+    uint count, exp_value;
+
+    std::stringstream ss;
+    ss << "test_wl13510_multi_statements_#" << client_flags << "#"
+       << compress_method;
+    myheader(ss.str().c_str());
+
+    DIE_IF(!(mysql_local = mysql_client_init(nullptr)));
+
+    DIE_IF(mysql_options(mysql_local, MYSQL_OPT_COMPRESSION_ALGORITHMS,
+                         compress_method));
+
+    /* Create connection that supports multi statements */
+    if (!(mysql_real_connect(mysql_local, opt_host, opt_user, opt_password,
+                             current_db, opt_port, opt_unix_socket,
+                             client_flags))) {
+      fprintf(stdout, "\n connection failed(%s)", mysql_error(mysql_local));
+      exit(1);
+    }
+    mysql_local->reconnect = true;
+
+    /* run query in asynchronous way */
+    status = mysql_real_query_nonblocking(mysql_local, stmt_text,
+                                          (ulong)strlen(stmt_text));
+    /* do some other task */
+    perform_arithmatic();
+    while (status == NET_ASYNC_NOT_READY) {
+      status = mysql_real_query_nonblocking(mysql_local, stmt_text,
+                                            (ulong)strlen(stmt_text));
+    }
+
+    DIE_IF(status == NET_ASYNC_ERROR);
+
+    for (count = 0; count < array_elements(rows); count++) {
+      if (!opt_silent) {
+        fprintf(stdout, "\n Query # %d: ", count);
+        DBUG_PRINT("info", ("\n Query # %d: \n", count));
+      }
+
+      status = mysql_store_result_nonblocking(mysql_local, &result);
+
+      perform_arithmatic();
+      while (status == NET_ASYNC_NOT_READY) {
+        status = mysql_store_result_nonblocking(mysql_local, &result);
+      }
+      if (result) {
+        (void)my_process_result_set(result);
+        while ((status = mysql_free_result_nonblocking(result)) !=
+               NET_ASYNC_COMPLETE)
+          ;
+      } else if (!opt_silent)
+        fprintf(stdout, "OK, %ld row(s) affected, %ld warning(s)\n",
+                (ulong)mysql_affected_rows(mysql_local),
+                (ulong)mysql_warning_count(mysql_local));
+
+      exp_value = (uint)mysql_affected_rows(mysql_local);
+      if (rows[count] != exp_value) {
+        fprintf(stderr, "row %d  had affected rows: %d, should be %d\n", count,
+                exp_value, rows[count]);
+        exit(1);
+      }
+      if (count != array_elements(rows) - 1) {
+        if (!(rc = mysql_more_results(mysql_local))) {
+          fprintf(stdout,
+                  "mysql_more_result returned wrong value: %d for row %d\n", rc,
+                  count);
+          exit(1);
+        }
+        if ((rc = mysql_next_result(mysql_local))) {
+          exp_value = mysql_errno(mysql_local);
+
+          exit(1);
+        }
+      } else {
+        rc = mysql_more_results(mysql_local);
+        DIE_UNLESS(rc == 0);
+        rc = mysql_next_result(mysql_local);
+        DIE_UNLESS(rc == -1);
+      }
+    }
+
+    result = mysql_use_result(mysql_local);
+    while ((status = mysql_free_result_nonblocking(result)) !=
+           NET_ASYNC_COMPLETE)
+      ;
+    mysql_close(mysql_local);
+  };
+
+  test(CLIENT_MULTI_STATEMENTS, "zstd");
+  test(CLIENT_MULTI_STATEMENTS, "zlib");
+  // Disabled this test for asynchronous clients due to Bug#31047717
+  // Remove the check once this bug is fixed.
+  // test(CLIENT_MULTI_STATEMENTS, "uncompressed");
+}
+
 static struct my_tests_st my_tests[] = {
     {"disable_query_logs", disable_query_logs},
     {"test_view_sp_list_fields", test_view_sp_list_fields},
@@ -20914,6 +21183,8 @@ static struct my_tests_st my_tests[] = {
     {"test_wl12475", test_wl12475},
     {"test_bug30032302", test_bug30032302},
     {"test_wl13168", test_wl13168},
+    {"test_wl13510", test_wl13510},
+    {"test_wl13510_multi_statements", test_wl13510_multi_statements},
     {nullptr, nullptr}};
 
 static struct my_tests_st *get_my_tests() { return my_tests; }

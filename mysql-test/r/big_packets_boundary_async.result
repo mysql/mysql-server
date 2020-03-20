@@ -1,0 +1,22 @@
+CREATE USER foo@localhost IDENTIFIED BY 'pwd';
+#
+# Nonblocking client
+# Send/Recieve a large packet with following options :-
+# Compress option : COMPRESS
+# Compress algorithm : zstd
+# Packet size : 67108851
+#
+############ Verify Send and Recieve 67108851 bytes packet #################
+############ Verify the packet contents #################################
+DROP USER foo@localhost;
+CREATE USER foo@localhost IDENTIFIED BY 'pwd';
+#
+# Nonblocking client
+# Send/Recieve a large packet with following options :-
+# Compress option : COMPRESS
+# Compress algorithm : zlib
+# Packet size : 16777211
+#
+############ Verify Send and Recieve 16777211 bytes packet #################
+############ Verify the packet contents #################################
+DROP USER foo@localhost;

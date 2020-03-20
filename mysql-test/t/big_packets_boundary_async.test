@@ -8,7 +8,7 @@
 # Requires big_test option
 --source include/big_test.inc
 
---let CLIENT_TYPE = BLOCKING
+--let CLIENT_TYPE = NONBLOCKING
 --source big_packets_boundary.inc
 
 # cleanup

@@ -1,23 +1,21 @@
-
-# Save the initial number of concurrent sessions
---source include/count_sessions.inc
-
---echo #
---echo # WL#11381: Add asynchronous support into the mysql protocol
---echo #
+#
+# WL#13510: Helper file to verify compress protocol with asynchronous client
+# It expects the caller to set following two variables
+# $COMPRESS_OPTION
+# $COMPRESS_ALGORITHM
 
 --echo # case1: default connection with default authentication plugin
-CREATE DATABASE wl11381;
+CREATE DATABASE wl13510;
 CREATE USER caching_sha2@localhost IDENTIFIED BY 'caching';
 GRANT ALL ON *.* TO caching_sha2@localhost;
 
 --enable_async_client
 
 --echo # connect as caching_sha2
-connect(caching_con1,localhost,caching_sha2,caching,wl11381,,,SSL);
+connect(caching_con1,localhost,caching_sha2,caching,wl13510,,,SSL $COMPRESS_OPTION,,$COMPRESS_ALGORITHM);
 SELECT USER(), DATABASE();
 
-USE wl11381;
+USE wl13510;
 CREATE TABLE t1(i INT, j VARCHAR(2048));
 INSERT INTO t1 VALUES(1,repeat('a',1000)),(2,repeat('def',600));
 --sorted_result
@@ -36,10 +34,10 @@ disconnect caching_con1;
 --echo # connect with wrong password
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_ACCESS_DENIED_ERROR
-connect(caching_con2,localhost,caching_sha2,caching1,wl11381,,,SSL);
+connect(caching_con2,localhost,caching_sha2,caching1,wl13510,,,SSL $COMPRESS_OPTION,,$COMPRESS_ALGORITHM);
 
 --echo # check for timeout
-connect(caching_con3,localhost,caching_sha2,caching,wl11381,,,SSL);
+connect(caching_con3,localhost,caching_sha2,caching,wl13510,,,SSL $COMPRESS_OPTION,,$COMPRESS_ALGORITHM);
 SELECT USER();
 SET @@SESSION.wait_timeout = 2;
 SELECT SLEEP(10);
@@ -58,7 +56,7 @@ ALTER USER caching_sha2@localhost ACCOUNT LOCK;
 --echo # account is locked so connect should fail
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error 3118
-connect(caching_con3,localhost,caching_sha2,caching,wl11381,,,SSL);
+connect(caching_con3,localhost,caching_sha2,caching,wl13510,,,SSL $COMPRESS_OPTION,,$COMPRESS_ALGORITHM);
 
 connection default;
 --disable_async_client
@@ -67,7 +65,7 @@ ALTER USER caching_sha2@localhost ACCOUNT UNLOCK;
 --enable_async_client
 
 --echo # account is unlocked so connect should pass
-connect(caching_con3,localhost,caching_sha2,caching,wl11381,,,SSL);
+connect(caching_con3,localhost,caching_sha2,caching,wl13510,,,SSL $COMPRESS_OPTION,,$COMPRESS_ALGORITHM);
 SELECT "connect succeeded after account is unlocked";
 
 connection default;
@@ -80,7 +78,7 @@ disconnect caching_con3;
 --enable_async_client
 
 --echo # connect as caching_sha2 with SSL disabled
-connect(caching_con4,localhost,caching_sha2,caching,wl11381,,,);
+connect(caching_con4,localhost,caching_sha2,caching,wl13510,,,$COMPRESS_OPTION,,$COMPRESS_ALGORITHM);
 SELECT USER();
 
 connection default;
@@ -94,7 +92,7 @@ ALTER USER caching_sha2@localhost IDENTIFIED BY '';
 --enable_async_client
 
 --echo # connect as caching_sha2 with SSL disabled and empty password
-connect(caching_con5,localhost,caching_sha2,,wl11381,,,);
+connect(caching_con5,localhost,caching_sha2,,wl13510,,,$COMPRESS_OPTION,,$COMPRESS_ALGORITHM);
 SELECT USER();
 
 connection default;
@@ -108,7 +106,7 @@ CREATE USER sha256@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string';
 --enable_async_client
 
 --echo # connect as sha256
-connect(sha256_con1,localhost,sha256,auth_string,,,,SSL,sha256_password);
+connect(sha256_con1,localhost,sha256,auth_string,,,,SSL $COMPRESS_OPTION,sha256_password, $COMPRESS_ALGORITHM);
 SELECT USER();
 
 connection default;
@@ -120,7 +118,7 @@ ALTER USER sha256@localhost IDENTIFIED BY '';
 --enable_async_client
 
 --echo # connect with empty password
-connect(sha256_con2,localhost,sha256,,,,,SSL,sha256_password);
+connect(sha256_con2,localhost,sha256,,,,,SSL $COMPRESS_OPTION, sha256_password, $COMPRESS_ALGORITHM);
 SELECT USER();
 
 connection default;
@@ -135,7 +133,7 @@ disconnect sha256_con2;
 --echo # connect with wrong password and SSL disabled
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_ACCESS_DENIED_ERROR, CR_AUTH_PLUGIN_ERR
-connect(sha256_con3,localhost,sha256,auth_string,,,,,sha256_password);
+connect(sha256_con3,localhost,sha256,auth_string,,,,$COMPRESS_OPTION,sha256_password, $COMPRESS_ALGORITHM);
 
 --disable_async_client
 --echo # case4: authenticate user with mysql_native_password
@@ -145,7 +143,7 @@ CREATE USER native_user@localhost IDENTIFIED WITH 'mysql_native_password' BY 'na
 --enable_async_client
 
 --echo # connect as native_user
-connect(native_con1,localhost,native_user,native,,,,,mysql_native_password);
+connect(native_con1,localhost,native_user,native,,,,$COMPRESS_OPTION, mysql_native_password, $COMPRESS_ALGORITHM);
 SELECT USER();
 
 connection default;
@@ -157,7 +155,7 @@ ALTER USER native_user@localhost IDENTIFIED BY '';
 --enable_async_client
 
 --echo # connect as native_user with empty password
-connect(native_con2,localhost,native_user,,,,,,mysql_native_password);
+connect(native_con2,localhost,native_user,,,,,$COMPRESS_OPTION, mysql_native_password, $COMPRESS_ALGORITHM);
 SELECT USER();
 
 connection default;
@@ -166,7 +164,7 @@ disconnect native_con2;
 #cleanup
 --disable_async_client
 DROP USER sha256@localhost, native_user@localhost, caching_sha2@localhost;
-DROP DATABASE wl11381;
+DROP DATABASE wl13510;
 
 # restore default options
 --let $restart_parameters = restart:
