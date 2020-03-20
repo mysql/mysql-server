@@ -2531,11 +2531,9 @@ bool Item_in_subselect::fix_fields(THD *thd_arg, Item **ref) {
 
 void Item_in_subselect::fix_after_pullout(SELECT_LEX *parent_select,
                                           SELECT_LEX *removed_select) {
+  // optimizer->fix_after_pullout() will handle left_expr:
+  DBUG_ASSERT(optimizer != nullptr);
   Item_subselect::fix_after_pullout(parent_select, removed_select);
-
-  left_expr->fix_after_pullout(parent_select, removed_select);
-
-  used_tables_cache |= left_expr->used_tables();
 }
 
 /**

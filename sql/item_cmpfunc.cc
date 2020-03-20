@@ -2116,16 +2116,12 @@ void Item_in_optimizer::fix_after_pullout(SELECT_LEX *parent_select,
   used_tables_cache = get_initial_pseudo_tables();
   not_null_tables_cache = 0;
 
-  /*
-    No need to call fix_after_pullout() on args[0] (ie left expression),
-    as Item_in_subselect::fix_after_pullout() will do this.
-    So, just forward the call to the Item_in_subselect object.
-  */
-
+  args[0]->fix_after_pullout(parent_select, removed_select);
   args[1]->fix_after_pullout(parent_select, removed_select);
 
-  used_tables_cache |= args[1]->used_tables();
-  not_null_tables_cache |= args[1]->not_null_tables();
+  used_tables_cache |= args[0]->used_tables() | args[1]->used_tables();
+  not_null_tables_cache |=
+      args[0]->not_null_tables() | args[1]->not_null_tables();
 }
 
 /**
