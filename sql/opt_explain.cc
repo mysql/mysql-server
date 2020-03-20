@@ -723,7 +723,8 @@ bool Explain::explain_select_type() {
   if (select_lex->master_unit()->outer_select() && select_lex->join &&
       select_lex->join->get_plan_state() != JOIN::NO_PLAN) {
     fmt->entry()->is_dependent = select_lex->is_dependent();
-    fmt->entry()->is_cacheable = select_lex->is_cacheable();
+    if (select_lex->type() != enum_explain_type::EXPLAIN_DERIVED)
+      fmt->entry()->is_cacheable = select_lex->is_cacheable();
   }
   fmt->entry()->col_select_type.set(select_lex->type());
   return false;
