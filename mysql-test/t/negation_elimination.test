@@ -11,6 +11,7 @@ insert into t1 values (NULL), (0), (1), (2), (3), (4), (5), (6), (7), (8), (9),
 (10), (11), (12), (13), (14), (15), (16), (17), (18), (19);
 
 analyze table t1;
+--replace_column 5 # 10 # 11 #
 explain select * from t1 where not(not(a));
 select * from t1 where not(not(a));
 explain select * from t1 where not(not(not(a > 10)));
@@ -98,6 +99,7 @@ EXPLAIN SELECT * FROM t1 WHERE NOT (a XOR (NOT a));
 delete from t1 where a > 3;
 select a, not(not(a)) from t1;
 analyze table t1;
+--replace_column 5 # 10 # 11 #
 explain select a, not(not(a)), not(a <= 2 and not(a)), not(a not like "1"), not (a not in (1,2)), not(a != 2) from t1 where not(not(a)) having not(not(a));
 
 drop table t1;

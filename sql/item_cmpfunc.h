@@ -630,6 +630,8 @@ class Item_bool_func2 : public Item_bool_func { /* Bool with 2 string args */
     return cmp.set_max_str_length(max_str_length);
   }
   optimize_type select_optimize(const THD *) override { return OPTIMIZE_OP; }
+  /// @returns an operator REV_OP so that "B REV_OP A" is equivalent to
+  /// "A this_operator B".
   virtual enum Functype rev_functype() const { return UNKNOWN_FUNC; }
   bool have_rev_func() const override { return rev_functype() != UNKNOWN_FUNC; }
 
@@ -1156,6 +1158,7 @@ class Item_func_ne final : public Item_func_comparison {
   Item_func_ne(Item *a, Item *b) : Item_func_comparison(a, b) {}
   longlong val_int() override;
   enum Functype functype() const override { return NE_FUNC; }
+  enum Functype rev_functype() const override { return NE_FUNC; }
   cond_result eq_cmp_result() const override { return COND_FALSE; }
   optimize_type select_optimize(const THD *) override { return OPTIMIZE_KEY; }
   const char *func_name() const override { return "<>"; }

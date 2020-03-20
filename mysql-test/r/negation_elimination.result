@@ -7,7 +7,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 explain select * from t1 where not(not(a));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	a	5	NULL	21	90.00	Using where; Using index
+1	SIMPLE	t1	NULL	#	a	a	5	NULL	#	#	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (0 <> `test`.`t1`.`a`)
 select * from t1 where not(not(a));
@@ -556,7 +556,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 explain select a, not(not(a)), not(a <= 2 and not(a)), not(a not like "1"), not (a not in (1,2)), not(a != 2) from t1 where not(not(a)) having not(not(a));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	a	5	NULL	5	80.00	Using where; Using index
+1	SIMPLE	t1	NULL	#	a	a	5	NULL	#	#	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,(0 <> `test`.`t1`.`a`) AS `not(not(a))`,((`test`.`t1`.`a` > 2) or (0 <> `test`.`t1`.`a`)) AS `not(a <= 2 and not(a))`,(`test`.`t1`.`a` like '1') AS `not(a not like "1")`,(`test`.`t1`.`a` in (1,2)) AS `not (a not in (1,2))`,(`test`.`t1`.`a` = 2) AS `not(a != 2)` from `test`.`t1` where (0 <> `test`.`t1`.`a`) having (0 <> `test`.`t1`.`a`)
 drop table t1;
