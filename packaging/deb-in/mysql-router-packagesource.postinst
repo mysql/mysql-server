@@ -37,8 +37,11 @@ fix_datadir_path() {
     return 0
   fi
 
+  # we don't want the grep not being able to find the pattern to fail the script
+  set +e
   has_invalid_keyring_path=$(grep "^keyring_path=$INVALID_DATA_DIR/keyring$" $CONFIGFILE)
   has_invalid_statefile_path=$(grep "^dynamic_state=$INVALID_DATA_DIR/state.json$" $CONFIGFILE)
+  set -e
 
   if [ -z "$has_invalid_keyring_path" ] && [ -z "$has_invalid_statefile_path" ]; then
     return 0
