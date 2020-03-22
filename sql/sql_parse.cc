@@ -5973,6 +5973,14 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(
           my_error(ER_NO_SYSTEM_VIEW_ACCESS, MYF(0), ptr->table_name);
           return nullptr;
         }
+
+        /*
+          Stop users from accessing I_S.FILES if they do not have
+          PROCESS privilege.
+        */
+        if (!strcmp(ptr->table_name, "FILES") &&
+            check_global_access(thd, PROCESS_ACL))
+          return nullptr;
       }
     } else {
       schema_table = find_schema_table(thd, ptr->table_name);
