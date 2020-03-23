@@ -2214,9 +2214,11 @@ bool explain_query(THD *explain_thd, const THD *query_thd,
 
   LEX *lex = explain_thd->lex;
   if (lex->explain_format->is_tree()) {
+    const bool secondary_engine =
+        explain_thd->lex->m_sql_cmd != nullptr &&
+        explain_thd->lex->m_sql_cmd->using_secondary_storage_engine();
     if (lex->is_explain_analyze) {
-      if (explain_thd->lex->m_sql_cmd != nullptr &&
-          explain_thd->lex->m_sql_cmd->using_secondary_storage_engine()) {
+      if (secondary_engine) {
         my_error(ER_NOT_SUPPORTED_YET, MYF(0),
                  "EXPLAIN ANALYZE with secondary engine");
         unit->set_executed();
@@ -2239,7 +2241,10 @@ bool explain_query(THD *explain_thd, const THD *query_thd,
       unit->set_executed();
       if (query_thd->is_error()) return true;
     }
-
+    if (secondary_engine)
+      push_warning(explain_thd, Sql_condition::SL_NOTE, ER_YES,
+                   "Query is executed in secondary engine; the actual"
+                   " query plan may diverge from the printed one");
     return ExplainIterator(explain_thd, query_thd, unit);
   }
 
