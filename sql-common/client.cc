@@ -7549,24 +7549,33 @@ net_async_status STDCALL mysql_fetch_row_nonblocking(MYSQL_RES *res,
 
   if (!res->data) { /* Unbufferred fetch */
     if (!res->eof) {
+      /*
+        Can be -1 (error), 0 (success) and 1 (eof).
+        Init to -1 so if state is not MYSQL_STATUS_USE_RESULT we get
+        out of sync error.
+      */
+      int read_row_result = -1;
       if (mysql->status == MYSQL_STATUS_USE_RESULT) {
-        int ret;
         if (read_one_row_nonblocking(mysql, res->field_count, res->row,
                                      res->lengths,
-                                     &ret) == NET_ASYNC_NOT_READY) {
+                                     &read_row_result) == NET_ASYNC_NOT_READY) {
           return NET_ASYNC_NOT_READY;
         }
 
-        if (!ret) {
+        // we arrive here on NET_ASYNC_ERROR or NET_ASYNC_COMPLETE
+
+        if (read_row_result == 0) {  // we've got a row: process it
           *row = res->current_row = res->row;
           goto end;
         }
       }
 
-      set_mysql_error(mysql,
-                      res->unbuffered_fetch_cancelled ? CR_FETCH_CANCELED
-                                                      : CR_COMMANDS_OUT_OF_SYNC,
-                      unknown_sqlstate);
+      if (read_row_result == -1)  // on row reading error
+        set_mysql_error(mysql,
+                        res->unbuffered_fetch_cancelled
+                            ? CR_FETCH_CANCELED
+                            : CR_COMMANDS_OUT_OF_SYNC,
+                        unknown_sqlstate);
       DBUG_PRINT("info", ("end of data"));
       res->eof = true;
       mysql->status = MYSQL_STATUS_READY;
