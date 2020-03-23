@@ -20172,6 +20172,107 @@ static void test_bug27443252() {
 
 void perform_arithmatic() { fprintf(stdout, "\n Do some other stuff.\n"); }
 
+/* test mysql_fetch_row_nonblocking */
+static void test_bug31048553() {
+  MYSQL *mysql_local;
+  MYSQL_RES *result;
+  MYSQL_ROW row;
+  net_async_status status;
+  const char *stmt_text;
+
+  myheader("test_bug31048553");
+
+  if (!(mysql_local = mysql_client_init(nullptr))) {
+    myerror("mysql_client_init() failed");
+    exit(1);
+  }
+  if (!mysql_real_connect(mysql_local, opt_host, opt_user, opt_password,
+                          current_db, opt_port, opt_unix_socket,
+                          CLIENT_MULTI_STATEMENTS)) {
+    fprintf(stdout, "\n mysql_real_connect() failed. Error: [%s]",
+            mysql_error(mysql_local));
+    exit(1);
+  }
+
+  mysql_autocommit(mysql_local, true);
+
+  if (mysql_query(mysql_local, "DROP TABLE IF EXISTS test_table")) {
+    fprintf(stderr, "\n drop table failed with error %s ",
+            mysql_error(mysql_local));
+    exit(1);
+  }
+
+  if (mysql_query(mysql_local, "CREATE TABLE test_table(col1 int)")) {
+    fprintf(stderr, "\n create table failed with error %s ",
+            mysql_error(mysql_local));
+    exit(1);
+  }
+
+  if (mysql_query(mysql_local,
+                  "INSERT INTO test_table values(10), (20), (30)")) {
+    fprintf(stderr, "\n insert into table failed with error %s ",
+            mysql_error(mysql_local));
+    exit(1);
+  }
+
+  stmt_text = "SELECT * FROM test_table";
+  if (mysql_real_query(mysql_local, stmt_text, (ulong)strlen(stmt_text))) {
+    fprintf(stdout, "\n mysql_real_query() failed");
+    exit(1);
+  }
+  if (!(result = mysql_use_result(mysql_local))) {
+    fprintf(stdout, "\n mysql_use_result() failed");
+    exit(1);
+  }
+
+  row = mysql_fetch_row(result);
+  DIE_UNLESS(strcmp(row[0], "10") == 0);
+  fprintf(stdout, "\n mysql_fetch_row() passed");
+
+  while ((status = mysql_fetch_row_nonblocking(result, &row)) !=
+         NET_ASYNC_COMPLETE)
+    ;
+  /* 2nd row fetched */
+  DIE_UNLESS(strcmp(row[0], "20") == 0);
+  fprintf(stdout, "\n mysql_fetch_row_nonblocking() passed");
+
+  status = mysql_fetch_row_nonblocking(result, &row);
+  /* do some other task */
+  perform_arithmatic();
+  if (status == NET_ASYNC_COMPLETE) {
+    DIE_UNLESS(strcmp(row[0], "30") == 0);
+  } else {
+    while ((status = mysql_fetch_row_nonblocking(result, &row)) !=
+           NET_ASYNC_COMPLETE)
+      ;
+    /* 3rd row fetched */
+    DIE_UNLESS(strcmp(row[0], "30") == 0);
+    fprintf(stdout, "\n mysql_fetch_row_nonblocking() passed");
+  }
+
+  /* fetch the null row pointer for the last row */
+  while ((status = mysql_fetch_row_nonblocking(result, &row)) ==
+         NET_ASYNC_NOT_READY) {
+    /* do some other task */
+    perform_arithmatic();
+  }
+
+  DIE_UNLESS(row == nullptr);
+  DIE_UNLESS(mysql_errno(mysql_local) == 0);
+
+  while ((status = mysql_free_result_nonblocking(result)) != NET_ASYNC_COMPLETE)
+    ;
+  fprintf(stdout, "\n mysql_free_result_nonblocking() passed");
+
+  if (mysql_query(mysql_local, "DROP TABLE test_table")) {
+    fprintf(stderr, "\n cleanup drop table failed with error %s ",
+            mysql_error(mysql_local));
+    exit(1);
+  }
+
+  mysql_close(mysql_local);
+}
+
 static void test_wl11381() {
   MYSQL *mysql_local;
   MYSQL_RES *result;
@@ -21185,6 +21286,7 @@ static struct my_tests_st my_tests[] = {
     {"test_wl13168", test_wl13168},
     {"test_wl13510", test_wl13510},
     {"test_wl13510_multi_statements", test_wl13510_multi_statements},
+    {"test_bug31048553", test_bug31048553},
     {nullptr, nullptr}};
 
 static struct my_tests_st *get_my_tests() { return my_tests; }
