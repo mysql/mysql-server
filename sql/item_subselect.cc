@@ -33,6 +33,7 @@
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
+
 #include <atomic>
 #include <utility>
 #include <vector>
@@ -367,35 +368,6 @@ bool Item_in_subselect::finalize_exists_transform(THD *thd,
                                                   SELECT_LEX *select_lex) {
   DBUG_ASSERT(exec_method == SubqueryExecMethod::EXEC_EXISTS_OR_MAT ||
               exec_method == SubqueryExecMethod::EXEC_EXISTS);
-  /*
-    Change
-      SELECT expr1, expr2
-    to
-      SELECT 1,1
-    because EXISTS does not care about the selected expressions, only about
-    the existence of rows.
-
-    If UNION, we have to modify the SELECT list of each SELECT in the
-    UNION, fortunately this function is indeed called for each SELECT_LEX.
-
-    If this is a prepared statement, we must allow the next execution to use
-    materialization. So, we should back up the original SELECT list. If this
-    is a UNION, this means backing up the N original SELECT lists. To
-    avoid this constraint, we change the SELECT list only if this is not a
-    prepared statement.
-  */
-  if (thd->stmt_arena->is_regular())  // not prepared stmt
-  {
-    uint cnt = select_lex->fields_list.elements;
-    select_lex->fields_list.empty();
-    for (; cnt > 0; cnt--)
-      select_lex->fields_list.push_back(new Item_int(
-          NAME_STRING("Not_used"), (longlong)1, MY_INT64_NUM_DECIMAL_DIGITS));
-    Opt_trace_context *const trace = &thd->opt_trace;
-    OPT_TRACE_TRANSFORM(trace, oto0, oto1, select_lex->select_number,
-                        "IN (SELECT)", "EXISTS (CORRELATED SELECT)");
-    oto1.add("put_1_in_SELECT_list", true);
-  }
   /*
     Note that if the subquery is "SELECT1 UNION SELECT2" then this is not
     working optimally (Bug#14215895).

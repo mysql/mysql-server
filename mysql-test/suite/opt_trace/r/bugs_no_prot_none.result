@@ -542,14 +542,6 @@ FROM t1
                         ] /* rows_estimation */
                       },
                       {
-                        "transformation": {
-                          "select#": 2,
-                          "from": "IN (SELECT)",
-                          "to": "EXISTS (CORRELATED SELECT)",
-                          "put_1_in_SELECT_list": true
-                        } /* transformation */
-                      },
-                      {
                         "attaching_conditions_to_tables": {
                           "original_condition": "(<cache>('7') = (/* select#3 */ select `t2`.`col_int_key` from `t2`))",
                           "attached_conditions_computation": [
@@ -632,12 +624,12 @@ FROM t1
             } /* subselect_execution */
           },
           {
-            "condition_on_constant_tables": "<in_optimizer>('7',<exists>(/* select#2 */ select 1 from dual where (<cache>('7') = (/* select#3 */ select '7' from dual))))",
+            "condition_on_constant_tables": "<in_optimizer>('7',<exists>(/* select#2 */ select (/* select#3 */ select '7' from dual) from dual where (<cache>('7') = (/* select#3 */ select '7' from dual))))",
             "condition_value": true
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "<in_optimizer>('7',<exists>(/* select#2 */ select 1 from dual where (<cache>('7') = (/* select#3 */ select '7' from dual))))",
+              "original_condition": "<in_optimizer>('7',<exists>(/* select#2 */ select (/* select#3 */ select '7' from dual) from dual where (<cache>('7') = (/* select#3 */ select '7' from dual))))",
               "attached_conditions_computation": [
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
@@ -1200,14 +1192,6 @@ ON table2 .col_int_key = table1 .col_int_key
                 ] /* rest_of_plan */
               }
             ] /* considered_execution_plans */
-          },
-          {
-            "transformation": {
-              "select#": 3,
-              "from": "IN (SELECT)",
-              "to": "EXISTS (CORRELATED SELECT)",
-              "put_1_in_SELECT_list": true
-            } /* transformation */
           },
           {
             "attaching_conditions_to_tables": {

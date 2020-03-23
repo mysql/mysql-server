@@ -395,7 +395,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	innr	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.outr.dt' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`outr`.`dt` AS `dt` from `test`.`t1` `outr` where <in_optimizer>(`test`.`outr`.`dt`,<exists>(/* select#2 */ select 1 from `test`.`t2` `innr` where ((`test`.`outr`.`dt` = TIMESTAMP'0000-00-00 00:00:00') and (<cache>(`test`.`outr`.`dt`) = `test`.`innr`.`dt`))))
+Note	1003	/* select#1 */ select `test`.`outr`.`dt` AS `dt` from `test`.`t1` `outr` where <in_optimizer>(`test`.`outr`.`dt`,<exists>(/* select#2 */ select `test`.`innr`.`dt` from `test`.`t2` `innr` where ((`test`.`outr`.`dt` = TIMESTAMP'0000-00-00 00:00:00') and (<cache>(`test`.`outr`.`dt`) = `test`.`innr`.`dt`))))
 flush tables;
 SELECT outr.dt FROM t1 AS outr WHERE outr.dt IN (SELECT innr.dt FROM t2 AS innr WHERE outr.dt IS NULL );
 dt
@@ -407,7 +407,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1276	Field or reference 'test.outr.t' of SELECT #2 was resolved in SELECT #1
 Note	1292	Incorrect time value: '2005-11-13 7:41:31' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`outr`.`dt` AS `dt` from `test`.`t1` `outr` where <in_optimizer>(`test`.`outr`.`dt`,<exists>(/* select#2 */ select 1 from `test`.`t2` `innr` where ((`test`.`outr`.`t` < TIME'07:41:31') and (<cache>(`test`.`outr`.`dt`) = `test`.`innr`.`dt`))))
+Note	1003	/* select#1 */ select `test`.`outr`.`dt` AS `dt` from `test`.`t1` `outr` where <in_optimizer>(`test`.`outr`.`dt`,<exists>(/* select#2 */ select `test`.`innr`.`dt` from `test`.`t2` `innr` where ((`test`.`outr`.`t` < TIME'07:41:31') and (<cache>(`test`.`outr`.`dt`) = `test`.`innr`.`dt`))))
 flush tables;
 SELECT outr.dt FROM t1 AS outr WHERE outr.dt IN ( SELECT innr.dt FROM t2 AS innr WHERE outr.t < '2005-11-13 7:41:31' );
 dt

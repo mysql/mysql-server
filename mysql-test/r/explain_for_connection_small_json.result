@@ -503,7 +503,7 @@ SYNC_POINT:planned_single_delete
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -10,76 +10,10 @@
        "filtered": "100.00",
--      "attached_condition": "<in_optimizer>(`test`.`t1`.`topic`,<exists>(/* select#2 */ select 1 from `test`.`t2` anti join (`test`.`t3`) on((`test`.`t3`.`numeropost` = `test`.`t2`.`topic`)) where (<cache>(`test`.`t1`.`topic`) = `test`.`t2`.`topic`)))",
+-      "attached_condition": "<in_optimizer>(`test`.`t1`.`topic`,<exists>(/* select#2 */ select `test`.`t2`.`topic` from `test`.`t2` anti join (`test`.`t3`) on((`test`.`t3`.`numeropost` = `test`.`t2`.`topic`)) where (<cache>(`test`.`t1`.`topic`) = `test`.`t2`.`topic`)))",
 +      "using_where": true,
        "attached_subqueries": [
          {
