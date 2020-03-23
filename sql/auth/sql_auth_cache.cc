@@ -3626,8 +3626,11 @@ bool is_partial_revoke_exists(THD *thd) {
     if (!acl_cache_lock.lock(false)) {
       return true;
     }
-    DBUG_ASSERT(acl_restrictions);
-    partial_revoke = (acl_restrictions->size() > 0);
+    /*
+      Check the restrictions only if server has initialized the acl caches
+      (i.e. Server is not started with --skip-grant-tables=1 option).
+    */
+    if (acl_restrictions) partial_revoke = (acl_restrictions->size() > 0);
   } else {
     /*
       We need to determine the number of partial revokes at the time of server
