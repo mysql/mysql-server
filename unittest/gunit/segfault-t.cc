@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,8 @@
 
 #include <gtest/gtest.h>
 #include <limits.h>
+
+#include "my_config.h"
 
 #include "m_string.h"
 #include "my_inttypes.h"
@@ -47,7 +49,13 @@ class FatalSignalDeathTest : public ::testing::Test {
 TEST_F(FatalSignalDeathTest, Abort) {
 #if defined(_WIN32)
   EXPECT_DEATH_IF_SUPPORTED(abort(), ".* UTC - mysqld got exception.*");
-#else
+#elif defined(HAVE_ASAN)
+  // We may get AddressSanitizer:DEADLYSIGNAL because of a bug in gogletest.
+  // We *could* patch googletest/src/gtest-death-test.cc :
+  //    - const size_t stack_size = getpagesize();
+  //    + const size_t stack_size = getpagesize() * 2;
+  // EXPECT_DEATH_IF_SUPPORTED(abort(), ".* UTC - mysqld got signal 6.*");
+#elif defined(HANDLE_FATAL_SIGNALS)
   EXPECT_DEATH_IF_SUPPORTED(abort(), ".* UTC - mysqld got signal 6.*");
 #endif
 }
@@ -61,11 +69,11 @@ TEST_F(FatalSignalDeathTest, Segfault) {
    gtest library instead.
   */
   EXPECT_DEATH_IF_SUPPORTED(*pint = 42, "");
-#elif defined(__SANITIZE_ADDRESS__)
+#elif defined(HAVE_ASAN)
 /* gcc 4.8.1 with '-fsanitize=address -O1' */
 /* Newer versions of ASAN give other error message, disable it */
 // EXPECT_DEATH_IF_SUPPORTED(*pint= 42, ".*ASAN:SIGSEGV.*");
-#else
+#elif defined(HANDLE_FATAL_SIGNALS)
   int *pint = nullptr;
   /*
    On most platforms we get SIGSEGV == 11, but SIGBUS == 10 is also possible.

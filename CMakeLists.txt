@@ -801,6 +801,14 @@ IF(WITH_ASAN AND WITH_MSAN)
           "Cannot use AddressSanitizer and MemorySanitizer together")
 ENDIF()
 
+IF(WITH_ASAN OR WITH_LSAN OR WITH_UBSAN)
+  SET(HANDLE_FATAL_SIGNALS_DEFAULT 0)
+ELSE()
+  SET(HANDLE_FATAL_SIGNALS_DEFAULT 1)
+ENDIF()
+OPTION(HANDLE_FATAL_SIGNALS
+  "Handle fatal signals with internal signal handler"
+  ${HANDLE_FATAL_SIGNALS_DEFAULT})
 
 # Older versions of ccache must be disabled: export CCACHE_DISABLE=1
 # See http://www.cmake.org/Wiki/CTest/Coverage

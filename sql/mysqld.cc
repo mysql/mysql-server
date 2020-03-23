@@ -3180,12 +3180,16 @@ void my_init_signals() {
     */
     sa.sa_flags = SA_RESETHAND | SA_NODEFER;
     sa.sa_handler = handle_fatal_signal;
-    // Treat all these as fatal and handle them.
-    (void)sigaction(SIGSEGV, &sa, nullptr);
-    (void)sigaction(SIGABRT, &sa, nullptr);
-    (void)sigaction(SIGBUS, &sa, nullptr);
-    (void)sigaction(SIGILL, &sa, nullptr);
-    (void)sigaction(SIGFPE, &sa, nullptr);
+    // Treat these as fatal and handle them.
+    sigaction(SIGABRT, &sa, nullptr);
+    sigaction(SIGFPE, &sa, nullptr);
+    // Handle these as well, except for ASAN/UBSAN builds:
+    // we let sanitizer runtime handle them instead.
+#if defined(HANDLE_FATAL_SIGNALS)
+    sigaction(SIGBUS, &sa, nullptr);
+    sigaction(SIGILL, &sa, nullptr);
+    sigaction(SIGSEGV, &sa, nullptr);
+#endif
   }
 
   // Ignore SIGPIPE

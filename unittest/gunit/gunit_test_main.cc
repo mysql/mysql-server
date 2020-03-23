@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -122,14 +122,16 @@ static void init_signal_handling() {
   sigprocmask(SIG_SETMASK, &sa.sa_mask, nullptr);
 
   sa.sa_handler = signal_handler;
-
-  sigaction(SIGSEGV, &sa, nullptr);
+  // Treat these as fatal and handle them.
   sigaction(SIGABRT, &sa, nullptr);
-#ifdef SIGBUS
-  sigaction(SIGBUS, &sa, nullptr);
-#endif
-  sigaction(SIGILL, &sa, nullptr);
   sigaction(SIGFPE, &sa, nullptr);
+  // Handle these as well, except for ASAN/UBSAN builds:
+  // we let sanitizer runtime handle them instead.
+#if defined(HANDLE_FATAL_SIGNALS)
+  sigaction(SIGBUS, &sa, nullptr);
+  sigaction(SIGILL, &sa, nullptr);
+  sigaction(SIGSEGV, &sa, nullptr);
+#endif
 }
 
 #endif

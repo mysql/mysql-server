@@ -304,6 +304,7 @@
  * Other
  */
 #cmakedefine EXTRA_DEBUG 1
+#cmakedefine HANDLE_FATAL_SIGNALS 1
 
 /*
  * Hardcoded values needed by libevent/NDB/memcached
