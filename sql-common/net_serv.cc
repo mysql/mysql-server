@@ -1827,8 +1827,7 @@ begin:
                                 that will be erased.
   @param [in]  first_packet_offset Starting offset of the packet to read.
   @param [in]  buf_length       End of readable byte.
-  @param [in]  multi_byte_packet
-
+  @param [in]  multi_byte_packet Flag that indicate if packet is multibyte
 */
 static ulong net_read_update_offsets(NET *net, size_t start_of_packet,
                                      size_t first_packet_offset,
