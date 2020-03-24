@@ -23,7 +23,9 @@
 #ifndef DD__SDI_INCLUDED
 #define DD__SDI_INCLUDED
 
+#include <functional>
 #include "my_compiler.h"
+#include "sql/dd/sdi_fwd.h"      // RJ_Document
 #include "sql/dd/string_type.h"  // dd::String_type
 
 class THD;
@@ -142,23 +144,17 @@ Sdi_type serialize(THD *thd, const Table &table,
 Sdi_type serialize(const Tablespace &tablespace);
 
 /**
-  Deserialize a dd::Schema object.
-
-  Populates the dd::Schema object provided with data from sdi string.
-  Note! Additional objects are dynamically allocated and added to the
-  top-level Schema object, which assumes ownership.
-
-  @param thd thread context
-  @param sdi  serialized representation of schema (as a json string)
-  @param schema empty top-level object
-
-  @return error status
-    @retval false if successful
-    @retval true otherwise
-
+   Type alias for std::function wrapping a callable to check if
+   SDI, as an RJ_Document, is compatible. Normale MySQL error handling.
+   Return value: false => success, true => error in DA.
 */
+using SdiCompatibilityChecker = std::function<bool(const RJ_Document &)>;
 
-bool deserialize(THD *thd, const Sdi_type &sdi, Schema *schema);
+bool CheckDefaultCompatibility(const RJ_Document &);
+
+bool deserialize(THD *thd, const Sdi_type &sdi, Table *table,
+                 SdiCompatibilityChecker comp_checker,
+                 String_type *deser_schema_name = nullptr);
 
 /**
   Deserialize a dd::Table object.
@@ -166,6 +162,8 @@ bool deserialize(THD *thd, const Sdi_type &sdi, Schema *schema);
   Populates the dd::Table object provided with data from sdi string.
   Note! Additional objects are dynamically allocated and added to the
   top-level Schema object, which assumes ownership.
+  @note Uses the default strict compatibility checking, @see
+  DefaultCheckCompatibility
 
   @param thd thread context
   @param sdi  serialized representation of schema (as a json string)
@@ -175,11 +173,15 @@ bool deserialize(THD *thd, const Sdi_type &sdi, Schema *schema);
   @return error status
     @retval false if successful
     @retval true otherwise
-
 */
+inline bool deserialize(THD *thd, const Sdi_type &sdi, Table *table,
+                        String_type *deser_schema_name = nullptr) {
+  return deserialize(thd, sdi, table, CheckDefaultCompatibility,
+                     deser_schema_name);
+}
 
-bool deserialize(THD *thd, const Sdi_type &sdi, Table *table,
-                 String_type *deser_schema_name = nullptr);
+bool deserialize(THD *thd, const Sdi_type &sdi, Tablespace *tablespace,
+                 SdiCompatibilityChecker comp_checker);
 
 /**
   Deserialize a dd::Tablespace object.
@@ -188,6 +190,9 @@ bool deserialize(THD *thd, const Sdi_type &sdi, Table *table,
   Note! Additional objects are dynamically allocated and added to the
   top-level Tablespace object, which assumes ownership.
 
+  @note Uses the default strict compatibility checking, @see
+  DefaultCheckCompatibility
+
   @param thd thread context
   @param sdi  serialized representation of schema (as a json string)
   @param tablespace empty top-level object
@@ -195,10 +200,10 @@ bool deserialize(THD *thd, const Sdi_type &sdi, Table *table,
   @return error status
     @retval false if successful
     @retval true otherwise
-
 */
-
-bool deserialize(THD *thd, const Sdi_type &sdi, Tablespace *tablespace);
+inline bool deserialize(THD *thd, const Sdi_type &sdi, Tablespace *tablespace) {
+  return deserialize(thd, sdi, tablespace, CheckDefaultCompatibility);
+}
 
 /** @} End of group serialize_api */
 
