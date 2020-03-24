@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -117,6 +117,19 @@ Logger Registry::get_logger(const std::string &name) const {
     throw std::logic_error("Accessing non-existant logger '" + name + "'");
 
   return it->second;
+}
+
+Logger Registry::get_logger_or_default(const std::string &name,
+                                       const std::string &default_name) const {
+  std::lock_guard<std::mutex> lock(mtx_);
+
+  auto it = loggers_.find(name);
+  if (it != loggers_.end()) return it->second;
+
+  it = loggers_.find(default_name);
+  if (it != loggers_.end()) return it->second;
+
+  throw std::logic_error("Accessing non-existant logger '" + name + "'");
 }
 
 // throws std::logic_error
@@ -479,8 +492,6 @@ extern "C" void log_message(LogLevel level, const char *module, const char *fmt,
                             va_list ap) {
   harness_assert(level <= LogLevel::kDebug);
 
-  std::chrono::time_point<std::chrono::system_clock> now{};
-
   mysql_harness::logging::Registry &registry =
       mysql_harness::DIM::instance().get_LoggingRegistry();
   harness_assert(registry.is_ready());
@@ -490,40 +501,12 @@ extern "C" void log_message(LogLevel level, const char *module, const char *fmt,
   //      logger from registry, our call will still be valid. As for the
   //      case of handlers getting removed in the meantime, Logger::handle()
   //      handles this properly.
-  Logger logger;
-  try {
-    logger = registry.get_logger(module);
-  } catch (const std::logic_error &) {
-    // Logger is not registered for this module (log domain), so log as main
-    // application domain instead (which should always be available)
-    using mysql_harness::logging::g_main_app_log_domain;
-    harness_assert(!g_main_app_log_domain.empty());
-    try {
-      logger = registry.get_logger(g_main_app_log_domain);
-    } catch (std::logic_error &) {
-      harness_assert(0);
-    }
-
-    // Complain that we're logging this elsewhere
-    char msg[mysql_harness::logging::kLogMessageMaxSize];
-    snprintf(msg, sizeof(msg),
-             "Module '%s' not registered with logger - "
-             "logging the following message as '%s' instead",
-             module, g_main_app_log_domain.c_str());
-    if (std::chrono::time_point<std::chrono::system_clock>{} == now)
-      now = std::chrono::system_clock::now();
-    logger.handle(
-        {LogLevel::kError, getpid(), now, g_main_app_log_domain, msg});
-
-    // And switch log domain to main application domain for the original
-    // log message
-    module = g_main_app_log_domain.c_str();
-  }
+  Logger logger = registry.get_logger_or_default(
+      module, mysql_harness::logging::g_main_app_log_domain);
 
   if (!logger.is_handled(level)) return;
 
-  if (std::chrono::time_point<std::chrono::system_clock>{} == now)
-    now = std::chrono::system_clock::now();
+  const auto now = std::chrono::system_clock::now();
 
   // Build the message
   char message[mysql_harness::logging::kLogMessageMaxSize];
