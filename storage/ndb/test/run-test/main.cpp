@@ -84,6 +84,7 @@ int g_mt_rr = 0;
 int g_restart = 0;
 int g_default_max_retries = 0;
 static int g_default_force_cluster_restart = 0;
+bool g_clean_shutdown = false;
 FailureMode g_default_behaviour_on_failure = Restart;
 const char *default_behaviour_on_failure[] = {"Restart", "Abort", "Skip",
                                               "Continue", NullS};
@@ -211,6 +212,11 @@ static struct my_option g_options[] = {
      (uchar **)&g_default_behaviour_on_failure,
      (uchar **)&g_default_behaviour_on_failure, &behaviour_typelib, GET_ENUM,
      REQUIRED_ARG, g_default_behaviour_on_failure, 0, 0, 0, 0, 0},
+    {"clean-shutdown", 0,
+     "Enables clean cluster shutdown when passed as a command line argument",
+     (uchar **)&g_clean_shutdown,
+     (uchar **)&g_clean_shutdown, 0, GET_BOOL, NO_ARG,
+     g_clean_shutdown, 0, 0, 0, 0, 0},
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
 
 static int check_testcase_file_main(int argc, char **argv);

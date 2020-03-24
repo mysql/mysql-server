@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,7 @@
 
 extern int g_mt;
 extern int g_mt_rr;
+extern bool g_clean_shutdown;
 
 static atrt_host* find(const char* hostname, Vector<atrt_host*>&);
 static bool load_process(atrt_config&, atrt_cluster&, BaseString,
@@ -440,7 +441,12 @@ static bool load_process(atrt_config& config, atrt_cluster& cluster,
   proc.m_proc.m_env.append(mysql_home);
 
   proc.m_proc.m_env.appfmt(" ATRT_PID=%u", (unsigned)proc_no);
-  proc.m_proc.m_shutdown_options = "";
+
+  if (g_clean_shutdown){
+    proc.m_proc.m_shutdown_options = "SIGTERM";
+  } else {
+    proc.m_proc.m_shutdown_options = "SIGKILL";
+  }
 
   {
     /**
