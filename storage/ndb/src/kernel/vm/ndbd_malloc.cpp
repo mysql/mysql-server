@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,11 +22,13 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <algorithm>
 #include "ndbd_malloc.hpp"
 #include "my_sys.h"
 #include <ndb_global.h>
 #include <NdbThread.h>
 #include <NdbOut.hpp>
+#include "portlib/NdbMem.h"
 
 //#define TRACE_MALLOC
 #ifdef TRACE_MALLOC
@@ -92,21 +94,21 @@ touch_mem(void* arg)
   }
 
   unsigned char * ptr = (unsigned char*)(p + (first_page * 4096));
+  const unsigned char* end = p + sz;
 
   for (Uint32 i = 0;
        i < num_pages_per_thread;
-       ptr += TOUCH_PAGE_SIZE, i++)
+       i += NUM_PAGES_BETWEEN_WATCHDOG_SETS,
+       ptr += NUM_PAGES_BETWEEN_WATCHDOG_SETS * TOUCH_PAGE_SIZE)
   {
-    *ptr = 0;
-    if (i % NUM_PAGES_BETWEEN_WATCHDOG_SETS == 0)
-    {
-      /* Roughly every 120 ms we come here in worst case */
-      *(touch_mem_ptr->watchCounter) = 9;
-    }
+    const size_t size = std::min(end - ptr,
+        ptrdiff_t{NUM_PAGES_BETWEEN_WATCHDOG_SETS * TOUCH_PAGE_SIZE});
+
+    NdbMem_PopulateSpace(ptr, size);
+    *(touch_mem_ptr->watchCounter) = 9;
+
     if (debugUinitMemUse)
     {
-      const unsigned char* end = p + sz;
-      const size_t size = MIN(TOUCH_PAGE_SIZE, end - ptr);
       /*
         Initialize the memory to something likely to trigger access violations 
         if used as a pointer or array index, to make it easier to detect use of 
