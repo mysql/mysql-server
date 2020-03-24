@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -277,6 +277,7 @@ times(struct tms *buf)
 
 #define JAM_FILE_ID 235
 
+static void dump_memory_info();
 
 void 
 WatchDog::run()
@@ -439,12 +440,54 @@ WatchDog::run()
         }
         if ((elapsed[i] > 3 * theInterval) || killer)
         {
+          if (oldCounterValue[i] == 9)
+          {
+            dump_memory_info();
+          }
           shutdownSystem(last_stuck_action);
         }
       }
     }
   }
   return;
+}
+
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+
+static int dump_file(const char filename[]);
+
+int dump_file(const char filename[])
+{
+  FILE* f = fopen(filename, "r");
+  if (f != nullptr)
+  {
+    g_eventLogger->info("Watchdog: dump %s\n", filename);
+    char buf[256];
+    while (fgets(buf, sizeof(buf), f) != nullptr)
+    {
+      g_eventLogger->info("%s\n", buf);
+    }
+    fclose(f);
+  }
+  return f == nullptr ? -1 : 0;
+}
+#endif
+
+void dump_memory_info()
+{
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+  dump_file("/proc/meminfo");
+
+  dump_file("/proc/self/numa_maps");
+
+  char filename[] = "/sys/devices/system/node/node0/meminfo";
+  char* node_number = strchr(filename, '0');
+  for (int node = 0; node < 10; node++)
+  {
+    *node_number = '0' + node;
+    if (dump_file(filename) == -1) break;
+  }
+#endif
 }
 
 void
