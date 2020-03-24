@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -42,6 +42,13 @@ SET(MYSYS_SOURCES  array.c charset-def.c charset.c checksum.c
 				lf_alloc-pin.c lf_dynarray.c lf_hash.c
 				my_atomic.c my_getncpus.c
 				my_rdtsc.c waiting_threads.c psi_noop.c)
+
+MY_CHECK_C_COMPILER_FLAG("-Wdeprecated-declarations" HAVE_DEPRECATED_DECLARATIONS)
+IF(HAVE_DEPRECATED_DECLARATIONS)
+  # 'ftime' is deprecated
+  ADD_COMPILE_FLAGS(my_rdtsc.c
+    COMPILE_FLAGS "-Wno-deprecated-declarations")
+ENDIF()
 
 IF (WIN32)
  SET (MYSYS_SOURCES ${MYSYS_SOURCES} my_winthread.c my_wincond.c my_winerr.c my_winfile.c my_windac.c my_conio.c)
