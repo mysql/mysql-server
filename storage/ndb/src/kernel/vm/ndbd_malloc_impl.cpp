@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -256,24 +256,6 @@ Ndbd_mem_manager::do_virtual_alloc(Uint32 pages,
                          ((1 << PAGES_PER_REGION_LOG) - 1))
                         >> PAGES_PER_REGION_LOG);
 
-    if (watchCounter)
-      *watchCounter = 9;
-    rc = NdbMem_PopulateSpace(
-           space + (first_region[i] - first_region[0]) * 8 * Uint64(32768),
-           page_count[i] * Uint64(32768));
-    if (watchCounter)
-      *watchCounter = 9;
-    if (rc != 0)
-    {
-      if (watchCounter)
-        *watchCounter = 9;
-      NdbMem_FreeSpace(
-        space,
-        (space_regions << PAGES_PER_REGION_LOG) * Uint64(32768));
-      if (watchCounter)
-        *watchCounter = 9;
-      return false;
-    }
     chunks[i].m_cnt = page_count[i];
     chunks[i].m_ptr = space + ((first_region[i] - first_region[0])
                                 << PAGES_PER_REGION_LOG);
