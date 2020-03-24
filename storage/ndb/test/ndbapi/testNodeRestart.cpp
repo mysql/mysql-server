@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1419,6 +1419,44 @@ int run_suma_handover_test(NDBT_Context *ctx, NDBT_Step *step)
   if (restarter.waitClusterStarted())
     return NDBT_FAILED;
   if (restarter.insertErrorInNode(delay_node_id, 0))
+    return NDBT_FAILED;
+  return NDBT_OK;
+}
+
+int run_suma_handover_with_node_failure(NDBT_Context *ctx, NDBT_Step *step)
+{
+  NdbRestarter restarter;
+  int numDbNodes = restarter.getNumDbNodes();
+  getNodeGroups(restarter);
+  int num_replicas = (numDbNodes - numNoNodeGroups) / numNodeGroups;
+  if (num_replicas < 3)
+  {
+    return NDBT_OK;
+  }
+  int restart_node = getFirstNodeInNodeGroup(restarter, 0);
+  int takeover_node = getNextNodeInNodeGroup(restarter, restart_node, 0);
+
+  // restart_node is shutdown and starts handing over buckets to takeover_node
+  // crash another node after starting takeover to interleave node-failure
+  // handling with shutdown takeover
+  if (restarter.insertErrorInNode(takeover_node, 13056))
+    return NDBT_FAILED;
+
+  int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+  if (restarter.dumpStateAllNodes(val2, 2))
+    return NDBT_FAILED;
+
+  if (restarter.restartOneDbNode(restart_node,
+				 /** initial */ false,
+				 /** nostart */ true,
+				 /** abort   */ false))
+    return NDBT_FAILED;
+
+  if (restarter.startAll())
+    return NDBT_FAILED;
+  if (restarter.waitClusterStarted())
+    return NDBT_FAILED;
+  if (restarter.insertErrorInNode(takeover_node, 0))
     return NDBT_FAILED;
   return NDBT_OK;
 }
@@ -10336,6 +10374,11 @@ TESTCASE("SumaHandover3rpl",
          "Test Suma handover with multiple GCIs and more than 2 replicas")
 {
   INITIALIZER(run_suma_handover_test);
+}
+TESTCASE("SumaHandoverNF",
+         "Test Suma handover with multiple GCIs and more than 2 replicas")
+{
+  INITIALIZER(run_suma_handover_with_node_failure);
 }
 
 NDBT_TESTSUITE_END(testNodeRestart)
