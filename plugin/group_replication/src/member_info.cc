@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,7 @@ Group_member_info::Group_member_info(
     Group_member_info::Group_member_role role_arg, bool in_single_primary_mode,
     bool has_enforces_update_everywhere_checks, uint member_weight_arg,
     uint lower_case_table_names_arg, bool default_table_encryption_arg,
-    PSI_mutex_key psi_mutex_key_arg)
+    const char *recovery_endpoints_arg, PSI_mutex_key psi_mutex_key_arg)
     : Plugin_gcs_message(CT_MEMBER_INFO_MESSAGE),
       hostname(hostname_arg),
       port(port_arg),
@@ -61,6 +61,8 @@ Group_member_info::Group_member_info(
       default_table_encryption(default_table_encryption_arg),
       group_action_running(false),
       primary_election_running(false),
+      recovery_endpoints(recovery_endpoints_arg ? recovery_endpoints_arg
+                                                : "DEFAULT"),
 #ifndef DBUG_OFF
       skip_encode_default_table_encryption(false),
 #endif
@@ -98,6 +100,7 @@ Group_member_info::Group_member_info(Group_member_info &other)
       default_table_encryption(other.get_default_table_encryption()),
       group_action_running(other.is_group_action_running()),
       primary_election_running(other.is_primary_election_running()),
+      recovery_endpoints(other.get_recovery_endpoints()),
 #ifndef DBUG_OFF
       skip_encode_default_table_encryption(false),
 #endif
@@ -118,6 +121,7 @@ Group_member_info::Group_member_info(const uchar *data, size_t len,
       default_table_encryption(false),
       group_action_running(false),
       primary_election_running(false),
+      recovery_endpoints("DEFAULT"),
 #ifndef DBUG_OFF
       skip_encode_default_table_encryption(false),
 #endif
@@ -141,7 +145,8 @@ void Group_member_info::update(
     ulonglong gtid_assignment_block_size_arg,
     Group_member_info::Group_member_role role_arg, bool in_single_primary_mode,
     bool has_enforces_update_everywhere_checks, uint member_weight_arg,
-    uint lower_case_table_names_arg, bool default_table_encryption_arg) {
+    uint lower_case_table_names_arg, bool default_table_encryption_arg,
+    const char *recovery_endpoints_arg) {
   MUTEX_LOCK(lock, &update_lock);
 
   hostname.assign(hostname_arg);
@@ -174,6 +179,8 @@ void Group_member_info::update(
   /* Handle enforce_update_everywhere_checks */
   if (has_enforces_update_everywhere_checks)
     configuration_flags |= CNF_ENFORCE_UPDATE_EVERYWHERE_CHECKS_F;
+
+  recovery_endpoints.assign(recovery_endpoints_arg);
 }
 
 /*
@@ -265,6 +272,10 @@ void Group_member_info::encode_payload(
 
   encode_payload_item_string(buffer, PIT_PURGED_GTID, purged_gtid_set.c_str(),
                              purged_gtid_set.length());
+
+  encode_payload_item_string(buffer, PIT_RECOVERY_ENDPOINTS,
+                             recovery_endpoints.c_str(),
+                             recovery_endpoints.length());
 }
 
 void Group_member_info::decode_payload(const unsigned char *buffer,
@@ -395,6 +406,13 @@ void Group_member_info::decode_payload(const unsigned char *buffer,
         if (slider + payload_item_length <= end) {
           purged_gtid_set.assign(reinterpret_cast<const char *>(slider),
                                  static_cast<size_t>(payload_item_length));
+          slider += payload_item_length;
+        }
+        break;
+      case PIT_RECOVERY_ENDPOINTS:
+        if (slider + payload_item_length <= end) {
+          recovery_endpoints.assign(reinterpret_cast<const char *>(slider),
+                                    static_cast<size_t>(payload_item_length));
           slider += payload_item_length;
         }
         break;
@@ -671,6 +689,16 @@ std::string Group_member_info::get_configuration_flags_string(
 bool Group_member_info::comparator_group_member_version(Group_member_info *m1,
                                                         Group_member_info *m2) {
   return m2->has_greater_version(m1);
+}
+
+string Group_member_info::get_recovery_endpoints() {
+  MUTEX_LOCK(lock, &update_lock);
+  return recovery_endpoints;
+}
+
+void Group_member_info::set_recovery_endpoints(const char *endpoints) {
+  MUTEX_LOCK(lock, &update_lock);
+  recovery_endpoints.assign(endpoints);
 }
 
 bool Group_member_info::comparator_group_member_uuid(Group_member_info *m1,

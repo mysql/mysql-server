@@ -359,7 +359,8 @@ inline char *my_strdup_nullable(OptionalString from) {
   include/mysql/group_replication_priv.h
 */
 void get_server_parameters(char **hostname, uint *port, char **uuid,
-                           unsigned int *out_server_version) {
+                           unsigned int *out_server_version,
+                           uint *out_admin_port) {
   /*
     use startup option report-host and report-port when provided,
     as value provided by glob_hostname, which used gethostname() function
@@ -403,6 +404,8 @@ void get_server_parameters(char **hostname, uint *port, char **uuid,
 
   *out_server_version =
       v0 + v1 * 16 + v2 * 256 + v3 * 4096 + v4 * 65536 + v5 * 1048576;
+
+  *out_admin_port = mysqld_admin_port;
 
   return;
 }

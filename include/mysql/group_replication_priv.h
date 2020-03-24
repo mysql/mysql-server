@@ -59,9 +59,10 @@ my_thread_attr_t *get_connection_attrib();
   @param[out] port port
   @param[out] uuid uuid
   @param[out] server_version server version
+  @param[out] admin_port mysqld admin port
 */
 void get_server_parameters(char **hostname, uint *port, char **uuid,
-                           unsigned int *server_version);
+                           unsigned int *server_version, uint *admin_port);
 
 /**
   Returns the server ssl configuration values.

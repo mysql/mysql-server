@@ -1,4 +1,4 @@
-# Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -81,6 +81,7 @@ SET(GROUP_REPLICATION_SOURCES
   src/plugin_observers/channel_observation_manager.cc
   src/plugin_observers/group_event_observer.cc
   src/plugin_observers/group_transaction_observation_manager.cc
+  src/plugin_variables/recovery_endpoints.cc
   src/plugin_psi.cc
   src/plugin_utils.cc
   src/ps_information.cc

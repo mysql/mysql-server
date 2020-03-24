@@ -10845,6 +10845,18 @@ ER_IB_MSG_INVALID_LOCATION_WRONG_DB
 ER_IB_MSG_CANNOT_FIND_DD_UNDO_SPACE
   eng "Cannot find undo tablespace %s with filename '%s' as indicated by the Data Dictionary. Did you move or delete this tablespace? Any undo logs in it cannot be used."
 
+ER_GRP_RPL_RECOVERY_ENDPOINT_FORMAT
+  eng "Invalid input value for recovery socket endpoints '%s'. Please, provide a valid, comma separated, list of endpoints (IP:port)".
+
+ER_GRP_RPL_RECOVERY_ENDPOINT_INVALID
+  eng "The server is not listening on endpoint '%s'. Only endpoints that the server is listening on are valid recovery endpoints."
+
+ER_GRP_RPL_RECOVERY_ENDPOINT_INVALID_DONOR_ENDPOINT
+  eng "Received invalid recovery endpoints configuration from donor. This member is not a valid donor for recovery, so it will be skipped."
+
+ER_GRP_RPL_RECOVERY_ENDPOINT_INTERFACES_IPS
+  eng "Failed to retrieve IP addresses from enabled host network interfaces."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

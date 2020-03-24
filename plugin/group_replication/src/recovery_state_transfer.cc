@@ -30,6 +30,8 @@
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/plugin_psi.h"
 #include "plugin/group_replication/include/plugin_server_include.h"
+#include "plugin/group_replication/include/plugin_variables.h"
+#include "plugin/group_replication/include/plugin_variables/recovery_endpoints.h"
 #include "plugin/group_replication/include/recovery_channel_state_observer.h"
 #include "plugin/group_replication/include/recovery_state_transfer.h"
 
@@ -434,13 +436,25 @@ int Recovery_state_transfer::establish_donor_connection() {
     // increment the number of tries
     donor_connection_retry_count++;
 
-    if ((error = initialize_donor_connection())) {
-      LogPluginErr(ERROR_LEVEL,
-                   ER_GRP_RPL_CONFIG_RECOVERY); /* purecov: inspected */
-    }
+    Donor_recovery_endpoints donor_endpoints;
+    std::vector<std::pair<std::string, uint>> endpoints;
+    endpoints = donor_endpoints.get_endpoints(selected_donor);
 
-    if (!error && !recovery_aborted) {
-      error = start_recovery_donor_threads();
+    for (auto endpoint : endpoints) {
+      auto hostname = endpoint.first;
+      uint port = endpoint.second;
+      if ((error = initialize_donor_connection(hostname, port))) {
+        LogPluginErr(ERROR_LEVEL,
+                     ER_GRP_RPL_CONFIG_RECOVERY); /* purecov: inspected */
+      }
+
+      if (!error && !recovery_aborted) {
+        error = start_recovery_donor_threads();
+      }
+
+      if (!error) {
+        break;
+      }
     }
 
     if (!error) {
@@ -461,7 +475,8 @@ int Recovery_state_transfer::establish_donor_connection() {
   return error;
 }
 
-int Recovery_state_transfer::initialize_donor_connection() {
+int Recovery_state_transfer::initialize_donor_connection(std::string hostname,
+                                                         uint port) {
   DBUG_TRACE;
 
   int error = 0;
@@ -476,26 +491,25 @@ int Recovery_state_transfer::initialize_donor_connection() {
     attached to this object, more precisely to
     selected_donor_hostname class member.
   */
-  selected_donor_hostname.assign(selected_donor->get_hostname());
-  char *hostname = const_cast<char *>(selected_donor_hostname.c_str());
-  uint port = selected_donor->get_port();
+
+  selected_donor_hostname.assign(hostname);
 
   error = donor_connection_interface.initialize_channel(
-      hostname, port, nullptr, nullptr, recovery_use_ssl, recovery_ssl_ca,
-      recovery_ssl_capath, recovery_ssl_cert, recovery_ssl_cipher,
-      recovery_ssl_key, recovery_ssl_crl, recovery_ssl_crlpath,
-      recovery_ssl_verify_server_cert, DEFAULT_THREAD_PRIORITY, 1, false,
-      recovery_public_key_path, recovery_get_public_key,
-      recovery_compression_algorithm, recovery_zstd_compression_level,
-      recovery_tls_version,
+      const_cast<char *>(hostname.c_str()), port, nullptr, nullptr,
+      recovery_use_ssl, recovery_ssl_ca, recovery_ssl_capath, recovery_ssl_cert,
+      recovery_ssl_cipher, recovery_ssl_key, recovery_ssl_crl,
+      recovery_ssl_crlpath, recovery_ssl_verify_server_cert,
+      DEFAULT_THREAD_PRIORITY, 1, false, recovery_public_key_path,
+      recovery_get_public_key, recovery_compression_algorithm,
+      recovery_zstd_compression_level, recovery_tls_version,
       recovery_tls_ciphersuites_null ? nullptr : recovery_tls_ciphersuites);
 
   if (!error) {
     LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_ESTABLISHING_CONN_GRP_REC_DONOR,
-                 selected_donor->get_uuid().c_str(), hostname, port);
+                 selected_donor->get_uuid().c_str(), hostname.c_str(), port);
   } else {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_CREATE_GRP_RPL_REC_CHANNEL,
-                 selected_donor->get_uuid().c_str(), hostname,
+                 selected_donor->get_uuid().c_str(), hostname.c_str(),
                  port); /* purecov: inspected */
   }
 

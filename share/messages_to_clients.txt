@@ -9333,6 +9333,15 @@ ER_GROUP_REPLICATION_PASSWORD_LENGTH
 ER_SUBQUERY_TRANSFORM_REJECTED
   eng "Statement requires a transform of a subquery to a non-SET operation (like IN2EXISTS). This is not allowed with optimizer switch 'subquery_to_derived' on".
 
+ER_DA_GRP_RPL_RECOVERY_ENDPOINT_FORMAT
+  eng "Invalid input value for recovery socket endpoints '%s'. Please, provide a valid, comma separated, list of endpoints (IP:port)".
+
+ER_DA_GRP_RPL_RECOVERY_ENDPOINT_INVALID
+  eng "The server is not listening on endpoint '%s'. Only endpoints that the server is listening on are valid recovery endpoints."
+
+ER_WRONG_VALUE_FOR_VAR_PLUS_ACTIONABLE_PART
+  eng "Variable '%-.64s' cannot be set to the value of '%-.200s'. %-.200s"
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

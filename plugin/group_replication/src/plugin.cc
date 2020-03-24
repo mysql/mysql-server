@@ -38,6 +38,7 @@
 #include "plugin/group_replication/include/pipeline_stats.h"
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/plugin_variables.h"
+#include "plugin/group_replication/include/plugin_variables/recovery_endpoints.h"
 #include "plugin/group_replication/include/services/message_service/message_service.h"
 #include "plugin/group_replication/include/sql_service/sql_service_interface.h"
 #include "plugin/group_replication/include/udf/udf_registration.h"
@@ -116,6 +117,8 @@ Autorejoin_thread *autorejoin_module = nullptr;
 Remote_clone_handler *remote_clone_handler = nullptr;
 /** The thread that handles the message service process */
 Message_service_handler *message_service_handler = nullptr;
+/** Handle validation of advertised recovery endpoints */
+Advertised_recovery_endpoints *advertised_recovery_endpoints = nullptr;
 
 Plugin_gcs_events_handler *events_handler = nullptr;
 Plugin_gcs_view_modification_notifier *view_change_notifier = nullptr;
@@ -126,6 +129,10 @@ Group_member_info *local_member_info = nullptr;
 
 /*Compatibility management*/
 Compatibility_module *compatibility_mgr = nullptr;
+
+/* Runtime error service */
+SERVICE_TYPE_NO_CONST(mysql_runtime_error) *mysql_runtime_error_service =
+    nullptr;
 
 /*
   Internal auxiliary functions signatures.
@@ -467,6 +474,15 @@ int plugin_group_replication_start(char **) {
     goto err;
   }
 
+  if (advertised_recovery_endpoints->check(
+          ov.advertise_recovery_endpoints_var,
+          !server_engine_initialized()
+              ? Advertised_recovery_endpoints::enum_log_context::ON_BOOT
+              : Advertised_recovery_endpoints::enum_log_context::ON_START)) {
+    error = GROUP_REPLICATION_CONFIGURATION_ERROR;
+    goto err;
+  }
+
   LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_IS_STARTING);
 
   DBUG_EXECUTE_IF("register_gms_listener_example",
@@ -706,8 +722,9 @@ int configure_group_member_manager() {
   char *uuid = nullptr;
   uint port = 0U;
   uint server_version = 0U;
+  uint admin_port = 0U;
 
-  get_server_parameters(&hostname, &port, &uuid, &server_version);
+  get_server_parameters(&hostname, &port, &uuid, &server_version, &admin_port);
 
   /*
     Ensure that group communication interfaces are initialized
@@ -764,7 +781,8 @@ int configure_group_member_manager() {
         local_member_plugin_version, ov.gtid_assignment_block_size_var,
         Group_member_info::MEMBER_ROLE_SECONDARY, ov.single_primary_mode_var,
         ov.enforce_update_everywhere_checks_var, ov.member_weight_var,
-        lv.gr_lower_case_table_names, lv.gr_default_table_encryption);
+        lv.gr_lower_case_table_names, lv.gr_default_table_encryption,
+        ov.advertise_recovery_endpoints_var);
   } else {
     local_member_info = new Group_member_info(
         hostname, port, uuid, lv.write_set_extraction_algorithm,
@@ -772,7 +790,8 @@ int configure_group_member_manager() {
         local_member_plugin_version, ov.gtid_assignment_block_size_var,
         Group_member_info::MEMBER_ROLE_SECONDARY, ov.single_primary_mode_var,
         ov.enforce_update_everywhere_checks_var, ov.member_weight_var,
-        lv.gr_lower_case_table_names, lv.gr_default_table_encryption);
+        lv.gr_lower_case_table_names, lv.gr_default_table_encryption,
+        ov.advertise_recovery_endpoints_var);
   }
 
 #ifndef DBUG_OFF
@@ -1562,6 +1581,15 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info) {
 
   if (Charset_service::init(lv.reg_srv)) return 1;
 
+  // Initialize runtime error service.
+  my_h_service h_mysql_runtime_error_service = nullptr;
+  if (lv.reg_srv->acquire("mysql_runtime_error",
+                          &h_mysql_runtime_error_service))
+    return 1; /* purecov: inspected */
+  mysql_runtime_error_service =
+      reinterpret_cast<SERVICE_TYPE_NO_CONST(mysql_runtime_error) *>(
+          h_mysql_runtime_error_service);
+
 // Register all PSI keys at the time plugin init
 #ifdef HAVE_PSI_INTERFACE
   register_all_group_replication_psi_keys();
@@ -1591,6 +1619,7 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info) {
   transactions_latch = new Wait_ticket<my_thread_id>();
   transaction_consistency_manager = new Transaction_consistency_manager();
   hold_transactions = new Hold_transactions();
+  advertised_recovery_endpoints = new Advertised_recovery_endpoints();
 
   lv.plugin_info_ptr = plugin_info;
 
@@ -1771,6 +1800,7 @@ int plugin_group_replication_deinit(void *p) {
   unregister_udfs();
   sql_service_interface_deinit();
 
+  if (advertised_recovery_endpoints) delete advertised_recovery_endpoints;
   if (hold_transactions) delete hold_transactions;
   delete transaction_consistency_manager;
   transaction_consistency_manager = nullptr;
@@ -1790,6 +1820,12 @@ int plugin_group_replication_deinit(void *p) {
   lv.online_wait_mutex = nullptr;
 
   lv.plugin_info_ptr = nullptr;
+
+  // Deinitialize runtime error service.
+  my_h_service h_mysql_runtime_error_service =
+      reinterpret_cast<my_h_service>(mysql_runtime_error_service);
+  lv.reg_srv->release(h_mysql_runtime_error_service);
+  mysql_runtime_error_service = nullptr;
 
   Charset_service::deinit(lv.reg_srv);
 
@@ -4334,6 +4370,53 @@ static MYSQL_SYSVAR_UINT(
     0                                       /* block */
 );
 
+static int check_advertise_recovery_endpoints(MYSQL_THD thd, SYS_VAR *,
+                                              void *save,
+                                              struct st_mysql_value *value) {
+  DBUG_TRACE;
+
+  if (plugin_running_mutex_trylock()) return 1;
+
+  char buff[STRING_BUFFER_USUAL_SIZE];
+  const char *str = nullptr;
+
+  *static_cast<const char **>(save) = nullptr;
+
+  int length = sizeof(buff);
+  if ((str = value->val_str(value, buff, &length)))
+    str = thd->strmake(str, length);
+  else {
+    mysql_mutex_unlock(&lv.plugin_running_mutex); /* purecov: inspected */
+    return 1;                                     /* purecov: inspected */
+  }
+
+  if (str) {
+    if (advertised_recovery_endpoints->check(
+            str, Advertised_recovery_endpoints::enum_log_context::ON_SET)) {
+      mysql_mutex_unlock(&lv.plugin_running_mutex);
+      return 1;
+    }
+  }
+  if (local_member_info != nullptr) {
+    local_member_info->set_recovery_endpoints(str);
+  }
+  *static_cast<const char **>(save) = str;
+
+  mysql_mutex_unlock(&lv.plugin_running_mutex);
+  return 0;
+}
+
+static MYSQL_SYSVAR_STR(
+    advertise_recovery_endpoints,        /* name */
+    ov.advertise_recovery_endpoints_var, /* var */
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC |
+        PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var | malloc string */
+    "Recovery list of endpoints for joiner connection",
+    check_advertise_recovery_endpoints, /* check func */
+    nullptr,                            /* update func */
+    "DEFAULT"                           /* default */
+);
+
 static SYS_VAR *group_replication_system_vars[] = {
     MYSQL_SYSVAR(group_name),
     MYSQL_SYSVAR(start_on_boot),
@@ -4389,6 +4472,7 @@ static SYS_VAR *group_replication_system_vars[] = {
     MYSQL_SYSVAR(clone_threshold),
     MYSQL_SYSVAR(recovery_tls_version),
     MYSQL_SYSVAR(recovery_tls_ciphersuites),
+    MYSQL_SYSVAR(advertise_recovery_endpoints),
     nullptr,
 };
 

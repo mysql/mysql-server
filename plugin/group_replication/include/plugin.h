@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 #ifndef PLUGIN_INCLUDE
 #define PLUGIN_INCLUDE
 
+#include <mysql/components/services/mysql_runtime_error_service.h>
 #include <mysql/plugin.h>
 #include <mysql/plugin_group_replication.h>
 
@@ -157,6 +158,7 @@ extern Remote_clone_handler *remote_clone_handler;
 // Latch used as the control point of the event driven
 // management of the transactions.
 extern Wait_ticket<my_thread_id> *transactions_latch;
+extern SERVICE_TYPE_NO_CONST(mysql_runtime_error) * mysql_runtime_error_service;
 
 // Plugin global methods
 bool server_engine_initialized();

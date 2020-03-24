@@ -580,10 +580,10 @@ int validate_plugin_server_requirements(Trans_param *param) {
   my_thread_attr_t *thread_attr = get_connection_attrib();
 
   char *hostname, *uuid;
-  uint port;
+  uint port, admin_port;
   unsigned int server_version;
 
-  get_server_parameters(&hostname, &port, &uuid, &server_version);
+  get_server_parameters(&hostname, &port, &uuid, &server_version, &admin_port);
 
   Trans_context_info startup_pre_reqs;
   get_server_startup_prerequirements(startup_pre_reqs, false);

@@ -264,6 +264,8 @@ struct plugin_options_variables {
   int flow_control_release_percent_var;
 
   ulonglong clone_threshold_var;
+
+  char *advertise_recovery_endpoints_var;
 };
 
 #endif /* PLUGIN_VARIABLES_INCLUDE */

@@ -1,0 +1,1 @@
+--log_error=$MYSQLTEST_VARDIR/tmp/gr_recovery_endpoints_no_fallback.2.err

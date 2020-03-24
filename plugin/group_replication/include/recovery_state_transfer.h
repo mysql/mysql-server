@@ -319,11 +319,14 @@ class Recovery_state_transfer {
     Initializes the structures for the donor connection threads.
     Recovery channel is always purged.
 
+    @param hostname hostname of current selected donor
+    @param port port of current selected donor
+
     @return the operation status
       @retval 0      OK
       @retval !=0    Error
   */
-  int initialize_donor_connection();
+  int initialize_donor_connection(std::string hostname, uint port);
 
   /**
     Initializes the connection parameters for the donor connection.
