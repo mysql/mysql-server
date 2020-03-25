@@ -515,6 +515,242 @@ The documentation is based on the source files such as:
   - @subpage PAGE_LOCK_ORDER
 */
 
+/**
+  @page PAGE_CODE_PATHS Code paths
+
+  This section details how the server executes some statements,
+  to illustrate how different parts work together.
+
+  Note that this overall view might take some shortcuts,
+  hiding some details or taking liberties with the notations,
+  to present the whole code structure in a comprehensible way.
+
+  - @subpage CODE_PATH_CREATE_TABLE
+*/
+
+/**
+  @page CODE_PATH_CREATE_TABLE CREATE TABLE
+
+  @section CREATE_TABLE_PARSER Parser
+
+  @startuml
+
+  actor ddl as "CREATE TABLE Query"
+  participant server as "MySQL Server"
+  participant parser as "SQL Parser"
+  participant bison as "Bison Parser"
+  participant lexer as "Lexical Scanner"
+  participant pt as "Parse Tree Nodes"
+
+  ddl -> server : DDL QUERY TEXT
+  server -> parser : THD::sql_parser()
+  == Bison parser ==
+  parser -> bison : MYSQLparse()
+  bison -> lexer : MYSQLlex()
+  bison <-- lexer : yylval, yylloc
+  bison -> pt : new
+  activate pt
+  parser <-- pt : Abstract Syntax Tree
+
+  @enduml
+
+  When a query is sent to the server,
+  the first step is to invoke the bison parser
+  to build an Abstract Syntax Tree to represent the query text.
+
+  Assume the following statement:
+  @verbatim
+  CREATE TABLE test.t1 (a int) ENGINE = "INNODB";
+  @endverbatim
+
+  In the bison grammar file, the rule implementing the CREATE TABLE
+  statement is @c create_table_stmt.
+
+  The tree created is an object of class @ref PT_create_table_stmt.
+
+  This parse tree node has several related nodes, such as:
+  - @ref PT_create_table_option and sub classes, for table options.
+  - @ref PT_table_element and sub classes, for the columns, indexes, etc.
+
+  The collection of nodes returned after the bison parsing is known
+  as the "Abstract Syntax Tree" that represents a SQL query.
+
+  @section CREATE_TABLE_CMD Sql command
+
+  @startuml
+
+  actor ddl as "CREATE TABLE Query"
+  participant server as "MySQL Server"
+  participant parser as "SQL Parser"
+  participant ast as "Abstract Syntax Tree"
+  participant cmd as "SQL Command"
+  participant ci as "HA_CREATE_INFO"
+  participant plugin as "MySQL plugin"
+
+  ddl -> server : DDL QUERY TEXT
+  server -> parser : THD::sql_parser()
+  == Bison parser ==
+  == Build SQL command ==
+  parser -> ast : make_cmd()
+  ast -> ast : contextualize()
+  ast -> ci : build()
+  activate ci
+  ci -> plugin : ha_resolve_engine()
+  ci <-- plugin : storage engine handlerton
+  ast <-- ci : Parse Tree (contextualized)
+  ast -> cmd : build()
+  activate cmd
+  server <-- cmd : SQL Command
+
+  @enduml
+
+  Once the bison parser has finished parsing a query text,
+  the next step is to build a SQL command from the Abstract Syntax Tree.
+
+  In the Abstract Syntax Tree, attributes like a storage engine name
+  ("INNODB") are represented as strings, taken from the query text.
+
+  These attributes need to be converted to objects in the SQL context,
+  such as an @ref innodb_hton pointer to represent the INNODB storage engine.
+
+  The process that performs these transformations is contextualize().
+
+  The @ref Parse_tree_root class is an abstract factory, building @ref Sql_cmd
+  objects.
+
+  For a CREATE TABLE statement, class @ref PT_create_table_stmt builds a
+  concrete @ref Sql_cmd_create_table object.
+
+  @ref PT_create_table_stmt::make_cmd() in particular performs the following
+  actions:
+  - contextualize the parse tree for the CREATE TABLE statement.
+  - build a @ref HA_CREATE_INFO structure to represent the table DDL.
+  - resolve the storage engine name to an actual @ref handlerton pointer,
+    in @ref PT_create_table_engine_option::contextualize()
+
+  @section CREATE_TABLE_RUNTIME Runtime execution
+
+  @startuml
+
+  actor ddl as "CREATE TABLE Query"
+  participant server as "MySQL Server"
+  participant cmd as "SQL Command"
+  participant rt as "Runtime"
+
+  ddl -> server : DDL QUERY TEXT
+  == Bison parser ==
+  == Build SQL command ==
+  == Execute SQL command ==
+  server -> cmd : execute()
+  cmd -> rt : mysql_create_table()
+
+  @enduml
+
+  Execution of a CREATE TABLE statement invokes
+  @ref Sql_cmd_create_table::execute(),
+  which in turns calls:
+  - @ref mysql_create_table(),
+  - @ref mysql_create_table_no_lock(),
+  - @ref create_table_impl(),
+  - @ref rea_create_base_table().
+
+  Execution of this code is the runtime implementation of the CREATE TABLE
+  statement, and eventually leads to:
+  - @ref dd::create_table(), to create the table in the Data Dictionary,
+  - @ref ha_create_table(), to create the table in the handlerton.
+
+  Details about the dictionary and the storage engine are expanded
+  in the following two sections.
+
+
+  @section CREATE_TABLE_DD Data Dictionary
+
+  @startuml
+
+  actor ddl as "CREATE TABLE Query"
+  participant server as "MySQL Server"
+  participant rt as "Runtime"
+  participant dd as "Data Dictionary"
+  participant ddt as "Data Dictionary Table"
+  participant sdi as "Serialized Dictionary Information"
+  participant hton as "Handlerton"
+  participant se as "Storage Engine"
+  participant ts as "Tablespace"
+
+  ddl -> server : DDL QUERY TEXT
+  == ... ==
+  server -> rt : ( execution code path )
+  == Data Dictionary ==
+  rt -> dd : dd::create_table()
+  dd -> ddt : build dd::Table()
+  activate ddt
+  rt <-- ddt : dd:Table instance
+  == Serialized Dictionary Information ==
+  rt -> dd : store()
+  dd -> sdi : dd::sdi::store()
+  sdi -> sdi : sdi_tablespace::store_tbl_sdi()
+  == Storage Engine (Tablespace) ==
+  sdi -> hton : handlerton::sdi()
+  hton -> se : ::sdi() implementation.
+  se -> ts : write metadata in tablespace
+
+  @enduml
+
+  In the data dictionary, creation of a new table calls:
+  - @ref dd::create_dd_user_table()
+  - @ref fill_dd_table_from_create_info()
+
+  The data dictionary code parses the content of the HA_CREATE_INFO
+  input, and builds a @ref dd::Table object, to represent the table metadata.
+  Part of this metadata includes the storage engine name.
+
+  The runtime code then calls @c store() to save this new metadata.
+
+  To store a table metadata, the data dictionary code first serialize it
+  into an sdi format.
+
+  The serialized object is then stored in persistence,
+  either in a tablespace or in a file:
+  - @ref sdi_tablespace::store_tbl_sdi()
+  - @ref sfi_file::store_tbl_sdi()
+
+  When storing data into a tablespace, the storage engine handlerton is
+  invoked, so that the storage engine can ultimately store
+  the table metadata in the tablespace maintained by the storage engine.
+
+  @section CREATE_TABLE_SE Storage Engine
+
+  @startuml
+
+  actor ddl as "CREATE TABLE Query"
+  participant server as "MySQL Server"
+  participant rt as "Runtime"
+  participant sei as "Storage Engine Interface"
+  participant hton as "Storage Engine Handlerton"
+  participant handler as "Storage Engine Handler"
+
+  ddl -> server : DDL QUERY TEXT
+  == ... ==
+  server -> rt : ( execution code path )
+  == Storage Engine (table) ==
+  rt -> sei : ha_create_table()
+  sei -> hton : handlerton::create()
+  hton -> handler : (build a new table handler)
+  activate handler
+  sei <-- handler : storage engine table handler
+  sei -> handler : handler::create()
+
+  @enduml
+
+  When execution of the CREATE TABLE statement
+  reaches the storage engine interface,
+  the SQL layer function @ref ha_create_table()
+  invokes the storage engine @ref handlerton::create()
+  method to instantiate a new storage engine table,
+  represented by @ref handler.
+  The SQL layer then calls @ref handler::create() to create
+  the table inside the storage engine.
+*/
 
 /**
   @page PAGE_SQL_Optimizer SQL Optimizer
