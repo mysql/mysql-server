@@ -10215,68 +10215,69 @@ byte *fil_tablespace_redo_rename(byte *ptr, const byte *end,
 
   /* Read and check the RENAME FROM_NAME. */
   ulint from_len = mach_read_from_2(ptr);
-
   ptr += 2;
-
-  /* Do we have the full/valid from and to file names. */
-  if (end < ptr + from_len || from_len < 5) {
-    if (from_len < 5) {
-      char name[6];
-
-      snprintf(name, sizeof(name), "%.*s", (int)from_len, ptr);
-
-      ib::info(ER_IB_MSG_357) << "MLOG_FILE_RENAME: Invalid from file name."
-                              << " Length (" << from_len << ") must be >= 5"
-                              << " and end in '.ibd'. File name in the"
-                              << " redo log is '" << name << "'";
-    }
-
-    return (nullptr);
-  }
-
   char *from_name = reinterpret_cast<char *>(ptr);
 
-  Fil_path::normalize(from_name);
+  /* Check if the 'from' file name is valid. */
+  if (end < ptr + from_len) {
+    return (nullptr);
+  }
 
-  auto abs_from_name = Fil_path::get_real_path(from_name);
+  std::string whats_wrong;
+  constexpr char more_than_five[] = "The length must be >= 5.";
+  constexpr char end_with_ibd[] = "The file suffix must be '.ibd'.";
+  if (from_len < 5) {
+    recv_sys->found_corrupt_log = true;
+    whats_wrong.assign(more_than_five);
+  } else {
+    std::string name{from_name};
+
+    if (!Fil_path::has_suffix(IBD, name)) {
+      recv_sys->found_corrupt_log = true;
+      whats_wrong.assign(end_with_ibd);
+    }
+  }
+
+  if (recv_sys->found_corrupt_log) {
+    ib::info(ER_IB_MSG_357) << "MLOG_FILE_RENAME: Invalid {from} file name: '"
+                            << from_name << "'. " << whats_wrong;
+
+    return (nullptr);
+  }
 
   ptr += from_len;
-
-  if (!Fil_path::has_suffix(IBD, abs_from_name)) {
-    ib::error(ER_IB_MSG_358)
-        << "MLOG_FILE_RENAME: From file name doesn't end in"
-        << " .ibd. File name in the redo log is '" << from_name << "'";
-
-    recv_sys->found_corrupt_log = true;
-
-    return (nullptr);
-  }
+  Fil_path::normalize(from_name);
 
   /* Read and check the RENAME TO_NAME. */
-
   ulint to_len = mach_read_from_2(ptr);
-
   ptr += 2;
+  char *to_name = reinterpret_cast<char *>(ptr);
 
-  if (end < ptr + to_len || to_len < 5) {
-    if (to_len < 5) {
-      char name[6];
+  /* Check if the 'to' file name is valid. */
+  if (end < ptr + to_len) {
+    return (nullptr);
+  }
 
-      snprintf(name, sizeof(name), "%.*s", (int)to_len, ptr);
+  if (to_len < 5) {
+    recv_sys->found_corrupt_log = true;
+    whats_wrong.assign(more_than_five);
+  } else {
+    std::string name{to_name};
 
-      ib::info(ER_IB_MSG_359) << "MLOG_FILE_RENAME: Invalid to file name."
-                              << " Length (" << to_len << ") must be >= 5"
-                              << " and end in '.ibd'. File name in the"
-                              << " redo log is '" << name << "'";
+    if (!Fil_path::has_suffix(IBD, name)) {
+      recv_sys->found_corrupt_log = true;
+      whats_wrong.assign(end_with_ibd);
     }
+  }
+
+  if (recv_sys->found_corrupt_log) {
+    ib::info(ER_IB_MSG_357) << "MLOG_FILE_RENAME: Invalid {to} file name: '"
+                            << to_name << "'. " << whats_wrong;
 
     return (nullptr);
   }
 
-  char *to_name = reinterpret_cast<char *>(ptr);
-
   ptr += to_len;
-
   Fil_path::normalize(to_name);
 
 #ifdef UNIV_HOTBACKUP
@@ -10285,14 +10286,12 @@ byte *fil_tablespace_redo_rename(byte *ptr, const byte *end,
     meb_tablespace_redo_rename(page_id, from_name, to_name);
   }
 
-#else  /* !UNIV_HOTBACKUP */
+#else /* !UNIV_HOTBACKUP */
 
   /* Update filename with correct partition case, if needed. */
   std::string to_name_str(to_name);
   std::string space_name;
   fil_update_partition_name(page_id.space(), 0, false, space_name, to_name_str);
-
-  auto abs_to_name = Fil_path::get_real_path(to_name_str);
 
   if (from_len == to_len && strncmp(to_name, from_name, to_len) == 0) {
     ib::error(ER_IB_MSG_360)
@@ -10304,15 +10303,6 @@ byte *fil_tablespace_redo_rename(byte *ptr, const byte *end,
     return (nullptr);
   }
 
-  if (!Fil_path::has_suffix(IBD, abs_to_name)) {
-    ib::error(ER_IB_MSG_361)
-        << "MLOG_FILE_RENAME: To file name doesn't end in"
-        << " .ibd. File name in the redo log is '" << to_name << "'";
-
-    recv_sys->found_corrupt_log = true;
-
-    return (nullptr);
-  }
 #endif /* UNIV_HOTBACKUP */
 
   return (ptr);
@@ -10403,10 +10393,6 @@ byte *fil_tablespace_redo_delete(byte *ptr, const byte *end,
   std::string name_str(name);
   std::string space_name;
   fil_update_partition_name(page_id.space(), 0, false, space_name, name_str);
-
-  auto abs_name = Fil_path::get_real_path(name_str);
-
-  ut_ad(!Fil_path::is_separator(abs_name.back()));
 
   fil_space_free(page_id.space(), false);
 
