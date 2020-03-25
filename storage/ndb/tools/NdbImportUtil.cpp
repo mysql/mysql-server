@@ -509,7 +509,6 @@ NdbImportUtil::Attr::Attr()
   m_length = 0;
   m_charlength = 0;
   m_arraytype = NdbDictionary::Column::ArrayTypeFixed;
-  m_autoIncrement = false;
   m_inlinesize = 0;
   m_partsize = 0;
   m_blobtable = 0;
@@ -781,7 +780,7 @@ NdbImportUtil::Table::Table()
   m_rec = 0;
   m_keyrec = NULL;
   m_recsize = 0;
-  m_autoIncAttrId = Inval_uint;
+  m_has_hidden_pk = false;
 }
 
 void
@@ -911,16 +910,6 @@ NdbImportUtil::add_table(NdbDictionary::Dictionary* dic,
     table.m_recsize = NdbDictionary::getRecordRowLength(rec);
     Attrs& attrs = table.m_attrs;
     const uint attrcnt = tab->getNoOfColumns();
-    const uint autoinc_cnt = tab->getNoOfAutoIncrementColumns();
-    if (autoinc_cnt > 1)
-    {
-      set_error_usage(error, __LINE__,
-                      "Table %s: "
-                      "has %u auto inc columns. "
-                      "Allowed max number of auto inc columns is 1",
-                      tab->getName(), autoinc_cnt);
-      return -1;
-    }
     attrs.reserve(attrcnt);
     bool ok = true;
     Uint32 recAttrId;
@@ -944,27 +933,6 @@ NdbImportUtil::add_table(NdbDictionary::Dictionary* dic,
       attr.m_scale = col->getScale();
       attr.m_length = col->getLength();
       attr.m_arraytype = col->getArrayType();
-
-      attr.m_autoIncrement = col->getAutoIncrement();
-      if (attr.m_autoIncrement && table.m_autoIncAttrId != Inval_uint &&
-          table.m_autoIncAttrId != i)
-      {
-        set_error_usage(error, __LINE__,
-                        "Table %s : "
-                        "has already atrr %u as auto inc column. "
-                        "Attrib %u cannot be an auto inc col. "
-                        "Allowed max number of auto inc columns is 1",
-                        tab->getName(), table.m_autoIncAttrId, i);
-        return -1;
-      }
-      if (attr.m_autoIncrement && table.m_autoIncAttrId == Inval_uint)
-      {
-        table.m_autoIncAttrId = i;
-      }
-      if (attr.m_nullable && attr.m_autoIncrement)
-      {
-        attr.m_nullable = false;
-      }
       require(attr.m_arraytype <= 2);
       attr.m_size = col->getSizeInBytes();
       switch (attr.m_type) {
@@ -1057,14 +1025,20 @@ NdbImportUtil::add_table(NdbDictionary::Dictionary* dic,
         spec.nullbit_bit_in_byte = attr.m_null_bit;
         nkey++;
         // guess hidden pk
-        if (strcmp(attr.m_attrname.c_str(), "$PK") == 0 &&
-            !attr.m_autoIncrement)
+        if (strcmp(attr.m_attrname.c_str(), "$PK") == 0)
         {
-          set_error_usage(error, __LINE__,
-                          "column %u: "
-                          "invalid use of reserved column name $PK", i);
-          ok = false;
-          break;
+          if (i + 1 == attrcnt &&
+              nkey == 1 &&
+              attr.m_type == NdbDictionary::Column::Bigunsigned)
+            table.m_has_hidden_pk = true;
+          else
+          {
+            set_error_usage(error, __LINE__,
+                            "column %u: "
+                            "invalid use of reserved column name $PK", i);
+            ok = false;
+            break;
+          }
         }
       }
     }
@@ -3247,76 +3221,6 @@ NdbImportUtil::fmt_msec_to_hhmmss(char* str, uint64 msec)
   uint ff = msec - sec * 1000;
   (void)ff;
   sprintf(str, "%uh%um%us", hh, mm, ss);
-}
-
-int
-NdbImportUtil::int_val_ok(NdbDictionary::Column::Type type,
-                          Uint64 val, Error& error)
-{
-  Uint64 maxval = 0;
-  switch (type)
-  {
-  case NdbDictionary::Column::Tinyint:
-    {
-      maxval = 127;
-    }
-    break;
-  case NdbDictionary::Column::Tinyunsigned:
-    {
-      maxval = 255;
-    }
-    break;
-  case NdbDictionary::Column::Smallint:
-    {
-      maxval = 32767;
-    }
-    break;
-  case NdbDictionary::Column::Smallunsigned:
-    {
-      maxval = 65535;
-    }
-    break;
-  case NdbDictionary::Column::Mediumint:
-    {
-      maxval = 8388607;
-    }
-    break;
-  case NdbDictionary::Column::Mediumunsigned:
-    {
-      maxval = 16777215;
-    }
-    break;
-  case NdbDictionary::Column::Int:
-    {
-      const Int32 i32val = (Inval_uint32 >> 1);
-      maxval = i32val;
-    }
-    break;
-  case NdbDictionary::Column::Unsigned:
-    {
-      maxval = Inval_uint32;
-    }
-    break;
-  case NdbDictionary::Column::Bigint:
-    {
-      const Int64 i64val = (Inval_uint64 >> 1);
-      maxval = i64val;
-    }
-    break;
-  case NdbDictionary::Column::Bigunsigned:
-    {
-      maxval = Inval_uint64;
-    }
-    break;
-  default:
-    return -2;
-  }
-
-  if (val > maxval)
-  {
-    return -1;
-  }
-  return 0;
 }
 
 // unittest

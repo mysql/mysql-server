@@ -765,8 +765,6 @@ public:
     virtual void state_send();
     virtual void state_poll();
     void asynch_callback(Tx* tx);
-    void set_auto_inc_val(const Attr& attr, Row *row,
-                          Uint64 val, Error& error);
   };
 
   // diag team

@@ -1,9 +1,5 @@
 /*
-<<<<<<< HEAD
-   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
-=======
    Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
->>>>>>> mysql-5.7-cluster-7.6
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1094,10 +1090,8 @@ NdbImportCsv::Eval::eval_line(Row* row, Line* line)
   row->m_startpos = m_input.m_startpos + line->m_pos;
   row->m_endpos = m_input.m_startpos + line->m_end;
   uint fieldcnt = line->m_field_list.cnt();
-  const uint auto_inc_field_id = (uint)table.m_autoIncAttrId;
-  const uint expect_attrcnt = (auto_inc_field_id == attrcnt - 1) ?
-    attrcnt - 1 : attrcnt;
-
+  const uint has_hidden_pk = (uint)table.m_has_hidden_pk;
+  const uint expect_attrcnt = attrcnt - has_hidden_pk;
   Error error;  // local error
   do
   {
@@ -1139,26 +1133,28 @@ NdbImportCsv::Eval::eval_line(Row* row, Line* line)
       break;
     require(field != 0);
     require(field->m_fieldno == n);
-    if (auto_inc_field_id != n)
-    {
-      if (!field->m_null)
-      {
-        eval_field(row, line, field);
-      }
-      else
-      {
-        eval_null(row, line, field);
-      }
-    }
+    if (!field->m_null)
+      eval_field(row, line, field);
     else
-    {
-      eval_auto_inc_field(row, line, field);
-    }
+      eval_null(row, line, field);
     field = field->next();
   }
   if (!line->m_reject)
   {
     require(field == 0);
+  }
+  if (has_hidden_pk)
+  {
+    /*
+     * CSV has no access to Ndb (in fact there may not be any Ndb
+     * object e.g. in CSV input -> CSV output).  Any autoincrement
+     * value for hidden pk is set later in RelayOpWorker.  Fill in
+     * some dummy value to not leave uninitialized data.
+     */
+    const Attr& attr = attrs[attrcnt - 1];
+    require(attr.m_type == NdbDictionary::Column::Bigunsigned);
+    uint64 val = Inval_uint64;
+    attr.set_value(row, &val, 8);
   }
   if (!line->m_reject)
     m_input.m_rows.push_back(row);
@@ -1812,103 +1808,6 @@ ndb_import_csv_parse_timestamp2(const NdbImportCsv::Attr& attr,
   s.second = mktime(&tm);
   s.fraction = s2.fraction;
   return true;
-}
-
-void
-NdbImportCsv::Eval::eval_auto_inc_field(Row* row, Line* line, Field* field)
-{
-  const Table& table = m_input.m_table;
-  const Attrs& attrs = table.m_attrs;
-  // internal counts file lines and fields from 0
-  const uint64 lineno = m_input.m_startlineno + line->m_lineno;
-  const uint fieldno = field->m_fieldno;
-  // user wants the counts from 1
-  const uint64 linenr = 1 + lineno;
-  const uint fieldnr = 1 + fieldno;
-  const Attr& attr = attrs[fieldno];
-
-  Error error; // Local error
-  /*
-   * CSV has no access to Ndb (in fact there may not be any Ndb
-   * object e.g. in CSV input -> CSV output).  Any autoincrement
-   * value for hidden pk is set later in RelayOpWorker.  Fill in
-   * some dummy value to not leave uninitialized data.
-   */
-
-  switch (attr.m_type) {
-  case NdbDictionary::Column::Tinyint:
-    {
-      const uint8 byteval = +127;
-      attr.set_value(row, &byteval, 1);
-    }
-    break;
-  case NdbDictionary::Column::Tinyunsigned:
-    {
-      const uint byteval = 255;
-      attr.set_value(row, &byteval, 1);
-    }
-    break;
-  case NdbDictionary::Column::Smallint:
-    {
-      const uint16 shortval = +32767;
-      attr.set_value(row, &shortval, 2);
-    }
-    break;
-  case NdbDictionary::Column::Smallunsigned:
-    {
-      const uint16 shortval = 65535;
-      attr.set_value(row, &shortval, 2);
-    }
-    break;
-  case NdbDictionary::Column::Mediumint:
-    {
-      const int mediumval = +8388607;
-      uchar val3[3];
-      int3store(val3, (uint)mediumval);
-      attr.set_value(row, val3, 3);
-    }
-    break;
-  case NdbDictionary::Column::Mediumunsigned:
-    {
-      const uint mediumval = 16777215;
-      uchar val3[3];
-      int3store(val3, mediumval);
-      attr.set_value(row, val3, 3);
-    }
-    break;
-  case NdbDictionary::Column::Int:
-    {
-      const Int32 i32val = (Inval_uint32 >> 1);
-      attr.set_value(row, &i32val, 4);
-    }
-    break;
-  case NdbDictionary::Column::Unsigned:
-    {
-      const uint32 ui32val = Inval_uint32;
-      attr.set_value(row, &ui32val, 4);
-    }
-    break;
-  case NdbDictionary::Column::Bigint:
-    {
-      const Int64 i64val = (Inval_uint64 >> 1);
-      attr.set_value(row, &i64val, 8);
-    }
-    break;
-  case NdbDictionary::Column::Bigunsigned:
-    {
-      const uint64 ui64val = Inval_uint64;
-      attr.set_value(row, &ui64val, 8);
-    }
-    break;
-  default:
-    m_util.set_error_data(
-                          error, __LINE__, 0,
-                          "line %" PRIu64 "field %u: eval_auto_inc_field %s:"
-                          " failed : bad type",
-                          linenr, fieldnr, attr.m_sqltype);
-
-    break;
-  }
 }
 
 void
