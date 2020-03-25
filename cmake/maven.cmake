@@ -35,6 +35,7 @@ ELSEIF (DEFINED ENV{MAVEN_HOME})
 ELSE()
   FIND_PROGRAM(MAVEN_EXECUTABLE
     mvn
+    PATHS /usr/global/java/maven
     )
 ENDIF()
 
