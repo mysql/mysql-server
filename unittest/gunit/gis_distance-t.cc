@@ -468,7 +468,7 @@ TEST(DistanceTest, Geographic_Multipolygon_polygon) {
       TestDistanceGeographic(geographic_polygon2, geographic_multipolygon1));
 }
 
-TEST(DistanceTest, DISABLED_Geographic_Multipolygon_MultiPoint) {
+TEST(DistanceTest, Geographic_Multipolygon_MultiPoint) {
   gis::Geographic_multipolygon geographic_multipolygon;
   gis::Geographic_polygon geographic_polygon1 =
       MakePolygon({{0, 0, 1, 0, 0, 1, 0, 0},
