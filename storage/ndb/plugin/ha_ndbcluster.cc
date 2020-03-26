@@ -6376,6 +6376,8 @@ int ha_ndbcluster::close_scan() {
     m_active_query = NULL;
   }
 
+  m_cond.cond_close();
+
   NdbScanOperation *cursor = m_active_cursor;
   if (!cursor) {
     cursor = m_multi_cursor;
@@ -14149,6 +14151,21 @@ int ha_ndbcluster::create_pushed_join(const NdbQueryParamValue *keyFieldParams,
   DBUG_TRACE;
   DBUG_ASSERT(m_pushed_join_member && m_pushed_join_operation == PUSHED_ROOT);
 
+  /**
+   * Generate the pushed condition code, keep it in 'm_cond' for later fetch.
+   * Note that pushed condition may refer subqueries, which will now be
+   * executed in order to include their result row(s) in the pushed condition
+   * code. As a subquery execute will also send any other query requests we
+   * may have queued up for this NdbTransaction, we need to perform this step
+   * before we 'make_query_instance' below - Else that query would have been
+   * executed now as well.
+   */
+  for (uint i = 0; i < m_pushed_join_member->get_operation_count(); i++) {
+    const TABLE *const tab = m_pushed_join_member->get_table(i);
+    ha_ndbcluster *handler = static_cast<ha_ndbcluster *>(tab->file);
+    handler->m_cond.build_cond_push();
+  }
+
   NdbQuery *const query = m_pushed_join_member->make_query_instance(
       m_thd_ndb->trans, keyFieldParams, paramCnt);
 
@@ -14165,7 +14182,7 @@ int ha_ndbcluster::create_pushed_join(const NdbQueryParamValue *keyFieldParams,
     handler->get_read_set(false, handler->active_index);
 
     /**
-     * Generate the 'pushed condition' code:
+     * Fetch the generated (above) 'pushed condition' code:
      *
      * Note that for lookup_operations there is a hard limit on ~32K
      * on the size of the unfragmented sendSignal() used to send the
@@ -14186,22 +14203,19 @@ int ha_ndbcluster::create_pushed_join(const NdbQueryParamValue *keyFieldParams,
      *
      * So we allow only 'small' filters (64 words) to be pushed for EQ_REF's.
      */
-    if (handler->pushed_cond) {
-      NdbInterpretedCode code(handler->m_table);
-      handler->generate_scan_filter(&code, NULL);
-      const uint codeSize = code.getWordsUsed();
-      if (code.getNdbError().code == 0) {
-        const NdbQueryOperationDef::Type type =
-            op->getQueryOperationDef().getType();
-        const bool isLookup = (type == NdbQueryOperationDef::PrimaryKeyAccess ||
-                               type == NdbQueryOperationDef::UniqueIndexAccess);
-        if (isLookup && codeSize >= 64) {
-          // Too large, not pushed. Let ha_ndbcluster evaluate the condition
-          handler->m_cond.set_condition(handler->pushed_cond);
-        } else if (op->setInterpretedCode(code)) {
-          // Failed to set generated code, let ha_ndbcluster evaluate
-          handler->m_cond.set_condition(handler->pushed_cond);
-        }
+    const NdbInterpretedCode &code = handler->m_cond.get_interpreter_code();
+    const uint codeSize = code.getWordsUsed();
+    if (codeSize > 0) {
+      const NdbQueryOperationDef::Type type =
+          op->getQueryOperationDef().getType();
+      const bool isLookup = (type == NdbQueryOperationDef::PrimaryKeyAccess ||
+                             type == NdbQueryOperationDef::UniqueIndexAccess);
+      if (isLookup && codeSize >= 64) {
+        // Too large, not pushed. Let ha_ndbcluster evaluate the condition
+        handler->m_cond.set_condition(handler->pushed_cond);
+      } else if (op->setInterpretedCode(code)) {
+        // Failed to set generated code, let ha_ndbcluster evaluate
+        handler->m_cond.set_condition(handler->pushed_cond);
       }
     }
 
