@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -274,10 +274,11 @@ TEST_F(LoggingLowLevelTest, test_logger_update) {
 TEST(FunctionalTest, ThisMustRunAsFirst) { init_test_logger(); }
 
 TEST(FunctionalTest, LogFromUnregisteredModule) {
-  // Test a scenario when no domain logger has been added yet. Logging should
-  // fall back to using application ("main") logger, which is always added by
-  // the application (init_log() in main(), in our case), albeit with an extra
-  // error message preceding it.
+  // Test a scenario when no domain logger has been added yet.
+  //
+  // Logging should fall back to using application ("main") logger's
+  // configuration, which is always added by the application (init_log() in
+  // main(), in our case), but use the "log domain"
 
   std::stringstream buffer;
   auto handler = std::make_shared<StreamHandler>(buffer);
@@ -287,19 +288,14 @@ TEST(FunctionalTest, LogFromUnregisteredModule) {
   log_info("Test message from an unregistered module");
   std::string log = buffer.str();
 
-  // log message should be something like (2 lines):
-  // 2017-04-12 14:05:31 main ERROR [7ffff7fd5780] Module 'my_domain' not
-  // registered with logger - logging the following message as 'main' instead
-  // 2017-04-12 14:05:31 main INFO [7ffff7fd5780] Test message from an
+  // log message should be something like:
+  // 2017-04-12 14:05:31 my_domain INFO [7ffff7fd5780] Test message from an
   // unregistered module
-  EXPECT_NE(log.npos, log.find(" main ERROR"));
-  EXPECT_NE(log.npos,
-            log.find(" Module 'my_domain' not registered with logger - logging "
-                     "the following message as 'main' instead\n"));
-  size_t first_endl = log.find('\n');
-  EXPECT_NE(log.npos, log.find(" main INFO", first_endl));
-  EXPECT_NE(log.npos, log.find(" Test message from an unregistered module\n",
-                               first_endl));
+  EXPECT_THAT(log, ::testing::Not(::testing::HasSubstr(" main ERROR")));
+
+  EXPECT_THAT(log, ::testing::HasSubstr(" my_domain INFO"));
+  EXPECT_THAT(
+      log, ::testing::HasSubstr(" Test message from an unregistered module\n"));
 
   // clean up
   g_registry->remove_handler(StreamHandler::kDefaultName);

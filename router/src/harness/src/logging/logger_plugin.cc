@@ -224,8 +224,7 @@ static void switch_to_loggers_in_config(
   //           new one at the very end.
 
   // our new logger registry, it will replace the current one if all goes well
-  std::unique_ptr<mysql_harness::logging::Registry> registry(
-      new mysql_harness::logging::Registry());
+  auto registry = std::make_unique<mysql_harness::logging::Registry>();
 
   // register loggers for all modules + main exec (throws std::logic_error,
   // std::invalid_argument)
@@ -244,6 +243,15 @@ static void switch_to_loggers_in_config(
   for (const auto &handler : logger_handlers) {
     registry->add_handler(handler.first, handler.second);
     attach_handler_to_all_loggers(*registry, handler.first);
+  }
+
+  // in case we switched away from the default consolelog, log that we are now
+  // switching away
+  if (!(logger_handlers.size() == 1 &&
+        logger_handlers.at(0).first == "consolelog")) {
+    log_info(
+        "logging facility initialized, switching logging to loggers specified "
+        "in configuration");
   }
 
   // nothing threw - we're good. Now let's replace the new registry with the
@@ -274,9 +282,6 @@ static void init(mysql_harness::PluginFuncEnv *env) {
   // progress further and let Loader deal with it
   if (!res) return;
 
-  log_info(
-      "logging facility initialized, switching logging to loggers specified in "
-      "configuration");
   switch_to_loggers_in_config(config, logger_handlers);
 }
 
