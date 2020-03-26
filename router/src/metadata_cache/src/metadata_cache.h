@@ -311,4 +311,9 @@ bool operator!=(const MetaData::ReplicaSetsByName &map_a,
 
 std::string to_string(metadata_cache::ServerMode mode);
 
+/** Gets user readable information string about the nodes atributes
+ * related to _hidden and _disconnect_existing_sessions_when_hidden tags.
+ */
+std::string get_hidden_info(const metadata_cache::ManagedInstance &instance);
+
 #endif  // METADATA_CACHE_METADATA_CACHE_INCLUDED

@@ -1519,8 +1519,8 @@ class AccountReuseTestBase : public CommonBootstrapTest {
 
   // ---- account validation queries ----
   static std::string sql_val1(const std::string &cluster_name = "test") {
-    return "select I.mysql_server_uuid, I.endpoint, I.xendpoint from "
-           "mysql_innodb_cluster_metadata.v2_instances I join "
+    return "select I.mysql_server_uuid, I.endpoint, I.xendpoint, I.attributes "
+           "from mysql_innodb_cluster_metadata.v2_instances I join "
            "mysql_innodb_cluster_metadata.v2_gr_clusters C on I.cluster_id = "
            "C.cluster_id where C.cluster_name = '" +
            cluster_name + "'";

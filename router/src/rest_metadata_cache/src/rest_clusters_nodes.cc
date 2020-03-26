@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -91,19 +91,6 @@ bool RestClustersNodes::on_handle_request(
 
       // backend_state: can the router reach the backend?
       // o.AddMember("backend_state", "", allocator);
-#if 0
-    // always HA and redundant
-    o.AddMember("role", rapidjson::Value(inst.role.c_str(), allocator).Move(),
-                allocator);
-
-    // may be used for load-balancing decisions later
-    // currently, unused
-    o.AddMember("weight", inst.weight, allocator);
-
-    // used to ensure that all routers are using the same version of the config
-    // currently, unused.
-    o.AddMember("version_token", inst.version_token, allocator);
-#endif
       o.AddMember("hostname",
                   rapidjson::Value(inst.host.c_str(), allocator).Move(),
                   allocator);
