@@ -137,14 +137,22 @@ public:
    */
   enum MatchType
   {
-    MatchAll = 0x00, // DEFAULT: Output all matches, including duplicates.
-                     // Append a single NULL complemented row for non-matching childs.
-    MatchNonNull = 0x01,// Output all matches, including duplicates.
-                     // Parents without any matches are discarded.
-    MatchNullOnly,   // Output only parent rows without any child matches.
-                     // Append a single NULL complemented row for the non_matching child
-    MatchFirst = 0x02,// Output a single row when >=1 child matches.
-                     // One of the matching child row is included in the output.
+    // DEFAULT: Output all matches, including duplicates.
+    // Append a single NULL-extended row for non-matching childs.
+    MatchAll = 0x00,
+
+    // Output all matches, including duplicates.
+    // Parents without any matches are discarded.
+    MatchNonNull = 0x01,
+
+    // Output only parent rows without any child matches. (Antijoin)
+    // Append only the single NULL-extended row for the non_matching child
+    MatchNullOnly = 0x02,
+
+    // Output a single row when >=1 child matches.
+    // One of the matching child row is included in the output.
+    MatchFirst = 0x04,
+
     Default = MatchAll
   };
 

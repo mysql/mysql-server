@@ -548,9 +548,10 @@ public:
 
   bool isInnerJoin() const
   { return (m_properties & Is_Inner_Join); }
-
   bool isOuterJoin() const
   { return !(m_properties & Is_Inner_Join); }
+  bool isAntiJoin() const
+  { return (m_properties & Is_Anti_Join); }
 
   bool isFirstInner() const
   { return (m_properties & Is_First_Inner); }
@@ -695,8 +696,9 @@ private:
     Is_Scan_Query = 0x01,
     Is_Scan_Result = 0x02,
     Is_Inner_Join = 0x10,  // As opposed to outer join
-    Is_First_Match = 0x20,   // Return FirstMatch only
-    Is_First_Inner = 0x40
+    Is_First_Match = 0x20,  // Return FirstMatch only (semijoin)
+    Is_Anti_Join = 0x40,
+    Is_First_Inner = 0x80
   } m_properties;
 
   /** The receiver object that unpacks transid_AI messages.*/
@@ -870,10 +872,16 @@ NdbResultStream::NdbResultStream(NdbQueryOperationImpl& operation,
        ? Is_Scan_Query : 0)
      | (operation.getQueryOperationDef().isScanOperation()
        ? Is_Scan_Result : 0)
-     | (operation.getQueryOperationDef().getMatchType() & NdbQueryOptions::MatchFirst
-	? Is_First_Match : 0)
+     // Note1: If an ancestor is a firstMatch-type, we only need to firstMatch this as well.
+     // Note2: FirstMatch is only relevant for scans (Both are optimizations only)
+     | ((operation.getQueryOperationDef().getMatchType() & NdbQueryOptions::MatchFirst ||
+         operation.getQueryOperationDef().hasFirstMatchAncestor()) &&
+         operation.getQueryOperationDef().isScanOperation()
+       ? Is_First_Match : 0)
      | (operation.getQueryOperationDef().getMatchType() & NdbQueryOptions::MatchNonNull
        ? Is_Inner_Join : 0)
+     | (operation.getQueryOperationDef().getMatchType() & NdbQueryOptions::MatchNullOnly
+       ? Is_Anti_Join : 0)
      // Is_first_Inner; if outer joined (with upper nest) and another firstInner
      // than this 'operation' not specified
      | ((operation.getQueryOperationDef().getMatchType() & NdbQueryOptions::MatchNonNull) == 0 &&
@@ -1161,7 +1169,6 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
   }
 
   SpjTreeNodeMask firstMatchedNodes;
-
   for (int childNo=m_children.size()-1; childNo>=0; childNo--)
   {	
     NdbResultStream& childStream = *m_children[childNo];
@@ -1311,6 +1318,10 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
                      << ", child: " << childId
                      << endl;
             }
+            if (childStream.isAntiJoin()) {
+              hasMatchingChild.clear(thisOpId);  // Skip this tupleNo
+              break;
+            }
           }
           /**
            * Else: No matching children found from 'childId'. Now we may either
@@ -1340,8 +1351,10 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
             DBUG_ASSERT(hasMatchingChild.get(thisOpId));
 
             if (unlikely(traceSignals)) {
+              const char *reason =
+                childStream.isAntiJoin() ?"(antijoin match)" :"(never matched)";
               ndbout << "prepareResultSet, isOuterJoin"
-                     << ", NULL-extend, (never matched)"
+                     << ", NULL-extend, " << reason
                      << ", opNo: " << thisOpId
                      << ", row: " << tupleNo
                      << ", child: " << childId

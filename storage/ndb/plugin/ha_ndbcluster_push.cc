@@ -461,6 +461,17 @@ uint ndb_pushed_builder_ctx::get_table_no(const Item *key_item) const {
 }
 
 /**
+ * Get a ndb_table_access_map containg all tables [first..last]
+ */
+static ndb_table_access_map get_tables_in_range(uint first, uint last) {
+  ndb_table_access_map table_map;
+  for (uint i = first; i <= last; i++) {
+    table_map.add(i);
+  }
+  return table_map;
+}
+
+/**
  * Translate a table_map from external to internal table enumeration
  */
 ndb_table_access_map ndb_pushed_builder_ctx::get_table_map(
@@ -2292,6 +2303,62 @@ int ndb_pushed_builder_ctx::build_query() {
         if (m_join_scope.contain(semijoin) &&
             !m_has_pending_cond.is_overlapping(semijoin)) {
           options.setMatchType(NdbQueryOptions::MatchFirst);
+        }
+      }
+
+      if (table->is_antijoin()) {
+        DBUG_ASSERT(m_tables[tab_no].isOuterJoined(m_tables[parent_no]));
+        const ndb_table_access_map antijoin_scope(
+            get_tables_in_range(tab_no, m_tables[tab_no].m_last_inner));
+
+        /**
+         * From SPJ point of view, antijoin is a normal outer join. So once
+         * we have accounted for the special antijoin_null_cond added to such
+         * queries, no special handling is required for antijoin's wrt.
+         * query correctness.
+         *
+         * However, as an added optimization, the SPJ API may eliminate the
+         * upper-table rows not matching the 'Not exists' requirement, if:
+         *  1) The entire (anti-)outer-joined-nest has been pushed down
+         *  2) There are no unpushed conditions in the above join-nest.
+         * -> or: 'antijoin-nest is completely evaluated by SPJ'
+         *
+         * Note that this is a pure optimization: Any returned rows supposed
+         * to 'Not exist' will simply be eliminated by the mysql server.
+         * -> We do join-pushdown of such antijoins even if the check below
+         * does not allow us to setMatchType('MatchNullOnly')
+         */
+        if (m_join_scope.contain(antijoin_scope) &&
+            !m_has_pending_cond.is_overlapping(antijoin_scope)) {
+          const uint first_upper = m_tables[tab_no].m_first_upper;
+          ndb_table_access_map upper_nest(full_inner_nest(first_upper, tab_no));
+          upper_nest.intersect(m_join_scope);
+
+          if (upper_nest.contain(parent_no)) {
+            /**
+             * Antijoin is relative to the *upper_nest*. Thus we can only
+             * eliminate found matches if they are relative the upper_nest.
+             * Example: '(t1 oj (t2)) where not exists (t3 where t3.x = t1.y)'
+             *
+             * This nest structure is such that the upper of 'antijoin t3' is
+             * t1. Thus we can only do match elimination of such a query when it
+             * is built with 't3.parent == t1'.
+             */
+            options.setMatchType(NdbQueryOptions::MatchNullOnly);
+          } else {
+            /**
+             * Else, subquery condition do not refer upper_nest.
+             * Example: '(t1 oj (t2)) where not exists (t3 where t3.x = t2.y)'
+             * Due to the nest structure, we still have t3.upper = t1.
+             * However, the where condition dependencies will result in:
+             * '3.parent == t2'. Specifying antijoin for this query may
+             * eliminate matching rows from t2, while t1 rows will still
+             * exists (with t2 NULL-extended).
+             * However, we can still specify the less restrictive firstMatch
+             * for such queries.
+             */
+            options.setMatchType(NdbQueryOptions::MatchFirst);
+          }
         }
       }
 

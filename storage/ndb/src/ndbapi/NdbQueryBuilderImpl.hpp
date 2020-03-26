@@ -366,6 +366,19 @@ public:
   const char* getName() const
   { return m_ident; }
 
+  // Does an ancestor specify a MatchType requiring only a 'firstMatch'?
+  // Both 'MatchFirst' and 'MatchNullOnly' are a firstMatch type as it
+  // allows us to conclude as soon as a single qualifying row has been found.
+  bool hasFirstMatchAncestor() const
+  {
+    if (m_parent == nullptr)
+      return false;
+    if (m_parent->getMatchType() &
+	(NdbQueryOptions::MatchFirst | NdbQueryOptions::MatchNullOnly))
+      return true;
+    return m_parent->hasFirstMatchAncestor();
+  }
+
   enum NdbQueryOptions::MatchType getMatchType() const
   { return m_options.m_matchType; }
 
