@@ -1964,7 +1964,7 @@ void ndb_pushed_builder_ctx::collect_key_refs(const AQP::Table_access *table,
 
   const uint tab_no = table->get_access_no();
   const uint parent_no = m_tables[tab_no].m_parent;
-  const ndb_table_access_map &ancestors = m_tables[tab_no].m_ancestors;
+  const ndb_table_access_map ancestors = m_tables[tab_no].m_ancestors;
 
   DBUG_ASSERT(m_join_scope.contain(ancestors));
   DBUG_ASSERT(ancestors.contain(parent_no));
@@ -2253,31 +2253,34 @@ int ndb_pushed_builder_ctx::build_query() {
        *
        * Such queries need to set the join nest dependencies, such that
        * the NdbQuery interface is able to correcly generate NULL extended
-       * rows for.
+       * rows.
        *
        * Below we add these nest dependencies even when not strictly required.
        * The API will just ignore such redundant nest dependencies.
        */
-      ndb_table_access_map inner_nest(m_tables[tab_no].m_inner_nest);
-      inner_nest.intersect(m_join_scope);
-      if (!inner_nest.is_clear_all()) {
-        // Table not first in its join_nest, set firstInner which it depends on
-        const uint real_first_inner =
-            inner_nest.first_table(m_tables[tab_no].m_first_inner);
-        options.setFirstInnerJoin(m_tables[real_first_inner].m_op);
+      if (m_tables[tab_no].isOuterJoined(m_tables[parent_no])) {
+        ndb_table_access_map inner_nest(m_tables[tab_no].m_inner_nest);
+        inner_nest.intersect(m_join_scope);
+        if (!inner_nest.is_clear_all()) {
+          // Table not first in its join_nest, set firstInner which it
+          // depends on
+          const uint real_first_inner =
+              inner_nest.first_table(m_tables[tab_no].m_first_inner);
+          options.setFirstInnerJoin(m_tables[real_first_inner].m_op);
 
-      } else if (m_tables[tab_no].m_first_upper >= 0) {
-        const uint first_upper = m_tables[tab_no].m_first_upper;
-        ndb_table_access_map upper_nest(full_inner_nest(first_upper, tab_no));
-        upper_nest.intersect(m_join_scope);
-        if (!upper_nest.is_clear_all()) {
-          // There is an upper nest which we outer join with
-          const uint real_first_upper =
-              upper_nest.first_table(m_tables[tab_no].m_first_upper);
-          options.setUpperJoin(m_tables[real_first_upper].m_op);
-        } else {
-          // There is an upper outside of the m_join_scope -> use root
-          options.setUpperJoin(m_tables[root_no].m_op);
+        } else if (m_tables[tab_no].m_first_upper >= 0) {
+          const uint first_upper = m_tables[tab_no].m_first_upper;
+          ndb_table_access_map upper_nest(full_inner_nest(first_upper, tab_no));
+          upper_nest.intersect(m_join_scope);
+          if (!upper_nest.is_clear_all()) {
+            // There is an upper nest which we outer join with
+            const uint real_first_upper =
+                upper_nest.first_table(m_tables[tab_no].m_first_upper);
+            options.setUpperJoin(m_tables[real_first_upper].m_op);
+          } else {
+            // There is an upper outside of the m_join_scope -> use root
+            options.setUpperJoin(m_tables[root_no].m_op);
+          }
         }
       }
     }  // if '!m_join_root'
