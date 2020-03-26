@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2101,6 +2101,7 @@ Lgman::Logfile_group::Logfile_group(const CreateFilegroupImplReq* req)
   m_tail_pos[1].m_idx= ~0;
   
   m_tail_pos[0] = m_tail_pos[1];
+  m_ndb_version = g_v2 ? NDB_DISK_V2 : 0;
 }
 
 bool
