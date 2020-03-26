@@ -1545,21 +1545,22 @@ void ndb_pushed_builder_ctx::validate_join_nest(ndb_table_access_map inner_nest,
         if (nest_has_unpushed) {
           EXPLAIN_NO_PUSH(
               "Can't push %s joined table '%s' as child of '%s', "
-              "some tables in embedding nest(s) are not part of pushed join",
+              "some tables in embedding join-nest(s) are not part of pushed "
+              "join",
               nest_type, table->get_table()->alias,
               m_join_root->get_table()->alias);
           remove_pushable(table);
         } else if (nest_has_pending_cond) {
           EXPLAIN_NO_PUSH(
               "Can't push %s joined table '%s' as child of '%s', "
-              "nest containing the table has pending unpushed_conditions",
+              "join-nest containing the table has pending unpushed_conditions",
               nest_type, table->get_table()->alias,
               m_join_root->get_table()->alias);
           remove_pushable(table);
         } else if (nest_has_filter_cond) {
           EXPLAIN_NO_PUSH(
               "Can't push %s joined table '%s' as child of '%s', "
-              "nest containing the table has a FILTER conditions",
+              "join-nest containing the table has a FILTER conditions",
               nest_type, table->get_table()->alias,
               m_join_root->get_table()->alias);
           remove_pushable(table);
