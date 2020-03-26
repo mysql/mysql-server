@@ -704,6 +704,7 @@ static const SYMBOL symbols[] = {
     {SYM("TINYBLOB", TINYBLOB_SYM)},
     {SYM("TINYINT", TINYINT_SYM)},
     {SYM("TINYTEXT", TINYTEXT_SYN)},
+    {SYM("TLS", TLS_SYM)},
     {SYM("TO", TO_SYM)},
     {SYM("TRAILING", TRAILING)},
     {SYM("TRANSACTION", TRANSACTION_SYM)},

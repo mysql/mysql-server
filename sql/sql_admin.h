@@ -386,12 +386,15 @@ class Alter_instance;
 class Sql_cmd_alter_instance : public Sql_cmd {
   friend class PT_alter_instance;
   const enum alter_instance_action_enum alter_instance_action;
+  LEX_CSTRING channel_name_;
   Alter_instance *alter_instance;
 
  public:
   explicit Sql_cmd_alter_instance(
-      enum alter_instance_action_enum alter_instance_action_arg)
+      enum alter_instance_action_enum alter_instance_action_arg,
+      const LEX_CSTRING &channel_name)
       : alter_instance_action(alter_instance_action_arg),
+        channel_name_(channel_name),
         alter_instance(nullptr) {}
 
   virtual bool execute(THD *thd);

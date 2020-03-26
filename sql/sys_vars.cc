@@ -128,7 +128,7 @@
 #include "sql/sql_locale.h"     // my_locale_by_number
 #include "sql/sql_parse.h"      // killall_non_super_threads
 #include "sql/sql_tmp_table.h"  // internal_tmp_mem_storage_engine_names
-#include "sql/ssl_acceptor_context.h"
+#include "sql/ssl_acceptor_context_operator.h"
 #include "sql/system_variables.h"
 #include "sql/table_cache.h"  // Table_cache_manager
 #include "sql/transaction.h"  // trans_commit_stmt
@@ -3270,7 +3270,7 @@ static bool check_require_secure_transport(
   */
 
   if (!var->save_result.ulonglong_value) return false;
-  if (SslAcceptorContext::have_ssl() || opt_enable_shared_memory) return false;
+  if (have_ssl() || opt_enable_shared_memory) return false;
   /* reject if SSL and shared memory are both disabled: */
   my_error(ER_NO_SECURE_TRANSPORTS_CONFIGURED, MYF(0));
   return true;
@@ -5399,8 +5399,7 @@ static Sys_var_have Sys_have_geometry(
     READ_ONLY NON_PERSIST GLOBAL_VAR(have_geometry), NO_CMD_LINE);
 
 static SHOW_COMP_OPTION have_ssl_func(THD *thd MY_ATTRIBUTE((unused))) {
-  return SslAcceptorContext::have_ssl() ? SHOW_OPTION_YES
-                                        : SHOW_OPTION_DISABLED;
+  return have_ssl() ? SHOW_OPTION_YES : SHOW_OPTION_DISABLED;
 }
 
 enum SHOW_COMP_OPTION Sys_var_have_func::dummy_;

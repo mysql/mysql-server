@@ -287,6 +287,12 @@ INSERT INTO global_suppressions VALUES
  */
  ("The transaction owned GTID is already in the gtid_executed table"),
 
+ /*
+   TLS warnings related to Admin channel
+ */
+ ("Failed to initialize TLS for channel: mysql_admin"),
+ ("Failed to set up SSL because of the following SSL library error"),
+
  ("THE_LAST_SUPPRESSION");
 
 

@@ -1254,6 +1254,7 @@ void warn_about_deprecated_binary(THD *thd)
 */
 %token NOT_A_TOKEN_SYM 1150                             /* INTERNAL */
 %token<lexer.keyword> JSON_VALUE_SYM 1151               /* SQL-2016-R */
+%token<lexer.keyword> TLS_SYM 1152                      /* MYSQL */
 
 
 /*
@@ -1758,7 +1759,7 @@ void warn_about_deprecated_binary(THD *thd)
 
 %type <user_list> user_list role_list default_role_clause opt_except_role_list
 
-%type <alter_instance_action> alter_instance_action
+%type <alter_instance_cmd> alter_instance_action
 
 %type <index_column_list> key_list key_list_with_expression
 
@@ -14825,6 +14826,7 @@ ident_keywords_unambiguous:
         | TIMESTAMP_DIFF
         | TIMESTAMP_SYM %prec KEYWORD_USED_AS_IDENT
         | TIME_SYM %prec KEYWORD_USED_AS_IDENT
+        | TLS_SYM
         | TRANSACTION_SYM
         | TRIGGERS_SYM
         | TYPES_SYM
@@ -15360,7 +15362,7 @@ alter_instance_stmt:
           ALTER INSTANCE_SYM alter_instance_action
           {
             Lex->sql_command= SQLCOM_ALTER_INSTANCE;
-            $$= NEW_PTN PT_alter_instance($3);
+            $$= $3;
           }
 
 alter_instance_action:
@@ -15368,11 +15370,11 @@ alter_instance_action:
           {
             if (is_identifier($2, "INNODB"))
             {
-              $$= ROTATE_INNODB_MASTER_KEY;
+              $$= NEW_PTN PT_alter_instance(ROTATE_INNODB_MASTER_KEY, EMPTY_CSTR);
             }
             else if (is_identifier($2, "BINLOG"))
             {
-              $$= ROTATE_BINLOG_MASTER_KEY;
+              $$= NEW_PTN PT_alter_instance(ROTATE_BINLOG_MASTER_KEY, EMPTY_CSTR);
             }
             else
             {
@@ -15380,29 +15382,19 @@ alter_instance_action:
               MYSQL_YYABORT;
             }
           }
-          | RELOAD ident
+        | RELOAD TLS_SYM
           {
-            if (is_identifier($2, "TLS"))
-            {
-              $$ = ALTER_INSTANCE_RELOAD_TLS_ROLLBACK_ON_ERROR;
-            }
-            else
-            {
-              YYTHD->syntax_error_at(@2);
-              MYSQL_YYABORT;
-            }
+            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS_ROLLBACK_ON_ERROR, to_lex_cstring("mysql_main"));
           }
-          | RELOAD ident NO_SYM ROLLBACK_SYM ON_SYM ERROR_SYM
+        | RELOAD TLS_SYM NO_SYM ROLLBACK_SYM ON_SYM ERROR_SYM
           {
-            if (is_identifier($2, "TLS"))
-            {
-              $$ = ALTER_INSTANCE_RELOAD_TLS;
-            }
-            else
-            {
-              YYTHD->syntax_error_at(@2);
-              MYSQL_YYABORT;
-            }
+            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS, to_lex_cstring("mysql_main"));
+          }
+        | RELOAD TLS_SYM FOR_SYM CHANNEL_SYM ident {
+            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS_ROLLBACK_ON_ERROR, to_lex_cstring($5));
+          }
+        | RELOAD TLS_SYM FOR_SYM CHANNEL_SYM ident NO_SYM ROLLBACK_SYM ON_SYM ERROR_SYM {
+            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS, to_lex_cstring($5));
           }
         ;
 

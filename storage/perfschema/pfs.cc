@@ -39,6 +39,7 @@
 #define HAVE_PSI_TABLE_INTERFACE
 #define HAVE_PSI_THREAD_INTERFACE
 #define HAVE_PSI_TRANSACTION_INTERFACE
+#define HAVE_PSI_TLS_CHANNEL_INTERFACE
 
 #include "storage/perfschema/pfs.h"
 
@@ -63,6 +64,7 @@
 #include <mysql/components/services/psi_system_service.h>
 #include <mysql/components/services/psi_table_service.h>
 #include <mysql/components/services/psi_thread_service.h>
+#include <mysql/components/services/psi_tls_channel_service.h>
 #include <mysql/components/services/psi_transaction_service.h>
 #include <sys/types.h>
 #include <time.h>
@@ -116,6 +118,7 @@
 #include "storage/perfschema/pfs_setup_actor.h"
 #include "storage/perfschema/pfs_setup_object.h"
 #include "storage/perfschema/pfs_timer.h"
+#include "storage/perfschema/pfs_tls_channel.h"
 #include "storage/perfschema/pfs_user.h"
 #include "storage/perfschema/service_pfs_notification.h"
 #include "thr_lock.h"
@@ -147,6 +150,7 @@ using std::min;
 #define DISABLE_PSI_TABLE
 #define DISABLE_PSI_THREAD
 #define DISABLE_PSI_TRANSACTION
+#define DISABLE_PSI_TLS_CHANNEL
 #endif /* IN_DOXYGEN */
 
 /*
@@ -471,6 +475,8 @@ static void report_memory_accounting_error(const char *api_name,
   @subpage PAGE_PFS_RESOURCE_GROUP_SERVICE
 
   @subpage PAGE_PFS_TABLE_PLUGIN_SERVICE
+
+  @subpage PAGE_PFS_TLS_CHANNEL
 */
 
 /**
@@ -1194,6 +1200,26 @@ PSI_DATA_LOCK_CALL(unregister_data_lock)(...)
     <td> Not available as a service.</td>
     <td>@ref PSI_data_lock_bootstrap</td>
     <td>Not available as a service.</td>
+  </tr>
+
+  <tr>
+    <td> TLS Channels</td>
+    <td>
+@verbatim
+#include "mysql/psi/psi_tls_channel.h"
+PSI_TLS_CHANNEL_CALL(register_tls_channel)(...)
+PSI_TLS_CHANNEL_CALL(unregister_tls_channel)(...)
+@endverbatim
+    </td>
+    <td>
+@verbatim
+#include "mysql/components/services/psi_tls_channel.h"
+PSI_TLS_CHANNEL_CALL(register_tls_channel)(...)
+PSI_TLS_CHANNEL_CALL(unregister_tls_channel)(...)
+@endverbatim
+    </td>
+    <td>@ref PSI_tls_channel_bootstrap</td>
+    <td>@ref REQUIRES_PSI_TLS_CHANNEL_SERVICE</td>
   </tr>
 
   </table>
@@ -8363,9 +8389,17 @@ SERVICE_IMPLEMENTATION(performance_schema, psi_error_v1) = {
     /* New interface, for components. */
     pfs_log_error_v1};
 
+SERVICE_TYPE(psi_tls_channel_v1)
+SERVICE_IMPLEMENTATION(performance_schema, psi_tls_channel_v1) = {
+    /* New interface, for components */
+    pfs_register_tls_channel_v1, pfs_unregister_tls_channel_v1};
+
 PSI_data_lock_service_v1 pfs_data_lock_service_v1 = {
     /* Old interface, for plugins. */
     pfs_register_data_lock_v1, pfs_unregister_data_lock_v1};
+
+PSI_tls_channel_service_v1 pfs_tls_channel_service_v1 = {
+    pfs_register_tls_channel_v1, pfs_unregister_tls_channel_v1};
 
 static void *get_system_interface(int version) {
   switch (version) {
@@ -8554,6 +8588,15 @@ static void *get_data_lock_interface(int version) {
   }
 }
 
+static void *get_tls_channel_interface(int version) {
+  switch (version) {
+    case PSI_TLS_CHANNEL_VERSION_1:
+      return &pfs_tls_channel_service_v1;
+    default:
+      return nullptr;
+  }
+}
+
 struct PSI_cond_bootstrap pfs_cond_bootstrap = {get_cond_interface};
 
 struct PSI_data_lock_bootstrap pfs_data_lock_bootstrap = {
@@ -8590,6 +8633,9 @@ struct PSI_system_bootstrap pfs_system_bootstrap = {get_system_interface};
 struct PSI_table_bootstrap pfs_table_bootstrap = {get_table_interface};
 
 struct PSI_thread_bootstrap pfs_thread_bootstrap = {get_thread_interface};
+
+struct PSI_tls_channel_bootstrap pfs_tls_channel_bootstrap = {
+    get_tls_channel_interface};
 
 struct PSI_transaction_bootstrap pfs_transaction_bootstrap = {
     get_transaction_interface};
@@ -8636,6 +8682,7 @@ PROVIDES_SERVICE(performance_schema, psi_cond_v1),
     PROVIDES_SERVICE(performance_schema, pfs_plugin_column_timestamp_v1),
     PROVIDES_SERVICE(performance_schema, pfs_plugin_column_timestamp_v2),
     PROVIDES_SERVICE(performance_schema, pfs_plugin_column_year_v1),
+    PROVIDES_SERVICE(performance_schema, psi_tls_channel_v1),
     END_COMPONENT_PROVIDES();
 
 static BEGIN_COMPONENT_REQUIRES(performance_schema) END_COMPONENT_REQUIRES();

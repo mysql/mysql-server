@@ -13,7 +13,7 @@ wait/synch/mutex/sql/hash_filo::lock	YES	YES		0	NULL
 wait/synch/mutex/sql/key_mts_gaq_LOCK	YES	YES		0	NULL
 wait/synch/mutex/sql/key_mts_temp_table_LOCK	YES	YES		0	NULL
 wait/synch/mutex/sql/LOCK_acl_cache_flush	YES	YES	singleton	0	NULL
-wait/synch/mutex/sql/LOCK_audit_mask	YES	YES	singleton	0	NULL
+wait/synch/mutex/sql/LOCK_admin_tls_ctx_options	YES	YES		0	A lock to control all of the --ssl-* CTX related command line options for administrative connection port
 select * from performance_schema.setup_instruments
 where name like 'Wait/Synch/Rwlock/sql/%'
   and name not in (

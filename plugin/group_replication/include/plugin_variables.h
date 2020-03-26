@@ -266,6 +266,12 @@ struct plugin_options_variables {
   ulonglong clone_threshold_var;
 
   char *advertise_recovery_endpoints_var;
+
+  const char *tls_source_values[3] = {"MYSQL_MAIN", "MYSQL_ADMIN",
+                                      (char *)nullptr};
+  TYPELIB tls_source_values_typelib_t = {2, "tls_source_typelib_t",
+                                         tls_source_values, nullptr};
+  ulong tls_source_var;
 };
 
 #endif /* PLUGIN_VARIABLES_INCLUDE */

@@ -11,6 +11,7 @@
 --echo #
 
 --disable_query_log
+call mtr.add_suppression("Failed to initialize TLS for channel: mysql_main");
 call mtr.add_suppression("Failed to set up SSL because of");
 call mtr.add_suppression("Plugin mysqlx reported: 'Failed at SSL configuration");
 --enable_query_log

@@ -405,7 +405,7 @@ union YYSTYPE {
   class Table_ident *table_ident;
   Mem_root_array_YY<Table_ident *> table_ident_list;
   delete_option_enum opt_delete_option;
-  enum alter_instance_action_enum alter_instance_action;
+  class PT_alter_instance *alter_instance_cmd;
   class PT_create_index_stmt *create_index_stmt;
   class PT_table_constraint_def *table_constraint_def;
   List<PT_key_part_specification> *index_column_list;

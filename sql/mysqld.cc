@@ -1,24 +1,24 @@
 /* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License, version 2.0,
-   as published by the Free Software Foundation.
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
 
-   This program is also distributed with certain software (including
-   but not limited to OpenSSL) that is licensed under separate terms,
-   as designated in a particular file or component or in included license
-   documentation.  The authors of MySQL hereby grant you an additional
-   permission to link the program and your derivative works with the
-   separately licensed software that they have included with MySQL.
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License, version 2.0, for more details.
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License, version 2.0, for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file sql/mysqld.cc
@@ -830,6 +830,7 @@ The documentation is based on the source files such as:
 #include "mysql/psi/psi_system.h"
 #include "mysql/psi/psi_table.h"
 #include "mysql/psi/psi_thread.h"
+#include "mysql/psi/psi_tls_channel.h"
 #include "mysql/psi/psi_transaction.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/thread_type.h"
@@ -929,7 +930,10 @@ The documentation is based on the source files such as:
 #include "sql/sql_show.h"
 #include "sql/sql_table.h"  // build_table_filename
 #include "sql/sql_udf.h"
-#include "sql/ssl_acceptor_context.h"
+#include "sql/ssl_acceptor_context_iterator.h"
+#include "sql/ssl_acceptor_context_operator.h"
+#include "sql/ssl_acceptor_context_status.h"
+#include "sql/ssl_init_callback.h"
 #include "sql/sys_vars.h"         // fixup_enforce_gtid_consistency_...
 #include "sql/sys_vars_shared.h"  // intern_find_sys_var
 #include "sql/table_cache.h"      // table_cache_manager
@@ -1180,6 +1184,7 @@ static PSI_mutex_key key_LOCK_server_started;
 static PSI_cond_key key_COND_server_started;
 static PSI_mutex_key key_LOCK_keyring_operations;
 static PSI_mutex_key key_LOCK_tls_ctx_options;
+static PSI_mutex_key key_LOCK_admin_tls_ctx_options;
 static PSI_mutex_key key_LOCK_rotate_binlog_master_key;
 #endif /* HAVE_PSI_INTERFACE */
 
@@ -1320,6 +1325,7 @@ mysql_mutex_t LOCK_mandatory_roles;
 mysql_mutex_t LOCK_password_history;
 mysql_mutex_t LOCK_password_reuse_interval;
 mysql_mutex_t LOCK_tls_ctx_options;
+mysql_mutex_t LOCK_admin_tls_ctx_options;
 
 #if defined(ENABLED_DEBUG_SYNC)
 MYSQL_PLUGIN_IMPORT uint opt_debug_sync_timeout = 0;
@@ -1925,6 +1931,7 @@ static const char *default_dbug_option;
 #endif
 
 bool opt_use_ssl = true;
+bool opt_use_admin_ssl = true;
 ulong opt_ssl_fips_mode = SSL_FIPS_MODE_OFF;
 
 /* Function declarations */
@@ -2610,6 +2617,7 @@ static void clean_up(bool print_message) {
     unregister_pfs_resource_group_service();
   }
 #endif
+  deinit_tls_psi_keys();
   component_infrastructure_deinit();
   /*
     component unregister_variable() api depends on system_variable_hash.
@@ -2677,6 +2685,7 @@ static void clean_up_mutexes() {
   mysql_mutex_destroy(&LOCK_keyring_operations);
   mysql_mutex_destroy(&LOCK_tls_ctx_options);
   mysql_mutex_destroy(&LOCK_rotate_binlog_master_key);
+  mysql_mutex_destroy(&LOCK_admin_tls_ctx_options);
 }
 
 /****************************************************************************
@@ -5089,6 +5098,8 @@ static int init_thread_environment() {
                    MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_rotate_binlog_master_key,
                    &LOCK_rotate_binlog_master_key, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_admin_tls_ctx_options, &LOCK_admin_tls_ctx_options,
+                   MY_MUTEX_INIT_FAST);
   return 0;
 }
 
@@ -5137,7 +5148,22 @@ static int init_ssl_communication() {
     LogErr(ERROR_LEVEL, ER_SSL_FIPS_MODE_ERROR, ssl_err_string);
     return 1;
   }
-  if (SslAcceptorContext::singleton_init(opt_use_ssl)) return 1;
+  if (TLS_channel::singleton_init(&mysql_main, mysql_main_channel, opt_use_ssl,
+                                  &server_main_callback))
+    return 1;
+
+  /*
+    The default value of --admin-ssl is ON. If it is set
+    to off, we should treat it as an explicit attempt to
+    set TLS off for admin channel and thereby not use
+    main channel's TLS configuration.
+  */
+  if (!opt_use_admin_ssl) g_admin_ssl_configured = true;
+
+  Ssl_init_callback_server_admin server_admin_callback;
+  if (TLS_channel::singleton_init(&mysql_admin, mysql_admin_channel,
+                                  opt_use_admin_ssl, &server_admin_callback))
+    return 1;
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   ERR_remove_thread_state(0);
@@ -5148,7 +5174,8 @@ static int init_ssl_communication() {
 }
 
 static void end_ssl() {
-  SslAcceptorContext::singleton_deinit();
+  TLS_channel::singleton_deinit(mysql_main);
+  TLS_channel::singleton_deinit(mysql_admin);
   deinit_rsa_keys();
 }
 
@@ -6502,7 +6529,7 @@ int mysqld_main(int argc, char **argv)
           &psi_cond_hook, &psi_file_hook, &psi_socket_hook, &psi_table_hook,
           &psi_mdl_hook, &psi_idle_hook, &psi_stage_hook, &psi_statement_hook,
           &psi_transaction_hook, &psi_memory_hook, &psi_error_hook,
-          &psi_data_lock_hook, &psi_system_hook);
+          &psi_data_lock_hook, &psi_system_hook, &psi_tls_channel_hook);
       if ((pfs_rc != 0) && pfs_param.m_enabled) {
         pfs_param.m_enabled = false;
         LogErr(WARNING_LEVEL, ER_PERFSCHEMA_INIT_FAILED);
@@ -6655,6 +6682,14 @@ int mysqld_main(int argc, char **argv)
     service = psi_system_hook->get_interface(PSI_CURRENT_SYSTEM_VERSION);
     if (service != nullptr) {
       set_psi_system_service(service);
+    }
+  }
+
+  if (psi_tls_channel_hook != nullptr) {
+    service =
+        psi_tls_channel_hook->get_interface(PSI_CURRENT_TLS_CHANNEL_VERSION);
+    if (service != nullptr) {
+      set_psi_tls_channel_service(service);
     }
   }
 
@@ -7059,7 +7094,7 @@ int mysqld_main(int argc, char **argv)
 
 #ifdef _WIN32
   if (opt_require_secure_transport && !opt_enable_shared_memory &&
-      !SslAcceptorContext::have_ssl() && !opt_initialize) {
+      !have_ssl() && !opt_initialize) {
     LogErr(ERROR_LEVEL, ER_TRANSPORTS_WHAT_TRANSPORTS);
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
@@ -8344,6 +8379,10 @@ struct my_option my_long_options[] = {
      "Enable SSL for connection (automatically enabled with other flags).",
      &opt_use_ssl, &opt_use_ssl, nullptr, GET_BOOL, OPT_ARG, 1, 0, 0, nullptr,
      0, nullptr},
+    {"admin-ssl", 0,
+     "Enable SSL for admin interface (automatically enabled with other flags).",
+     &opt_use_admin_ssl, &opt_use_admin_ssl, nullptr, GET_BOOL, OPT_ARG, 1, 0,
+     0, nullptr, 0, nullptr},
 #ifdef _WIN32
     {"standalone", 0, "Dummy option to start as a standalone program (NT).", 0,
      0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -9068,58 +9107,58 @@ SHOW_VAR status_vars[] = {
     {"Sort_scan", (char *)offsetof(System_status_var, filesort_scan_count),
      SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
     {"Ssl_accept_renegotiates",
-     (char *)&SslAcceptorContext::show_ssl_ctx_sess_accept_renegotiate,
+     (char *)&Ssl_mysql_main_status::show_ssl_ctx_sess_accept_renegotiate,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
-    {"Ssl_accepts", (char *)&SslAcceptorContext::show_ssl_ctx_sess_accept,
+    {"Ssl_accepts", (char *)&Ssl_mysql_main_status::show_ssl_ctx_sess_accept,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {"Ssl_callback_cache_hits",
-     (char *)&SslAcceptorContext::show_ssl_ctx_sess_cb_hits, SHOW_FUNC,
+     (char *)&Ssl_mysql_main_status::show_ssl_ctx_sess_cb_hits, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
     {"Ssl_cipher", (char *)&show_ssl_get_cipher, SHOW_FUNC, SHOW_SCOPE_ALL},
     {"Ssl_cipher_list", (char *)&show_ssl_get_cipher_list, SHOW_FUNC,
      SHOW_SCOPE_ALL},
     {"Ssl_client_connects",
-     (char *)&SslAcceptorContext::show_ssl_ctx_sess_connect, SHOW_FUNC,
+     (char *)&Ssl_mysql_main_status::show_ssl_ctx_sess_connect, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
     {"Ssl_connect_renegotiates",
-     (char *)&SslAcceptorContext::show_ssl_ctx_sess_connect_renegotiate,
+     (char *)&Ssl_mysql_main_status::show_ssl_ctx_sess_connect_renegotiate,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {"Ssl_ctx_verify_depth",
-     (char *)&SslAcceptorContext::show_ssl_ctx_get_verify_depth, SHOW_FUNC,
+     (char *)&Ssl_mysql_main_status::show_ssl_ctx_get_verify_depth, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
     {"Ssl_ctx_verify_mode",
-     (char *)&SslAcceptorContext::show_ssl_ctx_get_verify_mode, SHOW_FUNC,
+     (char *)&Ssl_mysql_main_status::show_ssl_ctx_get_verify_mode, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
     {"Ssl_default_timeout", (char *)&show_ssl_get_default_timeout, SHOW_FUNC,
      SHOW_SCOPE_ALL},
     {"Ssl_finished_accepts",
-     (char *)&SslAcceptorContext::show_ssl_ctx_sess_accept_good, SHOW_FUNC,
+     (char *)&Ssl_mysql_main_status::show_ssl_ctx_sess_accept_good, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
     {"Ssl_finished_connects",
-     (char *)&SslAcceptorContext::show_ssl_ctx_sess_connect_good, SHOW_FUNC,
+     (char *)&Ssl_mysql_main_status::show_ssl_ctx_sess_connect_good, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
     {"Ssl_session_cache_hits",
-     (char *)&SslAcceptorContext::show_ssl_ctx_sess_hits, SHOW_FUNC,
+     (char *)&Ssl_mysql_main_status::show_ssl_ctx_sess_hits, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
     {"Ssl_session_cache_misses",
-     (char *)&SslAcceptorContext::show_ssl_ctx_sess_misses, SHOW_FUNC,
+     (char *)&Ssl_mysql_main_status::show_ssl_ctx_sess_misses, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
     {"Ssl_session_cache_mode",
-     (char *)&SslAcceptorContext::show_ssl_ctx_get_session_cache_mode,
+     (char *)&Ssl_mysql_main_status::show_ssl_ctx_get_session_cache_mode,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {"Ssl_session_cache_overflows",
-     (char *)&SslAcceptorContext::show_ssl_ctx_sess_cache_full, SHOW_FUNC,
+     (char *)&Ssl_mysql_main_status::show_ssl_ctx_sess_cache_full, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
     {"Ssl_session_cache_size",
-     (char *)&SslAcceptorContext::show_ssl_ctx_sess_get_cache_size, SHOW_FUNC,
-     SHOW_SCOPE_GLOBAL},
+     (char *)&Ssl_mysql_main_status::show_ssl_ctx_sess_get_cache_size,
+     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {"Ssl_session_cache_timeouts",
-     (char *)&SslAcceptorContext::show_ssl_ctx_sess_timeouts, SHOW_FUNC,
+     (char *)&Ssl_mysql_main_status::show_ssl_ctx_sess_timeouts, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
     {"Ssl_sessions_reused", (char *)&show_ssl_session_reused, SHOW_FUNC,
      SHOW_SCOPE_ALL},
     {"Ssl_used_session_cache_entries",
-     (char *)&SslAcceptorContext::show_ssl_ctx_sess_number, SHOW_FUNC,
+     (char *)&Ssl_mysql_main_status::show_ssl_ctx_sess_number, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
     {"Ssl_verify_depth", (char *)&show_ssl_get_verify_depth, SHOW_FUNC,
      SHOW_SCOPE_ALL},
@@ -9127,31 +9166,33 @@ SHOW_VAR status_vars[] = {
      SHOW_SCOPE_ALL},
     {"Ssl_version", (char *)&show_ssl_get_version, SHOW_FUNC, SHOW_SCOPE_ALL},
     {"Ssl_server_not_before",
-     (char *)&SslAcceptorContext::show_ssl_get_server_not_before, SHOW_FUNC,
+     (char *)&Ssl_mysql_main_status::show_ssl_get_server_not_before, SHOW_FUNC,
      SHOW_SCOPE_ALL},
     {"Ssl_server_not_after",
-     (char *)&SslAcceptorContext::show_ssl_get_server_not_after, SHOW_FUNC,
+     (char *)&Ssl_mysql_main_status::show_ssl_get_server_not_after, SHOW_FUNC,
      SHOW_SCOPE_ALL},
-    {"Current_tls_ca", (char *)&SslAcceptorContext::show_ssl_get_ssl_ca,
+    {"Current_tls_ca", (char *)&Ssl_mysql_main_status::show_ssl_get_ssl_ca,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
-    {"Current_tls_capath", (char *)&SslAcceptorContext::show_ssl_get_ssl_capath,
+    {"Current_tls_capath",
+     (char *)&Ssl_mysql_main_status::show_ssl_get_ssl_capath, SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
+    {"Current_tls_cert", (char *)&Ssl_mysql_main_status::show_ssl_get_ssl_cert,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
-    {"Current_tls_cert", (char *)&SslAcceptorContext::show_ssl_get_ssl_cert,
-     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
-    {"Current_tls_key", (char *)&SslAcceptorContext::show_ssl_get_ssl_key,
+    {"Current_tls_key", (char *)&Ssl_mysql_main_status::show_ssl_get_ssl_key,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {"Current_tls_version",
-     (char *)&SslAcceptorContext::show_ssl_get_tls_version, SHOW_FUNC,
+     (char *)&Ssl_mysql_main_status::show_ssl_get_tls_version, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
-    {"Current_tls_cipher", (char *)&SslAcceptorContext::show_ssl_get_ssl_cipher,
-     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+    {"Current_tls_cipher",
+     (char *)&Ssl_mysql_main_status::show_ssl_get_ssl_cipher, SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
     {"Current_tls_ciphersuites",
-     (char *)&SslAcceptorContext::show_ssl_get_tls_ciphersuites, SHOW_FUNC,
+     (char *)&Ssl_mysql_main_status::show_ssl_get_tls_ciphersuites, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
-    {"Current_tls_crl", (char *)&SslAcceptorContext::show_ssl_get_ssl_crl,
+    {"Current_tls_crl", (char *)&Ssl_mysql_main_status::show_ssl_get_ssl_crl,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {"Current_tls_crlpath",
-     (char *)&SslAcceptorContext::show_ssl_get_ssl_crlpath, SHOW_FUNC,
+     (char *)&Ssl_mysql_main_status::show_ssl_get_ssl_crlpath, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
     {"Rsa_public_key", (char *)&show_rsa_public_key, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
@@ -9589,6 +9630,22 @@ bool mysqld_get_one_option(int optid,
         One can disable SSL later by using --skip-ssl or --ssl=0.
       */
       opt_use_ssl = true;
+      break;
+    case OPT_ADMIN_SSL_KEY:
+    case OPT_ADMIN_SSL_CERT:
+    case OPT_ADMIN_SSL_CA:
+    case OPT_ADMIN_SSL_CAPATH:
+    case OPT_ADMIN_SSL_CIPHER:
+    case OPT_ADMIN_TLS_CIPHERSUITES:
+    case OPT_ADMIN_SSL_CRL:
+    case OPT_ADMIN_SSL_CRLPATH:
+    case OPT_ADMIN_TLS_VERSION:
+      /*
+        Enable use of SSL if we are using any ssl option.
+        One can disable SSL later by using --skip-admin-ssl or --admin-ssl=0.
+      */
+      g_admin_ssl_configured = true;
+      opt_use_admin_ssl = true;
       break;
     case 'V':
       print_server_version();
@@ -10910,7 +10967,8 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_password_history, "LOCK_password_history", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_password_reuse_interval, "LOCK_password_reuse_interval", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_keyring_operations, "LOCK_keyring_operations", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
-  { &key_LOCK_tls_ctx_options, "LOCK_tls_ctx_options", 0, 0, "A lock to control all of the --ssl-* CTX related command line options"},
+  { &key_LOCK_tls_ctx_options, "LOCK_tls_ctx_options", 0, 0, "A lock to control all of the --ssl-* CTX related command line options for client server connection port"},
+  { &key_LOCK_admin_tls_ctx_options, "LOCK_admin_tls_ctx_options", 0, 0, "A lock to control all of the --ssl-* CTX related command line options for administrative connection port"},
   { &key_LOCK_rotate_binlog_master_key, "LOCK_rotate_binlog_master_key", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 /* clang-format on */
@@ -11425,6 +11483,8 @@ static void init_server_psi_keys(void) {
   init_client_psi_keys();
   /* Vio */
   init_vio_psi_keys();
+  /* TLS interfaces */
+  init_tls_psi_keys();
 }
 #endif /* HAVE_PSI_INTERFACE */
 

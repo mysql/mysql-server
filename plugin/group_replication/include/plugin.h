@@ -120,6 +120,16 @@ struct gr_modules {
 };
 
 /**
+  @enum enum_tls_source_values
+  @brief Source of TLS configuration for the connection between Group
+  Replication members.
+*/
+enum enum_tls_source_values {
+  TLS_SOURCE_MYSQL_MAIN = 0,
+  TLS_SOURCE_MYSQL_ADMIN
+};
+
+/**
   The plugin modules.
 
   @note Whenever you want to create a new plugin module, be sure to add it to

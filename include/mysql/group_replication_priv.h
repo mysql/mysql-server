@@ -65,11 +65,20 @@ void get_server_parameters(char **hostname, uint *port, char **uuid,
                            unsigned int *server_version, uint *admin_port);
 
 /**
-  Returns the server ssl configuration values.
+  Returns the server's client-server interface's ssl configuration values.
 
   @param[out] server_ssl_variables server's ssl_variables
 */
-void get_server_ssl_parameters(st_server_ssl_variables *server_ssl_variables);
+void get_server_main_ssl_parameters(
+    st_server_ssl_variables *server_ssl_variables);
+
+/**
+  Returns the server's admin interface's ssl configuration values.
+
+  @param[out] server_ssl_variables server's ssl_variables
+*/
+void get_server_admin_ssl_parameters(
+    st_server_ssl_variables *server_ssl_variables);
 
 /**
   Returns the server_id.

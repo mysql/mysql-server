@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 #
 # This program is free software; you can redistribute it and/or modify
@@ -66,6 +66,7 @@ pfs_setup_object.h
 pfs_stat.h
 pfs_status.h
 pfs_timer.h
+pfs_tls_channel.h
 pfs_user.h
 pfs_variable.h
 pfs_visitor.h
@@ -145,6 +146,7 @@ table_table_handles.h
 table_threads.h
 table_tiws_by_index_usage.h
 table_tiws_by_table.h
+table_tls_channel_status.h
 table_tlws_by_table.h
 table_user_defined_functions.h
 table_users.h
@@ -202,6 +204,7 @@ pfs_setup_actor.cc
 pfs_setup_object.cc
 pfs_status.cc
 pfs_timer.cc
+pfs_tls_channel.cc
 pfs_user.cc
 pfs_variable.cc
 pfs_visitor.cc
@@ -284,6 +287,7 @@ table_table_handles.cc
 table_threads.cc
 table_tiws_by_index_usage.cc
 table_tiws_by_table.cc
+table_tls_channel_status.cc
 table_tlws_by_table.cc
 table_user_defined_functions.cc
 table_users.cc
@@ -310,6 +314,7 @@ table_binary_log_transaction_compression_stats.cc
 
 MYSQL_ADD_PLUGIN(perfschema ${PERFSCHEMA_SOURCES}
   STORAGE_ENGINE MANDATORY STATIC_ONLY)
+TARGET_LINK_LIBRARIES(perfschema)
 IF(WITH_UNIT_TESTS)
   ENABLE_TESTING()
   ADD_SUBDIRECTORY(unittest)
@@ -336,6 +341,7 @@ OPTION(DISABLE_PSI_MEMORY "Exclude the performance schema memory instrumentation
 OPTION(DISABLE_PSI_TRANSACTION "Exclude the performance schema transaction instrumentation" OFF)
 OPTION(DISABLE_PSI_ERROR "Exclude the performance schema server error instrumentation" OFF)
 OPTION(DISABLE_PSI_DATA_LOCK "Exclude the performance schema data lock instrumentation" OFF)
+OPTION(DISABLE_PSI_TLS_CHANNEL "Exclude the performance schema tls channel instrumentation" OFF)
 
 MARK_AS_ADVANCED(DISABLE_PSI_THREAD)
 
@@ -356,4 +362,5 @@ MARK_AS_ADVANCED(DISABLE_PSI_MEMORY)
 MARK_AS_ADVANCED(DISABLE_PSI_TRANSACTION)
 MARK_AS_ADVANCED(DISABLE_PSI_ERROR)
 MARK_AS_ADVANCED(DISABLE_PSI_DATA_LOCK)
+MARK_AS_ADVANCED(DISABLE_PSI_TLS_CHANNEL)
 

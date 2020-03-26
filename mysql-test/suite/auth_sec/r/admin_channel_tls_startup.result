@@ -1,0 +1,16 @@
+# Setup
+# Create test user
+CREATE USER admin_user IDENTIFIED BY 'abcd';
+# Grant required privilege so that test user
+# can connect to server using admin interface
+GRANT SERVICE_CONNECTION_ADMIN ON *.* TO admin_user;
+# Verify that TLS is configured for admin channel
+SELECT * FROM performance_schema.tls_channel_status WHERE CHANNEL = 'mysql_admin' AND PROPERTY = 'Enabled';
+CHANNEL	mysql_admin
+PROPERTY	Enabled
+VALUE	Yes
+# Try to connect using TLS
+1
+1
+# Cleanup
+DROP USER admin_user;

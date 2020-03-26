@@ -6,6 +6,7 @@
 --source include/xplugin_ssl_warnings_suppression.inc
 --source include/xplugin_create_user.inc
 
+call mtr.add_suppression("Failed to initialize TLS for channel: mysql_main");
 call mtr.add_suppression(".*Failed to set up SSL.*");
 
 --let $SS_VERIFY=--ssl-ca=$MYSQL_TEST_DIR/std_data/ca-cert-verify.pem

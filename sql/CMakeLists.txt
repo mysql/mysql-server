@@ -539,6 +539,10 @@ SET(SQL_SHARED_SOURCES
   sql_union.cc
   sql_update.cc
   sql_view.cc
+  ssl_acceptor_context_iterator.cc
+  ssl_acceptor_context_data.cc
+  ssl_acceptor_context_operator.cc
+  ssl_init_callback.cc
   stateless_allocator.cc
   strfunc.cc
   sys_vars.cc
@@ -558,7 +562,6 @@ SET(SQL_SHARED_SOURCES
   tztime.cc
   uniques.cc
   xa.cc
-  ssl_acceptor_context.cc
 )
 
 # BISON_TARGET(<Name> <YaccInput> <CodeOutput>

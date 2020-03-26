@@ -1,0 +1,34 @@
+--disable_result_log
+SELECT * FROM performance_schema.tls_channel_status
+  LIMIT 1;
+
+SELECT * FROM performance_schema.tls_channel_status
+  where CHANNEL ='FOO' OR PROPERTY='BAR';
+--enable_result_log
+
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO performance_schema.tls_channel_status
+  SET CHANNEL='FOO', PROPERTY='BAR', VALUE='BAZ';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE performance_schema.tls_channel_status
+  SET CHANNEL='FOO';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE performance_schema.tls_channel_status
+  SET CHANNEL='FOO' WHERE PROPERTY='BAR';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM performance_schema.tls_channel_status
+  WHERE VALUE='BAR';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM performance_schema.tls_channel_status;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.tls_channel_status READ;
+UNLOCK TABLES;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.tls_channel_status WRITE;
+UNLOCK TABLES;

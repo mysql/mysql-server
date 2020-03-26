@@ -1972,7 +1972,10 @@ int build_gcs_parameters(Gcs_interface_parameters &gcs_module_parameters) {
   st_server_ssl_variables sv;
 
   sv.init();
-  get_server_ssl_parameters(&sv);
+  if (TLS_SOURCE_MYSQL_ADMIN == ov.tls_source_var)
+    get_server_admin_ssl_parameters(&sv);
+  else
+    get_server_main_ssl_parameters(&sv);
 
   gcs_module_parameters.add_parameter("group_name",
                                       std::string(ov.group_name_var));
@@ -4417,6 +4420,19 @@ static MYSQL_SYSVAR_STR(
     "DEFAULT"                           /* default */
 );
 
+static MYSQL_SYSVAR_ENUM(
+    tls_source,                                            /* name */
+    ov.tls_source_var,                                     /* var */
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var */
+    "The source of TLS configuration of the connection between "
+    "Group Replication members. Possible values are MYSQL_MAIN "
+    "and MYSQL_ADMIN. Default: MYSQL_MAIN", /* values */
+    nullptr,                                /* check func. */
+    nullptr,                                /* update func. */
+    0,                                      /* default */
+    &ov.tls_source_values_typelib_t         /* type lib */
+);
+
 static SYS_VAR *group_replication_system_vars[] = {
     MYSQL_SYSVAR(group_name),
     MYSQL_SYSVAR(start_on_boot),
@@ -4473,6 +4489,7 @@ static SYS_VAR *group_replication_system_vars[] = {
     MYSQL_SYSVAR(recovery_tls_version),
     MYSQL_SYSVAR(recovery_tls_ciphersuites),
     MYSQL_SYSVAR(advertise_recovery_endpoints),
+    MYSQL_SYSVAR(tls_source),
     nullptr,
 };
 

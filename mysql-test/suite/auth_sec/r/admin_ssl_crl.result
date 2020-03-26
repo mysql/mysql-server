@@ -1,0 +1,10 @@
+CREATE USER admin_user IDENTIFIED BY 'abcd';
+GRANT SERVICE_CONNECTION_ADMIN ON *.* TO admin_user;
+# test --crl for the client : should connect
+1
+1
+# test --crlpath for the client : should connect
+1
+1
+# try logging in with a certificate in the server's --ssl-crl : should fail
+DROP USER admin_user;

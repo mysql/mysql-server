@@ -4,6 +4,7 @@
 #
 SET PERSIST_ONLY ssl_ca = 'mohit';
 CALL mtr.add_suppression('Failed to set up SSL because of the following SSL library error');
+CALL mtr.add_suppression('Failed to initialize TLS for channel: mysql_main');
 # restart
 # Must be mohit
 SELECT @@global.ssl_ca;

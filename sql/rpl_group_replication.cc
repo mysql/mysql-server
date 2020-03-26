@@ -51,7 +51,7 @@
 #include "sql/sql_lex.h"
 #include "sql/sql_plugin.h"  // plugin_unlock
 #include "sql/sql_plugin_ref.h"
-#include "sql/ssl_acceptor_context.h"
+#include "sql/ssl_init_callback.h"
 #include "sql/system_variables.h"  // System_variables
 
 class THD;
@@ -410,12 +410,35 @@ void get_server_parameters(char **hostname, uint *port, char **uuid,
   return;
 }
 
-void get_server_ssl_parameters(st_server_ssl_variables *server_ssl_variables) {
+void get_server_main_ssl_parameters(
+    st_server_ssl_variables *server_ssl_variables) {
   OptionalString ca, capath, cert, cipher, ciphersuites, key, crl, crlpath,
       version;
 
-  SslAcceptorContext::read_parameters(&ca, &capath, &version, &cert, &cipher,
-                                      &ciphersuites, &key, &crl, &crlpath);
+  server_main_callback.read_parameters(&ca, &capath, &version, &cert, &cipher,
+                                       &ciphersuites, &key, &crl, &crlpath);
+
+  server_ssl_variables->ssl_ca = my_strdup_nullable(ca);
+  server_ssl_variables->ssl_capath = my_strdup_nullable(capath);
+  server_ssl_variables->tls_version = my_strdup_nullable(version);
+  server_ssl_variables->tls_ciphersuites = my_strdup_nullable(ciphersuites);
+  server_ssl_variables->ssl_cert = my_strdup_nullable(cert);
+  server_ssl_variables->ssl_cipher = my_strdup_nullable(cipher);
+  server_ssl_variables->ssl_key = my_strdup_nullable(key);
+  server_ssl_variables->ssl_crl = my_strdup_nullable(crl);
+  server_ssl_variables->ssl_crlpath = my_strdup_nullable(crlpath);
+  server_ssl_variables->ssl_fips_mode = opt_ssl_fips_mode;
+
+  return;
+}
+
+void get_server_admin_ssl_parameters(
+    st_server_ssl_variables *server_ssl_variables) {
+  OptionalString ca, capath, cert, cipher, ciphersuites, key, crl, crlpath,
+      version;
+
+  server_admin_callback.read_parameters(&ca, &capath, &version, &cert, &cipher,
+                                        &ciphersuites, &key, &crl, &crlpath);
 
   server_ssl_variables->ssl_ca = my_strdup_nullable(ca);
   server_ssl_variables->ssl_capath = my_strdup_nullable(capath);

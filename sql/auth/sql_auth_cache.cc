@@ -26,7 +26,6 @@
 #include <boost/graph/properties.hpp>
 #include <new>
 
-#include <sql/ssl_acceptor_context.h>
 #include "m_ctype.h"
 #include "m_string.h"  // LEX_CSTRING
 #include "my_base.h"
@@ -73,6 +72,7 @@
 #include "sql/sql_lex.h"
 #include "sql/sql_plugin.h"  // my_plugin_lock_by_name
 #include "sql/sql_plugin_ref.h"
+#include "sql/ssl_acceptor_context_operator.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"  // TABLE
 #include "sql/thd_raii.h"
@@ -1531,7 +1531,7 @@ static void validate_user_plugin_records() {
       }
       if (Cached_authentication_plugins::compare_plugin(PLUGIN_SHA256_PASSWORD,
                                                         acl_user->plugin) &&
-          sha256_rsa_auth_status() && !SslAcceptorContext::have_ssl()) {
+          sha256_rsa_auth_status() && !have_ssl()) {
         LogErr(WARNING_LEVEL, ER_AUTHCACHE_PLUGIN_CONFIG, acl_user->plugin.str,
                acl_user->user, static_cast<int>(acl_user->host.get_host_len()),
                acl_user->host.get_host(), "but neither SSL nor RSA keys are");

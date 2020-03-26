@@ -1,0 +1,5 @@
+--log_error=$MYSQLTEST_VARDIR/tmp/gr_ssl_mode_tls_source_mysql_admin.2.err
+--loose-group_replication_tls_source=MYSQL_ADMIN
+--admin-ssl-ca=$MYSQL_TEST_DIR/std_data/ca-cert-verify.pem
+--admin-ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert-verify-pass.pem
+--admin-ssl-key=$MYSQL_TEST_DIR/std_data/server-key-verify-pass.pem

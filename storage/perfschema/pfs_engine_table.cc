@@ -141,6 +141,7 @@
 #include "storage/perfschema/table_threads.h"
 #include "storage/perfschema/table_tiws_by_index_usage.h"
 #include "storage/perfschema/table_tiws_by_table.h"
+#include "storage/perfschema/table_tls_channel_status.h"
 #include "storage/perfschema/table_tlws_by_table.h"
 #include "storage/perfschema/table_user_defined_functions.h"
 #include "storage/perfschema/table_users.h"
@@ -671,6 +672,8 @@ static PFS_engine_table_share *all_shares[] = {
     &table_persisted_variables::m_share,
     &table_user_defined_functions::m_share,
     &table_binary_log_transaction_compression_stats::m_share,
+
+    &table_tls_channel_status::m_share,
     nullptr};
 
 static PSI_mutex_key key_LOCK_pfs_share_list;
