@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -143,6 +143,33 @@ class HARNESS_EXPORT StreamHandler : public Handler {
  protected:
   std::ostream &stream_;
   std::mutex stream_mutex_;
+
+ private:
+  void do_log(const Record &record) override;
+};
+
+/**
+ * Handler to write to a null device such as /dev/null (unix) or NUL (windows).
+ *
+ * This handler produces no output.
+ *
+ * @code
+ * Logger logger("my_module");
+ * ...
+ * logger.add_handler(NullHandler());
+ * @endcode
+ */
+class HARNESS_EXPORT NullHandler : public Handler {
+ public:
+  static constexpr const char *kDefaultName = "null";
+
+  explicit NullHandler(bool format_messages = true,
+                       LogLevel level = LogLevel::kNotSet,
+                       LogTimestampPrecision timestamp_precision =
+                           LogTimestampPrecision::kNotSet);
+
+  // for the null handler there is nothing to do
+  void reopen() override {}
 
  private:
   void do_log(const Record &record) override;

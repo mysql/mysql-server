@@ -948,6 +948,8 @@ ConfigGenerator::Options ConfigGenerator::fill_options(
   }
   if (user_options.find("logdir") != user_options.end())
     options.override_logdir = user_options.at("logdir");
+  if (user_options.find("filename") != user_options.end())
+    options.override_logfilename = user_options.at("filename");
   if (user_options.find("rundir") != user_options.end())
     options.override_rundir = user_options.at("rundir");
   if (user_options.find("datadir") != user_options.end())
@@ -1239,9 +1241,11 @@ void ConfigGenerator::set_log_file_permissions(
   std::string logdir = (!options.override_logdir.empty())
                            ? options.override_logdir
                            : default_paths.at("logging_folder");
+  std::string logfilename = (!options.override_logfilename.empty())
+                                ? options.override_logfilename
+                                : mysql_harness::logging::kDefaultLogFilename;
   if (!logdir.empty()) {
-    auto log_path =
-        mysql_harness::Path::make_path(logdir, "mysqlrouter", "log");
+    auto log_path = mysql_harness::Path(logdir).join(logfilename);
     auto log_file = log_path.str();
     std::fstream f;
     f.open(log_file, std::ios::out);
@@ -1929,8 +1933,10 @@ void ConfigGenerator::create_config(
 
   config_file << "\n"
               << "[" << mysql_harness::logging::kConfigSectionLogger << "]\n"
-              << mysql_harness::logging::kConfigOptionLogLevel << " = INFO\n"
-              << "\n";
+              << mysql_harness::logging::kConfigOptionLogLevel << " = INFO\n";
+  if (!options.override_logfilename.empty())
+    config_file << "filename=" << options.override_logfilename << "\n";
+  config_file << "\n";
 
   const auto &metadata_key = metadata_cluster;
   auto ttl = options.use_gr_notifications ? kDefaultMetadataTTLGRNotificationsON

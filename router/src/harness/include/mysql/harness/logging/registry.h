@@ -232,6 +232,16 @@ HARNESS_EXPORT
 LogLevel get_default_log_level(const Config &config, bool raw_mode = false);
 
 /**
+ * Get default log filename
+ *
+ * Fetches default log filename set in the configuration file
+ *
+ * @param config   Configuration items from configuration file
+ */
+HARNESS_EXPORT
+std::string get_default_log_filename(const Config &config);
+
+/**
  * Attach handler to all loggers
  *
  * @param registry Registry object, typically managed by DIM

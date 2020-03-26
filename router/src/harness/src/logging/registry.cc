@@ -376,6 +376,27 @@ LogLevel get_default_log_level(const Config &config, bool raw_mode) {
   return log_level_from_string(level_name);  // throws std::invalid_argument
 }
 
+std::string get_default_log_filename(const Config &config) {
+  constexpr const char kNone[] = "";
+
+  // aliases with shorter names
+  constexpr const char *kLogFilename =
+      mysql_harness::logging::kConfigOptionLogFilename;
+  constexpr const char *kLogger = mysql_harness::logging::kConfigSectionLogger;
+
+  std::string log_filename;
+  // extract log filename from [logger] section/log filename entry, if it exists
+  // and is the legal device name depending on platform
+  if (config.has(kLogger) && config.get(kLogger, kNone).has(kLogFilename) &&
+      !config.get(kLogger, kNone).get(kLogFilename).empty())
+    log_filename = config.get(kLogger, kNone).get(kLogFilename);
+  // otherwise, set it to default
+  else
+    log_filename = mysql_harness::logging::kDefaultLogFilename;
+
+  return log_filename;
+}
+
 HARNESS_EXPORT
 LogTimestampPrecision log_timestamp_precision_from_string(std::string name) {
   std::transform(name.begin(), name.end(), name.begin(), ::tolower);

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -161,6 +161,18 @@ void StreamHandler::do_log(const Record &record) {
 }
 
 ////////////////////////////////////////////////////////////////
+// class NullHandler
+
+NullHandler::NullHandler(bool format_messages, LogLevel level,
+                         LogTimestampPrecision timestamp_precision)
+    : Handler(format_messages, level, timestamp_precision) {}
+
+void NullHandler::do_log(const Record & /*record*/) {}
+
+// satisfy ODR
+constexpr const char *NullHandler::kDefaultName;
+
+////////////////////////////////////////////////////////////////
 // class FileHandler
 
 FileHandler::FileHandler(const Path &path, bool format_messages, LogLevel level,
@@ -173,6 +185,11 @@ FileHandler::FileHandler(const Path &path, bool format_messages, LogLevel level,
     size_t pos;
     pos = log_path.find_last_of('/');
     if (pos != std::string::npos) log_path.erase(pos);  // log_path = /path/to
+
+    if (log_path.empty()) {
+      throw std::runtime_error("filelog sink configured but the filename '" +
+                               path.str() + "' is not a valid log filename");
+    }
 
     // mkdir if it doesn't exist
     if (mysql_harness::Path(log_path).exists() == false &&
