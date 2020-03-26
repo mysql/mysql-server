@@ -389,9 +389,10 @@ void Security_context::checkout_access_maps(void) {
   if (m_acl_map != nullptr) {
     DBUG_PRINT(
         "info",
-        ("(checkout) Security_context for %s@%s returns Acl_map to cache. "
+        ("(checkout) Security_context for %.*s@%.*s returns Acl_map to cache. "
          "Map reference count= %u",
-         m_user.c_ptr(), m_host.c_ptr(), m_acl_map->reference_count()));
+         (int)m_priv_user_length, m_priv_user, (int)m_priv_host_length,
+         m_priv_host, m_acl_map->reference_count()));
     get_global_acl_cache()->return_acl_map(m_acl_map);
     m_acl_map = nullptr;
   }
@@ -399,16 +400,18 @@ void Security_context::checkout_access_maps(void) {
   if (m_active_roles.size() == 0) return;
   ++m_map_checkout_count;
   Auth_id_ref uid;
-  uid.first.str = this->m_user.ptr();
-  uid.first.length = this->m_user.length();
-  uid.second.str = this->m_host_or_ip.ptr();
-  uid.second.length = this->m_host_or_ip.length();
+  uid.first.str = this->m_priv_user;
+  uid.first.length = this->m_priv_user_length;
+  uid.second.str = this->m_priv_host;
+  uid.second.length = this->m_priv_host_length;
   m_acl_map =
       get_global_acl_cache()->checkout_acl_map(this, uid, m_active_roles);
   if (m_acl_map != nullptr) {
-    DBUG_PRINT("info", ("Roles are active and global access for %s@%s is set to"
-                        " %lu",
-                        user().str, host_or_ip().str, m_acl_map->global_acl()));
+    DBUG_PRINT("info",
+               ("Roles are active and global access for %.*s@%.*s is set to"
+                " %lu",
+                (int)m_priv_user_length, m_priv_user, (int)m_priv_host_length,
+                m_priv_host, m_acl_map->global_acl()));
     set_master_access(m_acl_map->global_acl(), m_acl_map->restrictions());
   } else {
     set_master_access(0);
