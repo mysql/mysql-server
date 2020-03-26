@@ -621,7 +621,6 @@ public:
   Uint32 getNoOfChildOperations() const;
   NdbQueryOperationImpl& getChildOperation(Uint32 i) const;
 
-  SpjTreeNodeMask getDescendants() const;
   SpjTreeNodeMask getDependants() const;
 
   /** A shorthand for getting the root operation. */
