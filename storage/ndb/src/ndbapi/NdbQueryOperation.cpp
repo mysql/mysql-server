@@ -63,6 +63,12 @@ static const int enforcedBatchSize = 0;
 // to be more adaptive based on query type
 static const bool useDoubleBuffers = true;
 
+/** Set to true to trace incoming signals.*/
+static const bool traceSignals = false;
+
+/* A 'void' index for a tuple in internal parent / child correlation structs .*/
+static const Uint16 tupleNotFound = 0xffff;
+
 /* Various error codes that are not specific to NdbQuery. */
 static const int Err_TupleNotFound = 626;
 static const int Err_FalsePredicate = 899;
@@ -81,12 +87,6 @@ static const int Err_DifferentTabForKeyRecAndAttrRec = 4287;
 static const int Err_KeyIsNULL = 4316;
 static const int Err_FinaliseNotCalled = 4519;
 static const int Err_InterpretedCodeWrongTab = 4524;
-
-/* A 'void' index for a tuple in internal parent / child correlation structs .*/
-static const Uint16 tupleNotFound = 0xffff;
-
-/** Set to true to trace incomming signals.*/
-static const bool traceSignals = false;
 
 enum
 {
@@ -523,8 +523,12 @@ public:
   bool isEmpty() const
   { return m_iterState == Iter_finished; }
 
+  /**
+   * The internalOpNo is the identifier for this OpNo used in the
+   * 'matchingChild' logic in ::prepareResultSet().
+   */
   Uint32 getInternalOpNo() const
-  { return m_operation.getInternalOpNo(); }
+  { return m_internalOpNo; }
 
   /**
    * Returns true if this result stream holds the last batch of a sub scan.
@@ -533,13 +537,7 @@ public:
    */
   bool isSubScanComplete(SpjTreeNodeMask remainingScans) const
   { 
-    /**
-     * Find the node number seen by the SPJ block. Since a unique index
-     * operation will have two distincts nodes in the tree used by the
-     * SPJ block, this number may be different from 'opNo'.
-     */
-    const Uint32 internalOpNo = getInternalOpNo();
-    return !remainingScans.get(internalOpNo);
+    return !remainingScans.get(m_internalOpNo);
   }
 
   bool isScanQuery() const
@@ -653,8 +651,13 @@ private:
   /** Operation to which this resultStream belong.*/
   NdbQueryOperationImpl& m_operation;
 
-  /** ResultStream for my parent operation, or NULL if I am root */
-  NdbResultStream* const m_parent;
+  /** Cached internal OpNo, as retrieves from m_operation.getInternalOpNo() */
+  const Uint32 m_internalOpNo;
+
+  /** ResultStream for my parent operation, or nullptr if I am root */
+  const NdbResultStream* const m_parent;
+  /** Children of this operation.*/
+  Vector<NdbResultStream*> m_children;
 
   /**
    * The dependants node map contain those nodes depending on (the existence of)
@@ -835,9 +838,11 @@ NdbResultStream::NdbResultStream(NdbQueryOperationImpl& operation,
 :
   m_worker(worker),
   m_operation(operation),
+  m_internalOpNo(operation.getInternalOpNo()),
   m_parent(operation.getParentOperation()
         ? &worker.getResultStream(*operation.getParentOperation())
-        : NULL),
+        : nullptr),
+  m_children(),
   m_dependants(operation.getDependants()),
   m_properties(
     (enum properties)
@@ -861,7 +866,17 @@ NdbResultStream::NdbResultStream(NdbQueryOperationImpl& operation,
   m_currentRow(tupleNotFound),
   m_maxRows(0),
   m_tupleSet(NULL)
-{}
+{
+  if (m_parent != nullptr)
+  {
+    const int res = const_cast<NdbResultStream*>(m_parent)->m_children.push_back(this);
+    if (res != 0)
+    {
+      operation.getQuery().setErrorCode(Err_MemoryAlloc);
+      return;
+    }
+  }
+}
 
 NdbResultStream::~NdbResultStream()
 {
@@ -1102,10 +1117,9 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
 
   SpjTreeNodeMask firstMatchedNodes;
 
-  for (int childNo=m_operation.getNoOfChildOperations()-1; childNo>=0; childNo--)
-  {
-    const NdbQueryOperationImpl& child = m_operation.getChildOperation(childNo);
-    NdbResultStream& childStream = m_worker.getResultStream(child);
+  for (int childNo=m_children.size()-1; childNo>=0; childNo--)
+  {	
+    NdbResultStream& childStream = *m_children[childNo];
     if (expectingResults.overlaps(childStream.m_dependants))
     {
       // childStream got new result rows
@@ -1136,6 +1150,7 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
   if (m_tupleSet != nullptr)
   {
     const SpjTreeNodeMask descendants = m_operation.getDescendants();
+    const Uint32 thisOpId = getInternalOpNo();
     const Uint32 rowCount = readResult.getRowCount();
     for (Uint32 tupleNo=0; tupleNo < rowCount; tupleNo++)
     {
@@ -1143,7 +1158,7 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
        * FirstMatch handling: If this tupleNo already found a match from all
        * tables we skip it from further result processing:
        */
-      if (!firstMatchedNodes.isclear() &&    // Some childrens are semi-joins
+      if (!firstMatchedNodes.isclear() &&    // Some childrens are firstmatch-semi-joins
           m_tupleSet[tupleNo].m_hadMatchingChild.contains(firstMatchedNodes))
       {
         // We have already found a match for (all of) our firstMatchedNodes.
@@ -1156,7 +1171,7 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
           if (traceSignals) {
             ndbout << "prepareResultSet, useFirstMatch"
                    << ", expecting overlaps -> skip tupleNo"
-                   << ", opNo: " << getInternalOpNo()
+                   << ", opNo: " << thisOpId
                    << ", row: "  << tupleNo
                    << endl;
           }
@@ -1171,7 +1186,7 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
           // Do nothing, except keeping 'isSkipped' if already set.
           if (traceSignals) {
             ndbout << "prepareResultSet, Join doesn't overlaps FirstMatchNodes"
-                   << ", opNo: " << getInternalOpNo()
+                   << ", opNo: " << thisOpId
                    << ", row: "  << tupleNo
                    << ", isSkipped?: " << isSkippedFirstMatch(tupleNo)
                    << endl;
@@ -1187,7 +1202,7 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
           if (traceSignals) {
             ndbout << "prepareResultSet, Join-useFirstMatch"
                    << ", cleared 'hadMatching'-> un-skip"
-                   << ", opNo: " << getInternalOpNo()
+                   << ", opNo: " << thisOpId
                    << ", row: "  << tupleNo
                    << endl;
           }
@@ -1196,12 +1211,11 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
         }
       } // FirstMatch
 
-      for (int childNo=m_operation.getNoOfChildOperations()-1; childNo>=0; childNo--)
+      const Uint16 tupleId = getTupleId(tupleNo);
+      for (int childNo=m_children.size()-1; childNo>=0; childNo--)
       {	
-        const NdbQueryOperationImpl& child = m_operation.getChildOperation(childNo);
-        const NdbResultStream& childStream = m_worker.getResultStream(child);
+        const NdbResultStream& childStream = *m_children[childNo];
         const Uint32 childId = childStream.getInternalOpNo();
-        const Uint16 tupleId = getTupleId(tupleNo);
         const Uint16 childIx = childStream.findTupleWithParentId(tupleId);
 
         /**
@@ -1216,7 +1230,7 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
           if (traceSignals) {
             ndbout << "prepareResultSet"
                    << ", MATCHED"
-                   << ", opNo: " << getInternalOpNo()
+                   << ", opNo: " << thisOpId
                    << ", row: " << tupleNo
                    << ", child: " << childId
                    << ", with extra 'dependants': " << childStream.m_dependants.rep.data[0]
@@ -1233,7 +1247,7 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
           if (traceSignals) {
             ndbout << "prepareResultSet"
                    << ", NO MATCH"
-                   << ", opNo: " << getInternalOpNo()
+                   << ", opNo: " << thisOpId
                    << ", row: " << tupleNo
                    << ", child: " << childId
                    << ", with extra 'dependants': " << childStream.m_dependants.rep.data[0]
@@ -1265,7 +1279,7 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
             if (traceSignals) {
               ndbout << "prepareResultSet"
                      << ", matched 'innerNest'"
-                     << ", opNo: " << getInternalOpNo()
+                     << ", opNo: " << thisOpId
                      << ", row: " << tupleNo
                      << ", child: " << childId
                      << endl;
@@ -1278,7 +1292,7 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
             if (traceSignals) {
               ndbout << "prepareResultSet"
                      << ", no NULLs (previous matches)"
-                     << ", opNo: " << getInternalOpNo()
+                     << ", opNo: " << thisOpId
                      << ", row: " << tupleNo
                      << ", child: " << childId
                      << ", had matches: " << m_tupleSet[tupleNo].m_hadMatchingChild.rep.data[0]
@@ -1291,7 +1305,7 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
             if (traceSignals) {
               ndbout << "prepareResultSet"
                      << ", no NULLs (still active)"
-                     << ", opNo: " << getInternalOpNo()
+                     << ", opNo: " << thisOpId
                      << ", row: " << tupleNo
                      << ", child: " << childId
                      << ", nestDependants: " << childStream.m_dependants.rep.data[0]
@@ -1311,7 +1325,7 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
             if (traceSignals) {
               ndbout << "prepareResultSet"
                      << ", NULL-extend (never matched)"
-                     << ", opNo: " << getInternalOpNo()
+                     << ", opNo: " << thisOpId
                      << ", row: " << tupleNo
                      << ", child: " << childId
                      << ", nestDependants: " << childStream.m_dependants.rep.data[0]
@@ -1334,7 +1348,7 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
         if (traceSignals) {
           ndbout << "prepareResultSet"
                  << ", Not all desc has matches -> skip tuple"
-                 << ", opNo: " << getInternalOpNo()
+                 << ", opNo: " << thisOpId
                  << ", row: " << tupleNo
                  << endl;
         }
@@ -1350,7 +1364,7 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
             if (traceSignals) {
               ndbout << "prepareResultSet"
                      << ", matched 'semiNest'"
-                     << ", opNo: " << getInternalOpNo()
+                     << ", opNo: " << thisOpId
                      << ", row: " << tupleNo
                      << endl;
             }
@@ -5472,7 +5486,7 @@ NdbQueryOperationImpl::execTRANSID_AI(const Uint32* ptr, Uint32 len)
   if (traceSignals) {
     ndbout << "NdbQueryOperationImpl::execTRANSID_AI()" 
            << ", from workerNo=" << worker->getWorkerNo()
-           << ", operation no: " << getQueryOperationDef().getOpNo()
+           << ", operation no: " << getQueryOperationDef().getInternalOpNo()
            << endl;
   }
 
