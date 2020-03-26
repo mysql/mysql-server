@@ -1,3 +1,4 @@
+--source include/not_mac_os.inc
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
 --source include/resource_group_init.inc
