@@ -237,9 +237,16 @@ DestMetadataCacheGroup::get_available(
   }
 
   for (const auto &it : managed_servers_vec) {
-    if (!(it.role == "HA")) {
-      continue;
+    if (for_new_connections) {
+      // for new connections skip (do not include) the node if it is hidden - it
+      // is not allowed
+      if (it.hidden) continue;
+    } else {
+      // for the existing connections skip (do not include) the node if it is
+      // hidden and disconnect_existing_sessions_when_hidden is true
+      if (it.hidden && it.disconnect_existing_sessions_when_hidden) continue;
     }
+
     auto port = (protocol_ == Protocol::Type::kXProtocol) ? it.xport : it.port;
 
     // role=PRIMARY_AND_SECONDARY
@@ -278,9 +285,6 @@ DestMetadataCacheGroup::get_available_primaries(
   const auto &managed_servers_vec = managed_servers.instance_vector;
 
   for (const auto &it : managed_servers_vec) {
-    if (!(it.role == "HA")) {
-      continue;
-    }
     auto port = (protocol_ == Protocol::Type::kXProtocol) ? it.xport : it.port;
 
     if (it.mode == metadata_cache::ServerMode::ReadWrite) {

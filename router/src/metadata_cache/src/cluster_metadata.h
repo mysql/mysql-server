@@ -173,4 +173,11 @@ bool set_instance_ports(metadata_cache::ManagedInstance &instance,
                         const size_t classic_port_column,
                         const size_t x_port_column);
 
+void set_instance_attributes(metadata_cache::ManagedInstance &instance,
+                             const std::string &attributes);
+
+bool get_hidden(const std::string &attributes, std::string &out_warning);
+bool get_disconnect_existing_sessions_when_hidden(const std::string &attributes,
+                                                  std::string &out_warning);
+
 #endif  // METADATA_CACHE_CLUSTER_METADATA_INCLUDED

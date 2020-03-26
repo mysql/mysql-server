@@ -127,8 +127,7 @@ class MetadataCacheTest2 : public ::testing::Test {
                      });
 
     m.expect_query(
-        "SELECT R.replicaset_name, I.mysql_server_uuid, I.role, I.weight, "
-        "I.version_token, "
+        "SELECT R.replicaset_name, I.mysql_server_uuid, "
         "I.addresses->>'$.mysqlClassic', I.addresses->>'$.mysqlX' FROM "
         "mysql_innodb_cluster_metadata.clusters "
         "AS F JOIN mysql_innodb_cluster_metadata.replicasets AS R ON "
@@ -138,18 +137,15 @@ class MetadataCacheTest2 : public ::testing::Test {
         "AND R.attributes->>'$.group_replication_group_name' = '0000-0001'");
     m.then_return(
         8,
-        {// replicaset_name, mysql_server_uuid, role, weight, version_token,
+        {// replicaset_name, mysql_server_uuid,
          // I.addresses->>'$.mysqlClassic', I.addresses->>'$.mysqlX'
          {m.string_or_null("cluster-1"), m.string_or_null("uuid-server1"),
-          m.string_or_null("HA"), m.string_or_null(), m.string_or_null(),
           m.string_or_null("localhost:3000"),
           m.string_or_null("localhost:30000")},
          {m.string_or_null("cluster-1"), m.string_or_null("uuid-server2"),
-          m.string_or_null("HA"), m.string_or_null(), m.string_or_null(),
           m.string_or_null("localhost:3001"),
           m.string_or_null("localhost:30010")},
          {m.string_or_null("cluster-1"), m.string_or_null("uuid-server3"),
-          m.string_or_null("HA"), m.string_or_null(), m.string_or_null(),
           m.string_or_null("localhost:3002"),
           m.string_or_null("localhost:30020")}});
 

@@ -62,6 +62,7 @@ using JsonStringBuffer =
  * @param gr_node_host address of the host with the nodes
  * @param gr_node_xports vector with the X protocol ports of the cluster nodes
  * reported by the metadata
+ * @param attributes vector with the JSON with attributes of the cluster nodes
  *
  * @return JSON object with the GR mock data.
  */
@@ -70,7 +71,8 @@ JsonValue mock_GR_metadata_as_json(
     unsigned primary_id = 0, unsigned view_id = 0,
     bool error_on_md_query = false,
     const std::string &gr_node_host = "127.0.0.1",
-    const std::vector<uint32_t> &gr_node_xports = {});
+    const std::vector<uint32_t> &gr_node_xports = {},
+    const std::vector<std::string> &node_attributes = {});
 
 /**
  * Sets the metadata returned by the mock server.
@@ -86,13 +88,15 @@ JsonValue mock_GR_metadata_as_json(
  * query
  * @param gr_node_xports vector with the X protocol ports of the cluster nodes
  * reported by the metadata
+ * @param attributes vector with the JSON with attributes of the cluster nodes
  */
 void set_mock_metadata(uint16_t http_port, const std::string &gr_id,
                        const std::vector<uint16_t> &gr_node_ports,
                        unsigned primary_id = 0, unsigned view_id = 0,
                        bool error_on_md_query = false,
                        const std::string &gr_node_host = "127.0.0.1",
-                       const std::vector<uint32_t> &gr_node_xports = {});
+                       const std::vector<uint32_t> &gr_node_xports = {},
+                       const std::vector<std::string> &node_attributes = {});
 
 void set_mock_bootstrap_data(
     uint16_t http_port, const std::string &cluster_name,

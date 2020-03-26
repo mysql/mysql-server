@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -87,9 +87,10 @@ SET_TARGET_PROPERTIES(metadata_cache_tests PROPERTIES
 TARGET_INCLUDE_DIRECTORIES(metadata_cache_tests PRIVATE ${include_dirs})
 
 SET(TEST_MODULE metadata_cache)
-FOREACH(test_file 
+FOREACH(test_file
     test_cache_plugin.cc
     test_failover.cc
+    test_instance_attributes.cc
     test_metadata.cc
     test_metadata_cache.cc
     test_plugin_config.cc
