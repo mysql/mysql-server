@@ -2637,11 +2637,15 @@ NdbQueryPKLookupOperationDefImpl
   {
     requestInfo |= DABits::NI_INNER_JOIN; //No outer-joins
   }
-  if (getMatchType() & NdbQueryOptions::MatchFirst)
+  if (getMatchType() & NdbQueryOptions::MatchFirst || hasFirstMatchAncestor())
   {
     // We set FirstMatch for 'completeness', even if it isn't really
     // required for a PK lookup. (There can only be a single 'first')
     requestInfo |= DABits::NI_FIRST_MATCH;
+  }
+  if (getMatchType() & NdbQueryOptions::MatchNullOnly)
+  {
+    requestInfo |= DABits::NI_ANTI_JOIN;
   }
 
   /**
@@ -2712,11 +2716,16 @@ NdbQueryIndexOperationDefImpl
     {
       requestInfo |= DABits::NI_INNER_JOIN; //No outer-joins
     }
-    if (getMatchType() & NdbQueryOptions::MatchFirst)
+    if (getMatchType() & NdbQueryOptions::MatchFirst ||
+        hasFirstMatchAncestor())
     {
       // We set FirstMatch for 'completeness', even if it isn't really
       // required for a UQ lookup. (There can only be a single 'first')
       requestInfo |= DABits::NI_FIRST_MATCH;
+    }
+    if (getMatchType() & NdbQueryOptions::MatchNullOnly)
+    {
+      requestInfo |= DABits::NI_ANTI_JOIN;
     }
 
     // Optional part1: Make list of parent nodes.
@@ -2864,9 +2873,13 @@ NdbQueryScanOperationDefImpl::serialize(const Ndb *ndb,
   {
     requestInfo |= DABits::NI_INNER_JOIN; //No outer-joins
   }
-  if (getMatchType() & NdbQueryOptions::MatchFirst)
+  if (getMatchType() & NdbQueryOptions::MatchFirst || hasFirstMatchAncestor())
   {
     requestInfo |= DABits::NI_FIRST_MATCH;
+  }
+  if (getMatchType() & NdbQueryOptions::MatchNullOnly)
+  {
+    requestInfo |= DABits::NI_ANTI_JOIN;
   }
 
   // Optional part1: Make list of parent nodes.

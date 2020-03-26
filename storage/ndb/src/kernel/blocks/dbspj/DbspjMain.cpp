@@ -6622,6 +6622,12 @@ Dbspj::scanFrag_build(Build_context& ctx,
         // not depends of finding matches from children -> has to be a leaf
         ScanFragReq::setFirstMatchFlag(requestInfo, 1);
       }
+      if (treeBits & DABits::NI_ANTI_JOIN && treeNodePtr.p->isLeaf())
+      {
+        // ANTI_JOIN's cares about whether a match was found or not
+        // Thus, returning only the first match is sufficient here as well
+        ScanFragReq::setFirstMatchFlag(requestInfo, 1);
+      }
       dst->requestInfo = requestInfo;
     }
 
