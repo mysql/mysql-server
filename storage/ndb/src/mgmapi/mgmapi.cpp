@@ -1763,9 +1763,12 @@ ndb_mgm_stop4(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
   Properties args;
 
   BaseString node_list_str;
-  node_list_str.assfmt("%d", node_list[0]);
-  for(int node = 1; node < no_of_nodes; node++)
-    node_list_str.appfmt(" %d", node_list[node]);
+  const char* sep = "";
+  for(int node = 0; node < no_of_nodes; node++)
+  {
+    node_list_str.appfmt("%s%d", sep, node_list[node]);
+    sep = " ";
+  }
   
   args.put("node", node_list_str.c_str());
   args.put("abort", abort);
@@ -1909,9 +1912,12 @@ ndb_mgm_restart4(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
   }      
 
   BaseString node_list_str;
-  node_list_str.assfmt("%d", node_list[0]);
-  for(int node = 1; node < no_of_nodes; node++)
-    node_list_str.appfmt(" %d", node_list[node]);
+  const char* sep = "";
+  for(int node = 0; node < no_of_nodes; node++)
+  {
+    node_list_str.appfmt("%s%d", sep, node_list[node]);
+    sep = " ";
+  }
 
   Properties args;
   
@@ -2373,8 +2379,11 @@ ndb_mgm_listen_event_internal(NdbMgmHandle handle, const int filter[],
     args.put("parsable", parsable);
   {
     BaseString tmp;
-    for(int i = 0; filter[i] != 0; i += 2){
-      tmp.appfmt("%d=%d ", filter[i+1], filter[i]);
+    const char* sep = "";
+    for(int i = 0; filter[i] != 0; i += 2)
+    {
+      tmp.appfmt("%s%d=%d", sep, filter[i+1], filter[i]);
+      sep = " ";
     }
     args.put("filter", tmp.c_str());
   }
@@ -3583,8 +3592,12 @@ int ndb_mgm_report_event(NdbMgmHandle handle, Uint32 *data, Uint32 length)
   args.put("length", length);
   BaseString data_string;
 
+  const char* sep = "";
   for (int i = 0; i < (int) length; i++)
-    data_string.appfmt(" %lu", (ulong) data[i]);
+  {
+    data_string.appfmt("%s%lu", sep, (ulong) data[i]);
+    sep = " ";
+  }
 
   args.put("data", data_string.c_str());
 
@@ -3854,8 +3867,12 @@ int ndb_mgm_create_nodegroup(NdbMgmHandle handle,
   CHECK_CONNECTED(handle, -1);
 
   BaseString nodestr;
+  const char* sep = "";
   for (int i = 0; nodes[i] != 0; i++)
-    nodestr.appfmt("%u ", nodes[i]);
+  {
+    nodestr.appfmt("%s%u", sep, nodes[i]);
+    sep = " ";
+  }
 
   Properties args;
   args.put("nodes", nodestr.c_str());
