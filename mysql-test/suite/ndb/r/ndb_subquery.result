@@ -35,10 +35,9 @@ p	u	o
 5	5	5
 explain select * from t2 where p NOT IN (select o from t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	NULL
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	o	o	4	test.t2.p	#	#	Using where; Not exists
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Parent of 2 pushed join@1
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	o	o	4	test.t2.p	#	#	Child of 't2' in pushed join@1; Using where; Not exists
 Warnings:
-Note	1003	Can't push outer joined table 't1' as child of 't2', table condition can not be fully evaluated by pushed join
 Note	1003	/* select#1 */ select `test`.`t2`.`p` AS `p`,`test`.`t2`.`u` AS `u`,`test`.`t2`.`o` AS `o` from `test`.`t2` anti join (`test`.`t1`) on((`test`.`t1`.`o` = `test`.`t2`.`p`)) where true
 select * from t2 where p NOT IN (select o from t1) order by p;
 p	u	o

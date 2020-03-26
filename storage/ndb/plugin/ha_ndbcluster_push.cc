@@ -47,6 +47,14 @@
 
 typedef NdbDictionary::Table NDBTAB;
 
+/**
+ * antijoin_null_cond is inserted by the optimizer when it create the
+ * special antijoin-NULL-condition. It serves as a token to uniquely
+ * identify such a NULL-condition. Also see similar usage of it
+ * when building the iterators in sql_executor.cc
+ */
+extern const char *antijoin_null_cond;
+
 /*
   Explain why an operation could not be pushed
   @param[in] msgfmt printf style format string.
@@ -82,6 +90,40 @@ uint ndb_table_access_map::first_table(uint start) const {
     if (contain(table_no)) return table_no;
   }
   return length();
+}
+
+static const Item_func_trig_cond *GetTriggerCondOrNull(const Item *item) {
+  if (item->type() == Item::FUNC_ITEM &&
+      down_cast<const Item_func *>(item)->functype() ==
+          Item_bool_func2::TRIG_COND_FUNC) {
+    return down_cast<const Item_func_trig_cond *>(item);
+  } else {
+    return nullptr;
+  }
+}
+
+/**
+ * Check if the specified 'item' is a antijoin-NULL-condition.
+ * This condition is constructed such that all rows being 'matches'
+ * are filtered away, and only the non-(anti)matches will pass.
+ *
+ * Logic inspired by similar code in sql_executor.cc.
+ */
+static bool is_antijoin_null_cond(const Item *item) {
+  const Item_func_trig_cond *trig_cond = GetTriggerCondOrNull(item);
+  if (trig_cond != nullptr &&
+      trig_cond->get_trig_type() == Item_func_trig_cond::IS_NOT_NULL_COMPL) {
+    const Item *inner_cond = trig_cond->arguments()[0];
+    const Item_func_trig_cond *inner_trig_cond =
+        GetTriggerCondOrNull(inner_cond);
+    if (inner_trig_cond != nullptr) {
+      const Item *inner_inner_cond = inner_trig_cond->arguments()[0];
+      if (inner_inner_cond->item_name.ptr() == antijoin_null_cond) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 uint ndb_table_access_map::last_table(uint start) const {
@@ -876,8 +918,18 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
     handler->m_cond.prep_cond_push(pending_cond, other_tbls_ok);
     pending_cond = handler->m_cond.m_remainder_cond;
   }
-  if (pending_cond != nullptr) m_has_pending_cond.add(tab_no);
-
+  if (pending_cond != nullptr) {
+    /**
+     * An anti join will always have an 'antijoin_null_cond' attached.
+     * The general rule is that we do not allow any tables having unpushed
+     * conditions to be pushed as part of a SPJ operation. However, this
+     * special 'antijoin_null_cond' could be ignored, as the same NULL-only
+     * filtering is done by the antijoin execution at the server.
+     */
+    if (!(table->is_antijoin() && is_antijoin_null_cond(pending_cond))) {
+      m_has_pending_cond.add(tab_no);
+    }
+  }
   if (!ndbcluster_is_lookup_operation(table->get_access_type())) {
     // Check extra limitations on when index scan is pushable,
     if (!is_pushable_as_child_scan(table, all_parents)) {
@@ -1155,7 +1207,8 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child_scan(
     ndb_table_access_map outer_join_nests(m_tables[tab_no].embedding_nests());
     outer_join_nests.subtract(full_inner_nest(root_no, tab_no));
 
-    if (!is_pushable_within_nest(table, outer_join_nests, "outer")) {
+    const char *join_type = table->is_antijoin() ? "anti" : "outer";
+    if (!is_pushable_within_nest(table, outer_join_nests, join_type)) {
       return false;
     }
 
@@ -1167,9 +1220,10 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child_scan(
     if (unlikely(!embedding_nests.contain(all_parents))) {           // 3)
       if (unlikely(!embedding_nests.contain(m_has_pending_cond))) {  // 3a)
         EXPLAIN_NO_PUSH(
-            "Can't push outer joined table '%s' as child of '%s', "
+            "Can't push %s joined table '%s' as child of '%s', "
             "exists unpushed condition in join-nests it depends on",
-            table->get_table()->alias, m_join_root->get_table()->alias);
+            join_type, table->get_table()->alias,
+            m_join_root->get_table()->alias);
         return false;
       }
 
@@ -1184,14 +1238,16 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child_scan(
        *  'Are there any unpushed tables outside of our embedding nests',
        *  instead of 'Do we refer tables from nests outside embedding nests,
        *  having unpushed tables'. As we alread know 'all_parents' are not
-       *  contained in 'embedding', the outcome should be the same except if
-       * we have parent refs to multiple non-embedded nests. (very unlikely)
+       *  contained in 'embedding'.
+       * The outcome should be the same except if we have parent refs to
+       * multiple non-embedded nests. (very unlikely)
        */
       if (unlikely(!embedding_nests.contain(unpushed_tables))) {  // 3b)
         EXPLAIN_NO_PUSH(
-            "Can't push outer joined table '%s' as child of '%s', "
+            "Can't push %s joined table '%s' as child of '%s', "
             "table depends on join-nests with unpushed tables",
-            table->get_table()->alias, m_join_root->get_table()->alias);
+            join_type, table->get_table()->alias,
+            m_join_root->get_table()->alias);
         return false;
       }
     }
@@ -1469,6 +1525,11 @@ void ndb_pushed_builder_ctx::validate_join_nest(ndb_table_access_map inner_nest,
       AQP::Table_access *table = m_plan.get_table_access(tab_no);
       const Item *cond = table->get_condition();
       if (cond != nullptr) {
+        // Condition could possibly be a 'antijoin_null_cond', in which case
+        // the pending_cond flag has been cleared, it should then be ignored.
+        if (m_join_scope.contain(tab_no) && !m_has_pending_cond.contain(tab_no))
+          continue;
+
         struct {
           table_map nest_scope;   // Aggregated 'inner_tables' scope of triggers
           table_map found_match;  // FOUND_MATCH-trigger scope
@@ -1477,28 +1538,23 @@ void ndb_pushed_builder_ctx::validate_join_nest(ndb_table_access_map inner_nest,
         // Check 'cond' for match trigger / filters
         WalkItem(const_cast<Item *>(cond), enum_walk::PREFIX,
                  [&trig_cond](Item *item) {
-                   if (item->type() == Item::FUNC_ITEM) {
-                     const Item_func *func_item =
-                         static_cast<const Item_func *>(item);
-                     if (func_item->functype() == Item_func::TRIG_COND_FUNC) {
-                       const Item_func_trig_cond *func_trig =
-                           static_cast<const Item_func_trig_cond *>(func_item);
+                   const Item_func_trig_cond *func_trig =
+                       GetTriggerCondOrNull(item);
+                   if (func_trig != nullptr) {
+                     /**
+                      * The FOUND_MATCH-trigger may be encapsulated inside
+                      * multiple IS_NOT_NULL_COMPL-triggers, which defines
+                      * the scope of the triggers. Aggregate these
+                      * 'inner_tables' scopes.
+                      */
+                     trig_cond.nest_scope |= func_trig->get_inner_tables();
 
-                       /**
-                        * The FOUND_MATCH-trigger may be encapsulated inside
-                        * multiple IS_NOT_NULL_COMPL-triggers, which defines
-                        * the scope of the triggers. Aggregate these
-                        * 'inner_tables' scopes.
-                        */
-                       trig_cond.nest_scope |= func_trig->get_inner_tables();
-
-                       if (func_trig->get_trig_type() ==
-                           Item_func_trig_cond::FOUND_MATCH) {
-                         // The FOUND_MATCH-trigger is evaluated on top of
-                         // the collected trigger nest_scope.
-                         trig_cond.found_match |= trig_cond.nest_scope;
-                         return true;  // break out of this cond-branch
-                       }
+                     if (func_trig->get_trig_type() ==
+                         Item_func_trig_cond::FOUND_MATCH) {
+                       // The FOUND_MATCH-trigger is evaluated on top of
+                       // the collected trigger nest_scope.
+                       trig_cond.found_match |= trig_cond.nest_scope;
+                       return true;  // break out of this cond-branch
                      }
                    }
                    return false;  // continue WalkItem
