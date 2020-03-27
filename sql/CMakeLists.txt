@@ -189,6 +189,7 @@ SET(DD_SOURCES
   dd/impl/system_views/view_routine_usage.cc
   dd/impl/system_views/view_table_usage.cc
   dd/impl/system_views/views.cc
+  dd/impl/system_views/user_attributes.cc
 
   dd/impl/tables/character_sets.cc
   dd/impl/tables/check_constraints.cc

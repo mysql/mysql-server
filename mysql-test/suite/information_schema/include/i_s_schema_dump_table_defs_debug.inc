@@ -275,5 +275,10 @@ let $str = `$SELECT_CMD $WHERE_COND`;
 echo $str;
 eval INSERT INTO I_S_check_table(t) VALUES ("$str");
 
+let $WHERE_COND = AND TABLE_NAME='USER_ATTRIBUTES';
+let $str = `$SELECT_CMD $WHERE_COND`;
+echo $str;
+eval INSERT INTO I_S_check_table(t) VALUES ('$str');
+
 SET debug = '-d,skip_dd_table_access_check';
 SET debug = '-d,fetch_system_view_definition';

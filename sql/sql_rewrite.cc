@@ -426,8 +426,53 @@ bool Rewriter_user::rewrite(String &rlb) const {
   rewrite_password_reuse(lex, &rlb);
   rewrite_password_require_current(lex, &rlb);
   rewrite_account_lock_state(lex, &rlb);
+  rewrite_user_application_user_metadata(lex, &rlb);
   return false;
 }
+
+/**
+  Use the LEX for reconstructing the ATTRIBUTE or COMMENT clause.
+  @param [in]       lex    LEX struct to know if the clause was specified
+  @param [in, out]  str    The string in which the clause is suffixed
+*/
+void Rewriter_user::rewrite_in_memory_user_application_user_metadata(
+    const LEX *lex, String *str) const {
+  if (lex->alter_user_attribute ==
+      enum_alter_user_attribute::ALTER_USER_ATTRIBUTE) {
+    str->append(" ATTRIBUTE '");
+  } else if (lex->alter_user_attribute ==
+             enum_alter_user_attribute::ALTER_USER_COMMENT) {
+    str->append(" COMMENT '");
+  }
+  if (lex->alter_user_attribute !=
+      enum_alter_user_attribute::ALTER_USER_COMMENT_NOT_USED) {
+    str->append(lex->alter_user_comment_text);
+    str->append("'");
+  }
+}
+
+/**
+  Default implementaiton of the the rewriter for user applicatiton
+  user metadata.
+  @param [in]       lex    LEX struct to know if the clause was specified
+  @param [in, out]  str    The string in which the clause is suffixed
+*/
+void Rewriter_create_user::rewrite_user_application_user_metadata(
+    const LEX *lex, String *str) const {
+  parent::rewrite_in_memory_user_application_user_metadata(lex, str);
+}
+
+/**
+  Default implementaiton of the the rewriter for user applicatiton
+  user metadata.
+  @param [in]       lex    LEX struct to know if the clause was specified
+  @param [in, out]  str    The string in which the clause is suffixed
+*/
+void Rewriter_alter_user::rewrite_user_application_user_metadata(
+    const LEX *lex, String *str) const {
+  parent::rewrite_in_memory_user_application_user_metadata(lex, str);
+}
+
 /**
   Append the literal \<secret\> in place of password to the output string
 
@@ -653,6 +698,7 @@ void Rewriter_user::rewrite_password_reuse(const LEX *lex, String *str) const {
     str->append(STRING_WITH_LEN(" DAY"));
   }
 }
+
 /**
   Fetch the users from user_list in LEX struct and append them to the String.
 
@@ -862,6 +908,12 @@ Rewriter_show_create_user::Rewriter_show_create_user(THD *thd,
 
 /**
   Rewrite the query for the SHOW CREATE USER statement.
+  This method takes an additional parameter from the
+  Show_user_params to reconstruct the ATTRIBUTE clause.
+  These parameters must be read form disk which is done
+  in mysql_show_create_user()
+
+  @sa mysql_show_create_user()
 
   @param[in,out] rlb     Buffer to return the rewritten query in.
 
@@ -871,6 +923,23 @@ bool Rewriter_show_create_user::rewrite(String &rlb) const {
   rlb.append("CREATE USER ");
   parent::rewrite(rlb);
   return true;
+}
+
+/**
+  Overrides implementaiton of the the rewriter for user application
+  user metadata. This is needed because we have to read the
+  ATTRIBUTE data from disk.
+  @param [in]       lex    LEX struct to know if the clause was specified
+  @param [in, out]  str    The string in which the clause is suffixed
+*/
+void Rewriter_show_create_user::rewrite_user_application_user_metadata(
+    const LEX *lex MY_ATTRIBUTE((unused)), String *str) const {
+  /* Only show the ATTRIBUTE operator if there's any attribute to show. */
+  if (show_params_->metadata_str->length() > 0) {
+    str->append(" ATTRIBUTE '");
+    str->append(*show_params_->metadata_str);
+    str->append("'");
+  }
 }
 
 /**

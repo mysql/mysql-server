@@ -152,6 +152,7 @@ Database: information_schema
 | TABLESPACES                           |
 | TABLESPACES_EXTENSIONS                |
 | TRIGGERS                              |
+| USER_ATTRIBUTES                       |
 | USER_PRIVILEGES                       |
 | VIEW_ROUTINE_USAGE                    |
 | VIEW_TABLE_USAGE                      |
@@ -234,6 +235,7 @@ Database: INFORMATION_SCHEMA
 | TABLESPACES                           |
 | TABLESPACES_EXTENSIONS                |
 | TRIGGERS                              |
+| USER_ATTRIBUTES                       |
 | USER_PRIVILEGES                       |
 | VIEW_ROUTINE_USAGE                    |
 | VIEW_TABLE_USAGE                      |

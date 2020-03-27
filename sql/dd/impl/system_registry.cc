@@ -56,17 +56,18 @@
 #include "sql/dd/impl/system_views/st_units_of_measure.h"  // St_units_of_measure
 #include "sql/dd/impl/system_views/statistics.h"           // Statistics
 #include "sql/dd/impl/system_views/table_constraints.h"    // Table_constraints
-#include "sql/dd/impl/system_views/table_constraints_extensions.h"  // Table_constraints_extensions
-#include "sql/dd/impl/system_views/tables.h"                        // Tables
-#include "sql/dd/impl/system_views/tables_extensions.h"  // Tables_extensions
-#include "sql/dd/impl/system_views/tablespaces_extensions.h"  // Tablespaces_extensions
-#include "sql/dd/impl/system_views/triggers.h"                // Triggers
+#include "sql/dd/impl/system_views/tables.h"               // Tables
+#include "sql/dd/impl/system_views/triggers.h"             // Triggers
+#include "sql/dd/impl/system_views/user_attributes.h"
 #include "sql/dd/impl/system_views/view_routine_usage.h"  // View_routine_usage
 #include "sql/dd/impl/system_views/view_table_usage.h"    // View_table_usage
 #include "sql/dd/impl/system_views/views.h"               // Views
 
-#include "sql/dd/impl/tables/catalogs.h"              // Catalog
-#include "sql/dd/impl/tables/character_sets.h"        // Character_sets
+#include "sql/dd/impl/system_views/table_constraints_extensions.h"  // Table_constraints_extensions
+#include "sql/dd/impl/system_views/tables_extensions.h"  // Tables_extensions
+#include "sql/dd/impl/system_views/tablespaces_extensions.h"  // Tablespaces_extensions
+#include "sql/dd/impl/tables/catalogs.h"                      // Catalog
+#include "sql/dd/impl/tables/character_sets.h"                // Character_sets
 #include "sql/dd/impl/tables/check_constraints.h"     // Check_constraints
 #include "sql/dd/impl/tables/collations.h"            // Collations
 #include "sql/dd/impl/tables/column_statistics.h"     // Column_statistics
@@ -292,6 +293,7 @@ void System_views::init() {
   register_view<dd::system_views::View_routine_usage>(is);
   register_view<dd::system_views::View_table_usage>(is);
   register_view<dd::system_views::Views>(is);
+  register_view<dd::system_views::User_attributes>(non_dd_based_is);
 }
 
 }  // namespace dd

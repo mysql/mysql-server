@@ -4614,5 +4614,4 @@ PT_column_attr_base *make_column_secondary_engine_attribute(MEM_ROOT *,
 PT_base_index_option *make_index_engine_attribute(MEM_ROOT *, LEX_CSTRING);
 PT_base_index_option *make_index_secondary_engine_attribute(MEM_ROOT *,
                                                             LEX_CSTRING);
-
 #endif /* PARSE_TREE_NODES_INCLUDED */

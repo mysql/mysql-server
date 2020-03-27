@@ -1256,9 +1256,10 @@ void warn_about_deprecated_binary(THD *thd)
 %token NOT_A_TOKEN_SYM 1150                             /* INTERNAL */
 %token<lexer.keyword> JSON_VALUE_SYM 1151               /* SQL-2016-R */
 %token<lexer.keyword> TLS_SYM 1152                      /* MYSQL */
+%token<lexer.keyword> ATTRIBUTE_SYM 1153                /* SQL-2003-N */
 
-%token<lexer.keyword> ENGINE_ATTRIBUTE_SYM 1153         /* MYSQL */
-%token<lexer.keyword> SECONDARY_ENGINE_ATTRIBUTE_SYM 1154 /* MYSQL */
+%token<lexer.keyword> ENGINE_ATTRIBUTE_SYM 1154         /* MYSQL */
+%token<lexer.keyword> SECONDARY_ENGINE_ATTRIBUTE_SYM 1155 /* MYSQL */
 
 /*
   Precedence rules used to resolve the ambiguity when using keywords as idents
@@ -2876,6 +2877,7 @@ create:
         | CREATE USER opt_if_not_exists create_user_list default_role_clause
                       require_clause connect_options
                       opt_account_lock_password_expire_options
+                      opt_user_attribute
           {
             LEX *lex=Lex;
             lex->sql_command = SQLCOM_CREATE_USER;
@@ -7759,7 +7761,7 @@ alter_server_stmt:
 
 alter_user_stmt:
           alter_user_command alter_user_list require_clause
-          connect_options opt_account_lock_password_expire_options
+          connect_options opt_account_lock_password_expire_options opt_user_attribute
         | alter_user_command user_func IDENTIFIED_SYM BY RANDOM_SYM PASSWORD
           opt_replace_password opt_retain_current_password
           {
@@ -7856,6 +7858,28 @@ alter_user_command:
           }
         ;
 
+opt_user_attribute:
+          /* empty */
+          {
+            LEX *lex= Lex;
+            lex->alter_user_attribute =
+              enum_alter_user_attribute::ALTER_USER_COMMENT_NOT_USED;
+          }
+        | ATTRIBUTE_SYM TEXT_STRING_literal
+          {
+            LEX *lex= Lex;
+            lex->alter_user_attribute =
+              enum_alter_user_attribute::ALTER_USER_ATTRIBUTE;
+            lex->alter_user_comment_text = $2;
+          }
+        | COMMENT_SYM TEXT_STRING_literal
+          {
+            LEX *lex= Lex;
+            lex->alter_user_attribute =
+              enum_alter_user_attribute::ALTER_USER_COMMENT;
+            lex->alter_user_comment_text = $2;
+          }
+        ;
 opt_account_lock_password_expire_options:
           /* empty */ {}
         | opt_account_lock_password_expire_option_list
@@ -14534,6 +14558,7 @@ ident_keywords_unambiguous:
         | ANY_SYM
         | ARRAY_SYM
         | AT_SYM
+        | ATTRIBUTE_SYM
         | AUTOEXTEND_SIZE_SYM
         | AUTO_INC
         | AVG_ROW_LENGTH

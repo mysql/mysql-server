@@ -4532,7 +4532,6 @@ int mysql_execute_command(THD *thd, bool first_level) {
     case SQLCOM_RESTART_SERVER:
     case SQLCOM_CREATE_SRS:
     case SQLCOM_DROP_SRS:
-
       DBUG_ASSERT(lex->m_sql_cmd != nullptr);
       res = lex->m_sql_cmd->execute(thd);
       break;

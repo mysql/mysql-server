@@ -498,4 +498,5 @@ class Sql_cmd_show : public Sql_cmd {
  private:
   enum_sql_command m_sql_command;
 };
+
 #endif

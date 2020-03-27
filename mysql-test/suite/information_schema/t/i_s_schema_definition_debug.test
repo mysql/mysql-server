@@ -97,7 +97,7 @@
 --source include/have_debug.inc
 
 # Total number of system views in MySQL server.
-let $expected_system_view_count = 42;
+let $expected_system_view_count = 43;
 
 --echo ########################################################################
 --echo # PART 1
@@ -249,17 +249,10 @@ INSERT INTO I_S_published_schema
     '1223657a2f27ecdbea64f024eba5799275acd91fd23ef6696696ecf9f64161ec');
 INSERT INTO I_S_published_schema
   VALUES ('800201', 0,
-    'db2c2bdf36bc5fd81f7f888ab9706774921ff5160b0543936559855f27e8ea51');
+    '63f0e9c44684291020bdaa54c63c3a58fadaa8612f5db9903e037277760459ca');
 INSERT INTO I_S_published_schema
   VALUES ('800201', 1,
-    'b3cc231594350f18af9144d492687ca0c16a490b132096671a20b712ee19af76');
-INSERT INTO I_S_published_schema
-  VALUES ('80021', 0,
-    '46e090b1042a3cd1a7a6c0928338853f175c2599660a15a9690246ed03c6c525');
-INSERT INTO I_S_published_schema
-  VALUES ('80021', 1,
-    'eb896ff7c19d7e194014576db258ba44ffe22b288d60a63b25690f204110e866');
-
+    '24f04423bcc7b22d772e4c3804e1110d17726fd8ab3ac565ea4889cf7202af8c');
 --sorted_result
 SELECT IFNULL(CONCAT('The schema checksum corresponds to I_S version ',
                      version, '.'),

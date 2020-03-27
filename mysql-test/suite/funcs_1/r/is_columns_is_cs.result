@@ -432,6 +432,9 @@ def	information_schema	TRIGGERS	DEFINER	19	NULL	NO	varchar	288	864	NULL	NULL	NUL
 def	information_schema	TRIGGERS	CHARACTER_SET_CLIENT	20	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	TRIGGERS	COLLATION_CONNECTION	21	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	TRIGGERS	DATABASE_COLLATION	22	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
+def	information_schema	USER_ATTRIBUTES	USER	1		NO	char	32	96	NULL	NULL	NULL	utf8	utf8_bin	char(32)			select			NULL
+def	information_schema	USER_ATTRIBUTES	HOST	2		NO	char	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	char(255)			select			NULL
+def	information_schema	USER_ATTRIBUTES	ATTRIBUTE	3	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8mb4	utf8mb4_bin	longtext			select			NULL
 def	information_schema	USER_PRIVILEGES	GRANTEE	1		NO	varchar	97	292	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(292)			select			NULL
 def	information_schema	USER_PRIVILEGES	TABLE_CATALOG	2		NO	varchar	170	512	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(512)			select			NULL
 def	information_schema	USER_PRIVILEGES	PRIVILEGE_TYPE	3		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
@@ -478,6 +481,7 @@ COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
 1.0000	mediumtext	utf8	utf8_bin
 1.0000	text	utf8	utf8_bin
 1.0000	text	utf8	utf8_general_ci
+1.0000	longtext	utf8mb4	utf8mb4_bin
 SELECT DISTINCT
 CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH AS COL_CML,
 DATA_TYPE,
@@ -969,6 +973,9 @@ NULL	information_schema	TRIGGERS	CREATED	timestamp	NULL	NULL	NULL	NULL	timestamp
 3.0000	information_schema	TRIGGERS	CHARACTER_SET_CLIENT	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	TRIGGERS	COLLATION_CONNECTION	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	TRIGGERS	DATABASE_COLLATION	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+3.0000	information_schema	USER_ATTRIBUTES	USER	char	32	96	utf8	utf8_bin	char(32)
+1.0000	information_schema	USER_ATTRIBUTES	HOST	char	255	255	ascii	ascii_general_ci	char(255)
+1.0000	information_schema	USER_ATTRIBUTES	ATTRIBUTE	longtext	4294967295	4294967295	utf8mb4	utf8mb4_bin	longtext
 3.0103	information_schema	USER_PRIVILEGES	GRANTEE	varchar	97	292	utf8	utf8_general_ci	varchar(292)
 3.0118	information_schema	USER_PRIVILEGES	TABLE_CATALOG	varchar	170	512	utf8	utf8_general_ci	varchar(512)
 3.0476	information_schema	USER_PRIVILEGES	PRIVILEGE_TYPE	varchar	21	64	utf8	utf8_general_ci	varchar(64)

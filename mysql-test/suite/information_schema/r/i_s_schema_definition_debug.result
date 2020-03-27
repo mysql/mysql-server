@@ -103,8 +103,8 @@ SET debug = '+d,skip_dd_table_access_check';
 ########################################################################
 # The number of I_S system views must be as expected.
 ########################################################################
-include/assert.inc [There are 42 system views.]
-include/assert.inc [There are 42 I_S system views in total.]
+include/assert.inc [There are 43 system views.]
+include/assert.inc [There are 43 I_S system views in total.]
 ########################################################################
 # No unexpected I_S tables must be present.
 ########################################################################
@@ -1718,6 +1718,18 @@ INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infosch
    AND c_to_user != ''
    AND c_enabled = TRUE
 ");
+CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.USER_ATTRIBUTES AS SELECT 
+  user AS USER,
+  host AS HOST,
+  user_attributes->>"$.metadata" AS `ATTRIBUTE` FROM 
+  mysql.user
+
+INSERT INTO I_S_check_table(t) VALUES ('CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.USER_ATTRIBUTES AS SELECT 
+  user AS USER,
+  host AS HOST,
+  user_attributes->>"$.metadata" AS `ATTRIBUTE` FROM 
+  mysql.user
+');
 SET debug = '-d,skip_dd_table_access_check';
 SET debug = '-d,fetch_system_view_definition';
 ########################################################################
@@ -1729,5 +1741,5 @@ include/assert.inc [Found expected number of system views in DD.]
 include/assert.inc [Found expected number of system views in I_S_check_table.]
 include/assert.inc [The group concat max length is sufficient.]
 CHECK_STATUS
-The schema checksum corresponds to I_S version 80021.
+The schema checksum corresponds to I_S version 800201.
 include/assert.inc [The schema checksum corresponds to a known I_S version.]

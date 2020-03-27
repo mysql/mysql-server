@@ -152,6 +152,7 @@ Database: information_schema
 | TABLE_CONSTRAINTS_EXTENSIONS          |
 | TABLE_PRIVILEGES                      |
 | TRIGGERS                              |
+| USER_ATTRIBUTES                       |
 | USER_PRIVILEGES                       |
 | VIEWS                                 |
 | VIEW_ROUTINE_USAGE                    |
@@ -234,6 +235,7 @@ Database: INFORMATION_SCHEMA
 | TABLE_CONSTRAINTS_EXTENSIONS          |
 | TABLE_PRIVILEGES                      |
 | TRIGGERS                              |
+| USER_ATTRIBUTES                       |
 | USER_PRIVILEGES                       |
 | VIEWS                                 |
 | VIEW_ROUTINE_USAGE                    |

@@ -9357,6 +9357,9 @@ ER_INVALID_JSON_ATTRIBUTE
 ER_ENGINE_ATTRIBUTE_NOT_SUPPORTED
   eng "Storage engine '%s' does not support ENGINE_ATTRIBUTE."
 
+ER_INVALID_USER_ATTRIBUTE_JSON
+  eng "The user attribute must be a valid JSON object"
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

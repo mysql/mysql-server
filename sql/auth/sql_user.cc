@@ -67,6 +67,7 @@
 #include "sql/log_event.h" /* append_query_string */
 #include "sql/protocol.h"
 #include "sql/sql_audit.h"
+#include "sql/sql_base.h"  // open table
 #include "sql/sql_class.h"
 #include "sql/sql_connect.h"
 #include "sql/sql_const.h"
@@ -205,10 +206,22 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name,
   bool hide_password_hash = false;
 
   DBUG_TRACE;
+  TABLE_LIST table_list("mysql", "user", TL_READ, MDL_SHARED_READ_ONLY);
   if (are_both_users_same) {
-    TABLE_LIST t1("mysql", "user", TL_READ);
     hide_password_hash =
-        check_table_access(thd, SELECT_ACL, &t1, false, UINT_MAX, true);
+        check_table_access(thd, SELECT_ACL, &table_list, false, UINT_MAX, true);
+  }
+
+  /*
+     Open user table so we later can read the JSON data in the user_attribute
+     field. All tables must be opened before the acl_cache_lock
+  */
+  if (open_and_lock_tables(thd, &table_list, MYSQL_LOCK_IGNORE_TIMEOUT)) {
+    if (!is_expected_or_transient_error(thd)) {
+      LogErr(ERROR_LEVEL, ER_AUTHCACHE_CANT_OPEN_AND_LOCK_PRIVILEGE_TABLES,
+             thd->get_stmt_da()->message_text());
+    }
+    return true;
   }
 
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
@@ -341,8 +354,17 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name,
   }
   lex->users_list.push_back(user_name);
   {
+    /* Read and extract JSON comments */
+    String metadata_str;
+    if (read_user_application_user_metadata_from_table(
+            user_name->user, user_name->host, &metadata_str, table_list.table,
+            thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES)) {
+      error = 1;
+      goto err;
+    }
     Show_user_params show_user_params(
-        hide_password_hash, thd->variables.print_identified_with_as_hex);
+        hide_password_hash, thd->variables.print_identified_with_as_hex,
+        &metadata_str);
     /*
       By disabling instrumentation, we're requesting a rewrite to our
       local buffer, sql_text. The value on the THD and those seen in
@@ -361,6 +383,7 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name,
   }
 
 err:
+  commit_and_close_mysql_tables(thd);
   lex->default_roles = old_default_roles;
   /* restore user resources, ssl and password expire attributes */
   lex->mqh = tmp_user_resource;
@@ -370,7 +393,7 @@ err:
   lex->x509_subject = x509_subject;
 
   lex->alter_password = alter_info;
-  my_eof(thd);
+  if (!thd->get_stmt_da()->is_error()) my_eof(thd);
   return error;
 }
 
@@ -1401,6 +1424,14 @@ bool set_and_validate_user_attributes(
     what_to_set.m_user_attributes |=
         acl_table::USER_ATTRIBUTE_PASSWORD_LOCK_TIME;
   }
+  /*
+    We issued a ALTER USER x ATTRIBUTE or COMMENT statement and need
+    to update the user attributes.
+  */
+  if (thd->lex->alter_user_attribute !=
+      enum_alter_user_attribute::ALTER_USER_COMMENT_NOT_USED) {
+    what_to_set.m_what |= USER_ATTRIBUTES;
+  }
   plugin_unlock(nullptr, plugin);
   return (false);
 }
@@ -1548,6 +1579,7 @@ bool change_password(THD *thd, LEX_USER *lex_user, const char *new_password,
     thd->lex->contains_plaintext_password = false;
     authentication_plugin.assign(combo->plugin.str);
     thd->variables.sql_mode &= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
+
     ret = replace_user_table(thd, table, combo, 0, false, false, what_to_set);
     thd->variables.sql_mode = old_sql_mode;
 

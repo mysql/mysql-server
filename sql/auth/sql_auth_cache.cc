@@ -1983,7 +1983,7 @@ bool check_acl_tables_intact(THD *thd, bool mdl_locked) {
   log (because this is expected or temporary condition).
 */
 
-static bool is_expected_or_transient_error(THD *thd) {
+bool is_expected_or_transient_error(THD *thd) {
   return !thd->get_stmt_da()->is_error() ||  // Interrupted/no error condition.
          thd->get_stmt_da()->mysql_errno() == ER_TABLE_NOT_LOCKED ||
          thd->get_stmt_da()->mysql_errno() == ER_LOCK_DEADLOCK;

@@ -4741,7 +4741,8 @@ static bool buffer_record_somewhere(THD *thd, Window *w, int64 rowno) {
 
     /* Other error than duplicate error: Attempt to create a temporary table. */
     bool is_duplicate;
-    if (create_ondisk_from_heap(thd, t, error, true, &is_duplicate)) return -1;
+    if (create_ondisk_from_heap(thd, t, error, true, &is_duplicate))
+      return true;
 
     DBUG_ASSERT(t->s->db_type() == innodb_hton);
     if (t->file->ha_rnd_init(true)) return true; /* purecov: inspected */

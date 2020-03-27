@@ -238,6 +238,12 @@ enum class enum_view_create_mode {
   VIEW_CREATE_OR_REPLACE  // check only that there are not such table
 };
 
+enum class enum_alter_user_attribute {
+  ALTER_USER_COMMENT_NOT_USED,  // No user metadata ALTER in the AST
+  ALTER_USER_COMMENT,           // A text comment is expected
+  ALTER_USER_ATTRIBUTE          // A JSON object is expected
+};
+
 /* Options to add_table_to_list() */
 #define TL_OPTION_UPDATING 1
 #define TL_OPTION_FORCE_INDEX 2
@@ -3427,6 +3433,8 @@ struct LEX : public Query_tables_list {
   LEX_STRING ident;
   LEX_USER *grant_user;
   LEX_ALTER alter_password;
+  enum_alter_user_attribute alter_user_attribute;
+  LEX_STRING alter_user_comment_text;
   LEX_GRANT_AS grant_as;
   THD *thd;
   Value_generator *gcol_info;
