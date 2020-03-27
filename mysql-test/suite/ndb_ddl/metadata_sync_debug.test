@@ -205,6 +205,8 @@ SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
 
 # Verify that the objects have been blacklisted
 SHOW STATUS LIKE 'Ndb_metadata_blacklist_size';
+--sorted_result
+SELECT * FROM performance_schema.ndb_sync_excluded_objects;
 
 # Sleep for some time to let a couple of cycles of detection
 # occur. Since the objects have been blacklisted, the mismatches
@@ -249,6 +251,7 @@ SET GLOBAL ndb_metadata_check = true;
 # Wait until the blacklist is empty
 --let $max_wait = 30
 --source wait_metadata_sync_blacklist_empty.inc
+SELECT COUNT(*) FROM performance_schema.ndb_sync_excluded_objects;
 
 # Reset values
 SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check;
