@@ -97,6 +97,7 @@ SET(NDBCLUSTER_SOURCES
   plugin/ndb_pfs_init.cc
   plugin/ndb_pfs_table.cc
   plugin/ndb_sync_pending_objects_table.cc
+  plugin/ndb_sync_excluded_objects_table.cc
 )
 
 # Include directories used when building ha_ndbcluster

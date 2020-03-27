@@ -41,6 +41,7 @@ namespace dd {
 class Table;
 }
 class Ndb_sync_pending_objects_table;
+class Ndb_sync_excluded_objects_table;
 
 enum object_detected_type {
   LOGFILE_GROUP_OBJECT,
@@ -58,13 +59,18 @@ class Ndb_metadata_sync {
     std::string m_name;  // Object name, "" for schema objects
     object_detected_type m_type;
     object_validation_state m_validation_state;  // Used for blacklist only
+    std::string m_reason;  // Reason for the object being blacklisted. Should
+                           // contain fewer than 256 characters. Constraint due
+                           // to the size of the corresponding column in the PFS
+                           // table
 
     Detected_object(std::string schema_name, std::string name,
-                    object_detected_type type)
+                    object_detected_type type, std::string reason = "")
         : m_schema_name{std::move(schema_name)},
           m_name{std::move(name)},
           m_type{type},
-          m_validation_state{object_validation_state::PENDING} {}
+          m_validation_state{object_validation_state::PENDING},
+          m_reason{std::move(reason)} {}
   };
 
   mutable std::mutex m_objects_mutex;  // protects m_objects
@@ -244,12 +250,14 @@ class Ndb_metadata_sync {
     @param schema_name  Name of the schema
     @param name         Name of the object
     @param type         Type of the object
+    @param reason       Reason for blacklisting
 
     @return void
   */
   void add_object_to_blacklist(const std::string &schema_name,
                                const std::string &name,
-                               object_detected_type type);
+                               object_detected_type type,
+                               const std::string &reason);
 
   /*
     @brief Iterate through the blacklist of objects and check if the mismatches
@@ -263,17 +271,35 @@ class Ndb_metadata_sync {
   void validate_blacklist(THD *thd);
 
   /*
+    @brief Retrieve information about objects currently in the blacklist
+
+    @param excluded_table  Pointer to excluded objects table object
+
+    @return void
+  */
+  void retrieve_blacklist(Ndb_sync_excluded_objects_table *excluded_table);
+
+  /*
+    @brief Get the count of objects currently in the blacklist
+
+    @return number of blacklisted objects
+  */
+  unsigned int get_blacklist_count();
+
+  /*
     @brief Synchronize a logfile group object between NDB Dictionary and DD
 
     @param thd                 Thread handle
     @param logfile_group_name  Name of the logfile group
     @param temp_error [out]    Denotes if the failure was due to a temporary
                                error
+    @param error_msg  [out]    Message if the failure was due to a permanent
+                               error
 
     @return true if the logfile group was synced successfully, false if not
   */
   bool sync_logfile_group(THD *thd, const std::string &logfile_group_name,
-                          bool &temp_error) const;
+                          bool &temp_error, std::string &error_msg) const;
 
   /*
     @brief Synchronize a tablespace object between NDB Dictionary and DD
@@ -281,11 +307,12 @@ class Ndb_metadata_sync {
     @param thd               Thread handle
     @param tablespace_name   Name of the tablespace
     @param temp_error [out]  Denotes if the failure was due to a temporary error
+    @param error_msg  [out]  Message if the failure was due to a permanent error
 
     @return true if the tablespace was synced successfully, false if not
   */
   bool sync_tablespace(THD *thd, const std::string &tablespace_name,
-                       bool &temp_error) const;
+                       bool &temp_error, std::string &error_msg) const;
 
   /*
     @brief Synchronize a schema object between NDB Dictionary and DD
@@ -293,11 +320,12 @@ class Ndb_metadata_sync {
     @param thd               Thread handle
     @param schema_name       Name of the schema
     @param temp_error [out]  Denotes if the failure was due to a temporary error
+    @param error_msg  [out]  Message if the failure was due to a permanent error
 
     @return true if the schema was synced successfully, false if not
   */
-  bool sync_schema(THD *thd, const std::string &schema_name,
-                   bool &temp_error) const;
+  bool sync_schema(THD *thd, const std::string &schema_name, bool &temp_error,
+                   std::string &error_msg) const;
 
   /*
     @brief Synchronize a table object between NDB Dictionary and DD
@@ -306,11 +334,13 @@ class Ndb_metadata_sync {
     @param schema_name       Name of the schema the table belongs to
     @param table_name        Name of the table
     @param temp_error [out]  Denotes if the failure was due to a temporary error
+    @param error_msg  [out]  Message if the failure was due to a permanent error
 
     @return true if the table was synced successfully, false if not
   */
   bool sync_table(THD *thd, const std::string &schema_name,
-                  const std::string &table_name, bool &temp_error);
+                  const std::string &table_name, bool &temp_error,
+                  std::string &error_msg);
 };
 
 /*

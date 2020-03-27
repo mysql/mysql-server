@@ -95,6 +95,15 @@ bool Ndb_binlog_thread::add_table_to_check(const std::string &db_name,
   return metadata_sync.add_table(db_name, table_name);
 }
 
+void Ndb_binlog_thread::retrieve_sync_blacklist(
+    Ndb_sync_excluded_objects_table *excluded_table) {
+  metadata_sync.retrieve_blacklist(excluded_table);
+}
+
+unsigned int Ndb_binlog_thread::get_sync_blacklist_count() {
+  return metadata_sync.get_blacklist_count();
+}
+
 void Ndb_binlog_thread::retrieve_sync_pending_objects(
     Ndb_sync_pending_objects_table *pending_table) {
   metadata_sync.retrieve_pending_objects(pending_table);
@@ -126,6 +135,11 @@ void Ndb_binlog_thread::synchronize_detected_object(THD *thd) {
     return;
   }
 
+  if (DBUG_EVALUATE_IF("skip_ndb_metadata_sync", true, false)) {
+    // Injected failure
+    return;
+  }
+
   Ndb_global_schema_lock_guard global_schema_lock_guard(thd);
   if (!global_schema_lock_guard.try_lock()) {
     // Failed to obtain GSL
@@ -139,7 +153,9 @@ void Ndb_binlog_thread::synchronize_detected_object(THD *thd) {
   switch (object_type) {
     case object_detected_type::LOGFILE_GROUP_OBJECT: {
       bool temp_error;
-      if (metadata_sync.sync_logfile_group(thd, object_name, temp_error)) {
+      std::string error_msg;
+      if (metadata_sync.sync_logfile_group(thd, object_name, temp_error,
+                                           error_msg)) {
         log_info("Logfile group '%s' successfully synchronized",
                  object_name.c_str());
         increment_metadata_synced_count();
@@ -152,14 +168,16 @@ void Ndb_binlog_thread::synchronize_detected_object(THD *thd) {
         log_error("Failed to synchronize logfile group '%s'",
                   object_name.c_str());
         metadata_sync.add_object_to_blacklist(schema_name, object_name,
-                                              object_type);
+                                              object_type, error_msg);
         increment_metadata_synced_count();
       }
       break;
     }
     case object_detected_type::TABLESPACE_OBJECT: {
       bool temp_error;
-      if (metadata_sync.sync_tablespace(thd, object_name, temp_error)) {
+      std::string error_msg;
+      if (metadata_sync.sync_tablespace(thd, object_name, temp_error,
+                                        error_msg)) {
         log_info("Tablespace '%s' successfully synchronized",
                  object_name.c_str());
         increment_metadata_synced_count();
@@ -171,14 +189,15 @@ void Ndb_binlog_thread::synchronize_detected_object(THD *thd) {
       } else {
         log_error("Failed to synchronize tablespace '%s'", object_name.c_str());
         metadata_sync.add_object_to_blacklist(schema_name, object_name,
-                                              object_type);
+                                              object_type, error_msg);
         increment_metadata_synced_count();
       }
       break;
     }
     case object_detected_type::SCHEMA_OBJECT: {
       bool temp_error;
-      if (metadata_sync.sync_schema(thd, schema_name, temp_error)) {
+      std::string error_msg;
+      if (metadata_sync.sync_schema(thd, schema_name, temp_error, error_msg)) {
         log_info("Schema '%s' successfully synchronized", schema_name.c_str());
         increment_metadata_synced_count();
       } else if (temp_error) {
@@ -187,14 +206,16 @@ void Ndb_binlog_thread::synchronize_detected_object(THD *thd) {
       } else {
         log_error("Failed to synchronize schema '%s'", schema_name.c_str());
         metadata_sync.add_object_to_blacklist(schema_name, object_name,
-                                              object_type);
+                                              object_type, error_msg);
         increment_metadata_synced_count();
       }
       break;
     }
     case object_detected_type::TABLE_OBJECT: {
       bool temp_error;
-      if (metadata_sync.sync_table(thd, schema_name, object_name, temp_error)) {
+      std::string error_msg;
+      if (metadata_sync.sync_table(thd, schema_name, object_name, temp_error,
+                                   error_msg)) {
         log_info("Table '%s.%s' successfully synchronized", schema_name.c_str(),
                  object_name.c_str());
         increment_metadata_synced_count();
@@ -205,7 +226,7 @@ void Ndb_binlog_thread::synchronize_detected_object(THD *thd) {
         log_error("Failed to synchronize table '%s.%s'", schema_name.c_str(),
                   object_name.c_str());
         metadata_sync.add_object_to_blacklist(schema_name, object_name,
-                                              object_type);
+                                              object_type, error_msg);
         increment_metadata_synced_count();
       }
       break;

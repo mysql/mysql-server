@@ -6860,6 +6860,15 @@ bool ndbcluster_binlog_check_schema_async(const std::string &schema_name) {
   return ndb_binlog_thread.add_schema_to_check(schema_name);
 }
 
+void ndbcluster_binlog_retrieve_sync_blacklist(
+    Ndb_sync_excluded_objects_table *excluded_table) {
+  ndb_binlog_thread.retrieve_sync_blacklist(excluded_table);
+}
+
+unsigned int ndbcluster_binlog_get_sync_blacklist_count() {
+  return ndb_binlog_thread.get_sync_blacklist_count();
+}
+
 void ndbcluster_binlog_retrieve_sync_pending_objects(
     Ndb_sync_pending_objects_table *pending_table) {
   ndb_binlog_thread.retrieve_sync_pending_objects(pending_table);

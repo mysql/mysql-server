@@ -40,6 +40,7 @@
 #include "storage/ndb/plugin/ndb_metadata.h"          // Ndb_metadata
 #include "storage/ndb/plugin/ndb_ndbapi_util.h"  // ndb_logfile_group_exists
 #include "storage/ndb/plugin/ndb_schema_dist.h"  // Ndb_schema_dist
+#include "storage/ndb/plugin/ndb_sync_excluded_objects_table.h"  // Ndb_sync_excluded_objects_table
 #include "storage/ndb/plugin/ndb_sync_pending_objects_table.h"  // Ndb_sync_pending_objects_table
 #include "storage/ndb/plugin/ndb_table_guard.h"  // Ndb_table_guard
 #include "storage/ndb/plugin/ndb_tdc.h"          // ndb_tdc_close_cached_table
@@ -218,9 +219,10 @@ int show_ndb_metadata_blacklist_size(THD *, SHOW_VAR *var, char *) {
 
 void Ndb_metadata_sync::add_object_to_blacklist(const std::string &schema_name,
                                                 const std::string &name,
-                                                object_detected_type type) {
+                                                object_detected_type type,
+                                                const std::string &reason) {
   std::lock_guard<std::mutex> guard(m_blacklist_mutex);
-  const Detected_object obj(schema_name, name, type);
+  const Detected_object obj(schema_name, name, type, reason);
   m_blacklist.emplace_back(obj);
   ndb_log_info("%s added to blacklist", object_type_and_name_str(obj).c_str());
   increment_blacklist_size();
@@ -463,9 +465,30 @@ void Ndb_metadata_sync::validate_blacklist(THD *thd) {
   reset_blacklist_state();
 }
 
+void Ndb_metadata_sync::retrieve_blacklist(
+    Ndb_sync_excluded_objects_table *excluded_table) {
+  std::lock_guard<std::mutex> guard(m_blacklist_mutex);
+  for (const Detected_object &obj : m_blacklist) {
+    excluded_table->add_excluded_object(obj.m_schema_name, obj.m_name,
+                                        static_cast<int>(obj.m_type),
+                                        obj.m_reason);
+  }
+}
+
+unsigned int Ndb_metadata_sync::get_blacklist_count() {
+  std::lock_guard<std::mutex> guard(m_blacklist_mutex);
+  return m_blacklist.size();
+}
+
 bool Ndb_metadata_sync::sync_logfile_group(THD *thd,
                                            const std::string &lfg_name,
-                                           bool &temp_error) const {
+                                           bool &temp_error,
+                                           std::string &error_msg) const {
+  if (DBUG_EVALUATE_IF("ndb_metadata_sync_fail", true, false)) {
+    temp_error = false;
+    error_msg = "Injected failure";
+    return false;
+  }
   Ndb_dd_client dd_client(thd);
   if (!dd_client.mdl_lock_logfile_group_exclusive(lfg_name.c_str(), true)) {
     ndb_log_info("Failed to acquire MDL on logfile group '%s'",
@@ -488,6 +511,7 @@ bool Ndb_metadata_sync::sync_logfile_group(THD *thd,
   if (!ndb_logfile_group_exists(dict, lfg_name, exists_in_NDB)) {
     ndb_log_warning("Failed to determine if logfile group '%s' exists in NDB",
                     lfg_name.c_str());
+    error_msg = "Failed to determine if object existed in NDB";
     return false;
   }
 
@@ -496,6 +520,7 @@ bool Ndb_metadata_sync::sync_logfile_group(THD *thd,
     log_and_clear_thd_conditions(thd, condition_logging_level::WARNING);
     ndb_log_warning("Failed to determine if logfile group '%s' exists in DD",
                     lfg_name.c_str());
+    error_msg = "Failed to determine if object existed in DD";
     return false;
   }
 
@@ -511,6 +536,7 @@ bool Ndb_metadata_sync::sync_logfile_group(THD *thd,
       log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
       ndb_log_error("Failed to drop logfile group '%s' in DD",
                     lfg_name.c_str());
+      error_msg = "Failed to drop object in DD";
       return false;
     }
     dd_client.commit();
@@ -524,6 +550,7 @@ bool Ndb_metadata_sync::sync_logfile_group(THD *thd,
   if (!ndb_get_undofile_names(dict, lfg_name, &undofile_names)) {
     ndb_log_error("Failed to get undofiles assigned to logfile group '%s'",
                   lfg_name.c_str());
+    error_msg = "Failed to get undofiles assigned to logfile group";
     return false;
   }
 
@@ -532,6 +559,7 @@ bool Ndb_metadata_sync::sync_logfile_group(THD *thd,
                                             ndb_version)) {
     ndb_log_error("Failed to get id and version of logfile group '%s'",
                   lfg_name.c_str());
+    error_msg = "Failed to get object id and version";
     return false;
   }
   if (!dd_client.install_logfile_group(lfg_name.c_str(), undofile_names, ndb_id,
@@ -540,6 +568,7 @@ bool Ndb_metadata_sync::sync_logfile_group(THD *thd,
     log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
     ndb_log_error("Failed to install logfile group '%s' in DD",
                   lfg_name.c_str());
+    error_msg = "Failed to install object in DD";
     return false;
   }
   dd_client.commit();
@@ -548,7 +577,13 @@ bool Ndb_metadata_sync::sync_logfile_group(THD *thd,
 }
 
 bool Ndb_metadata_sync::sync_tablespace(THD *thd, const std::string &ts_name,
-                                        bool &temp_error) const {
+                                        bool &temp_error,
+                                        std::string &error_msg) const {
+  if (DBUG_EVALUATE_IF("ndb_metadata_sync_fail", true, false)) {
+    temp_error = false;
+    error_msg = "Injected failure";
+    return false;
+  }
   Ndb_dd_client dd_client(thd);
   if (!dd_client.mdl_lock_tablespace_exclusive(ts_name.c_str(), true)) {
     ndb_log_info("Failed to acquire MDL on tablespace '%s'", ts_name.c_str());
@@ -570,6 +605,7 @@ bool Ndb_metadata_sync::sync_tablespace(THD *thd, const std::string &ts_name,
   if (!ndb_tablespace_exists(dict, ts_name, exists_in_NDB)) {
     ndb_log_warning("Failed to determine if tablespace '%s' exists in NDB",
                     ts_name.c_str());
+    error_msg = "Failed to determine if object existed in NDB";
     return false;
   }
 
@@ -578,6 +614,7 @@ bool Ndb_metadata_sync::sync_tablespace(THD *thd, const std::string &ts_name,
     log_and_clear_thd_conditions(thd, condition_logging_level::WARNING);
     ndb_log_warning("Failed to determine if tablespace '%s' exists in DD",
                     ts_name.c_str());
+    error_msg = "Failed to determine if object existed in DD";
     return false;
   }
 
@@ -592,6 +629,7 @@ bool Ndb_metadata_sync::sync_tablespace(THD *thd, const std::string &ts_name,
     if (!dd_client.drop_tablespace(ts_name.c_str())) {
       log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
       ndb_log_error("Failed to drop tablespace '%s' in DD", ts_name.c_str());
+      error_msg = "Failed to drop object in DD";
       return false;
     }
     dd_client.commit();
@@ -605,6 +643,7 @@ bool Ndb_metadata_sync::sync_tablespace(THD *thd, const std::string &ts_name,
   if (!ndb_get_datafile_names(dict, ts_name, &datafile_names)) {
     ndb_log_error("Failed to get datafiles assigned to tablespace '%s'",
                   ts_name.c_str());
+    error_msg = "Failed to get datafiles assigned to tablespace";
     return false;
   }
 
@@ -612,12 +651,14 @@ bool Ndb_metadata_sync::sync_tablespace(THD *thd, const std::string &ts_name,
   if (!ndb_get_tablespace_id_and_version(dict, ts_name, ndb_id, ndb_version)) {
     ndb_log_error("Failed to get id and version of tablespace '%s'",
                   ts_name.c_str());
+    error_msg = "Failed to get object id and version";
     return false;
   }
   if (!dd_client.install_tablespace(ts_name.c_str(), datafile_names, ndb_id,
                                     ndb_version, false /* force_overwrite */)) {
     log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
     ndb_log_error("Failed to install tablespace '%s' in DD", ts_name.c_str());
+    error_msg = "Failed to install object in DD";
     return false;
   }
   dd_client.commit();
@@ -626,9 +667,11 @@ bool Ndb_metadata_sync::sync_tablespace(THD *thd, const std::string &ts_name,
 }
 
 bool Ndb_metadata_sync::sync_schema(THD *thd, const std::string &schema_name,
-                                    bool &temp_error) const {
+                                    bool &temp_error,
+                                    std::string &error_msg) const {
   if (DBUG_EVALUATE_IF("ndb_metadata_sync_fail", true, false)) {
     temp_error = false;
+    error_msg = "Injected failure";
     return false;
   }
   const std::string dd_schema_name = ndb_dd_fs_name_case(schema_name.c_str());
@@ -658,6 +701,7 @@ bool Ndb_metadata_sync::sync_schema(THD *thd, const std::string &schema_name,
   if (!ndb_database_exists(dict, schema_name, exists_in_NDB)) {
     ndb_log_warning("Failed to determine if schema '%s' exists in NDB",
                     schema_name.c_str());
+    error_msg = "Failed to determine if object existed in NDB";
     return false;
   }
 
@@ -666,6 +710,7 @@ bool Ndb_metadata_sync::sync_schema(THD *thd, const std::string &schema_name,
     log_and_clear_thd_conditions(thd, condition_logging_level::WARNING);
     ndb_log_warning("Failed to determine if schema '%s' exists in DD",
                     schema_name.c_str());
+    error_msg = "Failed to determine if object existed in DD";
     return false;
   }
 
@@ -681,6 +726,7 @@ bool Ndb_metadata_sync::sync_schema(THD *thd, const std::string &schema_name,
     if (local_connection.create_database(schema_name)) {
       log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
       ndb_log_error("Failed to create schema '%s'", schema_name.c_str());
+      error_msg = "Failed to create schema";
       return false;
     }
     ndb_log_info("Schema '%s' installed in DD", schema_name.c_str());
@@ -719,9 +765,10 @@ void Ndb_metadata_sync::drop_ndb_share(const char *schema_name,
 
 bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &schema_name,
                                    const std::string &table_name,
-                                   bool &temp_error) {
+                                   bool &temp_error, std::string &error_msg) {
   if (DBUG_EVALUATE_IF("ndb_metadata_sync_fail", true, false)) {
     temp_error = false;
+    error_msg = "Injected failure";
     return false;
   }
   Ndb_dd_client dd_client(thd);
@@ -749,6 +796,7 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &schema_name,
   if (!ndb_table_exists(dict, schema_name, table_name, exists_in_NDB)) {
     ndb_log_warning("Failed to determine if table '%s.%s' exists in NDB",
                     schema_name.c_str(), table_name.c_str());
+    error_msg = "Failed to determine if object existed in NDB";
     return false;
   }
 
@@ -758,6 +806,7 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &schema_name,
     log_and_clear_thd_conditions(thd, condition_logging_level::WARNING);
     ndb_log_warning("Failed to determine if table '%s.%s' exists in DD",
                     schema_name.c_str(), table_name.c_str());
+    error_msg = "Failed to determine if object existed in DD";
     return false;
   }
 
@@ -775,6 +824,7 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &schema_name,
       log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
       ndb_log_error("Failed to determine if table '%s.%s' was a local table",
                     schema_name.c_str(), table_name.c_str());
+      error_msg = "Failed to determine if object was a local table";
       return false;
     }
     if (local_table) {
@@ -789,6 +839,7 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &schema_name,
       log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
       ndb_log_error("Failed to drop table '%s.%s' in DD", schema_name.c_str(),
                     table_name.c_str());
+      error_msg = "Failed to drop object in DD";
       return false;
     }
 
@@ -798,6 +849,7 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &schema_name,
           "Failed to invalidate tables referencing table '%s.%s' in "
           "DD",
           schema_name.c_str(), table_name.c_str());
+      error_msg = "Failed to invalidate table references";
       return false;
     }
 
@@ -808,6 +860,7 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &schema_name,
     // Invalidate the table in NdbApi
     if (ndb->setDatabaseName(schema_name.c_str())) {
       ndb_log_error("Failed to set database name of NDB object");
+      error_msg = "Failed to set database name of NDB object";
       return false;
     }
     dd_client.commit();
@@ -822,6 +875,7 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &schema_name,
   // the DD
   if (ndb->setDatabaseName(schema_name.c_str())) {
     ndb_log_error("Failed to set database name of NDB object");
+    error_msg = "Failed to set database name of NDB object";
     return false;
   }
 
@@ -838,6 +892,7 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &schema_name,
   if (get_result != 0) {
     ndb_log_info("Failed to get extra metadata of table '%s.%s'",
                  schema_name.c_str(), table_name.c_str());
+    error_msg = "Failed to get extra metadata of table";
     return false;
   }
 
@@ -852,6 +907,7 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &schema_name,
           "Failed to migrate table '%s.%s' with extra metadata "
           "version 1",
           schema_name.c_str(), table_name.c_str());
+      error_msg = "Failed to migrate table with extra metadata version 1";
       free(unpacked_data);
       return false;
     }
@@ -863,12 +919,14 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &schema_name,
       ndb_log_error(
           "Failed to get table '%s.%s' from DD after it was installed",
           schema_name.c_str(), table_name.c_str());
+      error_msg = "Failed to get object from DD";
       return false;
     }
     if (!Ndb_metadata::compare(thd, ndbtab, dd_table)) {
       log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
       ndb_log_error("Definition of table '%s.%s' in NDB Dictionary has changed",
                     schema_name.c_str(), table_name.c_str());
+      error_msg = "Definition of table has changed in NDB Dictionary";
       return false;
     }
     if (!Ndb_metadata::compare_indexes(dict, ndbtab, dd_table)) {
@@ -888,6 +946,7 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &schema_name,
       log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
       ndb_log_error("Failed to setup binlogging for table '%s.%s'",
                     schema_name.c_str(), table_name.c_str());
+      error_msg = "Failed to setup binlogging for table";
       return false;
     }
     dd_client.commit();
@@ -918,6 +977,7 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &schema_name,
       log_and_clear_thd_conditions(thd, condition_logging_level::WARNING);
       ndb_log_warning("Failed to determine if tablespace '%s' exists in DD",
                       tablespace_name.c_str());
+      error_msg = "Failed to determine if object existed in DD";
       return false;
     }
     if (!tablespace_exists) {
@@ -930,6 +990,9 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &schema_name,
                       tablespace_name.c_str());
         ndb_log_error("Failed to install disk data table '%s.%s'",
                       schema_name.c_str(), table_name.c_str());
+        error_msg =
+            "Failed to install disk data table since tablespace has been "
+            "excluded";
         return false;
       } else {
         // There's a possibility (especially when ndb_restore is used) that a
@@ -956,6 +1019,7 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &schema_name,
     log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
     ndb_log_error("Failed to install table '%s.%s' in DD", schema_name.c_str(),
                   table_name.c_str());
+    error_msg = "Failed to install object in DD";
     return false;
   }
 
@@ -963,6 +1027,7 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &schema_name,
     log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
     ndb_log_error("Failed to invalidate tables referencing table '%s.%s' in DD",
                   schema_name.c_str(), table_name.c_str());
+    error_msg = "Failed to invalidate table references";
     return false;
   }
   const dd::Table *dd_table;
@@ -971,12 +1036,14 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &schema_name,
     log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
     ndb_log_error("Failed to get table '%s.%s' from DD after it was installed",
                   schema_name.c_str(), table_name.c_str());
+    error_msg = "Failed to get object from DD";
     return false;
   }
   if (!Ndb_metadata::compare(thd, ndbtab, dd_table)) {
     log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
     ndb_log_error("Definition of table '%s.%s' in NDB Dictionary has changed",
                   schema_name.c_str(), table_name.c_str());
+    error_msg = "Definition of table has changed in NDB Dictionary";
     return false;
   }
   if (!Ndb_metadata::compare_indexes(dict, ndbtab, dd_table)) {
@@ -996,6 +1063,7 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &schema_name,
     log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
     ndb_log_error("Failed to setup binlogging for table '%s.%s'",
                   schema_name.c_str(), table_name.c_str());
+    error_msg = "Failed to setup binlogging for table";
     return false;
   }
   dd_client.commit();

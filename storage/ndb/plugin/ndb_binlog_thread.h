@@ -35,6 +35,7 @@
 
 class Ndb;
 class Ndb_sync_pending_objects_table;
+class Ndb_sync_excluded_objects_table;
 
 class Ndb_binlog_thread : public Ndb_component {
   Ndb_binlog_hooks binlog_hooks;
@@ -108,6 +109,22 @@ class Ndb_binlog_thread : public Ndb_component {
   */
   bool add_table_to_check(const std::string &db_name,
                           const std::string &table_name);
+
+  /*
+    @brief Retrieve information about objects currently in the sync blacklist
+
+    @param excluded_table  Pointer to excluded objects table object
+
+    @return void
+  */
+  void retrieve_sync_blacklist(Ndb_sync_excluded_objects_table *excluded_table);
+
+  /*
+    @brief Get the count of objects currently in the sync blacklist
+
+    @return number of blacklisted objects
+  */
+  unsigned int get_sync_blacklist_count();
 
   /*
     @brief Retrieve information about objects currently awaiting sync
