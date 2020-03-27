@@ -69,7 +69,7 @@ end:
 /* Helpers end */
 
 static std::string Ssl_acceptor_context_propert_type_names[] = {
-    "ssl_accept_renegotiates",
+    "Ssl_accept_renegotiates",
     "Ssl_accepts",
     "Ssl_callback_cache_hits",
     "Ssl_client_connects",
