@@ -264,7 +264,7 @@ static int get_ndb_blobs_value(TABLE *table, NdbValue *value_array,
     for (uint i = 0; i < table->s->fields; i++) {
       Field *field = table->field[i];
       NdbValue value = value_array[i];
-      if (!field->is_flag_set(BLOB_FLAG) && field->stored_in_db) continue;
+      if (!(field->is_flag_set(BLOB_FLAG) && field->stored_in_db)) continue;
       if (value.blob == NULL) {
         DBUG_PRINT("info", ("[%u] skipped", i));
         continue;
