@@ -2838,8 +2838,7 @@ void JOIN::create_table_iterators() {
 
 unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
   if (select_count) {
-    return unique_ptr_destroy_only<RowIterator>(
-        new (thd->mem_root) UnqualifiedCountIterator(thd, this));
+    return NewIterator<UnqualifiedCountIterator>(thd, this);
   }
 
   // OK, so we're good. Go through the tables and make the join iterators.
