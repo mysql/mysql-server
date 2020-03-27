@@ -1721,12 +1721,16 @@ int Relay_log_info::rli_init_info(bool skip_received_gtid_set_recovery) {
       goto err;
     }
 
-    if (clone_startup) {
+    /*
+      Clone required cleanup must be done only once, thence we only
+      do it when server is booting.
+    */
+    if (clone_startup && get_server_state() == SERVER_BOOTING) {
       char *channel_name =
           (const_cast<Relay_log_info *>(mi->rli))->get_channel();
-      bool is_group_replication_applier_channel =
+      bool is_group_replication_channel =
           channel_map.is_group_replication_channel_name(channel_name);
-      if (is_group_replication_applier_channel) {
+      if (is_group_replication_channel) {
         if (clear_info()) {
           msg =
               "Error cleaning relay log configuration for group replication "
