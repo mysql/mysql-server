@@ -95,6 +95,7 @@ SET(NDBCLUSTER_SOURCES
   plugin/ndb_stored_grants.cc
   plugin/ndb_dd_fk.cc
   plugin/ndb_pfs_init.cc
+  plugin/ndb_pfs_table.cc
 )
 
 # Include directories used when building ha_ndbcluster
