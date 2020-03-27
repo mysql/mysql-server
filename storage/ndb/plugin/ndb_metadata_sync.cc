@@ -40,6 +40,7 @@
 #include "storage/ndb/plugin/ndb_metadata.h"          // Ndb_metadata
 #include "storage/ndb/plugin/ndb_ndbapi_util.h"  // ndb_logfile_group_exists
 #include "storage/ndb/plugin/ndb_schema_dist.h"  // Ndb_schema_dist
+#include "storage/ndb/plugin/ndb_sync_pending_objects_table.h"  // Ndb_sync_pending_objects_table
 #include "storage/ndb/plugin/ndb_table_guard.h"  // Ndb_table_guard
 #include "storage/ndb/plugin/ndb_tdc.h"          // ndb_tdc_close_cached_table
 #include "storage/ndb/plugin/ndb_thd.h"          // get_thd_ndb
@@ -168,6 +169,20 @@ bool Ndb_metadata_sync::add_table(const std::string &schema_name,
       "synchronized",
       schema_name.c_str(), table_name.c_str());
   return true;
+}
+
+void Ndb_metadata_sync::retrieve_pending_objects(
+    Ndb_sync_pending_objects_table *pending_table) {
+  std::lock_guard<std::mutex> guard(m_objects_mutex);
+  for (const Detected_object &obj : m_objects) {
+    pending_table->add_pending_object(obj.m_schema_name, obj.m_name,
+                                      static_cast<int>(obj.m_type));
+  }
+}
+
+unsigned int Ndb_metadata_sync::get_pending_objects_count() {
+  std::lock_guard<std::mutex> guard(m_objects_mutex);
+  return m_objects.size();
 }
 
 bool Ndb_metadata_sync::object_queue_empty() const {

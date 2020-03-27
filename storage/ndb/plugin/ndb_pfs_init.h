@@ -26,14 +26,14 @@
 #include "mysql/components/my_service.h"  // SERVICE_TYPE
 
 /*
-  @brief Acquire service handles
+  @brief Acquire service handles and create proxy tables
 
   @return false on success, true on failure
 */
 bool ndb_pfs_init(SERVICE_TYPE(registry) * mysql_service_registry);
 
 /*
-  @brief Release service handles
+  @brief Release service handles and delete proxy tables
 
   @return void
 */

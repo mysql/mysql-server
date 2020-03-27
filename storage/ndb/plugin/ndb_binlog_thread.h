@@ -34,6 +34,7 @@
 #include "storage/ndb/plugin/ndb_metadata_sync.h"
 
 class Ndb;
+class Ndb_sync_pending_objects_table;
 
 class Ndb_binlog_thread : public Ndb_component {
   Ndb_binlog_hooks binlog_hooks;
@@ -107,6 +108,23 @@ class Ndb_binlog_thread : public Ndb_component {
   */
   bool add_table_to_check(const std::string &db_name,
                           const std::string &table_name);
+
+  /*
+    @brief Retrieve information about objects currently awaiting sync
+
+    @param pending_table  Pointer to pending objects table object
+
+    @return void
+  */
+  void retrieve_sync_pending_objects(
+      Ndb_sync_pending_objects_table *pending_table);
+
+  /*
+    @brief Get the count of objects currently awaiting sync
+
+    @return number pending objects
+  */
+  unsigned int get_sync_pending_objects_count();
 
  private:
   virtual int do_init();

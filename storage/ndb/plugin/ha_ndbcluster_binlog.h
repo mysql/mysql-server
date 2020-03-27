@@ -30,6 +30,7 @@ struct SHOW_VAR;
 namespace dd {
 class Table;
 }
+class Ndb_sync_pending_objects_table;
 
 /*
   Initialize the binlog part of the ndbcluster plugin
@@ -104,3 +105,16 @@ bool ndbcluster_binlog_check_tablespace_async(
  @return true if the workitem was accepted, false if not
 */
 bool ndbcluster_binlog_check_schema_async(const std::string &schema_name);
+/**
+ @brief Retrieve information about objects currently pending sync
+ @param pending_table  Pointer to pending objects table object
+ @return void
+*/
+void ndbcluster_binlog_retrieve_sync_pending_objects(
+    Ndb_sync_pending_objects_table *pending_table);
+
+/**
+ @brief Get the number of objects currently awaiting sync
+ @return pending objects count
+*/
+unsigned int ndbcluster_binlog_get_sync_pending_objects_count();

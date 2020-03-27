@@ -45,14 +45,22 @@ static void release_service(SERVICE_TYPE(registry) * mysql_service_registry,
   }
 }
 
+SERVICE_TYPE_NO_CONST(pfs_plugin_table_v1) *pfs_table = nullptr;
 SERVICE_TYPE_NO_CONST(pfs_plugin_column_string_v1) *pfscol_string = nullptr;
 SERVICE_TYPE_NO_CONST(pfs_plugin_column_enum_v1) *pfscol_enum = nullptr;
+
+extern PFS_engine_table_share_proxy *ndb_sync_pending_objects_share;
+static PFS_engine_table_share_proxy *pfs_proxy_shares[1] = {
+    ndb_sync_pending_objects_share};
 
 bool ndb_pfs_init(SERVICE_TYPE(registry) * mysql_service_registry) {
   if (mysql_service_registry == nullptr) {
     return false;
   }
 
+  // Get table service
+  if (acquire_service(mysql_service_registry, pfs_table, "pfs_plugin_table_v1"))
+    return true;
   // Get column services
   if (acquire_service(mysql_service_registry, pfscol_string,
                       "pfs_plugin_column_string_v1"))
@@ -61,7 +69,8 @@ bool ndb_pfs_init(SERVICE_TYPE(registry) * mysql_service_registry) {
                       "pfs_plugin_column_enum_v1"))
     return true;
 
-  return false;
+  return pfs_table->add_tables(pfs_proxy_shares, 1);
+  ;
 }
 
 void ndb_pfs_deinit(SERVICE_TYPE(registry) * mysql_service_registry) {
@@ -69,6 +78,8 @@ void ndb_pfs_deinit(SERVICE_TYPE(registry) * mysql_service_registry) {
     return;
   }
 
+  static_cast<void>(pfs_table->delete_tables(pfs_proxy_shares, 1));
+  release_service(mysql_service_registry, pfs_table);
   release_service(mysql_service_registry, pfscol_string);
   release_service(mysql_service_registry, pfscol_enum);
 }

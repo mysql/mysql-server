@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -93,6 +93,15 @@ bool Ndb_binlog_thread::add_schema_to_check(const std::string &schema_name) {
 bool Ndb_binlog_thread::add_table_to_check(const std::string &db_name,
                                            const std::string &table_name) {
   return metadata_sync.add_table(db_name, table_name);
+}
+
+void Ndb_binlog_thread::retrieve_sync_pending_objects(
+    Ndb_sync_pending_objects_table *pending_table) {
+  metadata_sync.retrieve_pending_objects(pending_table);
+}
+
+unsigned int Ndb_binlog_thread::get_sync_pending_objects_count() {
+  return metadata_sync.get_pending_objects_count();
 }
 
 static int64_t g_metadata_synced_count = 0;

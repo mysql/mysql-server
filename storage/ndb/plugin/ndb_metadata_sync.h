@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,15 +40,16 @@ struct SHOW_VAR;
 namespace dd {
 class Table;
 }
+class Ndb_sync_pending_objects_table;
 
 enum object_detected_type {
-  LOGFILE_GROUP_OBJECT = 0,
+  LOGFILE_GROUP_OBJECT,
   TABLESPACE_OBJECT,
   SCHEMA_OBJECT,
   TABLE_OBJECT
 };
 
-enum object_validation_state { PENDING = 0, IN_PROGRESS, DONE };
+enum object_validation_state { PENDING, IN_PROGRESS, DONE };
 
 class Ndb_metadata_sync {
   struct Detected_object {
@@ -201,6 +202,22 @@ class Ndb_metadata_sync {
     @return true if table successfully added, false if not
   */
   bool add_table(const std::string &schema_name, const std::string &table_name);
+
+  /*
+    @brief Retrieve information about objects awaiting sync
+
+    @param pending_table  Pointer to pending objects table object
+
+    @return void
+  */
+  void retrieve_pending_objects(Ndb_sync_pending_objects_table *pending_table);
+
+  /*
+    @brief Get the count of objects awaiting sync
+
+    @return number of pending objects
+  */
+  unsigned int get_pending_objects_count();
 
   /*
     @brief Check if the queue of objects to be synchronized is currently empty
