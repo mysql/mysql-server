@@ -245,9 +245,6 @@ enum class enum_view_create_mode {
 #define TL_OPTION_ALIAS 8
 
 /* Structure for db & table in sql_yacc */
-extern LEX_CSTRING EMPTY_CSTR;
-extern LEX_CSTRING NULL_CSTR;
-
 class Table_function;
 
 class Table_ident {

@@ -1466,6 +1466,18 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(STRING_WITH_LEN(" COMMENT "));
       append_unescaped(packet, field->comment.str, field->comment.length);
     }
+
+    // Storage engine specific json attributes
+    if (field->m_engine_attribute.length) {
+      packet->append(STRING_WITH_LEN(" /*!80021 ENGINE_ATTRIBUTE '"));
+      packet->append(field->m_engine_attribute);
+      packet->append(STRING_WITH_LEN("' */"));
+    }
+    if (field->m_secondary_engine_attribute.length) {
+      packet->append(STRING_WITH_LEN(" /*!80021 SECONDARY_ENGINE_ATTRIBUTE '"));
+      packet->append(field->m_secondary_engine_attribute);
+      packet->append(STRING_WITH_LEN("' */"));
+    }
   }
 
   key_info = table->key_info;
@@ -1777,6 +1789,17 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(share->secondary_engine.str,
                      share->secondary_engine.length);
     }
+
+    if (share->engine_attribute.length) {
+      packet->append(STRING_WITH_LEN(" /*!80021 ENGINE_ATTRIBUTE='"));
+      packet->append(share->engine_attribute);
+      packet->append(STRING_WITH_LEN("' */"));
+    }
+    if (share->secondary_engine_attribute.length) {
+      packet->append(STRING_WITH_LEN(" /*!80021 SECONDARY_ENGINE_ATTRIBUTE='"));
+      packet->append(share->secondary_engine_attribute);
+      packet->append(STRING_WITH_LEN("' */"));
+    }
     append_directory(thd, packet, "DATA", create_info.data_file_name);
     append_directory(thd, packet, "INDEX", create_info.index_file_name);
   }
@@ -1846,6 +1869,18 @@ static void store_key_options(THD *thd, String *packet, TABLE *table,
 
     if (!key_info->is_visible)
       packet->append(STRING_WITH_LEN(" /*!80000 INVISIBLE */"));
+
+    if (key_info->engine_attribute.length > 0) {
+      packet->append(STRING_WITH_LEN(" /*!80021 ENGINE_ATTRIBUTE '"));
+      packet->append(key_info->engine_attribute);
+      packet->append(STRING_WITH_LEN("' */"));
+    }
+
+    if (key_info->secondary_engine_attribute.length > 0) {
+      packet->append(STRING_WITH_LEN(" /*!80021 SECONDARY_ENGINE_ATTRIBUTE '"));
+      packet->append(key_info->secondary_engine_attribute);
+      packet->append(STRING_WITH_LEN("' */"));
+    }
   }
 }
 

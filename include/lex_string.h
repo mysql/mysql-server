@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,6 +40,10 @@ typedef struct MYSQL_LEX_STRING LEX_STRING;
 typedef struct MYSQL_LEX_CSTRING LEX_CSTRING;
 
 #ifdef __cplusplus
+
+constexpr const LEX_STRING NULL_STR = {nullptr, 0};
+constexpr const LEX_CSTRING NULL_CSTR = {nullptr, 0};
+constexpr const LEX_CSTRING EMPTY_CSTR = {"", 0};
 
 static inline std::string to_string(const LEX_STRING &str) {
   return std::string(str.str, str.length);

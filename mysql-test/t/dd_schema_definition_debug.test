@@ -343,7 +343,12 @@ INSERT INTO dd_published_schema
 INSERT INTO dd_published_schema
   VALUES('80017', 1,
     '76c4ef5922cfd8e2a736e538ada4b03b6b122fbd0df2ac5abfbd999e3316b17b');
-
+INSERT INTO dd_published_schema
+  VALUES('80021', 0,
+    '80557e59b7af79e8a43e4b5efb7d5bab6a2db966935f0fe411b05b81cfdd1252');
+INSERT INTO dd_published_schema
+  VALUES('80021', 1,
+    '1e886824945b448e2636e16360fc2078c33cf7980d07d13d62913d8a1d33e7f5');
 --sorted_result
 SELECT IFNULL(CONCAT('The schema checksum corresponds to DD version ',
                      version, '.'),

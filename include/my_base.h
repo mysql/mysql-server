@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -552,6 +552,9 @@ enum ha_base_keytype {
 #define HA_VIRTUAL_GEN_KEY (1 << 18)
 /** Multi-valued key */
 #define HA_MULTI_VALUED_KEY (1 << 19)
+
+constexpr const ulong HA_INDEX_USES_ENGINE_ATTRIBUTE{1UL << 20};
+constexpr const ulong HA_INDEX_USES_SECONDARY_ENGINE_ATTRIBUTE{1UL << 21};
 
 /* These flags can be added to key-seg-flag */
 

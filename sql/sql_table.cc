@@ -6854,6 +6854,14 @@ static bool prepare_key(THD *thd, HA_CREATE_INFO *create_info,
     return true;
   if (key_info->comment.length > 0) key_info->flags |= HA_USES_COMMENT;
 
+  key_info->engine_attribute = key->key_create_info.m_engine_attribute;
+  if (key_info->engine_attribute.length > 0)
+    key_info->flags |= HA_INDEX_USES_ENGINE_ATTRIBUTE;
+  key_info->secondary_engine_attribute =
+      key->key_create_info.m_secondary_engine_attribute;
+  if (key_info->secondary_engine_attribute.length > 0)
+    key_info->flags |= HA_INDEX_USES_SECONDARY_ENGINE_ATTRIBUTE;
+
   switch (key->type) {
     case KEYTYPE_MULTIPLE:
       key_info->flags = 0;
@@ -14260,6 +14268,13 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
       if (key_info->flags & HA_USES_COMMENT)
         key_create_info.comment = key_info->comment;
 
+      if (key_info->engine_attribute.str != nullptr)
+        key_create_info.m_engine_attribute = key_info->engine_attribute;
+
+      if (key_info->secondary_engine_attribute.str != nullptr)
+        key_create_info.m_secondary_engine_attribute =
+            key_info->secondary_engine_attribute;
+
       for (const Alter_index_visibility *alter_index_visibility :
            alter_info->alter_index_visibility_list) {
         const char *name = alter_index_visibility->name();
@@ -15617,6 +15632,18 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       return true;
     }
   }
+  const handlerton *hton = create_info->db_type;
+  if (hton == nullptr) {
+    hton = table_list->table->s->db_type();
+  }
+  DBUG_ASSERT(hton != nullptr);
+  if ((alter_info->flags & Alter_info::ANY_ENGINE_ATTRIBUTE) != 0 &&
+      ((hton->flags & HTON_SUPPORTS_ENGINE_ATTRIBUTE) == 0 &&
+       DBUG_EVALUATE_IF("simulate_engine_attribute_support", false, true))) {
+    my_error(ER_ENGINE_ATTRIBUTE_NOT_SUPPORTED, MYF(0),
+             ha_resolve_storage_engine_name(hton));
+    return true;
+  }
 
   TABLE *table = table_list->table;
   table->use_all_columns();
@@ -15899,7 +15926,6 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       severe restriction since many 3rd-party online ALTER tools use ALTER
       TABLE RENAME under LOCK TABLES and are unaware of it.
     */
-
     if (thd->locked_tables_mode == LTM_LOCK_TABLES ||
         thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES) {
       MDL_request_list orphans_mdl_requests;
@@ -15976,7 +16002,6 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   }
 
   /* We have to do full alter table. */
-
   bool partition_changed = false;
   partition_info *new_part_info = nullptr;
   {
@@ -15996,7 +16021,6 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   for (const auto column : alter_info->drop_list) {
     if (column->type == Alter_drop::COLUMN) columns.emplace(column->name);
   }
-
   const Alter_column *alter = nullptr;
   uint i = 0;
   while (i < alter_info->alter_list.size()) {

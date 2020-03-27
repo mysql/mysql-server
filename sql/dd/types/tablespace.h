@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -121,6 +121,13 @@ class Tablespace : virtual public Entity_object {
 
   virtual const String_type &engine() const = 0;
   virtual void set_engine(const String_type &engine) = 0;
+
+  /////////////////////////////////////////////////////////////////////////
+  // SE-specific json attributes
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual LEX_CSTRING engine_attribute() const = 0;
+  virtual void set_engine_attribute(LEX_CSTRING a) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // Tablespace file collection.

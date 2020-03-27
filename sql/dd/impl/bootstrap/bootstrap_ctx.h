@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -60,6 +60,7 @@ static constexpr uint DD_VERSION_80014 = 80014;
 static constexpr uint DD_VERSION_80015 = 80015;
 static constexpr uint DD_VERSION_80016 = 80016;
 static constexpr uint DD_VERSION_80017 = 80017;
+static constexpr uint DD_VERSION_80021 = 80021;
 
 /*
   Set of supported DD version labels. A supported DD version is a version
@@ -71,7 +72,7 @@ static constexpr uint DD_VERSION_80017 = 80017;
 */
 static std::set<uint> supported_dd_versions = {
     DD_VERSION_80011, DD_VERSION_80012, DD_VERSION_80013, DD_VERSION_80014,
-    DD_VERSION_80015, DD_VERSION_80016, DD_VERSION_80017};
+    DD_VERSION_80015, DD_VERSION_80016, DD_VERSION_80017, DD_VERSION_80021};
 
 // Individual server version labels that we can refer to.
 static constexpr uint SERVER_VERSION_50700 = 50700;

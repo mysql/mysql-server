@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -163,7 +163,7 @@
 
   - Bug#29053560 Increases DD column mysql.tablespaces.name length to 268.
 
-  80017: Current
+  80017: Published in 8.0.17
   ----------------------------------------------------------------------------
   Changes from version 80016:
 
@@ -171,9 +171,22 @@
   - WL#12571 Support fully qualified hostnames longer than 60 characters
     Server metadata table columns size is increased to 255.
 
-  80018: Next DD version number after the previous is public.
+  80021: Current
   ----------------------------------------------------------------------------
   Changes from version 80017:
+
+  - WL#13341 adds new columns
+      mysql.tables.engine_attribute
+      mysql.tables.secondary_engine_attribute
+      mysql.columns.engine_attribute
+      mysql.columns.secondary_engine_attribute
+      mysql.indexes.engine_attribute
+      mysql.indexes.secondary_engine_attribute
+      mysql.tablespaces.engine_attribute
+
+  80022: Next DD version number after the previous is public.
+  ----------------------------------------------------------------------------
+  Changes from version 80021:
   - No changes, this version number is not active yet.
 
 
@@ -186,14 +199,13 @@
 */
 namespace dd {
 
-static const uint DD_VERSION = 80017;
+static const uint DD_VERSION = 80021;
 static_assert(DD_VERSION <= MYSQL_VERSION_ID,
               "This release can not use a version number from the future");
 
-static const uint DD_VERSION_MINOR_DOWNGRADE_THRESHOLD = 80017;
+static const uint DD_VERSION_MINOR_DOWNGRADE_THRESHOLD = 80021;
 static_assert(DD_VERSION_MINOR_DOWNGRADE_THRESHOLD <= MYSQL_VERSION_ID,
               "This release can not use a version number from the future");
-
 }  // namespace dd
 
 #endif /* DD__DD_VERSION_INCLUDED */

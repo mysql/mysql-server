@@ -15,6 +15,7 @@
         "options": "encryption=N;",
         "se_private_data": "flags=X;id=Y;server_version=Z;space_version=M;state=normal;",
         "engine": "InnoDB",
+        "engine_attribute": "",
         "files": [
             {
                 "ordinal_position": 1,

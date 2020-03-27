@@ -135,6 +135,15 @@ bool Sql_cmd_create_table::execute(THD *thd) {
                               ? ha_default_temp_handlerton(thd)
                               : ha_default_handlerton(thd);
 
+  DBUG_ASSERT(create_info.db_type != nullptr);
+  if ((m_alter_info->flags & Alter_info::ANY_ENGINE_ATTRIBUTE) != 0 &&
+      ((create_info.db_type->flags & HTON_SUPPORTS_ENGINE_ATTRIBUTE) == 0 &&
+       DBUG_EVALUATE_IF("simulate_engine_attribute_support", false, true))) {
+    my_error(ER_ENGINE_ATTRIBUTE_NOT_SUPPORTED, MYF(0),
+             ha_resolve_storage_engine_name(create_info.db_type));
+    return true;
+  }
+
   /*
     Assign target tablespace name to enable locking in lock_table_names().
     Reject invalid names.

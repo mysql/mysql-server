@@ -2645,6 +2645,12 @@ void HA_CREATE_INFO::init_create_options_from_share(const TABLE_SHARE *share,
     DBUG_ASSERT(secondary_engine.str == nullptr);
     secondary_engine = share->secondary_engine;
   }
+
+  if (engine_attribute.str == nullptr)
+    engine_attribute = share->engine_attribute;
+
+  if (secondary_engine_attribute.str == nullptr)
+    secondary_engine_attribute = share->secondary_engine_attribute;
 }
 
 /****************************************************************************
@@ -4920,6 +4926,12 @@ enum_alter_inplace_result handler::check_if_supported_inplace_alter(
            HA_CREATE_USED_PACK_KEYS | HA_CREATE_USED_MAX_ROWS) ||
       (table->s->row_type != create_info->row_type))
     return HA_ALTER_INPLACE_NOT_SUPPORTED;
+
+  // The presence of engine attributes does not prevent inplace so
+  // that we get the same behavior as COMMENT. If SEs support engine
+  // attribute values which are incompatible with INPLACE the need to
+  // check for that when overriding (as they must do for parsed
+  // comments).
 
   uint table_changes = (ha_alter_info->handler_flags &
                         Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH)

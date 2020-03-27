@@ -728,6 +728,12 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share,
     share->comment.length = comment.length();
   }
 
+  // Copy SE attributes into share's memroot
+  share->engine_attribute = LexStringDupRootUnlessEmpty(
+      &share->mem_root, tab_obj->engine_attribute());
+  share->secondary_engine_attribute = LexStringDupRootUnlessEmpty(
+      &share->mem_root, tab_obj->secondary_engine_attribute());
+
   // Read Connection strings
   if (table_options.exists("connection_string"))
     table_options.get("connection_string", &share->connect_string,
@@ -1095,6 +1101,12 @@ static bool fill_column_from_dd(THD *thd, TABLE_SHARE *share,
 
   reg_field->set_hidden(col_obj->hidden());
 
+  reg_field->m_engine_attribute = LexStringDupRootUnlessEmpty(
+      &share->mem_root, col_obj->engine_attribute());
+
+  reg_field->m_secondary_engine_attribute = LexStringDupRootUnlessEmpty(
+      &share->mem_root, col_obj->secondary_engine_attribute());
+
   // Field is prepared. Store it in 'share'
   share->field[field_nr] = reg_field;
 
@@ -1411,7 +1423,15 @@ static bool fill_index_from_dd(THD *thd, TABLE_SHARE *share,
 
     keyinfo->flags |= HA_USES_COMMENT;
   }
+  keyinfo->engine_attribute = LexStringDupRootUnlessEmpty(
+      &share->mem_root, idx_obj->engine_attribute());
+  if (keyinfo->engine_attribute.length > 0)
+    keyinfo->flags |= HA_INDEX_USES_ENGINE_ATTRIBUTE;
 
+  keyinfo->secondary_engine_attribute = LexStringDupRootUnlessEmpty(
+      &share->mem_root, idx_obj->secondary_engine_attribute());
+  if (keyinfo->secondary_engine_attribute.length > 0)
+    keyinfo->flags |= HA_INDEX_USES_SECONDARY_ENGINE_ATTRIBUTE;
   return (false);
 }
 

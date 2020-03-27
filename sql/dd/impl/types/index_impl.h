@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,7 @@
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/index.h"          // dd::Index
 #include "sql/dd/types/index_element.h"  // IWYU pragma: keep
+#include "sql/strfunc.h"
 
 namespace dd {
 
@@ -210,6 +211,19 @@ class Index_impl : public Entity_object_impl, public Index {
 
   virtual void set_visible(bool is_visible) { m_is_visible = is_visible; }
 
+  virtual LEX_CSTRING engine_attribute() const {
+    return lex_cstring_handle(m_engine_attribute);
+  }
+  virtual void set_engine_attribute(LEX_CSTRING a) {
+    m_engine_attribute.assign(a.str, a.length);
+  }
+  virtual LEX_CSTRING secondary_engine_attribute() const {
+    return lex_cstring_handle(m_secondary_engine_attribute);
+  }
+  virtual void set_secondary_engine_attribute(LEX_CSTRING a) {
+    m_secondary_engine_attribute.assign(a.str, a.length);
+  }
+
   /////////////////////////////////////////////////////////////////////////
   // Index-element collection
   /////////////////////////////////////////////////////////////////////////
@@ -261,6 +275,9 @@ class Index_impl : public Entity_object_impl, public Index {
   bool m_is_visible;
 
   String_type m_engine;
+
+  String_type m_engine_attribute;
+  String_type m_secondary_engine_attribute;
 
   // References to tightly-coupled objects.
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,6 +40,7 @@
 #include "sql/dd/types/column.h"               // dd::Column
 #include "sql/dd/types/column_type_element.h"  // IWYU pragma: keep
 #include "sql/gis/srid.h"                      // gis::srid_t
+#include "sql/strfunc.h"
 
 using Mysql::Nullable;
 
@@ -385,6 +386,22 @@ class Column_impl : public Entity_object_impl, public Column {
     return m_se_private_data.insert_values(se_private_data_raw);
   }
 
+  LEX_CSTRING engine_attribute() const {
+    return lex_cstring_handle(m_engine_attribute);
+  }
+
+  void set_engine_attribute(LEX_CSTRING a) {
+    m_engine_attribute.assign(a.str, a.length);
+  }
+
+  LEX_CSTRING secondary_engine_attribute() const {
+    return lex_cstring_handle(m_secondary_engine_attribute);
+  }
+
+  void set_secondary_engine_attribute(LEX_CSTRING a) {
+    m_secondary_engine_attribute.assign(a.str, a.length);
+  }
+
   /////////////////////////////////////////////////////////////////////////
   // Column key type.
   /////////////////////////////////////////////////////////////////////////
@@ -502,6 +519,10 @@ class Column_impl : public Entity_object_impl, public Column {
 
   Properties_impl m_options;
   Properties_impl m_se_private_data;
+
+  // Se-specific json attributes
+  String_type m_engine_attribute;
+  String_type m_secondary_engine_attribute;
 
   // References to tightly-coupled objects.
 

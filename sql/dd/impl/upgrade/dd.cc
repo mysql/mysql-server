@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,6 +34,7 @@
 #include "sql/dd/impl/bootstrap/bootstrap_ctx.h"        // DD_bootstrap_ctx
 #include "sql/dd/impl/cache/shared_dictionary_cache.h"  // Shared_dictionary_cache
 #include "sql/dd/impl/system_registry.h"                // dd::System_tables
+#include "sql/dd/impl/tables/columns.h"                 // dd::tables::Columns
 #include "sql/dd/impl/tables/dd_properties.h"  // dd::tables::DD_properties
 #include "sql/dd/impl/tables/events.h"         // dd::tables::Events
 #include "sql/dd/impl/tables/foreign_key_column_usage.h"  // dd::tables::Fore...
@@ -295,7 +296,7 @@ bool update_meta_data(THD *thd) {
       Remove ENCRYPTION clause for unencrypted non-InnoDB tablespaces.
       Because its only InnoDB that support encryption in 8.0.16.
     */
-    static_assert(dd::tables::Tablespaces::NUMBER_OF_FIELDS == 6,
+    static_assert(dd::tables::Tablespaces::NUMBER_OF_FIELDS == 7,
                   "SQL statements rely on a specific table definition");
     if (dd::execute_query(
             thd,
@@ -308,7 +309,7 @@ bool update_meta_data(THD *thd) {
     }
 
     // Remove ENCRYPTION clause for non-InnoDB tables.
-    static_assert(dd::tables::Tables::NUMBER_OF_FIELDS == 35,
+    static_assert(dd::tables::Tables::NUMBER_OF_FIELDS == 37,
                   "SQL statements rely on a specific table definition");
     if (dd::execute_query(
             thd,
@@ -340,9 +341,9 @@ bool update_meta_data(THD *thd) {
                   "SQL statements rely on a specific table definition");
     static_assert(dd::tables::Table_partitions::NUMBER_OF_FIELDS == 12,
                   "SQL statements rely on a specific table definition");
-    static_assert(dd::tables::Tables::NUMBER_OF_FIELDS == 35,
+    static_assert(dd::tables::Tables::NUMBER_OF_FIELDS == 37,
                   "SQL statements rely on a specific table definition");
-    static_assert(dd::tables::Indexes::NUMBER_OF_FIELDS == 15,
+    static_assert(dd::tables::Indexes::NUMBER_OF_FIELDS == 17,
                   "SQL statements rely on a specific table definition");
     if (dd::execute_query(
             thd,
@@ -375,11 +376,11 @@ bool update_meta_data(THD *thd) {
       This is done as we expect all innodb tablespaces to have proper
       'encryption' flag set.
     */
-    static_assert(dd::tables::Indexes::NUMBER_OF_FIELDS == 15,
+    static_assert(dd::tables::Indexes::NUMBER_OF_FIELDS == 17,
                   "SQL statements rely on a specific table definition");
-    static_assert(dd::tables::Tablespaces::NUMBER_OF_FIELDS == 6,
+    static_assert(dd::tables::Tablespaces::NUMBER_OF_FIELDS == 7,
                   "SQL statements rely on a specific table definition");
-    static_assert(dd::tables::Tables::NUMBER_OF_FIELDS == 35,
+    static_assert(dd::tables::Tables::NUMBER_OF_FIELDS == 37,
                   "SQL statements rely on a specific table definition");
     if (dd::execute_query(
             thd,
@@ -398,7 +399,7 @@ bool update_meta_data(THD *thd) {
       Update ENCRYPTION clause for unencrypted InnoDB tablespaces.
       Where the 'encryption' key value is empty string ''.
     */
-    static_assert(dd::tables::Tablespaces::NUMBER_OF_FIELDS == 6,
+    static_assert(dd::tables::Tablespaces::NUMBER_OF_FIELDS == 7,
                   "SQL statements rely on a specific table definition");
     if (dd::execute_query(
             thd,
@@ -414,7 +415,7 @@ bool update_meta_data(THD *thd) {
       Store ENCRYPTION clause for unencrypted InnoDB general tablespaces,
       when the 'encryption' key is not yet present.
     */
-    static_assert(dd::tables::Tablespaces::NUMBER_OF_FIELDS == 6,
+    static_assert(dd::tables::Tablespaces::NUMBER_OF_FIELDS == 7,
                   "SQL statements rely on a specific table definition");
     if (dd::execute_query(
             thd,
@@ -433,9 +434,9 @@ bool update_meta_data(THD *thd) {
       table as of 8.0.15, so we ignore to check for partitioned tables
       using general tablespace.
     */
-    static_assert(dd::tables::Tables::NUMBER_OF_FIELDS == 35,
+    static_assert(dd::tables::Tables::NUMBER_OF_FIELDS == 37,
                   "SQL statements rely on a specific table definition");
-    static_assert(dd::tables::Tablespaces::NUMBER_OF_FIELDS == 6,
+    static_assert(dd::tables::Tablespaces::NUMBER_OF_FIELDS == 7,
                   "SQL statements rely on a specific table definition");
     if (dd::execute_query(
             thd,
@@ -455,7 +456,7 @@ bool update_meta_data(THD *thd) {
       Store 'encrypt_type=N' for unencrypted InnoDB file-per-table tables,
       for tables which does not have a 'encrypt_type' key stored already.
     */
-    static_assert(dd::tables::Tables::NUMBER_OF_FIELDS == 35,
+    static_assert(dd::tables::Tables::NUMBER_OF_FIELDS == 37,
                   "SQL statements rely on a specific table definition");
     if (dd::execute_query(
             thd,
@@ -546,12 +547,41 @@ bool migrate_meta_data(THD *thd, const std::set<String_type> &create_set,
 
   /********************* Migration of mysql.tables *********************/
   /* Upgrade from 80012 or earlier. */
-  static_assert(dd::tables::Tables::NUMBER_OF_FIELDS == 35,
+  static_assert(dd::tables::Tables::NUMBER_OF_FIELDS == 37,
                 "SQL statements rely on a specific table definition");
   if (is_dd_upgrade_from_before(bootstrap::DD_VERSION_80013)) {
     /* Column 'last_checked_for_upgrade' was added. */
-    if (migrate_table("tables",
-                      "INSERT INTO tables SELECT *, 0 FROM mysql.tables")) {
+    if (migrate_table(
+            "tables",
+            "INSERT INTO tables SELECT *, 0, NULL, NULL FROM mysql.tables")) {
+      return true;
+    }
+  } else if (is_dd_upgrade_from_before(bootstrap::DD_VERSION_80021)) {
+    /*
+      Upgrade from 80020 and before.
+      Store NULL for new columns mysql.tables.engine_attribute and
+      mysql.tables.secondary_engine_attribute
+    */
+
+    if (migrate_table(
+            "tables",
+            "INSERT INTO tables SELECT *, NULL, NULL FROM mysql.tables")) {
+      return true;
+    }
+  }
+  /********************* Migration of mysql.columns *********************/
+  /* Upgrade from 80020 or earlier. */
+  static_assert(dd::tables::Columns::NUMBER_OF_FIELDS == 32,
+                "SQL statements rely on a specific table definition");
+  if (is_dd_upgrade_from_before(bootstrap::DD_VERSION_80021)) {
+    /*
+      Upgrade from 80020 and before.
+      Store NULL for new columns mysql.columns.engine_attribute and
+      mysql.columns.secondary_engine_attribute
+    */
+    if (migrate_table(
+            "columns",
+            "INSERT INTO columns SELECT *, NULL, NULL FROM mysql.columns")) {
       return true;
     }
   }
@@ -650,6 +680,46 @@ bool migrate_meta_data(THD *thd, const std::set<String_type> &create_set,
     if (migrate_table(
             "schemata",
             "INSERT INTO schemata SELECT *, NULL FROM mysql.schemata")) {
+      return true;
+    }
+  }
+
+  /********************* Migration of mysql.indexes *********************/
+  /*
+    DD version 80020 adds new columns 'engine_attribute' and
+    'secondary_engine_atribute'
+  */
+  static_assert(dd::tables::Indexes::NUMBER_OF_FIELDS == 17,
+                "SQL statements rely on a specific table definition");
+  if (is_dd_upgrade_from_before(bootstrap::DD_VERSION_80021)) {
+    /*
+      Upgrade from 80020 and before.
+      Store NULL for new columns mysql.indexes.engine_attribute and
+      mysql.indexes.secondary_engine_attribute
+    */
+    if (migrate_table(
+            "indexes",
+            "INSERT INTO indexes SELECT *, NULL, NULL FROM mysql.indexes")) {
+      return true;
+    }
+  }
+
+  /********************* Migration of mysql.tablespaces *********************/
+  /*
+    DD version 80020 adds new columns 'engine_attribute' and
+    'secondary_engine_atribute'
+  */
+  static_assert(dd::tables::Tablespaces::NUMBER_OF_FIELDS == 7,
+                "SQL statements rely on a specific table definition");
+  if (is_dd_upgrade_from_before(bootstrap::DD_VERSION_80021)) {
+    /*
+      Upgrade from 80021 and before.
+      Store NULL for new columns mysql.tablespaces.engine_attribute and
+      mysql.tablespaces.secondary_engine_attribute
+    */
+    if (migrate_table("tablespaces",
+                      "INSERT INTO tablespaces SELECT *, NULL FROM "
+                      "mysql.tablespaces")) {
       return true;
     }
   }

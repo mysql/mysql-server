@@ -88,6 +88,7 @@ Database: information_schema
 | COLUMN_PRIVILEGES                     |
 | COLUMN_STATISTICS                     |
 | COLUMNS                               |
+| COLUMNS_EXTENSIONS                    |
 | ENABLED_ROLES                         |
 | ENGINES                               |
 | EVENTS                                |
@@ -144,9 +145,12 @@ Database: information_schema
 | ST_UNITS_OF_MEASURE                   |
 | STATISTICS                            |
 | TABLE_CONSTRAINTS                     |
+| TABLE_CONSTRAINTS_EXTENSIONS          |
 | TABLE_PRIVILEGES                      |
 | TABLES                                |
+| TABLES_EXTENSIONS                     |
 | TABLESPACES                           |
+| TABLESPACES_EXTENSIONS                |
 | TRIGGERS                              |
 | USER_PRIVILEGES                       |
 | VIEW_ROUTINE_USAGE                    |
@@ -166,6 +170,7 @@ Database: INFORMATION_SCHEMA
 | COLUMN_PRIVILEGES                     |
 | COLUMN_STATISTICS                     |
 | COLUMNS                               |
+| COLUMNS_EXTENSIONS                    |
 | ENABLED_ROLES                         |
 | ENGINES                               |
 | EVENTS                                |
@@ -222,9 +227,12 @@ Database: INFORMATION_SCHEMA
 | ST_UNITS_OF_MEASURE                   |
 | STATISTICS                            |
 | TABLE_CONSTRAINTS                     |
+| TABLE_CONSTRAINTS_EXTENSIONS          |
 | TABLE_PRIVILEGES                      |
 | TABLES                                |
+| TABLES_EXTENSIONS                     |
 | TABLESPACES                           |
+| TABLESPACES_EXTENSIONS                |
 | TRIGGERS                              |
 | USER_PRIVILEGES                       |
 | VIEW_ROUTINE_USAGE                    |

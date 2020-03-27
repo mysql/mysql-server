@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -192,9 +192,9 @@ bool Abstract_table::update_id_key(Id_key *key, Object_id id) {
 
 ///////////////////////////////////////////////////////////////////////////
 
-static_assert(Tables::FIELD_VIEW_DEFINITION == 24,
-              "Tables definition has changed, review (de)ser member function"
-              "s (also in derived classes");
+static_assert(Tables::NUMBER_OF_FIELDS == 37,
+              "Tables definition has changed, check if serialize() and "
+              "deserialize() needs to be updated!");
 
 void Abstract_table_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const {
   Entity_object_impl::serialize(wctx, w);

@@ -3545,3 +3545,4 @@ CREATE TABLE t1 (b INT);
 --echo # The below ALTER TABLE causes assertion failure without the fix.
 ALTER TABLE t1 ADD gcol INT AS (b + 1) VIRTUAL FIRST, ADD COLUMN a INT;
 DROP TABLE t1;
+

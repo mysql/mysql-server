@@ -155,6 +155,7 @@ SET(DD_SOURCES
   dd/impl/system_views/collations.cc
   dd/impl/system_views/collation_charset_applicability.cc
   dd/impl/system_views/columns.cc
+  dd/impl/system_views/columns_extensions.cc
   dd/impl/system_views/column_statistics.cc
   dd/impl/system_views/enabled_roles.cc
   dd/impl/system_views/events.cc
@@ -180,7 +181,10 @@ SET(DD_SOURCES
   dd/impl/system_views/st_units_of_measure.cc
   dd/impl/system_views/st_geometry_columns.cc
   dd/impl/system_views/tables.cc
+  dd/impl/system_views/tables_extensions.cc
   dd/impl/system_views/table_constraints.cc
+  dd/impl/system_views/table_constraints_extensions.cc
+  dd/impl/system_views/tablespaces_extensions.cc
   dd/impl/system_views/triggers.cc
   dd/impl/system_views/view_routine_usage.cc
   dd/impl/system_views/view_table_usage.cc

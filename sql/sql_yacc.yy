@@ -67,6 +67,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "sql/item_json_func.h"
 #include "sql/item_regexp_func.h"
 #include "sql/json_dom.h"
+#include "sql/json_syntax_check.h"           // is_valid_json_syntax
 #include "sql/key_spec.h"
 #include "sql/keycaches.h"
 #include "sql/lex_symbol.h"
@@ -1256,6 +1257,8 @@ void warn_about_deprecated_binary(THD *thd)
 %token<lexer.keyword> JSON_VALUE_SYM 1151               /* SQL-2016-R */
 %token<lexer.keyword> TLS_SYM 1152                      /* MYSQL */
 
+%token<lexer.keyword> ENGINE_ATTRIBUTE_SYM 1153         /* MYSQL */
+%token<lexer.keyword> SECONDARY_ENGINE_ATTRIBUTE_SYM 1154 /* MYSQL */
 
 /*
   Precedence rules used to resolve the ambiguity when using keywords as idents
@@ -1331,6 +1334,7 @@ void warn_about_deprecated_binary(THD *thd)
         opt_table_alias
         opt_replace_password
         sp_opt_label
+        json_attribute
 
 %type <lex_str_list> TEXT_STRING_sys_list
 
@@ -1950,7 +1954,8 @@ void warn_about_deprecated_binary(THD *thd)
         ts_option_redo_buffer_size
         ts_option_undo_buffer_size
         ts_option_wait
-	ts_option_encryption
+        ts_option_encryption
+        ts_option_engine_attribute
 
 %type <explain_format_type> opt_explain_format_type
 %type <explain_format_type> opt_explain_analyze_type
@@ -5351,7 +5356,8 @@ tablespace_option:
         | ts_option_wait
         | ts_option_comment
         | ts_option_file_block_size
-	| ts_option_encryption
+        | ts_option_encryption
+        | ts_option_engine_attribute
         ;
 
 opt_alter_tablespace_options:
@@ -5380,7 +5386,8 @@ alter_tablespace_option:
         | ts_option_max_size
         | ts_option_engine
         | ts_option_wait
-	| ts_option_encryption
+        | ts_option_encryption
+        | ts_option_engine_attribute
         ;
 
 opt_undo_tablespace_options:
@@ -5561,6 +5568,13 @@ ts_option_encryption:
           ENCRYPTION_SYM opt_equal TEXT_STRING_sys
           {
             $$= NEW_PTN PT_alter_tablespace_option_encryption($3);
+          }
+        ;
+
+ts_option_engine_attribute:
+          ENGINE_ATTRIBUTE_SYM opt_equal json_attribute
+          {
+            $$ = make_tablespace_engine_attribute(YYMEM_ROOT, $3);
           }
         ;
 
@@ -6117,13 +6131,13 @@ create_table_option:
             $$= NEW_PTN PT_create_commen_option($3);
           }
         | COMPRESSION_SYM opt_equal TEXT_STRING_sys
-	  {
+          {
             $$= NEW_PTN PT_create_compress_option($3);
-	  }
+          }
         | ENCRYPTION_SYM opt_equal TEXT_STRING_sys
-	  {
+          {
             $$= NEW_PTN PT_create_encryption_option($3);
-	  }
+          }
         | AUTO_INC opt_equal ulonglong_num
           {
             $$= NEW_PTN PT_create_auto_increment_option($3);
@@ -6224,6 +6238,14 @@ create_table_option:
         | START_SYM TRANSACTION_SYM
           {
             $$= NEW_PTN PT_create_start_transaction_option(true);
+	  }
+        | ENGINE_ATTRIBUTE_SYM opt_equal json_attribute
+          {
+            $$ = make_table_engine_attribute(YYMEM_ROOT, $3);
+          }
+        | SECONDARY_ENGINE_ATTRIBUTE_SYM opt_equal json_attribute
+          {
+            $$ = make_table_secondary_engine_attribute(YYMEM_ROOT, $3);
           }
         ;
 
@@ -6902,6 +6924,14 @@ column_attribute:
           {
             $$ = NEW_PTN PT_constraint_enforcement_attr($1);
           }
+        | ENGINE_ATTRIBUTE_SYM opt_equal json_attribute
+          {
+            $$ = make_column_engine_attribute(YYMEM_ROOT, $3);
+          }
+        | SECONDARY_ENGINE_ATTRIBUTE_SYM opt_equal json_attribute
+          {
+            $$ = make_column_secondary_engine_attribute(YYMEM_ROOT, $3);
+          }
         ;
 
 column_format:
@@ -7299,6 +7329,14 @@ common_index_option:
         | visibility
           {
             $$= NEW_PTN PT_index_visibility($1);
+          }
+        | ENGINE_ATTRIBUTE_SYM opt_equal json_attribute
+          {
+            $$ = make_index_engine_attribute(YYMEM_ROOT, $3);
+          }
+        | SECONDARY_ENGINE_ATTRIBUTE_SYM opt_equal json_attribute
+          {
+            $$ = make_index_secondary_engine_attribute(YYMEM_ROOT, $3);
           }
         ;
 
@@ -8080,7 +8118,7 @@ alter_table_partition_options:
         ;
 
 opt_alter_command_list:
-	  /* empty */
+          /* empty */
           {
             $$.flags.init();
             $$.actions= NULL;
@@ -12234,10 +12272,10 @@ drop_server_stmt:
 
 drop_srs_stmt:
           DROP SPATIAL_SYM REFERENCE_SYM SYSTEM_SYM if_exists real_ulonglong_num
-	  {
-	    $$= NEW_PTN PT_drop_srs($6, $5);
-	  }
-	;
+          {
+            $$= NEW_PTN PT_drop_srs($6, $5);
+          }
+        ;
 
 drop_role_stmt:
           DROP ROLE_SYM if_exists role_list
@@ -14563,6 +14601,7 @@ ident_keywords_unambiguous:
         | ENFORCED_SYM
         | ENGINES_SYM
         | ENGINE_SYM
+        | ENGINE_ATTRIBUTE_SYM
         | ENUM_SYM
         | ERRORS
         | ERROR_SYM
@@ -14775,6 +14814,7 @@ ident_keywords_unambiguous:
         | SCHEDULE_SYM
         | SCHEMA_NAME_SYM
         | SECONDARY_ENGINE_SYM
+        | SECONDARY_ENGINE_ATTRIBUTE_SYM
         | SECONDARY_LOAD_SYM
         | SECONDARY_SYM
         | SECONDARY_UNLOAD_SYM
@@ -17147,6 +17187,22 @@ opt_force:
           /* empty */ { $$= false; }
         | FORCE_SYM   { $$= true; }
         ;
+
+
+json_attribute:
+          TEXT_STRING_sys
+          {
+            if ($1.str[0] != '\0') {
+              size_t eoff = 0;
+              std::string emsg;
+              if (!is_valid_json_syntax($1.str, $1.length, &eoff, &emsg)) {
+                my_error(ER_INVALID_JSON_ATTRIBUTE, MYF(0),
+                         emsg.c_str(), eoff, $1.str+eoff);
+                MYSQL_YYABORT;
+              }
+            }
+            $$ = to_lex_cstring($1);
+          }
 
 /**
   @} (end of group Parser)

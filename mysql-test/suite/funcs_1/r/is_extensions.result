@@ -1,0 +1,147 @@
+#
+# Check access to I_S.x_extensions tables
+#
+CREATE SCHEMA db_datadict;
+CREATE USER 'testuser1'@'localhost';
+CREATE USER 'testuser2'@'localhost';
+CREATE TABLE db_datadict.t1
+(f1 CHAR(10), f2 TEXT, f3 DATE, f4 INT AUTO_INCREMENT,
+UNIQUE INDEX MUL_IDX(f1,f3), PRIMARY KEY (f4));
+CREATE VIEW db_datadict.v1 AS SELECT 1 AS f1, 1 AS f2;
+GRANT SELECT(f1, f2) ON db_datadict.t1 TO 'testuser1'@'localhost';
+GRANT SELECT(f2)     ON db_datadict.v1 TO 'testuser1'@'localhost';
+CREATE TABLE db_datadict.t2
+(f1 CHAR(10), f2 TEXT, f3 DATE, f4 INT, PRIMARY KEY (f1,f4));
+GRANT INSERT(f1, f2) ON db_datadict.t2 TO 'testuser2'@'localhost';
+# Checking tables_extensions as root
+SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, ENGINE, VERSION, ROW_FORMAT, TABLE_ROWS, AVG_ROW_LENGTH, DATA_LENGTH, MAX_DATA_LENGTH, INDEX_LENGTH, DATA_FREE, AUTO_INCREMENT, '<create time>' AS CREATE_TIME, UPDATE_TIME, CHECK_TIME, TABLE_COLLATION, CHECKSUM, CREATE_OPTIONS, TABLE_COMMENT FROM information_schema.tables WHERE table_schema = 'db_datadict' ORDER BY table_schema, table_name;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
+def	db_datadict	t1	BASE TABLE	InnoDB	10	Dynamic	0	0	16384	0	16384	0	1	<create time>	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+def	db_datadict	t2	BASE TABLE	InnoDB	10	Dynamic	0	0	16384	0	0	0	NULL	<create time>	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+def	db_datadict	v1	VIEW	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	<create time>	NULL	NULL	NULL	NULL	NULL	VIEW
+SELECT * FROM information_schema.tables_extensions WHERE table_schema = 'db_datadict' ORDER BY table_schema, table_name;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	ENGINE_ATTRIBUTE	SECONDARY_ENGINE_ATTRIBUTE
+def	db_datadict	t1	NULL	NULL
+def	db_datadict	t2	NULL	NULL
+def	db_datadict	v1	NULL	NULL
+SELECT (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'db_datadict') AS TABLES_ROWS, (SELECT COUNT(*) FROM information_schema.tables_extensions WHERE table_schema = 'db_datadict') AS TABLES_EXT_ROWS;
+TABLES_ROWS	TABLES_EXT_ROWS
+3	3
+# Checking columns_extensions as root
+SELECT * FROM information_schema.columns WHERE table_schema = 'db_datadict' ORDER BY table_schema, table_name, column_name;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	GENERATION_EXPRESSION	SRS_ID
+def	db_datadict	t1	f1	1	NULL	YES	char	10	40	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(10)	MUL		select,insert,update,references			NULL
+def	db_datadict	t1	f2	2	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	text			select,insert,update,references			NULL
+def	db_datadict	t1	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references			NULL
+def	db_datadict	t1	f4	4	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int	PRI	auto_increment	select,insert,update,references			NULL
+def	db_datadict	t2	f1	1	NULL	NO	char	10	40	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(10)	PRI		select,insert,update,references			NULL
+def	db_datadict	t2	f2	2	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	text			select,insert,update,references			NULL
+def	db_datadict	t2	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references			NULL
+def	db_datadict	t2	f4	4	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int	PRI		select,insert,update,references			NULL
+def	db_datadict	v1	f1	1	0	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
+def	db_datadict	v1	f2	2	0	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
+SELECT * FROM information_schema.columns_extensions WHERE table_schema = 'db_datadict' ORDER BY table_schema, table_name, column_name;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ENGINE_ATTRIBUTE	SECONDARY_ENGINE_ATTRIBUTE
+def	db_datadict	t1	f1	NULL	NULL
+def	db_datadict	t1	f2	NULL	NULL
+def	db_datadict	t1	f3	NULL	NULL
+def	db_datadict	t1	f4	NULL	NULL
+def	db_datadict	t2	f1	NULL	NULL
+def	db_datadict	t2	f2	NULL	NULL
+def	db_datadict	t2	f3	NULL	NULL
+def	db_datadict	t2	f4	NULL	NULL
+def	db_datadict	v1	f1	NULL	NULL
+def	db_datadict	v1	f2	NULL	NULL
+SELECT (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'db_datadict') AS COLUMNS_ROWS, (SELECT COUNT(*) FROM information_schema.columns_extensions WHERE table_schema = 'db_datadict') AS COLUMNS_EXT_ROWS;
+COLUMNS_ROWS	COLUMNS_EXT_ROWS
+10	10
+# Checking table_constraints_extensions as root
+SELECT * FROM information_schema.table_constraints WHERE constraint_schema = 'db_datadict' ORDER BY constraint_schema, table_name, constraint_name;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE	ENFORCED
+def	db_datadict	MUL_IDX	db_datadict	t1	UNIQUE	YES
+def	db_datadict	PRIMARY	db_datadict	t1	PRIMARY KEY	YES
+def	db_datadict	PRIMARY	db_datadict	t2	PRIMARY KEY	YES
+SELECT * FROM information_schema.table_constraints_extensions WHERE constraint_schema = 'db_datadict' ORDER BY constraint_schema, table_name, constraint_name;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_NAME	ENGINE_ATTRIBUTE	SECONDARY_ENGINE_ATTRIBUTE
+def	db_datadict	MUL_IDX	t1	NULL	NULL
+def	db_datadict	PRIMARY	t1	NULL	NULL
+def	db_datadict	PRIMARY	t2	NULL	NULL
+SELECT (SELECT COUNT(*) FROM information_schema.table_constraints WHERE constraint_schema = 'db_datadict') AS CONSTRAINTS_ROWS, (SELECT COUNT(*) FROM information_schema.table_constraints_extensions WHERE constraint_schema = 'db_datadict') AS CONSTRAINTS_EXT_ROWS;
+CONSTRAINTS_ROWS	CONSTRAINTS_EXT_ROWS
+3	3
+# Checking tables_extensions as testuser1
+SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, ENGINE, VERSION, ROW_FORMAT, TABLE_ROWS, AVG_ROW_LENGTH, DATA_LENGTH, MAX_DATA_LENGTH, INDEX_LENGTH, DATA_FREE, AUTO_INCREMENT, '<create time>' AS CREATE_TIME, UPDATE_TIME, CHECK_TIME, TABLE_COLLATION, CHECKSUM, CREATE_OPTIONS, TABLE_COMMENT FROM information_schema.tables WHERE table_schema = 'db_datadict' ORDER BY table_schema, table_name;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
+def	db_datadict	t1	BASE TABLE	InnoDB	10	Dynamic	0	0	16384	0	16384	0	1	<create time>	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+def	db_datadict	v1	VIEW	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	<create time>	NULL	NULL	NULL	NULL	NULL	VIEW
+SELECT * FROM information_schema.tables_extensions WHERE table_schema = 'db_datadict' ORDER BY table_schema, table_name;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	ENGINE_ATTRIBUTE	SECONDARY_ENGINE_ATTRIBUTE
+def	db_datadict	t1	NULL	NULL
+def	db_datadict	v1	NULL	NULL
+SELECT (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'db_datadict') AS TABLES_ROWS, (SELECT COUNT(*) FROM information_schema.tables_extensions WHERE table_schema = 'db_datadict') AS TABLES_EXT_ROWS;
+TABLES_ROWS	TABLES_EXT_ROWS
+2	2
+# Checking columns_extensions as testuser1
+SELECT * FROM information_schema.columns WHERE table_schema = 'db_datadict' ORDER BY table_schema, table_name, column_name;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	GENERATION_EXPRESSION	SRS_ID
+def	db_datadict	t1	f1	1	NULL	YES	char	10	40	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(10)	MUL		select			NULL
+def	db_datadict	t1	f2	2	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	text			select			NULL
+def	db_datadict	v1	f2	2	0	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select			NULL
+SELECT * FROM information_schema.columns_extensions WHERE table_schema = 'db_datadict' ORDER BY table_schema, table_name, column_name;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ENGINE_ATTRIBUTE	SECONDARY_ENGINE_ATTRIBUTE
+def	db_datadict	t1	f1	NULL	NULL
+def	db_datadict	t1	f2	NULL	NULL
+def	db_datadict	v1	f2	NULL	NULL
+SELECT (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'db_datadict') AS COLUMNS_ROWS, (SELECT COUNT(*) FROM information_schema.columns_extensions WHERE table_schema = 'db_datadict') AS COLUMNS_EXT_ROWS;
+COLUMNS_ROWS	COLUMNS_EXT_ROWS
+3	3
+# Checking table_constraints_extensions as testuser1
+SELECT * FROM information_schema.table_constraints WHERE constraint_schema = 'db_datadict' ORDER BY constraint_schema, table_name, constraint_name;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE	ENFORCED
+def	db_datadict	MUL_IDX	db_datadict	t1	UNIQUE	YES
+def	db_datadict	PRIMARY	db_datadict	t1	PRIMARY KEY	YES
+SELECT * FROM information_schema.table_constraints_extensions WHERE constraint_schema = 'db_datadict' ORDER BY constraint_schema, table_name, constraint_name;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_NAME	ENGINE_ATTRIBUTE	SECONDARY_ENGINE_ATTRIBUTE
+def	db_datadict	MUL_IDX	t1	NULL	NULL
+def	db_datadict	PRIMARY	t1	NULL	NULL
+SELECT (SELECT COUNT(*) FROM information_schema.table_constraints WHERE constraint_schema = 'db_datadict') AS CONSTRAINTS_ROWS, (SELECT COUNT(*) FROM information_schema.table_constraints_extensions WHERE constraint_schema = 'db_datadict') AS CONSTRAINTS_EXT_ROWS;
+CONSTRAINTS_ROWS	CONSTRAINTS_EXT_ROWS
+2	2
+# Checking tables_extensions as testuser1
+SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, ENGINE, VERSION, ROW_FORMAT, TABLE_ROWS, AVG_ROW_LENGTH, DATA_LENGTH, MAX_DATA_LENGTH, INDEX_LENGTH, DATA_FREE, AUTO_INCREMENT, '<create time>' AS CREATE_TIME, UPDATE_TIME, CHECK_TIME, TABLE_COLLATION, CHECKSUM, CREATE_OPTIONS, TABLE_COMMENT FROM information_schema.tables WHERE table_schema = 'db_datadict' ORDER BY table_schema, table_name;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
+def	db_datadict	t2	BASE TABLE	InnoDB	10	Dynamic	0	0	16384	0	0	0	NULL	<create time>	NULL	NULL	utf8mb4_0900_ai_ci	NULL		
+SELECT * FROM information_schema.tables_extensions WHERE table_schema = 'db_datadict' ORDER BY table_schema, table_name;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	ENGINE_ATTRIBUTE	SECONDARY_ENGINE_ATTRIBUTE
+def	db_datadict	t2	NULL	NULL
+SELECT (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'db_datadict') AS TABLES_ROWS, (SELECT COUNT(*) FROM information_schema.tables_extensions WHERE table_schema = 'db_datadict') AS TABLES_EXT_ROWS;
+TABLES_ROWS	TABLES_EXT_ROWS
+1	1
+# Checking columns_extensions as testuser2
+SELECT * FROM information_schema.columns WHERE table_schema = 'db_datadict' ORDER BY table_schema, table_name, column_name;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	GENERATION_EXPRESSION	SRS_ID
+def	db_datadict	t2	f1	1	NULL	NO	char	10	40	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(10)	PRI		insert			NULL
+def	db_datadict	t2	f2	2	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	text			insert			NULL
+SELECT * FROM information_schema.columns_extensions WHERE table_schema = 'db_datadict' ORDER BY table_schema, table_name, column_name;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ENGINE_ATTRIBUTE	SECONDARY_ENGINE_ATTRIBUTE
+def	db_datadict	t2	f1	NULL	NULL
+def	db_datadict	t2	f2	NULL	NULL
+SELECT (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'db_datadict') AS COLUMNS_ROWS, (SELECT COUNT(*) FROM information_schema.columns_extensions WHERE table_schema = 'db_datadict') AS COLUMNS_EXT_ROWS;
+COLUMNS_ROWS	COLUMNS_EXT_ROWS
+2	2
+# Checking table_constraints_extensions as testuser2
+SELECT * FROM information_schema.table_constraints WHERE constraint_schema = 'db_datadict' ORDER BY constraint_schema, table_name, constraint_name;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE	ENFORCED
+def	db_datadict	PRIMARY	db_datadict	t2	PRIMARY KEY	YES
+SELECT * FROM information_schema.table_constraints_extensions WHERE constraint_schema = 'db_datadict' ORDER BY constraint_schema, table_name, constraint_name;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_NAME	ENGINE_ATTRIBUTE	SECONDARY_ENGINE_ATTRIBUTE
+def	db_datadict	PRIMARY	t2	NULL	NULL
+SELECT (SELECT COUNT(*) FROM information_schema.table_constraints WHERE constraint_schema = 'db_datadict') AS CONSTRAINTS_ROWS, (SELECT COUNT(*) FROM information_schema.table_constraints_extensions WHERE constraint_schema = 'db_datadict') AS CONSTRAINTS_EXT_ROWS;
+CONSTRAINTS_ROWS	CONSTRAINTS_EXT_ROWS
+1	1
+# Cleanup
+DROP TABLE db_datadict.t2;
+DROP TABLE db_datadict.t1;
+DROP USER 'testuser2'@'localhost';
+DROP USER 'testuser1'@'localhost';
+DROP SCHEMA db_datadict;

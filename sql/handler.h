@@ -775,6 +775,9 @@ given at all. */
 */
 #define HA_CREATE_USED_START_TRANSACTION (1L << 31)
 
+constexpr const uint64_t HA_CREATE_USED_ENGINE_ATTRIBUTE{1ULL << 32};
+constexpr const uint64_t HA_CREATE_USED_SECONDARY_ENGINE_ATTRIBUTE{1ULL << 33};
+
 /*
   End of bits used in used_fields
 */
@@ -2541,6 +2544,9 @@ struct handlerton {
 /** Engine supports table or tablespace encryption . */
 #define HTON_SUPPORTS_TABLE_ENCRYPTION (1 << 16)
 
+constexpr const decltype(handlerton::flags) HTON_SUPPORTS_ENGINE_ATTRIBUTE{
+    1 << 17};
+
 inline bool ddl_is_atomic(const handlerton *hton) {
   return (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) != 0;
 }
@@ -2668,7 +2674,7 @@ struct HA_CREATE_INFO {
   ulonglong auto_increment_value{0};
   ulong table_options{0};
   ulong avg_row_length{0};
-  ulong used_fields{0};
+  uint64_t used_fields{0};
   ulong key_block_size{0};
   uint stats_sample_pages{0}; /* number of pages to sample during
                            stats estimation, if used, otherwise 0. */
@@ -2702,6 +2708,9 @@ struct HA_CREATE_INFO {
     the end of statement.
   */
   bool m_transactional_ddl{false};
+
+  LEX_CSTRING engine_attribute = NULL_CSTR;
+  LEX_CSTRING secondary_engine_attribute = NULL_CSTR;
 
   /**
     Fill HA_CREATE_INFO to be used by ALTER as well as upgrade code.

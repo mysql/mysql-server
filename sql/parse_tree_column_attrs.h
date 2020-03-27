@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,7 @@
 #include "nullable.h"
 #include "sql/gis/srid.h"
 #include "sql/item_timefunc.h"
+#include "sql/parse_tree_helpers.h"  // move_cf_appliers
 #include "sql/parse_tree_node_base.h"
 #include "sql/sql_alter.h"
 #include "sql/sql_check_constraint.h"  // Sql_check_constraint_spec
@@ -50,7 +51,7 @@ using Mysql::Nullable;
 */
 struct Column_parse_context : public Parse_context {
   const bool is_generated;  ///< Owner column is a generated one.
-
+  std::vector<CreateFieldApplier> cf_appliers;
   Column_parse_context(THD *thd_arg, SELECT_LEX *select_arg, bool is_generated)
       : Parse_context(thd_arg, select_arg), is_generated(is_generated) {}
 };
@@ -925,7 +926,11 @@ class PT_field_def : public PT_field_def_base {
 
   bool contextualize(Parse_context *pc_arg) override {
     Column_parse_context pc(pc_arg->thd, pc_arg->select, false);
-    return super::contextualize(&pc) || contextualize_attrs(&pc, opt_attrs);
+    if (super::contextualize(&pc) || contextualize_attrs(&pc, opt_attrs))
+      return true;
+
+    move_cf_appliers(pc_arg, &pc);
+    return false;
   }
 };
 
@@ -966,5 +971,7 @@ class PT_generated_field_def : public PT_field_def_base {
     return false;
   }
 };
+
+void move_cf_appliers(Parse_context *tddlpc, Column_parse_context *cpc);
 
 #endif /* PARSE_TREE_COL_ATTRS_INCLUDED */

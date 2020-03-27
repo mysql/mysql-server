@@ -3585,3 +3585,175 @@ Sql_cmd *PT_restart_server::make_cmd(THD *thd) {
   thd->lex->sql_command = SQLCOM_RESTART_SERVER;
   return &sql_cmd;
 }
+
+/**
+   Generic attribute node that can be used with different base types
+   and corrsponding parse contexts. CFP (Contextualizer Function
+   Pointer) argument implements a suitable contextualize action in the
+   given context. Value is typically a decayed captureless lambda.
+ */
+template <class ATTRIBUTE, class BASE>
+class PT_attribute : public BASE {
+  ATTRIBUTE m_attr;
+  using CFP = bool (*)(ATTRIBUTE, typename BASE::context_t *);
+  CFP m_cfp;
+
+ public:
+  PT_attribute(ATTRIBUTE a, CFP cfp) : m_attr{a}, m_cfp{cfp} {}
+  bool contextualize(typename BASE::context_t *pc) {
+    return BASE::contextualize(pc) || m_cfp(m_attr, pc);
+  }
+};
+
+/**
+   Factory function which instantiates PT_attribute with suitable
+   parameters, allocates on the provided mem_root, and returns the
+   appropriate base pointer.
+
+   @param mem_root Memory arena.
+   @param attr     Attribute value from parser.
+
+   @return PT_alter_tablespace_option_base* to PT_attribute object.
+ */
+PT_alter_tablespace_option_base *make_tablespace_engine_attribute(
+    MEM_ROOT *mem_root, LEX_CSTRING attr) {
+  return new (mem_root)
+      PT_attribute<LEX_CSTRING, PT_alter_tablespace_option_base>(
+          attr, +[](LEX_CSTRING a, Alter_tablespace_parse_context *pc) {
+            pc->engine_attribute = a;
+            return false;
+          });
+}
+
+/**
+   Factory function which instantiates PT_attribute with suitable
+   parameters, allocates on the provided mem_root, and returns the
+   appropriate base pointer.
+
+   @param mem_root Memory arena.
+   @param attr     Attribute value from parser.
+
+   @return PT_alter_tablespace_option_base* to PT_attribute object.
+
+ */
+PT_create_table_option *make_table_engine_attribute(MEM_ROOT *mem_root,
+                                                    LEX_CSTRING attr) {
+  return new (mem_root) PT_attribute<LEX_CSTRING, PT_create_table_option>(
+      attr, +[](LEX_CSTRING a, Table_ddl_parse_context *pc) {
+        pc->create_info->engine_attribute = a;
+        pc->create_info->used_fields |= HA_CREATE_USED_ENGINE_ATTRIBUTE;
+        pc->alter_info->flags |=
+            (Alter_info::ALTER_OPTIONS | Alter_info::ANY_ENGINE_ATTRIBUTE);
+        return false;
+      });
+}
+
+/**
+   Factory function which instantiates PT_attribute with suitable
+   parameters, allocates on the provided mem_root, and returns the
+   appropriate base pointer.
+
+   @param mem_root Memory arena.
+   @param attr     Attribute value from parser.
+
+   @return PT_create_table_option* to PT_attribute object.
+
+ */
+PT_create_table_option *make_table_secondary_engine_attribute(
+    MEM_ROOT *mem_root, LEX_CSTRING attr) {
+  return new (mem_root) PT_attribute<LEX_CSTRING, PT_create_table_option>(
+      attr, +[](LEX_CSTRING a, Table_ddl_parse_context *pc) {
+        pc->create_info->secondary_engine_attribute = a;
+        pc->create_info->used_fields |=
+            HA_CREATE_USED_SECONDARY_ENGINE_ATTRIBUTE;
+        pc->alter_info->flags |= Alter_info::ALTER_OPTIONS;
+        return false;
+      });
+}
+
+/**
+   Factory function which instantiates PT_attribute with suitable
+   parameters, allocates on the provided mem_root, and returns the
+   appropriate base pointer.
+
+   @param mem_root Memory arena.
+   @param attr     Attribute value from parser.
+
+   @return PT_create_table_option* to PT_attribute object.
+
+ */
+PT_column_attr_base *make_column_engine_attribute(MEM_ROOT *mem_root,
+                                                  LEX_CSTRING attr) {
+  return new (mem_root) PT_attribute<LEX_CSTRING, PT_column_attr_base>(
+      attr, +[](LEX_CSTRING a, Column_parse_context *pc) {
+        pc->cf_appliers.emplace_back([=](Create_field *cf, Alter_info *ai) {
+          cf->m_engine_attribute = a;
+          ai->flags |= Alter_info::ANY_ENGINE_ATTRIBUTE;
+          return false;
+        });
+        return false;
+      });
+}
+
+/**
+   Factory function which instantiates PT_attribute with suitable
+   parameters, allocates on the provided mem_root, and returns the
+   appropriate base pointer.
+
+   @param mem_root Memory arena.
+   @param attr     Attribute value from parser.
+
+   @return PT_column_attr_base* to PT_attribute object.
+
+ */
+PT_column_attr_base *make_column_secondary_engine_attribute(MEM_ROOT *mem_root,
+                                                            LEX_CSTRING attr) {
+  return new (mem_root) PT_attribute<LEX_CSTRING, PT_column_attr_base>(
+      attr, +[](LEX_CSTRING a, Column_parse_context *pc) {
+        pc->cf_appliers.emplace_back([=](Create_field *cf, Alter_info *) {
+          cf->m_secondary_engine_attribute = a;
+          return false;
+        });
+        return false;
+      });
+}
+
+/**
+   Factory function which instantiates PT_attribute with suitable
+   parameters, allocates on the provided mem_root, and returns the
+   appropriate base pointer.
+
+   @param mem_root Memory arena.
+   @param attr     Attribute value from parser.
+
+   @return PT_base_index_option* to PT_attribute object.
+
+ */
+PT_base_index_option *make_index_engine_attribute(MEM_ROOT *mem_root,
+                                                  LEX_CSTRING attr) {
+  return new (mem_root) PT_attribute<LEX_CSTRING, PT_base_index_option>(
+      attr, +[](LEX_CSTRING a, Table_ddl_parse_context *pc) {
+        pc->key_create_info->m_engine_attribute = a;
+        pc->alter_info->flags |= Alter_info::ANY_ENGINE_ATTRIBUTE;
+        return false;
+      });
+}
+
+/**
+   Factory function which instantiates PT_attribute with suitable
+   parameters, allocates on the provided mem_root, and returns the
+   appropriate base pointer.
+
+   @param mem_root Memory arena.
+   @param attr     Attribute value from parser.
+
+   @return PT_base_index_option* to PT_attribute object.
+ */
+PT_base_index_option *make_index_secondary_engine_attribute(MEM_ROOT *mem_root,
+                                                            LEX_CSTRING attr) {
+  return new (mem_root) PT_attribute<LEX_CSTRING, PT_base_index_option>(
+      attr, +[](LEX_CSTRING a, Table_ddl_parse_context *pc) {
+        pc->key_create_info->m_secondary_engine_attribute = a;
+        return false;
+      });
+}

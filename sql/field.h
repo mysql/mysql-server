@@ -875,6 +875,9 @@ class Field {
   */
   bool m_indexed;
 
+  LEX_CSTRING m_engine_attribute = EMPTY_CSTR;
+  LEX_CSTRING m_secondary_engine_attribute = EMPTY_CSTR;
+
  private:
   enum enum_pushed_warnings {
     BAD_NULL_ERROR_PUSHED = 1,

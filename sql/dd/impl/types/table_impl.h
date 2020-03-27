@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,6 +45,7 @@
 #include "sql/dd/types/partition.h"         // dd::Partition
 #include "sql/dd/types/table.h"             // dd:Table
 #include "sql/dd/types/trigger.h"           // dd::Trigger
+#include "sql/strfunc.h"
 
 namespace dd {
 
@@ -209,6 +210,26 @@ class Table_impl : public Abstract_table_impl, virtual public Table {
 
   virtual void set_se_private_id(Object_id se_private_id) {
     m_se_private_id = se_private_id;
+  }
+
+  /////////////////////////////////////////////////////////////////////////
+  // Storage engine attributes
+  /////////////////////////////////////////////////////////////////////////
+
+  LEX_CSTRING engine_attribute() const {
+    return lex_cstring_handle(m_engine_attribute);
+  }
+
+  void set_engine_attribute(LEX_CSTRING a) {
+    m_engine_attribute.assign(a.str, a.length);
+  }
+
+  LEX_CSTRING secondary_engine_attribute() const {
+    return lex_cstring_handle(m_secondary_engine_attribute);
+  }
+
+  void set_secondary_engine_attribute(LEX_CSTRING a) {
+    m_secondary_engine_attribute.assign(a.str, a.length);
   }
 
   /////////////////////////////////////////////////////////////////////////
@@ -530,6 +551,11 @@ class Table_impl : public Abstract_table_impl, virtual public Table {
   // CHECK TABLE FOR UPGRADE after a real upgrade.
   uint m_last_checked_for_upgrade_version_id = 0;
   Properties_impl m_se_private_data;
+
+  // SE-specific json attributes
+  dd::String_type m_engine_attribute;
+  dd::String_type m_secondary_engine_attribute;
+
   enum_row_format m_row_format;
   bool m_is_temporary;
 

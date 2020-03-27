@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -79,6 +79,9 @@ class KEY_CREATE_INFO {
   KEY_CREATE_INFO() = default;
 
   explicit KEY_CREATE_INFO(bool is_visible_arg) : is_visible(is_visible_arg) {}
+
+  LEX_CSTRING m_engine_attribute = EMPTY_CSTR;
+  LEX_CSTRING m_secondary_engine_attribute = EMPTY_CSTR;
 };
 
 extern KEY_CREATE_INFO default_key_create_info;

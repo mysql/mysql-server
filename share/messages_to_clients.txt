@@ -9351,6 +9351,12 @@ ER_FOREIGN_KEY_WITH_ATOMIC_CREATE_SELECT
 ER_NOT_ALLOWED_WITH_START_TRANSACTION
   eng "START TRANSACTION clause cannot be used %.128s".
 
+ER_INVALID_JSON_ATTRIBUTE
+  eng "Invalid json attribute, error: \"%s\" at pos %u: '%s'"
+
+ER_ENGINE_ATTRIBUTE_NOT_SUPPORTED
+  eng "Storage engine '%s' does not support ENGINE_ATTRIBUTE."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

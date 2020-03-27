@@ -120,10 +120,6 @@ using std::unique_ptr;
 */
 char empty_c_string[1] = {0}; /* used for not defined db */
 
-LEX_STRING NULL_STR = {nullptr, 0};
-LEX_CSTRING EMPTY_CSTR = {"", 0};
-LEX_CSTRING NULL_CSTR = {nullptr, 0};
-
 const char *const THD::DEFAULT_WHERE = "field list";
 extern PSI_stage_info stage_waiting_for_disk_space;
 

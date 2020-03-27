@@ -165,7 +165,7 @@ SET debug = '+d,skip_dd_table_access_check';
 ########################################################################
 # The actual DD version stored on disk.
 ########################################################################
-DD_VERSION=80017
+DD_VERSION=80021
 ########################################################################
 # List the CREATE TABLE statements for the DD tables.
 # Mask the AUTO INCREMENT counter, which is not
@@ -258,6 +258,8 @@ columns	CREATE TABLE `columns` (
   `column_type_utf8` mediumtext COLLATE utf8_bin NOT NULL,
   `srs_id` int unsigned DEFAULT NULL,
   `is_explicit_collation` tinyint(1) DEFAULT NULL,
+  `engine_attribute` json DEFAULT NULL,
+  `secondary_engine_attribute` json DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `table_id` (`table_id`,`name`),
   UNIQUE KEY `table_id_2` (`table_id`,`ordinal_position`),
@@ -386,6 +388,8 @@ indexes	CREATE TABLE `indexes` (
   `se_private_data` mediumtext COLLATE utf8_bin,
   `tablespace_id` bigint unsigned DEFAULT NULL,
   `engine` varchar(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+  `engine_attribute` json DEFAULT NULL,
+  `secondary_engine_attribute` json DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `table_id` (`table_id`,`name`),
   KEY `tablespace_id` (`tablespace_id`),
@@ -630,6 +634,8 @@ tables	CREATE TABLE `tables` (
   `view_connection_collation_id` bigint unsigned DEFAULT NULL,
   `view_column_names` longtext COLLATE utf8_bin,
   `last_checked_for_upgrade_version_id` int unsigned NOT NULL,
+  `engine_attribute` json DEFAULT NULL,
+  `secondary_engine_attribute` json DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `schema_id` (`schema_id`,`name`),
   UNIQUE KEY `engine` (`engine`,`se_private_id`),
@@ -661,6 +667,7 @@ tablespaces	CREATE TABLE `tablespaces` (
   `se_private_data` mediumtext COLLATE utf8_bin,
   `comment` varchar(2048) COLLATE utf8_bin NOT NULL,
   `engine` varchar(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+  `engine_attribute` json DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
@@ -723,5 +730,5 @@ Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 include/assert.inc [The group concat max length is sufficient.]
 CHECK_STATUS
-The schema checksum corresponds to DD version 80017.
+The schema checksum corresponds to DD version 80021.
 include/assert.inc [The schema checksum corresponds to a known DD version.]

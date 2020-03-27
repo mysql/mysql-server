@@ -1,0 +1,95 @@
+--echo #
+--echo # Check access to I_S.x_extensions tables
+--echo #
+
+CREATE SCHEMA db_datadict;
+CREATE USER 'testuser1'@'localhost';
+CREATE USER 'testuser2'@'localhost';
+
+CREATE TABLE db_datadict.t1
+   (f1 CHAR(10), f2 TEXT, f3 DATE, f4 INT AUTO_INCREMENT,
+    UNIQUE INDEX MUL_IDX(f1,f3), PRIMARY KEY (f4));
+CREATE VIEW db_datadict.v1 AS SELECT 1 AS f1, 1 AS f2;
+GRANT SELECT(f1, f2) ON db_datadict.t1 TO 'testuser1'@'localhost';
+GRANT SELECT(f2)     ON db_datadict.v1 TO 'testuser1'@'localhost';
+CREATE TABLE db_datadict.t2
+(f1 CHAR(10), f2 TEXT, f3 DATE, f4 INT, PRIMARY KEY (f1,f4));
+GRANT INSERT(f1, f2) ON db_datadict.t2 TO 'testuser2'@'localhost';
+
+let $verify_tables_ext= SELECT (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'db_datadict') AS TABLES_ROWS, (SELECT COUNT(*) FROM information_schema.tables_extensions WHERE table_schema = 'db_datadict') AS TABLES_EXT_ROWS;
+
+let $verify_columns_ext= SELECT (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'db_datadict') AS COLUMNS_ROWS, (SELECT COUNT(*) FROM information_schema.columns_extensions WHERE table_schema = 'db_datadict') AS COLUMNS_EXT_ROWS;
+
+let $verify_table_constraints_ext= SELECT (SELECT COUNT(*) FROM information_schema.table_constraints WHERE constraint_schema = 'db_datadict') AS CONSTRAINTS_ROWS, (SELECT COUNT(*) FROM information_schema.table_constraints_extensions WHERE constraint_schema = 'db_datadict') AS CONSTRAINTS_EXT_ROWS;
+
+let $tables_q= SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, ENGINE, VERSION, ROW_FORMAT, TABLE_ROWS, AVG_ROW_LENGTH, DATA_LENGTH, MAX_DATA_LENGTH, INDEX_LENGTH, DATA_FREE, AUTO_INCREMENT, '<create time>' AS CREATE_TIME, UPDATE_TIME, CHECK_TIME, TABLE_COLLATION, CHECKSUM, CREATE_OPTIONS, TABLE_COMMENT FROM information_schema.tables WHERE table_schema = 'db_datadict' ORDER BY table_schema, table_name;
+
+let $tables_ext_q= SELECT * FROM information_schema.tables_extensions WHERE table_schema = 'db_datadict' ORDER BY table_schema, table_name;
+
+let $columns_q= SELECT * FROM information_schema.columns WHERE table_schema = 'db_datadict' ORDER BY table_schema, table_name, column_name;
+
+let $columns_ext_q= SELECT * FROM information_schema.columns_extensions WHERE table_schema = 'db_datadict' ORDER BY table_schema, table_name, column_name;
+
+let $table_constraints_q= SELECT * FROM information_schema.table_constraints WHERE constraint_schema = 'db_datadict' ORDER BY constraint_schema, table_name, constraint_name;
+
+let $table_constraints_ext_q= SELECT * FROM information_schema.table_constraints_extensions WHERE constraint_schema = 'db_datadict' ORDER BY constraint_schema, table_name, constraint_name;
+
+--echo # Checking tables_extensions as root
+eval $tables_q;
+eval $tables_ext_q;
+eval $verify_tables_ext;
+
+--echo # Checking columns_extensions as root
+eval $columns_q;
+eval $columns_ext_q;
+eval $verify_columns_ext;
+
+--echo # Checking table_constraints_extensions as root
+eval $table_constraints_q;
+eval $table_constraints_ext_q;
+eval $verify_table_constraints_ext;
+
+connect (testuser1, localhost, testuser1, , db_datadict);
+--echo # Checking tables_extensions as testuser1
+eval $tables_q;
+eval $tables_ext_q;
+eval $verify_tables_ext;
+
+--echo # Checking columns_extensions as testuser1
+eval $columns_q;
+eval $columns_ext_q;
+eval $verify_columns_ext;
+
+--echo # Checking table_constraints_extensions as testuser1
+eval $table_constraints_q;
+eval $table_constraints_ext_q;
+eval $verify_table_constraints_ext;
+
+connect (testuser2, localhost, testuser2, , db_datadict);
+--echo # Checking tables_extensions as testuser1
+eval $tables_q;
+eval $tables_ext_q;
+eval $verify_tables_ext;
+
+--echo # Checking columns_extensions as testuser2
+eval $columns_q;
+eval $columns_ext_q;
+eval $verify_columns_ext;
+
+--echo # Checking table_constraints_extensions as testuser2
+eval $table_constraints_q;
+eval $table_constraints_ext_q;
+eval $verify_table_constraints_ext;
+
+connection default;
+disconnect testuser1;
+disconnect testuser2;
+
+--echo # Cleanup
+
+DROP TABLE db_datadict.t2;
+DROP TABLE db_datadict.t1;
+
+DROP USER 'testuser2'@'localhost';
+DROP USER 'testuser1'@'localhost';
+DROP SCHEMA db_datadict;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -161,6 +161,11 @@ class KEY {
     @retval false if this isn't a functional index.
   */
   bool is_functional_index() const;
+
+  // Can't use in-class initialization as long as we memset-initialize
+  // the struct
+  LEX_CSTRING engine_attribute;
+  LEX_CSTRING secondary_engine_attribute;
 
  private:
   /**

@@ -27,9 +27,11 @@
 #include "sql/dd/impl/system_views/character_sets.h"     // Character_sets
 #include "sql/dd/impl/system_views/check_constraints.h"  // Check_constraints
 #include "sql/dd/impl/system_views/collation_charset_applicability.h"  // Collati...
-#include "sql/dd/impl/system_views/collations.h"           // Collations
-#include "sql/dd/impl/system_views/column_statistics.h"    // Column_statistics
-#include "sql/dd/impl/system_views/columns.h"              // Columns
+#include "sql/dd/impl/system_views/collations.h"          // Collations
+#include "sql/dd/impl/system_views/column_statistics.h"   // Column_statistics
+#include "sql/dd/impl/system_views/columns.h"             // Columns
+#include "sql/dd/impl/system_views/columns_extensions.h"  // Columns_extensions
+
 #include "sql/dd/impl/system_views/enabled_roles.h"        // Enabled_roles
 #include "sql/dd/impl/system_views/events.h"               // Events
 #include "sql/dd/impl/system_views/files.h"                // Files
@@ -54,11 +56,14 @@
 #include "sql/dd/impl/system_views/st_units_of_measure.h"  // St_units_of_measure
 #include "sql/dd/impl/system_views/statistics.h"           // Statistics
 #include "sql/dd/impl/system_views/table_constraints.h"    // Table_constraints
-#include "sql/dd/impl/system_views/tables.h"               // Tables
-#include "sql/dd/impl/system_views/triggers.h"             // Triggers
-#include "sql/dd/impl/system_views/view_routine_usage.h"   // View_routine_usage
-#include "sql/dd/impl/system_views/view_table_usage.h"     // View_table_usage
-#include "sql/dd/impl/system_views/views.h"                // Views
+#include "sql/dd/impl/system_views/table_constraints_extensions.h"  // Table_constraints_extensions
+#include "sql/dd/impl/system_views/tables.h"                        // Tables
+#include "sql/dd/impl/system_views/tables_extensions.h"  // Tables_extensions
+#include "sql/dd/impl/system_views/tablespaces_extensions.h"  // Tablespaces_extensions
+#include "sql/dd/impl/system_views/triggers.h"                // Triggers
+#include "sql/dd/impl/system_views/view_routine_usage.h"  // View_routine_usage
+#include "sql/dd/impl/system_views/view_table_usage.h"    // View_table_usage
+#include "sql/dd/impl/system_views/views.h"               // Views
 
 #include "sql/dd/impl/tables/catalogs.h"              // Catalog
 #include "sql/dd/impl/tables/character_sets.h"        // Character_sets
@@ -253,6 +258,7 @@ void System_views::init() {
   register_view<dd::system_views::Collations>(is);
   register_view<dd::system_views::Collation_charset_applicability>(is);
   register_view<dd::system_views::Columns>(is);
+  register_view<dd::system_views::Columns_extensions>(is);
   register_view<dd::system_views::Column_statistics>(is);
   register_view<dd::system_views::Events>(is);
   register_view<dd::system_views::Files>(is);
@@ -278,7 +284,10 @@ void System_views::init() {
   register_view<dd::system_views::St_geometry_columns>(is);
   register_view<dd::system_views::Statistics>(is);
   register_view<dd::system_views::Table_constraints>(is);
+  register_view<dd::system_views::Table_constraints_extensions>(is);
   register_view<dd::system_views::Tables>(is);
+  register_view<dd::system_views::Tables_extensions>(is);
+  register_view<dd::system_views::Tablespaces_extensions>(is);
   register_view<dd::system_views::Triggers>(is);
   register_view<dd::system_views::View_routine_usage>(is);
   register_view<dd::system_views::View_table_usage>(is);

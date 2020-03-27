@@ -765,6 +765,8 @@ bool fill_dd_columns_from_create_fields(THD *thd, dd::Abstract_table *tab_obj,
     if (def_val.ptr() != nullptr)
       col_obj->set_default_value_utf8(
           dd::String_type(def_val.ptr(), def_val.length()));
+    col_obj->set_engine_attribute(field.m_engine_attribute);
+    col_obj->set_secondary_engine_attribute(field.m_secondary_engine_attribute);
   }
 
   return false;
@@ -1059,6 +1061,8 @@ static void fill_dd_indexes_from_keyinfo(
     idx_obj->set_engine(tab_obj->engine());
     idx_obj->set_visible(key->is_visible);
 
+    idx_obj->set_engine_attribute(key->engine_attribute);
+    idx_obj->set_secondary_engine_attribute(key->secondary_engine_attribute);
     //
     // Set options
     //
@@ -2120,6 +2124,10 @@ static bool fill_dd_table_from_create_info(
   if (create_info->secondary_engine.str != nullptr)
     table_options->set("secondary_engine",
                        make_string_type(create_info->secondary_engine));
+
+  tab_obj->set_engine_attribute(create_info->engine_attribute);
+  tab_obj->set_secondary_engine_attribute(
+      create_info->secondary_engine_attribute);
 
   // TODO-MYSQL_VERSION: We decided not to store MYSQL_VERSION_ID ?
   //

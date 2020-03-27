@@ -4600,4 +4600,19 @@ class PT_restart_server final : public Parse_tree_root {
   Sql_cmd_restart_server sql_cmd;
 };
 
+PT_alter_tablespace_option_base *make_tablespace_engine_attribute(MEM_ROOT *,
+                                                                  LEX_CSTRING);
+
+PT_create_table_option *make_table_engine_attribute(MEM_ROOT *, LEX_CSTRING);
+PT_create_table_option *make_table_secondary_engine_attribute(MEM_ROOT *,
+                                                              LEX_CSTRING);
+
+PT_column_attr_base *make_column_engine_attribute(MEM_ROOT *, LEX_CSTRING);
+PT_column_attr_base *make_column_secondary_engine_attribute(MEM_ROOT *,
+                                                            LEX_CSTRING);
+
+PT_base_index_option *make_index_engine_attribute(MEM_ROOT *, LEX_CSTRING);
+PT_base_index_option *make_index_secondary_engine_attribute(MEM_ROOT *,
+                                                            LEX_CSTRING);
+
 #endif /* PARSE_TREE_NODES_INCLUDED */

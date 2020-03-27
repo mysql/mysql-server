@@ -385,7 +385,7 @@ SELECT * FROM view_with_column_names.v2;
 SHOW CREATE VIEW view_with_column_names.v3;
 SELECT * FROM view_with_column_names.v3;
 SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE
-TABLE_SCHEMA='view_with_column_names';
+TABLE_SCHEMA='view_with_column_names' ORDER BY TABLE_NAME,ORDINAL_POSITION;
 
 --echo # Bug #28480149 "UPGRADE FAIL: FAILED TO ADD THE FOREIGN KEY CONSTRAINT.
 --echo # MISSING INDEX FOR CONSTR". Coverage for upgrade scenario. Main part

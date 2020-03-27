@@ -64,6 +64,12 @@ let $str = `$SELECT_CMD $WHERE_COND`;
 echo $str;
 eval INSERT INTO I_S_check_table(t) VALUES ("$str");
 
+let $WHERE_COND = AND TABLE_NAME='COLUMNS_EXTENSIONS';
+#replace_regex /(cat|sch|tbl).name COLLATE utf8_tolower_ci/\1.name/;
+let $str = `$SELECT_CMD $WHERE_COND`;
+echo $str;
+eval INSERT INTO I_S_check_table(t) VALUES ("$str");
+
 let $WHERE_COND = AND TABLE_NAME='COLUMN_STATISTICS';
 let $str = `$SELECT_CMD $WHERE_COND`;
 echo $str;
@@ -189,8 +195,26 @@ let $str = `$SELECT_CMD $WHERE_COND`;
 echo $str;
 eval INSERT INTO I_S_check_table(t) VALUES ("$str");
 
+let $WHERE_COND = AND TABLE_NAME='TABLE_CONSTRAINTS_EXTENSIONS';
+#replace_regex /(cat|sch|tbl).name COLLATE utf8_tolower_ci/\1.name/;
+let $str = `$SELECT_CMD $WHERE_COND`;
+echo $str;
+eval INSERT INTO I_S_check_table(t) VALUES ("$str");
+
 let $WHERE_COND = AND TABLE_NAME='TABLES';
 replace_regex /(cat|sch|tbl).name COLLATE utf8_tolower_ci/\1.name/;
+let $str = `$SELECT_CMD $WHERE_COND`;
+echo $str;
+eval INSERT INTO I_S_check_table(t) VALUES ("$str");
+
+let $WHERE_COND = AND TABLE_NAME='TABLES_EXTENSIONS';
+#replace_regex /(cat|sch|tbl).name COLLATE utf8_tolower_ci/\1.name/;
+let $str = `$SELECT_CMD $WHERE_COND`;
+echo $str;
+eval INSERT INTO I_S_check_table(t) VALUES ("$str");
+
+let $WHERE_COND = AND TABLE_NAME='TABLESPACES_EXTENSIONS';
+#replace_regex /(cat|sch|tbl).name COLLATE utf8_tolower_ci/\1.name/;
 let $str = `$SELECT_CMD $WHERE_COND`;
 echo $str;
 eval INSERT INTO I_S_check_table(t) VALUES ("$str");

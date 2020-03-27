@@ -739,6 +739,9 @@ struct TABLE_SHARE {
   LEX_CSTRING normalized_path{nullptr, 0}; /* unpack_filename(path) */
   LEX_STRING connect_string{nullptr, 0};
 
+  LEX_CSTRING engine_attribute = EMPTY_CSTR;
+  LEX_CSTRING secondary_engine_attribute = EMPTY_CSTR;
+
   /**
     The set of indexes that are not disabled for this table. I.e. it excludes
     indexes disabled by `ALTER TABLE ... DISABLE KEYS`, however it does
