@@ -819,3 +819,12 @@ EXPLAIN
         -> Table scan on t1bis  (cost=0.35 rows=1)
 
 DROP TABLE t1,t2;
+#
+# Bug #30941336: EXPLAIN ANAYLZE SELECT COUNT(*) FROM MYSQL.USER COREDUMP UNDER DEBUG VERSION
+#
+CREATE TABLE t1 ( a INTEGER );
+EXPLAIN ANALYZE SELECT COUNT(*) FROM t1;
+EXPLAIN
+-> Count rows in t1  (actual time=N.NNN..N.NNN rows=1 loops=1)
+
+DROP TABLE t1;
