@@ -2661,7 +2661,7 @@ static bool maybe_mark_item_for_rollback(THD *thd, Item **i);
 /// @param[out] sj_outer_exprs Will add outer expressions here
 /// @param[out] sj_inner_exprs Will add inner expressions here
 /// @param      subq_pred      Item for the subquery
-/// @param      subs_select    Single query block for the subquery
+/// @param      subq_select    Single query block for the subquery
 /// @returns true if error
 static bool build_sj_exprs(THD *thd, List<Item> &sj_outer_exprs,
                            List<Item> &sj_inner_exprs,
@@ -3575,7 +3575,7 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table) {
    @param do_fix_fields If true, Item::fix_fields(THD*, Item**) is called for
    the new condition.
 
-   @param found_ptr[out] Pointer to boolean; used only in recursive sub-calls;
+   @param[out] found_ptr Pointer to boolean; used only in recursive sub-calls;
    top call must not specify this argument. Function deposits there if it
    found the searched Item or not.
 
@@ -5113,8 +5113,8 @@ bool SELECT_LEX::transform_table_subquery_to_join_with_derived(
       hidden_fields == 0;
 
   // Ensure that all lists are consistent. all_fields should have an optional
-  // prefix and then be fields_list; base_ref_items should start with
-  // fields_list.
+  // prefix and then be fields_list. If no aggregates, base_ref_items should
+  // start with fields_list.
   DBUG_ASSERT(hidden_fields >= 0);
 
   List_iterator<Item> it_all_fields(subs_select->all_fields);
@@ -5127,7 +5127,8 @@ bool SELECT_LEX::transform_table_subquery_to_join_with_derived(
 #ifndef DBUG_OFF
   Item *iaf;
   while ((i++, iaf = it_all_fields++, inner = it_fields_list++))
-    DBUG_ASSERT(inner == iaf && inner == subs_select->base_ref_items[i]);
+    DBUG_ASSERT(inner == iaf &&
+                (!no_aggregates || inner == subs_select->base_ref_items[i]));
   DBUG_ASSERT(iaf == nullptr);  // all_fields should end like fields_list
 #endif
 
@@ -5453,7 +5454,7 @@ bool SELECT_LEX::transform_table_subquery_to_join_with_derived(
                         = nullptr: synthesizing a derived table for a subquery
                         where the subquery is not contained in a join condition
   @param     left_outer true for case (1), false for (2)
-  @param     inner_join for case (1): if true/false use INNER/LEFT JOIN
+  @param     use_inner_join for case (1): if true/false use INNER/LEFT JOIN
   @returns the derived table object, or nullptr on error.
 */
 TABLE_LIST *SELECT_LEX::synthesize_derived(THD *thd, SELECT_LEX_UNIT *unit,
