@@ -232,3 +232,93 @@ FROM t1 JOIN t2
 ORDER BY field1 LIMIT 2;
 
 DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#30348211: DANGEROUS OPTIMIZATION RECONSIDERING_ACCESS_PATHS_FOR_
+--echo #               INDEX_ORDERING
+--echo #
+
+CREATE TABLE t (id BIGINT NOT NULL, other_id BIGINT NOT NULL,
+ covered_column VARCHAR(50) NOT NULL, non_covered_column VARCHAR(50) NOT NULL,
+ PRIMARY KEY (id),
+ INDEX index_other_id_covered_column (other_id, covered_column));
+
+let $n = 10;
+while ($n)
+{
+  eval INSERT INTO t (id, other_id, covered_column, non_covered_column)
+       VALUES ($n, $n, '$n', '$n');
+  dec $n;
+}
+
+SET
+  optimizer_trace = "enabled=on",
+  optimizer_trace_max_mem_size = 1000000,
+  end_markers_in_json = ON;
+
+#echo "With prefer_ordering_index=on, ordering index will be picked."
+#echo "The original plan is discarded and a new one using ordering index "
+#echo "is picked."
+SET optimizer_switch = "prefer_ordering_index=on";
+ANALYZE TABLE t;
+EXPLAIN SELECT non_covered_column FROM t WHERE other_id > 3 ORDER BY id ASC LIMIT 2;
+SELECT (trace LIKE '%"plan_changed": true%') AS should_be_1 FROM information_schema.optimizer_trace;
+
+#echo "With prefer_ordering_index=off, ordering index should not be picked"
+SET optimizer_switch = "prefer_ordering_index=off";
+EXPLAIN SELECT non_covered_column FROM t WHERE other_id > 3 ORDER BY id ASC LIMIT 2;
+SELECT (trace LIKE '%"plan_changed": true%') AS should_be_0 FROM information_schema.optimizer_trace;
+
+#echo "With prefer_ordering_index=default, ordering index should be picked"
+SET optimizer_switch = default;
+EXPLAIN SELECT non_covered_column FROM t WHERE other_id > 3 ORDER BY id ASC LIMIT 2;
+SELECT (trace LIKE '%"plan_changed": true%') AS should_be_1 FROM information_schema.optimizer_trace;
+
+#echo "If an order by index is forced, plan will be to pick ordering index even if"
+#echo "prefer_ordering_index is switched off"
+SET optimizer_switch = "prefer_ordering_index=on";
+EXPLAIN SELECT /*+ ORDER_INDEX(t PRIMARY) */ non_covered_column FROM t WHERE other_id > 3 ORDER BY id ASC LIMIT 2;
+SELECT (trace LIKE '%"plan_changed": true%') AS should_be_1 FROM information_schema.optimizer_trace;
+
+SET optimizer_switch = "prefer_ordering_index=off";
+EXPLAIN SELECT /*+ ORDER_INDEX(t PRIMARY) */ non_covered_column FROM t WHERE other_id > 3 ORDER BY id ASC LIMIT 2;
+SELECT (trace LIKE '%"plan_changed": true%') AS should_be_1 FROM information_schema.optimizer_trace;
+
+#Insert some more data for group by
+let $n = 10;
+while ($n)
+{
+  eval INSERT INTO t (id, other_id, covered_column, non_covered_column)
+       VALUES ($n+1+10, $n, '$n', '$n');
+  dec $n;
+}
+
+#echo "With prefer_ordering_index=on, ordering index will be picked."
+#echo "The original plan is discarded and a new one using ordering index "
+#echo "is picked."
+SET optimizer_switch = "prefer_ordering_index=on";
+ANALYZE TABLE t;
+EXPLAIN SELECT non_covered_column FROM t WHERE id > 8 GROUP BY other_id LIMIT 1;
+SELECT (trace LIKE '%"plan_changed": true%') AS should_be_1 FROM information_schema.optimizer_trace;
+
+#echo "With prefer_ordering_index=off, ordering index should not be picked"
+SET optimizer_switch = "prefer_ordering_index=off";
+EXPLAIN SELECT non_covered_column FROM t WHERE id > 8 GROUP BY other_id LIMIT 1;
+SELECT (trace LIKE '%"plan_changed": true%') AS should_be_0 FROM information_schema.optimizer_trace;
+
+#echo "With prefer_ordering_index=default, ordering index should be picked"
+SET optimizer_switch = default;
+EXPLAIN SELECT non_covered_column FROM t WHERE id > 8 GROUP BY id LIMIT 1;
+SELECT (trace LIKE '%"plan_changed": true%') AS should_be_1 FROM information_schema.optimizer_trace;
+
+#echo "If a group by index is forced, plan will be to pick ordering index even if"
+#echo "prefer_ordering_index is switched off"
+SET optimizer_switch = "prefer_ordering_index=on";
+EXPLAIN SELECT /*+ GROUP_INDEX(t index_other_id_covered_column) */ non_covered_column FROM t WHERE id > 8 GROUP BY other_id LIMIT 1;
+SELECT (trace LIKE '%"plan_changed": true%') AS should_be_1 FROM information_schema.optimizer_trace;
+
+SET optimizer_switch = "prefer_ordering_index=off";
+EXPLAIN SELECT /*+ GROUP_INDEX(t index_other_id_covered_column) */ non_covered_column FROM t WHERE id > 8 GROUP BY other_id LIMIT 1;
+SELECT (trace LIKE '%"plan_changed": true%') AS should_be_1 FROM information_schema.optimizer_trace;
+
+DROP TABLE t;
