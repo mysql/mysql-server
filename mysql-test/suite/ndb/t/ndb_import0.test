@@ -621,7 +621,7 @@ EOF
 EOF
 
 exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
-      --fields-terminated-by='|'
+      --fields-terminated-by="|" --csvopt=n
       test $MYSQLTEST_VARDIR/tmp/t6.pipeterm.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 
 # (2) Trailing field sep, but too many fields
@@ -632,7 +632,7 @@ EOF
 
 --error 1
 exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
-    --fields-terminated-by='|'
+    --fields-terminated-by="|" --csvopt=n
     test $MYSQLTEST_VARDIR/tmp/t6.pipeterm.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 
 # (3) Final field is not empty
@@ -643,7 +643,7 @@ EOF
 
 --error 1
 exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp
-    --fields-terminated-by='|'
+    --fields-terminated-by="|" --csvopt=n
     test $MYSQLTEST_VARDIR/tmp/t6.pipeterm.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 
 SELECT * FROM t6 WHERE a > 30 order by a;
