@@ -84,6 +84,7 @@
 #include "storage/ndb/plugin/ndb_mi.h"
 #include "storage/ndb/plugin/ndb_modifiers.h"
 #include "storage/ndb/plugin/ndb_name_util.h"
+#include "storage/ndb/plugin/ndb_pfs_init.h"
 #include "storage/ndb/plugin/ndb_require.h"
 #include "storage/ndb/plugin/ndb_schema_dist.h"
 #include "storage/ndb/plugin/ndb_schema_trans_guard.h"
@@ -12397,6 +12398,9 @@ static int ndbcluster_init(void *handlerton_ptr) {
       ndbcluster_init_abort("Failed to register dynamic privilege");
     }
   }
+  if (ndb_pfs_init(registry)) {
+    ndbcluster_init_abort("Failed to acquire PFS service handles");
+  }
   mysql_plugin_registry_release(registry);
 
   ndbcluster_inited = 1;
@@ -12428,6 +12432,10 @@ static int ndbcluster_end(handlerton *, ha_panic_function) {
 
   mysql_mutex_destroy(&ndbcluster_mutex);
   mysql_cond_destroy(&ndbcluster_cond);
+
+  SERVICE_TYPE(registry) *registry = mysql_plugin_registry_acquire();
+  ndb_pfs_deinit(registry);
+  mysql_plugin_registry_release(registry);
 
   // Cleanup NdbApi
   ndb_end_internal(1);
