@@ -35,6 +35,7 @@
 #include <string.h>
 #include <zconf.h>
 #include <zlib.h>
+
 #include <algorithm>
 #include <atomic>
 #include <cmath>  // std::isfinite
@@ -3065,16 +3066,17 @@ bool Item_func_weight_string::resolve_type(THD *) {
     Use result_length if it was given explicitly in constructor,
     otherwise calculate max_length using argument's max_length
     and "num_codepoints".
-
-    FIXME: Shouldn't this use strxfrm_multiply instead of, or in
-    addition to, mbmaxlen? Do we take into account things like
-    UCA level separators at all?
   */
-  set_data_type_string(
-      field ? field->pack_length()
-            : result_length ? result_length
-                            : cs->mbmaxlen * max(args[0]->max_char_length(),
-                                                 num_codepoints));
+  uint len;
+  if (field != nullptr) {
+    len = field->pack_length();
+  } else if (result_length > 0) {
+    len = result_length;
+  } else {
+    len = cs->coll->strnxfrmlen(
+        cs, cs->mbmaxlen * max(args[0]->max_char_length(), num_codepoints));
+  }
+  set_data_type_string(len);
   maybe_null = true;
   return false;
 }
