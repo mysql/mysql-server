@@ -22,6 +22,11 @@
 
 #include <algorithm>
 
+#ifdef _WIN32
+/* In OpenSSL before 1.1.0, we need this first. */
+#include <winsock2.h>
+#endif /* _WIN32 */
+
 #include "openssl/ssl.h"      /* SSL_* */
 #include "openssl/x509_vfy.h" /* X509_* */
 
