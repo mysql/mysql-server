@@ -68,3 +68,5 @@ let $restart_parameters = restart:--innodb-validate-tablespace-paths=1 --log-err
 --move_file $MYSQL_TMP_DIR/t1.ibd $MYSQLD_DATADIR/test/t1.ibd
 drop table t1;
 --remove_file $SEARCH_FILE
+let $restart_parameters = restart:;
+--source include/restart_mysqld.inc

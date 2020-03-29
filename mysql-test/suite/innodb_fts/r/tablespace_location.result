@@ -2,10 +2,6 @@
 # BUG#20527217 - INNODB: PUT FTS AUXILIARY TABLES INTO THE SAME GENERAL
 #		TABLESPACE AS THE PRIMARY
 #
-#
-# Restart with innodb-directories set to MYSQL_TMP_DIR.
-#
-# restart: --innodb-directories=MYSQL_TMP_DIR
 SET DEFAULT_STORAGE_ENGINE=InnoDB;
 SET GLOBAL innodb_file_per_table = ON;
 SHOW VARIABLES LIKE 'innodb_file_per_table';
@@ -686,7 +682,7 @@ fts_aux_deleted.ibd
 fts_aux_deleted_cache.ibd
 t1.ibd
 TRUNCATE TABLE t1;
-# restart: --innodb-directories=MYSQL_TMP_DIR
+# restart
 TRUNCATE TABLE t1;
 # list files in REMOTE_DIR after TRUNCATE
 fts_aux_index_1.ibd

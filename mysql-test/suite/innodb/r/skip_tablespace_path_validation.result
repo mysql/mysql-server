@@ -18,3 +18,4 @@ Pattern "\[Warning\] \[.*\] Tablespace .*, name 'test/t1', file '.*test.*t1.ibd'
 # Ensure the warning is visible now
 Pattern "\[Warning\] \[.*\] Tablespace .*, name 'test/t1', file '.*test.*t1.ibd' is missing!" found
 drop table t1;
+# restart:

@@ -56,3 +56,8 @@ source include/wait_until_undo_space_is_empty.inc;
 DROP UNDO TABLESPACE undo_4;
 
 SELECT NAME, SPACE_TYPE, ENCRYPTION, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE SPACE_TYPE='Undo';
+
+# Reset to initial state
+--let $restart_parameters="restart:"
+--source include/restart_mysqld_no_echo.inc
+--remove_file $MYSQL_TMP_DIR/my_keyfile

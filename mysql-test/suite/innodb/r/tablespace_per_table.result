@@ -4,9 +4,6 @@
 # partition related tests with remote tablespaces.
 # See innodb.innodb-restart for tablespace migration tests.
 #
-# Restart with innodb-directories set to MYSQL_TMP_DIR.
-#
-# restart: --innodb-directories=MYSQL_TMP_DIR
 SET default_storage_engine=InnoDB;
 #
 # TABLESPACE related tests.
