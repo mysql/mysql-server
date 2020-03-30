@@ -775,7 +775,8 @@
    write(buf)
    ...
    fun:_Z19my_b_flush_io_cacheP8IO_CACHEi
-   fun:_Z8filesortP3THDP8Filesort*
+   ...
+   fun:_Z8filesortP3THDP8FilesortP11RowIteratorP13Filesort_infoP11Sort_resultPy
 }
 
 # http://www.openldap.org/its/index.cgi/Software%20Bugs?id=9081;page=23
