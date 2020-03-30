@@ -20997,6 +20997,86 @@ static void test_wl13510_multi_statements() {
   // test(CLIENT_MULTI_STATEMENTS, "uncompressed");
 }
 
+static void test_bug31082201() {
+  myheader("test_bug31082201");
+
+  MYSQL *mysql_local;
+  net_async_status status;
+  MYSQL_RES *result;
+  MYSQL_ROW row;
+
+  /*make new non blocking connection to do asynchronous operations */
+  if (!(mysql_local = mysql_client_init(NULL))) {
+    myerror("mysql_client_init() failed");
+    exit(1);
+  }
+  do {
+    status = mysql_real_connect_nonblocking(
+        mysql_local, opt_host, opt_user, opt_password, current_db, opt_port,
+        opt_unix_socket, CLIENT_MULTI_STATEMENTS);
+  } while (status == NET_ASYNC_NOT_READY);
+  if (status == NET_ASYNC_ERROR) {
+    fprintf(stdout, "\n mysql_real_connect_nonblocking() failed. Error: [%s]",
+            mysql_error(mysql_local));
+    exit(1);
+  } else {
+    fprintf(stdout, "\n asynchronous connection estalished");
+  }
+  if (mysql_query(mysql_local, "DROP TABLE IF EXISTS test_table")) {
+    fprintf(stderr, "\n drop table failed with error %s ",
+            mysql_error(mysql_local));
+    exit(1);
+  }
+
+  if (mysql_query(mysql_local, "CREATE TABLE test_table(col1 int)")) {
+    fprintf(stderr, "\n create table failed with error %s ",
+            mysql_error(mysql_local));
+    exit(1);
+  }
+
+  if (mysql_query(mysql_local,
+                  "INSERT INTO test_table values(10), (20), (30)")) {
+    fprintf(stderr, "\n insert into table failed with error %s ",
+            mysql_error(mysql_local));
+    exit(1);
+  }
+
+  const char *stmt_text = "SELECT * FROM test_table";
+  /* run query in asynchronous way */
+  status = mysql_real_query_nonblocking(mysql_local, stmt_text,
+                                        (ulong)strlen(stmt_text));
+  /* do some other task */
+  perform_arithmatic();
+  while (status == NET_ASYNC_NOT_READY) {
+    status = mysql_real_query_nonblocking(mysql_local, stmt_text,
+                                          (ulong)strlen(stmt_text));
+  }
+  if (status == NET_ASYNC_ERROR) {
+    fprintf(stdout, "\n mysql_real_query_nonblocking() failed");
+    exit(1);
+  } else {
+    fprintf(stdout, "\n mysql_real_query_nonblocking() passed");
+  }
+
+  result = mysql_use_result(mysql_local);
+
+  while ((status = mysql_fetch_row_nonblocking(result, &row)) !=
+         NET_ASYNC_COMPLETE)
+    ;
+  // one row fetched
+  DIE_UNLESS(mysql_num_rows(result) == 1);
+  while ((status = mysql_fetch_row_nonblocking(result, &row)) !=
+         NET_ASYNC_COMPLETE)
+    ;
+  while ((status = mysql_fetch_row_nonblocking(result, &row)) !=
+         NET_ASYNC_COMPLETE)
+    ;
+  // fetched 3 rows
+  DIE_UNLESS(mysql_num_rows(result) == 3);
+  mysql_free_result(result);
+  mysql_close(mysql_local);
+}
+
 static struct my_tests_st my_tests[] = {
     {"disable_query_logs", disable_query_logs},
     {"test_view_sp_list_fields", test_view_sp_list_fields},
@@ -21287,6 +21367,7 @@ static struct my_tests_st my_tests[] = {
     {"test_wl13510", test_wl13510},
     {"test_wl13510_multi_statements", test_wl13510_multi_statements},
     {"test_bug31048553", test_bug31048553},
+    {"test_bug31082201", test_bug31082201},
     {nullptr, nullptr}};
 
 static struct my_tests_st *get_my_tests() { return my_tests; }
