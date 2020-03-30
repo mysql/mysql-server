@@ -1476,8 +1476,12 @@ bool SELECT_LEX::cleanup(THD *thd, bool full) {
     while ((w = li++)) w->cleanup(thd);
   }
 
+  // Our destructor is not called, so we need to make sure
+  // all the memory for these arrays is freed.
   rollup_group_items.clear();
+  rollup_group_items.shrink_to_fit();
   rollup_sums.clear();
+  rollup_sums.shrink_to_fit();
 
   return error;
 }
