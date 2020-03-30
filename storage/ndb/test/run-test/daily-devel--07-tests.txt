@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -164,4 +164,12 @@ max-time: 360
 cmd: testNodeRestart
 args: -n PostponeRecalculateGCPCommitLag T1
 max-time: 520
+
+cmd: testNodeRestart
+args: -n InplaceCharPkChangeCS T1
+max-time: 600
+
+cmd: testNodeRestart
+args: -n InplaceCharPkChangeCI T1
+max-time: 600
 
