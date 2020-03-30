@@ -4770,10 +4770,11 @@ bool SELECT_LEX::resolve_rollup(THD *thd) {
         down_cast<Item_sum *>(order_item)->aggr_select == this) {
       // This is a top level aggregate, which must be replaced with
       // a different one for each rollup level.
-      *order->item =
-          create_rollup_switcher(thd, this, order_item, send_group_parts);
+      thd->change_item_tree(
+          order->item,
+          create_rollup_switcher(thd, this, order_item, send_group_parts));
     } else {
-      *order->item = resolve_rollup_item(thd, order_item);
+      thd->change_item_tree(order->item, resolve_rollup_item(thd, order_item));
     }
     if (*order->item == nullptr) return true;
   }
