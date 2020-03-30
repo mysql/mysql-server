@@ -7513,6 +7513,7 @@ net_async_status STDCALL mysql_fetch_row_nonblocking(MYSQL_RES *res,
         // we arrive here on NET_ASYNC_ERROR or NET_ASYNC_COMPLETE
 
         if (read_row_result == 0) {  // we've got a row: process it
+          res->row_count++;
           *row = res->current_row = res->row;
           goto end;
         }
