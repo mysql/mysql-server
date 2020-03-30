@@ -20813,15 +20813,16 @@ static void test_wl13510() {
     DIE_IF(!select_row[0]);
 
     /* Determine the digest of the string client has receieved. */
-    std::stringstream().swap(ss);  // Clear the stringstream contents
-    ss << "SELECT MD5('" << select_row[0] << "')";
+    query.assign("SELECT MD5('");
+    query.append(select_row[0]);
+    query.append("')");
 
-    status = mysql_real_query_nonblocking(mysql_local, ss.str().c_str(),
-                                          (ulong)ss.str().length());
+    status = mysql_real_query_nonblocking(mysql_local, query.c_str(),
+                                          (ulong)query.length());
     perform_arithmatic(); /* do some other task */
     while (status == NET_ASYNC_NOT_READY) {
-      status = mysql_real_query_nonblocking(mysql_local, ss.str().c_str(),
-                                            (ulong)ss.str().length());
+      status = mysql_real_query_nonblocking(mysql_local, query.c_str(),
+                                            (ulong)query.length());
     }
 
     if (status == NET_ASYNC_ERROR) {
@@ -20872,10 +20873,9 @@ static void test_wl13510() {
   test(packet_size, client_flag, compress_method, compress_level);
   compress_method = "zlib";
   test(packet_size, client_flag, compress_method);
-  // Disabled this test for asynchronous clients due to Bug#31047717
-  // Remove the check once this bug is fixed.
-  // compress_method = "uncompressed";
-  // test(packet_size, client_flag, compress_method);
+  compress_method = "uncompressed";
+  packet_size = 16 * 1024 * 1024;
+  test(packet_size, client_flag, compress_method);
 }
 
 static void test_wl13510_multi_statements() {
@@ -20992,9 +20992,7 @@ static void test_wl13510_multi_statements() {
 
   test(CLIENT_MULTI_STATEMENTS, "zstd");
   test(CLIENT_MULTI_STATEMENTS, "zlib");
-  // Disabled this test for asynchronous clients due to Bug#31047717
-  // Remove the check once this bug is fixed.
-  // test(CLIENT_MULTI_STATEMENTS, "uncompressed");
+  test(CLIENT_MULTI_STATEMENTS, "uncompressed");
 }
 
 static void test_bug31082201() {

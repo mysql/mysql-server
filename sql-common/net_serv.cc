@@ -730,8 +730,9 @@ static net_async_status net_write_vector_nonblocking(NET *net, ssize_t *res) {
     *res = vio_write(net->vio, (uchar *)vec->iov_base, vec->iov_len);
 
     if (*res < 0) {
-      if (errno == SOCKET_EAGAIN || (SOCKET_EAGAIN != SOCKET_EWOULDBLOCK &&
-                                     errno == SOCKET_EWOULDBLOCK)) {
+      if (socket_errno == SOCKET_EAGAIN ||
+          (SOCKET_EAGAIN != SOCKET_EWOULDBLOCK &&
+           socket_errno == SOCKET_EWOULDBLOCK)) {
         /*
           In the unlikely event that there is a renegotiation and
           SSL_ERROR_WANT_READ is returned, set blocking state to read.
