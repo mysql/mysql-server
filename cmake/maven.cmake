@@ -22,21 +22,29 @@
 
 INCLUDE(java)
 
-IF (DEFINED ENV{MAVEN_HOME_WIN})
-  FIND_PROGRAM(MAVEN_EXECUTABLE
-    mvn
-    PATHS "$ENV{MAVEN_HOME_WIN}/bin"
-    )
-ELSEIF (DEFINED ENV{MAVEN_HOME})
-  FIND_PROGRAM(MAVEN_EXECUTABLE
-    mvn
-    PATHS "$ENV{MAVEN_HOME}/bin"
-    )
+IF (WIN32)
+  IF (DEFINED ENV{MAVEN_HOME_WIN})
+    FIND_PROGRAM(MAVEN_EXECUTABLE
+      mvn
+      PATHS "$ENV{MAVEN_HOME_WIN}/bin"
+      )
+  ELSE()
+    FIND_PROGRAM(MAVEN_EXECUTABLE
+      mvn
+      )
+  ENDIF()
 ELSE()
-  FIND_PROGRAM(MAVEN_EXECUTABLE
-    mvn
-    PATHS /usr/global/share/java/maven/bin
-    )
+  IF (DEFINED ENV{MAVEN_HOME})
+    FIND_PROGRAM(MAVEN_EXECUTABLE
+      mvn
+      PATHS "$ENV{MAVEN_HOME}/bin"
+      )
+  ELSE()
+    FIND_PROGRAM(MAVEN_EXECUTABLE
+      mvn
+      PATHS /usr/global/share/java/maven/bin
+      )
+  ENDIF()
 ENDIF()
 
 IF(MAVEN_EXECUTABLE)
