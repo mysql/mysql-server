@@ -1349,4 +1349,11 @@ DROP USER foo;
 #    partial revokes in the user_attributes table
 SET GLOBAL partial_revokes = OFF;
 --------Toggling the system variable tests end --------------------------
+-------------------------------------------------------------------------
+# Start the server with --skip-grant-tables option
+-------------------------------------------------------------------------
+# restart:--skip-grant-tables
+SET GLOBAL partial_revokes = ON;
+# restart:
+------------ End test with --skip-grant-tables option -------------------
 call mtr.add_suppression(".*At least one partial revoke .* Turning ON the system variable .*");
