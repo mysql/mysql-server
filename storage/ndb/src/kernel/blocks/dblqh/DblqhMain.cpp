@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -5918,7 +5918,7 @@ Dblqh::handle_nr_copy(Signal* signal, Ptr<TcConnectionrec> regTcPtr)
   Uint32 fragPtr = fragptr.p->tupFragptr;
   Uint32 op = regTcPtr.p->operation;
 
-  const bool copy = LqhKeyReq::getNrCopyFlag(regTcPtr.p->reqinfo);
+  const bool nrCopyFlag = LqhKeyReq::getNrCopyFlag(regTcPtr.p->reqinfo);
 
   if (!LqhKeyReq::getRowidFlag(regTcPtr.p->reqinfo))
   {
@@ -5950,7 +5950,7 @@ Dblqh::handle_nr_copy(Signal* signal, Ptr<TcConnectionrec> regTcPtr)
     TRACENR(" len: " << len << " match: " << match 
 	   << " uncommitted: " << uncommitted);
 
-  if (copy)
+  if (nrCopyFlag)
   {
     ndbassert(LqhKeyReq::getGCIFlag(regTcPtr.p->reqinfo));
     if (match)
@@ -6026,14 +6026,65 @@ Dblqh::handle_nr_copy(Signal* signal, Ptr<TcConnectionrec> regTcPtr)
   }
   else
   {
-    if (!match && op != ZINSERT)
+    /**
+     * nrCopyFlag == false, this operation is a user
+     * operation occurring during startup
+     */
+
+    /**
+     * match used for NrCopy operations above is based on a binary
+     * comparison, but char keys with certain collations can be
+     * equivalent but not binary equal.
+     * We check for this case now if no match found so far
+     * This assumes that there is no case where
+     * binary equality does not imply collation equality.
+     */
+    bool xfrmMatch = match;
+    const Uint32 tableId = regTcPtr.p->tableref;
+    if (!match &&
+        g_key_descriptor_pool.getPtr(tableId)->hasCharAttr)
+    {
+      Uint64 reqKey[ MAX_KEY_SIZE_IN_WORDS >> 1 ];
+      Uint64 dbXfrmKey[ (MAX_KEY_SIZE_IN_WORDS*MAX_XFRM_MULTIPLY) >> 1 ];
+      Uint64 reqXfrmKey[ (MAX_KEY_SIZE_IN_WORDS*MAX_XFRM_MULTIPLY) >> 1 ];
+      Uint32 keyPartLen[MAX_ATTRIBUTES_IN_INDEX];
+
+      jam();
+
+      /* Transform db table key read from DB above into dbXfrmKey */
+      const int dbXfrmKeyLen = xfrm_key(tableId,
+                                        &signal->theData[24],
+                                        (Uint32*)dbXfrmKey,
+                                        sizeof(dbXfrmKey) >> 2,
+                                        keyPartLen);
+
+      /* Copy request key into linear space */
+      copy((Uint32*) reqKey, regTcPtr.p->keyInfoIVal);
+
+      /* Transform request key */
+      const int reqXfrmKeyLen = xfrm_key(tableId,
+                                         (Uint32*)reqKey,
+                                         (Uint32*)reqXfrmKey,
+                                         sizeof(reqXfrmKey) >> 2,
+                                         keyPartLen);
+      /* Check for a match between the xfrmd keys */
+      if (dbXfrmKeyLen > 0 &&
+          dbXfrmKeyLen == reqXfrmKeyLen)
+      {
+        jam();
+        /* Binary compare xfrm'd representations */
+        xfrmMatch = (memcmp(dbXfrmKey, reqXfrmKey, dbXfrmKeyLen << 2) == 0);
+      }
+    }
+
+    if (!xfrmMatch && op != ZINSERT)
     {
       jam();
       if (TRACENR_FLAG)
 	TRACENR(" IGNORE " << endl); 
       goto ignore;
     }
-    if (match)
+    if (xfrmMatch)
     {
       jam();
       if (op != ZDELETE && op != ZREFRESH)
@@ -6045,7 +6096,7 @@ Dblqh::handle_nr_copy(Signal* signal, Ptr<TcConnectionrec> regTcPtr)
       goto run;
     }
 
-    ndbassert(!match && op == ZINSERT);
+    ndbassert(!xfrmMatch && op == ZINSERT);
 
     /**
      * 1) Delete row at specified rowid (if len > 0)
@@ -8967,6 +9018,17 @@ void Dblqh::execLQHKEYCONF(Signal* signal)
     break;
   case TcConnectionrec::COPY_CONNECTED:
     jam();
+    if (ERROR_INSERTED(5106) &&
+        signal->getSendersBlockRef() != reference())
+    {
+      g_eventLogger->info("LQH %u delaying copy LQHKEYCONF", instance());
+      sendSignalWithDelay(reference(),
+                          GSN_LQHKEYCONF,
+                          signal,
+                          500,
+                          7);
+      return;
+    }
     copyCompletedLab(signal);
     return;
     break;
