@@ -71,7 +71,7 @@ eval CREATE UNDO TABLESPACE undo_004 ADD DATAFILE '$REMOTE_DIR/undo_004.ibu';
 
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR \\ /
 SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
-WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
+WHERE NAME LIKE 'undo_0%' ORDER BY NAME;
 
 --echo #
 --echo # Restart mysqld without the remote directory in --innodb-directories
@@ -256,7 +256,7 @@ DROP TABLESPACE ts1;
 --echo #
 
 SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
-WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
+WHERE NAME LIKE 'undo_0%' ORDER BY NAME;
 ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
 let $inactive_undo_space = undo_003;
 source include/wait_until_undo_space_is_empty.inc;

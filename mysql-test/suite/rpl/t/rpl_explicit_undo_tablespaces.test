@@ -4,12 +4,6 @@
 # *************************************************************
 --source include/master-slave.inc
 
---disable_query_log
-call mtr.add_suppression("Cannot drop undo tablespace \\'undo_003\\' because it is active. Please do: ALTER UNDO TABLESPACE undo_003 SET INACTIVE");
-call mtr.add_suppression("Cannot create tablespace undo_003 in directory ../undo_003.ibu because it is not a valid location. The UNDO DATAFILE location must be in a known directory");
-call mtr.add_suppression("\\[InnoDB\\] Log writer is waiting for checkpointer to to catch up lag: 9433600 bytes.*");
---enable_query_log
-
 --echo [Connection Master]
 --connection master
 
@@ -215,5 +209,11 @@ SELECT name,space_type,state
 SELECT name,space_type,state
        FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
        WHERE space_type = 'Undo';
+
+--disable_query_log
+call mtr.add_suppression("Cannot drop undo tablespace \\'undo_003\\' because it is active. Please do: ALTER UNDO TABLESPACE undo_003 SET INACTIVE");
+call mtr.add_suppression("Cannot create tablespace undo_003 in directory .*undo_003.ibu because it is not a valid location. The UNDO DATAFILE location must be in a known directory");
+call mtr.add_suppression("\\[InnoDB\\] Log writer is waiting for checkpointer to to catch up lag: 9433600 bytes.*");
+--enable_query_log
 
 --source include/rpl_end.inc
