@@ -2688,6 +2688,7 @@ class Item_rollup_sum_switcher final : public Item_sum {
     }
     item_name = master()->item_name;
     aggr_select = master()->aggr_select;
+    base_select = master()->base_select;
     set_distinct(master()->has_with_distinct());
     set_data_type_from_item(master());
   }
