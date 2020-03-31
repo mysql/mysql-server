@@ -703,7 +703,8 @@ static int socket_event_listen(my_socket fd) {
 
   result = select((int)(fd + 1), &readfds, &writefds, &exceptfds, NULL);
   if (result < 0) {
-    perror("select");
+    DWORD error_code = WSAGetLastError();
+    verbose_msg("Cannot determine the status due to error :%lu\n", error_code);
   }
   return result;
 }

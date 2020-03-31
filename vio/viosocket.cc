@@ -292,6 +292,11 @@ int vio_set_blocking_flag(Vio *vio, bool status) {
       VIO_TYPE_SSL == vio->type) {
     vio->is_blocking_flag = status;
     ret = vio_set_blocking(vio, status);
+  } else {
+    DBUG_PRINT("warning", ("Connection type %d is not supported for "
+                           "asynchronous communication protocol",
+                           vio->type));
+    ret = -1;
   }
   return ret;
 }
