@@ -6791,6 +6791,7 @@ static bool prepare_key(THD *thd, HA_CREATE_INFO *create_info,
                         int *auto_increment) {
   DBUG_TRACE;
   DBUG_ASSERT(create_list);
+  DBUG_ASSERT(key_info->flags == 0);  // No flags should be set yet
 
   /*
     General checks.
@@ -6861,17 +6862,18 @@ static bool prepare_key(THD *thd, HA_CREATE_INFO *create_info,
       key->key_create_info.m_secondary_engine_attribute;
   if (key_info->secondary_engine_attribute.length > 0)
     key_info->flags |= HA_INDEX_USES_SECONDARY_ENGINE_ATTRIBUTE;
-
+#ifndef DBUG_OFF
+  decltype(key_info->flags) flags_before_switch = key_info->flags;
+#endif /* DBUG_OFF */
   switch (key->type) {
     case KEYTYPE_MULTIPLE:
-      key_info->flags = 0;
       break;
     case KEYTYPE_FULLTEXT:
       if (!(file->ha_table_flags() & HA_CAN_FULLTEXT)) {
         my_error(ER_TABLE_CANT_HANDLE_FT, MYF(0));
         return true;
       }
-      key_info->flags = HA_FULLTEXT;
+      key_info->flags |= HA_FULLTEXT;
       if (key->key_create_info.parser_name.str) {
         key_info->parser_name = key->key_create_info.parser_name;
         key_info->flags |= HA_USES_PARSER;
@@ -6887,16 +6889,18 @@ static bool prepare_key(THD *thd, HA_CREATE_INFO *create_info,
         my_error(ER_TOO_MANY_KEY_PARTS, MYF(0), 1);
         return true;
       }
-      key_info->flags = HA_SPATIAL;
+      key_info->flags |= HA_SPATIAL;
       break;
     case KEYTYPE_PRIMARY:
     case KEYTYPE_UNIQUE:
-      key_info->flags = HA_NOSAME;
+      key_info->flags |= HA_NOSAME;
       break;
     default:
       DBUG_ASSERT(false);
       return true;
   }
+  // Verify that no bits set before switch have been cleared.
+  DBUG_ASSERT((key_info->flags & flags_before_switch) == flags_before_switch);
   if (key->generated) key_info->flags |= HA_GENERATED_KEY;
 
   key_info->algorithm = key->key_create_info.algorithm;
