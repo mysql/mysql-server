@@ -2316,7 +2316,7 @@ bool replace_user_metadata(THD *thd, const std::string &json_blob,
     // ALTER USER x COMMENT y
     metadata->remove(acl_table::attribute_type_to_str
                          [acl_table::User_attribute_type::COMMENT]);
-    metadata->add_clone(acl_table::attribute_type_to_str
+    metadata->add_alias(acl_table::attribute_type_to_str
                             [acl_table::User_attribute_type::COMMENT],
                         new (std::nothrow) Json_string(json_blob));
   } else {
