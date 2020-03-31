@@ -411,8 +411,9 @@ class sp_cursor {
     void set_spvar_list(List<sp_variable> *vars) { spvar_list = vars; }
 
     bool send_eof(THD *) override { return false; }
-    bool send_data(THD *thd, List<Item> &items) override;
-    bool prepare(THD *thd, List<Item> &list, SELECT_LEX_UNIT *u) override;
+    bool send_data(THD *thd, const mem_root_deque<Item *> &items) override;
+    bool prepare(THD *thd, const mem_root_deque<Item *> &list,
+                 SELECT_LEX_UNIT *u) override;
   };
 
  public:

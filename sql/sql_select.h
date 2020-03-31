@@ -755,8 +755,8 @@ inline JOIN_TAB::JOIN_TAB()
 
 /* Extern functions in sql_select.cc */
 void count_field_types(SELECT_LEX *select_lex, Temp_table_param *param,
-                       List<Item> &fields, bool reset_with_sum_func,
-                       bool save_sum_fields);
+                       const mem_root_deque<Item *> &fields,
+                       bool reset_with_sum_func, bool save_sum_fields);
 uint find_shortest_key(TABLE *table, const Key_map *usable_keys);
 
 /* functions from opt_sum.cc */
@@ -770,8 +770,8 @@ enum aggregate_evaluated {
 };
 
 bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
-                               List<Item> &all_fields, Item *conds,
-                               aggregate_evaluated *decision);
+                               const mem_root_deque<Item *> &all_fields,
+                               Item *conds, aggregate_evaluated *decision);
 
 /* from sql_delete.cc, used by opt_range.cc */
 extern "C" int refpos_order_cmp(const void *arg, const void *a, const void *b);
@@ -783,7 +783,8 @@ constexpr const char *STORE_KEY_CONST_NAME = "const";
 bool check_privileges_for_join(THD *thd, mem_root_deque<TABLE_LIST *> *tables);
 
 /// Check privileges for all columns referenced from an expression list
-bool check_privileges_for_list(THD *thd, List<Item> *items, ulong privileges);
+bool check_privileges_for_list(THD *thd, const mem_root_deque<Item *> &items,
+                               ulong privileges);
 
 /** class to copying an field/item to a key struct */
 

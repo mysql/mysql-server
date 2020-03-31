@@ -65,6 +65,8 @@ template <class T>
 class List;
 template <class T>
 class List_iterator;
+template <class T>
+class Mem_root_array;
 
 typedef Bounds_checked_array<Item *> Ref_item_array;
 namespace dd {
@@ -198,26 +200,31 @@ TABLE *find_temporary_table(THD *thd, const char *db, const char *table_name);
 TABLE *find_temporary_table(THD *thd, const TABLE_LIST *tl);
 void close_thread_tables(THD *thd);
 bool fill_record_n_invoke_before_triggers(
-    THD *thd, COPY_INFO *optype_info, List<Item> &fields, List<Item> &values,
-    TABLE *table, enum enum_trigger_event_type event, int num_fields,
+    THD *thd, COPY_INFO *optype_info, const mem_root_deque<Item *> &fields,
+    const mem_root_deque<Item *> &values, TABLE *table,
+    enum enum_trigger_event_type event, int num_fields,
     bool raise_autoinc_has_expl_non_null_val, bool *is_row_changed);
 bool fill_record_n_invoke_before_triggers(THD *thd, Field **field,
-                                          List<Item> &values, TABLE *table,
+                                          const mem_root_deque<Item *> &values,
+                                          TABLE *table,
                                           enum enum_trigger_event_type event,
                                           int num_fields);
 bool resolve_var_assignments(THD *thd, LEX *lex);
 bool insert_fields(THD *thd, SELECT_LEX *select_lex, const char *db_name,
-                   const char *table_name, List_iterator<Item> *it,
-                   bool any_privileges);
-bool setup_fields(THD *thd, Ref_item_array ref_item_array, List<Item> &item,
-                  ulong privilege, List<Item> *sum_func_list,
-                  bool allow_sum_func, bool column_update,
-                  List<Item> *typed_items = nullptr);
-bool fill_record(THD *thd, TABLE *table, List<Item> &fields, List<Item> &values,
-                 MY_BITMAP *bitmap, MY_BITMAP *insert_into_fields_bitmap,
+                   const char *table_name, mem_root_deque<Item *> *fields,
+                   mem_root_deque<Item *>::iterator *it, bool any_privileges);
+bool setup_fields(THD *thd, ulong want_privilege, bool allow_sum_func,
+                  bool split_sum_funcs, bool column_update,
+                  const mem_root_deque<Item *> *typed_items,
+                  mem_root_deque<Item *> *fields,
+                  Ref_item_array ref_item_array);
+bool fill_record(THD *thd, TABLE *table, const mem_root_deque<Item *> &fields,
+                 const mem_root_deque<Item *> &values, MY_BITMAP *bitmap,
+                 MY_BITMAP *insert_into_fields_bitmap,
                  bool raise_autoinc_has_expl_non_null_val);
-bool fill_record(THD *thd, TABLE *table, Field **field, List<Item> &values,
-                 MY_BITMAP *bitmap, MY_BITMAP *insert_into_fields_bitmap,
+bool fill_record(THD *thd, TABLE *table, Field **field,
+                 const mem_root_deque<Item *> &values, MY_BITMAP *bitmap,
+                 MY_BITMAP *insert_into_fields_bitmap,
                  bool raise_autoinc_has_expl_non_null_val);
 
 bool check_record(THD *thd, Field **ptr);
@@ -248,7 +255,8 @@ Field *find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
 Field *find_field_in_table(TABLE *table, const char *name, size_t length,
                            bool allow_rowid, uint *cached_field_index_ptr);
 Field *find_field_in_table_sef(TABLE *table, const char *name);
-Item **find_item_in_list(THD *thd, Item *item, List<Item> &items, uint *counter,
+Item **find_item_in_list(THD *thd, Item *item, mem_root_deque<Item *> *items,
+                         uint *counter,
                          find_item_error_report_type report_error,
                          enum_resolution_type *resolution);
 bool setup_natural_join_row_types(THD *thd,

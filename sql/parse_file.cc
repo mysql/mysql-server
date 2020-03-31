@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -290,7 +290,7 @@ bool get_file_options_ulllist(const char *&ptr, const char *end,
                               File_option *parameter, MEM_ROOT *mem_root) {
   List<ulonglong> *nlist = (List<ulonglong> *)(base + parameter->offset);
   ulonglong *num;
-  nlist->empty();
+  nlist->clear();
   // list parsing
   while (ptr < end) {
     int not_used;
@@ -436,7 +436,7 @@ bool File_parser::parse(uchar *base, MEM_ROOT *mem_root,
           case FILE_OPTIONS_STRLIST: {
             list = (List<LEX_STRING> *)(base + parameter->offset);
 
-            list->empty();
+            list->clear();
             // list parsing
             while (ptr < end) {
               if (!(str = (LEX_STRING *)mem_root->Alloc(sizeof(LEX_STRING))) ||

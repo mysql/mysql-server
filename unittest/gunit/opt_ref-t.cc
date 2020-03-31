@@ -137,8 +137,8 @@ static Item_row *make_item_row(Item *a, Item *b) {
     The Item_row CTOR doesn't store the reference to the list, hence
     it can live on the stack.
   */
-  List<Item> items;
-  items.push_front(b);
+  mem_root_deque<Item *> items(*THR_MALLOC);
+  items.push_back(b);
   return new Item_row(POS(), a, items);
 }
 

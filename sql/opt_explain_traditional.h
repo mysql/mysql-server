@@ -31,7 +31,7 @@ class Item;
 class Query_result;
 class SELECT_LEX_UNIT;
 template <class T>
-class List;
+class mem_root_deque;
 
 /**
   Formatter for the traditional EXPLAIN output
@@ -55,7 +55,7 @@ class Explain_format_traditional : public Explain_format {
   qep_row *entry() override { return &column_buffer; }
 
  private:
-  bool push_select_type(List<Item> *items);
+  bool push_select_type(mem_root_deque<Item *> *items);
 };
 
 class Explain_format_tree : public Explain_format {
@@ -87,7 +87,7 @@ class Explain_format_tree : public Explain_format {
   bool is_tree() const override { return true; }
 
  private:
-  bool push_select_type(List<Item> *items);
+  bool push_select_type(mem_root_deque<Item *> *items);
 };
 
 #endif  // OPT_EXPLAIN_FORMAT_TRADITIONAL_INCLUDED

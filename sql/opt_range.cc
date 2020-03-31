@@ -1652,7 +1652,7 @@ SEL_TREE::SEL_TREE(SEL_TREE *arg, RANGE_OPT_PARAM *param)
   for (SEL_IMERGE *el = it++; el; el = it++) {
     SEL_IMERGE *merge = new (param->mem_root) SEL_IMERGE(el, param);
     if (!merge || merge->trees == merge->trees_next || param->has_errors()) {
-      merges.empty();
+      merges.clear();
       return;
     }
     merges.push_back(merge);
@@ -1727,7 +1727,7 @@ inline void imerge_list_and_list(List<SEL_IMERGE> *im1, List<SEL_IMERGE> *im2) {
 static int imerge_list_or_list(RANGE_OPT_PARAM *param, List<SEL_IMERGE> *im1,
                                List<SEL_IMERGE> *im2) {
   SEL_IMERGE *imerge = im1->head();
-  im1->empty();
+  im1->clear();
   im1->push_back(imerge);
 
   return imerge->or_sel_imerge_with_checks(param, im2->head());
@@ -8038,7 +8038,7 @@ static SEL_TREE *tree_or(RANGE_OPT_PARAM *param, SEL_TREE *tree1,
     for (uint i = 0; i < param->keys; i++)
       if (tree1->keys[i] != NULL &&
           tree1->keys[i]->type == SEL_ROOT::Type::KEY_RANGE) {
-        tree1->merges.empty();
+        tree1->merges.clear();
         break;
       }
   }
@@ -8046,7 +8046,7 @@ static SEL_TREE *tree_or(RANGE_OPT_PARAM *param, SEL_TREE *tree1,
     for (uint i = 0; i < param->keys; i++)
       if (tree2->keys[i] != NULL &&
           tree2->keys[i]->type == SEL_ROOT::Type::KEY_RANGE) {
-        tree2->merges.empty();
+        tree2->merges.clear();
         break;
       }
   }
@@ -11665,17 +11665,14 @@ static TRP_GROUP_MIN_MAX *get_best_group_min_max(
   TRP_GROUP_MIN_MAX *read_plan = nullptr; /* The eventually constructed TRP. */
   uint key_part_nr;
   ORDER *tmp_group;
-  Item *item;
   Item_field *item_field;
   bool is_agg_distinct;
-  List<Item_field> agg_distinct_flds;
   /* Cost-related variables for the best index so far. */
   Cost_estimate best_read_cost;
   ha_rows best_records = 0;
   SEL_ROOT *best_index_tree = nullptr;
   ha_rows best_quick_prefix_records = 0;
   uint best_param_idx = 0;
-  List_iterator<Item> select_items_it;
   Opt_trace_context *const trace = &param->thd->opt_trace;
 
   DBUG_TRACE;
@@ -11702,6 +11699,7 @@ static TRP_GROUP_MIN_MAX *get_best_group_min_max(
   }
 
   /* Check (SA1,SA4) and store the only MIN/MAX argument - the C attribute.*/
+  mem_root_deque<Item_field *> agg_distinct_flds(thd->mem_root);
   is_agg_distinct = is_indexed_agg_distinct(join, &agg_distinct_flds);
 
   if (join->group_list.empty() && /* Neither GROUP BY nor a DISTINCT query. */
@@ -11783,11 +11781,10 @@ static TRP_GROUP_MIN_MAX *get_best_group_min_max(
     return nullptr;
   }
 
-  select_items_it = List_iterator<Item>(join->fields_list);
   /* Check (SA5). */
   if (join->select_distinct) {
     trace_group.add("distinct_query", true);
-    while ((item = select_items_it++)) {
+    for (Item *item : VisibleFields(*join->fields)) {
       if (item->real_item()->type() != Item::FIELD_ITEM) return nullptr;
     }
   }
@@ -11911,14 +11908,15 @@ static TRP_GROUP_MIN_MAX *get_best_group_min_max(
     */
     if ((join->group_list.empty() && join->select_distinct) ||
         is_agg_distinct) {
-      if (!is_agg_distinct) {
-        select_items_it.rewind();
-      }
+      auto agg_distinct_flds_it = agg_distinct_flds.begin();
+      auto select_items_it = join->fields->begin();
+      while (is_agg_distinct ? (agg_distinct_flds_it != agg_distinct_flds.end())
+                             : (select_items_it != join->fields->end())) {
+        Item *item =
+            (is_agg_distinct ? static_cast<Item *>(*agg_distinct_flds_it++)
+                             : *select_items_it++);
+        if (item->hidden) continue;
 
-      List_iterator<Item_field> agg_distinct_flds_it(agg_distinct_flds);
-      while (nullptr !=
-             (item = (is_agg_distinct ? (Item *)agg_distinct_flds_it++
-                                      : select_items_it++))) {
         /* (SA5) already checked above. */
         item_field = (Item_field *)item->real_item();
         DBUG_ASSERT(item->real_item()->type() == Item::FIELD_ITEM);
@@ -11937,7 +11935,8 @@ static TRP_GROUP_MIN_MAX *get_best_group_min_max(
         */
         if (used_key_parts_map.is_set(key_part_nr)) continue;
         if (key_part_nr < 1 ||
-            (!is_agg_distinct && key_part_nr > join->fields_list.elements)) {
+            (!is_agg_distinct &&
+             key_part_nr > CountVisibleFields(*join->fields))) {
           cause = "select_attribute_not_prefix_in_index";
           goto next_index;
         }

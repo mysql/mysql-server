@@ -413,10 +413,9 @@ Item_sum::Item_sum(const POS &pos, PT_item_list *opt_list, PT_window *w)
       return;  // OOM
     }
     uint i = 0;
-    List_iterator_fast<Item> li(opt_list->value);
-    Item *item;
-
-    while ((item = li++)) args[i++] = item;
+    for (Item *item : opt_list->value) {
+      args[i++] = item;
+    }
   }
   init_aggregator();
 }
@@ -892,7 +891,7 @@ bool Item_sum::fix_fields(THD *thd, Item **ref MY_ATTRIBUTE((unused))) {
 }
 
 void Item_sum::split_sum_func(THD *thd, Ref_item_array ref_item_array,
-                              List<Item> &fields) {
+                              mem_root_deque<Item *> *fields) {
   if (m_is_window_function) {
     for (auto &it : Bounds_checked_array<Item *>(args, arg_count))
       it->split_sum_func2(thd, ref_item_array, fields, &it, true);
@@ -1045,7 +1044,7 @@ bool Aggregator_distinct::setup(THD *thd) {
   if (item_sum->setup(thd)) return true;
   if (item_sum->sum_func() == Item_sum::COUNT_FUNC ||
       item_sum->sum_func() == Item_sum::COUNT_DISTINCT_FUNC) {
-    List<Item> list;
+    mem_root_deque<Item *> list(thd->mem_root);
     SELECT_LEX *select_lex = item_sum->aggr_select;
 
     if (!(tmp_table_param = new (thd->mem_root) Temp_table_param)) return true;
@@ -1064,7 +1063,7 @@ bool Aggregator_distinct::setup(THD *thd) {
     DBUG_ASSERT(num_args);
     for (uint i = 0; i < num_args; i++) {
       Item *item = item_sum->get_arg(i);
-      if (list.push_back(item)) return true;  // out of memory
+      list.push_back(item);
       if (item->const_item()) {
         const bool is_null = item->is_null();
         if (thd->is_error()) return true;  // is_null can fail
@@ -1088,14 +1087,11 @@ bool Aggregator_distinct::setup(THD *thd) {
       null bits, and we don't have methods to compare two table records, which
       is needed by Unique which is used when HEAP table is used.
     */
-    {
-      List_iterator_fast<Item> li(list);
-      Item *item;
-      while ((item = li++)) {
-        if (item->type() == Item::FIELD_ITEM &&
-            ((Item_field *)item)->field->type() == FIELD_TYPE_BIT)
-          item->marker = Item::MARKER_BIT;
-      }
+    for (Item *item : list) {
+      if (item->type() == Item::FIELD_ITEM &&
+          ((Item_field *)item)->field->type() == FIELD_TYPE_BIT)
+        item->marker = Item::MARKER_BIT;
+      DBUG_ASSERT(!item->hidden);
     }
     if (!(table =
               create_tmp_table(thd, tmp_table_param, list, nullptr, true, false,
@@ -2975,7 +2971,7 @@ bool Item_sum_hybrid::val_json(Json_wrapper *wr) {
 }
 
 void Item_sum_hybrid::split_sum_func(THD *thd, Ref_item_array ref_item_array,
-                                     List<Item> &fields) {
+                                     mem_root_deque<Item *> *fields) {
   super::split_sum_func(thd, ref_item_array, fields);
   /*
     Grouped aggregate functions used as arguments to windowing functions get
@@ -4118,7 +4114,6 @@ Item_func_group_concat::Item_func_group_concat(
       always_null(false),
       force_copy_fields(false),
       original(nullptr) {
-  Item *item_select;
   Item **arg_ptr;
 
   allow_group_via_temp_table = false;
@@ -4130,9 +4125,11 @@ Item_func_group_concat::Item_func_group_concat(
   if (order_array.reserve(arg_count_order)) return;
 
   /* fill args items of show and sort */
-  List_iterator_fast<Item> li(select_list->value);
+  auto it = select_list->value.begin();
 
-  for (arg_ptr = args; (item_select = li++); arg_ptr++) *arg_ptr = item_select;
+  for (arg_ptr = args; it != select_list->value.end(); ++arg_ptr, ++it) {
+    *arg_ptr = *it;
+  }
 
   if (arg_count_order) {
     for (ORDER *order_item = opt_order_list->value.first; order_item != nullptr;
@@ -4421,18 +4418,17 @@ bool Item_func_group_concat::setup(THD *thd) {
   if (!(tmp_table_param = new (thd->mem_root) Temp_table_param)) return true;
 
   // Push all non-constant fields to a temporary list
-  List<Item> list;
+  mem_root_deque<Item *> fields(thd->mem_root);
   always_null = false;
   for (uint i = 0; i < arg_count_field; i++) {
     Item *item = args[i];
-    if (list.push_back(item)) return true;
+    fields.push_back(item);
     if (item->const_item() && item->is_null()) {
       always_null = true;
       return false;
     }
   }
 
-  List<Item> all_fields(list);
   /*
     Try to find every ORDER expression in the list of GROUP_CONCAT
     arguments. If an expression is not found, prepend it to
@@ -4441,10 +4437,10 @@ bool Item_func_group_concat::setup(THD *thd) {
   */
   if (arg_count_order > 0 &&
       setup_order(thd, Ref_item_array(args, arg_count), context->table_list,
-                  list, all_fields, order_array.begin()))
+                  &fields, order_array.begin()))
     return true;
 
-  count_field_types(aggr_select, tmp_table_param, all_fields, false, true);
+  count_field_types(aggr_select, tmp_table_param, fields, false, true);
   tmp_table_param->force_copy_fields = force_copy_fields;
   DBUG_ASSERT(table == nullptr);
   if (order_or_distinct) {
@@ -4455,9 +4451,7 @@ bool Item_func_group_concat::setup(THD *thd) {
       Moreover we don't even save in the tree record null bits
       where BIT fields store parts of their data.
     */
-    List_iterator_fast<Item> li(all_fields);
-    Item *item;
-    while ((item = li++)) {
+    for (Item *item : fields) {
       if (item->type() == Item::FIELD_ITEM &&
           down_cast<Item_field *>(item)->field->type() == FIELD_TYPE_BIT)
         item->marker = Item::MARKER_BIT;
@@ -4471,9 +4465,9 @@ bool Item_func_group_concat::setup(THD *thd) {
     Note that in the table, we first have the ORDER BY fields, then the
     field list.
   */
-  if (!(table = create_tmp_table(thd, tmp_table_param, all_fields, nullptr,
-                                 false, true, aggr_select->active_options(),
-                                 HA_POS_ERROR, "")))
+  if (!(table =
+            create_tmp_table(thd, tmp_table_param, fields, nullptr, false, true,
+                             aggr_select->active_options(), HA_POS_ERROR, "")))
     return true;
   table->file->ha_extra(HA_EXTRA_NO_ROWS);
   table->no_rows = true;
@@ -4724,7 +4718,7 @@ Item_rank::~Item_rank() {
   while ((ci = li++)) {
     ci->~Cached_item();
   }
-  m_previous.empty();
+  m_previous.clear();
 }
 
 bool Item_cume_dist::check_wf_semantics1(THD *, SELECT_LEX *,
@@ -4995,7 +4989,7 @@ bool Item_first_last_value::fix_fields(THD *thd, Item **items) {
 
 void Item_first_last_value::split_sum_func(THD *thd,
                                            Ref_item_array ref_item_array,
-                                           List<Item> &fields) {
+                                           mem_root_deque<Item *> *fields) {
   super::split_sum_func(thd, ref_item_array, fields);
   // Need to redo this now:
   m_value->setup(args[0]);
@@ -5154,7 +5148,7 @@ bool Item_nth_value::fix_fields(THD *thd, Item **items) {
 }
 
 void Item_nth_value::split_sum_func(THD *thd, Ref_item_array ref_item_array,
-                                    List<Item> &fields) {
+                                    mem_root_deque<Item *> *fields) {
   super::split_sum_func(thd, ref_item_array, fields);
   // If function was set up, need to redo this now:
   m_value->setup(args[0]);
@@ -5382,7 +5376,7 @@ bool Item_lead_lag::check_wf_semantics2(Window_evaluation_requirements *r) {
 }
 
 void Item_lead_lag::split_sum_func(THD *thd, Ref_item_array ref_item_array,
-                                   List<Item> &fields) {
+                                   mem_root_deque<Item *> *fields) {
   super::split_sum_func(thd, ref_item_array, fields);
   // If function was set up, need to redo these now:
   m_value->setup(args[0]);

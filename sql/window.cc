@@ -691,8 +691,8 @@ bool Window::setup_ordering_cached_items(THD *thd, SELECT_LEX *select,
 }
 
 bool Window::resolve_window_ordering(THD *thd, Ref_item_array ref_item_array,
-                                     TABLE_LIST *tables, List<Item> &fields,
-                                     List<Item> &all_fields, ORDER *o,
+                                     TABLE_LIST *tables,
+                                     mem_root_deque<Item *> *fields, ORDER *o,
                                      bool partition_order) {
   DBUG_TRACE;
   DBUG_ASSERT(o);
@@ -709,8 +709,8 @@ bool Window::resolve_window_ordering(THD *thd, Ref_item_array ref_item_array,
       return true;
     }
 
-    if (find_order_in_list(thd, ref_item_array, tables, order, fields,
-                           all_fields, false, true))
+    if (find_order_in_list(thd, ref_item_array, tables, order, fields, false,
+                           true))
       return true;
     oi = *order->item;
 
@@ -744,7 +744,7 @@ bool Window::resolve_window_ordering(THD *thd, Ref_item_array ref_item_array,
       expression.
     */
     if (oi->has_aggregation() && oi->type() != Item::SUM_FUNC_ITEM) {
-      oi->split_sum_func(thd, ref_item_array, all_fields);
+      oi->split_sum_func(thd, ref_item_array, fields);
       if (thd->is_error()) return true;
     }
   }
@@ -1086,7 +1086,7 @@ void Window::remove_unused_windows(THD *thd, List<Window> &windows) {
 
 bool Window::setup_windows1(THD *thd, SELECT_LEX *select,
                             Ref_item_array ref_item_array, TABLE_LIST *tables,
-                            List<Item> &fields, List<Item> &all_fields,
+                            mem_root_deque<Item *> *fields,
                             List<Window> &windows) {
   // Only possible at resolution time.
   DBUG_ASSERT(thd->lex->current_select()->first_execution);
@@ -1104,14 +1104,12 @@ bool Window::setup_windows1(THD *thd, SELECT_LEX *select,
 
     if (w->m_partition_by != nullptr &&
         w->resolve_window_ordering(thd, ref_item_array, tables, fields,
-                                   all_fields, w->m_partition_by->value.first,
-                                   true))
+                                   w->m_partition_by->value.first, true))
       return true;
 
     if (w->m_order_by != nullptr &&
         w->resolve_window_ordering(thd, ref_item_array, tables, fields,
-                                   all_fields, w->m_order_by->value.first,
-                                   false))
+                                   w->m_order_by->value.first, false))
       return true;
   }
 
@@ -1380,8 +1378,8 @@ void Window::reset_execution_state(Reset_level level) {
   switch (level) {
     case RL_FULL:
       // Prepare a clean sheet for any new query resolution:
-      m_partition_items.empty();
-      m_order_by_items.empty();
+      m_partition_items.clear();
+      m_order_by_items.clear();
       m_sorting_order = nullptr;
       /*
         order by elements in window functions need to be reset

@@ -86,10 +86,8 @@ bool Sql_cmd_call::check_privileges(THD *thd) {
   sp_pcontext *root_parsing_context = sp->get_root_parsing_context();
 
   if (proc_args != nullptr) {
-    List_iterator<Item> it(*proc_args);
-    Item *arg;
     int arg_no = 0;
-    while ((arg = it++)) {
+    for (Item *arg : *proc_args) {
       sp_variable *spvar = root_parsing_context->find_variable(arg_no);
       if (arg->type() == Item::TRIGGER_FIELD_ITEM) {
         Item_trigger_field *itf = down_cast<Item_trigger_field *>(arg);
@@ -127,7 +125,7 @@ bool Sql_cmd_call::prepare_inner(THD *thd) {
 
   sp_pcontext *root_parsing_context = sp->get_root_parsing_context();
 
-  uint arg_count = proc_args != nullptr ? proc_args->elements : 0;
+  uint arg_count = proc_args != nullptr ? proc_args->size() : 0;
 
   if (root_parsing_context->context_var_count() != arg_count) {
     my_error(ER_SP_WRONG_NO_OF_ARGS, MYF(0), "PROCEDURE",
@@ -140,10 +138,8 @@ bool Sql_cmd_call::prepare_inner(THD *thd) {
     lex->unit->set_prepared();
     return false;
   }
-  List_iterator<Item> args(*proc_args);
-  Item *arg;
   int arg_no = 0;
-  while ((arg = args++)) {
+  for (Item *&arg : *proc_args) {
     sp_variable *spvar = root_parsing_context->find_variable(arg_no);
     if (arg->type() == Item::TRIGGER_FIELD_ITEM) {
       Item_trigger_field *itf = down_cast<Item_trigger_field *>(arg);
@@ -153,7 +149,7 @@ bool Sql_cmd_call::prepare_inner(THD *thd) {
                                             ? UPDATE_ACL
                                             : SELECT_ACL | UPDATE_ACL);
     }
-    if ((!arg->fixed && arg->fix_fields(thd, args.ref())) || arg->check_cols(1))
+    if ((!arg->fixed && arg->fix_fields(thd, &arg)) || arg->check_cols(1))
       return true; /* purecov: inspected */
     if (arg->data_type() == MYSQL_TYPE_INVALID) {
       switch (Item::type_to_result(spvar->type)) {

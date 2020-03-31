@@ -61,8 +61,6 @@
 #include "thr_lock.h"
 #include "typelib.h"
 
-#include "sql/mem_root_array.h"
-
 class Field;
 
 namespace histograms {
@@ -1730,8 +1728,8 @@ struct TABLE {
   bool init_tmp_table(THD *thd, TABLE_SHARE *share, MEM_ROOT *m_root,
                       CHARSET_INFO *charset, const char *alias, Field **fld,
                       uint *blob_fld, bool is_virtual);
-  bool fill_item_list(List<Item> *item_list) const;
-  void reset_item_list(List<Item> *item_list) const;
+  bool fill_item_list(mem_root_deque<Item *> *item_list) const;
+  void reset_item_list(const mem_root_deque<Item *> &item_list) const;
   void clear_column_bitmaps(void);
   void prepare_for_position(void);
 

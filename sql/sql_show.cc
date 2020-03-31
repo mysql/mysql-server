@@ -362,15 +362,15 @@ static struct show_privileges_st sys_privileges[] = {
     {NullS, NullS, NullS}};
 
 bool mysqld_show_privileges(THD *thd) {
-  List<Item> field_list;
   Protocol *protocol = thd->get_protocol();
   DBUG_TRACE;
 
+  mem_root_deque<Item *> field_list(thd->mem_root);
   field_list.push_back(new Item_empty_string("Privilege", 10));
   field_list.push_back(new Item_empty_string("Context", 15));
   field_list.push_back(new Item_empty_string("Comment", NAME_CHAR_LEN));
 
-  if (thd->send_result_metadata(&field_list,
+  if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return true;
 
@@ -516,8 +516,8 @@ class Show_create_error_handler : public Internal_error_handler {
 bool mysqld_show_create(THD *thd, TABLE_LIST *table_list) {
   Protocol *protocol = thd->get_protocol();
   char buff[2048];
+  mem_root_deque<Item *> field_list(thd->mem_root);
   String buffer(buff, sizeof(buff), system_charset_info);
-  List<Item> field_list;
   bool error = true;
   DBUG_TRACE;
   DBUG_PRINT("enter",
@@ -613,7 +613,7 @@ bool mysqld_show_create(THD *thd, TABLE_LIST *table_list) {
         "Create Table", max<size_t>(buffer.length(), 1024U)));
   }
 
-  if (thd->send_result_metadata(&field_list,
+  if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     goto exit;
 
@@ -716,11 +716,11 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
 
     is_encrypted_schema = schema->default_encryption();
   }
-  List<Item> field_list;
+  mem_root_deque<Item *> field_list(thd->mem_root);
   field_list.push_back(new Item_empty_string("Database", NAME_CHAR_LEN));
   field_list.push_back(new Item_empty_string("Create Database", 1024));
 
-  if (thd->send_result_metadata(&field_list,
+  if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return true;
 
@@ -786,7 +786,7 @@ void mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild) {
   }
   TABLE *table = table_list->table;
 
-  List<Item> field_list;
+  mem_root_deque<Item *> field_list(thd->mem_root);
 
   Field **ptr, *field;
   for (ptr = table->field; (field = *ptr); ptr++) {
@@ -805,7 +805,7 @@ void mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild) {
   }
   restore_record(table, s->default_values);  // Get empty record
   table->use_all_columns();
-  if (thd->send_result_metadata(&field_list, Protocol::SEND_DEFAULTS)) return;
+  if (thd->send_result_metadata(field_list, Protocol::SEND_DEFAULTS)) return;
   if (table_list->is_view_or_derived()) {
     close_tmp_table(thd, table);
     free_tmp_table(table);
@@ -1606,7 +1606,7 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       Append START TRANSACTION for CREATE SELECT on SE supporting atomic DDL.
       This is done only while binlogging CREATE TABLE AS SELECT.
     */
-    if (thd->lex->select_lex->get_fields_list()->elements &&
+    if (!thd->lex->select_lex->field_list_is_empty() &&
         (create_info_arg->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL)) {
       packet->append(STRING_WITH_LEN(" START TRANSACTION"));
     }
@@ -2182,7 +2182,7 @@ class List_process_list : public Do_THD_Impl {
 
 void mysqld_list_processes(THD *thd, const char *user, bool verbose) {
   Item *field;
-  List<Item> field_list;
+  mem_root_deque<Item *> field_list(thd->mem_root);
   Thread_info_array thread_infos(thd->mem_root);
   size_t max_query_length =
       (verbose ? thd->variables.max_allowed_packet : PROCESS_LIST_WIDTH);
@@ -2202,7 +2202,7 @@ void mysqld_list_processes(THD *thd, const char *user, bool verbose) {
   field->maybe_null = true;
   field_list.push_back(field = new Item_empty_string("Info", max_query_length));
   field->maybe_null = true;
-  if (thd->send_result_metadata(&field_list,
+  if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return;
 
@@ -3629,7 +3629,7 @@ static TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list) {
   int field_count = 0;
   Item *item;
   TABLE *table;
-  List<Item> field_list;
+  mem_root_deque<Item *> fields(thd->mem_root);
   ST_SCHEMA_TABLE *schema_table = table_list->schema_table;
   ST_FIELD_INFO *fields_info = schema_table->fields_info;
   CHARSET_INFO *cs = system_charset_info;
@@ -3707,7 +3707,7 @@ static TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list) {
         item->item_name.copy(fields_info->field_name);
         break;
     }
-    field_list.push_back(item);
+    fields.push_back(item);
     item->maybe_null = (fields_info->field_flags & MY_I_S_MAYBE_NULL);
     field_count++;
   }
@@ -3719,7 +3719,7 @@ static TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list) {
   tmp_table_param->schema_table = true;
   SELECT_LEX *select_lex = thd->lex->current_select();
   if (!(table = create_tmp_table(
-            thd, tmp_table_param, field_list, (ORDER *)nullptr, false, false,
+            thd, tmp_table_param, fields, /*group=*/nullptr, false, false,
             select_lex->active_options() | TMP_TABLE_ALL_COLUMNS, HA_POS_ERROR,
             table_list->alias)))
     return nullptr;
@@ -3826,8 +3826,7 @@ bool mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list) {
   if (table_list->schema_table_reformed)  // show command
   {
     SELECT_LEX *sel = lex->current_select();
-    Item *item;
-    Field_translator *transl, *org_transl;
+    Field_translator *transl;
 
     ulonglong want_privilege_saved = thd->want_privilege;
     thd->want_privilege = SELECT_ACL;
@@ -3847,17 +3846,18 @@ bool mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list) {
 
       return false;
     }
-    List_iterator_fast<Item> it(sel->fields_list);
     if (!(transl = (Field_translator *)(thd->stmt_arena->alloc(
-              sel->fields_list.elements * sizeof(Field_translator))))) {
+              sel->fields.size() * sizeof(Field_translator))))) {
       return true;
     }
-    for (org_transl = transl; (item = it++); transl++) {
+    Field_translator *org_transl = transl;
+    for (Item *item : sel->visible_fields()) {
       transl->item = item;
       transl->name = item->item_name.ptr();
       if (!item->fixed && item->fix_fields(thd, &transl->item)) {
         return true;
       }
+      ++transl;
     }
 
     thd->want_privilege = want_privilege_saved;
@@ -4350,7 +4350,6 @@ int finalize_schema_table(st_plugin_int *plugin) {
 
 static bool show_create_trigger_impl(THD *thd, Trigger *trigger) {
   Protocol *p = thd->get_protocol();
-  List<Item> fields;
 
   // Construct sql_mode string.
 
@@ -4381,20 +4380,20 @@ static bool show_create_trigger_impl(THD *thd, Trigger *trigger) {
 
   // Send header.
 
-  if (fields.push_back(new Item_empty_string("Trigger", NAME_LEN)) ||
-      fields.push_back(
-          new Item_empty_string("sql_mode", sql_mode_str.length)) ||
-      fields.push_back(stmt_fld) ||
-      fields.push_back(
-          new Item_empty_string("character_set_client", MY_CS_NAME_SIZE)) ||
-      fields.push_back(
-          new Item_empty_string("collation_connection", MY_CS_NAME_SIZE)) ||
-      fields.push_back(
-          new Item_empty_string("Database Collation", MY_CS_NAME_SIZE)) ||
-      fields.push_back(new Item_temporal(
-          MYSQL_TYPE_TIMESTAMP, Name_string("Created", sizeof("created") - 1),
-          0, 0)) ||
-      thd->send_result_metadata(&fields,
+  mem_root_deque<Item *> fields(thd->mem_root);
+  fields.push_back(new Item_empty_string("Trigger", NAME_LEN));
+  fields.push_back(new Item_empty_string("sql_mode", sql_mode_str.length));
+  fields.push_back(stmt_fld);
+  fields.push_back(
+      new Item_empty_string("character_set_client", MY_CS_NAME_SIZE));
+  fields.push_back(
+      new Item_empty_string("collation_connection", MY_CS_NAME_SIZE));
+  fields.push_back(
+      new Item_empty_string("Database Collation", MY_CS_NAME_SIZE));
+  fields.push_back(
+      new Item_temporal(MYSQL_TYPE_TIMESTAMP,
+                        Name_string("Created", sizeof("created") - 1), 0, 0));
+  if (thd->send_result_metadata(fields,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return true;
 

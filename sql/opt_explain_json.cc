@@ -2024,9 +2024,9 @@ bool Explain_format_JSON::end_context(enum_parsing_context ctx) {
     } else
       item = new Item_null();
 
-    List<Item> field_list;
-    ret = (item == nullptr || field_list.push_back(item) ||
-           output->send_data(current_thd, field_list));
+    mem_root_deque<Item *> field_list(current_thd->mem_root);
+    field_list.push_back(item);
+    ret = (item == nullptr || output->send_data(current_thd, field_list));
   } else if (ctx == CTX_DERIVED) {
     if (!current_context->parent->find_and_set_derived(current_context)) {
       DBUG_ASSERT(!"No derived table found!");
@@ -2041,9 +2041,10 @@ bool Explain_format_JSON::end_context(enum_parsing_context ctx) {
 bool Explain_format_JSON::send_headers(Query_result *result) {
   if (Explain_format::send_headers(result)) return true;
 
-  List<Item> field_list;
+  mem_root_deque<Item *> field_list(current_thd->mem_root);
   Item *item = new Item_empty_string("EXPLAIN", 78, system_charset_info);
-  if (item == nullptr || field_list.push_back(item)) return true;
+  if (item == nullptr) return true;
+  field_list.push_back(item);
   return result->send_result_set_metadata(
       current_thd, field_list, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
 }

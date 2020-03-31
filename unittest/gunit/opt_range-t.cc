@@ -1579,8 +1579,8 @@ static Item_row *new_Item_row(int a, int b) {
     The Item_row CTOR doesn't store the reference to the list, hence
     it can live on the stack.
   */
-  List<Item> items;
-  items.push_front(new Item_int(b));
+  mem_root_deque<Item *> items(*THR_MALLOC);
+  items.push_back(new Item_int(b));
   return new Item_row(POS(), new Item_int(a), items);
 }
 
@@ -1589,9 +1589,9 @@ static Item_row *new_Item_row(int a, int b, int c) {
     The Item_row CTOR doesn't store the reference to the list, hence
     it can live on the stack.
   */
-  List<Item> items;
-  items.push_front(new Item_int(c));
-  items.push_front(new Item_int(b));
+  mem_root_deque<Item *> items(*THR_MALLOC);
+  items.push_back(new Item_int(b));
+  items.push_back(new Item_int(c));
   return new Item_row(POS(), new Item_int(a), items);
 }
 
@@ -1601,7 +1601,7 @@ static Item_row *new_Item_row(Field **fields, int count) {
     The Item_row CTOR doesn't store the reference to the list, hence
     it can live on the stack.
   */
-  List<Item> items;
+  mem_root_deque<Item *> items(*THR_MALLOC);
   for (int i = count - 1; i > 0; --i)
     items.push_front(new Item_field(fields[i]));
   return new Item_row(POS(), new Item_field(fields[0]), items);

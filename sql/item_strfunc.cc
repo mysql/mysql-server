@@ -2308,7 +2308,7 @@ bool Item_func_make_set::itemize(Parse_context *pc, Item **res) {
 }
 
 void Item_func_make_set::split_sum_func(THD *thd, Ref_item_array ref_item_array,
-                                        List<Item> &fields) {
+                                        mem_root_deque<Item *> *fields) {
   item->split_sum_func2(thd, ref_item_array, fields, &item, true);
   Item_str_func::split_sum_func(thd, ref_item_array, fields);
 }

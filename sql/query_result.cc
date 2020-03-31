@@ -59,10 +59,14 @@
 
 using std::min;
 
-bool Query_result_send::send_result_set_metadata(THD *thd, List<Item> &list,
-                                                 uint flags) {
+uint Query_result::field_count(const mem_root_deque<Item *> &fields) const {
+  return CountVisibleFields(fields);
+}
+
+bool Query_result_send::send_result_set_metadata(
+    THD *thd, const mem_root_deque<Item *> &list, uint flags) {
   bool res;
-  if (!(res = thd->send_result_metadata(&list, flags)))
+  if (!(res = thd->send_result_metadata(list, flags)))
     is_result_set_started = true;
   return res;
 }
@@ -86,12 +90,13 @@ void Query_result_send::abort_result_set(THD *thd) {
 
 /* Send data to client. Returns 0 if ok */
 
-bool Query_result_send::send_data(THD *thd, List<Item> &items) {
+bool Query_result_send::send_data(THD *thd,
+                                  const mem_root_deque<Item *> &items) {
   Protocol *protocol = thd->get_protocol();
   DBUG_TRACE;
 
   protocol->start_row();
-  if (thd->send_result_set_row(&items)) {
+  if (thd->send_result_set_row(items)) {
     protocol->abort_row();
     return true;
   }
@@ -249,7 +254,7 @@ static File create_file(THD *thd, char *path, sql_exchange *exchange,
   return file;
 }
 
-bool Query_result_export::prepare(THD *thd, List<Item> &list,
+bool Query_result_export::prepare(THD *thd, const mem_root_deque<Item *> &list,
                                   SELECT_LEX_UNIT *u) {
   bool blob_flag = false;
   bool string_results = false, non_string_results = false;
@@ -260,19 +265,15 @@ bool Query_result_export::prepare(THD *thd, List<Item> &list,
   write_cs = exchange->cs ? exchange->cs : &my_charset_bin;
 
   /* Check if there is any blobs in data */
-  {
-    List_iterator_fast<Item> li(list);
-    Item *item;
-    while ((item = li++)) {
-      if (item->max_length >= MAX_BLOB_WIDTH) {
-        blob_flag = true;
-        break;
-      }
-      if (item->result_type() == STRING_RESULT)
-        string_results = true;
-      else
-        non_string_results = true;
+  for (Item *item : VisibleFields(list)) {
+    if (item->max_length >= MAX_BLOB_WIDTH) {
+      blob_flag = true;
+      break;
     }
+    if (item->result_type() == STRING_RESULT)
+      string_results = true;
+    else
+      non_string_results = true;
   }
   if (exchange->field.escaped->numchars() > 1 ||
       exchange->field.enclosed->numchars() > 1) {
@@ -350,7 +351,8 @@ bool Query_result_export::start_execution(THD *thd) {
              : (int)(uchar)(x) == field_term_char) || \
    (int)(uchar)(x) == line_sep_char || !(x))
 
-bool Query_result_export::send_data(THD *thd, List<Item> &items) {
+bool Query_result_export::send_data(THD *thd,
+                                    const mem_root_deque<Item *> &items) {
   DBUG_TRACE;
   char buff[MAX_FIELD_WIDTH], null_buff[2], space[MAX_FIELD_WIDTH];
   char cvt_buff[MAX_FIELD_WIDTH];
@@ -360,16 +362,14 @@ bool Query_result_export::send_data(THD *thd, List<Item> &items) {
   tmp.length(0);
 
   row_count++;
-  Item *item;
   size_t used_length = 0;
-  uint items_left = items.elements;
-  List_iterator_fast<Item> li(items);
+  uint items_left = CountVisibleFields(items);
 
   if (my_b_write(&cache,
                  pointer_cast<const uchar *>(exchange->line.line_start->ptr()),
                  exchange->line.line_start->length()))
     goto err;
-  while ((item = li++)) {
+  for (Item *item : VisibleFields(items)) {
     Item_result result_type = item->result_type();
     bool enclosed =
         (exchange->field.enclosed->length() &&
@@ -650,7 +650,8 @@ void Query_result_export::cleanup(THD *thd) {
 ** Dump of query to a binary file
 ***************************************************************************/
 
-bool Query_result_dump::prepare(THD *, List<Item> &, SELECT_LEX_UNIT *u) {
+bool Query_result_dump::prepare(THD *, const mem_root_deque<Item *> &,
+                                SELECT_LEX_UNIT *u) {
   unit = u;
   return false;
 }
@@ -660,19 +661,17 @@ bool Query_result_dump::start_execution(THD *thd) {
   return false;
 }
 
-bool Query_result_dump::send_data(THD *, List<Item> &items) {
-  List_iterator_fast<Item> li(items);
+bool Query_result_dump::send_data(THD *, const mem_root_deque<Item *> &items) {
   char buff[MAX_FIELD_WIDTH];
   String tmp(buff, sizeof(buff), &my_charset_bin), *res;
   tmp.length(0);
-  Item *item;
   DBUG_TRACE;
 
   if (row_count++ > 1) {
     my_error(ER_TOO_MANY_ROWS, MYF(0));
     goto err;
   }
-  while ((item = li++)) {
+  for (Item *item : VisibleFields(items)) {
     res = item->val_str(&tmp);
     if (!res)  // If NULL
     {
@@ -693,10 +692,11 @@ err:
   Dump of select to variables
 ***************************************************************************/
 
-bool Query_dumpvar::prepare(THD *, List<Item> &list, SELECT_LEX_UNIT *u) {
+bool Query_dumpvar::prepare(THD *, const mem_root_deque<Item *> &list,
+                            SELECT_LEX_UNIT *u) {
   unit = u;
 
-  if (var_list.elements != list.elements) {
+  if (var_list.elements != CountVisibleFields(list)) {
     my_error(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT, MYF(0));
     return true;
   }
@@ -709,10 +709,9 @@ bool Query_dumpvar::check_simple_select() const {
   return true;
 }
 
-bool Query_dumpvar::send_data(THD *thd, List<Item> &items) {
+bool Query_dumpvar::send_data(THD *thd, const mem_root_deque<Item *> &items) {
   List_iterator_fast<PT_select_var> var_li(var_list);
-  List_iterator<Item> it(items);
-  Item *item;
+  auto it = VisibleFields(items).begin();
   PT_select_var *mv;
   DBUG_TRACE;
 
@@ -720,7 +719,8 @@ bool Query_dumpvar::send_data(THD *thd, List<Item> &items) {
     my_error(ER_TOO_MANY_ROWS, MYF(0));
     return true;
   }
-  while ((mv = var_li++) && (item = it++)) {
+  while ((mv = var_li++) && it != VisibleFields(items).end()) {
+    Item *item = *it++;
     if (mv->is_local()) {
       if (thd->sp_runtime_ctx->set_variable(thd, mv->get_offset(), &item))
         return true;

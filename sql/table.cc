@@ -415,7 +415,7 @@ TABLE_SHARE *alloc_table_share(const char *db, const char *table_name,
     share->table_map_id = ~0ULL;
     share->cached_row_logging_check = -1;
 
-    share->m_flush_tickets.empty();
+    share->m_flush_tickets.clear();
 
     memset(cache_element_array, 0,
            table_cache_instances * sizeof(*cache_element_array));
@@ -485,7 +485,7 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
   */
   share->table_map_id = (ulonglong)thd->query_id;
 
-  share->m_flush_tickets.empty();
+  share->m_flush_tickets.clear();
 }
 
 Key_map TABLE_SHARE::usable_indexes(const THD *thd) const {
@@ -2668,7 +2668,7 @@ bool unpack_value_generator(THD *thd, TABLE *table,
 
 parse_err:
   // Any created window is eliminated as not allowed:
-  thd->lex->current_select()->m_windows.empty();
+  thd->lex->current_select()->m_windows.clear();
   thd->free_items();
   lex_end(thd->lex);
   thd->lex = old_lex;
@@ -4288,7 +4288,7 @@ void TABLE::cleanup_value_generator_items() {
   @retval 1 out of memory
 */
 
-bool TABLE::fill_item_list(List<Item> *item_list) const {
+bool TABLE::fill_item_list(mem_root_deque<Item *> *item_list) const {
   /*
     All Item_field's created using a direct pointer to a field
     are fixed in Item_field constructor.
@@ -4296,7 +4296,8 @@ bool TABLE::fill_item_list(List<Item> *item_list) const {
   uint i = 0;
   for (Field **ptr = visible_field_ptr(); *ptr; ptr++, i++) {
     Item_field *item = new Item_field(*ptr);
-    if (!item || item_list->push_back(item)) return true;
+    if (!item) return true;
+    item_list->push_back(item);
   }
   return false;
 }
@@ -4313,11 +4314,11 @@ bool TABLE::fill_item_list(List<Item> *item_list) const {
     Item_fields to the fields of a newly created table.
 */
 
-void TABLE::reset_item_list(List<Item> *item_list) const {
-  List_iterator_fast<Item> it(*item_list);
+void TABLE::reset_item_list(const mem_root_deque<Item *> &item_list) const {
+  auto it = item_list.begin();
   uint i = 0;
   for (Field **ptr = visible_field_ptr(); *ptr; ptr++, i++) {
-    Item_field *item_field = (Item_field *)it++;
+    Item_field *item_field = down_cast<Item_field *>(*it++);
     DBUG_ASSERT(item_field != nullptr);
     item_field->reset_field(*ptr);
   }
@@ -4536,9 +4537,7 @@ bool TABLE_LIST::merge_where(THD *thd) {
 */
 
 bool TABLE_LIST::create_field_translation(THD *thd) {
-  Item *item;
   SELECT_LEX *select = derived->first_select();
-  List_iterator_fast<Item> it(select->fields_list);
   uint field_count = 0;
 
   DBUG_ASSERT(derived->is_prepared());
@@ -4549,10 +4548,10 @@ bool TABLE_LIST::create_field_translation(THD *thd) {
 
   // Create view fields translation table
   Field_translator *transl = (Field_translator *)thd->stmt_arena->alloc(
-      select->fields_list.elements * sizeof(Field_translator));
+      select->num_visible_fields() * sizeof(Field_translator));
   if (!transl) return true; /* purecov: inspected */
 
-  while ((item = it++)) {
+  for (Item *item : select->visible_fields()) {
     /*
       Notice that all items keep their nullability here.
       All items are later wrapped within Item_direct_view objects.

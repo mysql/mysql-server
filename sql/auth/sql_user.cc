@@ -197,7 +197,6 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name,
   static const int COMMAND_BUFFER_LENGTH = 2048;
   char buff[COMMAND_BUFFER_LENGTH];
   Item_string *field = nullptr;
-  List<Item> field_list;
   String sql_text(buff, sizeof(buff), system_charset_info);
   LEX_ALTER alter_info;
   List_of_auth_id_refs default_roles;
@@ -312,8 +311,9 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name,
   strxmov(buff, "CREATE USER for ", user_name->user.str, "@",
           user_name->host.str, NullS);
   field->item_name.set(buff);
+  mem_root_deque<Item *> field_list(thd->mem_root);
   field_list.push_back(field);
-  if (thd->send_result_metadata(&field_list,
+  if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF)) {
     error = 1;
     goto err;
@@ -815,7 +815,7 @@ static bool validate_password_require_current(THD *thd, LEX_USER *Str,
       /*
         Current password is valid plain text password with len > 0.
         Erase that in memory. We don't need it any further
-     */
+       */
       memset(const_cast<char *>(Str->current_auth.str), 0,
              Str->current_auth.length);
     } else if (!is_privileged_user) {
@@ -873,12 +873,12 @@ void generate_random_password(std::string *password, uint32_t length) {
 
 bool send_password_result_set(
     THD *thd, const Userhostpassword_list &generated_passwords) {
-  List<Item> meta_data;
+  mem_root_deque<Item *> meta_data(thd->mem_root);
   meta_data.push_back(new Item_string("user", 4, system_charset_info));
   meta_data.push_back(new Item_string("host", 4, system_charset_info));
   meta_data.push_back(
       new Item_string("generated password", 18, system_charset_info));
-  List<Item> item_list;
+  mem_root_deque<Item *> item_list(thd->mem_root);
   Query_result_send output;
   if (output.send_result_set_metadata(
           thd, meta_data, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
@@ -894,11 +894,10 @@ bool send_password_result_set(
                            system_charset_info);
     item_list.push_back(item);
     if (output.send_data(thd, item_list)) {
-      item_list.empty();
       return true;
     }
     // items clean themselves up when THD dies.
-    item_list.empty();
+    item_list.clear();
   }
   my_eof(thd);
   return false;
@@ -1083,10 +1082,11 @@ bool set_and_validate_user_attributes(
         }
         break;
       }
+
       /*
-        We need to fill in the elements of the LEX_USER structure even for GRANT
-        and REVOKE.
-      */
+        We need to fill in the elements of the LEX_USER structure even for
+        GRANT and REVOKE.
+       */
       case SQLCOM_GRANT:
         /* fall through */
       case SQLCOM_REVOKE:

@@ -1,7 +1,7 @@
 #ifndef SQL_BASIC_ROW_ITERATORS_H_
 #define SQL_BASIC_ROW_ITERATORS_H_
 
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,9 +30,11 @@
  */
 
 #include <sys/types.h>
+
 #include <memory>
 
 #include "map_helpers.h"
+#include "mem_root_deque.h"
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_inttypes.h"
@@ -550,9 +552,10 @@ class FollowTailIterator final : public TableRowIterator {
  */
 class TableValueConstructorIterator final : public RowIterator {
  public:
-  TableValueConstructorIterator(THD *thd, ha_rows *examined_rows,
-                                const List<List<Item>> &row_value_list,
-                                List<Item> *join_fields);
+  TableValueConstructorIterator(
+      THD *thd, ha_rows *examined_rows,
+      const mem_root_deque<mem_root_deque<Item *> *> &row_value_list,
+      mem_root_deque<Item *> *join_fields);
 
   bool Init() override;
   int Read() override;
@@ -571,13 +574,13 @@ class TableValueConstructorIterator final : public RowIterator {
   /// Contains the row values that are part of a VALUES clause. Read() will
   /// modify contained Item objects during execution by calls to is_null() and
   /// the required val function to extract its value.
-  const List<List<Item>> &m_row_value_list;
-  List_STL_Iterator<const List<Item>> m_row_it;
+  const mem_root_deque<mem_root_deque<Item *> *> &m_row_value_list;
+  mem_root_deque<mem_root_deque<Item *> *>::const_iterator m_row_it;
 
   /// References to the row we currently want to output. When multiple rows must
   /// be output, this contains Item_values_column objects. In this case, each
   /// call to Read() will replace its current reference with the next row.
-  List<Item> *const m_output_refs;
+  mem_root_deque<Item *> *const m_output_refs;
 };
 
 #endif  // SQL_BASIC_ROW_ITERATORS_H_

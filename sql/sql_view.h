@@ -34,6 +34,8 @@ struct TABLE_LIST;
 struct TABLE_SHARE;
 template <class T>
 class List;
+template <class T>
+class mem_root_deque;
 
 enum class enum_view_create_mode;
 
@@ -49,11 +51,12 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *view);
 
 bool check_key_in_view(THD *thd, TABLE_LIST *view, const TABLE_LIST *table_ref);
 
-bool insert_view_fields(List<Item> *list, TABLE_LIST *view);
+bool insert_view_fields(mem_root_deque<Item *> *list, TABLE_LIST *view);
 
 typedef Mem_root_array_YY<LEX_CSTRING> Create_col_name_list;
 bool check_duplicate_names(const Create_col_name_list *column_names,
-                           List<Item> &item_list, bool gen_unique_view_names);
+                           const mem_root_deque<Item *> &item_list,
+                           bool gen_unique_view_names);
 void make_valid_column_names(LEX *lex);
 
 bool open_and_read_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *view_ref);

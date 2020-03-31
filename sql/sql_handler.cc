@@ -402,7 +402,6 @@ bool Sql_cmd_handler_read::execute(THD *thd) {
   TABLE_LIST *hash_tables = nullptr;
   TABLE *table, *backup_open_tables;
   MYSQL_LOCK *lock;
-  List<Item> list;
   Protocol *protocol = thd->get_protocol();
   char buff[MAX_FIELD_WIDTH];
   String buffer(buff, sizeof(buff), system_charset_info);
@@ -446,9 +445,8 @@ bool Sql_cmd_handler_read::execute(THD *thd) {
   offset_limit_cnt = unit->offset_limit_cnt;
 
   select_lex->context.resolve_in_table_list_only(tables);
-  list.push_front(new Item_field(&select_lex->context, nullptr, nullptr, "*"));
-  List_iterator<Item> it(list);
-  it++;
+  mem_root_deque<Item *> list(thd->mem_root);
+  list.push_back(new Item_field(&select_lex->context, nullptr, nullptr, "*"));
 
 retry:
   const auto hash_it = thd->handler_tables_hash.find(tables->alias);
@@ -600,12 +598,16 @@ retry:
     }
   }
 
-  if (insert_fields(thd, select_lex, tables->db, tables->alias, &it, false))
-    goto err;
+  {
+    auto list_it = list.begin();
+    if (insert_fields(thd, select_lex, tables->db, tables->alias, &list,
+                      &list_it, false))
+      goto err;
+  }
 
   DBUG_EXECUTE_IF("simulate_handler_read_failure",
                   DBUG_SET("+d,simulate_net_write_failure"););
-  res = thd->send_result_metadata(&list,
+  res = thd->send_result_metadata(list,
                                   Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
   DBUG_EXECUTE_IF("simulate_handler_read_failure",
                   DBUG_SET("-d,simulate_net_write_failure"););
@@ -687,7 +689,7 @@ retry:
         DBUG_ASSERT(m_key_name != nullptr);
         KEY *keyinfo = table->key_info + keyno;
         KEY_PART_INFO *key_part = keyinfo->key_part;
-        if (m_key_expr->elements > keyinfo->user_defined_key_parts) {
+        if (m_key_expr->size() > keyinfo->user_defined_key_parts) {
           my_error(ER_TOO_MANY_KEY_PARTS, MYF(0),
                    keyinfo->user_defined_key_parts);
           goto err;
@@ -698,14 +700,15 @@ retry:
         */
         Column_privilege_tracker column_privilege(thd, 0);
 
-        List_iterator<Item> it_ke(*m_key_expr);
-        Item *item;
+        auto it_ke = m_key_expr->begin();
         key_part_map keypart_map;
-        for (keypart_map = key_len = 0; (item = it_ke++); key_part++) {
+        for (keypart_map = key_len = 0; it_ke != m_key_expr->end();
+             key_part++, ++it_ke) {
+          Item *item = *it_ke;
           my_bitmap_map *old_map;
           // 'item' can be changed by fix_fields() call
-          if ((!item->fixed && item->fix_fields(thd, it_ke.ref())) ||
-              (item = *it_ke.ref())->check_cols(1))
+          if ((!item->fixed && item->fix_fields(thd, &*it_ke)) ||
+              (item = *it_ke)->check_cols(1))
             goto err;
           if (item->used_tables() & ~RAND_TABLE_BIT) {
             my_error(ER_WRONG_ARGUMENTS, MYF(0), "HANDLER ... READ");
@@ -764,7 +767,7 @@ retry:
     }
     if (num_rows >= offset_limit_cnt) {
       protocol->start_row();
-      if (thd->send_result_set_row(&list)) goto err;
+      if (thd->send_result_set_row(list)) goto err;
 
       if (protocol->end_row()) goto err;
     }

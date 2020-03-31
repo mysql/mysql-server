@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -346,7 +346,7 @@ Diagnostics_area::Diagnostics_area(bool allow_unlimited_conditions)
   /* Initialize sub structures */
   init_sql_alloc(PSI_INSTRUMENT_ME, &m_condition_root, WARN_ALLOC_BLOCK_SIZE,
                  0);
-  m_conditions_list.empty();
+  m_conditions_list.clear();
   memset(m_current_statement_cond_count_by_sl, 0,
          sizeof(m_current_statement_cond_count_by_sl));
   m_message_text[0] = '\0';
@@ -497,8 +497,8 @@ void Diagnostics_area::reset_condition_info(THD *thd) {
         m_current_statement_cond_count_by_sl[(uint)Sql_condition::SL_WARNING];
   }
 
-  m_conditions_list.empty();
-  m_preexisting_sql_conditions.empty();
+  m_conditions_list.clear();
+  m_preexisting_sql_conditions.clear();
   free_root(&m_condition_root, MYF(0));
   memset(m_current_statement_cond_count_by_sl, 0,
          sizeof(m_current_statement_cond_count_by_sl));
@@ -730,7 +730,6 @@ const LEX_CSTRING warning_level_names[] = {{STRING_WITH_LEN("Note")},
 */
 
 bool mysqld_show_warnings(THD *thd, ulong levels_to_show) {
-  List<Item> field_list;
   Diagnostics_area new_stmt_da(false);
   Diagnostics_area *first_da = thd->get_stmt_da();
   bool rc = false;
@@ -748,11 +747,12 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show) {
   */
   new_stmt_da.reset_statement_cond_count();
 
+  mem_root_deque<Item *> field_list(thd->mem_root);
   field_list.push_back(new Item_empty_string("Level", 7));
   field_list.push_back(new Item_return_int("Code", 4, MYSQL_TYPE_LONG));
   field_list.push_back(new Item_empty_string("Message", MYSQL_ERRMSG_SIZE));
 
-  if (thd->send_result_metadata(&field_list,
+  if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     rc = true;
 

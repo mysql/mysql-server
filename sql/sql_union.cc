@@ -63,6 +63,7 @@
 #include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/item_subselect.h"
+#include "sql/item_sum.h"
 #include "sql/mem_root_array.h"
 #include "sql/mysqld.h"
 #include "sql/opt_explain.h"  // explain_no_table
@@ -98,12 +99,14 @@ class Item_rollup_group_item;
 class Item_rollup_sum_switcher;
 class Opt_trace_context;
 
-bool Query_result_union::prepare(THD *, List<Item> &, SELECT_LEX_UNIT *u) {
+bool Query_result_union::prepare(THD *, const mem_root_deque<Item *> &,
+                                 SELECT_LEX_UNIT *u) {
   unit = u;
   return false;
 }
 
-bool Query_result_union::send_data(THD *thd, List<Item> &values) {
+bool Query_result_union::send_data(THD *thd,
+                                   const mem_root_deque<Item *> &values) {
   if (fill_record(thd, table, table->visible_field_ptr(), values, nullptr,
                   nullptr, false))
     return true; /* purecov: inspected */
@@ -154,13 +157,18 @@ bool Query_result_union::flush() { return false; }
 */
 
 bool Query_result_union::create_result_table(
-    THD *thd_arg, List<Item> *column_types, bool is_union_distinct,
-    ulonglong options, const char *table_alias, bool bit_fields_as_long,
-    bool create_table) {
+    THD *thd_arg, const mem_root_deque<Item *> &column_types,
+    bool is_union_distinct, ulonglong options, const char *table_alias,
+    bool bit_fields_as_long, bool create_table) {
+  mem_root_deque<Item *> visible_fields(thd_arg->mem_root);
+  for (Item *item : VisibleFields(column_types)) {
+    visible_fields.push_back(item);
+  }
+
   DBUG_ASSERT(table == nullptr);
   tmp_table_param = Temp_table_param();
   count_field_types(thd_arg->lex->current_select(), &tmp_table_param,
-                    *column_types, false, true);
+                    visible_fields, false, true);
   tmp_table_param.skip_create_table = !create_table;
   tmp_table_param.bit_fields_as_long = bit_fields_as_long;
   if (unit != nullptr) {
@@ -185,7 +193,7 @@ bool Query_result_union::create_result_table(
     }
   }
 
-  if (!(table = create_tmp_table(thd_arg, &tmp_table_param, *column_types,
+  if (!(table = create_tmp_table(thd_arg, &tmp_table_param, visible_fields,
                                  nullptr, is_union_distinct, true, options,
                                  HA_POS_ERROR, table_alias)))
     return true;
@@ -232,17 +240,19 @@ class Query_result_union_direct final : public Query_result_union {
     unit = last_select_lex->master_unit();
   }
   bool change_query_result(THD *thd, Query_result *new_result) override;
-  uint field_count(List<Item> &) const override {
+  uint field_count(const mem_root_deque<Item *> &) const override {
     // Only called for top-level Query_results, usually Query_result_send
     DBUG_ASSERT(false); /* purecov: inspected */
     return 0;           /* purecov: inspected */
   }
-  bool postponed_prepare(THD *thd, List<Item> &types) override;
-  bool send_result_set_metadata(THD *, List<Item> &, uint) override {
+  bool postponed_prepare(THD *thd,
+                         const mem_root_deque<Item *> &types) override;
+  bool send_result_set_metadata(THD *, const mem_root_deque<Item *> &,
+                                uint) override {
     // Should never be called.
     abort();
   }
-  bool send_data(THD *, List<Item> &) override {
+  bool send_data(THD *, const mem_root_deque<Item *> &) override {
     // Should never be called.
     abort();
   }
@@ -287,10 +297,11 @@ class Query_result_union_direct final : public Query_result_union {
 bool Query_result_union_direct::change_query_result(THD *thd,
                                                     Query_result *new_result) {
   result = new_result;
-  return result->prepare(thd, unit->types, unit);
+  return result->prepare(thd, *unit->get_unit_column_types(), unit);
 }
 
-bool Query_result_union_direct::postponed_prepare(THD *thd, List<Item> &types) {
+bool Query_result_union_direct::postponed_prepare(
+    THD *thd, const mem_root_deque<Item *> &types) {
   if (result == nullptr) return false;
 
   return result->prepare(thd, types, unit);
@@ -346,7 +357,7 @@ bool SELECT_LEX_UNIT::prepare_fake_select_lex(THD *thd_arg) {
   }
   fake_select_lex->set_query_result(query_result());
 
-  fake_select_lex->fields_list = item_list;
+  fake_select_lex->fields = item_list;
 
   /*
     We need to add up n_sum_items in order to make the correct
@@ -393,7 +404,7 @@ bool SELECT_LEX_UNIT::can_materialize_directly_into_result() const {
   @returns false if success, true if error
  */
 bool SELECT_LEX_UNIT::prepare(THD *thd, Query_result *sel_result,
-                              List<Item> *insert_field_list,
+                              mem_root_deque<Item *> *insert_field_list,
                               ulonglong added_options,
                               ulonglong removed_options) {
   DBUG_TRACE;
@@ -500,13 +511,14 @@ bool SELECT_LEX_UNIT::prepare(THD *thd, Query_result *sel_result,
       Use items list of underlaid select for derived tables to preserve
       information about fields lengths and exact types
     */
-    if (!is_union())
-      types = first_select()->fields_list;
-    else if (sl == first_select()) {
-      types.empty();
-      List_iterator_fast<Item> it(sl->fields_list);
-      Item *item_tmp;
-      while ((item_tmp = it++)) {
+    if (!is_union()) {
+      types.clear();
+      for (Item *item : first_select()->visible_fields()) {
+        types.push_back(item);
+      }
+    } else if (sl == first_select()) {
+      types.clear();
+      for (Item *item_tmp : sl->visible_fields()) {
         /*
           If the outer query has a GROUP BY clause, an outer reference to this
           query block may have been wrapped in a Item_outer_ref, which has not
@@ -534,7 +546,7 @@ bool SELECT_LEX_UNIT::prepare(THD *thd, Query_result *sel_result,
         types.push_back(holder);
       }
     } else {
-      if (types.elements != sl->fields_list.elements) {
+      if (types.size() != sl->num_visible_fields()) {
         my_error(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT, MYF(0));
         return true;
       }
@@ -549,11 +561,11 @@ bool SELECT_LEX_UNIT::prepare(THD *thd, Query_result *sel_result,
           needed here.
         */
       } else {
-        List_iterator_fast<Item> it(sl->fields_list);
-        List_iterator_fast<Item> tp(types);
-        Item *type, *item_tmp;
-        while ((type = tp++, item_tmp = it++)) {
-          if (((Item_type_holder *)type)->join_types(thd, item_tmp))
+        auto it = sl->visible_fields().begin();
+        auto tp = types.begin();
+        for (; it != sl->visible_fields().end() && tp != types.end();
+             ++it, ++tp) {
+          if ((down_cast<Item_type_holder *>(*tp))->join_types(thd, *it))
             return true;
         }
       }
@@ -589,10 +601,7 @@ bool SELECT_LEX_UNIT::prepare(THD *thd, Query_result *sel_result,
 
       TODO: consider removing this test in case of UNION ALL.
     */
-    List_iterator_fast<Item> tp(types);
-    Item *type;
-
-    while ((type = tp++)) {
+    for (Item *type : types) {
       if (type->result_type() == STRING_RESULT &&
           type->collation.derivation == DERIVATION_NONE) {
         my_error(ER_CANT_AGGREGATE_NCOLLATIONS, MYF(0), "UNION");
@@ -602,9 +611,9 @@ bool SELECT_LEX_UNIT::prepare(THD *thd, Query_result *sel_result,
     ulonglong create_options =
         first_select()->active_options() | TMP_TABLE_ALL_COLUMNS;
 
-    if (union_result->create_result_table(
-            thd, &types, union_distinct != nullptr, create_options, "", false,
-            instantiate_tmp_table))
+    if (union_result->create_result_table(thd, types, union_distinct != nullptr,
+                                          create_options, "", false,
+                                          instantiate_tmp_table))
       return true;
     table = union_result->table;
     result_table_list = TABLE_LIST();
@@ -619,15 +628,17 @@ bool SELECT_LEX_UNIT::prepare(THD *thd, Query_result *sel_result,
 
     result_table_list.set_privileges(SELECT_ACL);
 
-    if (!item_list.elements) {
+    if (item_list.empty()) {
+      Prepared_stmt_arena_holder ps_arena_holder(thd);
       if (table->fill_item_list(&item_list))
         return true; /* purecov: inspected */
+      DBUG_ASSERT(CountVisibleFields(item_list) == item_list.size());
     } else {
       /*
         We're in execution of a prepared statement or stored procedure:
         reset field items to point at fields from the created temporary table.
       */
-      table->reset_item_list(&item_list);
+      table->reset_item_list(item_list);
     }
     if (fake_select_lex != nullptr) {
       thd->lex->set_current_select(fake_select_lex);
@@ -803,7 +814,7 @@ SELECT_LEX_UNIT::setup_materialization(THD *thd, TABLE *dst_table,
     MaterializeIterator::QueryBlock query_block;
     DBUG_ASSERT(join && join->is_optimized());
     DBUG_ASSERT(join->root_iterator() != nullptr);
-    ConvertItemsToCopy(join->fields, dst_table->visible_field_ptr(),
+    ConvertItemsToCopy(*join->fields, dst_table->visible_field_ptr(),
                        &join->tmp_table_param);
 
     query_block.subquery_iterator = join->release_root_iterator();
@@ -937,7 +948,7 @@ void SELECT_LEX_UNIT::create_iterators(THD *thd) {
          select = select->next_select()) {
       JOIN *join = select->join;
       DBUG_ASSERT(join && join->is_optimized());
-      ConvertItemsToCopy(join->fields, tmp_table->visible_field_ptr(),
+      ConvertItemsToCopy(*join->fields, tmp_table->visible_field_ptr(),
                          &join->tmp_table_param);
       bool copy_fields_and_items = !join->streaming_aggregation ||
                                    join->tmp_table_param.precomputed_group_by;
@@ -1111,7 +1122,7 @@ bool SELECT_LEX_UNIT::ExecuteIteratorQuery(THD *thd) {
     return true;
   }
 
-  List<Item> *fields = get_field_list();
+  mem_root_deque<Item *> *fields = get_field_list();
   Query_result *query_result = this->query_result();
   DBUG_ASSERT(query_result != nullptr);
 
@@ -1213,6 +1224,7 @@ bool SELECT_LEX_UNIT::ExecuteIteratorQuery(THD *thd) {
       }
 
       ++*send_records_ptr;
+
       if (query_result->send_data(thd, *fields)) {
         return true;
       }
@@ -1374,22 +1386,25 @@ bool SELECT_LEX_UNIT::change_query_result(
   For a single query block the column types are taken from the list
   of selected items of this block.
 
-  For a union this function assumes that SELECT_LEX_UNIT::prepare()
-  has been called and returns the type holders that were created for unioned
-  column types of all query blocks.
+  For a union this function assumes that the type holders were created for
+  unioned column types of all query blocks, by SELECT_LEX_UNIT::prepare().
 
   @note
     The implementation of this function should be in sync with
     SELECT_LEX_UNIT::prepare()
 
-  @returns List of items as specified in function description
+  @returns List of items as specified in function description.
+    May contain hidden fields (item->hidden = true), so the caller
+    needs to be able to filter them out.
 */
 
-List<Item> *SELECT_LEX_UNIT::get_unit_column_types() {
-  // Should not be called before query expression is prepared
-  DBUG_ASSERT(is_prepared());
+mem_root_deque<Item *> *SELECT_LEX_UNIT::get_unit_column_types() {
+  return is_union() ? &types : &first_select()->fields;
+}
 
-  return is_union() ? &types : &first_select()->fields_list;
+size_t SELECT_LEX_UNIT::num_visible_fields() const {
+  return is_union() ? CountVisibleFields(types)
+                    : first_select()->num_visible_fields();
 }
 
 /**
@@ -1402,7 +1417,7 @@ List<Item> *SELECT_LEX_UNIT::get_unit_column_types() {
   @returns List containing fields of the query expression.
 */
 
-List<Item> *SELECT_LEX_UNIT::get_field_list() {
+mem_root_deque<Item *> *SELECT_LEX_UNIT::get_field_list() {
   DBUG_ASSERT(is_optimized());
 
   if (fake_select_lex != nullptr) {

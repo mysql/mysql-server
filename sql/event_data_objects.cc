@@ -1009,7 +1009,7 @@ bool Event_job_data::construct_sp_sql(THD *thd, String *sp_sql) {
 bool Event_job_data::execute(THD *thd, bool drop) {
   String sp_sql;
   Security_context event_sctx, *save_sctx = nullptr;
-  List<Item> empty_item_list;
+  mem_root_deque<Item *> empty_item_list(thd->mem_root);
   bool ret = true;
   sql_digest_state *parent_digest = thd->m_digest;
   PSI_statement_locker *parent_locker = thd->m_statement_psi;

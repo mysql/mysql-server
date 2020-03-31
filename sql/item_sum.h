@@ -648,6 +648,7 @@ class Item_sum : public Item_result_field, public Func_args_handle {
   struct Collect_grouped_aggregate_info {
     /// accumulated all aggregates found
     std::vector<Item_sum *> list;
+    std::set<Item_sum *> aggregates_that_were_hidden;
     /**
       The query block we walk from. All found aggregates must aggregate in
       this; if some aggregate in outer query blocks, break off transformation.
@@ -748,7 +749,7 @@ class Item_sum : public Item_result_field, public Func_args_handle {
   }
 
   void split_sum_func(THD *thd, Ref_item_array ref_item_array,
-                      List<Item> &fields) override;
+                      mem_root_deque<Item *> *fields) override;
 
   void cleanup() override;
 
@@ -1667,7 +1668,7 @@ class Item_sum_hybrid : public Item_sum {
   bool fix_fields(THD *, Item **) override;
   void clear() override;
   void split_sum_func(THD *thd, Ref_item_array ref_item_array,
-                      List<Item> &fields) override;
+                      mem_root_deque<Item *> *fields) override;
   double val_real() override;
   longlong val_int() override;
   longlong val_time_temporal() override;
@@ -2517,7 +2518,7 @@ class Item_lead_lag : public Item_non_framing_wf {
   }
 
   void split_sum_func(THD *thd, Ref_item_array ref_item_array,
-                      List<Item> &fields) override;
+                      mem_root_deque<Item *> *fields) override;
 
   void set_has_value(bool value) { m_has_value = value; }
   bool has_value() const { return m_has_value; }
@@ -2587,7 +2588,7 @@ class Item_first_last_value : public Item_sum {
   }
 
   void split_sum_func(THD *thd, Ref_item_array ref_item_array,
-                      List<Item> &fields) override;
+                      mem_root_deque<Item *> *fields) override;
   bool uses_only_one_row() const override { return true; }
 
  private:
@@ -2657,7 +2658,7 @@ class Item_nth_value : public Item_sum {
   }
 
   void split_sum_func(THD *thd, Ref_item_array ref_item_array,
-                      List<Item> &fields) override;
+                      mem_root_deque<Item *> *fields) override;
   bool uses_only_one_row() const override { return true; }
 
  private:
@@ -2711,7 +2712,7 @@ class Item_rollup_sum_switcher final : public Item_sum {
     item_name = master()->item_name;
     base_select = master()->base_select;
     aggr_select = master()->aggr_select;
-    base_select = master()->base_select;
+    hidden = master()->hidden;
     set_distinct(master()->has_with_distinct());
     set_data_type_from_item(master());
   }

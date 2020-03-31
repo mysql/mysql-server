@@ -900,15 +900,14 @@ class Window {
     @param select           The select for which we are doing windowing
     @param ref_item_array   The base ref items
     @param tables           The list of tables involved
-    @param fields           The list of selected fields
-    @param all_fields       The list of all fields, including hidden ones
+    @param fields           The list of all fields, including hidden ones
     @param windows          The list of windows defined for this select
 
     @return false if success, true if error
   */
   static bool setup_windows1(THD *thd, SELECT_LEX *select,
                              Ref_item_array ref_item_array, TABLE_LIST *tables,
-                             List<Item> &fields, List<Item> &all_fields,
+                             mem_root_deque<Item *> *fields,
                              List<Window> &windows);
   /**
     Like setup_windows1() but contains operations which must wait until
@@ -938,16 +937,15 @@ class Window {
     @param thd              The session's execution thread
     @param ref_item_array   The base ref items
     @param tables           The list of tables involved
-    @param fields           The list of selected fields
-    @param all_fields       The list of all fields, including hidden ones
+    @param fields           The list of all fields, including hidden ones
     @param o                A list of order by expressions
     @param partition_order  If true, o represent a windowing PARTITION BY,
            else it represents a windowing ORDER BY
     @returns false if success, true if error
   */
   bool resolve_window_ordering(THD *thd, Ref_item_array ref_item_array,
-                               TABLE_LIST *tables, List<Item> &fields,
-                               List<Item> &all_fields, ORDER *o,
+                               TABLE_LIST *tables,
+                               mem_root_deque<Item *> *fields, ORDER *o,
                                bool partition_order);
   /**
     Return true if this window's name is not unique in windows

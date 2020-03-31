@@ -24,6 +24,7 @@
 
 #include <sys/types.h>
 
+#include <algorithm>
 #include <utility>  // move
 
 #include "memory_debugging.h"
@@ -68,7 +69,7 @@
   as the lifetime of the preparable statement. When the preparable statement
   is destroyed, the materialized cursor (including the temporary table) is
   also destroyed.
-*/
+ */
 
 class Materialized_cursor final : public Server_side_cursor {
   /// A fake unit to supply to Query_result_send when fetching
@@ -79,7 +80,7 @@ class Materialized_cursor final : public Server_side_cursor {
     List of items to send to client, copy of original items, but created in
     the cursor object's mem_root.
   */
-  List<Item> item_list;
+  mem_root_deque<Item *> item_list;
   ulong fetch_limit{0};
   ulong fetch_count{0};
   bool is_rnd_inited{false};
@@ -88,7 +89,8 @@ class Materialized_cursor final : public Server_side_cursor {
   Materialized_cursor(Query_result *result);
   void set_table(TABLE *table_arg);
   void set_result(Query_result *result_arg) { result = result_arg; }
-  int send_result_set_metadata(THD *thd, List<Item> &send_result_set_metadata);
+  int send_result_set_metadata(
+      THD *thd, const mem_root_deque<Item *> &send_result_set_metadata);
   bool is_open() const override { return table->has_storage_handler(); }
   bool open(THD *) override;
   bool fetch(ulong num_rows) override;
@@ -120,9 +122,10 @@ class Query_result_materialize final : public Query_result_union {
       materialized_cursor->set_result(result_arg);
   }
   bool check_simple_select() const override { return false; }
-  bool prepare(THD *thd, List<Item> &list, SELECT_LEX_UNIT *u) override;
+  bool prepare(THD *thd, const mem_root_deque<Item *> &list,
+               SELECT_LEX_UNIT *u) override;
   bool start_execution(THD *thd) override;
-  bool send_result_set_metadata(THD *thd, List<Item> &list,
+  bool send_result_set_metadata(THD *thd, const mem_root_deque<Item *> &list,
                                 uint flags) override;
   void cleanup(THD *) override {}
 };
@@ -288,7 +291,9 @@ void Server_side_cursor::operator delete(void *, size_t) {}
 ****************************************************************************/
 
 Materialized_cursor::Materialized_cursor(Query_result *result_arg)
-    : Server_side_cursor(result_arg), fake_unit(CTX_NONE) {}
+    : Server_side_cursor(result_arg),
+      fake_unit(CTX_NONE),
+      item_list(*THR_MALLOC) {}
 
 /// Bind a temporary table with a materialized cursor.
 void Materialized_cursor::set_table(TABLE *table_arg) { table = table_arg; }
@@ -303,7 +308,7 @@ void Materialized_cursor::set_table(TABLE *table_arg) { table = table_arg; }
 */
 
 int Materialized_cursor::send_result_set_metadata(
-    THD *thd, List<Item> &send_result_set_metadata) {
+    THD *thd, const mem_root_deque<Item *> &send_result_set_metadata) {
   /*
     Create objects in the mem_root of the cursor. The item list will be
     referenced after the execution of the current statement, so it cannot
@@ -311,13 +316,15 @@ int Materialized_cursor::send_result_set_metadata(
   */
   Query_arena backup_arena;
   thd->swap_query_arena(m_arena, &backup_arena);
-  if (item_list.is_empty()) {
+  if (item_list.empty()) {
     if (table->fill_item_list(&item_list)) {
       thd->swap_query_arena(backup_arena, &m_arena);
       return true;
     }
 
-    DBUG_ASSERT(send_result_set_metadata.elements == item_list.elements);
+    DBUG_ASSERT(CountVisibleFields(send_result_set_metadata) ==
+                item_list.size());
+
     /*
       Unless we preserve the original metadata, it will be lost,
       since new fields describe columns of the temporary table.
@@ -325,13 +332,14 @@ int Materialized_cursor::send_result_set_metadata(
       items with original names are always kept in memory,
       but in case this changes a memory leak may be hard to notice.
     */
-    List_iterator_fast<Item> it_org(send_result_set_metadata);
-    List_iterator_fast<Item> it_dst(item_list);
-    Item *item_org;
-    Item *item_dst;
-    while ((item_dst = it_dst++, item_org = it_org++)) {
+    auto it_org = VisibleFields(send_result_set_metadata).begin();
+    auto it_dst = item_list.begin();
+    while (it_dst != item_list.end() &&
+           it_org != VisibleFields(send_result_set_metadata).end()) {
+      Item *item_org = *it_org++;
+      Item *item_dst = *it_dst++;
       Send_field send_field;
-      Item_ident *ident = down_cast<Item_ident *>(item_dst);
+      Item_ident *ident = static_cast<Item_ident *>(item_dst);
       item_org->make_field(&send_field);
 
       ident->db_name = thd->mem_strdup(send_field.db_name);
@@ -440,7 +448,7 @@ void Materialized_cursor::close() {
   }
   close_tmp_table(table->in_use, table);
   m_arena.free_items();
-  item_list.empty();
+  item_list.clear();
   mem_root.ClearForReuse();
 }
 
@@ -453,11 +461,12 @@ Materialized_cursor::~Materialized_cursor() {
  Query_result_materialize
 ****************************************************************************/
 
-bool Query_result_materialize::prepare(THD *thd, List<Item> &list,
+bool Query_result_materialize::prepare(THD *thd,
+                                       const mem_root_deque<Item *> &fields,
                                        SELECT_LEX_UNIT *u) {
   unit = u;
 
-  if (result->prepare(thd, list, u)) return true;
+  if (result->prepare(thd, fields, u)) return true;
 
   DBUG_ASSERT(table == nullptr && materialized_cursor == nullptr);
 
@@ -471,10 +480,7 @@ bool Query_result_materialize::prepare(THD *thd, List<Item> &list,
       since the handler must be kept open for subsequent FETCH operations.
       This must be ensured when the temporary table is instantiated.
   */
-  // @todo Replace "columns" with u->get_unit_column_types() when assert fixed
-  List<Item> *columns =
-      u->is_union() ? &u->types : &u->first_select()->fields_list;
-  if (create_result_table(thd, columns, false,
+  if (create_result_table(thd, *unit->get_unit_column_types(), false,
                           thd->variables.option_bits | TMP_TABLE_ALL_COLUMNS,
                           "", false, false)) {
     delete materialized_cursor;
@@ -503,9 +509,8 @@ bool Query_result_materialize::start_execution(THD *thd) {
   return false;
 }
 
-bool Query_result_materialize::send_result_set_metadata(THD *thd,
-                                                        List<Item> &list,
-                                                        uint) {
+bool Query_result_materialize::send_result_set_metadata(
+    THD *thd, const mem_root_deque<Item *> &list, uint) {
   if (materialized_cursor->send_result_set_metadata(thd, list)) {
     return true;
   }

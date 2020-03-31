@@ -791,7 +791,7 @@ void THD::init(void) {
   user_time.tv_sec = user_time.tv_usec = 0;
   start_time.tv_sec = start_time.tv_usec = 0;
   set_time();
-  auto_inc_intervals_forced.empty();
+  auto_inc_intervals_forced.clear();
   {
     ulong tmp;
     tmp = sql_rnd_with_mutex();
@@ -1430,7 +1430,7 @@ void THD::cleanup_after_query() {
   {
     /* Forget those values, for next binlogger: */
     stmt_depends_on_first_successful_insert_id_in_prev_stmt = false;
-    auto_inc_intervals_in_cur_stmt_for_binlog.empty();
+    auto_inc_intervals_in_cur_stmt_for_binlog.clear();
     rand_used = false;
     binlog_accessed_db_names = nullptr;
 
@@ -1444,7 +1444,7 @@ void THD::cleanup_after_query() {
         SET statements between them).
     */
     if ((rli_slave || rli_fake) && is_update_query(lex->sql_command))
-      auto_inc_intervals_forced.empty();
+      auto_inc_intervals_forced.clear();
   }
 
   /*
@@ -1473,7 +1473,7 @@ void THD::cleanup_after_query() {
   while (Security_context *ctx = it++) {
     ctx->logout();
   }
-  m_view_ctx_list.empty();
+  m_view_ctx_list.clear();
   // Cleanup and free items that were created during this execution
   cleanup_items(item_list());
   free_items();
@@ -1558,7 +1558,7 @@ void THD::update_charset() {
 }
 
 int THD::send_explain_fields(Query_result *result) {
-  List<Item> field_list;
+  mem_root_deque<Item *> field_list(current_thd->mem_root);
   Item *item;
   CHARSET_INFO *cs = system_charset_info;
   field_list.push_back(new Item_return_int("id", 3, MYSQL_TYPE_LONGLONG));
@@ -1658,7 +1658,7 @@ void THD::rollback_item_tree_changes() {
     *change->place = change->old_value;
   }
   /* We can forget about changes memory: it's allocated in runtime memroot */
-  change_list.empty();
+  change_list.clear();
 }
 
 void Query_arena::add_item(Item *item) {
@@ -2490,20 +2490,18 @@ void THD::vsyntax_error_at(const char *pos_in_lexer_raw_buffer,
                   err.ptr(), lineno);
 }
 
-bool THD::send_result_metadata(List<Item> *list, uint flags) {
+bool THD::send_result_metadata(const mem_root_deque<Item *> &list, uint flags) {
   DBUG_TRACE;
-  List_iterator_fast<Item> it(*list);
-  Item *item;
   uchar buff[MAX_FIELD_WIDTH];
   String tmp((char *)buff, sizeof(buff), &my_charset_bin);
 
-  if (m_protocol->start_result_metadata(list->elements, flags,
+  if (m_protocol->start_result_metadata(CountVisibleFields(list), flags,
                                         variables.character_set_results))
     goto err;
   switch (variables.resultset_metadata) {
     case RESULTSET_METADATA_FULL:
-      /* Sent metadata. */
-      while ((item = it++)) {
+      /* Send metadata. */
+      for (Item *item : VisibleFields(list)) {
         Send_field field;
         item->make_field(&field);
         m_protocol->start_row();
@@ -2531,14 +2529,13 @@ err:
   return true;                           /* purecov: inspected */
 }
 
-bool THD::send_result_set_row(List<Item> *row_items) {
+bool THD::send_result_set_row(const mem_root_deque<Item *> &row_items) {
   char buffer[MAX_FIELD_WIDTH];
   String str_buffer(buffer, sizeof(buffer), &my_charset_bin);
-  List_iterator_fast<Item> it(*row_items);
 
   DBUG_TRACE;
 
-  for (Item *item = it++; item; item = it++) {
+  for (Item *item : VisibleFields(row_items)) {
     if (item->send(m_protocol, &str_buffer) || is_error()) return true;
     /*
       Reset str_buffer to its original state, as it may have been altered in
@@ -2585,22 +2582,22 @@ void THD::send_statement_status() {
 }
 
 void THD::claim_memory_ownership(bool claim) {
-/*
-        Ownership of the THD object is transfered to this thread.
-        This happens typically:
-        - in the event scheduler,
-          when the scheduler thread creates a work item and
-          starts a worker thread to run it
-        - in the main thread, when the code that accepts a new
-          network connection creates a work item and starts a
-          connection thread to run it.
-        Accounting for memory statistics needs to be told
-        that memory allocated by thread X now belongs to thread Y,
-        so that statistics by thread/account/user/host are accurate.
-        Inspect every piece of memory allocated in THD,
-        and call PSI_MEMORY_CALL(memory_claim)().
-*/
 #ifdef HAVE_PSI_MEMORY_INTERFACE
+  /*
+    Ownership of the THD object is transfered to this thread.
+    This happens typically:
+    - in the event scheduler,
+      when the scheduler thread creates a work item and
+      starts a worker thread to run it
+    - in the main thread, when the code that accepts a new
+      network connection creates a work item and starts a
+      connection thread to run it.
+    Accounting for memory statistics needs to be told
+    that memory allocated by thread X now belongs to thread Y,
+    so that statistics by thread/account/user/host are accurate.
+    Inspect every piece of memory allocated in THD,
+    and call PSI_MEMORY_CALL(memory_claim)().
+   */
   main_mem_root.Claim(claim);
   my_claim(m_token_array, claim);
   Protocol_classic *p = get_protocol_classic();

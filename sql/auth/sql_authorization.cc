@@ -1786,7 +1786,7 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
   want_priv =
       (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE)
           ? CREATE_TMP_ACL
-          : (CREATE_ACL | (select_lex->fields_list.elements ? INSERT_ACL : 0));
+          : (CREATE_ACL | (select_lex->field_list_is_empty() ? 0 : INSERT_ACL));
 
   if (check_access(thd, want_priv, create_table->db,
                    &create_table->grant.privilege,
@@ -1840,7 +1840,7 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
       check_grant(thd, want_priv, create_table, false, 1, false))
     goto err;
 
-  if (select_lex->fields_list.elements) {
+  if (!select_lex->fields.empty()) {
     /* Check permissions for used tables in CREATE TABLE ... SELECT */
     if (tables &&
         check_table_access(thd, SELECT_ACL, tables, false, UINT_MAX, false))
@@ -4717,13 +4717,13 @@ bool mysql_show_grants(THD *thd, LEX_USER *lex_user,
   }
 
   Item_string *field = new Item_string("", 0, &my_charset_latin1);
-  List<Item> field_list;
   field->max_length = 1024;
   strxmov(buff, "Grants for ", lex_user->user.str, "@", lex_user->host.str,
           NullS);
   field->item_name.set(buff);
+  mem_root_deque<Item *> field_list(thd->mem_root);
   field_list.push_back(field);
-  if (thd->send_result_metadata(&field_list,
+  if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF)) {
     return true;
   }
@@ -5283,7 +5283,7 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
   acl_cache_lock.unlock();
 
   new (&tables[0]) TABLE_LIST();
-  user_list.empty();
+  user_list.clear();
 
   tables->db = sp_db;
   tables->table_name = tables->alias = sp_name;

@@ -191,10 +191,9 @@ string RefToString(const TABLE_REF &ref, const KEY *key, bool include_nulls) {
   return ret;
 }
 
-bool JOIN::create_intermediate_table(QEP_TAB *const tab,
-                                     List<Item> *tmp_table_fields,
-                                     ORDER_with_src &tmp_table_group,
-                                     bool save_sum_fields) {
+bool JOIN::create_intermediate_table(
+    QEP_TAB *const tab, const mem_root_deque<Item *> &tmp_table_fields,
+    ORDER_with_src &tmp_table_group, bool save_sum_fields) {
   DBUG_TRACE;
   THD_STAGE_INFO(thd, stage_creating_tmp_table);
   const bool windowing = m_windows.elements > 0;
@@ -221,7 +220,7 @@ bool JOIN::create_intermediate_table(QEP_TAB *const tab,
                       tab->tmp_table_param->m_window->is_last()));
 
   TABLE *table =
-      create_tmp_table(thd, tab->tmp_table_param, *tmp_table_fields,
+      create_tmp_table(thd, tab->tmp_table_param, tmp_table_fields,
                        tmp_table_group.order, distinct_arg, save_sum_fields,
                        select_lex->active_options(), tmp_rows_limit, "");
   if (!table) return true;
@@ -269,14 +268,14 @@ bool JOIN::create_intermediate_table(QEP_TAB *const tab,
       goto err;
 
     if (alloc_group_fields(this, group_list.order)) goto err;
-    if (make_sum_func_list(all_fields, true)) goto err;
+    if (make_sum_func_list(*fields, true)) goto err;
     const bool need_distinct =
         !(tab->quick() && tab->quick()->is_agg_loose_index_scan());
     if (prepare_sum_aggregators(sum_funcs, need_distinct)) goto err;
     if (setup_sum_funcs(thd, sum_funcs)) goto err;
     group_list.clean();
   } else {
-    if (make_sum_func_list(all_fields, false)) goto err;
+    if (make_sum_func_list(*fields, false)) goto err;
     const bool need_distinct =
         !(tab->quick() && tab->quick()->is_agg_loose_index_scan());
     if (prepare_sum_aggregators(sum_funcs, need_distinct)) goto err;
@@ -1036,7 +1035,7 @@ enum CallingContext {
 
   TODO: The optimizer should output just one kind of structure directly.
  */
-void ConvertItemsToCopy(List<Item> *items, Field **fields,
+void ConvertItemsToCopy(const mem_root_deque<Item *> &items, Field **fields,
                         Temp_table_param *param) {
   DBUG_ASSERT(param->items_to_copy == nullptr);
 
@@ -1044,18 +1043,18 @@ void ConvertItemsToCopy(List<Item> *items, Field **fields,
   Func_ptr_array *copy_func =
       new (current_thd->mem_root) Func_ptr_array(current_thd->mem_root);
   Field **field_ptr = fields;
-  for (Item &item : *items) {
-    Item *real_item = item.real_item();
+  for (Item *item : VisibleFields(items)) {
+    Item *real_item = item->real_item();
     if (real_item->type() == Item::FIELD_ITEM) {
       Field *from_field = (pointer_cast<Item_field *>(real_item))->field;
       Field *to_field = *field_ptr;
       param->copy_fields.emplace_back(to_field, from_field, /*save=*/true);
-    } else if (item.real_item()->is_result_field()) {
+    } else if (item->real_item()->is_result_field()) {
       Field *to_field = *field_ptr;
-      item.set_result_field(to_field);
-      copy_func->push_back(Func_ptr(&item));
+      item->set_result_field(to_field);
+      copy_func->push_back(Func_ptr(item));
     } else {
-      Func_ptr ptr(&item);
+      Func_ptr ptr(item);
       ptr.set_override_result_field(*field_ptr);
       copy_func->push_back(ptr);
     }
@@ -1520,7 +1519,7 @@ unique_ptr_destroy_only<RowIterator> GetIteratorForDerivedTable(
     tmp_table_param = new (thd->mem_root) Temp_table_param;
     select_number = unit->first_select()->select_number;
   }
-  ConvertItemsToCopy(unit->get_field_list(),
+  ConvertItemsToCopy(*unit->get_field_list(),
                      qep_tab->table()->visible_field_ptr(), tmp_table_param);
   bool copy_fields_and_items_in_materialize = true;
   if (unit->is_simple()) {
@@ -1616,7 +1615,7 @@ unique_ptr_destroy_only<RowIterator> GetTableIterator(THD *thd,
     // join_materialize_semijoin, and don't have e.g. result fields set up
     // correctly, so we just clear it and create our own.
     sjm->table_param.items_to_copy = nullptr;
-    ConvertItemsToCopy(&sjm->sj_nest->nested_join->sj_inner_exprs,
+    ConvertItemsToCopy(sjm->sj_nest->nested_join->sj_inner_exprs,
                        qep_tab->table()->visible_field_ptr(),
                        &sjm->table_param);
 
@@ -1654,9 +1653,9 @@ unique_ptr_destroy_only<RowIterator> GetTableIterator(THD *thd,
     // TODO: It could be possible to join this with an existing condition,
     // and possibly also in some cases when scanning each table.
     vector<Item *> not_null_conditions;
-    for (Item &item : sjm->sj_nest->nested_join->sj_inner_exprs) {
-      if (item.maybe_null) {
-        Item *condition = new Item_func_isnotnull(&item);
+    for (Item *item : sjm->sj_nest->nested_join->sj_inner_exprs) {
+      if (item->maybe_null) {
+        Item *condition = new Item_func_isnotnull(item);
         condition->quick_fix_field();
         condition->update_used_tables();
         condition->apply_is_true();
@@ -2982,7 +2981,8 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
       }
 
       ORDER *order = create_order_from_distinct(
-          thd, ref_items[qep_tab->ref_item_slice], desired_order, fields_list,
+          thd, ref_items[qep_tab->ref_item_slice], desired_order,
+          *query_block_fields,
           /*skip_aggregates=*/false, /*convert_bit_fields_to_long=*/false,
           &all_order_fields_used);
       if (order == nullptr) {
@@ -6250,16 +6250,14 @@ int update_item_cache_if_changed(List<Cached_item> &list) {
   Change old item_field to use a new field with points at saved fieldvalue
   This function is only called before use of send_result_set_metadata.
 
-  @param all_fields                  all fields list; should really be const,
+  @param fields                      list of all fields; should really be const,
                                        but Item does not always respect
                                        constness
-  @param num_select_elements         number of elements in select item list
   @param thd                         THD pointer
   @param [in,out] param              temporary table parameters
   @param [out] ref_item_array        array of pointers to top elements of field
                                        list
-  @param [out] res_selected_fields   new list of items of select item list
-  @param [out] res_all_fields        new list of all items
+  @param [out] res_fields            new list of items of select item list
 
   @todo
     In most cases this result will be sent to the user.
@@ -6270,16 +6268,13 @@ int update_item_cache_if_changed(List<Cached_item> &list) {
   @returns false if success, true if error
 */
 
-bool setup_copy_fields(List<Item> &all_fields, size_t num_select_elements,
-                       THD *thd, Temp_table_param *param,
-                       Ref_item_array ref_item_array,
-                       List<Item> *res_selected_fields,
-                       List<Item> *res_all_fields) {
+bool setup_copy_fields(const mem_root_deque<Item *> &fields, THD *thd,
+                       Temp_table_param *param, Ref_item_array ref_item_array,
+                       mem_root_deque<Item *> *res_fields) {
   DBUG_TRACE;
 
-  res_selected_fields->empty();
-  res_all_fields->empty();
-  size_t border = all_fields.size() - num_select_elements;
+  res_fields->clear();
+  size_t num_hidden_fields = CountHiddenFields(fields);
   Mem_root_vector<Item_copy *> extra_funcs(
       Mem_root_allocator<Item_copy *>(thd->mem_root));
 
@@ -6287,16 +6282,15 @@ bool setup_copy_fields(List<Item> &all_fields, size_t num_select_elements,
   DBUG_ASSERT(param->copy_fields.empty());
 
   try {
-    param->grouped_expressions.reserve(all_fields.size());
+    param->grouped_expressions.reserve(fields.size());
     param->copy_fields.reserve(param->field_count);
-    extra_funcs.reserve(border);
+    extra_funcs.reserve(num_hidden_fields);
   } catch (std::bad_alloc &) {
     return true;
   }
 
-  List_iterator_fast<Item> li(all_fields);
-  Item *pos;
-  for (size_t i = 0; (pos = li++); i++) {
+  for (size_t i = 0; i < fields.size(); i++) {
+    Item *pos = fields[i];
     Item *real_pos = pos->real_item();
     if (real_pos->type() == Item::FIELD_ITEM) {
       Item_field *item = new Item_field(thd, ((Item_field *)real_pos));
@@ -6349,19 +6343,17 @@ bool setup_copy_fields(List<Item> &all_fields, size_t num_select_elements,
       Item_copy *item_copy = Item_copy::create(pos);
       if (item_copy == nullptr) return true;
       pos = item_copy;
-      if (i < border)  // HAVING, ORDER and GROUP BY
+      if (fields[i]->hidden)  // HAVING, ORDER and GROUP BY
         extra_funcs.push_back(item_copy);
       else
         param->grouped_expressions.push_back(item_copy);
     }
-    res_all_fields->push_back(pos);
-    ref_item_array[((i < border) ? all_fields.size() - i - 1 : i - border)] =
-        pos;
+    pos->hidden = fields[i]->hidden;
+    res_fields->push_back(pos);
+    ref_item_array[fields[i]->hidden ? fields.size() - i - 1
+                                     : i - num_hidden_fields] = pos;
   }
 
-  List_iterator_fast<Item> itr(*res_all_fields);
-  for (size_t i = 0; i < border; i++) itr++;
-  itr.sublist(*res_selected_fields, num_select_elements);
   /*
     Put elements from HAVING, ORDER BY and GROUP BY last to ensure that any
     reference used in these will resolve to a item that is already calculated
@@ -6422,19 +6414,18 @@ bool copy_fields_and_funcs(Temp_table_param *param, const THD *thd,
   group item.
  */
 static bool replace_embedded_rollup_references_with_tmp_fields(
-    THD *thd, Item *item, List<Item> *all_fields) {
+    THD *thd, Item *item, mem_root_deque<Item *> *fields) {
   if (!item->has_rollup_expr()) {
     return false;
   }
-  const auto replace_functor = [thd, item, all_fields](
-                                   Item *sub_item, Item *,
-                                   unsigned) -> ReplaceResult {
+  const auto replace_functor = [thd, item, fields](Item *sub_item, Item *,
+                                                   unsigned) -> ReplaceResult {
     if (!is_rollup_group_wrapper(sub_item)) {
       return {ReplaceResult::KEEP_TRAVERSING, nullptr};
     }
-    for (Item &other_item : *all_fields) {
-      if (other_item.eq(sub_item, false)) {
-        Field *field = other_item.get_tmp_table_field();
+    for (Item *other_item : *fields) {
+      if (other_item->eq(sub_item, false)) {
+        Field *field = other_item->get_tmp_table_field();
         Item *item_field = new (thd->mem_root) Item_field(field);
         if (item_field == nullptr) return {ReplaceResult::ERROR, nullptr};
         item_field->item_name = item->item_name;
@@ -6451,37 +6442,32 @@ static bool replace_embedded_rollup_references_with_tmp_fields(
   Change all funcs and sum_funcs to fields in tmp table, and create
   new list of all items.
 
-  @param all_fields                  all fields list; should really be const,
+  @param fields                      list of all fields; should really be const,
                                        but Item does not always respect
                                        constness
-  @param num_select_elements         number of elements in select item list
   @param thd                         THD pointer
   @param [out] ref_item_array        array of pointers to top elements of filed
   list
-  @param [out] res_selected_fields   new list of items of select item list
-  @param [out] res_all_fields        new list of all items
+  @param [out] res_fields            new list of all items
 
   @returns false if success, true if error
 */
 
-bool change_to_use_tmp_fields(List<Item> *all_fields,
-                              size_t num_select_elements, THD *thd,
+bool change_to_use_tmp_fields(mem_root_deque<Item *> *fields, THD *thd,
                               Ref_item_array ref_item_array,
-                              List<Item> *res_selected_fields,
-                              List<Item> *res_all_fields) {
+                              mem_root_deque<Item *> *res_fields) {
   DBUG_TRACE;
 
-  res_selected_fields->empty();
-  res_all_fields->empty();
+  res_fields->clear();
 
-  List_iterator_fast<Item> li(*all_fields);
-  size_t border = all_fields->size() - num_select_elements;
-  Item *item;
-  for (size_t i = 0; (item = li++); i++) {
+  auto it = fields->begin();
+  size_t num_hidden_fields = CountHiddenFields(*fields);
+  for (size_t i = 0; it != fields->end(); ++i, ++it) {
+    Item *item = *it;
     Item_field *orig_field = item->real_item()->type() == Item::FIELD_ITEM
                                  ? down_cast<Item_field *>(item->real_item())
                                  : nullptr;
-    Item *new_item = nullptr;
+    Item *new_item;
     Field *field;
     if (item->has_aggregation() && item->type() != Item::SUM_FUNC_ITEM)
       new_item = item;
@@ -6498,12 +6484,11 @@ bool change_to_use_tmp_fields(List<Item> *all_fields,
         */
         Item_func_set_user_var *suv =
             new Item_func_set_user_var(thd, (Item_func_set_user_var *)item);
-        if (suv == nullptr) return true;
-        Item_field *suv_item = new Item_field(field);
-        if (suv_item == nullptr) return true;
-        List<Item> list;
-        list.push_back(suv_item);
-        suv->set_arguments(list, true);
+        Item_field *new_field = new Item_field(field);
+        if (!suv || !new_field) return true;  // Fatal error
+        mem_root_deque<Item *> list(thd->mem_root);
+        list.push_back(new_field);
+        suv->set_arguments(&list, true);
         new_item = suv;
       } else
         new_item = item;
@@ -6538,20 +6523,19 @@ bool change_to_use_tmp_fields(List<Item> *all_fields,
 #endif
     } else {
       new_item = item;
-      replace_embedded_rollup_references_with_tmp_fields(thd, item, all_fields);
+      replace_embedded_rollup_references_with_tmp_fields(thd, item, fields);
     }
-    res_all_fields->push_back(new_item);
+
+    new_item->hidden = item->hidden;
+    res_fields->push_back(new_item);
     /*
       Cf. comment explaining the reordering going on below in
       similar section of change_to_use_tmp_fields_except_sums
     */
-    ref_item_array[((i < border) ? all_fields->size() - i - 1 : i - border)] =
-        new_item;
+    ref_item_array[item->hidden ? fields->size() - i - 1
+                                : i - num_hidden_fields] = new_item;
   }
 
-  List_iterator_fast<Item> itr(*res_all_fields);
-  for (size_t i = 0; i < border; i++) itr++;
-  itr.sublist(*res_selected_fields, num_select_elements);
   return false;
 }
 
@@ -6602,118 +6586,113 @@ static bool replace_contents_of_rollup_wrappers_with_tmp_fields(
   sorted in the right order. (Otherwise, change_to_use_tmp_fields() would
   be used.)
 
-  @param all_fields                  all fields list; should really be const,
+  @param fields                      list of all fields; should really be const,
                                        but Item does not always respect
                                        constness
-  @param num_select_elements         number of elements in select item list
   @param select                      the query block we are doing this to
   @param thd                         THD pointer
   @param [out] ref_item_array        array of pointers to top elements of filed
   list
-  @param [out] res_selected_fields   new list of items of select item list
-  @param [out] res_all_fields        new list of all items
+  @param [out] res_fields            new list of items of select item list
 
   @returns false if success, true if error
 */
 
-bool change_to_use_tmp_fields_except_sums(List<Item> *all_fields,
-                                          size_t num_select_elements, THD *thd,
-                                          SELECT_LEX *select,
+bool change_to_use_tmp_fields_except_sums(mem_root_deque<Item *> *fields,
+                                          THD *thd, SELECT_LEX *select,
                                           Ref_item_array ref_item_array,
-                                          List<Item> *res_selected_fields,
-                                          List<Item> *res_all_fields) {
+                                          mem_root_deque<Item *> *res_fields) {
   DBUG_TRACE;
-  res_selected_fields->empty();
-  res_all_fields->empty();
+  res_fields->clear();
 
-  size_t border = all_fields->size() - num_select_elements;
+  auto it = fields->begin();
+  size_t num_hidden_fields = CountHiddenFields(*fields);
+  for (size_t i = 0; it != fields->end(); ++i, ++it) {
+    Item *item = *it;
+    /*
+      Below we create "new_item" using get_tmp_table_item
+      based on fields[i] and assign them to res_fields[i].
 
-  {
-    List_iterator<Item> li(*all_fields);
-    Item *item;
-    for (size_t i = 0; (item = li++); i++) {
-      /*
-        Below we create "new_item" using get_tmp_table_item
-        based on all_fields[i] and assign them to res_all_fields[i].
+      The new items are also put into ref_item_array, but in another order,
+      cf the diagram below.
 
-        The new items are also put into ref_item_array, but in another order,
-        cf the diagram below.
+      Example of the population of ref_item_array and res_fields
+      based on fields:
 
-        Example of the population of ref_item_array, ref_all_fields and
-        res_selected_fields based on all_fields:
+      res_fields
+         |
+         V
+       +--+   +--+   +--+   +--+   +--+   +--+          +--+
+       |0 |-->|  |-->|  |-->|3 |-->|4 |-->|  |--> .. -->|9 |
+       +--+   +--+   +--+   +--+   +--+   +--+          +--+
+                              |     |
+        ,------------->--------\----/
+        |                       |
+      +-^-+---+---+---+---+---#-^-+---+---+---+
+      |   |   |   |   |   |   #   |   |   |   | ref_item_array
+      +---+---+---+---+---+---#---+---+---+---+
+        4   5   6   7   8   9   3   2   1   0   position in fields list
+                                                similar to res_fields pos
+      all_fields.elements == 10      border == 4
+      (visible) elements == 6
 
-        res_all_fields             res_selected_fields
-           |                          |
-           V                          V
-         +--+   +--+   +--+   +--+   +--+   +--+          +--+
-         |0 |-->|  |-->|  |-->|3 |-->|4 |-->|  |--> .. -->|9 |
-         +--+   +--+   +--+   +--+   +--+   +--+          +--+
-                                |     |
-          ,------------->--------\----/
-          |                       |
-        +-^-+---+---+---+---+---#-^-+---+---+---+
-        |   |   |   |   |   |   #   |   |   |   | ref_item_array
-        +---+---+---+---+---+---#---+---+---+---+
-          4   5   6   7   8   9   3   2   1   0   position in all_fields list
-                                                  similar to ref_all_fields pos
-        all_fields.elements == 10      border == 4
-        (visible) elements == 6
+      i==0   ->   afe-0-1 == 9     i==4 -> 4-4 == 0
+      i==1   ->   afe-1-1 == 8      :
+      i==2   ->   afe-2-1 == 7
+      i==3   ->   afe-3-1 == 6     i==9 -> 9-4 == 5
+    */
+    Item *new_item;
 
-        i==0   ->   afe-0-1 == 9     i==4 -> 4-4 == 0
-        i==1   ->   afe-1-1 == 8      :
-        i==2   ->   afe-2-1 == 7
-        i==3   ->   afe-3-1 == 6     i==9 -> 9-4 == 5
-      */
-      Item *new_item;
+    if (is_rollup_group_wrapper(item)) {
+      // If we cannot evaluate aggregates at this point, we also cannot
+      // evaluate rollup NULL items, so we will need to move the wrapper out
+      // into this layer.
+      Item_rollup_group_item *rollup_item =
+          down_cast<Item_rollup_group_item *>(item);
 
-      if (is_rollup_group_wrapper(item)) {
-        // If we cannot evaluate aggregates at this point, we also cannot
-        // evaluate rollup NULL items, so we will need to move the wrapper out
-        // into this layer.
-        Item_rollup_group_item *rollup_item =
-            down_cast<Item_rollup_group_item *>(item);
+      rollup_item->inner_item()->set_result_field(item->get_result_field());
+      new_item = rollup_item->inner_item()->get_tmp_table_item(thd);
 
-        rollup_item->inner_item()->set_result_field(item->get_result_field());
-        new_item = rollup_item->inner_item()->get_tmp_table_item(thd);
+      // The group item may have been resolved to a different Item_field
+      // for the same field. Update it accordingly, for the sake of
+      // replace_contents_of_rollup_wrappers_with_tmp_fields() below.
+      ORDER *order =
+          select->find_in_group_list(rollup_item->inner_item(), nullptr);
+      down_cast<Item_rollup_group_item *>(order->rollup_item)
+          ->inner_item()
+          ->set_result_field(item->get_result_field());
 
-        // The group item may have been resolved to a different Item_field
-        // for the same field. Update it accordingly, for the sake of
-        // replace_contents_of_rollup_wrappers_with_tmp_fields() below.
-        ORDER *order =
-            select->find_in_group_list(rollup_item->inner_item(), nullptr);
-        down_cast<Item_rollup_group_item *>(order->rollup_item)
-            ->inner_item()
-            ->set_result_field(item->get_result_field());
-
-        new_item = new Item_rollup_group_item(rollup_item->min_rollup_level(),
-                                              new_item);
-        if (new_item == nullptr ||
-            select->join->rollup_group_items.push_back(
-                down_cast<Item_rollup_group_item *>(new_item))) {
-          return true;
-        }
-        new_item->quick_fix_field();
-
-        // Remove the rollup wrapper on the inner level; it's harmless to keep
-        // on the lower level, but also pointless.
-        thd->change_item_tree(li.ref(), unwrap_rollup_group(item));
-      } else if (item->has_rollup_expr()) {
-        // Delay processing until below; see comment.
-        new_item = item->copy_or_same(thd);
-      } else {
-        new_item = item->get_tmp_table_item(thd);
+      new_item =
+          new Item_rollup_group_item(rollup_item->min_rollup_level(), new_item);
+      if (new_item == nullptr ||
+          select->join->rollup_group_items.push_back(
+              down_cast<Item_rollup_group_item *>(new_item))) {
+        return true;
       }
+      new_item->quick_fix_field();
 
-      new_item->update_used_tables();
-
-      res_all_fields->push_back(new_item);
-      ref_item_array[((i < border) ? all_fields->size() - i - 1 : i - border)] =
-          new_item;
+      // Remove the rollup wrapper on the inner level; it's harmless to keep
+      // on the lower level, but also pointless.
+      Item *unwrapped_item = unwrap_rollup_group(item);
+      unwrapped_item->hidden = item->hidden;
+      thd->change_item_tree(&*it, unwrapped_item);
+    } else if (item->has_rollup_expr()) {
+      // Delay processing until below; see comment.
+      new_item = item->copy_or_same(thd);
+    } else {
+      new_item = item->get_tmp_table_item(thd);
     }
+
+    new_item->update_used_tables();
+
+    new_item->hidden = item->hidden;
+    res_fields->push_back(new_item);
+    ref_item_array[(item->hidden ? fields->size() - i - 1
+                                 : i - num_hidden_fields)] = new_item;
   }
 
-  for (Item &item : *all_fields) {
-    if (!is_rollup_group_wrapper(&item) && item.has_rollup_expr()) {
+  for (Item *item : *fields) {
+    if (!is_rollup_group_wrapper(item) && item->has_rollup_expr()) {
       // An item that isn't a rollup wrapper itself, but depends on one (or
       // multiple). We need to go into those items, find the rollup wrappers,
       // and replace them with rollup wrappers around the temporary fields,
@@ -6722,15 +6701,11 @@ bool change_to_use_tmp_fields_except_sums(List<Item> *all_fields,
       // fields for all the rollup wrappers (the function uses them to know
       // which temporary field to replace with).
       if (replace_contents_of_rollup_wrappers_with_tmp_fields(thd, select,
-                                                              &item)) {
+                                                              item)) {
         return true;
       }
     }
   }
-
-  List_iterator_fast<Item> itr(*res_all_fields);
-  for (size_t i = 0; i < border; i++) itr++;
-  itr.sublist(*res_selected_fields, num_select_elements);
 
   return thd->is_fatal_error();
 }
@@ -6833,15 +6808,15 @@ int UnqualifiedCountIterator::Read() {
     return -1;
   }
 
-  for (Item &item : m_join->all_fields) {
-    if (item.type() == Item::SUM_FUNC_ITEM &&
-        down_cast<Item_sum &>(item).sum_func() == Item_sum::COUNT_FUNC) {
+  for (Item *item : *m_join->fields) {
+    if (item->type() == Item::SUM_FUNC_ITEM &&
+        down_cast<Item_sum *>(item)->sum_func() == Item_sum::COUNT_FUNC) {
       int error;
       ulonglong count = get_exact_record_count(m_join->qep_tab,
                                                m_join->primary_tables, &error);
       if (error) return 1;
 
-      down_cast<Item_sum_count &>(item).make_const(
+      down_cast<Item_sum_count *>(item)->make_const(
           static_cast<longlong>(count));
     }
   }
@@ -6875,8 +6850,8 @@ int ZeroRowsAggregatedIterator::Read() {
     that will be returned) because join->having may refer to
     fields that are not part of the result columns.
    */
-  for (Item &item : m_join->all_fields) {
-    item.no_rows_in_result();
+  for (Item *item : *m_join->fields) {
+    item->no_rows_in_result();
   }
 
   m_has_row = false;
@@ -6887,8 +6862,9 @@ int ZeroRowsAggregatedIterator::Read() {
 }
 
 TableValueConstructorIterator::TableValueConstructorIterator(
-    THD *thd, ha_rows *examined_rows, const List<List<Item>> &row_value_list,
-    List<Item> *join_fields)
+    THD *thd, ha_rows *examined_rows,
+    const mem_root_deque<mem_root_deque<Item *> *> &row_value_list,
+    mem_root_deque<Item *> *join_fields)
     : RowIterator(thd),
       m_examined_rows(examined_rows),
       m_row_value_list(row_value_list),
@@ -6906,17 +6882,17 @@ int TableValueConstructorIterator::Read() {
   // objects during resolving. We will instead use the single row directly from
   // SELECT_LEX::item_list, such that we don't have to change references here.
   if (m_row_value_list.size() != 1) {
-    List_STL_Iterator<Item> output_refs_it = m_output_refs->begin();
-    for (const Item &value : *m_row_it) {
-      Item_values_column &ref =
-          down_cast<Item_values_column &>(*output_refs_it);
+    auto output_refs_it = m_output_refs->begin();
+    for (const Item *value : **m_row_it) {
+      Item_values_column *ref =
+          down_cast<Item_values_column *>(*output_refs_it);
       ++output_refs_it;
 
       // Ideally we would not be casting away constness here. However, as the
       // evaluation of Item objects during execution is not const (i.e. none of
       // the val methods are const), the reference contained in a
       // Item_values_column object cannot be const.
-      ref.set_value(const_cast<Item *>(&value));
+      ref->set_value(const_cast<Item *>(value));
     }
     ++m_row_it;
   }

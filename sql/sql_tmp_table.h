@@ -51,8 +51,9 @@ enum enum_internal_tmp_mem_storage_engine {
   TMP_TABLE_TEMPTABLE
 };
 
-TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
-                        ORDER *group, bool distinct, bool save_sum_fields,
+TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
+                        const mem_root_deque<Item *> &fields, ORDER *group,
+                        bool distinct, bool save_sum_fields,
                         ulonglong select_options, ha_rows rows_limit,
                         const char *table_alias);
 bool open_tmp_table(TABLE *table);

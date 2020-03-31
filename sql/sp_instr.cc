@@ -290,8 +290,7 @@ class SP_instr_error_handler : public Internal_error_handler {
       CREATE TABLE ... SELECT statement.
     */
     if (thd->lex && thd->lex->sql_command == SQLCOM_CREATE_TABLE &&
-        thd->lex->select_lex &&
-        thd->lex->select_lex->fields_list.elements > 0 &&
+        thd->lex->select_lex && !thd->lex->select_lex->field_list_is_empty() &&
         sql_errno == ER_TABLE_EXISTS_ERROR)
       cts_table_exists_error = true;
 
@@ -807,7 +806,7 @@ void sp_lex_instr::cleanup_before_parsing(THD *thd) {
   // Remove previously stored trigger-field items.
   sp_head *sp = thd->sp_runtime_ctx->sp;
 
-  if (sp->m_type == enum_sp_type::TRIGGER) m_trig_field_list.empty();
+  if (sp->m_type == enum_sp_type::TRIGGER) m_trig_field_list.clear();
 }
 
 void sp_lex_instr::get_query(String *sql_query) const {
@@ -1056,9 +1055,8 @@ void sp_instr_set_trigger_field::print(const THD *thd, String *str) {
 }
 
 bool sp_instr_set_trigger_field::on_after_expr_parsing(THD *thd) {
-  DBUG_ASSERT(thd->lex->select_lex->fields_list.elements == 1);
-
-  m_value_item = thd->lex->select_lex->fields_list.head();
+  m_value_item = thd->lex->select_lex->single_visible_field();
+  DBUG_ASSERT(m_value_item != nullptr);
 
   DBUG_ASSERT(!m_trigger_field);
 
@@ -1268,9 +1266,8 @@ bool sp_instr_jump_case_when::on_after_expr_parsing(THD *thd) {
   //     item from its list.
 
   if (!m_expr_item) {
-    DBUG_ASSERT(thd->lex->select_lex->fields_list.elements == 1);
-
-    m_expr_item = thd->lex->select_lex->fields_list.head();
+    m_expr_item = thd->lex->select_lex->single_visible_field();
+    DBUG_ASSERT(m_expr_item != nullptr);
   }
 
   // Setup main expression item (m_expr_item).
@@ -1339,7 +1336,7 @@ sp_instr_hpush_jump::sp_instr_hpush_jump(uint ip, sp_pcontext *ctx,
 }
 
 sp_instr_hpush_jump::~sp_instr_hpush_jump() {
-  m_handler->condition_values.empty();
+  m_handler->condition_values.clear();
   m_handler = nullptr;
 }
 

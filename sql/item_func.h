@@ -99,10 +99,10 @@ class Func_args_handle {
 
  public:
   uint arg_count;  ///< How many arguments in 'args'
-  Func_args_handle() {}
+  Func_args_handle() = default;
+  virtual ~Func_args_handle() = default;
   Func_args_handle(uint c) : args(m_embedded_arguments), arg_count(c) {}
   Func_args_handle(Item **a, uint c) : args(a), arg_count(c) {}
-  virtual ~Func_args_handle() {}
   /// Changes argument and maintains any necessary invariants.
   virtual void set_arg_resolve(THD *, uint i, Item *arg) { args[i] = arg; }
   Item *func_arg(uint i) { return args[i]; }
@@ -384,7 +384,9 @@ class Item_func : public Item_result_field, public Func_args_handle {
     } else
       arg_count = 0;  // OOM
   }
-  Item_func(List<Item> &list) { set_arguments(list, false); }
+  explicit Item_func(mem_root_deque<Item *> *list) {
+    set_arguments(list, false);
+  }
 
   Item_func(const POS &pos, PT_item_list *opt_list);
 
@@ -434,9 +436,9 @@ class Item_func : public Item_result_field, public Func_args_handle {
                           constructors (Item_func(POS,...)) i.e. for use
                           in the parser
   */
-  void set_arguments(List<Item> &list, bool context_free);
+  void set_arguments(mem_root_deque<Item *> *list, bool context_free);
   void split_sum_func(THD *thd, Ref_item_array ref_item_array,
-                      List<Item> &fields) override;
+                      mem_root_deque<Item *> *fields) override;
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
   void print_op(const THD *thd, String *str, enum_query_type query_type) const;
@@ -713,7 +715,9 @@ class Item_real_func : public Item_func {
     set_data_type_double();
   }
 
-  Item_real_func(List<Item> &list) : Item_func(list) { set_data_type_double(); }
+  explicit Item_real_func(mem_root_deque<Item *> *list) : Item_func(list) {
+    set_data_type_double();
+  }
 
   Item_real_func(const POS &pos, PT_item_list *list) : Item_func(pos, list) {
     set_data_type_double();
@@ -756,7 +760,7 @@ class Item_func_numhybrid : public Item_func {
     collation.set_numeric();
   }
 
-  Item_func_numhybrid(List<Item> &list)
+  explicit Item_func_numhybrid(mem_root_deque<Item *> *list)
       : Item_func(list), hybrid_type(REAL_RESULT) {
     collation.set_numeric();
   }
@@ -923,7 +927,7 @@ class Item_int_func : public Item_func {
     set_data_type_longlong();
   }
 
-  Item_int_func(List<Item> &list) : Item_func(list) {
+  explicit Item_int_func(mem_root_deque<Item *> *list) : Item_func(list) {
     set_data_type_longlong();
   }
   Item_int_func(const POS &pos, PT_item_list *opt_list)
@@ -1578,6 +1582,10 @@ class Item_rollup_group_item final : public Item_func {
     max_length = inner_item->max_length;
     set_data_type(inner_item->data_type());
     collation = inner_item->collation;
+    // We're going to replace inner_item in the SELECT list, so copy its hidden
+    // status. (We could have done this in the caller, but it fits naturally in
+    // with all the other copying done here.)
+    hidden = inner_item->hidden;
     maybe_null = true;
     set_rollup_expr();
   }
@@ -3300,8 +3308,8 @@ class Item_func_get_user_var : public Item_var_func,
   a lot. Actually you should never obtain its value.
 
   The only two reasons for this thing being an Item is possibility to store it
-  in List<Item> and desire to place this code somewhere near other functions
-  working with user variables.
+  in const mem_root_deque<Item> and desire to place this code somewhere near
+  other functions working with user variables.
 */
 class Item_user_var_as_out_param : public Item {
   Name_string name;

@@ -1838,7 +1838,7 @@ bool explain_single_table_modification(THD *explain_thd, const THD *query_thd,
     However without the presence of the top-level JOIN we have to
     prepare/initialize Query_result_send object manually.
   */
-  List<Item> dummy;
+  mem_root_deque<Item *> dummy(explain_thd->mem_root);
   if (result.prepare(explain_thd, dummy, explain_thd->lex->unit))
     return true; /* purecov: inspected */
 
@@ -2079,9 +2079,9 @@ static bool ExplainIterator(THD *ethd, const THD *query_thd,
                             SELECT_LEX_UNIT *unit) {
   Query_result_send result;
   {
-    List<Item> field_list;
+    mem_root_deque<Item *> field_list(ethd->mem_root);
     Item *item = new Item_empty_string("EXPLAIN", 78, system_charset_info);
-    if (field_list.push_back(item)) return true;
+    field_list.push_back(item);
     if (result.send_result_set_metadata(
             ethd, field_list, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF)) {
       return true;
@@ -2126,10 +2126,10 @@ static bool ExplainIterator(THD *ethd, const THD *query_thd,
     } else {
       explain += PrintQueryPlan(0, nullptr);
     }
-    List<Item> field_list;
+    mem_root_deque<Item *> field_list(ethd->mem_root);
     Item *item =
         new Item_string(explain.data(), explain.size(), system_charset_info);
-    if (field_list.push_back(item)) return true;
+    field_list.push_back(item);
 
     if (query_thd->killed) {
       ethd->raise_warning(ER_QUERY_INTERRUPTED);
@@ -2149,16 +2149,17 @@ static bool ExplainIterator(THD *ethd, const THD *query_thd,
 class Query_result_null : public Query_result_interceptor {
  public:
   Query_result_null() : Query_result_interceptor() {}
-  uint field_count(List<Item> &) const override { return 0; }
-  bool send_result_set_metadata(THD *, List<Item> &, uint) override {
+  uint field_count(const mem_root_deque<Item *> &) const override { return 0; }
+  bool send_result_set_metadata(THD *, const mem_root_deque<Item *> &,
+                                uint) override {
     return false;
   }
-  bool send_data(THD *thd, List<Item> &items) override {
+  bool send_data(THD *thd, const mem_root_deque<Item *> &items) override {
     // Evaluate all the items, to make sure that any subqueries in SELECT lists
     // are evaluated. We don't get their timings added to any parents, but at
     // least we will have real row counts and times printed out.
-    for (Item &item : items) {
-      item.val_str(&m_str);
+    for (Item *item : VisibleFields(items)) {
+      item->val_str(&m_str);
       if (thd->is_error()) return true;
     }
     return false;
@@ -2255,7 +2256,7 @@ bool explain_query(THD *explain_thd, const THD *query_thd,
   if (other) {
     if (!((explain_result = new (explain_thd->mem_root) Query_result_send())))
       return true; /* purecov: inspected */
-    List<Item> dummy;
+    mem_root_deque<Item *> dummy(explain_thd->mem_root);
     if (explain_result->prepare(explain_thd, dummy, explain_thd->lex->unit))
       return true; /* purecov: inspected */
   } else {
@@ -2647,8 +2648,8 @@ vector<RowIterator::Child> GetIteratorsFromSelectList(JOIN *join) {
   }
 
   // Look for any Items in the projection list itself.
-  for (Item &item : *join->get_current_fields()) {
-    GetIteratorsFromItem(&item, &ret);
+  for (Item *item : VisibleFields(*join->get_current_fields())) {
+    GetIteratorsFromItem(item, &ret);
   }
 
   // Look for any Items that were materialized into fields during execution.

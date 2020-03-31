@@ -98,6 +98,15 @@ bool contextualize_safe(Context *pc, Node node) {
   return node->contextualize(pc);
 }
 
+template <typename Context>
+bool contextualize_safe(Context *pc, mem_root_deque<Item *> *list) {
+  if (list == nullptr) return false;
+  for (Item *&item : *list) {
+    if (item->itemize(pc, &item)) return true;
+  }
+  return false;
+}
+
 /**
   Convenience function that calls Parse_tree_node::contextualize() on each of
   the nodes that are non-NULL, stopping when a call returns true.
@@ -814,7 +823,7 @@ Sql_cmd *PT_update::make_cmd(THD *thd) {
   if (column_list->contextualize(&pc) || value_list->contextualize(&pc)) {
     return nullptr;
   }
-  select->fields_list = column_list->value;
+  select->fields = column_list->value;
 
   // Ensure we're resetting parsing context of the right select
   DBUG_ASSERT(select->parsing_place == CTX_UPDATE_VALUE);
@@ -853,14 +862,9 @@ Sql_cmd *PT_update::make_cmd(THD *thd) {
 
 bool PT_insert_values_list::contextualize(Parse_context *pc) {
   if (super::contextualize(pc)) return true;
-  List_iterator<List_item> it1(many_values);
-  List<Item> *item_list;
-  while ((item_list = it1++)) {
-    List_iterator<Item> it2(*item_list);
-    Item *item;
-    while ((item = it2++)) {
-      if (item->itemize(pc, &item)) return true;
-      it2.replace(item);
+  for (List_item *item_list : many_values) {
+    for (auto it = item_list->begin(); it != item_list->end(); ++it) {
+      if ((*it)->itemize(pc, &*it)) return true;
     }
   }
 
@@ -954,7 +958,7 @@ Sql_cmd *PT_insert::make_cmd(THD *thd) {
     DBUG_ASSERT(pc.select->parsing_place == CTX_INSERT_VALUES);
     pc.select->parsing_place = CTX_NONE;
 
-    lex->bulk_insert_row_cnt = row_value_list->get_many_values().elements;
+    lex->bulk_insert_row_cnt = row_value_list->get_many_values().size();
   }
 
   // Create a derived table to use as a table reference to the VALUES rows,
@@ -1039,7 +1043,7 @@ Sql_cmd *PT_call::make_cmd(THD *thd) {
 
   sp_add_own_used_routine(lex, thd, Sroutine_hash_entry::PROCEDURE, proc_name);
 
-  List<Item> *proc_args = nullptr;
+  mem_root_deque<Item *> *proc_args = nullptr;
   if (opt_expr_list != nullptr) proc_args = &opt_expr_list->value;
 
   return new (thd->mem_root) Sql_cmd_call(proc_name, proc_args);
@@ -1113,8 +1117,8 @@ bool PT_table_value_constructor::contextualize(Parse_context *pc) {
 
   // Some queries, such as CREATE TABLE with SELECT, require item_list to
   // contain items to call SELECT_LEX::prepare.
-  for (Item &item : *pc->select->row_value_list->head()) {
-    pc->select->fields_list.push_back(&item);
+  for (Item *item : *pc->select->row_value_list->front()) {
+    pc->select->fields.push_back(item);
   }
 
   return false;
@@ -2684,20 +2688,17 @@ Sql_cmd *PT_load_table::make_cmd(THD *thd) {
     lex->set_ignore(true);
 
   Parse_context pc(thd, select);
-  if (contextualize_safe(&pc, m_opt_fields_or_vars)) return nullptr;
-
-  if (m_opt_set_fields != nullptr) {
-    if (m_opt_set_fields->contextualize(&pc) ||
-        m_opt_set_exprs->contextualize(&pc))
-      return nullptr;
-  }
+  if (contextualize_safe(&pc, &m_cmd.m_opt_fields_or_vars) ||
+      contextualize_safe(&pc, &m_cmd.m_opt_set_fields) ||
+      contextualize_safe(&pc, &m_cmd.m_opt_set_exprs))
+    return nullptr;
 
   return &m_cmd;
 }
 
 bool PT_select_item_list::contextualize(Parse_context *pc) {
   if (super::contextualize(pc)) return true;
-  pc->select->fields_list = value;
+  pc->select->fields = value;
   return false;
 }
 
@@ -2990,7 +2991,7 @@ bool PT_set::contextualize(Parse_context *pc) {
   LEX *lex = thd->lex;
   lex->sql_command = SQLCOM_SET_OPTION;
   lex->option_type = OPT_SESSION;
-  lex->var_list.empty();
+  lex->var_list.clear();
   lex->autocommit = false;
 
   sp_create_assignment_lex(thd, set_pos.raw.end);

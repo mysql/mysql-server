@@ -213,9 +213,9 @@ class Query_fetch_protocol_binary final : public Query_result_send {
  public:
   explicit Query_fetch_protocol_binary(THD *thd)
       : Query_result_send(), protocol(thd) {}
-  bool send_result_set_metadata(THD *thd, List<Item> &list,
+  bool send_result_set_metadata(THD *thd, const mem_root_deque<Item *> &list,
                                 uint flags) override;
-  bool send_data(THD *thd, List<Item> &items) override;
+  bool send_data(THD *thd, const mem_root_deque<Item *> &items) override;
   bool send_eof(THD *thd) override;
 };
 
@@ -458,10 +458,6 @@ class Statement_backup {
     return;
   }
 };
-
-static bool send_statement(THD *thd, const Prepared_statement *stmt,
-                           uint no_columns, Query_result *result,
-                           List<Item> *types);
 
 /**
   Data conversion routines.
@@ -1053,16 +1049,21 @@ bool mysql_test_show(Prepared_statement *stmt, TABLE_LIST *tables) {
   return false;
 }
 
-bool send_statement(THD *thd, const Prepared_statement *stmt, uint no_columns,
-                    Query_result *result, List<Item> *types) {
+static bool send_statement(THD *thd, const Prepared_statement *stmt,
+                           uint no_columns, Query_result *result,
+                           const mem_root_deque<Item *> *types) {
   // Send the statement status(id, no_columns, no_params, error_count);
   bool rc = thd->get_protocol()->store_ps_status(
       stmt->id, no_columns, stmt->param_count,
       thd->get_stmt_da()->current_statement_cond_count());
-  if (!rc && stmt->param_count)
+  if (!rc && stmt->param_count) {
     // Send the list of parameters
-    rc |= thd->send_result_metadata((List<Item> *)&stmt->lex->param_list,
-                                    Protocol::SEND_EOF);
+    mem_root_deque<Item *> param_list(thd->mem_root);
+    for (Item_param &item : stmt->lex->param_list) {
+      param_list.push_back(&item);
+    }
+    rc |= thd->send_result_metadata(param_list, Protocol::SEND_EOF);
+  }
   if (rc) return true; /* purecov: inspected */
 
   // Send
@@ -1164,7 +1165,7 @@ bool Sql_cmd_create_table::prepare(THD *thd) {
   if (create_table_precheck(thd, query_expression_tables, create_table))
     return true;
 
-  if (select_lex->fields_list.elements) {
+  if (!select_lex->fields.empty()) {
     /* Base table and temporary table are not in the same name space. */
     if (!(lex->create_info->options & HA_LEX_CREATE_TMP_TABLE))
       create_table->open_type = OT_BASE_ONLY;
@@ -1178,8 +1179,8 @@ bool Sql_cmd_create_table::prepare(THD *thd) {
     Prepared_stmt_arena_holder ps_arena_holder(thd);
 
     Query_result *result = new (thd->mem_root)
-        Query_result_create(create_table, select_lex->fields_list,
-                            lex->duplicates, query_expression_tables);
+        Query_result_create(create_table, &select_lex->fields, lex->duplicates,
+                            query_expression_tables);
     if (result == nullptr) return true;
 
     bool link_to_local;
@@ -1253,7 +1254,7 @@ static bool mysql_test_create_view(Prepared_statement *stmt) {
       duplication; any further UNION-ed part isn't used for determining
       names of the view's columns.
     */
-    if (check_duplicate_names(view->derived_column_names(), select->fields_list,
+    if (check_duplicate_names(view->derived_column_names(), select->fields,
                               true)) {
       res = true;
       goto err;
@@ -1263,7 +1264,7 @@ static bool mysql_test_create_view(Prepared_statement *stmt) {
       Make sure the view doesn't have so many columns that we hit the
       64k header limit if the view is materialized as a MyISAM table.
     */
-    if (select->fields_list.elements > MAX_FIELDS) {
+    if (select->fields.size() > MAX_FIELDS) {
       my_error(ER_TOO_MANY_FIELDS, MYF(0));
       res = true;
       goto err;
@@ -1459,7 +1460,7 @@ bool Prepared_statement::prepare_query() {
 
   if (is_sql_prepare()) return false;
 
-  List<Item> *types = nullptr;
+  mem_root_deque<Item *> *types = nullptr;
   Query_result *result = nullptr;
   uint no_columns = 0;
 
@@ -2127,9 +2128,8 @@ void mysql_stmt_get_longdata(THD *thd, Prepared_statement *stmt,
 
 namespace {
 
-bool Query_fetch_protocol_binary::send_result_set_metadata(THD *thd,
-                                                           List<Item> &list,
-                                                           uint flags) {
+bool Query_fetch_protocol_binary::send_result_set_metadata(
+    THD *thd, const mem_root_deque<Item *> &list, uint flags) {
   bool rc;
 
   protocol.set_client_capabilities(
@@ -2158,7 +2158,8 @@ bool Query_fetch_protocol_binary::send_eof(THD *thd) {
   return false;
 }
 
-bool Query_fetch_protocol_binary::send_data(THD *thd, List<Item> &fields) {
+bool Query_fetch_protocol_binary::send_data(
+    THD *thd, const mem_root_deque<Item *> &fields) {
   bool rc;
 
   // set the current client capabilities before switching the protocol
@@ -3240,8 +3241,8 @@ bool Prepared_statement::validate_metadata(Prepared_statement *copy) {
   */
   if (is_sql_prepare() || lex->is_explain()) return false;
 
-  if (lex->select_lex->fields_list.elements !=
-      copy->lex->select_lex->fields_list.elements) {
+  if (lex->select_lex->num_visible_fields() !=
+      copy->lex->select_lex->num_visible_fields()) {
     /** Column counts mismatch, update the client */
     thd->server_status |= SERVER_STATUS_METADATA_CHANGED;
   }

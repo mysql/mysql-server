@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -273,7 +273,7 @@ void sp_create_assignment_lex(THD *thd, const char *option_ptr) {
 
   /* Set new LEX as if we at start of set rule. */
   lex->sql_command = SQLCOM_SET_OPTION;
-  lex->var_list.empty();
+  lex->var_list.clear();
   lex->autocommit = false;
 
   /*

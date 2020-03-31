@@ -884,8 +884,9 @@ inline void relocate_field(Field *field, uchar *pos, uchar *null_flags,
 #define AVG_STRING_LENGTH_TO_PACK_ROWS 64
 #define RATIO_TO_PACK_ROWS 2
 
-TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
-                        ORDER *group, bool distinct, bool save_sum_fields,
+TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
+                        const mem_root_deque<Item *> &fields, ORDER *group,
+                        bool distinct, bool save_sum_fields,
                         ulonglong select_options, ha_rows rows_limit,
                         const char *table_alias) {
   DBUG_TRACE;
@@ -997,6 +998,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   param->using_outer_summary_function = false;
   long hidden_field_count = param->hidden_field_count;
   const bool not_all_columns = !(select_options & TMP_TABLE_ALL_COLUMNS);
+
   /*
     total_uneven_bit_length is uneven bit length for visible fields
     hidden_uneven_bit_length is uneven bit length for hidden fields
@@ -1004,8 +1006,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   uint total_uneven_bit_length = 0;
   uint hidden_uneven_bit_length = 0;
 
-  for (Item &refitem : fields) {
-    Item *item = &refitem;
+  for (Item *item : fields) {
     Item::Type type = item->type();
     const bool is_sum_func =
         type == Item::SUM_FUNC_ITEM && !item->m_is_window_function;

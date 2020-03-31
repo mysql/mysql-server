@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,12 +21,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 // First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
-
 #include <gtest/gtest.h>
 #include <stddef.h>
+
 #include <string>
 
+#include "my_config.h"
 #include "sql/item_func.h"
 #include "sql/nested_join.h"
 #include "sql/sql_lex.h"
@@ -47,7 +47,7 @@ class TableFactorSyntaxTest : public ParserTest {
     SELECT_LEX *term1 = parse(query, expect_syntax_error ? ER_PARSE_ERROR : 0);
     EXPECT_EQ(nullptr, term1->first_inner_unit());
     EXPECT_EQ(nullptr, term1->next_select_in_list());
-    EXPECT_EQ(1, term1->get_fields_list()->head()->val_int());
+    EXPECT_EQ(1, term1->get_fields_list()->front()->val_int());
 
     SELECT_LEX_UNIT *top_union = term1->master_unit();
     EXPECT_EQ(nullptr, top_union->outer_select());
@@ -58,7 +58,7 @@ class TableFactorSyntaxTest : public ParserTest {
 
       EXPECT_EQ(nullptr, term2->first_inner_unit());
       EXPECT_EQ(term1, term2->next_select_in_list());
-      EXPECT_EQ(2, term2->get_fields_list()->head()->val_int());
+      EXPECT_EQ(2, term2->get_fields_list()->front()->val_int());
 
       if (num_terms <= 2) {
         EXPECT_EQ(nullptr, term2->next_select());
@@ -78,8 +78,8 @@ class TableFactorSyntaxTest : public ParserTest {
 
 void check_query_block(SELECT_LEX *block, int select_list_item,
                        const char *tablename) {
-  ASSERT_EQ(1U, block->fields_list.size());
-  EXPECT_EQ(select_list_item, block->fields_list.head()->val_int());
+  ASSERT_EQ(1U, block->num_visible_fields());
+  EXPECT_EQ(select_list_item, block->fields.front()->val_int());
 
   ASSERT_EQ(1U, block->top_join_list.size());
   EXPECT_STREQ(tablename, block->top_join_list.front()->alias);

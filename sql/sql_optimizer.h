@@ -281,7 +281,7 @@ class JOIN {
   double sort_cost{0.0};
   /// Expected cost of windowing;
   double windowing_cost{0.0};
-  List<Item> *fields;
+  mem_root_deque<Item *> *fields;
   List<Cached_item> group_fields{};
   List<Cached_item> group_fields_cache{};
   Item_sum **sum_funcs{nullptr};
@@ -357,21 +357,13 @@ class JOIN {
   Key_use_array keyuse_array;
 
   /// List storing all expressions used in query block
-  List<Item> &all_fields;
-
-  /// List storing all expressions of select list
-  List<Item> &fields_list;
-
-  /**
-     This is similar to tmp_fields_list, but it also contains necessary
-     extras: expressions added for ORDER BY, GROUP BY, window clauses,
-     underlying items of split items.
-  */
-  List<Item> *tmp_all_fields{nullptr};
+  mem_root_deque<Item *> *query_block_fields;
 
   /**
     Array of pointers to lists of expressions.
-    Each list represents the SELECT list at a certain stage of execution.
+    Each list represents the SELECT list at a certain stage of execution,
+    and also contains necessary extras: expressions added for ORDER BY,
+    GROUP BY, window clauses, underlying items of split items.
     This array is only used when the query makes use of tmp tables: after
     writing to tmp table (e.g. for GROUP BY), if this write also does a
     function's calculation (e.g. of SUM), after the write the function's value
@@ -380,10 +372,9 @@ class JOIN {
     expression (Item_field type instead of Item_sum), is needed. The new
     expressions are listed in JOIN::tmp_fields_list[x]; 'x' is a number
     (REF_SLICE_).
-    Same is applicable to tmp_all_fields.
     @see JOIN::make_tmp_tables_info()
   */
-  List<Item> *tmp_fields_list{nullptr};
+  mem_root_deque<Item *> *tmp_fields = nullptr;
 
   int error{0};  ///< set in optimize(), exec(), prepare_result()
 
@@ -583,8 +574,8 @@ class JOIN {
   bool prepare_result();
   void destroy();
   bool alloc_func_list();
-  bool make_sum_func_list(List<Item> &all_fields, bool before_group_by,
-                          bool recompute = false);
+  bool make_sum_func_list(const mem_root_deque<Item *> &fields,
+                          bool before_group_by, bool recompute = false);
 
   /**
      Overwrites one slice of ref_items with the contents of another slice.
@@ -636,7 +627,7 @@ class JOIN {
      expressions at the current stage of execution; which stage is denoted by
      the value of current_ref_item_slice.
   */
-  List<Item> *get_current_fields();
+  mem_root_deque<Item *> *get_current_fields();
 
   bool optimize_rollup();
   bool finalize_table_conditions();
@@ -782,7 +773,8 @@ class JOIN {
 
     @returns false on success, true on failure
   */
-  bool create_intermediate_table(QEP_TAB *tab, List<Item> *tmp_table_fields,
+  bool create_intermediate_table(QEP_TAB *tab,
+                                 const mem_root_deque<Item *> &tmp_table_fields,
                                  ORDER_with_src &tmp_table_group,
                                  bool save_sum_fields);
 
@@ -815,7 +807,7 @@ class JOIN {
 
  private:
   void set_prefix_tables();
-  void cleanup_item_list(List<Item> &items) const;
+  void cleanup_item_list(const mem_root_deque<Item *> &items) const;
   void set_semijoin_embedding();
   bool make_join_plan();
   bool init_planner_arrays();
@@ -1010,10 +1002,11 @@ bool build_equal_items(THD *thd, Item *cond, Item **retcond,
                        COND_EQUAL *inherited, bool do_inherit,
                        mem_root_deque<TABLE_LIST *> *join_list,
                        COND_EQUAL **cond_equal_ref);
-bool is_indexed_agg_distinct(JOIN *join, List<Item_field> *out_args);
-Key_use_array *create_keyuse_for_table(THD *thd, uint keyparts,
-                                       Item_field **fields,
-                                       List<Item> outer_exprs);
+bool is_indexed_agg_distinct(JOIN *join,
+                             mem_root_deque<Item_field *> *out_args);
+Key_use_array *create_keyuse_for_table(
+    THD *thd, uint keyparts, Item_field **fields,
+    const mem_root_deque<Item *> &outer_exprs);
 Item_field *get_best_field(Item_field *item_field, COND_EQUAL *cond_equal);
 Item *make_cond_for_table(THD *thd, Item *cond, table_map tables,
                           table_map used_table, bool exclude_expensive_cond);
@@ -1028,7 +1021,8 @@ uint build_bitmap_for_nested_joins(mem_root_deque<TABLE_LIST *> *join_list,
   a later ORDER BY.
  */
 ORDER *create_order_from_distinct(THD *thd, Ref_item_array ref_item_array,
-                                  ORDER *order_list, List<Item> &fields,
+                                  ORDER *order_list,
+                                  const mem_root_deque<Item *> &fields,
                                   bool skip_aggregates,
                                   bool convert_bit_fields_to_long,
                                   bool *all_order_by_fields_used);

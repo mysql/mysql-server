@@ -421,7 +421,7 @@ void LEX::reset() {
   create_view_algorithm = VIEW_ALGORITHM_UNDEFINED;
   create_view_suid = true;
 
-  context_stack.empty();
+  context_stack.clear();
   unit = nullptr;
   select_lex = nullptr;
   m_current_select = nullptr;
@@ -429,13 +429,13 @@ void LEX::reset() {
 
   bulk_insert_row_cnt = 0;
 
-  purge_value_list.empty();
+  purge_value_list.clear();
 
-  kill_value_list.empty();
+  kill_value_list.clear();
 
-  set_var_list.empty();
-  param_list.empty();
-  prepared_stmt_params.empty();
+  set_var_list.clear();
+  param_list.clear();
+  prepared_stmt_params.clear();
   context_analysis_only = 0;
   safe_to_cache_query = true;
   insert_table = nullptr;
@@ -557,7 +557,7 @@ void LEX::clear_execution() {
     be emptied now since it's going to be re-populated below as we reiterate
     over all query_tables and call TABLE_LIST::prepare_security().
   */
-  thd->m_view_ctx_list.empty();
+  thd->m_view_ctx_list.clear();
 
   // Reset all table references so that they can be bound with new TABLEs
   /*
@@ -2055,8 +2055,8 @@ SELECT_LEX_UNIT::SELECT_LEX_UNIT(enum_parsing_context parsing_context)
       m_query_result(nullptr),
       uncacheable(0),
       cleaned(UC_DIRTY),
-      item_list(),
-      types(),
+      item_list(current_thd->mem_root),
+      types(current_thd->mem_root),
       select_limit_cnt(HA_POS_ERROR),
       offset_limit_cnt(0),
       item(nullptr),
@@ -2099,7 +2099,8 @@ SELECT_LEX_UNIT::SELECT_LEX_UNIT(enum_parsing_context parsing_context)
 */
 
 SELECT_LEX::SELECT_LEX(MEM_ROOT *mem_root, Item *where, Item *having)
-    : ftfunc_list(&ftfunc_list_alloc),
+    : fields(mem_root),
+      ftfunc_list(&ftfunc_list_alloc),
       sj_nests(mem_root),
       first_context(&context),
       top_join_list(mem_root),
@@ -2438,7 +2439,10 @@ void SELECT_LEX::add_order_to_list(ORDER *order) {
 bool SELECT_LEX::add_item_to_list(Item *item) {
   DBUG_TRACE;
   DBUG_PRINT("info", ("Item: %p", item));
-  return fields_list.push_back(item);
+  assert_consistent_hidden_flags(fields, item, /*hidden=*/false);
+  fields.push_back(item);
+  item->hidden = false;
+  return false;
 }
 
 bool SELECT_LEX::add_ftfunc_to_list(Item_func_match *func) {
@@ -2467,9 +2471,7 @@ bool SELECT_LEX::setup_base_ref_items(THD *thd) {
   // create_distinct_group() may need some extra space
   if (is_distinct()) {
     uint bitcount = 0;
-    Item *item;
-    List_iterator<Item> li(fields_list);
-    while ((item = li++)) {
+    for (Item *item : visible_fields()) {
       /*
         Same test as in create_distinct_group, when it pushes new items to the
         end of base_ref_items. An extra test for 'fixed' which, at this
@@ -2487,7 +2489,7 @@ bool SELECT_LEX::setup_base_ref_items(THD *thd) {
     prepared statement
   */
   Query_arena *arena = thd->stmt_arena;
-  uint n_elems = n_sum_items + n_child_sum_items + fields_list.elements +
+  uint n_elems = n_sum_items + n_child_sum_items + fields.size() +
                  select_n_having_items + select_n_where_fields +
                  order_group_num + n_scalar_subqueries;
 
@@ -2521,16 +2523,16 @@ bool SELECT_LEX::setup_base_ref_items(THD *thd) {
           // possible additions to SELECT list from decorrelation of WHERE
           select_n_where_fields +
           // add size of new SELECT list, for DISTINCT and BIT type
-          (select_n_where_fields + fields_list.elements);
+          (select_n_where_fields + fields.size());
     }
   }
 
-  DBUG_PRINT("info",
-             ("setup_ref_array this %p %4u : %4u %4u %4u %4u %4u %4u %4u", this,
-              n_elems,  // :
-              n_sum_items, n_child_sum_items, fields_list.elements,
-              select_n_having_items, select_n_where_fields, order_group_num,
-              n_scalar_subqueries));
+  DBUG_PRINT(
+      "info",
+      ("setup_ref_array this %p %4u : %4u %4u %4zu %4u %4u %4u %4u", this,
+       n_elems,  // :
+       n_sum_items, n_child_sum_items, fields.size(), select_n_having_items,
+       select_n_where_fields, order_group_num, n_scalar_subqueries));
   if (!base_ref_items.is_null()) {
     /*
       This should not happen, as it's the sign of preparing an already-prepared
@@ -2941,7 +2943,7 @@ void SELECT_LEX::print_update(const THD *thd, String *str,
     auto *t = table_list.first;
     t->print(thd, str, query_type);  // table identifier
     str->append(STRING_WITH_LEN(" set "));
-    print_update_list(thd, str, query_type, fields_list,
+    print_update_list(thd, str, query_type, fields,
                       *sql_cmd_update->update_value_list);
     /*
       Print join condition (may happen with a merged view's WHERE condition
@@ -2960,7 +2962,7 @@ void SELECT_LEX::print_update(const THD *thd, String *str,
     // Multi table update
     print_join(thd, str, &top_join_list, query_type);
     str->append(STRING_WITH_LEN(" set "));
-    print_update_list(thd, str, query_type, fields_list,
+    print_update_list(thd, str, query_type, fields,
                       *sql_cmd_update->update_value_list);
     print_where_cond(thd, str, query_type);
   }
@@ -3038,7 +3040,7 @@ void SELECT_LEX::print_insert(const THD *thd, String *str,
     print_select(thd, str, enum_query_type(query_type | QT_ONLY_QB_NAME));
   }
 
-  if (sql_cmd_insert->update_field_list.elements > 0) {
+  if (!sql_cmd_insert->update_field_list.empty()) {
     str->append(STRING_WITH_LEN(" on duplicate key update "));
     print_update_list(thd, str, query_type, sql_cmd_insert->update_field_list,
                       sql_cmd_insert->update_value_list);
@@ -3176,9 +3178,7 @@ void SELECT_LEX::print_item_list(const THD *thd, String *str,
                                  enum_query_type query_type) {
   // Item List
   bool first = true;
-  List_iterator_fast<Item> it(fields_list);
-  Item *item;
-  while ((item = it++)) {
+  for (Item *item : visible_fields()) {
     if (first)
       first = false;
     else
@@ -3199,11 +3199,14 @@ void SELECT_LEX::print_item_list(const THD *thd, String *str,
 
 void SELECT_LEX::print_update_list(const THD *thd, String *str,
                                    enum_query_type query_type,
-                                   List<Item> fields, List<Item> values) {
-  List_iterator<Item> it_column(fields), it_value(values);
-  Item *column, *value;
+                                   const mem_root_deque<Item *> &fields,
+                                   const mem_root_deque<Item *> &values) {
+  auto it_column = VisibleFields(fields).begin();
+  auto it_value = values.begin();
   bool first = true;
-  while ((column = it_column++) && (value = it_value++)) {
+  while (it_column != VisibleFields(fields).end() && it_value != values.end()) {
+    Item *column = *it_column++;
+    Item *value = *it_value++;
     if (first)
       first = false;
     else
@@ -3219,12 +3222,11 @@ void SELECT_LEX::print_insert_fields(const THD *thd, String *str,
                                      enum_query_type query_type) {
   Sql_cmd_insert_base *const cmd =
       down_cast<Sql_cmd_insert_base *>(parent_lex->m_sql_cmd);
-  List<Item> fields = cmd->insert_field_list;
+  const mem_root_deque<Item *> &fields = cmd->insert_field_list;
   if (cmd->column_count > 0) {
     str->append(STRING_WITH_LEN(" ("));
-    List_iterator<Item> it_field(fields);
     bool first = true;
-    while (Item *field = it_field++) {
+    for (Item *field : fields) {
       if (first)
         first = false;
       else
@@ -3236,12 +3238,13 @@ void SELECT_LEX::print_insert_fields(const THD *thd, String *str,
   }
 }
 
-void SELECT_LEX::print_values(const THD *thd, String *str,
-                              enum_query_type query_type,
-                              List<List<Item>> values, const char *prefix) {
+void SELECT_LEX::print_values(
+    const THD *thd, String *str, enum_query_type query_type,
+    const mem_root_deque<mem_root_deque<Item *> *> &values,
+    const char *prefix) {
   str->append(STRING_WITH_LEN("values "));
   bool row_first = true;
-  for (List<Item> &row : values) {
+  for (const mem_root_deque<Item *> *row : values) {
     if (row_first)
       row_first = false;
     else
@@ -3250,9 +3253,8 @@ void SELECT_LEX::print_values(const THD *thd, String *str,
     if (prefix != nullptr) str->append(prefix);
 
     str->append('(');
-    List_iterator<Item> it_col(row);
     bool col_first = true;
-    while (Item *item = it_col++) {
+    for (Item *item : *row) {
       if (col_first)
         col_first = false;
       else
@@ -3409,10 +3411,9 @@ bool accept_table(TABLE_LIST *t, Select_lex_visitor *visitor) {
 
 bool SELECT_LEX::accept(Select_lex_visitor *visitor) {
   // Select clause
-  List_iterator<Item> it(fields_list);
-  Item *end = nullptr;
-  for (Item *item = it++; item != end; item = it++)
+  for (Item *item : visible_fields()) {
     if (walk_item(item, visitor)) return true;
+  }
 
   // From clause
   if (table_list.elements != 0 && accept_for_join(join_list, visitor))
@@ -3443,15 +3444,15 @@ bool SELECT_LEX::accept(Select_lex_visitor *visitor) {
 }
 
 void LEX::clear_privileges() {
-  users_list.empty();
-  columns.empty();
+  users_list.clear();
+  columns.clear();
   grant = grant_tot_col = grant_privilege = false;
   all_privileges = false;
   ssl_type = SSL_TYPE_NOT_SPECIFIED;
   ssl_cipher = x509_subject = x509_issuer = nullptr;
   alter_password.cleanup();
   memset(&mqh, 0, sizeof(mqh));
-  dynamic_privileges.empty();
+  dynamic_privileges.clear();
   default_roles = nullptr;
 }
 
@@ -3496,7 +3497,7 @@ void Query_tables_list::reset_query_tables_list(bool init) {
   } else if (sroutines != nullptr) {
     sroutines->clear();
   }
-  sroutines_list.empty();
+  sroutines_list.clear();
   sroutines_list_own_last = sroutines_list.next;
   sroutines_list_own_elements = 0;
   binlog_stmt_flags = 0;
@@ -3586,17 +3587,17 @@ bool LEX::can_use_merged() {
     case SQLCOM_LOAD:
 
     /*
-            With WL#6599 following SHOW commands are implemented over the
-            INFORMATION_SCHEMA system views, and we do not create
-            temporary tables anymore now. So these queries should be
-            allowed to be mergeable, which makes the INFORMATION_SCHEMA
-            query execution faster.
+      With WL#6599 following SHOW commands are implemented over the
+      INFORMATION_SCHEMA system views, and we do not create
+      temporary tables anymore now. So these queries should be
+      allowed to be mergeable, which makes the INFORMATION_SCHEMA
+      query execution faster.
 
-            According to optimizer team (Roy), making this decision based on
-            the command type here is a hack. This should probably change when
-            we introduce Sql_cmd_show class, which should treat the following
-            SHOW commands same as SQLCOM_SELECT.
-    */
+      According to optimizer team (Roy), making this decision based on
+      the command type here is a hack. This should probably change when
+      we introduce Sql_cmd_show class, which should treat the following
+      SHOW commands same as SQLCOM_SELECT.
+     */
     case SQLCOM_SHOW_CHARSETS:
     case SQLCOM_SHOW_COLLATIONS:
     case SQLCOM_SHOW_DATABASES:
@@ -3798,9 +3799,7 @@ bool SELECT_LEX_UNIT::merge_heuristic(const LEX *lex) const {
   if (lex->set_var_list.elements != 0) return false;
 
   SELECT_LEX *const select = first_select();
-  Item *item;
-  List_iterator<Item> it(select->fields_list);
-  while ((item = it++)) {
+  for (Item *item : select->visible_fields()) {
     if (item->has_subquery() && !item->const_for_execution()) return false;
   }
   return true;
@@ -4629,10 +4628,7 @@ enum_parsing_context SELECT_LEX_UNIT::place() const {
 }
 
 bool SELECT_LEX::walk(Item_processor processor, enum_walk walk, uchar *arg) {
-  List_iterator<Item> li(fields_list);
-  Item *item;
-
-  while ((item = li++)) {
+  for (Item *item : visible_fields()) {
     if (item->walk(processor, walk, arg)) return true;
   }
 

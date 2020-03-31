@@ -45,6 +45,8 @@
 class Item;
 class THD;
 struct TABLE_LIST;
+template <class T>
+class mem_root_deque;
 
 /*
 There are five classes related to replication filters:
@@ -254,15 +256,21 @@ class Rpl_filter {
   int add_wild_do_table(const char *table_spec);
   int add_wild_ignore_table(const char *table_spec);
 
-  int set_do_db(List<Item> *list, enum_configured_by configured_by);
-  int set_ignore_db(List<Item> *list, enum_configured_by configured_by);
-  int set_do_table(List<Item> *list, enum_configured_by configured_by);
-  int set_ignore_table(List<Item> *list, enum_configured_by configured_by);
-  int set_wild_do_table(List<Item> *list, enum_configured_by configured_by);
-  int set_wild_ignore_table(List<Item> *list, enum_configured_by configured_by);
-  int set_db_rewrite(List<Item> *list, enum_configured_by configured_by);
+  int set_do_db(mem_root_deque<Item *> *list, enum_configured_by configured_by);
+  int set_ignore_db(mem_root_deque<Item *> *list,
+                    enum_configured_by configured_by);
+  int set_do_table(mem_root_deque<Item *> *list,
+                   enum_configured_by configured_by);
+  int set_ignore_table(mem_root_deque<Item *> *list,
+                       enum_configured_by configured_by);
+  int set_wild_do_table(mem_root_deque<Item *> *list,
+                        enum_configured_by configured_by);
+  int set_wild_ignore_table(mem_root_deque<Item *> *list,
+                            enum_configured_by configured_by);
+  int set_db_rewrite(mem_root_deque<Item *> *list,
+                     enum_configured_by configured_by);
   typedef int (Rpl_filter::*Add_filter)(char const *);
-  int parse_filter_list(List<Item> *item_list, Add_filter func);
+  int parse_filter_list(mem_root_deque<Item *> *item_list, Add_filter func);
   /**
     Execute the specified func with elements of the list as input.
 
@@ -410,13 +418,13 @@ class Rpl_filter {
       get_filter_count();  // query P_S tables
 
     The write lock should be held when calling the following member functions:
-      set_do_db(List<Item> *list); // CHANGE REPLICATION FILTER
-      set_ignore_db(List<Item> *list);  // CHANGE REPLICATION FILTER
-      set_do_table(List<Item> *list);  // CHANGE REPLICATION FILTER
-      set_ignore_table(List<Item> *list); // CHANGE REPLICATION FILTER
-      set_wild_do_table(List<Item> *list); // CHANGE REPLICATION FILTER
-      set_wild_ignore_table(List<Item> *list); // CHANGE REPLICATION FILTER
-      set_db_rewrite(List<Item> *list); // CHANGE REPLICATION FILTER
+      set_do_db(mem_root_deque<Item *> *list); // CHANGE REPLICATION FILTER
+      set_ignore_db(mem_root_deque<Item *> *list);  // CHANGE REPLICATION FILTER
+      set_do_table(mem_root_deque<Item *> *list);  // CHANGE REPLICATION FILTER
+      set_ignore_table(mem_root_deque<Item *> *list); // CHANGE RPL. FILTER
+      set_wild_do_table(mem_root_deque<Item *> *list); // CHANGE RPL. FILTER
+      set_wild_ignore_table(mem_root_deque<Item *> *list); // CHANGE RPL. FILTER
+      set_db_rewrite(mem_root_deque<Item *> *list); // CHANGE RPL. FILTER
       copy_global_replication_filters(); // CHANGE MASTER TO ... FOR CHANNEL
 
     Please acquire a wrlock when modifying the replication filter (CHANGE
@@ -586,17 +594,18 @@ class Sql_cmd_change_repl_filter : public Sql_cmd {
   }
   bool execute(THD *thd) override;
 
-  void set_filter_value(List<Item> *item_list, options_mysqld filter_type);
+  void set_filter_value(mem_root_deque<Item *> *item_list,
+                        options_mysqld filter_type);
   bool change_rpl_filter(THD *thd);
 
  private:
-  List<Item> *do_db_list;
-  List<Item> *ignore_db_list;
-  List<Item> *do_table_list;
-  List<Item> *ignore_table_list;
-  List<Item> *wild_do_table_list;
-  List<Item> *wild_ignore_table_list;
-  List<Item> *rewrite_db_pair_list;
+  mem_root_deque<Item *> *do_db_list;
+  mem_root_deque<Item *> *ignore_db_list;
+  mem_root_deque<Item *> *do_table_list;
+  mem_root_deque<Item *> *ignore_table_list;
+  mem_root_deque<Item *> *wild_do_table_list;
+  mem_root_deque<Item *> *wild_ignore_table_list;
+  mem_root_deque<Item *> *rewrite_db_pair_list;
 };
 
 extern Rpl_filter *rpl_filter;

@@ -28,7 +28,9 @@
 #ifndef SQL_LEX_INCLUDED
 #define SQL_LEX_INCLUDED
 
+#include <string.h>
 #include <sys/types.h>  // TODO: replace with cstdint
+
 #include <algorithm>
 #include <cstring>
 #include <functional>
@@ -85,6 +87,7 @@
 #include "sql/table.h"        // TABLE_LIST
 #include "sql/thr_malloc.h"
 #include "sql/trigger_def.h"  // enum_trigger_action_time_type
+#include "sql/visible_fields.h"
 #include "sql_chars.h"
 #include "sql_string.h"
 #include "thr_lock.h"  // thr_lock_type
@@ -329,8 +332,8 @@ class Table_ident {
   }
 };
 
-typedef List<Item> List_item;
-typedef Mem_root_array<ORDER *> Group_list_ptrs;
+using List_item = mem_root_deque<Item *>;
+using Group_list_ptrs = Mem_root_array<ORDER *>;
 
 /**
   Structure to hold parameters for CHANGE MASTER, START SLAVE, and STOP SLAVE.
@@ -708,8 +711,10 @@ class SELECT_LEX_UNIT {
   };
   enum_clean_state cleaned;  ///< cleanliness state
 
-  // list of fields which points to temporary table for union
-  List<Item> item_list{};
+  // list of (visible) fields which points to temporary table for union
+  mem_root_deque<Item *> item_list;
+
+ private:
   /*
     list of types of items inside union (used for union & derived tables)
 
@@ -717,12 +722,11 @@ class SELECT_LEX_UNIT {
     pointers is valid only after preparing SELECTS of this unit and before
     any SELECT of this unit execution
 
-    TODO:
-    Possibly this member should be protected, and its direct use replaced
-    by get_unit_column_types(). Check the places where it is used.
+    All hidden items are stripped away from this list.
   */
-  List<Item> types;
+  mem_root_deque<Item *> types;
 
+ public:
   /**
     Pointer to query block containing global parameters for query.
     Global parameters may include ORDER BY, LIMIT and OFFSET.
@@ -850,7 +854,8 @@ class SELECT_LEX_UNIT {
    */
   bool can_materialize_directly_into_result() const;
 
-  bool prepare(THD *thd, Query_result *result, List<Item> *insert_field_list,
+  bool prepare(THD *thd, Query_result *result,
+               mem_root_deque<Item *> *insert_field_list,
                ulonglong added_options, ulonglong removed_options);
 
   /**
@@ -959,8 +964,9 @@ class SELECT_LEX_UNIT {
 
   friend class SELECT_LEX;
 
-  List<Item> *get_unit_column_types();
-  List<Item> *get_field_list();
+  mem_root_deque<Item *> *get_unit_column_types();
+  mem_root_deque<Item *> *get_field_list();
+  size_t num_visible_fields() const;
 
   // If we are doing a query with global LIMIT but without fake_select_lex,
   // we need somewhere to store the record count for FOUND_ROWS().
@@ -1282,7 +1288,12 @@ class SELECT_LEX {
   TABLE_LIST *end_nested_join();
   TABLE_LIST *nest_last_join(THD *thd, size_t table_cnt = 2);
   bool add_joined_table(TABLE_LIST *table);
-  List<Item> *get_fields_list() { return &fields_list; }
+  mem_root_deque<Item *> *get_fields_list() { return &fields; }
+
+  /// Wrappers over fields / get_fields_list() that hide items where
+  /// item->hidden, meant for range-based for loops. See sql/visible_fields.h.
+  auto visible_fields() { return VisibleFields(fields); }
+  auto visible_fields() const { return VisibleFields(fields); }
 
   /// Check privileges for views that are merged into query block
   bool check_view_privileges(THD *thd, ulong want_privilege_first,
@@ -1527,8 +1538,9 @@ class SELECT_LEX {
     @param      values       List of values.
   */
   void print_update_list(const THD *thd, String *str,
-                         enum_query_type query_type, List<Item> fields,
-                         List<Item> values);
+                         enum_query_type query_type,
+                         const mem_root_deque<Item *> &fields,
+                         const mem_root_deque<Item *> &values);
 
   /**
     Print column list to be inserted into. Used in INSERT.
@@ -1551,7 +1563,8 @@ class SELECT_LEX {
                              = nullptr: No prefix wanted
   */
   void print_values(const THD *thd, String *str, enum_query_type query_type,
-                    List<List<Item>> values, const char *prefix);
+                    const mem_root_deque<mem_root_deque<Item *> *> &values,
+                    const char *prefix);
 
   /**
     Print list of tables in FROM clause.
@@ -1729,31 +1742,52 @@ class SELECT_LEX {
   bool resolve_rollup_wfs(THD *thd);
 
   bool setup_conds(THD *thd);
-  bool prepare(THD *thd, List<Item> *insert_field_list);
+  bool prepare(THD *thd, mem_root_deque<Item *> *insert_field_list);
   bool optimize(THD *thd);
   void reset_nj_counters(mem_root_deque<TABLE_LIST *> *join_list = nullptr);
 
   bool change_group_ref_for_func(THD *thd, Item *func, bool *changed);
   bool change_group_ref_for_cond(THD *thd, Item_cond *cond, bool *changed);
 
+  // If the query block has exactly one single visible field, returns it.
+  // If not, returns nullptr.
+  Item *single_visible_field() const;
+  size_t num_visible_fields() const;
+
+  // Whether the SELECT list is empty (hidden fields are ignored).
+  // Typically used to distinguish INSERT INTO ... SELECT queries
+  // from INSERT INTO ... VALUES queries.
+  bool field_list_is_empty() const;
+
+  void remove_hidden_fields();
+
   // ************************************************
   // * Members (most of these should not be public) *
   // ************************************************
 
   /**
-    List of columns and expressions:
-    SELECT: Columns and expressions in the SELECT list.
-    UPDATE: Columns in the SET clause.
-
-    @see is_item_list_lookup
-  */
-  List<Item> fields_list{};  ///< hold field list
-  /**
-    All expressions needed after join and filtering, ie
-    select list, group by list, having clause, window clause, order by clause.
+    All expressions needed after join and filtering, ie., select list,
+    group by list, having clause, window clause, order by clause,
+    including hidden fields.
     Does not include join conditions nor where clause.
-  */
-  List<Item> all_fields{};
+
+    This should ideally be changed into Mem_root_array<Item *>, but
+    find_order_in_list() depends on pointer stability (it stores a pointer
+    to an element in referenced_by[]). Similarly, there are some instances
+    of thd->change_item_tree() that store pointers to elements in this list.
+
+    Because of this, adding or removing elements in the middle is not allowed;
+    std::deque guarantees pointer stability only in the face of adding
+    or removing elements from either end, ie., {push,pop}_{front_back}.
+
+    Currently, all hidden items must be before all visible items.
+    This is primarily due to the requirement for pointer stability
+    (remove_hidden_fields() runs during cleanup), but also because
+    change_to_use_tmp_fields() depends on it when mapping items to
+    ref_item_array indexes. It would be good to get rid of this
+    requirement in the future.
+   */
+  mem_root_deque<Item *> fields;
 
   /**
     All windows defined on the select, both named and inlined
@@ -1768,7 +1802,7 @@ class SELECT_LEX {
   List<Item_func_match> ftfunc_list_alloc{};
 
   /// The VALUES items of a table value constructor.
-  List<List<Item>> *row_value_list{nullptr};
+  mem_root_deque<mem_root_deque<Item *> *> *row_value_list{nullptr};
 
   /// List of semi-join nests generated for this query block
   mem_root_deque<TABLE_LIST *> sj_nests;
@@ -1862,7 +1896,13 @@ class SELECT_LEX {
   /// LIMIT ... OFFSET clause, NULL if no offset is given
   Item *offset_limit{nullptr};
 
-  /// Circular linked list of sum func in nested selects
+  /**
+    Circular linked list of aggregate functions in nested query blocks.
+    This is needed if said aggregate functions depend on outer values
+    from this query block; if so, we want to add them as hidden items
+    in our own field list, to be able to evaluate them.
+    @see Item_sum::check_sum_func
+   */
   Item_sum *inner_sum_func_list{nullptr};
 
   /**
@@ -4421,6 +4461,23 @@ inline bool is_invalid_string(const LEX_CSTRING &string_val,
     return true;
   }
   return false;
+}
+
+/**
+  In debug mode, verify that we're not adding an item twice to the fields list
+  with inconsistent hidden flags. Must be called before adding the item to
+  fields.
+ */
+inline void assert_consistent_hidden_flags(
+    const mem_root_deque<Item *> &fields MY_ATTRIBUTE((unused)),
+    Item *item MY_ATTRIBUTE((unused)), bool hidden MY_ATTRIBUTE((unused))) {
+#ifndef DBUG_OFF
+  if (find(fields.begin(), fields.end(), item) != fields.end()) {
+    // The item is already in the list, so we can't add it
+    // with a different value for hidden.
+    assert(item->hidden == hidden);
+  }
+#endif
 }
 
 bool walk_item(Item *item, Select_lex_visitor *visitor);

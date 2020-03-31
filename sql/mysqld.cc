@@ -9353,7 +9353,7 @@ static int mysql_init_variables() {
   what_to_log = ~(1L << (uint)COM_TIME);
   refresh_version = 1L; /* Increments on each reload */
   my_stpcpy(server_version, MYSQL_SERVER_VERSION);
-  key_caches.empty();
+  key_caches.clear();
   if (!(dflt_key_cache = get_or_create_key_cache(
             default_key_cache_base.str, default_key_cache_base.length))) {
     LogErr(ERROR_LEVEL, ER_KEYCACHE_OOM);

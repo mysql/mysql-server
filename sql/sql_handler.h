@@ -33,7 +33,7 @@ struct TABLE_LIST;
 
 enum class enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
 template <class T>
-class List;
+class mem_root_deque;
 
 /**
   Sql_cmd_handler_open represents HANDLER OPEN statement.
@@ -64,7 +64,8 @@ class Sql_cmd_handler_open : public Sql_cmd {
 class Sql_cmd_handler_read : public Sql_cmd {
  public:
   Sql_cmd_handler_read(enum_ha_read_modes read_mode, const char *key_name,
-                       List<Item> *key_expr, ha_rkey_function rkey_mode)
+                       mem_root_deque<Item *> *key_expr,
+                       ha_rkey_function rkey_mode)
       : m_read_mode(read_mode),
         m_key_name(key_name),
         m_key_expr(key_expr),
@@ -87,7 +88,7 @@ class Sql_cmd_handler_read : public Sql_cmd {
   const char *m_key_name;
 
   /** Key values to be satisfied. */
-  List<Item> *m_key_expr;
+  mem_root_deque<Item *> *m_key_expr;
 
   /** Type of condition for key values to be satisfied. */
   enum ha_rkey_function m_rkey_mode;

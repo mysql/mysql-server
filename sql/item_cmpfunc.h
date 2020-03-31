@@ -1887,8 +1887,8 @@ class Item_func_case final : public Item_func {
   cmp_item *case_item;
 
  public:
-  Item_func_case(const POS &pos, List<Item> &list, Item *first_expr_arg,
-                 Item *else_expr_arg)
+  Item_func_case(const POS &pos, mem_root_deque<Item *> *list,
+                 Item *first_expr_arg, Item *else_expr_arg)
       : super(pos),
         first_expr_num(-1),
         else_expr_num(-1),
@@ -1896,14 +1896,14 @@ class Item_func_case final : public Item_func {
         left_result_type(INT_RESULT),
         case_item(nullptr) {
     null_on_null = false;
-    ncases = list.elements;
+    ncases = list->size();
     if (first_expr_arg) {
-      first_expr_num = list.elements;
-      list.push_back(first_expr_arg);
+      first_expr_num = list->size();
+      list->push_back(first_expr_arg);
     }
     if (else_expr_arg) {
-      else_expr_num = list.elements;
-      list.push_back(else_expr_arg);
+      else_expr_num = list->size();
+      list->push_back(else_expr_arg);
     }
     set_arguments(list, true);
     memset(&cmp_items, 0, sizeof(cmp_items));
@@ -2337,7 +2337,7 @@ class Item_cond : public Item_bool_func {
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
   void split_sum_func(THD *thd, Ref_item_array ref_item_array,
-                      List<Item> &fields) override;
+                      mem_root_deque<Item *> *fields) override;
   void apply_is_true() override { abort_on_null = true; }
   void copy_andor_arguments(THD *thd, Item_cond *item);
   bool walk(Item_processor processor, enum_walk walk, uchar *arg) override;

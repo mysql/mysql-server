@@ -223,7 +223,7 @@ static int get_index_max_value(TABLE *table, TABLE_REF *ref, uint range_fl) {
 
   @param[in]  thd               thread handler
   @param[in]  select            query block
-  @param[in]  all_fields        All fields to be returned
+  @param[in]  fields            All fields to be returned
   @param[in]  conds             WHERE clause
   @param[out] decision          outcome for successful execution
                = AGGR_REGULAR   regular execution required
@@ -272,8 +272,8 @@ static int get_index_max_value(TABLE *table, TABLE_REF *ref, uint range_fl) {
 */
 
 bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
-                               List<Item> &all_fields, Item *conds,
-                               aggregate_evaluated *decision) {
+                               const mem_root_deque<Item *> &fields,
+                               Item *conds, aggregate_evaluated *decision) {
   DBUG_TRACE;
 
   // True means at least one aggregate must be calculated by regular execution
@@ -376,9 +376,7 @@ bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
     COUNT(), MIN() and MAX() with constants (if possible).
   */
 
-  List_iterator_fast<Item> it(all_fields);
-  Item *item;
-  while ((item = it++)) {
+  for (Item *item : fields) {
     if (item->type() == Item::SUM_FUNC_ITEM && !item->m_is_window_function) {
       if (item->used_tables() & OUTER_REF_TABLE_BIT) {
         aggr_impossible = true;

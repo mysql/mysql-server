@@ -112,8 +112,9 @@
 
 class COND_EQUAL;
 
-static bool prepare_partial_update(Opt_trace_context *trace, List<Item> *fields,
-                                   List<Item> *values);
+static bool prepare_partial_update(Opt_trace_context *trace,
+                                   const mem_root_deque<Item *> &fields,
+                                   const mem_root_deque<Item *> &values);
 
 bool Sql_cmd_update::precheck(THD *thd) {
   DBUG_TRACE;
@@ -166,9 +167,9 @@ bool Sql_cmd_update::check_privileges(THD *thd) {
                                  enum_walk::PREFIX, pointer_cast<uchar *>(thd)))
     return true;
 
-  if (check_privileges_for_list(thd, &original_fields, UPDATE_ACL)) return true;
+  if (check_privileges_for_list(thd, original_fields, UPDATE_ACL)) return true;
 
-  if (check_privileges_for_list(thd, update_value_list, SELECT_ACL))
+  if (check_privileges_for_list(thd, *update_value_list, SELECT_ACL))
     return true;
 
   for (ORDER *order = select->order_list.first; order; order = order->next) {
@@ -262,13 +263,14 @@ bool compare_records(const TABLE *table) {
   @return false if success, true if error (OOM)
 */
 
-bool Sql_cmd_update::make_base_table_fields(THD *thd, List<Item> &items) {
-  List_iterator<Item> it(items);
-  Item *item;
+bool Sql_cmd_update::make_base_table_fields(THD *thd,
+                                            mem_root_deque<Item *> *items) {
+  for (auto it = items->begin(); it != items->end(); ++it) {
+    Item *item = *it;
+    DBUG_ASSERT(!item->hidden);
 
-  while ((item = it++)) {
     // Save original item for privilege checking
-    if (original_fields.push_back(item)) return true; /* purecov: inspected */
+    original_fields.push_back(item);
 
     /*
       Make temporary copy of Item_field, to avoid influence of changing
@@ -280,7 +282,7 @@ bool Sql_cmd_update::make_base_table_fields(THD *thd, List<Item> &items) {
     Item_field *const cloned_field = new Item_field(thd, base_table_field);
     if (cloned_field == nullptr) return true; /* purecov: inspected */
 
-    *it.ref() = cloned_field;
+    *it = cloned_field;
     // WL#6570 remove-after-qa
     DBUG_ASSERT(thd->stmt_arena->is_regular() || !thd->lex->is_exec_started());
   }
@@ -296,12 +298,10 @@ bool Sql_cmd_update::make_base_table_fields(THD *thd, List<Item> &items) {
   @retval false At least one non-constant expression
 */
 
-static bool check_constant_expressions(List<Item> *values) {
-  Item *value;
-  List_iterator_fast<Item> v(*values);
+static bool check_constant_expressions(const mem_root_deque<Item *> &values) {
   DBUG_TRACE;
 
-  while ((value = v++)) {
+  for (Item *value : values) {
     if (!value->const_for_execution()) {
       DBUG_PRINT("exit", ("expression is not constant"));
       return false;
@@ -348,8 +348,6 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
       has_update_triggers &&
       table->triggers->has_triggers(TRG_EVENT_UPDATE, TRG_ACTION_AFTER);
 
-  List<Item> *update_field_list = &select_lex->fields_list;
-
   Opt_trace_context *const trace = &thd->opt_trace;
 
   if (unit->set_limit(thd, unit->global_parameters()))
@@ -368,7 +366,8 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
   bool no_rows = limit == 0;
 
   THD::killed_state killed_status = THD::NOT_KILLED;
-  COPY_INFO update(COPY_INFO::UPDATE_OPERATION, update_field_list,
+  DBUG_ASSERT(CountHiddenFields(select_lex->fields) == 0);
+  COPY_INFO update(COPY_INFO::UPDATE_OPERATION, &select_lex->fields,
                    update_value_list);
   if (update.add_function_default_columns(table, table->write_set)) return true;
 
@@ -554,7 +553,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
 
   table->mark_columns_per_binlog_row_image(thd);
 
-  if (prepare_partial_update(trace, update_field_list, update_value_list))
+  if (prepare_partial_update(trace, select_lex->fields, *update_value_list))
     return true; /* purecov: inspected */
 
   if (table->setup_partial_update()) return true; /* purecov: inspected */
@@ -798,7 +797,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
     if ((table->file->ha_table_flags() & HA_READ_BEFORE_WRITE_REMOVAL) &&
         !thd->lex->is_ignore() && !using_limit && !has_update_triggers &&
         qep_tab.quick() && qep_tab.quick()->index != MAX_KEY &&
-        check_constant_expressions(update_value_list))
+        check_constant_expressions(*update_value_list))
       read_removal = table->check_read_removal(qep_tab.quick()->index);
 
     // If the update is batched, we cannot do partial update, so turn it off.
@@ -846,7 +845,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
       store_record(table, record[1]);
       bool is_row_changed = false;
       if (fill_record_n_invoke_before_triggers(
-              thd, &update, *update_field_list, *update_value_list, table,
+              thd, &update, select_lex->fields, *update_value_list, table,
               TRG_EVENT_UPDATE, 0, false, &is_row_changed)) {
         error = 1;
         break;
@@ -1101,6 +1100,9 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
   }
   thd->check_for_truncated_fields = CHECK_FIELD_IGNORE;
   thd->current_found_rows = found_rows;
+
+  DBUG_ASSERT(CountHiddenFields(*update_value_list) == 0);
+
   // Following test is disabled, as we get RQG errors that are hard to debug
   // DBUG_ASSERT((error >= 0) == thd->is_error());
   return error >= 0 || thd->is_error();
@@ -1114,12 +1116,12 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
   Get table map for list of Item_field
 */
 
-static table_map get_table_map(List<Item> *items) {
-  List_iterator_fast<Item> item_it(*items);
-  Item_field *item;
+static table_map get_table_map(const mem_root_deque<Item *> &items) {
   table_map map = 0;
 
-  while ((item = (Item_field *)item_it++)) map |= item->used_tables();
+  for (Item *item : items) {
+    map |= down_cast<Item_field *>(item)->used_tables();
+  }
   DBUG_PRINT("info", ("table_map: 0x%08lx", (long)map));
   return map;
 }
@@ -1213,10 +1215,10 @@ static bool unsafe_key_update(TABLE_LIST *leaves, table_map tables_for_update) {
 }
 
 /// Check if a list of Items contains an Item whose type is JSON.
-static bool has_json_columns(List<Item> *items) {
-  List_iterator_fast<Item> it(*items);
-  for (Item *item = it++; item != nullptr; item = it++)
+static bool has_json_columns(const mem_root_deque<Item *> &items) {
+  for (Item *item : items) {
     if (item->data_type() == MYSQL_TYPE_JSON) return true;
+  }
   return false;
 }
 
@@ -1244,8 +1246,9 @@ static bool has_json_columns(List<Item> *items) {
   @param values  the values they are updated to
   @return false on success, true on error
 */
-static bool prepare_partial_update(Opt_trace_context *trace, List<Item> *fields,
-                                   List<Item> *values) {
+static bool prepare_partial_update(Opt_trace_context *trace,
+                                   const mem_root_deque<Item *> &fields,
+                                   const mem_root_deque<Item *> &values) {
   /*
     First check if we have any JSON columns. The only reason we do this, is to
     prevent writing an empty optimizer trace about partial update if there are
@@ -1259,11 +1262,11 @@ static bool prepare_partial_update(Opt_trace_context *trace, List<Item> *fields,
   using Field_array = Prealloced_array<const Field *, 8>;
   Field_array partial_update_fields(PSI_NOT_INSTRUMENTED);
   Field_array rejected_fields(PSI_NOT_INSTRUMENTED);
-  List_iterator_fast<Item> field_it(*fields);
-  List_iterator_fast<Item> value_it(*values);
-  for (Item *field_item = field_it++, *value_item = value_it++;
-       field_item != nullptr && value_item != nullptr;
-       field_item = field_it++, value_item = value_it++) {
+  auto field_it = VisibleFields(fields).begin();
+  auto value_it = values.begin();
+  for (; field_it != VisibleFields(fields).end() && value_it != values.end();) {
+    Item *field_item = *field_it++;
+    Item *value_item = *value_it++;
     // Only consider JSON fields for partial update for now.
     if (field_item->data_type() != MYSQL_TYPE_JSON) continue;
 
@@ -1307,11 +1310,11 @@ static bool prepare_partial_update(Opt_trace_context *trace, List<Item> *fields,
     if (fld->table->mark_column_for_partial_update(fld))
       return true; /* purecov: inspected */
 
-  field_it.rewind();
-  value_it.rewind();
-  for (Item *field_item = field_it++, *value_item = value_it++;
-       field_item != nullptr && value_item != nullptr;
-       field_item = field_it++, value_item = value_it++) {
+  field_it = VisibleFields(fields).begin();
+  value_it = values.begin();
+  for (; field_it != VisibleFields(fields).end() && value_it != values.end();) {
+    Item *field_item = *field_it++;
+    Item *value_item = *value_it++;
     const Field *field = down_cast<Item_field *>(field_item)->field;
     if (field->table->is_marked_for_partial_update(field)) {
       auto json_field = down_cast<const Field_json *>(field);
@@ -1375,10 +1378,10 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
 
   TABLE_LIST *single_table_updated = nullptr;
 
-  List<Item> *update_fields = &select->fields_list;
   const bool using_lock_tables = thd->locked_tables_mode != LTM_NONE;
 
-  DBUG_ASSERT(update_fields->elements == update_value_list->elements);
+  DBUG_ASSERT(select->fields.size() == select->num_visible_fields());
+  DBUG_ASSERT(select->num_visible_fields() == update_value_list->size());
 
   Mem_root_array<Item_exists_subselect *> sj_candidates_local(thd->mem_root);
 
@@ -1466,7 +1469,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
 
     Prepared_stmt_arena_holder ps_holder(thd);
     result = new (thd->mem_root)
-        Query_result_update(update_fields, update_value_list);
+        Query_result_update(&select->fields, update_value_list);
     if (result == nullptr) return true; /* purecov: inspected */
 
     // The former is for the pre-iterator executor; the latter is for the
@@ -1482,18 +1485,20 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
 
   if (select->setup_base_ref_items(thd)) return true; /* purecov: inspected */
 
-  if (setup_fields(thd, Ref_item_array(), *update_fields, UPDATE_ACL, nullptr,
-                   false, true))
+  if (setup_fields(thd, /*want_privilege=*/UPDATE_ACL,
+                   /*allow_sum_func=*/false, /*split_sum_funcs=*/false,
+                   /*column_update=*/true, /*typed_items=*/nullptr,
+                   &select->fields, Ref_item_array()))
     return true;
 
-  if (make_base_table_fields(thd, *update_fields))
+  if (make_base_table_fields(thd, &select->fields))
     return true; /* purecov: inspected */
 
   /*
     Calculate map of tables that are updated based on resolved columns
     in the update field list.
   */
-  thd->table_map_for_update = tables_for_update = get_table_map(update_fields);
+  thd->table_map_for_update = tables_for_update = get_table_map(select->fields);
 
   uint update_table_count_local = my_count_bits(tables_for_update);
 
@@ -1503,8 +1508,10 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
     if (tr->map() & tables_for_update) tr->set_updated();
   }
 
-  if (setup_fields(thd, Ref_item_array(), *update_value_list, SELECT_ACL,
-                   nullptr, false, false, update_fields))
+  if (setup_fields(thd, /*want_privilege=*/SELECT_ACL,
+                   /*allow_sum_func=*/false, /*split_sum_funcs=*/false,
+                   /*column_update=*/false, &select->fields, update_value_list,
+                   Ref_item_array()))
     return true; /* purecov: inspected */
 
   thd->mark_used_columns = mark_used_columns_saved;
@@ -1514,7 +1521,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
   if (!multitable) {
     // Add default values provided by a function, required for part. pruning
     // @todo consolidate with corresponding function in update_single_table()
-    COPY_INFO update(COPY_INFO::UPDATE_OPERATION, update_fields,
+    COPY_INFO update(COPY_INFO::UPDATE_OPERATION, &select->fields,
                      update_value_list);
     TABLE *table = single_table_updated->table;
     if (update.add_function_default_columns(table, table->write_set))
@@ -1554,7 +1561,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
       }
 
       if ((tl->table->vfield || tl->table->gen_def_fields_ptr != nullptr) &&
-          validate_gc_assignment(update_fields, update_value_list, tl->table))
+          validate_gc_assignment(select->fields, *update_value_list, tl->table))
         return true; /* purecov: inspected */
 
       // Mark all containing view references as updating
@@ -1644,8 +1651,9 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
     return true;
   }
   if (select->order_list.first) {
-    if (setup_order(thd, select->base_ref_items, table_list, select->all_fields,
-                    select->all_fields, select->order_list.first))
+    mem_root_deque<Item *> fields(thd->mem_root);
+    if (setup_order(thd, select->base_ref_items, table_list, &fields,
+                    select->order_list.first))
       return true;
   }
 
@@ -1656,7 +1664,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
     return true; /* purecov: inspected */
 
   if (select->query_result() &&
-      select->query_result()->prepare(thd, select->fields_list, lex->unit))
+      select->query_result()->prepare(thd, select->fields, lex->unit))
     return true; /* purecov: inspected */
 
   Opt_trace_array trace_steps(trace, "steps");
@@ -1673,6 +1681,8 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
   if (select->is_empty_query()) set_empty_query();
 
   select->master_unit()->set_prepared();
+
+  DBUG_ASSERT(CountHiddenFields(*update_value_list) == 0);
 
   return false;
 }
@@ -1700,10 +1710,9 @@ bool Sql_cmd_update::execute_inner(THD *thd) {
   Connect fields with tables and create list of tables that are updated
 */
 
-bool Query_result_update::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
+bool Query_result_update::prepare(THD *thd, const mem_root_deque<Item *> &,
+                                  SELECT_LEX_UNIT *u) {
   SQL_I_List<TABLE_LIST> update_list;
-  List_iterator_fast<Item> field_it(*fields);
-  List_iterator_fast<Item> value_it(*values);
   DBUG_TRACE;
 
   unit = u;
@@ -1711,7 +1720,7 @@ bool Query_result_update::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
   SELECT_LEX *const select = unit->first_select();
   TABLE_LIST *const leaves = select->leaf_tables;
 
-  const table_map tables_to_update = get_table_map(fields);
+  const table_map tables_to_update = get_table_map(*fields);
 
   for (TABLE_LIST *tr = leaves; tr; tr = tr->next_leaf) {
     DBUG_ASSERT(tr->updating == ((tables_to_update & tr->map()) != 0));
@@ -1742,7 +1751,7 @@ bool Query_result_update::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
     update_table->shared is position for table
   */
 
-  update_list.empty();
+  update_list.clear();
   for (TABLE_LIST *tr = leaves; tr; tr = tr->next_leaf) {
     /* TODO: add support of view of join support */
     if (tables_to_update & tr->map()) {
@@ -1770,11 +1779,9 @@ bool Query_result_update::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
   if (tmp_tables == nullptr) return true;
   tmp_table_param = new (thd->mem_root) Temp_table_param[update_table_count];
   if (tmp_table_param == nullptr) return true;
-  fields_for_table =
-      (List_item **)thd->alloc(sizeof(List_item *) * update_table_count);
+  fields_for_table = thd->mem_root->ArrayAlloc<List_item *>(update_table_count);
   if (fields_for_table == nullptr) return true;
-  values_for_table =
-      (List_item **)thd->alloc(sizeof(List_item *) * update_table_count);
+  values_for_table = thd->mem_root->ArrayAlloc<List_item *>(update_table_count);
   if (values_for_table == nullptr) return true;
 
   DBUG_ASSERT(update_operations == nullptr);
@@ -1783,17 +1790,19 @@ bool Query_result_update::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
 
   if (update_operations == nullptr) return true;
   for (uint i = 0; i < update_table_count; i++) {
-    fields_for_table[i] = new (thd->mem_root) List_item;
-    values_for_table[i] = new (thd->mem_root) List_item;
+    fields_for_table[i] = new (thd->mem_root) List_item(thd->mem_root);
+    values_for_table[i] = new (thd->mem_root) List_item(thd->mem_root);
   }
   if (thd->is_error()) return true;
 
   /* Split fields into fields_for_table[] and values_by_table[] */
 
-  Item *item;
-  while ((item = field_it++)) {
-    Item_field *const field = down_cast<Item_field *>(item);
-    Item *const value = value_it++;
+  auto field_it = fields->begin();
+  auto value_it = values->begin();
+  while (field_it != fields->end()) {
+    Item_field *const field = down_cast<Item_field *>(*field_it++);
+    Item *const value = *value_it++;
+    assert(!field->hidden && !value->hidden);
     uint offset = field->table_ref->shared;
     fields_for_table[offset]->push_back(field);
     values_for_table[offset]->push_back(value);
@@ -1803,15 +1812,15 @@ bool Query_result_update::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
   /* Allocate copy fields */
   max_fields = 0;
   for (uint i = 0; i < update_table_count; i++)
-    max_fields = std::max(max_fields, size_t(fields_for_table[i]->elements +
+    max_fields = std::max(max_fields, size_t(fields_for_table[i]->size() +
                                              select->leaf_table_count));
   copy_field = new (thd->mem_root) Copy_field[max_fields];
 
   for (TABLE_LIST *ref = leaves; ref != nullptr; ref = ref->next_leaf) {
     if (tables_to_update & ref->map()) {
       const uint position = ref->shared;
-      List<Item> *cols = fields_for_table[position];
-      List<Item> *vals = values_for_table[position];
+      mem_root_deque<Item *> *cols = fields_for_table[position];
+      mem_root_deque<Item *> *vals = values_for_table[position];
       TABLE *const table = ref->table;
 
       COPY_INFO *update = new (thd->mem_root)
@@ -1970,15 +1979,16 @@ bool Query_result_update::optimize() {
   main_table = join->best_ref[0]->table();
   table_to_update = nullptr;
 
-  if (prepare_partial_update(&thd->opt_trace, fields, values))
+  if (prepare_partial_update(&thd->opt_trace, *fields, *values))
     return true; /* purecov: inspected */
 
   /* Any update has at least one pair (field, value) */
-  DBUG_ASSERT(fields->elements);
+  DBUG_ASSERT(!fields->empty());
 
   // Allocate temporary table structs per execution (they use the mem_root)
   tmp_table_param = new (thd->mem_root) Temp_table_param[update_table_count];
   if (tmp_table_param == nullptr) return true;
+
   /*
    Only one table may be modified by UPDATE of an updatable view.
    For an updatable view first_table_for_update indicates this
@@ -1986,14 +1996,14 @@ bool Query_result_update::optimize() {
    For a regular multi-update it refers to some updated table.
   */
   TABLE_LIST *first_table_for_update =
-      ((Item_field *)fields->head())->table_ref;
+      down_cast<Item_field *>(*VisibleFields(*fields).begin())->table_ref;
 
   /* Create a temporary table for keys to all tables, except main table */
   for (table_ref = update_tables; table_ref;
        table_ref = table_ref->next_local) {
     TABLE *table = table_ref->table;
     uint cnt = table_ref->shared;
-    List<Item> temp_fields;
+    mem_root_deque<Item *> temp_fields(thd->mem_root);
     ORDER *group = nullptr;
     Temp_table_param *tmp_param;
 
@@ -2156,18 +2166,19 @@ bool Query_result_update::optimize() {
       Item_field *ifield = new (thd->mem_root) Item_field(field);
       if (!ifield) return true;
       ifield->maybe_null = false;
-      if (temp_fields.push_back(ifield)) return true;
+      temp_fields.push_back(ifield);
     } while ((tbl = tbl_it++));
 
-    temp_fields.concat(fields_for_table[cnt]);
+    temp_fields.insert(temp_fields.end(), fields_for_table[cnt]->begin(),
+                       fields_for_table[cnt]->end());
 
     group = new (thd->mem_root) ORDER;
     /* Make an unique key over the first field to avoid duplicated updates */
     group->direction = ORDER_ASC;
-    group->item = temp_fields.head_ref();
+    group->item = &temp_fields.front();
 
     tmp_param->allow_group_via_temp_table = true;
-    tmp_param->field_count = temp_fields.elements;
+    tmp_param->field_count = temp_fields.size();
     tmp_param->group_parts = 1;
     tmp_param->group_length = table->file->ref_length;
     tmp_tables[cnt] =
@@ -2196,6 +2207,7 @@ bool Query_result_update::start_execution(THD *thd) {
 }
 
 void Query_result_update::cleanup(THD *thd) {
+  DBUG_ASSERT(CountHiddenFields(*values) == 0);
   for (TABLE_LIST *tr = update_tables; tr != nullptr; tr = tr->next_local) {
     tr->table = nullptr;
   }
@@ -2227,7 +2239,7 @@ void Query_result_update::cleanup(THD *thd) {
   main_table = nullptr;
 }
 
-bool Query_result_update::send_data(THD *thd, List<Item> &) {
+bool Query_result_update::send_data(THD *thd, const mem_root_deque<Item *> &) {
   TABLE_LIST *cur_table;
   DBUG_TRACE;
   if (main_table->file->was_semi_consistent_read()) {
@@ -2524,12 +2536,12 @@ bool Query_result_update::do_updates(THD *thd) {
     /*
       Setup copy functions to copy fields from temporary table
     */
-    List_iterator_fast<Item> field_it(*fields_for_table[offset]);
+    auto field_it = fields_for_table[offset]->begin();
     Field **field = tmp_table->visible_field_ptr() + 1 +
                     unupdated_check_opt_tables.elements;  // Skip row pointers
     Copy_field *copy_field_ptr = copy_field, *copy_field_end;
     for (; *field; field++) {
-      Item_field *item = (Item_field *)field_it++;
+      Item_field *item = down_cast<Item_field *>(*field_it++);
       (copy_field_ptr++)->set(item->field, *field, false);
     }
     copy_field_end = copy_field_ptr;
@@ -2795,11 +2807,14 @@ bool Sql_cmd_update::accept(THD *thd, Select_lex_visitor *visitor) {
     return true;
 
   // Update list
-  List_iterator<Item> it_value(*update_value_list),
-      it_column(select->fields_list);
-  Item *column, *value;
-  while ((column = it_column++) && (value = it_value++))
+  auto it_value = update_value_list->begin();
+  auto it_column = select->visible_fields().begin();
+  while (it_value != update_value_list->end() &&
+         it_column != select->visible_fields().end()) {
+    Item *value = *it_value++;
+    Item *column = *it_column++;
     if (walk_item(column, visitor) || walk_item(value, visitor)) return true;
+  }
 
   // Where clause
   if (select->where_cond() != nullptr &&

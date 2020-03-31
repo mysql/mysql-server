@@ -5281,7 +5281,7 @@ void mem_alloc_error(size_t size) {
 
 bool make_used_partitions_str(partition_info *part_info,
                               List<const char> *parts) {
-  parts->empty();
+  parts->clear();
   partition_element *pe;
   uint partition_id = 0;
   List_iterator<partition_element> it(part_info->partitions);

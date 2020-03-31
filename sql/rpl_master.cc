@@ -213,7 +213,7 @@ void unregister_slave(THD *thd, bool only_mine, bool need_lock_slave_list) {
   @retval true failure
 */
 bool show_slave_hosts(THD *thd) {
-  List<Item> field_list;
+  mem_root_deque<Item *> field_list(thd->mem_root);
   Protocol *protocol = thd->get_protocol();
   DBUG_TRACE;
 
@@ -227,7 +227,7 @@ bool show_slave_hosts(THD *thd) {
   field_list.push_back(new Item_return_int("Master_id", 10, MYSQL_TYPE_LONG));
   field_list.push_back(new Item_empty_string("Slave_UUID", UUID_LENGTH));
 
-  if (thd->send_result_metadata(&field_list,
+  if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return true;
 
@@ -1210,7 +1210,6 @@ bool show_master_status(THD *thd) {
   Protocol *protocol = thd->get_protocol();
   char *gtid_set_buffer = nullptr;
   int gtid_set_size = 0;
-  List<Item> field_list;
 
   DBUG_TRACE;
 
@@ -1224,6 +1223,7 @@ bool show_master_status(THD *thd) {
   }
   global_sid_lock->unlock();
 
+  mem_root_deque<Item *> field_list(thd->mem_root);
   field_list.push_back(new Item_empty_string("File", FN_REFLEN));
   field_list.push_back(
       new Item_return_int("Position", 20, MYSQL_TYPE_LONGLONG));
@@ -1232,7 +1232,7 @@ bool show_master_status(THD *thd) {
   field_list.push_back(
       new Item_empty_string("Executed_Gtid_Set", gtid_set_size));
 
-  if (thd->send_result_metadata(&field_list,
+  if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF)) {
     my_free(gtid_set_buffer);
     return true;
@@ -1272,7 +1272,6 @@ bool show_binlogs(THD *thd) {
   LOG_INFO cur;
   File file;
   char fname[FN_REFLEN];
-  List<Item> field_list;
   size_t length;
   size_t cur_dir_len;
   Protocol *protocol = thd->get_protocol();
@@ -1283,11 +1282,12 @@ bool show_binlogs(THD *thd) {
     return true;
   }
 
+  mem_root_deque<Item *> field_list(thd->mem_root);
   field_list.push_back(new Item_empty_string("Log_name", 255));
   field_list.push_back(
       new Item_return_int("File_size", 20, MYSQL_TYPE_LONGLONG));
   field_list.push_back(new Item_empty_string("Encrypted", 3));
-  if (thd->send_result_metadata(&field_list,
+  if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return true;
 

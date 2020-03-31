@@ -32,6 +32,9 @@
 
 #include "sql/sql_select.h"
 
+#include <stdio.h>
+#include <string.h>
+
 #include <algorithm>
 #include <atomic>
 #include <cstdio>
@@ -1661,7 +1664,7 @@ static void destroy_sj_tmp_tables(JOIN *join) {
     close_tmp_table(join->thd, table);
     free_tmp_table(table);
   }
-  join->sj_tmp_tables.empty();
+  join->sj_tmp_tables.clear();
 }
 
 /**
@@ -1830,14 +1833,14 @@ void JOIN::destroy() {
   tmp_table_param.cleanup();
 
   /* Cleanup items referencing temporary table columns */
-  if (tmp_all_fields != nullptr) {
-    cleanup_item_list(tmp_all_fields[REF_SLICE_TMP1]);
-    cleanup_item_list(tmp_all_fields[REF_SLICE_TMP2]);
-    cleanup_item_list(tmp_all_fields[REF_SLICE_ORDERED_GROUP_BY]);
+  if (tmp_fields != nullptr) {
+    cleanup_item_list(tmp_fields[REF_SLICE_TMP1]);
+    cleanup_item_list(tmp_fields[REF_SLICE_TMP2]);
+    cleanup_item_list(tmp_fields[REF_SLICE_ORDERED_GROUP_BY]);
     for (uint widx = 0; widx < m_windows.elements; widx++) {
-      cleanup_item_list(tmp_all_fields[REF_SLICE_WIN_1 + widx]);
-      cleanup_item_list(tmp_all_fields[REF_SLICE_WIN_1 + widx +
-                                       m_windows.elements]);  // frame buffer
+      cleanup_item_list(tmp_fields[REF_SLICE_WIN_1 + widx]);
+      cleanup_item_list(tmp_fields[REF_SLICE_WIN_1 + widx +
+                                   m_windows.elements]);  // frame buffer
     }
   }
 
@@ -1853,7 +1856,7 @@ void JOIN::destroy() {
   List_iterator<Semijoin_mat_exec> sjm_list_it(sjm_exec_list);
   Semijoin_mat_exec *sjm;
   while ((sjm = sjm_list_it++)) ::destroy(sjm);
-  sjm_exec_list.empty();
+  sjm_exec_list.clear();
 
   keyuse_array.clear();
   // Free memory for rollup arrays
@@ -1865,11 +1868,9 @@ void JOIN::destroy() {
   }
 }
 
-void JOIN::cleanup_item_list(List<Item> &items) const {
-  if (!items.is_empty()) {
-    List_iterator_fast<Item> it(items);
-    Item *item;
-    while ((item = it++)) item->cleanup();
+void JOIN::cleanup_item_list(const mem_root_deque<Item *> &items) const {
+  for (Item *item : items) {
+    item->cleanup();
   }
 }
 
@@ -1922,10 +1923,8 @@ bool SELECT_LEX::optimize(THD *thd) {
 */
 bool SELECT_LEX::check_column_privileges(THD *thd) {
   Column_privilege_tracker tracker(thd, SELECT_ACL);
-  Item *item;
-  List_iterator<Item> it(fields_list);
 
-  while ((item = it++)) {
+  for (Item *item : visible_fields()) {
     if (item->walk(&Item::check_column_privileges, enum_walk::PREFIX,
                    pointer_cast<uchar *>(thd)))
       return true;
@@ -2006,11 +2005,10 @@ bool check_privileges_for_join(THD *thd, mem_root_deque<TABLE_LIST *> *tables) {
 
   @returns false if success, true if error (insufficient privileges)
 */
-bool check_privileges_for_list(THD *thd, List<Item> *items, ulong privileges) {
+bool check_privileges_for_list(THD *thd, const mem_root_deque<Item *> &items,
+                               ulong privileges) {
   thd->want_privilege = privileges;
-  Item *item;
-  List_iterator<Item> ufi(*items);
-  while ((item = ufi++)) {
+  for (Item *item : items) {
     if (item->walk(&Item::check_column_privileges, enum_walk::PREFIX,
                    pointer_cast<uchar *>(thd)))
       return true;
@@ -2999,7 +2997,7 @@ bool JOIN::setup_semijoin_materialized_table(JOIN_TAB *tab, uint tableno,
   TABLE_LIST *const emb_sj_nest = inner_pos->table->emb_sj_nest;
   Semijoin_mat_optimize *const sjm_opt = &emb_sj_nest->nested_join->sjm;
   Semijoin_mat_exec *const sjm_exec = tab->sj_mat_exec();
-  const uint field_count = emb_sj_nest->nested_join->sj_inner_exprs.elements;
+  const uint field_count = emb_sj_nest->nested_join->sj_inner_exprs.size();
 
   DBUG_ASSERT(field_count > 0);
   DBUG_ASSERT(inner_pos->sj_strategy == SJ_OPT_MATERIALIZE_LOOKUP ||
@@ -3490,7 +3488,7 @@ void QEP_shared_owner::qs_cleanup() {
     TABLE_LIST *const table_ref = table()->pos_in_table_list;
     if (table_ref) {
       table_ref->derived_keys_ready = false;
-      table_ref->derived_key_list.empty();
+      table_ref->derived_key_list.clear();
     }
   }
   delete quick();
@@ -3824,11 +3822,9 @@ bool const_expression_in_where(Item *cond, Item *comp_item,
 */
 
 void count_field_types(SELECT_LEX *select_lex, Temp_table_param *param,
-                       List<Item> &fields, bool reset_with_sum_func,
-                       bool save_sum_fields) {
+                       const mem_root_deque<Item *> &fields,
+                       bool reset_with_sum_func, bool save_sum_fields) {
   DBUG_TRACE;
-  List_iterator<Item> li(fields);
-  Item *field;
 
   param->field_count = 0;
   param->sum_func_count = 0;
@@ -3843,7 +3839,7 @@ void count_field_types(SELECT_LEX *select_lex, Temp_table_param *param,
   */
   save_sum_fields |= param->precomputed_group_by;
 
-  while ((field = li++)) {
+  for (Item *field : fields) {
     Item *real = field->real_item();
     Item::Type real_type = real->type();
 
@@ -4024,7 +4020,7 @@ bool JOIN::alloc_func_list() {
     disctinct->group_by optimization
   */
   if (select_distinct) {
-    group_parts += fields_list.elements;
+    group_parts += CountVisibleFields(*fields);
     /*
       If the ORDER clause is specified then it's possible that
       it also will be optimized, so reserve space for it too
@@ -4045,7 +4041,7 @@ bool JOIN::alloc_func_list() {
 /**
   Initialize 'sum_funcs' array with all Item_sum objects.
 
-  @param field_list        All items
+  @param fields            All items
   @param before_group_by   Set to 1 if this is called before GROUP BY handling
   @param recompute         Set to true if sum_funcs must be recomputed
 
@@ -4055,17 +4051,19 @@ bool JOIN::alloc_func_list() {
     1  error
 */
 
-bool JOIN::make_sum_func_list(List<Item> &field_list, bool before_group_by,
-                              bool recompute) {
+bool JOIN::make_sum_func_list(const mem_root_deque<Item *> &fields,
+                              bool before_group_by, bool recompute) {
+  DBUG_TRACE;
+
   if (*sum_funcs && !recompute)
     return false; /* We have already initialized sum_funcs. */
 
   Item_sum **func = sum_funcs;
-  for (Item &item : field_list) {
-    if (item.type() == Item::SUM_FUNC_ITEM && !item.const_item() &&
-        down_cast<Item_sum &>(item).aggr_select == select_lex) {
-      DBUG_ASSERT(!item.m_is_window_function);
-      *func++ = down_cast<Item_sum *>(&item);
+  for (Item *item : fields) {
+    if (item->type() == Item::SUM_FUNC_ITEM && !item->const_item() &&
+        down_cast<Item_sum *>(item)->aggr_select == select_lex) {
+      DBUG_ASSERT(!item->m_is_window_function);
+      *func++ = down_cast<Item_sum *>(item);
     }
   }
   if (before_group_by && rollup_state == RollupState::INITED) {
@@ -4114,7 +4112,7 @@ bool SELECT_LEX::change_query_result(THD *thd,
   DBUG_TRACE;
   if (old_result == nullptr || query_result() == old_result) {
     set_query_result(new_result);
-    if (query_result()->prepare(thd, fields_list, master_unit()))
+    if (query_result()->prepare(thd, fields, master_unit()))
       return true; /* purecov: inspected */
     return false;
   } else {
@@ -4229,11 +4227,11 @@ bool JOIN::add_having_as_tmp_table_cond(uint curr_tmp_table) {
 
 bool JOIN::make_tmp_tables_info() {
   DBUG_ASSERT(!join_tab);
-  List<Item> *curr_all_fields = &all_fields;
-  List<Item> *curr_fields_list = &fields_list;
+  mem_root_deque<Item *> *curr_fields = fields;
   bool materialize_join = false;
   uint curr_tmp_table = const_tables;
   TABLE *exec_tmp_table = nullptr;
+
   /*
     If the plan is constant, we will not do window tmp table processing
     cf. special code path in do_select.
@@ -4311,11 +4309,9 @@ bool JOIN::make_tmp_tables_info() {
     if (!simple_group && !(test_flags & TEST_NO_KEY_GROUP) && !with_json_agg)
       tmp_group = group_list;
 
-    tmp_table_param.hidden_field_count =
-        all_fields.elements - fields_list.elements;
+    tmp_table_param.hidden_field_count = CountHiddenFields(*fields);
 
-    if (create_intermediate_table(&qep_tab[curr_tmp_table], &all_fields,
-                                  tmp_group,
+    if (create_intermediate_table(&qep_tab[curr_tmp_table], *fields, tmp_group,
                                   !group_list.empty() && simple_group))
       return true;
     exec_tmp_table = qep_tab[curr_tmp_table].table();
@@ -4342,20 +4338,16 @@ bool JOIN::make_tmp_tables_info() {
     // Change sum_fields reference to calculated fields in tmp_table
     if (streaming_aggregation || qep_tab[curr_tmp_table].table()->group ||
         tmp_table_param.precomputed_group_by) {
-      if (change_to_use_tmp_fields(&all_fields, fields_list.size(), thd,
-                                   ref_items[REF_SLICE_TMP1],
-                                   &tmp_fields_list[REF_SLICE_TMP1],
-                                   &tmp_all_fields[REF_SLICE_TMP1]))
+      if (change_to_use_tmp_fields(fields, thd, ref_items[REF_SLICE_TMP1],
+                                   &tmp_fields[REF_SLICE_TMP1]))
         return true;
     } else {
-      if (change_to_use_tmp_fields_except_sums(
-              &all_fields, fields_list.size(), thd, select_lex,
-              ref_items[REF_SLICE_TMP1], &tmp_fields_list[REF_SLICE_TMP1],
-              &tmp_all_fields[REF_SLICE_TMP1]))
+      if (change_to_use_tmp_fields_except_sums(fields, thd, select_lex,
+                                               ref_items[REF_SLICE_TMP1],
+                                               &tmp_fields[REF_SLICE_TMP1]))
         return true;
     }
-    curr_all_fields = &tmp_all_fields[REF_SLICE_TMP1];
-    curr_fields_list = &tmp_fields_list[REF_SLICE_TMP1];
+    curr_fields = &tmp_fields[REF_SLICE_TMP1];
     // Need to set them now for correct group_fields setup, reset at the end.
     set_ref_item_slice(REF_SLICE_TMP1);
     qep_tab[curr_tmp_table].ref_item_slice = REF_SLICE_TMP1;
@@ -4431,11 +4423,10 @@ bool JOIN::make_tmp_tables_info() {
 
       calc_group_buffer(this, group_list.order);
       count_field_types(select_lex, &tmp_table_param,
-                        tmp_all_fields[REF_SLICE_TMP1],
+                        tmp_fields[REF_SLICE_TMP1],
                         select_distinct && group_list.empty(), false);
       tmp_table_param.hidden_field_count =
-          tmp_all_fields[REF_SLICE_TMP1].elements -
-          tmp_fields_list[REF_SLICE_TMP1].elements;
+          CountHiddenFields(tmp_fields[REF_SLICE_TMP1]);
       streaming_aggregation = false;
       if (!exec_tmp_table->group && !exec_tmp_table->s->is_distinct) {
         // 1st tmp table were materializing join result
@@ -4459,7 +4450,7 @@ bool JOIN::make_tmp_tables_info() {
 
       ORDER_with_src dummy;  // TODO can use table->group here also
 
-      if (create_intermediate_table(&qep_tab[curr_tmp_table], curr_all_fields,
+      if (create_intermediate_table(&qep_tab[curr_tmp_table], *curr_fields,
                                     dummy, true))
         return true;
 
@@ -4479,7 +4470,7 @@ bool JOIN::make_tmp_tables_info() {
       // Setup sum funcs only when necessary, otherwise we might break info
       // for the first table
       if (!group_list.empty() || tmp_table_param.sum_func_count) {
-        if (make_sum_func_list(*curr_all_fields, true, true)) return true;
+        if (make_sum_func_list(*curr_fields, true, true)) return true;
         const bool need_distinct =
             !(qep_tab[0].quick() &&
               qep_tab[0].quick()->is_agg_loose_index_scan());
@@ -4495,14 +4486,12 @@ bool JOIN::make_tmp_tables_info() {
       if (alloc_ref_item_slice(thd, REF_SLICE_TMP2)) return true;
 
       // No sum funcs anymore
-      if (change_to_use_tmp_fields(
-              &tmp_all_fields[REF_SLICE_TMP1], fields_list.size(), thd,
-              ref_items[REF_SLICE_TMP2], &tmp_fields_list[REF_SLICE_TMP2],
-              &tmp_all_fields[REF_SLICE_TMP2]))
+      if (change_to_use_tmp_fields(&tmp_fields[REF_SLICE_TMP1], thd,
+                                   ref_items[REF_SLICE_TMP2],
+                                   &tmp_fields[REF_SLICE_TMP2]))
         return true;
 
-      curr_fields_list = &tmp_fields_list[REF_SLICE_TMP2];
-      curr_all_fields = &tmp_all_fields[REF_SLICE_TMP2];
+      curr_fields = &tmp_fields[REF_SLICE_TMP2];
       set_ref_item_slice(REF_SLICE_TMP2);
       qep_tab[curr_tmp_table].ref_item_slice = REF_SLICE_TMP2;
       setup_tmptable_write_func(&qep_tab[curr_tmp_table], &trace_this_tbl);
@@ -4554,8 +4543,7 @@ bool JOIN::make_tmp_tables_info() {
       DBUG_ASSERT(!qep_tab[curr_tmp_table].table()->group);
     }
     calc_group_buffer(this, group_list.order);
-    count_field_types(select_lex, &tmp_table_param, *curr_all_fields, false,
-                      false);
+    count_field_types(select_lex, &tmp_table_param, *curr_fields, false, false);
   }
 
   /*
@@ -4585,13 +4573,12 @@ bool JOIN::make_tmp_tables_info() {
       from the record buffer for this temporary table.
     */
     if (alloc_ref_item_slice(thd, REF_SLICE_ORDERED_GROUP_BY)) return true;
-    setup_copy_fields(*curr_all_fields, curr_fields_list->size(), thd,
-                      &tmp_table_param, ref_items[REF_SLICE_ORDERED_GROUP_BY],
-                      &tmp_fields_list[REF_SLICE_ORDERED_GROUP_BY],
-                      &tmp_all_fields[REF_SLICE_ORDERED_GROUP_BY]);
+    setup_copy_fields(*curr_fields, thd, &tmp_table_param,
+                      ref_items[REF_SLICE_ORDERED_GROUP_BY],
+                      &tmp_fields[REF_SLICE_ORDERED_GROUP_BY]);
 
-    curr_fields_list = &tmp_fields_list[REF_SLICE_ORDERED_GROUP_BY];
-    curr_all_fields = &tmp_all_fields[REF_SLICE_ORDERED_GROUP_BY];
+    curr_fields = &tmp_fields[REF_SLICE_ORDERED_GROUP_BY];
+
     last_slice_before_windowing = REF_SLICE_ORDERED_GROUP_BY;
 
     if (qep_tab)  // remember when to switch to REF_SLICE_ORDERED_GROUP_BY in
@@ -4607,7 +4594,7 @@ bool JOIN::make_tmp_tables_info() {
     */
     uint save_sliceno = current_ref_item_slice;
     set_ref_item_slice(REF_SLICE_ORDERED_GROUP_BY);
-    if (make_sum_func_list(*curr_all_fields, true, true)) return true;
+    if (make_sum_func_list(*curr_fields, true, true)) return true;
     /*
       Exit the TMP3 slice, to set up sum funcs, as they take input from
       previous table, not from that slice.
@@ -4729,15 +4716,13 @@ bool JOIN::make_tmp_tables_info() {
       ORDER_with_src dummy;
 
       if (last_slice_before_windowing == REF_SLICE_ACTIVE) {
-        tmp_table_param.hidden_field_count =
-            all_fields.elements - fields_list.elements;
+        tmp_table_param.hidden_field_count = CountHiddenFields(*fields);
       } else {
         DBUG_ASSERT(tmp_tables >= 1 &&
                     last_slice_before_windowing > REF_SLICE_ACTIVE);
 
         tmp_table_param.hidden_field_count =
-            tmp_all_fields[last_slice_before_windowing].elements -
-            tmp_fields_list[last_slice_before_windowing].elements;
+            CountHiddenFields(tmp_fields[last_slice_before_windowing]);
       }
 
       /*
@@ -4761,18 +4746,15 @@ bool JOIN::make_tmp_tables_info() {
         Temp_table_param *par =
             new (thd->mem_root) Temp_table_param(tmp_table_param);
         par->m_window_frame_buffer = true;
-        List<Item> tmplist(*curr_all_fields, thd->mem_root);
         TABLE *table =
-            create_tmp_table(thd, par, tmplist, nullptr, false, false,
+            create_tmp_table(thd, par, *curr_fields, nullptr, false, false,
                              select_lex->active_options(), HA_POS_ERROR, "");
         if (table == nullptr) return true;
 
         if (alloc_ref_item_slice(thd, fbidx)) return true;
 
-        if (change_to_use_tmp_fields(curr_all_fields, curr_fields_list->size(),
-                                     thd, ref_items[fbidx],
-                                     &tmp_fields_list[fbidx],
-                                     &tmp_all_fields[fbidx]))
+        if (change_to_use_tmp_fields(curr_fields, thd, ref_items[fbidx],
+                                     &tmp_fields[fbidx]))
           return true;
 
         m_windows[wno]->set_frame_buffer_param(par);
@@ -4784,7 +4766,7 @@ bool JOIN::make_tmp_tables_info() {
           .add_alnum("cause", "output_for_window_functions")
           .add("with_buffer", m_windows[wno]->needs_buffering());
       QEP_TAB *tab = &qep_tab[curr_tmp_table];
-      if (create_intermediate_table(tab, curr_all_fields, dummy, false))
+      if (create_intermediate_table(tab, *curr_fields, dummy, false))
         return true;
 
       m_windows[wno]->set_outtable_param(tab->tmp_table_param);
@@ -4796,14 +4778,12 @@ bool JOIN::make_tmp_tables_info() {
 
       if (change_to_use_tmp_fields(
               (last_slice_before_windowing == REF_SLICE_ACTIVE
-                   ? &all_fields
-                   : &tmp_all_fields[last_slice_before_windowing]),
-              fields_list.size(), thd, ref_items[widx], &tmp_fields_list[widx],
-              &tmp_all_fields[widx]))
+                   ? fields
+                   : &tmp_fields[last_slice_before_windowing]),
+              thd, ref_items[widx], &tmp_fields[widx]))
         return true;
 
-      curr_fields_list = &tmp_fields_list[widx];
-      curr_all_fields = &tmp_all_fields[widx];
+      curr_fields = &tmp_fields[widx];
       set_ref_item_slice(widx);
       tab->ref_item_slice = widx;
       setup_tmptable_write_func(tab, &trace_this_tbl);
@@ -4848,7 +4828,7 @@ bool JOIN::make_tmp_tables_info() {
     }
   }
 
-  fields = curr_fields_list;
+  fields = curr_fields;
   // Reset before execution
   set_ref_item_slice(REF_SLICE_SAVED_BASE);
   if (qep_tab) {

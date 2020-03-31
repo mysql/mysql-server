@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -217,35 +217,31 @@ SELECT_LEX *build_show_collation_query(const POS &pos, THD *thd,
         new (mem_root) Item_field(pos, NullS, NullS, field_id.str);
     if (case_value_item == nullptr) return nullptr;  // OOM
 
-    List<Item> case_when_list;
+    mem_root_deque<Item *> case_when_list(mem_root);
 
     // ... WHEN <ID of utf8mb4_general_ci> ...
     Item *old_default_collation =
         new (mem_root) Item_uint(my_charset_utf8mb4_general_ci.number);
-    if (old_default_collation == nullptr ||
-        case_when_list.push_back(old_default_collation))
-      return nullptr;  // OOM
+    if (old_default_collation == nullptr) return nullptr;  // OOM
+    case_when_list.push_back(old_default_collation);
 
     // ... THEN 'Yes' ...
     Item *force_old_default_collation =
         new (mem_root) Item_string(STRING_WITH_LEN("Yes"), system_charset_info);
-    if (force_old_default_collation == nullptr ||
-        case_when_list.push_back(force_old_default_collation))
-      return nullptr;  // OOM
+    if (force_old_default_collation == nullptr) return nullptr;  // OOM
+    case_when_list.push_back(force_old_default_collation);
 
     // ... WHEN <ID of utf8mb4_0900_ai_ci> ...
     Item *new_default_collation =
         new (mem_root) Item_uint(my_charset_utf8mb4_0900_ai_ci.number);
-    if (new_default_collation == nullptr ||
-        case_when_list.push_back(new_default_collation))
-      return nullptr;  // OOM
+    if (new_default_collation == nullptr) return nullptr;  // OOM
+    case_when_list.push_back(new_default_collation);
 
     // ... THEN '' ...
     Item *suppress_new_default_collation =
         new (mem_root) Item_string(STRING_WITH_LEN(""), system_charset_info);
-    if (suppress_new_default_collation == nullptr ||
-        case_when_list.push_back(suppress_new_default_collation))
-      return nullptr;  // OOM
+    if (suppress_new_default_collation == nullptr) return nullptr;  // OOM
+    case_when_list.push_back(suppress_new_default_collation);
 
     // ... ELSE IS_DEFAULT ...
     Item *case_else_item =
@@ -257,7 +253,7 @@ SELECT_LEX *build_show_collation_query(const POS &pos, THD *thd,
     //   WHEN <ID of utf8mb4_0900_ai_ci> THEN FALSE
     //   ELSE `IS_DEFAULT`
     Item *case_func = new (mem_root)
-        Item_func_case(pos, case_when_list, case_value_item, case_else_item);
+        Item_func_case(pos, &case_when_list, case_value_item, case_else_item);
     if (case_func == nullptr ||
         sub_query.add_select_expr(case_func, alias_default))
       return nullptr;

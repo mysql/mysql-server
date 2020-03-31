@@ -145,7 +145,7 @@ bool Distinct_check::check_query(THD *thd) {
       Subqueries in ORDER BY are non-standard anyway.
     */
     Item **const res =
-        find_item_in_list(thd, *order->item, select->fields_list, &counter,
+        find_item_in_list(thd, *order->item, &select->fields, &counter,
                           REPORT_EXCEPT_NOT_FOUND, &resolution);
     if (res == nullptr)  // Other error than "not found", my_error() was called
       return true;       /* purecov: inspected */
@@ -182,8 +182,8 @@ bool Group_check::check_query(THD *thd) {
   uint number_in_list = 1;
   const char *place = "SELECT list";
 
-  for (Item &sel_expr : select->fields_list) {
-    if (check_expression(thd, &sel_expr, true)) goto err;
+  for (Item *sel_expr : select->visible_fields()) {
+    if (check_expression(thd, sel_expr, true)) goto err;
     ++number_in_list;
   }
 
@@ -269,9 +269,8 @@ bool Group_check::check_expression(THD *thd, Item *expr, bool in_select_list) {
     uint counter;
     enum_resolution_type resolution;
     // Search if this expression is equal to one in the SELECT list.
-    Item **const res =
-        find_item_in_list(thd, expr, select->fields_list, &counter,
-                          REPORT_EXCEPT_NOT_FOUND, &resolution);
+    Item **const res = find_item_in_list(thd, expr, &select->fields, &counter,
+                                         REPORT_EXCEPT_NOT_FOUND, &resolution);
     if (res == nullptr)  // Other error than "not found", my_error() was called
       return true;       /* purecov: inspected */
     if (res != not_found_item) {
@@ -582,11 +581,15 @@ void Group_check::find_group_in_fd(Item *item) {
    @returns the idx-th expression in the SELECT list of our query block.
 */
 Item *Group_check::select_expression(uint idx) {
-  List_iterator<Item> it_select_list_of_subq(*select->get_fields_list());
-  Item *expr_under = nullptr;
-  for (uint k = 0; k <= idx; k++) expr_under = it_select_list_of_subq++;
-  DBUG_ASSERT(expr_under);
-  return expr_under;
+  for (Item *item : select->visible_fields()) {
+    if (idx == 0) {
+      return item;
+    } else {
+      --idx;
+    }
+  }
+  DBUG_ASSERT(false);
+  return nullptr;
 }
 
 /**
@@ -922,10 +925,11 @@ void Group_check::analyze_conjunct(Item *cond, Item *conjunct,
     conjunct = cnj->arguments()[0];
     if (conjunct->type() != Item::FUNC_ITEM) return;
     cnj = static_cast<const Item_func *>(conjunct);  // Dive in NOT's argument.
+
     /*
       We intentionally keep not_null_tables of the NOT, as we're interested in
       what makes the NOT not true, not what makes NOT's argument not true.
-    */
+     */
   }
   for (Item **parg = cnj->arguments(),
             **parg_end = parg + cnj->argument_count();

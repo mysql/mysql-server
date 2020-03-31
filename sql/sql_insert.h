@@ -29,6 +29,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
+#include "sql/current_thd.h"
 #include "sql/query_result.h"     // Query_result_interceptor
 #include "sql/sql_cmd_dml.h"      // Sql_cmd_dml
 #include "sql/sql_data_change.h"  // enum_duplicates
@@ -43,7 +44,7 @@ class THD;
 struct HA_CREATE_INFO;
 struct handlerton;
 
-typedef List<Item> List_item;
+using List_item = mem_root_deque<Item *>;
 struct MYSQL_LOCK;
 
 bool check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
@@ -64,7 +65,7 @@ class Query_result_insert : public Query_result_interceptor {
      table from which values are selected. For legacy reasons both are
      allowed.
    */
-  List<Item> *fields;
+  mem_root_deque<Item *> *fields;
 
  protected:
   /// ha_start_bulk_insert has been called. Never cleared.
@@ -121,9 +122,11 @@ are found inside the COPY_INFO.
      target_columns is columns1, if not empty then 'info' must manage defaults
      of other columns than columns1.
   */
-  Query_result_insert(TABLE_LIST *table_list_par, List<Item> *target_columns,
-                      List<Item> *target_or_source_columns,
-                      List<Item> *update_fields, List<Item> *update_values,
+  Query_result_insert(TABLE_LIST *table_list_par,
+                      mem_root_deque<Item *> *target_columns,
+                      mem_root_deque<Item *> *target_or_source_columns,
+                      mem_root_deque<Item *> *update_fields,
+                      mem_root_deque<Item *> *update_values,
                       enum_duplicates duplic)
       : Query_result_interceptor(),
         table_list(table_list_par),
@@ -133,8 +136,7 @@ are found inside the COPY_INFO.
         autoinc_value_of_last_inserted_row(0),
         info(COPY_INFO::INSERT_OPERATION, target_columns,
              // manage_defaults
-             (target_columns == nullptr || target_columns->elements != 0),
-             duplic),
+             (target_columns == nullptr || !target_columns->empty()), duplic),
         update(COPY_INFO::UPDATE_OPERATION, update_fields, update_values),
         insert_into_view(table_list_par && table_list_par->is_view()) {
     DBUG_ASSERT(target_or_source_columns != nullptr);
@@ -144,10 +146,11 @@ are found inside the COPY_INFO.
 
  public:
   bool need_explain_interceptor() const override { return true; }
-  bool prepare(THD *thd, List<Item> &list, SELECT_LEX_UNIT *u) override;
+  bool prepare(THD *thd, const mem_root_deque<Item *> &list,
+               SELECT_LEX_UNIT *u) override;
   bool start_execution(THD *thd) override;
-  bool send_data(THD *thd, List<Item> &items) override;
-  virtual void store_values(THD *thd, List<Item> &values);
+  bool send_data(THD *thd, const mem_root_deque<Item *> &items) override;
+  virtual void store_values(THD *thd, const mem_root_deque<Item *> &values);
   void send_error(THD *thd, uint errcode, const char *err) override;
   bool send_eof(THD *thd) override;
   void abort_result_set(THD *thd) override;
@@ -190,11 +193,12 @@ class Query_result_create final : public Query_result_insert {
   handlerton *m_post_ddl_ht;
 
  public:
-  Query_result_create(TABLE_LIST *table_arg, List<Item> &select_fields,
+  Query_result_create(TABLE_LIST *table_arg, mem_root_deque<Item *> *fields,
                       enum_duplicates duplic, TABLE_LIST *select_tables_arg);
 
-  bool prepare(THD *thd, List<Item> &list, SELECT_LEX_UNIT *u) override;
-  void store_values(THD *thd, List<Item> &values) override;
+  bool prepare(THD *thd, const mem_root_deque<Item *> &list,
+               SELECT_LEX_UNIT *u) override;
+  void store_values(THD *thd, const mem_root_deque<Item *> &values) override;
   void send_error(THD *thd, uint errcode, const char *err) override;
   bool send_eof(THD *thd) override;
   void abort_result_set(THD *thd) override;
@@ -242,7 +246,7 @@ class Sql_cmd_insert_base : public Sql_cmd_dml {
     2. For the INSERT/REPLACE ... SET col1=x1, ... colM=xM syntax extension
        this is a list of col1, ... colM fields as well.
   */
-  List<Item> insert_field_list;
+  mem_root_deque<Item *> insert_field_list;
   /**
     Row data to insert/replace
 
@@ -254,7 +258,7 @@ class Sql_cmd_insert_base : public Sql_cmd_dml {
        emulate this syntax:
          INSERT/REPLACE ... (col1, ... colM) VALUE (x1, ..., xM);
   */
-  List<List_item> insert_many_values;
+  mem_root_deque<List_item *> insert_many_values;
 
   /// True if VALUES clause contain column references that need privilege check
   bool values_need_privilege_check{false};
@@ -266,10 +270,10 @@ class Sql_cmd_insert_base : public Sql_cmd_dml {
   uint value_count;
 
   /// ON DUPLICATE KEY UPDATE field list
-  List<Item> update_field_list;
+  mem_root_deque<Item *> update_field_list;
 
   /// ON DUPLICATE KEY UPDATE data value list
-  List<Item> update_value_list;
+  mem_root_deque<Item *> update_value_list;
 
   /**
     ON DUPLICATE KEY UPDATE reference to VALUES.. as a derived table.
@@ -282,15 +286,20 @@ class Sql_cmd_insert_base : public Sql_cmd_dml {
     INTO t0 ..), we have to create one to create Item_insert_values for ODKU
     statements.
   */
-  List<Item> values_field_list;
+  mem_root_deque<Item *> values_field_list;
 
   const enum_duplicates duplicates;
 
   explicit Sql_cmd_insert_base(bool is_replace_arg,
                                enum_duplicates duplicates_arg)
       : is_replace(is_replace_arg),
+        insert_field_list(*THR_MALLOC),
+        insert_many_values(*THR_MALLOC),
         column_count(0),
         value_count(0),
+        update_field_list(*THR_MALLOC),
+        update_value_list(*THR_MALLOC),
+        values_field_list(*THR_MALLOC),
         duplicates(duplicates_arg) {}
 
   void cleanup(THD *) override {}

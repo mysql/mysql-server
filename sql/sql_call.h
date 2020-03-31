@@ -30,11 +30,12 @@ class Item;
 class THD;
 class sp_name;
 template <class T>
-class List;
+class mem_root_deque;
 
 class Sql_cmd_call : public Sql_cmd_dml {
  public:
-  explicit Sql_cmd_call(sp_name *proc_name_arg, List<Item> *prog_args_arg)
+  explicit Sql_cmd_call(sp_name *proc_name_arg,
+                        mem_root_deque<Item *> *prog_args_arg)
       : Sql_cmd_dml(), proc_name(proc_name_arg), proc_args(prog_args_arg) {}
 
   enum_sql_command sql_command_code() const override { return SQLCOM_CALL; }
@@ -51,7 +52,7 @@ class Sql_cmd_call : public Sql_cmd_dml {
 
  private:
   sp_name *proc_name;
-  List<Item> *proc_args;
+  mem_root_deque<Item *> *proc_args;
 };
 
 #endif /* SQL_CALL_INCLUDED */

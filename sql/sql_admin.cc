@@ -346,7 +346,7 @@ static bool send_analyze_table_errors(THD *thd, const char *operator_name,
 bool Sql_cmd_analyze_table::send_histogram_results(
     THD *thd, const histograms::results_map &results, const TABLE_LIST *table) {
   Item *item;
-  List<Item> field_list;
+  mem_root_deque<Item *> field_list(thd->mem_root);
 
   field_list.push_back(item =
                            new Item_empty_string("Table", NAME_CHAR_LEN * 2));
@@ -358,7 +358,7 @@ bool Sql_cmd_analyze_table::send_histogram_results(
   field_list.push_back(
       item = new Item_empty_string("Msg_text", SQL_ADMIN_MSG_TEXT_SIZE));
   item->maybe_null = true;
-  if (thd->send_result_metadata(&field_list,
+  if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF)) {
     return true; /* purecov: deadcode */
   }
@@ -553,7 +553,6 @@ static bool mysql_admin_table(
 
   TABLE_LIST *table;
   SELECT_LEX *select = thd->lex->select_lex;
-  List<Item> field_list;
   Item *item;
   Protocol *protocol = thd->get_protocol();
   LEX *lex = thd->lex;
@@ -565,6 +564,7 @@ static bool mysql_admin_table(
   bool ignore_grl_on_analyze = operator_func == &handler::ha_analyze;
   DBUG_TRACE;
 
+  mem_root_deque<Item *> field_list(thd->mem_root);
   field_list.push_back(item =
                            new Item_empty_string("Table", NAME_CHAR_LEN * 2));
   item->maybe_null = true;
@@ -575,7 +575,7 @@ static bool mysql_admin_table(
   field_list.push_back(
       item = new Item_empty_string("Msg_text", SQL_ADMIN_MSG_TEXT_SIZE));
   item->maybe_null = true;
-  if (thd->send_result_metadata(&field_list,
+  if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return true;
 
@@ -1162,8 +1162,8 @@ static bool mysql_admin_table(
                 (table->table = open_n_lock_single_table(
                      thd, table, TL_READ_NO_INSERT, 0))) {
               /*
-             Reset the ALTER_ADMIN_PARTITION bit in alter_info->flags
-             to force analyze on all partitions.
+                Reset the ALTER_ADMIN_PARTITION bit in alter_info->flags
+                to force analyze on all partitions.
                */
               alter_info->flags &= ~(Alter_info::ALTER_ADMIN_PARTITION);
               result_code = table->table->file->ha_analyze(thd, check_opt);

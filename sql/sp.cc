@@ -1251,7 +1251,7 @@ static bool show_create_routine_from_dd_routine(THD *thd, enum_sp_type type,
   sql_mode_string_representation(thd, routine->sql_mode(), &sql_mode);
 
   /* Send header. */
-  List<Item> fields;
+  mem_root_deque<Item *> fields(thd->mem_root);
   // Column type
   const char *col1_caption =
       (type == enum_sp_type::PROCEDURE) ? "Procedure" : "Function";
@@ -1289,7 +1289,7 @@ static bool show_create_routine_from_dd_routine(THD *thd, enum_sp_type type,
   fields.push_back(
       new Item_empty_string("Database Collation", MY_CS_NAME_SIZE));
 
-  if (thd->send_result_metadata(&fields,
+  if (thd->send_result_metadata(fields,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return true;
 

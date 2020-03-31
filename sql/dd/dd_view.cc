@@ -268,11 +268,9 @@ static bool fill_dd_view_columns(THD *thd, View *view_obj,
     single query block. Otherwise iterate through all the type holders items
     created for unioned column types of all the query blocks.
   */
-  List_iterator_fast<Item> it(*(thd->lex->unit->get_unit_column_types()));
   List<Create_field> create_fields;
-  Item *item;
   uint i = 0;
-  while ((item = it++) != nullptr) {
+  for (Item *item : VisibleFields(*(thd->lex->unit->get_unit_column_types()))) {
     i++;
     bool is_sp_func_item = false;
     // Create temporary Field object from the item.
@@ -357,7 +355,8 @@ static bool fill_dd_view_columns(THD *thd, View *view_obj,
         is created with type holder item, store name from first SELECT_LEX.
       */
       cr_field->field_name =
-          thd->lex->select_lex->fields_list[i - 1]->item_name.ptr();
+          GetNthVisibleField(thd->lex->select_lex->fields, i - 1)
+              ->item_name.ptr();
     }
 
     cr_field->after = nullptr;
@@ -556,7 +555,7 @@ static bool fill_dd_view_definition(THD *thd, View *view_obj,
     metadata stored with column information. Fill view columns only when view
     metadata is stored with column information.
   */
-  if ((thd->lex->select_lex->fields_list.elements > 0) &&
+  if (!thd->lex->select_lex->field_list_is_empty() &&
       fill_dd_view_columns(thd, view_obj, view))
     return true;
 

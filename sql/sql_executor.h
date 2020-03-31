@@ -1,7 +1,7 @@
 #ifndef SQL_EXECUTOR_INCLUDED
 #define SQL_EXECUTOR_INCLUDED
 
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -255,26 +255,20 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl);
 int update_item_cache_if_changed(List<Cached_item> &list);
 
 // Create list for using with tempory table
-bool change_to_use_tmp_fields(List<Item> *all_fields,
-                              size_t num_select_elements, THD *thd,
+bool change_to_use_tmp_fields(mem_root_deque<Item *> *fields, THD *thd,
                               Ref_item_array ref_item_array,
-                              List<Item> *res_selected_fields,
-                              List<Item> *res_all_fields);
+                              mem_root_deque<Item *> *res_fields);
 // Create list for using with tempory table
-bool change_to_use_tmp_fields_except_sums(List<Item> *all_fields,
-                                          size_t num_select_elements, THD *thd,
-                                          SELECT_LEX *select,
+bool change_to_use_tmp_fields_except_sums(mem_root_deque<Item *> *fields,
+                                          THD *thd, SELECT_LEX *select,
                                           Ref_item_array ref_item_array,
-                                          List<Item> *res_selected_fields,
-                                          List<Item> *res_all_fields);
+                                          mem_root_deque<Item *> *res_fields);
 bool prepare_sum_aggregators(Item_sum **func_ptr, bool need_distinct);
 bool setup_sum_funcs(THD *thd, Item_sum **func_ptr);
 bool make_group_fields(JOIN *main_join, JOIN *curr_join);
-bool setup_copy_fields(List<Item> &all_fields, size_t num_select_elements,
-                       THD *thd, Temp_table_param *param,
-                       Ref_item_array ref_item_array,
-                       List<Item> *res_selected_fields,
-                       List<Item> *res_all_fields);
+bool setup_copy_fields(const mem_root_deque<Item *> &fields, THD *thd,
+                       Temp_table_param *param, Ref_item_array ref_item_array,
+                       mem_root_deque<Item *> *res_fields);
 bool check_unique_constraint(TABLE *table);
 ulonglong unique_hash(const Field *field, ulonglong *hash);
 
@@ -694,7 +688,7 @@ bool bring_back_frame_row(THD *thd, Window *w, Temp_table_param *out_param,
 
 unique_ptr_destroy_only<RowIterator> GetIteratorForDerivedTable(
     THD *thd, QEP_TAB *qep_tab);
-void ConvertItemsToCopy(List<Item> *items, Field **fields,
+void ConvertItemsToCopy(const mem_root_deque<Item *> &items, Field **fields,
                         Temp_table_param *param);
 std::string RefToString(const TABLE_REF &ref, const KEY *key,
                         bool include_nulls);

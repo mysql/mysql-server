@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1251,11 +1251,11 @@ bool Sql_cmd_xa_prepare::execute(THD *thd) {
 */
 
 bool Sql_cmd_xa_recover::trans_xa_recover(THD *thd) {
-  List<Item> field_list;
   Protocol *protocol = thd->get_protocol();
 
   DBUG_TRACE;
 
+  mem_root_deque<Item *> field_list(thd->mem_root);
   field_list.push_back(
       new Item_int(NAME_STRING("formatID"), 0, MY_INT32_NUM_DECIMAL_DIGITS));
   field_list.push_back(new Item_int(NAME_STRING("gtrid_length"), 0,
@@ -1264,7 +1264,7 @@ bool Sql_cmd_xa_recover::trans_xa_recover(THD *thd) {
                                     MY_INT32_NUM_DECIMAL_DIGITS));
   field_list.push_back(new Item_empty_string("data", XIDDATASIZE * 2 + 2));
 
-  if (thd->send_result_metadata(&field_list,
+  if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return true;
 

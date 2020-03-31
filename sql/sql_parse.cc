@@ -5178,7 +5178,7 @@ void THD::reset_for_next_command() {
     Those two lines below are theoretically unneeded as
     THD::cleanup_after_query() should take care of this already.
   */
-  thd->auto_inc_intervals_in_cur_stmt_for_binlog.empty();
+  thd->auto_inc_intervals_in_cur_stmt_for_binlog.clear();
   thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt = false;
 
   thd->query_start_usec_used = false;
@@ -6046,7 +6046,7 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(
   ptr->table_function = table_name->table_function;
   if (table_name->table_function) {
     table_func_count++;
-    ptr->derived_key_list.empty();
+    ptr->derived_key_list.clear();
   }
 
   if (table_name->db.str) {
@@ -6190,7 +6190,7 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(
                      ptr->table_name, mdl_type, MDL_TRANSACTION);
   }
   if (table_name->is_derived_table()) {
-    ptr->derived_key_list.empty();
+    ptr->derived_key_list.clear();
     derived_table_count++;
   }
 
@@ -6812,7 +6812,7 @@ void create_table_set_open_action_and_adjust_tables(LEX *lex) {
   else
     create_table->open_type = OT_BASE_ONLY;
 
-  if (!lex->select_lex->fields_list.elements) {
+  if (lex->select_lex->fields.empty()) {
     /*
       Avoid opening and locking target table for ordinary CREATE TABLE
       or CREATE TABLE LIKE for write (unlike in CREATE ... SELECT we

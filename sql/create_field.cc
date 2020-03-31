@@ -256,7 +256,7 @@ bool Create_field::init(
   change = fld_change;
   interval = nullptr;
   geom_type = static_cast<Field::geometry_type>(fld_geom_type);
-  interval_list.empty();
+  interval_list.clear();
 
   comment = *fld_comment;
   gcol_info = fld_gcol_info;

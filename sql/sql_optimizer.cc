@@ -160,15 +160,14 @@ JOIN::JOIN(THD *thd_arg, SELECT_LEX *select)
       found_const_table_map(INNER_TABLE_BIT),
       // Needed in case optimizer short-cuts, set properly in
       // make_tmp_tables_info()
-      fields(&select->fields_list),
+      fields(&select->fields),
       tmp_table_param(thd_arg->mem_root),
       lock(thd->lock),
       // @todo Can this be substituted with select->is_implicitly_grouped()?
       implicit_grouping(select->is_implicitly_grouped()),
       select_distinct(select->is_distinct()),
       keyuse_array(thd->mem_root),
-      all_fields(select->all_fields),
-      fields_list(select->fields_list),
+      query_block_fields(&select->fields),
       order(select->order_list.first, ESC_ORDER_BY),
       group_list(select->group_list.first, ESC_GROUP_BY),
       m_windows(select->m_windows),
@@ -206,23 +205,12 @@ bool JOIN::alloc_indirection_slices() {
   const uint card = REF_SLICE_WIN_1 + m_windows.elements * 2;
 
   DBUG_ASSERT(ref_items == nullptr);
-  ref_items =
-      (Ref_item_array *)(*THR_MALLOC)->Alloc(sizeof(Ref_item_array) * card);
+  ref_items = (*THR_MALLOC)->ArrayAlloc<Ref_item_array>(card);
   if (ref_items == nullptr) return true;
 
-  tmp_all_fields =
-      (List<Item> *)(*THR_MALLOC)->Alloc(sizeof(List<Item>) * card);
-  if (tmp_all_fields == nullptr) return true;
-
-  tmp_fields_list =
-      (List<Item> *)(*THR_MALLOC)->Alloc(sizeof(List<Item>) * card);
-  if (tmp_fields_list == nullptr) return true;
-
-  for (uint i = 0; i < card; i++) {
-    ref_items[i].reset();
-    tmp_all_fields[i].empty();
-    tmp_fields_list[i].empty();
-  }
+  tmp_fields =
+      (*THR_MALLOC)->ArrayAlloc<mem_root_deque<Item *>>(card, *THR_MALLOC);
+  if (tmp_fields == nullptr) return true;
 
   return false;
 }
@@ -285,7 +273,7 @@ bool JOIN::optimize() {
   trace_optimize.add_select_number(select_lex->select_number);
   Opt_trace_array trace_steps(trace, "steps");
 
-  count_field_types(select_lex, &tmp_table_param, all_fields, false, false);
+  count_field_types(select_lex, &tmp_table_param, *fields, false, false);
 
   DBUG_ASSERT(tmp_table_param.sum_func_count == 0 || !group_list.empty() ||
               implicit_grouping);
@@ -418,7 +406,7 @@ bool JOIN::optimize() {
   if (tables_list && implicit_grouping &&
       !(select_lex->active_options() & OPTION_NO_CONST_TABLES)) {
     aggregate_evaluated outcome;
-    if (optimize_aggregated_query(thd, select_lex, all_fields, where_cond,
+    if (optimize_aggregated_query(thd, select_lex, *fields, where_cond,
                                   &outcome)) {
       error = 1;
       DBUG_PRINT("error", ("Error from optimize_aggregated_query"));
@@ -476,7 +464,7 @@ bool JOIN::optimize() {
     best_rowcount = 1;
     error = 0;
     if (make_tmp_tables_info()) return true;
-    count_field_types(select_lex, &tmp_table_param, all_fields, false, false);
+    count_field_types(select_lex, &tmp_table_param, *fields, false, false);
     // Make plan visible for EXPLAIN
     set_plan_state(NO_TABLES);
     create_iterators();
@@ -503,8 +491,8 @@ bool JOIN::optimize() {
       substitute_gc(thd, select_lex, where_cond, group_list.order,
                     order.order)) {
     // We added hidden fields to the all_fields list, count them.
-    count_field_types(select_lex, &tmp_table_param, select_lex->all_fields,
-                      false, false);
+    count_field_types(select_lex, &tmp_table_param, select_lex->fields, false,
+                      false);
   }
   // Ensure there are no errors prior making query plan
   if (thd->is_error()) return true;
@@ -674,11 +662,8 @@ bool JOIN::optimize() {
 
   // Traverse the expressions and inject cast nodes to compatible data types,
   // if needed.
-  {
-    List_iterator<Item> select_expression_it(all_fields);
-    Item *item;
-    while ((item = select_expression_it++))
-      item->walk(&Item::cast_incompatible_args, enum_walk::POSTFIX, nullptr);
+  for (Item *item : *fields) {
+    item->walk(&Item::cast_incompatible_args, enum_walk::POSTFIX, nullptr);
   }
 
   if (rollup_state != RollupState::NONE) {
@@ -692,7 +677,7 @@ bool JOIN::optimize() {
     const bool save_allow_group_via_temp_table =
         tmp_table_param.allow_group_via_temp_table;
 
-    count_field_types(select_lex, &tmp_table_param, all_fields, false, false);
+    count_field_types(select_lex, &tmp_table_param, *fields, false, false);
     tmp_table_param.allow_group_via_temp_table =
         save_allow_group_via_temp_table;
   }
@@ -866,7 +851,7 @@ bool JOIN::optimize() {
     sort_cost = 0.0;
   }
 
-  count_field_types(select_lex, &tmp_table_param, all_fields, false, false);
+  count_field_types(select_lex, &tmp_table_param, *fields, false, false);
 
   // Create the basic table Iterators, and composite Iterators where supported.
   create_iterators();
@@ -1323,8 +1308,7 @@ bool JOIN::optimize_distinct_group_order() {
       grouped = false;
     }
     if (select_distinct &&
-        list_contains_unique_index(tab, find_field_in_item_list,
-                                   (void *)&fields_list)) {
+        list_contains_unique_index(tab, find_field_in_item_list, fields)) {
       select_distinct = false;
       trace_opt.add("distinct_is_on_unique", true)
           .add("removed_distinct", true);
@@ -1356,12 +1340,12 @@ bool JOIN::optimize_distinct_group_order() {
           tab, order, m_select_limit,
           true,  // no_changes
           &tab->table()->keys_in_use_for_order_by, &order_idx);
-      count_field_types(select_lex, &tmp_table_param, all_fields, false, false);
+      count_field_types(select_lex, &tmp_table_param, *fields, false, false);
     }
     ORDER *o;
     bool all_order_fields_used;
     if ((o = create_order_from_distinct(
-             thd, ref_items[REF_SLICE_ACTIVE], order.order, fields_list,
+             thd, ref_items[REF_SLICE_ACTIVE], order.order, *fields,
              /*skip_aggregates=*/true,
              /*convert_bit_fields_to_long=*/true, &all_order_fields_used))) {
       group_list = ORDER_with_src(o, ESC_DISTINCT);
@@ -1371,7 +1355,7 @@ bool JOIN::optimize_distinct_group_order() {
                                   true,  // no_changes
                                   &tab->table()->keys_in_use_for_group_by,
                                   &group_idx);
-      count_field_types(select_lex, &tmp_table_param, all_fields, false, false);
+      count_field_types(select_lex, &tmp_table_param, *fields, false, false);
       // ORDER BY and GROUP BY are using different indexes, can't skip sorting
       if (group_idx >= 0 && order_idx >= 0 && group_idx != order_idx)
         skip_sort_order = false;
@@ -4816,10 +4800,8 @@ bool JOIN::update_equalities_for_sjm() {
            keyuse && keyuse->table_ref == tab->table_ref &&
            keyuse->key == tab->position()->key->key;
            keyuse++) {
-        List_iterator<Item> it(sj_nest->nested_join->sj_inner_exprs);
-        Item *old;
         uint fieldno = 0;
-        while ((old = it++)) {
+        for (Item *old : sj_nest->nested_join->sj_inner_exprs) {
           if (old->real_item()->eq(keyuse->val->real_item(), false)) {
             /*
               Replace the expression selected from the subquery with the
@@ -5715,25 +5697,21 @@ void JOIN::set_semijoin_embedding() {
 static void semijoin_types_allow_materialization(TABLE_LIST *sj_nest) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(sj_nest->nested_join->sj_outer_exprs.elements ==
-              sj_nest->nested_join->sj_inner_exprs.elements);
+  DBUG_ASSERT(sj_nest->nested_join->sj_outer_exprs.size() ==
+              sj_nest->nested_join->sj_inner_exprs.size());
 
-  if (sj_nest->nested_join->sj_outer_exprs.elements > MAX_REF_PARTS ||
-      sj_nest->nested_join->sj_outer_exprs.elements == 0) {
+  if (sj_nest->nested_join->sj_outer_exprs.size() > MAX_REF_PARTS ||
+      sj_nest->nested_join->sj_outer_exprs.size() == 0) {
     // building an index is impossible
     sj_nest->nested_join->sjm.scan_allowed = false;
     sj_nest->nested_join->sjm.lookup_allowed = false;
     return;
   }
 
-  List_iterator<Item> it1(sj_nest->nested_join->sj_outer_exprs);
-  List_iterator<Item> it2(sj_nest->nested_join->sj_inner_exprs);
-
   sj_nest->nested_join->sjm.scan_allowed = true;
   sj_nest->nested_join->sjm.lookup_allowed = true;
 
   bool blobs_involved = false;
-  Item *outer, *inner;
   uint total_lookup_index_length = 0;
   uint max_key_length, max_key_part_length, max_key_parts;
   /*
@@ -5742,7 +5720,12 @@ static void semijoin_types_allow_materialization(TABLE_LIST *sj_nest) {
   */
   get_max_key_and_part_length(&max_key_length, &max_key_part_length,
                               &max_key_parts);
-  while (outer = it1++, inner = it2++) {
+  auto it1 = sj_nest->nested_join->sj_outer_exprs.begin();
+  auto it2 = sj_nest->nested_join->sj_inner_exprs.begin();
+  while (it1 != sj_nest->nested_join->sj_outer_exprs.end() &&
+         it2 != sj_nest->nested_join->sj_inner_exprs.end()) {
+    Item *outer = *it1++;
+    Item *inner = *it2++;
     DBUG_ASSERT(outer->real_item() && inner->real_item());
     if (!types_allow_materialization(outer, inner)) {
       sj_nest->nested_join->sjm.scan_allowed = false;
@@ -5883,11 +5866,9 @@ static ha_rows get_quick_record_count(THD *thd, JOIN_TAB *tab, ha_rows limit) {
     Length of the temptable record, in bytes
 */
 
-static uint get_tmp_table_rec_length(List<Item> &items) {
+static uint get_tmp_table_rec_length(const mem_root_deque<Item *> &items) {
   uint len = 0;
-  Item *item;
-  List_iterator<Item> it(items);
-  while ((item = it++)) {
+  for (Item *item : VisibleFields(items)) {
     switch (item->result_type()) {
       case REAL_RESULT:
         len += sizeof(double);
@@ -6685,10 +6666,10 @@ static Key_field *merge_key_fields(Key_field *start, Key_field *new_fields,
 static uint get_semi_join_select_list_index(Item_field *item_field) {
   TABLE_LIST *emb_sj_nest = item_field->table_ref->embedding;
   if (emb_sj_nest && emb_sj_nest->is_sj_or_aj_nest()) {
-    List<Item> &items = emb_sj_nest->nested_join->sj_inner_exprs;
-    List_iterator<Item> it(items);
-    for (uint i = 0; i < items.elements; i++) {
-      const Item *sel_item = it++;
+    const mem_root_deque<Item *> &items =
+        emb_sj_nest->nested_join->sj_inner_exprs;
+    for (size_t i = 0; i < items.size(); i++) {
+      const Item *sel_item = items[i];
       if (sel_item->type() == Item::FIELD_ITEM &&
           down_cast<const Item_field *>(sel_item)->field->eq(item_field->field))
         return i;
@@ -7771,7 +7752,8 @@ static bool add_key_fields_for_nj(THD *thd, JOIN *join,
     @retval   false      AGGFN(DISTINCT) must apply distinct in it.
 */
 
-bool is_indexed_agg_distinct(JOIN *join, List<Item_field> *out_args) {
+bool is_indexed_agg_distinct(JOIN *join,
+                             mem_root_deque<Item_field *> *out_args) {
   Item_sum **sum_item_ptr;
   bool result = false;
   Field_map first_aggdistinct_fields;
@@ -7781,7 +7763,7 @@ bool is_indexed_agg_distinct(JOIN *join, List<Item_field> *out_args) {
       join->select_lex->olap == ROLLUP_TYPE) /* Check (B3) for ROLLUP */
     return false;
 
-  if (join->make_sum_func_list(join->all_fields, true)) return false;
+  if (join->make_sum_func_list(*join->fields, true)) return false;
 
   for (sum_item_ptr = join->sum_funcs; *sum_item_ptr; sum_item_ptr++) {
     Item_sum *sum_item = *sum_item_ptr;
@@ -7891,10 +7873,8 @@ static void add_loose_index_scan_and_skip_scan_keys(JOIN *join,
                                                     JOIN_TAB *join_tab) {
   DBUG_ASSERT(join_tab->const_keys.is_subset(join_tab->keys()));
 
-  List<Item_field> indexed_fields;
-  List_iterator<Item_field> indexed_fields_it(indexed_fields);
+  mem_root_deque<Item_field *> indexed_fields(join->thd->mem_root);
   ORDER *cur_group;
-  Item_field *cur_item;
   const char *cause;
 
   /* Find the indexes that might be used for skip scan queries. */
@@ -7909,7 +7889,7 @@ static void add_loose_index_scan_and_skip_scan_keys(JOIN *join,
     Key_map possible_keys;
     possible_keys.set_all();
     join_tab->skip_scan_keys.clear_all();
-    while ((cur_item = indexed_fields_it++)) {
+    for (Item_field *cur_item : indexed_fields) {
       if (cur_item->used_tables() != join_tab->table_ref->map()) return;
       possible_keys.intersect(cur_item->field->part_of_key);
     }
@@ -7928,12 +7908,10 @@ static void add_loose_index_scan_and_skip_scan_keys(JOIN *join,
     cause = "group_by";
   } else if (join->select_distinct) {
     /* Collect all query fields referenced in the SELECT clause. */
-    List<Item> &select_items = join->fields_list;
-    List_iterator<Item> select_items_it(select_items);
-    Item *item;
-    while ((item = select_items_it++))
+    for (Item *item : VisibleFields(*join->fields)) {
       item->walk(&Item::collect_item_field_processor, enum_walk::POSTFIX,
                  (uchar *)&indexed_fields);
+    }
     cause = "distinct";
   } else if (join->tmp_table_param.sum_func_count &&
              is_indexed_agg_distinct(join, &indexed_fields)) {
@@ -7947,13 +7925,13 @@ static void add_loose_index_scan_and_skip_scan_keys(JOIN *join,
   } else
     return;
 
-  if (indexed_fields.elements == 0) return;
+  if (indexed_fields.empty()) return;
 
   Key_map possible_keys = join_tab->table()->keys_in_use_for_query;
   possible_keys.merge(join_tab->table()->keys_in_use_for_group_by);
 
   /* Intersect the keys of all group fields. */
-  while ((cur_item = indexed_fields_it++)) {
+  for (Item_field *cur_item : indexed_fields) {
     if (cur_item->used_tables() != join_tab->table_ref->map()) {
       /*
         Doing GROUP BY or DISTINCT on a field in another table so no
@@ -8170,17 +8148,17 @@ static bool update_ref_and_keys(THD *thd, Key_use_array *keyuse,
 
   @return Pointer to created keyuse array, or NULL if error
 */
-Key_use_array *create_keyuse_for_table(THD *thd, uint keyparts,
-                                       Item_field **fields,
-                                       List<Item> outer_exprs) {
+Key_use_array *create_keyuse_for_table(
+    THD *thd, uint keyparts, Item_field **fields,
+    const mem_root_deque<Item *> &outer_exprs) {
   void *mem = thd->alloc(sizeof(Key_use_array));
   if (!mem) return nullptr;
   Key_use_array *keyuses = new (mem) Key_use_array(thd->mem_root);
 
-  List_iterator<Item> outer_expr(outer_exprs);
+  auto outer_expr_it = outer_exprs.begin();
 
   for (uint keypartno = 0; keypartno < keyparts; keypartno++) {
-    Item *const item = outer_expr++;
+    Item *const item = *outer_expr_it++;
     Key_field key_field(fields[keypartno], item, 0, 0, true,
                         // null_rejecting must be true for field items only,
                         // add_not_null_conds() is incapable of handling
@@ -10293,12 +10271,11 @@ static bool find_field_in_order_list(Field *field, void *data) {
 */
 
 static bool find_field_in_item_list(Field *field, void *data) {
-  List<Item> *fields = (List<Item> *)data;
+  mem_root_deque<Item *> *fields =
+      reinterpret_cast<mem_root_deque<Item *> *>(data);
   bool part_found = false;
-  List_iterator<Item> li(*fields);
-  const Item *item;
 
-  while ((item = li++)) {
+  for (const Item *item : VisibleFields(*fields)) {
     if (item->type() == Item::FIELD_ITEM &&
         down_cast<const Item_field *>(item)->field->eq(field)) {
       part_found = true;
@@ -10309,19 +10286,16 @@ static bool find_field_in_item_list(Field *field, void *data) {
 }
 
 ORDER *create_order_from_distinct(THD *thd, Ref_item_array ref_item_array,
-                                  ORDER *order_list, List<Item> &fields,
+                                  ORDER *order_list,
+                                  const mem_root_deque<Item *> &fields,
                                   bool skip_aggregates,
                                   bool convert_bit_fields_to_long,
                                   bool *all_order_by_fields_used) {
-  List_iterator<Item> li(fields);
-  Item *item;
-  ORDER *order, *group, **prev;
+  ORDER *group = nullptr, **prev = &group;
 
   *all_order_by_fields_used = true;
 
-  prev = &group;
-  group = nullptr;
-  for (order = order_list; order; order = order->next) {
+  for (ORDER *order = order_list; order; order = order->next) {
     if (order->in_field_list) {
       ORDER *ord = (ORDER *)thd->memdup((char *)order, sizeof(ORDER));
       if (!ord) return nullptr;
@@ -10332,8 +10306,9 @@ ORDER *create_order_from_distinct(THD *thd, Ref_item_array ref_item_array,
       *all_order_by_fields_used = false;
   }
 
-  li.rewind();
-  while ((item = li++)) {
+  Mem_root_array<std::pair<Item *, ORDER *>> bit_fields_to_add(thd->mem_root);
+
+  for (Item *const &item : VisibleFields(fields)) {
     if (!item->const_item() && (!skip_aggregates || !item->has_aggregation()) &&
         item->marker != Item::MARKER_DISTINCT_GROUP) {
       /*
@@ -10355,15 +10330,17 @@ ORDER *create_order_from_distinct(THD *thd, Ref_item_array ref_item_array,
           converted to a LONG field. Original field will remain of the
           BIT type and will be returned to a client.
           @note setup_ref_array() needs to account for the extra space.
+          @note We need to defer the actual adding to after the loop,
+            or we will invalidate the iterator to “fields”.
         */
         Item_field *new_item = new Item_field(thd, (Item_field *)item);
-        ord->item = thd->lex->current_select()->add_hidden_item(new_item);
-        thd->lex->current_select()->hidden_items_from_optimization++;
+        ord->item = const_cast<Item **>(
+            &item);  // Temporary; for the duplicate check above.
+        bit_fields_to_add.push_back(std::make_pair(new_item, ord));
       } else {
         /*
-          We have here only field_list (not all_field_list), so we can use
-          simple indexing of ref_item_array (order in the array and in the
-          list are same)
+          We have here only visible fields, so we can use simple indexing
+          of ref_item_array (order in the array and in the list are same)
         */
         ord->item = &ref_item_array[0];
       }
@@ -10373,6 +10350,11 @@ ORDER *create_order_from_distinct(THD *thd, Ref_item_array ref_item_array,
     }
   next_item:
     ref_item_array.pop_front();
+  }
+  for (const auto &item_and_order : bit_fields_to_add) {
+    item_and_order.second->item =
+        thd->lex->current_select()->add_hidden_item(item_and_order.first);
+    thd->lex->current_select()->hidden_items_from_optimization++;
   }
   *prev = nullptr;
   return group;
@@ -10555,7 +10537,7 @@ static void calculate_materialization_costs(JOIN *join, TABLE_LIST *sj_nest,
   double mat_cost;           // Estimated cost of materialization
   double mat_rowcount;       // Estimated row count before duplicate removal
   double distinct_rowcount;  // Estimated rowcount after duplicate removal
-  List<Item> *inner_expr_list;
+  mem_root_deque<Item *> *inner_expr_list;
 
   if (sj_nest) {
     /*
@@ -10569,7 +10551,7 @@ static void calculate_materialization_costs(JOIN *join, TABLE_LIST *sj_nest,
   } else {
     mat_cost = join->best_read;
     mat_rowcount = static_cast<double>(join->best_rowcount);
-    inner_expr_list = &join->select_lex->fields_list;
+    inner_expr_list = &join->select_lex->fields;
   }
 
   /*
@@ -10592,10 +10574,10 @@ static void calculate_materialization_costs(JOIN *join, TABLE_LIST *sj_nest,
       JOIN_TAB *const tab = join->best_positions[i].table;
       join->map2table[tab->table_ref->tableno()] = tab;
     }
-    List_iterator<Item> it(*inner_expr_list);
-    Item *item;
     table_map map = 0;
-    while ((item = it++)) map |= item->used_tables();
+    for (Item *item : VisibleFields(*inner_expr_list)) {
+      map |= item->used_tables();
+    }
     map &= ~PSEUDO_TABLE_BITS;
     Table_map_iterator tm_it(map);
     int tableno;
@@ -10977,10 +10959,10 @@ void JOIN::refine_best_rowcount() {
   best_rowcount = std::min(best_rowcount, unit->select_limit_cnt);
 }
 
-List<Item> *JOIN::get_current_fields() {
+mem_root_deque<Item *> *JOIN::get_current_fields() {
   DBUG_ASSERT((int)current_ref_item_slice >= 0);
   if (current_ref_item_slice == REF_SLICE_SAVED_BASE) return fields;
-  return &tmp_fields_list[current_ref_item_slice];
+  return &tmp_fields[current_ref_item_slice];
 }
 
 const Cost_model_server *JOIN::cost_model() const {

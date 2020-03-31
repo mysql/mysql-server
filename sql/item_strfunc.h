@@ -103,7 +103,7 @@ class Item_str_func : public Item_func {
   Item_str_func(const POS &pos, Item *a, Item *b, Item *c, Item *d, Item *e)
       : Item_func(pos, a, b, c, d, e) {}
 
-  Item_str_func(List<Item> &list) : Item_func(list) {}
+  explicit Item_str_func(mem_root_deque<Item *> *list) : Item_func(list) {}
 
   Item_str_func(const POS &pos, PT_item_list *opt_list)
       : Item_func(pos, opt_list) {}
@@ -333,7 +333,8 @@ class Item_func_concat : public Item_str_func {
 class Item_func_concat_ws : public Item_str_func {
   String tmp_value{"", 0, collation.collation};  // Initialize to empty
  public:
-  Item_func_concat_ws(List<Item> &list) : Item_str_func(list) {
+  explicit Item_func_concat_ws(mem_root_deque<Item *> *list)
+      : Item_str_func(list) {
     null_on_null = false;
   }
   Item_func_concat_ws(const POS &pos, PT_item_list *opt_list)
@@ -709,7 +710,7 @@ class Item_func_make_set final : public Item_str_func {
     return res;
   }
   void split_sum_func(THD *thd, Ref_item_array ref_item_array,
-                      List<Item> &fields) override;
+                      mem_root_deque<Item *> *fields) override;
   bool resolve_type(THD *) override;
   void update_used_tables() override;
   const char *func_name() const override { return "make_set"; }

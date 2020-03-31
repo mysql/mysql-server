@@ -104,6 +104,7 @@ IF(MY_COMPILER_IS_CLANG)
   STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wundefined-reinterpret-cast")
 
   MY_ADD_CXX_WARNING_FLAG("Winconsistent-missing-destructor-override")
+  MY_ADD_CXX_WARNING_FLAG("Winconsistent-missing-override")
   MY_ADD_CXX_WARNING_FLAG("Wshadow-field")
 
   # Other possible options that give warnings (Clang 6.0):

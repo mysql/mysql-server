@@ -21,6 +21,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <gtest/gtest.h>
+
 #include <cstring>
 
 #include "sql/item_json_func.h"
@@ -759,7 +760,7 @@ static void BM_JsonSearch_Wildcard(size_t num_iterations) {
   field.make_writable();
   EXPECT_EQ(TYPE_OK, field.store_json(&doc));
 
-  List<Item> args;
+  mem_root_deque<Item *> args(*THR_MALLOC);
   args.push_back(new Item_field(&field));
   args.push_back(new_item_string("all"));
   args.push_back(new_item_string("abc"));
@@ -767,7 +768,7 @@ static void BM_JsonSearch_Wildcard(size_t num_iterations) {
   args.push_back(new_item_string("$[*].key1"));
   args.push_back(new_item_string("$**.key4"));
 
-  auto search = new Item_func_json_search(table.in_use, args);
+  auto search = new Item_func_json_search(table.in_use, &args);
   EXPECT_FALSE(search->fix_fields(table.in_use, nullptr));
 
   StartBenchmarkTiming();

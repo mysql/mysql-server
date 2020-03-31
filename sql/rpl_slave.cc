@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3154,96 +3154,96 @@ static int register_slave_on_master(MYSQL *mysql, Master_info *mi,
             push_back() methods for field_list.
 */
 
-static void show_slave_status_metadata(List<Item> &field_list,
+static void show_slave_status_metadata(mem_root_deque<Item *> *field_list,
                                        int io_gtid_set_size,
                                        int sql_gtid_set_size) {
-  field_list.push_back(new Item_empty_string("Slave_IO_State", 14));
-  field_list.push_back(
+  field_list->push_back(new Item_empty_string("Slave_IO_State", 14));
+  field_list->push_back(
       new Item_empty_string("Master_Host", HOSTNAME_LENGTH + 1));
-  field_list.push_back(
+  field_list->push_back(
       new Item_empty_string("Master_User", USERNAME_LENGTH + 1));
-  field_list.push_back(new Item_return_int("Master_Port", 7, MYSQL_TYPE_LONG));
-  field_list.push_back(
+  field_list->push_back(new Item_return_int("Master_Port", 7, MYSQL_TYPE_LONG));
+  field_list->push_back(
       new Item_return_int("Connect_Retry", 10, MYSQL_TYPE_LONG));
-  field_list.push_back(new Item_empty_string("Master_Log_File", FN_REFLEN));
-  field_list.push_back(
+  field_list->push_back(new Item_empty_string("Master_Log_File", FN_REFLEN));
+  field_list->push_back(
       new Item_return_int("Read_Master_Log_Pos", 10, MYSQL_TYPE_LONGLONG));
-  field_list.push_back(new Item_empty_string("Relay_Log_File", FN_REFLEN));
-  field_list.push_back(
+  field_list->push_back(new Item_empty_string("Relay_Log_File", FN_REFLEN));
+  field_list->push_back(
       new Item_return_int("Relay_Log_Pos", 10, MYSQL_TYPE_LONGLONG));
-  field_list.push_back(
+  field_list->push_back(
       new Item_empty_string("Relay_Master_Log_File", FN_REFLEN));
-  field_list.push_back(new Item_empty_string("Slave_IO_Running", 3));
-  field_list.push_back(new Item_empty_string("Slave_SQL_Running", 3));
-  field_list.push_back(new Item_empty_string("Replicate_Do_DB", 20));
-  field_list.push_back(new Item_empty_string("Replicate_Ignore_DB", 20));
-  field_list.push_back(new Item_empty_string("Replicate_Do_Table", 20));
-  field_list.push_back(new Item_empty_string("Replicate_Ignore_Table", 23));
-  field_list.push_back(new Item_empty_string("Replicate_Wild_Do_Table", 24));
-  field_list.push_back(
+  field_list->push_back(new Item_empty_string("Slave_IO_Running", 3));
+  field_list->push_back(new Item_empty_string("Slave_SQL_Running", 3));
+  field_list->push_back(new Item_empty_string("Replicate_Do_DB", 20));
+  field_list->push_back(new Item_empty_string("Replicate_Ignore_DB", 20));
+  field_list->push_back(new Item_empty_string("Replicate_Do_Table", 20));
+  field_list->push_back(new Item_empty_string("Replicate_Ignore_Table", 23));
+  field_list->push_back(new Item_empty_string("Replicate_Wild_Do_Table", 24));
+  field_list->push_back(
       new Item_empty_string("Replicate_Wild_Ignore_Table", 28));
-  field_list.push_back(new Item_return_int("Last_Errno", 4, MYSQL_TYPE_LONG));
-  field_list.push_back(new Item_empty_string("Last_Error", 20));
-  field_list.push_back(
+  field_list->push_back(new Item_return_int("Last_Errno", 4, MYSQL_TYPE_LONG));
+  field_list->push_back(new Item_empty_string("Last_Error", 20));
+  field_list->push_back(
       new Item_return_int("Skip_Counter", 10, MYSQL_TYPE_LONG));
-  field_list.push_back(
+  field_list->push_back(
       new Item_return_int("Exec_Master_Log_Pos", 10, MYSQL_TYPE_LONGLONG));
-  field_list.push_back(
+  field_list->push_back(
       new Item_return_int("Relay_Log_Space", 10, MYSQL_TYPE_LONGLONG));
-  field_list.push_back(new Item_empty_string("Until_Condition", 6));
-  field_list.push_back(new Item_empty_string("Until_Log_File", FN_REFLEN));
-  field_list.push_back(
+  field_list->push_back(new Item_empty_string("Until_Condition", 6));
+  field_list->push_back(new Item_empty_string("Until_Log_File", FN_REFLEN));
+  field_list->push_back(
       new Item_return_int("Until_Log_Pos", 10, MYSQL_TYPE_LONGLONG));
-  field_list.push_back(new Item_empty_string("Master_SSL_Allowed", 7));
-  field_list.push_back(new Item_empty_string("Master_SSL_CA_File", FN_REFLEN));
-  field_list.push_back(new Item_empty_string("Master_SSL_CA_Path", FN_REFLEN));
-  field_list.push_back(new Item_empty_string("Master_SSL_Cert", FN_REFLEN));
-  field_list.push_back(new Item_empty_string("Master_SSL_Cipher", FN_REFLEN));
-  field_list.push_back(new Item_empty_string("Master_SSL_Key", FN_REFLEN));
-  field_list.push_back(
+  field_list->push_back(new Item_empty_string("Master_SSL_Allowed", 7));
+  field_list->push_back(new Item_empty_string("Master_SSL_CA_File", FN_REFLEN));
+  field_list->push_back(new Item_empty_string("Master_SSL_CA_Path", FN_REFLEN));
+  field_list->push_back(new Item_empty_string("Master_SSL_Cert", FN_REFLEN));
+  field_list->push_back(new Item_empty_string("Master_SSL_Cipher", FN_REFLEN));
+  field_list->push_back(new Item_empty_string("Master_SSL_Key", FN_REFLEN));
+  field_list->push_back(
       new Item_return_int("Seconds_Behind_Master", 10, MYSQL_TYPE_LONGLONG));
-  field_list.push_back(
+  field_list->push_back(
       new Item_empty_string("Master_SSL_Verify_Server_Cert", 3));
-  field_list.push_back(
+  field_list->push_back(
       new Item_return_int("Last_IO_Errno", 4, MYSQL_TYPE_LONG));
-  field_list.push_back(new Item_empty_string("Last_IO_Error", 20));
-  field_list.push_back(
+  field_list->push_back(new Item_empty_string("Last_IO_Error", 20));
+  field_list->push_back(
       new Item_return_int("Last_SQL_Errno", 4, MYSQL_TYPE_LONG));
-  field_list.push_back(new Item_empty_string("Last_SQL_Error", 20));
-  field_list.push_back(
+  field_list->push_back(new Item_empty_string("Last_SQL_Error", 20));
+  field_list->push_back(
       new Item_empty_string("Replicate_Ignore_Server_Ids", FN_REFLEN));
-  field_list.push_back(
+  field_list->push_back(
       new Item_return_int("Master_Server_Id", sizeof(ulong), MYSQL_TYPE_LONG));
-  field_list.push_back(new Item_empty_string("Master_UUID", UUID_LENGTH));
-  field_list.push_back(
+  field_list->push_back(new Item_empty_string("Master_UUID", UUID_LENGTH));
+  field_list->push_back(
       new Item_empty_string("Master_Info_File", 2 * FN_REFLEN));
-  field_list.push_back(new Item_return_int("SQL_Delay", 10, MYSQL_TYPE_LONG));
-  field_list.push_back(
+  field_list->push_back(new Item_return_int("SQL_Delay", 10, MYSQL_TYPE_LONG));
+  field_list->push_back(
       new Item_return_int("SQL_Remaining_Delay", 8, MYSQL_TYPE_LONG));
-  field_list.push_back(new Item_empty_string("Slave_SQL_Running_State", 20));
-  field_list.push_back(
+  field_list->push_back(new Item_empty_string("Slave_SQL_Running_State", 20));
+  field_list->push_back(
       new Item_return_int("Master_Retry_Count", 10, MYSQL_TYPE_LONGLONG));
-  field_list.push_back(
+  field_list->push_back(
       new Item_empty_string("Master_Bind", HOSTNAME_LENGTH + 1));
-  field_list.push_back(new Item_empty_string("Last_IO_Error_Timestamp", 20));
-  field_list.push_back(new Item_empty_string("Last_SQL_Error_Timestamp", 20));
-  field_list.push_back(new Item_empty_string("Master_SSL_Crl", FN_REFLEN));
-  field_list.push_back(new Item_empty_string("Master_SSL_Crlpath", FN_REFLEN));
-  field_list.push_back(
+  field_list->push_back(new Item_empty_string("Last_IO_Error_Timestamp", 20));
+  field_list->push_back(new Item_empty_string("Last_SQL_Error_Timestamp", 20));
+  field_list->push_back(new Item_empty_string("Master_SSL_Crl", FN_REFLEN));
+  field_list->push_back(new Item_empty_string("Master_SSL_Crlpath", FN_REFLEN));
+  field_list->push_back(
       new Item_empty_string("Retrieved_Gtid_Set", io_gtid_set_size));
-  field_list.push_back(
+  field_list->push_back(
       new Item_empty_string("Executed_Gtid_Set", sql_gtid_set_size));
-  field_list.push_back(
+  field_list->push_back(
       new Item_return_int("Auto_Position", sizeof(ulong), MYSQL_TYPE_LONG));
-  field_list.push_back(new Item_empty_string("Replicate_Rewrite_DB", 24));
-  field_list.push_back(
+  field_list->push_back(new Item_empty_string("Replicate_Rewrite_DB", 24));
+  field_list->push_back(
       new Item_empty_string("Channel_Name", CHANNEL_NAME_LENGTH));
-  field_list.push_back(new Item_empty_string("Master_TLS_Version", FN_REFLEN));
-  field_list.push_back(
+  field_list->push_back(new Item_empty_string("Master_TLS_Version", FN_REFLEN));
+  field_list->push_back(
       new Item_empty_string("Master_public_key_path", FN_REFLEN));
-  field_list.push_back(new Item_return_int("Get_master_public_key",
-                                           sizeof(ulong), MYSQL_TYPE_LONG));
-  field_list.push_back(
+  field_list->push_back(new Item_return_int("Get_master_public_key",
+                                            sizeof(ulong), MYSQL_TYPE_LONG));
+  field_list->push_back(
       new Item_empty_string("Network_Namespace", NAME_LEN + 1));
 }
 
@@ -3543,7 +3543,6 @@ static bool show_slave_status_send_data(THD *thd, Master_info *mi,
 
 */
 bool show_slave_status(THD *thd) {
-  List<Item> field_list;
   Protocol *protocol = thd->get_protocol();
   int sql_gtid_set_size = 0, io_gtid_set_size = 0;
   Master_info *mi = nullptr;
@@ -3622,10 +3621,11 @@ bool show_slave_status(THD *thd) {
     idx++;
   }
 
-  show_slave_status_metadata(field_list, max_io_gtid_set_size,
+  mem_root_deque<Item *> field_list(thd->mem_root);
+  show_slave_status_metadata(&field_list, max_io_gtid_set_size,
                              sql_gtid_set_size);
 
-  if (thd->send_result_metadata(&field_list,
+  if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF)) {
     goto err;
   }
@@ -3675,7 +3675,6 @@ err:
 
 */
 bool show_slave_status(THD *thd, Master_info *mi) {
-  List<Item> field_list;
   Protocol *protocol = thd->get_protocol();
   char *sql_gtid_set_buffer = nullptr, *io_gtid_set_buffer = nullptr;
   int sql_gtid_set_size = 0, io_gtid_set_size = 0;
@@ -3702,9 +3701,10 @@ bool show_slave_status(THD *thd, Master_info *mi) {
 
   /* Fill the metadata required for show slave status. */
 
-  show_slave_status_metadata(field_list, io_gtid_set_size, sql_gtid_set_size);
+  mem_root_deque<Item *> field_list(thd->mem_root);
+  show_slave_status_metadata(&field_list, io_gtid_set_size, sql_gtid_set_size);
 
-  if (thd->send_result_metadata(&field_list,
+  if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF)) {
     my_free(sql_gtid_set_buffer);
     my_free(io_gtid_set_buffer);
@@ -4800,12 +4800,13 @@ static int exec_relay_log_event(THD *thd, Relay_log_info *rli,
       return SLAVE_APPLY_EVENT_UNTIL_REACHED;
     }
 
-    { /**
-               The following failure injecion works in cooperation with tests
-               setting @@global.debug= 'd,incomplete_group_in_relay_log'.
-               Xid or Commit events are not executed to force the slave sql
-               read hanging if the realy log does not have any more events.
-            */
+    {
+      /**
+        The following failure injecion works in cooperation
+        with tests setting @@global.debug= 'd,incomplete_group_in_relay_log'.
+        Xid or Commit events are not executed to force the slave sql read
+        hanging if the realy log does not have any more events.
+       */
       DBUG_EXECUTE_IF(
           "incomplete_group_in_relay_log",
           if ((ev->get_type_code() == binary_log::XID_EVENT) ||

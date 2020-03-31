@@ -771,7 +771,8 @@ class SubqueryWithResult {
 
   SELECT_LEX_UNIT *unit; /* corresponding unit structure */
 
-  void set_row(List<Item> &item_list, Item_cache **row, bool never_empty);
+  void set_row(const mem_root_deque<Item *> &item_list, Item_cache **row,
+               bool never_empty);
 
   friend class subselect_hash_sj_engine;
 };
@@ -879,7 +880,7 @@ class subselect_hash_sj_engine final : public subselect_indexsubquery_engine {
         tmp_param(nullptr) {}
   ~subselect_hash_sj_engine() override;
 
-  bool setup(THD *thd, List<Item> *tmp_columns);
+  bool setup(THD *thd, const mem_root_deque<Item *> &tmp_columns);
   void cleanup(THD *thd) override;
   bool exec(THD *thd) override;
   void print(const THD *thd, String *str, enum_query_type query_type) override;

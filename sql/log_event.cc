@@ -1167,7 +1167,7 @@ int Log_event::net_send(Protocol *protocol, const char *log_name,
   EVENTS.
 */
 
-void Log_event::init_show_field_list(List<Item> *field_list) {
+void Log_event::init_show_field_list(mem_root_deque<Item *> *field_list) {
   field_list->push_back(new Item_empty_string("Log_name", 20));
   field_list->push_back(new Item_return_int("Pos", MY_INT32_NUM_DECIMAL_DIGITS,
                                             MYSQL_TYPE_LONGLONG));
@@ -4013,9 +4013,8 @@ Query_log_event::Query_log_event(THD *thd_arg, const char *query_arg,
             lex->drop_temporary && thd->in_multi_stmt_transaction_mode();
         break;
       case SQLCOM_CREATE_TABLE:
-        cmd_must_go_to_trx_cache =
-            lex->select_lex->get_fields_list()->elements &&
-            thd->is_current_stmt_binlog_format_row();
+        cmd_must_go_to_trx_cache = !lex->select_lex->field_list_is_empty() &&
+                                   thd->is_current_stmt_binlog_format_row();
         cmd_can_generate_row_events =
             ((lex->create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
              thd->in_multi_stmt_transaction_mode()) ||
@@ -7512,12 +7511,10 @@ const String *Load_query_generator::generate(size_t *fn_start, size_t *fn_end) {
   }
 
   /* prepare fields-list */
-  if (!cmd->m_opt_fields_or_vars.is_empty()) {
-    List_iterator<Item> li(cmd->m_opt_fields_or_vars);
-    Item *item;
+  if (!cmd->m_opt_fields_or_vars.empty()) {
     str.append(" (");
 
-    while ((item = li++)) {
+    for (Item *item : cmd->m_opt_fields_or_vars) {
       if (item->type() == Item::FIELD_ITEM || item->type() == Item::REF_ITEM)
         append_identifier(thd, &str, item->item_name.ptr(),
                           strlen(item->item_name.ptr()));
@@ -7530,14 +7527,12 @@ const String *Load_query_generator::generate(size_t *fn_start, size_t *fn_end) {
     str.append(')');
   }
 
-  if (!cmd->m_opt_set_fields.is_empty()) {
-    List_iterator<Item> lu(cmd->m_opt_set_fields);
+  if (!cmd->m_opt_set_fields.empty()) {
     List_iterator<String> ls(*cmd->m_opt_set_expr_strings);
-    Item *item;
 
     str.append(" SET ");
 
-    while ((item = lu++)) {
+    for (Item *item : cmd->m_opt_set_fields) {
       String *s = ls++;
 
       append_identifier(thd, &str, item->item_name.ptr(),

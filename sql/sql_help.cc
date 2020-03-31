@@ -445,12 +445,12 @@ static void get_all_items_for_category(THD *thd, QEP_TAB *items, Field *pfname,
 
 static int send_answer_1(THD *thd, String *s1, String *s2, String *s3) {
   DBUG_TRACE;
-  List<Item> field_list;
+  mem_root_deque<Item *> field_list(thd->mem_root);
   field_list.push_back(new Item_empty_string("name", 64));
   field_list.push_back(new Item_empty_string("description", 1000));
   field_list.push_back(new Item_empty_string("example", 1000));
 
-  if (thd->send_result_metadata(&field_list,
+  if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return 1;
 
@@ -485,13 +485,13 @@ static int send_answer_1(THD *thd, String *s1, String *s2, String *s3) {
 
 static int send_header_2(THD *thd, bool for_category) {
   DBUG_TRACE;
-  List<Item> field_list;
+  mem_root_deque<Item *> field_list(thd->mem_root);
   if (for_category)
     field_list.push_back(new Item_empty_string("source_category_name", 64));
   field_list.push_back(new Item_empty_string("name", 64));
   field_list.push_back(new Item_empty_string("is_it_category", 1));
   return thd->send_result_metadata(
-      &field_list, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
+      field_list, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
 }
 
 /*

@@ -80,8 +80,8 @@ class Item_row : public Item {
     @todo
       think placing 2-3 component items in item (as it done for function
   */
-  Item_row(const POS &pos, Item *head, List<Item> &tail);
-  Item_row(Item *head, List<Item> &tail);
+  Item_row(const POS &pos, Item *head, const mem_root_deque<Item *> &tail);
+  Item_row(Item *head, const mem_root_deque<Item *> &tail);
   Item_row(Item_row *item)
       : Item(),
         items(item->items),
@@ -134,7 +134,7 @@ class Item_row : public Item {
   void propagate_type(const Type_properties &type) override;
   void cleanup() override;
   void split_sum_func(THD *thd, Ref_item_array ref_item_array,
-                      List<Item> &fields) override;
+                      mem_root_deque<Item *> *fields) override;
   table_map used_tables() const override { return used_tables_cache; }
   enum Item_result result_type() const override { return ROW_RESULT; }
   void update_used_tables() override;

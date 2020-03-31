@@ -1009,7 +1009,7 @@ bool Srv_session::close() {
 #endif /* HAVE_PSI_THREAD_INTERFACE */
 
   thd.security_context()->logout();
-  thd.m_view_ctx_list.empty();
+  thd.m_view_ctx_list.clear();
   close_mysql_tables(&thd);
 
   thd.set_plugin(nullptr);

@@ -3499,18 +3499,17 @@ bool Protocol_binary::send_parameters(List<Item_param> *parameters,
     // The client does not support OUT-parameters.
     return false;
 
-  List<Item> out_param_lst;
+  mem_root_deque<Item *> out_param_lst(current_thd->mem_root);
   Item_param *item_param;
   while ((item_param = item_param_it++)) {
     // Skip it as it's just an IN-parameter.
     if (!item_param->get_out_param_info()) continue;
 
-    if (out_param_lst.push_back(item_param))
-      return true; /* purecov: inspected */
+    out_param_lst.push_back(item_param);
   }
 
   // Empty list
-  if (!out_param_lst.elements) return false;
+  if (out_param_lst.empty()) return false;
 
   /*
     We have to set SERVER_PS_OUT_PARAMS in THD::server_status, because it
@@ -3519,13 +3518,13 @@ bool Protocol_binary::send_parameters(List<Item_param> *parameters,
   m_thd->server_status |= SERVER_PS_OUT_PARAMS | SERVER_MORE_RESULTS_EXISTS;
 
   // Send meta-data.
-  if (m_thd->send_result_metadata(&out_param_lst,
+  if (m_thd->send_result_metadata(out_param_lst,
                                   Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return true;
 
   // Send data.
   start_row();
-  if (m_thd->send_result_set_row(&out_param_lst)) return true;
+  if (m_thd->send_result_set_row(out_param_lst)) return true;
   if (end_row()) return true;
 
   // Restore THD::server_status.

@@ -513,31 +513,31 @@ bool sp_cursor::fetch(List<sp_variable> *vars) {
 // sp_cursor::Query_fetch_into_spvars implementation.
 ///////////////////////////////////////////////////////////////////////////
 
-bool sp_cursor::Query_fetch_into_spvars::prepare(THD *thd, List<Item> &fields,
-                                                 SELECT_LEX_UNIT *u) {
+bool sp_cursor::Query_fetch_into_spvars::prepare(
+    THD *thd, const mem_root_deque<Item *> &fields, SELECT_LEX_UNIT *u) {
   /*
     Cache the number of columns in the result set in order to easily
     return an error if column count does not match value count.
   */
-  field_count = fields.elements;
+  field_count = CountVisibleFields(fields);
   return Query_result_interceptor::prepare(thd, fields, u);
 }
 
-bool sp_cursor::Query_fetch_into_spvars::send_data(THD *thd,
-                                                   List<Item> &items) {
+bool sp_cursor::Query_fetch_into_spvars::send_data(
+    THD *thd, const mem_root_deque<Item *> &items) {
   List_iterator_fast<sp_variable> spvar_iter(*spvar_list);
-  List_iterator_fast<Item> item_iter(items);
+  auto item_iter = VisibleFields(items).begin();
   sp_variable *spvar;
-  Item *item;
 
-  /* Must be ensured by the caller */
-  DBUG_ASSERT(spvar_list->elements == items.elements);
+  DBUG_ASSERT(items.size() == CountVisibleFields(items));
+  DBUG_ASSERT(spvar_list->size() == items.size());
 
   /*
     Assign the row fetched from a server side cursor to stored
     procedure variables.
   */
-  for (; spvar = spvar_iter++, item = item_iter++;) {
+  while ((spvar = spvar_iter++)) {
+    Item *item = *item_iter++;
     if (thd->sp_runtime_ctx->set_variable(thd, spvar->offset, &item))
       return true;
   }

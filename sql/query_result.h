@@ -27,6 +27,8 @@
 
 #include <cstddef>
 
+#include "m_ctype.h"
+#include "mem_root_deque.h"
 #include "my_base.h"
 #include "my_compiler.h"  // MY_ATTRIBUTE
 #include "my_dbug.h"
@@ -90,7 +92,8 @@ class Query_result {
 
     @returns false if success, true if error
   */
-  virtual bool prepare(THD *, List<Item> &, SELECT_LEX_UNIT *u) {
+  virtual bool prepare(THD *, const mem_root_deque<Item *> &,
+                       SELECT_LEX_UNIT *u) {
     unit = u;
     return false;
   }
@@ -119,10 +122,11 @@ class Query_result {
     we need to know number of columns in the result set (if
     there is a result set) apart from sending columns metadata.
   */
-  virtual uint field_count(List<Item> &fields) const { return fields.elements; }
-  virtual bool send_result_set_metadata(THD *thd, List<Item> &list,
+  virtual uint field_count(const mem_root_deque<Item *> &fields) const;
+  virtual bool send_result_set_metadata(THD *thd,
+                                        const mem_root_deque<Item *> &list,
                                         uint flags) = 0;
-  virtual bool send_data(THD *thd, List<Item> &items) = 0;
+  virtual bool send_data(THD *thd, const mem_root_deque<Item *> &items) = 0;
   virtual void send_error(THD *, uint errcode, const char *err) {
     my_message(errcode, err, MYF(0));
   }
@@ -193,8 +197,9 @@ class Query_result {
 class Query_result_interceptor : public Query_result {
  public:
   Query_result_interceptor() : Query_result() {}
-  uint field_count(List<Item> &) const override { return 0; }
-  bool send_result_set_metadata(THD *, List<Item> &, uint) override {
+  uint field_count(const mem_root_deque<Item *> &) const override { return 0; }
+  bool send_result_set_metadata(THD *, const mem_root_deque<Item *> &,
+                                uint) override {
     return false;
   }
   bool is_interceptor() const final { return true; }
@@ -210,9 +215,9 @@ class Query_result_send : public Query_result {
 
  public:
   Query_result_send() : Query_result(), is_result_set_started(false) {}
-  bool send_result_set_metadata(THD *thd, List<Item> &list,
+  bool send_result_set_metadata(THD *thd, const mem_root_deque<Item *> &list,
                                 uint flags) override;
-  bool send_data(THD *thd, List<Item> &items) override;
+  bool send_data(THD *thd, const mem_root_deque<Item *> &items) override;
   bool send_eof(THD *thd) override;
   bool check_simple_select() const override { return false; }
   void abort_result_set(THD *thd) override;
@@ -276,18 +281,20 @@ class Query_result_export final : public Query_result_to_file {
   const CHARSET_INFO *write_cs;  // output charset
  public:
   explicit Query_result_export(sql_exchange *ex) : Query_result_to_file(ex) {}
-  bool prepare(THD *thd, List<Item> &list, SELECT_LEX_UNIT *u) override;
+  bool prepare(THD *thd, const mem_root_deque<Item *> &list,
+               SELECT_LEX_UNIT *u) override;
   bool start_execution(THD *thd) override;
-  bool send_data(THD *thd, List<Item> &items) override;
+  bool send_data(THD *thd, const mem_root_deque<Item *> &items) override;
   void cleanup(THD *thd) override;
 };
 
 class Query_result_dump : public Query_result_to_file {
  public:
   explicit Query_result_dump(sql_exchange *ex) : Query_result_to_file(ex) {}
-  bool prepare(THD *thd, List<Item> &list, SELECT_LEX_UNIT *u) override;
+  bool prepare(THD *thd, const mem_root_deque<Item *> &list,
+               SELECT_LEX_UNIT *u) override;
   bool start_execution(THD *thd) override;
-  bool send_data(THD *thd, List<Item> &items) override;
+  bool send_data(THD *thd, const mem_root_deque<Item *> &items) override;
 };
 
 class Query_dumpvar final : public Query_result_interceptor {
@@ -296,10 +303,11 @@ class Query_dumpvar final : public Query_result_interceptor {
  public:
   List<PT_select_var> var_list;
   Query_dumpvar() : Query_result_interceptor(), row_count(0) {
-    var_list.empty();
+    var_list.clear();
   }
-  bool prepare(THD *thd, List<Item> &list, SELECT_LEX_UNIT *u) override;
-  bool send_data(THD *thd, List<Item> &items) override;
+  bool prepare(THD *thd, const mem_root_deque<Item *> &list,
+               SELECT_LEX_UNIT *u) override;
+  bool send_data(THD *thd, const mem_root_deque<Item *> &items) override;
   bool send_eof(THD *thd) override;
   bool check_simple_select() const override;
   void cleanup(THD *) override { row_count = 0; }
@@ -316,7 +324,7 @@ class Query_result_subquery : public Query_result_interceptor {
  public:
   explicit Query_result_subquery(Item_subselect *item_arg)
       : Query_result_interceptor(), item(item_arg) {}
-  bool send_data(THD *thd, List<Item> &items) override = 0;
+  bool send_data(THD *thd, const mem_root_deque<Item *> &items) override = 0;
   bool send_eof(THD *) override { return false; }
 };
 

@@ -181,22 +181,20 @@ static inline bool test_if_sum_overflows_ull(ulonglong arg1, ulonglong arg2) {
   return ULLONG_MAX - arg1 < arg2;
 }
 
-void Item_func::set_arguments(List<Item> &list, bool context_free) {
+void Item_func::set_arguments(mem_root_deque<Item *> *list, bool context_free) {
   allowed_arg_cols = 1;
-  arg_count = list.elements;
+  arg_count = list->size();
   args = m_embedded_arguments;  // If 2 arguments
   if (arg_count <= 2 || (args = (*THR_MALLOC)->ArrayAlloc<Item *>(arg_count))) {
-    List_iterator_fast<Item> li(list);
-    Item *item;
     Item **save_args = args;
 
-    while ((item = li++)) {
+    for (Item *item : *list) {
       *(save_args++) = item;
       if (!context_free) add_accum_properties(item);
     }
   } else
     arg_count = 0;  // OOM
-  list.empty();     // Fields are used
+  list->clear();    // Fields are used
 }
 
 Item_func::Item_func(const POS &pos, PT_item_list *opt_list)
@@ -205,7 +203,7 @@ Item_func::Item_func(const POS &pos, PT_item_list *opt_list)
     args = m_embedded_arguments;
     arg_count = 0;
   } else
-    set_arguments(opt_list->value, true);
+    set_arguments(&opt_list->value, true);
 }
 
 Item_func::Item_func(THD *thd, Item_func *item)
@@ -568,7 +566,7 @@ Item *Item_func::compile(Item_analyzer analyzer, uchar **arg_p,
 */
 
 void Item_func::split_sum_func(THD *thd, Ref_item_array ref_item_array,
-                               List<Item> &fields) {
+                               mem_root_deque<Item *> *fields) {
   Item **arg, **arg_end;
   for (arg = args, arg_end = args + arg_count; arg != arg_end; arg++)
     (*arg)->split_sum_func2(thd, ref_item_array, fields, arg, true);
@@ -7287,11 +7285,10 @@ bool Item_func_match::init_search(THD *thd) {
   }
 
   if (key == NO_SUCH_KEY) {
-    List<Item> fields;
-    if (fields.push_back(new Item_string(" ", 1, cmp_collation.collation)))
-      return true;
+    mem_root_deque<Item *> fields(thd->mem_root);
+    fields.push_back(new Item_string(" ", 1, cmp_collation.collation));
     for (uint i = 0; i < arg_count; i++) fields.push_back(args[i]);
-    concat_ws = new Item_func_concat_ws(fields);
+    concat_ws = new Item_func_concat_ws(&fields);
     if (concat_ws == nullptr) return true;
     /*
       Above function used only to get value and do not need fix_fields for it:
@@ -8231,7 +8228,7 @@ static inline bool is_hidden_by_ndb(THD *thd, String *schema_name,
 
     // Check if table is hidden by ndb.
     if (table_name != nullptr) {
-      list.empty();
+      list.clear();
       LEX_STRING tbl_name = table_name->lex_string();
       list.push_back(&tbl_name);
       ha_find_files(thd, schema_name->ptr(), nullptr, nullptr, false, &list);

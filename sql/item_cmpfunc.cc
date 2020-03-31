@@ -2409,7 +2409,9 @@ Item *Item_in_optimizer::compile(Item_analyzer analyzer, uchar **arg_p,
   return (this->*transformer)(arg_t);
 }
 
-void Item_in_optimizer::set_arg_resolve(THD *thd, uint, Item *newp) {
+void Item_in_optimizer::set_arg_resolve(THD *thd, uint i MY_ATTRIBUTE((unused)),
+                                        Item *newp) {
+  DBUG_ASSERT(i == 0);
   // Maintain the invariant described in this class's comment
   Item_in_subselect *ss = down_cast<Item_in_subselect *>(args[1]);
   ss->left_expr = newp;
@@ -2625,8 +2627,9 @@ bool Item_func_interval::itemize(Parse_context *pc, Item **res) {
 Item_row *Item_func_interval::alloc_row(const POS &pos, MEM_ROOT *mem_root,
                                         Item *expr1, Item *expr2,
                                         PT_item_list *opt_expr_list) {
-  List<Item> *list =
-      opt_expr_list ? &opt_expr_list->value : new (mem_root) List<Item>;
+  mem_root_deque<Item *> *list =
+      opt_expr_list ? &opt_expr_list->value
+                    : new (mem_root) mem_root_deque<Item *>(mem_root);
   if (list == nullptr) return nullptr;
   list->push_front(expr2);
   Item_row *tmprow = new (mem_root) Item_row(pos, expr1, *list);
@@ -5309,7 +5312,7 @@ bool Item_cond::fix_fields(THD *thd, Item **ref) {
            cond->functype() == func_type &&
            !cond->list.is_empty()) {  // Identical function
       li.replace(cond->list);
-      cond->list.empty();
+      cond->list.clear();
       item = *li.ref();  // new current item
     }
     if (ignore_unknown()) item->apply_is_true();
@@ -5626,7 +5629,7 @@ void Item_cond::traverse_cond(Cond_traverser traverser, void *arg,
 */
 
 void Item_cond::split_sum_func(THD *thd, Ref_item_array ref_item_array,
-                               List<Item> &fields) {
+                               mem_root_deque<Item *> *fields) {
   List_iterator<Item> li(list);
   Item *item;
   while ((item = li++))
@@ -7067,10 +7070,8 @@ Item *Item_equal::equality_substitution_transformer(uchar *arg) {
     if (!tab || !sj_is_materialize_strategy(tab->get_sj_strategy())) continue;
 
     // Iterate over the fields selected from the subquery
-    List_iterator<Item> mit(sj_nest->nested_join->sj_inner_exprs);
-    Item *existing;
     uint fieldno = 0;
-    while ((existing = mit++)) {
+    for (Item *existing : sj_nest->nested_join->sj_inner_exprs) {
       if (existing->real_item()->eq(item, false))
         added_fields.push_back(sj_nest->nested_join->sjm.mat_fields[fieldno]);
       fieldno++;
@@ -7096,10 +7097,8 @@ Item *Item_func_eq::equality_substitution_transformer(uchar *arg) {
   TABLE_LIST *sj_nest = reinterpret_cast<TABLE_LIST *>(arg);
 
   // Iterate over the fields selected from the subquery
-  List_iterator<Item> mit(sj_nest->nested_join->sj_inner_exprs);
-  Item *existing;
   uint fieldno = 0;
-  while ((existing = mit++)) {
+  for (Item *existing : sj_nest->nested_join->sj_inner_exprs) {
     if (existing->real_item()->eq(args[1], false) &&
         (args[0]->used_tables() & ~sj_nest->sj_inner_tables))
       current_thd->change_item_tree(

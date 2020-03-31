@@ -36,44 +36,39 @@
 
 struct Parse_context;
 
-Item_row::Item_row(const POS &pos, Item *head, List<Item> &tail)
+Item_row::Item_row(const POS &pos, Item *head,
+                   const mem_root_deque<Item *> &tail)
     : super(pos),
       used_tables_cache(0),
       not_null_tables_cache(0),
       with_null(false) {
   set_data_type(MYSQL_TYPE_INVALID);
-  // TODO: think placing 2-3 component items in item (as it done for function)
-  arg_count = 1 + tail.elements;
-  items = (Item **)(*THR_MALLOC)->Alloc(sizeof(Item *) * arg_count);
+  arg_count = 1 + tail.size();
+  items = (*THR_MALLOC)->ArrayAlloc<Item *>(arg_count);
   if (items == nullptr) {
     arg_count = 0;
     return;  // OOM
   }
   items[0] = head;
-  List_iterator<Item> li(tail);
   uint i = 1;
-  Item *item;
-  while ((item = li++)) {
-    items[i] = item;
-    i++;
+  for (Item *item : tail) {
+    items[i++] = item;
   }
 }
 
-Item_row::Item_row(Item *head, List<Item> &tail)
+Item_row::Item_row(Item *head, const mem_root_deque<Item *> &tail)
     : used_tables_cache(0), not_null_tables_cache(0), with_null(false) {
   set_data_type(MYSQL_TYPE_INVALID);
   // TODO: think placing 2-3 component items in item (as it done for function)
-  arg_count = 1 + tail.elements;
-  items = (Item **)(*THR_MALLOC)->Alloc(sizeof(Item *) * arg_count);
+  arg_count = 1 + tail.size();
+  items = (*THR_MALLOC)->ArrayAlloc<Item *>(arg_count);
   if (items == nullptr) {
     arg_count = 0;
     return;  // OOM
   }
   items[0] = head;
-  List_iterator<Item> li(tail);
   uint i = 1;
-  Item *item;
-  while ((item = li++)) {
+  for (Item *item : tail) {
     items[i] = item;
     i++;
   }
@@ -136,7 +131,7 @@ void Item_row::cleanup() {
 }
 
 void Item_row::split_sum_func(THD *thd, Ref_item_array ref_item_array,
-                              List<Item> &fields) {
+                              mem_root_deque<Item *> *fields) {
   Item **arg, **arg_end;
   for (arg = items, arg_end = items + arg_count; arg != arg_end; arg++)
     (*arg)->split_sum_func2(thd, ref_item_array, fields, arg, true);

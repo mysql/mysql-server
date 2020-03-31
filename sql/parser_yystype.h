@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -359,7 +359,7 @@ union YYSTYPE {
   char *simple_string;
   Item *item;
   Item_num *item_num;
-  List<Item> *item_list;
+  mem_root_deque<Item *> *item_list;
   List<String> *string_list;
   String *string;
   Mem_root_array<Table_ident *> *table_list;

@@ -124,6 +124,8 @@ class Protocol;
 class Protocol_binary;
 class Protocol_classic;
 class Protocol_text;
+template <class T>
+class mem_root_deque;
 class sp_rcontext;
 class user_var_entry;
 struct LEX;
@@ -1992,7 +1994,7 @@ class THD : public MDL_context_owner,
     argument.
   */
   inline void force_one_auto_inc_interval(ulonglong next_id) {
-    auto_inc_intervals_forced.empty();  // in case of multiple SET INSERT_ID
+    auto_inc_intervals_forced.clear();  // in case of multiple SET INSERT_ID
     auto_inc_intervals_forced.append(next_id, ULLONG_MAX, 0);
   }
 
@@ -3836,7 +3838,7 @@ class THD : public MDL_context_owner,
 
   /**
     Reset thd->m_rewritten_query. Protected with the LOCK_thd_query mutex.
-*/
+   */
   void reset_rewritten_query() {
     if (rewritten_query().length()) {
       String empty;
@@ -4067,7 +4069,7 @@ class THD : public MDL_context_owner,
       true Error  (Note that in this case the error is not sent to the client)
   */
 
-  bool send_result_metadata(List<Item> *list, uint flags);
+  bool send_result_metadata(const mem_root_deque<Item *> &list, uint flags);
 
   /**
     Send one result set row.
@@ -4079,7 +4081,7 @@ class THD : public MDL_context_owner,
     @retval false Success.
   */
 
-  bool send_result_set_row(List<Item> *row_items);
+  bool send_result_set_row(const mem_root_deque<Item *> &row_items);
 
   /*
     Send the status of the current statement execution over network.

@@ -401,7 +401,8 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
     return true; /* purecov: inspected */
 
   /// Give the unit to the result (the other fields are ignored).
-  if (derived_result->prepare(thd, derived->types, derived_unit())) return true;
+  mem_root_deque<Item *> empty_list(thd->mem_root);
+  if (derived_result->prepare(thd, empty_list, derived_unit())) return true;
 
   /*
     Prepare the underlying query expression of the derived table.
@@ -410,7 +411,8 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
                        !apply_semijoin ? SELECT_NO_SEMI_JOIN : 0, 0))
     return true;
 
-  if (check_duplicate_names(m_derived_column_names, derived->types, false))
+  if (check_duplicate_names(m_derived_column_names,
+                            *derived->get_unit_column_types(), false))
     return true;
 
   if (is_derived()) {
@@ -442,14 +444,13 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
 
 /// Helper function for TABLE_LIST::setup_materialized_derived()
 static void swap_column_names_of_unit_and_tmp_table(
-    List<Item> &unit_items, const Create_col_name_list &tmp_table_col_names) {
-  if (unit_items.elements != tmp_table_col_names.size())
+    const mem_root_deque<Item *> &unit_items,
+    const Create_col_name_list &tmp_table_col_names) {
+  if (CountVisibleFields(unit_items) != tmp_table_col_names.size())
     // check_duplicate_names() will find and report error
     return;
-  List_iterator_fast<Item> li(unit_items);
-  Item *item;
   uint fieldnr = 0;
-  while ((item = li++)) {
+  for (Item *item : VisibleFields(unit_items)) {
     const char *s = item->item_name.ptr();
     size_t l = item->item_name.length();
     LEX_CSTRING &other_name =
@@ -525,7 +526,7 @@ bool TABLE_LIST::setup_materialized_derived_tmp_table(THD *thd)
         names. So, we replace the names of SELECT list items with specified
         column names, just for the duration of tmp table creation.
       */
-      swap_column_names_of_unit_and_tmp_table(derived->types,
+      swap_column_names_of_unit_and_tmp_table(*derived->get_unit_column_types(),
                                               *m_derived_column_names);
     }
 
@@ -539,10 +540,11 @@ bool TABLE_LIST::setup_materialized_derived_tmp_table(THD *thd)
                        derived->union_distinct != nullptr;
 
     bool rc = derived_result->create_result_table(
-        thd, &derived->types, is_distinct, create_options, alias, false, false);
+        thd, *derived->get_unit_column_types(), is_distinct, create_options,
+        alias, false, false);
 
     if (m_derived_column_names)  // Restore names
-      swap_column_names_of_unit_and_tmp_table(derived->types,
+      swap_column_names_of_unit_and_tmp_table(*derived->get_unit_column_types(),
                                               *m_derived_column_names);
 
     if (rc) return true; /* purecov: inspected */
@@ -588,11 +590,9 @@ bool SELECT_LEX_UNIT::check_materialized_derived_query_blocks(THD *thd_arg) {
 
     // Set all selected fields to be read:
     // @todo Do not set fields that are not referenced from outer query
-    List_iterator<Item> it(sl->all_fields);
-    Item *item;
     Column_privilege_tracker tracker(thd_arg, SELECT_ACL);
     Mark_field mf(MARK_COLUMNS_READ);
-    while ((item = it++)) {
+    for (Item *item : sl->fields) {
       if (item->walk(&Item::check_column_privileges, enum_walk::PREFIX,
                      (uchar *)thd_arg))
         return true;

@@ -855,7 +855,7 @@ class Log_event {
     output of SHOW BINLOG EVENTS; it is used only by SHOW BINLOG
     EVENTS.
   */
-  static void init_show_field_list(List<Item> *field_list);
+  static void init_show_field_list(mem_root_deque<Item *> *field_list);
 
   int net_send(Protocol *protocol, const char *log_name, my_off_t pos);
 

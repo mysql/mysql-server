@@ -799,7 +799,7 @@ bool Item_ident::update_depended_from(uchar *arg) {
   true.Therefore in order to force this method being called for all item
   arguments in a condition the method must return false.
 
-  @param arg  pointer to a List<Item_field>
+  @param arg  pointer to a mem_root_deque<Item_field *>
 
   @return
     false to force the evaluation of collect_item_field_processor
@@ -809,10 +809,9 @@ bool Item_ident::update_depended_from(uchar *arg) {
 bool Item_field::collect_item_field_processor(uchar *arg) {
   DBUG_TRACE;
   DBUG_PRINT("info", ("%s", field->field_name ? field->field_name : "noname"));
-  List<Item_field> *item_list = (List<Item_field> *)arg;
-  List_iterator<Item_field> item_list_it(*item_list);
-  Item_field *curr_item;
-  while ((curr_item = item_list_it++)) {
+  mem_root_deque<Item_field *> *item_list =
+      reinterpret_cast<mem_root_deque<Item_field *> *>(arg);
+  for (Item_field *curr_item : *item_list) {
     if (curr_item->eq(this, true)) return false; /* Already in the set. */
   }
   item_list->push_back(this);
@@ -1983,7 +1982,7 @@ class Item_aggregate_ref : public Item_ref {
 */
 
 void Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
-                           List<Item> &fields, Item **ref,
+                           mem_root_deque<Item *> *fields, Item **ref,
                            bool skip_registered) {
   DBUG_TRACE;
   /* An item of type Item_sum  is registered <=> referenced_by[0] != 0 */
@@ -2008,7 +2007,7 @@ void Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
                    Item_subselect::SINGLEROW_SUBS &&
                down_cast<Item_subselect *>(this)
                        ->unit->first_select()
-                       ->fields_list.elements == 1)) &&
+                       ->single_visible_field() != nullptr)) &&
              (type() != REF_ITEM ||  // (3)
               (down_cast<Item_ref *>(this))->ref_type() ==
                   Item_ref::VIEW_REF)) {
@@ -2036,7 +2035,27 @@ void Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
       Item_ref to allow fields from view being stored in tmp table.
     */
     DBUG_PRINT("info", ("replacing %s with reference", item_name.ptr()));
-    uint el = fields.elements;
+
+    // See if the item is already there. If it's not there
+    // (the common case), we put it at the end.
+    //
+    // However, if a scalar-subquery-to-derived rewrite needed to process
+    // a HAVING item, we might already be there (as a visible item).
+    // If so, we must not add ourselves twice, or we'd overwrite the hidden
+    // flag.
+    uint el =
+        std::find(&ref_item_array[0], &ref_item_array[fields->size()], this) -
+        &ref_item_array[0];
+    if (el == fields->size()) {
+      // Was not there from before, so add ourselves as a hidden item.
+      ref_item_array[el] = this;
+      // Should also be absent from 'fields', for consistency.
+      assert(find(fields->begin(), fields->end(), this) == fields->end());
+      fields->push_front(this);
+      hidden = true;
+    } else {
+      assert(find(fields->begin(), fields->end(), this) != fields->end());
+    }
 
     SELECT_LEX *base_select;
     SELECT_LEX *depended_from = nullptr;
@@ -2049,12 +2068,10 @@ void Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
       base_select = thd->lex->current_select();
     }
 
-    ref_item_array[el] = this;
     Item_aggregate_ref *const item_ref = new Item_aggregate_ref(
         &base_select->context, &ref_item_array[el], nullptr, nullptr,
         item_name.ptr(), depended_from);
-    if (item_ref == nullptr) return; /* purecov: inspected */
-    fields.push_front(this);
+    if (!item_ref) return; /* purecov: inspected */
     if (ref == nullptr) {
       DBUG_ASSERT(is_sum_func);
       // Let 'ref' be the two elements of referenced_by[].
@@ -4836,7 +4853,7 @@ static Item **resolve_ref_in_select_and_group(THD *thd, Item_ident *ref,
     clause of the current select.
   */
   if (!(select_ref =
-            find_item_in_list(thd, ref, *(select->get_fields_list()), &counter,
+            find_item_in_list(thd, ref, select->get_fields_list(), &counter,
                               REPORT_EXCEPT_NOT_FOUND, &resolution)))
     return nullptr; /* Some error occurred. */
   if (resolution == RESOLVED_AGAINST_ALIAS) ref->set_alias_of_expr();
@@ -5384,9 +5401,9 @@ bool Item_field::fix_fields(THD *thd, Item **reference) {
       if (thd->lex->current_select()->is_item_list_lookup) {
         uint counter;
         enum_resolution_type resolution;
-        Item **res = find_item_in_list(
-            thd, this, thd->lex->current_select()->fields_list, &counter,
-            REPORT_EXCEPT_NOT_FOUND, &resolution);
+        Item **res =
+            find_item_in_list(thd, this, &thd->lex->current_select()->fields,
+                              &counter, REPORT_EXCEPT_NOT_FOUND, &resolution);
         if (!res) return true;
         if (resolution == RESOLVED_AGAINST_ALIAS) set_alias_of_expr();
         if (res != not_found_item) {
@@ -10183,9 +10200,8 @@ bool Item_ident::aggregate_check_distinct(uchar *arg) {
   */
   uint counter;
   enum_resolution_type resolution;
-  Item **const res =
-      find_item_in_list(current_thd, this, sl->fields_list, &counter,
-                        REPORT_EXCEPT_NOT_FOUND, &resolution);
+  Item **const res = find_item_in_list(current_thd, this, &sl->fields, &counter,
+                                       REPORT_EXCEPT_NOT_FOUND, &resolution);
 
   if (res == not_found_item) {
     /*

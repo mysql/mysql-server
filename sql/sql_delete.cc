@@ -25,6 +25,7 @@
 #include "sql/sql_delete.h"
 
 #include <limits.h>
+
 #include <atomic>
 #include <memory>
 #include <utility>
@@ -758,15 +759,14 @@ bool Sql_cmd_delete::prepare_inner(THD *thd) {
   // check ORDER BY even if it can be ignored
   if (select->order_list.first) {
     TABLE_LIST tables;
-    List<Item> fields;
 
     tables.table = table_list->table;
     tables.alias = table_list->alias;
 
     DBUG_ASSERT(!select->group_list.elements);
     if (select->setup_base_ref_items(thd)) return true; /* purecov: inspected */
-    if (setup_order(thd, select->base_ref_items, &tables, fields,
-                    select->all_fields, select->order_list.first))
+    if (setup_order(thd, select->base_ref_items, &tables, &select->fields,
+                    select->order_list.first))
       return true;
   }
 
@@ -800,7 +800,7 @@ bool Sql_cmd_delete::prepare_inner(THD *thd) {
   select->exclude_from_table_unique_test = false;
 
   if (select->query_result() &&
-      select->query_result()->prepare(thd, select->fields_list, lex->unit))
+      select->query_result()->prepare(thd, select->fields, lex->unit))
     return true; /* purecov: inspected */
 
   opt_trace_print_expanded_query(thd, select, &trace_wrapper);
@@ -849,7 +849,8 @@ extern "C" int refpos_order_cmp(const void *arg, const void *a, const void *b) {
                        static_cast<const uchar *>(b));
 }
 
-bool Query_result_delete::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
+bool Query_result_delete::prepare(THD *thd, const mem_root_deque<Item *> &,
+                                  SELECT_LEX_UNIT *u) {
   DBUG_TRACE;
   unit = u;
 
@@ -982,7 +983,7 @@ void Query_result_delete::cleanup(THD *) {
   tables = nullptr;
 }
 
-bool Query_result_delete::send_data(THD *thd, List<Item> &) {
+bool Query_result_delete::send_data(THD *thd, const mem_root_deque<Item *> &) {
   DBUG_TRACE;
 
   JOIN *const join = unit->first_select()->join;

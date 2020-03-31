@@ -50,7 +50,7 @@ class SQL_I_List {
   /** A reference to the next element in the list. */
   T **next;
 
-  SQL_I_List() { empty(); }
+  SQL_I_List() { clear(); }
 
   SQL_I_List(const SQL_I_List &tmp)
       : elements(tmp.elements),
@@ -59,7 +59,7 @@ class SQL_I_List {
 
   SQL_I_List(SQL_I_List &&) = default;
 
-  inline void empty() {
+  inline void clear() {
     elements = 0;
     first = nullptr;
     next = &first;
@@ -74,7 +74,7 @@ class SQL_I_List {
 
   inline void save_and_clear(SQL_I_List<T> *save) {
     *save = *this;
-    empty();
+    clear();
   }
 
   inline void push_front(SQL_I_List<T> *save) {
@@ -138,12 +138,12 @@ class base_list {
     return elements == rhs.elements && first == rhs.first && last == rhs.last;
   }
 
-  inline void empty() {
+  inline void clear() {
     elements = 0;
     first = &end_of_list;
     last = &first;
   }
-  inline base_list() { empty(); }
+  inline base_list() { clear(); }
   /**
     This is a shallow copy constructor that implicitly passes the ownership
     from the source list to the new instance. The old instance is not
@@ -469,7 +469,7 @@ class List : public base_list {
       next = element->next;
       delete (T *)element->info;
     }
-    empty();
+    clear();
   }
 
   void destroy_elements(void) {
@@ -478,7 +478,7 @@ class List : public base_list {
       next = element->next;
       destroy((T *)element->info);
     }
-    empty();
+    clear();
   }
 
   T *operator[](uint index) const {
@@ -719,11 +719,11 @@ class base_ilist {
 
  public:
   // The sentinel is not a T, but at least it is a POD
-  void empty() SUPPRESS_UBSAN {
+  void clear() SUPPRESS_UBSAN {
     first = static_cast<T *>(&sentinel);
     sentinel.prev = &first;
   }
-  base_ilist() { empty(); }
+  base_ilist() { clear(); }
 
   // The sentinel is not a T, but at least it is a POD
   bool is_empty() const SUPPRESS_UBSAN {
@@ -767,7 +767,7 @@ class base_ilist {
     DBUG_ASSERT(new_owner->is_empty());
     new_owner->first = first;
     new_owner->sentinel = sentinel;
-    empty();
+    clear();
   }
 
   friend class base_ilist_iterator<T>;
@@ -804,7 +804,7 @@ class base_ilist_iterator {
 template <class T>
 class I_List : private base_ilist<T> {
  public:
-  using base_ilist<T>::empty;
+  using base_ilist<T>::clear;
   using base_ilist<T>::is_empty;
   using base_ilist<T>::get;
   using base_ilist<T>::push_front;

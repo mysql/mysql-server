@@ -1,6 +1,6 @@
 #ifndef SQL_PLIST_H
 #define SQL_PLIST_H
-/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -81,7 +81,7 @@ class I_P_List : public C, public I {
   */
  public:
   I_P_List() : I(&m_first), m_first(nullptr) {}
-  inline void empty() {
+  inline void clear() {
     m_first = nullptr;
     C::reset();
     I::set_last(&m_first);

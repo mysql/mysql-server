@@ -2527,7 +2527,7 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all) {
     cache_mngr->stmt_cache.reset();
   } else if (!cache_mngr->stmt_cache.is_binlog_empty()) {
     if (thd->lex->sql_command == SQLCOM_CREATE_TABLE &&
-        thd->lex->select_lex->get_fields_list()->elements && /* With select */
+        !thd->lex->select_lex->field_list_is_empty() && /* With select */
         !(thd->lex->create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
         thd->is_current_stmt_binlog_format_row()) {
       /*
@@ -3422,13 +3422,13 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log) {
   @retval true failure
 */
 bool mysql_show_binlog_events(THD *thd) {
-  List<Item> field_list;
   DBUG_TRACE;
 
   DBUG_ASSERT(thd->lex->sql_command == SQLCOM_SHOW_BINLOG_EVENTS);
 
+  mem_root_deque<Item *> field_list(thd->mem_root);
   Log_event::init_show_field_list(&field_list);
-  if (thd->send_result_metadata(&field_list,
+  if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return true;
 
@@ -10577,20 +10577,20 @@ bool THD::is_ddl_gtid_compatible() {
       mysql_bin_log.is_open() == false)
     return true;
 
-  DBUG_PRINT("info",
-             ("SQLCOM_CREATE:%d CREATE-TMP:%d SELECT:%d SQLCOM_DROP:%d "
-              "DROP-TMP:%d trx:%d",
-              lex->sql_command == SQLCOM_CREATE_TABLE,
-              (lex->sql_command == SQLCOM_CREATE_TABLE &&
-               (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE)),
-              lex->select_lex->fields_list.elements,
-              lex->sql_command == SQLCOM_DROP_TABLE,
-              (lex->sql_command == SQLCOM_DROP_TABLE && lex->drop_temporary),
-              in_multi_stmt_transaction_mode()));
+  DBUG_PRINT(
+      "info",
+      ("SQLCOM_CREATE:%d CREATE-TMP:%d SELECT:%zu SQLCOM_DROP:%d "
+       "DROP-TMP:%d trx:%d",
+       lex->sql_command == SQLCOM_CREATE_TABLE,
+       (lex->sql_command == SQLCOM_CREATE_TABLE &&
+        (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE)),
+       lex->select_lex->fields.size(), lex->sql_command == SQLCOM_DROP_TABLE,
+       (lex->sql_command == SQLCOM_DROP_TABLE && lex->drop_temporary),
+       in_multi_stmt_transaction_mode()));
 
   if (lex->sql_command == SQLCOM_CREATE_TABLE &&
       !(lex->create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
-      lex->select_lex->get_fields_list()->elements) {
+      !lex->select_lex->field_list_is_empty()) {
     if (!(get_default_handlerton(this, lex->create_info->db_type)->flags &
           HTON_SUPPORTS_ATOMIC_DDL)) {
       /*

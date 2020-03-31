@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -109,7 +109,7 @@ void sp_pcontext::init(uint var_offset, uint cursor_offset,
   m_cursor_offset = cursor_offset;
   m_num_case_exprs = num_case_expressions;
 
-  m_labels.empty();
+  m_labels.clear();
 }
 
 sp_pcontext::sp_pcontext(THD *thd)

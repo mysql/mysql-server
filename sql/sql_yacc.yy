@@ -2441,7 +2441,7 @@ filter_def:
 opt_filter_db_list:
           '(' ')'
           {
-            $$= NEW_PTN List<Item>;
+            $$= NEW_PTN mem_root_deque<Item *>(YYMEM_ROOT);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -2454,7 +2454,7 @@ opt_filter_db_list:
 filter_db_list:
           filter_db_ident
           {
-            $$= NEW_PTN List<Item>;
+            $$= NEW_PTN mem_root_deque<Item *>(YYMEM_ROOT);
             if ($$ == NULL)
               MYSQL_YYABORT;
             $$->push_back($1);
@@ -2478,7 +2478,7 @@ filter_db_ident:
 opt_filter_db_pair_list:
           '(' ')'
           {
-            $$= NEW_PTN List<Item>;
+            $$= NEW_PTN mem_root_deque<Item *>(YYMEM_ROOT);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -2490,7 +2490,7 @@ opt_filter_db_pair_list:
 filter_db_pair_list:
           '(' filter_db_ident ',' filter_db_ident ')'
           {
-            $$= NEW_PTN List<Item>;
+            $$= NEW_PTN mem_root_deque<Item *>(YYMEM_ROOT);
             if ($$ == NULL)
               MYSQL_YYABORT;
             $$->push_back($2);
@@ -2506,7 +2506,7 @@ filter_db_pair_list:
 opt_filter_table_list:
           '(' ')'
           {
-            $$= NEW_PTN List<Item>;
+            $$= NEW_PTN mem_root_deque<Item *>(YYMEM_ROOT);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -2519,7 +2519,7 @@ opt_filter_table_list:
 filter_table_list:
           filter_table_ident
           {
-            $$= NEW_PTN List<Item>;
+            $$= NEW_PTN mem_root_deque<Item *>(YYMEM_ROOT);
             if ($$ == NULL)
               MYSQL_YYABORT;
             $$->push_back($1);
@@ -2546,7 +2546,7 @@ filter_table_ident:
 opt_filter_string_list:
           '(' ')'
           {
-            $$= NEW_PTN List<Item>;
+            $$= NEW_PTN mem_root_deque<Item *>(YYMEM_ROOT);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -2559,7 +2559,7 @@ opt_filter_string_list:
 filter_string_list:
           filter_string
           {
-            $$= NEW_PTN List<Item>;
+            $$= NEW_PTN mem_root_deque<Item *>(YYMEM_ROOT);
             if ($$ == NULL)
               MYSQL_YYABORT;
             $$->push_back($1);
@@ -9788,8 +9788,10 @@ predicate:
           }
         | bit_expr not IN_SYM '(' expr ',' expr_list ')'
           {
-            if ($7 == NULL || $7->push_front($5) || $7->value.push_front($1))
+            if ($7 == nullptr)
               MYSQL_YYABORT;
+            $7->push_front($5);
+            $7->value.push_front($1);
 
             $$= NEW_PTN Item_func_in(@$, $7, true);
           }
@@ -10023,7 +10025,7 @@ simple_expr:
           }
         | CASE_SYM opt_expr when_list opt_else END
           {
-            $$= NEW_PTN Item_func_case(@$, *$3, $2, $4 );
+            $$= NEW_PTN Item_func_case(@$, $3, $2, $4 );
           }
         | CONVERT_SYM '(' expr ',' cast_type ')'
           {
@@ -11214,7 +11216,7 @@ opt_else:
 when_list:
           WHEN_SYM expr THEN_SYM expr
           {
-            $$= new (YYMEM_ROOT) List<Item>;
+            $$= new (YYMEM_ROOT) mem_root_deque<Item *>(YYMEM_ROOT);
             if ($$ == NULL)
               MYSQL_YYABORT;
             $$->push_back($2);
@@ -12520,7 +12522,7 @@ insert_stmt:
           opt_values_reference         /* #9 */
           opt_insert_update_list       /* #10 */
           {
-            PT_insert_values_list *one_row= NEW_PTN PT_insert_values_list;
+            PT_insert_values_list *one_row= NEW_PTN PT_insert_values_list(YYMEM_ROOT);
             if (one_row == NULL || one_row->push_back(&$8.value_list->value))
               MYSQL_YYABORT; // OOM
             $$= NEW_PTN PT_insert(false, $1, $2, $3, $5, $6,
@@ -12568,7 +12570,7 @@ replace_stmt:
           SET_SYM                       /* #6 */
           update_list                   /* #7 */
           {
-            PT_insert_values_list *one_row= NEW_PTN PT_insert_values_list;
+            PT_insert_values_list *one_row= NEW_PTN PT_insert_values_list(YYMEM_ROOT);
             if (one_row == NULL || one_row->push_back(&$7.value_list->value))
               MYSQL_YYABORT; // OOM
             $$= NEW_PTN PT_insert(true, $1, $2, false, $4, $5,
@@ -12705,7 +12707,7 @@ values_list:
           }
         | row_value
           {
-            $$= NEW_PTN PT_insert_values_list;
+            $$= NEW_PTN PT_insert_values_list(YYMEM_ROOT);
             if ($$ == NULL || $$->push_back(&$1->value))
               MYSQL_YYABORT;
           }
@@ -12720,7 +12722,7 @@ values_row_list:
           }
         | row_value_explicit
           {
-            $$= NEW_PTN PT_insert_values_list;
+            $$= NEW_PTN PT_insert_values_list(YYMEM_ROOT);
             if ($$ == nullptr || $$->push_back(&$1->value))
               MYSQL_YYABORT;
           }
@@ -13758,7 +13760,7 @@ purge_option:
             ITEMIZE($2, &$2);
 
             LEX *lex= Lex;
-            lex->purge_value_list.empty();
+            lex->purge_value_list.clear();
             lex->purge_value_list.push_front($2);
             lex->sql_command= SQLCOM_PURGE_BEFORE;
           }
@@ -13772,7 +13774,7 @@ kill:
             ITEMIZE($3, &$3);
 
             LEX *lex=Lex;
-            lex->kill_value_list.empty();
+            lex->kill_value_list.clear();
             lex->kill_value_list.push_front($3);
             lex->sql_command= SQLCOM_KILL;
           }

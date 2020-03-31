@@ -2169,10 +2169,12 @@ class Item : public Parse_tree_node {
   */
   virtual void update_used_tables() {}
 
-  virtual void split_sum_func(THD *, Ref_item_array, List<Item> &) {}
+  virtual void split_sum_func(THD *, Ref_item_array, mem_root_deque<Item *> *) {
+  }
   /* Called for items that really have to be split */
   void split_sum_func2(THD *thd, Ref_item_array ref_item_array,
-                       List<Item> &fields, Item **ref, bool skip_registered);
+                       mem_root_deque<Item *> *fields, Item **ref,
+                       bool skip_registered);
   virtual bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) = 0;
   virtual bool get_time(MYSQL_TIME *ltime) = 0;
   /**
@@ -3165,6 +3167,15 @@ class Item : public Parse_tree_node {
   bool unsigned_flag;
   bool m_is_window_function;  ///< True if item represents window func
   /**
+    If the item is in a SELECT list (SELECT_LEX::fields) and hidden is true,
+    the item wasn't actually in the list as given by the user (it was added
+    by the optimizer, to e.g. make sure it was part of a given
+    materialization), and should not be returned in the actual result.
+
+    If the item is not in a SELECT list, the value is irrelevant.
+   */
+  bool hidden{false};
+  /**
     True if item is a top most element in the expression being
     evaluated for a check constraint.
   */
@@ -3790,7 +3801,8 @@ class Item_ident : public Item {
   virtual bool alias_name_used() const { return m_alias_of_expr; }
   friend bool insert_fields(THD *thd, Name_resolution_context *context,
                             const char *db_name, const char *table_name,
-                            List_iterator<Item> *it, bool any_privileges);
+                            mem_root_deque<Item *>::iterator *it,
+                            bool any_privileges);
   bool is_strong_side_column_not_in_fd(uchar *arg) override;
   bool is_column_not_in_fd(uchar *arg) override;
 };
@@ -6853,5 +6865,25 @@ void convert_and_print(const String *from_str, String *to_str,
                        const CHARSET_INFO *to_cs);
 
 std::string ItemToString(const Item *item);
+
+inline size_t CountVisibleFields(const mem_root_deque<Item *> &fields) {
+  return count_if(fields.begin(), fields.end(),
+                  [](Item *item) { return !item->hidden; });
+}
+
+inline size_t CountHiddenFields(const mem_root_deque<Item *> &fields) {
+  return count_if(fields.begin(), fields.end(),
+                  [](Item *item) { return item->hidden; });
+}
+
+inline Item *GetNthVisibleField(const mem_root_deque<Item *> &fields,
+                                size_t index) {
+  for (Item *item : fields) {
+    if (item->hidden) continue;
+    if (index-- == 0) return item;
+  }
+  assert(false);
+  return nullptr;
+}
 
 #endif /* ITEM_INCLUDED */

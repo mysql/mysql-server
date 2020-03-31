@@ -92,8 +92,9 @@ class Query_result_delete final : public Query_result_interceptor {
         non_transactional_deleted(false),
         error_handled(false) {}
   bool need_explain_interceptor() const override { return true; }
-  bool prepare(THD *thd, List<Item> &list, SELECT_LEX_UNIT *u) override;
-  bool send_data(THD *thd, List<Item> &items) override;
+  bool prepare(THD *thd, const mem_root_deque<Item *> &list,
+               SELECT_LEX_UNIT *u) override;
+  bool send_data(THD *thd, const mem_root_deque<Item *> &items) override;
   void send_error(THD *thd, uint errcode, const char *err) override;
   bool optimize() override;
   bool start_execution(THD *) override {

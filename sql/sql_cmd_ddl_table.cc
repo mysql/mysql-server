@@ -186,7 +186,7 @@ bool Sql_cmd_create_table::execute(THD *thd) {
   }
   bool res = false;
 
-  if (select_lex->fields_list.elements)  // With select
+  if (!select_lex->field_list_is_empty())  // With select
   {
     /*
       CREATE TABLE...IGNORE/REPLACE SELECT... can be unsafe, unless
@@ -239,11 +239,9 @@ bool Sql_cmd_create_table::execute(THD *thd) {
     if (thd->query_name_consts && mysql_bin_log.is_open() &&
         thd->variables.binlog_format == BINLOG_FORMAT_STMT &&
         !mysql_bin_log.is_query_in_union(thd, thd->query_id)) {
-      List_iterator_fast<Item> it(select_lex->fields_list);
-      Item *item;
       uint splocal_refs = 0;
       /* Count SP local vars in the top-level SELECT list */
-      while ((item = it++)) {
+      for (Item *item : select_lex->visible_fields()) {
         if (item->is_splocal()) splocal_refs++;
       }
       /*
@@ -313,7 +311,7 @@ bool Sql_cmd_create_table::execute(THD *thd) {
       if (!unit->is_prepared()) {
         Prepared_stmt_arena_holder ps_arena_holder(thd);
         result = new (thd->mem_root)
-            Query_result_create(create_table, select_lex->fields_list,
+            Query_result_create(create_table, &select_lex->fields,
                                 lex->duplicates, query_expression_tables);
       } else
         result = down_cast<Query_result_create *>(

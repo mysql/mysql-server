@@ -7814,11 +7814,11 @@ Field *find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *first_table,
 /* Special Item pointer to serve as a return value from find_item_in_list(). */
 Item **not_found_item = (Item **)0x1;
 
-Item **find_item_in_list(THD *thd, Item *find, List<Item> &items, uint *counter,
+Item **find_item_in_list(THD *thd, Item *find, mem_root_deque<Item *> *items,
+                         uint *counter,
                          find_item_error_report_type report_error,
                          enum_resolution_type *resolution) {
-  List_iterator<Item> li(items);
-  Item **found = nullptr, **found_unaliased = nullptr, *item;
+  Item **found = nullptr, **found_unaliased = nullptr;
   const char *db_name = nullptr;
   const char *field_name = nullptr;
   const char *table_name = nullptr;
@@ -7840,7 +7840,10 @@ Item **find_item_in_list(THD *thd, Item *find, List<Item> &items, uint *counter,
     db_name = ((Item_ident *)find)->db_name;
   }
 
-  for (uint i = 0; (item = li++); i++) {
+  int i = 0;
+  for (auto it = VisibleFields(*items).begin();
+       it != VisibleFields(*items).end(); ++it, ++i) {
+    Item *item = *it;
     if (field_name && item->real_item()->type() == Item::FIELD_ITEM) {
       Item_ident *item_field = (Item_ident *)item;
 
@@ -7888,7 +7891,7 @@ Item **find_item_in_list(THD *thd, Item *find, List<Item> &items, uint *counter,
                        thd->where);
             return (Item **)nullptr;
           }
-          found_unaliased = li.ref();
+          found_unaliased = &*it;
           unaliased_counter = i;
           *resolution = RESOLVED_IGNORING_ALIAS;
           if (db_name) break;  // Perfect match
@@ -7911,7 +7914,7 @@ Item **find_item_in_list(THD *thd, Item *find, List<Item> &items, uint *counter,
                        thd->where);
             return (Item **)nullptr;
           }
-          found = li.ref();
+          found = &*it;
           *counter = i;
           *resolution =
               fname_cmp ? RESOLVED_AGAINST_ALIAS : RESOLVED_WITH_NO_ALIAS;
@@ -7927,18 +7930,18 @@ Item **find_item_in_list(THD *thd, Item *find, List<Item> &items, uint *counter,
               continue;  // Same field twice
             found_unaliased_non_uniq = true;
           }
-          found_unaliased = li.ref();
+          found_unaliased = &*it;
           unaliased_counter = i;
         }
       }
     } else if (!table_name) {
       if (is_ref_by_name && item->item_name.eq_safe(find->item_name)) {
-        found = li.ref();
+        found = &*it;
         *counter = i;
         *resolution = RESOLVED_AGAINST_ALIAS;
         break;
       } else if (find->eq(item, false)) {
-        found = li.ref();
+        found = &*it;
         *counter = i;
         *resolution = RESOLVED_IGNORING_ALIAS;
         break;
@@ -7963,7 +7966,7 @@ Item **find_item_in_list(THD *thd, Item *find, List<Item> &items, uint *counter,
                          table_name) &&
           (!db_name ||
            (item_ref->db_name && !strcmp(item_ref->db_name, db_name)))) {
-        found = li.ref();
+        found = &*it;
         *counter = i;
         *resolution = RESOLVED_IGNORING_ALIAS;
         break;
@@ -8640,23 +8643,21 @@ bool resolve_var_assignments(THD *thd, LEX *lex) {
   Resolve a list of expressions and setup appropriate data
 
   @param thd                    thread handler
-  @param[out] ref_item_array    filled in with references to items.
-  @param[in,out] fields         list of expressions, populated with resolved
-                                data about expressions.
   @param want_privilege         privilege representing desired operation.
                                 whether the expressions are selected, inserted
                                 or updated, or no operation is done.
                                 will also decide inclusion in read/write maps.
-  @param[in,out] sum_func_list  If not nullptr, this is a pointer to
-                                SELECT::all_fields used by Item::split_sum_func
-                                which may add hidden fields to it.  See also
-                                description in its helper method
-                                Item::split_sum_func2.
   @param allow_sum_func         true if set operations are allowed in context.
   @param column_update          if true, reject expressions that do not resolve
                                 to a base table column
+  @param split_sum_funcs        If true, Item::split_sum_func will add hidden
+                                items to "fields". See also description in its
+                                helper method Item::split_sum_func2.
   @param typed_items            List of reference items for type derivation
-                                May be NULL.
+                                May be nullptr.
+  @param[in,out] fields         list of expressions, populated with resolved
+                                data about expressions.
+  @param[out] ref_item_array    filled in with references to items.
 
   @retval false if success
   @retval true if error
@@ -8670,10 +8671,11 @@ bool resolve_var_assignments(THD *thd, LEX *lex) {
         for update.
 */
 
-bool setup_fields(THD *thd, Ref_item_array ref_item_array, List<Item> &fields,
-                  ulong want_privilege, List<Item> *sum_func_list,
-                  bool allow_sum_func, bool column_update,
-                  List<Item> *typed_items) {
+bool setup_fields(THD *thd, ulong want_privilege, bool allow_sum_func,
+                  bool split_sum_funcs, bool column_update,
+                  const mem_root_deque<Item *> *typed_items,
+                  mem_root_deque<Item *> *fields,
+                  Ref_item_array ref_item_array) {
   DBUG_TRACE;
 
   SELECT_LEX *const select = thd->lex->current_select();
@@ -8707,25 +8709,26 @@ bool setup_fields(THD *thd, Ref_item_array ref_item_array, List<Item> &fields,
 
     There is other way to solve problem: fill array with pointers to list,
     but it will be slower.
-
-    TODO: remove it when (if) we made one list for allfields and ref_item_array
   */
   if (!ref_item_array.is_null()) {
-    DBUG_ASSERT(ref_item_array.size() >= fields.elements);
-    memset(ref_item_array.array(), 0, sizeof(Item *) * fields.elements);
+    size_t num_visible_fields = CountVisibleFields(*fields);
+    DBUG_ASSERT(ref_item_array.size() >= num_visible_fields);
+    memset(ref_item_array.array(), 0, sizeof(Item *) * num_visible_fields);
   }
 
   Ref_item_array ref = ref_item_array;
 
-  Item *item;
-  Item *typed_item = nullptr;
-  List_iterator<Item> it(fields);
-  List_iterator<Item> itr;
-  if (typed_items != nullptr) itr.init(*typed_items);
-
-  while ((item = it++)) {
-    if ((!item->fixed && item->fix_fields(thd, it.ref())) ||
-        (item = *(it.ref()))->check_cols(1)) {
+  mem_root_deque<Item *>::const_iterator typed_it;
+  if (typed_items != nullptr) {
+    typed_it = typed_items->begin();
+  }
+  for (auto it = fields->begin(); it != fields->end(); ++it) {
+    const size_t old_size = fields->size();
+    Item *item = *it;
+    assert(!item->hidden);
+    Item **item_pos = &*it;
+    if ((!item->fixed && item->fix_fields(thd, item_pos)) ||
+        (item = *item_pos)->check_cols(1)) {
       DBUG_PRINT("info",
                  ("thd->mark_used_columns: %d", thd->mark_used_columns));
       return true; /* purecov: inspected */
@@ -8741,7 +8744,11 @@ bool setup_fields(THD *thd, Ref_item_array ref_item_array, List<Item> &fields,
       ref[0] = item;
       ref.pop_front();
     }
-    if (typed_items != nullptr) typed_item = itr++;
+    Item *typed_item = nullptr;
+    if (typed_items != nullptr && typed_it != typed_items->end()) {
+      typed_item = *typed_it++;
+      assert(!typed_item->hidden);
+    }
 
     if (column_update) {
       Item_field *const field = item->field_for_view_update();
@@ -8790,7 +8797,7 @@ bool setup_fields(THD *thd, Ref_item_array ref_item_array, List<Item> &fields,
         item->propagate_type(item->default_data_type());
     }
 
-    if (sum_func_list) {
+    if (split_sum_funcs) {
       /*
         (1) Contains a grouped aggregate but is not one. If it is one, we do
         not split, but in create_tmp_table() we look at its arguments and add
@@ -8806,10 +8813,16 @@ bool setup_fields(THD *thd, Ref_item_array ref_item_array, List<Item> &fields,
       if ((item->has_aggregation() && !(item->type() == Item::SUM_FUNC_ITEM &&
                                         !item->m_is_window_function)) ||  //(1)
           item->has_wf())                                                 // (2)
-        item->split_sum_func(thd, ref_item_array, *sum_func_list);
+        item->split_sum_func(thd, ref_item_array, fields);
     }
 
     select->select_list_tables |= item->used_tables();
+
+    if (old_size != fields->size()) {
+      // Items have been added (either by fix_fields or by split_sum_func), so
+      // our iterator is invalidated. Reconstruct it.
+      it = find(fields->begin(), fields->end(), item);
+    }
   }
   select->is_item_list_lookup = save_is_item_list_lookup;
   thd->lex->allow_sum_func = save_allow_sum_func;
@@ -8959,8 +8972,8 @@ class Tables_in_user_order_iterator {
 */
 
 bool insert_fields(THD *thd, SELECT_LEX *select_lex, const char *db_name,
-                   const char *table_name, List_iterator<Item> *it,
-                   bool any_privileges) {
+                   const char *table_name, mem_root_deque<Item *> *fields,
+                   mem_root_deque<Item *>::iterator *it, bool any_privileges) {
   char name_buff[NAME_LEN + 1];
   DBUG_TRACE;
   DBUG_PRINT("arena", ("stmt arena: %p", thd->stmt_arena));
@@ -9057,9 +9070,11 @@ bool insert_fields(THD *thd, SELECT_LEX *select_lex, const char *db_name,
       if (!is_hidden_from_user) {
         if (!found) {
           found = true;
-          it->replace(item); /* Replace '*' with the first found item. */
-        } else
-          it->after(item); /* Add 'item' to the SELECT list. */
+          **it = item; /* Replace '*' with the first found item. */
+        } else {
+          /* Add 'item' to the SELECT list, after the current one. */
+          *it = fields->insert(*it + 1, item);
+        }
       }
 
       /*
@@ -9170,12 +9185,14 @@ bool insert_fields(THD *thd, SELECT_LEX *select_lex, const char *db_name,
     @retval true    Error occurred
 */
 
-bool fill_record(THD *thd, TABLE *table, List<Item> &fields, List<Item> &values,
-                 MY_BITMAP *bitmap, MY_BITMAP *insert_into_fields_bitmap,
+bool fill_record(THD *thd, TABLE *table, const mem_root_deque<Item *> &fields,
+                 const mem_root_deque<Item *> &values, MY_BITMAP *bitmap,
+                 MY_BITMAP *insert_into_fields_bitmap,
                  bool raise_autoinc_has_expl_non_null_val) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(fields.elements == values.elements);
+  DBUG_ASSERT(CountVisibleFields(fields) == CountVisibleFields(values));
+
   /*
     In case when TABLE object comes to fill_record() from Table Cache it
     should have autoinc_field_has_explicit_non_null_value flag set to false.
@@ -9191,14 +9208,13 @@ bool fill_record(THD *thd, TABLE *table, List<Item> &fields, List<Item> &values,
               (raise_autoinc_has_expl_non_null_val &&
                thd->lex->sql_command == SQLCOM_LOAD));
 
-  Item *fld;
-  List_iterator_fast<Item> f(fields), v(values);
-  while ((fld = f++)) {
+  auto value_it = VisibleFields(values).begin();
+  for (Item *fld : VisibleFields(fields)) {
     Item_field *const field = fld->field_for_view_update();
     DBUG_ASSERT(field != nullptr && field->table_ref->table == table);
 
     Field *const rfield = field->field;
-    Item *const value = v++;
+    Item *value = *value_it++;
 
     /* If bitmap over wanted fields are set, skip non marked fields. */
     if (bitmap && !bitmap_is_set(bitmap, rfield->field_index())) continue;
@@ -9254,13 +9270,9 @@ bool fill_record(THD *thd, TABLE *table, List<Item> &fields, List<Item> &values,
 
   @return Error status.
 */
-static bool check_record(THD *thd, List<Item> &fields) {
-  List_iterator_fast<Item> f(fields);
-  Item *fld;
-  Item_field *field;
-
-  while ((fld = f++)) {
-    field = fld->field_for_view_update();
+static bool check_record(THD *thd, const mem_root_deque<Item *> &fields) {
+  for (Item *fld : VisibleFields(fields)) {
+    Item_field *field = fld->field_for_view_update();
     if (field &&
         field->field->check_constraints(ER_BAD_NULL_ERROR) != TYPE_OK) {
       my_error(ER_UNKNOWN_ERROR, MYF(0));
@@ -9455,8 +9467,9 @@ inline bool call_before_insert_triggers(THD *thd, TABLE *table,
 */
 
 bool fill_record_n_invoke_before_triggers(
-    THD *thd, COPY_INFO *optype_info, List<Item> &fields, List<Item> &values,
-    TABLE *table, enum enum_trigger_event_type event, int num_fields,
+    THD *thd, COPY_INFO *optype_info, const mem_root_deque<Item *> &fields,
+    const mem_root_deque<Item *> &values, TABLE *table,
+    enum enum_trigger_event_type event, int num_fields,
     bool raise_autoinc_has_expl_non_null_val, bool *is_row_changed) {
   // is_row_changed is used by UPDATE operation to set compare_record() result.
   DBUG_ASSERT(is_row_changed == nullptr ||
@@ -9584,8 +9597,9 @@ bool fill_record_n_invoke_before_triggers(
     @retval true    Error occurred
 */
 
-bool fill_record(THD *thd, TABLE *table, Field **ptr, List<Item> &values,
-                 MY_BITMAP *bitmap, MY_BITMAP *insert_into_fields_bitmap,
+bool fill_record(THD *thd, TABLE *table, Field **ptr,
+                 const mem_root_deque<Item *> &values, MY_BITMAP *bitmap,
+                 MY_BITMAP *insert_into_fields_bitmap,
                  bool raise_autoinc_has_expl_non_null_val) {
   DBUG_TRACE;
 
@@ -9598,12 +9612,12 @@ bool fill_record(THD *thd, TABLE *table, Field **ptr, List<Item> &values,
   DBUG_ASSERT(table->autoinc_field_has_explicit_non_null_value == false);
 
   Field *field;
-  List_iterator_fast<Item> v(values);
+  auto value_it = VisibleFields(values).begin();
   while ((field = *ptr++) && !thd->is_error()) {
     // Skip fields invisible to the user
     if (field->is_hidden_from_user()) continue;
 
-    Item *const value = v++;
+    Item *value = *value_it++;
     DBUG_ASSERT(field->table == table);
 
     /* If bitmap over wanted fields are set, skip non marked fields. */
@@ -9644,7 +9658,8 @@ bool fill_record(THD *thd, TABLE *table, Field **ptr, List<Item> &values,
       update_generated_write_fields(bitmap ? bitmap : table->write_set, table))
     return true;
 
-  DBUG_ASSERT(thd->is_error() || !v++);  // No extra value!
+  DBUG_ASSERT(thd->is_error() ||
+              value_it == VisibleFields(values).end());  // No extra value!
 
   /*
     TABLE::autoinc_field_has_explicit_non_null_value should not be set to
@@ -9688,7 +9703,8 @@ bool fill_record(THD *thd, TABLE *table, Field **ptr, List<Item> &values,
 */
 
 bool fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
-                                          List<Item> &values, TABLE *table,
+                                          const mem_root_deque<Item *> &values,
+                                          TABLE *table,
                                           enum enum_trigger_event_type event,
                                           int num_fields) {
   bool rc;

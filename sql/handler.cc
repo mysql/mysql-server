@@ -3984,7 +3984,7 @@ void handler::ha_release_auto_increment() {
       this statement used forced auto_increment values if there were some,
       wipe them away for other statements.
     */
-    table->in_use->auto_inc_intervals_forced.empty();
+    table->in_use->auto_inc_intervals_forced.clear();
   }
 }
 
@@ -7542,17 +7542,16 @@ static bool showstat_handlerton(THD *thd, plugin_ref plugin, void *arg) {
 }
 
 bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat) {
-  List<Item> field_list;
-  bool result;
-
+  mem_root_deque<Item *> field_list(thd->mem_root);
   field_list.push_back(new Item_empty_string("Type", 10));
   field_list.push_back(new Item_empty_string("Name", FN_REFLEN));
   field_list.push_back(new Item_empty_string("Status", 10));
 
-  if (thd->send_result_metadata(&field_list,
+  if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return true;
 
+  bool result;
   if (db_type == nullptr) {
     result = plugin_foreach(thd, showstat_handlerton,
                             MYSQL_STORAGE_ENGINE_PLUGIN, &stat);

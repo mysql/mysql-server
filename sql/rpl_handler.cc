@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -326,7 +326,7 @@ int Trans_delegate::before_commit(THD *thd, bool all,
   param.immediate_server_version = &(thd->variables.immediate_server_version);
   param.is_create_table_as_select =
       (thd->lex->sql_command == SQLCOM_CREATE_TABLE &&
-       thd->lex->select_lex->get_fields_list()->elements);
+       !thd->lex->select_lex->field_list_is_empty());
 
   bool is_real_trans =
       (all || !thd->get_transaction()->is_active(Transaction_ctx::SESSION));
@@ -743,12 +743,12 @@ int Binlog_transmit_delegate::transmit_stop(THD *thd, ushort flags) {
 
 int Binlog_transmit_delegate::reserve_header(THD *thd, ushort flags,
                                              String *packet) {
-/* NOTE2ME: Maximum extra header size for each observer, I hope 32
-   bytes should be enough for each Observer to reserve their extra
-   header. If later found this is not enough, we can increase this
-   /HEZX
-*/
-#define RESERVE_HEADER_SIZE 32
+  /*
+    NOTE2ME: Maximum extra header size for each observer, I hope 32
+    bytes should be enough for each Observer to reserve their
+    extra header. If later found this is not enough, we can increase this /HEZX
+   */
+  constexpr int RESERVE_HEADER_SIZE = 32;
   unsigned char header[RESERVE_HEADER_SIZE];
   ulong hlen;
   Binlog_transmit_param param;
@@ -1061,9 +1061,7 @@ int launch_hook_trans_begin(THD *thd, TABLE_LIST *all_tables) {
     // if select is an udf function
     SELECT_LEX *select_lex_elem = lex->unit->first_select();
     while (select_lex_elem != nullptr) {
-      Item *item;
-      List_iterator_fast<Item> it(select_lex_elem->fields_list);
-      while ((item = it++)) {
+      for (Item *item : select_lex_elem->visible_fields()) {
         if (item->type() == Item::FUNC_ITEM) {
           Item_func *func_item = down_cast<Item_func *>(item);
           Item_func::Functype functype = func_item->functype();

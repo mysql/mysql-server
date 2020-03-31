@@ -1836,14 +1836,19 @@ class PT_update : public Parse_tree_root {
 class PT_insert_values_list : public Parse_tree_node {
   typedef Parse_tree_node super;
 
-  List<List_item> many_values;
+  mem_root_deque<List_item *> many_values;
 
  public:
+  explicit PT_insert_values_list(MEM_ROOT *mem_root) : many_values(mem_root) {}
+
   bool contextualize(Parse_context *pc) override;
 
-  bool push_back(List<Item> *x) { return many_values.push_back(x); }
+  bool push_back(mem_root_deque<Item *> *x) {
+    many_values.push_back(x);
+    return false;
+  }
 
-  virtual List<List_item> &get_many_values() {
+  virtual mem_root_deque<List_item *> &get_many_values() {
     DBUG_ASSERT(is_contextualized());
     return many_values;
   }
@@ -4521,13 +4526,10 @@ class PT_load_table final : public Parse_tree_root {
               opt_set_fields ? &opt_set_fields->value : nullptr,
               opt_set_exprs ? &opt_set_exprs->value : nullptr,
               opt_set_expr_strings),
-        m_lock_type(lock_type),
-        m_opt_fields_or_vars(opt_fields_or_vars),
-        m_opt_set_fields(opt_set_fields),
-        m_opt_set_exprs(opt_set_exprs) {
+        m_lock_type(lock_type) {
     DBUG_ASSERT((opt_set_fields == nullptr) ^ (opt_set_exprs != nullptr));
-    DBUG_ASSERT(opt_set_fields == nullptr || opt_set_fields->value.elements ==
-                                                 opt_set_exprs->value.elements);
+    DBUG_ASSERT(opt_set_fields == nullptr ||
+                opt_set_fields->value.size() == opt_set_exprs->value.size());
   }
 
   Sql_cmd *make_cmd(THD *thd) override;
@@ -4536,9 +4538,6 @@ class PT_load_table final : public Parse_tree_root {
   Sql_cmd_load_table m_cmd;
 
   const thr_lock_type m_lock_type;
-  PT_item_list *m_opt_fields_or_vars;
-  PT_item_list *m_opt_set_fields;
-  PT_item_list *m_opt_set_exprs;
 };
 
 /**
