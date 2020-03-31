@@ -95,3 +95,16 @@ You should *not* 'make install' googletest/googlemock on your system,
 the libraries must be built from source, with the unit tests.
 
 Note: You need to tell cmake where to find boost, see ../cmake/boost.cmake
+
+Installing and building via vcpkg
+=================================
+
+You can download and install libmysql using the vcpkg(https://github.com/Microsoft/vcpkg) dependency manager:
+
+    git clone https://github.com/Microsoft/vcpkg.git
+    cd vcpkg
+    ./bootstrap-vcpkg.sh
+    ./vcpkg integrate install
+    vcpkg install libmysql
+
+The libmysql port in vcpkg is kept up to date by Microsoft team members and community contributors. If the version is out of date, please create an issue or pull request(https://github.com/Microsoft/vcpkg) on the vcpkg repository.
