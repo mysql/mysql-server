@@ -148,13 +148,18 @@ call mtr.add_suppression("Plugin mysqlx reported: 'Setup of bind-address: 'dista
 --perl
 my $tmpdir = $ENV{MYSQL_TMP_DIR} or die "Need $MYSQL_TMP_DIR";
 my @ip_addresses = split (/\n/, `ifconfig -a | grep 'inet '`);
+my $insert = 0;
 
 open(FILE, ">", "$tmpdir/tmp_localhost_ip.inc") or die;
 print FILE "CREATE TABLE test.ip(ip VARCHAR(20));\n";
 foreach $ip (@ip_addresses) {
   if ($ip =~ m/inet (addr:)?([0-9\.]{7,})/) {
     print FILE "INSERT INTO test.ip VALUES('$2');\n";
+    $insert++;
   }
+}
+if (! $insert) {
+  print FILE "INSERT INTO test.ip VALUES('127.0.0.1');\n";
 }
 close(FILE);
 EOF
@@ -165,7 +170,6 @@ EOF
 --remove_file $MYSQL_TMP_DIR/tmp_localhost_ip.inc
 
 --let $IP_ADDRESSES=`SELECT GROUP_CONCAT(ip SEPARATOR ',') FROM test.ip`
-
 
 --replace_regex /=[0-9,.]+/=$IPs/
 --let $restart_parameters = restart: --mysqlx_bind_address=$IP_ADDRESSES
