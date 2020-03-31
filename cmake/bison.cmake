@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -48,8 +48,9 @@ ELSE()
     # * no-yacc: for --yacc
     # * no-empty-rule: for empty rules without %empty
     # * no-precedence: for useless precedence or/and associativity rules
+    # * no-deprecated: %pure-parser is deprecated
     SET(BISON_FLAGS_WARNINGS
-      "--warnings=all,no-yacc,no-empty-rule,no-precedence"
+      "--warnings=all,no-yacc,no-empty-rule,no-precedence,no-deprecated"
       CACHE INTERNAL "BISON 3.x flags")
   ENDIF()
 ENDIF()
