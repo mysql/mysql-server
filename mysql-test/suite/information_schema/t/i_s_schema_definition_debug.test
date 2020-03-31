@@ -95,6 +95,7 @@
 --echo ########################################################################
 
 --source include/have_debug.inc
+SET debug = '+d,skip_dd_table_access_check';
 
 # Total number of system views in MySQL server.
 let $expected_system_view_count = 43;
@@ -112,6 +113,15 @@ eval CREATE TABLE $I_S_view_names (name VARCHAR(64) PRIMARY KEY);
 --echo # PART 2. Verify the I_S_VERSION and the CREATE VIEW statements of the
 --echo #         I_S system views.
 --echo ########################################################################
+
+--echo # Print the actual I_S version stored on disk.
+let $I_S_version = `SELECT SUBSTRING_INDEX(
+                            SUBSTRING_INDEX(SUBSTRING(properties,
+                            LOCATE('IS_VERSION', properties), 30), ';', 1)
+                           , '=', -1) AS I_S_VERSION
+                      FROM mysql.dd_properties`;
+--echo I_S_VERSION=$I_S_version
+
 # We also store the defs in following table in order to calculate the
 # checksum later.
 CREATE TABLE I_S_check_table (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -124,7 +134,6 @@ CREATE TABLE I_S_check_table (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 --echo #         the current I_S version number.
 --echo ########################################################################
 
-SET debug = '+d,skip_dd_table_access_check';
 --disable_query_log
 
 # Verify number of system views stored in DD.
@@ -272,16 +281,23 @@ SELECT IFNULL(CONCAT('The schema checksum corresponds to I_S version ',
 # error in the assert below is handled correctly.
 
 let $assert_cond = "[SELECT COUNT(version)
-                       FROM I_S_published_schema, whole_schema
-                       WHERE I_S_published_schema.checksum =
-                             whole_schema.checksum
+                       FROM I_S_published_schema i, whole_schema w
+                       WHERE i.checksum = w.checksum
                        AND lctn = @@global.lower_case_file_system]" >= 1;
 --let $assert_text = The schema checksum corresponds to a known I_S version.
+--source include/assert.inc
+
+let $assert_cond = "[SELECT COUNT(version)
+                       FROM I_S_published_schema i, whole_schema w
+                       WHERE i.checksum = w.checksum
+                       AND lctn = @@global.lower_case_file_system
+                       AND version = \'$I_S_version\']" >= 1;
+let $assert_text = The schema checksum corresponds to
+                       IS_VERSION $I_S_version stored on on disk.;
 --source include/assert.inc
 
 SET group_concat_max_len = @old_group_concat_max_len;
 eval DROP TABLES I_S_check_table, whole_schema, I_S_published_schema,
             $I_S_view_names;
 SET debug = '-d,skip_dd_table_access_check';
-
 --enable_query_log
