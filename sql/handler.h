@@ -773,7 +773,7 @@ given at all. */
   This option is used to convey that the create table should not
   commit the operation and keep the transaction started.
 */
-#define HA_CREATE_USED_START_TRANSACTION (1L << 31)
+constexpr const uint64_t HA_CREATE_USED_START_TRANSACTION{1ULL << 31};
 
 constexpr const uint64_t HA_CREATE_USED_ENGINE_ATTRIBUTE{1ULL << 32};
 constexpr const uint64_t HA_CREATE_USED_SECONDARY_ENGINE_ATTRIBUTE{1ULL << 33};
