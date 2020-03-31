@@ -1537,7 +1537,7 @@ CREATE TABLE db (dummy int) ENGINE=memory;
 --error ER_UNSUPPORTED_ENGINE
 CREATE TABLE user (dummy int) ENGINE=memory;
 --error ER_UNSUPPORTED_ENGINE
-CREATE TABLE func (dummy int) ENGINE=csv;
+CREATE TABLE func (dummy int) ENGINE=memory;
 --error ER_UNSUPPORTED_ENGINE
 CREATE TABLE servers (dummy int) ENGINE=merge;
 --error ER_UNSUPPORTED_ENGINE
@@ -1545,7 +1545,7 @@ CREATE TABLE procs_priv (dummy int) ENGINE=memory;
 --error ER_UNSUPPORTED_ENGINE
 CREATE TABLE tables_priv (dummy int) ENGINE=heap;
 --error ER_UNSUPPORTED_ENGINE
-CREATE TABLE columns_priv (dummy int) ENGINE=csv;
+CREATE TABLE columns_priv (dummy int) ENGINE=memory;
 --error ER_UNSUPPORTED_ENGINE
 CREATE TABLE time_zone (dummy int) ENGINE=merge;
 --error ER_UNSUPPORTED_ENGINE

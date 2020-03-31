@@ -286,31 +286,6 @@ const char *tx_isolation_names[] = {"READ-UNCOMMITTED", "READ-COMMITTED",
 TYPELIB tx_isolation_typelib = {array_elements(tx_isolation_names) - 1, "",
                                 tx_isolation_names, nullptr};
 
-// System tables that belong to the 'mysql' system database.
-// These are the "dictionary external system tables" (see WL#6391).
-st_handler_tablename mysqld_system_tables[] = {
-    {MYSQL_SCHEMA_NAME.str, "db"},
-    {MYSQL_SCHEMA_NAME.str, "user"},
-    {MYSQL_SCHEMA_NAME.str, "host"},
-    {MYSQL_SCHEMA_NAME.str, "func"},
-    {MYSQL_SCHEMA_NAME.str, "plugin"},
-    {MYSQL_SCHEMA_NAME.str, "servers"},
-    {MYSQL_SCHEMA_NAME.str, "procs_priv"},
-    {MYSQL_SCHEMA_NAME.str, "tables_priv"},
-    {MYSQL_SCHEMA_NAME.str, "proxies_priv"},
-    {MYSQL_SCHEMA_NAME.str, "columns_priv"},
-    {MYSQL_SCHEMA_NAME.str, "time_zone"},
-    {MYSQL_SCHEMA_NAME.str, "time_zone_name"},
-    {MYSQL_SCHEMA_NAME.str, "time_zone_leap_second"},
-    {MYSQL_SCHEMA_NAME.str, "time_zone_transition"},
-    {MYSQL_SCHEMA_NAME.str, "time_zone_transition_type"},
-    {MYSQL_SCHEMA_NAME.str, "help_category"},
-    {MYSQL_SCHEMA_NAME.str, "help_keyword"},
-    {MYSQL_SCHEMA_NAME.str, "help_relation"},
-    {MYSQL_SCHEMA_NAME.str, "help_topic"},
-    {(const char *)nullptr, (const char *)nullptr} /* This must be at the end */
-};
-
 // Called for each SE to check if given db.table_name is a system table.
 static bool check_engine_system_table_handlerton(THD *unused, plugin_ref plugin,
                                                  void *arg);
@@ -5324,33 +5299,24 @@ bool ha_check_if_table_exists(THD *thd, const char *db, const char *name,
 /**
   Check if a table specified by name is a system table.
 
-  @param db                    Database name for the table.
-  @param table_name            Table name to be checked.
-  @param [out] is_sql_layer_system_table  True if a system table belongs to
-  sql_layer.
+  @param       db                         Database name for the table.
+  @param       table_name                 Table name to be checked.
+  @param[out]  is_sql_layer_system_table  True if a system table belongs to
+                                          sql_layer.
 
   @return Operation status
-    @retval  true              If the table name is a system table.
-    @retval  false             If the table name is a user-level table.
+    @retval    true              If the table name is a system table.
+    @retval    false             If the table name is a user-level table.
 */
 
 static bool check_if_system_table(const char *db, const char *table_name,
                                   bool *is_sql_layer_system_table) {
-  st_handler_tablename *systab;
-
   // Check if we have the system database name in the command.
   if (!dd::get_dictionary()->is_dd_schema_name(db)) return false;
 
   // Check if this is SQL layer system tables.
-  systab = mysqld_system_tables;
-  while (systab && systab->db) {
-    if (strcmp(systab->tablename, table_name) == 0) {
-      *is_sql_layer_system_table = true;
-      break;
-    }
-
-    systab++;
-  }
+  if (dd::get_dictionary()->is_system_table_name(db, table_name))
+    *is_sql_layer_system_table = true;
 
   return true;
 }

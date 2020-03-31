@@ -3879,49 +3879,18 @@ static const char *ha_innobase_exts[] = {dot_ext[IBD], NullS};
 /** This function checks if the given db.tablename is a system table
  supported by Innodb and is used as an initializer for the data member
  is_supported_system_table of InnoDB storage engine handlerton.
- Currently we support only columns_priv, db, plugin, procs_priv,
- proxies_priv, servers, tables_priv, user, help- and time_zone- related
- system tables in InnoDB. Please don't add any SE-specific system tables here.
+ Except general_log and slow_log, currently all system tables are supported
+ by InnoDB. Please don't add any SE-specific system tables here.
 
- @param db				database name to check.
- @param table_name			table name to check.
  @param is_sql_layer_system_table	if the supplied db.table_name is a SQL
-                                         layer system table.
+                                        layer system table.
+
  @return whether the table name is supported */
 
-static bool innobase_is_supported_system_table(const char *db,
-                                               const char *table_name,
+static bool innobase_is_supported_system_table(const char *, const char *,
                                                bool is_sql_layer_system_table) {
-  static const char *const tables[] = {"columns_priv",
-                                       "db",
-                                       "func",
-                                       "help_topic",
-                                       "help_category",
-                                       "help_relation",
-                                       "help_keyword",
-                                       "plugin",
-                                       "procs_priv",
-                                       "proxies_priv",
-                                       "servers",
-                                       "tables_priv",
-                                       "time_zone",
-                                       "time_zone_leap_second",
-                                       "time_zone_name",
-                                       "time_zone_transition",
-                                       "time_zone_transition_type",
-                                       "user",
-                                       "role_edges",
-                                       "default_roles",
-                                       "global_grants",
-                                       "password_history"};
-
-  static const char *const *const end = tables + UT_ARR_SIZE(tables);
-
-  return (is_sql_layer_system_table &&
-          std::search_n(tables, end, 1, table_name,
-                        [](const char *a, const char *b) {
-                          return (strcmp(a, b) == 0);
-                        }) != end);
+  // Currently InnoDB does not support any other SE specific system tables.
+  return is_sql_layer_system_table;
 }
 
 /** Rotate the encrypted tablespace keys according to master key

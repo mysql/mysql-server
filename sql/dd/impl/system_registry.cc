@@ -219,7 +219,6 @@ void System_tables::add_remaining_dd_tables() {
   register_table("help_keyword", system);
   register_table("help_relation", system);
   register_table("help_topic", system);
-  register_table("host", system);
   register_table("ndb_binlog_index", system);
   register_table("plugin", system);
   register_table("password_history", system);
@@ -233,14 +232,21 @@ void System_tables::add_remaining_dd_tables() {
   register_table("slave_worker_info", system);
   register_table("slave_relay_log_info", system);
   register_table("tables_priv", system);
-  register_table("temp_user", system);
-  register_table("tmp_user", system);
   register_table("time_zone", system);
   register_table("time_zone_name", system);
   register_table("time_zone_leap_second", system);
   register_table("time_zone_transition", system);
   register_table("time_zone_transition_type", system);
   register_table("user", system);
+
+  /*
+    MTR tests expects following tables to be created in the 'mysql' tablespace.
+    So tables are listed here.
+
+    TODO: Try to re-write test cases and remove these tables from here.
+  */
+  register_table("temp_user", system);
+  register_table("tmp_user", system);
   register_table("user_backup", system);
 }
 

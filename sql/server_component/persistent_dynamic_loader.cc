@@ -171,6 +171,21 @@ static bool open_component_table(THD *thd, enum thr_lock_type lock_type,
     return true;
   }
 
+  // System table mysql.component is supported by only InnoDB engine.
+  if (lock_type == TL_WRITE) {
+    if (((*table)->file->ht->is_supported_system_table != nullptr) &&
+        !(*table)->file->ht->is_supported_system_table(
+            (*table)->s->db.str, (*table)->s->table_name.str, true)) {
+      my_error(ER_UNSUPPORTED_ENGINE, MYF(0),
+               ha_resolve_storage_engine_name((*table)->file->ht),
+               (*table)->s->db.str, (*table)->s->table_name.str);
+      LogErr(WARNING_LEVEL, ER_SYSTEM_TABLES_NOT_SUPPORTED_BY_STORAGE_ENGINE,
+             ha_resolve_storage_engine_name((*table)->file->ht),
+             (*table)->s->db.str, (*table)->s->table_name.str);
+      return true;
+    }
+  }
+
   return false;
 }
 
