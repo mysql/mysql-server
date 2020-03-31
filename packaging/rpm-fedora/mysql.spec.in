@@ -317,6 +317,7 @@ Requires:       openssl-devel
 %endif
 Obsoletes:      mariadb-devel
 Obsoletes:      mariadb-connector-c-devel
+Obsoletes:      mariadb-embedded-devel
 Obsoletes:      community-mysql-devel < %{version}-%{release}
 Obsoletes:      mysql-devel < %{version}-%{release}
 Provides:       mysql-devel = %{version}-%{release}
