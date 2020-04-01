@@ -281,7 +281,7 @@ static bool rtr_pcur_getnext_from_path(
       if (!srv_read_only_mode && mode != PAGE_CUR_RTREE_INSERT &&
           mode != PAGE_CUR_RTREE_LOCATE) {
         ut_ad(rtr_info->thr);
-        lock_place_prdt_page_lock(space, next_page_no, index, rtr_info->thr);
+        lock_place_prdt_page_lock({space, next_page_no}, index, rtr_info->thr);
       }
       new_split = true;
 #ifdef UNIV_GIS_DEBUG
@@ -1660,7 +1660,7 @@ bool rtr_cur_search_with_match(
           if (!srv_read_only_mode && (rtr_info->need_page_lock || !is_loc)) {
             /* Lock the page, preventing it
             from being shrunk */
-            lock_place_prdt_page_lock(space, page_no, index, rtr_info->thr);
+            lock_place_prdt_page_lock({space, page_no}, index, rtr_info->thr);
           }
         } else {
           ut_ad(orig_mode != PAGE_CUR_RTREE_LOCATE);

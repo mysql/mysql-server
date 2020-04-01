@@ -79,14 +79,13 @@ inline std::ostream &operator<<(std::ostream &out, const lock_table_t &lock) {
 
 /** Record lock for a page */
 struct lock_rec_t {
-  space_id_t space;  /*!< space id */
-  page_no_t page_no; /*!< page number */
-  uint32_t n_bits;   /*!< number of bits in the lock
-                     bitmap; NOTE: the lock bitmap is
-                     placed immediately after the
-                     lock struct */
+  /** The id of the page on which records referenced by this lock's bitmap are
+  located. */
+  page_id_t page_id;
+  /** number of bits in the lock bitmap;
+  NOTE: the lock bitmap is placed immediately after the lock struct */
+  uint32_t n_bits;
 
-  page_id_t get_page_id() const { return page_id_t(space, page_no); }
   /** Print the record lock into the given output stream
   @param[in,out]	out	the output stream
   @return the given output stream. */
@@ -97,9 +96,8 @@ struct lock_rec_t {
 @param[in,out]	out	the output stream
 @return the given output stream. */
 inline std::ostream &lock_rec_t::print(std::ostream &out) const {
-  out << "[lock_rec_t: space=" << space << ", page_no=" << page_no
-      << ", n_bits=" << n_bits << "]";
-  return (out);
+  return out << "[lock_rec_t: page_id=" << page_id << ", n_bits=" << n_bits
+             << "]";
 }
 
 inline std::ostream &operator<<(std::ostream &out, const lock_rec_t &lock) {
@@ -226,20 +224,6 @@ struct lock_t {
   /** Get lock hash table
   @return lock hash table */
   hash_table_t *hash_table() const { return (lock_hash_get(type_mode)); }
-
-  /** @return the record lock tablespace ID */
-  space_id_t space_id() const {
-    ut_ad(is_record_lock());
-
-    return (rec_lock.space);
-  }
-
-  /** @return the record lock page number */
-  page_no_t page_no() const {
-    ut_ad(is_record_lock());
-
-    return (rec_lock.page_no);
-  }
 
   /** @return the transaction's query thread state. */
   trx_que_t trx_que_state() const { return (trx->lock.que_state); }
@@ -613,7 +597,7 @@ struct RecID {
   @param[in]	lock		Record lock
   @param[in]	heap_no		Heap number in the page */
   RecID(const lock_t *lock, ulint heap_no)
-      : RecID(lock->rec_lock.get_page_id(), heap_no) {
+      : RecID(lock->rec_lock.page_id, heap_no) {
     ut_ad(lock->is_record_lock());
   }
 
@@ -621,9 +605,7 @@ struct RecID {
   @param[in]	page_id		Tablespace ID and page number within space
   @param[in]	heap_no		Heap number in the page */
   RecID(page_id_t page_id, uint32_t heap_no)
-      : m_page_id(page_id),
-        m_heap_no(heap_no),
-        m_fold(lock_rec_fold(page_id.space(), page_id.page_no())) {
+      : m_page_id(page_id), m_heap_no(heap_no), m_fold(lock_rec_fold(page_id)) {
     ut_ad(m_page_id.space() < UINT32_MAX);
     ut_ad(m_page_id.page_no() < UINT32_MAX);
     ut_ad(m_heap_no < UINT32_MAX);
@@ -950,12 +932,11 @@ lock_t *lock_rec_get_next_on_page(lock_t *lock); /*!< in: a record lock */
 /** Gets the first record lock on a page, where the page is identified by its
 file address.
 @param[in]	lock_hash	lock hash table
-@param[in]	space		space
-@param[in]	page_no		page number
+@param[in]	page_id		specifies space id and page number of the page
 @return first lock, NULL if none exists */
 UNIV_INLINE
 lock_t *lock_rec_get_first_on_page_addr(hash_table_t *lock_hash,
-                                        space_id_t space, page_no_t page_no);
+                                        const page_id_t &page_id);
 
 /** Gets the first record lock on a page, where the page is identified by a
 pointer to it.

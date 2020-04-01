@@ -390,10 +390,9 @@ void lock_rec_restore_from_page_infimum(
                                 the infimum */
 
 /** Determines if there are explicit record locks on a page.
-@param[in]    space     space id
-@param[in]    page_no   page number
+@param[in]    page_id     space id and page number
 @return true iff an explicit record lock on the page exists */
-bool lock_rec_expl_exist_on_page(space_id_t space, page_no_t page_no)
+bool lock_rec_expl_exist_on_page(const page_id_t &page_id)
     MY_ATTRIBUTE((warn_unused_result));
 /** Checks if locks of other transactions prevent an immediate insert of
  a record. If they do, first tests if the query thread should anyway
@@ -642,19 +641,17 @@ void lock_remove_all_on_table(
 
 /** Calculates the fold value of a page file address: used in inserting or
  searching for a lock in the hash table.
+ @param  page_id    specifies the page
  @return folded value */
 UNIV_INLINE
-ulint lock_rec_fold(space_id_t space,  /*!< in: space */
-                    page_no_t page_no) /*!< in: page number */
-    MY_ATTRIBUTE((const));
+ulint lock_rec_fold(const page_id_t &page_id) MY_ATTRIBUTE((const));
 
 /** Calculates the hash value of a page file address: used in inserting or
 searching for a lock in the hash table.
-@param[in]	space	space
-@param[in]	page_no	page number
+@param  page_id    specifies the page
 @return hashed value */
 UNIV_INLINE
-ulint lock_rec_hash(space_id_t space, page_no_t page_no);
+ulint lock_rec_hash(const page_id_t &page_id);
 
 /** Get the lock hash table */
 UNIV_INLINE
@@ -788,13 +785,10 @@ const dict_index_t *lock_rec_get_index(const lock_t *lock); /*!< in: lock */
  @return name of the index */
 const char *lock_rec_get_index_name(const lock_t *lock); /*!< in: lock */
 
-/** For a record lock, gets the tablespace number on which the lock is.
+/** For a record lock, gets the tablespace number and page number on which the
+lock is.
  @return tablespace number */
-space_id_t lock_rec_get_space_id(const lock_t *lock); /*!< in: lock */
-
-/** For a record lock, gets the page number on which the lock is.
- @return page number */
-page_no_t lock_rec_get_page_no(const lock_t *lock); /*!< in: lock */
+page_id_t lock_rec_get_page_id(const lock_t *lock); /*!< in: lock */
 
 /** Check if there are any locks (table or rec) against table.
 Returned value might be obsolete.

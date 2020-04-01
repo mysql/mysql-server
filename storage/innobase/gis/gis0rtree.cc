@@ -694,9 +694,9 @@ static void rtr_adjust_upper_level(
   parent_prdt.data = static_cast<void *>(&parent_mbr);
   parent_prdt.op = 0;
 
+  ut_ad(dict_index_get_space(index) == page_cursor->block->page.id.space());
   lock_prdt_update_parent(block, new_block, &prdt, &new_prdt, &parent_prdt,
-                          dict_index_get_space(index),
-                          page_cursor->block->page.id.page_no());
+                          page_cursor->block->page.id);
 
   mem_heap_free(heap);
 
@@ -1162,10 +1162,11 @@ after_insert:
   prdt.data = &mbr;
   new_prdt.data = &new_mbr;
 
+  ut_ad(dict_index_get_space(cursor->index) == block->page.id.space());
+  ut_ad(page_no == block->page.id.page_no());
   /* Check any predicate locks need to be moved/copied to the
   new page */
-  lock_prdt_update_split(block, new_block, &prdt, &new_prdt,
-                         dict_index_get_space(cursor->index), page_no);
+  lock_prdt_update_split(block, new_block, &prdt, &new_prdt);
 
   /* Adjust the upper level. */
   rtr_adjust_upper_level(cursor, flags, block, new_block, &mbr, &new_mbr,
@@ -1393,9 +1394,9 @@ void rtr_page_copy_rec_list_end_no_locks(
 
     ins_rec = page_cur_insert_rec_low(cur_rec, index, cur1_rec, offsets1, mtr);
     if (UNIV_UNLIKELY(!ins_rec)) {
-      fprintf(stderr, "page number %ld and %ld\n",
-              (long)new_block->page.id.page_no(),
-              (long)block->page.id.page_no());
+      fprintf(stderr, "page number %lu and %lu\n",
+              ulong{new_block->page.id.page_no()},
+              ulong{block->page.id.page_no()});
 
       ib::fatal(ER_IB_MSG_520)
           << "rec offset " << page_offset(rec) << ", cur1 offset "

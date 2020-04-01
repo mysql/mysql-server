@@ -526,8 +526,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool row_purge_remove_sec_if_poss_leaf
 
           page = btr_cur_get_page(btr_cur);
 
-          if (!lock_test_prdt_page_lock(trx, page_get_space_id(page),
-                                        page_get_page_no(page)) &&
+          if (!lock_test_prdt_page_lock(trx, page_get_page_id(page)) &&
               page_get_n_recs(page) < 2 &&
               page_get_page_no(page) != dict_index_get_page(index)) {
             /* this is the last record on page,

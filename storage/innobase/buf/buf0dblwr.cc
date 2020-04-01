@@ -1054,7 +1054,7 @@ dberr_t Double_write::sync_page_flush(buf_page_t *bpage) noexcept {
 #ifdef UNIV_DEBUG
   ut_d(auto page_id = bpage->id);
 
-  if (dblwr::Force_crash.equals_to(page_id)) {
+  if (dblwr::Force_crash == page_id) {
     auto frame = reinterpret_cast<const buf_block_t *>(bpage)->frame;
     const auto p = reinterpret_cast<byte *>(frame);
 
@@ -1078,7 +1078,7 @@ dberr_t Double_write::sync_page_flush(buf_page_t *bpage) noexcept {
 #endif /* !_WIN32 */
 
 #ifdef UNIV_DEBUG
-  if (dblwr::Force_crash.equals_to(page_id)) {
+  if (dblwr::Force_crash == page_id) {
     DBUG_SUICIDE();
   }
 #endif /* UNIV_DEBUG */
@@ -1415,7 +1415,7 @@ void Double_write::write_pages(buf_flush_t flush_type) noexcept {
     ut_a(err == DB_SUCCESS || err == DB_TABLESPACE_DELETED);
 
 #ifdef UNIV_DEBUG
-    if (dblwr::Force_crash.equals_to(page_id)) {
+    if (dblwr::Force_crash == page_id) {
       DBUG_SUICIDE();
     }
 #endif /* UNIV_DEBUG */
@@ -1558,7 +1558,7 @@ dberr_t dblwr::write(buf_flush_t flush_type, buf_page_t *bpage,
       Double_write::submit(flush_type, bpage);
       err = DB_SUCCESS;
 #ifdef UNIV_DEBUG
-      if (dblwr::Force_crash.equals_to(page_id)) {
+      if (dblwr::Force_crash == page_id) {
         force_flush(flush_type, buf_pool_index(buf_pool_from_bpage(bpage)));
       }
 #endif /* UNIV_DEBUG */

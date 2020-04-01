@@ -1638,9 +1638,7 @@ static bool buf_page_realloc(buf_pool_t *buf_pool, buf_block_t *block) {
     new_block->left_side = TRUE;
 
     new_block->lock_hash_val = block->lock_hash_val;
-    ut_ad(new_block->lock_hash_val ==
-          lock_rec_hash(new_block->page.id.space(),
-                        new_block->page.id.page_no()));
+    ut_ad(new_block->lock_hash_val == lock_rec_hash(new_block->page.id));
 
     rw_lock_x_unlock(hash_lock);
     mutex_exit(&block->mutex);
@@ -2832,7 +2830,7 @@ static buf_page_t *buf_pool_watch_set(const page_id_t &page_id,
         ut_ad(bpage->buf_fix_count == 0);
 
         bpage->state = BUF_BLOCK_ZIP_PAGE;
-        bpage->id.copy_from(page_id);
+        bpage->id = page_id;
         bpage->buf_fix_count = 1;
         bpage->buf_pool_index = buf_pool_index(buf_pool);
 
@@ -3542,7 +3540,7 @@ buf_block_t *Buf_fetch<T>::lookup() {
     by buf_page_alloc_descriptor(), it may have been freed by buf_relocate(). */
 
     if (!buf_block_is_uncompressed(m_buf_pool, block) ||
-        !m_page_id.equals_to(block->page.id) ||
+        m_page_id != block->page.id ||
         buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE) {
       /* Our m_guess was bogus or things have changed since. */
       block = m_guess = nullptr;
@@ -3691,7 +3689,7 @@ dberr_t Buf_fetch<T>::zip_page_handler(buf_block_t *&fix_block) {
   /* Set after buf_relocate(). */
   block->page.buf_fix_count = 1;
 
-  block->lock_hash_val = lock_rec_hash(m_page_id.space(), m_page_id.page_no());
+  block->lock_hash_val = lock_rec_hash(m_page_id);
 
   UNIV_MEM_DESC(&block->page.zip.data, page_zip_get_size(&block->page.zip));
 
@@ -4433,7 +4431,7 @@ const buf_block_t *buf_page_try_get_func(const page_id_t &page_id,
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
   ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
-  ut_a(page_id.equals_to(block->page.id));
+  ut_a(page_id == block->page.id);
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
   buf_block_buf_fix_inc(block, file, line);
@@ -4528,7 +4526,7 @@ static void buf_page_init(buf_pool_t *buf_pool, const page_id_t &page_id,
 
   buf_block_init_low(block);
 
-  block->lock_hash_val = lock_rec_hash(page_id.space(), page_id.page_no());
+  block->lock_hash_val = lock_rec_hash(page_id);
 
   buf_page_init_low(&block->page);
 
@@ -4563,7 +4561,7 @@ static void buf_page_init(buf_pool_t *buf_pool, const page_id_t &page_id,
   ut_ad(!block->page.in_page_hash);
   ut_d(block->page.in_page_hash = TRUE);
 
-  block->page.id.copy_from(page_id);
+  block->page.id = page_id;
   block->page.size.copy_from(page_size);
 
   HASH_INSERT(buf_page_t, hash, buf_pool->page_hash, page_id.fold(),
@@ -4734,7 +4732,7 @@ buf_page_t *buf_page_init_for_read(dberr_t *err, ulint mode,
     buf_page_init_low(bpage);
 
     bpage->state = BUF_BLOCK_ZIP_PAGE;
-    bpage->id.copy_from(page_id);
+    bpage->id = page_id;
     bpage->flush_observer = nullptr;
 
     ut_d(bpage->in_page_hash = FALSE);
@@ -6284,7 +6282,7 @@ buf_get_free_list_len(void)
 void meb_page_init(const page_id_t &page_id, const page_size_t &page_size,
                    buf_block_t *block) {
   block->page.state = BUF_BLOCK_FILE_PAGE;
-  block->page.id.copy_from(page_id);
+  block->page.id = page_id;
   block->page.size.copy_from(page_size);
 
   page_zip_des_init(&block->page.zip);

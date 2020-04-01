@@ -1099,12 +1099,12 @@ void blob_free(dict_index_t *index, buf_block_t *block, bool all, mtr_t *mtr) {
   the same file page. */
 
   if (buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE &&
-      page_id.equals_to(block->page.id)) {
+      page_id == block->page.id) {
     freed = buf_LRU_free_page(&block->page, all);
 
     if (!freed && all && block->page.zip.data &&
         buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE &&
-        page_id.equals_to(block->page.id)) {
+        page_id == block->page.id) {
       /* Attempt to deallocate the uncompressed page
       if the whole block cannot be deallocted. */
 
