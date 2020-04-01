@@ -6904,7 +6904,8 @@ Dbspj::execDIH_SCAN_TAB_CONF(Signal* signal)
   // Add a skew in the fragment lists such that we don't scan 
   // the same subset of frags from all SPJ requests in case of
   // the scan not being 'T_SCAN_PARALLEL'
-  Uint16 fragNoOffs = (getOwnNodeId()*requestPtr.p->m_rootFragCnt) % fragCount;
+  const Uint16 fragNoOffs =
+    (requestPtr.p->m_rootFragId*requestPtr.p->m_rootFragCnt) % fragCount;
   Uint32 err = 0;
 
   do
