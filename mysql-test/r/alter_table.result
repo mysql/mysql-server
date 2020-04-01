@@ -2019,16 +2019,16 @@ CREATE TABLE db (dummy int) ENGINE=memory;
 ERROR HY000: Storage engine 'MEMORY' does not support system tables. [mysql.db]
 CREATE TABLE user (dummy int) ENGINE=memory;
 ERROR HY000: Storage engine 'MEMORY' does not support system tables. [mysql.user]
-CREATE TABLE func (dummy int) ENGINE=csv;
-ERROR HY000: Storage engine 'CSV' does not support system tables. [mysql.func]
+CREATE TABLE func (dummy int) ENGINE=memory;
+ERROR HY000: Storage engine 'MEMORY' does not support system tables. [mysql.func]
 CREATE TABLE servers (dummy int) ENGINE=merge;
 ERROR HY000: Storage engine 'MRG_MYISAM' does not support system tables. [mysql.servers]
 CREATE TABLE procs_priv (dummy int) ENGINE=memory;
 ERROR HY000: Storage engine 'MEMORY' does not support system tables. [mysql.procs_priv]
 CREATE TABLE tables_priv (dummy int) ENGINE=heap;
 ERROR HY000: Storage engine 'MEMORY' does not support system tables. [mysql.tables_priv]
-CREATE TABLE columns_priv (dummy int) ENGINE=csv;
-ERROR HY000: Storage engine 'CSV' does not support system tables. [mysql.columns_priv]
+CREATE TABLE columns_priv (dummy int) ENGINE=memory;
+ERROR HY000: Storage engine 'MEMORY' does not support system tables. [mysql.columns_priv]
 CREATE TABLE time_zone (dummy int) ENGINE=merge;
 ERROR HY000: Storage engine 'MRG_MYISAM' does not support system tables. [mysql.time_zone]
 CREATE TABLE help_topic (dummy int) ENGINE=merge;
