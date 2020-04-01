@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -21,46 +21,60 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA 
 
 MACRO (MYSQL_USE_BUNDLED_ZLIB)
+  # Reset whatever FIND_PACKAGE may have left behind.
+  FOREACH(zlibvar
+      INCLUDE_DIR
+      LIBRARY
+      LIBRARY_DEBUG
+      LIBRARY_RELEASE)
+    UNSET(ZLIB_${zlibvar})
+    UNSET(ZLIB_${zlibvar} CACHE)
+    UNSET(ZLIB_${zlibvar}-ADVANCED CACHE)
+  ENDFOREACH()
   SET(BUILD_BUNDLED_ZLIB 1)
   SET(ZLIB_LIBRARY zlib CACHE INTERNAL "Bundled zlib library")
   SET(ZLIB_FOUND  TRUE)
   SET(WITH_ZLIB "bundled" CACHE STRING "Use bundled zlib")
+  INCLUDE_DIRECTORIES(BEFORE SYSTEM
+    ${CMAKE_SOURCE_DIR}/extra/zlib
+    ${CMAKE_BINARY_DIR}/extra/zlib
+    )
   ADD_SUBDIRECTORY(extra/zlib)
 ENDMACRO()
 
 # MYSQL_CHECK_ZLIB_WITH_COMPRESS
 #
-# Provides the following configure options:
-# WITH_ZLIB_BUNDLED
-# If this is set,we use bindled zlib
-# If this is not set,search for system zlib. 
-# if system zlib is not found, use bundled copy
-# ZLIB_LIBRARIES, ZLIB_INCLUDE_DIR and ZLIB_SOURCES
-# are set after this macro has run
-
+# Usage:
+#  cmake -DWITH_ZLIB="bundled"|"system"
+#
+# Default is "bundled" on windows.
+# The default should be "system" on other platforms, but
+#   - all RPM/DEB packages require zlib_decompress executable
+#   - rpl.rpl_connection_compression times out with system zlib
+#   - main.compression fails on several platforms with system zlib
+# If the system zlib does not support required features,
+# we fall back to "bundled".
 MACRO (MYSQL_CHECK_ZLIB_WITH_COMPRESS)
 
-  IF(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-    # Use bundled zlib on some platforms by default (system one is too
-    # old or not existent)
-    IF (NOT WITH_ZLIB)
-      SET(WITH_ZLIB "bundled"  CACHE STRING "By default use bundled zlib on this platform")
-    ENDIF()
+  IF(NOT WITH_ZLIB)
+    SET(WITH_ZLIB "bundled"
+      CACHE STRING "By default use bundled zlib on this platform")
   ENDIF()
   
   IF(WITH_ZLIB STREQUAL "bundled")
     MYSQL_USE_BUNDLED_ZLIB()
   ELSE()
-    SET(ZLIB_FIND_QUIETLY TRUE)
-    INCLUDE(FindZLIB)
+    FIND_PACKAGE(ZLIB)
     IF(ZLIB_FOUND)
       INCLUDE(CheckFunctionExists)
-      SET(SAVE_CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES})
-      SET(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES} z)
+
+      CMAKE_PUSH_CHECK_STATE()
+      LIST(APPEND CMAKE_REQUIRED_LIBRARIES z)
       CHECK_FUNCTION_EXISTS(crc32 HAVE_CRC32)
       CHECK_FUNCTION_EXISTS(compressBound HAVE_COMPRESSBOUND)
       CHECK_FUNCTION_EXISTS(deflateBound HAVE_DEFLATEBOUND)
-      SET(CMAKE_REQUIRED_LIBRARIES ${SAVE_CMAKE_REQUIRED_LIBRARIES})
+      CMAKE_POP_CHECK_STATE()
+
       IF(HAVE_CRC32 AND HAVE_COMPRESSBOUND AND HAVE_DEFLATEBOUND)
         SET(ZLIB_LIBRARY ${ZLIB_LIBRARIES} CACHE INTERNAL "System zlib library")
         SET(WITH_ZLIB "system" CACHE STRING

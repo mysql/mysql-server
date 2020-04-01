@@ -26,6 +26,7 @@ MACRO(MYSQL_ADD_PLUGIN plugin_arg)
   SET(PLUGIN_OPTIONS
     CLIENT_ONLY
     DEFAULT         # builtin as static by default
+    DEFAULT_LEGACY_ENGINE
     MANDATORY       # not actually a plugin, always builtin
     MODULE_ONLY     # build only as shared library
     SKIP_INSTALL
@@ -67,6 +68,22 @@ MACRO(MYSQL_ADD_PLUGIN plugin_arg)
     ENDIF()
   ENDIF()
   
+  # Set it ON by default.
+  # Can be disabled with -DWITHOUT_${plugin}_STORAGE_ENGINE
+  IF(ARG_DEFAULT_LEGACY_ENGINE)
+    SET(WITH_${plugin}_STORAGE_ENGINE ON)
+    IF(WITHOUT_${plugin}_STORAGE_ENGINE)
+      SET(WITH_${plugin}_STORAGE_ENGINE OFF)
+      SET(WITH_${plugin}_STORAGE_ENGINE OFF CACHE BOOL "")
+    ELSEIF(NOT WITH_${plugin}_STORAGE_ENGINE)
+      SET(WITHOUT_${plugin}_STORAGE_ENGINE ON CACHE BOOL "")
+      MARK_AS_ADVANCED(WITHOUT_${plugin}_STORAGE_ENGINE)
+      SET(WITH_${plugin}_STORAGE_ENGINE OFF CACHE BOOL "")
+    ELSE()
+      SET(WITH_${plugin}_STORAGE_ENGINE ON CACHE BOOL "")
+    ENDIF()
+  ENDIF()
+
   IF(WITH_${plugin}_STORAGE_ENGINE 
     OR WITH_{$plugin}
     AND NOT WITHOUT_${plugin}_STORAGE_ENGINE

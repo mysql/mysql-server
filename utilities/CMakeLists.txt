@@ -47,16 +47,6 @@ ADD_CUSTOM_COMMAND(OUTPUT ${PROJECT_BINARY_DIR}/include/mysqlclient_ername.h
 ADD_CUSTOM_TARGET(GenClientError ALL
   DEPENDS ${PROJECT_BINARY_DIR}/include/mysqlclient_ername.h)
 
-
-IF(BUILD_BUNDLED_LZ4)
-  ADD_LIBRARY(lz4_lib STATIC
-    ../extra/lz4/lz4.c
-    ../extra/lz4/lz4frame.c
-    ../extra/lz4/lz4hc.c
-    ../extra/lz4/xxhash.c
-  )
-ENDIF()
-
 FILE(MAKE_DIRECTORY ${PROJECT_BINARY_DIR}/${INSTALL_MYSQLSHAREDIR})
 
 # Create localized error message files, <language>/errmsg.sys

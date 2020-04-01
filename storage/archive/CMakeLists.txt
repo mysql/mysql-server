@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,7 +20,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-SET(ARCHIVE_SOURCES  azio.cc ha_archive.cc ha_archive.h)
-MYSQL_ADD_PLUGIN(archive ${ARCHIVE_SOURCES}
-  STORAGE_ENGINE LINK_LIBRARIES ${ZLIB_LIBRARY})
-
+MYSQL_ADD_PLUGIN(archive azio.cc ha_archive.cc
+  DEFAULT_LEGACY_ENGINE
+  STORAGE_ENGINE
+  LINK_LIBRARIES ${ZLIB_LIBRARY}
+  )

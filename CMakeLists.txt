@@ -451,9 +451,6 @@ ENDIF()
 OPTION(WITH_DEFAULT_COMPILER_OPTIONS
   "Use flags from cmake/build_configurations/compiler_options.cmake"
   ON)
-OPTION(WITH_DEFAULT_FEATURE_SET
-  "Use feature set in cmake/build_configurations/feature_set.cmake"
-  ON)
 IF(BUILD_CONFIG)
   INCLUDE(
   ${CMAKE_SOURCE_DIR}/cmake/build_configurations/${BUILD_CONFIG}.cmake)
@@ -513,9 +510,6 @@ SET(CMAKE_SIZEOF_VOID_P ${SIZEOF_VOIDP})
 
 IF(WITH_DEFAULT_COMPILER_OPTIONS)
   INCLUDE(${CMAKE_SOURCE_DIR}/cmake/build_configurations/compiler_options.cmake)
-ENDIF()
-IF(WITH_DEFAULT_FEATURE_SET)
-  INCLUDE(${CMAKE_SOURCE_DIR}/cmake/build_configurations/feature_set.cmake)
 ENDIF()
 
 INCLUDE(CMakePushCheckState)
@@ -1247,18 +1241,9 @@ ENDIF()
 
 # Add bundled or system zlib.
 MYSQL_CHECK_ZLIB_WITH_COMPRESS()
-IF(BUILD_BUNDLED_ZLIB)
-  INCLUDE_DIRECTORIES(BEFORE SYSTEM
-    ${CMAKE_CURRENT_SOURCE_DIR}/extra/zlib
-    ${CMAKE_CURRENT_BINARY_DIR}/extra/zlib)
-ENDIF()
+
 # Add bundled or system zstd.
 MYSQL_CHECK_ZSTD()
-IF(BUILD_BUNDLED_ZSTD)
-  INCLUDE_DIRECTORIES(BEFORE SYSTEM
-    ${CMAKE_SOURCE_DIR}/extra/zstd/lib)
-  ADD_SUBDIRECTORY(extra/zstd)
-ENDIF()
 
 IF(LINUX)
   # Look up patchelf(1) here, before doing SSL/KERBEROS/SASL/LDAP config.

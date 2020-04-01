@@ -1,4 +1,4 @@
-# Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -24,32 +24,32 @@
 # bundled is the default
 
 MACRO (FIND_SYSTEM_ZSTD)
-  FIND_PATH(PATH_TO_ZSTD
+  FIND_PATH(ZSTD_INCLUDE_DIR
     NAMES zstd.h
     PATH_SUFFIXES include)
   FIND_LIBRARY(ZSTD_SYSTEM_LIBRARY
     NAMES zstd
     PATH_SUFFIXES lib)
-  IF (PATH_TO_ZSTD AND ZSTD_SYSTEM_LIBRARY)
+  IF (ZSTD_INCLUDE_DIR AND ZSTD_SYSTEM_LIBRARY)
     SET(SYSTEM_ZSTD_FOUND 1)
     SET(ZSTD_LIBRARY ${ZSTD_SYSTEM_LIBRARY})
-    MESSAGE(STATUS "ZSTD_LIBRARY ${ZSTD_LIBRARY}")
   ENDIF()
 ENDMACRO()
 
 MACRO (MYSQL_USE_BUNDLED_ZSTD)
-  SET(WITH_ZSTD "bundled" CACHE STRING "By default use bundled zstd library")
-  SET(BUILD_BUNDLED_ZSTD 1)
   SET(ZSTD_LIBRARY zstd CACHE INTERNAL "Bundled zlib library")
-  MESSAGE(STATUS "ZSTD_LIBRARY(Bundled) " ${ZSTD_LIBRARY})
+  SET(WITH_ZSTD "bundled" CACHE STRING "Use bundled zstd")
+  INCLUDE_DIRECTORIES(BEFORE SYSTEM
+    ${CMAKE_SOURCE_DIR}/extra/zstd/lib)
+  ADD_SUBDIRECTORY(extra/zstd)
 ENDMACRO()
 
-IF (NOT WITH_ZSTD)
-  SET(WITH_ZSTD "bundled" CACHE STRING "By default use bundled zstd library")
-ENDIF()
-
 MACRO (MYSQL_CHECK_ZSTD)
-  IF (WITH_ZSTD STREQUAL "bundled")
+  IF(NOT WITH_ZSTD)
+    SET(WITH_ZSTD "bundled" CACHE STRING "By default use bundled zstd library")
+  ENDIF()
+
+  IF(WITH_ZSTD STREQUAL "bundled")
     MYSQL_USE_BUNDLED_ZSTD()
   ELSEIF(WITH_ZSTD STREQUAL "system")
     FIND_SYSTEM_ZSTD()
