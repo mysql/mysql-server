@@ -33,7 +33,9 @@
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>  // rapidjson::Writer
 
-#include "sql/dd/impl/dictionary_impl.h"  // dd::Dictionary_impl::get_target_dd_version
+#include "my_sys.h"         // my_error
+#include "mysql_version.h"  // MYSQL_VERSION_ID
+#include "mysqld_error.h"   // ER_IMP_INCOMPATIBLE_MYSQLD_VERSION
 #include "sql/dd/impl/sdi.h"
 #include "sql/dd/sdi_fwd.h"
 #include "sql/dd/string_type.h"
@@ -93,41 +95,25 @@ dd::sdi_t ndb_dd_sdi_prettify(dd::sdi_t sdi) {
   return buf.GetString();
 }
 
+static bool check_sdi_compatibility(const dd::RJ_Document &doc) {
+  // Check mysql_version_id
+  DBUG_ASSERT(doc.HasMember("mysqld_version_id"));
+  const dd::RJ_Value &mysqld_version_id = doc["mysqld_version_id"];
+  DBUG_ASSERT(mysqld_version_id.IsUint64());
+  if (mysqld_version_id.GetUint64() > std::uint64_t(MYSQL_VERSION_ID)) {
+    // Cannot deserialize SDIs from newer versions
+    my_error(ER_IMP_INCOMPATIBLE_MYSQLD_VERSION, MYF(0),
+             mysqld_version_id.GetUint64(), std::uint64_t(MYSQL_VERSION_ID));
+    return true;
+  }
+  // Skip dd_version and sdi_version checks to ensure compatibility during
+  // upgrades
+  return false;
+}
+
 bool ndb_dd_sdi_deserialize(THD *thd, const dd::sdi_t &sdi, dd::Table *table) {
-  // Check the dd_version and sdi_version set in the SDI that has been passed in
-  dd::RJ_Document doc;
-  doc.Parse<0>(sdi.c_str());
-  if (doc.HasParseError()) {
-    return true;
-  }
-  dd::RJ_Value &sdi_version_val = doc["sdi_version"];
-  const std::uint64_t sdi_version = sdi_version_val.GetUint64();
-  dd::RJ_Value &dd_version_val = doc["dd_version"];
-  const unsigned int sdi_dd_version = dd_version_val.GetUint();
-  const unsigned int server_dd_version =
-      dd::Dictionary_impl::get_target_dd_version();
-  if (sdi_version == dd::SDI_VERSION && sdi_dd_version == server_dd_version) {
-    // Both SDI and DD versions match, deserialize the SDI as is
-    return dd::deserialize(thd, sdi, table);
-  }
-  if (sdi_version != dd::SDI_VERSION) {
-    // The version of the SDI passed in does not match the current version which
-    // causes the subsequent deserialization to fail. Workaround the problem by
-    // setting the version to the current version.
-    sdi_version_val.SetUint64(dd::SDI_VERSION);
-  }
-  if (sdi_dd_version != server_dd_version) {
-    // The dd_version of the SDI passed in does not match the current dd_version
-    // which causes the subsequent deserialization to fail. Workaround the
-    // problem by setting the version to the current version.
-    dd_version_val.SetUint(server_dd_version);
-  }
-  dd::RJ_StringBuffer buf;
-  MinifyWriter w(buf);
-  if (!doc.Accept(w)) {
-    return true;
-  }
-  return dd::deserialize(thd, buf.GetString(), table);
+  const dd::SdiCompatibilityChecker comp_checker = check_sdi_compatibility;
+  return dd::deserialize(thd, sdi, table, comp_checker);
 }
 
 dd::sdi_t ndb_dd_sdi_serialize(THD *thd, const dd::Table &table,
