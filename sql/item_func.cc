@@ -3388,7 +3388,7 @@ String *Item_func_min_max::str_op(String *str) {
   null_value = false;
   if (compare_as_dates()) {
     longlong result = 0;
-    if (cmp_datetimes(&result)) return nullptr;
+    if (cmp_datetimes(&result)) return error_str();
 
     /*
       If result is greater than 0, the winning argument was successfully
