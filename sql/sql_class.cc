@@ -1835,9 +1835,9 @@ void Prepared_statement_map::erase(Prepared_statement *statement) {
   mysql_mutex_unlock(&LOCK_prepared_stmt_count);
 }
 
-void Prepared_statement_map::claim_memory_ownership() {
+void Prepared_statement_map::claim_memory_ownership(bool claim) {
   for (const auto &key_and_value : st_hash) {
-    my_claim(key_and_value.second.get());
+    my_claim(key_and_value.second.get(), claim);
   }
 }
 
@@ -2656,7 +2656,7 @@ void THD::send_statement_status() {
   if (!error) da->set_is_sent(true);
 }
 
-void THD::claim_memory_ownership() {
+void THD::claim_memory_ownership(bool claim) {
 /*
   Ownership of the THD object is transfered to this thread.
   This happens typically:
@@ -2673,20 +2673,20 @@ void THD::claim_memory_ownership() {
   and call PSI_MEMORY_CALL(memory_claim)().
 */
 #ifdef HAVE_PSI_MEMORY_INTERFACE
-  main_mem_root.Claim();
-  my_claim(m_token_array);
+  main_mem_root.Claim(claim);
+  my_claim(m_token_array, claim);
   Protocol_classic *p = get_protocol_classic();
-  if (p != nullptr) p->claim_memory_ownership();
-  session_tracker.claim_memory_ownership();
-  session_sysvar_res_mgr.claim_memory_ownership();
+  if (p != nullptr) p->claim_memory_ownership(claim);
+  session_tracker.claim_memory_ownership(claim);
+  session_sysvar_res_mgr.claim_memory_ownership(claim);
   for (const auto &key_and_value : user_vars) {
-    my_claim(key_and_value.second.get());
+    my_claim(key_and_value.second.get(), claim);
   }
 #if defined(ENABLED_DEBUG_SYNC)
-  debug_sync_claim_memory_ownership(this);
+  debug_sync_claim_memory_ownership(this, claim);
 #endif /* defined(ENABLED_DEBUG_SYNC) */
-  get_transaction()->claim_memory_ownership();
-  stmt_map.claim_memory_ownership();
+  get_transaction()->claim_memory_ownership(claim);
+  stmt_map.claim_memory_ownership(claim);
 #endif /* HAVE_PSI_MEMORY_INTERFACE */
 }
 

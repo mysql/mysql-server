@@ -1,7 +1,7 @@
 #ifndef SESSION_TRACKER_INCLUDED
 #define SESSION_TRACKER_INCLUDED
 
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -105,7 +105,7 @@ class State_tracker {
   /** Mark the entity as changed. */
   virtual void mark_as_changed(THD *thd, LEX_CSTRING *name) = 0;
 
-  virtual void claim_memory_ownership() {}
+  virtual void claim_memory_ownership(bool claim MY_ATTRIBUTE((unused))) {}
 };
 
 /**
@@ -157,7 +157,7 @@ class Session_tracker {
     for (int i = 0; i <= SESSION_TRACKER_END; i++) delete m_trackers[i];
   }
 
-  void claim_memory_ownership();
+  void claim_memory_ownership(bool claim);
 };
 
 /*

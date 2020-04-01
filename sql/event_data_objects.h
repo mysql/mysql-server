@@ -1,6 +1,6 @@
 #ifndef _EVENT_DATA_OBJECTS_H_
 #define _EVENT_DATA_OBJECTS_H_
-/* Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,7 @@ class Event_queue_element_for_exec {
   bool dropped;
   THD *thd;
 
-  void claim_memory_ownership();
+  void claim_memory_ownership(bool claim);
 
   /* Prevent use of these */
   Event_queue_element_for_exec(const Event_queue_element_for_exec &) = delete;

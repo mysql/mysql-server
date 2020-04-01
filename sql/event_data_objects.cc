@@ -195,9 +195,9 @@ bool Event_queue_element_for_exec::init(LEX_CSTRING db, LEX_CSTRING n) {
   return false;
 }
 
-void Event_queue_element_for_exec::claim_memory_ownership() {
-  my_claim(dbname.str);
-  my_claim(name.str);
+void Event_queue_element_for_exec::claim_memory_ownership(bool claim) {
+  my_claim(dbname.str, claim);
+  my_claim(name.str, claim);
 }
 
 /*

@@ -197,7 +197,9 @@ void net_end(NET *net) {
   net->buff = nullptr;
 }
 
-void net_claim_memory_ownership(NET *net) { my_claim(net->buff); }
+void net_claim_memory_ownership(NET *net, bool claim) {
+  my_claim(net->buff, claim);
+}
 
 /** Realloc the packet buffer. */
 

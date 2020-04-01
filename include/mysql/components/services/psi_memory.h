@@ -26,12 +26,12 @@
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/services/psi_memory_service.h>
 
-#define REQUIRES_PSI_MEMORY_SERVICE REQUIRES_SERVICE(psi_memory_v1)
+#define REQUIRES_PSI_MEMORY_SERVICE REQUIRES_SERVICE(psi_memory_v2)
 #define REQUIRES_PSI_MEMORY_SERVICE_PLACEHOLDER \
-  REQUIRES_SERVICE_PLACEHOLDER(psi_memory_v1)
+  REQUIRES_SERVICE_PLACEHOLDER(psi_memory_v2)
 
 extern REQUIRES_PSI_MEMORY_SERVICE_PLACEHOLDER;
 
-#define PSI_MEMORY_CALL(M) mysql_service_psi_memory_v1->M
+#define PSI_MEMORY_CALL(M) mysql_service_psi_memory_v2->M
 
 #endif /* COMPONENTS_SERVICES_PSI_MEMORY_H */

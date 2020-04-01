@@ -1,7 +1,7 @@
 #ifndef DEBUG_SYNC_INCLUDED
 #define DEBUG_SYNC_INCLUDED
 
-/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,7 +58,7 @@ extern MYSQL_PLUGIN_IMPORT uint opt_debug_sync_timeout;
 extern int debug_sync_init(void);
 extern void debug_sync_end(void);
 extern void debug_sync_init_thread(THD *thd);
-extern void debug_sync_claim_memory_ownership(THD *thd);
+extern void debug_sync_claim_memory_ownership(THD *thd, bool claim);
 extern void debug_sync_end_thread(THD *thd);
 extern void debug_sync(THD *thd, const char *sync_point_name, size_t name_len);
 extern bool debug_sync_set_action(THD *thd, const char *action_str, size_t len);

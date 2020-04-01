@@ -114,7 +114,7 @@ class Session_sysvars_tracker : public State_tracker {
    public:
     vars_list(const CHARSET_INFO *char_set) { init(char_set); }
 
-    void claim_memory_ownership() { my_claim(variables_list); }
+    void claim_memory_ownership(bool claim) { my_claim(variables_list, claim); }
 
     ~vars_list() {
       if (variables_list) my_free(variables_list);
@@ -185,9 +185,9 @@ class Session_sysvars_tracker : public State_tracker {
   /* callback */
   static const uchar *sysvars_get_key(const uchar *entry, size_t *length);
 
-  virtual void claim_memory_ownership() {
-    if (orig_list != nullptr) orig_list->claim_memory_ownership();
-    if (tool_list != nullptr) tool_list->claim_memory_ownership();
+  void claim_memory_ownership(bool claim) override {
+    if (orig_list != nullptr) orig_list->claim_memory_ownership(claim);
+    if (tool_list != nullptr) tool_list->claim_memory_ownership(claim);
   }
 };
 
@@ -1433,9 +1433,9 @@ void Session_tracker::init(const CHARSET_INFO *char_set) {
       new (std::nothrow) Transaction_state_tracker;
 }
 
-void Session_tracker::claim_memory_ownership() {
+void Session_tracker::claim_memory_ownership(bool claim) {
   for (int i = 0; i <= SESSION_TRACKER_END; i++)
-    m_trackers[i]->claim_memory_ownership();
+    m_trackers[i]->claim_memory_ownership(claim);
 }
 
 /**
