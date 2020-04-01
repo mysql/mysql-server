@@ -3770,3 +3770,23 @@ SHOW ERRORS;
 Level	Code	Message
 Error	3146	Invalid data type for JSON data in argument 1 to function json_extract; a JSON string or JSON type is required.
 DROP TABLE t;
+#
+# Bug #31102789 A PREDICATE THAT COMPARES 0 WITH -0
+#               YIELDS AN INCORRECT RESULT
+#
+CREATE TABLE t0(c0 INT);
+CREATE TABLE t1(c0 DOUBLE);
+CREATE TABLE t2(c0 DOUBLE);
+INSERT INTO t0 VALUES(0);
+INSERT INTO t1 VALUES('-0');
+INSERT INTO t2 VALUES('+0');
+SELECT * FROM t0, t1 WHERE t0.c0 = t1.c0;
+c0	c0
+0	-0
+SELECT * FROM t1, t2 WHERE t1.c0 = t2.c0;
+c0	c0
+-0	0
+SELECT * FROM t0, t2 WHERE t0.c0 = t2.c0;
+c0	c0
+0	0
+DROP TABLE t0, t1, t2;

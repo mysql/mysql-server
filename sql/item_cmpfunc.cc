@@ -7164,7 +7164,8 @@ static bool extract_value_for_hash_join(THD *thd, Item *comparand,
       }
     }
     case REAL_RESULT: {
-      const double value = comparand->val_real();
+      double value = comparand->val_real();
+      if (value == 0.0) value = 0.0;  // Ensure that -0.0 hashes as +0.0.
       return append_double_or_int_value(pointer_cast<const char *>(&value),
                                         sizeof(value), comparand->null_value,
                                         join_key_buffer);

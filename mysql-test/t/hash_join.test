@@ -2265,3 +2265,21 @@ eval $query;
 # See that only one error was raised.
 SHOW ERRORS;
 DROP TABLE t;
+
+--echo #
+--echo # Bug #31102789 A PREDICATE THAT COMPARES 0 WITH -0
+--echo #               YIELDS AN INCORRECT RESULT
+--echo #
+
+CREATE TABLE t0(c0 INT);
+CREATE TABLE t1(c0 DOUBLE);
+CREATE TABLE t2(c0 DOUBLE);
+INSERT INTO t0 VALUES(0);
+INSERT INTO t1 VALUES('-0');
+INSERT INTO t2 VALUES('+0');
+
+SELECT * FROM t0, t1 WHERE t0.c0 = t1.c0;
+SELECT * FROM t1, t2 WHERE t1.c0 = t2.c0;
+SELECT * FROM t0, t2 WHERE t0.c0 = t2.c0;
+
+DROP TABLE t0, t1, t2;
