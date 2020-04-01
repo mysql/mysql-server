@@ -657,8 +657,7 @@ void p_s_fill_lock_data(const char **lock_data, const lock_t *lock,
 
   mtr_start(&mtr);
 
-  block = buf_page_try_get(
-      page_id_t(lock_rec_get_space_id(lock), lock_rec_get_page_no(lock)), &mtr);
+  block = buf_page_try_get(lock_rec_get_page_id(lock), &mtr);
 
   if (block == nullptr) {
     *lock_data = nullptr;
@@ -698,13 +697,14 @@ void fill_locks_row(i_s_locks_row_t *row, const lock_t *lock, ulint heap_no) {
   row->lock_immutable_id = lock_get_immutable_id(lock);
   row->lock_trx_immutable_id = lock_get_trx_immutable_id(lock);
   switch (lock_get_type(lock)) {
-    case LOCK_REC:
-
-      row->lock_space = lock_rec_get_space_id(lock);
-      row->lock_page = lock_rec_get_page_no(lock);
+    case LOCK_REC: {
+      const auto page_id = lock_rec_get_page_id(lock);
+      row->lock_space = page_id.space();
+      row->lock_page = page_id.page_no();
       row->lock_rec = heap_no;
 
       break;
+    }
     case LOCK_TABLE:
 
       row->lock_space = SPACE_UNKNOWN;

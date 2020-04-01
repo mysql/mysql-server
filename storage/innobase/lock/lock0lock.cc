@@ -172,7 +172,7 @@ bool owns_table_shard(const dict_table_t &table) {
 
 bool owns_lock_shard(const lock_t *lock) {
   if (lock->is_record_lock()) {
-    return lock_sys->latches.owns_page_shard(lock->rec_lock.get_page_id());
+    return lock_sys->latches.owns_page_shard(lock->rec_lock.page_id);
   } else {
     return lock_sys->latches.owns_table_shard(*lock->tab_lock.table);
   }
@@ -345,7 +345,7 @@ void lock_sys_create(
 @param[in]	lock	record lock object
 @return	folded value */
 static ulint lock_rec_lock_fold(const lock_t *lock) {
-  return (lock_rec_fold(lock->rec_lock.space, lock->rec_lock.page_no));
+  return (lock_rec_fold(lock->rec_lock.page_id));
 }
 
 /** Resize the lock hash tables.
@@ -387,8 +387,7 @@ void lock_sys_resize(ulint n_cells) {
         buf_block_t *block;
         block = reinterpret_cast<buf_block_t *>(bpage);
 
-        block->lock_hash_val =
-            lock_rec_hash(bpage->id.space(), bpage->id.page_no());
+        block->lock_hash_val = lock_rec_hash(bpage->id);
       }
       bpage = UT_LIST_GET_NEXT(LRU, bpage);
     }
@@ -658,11 +657,11 @@ void lock_rec_trx_wait(lock_t *lock, ulint i, ulint type) {
   }
 }
 
-bool lock_rec_expl_exist_on_page(space_id_t space, page_no_t page_no) {
+bool lock_rec_expl_exist_on_page(const page_id_t &page_id) {
   lock_t *lock;
-  locksys::Shard_latch_guard guard{page_id_t{space, page_no}};
+  locksys::Shard_latch_guard guard{page_id};
   /* Only used in ibuf pages, so rec_hash is good enough */
-  lock = lock_rec_get_first_on_page_addr(lock_sys->rec_hash, space, page_no);
+  lock = lock_rec_get_first_on_page_addr(lock_sys->rec_hash, page_id);
 
   return (lock != nullptr);
 }
@@ -707,20 +706,16 @@ const lock_t *lock_rec_get_prev(
     ulint heap_no)         /*!< in: heap number of the record */
 {
   lock_t *lock;
-  space_id_t space;
-  page_no_t page_no;
   lock_t *found_lock = nullptr;
   hash_table_t *hash;
 
-  ut_ad(locksys::owns_page_shard(in_lock->rec_lock.get_page_id()));
   ut_ad(lock_get_type_low(in_lock) == LOCK_REC);
-
-  space = in_lock->rec_lock.space;
-  page_no = in_lock->rec_lock.page_no;
+  const auto page_id = in_lock->rec_lock.page_id;
+  ut_ad(locksys::owns_page_shard(page_id));
 
   hash = lock_hash_get(in_lock->type_mode);
 
-  for (lock = lock_rec_get_first_on_page_addr(hash, space, page_no);
+  for (lock = lock_rec_get_first_on_page_addr(hash, page_id);
        /* No op */; lock = lock_rec_get_next_on_page(lock)) {
     ut_ad(lock);
 
@@ -1031,9 +1026,7 @@ lock_t *RecLock::lock_alloc(trx_t *trx, dict_index_t *index, ulint mode,
     memset(&lock[1], 0x0, size);
   }
 
-  rec_lock.space = rec_id.get_page_id().space();
-
-  rec_lock.page_no = rec_id.get_page_id().page_no();
+  rec_lock.page_id = rec_id.get_page_id();
 
   /* Set the bit corresponding to rec */
 
@@ -1054,7 +1047,7 @@ static void lock_rec_insert_to_waiting(hash_table_t *lock_hash, lock_t *lock,
                                        const RecID &rec_id) {
   ut_ad(lock->is_waiting());
   ut_ad(rec_id.matches(lock));
-  ut_ad(locksys::owns_page_shard(lock->rec_lock.get_page_id()));
+  ut_ad(locksys::owns_page_shard(lock->rec_lock.page_id));
   ut_ad(locksys::owns_page_shard(rec_id.get_page_id()));
 
   const ulint fold = rec_id.fold();
@@ -1068,7 +1061,7 @@ static void lock_rec_insert_to_waiting(hash_table_t *lock_hash, lock_t *lock,
 static void lock_rec_insert_to_granted(hash_table_t *lock_hash, lock_t *lock,
                                        const RecID &rec_id) {
   ut_ad(rec_id.matches(lock));
-  ut_ad(locksys::owns_page_shard(lock->rec_lock.get_page_id()));
+  ut_ad(locksys::owns_page_shard(lock->rec_lock.page_id));
   ut_ad(locksys::owns_page_shard(rec_id.get_page_id()));
   ut_ad(!lock->is_waiting());
 
@@ -1115,7 +1108,7 @@ void RecLock::lock_add(lock_t *lock) {
   ut_ad((lock->type_mode | LOCK_REC) == (m_mode | LOCK_REC));
   ut_ad(m_rec_id.matches(lock));
   ut_ad(locksys::owns_page_shard(m_rec_id.get_page_id()));
-  ut_ad(locksys::owns_page_shard(lock->rec_lock.get_page_id()));
+  ut_ad(locksys::owns_page_shard(lock->rec_lock.page_id));
   ut_ad(trx_mutex_own(lock->trx));
 
   bool wait = m_mode & LOCK_WAIT;
@@ -1258,7 +1251,7 @@ static void lock_create_wait_for_edge(trx_t *waiter, trx_t *blocker) {
 Setup the requesting transaction state for lock grant
 @param[in,out] lock		Lock for which to change state */
 void RecLock::set_wait_state(lock_t *lock) {
-  ut_ad(locksys::owns_page_shard(lock->rec_lock.get_page_id()));
+  ut_ad(locksys::owns_page_shard(lock->rec_lock.page_id));
   ut_ad(m_trx == lock->trx);
   ut_ad(trx_mutex_own(m_trx));
   ut_ad(lock_get_wait(lock));
@@ -1321,7 +1314,7 @@ static void lock_rec_move_granted_to_front(lock_t *lock, const RecID &rec_id) {
   ut_ad(!lock->is_waiting());
   ut_ad(rec_id.matches(lock));
   ut_ad(locksys::owns_page_shard(rec_id.get_page_id()));
-  ut_ad(locksys::owns_page_shard(lock->rec_lock.get_page_id()));
+  ut_ad(locksys::owns_page_shard(lock->rec_lock.page_id));
 
   const auto hash_table = lock->hash_table();
   HASH_DELETE(lock_t, hash, hash_table, rec_id.fold(), lock);
@@ -1344,7 +1337,7 @@ UNIV_INLINE
 lock_t *lock_rec_find_similar_on_page(uint32_t type_mode, size_t heap_no,
                                       lock_t *lock, const trx_t *trx,
                                       bool &found_waiter_before_lock) {
-  ut_ad(locksys::owns_page_shard(lock->rec_lock.get_page_id()));
+  ut_ad(locksys::owns_page_shard(lock->rec_lock.page_id));
   found_waiter_before_lock = false;
   for (/* No op */; lock != nullptr; lock = lock_rec_get_next_on_page(lock)) {
     if (lock->trx == trx && lock->type_mode == type_mode &&
@@ -1754,19 +1747,16 @@ or nullptr if it can be granted now */
 static const lock_t *lock_rec_has_to_wait_in_queue(
     const lock_t *wait_lock, const trx_t *blocking_trx = nullptr) {
   const lock_t *lock;
-  space_id_t space;
-  page_no_t page_no;
   ulint heap_no;
   ulint bit_mask;
   ulint bit_offset;
   hash_table_t *hash;
 
-  ut_ad(locksys::owns_page_shard(wait_lock->rec_lock.get_page_id()));
-  ut_ad(lock_get_wait(wait_lock));
   ut_ad(lock_get_type_low(wait_lock) == LOCK_REC);
+  const auto page_id = wait_lock->rec_lock.page_id;
+  ut_ad(locksys::owns_page_shard(page_id));
+  ut_ad(lock_get_wait(wait_lock));
 
-  space = wait_lock->rec_lock.space;
-  page_no = wait_lock->rec_lock.page_no;
   heap_no = lock_rec_find_set_bit(wait_lock);
 
   bit_offset = heap_no / 8;
@@ -1774,8 +1764,8 @@ static const lock_t *lock_rec_has_to_wait_in_queue(
 
   hash = lock_hash_get(wait_lock->type_mode);
 
-  for (lock = lock_rec_get_first_on_page_addr(hash, space, page_no);
-       lock != wait_lock; lock = lock_rec_get_next_on_page_const(lock)) {
+  for (lock = lock_rec_get_first_on_page_addr(hash, page_id); lock != wait_lock;
+       lock = lock_rec_get_next_on_page_const(lock)) {
     const byte *p = (const byte *)&lock[1];
 
     if ((blocking_trx == nullptr || blocking_trx == lock->trx) &&
@@ -1925,7 +1915,7 @@ static void lock_rec_cancel(
     lock_t *lock) /*!< in: waiting record lock request */
 {
   ut_ad(lock_get_type_low(lock) == LOCK_REC);
-  ut_ad(locksys::owns_page_shard(lock->rec_lock.get_page_id()));
+  ut_ad(locksys::owns_page_shard(lock->rec_lock.page_id));
 
   /* Reset the bit (there can be only one set bit) in the lock bitmap */
   lock_rec_reset_nth_bit(lock, lock_rec_find_set_bit(lock));
@@ -1971,7 +1961,7 @@ static const lock_t *lock_rec_has_to_wait_for_granted(
     const size_t new_granted_index)
 
 {
-  ut_ad(locksys::owns_page_shard(wait_lock->rec_lock.get_page_id()));
+  ut_ad(locksys::owns_page_shard(wait_lock->rec_lock.page_id));
   ut_ad(wait_lock->is_record_lock());
 
   ut_ad(new_granted_index <= granted.size());
@@ -2019,7 +2009,7 @@ static void lock_rec_grant_by_heap_no(lock_t *in_lock, ulint heap_no) {
   const auto hash_table = in_lock->hash_table();
 
   ut_ad(in_lock->is_record_lock());
-  ut_ad(locksys::owns_page_shard(in_lock->rec_lock.get_page_id()));
+  ut_ad(locksys::owns_page_shard(in_lock->rec_lock.page_id));
 
   using LockDescriptorEx = std::pair<trx_schedule_weight_t, lock_t *>;
   /* Preallocate for 4 lists with 32 locks. */
@@ -2181,8 +2171,7 @@ in_lock, and only locks waiting for those heap_no's will be checked.
 @param[in,out]	in_lock		record lock object: grant all non-conflicting
                           locks waiting behind this lock object */
 static void lock_rec_grant(lock_t *in_lock) {
-  auto space = in_lock->space_id();
-  auto page_no = in_lock->page_no();
+  const auto page_id = in_lock->rec_lock.page_id;
   auto lock_hash = in_lock->hash_table();
 
   /* In some scenarios, in particular in replication appliers, it is often the
@@ -2197,7 +2186,7 @@ static void lock_rec_grant(lock_t *in_lock) {
   there are at least two waiters to arbitrate among, but in practice the current
   simple heuristic is good enough. */
   bool found_waiter = false;
-  for (auto lock = lock_rec_get_first_on_page_addr(lock_hash, space, page_no);
+  for (auto lock = lock_rec_get_first_on_page_addr(lock_hash, page_id);
        lock != nullptr; lock = lock_rec_get_next_on_page(lock)) {
     if (lock->is_waiting()) {
       found_waiter = true;
@@ -2235,14 +2224,9 @@ static void lock_rec_dequeue_from_page(lock_t *in_lock) {
                                 which are contained in this lock object
                                 are removed */
 void lock_rec_discard(lock_t *in_lock) {
-  space_id_t space;
-  page_no_t page_no;
-
   ut_ad(lock_get_type_low(in_lock) == LOCK_REC);
-  ut_ad(locksys::owns_page_shard(in_lock->rec_lock.get_page_id()));
-
-  space = in_lock->rec_lock.space;
-  page_no = in_lock->rec_lock.page_no;
+  const auto page_id = in_lock->rec_lock.page_id;
+  ut_ad(locksys::owns_page_shard(page_id));
 
   ut_ad(in_lock->index->table->n_rec_locks.load() > 0);
   in_lock->index->table->n_rec_locks.fetch_sub(1, std::memory_order_relaxed);
@@ -2256,7 +2240,7 @@ void lock_rec_discard(lock_t *in_lock) {
   locksys::remove_from_trx_locks(in_lock);
 
   HASH_DELETE(lock_t, hash, lock_hash_get(in_lock->type_mode),
-              lock_rec_fold(space, page_no), in_lock);
+              lock_rec_fold(page_id), in_lock);
 
   MONITOR_INC(MONITOR_RECLOCK_REMOVED);
   MONITOR_DEC(MONITOR_NUM_RECLOCK);
@@ -2265,13 +2249,12 @@ void lock_rec_discard(lock_t *in_lock) {
 /** Removes record lock objects set on an index page which is discarded. This
  function does not move locks, or check for waiting locks, therefore the
  lock bitmaps must already be reset when this function is called. */
-static void lock_rec_free_all_from_discard_page_low(space_id_t space,
-                                                    page_no_t page_no,
+static void lock_rec_free_all_from_discard_page_low(page_id_t page_id,
                                                     hash_table_t *lock_hash) {
   lock_t *lock;
   lock_t *next_lock;
 
-  lock = lock_rec_get_first_on_page_addr(lock_hash, space, page_no);
+  lock = lock_rec_get_first_on_page_addr(lock_hash, page_id);
 
   while (lock != nullptr) {
     ut_ad(lock_rec_find_set_bit(lock) == ULINT_UNDEFINED);
@@ -2294,18 +2277,12 @@ static void lock_rec_free_all_from_discard_page_low(space_id_t space,
 void lock_rec_free_all_from_discard_page(
     const buf_block_t *block) /*!< in: page to be discarded */
 {
-  space_id_t space;
-  page_no_t page_no;
+  const auto page_id = block->get_page_id();
+  ut_ad(locksys::owns_page_shard(page_id));
 
-  ut_ad(locksys::owns_page_shard(block->get_page_id()));
-
-  space = block->page.id.space();
-  page_no = block->page.id.page_no();
-
-  lock_rec_free_all_from_discard_page_low(space, page_no, lock_sys->rec_hash);
-  lock_rec_free_all_from_discard_page_low(space, page_no, lock_sys->prdt_hash);
-  lock_rec_free_all_from_discard_page_low(space, page_no,
-                                          lock_sys->prdt_page_hash);
+  lock_rec_free_all_from_discard_page_low(page_id, lock_sys->rec_hash);
+  lock_rec_free_all_from_discard_page_low(page_id, lock_sys->prdt_hash);
+  lock_rec_free_all_from_discard_page_low(page_id, lock_sys->prdt_page_hash);
 }
 
 /*============= RECORD LOCK MOVING AND INHERITING ===================*/
@@ -2950,28 +2927,23 @@ void lock_update_merge_right(
 {
   locksys::Shard_latches_guard guard{*left_block, *right_block};
 
-  /* Inherit the locks from the supremum of the left page to the
-  original successor of infimum on the right page, to which the left
-  page was merged */
+  /* Inherit the locks from the supremum of the left page to the original
+  successor of infimum on the right page, to which the left page was merged. */
 
   lock_rec_inherit_to_gap(right_block, left_block,
                           page_rec_get_heap_no(orig_succ),
                           PAGE_HEAP_NO_SUPREMUM);
 
-  /* Reset the locks on the supremum of the left page, releasing
-  waiting transactions */
+  /* Reset the locks on the supremum of the left page, releasing waiting
+  transactions. */
 
   lock_rec_reset_and_release_wait_low(lock_sys->rec_hash, left_block,
                                       PAGE_HEAP_NO_SUPREMUM);
 
-#ifdef UNIV_DEBUG
-  /* there should exist no page lock on the left page,
-  otherwise, it will be blocked from merge */
-  space_id_t space = left_block->page.id.space();
-  page_no_t page_no = left_block->page.id.page_no();
-  ut_ad(lock_rec_get_first_on_page_addr(lock_sys->prdt_page_hash, space,
-                                        page_no) == nullptr);
-#endif /* UNIV_DEBUG */
+  /* There should exist no page lock on the left page, otherwise, it will be
+  blocked from merge. */
+  ut_ad(lock_rec_get_first_on_page_addr(lock_sys->prdt_page_hash,
+                                        left_block->get_page_id()) == nullptr);
 
   lock_rec_free_all_from_discard_page(left_block);
 }
@@ -3066,15 +3038,10 @@ void lock_update_merge_left(
   lock_rec_move(left_block, right_block, PAGE_HEAP_NO_SUPREMUM,
                 PAGE_HEAP_NO_SUPREMUM);
 
-#ifdef UNIV_DEBUG
   /* there should exist no page lock on the right page,
   otherwise, it will be blocked from merge */
-  space_id_t space = right_block->page.id.space();
-  page_no_t page_no = right_block->page.id.page_no();
-  lock_t *lock_test =
-      lock_rec_get_first_on_page_addr(lock_sys->prdt_page_hash, space, page_no);
-  ut_ad(!lock_test);
-#endif /* UNIV_DEBUG */
+  ut_ad(lock_rec_get_first_on_page_addr(lock_sys->prdt_page_hash,
+                                        right_block->get_page_id()) == nullptr);
 
   lock_rec_free_all_from_discard_page(right_block);
 }
@@ -3841,7 +3808,7 @@ run_again:
 @param[in]	lock		Lock that was unlocked
 @param[in]	heap_no		Heap no within the page for the lock. */
 static void lock_rec_release(lock_t *lock, ulint heap_no) {
-  ut_ad(locksys::owns_page_shard(lock->rec_lock.get_page_id()));
+  ut_ad(locksys::owns_page_shard(lock->rec_lock.page_id));
   ut_ad(!lock_get_wait(lock));
   ut_ad(lock_get_type_low(lock) == LOCK_REC);
   ut_ad(lock_rec_get_nth_bit(lock, heap_no));
@@ -4040,8 +4007,8 @@ Before and after this function following should hold:
 template <typename F>
 static bool try_relatch_trx_and_shard_and_do(const lock_t *lock, F &&f) {
   if (lock_get_type_low(lock) == LOCK_REC) {
-    return try_relatch_trx_and_shard_and_do(
-        lock->trx, lock->rec_lock.get_page_id(), std::forward<F>(f));
+    return try_relatch_trx_and_shard_and_do(lock->trx, lock->rec_lock.page_id,
+                                            std::forward<F>(f));
   }
 
   ut_ad(lock_get_type_low(lock) == LOCK_TABLE);
@@ -4456,23 +4423,19 @@ static void lock_table_print(FILE *file,         /*!< in: file where to print */
 static void lock_rec_print(FILE *file,         /*!< in: file where to print */
                            const lock_t *lock) /*!< in: record type lock */
 {
-  space_id_t space;
-  page_no_t page_no;
   mtr_t mtr;
   Rec_offsets offsets;
 
   ut_a(lock_get_type_low(lock) == LOCK_REC);
+  const auto page_id = lock->rec_lock.page_id;
   /* We actually hold exclusive latch here, but we require just the shard */
-  ut_ad(locksys::owns_page_shard(lock->rec_lock.get_page_id()));
-
-  space = lock->rec_lock.space;
-  page_no = lock->rec_lock.page_no;
+  ut_ad(locksys::owns_page_shard(page_id));
 
   fprintf(file,
-          "RECORD LOCKS space id %lu page no %lu n bits %lu "
+          "RECORD LOCKS space id %lu page no %lu n bits %llu "
           "index %s of table ",
-          (ulong)space, (ulong)page_no, (ulong)lock_rec_get_n_bits(lock),
-          lock->index->name());
+          ulong{page_id.space()}, ulong{page_id.page_no()},
+          ulonglong{lock_rec_get_n_bits(lock)}, lock->index->name());
   ut_print_name(file, lock->trx, lock->index->table_name);
   fprintf(file, " trx id " TRX_ID_FMT, trx_get_id_for_print(lock->trx));
 
@@ -4506,7 +4469,7 @@ static void lock_rec_print(FILE *file,         /*!< in: file where to print */
 
   const buf_block_t *block;
 
-  block = buf_page_try_get(page_id_t(space, page_no), &mtr);
+  block = buf_page_try_get(page_id, &mtr);
 
   for (ulint i = 0; i < lock_rec_get_n_bits(lock); ++i) {
     if (!lock_rec_get_nth_bit(lock, i)) {
@@ -4791,11 +4754,11 @@ trx_sys_t::mutex if the page was read from disk.
 static bool lock_rec_fetch_page(const lock_t *lock) {
   ut_ad(lock_get_type_low(lock) == LOCK_REC);
 
-  space_id_t space_id = lock->rec_lock.space;
+  const page_id_t page_id = lock->rec_lock.page_id;
+  const space_id_t space_id = page_id.space();
   fil_space_t *space;
   bool found;
   const page_size_t &page_size = fil_space_get_page_size(space_id, &found);
-  page_no_t page_no = lock->rec_lock.page_no;
 
   /* Check if the .ibd file exists. */
   if (found) {
@@ -4812,9 +4775,8 @@ static bool lock_rec_fetch_page(const lock_t *lock) {
     space = fil_space_acquire(space_id);
     if (space) {
       mtr_start(&mtr);
-      buf_page_get_gen(page_id_t(space_id, page_no), page_size, RW_NO_LATCH,
-                       nullptr, Page_fetch::POSSIBLY_FREED, __FILE__, __LINE__,
-                       &mtr);
+      buf_page_get_gen(page_id, page_size, RW_NO_LATCH, nullptr,
+                       Page_fetch::POSSIBLY_FREED, __FILE__, __LINE__, &mtr);
       mtr_commit(&mtr);
       fil_space_release(space);
     }
@@ -4865,7 +4827,7 @@ static bool lock_trx_print_locks(
         fprintf(file,
                 "RECORD LOCKS on non-existing"
                 " space %u\n",
-                lock->rec_lock.space);
+                lock->rec_lock.page_id.space());
       }
 
       /* Print all the record locks on the page from
@@ -5165,8 +5127,8 @@ static bool lock_rec_validate_page(
   locksys::Shard_latch_guard guard{block->get_page_id()};
   mutex_enter(&trx_sys->mutex);
 loop:
-  lock = lock_rec_get_first_on_page_addr(
-      lock_sys->rec_hash, block->page.id.space(), block->page.id.page_no());
+  lock =
+      lock_rec_get_first_on_page_addr(lock_sys->rec_hash, block->get_page_id());
 
   if (!lock) {
     goto function_exit;
@@ -5245,41 +5207,8 @@ static bool lock_validate_table_locks(
   return (true);
 }
 
-/** Validate record locks up to a limit.
- @return lock at limit or NULL if no more locks in the hash bucket */
-static MY_ATTRIBUTE((warn_unused_result)) const lock_t *lock_rec_validate(
-    ulint start,     /*!< in: lock_sys->rec_hash
-                     bucket */
-    uint64_t *limit) /*!< in/out: upper limit of
-                     (space, page_no) */
-{
-  /* Actually we only require to latch the start-th shard, but we happen to
-  hold exclusive latch here, which is easier to assert */
-  ut_ad(locksys::owns_exclusive_global_latch());
-  ut_ad(trx_sys_mutex_own());
-
-  for (const lock_t *lock = static_cast<const lock_t *>(
-           HASH_GET_FIRST(lock_sys->rec_hash, start));
-       lock != nullptr;
-       lock = static_cast<const lock_t *>(HASH_GET_NEXT(hash, lock))) {
-    uint64_t current;
-
-    ut_ad(!trx_is_ac_nl_ro(lock->trx));
-    ut_ad(lock_get_type(lock) == LOCK_REC);
-
-    current = ut_ull_create(lock->rec_lock.space, lock->rec_lock.page_no);
-
-    if (current > *limit) {
-      *limit = current + 1;
-      return (lock);
-    }
-  }
-
-  return (nullptr);
-}
-
 /** Validate a record lock's block */
-static void lock_rec_block_validate(space_id_t space_id, page_no_t page_no) {
+static void lock_rec_block_validate(const page_id_t &page_id) {
   /* The lock and the block that it is referring to may be freed at
   this point. We pass Page_fetch::POSSIBLY_FREED to skip a debug check.
   If the lock exists in lock_rec_validate_page() we assert
@@ -5290,12 +5219,12 @@ static void lock_rec_block_validate(space_id_t space_id, page_no_t page_no) {
 
   /* Make sure that the tablespace is not deleted while we are
   trying to access the page. */
-  if (fil_space_t *space = fil_space_acquire(space_id)) {
+  if (fil_space_t *space = fil_space_acquire(page_id.space())) {
     mtr_start(&mtr);
 
-    block = buf_page_get_gen(
-        page_id_t(space_id, page_no), page_size_t(space->flags), RW_X_LATCH,
-        nullptr, Page_fetch::POSSIBLY_FREED, __FILE__, __LINE__, &mtr);
+    block = buf_page_get_gen(page_id, page_size_t(space->flags), RW_X_LATCH,
+                             nullptr, Page_fetch::POSSIBLY_FREED, __FILE__,
+                             __LINE__, &mtr);
 
     buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
 
@@ -5307,9 +5236,7 @@ static void lock_rec_block_validate(space_id_t space_id, page_no_t page_no) {
 }
 
 bool lock_validate() {
-  typedef std::pair<space_id_t, page_no_t> page_addr_t;
-  typedef std::set<page_addr_t, std::less<page_addr_t>,
-                   ut_allocator<page_addr_t>>
+  typedef std::set<page_id_t, std::less<page_id_t>, ut_allocator<page_id_t>>
       page_addr_set;
 
   page_addr_set pages;
@@ -5326,26 +5253,19 @@ bool lock_validate() {
     Thus we release both latches before the validation check. */
 
     for (ulint i = 0; i < hash_get_n_cells(lock_sys->rec_hash); i++) {
-      const lock_t *lock;
-      uint64_t limit = 0;
-
-      while ((lock = lock_rec_validate(i, &limit)) != nullptr) {
-        page_no_t page_no;
-        space_id_t space = lock->rec_lock.space;
-
-        page_no = lock->rec_lock.page_no;
-
-        pages.insert(std::make_pair(space, page_no));
+      for (const lock_t *lock = static_cast<const lock_t *>(
+               HASH_GET_FIRST(lock_sys->rec_hash, i));
+           lock != nullptr;
+           lock = static_cast<const lock_t *>(HASH_GET_NEXT(hash, lock))) {
+        ut_ad(!trx_is_ac_nl_ro(lock->trx));
+        ut_ad(lock_get_type(lock) == LOCK_REC);
+        pages.emplace(lock->rec_lock.page_id);
       }
     }
 
     mutex_exit(&trx_sys->mutex);
   }
-
-  for (page_addr_set::const_iterator it = pages.begin(); it != pages.end();
-       ++it) {
-    lock_rec_block_validate((*it).first, (*it).second);
-  }
+  std::for_each(pages.cbegin(), pages.cend(), lock_rec_block_validate);
 
   return (true);
 }
@@ -6104,22 +6024,9 @@ const char *lock_rec_get_index_name(const lock_t *lock) /*!< in: lock */
   return (lock->index->name);
 }
 
-/** For a record lock, gets the tablespace number on which the lock is.
- @return tablespace number */
-space_id_t lock_rec_get_space_id(const lock_t *lock) /*!< in: lock */
-{
+page_id_t lock_rec_get_page_id(const lock_t *lock) {
   ut_a(lock_get_type_low(lock) == LOCK_REC);
-
-  return (lock->rec_lock.space);
-}
-
-/** For a record lock, gets the page number on which the lock is.
- @return page number */
-page_no_t lock_rec_get_page_no(const lock_t *lock) /*!< in: lock */
-{
-  ut_a(lock_get_type_low(lock) == LOCK_REC);
-
-  return (lock->rec_lock.page_no);
+  return lock->rec_lock.page_id;
 }
 
 /** Cancels a waiting lock request and releases possible other transactions

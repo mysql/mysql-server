@@ -19652,7 +19652,7 @@ static void innodb_make_page_dirty(
 
     ib::info(ER_IB_MSG_574) << "Dirtying page: " << page_id;
 
-    dblwr::Force_crash.copy_from(page_id);
+    dblwr::Force_crash = page_id;
 
     mlog_write_ulint(page + FIL_PAGE_TYPE, fil_page_get_type(page), MLOG_2BYTES,
                      &mtr);

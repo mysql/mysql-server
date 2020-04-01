@@ -41,7 +41,7 @@ size_t Latches::Page_shards::get_shard(const page_id_t &page_id) {
   */
   ut_ad(lock_sys->rec_hash->n_cells == lock_sys->prdt_hash->n_cells);
   ut_ad(lock_sys->rec_hash->n_cells == lock_sys->prdt_page_hash->n_cells);
-  return lock_rec_hash(page_id.space(), page_id.page_no()) % SHARDS_COUNT;
+  return lock_rec_hash(page_id) % SHARDS_COUNT;
 }
 
 const Lock_mutex &Latches::Page_shards::get_mutex(

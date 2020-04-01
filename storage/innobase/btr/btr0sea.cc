@@ -1291,7 +1291,8 @@ void btr_drop_ahi_for_table(dict_table_t *table) {
   const dict_index_t *indexes[MAX_INDEXES];
   static constexpr unsigned DROP_BATCH = 1024;
 
-  page_id_t drop[DROP_BATCH];
+  std::vector<page_id_t> drop;
+  drop.reserve(DROP_BATCH);
   const page_size_t page_size(dict_table_page_size(table));
 
   for (;;) {
@@ -1316,8 +1317,7 @@ void btr_drop_ahi_for_table(dict_table_t *table) {
     }
 
     for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
-      unsigned n_drop = 0;
-
+      drop.clear();
       buf_pool_t *buf_pool = buf_pool_from_array(i);
       mutex_enter(&buf_pool->LRU_list_mutex);
       const buf_page_t *prev;
@@ -1341,8 +1341,8 @@ void btr_drop_ahi_for_table(dict_table_t *table) {
         }
 
         if (std::search_n(indexes, end, 1, index) != end) {
-          drop[n_drop].copy_from(bpage->id);
-          if (++n_drop == DROP_BATCH) {
+          drop.emplace_back(bpage->id);
+          if (drop.size() == DROP_BATCH) {
             break;
           }
         }
@@ -1350,8 +1350,8 @@ void btr_drop_ahi_for_table(dict_table_t *table) {
 
       mutex_exit(&buf_pool->LRU_list_mutex);
 
-      for (unsigned i = 0; i < n_drop; ++i) {
-        btr_search_drop_page_hash_when_freed(drop[i], page_size);
+      for (const page_id_t &page_id : drop) {
+        btr_search_drop_page_hash_when_freed(page_id, page_size);
       }
     }
 
@@ -1371,7 +1371,8 @@ void btr_drop_ahi_for_index(dict_index_t *index) {
   static constexpr unsigned DROP_BATCH = 1024;
 
   const dict_table_t *table = index->table;
-  page_id_t drop[DROP_BATCH];
+  std::vector<page_id_t> drop;
+  drop.reserve(DROP_BATCH);
   const page_size_t page_size(dict_table_page_size(table));
 
   while (true) {
@@ -1380,7 +1381,7 @@ void btr_drop_ahi_for_index(dict_index_t *index) {
     }
 
     for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
-      unsigned n_drop = 0;
+      drop.clear();
 
       buf_pool_t *buf_pool = buf_pool_from_array(i);
       mutex_enter(&buf_pool->LRU_list_mutex);
@@ -1404,16 +1405,16 @@ void btr_drop_ahi_for_index(dict_index_t *index) {
           continue;
         }
 
-        drop[n_drop].copy_from(bpage->id);
-        if (++n_drop == DROP_BATCH) {
+        drop.emplace_back(bpage->id);
+        if (drop.size() == DROP_BATCH) {
           break;
         }
       }
 
       mutex_exit(&buf_pool->LRU_list_mutex);
 
-      for (unsigned i = 0; i < n_drop; ++i) {
-        btr_search_drop_page_hash_when_freed(drop[i], page_size);
+      for (const page_id_t &page_id : drop) {
+        btr_search_drop_page_hash_when_freed(page_id, page_size);
       }
     }
 

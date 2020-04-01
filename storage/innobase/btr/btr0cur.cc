@@ -4553,8 +4553,7 @@ ibool btr_cur_compress_if_useful(
     }
 
     /* Check whether page lock prevents the compression */
-    if (!lock_test_prdt_page_lock(trx, page_get_space_id(page),
-                                  page_get_page_no(page))) {
+    if (!lock_test_prdt_page_lock(trx, page_get_page_id(page))) {
       return (false);
     }
   }

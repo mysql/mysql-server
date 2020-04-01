@@ -3212,8 +3212,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
   /* We check if the index page is suitable for buffered entries */
 
-  if (buf_page_peek(page_id) ||
-      lock_rec_expl_exist_on_page(page_id.space(), page_id.page_no())) {
+  if (buf_page_peek(page_id) || lock_rec_expl_exist_on_page(page_id)) {
     ibuf_mtr_commit(&bitmap_mtr);
     goto fail_exit;
   }
@@ -4071,7 +4070,7 @@ void ibuf_merge_or_delete_for_page(buf_block_t *block, const page_id_t &page_id,
   ulint mops[IBUF_OP_COUNT];
   ulint dops[IBUF_OP_COUNT];
 
-  ut_ad(block == nullptr || page_id.equals_to(block->page.id));
+  ut_ad(block == nullptr || page_id == block->page.id);
   ut_ad(block == nullptr ||
         buf_block_get_io_fix_unlocked(block) == BUF_IO_READ);
 

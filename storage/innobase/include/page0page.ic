@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -512,6 +512,11 @@ space_id_t page_get_space_id(const page_t *page) /*!< in: page */
 {
   ut_ad(page == page_align((page_t *)page));
   return (mach_read_from_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID));
+}
+
+UNIV_INLINE
+page_id_t page_get_page_id(const page_t *page) {
+  return page_id_t{page_get_space_id(page), page_get_page_no(page)};
 }
 
 /** Gets the number of user records on page (infimum and supremum records
