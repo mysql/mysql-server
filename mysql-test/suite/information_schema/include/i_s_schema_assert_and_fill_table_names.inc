@@ -4,7 +4,6 @@
 --echo ########################################################################
 
 --source include/have_debug.inc
-SET debug = '+d,skip_dd_table_access_check';
 
 --echo ########################################################################
 --echo # The number of I_S system views must be as expected.
@@ -108,5 +107,3 @@ if ($drop_I_S_view_names)
   let $I_S_view_names =;
   let $drop_I_S_view_names =;
 }
-
-SET debug = '-d,skip_dd_table_access_check';

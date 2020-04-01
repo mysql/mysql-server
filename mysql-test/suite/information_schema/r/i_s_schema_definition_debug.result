@@ -90,6 +90,7 @@
 #    result of the changes to the server code should be that
 #    this test stops failing.
 ########################################################################
+SET debug = '+d,skip_dd_table_access_check';
 ########################################################################
 # PART 1
 # Verify the existence of the expected I_S system views, neither less
@@ -99,7 +100,6 @@ CREATE TABLE test.I_S_view_names (name VARCHAR(64) PRIMARY KEY);
 # Verify the existence of the expected I_S system views, neither
 # less nor more. Fill help table with the I_S system view names.
 ########################################################################
-SET debug = '+d,skip_dd_table_access_check';
 ########################################################################
 # The number of I_S system views must be as expected.
 ########################################################################
@@ -113,25 +113,18 @@ include/assert.inc [No unexpected I_S system view are present.]
 # All expected I_S system views should be present.
 ########################################################################
 include/assert.inc [All expected I_S system views are present.]
-SET debug = '-d,skip_dd_table_access_check';
 ########################################################################
 # PART 2. Verify the I_S_VERSION and the CREATE VIEW statements of the
 #         I_S system views.
 ########################################################################
+# Print the actual I_S version stored on disk.
+I_S_VERSION=80021
 CREATE TABLE I_S_check_table (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 t TEXT NOT NULL,
 row_hash VARCHAR(64) DEFAULT NULL);
+SET debug = '+d,fetch_system_view_definition';
 ########################################################################
-# Verify the IS_VERSION and the CREATE VIEW statements of the
-# I_S system view.
-########################################################################
-SET debug = '+d,skip_dd_table_access_check,fetch_system_view_definition';
-########################################################################
-# The actual I_S version stored on disk.
-########################################################################
-IS_VERSION=80021
-########################################################################
-# List the CREATE VIEW statements for the I_S system views.
+# Verify all the CREATE VIEW statements of the I_S system view.
 # Mask collations that depend on the lower case table names setting.
 ########################################################################
 CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.CHARACTER_SETS AS SELECT 
@@ -1730,16 +1723,16 @@ INSERT INTO I_S_check_table(t) VALUES ('CREATE OR REPLACE DEFINER=`mysql.infosch
   user_attributes->>"$.metadata" AS `ATTRIBUTE` FROM 
   mysql.user
 ');
-SET debug = '-d,skip_dd_table_access_check';
 SET debug = '-d,fetch_system_view_definition';
 ########################################################################
 # PART 3. Verify the checksum of the generated meta data associated with
 #         the current I_S version number.
 ########################################################################
-SET debug = '+d,skip_dd_table_access_check';
 include/assert.inc [Found expected number of system views in DD.]
 include/assert.inc [Found expected number of system views in I_S_check_table.]
 include/assert.inc [The group concat max length is sufficient.]
 CHECK_STATUS
 The schema checksum corresponds to I_S version 80021.
 include/assert.inc [The schema checksum corresponds to a known I_S version.]
+include/assert.inc [The schema checksum corresponds to
+IS_VERSION 80021 stored on on disk.]
