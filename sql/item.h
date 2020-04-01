@@ -675,16 +675,6 @@ typedef Item *(Item::*Item_transformer)(uchar *arg);
 typedef void (*Cond_traverser)(const Item *item, void *arg);
 
 /**
-  Re-usable shortcut, when it does not make sense to do copy objects of a
-  class named "myclass"; add this to a private section of the class. The
-  implementations are intentionally not created, so if someone tries to use
-  them like in "myclass A= B" there will be a linker error.
-*/
-#define FORBID_COPY_CTOR_AND_ASSIGN_OP(myclass) \
-  myclass(myclass const &);                     \
-  void operator=(myclass const &)
-
-/**
   Utility mixin class to be able to walk() only parts of item trees.
 
   Used with PREFIX+POSTFIX walk: in the prefix call of the Item
@@ -702,6 +692,8 @@ class Item_tree_walker {
  protected:
   Item_tree_walker() : stopped_at_item(nullptr) {}
   ~Item_tree_walker() { DBUG_ASSERT(!stopped_at_item); }
+  Item_tree_walker(const Item_tree_walker &) = delete;
+  Item_tree_walker &operator=(const Item_tree_walker &) = delete;
 
   /// Stops walking children of this item
   void stop_at(const Item *i) {
@@ -735,7 +727,6 @@ class Item_tree_walker {
 
  private:
   const Item *stopped_at_item;
-  FORBID_COPY_CTOR_AND_ASSIGN_OP(Item_tree_walker);
 };
 
 class Item : public Parse_tree_node {
@@ -2173,7 +2164,8 @@ class Item : public Parse_tree_node {
    public:
     List<Item_field> *m_item_fields;
     Collect_item_fields(List<Item_field> *fields) : m_item_fields(fields) {}
-    FORBID_COPY_CTOR_AND_ASSIGN_OP(Collect_item_fields);
+    Collect_item_fields(const Collect_item_fields &) = delete;
+    Collect_item_fields &operator=(const Collect_item_fields &) = delete;
 
     friend class Item_sum;
     friend class Item_field;
@@ -2187,7 +2179,10 @@ class Item : public Parse_tree_node {
                                      SELECT_LEX *transformed_block)
         : m_item_fields_or_view_refs(fields_or_vr),
           m_transformed_block(transformed_block) {}
-    FORBID_COPY_CTOR_AND_ASSIGN_OP(Collect_item_fields_or_view_refs);
+    Collect_item_fields_or_view_refs(const Collect_item_fields_or_view_refs &) =
+        delete;
+    Collect_item_fields_or_view_refs &operator=(
+        const Collect_item_fields_or_view_refs &) = delete;
 
     friend class Item_sum;
     friend class Item_field;
