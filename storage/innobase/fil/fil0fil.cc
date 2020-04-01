@@ -4001,7 +4001,8 @@ std::string Fil_path::get_existing_path(const std::string &path,
                                         std::string &ghost) {
   std::string existing_path{path};
 
-  while (get_file_type(existing_path) == OS_FILE_TYPE_MISSING) {
+  /* This is only called for non-existing paths. */
+  while (!os_file_exists(existing_path.c_str())) {
     /* Some part of this path does not exist.
     If the last char is a separator, strip it off. */
     trim_separator(existing_path);
@@ -4022,13 +4023,21 @@ std::string Fil_path::get_existing_path(const std::string &path,
       existing_path.resize(sep + 1);
     }
   }
+
   return (existing_path);
 }
 
 std::string Fil_path::get_real_path(const std::string &path, bool force) {
+  bool path_exists;
+  os_file_type_t path_type;
+
   if (path.empty()) {
     return (std::string(""));
   }
+
+  /* Before we make an absolute path, check if this path exists,
+  and if so, what type it is. */
+  os_file_status(path.c_str(), &path_exists, &path_type);
 
   char abspath[OS_FILE_MAX_PATH];
   std::string real_path;
@@ -4039,14 +4048,30 @@ std::string Fil_path::get_real_path(const std::string &path, bool force) {
     real_path.assign(abspath);
   } else {
     /* This often happens on non-Windows platforms when the path does not
-    fully exist yet. Try my_realpath() again with the existing portion
-    of the path.*/
-    std::string ghost;
-    std::string dir = get_existing_path(path, ghost);
+    fully exist yet. */
 
-    ret = my_realpath(abspath, dir.c_str(), MYF(0));
+    if (path_exists) {
+      /* my_realpath() failed for some reason other than the path does not
+      exist. */
+      if (force) {
+        /* Use the given path and make it comparable. */
+        real_path.assign(path);
+      } else {
+        /* Return null and make a note of it.  Another attempt will be made
+        later when Fil_path::get_real_path() is called with force=true. */
+        ib::info(ER_IB_MSG_289) << "my_realpath('" << path
+                                << "') failed for path type " << path_type;
+        return (std::string(""));
+      }
+    } else {
+      /* The path does not exist.  Try my_realpath() again with the
+      existing portion of the path. */
+      std::string ghost;
+      std::string dir = get_existing_path(path, ghost);
 
-    if (ret == 0) {
+      ret = my_realpath(abspath, dir.c_str(), MYF(0));
+      ut_ad(ret == 0);
+
       /* Concatenate the absolute path with the non-existing sub-path.
       NOTE: If this path existed, my_realpath() would put a separator
       at the end if it is a directory.  But since the ghost portion
@@ -4054,24 +4079,8 @@ std::string Fil_path::get_real_path(const std::string &path, bool force) {
       we cannot attach a trailing separator for a directory.  So we
       trim them off in Fil_path::is_same_as() and is_ancestor(). */
       real_path.assign(abspath);
-      ut_ad(get_file_type(real_path) == OS_FILE_TYPE_DIR);
       append_separator(real_path);
-
       real_path.append(ghost);
-
-    } else {
-      if (!force) {
-        /* my_realpath() failed for some reason other than the path does not
-        exist. Return null and make a note of it.  Another attempt will be
-        made later when Fil_path::abs_path() is called with force=true. */
-        ib::info(ER_IB_MSG_289)
-            << "my_realpath('" << path << "') failed for path type "
-            << get_file_type_string(path);
-        return (std::string(""));
-      }
-
-      /* Use the given path and make it comparable. */
-      real_path.assign(path);
     }
   }
 
@@ -4079,11 +4088,37 @@ std::string Fil_path::get_real_path(const std::string &path, bool force) {
     Fil_path::to_lower(real_path);
   }
 
-  /* On Windows, my_realpath() puts a '\' at the end of any directory
-  path, on non-Windows it does not. */
-
-  if (get_file_type(real_path) == OS_FILE_TYPE_DIR) {
-    append_separator(real_path);
+  /* Try to consistently end a directory name with a separator.
+  On Windows, my_realpath() usually puts a separator at the end
+  of a directory path (it does not do that for the path ".").
+  On non-Windows it never does.
+  So if the separator is missing, decide whether to append it. */
+  ut_ad(!real_path.empty());
+  if (!is_separator(real_path.back())) {
+    bool add_sep = true;
+    switch (path_type) {
+      case OS_FILE_TYPE_DIR:
+      case OS_FILE_TYPE_BLOCK:
+        break;
+      case OS_FILE_TYPE_FILE:
+      case OS_FILE_TYPE_LINK:
+        add_sep = false;
+        break;
+      case OS_FILE_TYPE_FAILED:
+      case OS_FILE_TYPE_MISSING:
+      case OS_FILE_TYPE_NAME_TOO_LONG:
+      case OS_FILE_PERMISSION_ERROR:
+      case OS_FILE_TYPE_UNKNOWN:
+        add_sep = !(Fil_path::has_suffix(IBD, real_path) ||
+                    Fil_path::has_suffix(IBU, real_path) ||
+                    Fil_path::has_suffix(IBT, real_path) ||
+                    Fil_path::has_suffix(CFG, real_path) ||
+                    Fil_path::has_suffix(CFP, real_path) ||
+                    Fil_path::has_suffix(DWR, real_path));
+    }
+    if (add_sep) {
+      append_separator(real_path);
+    }
   }
 
   return (real_path);
@@ -4816,15 +4851,13 @@ if that the old filepath exists and the new filepath does not exist.
 @return innodb error code */
 dberr_t fil_rename_tablespace_check(space_id_t space_id, const char *old_path,
                                     const char *new_path, bool is_discarded) {
-  bool exists = false;
+  bool exists;
   os_file_type_t ftype;
 
   if (!is_discarded && os_file_status(old_path, &exists, &ftype) && !exists) {
     ib::error(ER_IB_MSG_293, old_path, new_path, ulong{space_id});
     return (DB_TABLESPACE_NOT_FOUND);
   }
-
-  exists = false;
 
   if (!os_file_status(new_path, &exists, &ftype) || exists) {
     ib::error(ER_IB_MSG_294, old_path, new_path, ulong{space_id});
@@ -8482,13 +8515,8 @@ static dberr_t fil_iterate(const Fil_page_iterator &iter, buf_block_t *block,
 
 void fil_adjust_name_import(dict_table_t *table, const char *path,
                             ib_file_suffix extn) {
-  os_file_type_t type;
-  bool exists = false;
-
   /* Try to open with current name first. */
-  auto ret = os_file_status(path, &exists, &type);
-
-  if (ret && exists) {
+  if (os_file_exists(path)) {
     return;
   }
 
@@ -9234,28 +9262,9 @@ bool Fil_path::is_hidden(WIN32_FIND_DATA &dirent) {
 
 /** @return true if the path exists and is a file . */
 os_file_type_t Fil_path::get_file_type(const std::string &path) {
-  const std::string *ptr;
   os_file_type_t type;
-  bool exists;
 
-#ifdef _WIN32
-  /* Temporarily strip the trailing_separator since it will cause
-  stat64() to fail on Windows unless the path is the root of some
-  drive; like "C:\".  _stat64() will fail if it is "C:". */
-
-  std::string p{path};
-
-  if (path.length() > 3 && is_separator(path.back()) &&
-      path.at(p.length() - 2) != ':') {
-    p.pop_back();
-  }
-
-  ptr = &p;
-#else
-  ptr = &path;
-#endif /* WIN32 */
-
-  os_file_status(ptr->c_str(), &exists, &type);
+  os_file_status(path.c_str(), nullptr, &type);
 
   return (type);
 }
@@ -10011,11 +10020,7 @@ bool fil_update_partition_name(space_id_t space_id, uint32_t fsp_flags,
 
   if (dd_path.compare(table_path) != 0) {
     /* Validate that the file exists. */
-    os_file_type_t type;
-    bool exists = false;
-    bool ret = os_file_status(table_path.c_str(), &exists, &type);
-
-    if (ret && exists) {
+    if (os_file_exists(table_path.c_str())) {
       dd_path.assign(table_path);
       return (true);
 
@@ -11067,14 +11072,8 @@ static void fil_rename_partition_file(const std::string &old_path,
 
   ut_ad(!new_path.empty());
 
-  os_file_type_t type;
-  bool exists = false;
-
-  bool status = os_file_status(old_path.c_str(), &exists, &type);
-  bool old_exists = (status && exists);
-
-  status = os_file_status(new_path.c_str(), &exists, &type);
-  bool new_exists = (status && exists);
+  bool old_exists = os_file_exists(old_path.c_str());
+  bool new_exists = os_file_exists(new_path.c_str());
 
   static bool print_upgrade = true;
   static bool print_downgrade = true;

@@ -202,11 +202,10 @@ void Arch_Page_Sys::Recv::read_group_files(const std::string dir_path,
 bool Arch_Page_Sys::Recv::scan_group() {
   os_file_type_t type;
   bool exists;
-  bool success;
 
-  success = os_file_status(m_arch_dir_name.c_str(), &exists, &type);
+  os_file_status(m_arch_dir_name.c_str(), &exists, &type);
 
-  if (!success || !exists || type != OS_FILE_TYPE_DIR) {
+  if (!exists || type != OS_FILE_TYPE_DIR) {
     return (false);
   }
 

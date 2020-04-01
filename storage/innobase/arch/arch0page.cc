@@ -759,15 +759,12 @@ bool Arch_File_Ctx::validate(Arch_Group *group, uint file_index,
 
   build_name(file_index, start_lsn, file_name, MAX_ARCH_PAGE_FILE_NAME_LEN);
 
-  os_file_type_t type;
-  bool exists = false;
-  bool success = os_file_status(file_name, &exists, &type);
-
-  if (!success || !exists) {
+  if (!os_file_exists(file_name)) {
     /* Could be the case if files are purged. */
     return (true);
   }
 
+  bool success;
   pfs_os_file_t file;
 
   file = os_file_create(innodb_arch_file_key, file_name, OS_FILE_OPEN,
