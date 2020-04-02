@@ -260,7 +260,7 @@ class Group_member_info : public Plugin_gcs_message {
     @param[in] recovery_endpoints_arg                 recovery endpoints
     advertised
    */
-  void update(char *hostname_arg, uint port_arg, char *uuid_arg,
+  void update(const char *hostname_arg, uint port_arg, const char *uuid_arg,
               int write_set_extraction_algorithm,
               const std::string &gcs_member_id_arg,
               Group_member_info::Group_member_status status_arg,
@@ -272,6 +272,13 @@ class Group_member_info : public Plugin_gcs_message {
               uint member_weight_arg, uint lower_case_table_names_arg,
               bool default_table_encryption_arg,
               const char *recovery_endpoints_arg);
+
+  /**
+    Update Group_member_info.
+
+    @param other source of the copy
+    */
+  void update(Group_member_info &other);
 
   /**
     @return the member hostname
