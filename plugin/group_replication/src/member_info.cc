@@ -137,7 +137,7 @@ Group_member_info::~Group_member_info() {
 }
 
 void Group_member_info::update(
-    char *hostname_arg, uint port_arg, char *uuid_arg,
+    const char *hostname_arg, uint port_arg, const char *uuid_arg,
     int write_set_extraction_algorithm_arg,
     const std::string &gcs_member_id_arg,
     Group_member_info::Group_member_status status_arg,
@@ -181,6 +181,22 @@ void Group_member_info::update(
     configuration_flags |= CNF_ENFORCE_UPDATE_EVERYWHERE_CHECKS_F;
 
   recovery_endpoints.assign(recovery_endpoints_arg);
+}
+
+void Group_member_info::update(Group_member_info &other) {
+  Member_version other_member_version = other.get_member_version();
+
+  update(
+      other.get_hostname().c_str(), other.get_port(), other.get_uuid().c_str(),
+      other.get_write_set_extraction_algorithm(),
+      other.get_gcs_member_id().get_member_id(), other.get_recovery_status(),
+      other_member_version, other.get_gtid_assignment_block_size(),
+      other.get_role(),
+      other.get_configuration_flags() | CNF_SINGLE_PRIMARY_MODE_F,
+      other.get_configuration_flags() | CNF_ENFORCE_UPDATE_EVERYWHERE_CHECKS_F,
+      other.get_member_weight(), other.get_lower_case_table_names(),
+      other.get_default_table_encryption(),
+      other.get_recovery_endpoints().c_str());
 }
 
 /*

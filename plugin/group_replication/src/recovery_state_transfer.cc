@@ -89,6 +89,8 @@ Recovery_state_transfer::~Recovery_state_transfer() {
   }
   delete group_members;
   delete recovery_channel_observer;
+  delete selected_donor;
+  selected_donor = nullptr;
   mysql_mutex_destroy(&recovery_lock);
   mysql_cond_destroy(&recovery_condition);
   mysql_mutex_destroy(&donor_selection_lock);
@@ -163,6 +165,7 @@ void Recovery_state_transfer::inform_of_receiver_stop(my_thread_id thread_id) {
 void Recovery_state_transfer::initialize_group_info() {
   DBUG_TRACE;
 
+  delete selected_donor;
   selected_donor = nullptr;
   selected_donor_hostname.clear();
   // Update the group member info
@@ -258,6 +261,7 @@ int Recovery_state_transfer::update_recovery_process(bool did_members_left) {
   */
   if (donor_left) {
     // The selected donor no longer holds a meaning after deleting the group
+    delete selected_donor;
     selected_donor = nullptr;
     if (connected_to_donor) {
       /*
@@ -350,7 +354,11 @@ void Recovery_state_transfer::build_donor_list(string *selected_donor_uuid) {
     // reference
     if (selected_donor_uuid != nullptr &&
         !m_uuid.compare(*selected_donor_uuid) && valid_donor) {
-      selected_donor = member;
+      if (selected_donor != nullptr) {
+        selected_donor->update(*member);
+      } else {
+        selected_donor = new Group_member_info(*member);
+      }
     }
 
     ++member_it;
@@ -431,7 +439,11 @@ int Recovery_state_transfer::establish_donor_connection() {
     donor_channel_thread_error = false;
 
     // Get the last element and delete it
-    selected_donor = suitable_donors.back();
+    if (selected_donor != nullptr) {
+      selected_donor->update(*suitable_donors.back());
+    } else {
+      selected_donor = new Group_member_info(*suitable_donors.back());
+    }
     suitable_donors.pop_back();
     // increment the number of tries
     donor_connection_retry_count++;
