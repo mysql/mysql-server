@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 
 #include "plugin/group_replication/include/plugin_handlers/stage_monitor_handler.h"
 #include "plugin/group_replication/include/plugin_messages/group_action_message.h"
+#include "plugin/group_replication/include/services/notification/notification.h"
 
 /**
   @class Group_action_diagnostics
@@ -170,7 +171,8 @@ class Group_action {
     @returns the execution result
   */
   virtual enum_action_execution_result execute_action(
-      bool invoking_member, Plugin_stage_monitor_handler *stage_handler) = 0;
+      bool invoking_member, Plugin_stage_monitor_handler *stage_handler,
+      Notification_context *) = 0;
 
   /*
     Terminate the executing configuration operation
