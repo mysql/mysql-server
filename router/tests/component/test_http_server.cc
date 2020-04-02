@@ -257,14 +257,9 @@ TEST_P(HttpServerPlainTest, ensure) {
   // Add a DEBUG level to trigger the 'Running' message.
   std::string conf_file{create_config_file(
       conf_dir_.name(),
-      mysql_harness::join(
-          std::vector<std::string>{
-              ConfigBuilder::build_section("http_server", http_section),
-              ConfigBuilder::build_section("logger",
-                                           {
-                                               {"level", "DEBUG"},
-                                           })},
-          "\n"))};
+      mysql_harness::join(std::vector<std::string>{ConfigBuilder::build_section(
+                              "http_server", http_section)},
+                          "\n"))};
   ProcessWrapper &http_server{launch_router(
       {"-c", conf_file}, GetParam().expected_success ? 0 : EXIT_FAILURE)};
 
@@ -1235,7 +1230,8 @@ TEST_P(HttpServerSecureTest, ensure) {
 
   std::string conf_file{create_config_file(
       conf_dir_.name(),
-      ConfigBuilder::build_section("http_server", http_section))};
+      ConfigBuilder::build_section("http_server", http_section), nullptr,
+      "mysqlrouter.conf", "", false)};
   ProcessWrapper &http_server{
       launch_router({"-c", conf_file},
                     GetParam().expected_success ? EXIT_SUCCESS : EXIT_FAILURE)};

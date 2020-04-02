@@ -128,17 +128,13 @@ class GrNotificationsTest : public RouterComponentTest {
     mysql_harness::flush_keyring();
     mysql_harness::reset_keyring();
 
-    // enable debug logs for better diagnostics in case of failure
-    std::string logger_section = "[logger]\nlevel = DEBUG\n";
-
     // launch the router with metadata-cache configuration
     auto default_section = get_DEFAULT_defaults();
     default_section["keyring_path"] = keyring_file;
     default_section["master_key_path"] = masterkey_file;
     default_section["dynamic_state"] = state_file_path;
     const std::string conf_file = create_config_file(
-        temp_test_dir,
-        logger_section + metadata_cache_section + routing_section,
+        temp_test_dir, metadata_cache_section + routing_section,
         &default_section);
     auto &router = ProcessManager::launch_router(
         {"-c", conf_file}, expected_exit_code, /*catch_stderr=*/true,

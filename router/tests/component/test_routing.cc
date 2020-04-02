@@ -211,8 +211,6 @@ TEST_F(RouterRoutingTest, RoutingPluginCantSpawnMoreThreads) {
   // DEBUG is needed to synchronize with 'Running.' from the Loader::main_loop()
   // to get a stable test.
   const std::string routing_section =
-      "[logger]\n"
-      "level = DEBUG\n"
       "[routing:basic]\n"
       "bind_port = " +
       std::to_string(router_port) +

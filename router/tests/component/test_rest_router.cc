@@ -41,7 +41,6 @@
 
 #include "config_builder.h"
 #include "dim.h"
-#include "mysql/harness/logging/registry.h"
 #include "mysql/harness/utility/string.h"  // ::join
 #include "mysql_session.h"
 #include "process_launcher.h"

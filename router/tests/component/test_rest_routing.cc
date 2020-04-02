@@ -1146,11 +1146,6 @@ TEST_P(RestRoutingApiTestCluster, ensure_openapi_cluster) {
     ++i;
   }
 
-  config_sections.push_back(
-      ConfigBuilder::build_section("logger", {
-                                                 {"level", "debug"},
-                                             }));
-
   const std::string keyring_username = "mysql_router1_user";
   config_sections.push_back(ConfigBuilder::build_section(
       "metadata_cache:test", {

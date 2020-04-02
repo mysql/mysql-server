@@ -41,6 +41,7 @@
   ASSERT_THAT(expr, ::testing::Eq(std::error_code{})) << expr.message()
 
 using mysqlrouter::MySQLSession;
+using namespace std::chrono_literals;
 
 static const std::string kRestApiUsername("someuser");
 static const std::string kRestApiPassword("somepass");
@@ -205,12 +206,8 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
 
   ProcessWrapper &launch_router_static(const std::string &conf_dir,
                                        const std::string &routing_section,
-                                       bool expect_error = false,
-                                       bool log_to_console = true) {
+                                       bool expect_error = false) {
     auto def_section = get_DEFAULT_defaults();
-    if (log_to_console) {
-      def_section["logging_folder"] = "";
-    }
     // launch the router with the static routing configuration
     const std::string conf_file =
         create_config_file(conf_dir, routing_section, &def_section);
@@ -588,7 +585,7 @@ TEST_P(RouterRoutingStrategyTestFirstAvailable,
   auto &router = launch_router_static(conf_dir.name(), routing_section);
   ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port));
 
-  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  std::this_thread::sleep_for(100ms);
 
   // expect consecutive connections to be done in first-available fashion
   std::string node_port;
@@ -663,7 +660,7 @@ TEST_F(RouterRoutingStrategyStatic, StaticRoutingStrategyNextAvailable) {
   auto &router = launch_router_static(conf_dir.name(), routing_section);
   ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port));
 
-  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  std::this_thread::sleep_for(100ms);
 
   // expect consecutive connections to be done in first-available fashion
   std::string node_port;
@@ -710,10 +707,12 @@ TEST_F(RouterRoutingStrategyStatic, InvalidStrategyName) {
 
   check_exit_code(router, EXIT_FAILURE);
   EXPECT_TRUE(
-      router.expect_output("Configuration error: option routing_strategy in "
-                           "[routing:test_default] is invalid; "
-                           "valid are first-available, next-available, and "
-                           "round-robin (was 'round-robin-with-fallback'"));
+      wait_log_contains(router,
+                        "Configuration error: option routing_strategy in "
+                        "\\[routing:test_default\\] is invalid; "
+                        "valid are first-available, next-available, and "
+                        "round-robin \\(was 'round-robin-with-fallback'",
+                        500ms));
 }
 
 TEST_F(RouterRoutingStrategyStatic, InvalidMode) {
@@ -727,9 +726,12 @@ TEST_F(RouterRoutingStrategyStatic, InvalidMode) {
                                       /*expect_error=*/true);
 
   check_exit_code(router, EXIT_FAILURE);
-  EXPECT_TRUE(router.expect_output(
-      "option routing_strategy in [routing:test_default] is invalid; valid are "
-      "first-available, next-available, and round-robin (was 'invalid')"));
+  EXPECT_TRUE(wait_log_contains(
+      router,
+      "option routing_strategy in \\[routing:test_default\\] is invalid; valid "
+      "are "
+      "first-available, next-available, and round-robin \\(was 'invalid'\\)",
+      500ms));
 }
 
 TEST_F(RouterRoutingStrategyStatic, BothStrategyAndModeMissing) {
@@ -744,8 +746,10 @@ TEST_F(RouterRoutingStrategyStatic, BothStrategyAndModeMissing) {
 
   check_exit_code(router, EXIT_FAILURE);
   EXPECT_TRUE(
-      router.expect_output("Configuration error: option routing_strategy in "
-                           "[routing:test_default] is required"));
+      wait_log_contains(router,
+                        "Configuration error: option routing_strategy in "
+                        "\\[routing:test_default\\] is required",
+                        500ms));
 }
 
 TEST_F(RouterRoutingStrategyStatic, RoutingSrtategyEmptyValue) {
@@ -760,8 +764,10 @@ TEST_F(RouterRoutingStrategyStatic, RoutingSrtategyEmptyValue) {
 
   check_exit_code(router, EXIT_FAILURE);
   EXPECT_TRUE(
-      router.expect_output("Configuration error: option routing_strategy in "
-                           "[routing:test_default] needs a value"));
+      wait_log_contains(router,
+                        "Configuration error: option routing_strategy in "
+                        "\\[routing:test_default\\] needs a value",
+                        500ms));
 }
 
 TEST_F(RouterRoutingStrategyStatic, ModeEmptyValue) {
@@ -775,9 +781,10 @@ TEST_F(RouterRoutingStrategyStatic, ModeEmptyValue) {
                                       /*expect_error=*/true);
 
   check_exit_code(router, EXIT_FAILURE);
-  EXPECT_TRUE(
-      router.expect_output("Configuration error: option mode in "
-                           "[routing:test_default] needs a value"));
+  EXPECT_TRUE(wait_log_contains(router,
+                                "Configuration error: option mode in "
+                                "\\[routing:test_default\\] needs a value",
+                                500ms));
 }
 
 int main(int argc, char *argv[]) {

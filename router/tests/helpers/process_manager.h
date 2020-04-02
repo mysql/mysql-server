@@ -190,6 +190,7 @@ class ProcessManager {
    * @param default_section [DEFAULT] section parameters
    * @param name config file name
    * @param extra_defaults addional parameters to add to [DEFAULT]
+   * @param enable_debug_logging add a logger section with debug level
    *
    * @return path to the created file
    */
@@ -197,7 +198,8 @@ class ProcessManager {
       const std::string &directory, const std::string &sections = "",
       const std::map<std::string, std::string> *default_section = nullptr,
       const std::string &name = "mysqlrouter.conf",
-      const std::string &extra_defaults = "") const;
+      const std::string &extra_defaults = "",
+      bool enable_debug_logging = true) const;
 
   // returns full path to the file
   std::string create_state_file(const std::string &dir_name,

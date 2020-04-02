@@ -39,7 +39,6 @@
 
 #include "config_builder.h"
 #include "dim.h"
-#include "mysql/harness/logging/registry.h"
 #include "mysql/harness/utility/string.h"  // ::join
 #include "mysql_session.h"
 #include "rest_api_testutils.h"
