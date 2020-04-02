@@ -1,0 +1,155 @@
+SELECT logged INTO @startup
+FROM performance_schema.error_log
+WHERE error_code="MY-010116" ORDER BY logged DESC LIMIT 1;
+
+====================================================================
+Testing index for columns LOGGED
+====================================================================
+############ Explain for Query ####################################
+EXPLAIN SELECT ERROR_CODE 
+FROM performance_schema.error_log 
+WHERE LOGGED = @startup;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	error_log	NULL	const	PRIMARY	PRIMARY	7	const	#	100.00	NULL
+############ Explain for Query ####################################
+EXPLAIN SELECT ERROR_CODE
+FROM performance_schema.error_log
+WHERE LOGGED > @startup;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	error_log	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+EXPLAIN SELECT ERROR_CODE
+FROM performance_schema.error_log
+WHERE LOGGED < @startup;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	error_log	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+EXPLAIN SELECT ERROR_CODE
+FROM performance_schema.error_log
+WHERE LOGGED != @startup;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	error_log	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	90.00	Using where
+############# Explain End #########################################
+
+====================================================================
+Testing index for columns THREAD_ID
+====================================================================
+############ Explain for Query ####################################
+EXPLAIN SELECT ERROR_CODE 
+FROM performance_schema.error_log 
+WHERE THREAD_ID = "0";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	error_log	NULL	ref	THREAD_ID	THREAD_ID	9	const	#	100.00	Using where
+############ Explain for Query ####################################
+EXPLAIN SELECT ERROR_CODE
+FROM performance_schema.error_log
+WHERE THREAD_ID > "0";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	error_log	NULL	ALL	THREAD_ID	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+EXPLAIN SELECT ERROR_CODE
+FROM performance_schema.error_log
+WHERE THREAD_ID < "0";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	Impossible WHERE
+############ Explain for Query ####################################
+EXPLAIN SELECT ERROR_CODE
+FROM performance_schema.error_log
+WHERE THREAD_ID != "0";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	error_log	NULL	ALL	THREAD_ID	NULL	NULL	NULL	#	90.00	Using where
+############# Explain End #########################################
+
+====================================================================
+Testing index for columns PRIO
+====================================================================
+############ Explain for Query ####################################
+EXPLAIN SELECT ERROR_CODE 
+FROM performance_schema.error_log 
+WHERE PRIO = "System";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	error_log	NULL	ref	PRIO	PRIO	1	const	#	100.00	Using where
+############ Explain for Query ####################################
+EXPLAIN SELECT ERROR_CODE
+FROM performance_schema.error_log
+WHERE PRIO > "System";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	error_log	NULL	ALL	PRIO	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+EXPLAIN SELECT ERROR_CODE
+FROM performance_schema.error_log
+WHERE PRIO < "System";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	error_log	NULL	ALL	PRIO	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+EXPLAIN SELECT ERROR_CODE
+FROM performance_schema.error_log
+WHERE PRIO != "System";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	error_log	NULL	ALL	PRIO	NULL	NULL	NULL	#	75.00	Using where
+############# Explain End #########################################
+
+====================================================================
+Testing index for columns ERROR_CODE
+====================================================================
+############ Explain for Query ####################################
+EXPLAIN SELECT ERROR_CODE 
+FROM performance_schema.error_log 
+WHERE ERROR_CODE = "MY-010116";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	error_log	NULL	ref	ERROR_CODE	ERROR_CODE	43	const	#	100.00	NULL
+############ Explain for Query ####################################
+EXPLAIN SELECT ERROR_CODE
+FROM performance_schema.error_log
+WHERE ERROR_CODE > "MY-010116";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	error_log	NULL	ALL	ERROR_CODE	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+EXPLAIN SELECT ERROR_CODE
+FROM performance_schema.error_log
+WHERE ERROR_CODE < "MY-010116";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	error_log	NULL	ALL	ERROR_CODE	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+EXPLAIN SELECT ERROR_CODE
+FROM performance_schema.error_log
+WHERE ERROR_CODE != "MY-010116";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	error_log	NULL	ALL	ERROR_CODE	NULL	NULL	NULL	#	90.00	Using where
+############# Explain End #########################################
+
+====================================================================
+Testing index for columns SUBSYSTEM
+====================================================================
+############ Explain for Query ####################################
+EXPLAIN SELECT ERROR_CODE 
+FROM performance_schema.error_log 
+WHERE SUBSYSTEM = "Server";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	error_log	NULL	ref	SUBSYSTEM	SUBSYSTEM	31	const	#	100.00	NULL
+############ Explain for Query ####################################
+EXPLAIN SELECT ERROR_CODE
+FROM performance_schema.error_log
+WHERE SUBSYSTEM > "Server";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	error_log	NULL	ALL	SUBSYSTEM	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+EXPLAIN SELECT ERROR_CODE
+FROM performance_schema.error_log
+WHERE SUBSYSTEM < "Server";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	error_log	NULL	ALL	SUBSYSTEM	NULL	NULL	NULL	#	33.33	Using where
+############ Explain for Query ####################################
+EXPLAIN SELECT ERROR_CODE
+FROM performance_schema.error_log
+WHERE SUBSYSTEM != "Server";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	error_log	NULL	ALL	SUBSYSTEM	NULL	NULL	NULL	#	90.00	Using where
+############# Explain End #########################################
+
+#
+# read key
+#
+FLUSH STATUS;
+SELECT COUNT(ERROR_CODE) FROM performance_schema.error_log WHERE LOGGED = @startup;
+OK: handler_read_key incremented

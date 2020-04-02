@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -40,16 +40,37 @@ error log and as JSON\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0,
 "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
 */
 
+// define to support logging to performance_schema.error_log
+#define WITH_PFS_SUPPORT
+
+// define to support reading log files (from previous runs)
+#define WITH_LOG_PARSER
+
 #include <mysql/components/services/log_builtins.h>
 #include <mysql/components/services/log_shared.h>
+#include <mysql/components/services/log_sink_perfschema.h>
+#include <string>
 #include "log_service_imp.h"
 #include "my_compiler.h"
 
+#ifdef WITH_LOG_PARSER
+#include "my_rapidjson_size_t.h"
+#include "rapidjson/document.h"
+#endif
+
+#include "sql/server_component/log_builtins_internal.h"
+#include "sql/server_component/log_sink_perfschema.h"
+
 REQUIRES_SERVICE_PLACEHOLDER(log_builtins);
 REQUIRES_SERVICE_PLACEHOLDER(log_builtins_string);
+REQUIRES_SERVICE_PLACEHOLDER(log_sink_perfschema);
 
 SERVICE_TYPE(log_builtins) *log_bi = nullptr;
 SERVICE_TYPE(log_builtins_string) *log_bs = nullptr;
+SERVICE_TYPE(log_sink_perfschema) *log_ps = nullptr;
+
+/// Log-file extension
+#define LOG_EXT ".json"
 
 static bool inited = false;
 static int opened = 0;
@@ -74,6 +95,79 @@ struct my_state {
   char *ext;        ///< file extension of a given error stream
 };
 
+#ifdef WITH_LOG_PARSER
+
+#define MY_RAPID_INT(key, val, dflt)                         \
+  ulonglong val = dflt;                                      \
+  iter = document.FindMember(key);                           \
+  if ((iter != document.MemberEnd()) && iter->value.IsInt()) \
+    val = iter->value.GetInt();
+
+#define MY_RAPID_STR(key, val, len)                               \
+  const char *val = nullptr;                                      \
+  size_t len = 0;                                                 \
+  iter = document.FindMember(key);                                \
+  if ((iter != document.MemberEnd()) && iter->value.IsString()) { \
+    val = iter->value.GetString();                                \
+    len = iter->value.GetStringLength();                          \
+  }
+
+/**
+  Parse a single line in an error log of this format.
+
+  @param line_start   pointer to the beginning of the line ('{')
+  @param line_length  length of the line
+
+  @retval  0   Success
+  @retval !=0  Failure (out of memory, malformed argument, etc.)
+*/
+DEFINE_METHOD(log_service_error, log_service_imp::parse_log_line,
+              (const char *line_start, size_t line_length)) {
+  using namespace rapidjson;
+
+  Document document;
+  document.Parse(line_start, line_length);
+  if (!document.IsObject()) return LOG_SERVICE_PARSE_ERROR;
+
+  Value::ConstMemberIterator iter;
+  MY_RAPID_STR("time", j_time, j_time_len);
+  MY_RAPID_INT("thread", j_thread_id, 0);
+  MY_RAPID_INT("prio", j_prio, ERROR_LEVEL);
+  MY_RAPID_STR("err_symbol", j_sym, j_sym_len);
+  MY_RAPID_INT("err_code", j_code, 0);
+  MY_RAPID_STR("subsystem", j_subsys, j_subsys_len);
+
+  // If err_code is not present, fall back on err_symbol
+  char err_code_buffer[32];
+  const char *err_code_ptr = nullptr;
+  size_t err_code_length = 0;
+  int err_code_num = -1;
+
+  if (j_code > 0)
+    err_code_num = j_code;
+  else if (j_sym != nullptr) {
+    std::string error_symbol_with_terminator(j_sym, j_sym_len);
+    err_code_num =
+        log_bi->errcode_by_errsymbol(error_symbol_with_terminator.c_str());
+  }
+
+  if (err_code_num >= 0) {
+    err_code_length = snprintf(err_code_buffer, sizeof(err_code_buffer) - 1,
+                               "MY-%06u", err_code_num);
+    err_code_ptr = err_code_buffer;
+  }
+
+  // convert ISO8601 timestamp to microsecond representation
+  ulonglong microseconds = 0;
+  if (j_time)
+    microseconds = log_bi->parse_iso8601_timestamp(j_time, j_time_len);
+
+  return log_ps->event_add(microseconds, j_thread_id, j_prio, err_code_ptr,
+                           err_code_length, j_subsys, j_subsys_len, line_start,
+                           line_length);
+}
+#endif
+
 /**
   services: log sinks: JSON structured dump writer
   Will write structured info to stderr/file. Binary will be escaped according
@@ -83,14 +177,16 @@ struct my_state {
 
   @param           instance             instance state
   @param           ll                   the log line to write
-  @retval          int                  number of accepted fields, if any
+  @retval          >=0                  number of accepted fields, if any
+  @retval          <0                   error
 */
 DEFINE_METHOD(int, log_service_imp::run, (void *instance, log_line *ll)) {
-  char out_buff[LOG_BUFF_MAX];
-  char esc_buff[LOG_BUFF_MAX];
-  const char *inp_readpos;
-  char *out_writepos = out_buff;
-  size_t len, out_left = LOG_BUFF_MAX, inp_left;
+  char internal_buff[LOG_BUFF_MAX];  // output buffer if none given by caller
+  char esc_buff[LOG_BUFF_MAX];       // buffer to JSON-escape strings in
+  char *out_buff = internal_buff;    // result buffer
+  const char *inp_readpos;           // read-position in input
+  char *out_writepos;                // write-position in output
+  size_t len, out_left, out_size = sizeof(internal_buff), inp_left;
   int wellknown_label, out_fields = 0;
   const char *comma = (pretty != JSON_NOSPACE) ? " " : "";
   const char *separator;
@@ -99,8 +195,20 @@ DEFINE_METHOD(int, log_service_imp::run, (void *instance, log_line *ll)) {
   log_item_type_mask out_types = 0;
   log_item_iter *it;
   log_item *li;
+#ifdef WITH_PFS_SUPPORT
+  log_item *output_buffer = log_bi->line_get_output_buffer(ll);
 
-  if (instance == nullptr) return out_fields;
+  // use caller's buffer if one was provided
+  if (output_buffer != nullptr) {
+    out_buff = (char *)output_buffer->data.data_buffer.str;
+    out_size = output_buffer->data.data_buffer.length;
+  }
+#endif
+
+  out_writepos = out_buff;
+  out_left = out_size;
+
+  if (instance == nullptr) return LOG_SERVICE_INVALID_ARGUMENT;
 
   if (pretty == JSON_NOSPACE)
     separator = ":";
@@ -109,16 +217,20 @@ DEFINE_METHOD(int, log_service_imp::run, (void *instance, log_line *ll)) {
   else
     separator = " : ";
 
-  if ((it = log_bi->line_item_iter_acquire(ll)) == nullptr) return out_fields;
+  if ((it = log_bi->line_item_iter_acquire(ll)) == nullptr)
+    return LOG_SERVICE_MISC_ERROR; /* purecov: inspected */
 
   if ((li = log_bi->line_item_iter_first(it)) != nullptr) {
     len = log_bs->substitute(out_writepos, out_left, "{");
     out_left -= len;
     out_writepos += len;
 
+    // Iterate until we're out of items, or out of space in the resulting row.
     while ((li != nullptr) && (out_left > 0)) {
       item_type = li->type;
+      len = 0;
 
+      // Sanity-check the item.
       if (log_bi->item_inconsistent(li)) {
         len =
             log_bs->substitute(out_writepos, out_left,
@@ -126,7 +238,8 @@ DEFINE_METHOD(int, log_service_imp::run, (void *instance, log_line *ll)) {
                                "class %d, type %d\"",
                                comma, (li->key == nullptr) ? "_null" : li->key,
                                separator, li->item_class, li->type);
-        goto broken_item;
+        item_type = LOG_ITEM_END;  // do not flag current item-type as added
+        goto broken_item;  // add this notice if there is enough space left
       }
 
       if (item_type == LOG_ITEM_LOG_PRIO) {
@@ -139,27 +252,34 @@ DEFINE_METHOD(int, log_service_imp::run, (void *instance, log_line *ll)) {
           inp_left = li->data.data_string.length;
 
           if (inp_readpos != nullptr) {
-            size_t esc_len = 0;
+            size_t esc_len = 0;  // characters used in escape buffer
 
             // escape value for JSON: \ " \x00..\x1f  (RfC7159)
-            while ((inp_left-- > 0) && (esc_len < LOG_BUFF_MAX - 2)) {
+            while (inp_left-- > 0) {
               if ((*inp_readpos == '\\') || (*inp_readpos == '\"')) {
+                if (esc_len >= (sizeof(esc_buff) - 2)) goto skip_item;
                 esc_buff[esc_len++] = '\\';
                 esc_buff[esc_len++] = *(inp_readpos++);
-              } else if (*inp_readpos <= 0x1f) {
-                esc_len += log_bs->substitute(&esc_buff[esc_len],
-                                              LOG_BUFF_MAX - esc_len - 1,
-                                              "\\u%04x", (int)*(inp_readpos++));
-              } else
+              } else if (((unsigned char)*inp_readpos) <= 0x1f) {
+                size_t esc_have = sizeof(esc_buff) - esc_len - 1;
+                size_t esc_want;
+                esc_want = log_bs->substitute(
+                    &esc_buff[esc_len], esc_have, "\\u%04x",
+                    (unsigned int)((unsigned char)*(inp_readpos++)));
+                if (esc_want >= esc_have) goto skip_item;
+
+                esc_len += esc_want;
+              } else {
+                if (esc_len >= (sizeof(esc_buff) - 1)) goto skip_item;
                 esc_buff[esc_len++] = *(inp_readpos++);
+              }
             }
             esc_buff[esc_len] = '\0';
 
             len = log_bs->substitute(out_writepos, out_left,
                                      "%s\"%s\"%s\"%.*s\"", comma, li->key,
                                      separator, (int)esc_len, esc_buff);
-          } else
-            len = 0;
+          }
           break;
 
         case LOG_INTEGER:
@@ -175,12 +295,22 @@ DEFINE_METHOD(int, log_service_imp::run, (void *instance, log_line *ll)) {
           break;
 
         default:
+          // unknown item-class
+          goto skip_item; /* purecov: inspected */
           break;
       }
 
-      out_types |= item_type;
-
+      // label: item is malformed or otherwise broken; notice inserted instead
     broken_item:
+
+      // item is too large, skip it
+      if (len > out_left) {
+        *out_writepos = '\0';  // "remove" truncated write
+        goto skip_item;
+      }
+
+      out_types |= item_type;  // successfully added; flag item-type as present
+
       out_fields++;
       out_left -= len;
       out_writepos += len;
@@ -189,6 +319,8 @@ DEFINE_METHOD(int, log_service_imp::run, (void *instance, log_line *ll)) {
                   ? ",\n  "
                   : ((pretty == JSON_NOSPACE) ? "," : ", ");
 
+      // label: item was too large and therefore was skipped
+    skip_item:
       li = log_bi->line_item_iter_next(it);
     }
 
@@ -202,14 +334,18 @@ DEFINE_METHOD(int, log_service_imp::run, (void *instance, log_line *ll)) {
             out_writepos, out_left, "%s\"%s\"%s\"%.*s\"", comma,
             log_bi->wellknown_get_name((log_item_type)wellknown_label),
             separator, (int)log_bs->length(label), label);
-        out_left -= len;
-        out_writepos += len;
-        out_types |= item_type;
+        if (len < out_left) {
+          out_fields++;
+          out_left -= len;
+          out_writepos += len;
+          out_types |= LOG_ITEM_LOG_LABEL;
+        } else                  // prio didn't fit
+          *out_writepos = '\0'; /* purecov: inspected */
       }
 
       /*
         We're multiplexing several JSON streams into the same output
-        stream, so add a stream_id to they can be told apart.
+        stream, so we add a stream_id so they can be told apart.
       */
       if ((log_bi->dedicated_errstream(((my_state *)instance)->errstream) <
            1) &&
@@ -217,23 +353,109 @@ DEFINE_METHOD(int, log_service_imp::run, (void *instance, log_line *ll)) {
         len = log_bs->substitute(out_writepos, out_left, "%s\"%s\"%s\"%d\"",
                                  comma, "stream_id", separator,
                                  ((my_state *)instance)->id);
-        out_left -= len;
-        out_writepos += len;
+        if (len < out_left) {
+          out_fields++;
+          out_left -= len;
+          out_writepos += len;
+        } else       // no soft-fail for "cannot write needed stream_id"
+          goto fail; /* purecov: inspected */
       }
 
       len = log_bs->substitute(out_writepos, out_left,
                                (pretty != JSON_NOSPACE) ? " }" : "}");
+      if (len >= out_left)  // no soft-fail for "cannot write needed terminator"
+        goto fail;          /* purecov: inspected */
+
       out_left -= len;
       out_writepos += len;
 
+#ifdef WITH_PFS_SUPPORT
+      // support for performance_schema.error_log
+      if (output_buffer != nullptr) {
+        output_buffer->data.data_buffer.length = out_size - out_left;
+        // we update this only if we created a valid record
+        output_buffer->type = LOG_ITEM_RET_BUFFER;
+      }
+#endif
+
+      // write the record to the stream / log-file
       log_bi->write_errstream(((my_state *)instance)->errstream, out_buff,
-                              (size_t)LOG_BUFF_MAX - out_left);
+                              (size_t)out_size - out_left);
     }
   }
 
+fail:
   log_bi->line_item_iter_release(it);
 
   return out_fields;
+}
+
+// See log_service_imp::get_log_name below for description
+static log_service_error get_json_log_name(void *instance, char *buf,
+                                           size_t bufsize) {
+  my_state *mi = (my_state *)instance;
+  int stream_id = 0;  // default stream-ID
+  size_t len;
+
+  if (buf == nullptr) {
+    return LOG_SERVICE_BUFFER_SIZE_INSUFFICIENT; /* purecov: inspected */
+  }
+
+  // instance was given and has an existing extension. return it.
+  if ((mi != nullptr) && (mi->ext != nullptr)) {
+    if (bufsize <= strlen(mi->ext)) {  // caller's buffer is too small
+      return LOG_SERVICE_BUFFER_SIZE_INSUFFICIENT; /* purecov: inspected */
+    }
+    strcpy(buf, mi->ext);
+    return LOG_SERVICE_SUCCESS;
+  }
+
+  // no extension exists. make one.
+
+  // is there enough space?
+  if (bufsize < (3 + sizeof(LOG_EXT)))           // caller's buffer is too small
+    return LOG_SERVICE_BUFFER_SIZE_INSUFFICIENT; /* purecov: inspected */
+
+  if (mi != nullptr)  // non-default session was given; retrieve its stream-ID.
+    stream_id = mi->id;
+
+  // make the name with the correct stream-ID.
+  len = log_bs->substitute(buf, bufsize, ".%02d" LOG_EXT, stream_id);
+
+  if (len >= bufsize)
+    return LOG_SERVICE_BUFFER_SIZE_INSUFFICIENT; /* purecov: inspected */
+
+  return LOG_SERVICE_SUCCESS;
+}
+
+/**
+  Provide the name for a log file this service would access.
+
+  @param instance  instance info returned by open() if requesting
+                   the file-name for a specific open instance.
+                   nullptr to get the name of the default instance
+                   (even if it that log is not open). This is used
+                   to determine the name of the log-file to load on
+                   start-up.
+  @param buf       Address of a buffer allocated in the caller.
+                   The callee may return an extension starting
+                   with '.', in which case the path and file-name
+                   will be the system's default, except with the
+                   given extension.
+                   Alternatively, the callee may return a file-name
+                   which is assumed to be in the same directory
+                   as the default log.
+                   Values are C-strings.
+  @param bufsize   The size of the allocation in the caller.
+
+  @retval  0   Success
+  @retval -1   Mode not supported (only default / only instances supported)
+  @retval -2   Buffer not large enough
+  @retval -3   Misc. error
+*/
+DEFINE_METHOD(log_service_error, log_service_imp::get_log_name,
+              (void *instance, char *buf, size_t bufsize)) {
+  return get_json_log_name(instance, buf, bufsize);
 }
 
 /**
@@ -254,45 +476,54 @@ DEFINE_METHOD(int, log_service_imp::run, (void *instance, log_line *ll)) {
   @retval  <0        a new instance could not be created
   @retval  =0        success, returned hande is valid
 */
-DEFINE_METHOD(int, log_service_imp::open,
+DEFINE_METHOD(log_service_error, log_service_imp::open,
               (log_line * ll MY_ATTRIBUTE((unused)), void **instance)) {
-  int rr;
+  log_service_error rr;
   my_state *mi;
   char buff[10];
   size_t len;
 
-  if (instance == nullptr) return -1;
+  if (instance == nullptr)               // nowhere to return the handle
+    return LOG_SERVICE_INVALID_ARGUMENT; /* purecov: inspected */
 
   *instance = nullptr;
 
+  if (opened >= 99)  // limit instances, and thus file-name length
+    return LOG_SERVICE_TOO_MANY_INSTANCES; /* purecov: inspected */
+
+  // malloc state failed
   if ((mi = (my_state *)log_bs->malloc(sizeof(my_state))) == nullptr) {
-    rr = -2;
-    goto fail;
+    rr = LOG_SERVICE_OUT_OF_MEMORY; /* purecov: inspected */
+    goto fail;                      /* purecov: inspected */
   }
 
+  mi->ext = nullptr;
   mi->id = opened;
 
-  len = log_bs->substitute(buff, 9, ".%02d.json", mi->id);
+  if ((rr = get_json_log_name(mi, buff, sizeof(buff))) != LOG_SERVICE_SUCCESS)
+    goto fail_with_free; /* purecov: inspected */
 
-  if ((mi->ext = log_bs->strndup(buff, len + 1)) == nullptr) {
-    rr = -3;
-    goto fail_with_free;
+  len = strlen(buff);
+
+  if ((mi->ext = log_bs->strndup(buff, len + 1)) ==
+      nullptr) {                    // copy ext failed
+    rr = LOG_SERVICE_OUT_OF_MEMORY; /* purecov: inspected */
+    goto fail_with_free;            /* purecov: inspected */
   }
 
   if ((rr = log_bi->open_errstream(mi->ext, &mi->errstream)) >= 0) {
     opened++;
     *instance = (void *)mi;
-    return 0;
+    return LOG_SERVICE_SUCCESS;
   }
 
-  log_bs->free(mi->ext);
-  rr = -4;
+  log_bs->free(mi->ext); /* purecov: begin inspected */
 
 fail_with_free:
   log_bs->free(mi);
 
 fail:
-  return rr;
+  return rr; /* purecov: end */
 }
 
 /**
@@ -306,11 +537,11 @@ fail:
   @retval  <0        an error occurred
   @retval  =0        success
 */
-DEFINE_METHOD(int, log_service_imp::close, (void **instance)) {
+DEFINE_METHOD(log_service_error, log_service_imp::close, (void **instance)) {
   my_state *mi;
-  int rr;
+  log_service_error rr;
 
-  if (instance == nullptr) return -1;
+  if (instance == nullptr) return LOG_SERVICE_INVALID_ARGUMENT;
 
   mi = (my_state *)*instance;
 
@@ -338,16 +569,17 @@ DEFINE_METHOD(int, log_service_imp::close, (void **instance)) {
   @param   instance  State-pointer that was returned on open.
                      Value may be changed in flush.
 
-  @retval  <0        an error occurred
-  @retval  =0        no work was done
-  @retval  >0        flush completed without incident
+  @retval  LOG_SERVICE_NOTHING_DONE        no work was done
+  @retval  LOG_SERVICE_SUCCESS             flush completed without incident
+  @retval  otherwise                       an error occurred
 */
-DEFINE_METHOD(int, log_service_imp::flush, (void **instance)) {
+DEFINE_METHOD(log_service_error, log_service_imp::flush, (void **instance)) {
   my_state *mi;
 
-  if (instance == nullptr) return -1;
+  if (instance == nullptr) return LOG_SERVICE_INVALID_ARGUMENT;
 
-  if ((mi = *((my_state **)instance)) == nullptr) return -2;
+  if ((mi = *((my_state **)instance)) == nullptr)
+    return LOG_SERVICE_INVALID_ARGUMENT; /* purecov: inspected */
 
   log_bi->close_errstream(&mi->errstream);
 
@@ -361,7 +593,14 @@ DEFINE_METHOD(int, log_service_imp::flush, (void **instance)) {
   @retval  >=0       characteristics (a set of log_service_chistics flags)
 */
 DEFINE_METHOD(int, log_service_imp::characteristics, (void)) {
-  return LOG_SERVICE_SINK;
+  return LOG_SERVICE_SINK
+#ifdef WITH_LOG_PARSER
+         | LOG_SERVICE_LOG_PARSER
+#endif
+#ifdef WITH_PFS_SUPPORT
+         | LOG_SERVICE_PFS_SUPPORT
+#endif
+      ;
 }
 
 /**
@@ -395,6 +634,7 @@ mysql_service_status_t log_service_init() {
 
   log_bi = mysql_service_log_builtins;
   log_bs = mysql_service_log_builtins_string;
+  log_ps = mysql_service_log_sink_perfschema;
 
   return false;
 }
@@ -402,8 +642,13 @@ mysql_service_status_t log_service_init() {
 /* implementing a service: log_service */
 BEGIN_SERVICE_IMPLEMENTATION(log_sink_json, log_service)
 log_service_imp::run, log_service_imp::flush, log_service_imp::open,
-    log_service_imp::close,
-    log_service_imp::characteristics END_SERVICE_IMPLEMENTATION();
+    log_service_imp::close, log_service_imp::characteristics,
+#ifdef WITH_LOG_PARSER
+    log_service_imp::parse_log_line,
+#else
+    nullptr,
+#endif
+    log_service_imp::get_log_name END_SERVICE_IMPLEMENTATION();
 
 /* component provides: just the log_service service, for now */
 BEGIN_COMPONENT_PROVIDES(log_sink_json)
@@ -412,7 +657,7 @@ PROVIDES_SERVICE(log_sink_json, log_service), END_COMPONENT_PROVIDES();
 /* component requires: log-builtins */
 BEGIN_COMPONENT_REQUIRES(log_sink_json)
 REQUIRES_SERVICE(log_builtins), REQUIRES_SERVICE(log_builtins_string),
-    END_COMPONENT_REQUIRES();
+    REQUIRES_SERVICE(log_sink_perfschema), END_COMPONENT_REQUIRES();
 
 /* component description */
 BEGIN_COMPONENT_METADATA(log_sink_json)

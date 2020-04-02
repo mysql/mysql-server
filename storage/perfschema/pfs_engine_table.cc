@@ -37,6 +37,7 @@
 #include "my_dbug.h"
 #include "my_macros.h"
 #include "my_sqlcommand.h"
+#include "my_time.h"
 #include "myisampack.h"
 #include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/psi/psi_base.h"
@@ -61,6 +62,7 @@
 #include "storage/perfschema/table_ees_by_thread_by_error.h"
 #include "storage/perfschema/table_ees_by_user_by_error.h"
 #include "storage/perfschema/table_ees_global_by_error.h"
+#include "storage/perfschema/table_error_log.h"
 #include "storage/perfschema/table_esgs_by_account_by_event_name.h"
 #include "storage/perfschema/table_esgs_by_host_by_event_name.h"
 #include "storage/perfschema/table_esgs_by_thread_by_event_name.h"
@@ -558,6 +560,7 @@ bool PFS_table_context::is_item_set(ulong n) {
 
 static PFS_engine_table_share *all_shares[] = {
     &table_cond_instances::m_share,
+    &table_error_log::m_share,
     &table_events_waits_current::m_share,
     &table_events_waits_history::m_share,
     &table_events_waits_history_long::m_share,
@@ -1337,6 +1340,35 @@ enum ha_rkey_function PFS_key_reader::read_longlong(
 enum ha_rkey_function PFS_key_reader::read_ulonglong(
     enum ha_rkey_function find_flag, bool &isnull, ulonglong *value) {
   READ_INT_COMMON(8, HA_KEYTYPE_ULONGLONG, unsigned long long, uint8korr);
+}
+
+enum ha_rkey_function PFS_key_reader::read_timestamp(
+    enum ha_rkey_function find_flag, bool &isnull, ulonglong *value, uint dec) {
+  size_t data_size = 4 + ((size_t)((dec + 1) / 2));
+  struct timeval tm;
+
+  if (m_remaining_key_part_info->store_length <= m_remaining_key_len) {
+    DBUG_ASSERT(m_remaining_key_part_info->type == HA_KEYTYPE_BINARY);
+    DBUG_ASSERT(m_remaining_key_part_info->store_length >= data_size);
+    isnull = false;
+    if (m_remaining_key_part_info->field->is_nullable()) {
+      if (m_remaining_key[0]) {
+        isnull = true;
+      }
+      m_remaining_key += HA_KEY_NULL_LENGTH;
+      m_remaining_key_len -= HA_KEY_NULL_LENGTH;
+    }
+    my_timestamp_from_binary(&tm, m_remaining_key, dec);
+    ulonglong data = (((ulonglong)tm.tv_sec) * 1000000ULL) + tm.tv_usec;
+    m_remaining_key += data_size;
+    m_remaining_key_len -= (uint)data_size;
+    m_parts_found++;
+    m_remaining_key_part_info++;
+    *value = data;
+    return ((m_remaining_key_len == 0) ? find_flag : HA_READ_KEY_EXACT);
+  }
+  DBUG_ASSERT(m_remaining_key_len == 0);
+  return HA_READ_INVALID;
 }
 
 enum ha_rkey_function PFS_key_reader::read_varchar_utf8(

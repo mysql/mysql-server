@@ -12,6 +12,7 @@ binary_log_transaction_compression_stats
 cond_instances
 data_lock_waits
 data_locks
+error_log
 events_errors_summary_by_account_by_error
 events_errors_summary_by_host_by_error
 events_errors_summary_by_thread_by_error

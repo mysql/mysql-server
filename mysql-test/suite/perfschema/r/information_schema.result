@@ -7,6 +7,7 @@ performance_schema	binary_log_transaction_compression_stats	def
 performance_schema	cond_instances	def
 performance_schema	data_lock_waits	def
 performance_schema	data_locks	def
+performance_schema	error_log	def
 performance_schema	events_errors_summary_by_account_by_error	def
 performance_schema	events_errors_summary_by_host_by_error	def
 performance_schema	events_errors_summary_by_thread_by_error	def
@@ -118,6 +119,7 @@ binary_log_transaction_compression_stats	BASE TABLE	PERFORMANCE_SCHEMA
 cond_instances	BASE TABLE	PERFORMANCE_SCHEMA
 data_lock_waits	BASE TABLE	PERFORMANCE_SCHEMA
 data_locks	BASE TABLE	PERFORMANCE_SCHEMA
+error_log	BASE TABLE	PERFORMANCE_SCHEMA
 events_errors_summary_by_account_by_error	BASE TABLE	PERFORMANCE_SCHEMA
 events_errors_summary_by_host_by_error	BASE TABLE	PERFORMANCE_SCHEMA
 events_errors_summary_by_thread_by_error	BASE TABLE	PERFORMANCE_SCHEMA
@@ -229,6 +231,7 @@ binary_log_transaction_compression_stats	10	Dynamic
 cond_instances	10	Dynamic
 data_lock_waits	10	Dynamic
 data_locks	10	Dynamic
+error_log	10	Dynamic
 events_errors_summary_by_account_by_error	10	Dynamic
 events_errors_summary_by_host_by_error	10	Dynamic
 events_errors_summary_by_thread_by_error	10	Dynamic
@@ -341,6 +344,7 @@ binary_log_transaction_compression_stats	0
 cond_instances	0
 data_lock_waits	0
 data_locks	0
+error_log	0
 events_errors_summary_by_account_by_error	0
 events_errors_summary_by_host_by_error	0
 events_errors_summary_by_thread_by_error	0
@@ -457,6 +461,7 @@ binary_log_transaction_compression_stats	0	0
 cond_instances	0	0
 data_lock_waits	0	0
 data_locks	0	0
+error_log	0	0
 events_errors_summary_by_account_by_error	0	0
 events_errors_summary_by_host_by_error	0	0
 events_errors_summary_by_thread_by_error	0	0
@@ -568,6 +573,7 @@ binary_log_transaction_compression_stats	0	0	NULL
 cond_instances	0	0	NULL
 data_lock_waits	0	0	NULL
 data_locks	0	0	NULL
+error_log	0	0	NULL
 events_errors_summary_by_account_by_error	0	0	NULL
 events_errors_summary_by_host_by_error	0	0	NULL
 events_errors_summary_by_thread_by_error	0	0	NULL
@@ -679,6 +685,7 @@ binary_log_transaction_compression_stats	NULL	NULL	NULL
 cond_instances	NULL	NULL	NULL
 data_lock_waits	NULL	NULL	NULL
 data_locks	NULL	NULL	NULL
+error_log	NULL	NULL	NULL
 events_errors_summary_by_account_by_error	NULL	NULL	NULL
 events_errors_summary_by_host_by_error	NULL	NULL	NULL
 events_errors_summary_by_thread_by_error	NULL	NULL	NULL
@@ -790,6 +797,7 @@ binary_log_transaction_compression_stats	utf8mb4_0900_ai_ci	NULL
 cond_instances	utf8mb4_0900_ai_ci	NULL
 data_lock_waits	utf8mb4_0900_ai_ci	NULL
 data_locks	utf8mb4_0900_ai_ci	NULL
+error_log	utf8mb4_0900_ai_ci	NULL
 events_errors_summary_by_account_by_error	utf8mb4_0900_ai_ci	NULL
 events_errors_summary_by_host_by_error	utf8mb4_0900_ai_ci	NULL
 events_errors_summary_by_thread_by_error	utf8mb4_0900_ai_ci	NULL
@@ -901,6 +909,7 @@ binary_log_transaction_compression_stats
 cond_instances	
 data_lock_waits	
 data_locks	
+error_log	
 events_errors_summary_by_account_by_error	
 events_errors_summary_by_host_by_error	
 events_errors_summary_by_thread_by_error	
@@ -1012,6 +1021,7 @@ binary_log_transaction_compression_stats
 cond_instances	
 data_lock_waits	
 data_locks	
+error_log	
 events_errors_summary_by_account_by_error	
 events_errors_summary_by_host_by_error	
 events_errors_summary_by_thread_by_error	

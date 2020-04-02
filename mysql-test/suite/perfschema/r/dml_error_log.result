@@ -1,0 +1,27 @@
+SELECT * FROM performance_schema.error_log
+LIMIT 1;
+SELECT * FROM performance_schema.error_log
+WHERE error_code="MY-010116"
+    OR data LIKE "% starting as process %"
+ LIMIT 1;
+INSERT INTO performance_schema.error_log
+SET logged=0,thread_id=0,prio="System",error_code="MY-123456",
+subsystem="Server",data="This is a test. One that should fail.";
+ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'error_log'
+UPDATE performance_schema.error_log
+SET subsystem='Server';
+ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'error_log'
+UPDATE performance_schema.error_log
+SET subsystem='Server' WHERE prio!='System';
+ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'error_log'
+DELETE FROM performance_schema.error_log
+WHERE subsystem='Server';
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'error_log'
+DELETE FROM performance_schema.error_log;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'error_log'
+LOCK TABLES performance_schema.error_log READ;
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'error_log'
+UNLOCK TABLES;
+LOCK TABLES performance_schema.error_log WRITE;
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'error_log'
+UNLOCK TABLES;

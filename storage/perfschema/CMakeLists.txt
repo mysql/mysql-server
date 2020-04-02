@@ -30,6 +30,7 @@ ADD_DEFINITIONS(-DMYSQL_SERVER)
 SET(PERFSCHEMA_SOURCES
 cursor_by_account.cc
 cursor_by_account.h
+cursor_by_error_log.h
 cursor_by_host.h
 cursor_by_thread.h
 cursor_by_thread_connect_attr.h
@@ -81,6 +82,7 @@ table_ees_by_host_by_error.h
 table_ees_by_thread_by_error.h
 table_ees_by_user_by_error.h
 table_ees_global_by_error.h
+table_error_log.h
 table_esgs_by_account_by_event_name.h
 table_esgs_by_host_by_event_name.h
 table_esgs_by_thread_by_event_name.h
@@ -188,6 +190,7 @@ table_plugin_table.h
 table_replication_applier_filters.h
 table_replication_applier_global_filters.h
 cursor_by_account.cc
+cursor_by_error_log.cc
 cursor_by_host.cc
 cursor_by_thread.cc
 cursor_by_thread_connect_attr.cc
@@ -240,6 +243,7 @@ table_ees_by_host_by_error.cc
 table_ees_by_thread_by_error.cc
 table_ees_by_user_by_error.cc
 table_ees_global_by_error.cc
+table_error_log.cc
 table_esgs_by_account_by_event_name.cc
 table_esgs_by_host_by_event_name.cc
 table_esgs_by_thread_by_event_name.cc

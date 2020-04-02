@@ -382,10 +382,10 @@ class Sys_var_enum : public Sys_var_typelib {
       enum binlog_status_enum binlog_status_arg = VARIABLE_NOT_IN_BINLOG,
       on_check_function on_check_func = nullptr,
       on_update_function on_update_func = nullptr,
-      const char *substitute = nullptr)
+      const char *substitute = nullptr, int parse_flag = PARSE_NORMAL)
       : Sys_var_typelib(name_arg, comment, flag_args, off, getopt, SHOW_CHAR,
                         values, def_val, lock, binlog_status_arg, on_check_func,
-                        on_update_func, substitute) {
+                        on_update_func, substitute, parse_flag) {
     option.var_type = GET_ENUM;
     global_var(ulong) = def_val;
     DBUG_ASSERT(def_val < typelib.count);

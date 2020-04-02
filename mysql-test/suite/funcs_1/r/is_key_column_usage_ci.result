@@ -200,6 +200,7 @@ def	performance_schema	OWNER_THREAD_ID	def	performance_schema	prepared_statement
 def	performance_schema	PRIMARY	def	performance_schema	cond_instances	OBJECT_INSTANCE_BEGIN
 def	performance_schema	PRIMARY	def	performance_schema	data_locks	ENGINE
 def	performance_schema	PRIMARY	def	performance_schema	data_locks	ENGINE_LOCK_ID
+def	performance_schema	PRIMARY	def	performance_schema	error_log	LOGGED
 def	performance_schema	PRIMARY	def	performance_schema	events_stages_current	EVENT_ID
 def	performance_schema	PRIMARY	def	performance_schema	events_stages_current	THREAD_ID
 def	performance_schema	PRIMARY	def	performance_schema	events_stages_history	EVENT_ID

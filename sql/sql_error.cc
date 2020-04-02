@@ -67,7 +67,6 @@ This file contains the implementation of error and warnings related
 #include "mysqld_error.h"
 #include "sql/derror.h"  // ER_THD
 #include "sql/item.h"
-#include "sql/log.h"  // sql_print_warning
 #include "sql/my_decimal.h"
 #include "sql/protocol.h"
 #include "sql/sql_class.h"  // THD

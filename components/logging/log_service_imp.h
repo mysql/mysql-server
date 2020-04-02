@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -142,7 +142,7 @@ class log_service_imp {
     @retval  =0        no work was done
     @retval  >0        flush completed without incident
   */
-  static DEFINE_METHOD(int, flush, (void **instance));
+  static DEFINE_METHOD(log_service_error, flush, (void **instance));
 
   /**
     Open a new instance.
@@ -162,7 +162,8 @@ class log_service_imp {
     @retval  <0        a new instance could not be created
     @retval  =0        success, returned hande is valid
   */
-  static DEFINE_METHOD(int, open, (log_line * ll, void **instance));
+  static DEFINE_METHOD(log_service_error, open,
+                       (log_line * ll, void **instance));
 
   /**
     Close and release an instance. Flushes any buffers.
@@ -175,7 +176,7 @@ class log_service_imp {
     @retval  <0        an error occurred
     @retval  =0        success
   */
-  static DEFINE_METHOD(int, close, (void **instance));
+  static DEFINE_METHOD(log_service_error, close, (void **instance));
 
   /**
     Get characteristics of a log-service.
@@ -184,6 +185,46 @@ class log_service_imp {
     @retval  >=0       characteristics (a set of log_service_chistics flags)
   */
   static DEFINE_METHOD(int, characteristics, (void));
+
+  /**
+    Parse a single line in an error log of this format.  (optional)
+
+    @param line_start   pointer to the beginning of the line ('{')
+    @param line_length  length of the line
+
+    @retval  0   Success
+    @retval !=0  Failure (out of memory, malformed argument, etc.)
+  */
+  static DEFINE_METHOD(log_service_error, parse_log_line,
+                       (const char *line_start, size_t line_length));
+
+  /**
+    Provide the name for a log file this service would access.
+
+    @param instance  instance info returned by open() if requesting
+                     the file-name for a specific open instance.
+                     nullptr to get the name of the default instance
+                     (even if it that log is not open). This is used
+                     to determine the name of the log-file to load on
+                     start-up.
+    @param buf       Address of a buffer allocated in the caller.
+                     The callee may return an extension starting
+                     with '.', in which case the path and file-name
+                     will be the system's default, except with the
+                     given extension.
+                     Alternatively, the callee may return a file-name
+                     which is assumed to be in the same directory
+                     as the default log.
+                     Values are C-strings.
+    @param bufsize   The size of the allocation in the caller.
+
+    @retval LOG_SERVICE_SUCCESS  Success
+    @retval LOG_SERVICE_UNSUPPORTED_MODE  only default/only instances supported
+    @retval LOG_SERVICE_BUFFER_SIZE_INSUFFICIENT
+    @retval LOG_SERVICE_MISC_ERROR
+  */
+  static DEFINE_METHOD(log_service_error, get_log_name,
+                       (void *instance, char *buf, size_t bufsize));
 };
 
 #endif /* LOG_SERVICE_IMP_H */

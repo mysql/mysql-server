@@ -262,6 +262,10 @@ struct PFS_key_reader {
   enum ha_rkey_function read_ulonglong(enum ha_rkey_function find_flag,
                                        bool &isnull, ulonglong *value);
 
+  enum ha_rkey_function read_timestamp(enum ha_rkey_function find_flag,
+                                       bool &isnull, ulonglong *value,
+                                       uint dec);
+
   enum ha_rkey_function read_varchar_utf8(enum ha_rkey_function find_flag,
                                           bool &isnull, char *buffer,
                                           uint *buffer_length,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -33,11 +33,15 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "log_builtins_imp.h"  // internal structs
                                // connection_events_loop_aborted()
 
-#include "my_dir.h"
+#include "log_sink_buffer.h"
+#include "log_sink_perfschema.h"
+#include "log_sink_trad.h"
+
 #include "mysys_err.h"
 
-#include <mysql/components/services/log_service.h>
 #include <mysql/components/services/log_shared.h>  // data types
+
+#include "my_time.h"  // str_to_datetime()
 
 #include "sql/current_thd.h"  // current_thd
 #include "sql/log.h"          // make_iso8601_timestamp, log_write_errstream,
@@ -46,6 +50,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
                               // error_message_for_error_log
 #include "sql/mysqld.h"       // opt_log_(timestamps|error_services),
 #include "sql/sql_class.h"    // THD
+#include "sql/tztime.h"       // my_tz_OFFSET0
 
 // Must come after sql/log.h.
 #include "mysql/components/services/log_builtins.h"
@@ -57,12 +62,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "my_sys.h"
 
+#include "my_time.h"  // str_to_datetime()
+
 extern CHARSET_INFO my_charset_utf16le_bin;  // used in Windows EventLog
 static HANDLE hEventLog = NULL;              // global
 #define MSG_DEFAULT 0xC0000064L
 #endif
-
-extern log_filter_ruleset *log_filter_builtin_rules;  // what it says on the tin
 
 PSI_memory_key key_memory_log_error_loaded_services;
 PSI_memory_key key_memory_log_error_stack;
@@ -99,128 +104,36 @@ static mysql_rwlock_t THR_LOCK_log_stack;
 
 /**
   Make sure only one instance of syslog/Eventlog code runs at a time.
+  (The loadable log-service is a singleton, which enforces that at
+  most one instance of it exists. The logger-core has its own lock
+  that serializes access to it. That however does not prevent the
+  logger core and system variable updates from using Eventlog functions
+  concurrently. This lock guards against that. It also serializes
+  any other (non-error logging) users of this service.
 */
 static mysql_mutex_t THR_LOCK_log_syseventlog;
 
 /**
-  Make sure only one instance of the buffered "writer" runs at a time.
-
-  In normal operation, the log-event will be created dynamically, then
-  it will be fed through the pipeline, and then it will be released.
-  Since the event is allocated in the caller, we can be sure it won't
-  go away wholesale during processing, and since the event is local to
-  the caller, no other thread will tangle with it. It is therefore safe
-  in those cases not to wrap a lock around the event.
-  (The log-pipeline will still grab a shared lock, THR_LOCK_log_stack,
-  to protect the pipeline (not the event) and the log-services cache from
-  being changed while the pipeline is being applied.
-  Likewise, log-services may protect their resources (file-writers will
-  usually take a lock to serialize their writes; the built-in filter will
-  take a lock on its rule-set as that is shared between concurrent
-  threads running the filter, and so on).
-  None of these are intended to protect the event itself though.
-
-  In buffered mode on the other hand, we copy each log-event (the
-  original of which, see above, is owned by the caller and local
-  to the thread, and therefore safe without locking) to a global
-  buffer / backlog. As this backlog can be added to by all threads,
-  it must be protected by a lock (once we have fully initialized
-  the subsystem with log_builtins_init() and support multi-threaded
-  mode anyway, as indicated by log_builtins_inited being true, see
-  below). This is that lock.
-*/
-static mysql_mutex_t THR_LOCK_log_buffered;
-
-/**
   Subsystem initialized and ready to use?
 */
-static bool log_builtins_inited = false;
+bool log_builtins_inited = false;
 
 /**
   Name of the interface that log-services implements.
 */
 #define LOG_SERVICES_PREFIX "log_service"
 
-struct log_line_buffer {
-  log_line ll;            ///< log-event we're buffering
-  log_line_buffer *next;  ///< chronologically next log-event
-};
-/// Pointer to the first element in the list of buffered log messages
-static log_line_buffer *log_line_buffer_start = nullptr;
-/// Where to write the pointer to the newly-created tail-element of the list
-static log_line_buffer **log_line_buffer_tail = &log_line_buffer_start;
+/**
+  Chain of log-service instances.
+ (Each service can have no/one/several instances.)
+*/
+log_service_instance *log_service_instances = nullptr;
 
 /**
-  Timestamp: During buffered logging, when should we next consider flushing?
-  This variable is set to the time we'll next check whether we'll want to
-  flush buffered log events.
-  I.e. it is set to a future time (current time + window length); once
-  the value expires (turns into present/past), we check whether we need
-  to flush and update the variable to the next time we should check.
+  The first configured writer that also has a log-reader
+  is the source for the "data" field in performance_schema.error_log.
 */
-static ulonglong log_buffering_timeout = 0;
-
-/// If after this many seconds we're still buffering, flush!
-#ifndef LOG_BUFFERING_TIMEOUT_AFTER
-#define LOG_BUFFERING_TIMEOUT_AFTER (60)
-#endif
-/// Thereafter, if still buffering after this many more seconds, flush again!
-#ifndef LOG_BUFFERING_TIMEOUT_EVERY
-#define LOG_BUFFERING_TIMEOUT_EVERY (10)
-#endif
-/// Time function returns microseconds, we want seconds.
-#ifndef LOG_BUFFERING_TIME_SCALE
-#define LOG_BUFFERING_TIME_SCALE 1000000
-#endif
-
-/// Does buffer contain SYSTEM or ERROR prio messages? Flush early only then!
-static int log_buffering_flushworthy = false;
-
-/**
-  Timestamp of when we last flushed to traditional error-log
-  (built-in sink). Log lines with timestamps older than this
-  have already been flushed to the default log-sink, so we
-  won't do so again to prevent duplicates. (The buffered events
-  are still kept around until buffered logging ends however in
-  case we need to flush them to other log-writers then.
-  This timestamp is updated to the present and then drifts into
-  the past, in contrast to the time-out value (see there).
-*/
-static ulonglong log_sink_trad_last = 0;
-
-/**
-  Timestamp of the last event we put into the error-log buffer
-  during buffered mode (while starting up). New items must
-  receive a LOG_ITEM_LOG_BUFFERED timestamp greater than this.
-*/
-static ulonglong log_sink_buffer_last = 0;
-
-/**
-  Finding and acquiring a service in the component framework is
-  expensive, and we may use services a log (depending on how many
-  events are logged per second), so we cache the relevant data.
-  This struct describes a given service.
-*/
-struct log_service_cache_entry {
-  char *name;            ///< name of this service
-  size_t name_len;       ///< service-name's length
-  my_h_service service;  ///< handle (service framework)
-  int opened;            ///< currently open instances
-  int requested;         ///< requested instances
-  int chistics;          ///< multi-open supported, etc.
-};
-
-/**
-  State of a given instance of a service. A service may support being
-  opened several times.
-*/
-typedef struct _log_service_instance {
-  log_service_cache_entry *sce;        ///< the service in question
-  void *instance;                      ///< instance handle (multi-open)
-  struct _log_service_instance *next;  ///< next instance (any service)
-} log_service_instance;
-
-static log_service_instance *log_service_instances = nullptr;  ///< anchor
+log_service_instance *log_sink_pfs_source = nullptr;
 
 /**
   An error-stream.
@@ -272,7 +185,8 @@ static int log_service_check_if_builtin(const char *name, size_t len) {
 
   if ((len == sizeof(LOG_BUILTINS_SINK) - 1) &&
       (0 == strncmp(name, LOG_BUILTINS_SINK, len)))
-    return LOG_SERVICE_BUILTIN | LOG_SERVICE_SINK | LOG_SERVICE_SINGLETON;
+    return LOG_SERVICE_BUILTIN | LOG_SERVICE_SINK | LOG_SERVICE_SINGLETON |
+           LOG_SERVICE_LOG_PARSER | LOG_SERVICE_PFS_SUPPORT;
 
   if ((len == sizeof(LOG_BUILTINS_BUFFER) - 1) &&
       (0 == strncmp(name, LOG_BUILTINS_BUFFER, len)))
@@ -362,7 +276,8 @@ static const log_item_wellknown_key log_item_wellknown_keys[] = {
     {STRING_WITH_LEN("misc_float"), LOG_FLOAT, LOG_ITEM_GEN_FLOAT},
     {STRING_WITH_LEN("misc_integer"), LOG_INTEGER, LOG_ITEM_GEN_INTEGER},
     {STRING_WITH_LEN("misc_string"), LOG_LEX_STRING, LOG_ITEM_GEN_LEX_STRING},
-    {STRING_WITH_LEN("misc_cstring"), LOG_CSTRING, LOG_ITEM_GEN_CSTRING}};
+    {STRING_WITH_LEN("misc_cstring"), LOG_CSTRING, LOG_ITEM_GEN_CSTRING},
+    {STRING_WITH_LEN("misc_buffer"), LOG_BUFFER, LOG_ITEM_GEN_BUFFER}};
 
 static uint log_item_wellknown_keys_count =
     (sizeof(log_item_wellknown_keys) / sizeof(log_item_wellknown_key));
@@ -422,8 +337,9 @@ int log_string_compare(const char *a, const char *b, size_t len,
   @retval  false    if wellknown type
 */
 bool log_item_generic_type(log_item_type t) {
-  return (t & (LOG_ITEM_GEN_CSTRING | LOG_ITEM_GEN_LEX_STRING |
-               LOG_ITEM_GEN_INTEGER | LOG_ITEM_GEN_FLOAT));
+  return (t &
+          (LOG_ITEM_GEN_CSTRING | LOG_ITEM_GEN_LEX_STRING |
+           LOG_ITEM_GEN_INTEGER | LOG_ITEM_GEN_FLOAT | LOG_ITEM_GEN_BUFFER));
 }
 
 /**
@@ -640,8 +556,10 @@ void log_item_free(log_item *li) {
   if (li->alloc & LOG_ITEM_FREE_VALUE) {
     if (li->item_class == LOG_LEX_STRING)
       my_free(const_cast<char *>(li->data.data_string.str));
-    else
-      DBUG_ASSERT(false);
+    else if (li->item_class == LOG_BUFFER) /* purecov: begin inspected */
+      my_free(const_cast<char *>(li->data.data_buffer.str));
+    else                  // free() is only defined on string and buffer
+      DBUG_ASSERT(false); /* purecov: end */
   }
 
   li->alloc = LOG_ITEM_FREE_NONE;
@@ -671,6 +589,24 @@ void log_line_exit(log_line *ll) {
 }
 
 /**
+  Get log-line's output buffer.
+  If the logger core provides this buffer, the log-service may use it
+  to assemble its output therein and implicitly return it to the core.
+  Participation is required for services that support populating
+  performance_schema.error_log, and optional for all others.
+
+  @param  ll  the log_line to examine
+
+  @retval  nullptr    success, an output buffer is available
+  @retval  otherwise  failure, no output buffer is available
+*/
+log_item *log_line_get_output_buffer(log_line *ll) {
+  if ((ll == nullptr) || (ll->output_buffer.item_class != LOG_BUFFER))
+    return nullptr;
+  return &ll->output_buffer;
+}
+
+/**
   Predicate indicating whether a log line is "willing" to accept any more
   key/value pairs.
 
@@ -681,56 +617,6 @@ void log_line_exit(log_line *ll) {
 */
 bool log_line_full(log_line *ll) {
   return ((ll == nullptr) || (ll->count >= LOG_ITEM_MAX));
-}
-
-/**
-  Duplicate a log-event. This is a deep copy where the items (key/value pairs)
-  have their own allocated memory separate from that in the source item.
-
-  @param   dst    log_line that will hold the copy
-  @param   src    log_line we copy from
-
-  @retval  false  on success
-  @retval  true   if out of memory
-*/
-bool log_line_duplicate(log_line *dst, log_line *src) {
-  int c;
-
-  DBUG_ASSERT((dst != nullptr) && (src != nullptr));
-
-  *dst = *src;
-
-  for (c = 0; c < src->count; c++) {
-    dst->item[c].alloc = LOG_ITEM_FREE_NONE;
-
-    if ((dst->item[c].key =
-             my_strndup(key_memory_log_error_loaded_services, src->item[c].key,
-                        strlen(src->item[c].key), MYF(0))) != nullptr) {
-      // We just allocated a key, remember to free it later:
-      dst->item[c].alloc = LOG_ITEM_FREE_KEY;
-
-      // If the value is a string, duplicate it, and remember to free it later!
-      if (log_item_string_class(src->item[c].item_class) &&
-          (src->item[c].data.data_string.str != nullptr)) {
-        if ((dst->item[c].data.data_string.str = my_strndup(
-                 key_memory_log_error_loaded_services,
-                 src->item[c].data.data_string.str,
-                 src->item[c].data.data_string.length, MYF(0))) != nullptr)
-          dst->item[c].alloc |= LOG_ITEM_FREE_VALUE;
-        else
-          goto fail; /* purecov: inspected */
-      }
-    } else
-      goto fail; /* purecov: inspected */
-  }
-
-  return false;
-
-fail:                           /* purecov: begin inspected */
-  dst->count = c + 1;           // consider only the items we actually processed
-  log_line_item_free_all(dst);  // free those items
-  return true;                  // flag failure
-  /* purecov: end */
 }
 
 /**
@@ -986,9 +872,9 @@ log_item_data *log_item_set_with_key(log_item *li, log_item_type t,
 
   li->type = t;
 
-  DBUG_ASSERT(((alloc & LOG_ITEM_FREE_VALUE) == 0) ||
-              (li->item_class == LOG_CSTRING) ||
-              (li->item_class == LOG_LEX_STRING));
+  DBUG_ASSERT(
+      ((alloc & LOG_ITEM_FREE_VALUE) == 0) || (li->item_class == LOG_CSTRING) ||
+      (li->item_class == LOG_LEX_STRING) || (li->item_class == LOG_BUFFER));
 
   return &li->data;
 }
@@ -1145,6 +1031,32 @@ bool log_item_set_float(log_item_data *lid, double f) {
 }
 
 /**
+  Set a string buffer on a log_item.
+  On success, the caller should change the item_class to LOG_BUFFER.
+
+  @param  lid    log_item_data struct to set the value on
+  @param  s      pointer to string-buffer (non-const)
+  @param  s_len  buffer-size
+
+  @retval true   could not set a valid buffer
+  @retval false  item was assigned a buffer
+*/
+bool log_item_set_buffer(log_item_data *lid, char *s, size_t s_len) {
+  if (lid != nullptr) {            // if we have an item ...
+    lid->data_buffer.str = s;      // set the buffer on it
+    if (s == nullptr) {            // if the buffer is NULL, zero the length
+      lid->data_buffer.length = 0; /* purecov: begin inspected */
+      return true;                 /* purecov: end */
+    }
+    lid->data_buffer.length = s_len;  // set the given buffer-size
+    return false;                     // signal success
+  }
+
+  // no item => failure
+  return true; /* purecov: inspected */
+}
+
+/**
   Set a string value on a log_item.
   Fails gracefully if no log_item_data is supplied, so it can safely
   wrap log_line_item_set[_with_key]().
@@ -1214,616 +1126,22 @@ const char *log_label_from_prio(int prio) {
 }
 
 /**
-  services: log sinks: basic logging ("classic error-log")
-  Will write timestamp, label, thread-ID, and message to stderr/file.
-  If you should not be able to specify a label, one will be generated
-  for you from the line's priority field.
+  Derive the event's priority (SYSTEM_LEVEL, ERROR_LEVEL, ...)
+  from a textual label. If the label can not be identified,
+  default to ERROR_LEVEL as it is better to keep something
+  that needn't be kept than to discard something that shouldn't
+  be.
 
-  @param           instance             instance handle
-  @param           ll                   the log line to write
+  @param  label  The prio label as a \0 terminated C-string.
 
-  @retval          int                  number of added fields, if any
+  @retval  the priority (as an enum loglevel)
 */
-static int log_sink_trad(void *instance MY_ATTRIBUTE((unused)), log_line *ll) {
-  const char *label = "", *msg = "";
-  int c, out_fields = 0;
-  size_t msg_len = 0, iso_len = 0, label_len = 0, subsys_len = 0;
-  enum loglevel prio = ERROR_LEVEL;
-  unsigned int errcode = 0;
-  log_item_type item_type = LOG_ITEM_END;
-  log_item_type_mask out_types = 0;
-  const char *iso_timestamp = "", *subsys = "";
-  my_thread_id thread_id = 0;
-  ulonglong microtime = 0;
-
-  if (ll->count > 0) {
-    for (c = 0; c < ll->count; c++) {
-      item_type = ll->item[c].type;
-
-      if (log_item_inconsistent(&ll->item[c])) continue;
-
-      out_fields++;
-
-      switch (item_type) {
-        case LOG_ITEM_LOG_BUFFERED:
-          microtime = (ulonglong)ll->item[c].data.data_integer;
-          break;
-        case LOG_ITEM_SQL_ERRCODE:
-          errcode = (unsigned int)ll->item[c].data.data_integer;
-          break;
-        case LOG_ITEM_LOG_PRIO:
-          prio = (enum loglevel)ll->item[c].data.data_integer;
-          break;
-        case LOG_ITEM_LOG_MESSAGE:
-          msg = ll->item[c].data.data_string.str;
-          msg_len = ll->item[c].data.data_string.length;
-          break;
-        case LOG_ITEM_LOG_LABEL:
-          label = ll->item[c].data.data_string.str;
-          label_len = ll->item[c].data.data_string.length;
-          break;
-        case LOG_ITEM_SRV_SUBSYS:
-          subsys = ll->item[c].data.data_string.str;
-          if ((subsys_len = ll->item[c].data.data_string.length) > 12)
-            subsys_len = 12;
-          break;
-        case LOG_ITEM_LOG_TIMESTAMP:
-          iso_timestamp = ll->item[c].data.data_string.str;
-          iso_len = ll->item[c].data.data_string.length;
-          break;
-        case LOG_ITEM_SRV_THREAD:
-          thread_id = (my_thread_id)ll->item[c].data.data_integer;
-          break;
-        default:
-          out_fields--;
-      }
-      out_types |= item_type;
-    }
-
-    /*
-      Prevent duplicates in incremental flush of buffered log events.
-      If start-up is very slow, we'll let error-log event buffering
-      "time out": we'll print the events so far to the traditional
-      error log (and only to that log, as external log-writers cannot
-      be loaded until later, when InnoDB, upon which the component
-      framework depends, has been initialized). Then, we'll go back
-      to buffering. Eventually, we'll either time-out and flush again,
-      or start-up completes, and we can do a proper flush of the
-      buffered error-events.
-      At that point, any loaded log-writers will be called for the
-      first time, whereas this here traditional writer may have been
-      called upon multiple times to give incremental updates.
-      Therefore, we must prevent duplicates in this, and only in this
-      writer. Ready? (Who lives in a time-out under the C? Buffered
-      events, in trad sink!)
-    */
-    if (out_types & LOG_ITEM_LOG_BUFFERED) {
-      // abort if we've already printed this (to trad log only!)
-      if (microtime <= log_sink_trad_last) return 0;
-      // remember micro-time of last buffered event we've printed
-      log_sink_trad_last = microtime;
-    }
-
-    if (!(out_types & LOG_ITEM_LOG_MESSAGE)) {
-      msg =
-          "No error message, or error message of non-string type. "
-          "This is almost certainly a bug!";
-      msg_len = strlen(msg);
-
-      prio = ERROR_LEVEL;                  // force severity
-      out_types &= ~(LOG_ITEM_LOG_LABEL);  // regenerate label
-      out_types |= LOG_ITEM_LOG_MESSAGE;   // we added a message
-    }
-
-    {
-      char buff_line[LOG_BUFF_MAX];
-      size_t len;
-
-      if (!(out_types & LOG_ITEM_LOG_LABEL)) {
-        label = (prio == ERROR_LEVEL) ? "ERROR" : log_label_from_prio(prio);
-        label_len = strlen(label);
-      }
-
-      if (!(out_types & LOG_ITEM_LOG_TIMESTAMP)) {
-        char buff_local_time[iso8601_size];
-
-        make_iso8601_timestamp(buff_local_time, my_micro_time(),
-                               opt_log_timestamps);
-        iso_timestamp = buff_local_time;
-        iso_len = strlen(buff_local_time);
-      }
-
-      /*
-        WL#11009 adds "error identifier" as a field in square brackets
-        that directly precedes the error message. As a result, new
-        tools can check for the presence of this field by testing
-        whether the first character of the presumed message field is '['.
-        Older tools will just consider this identifier part of the
-        message; this should therefore not affect log aggregation.
-        Tools reacting to the contents of the message may wish to
-        use the new field instead as it's simpler to parse.
-        The rules are like so:
-
-          '[' [ <namespace> ':' ] <identifier> ']'
-
-        That is, an error identifier may be namespaced by a
-        subsystem/component name and a ':'; the identifier
-        itself should be considered opaque; in particular, it
-        may be non-numerical: [ <alpha> | <digit> | '_' | '.' | '-' ]
-      */
-      len = snprintf(buff_line, sizeof(buff_line),
-                     "%.*s %u [%.*s] [MY-%06u] [%.*s] %.*s", (int)iso_len,
-                     iso_timestamp, thread_id, (int)label_len, label, errcode,
-                     (int)subsys_len, subsys, (int)msg_len, msg);
-
-      log_write_errstream(buff_line, len);
-
-      return out_fields;  // returning number of processed items
-    }
-  }
-  return 0;
-}
-
-/**
-  services: log sinks: buffered logging
-
-  During start-up, we buffer log-info until a) we have basic info for
-  the built-in logger (what file to log to, verbosity, and so on), and
-  b) advanced info (any logging components to load, any configuration
-  for them, etc.).
-
-  As a failsafe, if start-up takes very, very long, and a time-out is
-  reached before reaching b) and we actually have something worth
-  reporting (e.g. errors, as opposed to info), we try to keep the user
-  informed by using the basic logger configured in a), while going on
-  buffering all info and flushing it to any advanced loggers when b)
-  is reached.
-
-  1) This function checks and, if needed, updates the time-out, and calls
-     the flush functions as needed. It is internal to the logger and should
-     not be called from elsewhere.
-
-  2) Function will save log-event (if given) for later filtering and output.
-
-  3) Function acquires/releases THR_LOCK_log_buffered if initialized.
-
-  @param           instance             instance handle
-                                        Not currently used in this writer;
-                                        if this changes later, keep in mind
-                                        that nullptr will be passed if this
-                                        is called before the structured
-                                        logger's locks are initialized, so
-                                        that must remain a valid argument!
-  @param           ll                   The log line to write,
-                                        or nullptr to not add a new logline,
-                                        but to just check whether the time-out
-                                        has been reached and if so, flush
-                                        as needed.
-
-  @retval          -1                   can not add event to buffer (OOM?)
-  @retval          >0                   number of added fields
-*/
-static int log_sink_buffer(void *instance MY_ATTRIBUTE((unused)),
-                           log_line *ll) {
-  log_line_buffer *llb = nullptr;  ///< log-line buffer
-  ulonglong now = 0;
-  int count = 0;
-
-  /*
-    If we were actually given an event, add it to the buffer.
-  */
-  if (ll != nullptr) {
-    if ((llb = (log_line_buffer *)my_malloc(key_memory_log_error_stack,
-                                            sizeof(log_line_buffer), MYF(0))) ==
-        nullptr)
-      return -1; /* purecov: inspected */
-
-    llb->next = nullptr;
-
-    /*
-      Don't let the submitter free the keys/values; we'll do it later when
-      the buffer is flushed and then de-allocated!
-      (No lock needed for copy as the target-event is still private to this
-      function, and the source-event is alloc'd in the caller so will be
-      there at least until we return.)
-    */
-    log_line_duplicate(&llb->ll, ll);
-
-    /*
-      Remember it when an ERROR or SYSTEM prio event was buffered.
-      If buffered logging times out and the buffer contains such an event,
-      we force a premature flush so the user will know what's going on.
-    */
-    {
-      int index_prio = log_line_index_by_type(&llb->ll, LOG_ITEM_LOG_PRIO);
-
-      if ((index_prio >= 0) &&
-          (llb->ll.item[index_prio].data.data_integer <= ERROR_LEVEL))
-        log_buffering_flushworthy = true;
-    }
-  }
-
-  /*
-    Insert the new last event into the buffer
-    (a singly linked list of events).
-  */
-  if (log_builtins_inited) mysql_mutex_lock(&THR_LOCK_log_buffered);
-
-  now = my_micro_time();
-
-  if (ll != nullptr) {
-    /*
-      Prevent two events from receiving the exact same timestamp on
-      systems with low resolution clocks.
-    */
-    if (now > log_sink_buffer_last)
-      log_sink_buffer_last = now;
-    else
-      log_sink_buffer_last++;
-
-    /*
-      Save the current time so we can regenerate the textual timestamp
-      later when we have the command-line options telling us what format
-      it should be in (e.g. UTC or system time).
-    */
-    if (!log_line_full(&llb->ll)) {
-      log_line_item_set(&llb->ll, LOG_ITEM_LOG_BUFFERED)->data_integer =
-          log_sink_buffer_last;
-    }
-
-    *log_line_buffer_tail = llb;
-    log_line_buffer_tail = &(llb->next);
-
-    /*
-      Save the element-count now as the time-out flush below may release
-      the underlying log line buffer, llb, making that info inaccessible.
-    */
-    count = llb->ll.count;
-  }
-
-  /*
-    Handle buffering time-out!
-  */
-
-  // Buffering very first event; set up initial time-out ...
-  if (log_buffering_timeout == 0)
-    log_buffering_timeout =
-        now + (LOG_BUFFERING_TIMEOUT_AFTER * LOG_BUFFERING_TIME_SCALE);
-
-  if (log_error_stage_get() == LOG_ERROR_STAGE_BUFFERING_UNIPLEX) {
-    /*
-      When not multiplexing several log-writers into the same stream,
-      we need not delay.
-    */
-    log_sink_buffer_flush(LOG_BUFFER_REPORT_AND_KEEP);
-  }
-
-  // Need to flush? Check on time-out, or when explicitly asked to.
-  else if ((now > log_buffering_timeout) || (ll == nullptr)) {
-    // We timed out. Flush, and set up new, possibly shorter subsequent timeout.
-
-    /*
-      Timing out is somewhat awkward. Ideally, it shouldn't happen at all;
-      but as long as it does, it is extremely unlikely to happen during early
-      set-up -- instead, it might happen during engine set-up ("cannot lock
-      DB file, another server instance already has it", "applying large
-      binlog", etc.).
-
-      The good news is that this means we've already parsed the command line
-      options; we have the timestamp format, the error log file, the verbosity,
-      and the suppression list (if any).
-
-      The bad news is, if the engine we're waiting for is InnoDB, which the
-      component framework persists its component list in, the log-writers
-      selected by the DBA won't have been loaded yet. This of course means
-      that the time-out flushes will only be available in the built-in,
-      "traditional" format, but at least this way, the user gets updates
-      during long waits. Additionally if the server exits during start-up
-      (i.e. before full logging is available), we'll have log info of what
-      happened (albeit not in the preferred format).
-
-      If start-up completes and external log-services become available,
-      we will flush all buffered messages to any external log-writers
-      requested by the user (using their preferred log-filtering set-up
-      as well).
-    */
-
-    // If anything of sufficient priority is in the buffer ...
-    if (log_buffering_flushworthy) {
-      /*
-        ... log it now to the traditional log, but keep the buffered
-        events around in case we need to write them to loadable log-sinks
-        later.
-      */
-      log_sink_buffer_flush(LOG_BUFFER_REPORT_AND_KEEP);
-      // Remember that all high-prio events so far have now been shown.
-      log_buffering_flushworthy = false;
-    }
-
-    // Whether we've needed to flush or not, start a new window:
-    log_buffering_timeout =
-        now + (LOG_BUFFERING_TIMEOUT_EVERY * LOG_BUFFERING_TIME_SCALE);
-  }
-
-  if (log_builtins_inited) mysql_mutex_unlock(&THR_LOCK_log_buffered);
-
-  return count;
-}
-
-/**
-  Convenience function. Same as log_sink_buffer(), except we only
-  check whether the time-out for buffered logging has been reached
-  during start-up, and act accordingly; no new logging information
-  is added (i.e., we only provide functionality 1 described in the
-  preamble for log_sink_buffer() above).
-*/
-void log_sink_buffer_check_timeout(void) { log_sink_buffer(nullptr, nullptr); }
-
-/**
-  Process all buffered log-events.
-
-  LOG_BUFFER_DISCARD_ONLY simply releases all buffered log-events
-  (used when called from discard_error_log_messages()).
-
-  LOG_BUFFER_PROCESS_AND_DISCARD sends the events through the
-  configured error log stack first before discarding them.
-  (used when called from flush_error_log_messages()).
-  Must remain safe to call repeatedly (with subsequent calls only
-  outputting any events added after the previous flush).
-
-  LOG_BUFFER_REPORT_AND_KEEP is used to show incremental status
-  updates when the start-up takes unusually long. When that happens,
-  we "report" the intermediate state using the built-in sink
-  (as that's the only one we available to us at the time), and
-  "keep" the events around. That way if log sinks other that the
-  built-in one are configured, we can flush all of the buffered
-  events there once initialization completes.
-  (used when log_sink_buffer() detects a time-out, see also:
-  LOG_BUFFERING_TIMEOUT_AFTER, LOG_BUFFERING_TIMEOUT_EVERY)
-
-  @param  mode  LOG_BUFFER_DISCARD_ONLY (to just
-                throw away the buffered events), or
-                LOG_BUFFER_PROCESS_AND_DISCARD to
-                filter/print them first, or
-                LOG_BUFFER_REPORT_AND_KEEP to print
-                an intermediate report on time-out.
-
-                To use LOG_BUFFER_REPORT_AND_KEEP in a
-                multi-threaded environment, the caller
-                needs to hold THR_LOCK_log_buffered
-                while calling this; for the other modes,
-                this function will acquire and release the
-                lock as needed; in this second scenario,
-                the lock will not be held while calling
-                log_services (via log_line_submit()).
-*/
-void log_sink_buffer_flush(enum log_sink_buffer_flush_mode mode) {
-  log_line_buffer *llp, *local_head, *local_tail = nullptr;
-
-  /*
-    "steal" public list of buffered log events
-
-    The general mechanism is that we move the buffered events from
-    the global list to one local to this function, iterate over
-    it, and then put it back. If anything was added to the global
-    list we emptied while were working, we append the new items
-    from the global list to the end of the "stolen" list, and then
-    make that union the new global list. The grand idea here is
-    that this way, we only have to acquire a lock very briefly
-    (while updating the global list's head and tail, once for
-    "stealing" it, once for giving it back), rather than holding
-    a lock the entire time, or locking each event individually,
-    while still remaining safe if one caller starts a
-    flush-with-print, and then another runs a flush-to-delete
-    that might catch up and cause trouble if we neither held
-    a lock nor stole the list.
-  */
-
-  /*
-    If the lock hasn't been init'd yet, don't get it.
-
-    Likewise don't get it in LOG_BUFFER_REPORT_AND_KEEP mode as
-    then the caller already has it. We generally only grab the lock
-    here when coming from log.cc's discard_error_log_messages() or
-    flush_error_log_messages().
-  */
-  if (log_builtins_inited && (mode != LOG_BUFFER_REPORT_AND_KEEP))
-    mysql_mutex_lock(&THR_LOCK_log_buffered);
-
-  local_head = log_line_buffer_start;             // save list head
-  log_line_buffer_start = nullptr;                // empty public list
-  log_line_buffer_tail = &log_line_buffer_start;  // adjust tail of public list
-
-  if (log_builtins_inited && (mode != LOG_BUFFER_REPORT_AND_KEEP))
-    mysql_mutex_unlock(&THR_LOCK_log_buffered);
-
-  // get head element from list of buffered log events
-  llp = local_head;
-
-  while (llp != nullptr) {
-    /*
-      Forward the buffered lines to log-writers
-      (other than the buffered writer), unless
-      we're in "discard" mode, in which case,
-      we'll just throw the information away.
-    */
-    if (mode != LOG_BUFFER_DISCARD_ONLY) {
-      log_service_instance *lsi = log_service_instances;
-
-      // regenerate timestamp with the correct options
-      char local_time_buff[iso8601_size];
-      int index_buff = log_line_index_by_type(&llp->ll, LOG_ITEM_LOG_BUFFERED);
-      int index_time = log_line_index_by_type(&llp->ll, LOG_ITEM_LOG_TIMESTAMP);
-      ulonglong now;
-
-      if (index_buff >= 0)
-        now = llp->ll.item[index_buff].data.data_integer;
-      else  // we failed to set a timestamp earlier (OOM?), use current time!
-        now = my_micro_time(); /* purecov: inspected */
-
-      DBUG_EXECUTE_IF("log_error_normalize", { now = 0; });
-
-      make_iso8601_timestamp(local_time_buff, now, opt_log_timestamps);
-      char *date = my_strndup(key_memory_log_error_stack, local_time_buff,
-                              strlen(local_time_buff) + 1, MYF(0));
-
-      if (date != nullptr) {
-        if (index_time >= 0) {
-          // release old timestamp value
-          if (llp->ll.item[index_time].alloc & LOG_ITEM_FREE_VALUE) {
-            my_free(const_cast<char *>(
-                llp->ll.item[index_time].data.data_string.str));
-          }
-          // set new timestamp value
-          llp->ll.item[index_time].data.data_string.str = date;
-          llp->ll.item[index_time].data.data_string.length = strlen(date);
-          llp->ll.item[index_time].alloc |= LOG_ITEM_FREE_VALUE;
-        } else if (!log_line_full(&llp->ll)) { /* purecov: begin inspected */
-          // set all new timestamp key/value pair; we didn't previously have one
-          // This shouldn't happen unless we run out of space during submit()!
-          log_item_data *d =
-              log_line_item_set(&llp->ll, LOG_ITEM_LOG_TIMESTAMP);
-          if (d != nullptr) {
-            d->data_string.str = local_time_buff;
-            d->data_string.length = strlen(d->data_string.str);
-            llp->ll.item[llp->ll.count].alloc |= LOG_ITEM_FREE_VALUE;
-            llp->ll.seen |= LOG_ITEM_LOG_TIMESTAMP;
-          } else
-            my_free(date);  // couldn't create key/value pair for timestamp
-        } else
-          my_free(date);  // log_line is full
-      }                   /* purecov: end */
-
-      /*
-        If no log-service is configured (because log_builtins_init()
-        hasn't run and initialized the log-pipeline), or if the
-        log-service is the buffered writer (which is only available
-        internally and used during start-up), it's still early in the
-        start-up sequence, so we may not have all configured external
-        log-components yet. Therefore, and since this is a fallback
-        only, we ignore the configuration and use the built-in services
-        that we know are available, on the grounds that when something
-        goes wrong, information with undesired formatting is still
-        better than not knowing about the issue at all.
-      */
-      if ((lsi == nullptr) || (lsi->sce->chistics & LOG_SERVICE_BUFFER)) {
-        /*
-          This is a fallback used when start-up takes very long.
-
-          In fallback modes, we run with default settings and
-          services.
-
-          In "keep" mode (that is, "start-up's taking a long time,
-          so show the user the info so far in the basic format, but
-          keep the log-events so we can log them properly later"),
-          we expect to be able to log the events with the correct
-          settings and services later (if start-up gets that far).
-          As the services we use in the meantime may change or even
-          remove log events, we'll let the services work on a
-          temporary copy of the events here. The final logging will
-          then use the original event. This way, no information is
-          lost.
-        */
-        if (mode == LOG_BUFFER_REPORT_AND_KEEP) {
-          log_line temp_line;  // copy the line so the filter may mangle it
-
-          log_line_duplicate(&temp_line, &llp->ll);
-
-          // Only run the built-in filter if any rules are defined.
-          if (log_filter_builtin_rules != nullptr)
-            log_builtins_filter_run(log_filter_builtin_rules, &temp_line);
-
-          // Emit to the built-in writer. Empty lines will be ignored.
-          log_sink_trad(nullptr, &temp_line);
-
-          log_line_item_free_all(&temp_line);  // release our temporary copy
-
-          local_tail = llp;
-          llp = llp->next;  // go to next element, keep head pointer the same
-          continue;         // skip the free()-ing
-
-        } else {  // LOG_BUFFER_PROCESS_AND_DISCARD
-          /*
-            This is a fallback used primarily when start-up is aborted.
-
-            If we get here, flush_error_log_messages() was called
-            before logging came out of buffered mode. (If it was
-            called after buffered modes completes, we should land
-            in the following branch instead.)
-
-            We're asked to print all log-info so far using basic
-            logging, and to then throw it away (rather than keep
-            it around for proper logging). This usually implies
-            that we're shutting down because some unrecoverable
-            situation has arisen during start-up, so a) the user
-            needs to know about it even if full logging (as
-            configured) is not available yet, and b) we'll shut
-            down before we'll ever get full logging, so keeping
-            the info around is pointless.
-          */
-
-          if (log_filter_builtin_rules != nullptr)
-            log_builtins_filter_run(log_filter_builtin_rules, &llp->ll);
-
-          log_sink_trad(nullptr, &llp->ll);
-        }
-      } else {  // !LOG_SERVICE_BUFFER
-        /*
-          If we get here, logging has left the buffered phase, and
-          we can write out the log-events using the configuration
-          requested by the user, as it should be!
-        */
-        log_line_submit(&llp->ll);  // frees keys + values (but not llp itself)
-        goto kv_freed;
-      }
-    }
-
-    log_line_item_free_all(&local_head->ll);  // free key/value pairs
-  kv_freed:
-    local_head = local_head->next;  // delist event
-    my_free(llp);                   // free buffered event
-    llp = local_head;
-  }
-
-  if (log_builtins_inited && (mode != LOG_BUFFER_REPORT_AND_KEEP))
-    mysql_mutex_lock(&THR_LOCK_log_buffered);
-
-  /*
-    At this point, if (local_head == nullptr), we either didn't have
-    a list to begin with, or we just emptied the local version.
-    Since we also emptied the global version at the top, whatever's
-    in there now (still empty, or new events attached while we were
-    processing) is now authoritive, and no change is needed here.
-
-    If local_head is non-NULL, we started with a non-empty local list
-    and mode was KEEP. In that case, we merge the local list back into
-    the global one:
-  */
-
-  if (local_head != nullptr) {
-    DBUG_ASSERT(local_tail != nullptr);
-
-    /*
-      Append global list to end of local list. If global list is still
-      empty, the global tail pointer points at the global anchor, so
-      we set the global tail pointer to the next-pointer in last stolen
-      item. If global list was non-empty, the tail pointer already
-      points at the correct element's next-pointer (the correct element
-      being the last one in the global list, as we'll append the
-      global list to the end of the local list).
-    */
-    if ((local_tail->next = log_line_buffer_start) == nullptr)
-      log_line_buffer_tail = &local_tail->next;
-
-    /*
-      Return the stolen list, with any log-events that happened while
-      we were processing appended to its end.
-    */
-    log_line_buffer_start = local_head;
-  }
-
-  if (log_builtins_inited && (mode != LOG_BUFFER_REPORT_AND_KEEP))
-    mysql_mutex_unlock(&THR_LOCK_log_buffered);
+enum loglevel log_prio_from_label(const char *label) {
+  if (0 == native_strcasecmp(label, "SYSTEM")) return SYSTEM_LEVEL;
+  if (0 == native_strcasecmp(label, "WARNING")) return WARNING_LEVEL;
+  if (0 == native_strcasecmp(label, "NOTE")) return INFORMATION_LEVEL;
+
+  return ERROR_LEVEL; /* purecov: inspected */
 }
 
 /**
@@ -1850,8 +1168,8 @@ int log_line_submit(log_line *ll) {
   /*
     The log-services we'll call below are likely to change the default
     iter. Since log-services are allowed to call the logger, we'll save
-    the iter on entry and restore it on exit to be properly re-entrant in
-    that regard.
+    the iter on entry and restore it on exit to be properly re-entrant
+    in that regard.
   */
   iter_save = ll->iter;
   ll->iter.ll = nullptr;
@@ -1878,7 +1196,8 @@ int log_line_submit(log_line *ll) {
 
       DBUG_EXECUTE_IF("log_error_normalize", { now = 0; });
 
-      make_iso8601_timestamp(local_time_buff, now, opt_log_timestamps);
+      make_iso8601_timestamp(local_time_buff, now,
+                             iso8601_sysvar_logtimestamps);
 
       d = log_line_item_set(ll, LOG_ITEM_LOG_TIMESTAMP);
       d->data_string.str = local_time_buff;
@@ -2015,7 +1334,21 @@ int log_line_submit(log_line *ll) {
     else {
       mysql_rwlock_rdlock(&THR_LOCK_log_stack);
 
+      // set up output buffer
+      char capture_buffer[LOG_BUFF_MAX];
+
+      log_item_init(&ll->output_buffer);
+      // Set up a valid item. It's not needed here, but it's a good habit.
+      log_item_set_with_key(&ll->output_buffer, LOG_ITEM_GEN_BUFFER,
+                            "output_buffer", LOG_ITEM_FREE_NONE);
+      // Attach the output buffer to the item and set the item-class.
+      log_item_set_buffer(&ll->output_buffer.data, capture_buffer,
+                          sizeof(capture_buffer));
+
       /*
+        Call all configured log-services (sources, filters, sinks)
+        on this log-event.
+
         sources:
         Add info from other log item sources,
         e.g. that supplied by the client on connect using mysql_options4();
@@ -2031,9 +1364,15 @@ int log_line_submit(log_line *ll) {
       log_service_instance *lsi = log_service_instances;
 
       while ((lsi != nullptr) && ((sce = lsi->sce) != nullptr)) {
+        // make capture buffer valid if primary log-writer
+        ll->output_buffer.item_class =
+            (lsi == log_sink_pfs_source) ? LOG_BUFFER : LOG_UNTYPED;
+
+        // buffered logging trumps everything
         if (sce->chistics & LOG_SERVICE_BUFFER)
           log_sink_buffer(lsi->instance, ll);
 
+        // loadable services
         else if (!(sce->chistics & LOG_SERVICE_BUILTIN)) {
           SERVICE_TYPE(log_service) * ls;
 
@@ -2041,16 +1380,31 @@ int log_line_submit(log_line *ll) {
 
           if (ls != nullptr) ls->run(lsi->instance, ll);
 
-        } else if (log_service_has_characteristics(
-                       sce, (LOG_SERVICE_BUILTIN | LOG_SERVICE_FILTER)))
+        }  // built-in filter
+        else if (log_service_has_characteristics(
+                     sce, (LOG_SERVICE_BUILTIN | LOG_SERVICE_FILTER)))
           log_builtins_filter_run(log_filter_builtin_rules, ll);
 
+        // built-in sink
         else if (log_service_has_characteristics(
                      sce, (LOG_SERVICE_BUILTIN | LOG_SERVICE_SINK)))
           log_sink_trad(lsi->instance, ll);
 
         lsi = lsi->next;
       }
+
+      /*
+        If there is anything in the capture buffer, log it to
+        performance_schema.error_log.
+      */
+      if ((log_error_stage_get() ==
+           LOG_ERROR_STAGE_EXTERNAL_SERVICES_AVAILABLE) &&
+          (ll->output_buffer.type == LOG_ITEM_RET_BUFFER) &&
+          (ll->output_buffer.data.data_buffer.length > 0))
+        log_sink_perfschema(nullptr, ll);
+
+      // release output buffer if changed by the service
+      log_item_free(&ll->output_buffer);
 
       mysql_rwlock_unlock(&THR_LOCK_log_stack);
     }
@@ -2084,7 +1438,7 @@ int log_line_submit(log_line *ll) {
 
 /**
   Make and return an ISO 8601 / RFC 3339 compliant timestamp.
-  Heeds log_timestamps.
+  Accepts the log_timestamps global variable in its third parameter.
 
   @param buf       A buffer of at least 26 bytes to store the timestamp in
                    (19 + tzinfo tail + \0)
@@ -2093,7 +1447,8 @@ int log_line_submit(log_line *ll) {
 
   @retval          length of timestamp (excluding \0)
 */
-int make_iso8601_timestamp(char *buf, ulonglong utime, int mode) {
+int make_iso8601_timestamp(char *buf, ulonglong utime,
+                           enum enum_iso8601_tzmode mode) {
   struct tm my_tm;
   char tzinfo[8] = "Z";  // max 6 chars plus \0
   size_t len;
@@ -2102,9 +1457,12 @@ int make_iso8601_timestamp(char *buf, ulonglong utime, int mode) {
   seconds = utime / 1000000;
   utime = utime % 1000000;
 
-  if (mode == 0)
+  if (mode == iso8601_sysvar_logtimestamps)
+    mode = (opt_log_timestamps == 0) ? iso8601_utc : iso8601_system_time;
+
+  if (mode == iso8601_utc)
     gmtime_r(&seconds, &my_tm);
-  else if (mode == 1) {
+  else if (mode == iso8601_system_time) {
     localtime_r(&seconds, &my_tm);
 
 #ifdef HAVE_TM_GMTOFF
@@ -2148,6 +1506,30 @@ int make_iso8601_timestamp(char *buf, ulonglong utime, int mode) {
 }
 
 /**
+  Parse a ISO8601 timestamp and return the number of microseconds
+  since the epoch. Heeds +/- timezone info if present.
+
+  @see make_iso8601_timestamp()
+
+  @param timestamp  an ASCII string containing an ISO8601 timestamp
+  @param len        Length in bytes of the aforementioned string
+
+  @return microseconds since the epoch
+*/
+ulonglong iso8601_timestamp_to_microseconds(const char *timestamp, size_t len) {
+  MYSQL_TIME mt;
+  MYSQL_TIME_STATUS status;
+  my_time_t t;
+  bool in_dst_time_gap;
+
+  if (str_to_datetime(timestamp, len, &mt, 0, &status) ||
+      ((t = my_tz_OFFSET0->TIME_to_gmt_sec(&mt, &in_dst_time_gap)) <= 0))
+    return 0;
+
+  return ((ulonglong)t) * 1000000ULL + mt.second_part;
+}
+
+/**
   Helper: get token from error stack configuration string
 
   @param[in,out]  s   start of the token (may be positioned on whitespace
@@ -2156,11 +1538,12 @@ int make_iso8601_timestamp(char *buf, ulonglong utime, int mode) {
   @param[out]     e   end of the token
   @param[in,out]  d   delimiter (in: last used, \0 if none; out: detected here)
 
-  @retval         <0  an error occur
-  @retval            the length in bytes of the token
+  @retval         <0  an error occured
+  @retval        >=0  the length in bytes of the token
 */
-static size_t log_builtins_stack_get_service_from_var(const char **s,
-                                                      const char **e, char *d) {
+static ssize_t log_builtins_stack_get_service_from_var(const char **s,
+                                                       const char **e,
+                                                       char *d) {
   DBUG_ASSERT(s != nullptr);
   DBUG_ASSERT(e != nullptr);
 
@@ -2175,10 +1558,10 @@ static size_t log_builtins_stack_get_service_from_var(const char **s,
       if (*d == '\0')  // no delimiter determined yet
       {
         if (*e == *s)  // token may not start with a delimiter
-          return -1;
+          return LOG_ERROR_UNEXPECTED_DELIMITER_FOUND;
         *d = **e;            // save the delimiter we found
       } else if (**e != *d)  // different delimiter than last time: error
-        return -2;
+        return LOG_ERROR_MIXED_DELIMITERS;
     }
     if (**e == *d)  // found a valid delimiter; end scan
       goto done;
@@ -2186,7 +1569,7 @@ static size_t log_builtins_stack_get_service_from_var(const char **s,
   }
 
 done:
-  return (size_t)(*e - *s);
+  return (ssize_t)(*e - *s);
 }
 
 /**
@@ -2416,33 +1799,67 @@ int log_builtins_error_stack_flush() {
                             the error occurred will be written to the
                             pointed-to size_t.
 
-  @retval              0    success
-  @retval             -1    expected delimiter not found
-  @retval             -2    one or more services not found
-  @retval             -3    failed to create service cache entry
-  @retval             -4    tried to open multiple instances of a singleton
-  @retval             -5    failed to create service instance entry
-  @retval             -6    last element in pipeline should be a sink
-  @retval             -7    service only available during start-up;
-                            may not be set by the user
-  @retval             -101  service name may not start with a delimiter
-  @retval             -102  delimiters ',' and ';' may not be mixed
+  @retval  LOG_ERROR_STACK_SUCCESS               success
+
+  @retval LOG_ERROR_STACK_DELIMITER_MISSING      expected delimiter not found
+
+  @retval LOG_ERROR_STACK_SERVICE_MISSING        one or more services not found
+
+  @retval LOG_ERROR_STACK_CACHE_ENTRY_OOM        couldn't create service cache
+                                                 entry
+
+  @retval LOG_ERROR_STACK_MULTITON_DENIED        tried to multi-open singleton
+
+  @retval LOG_ERROR_STACK_SERVICE_INSTANCE_OOM   couldn't create service
+                                                 instance entry
+
+  @retval LOG_ERROR_STACK_ENDS_IN_NON_SINK       last element should be a sink
+
+  @retval LOG_ERROR_STACK_SERVICE_UNAVAILABLE    service only available during
+                                                 start-up (may not be set by the
+                                                 user)
+
+
+  @retval  LOG_ERROR_STACK_NO_PFS_SUPPORT        (check_only warning)
+                                                 no sink with performance_schema
+                                                 support selected
+
+  @retval  LOG_ERROR_STACK_NO_LOG_PARSER         (check_only warning)
+                                                 no sink providing a log-parser
+                                                 selected
+
+  @retval  LOG_ERROR_MULTIPLE_FILTERS            (check_only warning)
+                                                 more than one filter service
+                                                 selected
+
+  @retval  LOG_ERROR_UNEXPECTED_DELIMITER_FOUND  service starts with a delimiter
+
+  @retval  LOG_ERROR_MIXED_DELIMITERS            use ',' or ';', not both!
 */
-int log_builtins_error_stack(const char *conf, bool check_only, size_t *pos) {
+log_error_stack_error log_builtins_error_stack(const char *conf,
+                                               bool check_only, size_t *pos) {
   const char *start = conf, *end;
   char delim = '\0';
-  long len;
+  ssize_t len;
   my_h_service service;
-  int rr = 0;
+  log_error_stack_error rr = LOG_ERROR_STACK_SUCCESS;
   int count = 0;
   log_service_cache_entry *sce = nullptr;
   log_service_instance *lsi;
+  log_service_instance *log_sink_pfs_parser = nullptr;  // sink with log parser
+  log_service_instance *log_sink_pfs_buffer = nullptr;  // sink with pfs support
+  int log_filter_count = 0;  // number of filters in pipeline
+  int log_pfs_count = 0;     // number of pfs-supporting sinks in pipeline
+  int log_parser_count = 0;  // number of log-parsers in pipeline
   int chistics = LOG_SERVICE_UNSPECIFIED;
 
   mysql_rwlock_wrlock(&THR_LOCK_log_stack);
 
   // if we're actually setting this configuration, release the previous one!
-  if (!check_only) log_service_instance_release_all();
+  if (!check_only) {
+    log_sink_pfs_source = nullptr;
+    log_service_instance_release_all();
+  }
 
   // clear keep flag on all service cache entries
   for (auto &key_and_value : *log_service_cache) {
@@ -2459,9 +1876,10 @@ int log_builtins_error_stack(const char *conf, bool check_only, size_t *pos) {
          0) {
     chistics = LOG_SERVICE_UNSPECIFIED;
 
-    // more than one services listed, but no delimiter used (only space)
+    // more than one service listed, but no delimiter used (only space)
     if ((++count > 1) && (delim == '\0')) {
-      rr = -1;  // at least one service not found => fail
+      // at least one service not found => fail
+      rr = LOG_ERROR_STACK_DELIMITER_MISSING;
       goto done;
     }
 
@@ -2481,7 +1899,7 @@ int log_builtins_error_stack(const char *conf, bool check_only, size_t *pos) {
         (as it isn't useful), so we throw an error here.
       */
       if (check_only && (chistics & LOG_SERVICE_BUFFER)) {
-        rr = -7;
+        rr = LOG_ERROR_STACK_SERVICE_UNAVAILABLE;
         goto done;
       }
 
@@ -2491,7 +1909,8 @@ int log_builtins_error_stack(const char *conf, bool check_only, size_t *pos) {
 
         // not found in framework, signal failure
         if (service == nullptr) {
-          rr = -2;  // at least one service not found => fail
+          // at least one service not found => fail
+          rr = LOG_ERROR_STACK_SERVICE_MISSING;
           goto done;
         }
       } else
@@ -2502,7 +1921,7 @@ int log_builtins_error_stack(const char *conf, bool check_only, size_t *pos) {
         // failed to make cache-entry. if we hold a service handle, release it!
         /* purecov: begin inspected */
         if (service != nullptr) srv_registry->release(service);
-        rr = -3;
+        rr = LOG_ERROR_STACK_CACHE_ENTRY_OOM;
         goto done; /* purecov: end */
       }
 
@@ -2523,9 +1942,24 @@ int log_builtins_error_stack(const char *conf, bool check_only, size_t *pos) {
     if (check_only) {
       // tried to multi-open a service that doesn't support it => fail
       if ((sce->requested > 1) && (sce->chistics & LOG_SERVICE_SINGLETON)) {
-        rr = -4;
+        rr = LOG_ERROR_STACK_MULTITON_DENIED;
         goto done;
       }
+
+      // count log-parsers
+      if ((log_sink_pfs_parser == nullptr) &&
+          log_service_has_characteristics(
+              sce, (LOG_SERVICE_LOG_PARSER | LOG_SERVICE_PFS_SUPPORT)))
+        log_parser_count++;
+
+      // count pfs-supporting sinks
+      if ((log_sink_pfs_buffer == nullptr) &&
+          log_service_has_characteristics(sce, LOG_SERVICE_PFS_SUPPORT))
+        log_pfs_count++;
+
+      // count filters
+      if (sce->chistics & LOG_SERVICE_FILTER) log_filter_count++;
+
     } else if ((sce->requested == 1) ||
                !(sce->chistics & LOG_SERVICE_SINGLETON)) {
       log_service_instance *lsi_new = nullptr;
@@ -2543,10 +1977,22 @@ int log_builtins_error_stack(const char *conf, bool check_only, size_t *pos) {
         }
 
         lsi = lsi_new;
+
+        // remember first log-parser
+        if ((log_sink_pfs_parser == nullptr) &&
+            (sce->chistics &
+             (LOG_SERVICE_LOG_PARSER | LOG_SERVICE_PFS_SUPPORT)))
+          log_sink_pfs_parser = lsi;
+        // remember first pfs-supporting sink
+        if ((log_sink_pfs_buffer == nullptr) &&
+            (sce->chistics & LOG_SERVICE_PFS_SUPPORT))
+          log_sink_pfs_buffer = lsi;
+        // count filters
+        if (sce->chistics & LOG_SERVICE_FILTER) log_filter_count++;
       } else  // could not make new instance entry; fail
       {
-        rr = -5;   /* purecov: inspected */
-        goto done; /* purecov: inspected */
+        rr = LOG_ERROR_STACK_SERVICE_INSTANCE_OOM; /* purecov: inspected */
+        goto done;                                 /* purecov: inspected */
       }
     }
 
@@ -2563,12 +2009,12 @@ int log_builtins_error_stack(const char *conf, bool check_only, size_t *pos) {
     start = end;
   }
 
-  if (len < 0)
-    rr = len - 100;
+  if (len < 0)  // log_builtins_stack_get_service_from_var() failed
+    rr = (log_error_stack_error)len;  // flag delimiter issue in string
   else if ((sce != nullptr) && !(sce->chistics & LOG_SERVICE_SINK))
-    rr = -6;
-  else
-    rr = 0;
+    rr = LOG_ERROR_STACK_ENDS_IN_NON_SINK;  // last past service was not a sink.
+  else                                      // success
+    rr = LOG_ERROR_STACK_SUCCESS;
 
 done:
   // remove stale entries from cache
@@ -2581,11 +2027,45 @@ done:
       ++it;
   }
 
+  if (!check_only) {
+    log_sink_pfs_source = (log_sink_pfs_parser != nullptr)
+                              ? log_sink_pfs_parser
+                              : log_sink_pfs_buffer;
+  }
+  /*
+    We only process warnings if
+    a) We're in check_only mode;
+    b) there aren't errors already (which outrank warnings)
+    c) pos != non-NULL
+  */
+  else if ((rr == LOG_ERROR_STACK_SUCCESS) && (pos != nullptr)) {
+    if (log_pfs_count == 0)
+      rr = LOG_ERROR_STACK_NO_PFS_SUPPORT;
+    else if (log_parser_count == 0)
+      rr = LOG_ERROR_STACK_NO_LOG_PARSER;
+    else if (log_filter_count > 1)
+      rr = LOG_ERROR_MULTIPLE_FILTERS;
+  }
+
   mysql_rwlock_unlock(&THR_LOCK_log_stack);
 
   if (pos != nullptr) *pos = (size_t)(start - conf);
 
   return rr;
+}
+
+/**
+  Acquire an exclusive lock on the error logger core.
+*/
+void log_builtins_error_stack_wrlock() {
+  mysql_rwlock_wrlock(&THR_LOCK_log_stack);
+}
+
+/**
+  Release a lock on the error logger core.
+*/
+void log_builtins_error_stack_unlock() {
+  mysql_rwlock_unlock(&THR_LOCK_log_stack);
 }
 
 /**
@@ -3063,12 +2543,29 @@ DEFINE_METHOD(log_item_type_mask, log_builtins_imp::line_item_types_seen,
 }
 
 /**
+  Get log-line's output buffer.
+  If the logger core provides this buffer, the log-service may use it
+  to assemble its output therein and implicitly return it to the core.
+  Participation is required for services that support populating
+  performance_schema.error_log, and optional for all others.
+
+  @param  ll  the log_line to examine
+
+  @retval  nullptr    success, an output buffer is available
+  @retval  otherwise  failure, no output buffer is available
+*/
+DEFINE_METHOD(log_item *, log_builtins_imp::line_get_output_buffer,
+              (log_line * ll)) {
+  return log_line_get_output_buffer(ll);
+}
+
+/**
   Get an iterator for the items in a log_line.
   For now, only one iterator may exist per log_line.
 
   @param  ll  the log_line to examine
 
-  @retval     a log_iterm_iter, or nullptr on failure
+  @retval     a log_item_iter, or nullptr on failure
 */
 DEFINE_METHOD(log_item_iter *, log_builtins_imp::line_item_iter_acquire,
               (log_line * ll)) {
@@ -3338,9 +2835,96 @@ DEFINE_METHOD(const char *, log_builtins_imp::label_from_prio, (int prio)) {
 }
 
 /**
+  Parse a ISO8601 timestamp and return the number of microseconds
+  since the epoch. Heeds +/- timezone info if present.
+
+  @see make_iso8601_timestamp()
+
+  @param timestamp  an ASCII string containing an ISO8601 timestamp
+  @param len        Length in bytes of the aforementioned string
+
+  @return microseconds since the epoch
+*/
+DEFINE_METHOD(ulonglong, log_builtins_imp::parse_iso8601_timestamp,
+              (const char *timestamp, size_t len)) {
+  return iso8601_timestamp_to_microseconds(timestamp, len);
+}
+
+/**
+  Create a log-file name (path + name + extension).
+  The path will be taken from @@log_error.
+  If name + extension are given, they are used.
+  If only an extension is given (argument starts with '.'),
+  the name is taken from @@log_error, and the extension is used.
+  If only a name is given (but no extension), the name and a
+  default extension are used.
+
+  @param  result        Buffer to return to created path+name+extension in.
+                        Size must be FN_REFLEN.
+  @param  name_or_ext   if beginning with '.':
+                          @@global.log_error, except with this extension
+                        otherwise:
+                          use this as file name in the same location as
+                          @@global.log_error
+
+                        Value may not contain folder separators!
+
+  @retval LOG_SERVICE_SUCCESS                   buffer contains a valid result
+  @retval LOG_SERVICE_BUFFER_SIZE_INSUFFICIENT  an error occurred
+*/
+log_service_error make_log_path(char *result, const char *name_or_ext) {
+  char path[FN_REFLEN];  // Just the path (without file-name / extension)
+  size_t path_length;
+
+  // Get just the directories from @@log_error.
+  if (dirname_part(path, log_error_dest, &path_length) >= sizeof(path)) {
+    return LOG_SERVICE_BUFFER_SIZE_INSUFFICIENT; /* purecov: inspected */
+  }
+
+  // If the provided argument starts with a '.', it's only the extension
+  if (name_or_ext[0] == '.') {
+    // Copy the file-name and (original) ext.
+    char name_buff[FN_REFLEN];
+    strcpy(name_buff, &log_error_dest[path_length]);
+
+    /*
+      The logs should arguably be e.g. log.abc.err and log.abc.json.
+
+      MY_APPEND_EXT gives us log.abc.err and log.abc.err.json however.
+
+      MY_REPLACE_EXT uses strchr() (instead of strrchr() as it arguably
+      should), so it would give us log.json, deleting the abc part.
+
+      To fix this, we should do eventually do the following here:
+
+      char *period = strrchr(dest_buff, '.');
+      if (period != nullptr) *period = '\0';
+    */
+
+    // use path + file-name from log-error, and use the provided extension
+    if (fn_format(result, name_buff, path, name_or_ext,
+                  MY_APPEND_EXT | MY_REPLACE_DIR | MY_SAFE_PATH) == nullptr)
+      return LOG_SERVICE_BUFFER_SIZE_INSUFFICIENT; /* purecov: inspected */
+  }
+  // The provided argument is a file-name (possibly with extension).
+  else {
+    /*
+      Use the path part of @@log_error, and append the provided file-name.
+      If the argument contained an extension, use that; otherwise, we'll
+      use a default ("log error stream").
+    */
+    if (fn_format(result, name_or_ext, path, ".les",
+                  MY_REPLACE_DIR | MY_SAFE_PATH) == nullptr)
+      return LOG_SERVICE_BUFFER_SIZE_INSUFFICIENT; /* purecov: inspected */
+  }
+
+  return LOG_SERVICE_SUCCESS;
+}
+
+/**
   open an error log file
 
-  @param       file          if beginning with '.':
+  @param       name_or_ext   if beginning with '.':
                                @@global.log_error, except with this extension
                              otherwise:
                                use this as file name in the same location as
@@ -3350,80 +2934,93 @@ DEFINE_METHOD(const char *, log_builtins_imp::label_from_prio, (int prio)) {
 
   @param[out]  my_errstream  an error log handle, or nullptr on failure
 
-  @retval      0             success
-  @retval     -1             EINVAL: my_errstream is NULL
-  @retval     -2             EINVAL: invalid file name / extension
-  @retval     -3             OOM: could not allocate file handle
-  @retval     -4             couldn't lock lock
-  @retval     -5             couldn't write to given location
+  @retval LOG_SERVICE_SUCCESS                  success
+  @retval LOG_SERVICE_INVALID_ARGUMENT         no my_errstream, or bad log name
+  @retval LOG_SERVICE_OUT_OF_MEMORY            could not allocate file handle
+  @retval LOG_SERVICE_LOCK_ERROR               couldn't lock lock
+  @retval LOG_SERVICE_UNABLE_TO_WRITE          couldn't write to given location
+  @retval LOG_SERVICE_COULD_NOT_MAKE_LOG_NAME  could not make log name
 */
-DEFINE_METHOD(int, log_builtins_imp::open_errstream,
-              (const char *file, void **my_errstream)) {
+DEFINE_METHOD(log_service_error, log_builtins_imp::open_errstream,
+              (const char *name_or_ext, void **my_errstream)) {
   log_errstream *les;
-  int rr;
+  log_service_error rr;
 
-  if (my_errstream == nullptr) return -1;
+  if (my_errstream == nullptr)
+    return LOG_SERVICE_INVALID_ARGUMENT; /* purecov: inspected */
 
   *my_errstream = nullptr;
 
   les = (log_errstream *)my_malloc(key_memory_log_error_loaded_services,
                                    sizeof(log_errstream), MYF(0));
 
-  if (les == nullptr) return -3;
+  if (les == nullptr) return LOG_SERVICE_OUT_OF_MEMORY; /* purecov: inspected */
 
   new (les) log_errstream();
 
   if (mysql_mutex_init(0, &les->LOCK_errstream, MY_MUTEX_INIT_FAST)) {
-    my_free(les);
-    return -4;
+    my_free(les);                  /* purecov: inspected */
+    return LOG_SERVICE_LOCK_ERROR; /* purecov: inspected */
   }
 
-  if ((file == nullptr) || (file[0] == '\0') ||
-      (strchr(file, FN_LIBCHAR) != nullptr)) {
-    rr = -2;
-    goto fail_with_free;
-  } else if ((log_error_dest == nullptr) ||
-             (!strcmp(log_error_dest, "stderr"))) {
-    // using default stream, no file struct needed
+  // We require an argument, but don't allow dir separators.
+  if ((name_or_ext == nullptr) || (name_or_ext[0] == '\0') ||
+      (strchr(name_or_ext, FN_LIBCHAR) != nullptr)) {
+    rr = LOG_SERVICE_INVALID_ARGUMENT; /* purecov: inspected */
+    goto fail_with_free;               /* purecov: inspected */
+  }
+  // --log-error=... was not set, we're logging to stderr
+  else if ((log_error_dest == nullptr) || (!strcmp(log_error_dest, "stderr"))) {
+    // When using default stream, no file struct is needed.
     les->file = nullptr;
-  } else {
-    char errorlog_filename_buff[FN_REFLEN];
-    char path[FN_REFLEN];
-    size_t path_length;
+  }
+  // Logging to file. Create an accept path+name+extension, and open the file.
+  else {
     MY_STAT f_stat;
+    char errorlog_instance_full[FN_REFLEN];  // result: path + name + extension
 
-    dirname_part(path, log_error_dest, &path_length);
-
-    rr = -5;
-
-    if (file[0] == '.') {
-      fn_format(errorlog_filename_buff, log_error_dest, path, file,
-                MY_APPEND_EXT | MY_REPLACE_DIR);
-
-    } else {
-      fn_format(errorlog_filename_buff, file, path, ".les", MY_REPLACE_DIR);
+    if (make_log_path(errorlog_instance_full, name_or_ext)) {
+      rr = LOG_SERVICE_COULD_NOT_MAKE_LOG_NAME; /* purecov: inspected */
+      goto fail_with_free;                      /* purecov: inspected */
     }
 
-    if (my_stat(errorlog_filename_buff, &f_stat, MYF(0)) != nullptr) {
-      if (!(f_stat.st_mode & MY_S_IWRITE)) goto fail_with_free;
-    } else {
-      if (path_length && my_access(path, (F_OK | W_OK))) goto fail_with_free;
+    rr = LOG_SERVICE_UNABLE_TO_WRITE;
+
+    // If the log-file exists, make sure it's writeable.
+    if (my_stat(errorlog_instance_full, &f_stat, MYF(0)) != nullptr) {
+      if (!(f_stat.st_mode & MY_S_IWRITE)) {
+        goto fail_with_free; /* purecov: inspected */
+      }
+    }
+    /*
+      If the log-file doesn't exist yet, check whether we can write to
+      the directory.
+    */
+    else {
+      char path[FN_REFLEN];
+      size_t path_length;
+
+      if ((dirname_part(path, log_error_dest, &path_length) >= sizeof(path)) ||
+          my_access(path, (F_OK | W_OK))) {
+        goto fail_with_free; /* purecov: inspected */
+      }
     }
 
-    les->file = my_fopen(errorlog_filename_buff,
+    // Now finally, we open the log.
+    les->file = my_fopen(errorlog_instance_full,
                          O_APPEND | O_WRONLY | MY_FOPEN_BINARY, MYF(0));
 
-    if (les->file == nullptr) goto fail_with_free;
+    if (les->file == nullptr) goto fail_with_free; /* purecov: inspected */
   }
 
   *my_errstream = les;
 
-  return 0;
+  return LOG_SERVICE_SUCCESS;
 
 fail_with_free:
-  my_free(les);
+  my_free(les); /* purecov: begin inspected */
 
-  return rr;
+  return rr; /* purecov: end */
 }
 
 /**
@@ -3433,10 +3030,10 @@ fail_with_free:
   @param       buffer        pointer to the string to write
   @param       length        length of the string to write
 
-  @retval  0                 success
-  @retval !0                 failure
+  @retval  LOG_SERVICE_SUCCESS                 success
+  @retval  otherwise                           failure
 */
-DEFINE_METHOD(int, log_builtins_imp::write_errstream,
+DEFINE_METHOD(log_service_error, log_builtins_imp::write_errstream,
               (void *my_errstream, const char *buffer, size_t length)) {
   log_errstream *les = (log_errstream *)my_errstream;
 
@@ -3449,7 +3046,7 @@ DEFINE_METHOD(int, log_builtins_imp::write_errstream,
     mysql_mutex_unlock(&les->LOCK_errstream);
   }
 
-  return 0;
+  return LOG_SERVICE_SUCCESS;
 }
 
 /**
@@ -3475,17 +3072,18 @@ DEFINE_METHOD(int, log_builtins_imp::dedicated_errstream,
 
   @param       my_errstream  a handle describing the log file
 
-  @retval      0          success
-  @retval     !0          failure
+  @retval     LOG_SERVICE_SUCCESS          success
+  @retval     otherwise                    failure
 */
-DEFINE_METHOD(int, log_builtins_imp::close_errstream, (void **my_errstream)) {
+DEFINE_METHOD(log_service_error, log_builtins_imp::close_errstream,
+              (void **my_errstream)) {
   int rr;
 
-  if (my_errstream == nullptr) return -1;
+  if (my_errstream == nullptr) return LOG_SERVICE_INVALID_ARGUMENT;
 
   log_errstream *les = (log_errstream *)(*my_errstream);
 
-  if (les == nullptr) return -2;
+  if (les == nullptr) return LOG_SERVICE_INVALID_ARGUMENT;
 
   *my_errstream = nullptr;
 
@@ -3499,7 +3097,7 @@ DEFINE_METHOD(int, log_builtins_imp::close_errstream, (void **my_errstream)) {
 
   my_free(les);
 
-  return rr;
+  return rr ? LOG_SERVICE_LOCK_ERROR : LOG_SERVICE_SUCCESS;
 }
 
 /*
@@ -3663,11 +3261,11 @@ DEFINE_METHOD(size_t, log_builtins_tmp_imp::notify_client,
   @param option   MY_SYSLOG_PIDS to log PID with each message.
   @param facility Type of program. Passed to openlog().
 
-  @retval   0 Success
-  @retval  -1 Error, log not opened
-  @retval  -2 Error, not updated, using previous values
+  @retval  LOG_SERVICE_SUCCESS        Success
+  @retval  LOG_SERVICE_NOT_AVAILABLE  Error, log not opened
+  @retval  LOG_ERROR_NOTHING_DONE     Error, not updated, using previous values
 */
-DEFINE_METHOD(int, log_builtins_syseventlog_imp::open,
+DEFINE_METHOD(log_service_error, log_builtins_syseventlog_imp::open,
               (const char *name, int option, int facility)) {
   int ret;
 
@@ -3675,7 +3273,18 @@ DEFINE_METHOD(int, log_builtins_syseventlog_imp::open,
   ret = my_openlog(name, option, facility);
   mysql_mutex_unlock(&THR_LOCK_log_syseventlog);
 
-  return ret;
+  switch (ret) {
+    case 0:
+      return LOG_SERVICE_SUCCESS;
+    case -1: /* purecov: begin inspected */
+      return LOG_SERVICE_NOT_AVAILABLE;
+    case -2:
+      return LOG_SERVICE_NOTHING_DONE;
+    default:
+      DBUG_ASSERT(false);
+  }
+
+  return LOG_SERVICE_MISC_ERROR; /* purecov: end */
 }
 
 /**
@@ -3687,10 +3296,10 @@ DEFINE_METHOD(int, log_builtins_syseventlog_imp::open,
   @param level                Log level
   @param msg                  Message to be logged
 
-  @retval   0  Success
-  @retval <>0  Error
+  @retval LOG_SERVICE_SUCCESS  Success
+  @retval otherwise            Error, nothing logged
 */
-DEFINE_METHOD(int, log_builtins_syseventlog_imp::write,
+DEFINE_METHOD(log_service_error, log_builtins_syseventlog_imp::write,
               (enum loglevel level, const char *msg)) {
   int ret;
 
@@ -3698,22 +3307,22 @@ DEFINE_METHOD(int, log_builtins_syseventlog_imp::write,
   ret = my_syslog(&my_charset_utf8_bin, level, msg);
   mysql_mutex_unlock(&THR_LOCK_log_syseventlog);
 
-  return ret;
+  return (ret == 0) ? LOG_SERVICE_SUCCESS : LOG_SERVICE_NOT_AVAILABLE;
 }
 
 /**
   Wrapper for mysys' my_closelog.
   Closes/de-registers the system logging handle.
 
-  @retval   0 Success
-  @retval <>0 Error
+  @retval LOG_SERVICE_SUCCESS  Success
+  @retval otherwise            Error
 */
-DEFINE_METHOD(int, log_builtins_syseventlog_imp::close, (void)) {
+DEFINE_METHOD(log_service_error, log_builtins_syseventlog_imp::close, (void)) {
   int ret = 0;
 
   mysql_mutex_lock(&THR_LOCK_log_syseventlog);
   ret = my_closelog();
   mysql_mutex_unlock(&THR_LOCK_log_syseventlog);
 
-  return ret;
+  return (ret == 0) ? LOG_SERVICE_SUCCESS : LOG_SERVICE_MISC_ERROR;
 }

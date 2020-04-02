@@ -11073,6 +11073,12 @@ ER_IB_MSG_INCORRECT_SIZE
 ER_TMPDIR_PATH_TOO_LONG
   eng "A tmpdir temporary path \"%s\" is too long (> %zu) for this OS. This would not leave enough space for a temporary filename of length %zu within it."
 
+ER_ERROR_LOG_DESTINATION_NOT_A_FILE
+  eng "Error-log destination \"%s\" is not a file. Can not restore error log messages from previous run."
+
+ER_NO_ERROR_LOG_PARSER_CONFIGURED
+  eng "None of the log-sinks selected with --log-error-services=... provides a log-parser. The server will not be able to make the previous runs' error-logs available in performance_schema.error_log."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

@@ -1,0 +1,444 @@
+--echo # WL#13681: Make error-log available for queries from a connection
+--echo
+
+SET @@global.log_error_verbosity=3;
+
+# This test does not rely on debug features. If you need to add a case that
+# does, start a new file, or add it to error_log_debug.test instead.
+
+--echo
+--echo # FR-1.1 Table name
+--echo # FR-1.2 Columns and names
+DESC performance_schema.error_log;
+
+
+--echo #
+--echo # PART I - Traditional error log
+--echo #
+--echo
+
+# Make timestamps in file and table agree in case we need to correlate them.
+SET @@session.time_zone=@@global.log_timestamps;
+
+--echo
+--echo # We have 4 new status variables to monitor the ring-buffer:
+# We only show the presence of the variables, not their values.
+SELECT VARIABLE_NAME
+  FROM performance_schema.global_status
+ WHERE VARIABLE_NAME LIKE "Error_log_%";
+
+--echo
+--echo # Show that we're logging to stderr:
+SELECT @@global.log_error;
+
+--echo
+--echo # Determine start-up time. Must succeed for other results to have meaning.
+# If this test is run with --repeat=..., any number of entries could
+# be present in the log. We therefore use the latest ER_STARTING_AS
+# (which is issued very early in the start-up, and of SYSTEM priority)
+# as an approximate marker for when the current run was started, and
+# fetch the timestamp for it. We can then use that as a starting point
+# (logged>=@startup) in subsequent queries.
+# This is also a good first test to show that
+# - We have something in the ring-buffer
+# - It looks like sensible log-events
+# - We can SELECT things in the ring-buffer
+# If this fails, something went very wrong, and all results below are
+# of questionable worth.
+SELECT logged INTO @startup
+  FROM performance_schema.error_log
+ WHERE error_code="MY-010116" ORDER BY logged DESC LIMIT 1;
+
+--echo
+--echo # Since we're logging to stderr, we should see this message exactly once
+--echo # (from our current start-up). Otherwise, we might see more of them from
+--echo # previous runs:
+SELECT COUNT(logged)
+  FROM performance_schema.error_log
+ WHERE error_code="MY-010116" ORDER BY logged;
+
+--echo
+--echo # number of buffered events should agree between status and COUNT(*)
+# get COUNT(*). also: SELECT with >= cond
+SELECT COUNT(*) INTO @count_select
+  FROM performance_schema.error_log
+ WHERE logged>=@startup
+ ORDER BY logged;
+# get status variable
+SELECT VARIABLE_VALUE INTO @count_status
+  FROM performance_schema.global_status
+ WHERE VARIABLE_NAME LIKE "Error_log_buffered_events";
+
+--echo #
+--echo # SELECT with = cond on indexed field
+SELECT prio,error_code,subsystem,data
+  FROM performance_schema.error_log
+ WHERE data="InnoDB initialization has ended.";
+
+--echo
+--echo # FR-1.3.2 Trad log mode
+--echo # Show the log. No messages here because of non-deterministic parts.
+--echo # We're also filtering out a number of messages that behave differently
+--echo # on the first run vis-a-vis subsequent runs with --repeat=..., and some
+--echo # that we don't know the sequence of because of multi-threading, or that
+--echo # may or may not appear depending on the machine the test is run on.
+--echo #
+--echo # We're filtering this here explicitly to make it more obvious what is
+--echo # happening. In a real world scenario, this kind of filtering is unlikely
+--echo # to be desired, and where it is, using --log-error-suppression-list=...
+--echo # should address the issue. Alternatively, a table of exclusions or a
+--echo # user-variable and dynamic SQL could be used to streamline the statement
+--echo # and de-duplicate the exclusion list. For testing in other .tests (i.e.
+--echo # where we're testing things other than the pfs.error_log mechanism
+--echo # itself), any of those options could be pre-populated with a sensible
+--echo # default list of exclusions by mysql-test-run.
+#
+# List of exclusions. Reason is race between threads unless otherwise noted.
+# There are some events we filter out elsewhere because of variable parts in
+# the actual messages that we can ignore here (as we don't show messages here).
+#
+# MY-011243, MY-011240, MY-011245, MY-011323: x-plugin
+# MY-010931: ER_SERVER_STARTUP_MSG (variable parts: port, path, version)
+# MY-010949: ER_BASEDIR_SET_TO (variable part: path)
+# MY-010747: ER_PLUGIN_DISABLED
+# MY-013546,MY-011946,MY-011952: InnoDB %s
+# MY-010051: ER_SCHEDULER_STARTED (--repeat=...)
+# MY-012922: ER_IB_MSG_1097 (seeing on PB but not locally)
+# MY-011810: ER_PID_FILE_PRIV_DIRECTORY_INSECURE (seeing on PB but not locally)
+# MY-012932: punchhole support not available on all systems
+# MY-010902: ER_THREAD_PRIORITY_IGNORED (ignored on Lin, available on Win)
+# MY-012937: not on -stage for: win+el7+sol11
+# MY-012366: not on -stage for: solaris11-x86-64bit
+# MY-010159: on -stage for: OS X (lower_case_table_names)
+# MY-000067: "unknown variable" - number of these depends on platform/build
+# MY-010108: ER_CORE_VALUES - thrown when ASAN testing
+# MY-013602,MY-010069,MY-013595: SSL
+# MY-012363: InnoDB-page-size changed, for chtest
+# MY-011953: InnoDB page cleaner. Timing-dependent and thus indeterministic.
+# MY-000000: sql_print_(error|warning|information)
+
+SELECT prio,error_code,subsystem
+  FROM performance_schema.error_log
+ WHERE logged>=@startup
+   AND error_code NOT IN("MY-011243", "MY-011240", "MY-011245", "MY-010931",
+                         "MY-010949", "MY-010747", "MY-013546", "MY-010051",
+                         "MY-011946", "MY-012922", "MY-011810", "MY-012932",
+                         "MY-011952", "MY-011323", "MY-010902", "MY-000000",
+                         "MY-012937", "MY-012366", "MY-000067", "MY-010159",
+                         "MY-013602", "MY-010069", "MY-013595", "MY-010108",
+                         "MY-012363", "MY-011953")
+ ORDER BY logged;
+
+--echo
+--echo # Don't show NOTEs:
+# A shorter filter-list will do here as the bulk of what we filter above is
+# Notes, all of which we discard here by Prio. Conversely, we need to filter
+# out some messages we didn't have to above because this time, we'll show
+# the actual message part of the event, so we'll have to account for messages
+# with variable parts.
+#
+# MY-011323: x-plugin
+# MY-010075: ER_CREATING_NEW_UUID (variable part: UUID)
+# MY-010068: ER_CA_SELF_SIGNED (variable part: CA)
+# MY-010069: ER_SSL_LIBRARY_ERROR (variable part: error string)
+# MY-010931: see above
+# MY-012363: see above
+# MY-010116: ER_STARTING_AS (variable part: PID)
+# MY-011810: see above (also, variable part: path)
+# MY-010159, MY-000067, MY-000000, MY-010108, MY-013602,MY-013595: see above
+SELECT prio,error_code,subsystem,data
+  FROM performance_schema.error_log
+ WHERE logged>=@startup
+   AND prio!="Note"
+   AND error_code NOT IN("MY-011323", "MY-010075", "MY-010068", "MY-010069",
+                         "MY-010931", "MY-010116", "MY-011810", "MY-000000",
+                         "MY-000067", "MY-010159", "MY-013595", "MY-013602",
+                         "MY-010108", "MY-012363")
+ ORDER BY logged;
+
+--echo
+--echo # FR-1.4.1 Show the log-error-verbosity applies
+--echo # We passed --log-error-verbosity=3 at start-up. Show that we have Notes.
+SELECT COUNT(*)>0
+  FROM performance_schema.error_log
+ WHERE logged>=@startup
+   AND prio NOT IN("System", "Warning", "Error");
+
+--echo
+--echo ########################################################################
+--echo # Restart with JSON logging ...
+--echo
+# It'd be nice to be able to split this into a trad test and a JSON test,
+# but we need to INSTALL the JSON component before the server is run.
+INSTALL COMPONENT "file://component_log_sink_json";
+--let LOG_FILE=$MYSQLTEST_VARDIR/tmp/wl13681.err
+--let LOG_FILE_J_SRC=$MYSQLTEST_VARDIR/std_data/wl13681.json
+--let LOG_FILE_J_DST=$MYSQLTEST_VARDIR/tmp/wl13681.err.00.json
+--copy_file $LOG_FILE_J_SRC $LOG_FILE_J_DST
+--let $log_services="log_filter_internal;log_sink_json"
+--let restart_parameters="restart: --log-error-services=$log_services --log-error=$LOG_FILE --log-error-verbosity=3"
+
+--replace_result $LOG_FILE LOG_FILE
+--source include/restart_mysqld.inc
+
+--echo #
+--echo # PART II - JSON error log
+--echo #
+--echo
+
+# Make timestamps in file and table agree in case we need to correlate them.
+SET @@session.time_zone=@@global.log_timestamps;
+
+--echo
+--echo # Determine start-up time. Must succeed for other results to have meaning
+SELECT logged INTO @startup
+  FROM performance_schema.error_log
+ WHERE error_code="MY-010116" ORDER BY logged DESC LIMIT 1;
+
+--echo
+--echo # FR-1.3.3 JSON log mode
+--echo # SELECT with = cond with (possibly) several results
+SELECT logged=@startup
+  FROM performance_schema.error_log
+ WHERE error_code="MY-010116" ORDER BY logged DESC LIMIT 1;
+
+--echo
+--echo # Extract a key/value pair from a JSON record:
+SELECT prio,error_code,subsystem,JSON_EXTRACT(data,'$.err_symbol')
+  FROM performance_schema.error_log
+ WHERE logged>=@startup
+   AND LEFT(data,1)='{'
+   AND JSON_EXTRACT(data,'$.err_symbol')="ER_STARTING_AS"
+ ORDER BY logged;
+
+--echo
+--echo # FR-1.4.2 Information from previous run/log
+--echo # FR-2 Loading information from previous run
+--echo # FR-2.2.3 Restoring from the JSON log
+--echo # Pre-existing record appears BEFORE our start-up marker.
+--echo # Note also the timestamps:
+--echo # - The timestamp in the JSON record preserves the original timestamp.
+--echo # - The timestamp in the logged column is strictly increasing.
+SELECT logged, prio, error_code, subsystem, data
+  FROM performance_schema.error_log
+ WHERE logged<@startup
+   AND JSON_EXTRACT(data,'$.Azundris')="was here"
+ ORDER BY logged;
+
+--echo
+--echo # - The "zero" timestamp in the input is replaced with present date/time.
+SELECT logged>"2020-02-24 12:34:56.123456", prio, error_code, subsystem, data
+  FROM performance_schema.error_log
+ WHERE logged<@startup
+   AND JSON_EXTRACT(data,'$.Azundris')="auto-generate timestamp"
+ ORDER BY logged;
+
+--echo
+--echo # Cleanup.
+SET GLOBAL log_error_services= DEFAULT;
+UNINSTALL COMPONENT "file://component_log_sink_json";
+
+
+--echo #
+--echo # Various tests to help QA WL#13681 - performance_schema.error_log
+--echo #
+--echo
+
+--echo
+--echo # First, restart with various --log-error-verbosity=...,
+--echo # but not --log-error=... (so when running from mtr,
+--echo # errors will be logged to stderr).
+--echo
+ 
+--echo
+--echo # Restarting server with --log-error-verbosity=1
+--let restart_parameters="restart: --log-error-verbosity=1"
+--source include/restart_mysqld.inc
+
+# find "first" entry in latest run
+SELECT logged INTO @startup
+  FROM performance_schema.error_log
+ WHERE error_code="MY-010116"
+ ORDER BY logged DESC LIMIT 1;
+
+--echo
+--echo # There should be no warnings/infos with verbosity=1.
+SELECT COUNT(*)=0
+  FROM performance_schema.error_log
+ WHERE logged>=@startup AND prio NOT IN("Error","System");
+
+
+--echo
+--echo # Restarting server with --log-error-verbosity=2
+--let restart_parameters="restart: --log-error-verbosity=2"
+--source include/restart_mysqld.inc
+
+# find "first" entry in latest run
+SELECT logged INTO @startup
+  FROM performance_schema.error_log
+ WHERE error_code="MY-010116"
+ ORDER BY logged DESC LIMIT 1;
+
+--echo
+--echo # There should be no infos with verbosity=2.
+SELECT COUNT(*)=0
+  FROM performance_schema.error_log
+ WHERE logged>=@startup AND prio NOT IN("Warning", "Error", "System");
+
+
+--echo
+--echo # Now restart with various --log-error-verbosity=...,
+--echo # and --log-error=... (so when running from mtr,
+--echo # errors will be logged to a file, and if a suitable
+--echo # log-sink is used, previous logs can be read).
+--echo
+
+--echo 
+--echo # verbosity=1
+--let LOG_FILE=$MYSQLTEST_VARDIR/tmp/wl13681.err
+--let restart_parameters="restart: --log-error=$LOG_FILE --log-error-verbosity=1"
+--replace_result $LOG_FILE LOG_FILE
+--source include/restart_mysqld.inc
+
+# find "first" entry in latest run
+SELECT logged INTO @startup
+  FROM performance_schema.error_log
+ WHERE error_code="MY-010116"
+ ORDER BY logged DESC LIMIT 1;
+
+--echo
+--echo # There should be no warnings/infos with verbosity=1.
+SELECT COUNT(*)=0
+  FROM performance_schema.error_log
+ WHERE logged>=@startup AND prio NOT IN("Error", "System");
+
+--echo
+--echo # verbosity=2
+
+--let restart_parameters="restart: --log-error=$LOG_FILE --log-error-verbosity=2"
+--replace_result $LOG_FILE LOG_FILE
+--source include/restart_mysqld.inc
+
+# find "first" entry in latest run
+SELECT logged INTO @startup
+  FROM performance_schema.error_log
+ WHERE error_code="MY-010116"
+ ORDER BY logged DESC LIMIT 1;
+
+--echo
+--echo # There should be warnings/infos with verbosity=2.
+SELECT COUNT(*)>0
+  FROM performance_schema.error_log
+ WHERE logged>=@startup AND prio NOT IN("Error", "System");
+
+--echo
+--echo # verbosity=3
+
+--let LOG_FILE=$MYSQLTEST_VARDIR/tmp/wl13681.err
+--let restart_parameters="restart: --log-error=$LOG_FILE --log-error-verbosity=3"
+--replace_result $LOG_FILE LOG_FILE
+--source include/restart_mysqld.inc
+SELECT logged INTO @startup
+  FROM performance_schema.error_log
+ WHERE error_code="MY-010116"
+ ORDER BY logged DESC LIMIT 1;
+
+--echo
+--echo # There should be infos with verbosity=3.
+SELECT COUNT(*)>0
+  FROM performance_schema.error_log
+ WHERE logged>=@startup AND prio NOT IN("Note");
+
+
+
+--echo
+--echo # Pass --log-error-suppression-list at start-up, then show that the
+--echo # listed errors have been excluded from the table!
+--let restart_parameters="restart: --log-error-suppression-list=MY-013595,MY-010069,MY-011810,MY-010116 --log-error-verbosity=3"
+--source include/restart_mysqld.inc
+--echo # Show that log_error_suppression_list was accepted from the command-line.
+SELECT @@global.log_error_suppression_list;
+--echo # Show that we have no log file (i.e. we're logging to stderr).
+--echo # This is to guard against --log-error=... being added to the .opt file,
+--echo # which would then be applied on every restart and skew results in subtle ways.
+SELECT @@global.log_error;
+SELECT error_code
+  FROM performance_schema.error_log
+ WHERE error_code IN("MY-013595","MY-010069","MY-011810","MY-010116")
+   AND prio<>"System";
+
+
+
+--echo 
+--echo # Likewise, show that log_filter_dragnet affects the table.
+INSTALL COMPONENT "file://component_log_filter_dragnet";
+SET PERSIST dragnet.log_error_filter_rules='IF ERROR_CODE == "MY-011300" THEN drop.';
+--let $log_services="log_filter_dragnet;log_sink_internal"
+--let restart_parameters="restart: --log-error-services=$log_services --log-error=$LOG_FILE --log-error-verbosity=3"
+--replace_result $LOG_FILE LOG_FILE
+--source include/restart_mysqld.inc
+SELECT logged INTO @startup
+  FROM performance_schema.error_log
+ WHERE error_code="MY-010116"
+ ORDER BY logged DESC LIMIT 1;
+
+SELECT COUNT(*)=0
+  FROM performance_schema.error_log
+ WHERE logged>=@startup AND ERROR_CODE = "MY-011300";
+
+SET @@global.log_error_services=DEFAULT;
+UNINSTALL COMPONENT "file://component_log_filter_dragnet";
+
+
+--echo 
+--echo # PERSIST + JSON
+
+INSTALL COMPONENT 'file://component_log_sink_json';
+
+SET PERSIST log_error_verbosity=1;
+SET PERSIST log_error_suppression_list="MY-013595,MY-010069,MY-011810,MY-010116";
+SET PERSIST log_error_services="log_filter_internal; log_sink_json";
+
+--let restart_parameters="restart: --log-error=$LOG_FILE"
+--replace_result $LOG_FILE LOG_FILE
+--source include/restart_mysqld.inc
+
+SELECT logged INTO @startup
+  FROM performance_schema.error_log
+ WHERE error_code="MY-010116"
+ ORDER BY logged DESC LIMIT 1;
+
+--echo # verbosity=1 (persisted), should apply (and result in 0 notes/warnings)
+SELECT COUNT(*)=0 FROM performance_schema.error_log
+ WHERE logged>=@startup AND prio NOT IN("Error","System");
+
+--echo # no errors excluded by log_error_suppression_list should appear:
+SELECT COUNT(*)=0
+  FROM performance_schema.error_log
+ WHERE error_code IN("MY-013595","MY-010069","MY-011810","MY-010116")
+   AND logged>=@startup AND prio<>"System";
+
+--echo # find a row that should exist, and extract JSON data from it
+SELECT prio,error_code,subsystem,JSON_EXTRACT(data,'$.err_symbol')
+  FROM performance_schema.error_log
+ WHERE logged>=@startup
+   AND LEFT(data,1)='{'
+   AND JSON_EXTRACT(data,'$.err_symbol')="ER_STARTING_AS"
+ ORDER BY logged;
+
+SET @@global.log_error_services=DEFAULT;
+
+UNINSTALL COMPONENT 'file://component_log_sink_json';
+
+
+--echo 
+--echo # RENAME & DROP Error Expected
+
+--error ER_DBACCESS_DENIED_ERROR
+RENAME TABLE performance_schema.error_log to performance_schema.error_log_new;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DROP TABLE IF EXISTS performance_schema.error_log;
+
+--echo
+--echo # Done!

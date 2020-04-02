@@ -43,6 +43,7 @@
 #include "mysql/components/services/log_shared.h"
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql_time.h"
+#include "server_component/log_sink_buffer.h"  // log_sink_buffer_flush()
 #include "sql_string.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
@@ -641,8 +642,8 @@ bool File_query_log::write_general(ulonglong event_utime,
 
   /* Note that my_b_write() assumes it knows the length for this */
   char local_time_buff[iso8601_size];
-  int time_buff_len =
-      make_iso8601_timestamp(local_time_buff, event_utime, opt_log_timestamps);
+  int time_buff_len = make_iso8601_timestamp(local_time_buff, event_utime,
+                                             iso8601_sysvar_logtimestamps);
 
   if (my_b_write(&log_file, pointer_cast<uchar *>(local_time_buff),
                  time_buff_len))
@@ -696,7 +697,8 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
   if (!(specialflag & SPECIAL_SHORT_LOG_FORMAT)) {
     char my_timestamp[iso8601_size];
 
-    make_iso8601_timestamp(my_timestamp, current_utime, opt_log_timestamps);
+    make_iso8601_timestamp(my_timestamp, current_utime,
+                           iso8601_sysvar_logtimestamps);
 
     buff_len = snprintf(buff, sizeof buff, "# Time: %s\n", my_timestamp);
 
@@ -737,12 +739,14 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
 
     if (query_start_utime) {
       make_iso8601_timestamp(start_time_buff, query_start_utime,
-                             opt_log_timestamps);
+                             iso8601_sysvar_logtimestamps);
       make_iso8601_timestamp(end_time_buff, query_start_utime + query_utime,
-                             opt_log_timestamps);
+                             iso8601_sysvar_logtimestamps);
     } else {
       start_time_buff[0] = '\0'; /* purecov: inspected */
-      make_iso8601_timestamp(end_time_buff, current_utime, opt_log_timestamps);
+      make_iso8601_timestamp(
+          end_time_buff, current_utime,
+          iso8601_sysvar_logtimestamps); /* purecov: inspected */
     }
 
     if (my_b_printf(
@@ -1901,7 +1905,7 @@ bool init_error_log() {
 
   if (log_builtins_init() < 0) {
     log_write_errstream(
-        STRING_WITH_LEN("failed to initialized basic error logging"));
+        STRING_WITH_LEN("failed to initialize basic error logging"));
     return true;
   } else
     return false;
@@ -1983,7 +1987,8 @@ bool reopen_error_log() {
     mysql_mutex_unlock(&LOCK_error_log);
 
     if (result)
-      my_error(ER_CANT_OPEN_ERROR_LOG, MYF(0), error_log_file, ".", "");
+      my_error(ER_DA_CANT_OPEN_ERROR_LOG, MYF(0), error_log_file, ".",
+               ""); /* purecov: inspected */
   }
 
   return result;

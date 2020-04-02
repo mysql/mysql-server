@@ -56,10 +56,12 @@ DROP TABLE t1;
 
 --let $grep_file=$MYSQLTEST_VARDIR/tmp/rpl_replication_observers_example_plugin.err
 --let $grep_pattern=replication_observers_example_plugin:before_server_shutdown
+--replace_regex /.* reported: \' //
 --source include/grep_pattern.inc
 
 --let $grep_file=$MYSQLTEST_VARDIR/tmp/rpl_replication_observers_example_plugin.err
 --let $grep_pattern=replication_observers_example_plugin:after_server_shutdown
+--replace_regex /.* reported: \' //
 --source include/grep_pattern.inc
 
 --echo #
@@ -68,22 +70,27 @@ DROP TABLE t1;
 
 --let $grep_file=$MYSQLTEST_VARDIR/tmp/rpl_replication_observers_example_plugin.err
 --let $grep_pattern=replication_observers_example_plugin:trans_before_dml
+--replace_regex /.* reported: \' //
 --source include/grep_pattern.inc
 
 --let $grep_file=$MYSQLTEST_VARDIR/tmp/rpl_replication_observers_example_plugin.err
 --let $grep_pattern=replication_observers_example_plugin:trans_before_commit
+--replace_regex /.* reported: \' //
 --source include/grep_pattern.inc
 
 --let $grep_file=$MYSQLTEST_VARDIR/tmp/rpl_replication_observers_example_plugin.err
 --let $grep_pattern=replication_observers_example_plugin:trans_before_rollback
+--replace_regex /.* reported: \' //
 --source include/grep_pattern.inc
 
 --let $grep_file=$MYSQLTEST_VARDIR/tmp/rpl_replication_observers_example_plugin.err
 --let $grep_pattern=replication_observers_example_plugin:trans_after_commit
+--replace_regex /.* reported: \' //
 --source include/grep_pattern.inc
 
 --let $grep_file=$MYSQLTEST_VARDIR/tmp/rpl_replication_observers_example_plugin.err
 --let $grep_pattern=replication_observers_example_plugin:trans_after_rollback
+--replace_regex /.* reported: \' //
 --source include/grep_pattern.inc
 
 # Cleanup

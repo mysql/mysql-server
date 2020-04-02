@@ -717,6 +717,8 @@
 #include "mysys_err.h"  // EXIT_OUT_OF_MEMORY
 #include "pfs_thread_provider.h"
 #include "print_version.h"
+#include "server_component/log_sink_buffer.h"      // log_error_stage_set()
+#include "server_component/log_sink_perfschema.h"  // log_error_read_log()
 #ifdef _WIN32
 #include <shellapi.h>
 #endif
@@ -2333,6 +2335,7 @@ static void mysqld_exit(int exit_code) {
   clean_up_mutexes();
   my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
   destroy_error_log();
+  log_error_read_log_exit();
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   shutdown_performance_schema();
 #endif
@@ -5409,6 +5412,181 @@ static void setup_error_log() {
   log_error_stage_set(les);
 }
 
+/**
+  Try to read the previous run's error log and make it available in
+  performance_schema.error_log. Activate all error logging services
+  requested by the user in @@global.log_error_services, flush the
+  buffered error messages to performance schema and to configured
+  services, and end error log buffering.
+
+  @retval  0  Success
+  @retval  1  Log pipeline not set up as requested. Caller should abort.
+*/
+static int setup_error_log_components() {
+  /*
+    Activate loadable error logging components, if any.
+    First, check configuration value -- is it well-formed, and do
+    the requested services exist?
+  */
+  if (log_builtins_error_stack(opt_log_error_services, true, nullptr) == 0) {
+    // Syntax is OK and services exist; let's try to initialize them:
+    size_t pos;
+
+    if (log_builtins_error_stack(opt_log_error_services, false, &pos) < 0) {
+      char *problem = opt_log_error_services; /* purecov: begin inspected */
+      const char *var_name = "log_error_services";
+
+      /*
+        We failed to set the requested configuration. This can happen
+        e.g. when a given log-writer does not have sufficient permissions
+        to open its log files. pos should mark the position in the
+        configuration string where we ran into trouble. Make a char-pointer
+        from it so we can inform the user what log-service we could not
+        initialize.
+      */
+      if (pos < strlen(opt_log_error_services))
+        problem = &((char *)opt_log_error_services)[pos];
+
+      flush_error_log_messages();
+
+      mysql_mutex_lock(&LOCK_system_variables_hash);
+
+      /*
+        We could not set the requested pipeline.
+        Try to fall back to default error logging stack
+        (by looking up the system variable for this configuration
+        item and extracting the default value from it).
+        If that's impossible, print diagnostics, then exit.
+      */
+      sys_var *var = intern_find_sys_var(var_name, strlen(var_name));
+
+      if (var != nullptr) {
+        // We found the system variable, now extract the default value:
+        opt_log_error_services = (char *)var->get_default();
+        if (log_builtins_error_stack(opt_log_error_services, false, nullptr) >=
+            0) {
+          /*
+            We managed to set the default pipeline. Now log what was wrong
+            about the user-supplied value, then shut down.
+          */
+          LogErr(ERROR_LEVEL, ER_CANT_START_ERROR_LOG_SERVICE, var_name,
+                 problem);
+          return 1;
+        }
+        /*
+          If we arrive here, the user-supplied value was valid, but could
+          not be set. The default value was found, but also could not be
+          set. Something is very wrong. Fall-through to below where we
+          low-level write diagnostics, then abort.
+        */
+      }
+
+      mysql_mutex_unlock(&LOCK_system_variables_hash);
+
+      /*
+        We failed to set the default error logging stack (or failed to look
+        up the default setting). At this point, we don't know whether ANY of
+        the requested sinks work, so our best bet is to write directly to the
+        error stream. Then, we abort.
+      */
+      {
+        char buff[512];
+        size_t len;
+
+        len = snprintf(buff, sizeof(buff),
+                       ER_DEFAULT(ER_CANT_START_ERROR_LOG_SERVICE), var_name,
+                       problem);
+        len = std::min(len, sizeof(buff) - 1);
+
+        // Trust nothing. Write directly. Quit.
+        log_write_errstream(buff, len);
+
+        return 1;
+      } /* purecov: end */
+    }   // value was OK, but could not be set
+    // If we arrive here, the value was OK, and was set successfully.
+  } else {
+    /*
+      We were given an illegal value at start-up, so the default was
+      used instead. Let's now point our variable back at the default
+      (i.e. the value actually used) so SELECT @@GLOBAL.log_error_services
+      will render correct results.
+    */
+
+    mysql_mutex_lock(&LOCK_system_variables_hash);
+
+    sys_var *var = intern_find_sys_var(STRING_WITH_LEN("log_error_services"));
+    char *default_services = nullptr;
+
+    if ((var != nullptr) &&
+        ((default_services = (char *)var->get_default()) != nullptr))
+      log_builtins_error_stack(default_services, false, nullptr);
+
+    mysql_mutex_unlock(&LOCK_system_variables_hash);
+
+    // Report that we're falling back to the default value.
+    LogErr(WARNING_LEVEL, ER_CANNOT_SET_LOG_ERROR_SERVICES,
+           opt_log_error_services);
+
+    if (default_services != nullptr) opt_log_error_services = default_services;
+  }
+
+  /*
+    Set-up the error-log table, performance_schema.error_log.
+    Try to populate it with previous runs' error-log and events
+    buffered up to this point.
+
+    log_error_read_log_init() initializes the ring-buffer for
+    performance_schema.error_log.
+
+    log_error_read_log() reads an existing error-log (of whatever formatting).
+
+    LOG_ERROR_STAGE_EXTERNAL_SERVICES_AVAILABLE flags the error logging
+    stack as fully operational, loadable components and all.
+    In this mode, all submitted error-log events are also automatically
+    added to performance_schema.error_log.
+
+    flush_error_log_messages() is called once any configured loadable
+    error log-services are available. It flushes all buffered log-events
+    to the log-services the user actually wants.
+    If LOG_ERROR_STAGE_EXTERNAL_SERVICES_AVAILABLE is set, also add the
+    flushed events to performance_schema.error_log.
+  */
+  DBUG_ASSERT((log_error_dest != nullptr) && (log_error_dest[0] != '\0'));
+
+  if (!strcmp(log_error_dest, "stderr")) {
+    // If we logging to stderr, there will be no log-file to read.
+    // As this is a common case in mysql-test-run, we offer a fallback.
+
+    // Let the user know we cannot provide info from previous runs.
+    LogErr(INFORMATION_LEVEL, ER_ERROR_LOG_DESTINATION_NOT_A_FILE, "stderr");
+    // init logging to pfs
+    log_error_read_log_init();
+    // flag log-stack as ready and enable logging to pfs
+    log_error_stage_set(LOG_ERROR_STAGE_EXTERNAL_SERVICES_AVAILABLE);
+    // flush messages, sending a copy to pfs
+    flush_error_log_messages();
+  } else {
+    // We're logging to a named file.
+
+    /*
+      Flush messages, not sending a copy to pfs -- we'll get the info
+      from the log-file anyway when we try to restore the previous run's
+      info.
+    */
+    flush_error_log_messages();
+    /*
+      Try to load error log events from the previous run (if available)
+      and that from the current start-up into performance_schema.error_log.
+    */
+    if (!log_error_read_log_init()) log_error_read_log(log_error_dest);
+    // flag log-stack as ready and enable logging to pfs
+    log_error_stage_set(LOG_ERROR_STAGE_EXTERNAL_SERVICES_AVAILABLE);
+  }
+
+  return 0;
+}
+
 static int init_server_components() {
   DBUG_TRACE;
   /*
@@ -7210,120 +7388,14 @@ int mysqld_main(int argc, char **argv)
   }
 
   /*
-    Activate loadable error logging components, if any.
-    First, check configuration value -- is it well-formed, and do
-    the requested services exist?
+    Try to read the previous run's error log and make it available in
+    performance_schema.error_log. Activate all error logging services
+    requested by the user in @@global.log_error_services (now that both
+    the component infrastructure and InnoDB are available), flush the
+    buffered error messages to performance schema and to configured services,
+    and end error log buffering.
   */
-  if (log_builtins_error_stack(opt_log_error_services, true, nullptr) == 0) {
-    // Syntax is OK and services exist; let's try to initialize them:
-    size_t pos;
-
-    if (log_builtins_error_stack(opt_log_error_services, false, &pos) < 0) {
-      char *problem = opt_log_error_services; /* purecov: begin inspected */
-      const char *var_name = "log_error_services";
-
-      /*
-        We failed to set the requested configuration. This can happen
-        e.g. when a given log-writer does not have sufficient permissions
-        to open its log files. pos should mark the position in the
-        configuration string where we ran into trouble. Make a char-pointer
-        from it so we can inform the user what log-service we could not
-        initialize.
-      */
-      if (pos < strlen(opt_log_error_services))
-        problem = &((char *)opt_log_error_services)[pos];
-
-      flush_error_log_messages();
-
-      mysql_mutex_lock(&LOCK_system_variables_hash);
-
-      /*
-        We could not set the requested pipeline.
-        Try to fall back to default error logging stack
-        (by looking up the system variable for this configuration
-        item and extracting the default value from it).
-        If that's impossible, print diagnostics, then exit.
-      */
-      sys_var *var = intern_find_sys_var(var_name, strlen(var_name));
-
-      if (var != nullptr) {
-        // We found the system variable, now extract the default value:
-        opt_log_error_services = (char *)var->get_default();
-        if (log_builtins_error_stack(opt_log_error_services, false, nullptr) >=
-            0) {
-          /*
-            We managed to set the default pipeline. Now log what was wrong
-            about the user-supplied value, then shut down.
-          */
-          LogErr(ERROR_LEVEL, ER_CANT_START_ERROR_LOG_SERVICE, var_name,
-                 problem);
-          unireg_abort(MYSQLD_ABORT_EXIT);
-        }
-        /*
-          If we arrive here, the user-supplied value was valid, but could
-          not be set. The default value was found, but also could not be
-          set. Something is very wrong. Fall-through to below where we
-          low-level write diagnostics, then abort.
-        */
-      }
-
-      mysql_mutex_unlock(&LOCK_system_variables_hash);
-
-      /*
-        We failed to set the default error logging stack (or failed to look
-        up the default setting). At this point, we don't know whether ANY of
-        the requested sinks work, so our best bet is to write directly to the
-        error stream. Then, we abort.
-      */
-      {
-        char buff[512];
-        size_t len;
-
-        len = snprintf(buff, sizeof(buff),
-                       ER_DEFAULT(ER_CANT_START_ERROR_LOG_SERVICE), var_name,
-                       problem);
-        len = std::min(len, sizeof(buff) - 1);
-
-        // Trust nothing. Write directly. Quit.
-        log_write_errstream(buff, len);
-
-        unireg_abort(MYSQLD_ABORT_EXIT);
-      } /* purecov: end */
-    }   // value was OK, but could not be set
-    // If we arrive here, the value was OK, and was set successfully.
-  } else {
-    /*
-      We were given an illegal value at start-up, so the default was
-      used instead. Let's now point our variable back at the default
-      (i.e. the value actually used) so SELECT @@GLOBAL.log_error_services
-      will render correct results.
-    */
-
-    mysql_mutex_lock(&LOCK_system_variables_hash);
-
-    sys_var *var = intern_find_sys_var(STRING_WITH_LEN("log_error_services"));
-    char *default_services = nullptr;
-
-    if ((var != nullptr) &&
-        ((default_services = (char *)var->get_default()) != nullptr))
-      log_builtins_error_stack(default_services, false, nullptr);
-
-    mysql_mutex_unlock(&LOCK_system_variables_hash);
-
-    // Report that we're falling back to the default value.
-    LogErr(WARNING_LEVEL, ER_CANNOT_SET_LOG_ERROR_SERVICES,
-           opt_log_error_services);
-
-    if (default_services != nullptr) opt_log_error_services = default_services;
-  }
-
-  /*
-    Now that the error-logging stack is fully set up, loadable components
-    and all, flush buffered log-events to the log-services the user actually
-    wants!
-  */
-  log_error_stage_set(LOG_ERROR_STAGE_EXTERNAL_SERVICES_AVAILABLE);
-  flush_error_log_messages();
+  if (setup_error_log_components()) unireg_abort(MYSQLD_ABORT_EXIT);
 
   /*
     Invoke the bootstrap thread, if required.
@@ -8905,6 +8977,14 @@ SHOW_VAR status_vars[] = {
      SHOW_LONG_NOFLUSH, SHOW_SCOPE_GLOBAL},
     {"Delayed_writes", (char *)&delayed_insert_writes, SHOW_LONG,
      SHOW_SCOPE_GLOBAL},
+    {"Error_log_buffered_bytes", (char *)&log_sink_pfs_buffered_bytes,
+     SHOW_LONG_NOFLUSH, SHOW_SCOPE_GLOBAL},
+    {"Error_log_buffered_events", (char *)&log_sink_pfs_buffered_events,
+     SHOW_LONG_NOFLUSH, SHOW_SCOPE_GLOBAL},
+    {"Error_log_expired_events", (char *)&log_sink_pfs_expired_events,
+     SHOW_LONG, SHOW_SCOPE_GLOBAL},
+    {"Error_log_latest_write", (char *)&log_sink_pfs_latest_timestamp,
+     SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
     {"Flush_commands", (char *)&refresh_version, SHOW_LONG_NOFLUSH,
      SHOW_SCOPE_GLOBAL},
     {"Handler_commit", (char *)offsetof(System_status_var, ha_commit_count),

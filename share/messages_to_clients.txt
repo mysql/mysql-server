@@ -9414,6 +9414,18 @@ ER_HYPERGRAPH_NOT_SUPPORTED_YET 42000
 ER_WARN_HYPERGRAPH_EXPERIMENTAL
   eng "The hypergraph optimizer is highly experimental and is meant for testing only. Do not enable it unless you are a MySQL developer."
 
+ER_DA_NO_ERROR_LOG_PARSER_CONFIGURED
+  eng "None of the log-sinks selected with --log-error-services=... provides a log-parser. The server will not be able to make the previous runs' error-logs available in performance_schema.error_log."
+
+ER_DA_ERROR_LOG_TABLE_DISABLED
+  eng "None of the log-sinks selected in @@global.log_error_services supports writing to the performance schema. The server will not be able to make the current runs' error events available in performance_schema.error_log. To change this, add a log-sink that supports the performance schema to @@global.log_error_services."
+
+ER_DA_ERROR_LOG_MULTIPLE_FILTERS
+  eng "@@global.log_error_services lists more than one log-filter service. This is discouraged as it will make it hard to understand which rule in which filter affected a log-event."
+
+ER_DA_CANT_OPEN_ERROR_LOG
+  eng "Could not open file '%s' for error logging%s%s"
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!
