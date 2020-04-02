@@ -909,6 +909,9 @@ bool fsp_header_write_encryption(space_id_t space_id, uint32_t space_flags,
     return (false);
   }
 
+  /* suspected as a causer of bug#31073853 */
+  ut_ad(srv_shutdown_state.load() < SRV_SHUTDOWN_FLUSH_PHASE);
+
   buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
   ut_ad(space_id == page_get_space_id(buf_block_get_frame(block)));
 
