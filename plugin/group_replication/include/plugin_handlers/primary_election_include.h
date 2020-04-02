@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@ enum enum_primary_election_mode {
   UNSAFE_OLD_PRIMARY = 1,  // Changing from one primary to another
   DEAD_OLD_PRIMARY = 2,    // Old primary died
   LEGACY_ELECTION_PRIMARY = 3,  // Electing a primary using legacy election
-  ELECTION_MODE_END = 3         // Enum end
+  ELECTION_MODE_END = 4         // Enum end
 };
 
 /** Enum for election errors */

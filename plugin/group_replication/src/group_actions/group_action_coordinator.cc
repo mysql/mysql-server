@@ -796,6 +796,7 @@ int Group_action_coordinator::execute_group_action_handler() {
   thd->thread_stack = (char *)&thd;
   thd->store_globals();
   global_thd_manager_add_thd(thd);
+  Notification_context notification_ctx;
 
   mysql_mutex_lock(&group_thread_run_lock);
   action_handler_thd_state.set_running();
@@ -819,8 +820,14 @@ int Group_action_coordinator::execute_group_action_handler() {
          current_executing_action->action_result) {
     current_executing_action->action_result =
         current_executing_action->executing_action->execute_action(
-            is_sender, &monitoring_stage_handler);
+            is_sender, &monitoring_stage_handler, &notification_ctx);
   }
+  Gcs_view *view = gcs_module->get_current_view();
+  if (view != nullptr) {
+    notification_ctx.set_view_id(view->get_view_id().get_representation());
+    delete view;
+  }
+  notify_and_reset_ctx(notification_ctx);
   is_group_action_being_executed = false;
   LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_CONFIGURATION_ACTION_END,
                current_executing_action->executing_action->get_action_name());

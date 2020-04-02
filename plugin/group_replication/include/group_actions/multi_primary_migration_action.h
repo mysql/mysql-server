@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -71,7 +71,8 @@ class Multi_primary_migration_action : public Group_action,
     @returns the execution result
   */
   virtual Group_action::enum_action_execution_result execute_action(
-      bool invoking_member, Plugin_stage_monitor_handler *stage_handler);
+      bool invoking_member, Plugin_stage_monitor_handler *stage_handler,
+      Notification_context *);
 
   /*
     Terminate the executing configuration operation
