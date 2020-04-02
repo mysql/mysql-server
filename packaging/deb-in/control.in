@@ -261,7 +261,7 @@ Description: MySQL Testsuite meta package depending on latest version
 Package: mysql-@DEB_PRODUCTNAME@-test
 Architecture: any
 Depends: mysql-@DEB_PRODUCTNAME@-server (= ${binary:Version}),
- mysql-@DEB_PRODUCTNAME@-client (= ${binary:Version}), python,
+ mysql-@DEB_PRODUCTNAME@-client (= ${binary:Version}),
  libmysqlclient-dev, libjson-perl, mecab-ipadic-utf8,
  ${shlibs:Depends}, ${misc:Depends}, @DEB_NDB_CONTROL_TEST_DEPS@
 Breaks: mysql-@DEB_PRODUCTNAME@-server (<< 8.0),
