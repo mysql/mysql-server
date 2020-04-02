@@ -67,12 +67,13 @@ class Multi_primary_migration_action : public Group_action,
     Execute the action
     @param invoking_member is the member that invoked it
     @param stage_handler the stage handler to report progress
+    @param ctx   the notification context
 
     @returns the execution result
   */
   virtual Group_action::enum_action_execution_result execute_action(
       bool invoking_member, Plugin_stage_monitor_handler *stage_handler,
-      Notification_context *);
+      Notification_context *ctx);
 
   /*
     Terminate the executing configuration operation
