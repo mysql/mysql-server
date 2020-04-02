@@ -1597,6 +1597,8 @@ class Item_func_add_time final : public Item_temporal_hybrid_func {
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
   const char *func_name() const override { return "add_time"; }
+  enum Functype functype() const override { return ADDTIME_FUNC; }
+  int get_sign() const { return sign; }
 };
 
 class Item_func_timediff final : public Item_time_func {

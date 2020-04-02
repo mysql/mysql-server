@@ -260,6 +260,7 @@ class Item_func : public Item_result_field, public Func_args_handle {
     SECOND_FUNC,
     MICROSECOND_FUNC,
     DAYOFYEAR_FUNC,
+    ADDTIME_FUNC,
     QUARTER_FUNC,
     WEEK_FUNC,
     WEEKDAY_FUNC,
