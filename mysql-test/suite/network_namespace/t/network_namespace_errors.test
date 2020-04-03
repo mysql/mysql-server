@@ -138,15 +138,16 @@
 --let SEARCH_PATTERN=ERROR.*Server.*Unknown network namespace 'green'
 --source include/search_pattern.inc
 
+--let $wait_for_tcpsocket_status = no_wait
+
 # Wildcard address with network namespaces
 --let $restart_parameters=restart: --log-error=$MYSQLD_LOG --mysqlx-bind-address=*/red
 --replace_result $MYSQLD_LOG MYSQLD_LOG
 --source include/restart_mysqld.inc
 
---let SEARCH_PATTERN=ERROR.*Server.*Plugin mysqlx reported: 'Network namespace not allowed for wildcard interface address'
+--let SEARCH_PATTERN=ERROR.*Server.*Plugin mysqlx reported: 'Validation of value '\*/red' set to `Mysqlx_bind_address` failed: network namespace are not allowed for wildcards. Skipping this value.'
 --source include/search_pattern.inc
 
---let $wait_for_tcpsocket_status=
 --remove_file $MYSQLD_LOG
 
 --echo # Starting mysqld with original parameters

@@ -19,6 +19,6 @@ Pattern "ERROR.*Server.*Invalid value for command line option admin-address: '12
 # restart: --log-error=MYSQLD_LOG --mysqlx-bind-address=10.0.2.1/green
 Pattern "ERROR.*Server.*Unknown network namespace 'green'" found
 # restart: --log-error=MYSQLD_LOG --mysqlx-bind-address=*/red
-Pattern "ERROR.*Server.*Plugin mysqlx reported: 'Network namespace not allowed for wildcard interface address'" found
+Pattern "ERROR.*Server.*Plugin mysqlx reported: 'Validation of value '\*/red' set to `Mysqlx_bind_address` failed: network namespace are not allowed for wildcards. Skipping this value.'" found
 # Starting mysqld with original parameters
 # restart
