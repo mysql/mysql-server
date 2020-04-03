@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -531,11 +531,28 @@ ConfigSection::get_section_type_value()
   return val;
 }
 
+static bool
+compare_entry_key(ConfigSection::Entry *first,
+                  ConfigSection::Entry *second)
+{
+  if (first == second)
+    return false;
+  if (first->m_key < second->m_key)
+    return true;
+  else if (first->m_key > second->m_key)
+    return false;
+  /* Two entries should never have the same key */
+  require(false);
+  return false;
+}
+
 Uint32
 ConfigSection::get_v1_length() const
 {
   check_magic();
-  const ConfigSection *my_section = this;
+  // sorted entries in key key order
+  std::vector<Entry *> sorted_entries(m_entry_array);
+  std::sort(sorted_entries.begin(), sorted_entries.end(), compare_entry_key);
   ConfigSection *default_section = get_default_section();
   Uint32 len = 0;
   Uint32 my_inx = 0;
@@ -553,32 +570,28 @@ ConfigSection::get_v1_length() const
    * key in an appropriate manner.
    */
   while (default_inx < default_section->m_num_entries ||
-         my_inx < my_section->m_num_entries)
+         my_inx < m_num_entries)
   {
     if ((default_inx >= default_section->m_num_entries) ||
-        ((my_inx < my_section->m_num_entries) &&
-         (my_section->m_entry_array[my_inx]->m_key <
+        ((my_inx < m_num_entries) &&
+         (sorted_entries[my_inx]->m_key <
           default_section->m_entry_array[default_inx]->m_key)))
 
     {
-      len += my_section->m_entry_array[my_inx]->get_v1_length();
+      len += sorted_entries[my_inx]->get_v1_length();
       my_inx++;
-    }
-    else if ((my_inx >= my_section->m_num_entries) ||
-             (my_section->m_entry_array[my_inx]->m_key >
-              default_section->m_entry_array[default_inx]->m_key))
-    {
+    } else if ((my_inx >= m_num_entries) ||
+               (sorted_entries[my_inx]->m_key >
+                default_section->m_entry_array[default_inx]->m_key)) {
       len += default_section->m_entry_array[default_inx]->get_v1_length();
       default_inx++;
-    }
-    else
-    {
-      len += my_section->m_entry_array[my_inx]->get_v1_length();
+    } else {
+      len += sorted_entries[my_inx]->get_v1_length();
       my_inx++;
       default_inx++;
     }
   }
-  require(my_inx == my_section->m_num_entries &&
+  require(my_inx == m_num_entries &&
           default_inx == default_section->m_num_entries);
   /**
    * Add two more entries for type of section and parent.
@@ -591,7 +604,9 @@ void
 ConfigSection::create_v1_section(Uint32 **v1_ptr, Uint32 section_id)
 {
   check_magic();
-  ConfigSection *my_section = this;
+  // sorted entries in key key order
+  std::vector<Entry*> sorted_entries(m_entry_array);
+  std::sort(sorted_entries.begin(), sorted_entries.end(), compare_entry_key);
   ConfigSection *default_section = get_default_section();
 
   Uint32 my_inx = 0;
@@ -604,19 +619,19 @@ ConfigSection::create_v1_section(Uint32 **v1_ptr, Uint32 section_id)
    * holes in the array.
    */
   while (default_inx < default_section->m_num_entries ||
-         my_inx < my_section->m_num_entries)
+         my_inx < m_num_entries)
   {
     if ((default_inx >= default_section->m_num_entries) ||
-        ((my_inx < my_section->m_num_entries) &&
-         (my_section->m_entry_array[my_inx]->m_key <
+        ((my_inx < m_num_entries) &&
+         (sorted_entries[my_inx]->m_key <
           default_section->m_entry_array[default_inx]->m_key)))
     {
-      Entry *my_entry = my_section->m_entry_array[my_inx];
+      Entry *my_entry = sorted_entries[my_inx];
       my_entry->create_v1_entry(v1_ptr, section_id);
       my_inx++;
     }
-    else if ((my_inx >= my_section->m_num_entries) ||
-             (my_section->m_entry_array[my_inx]->m_key >
+    else if ((my_inx >= m_num_entries) ||
+             (sorted_entries[my_inx]->m_key >
               default_section->m_entry_array[default_inx]->m_key))
     {
       Entry *default_entry = default_section->m_entry_array[default_inx];
@@ -625,13 +640,13 @@ ConfigSection::create_v1_section(Uint32 **v1_ptr, Uint32 section_id)
     }
     else
     {
-      Entry *my_entry = my_section->m_entry_array[my_inx];
+      Entry *my_entry = sorted_entries[my_inx];
       my_entry->create_v1_entry(v1_ptr, section_id);
       my_inx++;
       default_inx++;
     }
   }
-  require(my_inx == my_section->m_num_entries &&
+  require(my_inx == m_num_entries &&
           default_inx == default_section->m_num_entries);
   {
     /**
@@ -1111,21 +1126,6 @@ ConfigSection::handle_default_section(ConfigSection *default_section)
   m_entry_array.shrink_to_fit();
   verify_section();
   sort();
-}
-
-static bool
-compare_entry_key(ConfigSection::Entry *first,
-                  ConfigSection::Entry *second)
-{
-  if (first == second)
-    return false;
-  if (first->m_key < second->m_key)
-    return true;
-  else if (first->m_key > second->m_key)
-    return false;
-  /* Two entries should never have the same key */
-  require(false);
-  return false;
 }
 
 void
