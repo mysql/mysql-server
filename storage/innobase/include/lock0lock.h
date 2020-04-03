@@ -644,7 +644,7 @@ void lock_remove_all_on_table(
  @param  page_id    specifies the page
  @return folded value */
 UNIV_INLINE
-ulint lock_rec_fold(const page_id_t &page_id) MY_ATTRIBUTE((const));
+ulint lock_rec_fold(const page_id_t page_id) MY_ATTRIBUTE((const));
 
 /** Calculates the hash value of a page file address: used in inserting or
 searching for a lock in the hash table.

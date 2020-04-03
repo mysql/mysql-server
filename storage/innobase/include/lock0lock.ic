@@ -45,7 +45,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0trx.h"
 
 UNIV_INLINE
-ulint lock_rec_fold(const page_id_t &page_id) {
+ulint lock_rec_fold(const page_id_t page_id) {
   return (ut_fold_ulint_pair(page_id.space(), page_id.page_no()));
 }
 
