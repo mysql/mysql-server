@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1101,6 +1101,14 @@ bool Certifier::set_group_stable_transactions_set(Gtid_set *executed_gtid_set) {
 
 void Certifier::garbage_collect() {
   DBUG_TRACE;
+  /*
+    This debug option works together with
+    `group_replication_certifier_broadcast_thread_big_period`
+    by disabling the manual garbage collection that happens when
+    a View_log_change_event is logged.
+    Applier_module::apply_view_change_packet() does call
+    Certifier::set_group_stable_transactions_set().
+  */
   DBUG_EXECUTE_IF("group_replication_do_not_clear_certification_database",
                   { return; };);
 
