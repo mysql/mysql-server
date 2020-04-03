@@ -105,10 +105,12 @@ SET SQL_LOG_BIN=0;
 DROP TABLE test.gms_listener_example;
 SET SQL_LOG_BIN=1;
 SET @@GLOBAL.group_replication_member_weight= @member_weight2_save;
+include/stop_group_replication.inc
 # Removing debug point 'register_gms_listener_example' from @@GLOBAL.debug
 [connection server1]
 SET SQL_LOG_BIN=0;
 DROP TABLE test.gms_listener_example;
 SET SQL_LOG_BIN=1;
+include/stop_group_replication.inc
 # Removing debug point 'register_gms_listener_example' from @@GLOBAL.debug
 include/group_replication_end.inc
