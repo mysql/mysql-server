@@ -28,11 +28,11 @@
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 SET @group_replication_ssl_mode_save= @@GLOBAL.group_replication_ssl_mode;
-SET GLOBAL group_replication_ssl_mode= VERIFY_IDENTITY;
+SET GLOBAL group_replication_ssl_mode= VERIFY_CA;
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $grep_file= $MYSQLTEST_VARDIR/tmp/gr_ssl_mode_tls_source_incompatible_certificates.1.err
---let $grep_pattern= Group communication SSL configuration: group_replication_ssl_mode: "REQUIRED"
+--let $grep_pattern= Group communication SSL configuration: group_replication_ssl_mode: "VERIFY_CA"
 --let $grep_output= print_count
 --source include/grep_pattern.inc
 
@@ -50,7 +50,7 @@ SET GLOBAL group_replication_ssl_mode= VERIFY_IDENTITY;
 --enable_query_log
 
 SET @group_replication_ssl_mode_save= @@GLOBAL.group_replication_ssl_mode;
-SET GLOBAL group_replication_ssl_mode= VERIFY_IDENTITY;
+SET GLOBAL group_replication_ssl_mode= VERIFY_CA;
 
 
 --error ER_GROUP_REPLICATION_CONFIGURATION
@@ -61,11 +61,11 @@ START GROUP_REPLICATION;
 --let $assert_only_after=  .*XCom initialized and ready to accept incoming connections.*
 --let $assert_select =.*Error connecting using SSL.*
 --let $assert_match =.*Error connecting using SSL.*
---let $assert_text = Found the expected error line in the server log.
+--let $assert_text = Check that group replication errors while connecting using SSL.
 --source include/assert_grep.inc
 
 --let $grep_file= $MYSQLTEST_VARDIR/tmp/gr_ssl_mode_tls_source_incompatible_certificates.2.err
---let $grep_pattern= Group communication SSL configuration: group_replication_ssl_mode: "REQUIRED"
+--let $grep_pattern= Group communication SSL configuration: group_replication_ssl_mode: "VERIFY_CA"
 --let $grep_output= print_count
 --source include/grep_pattern.inc
 

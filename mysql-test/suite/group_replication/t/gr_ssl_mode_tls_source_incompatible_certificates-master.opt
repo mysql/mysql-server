@@ -3,6 +3,3 @@
 --ssl-ca=$MYSQL_TEST_DIR/std_data/ca-cert-verify.pem
 --ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert-verify-pass.pem
 --ssl-key=$MYSQL_TEST_DIR/std_data/server-key-verify-pass.pem
---admin-ssl-ca=$MYSQL_TEST_DIR/std_data/ca-cert-verify-san.pem
---admin-ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert-verify-san.pem
---admin-ssl-key=$MYSQL_TEST_DIR/std_data/server-key-verify-san.pem

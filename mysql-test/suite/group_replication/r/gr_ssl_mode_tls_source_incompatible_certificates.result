@@ -8,9 +8,9 @@ Note	####	Storing MySQL user name or password information in the master info rep
 # 1. Start one member with GCS SSL enabled.
 [connection server1]
 SET @group_replication_ssl_mode_save= @@GLOBAL.group_replication_ssl_mode;
-SET GLOBAL group_replication_ssl_mode= VERIFY_IDENTITY;
+SET GLOBAL group_replication_ssl_mode= VERIFY_CA;
 include/start_and_bootstrap_group_replication.inc
-Occurrences of 'Group communication SSL configuration: group_replication_ssl_mode: "REQUIRED"' in the input file: 0
+Occurrences of 'Group communication SSL configuration: group_replication_ssl_mode: "VERIFY_CA"' in the input file: 1
 
 ############################################################
 # 2. Start the second member with GCS SSL enabled.
@@ -18,11 +18,11 @@ Occurrences of 'Group communication SSL configuration: group_replication_ssl_mod
 #    be able to join the group.
 [connection server2]
 SET @group_replication_ssl_mode_save= @@GLOBAL.group_replication_ssl_mode;
-SET GLOBAL group_replication_ssl_mode= VERIFY_IDENTITY;
+SET GLOBAL group_replication_ssl_mode= VERIFY_CA;
 START GROUP_REPLICATION;
 ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
-include/assert_grep.inc [Found the expected error line in the server log.]
-Occurrences of 'Group communication SSL configuration: group_replication_ssl_mode: "REQUIRED"' in the input file: 0
+include/assert_grep.inc [Check that group replication errors while connecting using SSL.]
+Occurrences of 'Group communication SSL configuration: group_replication_ssl_mode: "VERIFY_CA"' in the input file: 1
 [connection server1]
 include/stop_group_replication.inc
 
