@@ -85,4 +85,7 @@ cmd: testUpgrade
 args: -n ChangeHalfRestartChangeHalf T1
 max-time: 1200
 
+cmd: testUpgrade
+args: -n ChangeMGMDChangeHalfRestartChangeHalf T1
+max-time: 1200
 
