@@ -100,7 +100,8 @@ do
                     ;;
                 --site=*) site_arg="$1";;
                 --default-max-retries=*) default_max_retries_arg="$1";;
-                --default-force-cluster-restart) default_force_cluster_restart_arg="$1";;
+                --default-force-cluster-restart=*)
+                    default_force_cluster_restart_arg="$1";;
                 --default-behaviour-on-failure=*) default_behaviour_on_failure_arg="$1";;
                 --*clean-shutdown*) clean_shutdown_arg="$1";;
         esac

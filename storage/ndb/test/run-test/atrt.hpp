@@ -76,6 +76,13 @@ enum FailureMode : long {
   Continue
 };
 
+enum RestartMode : long {
+  None,
+  Before,
+  After,
+  Both,
+};
+
 struct atrt_host {
   unsigned m_index;
   BaseString m_user;
@@ -156,7 +163,7 @@ struct atrt_testcase {
   BaseString m_name;
   BaseString m_mysqld_options;
   int m_max_retries;
-  bool m_force_cluster_restart;
+  RestartMode m_force_cluster_restart;
   FailureMode m_behaviour_on_failure;
 
   struct Command {

@@ -83,7 +83,6 @@ int g_mt = 0;
 int g_mt_rr = 0;
 int g_restart = 0;
 int g_default_max_retries = 0;
-static int g_default_force_cluster_restart = 0;
 bool g_clean_shutdown = false;
 FailureMode g_default_behaviour_on_failure = Restart;
 const char *default_behaviour_on_failure[] = {"Restart", "Abort", "Skip",
@@ -92,6 +91,12 @@ TYPELIB behaviour_typelib = {array_elements(default_behaviour_on_failure) - 1,
                              "default_behaviour_on_failure",
                              default_behaviour_on_failure, NULL};
 
+RestartMode g_default_force_cluster_restart = None;
+const char *force_cluster_restart_mode[] = {"None", "Before", "After",
+                                            "Both", NullS};
+TYPELIB restart_typelib = {array_elements(force_cluster_restart_mode) -1,
+                           "force_cluster_restart_mode",
+                           force_cluster_restart_mode, NULL};
 const char *g_cwd = 0;
 const char *g_basedir = 0;
 const char *g_my_cnf = 0;
@@ -120,7 +125,7 @@ static bool find_config_ini_files();
 TestResult run_test_case(ProcessManagement& processManagement,
                          const atrt_testcase& testcase,
                          bool is_last_testcase,
-                         bool next_testcase_forces_restart);
+                         RestartMode next_testcase_forces_restart);
 int test_case_init(ProcessManagement &, const atrt_testcase &);
 int test_case_execution_loop(ProcessManagement &, const time_t, const time_t);
 void test_case_results(TestResult *, const atrt_testcase &);
@@ -202,12 +207,12 @@ static struct my_option g_options[] = {
      "the test suite file)",
      (uchar **)&g_default_max_retries, (uchar **)&g_default_max_retries, 0,
      GET_INT, REQUIRED_ARG, g_default_max_retries, 0, 0, 0, 0, 0},
-    {"default-force-cluster-restart", 0,
+    {"default-force-cluster-restart", 256,
      "Force cluster to restart for each testrun (can be overwritten in test "
      "suite file)",
      (uchar **)&g_default_force_cluster_restart,
-     (uchar **)&g_default_force_cluster_restart, 0, GET_BOOL, NO_ARG,
-     g_default_force_cluster_restart, 0, 0, 0, 0, 0},
+     (uchar **)&g_default_force_cluster_restart, &restart_typelib, GET_ENUM,
+     REQUIRED_ARG, g_default_force_cluster_restart, 0, 0, 0, 0, 0},
     {"default-behaviour-on-failure", 256, "default to do when a test fails",
      (uchar **)&g_default_behaviour_on_failure,
      (uchar **)&g_default_behaviour_on_failure, &behaviour_typelib, GET_ENUM,
@@ -391,7 +396,7 @@ int main(int argc, char **argv) {
       test_result = {0, 0, ERR_TEST_SKIPPED};
     } else {
       bool is_last_testcase = last_testcase_idx == i;
-      bool next_testcase_forces_restart = false;
+      RestartMode next_testcase_forces_restart = None;
       if (!is_last_testcase) {
         next_testcase_forces_restart = testcases[i+1].m_force_cluster_restart;
       }
@@ -779,7 +784,7 @@ bool read_test_cases(FILE *file, std::vector<atrt_testcase> *testcases) {
 TestResult run_test_case(ProcessManagement &processManagement,
                          const atrt_testcase &testcase,
                          bool is_last_testcase,
-                         bool next_testcase_forces_restart) {
+                         RestartMode next_testcase_forces_restart) {
   TestResult test_result = {0, 0, 0};
   for (; test_result.testruns <= testcase.m_max_retries;
        test_result.testruns++) {
@@ -813,14 +818,25 @@ TestResult run_test_case(ProcessManagement &processManagement,
     bool restart_on_error = test_result.result != ERR_TEST_SKIPPED &&
                       test_result.result != ERR_OK &&
                       testcase.m_behaviour_on_failure == FailureMode::Restart;
+
+    bool current_testcase_requires_restart =
+        testcase.m_force_cluster_restart == RestartMode::After ||
+        testcase.m_force_cluster_restart == RestartMode::Both;
+    bool next_testcase_requires_restart =
+        next_testcase_forces_restart == RestartMode::Before ||
+        next_testcase_forces_restart == RestartMode::Both;
+
     bool stop_cluster = is_last_testcase ||
-                        next_testcase_forces_restart ||
+                        current_testcase_requires_restart ||
+                        next_testcase_requires_restart ||
                         configuration_reset ||
                         restart_on_error;
     if (stop_cluster) {
       g_logger.debug("Stopping all cluster processes on condition(s):");
       if (is_last_testcase) g_logger.debug("- Last test case");
-      if (next_testcase_forces_restart)
+      if (current_testcase_requires_restart)
+        g_logger.debug("- Current test case forces restart");
+      if (next_testcase_requires_restart)
         g_logger.debug("- Next test case forces restart");
       if (configuration_reset) g_logger.debug("- Configuration forces reset");
       if (restart_on_error) g_logger.debug("- Restart on test error");
@@ -1063,8 +1079,16 @@ int read_test_case(FILE *file, int &line, atrt_testcase &tc) {
   }
 
   tc.m_force_cluster_restart = g_default_force_cluster_restart;
-  if (p.get("force-cluster-restart", &str)) {
-    tc.m_force_cluster_restart = (strcmp(str, "yes") == 0);
+    if (p.get("force-cluster-restart", &str)) {
+    std::map<std::string, RestartMode> restart_mode_values = {
+        {"After", RestartMode::After},
+        {"Before", RestartMode::Before},
+        {"Both", RestartMode::Both}};
+    if (restart_mode_values.find(str) == restart_mode_values.end()) {
+      g_logger.critical("Invalid Restart Type!!");
+      return ERR_CORRUPT_TESTCASE;
+    }
+    tc.m_force_cluster_restart = restart_mode_values[str];
     used_elements++;
   }
 
@@ -1484,8 +1508,13 @@ void print_testcase_file_syntax() {
       "mysqld   - Arguments that atrt will use when starting mysqld.\n"
       "cmd-type - If 'mysql' change test process type from ndbapi to client.\n"
       "name     - Change name of test.  Default is given by cmd and args.\n"
-      "force-cluster-restart - If 'yes' force restart the cluster before\n"
+      "force-cluster-restart - If 'Before' force restart the cluster before\n"
       "                        running test.\n"
+      "                        If 'After' force restart the cluster after\n"
+      "                        running test.\n"
+      "                        If 'Both' force restart the cluster before\n"
+      "                        and after running test.\n"
+      "                        If 'None' no forceful cluster restart. \n"
       "max-retries - Maximum number of retries after test failed.\n"
       ""
       "\n"
