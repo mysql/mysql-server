@@ -49,8 +49,9 @@ use mtr_report;
 
 require "mtr_misc.pl";
 
-my $threads_support        = eval 'use threads; 1';
-my $threads_shared_support = eval 'use threads::shared; 1';
+my $secondary_engine_support = eval 'use mtr_secondary_engine; 1';
+my $threads_support          = eval 'use threads; 1';
+my $threads_shared_support   = eval 'use threads::shared; 1';
 
 # Precompiled regex's for tests to do or skip
 my $do_test_reg;
@@ -1050,6 +1051,10 @@ sub optimize_cases {
         $tinfo->{'myisam_test'} = 1
           if ($default_tmp_engine =~ /^myisam/i);
       }
+
+      if($secondary_engine_support) {
+        optimize_secondary_engine_tests($dash_opt, $tinfo);
+      }
     }
 
     if ($quick_collect && !$tinfo->{'skip'}) {
@@ -1511,6 +1516,10 @@ my @tags = (
   # Tests with below .inc file needs either big-test or only-big-test
   # option along with valgrind option.
   [ "include/no_valgrind_without_big.inc", "no_valgrind_without_big", 1 ]);
+
+if ($secondary_engine_support) {
+  push (@tags, get_secondary_engine_tags());
+}
 
 sub tags_from_test_file {
   my $tinfo = shift;
