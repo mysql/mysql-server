@@ -59,6 +59,7 @@
 # Skip ps protocol because CREATE TABLE ... START TRANSACTION is not
 # allowed to be run with ps protocol.
 --source include/no_ps_protocol.inc
+--source include/have_log_bin.inc
 
 SET @saved_sql_log_bin = @@SESSION.sql_log_bin;
 

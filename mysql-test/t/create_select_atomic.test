@@ -90,6 +90,7 @@
 
 --source include/have_debug.inc
 --source include/not_valgrind.inc
+--source include/have_log_bin.inc
 
 # Skip ps protocol because CREATE TABLE ... START TRANSACTION is not
 # allowed to be run with ps protocol.
