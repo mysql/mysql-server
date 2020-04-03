@@ -194,8 +194,6 @@ Gcs_xcom_interface::Gcs_xcom_interface()
       m_wait_for_ssl_init_mutex() {
   // Initialize random seed
   srand(static_cast<unsigned int>(time(nullptr)));
-
-  My_xp_util::init_time();
 }
 
 Gcs_xcom_interface::~Gcs_xcom_interface() {}

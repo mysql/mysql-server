@@ -536,8 +536,6 @@ class XComControlTest : public GcsBaseTest {
         xcom_node_address, peers, *group_id, &proxy, xcom_group_mgm,
         &gcs_engine, mock_se, mock_vce, true, mock_socket_util);
     extern_xcom_control_if = xcom_control_if;
-
-    My_xp_util::init_time();
   }
 
   virtual void TearDown() {
