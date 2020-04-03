@@ -2545,8 +2545,22 @@ TESTCASE("ChangeHalfRestartChangeHalf",
          "then changing the others")
 {
   TC_PROPERTY("HalfStartedHold", Uint32(1));
-  /* Skip MGMDs until 8.0 v1 config bug fixed */
+  // Don't restart MGMDs
   TC_PROPERTY("MgmdNodeSet", Uint32(None));
+  INITIALIZER(runCheckStarted);
+  INITIALIZER(runReadVersions);
+  STEP(runUpgrade_Half);
+  STEP(restartDataNodesAtHalfWay);
+  // No postupgrade as we do not upgrade API
+}
+
+TESTCASE("ChangeMGMDChangeHalfRestartChangeHalf",
+         "Try changing MGMD then half datanodes, then rolling restart all "
+         "then changing the others")
+{
+  TC_PROPERTY("HalfStartedHold", Uint32(1));
+  // Restart MGMDs
+  TC_PROPERTY("MgmdNodeSet", Uint32(All));
   INITIALIZER(runCheckStarted);
   INITIALIZER(runReadVersions);
   STEP(runUpgrade_Half);
