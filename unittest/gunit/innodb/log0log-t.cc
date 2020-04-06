@@ -126,6 +126,7 @@ static bool log_test_general_init() {
   srv_log_flush_events = 64;
   srv_log_recent_written_size = 4 * 4096;
   srv_log_recent_closed_size = 4 * 4096;
+  srv_log_writer_threads = true;
   srv_log_wait_for_write_spin_delay = 0;
   srv_log_wait_for_flush_timeout = 100000;
   srv_log_write_max_size = 4096;
