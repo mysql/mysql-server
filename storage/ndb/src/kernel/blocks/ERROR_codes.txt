@@ -28,7 +28,7 @@ Next DBTUP 4039
 Next DBLQH 5098
 Next DBDICT 6223
 Next DBDIH 7249
-Next DBTC 8117
+Next DBTC 8120
 Next CMVMI 9000
 Next BACKUP 10051
 Next PGMAN 11010
@@ -497,6 +497,10 @@ DBTC TCINDXREQ TESTING
 8107: Cause transaction abort with timeout error
 
 8108: Cause transaction timeout (error 4012) by failing to send TC_COMMITCONF
+
+DBTC Partitioning testing
+-------------------------
+8119: Simulate specific range scan pruning hash code 0xffffffff
 
 CMVMI
 -----
