@@ -1,5 +1,5 @@
 /* QQ: TODO multi-pinbox */
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -446,14 +446,14 @@ void *lf_alloc_new(LF_PINS *pins) {
     if (!node) {
       node = static_cast<uchar *>(
           my_malloc(key_memory_lf_node, allocator->element_size, MYF(MY_WME)));
-      if (allocator->constructor) {
-        allocator->constructor(node);
-      }
+      if (likely(node != nullptr)) {
+        if (allocator->constructor) {
+          allocator->constructor(node);
+        }
 #ifdef MY_LF_EXTRA_DEBUG
-      if (likely(node != 0)) {
         ++allocator->mallocs;
-      }
 #endif
+      }
       break;
     }
     if (atomic_compare_exchange_strong(&allocator->top, &node,
