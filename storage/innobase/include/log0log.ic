@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -355,10 +355,6 @@ inline bool log_flusher_is_active() {
 
 inline bool log_flush_notifier_is_active() {
   return (srv_thread_is_active(srv_threads.m_log_flush_notifier));
-}
-
-inline bool log_closer_is_active() {
-  return (srv_thread_is_active(srv_threads.m_log_closer));
 }
 
 inline bool log_checkpointer_is_active() {

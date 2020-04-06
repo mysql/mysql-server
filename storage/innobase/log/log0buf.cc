@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -65,11 +65,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  -# @ref sect_redo_log_mark_dirty_pages
  -# @ref sect_redo_log_add_dirty_pages
  -# @ref sect_redo_log_add_link_to_recent_closed
-
- Then the [log closer thread](@ref sect_redo_log_closer) advances lsn up
- to which lsn values might be available for checkpoint safely (up to which
- all dirty pages have been added to flush lists).
- [Read more about reclaiming space...](@ref sect_redo_log_reclaim_space)
 
  @section sect_redo_log_buf_reserve Reservation of space in the redo
 
@@ -372,16 +367,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  where _L_ is size of the log recent closed buffer. The value gives information
  about how much to advance lsn when traversing the link.
 
- The [log closer thread](@ref sect_redo_log_closer) is responsible for reseting
- the entry in _log.recent_closed_ to 0, which must happen before the slot might
- be reused for larger lsn values (larger by _L_, _2L_, ...). Afterwards the log
- closer thread advances @ref subsect_redo_log_buf_dirty_pages_added_up_to_lsn,
- allowing user threads, waiting for free space in the log recent closed buffer,
- to proceed.
-
- @note Note that the increased value of _log.buf_dirty_pages_added_up_to_lsn_
- might possibly allow a newer checkpoint.
-
  @see log_buffer_write_completed_and_dirty_pages_added()
 
  After the link is added, the shared-access for log buffer is released.
@@ -420,11 +405,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  That's why we need to protect from doing checkpoint at such lsn value, which
  would logically erase the just written data to the redo log, until the related
  dirty pages have been added to flush lists.
-
- The [log closer thread](@ref sect_redo_log_closer) tracks up to which lsn the
- log checkpointer thread might trust that all dirty pages have been added -
- so called @ref subsect_redo_log_buf_dirty_pages_added_up_to_lsn. Any attempts
- to make checkpoint at higher value are limited to this lsn.
 
  When user thread has added all the dirty pages related to _start_lsn_ ..
  _end_lsn_, it creates link in the log recent closed buffer, pointing from
@@ -912,7 +892,23 @@ void log_buffer_write_completed(log_t &log, const Log_handle &handle,
 
   /* Note that end_lsn will not point to just before footer,
   because we have already validated that end_lsn is valid. */
-  log.recent_written.add_link(start_lsn, end_lsn);
+  log.recent_written.add_link_advance_tail(start_lsn, end_lsn);
+
+  /* if someone is waiting for, set the event. (if possible) */
+  lsn_t ready_lsn = log_buffer_ready_for_write_lsn(log);
+
+  if (log.current_ready_waiting_lsn > 0 &&
+      log.current_ready_waiting_lsn <= ready_lsn &&
+      !os_event_is_set(log.closer_event) &&
+      log_closer_mutex_enter_nowait(log) == 0) {
+    if (log.current_ready_waiting_lsn > 0 &&
+        log.current_ready_waiting_lsn <= ready_lsn &&
+        !os_event_is_set(log.closer_event)) {
+      log.current_ready_waiting_lsn = 0;
+      os_event_set(log.closer_event);
+    }
+    log_closer_mutex_exit(log);
+  }
 }
 
 void log_wait_for_space_in_log_recent_closed(log_t &log, lsn_t lsn) {
@@ -923,7 +919,6 @@ void log_wait_for_space_in_log_recent_closed(log_t &log, lsn_t lsn) {
   uint64_t wait_loops = 0;
 
   while (!log.recent_closed.has_space(lsn)) {
-    os_event_set(log.closer_event);
     ++wait_loops;
     os_thread_sleep(20);
   }
@@ -949,7 +944,7 @@ void log_buffer_close(log_t &log, const Log_handle &handle) {
 
   LOG_SYNC_POINT("log_buffer_write_completed_dpa_before_store");
 
-  log.recent_closed.add_link(start_lsn, end_lsn);
+  log.recent_closed.add_link_advance_tail(start_lsn, end_lsn);
 
   log_buffer_s_lock_exit(log, handle.lock_no);
 }
@@ -994,6 +989,19 @@ void log_buffer_flush_to_disk(log_t &log, bool sync) {
   const lsn_t lsn = log_get_lsn(log);
 
   log_write_up_to(log, lsn, sync);
+}
+
+void log_buffer_sync_in_background() {
+  log_t &log = *log_sys;
+
+  /* Just to be sure not to miss advance */
+  log.recent_closed.advance_tail();
+
+  /* If the log flusher thread is working, no need to call. */
+  if (log.writer_threads_paused.load(std::memory_order_acquire)) {
+    log.recent_written.advance_tail();
+    log_buffer_flush_to_disk(log, true);
+  }
 }
 
 void log_buffer_get_last_block(log_t &log, lsn_t &last_lsn, byte *last_block,
@@ -1116,56 +1124,6 @@ bool log_advance_ready_for_write_lsn(log_t &log) {
     return (true);
 
   } else {
-    ut_a(log_buffer_ready_for_write_lsn(log) == previous_lsn);
-
-    return (false);
-  }
-}
-
-bool log_advance_dirty_pages_added_up_to_lsn(log_t &log) {
-  ut_ad(log_closer_mutex_own(log));
-
-  const lsn_t previous_lsn = log_buffer_dirty_pages_added_up_to_lsn(log);
-
-  ut_a(previous_lsn >= LOG_START_LSN);
-
-  ut_a(previous_lsn >= log_get_checkpoint_lsn(log));
-
-  ut_d(log_closer_thread_active_validate(log));
-
-  auto stop_condition = [&](lsn_t prev_lsn, lsn_t next_lsn) {
-    ut_a(log_lsn_validate(prev_lsn));
-    ut_a(log_lsn_validate(next_lsn));
-
-    ut_a(next_lsn > prev_lsn);
-
-    LOG_SYNC_POINT("log_advance_dpa_before_update");
-    return (false);
-  };
-
-  if (log.recent_closed.advance_tail_until(stop_condition)) {
-    LOG_SYNC_POINT("log_advance_dpa_before_reclaim");
-
-    /* Validation of recent_closed is optional because
-    it takes significant time (delaying the log closer). */
-    if (log_test != nullptr &&
-        log_test->enabled(Log_test::Options::VALIDATE_RECENT_CLOSED)) {
-      /* All links between ready_lsn and lsn have
-      been traversed. The slots can't be re-used
-      before we updated the tail. */
-      log.recent_closed.validate_no_links(
-          previous_lsn, log_buffer_dirty_pages_added_up_to_lsn(log));
-    }
-
-    ut_a(log_buffer_dirty_pages_added_up_to_lsn(log) > previous_lsn);
-
-    std::atomic_thread_fence(std::memory_order_acquire);
-
-    return (true);
-
-  } else {
-    ut_a(log_buffer_dirty_pages_added_up_to_lsn(log) == previous_lsn);
-
     return (false);
   }
 }

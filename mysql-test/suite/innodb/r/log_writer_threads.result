@@ -1,0 +1,16 @@
+SET GLOBAL innodb_flush_log_at_trx_commit = 1;
+CREATE TABLE t1 (a CHAR(8));
+SET GLOBAL innodb_log_writer_threads = ON;
+SET DEBUG_SYNC = 'RESET';
+SET DEBUG_SYNC = 'log_flushed_by_writer SIGNAL log_flushed';
+SET AUTOCOMMIT = 1;
+INSERT INTO t1 (a) VALUES ('a');
+SET DEBUG_SYNC = 'now WAIT_FOR log_flushed';
+SET GLOBAL innodb_log_writer_threads = OFF;
+SET DEBUG_SYNC = 'RESET';
+SET DEBUG_SYNC = 'log_flushed_by_self SIGNAL log_flushed';
+SET AUTOCOMMIT = 1;
+INSERT INTO t1 (a) VALUES ('a');
+SET DEBUG_SYNC = 'now WAIT_FOR log_flushed';
+SET DEBUG_SYNC = 'RESET';
+DROP TABLE t1;

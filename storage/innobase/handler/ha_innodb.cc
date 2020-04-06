@@ -730,7 +730,6 @@ static PSI_thread_info all_innodb_threads[] = {
     PSI_KEY(io_write_thread, 0, 0, PSI_DOCUMENT_ME),
     PSI_KEY(buf_resize_thread, 0, 0, PSI_DOCUMENT_ME),
     PSI_KEY(log_writer_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(log_closer_thread, 0, 0, PSI_DOCUMENT_ME),
     PSI_KEY(log_checkpointer_thread, 0, 0, PSI_DOCUMENT_ME),
     PSI_KEY(log_flusher_thread, 0, 0, PSI_DOCUMENT_ME),
     PSI_KEY(log_write_notifier_thread, 0, 0, PSI_DOCUMENT_ME),
@@ -20780,6 +20779,20 @@ static void innodb_log_buffer_size_update(THD *thd, SYS_VAR *var, void *var_ptr,
   }
 }
 
+/** Update the innodb_log_writer_threads parameter.
+@param[in]	thd       thread handle
+@param[in]	var       system variable
+@param[out]	var_ptr   current value
+@param[in]	save      immediate result from check function */
+static void innodb_log_writer_threads_update(THD *thd, SYS_VAR *var,
+                                             void *var_ptr, const void *save) {
+  *static_cast<bool *>(var_ptr) = *static_cast<const bool *>(save);
+
+  /* pause/resume the log writer threads based on innodb_log_writer_threads
+  value. */
+  log_control_writer_threads(*log_sys);
+}
+
 /** Update the system variable innodb_thread_concurrency using the "saved"
 value. This function is registered as a callback with MySQL.
 @param[in]	thd       thread handle
@@ -21457,6 +21470,12 @@ static MYSQL_SYSVAR_ULONG(log_write_ahead_size, srv_log_write_ahead_size,
                           INNODB_LOG_WRITE_AHEAD_SIZE_MAX,
                           OS_FILE_LOG_BLOCK_SIZE);
 
+static MYSQL_SYSVAR_BOOL(
+    log_writer_threads, srv_log_writer_threads, PLUGIN_VAR_RQCMDARG,
+    "Whether the log writer threads should be activated (ON), or write/flush "
+    "of the redo log should be done by each thread individually (OFF).",
+    nullptr, innodb_log_writer_threads_update, TRUE);
+
 static MYSQL_SYSVAR_UINT(
     log_spin_cpu_abs_lwm, srv_log_spin_cpu_abs_lwm, PLUGIN_VAR_RQCMDARG,
     "Minimum value of cpu time for which spin-delay is used."
@@ -21596,17 +21615,6 @@ static MYSQL_SYSVAR_ULONG(
     "Initial timeout used to wait on event in log flush notifier thread"
     " (microseconds)",
     NULL, NULL, INNODB_LOG_FLUSH_NOTIFIER_TIMEOUT_DEFAULT, 0, ULONG_MAX, 0);
-
-static MYSQL_SYSVAR_ULONG(
-    log_closer_spin_delay, srv_log_closer_spin_delay, PLUGIN_VAR_RQCMDARG,
-    "Number of spin iterations, for which log closer thread is waiting"
-    " for dirty pages added.",
-    NULL, NULL, INNODB_LOG_CLOSER_SPIN_DELAY_DEFAULT, 0, ULONG_MAX, 0);
-
-static MYSQL_SYSVAR_ULONG(
-    log_closer_timeout, srv_log_closer_timeout, PLUGIN_VAR_RQCMDARG,
-    "Initial sleep time in log closer thread (microseconds)", NULL, NULL,
-    INNODB_LOG_CLOSER_TIMEOUT_DEFAULT, 0, ULONG_MAX, 0);
 
 #endif /* ENABLE_EXPERIMENT_SYSVARS */
 
@@ -22080,6 +22088,7 @@ static SYS_VAR *innobase_system_variables[] = {
 #endif /* UNIV_DEBUG_DEDICATED */
     MYSQL_SYSVAR(log_write_ahead_size),
     MYSQL_SYSVAR(log_group_home_dir),
+    MYSQL_SYSVAR(log_writer_threads),
     MYSQL_SYSVAR(log_spin_cpu_abs_lwm),
     MYSQL_SYSVAR(log_spin_cpu_pct_hwm),
     MYSQL_SYSVAR(log_wait_for_flush_spin_hwm),
@@ -22102,8 +22111,6 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(log_write_notifier_timeout),
     MYSQL_SYSVAR(log_flush_notifier_spin_delay),
     MYSQL_SYSVAR(log_flush_notifier_timeout),
-    MYSQL_SYSVAR(log_closer_spin_delay),
-    MYSQL_SYSVAR(log_closer_timeout),
 #endif /* ENABLE_EXPERIMENT_SYSVARS */
     MYSQL_SYSVAR(log_compressed_pages),
     MYSQL_SYSVAR(max_dirty_pages_pct),

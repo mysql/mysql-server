@@ -168,9 +168,6 @@ struct Srv_threads {
   /** Error monitor thread. */
   IB_thread m_error_monitor;
 
-  /** Redo closer thread. */
-  IB_thread m_log_closer;
-
   /** Redo checkpointer thread. */
   IB_thread m_log_checkpointer;
 
@@ -462,6 +459,9 @@ for total order of dirty pages, when they are added to flush lists.
 The slots are addressed by LSN values modulo number of the slots. */
 extern ulong srv_log_recent_closed_size;
 
+/** Whether to activate/pause the log writer threads. */
+extern bool srv_log_writer_threads;
+
 /** Minimum absolute value of cpu time for which spin-delay is used. */
 extern uint srv_log_spin_cpu_abs_lwm;
 
@@ -519,13 +519,6 @@ extern ulong srv_log_flush_notifier_spin_delay;
 
 /** Initial timeout used to wait on flush_notifier_event. */
 extern ulong srv_log_flush_notifier_timeout;
-
-/** Number of spin iterations, for which log closerr thread is waiting
-for a reachable untraversed link in recent_closed. */
-extern ulong srv_log_closer_spin_delay;
-
-/** Initial sleep used in log closer after spin delay is finished. */
-extern ulong srv_log_closer_timeout;
 
 /** Whether to generate and require checksums on the redo log pages. */
 extern bool srv_log_checksums;
@@ -754,7 +747,6 @@ extern mysql_pfs_key_t io_log_thread_key;
 extern mysql_pfs_key_t io_read_thread_key;
 extern mysql_pfs_key_t io_write_thread_key;
 extern mysql_pfs_key_t log_writer_thread_key;
-extern mysql_pfs_key_t log_closer_thread_key;
 extern mysql_pfs_key_t log_checkpointer_thread_key;
 extern mysql_pfs_key_t log_flusher_thread_key;
 extern mysql_pfs_key_t log_write_notifier_thread_key;

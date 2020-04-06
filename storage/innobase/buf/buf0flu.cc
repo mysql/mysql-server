@@ -95,6 +95,9 @@ mysql_pfs_key_t page_flush_coordinator_thread_key;
 /** Event to synchronise with the flushing. */
 os_event_t buf_flush_event;
 
+/** Event to wait for one flushing step */
+os_event_t buf_flush_tick_event;
+
 /** State for page cleaner array slot */
 enum page_cleaner_state_t {
   /** Not requested any yet.
@@ -2835,6 +2838,8 @@ static bool pc_wait_finished(ulint *n_flushed_lru, ulint *n_flushed_list) {
 
   mutex_exit(&page_cleaner->mutex);
 
+  os_event_set(buf_flush_tick_event);
+
   return (all_succeeded);
 }
 
@@ -3102,7 +3107,9 @@ static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
     }
 
     mutex_enter(&page_cleaner->mutex);
+    /* lsn_limit!=0 means there are requests. needs to check the lsn. */
     lsn_t lsn_limit = buf_flush_sync_lsn;
+    buf_flush_sync_lsn = 0;
     mutex_exit(&page_cleaner->mutex);
 
     if (srv_read_only_mode) {
@@ -3110,11 +3117,7 @@ static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
     } else {
       ut_a(log_sys != nullptr);
 
-      const lsn_t checkpoint_lsn = log_sys->last_checkpoint_lsn.load();
-
-      const lsn_t lag = log_buffer_flush_order_lag(*log_sys);
-
-      is_sync_flush = srv_flush_sync && lsn_limit > checkpoint_lsn + lag;
+      is_sync_flush = srv_flush_sync && lsn_limit > 0;
     }
 
     if (is_sync_flush || is_server_active) {

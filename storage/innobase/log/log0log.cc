@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -315,8 +315,6 @@ It holds (unless the log writer thread misses an update of the
 
         log.buf_dirty_pages_added_up_to_lsn <= log.buf_ready_for_write_lsn.
 
-Value is updated by: [log closer thread](@ref sect_redo_log_closer).
-
 @subsection subsect_redo_log_available_for_checkpoint_lsn
 log.available_for_checkpoint_lsn
 
@@ -378,9 +376,6 @@ log_t *log_sys;
 
 /** PFS key for the log writer thread. */
 mysql_pfs_key_t log_writer_thread_key;
-
-/** PFS key for the log closer thread. */
-mysql_pfs_key_t log_closer_thread_key;
 
 /** PFS key for the log checkpointer thread. */
 mysql_pfs_key_t log_checkpointer_thread_key;
@@ -467,6 +462,19 @@ that the proper size of the log buffer should be a power of two.
 @param[out]	log		redo log */
 static void log_calc_buf_size(log_t &log);
 
+/** Pauses writer, flusher and notifiers and switches user threads
+to write log as former version.
+NOTE: These pause/resume functions should be protected by mutex while serving.
+The caller innodb_log_writer_threads_update() is protected
+by LOCK_global_system_variables in mysqld.
+@param[out]	log	redo log */
+static void log_pause_writer_threads(log_t &log);
+
+/** Resumes writer, flusher and notifiers and switches user threads
+not to write log.
+@param[out]	log	redo log */
+static void log_resume_writer_threads(log_t &log);
+
 /**************************************************/ /**
 
  @name	Initialization and finalization of log_sys
@@ -519,6 +527,11 @@ bool log_sys_init(uint32_t n_files, uint64_t file_size, space_id_t space_id) {
   log.flush_notifier_event = os_event_create("log_flush_notifier_event");
   log.writer_event = os_event_create("log_writer_event");
   log.flusher_event = os_event_create("log_flusher_event");
+  log.old_flush_event = os_event_create("log_old_flush_event");
+  os_event_set(log.old_flush_event);
+  log.writer_threads_resume_event =
+      os_event_create("log_writer_threads_resume_event");
+  os_event_set(log.writer_threads_resume_event);
 
   mutex_create(LATCH_ID_LOG_CHECKPOINTER, &log.checkpointer_mutex);
   mutex_create(LATCH_ID_LOG_CLOSER, &log.closer_mutex);
@@ -666,6 +679,8 @@ void log_sys_close() {
   os_event_destroy(log.checkpointer_event);
   os_event_destroy(log.writer_event);
   os_event_destroy(log.flusher_event);
+  os_event_destroy(log.old_flush_event);
+  os_event_destroy(log.writer_threads_resume_event);
 
   log_sys_object->destroy();
 
@@ -689,10 +704,6 @@ void log_writer_thread_active_validate(const log_t &log) {
   ut_a(log_writer_is_active());
 }
 
-void log_closer_thread_active_validate(const log_t &log) {
-  ut_a(log_closer_is_active());
-}
-
 void log_background_write_threads_active_validate(const log_t &log) {
   ut_ad(!log.disable_redo_writes);
 
@@ -705,13 +716,11 @@ void log_background_threads_active_validate(const log_t &log) {
 
   ut_a(log_write_notifier_is_active());
   ut_a(log_flush_notifier_is_active());
-  ut_a(log_closer_is_active());
   ut_a(log_checkpointer_is_active());
 }
 
 void log_background_threads_inactive_validate(const log_t &log) {
   ut_a(!log_checkpointer_is_active());
-  ut_a(!log_closer_is_active());
   ut_a(!log_write_notifier_is_active());
   ut_a(!log_flush_notifier_is_active());
   ut_a(!log_writer_is_active());
@@ -728,12 +737,10 @@ void log_start_background_threads(log_t &log) {
   ut_a(log.sn.load() > 0);
 
   log.should_stop_threads.store(false);
+  log.writer_threads_paused.store(false);
 
   srv_threads.m_log_checkpointer =
       os_thread_create(log_checkpointer_thread_key, log_checkpointer, &log);
-
-  srv_threads.m_log_closer =
-      os_thread_create(log_closer_thread_key, log_closer, &log);
 
   srv_threads.m_log_flush_notifier =
       os_thread_create(log_flush_notifier_thread_key, log_flush_notifier, &log);
@@ -748,13 +755,14 @@ void log_start_background_threads(log_t &log) {
       os_thread_create(log_writer_thread_key, log_writer, &log);
 
   srv_threads.m_log_checkpointer.start();
-  srv_threads.m_log_closer.start();
   srv_threads.m_log_flush_notifier.start();
   srv_threads.m_log_flusher.start();
   srv_threads.m_log_write_notifier.start();
   srv_threads.m_log_writer.start();
 
   log_background_threads_active_validate(log);
+
+  log_control_writer_threads(log);
 
   meb::redo_log_archive_init();
 }
@@ -779,6 +787,7 @@ void log_stop_background_threads(log_t &log) {
 
   ut_a(!srv_read_only_mode);
 
+  log_resume_writer_threads(log);
   log.should_stop_threads.store(true);
 
   /* Wait until threads are closed. */
@@ -798,10 +807,6 @@ void log_stop_background_threads(log_t &log) {
     os_event_set(log.flush_notifier_event);
     os_thread_sleep(10);
   }
-  while (log_closer_is_active()) {
-    os_event_set(log.closer_event);
-    os_thread_sleep(10);
-  }
   while (log_checkpointer_is_active()) {
     os_event_set(log.checkpointer_event);
     os_thread_sleep(10);
@@ -811,14 +816,12 @@ void log_stop_background_threads(log_t &log) {
 }
 
 void log_stop_background_threads_nowait(log_t &log) {
+  log_resume_writer_threads(log);
   log.should_stop_threads.store(true);
   log_wake_threads(log);
 }
 
 void log_wake_threads(log_t &log) {
-  if (log_closer_is_active()) {
-    os_event_set(log.closer_event);
-  }
   if (log_checkpointer_is_active()) {
     os_event_set(log.checkpointer_event);
   }
@@ -830,6 +833,69 @@ void log_wake_threads(log_t &log) {
   }
   if (log_write_notifier_is_active()) {
     os_event_set(log.write_notifier_event);
+  }
+}
+
+static void log_pause_writer_threads(log_t &log) {
+  /* protected by LOCK_global_system_variables */
+  if (!log.writer_threads_paused.load()) {
+    os_event_reset(log.writer_threads_resume_event);
+    log.writer_threads_paused.store(true);
+    if (log_writer_is_active()) {
+      os_event_set(log.writer_event);
+    }
+    if (log_flusher_is_active()) {
+      os_event_set(log.flusher_event);
+    }
+    if (log_write_notifier_is_active()) {
+      os_event_set(log.write_notifier_event);
+    }
+    if (log_flush_notifier_is_active()) {
+      os_event_set(log.flush_notifier_event);
+    }
+
+    /* wakeup waiters to use the log writer threads */
+    for (size_t i = 0; i < log.write_events_size; ++i) {
+      os_event_set(log.write_events[i]);
+    }
+    for (size_t i = 0; i < log.flush_events_size; ++i) {
+      os_event_set(log.flush_events[i]);
+    }
+  }
+}
+
+static void log_resume_writer_threads(log_t &log) {
+  /* protected by LOCK_global_system_variables */
+  if (log.writer_threads_paused.load()) {
+    log.writer_threads_paused.store(false);
+
+    /* wakeup waiters not to use the log writer threads */
+    os_event_set(log.old_flush_event);
+
+    /* gives resume lsn for each notifiers */
+    log.write_notifier_resume_lsn.store(log.write_lsn.load());
+    log.flush_notifier_resume_lsn.store(log.flushed_to_disk_lsn.load());
+    os_event_set(log.writer_threads_resume_event);
+
+    /* confirms *_notifier_resume_lsn have been accepted */
+    while (log.write_notifier_resume_lsn.load(std::memory_order_acquire) != 0 ||
+           log.flush_notifier_resume_lsn.load(std::memory_order_acquire) != 0) {
+      os_thread_sleep(1000);
+      ut_a(log_write_notifier_is_active());
+      ut_a(log_flush_notifier_is_active());
+      os_event_set(log.writer_threads_resume_event);
+    }
+  }
+}
+
+void log_control_writer_threads(log_t &log) {
+  /* pause/resume the log writer threads based on innodb_log_writer_threads
+  value. NOTE: This function is protected by LOCK_global_system_variables
+  in mysqld by called from innodb_log_writer_threads_update() */
+  if (srv_log_writer_threads) {
+    log_resume_writer_threads(log);
+  } else {
+    log_pause_writer_threads(log);
   }
 }
 

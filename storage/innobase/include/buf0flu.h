@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -51,6 +51,9 @@ extern bool innodb_page_cleaner_disabled_debug;
 
 /** Event to synchronise with the flushing. */
 extern os_event_t buf_flush_event;
+
+/** Event to wait for one flushing step */
+extern os_event_t buf_flush_tick_event;
 
 class ut_stage_alter_t;
 

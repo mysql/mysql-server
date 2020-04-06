@@ -3062,6 +3062,9 @@ void srv_start_threads_after_ddl_recovery() {
   /* Now the InnoDB Metadata and file system should be consistent.
   Start the Purge thread */
   srv_start_purge_threads();
+
+  /* If recovered, should do write back the dynamic metadata. */
+  dict_persist_to_dd_table_buffer();
 }
 
 #if 0

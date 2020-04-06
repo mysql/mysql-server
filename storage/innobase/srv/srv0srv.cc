@@ -252,6 +252,9 @@ ulong srv_log_buffer_size;
 /** Size of block, used for writing ahead to avoid read-on-write. */
 ulong srv_log_write_ahead_size;
 
+/** Whether to activate/pause the log writer threads. */
+bool srv_log_writer_threads;
+
 /** Minimum absolute value of cpu time for which spin-delay is used. */
 uint srv_log_spin_cpu_abs_lwm;
 
@@ -340,13 +343,6 @@ ulong srv_log_flush_notifier_spin_delay =
 /** Initial timeout used to wait on flush_notifier_event. */
 ulong srv_log_flush_notifier_timeout =
     INNODB_LOG_FLUSH_NOTIFIER_TIMEOUT_DEFAULT;
-
-/** Number of spin iterations, for which log closerr thread is waiting
-for a reachable untraversed link in recent_closed. */
-ulong srv_log_closer_spin_delay = INNODB_LOG_CLOSER_SPIN_DELAY_DEFAULT;
-
-/** Initial sleep used in log closer after spin delay is finished. */
-ulong srv_log_closer_timeout = INNODB_LOG_CLOSER_TIMEOUT_DEFAULT;
 
 /* End of EXPERIMENTAL sys vars */
 
@@ -1125,6 +1121,8 @@ static void srv_init(void) {
 
     buf_flush_event = os_event_create("buf_flush_event");
 
+    buf_flush_tick_event = os_event_create("buf_flush_tick_event");
+
     UT_LIST_INIT(srv_sys->tasks, &que_thr_t::queue);
   }
 
@@ -1173,6 +1171,7 @@ void srv_free(void) {
     os_event_destroy(srv_monitor_event);
     os_event_destroy(srv_buf_dump_event);
     os_event_destroy(buf_flush_event);
+    os_event_destroy(buf_flush_tick_event);
   }
 
   os_event_destroy(srv_buf_resize_event);
@@ -1920,14 +1919,17 @@ void srv_wake_master_thread(void) {
 /** Get current server activity count. We don't hold srv_sys::mutex while
  reading this value as it is only used in heuristics.
  @return activity count. */
-ulint srv_get_activity_count(void) { return (srv_sys->activity_count); }
+ulint srv_get_activity_count(void) {
+  return (srv_sys == nullptr ? 0 : srv_sys->activity_count);
+}
 
 /** Check if there has been any activity.
  @return false if no change in activity counter. */
 ibool srv_check_activity(
     ulint old_activity_count) /*!< in: old activity count */
 {
-  return (srv_sys->activity_count != old_activity_count);
+  return (srv_sys == nullptr ? false
+                             : srv_sys->activity_count != old_activity_count);
 }
 
 /** Make room in the table cache by evicting an unused table.
@@ -2279,6 +2281,9 @@ static void srv_master_do_active_tasks(void) {
   MONITOR_INC_TIME_IN_MICRO_SECS(MONITOR_SRV_IBUF_MERGE_MICROSECOND,
                                  counter_time);
 
+  /* Flush logs if needed */
+  log_buffer_sync_in_background();
+
   /* Now see if various tasks that are performed at defined
   intervals need to be performed. */
 
@@ -2356,6 +2361,9 @@ static void srv_master_do_idle_tasks(void) {
   }
   MONITOR_INC_TIME_IN_MICRO_SECS(MONITOR_SRV_DICT_LRU_MICROSECOND,
                                  counter_time);
+
+  /* Flush logs if needed */
+  log_buffer_sync_in_background();
 }
 
 /** Perform the tasks during shutdown. The tasks that we do at shutdown

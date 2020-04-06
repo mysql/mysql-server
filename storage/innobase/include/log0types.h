@@ -186,6 +186,16 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
       Protected by: sn_lock or writer_mutex. */
       Link_buf<lsn_t> recent_written;
 
+  /** Used for pausing the log writer threads.
+  When paused, each user thread should write log as in the former version. */
+  std::atomic_bool writer_threads_paused;
+
+  /** Some threads waiting for the ready for write lsn by closer_event. */
+  lsn_t current_ready_waiting_lsn;
+
+  /** current_ready_waiting_lsn is waited using this sig_count. */
+  int64_t current_ready_waiting_sig_count;
+
   alignas(ut::INNODB_CACHE_LINE_SIZE)
 
       /** The recent closed buffer.
@@ -271,6 +281,11 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
 
   /** Number of entries in the array with events. */
   size_t flush_events_size;
+
+  /** This event is in the reset state when a flush is running;
+  a thread should wait for this without owning any of redo mutexes,
+  but NOTE that to reset this event, the thread MUST own the writer_mutex */
+  os_event_t old_flush_event;
 
   /** Padding before the frequently updated flushed_to_disk_lsn. */
   alignas(ut::INNODB_CACHE_LINE_SIZE)
@@ -436,6 +451,9 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
       advanced). */
       os_event_t flush_notifier_event;
 
+  /** The next flushed_to_disk_lsn can be waited using this sig_count. */
+  int64_t current_flush_sig_count;
+
   /** Mutex which can be used to pause log flush notifier thread. */
   mutable ib_mutex_t flush_notifier_mutex;
 
@@ -476,6 +494,15 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
 
       /** Used for stopping the log background threads. */
       std::atomic_bool should_stop_threads;
+
+  /** Event used for pausing the log writer threads. */
+  os_event_t writer_threads_resume_event;
+
+  /** Used for resuming write notifier thread */
+  atomic_lsn_t write_notifier_resume_lsn;
+
+  /** Used for resuming flush notifier thread */
+  atomic_lsn_t flush_notifier_resume_lsn;
 
   /** Number of total I/O operations performed when we printed
   the statistics last time. */
