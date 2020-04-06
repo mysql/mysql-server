@@ -149,17 +149,9 @@ class MetadataChacheTTLTest : public RouterComponentTest {
     auto default_section = get_DEFAULT_defaults();
     init_keyring(default_section, temp_test_dir);
 
-    // enable debug logs for better diagnostics in case of failure
-    std::string logger_section = "[logger]\nlevel = DEBUG\n";
-
-    if (!wait_for_md_refresh_started) {
-      default_section["logging_folder"] = "";
-    }
-
     // launch the router
     const std::string conf_file = create_config_file(
-        conf_dir, logger_section + metadata_cache_section + routing_section,
-        &default_section);
+        conf_dir, metadata_cache_section + routing_section, &default_section);
     auto &router = ProcessManager::launch_router(
         {"-c", conf_file}, expected_exitcode, true, false);
     if (wait_for_md_refresh_started) {
@@ -362,9 +354,11 @@ TEST_P(MetadataChacheTTLTestParamInvalid, CheckTTLInvalid) {
 
   check_exit_code(router, EXIT_FAILURE);
   EXPECT_THAT(router.exit_code(), testing::Ne(0));
-  EXPECT_TRUE(router.expect_output(
-      "Configuration error: option ttl in [metadata_cache:test] needs value "
-      "between 0 and 3600 inclusive"));
+  EXPECT_TRUE(wait_log_contains(router,
+                                "Configuration error: option ttl in "
+                                "\\[metadata_cache:test\\] needs value "
+                                "between 0 and 3600 inclusive",
+                                500ms));
 }
 
 INSTANTIATE_TEST_CASE_P(

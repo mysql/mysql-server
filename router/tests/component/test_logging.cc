@@ -54,6 +54,13 @@ using namespace std::chrono_literals;
 
 class RouterLoggingTest : public RouterComponentTest {
  protected:
+  std::string create_config_file(
+      const std::string &directory, const std::string &sections,
+      const std::map<std::string, std::string> *default_section) const {
+    return ProcessManager::create_config_file(
+        directory, sections, default_section, "mysqlrouter.conf", "", false);
+  }
+
   TcpPortPool port_pool_;
 };
 
@@ -351,7 +358,7 @@ struct LoggingConfigOkParams {
 }
 
 class RouterLoggingTestConfig
-    : public RouterComponentTest,
+    : public RouterLoggingTest,
       public ::testing::WithParamInterface<LoggingConfigOkParams> {};
 
 /** @test This test verifies that a proper loggs are written to selected sinks
@@ -948,7 +955,7 @@ struct LoggingConfigErrorParams {
 }
 
 class RouterLoggingConfigError
-    : public RouterComponentTest,
+    : public RouterLoggingTest,
       public ::testing::WithParamInterface<LoggingConfigErrorParams> {};
 
 /** @test This test verifies that a proper error gets printed on the console for
@@ -1153,7 +1160,7 @@ INSTANTIATE_TEST_CASE_P(
 #endif
 
 class RouterLoggingTestTimestampPrecisionConfig
-    : public RouterComponentTest,
+    : public RouterLoggingTest,
       public ::testing::WithParamInterface<LoggingConfigOkParams> {};
 
 #define DATE_REGEX "[0-9]{4}-[0-9]{2}-[0-9]{2}"
@@ -1772,8 +1779,9 @@ TEST_F(RouterLoggingTest, is_debug_logs_enabled_if_bootstrap_config_file) {
   auto conf_params = get_DEFAULT_defaults();
   // we want to log to the console
   conf_params["logging_folder"] = "";
-  std::string conf_file = create_config_file(
-      bootstrap_conf.name(), logger_section, &conf_params, "bootstrap.conf");
+  std::string conf_file = ProcessManager::create_config_file(
+      bootstrap_conf.name(), logger_section, &conf_params, "bootstrap.conf", "",
+      false);
 
   auto &router = launch_router({
       "--bootstrap=127.0.0.1:" + std::to_string(server_port),
@@ -1868,8 +1876,9 @@ TEST_F(RouterLoggingTest, bootstrap_normal_logs_written_to_stdout) {
   auto conf_params = get_DEFAULT_defaults();
   // we want to log to the console
   conf_params["logging_folder"] = "";
-  std::string conf_file = create_config_file(
-      bootstrap_conf.name(), logger_section, &conf_params, "bootstrap.conf");
+  std::string conf_file = ProcessManager::create_config_file(
+      bootstrap_conf.name(), logger_section, &conf_params, "bootstrap.conf", "",
+      false);
 
   auto &router = launch_router(
       {
@@ -2284,7 +2293,7 @@ struct LoggingConfigFilenameOkParams {
 };
 
 class RouterLoggingTestConfigFilename
-    : public RouterComponentTest,
+    : public RouterLoggingTest,
       public ::testing::WithParamInterface<LoggingConfigFilenameOkParams> {};
 
 /** @test This test verifies that a proper log filename is written to
@@ -2416,7 +2425,7 @@ INSTANTIATE_TEST_CASE_P(
 #endif
 
 class RouterLoggingTestConfigFilenameDevices
-    : public RouterComponentTest,
+    : public RouterLoggingTest,
       public ::testing::WithParamInterface<LoggingConfigFilenameOkParams> {};
 
 /** @test This test verifies that consolelog destination may be set to various
@@ -2511,7 +2520,7 @@ struct LoggingConfigFilenameErrorParams {
 };
 
 class RouterLoggingConfigFilenameError
-    : public RouterComponentTest,
+    : public RouterLoggingTest,
       public ::testing::WithParamInterface<LoggingConfigFilenameErrorParams> {};
 
 #define ABS_PATH "%%ABSPATH%%"
@@ -2845,7 +2854,7 @@ class TempRelativeDirectory {
 };
 
 class RouterLoggingTestConfigFilenameLoggingFolder
-    : public RouterComponentTest,
+    : public RouterLoggingTest,
       public ::testing::WithParamInterface<
           LoggingConfigFilenameLoggingFolderParams> {};
 

@@ -165,20 +165,15 @@ class MetadataHttpAuthTest : public RouterComponentTest {
     mysql_harness::flush_keyring();
     mysql_harness::reset_keyring();
 
-    // enable debug logs for better diagnostics in case of failure
-    const std::string logger_section =
-        "[logger]\nlevel = DEBUG\ntimestamp_precision=millisecond\n";
-
     // launch the router with metadata-cache configuration
     auto default_section = get_DEFAULT_defaults();
     default_section["keyring_path"] = keyring_file;
     default_section["master_key_path"] = masterkey_file;
     default_section["dynamic_state"] = state_file;
-    const std::string conf_file =
-        create_config_file(temp_test_dir_str,
-                           logger_section + metadata_cache_section +
-                               routing_section + rest_section,
-                           &default_section);
+    const std::string conf_file = create_config_file(
+        temp_test_dir_str,
+        metadata_cache_section + routing_section + rest_section,
+        &default_section);
 
     return ProcessManager::launch_router({"-c", conf_file}, expected_errorcode);
   }
