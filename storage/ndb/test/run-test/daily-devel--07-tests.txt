@@ -232,3 +232,7 @@ cmd: testNodeRestart
 args: -n InplaceCharPkChangeCI T1
 max-time: 600
 
+cmd: testPartitioning
+args : -n startTransactionHint_orderedIndex_MaxKey T1
+max-time: 60
+

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -701,8 +701,10 @@ run_startHint_ordered_index(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_FAILED;
   }
 
+  const Uint32 errorInsert = ctx->getProperty("errorinsertion", (unsigned) 8050);
+
   NdbRestarter restarter;
-  if(restarter.insertErrorInAllNodes(8050) != 0)
+  if(restarter.insertErrorInAllNodes(errorInsert) != 0)
     return NDBT_FAILED;
   
   HugoCalculator dummy(*tab);
@@ -1406,6 +1408,20 @@ TESTCASE("startTransactionHint_orderedIndex_mrr_userDefined",
   INITIALIZER(run_create_dist_table);
   INITIALIZER(run_dist_test);
   INITIALIZER(run_drop_dist_table);
+}
+TESTCASE("startTransactionHint_orderedIndex_MaxKey",
+         "Test startTransactionHint with max hash value via error insert")
+{
+  /* Special regression case */
+  TC_PROPERTY("distributionkey", (unsigned)0);
+  TC_PROPERTY("OrderedIndex", (unsigned)1);
+  TC_PROPERTY("errorinsertion", (unsigned) 8119);
+  INITIALIZER(run_drop_table);
+  INITIALIZER(run_create_table);
+  INITIALIZER(run_create_pk_index);
+  INITIALIZER(run_startHint_ordered_index);
+  INITIALIZER(run_create_pk_index_drop);
+  INITIALIZER(run_drop_table);
 }
 
 NDBT_TESTSUITE_END(testPartitioning)
