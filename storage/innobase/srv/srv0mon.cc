@@ -365,6 +365,11 @@ static monitor_info_t innodb_counter_info[] = {
      "Number of pages requested for flushing.", MONITOR_NONE,
      MONITOR_DEFAULT_START, MONITOR_FLUSH_N_TO_FLUSH_REQUESTED},
 
+    {"buffer_flush_n_to_flush_by_dirty_page", "buffer",
+     "Number of pages targeted by dirty page percentage for flushing.",
+     MONITOR_NONE, MONITOR_DEFAULT_START,
+     MONITOR_FLUSH_N_TO_FLUSH_BY_DIRTY_PAGE},
+
     {"buffer_flush_n_to_flush_by_age", "buffer",
      "Number of pages targeted by LSN Age for flushing.", MONITOR_NONE,
      MONITOR_DEFAULT_START, MONITOR_FLUSH_N_TO_FLUSH_BY_AGE},

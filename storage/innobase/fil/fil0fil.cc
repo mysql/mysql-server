@@ -4181,11 +4181,9 @@ static void fil_op_write_log(mlog_id_t type, space_id_t space_id,
                              uint32_t flags, mtr_t *mtr) {
   ut_ad(space_id != TRX_SYS_SPACE);
 
-  byte *log_ptr;
+  byte *log_ptr = nullptr;
 
-  log_ptr = mlog_open(mtr, 11 + 4 + 2 + 1);
-
-  if (log_ptr == nullptr) {
+  if (!mlog_open(mtr, 11 + 4 + 2 + 1, log_ptr)) {
     /* Logging in mtr is switched off during crash recovery:
     in that case mlog_open returns nullptr */
     return;
@@ -4217,7 +4215,7 @@ static void fil_op_write_log(mlog_id_t type, space_id_t space_id,
 
       len = strlen(new_path) + 1;
 
-      log_ptr = mlog_open(mtr, 2 + len);
+      ut_a(mlog_open(mtr, 2 + len, log_ptr));
 
       mach_write_to_2(log_ptr, len);
 

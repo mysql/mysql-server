@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -38,6 +38,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "dict0dict.h"
 #include "page0cur.h"
+#include "ut0class_life_cycle.h"
 #include "ut0new.h"
 
 /** Innodb B-tree index fill factor for bulk load. */
@@ -53,7 +54,7 @@ The proper function call sequence of PageBulk is as below:
 -- PageBulk::commit
 */
 
-class PageBulk {
+class PageBulk : private ut::Non_copyable {
  public:
   /** Page split point descriptor. */
   struct SplitPoint {
@@ -103,6 +104,10 @@ class PageBulk {
   /** Destructor */
   ~PageBulk() {
     if (m_heap) {
+      /* mtr is allocated using heap. */
+      if (m_mtr != nullptr) {
+        m_mtr->~mtr_t();
+      }
       mem_heap_free(m_heap);
     }
   }

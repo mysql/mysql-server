@@ -5402,8 +5402,11 @@ void Persister::write_log(table_id_t id,
 
   ut_ad(size > 0);
 
-  log_ptr = mlog_open_metadata(mtr, metadata_log_header_size + size);
-  ut_ad(log_ptr != nullptr);
+  if (!mlog_open_metadata(mtr, metadata_log_header_size + size, log_ptr)) {
+    /* Currently possible only when global redo logging is not enabled. */
+    ut_ad(!mtr_t::s_logging.is_enabled());
+    return;
+  }
 
   log_ptr = mlog_write_initial_dict_log_record(
       MLOG_TABLE_DYNAMIC_META, id, metadata.get_version(), log_ptr, mtr);

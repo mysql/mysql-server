@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2018, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -104,6 +104,21 @@ extern void redo_log_archive_session_end(innodb_session_t *session);
 */
 extern void redo_log_archive_produce(const byte *write_buf,
                                      const size_t write_size);
+
+/**
+  @return true iff redo log archiving is active.
+*/
+extern bool redo_log_archive_is_active();
+
+/**
+  Register a privilege. We should move this function and other UDF
+  registration functions to some common utility file later.
+  @param[in]      priv_name     privilege name
+  @return         status
+    @retval       false         success
+    @retval       true          failure
+*/
+extern bool register_privilege(const char *priv_name);
 
 }  // namespace meb
 

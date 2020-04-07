@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -805,17 +805,17 @@ void page_delete_rec_list_write_log(
                          MLOG_LIST_END_DELETE, ... */
     mtr_t *mtr)          /*!< in: mtr */
 {
-  byte *log_ptr;
+  byte *log_ptr = nullptr;
   ut_ad(type == MLOG_LIST_END_DELETE || type == MLOG_LIST_START_DELETE ||
         type == MLOG_COMP_LIST_END_DELETE ||
         type == MLOG_COMP_LIST_START_DELETE);
 
-  log_ptr = mlog_open_and_write_index(mtr, rec, index, type, 2);
-  if (log_ptr) {
-    /* Write the parameter as a 2-byte ulint */
-    mach_write_to_2(log_ptr, page_offset(rec));
-    mlog_close(mtr, log_ptr + 2);
+  if (!mlog_open_and_write_index(mtr, rec, index, type, 2, log_ptr)) {
+    return;
   }
+  /* Write the parameter as a 2-byte ulint */
+  mach_write_to_2(log_ptr, page_offset(rec));
+  mlog_close(mtr, log_ptr + 2);
 }
 #else /* !UNIV_HOTBACKUP */
 #define page_delete_rec_list_write_log(rec, index, type, mtr) ((void)0)

@@ -1323,7 +1323,7 @@ func_exit:
 #ifndef UNIV_HOTBACKUP
   if (success) {
     mlog_id_t type;
-    byte *log_ptr;
+    byte *log_ptr = nullptr;
 
     /* Write the log record */
     if (page_zip) {
@@ -1335,12 +1335,15 @@ func_exit:
       type = MLOG_PAGE_REORGANIZE;
     }
 
-    log_ptr = log_compressed ? nullptr
-                             : mlog_open_and_write_index(mtr, page, index, type,
-                                                         page_zip ? 1 : 0);
+    bool opened = false;
+
+    if (!log_compressed) {
+      opened = mlog_open_and_write_index(mtr, page, index, type,
+                                         page_zip ? 1 : 0, log_ptr);
+    }
 
     /* For compressed pages write the compression level. */
-    if (log_ptr && page_zip) {
+    if (opened && page_zip) {
       mach_write_to_1(log_ptr, z_level);
       mlog_close(mtr, log_ptr + 1);
     }

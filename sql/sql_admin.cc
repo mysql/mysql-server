@@ -1743,6 +1743,12 @@ bool Sql_cmd_alter_instance::execute(THD *thd) {
     case ROTATE_BINLOG_MASTER_KEY:
       alter_instance = new Rotate_binlog_master_key(thd);
       break;
+    case ALTER_INSTANCE_ENABLE_INNODB_REDO:
+      alter_instance = new Innodb_redo_log(thd, true);
+      break;
+    case ALTER_INSTANCE_DISABLE_INNODB_REDO:
+      alter_instance = new Innodb_redo_log(thd, false);
+      break;
     default:
       DBUG_ASSERT(false);
       my_error(ER_NOT_SUPPORTED_YET, MYF(0), "ALTER INSTANCE");

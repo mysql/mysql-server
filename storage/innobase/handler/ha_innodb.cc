@@ -1017,6 +1017,8 @@ static SHOW_VAR innodb_status_variables[] = {
      SHOW_SCOPE_GLOBAL},
     {"pages_written", (char *)&export_vars.innodb_pages_written, SHOW_LONG,
      SHOW_SCOPE_GLOBAL},
+    {"redo_log_enabled", (char *)&export_vars.innodb_redo_log_enabled,
+     SHOW_BOOL, SHOW_SCOPE_GLOBAL},
     {"row_lock_current_waits",
      (char *)&export_vars.innodb_row_lock_current_waits, SHOW_LONG,
      SHOW_SCOPE_GLOBAL},
@@ -3963,6 +3965,32 @@ error_exit:
   return (ret);
 }
 
+/** Enable or Disable SE write ahead logging.
+@param[in]	thd	connection THD
+@param[in]	enable	enable/disable redo logging
+@return true iff failed. */
+static bool innobase_redo_set_state(THD *thd, bool enable) {
+  if (srv_read_only_mode) {
+    my_error(ER_INNODB_READ_ONLY, MYF(0));
+    return (true);
+  }
+
+  int err = 0;
+
+  if (enable) {
+    err = mtr_t::s_logging.enable(thd);
+  } else {
+    err = mtr_t::s_logging.disable(thd);
+  }
+
+  if (err != 0) {
+    return (true);
+  }
+
+  set_srv_redo_log(enable);
+  return (false);
+}
+
 /** Return partitioning flags. */
 static uint innobase_partition_flags() {
   return (HA_CAN_EXCHANGE_PARTITION | HA_CANNOT_PARTITION_FK |
@@ -4688,6 +4716,8 @@ static int innodb_init(void *p) {
 
   innobase_hton->rotate_encryption_master_key =
       innobase_encryption_key_rotation;
+
+  innobase_hton->redo_log_set_state = innobase_redo_set_state;
 
   innobase_hton->post_ddl = innobase_post_ddl;
 

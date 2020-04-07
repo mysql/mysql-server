@@ -2374,6 +2374,8 @@ files_checked:
 
   arch_init();
 
+  mtr_t::s_logging.init();
+
   if (create_new_db) {
     ut_a(!srv_read_only_mode);
 
@@ -2475,9 +2477,9 @@ files_checked:
 
     err = recv_recovery_from_checkpoint_start(*log_sys, flushed_lsn);
 
-    arch_page_sys->post_recovery_init();
-
     if (err == DB_SUCCESS) {
+      arch_page_sys->post_recovery_init();
+
       /* Initialize the change buffer. */
       err = dict_boot();
     }
@@ -3099,6 +3101,13 @@ static void srv_shutdown_background_threads();
 the data dictionary. */
 void srv_pre_dd_shutdown() {
   ut_a(!srv_is_being_shutdown);
+
+  /* Avoid fast shutdown, if redo logging is disabled. Otherwise, we won't be
+  able to recover. */
+  if (mtr_t::s_logging.is_disabled() && srv_fast_shutdown == 2) {
+    ib::warn(ER_IB_WRN_FAST_SHUTDOWN_REDO_DISABLED);
+    srv_fast_shutdown = 1;
+  }
 
   /* Stop service for persisting GTID */
   auto &gtid_persistor = clone_sys->get_gtid_persistor();

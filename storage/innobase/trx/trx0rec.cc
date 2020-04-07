@@ -71,13 +71,11 @@ void trx_undof_page_add_undo_rec_log(
     ulint new_free,    /*!< in: end offset of the entry */
     mtr_t *mtr)        /*!< in: mtr */
 {
-  byte *log_ptr;
+  byte *log_ptr = nullptr;
   const byte *log_end;
   ulint len;
 
-  log_ptr = mlog_open(mtr, 11 + 13 + MLOG_BUF_MARGIN);
-
-  if (log_ptr == nullptr) {
+  if (!mlog_open(mtr, 11 + 13 + MLOG_BUF_MARGIN, log_ptr)) {
     return;
   }
 

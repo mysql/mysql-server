@@ -6,6 +6,10 @@ if (!$no_binlog) {
 --source include/have_innodb_default_undo_tablespaces.inc
 --source ../include/clone_connection_begin.inc
 
+if ($disabled_redo) {
+  ALTER INSTANCE DISABLE INNODB REDO_LOG;
+}
+
 --let $CLONE_DATADIR = $MYSQL_TMP_DIR/data_new
 --let $CLONE_DATADIR1 = $MYSQL_TMP_DIR/data_new1
 
@@ -109,6 +113,17 @@ begin;
 
 --echo # In connection default - Cloning database
 --connection clone_conn_1
+
+if ($disabled_redo) {
+  --echo # Clone must return error when redo logging is disabled
+  --let disabled_redo = 0
+  --let $clone_err = ER_INNODB_REDO_DISABLED
+  --source ../include/clone_command.inc
+
+  --let disabled_redo = 1
+  --let $clone_err = 0
+}
+
 --source ../include/clone_command.inc
 --echo # In connection default - Finished Cloning
 
@@ -264,3 +279,7 @@ if ($clone_remote_replace) {
 --source ../include/clone_connection_end.inc
 
 UNINSTALL PLUGIN clone;
+
+if ($disabled_redo) {
+  ALTER INSTANCE ENABLE INNODB REDO_LOG;
+}

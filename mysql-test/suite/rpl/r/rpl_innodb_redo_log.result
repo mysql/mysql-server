@@ -1,0 +1,92 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[Connection Master]
+SELECT * FROM performance_schema.global_status WHERE variable_name = 'innodb_redo_log_enabled';
+VARIABLE_NAME	VARIABLE_VALUE
+Innodb_redo_log_enabled	ON
+SHOW GLOBAL STATUS LIKE 'innodb_redo_log_enabled';
+Variable_name	Value
+Innodb_redo_log_enabled	ON
+CREATE TABLE tab1(c1 int,c2 text);
+INSERT INTO tab1 VALUES(1,'Test');
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM performance_schema.global_status WHERE variable_name = 'innodb_redo_log_enabled';
+VARIABLE_NAME	VARIABLE_VALUE
+Innodb_redo_log_enabled	ON
+SHOW GLOBAL STATUS LIKE 'innodb_redo_log_enabled';
+Variable_name	Value
+Innodb_redo_log_enabled	ON
+SELECT * FROM tab1;
+c1	c2
+1	Test
+[Connection Master]
+SET @@global.innodb_redo_log_archive_dirs = 'label1:IRLA_DIRECTORY_1';
+ALTER INSTANCE DISABLE INNODB REDO_LOG;
+SELECT * FROM performance_schema.global_status WHERE variable_name = 'innodb_redo_log_enabled';
+VARIABLE_NAME	VARIABLE_VALUE
+Innodb_redo_log_enabled	OFF
+SHOW GLOBAL STATUS LIKE 'innodb_redo_log_enabled';
+Variable_name	Value
+Innodb_redo_log_enabled	OFF
+SELECT innodb_redo_log_archive_start('label1');
+ERROR HY000: Cannot perform operation as InnoDB redo logging is disabled. Please retry after enabling redo log with ALTER INSTANCE
+CREATE TABLE tab2(c1 int,c2 text);
+INSERT INTO tab2 VALUES(1,'Test');
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT * FROM performance_schema.global_status WHERE variable_name = 'innodb_redo_log_enabled';
+VARIABLE_NAME	VARIABLE_VALUE
+Innodb_redo_log_enabled	ON
+SHOW GLOBAL STATUS LIKE 'innodb_redo_log_enabled';
+Variable_name	Value
+Innodb_redo_log_enabled	ON
+SET @@global.innodb_redo_log_archive_dirs = 'label2:IRLA_DIRECTORY_1';
+SELECT * FROM tab1;
+c1	c2
+1	Test
+SELECT * FROM tab2;
+c1	c2
+1	Test
+ALTER INSTANCE DISABLE INNODB REDO_LOG;
+SELECT * FROM performance_schema.global_status WHERE variable_name = 'innodb_redo_log_enabled';
+VARIABLE_NAME	VARIABLE_VALUE
+Innodb_redo_log_enabled	OFF
+SHOW GLOBAL STATUS LIKE 'innodb_redo_log_enabled';
+Variable_name	Value
+Innodb_redo_log_enabled	OFF
+DO innodb_redo_log_archive_start("label2");
+ERROR HY000: Cannot perform operation as InnoDB redo logging is disabled. Please retry after enabling redo log with ALTER INSTANCE
+[Connection Master]
+SELECT * FROM performance_schema.global_status WHERE variable_name = 'innodb_redo_log_enabled';
+VARIABLE_NAME	VARIABLE_VALUE
+Innodb_redo_log_enabled	OFF
+SHOW GLOBAL STATUS LIKE 'innodb_redo_log_enabled';
+Variable_name	Value
+Innodb_redo_log_enabled	OFF
+ALTER INSTANCE ENABLE INNODB REDO_LOG;
+DROP TABLE tab1;
+DROP TABLE tab2;
+SELECT * FROM performance_schema.global_status WHERE variable_name = 'innodb_redo_log_enabled';
+VARIABLE_NAME	VARIABLE_VALUE
+Innodb_redo_log_enabled	ON
+SHOW GLOBAL STATUS LIKE 'innodb_redo_log_enabled';
+Variable_name	Value
+Innodb_redo_log_enabled	ON
+# Set Default value on master side
+SET @@global.innodb_redo_log_archive_dirs = '';
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+ALTER INSTANCE ENABLE INNODB REDO_LOG;
+SELECT * FROM performance_schema.global_status WHERE variable_name = 'innodb_redo_log_enabled';
+VARIABLE_NAME	VARIABLE_VALUE
+Innodb_redo_log_enabled	ON
+SHOW GLOBAL STATUS LIKE 'innodb_redo_log_enabled';
+Variable_name	Value
+Innodb_redo_log_enabled	ON
+# Set Default value on master side
+SET @@global.innodb_redo_log_archive_dirs = '';
+include/rpl_end.inc

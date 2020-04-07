@@ -43,6 +43,20 @@ t1	CREATE TABLE `t1` (
   `col1` int NOT NULL,
   PRIMARY KEY (`col1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# 1B. ALTER INSTANCE while clone in progress
+SET DEBUG_SYNC = 'clone_file_copy SIGNAL start_ddl WAIT_FOR resume_clone';
+SET GLOBAL clone_autotune_concurrency = OFF;
+SET GLOBAL clone_max_concurrency = 8;
+CLONE LOCAL DATA DIRECTORY = 'CLONE_DATADIR';
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl';
+SET DEBUG_SYNC = 'clone_marked_abort SIGNAL resume_clone';
+ALTER INSTANCE DISABLE INNODB REDO_LOG;
+# In connection DEFAULT
+ERROR HY000: Concurrent DDL is performed during clone operation. Please try again.
+SET DEBUG_SYNC = 'RESET';
+# In connection CON1
+SET DEBUG_SYNC = 'RESET';
+ALTER INSTANCE ENABLE INNODB REDO_LOG;
 # 2. ALTER TABLE ADD COLUMN [COPY] while clone in progress
 # In connection DEFAULT
 INSERT INTO t1 values(10), (20), (30);

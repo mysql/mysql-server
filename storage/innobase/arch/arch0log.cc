@@ -214,7 +214,8 @@ void Arch_Log_Sys::update_header(byte *header, lsn_t checkpoint_lsn) {
   start_lsn = ut_uint64_align_down(start_lsn, OS_FILE_LOG_BLOCK_SIZE);
 
   /* Copy Header information. */
-  log_files_header_fill(header, start_lsn, LOG_HEADER_CREATOR_CLONE);
+  log_files_header_fill(header, start_lsn, LOG_HEADER_CREATOR_CLONE, false,
+                        false);
 
   ut_ad(checkpoint_lsn >= start_lsn);
 

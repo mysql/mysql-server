@@ -3597,15 +3597,16 @@ the flushing of such pages to the data files was completed.
 @param[in]	index	an index tree on which redo logging was disabled */
 static void row_merge_write_redo(const dict_index_t *index) {
   mtr_t mtr;
-  byte *log_ptr;
+  byte *log_ptr = nullptr;
 
   ut_ad(!index->table->is_temporary());
   mtr.start();
-  log_ptr = mlog_open(&mtr, 11 + 8);
-  log_ptr = mlog_write_initial_log_record_low(MLOG_INDEX_LOAD, index->space,
-                                              index->page, log_ptr, &mtr);
-  mach_write_to_8(log_ptr, index->id);
-  mlog_close(&mtr, log_ptr + 8);
+  if (mlog_open(&mtr, 11 + 8, log_ptr)) {
+    log_ptr = mlog_write_initial_log_record_low(MLOG_INDEX_LOAD, index->space,
+                                                index->page, log_ptr, &mtr);
+    mach_write_to_8(log_ptr, index->id);
+    mlog_close(&mtr, log_ptr + 8);
+  }
   mtr.commit();
 }
 

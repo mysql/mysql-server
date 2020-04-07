@@ -620,7 +620,8 @@ void row_upd_index_write_log(dict_index_t *index, const upd_t *update,
     if (log_ptr + 30 > buf_end) {
       mlog_close(mtr, log_ptr);
 
-      log_ptr = mlog_open(mtr, MLOG_BUF_MARGIN);
+      bool success = mlog_open(mtr, MLOG_BUF_MARGIN, log_ptr);
+      ut_a(success);
       buf_end = log_ptr + MLOG_BUF_MARGIN;
     }
 
@@ -654,7 +655,8 @@ void row_upd_index_write_log(dict_index_t *index, const upd_t *update,
         mlog_catenate_string(mtr, static_cast<byte *>(dfield_get_data(new_val)),
                              len);
 
-        log_ptr = mlog_open(mtr, MLOG_BUF_MARGIN);
+        bool success = mlog_open(mtr, MLOG_BUF_MARGIN, log_ptr);
+        ut_a(success);
         buf_end = log_ptr + MLOG_BUF_MARGIN;
       }
     }

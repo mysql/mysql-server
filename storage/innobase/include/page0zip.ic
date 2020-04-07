@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -307,13 +307,16 @@ void page_zip_compress_write_log_no_data(
     mtr_t *mtr)          /*!< in: mtr */
 {
 #ifndef UNIV_HOTBACKUP
-  byte *log_ptr = mlog_open_and_write_index(mtr, page, index,
-                                            MLOG_ZIP_PAGE_COMPRESS_NO_DATA, 1);
 
-  if (log_ptr) {
-    mach_write_to_1(log_ptr, level);
-    mlog_close(mtr, log_ptr + 1);
+  byte *log_ptr = nullptr;
+  if (!mlog_open_and_write_index(mtr, page, index,
+                                 MLOG_ZIP_PAGE_COMPRESS_NO_DATA, 1, log_ptr)) {
+    return;
   }
+
+  mach_write_to_1(log_ptr, level);
+  mlog_close(mtr, log_ptr + 1);
+
 #endif /* !UNIV_HOTBACKUP */
 }
 

@@ -513,6 +513,9 @@ bool srv_print_ddl_logs = false;
 /** Enable INFORMATION_SCHEMA.innodb_cmp_per_index */
 bool srv_cmp_per_index_enabled = FALSE;
 
+/** If innodb redo logging is enabled. */
+bool srv_redo_log = true;
+
 /** The value of the configuration parameter innodb_fast_shutdown,
 controlling the InnoDB shutdown.
 
@@ -1597,6 +1600,8 @@ void srv_export_innodb_status(void) {
   export_vars.innodb_pages_read = stat.n_pages_read;
 
   export_vars.innodb_pages_written = stat.n_pages_written;
+
+  export_vars.innodb_redo_log_enabled = srv_redo_log;
 
   export_vars.innodb_row_lock_waits = srv_stats.n_lock_wait_count;
 
@@ -3224,4 +3229,10 @@ bool srv_thread_is_active(const IB_thread &thread) {
 
 const char *srv_get_server_errmsgs(int errcode) {
   return (error_message_for_error_log(errcode));
+}
+
+void set_srv_redo_log(bool enable) {
+  mutex_enter(&srv_innodb_monitor_mutex);
+  srv_redo_log = enable;
+  mutex_exit(&srv_innodb_monitor_mutex);
 }

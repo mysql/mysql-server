@@ -728,6 +728,8 @@ extern bool srv_print_ddl_logs;
 
 extern bool srv_cmp_per_index_enabled;
 
+extern bool srv_redo_log;
+
 /** Status variables to be passed to MySQL */
 extern struct export_var_t export_vars;
 
@@ -1065,6 +1067,10 @@ void undo_spaces_init();
 called once during thread de-initialization. */
 void undo_spaces_deinit();
 
+/** Set redo log variable for performance schema global status.
+@param[in]	enable	true => redo log enabled, false => redo log disabled */
+void set_srv_redo_log(bool enable);
+
 #ifdef UNIV_DEBUG
 struct SYS_VAR;
 
@@ -1125,6 +1131,7 @@ struct export_var_t {
   ulint innodb_pages_created;          /*!< buf_pool->stat.n_pages_created */
   ulint innodb_pages_read;             /*!< buf_pool->stat.n_pages_read */
   ulint innodb_pages_written;          /*!< buf_pool->stat.n_pages_written */
+  bool innodb_redo_log_enabled;        /*!< srv_redo_log */
   ulint innodb_row_lock_waits;         /*!< srv_n_lock_wait_count */
   ulint innodb_row_lock_current_waits; /*!< srv_n_lock_wait_current_count */
   int64_t innodb_row_lock_time;        /*!< srv_n_lock_wait_time

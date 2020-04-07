@@ -706,15 +706,22 @@ static void fsp_space_modify_check(space_id_t id, const mtr_t *mtr) {
   ut_ad(mtr);
   switch (mtr->get_log_mode()) {
     case MTR_LOG_SHORT_INSERTS:
-    case MTR_LOG_NONE:
       /* These modes are only allowed within a non-bitmap page
       when there is a higher-level redo log record written. */
       break;
+
+    case MTR_LOG_NONE:
+      /* We allow MTR_LOG_NONE to be set over MTR_LOG_NO_REDO. */
+      if (!mtr_t::s_logging.is_enabled()) {
+        return;
+      }
+      break;
+
     case MTR_LOG_NO_REDO:
 #ifdef UNIV_DEBUG
     {
       const fil_type_t type = fil_space_get_type(id);
-      ut_a(fsp_is_system_temporary(id) ||
+      ut_a(fsp_is_system_temporary(id) || !mtr_t::s_logging.is_enabled() ||
            fil_space_get_flags(id) == UINT32_UNDEFINED ||
            type == FIL_TYPE_TEMPORARY || type == FIL_TYPE_IMPORT ||
            fil_space_is_redo_skipped(id) || !undo::is_active(id, false));
@@ -728,6 +735,9 @@ static void fsp_space_modify_check(space_id_t id, const mtr_t *mtr) {
       /* If we write redo log, the tablespace must exist. */
       ut_ad(fil_space_get_type(id) == FIL_TYPE_TABLESPACE);
       return;
+
+    default:
+      break;
   }
 
   ut_ad(0);

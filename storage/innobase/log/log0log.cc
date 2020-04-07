@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -548,6 +548,10 @@ bool log_sys_init(uint32_t n_files, uint64_t file_size, space_id_t space_id) {
 
   log_calc_buf_size(log);
   log_calc_max_ages(log);
+
+  log.m_crash_unsafe = false;
+  log.m_disable = false;
+  log.m_first_file_lsn = LOG_START_LSN;
 
   if (!log_calc_concurrency_margin(log)) {
     ib::error(ER_IB_MSG_1267)

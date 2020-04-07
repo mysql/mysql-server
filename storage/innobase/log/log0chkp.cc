@@ -129,6 +129,30 @@ out of space in redo log (close to free_check_limit_sn).
 @param[in]  new_oldest  oldest_lsn to stop flush at (or greater) */
 static bool log_request_sync_flush(const log_t &log, lsn_t new_oldest);
 
+/** Sync log file changes to disk if required. */
+static void log_fsync() {
+#ifdef _WIN32
+  switch (srv_win_file_flush_method) {
+    case SRV_WIN_IO_UNBUFFERED:
+      break;
+    case SRV_WIN_IO_NORMAL:
+      fil_flush_file_redo();
+      break;
+  }
+#else
+  switch (srv_unix_file_flush_method) {
+    case SRV_UNIX_O_DSYNC:
+    case SRV_UNIX_NOSYNC:
+      break;
+    case SRV_UNIX_FSYNC:
+    case SRV_UNIX_LITTLESYNC:
+    case SRV_UNIX_O_DIRECT:
+    case SRV_UNIX_O_DIRECT_NO_FSYNC:
+      fil_flush_file_redo();
+  }
+#endif /* _WIN32 */
+}
+
 /**************************************************/ /**
 
  @name Coordination with buffer pool and oldest_lsn
@@ -283,16 +307,28 @@ static lsn_t log_update_available_for_checkpoint_lsn(log_t &log) {
 
 /* @{ */
 
-void log_files_header_fill(byte *buf, lsn_t start_lsn, const char *creator) {
+void log_files_header_fill(byte *buf, lsn_t start_lsn, const char *creator,
+                           bool no_logging, bool crash_unsafe) {
   memset(buf, 0, OS_FILE_LOG_BLOCK_SIZE);
 
   mach_write_to_4(buf + LOG_HEADER_FORMAT, LOG_HEADER_FORMAT_CURRENT);
+
   mach_write_to_8(buf + LOG_HEADER_START_LSN, start_lsn);
 
   strncpy(reinterpret_cast<char *>(buf) + LOG_HEADER_CREATOR, creator,
           LOG_HEADER_CREATOR_END - LOG_HEADER_CREATOR);
 
   ut_ad(LOG_HEADER_CREATOR_END - LOG_HEADER_CREATOR >= strlen(creator));
+
+  uint32_t header_flags = 0;
+
+  if (no_logging) {
+    LOG_HEADER_SET_FLAG(header_flags, LOG_HEADER_FLAG_NO_LOGGING);
+  }
+  if (crash_unsafe) {
+    LOG_HEADER_SET_FLAG(header_flags, LOG_HEADER_FLAG_CRASH_UNSAFE);
+  }
+  mach_write_to_4(buf + LOG_HEADER_FLAGS, header_flags);
 
   log_block_set_checksum(buf, log_block_calc_checksum_crc32(buf));
 }
@@ -306,7 +342,13 @@ void log_files_header_flush(log_t &log, uint32_t nth_file, lsn_t start_lsn) {
 
   byte *buf = log.file_header_bufs[nth_file];
 
-  log_files_header_fill(buf, start_lsn, LOG_HEADER_CREATOR_CURRENT);
+  log_files_header_fill(buf, start_lsn, LOG_HEADER_CREATOR_CURRENT,
+                        log.m_disable, log.m_crash_unsafe);
+
+  /* Save start LSN for first file. */
+  if (nth_file == 0) {
+    log.m_first_file_lsn = start_lsn;
+  }
 
   DBUG_PRINT("ib_log", ("write " LSN_PF " file " ULINTPF " header", start_lsn,
                         ulint(nth_file)));
@@ -337,6 +379,52 @@ void log_files_header_read(log_t &log, uint32_t header) {
                          OS_FILE_LOG_BLOCK_SIZE, log.checkpoint_buf);
 
   ut_a(err == DB_SUCCESS);
+}
+
+void log_persist_enable(log_t &log) {
+  log_writer_mutex_enter(log);
+
+  log.m_disable = false;
+  log.m_crash_unsafe = false;
+
+  ut_ad(!srv_read_only_mode);
+  log_files_header_flush(log, 0, log.m_first_file_lsn);
+
+  log_writer_mutex_exit(log);
+  log_fsync();
+}
+
+void log_persist_disable(log_t &log) {
+  log_writer_mutex_enter(log);
+
+  log.m_disable = true;
+
+  /* If server is restarted in read only mode, we should
+  skip writing to redo header. */
+  if (!srv_read_only_mode) {
+    log.m_crash_unsafe = true;
+    log_files_header_flush(log, 0, log.m_first_file_lsn);
+  }
+
+  log_writer_mutex_exit(log);
+  log_fsync();
+}
+
+void log_persist_crash_safe(log_t &log) {
+  if (srv_read_only_mode) {
+    ut_ad(!log.m_crash_unsafe);
+    return;
+  }
+
+  log_writer_mutex_enter(log);
+
+  ut_ad(log.m_disable);
+  log.m_crash_unsafe = false;
+
+  log_files_header_flush(log, 0, log.m_first_file_lsn);
+
+  log_writer_mutex_exit(log);
+  log_fsync();
 }
 
 #endif /* UNIV_HOTBACKUP */
@@ -464,26 +552,7 @@ void log_files_write_checkpoint(log_t &log, lsn_t next_checkpoint_lsn) {
 
   LOG_SYNC_POINT("log_before_checkpoint_flush");
 
-#ifdef _WIN32
-  switch (srv_win_file_flush_method) {
-    case SRV_WIN_IO_UNBUFFERED:
-      break;
-    case SRV_WIN_IO_NORMAL:
-      fil_flush_file_redo();
-      break;
-  }
-#else
-  switch (srv_unix_file_flush_method) {
-    case SRV_UNIX_O_DSYNC:
-    case SRV_UNIX_NOSYNC:
-      break;
-    case SRV_UNIX_FSYNC:
-    case SRV_UNIX_LITTLESYNC:
-    case SRV_UNIX_O_DIRECT:
-    case SRV_UNIX_O_DIRECT_NO_FSYNC:
-      fil_flush_file_redo();
-  }
-#endif /* _WIN32 */
+  log_fsync();
 
   DBUG_PRINT("ib_log", ("checkpoint info written"));
 

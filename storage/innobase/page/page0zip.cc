@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -203,14 +203,12 @@ static void page_zip_compress_write_log(
     dict_index_t *index,            /*!< in: index of the B-tree node */
     mtr_t *mtr)                     /*!< in: mini-transaction */
 {
-  byte *log_ptr;
+  byte *log_ptr = nullptr;
   ulint trailer_size;
 
   ut_ad(!dict_index_is_ibuf(index));
 
-  log_ptr = mlog_open(mtr, 11 + 2 + 2);
-
-  if (!log_ptr) {
+  if (!mlog_open(mtr, 11 + 2 + 2, log_ptr)) {
     return;
   }
 
@@ -1944,24 +1942,25 @@ void page_zip_write_blob_ptr(
   ut_a(page_zip_validate(page_zip, page, index));
 #endif /* UNIV_ZIP_DEBUG */
 
-  if (mtr) {
-#ifndef UNIV_HOTBACKUP
-    byte *log_ptr = mlog_open(mtr, 11 + 2 + 2 + BTR_EXTERN_FIELD_REF_SIZE);
-    if (UNIV_UNLIKELY(!log_ptr)) {
-      return;
-    }
-
-    log_ptr = mlog_write_initial_log_record_fast(
-        (byte *)field, MLOG_ZIP_WRITE_BLOB_PTR, log_ptr, mtr);
-    mach_write_to_2(log_ptr, page_offset(field));
-    log_ptr += 2;
-    mach_write_to_2(log_ptr, externs - page_zip->data);
-    log_ptr += 2;
-    memcpy(log_ptr, externs, BTR_EXTERN_FIELD_REF_SIZE);
-    log_ptr += BTR_EXTERN_FIELD_REF_SIZE;
-    mlog_close(mtr, log_ptr);
-#endif /* !UNIV_HOTBACKUP */
+  if (mtr == nullptr) {
+    return;
   }
+#ifndef UNIV_HOTBACKUP
+  byte *log_ptr = nullptr;
+  if (!mlog_open(mtr, 11 + 2 + 2 + BTR_EXTERN_FIELD_REF_SIZE, log_ptr)) {
+    return;
+  }
+
+  log_ptr = mlog_write_initial_log_record_fast(
+      (byte *)field, MLOG_ZIP_WRITE_BLOB_PTR, log_ptr, mtr);
+  mach_write_to_2(log_ptr, page_offset(field));
+  log_ptr += 2;
+  mach_write_to_2(log_ptr, externs - page_zip->data);
+  log_ptr += 2;
+  memcpy(log_ptr, externs, BTR_EXTERN_FIELD_REF_SIZE);
+  log_ptr += BTR_EXTERN_FIELD_REF_SIZE;
+  mlog_close(mtr, log_ptr);
+#endif /* !UNIV_HOTBACKUP */
 }
 
 /** Parses a log record of writing the node pointer of a record.
@@ -2072,24 +2071,27 @@ void page_zip_write_node_ptr(
   mach_write_to_4(field, ptr);
   memcpy(storage, field, REC_NODE_PTR_SIZE);
 
-  if (mtr) {
-#ifndef UNIV_HOTBACKUP
-    byte *log_ptr = mlog_open(mtr, 11 + 2 + 2 + REC_NODE_PTR_SIZE);
-    if (UNIV_UNLIKELY(!log_ptr)) {
-      return;
-    }
-
-    log_ptr = mlog_write_initial_log_record_fast(field, MLOG_ZIP_WRITE_NODE_PTR,
-                                                 log_ptr, mtr);
-    mach_write_to_2(log_ptr, page_offset(field));
-    log_ptr += 2;
-    mach_write_to_2(log_ptr, storage - page_zip->data);
-    log_ptr += 2;
-    memcpy(log_ptr, field, REC_NODE_PTR_SIZE);
-    log_ptr += REC_NODE_PTR_SIZE;
-    mlog_close(mtr, log_ptr);
-#endif /* !UNIV_HOTBACKUP */
+  if (mtr == nullptr) {
+    return;
   }
+
+#ifndef UNIV_HOTBACKUP
+  byte *log_ptr = nullptr;
+
+  if (!mlog_open(mtr, 11 + 2 + 2 + REC_NODE_PTR_SIZE, log_ptr)) {
+    return;
+  }
+
+  log_ptr = mlog_write_initial_log_record_fast(field, MLOG_ZIP_WRITE_NODE_PTR,
+                                               log_ptr, mtr);
+  mach_write_to_2(log_ptr, page_offset(field));
+  log_ptr += 2;
+  mach_write_to_2(log_ptr, storage - page_zip->data);
+  log_ptr += 2;
+  memcpy(log_ptr, field, REC_NODE_PTR_SIZE);
+  log_ptr += REC_NODE_PTR_SIZE;
+  mlog_close(mtr, log_ptr);
+#endif /* !UNIV_HOTBACKUP */
 }
 
 /** Write the trx_id and roll_ptr of a record on a B-tree leaf node page. */
@@ -2519,7 +2521,6 @@ void page_zip_write_header_log(
     ulint length,     /*!< in: length of the data */
     mtr_t *mtr)       /*!< in: mini-transaction */
 {
-  byte *log_ptr = mlog_open(mtr, 11 + 1 + 1);
   ulint offset = page_offset(data);
 
   ut_ad(offset < PAGE_DATA);
@@ -2529,8 +2530,9 @@ void page_zip_write_header_log(
 
   ut_ad(length < 256);
 
+  byte *log_ptr = nullptr;
   /* If no logging is requested, we may return now */
-  if (UNIV_UNLIKELY(!log_ptr)) {
+  if (!mlog_open(mtr, 11 + 1 + 1, log_ptr)) {
     return;
   }
 

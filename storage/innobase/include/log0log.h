@@ -205,6 +205,40 @@ constexpr uint32_t LOG_HEADER_CREATOR = 16;
 /** End of the log file creator field. */
 constexpr uint32_t LOG_HEADER_CREATOR_END = LOG_HEADER_CREATOR + 32;
 
+/** 32 BITs flag */
+constexpr uint32_t LOG_HEADER_FLAGS = LOG_HEADER_CREATOR_END;
+
+/** Flag at BIT-1 to indicate if redo logging is disabled or not. */
+constexpr uint32_t LOG_HEADER_FLAG_NO_LOGGING = 1;
+
+/** Flag at BIT-2 to indicate if server is not recoverable on crash. This
+is set only when redo logging is disabled and unset on slow shutdown after
+all pages are flushed to disk. */
+constexpr uint32_t LOG_HEADER_FLAG_CRASH_UNSAFE = 2;
+
+/** Maximum BIT position number. Should be set to the latest added. */
+constexpr uint32_t LOG_HEADER_FLAG_MAX = LOG_HEADER_FLAG_CRASH_UNSAFE;
+
+/** Current total size of LOG header. */
+constexpr uint32_t LOG_HEADER_SIZE = LOG_HEADER_FLAGS + 4;
+
+/** Set a specific bit in flag.
+@param[in]      flag    bit flag
+@param[in]      bit     set bit */
+inline void LOG_HEADER_SET_FLAG(uint32_t &flag, uint32_t bit) {
+  ut_ad(bit > 0);
+  ut_ad(bit <= LOG_HEADER_FLAG_MAX);
+  flag |= static_cast<uint32_t>(1UL << (bit - 1));
+}
+
+/** Check a specific bit in flag.
+@param[in]      flag    bit flag
+@param[in]      bit     check bit
+@return true, iff bit is set in flag. */
+inline bool LOG_HEADER_CHECK_FLAG(uint32_t flag, uint32_t bit) {
+  return ((flag & (1ULL << (bit - 1))) > 0);
+}
+
 /** Contents of the LOG_HEADER_CREATOR field */
 #define LOG_HEADER_CREATOR_CURRENT "MySQL " INNODB_VERSION_STR
 
@@ -890,8 +924,11 @@ void log_files_header_read(log_t &log, uint32_t header);
 /** Fill redo log header.
 @param[out]	buf		filled buffer
 @param[in]	start_lsn	log start LSN
-@param[in]	creator		creator of the header */
-void log_files_header_fill(byte *buf, lsn_t start_lsn, const char *creator);
+@param[in]	creator		creator of the header
+@param[in]	no_logging	redo logging is disabled
+@param[in]	crash_unsafe	it is not safe to crash */
+void log_files_header_fill(byte *buf, lsn_t start_lsn, const char *creator,
+                           bool no_logging, bool crash_unsafe);
 
 /** Writes a log file header to the log file space.
 @param[in]	log		redo log
@@ -1289,6 +1326,18 @@ inline bool log_checkpointer_is_active();
 @param[in]      encrypt_key  encrypt with master key */
 bool log_file_header_fill_encryption(byte *buf, byte *key, byte *iv,
                                      bool is_boot, bool encrypt_key);
+
+/** Disable redo logging and persist the information.
+@param[in,out]	log	redo log */
+void log_persist_disable(log_t &log);
+
+/** Enable redo logging and persist the information.
+@param[in,out]	log	redo log */
+void log_persist_enable(log_t &log);
+
+/** Persist the information that it is safe to restart server.
+@param[in,out]	log	redo log */
+void log_persist_crash_safe(log_t &log);
 
 #else /* !UNIV_HOTBACKUP */
 
