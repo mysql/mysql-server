@@ -1640,7 +1640,8 @@ static void alloc_stmt_fields(MYSQL_STMT *stmt) {
 
 static void update_stmt_fields(MYSQL_STMT *stmt) {
   MYSQL_FIELD *field = stmt->mysql->fields;
-  MYSQL_FIELD *field_end = field + stmt->field_count;
+  MYSQL_FIELD *field_end =
+      field != nullptr ? field + stmt->field_count : nullptr;
   MYSQL_FIELD *stmt_field = stmt->fields;
   MYSQL_BIND *my_bind = stmt->bind_result_done ? stmt->bind : nullptr;
 

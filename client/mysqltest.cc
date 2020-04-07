@@ -6640,7 +6640,8 @@ static void do_block(enum block_cmd cmd, struct st_command *command) {
 
   /* Parse and evaluate test expression */
   expr_start = strchr(p, '(');
-  if (!expr_start++) die("missing '(' in %s", cmd_name);
+  if (!expr_start) die("missing '(' in %s", cmd_name);
+  ++expr_start;
 
   while (my_isspace(charset_info, *expr_start)) expr_start++;
 

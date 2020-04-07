@@ -1962,7 +1962,7 @@ bool Query_result_update::optimize() {
             table's ref buffer. So the lookup is not influenced by the just-done
             update of main_table.
           */
-          if (tab > join->join_tab + 1) {
+          if (join->join_tab != nullptr && tab > join->join_tab + 1) {
             for (uint key_part_idx = 0; key_part_idx < tab->ref().key_parts;
                  key_part_idx++) {
               Item *ref_item = tab->ref().items[key_part_idx];

@@ -4558,7 +4558,12 @@ ulonglong unique_hash(const Field *field, ulonglong *hash_val) {
   } else if (field->key_type() == HA_KEYTYPE_TEXT ||
              field->key_type() == HA_KEYTYPE_VARTEXT1 ||
              field->key_type() == HA_KEYTYPE_VARTEXT2) {
-    field->charset()->coll->hash_sort(field->charset(), field->data_ptr(),
+    const uchar *data_ptr = field->data_ptr();
+    // Do not pass nullptr to hash function: undefined behaviour.
+    if (field->data_length() == 0 && data_ptr == nullptr) {
+      data_ptr = pointer_cast<const uchar *>(const_cast<char *>(""));
+    }
+    field->charset()->coll->hash_sort(field->charset(), data_ptr,
                                       field->data_length(), &seed1, &seed2);
     crc ^= seed1;
   } else {

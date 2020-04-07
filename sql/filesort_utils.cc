@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -272,7 +272,8 @@ bool Filesort_buffer::preallocate_records(size_t num_records) {
     use to us (it doesn't save us any allocations), so get rid of it
     and allocate one that's exactly the right size.
   */
-  if (m_next_rec_ptr + bytes_needed > m_current_block_end) {
+  if (m_next_rec_ptr == nullptr ||
+      m_next_rec_ptr + bytes_needed > m_current_block_end) {
     free_sort_buffer();
     if (allocate_sized_block(bytes_needed)) {
       return true;
