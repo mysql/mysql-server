@@ -50,8 +50,6 @@ INSERT INTO t0 VALUES (1);
 INSERT INTO t0 VALUES (2);
 INSERT INTO t0 VALUES (3);
 INSERT INTO t0 VALUES (4);
---replace_column 5 ####
-SHOW MASTER STATUS;
 
 --source include/sync_slave_sql_with_master.inc
 --let $diff_tables=master:t0, slave:t0
@@ -62,6 +60,7 @@ SHOW MASTER STATUS;
 STOP SLAVE;
 
 --source include/rpl_connection_master.inc
+--source include/save_master_pos.inc
 CREATE TABLE t1 AS SELECT * FROM t0;
 FLUSH LOGS;
 --replace_column 5 ####
@@ -94,7 +93,8 @@ INFORMATION_SCHEMA.TABLES WHERE table_schema = \'test\', COUNT, 1] = 1;
 SELECT @@GLOBAL.GTID_MODE;
 if ( `SELECT @@GLOBAL.GTID_MODE = "OFF"` ) 
 {
-CHANGE MASTER TO MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=1437;
+  --replace_result $_saved_pos SAVED_POS
+  --eval CHANGE MASTER TO MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=$_saved_pos
 }
 --source include/start_slave.inc
 
