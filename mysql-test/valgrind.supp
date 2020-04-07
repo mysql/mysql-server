@@ -797,7 +797,6 @@
 
 # sasl_client_init will load all available plugins with _sasl_load_plugins().
 # It seems some of the SASL plugin have leaks.
-# We *do* call sasl_client_done, which calls _sasl_done_with_plugins
 # Both LSAN and Valgrind report leaks.
 {
    Loading SASL plugins 1
@@ -2467,6 +2466,15 @@
    obj:/usr/lib64/libnssutil3.so
    fun:PORT_LoadLibraryFromOrigin
    ...
+}
+
+{
+   LDAP_27
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:dlopen@@GLIBC_2.2.5
 }
 
 # Suppress all issues related to libcrypto library
