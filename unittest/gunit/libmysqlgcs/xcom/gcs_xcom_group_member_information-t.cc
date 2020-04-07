@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,7 +43,7 @@ class GcsNodeAddressTest : public GcsBaseTest {
  protected:
   GcsNodeAddressTest() {}
 
-  static void SetUpTestCase() { My_xp_util::init_time(); }
+  static void SetUpTestCase() {}
 };
 
 TEST_F(GcsNodeAddressTest, TestNodeAddress) {
@@ -259,7 +259,7 @@ class GcsUUIDTest : public GcsBaseTest {
  protected:
   GcsUUIDTest() {}
 
-  static void SetUpTestCase() { My_xp_util::init_time(); }
+  static void SetUpTestCase() {}
 };
 
 TEST_F(GcsUUIDTest, TestGcsUUID) {
@@ -309,7 +309,7 @@ class GcsNodeInformationTest : public GcsBaseTest {
  protected:
   GcsNodeInformationTest() {}
 
-  static void SetUpTestCase() { My_xp_util::init_time(); }
+  static void SetUpTestCase() {}
 };
 
 TEST_F(GcsNodeInformationTest, TestGcsNodeInformation) {
@@ -396,7 +396,7 @@ class GcsNodesTest : public GcsBaseTest {
  protected:
   GcsNodesTest() {}
 
-  static void SetUpTestCase() { My_xp_util::init_time(); }
+  static void SetUpTestCase() {}
 };
 
 TEST_F(GcsNodesTest, TestGcsNodesBasicProperties) {
