@@ -7070,8 +7070,10 @@ size_t Field_blob::get_key_image(uchar *buff, size_t length,
   }
 
   uint local_char_length = length / field_charset->mbmaxlen;
-  local_char_length =
-      my_charpos(field_charset, blob, blob + blob_length, local_char_length);
+  local_char_length = blob == nullptr
+                          ? 0
+                          : my_charpos(field_charset, blob, blob + blob_length,
+                                       local_char_length);
   blob_length = std::min(blob_length, local_char_length);
 
   if ((uint32)length > blob_length) {

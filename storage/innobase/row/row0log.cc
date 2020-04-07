@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -2850,7 +2850,8 @@ next_block:
   ut_ad((mrec == nullptr) == (index->online_log->head.bytes == 0));
 
 #ifdef UNIV_DEBUG
-  if (next_mrec_end == index->online_log->head.block + srv_sort_buf_size) {
+  if (index->online_log->head.block != nullptr &&
+      next_mrec_end == index->online_log->head.block + srv_sort_buf_size) {
     /* If tail.bytes == 0, next_mrec_end can also be at
     the end of tail.block. */
     if (index->online_log->tail.bytes == 0) {
@@ -3602,7 +3603,8 @@ next_block:
   ut_ad((mrec == nullptr) == (index->online_log->head.bytes == 0));
 
 #ifdef UNIV_DEBUG
-  if (next_mrec_end == index->online_log->head.block + srv_sort_buf_size) {
+  if (index->online_log->head.block != nullptr &&
+      next_mrec_end == index->online_log->head.block + srv_sort_buf_size) {
     /* If tail.bytes == 0, next_mrec_end can also be at
     the end of tail.block. */
     if (index->online_log->tail.bytes == 0) {

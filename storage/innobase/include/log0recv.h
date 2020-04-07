@@ -81,8 +81,11 @@ void meb_scan_log_seg(byte *buf, ulint buf_len, lsn_t *scanned_lsn,
 /** Applies the hashed log records to the page, if the page lsn is less than the
 lsn of a log record. This can be called when a buffer page has just been
 read in, or also for a page already in the buffer pool.
+
+TODO(Bug#31173032): Remove SUPPRESS_UBSAN_CLANG10.
+
 @param[in,out]	block		buffer block */
-void recv_recover_page_func(buf_block_t *block);
+void recv_recover_page_func(buf_block_t *block) SUPPRESS_UBSAN_CLANG10;
 
 /** Wrapper for recv_recover_page_func().
 Applies the hashed log records to the page, if the page lsn is less than the
@@ -163,10 +166,14 @@ bool log_block_checksum_is_ok(const byte *block);
 /** Applies the hashed log records to the page, if the page lsn is less than the
 lsn of a log record. This can be called when a buffer page has just been
 read in, or also for a page already in the buffer pool.
+
+TODO(fix Bug#31173032): Remove SUPPRESS_UBSAN_CLANG10.
+
 @param[in]	just_read_in	true if the IO handler calls this for a freshly
                                 read page
 @param[in,out]	block		buffer block */
-void recv_recover_page_func(bool just_read_in, buf_block_t *block);
+void recv_recover_page_func(bool just_read_in,
+                            buf_block_t *block) SUPPRESS_UBSAN_CLANG10;
 
 /** Wrapper for recv_recover_page_func().
 Applies the hashed log records to the page, if the page lsn is less than the

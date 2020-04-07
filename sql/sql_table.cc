@@ -7907,6 +7907,11 @@ bool validate_comment_length(THD *thd, const char *comment_str,
                              const char *comment_name) {
   size_t length = 0;
   DBUG_TRACE;
+
+  if (comment_str == nullptr) {
+    DBUG_ASSERT(*comment_len == 0);
+    return false;
+  }
   size_t tmp_len = system_charset_info->cset->charpos(
       system_charset_info, comment_str, comment_str + *comment_len, max_len);
   if (tmp_len < *comment_len) {

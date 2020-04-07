@@ -1039,7 +1039,7 @@ byte *page_cur_parse_insert_rec(
   ulint end_seg_len;
   ulint mismatch_index = 0; /* remove warning */
   page_t *page;
-  rec_t *cursor_rec;
+  rec_t *cursor_rec{nullptr};
   byte buf1[1024];
   byte *buf;
   const byte *ptr2 = ptr;
@@ -1066,7 +1066,7 @@ byte *page_cur_parse_insert_rec(
     offset = mach_read_from_2(ptr);
     ptr += 2;
 
-    cursor_rec = page + offset;
+    if (page != nullptr) cursor_rec = page + offset;
 
     if (offset >= UNIV_PAGE_SIZE) {
       recv_sys->found_corrupt_log = TRUE;

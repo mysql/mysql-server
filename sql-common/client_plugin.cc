@@ -297,10 +297,11 @@ static void load_env_plugins(MYSQL *mysql) {
   free_env = plugs = my_strdup(key_memory_load_env_plugins, s, MYF(MY_WME));
 
   do {
-    if ((s = strchr(plugs, ';'))) *s = '\0';
+    s = strchr(plugs, ';');
+    if (s != nullptr) *s = '\0';
     mysql_load_plugin(mysql, plugs, -1, 0);
-    plugs = s + 1;
-  } while (s);
+    if (s != nullptr) plugs = s + 1;
+  } while (s != nullptr);
 
   my_free(free_env);
 }
