@@ -5,9 +5,10 @@
 #      innodb_doublewrite_files
 #      innodb_doublewrite_pages
 #      innodb_doublewrite_batch_size
-# Test Error and DDL and DML scenarios on all 3 servers 
+# Test DDL and DML operations with REDO_LOG ENABLE and DISABLE
+# Test Error and DDL and DML scenarios on all 3 servers
 # Check the number of servers online and status of servers
-# Cleanup 
+# Cleanup
 ################################################################################
 --source include/have_innodb_16k.inc
 --source include/not_valgrind.inc
@@ -40,9 +41,19 @@
 --replace_result $group_replication_group_name GROUP_REPLICATION_DOUBELWRITE
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
 
-# Connect to server1, create a table and  insert a record
+# Connect to server1
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
+
+# Disable redo_log on server1
+ALTER INSTANCE DISABLE INNODB REDO_LOG;
+
+SET sql_log_bin = 0;
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* InnoDB redo logging is disabled. All data could be lost in case of a server crash");
+SET sql_log_bin = 1;
+
+# Check status of redo_log on server1
+SHOW GLOBAL STATUS LIKE 'innodb_redo_log_enabled';
 
 CREATE TABLE test.tab ( c1 int primary key, c2 TEXT);
 INSERT INTO test.tab VALUES(1, 'Test wl#5655');
@@ -72,6 +83,16 @@ SELECT @@innodb_doublewrite_batch_size;
 let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
 --source include/wait_condition.inc
 
+# Disable redo_log on server2
+ALTER INSTANCE DISABLE INNODB REDO_LOG;
+
+SET sql_log_bin = 0;
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* InnoDB redo logging is disabled. All data could be lost in case of a server crash");
+SET sql_log_bin = 1;
+
+# Check status of redo_log on server2
+SHOW GLOBAL STATUS LIKE 'innodb_redo_log_enabled';
+
 SELECT @@innodb_doublewrite_dir;
 
 SELECT @@innodb_doublewrite_files;
@@ -80,11 +101,13 @@ SELECT @@innodb_doublewrite_pages;
 
 SELECT @@innodb_doublewrite_batch_size;
 
-
 --echo
 --echo #Validating the records in server3#
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
+
+# Check Enable redo_log on server3
+SHOW GLOBAL STATUS LIKE 'innodb_redo_log_enabled';
 
 SELECT * FROM test.tab;
 
@@ -112,9 +135,20 @@ SET GLOBAL innodb_doublewrite_batch_size=1;
 
 # Verify the consistency of number of records on all the servers
 --echo
---echo #Validating the records in server2#
+--echo #Validating the records in server2
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+
+# Enable redo_log on server2
+ALTER INSTANCE ENABLE INNODB REDO_LOG;
+
+SET sql_log_bin = 0;
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* InnoDB redo logging is enabled. Data is now safe and can be recovered in case of a server crash.");
+SET sql_log_bin = 1;
+
+# Check status of redo_log on server2
+SHOW GLOBAL STATUS LIKE 'innodb_redo_log_enabled';
+
 SELECT * FROM test.tab;
 
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
@@ -129,9 +163,26 @@ SET GLOBAL innodb_doublewrite_pages=10;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET GLOBAL innodb_doublewrite_batch_size=1;
 
-# Drop the tables created and the procedures defined
+# Connect to server1
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+# Enable redo_log on server1
+ALTER INSTANCE ENABLE INNODB REDO_LOG;
+
+SET sql_log_bin = 0;
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* InnoDB redo logging is enabled. Data is now safe and can be recovered in case of a server crash.");
+SET sql_log_bin = 1;
+
+# Check status of redo_log on server1
+SHOW GLOBAL STATUS LIKE 'innodb_redo_log_enabled';
+
+# Cleanup
 --echo
 DROP TABLE test.tab;
 
---source include/group_replication_end.inc
+--source include/rpl_sync.inc
 
+STOP GROUP_REPLICATION;
+
+--source include/group_replication_end.inc

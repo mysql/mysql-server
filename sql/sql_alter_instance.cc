@@ -151,6 +151,52 @@ bool Rotate_innodb_master_key::execute() {
   return false;
 }
 
+bool Innodb_redo_log::execute() {
+  DBUG_TRACE;
+
+  const LEX_CSTRING storage_engine = {STRING_WITH_LEN("innodb")};
+
+  auto hton = plugin_data<handlerton *>(
+      ha_resolve_by_name(m_thd, &storage_engine, false));
+
+  if (hton == nullptr) {
+    /* Innodb engine is not loaded. Should never happen. */
+    my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), storage_engine.str);
+  }
+
+  Security_context *sctx = m_thd->security_context();
+  if (!sctx->has_global_grant(STRING_WITH_LEN("INNODB_REDO_LOG_ENABLE"))
+           .first) {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "INNODB_REDO_LOG_ENABLE");
+    return true;
+  }
+
+  /*
+    Acquire shared backup lock to block concurrent backup. Acquire exclusive
+    backup lock to block any concurrent DDL. This would also serialize any
+    concurrent key rotation and other redo log enable/disable calls.
+  */
+  if (acquire_exclusive_backup_lock(m_thd, m_thd->variables.lock_wait_timeout,
+                                    true) ||
+      acquire_shared_backup_lock(m_thd, m_thd->variables.lock_wait_timeout)) {
+    DBUG_ASSERT(m_thd->get_stmt_da()->is_error());
+    return true;
+  }
+
+  if (hton->redo_log_set_state(m_thd, m_enable)) {
+    /* SE should have raised error */
+    DBUG_ASSERT(m_thd->get_stmt_da()->is_error());
+    return true;
+  }
+
+  /* Right now, we don't log this command to binary log as redo logging
+  options are low level physical attribute which is not needed to replicate
+  to other instances. */
+
+  my_ok(m_thd);
+  return false;
+}
+
 bool Rotate_binlog_master_key::execute() {
   DBUG_TRACE;
 

@@ -718,6 +718,16 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
   lsn_t max_checkpoint_age_async;
 
   /** @} */
+
+  /** true if redo logging is disabled. Read and write with writer_mutex  */
+  bool m_disable;
+
+  /** true, if server is not recoverable. Read and write with writer_mutex */
+  bool m_crash_unsafe;
+
+  /** start LSN of first redo log file. */
+  lsn_t m_first_file_lsn;
+
 #endif /* !UNIV_HOTBACKUP */
 };
 

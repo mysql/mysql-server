@@ -50,6 +50,45 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SET DEBUG_SYNC = 'now SIGNAL resume_clone';
 # In connection DEFAULT
 SET DEBUG_SYNC = 'RESET';
+# 1C. ALTER INSTANCE while clone in progress
+SET DEBUG_SYNC = 'clone_file_copy SIGNAL start_ddl WAIT_FOR resume_clone';
+SET GLOBAL clone_autotune_concurrency = OFF;
+SET GLOBAL clone_max_concurrency = 8;
+SET GLOBAL clone_valid_donor_list = 'HOST:PORT';
+CLONE INSTANCE FROM USER@HOST:PORT IDENTIFIED BY '' DATA DIRECTORY = 'CLONE_DATADIR';
+# In connection CON1
+SET DEBUG_SYNC = 'now WAIT_FOR start_ddl';
+ALTER INSTANCE DISABLE INNODB REDO_LOG;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG_SYNC = 'now SIGNAL resume_clone';
+# In connection DEFAULT
+SET DEBUG_SYNC = 'RESET';
+SHOW STATUS LIKE 'innodb_redo_log_enabled';
+Variable_name	Value
+Innodb_redo_log_enabled	ON
+# 1C. Clone while ALTER INSTANCE in progress
+# In connection CON1
+SET DEBUG_SYNC = 'clone_marked_abort2 SIGNAL resume_clone WAIT_FOR resume_ddl';
+ALTER INSTANCE DISABLE INNODB REDO_LOG;
+# In connection DEFAULT
+SET DEBUG_SYNC = 'now WAIT_FOR resume_clone';
+SET GLOBAL clone_autotune_concurrency = OFF;
+SET GLOBAL clone_max_concurrency = 8;
+SET GLOBAL clone_valid_donor_list = 'HOST:PORT';
+CLONE INSTANCE FROM USER@HOST:PORT IDENTIFIED BY '' DATA DIRECTORY = 'CLONE_DATADIR';
+ERROR HY000: Clone Donor Error: 1205 : Lock wait timeout exceeded; try restarting transaction.
+select ID, STATE, ERROR_NO from performance_schema.clone_status;
+ID	STATE	ERROR_NO
+1	Failed	3862
+select ID, STAGE, STATE from performance_schema.clone_progress;
+ID	STAGE	STATE
+SET DEBUG_SYNC = 'now SIGNAL resume_ddl';
+# In connection CON1
+# In connection DEFAULT
+SHOW STATUS LIKE 'innodb_redo_log_enabled';
+Variable_name	Value
+Innodb_redo_log_enabled	OFF
+ALTER INSTANCE ENABLE INNODB REDO_LOG;
 # 2A. Clone while ALTER TABLE ADD COLUMN [COPY] in progress
 INSERT INTO t1 values(10), (20), (30);
 SELECT * FROM t1 ORDER BY col1;

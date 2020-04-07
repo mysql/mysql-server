@@ -1537,11 +1537,13 @@ dberr_t dblwr::write(buf_flush_t flush_type, buf_page_t *bpage,
   }
 
   if (srv_read_only_mode || fsp_is_system_temporary(bpage->id.space()) ||
-      !dblwr::enabled || Double_write::s_instances == nullptr) {
+      !dblwr::enabled || Double_write::s_instances == nullptr ||
+      mtr_t::s_logging.dblwr_disabled()) {
     /* Disable use of double-write buffer for temporary tablespace.
     Temporary tablespaces are never recovered, therefore we don't
     care about torn writes. */
 
+    bpage->set_dblwr_batch_id(std::numeric_limits<uint16_t>::max());
     err = Double_write::write_to_datafile(bpage, sync);
     if (err == DB_SUCCESS && sync) {
       fil_flush(bpage->id.space());

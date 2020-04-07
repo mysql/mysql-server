@@ -3161,18 +3161,18 @@ void btr_cur_update_in_place_log(
     roll_ptr_t roll_ptr, /*!< in: roll ptr */
     mtr_t *mtr)          /*!< in: mtr */
 {
-  byte *log_ptr;
+  byte *log_ptr = nullptr;
   const page_t *page = page_align(rec);
   ut_ad(flags < 256);
   ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
 
-  log_ptr = mlog_open_and_write_index(
+  const bool opened = mlog_open_and_write_index(
       mtr, rec, index,
       page_is_comp(page) ? MLOG_COMP_REC_UPDATE_IN_PLACE
                          : MLOG_REC_UPDATE_IN_PLACE,
-      1 + DATA_ROLL_PTR_LEN + 14 + 2 + MLOG_BUF_MARGIN);
+      1 + DATA_ROLL_PTR_LEN + 14 + 2 + MLOG_BUF_MARGIN, log_ptr);
 
-  if (!log_ptr) {
+  if (!opened) {
     /* Logging in mtr is switched off during crash recovery */
     return;
   }
@@ -4200,17 +4200,17 @@ void btr_cur_del_mark_set_clust_rec_log(
     roll_ptr_t roll_ptr, /*!< in: roll ptr to the undo log record */
     mtr_t *mtr)          /*!< in: mtr */
 {
-  byte *log_ptr;
+  byte *log_ptr = nullptr;
 
   ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
 
-  log_ptr = mlog_open_and_write_index(mtr, rec, index,
-                                      page_rec_is_comp(rec)
-                                          ? MLOG_COMP_REC_CLUST_DELETE_MARK
-                                          : MLOG_REC_CLUST_DELETE_MARK,
-                                      1 + 1 + DATA_ROLL_PTR_LEN + 14 + 2);
+  const bool opened = mlog_open_and_write_index(
+      mtr, rec, index,
+      page_rec_is_comp(rec) ? MLOG_COMP_REC_CLUST_DELETE_MARK
+                            : MLOG_REC_CLUST_DELETE_MARK,
+      1 + 1 + DATA_ROLL_PTR_LEN + 14 + 2, log_ptr);
 
-  if (!log_ptr) {
+  if (!opened) {
     /* Logging in mtr is switched off during crash recovery */
     return;
   }
@@ -4390,14 +4390,12 @@ void btr_cur_del_mark_set_sec_rec_log(rec_t *rec, /*!< in: record */
                                       ibool val,  /*!< in: value to set */
                                       mtr_t *mtr) /*!< in: mtr */
 {
-  byte *log_ptr;
+  byte *log_ptr = nullptr;
   ut_ad(val <= 1);
 
-  log_ptr = mlog_open(mtr, 11 + 1 + 2);
-
-  if (!log_ptr) {
+  if (!mlog_open(mtr, 11 + 1 + 2, log_ptr)) {
     /* Logging in mtr is switched off during crash recovery:
-    in that case mlog_open returns NULL */
+    in that case mlog_open returns false */
     return;
   }
 

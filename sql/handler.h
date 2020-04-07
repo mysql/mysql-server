@@ -1866,6 +1866,17 @@ typedef bool (*rotate_encryption_master_key_t)(void);
 
 /**
   @brief
+  Enable or Disable SE write ahead logging.
+
+  @param[in] thd    server thread handle
+  @param[in] enable enable/disable redo logging
+
+  @return true iff failed.
+*/
+typedef bool (*redo_log_set_state_t)(THD *thd, bool enable);
+
+/**
+  @brief
   Retrieve ha_statistics from SE.
 
   @param db_name                  Name of schema
@@ -2407,6 +2418,7 @@ struct handlerton {
   notify_exclusive_mdl_t notify_exclusive_mdl;
   notify_alter_table_t notify_alter_table;
   rotate_encryption_master_key_t rotate_encryption_master_key;
+  redo_log_set_state_t redo_log_set_state;
 
   get_table_statistics_t get_table_statistics;
   get_index_column_cardinality_t get_index_column_cardinality;

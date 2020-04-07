@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -178,42 +178,6 @@ mtr_log_t mtr_t::get_log_mode() const {
   ut_ad(m_impl.m_log_mode <= MTR_LOG_SHORT_INSERTS);
 
   return (m_impl.m_log_mode);
-}
-
-/**
-Changes the logging mode of a mini-transaction.
-@return	old mode */
-
-mtr_log_t mtr_t::set_log_mode(mtr_log_t mode) {
-  ut_ad(mode >= MTR_LOG_ALL);
-  ut_ad(mode <= MTR_LOG_SHORT_INSERTS);
-
-  const mtr_log_t old_mode = m_impl.m_log_mode;
-
-  switch (old_mode) {
-    case MTR_LOG_NO_REDO:
-      /* Once this mode is set, it must not be changed. */
-      ut_ad(mode == MTR_LOG_NO_REDO || mode == MTR_LOG_NONE);
-      return (old_mode);
-    case MTR_LOG_NONE:
-      if (mode == old_mode || mode == MTR_LOG_SHORT_INSERTS) {
-        /* Keep MTR_LOG_NONE. */
-        return (old_mode);
-      }
-      /* fall through */
-    case MTR_LOG_SHORT_INSERTS:
-      ut_ad(mode == MTR_LOG_ALL);
-      /* fall through */
-    case MTR_LOG_ALL:
-      /* MTR_LOG_NO_REDO can only be set before generating
-      any redo log records. */
-      ut_ad(mode != MTR_LOG_NO_REDO || m_impl.m_n_log_recs == 0);
-      m_impl.m_log_mode = mode;
-      return (old_mode);
-  }
-
-  ut_ad(0);
-  return (old_mode);
 }
 
 #ifndef UNIV_HOTBACKUP

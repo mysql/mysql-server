@@ -9360,6 +9360,12 @@ ER_ENGINE_ATTRIBUTE_NOT_SUPPORTED
 ER_INVALID_USER_ATTRIBUTE_JSON
   eng "The user attribute must be a valid JSON object"
 
+ER_INNODB_REDO_DISABLED
+  eng "Cannot perform operation as InnoDB redo logging is disabled. Please retry after enabling redo log with ALTER INSTANCE"
+
+ER_INNODB_REDO_ARCHIVING_ENABLED
+  eng "Cannot perform operation as InnoDB is archiving redo log. Please retry after stopping redo archive by invoking innodb_redo_log_archive_stop()"
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

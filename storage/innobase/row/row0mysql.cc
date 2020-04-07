@@ -1302,10 +1302,9 @@ static dberr_t row_explicit_rollback(dict_index_t *index, const dtuple_t *entry,
 
   /* Void call just to set mtr modification flag
   to true failing which block is not scheduled for flush*/
-  byte *log_ptr = mlog_open(mtr, 0);
-  ut_ad(log_ptr == nullptr);
-  if (log_ptr != nullptr) {
-    /* To keep complier happy. */
+  byte *log_ptr = nullptr;
+  if (mlog_open(mtr, 0, log_ptr)) {
+    ut_ad(false);
     mlog_close(mtr, log_ptr);
   }
 
@@ -2016,10 +2015,9 @@ static dberr_t row_delete_for_mysql_using_cursor(const upd_node_t *node,
 
       /* Void call just to set mtr modification flag
       to true failing which block is not scheduled for flush*/
-      byte *log_ptr = mlog_open(&mtr, 0);
-      ut_ad(log_ptr == nullptr);
-      if (log_ptr != nullptr) {
-        /* To keep complier happy. */
+      byte *log_ptr = nullptr;
+      if (mlog_open(&mtr, 0, log_ptr)) {
+        ut_ad(false);
         mlog_close(&mtr, log_ptr);
       }
 
@@ -2050,10 +2048,9 @@ static dberr_t row_delete_for_mysql_using_cursor(const upd_node_t *node,
         /* Void call just to set mtr modification flag
         to true failing which block is not scheduled for
         flush. */
-        byte *log_ptr = mlog_open(&mtr, 0);
-        ut_ad(log_ptr == nullptr);
-        if (log_ptr != nullptr) {
-          /* To keep complier happy. */
+        byte *log_ptr = nullptr;
+        if (mlog_open(&mtr, 0, log_ptr)) {
+          ut_ad(false);
           mlog_close(&mtr, log_ptr);
         }
       }

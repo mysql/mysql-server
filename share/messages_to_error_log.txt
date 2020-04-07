@@ -10866,6 +10866,18 @@ ER_XPLUGIN_FAILED_TO_VALIDATE_ADDRESS
 ER_XPLUGIN_FAILED_TO_BIND_INTERFACE_ADDRESS
   eng "Value '%s' set to `Mysqlx_bind_address`, X Plugin can't bind to it. Skipping this value."
 
+ER_IB_ERR_RECOVERY_REDO_DISABLED
+  eng "Server was killed when InnoDB redo logging was disabled. Data files could be corrupt. You can try to restart the database with innodb_force_recovery=6"
+
+ER_IB_WRN_FAST_SHUTDOWN_REDO_DISABLED
+  eng "InnoDB cannot do cold shutdown 'innodb_fast_shutdown = 2' and is forcing 'innodb_fast_shutdown = 1' as redo logging is disabled. InnoDB would flush all dirty pages to ensure physical data consistency."
+
+ER_IB_WRN_REDO_DISABLED
+  eng "InnoDB redo logging is disabled. All data could be lost in case of a server crash."
+
+ER_IB_WRN_REDO_ENABLED
+  eng "InnoDB redo logging is enabled. Data is now safe and can be recovered in case of a server crash."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

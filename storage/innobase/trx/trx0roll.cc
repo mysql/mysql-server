@@ -231,7 +231,7 @@ static dberr_t trx_rollback_low(trx_t *trx) {
         recovery will replay the rollback in case
         the redo log gets applied past this point. */
         mtr.commit();
-        ut_ad(mtr.commit_lsn() > 0);
+        ut_ad(mtr.commit_lsn() > 0 || !mtr_t::s_logging.is_enabled());
       }
 #ifdef ENABLED_DEBUG_SYNC
       if (trx->mysql_thd == nullptr) {

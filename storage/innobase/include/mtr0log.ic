@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -37,32 +37,22 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "mysqld_error.h"
 
-/** Opens a buffer to mlog. It must be closed with mlog_close.
-@param[in,out]	mtr	mtr
-@param[in]	size	buffer size in bytes; MUST be smaller than
-                        DYN_ARRAY_DATA_SIZE!
-@return buffer, NULL if log mode MTR_LOG_NONE or MTR_LOG_NO_REDO */
 UNIV_INLINE
-byte *mlog_open(mtr_t *mtr, ulint size) {
+bool mlog_open(mtr_t *mtr, ulint size, byte *&buffer) {
   mtr->set_modified();
-
-  if (mtr_get_log_mode(mtr) == MTR_LOG_NONE ||
-      mtr_get_log_mode(mtr) == MTR_LOG_NO_REDO) {
-    return (nullptr);
-  }
-
-  return (mtr->get_log()->open(size));
+  return (mlog_open_metadata(mtr, size, buffer));
 }
 
-/** Opens a buffer to mlog. It must be closed with mlog_close.
-This is used for writing log for metadata changes
-@param[in,out]	mtr	mtr
-@param[in]	size	buffer size in bytes; MUST be smaller than
-                        DYN_ARRAY_DATA_SIZE!
-@return buffer */
 UNIV_INLINE
-byte *mlog_open_metadata(mtr_t *mtr, ulint size) {
-  return (mtr->get_log()->open(size));
+bool mlog_open_metadata(mtr_t *mtr, ulint size, byte *&buffer) {
+  if (mtr_get_log_mode(mtr) == MTR_LOG_NONE ||
+      mtr_get_log_mode(mtr) == MTR_LOG_NO_REDO) {
+    buffer = nullptr;
+    return (false);
+  }
+
+  buffer = mtr->get_log()->open(size);
+  return (buffer != nullptr);
 }
 
 /** Closes a buffer opened to mlog. */
@@ -124,12 +114,10 @@ UNIV_INLINE
 void mlog_catenate_ulint_compressed(mtr_t *mtr, /*!< in: mtr */
                                     ulint val)  /*!< in: value to write */
 {
-  byte *log_ptr;
-
-  log_ptr = mlog_open(mtr, 10);
+  byte *log_ptr = nullptr;
 
   /* If no logging is requested, we may return now */
-  if (log_ptr == nullptr) {
+  if (!mlog_open(mtr, 10, log_ptr)) {
     return;
   }
 
@@ -143,12 +131,10 @@ UNIV_INLINE
 void mlog_catenate_ull_compressed(mtr_t *mtr,      /*!< in: mtr */
                                   ib_uint64_t val) /*!< in: value to write */
 {
-  byte *log_ptr;
-
-  log_ptr = mlog_open(mtr, 15);
+  byte *log_ptr = nullptr;
 
   /* If no logging is requested, we may return now */
-  if (log_ptr == nullptr) {
+  if (!mlog_open(mtr, 15, log_ptr)) {
     return;
   }
 

@@ -15465,6 +15465,36 @@ alter_instance_action:
         | RELOAD TLS_SYM FOR_SYM CHANNEL_SYM ident NO_SYM ROLLBACK_SYM ON_SYM ERROR_SYM {
             $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_RELOAD_TLS, to_lex_cstring($5));
           }
+        | ENABLE_SYM ident ident
+          {
+            if (!is_identifier($2, "INNODB"))
+            {
+              YYTHD->syntax_error_at(@2);
+              MYSQL_YYABORT;
+            }
+
+            if (!is_identifier($3, "REDO_LOG"))
+            {
+              YYTHD->syntax_error_at(@3);
+              MYSQL_YYABORT;
+            }
+            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_ENABLE_INNODB_REDO, EMPTY_CSTR);
+          }
+        | DISABLE_SYM ident ident
+          {
+            if (!is_identifier($2, "INNODB"))
+            {
+              YYTHD->syntax_error_at(@2);
+              MYSQL_YYABORT;
+            }
+
+            if (!is_identifier($3, "REDO_LOG"))
+            {
+              YYTHD->syntax_error_at(@3);
+              MYSQL_YYABORT;
+            }
+            $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_DISABLE_INNODB_REDO, EMPTY_CSTR);
+          }
         ;
 
 /*

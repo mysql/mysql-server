@@ -475,13 +475,6 @@ static bool terminate_consumer(bool rapid);
 static void unregister_udfs();
 static bool register_udfs();
 
-/**
-  Register a privilege.
-  @param[in]      priv_name     privilege name
-  @return         status
-    @retval       false         success
-    @retval       true          failure
-*/
 bool register_privilege(const char *priv_name) {
   ut_ad(priv_name != nullptr);
   SERVICE_TYPE(registry) *reg = mysql_plugin_registry_acquire();
@@ -1183,6 +1176,13 @@ static bool redo_log_archive_start(THD *thd, const char *label,
     return true;
   }
 
+  /*  Redo logging must be enabled for archiving to start. */
+  if (!mtr_t::s_logging.is_enabled()) {
+    my_error(ER_INNODB_REDO_DISABLED, MYF(0));
+    mutex_exit(&redo_log_archive_admin_mutex);
+    return true;
+  }
+
   /* Drop potential left-over resources to avoid leaks. */
   if (drop_remnants(/*force*/ false)) {
     /* purecov: begin inspected */
@@ -1646,6 +1646,20 @@ void redo_log_archive_produce(const byte *write_buf, const size_t write_size) {
       }
     }
   }
+}
+
+bool redo_log_archive_is_active() {
+  DBUG_TRACE;
+  /* During recovery, archiver may not be initialized yet. */
+  if (!redo_log_archive_initialized.load()) {
+    return false;
+  }
+
+  mutex_enter(&redo_log_archive_admin_mutex);
+  bool result = redo_log_archive_active;
+  mutex_exit(&redo_log_archive_admin_mutex);
+
+  return result;
 }
 
 /**

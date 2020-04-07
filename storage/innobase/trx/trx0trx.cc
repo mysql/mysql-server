@@ -2763,7 +2763,7 @@ static lsn_t trx_prepare_low(
 
     if (!noredo_logging) {
       const lsn_t lsn = mtr.commit_lsn();
-      ut_ad(lsn > 0);
+      ut_ad(lsn > 0 || !mtr_t::s_logging.is_enabled());
       return lsn;
     }
   }

@@ -14,6 +14,13 @@ include/rpl_gr_wait_for_number_of_members.inc
 [connection server3]
 SET GLOBAL group_replication_group_name= "GROUP_REPLICATION_DOUBELWRITE";
 [connection server1]
+ALTER INSTANCE DISABLE INNODB REDO_LOG;
+SET sql_log_bin = 0;
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* InnoDB redo logging is disabled. All data could be lost in case of a server crash");
+SET sql_log_bin = 1;
+SHOW GLOBAL STATUS LIKE 'innodb_redo_log_enabled';
+Variable_name	Value
+Innodb_redo_log_enabled	OFF
 CREATE TABLE test.tab ( c1 int primary key, c2 TEXT);
 INSERT INTO test.tab VALUES(1, 'Test wl#5655');
 SELECT @@innodb_doublewrite_dir;
@@ -34,6 +41,13 @@ include/rpl_sync.inc
 START GROUP_REPLICATION;
 
 [connection server2]
+ALTER INSTANCE DISABLE INNODB REDO_LOG;
+SET sql_log_bin = 0;
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* InnoDB redo logging is disabled. All data could be lost in case of a server crash");
+SET sql_log_bin = 1;
+SHOW GLOBAL STATUS LIKE 'innodb_redo_log_enabled';
+Variable_name	Value
+Innodb_redo_log_enabled	OFF
 SELECT @@innodb_doublewrite_dir;
 @@innodb_doublewrite_dir
 NULL
@@ -49,6 +63,9 @@ SELECT @@innodb_doublewrite_batch_size;
 
 #Validating the records in server3#
 [connection server3]
+SHOW GLOBAL STATUS LIKE 'innodb_redo_log_enabled';
+Variable_name	Value
+Innodb_redo_log_enabled	ON
 SELECT * FROM test.tab;
 c1	c2
 1	Test wl#5655
@@ -74,8 +91,15 @@ SET GLOBAL innodb_doublewrite_batch_size=1;
 ERROR HY000: Variable 'innodb_doublewrite_batch_size' is a read only variable
 include/rpl_sync.inc
 
-#Validating the records in server2#
+#Validating the records in server2
 [connection server2]
+ALTER INSTANCE ENABLE INNODB REDO_LOG;
+SET sql_log_bin = 0;
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* InnoDB redo logging is enabled. Data is now safe and can be recovered in case of a server crash.");
+SET sql_log_bin = 1;
+SHOW GLOBAL STATUS LIKE 'innodb_redo_log_enabled';
+Variable_name	Value
+Innodb_redo_log_enabled	ON
 SELECT * FROM test.tab;
 c1	c2
 1	Test wl#5655
@@ -87,6 +111,16 @@ SET GLOBAL innodb_doublewrite_pages=10;
 ERROR HY000: Variable 'innodb_doublewrite_pages' is a read only variable
 SET GLOBAL innodb_doublewrite_batch_size=1;
 ERROR HY000: Variable 'innodb_doublewrite_batch_size' is a read only variable
+[connection server1]
+ALTER INSTANCE ENABLE INNODB REDO_LOG;
+SET sql_log_bin = 0;
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* InnoDB redo logging is enabled. Data is now safe and can be recovered in case of a server crash.");
+SET sql_log_bin = 1;
+SHOW GLOBAL STATUS LIKE 'innodb_redo_log_enabled';
+Variable_name	Value
+Innodb_redo_log_enabled	ON
 
 DROP TABLE test.tab;
+include/rpl_sync.inc
+STOP GROUP_REPLICATION;
 include/group_replication_end.inc

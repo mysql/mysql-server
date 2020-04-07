@@ -292,6 +292,13 @@ int innodb_clone_begin(handlerton *hton, THD *thd, const byte *&loc,
     return (ER_CLONE_DDL_IN_PROGRESS);
   }
 
+  if (!mtr_t::s_logging.is_enabled()) {
+    if (thd != nullptr) {
+      my_error(ER_INNODB_REDO_DISABLED, MYF(0));
+    }
+    return (ER_INNODB_REDO_DISABLED);
+  }
+
   /* Check of clone is already in progress for the reference locator. */
   auto clone_hdl = clone_sys->find_clone(loc, loc_len, CLONE_HDL_COPY);
 
