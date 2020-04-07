@@ -73,7 +73,7 @@ Warnings:
 #	1812	Tablespace is missing for table innodb_system.
 #	1812	Tablespace is missing for table innodb_system.
 ## Stop DB server
-## restart the server with --datadir and without scan DIR option
+## restart the server with --datadir and innodb-directories
 ## Check new datadir
 SELECT @@datadir;
 @@datadir
@@ -230,7 +230,7 @@ tab4	CREATE TABLE `tab4` (
   `c3` varchar(15) DEFAULT NULL
 ) /*!50100 TABLESPACE `ts2` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ## Stop DB server after scan DIR
-## restart the server with --datadir and without scan DIR option
+## restart the server with --datadir and innodb-directories
 ## Check new datadir
 SELECT @@datadir;
 @@datadir
