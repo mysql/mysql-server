@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -247,6 +247,7 @@ static bool vio_init(Vio *vio, enum enum_vio_type type, my_socket sd,
     vio->has_data = has_no_data;
     vio->is_blocking = vio_is_blocking;
     vio->set_blocking = vio_set_blocking;
+    vio->set_blocking_flag = vio_set_blocking_flag;
     vio->is_blocking_flag = true;
     return false;
   }
@@ -266,6 +267,7 @@ static bool vio_init(Vio *vio, enum enum_vio_type type, my_socket sd,
     vio->has_data = has_no_data;
     vio->is_blocking = vio_is_blocking;
     vio->set_blocking = vio_set_blocking;
+    vio->set_blocking_flag = vio_set_blocking_flag;
     vio->is_blocking_flag = true;
     return false;
   }
