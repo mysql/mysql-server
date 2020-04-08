@@ -1760,7 +1760,7 @@ NdbImportImpl::CsvInputWorker::do_init()
         log_debug(1, "file " << file.get_path() << ": "
              "seek to pos " << seekpos << " done");
         m_csvinput->do_resume(range_in);
-        (void)ranges_in.pop_front();
+        rowmap_in.free_range(ranges_in.pop_front());
       }
       else
       {
@@ -3341,7 +3341,7 @@ NdbImportImpl::DiagTeam::read_old_diags(const char* name,
     return;
   }
   // csv input requires at least 2 instances
-  Buf* buf[2];
+  Buf buf[2] = {{true}, {true}};
   CsvInput* csvinput[2];
   RowList rows_reject;
   RowMap rowmap_in[] = {m_util, m_util};
@@ -3349,13 +3349,12 @@ NdbImportImpl::DiagTeam::read_old_diags(const char* name,
   {
     uint pagesize = opt.m_pagesize;
     uint pagecnt = opt.m_pagecnt;
-    buf[i] = new Buf(true);
-    buf[i]->alloc(pagesize, 2 * pagecnt);
+    buf[i].alloc(pagesize, 2 * pagecnt);
     csvinput[i] = new CsvInput(m_impl.m_csv,
                                Name(name, i),
                                csvspec,
                                table,
-                               *buf[i],
+                               buf[i],
                                rows_out,
                                rows_reject,
                                rowmap_in[i],
@@ -3369,8 +3368,8 @@ NdbImportImpl::DiagTeam::read_old_diags(const char* name,
     {
       uint j = 1 - i;
       CsvInput& csvinput1 = *csvinput[i];
-      Buf& b1 = *buf[i];
-      Buf& b2 = *buf[j];
+      Buf& b1 = buf[i];
+      Buf& b2 = buf[j];
       b1.reset();
       if (file.do_read(b1) == -1)
       {
@@ -3408,6 +3407,12 @@ NdbImportImpl::DiagTeam::read_old_diags(const char* name,
     }
     log_debug(1, "read_old_diags: " << name << " count=" << rows_out.cnt());
   }
+
+  for (uint i = 0; i < 2; i++)
+  {
+    delete csvinput[i];
+  }
+
   // XXX diag errors not yet handled
   require(rows_reject.cnt() == 0);
 }
