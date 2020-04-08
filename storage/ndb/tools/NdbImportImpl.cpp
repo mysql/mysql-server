@@ -2126,6 +2126,11 @@ NdbImportImpl::Op::Op()
   m_opsize = 0;
 }
 
+NdbImportImpl::Op::~Op()
+{
+  delete m_row;
+}
+
 NdbImportImpl::OpList::OpList()
 {
 }
@@ -2745,6 +2750,14 @@ NdbImportImpl::ExecOpWorker::state_receive()
 }
 
 void
+NdbImportImpl::ExecOpWorker::handle_error(Op *op)
+{
+  m_rows_free.push_back(op->m_row);
+  op->m_row = NULL;
+  free_op(op);
+}
+
+void
 NdbImportImpl::ExecOpWorker::reject_row(Row* row, const Error& error)
 {
   const Opt& opt = m_util.c_opt;
@@ -2790,11 +2803,26 @@ NdbImportImpl::ExecOpWorkerSynch::do_end()
   {
     require(m_tx_open.cnt() == 0);
   }
-  else if (m_tx_open.cnt() != 0)
+  else if (m_tx_open.cnt() != 0 &&
+           m_execstate == ExecState::State_prepare)
   {
+    // Error occurred in State_define:
+    //   1) Close the txs
     require(m_tx_open.cnt() == 1);
     Tx* tx = m_tx_open.front();
     close_trans(tx);
+  }
+  //   2) Release the ops not called with insertTuple()
+  //      These will be taken care of when import resumes
+  Op* one_op = NULL;
+  while ((one_op = m_ops.pop_front()) != NULL)
+  {
+    if (one_op->m_row != NULL)
+    {
+      m_rows_free.push_back(one_op->m_row);
+      one_op->m_row = NULL;
+    }
+    free_op(one_op);
   }
 }
 
@@ -2926,11 +2954,25 @@ NdbImportImpl::ExecOpWorkerAsynch::do_end()
   }
   else if (m_execstate == ExecState::State_prepare)
   {
-    // error in State_define, simply close the txs
+    // Error occurred in State_define:
+    //   1) Close the txs
     while (m_tx_open.cnt() != 0)
     {
       Tx* tx = m_tx_open.front();
       close_trans(tx);
+    }
+    //   2) Release the ops not called with insertTuple()
+    //      These will be taken care of when import resumes
+    Op* one_op = NULL;
+    log_debug(1, "Mai async do_end ops " << m_ops.cnt());
+    while ((one_op = m_ops.pop_front()) != NULL)
+    {
+      if (one_op->m_row != NULL)
+      {
+        m_rows_free.push_back(one_op->m_row);
+        one_op->m_row = NULL;
+      }
+      free_op(one_op);
     }
   }
   else
@@ -2990,6 +3032,8 @@ NdbImportImpl::ExecOpWorkerAsynch::asynch_callback(Tx* tx)
       require(row != 0);
       log_debug(1, "push back to input: rowid " << row->m_rowid);
       rows_in.push_back_force(row);
+      op->m_row = NULL;
+      free_op(op);
     }
     rows_in.unlock();
   }
@@ -3031,9 +3075,10 @@ NdbImportImpl::ExecOpWorkerAsynch::state_define()
    * don't want to get stuck here on "permanent" temporary errors.
    * So we limit them by opt.m_tmperrors (counted per op).
    */
+  Op* op = NULL;
   while (m_ops.cnt() != 0)
   {
-    Op* op = m_ops.pop_front();
+    op = m_ops.pop_front();
     Row* row = op->m_row;
     require(row != 0);
     const Table& table = m_util.get_table(row->m_tabid);
@@ -3158,8 +3203,16 @@ NdbImportImpl::ExecOpWorkerAsynch::state_define()
         break;
       }
     }
+    if (has_error())
+    {
+      break;
+    }
     op->m_rowop = rowop;
     tx->m_ops.push_back(op);
+  }
+  if (has_error())
+  {
+    handle_error(op);
   }
   m_execstate = ExecState::State_prepare;
 }
