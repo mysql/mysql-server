@@ -41,7 +41,7 @@ t1	CREATE TABLE `t1` (
   `b` int DEFAULT NULL,
   `c` text,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster AUTO_INCREMENT=1011 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster AUTO_INCREMENT=1011 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Waiting for backup to complete
 Backup completed
 drop table test.t1;
@@ -70,7 +70,7 @@ t1	CREATE TABLE `t1` (
   `b` int DEFAULT NULL,
   `c` text,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster AUTO_INCREMENT=5011 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster AUTO_INCREMENT=5011 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table test.t1;
 Backup type 1
 create table t1 (a int auto_increment primary key, b int, c text) engine=ndb;
@@ -113,7 +113,7 @@ t1	CREATE TABLE `t1` (
   `b` int DEFAULT NULL,
   `c` text,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster AUTO_INCREMENT=1011 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster AUTO_INCREMENT=1011 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Waiting for backup to complete
 Backup completed
 drop table test.t1;
@@ -141,5 +141,5 @@ t1	CREATE TABLE `t1` (
   `b` int DEFAULT NULL,
   `c` text,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster AUTO_INCREMENT=5011 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster AUTO_INCREMENT=5011 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table test.t1;

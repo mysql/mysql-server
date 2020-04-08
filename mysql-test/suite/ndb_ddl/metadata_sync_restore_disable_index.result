@@ -33,7 +33,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int DEFAULT NULL,
   `b` varchar(10) DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t2;
 a	b
 1	Number 4
@@ -54,7 +54,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `ib` (`b`),
   KEY `ic` (`c`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1;
 a	b	c
 1	2	3
@@ -68,7 +68,7 @@ Table	Create Table
 parent	CREATE TABLE `parent` (
   `c1` int NOT NULL,
   PRIMARY KEY (`c1`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM parent;
 c1
 1
@@ -81,7 +81,7 @@ child	CREATE TABLE `child` (
   PRIMARY KEY (`c1`),
   KEY `xc2` (`c2`),
   CONSTRAINT `child_fk_1` FOREIGN KEY (`c2`) REFERENCES `parent` (`c1`) ON DELETE CASCADE
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM child;
 c1	c2
 1	1

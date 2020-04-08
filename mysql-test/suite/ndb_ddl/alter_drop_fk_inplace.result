@@ -24,7 +24,7 @@ parent	CREATE TABLE `parent` (
   KEY `ref2_idx` (`ref2`),
   CONSTRAINT `fk_p1` FOREIGN KEY (`ref1`) REFERENCES `parent` (`id1`),
   CONSTRAINT `parent_fk_1` FOREIGN KEY (`ref2`) REFERENCES `parent` (`id2`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Foreign keys consistent across NDB and all connected mysqld's DDs
 create table child (
 pk int primary key,
@@ -45,7 +45,7 @@ child	CREATE TABLE `child` (
   KEY `ref2_idx` (`ref2`),
   CONSTRAINT `child_fk_1` FOREIGN KEY (`ref2`) REFERENCES `parent` (`id2`),
   CONSTRAINT `fk_c1` FOREIGN KEY (`ref1`) REFERENCES `parent` (`id1`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Foreign keys consistent across NDB and all connected mysqld's DDs
 # Drop foreign keys one by one and verify the other FKs integrity
 alter table parent
@@ -66,7 +66,7 @@ parent	CREATE TABLE `parent` (
   KEY `fk_p1` (`ref1`),
   KEY `ref2_idx` (`ref2`),
   CONSTRAINT `parent_fk_1` FOREIGN KEY (`ref2`) REFERENCES `parent` (`id2`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Foreign keys consistent across NDB and all connected mysqld's DDs
 SHOW CREATE TABLE test.child;
 Table	Create Table
@@ -79,7 +79,7 @@ child	CREATE TABLE `child` (
   KEY `ref2_idx` (`ref2`),
   CONSTRAINT `child_fk_1` FOREIGN KEY (`ref2`) REFERENCES `parent` (`id2`),
   CONSTRAINT `fk_c1` FOREIGN KEY (`ref1`) REFERENCES `parent` (`id1`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Foreign keys consistent across NDB and all connected mysqld's DDs
 alter table parent
 drop foreign key parent_fk_1,
@@ -98,7 +98,7 @@ parent	CREATE TABLE `parent` (
   UNIQUE KEY `id2` (`id2`),
   KEY `fk_p1` (`ref1`),
   KEY `ref2_idx` (`ref2`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 No foreign keys found on table `test.parent`
 SHOW CREATE TABLE test.child;
 Table	Create Table
@@ -111,7 +111,7 @@ child	CREATE TABLE `child` (
   KEY `ref2_idx` (`ref2`),
   CONSTRAINT `child_fk_1` FOREIGN KEY (`ref2`) REFERENCES `parent` (`id2`),
   CONSTRAINT `fk_c1` FOREIGN KEY (`ref1`) REFERENCES `parent` (`id1`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Foreign keys consistent across NDB and all connected mysqld's DDs
 alter table child
 drop foreign key fk_c1,
@@ -127,7 +127,7 @@ child	CREATE TABLE `child` (
   KEY `fk_c1` (`ref1`),
   KEY `ref2_idx` (`ref2`),
   CONSTRAINT `child_fk_1` FOREIGN KEY (`ref2`) REFERENCES `parent` (`id2`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Foreign keys consistent across NDB and all connected mysqld's DDs
 alter table child
 drop foreign key child_fk_1,
@@ -142,7 +142,7 @@ child	CREATE TABLE `child` (
   PRIMARY KEY (`pk`),
   KEY `fk_c1` (`ref1`),
   KEY `ref2_idx` (`ref2`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 No foreign keys found on table `test.child`
 # Cleanup
 drop table child, parent;

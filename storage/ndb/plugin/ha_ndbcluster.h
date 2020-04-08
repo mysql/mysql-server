@@ -225,6 +225,8 @@ class ha_ndbcluster : public handler, public Partition_handler {
   void update_create_info(HA_CREATE_INFO *create_info) override;
 
  private:
+  int get_old_table_comment_items(THD *thd, bool *comment_items_shown,
+                                  char *comment_str, unsigned comment_len);
   void update_comment_info(THD *thd, HA_CREATE_INFO *create_info,
                            const NdbDictionary::Table *tab);
 
