@@ -23,7 +23,7 @@ child	CREATE TABLE `child` (
   KEY `ref2_idx` (`ref2`),
   CONSTRAINT `child_fk_1` FOREIGN KEY (`ref1`) REFERENCES `parent` (`id1`),
   CONSTRAINT `child_fk_2` FOREIGN KEY (`ref2`) REFERENCES `parent` (`id2`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Foreign keys consistent across NDB and all connected mysqld's DDs
 set debug='+d,ndb_simulate_failure_after_table_rename';
 # Simple rename child should fail
@@ -42,7 +42,7 @@ child	CREATE TABLE `child` (
   KEY `ref2_idx` (`ref2`),
   CONSTRAINT `child_fk_1` FOREIGN KEY (`ref1`) REFERENCES `parent` (`id1`),
   CONSTRAINT `child_fk_2` FOREIGN KEY (`ref2`) REFERENCES `parent` (`id2`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Foreign keys consistent across NDB and all connected mysqld's DDs
 set debug='+d,ndb_simulate_failure_after_table_rename';
 # Rename using inplace alter should fail
@@ -61,7 +61,7 @@ child	CREATE TABLE `child` (
   KEY `ref2_idx` (`ref2`),
   CONSTRAINT `child_fk_1` FOREIGN KEY (`ref1`) REFERENCES `parent` (`id1`),
   CONSTRAINT `child_fk_2` FOREIGN KEY (`ref2`) REFERENCES `parent` (`id2`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Foreign keys consistent across NDB and all connected mysqld's DDs
 set debug='+d,ndb_simulate_failure_after_table_rename';
 # Rename using copy alter should fail
@@ -80,7 +80,7 @@ child	CREATE TABLE `child` (
   KEY `ref2_idx` (`ref2`),
   CONSTRAINT `child_fk_1` FOREIGN KEY (`ref1`) REFERENCES `parent` (`id1`),
   CONSTRAINT `child_fk_2` FOREIGN KEY (`ref2`) REFERENCES `parent` (`id2`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Foreign keys consistent across NDB and all connected mysqld's DDs
 # Cleanup
 drop table child, parent;

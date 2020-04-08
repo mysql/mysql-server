@@ -25,5 +25,5 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` int NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 DROP DATABASE DB1;

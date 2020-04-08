@@ -594,7 +594,7 @@ idx_tbl	CREATE TABLE `idx_tbl` (
   `data` int DEFAULT NULL,
   PRIMARY KEY (`k1`,`k2`),
   UNIQUE KEY `entry_key` (`entry_key`)
-) ENGINE=ndbcluster AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select count(1), max(mv_idx) from test.type2_1;
 count(1)	max(mv_idx)
 32	32
@@ -605,7 +605,7 @@ type2_1	CREATE TABLE `type2_1` (
   `mv_idx` bigint unsigned NOT NULL AUTO_INCREMENT,
   `data` int DEFAULT NULL,
   PRIMARY KEY (`entry_key`,`mv_idx`)
-) ENGINE=ndbcluster AUTO_INCREMENT=33 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster AUTO_INCREMENT=33 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select count(1), max(mv_idx) from test.type2_2;
 count(1)	max(mv_idx)
 16	16
@@ -616,7 +616,7 @@ type2_2	CREATE TABLE `type2_2` (
   `mv_idx` bigint unsigned NOT NULL AUTO_INCREMENT,
   `data` text,
   PRIMARY KEY (`entry_key`,`mv_idx`)
-) ENGINE=ndbcluster AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select count(1), max(mv_idx) from test.type2_3;
 count(1)	max(mv_idx)
 16	16
@@ -627,7 +627,7 @@ type2_3	CREATE TABLE `type2_3` (
   `entry_key` bigint unsigned NOT NULL,
   `data` text,
   PRIMARY KEY (`mv_idx`)
-) ENGINE=ndbcluster AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select count(1), max(mv_idx) from test.type2_4;
 count(1)	max(mv_idx)
 16	16
@@ -638,7 +638,7 @@ type2_4	CREATE TABLE `type2_4` (
   `entry_key` bigint unsigned NOT NULL,
   `data` int DEFAULT NULL,
   PRIMARY KEY (`mv_idx`)
-) ENGINE=ndbcluster AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 No mv_idx duplicates in type_2 tables
 select mv_idx, count(1) as ct 
 from type2_1 group by mv_idx 
@@ -998,7 +998,7 @@ idx_tbl	CREATE TABLE `idx_tbl` (
   `data` int DEFAULT NULL,
   PRIMARY KEY (`k1`,`k2`),
   UNIQUE KEY `entry_key` (`entry_key`)
-) ENGINE=ndbcluster AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select count(1), max(mv_idx) from test.type2_1;
 count(1)	max(mv_idx)
 32	32
@@ -1009,7 +1009,7 @@ type2_1	CREATE TABLE `type2_1` (
   `mv_idx` bigint unsigned NOT NULL AUTO_INCREMENT,
   `data` int DEFAULT NULL,
   PRIMARY KEY (`entry_key`,`mv_idx`)
-) ENGINE=ndbcluster AUTO_INCREMENT=33 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster AUTO_INCREMENT=33 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select count(1), max(mv_idx) from test.type2_2;
 count(1)	max(mv_idx)
 16	16
@@ -1020,7 +1020,7 @@ type2_2	CREATE TABLE `type2_2` (
   `mv_idx` bigint unsigned NOT NULL AUTO_INCREMENT,
   `data` text,
   PRIMARY KEY (`entry_key`,`mv_idx`)
-) ENGINE=ndbcluster AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select count(1), max(mv_idx) from test.type2_3;
 count(1)	max(mv_idx)
 16	16
@@ -1031,7 +1031,7 @@ type2_3	CREATE TABLE `type2_3` (
   `entry_key` bigint unsigned NOT NULL,
   `data` text,
   PRIMARY KEY (`mv_idx`)
-) ENGINE=ndbcluster AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select count(1), max(mv_idx) from test.type2_4;
 count(1)	max(mv_idx)
 16	16
@@ -1042,7 +1042,7 @@ type2_4	CREATE TABLE `type2_4` (
   `entry_key` bigint unsigned NOT NULL,
   `data` int DEFAULT NULL,
   PRIMARY KEY (`mv_idx`)
-) ENGINE=ndbcluster AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 No mv_idx duplicates in type_2 tables
 select mv_idx, count(1) as ct 
 from type2_1 group by mv_idx 
@@ -1767,7 +1767,7 @@ idx_tbl	CREATE TABLE `idx_tbl` (
   `data` int DEFAULT NULL,
   PRIMARY KEY (`k1`,`k2`),
   UNIQUE KEY `entry_key` (`entry_key`)
-) ENGINE=ndbcluster AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select count(1), max(mv_idx) from test.type2_1;
 count(1)	max(mv_idx)
 64	65
@@ -1778,7 +1778,7 @@ type2_1	CREATE TABLE `type2_1` (
   `mv_idx` bigint unsigned NOT NULL AUTO_INCREMENT,
   `data` int DEFAULT NULL,
   PRIMARY KEY (`entry_key`,`mv_idx`)
-) ENGINE=ndbcluster AUTO_INCREMENT=66 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster AUTO_INCREMENT=66 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select count(1), max(mv_idx) from test.type2_2;
 count(1)	max(mv_idx)
 32	33
@@ -1789,7 +1789,7 @@ type2_2	CREATE TABLE `type2_2` (
   `mv_idx` bigint unsigned NOT NULL AUTO_INCREMENT,
   `data` text,
   PRIMARY KEY (`entry_key`,`mv_idx`)
-) ENGINE=ndbcluster AUTO_INCREMENT=34 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster AUTO_INCREMENT=34 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select count(1), max(mv_idx) from test.type2_3;
 count(1)	max(mv_idx)
 32	33
@@ -1800,7 +1800,7 @@ type2_3	CREATE TABLE `type2_3` (
   `mv_idx` bigint unsigned NOT NULL AUTO_INCREMENT,
   `data` text,
   PRIMARY KEY (`entry_key`,`mv_idx`)
-) ENGINE=ndbcluster AUTO_INCREMENT=34 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster AUTO_INCREMENT=34 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select count(1), max(mv_idx) from test.type2_4;
 count(1)	max(mv_idx)
 32	33
@@ -1811,7 +1811,7 @@ type2_4	CREATE TABLE `type2_4` (
   `mv_idx` bigint unsigned NOT NULL AUTO_INCREMENT,
   `data` int DEFAULT NULL,
   PRIMARY KEY (`entry_key`,`mv_idx`)
-) ENGINE=ndbcluster AUTO_INCREMENT=34 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster AUTO_INCREMENT=34 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 No mv_idx duplicates in type_2 tables
 select mv_idx, count(1) as ct 
 from type2_1 group by mv_idx 
@@ -2075,7 +2075,7 @@ type2_3	CREATE TABLE `type2_3` (
   `mv_idx` bigint unsigned NOT NULL AUTO_INCREMENT,
   `data` text,
   PRIMARY KEY (`entry_key`,`mv_idx`)
-) ENGINE=ndbcluster AUTO_INCREMENT=36 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster AUTO_INCREMENT=36 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 No mv_idx duplicates in type_2 tables
 select mv_idx, count(1) as ct 
 from type2_1 group by mv_idx 

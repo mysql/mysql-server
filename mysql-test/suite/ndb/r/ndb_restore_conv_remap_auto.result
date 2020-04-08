@@ -49,14 +49,14 @@ t1	CREATE TABLE `t1` (
   `a` bigint NOT NULL AUTO_INCREMENT,
   `d` int DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster AUTO_INCREMENT=605 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster AUTO_INCREMENT=605 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int NOT NULL AUTO_INCREMENT,
   `d` int DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster AUTO_INCREMENT=305 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster AUTO_INCREMENT=305 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Restore with negative offset of 50
 truncate test.t1;
 truncate test.t2;
@@ -84,14 +84,14 @@ t1	CREATE TABLE `t1` (
   `a` bigint NOT NULL AUTO_INCREMENT,
   `d` int DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster AUTO_INCREMENT=405 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster AUTO_INCREMENT=405 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int NOT NULL AUTO_INCREMENT,
   `d` int DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster AUTO_INCREMENT=105 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster AUTO_INCREMENT=105 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Restore with negative offset of 200
 truncate test.t1;
 truncate test.t2;
@@ -119,13 +119,13 @@ t1	CREATE TABLE `t1` (
   `a` bigint NOT NULL AUTO_INCREMENT,
   `d` int DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster AUTO_INCREMENT=405 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster AUTO_INCREMENT=405 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int NOT NULL AUTO_INCREMENT,
   `d` int DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster AUTO_INCREMENT=105 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster AUTO_INCREMENT=105 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table test.t1;
 drop table test.t2;

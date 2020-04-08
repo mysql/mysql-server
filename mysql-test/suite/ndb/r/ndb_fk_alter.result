@@ -25,7 +25,7 @@ child	CREATE TABLE `child` (
   CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `parent` (`a`),
   CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `parent` (`a`),
   CONSTRAINT `fk3` FOREIGN KEY (`c`) REFERENCES `parent` (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table child algorithm=inplace, drop foreign key fk1;
 show create table child;
 Table	Create Table
@@ -38,7 +38,7 @@ child	CREATE TABLE `child` (
   KEY `c` (`c`),
   CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `parent` (`a`),
   CONSTRAINT `fk3` FOREIGN KEY (`c`) REFERENCES `parent` (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table child algorithm=inplace, drop foreign key fk2;
 show create table child;
 Table	Create Table
@@ -50,7 +50,7 @@ child	CREATE TABLE `child` (
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
   CONSTRAINT `fk3` FOREIGN KEY (`c`) REFERENCES `parent` (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table child algorithm=inplace, drop foreign key fk3;
 show create table child;
 Table	Create Table
@@ -61,7 +61,7 @@ child	CREATE TABLE `child` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table parent, child;
 CREATE TABLE bug46599a (
 b VARCHAR(2), PRIMARY KEY(b)) ENGINE=ndb;
@@ -179,7 +179,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`col1`),
   UNIQUE KEY `name0` (`col2`),
   UNIQUE KEY `name1` (`col3`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -189,7 +189,7 @@ t2	CREATE TABLE `t2` (
   UNIQUE KEY `col1` (`col1`),
   KEY `fk1` (`col3`),
   CONSTRAINT `fk1` FOREIGN KEY (`col3`) REFERENCES `t1` (`col3`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 PARTITION BY KEY ();
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -200,7 +200,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`col1`),
   UNIQUE KEY `name0` (`col2`),
   UNIQUE KEY `name1` (`col3`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY () */
 ALTER TABLE t1 PARTITION BY KEY (col1);
 SHOW CREATE TABLE t1;
@@ -212,7 +212,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`col1`),
   UNIQUE KEY `name0` (`col2`),
   UNIQUE KEY `name1` (`col3`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (col1) */
 ALTER TABLE t1 REMOVE PARTITIONING;
 SHOW CREATE TABLE t1;
@@ -224,7 +224,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`col1`),
   UNIQUE KEY `name0` (`col2`),
   UNIQUE KEY `name1` (`col3`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t2 PARTITION BY KEY ();
 SHOW CREATE TABLE t2;
 Table	Create Table
@@ -235,7 +235,7 @@ t2	CREATE TABLE `t2` (
   UNIQUE KEY `col1` (`col1`),
   KEY `fk1` (`col3`),
   CONSTRAINT `fk1` FOREIGN KEY (`col3`) REFERENCES `t1` (`col3`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY () */
 ALTER TABLE t2 PARTITION BY KEY (col1);
 SHOW CREATE TABLE t2;
@@ -247,7 +247,7 @@ t2	CREATE TABLE `t2` (
   UNIQUE KEY `col1` (`col1`),
   KEY `fk1` (`col3`),
   CONSTRAINT `fk1` FOREIGN KEY (`col3`) REFERENCES `t1` (`col3`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (col1) */
 ALTER TABLE t2 REMOVE PARTITIONING;
 SHOW CREATE TABLE t2;
@@ -259,7 +259,7 @@ t2	CREATE TABLE `t2` (
   UNIQUE KEY `col1` (`col1`),
   KEY `fk1` (`col3`),
   CONSTRAINT `fk1` FOREIGN KEY (`col3`) REFERENCES `t1` (`col3`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 RENAME COLUMN col3 TO col3_new;
 ERROR 0A000: ALTER TABLE is not supported. Reason: Altering name of a field being referenced from a foreign key is not supported. Try dropping foreign key first.
 ALTER TABLE t1 ALGORITHM=inplace, RENAME COLUMN col3 TO col3_new;
@@ -277,7 +277,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`col1`),
   UNIQUE KEY `name0` (`col2`),
   UNIQUE KEY `name1` (`col3`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -287,7 +287,7 @@ t2	CREATE TABLE `t2` (
   UNIQUE KEY `col1` (`col1`),
   KEY `fk1` (`col3`),
   CONSTRAINT `fk1` FOREIGN KEY (`col3`) REFERENCES `t1` (`col3`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2, t1;
 #
 # Bug#30233405 SELF REFERENTIAL FKS ARE LOST WHEN THE TABLE IS ALTERED USING COPY ALGORITHM
@@ -309,7 +309,7 @@ self_ref	CREATE TABLE `self_ref` (
   UNIQUE KEY `parent_col` (`parent_col`),
   KEY `fk1` (`child_col`),
   CONSTRAINT `self_ref_fk_1` FOREIGN KEY (`child_col`) REFERENCES `self_ref` (`parent_col`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO self_ref VALUES(1, 1, NULL);
 INSERT INTO self_ref VALUES(2, 2, 1);
 INSERT INTO self_ref VALUES(3, 3, 6);
@@ -334,7 +334,7 @@ self_ref	CREATE TABLE `self_ref` (
   UNIQUE KEY `parent_col` (`parent_col`),
   KEY `fk1` (`child_col`),
   CONSTRAINT `self_ref_fk_1` FOREIGN KEY (`child_col`) REFERENCES `self_ref` (`parent_col`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO self_ref VALUES(3, 3, 1, 0);
 INSERT INTO self_ref VALUES(4, 4, 8, 0);
 ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`self_ref`, CONSTRAINT `self_ref_fk_1` FOREIGN KEY (`child_col`) REFERENCES `self_ref` (`parent_col`) ON DELETE NO ACTION ON UPDATE NO ACTION)
@@ -357,7 +357,7 @@ child	CREATE TABLE `child` (
   `col` int DEFAULT NULL,
   KEY `fk1` (`col`),
   CONSTRAINT `fk1` FOREIGN KEY (`col`) REFERENCES `parent` (`col1`) ON DELETE SET NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Drop the foreign key using an uppercase identifier and check if the drop is successful.
 alter table child drop foreign key FK1;
 alter table child drop index FK1;
@@ -366,6 +366,6 @@ Show create table child;
 Table	Create Table
 child	CREATE TABLE `child` (
   `col` int DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Cleanup
 drop table child, parent;

@@ -484,7 +484,7 @@ t1	CREATE TABLE `t1` (
   `b` int NOT NULL DEFAULT '0',
   `c` varchar(254) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 alter b set default 1;
 show create table t1;
 Table	Create Table
@@ -493,7 +493,7 @@ t1	CREATE TABLE `t1` (
   `b` int NOT NULL DEFAULT '1',
   `c` varchar(254) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (a int not null, b int not null) engine=ndb;
 insert into t1 values (1, 300), (2, 200), (3, 100);
@@ -667,7 +667,7 @@ t1	CREATE TABLE `t1` (
   `id` int NOT NULL,
   `value` int DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=READ_BACKUP=1 comment1'
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='comment1'
 /*!50100 PARTITION BY KEY (id) */
 DROP TABLE t1;
 #test alter table with and without ENGINE clause
@@ -678,7 +678,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` int NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (id) */
 DROP TABLE t1;
 CREATE TABLE t1(id INT, PRIMARY KEY(id)) ENGINE=NDB CHARSET=latin1;
@@ -688,7 +688,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` int NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (id) */
 DROP TABLE t1;
 bug#24577931 table comment is case sensitive
