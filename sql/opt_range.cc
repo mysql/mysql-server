@@ -13400,8 +13400,6 @@ int QUICK_GROUP_MIN_MAX_SELECT::reset(void) {
 */
 
 int QUICK_GROUP_MIN_MAX_SELECT::get_next() {
-  int min_res = 0;
-  int max_res = 0;
   int result;
   int is_last_prefix = 0;
 
@@ -13436,55 +13434,63 @@ int QUICK_GROUP_MIN_MAX_SELECT::get_next() {
     bool reset_min_value = true;
     bool reset_max_value = true;
     while (!append_next_infix()) {
+      DBUG_ASSERT(!result || !is_index_access_error(result));
       if (have_min || have_max) {
         if (min_max_keypart_asc) {
           if (have_min) {
-            if (!(min_res = next_min()))
+            if (!(result = next_min()))
               update_min_result(&reset_min_value);
-            else
+            else {
+              DBUG_EXECUTE_IF("bug30769515_QUERY_INTERRUPTED",
+                              result = HA_ERR_QUERY_INTERRUPTED;);
+              if (is_index_access_error(result)) return result;
               continue;  // Record is not found, no reason to call next_max()
+            }
           }
-          if (have_max && !(max_res = next_max()))
-            update_max_result(&reset_max_value);
+          if (have_max) {
+            if (!(result = next_max()))
+              update_max_result(&reset_max_value);
+            else if (is_index_access_error(result))
+              return result;
+          }
         } else {
           // Call next_max() first and then next_min() if
           // MIN/MAX key part is descending.
           if (have_max) {
-            if (!(max_res = next_max()))
+            if (!(result = next_max()))
               update_max_result(&reset_max_value);
-            else
+            else {
+              DBUG_EXECUTE_IF("bug30769515_QUERY_INTERRUPTED",
+                              result = HA_ERR_QUERY_INTERRUPTED;);
+              if (is_index_access_error(result)) return result;
               continue;  // Record is not found, no reason to call next_min()
+            }
           }
-          if (have_min && !(min_res = next_min()))
-            update_min_result(&reset_min_value);
+          if (have_min) {
+            if (!(result = next_min()))
+              update_min_result(&reset_min_value);
+            else if (is_index_access_error(result))
+              return result;
+          }
         }
+        if (!result) found_result = true;
+      } else if (key_infix_len > 0) {
+        /*
+          If this is just a GROUP BY or DISTINCT without MIN or MAX and there
+          are equality predicates for the key parts after the group, find the
+          first sub-group with the extended prefix. There is no need to iterate
+          through the whole group to accumulate the MIN/MAX and returning just
+          the one distinct record is enough.
+        */
+        if (!(result = head->file->ha_index_read_map(
+                  record, group_prefix, make_prev_keypart_map(real_key_parts),
+                  HA_READ_KEY_EXACT)) ||
+            is_index_access_error(result))
+          return result;
       }
-      /*
-        If this is just a GROUP BY or DISTINCT without MIN or MAX and there
-        are equality predicates for the key parts after the group, find the
-        first sub-group with the extended prefix.
-      */
-      if (!have_min && !have_max && key_infix_len > 0)
-        result = head->file->ha_index_read_map(
-            record, group_prefix, make_prev_keypart_map(real_key_parts),
-            HA_READ_KEY_EXACT);
-
-      result = have_min ? min_res : have_max ? max_res : result;
-      if (!result) found_result = true;
-      /*
-        If this is just a GROUP BY or DISTINCT without MIN or MAX, there is no
-        need to iterate through the whole group to accumulate the MIN/MAX and
-        returning just the one distinct record is enough.
-      */
-      if (!have_min && !have_max && result == 0) break;
-      /*
-        Reset result value at the last infix range if
-        at least one group is found.
-      */
-      if (seen_all_infix_ranges && found_result) result = 0;
     }
-  } while ((result == HA_ERR_KEY_NOT_FOUND || result == HA_ERR_END_OF_FILE) &&
-           is_last_prefix != 0);
+    if (seen_all_infix_ranges && found_result) return 0;
+  } while (!is_index_access_error(result) && is_last_prefix != 0);
 
   if (result == HA_ERR_KEY_NOT_FOUND) result = HA_ERR_END_OF_FILE;
 

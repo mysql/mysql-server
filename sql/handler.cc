@@ -8582,3 +8582,18 @@ bool ha_check_reserved_db_name(const char *name) {
                          MYSQL_STORAGE_ENGINE_PLUGIN,
                          const_cast<char *>(name)));
 }
+
+/**
+   Check whether an error is index access error or not
+   after an index read. Error other than HA_ERR_END_OF_FILE
+   or HA_ERR_KEY_NOT_FOUND will stop next index read.
+
+   @param  error    Handler error code.
+
+   @retval true     if error is different from HA_ERR_END_OF_FILE or
+                    HA_ERR_KEY_NOT_FOUND.
+   @retval false    if error is HA_ERR_END_OF_FILE or HA_ERR_KEY_NOT_FOUND.
+*/
+bool is_index_access_error(int error) {
+  return (error != HA_ERR_END_OF_FILE && error != HA_ERR_KEY_NOT_FOUND);
+}

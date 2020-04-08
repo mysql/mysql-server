@@ -6896,6 +6896,7 @@ bool ha_notify_alter_table(THD *thd, const MDL_key *mdl_key,
 
 std::pair<int, bool> commit_owned_gtids(THD *thd, bool all);
 bool set_tx_isolation(THD *thd, enum_tx_isolation tx_isolation, bool one_shot);
+bool is_index_access_error(int error);
 
 /*
   This class is used by INFORMATION_SCHEMA.FILES to read SE specific
