@@ -9366,6 +9366,10 @@ ER_INNODB_REDO_DISABLED
 ER_INNODB_REDO_ARCHIVING_ENABLED
   eng "Cannot perform operation as InnoDB is archiving redo log. Please retry after stopping redo archive by invoking innodb_redo_log_archive_stop()"
 
+ER_MDL_OUT_OF_RESOURCES
+  eng "Not enough resources to complete lock request."
+
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!
