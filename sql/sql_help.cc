@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,6 +58,7 @@
 #include "sql/sql_table.h"  // primary_key_name
 #include "sql/table.h"
 #include "sql_string.h"
+#include "template_utils.h"
 #include "thr_lock.h"
 #include "typelib.h"
 
@@ -666,7 +667,7 @@ bool mysqld_help(THD *thd, const char *mask) {
   memcpy((char *)used_fields, (char *)init_used_fields, sizeof(used_fields));
   if (init_fields(thd, tables, used_fields, array_elements(used_fields)))
     goto error;
-  for (i = 0; i < sizeof(tables) / sizeof(TABLE_LIST); i++)
+  for (i = 0; i < array_elements(tables); i++)
     tables[i].table->file->init_table_handle_for_HANDLER();
 
   {
