@@ -1056,6 +1056,8 @@ void BtrContext::free_updated_extern_fields(trx_id_t trx_id, undo_no_t undo_no,
 
   ut_ad(rec_offs_validate());
   ut_ad(mtr_is_page_fix(m_mtr, m_rec, MTR_MEMO_PAGE_X_FIX, m_index->table));
+  /* Assert that the cursor position and the record are matching. */
+  ut_ad(!need_recalc());
 
   /* Free possible externally stored fields in the record */
 
@@ -1073,6 +1075,9 @@ void BtrContext::free_updated_extern_fields(trx_id_t trx_id, undo_no_t undo_no,
 
       DeleteContext ctx(*this, field_ref, ufield->field_no, rollback);
       lob::purge(&ctx, m_index, trx_id, undo_no, 0, ufield);
+      if (need_recalc()) {
+        recalc();
+      }
     }
   }
 }
@@ -1160,6 +1165,8 @@ void BtrContext::free_externally_stored_fields(trx_id_t trx_id,
                                                ulint rec_type) {
   ut_ad(rec_offs_validate());
   ut_ad(mtr_is_page_fix(m_mtr, m_rec, MTR_MEMO_PAGE_X_FIX, m_index->table));
+  /* Assert that the cursor position and the record are matching. */
+  ut_ad(!need_recalc());
 
   /* Free possible externally stored fields in the record */
   ut_ad(dict_table_is_comp(m_index->table) == !!rec_offs_comp(m_offsets));
@@ -1173,6 +1180,9 @@ void BtrContext::free_externally_stored_fields(trx_id_t trx_id,
 
       upd_field_t *uf = nullptr;
       lob::purge(&ctx, m_index, trx_id, undo_no, rec_type, uf);
+      if (need_recalc()) {
+        recalc();
+      }
     }
   }
 }

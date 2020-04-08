@@ -804,6 +804,12 @@ class BtrContext {
   @return the record offset. */
   ulint get_rec_offset() const { return (page_offset(m_rec)); }
 
+  /** Check if there is a need to recalculate the context information.
+  @return true if there is a need to recalculate, false otherwise. */
+  bool need_recalc() const {
+    return ((m_pcur != nullptr) && (m_rec != btr_pcur_get_rec(m_pcur)));
+  }
+
   /** Get the clustered index record pointer.
   @return clustered index record pointer. */
   rec_t *rec() const {
