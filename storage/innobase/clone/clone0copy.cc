@@ -91,14 +91,10 @@ int Clone_Snapshot::add_buf_pool_file() {
   /* Generate the file name. */
   buf_dump_generate_path(path, sizeof(path));
 
-  os_file_type_t type;
-  bool exists = false;
-  os_file_status(path, &exists, &type);
-
   /* Add if the file is found. */
   int err = 0;
 
-  if (exists) {
+  if (os_file_exists(path)) {
     auto file_size = os_file_get_size(path);
     auto size_bytes = file_size.m_total_size;
 

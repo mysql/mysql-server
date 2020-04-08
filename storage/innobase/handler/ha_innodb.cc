@@ -4305,13 +4305,12 @@ static int innodb_init_params() {
   } else {
     os_file_type_t type;
     bool exists;
-    if (os_file_status(ibt::srv_temp_dir, &exists, &type)) {
-      if (!exists || type != OS_FILE_TYPE_DIR) {
-        ib::error() << "Invalid innodb_temp_tablespaces_dir: "
-                    << ibt::srv_temp_dir;
-        ib::error() << "Directory doesn't exist or not valid";
-        return HA_ERR_INITIALIZATION;
-      }
+    os_file_status(ibt::srv_temp_dir, &exists, &type);
+    if (!exists || type != OS_FILE_TYPE_DIR) {
+      ib::error() << "Invalid innodb_temp_tablespaces_dir: "
+                  << ibt::srv_temp_dir;
+      ib::error() << "Directory doesn't exist or not valid";
+      return HA_ERR_INITIALIZATION;
     }
 
     Fil_path temp_dir(ibt::srv_temp_dir);
@@ -14698,11 +14697,8 @@ static int validate_create_tablespace_info(ib_file_suffix type, THD *thd,
     return (HA_ERR_WRONG_FILE_NAME);
   }
 
-  /* If this file does already exists, we cannot use this filename. */
-  bool exist;
-  os_file_type_t os_type;
-  os_file_status(filepath.path().c_str(), &exist, &os_type);
-  if (exist) {
+  /* If this file already exists, we cannot use this filename. */
+  if (os_file_exists(filepath.path().c_str())) {
     my_printf_error(ER_WRONG_FILE_NAME,
                     "The ADD DATAFILE filepath already exists.", MYF(0));
     error = HA_ERR_WRONG_FILE_NAME;

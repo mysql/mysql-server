@@ -1291,10 +1291,7 @@ void clone_update_gtid_status(std::string &gtids) {
 
 void clone_files_error() {
   /* Check if clone file directory exists. */
-  os_file_type_t type;
-  bool exists = false;
-  auto ret = os_file_status(CLONE_FILES_DIR, &exists, &type);
-  if (!ret || !exists) {
+  if (!os_file_exists(CLONE_FILES_DIR)) {
     return;
   }
 
@@ -1453,11 +1450,7 @@ void clone_files_recovery(bool finished) {
 
 dberr_t clone_init() {
   /* Check if incomplete cloned data directory */
-  os_file_type_t type;
-  bool exists = false;
-  auto status = os_file_status(CLONE_INNODB_IN_PROGRESS_FILE, &exists, &type);
-
-  if (status && exists) {
+  if (os_file_exists(CLONE_INNODB_IN_PROGRESS_FILE)) {
     return (DB_ABORT_INCOMPLETE_CLONE);
   }
 
@@ -1800,10 +1793,7 @@ class Fixup_data {
       undo::Tablespace undo_space(space_id);
       const char *log_file_name = undo_space.log_file_name();
 
-      os_file_type_t type;
-      bool exists = false;
-      auto ret = os_file_status(log_file_name, &exists, &type);
-      if (ret && exists) {
+      if (os_file_exists(log_file_name)) {
         clone_add_to_list_file(CLONE_INNODB_OLD_FILES, log_file_name);
       }
     }

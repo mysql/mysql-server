@@ -1636,37 +1636,34 @@ void dblwr::recv::recover(recv::Pages *pages, fil_space_t *space) noexcept {
 @return DB_SUCCESS if all went well. */
 static dberr_t dblwr_file_open(const std::string &dir_name, int id,
                                dblwr::File &file, ulint file_type) noexcept {
-  bool exists;
+  bool dir_exists;
+  bool file_exists;
   os_file_type_t type;
   std::string dir(dir_name);
 
   Fil_path::normalize(dir);
 
-  auto success = os_file_status(dir.c_str(), &exists, &type);
+  os_file_status(dir.c_str(), &dir_exists, &type);
 
-  if (exists) {
-    if (!success) {
-      return DB_CANNOT_OPEN_FILE;
+  switch (type) {
+    case OS_FILE_TYPE_DIR:
+      /* This is an existing directory. */
+      break;
+    case OS_FILE_TYPE_MISSING:
+      /* This path is missing but otherwise useable. It will be created. */
+      ut_ad(!dir_exists);
+      break;
+    case OS_FILE_TYPE_LINK:
+    case OS_FILE_TYPE_FILE:
+    case OS_FILE_TYPE_BLOCK:
+    case OS_FILE_TYPE_UNKNOWN:
+    case OS_FILE_TYPE_FAILED:
+    case OS_FILE_PERMISSION_ERROR:
+    case OS_FILE_TYPE_NAME_TOO_LONG:
 
-    } else {
-      switch (type) {
-        case OS_FILE_TYPE_DIR:
-          break;
+      ib::error(ER_IB_MSG_DBLWR_1290, dir_name.c_str());
 
-        case OS_FILE_TYPE_LINK:
-        case OS_FILE_TYPE_FILE:
-        case OS_FILE_TYPE_BLOCK:
-        case OS_FILE_TYPE_MISSING:
-        case OS_FILE_TYPE_UNKNOWN:
-        case OS_FILE_TYPE_FAILED:
-        case OS_FILE_PERMISSION_ERROR:
-        case OS_FILE_TYPE_NAME_TOO_LONG:
-
-          ib::error(ER_IB_MSG_DBLWR_1290, dir_name.c_str());
-
-          return DB_WRONG_FILE_NAME;
-      }
-    }
+      return DB_WRONG_FILE_NAME;
   }
 
   file.m_id = id;
@@ -1677,37 +1674,34 @@ static dberr_t dblwr_file_open(const std::string &dir_name, int id,
 
   file.m_name += dot_ext[DWR];
 
-  success = os_file_status(file.m_name.c_str(), &exists, &type);
-
   uint32_t mode;
+  if (dir_exists) {
+    os_file_status(file.m_name.c_str(), &file_exists, &type);
 
-  if (exists) {
-    if (!success) {
-      ib::error(ER_IB_MSG_DBLWR_1291, file.m_name.c_str());
-
-      return DB_CANNOT_OPEN_FILE;
-
-    } else if (type != OS_FILE_TYPE_FILE) {
-      ib::error(ER_IB_MSG_DBLWR_1292, file.m_name.c_str());
+    if (type == OS_FILE_TYPE_FILE) {
+      mode = OS_FILE_OPEN;
+    } else if (type == OS_FILE_TYPE_MISSING) {
+      mode = OS_FILE_CREATE;
+    } else {
+      ib::error(ER_IB_MSG_BAD_DBLWR_FILE_NAME, file.m_name.c_str());
 
       return DB_CANNOT_OPEN_FILE;
     }
-
-    mode = OS_FILE_OPEN;
-
   } else {
     auto err = os_file_create_subdirs_if_needed(file.m_name.c_str());
-
     if (err != DB_SUCCESS) {
       return err;
-    } else if (id >= (int)Double_write::s_n_instances) {
-      /* Don't create files if not configured by the user. */
-      return DB_NOT_FOUND;
     }
 
     mode = OS_FILE_CREATE;
   }
 
+  if (mode == OS_FILE_CREATE && id >= (int)Double_write::s_n_instances) {
+    /* Don't create files if not configured by the user. */
+    return DB_NOT_FOUND;
+  }
+
+  bool success;
   file.m_pfs =
       os_file_create(innodb_dblwr_file_key, file.m_name.c_str(), mode,
                      OS_FILE_NORMAL, file_type, srv_read_only_mode, &success);

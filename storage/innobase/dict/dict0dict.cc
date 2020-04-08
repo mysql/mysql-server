@@ -1485,8 +1485,6 @@ dberr_t dict_table_rename_in_cache(
   dict_index_t *index;
   ulint fold;
   char old_name[MAX_FULL_NAME_LEN + 1];
-  os_file_type_t ftype;
-  bool exists;
 
   ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -1552,6 +1550,8 @@ dberr_t dict_table_rename_in_cache(
     }
 
     /* Delete any temp file hanging around. */
+    os_file_type_t ftype;
+    bool exists;
     if (os_file_status(filepath, &exists, &ftype) && exists &&
         !os_file_delete_if_exists(innodb_temp_file_key, filepath, nullptr)) {
       ib::info(ER_IB_MSG_180) << "Delete of " << filepath << " failed.";

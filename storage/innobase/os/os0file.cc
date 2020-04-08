@@ -2880,9 +2880,11 @@ static bool os_file_status_posix(const char *path, bool *exists,
 
   int ret = stat(path, &statinfo);
 
-  *exists = !ret;
+  if (exists != nullptr) {
+    *exists = !ret;
+  }
 
-  if (!ret) {
+  if (ret == 0) {
     /* file exists, everything OK */
 
   } else if (errno == ENOENT || errno == ENOTDIR) {
@@ -2903,8 +2905,8 @@ static bool os_file_status_posix(const char *path, bool *exists,
   } else {
     *type = OS_FILE_TYPE_FAILED;
 
-    /* file exists, but stat call failed */
-    os_file_handle_error_no_exit(path, "stat", false);
+    /* The stat() call failed with some other error. */
+    os_file_handle_error_no_exit(path, "file_status_posix_stat", false);
     return (false);
   }
 
@@ -2926,6 +2928,28 @@ static bool os_file_status_posix(const char *path, bool *exists,
   }
 
   return (true);
+}
+
+/** Check the existence and usefulness of a given path.
+@param[in]  path  path name
+@retval true if the path exists and can be used
+@retval false if the path does not exist or if the path is
+unuseable to get to a possibly existing file or directory. */
+static bool os_file_exists_posix(const char *path) {
+  struct stat statinfo;
+
+  int ret = stat(path, &statinfo);
+
+  if (ret == 0) {
+    return (true);
+  }
+
+  if (!(errno == ENOENT || errno == ENOTDIR || errno == ENAMETOOLONG ||
+        errno == EACCES)) {
+    os_file_handle_error_no_exit(path, "file_exists_posix_stat", false);
+  }
+
+  return (false);
 }
 
 /** NOTE! Use the corresponding macro os_file_flush(), not directly this
@@ -3382,16 +3406,14 @@ file is closed before calling this function.
 @return true if success */
 bool os_file_rename_func(const char *oldpath, const char *newpath) {
 #ifdef UNIV_DEBUG
+  /* New path must be valid but not exist. */
   os_file_type_t type;
   bool exists;
-
-  /* New path must not exist. */
   ut_ad(os_file_status(newpath, &exists, &type));
   ut_ad(!exists);
 
   /* Old path must exist. */
-  ut_ad(os_file_status(oldpath, &exists, &type));
-  ut_ad(exists);
+  ut_ad(os_file_exists(oldpath));
 #endif /* UNIV_DEBUG */
 
   int ret = rename(oldpath, newpath);
@@ -3766,16 +3788,20 @@ static dberr_t os_file_punch_hole_win32(os_file_t fh, os_offset_t off,
   return (!result ? DB_IO_NO_PUNCH_HOLE : DB_SUCCESS);
 }
 
-/** Check the existence and type of the given file.
-@param[in]	path		path name of file
-@param[out]	exists		true if the file exists
-@param[out]	type		Type of the file, if it exists
+/** Check the existence and type of a given path.
+@param[in]   path    pathname of the file
+@param[out]  exists  true if file exists
+@param[out]  type    type of the file (if it exists)
 @return true if call succeeded */
 static bool os_file_status_win32(const char *path, bool *exists,
                                  os_file_type_t *type) {
   struct _stat64 statinfo;
 
   int ret = _stat64(path, &statinfo);
+
+  if (exists != nullptr) {
+    *exists = !ret;
+  }
 
   if (ret == 0) {
     /* file exists, everything OK */
@@ -3798,8 +3824,8 @@ static bool os_file_status_win32(const char *path, bool *exists,
   } else {
     *type = OS_FILE_TYPE_FAILED;
 
-    /* file exists, but stat call failed */
-    os_file_handle_error_no_exit(path, "stat", false);
+    /* The _stat64() call failed with some other error */
+    os_file_handle_error_no_exit(path, "file_status_win_stat64", false);
     return (false);
   }
 
@@ -3818,6 +3844,28 @@ static bool os_file_status_win32(const char *path, bool *exists,
   }
 
   return (true);
+}
+
+/** Check the existence and usefulness of a given path.
+@param[in]  path  path name
+@retval true if the path exists and can be used
+@retval false if the path does not exist or if the path is
+unuseable to get to a possibly existing file or directory. */
+static bool os_file_exists_win32(const char *path) {
+  struct _stat64 statinfo;
+
+  int ret = _stat64(path, &statinfo);
+
+  if (ret == 0) {
+    return (true);
+  }
+
+  if (!(errno == ENOENT || errno == EINVAL || errno == EACCES)) {
+    /* The _stat64() call failed with an unknown error */
+    os_file_handle_error_no_exit(path, "file_exists_win_stat64", false);
+  }
+
+  return (false);
 }
 
 /** NOTE! Use the corresponding macro os_file_flush(), not directly this
@@ -4490,16 +4538,14 @@ file is closed before calling this function.
 @return true if success */
 bool os_file_rename_func(const char *oldpath, const char *newpath) {
 #ifdef UNIV_DEBUG
+  /* New path must be valid but not exist. */
   os_file_type_t type;
   bool exists;
-
-  /* New path must not exist. */
   ut_ad(os_file_status(newpath, &exists, &type));
   ut_ad(!exists);
 
   /* Old path must exist. */
-  ut_ad(os_file_status(oldpath, &exists, &type));
-  ut_ad(exists);
+  ut_ad(os_file_exists(oldpath));
 #endif /* UNIV_DEBUG */
 
   if (MoveFile((LPCTSTR)oldpath, (LPCTSTR)newpath)) {
@@ -5809,16 +5855,19 @@ dberr_t os_file_write_func(IORequest &type, const char *name, os_file_t file,
   return (os_file_write_page(type, name, file, ptr, offset, n));
 }
 
-/** Check the existence and type of the given file.
-@param[in]	path		path name of file
-@param[out]	exists		true if the file exists
-@param[out]	type		Type of the file, if it exists
-@return true if call succeeded */
 bool os_file_status(const char *path, bool *exists, os_file_type_t *type) {
 #ifdef _WIN32
   return (os_file_status_win32(path, exists, type));
 #else
   return (os_file_status_posix(path, exists, type));
+#endif /* _WIN32 */
+}
+
+bool os_file_exists(const char *path) {
+#ifdef _WIN32
+  return (os_file_exists_win32(path));
+#else
+  return (os_file_exists_posix(path));
 #endif /* _WIN32 */
 }
 

@@ -10680,10 +10680,10 @@ ER_IB_MSG_DBLWR_1288
 ER_IB_MSG_DBLWR_1290
   eng "The page in the doublewrite file is corrupt. Cannot continue operation. You can try to recover the database with innodb_force_recovery=6"
 
-ER_IB_MSG_DBLWR_1291
-  eng "%s"
+ER_IB_MSG_BAD_DBLWR_FILE_NAME
+  eng "The doublewrite filename '%s' is incorrect."
 
-ER_IB_MSG_DBLWR_1292
+OBSOLETE_ER_IB_MSG_DBLWR_1292
   eng "%s"
 
 ER_IB_MSG_DBLWR_1293

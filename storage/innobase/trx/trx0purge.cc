@@ -953,12 +953,9 @@ void done_logging(space_id_t space_num) {
   space_num. That is good enough since we only need the log_file_name. */
   Tablespace undo_space(id2num(space_num));
   char *log_file_name = undo_space.log_file_name();
-  bool exist;
-  os_file_type_t type;
 
   /* If this file does not exist, there is nothing to do. */
-  os_file_status(log_file_name, &exist, &type);
-  if (!exist) {
+  if (!os_file_exists(log_file_name)) {
     return;
   }
 
@@ -1010,17 +1007,12 @@ bool is_active_truncate_log_present(space_id_t space_num) {
   Tablespace undo_space(id2num(space_num));
   char *log_file_name = undo_space.log_file_name();
 
-  /* Check for existence of the file. */
-  bool exist;
-  os_file_type_t type;
-  os_file_status(log_file_name, &exist, &type);
-
-  /* If file exists, check it for presence of magic
+  /* If the log file exists, check it for presence of magic
   number.  If found, then delete the file and report file
   doesn't exist as presence of magic number suggest that
   truncate action was complete. */
 
-  if (exist) {
+  if (os_file_exists(log_file_name)) {
     bool ret;
     pfs_os_file_t handle = os_file_create_simple_no_error_handling(
         innodb_log_file_key, log_file_name, OS_FILE_OPEN, OS_FILE_READ_WRITE,
@@ -1070,9 +1062,11 @@ bool is_active_truncate_log_present(space_id_t space_num) {
       os_file_delete(innodb_log_file_key, log_file_name);
       return (false);
     }
+
+    return (true);
   }
 
-  return (exist);
+  return (false);
 }
 
 /** Add undo tablespace to s_under_construction vector.
