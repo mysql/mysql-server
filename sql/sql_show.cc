@@ -656,6 +656,7 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
   Security_context *sctx = thd->security_context();
   uint db_access;
   HA_CREATE_INFO create;
+  bool schema_read_only{false};
   uint create_options = create_info ? create_info->options : 0;
   Protocol *protocol = thd->get_protocol();
   DBUG_TRACE;
@@ -705,6 +706,8 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
       return true;
     }
 
+    schema_read_only = schema->read_only();
+
     if (create.default_table_charset == nullptr)
       create.default_table_charset = thd->collation();
 
@@ -744,6 +747,12 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
   else
     buffer.append(STRING_WITH_LEN("'N'"));
   buffer.append(STRING_WITH_LEN(" */"));
+
+  /*
+    The read only option is not supported by the CREATE SCHEMA syntax,
+    so we enclose the output in a separate comment without version tag.
+  */
+  if (schema_read_only) buffer.append(STRING_WITH_LEN(" /* READ ONLY = 1 */"));
 
   protocol->store_string(buffer.ptr(), buffer.length(), buffer.charset());
 

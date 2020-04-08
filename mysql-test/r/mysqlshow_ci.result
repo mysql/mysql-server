@@ -140,6 +140,7 @@ Database: information_schema
 | ROUTINES                              |
 | SCHEMA_PRIVILEGES                     |
 | SCHEMATA                              |
+| SCHEMATA_EXTENSIONS                   |
 | ST_GEOMETRY_COLUMNS                   |
 | ST_SPATIAL_REFERENCE_SYSTEMS          |
 | ST_UNITS_OF_MEASURE                   |
@@ -223,6 +224,7 @@ Database: INFORMATION_SCHEMA
 | ROUTINES                              |
 | SCHEMA_PRIVILEGES                     |
 | SCHEMATA                              |
+| SCHEMATA_EXTENSIONS                   |
 | ST_GEOMETRY_COLUMNS                   |
 | ST_SPATIAL_REFERENCE_SYSTEMS          |
 | ST_UNITS_OF_MEASURE                   |

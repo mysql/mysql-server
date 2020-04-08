@@ -4415,6 +4415,69 @@ String *Item_func_get_dd_create_options::val_str(String *str) {
   return str;
 }
 
+/**
+  @brief
+    This function prepares string representing options for a schema.
+    This is required for IS implementation which uses views on DD tables.
+    With IS implementation using DD, all internal option values are
+    stored in the options field.
+    So, this UDF filters internal options from user defined options
+
+    Syntax:
+      string get_dd_schema_options(dd.schemata.options)
+
+    The arguments accept values from options from 'schemata' DD table,
+    as shown above.
+
+ */
+String *Item_func_get_dd_schema_options::val_str(String *str) {
+  DBUG_TRACE;
+
+  // Read schemata.options
+  String option;
+  String *option_ptr;
+  std::ostringstream oss("");
+
+  if ((option_ptr = args[0]->val_str(&option)) == nullptr) {
+    str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
+    return str;
+  }
+
+  // Read required values from properties
+  std::unique_ptr<dd::Properties> p(
+      dd::Properties::parse_properties(option_ptr->c_ptr_safe()));
+
+  // Warn if the property string is corrupt.
+  if (!p.get()) {
+    LogErr(WARNING_LEVEL, ER_WARN_PROPERTY_STRING_PARSE_FAILED,
+           option_ptr->c_ptr_safe());
+    if (DBUG_EVALUATE_IF("continue_on_property_string_parse_failure", 0, 1))
+      DBUG_ASSERT(false);
+    str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
+    return str;
+  }
+
+  char option_buff[350], *ptr;
+  ptr = option_buff;
+
+  // Print READ ONLY clause if set.
+  if (p->exists("read_only")) {
+    dd::String_type schema_read_only;
+    p->get("read_only", &schema_read_only);
+    DBUG_ASSERT(schema_read_only == "0" || schema_read_only == "1");
+    if (schema_read_only == "1") ptr = my_stpcpy(ptr, " READ ONLY=1");
+  }
+
+  if (ptr == option_buff)
+    oss << "";
+  else
+    oss << option_buff + 1;
+
+  str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
+
+  return str;
+}
+
 String *Item_func_internal_get_comment_or_error::val_str(String *str) {
   DBUG_TRACE;
   null_value = false;

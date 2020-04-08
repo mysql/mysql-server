@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,6 +57,7 @@
 #include "sql/sql_backup_lock.h"  // acquire_shared_backup_lock
 #include "sql/sql_base.h"         // find_temporary_table()
 #include "sql/sql_class.h"
+#include "sql/sql_db.h"  // check_schema_readonly
 #include "sql/sql_error.h"
 #include "sql/sql_handler.h"  // mysql_ha_rm_tables()
 #include "sql/sql_lex.h"
@@ -477,6 +478,8 @@ bool Sql_cmd_drop_trigger::execute(THD *thd) {
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   if (schema_mdl_locker.ensure_locked(thd->lex->spname->m_db.str)) return true;
+
+  if (check_schema_readonly(thd, thd->lex->spname->m_db.str)) return true;
 
   if (acquire_exclusive_mdl_for_trigger(thd, thd->lex->spname->m_db.str,
                                         thd->lex->spname->m_name.str))

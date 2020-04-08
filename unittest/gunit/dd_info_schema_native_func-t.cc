@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -195,6 +195,11 @@ TEST_F(ISNativeFuncTest, AllNullArguments) {
 
   // GET_DD_CREATE_OPTIONS(NULL, NULL, NULL)
   CREATE_ITEM(Item_func_get_dd_create_options, THREE_NULL_ARGS);
+  // Empty string value is returned in this case.
+  EXPECT_EQ(static_cast<size_t>(0), (item->val_str(&str))->length());
+
+  // GET_DD_SCHEMA_OPTIONS(NULL)
+  CREATE_ITEM(Item_func_get_dd_schema_options, NULL_ARG);
   // Empty string value is returned in this case.
   EXPECT_EQ(static_cast<size_t>(0), (item->val_str(&str))->length());
 

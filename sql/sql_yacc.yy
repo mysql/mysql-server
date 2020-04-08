@@ -499,6 +499,7 @@ void warn_about_deprecated_binary(THD *thd)
   1. We do not accept any reduce/reduce conflicts
   2. We should not introduce new shift/reduce conflicts any more.
 */
+
 %expect 63
 
 /*
@@ -6079,6 +6080,33 @@ part_option:
  End of partition parser part
 */
 
+alter_database_options:
+          alter_database_option
+        | alter_database_options alter_database_option
+        ;
+
+alter_database_option:
+          create_database_option
+        | READ_SYM ONLY_SYM opt_equal ternary_option
+          {
+            /*
+              If the statement has set READ ONLY already, and we repeat the
+              READ ONLY option in the statement, the option must be set to
+              the same value as before, otherwise, report an error.
+            */
+            if ((Lex->create_info->used_fields &
+                 HA_CREATE_USED_READ_ONLY) &&
+                (Lex->create_info->schema_read_only !=
+                    ($4 == Ternary_option::ON))) {
+              my_error(ER_CONFLICTING_DECLARATIONS, MYF(0), "READ ONLY", "=0",
+                  "READ ONLY", "=1");
+              MYSQL_YYABORT;
+            }
+            Lex->create_info->schema_read_only = ($4 == Ternary_option::ON);
+            Lex->create_info->used_fields |= HA_CREATE_USED_READ_ONLY;
+          }
+        ;
+
 opt_create_database_options:
           /* empty */ {}
         | create_database_options {}
@@ -7564,7 +7592,7 @@ alter_database_stmt:
             Lex->create_info->default_table_charset= NULL;
             Lex->create_info->used_fields= 0;
           }
-          create_database_options
+          alter_database_options
           {
             LEX *lex=Lex;
             lex->sql_command=SQLCOM_ALTER_DB;

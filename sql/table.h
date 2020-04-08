@@ -960,6 +960,17 @@ struct TABLE_SHARE {
   Sql_check_constraint_share_list *check_constraint_share_list{nullptr};
 
   /**
+    Schema's read only mode - ON (true) or OFF (false). This is filled in
+    when the share is initialized with meta data from DD. If the schema is
+    altered, the tables and share are removed. This can be done since
+    ALTER SCHEMA acquires exclusive meta data locks on the tables in the
+    schema. We set this only for non-temporary tables. Otherwise, the value
+    of the member below is 'NOT_SET'.
+  */
+  enum class Schema_read_only { NOT_SET, RO_OFF, RO_ON };
+  Schema_read_only schema_read_only{Schema_read_only::NOT_SET};
+
+  /**
     Set share's table cache key and update its db and table name appropriately.
 
     @param key_buff    Buffer with already built table cache key to be

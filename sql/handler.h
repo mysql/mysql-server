@@ -778,6 +778,13 @@ constexpr const uint64_t HA_CREATE_USED_START_TRANSACTION{1ULL << 31};
 constexpr const uint64_t HA_CREATE_USED_ENGINE_ATTRIBUTE{1ULL << 32};
 constexpr const uint64_t HA_CREATE_USED_SECONDARY_ENGINE_ATTRIBUTE{1ULL << 33};
 
+/**
+  ALTER SCHEMA|DATABASE has an explicit READ_ONLY clause.
+
+  Implies HA_CREATE_USED_READ_ONLY.
+*/
+constexpr const uint64_t HA_CREATE_USED_READ_ONLY{1ULL << 34};
+
 /*
   End of bits used in used_fields
 */
@@ -2650,6 +2657,7 @@ enum enum_stats_auto_recalc : int {
 struct HA_CREATE_INFO {
   const CHARSET_INFO *table_charset{nullptr};
   const CHARSET_INFO *default_table_charset{nullptr};
+  bool schema_read_only{false};
   LEX_STRING connect_string{nullptr, 0};
   const char *password{nullptr};
   const char *tablespace{nullptr};

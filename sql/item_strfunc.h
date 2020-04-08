@@ -1338,6 +1338,27 @@ class Item_func_get_dd_create_options final : public Item_str_func {
   String *val_str(String *) override;
 };
 
+class Item_func_get_dd_schema_options final : public Item_str_func {
+ public:
+  Item_func_get_dd_schema_options(const POS &pos, Item *a)
+      : Item_str_func(pos, a) {}
+
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
+  bool resolve_type(THD *) override {
+    // maximum string length of all options is expected
+    // to be less than 256 characters.
+    set_data_type_string(256, system_charset_info);
+    maybe_null = false;
+    null_on_null = false;
+
+    return false;
+  }
+
+  const char *func_name() const override { return "get_dd_schema_options"; }
+
+  String *val_str(String *) override;
+};
+
 class Item_func_internal_get_comment_or_error final : public Item_str_func {
  public:
   Item_func_internal_get_comment_or_error(const POS &pos, PT_item_list *list)

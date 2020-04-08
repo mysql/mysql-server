@@ -153,6 +153,13 @@ let $str = `$SELECT_CMD $WHERE_COND`;
 echo $str;
 eval INSERT INTO I_S_check_table(t) VALUES ("$str");
 
+let $WHERE_COND = AND TABLE_NAME='SCHEMATA_EXTENSIONS';
+replace_regex /(cat|sch).name COLLATE utf8_tolower_ci/\1.name/
+              /JSON_TABLE\(.*\)/JSON_TABLE(<elements masked>)/;
+let $str = `$SELECT_CMD $WHERE_COND`;
+echo $str;
+eval INSERT INTO I_S_check_table(t) VALUES ("$str");
+
 let $WHERE_COND = AND TABLE_NAME='ST_SPATIAL_REFERENCE_SYSTEMS';
 let $str = `$SELECT_CMD $WHERE_COND`;
 echo $str;

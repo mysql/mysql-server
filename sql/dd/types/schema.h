@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,8 +25,9 @@
 
 #include "my_inttypes.h"
 #include "sql/dd/impl/raw/object_keys.h"  // IWYU pragma: keep
-#include "sql/dd/sdi_fwd.h"               // RJ_Document
-#include "sql/dd/types/entity_object.h"   // dd::Entity_object
+#include "sql/dd/properties.h"
+#include "sql/dd/sdi_fwd.h"              // RJ_Document
+#include "sql/dd/types/entity_object.h"  // dd::Entity_object
 
 class THD;
 
@@ -82,6 +83,15 @@ class Schema : virtual public Entity_object {
 
   virtual bool update_aux_key(Aux_key *) const { return true; }
 
+  /////////////////////////////////////////////////////////////////////////
+  // options
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual const Properties &options() const = 0;
+  virtual Properties &options() = 0;
+  virtual bool set_options(const String_type &options_raw) = 0;
+  virtual bool set_options(const Properties &options) = 0;
+
  public:
   /////////////////////////////////////////////////////////////////////////
   // Default collation.
@@ -96,6 +106,12 @@ class Schema : virtual public Entity_object {
 
   virtual bool default_encryption() const = 0;
   virtual void set_default_encryption(bool default_encryption) = 0;
+
+  /////////////////////////////////////////////////////////////////////////
+  // Read only.
+  /////////////////////////////////////////////////////////////////////////
+  virtual bool read_only() const = 0;
+  virtual void set_read_only(bool state) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // created

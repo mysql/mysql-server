@@ -170,6 +170,7 @@ SET(DD_SOURCES
   dd/impl/system_views/role_table_grants.cc
   dd/impl/system_views/routines.cc
   dd/impl/system_views/schemata.cc
+  dd/impl/system_views/schemata_extensions.cc
   dd/impl/system_views/statistics.cc
   dd/impl/system_views/st_spatial_reference_systems.cc
   dd/impl/system_views/st_units_of_measure.cc

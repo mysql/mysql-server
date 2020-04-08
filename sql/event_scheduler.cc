@@ -542,6 +542,26 @@ bool Event_scheduler::run(THD *thd) {
 
     /* Gets a minimized version */
     if (queue->get_top_for_execution_if_time(thd, &event_name)) {
+      /* Report scheduling errors to the error log. */
+      if (thd->get_stmt_da()->cond_count() > 0) {
+        Diagnostics_area::Sql_condition_iterator it =
+            thd->get_stmt_da()->sql_conditions();
+        const Sql_condition *err;
+        while ((err = it++)) {
+          if (err->severity() == Sql_condition::SL_ERROR) {
+            char msg_buf[10 * STRING_BUFFER_USUAL_SIZE];
+            String err_msg(msg_buf, sizeof(msg_buf), system_charset_info);
+            err_msg.length(0);
+            err_msg.append("Event Scheduler: Unable to schedule event: ");
+            err_msg.append(err->message_text(), err->message_octet_length(),
+                           system_charset_info);
+
+            LogErr(ERROR_LEVEL, ER_EVENT_MESSAGE_STACK,
+                   static_cast<int>(err_msg.length()), err_msg.c_ptr());
+          }
+        }
+      }
+
       LogErr(INFORMATION_LEVEL, ER_SCHEDULER_STOPPING_FAILED_TO_GET_EVENT);
       if (event_name != nullptr) delete event_name;
       break;

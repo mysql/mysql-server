@@ -121,6 +121,7 @@
 #include "sql/sql_class.h"        // THD
 #include "sql/sql_const.h"
 #include "sql/sql_data_change.h"
+#include "sql/sql_db.h"       // check_schema_readonly
 #include "sql/sql_error.h"    // Sql_condition
 #include "sql/sql_handler.h"  // mysql_ha_flush_tables
 #include "sql/sql_lex.h"
@@ -605,6 +606,18 @@ static bool read_histograms(THD *thd, TABLE_SHARE *share,
   return false;
 }
 
+/** Update TABLE_SHARE with options from dd::Schema object */
+static void update_schema_options(const dd::Schema *sch_obj,
+                                  TABLE_SHARE *share) {
+  DBUG_ASSERT(sch_obj != nullptr);
+  if (sch_obj != nullptr) {
+    if (sch_obj->read_only())
+      share->schema_read_only = TABLE_SHARE::Schema_read_only::RO_ON;
+    else
+      share->schema_read_only = TABLE_SHARE::Schema_read_only::RO_OFF;
+  }
+}
+
 /**
   Get the TABLE_SHARE for a table.
 
@@ -777,6 +790,12 @@ TABLE_SHARE *get_table_share(THD *thd, const char *db, const char *table_name,
       DBUG_ASSERT(abstract_table->type() == dd::enum_table_type::BASE_TABLE);
       open_table_err = open_table_def(
           thd, share, *dynamic_cast<const dd::Table *>(abstract_table));
+
+      /*
+        Update the table share with meta data from the schema object to
+        have it readily available to avoid performance degradation.
+      */
+      if (!open_table_err) update_schema_options(sch, share);
 
       /*
         Read any existing histogram statistics from the data dictionary and
@@ -4811,6 +4830,15 @@ static bool open_and_process_routine(
           rt->m_cache_version = share_version;
         }
 
+        /*
+          If the child may be affected by update/delete and is in a read only
+          schema, we must reject the statement.
+        */
+        if (check_schema_readonly(thd, rt->db())) {
+          my_error(ER_SCHEMA_READ_ONLY, MYF(0), rt->db());
+          return true;
+        }
+
         if (!has_prelocking_list) {
           bool is_update =
               (rt->type() == Sroutine_hash_entry::FK_TABLE_ROLE_CHILD_UPDATE);
@@ -5302,7 +5330,6 @@ bool get_and_lock_tablespace_names(THD *thd, TABLE_LIST *tables_start,
   @retval false  Success.
   @retval true   Failure (e.g. connection was killed)
 */
-
 bool lock_table_names(THD *thd, TABLE_LIST *tables_start,
                       TABLE_LIST *tables_end, ulong lock_wait_timeout,
                       uint flags,
@@ -5423,6 +5450,10 @@ bool lock_table_names(THD *thd, TABLE_LIST *tables_start,
       !(flags & MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY) &&
       check_readonly(thd, true))
     return true;
+
+  // Check schema read only for all schemas.
+  for (const TABLE_LIST *table_l : schema_set)
+    if (check_schema_readonly(thd, table_l->db)) return true;
 
   /*
     Phase 4: Lock tablespace names. This cannot be done as part

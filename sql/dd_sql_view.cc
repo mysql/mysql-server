@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 #include <vector>
 
 #include "lex_string.h"
+#include "m_ctype.h"  // my_casedn_str
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
@@ -48,12 +49,14 @@
 #include "sql/error_handler.h"  // Internal_error_handler
 #include "sql/handler.h"        // HA_LEX_CREATE_TMP_TABLE
 #include "sql/mdl.h"
+#include "sql/mysqld.h"  // lower_case_table_names
 #include "sql/set_var.h"
 #include "sql/sp_head.h"    // sp_name
 #include "sql/sql_alter.h"  // Alter_info
 #include "sql/sql_base.h"   // open_tables
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
+#include "sql/sql_db.h"  // check_schema_readonly
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"   // LEX
 #include "sql/sql_view.h"  // mysql_register_view
@@ -263,13 +266,26 @@ static bool prepare_view_tables_list(THD *thd, const char *db,
     if (prepared_view_ids.find(view_ids.at(idx)) == prepared_view_ids.end()) {
       // Prepare TABLE_LIST object for the view and push_back
 
-      const char *db_name = strmake_root(thd->mem_root, schema_name.c_str(),
-                                         schema_name.length());
+      char *db_name = strmake_root(thd->mem_root, schema_name.c_str(),
+                                   schema_name.length());
       if (db_name == nullptr) return true;
 
-      const char *vw_name =
+      char *vw_name =
           strmake_root(thd->mem_root, view_name.c_str(), view_name.length());
       if (vw_name == nullptr) return true;
+
+      /*
+        With l_c_t_n == 2, the original lettercase is stored in the DD, so we
+        need to convert to lowercase to make sure we always lock with the same
+        lettercase. Note that there is an exception for information schema
+        view names, where the convention is to use capital letters, as stored
+        in the DD.
+      */
+      if (lower_case_table_names == 2) {
+        my_casedn_str(system_charset_info, db_name);
+        if (!is_infoschema_db(db_name))
+          my_casedn_str(system_charset_info, vw_name);
+      }
 
       auto vw = new (thd->mem_root)
           TABLE_LIST(db_name, schema_name.length(), vw_name, view_name.length(),
@@ -332,6 +348,11 @@ static bool mark_all_views_invalid(THD *thd, const char *db,
   if (thd->mdl_context.acquire_locks(&mdl_requests,
                                      thd->variables.lock_wait_timeout))
     return true;
+
+  // Check schema read only for all views.
+  for (auto view : *views_list) {
+    if (check_schema_readonly(thd, view->db)) return true;
+  }
 
   /*
     In the time gap of listing referencing views and acquiring MDL lock on them
@@ -414,6 +435,11 @@ static bool open_views_and_update_metadata(
                                         thd->variables.lock_wait_timeout))
         return true;
     }
+  }
+
+  // Check schema read only for all views.
+  for (auto view : *views) {
+    if (check_schema_readonly(thd, view->db)) return true;
   }
 
   for (auto view : *views) {

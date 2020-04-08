@@ -9369,6 +9369,8 @@ ER_INNODB_REDO_ARCHIVING_ENABLED
 ER_MDL_OUT_OF_RESOURCES
   eng "Not enough resources to complete lock request."
 
+ER_SCHEMA_READ_ONLY
+  eng "Schema '%s' is in read only mode."
 
 #
 #  End of 8.0 error messages (server-to-client).

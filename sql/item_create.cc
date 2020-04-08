@@ -1621,6 +1621,8 @@ static const std::pair<const char *, Create_func *> func_array[] = {
      SQL_FN_LIST_INTERNAL(Item_func_get_dd_index_sub_part_length, 5)},
     {"GET_DD_CREATE_OPTIONS",
      SQL_FN_INTERNAL(Item_func_get_dd_create_options, 3)},
+    {"GET_DD_SCHEMA_OPTIONS",
+     SQL_FN_INTERNAL(Item_func_get_dd_schema_options, 1)},
     {"GET_DD_TABLESPACE_PRIVATE_DATA",
      SQL_FN_INTERNAL(Item_func_get_dd_tablespace_private_data, 2)},
     {"GET_DD_INDEX_PRIVATE_DATA",

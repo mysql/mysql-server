@@ -139,6 +139,7 @@ Database: information_schema
 | ROLE_TABLE_GRANTS                     |
 | ROUTINES                              |
 | SCHEMATA                              |
+| SCHEMATA_EXTENSIONS                   |
 | SCHEMA_PRIVILEGES                     |
 | STATISTICS                            |
 | ST_GEOMETRY_COLUMNS                   |
@@ -222,6 +223,7 @@ Database: INFORMATION_SCHEMA
 | ROLE_TABLE_GRANTS                     |
 | ROUTINES                              |
 | SCHEMATA                              |
+| SCHEMATA_EXTENSIONS                   |
 | SCHEMA_PRIVILEGES                     |
 | STATISTICS                            |
 | ST_GEOMETRY_COLUMNS                   |
