@@ -531,6 +531,7 @@ public:
 
   struct Op : ListEnt {
     Op();
+    ~Op();
     Op* next() {
       return static_cast<Op*>(m_next);
     }
@@ -735,6 +736,7 @@ public:
     virtual void state_poll() = 0;
     virtual void str_state(char* str) const;
     void reject_row(Row* row, const Error& error);
+    virtual void handle_error(Op *op); // Release ops, reject rows at error
     ExecState::State m_execstate;
     uint m_nodeindex;   // index into ndb nodes array
     uint m_nodeid;
