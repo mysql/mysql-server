@@ -1,6 +1,10 @@
 # Get available drive letters on this host (must be at least two).
+# Bring the names into variables by sourcing the generated script.
+# The tmp script is not needed anymore, delete it.
+# Create build paths.
 # Create the target directories. This will fail e.g.
 # if the directories exist already.
+# restart: --innodb-directories=PATH_1;PATH_2;PATH_3
 CREATE TABLE t1 (
 c1 int unsigned NOT NULL AUTO_INCREMENT,
 c2 varchar(30) NOT NULL,
@@ -46,3 +50,4 @@ t1	CREATE TABLE `t1` (
  PARTITION p3 DATA DIRECTORY = 'PATH_3' ENGINE = InnoDB) */
 DROP TABLE t1;
 # Clean up: Delete target directories.
+# restart:
