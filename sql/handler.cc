@@ -6349,12 +6349,15 @@ int handler::multi_range_read_next(char **range_info) {
     */
     if (!((mrr_cur_range.range_flag & UNIQUE_RANGE) &&
           (mrr_cur_range.range_flag & EQ_RANGE))) {
+      DBUG_ASSERT(!result || result == HA_ERR_END_OF_FILE);
       result = read_range_next();
+      DBUG_EXECUTE_IF("bug20162055_DEADLOCK", result = HA_ERR_LOCK_DEADLOCK;);
       /*
-        On success or non-EOF errors check loop condition to filter
-        duplicates, if needed.
+        On success check loop condition to filter duplicates, if needed.
+        Exit on non-EOF error. Use next range on EOF error.
       */
-      if (result != HA_ERR_END_OF_FILE) continue;
+      if (!result) continue;
+      if (result != HA_ERR_END_OF_FILE) break;
     } else {
       if (was_semi_consistent_read()) goto scan_it_again;
     }
