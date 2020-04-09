@@ -2180,9 +2180,14 @@ loop_end:
         that we need a position to be read first.
       */
       tbl->prepare_for_position();
+      /*
+        A tmp table is moved to InnoDB if it doesn't fit in memory,
+        and InnoDB does not support fixed length string fields bigger
+        than 1024 bytes, so use a variable length string field.
+      */
+      Field_varstring *field = new Field_varstring(
+          tbl->file->ref_length, false, tbl->alias, tbl->s, &my_charset_bin);
 
-      Field_string *field= new Field_string(tbl->file->ref_length, 0,
-                                            tbl->alias, &my_charset_bin);
       if (!field)
         DBUG_RETURN(1);
       field->init(tbl);
@@ -2190,7 +2195,6 @@ loop_end:
         The field will be converted to varstring when creating tmp table if
         table to be updated was created by mysql 4.1. Deny this.
       */
-      field->can_alter_field_type= 0;
       Item_field *ifield= new Item_field((Field *) field);
       if (!ifield)
          DBUG_RETURN(1);
@@ -2389,8 +2393,9 @@ bool Query_result_update::send_data(List<Item> &not_used_values)
       do
       {
         tbl->file->position(tbl->record[0]);
-        memcpy((char*) tmp_table->visible_field_ptr()[field_num]->ptr,
-               (char*) tbl->file->ref, tbl->file->ref_length);
+        tmp_table->visible_field_ptr()[field_num]->store(
+            reinterpret_cast<const char *>(tbl->file->ref),
+            tbl->file->ref_length, &my_charset_bin);
         /*
          For outer joins a rowid field may have no NOT_NULL_FLAG,
          so we have to reset NULL bit for this field.
@@ -2646,10 +2651,16 @@ int Query_result_update::do_updates()
       uint field_num= 0;
       do
       {
-        if((local_error=
-              tbl->file->ha_rnd_pos(tbl->record[0],
-                                    (uchar *) tmp_table->visible_field_ptr()[field_num]->ptr)))
-        {
+        /*
+          The row-id is after the "length bytes", and the storage
+          engine knows its length. Pass the pointer to the data after
+          the "length bytes" to ha_rnd_pos().
+        */
+        uchar *data_ptr = NULL;
+        tmp_table->visible_field_ptr()[field_num]->get_ptr(&data_ptr);
+        if ((local_error = tbl->file->ha_rnd_pos(
+                 tbl->record[0],
+                 const_cast<uchar *>(data_ptr)))) {
           if (table->file->is_fatal_error(local_error))
             error_flags|= ME_FATALERROR;
 
