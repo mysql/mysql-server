@@ -2198,7 +2198,13 @@ void Arch_Page_Sys::track_initial_pages() {
     uint page_count;
     uint skip_count;
 
-    bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
+    bpage = buf_pool->oldest_hp.get();
+    if (bpage != nullptr) {
+      ut_ad(bpage->in_flush_list);
+    } else {
+      bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
+    }
+
     page_count = 0;
     skip_count = 0;
 
