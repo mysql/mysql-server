@@ -630,8 +630,13 @@ std::pair<bool, bool> Security_context::has_global_grant(const char *priv,
   std::string privilege(priv, priv_len);
 
   if (m_acl_map == nullptr) {
-    Acl_cache_lock_guard acl_cache_lock(current_thd,
-                                        Acl_cache_lock_mode::READ_MODE);
+    THD *thd = m_thd ? m_thd : current_thd;
+    if (thd == nullptr) {
+      DBUG_PRINT("error", ("Security Context must have valid THD handle to"
+                           " probe grants.\n"));
+      return {false, false};
+    }
+    Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
     if (!acl_cache_lock.lock(false)) return std::make_pair(false, false);
     Role_id key(&m_priv_user[0], m_priv_user_length, &m_priv_host[0],
                 m_priv_host_length);
