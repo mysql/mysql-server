@@ -2064,9 +2064,13 @@ bool Query_result_update::optimize() {
         that we need a position to be read first.
       */
       tbl->prepare_for_position();
-
-      Field_string *field = new (thd->mem_root) Field_string(
-          tbl->file->ref_length, false, tbl->alias, &my_charset_bin);
+      /*
+        A tmp table is moved to InnoDB if it doesn't fit in memory,
+        and InnoDB does not support fixed length string fields bigger
+        than 1024 bytes, so use a variable length string field.
+      */
+      Field_varstring *field = new (thd->mem_root) Field_varstring(
+          tbl->file->ref_length, false, tbl->alias, tbl->s, &my_charset_bin);
       if (!field) return true;
       field->init(tbl);
       Item_field *ifield = new (thd->mem_root) Item_field(field);
@@ -2253,8 +2257,9 @@ bool Query_result_update::send_data(THD *thd, List<Item> &) {
       TABLE *tbl = table;
       do {
         tbl->file->position(tbl->record[0]);
-        memcpy((char *)tmp_table->visible_field_ptr()[field_num]->field_ptr(),
-               (char *)tbl->file->ref, tbl->file->ref_length);
+        tmp_table->visible_field_ptr()[field_num]->store(
+            reinterpret_cast<const char *>(tbl->file->ref),
+            tbl->file->ref_length, &my_charset_bin);
         /*
          For outer joins a rowid field may have no NOT_NULL_FLAG,
          so we have to reset NULL bit for this field.
@@ -2471,10 +2476,15 @@ bool Query_result_update::do_updates(THD *thd) {
       TABLE *tbl = table;
       uint field_num = 0;
       do {
+        /*
+          The row-id is after the "length bytes", and the storage
+          engine knows its length. Pass the "data_ptr()" instead of
+          the "field_ptr()" to ha_rnd_pos().
+        */
         if ((local_error = tbl->file->ha_rnd_pos(
                  tbl->record[0],
-                 (uchar *)tmp_table->visible_field_ptr()[field_num]
-                     ->field_ptr()))) {
+                 const_cast<uchar *>(
+                     tmp_table->visible_field_ptr()[field_num]->data_ptr())))) {
           if (table->file->is_fatal_error(local_error))
             error_flags |= ME_FATALERROR;
 
