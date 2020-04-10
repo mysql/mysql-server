@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -70,33 +70,36 @@ UNIV_INLINE
 ulint ut_hash_ulint(ulint key, ulint table_size);
 
 /** Folds a 64-bit integer.
- @return folded value */
+@param[in]	d	64-bit integer
+@return folded value */
 UNIV_INLINE
-ulint ut_fold_ull(ib_uint64_t d) /*!< in: 64-bit integer */
-    MY_ATTRIBUTE((const));
+ulint ut_fold_ull(ib_uint64_t d);
+
 /** Folds a character string ending in the null character.
  @return folded value */
 UNIV_INLINE
 ulint ut_fold_string(const char *str) /*!< in: null-terminated string */
     MY_ATTRIBUTE((warn_unused_result));
+
 /** Looks for a prime number slightly greater than the given argument.
- The prime is chosen so that it is not near any power of 2.
- @return prime */
-ulint ut_find_prime(ulint n) /*!< in: positive number > 100 */
-    MY_ATTRIBUTE((const));
+The prime is chosen so that it is not near any power of 2.
+@param[in]	n  positive number > 100
+@return prime */
+ulint ut_find_prime(ulint n);
 
 /** Folds a pair of ulints.
- @return folded value */
+@param[in]	n1	first ulint
+@param[in]	n2	second ulint
+@return folded value */
 UNIV_INLINE
-ulint ut_fold_ulint_pair(ulint n1, /*!< in: ulint */
-                         ulint n2) /*!< in: ulint */
-    MY_ATTRIBUTE((const));
+ulint ut_fold_ulint_pair(ulint n1, ulint n2);
+
 /** Folds a binary string.
- @return folded value */
+@param[in]	str		string of bytes
+@param[in]	len		length
+@return folded value */
 UNIV_INLINE
-ulint ut_fold_binary(const byte *str, /*!< in: string of bytes */
-                     ulint len)       /*!< in: length */
-    MY_ATTRIBUTE((pure));
+ulint ut_fold_binary(const byte *str, ulint len);
 
 #include "ut0rnd.ic"
 

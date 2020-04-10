@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -72,20 +72,19 @@ bytes. The most significant byte is at the lowest address.
 UNIV_INLINE
 uint16_t mach_read_from_2(const byte *b) MY_ATTRIBUTE((warn_unused_result));
 
-/** The following function is used to convert a 16-bit data item
- to the canonical format, for fast bytewise equality test
- against memory.
- @return 16-bit integer in canonical format */
+/** The following function is used to convert a 16-bit data item to the
+canonical format, for fast bytewise equality test against memory.
+@param[in]  n   integer in machine-dependent format
+@return 16-bit integer in canonical format */
 UNIV_INLINE
-uint16_t mach_encode_2(ulint n) /*!< in: integer in machine-dependent format */
-    MY_ATTRIBUTE((const));
-/** The following function is used to convert a 16-bit data item
- from the canonical format, for fast bytewise equality test
- against memory.
- @return integer in machine-dependent format */
+uint16_t mach_encode_2(ulint n);
+
+/** The following function is used to convert a 16-bit data item from the
+canonical format, for fast bytewise equality test against memory.
+@param[in]  n   16-bit integer in canonical format
+@return integer in machine-dependent format */
 UNIV_INLINE
-ulint mach_decode_2(uint16 n) /*!< in: 16-bit integer in canonical format */
-    MY_ATTRIBUTE((const));
+ulint mach_decode_2(uint16 n);
 
 /** The following function is used to store data in 3 consecutive
 bytes. We store the most significant byte to the lowest address.
@@ -126,7 +125,7 @@ ulint mach_write_compressed(byte *b, ulint n);
 @param[in]	n	ulint integer to be stored
 @return compressed size in bytes */
 UNIV_INLINE
-uint32_t mach_get_compressed_size(ulint n) MY_ATTRIBUTE((const));
+uint32_t mach_get_compressed_size(ulint n);
 
 /** Read a 32-bit integer in a compressed form.
 @param[in,out]	b	pointer to memory where to read;

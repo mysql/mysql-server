@@ -195,8 +195,7 @@ The newer row formats, COMPRESSED and DYNAMIC, will have at least
 the DICT_TF_COMPACT bit set.
 @param[in]	flags	Tablespace flags
 @return true if valid, false if not */
-bool fsp_flags_is_valid(uint32_t flags)
-    MY_ATTRIBUTE((warn_unused_result, const));
+bool fsp_flags_is_valid(uint32_t flags) MY_ATTRIBUTE((warn_unused_result));
 
 /** Check if a space_id is the system temporary space ID.
 @param[in]	space_id	tablespace ID
