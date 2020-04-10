@@ -574,13 +574,13 @@ fil_space_t::flags  |     0     |    0    |     1      |    1
 ==================================================================
 @param[in]	table_flags	dict_table_t::flags
 @return tablespace flags (fil_space_t::flags) */
-uint32_t dict_tf_to_fsp_flags(uint32_t table_flags) MY_ATTRIBUTE((const));
+uint32_t dict_tf_to_fsp_flags(uint32_t table_flags);
 
 /** Extract the page size from table flags.
 @param[in]	flags	flags
 @return compressed page size, or 0 if not compressed */
 UNIV_INLINE
-const page_size_t dict_tf_get_page_size(uint32_t flags) MY_ATTRIBUTE((const));
+const page_size_t dict_tf_get_page_size(uint32_t flags);
 #endif /* !UNIV_HOTBACKUP */
 
 /** Determine the extent size (in pages) for the given table

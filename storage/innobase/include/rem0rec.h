@@ -639,7 +639,7 @@ rec_t *rec_convert_dtuple_to_rec(
  @return extra size */
 UNIV_INLINE
 ulint rec_get_converted_extra_size(ulint data_size, ulint n_fields,
-                                   bool has_ext) MY_ATTRIBUTE((const));
+                                   bool has_ext);
 /** Determines the size of a data tuple prefix in ROW_FORMAT=COMPACT.
  @return total size */
 ulint rec_get_converted_size_comp_prefix(

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -98,11 +98,10 @@ ibool page_zip_rec_needs_ext(ulint rec_size, ulint comp, ulint n_fields,
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Determine the guaranteed free space on an empty page.
- @return minimum payload size on the page */
-ulint page_zip_empty_size(
-    ulint n_fields, /*!< in: number of columns in the index */
-    ulint zip_size) /*!< in: compressed page size in bytes */
-    MY_ATTRIBUTE((const));
+@param[in]  n_fields  number of columns in the index
+@param[in]  zip_size  compressed page size in bytes
+@return minimum payload size on the page */
+ulint page_zip_empty_size(ulint n_fields, ulint zip_size);
 
 #ifndef UNIV_HOTBACKUP
 /** Check whether a tuple is too big for compressed table

@@ -216,9 +216,9 @@ UNIV_INLINE
 uint32_t ut_2_exp(uint32_t n);
 
 /** Calculates fast the number rounded up to the nearest power of 2.
- @return first power of 2 which is >= n */
-ulint ut_2_power_up(ulint n) /*!< in: number != 0 */
-    MY_ATTRIBUTE((const));
+@param[in]  n   number != 0
+@return first power of 2 which is >= n */
+ulint ut_2_power_up(ulint n);
 
 /** Determine how many bytes (groups of 8 bits) are needed to
 store the given number of bits.
