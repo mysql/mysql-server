@@ -10125,7 +10125,11 @@ int ha_innobase::sample_init(void *&scan_ctx, double sampling_percentage,
   trx_assign_read_view(trx);
 
   /* Parallel read is not currently supported for sampling. */
-  size_t n_threads = 1;
+  size_t n_threads = Parallel_reader::available_threads(1);
+
+  if (n_threads == 0) {
+    return (HA_ERR_SAMPLING_INIT_FAILED);
+  }
 
   Histogram_sampler *sampler = UT_NEW_NOKEY(Histogram_sampler(
       n_threads, sampling_seed, sampling_percentage, sampling_method));
