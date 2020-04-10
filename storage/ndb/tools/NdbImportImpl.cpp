@@ -3354,7 +3354,7 @@ NdbImportImpl::DiagTeam::read_old_diags(const char* name,
     return;
   }
   // csv input requires at least 2 instances
-  Buf buf[2] = {{true}, {true}};
+  Buf buf[2] = {true, true};
   CsvInput* csvinput[2];
   RowList rows_reject;
   RowMap rowmap_in[] = {m_util, m_util};
