@@ -47,7 +47,7 @@ Plugin_table table_tls_channel_status::m_table_def{
     " PROPERTY VARCHAR(128) NOT NULL,\n"
     " VALUE VARCHAR(2048) NOT NULL\n",
     /* Options */
-    " ENGINE=PERFORMANCE_SCHEMA CHARACTER SET utf8mb4 COLLATE utf8mb4_bin",
+    " ENGINE=PERFORMANCE_SCHEMA",
     /* Tablespace */
     nullptr};
 

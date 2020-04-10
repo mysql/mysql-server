@@ -870,7 +870,7 @@ table_io_waits_summary_by_index_usage	utf8mb4_0900_ai_ci	NULL
 table_io_waits_summary_by_table	utf8mb4_0900_ai_ci	NULL
 table_lock_waits_summary_by_table	utf8mb4_0900_ai_ci	NULL
 threads	utf8mb4_0900_ai_ci	NULL
-tls_channel_status	utf8mb4_bin	NULL
+tls_channel_status	utf8mb4_0900_ai_ci	NULL
 user_defined_functions	utf8mb4_0900_ai_ci	NULL
 user_variables_by_thread	utf8mb4_0900_ai_ci	NULL
 users	utf8mb4_0900_ai_ci	NULL
