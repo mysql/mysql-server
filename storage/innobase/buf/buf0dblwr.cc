@@ -1090,10 +1090,11 @@ dberr_t Double_write::sync_page_flush(buf_page_t *bpage) noexcept {
     while (!s_single_segments->enqueue(segment)) {
       UT_RELAX_CPU();
     }
-
-    /* true means we want to evict this page from the LRU list as well. */
-    buf_page_io_complete(bpage, true);
   }
+
+  /* true means we want to evict this page from the LRU list as well. */
+  buf_page_io_complete(bpage, true);
+
   return DB_SUCCESS;
 }
 
