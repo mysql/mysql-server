@@ -529,7 +529,8 @@ void mtr_t::check_nolog_and_mark() {
     return;
   }
 
-  m_impl.m_marked_nolog = s_logging.mark_mtr();
+  m_impl.m_marked_nolog =
+      s_logging.mark_mtr(default_indexer_t<>::get_rnd_index());
 
   /* Disable redo logging by this mtr if logging is globally off. */
   if (m_impl.m_marked_nolog) {
@@ -540,7 +541,7 @@ void mtr_t::check_nolog_and_mark() {
 
 void mtr_t::check_nolog_and_unmark() {
   if (m_impl.m_marked_nolog) {
-    s_logging.unmark_mtr();
+    s_logging.unmark_mtr(default_indexer_t<>::get_rnd_index());
     m_impl.m_marked_nolog = false;
 
     if (m_impl.m_log_mode == MTR_LOG_NO_REDO) {
@@ -867,7 +868,7 @@ int mtr_t::Logging::disable(THD *) {
 
 int mtr_t::Logging::wait_no_log_mtr(THD *thd) {
   auto wait_cond = [&](bool alert, bool &result) {
-    if (m_count_nologging_mtr.load() == 0) {
+    if (Counter::total(m_count_nologging_mtr) == 0) {
       result = false;
       return (0);
     }
