@@ -243,7 +243,15 @@ struct mtr_t {
     /** Initialize logging state at server start up. */
     void init() {
       m_state.store(ENABLED);
-      m_count_nologging_mtr.store(0);
+      /* We use sharded counter and force sequentially consistent counting
+      which is the general default for c++ atomic operation. If we try to
+      optimize it further specific to current operations, we could use
+      Release-Acquire ordering i.e. std::memory_order_release during counting
+      and std::memory_order_acquire while checking for the count. However,
+      sharding looks to be good enough for now and we should go for non default
+      memory ordering only with some visible proof for improvement. */
+      m_count_nologging_mtr.set_order(std::memory_order_seq_cst);
+      Counter::clear(m_count_nologging_mtr);
     }
 
     /** Disable mtr redo logging. Server is crash unsafe without logging.
@@ -260,12 +268,12 @@ struct mtr_t {
     /** Mark a no-logging mtr to indicate that it would not generate redo log
     and system is crash unsafe.
     @return true iff logging is disabled and mtr is marked. */
-    bool mark_mtr() {
+    bool mark_mtr(size_t index) {
       /* Have initial check to avoid incrementing global counter for regular
       case when redo logging is enabled. */
       if (is_disabled()) {
         /* Increment counter to restrict state change DISABLED to ENABLED. */
-        m_count_nologging_mtr.fetch_add(1);
+        Counter::inc(m_count_nologging_mtr, index);
 
         /* Check if the no-logging is still disabled. At this point, if we
         find the state disabled, it is no longer possible for the state move
@@ -273,16 +281,16 @@ struct mtr_t {
         if (is_disabled()) {
           return (true);
         }
-        m_count_nologging_mtr.fetch_sub(1);
+        Counter::dec(m_count_nologging_mtr, index);
       }
       return (false);
     }
 
     /** unmark a no logging mtr. */
-    void unmark_mtr() {
-      ut_ad(m_count_nologging_mtr.load() > 0);
+    void unmark_mtr(size_t index) {
       ut_ad(!is_enabled());
-      m_count_nologging_mtr.fetch_sub(1);
+      ut_ad(Counter::total(m_count_nologging_mtr) > 0);
+      Counter::dec(m_count_nologging_mtr, index);
     }
 
     /* @return flush loop count for faster response when logging is disabled. */
@@ -315,8 +323,10 @@ struct mtr_t {
     /** Global redo logging state. */
     std::atomic<State> m_state;
 
+    using Shards = Counter::Shards<128>;
+
     /** Number of no logging mtrs currently running. */
-    std::atomic<uint32_t> m_count_nologging_mtr;
+    Shards m_count_nologging_mtr;
   };
 
   /** Check if redo logging is disabled globally and mark

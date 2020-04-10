@@ -237,12 +237,25 @@ struct Shard {
   N m_n{};
 };
 
-template <size_t COUNT = 128>
-using Shards = std::array<Shard, COUNT>;
-
 using Function = std::function<void(const Type)>;
 
+/** Relaxed order by default. */
 constexpr auto Memory_order = std::memory_order_relaxed;
+
+template <size_t COUNT = 128>
+struct Shards {
+  /* Shard array. */
+  std::array<Shard, COUNT> m_arr{};
+
+  /* Memory order for the shards. */
+  std::memory_order m_memory_order{Memory_order};
+
+  /** Override default memory order.
+  @param[in]	memory_order	memory order */
+  void set_order(std::memory_order memory_order) {
+    m_memory_order = memory_order;
+  }
+};
 
 /** Increment the counter for a shard by n.
 @param[in,out]  shards          Sharded counter to increment.
@@ -251,7 +264,10 @@ constexpr auto Memory_order = std::memory_order_relaxed;
 @return previous value. */
 template <size_t COUNT>
 inline Type add(Shards<COUNT> &shards, size_t id, size_t n) {
-  return (shards[id % shards.size()].m_n.fetch_add(n, Memory_order));
+  auto &shard_arr = shards.m_arr;
+  auto order = shards.m_memory_order;
+
+  return (shard_arr[id % shard_arr.size()].m_n.fetch_add(n, order));
 }
 
 /** Decrement the counter for a shard by n.
@@ -261,7 +277,10 @@ inline Type add(Shards<COUNT> &shards, size_t id, size_t n) {
 @return previous value. */
 template <size_t COUNT>
 inline Type sub(Shards<COUNT> &shards, size_t id, size_t n) {
-  return (shards[id % shards.size()].m_n.fetch_sub(n, Memory_order));
+  auto &shard_arr = shards.m_arr;
+  auto order = shards.m_memory_order;
+
+  return (shard_arr[id % shard_arr.size()].m_n.fetch_sub(n, order));
 }
 
 /** Increment the counter of a shard by 1.
@@ -288,7 +307,10 @@ inline Type dec(Shards<COUNT> &shards, size_t id) {
 @return current value. */
 template <size_t COUNT>
 inline Type get(const Shards<COUNT> &shards, size_t id) noexcept {
-  return (shards[id % shards.size()].m_n.load(Memory_order));
+  auto &shard_arr = shards.m_arr;
+  auto order = shards.m_memory_order;
+
+  return (shard_arr[id % shard_arr.size()].m_n.load(order));
 }
 
 /** Iterate over the shards.
@@ -297,7 +319,7 @@ inline Type get(const Shards<COUNT> &shards, size_t id) noexcept {
 */
 template <size_t COUNT>
 inline void for_each(const Shards<COUNT> &shards, Function &&f) noexcept {
-  for (const auto &shard : shards) {
+  for (const auto &shard : shards.m_arr) {
     f(shard.m_n);
   }
 }
@@ -318,8 +340,8 @@ inline Type total(const Shards<COUNT> &shards) noexcept {
 @param[in,out] shards          Shards to clear. */
 template <size_t COUNT>
 inline void clear(Shards<COUNT> &shards) noexcept {
-  for (auto &shard : shards) {
-    shard.m_n.store(0, Memory_order);
+  for (auto &shard : shards.m_arr) {
+    shard.m_n.store(0, shards.m_memory_order);
   }
 }
 
@@ -330,7 +352,7 @@ template <size_t COUNT>
 inline void copy(Shards<COUNT> &dst, const Shards<COUNT> &src) noexcept {
   size_t i{0};
   for_each(src, [&](const Type count) {
-    dst[i++].m_n.store(count, std::memory_order_relaxed);
+    dst.m_arr[i++].m_n.store(count, dst.m_memory_order);
   });
 }
 
@@ -341,7 +363,7 @@ template <size_t COUNT>
 inline void add(Shards<COUNT> &dst, const Shards<COUNT> &src) noexcept {
   size_t i{0};
   for_each(src, [&](const Type count) {
-    dst[i++].m_n.fetch_add(count, std::memory_order_relaxed);
+    dst.m_arr[i++].m_n.fetch_add(count, dst.m_memory_order);
   });
 }
 }  // namespace Counter
