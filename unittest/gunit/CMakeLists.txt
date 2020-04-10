@@ -175,6 +175,7 @@ SET(TESTS
   varlen_sort
   collation_loader
   my_rcu_lock
+  unhex
   )
 
 SET(ALL_SMALL_TESTS)
