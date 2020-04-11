@@ -215,7 +215,7 @@ struct plugin_options_variables {
   ulong communication_max_message_size_var;
 
 #define DEFAULT_MESSAGE_CACHE_SIZE 1073741824
-#define MIN_MESSAGE_CACHE_SIZE DEFAULT_MESSAGE_CACHE_SIZE
+#define MIN_MESSAGE_CACHE_SIZE 134217728
 #define MAX_MESSAGE_CACHE_SIZE ULONG_MAX
   ulong message_cache_size_var;
 

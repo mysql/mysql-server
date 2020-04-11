@@ -1,0 +1,32 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+SET GLOBAL group_replication_message_cache_size = MESSAGE_CACHE_SIZE_MIN;
+include/start_and_bootstrap_group_replication.inc
+include/assert.inc [The value of group_replication_message_cache_size should be MESSAGE_CACHE_SIZE_MIN]
+[connection server2]
+SET GLOBAL group_replication_message_cache_size = MESSAGE_CACHE_SIZE_MIN;
+include/start_group_replication.inc
+[connection server1]
+CREATE TABLE t1 (c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT);
+# sending 200 messages of approx 1MB each
+# sent all 200 messages
+include/rpl_sync.inc
+[connection server1]
+include/diff_tables.inc [server1:test.t1,server2:test.t1]
+DROP TABLE t1;
+include/rpl_sync.inc
+[connection server2]
+include/assert.inc [Assert that we allocated more than 200 entries]
+include/assert.inc [Assert that the cache has not exceeded the cap]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_message_cache_size = MESSAGE_CACHE_SIZE_SAVED;
+[connection server1]
+include/assert.inc [Assert that we allocated more than 200 entries]
+include/assert.inc [Assert that the cache has not exceeded the cap]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_message_cache_size = MESSAGE_CACHE_SIZE_SAVED;
+include/group_replication_end.inc
