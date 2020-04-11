@@ -4,7 +4,7 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection server1]
 SET GLOBAL group_replication_message_cache_size= -200;
-ERROR 42000: The value -200 is not within the range of accepted values for the option group_replication_message_cache_size. The value must be between 1073741824 and 18446744073709551615 inclusive.
+ERROR 42000: The value -200 is not within the range of accepted values for the option group_replication_message_cache_size. The value must be between 134217728 and 18446744073709551615 inclusive.
 SET GLOBAL group_replication_message_cache_size= 5.5;
 ERROR 42000: Incorrect argument type to variable 'group_replication_message_cache_size'
 SET GLOBAL group_replication_message_cache_size= 3221225472;
@@ -12,11 +12,11 @@ SET GLOBAL group_replication_message_cache_size= 3221225472;
 include/start_and_bootstrap_group_replication.inc
 include/assert.inc [The value of group_replication_message_cache_size should be 3221225472]
 SET GLOBAL group_replication_message_cache_size= -100000000000000000;
-ERROR 42000: The value -100000000000000000 is not within the range of accepted values for the option group_replication_message_cache_size. The value must be between 1073741824 and 18446744073709551615 inclusive.
+ERROR 42000: The value -100000000000000000 is not within the range of accepted values for the option group_replication_message_cache_size. The value must be between 134217728 and 18446744073709551615 inclusive.
 SET GLOBAL group_replication_message_cache_size= 0.5;
 ERROR 42000: Incorrect argument type to variable 'group_replication_message_cache_size'
-SET GLOBAL group_replication_message_cache_size= 1000000000;
-ERROR 42000: The value 1000000000 is not within the range of accepted values for the option group_replication_message_cache_size. The value must be between 1073741824 and 18446744073709551615 inclusive.
+SET GLOBAL group_replication_message_cache_size = 134217727;
+ERROR 42000: The value 134217727 is not within the range of accepted values for the option group_replication_message_cache_size. The value must be between 134217728 and 18446744073709551615 inclusive.
 SET GLOBAL group_replication_message_cache_size= 9223372036854775808;
 include/assert.inc [The value of group_replication_message_cache_size should be 9223372036854775808]
 SET GLOBAL group_replication_message_cache_size= 18446744073709551615;
