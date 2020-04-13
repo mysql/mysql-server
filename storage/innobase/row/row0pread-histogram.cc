@@ -40,7 +40,7 @@ std::uniform_real_distribution<double> Histogram_sampler::m_distribution(0,
 Histogram_sampler::Histogram_sampler(size_t max_threads, int sampling_seed,
                                      double sampling_percentage,
                                      enum_sampling_method sampling_method)
-    : m_parallel_reader(Parallel_reader::available_threads(max_threads), false),
+    : m_parallel_reader(max_threads, false),
       m_random_generator(sampling_seed),
       m_sampling_method(sampling_method),
       m_sampling_percentage(sampling_percentage),
