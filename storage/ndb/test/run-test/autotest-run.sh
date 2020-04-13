@@ -104,6 +104,7 @@ do
                     default_force_cluster_restart_arg="$1";;
                 --default-behaviour-on-failure=*) default_behaviour_on_failure_arg="$1";;
                 --*clean-shutdown*) clean_shutdown_arg="$1";;
+                --enable-coverage) coverage_arg="$1";;
         esac
         shift
 done
@@ -429,6 +430,30 @@ if [ ${verbose} -gt 0 ] ; then
 fi
 
 return_code=0
+
+# If coverage is enabled, then enable clean shutdown and cluster restart
+# after every test.
+if [ -n "$coverage_arg" ];
+then
+  if [ -n "$default_force_cluster_restart_arg" ] &&
+     [ "$default_force_cluster_restart_arg" != \
+      "--default-force-cluster-restart=After" ];
+  then
+    echo "Conflicting force_cluster_restart parameter used with" \
+    "--enable-coverage"
+    exit 1
+  fi
+
+  if [ "$clean_shutdown_arg" == "--disable-clean-shutdown" ] ||
+     [ "$clean_shutdown_arg" == "--clean-shutdown=false" ] ||
+     [ "$clean_shutdown_arg" == "--clean-shutdown=0" ];
+  then
+    echo "Conflicting clean_shutdown parameter used with --enable-coverage"
+    exit 1
+  fi
+  default_force_cluster_restart_arg="--default-force-cluster-restart=After"
+  clean_shutdown_arg="--enable-clean-shutdown"
+fi
 
 # Setup configuration
 $atrt ${atrt_defaults_group_suffix_arg} Cdq \
