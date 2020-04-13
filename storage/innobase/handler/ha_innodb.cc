@@ -10128,14 +10128,15 @@ int ha_innobase::sample_init(void *&scan_ctx, double sampling_percentage,
   size_t n_threads = Parallel_reader::available_threads(1);
 
   if (n_threads == 0) {
-    return (HA_ERR_SAMPLING_INIT_FAILED);
+    return HA_ERR_SAMPLING_INIT_FAILED;
   }
 
   Histogram_sampler *sampler = UT_NEW_NOKEY(Histogram_sampler(
       n_threads, sampling_seed, sampling_percentage, sampling_method));
 
   if (sampler == nullptr) {
-    return (HA_ERR_OUT_OF_MEM);
+    Parallel_reader::release_threads(n_threads);
+    return HA_ERR_OUT_OF_MEM;
   }
 
   scan_ctx = static_cast<void *>(sampler);
