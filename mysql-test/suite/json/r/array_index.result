@@ -857,6 +857,20 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` FORCE INDEX (`i1`) where <cache>(100) member of (json_extract(`test`.`t1`.`f1`,'$[*]'))
 delete from t1;
 drop table t1;
+#Test CAST( .. AS YEAR ARRAY)
+create table t1 (id int not null key auto_increment, f1 json);
+create index i1 on t1((cast(f1->"$" as YEAR array)));
+ERROR 42000: This version of MySQL doesn't yet support 'CAST-ing data to array of YEAR'
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `f1` json DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+create table t1 (id int not null key auto_increment, f1 json, key i1 ((cast(f1->"$" as YEAR array)));
+ERROR 42000: This version of MySQL doesn't yet support 'CAST-ing data to array of YEAR'
 Test CAST( .. AS DATE ARRAY)
 create table t1 (id int not null key auto_increment, f1 json);
 create index i1 on t1((cast(f1->"$" as date array)));

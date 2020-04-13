@@ -9257,6 +9257,7 @@ Field *make_field(MEM_ROOT *mem_root, TABLE_SHARE *share, uchar *ptr,
                        ? field_length - 1 - MAX_DATETIME_WIDTH
                        : 0;
         break;
+      case MYSQL_TYPE_YEAR:
       default:
         DBUG_ASSERT(0);  // Shouldn't happen
         return nullptr;
@@ -9885,6 +9886,7 @@ void Field_typed_array::init(TABLE *table_arg) {
     case MYSQL_TYPE_LONGLONG:
     case MYSQL_TYPE_NEWDECIMAL:
       break;
+    case MYSQL_TYPE_YEAR:
     default:
       // Shouldn't happen
       DBUG_ASSERT(0); /* purecov: inspected */
@@ -9997,6 +9999,7 @@ int Field_typed_array::do_save_field_metadata(uchar *metadata_ptr) const {
     case MYSQL_TYPE_DATETIME2:
       *(metadata_ptr + 1) = decimals();
       return 2;
+    case MYSQL_TYPE_YEAR:
     default:
       break;
   }

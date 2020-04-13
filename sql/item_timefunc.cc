@@ -1309,6 +1309,73 @@ longlong Item_func_year::val_int() {
   return get_arg0_date(&ltime, TIME_FUZZY_DATE) ? 0 : (longlong)ltime.year;
 }
 
+longlong Item_typecast_year::val_int() {
+  DBUG_ASSERT(fixed == 1);
+  longlong value{0};
+  THD *thd = current_thd;
+  null_value = false;
+
+  // For temporal values, the YEAR value is extracted directly
+  if (args[0]->is_temporal()) {
+    MYSQL_TIME ltime;
+    if (!get_arg0_date(&ltime, TIME_FUZZY_DATE))
+      value = static_cast<longlong>(ltime.year);
+  } else {
+    bool is_int_type = args[0]->cast_to_int_type() != STRING_RESULT;
+    // For numeric data types, the int value is extracted
+    if (is_int_type) {
+      value = args[0]->val_int();
+      null_value = args[0]->null_value;
+    } else {
+      // For string-based data types, attempt int value conversion
+      StringBuffer<STRING_BUFFER_USUAL_SIZE> string_buffer;
+      const String *string_value;
+      if (!(string_value = args[0]->val_str(&string_buffer))) {
+        null_value = true;
+        return 0;
+      }
+      const CHARSET_INFO *const cs = string_value->charset();
+      const char *const start = string_value->ptr();
+      const char *const end_of_string = start + string_value->length();
+      const char *end_of_number = end_of_string;
+      int error{0};
+      value = cs->cset->strtoll10(cs, start, &end_of_number, &error);
+      // Report here the error as we have access to the string value
+      // extracted by val_str.
+      if (error != 0) {
+        ErrConvString err(start, cs);
+        push_warning_printf(current_thd, Sql_condition::SL_WARNING,
+                            ER_WRONG_VALUE, ER_THD(current_thd, ER_WRONG_VALUE),
+                            "YEAR", err.ptr());
+        null_value = true;
+        return 0;
+      }
+      if (end_of_number != end_of_string) {
+        ErrConvString err(start, cs);
+        push_warning_printf(
+            thd, Sql_condition::SL_WARNING, ER_TRUNCATED_WRONG_VALUE,
+            ER_THD(current_thd, ER_TRUNCATED_WRONG_VALUE), "YEAR", err.ptr());
+      }
+    }
+    // Only for string values we replace 0 with 2000
+    if (!is_int_type && value == 0) value += 2000;
+    // Values in the interval (0,70) represent years in the range [2000,2070)
+    if (value > 0 && value < 70) value += 2000;
+    // Values in the interval [70,100) represent years in the range [1970,2000)
+    if (value >= 70 && value < 100) value += 1900;
+  }
+  // If date extraction failed or the YEAR value is outside the allowed range
+  if (value > 2155 || (value < 1901 && (value != 0))) {
+    ErrConvString err(value);
+    push_warning_printf(
+        thd, Sql_condition::SL_WARNING, ER_TRUNCATED_WRONG_VALUE,
+        ER_THD(thd, ER_TRUNCATED_WRONG_VALUE), "YEAR", err.ptr());
+    null_value = true;
+    return 0;
+  }
+
+  return value;
+}
 /*
   Get information about this Item tree monotonicity
 

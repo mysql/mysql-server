@@ -360,6 +360,22 @@ class Item_func_year final : public Item_int_func {
   }
 };
 
+class Item_typecast_year final : public Item_int_func {
+ public:
+  Item_typecast_year(const POS &pos, Item *a) : Item_int_func(pos, a) {
+    set_data_type_year();
+  }
+  longlong val_int() override;
+  const char *func_name() const override { return "cast_as_year"; }
+  enum Functype functype() const override { return TYPECAST_FUNC; }
+  bool resolve_type(THD *) override {
+    if (reject_geometry_args(arg_count, args, this)) return true;
+    fix_char_length(4); /* 2155 */
+    maybe_null = true;
+    return false;
+  }
+};
+
 /**
   TS-TODO: This should probably have Item_int_func as parent class.
 */

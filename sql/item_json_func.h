@@ -1165,6 +1165,8 @@ class Item_func_json_value final : public Item_func {
 
   /// Implements val_int() for RETURNING SIGNED and RETURNING UNSIGNED.
   int64_t extract_integer_value();
+  /// Implements val_int() for RETURNING YEAR
+  int64_t extract_year_value();
   /// Implements get_date() for RETURNING DATE.
   bool extract_date_value(MYSQL_TIME *ltime);
   /// Implements get_time() for RETURNING TIME.

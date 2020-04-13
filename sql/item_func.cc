@@ -639,7 +639,9 @@ Field *Item_func::tmp_table_field(TABLE *table) {
 
   switch (result_type()) {
     case INT_RESULT:
-      if (max_length > MY_INT32_NUM_DECIMAL_DIGITS)
+      if (this->data_type() == MYSQL_TYPE_YEAR)
+        field = new (*THR_MALLOC) Field_year(maybe_null, item_name.ptr());
+      else if (max_length > MY_INT32_NUM_DECIMAL_DIGITS)
         field = new (*THR_MALLOC) Field_longlong(
             max_length, maybe_null, item_name.ptr(), unsigned_flag);
       else

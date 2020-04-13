@@ -3578,6 +3578,9 @@ static void set_data_type_from_cast_type(Item *item, Cast_target cast_type,
     case ITEM_CAST_DATE:
       item->set_data_type_date();
       return;
+    case ITEM_CAST_YEAR:
+      item->set_data_type_year();
+      return;
     case ITEM_CAST_TIME:
       item->set_data_type_time(decimals);
       return;
@@ -3675,6 +3678,9 @@ static void print_cast_type(Cast_target cast_type, const Item *item,
     case ITEM_CAST_DATE:
       str->append(STRING_WITH_LEN("date"));
       return;
+    case ITEM_CAST_YEAR:
+      str->append(STRING_WITH_LEN("year"));
+      return;
     case ITEM_CAST_TIME:
       str->append(STRING_WITH_LEN("time"));
       if (decimals > 0) str->append_parenthesized(decimals);
@@ -3737,6 +3743,7 @@ bool Item_func_array_cast::resolve_type(THD *) {
 static enum Item_result json_cast_result_type(Cast_target cast_type) {
   switch (cast_type) {
     case ITEM_CAST_SIGNED_INT:
+    case ITEM_CAST_YEAR:
     case ITEM_CAST_UNSIGNED_INT:
       return INT_RESULT;
     case ITEM_CAST_DATE:
@@ -4250,7 +4257,7 @@ Item_func_json_value::create_json_value_default(THD *thd, Item *item) {
            static_cast<uint64_t>(value) > INT64_MAX) ||
           (unsigned_flag && error == -1)) {
         my_error(ER_DATA_OUT_OF_RANGE, MYF(0),
-                 unsigned_flag ? "UNSIGNED_DEFAULT" : "SIGNED DEFAULT",
+                 unsigned_flag ? "UNSIGNED DEFAULT" : "SIGNED DEFAULT",
                  func_name());
         return nullptr;
       }
@@ -4263,6 +4270,30 @@ Item_func_json_value::create_json_value_default(THD *thd, Item *item) {
       if (item->get_date(ltime, 0)) return nullptr;
       DBUG_ASSERT(!thd->is_error());
       default_value->temporal_default = ltime;
+      break;
+    }
+    case ITEM_CAST_YEAR: {
+      StringBuffer<STRING_BUFFER_USUAL_SIZE> string_buffer;
+      const String *string_value = item->val_str(&string_buffer);
+      if (thd->is_error()) return nullptr;
+      DBUG_ASSERT(string_value != nullptr);
+      const CHARSET_INFO *const cs = string_value->charset();
+      const char *const start = string_value->ptr();
+      const char *const end_of_string = start + string_value->length();
+      const char *end_of_number = end_of_string;
+      int error = 0;
+      const int64_t value =
+          cs->cset->strtoll10(cs, start, &end_of_number, &error);
+      if (end_of_number != end_of_string) {
+        ErrConvString err(start, cs);
+        my_error(ER_TRUNCATED_WRONG_VALUE, MYF(0), "YEAR", err.ptr());
+        return nullptr;
+      }
+      if (error != 0 || (value > 2155) || (value < 1901 && value != 0)) {
+        my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "YEAR", func_name());
+        return nullptr;
+      }
+      default_value->integer_default = value;
       break;
     }
     case ITEM_CAST_TIME: {
@@ -4624,6 +4655,7 @@ String *Item_func_json_value::val_str(String *buffer) {
   switch (m_cast_target) {
     case ITEM_CAST_SIGNED_INT:
     case ITEM_CAST_UNSIGNED_INT:
+    case ITEM_CAST_YEAR:
       return val_string_from_int(buffer);
     case ITEM_CAST_DATE:
       return val_string_from_date(buffer);
@@ -4650,6 +4682,7 @@ double Item_func_json_value::val_real() {
   switch (m_cast_target) {
     case ITEM_CAST_SIGNED_INT:
     case ITEM_CAST_DATE:
+    case ITEM_CAST_YEAR:
     case ITEM_CAST_TIME:
     case ITEM_CAST_DATETIME:
       return static_cast<double>(val_int());
@@ -4675,6 +4708,8 @@ longlong Item_func_json_value::val_int() {
     case ITEM_CAST_SIGNED_INT:
     case ITEM_CAST_UNSIGNED_INT:
       return extract_integer_value();
+    case ITEM_CAST_YEAR:
+      return extract_year_value();
     case ITEM_CAST_DATE:
       return val_int_from_date();
     case ITEM_CAST_TIME:
@@ -4700,6 +4735,7 @@ my_decimal *Item_func_json_value::val_decimal(my_decimal *value) {
   switch (m_cast_target) {
     case ITEM_CAST_SIGNED_INT:
     case ITEM_CAST_UNSIGNED_INT:
+    case ITEM_CAST_YEAR:
       return val_decimal_from_int(value);
     case ITEM_CAST_DATE:
     case ITEM_CAST_DATETIME:
@@ -4727,6 +4763,7 @@ bool Item_func_json_value::get_date(MYSQL_TIME *ltime, my_time_flags_t flags) {
     case ITEM_CAST_UNSIGNED_INT:
       return get_date_from_int(ltime, flags);
     case ITEM_CAST_DATE:
+    case ITEM_CAST_YEAR:
       return extract_date_value(ltime);
     case ITEM_CAST_DATETIME:
       return extract_datetime_value(ltime);
@@ -4750,6 +4787,7 @@ bool Item_func_json_value::get_time(MYSQL_TIME *ltime) {
   DBUG_ASSERT(fixed);
   switch (m_cast_target) {
     case ITEM_CAST_SIGNED_INT:
+    case ITEM_CAST_YEAR:
     case ITEM_CAST_UNSIGNED_INT:
       return get_time_from_int(ltime);
     case ITEM_CAST_DATE:
@@ -4807,8 +4845,42 @@ int64_t Item_func_json_value::extract_integer_value() {
   return m_default_error->integer_default;
 }
 
+int64_t Item_func_json_value::extract_year_value() {
+  DBUG_ASSERT(m_cast_target == ITEM_CAST_YEAR);
+  DBUG_ASSERT(unsigned_flag == false);
+
+  Json_wrapper wr;
+  const Default_value *return_default = nullptr;
+  if (extract_json_value(&wr, &return_default)) return error_int();
+
+  if (null_value) {
+    DBUG_ASSERT(maybe_null);
+    return 0;
+  }
+
+  if (return_default != nullptr) {
+    DBUG_ASSERT(!null_value);
+    return return_default->integer_default;
+  }
+
+  bool err = false;
+  bool unsigned_val = false;
+  const int64_t value =
+      wr.coerce_int(func_name(), CE_IGNORE, &err, &unsigned_val);
+
+  if (!err && ((value == 0) || (value > 1900 && value <= 2155))) return value;
+
+  if (handle_json_value_conversion_error(m_on_error, "YEAR", this))
+    return error_int();
+
+  if (null_value) return 0;
+
+  return m_default_error->integer_default;
+}
+
 bool Item_func_json_value::extract_date_value(MYSQL_TIME *ltime) {
-  DBUG_ASSERT(m_cast_target == ITEM_CAST_DATE);
+  DBUG_ASSERT(m_cast_target == ITEM_CAST_DATE ||
+              m_cast_target == ITEM_CAST_YEAR);
   Json_wrapper wr;
   const Default_value *return_default = nullptr;
   if (extract_json_value(&wr, &return_default) || null_value) {

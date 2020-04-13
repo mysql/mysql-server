@@ -11109,6 +11109,13 @@ cast_type:
             $$.length= NULL;
             $$.dec= NULL;
           }
+        | YEAR_SYM
+          {
+            $$.target= ITEM_CAST_YEAR;
+            $$.charset= NULL;
+            $$.length= NULL;
+            $$.dec= NULL;
+          }
         | TIME_SYM type_datetime_precision
           {
             $$.target= ITEM_CAST_TIME;

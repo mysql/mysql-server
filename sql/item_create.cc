@@ -1822,6 +1822,13 @@ static bool validate_cast_type_and_extract_length(
     case ITEM_CAST_UNSIGNED_INT:
     case ITEM_CAST_DATE:
       return false;
+    case ITEM_CAST_YEAR:
+      if (as_array) {
+        my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                 "CAST-ing data to array of YEAR");
+        return true;
+      }
+      return false;
     case ITEM_CAST_TIME:
     case ITEM_CAST_DATETIME: {
       uint dec = c_dec ? strtoul(c_dec, nullptr, 10) : 0;
@@ -1977,6 +1984,8 @@ Item *create_func_cast(THD *thd, const POS &pos, Item *arg,
       return new (thd->mem_root) Item_typecast_time(pos, arg, precision);
     case ITEM_CAST_DATETIME:
       return new (thd->mem_root) Item_typecast_datetime(pos, arg, precision);
+    case ITEM_CAST_YEAR:
+      return new (thd->mem_root) Item_typecast_year(pos, arg);
     case ITEM_CAST_DECIMAL:
       return new (thd->mem_root)
           Item_typecast_decimal(pos, arg, length, precision);
