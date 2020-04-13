@@ -21,13 +21,16 @@ SET SQL_LOG_BIN=0;
 CREATE TABLE test.gms_listener_example(log_message TEXT);
 SET SQL_LOG_BIN=1;
 include/start_group_replication.inc
-SET SQL_LOG_BIN=0;
-TRUNCATE test.gms_listener_example;
-SET SQL_LOG_BIN=1;
+include/assert.inc [Assert that there are 2 notifications logged of type STATE %:2]
+include/assert.inc [Assert that there are 1 notifications logged of type VIEW %:%]
+include/assert.inc [Assert that there are 3 notifications logged]
+[Truncating gms_listener_example Table]
 [connection server1]
-SET SQL_LOG_BIN=0;
-TRUNCATE test.gms_listener_example;
-SET SQL_LOG_BIN=1;
+include/assert.inc [Assert that there are 2 notifications logged of type STATE %:2]
+include/assert.inc [Assert that there are 2 notifications logged of type STATE %:1]
+include/assert.inc [Assert that there are 2 notifications logged of type VIEW %:%]
+include/assert.inc [Assert that there are 6 notifications logged]
+[Truncating gms_listener_example Table]
 
 # 2. Change mode to SPM. M2 becomes primary due to weight.
 #    Assert ROLE notification is broadcasted.
