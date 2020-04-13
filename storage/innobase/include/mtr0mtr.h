@@ -189,6 +189,10 @@ struct mtr_t {
     at ::start and must decrement it back at ::commit. */
     bool m_marked_nolog;
 
+    /** Shard index used for incrementing global counter at ::start. We need
+    to use the same shard while decrementing counter at ::commit. */
+    size_t m_shard_index;
+
     /** Count of how many page initial log records have been
     written to the mtr log */
     ib_uint32_t m_n_log_recs;
@@ -341,6 +345,7 @@ struct mtr_t {
   mtr_t() {
     m_impl.m_state = MTR_STATE_INIT;
     m_impl.m_marked_nolog = false;
+    m_impl.m_shard_index = 0;
   }
 
   ~mtr_t() {
