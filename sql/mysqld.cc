@@ -3584,9 +3584,14 @@ extern "C" void *signal_hand(void *arg MY_ATTRIBUTE((unused))) {
         // fall through
       case SIGTERM:
       case SIGQUIT:
+#ifndef __APPLE__  // Mac OS doesn't have sigwaitinfo.
         if (sig_info.si_pid != getpid())
           LogErr(SYSTEM_LEVEL, ER_SERVER_SHUTDOWN_INFO, "<via user signal>",
                  server_version, MYSQL_COMPILATION_COMMENT_SERVER);
+#else
+        LogErr(SYSTEM_LEVEL, ER_SERVER_SHUTDOWN_INFO, "<via user signal>",
+               server_version, MYSQL_COMPILATION_COMMENT_SERVER);
+#endif  // __APPLE__
         // Switch to the file log message processing.
         query_logger.set_handlers((log_output_options != LOG_NONE) ? LOG_FILE
                                                                    : LOG_NONE);
