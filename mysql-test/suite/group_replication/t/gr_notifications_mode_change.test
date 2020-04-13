@@ -59,16 +59,14 @@ SET SQL_LOG_BIN=1;
 
 --source include/start_group_replication.inc
 
-SET SQL_LOG_BIN=0;
-TRUNCATE test.gms_listener_example;
-SET SQL_LOG_BIN=1;
+--let $expected_notifications= 2,STATE %:2|1,VIEW %:%
+--source ../include/assert_notifications.inc
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
-SET SQL_LOG_BIN=0;
-TRUNCATE test.gms_listener_example;
-SET SQL_LOG_BIN=1;
+--let $expected_notifications= 2,STATE %:2|2,STATE %:1|2,VIEW %:%
+--source ../include/assert_notifications.inc
 
 --echo
 --echo # 2. Change mode to SPM. M2 becomes primary due to weight.
