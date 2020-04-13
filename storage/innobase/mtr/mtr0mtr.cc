@@ -529,20 +529,23 @@ void mtr_t::check_nolog_and_mark() {
     return;
   }
 
-  m_impl.m_marked_nolog =
-      s_logging.mark_mtr(default_indexer_t<>::get_rnd_index());
+  size_t shard_index = default_indexer_t<>::get_rnd_index();
+  m_impl.m_marked_nolog = s_logging.mark_mtr(shard_index);
 
   /* Disable redo logging by this mtr if logging is globally off. */
   if (m_impl.m_marked_nolog) {
     ut_ad(m_impl.m_log_mode == MTR_LOG_ALL);
     m_impl.m_log_mode = MTR_LOG_NO_REDO;
+    m_impl.m_shard_index = shard_index;
   }
 }
 
 void mtr_t::check_nolog_and_unmark() {
   if (m_impl.m_marked_nolog) {
-    s_logging.unmark_mtr(default_indexer_t<>::get_rnd_index());
+    s_logging.unmark_mtr(m_impl.m_shard_index);
+
     m_impl.m_marked_nolog = false;
+    m_impl.m_shard_index = 0;
 
     if (m_impl.m_log_mode == MTR_LOG_NO_REDO) {
       /* Reset back to default mode. */

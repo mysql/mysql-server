@@ -277,9 +277,10 @@ inline Type add(Shards<COUNT> &shards, size_t id, size_t n) {
 @return previous value. */
 template <size_t COUNT>
 inline Type sub(Shards<COUNT> &shards, size_t id, size_t n) {
+  ut_ad(get(shards, id) >= n);
+
   auto &shard_arr = shards.m_arr;
   auto order = shards.m_memory_order;
-
   return (shard_arr[id % shard_arr.size()].m_n.fetch_sub(n, order));
 }
 
