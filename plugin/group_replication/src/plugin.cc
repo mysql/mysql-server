@@ -392,8 +392,16 @@ bool plugin_get_group_member_stats(
                                 applier_module, gcs_module, channel_name);
 }
 
-int plugin_group_replication_start(char **) {
+int plugin_group_replication_start(char **error_message) {
   DBUG_TRACE;
+
+  if (lv.plugin_is_being_uninstalled) {
+    std::string err_msg("Group Replication plugin is being uninstalled.");
+    *error_message =
+        (char *)my_malloc(PSI_NOT_INSTRUMENTED, err_msg.length() + 1, MYF(0));
+    strcpy(*error_message, err_msg.c_str());
+    return GROUP_REPLICATION_COMMAND_FAILURE;
+  }
 
   MUTEX_LOCK(lock, &lv.plugin_running_mutex);
   int error = 0;

@@ -119,7 +119,7 @@ SET @@GLOBAL.DEBUG='+d,group_replication_hold_stop_before_leave_the_group';
 --source include/rpl_connection.inc
 
 --disable_result_log
---error 0, ER_GROUP_REPLICATION_CONFIGURATION
+--error 0, ER_GROUP_REPLICATION_CONFIGURATION, ER_GROUP_REPLICATION_COMMAND_FAILURE
 START GROUP_REPLICATION USER='root' , PASSWORD='';
 --enable_result_log
 
@@ -155,6 +155,7 @@ call mtr.add_suppression("Fatal error during the incremental recovery process of
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("Plugin 'group_replication' has ref_count=1 after deinitialization.");
 SET SESSION sql_log_bin = 1;
 CHANGE MASTER TO MASTER_USER='root' FOR CHANNEL 'group_replication_recovery';
 
