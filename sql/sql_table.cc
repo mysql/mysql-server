@@ -1452,7 +1452,8 @@ bool mysql_rm_table(THD *thd, TABLE_LIST *tables, bool if_exists,
     thd->server_status |= SERVER_STATUS_IN_TRANS;
   }
 
-  if (thd->lex->drop_temporary && (thd->in_sub_stmt & SUB_STMT_FUNCTION) &&
+  if (thd->variables.binlog_format == BINLOG_FORMAT_STMT &&
+      thd->lex->drop_temporary && (thd->in_sub_stmt & SUB_STMT_FUNCTION) &&
       thd->binlog_evt_union.do_union) {
     /*
       This does not write the query into binary log, it just sets

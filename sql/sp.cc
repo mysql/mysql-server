@@ -2279,13 +2279,13 @@ uint sp_get_flags_for_command(LEX *lex) {
       break;
     case SQLCOM_CREATE_TABLE:
       if (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE)
-        flags = 0;
+        flags = sp_head::HAS_TEMP_TABLE_DDL;
       else
         flags = sp_head::HAS_COMMIT_OR_ROLLBACK;
       break;
     case SQLCOM_DROP_TABLE:
       if (lex->drop_temporary)
-        flags = 0;
+        flags = sp_head::HAS_TEMP_TABLE_DDL;
       else
         flags = sp_head::HAS_COMMIT_OR_ROLLBACK;
       break;

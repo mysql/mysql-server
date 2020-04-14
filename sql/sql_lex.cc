@@ -3461,6 +3461,7 @@ void Query_tables_list::reset_query_tables_list(bool init) {
   lock_tables_state = LTS_NOT_LOCKED;
   table_count = 0;
   using_match = false;
+  stmt_unsafe_with_mixed_mode = false;
 
   /* Check the max size of the enum to control new enum values definitions. */
   static_assert(BINLOG_STMT_UNSAFE_COUNT <= 32, "");

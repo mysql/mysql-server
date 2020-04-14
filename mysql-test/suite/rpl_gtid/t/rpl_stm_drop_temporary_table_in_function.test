@@ -1,8 +1,7 @@
 # ==== Purpose ====
 #
 # Verify that CREATE/DROP TEMPORARY TABLE in functions does not
-# cause replication break in mixed mode and statement mode when
-# when @@global.gtid_mode=ON.
+# cause replication break in statement mode when @@global.gtid_mode=ON.
 #
 # ==== Implementation ====
 #
@@ -23,7 +22,7 @@
 
 # This test script will be run only in non GR set up.
 --source include/not_group_replication_plugin.inc
---source include/have_binlog_format_mixed_or_statement.inc
+--source include/have_binlog_format_statement.inc
 --source include/set_privilege_checks_user_as_system_user.inc
 --source include/master-slave.inc
 

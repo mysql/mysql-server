@@ -2824,6 +2824,11 @@ class Query_tables_list {
   void set_using_match() { using_match = true; }
   bool get_using_match() { return using_match; }
 
+  void set_stmt_unsafe_with_mixed_mode() { stmt_unsafe_with_mixed_mode = true; }
+  bool is_stmt_unsafe_with_mixed_mode() const {
+    return stmt_unsafe_with_mixed_mode;
+  }
+
  private:
   /**
     Enumeration listing special types of statements.
@@ -2868,6 +2873,14 @@ class Query_tables_list {
      It will be set true if 'MATCH () AGAINST' is used in the statement.
   */
   bool using_match;
+
+  /**
+    This flag is set to true if statement is unsafe to be binlogged in STATEMENT
+    format, when in MIXED mode.
+    Currently this flag is set to true if stored program used in statement has
+    CREATE/DROP temporary table operation(s) as sub-statement(s).
+  */
+  bool stmt_unsafe_with_mixed_mode{false};
 };
 
 /*
