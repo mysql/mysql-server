@@ -24,14 +24,15 @@
 #ifndef ITEM_STRFUNC_INCLUDED
 #define ITEM_STRFUNC_INCLUDED
 
-#include <stddef.h>
 #include <sys/types.h>
-#include <algorithm>
+
+#include <cstdint>  // uint32_t
 
 #include "lex_string.h"
-#include "libbinlogevents/include/control_events.h"
+#include "libbinlogevents/include/uuid.h"  // Uuid
 #include "m_ctype.h"
 #include "my_dbug.h"
+#include "my_hostname.h"  // HOSTNAME_LENGTH
 #include "my_inttypes.h"
 #include "my_table_map.h"
 #include "my_time.h"
@@ -41,17 +42,19 @@
 #include "sql/enum_query_type.h"
 #include "sql/field.h"
 #include "sql/item.h"
-#include "sql/item_cmpfunc.h"  // Item_bool_func
-#include "sql/item_func.h"     // Item_func
-#include "sql/parse_tree_node_base.h"
+#include "sql/item_cmpfunc.h"    // Item_bool_func
+#include "sql/item_func.h"       // Item_func
+#include "sql/parse_location.h"  // POS
 #include "sql/sql_const.h"
-#include "sql/sql_digest.h"  // DIGEST_HASH_TO_STRING[_LENGTH]
 #include "sql_string.h"
+#include "template_utils.h"  // pointer_cast
 
 class MY_LOCALE;
 class PT_item_list;
 class THD;
 class my_decimal;
+struct Parse_context;
+
 template <class T>
 class List;
 

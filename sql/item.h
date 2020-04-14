@@ -23,16 +23,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <float.h>
-#include <limits.h>
-#include <math.h>
-#include <stdio.h>
-#include <string.h>
 #include <sys/types.h>
 
+#include <cfloat>
+#include <climits>
+#include <cmath>
+#include <cstdio>
+#include <cstring>
 #include <memory>
 #include <new>
 #include <string>
+#include <vector>
 
 #include "decimal.h"
 #include "field_types.h"  // enum_field_types
@@ -57,6 +58,7 @@
 #include "sql/field.h"  // Derivation
 #include "sql/mem_root_array.h"
 #include "sql/my_decimal.h"            // my_decimal
+#include "sql/parse_location.h"        // POS
 #include "sql/parse_tree_node_base.h"  // Parse_tree_node
 #include "sql/sql_array.h"             // Bounds_checked_array
 #include "sql/sql_const.h"

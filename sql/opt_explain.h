@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,6 +53,7 @@ launches the EXPLAIN process for "inner units" (==subqueries of this
 SELECT_LEX), by calling explain_unit() for each of them.
 */
 
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -64,11 +65,7 @@ SELECT_LEX), by calling explain_unit() for each of them.
 #include "sql/query_result.h"  // Query_result_send
 #include "sql/row_iterator.h"
 #include "sql/sql_cmd.h"  // Sql_cmd
-#include "sql/sql_lex.h"
 #include "sys/types.h"
-
-#include <functional>
-#include <string>
 
 class Item;
 class JOIN;

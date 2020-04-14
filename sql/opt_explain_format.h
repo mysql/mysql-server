@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,9 +28,11 @@
   EXPLAIN FORMAT=@<format@> @<command@>.
 */
 
-#include <string.h>
 #include <sys/types.h>
 
+#include <cstring>
+
+#include "my_alloc.h"  // MEM_ROOT
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -43,7 +45,6 @@ class Opt_trace_object;
 class Query_result;
 class SELECT_LEX_UNIT;
 class Window;
-struct MEM_ROOT;
 
 enum class enum_explain_type;
 

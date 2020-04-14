@@ -1,7 +1,7 @@
 #ifndef ITEM_INETFUNC_INCLUDED
 #define ITEM_INETFUNC_INCLUDED
 
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,8 +27,8 @@
 #include "my_inttypes.h"
 #include "sql/item_cmpfunc.h"  // Item_bool_func
 #include "sql/item_func.h"
-#include "sql/item_strfunc.h"  // Item_str_func
-#include "sql/parse_tree_node_base.h"
+#include "sql/item_strfunc.h"    // Item_str_func
+#include "sql/parse_location.h"  // POS
 
 class Item;
 class String;

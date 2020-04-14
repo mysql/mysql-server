@@ -44,13 +44,15 @@
 
 #include "sql/sql_partition.h"
 
-#include <assert.h>
-#include <limits.h>
-#include <string.h>
 #include <algorithm>
+#include <cassert>
+#include <climits>
+#include <cstring>
 
 #include "field_types.h"  // enum_field_types
+#include "m_ctype.h"      // system_charset_info
 #include "m_string.h"
+#include "my_alloc.h"  // operator new
 #include "my_bitmap.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
@@ -58,6 +60,7 @@
 #include "my_io.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "mysql/components/services/my_io_bits.h"  // File
 #include "mysql/components/services/psi_statement_bits.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_file.h"
@@ -98,9 +101,8 @@
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/thd_raii.h"
+#include "sql/thr_malloc.h"  // sql_calloc
 #include "sql_string.h"
-
-struct MEM_ROOT;
 
 using std::max;
 using std::min;

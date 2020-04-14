@@ -22,7 +22,7 @@
 
 #include "sql/parse_tree_items.h"
 
-#include <sys/types.h>
+#include <sys/types.h>  // TODO: replace with cstdint
 
 #include "m_string.h"
 #include "my_dbug.h"
@@ -35,6 +35,7 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/item_cmpfunc.h"  // Item_func_eq
 #include "sql/item_create.h"
+#include "sql/item_subselect.h"
 #include "sql/mysqld.h"  // using_udf_functions
 #include "sql/parse_tree_nodes.h"
 #include "sql/protocol.h"

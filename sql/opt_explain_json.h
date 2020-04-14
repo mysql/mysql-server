@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,6 @@
 
 #ifndef OPT_EXPLAIN_FORMAT_JSON_INCLUDED
 #define OPT_EXPLAIN_FORMAT_JSON_INCLUDED
-
-#include <stddef.h>
 
 #include "sql/opt_explain_format.h"
 #include "sql/parse_tree_node_base.h"

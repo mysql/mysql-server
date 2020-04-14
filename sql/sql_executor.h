@@ -28,13 +28,14 @@
   Classes for query execution.
 */
 
-#include <string.h>
 #include <sys/types.h>
+
+#include <cstring>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "my_alloc.h"
-#include "my_base.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_table_map.h"
@@ -54,6 +55,7 @@ class Item;
 class Item_sum;
 class JOIN;
 class JOIN_TAB;
+class KEY;
 class MultiRangeRowIterator;
 class Opt_trace_object;
 class QEP_TAB;

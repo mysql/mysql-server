@@ -23,8 +23,9 @@
 #ifndef SQL_UPDATE_INCLUDED
 #define SQL_UPDATE_INCLUDED
 
-#include <stddef.h>
 #include <sys/types.h>
+
+#include <cstddef>
 
 #include "my_base.h"
 #include "my_sqlcommand.h"
@@ -35,6 +36,7 @@
 class COPY_INFO;
 class Copy_field;
 class Item;
+class SELECT_LEX;
 class SELECT_LEX_UNIT;
 class Select_lex_visitor;
 class THD;

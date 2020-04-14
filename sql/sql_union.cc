@@ -34,17 +34,17 @@
 
 #include "sql/sql_union.h"
 
-#include <stdio.h>
-#include <string.h>
 #include <sys/types.h>
+
 #include <algorithm>
 #include <atomic>
+#include <cstdio>
+#include <cstdlib>  // abort
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "memory_debugging.h"
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_dbug.h"
@@ -52,13 +52,13 @@
 #include "my_sys.h"
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
+#include "prealloced_array.h"  // Prealloced_array
 #include "scope_guard.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/basic_row_iterators.h"
 #include "sql/composite_iterators.h"
 #include "sql/current_thd.h"
-#include "sql/debug_sync.h"     // DEBUG_SYNC
-#include "sql/error_handler.h"  // Strict_error_handler
+#include "sql/debug_sync.h"  // DEBUG_SYNC
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/item.h"
@@ -68,7 +68,6 @@
 #include "sql/opt_explain.h"  // explain_no_table
 #include "sql/opt_explain_format.h"
 #include "sql/opt_trace.h"
-#include "sql/opt_trace_context.h"
 #include "sql/parse_tree_node_base.h"
 #include "sql/parse_tree_nodes.h"  // PT_with_clause
 #include "sql/pfs_batch_mode.h"
@@ -85,8 +84,7 @@
 #include "sql/sql_list.h"
 #include "sql/sql_optimizer.h"  // JOIN
 #include "sql/sql_select.h"
-#include "sql/sql_tmp_table.h"  // tmp tables
-#include "sql/system_variables.h"
+#include "sql/sql_tmp_table.h"   // tmp tables
 #include "sql/table_function.h"  // Table_function
 #include "sql/thd_raii.h"
 #include "sql/timing_iterator.h"
@@ -95,6 +93,10 @@
 
 using std::move;
 using std::vector;
+
+class Item_rollup_group_item;
+class Item_rollup_sum_switcher;
+class Opt_trace_context;
 
 bool Query_result_union::prepare(THD *, List<Item> &, SELECT_LEX_UNIT *u) {
   unit = u;

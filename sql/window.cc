@@ -24,6 +24,7 @@
 #include "sql/window.h"
 
 #include <sys/types.h>
+
 #include <algorithm>
 #include <cstring>
 #include <initializer_list>
@@ -32,6 +33,7 @@
 
 #include "field_types.h"
 #include "m_ctype.h"
+#include "my_alloc.h"  // destroy
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
@@ -49,7 +51,8 @@
 #include "sql/item_timefunc.h"  // Item_date_add_interval
 #include "sql/key_spec.h"
 #include "sql/mem_root_array.h"
-#include "sql/parse_tree_nodes.h"  // PT_*
+#include "sql/parse_tree_nodes.h"   // PT_*
+#include "sql/parse_tree_window.h"  // PT_window
 #include "sql/parser_yystype.h"
 #include "sql/sql_array.h"
 #include "sql/sql_class.h"
@@ -64,6 +67,7 @@
 #include "sql/sql_tmp_table.h"  // free_tmp_table
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/temp_table_param.h"  // Temp_table_param
 #include "sql/thd_raii.h"
 #include "sql/window_lex.h"
 #include "sql_string.h"

@@ -22,8 +22,11 @@
 
 #include "sql/item_geofunc_internal.h"
 
-#include <string.h>
 #include <algorithm>
+#include <cstring>
+#include <iterator>
+#include <memory>
+
 #include <boost/concept/usage.hpp>
 #include <boost/geometry/algorithms/centroid.hpp>
 #include <boost/geometry/algorithms/is_valid.hpp>
@@ -33,8 +36,6 @@
 #include <boost/geometry/index/predicates.hpp>
 #include <boost/geometry/strategies/strategies.hpp>
 #include <boost/iterator/iterator_facade.hpp>
-#include <iterator>
-#include <memory>
 
 #include "m_ctype.h"
 #include "m_string.h"
@@ -45,8 +46,8 @@
 #include "sql/dd/cache/dictionary_client.h"
 #include "sql/item_func.h"
 #include "sql/mdl.h"
-#include "sql/parse_tree_node_base.h"
-#include "sql/sql_class.h"  // THD
+#include "sql/parse_location.h"  // POS
+#include "sql/sql_class.h"       // THD
 #include "sql/srs_fetcher.h"
 #include "sql/system_variables.h"
 #include "sql_string.h"

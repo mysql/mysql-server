@@ -22,21 +22,23 @@
 
 #include "sql/parse_tree_nodes.h"
 
-#include <string.h>
 #include <algorithm>
-#include <initializer_list>
+#include <cstring>
 #include <limits>
 #include <utility>
+#include <vector>
 
 #include "field_types.h"
 #include "m_ctype.h"
 #include "m_string.h"
+#include "mem_root_deque.h"
 #include "my_alloc.h"
 #include "my_dbug.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "sql/auth/sql_security_ctx.h"
+#include "sql/create_field.h"
 #include "sql/dd/info_schema/show.h"      // build_show_...
 #include "sql/dd/types/abstract_table.h"  // dd::enum_table_type::BASE_TABLE
 #include "sql/dd/types/column.h"
@@ -57,6 +59,7 @@
 #include "sql/parse_tree_column_attrs.h"  // PT_field_def_base
 #include "sql/parse_tree_hints.h"
 #include "sql/parse_tree_partitions.h"  // PT_partition
+#include "sql/parse_tree_window.h"      // PT_window
 #include "sql/parser_yystype.h"
 #include "sql/query_options.h"
 #include "sql/query_result.h"
@@ -83,6 +86,7 @@
 #include "sql/table_function.h"
 #include "sql/thr_malloc.h"
 #include "sql/trigger_def.h"
+#include "sql/window.h"  // Window
 #include "sql_string.h"
 #include "template_utils.h"
 
@@ -125,6 +129,21 @@ Table_ddl_parse_context::Table_ddl_parse_context(THD *thd_arg,
 PT_joined_table *PT_table_reference::add_cross_join(PT_cross_join *cj) {
   cj->add_rhs(this);
   return cj;
+}
+
+bool PT_joined_table::contextualize_tabs(Parse_context *pc) {
+  if (tr1 != nullptr) return false;  // already done
+
+  if (tab1_node->contextualize(pc) || tab2_node->contextualize(pc)) return true;
+
+  tr1 = tab1_node->value;
+  tr2 = tab2_node->value;
+
+  if (tr1 == nullptr || tr2 == nullptr) {
+    error(pc, join_pos);
+    return true;
+  }
+  return false;
 }
 
 bool PT_option_value_no_option_type_charset::contextualize(Parse_context *pc) {
@@ -2435,47 +2454,6 @@ Item *PT_border::build_addop(Item_cache *order_expr, bool prec, bool asc,
       addop = new Item_func_plus(order_expr, m_value);
   }
   return addop;
-}
-
-bool PT_window::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc)) return true;
-
-  if (m_partition_by != nullptr) {
-    if (m_partition_by->contextualize(pc)) return true;
-  }
-
-  if (m_order_by != nullptr) {
-    if (m_order_by->contextualize(pc)) return true;
-  }
-
-  if (m_frame != nullptr) {
-    for (auto bound : {m_frame->m_from, m_frame->m_to}) {
-      if (bound->m_border_type == WBT_VALUE_PRECEDING ||
-          bound->m_border_type == WBT_VALUE_FOLLOWING) {
-        auto **bound_i_ptr = bound->border_ptr();
-        if ((*bound_i_ptr)->itemize(pc, bound_i_ptr)) return true;
-      }
-    }
-  }
-
-  return false;
-}
-
-bool PT_window_list::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc)) return true;
-
-  uint count = pc->select->m_windows.elements;
-  List_iterator<Window> wi(m_windows);
-  Window *w;
-  while ((w = wi++)) {
-    static_cast<PT_window *>(w)->contextualize(pc);
-    w->set_def_pos(++count);
-  }
-
-  SELECT_LEX *select = pc->select;
-  select->m_windows.prepend(&m_windows);
-
-  return false;
 }
 
 Sql_cmd *PT_show_tables::make_cmd(THD *thd) {

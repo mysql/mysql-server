@@ -22,15 +22,18 @@
 
 #include "sql/sql_view.h"
 
-#include <limits.h>
-#include <stdio.h>
-#include <string.h>
 #include <sys/types.h>
+
+#include <climits>
+#include <cstdio>
+#include <cstring>
 #include <utility>
 
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
+#include "mem_root_deque.h"  // mem_root_deque
+#include "my_alloc.h"        // operator new
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -45,13 +48,15 @@
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/binlog.h"  // mysql_bin_log
 #include "sql/dd/cache/dictionary_client.h"
-#include "sql/dd/dd.h"          // dd::get_dictionary
-#include "sql/dd/dd_schema.h"   // dd::schema_exists
-#include "sql/dd/dd_view.h"     // dd::create_view
-#include "sql/dd/dictionary.h"  // dd::Dictionary
+#include "sql/dd/dd.h"           // dd::get_dictionary
+#include "sql/dd/dd_schema.h"    // dd::schema_exists
+#include "sql/dd/dd_view.h"      // dd::create_view
+#include "sql/dd/dictionary.h"   // dd::Dictionary
+#include "sql/dd/string_type.h"  // String_type
 #include "sql/dd/types/abstract_table.h"
-#include "sql/dd_sql_view.h"  // update_referencing_views_metadata
-#include "sql/derror.h"       // ER_THD
+#include "sql/dd/types/view.h"  // View
+#include "sql/dd_sql_view.h"    // update_referencing_views_metadata
+#include "sql/derror.h"         // ER_THD
 #include "sql/enum_query_type.h"
 #include "sql/error_handler.h"  // Internal_error_handler
 #include "sql/field.h"
@@ -61,6 +66,7 @@
 #include "sql/mysqld.h"     // stage_end reg_ext key_file_frm
 #include "sql/opt_trace.h"  // opt_trace_disable_if_no_view_access
 #include "sql/parse_tree_node_base.h"
+#include "sql/parser_yystype.h"  // Create_col_name_list
 #include "sql/query_options.h"
 #include "sql/sp_cache.h"   // sp_cache_invalidate
 #include "sql/sql_base.h"   // get_table_def_key
@@ -83,7 +89,6 @@
 
 namespace dd {
 class Schema;
-class View;
 }  // namespace dd
 
 /*

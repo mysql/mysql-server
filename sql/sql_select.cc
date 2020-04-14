@@ -32,22 +32,23 @@
 
 #include "sql/sql_select.h"
 
-#include <stdio.h>
-#include <string.h>
 #include <algorithm>
 #include <atomic>
+#include <cstdio>
+#include <cstring>
 #include <initializer_list>
 #include <memory>
+#include <string>
 
 #include "field_types.h"
 #include "lex_string.h"
-#include "limits.h"
 #include "m_ctype.h"
+#include "mem_root_deque.h"  // mem_root_deque
 #include "my_alloc.h"
 #include "my_bitmap.h"
+#include "my_byteorder.h"  // int8store, uint8korr
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
 #include "mysql/udf_registration_types.h"
@@ -98,7 +99,6 @@
 #include "sql/sql_list.h"
 #include "sql/sql_optimizer.h"  // JOIN
 #include "sql/sql_planner.h"    // calculate_condition_filter
-#include "sql/sql_show.h"       // append_identifier
 #include "sql/sql_test.h"       // misc. debug printing utilities
 #include "sql/sql_timer.h"      // thd_timer_set
 #include "sql/sql_tmp_table.h"  // tmp tables

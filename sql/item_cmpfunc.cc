@@ -29,11 +29,12 @@
 
 #include "sql/item_cmpfunc.h"
 
-#include <limits.h>
-#include <math.h>
-#include <string.h>
 #include <algorithm>
 #include <array>
+#include <cassert>
+#include <climits>
+#include <cmath>
+#include <cstring>
 #include <type_traits>
 #include <utility>
 
@@ -45,7 +46,6 @@
 #include "my_bit.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
-#include "my_macros.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "mysql/udf_registration_types.h"
@@ -70,7 +70,8 @@
 #include "sql/nested_join.h"
 #include "sql/opt_trace.h"  // Opt_trace_object
 #include "sql/opt_trace_context.h"
-#include "sql/parse_tree_helpers.h"  // PT_item_list
+#include "sql/parse_tree_helpers.h"    // PT_item_list
+#include "sql/parse_tree_node_base.h"  // Parse_context
 #include "sql/query_options.h"
 #include "sql/sql_array.h"
 #include "sql/sql_base.h"
@@ -86,7 +87,6 @@
 #include "sql/sql_time.h"  // str_to_datetime
 #include "sql/system_variables.h"
 #include "sql/thd_raii.h"
-#include "sql/thr_malloc.h"
 
 using std::max;
 using std::min;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,12 +23,14 @@
 #include "sql/parse_tree_partitions.h"
 
 #include "m_ctype.h"
+#include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_sys.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/derror.h"
 #include "sql/item.h"
+#include "sql/mem_root_array.h"
 #include "sql/parse_location.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"

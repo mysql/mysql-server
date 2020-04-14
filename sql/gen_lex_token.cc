@@ -21,16 +21,16 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <limits.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
 /* We only need the tokens here */
 #define YYSTYPE_IS_DECLARED
 
 #include "sql/lex.h"
 #include "sql/lex_symbol.h"
+#include "sql/sql_hints.yy.h"
 #include "sql/sql_yacc.h"
 #include "welcome_copyright_notice.h" /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 

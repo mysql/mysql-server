@@ -28,14 +28,14 @@
 #ifndef SQL_LEX_INCLUDED
 #define SQL_LEX_INCLUDED
 
-#include <string.h>
-#include <sys/types.h>
+#include <sys/types.h>  // TODO: replace with cstdint
 #include <algorithm>
+#include <cstring>
+#include <functional>
 #include <map>
 #include <memory>
 #include <new>
 #include <string>
-#include <type_traits>
 #include <utility>
 
 #include "lex_string.h"
@@ -44,17 +44,17 @@
 #include "map_helpers.h"
 #include "mem_root_deque.h"
 #include "memory_debugging.h"
+#include "my_alloc.h"  // Destroy_only
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_inttypes.h"
+#include "my_inttypes.h"  // TODO: replace with cstdint
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "my_table_map.h"
 #include "my_thread_local.h"
-#include "my_time.h"
-#include "mysql/components/services/psi_statement_bits.h"
 #include "mysql/psi/psi_base.h"
+#include "mysql/service_mysql_alloc.h"  // my_free
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"  // Prealloced_array
@@ -62,26 +62,22 @@
 #include "sql/dd/info_schema/table_stats.h"  // dd::info_schema::Table_stati...
 #include "sql/dd/info_schema/tablespace_stats.h"  // dd::info_schema::Tablesp...
 #include "sql/enum_query_type.h"
-#include "sql/field.h"
 #include "sql/handler.h"
-#include "sql/item.h"           // Name_resolution_context
-#include "sql/key_spec.h"       // KEY_CREATE_INFO
-#include "sql/lex_symbol.h"     // LEX_SYMBOL
-#include "sql/lexer_yystype.h"  // Lexer_yystype
+#include "sql/item.h"            // Name_resolution_context
+#include "sql/item_subselect.h"  // Subquery_strategy
+#include "sql/key_spec.h"        // KEY_CREATE_INFO
 #include "sql/mdl.h"
-#include "sql/mem_root_array.h"  // Mem_root_array
-#include "sql/opt_hints.h"
-#include "sql/parse_tree_hints.h"
+#include "sql/mem_root_array.h"        // Mem_root_array
 #include "sql/parse_tree_node_base.h"  // enum_parsing_context
 #include "sql/parser_yystype.h"
 #include "sql/query_options.h"  // OPTION_NO_CONST_TABLES
 #include "sql/row_iterator.h"
 #include "sql/set_var.h"
-#include "sql/sql_alter.h"  // Alter_info
 #include "sql/sql_array.h"
 #include "sql/sql_connect.h"  // USER_RESOURCES
 #include "sql/sql_const.h"
 #include "sql/sql_data_change.h"  // enum_duplicates
+#include "sql/sql_error.h"        // warn_on_deprecated_charset
 #include "sql/sql_list.h"
 #include "sql/sql_plugin_ref.h"
 #include "sql/sql_servers.h"  // Server_options
@@ -94,19 +90,41 @@
 #include "thr_lock.h"  // thr_lock_type
 #include "violite.h"   // SSL_type
 
+class Alter_info;
+class Event_parse_data;
+class Field;
 class Item_cond;
-class Item_exists_subselect;
-class Item_subselect;
-class Item_sum;
+class Item_func_match;
+class Item_func_set_user_var;
 class Item_rollup_group_item;
 class Item_rollup_sum_switcher;
-class Event_parse_data;
-class Item_func_match;
+class Item_sum;
+class JOIN;
+class Opt_hints_global;
+class Opt_hints_qb;
+class PT_subquery;
+class PT_with_clause;
 class Parse_tree_root;
+class Protocol;
+class Query_result;
 class Query_result_interceptor;
+class Query_result_union;
+class SELECT_LEX;
+class SELECT_LEX_UNIT;
+class Select_lex_visitor;
+class Sql_cmd;
+class THD;
+class Value_generator;
 class Window;
+class partition_info;
+class sp_head;
+class sp_name;
 class sp_pcontext;
+struct LEX;
+struct NESTED_JOIN;
+struct PSI_digest_locker;
 struct sql_digest_state;
+union Lexer_yystype;
 
 const size_t INITIAL_LEX_PLUGIN_LIST_SIZE = 16;
 
@@ -575,13 +593,6 @@ class Index_hint {
     +->select1.1.1->select1.1.2
 
 */
-
-class JOIN;
-class PT_with_clause;
-class Query_result;
-class Query_result_union;
-class RowIterator;
-struct LEX;
 
 /**
   This class represents a query expression (one query block or

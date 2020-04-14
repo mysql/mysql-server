@@ -1,7 +1,7 @@
 #ifndef ITEM_XMLFUNC_INCLUDED
 #define ITEM_XMLFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,13 +23,18 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_inttypes.h"
-#include "my_xml.h"            // my_xml_node_type
-#include "sql/item_strfunc.h"  // Item_str_func
-#include "sql/parse_tree_node_base.h"
-#include "sql_string.h"
+#include <sys/types.h>  // uint
 
-class Item;
+#include <vector>
+
+#include "my_inttypes.h"
+#include "my_xml.h"              // my_xml_node_type
+#include "sql/item.h"            // Check_function_as_value_generator_parameters
+#include "sql/item_strfunc.h"    // Item_str_func
+#include "sql/parse_location.h"  // POS
+#include "sql_string.h"
+#include "template_utils.h"  // pointer_cast
+
 class THD;
 
 /* This file defines all XML functions */

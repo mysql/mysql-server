@@ -21,16 +21,24 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <unicode/errorcode.h>
-#include <unicode/regex.h>
-#include <unicode/unistr.h>
 #include <cassert>
-#include <fstream>
+#include <cctype>
+#include <cstdio>
+#include <cstdlib>
+#include <fstream>  // IWYU pragma: keep
 #include <iostream>
 #include <map>
 #include <set>
+#include <string>
+#include <utility>
+
+#include <unicode/errorcode.h>
+#include <unicode/regex.h>
+#include <unicode/unistr.h>
+#include <unicode/utypes.h>
 
 #include "lex.h"  // symbols[]
+#include "sql/lex_symbol.h"
 #include "template_utils.h"
 #include "welcome_copyright_notice.h"  // ORACLE_WELCOME_COPYRIGHT_NOTICE
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,11 +27,15 @@
   ST_Buffer().
 */
 
-#include <ctype.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/types.h>
+
 #include <algorithm>
+#include <cctype>
+#include <cstdlib>
+#include <cstring>
+#include <memory>  // std::unique_ptr
+#include <vector>
+
 #include <boost/concept/usage.hpp>
 #include <boost/geometry/algorithms/buffer.hpp>
 #include <boost/geometry/strategies/agnostic/buffer_distance_symmetric.hpp>
@@ -45,8 +49,6 @@
 #include <boost/geometry/strategies/cartesian/buffer_side_straight.hpp>
 #include <boost/geometry/strategies/strategies.hpp>
 #include <boost/iterator/iterator_facade.hpp>
-#include <memory>  // std::unique_ptr
-#include <vector>
 
 #include "m_ctype.h"
 #include "m_string.h"
@@ -63,7 +65,7 @@
 #include "sql/item_geofunc.h"
 #include "sql/item_geofunc_internal.h"
 #include "sql/item_strfunc.h"
-#include "sql/parse_tree_node_base.h"
+#include "sql/parse_location.h"  // POS
 #include "sql/spatial.h"
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_error.h"

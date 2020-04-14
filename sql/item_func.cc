@@ -29,18 +29,19 @@
 
 #include "sql/item_func.h"
 
-#include <string.h>
-#include <time.h>
-
 #include <algorithm>
 #include <atomic>
 #include <cfloat>  // DBL_DIG
 #include <cmath>   // std::log2
+#include <cstdio>
+#include <cstring>
+#include <ctime>
 #include <iosfwd>
 #include <limits>  // std::numeric_limits
 #include <memory>
 #include <new>
 #include <string>
+#include <type_traits>
 #include <unordered_map>
 #include <utility>
 
@@ -54,7 +55,6 @@
 #include "my_double2ulonglong.h"
 #include "my_hostname.h"
 #include "my_loglevel.h"
-#include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
@@ -99,10 +99,11 @@
 #include "sql/item_strfunc.h"    // Item_func_concat_ws
 #include "sql/json_dom.h"        // Json_wrapper
 #include "sql/key.h"
-#include "sql/log_event.h"
+#include "sql/log_event.h"  // server_version
 #include "sql/mdl.h"
-#include "sql/mysqld.h"              // log_10 stage_user_sleep
-#include "sql/parse_tree_helpers.h"  // PT_item_list
+#include "sql/mysqld.h"                // log_10 stage_user_sleep
+#include "sql/parse_tree_helpers.h"    // PT_item_list
+#include "sql/parse_tree_node_base.h"  // Parse_context
 #include "sql/protocol.h"
 #include "sql/psi_memory_key.h"
 #include "sql/resourcegroups/resource_group.h"

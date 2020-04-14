@@ -43,66 +43,111 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #define Lex (YYTHD->lex)
 #define Select Lex->current_select()
 
+#include <sys/types.h>  // TODO: replace with cstdint
+
+#include <algorithm>
+#include <cerrno>
+#include <climits>
+#include <cstdlib>
+#include <cstring>
 #include <limits>
-#include <type_traits>                       // for std::remove_reference
+#include <memory>
+#include <string>
+#include <type_traits>
 #include <utility>
 
+#include "field_types.h"
+#include "ft_global.h"
+#include "lex_string.h"
+#include "libbinlogevents/include/binlog_event.h"
+#include "m_ctype.h"
+#include "m_string.h"
 #include "my_alloc.h"
+#include "my_base.h"
+#include "my_check_opt.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"  // TODO: replace with cstdint
+#include "my_sqlcommand.h"
+#include "my_sys.h"
+#include "my_thread_local.h"
+#include "my_time.h"
 #include "myisam.h"
 #include "myisammrg.h"
+#include "mysql/mysql_lex_string.h"
 #include "mysql/plugin.h"
+#include "mysql/udf_registration_types.h"
+#include "mysql_com.h"
+#include "mysql_time.h"
+#include "mysqld_error.h"
+#include "prealloced_array.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"
 #include "sql/binlog.h"                          // for MAX_LOG_UNIQUE_FN_EXT
+#include "sql/create_field.h"
 #include "sql/dd/info_schema/show.h"             // build_show_...
 #include "sql/dd/types/abstract_table.h"         // TT_BASE_TABLE
+#include "sql/dd/types/column.h"
 #include "sql/derror.h"
 #include "sql/event_parse_data.h"
-                                             // used in RESET_MASTER parsing check
+#include "sql/field.h"
 #include "sql/gis/srid.h"                    // gis::srid_t
+#include "sql/handler.h"
+#include "sql/item.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/item_create.h"
+#include "sql/item_func.h"
 #include "sql/item_geofunc.h"
 #include "sql/item_json_func.h"
 #include "sql/item_regexp_func.h"
+#include "sql/item_row.h"
+#include "sql/item_strfunc.h"
+#include "sql/item_subselect.h"
+#include "sql/item_sum.h"
+#include "sql/item_timefunc.h"
 #include "sql/json_dom.h"
 #include "sql/json_syntax_check.h"           // is_valid_json_syntax
 #include "sql/key_spec.h"
 #include "sql/keycaches.h"
 #include "sql/lex_symbol.h"
 #include "sql/lex_token.h"
-#include "sql/log_event.h"
-#include "sql/opt_explain_json.h"
-#include "sql/opt_explain_traditional.h"
+#include "sql/lexer_yystype.h"
+#include "sql/mdl.h"
+#include "sql/mem_root_array.h"
+#include "sql/mysqld.h"
+#include "sql/options_mysqld.h"
+#include "sql/parse_location.h"
+#include "sql/parse_tree_helpers.h"
+#include "sql/parse_tree_node_base.h"
 #include "sql/parser_yystype.h"
+#include "sql/partition_element.h"
+#include "sql/partition_info.h"
 #include "sql/protocol.h"
-#include "sql/resourcegroups/resource_group_mgr.h" // resource_group_support
-#include "sql/resourcegroups/resource_group_sql_cmd.h" // Sql_cmd_*_resource_group etc.
+#include "sql/query_options.h"
+#include "sql/resourcegroups/platform/thread_attrs_api.h"
+#include "sql/resourcegroups/resource_group_basic_types.h"
 #include "sql/rpl_filter.h"
-#include "sql/rpl_msr.h"       /* multisource replication */
-#include "sql/rpl_slave.h"
 #include "sql/rpl_slave.h"                       // Sql_cmd_change_repl_filter
 #include "sql/set_var.h"
 #include "sql/sp.h"
 #include "sql/sp_head.h"
 #include "sql/sp_instr.h"
 #include "sql/sp_pcontext.h"
-#include "sql/sp_rcontext.h"
+#include "sql/spatial.h"
 #include "sql/sql_admin.h"                         // Sql_cmd_analyze/Check..._table
 #include "sql/sql_alter.h"                         // Sql_cmd_alter_table*
-#include "sql/sql_backup_lock.h"                   // Sql_cmd_lock_instance,
-                                               // Sql_cmd_unlock_instance
-#include "sql/sql_base.h"                        // find_temporary_table
+#include "sql/sql_backup_lock.h"                   // Sql_cmd_lock_instance
 #include "sql/sql_class.h"      /* Key_part_spec, enum_filetype */
 #include "sql/sql_cmd_srs.h"
+#include "sql/sql_connect.h"
 #include "sql/sql_component.h"
+#include "sql/sql_error.h"
+#include "sql/sql_exchange.h"
 #include "sql/sql_get_diagnostics.h"               // Sql_cmd_get_diagnostics
 #include "sql/sql_handler.h"                       // Sql_cmd_handler_*
 #include "sql/sql_import.h"                        // Sql_cmd_import_table
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
 #include "sql/sql_parse.h"                        /* comp_*_creator */
-#include "sql/sql_partition.h"                    /* mem_alloc_error */
-#include "sql/sql_partition_admin.h"               // Sql_cmd_alter_table_*_part.
 #include "sql/sql_plugin.h"                      // plugin_is_ready
 #include "sql/sql_profile.h"
 #include "sql/sql_select.h"                        // Sql_cmd_select...
@@ -112,8 +157,18 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "sql/sql_table.h"                        /* primary_key_name */
 #include "sql/sql_tablespace.h"                  // Sql_cmd_alter_tablespace
 #include "sql/sql_trigger.h"                     // Sql_cmd_create_trigger
-#include "sql/sql_truncate.h"                      // Sql_cmd_truncate_table
+#include "sql/sql_udf.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
 #include "sql/table_function.h"
+#include "sql/thr_malloc.h"
+#include "sql/trigger_def.h"
+#include "sql/window_lex.h"
+#include "sql/xa.h"
+#include "sql_chars.h"
+#include "sql_string.h"
+#include "thr_lock.h"
+#include "violite.h"
 
 /* this is to get the bison compilation windows warnings out */
 #ifdef _MSC_VER

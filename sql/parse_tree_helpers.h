@@ -23,31 +23,32 @@
 #ifndef PARSE_TREE_HELPERS_INCLUDED
 #define PARSE_TREE_HELPERS_INCLUDED
 
-#include <stddef.h>
-#include <sys/types.h>
+#include <sys/types.h>  // TODO: replace with cstdint
 #include <new>
 
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
-#include "my_inttypes.h"
+#include "my_inttypes.h"  // TODO: replace with cstdint
 #include "mysql_time.h"
 #include "sql/item.h"
-#include "sql/item_func.h"  // Item etc.
-#include "sql/mem_root_array.h"
+#include "sql/item_func.h"       // Item etc.
+#include "sql/parse_location.h"  // POS
 #include "sql/parse_tree_node_base.h"
 #include "sql/resourcegroups/resource_group_basic_types.h"  // resourcegroups::Range
 #include "sql/set_var.h"                                    // enum_var_type
+#include "sql/sql_error.h"
 #include "sql/sql_list.h"
 
 class String;
 class THD;
 class my_decimal;
+struct Column_parse_context;
 struct MEM_ROOT;
 struct handlerton;
 
-struct Parse_context;
-struct Column_parse_context;
+template <typename Element_type>
+class Mem_root_array;
 
 /**
   Base class for parse-time Item objects

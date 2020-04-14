@@ -29,11 +29,11 @@
 
 #include "sql/aggregate_check.h"
 
-#include "my_config.h"
-
-#include <stdio.h>
+#include <cstdio>
+#include <initializer_list>
 #include <utility>
 
+#include "mem_root_deque.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_sys.h"
@@ -46,7 +46,7 @@
 #include "sql/nested_join.h"
 #include "sql/opt_trace.h"
 #include "sql/opt_trace_context.h"
-#include "sql/parse_tree_nodes.h"
+#include "sql/parser_yystype.h"
 #include "sql/sql_base.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"

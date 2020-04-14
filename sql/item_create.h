@@ -30,10 +30,11 @@
   Builder for SQL functions.
 */
 
-#include <stddef.h>
+#include <cstddef>
 
 #include "lex_string.h"
-#include "sql/parse_tree_node_base.h"  // POS
+#include "my_inttypes.h"         // uint
+#include "sql/parse_location.h"  // POS
 
 /**
   @addtogroup GROUP_PARSER

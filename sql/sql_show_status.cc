@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,17 +22,18 @@
 
 #include "sql/sql_show_status.h"
 
-#include <stddef.h>
-
 #include "lex_string.h"
 #include "m_string.h"  // STRING_WITH_LEN
+#include "my_alloc.h"  // operator new
 #include "my_sqlcommand.h"
 #include "sql/item_cmpfunc.h"  // Item_func_like
 #include "sql/mem_root_array.h"
-#include "sql/parse_tree_items.h"  // PTI_simple_ident_ident
-#include "sql/parse_tree_nodes.h"  // PT_select_item_list
-#include "sql/sql_class.h"         // THD
-#include "sql/sql_lex.h"           // Query_options
+#include "sql/parse_tree_items.h"      // PTI_simple_ident_ident
+#include "sql/parse_tree_node_base.h"  // Parse_context
+#include "sql/parse_tree_nodes.h"      // PT_select_item_list
+#include "sql/parser_yystype.h"        // Create_col_name_list
+#include "sql/sql_class.h"             // THD
+#include "sql/sql_lex.h"               // Query_options
 #include "sql/strfunc.h"
 #include "sql_string.h"
 

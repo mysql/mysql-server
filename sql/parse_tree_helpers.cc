@@ -22,31 +22,41 @@
 
 #include "sql/parse_tree_helpers.h"
 
+#include <cstddef>
+#include <initializer_list>
+#include <utility>
+#include <vector>
+
+#include "lex_string.h"
 #include "m_string.h"
+#include "my_alloc.h"
 #include "my_dbug.h"
-#include "my_inttypes.h"
+#include "my_inttypes.h"  // TODO: replace with cstdint
 #include "my_sqlcommand.h"
 #include "my_sys.h"
-#include "mysql/components/services/log_shared.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
+#include "sql/current_thd.h"
+#include "sql/dd/info_schema/show.h"
 #include "sql/derror.h"
 #include "sql/handler.h"
-#include "sql/mysqld.h"
+#include "sql/mem_root_array.h"
+#include "sql/parse_location.h"
 #include "sql/parse_tree_column_attrs.h"
 #include "sql/parse_tree_nodes.h"
+#include "sql/parser_yystype.h"
 #include "sql/resourcegroups/platform/thread_attrs_api.h"
 #include "sql/resourcegroups/resource_group_mgr.h"  // Resource_group_mgr
 #include "sql/sp_head.h"
 #include "sql/sp_instr.h"
 #include "sql/sp_pcontext.h"
+#include "sql/sql_alter.h"
 #include "sql/sql_class.h"
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_plugin_ref.h"
-#include "sql/system_variables.h"
 #include "sql/trigger_def.h"
 #include "sql_string.h"
 

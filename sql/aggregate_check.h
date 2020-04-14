@@ -502,7 +502,6 @@ VE2 are NULL then VE3 must be NULL, which makes the dependency NULL-friendly.
 
 */
 
-#include <stddef.h>
 #include <sys/types.h>
 
 #include "my_alloc.h"
@@ -513,14 +512,15 @@ VE2 are NULL then VE3 must be NULL, which makes the dependency NULL-friendly.
 #include "sql/item_cmpfunc.h"    // Item_func_any_value
 #include "sql/item_sum.h"        // Item_sum
 #include "sql/mem_root_array.h"  // Mem_root_array
-#include "sql/sql_lex.h"
 
 class Opt_trace_context;
 class Opt_trace_object;
+class SELECT_LEX;
 class THD;
 struct TABLE_LIST;
+
 template <class T>
-class List;
+class mem_root_deque;
 
 /**
    Checks for queries which have DISTINCT.

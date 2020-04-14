@@ -31,43 +31,54 @@
 
 #include "sql/item_strfunc.h"
 
-#include <stdio.h>
-#include <string.h>
-#include <zconf.h>
-#include <zlib.h>
+#include <fcntl.h>
 
 #include <algorithm>
 #include <atomic>
-#include <cmath>  // std::isfinite
+#include <climits>
+#include <cmath>    // std::isfinite
+#include <cstddef>  // size_t
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <memory>
 #include <ostream>
 #include <string>
 #include <utility>
+#include <vector>  // vector
+
+#include <openssl/sha.h>  // SHA256_DIGEST_LENGTH
+#include <zconf.h>
+#include <zlib.h>
 
 #include "base64.h"  // base64_encode_max_arg_length
 #include "decimal.h"
+#include "field_types.h"  // MYSQL_TYPE_BIT
+#include "lex_string.h"   // LEX_CSTRING
 #include "m_string.h"
-#include "my_aes.h"  // MY_AES_IV_SIZE
+#include "my_aes.h"    // MY_AES_IV_SIZE
+#include "my_alloc.h"  // MEM_ROOT
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_dir.h"  // For my_stat
 #include "my_io.h"
-#include "my_macros.h"
-#include "my_md5.h"  // MD5_HASH_SIZE
+#include "my_loglevel.h"  // WARNING_LEVEL
+#include "my_md5.h"       // MD5_HASH_SIZE
 #include "my_md5_size.h"
 #include "my_rnd.h"  // my_rand_buffer
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "my_systime.h"
 #include "myisampack.h"
+#include "mysql/components/services/log_builtins.h"  // LogErr
+#include "mysql/components/services/my_io_bits.h"    // File
+#include "mysql/mysql_lex_string.h"                  // MYSQL_LEX_CSTRING
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/service_mysql_password_policy.h"
 #include "mysqld_error.h"
 #include "mysys_err.h"
-#include "password.h"  // my_make_scrambled_password
-#include "sha1.h"      // SHA1_HASH_SIZE
+#include "sha1.h"  // SHA1_HASH_SIZE
 #include "sha2.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // check_password_policy
@@ -89,11 +100,13 @@
 #include "sql/handler.h"
 #include "sql/my_decimal.h"
 #include "sql/mysqld.h"                             // binary_keyword etc
+#include "sql/parse_tree_node_base.h"               // Parse_context
 #include "sql/resourcegroups/resource_group_mgr.h"  // num_vcpus
 #include "sql/rpl_gtid.h"
 #include "sql/sort_param.h"
-#include "sql/sql_base.h"
-#include "sql/sql_class.h"  // THD
+#include "sql/sql_class.h"          // THD
+#include "sql/sql_digest.h"         // get_max_digest_length
+#include "sql/sql_digest_stream.h"  // sql_digest_state
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_locale.h"  // my_locale_by_name
@@ -3439,11 +3452,6 @@ bool Item_load_file::itemize(Parse_context *pc, Item **res) {
   pc->thd->lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
   return false;
 }
-
-#include <fcntl.h>
-#include <limits.h>
-#include <stdlib.h>
-#include <sys/stat.h>
 
 String *Item_load_file::val_str(String *str) {
   DBUG_ASSERT(fixed == 1);

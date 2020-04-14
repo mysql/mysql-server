@@ -28,26 +28,31 @@
 */
 #include "sql/item_geofunc.h"
 
-#include <float.h>
-#include <string.h>
 #include <algorithm>
-#include <boost/geometry/algorithms/centroid.hpp>
-#include <boost/geometry/algorithms/convex_hull.hpp>
-#include <boost/geometry/strategies/strategies.hpp>
-#include <cmath>  // std::isfinite, std::isnan
+#include <cfloat>
+#include <cmath>    // std::isfinite, std::isnan
+#include <cstdlib>  // strtoll
+#include <cstring>
+#include <limits>  // numeric_limits
 #include <map>
 #include <memory>
 #include <new>
 #include <string>
 #include <utility>
 
+#include <boost/geometry/algorithms/centroid.hpp>
+#include <boost/geometry/algorithms/convex_hull.hpp>
+#include <boost/geometry/strategies/strategies.hpp>  // IWYU pragma: keep
+#include <boost/iterator/iterator_facade.hpp>        // operator-
+
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
+#include "my_alloc.h"  // operator new
 #include "my_byteorder.h"
+#include "my_compiler.h"  // MY_ATTRIBUTE
 #include "my_config.h"
 #include "my_dbug.h"
-#include "nullable.h"
 #include "sql/current_thd.h"
 #include "sql/dd/cache/dictionary_client.h"
 #include "sql/dd/types/spatial_reference_system.h"
@@ -68,6 +73,7 @@
 #include "sql/item_geofunc_internal.h"
 #include "sql/json_dom.h"  // Json_wrapper
 #include "sql/options_parser.h"
+#include "sql/parse_tree_node_base.h"  // Parse_context
 #include "sql/psi_memory_key.h"
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_error.h"
@@ -78,6 +84,14 @@
 #include "sql/thr_malloc.h"
 #include "template_utils.h"
 #include "unsafe_string_append.h"
+
+namespace boost {
+namespace geometry {
+namespace cs {
+struct cartesian;
+}
+}  // namespace geometry
+}  // namespace boost
 
 class PT_item_list;
 struct TABLE;

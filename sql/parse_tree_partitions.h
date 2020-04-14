@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,13 +23,12 @@
 #ifndef PARSE_TREE_PARTITIONS_INCLUDED
 #define PARSE_TREE_PARTITIONS_INCLUDED
 
-#include <stddef.h>
-#include <sys/types.h>
+#include <sys/types.h>  // TODO: replace with cstdint
 
 #include "lex_string.h"
 #include "my_base.h"
-#include "my_inttypes.h"
-#include "sql/mem_root_array.h"
+#include "my_inttypes.h"  // TODO: replace with cstdint
+#include "sql/parse_location.h"
 #include "sql/parse_tree_helpers.h"
 #include "sql/parse_tree_node_base.h"
 #include "sql/partition_element.h"
@@ -37,8 +36,12 @@
 
 class Item;
 class THD;
+
 template <class T>
 class List;
+
+template <typename Element_type>
+class Mem_root_array;
 
 /**
   Parse context for partitioning-specific parse tree nodes.

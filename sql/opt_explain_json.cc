@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,14 +22,15 @@
 
 #include "sql/opt_explain_json.h"
 
-#include "my_config.h"
+#include <sys/types.h>  // uint
 
-#include <limits.h>
-#include <stdio.h>
-#include <sys/types.h>
+#include <climits>
+#include <cstddef>  // size_t
+#include <cstdio>
 
 #include "m_ctype.h"
 #include "m_string.h"
+#include "my_alloc.h"  // operator new
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "sql/current_thd.h"  // current_thd

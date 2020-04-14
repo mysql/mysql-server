@@ -25,14 +25,15 @@
 
 /* classes for sum functions */
 
-#include <limits.h>
-#include <math.h>
-#include <stddef.h>
-#include <stdio.h>
 #include <sys/types.h>
+
+#include <climits>
+#include <cmath>
+#include <cstdio>
 #include <map>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "field_types.h"  // enum_field_types
 #include "m_ctype.h"
@@ -53,12 +54,13 @@
 #include "sql/item_func.h"  // Item_int_func
 #include "sql/mem_root_array.h"
 #include "sql/my_decimal.h"
-#include "sql/parse_tree_node_base.h"
-#include "sql/parse_tree_nodes.h"  // PT_window
+#include "sql/parse_location.h"     // POS
+#include "sql/parse_tree_window.h"  // PT_window
 #include "sql/sql_base.h"
 #include "sql/sql_const.h"
 #include "sql/sql_list.h"
-#include "sql/sql_udf.h"  // udf_handler
+#include "sql/sql_udf.h"     // udf_handler
+#include "sql/thr_malloc.h"  // THR_MALLOC
 #include "sql/window_lex.h"
 #include "sql_string.h"
 #include "template_utils.h"
@@ -69,11 +71,13 @@ class Json_array;
 class Json_object;
 class Json_wrapper;
 class PT_item_list;
+class PT_order_list;
 class SELECT_LEX;
 class THD;
 class Temp_table_param;
 class Window;
 struct ORDER;
+struct Parse_context;
 struct TABLE;
 struct Window_evaluation_requirements;
 

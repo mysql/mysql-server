@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,7 @@
 
 #include "sql/item_row.h"
 
-#include <stddef.h>
-
+#include "my_alloc.h"  // MEM_ROOT
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
@@ -34,6 +33,8 @@
 #include "sql/sql_list.h"
 #include "sql/thr_malloc.h"
 #include "sql_string.h"
+
+struct Parse_context;
 
 Item_row::Item_row(const POS &pos, Item *head, List<Item> &tail)
     : super(pos),

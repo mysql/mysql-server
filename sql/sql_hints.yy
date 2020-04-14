@@ -26,14 +26,26 @@
 */
 
 %{
-#include "my_inttypes.h"
+#include <climits>
+#include <cstdlib>
+
+#include "lex_string.h"
+#include "m_string.h"
+#include "my_dbug.h"
+#include "my_inttypes.h"  // TODO: replace with cstdint
+#include "mysqld_error.h"
 #include "sql/derror.h"
+#include "sql/item.h"
 #include "sql/item_subselect.h"
+#include "sql/lexer_yystype.h"
+#include "sql/opt_hints.h"
 #include "sql/parse_tree_helpers.h"  // check_resource_group_name_len
 #include "sql/parse_tree_hints.h"
 #include "sql/parser_yystype.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
+#include "sql/sql_error.h"
+#include "sql/sql_hints.yy.h"
 #include "sql/sql_lex_hints.h"
 
 #define NEW_PTN new (thd->mem_root)

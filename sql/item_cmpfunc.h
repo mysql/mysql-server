@@ -25,8 +25,9 @@
 
 /* compare and test functions */
 
-#include <string.h>
 #include <sys/types.h>
+
+#include <cstring>
 #include <memory>
 
 #include "field_types.h"
@@ -44,7 +45,7 @@
 #include "sql/item_row.h"        // Item_row
 #include "sql/mem_root_array.h"  // Mem_root_array
 #include "sql/my_decimal.h"
-#include "sql/parse_tree_node_base.h"
+#include "sql/parse_location.h"  // POS
 #include "sql/sql_const.h"
 #include "sql/sql_list.h"
 #include "sql/table.h"
@@ -60,11 +61,11 @@ class Item_sum_hybrid;
 class Json_scalar_holder;
 class Json_wrapper;
 class PT_item_list;
-class QEP_TAB;
 class SELECT_LEX;
 class THD;
 struct CHARSET_INFO;
 struct MY_BITMAP;
+struct Parse_context;
 
 Item *make_condition(Parse_context *pc, Item *item);
 

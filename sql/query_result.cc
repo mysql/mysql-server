@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,22 +22,22 @@
 
 #include "sql/query_result.h"
 
-#include "my_config.h"
-
 #include <fcntl.h>
-#include <limits.h>
-#include <string.h>
 #include <sys/stat.h>
+
+#include "my_config.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
+
 #include <algorithm>
+#include <climits>
+#include <cstring>
 
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_dbug.h"
-#include "my_macros.h"
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/udf_registration_types.h"
@@ -55,6 +55,7 @@
 #include "sql/sql_exchange.h"
 #include "sql/system_variables.h"
 #include "sql_string.h"
+#include "template_utils.h"  // pointer_cast
 
 using std::min;
 

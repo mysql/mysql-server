@@ -33,13 +33,13 @@
 
 #include "sql/sql_executor.h"
 
-#include <assert.h>
-#include <inttypes.h>
-#include <stdint.h>
-
 #include <algorithm>
 #include <atomic>
+#include <cassert>
+#include <cinttypes>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <map>
 #include <memory>
@@ -55,6 +55,7 @@
 #include "mem_root_deque.h"
 #include "my_alloc.h"
 #include "my_base.h"
+#include "my_bit.h"  // Overlaps
 #include "my_bitmap.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
@@ -100,11 +101,11 @@
 #include "sql/row_iterator.h"
 #include "sql/sort_param.h"
 #include "sql/sorting_iterator.h"
-#include "sql/sql_base.h"  // fill_record
+#include "sql/sql_array.h"  // Bounds_checked_array
+#include "sql/sql_base.h"   // fill_record
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
-#include "sql/sql_executor.h"
 #include "sql/sql_join_buffer.h"
 #include "sql/sql_list.h"
 #include "sql/sql_optimizer.h"  // JOIN

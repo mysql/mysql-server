@@ -33,15 +33,23 @@
 
 #include "sql/sql_resolver.h"
 
-#include <stddef.h>
 #include <sys/types.h>
 
 #include <algorithm>
+#include <cassert>
+#include <cstddef>  // size_t
+#include <cstdio>   // snprintf
+#include <cstring>  // strcmp
+#include <deque>
 #include <functional>
+#include <initializer_list>
+#include <unordered_map>
 #include <utility>
+#include <vector>
 
 #include "field_types.h"
 #include "lex_string.h"
+#include "mem_root_deque.h"
 #include "my_alloc.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
@@ -51,10 +59,14 @@
 #include "my_sys.h"
 #include "my_table_map.h"
 #include "mysql/psi/psi_base.h"
+#include "mysql_com.h"  // NAME_LEN
 #include "mysqld_error.h"
+#include "prealloced_array.h"     // Prealloced_array
 #include "sql/aggregate_check.h"  // Group_check
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // check_single_table_access
+#include "sql/check_stack.h"       // check_stack_overrun
+#include "sql/current_thd.h"       // current_thd
 #include "sql/derror.h"            // ER_THD
 #include "sql/enum_query_type.h"
 #include "sql/error_handler.h"  // View_error_handler
@@ -65,6 +77,7 @@
 #include "sql/item_row.h"
 #include "sql/item_subselect.h"
 #include "sql/item_sum.h"  // Item_sum
+#include "sql/mdl.h"       // MDL_SHARED_READ
 #include "sql/mem_root_array.h"
 #include "sql/nested_join.h"
 #include "sql/opt_hints.h"
@@ -77,8 +90,10 @@
 #include "sql/query_result.h"  // Query_result
 #include "sql/sql_base.h"      // setup_fields
 #include "sql/sql_class.h"
+#include "sql/sql_cmd.h"  // Sql_cmd
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
+#include "sql/sql_executor.h"  // is_rollup_sum_wrapper, is_rollup_group_wrapper
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_optimizer.h"  // Prepare_error_tracker
@@ -91,6 +106,7 @@
 #include "sql/thr_malloc.h"
 #include "sql/window.h"
 #include "template_utils.h"
+#include "thr_lock.h"  // TL_READ
 
 using std::function;
 

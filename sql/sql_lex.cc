@@ -25,14 +25,15 @@
 
 #include "sql/sql_lex.h"
 
-#include <limits.h>
-#include <stdlib.h>
 #include <algorithm>  // find_if, iter_swap, reverse
+#include <climits>
+#include <cstdlib>
+#include <initializer_list>
 
+#include "field_types.h"
 #include "m_ctype.h"
 #include "my_alloc.h"
 #include "my_dbug.h"
-#include "my_macros.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_version.h"  // MYSQL_VERSION_ID
@@ -42,8 +43,11 @@
 #include "sql/derror.h"
 #include "sql/item_func.h"
 #include "sql/item_subselect.h"
+#include "sql/lex_symbol.h"
+#include "sql/lexer_yystype.h"
 #include "sql/mysqld.h"  // table_alias_charset
 #include "sql/nested_join.h"
+#include "sql/opt_hints.h"
 #include "sql/parse_location.h"
 #include "sql/parse_tree_nodes.h"  // PT_with_clause
 #include "sql/protocol.h"
@@ -52,6 +56,8 @@
 #include "sql/sql_admin.h"
 #include "sql/sql_base.h"
 #include "sql/sql_class.h"  // THD
+#include "sql/sql_cmd.h"
+#include "sql/sql_digest_stream.h"
 #include "sql/sql_error.h"
 #include "sql/sql_insert.h"  // Sql_cmd_insert_base
 #include "sql/sql_lex_hash.h"
@@ -68,6 +74,8 @@
 #include "sql/window.h"
 #include "sql_update.h"  // Sql_cmd_update
 #include "template_utils.h"
+
+class PT_hint_list;
 
 extern int HINT_PARSER_parse(THD *thd, Hint_scanner *scanner,
                              PT_hint_list **ret);

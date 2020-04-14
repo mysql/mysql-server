@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,16 +23,14 @@
 #ifndef PARSE_TREE_ITEMS_INCLUDED
 #define PARSE_TREE_ITEMS_INCLUDED
 
-#include <stddef.h>
-
 #include "field_types.h"  // enum_field_types
 #include "lex_string.h"
 #include "m_ctype.h"
-#include "my_inttypes.h"
+#include "my_inttypes.h"  // TODO: replace with cstdint
+#include "sql/comp_creator.h"
 #include "sql/field.h"
 #include "sql/item.h"
 #include "sql/item_func.h"
-#include "sql/item_subselect.h"
 #include "sql/item_sum.h"       // Item_sum_count
 #include "sql/item_timefunc.h"  // Item_func_now_local
 #include "sql/parse_location.h"

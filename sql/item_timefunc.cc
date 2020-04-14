@@ -31,31 +31,32 @@
 #include "sql/item_timefunc.h"
 
 #include "my_config.h"
-
-#include <limits.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <algorithm>
-
-#include "mysql_com.h"
-#include "sql/my_decimal.h"
-#include "typelib.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
+
+#include <algorithm>
+#include <climits>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+
 #include "decimal.h"
 #include "lex_string.h"
 #include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_sys.h"
+#include "my_systime.h"  // my_micro_time
+#include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/current_thd.h"
 #include "sql/dd/info_schema/table_stats.h"
 #include "sql/dd/object_id.h"  // dd::Object_id
 #include "sql/derror.h"        // ER_THD
-#include "sql/sql_class.h"     // THD
+#include "sql/my_decimal.h"
+#include "sql/parse_tree_node_base.h"  // Parse_context
+#include "sql/sql_class.h"             // THD
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_locale.h"  // my_locale_en_US
@@ -65,6 +66,7 @@
 #include "sql/table.h"
 #include "sql/tztime.h"  // Time_zone
 #include "template_utils.h"
+#include "typelib.h"
 
 using std::max;
 using std::min;

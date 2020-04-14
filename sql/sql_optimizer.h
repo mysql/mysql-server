@@ -36,8 +36,9 @@
    Only such indexes are involved in range analysis.
 */
 
-#include <string.h>
 #include <sys/types.h>
+
+#include <cstring>
 #include <memory>
 #include <utility>
 
@@ -51,7 +52,6 @@
 #include "sql/mem_root_array.h"
 #include "sql/opt_explain_format.h"  // Explain_sort_clause
 #include "sql/row_iterator.h"
-#include "sql/sql_array.h"
 #include "sql/sql_executor.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
@@ -60,6 +60,7 @@
 #include "sql/table.h"
 #include "sql/temp_table_param.h"
 
+enum class Subquery_strategy : int;
 class COND_EQUAL;
 class Item_subselect;
 class Item_sum;
@@ -67,6 +68,10 @@ class Opt_trace_context;
 class THD;
 class Window;
 struct MYSQL_LOCK;
+
+class Item_equal;
+template <class T>
+class mem_root_deque;
 
 // Key_use has a trivial destructor, no need to run it from Mem_root_array.
 typedef Mem_root_array<Key_use> Key_use_array;

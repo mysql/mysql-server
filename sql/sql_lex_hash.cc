@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,16 +23,15 @@
 
 #include "sql/sql_lex_hash.h"
 
-#include <stddef.h>
 #include <sys/types.h>
 
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_macros.h"
 #include "sql/lex.h"
 #include "sql/lex_hash.h"
 #include "sql/lex_symbol.h"
+#include "template_utils.h"
 
 const Lex_hash Lex_hash::sql_keywords(sql_keywords_map, sql_keywords_max_len);
 const Lex_hash Lex_hash::sql_keywords_and_funcs(sql_keywords_and_funcs_map,

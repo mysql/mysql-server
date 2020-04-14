@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,9 +30,8 @@
 #include "sql/dd/info_schema/show_query_builder.h"  // Select_lex_builder
 #include "sql/dd/info_schema/table_stats.h"
 #include "sql/dd/string_type.h"
-#include "sql/item_cmpfunc.h"  // Item_func_case
-#include "sql/key.h"
-#include "sql/parse_tree_node_base.h"
+#include "sql/item_cmpfunc.h"    // Item_func_case
+#include "sql/parse_location.h"  // POS
 #include "sql/sql_class.h"
 #include "sql/sql_lex.h"
 #include "sql/table.h"

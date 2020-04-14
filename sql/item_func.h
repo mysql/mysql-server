@@ -23,11 +23,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <limits.h>
-#include <stddef.h>
 #include <sys/types.h>
 
+#include <climits>
 #include <cmath>  // isfinite
+#include <cstddef>
 #include <functional>
 
 #include "decimal.h"
@@ -52,10 +52,10 @@
 #include "sql/enum_query_type.h"
 #include "sql/field.h"
 #include "sql/handler.h"
-#include "sql/item.h"        // Item_result_field
-#include "sql/my_decimal.h"  // str2my_decimal
-#include "sql/parse_tree_node_base.h"
-#include "sql/set_var.h"  // enum_var_type
+#include "sql/item.h"            // Item_result_field
+#include "sql/my_decimal.h"      // str2my_decimal
+#include "sql/parse_location.h"  // POS
+#include "sql/set_var.h"         // enum_var_type
 #include "sql/sql_const.h"
 #include "sql/sql_udf.h"  // udf_handler
 #include "sql/table.h"
@@ -70,9 +70,10 @@ class SELECT_LEX;
 class THD;
 class sp_rcontext;
 struct MY_BITMAP;
+struct Parse_context;
+
 template <class T>
 class List;
-class QEP_TAB;
 
 /* Function items used by mysql */
 

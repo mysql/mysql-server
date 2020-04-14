@@ -30,11 +30,12 @@
 
 #include "sql/item_subselect.h"
 
-#include <limits.h>
-#include <stdio.h>
-#include <string.h>
-
 #include <atomic>
+#include <climits>
+#include <cstdio>
+#include <cstring>
+#include <initializer_list>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -50,10 +51,12 @@
 #include "my_sys.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "sql/basic_row_iterators.h"  // ZeroRowsIterator
 #include "sql/check_stack.h"
-#include "sql/current_thd.h"  // current_thd
-#include "sql/debug_sync.h"   // DEBUG_SYNC
-#include "sql/derror.h"       // ER_THD
+#include "sql/composite_iterators.h"  // FilterIterator
+#include "sql/current_thd.h"          // current_thd
+#include "sql/debug_sync.h"           // DEBUG_SYNC
+#include "sql/derror.h"               // ER_THD
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/item_cmpfunc.h"
@@ -62,7 +65,6 @@
 #include "sql/key.h"
 #include "sql/my_decimal.h"
 #include "sql/mysqld.h"  // in_left_expr_name
-#include "sql/nested_join.h"
 #include "sql/opt_explain_format.h"
 #include "sql/opt_trace.h"  // OPT_TRACE_TRANSFORM
 #include "sql/opt_trace_context.h"
@@ -70,7 +72,8 @@
 #include "sql/query_options.h"
 #include "sql/query_result.h"
 #include "sql/ref_row_iterators.h"
-#include "sql/sql_class.h"  // THD
+#include "sql/row_iterator.h"  // RowIterator
+#include "sql/sql_class.h"     // THD
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
 #include "sql/sql_executor.h"
@@ -84,10 +87,8 @@
 #include "sql/sql_union.h"      // Query_result_union
 #include "sql/system_variables.h"
 #include "sql/table.h"
-#include "sql/table_function.h"
 #include "sql/temp_table_param.h"
 #include "sql/thd_raii.h"
-#include "sql/thr_malloc.h"
 #include "sql/timing_iterator.h"
 #include "sql/window.h"
 #include "sql_string.h"

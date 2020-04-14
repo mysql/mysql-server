@@ -25,10 +25,14 @@
 
 /* subselect Item */
 
-#include <stddef.h>
 #include <sys/types.h>
 
+#include <cstddef>
+#include <memory>  // unique_ptr
+#include <vector>
+
 #include "field_types.h"  // enum_field_types
+#include "my_alloc.h"     // Destroy_only
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_table_map.h"
@@ -37,12 +41,14 @@
 #include "mysql_time.h"
 #include "sql/comp_creator.h"
 #include "sql/enum_query_type.h"
-#include "sql/item.h"  // Item_result_field
+#include "sql/item.h"            // Item_result_field
+#include "sql/parse_location.h"  // POS
 #include "sql/parse_tree_node_base.h"
-#include "sql/row_iterator.h"
+#include "sql/row_iterator.h"  // IWYU pragma: keep
 #include "sql/sql_const.h"
 #include "template_utils.h"
 
+class Comp_creator;
 class Field;
 class Item_func_not_all;
 class Item_in_optimizer;
@@ -52,15 +58,17 @@ class PT_subquery;
 class QEP_TAB;
 class Query_result_interceptor;
 class Query_result_subquery;
+class Query_result_union;
 class SELECT_LEX;
 class SELECT_LEX_UNIT;
 class String;
+class SubqueryWithResult;
 class THD;
 class Temp_table_param;
 class my_decimal;
-class SubqueryWithResult;
 class subselect_indexsubquery_engine;
 struct TABLE_LIST;
+
 template <class T>
 class List;
 

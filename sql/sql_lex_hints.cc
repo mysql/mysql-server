@@ -25,8 +25,9 @@
 
 #include "sql/sql_lex_hints.h"
 
-#include <limits.h>
+#include <climits>
 
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "mysqld_error.h"
 #include "sql/derror.h"

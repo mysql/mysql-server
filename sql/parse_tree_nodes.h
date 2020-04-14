@@ -23,9 +23,10 @@
 #ifndef PARSE_TREE_NODES_INCLUDED
 #define PARSE_TREE_NODES_INCLUDED
 
-#include <stddef.h>
-#include <sys/types.h>
+#include <sys/types.h>  // TODO: replace with cstdint
+
 #include <cctype>  // std::isspace
+#include <cstddef>
 #include <memory>
 
 #include "lex_string.h"
@@ -33,7 +34,7 @@
 #include "my_base.h"
 #include "my_bit.h"  // is_single_bit
 #include "my_dbug.h"
-#include "my_inttypes.h"
+#include "my_inttypes.h"  // TODO: replace with cstdint
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
@@ -43,7 +44,8 @@
 #include "sql/handler.h"
 #include "sql/key_spec.h"
 #include "sql/mem_root_array.h"
-#include "sql/opt_explain.h"         // Sql_cmd_explain_other_thread
+#include "sql/opt_explain.h"  // Sql_cmd_explain_other_thread
+#include "sql/parse_location.h"
 #include "sql/parse_tree_helpers.h"  // PT_item_list
 #include "sql/parse_tree_node_base.h"
 #include "sql/parser_yystype.h"
@@ -64,25 +66,27 @@
 #include "sql/sql_tablespace.h"      // Tablespace_options
 #include "sql/sql_truncate.h"        // Sql_cmd_truncate_table
 #include "sql/table.h"               // Common_table_expr
-#include "sql/window.h"              // Window
 #include "sql/window_lex.h"
 #include "thr_lock.h"
 
 class Item;
 class Item_cache;
-class Item_string;
 class Json_table_column;
+class PT_column_attr_base;
 class PT_field_def_base;
 class PT_hint_list;
+class PT_insert_values_list;
 class PT_part_definition;
 class PT_partition;
 class PT_subquery;
 class PT_type;
-class sp_head;
-class sp_name;
+class PT_window_list;
 class Sql_cmd;
 class String;
 class THD;
+class Window;
+class sp_head;
+class sp_name;
 struct CHARSET_INFO;
 
 /**
@@ -561,21 +565,7 @@ class PT_joined_table : public PT_table_reference {
   ~PT_joined_table() override = 0;
 
  protected:
-  bool contextualize_tabs(Parse_context *pc) {
-    if (tr1 != nullptr) return false;  // already done
-
-    if (tab1_node->contextualize(pc) || tab2_node->contextualize(pc))
-      return true;
-
-    tr1 = tab1_node->value;
-    tr2 = tab2_node->value;
-
-    if (tr1 == nullptr || tr2 == nullptr) {
-      error(pc, join_pos);
-      return true;
-    }
-    return false;
-  }
+  bool contextualize_tabs(Parse_context *pc);
 };
 
 inline PT_joined_table::~PT_joined_table() {}
@@ -1382,43 +1372,6 @@ class PT_frame : public Parse_tree_node {
         m_from(from_to->m_borders[0]),
         m_to(from_to->m_borders[1]),
         m_exclusion(exclusion) {}
-};
-
-/**
-  Parse tree node for a window; just a shallow wrapper for
-  class Window, q.v.
-*/
-class PT_window : public Parse_tree_node, public Window {
-  typedef Parse_tree_node super;
-
- public:
-  PT_window(PT_order_list *partition_by, PT_order_list *order_by,
-            PT_frame *frame)
-      : Window(partition_by, order_by, frame) {}
-
-  PT_window(PT_order_list *partition_by, PT_order_list *order_by,
-            PT_frame *frame, Item_string *inherit)
-      : Window(partition_by, order_by, frame, inherit) {}
-
-  PT_window(Item_string *name) : Window(name) {}
-
-  bool contextualize(Parse_context *pc) override;
-};
-
-/**
-  Parse tree node for a list of window definitions corresponding
-  to a \<window clause\> in SQL 2003.
-*/
-class PT_window_list : public Parse_tree_node {
-  typedef Parse_tree_node super;
-  List<Window> m_windows;
-
- public:
-  PT_window_list() {}
-
-  bool contextualize(Parse_context *pc) override;
-
-  bool push_back(PT_window *w) { return m_windows.push_back(w); }
 };
 
 class PT_query_primary : public PT_query_expression_body {};

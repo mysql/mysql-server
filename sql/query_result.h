@@ -23,16 +23,18 @@
 #ifndef QUERY_RESULT_INCLUDED
 #define QUERY_RESULT_INCLUDED
 
-#include <stddef.h>
 #include <sys/types.h>
 
-#include "m_ctype.h"
+#include <cstddef>
+
 #include "my_base.h"
+#include "my_compiler.h"  // MY_ATTRIBUTE
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_sys.h"
-#include "mysqld_error.h"  // ER_*
+#include "mysql/components/services/my_io_bits.h"  // File
+#include "mysqld_error.h"                          // ER_*
 #include "sql/sql_list.h"
 
 class Item;
@@ -40,6 +42,7 @@ class Item_subselect;
 class PT_select_var;
 class SELECT_LEX_UNIT;
 class THD;
+struct CHARSET_INFO;
 struct TABLE_LIST;
 
 /*

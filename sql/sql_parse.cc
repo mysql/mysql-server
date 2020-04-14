@@ -22,33 +22,35 @@
 
 #include "sql/sql_parse.h"
 
-#include "my_config.h"
-#include "mysql/psi/mysql_table.h"
-
-#include <limits.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
 #include <algorithm>
 #include <atomic>
-#include <thread>
+#include <climits>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <functional>
+#include <iterator>
+#include <memory>
+#include <string>
 #include <utility>
+#include <vector>
 
+#include "my_config.h"
 #ifdef HAVE_LSAN_DO_RECOVERABLE_LEAK_CHECK
 #include <sanitizer/lsan_interface.h>
 #endif
 
-#include "auth/auth_internal.h"
 #include "dur_prop.h"
 #include "field_types.h"  // enum_field_types
 #include "m_ctype.h"
 #include "m_string.h"
+#include "mem_root_deque.h"
 #include "my_alloc.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_inttypes.h"
+#include "my_hostname.h"
+#include "my_inttypes.h"  // TODO: replace with cstdint
 #include "my_io.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
@@ -58,14 +60,16 @@
 #include "my_thread_local.h"
 #include "my_time.h"
 #include "mysql/com_data.h"
-#include "mysql/components/services/log_builtins.h"
-#include "mysql/components/services/log_shared.h"
-#include "mysql/components/services/psi_statement_bits.h"
+#include "mysql/components/services/bits/plugin_audit_connection_types.h"  // MYSQL_AUDIT_CONNECTION_CHANGE_USER
+#include "mysql/components/services/log_builtins.h"        // LogErr
+#include "mysql/components/services/psi_statement_bits.h"  // PSI_statement_info
 #include "mysql/plugin_audit.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/udf_registration_types.h"
+#include "mysql_version.h"
 #include "mysqld_error.h"
 #include "mysys_err.h"  // EE_CAPACITY_EXCEEDED
 #include "nullable.h"
@@ -76,12 +80,15 @@
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/binlog.h"  // purge_master_logs
 #include "sql/clone_handler.h"
+#include "sql/comp_creator.h"
+#include "sql/create_field.h"
 #include "sql/current_thd.h"
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client::Auto_releaser
 #include "sql/dd/dd.h"                       // dd::get_dictionary
 #include "sql/dd/dd_schema.h"                // Schema_MDL_locker
 #include "sql/dd/dictionary.h"  // dd::Dictionary::is_system_view_name
 #include "sql/dd/info_schema/table_stats.h"
+#include "sql/dd/types/column.h"
 #include "sql/debug_sync.h"  // DEBUG_SYNC
 #include "sql/derror.h"      // ER_THD
 #include "sql/discrete_interval.h"
@@ -95,8 +102,9 @@
 #include "sql/item_subselect.h"
 #include "sql/item_timefunc.h"  // Item_func_unix_timestamp
 #include "sql/key_spec.h"       // Key_spec
-#include "sql/log.h"            // query_logger
-#include "sql/log_event.h"      // slave_execute_deferred_events
+#include "sql/locked_tables_list.h"
+#include "sql/log.h"        // query_logger
+#include "sql/log_event.h"  // slave_execute_deferred_events
 #include "sql/mdl.h"
 #include "sql/mem_root_array.h"
 #include "sql/mysqld.h"              // stage_execution_of_init_command
@@ -124,16 +132,18 @@
 #include "sql/rpl_master.h"   // register_slave
 #include "sql/rpl_rli.h"      // mysql_show_relaylog_events
 #include "sql/rpl_slave.h"    // change_master_cmd
+#include "sql/rpl_utility.h"
 #include "sql/session_tracker.h"
 #include "sql/set_var.h"
 #include "sql/sp.h"        // sp_create_routine
 #include "sql/sp_cache.h"  // sp_cache_enforce_limit
 #include "sql/sp_head.h"   // sp_head
+#include "sql/sql_admin.h"
 #include "sql/sql_alter.h"
-#include "sql/sql_audit.h"        // MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER
-#include "sql/sql_backup_lock.h"  // acquire_shared_mdl_for_backup
-#include "sql/sql_base.h"         // find_temporary_table
-#include "sql/sql_binlog.h"       // mysql_client_binlog_statement
+#include "sql/sql_audit.h"   // MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER
+#include "sql/sql_base.h"    // find_temporary_table
+#include "sql/sql_binlog.h"  // mysql_client_binlog_statement
+#include "sql/sql_check_constraint.h"
 #include "sql/sql_class.h"
 #include "sql/sql_cmd.h"
 #include "sql/sql_connect.h"  // decrease_user_connections
@@ -166,6 +176,7 @@
 #include "sql/transaction.h"  // trans_rollback_implicit
 #include "sql/transaction_info.h"
 #include "sql_string.h"
+#include "template_utils.h"
 #include "thr_lock.h"
 #include "violite.h"
 
@@ -173,9 +184,6 @@
 #include "sql/debug_lock_order.h"
 #endif /* WITH_LOCK_ORDER */
 
-namespace dd {
-class Spatial_reference_system;
-}  // namespace dd
 namespace resourcegroups {
 class Resource_group;
 }  // namespace resourcegroups

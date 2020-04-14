@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,8 +29,9 @@
 
 #include "sql/item_pfs_func.h"
 
-#include <stdio.h>
-#include <cmath>
+#include <cstdint>  // uint64_t
+#include <cstdio>
+#include <cstdlib>  // abs
 
 #include "m_ctype.h"
 #include "my_dbug.h"
@@ -41,6 +42,7 @@
 #include "pfs_thread_provider.h"
 #include "sql/field.h"
 #include "sql/item.h"
+#include "sql/parse_tree_node_base.h"  // Parse_context
 #include "sql/sql_class.h"
 #include "sql/sql_lex.h"
 

@@ -27,14 +27,14 @@
 
 #include "sql/opt_explain.h"
 
-#include <limits.h>
-#include <math.h>
-#include <stdio.h>
-#include <string.h>
 #include <sys/types.h>
+
 #include <algorithm>
 #include <atomic>
-#include <limits>
+#include <climits>
+#include <cmath>
+#include <cstdio>
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -48,15 +48,12 @@
 #include "my_dbug.h"
 #include "my_double2ulonglong.h"
 #include "my_inttypes.h"
-#include "my_macros.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
-#include "my_table_map.h"
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "scope_guard.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"
@@ -77,14 +74,12 @@
 #include "sql/opt_trace.h"  // Opt_trace_*
 #include "sql/protocol.h"
 #include "sql/row_iterator.h"
-#include "sql/sql_base.h"  // lock_tables
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"
 #include "sql/sql_cmd.h"
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
 #include "sql/sql_executor.h"
-#include "sql/sql_join_buffer.h"  // JOIN_CACHE
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_opt_exec_shared.h"
@@ -93,8 +88,8 @@
 #include "sql/sql_partition.h"  // for make_used_partitions_str()
 #include "sql/sql_select.h"
 #include "sql/table.h"
-#include "sql/table_function.h"  // Table_function
-#include "sql/timing_iterator.h"
+#include "sql/table_function.h"    // Table_function
+#include "sql/temp_table_param.h"  // Func_ptr
 #include "sql_string.h"
 #include "template_utils.h"
 

@@ -23,10 +23,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <stddef.h>
 #include <sys/types.h>
+
+#include <cstddef>
 #include <vector>
 
+#include "field_types.h"  // MYSQL_TYPE_BLOB
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
@@ -36,8 +38,8 @@
 #include "prealloced_array.h"
 #include "sql/enum_query_type.h"
 #include "sql/field.h"
-#include "sql/gis/geometries.h"
 #include "sql/gis/srid.h"
+#include "sql/parse_location.h"  // POS
 /* This file defines all spatial functions */
 #include "sql/inplace_vector.h"
 #include "sql/item.h"
@@ -45,8 +47,7 @@
 #include "sql/item_func.h"
 #include "sql/item_json_func.h"  // Item_json_func
 #include "sql/item_strfunc.h"    // Item_str_func
-#include "sql/parse_tree_node_base.h"
-#include "sql/spatial.h"  // gis_wkb_raw_free
+#include "sql/spatial.h"         // gis_wkb_raw_free
 #include "sql_string.h"
 
 class Json_array;
@@ -55,6 +56,7 @@ class Json_object;
 class Json_wrapper;
 class PT_item_list;
 class THD;
+struct Parse_context;
 struct TABLE;
 
 enum class enum_json_type;

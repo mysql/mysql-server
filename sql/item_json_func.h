@@ -23,14 +23,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <stddef.h>
-#include <stdint.h>
 #include <sys/types.h>
+
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <utility>  // std::forward
 
 #include "m_ctype.h"
-#include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_time.h"
@@ -46,7 +46,7 @@
 #include "sql/item_strfunc.h"    // Item_str_func
 #include "sql/json_path.h"       // Json_path
 #include "sql/mem_root_array.h"  // Mem_root_array
-#include "sql/parse_tree_node_base.h"
+#include "sql/parse_location.h"  // POS
 #include "sql_string.h"
 
 class Json_schema_validator;

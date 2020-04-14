@@ -25,14 +25,15 @@
 
 /* Function items used by mysql */
 
-#include <stddef.h>
 #include <sys/types.h>
-#include <algorithm>
 
+#include <algorithm>
+#include <cstddef>
+
+#include "field_types.h"  // MYSQL_TYPE_DATETIME
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_macros.h"
 #include "my_table_map.h"
 #include "my_time.h"
 #include "mysql/udf_registration_types.h"
@@ -41,11 +42,12 @@
 #include "sql/field.h"
 #include "sql/item.h"
 #include "sql/item_func.h"
-#include "sql/item_strfunc.h"  // Item_str_func
-#include "sql/parse_tree_node_base.h"
+#include "sql/item_strfunc.h"    // Item_str_func
+#include "sql/parse_location.h"  // POS
 #include "sql/set_var.h"
 #include "sql/sql_const.h"
 #include "sql_string.h"
+#include "template_utils.h"  // pointer_cast
 
 class MY_LOCALE;
 class PT_item_list;
@@ -53,7 +55,7 @@ class THD;
 class Time_zone;
 class my_decimal;
 struct Date_time_format;
-struct Interval;
+struct Parse_context;
 struct TABLE;
 
 bool get_interval_value(Item *args, interval_type int_type, String *str_value,

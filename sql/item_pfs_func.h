@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,11 +28,12 @@
 #include "my_inttypes.h"
 #include "sql/item_func.h"
 #include "sql/item_strfunc.h"
-#include "sql/parse_tree_node_base.h"
+#include "sql/parse_location.h"  // POS
 #include "sql_string.h"
 
 class Item;
 class THD;
+struct Parse_context;
 
 /** ps_current_thread_id() */
 

@@ -24,23 +24,25 @@
 
 #include "sql/sql_update.h"
 
-#include <stdio.h>
-#include <string.h>
-
 #include <algorithm>
 #include <atomic>
+#include <cassert>
+#include <cstdio>
+#include <cstring>
 #include <memory>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "field_types.h"
 #include "lex_string.h"
 #include "m_ctype.h"
+#include "mem_root_deque.h"  // mem_root_deque
 #include "my_alloc.h"
 #include "my_bit.h"  // my_count_bits
 #include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_macros.h"
 #include "my_sys.h"
 #include "my_table_map.h"
 #include "mysql/psi/psi_base.h"
@@ -73,6 +75,7 @@
 #include "sql/opt_trace.h"  // Opt_trace_object
 #include "sql/opt_trace_context.h"
 #include "sql/parse_tree_node_base.h"
+#include "sql/partition_info.h"  // partition_info
 #include "sql/protocol.h"
 #include "sql/psi_memory_key.h"
 #include "sql/query_options.h"
@@ -108,7 +111,6 @@
 #include "thr_lock.h"
 
 class COND_EQUAL;
-class Item_exists_subselect;
 
 bool Sql_cmd_update::precheck(THD *thd) {
   DBUG_TRACE;

@@ -29,10 +29,9 @@
 
 #include "sql/item_sum.h"
 
-#include <string.h>
-
 #include <algorithm>
 #include <bitset>
+#include <cstring>
 #include <functional>
 #include <string>
 #include <utility>  // std::forward
@@ -44,7 +43,6 @@
 #include "my_compare.h"
 #include "my_dbug.h"
 #include "my_double2ulonglong.h"
-#include "my_macros.h"
 #include "my_sys.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
@@ -61,8 +59,9 @@
 #include "sql/json_dom.h"
 #include "sql/key_spec.h"
 #include "sql/mysqld.h"
-#include "sql/parse_tree_helpers.h"  // PT_item_list
-#include "sql/parse_tree_nodes.h"    // PT_order_list
+#include "sql/parse_tree_helpers.h"    // PT_item_list
+#include "sql/parse_tree_node_base.h"  // Parse_context
+#include "sql/parse_tree_nodes.h"      // PT_order_list
 #include "sql/parser_yystype.h"
 #include "sql/sql_array.h"
 #include "sql/sql_class.h"  // THD
@@ -78,8 +77,7 @@
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/temp_table_param.h"  // Temp_table_param
-#include "sql/thr_malloc.h"
-#include "sql/uniques.h"  // Unique
+#include "sql/uniques.h"           // Unique
 #include "sql/window.h"
 
 using std::max;

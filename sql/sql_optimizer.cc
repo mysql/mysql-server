@@ -36,6 +36,7 @@
 #include <limits.h>
 #include <algorithm>
 #include <atomic>
+#include <deque>
 #include <new>
 #include <string>
 #include <utility>
@@ -44,13 +45,13 @@
 #include "field_types.h"  // enum_field_types
 #include "ft_global.h"
 #include "m_ctype.h"
+#include "mem_root_deque.h"
 #include "memory_debugging.h"
 #include "my_bit.h"  // my_count_bits
 #include "my_bitmap.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_macros.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "mysql/udf_registration_types.h"
