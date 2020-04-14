@@ -137,6 +137,27 @@ DROP TABLE t1;
 --disconnect con1
 --disconnect con2
 
+--echo
+--echo #########################################################################
+--echo # Bug#30964944 - SHOW CREATE TRIGGER FAILS WHILE FLUSH TABLES WITH READ
+--echo #                LOCK;
+--echo #
+--echo # Test case to verify that SHOW CREATE TRIGGER is allowed under FLUSH
+--echo # TABLES WITH READ LOCK.
+--echo #
+--echo #########################################################################
+--echo
+--echo # This statement takes a global read lock.
+FLUSH TABLES WITH READ LOCK;
+--echo
+--echo # SHOW CREATE TRIGGER should not fail.
+--replace_column 2 # 4 # 5 # 6 # 7 #
+SHOW CREATE TRIGGER sys.sys_config_insert_set_user;
+--echo
+--echo # Cleanup
+UNLOCK TABLES;
+--echo
+
 --echo #
 --echo # Bug#28122841 - CREATE EVENT/PROCEDURE/FUNCTION CRASHES WITH ACCENT INSENSITIVE NAMES.
 --echo #                Even trigger names are case and accent insensitive. Test case to verify

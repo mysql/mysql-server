@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -170,13 +170,22 @@ bool check_table_triggers_are_not_in_the_same_schema(const char *db_name,
   return false;
 }
 
+bool acquire_exclusive_mdl_for_trigger(THD *thd, const char *db,
+                                       const char *trg_name) {
+  DBUG_TRACE;
+
+  // Protect CREATE/DROP TRIGGER statement against concurrent global read lock.
+  if (thd->global_read_lock.can_acquire_protection()) return true;
+
+  return acquire_mdl_for_trigger(thd, db, trg_name, MDL_EXCLUSIVE);
+}
+
 bool acquire_mdl_for_trigger(THD *thd, const char *db, const char *trg_name,
                              enum_mdl_type trigger_name_mdl_type) {
+  DBUG_TRACE;
   DBUG_ASSERT(trg_name != nullptr);
   DBUG_ASSERT(trigger_name_mdl_type == MDL_EXCLUSIVE ||
               trigger_name_mdl_type == MDL_SHARED_HIGH_PRIO);
-
-  if (thd->global_read_lock.can_acquire_protection()) return true;
 
   MDL_key mdl_key;
   dd::Trigger::create_mdl_key(dd::String_type(db), dd::String_type(trg_name),
