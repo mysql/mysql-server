@@ -1,0 +1,388 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t1 (a INT);
+# Function with only CREATE TEMPORARY TABLE.
+CREATE FUNCTION create_temp_table() RETURNS INT DETERMINISTIC
+BEGIN
+CREATE TEMPORARY TABLE temp1 (i INT);
+RETURN 1;
+END//
+# Function with DMLs on temporary tables.
+CREATE FUNCTION dmls_on_temp_tables() RETURNS INT DETERMINISTIC
+BEGIN
+INSERT INTO temp1 VALUES(2);
+UPDATE temp1 SET i= 4;
+DELETE FROM temp1;
+RETURN 1;
+END//
+# Function with only DROP TEMPORARY TABLE.
+CREATE FUNCTION drop_temp_table() RETURNS INT DETERMINISTIC
+BEGIN
+DROP TEMPORARY TABLE temp1;
+RETURN 1;
+END//
+# Function with CREATE TEMPORARY TABLE and DMLs.
+CREATE FUNCTION create_temp_table_with_dmls() RETURNS INT DETERMINISTIC
+BEGIN
+CREATE TEMPORARY TABLE temp2 (i INT);
+INSERT INTO t1 VALUES(1);
+INSERT INTO temp2 VALUES(1);
+RETURN 2;
+END//
+# Function with DMLs on temporary tables as well as regular tables.
+CREATE FUNCTION dmls_on_temp_and_regular_tables() RETURNS INT DETERMINISTIC
+BEGIN
+INSERT INTO t1 VALUES(2);
+UPDATE t1 SET a= 4;
+DELETE FROM t1;
+INSERT INTO temp2 VALUES(2);
+UPDATE temp2 SET i= 4;
+DELETE FROM temp2;
+RETURN 2;
+END//
+# Function with DROP TEMPORARY TABLE and DMLs.
+CREATE FUNCTION drop_temp_table_with_dmls() RETURNS INT DETERMINISTIC
+BEGIN
+INSERT INTO t1 VALUES(3);
+INSERT INTO temp2 VALUES(3);
+DROP TEMPORARY TABLE temp2;
+RETURN 2;
+END//
+#
+# Verify that a function call is written to binary log in ROW
+# format if the function contains operations on temporary tables.
+# case1: Function call inside a transaction with ROLLBACK.
+#
+START TRANSACTION;
+SELECT create_temp_table();
+create_temp_table()
+1
+ROLLBACK;
+Warnings:
+Warning	1751	The creation of some temporary tables could not be rolled back.
+START TRANSACTION;
+SELECT dmls_on_temp_tables();
+dmls_on_temp_tables()
+1
+ROLLBACK;
+START TRANSACTION;
+SELECT drop_temp_table();
+drop_temp_table()
+1
+ROLLBACK;
+Warnings:
+Warning	1752	Some temporary tables were dropped, but these operations could not be rolled back.
+START TRANSACTION;
+SELECT create_temp_table_with_dmls();
+create_temp_table_with_dmls()
+2
+ROLLBACK;
+Warnings:
+Warning	1751	The creation of some temporary tables could not be rolled back.
+START TRANSACTION;
+SELECT dmls_on_temp_and_regular_tables();
+dmls_on_temp_and_regular_tables()
+2
+ROLLBACK;
+START TRANSACTION;
+SELECT drop_temp_table_with_dmls();
+drop_temp_table_with_dmls()
+2
+ROLLBACK;
+Warnings:
+Warning	1752	Some temporary tables were dropped, but these operations could not be rolled back.
+include/show_binlog_events.inc
+include/sync_slave_sql_with_master.inc
+[connection master]
+#
+# Verify that a function call is written to binary log in ROW
+# format if the function contains operations on temporary tables.
+# case2: Function call inside a transaction with COMMIT.
+#
+START TRANSACTION;
+SELECT create_temp_table();
+create_temp_table()
+1
+COMMIT;
+START TRANSACTION;
+SELECT dmls_on_temp_tables();
+dmls_on_temp_tables()
+1
+COMMIT;
+START TRANSACTION;
+SELECT drop_temp_table();
+drop_temp_table()
+1
+COMMIT;
+include/assert.inc [Functions with operations on temporary tables are binlogged in ROW format when binlog_format= ROW/MIXED.]
+START TRANSACTION;
+SELECT create_temp_table_with_dmls();
+create_temp_table_with_dmls()
+2
+COMMIT;
+START TRANSACTION;
+SELECT dmls_on_temp_and_regular_tables();
+dmls_on_temp_and_regular_tables()
+2
+COMMIT;
+START TRANSACTION;
+SELECT drop_temp_table_with_dmls();
+drop_temp_table_with_dmls()
+2
+COMMIT;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Update_rows	#	#	table_id: #
+master-bin.000001	#	Delete_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+include/sync_slave_sql_with_master.inc
+[connection master]
+#
+# Verify that a function call is written to binary log in ROW
+# format if the function contains operations on temporary tables.
+#
+SELECT create_temp_table();
+create_temp_table()
+1
+SELECT dmls_on_temp_tables();
+dmls_on_temp_tables()
+1
+SELECT drop_temp_table();
+drop_temp_table()
+1
+include/assert.inc [Functions with operations on temporary tables are binlogged in ROW format when binlog_format= ROW/MIXED.]
+SELECT create_temp_table_with_dmls();
+create_temp_table_with_dmls()
+2
+SELECT dmls_on_temp_and_regular_tables();
+dmls_on_temp_and_regular_tables()
+2
+SELECT drop_temp_table_with_dmls();
+drop_temp_table_with_dmls()
+2
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Update_rows	#	#	table_id: #
+master-bin.000001	#	Delete_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+include/sync_slave_sql_with_master.inc
+[connection master]
+# Verify that CREATE TEMPORARY TABLE with function is written to
+# the binary log in ROW format.
+CREATE FUNCTION dummy_function() RETURNS INT DETERMINISTIC RETURN 1;
+CREATE TEMPORARY TABLE temp3(a int);
+INSERT INTO temp3 VALUES(1);
+CREATE TEMPORARY TABLE temp4 SELECT dummy_function() as result FROM temp3;
+include/assert.inc [CREATE TEMPORARY TABLE with function is binlogged in ROW format when binlog_format= ROW/MIXED.]
+include/sync_slave_sql_with_master.inc
+[connection master]
+#
+# Verify that a function invoking another function that has temporary
+# table DDL is binlogged in ROW format.
+#
+CREATE TABLE t2 (a int);
+CREATE TABLE t3 (a int);
+CREATE TEMPORARY TABLE temp1(a INT);
+CREATE FUNCTION drop_temp_table_if_exists() RETURNS INT DETERMINISTIC
+BEGIN
+DROP TEMPORARY TABLE IF EXISTS temp1;
+RETURN 2;
+END//
+CREATE FUNCTION call_drop_temp_table_if_exists() RETURNS INT DETERMINISTIC
+BEGIN
+INSERT INTO t2 VALUES(1);
+INSERT INTO t3 SELECT drop_temp_table_if_exists();
+RETURN 3;
+END //
+# case 1: Calling the function call_drop_temp_table_if_exists() twice so
+# that the temporary table does not exist during the second call and ensuring
+# that the functions are binlogged in ROW format for both the calls.
+SELECT call_drop_temp_table_if_exists();
+call_drop_temp_table_if_exists()
+3
+SELECT call_drop_temp_table_if_exists();
+call_drop_temp_table_if_exists()
+3
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+# case 2: Calling the function call_drop_temp_table_if_exists() once and
+# recreating the function drop_temp_table_if_exists() with a different
+# definition and calling call_drop_temp_table_if_exists() again. Ensure
+# that the first call is binlogged in ROW format and the second call in
+# STATEMENT format.
+CREATE TEMPORARY TABLE temp1(a INT);
+SELECT call_drop_temp_table_if_exists();
+call_drop_temp_table_if_exists()
+3
+DROP FUNCTION drop_temp_table_if_exists;
+CREATE FUNCTION drop_temp_table_if_exists() RETURNS INT RETURN 2;
+SELECT call_drop_temp_table_if_exists();
+call_drop_temp_table_if_exists()
+3
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `test`; DROP FUNCTION drop_temp_table_if_exists
+master-bin.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `drop_temp_table_if_exists`() RETURNS int
+RETURN 2
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`call_drop_temp_table_if_exists`()
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+# case 3: prepare the function call call_drop_temp_table_if_exists() once and
+# execute twice. Ensure that in both the executions the function is binlogged
+# in ROW format.
+CREATE TEMPORARY TABLE temp1(a INT);
+DROP FUNCTION drop_temp_table_if_exists;
+CREATE FUNCTION drop_temp_table_if_exists() RETURNS INT DETERMINISTIC
+BEGIN
+DROP TEMPORARY TABLE IF EXISTS temp1;
+RETURN 2;
+END //
+PREPARE function_call FROM 'SELECT call_drop_temp_table_if_exists()';
+EXECUTE function_call;
+call_drop_temp_table_if_exists()
+3
+EXECUTE function_call;
+call_drop_temp_table_if_exists()
+3
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+# case 4: prepare the function call call_drop_temp_table_if_exists() once and
+# execute once. Recreate the function drop_temp_table_if_exists() and the
+# prepared statement again. Ensure that in the first execution the function is
+# binlogged in ROW format and in the second execution, the function is binlogged
+# in STATEMENT format.
+CREATE TEMPORARY TABLE temp1(a INT);
+EXECUTE function_call;
+call_drop_temp_table_if_exists()
+3
+DROP FUNCTION drop_temp_table_if_exists;
+CREATE FUNCTION drop_temp_table_if_exists() RETURNS INT RETURN 2;
+EXECUTE function_call;
+call_drop_temp_table_if_exists()
+3
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `test`; DROP FUNCTION drop_temp_table_if_exists
+master-bin.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `drop_temp_table_if_exists`() RETURNS int
+RETURN 2
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; SELECT `test`.`call_drop_temp_table_if_exists`()
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+#
+# Verify that a function invoking a procedure that has temporary table DDL is
+# binlogged in ROW format.
+#
+CREATE TABLE t4(a int);
+CREATE PROCEDURE proc_with_temp_table_ddl()
+BEGIN
+DROP TEMPORARY TABLE IF EXISTS t1;
+CREATE TEMPORARY TABLE temp5 (a int);
+INSERT INTO temp5 VALUES(10);
+END //
+CREATE FUNCTION call_proc_with_temp_table_ddl() RETURNS INT
+BEGIN
+CALL proc_with_temp_table_ddl();
+INSERT INTO t4 SELECT * FROM temp5;
+RETURN 1;
+END //
+SELECT call_proc_with_temp_table_ddl();
+call_proc_with_temp_table_ddl()
+1
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t4)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+#
+# Verify that a Event invoking a stored routine that has temporary table DDL
+# is binlogged in ROW format.
+#
+CREATE EVENT call_routine_with_temp_table_ddl
+ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 5 SECOND
+DO SELECT call_proc_with_temp_table_ddl();
+DELETE FROM t4;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t4)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `test`; DROP EVENT IF EXISTS`test`.`call_routine_with_temp_table_ddl`
+[connection master]
+DROP TABLE t1, t2, t3, t4;
+DROP TEMPORARY TABLE temp3, temp4, temp5;
+DROP FUNCTION create_temp_table;
+DROP FUNCTION create_temp_table_with_dmls;
+DROP FUNCTION dmls_on_temp_tables;
+DROP FUNCTION dmls_on_temp_and_regular_tables;
+DROP FUNCTION drop_temp_table;
+DROP FUNCTION drop_temp_table_with_dmls;
+DROP FUNCTION dummy_function;
+DROP FUNCTION call_drop_temp_table_if_exists;
+DROP FUNCTION drop_temp_table_if_exists;
+DROP PROCEDURE proc_with_temp_table_ddl;
+DROP FUNCTION call_proc_with_temp_table_ddl;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

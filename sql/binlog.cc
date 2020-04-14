@@ -10323,6 +10323,7 @@ int THD::decide_logging_format(TABLE_LIST *tables) {
          I.e., nothing prevents us from row logging if needed. */
       else {
         if (lex->is_stmt_unsafe() || lex->is_stmt_row_injection() ||
+            lex->is_stmt_unsafe_with_mixed_mode() ||
             (flags_write_all_set & HA_BINLOG_STMT_CAPABLE) == 0 ||
             lex->stmt_accessed_table(LEX::STMT_READS_TEMP_TRANS_TABLE) ||
             lex->stmt_accessed_table(LEX::STMT_READS_TEMP_NON_TRANS_TABLE) ||
@@ -10344,6 +10345,8 @@ int THD::decide_logging_format(TABLE_LIST *tables) {
                      ("is_row_injection=%d", lex->is_stmt_row_injection()));
           DBUG_PRINT("info", ("stmt_capable=%llu",
                               (flags_write_all_set & HA_BINLOG_STMT_CAPABLE)));
+          DBUG_PRINT("info", ("lex->is_stmt_unsafe_with_mixed_mode = %d",
+                              lex->is_stmt_unsafe_with_mixed_mode()));
 #endif
           /* log in row format! */
           set_current_stmt_binlog_format_row_if_mixed();
