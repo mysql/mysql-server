@@ -39,7 +39,6 @@
 
 %{!?with_debuginfo:              %global nodebuginfo 1}
 %{!?product_suffix:              %global product_suffix community}
-%{!?feature_set:                 %global feature_set community}
 %{!?compilation_comment_release: %global compilation_comment_release MySQL Community - GPL}
 %{!?compilation_comment_debug:   %global compilation_comment_debug MySQL Community - GPL - Debug}
 %{!?compilation_comment_server_release: %global compilation_comment_server_release MySQL Community Server - GPL}
@@ -577,6 +576,7 @@ mkdir debug
            -DWITH_BOOST=.. \
            -DCMAKE_C_FLAGS="$optflags" \
            -DCMAKE_CXX_FLAGS="$optflags" \
+           -DUSE_LD_LLD=0 \
            -DWITH_SYSTEMD=1 \
            -DSYSTEMD_SERVICE_NAME="mysql" \
            -DSYSTEMD_PID_DIR="/var/run/mysql" \
@@ -597,7 +597,6 @@ mkdir debug
            -DWITH_INNODB_MEMCACHED=1 \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DMYSQLX_UNIX_ADDR="/var/run/mysql/mysqlx.sock" \
-           -DFEATURE_SET="%{feature_set}" \
            -DWITH_NUMA=ON \
            %{?mecab_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
@@ -620,6 +619,7 @@ mkdir release
            -DWITH_BOOST=.. \
            -DCMAKE_C_FLAGS="%{optflags}" \
            -DCMAKE_CXX_FLAGS="%{optflags}" \
+           -DUSE_LD_LLD=0 \
            -DWITH_SYSTEMD=1 \
            -DSYSTEMD_SERVICE_NAME="mysql" \
            -DSYSTEMD_PID_DIR="/var/run/mysql" \
@@ -640,7 +640,6 @@ mkdir release
            -DWITH_INNODB_MEMCACHED=1 \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DMYSQLX_UNIX_ADDR="/var/run/mysql/mysqlx.sock" \
-           -DFEATURE_SET="%{feature_set}" \
            -DWITH_NUMA=ON \
            %{?mecab_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
