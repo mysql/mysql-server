@@ -70,6 +70,8 @@ DEFINE_BOOL_METHOD(mysql_security_context_imp::set,
     Security_context *in_sctx = reinterpret_cast<Security_context *>(in_ctx);
     if (in_sctx) {
       thd->set_security_context(in_sctx);
+      in_sctx->set_thd(thd);
+
       // Turn ON the flag in THD iff the user is granted SYSTEM_USER privilege
       set_system_user_flag(thd);
     }
@@ -178,6 +180,14 @@ DEFINE_BOOL_METHOD(mysql_security_context_imp::lookup,
                          ip, db)
                  ? true
                  : false;
+
+    /*
+      If it is not a new security context then update the
+      system_user flag in its referenced THD.
+    */
+    Security_context *sctx = reinterpret_cast<Security_context *>(ctx);
+    THD *sctx_thd = sctx->get_thd();
+    if (sctx_thd) set_system_user_flag(sctx_thd);
 
     if (tmp_thd) {
       destroy_thd(tmp_thd);
