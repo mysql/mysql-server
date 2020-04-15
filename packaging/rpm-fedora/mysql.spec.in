@@ -33,7 +33,6 @@
 %{!?runselftest:%global runselftest 1}
 
 %{!?product_suffix:              %global product_suffix community}
-%{!?feature_set:                 %global feature_set community}
 %{!?compilation_comment_release: %global compilation_comment_release MySQL Community - GPL}
 %{!?compilation_comment_debug:   %global compilation_comment_debug MySQL Community - GPL - Debug}
 %{!?compilation_comment_server_release: %global compilation_comment_server_release MySQL Community Server - GPL}
@@ -489,6 +488,7 @@ mkdir debug
            -DWITH_MECAB=system \
            -DCMAKE_C_FLAGS="$optflags" \
            -DCMAKE_CXX_FLAGS="$optflags" \
+           -DUSE_LD_LLD=0 \
            -DWITH_SYSTEMD=1 \
 %if 0%{?cluster:1}
            -DWITH_NDBCLUSTER=1 \
@@ -503,7 +503,6 @@ mkdir debug
            -DSYSTEMD_PID_DIR="/run/mysqld" \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DMYSQLX_UNIX_ADDR="/run/mysqld/mysqlx.sock" \
-           -DFEATURE_SET="%{feature_set}" \
            -DWITH_NUMA=ON \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
            -DCOMPILATION_COMMENT_SERVER="%{compilation_comment_server_debug}" \
@@ -525,6 +524,7 @@ mkdir release
            -DWITH_MECAB=system \
            -DCMAKE_C_FLAGS="%{optflags}" \
            -DCMAKE_CXX_FLAGS="%{optflags}" \
+           -DUSE_LD_LLD=0 \
            -DWITH_SYSTEMD=1 \
 %if 0%{?cluster:1}
            -DWITH_NDBCLUSTER=1 \
@@ -539,7 +539,6 @@ mkdir release
            -DSYSTEMD_PID_DIR="/run/mysqld" \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DMYSQLX_UNIX_ADDR="/run/mysqld/mysqlx.sock" \
-           -DFEATURE_SET="%{feature_set}" \
            -DWITH_NUMA=ON \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
            -DCOMPILATION_COMMENT_SERVER="%{compilation_comment_server_release}" \

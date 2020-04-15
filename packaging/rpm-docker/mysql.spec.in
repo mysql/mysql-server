@@ -38,7 +38,6 @@
 %{!?runselftest:%global runselftest 0}
 
 %{!?product_suffix:              %global product_suffix community}
-%{!?feature_set:                 %global feature_set community}
 %{!?compilation_comment_release: %global compilation_comment_release MySQL Community - GPL}
 %{!?compilation_comment_debug:   %global compilation_comment_debug MySQL Community - GPL - Debug}
 %{!?compilation_comment_server_release: %global compilation_comment_server_release MySQL Community Server - GPL}
@@ -173,11 +172,11 @@ mkdir release
 	   -DWITH_BOOST=.. \
            -DCMAKE_C_FLAGS="%{optflags}" \
            -DCMAKE_CXX_FLAGS="%{optflags}" \
+           -DUSE_LD_LLD=0 \
            -DWITH_INNODB_MEMCACHED=1 \
            -DINSTALL_MYSQLTESTDIR="" \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DMYSQLX_UNIX_ADDR="/var/run/mysqld/mysqlx.sock" \
-           -DFEATURE_SET="%{feature_set}" \
            -DWITH_ROUTER=OFF \
            -DWITH_NUMA=OFF \
            %{?mecab_option} \

@@ -772,6 +772,7 @@ mkdir debug
            -DWITH_BOOST=.. \
            -DCMAKE_C_FLAGS="$optflags" \
            -DCMAKE_CXX_FLAGS="$optflags" \
+           -DUSE_LD_LLD=0 \
 %if 0%{?systemd}
            -DWITH_SYSTEMD=1 \
 %endif
@@ -793,7 +794,6 @@ mkdir debug
            -DWITH_INNODB_MEMCACHED=1 \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DMYSQLX_UNIX_ADDR="/var/run/mysqld/mysqlx.sock" \
-           -DFEATURE_SET="%{feature_set}" \
            -DWITH_NUMA=ON \
            %{?mecab_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
@@ -814,6 +814,7 @@ mkdir release
 	   -DWITH_BOOST=.. \
            -DCMAKE_C_FLAGS="%{optflags}" \
            -DCMAKE_CXX_FLAGS="%{optflags}" \
+           -DUSE_LD_LLD=0 \
 %if 0%{?systemd}
            -DWITH_SYSTEMD=1 \
 %endif
@@ -835,7 +836,6 @@ mkdir release
            -DWITH_INNODB_MEMCACHED=1 \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DMYSQLX_UNIX_ADDR="/var/run/mysqld/mysqlx.sock" \
-           -DFEATURE_SET="%{feature_set}" \
            -DWITH_NUMA=ON \
            %{?mecab_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
