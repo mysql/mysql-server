@@ -1266,7 +1266,7 @@ test.t3	analyze	status	Table is already up to date
 EXPLAIN FORMAT=tree select fld3,period,price,price2 from t2,t3 where t2.fld1=t3.t2nr and period >= 1001 and period <= 1002 and t2.companynr = 37 order by fld3,period, price;
 EXPLAIN
 -> Sort: t2.fld3, t3.period, t3.price
-    -> Stream results
+    -> Stream results  (cost=193.54 rows=21)
         -> Nested loop inner join  (cost=193.54 rows=21)
             -> Filter: (t2.companynr = 37)  (cost=151.58 rows=120)
                 -> Table scan on t2  (cost=151.58 rows=1199)
@@ -2106,7 +2106,7 @@ Warnings:
 Note	1003	/* select#1 */ select min(`test`.`t2`.`fld1`) AS `min(fld1)`,max(`test`.`t2`.`fld1`) AS `max(fld1)`,count(0) AS `count(*)` from `test`.`t2`
 explain format=tree select min(fld1),max(fld1),count(*) from t2;
 EXPLAIN
--> Rows fetched before execution
+-> Rows fetched before execution  (cost=0.00 rows=1)
 
 explain format=tree select min(fld1),max(fld1),count(*) from t2 where rand() > 0.5;
 EXPLAIN

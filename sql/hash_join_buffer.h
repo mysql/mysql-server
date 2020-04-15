@@ -1,7 +1,7 @@
 #ifndef SQL_HASH_JOIN_BUFFER_H_
 #define SQL_HASH_JOIN_BUFFER_H_
 
-/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -99,18 +99,12 @@ struct Column {
 /// join. When the hash join iterator is constructed, we extract the columns
 /// that are needed to satisfy the SQL query.
 struct Table {
-  explicit Table(QEP_TAB *qep_tab);
-  QEP_TAB *qep_tab;
+  explicit Table(TABLE *tab);
+  TABLE *table;
   Prealloced_array<Column, 8> columns;
 
   // Whether to copy the NULL flags or not.
   bool copy_null_flags{false};
-
-  // A cached value of QEP_TAB::rowid_status. This determines whether we need to
-  // copy/restore the row ID for each row, and how we should retrieve the row ID
-  // (i.e., should we call handler::position() or not). See the comment on
-  // QEP_TAB::rowid_status for more details.
-  rowid_statuses rowid_status;
 };
 
 /// A structure that contains a list of tables for the hash join operation,
@@ -119,12 +113,8 @@ class TableCollection {
  public:
   TableCollection() = default;
 
-  explicit TableCollection(QEP_TAB *qep_tab) {
-    // Single table.
-    AddTable(qep_tab);
-  }
-
-  TableCollection(const JOIN *join, qep_tab_map tables);  // Multiple tables.
+  TableCollection(const JOIN *join, table_map tables, bool store_rowids,
+                  table_map tables_to_get_rowid_for);
 
   const Prealloced_array<Table, 4> &tables() const { return m_tables; }
 
@@ -134,8 +124,14 @@ class TableCollection {
 
   bool has_blob_column() const { return m_has_blob_column; }
 
+  bool store_rowids() const { return m_store_rowids; }
+
+  table_map tables_to_get_rowid_for() const {
+    return m_tables_to_get_rowid_for;
+  }
+
  private:
-  void AddTable(QEP_TAB *qep_tab);
+  void AddTable(TABLE *tab);
 
   Prealloced_array<Table, 4> m_tables{PSI_NOT_INSTRUMENTED};
 
@@ -152,6 +148,9 @@ class TableCollection {
   // pre-allocate any necessary buffers we need during the hash join, and thus
   // eliminate the need for recalculating the row size every time.
   bool m_has_blob_column = false;
+
+  bool m_store_rowids = false;
+  table_map m_tables_to_get_rowid_for = 0;
 };
 
 /// Count up how many bytes a single row from the given tables will occupy,

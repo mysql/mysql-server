@@ -913,12 +913,12 @@ EXPLAIN
     -> Filter: (exists(select #3) is false and ((t1.col_int > (select #2)) and exists(select #3) is false))  (cost=0.35 rows=1)
         -> Table scan on t2  (cost=0.35 rows=1)
         -> Select #3 (subquery in condition; run only once)
-            -> Limit: 1 row(s)
+            -> Limit: 1 row(s)  (cost=0.35 rows=1)
                 -> Index scan on t4 using PRIMARY  (cost=0.35 rows=1)
         -> Select #2 (subquery in condition; uncacheable)
             -> Index scan on t3 using PRIMARY  (cost=0.35 rows=1)
         -> Select #3 (subquery in condition; run only once)
-            -> Limit: 1 row(s)
+            -> Limit: 1 row(s)  (cost=0.35 rows=1)
                 -> Index scan on t4 using PRIMARY  (cost=0.35 rows=1)
 
 SELECT * FROM t1 LEFT JOIN t1 AS t2

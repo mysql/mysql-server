@@ -2021,7 +2021,7 @@ WINDOW w AS (ORDER BY id ASC ROWS BETWEEN 2 PRECEDING AND CURRENT ROW);
 EXPLAIN
 -> Window aggregate with buffering: count(0) OVER w, nth_value(t1.id,3) OVER w, first_value(t1.id) OVER w, nth_value(t1.id,1) OVER w, nth_value(t1.id,2) OVER w
     -> Sort: t1.id  (cost=1.15 rows=9)
-        -> Table scan on t1
+        -> Table scan on t1  (cost=1.15 rows=9)
 
 many nth_value calls on one window, unoptimized path
 EXPLAIN FORMAT=TREE SELECT id, SUM(d) OVER w, COUNT(*) OVER w,
@@ -2033,6 +2033,6 @@ WINDOW w AS (ORDER BY id ASC ROWS BETWEEN 2 PRECEDING AND CURRENT ROW);
 EXPLAIN
 -> Window multi-pass aggregate with buffering: count(0) OVER w, sum(t1.d) OVER w, nth_value(t1.id,3) OVER w, first_value(t1.id) OVER w, nth_value(t1.id,1) OVER w, nth_value(t1.id,2) OVER w
     -> Sort: t1.id  (cost=1.15 rows=9)
-        -> Table scan on t1
+        -> Table scan on t1  (cost=1.15 rows=9)
 
 DROP TABLE t1;

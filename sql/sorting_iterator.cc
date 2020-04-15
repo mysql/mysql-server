@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -260,13 +260,6 @@ int SortFileIndirectIterator::CachedRead() {
   }
 }
 
-vector<string> SortFileIndirectIterator::DebugString() const {
-  // Not used, because sort result iterator is not decided at EXPLAIN time
-  // (we can't know whether the buffer would stay in RAM or not).
-  return {string("Read sorted data: Row IDs from file, records from ") +
-          table()->alias};
-}
-
 template <bool Packed_addon_fields>
 SortFileIterator<Packed_addon_fields>::SortFileIterator(THD *thd, TABLE *table,
                                                         IO_CACHE *tempfile,
@@ -328,14 +321,6 @@ int SortFileIterator<Packed_addon_fields>::Read() {
 }
 
 template <bool Packed_addon_fields>
-vector<string> SortFileIterator<Packed_addon_fields>::DebugString() const {
-  // Not used, because sort result iterator is not decided at EXPLAIN time
-  // (we can't know whether the buffer would stay in RAM or not).
-  return {string("Read sorted data from file (originally from ") +
-          table()->alias + ")"};
-}
-
-template <bool Packed_addon_fields>
 SortBufferIterator<Packed_addon_fields>::SortBufferIterator(
     THD *thd, TABLE *table, Filesort_info *sort, Sort_result *sort_result,
     ha_rows *examined_rows)
@@ -387,14 +372,6 @@ int SortBufferIterator<Packed_addon_fields>::Read() {
     ++*m_examined_rows;
   }
   return 0;
-}
-
-template <bool Packed_addon_fields>
-vector<string> SortBufferIterator<Packed_addon_fields>::DebugString() const {
-  // Not used, because sort result iterator is not decided at EXPLAIN time
-  // (we can't know whether the buffer would stay in RAM or not).
-  return {string("Read sorted data from memory (originally from ") +
-          table()->alias + ")"};
 }
 
 SortBufferIndirectIterator::SortBufferIndirectIterator(
@@ -461,13 +438,6 @@ int SortBufferIndirectIterator::Read() {
       continue;
     return HandleError(tmp);
   }
-}
-
-vector<string> SortBufferIndirectIterator::DebugString() const {
-  // Not used, because sort result iterator is not decided at EXPLAIN time
-  // (we can't know whether the buffer would stay in RAM or not).
-  return {string("Read sorted data: Row IDs from memory, records from ") +
-          table()->alias};
 }
 
 SortingIterator::SortingIterator(THD *thd, Filesort *filesort,
@@ -614,41 +584,4 @@ inline void Filesort_info::unpack_addon_fields(uchar *buff) {
     else
       field->unpack(buff + addonf->offset);
   }
-}
-
-vector<string> SortingIterator::DebugString() const {
-  string ret;
-  if (m_filesort->using_addon_fields()) {
-    ret = "Sort";
-  } else {
-    ret = "Sort row IDs";
-  }
-  if (m_filesort->m_remove_duplicates) {
-    ret += " with duplicate removal: ";
-  } else {
-    ret += ": ";
-  }
-
-  bool first = true;
-  for (unsigned i = 0; i < m_filesort->sort_order_length(); ++i) {
-    if (first) {
-      first = false;
-    } else {
-      ret += ", ";
-    }
-
-    const st_sort_field *order = &m_filesort->sortorder[i];
-    ret += ItemToString(order->item);
-    if (order->reverse) {
-      ret += " DESC";
-    }
-  }
-  if (m_filesort->limit != HA_POS_ERROR) {
-    char buf[256];
-    snprintf(buf, sizeof(buf), ", limit input to %llu row(s) per chunk",
-             m_filesort->limit);
-    ret += buf;
-  }
-
-  return {ret};
 }

@@ -67,6 +67,7 @@ class THD;
 class Temp_table_param;
 class my_decimal;
 class subselect_indexsubquery_engine;
+struct AccessPath;
 struct TABLE_LIST;
 
 template <class T>
@@ -118,7 +119,7 @@ class Item_subselect : public Item_result_field {
   const QEP_TAB *get_qep_tab() const;
 
   void create_iterators(THD *thd);
-  virtual RowIterator *root_iterator() const { return nullptr; }
+  virtual AccessPath *root_access_path() const { return nullptr; }
 
  protected:
   /*
@@ -687,7 +688,7 @@ class Item_in_subselect : public Item_exists_subselect {
   */
   bool finalize_materialization_transform(THD *thd, JOIN *join);
 
-  RowIterator *root_iterator() const override;
+  AccessPath *root_access_path() const override;
 
   friend class Item_ref_null_helper;
   friend class Item_is_not_null_test;
@@ -865,6 +866,7 @@ class subselect_hash_sj_engine final : public subselect_indexsubquery_engine {
   enum nulls_exist mat_table_has_nulls;
   SELECT_LEX_UNIT *const unit;
   unique_ptr_destroy_only<RowIterator> m_iterator;
+  AccessPath *m_root_access_path;
   /* Temp table context of the outer select's JOIN. */
   Temp_table_param *tmp_param;
 
@@ -887,7 +889,7 @@ class subselect_hash_sj_engine final : public subselect_indexsubquery_engine {
   enum_engine_type engine_type() const override { return HASH_SJ_ENGINE; }
 
   const QEP_TAB *get_qep_tab() const { return tab; }
-  RowIterator *root_iterator() const { return m_iterator.get(); }
+  AccessPath *root_access_path() const { return m_root_access_path; }
   void create_iterators(THD *thd) override;
 };
 

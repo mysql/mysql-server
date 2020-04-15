@@ -12474,8 +12474,8 @@ ORDER BY col_int_key
 EXPLAIN
 -> Nested loop inner join  (cost=3.05 rows=7)
     -> Sort: t4.col_int_key  (cost=0.85 rows=6)
-        -> Filter: (t4.col_int_key is not null)
-            -> Table scan on t4
+        -> Filter: (t4.col_int_key is not null)  (cost=0.85 rows=6)
+            -> Table scan on t4  (cost=0.85 rows=6)
     -> Limit: 1 row(s)  (cost=2.14 rows=1)
         -> Filter: (t3.col_int is null)  (cost=2.14 rows=1)
             -> Nested loop left join  (cost=2.14 rows=1)

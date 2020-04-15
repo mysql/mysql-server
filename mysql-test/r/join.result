@@ -1765,7 +1765,7 @@ EXPLAIN FORMAT=tree SELECT t1.i AS a, (SELECT t2.i FROM t t2 WHERE t1.j = t2.j O
 EXPLAIN
 -> Index scan on t1 using j  (cost=411.60 rows=4096)
 -> Select #2 (subquery in projection; dependent)
-    -> Limit: 1 row(s)
+    -> Limit: 1 row(s)  (cost=410.97 rows=1)
         -> Index lookup on t2 using j (j=t1.j; iterate backwards)  (cost=410.97 rows=4096)
 
 Warnings:
@@ -1816,7 +1816,7 @@ from t t1
 group by t1.a;
 EXPLAIN
 -> Table scan on <temporary>
-    -> Temporary table with deduplication
+    -> Temporary table with deduplication  (cost=0.45 rows=2)
         -> Table scan on t1  (cost=0.45 rows=2)
 -> Select #2 (subquery in projection; dependent)
     -> Aggregate: count(0)
@@ -1871,7 +1871,7 @@ from t t1;
 EXPLAIN
 -> Table scan on t1  (cost=0.45 rows=2)
 -> Select #2 (subquery in projection; dependent)
-    -> Table scan on dt
+    -> Table scan on dt  (cost=2.73 rows=2)
         -> Materialize
             -> Aggregate: count(0)
                 -> Nested loop left join  (cost=1.35 rows=4)
@@ -1908,7 +1908,7 @@ EXPLAIN
 -> Nested loop inner join
     -> Invalidate materialized tables (row from t1)  (cost=0.45 rows=2)
         -> Table scan on t1  (cost=0.45 rows=2)
-    -> Table scan on dt
+    -> Table scan on dt  (cost=3.40 rows=2)
         -> Materialize (invalidate on row from t1)
             -> Aggregate: count(0)
                 -> Nested loop left join  (cost=1.35 rows=4)
@@ -1937,7 +1937,7 @@ EXPLAIN
 -> Nested loop inner join
     -> Invalidate materialized tables (row from t1)  (cost=0.45 rows=2)
         -> Table scan on t1  (cost=0.45 rows=2)
-    -> Table scan on dt
+    -> Table scan on dt  (cost=3.40 rows=2)
         -> Materialize (invalidate on row from t1)
             -> Aggregate: count(0)
                 -> Nested loop left join  (cost=1.35 rows=4)
@@ -1967,7 +1967,7 @@ EXPLAIN
 -> Nested loop inner join
     -> Invalidate materialized tables (row from t1)  (cost=0.45 rows=2)
         -> Table scan on t1  (cost=0.45 rows=2)
-    -> Table scan on dt
+    -> Table scan on dt  (cost=3.40 rows=2)
         -> Materialize (invalidate on row from t1)
             -> Aggregate: count(0)
                 -> Nested loop left join  (cost=1.35 rows=4)

@@ -53,10 +53,6 @@ launches the EXPLAIN process for "inner units" (==subqueries of this
 SELECT_LEX), by calling explain_unit() for each of them.
 */
 
-#include <functional>
-#include <string>
-#include <vector>
-
 #include "my_base.h"
 #include "my_sqlcommand.h"
 #include "my_thread_local.h"
@@ -73,6 +69,7 @@ class QEP_TAB;
 class SELECT_LEX;
 class SELECT_LEX_UNIT;
 class THD;
+struct AccessPath;
 struct TABLE;
 template <class T>
 class List;
@@ -194,21 +191,5 @@ class Sql_cmd_explain_other_thread final : public Sql_cmd {
   /// connection_id in EXPLAIN FOR CONNECTION \<connection_id\>
   my_thread_id m_thread_id;
 };
-
-// Print out an iterator and all of its children (if any) in a tree.
-// "level" is the current indenting level, as this is called recursively.
-std::string PrintQueryPlan(int level, RowIterator *iterator);
-
-// For each subselect within the given item, call the given functor
-// with its SELECT number, dependent/cacheable status and an iterator.
-void ForEachSubselect(
-    Item *parent_item,
-    const std::function<void(int select_number, bool is_dependent,
-                             bool is_cacheable, RowIterator *iterator)>
-        &callback);
-
-// For the given join, return a list of pseudo-children corresponding to
-// subselects in the SELECT list (if any).
-std::vector<RowIterator::Child> GetIteratorsFromSelectList(JOIN *join);
 
 #endif /* OPT_EXPLAIN_INCLUDED */

@@ -5,6 +5,6 @@
 # equal.
 EXPLAIN FORMAT=tree SELECT 1 WHERE RAND() < RAND();
 EXPLAIN
--> Filter: (rand() < rand())
-    -> Rows fetched before execution
+-> Filter: (rand() < rand())  (cost=0.00 rows=1)
+    -> Rows fetched before execution  (cost=0.00 rows=1)
 

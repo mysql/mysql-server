@@ -1,7 +1,7 @@
 #ifndef SQL_SORTING_ITERATOR_H_
 #define SQL_SORTING_ITERATOR_H_
 
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -90,12 +90,6 @@ class SortingIterator final : public RowIterator {
   }
 
   void UnlockRow() override { m_result_iterator->UnlockRow(); }
-
-  std::vector<Child> children() const override {
-    return std::vector<Child>{{m_source_iterator.get(), ""}};
-  }
-
-  std::vector<std::string> DebugString() const override;
 
   /// Optional (when JOIN::destroy() runs, the iterator and its buffers
   /// will be cleaned up anyway); used to clean up the buffers a little

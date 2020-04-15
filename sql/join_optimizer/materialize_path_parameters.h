@@ -1,6 +1,4 @@
-#ifndef SQL_RECORDS_H
-#define SQL_RECORDS_H
-/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,34 +20,41 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <sys/types.h>
-#include <memory>
-#include <string>
+#ifndef MATERIALIZE_PATH_PARAMETERS_H
+#define MATERIALIZE_PATH_PARAMETERS_H 1
 
-#include "my_alloc.h"
-#include "my_base.h"
-#include "sql/basic_row_iterators.h"
-#include "sql/composite_iterators.h"
-#include "sql/ref_row_iterators.h"
-#include "sql/row_iterator.h"
-#include "sql/sorting_iterator.h"
+// Split out into its own file to reduce the amount of dependencies on
+// access_path.h.
 
-class QEP_TAB;
-class THD;
+#include "sql/mem_root_array.h"
+#include "sql/sql_class.h"
+
 struct AccessPath;
 struct TABLE;
+class JOIN;
+class Temp_table_param;
+class Common_table_expr;
+class SELECT_LEX_UNIT;
 
-AccessPath *create_table_access_path(THD *thd, TABLE *table, QEP_TAB *qep_tab,
-                                     bool count_examined_rows);
+struct MaterializePathParameters {
+  // Corresponds to MaterializeIterator::QueryBlock; see it for documentation.
+  struct QueryBlock {
+    AccessPath *subquery_path;
+    int select_number;
+    JOIN *join;
+    bool disable_deduplication_by_hash_field;
+    bool copy_fields_and_items;
+    Temp_table_param *temp_table_param;
+    bool is_recursive_reference;
+  };
+  Mem_root_array<QueryBlock> query_blocks;
+  Mem_root_array<const AccessPath *> *invalidators;
+  TABLE *table;
+  Common_table_expr *cte;
+  SELECT_LEX_UNIT *unit;
+  int ref_slice;
+  bool rematerialize;
+  ha_rows limit_rows;
+};
 
-/**
-  Creates an iterator for the given table, then calls Init() on the resulting
-  iterator. Unlike create_table_iterator(), this can create iterators for sort
-  buffer results (which are set in the TABLE object during query execution).
-  Returns nullptr on failure.
- */
-unique_ptr_destroy_only<RowIterator> init_table_iterator(
-    THD *thd, TABLE *table, QEP_TAB *qep_tab, bool disable_rr_cache,
-    bool ignore_not_found_rows, bool count_examined_rows);
-
-#endif /* SQL_RECORDS_H */
+#endif  // !defined(MATERIALIZE_PATH_PARAMETERS_H)

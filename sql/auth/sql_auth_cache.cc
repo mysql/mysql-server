@@ -1750,7 +1750,8 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
     Prepare reading from the mysql.db table
   */
   iterator = init_table_iterator(thd, table = tables[1].table, nullptr, false,
-                                 /*ignore_not_found_rows=*/false);
+                                 /*ignore_not_found_rows=*/false,
+                                 /*count_examined_rows=*/false);
   if (iterator == nullptr) goto end;
   table->use_all_columns();
   acl_dbs->clear();
@@ -1806,7 +1807,8 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
 
   if (tables[2].table) {
     iterator = init_table_iterator(thd, table = tables[2].table, nullptr, false,
-                                   /*ignore_not_found_rows=*/false);
+                                   /*ignore_not_found_rows=*/false,
+                                   /*count_examined_rows=*/false);
     if (iterator == nullptr) goto end;
     table->use_all_columns();
     while (!(read_rec_errcode = iterator->Read())) {

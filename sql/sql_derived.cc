@@ -701,7 +701,8 @@ bool TABLE_LIST::optimize_derived(THD *thd) {
     }
   }
 
-  if (unit->optimize(thd, table) || thd->is_error()) return true;
+  if (unit->optimize(thd, table, /*create_iterators=*/false) || thd->is_error())
+    return true;
 
   if (materializable_is_const() &&
       (create_materialized_table(thd) || materialize_derived(thd)))
@@ -814,6 +815,9 @@ bool TABLE_LIST::materialize_derived(THD *thd) {
   }
 
   // execute unit without cleaning up
+  if (unit->force_create_iterators(thd)) {
+    return true;
+  }
   bool res = unit->execute(thd);
 
   if (table->hash_field) {

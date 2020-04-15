@@ -64,7 +64,8 @@
 #include "sql/item.h"            // Item
 #include "sql/item_json_func.h"  // Item_json_func
 #include "sql/item_subselect.h"  // Item_subselect
-#include "sql/key.h"             // is_key_used
+#include "sql/join_optimizer/access_path.h"
+#include "sql/key.h"  // is_key_used
 #include "sql/key_spec.h"
 #include "sql/locked_tables_list.h"
 #include "sql/mem_root_array.h"
@@ -601,15 +602,12 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
           to update
           NOTE: filesort will call table->prepare_for_position()
         */
-        ha_rows examined_rows = 0;
-        iterator =
-            create_table_iterator(thd, nullptr, &qep_tab, false,
-                                  /*ignore_not_found_rows=*/false,
-                                  &examined_rows, /*using_table_scan=*/nullptr);
+        JOIN join(thd, select_lex);  // Only for holding examined_rows.
+        AccessPath *path = create_table_access_path(
+            thd, nullptr, &qep_tab, /*count_examined_rows=*/true);
 
         if (qep_tab.condition() != nullptr) {
-          iterator = NewIterator<FilterIterator>(thd, move(iterator),
-                                                 qep_tab.condition());
+          path = NewFilterAccessPath(thd, path, qep_tab.condition());
         }
 
         // Force filesort to sort by position.
@@ -618,11 +616,12 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
             /*force_stable_sort=*/false,
             /*remove_duplicates=*/false,
             /*force_sort_positions=*/true, /*unwrap_rollup=*/false));
-        iterator =
-            NewIterator<SortingIterator>(thd, fsort.get(), move(iterator),
-                                         /*examined_rows=*/nullptr);
-        if (iterator->Init()) return true;
-        thd->inc_examined_row_count(examined_rows);
+        path = NewSortAccessPath(thd, path, fsort.get(),
+                                 /*count_examined_rows=*/false);
+        iterator = CreateIteratorFromAccessPath(
+            thd, path, &join, /*eligible_for_batch_mode=*/true);
+        if (iterator == nullptr || iterator->Init()) return true;
+        thd->inc_examined_row_count(join.examined_rows);
 
         /*
           Filesort has already found and selected the rows we want to update,
@@ -669,17 +668,20 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
           Full index scan must be started with init_read_record_idx
         */
 
+        AccessPath *path;
         if (used_index == MAX_KEY || qep_tab.quick()) {
-          iterator = create_table_iterator(thd, nullptr, &qep_tab, false,
-                                           /*ignore_not_found_rows=*/false,
-                                           /*examined_rows=*/nullptr,
-                                           /*using_table_scan=*/nullptr);
+          path = create_table_access_path(thd, nullptr, &qep_tab,
+                                          /*count_examined_rows=*/false);
         } else {
-          iterator = create_table_iterator_idx(thd, table, used_index, reverse,
-                                               &qep_tab);
+          empty_record(table);
+          path = NewIndexScanAccessPath(thd, table, used_index,
+                                        /*use_order=*/true, reverse, &qep_tab,
+                                        /*count_examined_rows=*/false);
         }
 
-        if (iterator->Init()) {
+        iterator = CreateIteratorFromAccessPath(
+            thd, path, /*join=*/nullptr, /*eligible_for_batch_mode=*/true);
+        if (iterator == nullptr || iterator->Init()) {
           return true;
         }
 
@@ -762,7 +764,8 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
     } else {
       // No ORDER BY or updated key underway, so we can use a regular read.
       iterator = init_table_iterator(thd, nullptr, &qep_tab, false,
-                                     /*ignore_not_found_rows=*/false);
+                                     /*ignore_not_found_rows=*/false,
+                                     /*count_examined_rows=*/false);
       if (iterator == nullptr) return true; /* purecov: inspected */
     }
 
@@ -1051,6 +1054,9 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         Transaction_ctx::STMT);
 
   iterator.reset();
+
+  // Prevent cleanup in JOIN::destroy, since the MEM_ROOT will be freed by then.
+  table->sorting_iterator = nullptr;
 
   /*
     error < 0 means really no error at all: we processed all rows until the

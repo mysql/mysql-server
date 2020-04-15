@@ -1318,7 +1318,8 @@ Acl_table_op_status Acl_table_user_reader::finish_operation(
 bool Acl_table_user_reader::setup_table(bool &is_old_db_layout) {
   DBUG_TRACE;
   m_iterator = init_table_iterator(m_thd, m_table, nullptr, false,
-                                   /*ignore_not_found_rows=*/false);
+                                   /*ignore_not_found_rows=*/false,
+                                   /*count_examined_rows=*/false);
   if (m_iterator == nullptr) return true;
   m_table->use_all_columns();
   clean_user_cache();

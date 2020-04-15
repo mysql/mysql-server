@@ -72,6 +72,7 @@
 #include "sql/item_row.h"
 #include "sql/item_subselect.h"
 #include "sql/item_sum.h"  // Item_sum
+#include "sql/join_optimizer/access_path.h"
 #include "sql/key.h"
 #include "sql/key_spec.h"
 #include "sql/lock.h"    // mysql_unlock_some_tables
@@ -358,7 +359,7 @@ bool JOIN::optimize() {
   if (unit->select_limit_cnt == 0 && !calc_found_rows) {
     zero_result_cause = "Zero limit";
     best_rowcount = 0;
-    create_iterators_for_zero_rows();
+    create_access_paths_for_zero_rows();
     goto setup_subq_exit;
   }
 
@@ -372,7 +373,7 @@ bool JOIN::optimize() {
     if (select_lex->cond_value == Item::COND_FALSE) {
       zero_result_cause = "Impossible WHERE";
       best_rowcount = 0;
-      create_iterators_for_zero_rows();
+      create_access_paths_for_zero_rows();
       goto setup_subq_exit;
     }
   }
@@ -386,7 +387,7 @@ bool JOIN::optimize() {
     if (select_lex->having_value == Item::COND_FALSE) {
       zero_result_cause = "Impossible HAVING";
       best_rowcount = 0;
-      create_iterators_for_zero_rows();
+      create_access_paths_for_zero_rows();
       goto setup_subq_exit;
     }
   }
@@ -421,17 +422,17 @@ bool JOIN::optimize() {
         // but indicate that storage engine supports HA_COUNT_ROWS_INSTANT.
         select_count = true;
         break;
-      case AGGR_COMPLETE:
+      case AGGR_COMPLETE: {
         // All SELECT expressions are fully evaluated
         DBUG_PRINT("info", ("Select tables optimized away"));
         zero_result_cause = "Select tables optimized away";
         tables_list = nullptr;  // All tables resolved
         best_rowcount = 1;
         const_tables = tables = primary_tables = select_lex->leaf_table_count;
-        m_root_iterator =
-            NewIterator<FakeSingleRowIterator>(thd, &examined_rows);
-        m_root_iterator =
-            attach_iterators_for_having_and_limit(move(m_root_iterator));
+        AccessPath *path =
+            NewFakeSingleRowAccessPath(thd, /*count_examined_rows=*/true);
+        path = attach_access_paths_for_having_and_limit(path);
+        m_root_access_path = path;
         /*
           There are no relevant conditions left from the WHERE;
           optimize_aggregated_query() will not return AGGR_COMPLETE if there are
@@ -451,11 +452,12 @@ bool JOIN::optimize() {
           where_cond = nullptr;
         }
         goto setup_subq_exit;
+      }
       case AGGR_EMPTY:
         // It was detected that the result tables are empty
         DBUG_PRINT("info", ("No matching min/max row"));
         zero_result_cause = "No matching min/max row";
-        create_iterators_for_zero_rows();
+        create_access_paths_for_zero_rows();
         goto setup_subq_exit;
     }
   }
@@ -467,7 +469,7 @@ bool JOIN::optimize() {
     count_field_types(select_lex, &tmp_table_param, *fields, false, false);
     // Make plan visible for EXPLAIN
     set_plan_state(NO_TABLES);
-    create_iterators();
+    create_access_paths();
     return false;
   }
   error = -1;  // Error is sent to client
@@ -519,7 +521,7 @@ bool JOIN::optimize() {
   ASSERT_BEST_REF_IN_JOIN_ORDER(this);
 
   if (zero_result_cause != nullptr) {  // Can be set by make_join_plan().
-    create_iterators_for_zero_rows();
+    create_access_paths_for_zero_rows();
     goto setup_subq_exit;
   }
 
@@ -598,7 +600,7 @@ bool JOIN::optimize() {
     if (thd->is_error()) return true;
 
     zero_result_cause = "Impossible WHERE noticed after reading const tables";
-    create_iterators_for_zero_rows();
+    create_access_paths_for_zero_rows();
     goto setup_subq_exit;
   }
 
@@ -650,7 +652,7 @@ bool JOIN::optimize() {
       having_cond = new Item_func_false();
       zero_result_cause =
           "Impossible HAVING noticed after reading const tables";
-      create_iterators_for_zero_rows();
+      create_access_paths_for_zero_rows();
       goto setup_subq_exit;
     }
   }
@@ -690,7 +692,7 @@ bool JOIN::optimize() {
       return true;
     }
 
-    create_iterators_for_index_subquery();
+    create_access_paths_for_index_subquery();
     set_plan_state(PLAN_READY);
     /*
       We leave optimize() because the rest of it is only about order/group
@@ -853,8 +855,7 @@ bool JOIN::optimize() {
 
   count_field_types(select_lex, &tmp_table_param, *fields, false, false);
 
-  // Create the basic table Iterators, and composite Iterators where supported.
-  create_iterators();
+  create_access_paths();
 
   // Creating iterators may evaluate a constant hash join condition, which may
   // fail:
@@ -871,7 +872,7 @@ bool JOIN::optimize() {
 setup_subq_exit:
 
   DBUG_ASSERT(zero_result_cause != nullptr);
-  DBUG_ASSERT(m_root_iterator != nullptr);
+  DBUG_ASSERT(m_root_access_path != nullptr);
   /*
     Even with zero matching rows, subqueries in the HAVING clause may
     need to be evaluated if there are aggregate functions in the
@@ -906,17 +907,16 @@ setup_subq_exit:
   return false;
 }
 
-void JOIN::create_iterators_for_zero_rows() {
+void JOIN::create_access_paths_for_zero_rows() {
   if (send_row_on_empty_set()) {
     // Aggregate no rows into an aggregate row.
-    m_root_iterator = NewIterator<ZeroRowsAggregatedIterator>(
-        thd, zero_result_cause, select_lex->join, &examined_rows);
-    m_root_iterator =
-        attach_iterators_for_having_and_limit(move(m_root_iterator));
+    m_root_access_path =
+        NewZeroRowsAggregatedAccessPath(thd, zero_result_cause);
+    m_root_access_path =
+        attach_access_paths_for_having_and_limit(m_root_access_path);
   } else {
     // Send no row at all (so also no need to check HAVING or LIMIT).
-    m_root_iterator = NewIterator<ZeroRowsIterator>(thd, zero_result_cause,
-                                                    /*child_iterator=*/nullptr);
+    m_root_access_path = NewZeroRowsAccessPath(thd, zero_result_cause);
   }
 }
 
@@ -8531,7 +8531,7 @@ bool JOIN::attach_join_conditions(plan_idx last_tab) {
       !lt->table_ref->join_cond()) {
     Item *cond = new Item_func_false();
     if (!cond) return true;
-    // This is a signal for JOIN::create_iterators
+    // This is a signal for JOIN::create_access_paths
     cond->item_name.set(antijoin_null_cond);
     /*
       For A AJ B ON COND, we need an IS NULL condition which

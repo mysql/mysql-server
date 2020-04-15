@@ -2543,7 +2543,7 @@ EXPLAIN
 -> Filter: (<in_optimizer>(t3.c1,<exists>(select #2)) xor true)  (cost=0.45 rows=2)
     -> Index scan on t3 using k1  (cost=0.45 rows=2)
     -> Select #2 (subquery in condition; dependent)
-        -> Limit: 1 row(s)
+        -> Limit: 1 row(s)  (cost=0.72 rows=1)
             -> Nested loop inner join  (cost=0.72 rows=1)
                 -> Filter: <if>(outer_field_is_not_null, (<cache>(t3.c1) = t1.c2_key), true)  (cost=0.35 rows=1)
                     -> Alternative plans for IN subquery: Index lookup unless c2_key IS NULL  (cost=0.35 rows=1)

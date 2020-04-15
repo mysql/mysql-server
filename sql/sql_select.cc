@@ -213,7 +213,9 @@ bool handle_query(THD *thd, LEX *lex, Query_result *result,
   */
   if (lock_tables(thd, lex->query_tables, lex->table_count, 0)) goto err;
 
-  if (unit->optimize(thd, /*materialize_destination=*/nullptr)) goto err;
+  if (unit->optimize(thd, /*materialize_destination=*/nullptr,
+                     /*create_iterators=*/true))
+    goto err;
 
   if (lex->is_explain()) {
     if (explain_query(thd, thd, unit)) goto err; /* purecov: inspected */
@@ -904,7 +906,9 @@ static bool optimize_secondary_engine(THD *thd) {
 bool Sql_cmd_dml::execute_inner(THD *thd) {
   SELECT_LEX_UNIT *unit = lex->unit;
 
-  if (unit->optimize(thd, /*materialize_destination=*/nullptr)) return true;
+  if (unit->optimize(thd, /*materialize_destination=*/nullptr,
+                     /*create_iterators=*/true))
+    return true;
 
   // Calculate the current statement cost. It will be made available in
   // the Last_query_cost status variable.
@@ -1246,10 +1250,6 @@ SJ_TMP_TABLE *create_sj_tmp_table(THD *thd, JOIN *join,
       tab->null_bit = jt_null_bits++;
     }
     qep_tab->table()->prepare_for_position();
-
-    if (qep_tab->rowid_status == NO_ROWID_NEEDED) {
-      qep_tab->rowid_status = NEED_TO_CALL_POSITION_FOR_ROWID;
-    }
   }
 
   SJ_TMP_TABLE *sjtbl;
@@ -1797,10 +1797,6 @@ void JOIN::destroy() {
 
   set_plan_state(NO_PLAN);
 
-  // Clear iterators that may refer to table objects before we start
-  // deleting said objects (e.g. temporary tables).
-  m_root_iterator.reset();
-
   if (qep_tab) {
     DBUG_ASSERT(!join_tab);
     for (uint i = 0; i < tables; i++) {
@@ -1904,7 +1900,8 @@ bool SELECT_LEX::optimize(THD *thd) {
        unit = unit->next_unit()) {
     // Derived tables and const subqueries are already optimized
     if (!unit->is_optimized() &&
-        unit->optimize(thd, /*materialize_destination=*/nullptr))
+        unit->optimize(thd, /*materialize_destination=*/nullptr,
+                       /*create_iterators=*/false))
       return true;
   }
 
@@ -3447,7 +3444,6 @@ void QEP_TAB::cleanup() {
   // Delete parts specific of QEP_TAB:
   destroy(filesort);
   filesort = nullptr;
-  iterator.reset();
   if (quick_optim() != quick()) delete quick_optim();
 
   TABLE *const t = table();

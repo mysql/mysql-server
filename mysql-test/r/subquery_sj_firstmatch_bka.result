@@ -12423,8 +12423,8 @@ ORDER BY col_int_key
 EXPLAIN
 -> Nested loop semijoin  (cost=3.05 rows=7)
     -> Sort: t4.col_int_key  (cost=0.85 rows=6)
-        -> Filter: (t4.col_int_key is not null)
-            -> Table scan on t4
+        -> Filter: (t4.col_int_key is not null)  (cost=0.85 rows=6)
+            -> Table scan on t4  (cost=0.85 rows=6)
     -> Filter: (t3.col_int is null)  (cost=2.14 rows=1)
         -> Nested loop left join  (cost=2.14 rows=1)
             -> Index lookup on t1 using col_int_key (col_int_key=t4.col_int_key)  (cost=0.27 rows=1)
@@ -12754,10 +12754,10 @@ test.t1	analyze	status	OK
 test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE EXISTS ( SELECT alias1.f2 FROM t2 LEFT JOIN t1 ON 1 LEFT JOIN t1 AS alias1 ON 1 );
 EXPLAIN
--> Inner hash join (no condition)
+-> Inner hash join (no condition)  (cost=5.40 rows=3)
     -> Table scan on t1  (cost=0.55 rows=3)
     -> Hash
-        -> Limit: 1 row(s)
+        -> Limit: 1 row(s)  (cost=4.85 rows=1)
             -> Nested loop left join  (cost=4.85 rows=18)
                 -> Nested loop left join  (cost=1.55 rows=6)
                     -> Table scan on t2  (cost=0.45 rows=2)

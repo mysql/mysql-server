@@ -389,6 +389,8 @@ SET(SQL_SHARED_SOURCES
   item_timefunc.cc 
   item_xmlfunc.cc 
   item_inetfunc.cc
+  join_optimizer/access_path.cc
+  join_optimizer/explain_access_path.cc
   json_binary.cc
   json_diff.cc
   json_dom.cc

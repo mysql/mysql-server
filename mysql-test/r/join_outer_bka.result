@@ -1920,9 +1920,9 @@ ON t2.col_varchar_10 = t3.col_varchar_10
 ON t2.col_int = t1.pk
 WHERE   t1.col_int_key IS NULL OR t4.pk < t3.col_int;
 EXPLAIN
--> Filter: <if>(found_match(t3..t4), (<cache>(('-448724992' is null)) or (t4.pk < t3.col_int)), true)
-    -> Nested loop left join
-        -> Rows fetched before execution
+-> Filter: <if>(found_match(t3..t4), (<cache>(('-448724992' is null)) or (t4.pk < t3.col_int)), true)  (cost=0.50 rows=0)
+    -> Nested loop left join  (cost=0.50 rows=0)
+        -> Rows fetched before execution  (cost=0.00 rows=1)
         -> Nested loop left join  (cost=1.10 rows=0)
             -> Filter: (t2.col_int = '6')  (cost=0.60 rows=1)
                 -> Table scan on t2  (cost=0.60 rows=1)

@@ -107,9 +107,10 @@
 #include "sql/histograms/histogram.h"
 #include "sql/item.h"
 #include "sql/item_timefunc.h"  // Item_func_now_local
-#include "sql/key.h"            // KEY
-#include "sql/key_spec.h"       // Key_part_spec
-#include "sql/lock.h"           // mysql_lock_remove, lock_tablespace_names
+#include "sql/join_optimizer/access_path.h"
+#include "sql/key.h"       // KEY
+#include "sql/key_spec.h"  // Key_part_spec
+#include "sql/lock.h"      // mysql_lock_remove, lock_tablespace_names
 #include "sql/locked_tables_list.h"
 #include "sql/log.h"
 #include "sql/log_event.h"  // Query_log_event
@@ -17847,10 +17848,9 @@ static int copy_data_between_tables(
   ORDER *order = select_lex->order_list.first;
 
   unique_ptr_destroy_only<Filesort> fsort;
-  unique_ptr_destroy_only<RowIterator> iterator = create_table_iterator(
-      thd, from, nullptr, false,
-      /*ignore_not_found_rows=*/false, /*examined_rows=*/nullptr,
-      /*using_table_scan=*/nullptr);
+  unique_ptr_destroy_only<RowIterator> iterator;
+  AccessPath *path = create_table_access_path(thd, from, nullptr,
+                                              /*count_examined_rows=*/false);
 
   if (order && to->s->primary_key != MAX_KEY &&
       to->file->primary_key_is_clustered()) {
@@ -17884,19 +17884,15 @@ static int copy_data_between_tables(
         /*force_stable_sort=*/false,
         /*remove_duplicates=*/false,
         /*force_sort_positions=*/true, /*unwrap_rollup=*/false));
-    unique_ptr_destroy_only<RowIterator> sort =
-        NewIterator<SortingIterator>(thd, fsort.get(), move(iterator),
-                                     /*examined_rows=*/nullptr);
-    if (sort->Init()) {
-      error = 1;
-      goto err;
-    }
-    iterator = move(sort);
-  } else {
-    if (iterator->Init()) {
-      error = 1;
-      goto err;
-    }
+    path = NewSortAccessPath(thd, path, fsort.get(),
+                             /*count_examined_rows=*/false);
+  }
+
+  iterator = CreateIteratorFromAccessPath(thd, path, /*join=*/nullptr,
+                                          /*eligible_for_batch_mode=*/true);
+  if (iterator == nullptr || iterator->Init()) {
+    error = 1;
+    goto err;
   }
   thd->get_stmt_da()->reset_current_row_for_condition();
 

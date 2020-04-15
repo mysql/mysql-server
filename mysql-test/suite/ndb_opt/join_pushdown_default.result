@@ -1955,7 +1955,7 @@ EXPLAIN
         -> Group aggregate: count(distinct t2.b)
             -> Nested loop inner join  (cost=4011.20 rows=16)
                 -> Sort: t1.b  (cost=4001.60 rows=16)
-                    -> Table scan on t1
+                    -> Table scan on t1  (cost=4001.60 rows=16)
                 -> Index lookup on t2 using PRIMARY (a=t1.c)  (cost=0.51 rows=1)
 
 Warnings:

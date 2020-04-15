@@ -64,6 +64,8 @@
 #include "sql/item.h"
 #include "sql/item_subselect.h"
 #include "sql/item_sum.h"
+#include "sql/join_optimizer/access_path.h"
+#include "sql/join_optimizer/explain_access_path.h"
 #include "sql/mem_root_array.h"
 #include "sql/mysqld.h"
 #include "sql/opt_explain.h"  // explain_no_table
@@ -656,7 +658,8 @@ bool SELECT_LEX_UNIT::prepare(THD *thd, Query_result *sel_result,
   return false;
 }
 
-bool SELECT_LEX_UNIT::optimize(THD *thd, TABLE *materialize_destination) {
+bool SELECT_LEX_UNIT::optimize(THD *thd, TABLE *materialize_destination,
+                               bool create_iterators) {
   DBUG_TRACE;
 
   DBUG_ASSERT(is_prepared() && !is_optimized());
@@ -759,7 +762,7 @@ bool SELECT_LEX_UNIT::optimize(THD *thd, TABLE *materialize_destination) {
   if (thd->lex->m_sql_cmd != nullptr &&
       thd->lex->m_sql_cmd->using_secondary_storage_engine()) {
     // Not supported when using secondary storage engine.
-    create_iterators(thd);
+    create_access_paths(thd);
   } else if (estimated_rowcount <= 1) {
     // Don't do it for const tables, as for those, optimize_derived() wants to
     // run the query during optimization, and thus needs an iterator.
@@ -769,7 +772,7 @@ bool SELECT_LEX_UNIT::optimize(THD *thd, TABLE *materialize_destination) {
     // estimated_rowcount larger than one (e.g., because it understands it can
     // get only one row due to a unique index), but will detect that the table
     // has not been created, and treat the the lookup as non-const.
-    create_iterators(thd);
+    create_access_paths(thd);
   } else if (materialize_destination != nullptr &&
              can_materialize_directly_into_result()) {
     m_query_blocks_to_materialize = setup_materialization(
@@ -778,14 +781,9 @@ bool SELECT_LEX_UNIT::optimize(THD *thd, TABLE *materialize_destination) {
     // Recursive CTEs expect to see the rows in the result table immediately
     // after writing them.
     DBUG_ASSERT(!is_recursive());
-    create_iterators(thd);
+    create_access_paths(thd);
   }
 
-  if (false) {
-    // This can be useful during debugging.
-    fprintf(stderr, "Query plan:\n%s\n",
-            PrintQueryPlan(0, m_root_iterator.get()).c_str());
-  }
   set_optimized();  // All query blocks optimized, update the state
 
   if (item != nullptr) {
@@ -796,60 +794,72 @@ bool SELECT_LEX_UNIT::optimize(THD *thd, TABLE *materialize_destination) {
     // altogether, now that there's much less execution logic in them.
     DBUG_ASSERT(!unfinished_materialization());
     item->create_iterators(thd);
+    if (m_root_access_path == nullptr) {
+      return false;
+    }
+  }
+
+  if (create_iterators) {
+    JOIN *join;
+    if (!is_union()) {
+      join = first_select()->join;
+    } else if (fake_select_lex != nullptr) {
+      join = fake_select_lex->join;
+    } else {
+      join = nullptr;
+    }
+    m_root_iterator = CreateIteratorFromAccessPath(
+        thd, m_root_access_path, join, /*eligible_for_batch_mode=*/true);
+    if (false) {
+      // This can be useful during debugging.
+      bool is_root_of_join = (join != nullptr);
+      fprintf(
+          stderr, "Query plan:\n%s\n",
+          PrintQueryPlan(0, m_root_access_path, join, is_root_of_join).c_str());
+    }
   }
 
   return false;
 }
 
-Mem_root_array<MaterializeIterator::QueryBlock>
+bool SELECT_LEX_UNIT::force_create_iterators(THD *thd) {
+  if (m_root_iterator == nullptr) {
+    JOIN *join = is_union() ? nullptr : first_select()->join;
+    m_root_iterator = CreateIteratorFromAccessPath(
+        thd, m_root_access_path, join, /*eligible_for_batch_mode=*/true);
+  }
+  return m_root_iterator == nullptr;
+}
+
+Mem_root_array<MaterializePathParameters::QueryBlock>
 SELECT_LEX_UNIT::setup_materialization(THD *thd, TABLE *dst_table,
                                        bool union_distinct_only) {
-  Mem_root_array<MaterializeIterator::QueryBlock> query_blocks(thd->mem_root);
+  Mem_root_array<MaterializePathParameters::QueryBlock> query_blocks(
+      thd->mem_root);
 
   bool activate_deduplication = (union_distinct != nullptr);
   for (SELECT_LEX *select = first_select(); select != nullptr;
        select =
            select->next_select()) {  // Termination condition at end of loop.
     JOIN *join = select->join;
-    MaterializeIterator::QueryBlock query_block;
+    MaterializePathParameters::QueryBlock query_block;
     DBUG_ASSERT(join && join->is_optimized());
-    DBUG_ASSERT(join->root_iterator() != nullptr);
+    DBUG_ASSERT(join->root_access_path() != nullptr);
     ConvertItemsToCopy(*join->fields, dst_table->visible_field_ptr(),
                        &join->tmp_table_param);
 
-    query_block.subquery_iterator = join->release_root_iterator();
+    query_block.subquery_path = join->root_access_path();
+    DBUG_ASSERT(query_block.subquery_path != nullptr);
     query_block.select_number = select->select_number;
     query_block.join = join;
-    if (mixed_union_operators() && !activate_deduplication) {
-      query_block.disable_deduplication_by_hash_field = true;
-    }
+    query_block.disable_deduplication_by_hash_field =
+        (mixed_union_operators() && !activate_deduplication);
     // See the class comment on AggregateIterator.
     query_block.copy_fields_and_items =
         !join->streaming_aggregation ||
         join->tmp_table_param.precomputed_group_by;
     query_block.temp_table_param = &join->tmp_table_param;
     query_block.is_recursive_reference = select->recursive_reference;
-
-    if (query_block.is_recursive_reference) {
-      // Find the recursive reference to ourselves; there should be exactly one,
-      // as per the standard.
-      for (unsigned table_idx = 0; table_idx < join->tables; ++table_idx) {
-        QEP_TAB *qep_tab = &join->qep_tab[table_idx];
-        if (qep_tab->recursive_iterator != nullptr) {
-          DBUG_ASSERT(query_block.recursive_reader == nullptr);
-          query_block.recursive_reader = qep_tab->recursive_iterator;
-#ifndef DBUG_OFF
-          break;
-#endif
-        }
-      }
-      if (query_block.recursive_reader == nullptr) {
-        // The recursive reference was optimized away, e.g. due to an impossible
-        // WHERE condition, so we're not a recursive reference after all.
-        query_block.is_recursive_reference = false;
-      }
-    }
-
     query_blocks.push_back(move(query_block));
 
     if (select == union_distinct) {
@@ -864,11 +874,11 @@ SELECT_LEX_UNIT::setup_materialization(THD *thd, TABLE *dst_table,
   return query_blocks;
 }
 
-void SELECT_LEX_UNIT::create_iterators(THD *thd) {
+void SELECT_LEX_UNIT::create_access_paths(THD *thd) {
   if (is_simple()) {
     JOIN *join = first_select()->join;
     DBUG_ASSERT(join && join->is_optimized());
-    m_root_iterator = join->release_root_iterator();
+    m_root_access_path = join->root_access_path();
     return;
   }
 
@@ -913,7 +923,8 @@ void SELECT_LEX_UNIT::create_iterators(THD *thd) {
   const bool calc_found_rows =
       (first_select()->active_options() & OPTION_FOUND_ROWS);
 
-  vector<unique_ptr_destroy_only<RowIterator>> union_all_sub_iterators;
+  Mem_root_array<AppendPathParameters> *union_all_sub_paths =
+      new (thd->mem_root) Mem_root_array<AppendPathParameters>(thd->mem_root);
 
   // If streaming is allowed, we can do all the parts that are UNION ALL by
   // streaming; the rest have to go to the table.
@@ -921,23 +932,27 @@ void SELECT_LEX_UNIT::create_iterators(THD *thd) {
   // Handle the query blocks that we need to materialize. This may be
   // UNION DISTINCT query blocks only, or all blocks.
   if (union_distinct != nullptr || !streaming_allowed) {
-    Mem_root_array<MaterializeIterator::QueryBlock> query_blocks =
+    Mem_root_array<MaterializePathParameters::QueryBlock> query_blocks =
         setup_materialization(thd, tmp_table, streaming_allowed);
 
-    unique_ptr_destroy_only<RowIterator> table_iterator;
+    AccessPath *table_path;
     if (fake_select_lex != nullptr) {
-      table_iterator = fake_select_lex->join->release_root_iterator();
+      table_path = fake_select_lex->join->root_access_path();
     } else {
-      table_iterator =
-          NewIterator<TableScanIterator>(thd, tmp_table, nullptr, nullptr);
+      table_path = NewTableScanAccessPath(thd, tmp_table, /*qep_tab=*/nullptr,
+                                          /*count_examined_rows=*/false);
     }
     bool push_limit_down =
         global_parameters()->order_list.size() == 0 && !calc_found_rows;
-    union_all_sub_iterators.emplace_back(NewIterator<MaterializeIterator>(
-        thd, move(query_blocks), tmp_table, move(table_iterator),
-        /*cte=*/nullptr, /*unit=*/nullptr, /*join=*/nullptr,
+    AppendPathParameters param;
+    param.path = NewMaterializeAccessPath(
+        thd, move(query_blocks), /*invalidators=*/nullptr, tmp_table,
+        table_path,
+        /*cte=*/nullptr, /*unit=*/nullptr,
         /*ref_slice=*/-1,
-        /*rematerialize=*/true, push_limit_down ? limit : HA_POS_ERROR));
+        /*rematerialize=*/true, push_limit_down ? limit : HA_POS_ERROR);
+    param.join = nullptr;
+    union_all_sub_paths->push_back(param);
   }
 
   if (streaming_allowed) {
@@ -952,28 +967,30 @@ void SELECT_LEX_UNIT::create_iterators(THD *thd) {
                          &join->tmp_table_param);
       bool copy_fields_and_items = !join->streaming_aggregation ||
                                    join->tmp_table_param.precomputed_group_by;
-      union_all_sub_iterators.emplace_back(NewIterator<StreamingIterator>(
-          thd, join->release_root_iterator(), &join->tmp_table_param, tmp_table,
-          copy_fields_and_items));
+      AppendPathParameters param;
+      param.path = NewStreamingAccessPath(thd, join->root_access_path(), join,
+                                          &join->tmp_table_param, tmp_table,
+                                          copy_fields_and_items);
+      param.join = join;
+      CopyCosts(*join->root_access_path(), param.path);
+      union_all_sub_paths->push_back(param);
     }
   }
 
-  DBUG_ASSERT(!union_all_sub_iterators.empty());
-  if (union_all_sub_iterators.size() == 1) {
-    m_root_iterator = move(union_all_sub_iterators[0]);
+  DBUG_ASSERT(!union_all_sub_paths->empty());
+  if (union_all_sub_paths->size() == 1) {
+    m_root_access_path = (*union_all_sub_paths)[0].path;
   } else {
     // Just append all the UNION ALL sub-blocks.
     DBUG_ASSERT(streaming_allowed);
-    m_root_iterator =
-        NewIterator<AppendIterator>(thd, move(union_all_sub_iterators));
+    m_root_access_path = NewAppendAccessPath(thd, union_all_sub_paths);
   }
 
   // NOTE: If there's a fake_select_lex, its JOIN's iterator already handles
   // LIMIT/OFFSET, so we don't do it again here.
   if ((limit != HA_POS_ERROR || offset != 0) && fake_select_lex == nullptr) {
-    m_root_iterator = NewIterator<LimitOffsetIterator>(
-        thd, move(m_root_iterator), limit, offset, calc_found_rows,
-        &send_records);
+    m_root_access_path = NewLimitOffsetAccessPath(
+        thd, m_root_access_path, limit, offset, calc_found_rows, &send_records);
   }
 }
 

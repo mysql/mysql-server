@@ -45,6 +45,7 @@
 #include "sql/filesort.h"    // Filesort
 #include "sql/handler.h"
 #include "sql/item.h"
+#include "sql/join_optimizer/access_path.h"
 #include "sql/key_spec.h"
 #include "sql/mem_root_array.h"
 #include "sql/mysqld.h"       // stage_...
@@ -430,23 +431,24 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
       (void)table->file->ha_extra(HA_EXTRA_QUICK);
 
     unique_ptr_destroy_only<Filesort> fsort;
-    unique_ptr_destroy_only<RowIterator> iterator;
-    ha_rows examined_rows = 0;
-    if (usable_index == MAX_KEY || qep_tab.quick())
-      iterator =
-          create_table_iterator(thd, nullptr, &qep_tab, false,
-                                /*ignore_not_found_rows=*/false, &examined_rows,
-                                /*using_table_scan=*/nullptr);
-    else
-      iterator = create_table_iterator_idx(thd, table, usable_index, reverse,
-                                           &qep_tab);
+    JOIN join(thd, select_lex);  // Only for holding examined_rows.
+    AccessPath *path;
+    if (usable_index == MAX_KEY || qep_tab.quick()) {
+      path = create_table_access_path(thd, nullptr, &qep_tab,
+                                      /*count_examined_rows=*/true);
+    } else {
+      empty_record(table);
+      path = NewIndexScanAccessPath(thd, table, usable_index,
+                                    /*use_order=*/true, reverse, &qep_tab,
+                                    /*count_examined_rows=*/false);
+    }
 
+    unique_ptr_destroy_only<RowIterator> iterator;
     if (need_sort) {
       DBUG_ASSERT(usable_index == MAX_KEY);
 
       if (qep_tab.condition() != nullptr) {
-        iterator = NewIterator<FilterIterator>(thd, move(iterator),
-                                               qep_tab.condition());
+        path = NewFilterAccessPath(thd, path, qep_tab.condition());
       }
 
       fsort.reset(new (thd->mem_root) Filesort(
@@ -454,12 +456,12 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
           /*force_stable_sort=*/false,
           /*remove_duplicates=*/false,
           /*force_sort_positions=*/true, /*unwrap_rollup=*/false));
-      unique_ptr_destroy_only<RowIterator> sort =
-          NewIterator<SortingIterator>(thd, fsort.get(), move(iterator),
-                                       /*rows_examined=*/nullptr);
-      if (sort->Init()) return true;
-      iterator = move(sort);
-      thd->inc_examined_row_count(examined_rows);
+      path = NewSortAccessPath(thd, path, fsort.get(),
+                               /*count_examined_rows=*/false);
+      iterator = CreateIteratorFromAccessPath(thd, path, &join,
+                                              /*eligible_for_batch_mode=*/true);
+      if (iterator == nullptr || iterator->Init()) return true;
+      thd->inc_examined_row_count(join.examined_rows);
 
       /*
         Filesort has already found and selected the rows we want to delete,
@@ -467,8 +469,14 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
       */
       qep_tab.set_condition(nullptr);
     } else {
+      iterator = CreateIteratorFromAccessPath(thd, path, &join,
+                                              /*eligible_for_batch_mode=*/true);
       if (iterator->Init()) return true;
     }
+
+    // Prevent cleanup in JOIN::destroy, since the MEM_ROOT will be freed by
+    // then.
+    table->sorting_iterator = nullptr;
 
     if (select_lex->has_ft_funcs() && init_ftfuncs(thd, select_lex))
       return true; /* purecov: inspected */
@@ -1165,7 +1173,8 @@ int Query_result_delete::do_table_deletes(THD *thd, TABLE *table) {
     been deleted by foreign key handling
   */
   unique_ptr_destroy_only<RowIterator> iterator = init_table_iterator(
-      thd, table, nullptr, false, /*ignore_not_found_rows=*/true);
+      thd, table, nullptr, false, /*ignore_not_found_rows=*/true,
+      /*count_examined_rows=*/false);
   if (iterator == nullptr) return 1;
   bool will_batch = !table->file->start_bulk_delete();
   while (!(local_error = iterator->Read()) && !thd->killed) {

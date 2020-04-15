@@ -67,6 +67,7 @@ class Item_sum;
 class Opt_trace_context;
 class THD;
 class Window;
+struct AccessPath;
 struct MYSQL_LOCK;
 
 class Item_equal;
@@ -724,13 +725,7 @@ class JOIN {
   */
   bool push_to_engines();
 
-  RowIterator *root_iterator() const { return m_root_iterator.get(); }
-  unique_ptr_destroy_only<RowIterator> release_root_iterator() {
-    return move(m_root_iterator);
-  }
-  void set_root_iterator(unique_ptr_destroy_only<RowIterator> iterator) {
-    m_root_iterator = move(iterator);
-  }
+  AccessPath *root_access_path() const { return m_root_access_path; }
 
  private:
   bool optimized{false};  ///< flag to avoid double optimization in EXPLAIN
@@ -928,37 +923,32 @@ class JOIN {
   bool alloc_indirection_slices();
 
   /**
-    If possible, convert the executor structures to a set of row iterators,
-    storing the result in m_root_iterator. If not, m_root_iterator will remain
-    nullptr.
+    Convert the executor structures to a set of access paths, storing
+    the result in m_root_access_path.
    */
-  void create_iterators();
+  void create_access_paths();
 
   /**
-    Create iterators with the knowledge that there are going to be zero rows
+    Create access paths with the knowledge that there are going to be zero rows
     coming from tables (before aggregation); typically because we know that
     all of them would be filtered away by WHERE (e.g. SELECT * FROM t1
     WHERE 1=2). This will normally yield no output rows, but if we have implicit
     aggregation, it might yield a single one.
    */
-  void create_iterators_for_zero_rows();
+  void create_access_paths_for_zero_rows();
 
-  void create_iterators_for_index_subquery();
+  void create_access_paths_for_index_subquery();
 
-  /** @{ Helpers for create_iterators. */
-  void create_table_iterators();
-  unique_ptr_destroy_only<RowIterator> create_root_iterator_for_join();
-  unique_ptr_destroy_only<RowIterator> attach_iterators_for_having_and_limit(
-      unique_ptr_destroy_only<RowIterator> iterator);
+  /** @{ Helpers for create_access_paths. */
+  AccessPath *create_root_access_path_for_join();
+  AccessPath *attach_access_paths_for_having_and_limit(AccessPath *path);
   /** @} */
 
   /**
-    An iterator you can read from to get all records for this query.
-
-    May be nullptr even after create_iterators() if the current query
-    is not supported by the iterator executor.
+    An access path you can read from to get all records for this query
+    (after you create an iterator from it).
    */
-  unique_ptr_destroy_only<RowIterator> m_root_iterator;
+  AccessPath *m_root_access_path = nullptr;
 };
 
 /**

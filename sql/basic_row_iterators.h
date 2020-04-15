@@ -73,8 +73,6 @@ class TableScanIterator final : public TableRowIterator {
   bool Init() override;
   int Read() override;
 
-  std::vector<std::string> DebugString() const override;
-
  private:
   uchar *const m_record;
   QEP_TAB *const m_qep_tab;
@@ -103,7 +101,6 @@ class IndexScanIterator final : public TableRowIterator {
 
   bool Init() override;
   int Read() override;
-  std::vector<std::string> DebugString() const override;
 
  private:
   uchar *const m_record;
@@ -139,7 +136,6 @@ class IndexRangeScanIterator final : public TableRowIterator {
 
   bool Init() override;
   int Read() override;
-  std::vector<std::string> DebugString() const override;
 
  private:
   // NOTE: No destructor; quick_range will call ha_index_or_rnd_end() for us.
@@ -183,7 +179,6 @@ class SortBufferIterator final : public TableRowIterator {
 
   bool Init() override;
   int Read() override;
-  std::vector<std::string> DebugString() const override;
   void UnlockRow() override {}
 
  private:
@@ -219,7 +214,6 @@ class SortBufferIndirectIterator final : public TableRowIterator {
   ~SortBufferIndirectIterator() override;
   bool Init() override;
   int Read() override;
-  std::vector<std::string> DebugString() const override;
 
  private:
   Sort_result *const m_sort_result;
@@ -249,7 +243,6 @@ class SortFileIterator final : public TableRowIterator {
 
   bool Init() override { return false; }
   int Read() override;
-  std::vector<std::string> DebugString() const override;
   void UnlockRow() override {}
 
  private:
@@ -283,7 +276,6 @@ class SortFileIndirectIterator final : public TableRowIterator {
 
   bool Init() override;
   int Read() override;
-  std::vector<std::string> DebugString() const override;
 
  private:
   bool InitCache();
@@ -338,10 +330,6 @@ class FakeSingleRowIterator final : public RowIterator {
     }
   }
 
-  std::vector<std::string> DebugString() const override {
-    return {"Rows fetched before execution"};
-  }
-
   void SetNullRowFlag(bool is_null_row MY_ATTRIBUTE((unused))) override {
     DBUG_ASSERT(!is_null_row);
   }
@@ -364,8 +352,6 @@ class UnqualifiedCountIterator final : public RowIterator {
  public:
   UnqualifiedCountIterator(THD *thd, JOIN *join)
       : RowIterator(thd), m_join(join) {}
-
-  std::vector<std::string> DebugString() const override;
 
   bool Init() override {
     m_has_row = true;
@@ -396,19 +382,13 @@ class UnqualifiedCountIterator final : public RowIterator {
  */
 class ZeroRowsIterator final : public RowIterator {
  public:
-  ZeroRowsIterator(THD *thd, const char *reason,
+  ZeroRowsIterator(THD *thd,
                    unique_ptr_destroy_only<RowIterator> child_iterator)
-      : RowIterator(thd),
-        m_reason(reason),
-        m_child_iterator(std::move(child_iterator)) {}
+      : RowIterator(thd), m_child_iterator(std::move(child_iterator)) {}
 
   bool Init() override { return false; }
 
   int Read() override { return -1; }
-
-  std::vector<std::string> DebugString() const override {
-    return {std::string("Zero rows (") + m_reason + ")"};
-  }
 
   void SetNullRowFlag(bool is_null_row) override {
     DBUG_ASSERT(m_child_iterator != nullptr);
@@ -418,7 +398,6 @@ class ZeroRowsIterator final : public RowIterator {
   void UnlockRow() override {}
 
  private:
-  const char *m_reason;
   unique_ptr_destroy_only<RowIterator> m_child_iterator;
 };
 
@@ -435,12 +414,8 @@ class SELECT_LEX;
 class ZeroRowsAggregatedIterator final : public RowIterator {
  public:
   // "examined_rows", if not nullptr, is incremented for each successful Read().
-  ZeroRowsAggregatedIterator(THD *thd, const char *reason, JOIN *join,
-                             ha_rows *examined_rows)
-      : RowIterator(thd),
-        m_reason(reason),
-        m_join(join),
-        m_examined_rows(examined_rows) {}
+  ZeroRowsAggregatedIterator(THD *thd, JOIN *join, ha_rows *examined_rows)
+      : RowIterator(thd), m_join(join), m_examined_rows(examined_rows) {}
 
   bool Init() override {
     m_has_row = true;
@@ -449,18 +424,12 @@ class ZeroRowsAggregatedIterator final : public RowIterator {
 
   int Read() override;
 
-  std::vector<std::string> DebugString() const override {
-    return {std::string("Zero input rows (") + m_reason +
-            "), aggregated into one output row"};
-  }
-
   void SetNullRowFlag(bool) override { DBUG_ASSERT(false); }
 
   void UnlockRow() override {}
 
  private:
   bool m_has_row;
-  const char *const m_reason;
   JOIN *const m_join;
   ha_rows *const m_examined_rows;
 };
@@ -498,8 +467,6 @@ class FollowTailIterator final : public TableRowIterator {
 
   bool Init() override;
   int Read() override;
-
-  std::vector<std::string> DebugString() const override;
 
   /**
     Signal where we can expect to find the number of generated rows for this
@@ -559,10 +526,6 @@ class TableValueConstructorIterator final : public RowIterator {
 
   bool Init() override;
   int Read() override;
-
-  std::vector<std::string> DebugString() const override {
-    return {"Rows fetched before execution"};
-  }
 
   void SetNullRowFlag(bool) override { DBUG_ASSERT(false); }
 

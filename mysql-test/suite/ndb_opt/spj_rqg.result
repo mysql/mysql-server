@@ -373,11 +373,11 @@ table1s.col_int_unique = table3s.col_int_unique
 )
 and table1.pk < 3;
 EXPLAIN
--> Left hash join (no condition), extra conditions: (table1.col_int not in (1,9))
-    -> Inner hash join (no condition)
+-> Left hash join (no condition), extra conditions: (table1.col_int not in (1,9))  ()
+    -> Inner hash join (no condition)  ()
         -> Table scan on table1, with pushed condition: (table1.pk < 3)  ()
         -> Hash
-            -> Limit: 1 row(s)
+            -> Limit: 1 row(s)  ()
                 -> Nested loop inner join  ()
                     -> Nested loop inner join  ()
                         -> Table scan on table2s, activating pushed join of 3 tables, with pushed condition: (table2s.col_int_key is not null)  ()
@@ -1459,9 +1459,9 @@ JOIN v AS table2s ON table1s.col_int = table2s.col_int AND
 table1s.col_int_unique = table2s.col_int_unique
 );
 EXPLAIN
--> Nested loop antijoin
+-> Nested loop antijoin  ()
     -> Table scan on table1, activating pushed join of 2 tables  ()
-    -> Limit: 1 row(s)
+    -> Limit: 1 row(s)  ()
         -> Nested loop inner join  ()
             -> Single-row index lookup on table1s using PRIMARY (pk=table1.col_int), child of table1 in pushed join  ()
             -> Table scan on table2s, with pushed condition: ((table2s.col_int_unique = table1s.col_int_unique) and (table2s.col_int = table1s.col_int))  ()

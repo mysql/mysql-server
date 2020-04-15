@@ -218,9 +218,9 @@ static int search_topics(THD *thd, QEP_TAB *topics,
   int count = 0;
   DBUG_TRACE;
 
-  unique_ptr_destroy_only<RowIterator> iterator =
-      init_table_iterator(thd, nullptr, topics, false,
-                          /*ignore_not_found_rows=*/false);
+  unique_ptr_destroy_only<RowIterator> iterator = init_table_iterator(
+      thd, nullptr, topics, false,
+      /*ignore_not_found_rows=*/false, /*count_examined_rows=*/false);
   if (iterator == nullptr) return 0;
 
   while (!iterator->Read()) {
@@ -257,9 +257,9 @@ static int search_keyword(THD *thd, QEP_TAB *keywords,
   int count = 0;
   DBUG_TRACE;
 
-  unique_ptr_destroy_only<RowIterator> iterator =
-      init_table_iterator(thd, nullptr, keywords, false,
-                          /*ignore_not_found_rows=*/false);
+  unique_ptr_destroy_only<RowIterator> iterator = init_table_iterator(
+      thd, nullptr, keywords, false,
+      /*ignore_not_found_rows=*/false, /*count_examined_rows=*/false);
   if (iterator == nullptr) return 0;
 
   while (!iterator->Read() && count < 2) {
@@ -375,9 +375,9 @@ static int search_categories(THD *thd, QEP_TAB *categories,
 
   DBUG_TRACE;
 
-  unique_ptr_destroy_only<RowIterator> iterator =
-      init_table_iterator(thd, nullptr, categories, false,
-                          /*ignore_not_found_rows=*/false);
+  unique_ptr_destroy_only<RowIterator> iterator = init_table_iterator(
+      thd, nullptr, categories, false,
+      /*ignore_not_found_rows=*/false, /*count_examined_rows=*/false);
   if (iterator == nullptr) return 0;
 
   while (!iterator->Read()) {
@@ -407,9 +407,9 @@ static void get_all_items_for_category(THD *thd, QEP_TAB *items, Field *pfname,
                                        List<String> *res) {
   DBUG_TRACE;
 
-  unique_ptr_destroy_only<RowIterator> iterator =
-      init_table_iterator(thd, nullptr, items, false,
-                          /*ignore_not_found_rows=*/false);
+  unique_ptr_destroy_only<RowIterator> iterator = init_table_iterator(
+      thd, nullptr, items, false,
+      /*ignore_not_found_rows=*/false, /*count_examined_rows=*/false);
   if (iterator == nullptr) return;
   while (!iterator->Read()) {
     if (!items->condition()->val_int()) continue;

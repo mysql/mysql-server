@@ -1,7 +1,7 @@
 #ifndef UNITTEST_GUNIT_FAKE_INTEGER_ITERATOR_H_
 #define UNITTEST_GUNIT_FAKE_INTEGER_ITERATOR_H_
 
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,10 +58,6 @@ class FakeIntegerIterator final : public TableRowIterator {
 
     m_field->store(m_dataset[m_current_index++], /* is_unsigned */ false);
     return 0;
-  }
-
-  std::vector<std::string> DebugString() const override {
-    return {"Fake integer iterator"};
   }
 
  private:

@@ -65,6 +65,7 @@
 #include "sql/item.h"
 #include "sql/item_func.h"
 #include "sql/item_subselect.h"
+#include "sql/join_optimizer/explain_access_path.h"
 #include "sql/key.h"
 #include "sql/mysqld.h"              // stage_explaining
 #include "sql/mysqld_thd_manager.h"  // Global_THD_manager
@@ -1855,7 +1856,8 @@ bool explain_single_table_modification(THD *explain_thd, const THD *query_thd,
          unit = unit->next_unit()) {
       // Derived tables and const subqueries are already optimized
       if (!unit->is_optimized() &&
-          unit->optimize(explain_thd, /*materialize_destination=*/nullptr))
+          unit->optimize(explain_thd, /*materialize_destination=*/nullptr,
+                         /*create_iterators=*/false))
         return true; /* purecov: inspected */
     }
   }
@@ -1987,72 +1989,6 @@ bool explain_query_specification(THD *explain_thd, const THD *query_thd,
   return ret;
 }
 
-vector<string> FullDebugString(const THD *thd, const RowIterator &iterator) {
-  vector<string> ret = iterator.DebugString();
-  if (iterator.expected_rows() >= 0.0) {
-    // NOTE: We cannot use %f, since MSVC and GCC round 0.5 in different
-    // directions, so tests would not be reproducible between platforms.
-    // Format/round using my_gcvt() and llrint() instead.
-    char cost_as_string[FLOATING_POINT_BUFFER];
-    my_fcvt(iterator.estimated_cost(), 2, cost_as_string, /*error=*/nullptr);
-    char str[512];
-    snprintf(str, sizeof(str), "  (cost=%s rows=%lld)", cost_as_string,
-             llrint(iterator.expected_rows()));
-    ret.back() += str;
-  }
-  if (thd->lex->is_explain_analyze) {
-    if (iterator.expected_rows() < 0.0) {
-      // We always want a double space between the iterator name and the costs.
-      ret.back().push_back(' ');
-    }
-    ret.back().push_back(' ');
-    ret.back() += iterator.TimingString();
-  }
-  return ret;
-}
-
-std::string PrintQueryPlan(int level, RowIterator *iterator) {
-  string ret;
-
-  if (iterator == nullptr) {
-    ret.assign(level * 4, ' ');
-    return ret + "<not executable by iterator executor>\n";
-  }
-
-  int top_level = level;
-
-  for (const string &str : FullDebugString(current_thd, *iterator)) {
-    ret.append(level * 4, ' ');
-    ret += "-> ";
-    ret += str;
-    ret += "\n";
-    ++level;
-  }
-
-  for (const RowIterator::Child &child : iterator->children()) {
-    if (!child.description.empty()) {
-      ret.append(level * 4, ' ');
-      ret.append("-> ");
-      ret.append(child.description);
-      ret.append("\n");
-      ret += PrintQueryPlan(level + 1, child.iterator);
-    } else {
-      ret += PrintQueryPlan(level, child.iterator);
-    }
-  }
-  if (iterator->join_for_explain() != nullptr) {
-    for (const auto &child :
-         GetIteratorsFromSelectList(iterator->join_for_explain())) {
-      ret.append(top_level * 4, ' ');
-      ret.append("-> ");
-      ret.append(child.description);
-      ret.append("\n");
-      ret += PrintQueryPlan(top_level + 1, child.iterator);
-    }
-  }
-  return ret;
-}
-
 /// @returns a comma-separated list of all tables that are touched by UPDATE or
 /// DELETE, with a mention of whether a temporary table is used for each.
 static string FindUpdatedTables(JOIN *join) {
@@ -2122,9 +2058,12 @@ static bool ExplainIterator(THD *ethd, const THD *query_thd,
         default:
           break;
       }
-      explain += PrintQueryPlan(base_level, unit->root_iterator());
+      explain += PrintQueryPlan(base_level, unit->root_access_path(),
+                                unit->is_union() ? nullptr : join,
+                                /*is_root_of_join=*/!unit->is_union());
     } else {
-      explain += PrintQueryPlan(0, nullptr);
+      explain += PrintQueryPlan(0, /*path=*/nullptr, /*join=*/nullptr,
+                                /*is_root_of_join=*/false);
     }
     mem_root_deque<Item *> field_list(ethd->mem_root);
     Item *item =
@@ -2592,75 +2531,4 @@ Modification_plan::~Modification_plan() {
     thd->query_plan.set_modification_plan(nullptr);
     thd->unlock_query_plan();
   }
-}
-
-void ForEachSubselect(
-    Item *parent_item,
-    const function<void(int select_number, bool is_dependent, bool is_cacheable,
-                        RowIterator *)> &callback) {
-  WalkItem(parent_item, enum_walk::POSTFIX, [&callback](Item *item) {
-    if (item->type() == Item::SUBSELECT_ITEM) {
-      Item_subselect *subselect = down_cast<Item_subselect *>(item);
-      SELECT_LEX *select_lex = subselect->unit->first_select();
-      int select_number = select_lex->select_number;
-      bool is_dependent = select_lex->is_dependent();
-      bool is_cacheable = select_lex->is_cacheable();
-      if (subselect->unit->root_iterator() != nullptr) {
-        callback(select_number, is_dependent, is_cacheable,
-                 subselect->unit->root_iterator());
-      } else {
-        callback(select_number, is_dependent, is_cacheable,
-                 subselect->unit->item->root_iterator());
-      }
-    }
-    return false;
-  });
-}
-
-namespace {
-
-void GetIteratorsFromItem(Item *item, vector<RowIterator::Child> *children) {
-  ForEachSubselect(item, [children](int select_number, bool is_dependent,
-                                    bool is_cacheable, RowIterator *iterator) {
-    char description[256];
-    if (is_dependent) {
-      snprintf(description, sizeof(description),
-               "Select #%d (subquery in projection; dependent)", select_number);
-    } else if (!is_cacheable) {
-      snprintf(description, sizeof(description),
-               "Select #%d (subquery in projection; uncacheable)",
-               select_number);
-    } else {
-      snprintf(description, sizeof(description),
-               "Select #%d (subquery in projection; run only once)",
-               select_number);
-    }
-    children->push_back(RowIterator::Child{iterator, description});
-  });
-}
-
-}  // namespace
-
-vector<RowIterator::Child> GetIteratorsFromSelectList(JOIN *join) {
-  vector<RowIterator::Child> ret;
-  if (join == nullptr) {
-    return ret;
-  }
-
-  // Look for any Items in the projection list itself.
-  for (Item *item : VisibleFields(*join->get_current_fields())) {
-    GetIteratorsFromItem(item, &ret);
-  }
-
-  // Look for any Items that were materialized into fields during execution.
-  for (unsigned table_idx = join->primary_tables; table_idx < join->tables;
-       ++table_idx) {
-    QEP_TAB *qep_tab = &join->qep_tab[table_idx];
-    if (qep_tab != nullptr && qep_tab->tmp_table_param != nullptr) {
-      for (Func_ptr &func : *qep_tab->tmp_table_param->items_to_copy) {
-        GetIteratorsFromItem(func.func(), &ret);
-      }
-    }
-  }
-  return ret;
 }

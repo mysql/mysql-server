@@ -3996,7 +3996,7 @@ EXPLAIN
 -> Filter: <in_optimizer>(t3.a,<exists>(select #2))  (cost=10.54 rows=100)
     -> Table scan on t3  (cost=10.54 rows=100)
     -> Select #2 (subquery in condition; dependent)
-        -> Limit: 1 row(s)
+        -> Limit: 1 row(s)  (cost=0.70 rows=1)
             -> Nested loop inner join  (cost=0.70 rows=1)
                 -> Filter: ((t1.kp1 < 20) and (t1.c is not null))  (cost=0.35 rows=1)
                     -> Index lookup on t1 using kp1 (kp1=<cache>(t3.a))  (cost=0.35 rows=1)
@@ -12477,10 +12477,10 @@ ORDER BY col_int_key
 ;
 EXPLAIN
 -> Sort: t4.col_int_key  (cost=0.85 rows=6)
-    -> Filter: <in_optimizer>(t4.col_int_key,<exists>(select #2))
-        -> Table scan on t4
+    -> Filter: <in_optimizer>(t4.col_int_key,<exists>(select #2))  (cost=0.85 rows=6)
+        -> Table scan on t4  (cost=0.85 rows=6)
         -> Select #2 (subquery in condition; dependent)
-            -> Limit: 1 row(s)
+            -> Limit: 1 row(s)  (cost=0.78 rows=1)
                 -> Filter: (t3.col_int is null)  (cost=0.78 rows=1)
                     -> Nested loop left join  (cost=0.78 rows=1)
                         -> Index lookup on t1 using col_int_key (col_int_key=<cache>(t4.col_int_key))  (cost=0.37 rows=1)

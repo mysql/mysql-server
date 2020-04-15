@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,7 @@
 #include "typelib.h"
 
 /* Forward declarations */
+class Item;
 class JOIN;
 class QEP_TAB;
 class SELECT_LEX;
@@ -139,7 +140,7 @@ void show_sql_type(enum_field_types type, bool is_array, uint metadata,
                    String *str, const CHARSET_INFO *field_cs = nullptr);
 
 bool do_fill_information_schema_table(THD *thd, TABLE_LIST *table_list,
-                                      QEP_TAB *qep_tab);
+                                      Item *condition);
 
 extern TYPELIB grant_types;
 #endif /* SQL_SHOW_H */

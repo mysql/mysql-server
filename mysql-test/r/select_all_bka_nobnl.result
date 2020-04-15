@@ -2109,7 +2109,7 @@ Warnings:
 Note	1003	/* select#1 */ select min(`test`.`t2`.`fld1`) AS `min(fld1)`,max(`test`.`t2`.`fld1`) AS `max(fld1)`,count(0) AS `count(*)` from `test`.`t2`
 explain format=tree select min(fld1),max(fld1),count(*) from t2;
 EXPLAIN
--> Rows fetched before execution
+-> Rows fetched before execution  (cost=0.00 rows=1)
 
 explain format=tree select min(fld1),max(fld1),count(*) from t2 where rand() > 0.5;
 EXPLAIN

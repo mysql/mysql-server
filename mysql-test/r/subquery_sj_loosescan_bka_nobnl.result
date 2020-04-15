@@ -12465,7 +12465,7 @@ ORDER BY col_int_key
 ;
 EXPLAIN
 -> Sort: t4.col_int_key
-    -> Stream results
+    -> Stream results  (cost=8.04 rows=7)
         -> Remove duplicate t4 rows using temporary table (weedout)  (cost=8.04 rows=7)
             -> Nested loop inner join  (cost=8.04 rows=7)
                 -> Filter: (t3.col_int is null)  (cost=3.40 rows=7)

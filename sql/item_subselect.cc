@@ -62,6 +62,7 @@
 #include "sql/item_cmpfunc.h"
 #include "sql/item_func.h"
 #include "sql/item_sum.h"  // Item_sum_max
+#include "sql/join_optimizer/access_path.h"
 #include "sql/key.h"
 #include "sql/my_decimal.h"
 #include "sql/mysqld.h"  // in_left_expr_name
@@ -505,7 +506,7 @@ void Item_in_subselect::cleanup() {
   Item_subselect::cleanup();
 }
 
-RowIterator *Item_in_subselect::root_iterator() const {
+AccessPath *Item_in_subselect::root_access_path() const {
   // Only subselect_hash_sj_engine owns its own iterator;
   // for subselect_indexsubquery_engine, the unit still has it, since it's a
   // normally executed query block. Thus, we should never get called otherwise.
@@ -513,7 +514,7 @@ RowIterator *Item_in_subselect::root_iterator() const {
               indexsubquery_engine->engine_type() ==
                   subselect_indexsubquery_engine::HASH_SJ_ENGINE);
   return down_cast<subselect_hash_sj_engine *>(indexsubquery_engine)
-      ->root_iterator();
+      ->root_access_path();
 }
 
 bool Item_subselect::fix_fields(THD *thd, Item **ref) {
@@ -643,10 +644,26 @@ bool Item_subselect::exec(THD *thd) {
   Opt_trace_object trace_exec(trace, "subselect_execution");
   trace_exec.add_select_number(unit->first_select()->select_number);
   Opt_trace_array trace_steps(trace, "steps");
-  // Statements like DO and SET may still rely on lazy optimization
-  if (!unit->is_optimized() &&
-      unit->optimize(thd, /*materialize_destination=*/nullptr))
-    return true;
+
+  // subselect_hash_sj_engine creates its own iterators; it does not call
+  // exec().
+  bool should_create_iterators =
+      !(indexsubquery_engine != nullptr &&
+        indexsubquery_engine->engine_type() ==
+            subselect_indexsubquery_engine::HASH_SJ_ENGINE);
+
+  // Normally, the unit would be optimized here, but statements like DO and SET
+  // may still rely on lazy optimization. Also, we might not have iterators,
+  // so make sure to create them if they're missing.
+  if (unit->is_optimized()) {
+    if (should_create_iterators) {
+      if (unit->force_create_iterators(thd)) return true;
+    }
+  } else {
+    if (unit->optimize(thd, /*materialize_destination=*/nullptr,
+                       should_create_iterators))
+      return true;
+  }
   if (indexsubquery_engine != nullptr) {
     return indexsubquery_engine->exec(thd);
   } else {
@@ -3234,9 +3251,12 @@ bool subselect_hash_sj_engine::setup(
 }
 
 void subselect_hash_sj_engine::create_iterators(THD *thd) {
-  if (unit->root_iterator() == nullptr) {
-    m_iterator = NewIterator<ZeroRowsIterator>(
-        thd, "Not optimized, outer query is empty", /*child_iterator=*/nullptr);
+  if (unit->root_access_path() == nullptr) {
+    m_root_access_path =
+        NewZeroRowsAccessPath(thd, "Not optimized, outer query is empty");
+    m_iterator =
+        CreateIteratorFromAccessPath(thd, m_root_access_path, /*join=*/nullptr,
+                                     /*eligible_for_batch_mode=*/true);
     return;
   }
 
@@ -3251,22 +3271,20 @@ void subselect_hash_sj_engine::create_iterators(THD *thd) {
   // JT_REF_OR_NULL are always transformed with IN-to-EXISTS, and thus,
   // their artificial HAVING rejects NULL values.
   DBUG_ASSERT(tab->type() != JT_REF_OR_NULL);
-  tab->iterator =
-      NewIterator<RefIterator<false>>(thd, tab->table(), &tab->ref(),
-                                      /*use_order=*/false, tab,
-                                      /*examined_rows=*/nullptr);
+  AccessPath *path = NewRefAccessPath(thd, tab->table(), &tab->ref(),
+                                      /*use_order=*/false, /*reverse=*/false,
+                                      tab, /*count_examined_rows=*/false);
 
   if (tab->type() == JT_EQ_REF && (cond != nullptr || having != nullptr)) {
-    tab->iterator = NewIterator<LimitOffsetIterator>(
-        thd, move(tab->iterator), /*limit=*/1, /*offset=*/0,
-        /*count_all_rows=*/false, /*skipped_rows=*/nullptr);
+    path = NewLimitOffsetAccessPath(thd, path, /*limit=*/1, /*offset=*/0,
+                                    /*count_all_rows=*/false,
+                                    /*send_records_override=*/nullptr);
   }
   if (cond != nullptr) {
-    tab->iterator = NewIterator<FilterIterator>(thd, move(tab->iterator), cond);
+    path = NewFilterAccessPath(thd, path, cond);
   }
   if (having != nullptr) {
-    tab->iterator =
-        NewIterator<FilterIterator>(thd, move(tab->iterator), having);
+    path = NewFilterAccessPath(thd, path, having);
   }
 
   /*
@@ -3277,16 +3295,20 @@ void subselect_hash_sj_engine::create_iterators(THD *thd) {
     pos_in_table_list is nullptr).
   */
   tab->table_ref->set_derived_unit(unit);
-
-  unique_ptr_destroy_only<RowIterator> iterator;
   if (tab->table_ref->is_table_function()) {
-    iterator = NewIterator<MaterializedTableFunctionIterator>(
-        thd, tab->table_ref->table_function, tab->table(), move(tab->iterator));
+    path = NewMaterializedTableFunctionAccessPath(
+        thd, tab->table(), tab->table_ref->table_function, path);
   } else {
-    iterator = GetIteratorForDerivedTable(thd, tab);
+    path = GetAccessPathForDerivedTable(thd, tab, path);
   }
 
-  m_iterator = move(iterator);
+  m_root_access_path = path;
+  JOIN *join = unit->is_union() ? nullptr : unit->first_select()->join;
+  m_iterator = CreateIteratorFromAccessPath(thd, path, join,
+                                            /*eligible_for_batch_mode=*/true);
+
+  // The unit is not supposed to be executed by itself now.
+  unit->clear_root_access_path();
 }
 
 subselect_hash_sj_engine::~subselect_hash_sj_engine() {
@@ -3306,6 +3328,7 @@ void subselect_hash_sj_engine::cleanup(THD *thd) {
   if (result != nullptr)
     result->cleanup(thd); /* Resets the temp table as well. */
   DEBUG_SYNC(thd, "before_index_end_in_subselect");
+  m_root_access_path = nullptr;
   m_iterator.reset();
   if (tab != nullptr) {
     TABLE *const table = tab->table();

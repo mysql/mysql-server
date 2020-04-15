@@ -67,7 +67,8 @@
 #include "sql/handler.h"
 #include "sql/item.h"            // Name_resolution_context
 #include "sql/item_subselect.h"  // Subquery_strategy
-#include "sql/key_spec.h"        // KEY_CREATE_INFO
+#include "sql/join_optimizer/materialize_path_parameters.h"
+#include "sql/key_spec.h"  // KEY_CREATE_INFO
 #include "sql/mdl.h"
 #include "sql/mem_root_array.h"        // Mem_root_array
 #include "sql/parse_tree_node_base.h"  // enum_parsing_context
@@ -657,16 +658,18 @@ class SELECT_LEX_UNIT {
   /**
     An iterator you can read from to get all records for this query.
 
-    May be nullptr even after create_iterators(), or in the case of an
+    May be nullptr even after create_access_paths(), or in the case of an
     unfinished materialization (see optimize()).
    */
   unique_ptr_destroy_only<RowIterator> m_root_iterator;
+  AccessPath *m_root_access_path = nullptr;
 
   /**
     If there is an unfinished materialization (see optimize()),
     contains one element for each query block in this query expression.
    */
-  Mem_root_array<MaterializeIterator::QueryBlock> m_query_blocks_to_materialize;
+  Mem_root_array<MaterializePathParameters::QueryBlock>
+      m_query_blocks_to_materialize;
 
   /**
     Sets up each query block in this query expression for materialization
@@ -677,15 +680,14 @@ class SELECT_LEX_UNIT {
     @param union_distinct_only if true, keep only UNION DISTINCT query blocks
       (any UNION ALL blocks are presumed handled higher up, by AppendIterator)
    */
-  Mem_root_array<MaterializeIterator::QueryBlock> setup_materialization(
+  Mem_root_array<MaterializePathParameters::QueryBlock> setup_materialization(
       THD *thd, TABLE *dst_table, bool union_distinct_only);
 
   /**
-    If possible, convert the executor structures to a set of row iterators,
-    storing the result in m_root_iterator. If not, m_root_iterator will remain
-    nullptr.
+    Convert the executor structures to a set of access paths, storing the result
+    in m_root_access_path.
    */
-  void create_iterators(THD *thd);
+  void create_access_paths(THD *thd);
 
  public:
   /**
@@ -827,6 +829,25 @@ class SELECT_LEX_UNIT {
   unique_ptr_destroy_only<RowIterator> release_root_iterator() {
     return move(m_root_iterator);
   }
+  AccessPath *root_access_path() const { return m_root_access_path; }
+  void clear_root_access_path() {
+    m_root_access_path = nullptr;
+    m_root_iterator.reset();
+  }
+
+  /**
+    Ensures that there are iterators created for the access paths created
+    by optimize(), even if it was called with create_access_paths = false.
+    If there are already iterators, it is a no-op. optimize() must have
+    been called earlier.
+
+    The use case for this is if we have a query block that's not top-level,
+    but we figure out after the fact that we wanted to run it anyway.
+    The typical case would be that we notice that the query block can return
+    at most one row (a so-called const table), and want to run it during
+    optimization.
+   */
+  bool force_create_iterators(THD *thd);
 
   /// See optimize().
   bool unfinished_materialization() const {
@@ -834,7 +855,7 @@ class SELECT_LEX_UNIT {
   }
 
   /// See optimize().
-  Mem_root_array<MaterializeIterator::QueryBlock>
+  Mem_root_array<MaterializePathParameters::QueryBlock>
   release_query_blocks_to_materialize() {
     return std::move(m_query_blocks_to_materialize);
   }
@@ -877,8 +898,13 @@ class SELECT_LEX_UNIT {
 
     @param materialize_destination What table to try to materialize into,
       or nullptr if the caller does not intend to materialize the result.
+
+    @param create_iterators If false, only access paths are created,
+      not iterators. Only top level query blocks (these that we are to call
+      exec() on) should have iterators. See also force_create_iterators().
    */
-  bool optimize(THD *thd, TABLE *materialize_destination);
+  bool optimize(THD *thd, TABLE *materialize_destination,
+                bool create_iterators);
 
   /**
     Do everything that would be needed before running Init() on the root

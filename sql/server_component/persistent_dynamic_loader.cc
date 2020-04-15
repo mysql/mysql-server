@@ -240,9 +240,9 @@ bool mysql_persistent_dynamic_loader_imp::init(void *thdp) {
     auto guard =
         create_scope_guard([&thd]() { commit_and_close_mysql_tables(thd); });
 
-    unique_ptr_destroy_only<RowIterator> iterator =
-        init_table_iterator(thd, component_table, nullptr, false,
-                            /*ignore_not_found_rows=*/false);
+    unique_ptr_destroy_only<RowIterator> iterator = init_table_iterator(
+        thd, component_table, nullptr, false,
+        /*ignore_not_found_rows=*/false, /*count_examined_rows=*/false);
     if (iterator == nullptr) {
       push_warning(thd, Sql_condition::SL_WARNING, ER_COMPONENT_TABLE_INCORRECT,
                    ER_THD(thd, ER_COMPONENT_TABLE_INCORRECT));

@@ -3934,14 +3934,17 @@ bool make_schema_select(THD *thd, SELECT_LEX *sel,
 
   @param thd            Thread context.
   @param table_list     I_S table.
-  @param qep_tab     JOIN/SELECT table.
+  @param condition
+    Condition, which can be used to do less file manipulations (for
+    example, WHERE TABLE_SCHEMA='test' allows to open only directory 'test',
+    not other database directories).
 
   @return Error status.
   @retval true Error.
   @retval false Success.
 */
 bool do_fill_information_schema_table(THD *thd, TABLE_LIST *table_list,
-                                      QEP_TAB *qep_tab) {
+                                      Item *condition) {
   /*
     Return if there is already an error reported.
 
@@ -3967,17 +3970,7 @@ bool do_fill_information_schema_table(THD *thd, TABLE_LIST *table_list,
   // when we call copy_non_errors_from_da below.
   thd->push_diagnostics_area(&tmp_da, false);
 
-  /*
-    We pass a condition, which can be used to do less file manipulations (for
-    example, WHERE TABLE_SCHEMA='test' allows to open only directory 'test',
-    not other database directories). Filling schema tables is done before
-    QEP_TAB::sort_table() (=filesort, for ORDER BY), so we can trust
-    that condition() is complete, has not been zeroed by filesort:
-  */
-  DBUG_ASSERT(qep_tab->condition() == qep_tab->condition_optim());
-
-  bool res = table_list->schema_table->fill_table(thd, table_list,
-                                                  qep_tab->condition());
+  bool res = table_list->schema_table->fill_table(thd, table_list, condition);
 
   thd->pop_diagnostics_area();
 
@@ -4063,7 +4056,9 @@ bool get_schema_tables_result(JOIN *join,
       } else
         table_list->table->file->stats.records = 0;
 
-      if (do_fill_information_schema_table(thd, table_list, tab)) {
+      DBUG_ASSERT(tab->condition() == tab->condition_optim());
+
+      if (do_fill_information_schema_table(thd, table_list, tab->condition())) {
         result = true;
         join->error = 1;
         table_list->schema_table_state = executed_place;

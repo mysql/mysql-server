@@ -175,12 +175,6 @@ enum enum_table_ref_type {
 */
 enum class Ident_name_check { OK, WRONG, TOO_LONG };
 
-enum rowid_statuses {
-  NO_ROWID_NEEDED,
-  ROWID_PROVIDED_BY_ITERATOR_READ_CALL,
-  NEED_TO_CALL_POSITION_FOR_ROWID
-};
-
 /*************************************************************************/
 
 /**

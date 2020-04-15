@@ -818,7 +818,7 @@ EXPLAIN
         -> Group (no aggregates)
             -> Sort: t1.a, t2.b
                 -> Table scan on <temporary>
-                    -> Temporary table
+                    -> Temporary table  (cost=0.80 rows=2)
                         -> Inner hash join (no condition)  (cost=0.80 rows=2)
                             -> Index scan on t1 using PRIMARY  (cost=0.45 rows=2)
                             -> Hash

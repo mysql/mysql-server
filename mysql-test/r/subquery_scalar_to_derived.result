@@ -3548,7 +3548,7 @@ FROM cc STRAIGHT_JOIN bb ON bb.col_varchar = cc.col_varchar_key
 WHERE cc.col_varchar <> 'w';
 EXPLAIN
 -> Left hash join (no condition)
-    -> Table scan on derived_1_3
+    -> Table scan on derived_1_3  (cost=2.61 rows=1)
         -> Materialize
             -> Aggregate: avg(cc.col_varchar_key)
                 -> Inner hash join (bb.col_varchar = cc.col_varchar_key)  (cost=0.80 rows=1)
@@ -3557,7 +3557,7 @@ EXPLAIN
                         -> Filter: (cc.col_varchar <> 'w')  (cost=0.45 rows=1)
                             -> Table scan on cc  (cost=0.45 rows=2)
     -> Hash
-        -> Table scan on derived_1_4
+        -> Table scan on derived_1_4  (cost=2.61 rows=1)
             -> Materialize
                 -> Aggregate: sum(cc.col_int_key)
                     -> Inner hash join (no condition)  (cost=0.80 rows=2)
@@ -3667,7 +3667,7 @@ LIMIT 1000 OFFSET 2;
 EXPLAIN
 -> Limit/Offset: 1000/2 row(s)
     -> Left hash join (no condition)
-        -> Table scan on derived_1_4
+        -> Table scan on derived_1_4  (cost=2.61 rows=1)
             -> Materialize
                 -> Aggregate: avg(table2.col_int)
                     -> Inner hash join (no condition)  (cost=4.50 rows=20)
@@ -3676,7 +3676,7 @@ EXPLAIN
                             -> Filter: ((((table1.pk = 1) and ((table1.col_varchar_key = 'D') or (table1.col_varchar_key = table1.col_varchar_key))) or (table1.col_varchar_key < 'O')) and (table1.col_varchar_key = table1.col_varchar_key))  (cost=2.25 rows=1)
                                 -> Table scan on table1  (cost=2.25 rows=20)
         -> Hash
-            -> Table scan on derived_1_5
+            -> Table scan on derived_1_5  (cost=2.61 rows=1)
                 -> Materialize
                     -> Aggregate: count(subquery1_t1.col_varchar_key)
                         -> Nested loop inner join  (cost=168.50 rows=36)
