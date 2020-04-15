@@ -7258,15 +7258,21 @@ bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, THD *thd,
       DBUG_EVALUATE_IF("simulate_cache_creation_failure", 1, 0)) {
     if (thd->binlog_setup_trx_data() ||
         DBUG_EVALUATE_IF("simulate_cache_creation_failure", 1, 0)) {
-      enum_gtid_mode gtid_mode = get_gtid_mode(GTID_MODE_LOCK_NONE);
-      if (gtid_mode == GTID_MODE_ON || gtid_mode == GTID_MODE_ON_PERMISSIVE) {
-        const char *mode = gtid_mode == GTID_MODE_ON ? "ON" : "ON_PERMISSIVE";
+      auto gtid_mode = global_gtid_mode.get();
+      if (gtid_mode == Gtid_mode::ON || gtid_mode == Gtid_mode::ON_PERMISSIVE) {
         std::ostringstream message;
 
         message << "Could not create IO cache while writing an incident event "
-                   "to the binary log for query: '"
-                << thd->query().str << "'. Since GTID_MODE= " << mode
-                << ", server is unable to proceed with logging.";
+                   "to the binary log. Since GTID_MODE = "
+                << gtid_mode
+                << ", server is unable to proceed with logging. Query: '";
+        /**
+          The reason for the error may be that the query was
+          huge. Better cut it to not run into resource problems.
+        */
+        message.write(thd->query().str, MYSQL_ERRMSG_SIZE);
+        message << "'.";
+
         handle_binlog_flush_or_sync_error(thd, true, message.str().c_str());
         return true;
       }
@@ -10492,11 +10498,11 @@ static bool handle_gtid_consistency_violation(THD *thd, int error_code,
   global_sid_lock->rdlock();
   enum_gtid_consistency_mode gtid_consistency_mode =
       get_gtid_consistency_mode();
-  enum_gtid_mode gtid_mode = get_gtid_mode(GTID_MODE_LOCK_SID);
+  auto gtid_mode = global_gtid_mode.get();
 
   DBUG_PRINT("info", ("gtid_next.type=%d gtid_mode=%s "
                       "gtid_consistency_mode=%d error=%d query=%s",
-                      gtid_next_type, get_gtid_mode_string(gtid_mode),
+                      gtid_next_type, Gtid_mode::to_string(gtid_mode),
                       gtid_consistency_mode, error_code, thd->query().str));
 
   /*
@@ -10508,7 +10514,7 @@ static bool handle_gtid_consistency_violation(THD *thd, int error_code,
     - ENFORCE_GTID_CONSISTENCY=ON.
   */
   if ((gtid_next_type == AUTOMATIC_GTID &&
-       gtid_mode >= GTID_MODE_ON_PERMISSIVE) ||
+       gtid_mode >= Gtid_mode::ON_PERMISSIVE) ||
       gtid_next_type == ASSIGNED_GTID ||
       gtid_consistency_mode == GTID_CONSISTENCY_MODE_ON) {
     global_sid_lock->unlock();

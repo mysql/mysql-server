@@ -2272,8 +2272,7 @@ static int check_if_server_properly_configured() {
   // Struct that holds startup and runtime requirements
   Trans_context_info startup_pre_reqs;
 
-  get_server_startup_prerequirements(startup_pre_reqs,
-                                     !lv.plugin_is_auto_starting_on_install);
+  get_server_startup_prerequirements(startup_pre_reqs);
 
   if (!startup_pre_reqs.binlog_enabled) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_BINLOG_DISABLED);
@@ -2285,7 +2284,7 @@ static int check_if_server_properly_configured() {
     return 1;
   }
 
-  if (startup_pre_reqs.gtid_mode != GTID_MODE_ON) {
+  if (startup_pre_reqs.gtid_mode != Gtid_mode::ON) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GTID_MODE_OFF);
     return 1;
   }

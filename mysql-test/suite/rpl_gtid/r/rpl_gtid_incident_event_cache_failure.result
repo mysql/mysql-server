@@ -31,8 +31,8 @@ SET GLOBAL binlog_stmt_cache_size = 4096;
 SET GLOBAL max_binlog_stmt_cache_size = 4096;
 # Adding debug point 'simulate_cache_creation_failure' to @@GLOBAL.debug
 SET GLOBAL binlog_error_action = ABORT_SERVER;
-ERROR HY000: Binary logging not possible. Message: Could not create IO cache while writing an incident event to the binary log for query: 'INSERT INTO t1 (c1, data)
-VALUES (2, CONCAT("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+ERROR HY000: Binary logging not possible. Message: Could not create IO cache while writing an incident event to the binary log. Since GTID_MODE = ON, server is unable to proceed with logging. Query: 'INSERT INTO t1 (c1, data)
+VALUES (2, CONCAT("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 # Restart the master server
 include/rpl_reconnect.inc
 [connection master]
