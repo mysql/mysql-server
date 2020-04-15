@@ -1,0 +1,59 @@
+--source include/have_ndb.inc
+
+# Test that inplace alter table does not support adding or changing tablespace
+# for a table
+#
+
+CREATE LOGFILE GROUP lg1
+  ADD UNDOFILE 'lg1_undofile.dat'
+  INITIAL_SIZE 1M
+  UNDO_BUFFER_SIZE = 1M
+  ENGINE NDB;
+
+CREATE TABLESPACE ts1
+  ADD DATAFILE 'ts1_datafile.dat'
+  USE LOGFILE GROUP lg1
+  INITIAL_SIZE 16M
+  ENGINE NDB;
+
+CREATE TABLESPACE ts2
+  ADD DATAFILE 'ts2_datafile.dat'
+  USE LOGFILE GROUP lg1
+  INITIAL_SIZE 16M
+  ENGINE NDB;
+
+CREATE TABLE t1 (
+  a int PRIMARY KEY,
+  b int
+) ENGINE = NDB;
+
+# Adding tablespace not supported by inplace alter
+# i.e 'no tablespace' -> 't1'
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 ALGORITHM=inplace, TABLESPACE ts1;
+
+# Add tablespace to t1 with copying alter
+ALTER TABLE t1 TABLESPACE ts1;
+
+# Changing tablespace not supported by inplace alter
+# ie. 'ts1' -> 'ts2'
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 ALGORITHM=inplace, TABLESPACE=ts2;
+
+# Neither changing to same name is supported by inplace alter
+# ie. 'ts1' -> 'ts1'
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 ALGORITHM=inplace, TABLESPACE=ts1;
+
+# Changing tablespace to t2 with copying alter
+ALTER TABLE t1 TABLESPACE ts2;
+
+DROP TABLE t1;
+ALTER TABLESPACE ts1
+  DROP DATAFILE 'ts1_datafile.dat';
+DROP TABLESPACE ts1;
+ALTER TABLESPACE ts2
+  DROP DATAFILE 'ts2_datafile.dat';
+DROP TABLESPACE ts2;
+DROP LOGFILE GROUP lg1
+  ENGINE NDB;

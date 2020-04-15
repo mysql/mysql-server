@@ -31,14 +31,14 @@ CREATE TABLESPACE ts1
 ##  verify whether the copy algorithm is used.
 
 CREATE TABLE t5 (a int PRIMARY KEY, t5b int, t5c int)
-   ENGINE ndb;
+   ENGINE ndb TABLESPACE ts1;
 INSERT INTO t5 VALUES (1, 1, 1);
 
 # Moving implicit memory columns to disk will be
 # an automatic copy alter (no need to specify alg=copy)
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
-ALTER TABLE t5 ALGORITHM=inplace, STORAGE disk TABLESPACE ts1;
-ALTER TABLE t5 STORAGE DISK TABLESPACE ts1;
+ALTER TABLE t5 ALGORITHM=inplace, STORAGE disk;
+ALTER TABLE t5 STORAGE DISK;
 
 #Check if the disk data is on disk
 --error ER_ALTER_FILEGROUP_FAILED
