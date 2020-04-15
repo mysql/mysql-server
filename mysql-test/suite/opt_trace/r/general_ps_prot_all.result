@@ -7642,11 +7642,11 @@ update t5, t6 set t6.d=t6.d+t5.c+4-t5.c-4 where d>7000	{
             "creating_tmp_table": {
               "tmp_table_info": {
                 "table": "intermediate_tmp_table",
-                "row_length": 12,
-                "key_length": 7,
+                "row_length": 13,
+                "key_length": 9,
                 "unique_constraint": false,
                 "location": "memory (heap)",
-                "row_limit_estimate": 87381
+                "row_limit_estimate": 80659
               } /* tmp_table_info */
             } /* creating_tmp_table */
           },
