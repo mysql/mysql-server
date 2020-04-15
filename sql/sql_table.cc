@@ -17698,7 +17698,7 @@ static int copy_data_between_tables(
         /*remove_duplicates=*/false,
         /*force_sort_positions=*/true, /*unwrap_rollup=*/false));
     unique_ptr_destroy_only<RowIterator> sort =
-        NewIterator<SortingIterator>(thd, &qep_tab, fsort.get(), move(iterator),
+        NewIterator<SortingIterator>(thd, fsort.get(), move(iterator),
                                      /*examined_rows=*/nullptr);
     if (sort->Init()) {
       error = 1;

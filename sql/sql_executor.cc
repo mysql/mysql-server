@@ -2829,7 +2829,7 @@ void JOIN::create_table_iterators() {
       // Wrap the chosen RowIterator in a SortingIterator, so that we get
       // sorted results out.
       qep_tab->iterator = NewIterator<SortingIterator>(
-          qep_tab->join()->thd, qep_tab, qep_tab->filesort, move(iterator),
+          qep_tab->join()->thd, qep_tab->filesort, move(iterator),
           &qep_tab->join()->examined_rows);
       qep_tab->table()->sorting_iterator =
           down_cast<SortingIterator *>(qep_tab->iterator->real_iterator());
@@ -3091,14 +3091,14 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
           thd, move(iterator), /*select_limit_cnt=*/1, /*offset_limit_cnt=*/0,
           /*count_all_rows=*/false, /*skipped_rows=*/nullptr);
     } else if (dup_filesort != nullptr) {
-      iterator = NewIterator<SortingIterator>(thd, qep_tab, dup_filesort,
-                                              move(iterator), &examined_rows);
+      iterator = NewIterator<SortingIterator>(thd, dup_filesort, move(iterator),
+                                              &examined_rows);
       qep_tab->table()->duplicate_removal_iterator =
           down_cast<SortingIterator *>(iterator->real_iterator());
     }
     if (filesort != nullptr) {
-      iterator = NewIterator<SortingIterator>(thd, qep_tab, filesort,
-                                              move(iterator), &examined_rows);
+      iterator = NewIterator<SortingIterator>(thd, filesort, move(iterator),
+                                              &examined_rows);
       qep_tab->table()->sorting_iterator =
           down_cast<SortingIterator *>(iterator->real_iterator());
     }
@@ -3450,7 +3450,7 @@ static int read_system(TABLE *table) {
       while ((error = table->file->ha_rnd_next(table->record[0])) ==
              HA_ERR_RECORD_DELETED) {
       }  // skip deleted row
-      // We leave the cursor open, see why in read_const()
+         // We leave the cursor open, see why in read_const()
     }
     if (error) {
       if (error != HA_ERR_END_OF_FILE)

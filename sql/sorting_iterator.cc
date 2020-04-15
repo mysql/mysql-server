@@ -470,12 +470,11 @@ vector<string> SortBufferIndirectIterator::DebugString() const {
           table()->alias};
 }
 
-SortingIterator::SortingIterator(THD *thd, QEP_TAB *qep_tab, Filesort *filesort,
+SortingIterator::SortingIterator(THD *thd, Filesort *filesort,
                                  unique_ptr_destroy_only<RowIterator> source,
                                  ha_rows *examined_rows)
     : RowIterator(thd),
       m_filesort(filesort),
-      m_qep_tab(qep_tab),
       m_source_iterator(move(source)),
       m_examined_rows(examined_rows) {}
 
@@ -590,22 +589,9 @@ int SortingIterator::DoSort() {
       (IO_CACHE *)my_malloc(key_memory_TABLE_sort_io_cache, sizeof(IO_CACHE),
                             MYF(MY_WME | MY_ZEROFILL));
 
-  if (m_qep_tab != nullptr) {
-    JOIN *join = m_qep_tab->join();
-    if (join != nullptr && join->unit->root_iterator() == nullptr) {
-      /* Fill schema tables with data before filesort if it's necessary */
-      if ((join->select_lex->active_options() & OPTION_SCHEMA_TABLE) &&
-          get_schema_tables_result(join, PROCESSED_BY_CREATE_SORT_INDEX))
-        return -1;
-    }
-  }
-
   ha_rows found_rows;
   bool error = filesort(thd(), m_filesort, m_source_iterator.get(), &m_fs_info,
                         &m_sort_result, &found_rows);
-  if (m_qep_tab != nullptr) {
-    m_qep_tab->set_records(found_rows);  // For SQL_CALC_FOUND_ROWS
-  }
   m_filesort->table->set_keyread(false);  // Restore if we used indexes
   return error;
 }

@@ -1,7 +1,7 @@
 #ifndef SQL_SORTING_ITERATOR_H_
 #define SQL_SORTING_ITERATOR_H_
 
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,12 +58,7 @@ class SortingIterator final : public RowIterator {
   // times). It _does_ take ownership of "source", and is responsible for
   // calling Init() on it, but does not hold the memory.
   // "examined_rows", if not nullptr, is incremented for each successful Read().
-  //
-  // qep_tab is used for two things: To fill in any old-style information schema
-  // tables before scanning, if needed, and to count the number of read rows
-  // (for SQL_CALC_FOUND_ROWS). If you need neither of these, you can pass
-  // nullptr.
-  SortingIterator(THD *thd, QEP_TAB *qep_tab, Filesort *filesort,
+  SortingIterator(THD *thd, Filesort *filesort,
                   unique_ptr_destroy_only<RowIterator> source,
                   ha_rows *examined_rows);
   ~SortingIterator() override;
@@ -116,7 +111,6 @@ class SortingIterator final : public RowIterator {
   void ReleaseBuffers();
 
   Filesort *m_filesort;
-  QEP_TAB *m_qep_tab;
 
   // The iterator we are reading records from. We don't read from it
   // after Init() is done, but we may read from the TABLE it wraps,

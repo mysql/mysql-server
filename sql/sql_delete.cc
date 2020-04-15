@@ -442,9 +442,9 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
           /*force_stable_sort=*/false,
           /*remove_duplicates=*/false,
           /*force_sort_positions=*/true, /*unwrap_rollup=*/false));
-      unique_ptr_destroy_only<RowIterator> sort = NewIterator<SortingIterator>(
-          thd, &qep_tab, fsort.get(), move(iterator),
-          /*rows_examined=*/nullptr);
+      unique_ptr_destroy_only<RowIterator> sort =
+          NewIterator<SortingIterator>(thd, fsort.get(), move(iterator),
+                                       /*rows_examined=*/nullptr);
       if (sort->Init()) return true;
       iterator = move(sort);
       thd->inc_examined_row_count(examined_rows);
