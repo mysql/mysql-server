@@ -799,7 +799,9 @@ static void prepare_new_connection_state(THD *thd) {
   }
 
   // Initializing session system variables.
-  alloc_and_copy_thd_dynamic_variables(thd, true);
+  mysql_mutex_lock(&LOCK_global_system_variables);
+  alloc_and_copy_thd_dynamic_variables(thd);
+  mysql_mutex_unlock(&LOCK_global_system_variables);
 
   thd->proc_info = nullptr;
   thd->set_command(COM_SLEEP);

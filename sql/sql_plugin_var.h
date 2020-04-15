@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -150,7 +150,7 @@ int item_val_real(st_mysql_value *value, double *buf);
 
 void plugin_opt_set_limits(struct my_option *, const SYS_VAR *);
 
-uchar *intern_sys_var_ptr(THD *thd, int offset, bool global_lock);
+uchar *intern_sys_var_ptr(THD *thd, int offset);
 
 bool plugin_var_memalloc_global_update(THD *thd, SYS_VAR *var, char **dest,
                                        const char *value);

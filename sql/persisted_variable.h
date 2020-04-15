@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -106,7 +106,7 @@ class Persisted_variables_cache {
   /**
     Set persisted options
   */
-  bool set_persist_options(bool plugin_options = false);
+  bool set_persist_options(bool plugin_options);
   /**
     Reset persisted options
   */

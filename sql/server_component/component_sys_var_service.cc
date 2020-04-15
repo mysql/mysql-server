@@ -98,15 +98,15 @@ int mysql_add_sysvar(sys_var *first) {
   var = first;
   /* A write lock should be held on LOCK_system_variables_hash */
   /* this fails if there is a conflicting variable name. see HASH_UNIQUE */
-  mysql_rwlock_wrlock(&LOCK_system_variables_hash);
+  mysql_mutex_lock(&LOCK_system_variables_hash);
   if (!get_system_variable_hash()->emplace(to_string(var->name), var).second) {
     LogErr(ERROR_LEVEL, ER_DUPLICATE_SYS_VAR, var->name.str);
-    mysql_rwlock_unlock(&LOCK_system_variables_hash);
+    mysql_mutex_unlock(&LOCK_system_variables_hash);
     return 1;
   }
   /* Update system_variable_hash version. */
   system_variable_hash_version++;
-  mysql_rwlock_unlock(&LOCK_system_variables_hash);
+  mysql_mutex_unlock(&LOCK_system_variables_hash);
   return 0;
 }
 
@@ -392,6 +392,8 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
 
 const char *get_variable_value(sys_var *system_var, char *val_buf,
                                size_t *val_length) {
+  mysql_mutex_assert_owner(&LOCK_global_system_variables);
+
   char show_var_buffer[sizeof(SHOW_VAR)];
   SHOW_VAR *show = (SHOW_VAR *)show_var_buffer;
   const CHARSET_INFO *fromcs;
@@ -420,11 +422,9 @@ const char *get_variable_value(sys_var *system_var, char *val_buf,
   show->name = system_var->name.str;
   show->value = (char *)system_var;
 
-  mysql_mutex_lock(&LOCK_global_system_variables);
   const char *variable_value = get_one_variable(
       current_thd, show, OPT_GLOBAL, show->type, nullptr, &fromcs,
       variable_data_buffer, &out_variable_data_length);
-  mysql_mutex_unlock(&LOCK_global_system_variables);
 
   /*
      Allocate a buffer that can hold "worst" case byte-length of the value
@@ -488,16 +488,26 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::get_variable,
              com_sys_var_name.append(component_name) ||
              com_sys_var_name.append(".") || com_sys_var_name.append(var_name))
       return true;  // OOM
-    mysql_rwlock_rdlock(&LOCK_system_variables_hash);
+
+    bool rc = true;
+    mysql_mutex_lock(&LOCK_global_system_variables);
+    mysql_mutex_lock(&LOCK_system_variables_hash);
+
     var = intern_find_sys_var(com_sys_var_name.c_ptr(),
                               com_sys_var_name.length());
-    mysql_rwlock_unlock(&LOCK_system_variables_hash);
 
-    if (!var) return true;
+    if (var != nullptr) {
+      if (get_variable_value(var, (char *)*val, out_length_of_val)) {
+        /* success */
+        rc = false;
+      }
+    }
 
-    if (!get_variable_value(var, (char *)*val, out_length_of_val)) return true;
+    /* Keep locked until done with 'var' */
+    mysql_mutex_unlock(&LOCK_system_variables_hash);
+    mysql_mutex_unlock(&LOCK_global_system_variables);
 
-    return false;
+    return rc;
   } catch (...) {
     mysql_components_handle_std_exception(__func__);
   }
@@ -524,7 +534,7 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::unregister_variable,
         com_sys_var_name.append(component_name) ||
         com_sys_var_name.append(".") || com_sys_var_name.append(var_name))
       return true;  // OOM
-    mysql_rwlock_wrlock(&LOCK_system_variables_hash);
+    mysql_mutex_lock(&LOCK_system_variables_hash);
 
     sys_var *sysvar = nullptr;
     if (get_system_variable_hash() != nullptr) {
@@ -533,14 +543,14 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::unregister_variable,
     }
     if (sysvar == nullptr) {
       LogErr(ERROR_LEVEL, ER_SYS_VAR_NOT_FOUND, com_sys_var_name.c_ptr());
-      mysql_rwlock_unlock(&LOCK_system_variables_hash);
+      mysql_mutex_unlock(&LOCK_system_variables_hash);
       return true;
     }
 
     result = !get_system_variable_hash()->erase(to_string(sysvar->name));
     /* Update system_variable_hash version. */
     system_variable_hash_version++;
-    mysql_rwlock_unlock(&LOCK_system_variables_hash);
+    mysql_mutex_unlock(&LOCK_system_variables_hash);
 
     /*
        Freeing the value of string variables if they have PLUGIN_VAR_MEMALLOC
