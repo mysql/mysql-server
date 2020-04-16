@@ -78,7 +78,17 @@ require "lib/mtr_process.pl";
 
 our $secondary_engine_support = eval 'use mtr_secondary_engine; 1';
 
-$SIG{INT} = sub { mtr_error("Got ^C signal"); };
+# Global variable to keep track of completed test cases
+my $completed = [];
+
+$SIG{INT} = sub {
+  if ($completed) {
+    mtr_print_line();
+    mtr_report_stats("Got ^C signal",$completed);
+    mtr_error("Test suite aborted with ^C");
+  }
+  mtr_error("Got ^C signal");
+};
 
 sub env_or_val($$) { defined $ENV{ $_[0] } ? $ENV{ $_[0] } : $_[1] }
 
@@ -806,8 +816,6 @@ sub run_test_server ($$$) {
   $max_ndb = $childs if $max_ndb > $childs;
   $max_ndb = 1       if $max_ndb < 1;
   my $num_ndb_tests = 0;
-
-  my $completed = [];
   my %running;
   my $result;
 
