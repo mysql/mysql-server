@@ -3403,8 +3403,7 @@ void alloc_and_copy_thd_dynamic_variables(THD *thd) {
   mysql_mutex_unlock(&LOCK_system_variables_hash);
 }
 
-static bool is_regular_call() {
-  THD *thd = current_thd;
+static bool is_regular_call(THD *thd) {
   if (thd == nullptr) {
     return true;
   }
@@ -3424,7 +3423,7 @@ static bool is_regular_call() {
 
 static bool *mysql_sys_var_bool(THD *thd, int offset) {
   bool *result;
-  if (is_regular_call()) {
+  if (is_regular_call(thd)) {
     mysql_mutex_lock(&LOCK_global_system_variables);
     result = (bool *)intern_sys_var_ptr(thd, offset);
     mysql_mutex_unlock(&LOCK_global_system_variables);
@@ -3436,7 +3435,7 @@ static bool *mysql_sys_var_bool(THD *thd, int offset) {
 
 static int *mysql_sys_var_int(THD *thd, int offset) {
   int *result;
-  if (is_regular_call()) {
+  if (is_regular_call(thd)) {
     mysql_mutex_lock(&LOCK_global_system_variables);
     result = (int *)intern_sys_var_ptr(thd, offset);
     mysql_mutex_unlock(&LOCK_global_system_variables);
@@ -3448,7 +3447,7 @@ static int *mysql_sys_var_int(THD *thd, int offset) {
 
 static unsigned int *mysql_sys_var_uint(THD *thd, int offset) {
   unsigned int *result;
-  if (is_regular_call()) {
+  if (is_regular_call(thd)) {
     mysql_mutex_lock(&LOCK_global_system_variables);
     result = (unsigned int *)intern_sys_var_ptr(thd, offset);
     mysql_mutex_unlock(&LOCK_global_system_variables);
@@ -3460,7 +3459,7 @@ static unsigned int *mysql_sys_var_uint(THD *thd, int offset) {
 
 static unsigned long *mysql_sys_var_ulong(THD *thd, int offset) {
   unsigned long *result;
-  if (is_regular_call()) {
+  if (is_regular_call(thd)) {
     mysql_mutex_lock(&LOCK_global_system_variables);
     result = (unsigned long *)intern_sys_var_ptr(thd, offset);
     mysql_mutex_unlock(&LOCK_global_system_variables);
@@ -3472,7 +3471,7 @@ static unsigned long *mysql_sys_var_ulong(THD *thd, int offset) {
 
 static unsigned long long *mysql_sys_var_ulonglong(THD *thd, int offset) {
   unsigned long long *result;
-  if (is_regular_call()) {
+  if (is_regular_call(thd)) {
     mysql_mutex_lock(&LOCK_global_system_variables);
     result = (unsigned long long *)intern_sys_var_ptr(thd, offset);
     mysql_mutex_unlock(&LOCK_global_system_variables);
@@ -3484,7 +3483,7 @@ static unsigned long long *mysql_sys_var_ulonglong(THD *thd, int offset) {
 
 static char **mysql_sys_var_str(THD *thd, int offset) {
   char **result;
-  if (is_regular_call()) {
+  if (is_regular_call(thd)) {
     mysql_mutex_lock(&LOCK_global_system_variables);
     result = (char **)intern_sys_var_ptr(thd, offset);
     mysql_mutex_unlock(&LOCK_global_system_variables);
@@ -3496,7 +3495,7 @@ static char **mysql_sys_var_str(THD *thd, int offset) {
 
 static double *mysql_sys_var_double(THD *thd, int offset) {
   double *result;
-  if (is_regular_call()) {
+  if (is_regular_call(thd)) {
     mysql_mutex_lock(&LOCK_global_system_variables);
     result = (double *)intern_sys_var_ptr(thd, offset);
     mysql_mutex_unlock(&LOCK_global_system_variables);
