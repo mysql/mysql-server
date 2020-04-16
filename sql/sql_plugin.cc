@@ -1966,6 +1966,7 @@ bool plugin_initialize_delayed_after_upgrade() {
     PLUGIN_IS_WAITING_FOR_UPGRADE to PLUGIN_IS_UNINITIALIZED.
   */
   mysql_mutex_lock(&LOCK_plugin);
+  mysql_mutex_lock(&LOCK_plugin_ref);
   for (auto name : delayed_plugins) {
     const LEX_CSTRING plugin_name = to_lex_cstring(name);
     st_plugin_int *plugin_ptr =
@@ -1975,6 +1976,7 @@ bool plugin_initialize_delayed_after_upgrade() {
       plugin_ptr->set_state(PLUGIN_IS_UNINITIALIZED);
     }
   }
+  mysql_mutex_unlock(&LOCK_plugin_ref);
   mysql_mutex_unlock(&LOCK_plugin);
 
   /*
@@ -2000,6 +2002,7 @@ bool plugin_initialize_delayed_after_upgrade() {
 */
 void delay_initialization_of_dependent_plugins() {
   mysql_mutex_lock(&LOCK_plugin);
+  mysql_mutex_lock(&LOCK_plugin_ref);
   for (auto name : delayed_plugins) {
     const LEX_CSTRING plugin_name = to_lex_cstring(name);
     st_plugin_int *plugin_ptr =
@@ -2009,6 +2012,7 @@ void delay_initialization_of_dependent_plugins() {
       plugin_ptr->set_state(PLUGIN_IS_WAITING_FOR_UPGRADE);
     }
   }
+  mysql_mutex_unlock(&LOCK_plugin_ref);
   mysql_mutex_unlock(&LOCK_plugin);
 }
 
