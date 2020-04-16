@@ -3904,11 +3904,19 @@ Dbspj::execTRANSID_AI(Signal* signal)
      << ", request: " << requestPtr.i
   );
 
-  ndbrequire(signal->getNoOfSections() != 0);
   /**
    * Copy the received row in SegmentedSection memory into Linear memory.
    */
   LinearSectionPtr linearPtr;
+  if (signal->getNoOfSections() == 0)  // Short signal
+  {
+    ndbrequire(signal->getLength() >= TransIdAI::HeaderLength);
+    memcpy(m_buffer1, &signal->theData[TransIdAI::HeaderLength],
+           4 * (signal->getLength() - TransIdAI::HeaderLength));
+    linearPtr.p = m_buffer1;
+    linearPtr.sz = signal->getLength() - TransIdAI::HeaderLength;
+  }
+  else
   {
     SegmentedSectionPtr dataPtr;
     SectionHandle handle(this, signal);
