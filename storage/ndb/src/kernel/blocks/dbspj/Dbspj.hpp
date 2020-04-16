@@ -201,14 +201,6 @@ public:
    */
   struct RowPtr
   {
-    enum RowType
-    {
-      RT_SECTION = 1,
-      RT_LINEAR = 2,
-      RT_END = 0
-    };
-
-    RowType m_type;
     Uint32  m_src_node_ptrI;
     Uint32  m_src_correlation;
 
@@ -220,23 +212,13 @@ public:
       Uint32 m_offset[1];
     };
 
-    struct Section
+    struct Row
     {
-      const Header * m_header;
-      SegmentedSectionPtrPOD m_dataPtr;
-    };
-
-    struct Linear
-    {
-      RowRef m_row_ref;
       const Header * m_header;
       const Uint32 * m_data;
     };
-    union
-    {
-      struct Section m_section;
-      struct Linear m_linear;
-    } m_row_data;
+
+    struct Row m_row_data;
   };
 
   struct RowBuffer;  // forward decl.
@@ -1464,7 +1446,7 @@ private:
   Uint32 add_to_map(RowMap& map, Uint32, RowRef);
 
   void setupRowPtr(Ptr<TreeNode> treeNodePtr,
-                   RowPtr& dst, RowRef, const Uint32 * src);
+                   RowPtr &dst, const Uint32 *src);
   Uint32 * get_row_ptr(RowRef pos);
 
   void getBufferedRow(const Ptr<TreeNode>, Uint32 rowId,
@@ -1494,43 +1476,27 @@ private:
   /**
    * Misc
    */
-  Uint32 buildRowHeader(RowPtr::Header *, SegmentedSectionPtr);
-  Uint32 buildRowHeader(RowPtr::Header *, const Uint32 *& src, Uint32 len);
-  void getCorrelationData(const RowPtr::Section & row, Uint32 col,
-                          Uint32& correlationNumber);
-  void getCorrelationData(const RowPtr::Linear & row, Uint32 col,
+  Uint32 buildRowHeader(RowPtr::Header *, LinearSectionPtr);
+  Uint32 buildRowHeader(RowPtr::Header *, const Uint32 *& src, Uint32 cnt);
+  void getCorrelationData(const RowPtr::Row &row, Uint32 col,
                           Uint32& correlationNumber);
   Uint32 appendToPattern(Local_pattern_store &, DABuffer & tree, Uint32);
-  Uint32 appendParamToPattern(Local_pattern_store&,const RowPtr::Linear&,
+  Uint32 appendParamToPattern(Local_pattern_store&,const RowPtr::Row&,
                               Uint32);
-  Uint32 appendParamHeadToPattern(Local_pattern_store&,const RowPtr::Linear&,
+  Uint32 appendParamHeadToPattern(Local_pattern_store&,const RowPtr::Row&,
                                   Uint32);
 
   Uint32 appendReaderToSection(Uint32 & ptrI, SectionReader&, Uint32);
-  Uint32 appendColToSection(Uint32 & ptrI, const RowPtr::Linear&, Uint32 col, bool& hasNull);
-  Uint32 appendColToSection(Uint32 & ptrI, const RowPtr::Section&, Uint32 col, bool& hasNull);
-  Uint32 appendPkColToSection(Uint32 & ptrI, const RowPtr::Section&,Uint32 col);
-  Uint32 appendPkColToSection(Uint32 & ptrI, const RowPtr::Linear&, Uint32 col);
-  Uint32 appendAttrinfoToSection(Uint32 &, const RowPtr::Linear&, Uint32 col, bool& hasNull);
-  Uint32 appendAttrinfoToSection(Uint32 &, const RowPtr::Section&, Uint32 col, bool& hasNull);
+  Uint32 appendColToSection(Uint32 & ptrI, const RowPtr::Row&, Uint32 col, bool& hasNull);
+  Uint32 appendPkColToSection(Uint32 & ptrI, const RowPtr::Row&, Uint32 col);
+  Uint32 appendAttrinfoToSection(Uint32 &, const RowPtr::Row&, Uint32 col, bool& hasNull);
   Uint32 appendDataToSection(Uint32 & ptrI, Local_pattern_store&,
 			     Local_pattern_store::ConstDataBufferIterator&,
 			     Uint32 len, bool& hasNull);
   Uint32 appendFromParent(Uint32 & ptrI, Local_pattern_store&,
                           Local_pattern_store::ConstDataBufferIterator&,
                           Uint32 level, const RowPtr&, bool& hasNull);
-  Uint32 expand(Uint32 & ptrI, Local_pattern_store& p, const RowPtr& r, bool& hasNull){
-    switch(r.m_type){
-    case RowPtr::RT_SECTION:
-      return expandS(ptrI, p, r, hasNull);
-    case RowPtr::RT_LINEAR:
-      return expandL(ptrI, p, r, hasNull);
-    default:
-      return DbspjErr::InternalError;
-    }
-  }
-  Uint32 expandS(Uint32 & ptrI, Local_pattern_store&, const RowPtr&, bool& hasNull);
-  Uint32 expandL(Uint32 & ptrI, Local_pattern_store&, const RowPtr&, bool& hasNull);
+  Uint32 expand(Uint32 & ptrI, Local_pattern_store& p, const RowPtr& r, bool& hasNull);
   Uint32 expand(Uint32 & ptrI, DABuffer& pattern, Uint32 len,
                 DABuffer & param, Uint32 cnt, bool& hasNull);
   Uint32 expand(Local_pattern_store& dst, Ptr<TreeNode> treeNodePtr,
@@ -1605,7 +1571,7 @@ private:
   void scanFrag_execSCAN_FRAGCONF(Signal*, Ptr<Request>, Ptr<TreeNode>,
                                   Ptr<ScanFragHandle>);
   void scanFrag_parent_row(Signal*,Ptr<Request>,Ptr<TreeNode>, const RowPtr&);
-  void scanFrag_fixupBound(Ptr<ScanFragHandle> fragPtr, Uint32 ptrI, Uint32);
+  void scanFrag_fixupBound(Uint32 ptrI, Uint32);
   void scanFrag_send(Signal*, Ptr<Request>, Ptr<TreeNode>);
   Uint32 scanFrag_send(Signal* signal,
                        Ptr<Request> requestPtr,

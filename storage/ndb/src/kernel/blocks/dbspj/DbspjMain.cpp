@@ -3046,8 +3046,7 @@ Dbspj::cleanupBatch(Ptr<Request> requestPtr)
       {
         jam();
         RowPtr row;
-        setupRowPtr(treeNodePtr, row, 
-                    iter.m_base.m_ref, iter.m_base.m_row_ptr);
+        setupRowPtr(treeNodePtr, row, iter.m_base.m_row_ptr);
 
         row.m_matched->bitANDC(requestPtr.p->m_active_tree_nodes);
       }
@@ -3906,17 +3905,28 @@ Dbspj::execTRANSID_AI(Signal* signal)
   );
 
   ndbrequire(signal->getNoOfSections() != 0);
-
-  SegmentedSectionPtr dataPtr;
+  /**
+   * Copy the received row in SegmentedSection memory into Linear memory.
+   */
+  LinearSectionPtr linearPtr;
   {
+    SegmentedSectionPtr dataPtr;
     SectionHandle handle(this, signal);
     handle.getSection(dataPtr, 0);
-    handle.clear();
+
+    // Use the Dbspj::m_buffer1[] as temporary Linear storage for row.
+    static_assert(sizeof(m_buffer1) >=
+		  4*(MAX_ATTRIBUTES_IN_TABLE+MAX_TUPLE_SIZE_IN_WORDS),
+		  "Dbspj::m_buffer1[] too small");
+    copy(m_buffer1, dataPtr);
+    linearPtr.p = m_buffer1;
+    linearPtr.sz = dataPtr.sz;
+    releaseSections(handle);
   }
 
 #if defined(DEBUG_LQHKEYREQ) || defined(DEBUG_SCAN_FRAGREQ)
   printf("execTRANSID_AI: ");
-  print(dataPtr, stdout);
+  print(linearPtr, stdout);
 #endif
 
   /**
@@ -3933,17 +3943,16 @@ Dbspj::execTRANSID_AI(Signal* signal)
   Uint32 tmp[2+MAX_ATTRIBUTES_IN_TABLE];
   RowPtr::Header* header = CAST_PTR(RowPtr::Header, &tmp[0]);
 
-  Uint32 cnt = buildRowHeader(header, dataPtr);
+  Uint32 cnt = buildRowHeader(header, linearPtr);
   ndbassert(header->m_len < NDB_ARRAY_SIZE(tmp));
 
   struct RowPtr row;
-  row.m_type = RowPtr::RT_SECTION;
-  row.m_matched = NULL;
+  row.m_matched = nullptr;
   row.m_src_node_ptrI = treeNodePtr.i;
-  row.m_row_data.m_section.m_header = header;
-  row.m_row_data.m_section.m_dataPtr.assign(dataPtr);
+  row.m_row_data.m_header = header;
+  row.m_row_data.m_data = linearPtr.p;
 
-  getCorrelationData(row.m_row_data.m_section,
+  getCorrelationData(row.m_row_data,
                      cnt - 1,
                      row.m_src_correlation);
 
@@ -3978,8 +3987,6 @@ Dbspj::execTRANSID_AI(Signal* signal)
   }
   while(0);
 
-  release(dataPtr);
-
   /**
    * When TreeNode is completed we might have to reply, or
    * resume other parts of the request.
@@ -3994,22 +4001,37 @@ Dbspj::execTRANSID_AI(Signal* signal)
   checkBatchComplete(signal, requestPtr);
 }
 
+/**
+ * Store the row(if T_BUFFER_ROW), or possibly only its correlationId, together with:
+ *  - The RowPtr::Header, describing the row
+ *  - The 'Match' bitmask, if 'T_BUFFER_MATCH'
+ *
+ *  ----------------------------------
+ *  | 'Match'-mask (1xUint32)        |  (present if T_BUFFER_MATCH)
+ *  +--------------------------------+
+ *  | RowPtr::Header::m_len          |  Size of Header array
+ *  | RowPtr::Header::m_offset[]     |  Variable size array
+ *  | ... more offsets ...           |
+ *  | ... m_offfset[len-1]           |  Last offset is always 'corrId offset'
+ *  +--------------------------------+
+ *  | The row, or only its corrId    |  Row as described by Header
+ *  | .. variable sized....          |
+ *  ---------------------------------- 
+ */
 Uint32
 Dbspj::storeRow(Ptr<TreeNode> treeNodePtr, const RowPtr &row)
 {
-  ndbassert(row.m_type == RowPtr::RT_SECTION);
-  RowCollection& collection = treeNodePtr.p->m_rows;
-  SegmentedSectionPtr dataPtr = row.m_row_data.m_section.m_dataPtr;
+  RowCollection &collection = treeNodePtr.p->m_rows;
   Uint32 datalen;
-  Uint32 *headptr;
+  const RowPtr::Header *headptr;
   Uint32 headlen;
 
   Uint32 tmpHeader[2];
   if (treeNodePtr.p->m_bits & TreeNode::T_BUFFER_ROW)
   {
-    headptr = (Uint32*)row.m_row_data.m_section.m_header;
-    headlen = 1 + row.m_row_data.m_section.m_header->m_len;
-    datalen = dataPtr.sz;
+    headptr = row.m_row_data.m_header;
+    headlen = 1 + headptr->m_len;
+    datalen = headptr->m_offset[headptr->m_len-1]+2;
   }
   else
   {
@@ -4017,8 +4039,8 @@ Dbspj::storeRow(Ptr<TreeNode> treeNodePtr, const RowPtr &row)
     RowPtr::Header *header = CAST_PTR(RowPtr::Header, &tmpHeader[0]);
     header->m_len = 1;
     header->m_offset[0] = 0;
-    headptr = (Uint32*)header;
-    headlen = 1 + header->m_len;
+    headptr = header;
+    headlen = 2;  // sizeof(m_len + m_offset[0])
 
     // 2 words: AttributeHeader + CorrelationId
     datalen = 2;
@@ -4048,8 +4070,8 @@ Dbspj::storeRow(Ptr<TreeNode> treeNodePtr, const RowPtr &row)
   {
     TreeNodeBitMask matched(treeNodePtr.p->m_dependencies);
     matched.set(treeNodePtr.p->m_node_no);
-    memcpy(dstptr, &matched, 4 * matchlen);
-    dstptr += matchlen;
+    memcpy(dstptr, &matched, sizeof(matched));
+    dstptr++;
   }
 
   memcpy(dstptr, headptr, 4 * headlen);
@@ -4058,16 +4080,14 @@ Dbspj::storeRow(Ptr<TreeNode> treeNodePtr, const RowPtr &row)
   if (treeNodePtr.p->m_bits & TreeNode::T_BUFFER_ROW)
   {
     //Store entire row, include correlationId (last column)
-    copy(dstptr, dataPtr);
+    memcpy(dstptr, row.m_row_data.m_data, 4 * datalen);
   }
   else
   {
     //Store only the correlation-id if not 'BUFFER_ROW':
-    const RowPtr::Header *header = row.m_row_data.m_section.m_header;
+    const RowPtr::Header *header = row.m_row_data.m_header;
     const Uint32 pos = header->m_offset[header->m_len-1];
-    SectionReader reader(dataPtr, getSectionSegmentPool());
-    ndbrequire(reader.step(pos));
-    ndbrequire(reader.getWords(dstptr, 2));
+    memcpy(dstptr, row.m_row_data.m_data+pos, 4 * datalen);
   }
 
   /**
@@ -4093,7 +4113,7 @@ Dbspj::storeRow(Ptr<TreeNode> treeNodePtr, const RowPtr &row)
 
 void
 Dbspj::setupRowPtr(Ptr<TreeNode> treeNodePtr,
-                   RowPtr& row, RowRef ref, const Uint32 * src)
+                   RowPtr &row, const Uint32 *src)
 {
   ndbassert(src != NULL);
   const Uint32 offset = treeNodePtr.p->m_rows.rowOffset();
@@ -4103,10 +4123,8 @@ Dbspj::setupRowPtr(Ptr<TreeNode> treeNodePtr,
   const Uint32 headlen = 1 + headptr->m_len;
 
   // Setup row, containing either entire row or only the correlationId.
-  row.m_type = RowPtr::RT_LINEAR;
-  row.m_row_data.m_linear.m_row_ref = ref;
-  row.m_row_data.m_linear.m_header = headptr;
-  row.m_row_data.m_linear.m_data = (Uint32*)headptr + headlen;
+  row.m_row_data.m_header = headptr;
+  row.m_row_data.m_data = (Uint32*)headptr + headlen;
 
   if (treeNodePtr.p->m_bits & TreeNode::T_BUFFER_MATCH)
   {
@@ -4233,7 +4251,7 @@ Dbspj::add_to_map(RowMap& map,
   ndbrequire(pos < map.m_size);
   ndbrequire(map.m_elements < map.m_size);
 
-  if (1)
+  if (false)
   {
     /**
      * Check that *pos* is empty
@@ -4649,10 +4667,10 @@ void Dbspj::getBufferedRow(const Ptr<TreeNode> treeNodePtr, Uint32 rowId,
 
   RowPtr _row;
   _row.m_src_node_ptrI = treeNodePtr.i;
-  setupRowPtr(treeNodePtr, _row, ref, rowptr);
+  setupRowPtr(treeNodePtr, _row, rowptr);
 
-  getCorrelationData(_row.m_row_data.m_linear,
-                     _row.m_row_data.m_linear.m_header->m_len - 1,
+  getCorrelationData(_row.m_row_data,
+                     _row.m_row_data.m_header->m_len - 1,
                      _row.m_src_correlation);
   *row = _row;
 }
@@ -4688,11 +4706,10 @@ Dbspj::resumeBufferedNode(Signal* signal,
     total++;
 
     parentRow.m_src_node_ptrI = treeNodePtr.p->m_parentPtrI;
-    setupRowPtr(parentPtr, parentRow, 
-                iter.m_base.m_ref, iter.m_base.m_row_ptr);
+    setupRowPtr(parentPtr, parentRow, iter.m_base.m_row_ptr);
 
-    getCorrelationData(parentRow.m_row_data.m_linear,
-                       parentRow.m_row_data.m_linear.m_header->m_len - 1,
+    getCorrelationData(parentRow.m_row_data,
+                       parentRow.m_row_data.m_header->m_len - 1,
                        parentRow.m_src_correlation);
 
     // Need to consult the Scan-ancestor(s) to determine if
@@ -5715,16 +5732,16 @@ Dbspj::lookup_resume(Signal* signal,
   parentPtr.p->m_rows.m_map.load(mapptr, rowId, ref);
 
   const Uint32* const rowptr = get_row_ptr(ref);
-  setupRowPtr(parentPtr, row, ref, rowptr);
+  setupRowPtr(parentPtr, row, rowptr);
 
   lookup_row(signal, requestPtr, treeNodePtr, row);
 } // Dbspj::lookup_resume()
 
 void
 Dbspj::lookup_row(Signal* signal,
-                         Ptr<Request> requestPtr,
-                         Ptr<TreeNode> treeNodePtr,
-                         const RowPtr & rowRef)
+                  Ptr<Request> requestPtr,
+                  Ptr<TreeNode> treeNodePtr,
+                  const RowPtr &rowRef)
 {
   jam();
 
@@ -7362,7 +7379,7 @@ Dbspj::scanFrag_parent_row(Signal* signal,
         releaseSection(keyPtrI);
         return;  // Bailout, SCANREQ would have returned 0 rows anyway
       }
-      scanFrag_fixupBound(fragPtr, keyPtrI, rowRef.m_src_correlation);
+      scanFrag_fixupBound(keyPtrI, rowRef.m_src_correlation);
 
       SectionReader key(keyPtrI, getSectionSegmentPool());
       err = appendReaderToSection(fragPtr.p->m_rangePtrI, key, key.getSize());
@@ -7400,8 +7417,7 @@ Dbspj::scanFrag_parent_row(Signal* signal,
 
 
 void
-Dbspj::scanFrag_fixupBound(Ptr<ScanFragHandle> fragPtr,
-                           Uint32 ptrI, Uint32 corrVal)
+Dbspj::scanFrag_fixupBound(Uint32 ptrI, Uint32 corrVal)
 {
   /**
    * Index bounds...need special tender and care...
@@ -7880,9 +7896,9 @@ Dbspj::scanFrag_send(Signal* signal,
         getSection(handle.m_ptr[1], keyInfoPtrI);
         handle.m_cnt++;
       }
-      
+
 #if defined DEBUG_SCAN_FRAGREQ
-      ndbout_c("SCAN_FRAGREQ to %x", ref);
+      ndbout_c("SCAN_FRAGREQ to %x", fragPtr.p->m_ref);
       printSCAN_FRAGREQ(stdout, signal->getDataPtrSend(),
                         NDB_ARRAY_SIZE(treeNodePtr.p->m_scanFrag_data.m_scanFragReq),
                         DBLQH);
@@ -8924,20 +8940,21 @@ error:
  *   which can be used to do random access inside the row
  */
 Uint32
-Dbspj::buildRowHeader(RowPtr::Header * header, SegmentedSectionPtr ptr)
+Dbspj::buildRowHeader(RowPtr::Header *header, LinearSectionPtr ptr)
 {
-  Uint32 tmp, len;
-  Uint32 * dst = header->m_offset;
-  const Uint32 * const save = dst;
-  SectionReader r0(ptr, getSectionSegmentPool());
+  const Uint32 *src = ptr.p;
+  const Uint32 len = ptr.sz;
+  Uint32 *dst = header->m_offset;
+  const Uint32 *const save = dst;
   Uint32 offset = 0;
   do
   {
-    * dst++ = offset;
-    r0.getWord(&tmp);
-    len = AttributeHeader::getDataSize(tmp);
-    offset += 1 + len;
-  } while (r0.step(len));
+    *dst++ = offset;
+    const Uint32 tmp = *src++;
+    const Uint32 tmp_len = AttributeHeader::getDataSize(tmp);
+    offset += 1 + tmp_len;
+    src += tmp_len;
+  } while (offset < len);
 
   return header->m_len = static_cast<Uint32>(dst - save);
 }
@@ -8947,20 +8964,21 @@ Dbspj::buildRowHeader(RowPtr::Header * header, SegmentedSectionPtr ptr)
  *   which can be used to do random access inside the row
  */
 Uint32
-Dbspj::buildRowHeader(RowPtr::Header * header, const Uint32 *& src, Uint32 len)
+Dbspj::buildRowHeader(RowPtr::Header * header, const Uint32 *& src, Uint32 cnt)
 {
+  const Uint32 *_src = src;
   Uint32 * dst = header->m_offset;
   const Uint32 * save = dst;
   Uint32 offset = 0;
-  for (Uint32 i = 0; i<len; i++)
+  for (Uint32 i = 0; i<cnt; i++)
   {
     * dst ++ = offset;
-    Uint32 tmp = * src++;
+    Uint32 tmp = * _src++;
     Uint32 tmp_len = AttributeHeader::getDataSize(tmp);
     offset += 1 + tmp_len;
-    src += tmp_len;
+    _src += tmp_len;
   }
-
+  src = _src;
   return header->m_len = static_cast<Uint32>(dst - save);
 }
 
@@ -8987,8 +9005,8 @@ Dbspj::appendToPattern(Local_pattern_store & pattern,
 }
 
 Uint32
-Dbspj::appendParamToPattern(Local_pattern_store& dst,
-                            const RowPtr::Linear & row, Uint32 col)
+Dbspj::appendParamToPattern(Local_pattern_store &dst,
+                            const RowPtr::Row &row, Uint32 col)
 {
   jam();
   Uint32 offset = row.m_header->m_offset[col];
@@ -9012,7 +9030,7 @@ Dbspj::appendParamToPattern(Local_pattern_store& dst,
 static int fi_cnt = 0;
 bool
 Dbspj::appendToSection(Uint32& firstSegmentIVal,
-                         const Uint32* src, Uint32 len)
+                        const Uint32* src, Uint32 len)
 {
   if (ERROR_INSERTED(17510) && fi_cnt++ % 13 == 0)
   {
@@ -9029,8 +9047,8 @@ Dbspj::appendToSection(Uint32& firstSegmentIVal,
 #endif
 
 Uint32
-Dbspj::appendParamHeadToPattern(Local_pattern_store& dst,
-                                const RowPtr::Linear & row, Uint32 col)
+Dbspj::appendParamHeadToPattern(Local_pattern_store &dst,
+                                const RowPtr::Row &row, Uint32 col)
 {
   jam();
   Uint32 offset = row.m_header->m_offset[col];
@@ -9067,27 +9085,7 @@ Dbspj::appendReaderToSection(Uint32 &ptrI, SectionReader &reader, Uint32 len)
 }
 
 void
-Dbspj::getCorrelationData(const RowPtr::Section & row,
-                          Uint32 col,
-                          Uint32& correlationNumber)
-{
-  /**
-   * TODO handle errors
-   */
-  SegmentedSectionPtr ptr(row.m_dataPtr);
-  SectionReader reader(ptr, getSectionSegmentPool());
-  Uint32 offset = row.m_header->m_offset[col];
-  ndbrequire(reader.step(offset));
-  Uint32 tmp;
-  ndbrequire(reader.getWord(&tmp));
-  Uint32 len = AttributeHeader::getDataSize(tmp);
-  ndbrequire(len == 1);
-  ndbrequire(AttributeHeader::getAttributeId(tmp) == AttributeHeader::CORR_FACTOR32);
-  ndbrequire(reader.getWord(&correlationNumber));
-}
-
-void
-Dbspj::getCorrelationData(const RowPtr::Linear & row,
+Dbspj::getCorrelationData(const RowPtr::Row &row,
                           Uint32 col,
                           Uint32& correlationNumber)
 {
@@ -9103,31 +9101,7 @@ Dbspj::getCorrelationData(const RowPtr::Linear & row,
 }
 
 Uint32
-Dbspj::appendColToSection(Uint32 & dst, const RowPtr::Section & row,
-                          Uint32 col, bool& hasNull)
-{
-  jam();
-  /**
-   * TODO handle errors
-   */
-  SegmentedSectionPtr ptr(row.m_dataPtr);
-  SectionReader reader(ptr, getSectionSegmentPool());
-  Uint32 offset = row.m_header->m_offset[col];
-  ndbrequire(reader.step(offset));
-  Uint32 tmp;
-  ndbrequire(reader.getWord(&tmp));
-  Uint32 len = AttributeHeader::getDataSize(tmp);
-  if (unlikely(len==0))
-  {
-    jam();
-    hasNull = true;  // NULL-value in key
-    return 0;
-  }
-  return appendReaderToSection(dst, reader, len);
-}
-
-Uint32
-Dbspj::appendColToSection(Uint32 & dst, const RowPtr::Linear & row,
+Dbspj::appendColToSection(Uint32 & dst, const RowPtr::Row &row,
                           Uint32 col, bool& hasNull)
 {
   jam();
@@ -9144,7 +9118,7 @@ Dbspj::appendColToSection(Uint32 & dst, const RowPtr::Linear & row,
 }
 
 Uint32
-Dbspj::appendAttrinfoToSection(Uint32 & dst, const RowPtr::Linear & row,
+Dbspj::appendAttrinfoToSection(Uint32 & dst, const RowPtr::Row &row,
                                Uint32 col, bool& hasNull)
 {
   jam();
@@ -9159,58 +9133,12 @@ Dbspj::appendAttrinfoToSection(Uint32 & dst, const RowPtr::Linear & row,
   return appendToSection(dst, ptr, 1 + len) ? 0 : DbspjErr::OutOfSectionMemory;
 }
 
-Uint32
-Dbspj::appendAttrinfoToSection(Uint32 & dst, const RowPtr::Section & row,
-                               Uint32 col, bool& hasNull)
-{
-  jam();
-  /**
-   * TODO handle errors
-   */
-  SegmentedSectionPtr ptr(row.m_dataPtr);
-  SectionReader reader(ptr, getSectionSegmentPool());
-  Uint32 offset = row.m_header->m_offset[col];
-  ndbrequire(reader.step(offset));
-  Uint32 tmp;
-  ndbrequire(reader.peekWord(&tmp));
-  Uint32 len = AttributeHeader::getDataSize(tmp);
-  if (unlikely(len==0))
-  {
-    jam();
-    hasNull = true;  // NULL-value in key
-  }
-  return appendReaderToSection(dst, reader, 1 + len);
-}
-
 /**
  * 'PkCol' is the composite NDB$PK column in an unique index consisting of
  * a fragment id and the composite PK value (all PK columns concatenated)
  */
 Uint32
-Dbspj::appendPkColToSection(Uint32 & dst, const RowPtr::Section & row, Uint32 col)
-{
-  jam();
-  /**
-   * TODO handle errors
-   */
-  SegmentedSectionPtr ptr(row.m_dataPtr);
-  SectionReader reader(ptr, getSectionSegmentPool());
-  Uint32 offset = row.m_header->m_offset[col];
-  ndbrequire(reader.step(offset));
-  Uint32 tmp;
-  ndbrequire(reader.getWord(&tmp));
-  Uint32 len = AttributeHeader::getDataSize(tmp);
-  ndbrequire(len>1);  // NULL-value in PkKey is an error
-  ndbrequire(reader.step(1)); // Skip fragid
-  return appendReaderToSection(dst, reader, len-1);
-}
-
-/**
- * 'PkCol' is the composite NDB$PK column in an unique index consisting of
- * a fragment id and the composite PK value (all PK columns concatenated)
- */
-Uint32
-Dbspj::appendPkColToSection(Uint32 & dst, const RowPtr::Linear & row, Uint32 col)
+Dbspj::appendPkColToSection(Uint32 & dst, const RowPtr::Row &row, Uint32 col)
 {
   jam();
   Uint32 offset = row.m_header->m_offset[col];
@@ -9265,13 +9193,13 @@ Dbspj::appendFromParent(Uint32 & dst, Local_pattern_store& pattern,
     treeNodePtr.p->m_rows.m_map.load(mapptr, pos, ref);
 
     const Uint32* const rowptr = get_row_ptr(ref);
-    setupRowPtr(treeNodePtr, targetRow, ref, rowptr);
+    setupRowPtr(treeNodePtr, targetRow, rowptr);
 
     if (levels)
     {
       jam();
-      getCorrelationData(targetRow.m_row_data.m_linear,
-                         targetRow.m_row_data.m_linear.m_header->m_len - 1,
+      getCorrelationData(targetRow.m_row_data,
+                         targetRow.m_row_data.m_header->m_len - 1,
                          corrVal);
     }
   }
@@ -9289,13 +9217,13 @@ Dbspj::appendFromParent(Uint32 & dst, Local_pattern_store& pattern,
   switch(type){
   case QueryPattern::P_COL:
     jam();
-    return appendColToSection(dst, targetRow.m_row_data.m_linear, val, hasNull);
+    return appendColToSection(dst, targetRow.m_row_data, val, hasNull);
   case QueryPattern::P_UNQ_PK:
     jam();
-    return appendPkColToSection(dst, targetRow.m_row_data.m_linear, val);
+    return appendPkColToSection(dst, targetRow.m_row_data, val);
   case QueryPattern::P_ATTRINFO:
     jam();
-    return appendAttrinfoToSection(dst, targetRow.m_row_data.m_linear, val, hasNull);
+    return appendAttrinfoToSection(dst, targetRow.m_row_data, val, hasNull);
   case QueryPattern::P_DATA:
     jam();
     // retreiving DATA from parent...is...an error
@@ -9385,8 +9313,8 @@ Dbspj::appendDataToSection(Uint32 & ptrI,
  * This function takes a pattern and a row and expands it into a section
  */
 Uint32
-Dbspj::expandS(Uint32 & _dst, Local_pattern_store& pattern,
-               const RowPtr & row, bool& hasNull)
+Dbspj::expand(Uint32 & _dst, Local_pattern_store& pattern,
+              const RowPtr & row, bool& hasNull)
 {
   Uint32 err;
   Uint32 dst = _dst;
@@ -9402,77 +9330,15 @@ Dbspj::expandS(Uint32 & _dst, Local_pattern_store& pattern,
     switch(type){
     case QueryPattern::P_COL:
       jam();
-      err = appendColToSection(dst, row.m_row_data.m_section, val, hasNull);
+      err = appendColToSection(dst, row.m_row_data, val, hasNull);
       break;
     case QueryPattern::P_UNQ_PK:
       jam();
-      err = appendPkColToSection(dst, row.m_row_data.m_section, val);
+      err = appendPkColToSection(dst, row.m_row_data, val);
       break;
     case QueryPattern::P_ATTRINFO:
       jam();
-      err = appendAttrinfoToSection(dst, row.m_row_data.m_section, val, hasNull);
-      break;
-    case QueryPattern::P_DATA:
-      jam();
-      err = appendDataToSection(dst, pattern, it, val, hasNull);
-      break;
-    case QueryPattern::P_PARENT:
-      jam();
-      // P_PARENT is a prefix to another pattern token
-      // that permits code to access rows from earlier than immediate parent.
-      // val is no of levels to move up the tree
-      err = appendFromParent(dst, pattern, it, val, row, hasNull);
-      break;
-      // PARAM's was converted to DATA by ::expand(pattern...)
-    case QueryPattern::P_PARAM:
-    case QueryPattern::P_PARAM_HEADER:
-    default:
-      jam();
-      err = DbspjErr::InvalidPattern;
-      DEBUG_CRASH();
-    }
-    if (unlikely(err != 0))
-    {
-      jam();
-      _dst = dst;
-      return err;
-    }
-  }
-
-  _dst = dst;
-  return 0;
-}
-
-/**
- * This function takes a pattern and a row and expands it into a section
- */
-Uint32
-Dbspj::expandL(Uint32 & _dst, Local_pattern_store& pattern,
-               const RowPtr & row, bool& hasNull)
-{
-  Uint32 err;
-  Uint32 dst = _dst;
-  hasNull = false;
-  Local_pattern_store::ConstDataBufferIterator it;
-  pattern.first(it);
-  while (!it.isNull())
-  {
-    Uint32 info = *it.data;
-    Uint32 type = QueryPattern::getType(info);
-    Uint32 val = QueryPattern::getLength(info);
-    pattern.next(it);
-    switch(type){
-    case QueryPattern::P_COL:
-      jam();
-      err = appendColToSection(dst, row.m_row_data.m_linear, val, hasNull);
-      break;
-    case QueryPattern::P_UNQ_PK:
-      jam();
-      err = appendPkColToSection(dst, row.m_row_data.m_linear, val);
-      break;
-    case QueryPattern::P_ATTRINFO:
-      jam();
-      err = appendAttrinfoToSection(dst, row.m_row_data.m_linear, val, hasNull);
+      err = appendAttrinfoToSection(dst, row.m_row_data, val, hasNull);
       break;
     case QueryPattern::P_DATA:
       jam();
@@ -9516,7 +9382,7 @@ Dbspj::expand(Uint32 & ptrI, DABuffer& pattern, Uint32 len,
    */
   Uint32 err = 0;
   Uint32 tmp[1+MAX_ATTRIBUTES_IN_TABLE];
-  struct RowPtr::Linear row;
+  struct RowPtr::Row row;
   row.m_data = param.ptr;
   row.m_header = CAST_PTR(RowPtr::Header, &tmp[0]);
   buildRowHeader(CAST_PTR(RowPtr::Header, &tmp[0]), param.ptr, paramCnt);
@@ -9596,7 +9462,7 @@ Dbspj::expand(Local_pattern_store& dst, Ptr<TreeNode> treeNodePtr,
    */
   Uint32 err;
   Uint32 tmp[1+MAX_ATTRIBUTES_IN_TABLE];
-  struct RowPtr::Linear row;
+  struct RowPtr::Row row;
   row.m_header = CAST_PTR(RowPtr::Header, &tmp[0]);
   row.m_data = param.ptr;
   buildRowHeader(CAST_PTR(RowPtr::Header, &tmp[0]), param.ptr, paramCnt);
