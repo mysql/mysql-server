@@ -46,7 +46,7 @@ if ($EXPECT_STABILITY)
       select @ndb_max_replicated_epoch as max_replicated_epoch,
                @ndb_last_conflict_epoch as last_conflict_epoch,
       @init_ndb_last_conflict_epoch as init_last_conflict_epoch;
-      SELECT * FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME LIKE "NDB_CONFLICT%";
+      SELECT * FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE "NDB_CONFLICT%";
       SHOW BINLOG EVENTS;
   }
 }
