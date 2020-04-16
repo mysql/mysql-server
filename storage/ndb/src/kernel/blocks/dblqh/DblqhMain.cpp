@@ -13120,7 +13120,7 @@ void Dblqh::scanLockReleasedLab(Signal* signal,
       /*
        * We came here after releasing locks after 
        * receiving SCAN_NEXTREQ from TC. We only come here 
-       * when scanHoldLock == ZTRUE
+       * when scanLockHold == ZTRUE
        */
       scanPtr->m_curr_batch_size_rows = 0;
       scanPtr->m_curr_batch_size_bytes = 0;
@@ -15267,15 +15267,19 @@ void Dblqh::scanTupkeyRefLab(Signal* signal,
     scanReleaseLocksLab(signal, tcConnectptr.p);
     return;
   }//if
-  Uint32 time_passed = cLqhTimeOutCount - tcConnectptr.p->tcTimer;
-  if (unlikely(rows && time_passed > 1))
+
+  // 'time_passed' is in slices of 10ms
+  const Uint32 time_passed = cLqhTimeOutCount - tcConnectptr.p->tcTimer;
+  if (unlikely(rows && time_passed > 1) &&
+      (refToMain(scanPtr->scanApiBlockref) != DBSPJ || time_passed > 10 ))
   {
-  /* -----------------------------------------------------------------------
-   *  WE NEED TO ENSURE THAT WE DO NOT SEARCH FOR THE NEXT TUPLE FOR A 
-   *  LONG TIME WHILE WE KEEP A LOCK ON A FOUND TUPLE. WE RATHER REPORT 
-   *  THE FOUND TUPLE IF FOUND TUPLES ARE RARE. If more than 10 ms passed we
-   *  send the found tuples to the API.
-   * ----------------------------------------------------------------------- */
+    /* -----------------------------------------------------------------------
+     *  WE NEED TO ENSURE THAT WE DO NOT SEARCH FOR THE NEXT TUPLE FOR A
+     *  LONG TIME WHILE WE KEEP A LOCK ON A FOUND TUPLE. WE RATHER REPORT
+     *  THE FOUND TUPLE IF FOUND TUPLES ARE RARE. If more than 10 ms passed we
+     *  send the found tuples to the API. For requests comming from SPJ we allow
+     *  scans to go on for an extended periode of 100ms
+     * ----------------------------------------------------------------------- */
     scanPtr->scanReleaseCounter = rows + 1;
     scanReleaseLocksLab(signal, tcConnectptr.p);
     return;
