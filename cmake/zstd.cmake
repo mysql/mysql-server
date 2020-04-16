@@ -23,6 +23,28 @@
 # cmake -DWITH_ZSTD=system|bundled
 # bundled is the default
 
+# With earier versions, several compression tests fail.
+# With version < 1.0.0 our source code does not build.
+SET(MIN_ZSTD_VERSION_REQUIRED "1.2.0")
+
+MACRO (FIND_ZSTD_VERSION)
+  FOREACH(version_part
+      ZSTD_VERSION_MAJOR
+      ZSTD_VERSION_MINOR
+      ZSTD_VERSION_RELEASE
+      )
+    FILE(STRINGS "${ZSTD_INCLUDE_DIR}/zstd.h" ${version_part}
+      REGEX "^#[\t ]*define[\t ]+${version_part}[\t ]+([0-9]+).*")
+    STRING(REGEX REPLACE
+      "^.*${version_part}[\t ]+([0-9]+).*" "\\1"
+      ${version_part} "${${version_part}}")
+  ENDFOREACH()
+  SET(ZSTD_VERSION
+    "${ZSTD_VERSION_MAJOR}.${ZSTD_VERSION_MINOR}.${ZSTD_VERSION_RELEASE}")
+  SET(ZSTD_VERSION "${ZSTD_VERSION}" CACHE INTERNAL "ZSTD major.minor.step")
+  MESSAGE(STATUS "ZSTD_VERSION ${ZSTD_VERSION}")
+ENDMACRO()
+
 MACRO (FIND_SYSTEM_ZSTD)
   FIND_PATH(ZSTD_INCLUDE_DIR
     NAMES zstd.h
@@ -33,14 +55,18 @@ MACRO (FIND_SYSTEM_ZSTD)
   IF (ZSTD_INCLUDE_DIR AND ZSTD_SYSTEM_LIBRARY)
     SET(SYSTEM_ZSTD_FOUND 1)
     SET(ZSTD_LIBRARY ${ZSTD_SYSTEM_LIBRARY})
+    IF(NOT ZSTD_INCLUDE_DIR STREQUAL "/usr/include")
+      # In case of -DCMAKE_PREFIX_PATH=</path/to/custom/zstd>
+      INCLUDE_DIRECTORIES(BEFORE SYSTEM ${ZSTD_INCLUDE_DIR})
+    ENDIF()
   ENDIF()
 ENDMACRO()
 
 MACRO (MYSQL_USE_BUNDLED_ZSTD)
   SET(ZSTD_LIBRARY zstd CACHE INTERNAL "Bundled zlib library")
   SET(WITH_ZSTD "bundled" CACHE STRING "Use bundled zstd")
-  INCLUDE_DIRECTORIES(BEFORE SYSTEM
-    ${CMAKE_SOURCE_DIR}/extra/zstd/lib)
+  SET(ZSTD_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/extra/zstd/lib)
+  INCLUDE_DIRECTORIES(BEFORE SYSTEM ${ZSTD_INCLUDE_DIR})
   ADD_SUBDIRECTORY(extra/zstd)
 ENDMACRO()
 
@@ -58,5 +84,11 @@ MACRO (MYSQL_CHECK_ZSTD)
     ENDIF()
   ELSE()
     MESSAGE(FATAL_ERROR "WITH_ZSTD must be bundled or system")
+  ENDIF()
+  FIND_ZSTD_VERSION()
+  IF(ZSTD_VERSION VERSION_LESS MIN_ZSTD_VERSION_REQUIRED)
+    MESSAGE(FATAL_ERROR
+      "ZSTD version must be at least ${MIN_ZSTD_VERSION_REQUIRED}, "
+      "found ${ZSTD_VERSION}.\nPlease use -DWITH_ZSTD=bundled")
   ENDIF()
 ENDMACRO()
