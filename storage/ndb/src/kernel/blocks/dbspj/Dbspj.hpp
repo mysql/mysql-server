@@ -150,21 +150,10 @@ public:
   };
   typedef Ptr<TableRecord> TableRecordPtr;
 
-  enum Buffer_type {
-    BUFFER_VOID  = 0,
-    BUFFER_STACK = 1,
-    BUFFER_VAR   = 2
-  };
-
   struct RowRef
   {
     Uint32 m_page_id;
     Uint16 m_page_pos;
-    union
-    {
-      Uint16 unused;
-      enum Buffer_type m_alloc_type:16;
-    };
 
     void copyto_link(Uint32 * dst) const {
       dst[0] = m_page_id; dst[1] = m_page_pos;
@@ -287,7 +276,7 @@ public:
 
     bool isNull() const { return m_map_ref.isNull(); }
 
-    void assign (RowRef ref) {
+    void assign(RowRef ref) {
       m_map_ref = ref;
     }
 
@@ -470,43 +459,22 @@ public:
   typedef DLFifoList<RowPage_pool> RowPage_fifo;
   typedef LocalDLFifoList<RowPage_pool> Local_RowPage_fifo;
 
-  typedef Tup_varsize_page Var_page;
-
   struct RowBuffer
   {
-    enum Buffer_type m_type;
-
-    RowBuffer() : m_type(BUFFER_VOID) {}
+    RowBuffer() {}
     RowPage_fifo::Head m_page_list;
 
-    void init(enum Buffer_type type)
+    void init()
     {
       new (&m_page_list) RowPage_fifo::Head();
-      m_type = type;
       reset();
     }
     void reset()
     {
-      if (m_type == BUFFER_STACK)
-        m_stack.m_pos = 0xFFFF;
-      else if (m_type == BUFFER_VAR)
-        m_var.m_free = 0;
+      m_stack_pos = 0xFFFF;
     }
 
-    struct Stack
-    {
-      Uint32 m_pos; // position on head-page
-    };
-
-    struct Var
-    {
-      Uint32 m_free; // Free on last page in list
-    };
-
-    union {
-      struct Stack m_stack;
-      struct Var m_var;
-    };
+    Uint32 m_stack_pos;  // Next free position in head-page
   };
 
   /**
@@ -1080,6 +1048,9 @@ public:
     // Memory Arena with lifetime limited to current result batch / node
     ArenaHead m_batchArena;
 
+    // RowBuffers for this TreeNode only
+    RowBuffer m_rowBuffer;
+
     /**
      * Rows buffered by this node
      */
@@ -1151,9 +1122,7 @@ public:
     enum RequestBits
     {
       RT_SCAN                = 0x1  // unbounded result set, scan interface
-      ,RT_BUFFERS            = 0x2  // Do any of nodes use row/match-buffering
       ,RT_MULTI_SCAN         = 0x4  // Is there several scans in request
-//    ,RT_VAR_ALLOC          = 0x8  // DEPRECATED
       ,RT_NEED_PREPARE       = 0x10 // Does any node need m_prepare hook
       ,RT_NEED_COMPLETE      = 0x20 // Does any node need m_complete hook
       ,RT_REPEAT_SCAN_RESULT = 0x40 // Repeat bushy scan result when required
@@ -1197,7 +1166,6 @@ public:
     Uint32 m_outstanding;      // Outstanding signals, when 0, batch is done
     Uint16 m_lookup_node_data[MAX_NDB_NODES];
     ArenaHead m_arena;
-    RowBuffer m_rowBuffer;
 
 #ifdef SPJ_TRACE_TIME
     Uint32 m_cnt_batches;
@@ -1426,9 +1394,6 @@ private:
   Uint32 createNode(Build_context&, Ptr<Request>, Ptr<TreeNode> &);
   void handleTreeNodeComplete(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void reportAncestorsComplete(Signal*, Ptr<Request>, Ptr<TreeNode>);
-  void releaseScanBuffers(Ptr<Request> requestPtr);
-  void releaseRequestBuffers(Ptr<Request> requestPtr);
-  void releaseNodeRows(Ptr<Request> requestPtr, Ptr<TreeNode>);
   void registerActiveCursor(Ptr<Request>, Ptr<TreeNode>);
   void nodeFail_checkRequests(Signal*);
   void cleanup_common(Ptr<Request>, Ptr<TreeNode>);
@@ -1437,10 +1402,7 @@ private:
    * Row buffering
    */
   Uint32 storeRow(Ptr<TreeNode> treeNodePtr, const RowPtr &row);
-  void releaseRow(Ptr<TreeNode> treeNodePtr, RowRef ref);
   Uint32* stackAlloc(RowBuffer& dst, RowRef&, Uint32 len);
-  Uint32* varAlloc(RowBuffer& dst, RowRef&, Uint32 len);
-  Uint32* rowAlloc(RowBuffer& dst, RowRef&, Uint32 len);
 
   void add_to_list(SLFifoRowList & list, RowRef);
   Uint32 add_to_map(RowMap& map, Uint32, RowRef);
@@ -1610,8 +1572,7 @@ private:
    * Page manager
    */
   bool allocPage(Ptr<RowPage> &);
-  void releasePage(Ptr<RowPage>);
-  void releasePages(Uint32 first, Ptr<RowPage> last);
+  void releasePages(RowBuffer &rowBuffer);
   void releaseGlobal(Signal*);
   RowPage_list::Head m_free_page_list;
   RowPage_pool m_page_pool;

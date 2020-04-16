@@ -91,7 +91,7 @@ static const Uint32 MaxCorrelationId = (1 << 12);
 #define DEBUG_CRASH() ndbassert(false)
 
 const Ptr<Dbspj::TreeNode> Dbspj::NullTreeNodePtr(0, RNIL );
-const Dbspj::RowRef Dbspj::NullRowRef = { RNIL, GLOBAL_PAGE_SIZE_WORDS, { 0 } };
+const Dbspj::RowRef Dbspj::NullRowRef = { RNIL, GLOBAL_PAGE_SIZE_WORDS};
 
 
 void Dbspj::execSIGNAL_DROPPED_REP(Signal* signal)
@@ -1660,43 +1660,23 @@ error:
 Uint32
 Dbspj::initRowBuffers(Ptr<Request> requestPtr)
 {
-  jam();
-
   /**
-   * Init BUFFERS iff Request has to buffer any rows/matches
+   * Init BUFFERS for those TreeNodes buffering any rows/matches
    */
-  if (requestPtr.p->m_bits & Request::RT_BUFFERS)
+  Local_TreeNode_list list(m_treenode_pool, requestPtr.p->m_nodes);
+  Ptr<TreeNode> treeNodePtr;
+  for (list.first(treeNodePtr); !treeNodePtr.isNull(); list.next(treeNodePtr))
   {
-    jam();
+    ndbassert(treeNodePtr.p->m_batch_size > 0);
+    if (treeNodePtr.p->m_bits & TreeNode::T_BUFFER_ANY)
+    {
+      /**
+       * Construct the local treeNode RowBuffer allocator.
+       * As the RowBuffers are pr TreeNode, entire buffer area
+       * may be released, instead of releasing row by row.
+       */
+      treeNodePtr.p->m_rowBuffer.init();
 
-    /**
-     * Iff, multi-scan is non-bushy (normal case)
-     *   we don't strictly need BUFFER_VAR for RT_BUFFERS
-     *   but could instead pop-row stack frame,
-     *     however this is not implemented...
-     *
-     * so, currently use BUFFER_VAR if 'RT_MULTI_SCAN'
-     *
-     * NOTE: This should easily be solvable by having a 
-     *       RowBuffer for each TreeNode instead
-     */
-    if (requestPtr.p->m_bits & Request::RT_MULTI_SCAN)
-    {
-      jam();
-      requestPtr.p->m_rowBuffer.init(BUFFER_VAR);
-    }
-    else
-    {
-      jam();
-      requestPtr.p->m_rowBuffer.init(BUFFER_STACK);
-    }
-
-    Local_TreeNode_list list(m_treenode_pool, requestPtr.p->m_nodes);
-    Ptr<TreeNode> treeNodePtr;
-    for (list.first(treeNodePtr); !treeNodePtr.isNull(); list.next(treeNodePtr))
-    {
-      jam();
-      ndbassert(treeNodePtr.p->m_batch_size > 0);
       /**
        * Construct a List or Map RowCollection for those TreeNodes
        * requiring rows to be buffered.
@@ -1705,15 +1685,15 @@ Dbspj::initRowBuffers(Ptr<Request> requestPtr)
       {
         jam();
         treeNodePtr.p->m_rows.construct (RowCollection::COLLECTION_MAP,
-                                         requestPtr.p->m_rowBuffer,
-                                         treeNodePtr.p->m_batch_size);
+                                         treeNodePtr.p->m_rowBuffer,
+                                         MaxCorrelationId);
       }
-      else if (treeNodePtr.p->m_bits & TreeNode::T_BUFFER_ANY)
+      else
       {
         jam();
         treeNodePtr.p->m_rows.construct (RowCollection::COLLECTION_LIST,
-                                         requestPtr.p->m_rowBuffer,
-                                         treeNodePtr.p->m_batch_size);
+                                         treeNodePtr.p->m_rowBuffer,
+                                         MaxCorrelationId);
       }
     }
   }
@@ -2312,7 +2292,6 @@ Dbspj::appendTreeNode(Ptr<Request>  requestPtr,
         treeNodePtr.p->m_resumeEvents |= TreeNode::TN_EXEC_WAIT |
 	                                 TreeNode::TN_RESUME_NODE;
 	
-        requestPtr.p->m_bits |= Request::RT_BUFFERS;
         scanAncestorPtr.p->m_bits |= TreeNode::T_BUFFER_MAP |
                                      TreeNode::T_BUFFER_MATCH;
 
@@ -2355,7 +2334,6 @@ Dbspj::appendTreeNode(Ptr<Request>  requestPtr,
     m_treenode_pool.getPtr(parentPtr, treeNodePtr.p->m_parentPtrI);
     parentPtr.p->m_bits |= TreeNode::T_BUFFER_MAP |
                            TreeNode::T_BUFFER_ROW;
-    requestPtr.p->m_bits |= Request::RT_BUFFERS;
   }
 
   return 0;
@@ -2992,49 +2970,24 @@ Dbspj::cleanupBatch(Ptr<Request> requestPtr)
    */
   ndbassert(requestPtr.p->m_cnt_active >= 1);
 
-  /**
-   * Release any buffered rows for the TreeNode branches
-   * getting new rows.
-   */
-  if ((requestPtr.p->m_bits & Request::RT_BUFFERS) != 0)
-  {
-    if ((requestPtr.p->m_bits & Request::RT_MULTI_SCAN) != 0)
-    {
-      jam();
-      /**
-       * A MULTI_SCAN may selectively retrieve rows from only
-       * some of the (scan-) branches in the Request.
-       * Selectively release from only these branches.
-       */
-      releaseScanBuffers(requestPtr);
-    }
-    else
-    {
-      jam();
-      /**
-       * if not multiple scans in request, simply release all pages allocated
-       * for row buffers (all rows will be released anyway)
-       */
-      // Root node should be the one and only being active
-      ndbassert(requestPtr.p->m_cnt_active == 1);
-      ndbassert(requestPtr.p->m_active_tree_nodes.get(0));
-      releaseRequestBuffers(requestPtr);
-    }
-  } //RT_BUFFERS
-
   Ptr<TreeNode> treeNodePtr;
   Local_TreeNode_list list(m_treenode_pool, requestPtr.p->m_nodes);
 
   for (list.first(treeNodePtr); !treeNodePtr.isNull(); list.next(treeNodePtr))
   {
     /**
-     * Re-init row buffer structures for those treeNodes getting more rows
-     * in the following NEXTREQ, including all its childs.
+     * Release and re-init row buffer structures for those treeNodes getting
+     * more rows in the following NEXTREQ, including all its childs.
      */
     if (requestPtr.p->m_active_tree_nodes.get(treeNodePtr.p->m_node_no) ||
         requestPtr.p->m_active_tree_nodes.overlaps(treeNodePtr.p->m_predecessors))
     {
-      jam();
+      if (treeNodePtr.p->m_bits & TreeNode::T_BUFFER_ANY)
+      {
+        // Release rowBuffers used by this TreeNode.
+        jam();
+        releasePages(treeNodePtr.p->m_rowBuffer);
+      }
       treeNodePtr.p->m_rows.init();
     }
 
@@ -3085,144 +3038,6 @@ Dbspj::cleanupBatch(Ptr<Request> requestPtr)
       }
     }
   }
-}
-
-void
-Dbspj::releaseScanBuffers(Ptr<Request> requestPtr)
-{
-  Ptr<TreeNode> treeNodePtr;
-  Local_TreeNode_list list(m_treenode_pool, requestPtr.p->m_nodes);
-
-  for (list.first(treeNodePtr); !treeNodePtr.isNull(); list.next(treeNodePtr))
-  {
-    /**
-     * Release buffered rows for all treeNodes getting more rows
-     * in the following NEXTREQ, including all its childs.
-     */
-    if (requestPtr.p->m_active_tree_nodes.get(treeNodePtr.p->m_node_no) ||
-        requestPtr.p->m_active_tree_nodes.overlaps(treeNodePtr.p->m_predecessors))
-    {
-      if (treeNodePtr.p->m_bits & TreeNode::T_BUFFER_ANY)
-      {
-        jam();
-        releaseNodeRows(requestPtr, treeNodePtr);
-      }
-    }
-  }
-}
-
-void
-Dbspj::releaseNodeRows(Ptr<Request> requestPtr, Ptr<TreeNode> treeNodePtr)
-{
-  /**
-   * Release all rows associated with tree node
-   */
-  DEBUG("releaseNodeRows"
-     << ", node: " << treeNodePtr.p->m_node_no
-     << ", request: " << requestPtr.i
-  );
-
-  ndbassert(treeNodePtr.p->m_bits & TreeNode::T_BUFFER_ANY);
-
-  Uint32 cnt = 0;
-  RowIterator iter;
-  for (first(treeNodePtr.p->m_rows, iter); !iter.isNull(); )
-  {
-    jam();
-    RowRef pos = iter.m_base.m_ref;
-    next(iter);
-    releaseRow(treeNodePtr, pos);
-    cnt ++;
-  }
-  DEBUG("RowIterator: released " << cnt << " rows!");
-
-  if (treeNodePtr.p->m_rows.m_type == RowCollection::COLLECTION_MAP)
-  {
-    jam();
-    // Release the (now empty) RowMap
-    RowMap& map = treeNodePtr.p->m_rows.m_map;
-    if (!map.isNull())
-    {
-      jam();
-      RowRef ref;
-      map.copyto(ref);
-      releaseRow(treeNodePtr, ref);  // Map was allocated in row memory
-    }
-  }
-}
-
-void
-Dbspj::releaseRow(Ptr<TreeNode> treeNodePtr, RowRef pos)
-{
-  // Only when var-alloc, or else stack will be popped wo/ consideration
-  // to individual rows
-  const RowCollection& collection = treeNodePtr.p->m_rows;
-  ndbassert(collection.m_base.m_rowBuffer != NULL);
-  ndbassert(collection.m_base.m_rowBuffer->m_type == BUFFER_VAR);
-  ndbassert(pos.m_alloc_type == BUFFER_VAR);
-
-  RowBuffer& rowBuffer = *collection.m_base.m_rowBuffer;
-  Ptr<RowPage> ptr;
-  m_page_pool.getPtr(ptr, pos.m_page_id);
-  ((Var_page*)ptr.p)->free_record(pos.m_page_pos, Var_page::CHAIN);
-  Uint32 free_space = ((Var_page*)ptr.p)->free_space;
-  if (free_space == Var_page::DATA_WORDS - 1)
-  {
-    jam();
-    Local_RowPage_fifo list(m_page_pool,
-                                  rowBuffer.m_page_list);
-    const bool last = list.hasNext(ptr) == false;
-    list.remove(ptr);
-    if (list.isEmpty())
-    {
-      jam();
-      /**
-       * Don't remove last page...
-       */
-      list.addLast(ptr);
-      rowBuffer.m_var.m_free = free_space;
-    }
-    else
-    {
-      jam();
-      if (last)
-      {
-        jam();
-        /**
-         * If we were last...set m_var.m_free to free_space of newLastPtr
-         */
-        Ptr<RowPage> newLastPtr;
-        ndbrequire(list.last(newLastPtr));
-        rowBuffer.m_var.m_free = ((Var_page*)newLastPtr.p)->free_space;
-      }
-      releasePage(ptr);
-    }
-  }
-  else if (free_space > rowBuffer.m_var.m_free)
-  {
-    jam();
-    Local_RowPage_fifo list(m_page_pool,
-                                  rowBuffer.m_page_list);
-    list.remove(ptr);
-    list.addLast(ptr);
-    rowBuffer.m_var.m_free = free_space;
-  }
-}
-
-void
-Dbspj::releaseRequestBuffers(Ptr<Request> requestPtr)
-{
-  DEBUG("releaseRequestBuffers"
-     << ", request: " << requestPtr.i
-  );
-  /**
-   * Release all pages for request
-   */
-  {
-    Local_RowPage_list freelist(m_page_pool, m_free_page_list);
-    freelist.prependList(requestPtr.p->m_rowBuffer.m_page_list);
-  }
-  requestPtr.p->m_rowBuffer.reset();
 }
 
 /**
@@ -3483,7 +3298,6 @@ Dbspj::cleanup(Ptr<Request> requestPtr)
     jam();
     m_lookup_request_hash.remove(requestPtr, *requestPtr.p);
   }
-  releaseRequestBuffers(requestPtr);
   ArenaHead ah = requestPtr.p->m_arena;
   m_request_pool.release(requestPtr);
   m_arenaAllocator.release(ah);
@@ -3526,6 +3340,12 @@ Dbspj::cleanup_common(Ptr<Request> requestPtr, Ptr<TreeNode> treeNodePtr)
   {
     jam();
     releaseSection(treeNodePtr.p->m_send.m_attrInfoPtrI);
+  }
+
+  if (treeNodePtr.p->m_bits & TreeNode::T_BUFFER_ANY)
+  {
+    jam();
+    releasePages(treeNodePtr.p->m_rowBuffer);
   }
 }
 
@@ -4064,7 +3884,7 @@ Dbspj::storeRow(Ptr<TreeNode> treeNodePtr, const RowPtr &row)
   const Uint32 totlen = offset + matchlen + headlen + datalen;
 
   RowRef ref;
-  Uint32* dstptr = rowAlloc(*collection.m_base.m_rowBuffer, ref, totlen);
+  Uint32* dstptr = stackAlloc(*collection.m_base.m_rowBuffer, ref, totlen);
   if (unlikely(dstptr == NULL))
   {
     jam();
@@ -4145,7 +3965,7 @@ Dbspj::setupRowPtr(Ptr<TreeNode> treeNodePtr,
 }
 
 void
-Dbspj::add_to_list(SLFifoRowList & list, RowRef rowref)
+Dbspj::add_to_list(SLFifoRowList &list, RowRef rowref)
 {
   if (list.isNull())
   {
@@ -4160,7 +3980,6 @@ Dbspj::add_to_list(SLFifoRowList & list, RowRef rowref)
      * add last to list
      */
     RowRef last;
-    last.m_alloc_type = rowref.m_alloc_type;
     last.m_page_id = list.m_last_row_page_id;
     last.m_page_pos = list.m_last_row_page_pos;
     Uint32 * const rowptr = get_row_ptr(last);
@@ -4176,17 +3995,7 @@ Dbspj::get_row_ptr(RowRef pos)
 {
   Ptr<RowPage> ptr;
   m_page_pool.getPtr(ptr, pos.m_page_id);
-  if (pos.m_alloc_type == BUFFER_STACK) // ::stackAlloc() memory
-  {
-    jam();
-    return ptr.p->m_data + pos.m_page_pos;
-  }
-  else                                 // ::varAlloc() memory
-  {
-    jam();
-    ndbassert(pos.m_alloc_type == BUFFER_VAR);
-    return ((Var_page*)ptr.p)->get_ptr(pos.m_page_pos);
-  }
+  return ptr.p->m_data + pos.m_page_pos;
 }
 
 inline
@@ -4201,8 +4010,6 @@ Dbspj::first(const SLFifoRowList& list,
     return false;
   }
 
-  //  const Buffer_type allocator = list.m_rowBuffer->m_type;
-  iter.m_ref.m_alloc_type = list.m_rowBuffer->m_type;
   iter.m_ref.m_page_id = list.m_first_row_page_id;
   iter.m_ref.m_page_pos = list.m_first_row_page_pos;
   iter.m_row_ptr = get_row_ptr(iter.m_ref);
@@ -4237,8 +4044,8 @@ Dbspj::add_to_map(RowMap& map,
     Uint32 sz16 = RowMap::MAP_SIZE_PER_REF_16 * map.m_size;
     Uint32 sz32 = (sz16 + 1) / 2;
     RowRef ref;
-    mapptr = rowAlloc(*map.m_rowBuffer, ref, sz32);
-    if (unlikely(mapptr == 0))
+    mapptr = stackAlloc(*map.m_rowBuffer, ref, sz32);
+    if (unlikely(mapptr == nullptr))
     {
       jam();
       return DbspjErr::OutOfRowMemory;
@@ -4249,7 +4056,6 @@ Dbspj::add_to_map(RowMap& map,
   }
   else
   {
-    jam();
     RowRef ref;
     map.copyto(ref);
     mapptr = get_row_ptr(ref);
@@ -4270,7 +4076,6 @@ Dbspj::add_to_map(RowMap& map,
   }
 
   map.store(mapptr, pos, rowref);
-
   return 0;
 }
 
@@ -4288,7 +4093,6 @@ Dbspj::first(const RowMap& map,
 
   iter.m_map_ptr = get_row_ptr(map.m_map_ref);
   iter.m_size = map.m_size;
-  iter.m_ref.m_alloc_type = map.m_rowBuffer->m_type;
 
   Uint32 pos = 0;
   while (RowMap::isNull(iter.m_map_ptr, pos) && pos < iter.m_size)
@@ -4300,14 +4104,10 @@ Dbspj::first(const RowMap& map,
     iter.setNull();
     return false;
   }
-  else
-  {
-    jam();
-    RowMap::load(iter.m_map_ptr, pos, iter.m_ref);
-    iter.m_element_no = pos;
-    iter.m_row_ptr = get_row_ptr(iter.m_ref);
-    return true;
-  }
+  RowMap::load(iter.m_map_ptr, pos, iter.m_ref);
+  iter.m_element_no = pos;
+  iter.m_row_ptr = get_row_ptr(iter.m_ref);
+  return true;
 }
 
 inline
@@ -4324,14 +4124,10 @@ Dbspj::next(RowMapIterator & iter)
     iter.setNull();
     return false;
   }
-  else
-  {
-    jam();
-    RowMap::load(iter.m_map_ptr, pos, iter.m_ref);
-    iter.m_element_no = pos;
-    iter.m_row_ptr = get_row_ptr(iter.m_ref);
-    return true;
-  }
+  RowMap::load(iter.m_map_ptr, pos, iter.m_ref);
+  iter.m_element_no = pos;
+  iter.m_row_ptr = get_row_ptr(iter.m_ref);
+  return true;
 }
 
 bool
@@ -4375,9 +4171,9 @@ Dbspj::stackAlloc(RowBuffer & buffer, RowRef& dst, Uint32 sz)
   Ptr<RowPage> ptr;
   Local_RowPage_fifo list(m_page_pool, buffer.m_page_list);
 
-  Uint32 pos = buffer.m_stack.m_pos;
-  const Uint32 SIZE = RowPage::SIZE;
-  if (list.isEmpty() || (pos + sz) > SIZE)
+  Uint32 pos = buffer.m_stack_pos;
+  static const Uint32 SIZE = RowPage::SIZE;
+  if (unlikely(list.isEmpty() || (pos + sz) > SIZE))
   {
     jam();
     bool ret = allocPage(ptr);
@@ -4397,67 +4193,8 @@ Dbspj::stackAlloc(RowBuffer & buffer, RowRef& dst, Uint32 sz)
 
   dst.m_page_id = ptr.i;
   dst.m_page_pos = pos;
-  dst.m_alloc_type = BUFFER_STACK;
-  buffer.m_stack.m_pos = pos + sz;
+  buffer.m_stack_pos = pos + sz;
   return ptr.p->m_data + pos;
-}
-
-inline
-Uint32 *
-Dbspj::varAlloc(RowBuffer & buffer, RowRef& dst, Uint32 sz)
-{
-  Ptr<RowPage> ptr;
-  Local_RowPage_fifo list(m_page_pool, buffer.m_page_list);
-
-  Uint32 free_space = buffer.m_var.m_free;
-  if (list.isEmpty() || free_space < (sz + 1))
-  {
-    jam();
-    bool ret = allocPage(ptr);
-    if (unlikely(ret == false))
-    {
-      jam();
-      return 0;
-    }
-
-    list.addLast(ptr);
-    ((Var_page*)ptr.p)->init();
-  }
-  else
-  {
-    jam();
-    list.last(ptr);
-  }
-
-  Var_page * vp = (Var_page*)ptr.p;
-  Uint32 pos = vp->alloc_record(sz, (Var_page*)m_buffer0, Var_page::CHAIN);
-
-  dst.m_page_id = ptr.i;
-  dst.m_page_pos = pos;
-  dst.m_alloc_type = BUFFER_VAR;
-  buffer.m_var.m_free = vp->free_space;
-  return vp->get_ptr(pos);
-}
-
-Uint32 *
-Dbspj::rowAlloc(RowBuffer& rowBuffer, RowRef& dst, Uint32 sz)
-{
-  if (rowBuffer.m_type == BUFFER_STACK)
-  {
-    jam();
-    return stackAlloc(rowBuffer, dst, sz);
-  }
-  else if (rowBuffer.m_type == BUFFER_VAR)
-  {
-    jam();
-    return varAlloc(rowBuffer, dst, sz);
-  }
-  else
-  {
-    jam();
-    ndbabort();
-    return NULL;
-  }
 }
 
 bool
@@ -4476,28 +4213,29 @@ Dbspj::allocPage(Ptr<RowPage> & ptr)
     ptr.p = (RowPage*)m_ctx.m_mm.alloc_page(RT_SPJ_DATABUFFER,
                                             &ptr.i,
                                             Ndbd_mem_manager::NDB_ZONE_LE_32);
-    if (ptr.p == 0)
+    if (unlikely(ptr.p == nullptr))
     {
       jam();
       return false;
     }
-    return true;
   }
   else
   {
     jam();
     Local_RowPage_list list(m_page_pool, m_free_page_list);
-    bool ret = list.removeFirst(ptr);
+    const bool ret = list.removeFirst(ptr);
     ndbrequire(ret);
-    return ret;
   }
+  return true;
 }
 
+/* Release all pages allocated to this RowBuffer */
 void
-Dbspj::releasePage(Ptr<RowPage> ptr)
+Dbspj::releasePages(RowBuffer &rowBuffer)
 {
   Local_RowPage_list list(m_page_pool, m_free_page_list);
-  list.addFirst(ptr);
+  list.prependList(rowBuffer.m_page_list);
+  rowBuffer.reset();
 }
 
 void
@@ -9529,7 +9267,6 @@ Dbspj::expand(Local_pattern_store& dst, Ptr<TreeNode> treeNodePtr,
       }
       Ptr<Request> requestPtr;
       m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
-      requestPtr.p->m_bits |= Request::RT_BUFFERS;
       break;
     }
     default:
