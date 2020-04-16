@@ -3836,10 +3836,8 @@ static MY_ATTRIBUTE((warn_unused_result)) bool dd_prepare_inplace_alter_table(
     ut_free(path);
 
     bool discarded = false;
-    const dd::Properties &p = old_dd_tab->se_private_data();
-    if (dict_table_is_file_per_table(old_table) &&
-        p.exists(dd_table_key_strings[DD_TABLE_DISCARD])) {
-      p.get(dd_table_key_strings[DD_TABLE_DISCARD], &discarded);
+    if (dict_table_is_file_per_table(old_table)) {
+      discarded = dd_is_discarded(*old_dd_tab);
     }
 
     dd::Object_id dd_space_id;
@@ -3989,8 +3987,7 @@ static void dd_commit_inplace_alter_table(
 
   /* For discarded table, need set this to dd. */
   if (old_info.m_discarded) {
-    dd::Properties &p = new_dd_tab->se_private_data();
-    p.set(dd_table_key_strings[DD_TABLE_DISCARD], true);
+    dd_set_discarded(*new_dd_tab, true);
   }
 }
 

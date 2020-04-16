@@ -815,8 +815,7 @@ bool dd_table_discard_tablespace(THD *thd, const dict_table_t *table,
     }
 
     /* Set discard flag. */
-    dd::Properties &p = table_def->se_private_data();
-    p.set(dd_table_key_strings[DD_TABLE_DISCARD], discard);
+    dd_set_discarded(*table_def, discard);
 
     using Client = dd::cache::Dictionary_client;
     using Releaser = dd::cache::Dictionary_client::Auto_releaser;
@@ -2758,10 +2757,7 @@ static inline dict_table_t *dd_fill_dict_table(const Table *dd_tab,
   }
 
   /* Check discard flag. */
-  const dd::Properties &table_private = dd_tab->table().se_private_data();
-  if (table_private.exists(dd_table_key_strings[DD_TABLE_DISCARD])) {
-    table_private.get(dd_table_key_strings[DD_TABLE_DISCARD], &is_discard);
-  }
+  is_discard = dd_is_discarded(*dd_tab);
 
   const unsigned n_mysql_cols = m_form->s->fields;
 
@@ -2876,6 +2872,7 @@ static inline dict_table_t *dd_fill_dict_table(const Table *dd_tab,
     uint32_t instant_cols;
 
     if (!dd_table_is_partitioned(dd_tab->table())) {
+      const dd::Properties &table_private = dd_tab->table().se_private_data();
       table_private.get(dd_table_key_strings[DD_TABLE_INSTANT_COLS],
                         &instant_cols);
       m_table->set_instant_cols(instant_cols);

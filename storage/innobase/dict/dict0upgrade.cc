@@ -737,11 +737,9 @@ static bool dd_upgrade_partitions(THD *thd, const char *norm_name,
           dd_table_key_strings[DD_TABLE_DATA_DIRECTORY], true);
     }
 
-    /* Set Discarded attribute in DD table se_private_data */
-    if (dict_table_is_discarded(part_table)) {
-      part_obj->se_private_data().set(dd_table_key_strings[DD_TABLE_DISCARD],
-                                      true);
-    }
+    /* We don't support upgrade from 5.7 with discarded Tablespaces.
+     * Upgrade should stop in a dd_upgrade_tablespace function. */
+    ut_ad(!dict_table_is_discarded(part_table));
 
     dd::Object_id dd_space_id;
 
@@ -762,14 +760,6 @@ static bool dd_upgrade_partitions(THD *thd, const char *norm_name,
       }
 
       dd_space_id = dd_space->id();
-      /* If table is discarded, set discarded attribute in tablespace
-      object */
-      if (dict_table_is_discarded(part_table)) {
-        dd_tablespace_set_state(dd_space, DD_SPACE_STATE_DISCARDED);
-        if (dd_client->update(dd_space)) {
-          ut_ad(0);
-        }
-      }
     }
 
     dd_set_table_options(part_obj, part_table);
@@ -909,6 +899,10 @@ bool dd_upgrade_table(THD *thd, const char *db_name, const char *table_name,
     return (true);
   }
 
+  /* We don't support upgrade from 5.7 with discarded Tablespaces.
+   * Upgrade should stop in a dd_upgrade_tablespace function. */
+  ut_ad(!dict_table_is_discarded(ib_table));
+
   /* If all FTS index are dropped but Innodb still retains the
   FTS_DOC_ID column then add FTS_DOC_ID column and index to DD table */
   bool added_fts_col = dd_upgrade_fix_fts_column(dd_table, ib_table);
@@ -944,14 +938,6 @@ bool dd_upgrade_table(THD *thd, const char *db_name, const char *table_name,
     }
 
     dd_space_id = dd_space->id();
-    /* If table is discarded, set discarded attribute in tablespace
-    object */
-    if (dict_table_is_discarded(ib_table)) {
-      dd_tablespace_set_state(dd_space, DD_SPACE_STATE_DISCARDED);
-      if (dd_client->update(dd_space)) {
-        ut_ad(0);
-      }
-    }
   }
 
   dd_table->set_se_private_id(ib_table->id);
@@ -961,12 +947,6 @@ bool dd_upgrade_table(THD *thd, const char *db_name, const char *table_name,
     ut_ad(dict_table_is_file_per_table(ib_table));
     dd_table->se_private_data().set(
         dd_table_key_strings[DD_TABLE_DATA_DIRECTORY], true);
-  }
-
-  /* Set Discarded attribute in DD table se_private_data */
-  if (dict_table_is_discarded(ib_table)) {
-    dd_table->se_private_data().set(dd_table_key_strings[DD_TABLE_DISCARD],
-                                    true);
   }
 
   /* Set row_type */
@@ -1133,6 +1113,11 @@ int dd_upgrade_tablespace(THD *thd) {
   const rec_t *rec;
   mem_heap_t *heap;
   mtr_t mtr;
+
+  if (has_discarded_tablespaces) {
+    ib::error(ER_IB_CANNOT_UPGRADE_WITH_DISCARDED_TABLESPACES);
+    return HA_ERR_TABLESPACE_MISSING;
+  }
 
   heap = mem_heap_create(1000);
   dd::cache::Dictionary_client *dd_client = dd::get_dd_client(thd);

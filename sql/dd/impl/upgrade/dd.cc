@@ -467,6 +467,94 @@ bool update_meta_data(THD *thd) {
       return dd::end_transaction(thd, true);
     }
   }
+  /* Upgrade from 8.0.20 or previous. */
+  if (bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade_from_before(
+          bootstrap::DD_VERSION_80021)) {
+    /*
+      Fix discard attribute for partitioned Tables.
+
+      Due to bug, prior to 8.0.21, discard attribute for partitioned tables
+      doesn't reflect reality - that is, it can be set to true even if no
+      partition is discarded or it can be set to false, even if some
+      partitions are discarded.
+
+      Moreover, due to the bug, the attribute is only set for a whole Table,
+      whereas only some partitions of the table may be discarded.
+
+      However, Tablespace state==discarded reflect reality properly.
+
+      Since 8.0.21, discard attribute for partitioned tables follow the rules:
+      a) dd::Table for partitioned Table cannot have discard attribute
+      b) only leaf dd::Partitions can have discard attribute
+
+      We can recreate such state looking at Tablespace state in three steps:
+      a) Remove discard attribute from dd::Tables which have any partitions
+      b) Remove discard attribute from all dd::Partitions
+      c) For each leaf_partition (taken from index_partitions) set discard
+      attribute depending on whether its Tablespace state is discarded or not
+    */
+    static_assert(dd::tables::Index_partitions::NUMBER_OF_FIELDS == 5,
+                  "SQL statements rely on a specific table definition");
+    static_assert(dd::tables::Table_partitions::NUMBER_OF_FIELDS == 12,
+                  "SQL statements rely on a specific table definition");
+    static_assert(dd::tables::Tables::NUMBER_OF_FIELDS == 37,
+                  "SQL statements rely on a specific table definition");
+    static_assert(dd::tables::Tablespaces::NUMBER_OF_FIELDS == 7,
+                  "SQL statements rely on a specific table definition");
+
+    /*
+      Remove discard attribute from all Tables
+      Use mysql.index_partitions to find all partitions
+    */
+    if (dd::execute_query(
+            thd,
+            "UPDATE mysql.tables tbl "
+            "JOIN mysql.table_partitions tp ON tp.table_id = tbl.id "
+            "JOIN mysql.index_partitions ip ON ip.partition_id = tp.id "
+            "SET "
+            "tbl.se_private_data=NULLIF(REMOVE_DD_PROPERTY_KEY(tbl.se_private_"
+            "data, 'discard'), '') "
+            "WHERE tbl.engine='InnoDB' AND "
+            "GET_DD_PROPERTY_KEY_VALUE(tbl.se_private_data, 'discard') IS NOT "
+            "NULL ")) {
+      return dd::end_transaction(thd, true);
+    }
+
+    /*
+      Remove discard attribute from all table_partitions.
+
+      Even though we didn't store discard attribute in mysql.table_partitions,
+      it's still possible there is such attribute there: in versions 8.0.0 to
+      8.0.14 it was possible to upgrade from 5.7, when MySQL had discarded
+      partitions. Such upgrade would add discard attribute to
+      mysql.table_partitions
+    */
+    if (dd::execute_query(thd,
+                          "UPDATE mysql.table_partitions tp "
+                          "SET "
+                          "tp.se_private_data=NULLIF(REMOVE_DD_PROPERTY_KEY(tp."
+                          "se_private_data, 'discard'), '') "
+                          "WHERE tp.engine='InnoDB' AND "
+                          "GET_DD_PROPERTY_KEY_VALUE(tp.se_private_data, "
+                          "'discard') IS NOT NULL ")) {
+      return dd::end_transaction(thd, true);
+    }
+
+    /* Set discard attribute for all leaf_partitions by looking at its
+     * Tablespace state. mysql.index_partitions is used to access Tablespaces */
+    if (dd::execute_query(
+            thd,
+            "UPDATE mysql.table_partitions tp "
+            "JOIN mysql.index_partitions ip ON ip.partition_id = tp.id "
+            "JOIN mysql.tablespaces ts ON ip.tablespace_id = ts.id "
+            "SET tp.se_private_data = "
+            "CONCAT('discard=1;',IFNULL(tp.se_private_data,'')) "
+            "WHERE tp.engine='InnoDB' AND "
+            "GET_DD_PROPERTY_KEY_VALUE(ts.se_private_data, "
+            "'state')='discarded' ")) {
+      return dd::end_transaction(thd, true);
+    }
+  }
 
   /*
     Turn foreign key checks back on and commit explicitly.

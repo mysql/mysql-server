@@ -10887,6 +10887,9 @@ ER_TLS_CONFIGURATION_REUSED
 ER_IB_TABLESPACE_PATH_VALIDATION_SKIPPED
   eng "Skipping InnoDB tablespace path validation. Manually moved tablespace files will not be detected!"
 
+ER_IB_CANNOT_UPGRADE_WITH_DISCARDED_TABLESPACES
+  eng "Upgrade failed because database contains discarded tablespaces."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
