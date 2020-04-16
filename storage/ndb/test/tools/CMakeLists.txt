@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -45,6 +45,9 @@ NDB_ADD_EXECUTABLE(create_fk create_fk.cpp NDBTEST)
 NDB_ADD_EXECUTABLE(drop_fk drop_fk.cpp NDBTEST)
 
 NDB_ADD_EXECUTABLE(ndb_cpcc cpcc.cpp)
+NDB_ADD_EXECUTABLE(statUtils statUtils.cpp NDBTEST)
+
+
 TARGET_LINK_LIBRARIES(ndb_cpcc ndbNDBT ndbclient_static)
 
 IF(NOT WIN32)
