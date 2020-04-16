@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -79,6 +79,7 @@ TODO:
 #include "my_io.h"
 #include "my_macros.h"
 #include "my_sys.h"
+#include "my_systime.h"
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_file.h"
@@ -1483,6 +1484,13 @@ int my_b_flush_io_cache(IO_CACHE *info, int need_append_buffer_lock) {
       }
 
       info->append_read_pos = info->write_pos = info->write_buffer;
+      if (info->disk_sync) {
+        if (mysql_file_sync(info->file, MYF(MY_WME))) {
+          UNLOCK_APPEND_BUFFER;
+          return -1;
+        }
+        if (info->disk_sync_delay) my_sleep(info->disk_sync_delay * 1000);
+      }
       ++info->disk_writes;
       UNLOCK_APPEND_BUFFER;
       return info->error;

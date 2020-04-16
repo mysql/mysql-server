@@ -1165,6 +1165,15 @@ The following options may be given as the first argument:
  --secure-file-priv=name 
  Limit LOAD DATA, SELECT ... OUTFILE, and LOAD_FILE() to
  files within specified directory
+ --select-into-buffer-size[=#] 
+ Buffer size for SELECT INTO OUTFILE/DUMPFILE.
+ --select-into-disk-sync 
+ Synchronize flushed buffer with disk for SELECT INTO
+ OUTFILE/DUMPFILE.
+ --select-into-disk-sync-delay[=#] 
+ The delay in milliseconds after each buffer sync for
+ SELECT INTO OUTFILE/DUMPFILE. Requires
+ select_into_sync_disk = ON.
  --server-id=#       Uniquely identifies the server instance in the community
  of replication partners
  --server-id-bits=#  Set number of significant bits in server-id
@@ -1744,6 +1753,9 @@ rpl-stop-slave-timeout 31536000
 safe-user-create FALSE
 schema-definition-cache 256
 secondary-engine-cost-threshold 100000
+select-into-buffer-size 131072
+select-into-disk-sync FALSE
+select-into-disk-sync-delay 0
 server-id 1
 server-id-bits 32
 session-track-gtids OFF

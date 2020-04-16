@@ -161,6 +161,10 @@ bool Query_result_to_file::send_eof(THD *thd) {
 }
 
 void Query_result_to_file::cleanup(THD *) {
+  DBUG_TRACE;
+  DBUG_PRINT("print_select_into_flush_stats",
+             ("[select_to_file][flush_count] %03lu\n", cache.disk_writes));
+
   /* In case of error send_eof() may be not called: close the file here. */
   if (file >= 0) {
     (void)end_io_cache(&cache);
@@ -230,11 +234,17 @@ static File create_file(THD *thd, char *path, sql_exchange *exchange,
 #else
   (void)chmod(path, S_IRUSR | S_IWUSR | S_IRGRP);
 #endif
-  if (init_io_cache(cache, file, 0L, WRITE_CACHE, 0L, true, MYF(MY_WME))) {
+  if (init_io_cache(cache, file, thd->variables.select_into_buffer_size,
+                    WRITE_CACHE, 0L, true, MYF(MY_WME))) {
     mysql_file_close(file, MYF(0));
     /* Delete file on error, it was just created */
     mysql_file_delete(key_select_to_file, path, MYF(0));
     return -1;
+  }
+  if (thd->variables.select_into_disk_sync) {
+    cache->disk_sync = true;
+    if (thd->variables.select_into_disk_sync_delay)
+      cache->disk_sync_delay = thd->variables.select_into_disk_sync_delay;
   }
   return file;
 }

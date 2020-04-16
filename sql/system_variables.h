@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -406,6 +406,18 @@ struct System_variables {
     @sa Sys_var_require_row_format
   */
   bool require_row_format;
+  /**
+    @sa Sys_select_into_buffer_size
+  */
+  ulong select_into_buffer_size;
+  /**
+    @sa Sys_select_into_disk_sync
+  */
+  bool select_into_disk_sync;
+  /**
+    @sa Sys_select_disk_sync_delay
+  */
+  uint select_into_disk_sync_delay;
 };
 
 /**

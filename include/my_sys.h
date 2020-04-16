@@ -456,6 +456,11 @@ struct IO_CACHE /* Used when cacheing files */
   Stream_cipher *m_encryptor = nullptr;
   // This is a decryptor for decrypting the temporary file of the IO cache.
   Stream_cipher *m_decryptor = nullptr;
+  // Synchronize flushed buffer with disk.
+  bool disk_sync{false};
+  // Delay in milliseconds after disk synchronization of the flushed buffer.
+  // Requires disk_sync = true.
+  uint disk_sync_delay{0};
 };
 
 typedef int (*qsort2_cmp)(const void *, const void *, const void *);
