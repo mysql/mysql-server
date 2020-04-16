@@ -804,3 +804,12 @@ SELECT * FROM t WHERE j->'$.x' = 'abc';
 j
 {"x": "abc"}
 DROP TABLE t;
+##
+## Bug #31017765 CREATE TABLE ... SELECT FAILS IF THERE IS A FUNCTIONAL INDEX
+##
+##
+CREATE TEMPORARY TABLE issue_functional_key_part (
+sold_on DATETIME NOT NULL DEFAULT NOW(),
+INDEX sold_on_date ((DATE(sold_on)))
+)
+SELECT NOW() `sold_on`;

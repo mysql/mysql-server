@@ -2763,14 +2763,20 @@ bool Query_result_create::prepare(THD *thd, List<Item> &values,
     /* abort() deletes table */
     return true;
 
-  if (table->s->fields < values.elements) {
+  /* Ignore hidden fields */
+  uint field_count = table->s->fields;
+  for (uint i = 0; i < table->s->fields; ++i) {
+    if (table->s->field[i]->is_field_for_functional_index()) field_count--;
+  }
+
+  if (field_count < values.elements) {
     my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), 1L);
     return true;
   }
   /* First field to copy */
-  field = table->field + table->s->fields - values.elements;
+  field = table->field + field_count - values.elements;
   for (Field **f = field; *f; f++) {
-    if ((*f)->gcol_info) {
+    if ((*f)->gcol_info && (*field)->is_field_for_functional_index()) {
       /*
         Generated columns are not allowed to be given a value for CREATE TABLE
         .. SELECT statment.
