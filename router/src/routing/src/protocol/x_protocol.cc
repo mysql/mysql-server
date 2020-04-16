@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@ static bool send_message(const std::string &log_prefix, int destination,
                          mysql_harness::SocketOperationsBase *sock_ops) {
   using google::protobuf::io::CodedOutputStream;
 
-  const size_t msg_size = msg.ByteSize();
+  const size_t msg_size = message_byte_size(msg);
   RoutingProtocolBuffer buffer(kMessageHeaderSize + msg_size);
 
   // first 4 bytes is the message size (plus type byte, without size bytes)
@@ -55,10 +55,10 @@ static bool send_message(const std::string &log_prefix, int destination,
   // fifth byte is the message type
   buffer[kMessageHeaderSize - 1] = static_cast<uint8_t>(type);
 
-  if ((msg.ByteSize() > 0) &&
-      (!msg.SerializeToArray(&buffer[kMessageHeaderSize], msg.ByteSize()))) {
-    log_error("[%s] error while serializing error message. Message size = %d",
-              log_prefix.c_str(), msg.ByteSize());
+  if ((msg_size > 0) &&
+      (!msg.SerializeToArray(&buffer[kMessageHeaderSize], msg_size))) {
+    log_error("[%s] error while serializing error message. Message size = %lu",
+              log_prefix.c_str(), static_cast<ulong>(msg_size));
     return false;
   }
 
@@ -320,4 +320,12 @@ bool XProtocol::on_block_client_host(int server,
   return send_message(log_prefix, server,
                       Mysqlx::ClientMessages::CON_CAPABILITIES_GET,
                       capabilities_get, routing_sock_ops_->so());
+}
+
+size_t message_byte_size(const google::protobuf::MessageLite &msg) {
+#if (defined(GOOGLE_PROTOBUF_VERSION) && GOOGLE_PROTOBUF_VERSION > 3000000)
+  return msg.ByteSizeLong();
+#else
+  return msg.ByteSize();
+#endif
 }

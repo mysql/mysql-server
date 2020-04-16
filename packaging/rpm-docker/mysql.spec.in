@@ -376,8 +376,8 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_bindir}/my_print_defaults
 
 %dir %{_libdir}/mysql/private
-%attr(755, root, root) %{_libdir}/mysql/private/libprotobuf-lite.so.3.6.1
-%attr(755, root, root) %{_libdir}/mysql/private/libprotobuf.so.3.6.1
+%attr(755, root, root) %{_libdir}/mysql/private/libprotobuf-lite.so.3.11.4
+%attr(755, root, root) %{_libdir}/mysql/private/libprotobuf.so.3.11.4
 
 %dir %{_libdir}/mysql/plugin
 %attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so

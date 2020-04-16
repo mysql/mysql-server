@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -63,11 +63,12 @@ class XProtocolTest : public ::testing::Test {
                                         size_t &buffer_offset,
                                         google::protobuf::MessageLite &msg,
                                         unsigned char type) {
-    size_t msg_size = msg.ByteSize();
+    size_t msg_size = message_byte_size(msg);
     google::protobuf::io::CodedOutputStream::WriteLittleEndian32ToArray(
         static_cast<uint32_t>(msg_size + 1), &buffer[buffer_offset]);
     buffer[buffer_offset + 4] = type;
-    bool res = msg.SerializeToArray(&buffer[buffer_offset + 5], msg.ByteSize());
+    bool res = msg.SerializeToArray(&buffer[buffer_offset + 5],
+                                    message_byte_size(msg));
     buffer_offset += (msg_size + 5);
     ASSERT_TRUE(res);
   }
@@ -124,7 +125,8 @@ static Mysqlx::Connection::CapabilitiesSet create_capab_set_msg() {
 TEST_F(XProtocolTest, OnBlockClientHostSuccess) {
   // we expect the router sending CapabilitiesGet message
   // to prevent MySQL server from bumping up connection error counter
-  const size_t msg_size = Mysqlx::Connection::CapabilitiesGet().ByteSize() + 5;
+  const size_t msg_size =
+      message_byte_size(Mysqlx::Connection::CapabilitiesGet()) + 5;
 
   EXPECT_CALL(*mock_socket_operations_, write(receiver_socket_, _, msg_size))
       .WillOnce(Return(msg_size));
@@ -138,7 +140,8 @@ TEST_F(XProtocolTest, OnBlockClientHostSuccess) {
 TEST_F(XProtocolTest, OnBlockClientHostWriteFail) {
   // we expect the router sending CapabilitiesGet message
   // to prevent MySQL server from bumping up connection error counter
-  const size_t msg_size = Mysqlx::Connection::CapabilitiesGet().ByteSize() + 5;
+  const size_t msg_size =
+      message_byte_size(Mysqlx::Connection::CapabilitiesGet()) + 5;
 
   EXPECT_CALL(*mock_socket_operations_, write(receiver_socket_, _, msg_size))
       .WillOnce(Return(-1));
@@ -539,10 +542,11 @@ TEST_F(XProtocolTest, CopyPacketsHandshakeMsgBiggerThanBuffer) {
     msg += std::string(1000, 'a');
   }
   auto error_msg = create_error_msg(100, msg, "HY007");
-  assert(error_msg.ByteSize() >
-         static_cast<int>(routing::kDefaultNetBufferLength));
+  const auto error_msg_size = message_byte_size(error_msg);
+  assert(error_msg_size >
+         static_cast<size_t>(routing::kDefaultNetBufferLength));
 
-  RoutingProtocolBuffer msg_buffer(error_msg.ByteSize() + 5);
+  RoutingProtocolBuffer msg_buffer(error_msg_size + 5);
   const auto BUFFER_SIZE = network_buffer_.size();
 
   serialize_protobuf_msg_to_buffer(msg_buffer, network_buffer_offset_,
