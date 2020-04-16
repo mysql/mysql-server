@@ -3727,10 +3727,12 @@ vector<string> EQRefIterator::DebugString() const {
 
 PushedJoinRefIterator::PushedJoinRefIterator(THD *thd, TABLE *table,
                                              TABLE_REF *ref, bool use_order,
+                                             bool is_unique,
                                              ha_rows *examined_rows)
     : TableRowIterator(thd, table),
       m_ref(ref),
       m_use_order(use_order),
+      m_is_unique(is_unique),
       m_examined_rows(examined_rows) {}
 
 bool PushedJoinRefIterator::Init() {
@@ -3773,11 +3775,15 @@ int PushedJoinRefIterator::Read() {
     if (error) {
       return HandleError(error);
     }
-  } else {
+  } else if (not m_is_unique) {
     int error = table()->file->ha_index_next_pushed(table()->record[0]);
     if (error) {
       return HandleError(error);
     }
+  } else {
+    // 'm_is_unique' can at most return a single row, which we had
+    table()->set_no_row();
+    return -1;
   }
   if (m_examined_rows != nullptr) {
     ++*m_examined_rows;
@@ -3788,9 +3794,16 @@ int PushedJoinRefIterator::Read() {
 vector<string> PushedJoinRefIterator::DebugString() const {
   DBUG_ASSERT(table()->file->pushed_idx_cond == nullptr);
   const KEY *key = &table()->key_info[m_ref->key];
-  return {string("Index lookup on ") + table()->alias + " using " + key->name +
-          " (" + RefToString(*m_ref, key, /*include_nulls=*/false) + ")" +
-          table()->file->explain_extra()};
+  string str;
+  if (m_is_unique) {
+    str = string("Single-row index");
+  } else {
+    str = string("Index");
+  }
+  str += " lookup on " + string(table()->alias) + " using " + key->name + " (" +
+         RefToString(*m_ref, key, /*include_nulls=*/false) + ")" +
+         table()->file->explain_extra();
+  return {str};
 }
 
 template <bool Reverse>
@@ -4281,7 +4294,8 @@ void QEP_TAB::pick_table_access_method() {
       if (is_pushed_child) {
         DBUG_ASSERT(!m_reversed_access);
         iterator = NewIterator<PushedJoinRefIterator>(
-            join()->thd, table(), &ref(), use_order(), &join()->examined_rows);
+            join()->thd, table(), &ref(), use_order(), /*is_unique=*/false,
+            &join()->examined_rows);
       } else if (m_reversed_access) {
         iterator = NewIterator<RefIterator<true>>(join()->thd, table(), &ref(),
                                                   use_order(), this,
@@ -4309,7 +4323,8 @@ void QEP_TAB::pick_table_access_method() {
     case JT_EQ_REF:
       if (is_pushed_child) {
         iterator = NewIterator<PushedJoinRefIterator>(
-            join()->thd, table(), &ref(), use_order(), &join()->examined_rows);
+            join()->thd, table(), &ref(), use_order(), /*is_unique=*/true,
+            &join()->examined_rows);
       } else {
         iterator = NewIterator<EQRefIterator>(
             join()->thd, table(), &ref(), use_order(), &join()->examined_rows);

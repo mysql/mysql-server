@@ -68,7 +68,7 @@ EXPLAIN
                             -> Table scan on t2  (cost=250.10 rows=25)
                             -> Hash
                                 -> Table scan on t1  (cost=6252.50 rows=25)
-        -> Index lookup on t5 using PRIMARY (pk=t4.col_int), child of t4 in pushed join  (cost=0.00 rows=1)
+        -> Single-row index lookup on t5 using PRIMARY (pk=t4.col_int), child of t4 in pushed join  (cost=0.00 rows=1)
 
 Warnings:
 Note	1003	Can't push table 't2' as child, 'type' must be a 'ref' access

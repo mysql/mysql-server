@@ -207,7 +207,7 @@ EXPLAIN
                     -> Index lookup on table3 using ix1 (col_int_unique=table2.col_int_unique), child of table2 in pushed join  ()
                 -> Index lookup on table1 using col_int_key (col_int_key=table2.pk), child of table2 in pushed join  ()
             -> Index lookup on table4 using col_int_key (col_int_key=table2.pk), child of table2 in pushed join  ()
-        -> Index lookup on table5 using ix1 (col_int_unique=table3.col_int_unique), child of table3 in pushed join  ()
+        -> Single-row index lookup on table5 using ix1 (col_int_unique=table3.col_int_unique), child of table3 in pushed join  ()
     -> Single-row index lookup on table6 using ix1 (col_int=table1.col_int, col_int_unique=table5.col_int_unique)  ()
 
 Warnings:
@@ -383,7 +383,7 @@ EXPLAIN
                         -> Table scan on table2s, activating pushed join of 3 tables, with pushed condition: (table2s.col_int_key is not null)  ()
                         -> Index lookup on table1s using ix1 (col_int=table2s.col_int_key), child of table2s in pushed join, with pushed condition: (table1s.col_int_unique is not null)  ()
                     -> Filter: (table3s.col_int = table2s.col_int)  ()
-                        -> Index lookup on table3s using ix1 (col_int_unique=table1s.col_int_unique), child of table1s in pushed join  ()
+                        -> Single-row index lookup on table3s using ix1 (col_int_unique=table1s.col_int_unique), child of table1s in pushed join  ()
     -> Hash
         -> Table scan on table2  ()
 
@@ -451,7 +451,7 @@ EXPLAIN
         -> Table scan on table1, activating pushed join of 4 tables, with pushed condition: (table1.col_int_unique is not null)  ()
         -> Index lookup on table2 using PRIMARY (col_int=table1.col_int_unique), child of table1 in pushed join  ()
     -> Nested loop left join  ()
-        -> Index lookup on table3 using ix1 (col_int=table1.col_int_unique, col_int_unique=table2.col_int_unique), child of table2 in pushed join  ()
+        -> Single-row index lookup on table3 using ix1 (col_int=table1.col_int_unique, col_int_unique=table2.col_int_unique), child of table2 in pushed join  ()
         -> Index lookup on table4 using PRIMARY (pk=table1.col_int_unique), child of table2 in pushed join  ()
 
 SELECT straight_join
@@ -488,13 +488,13 @@ EXPLAIN
         -> Nested loop left join  ()
             -> Nested loop inner join  ()
                 -> Table scan on table1, activating pushed join of 6 tables, with pushed condition: (table1.pk between 1 and 3)  ()
-                -> Index lookup on table2 using ix1 (col_int_unique=table1.pk), child of table1 in pushed join  ()
+                -> Single-row index lookup on table2 using ix1 (col_int_unique=table1.pk), child of table1 in pushed join  ()
             -> Nested loop left join  ()
                 -> Index lookup on table3 using col_int_key (col_int_key=table1.col_int_key), child of table2 in pushed join  ()
                 -> Index lookup on table4 using ix1 (col_int=table1.col_int_key), child of table2 in pushed join  ()
         -> Index lookup on table5 using ix1 (col_int=table3.col_int_unique), child of table3 in pushed join  ()
     -> Filter: (table6.col_int = table4.col_int)  ()
-        -> Index lookup on table6 using ix2 (col_int_key=table2.col_int_key, col_int_unique=table5.col_int_unique), child of table5 in pushed join  ()
+        -> Single-row index lookup on table6 using ix2 (col_int_key=table2.col_int_key, col_int_unique=table5.col_int_unique), child of table5 in pushed join  ()
 
 SELECT straight_join
 table1.pk, table2.pk, table3.pk, table4.pk, table5.pk, table6.pk
@@ -550,8 +550,8 @@ EXPLAIN
         -> Index lookup on table2 using PRIMARY (col_int=table1.col_int_unique), child of table1 in pushed join  ()
     -> Nested loop left join  ()
         -> Filter: (table3.col_int_key = table2.col_int_key)  ()
-            -> Index lookup on table3 using ix1 (col_int=table1.col_int, col_int_unique=table1.col_int_unique), child of table1 in pushed join  ()
-        -> Index lookup on table4 using PRIMARY (col_int=table2.col_int_key, pk=table1.col_int_unique), child of table2 in pushed join  ()
+            -> Single-row index lookup on table3 using ix1 (col_int=table1.col_int, col_int_unique=table1.col_int_unique), child of table1 in pushed join  ()
+        -> Single-row index lookup on table4 using PRIMARY (col_int=table2.col_int_key, pk=table1.col_int_unique), child of table2 in pushed join  ()
 
 SELECT
 table1.pk, table2.pk, table3.pk, table4.pk
@@ -586,7 +586,7 @@ EXPLAIN
             -> Index lookup on table2 using ix1 (col_int=table3.col_int), child of table3 in pushed join, with pushed condition: ((table2.pk between 4 and 5) and (table2.col_int_key is not null))  ()
         -> Index lookup on table1 using col_int_key (col_int_key=table2.col_int_key), child of table2 in pushed join  ()
     -> Nested loop left join  ()
-        -> Index lookup on table4 using ix3 (col_int=table3.col_int, col_int_key=table2.col_int_key, col_int_unique=table2.col_int_unique), child of table2 in pushed join  ()
+        -> Single-row index lookup on table4 using ix3 (col_int=table3.col_int, col_int_key=table2.col_int_key, col_int_unique=table2.col_int_unique), child of table2 in pushed join  ()
         -> Index lookup on table5 using ix1 (col_int=table3.col_int), child of table2 in pushed join  ()
 
 SELECT
@@ -628,7 +628,7 @@ EXPLAIN
             -> Table scan on table1, activating pushed join of 4 tables  ()
             -> Filter: (table2.col_int_unique = table1.col_int_unique)  ()
                 -> Index lookup on table2 using PRIMARY (col_int=table1.col_int), child of table1 in pushed join  ()
-        -> Index lookup on table1s using PRIMARY (pk=table1.pk), child of table1 in pushed join  ()
+        -> Single-row index lookup on table1s using PRIMARY (pk=table1.pk), child of table1 in pushed join  ()
     -> Index lookup on table2s using col_int_key (col_int_key=table1.pk), child of table1s in pushed join  ()
 
 SELECT
@@ -935,7 +935,7 @@ EXPLAIN
 -> Nested loop left join  ()
     -> Table scan on table1, activating pushed join of 3 tables  ()
     -> Nested loop left join  ()
-        -> Index lookup on table2 using ix1 (col_int_unique=table1.col_int_key), child of table1 in pushed join  ()
+        -> Single-row index lookup on table2 using ix1 (col_int_unique=table1.col_int_key), child of table1 in pushed join  ()
         -> Index lookup on table3 using col_int_key (col_int_key=table1.col_int_key), child of table1 in pushed join  ()
 
 SELECT
@@ -1063,7 +1063,7 @@ EXPLAIN
     -> Nested loop left join  ()
         -> Index lookup on table2 using col_int_key (col_int_key=table1.col_int_key), child of table1 in pushed join  ()
         -> Nested loop inner join  ()
-            -> Index lookup on table4 using ix1 (col_int_unique=table1.col_int_key), child of table1 in pushed join  ()
+            -> Single-row index lookup on table4 using ix1 (col_int_unique=table1.col_int_key), child of table1 in pushed join  ()
             -> Index lookup on table3 using col_int_key (col_int_key=table1.col_int_key), child of table1 in pushed join  ()
 
 SELECT
@@ -1325,7 +1325,7 @@ EXPLAIN
 -> Nested loop left join  ()
     -> Table scan on table1, activating pushed join of 3 tables, with pushed condition: (table1.pk < 3)  ()
     -> Nested loop left join  ()
-        -> Index lookup on table2 using ix1 (col_int_unique=table1.pk), child of table1 in pushed join  ()
+        -> Single-row index lookup on table2 using ix1 (col_int_unique=table1.pk), child of table1 in pushed join  ()
         -> Index lookup on table3 using col_int_key (col_int_key=table1.pk), child of table1 in pushed join  ()
 
 SELECT straight_join
@@ -1347,7 +1347,7 @@ EXPLAIN
 -> Nested loop left join  ()
     -> Nested loop inner join  ()
         -> Table scan on table1, activating pushed join of 3 tables  ()
-        -> Index lookup on table2 using PRIMARY (pk=table1.pk), child of table1 in pushed join  ()
+        -> Single-row index lookup on table2 using PRIMARY (pk=table1.pk), child of table1 in pushed join  ()
     -> Index lookup on table3 using ix3 (col_int=table2.col_int_unique), child of table2 in pushed join  ()
 
 SELECT straight_join
@@ -1463,7 +1463,7 @@ EXPLAIN
     -> Table scan on table1, activating pushed join of 2 tables  ()
     -> Limit: 1 row(s)
         -> Nested loop inner join  ()
-            -> Index lookup on table1s using PRIMARY (pk=table1.col_int), child of table1 in pushed join  ()
+            -> Single-row index lookup on table1s using PRIMARY (pk=table1.col_int), child of table1 in pushed join  ()
             -> Table scan on table2s, with pushed condition: ((table2s.col_int_unique = table1s.col_int_unique) and (table2s.col_int = table1s.col_int))  ()
 
 Warnings:
@@ -1523,7 +1523,7 @@ EXPLAIN
         -> Nested loop inner join  ()
             -> Index lookup on table4 using ix1 (col_int=table2.col_int_unique)  ()
             -> Filter: (table5.col_int_key = table2.col_int_unique)  ()
-                -> Index lookup on table5 using ix1 (col_int_unique=table1.col_int_key), child of table2 in pushed join  ()
+                -> Single-row index lookup on table5 using ix1 (col_int_unique=table1.col_int_key), child of table2 in pushed join  ()
 
 Warnings:
 Note	1003	Can't push outer joined table 'table4' as child of 'table1', join-nest containing the table has pending unpushed_conditions
@@ -1581,7 +1581,7 @@ EXPLAIN
         -> Nested loop inner join  ()
             -> Table scan on table2, activating pushed join of 4 tables, with pushed condition: (table2.col_int is not null)  ()
             -> Index lookup on table1 using ix3 (col_int=table2.col_int), child of table2 in pushed join, with pushed condition: (table1.col_int_key is not null)  ()
-        -> Index lookup on table2s using ix1 (col_int_unique=table1.col_int_key), child of table1 in pushed join, with pushed condition: (table2s.col_int is not null)  ()
+        -> Single-row index lookup on table2s using ix1 (col_int_unique=table1.col_int_key), child of table1 in pushed join, with pushed condition: (table2s.col_int is not null)  ()
     -> Index lookup on table1s using ix3 (col_int=table2s.col_int), child of table2s in pushed join  ()
 
 SELECT
@@ -1805,9 +1805,9 @@ EXPLAIN
 -> Nested loop left join  ()
     -> Nested loop left join  ()
         -> Table scan on table1, activating pushed join of 4 tables  ()
-        -> Index lookup on table2 using PRIMARY (pk=table1.col_int_unique), child of table1 in pushed join  ()
+        -> Single-row index lookup on table2 using PRIMARY (pk=table1.col_int_unique), child of table1 in pushed join  ()
     -> Nested loop left join  ()
-        -> Index lookup on table3 using ix3 (col_int=table1.col_int, col_int_key=table1.col_int_key, col_int_unique=table2.col_int_unique), child of table2 in pushed join  ()
+        -> Single-row index lookup on table3 using ix3 (col_int=table1.col_int, col_int_key=table1.col_int_key, col_int_unique=table2.col_int_unique), child of table2 in pushed join  ()
         -> Index lookup on table4 using col_int_key (col_int_key=table1.col_int_key), child of table2 in pushed join  ()
 
 SELECT straight_join
@@ -1856,7 +1856,7 @@ EXPLAIN
     -> Nested loop left join  ()
         -> Table scan on table1, with pushed condition: (table1.pk = 11)  ()
         -> Table scan on table2, activating pushed join of 2 tables, with pushed condition: (table2.pk = 11)  ()
-    -> Index lookup on table2s using PRIMARY (pk=table2.pk), child of table2 in pushed join  ()
+    -> Single-row index lookup on table2s using PRIMARY (pk=table2.pk), child of table2 in pushed join  ()
 
 Warnings:
 Note	1276	Field or reference 'test.table2.pk' of SELECT #2 was resolved in SELECT #1
@@ -1890,7 +1890,7 @@ EXPLAIN
         -> Table scan on table1, with pushed condition: (table1.pk = 11)  ()
         -> Table scan on table2, activating pushed join of 3 tables, with pushed condition: (table2.pk = 11)  ()
     -> Nested loop inner join  ()
-        -> Index lookup on table2s using PRIMARY (pk=table2.pk), child of table2 in pushed join  ()
+        -> Single-row index lookup on table2s using PRIMARY (pk=table2.pk), child of table2 in pushed join  ()
         -> Index lookup on table1s using col_char_16_key (col_char_16_key=table2s.col_char_16_key), child of table2s in pushed join  ()
 
 Warnings:
@@ -1959,7 +1959,7 @@ EXPLAIN
     -> Nested loop left join  ()
         -> Table scan on table1, with pushed condition: (table1.pk = 11)  ()
         -> Table scan on table2, activating pushed join of 2 tables, with pushed condition: (table2.pk = 11)  ()
-    -> Index lookup on table2s using PRIMARY (pk=table2.pk), child of table2 in pushed join  ()
+    -> Single-row index lookup on table2s using PRIMARY (pk=table2.pk), child of table2 in pushed join  ()
 
 Warnings:
 Note	1276	Field or reference 'test.table2.pk' of SELECT #2 was resolved in SELECT #1
@@ -2020,7 +2020,7 @@ EXPLAIN
 -> Nested loop inner join  ()
     -> Nested loop inner join  ()
         -> Table scan on table1, activating pushed join of 3 tables, with pushed condition: (table1.col_int_key is not null)  ()
-        -> Index lookup on table1s using PRIMARY (pk=table1.pk), child of table1 in pushed join  ()
+        -> Single-row index lookup on table1s using PRIMARY (pk=table1.pk), child of table1 in pushed join  ()
     -> Index lookup on table2 using col_int_key (col_int_key=table1.col_int_key), child of table1 in pushed join  ()
 
 SELECT

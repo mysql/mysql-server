@@ -1,7 +1,7 @@
 #ifndef SQL_REF_ROW_ITERATORS_H
 #define SQL_REF_ROW_ITERATORS_H
 
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -220,7 +220,13 @@ class DynamicRangeIterator final : public TableRowIterator {
 /**
    Read a table *assumed* to be included in execution of a pushed join.
    This is the counterpart of RefIterator / EQRefIterator for child
-   tables in a pushed join.
+   tables in a pushed join. As the underlying handler interface for
+   pushed joins are the same for Ref / EQRef operations, we implement
+   both in the same PushedJoinRefIterator class.
+
+   In order to differentiate between a 'range' and 'single-row lookup'
+   in the DebugString(), the class takes a 'bool Unique' C'tor argument.
+   This also offers some optimizations in implementation of ::Read().
 
    When the table access is performed as part of the pushed join,
    all 'linked' child colums are prefetched together with the parent row.
@@ -236,7 +242,7 @@ class PushedJoinRefIterator final : public TableRowIterator {
  public:
   // "examined_rows", if not nullptr, is incremented for each successful Read().
   PushedJoinRefIterator(THD *thd, TABLE *table, TABLE_REF *ref, bool use_order,
-                        ha_rows *examined_rows);
+                        bool is_unique, ha_rows *examined_rows);
 
   bool Init() override;
   int Read() override;
@@ -245,6 +251,7 @@ class PushedJoinRefIterator final : public TableRowIterator {
  private:
   TABLE_REF *const m_ref;
   const bool m_use_order;
+  const bool m_is_unique;
   bool m_first_record_since_init;
   ha_rows *const m_examined_rows;
 };
