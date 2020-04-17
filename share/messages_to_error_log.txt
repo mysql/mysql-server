@@ -10807,7 +10807,7 @@ ER_IB_MSG_INNODB_END_INITIALIZE
   eng "InnoDB initialization has ended."
 
 ER_WARN_LOG_DEPRECATED_PARTITION_PREFIX_KEY
-  eng "Usage of column '%.64s.%.64s.%.64s' having prefix key part '%.64s(%u)' in the PARTITION BY KEY() clause is deprecated and will be removed in a future release."
+  eng "Column '%.64s.%.64s.%.64s' having prefix key part '%.64s(%u)' is ignored by the partitioning function. Use of prefixed columns in the PARTITION BY KEY() clause is deprecated and will be removed in a future release."
 
 ER_INNODB_UNABLE_TO_ACQUIRE_DD_OBJECT
   eng "%s"

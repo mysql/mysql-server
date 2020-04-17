@@ -196,7 +196,7 @@ SELECT  (SELECT GROUP_CONCAT('(',a,',',b,')') FROM t1 PARTITION(p0))
 --echo # Should show a deprecation warning in the error log when upgrading
 --echo # from 8.0.19.
 --let SEARCH_FILE= $MYSQLD_LOG
---let SEARCH_PATTERN= Usage of column 'test\.t1\.a' having prefix key part 'a\(100\)' in the PARTITION BY KEY\(\) clause is deprecated and will be removed in a future release\.
+--let SEARCH_PATTERN= Column 'test\.t1\.a' having prefix key part 'a\(100\)' is ignored by the partitioning function. Use of prefixed columns in the PARTITION BY KEY\(\) clause is deprecated and will be removed in a future release\.
 --source include/search_pattern.inc
 
 --echo
