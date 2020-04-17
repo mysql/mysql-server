@@ -150,7 +150,7 @@ int item_val_real(st_mysql_value *value, double *buf);
 
 void plugin_opt_set_limits(struct my_option *, const SYS_VAR *);
 
-uchar *intern_sys_var_ptr(THD *thd, int offset);
+uchar *intern_sys_var_ptr(THD *thd, int offset, bool global_lock);
 
 bool plugin_var_memalloc_global_update(THD *thd, SYS_VAR *var, char **dest,
                                        const char *value);

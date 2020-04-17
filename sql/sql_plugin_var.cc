@@ -186,9 +186,7 @@ SHOW_TYPE pluginvar_show_type(SYS_VAR *plugin_var) {
   If required, will sync with global variables if the requested variable
   has not yet been allocated in the current thread.
 */
-uchar *intern_sys_var_ptr(THD *thd, int offset) {
-  mysql_mutex_assert_owner(&LOCK_global_system_variables);
-
+uchar *intern_sys_var_ptr(THD *thd, int offset, bool global_lock) {
   DBUG_ASSERT(offset >= 0);
   DBUG_ASSERT((uint)offset <= global_system_variables.dynamic_variables_head);
 
@@ -203,7 +201,13 @@ uchar *intern_sys_var_ptr(THD *thd, int offset) {
       (uint)offset > thd->variables.dynamic_variables_head) {
     /* Current THD only. Don't trigger resync on remote THD. */
     if (current_thd == thd) {
+      if (global_lock) {
+        mysql_mutex_lock(&LOCK_global_system_variables);
+      }
       alloc_and_copy_thd_dynamic_variables(thd);
+      if (global_lock) {
+        mysql_mutex_unlock(&LOCK_global_system_variables);
+      }
     } else
       return (uchar *)global_system_variables.dynamic_variables_ptr + offset;
   }
@@ -285,7 +289,7 @@ uchar *sys_var_pluginvar::real_value_ptr(THD *thd, enum_var_type type) {
     /* scope of OPT_PERSIST is always GLOBAL */
     if (type == OPT_GLOBAL || type == OPT_PERSIST) thd = nullptr;
 
-    return intern_sys_var_ptr(thd, *(int *)(plugin_var + 1));
+    return intern_sys_var_ptr(thd, *(int *)(plugin_var + 1), false);
   }
   return *(uchar **)(plugin_var + 1);
 }

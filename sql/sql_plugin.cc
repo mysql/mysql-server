@@ -3403,13 +3403,33 @@ void alloc_and_copy_thd_dynamic_variables(THD *thd) {
   mysql_mutex_unlock(&LOCK_system_variables_hash);
 }
 
-static bool is_regular_call(THD *thd) {
+static bool is_regular_session_thdvar_call(THD *thd) {
   if (thd == nullptr) {
-    return true;
+    /*
+      This is a call to THDVAR(nullptr, var).
+      The call is to get a GLOBAL value, not per SESSION.
+
+      current_thd->m_inside_system_variable_global_update
+      might be true or false,
+      but this is not relevant since no SESSION variable is accessed.
+    */
+    return false;
   }
   if (!thd->m_inside_system_variable_global_update) {
+    /*
+      This is a call to THDVAR(thd, var).
+      The call is made from regular code,
+      as in, not nested within a system variable update.
+    */
     return true;
   }
+  /*
+    This is a call to THDVAR(thd, var_x).
+    The code is nested, made from within another system variable
+    update function, in SET GLOBAL var_y = ...
+
+    The mutex LOCK_global_system_variables is already held.
+  */
   return false;
 }
 
@@ -3423,85 +3443,50 @@ static bool is_regular_call(THD *thd) {
 
 static bool *mysql_sys_var_bool(THD *thd, int offset) {
   bool *result;
-  if (is_regular_call(thd)) {
-    mysql_mutex_lock(&LOCK_global_system_variables);
-    result = (bool *)intern_sys_var_ptr(thd, offset);
-    mysql_mutex_unlock(&LOCK_global_system_variables);
-  } else {
-    result = (bool *)intern_sys_var_ptr(thd, offset);
-  }
+  bool need_lock = is_regular_session_thdvar_call(thd);
+  result = (bool *)intern_sys_var_ptr(thd, offset, need_lock);
   return result;
 }
 
 static int *mysql_sys_var_int(THD *thd, int offset) {
   int *result;
-  if (is_regular_call(thd)) {
-    mysql_mutex_lock(&LOCK_global_system_variables);
-    result = (int *)intern_sys_var_ptr(thd, offset);
-    mysql_mutex_unlock(&LOCK_global_system_variables);
-  } else {
-    result = (int *)intern_sys_var_ptr(thd, offset);
-  }
+  bool need_lock = is_regular_session_thdvar_call(thd);
+  result = (int *)intern_sys_var_ptr(thd, offset, need_lock);
   return result;
 }
 
 static unsigned int *mysql_sys_var_uint(THD *thd, int offset) {
   unsigned int *result;
-  if (is_regular_call(thd)) {
-    mysql_mutex_lock(&LOCK_global_system_variables);
-    result = (unsigned int *)intern_sys_var_ptr(thd, offset);
-    mysql_mutex_unlock(&LOCK_global_system_variables);
-  } else {
-    result = (unsigned int *)intern_sys_var_ptr(thd, offset);
-  }
+  bool need_lock = is_regular_session_thdvar_call(thd);
+  result = (unsigned int *)intern_sys_var_ptr(thd, offset, need_lock);
   return result;
 }
 
 static unsigned long *mysql_sys_var_ulong(THD *thd, int offset) {
   unsigned long *result;
-  if (is_regular_call(thd)) {
-    mysql_mutex_lock(&LOCK_global_system_variables);
-    result = (unsigned long *)intern_sys_var_ptr(thd, offset);
-    mysql_mutex_unlock(&LOCK_global_system_variables);
-  } else {
-    result = (unsigned long *)intern_sys_var_ptr(thd, offset);
-  }
+  bool need_lock = is_regular_session_thdvar_call(thd);
+  result = (unsigned long *)intern_sys_var_ptr(thd, offset, need_lock);
   return result;
 }
 
 static unsigned long long *mysql_sys_var_ulonglong(THD *thd, int offset) {
   unsigned long long *result;
-  if (is_regular_call(thd)) {
-    mysql_mutex_lock(&LOCK_global_system_variables);
-    result = (unsigned long long *)intern_sys_var_ptr(thd, offset);
-    mysql_mutex_unlock(&LOCK_global_system_variables);
-  } else {
-    result = (unsigned long long *)intern_sys_var_ptr(thd, offset);
-  }
+  bool need_lock = is_regular_session_thdvar_call(thd);
+  result = (unsigned long long *)intern_sys_var_ptr(thd, offset, need_lock);
   return result;
 }
 
 static char **mysql_sys_var_str(THD *thd, int offset) {
   char **result;
-  if (is_regular_call(thd)) {
-    mysql_mutex_lock(&LOCK_global_system_variables);
-    result = (char **)intern_sys_var_ptr(thd, offset);
-    mysql_mutex_unlock(&LOCK_global_system_variables);
-  } else {
-    result = (char **)intern_sys_var_ptr(thd, offset);
-  }
+  bool need_lock = is_regular_session_thdvar_call(thd);
+  result = (char **)intern_sys_var_ptr(thd, offset, need_lock);
   return result;
 }
 
 static double *mysql_sys_var_double(THD *thd, int offset) {
   double *result;
-  if (is_regular_call(thd)) {
-    mysql_mutex_lock(&LOCK_global_system_variables);
-    result = (double *)intern_sys_var_ptr(thd, offset);
-    mysql_mutex_unlock(&LOCK_global_system_variables);
-  } else {
-    result = (double *)intern_sys_var_ptr(thd, offset);
-  }
+  bool need_lock = is_regular_session_thdvar_call(thd);
+  result = (double *)intern_sys_var_ptr(thd, offset, need_lock);
   return result;
 }
 
