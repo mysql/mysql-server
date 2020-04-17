@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -215,6 +215,7 @@ String *Item_func_regexp_replace::val_str(String *buf) {
 bool Item_func_regexp_substr::resolve_type(THD *thd) {
   if (Item_func_regexp::resolve_type(thd)) return true;
   set_data_type_string(subject()->max_char_length());
+  maybe_null = true;
   return false;
 }
 
