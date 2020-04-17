@@ -19,7 +19,7 @@ EXPLAIN
         -> Table scan on table1  (cost=1000.40 rows=4)
         -> Filter: (table2.pk = table1.pk)  (cost=250.12 rows=4)
             -> Table scan on table2, activating pushed join of 2 tables  (cost=250.12 rows=4)
-    -> Index lookup on table3 using ix1 (col_int_unique=table2.col_int_unique), child of table2 in pushed join  (cost=0.07 rows=1)
+    -> Single-row index lookup on table3 using ix1 (col_int_unique=table2.col_int_unique), child of table2 in pushed join  (cost=0.07 rows=1)
 
 Warnings:
 Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
