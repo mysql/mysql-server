@@ -198,6 +198,8 @@ ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 Table options: readbackup
 HashMap: DEFAULT-HASHMAP-3840-2
+Tablespace id: XX
+Tablespace: ts1
 -- Attributes --
 a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
@@ -916,6 +918,8 @@ ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 Table options: readbackup
 HashMap: DEFAULT-HASHMAP-3840-2
+Tablespace id: XX
+Tablespace: ts1
 -- Attributes --
 a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
@@ -1388,6 +1392,8 @@ ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 Table options: readbackup
 HashMap: DEFAULT-HASHMAP-3840-6
+Tablespace id: XX
+Tablespace: ts1
 -- Attributes --
 a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Unsigned PRIMARY KEY AT=FIXED ST=MEMORY
@@ -2052,6 +2058,8 @@ ExtraRowAuthorBits: 0
 TableStatus: Retrieved
 Table options: readbackup
 HashMap: HASHMAP-3840-6-7
+Tablespace id: XX
+Tablespace: ts1
 -- Attributes --
 a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Unsigned PRIMARY KEY AT=FIXED ST=MEMORY

@@ -15092,7 +15092,7 @@ enum_alter_inplace_result ha_ndbcluster::supported_inplace_column_change(
 
   HA_CREATE_INFO *create_info = ha_alter_info->create_info;
 
-  bool is_table_storage_changed = table_storage_changed(create_info);
+  const bool is_table_storage_changed = table_storage_changed(create_info);
 
   DBUG_PRINT("info", ("Checking if supported column change for field %s",
                       old_field->field_name));
@@ -15259,6 +15259,12 @@ enum_alter_inplace_result ha_ndbcluster::check_inplace_alter_supported(
     if (create_info->used_fields & HA_CREATE_USED_COMMENT) {
       DBUG_PRINT("info", ("The COMMENT string changed"));
       comment_changed = true;
+    }
+
+    if (create_info->used_fields & HA_CREATE_USED_TABLESPACE) {
+      // Changing TABLESPACE is not supported by inplace alter
+      return inplace_unsupported(ha_alter_info,
+                                 "Adding or changing TABLESPACE");
     }
   }
 
