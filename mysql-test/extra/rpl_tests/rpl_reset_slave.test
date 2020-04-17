@@ -138,6 +138,10 @@ if ($_show_master_host != No such row)
 
 # Clean all the previous info
 
+# Sync with the master so we delete the temporary table before stop.
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+
 --source include/stop_slave.inc
 
 --let $rpl_reset_slave_all= 1
