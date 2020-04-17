@@ -233,8 +233,6 @@ enum latch_level_t {
 
   SYNC_FIL_SHARD,
 
-  SYNC_DBLWR,
-
   SYNC_PAGE_ARCH_OPER,
 
   SYNC_BUF_FLUSH_LIST,
@@ -246,6 +244,8 @@ enum latch_level_t {
   SYNC_BUF_PAGE_HASH,
   SYNC_BUF_LRU_LIST,
   SYNC_BUF_CHUNKS,
+
+  SYNC_DBLWR,
 
   SYNC_SEARCH_SYS,
 

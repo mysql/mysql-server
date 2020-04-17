@@ -1526,9 +1526,9 @@ dberr_t Double_write::create_single_segments(
 dberr_t dblwr::write(buf_flush_t flush_type, buf_page_t *bpage,
                      bool sync) noexcept {
   dberr_t err;
+  const space_id_t space_id = bpage->id.space();
 
-  if (fsp_is_undo_tablespace(bpage->id.space()) &&
-      fil_is_deleted(bpage->id.space())) {
+  if (fsp_is_undo_tablespace(space_id) && fil_is_deleted(space_id)) {
     /* Disable batch completion in write_complete(). */
     bpage->set_dblwr_batch_id(std::numeric_limits<uint16_t>::max());
     buf_page_io_complete(bpage, flush_type == BUF_FLUSH_LRU);
@@ -1536,21 +1536,24 @@ dberr_t dblwr::write(buf_flush_t flush_type, buf_page_t *bpage,
     return DB_TABLESPACE_DELETED;
   }
 
-  if (srv_read_only_mode || fsp_is_system_temporary(bpage->id.space()) ||
+  if (srv_read_only_mode || fsp_is_system_temporary(space_id) ||
       !dblwr::enabled || Double_write::s_instances == nullptr ||
       mtr_t::s_logging.dblwr_disabled()) {
-    /* Disable use of double-write buffer for temporary tablespace.
-    Temporary tablespaces are never recovered, therefore we don't
-    care about torn writes. */
-
+    /* Skip the double-write buffer since it is not needed.
+    Temporary tablespaces are never recovered, therefore we don't care
+    about torn writes. */
     bpage->set_dblwr_batch_id(std::numeric_limits<uint16_t>::max());
     err = Double_write::write_to_datafile(bpage, sync);
-    if (err == DB_SUCCESS && sync) {
-      fil_flush(bpage->id.space());
+    if (sync) {
+      ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_SINGLE_PAGE);
 
+      if (err == DB_SUCCESS) {
+        fil_flush(space_id);
+      }
       /* true means we want to evict this page from the LRU list as well. */
       buf_page_io_complete(bpage, true);
     }
+
   } else {
     ut_d(auto page_id = bpage->id);
 
