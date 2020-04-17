@@ -1,4 +1,4 @@
-// Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -343,6 +343,17 @@ Error_code Message_decoder::parse_coded_stream_generic(
   return {};
 }
 
+namespace {
+inline void set_total_bytes_limit(
+    google::protobuf::io::CodedInputStream *stream) {
+#if (defined(GOOGLE_PROTOBUF_VERSION) && GOOGLE_PROTOBUF_VERSION > 3006000)
+  stream->SetTotalBytesLimit(std::numeric_limits<int>::max());
+#else
+  stream->SetTotalBytesLimit(std::numeric_limits<int>::max(), -1);
+#endif
+}
+}  // namespace
+
 Decode_error Message_decoder::parse_protobuf_frame(
     const uint8_t message_type, const uint32_t message_size,
     xpl::Vio_input_stream *net_stream) {
@@ -354,7 +365,8 @@ Decode_error Message_decoder::parse_protobuf_frame(
   if (request.get_message()) {
     google::protobuf::io::CodedInputStream stream(net_stream);
 
-    stream.SetTotalBytesLimit(std::numeric_limits<int>::max(), -1);
+    set_total_bytes_limit(&stream);
+
     stream.PushLimit(message_size);
     // variable 'mysqlx_max_allowed_packet' has been checked when buffer
     // was filling by data
@@ -399,7 +411,7 @@ Decode_error Message_decoder::parse_compressed_frame(
   uint32_t inner_message_size;
   uint8_t inner_message_type;
 
-  stream.SetTotalBytesLimit(std::numeric_limits<int>::max(), -1);
+  set_total_bytes_limit(&stream);
 
   if (inner_uncompressed_size_whole) {
     stream.PushLimit(inner_uncompressed_size_whole);

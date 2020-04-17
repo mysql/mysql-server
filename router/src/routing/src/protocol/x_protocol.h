@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define ROUTING_XPROTOCOL_INCLUDED
 
 #include "base_protocol.h"
+
+#include <google/protobuf/message_lite.h>
 
 #include <memory>
 
@@ -89,5 +91,7 @@ class XProtocol : public BaseProtocol {
   /** @brief Gets protocol type. */
   virtual Type get_type() override { return Type::kXProtocol; }
 };
+
+size_t message_byte_size(const google::protobuf::MessageLite &msg);
 
 #endif  // ROUTING_XPROTOCOL_INCLUDED

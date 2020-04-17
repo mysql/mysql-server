@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -94,7 +94,13 @@ struct MySQLServerMockSessionX::Impl {
             const xcl::XProtocol::Message &msg) {
     std::string msg_buffer;
     const std::uint8_t header_size = 5;
+
+#if (defined(GOOGLE_PROTOBUF_VERSION) && GOOGLE_PROTOBUF_VERSION > 3000000)
+    const std::size_t msg_size = msg.ByteSizeLong();
+#else
     const std::size_t msg_size = msg.ByteSize();
+#endif
+
     msg_buffer.resize(msg_size + header_size);
 
     if (!msg.SerializeToArray(&msg_buffer[0] + header_size, msg_size)) {
