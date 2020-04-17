@@ -136,6 +136,12 @@ public:
 	    const BaseString &separator = BaseString(" "),
 	    int maximum = -1) const;
 
+  /**
+   * Split a string into key and value, with "=" as the separator.
+   * The substring to the left of "=" is the key and the substring
+   * to the right of "=" is the value.
+   * The first "=" is considered the separator.
+   */
   bool splitKeyValue(BaseString& key, BaseString& value) const;
 
   /**

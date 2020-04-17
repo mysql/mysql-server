@@ -321,7 +321,7 @@ static const char* helpTextStartBackup =
 "                      Should be enclosed in double/single quotes, \n"
 "                      should be less than 256 characters in length and"
 "                      be at least one character long."
-"                      Allowed characters: ASCII 32, 35, 38, 40-91, 93, 95, 97-126.\n"
+"                      Allowed characters: 0-9, A-Z, a-z, space( ), comma(,), #&()*+-./:;<=>?@[]_{|}~.\n"
 "                   SNAPSHOTSTART \n"
 "                     Backup snapshot is taken around the time the backup is started.\n" 
 "                   SNAPSHOTEND \n"
@@ -3172,7 +3172,6 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
   //1,snapshot at start time. 0 snapshot at end time
   unsigned int backuppoint = 0;
   BaseString encryption_password = "";
-  bool encryption_password_set = false;
 
   bool b_log = false;
   bool b_nowait = false;
@@ -3293,7 +3292,6 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
             invalid_command(parameters, out);
             return -1;
           }
-          encryption_password_set = true;
           i++;
         }
         else
@@ -3333,28 +3331,14 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
     }
   }
 
-  if (encryption_password_set)
-  {
-    /**
-     * start backup N | start backup snapshotstart/snapshotend |
-     * start backup encrypt password=X
-     */
-    result = ndb_mgm_start_backup4(m_mgmsrv, flags, &backupId, &reply,
-                                   input_backupId, backuppoint,
-                                   encryption_password.c_str(),
-                                   encryption_password.length());
-  }
-  else if (input_backupId > 0 || b_log == true)
-  {
-    // start backup N | start backup snapshotstart/snapshotend
-    result = ndb_mgm_start_backup3(m_mgmsrv, flags, &backupId, &reply,
-                                   input_backupId, backuppoint);
-  }
-  else
-  {
-    //start backup
-    result = ndb_mgm_start_backup(m_mgmsrv, flags, &backupId, &reply);
-  }
+  /**
+   * start backup N | start backup snapshotstart/snapshotend |
+   * start backup encrypt password=X
+   */
+  result = ndb_mgm_start_backup4(m_mgmsrv, flags, &backupId, &reply,
+                                 input_backupId, backuppoint,
+                                 encryption_password.c_str(),
+                                 encryption_password.length());
 
   if (result != 0) {
     ndbout << "Backup failed" << endl;

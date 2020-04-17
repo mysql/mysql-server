@@ -333,7 +333,7 @@ BaseString::splitWithQuotedStrings(Vector<BaseString> &v,
   const char* opening_quote = nullptr;
 
   for(start = i = 0;
-      (i <= len) && ((maxSize < 0) || ((int)v.size() <= maxSize-1));
+      (i <= len) && ((maxSize < 0) || ((int)v.size() <= maxSize - 1));
       i++)
   {
     if (str[i] != '\0')
@@ -346,7 +346,7 @@ BaseString::splitWithQuotedStrings(Vector<BaseString> &v,
           // Opening quote found, ignore separator till closing quote is found
           opening_quote = curr_quote;
         }
-        else
+        else if (*opening_quote ==  *curr_quote)
         {
           // Closing quote found, check for separator from now
           opening_quote = nullptr;
@@ -830,6 +830,31 @@ TAPTEST(BaseString)
       BIG_ASSFMT_OK(1024);
       BIG_ASSFMT_OK(1025);
       BIG_ASSFMT_OK(20*1024*1024);
+    }
+
+    {
+      printf("Testing splitWithQuotedStrings\n");
+      Vector<BaseString> v;
+
+      BaseString("key=value").splitWithQuotedStrings(v, "=");
+      OK(v[0] == "key");
+      v.clear();
+
+      BaseString("abcdef=\"ghi\"").splitWithQuotedStrings(v, "=");
+      OK(v[0] == "abcdef");
+      v.clear();
+
+      BaseString("abc=\"de=f\"").splitWithQuotedStrings(v, "=");
+      OK(v[1] == "\"de=f\"");
+      v.clear();
+
+      BaseString("abc=\"\"de=f\"\"").splitWithQuotedStrings(v, "=");
+      OK(v[1] == "\"\"de");
+      v.clear();
+
+      BaseString("abc=\"\'de=f\'\"").splitWithQuotedStrings(v, "=");
+      OK(v[1] == "\"\'de=f\'\"");
+      v.clear();
     }
 
     return 1; // OK

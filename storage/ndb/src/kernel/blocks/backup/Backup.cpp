@@ -4199,14 +4199,11 @@ Backup::validateEncryptionPassword(const EncryptionPasswordData* epd)
       Uint32 low = allowedASCIIRanges[j][0];
       Uint32 high = allowedASCIIRanges[j][1];
 
-      for(Uint32 k = low; k <= high; k++)
+      if (((Uint32)epd->encryption_password[i] >= low) &&
+          ((Uint32)epd->encryption_password[i] <= high))
       {
-        ndbrequire(epd->encryption_password[i] >= 0);
-        if ((Uint32)epd->encryption_password[i] == k)
-        {
-          charMatch = true;
-          break;
-        }
+        charMatch = true;
+	break;
       }
     }
     if (!charMatch)
