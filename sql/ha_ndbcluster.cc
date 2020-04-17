@@ -10121,12 +10121,12 @@ void ha_ndbcluster::update_comment_info(THD *thd, HA_CREATE_INFO *create_info,
       DBUG_PRINT("info", ("added nologging"));
     } else if (old_nologging != THDVAR(thd, table_no_logging)) {
       char msg1[128];
-      snprintf(msg1, sizeof(msg1),
+       my_snprintf(msg1, sizeof(msg1),
                "Alter will use the default value for NOLOGGING (=%u) "
                "which is different from the table's current value",
                THDVAR(thd, table_no_logging));
       char msg2[128];
-      snprintf(msg2, sizeof(msg2),
+       my_snprintf(msg2, sizeof(msg2),
                "either 'set table_no_logging=%u;' or "
                "add NOLOGGING=%u to comment",
                old_nologging, old_nologging);
@@ -10145,12 +10145,12 @@ void ha_ndbcluster::update_comment_info(THD *thd, HA_CREATE_INFO *create_info,
       DBUG_PRINT("info", ("added fully_replicated"));
     } else if (old_fully_replicated != opt_ndb_fully_replicated) {
       char msg1[128];
-      snprintf(msg1, sizeof(msg1),
+       my_snprintf(msg1, sizeof(msg1),
                "Alter will use the default value for FULLY_REPLICATED (=%u) "
                "which is different from the table's current value",
                opt_ndb_fully_replicated);
       char msg2[128];
-      snprintf(msg2, sizeof(msg2),
+       my_snprintf(msg2, sizeof(msg2),
                "either 'set opt_ndb_fully_replicated=%u;' or "
                "add FULLY_REPLICATED=%u to comment",
                old_fully_replicated, old_fully_replicated);
@@ -10170,12 +10170,12 @@ void ha_ndbcluster::update_comment_info(THD *thd, HA_CREATE_INFO *create_info,
       DBUG_PRINT("info", ("added read_backup"));
     } else if (old_read_backup != opt_ndb_read_backup) {
       char msg1[128];
-      snprintf(msg1, sizeof(msg1),
+       my_snprintf(msg1, sizeof(msg1),
                "Alter will use the default value for READ_BACKUP (=%u) "
                "which is different from the table's current value",
                opt_ndb_read_backup);
       char msg2[128];
-      snprintf(msg2, sizeof(msg2),
+       my_snprintf(msg2, sizeof(msg2),
                "either 'set opt_ndb_read_backup=%u;' or "
                "add READ_BACKUP=%u to comment",
                old_read_backup, old_read_backup);
@@ -10199,12 +10199,12 @@ void ha_ndbcluster::update_comment_info(THD *thd, HA_CREATE_INFO *create_info,
           NdbDictionary::Table::getPartitionBalanceString(
               g_default_partition_balance);
       char msg1[128];
-      snprintf(msg1, sizeof(msg1),
+       my_snprintf(msg1, sizeof(msg1),
                "Alter will use the default value for PARTITION_BALANCE (=%s) "
                "which is different from the table's current value",
                default_part_bal_str);
       char msg2[128];
-      snprintf(msg2, sizeof(msg2), "Add PARTITION_BALANCE=%s to comment",
+       my_snprintf(msg2, sizeof(msg2), "Add PARTITION_BALANCE=%s to comment",
                old_part_bal_str);
 
       my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0), "Alter table",
