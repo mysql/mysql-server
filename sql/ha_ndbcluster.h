@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -230,7 +230,10 @@ public:
   void unlock_row();
   int start_stmt(THD *thd, thr_lock_type lock_type);
   void update_create_info(HA_CREATE_INFO *create_info);
-  void update_comment_info(HA_CREATE_INFO *create_info, const NdbDictionary::Table *tab);
+  int get_old_table_comment_items(THD *thd, bool *comment_items_shown,
+                                  char *comment_str, unsigned comment_len);
+  void update_comment_info(THD *thd, HA_CREATE_INFO *create_info,
+                           const NdbDictionary::Table *tab);
   void print_error(int error, myf errflag);
   const char * table_type() const;
   const char ** bas_ext() const;

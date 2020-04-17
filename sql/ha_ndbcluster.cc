@@ -9972,108 +9972,249 @@ void ha_ndbcluster::update_create_info(HA_CREATE_INFO *create_info)
    */
   if (thd->lex->sql_command == SQLCOM_ALTER_TABLE)
   {
-    update_comment_info(create_info, m_table);
-  }
-  else if (thd->lex->sql_command == SQLCOM_SHOW_CREATE)
-  {
-    update_comment_info(NULL, m_table);
+    update_comment_info(thd, create_info, m_table);
   }
   DBUG_VOID_RETURN;
 }
 
-void
-ha_ndbcluster::update_comment_info(HA_CREATE_INFO *create_info,
-                                   const NDBTAB *ndbtab)
-{
-  DBUG_ENTER("ha_ndbcluster::update_comment_info");
-  THD *thd= current_thd;
-  NDB_Modifiers table_modifiers(ndb_table_modifier_prefix,
-                                ndb_table_modifiers);
-  char *comment_str = create_info == NULL ?
-                      table->s->comment.str :
-                      create_info->comment.str;
-  unsigned comment_len = create_info == NULL ?
-                      table->s->comment.length :
-                      create_info->comment.length;
+enum COMMENT_ITEMS {
+  NOLOGGING = 0,
+  READ_BACKUP = 1,
+  FULLY_REPLICATED = 2,
+  PARTITION_BALANCE = 3
+};
 
-  if (table_modifiers.loadComment(comment_str,
-                                  comment_len) == -1)
-  {
+/**
+ * @brief  Set comment_items_shown for the comment items found in the
+ * comment_str
+ */
+int ha_ndbcluster::get_old_table_comment_items(THD *thd,
+                                               bool *comment_items_shown,
+                                               char *comment_str,
+                                               unsigned comment_len) {
+  NDB_Modifiers table_modifiers(ndb_table_modifier_prefix, ndb_table_modifiers);
+
+  if (table_modifiers.loadComment(comment_str, comment_len) == -1) {
     push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_ILLEGAL_HA_CREATE_OPTION,
-                        "%s",
+                        ER_ILLEGAL_HA_CREATE_OPTION, "%s",
+                        table_modifiers.getErrMsg());
+    my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0), ndbcluster_hton_name,
+             "Syntax error in COMMENT modifier");
+    return -1;
+  }
+  const NDB_Modifier *mod_nologging = table_modifiers.get("NOLOGGING");
+  const NDB_Modifier *mod_read_backup = table_modifiers.get("READ_BACKUP");
+  const NDB_Modifier *mod_fully_replicated =
+      table_modifiers.get("FULLY_REPLICATED");
+  const NDB_Modifier *mod_frags = table_modifiers.get("PARTITION_BALANCE");
+
+  if (mod_nologging->m_found) comment_items_shown[NOLOGGING] = true;
+  if (mod_read_backup->m_found) comment_items_shown[READ_BACKUP] = true;
+  if (mod_fully_replicated->m_found)
+    comment_items_shown[FULLY_REPLICATED] = true;
+  if (mod_frags->m_found) comment_items_shown[PARTITION_BALANCE] = true;
+  return 0;
+}
+
+/**
+ * @brief  Supplement create_info's comment item with the other
+ * comment items present in the old table, which are specified
+ * in create table or earlier alter table commands.
+ */
+void ha_ndbcluster::update_comment_info(THD *thd, HA_CREATE_INFO *create_info,
+                                        const NdbDictionary::Table *ndbtab) {
+  DBUG_ENTER("ha_ndbcluster::update_comment_info");
+  assert(thd->lex->sql_command == SQLCOM_ALTER_TABLE);
+  DBUG_PRINT("info", ("update_comment_info: Before: table comment str %s",
+                      table->s->comment.str));
+  assert(create_info != NULL);
+  if (create_info->comment.str == NULL) {
+    DBUG_PRINT("info", ("create_info->comment.str is null, "
+                        "command %u, returning",
+                        thd->lex->sql_command));
+    DBUG_VOID_RETURN;
+  }
+
+  DBUG_PRINT("info",
+             ("Before: creinf comment str %s", create_info->comment.str));
+
+  if (table->s->comment.str != NULL) {
+    std::string cre_inf_str = create_info->comment.str;
+    if (cre_inf_str.compare(table->s->comment.str) == 0) {
+      DBUG_PRINT("info", ("Comment from create_info and table->s are equal, "
+                          "command %u, returning",
+                          thd->lex->sql_command));
+      DBUG_VOID_RETURN;
+    }
+  }
+
+  NDB_Modifiers table_modifiers(ndb_table_modifier_prefix, ndb_table_modifiers);
+  char *comment_str = create_info->comment.str;
+  unsigned comment_len = create_info->comment.length;
+
+  if (table_modifiers.loadComment(comment_str, comment_len) == -1) {
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_ILLEGAL_HA_CREATE_OPTION, "%s",
                         table_modifiers.getErrMsg());
     my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0), ndbcluster_hton_name,
              "Syntax error in COMMENT modifier");
     DBUG_VOID_RETURN;
   }
+  // Get the comment items from create_info
   const NDB_Modifier *mod_nologging = table_modifiers.get("NOLOGGING");
   const NDB_Modifier *mod_read_backup = table_modifiers.get("READ_BACKUP");
   const NDB_Modifier *mod_fully_replicated =
-    table_modifiers.get("FULLY_REPLICATED");
+      table_modifiers.get("FULLY_REPLICATED");
   const NDB_Modifier *mod_frags = table_modifiers.get("PARTITION_BALANCE");
-  DBUG_PRINT("info", ("Before: comment_len: %u, comment: %s",
-                      (unsigned int)comment_len,
-                      comment_str));
-  
+
+  // Get the comment items from the old Ndb table
   bool old_nologging = !ndbtab->getLogging();
   bool old_read_backup = ndbtab->getReadBackupFlag();
   bool old_fully_replicated = ndbtab->getFullyReplicated();
   NdbDictionary::Object::PartitionBalance old_part_bal =
-    ndbtab->getPartitionBalance();
+      ndbtab->getPartitionBalance();
+
+  // Merge any previous comment changes from the old table from share
+  // into the current changes specified in create_info
+  bool old_table_comment[4] = {false, false, false, false};
+  if (get_old_table_comment_items(thd, old_table_comment, table->s->comment.str,
+                                  table->s->comment.length)) {
+    DBUG_VOID_RETURN;
+  }
+
+  bool new_fully_replicated =
+      (mod_fully_replicated->m_found && mod_fully_replicated->m_val_bool);
+  bool new_read_backup =
+      (mod_read_backup->m_found && mod_read_backup->m_val_bool);
+
+  // Adding fully_replicated without having and adding read_backup,
+  // and read_backup is specified in the old comment (thus it cannot
+  // be changed to true implicitly)
+  if (new_fully_replicated && !old_read_backup && !new_read_backup &&
+      old_table_comment[READ_BACKUP]) {
+    my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0), "Alter table",
+             "READ_BACKUP=0 cannot be used for fully replicated tables",
+             "either 'set opt_ndb_read_backup=1;' or "
+             "add READ_BACKUP=1 to comment");
+    DBUG_VOID_RETURN;
+  }
+
+  // Cannot alter read_backup to 0 when fully_replicated was on
+  // and is not altered to 0 in this alter
+  if (old_fully_replicated && !mod_fully_replicated->m_found &&
+      mod_read_backup->m_found && !mod_read_backup->m_val_bool) {
+    my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0), "Alter table",
+             "cannot change READ_BACKUP to 0 for fully replicated tables",
+             "fully_replicated=0 if that is the intention");
+  }
 
   /**
    * We start by calculating how much more space we need in the comment
    * string.
    */
   bool add_nologging = false;
-  bool add_read_backup = false;
-  bool add_fully_replicated = false;
-  bool add_part_bal = false;
+  if (!mod_nologging->m_found) {
+    if (old_table_comment[NOLOGGING]) {
+      // Not specified in current alter command nor specified in old table
+      add_nologging = true;
+      table_modifiers.set("NOLOGGING", old_nologging);
+      DBUG_PRINT("info", ("added nologging"));
+    } else if (old_nologging != THDVAR(thd, table_no_logging)) {
+      char msg1[128];
+      snprintf(msg1, sizeof(msg1),
+               "Alter will use the default value for NOLOGGING (=%u) "
+               "which is different from the table's current value",
+               THDVAR(thd, table_no_logging));
+      char msg2[128];
+      snprintf(msg2, sizeof(msg2),
+               "either 'set table_no_logging=%u;' or "
+               "add NOLOGGING=%u to comment",
+               old_nologging, old_nologging);
+      my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0), "Alter table",
+               msg1, msg2);
+      DBUG_VOID_RETURN;
+    }
+  }
 
-  bool is_fully_replicated = false;
-  if ((mod_fully_replicated->m_found &&
-       mod_fully_replicated->m_val_bool) ||
-      (old_fully_replicated &&
-       !mod_fully_replicated->m_found))
-  {
-    is_fully_replicated = true;
+  bool add_fully_replicated = false;
+  if (!mod_fully_replicated->m_found) {
+    if (old_table_comment[FULLY_REPLICATED]) {
+      // Not specified in current command nor specified in old table
+      add_fully_replicated = true;
+      table_modifiers.set("FULLY_REPLICATED", old_fully_replicated);
+      DBUG_PRINT("info", ("added fully_replicated"));
+    } else if (old_fully_replicated != opt_ndb_fully_replicated) {
+      char msg1[128];
+      snprintf(msg1, sizeof(msg1),
+               "Alter will use the default value for FULLY_REPLICATED (=%u) "
+               "which is different from the table's current value",
+               opt_ndb_fully_replicated);
+      char msg2[128];
+      snprintf(msg2, sizeof(msg2),
+               "either 'set opt_ndb_fully_replicated=%u;' or "
+               "add FULLY_REPLICATED=%u to comment",
+               old_fully_replicated, old_fully_replicated);
+
+      my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0), "Alter table",
+               msg1, msg2);
+      DBUG_VOID_RETURN;
+    }
   }
-  if (old_nologging && !mod_nologging->m_found)
-  {
-    add_nologging = true;
-    table_modifiers.set("NOLOGGING", true);
-    DBUG_PRINT("info", ("added nologging"));
+
+  bool add_read_backup = false;
+  if (!mod_read_backup->m_found) {
+    if (old_table_comment[READ_BACKUP]) {
+      // Not specified in current command nor specified in old table
+      add_read_backup = true;
+      table_modifiers.set("READ_BACKUP", old_read_backup);
+      DBUG_PRINT("info", ("added read_backup"));
+    } else if (old_read_backup != opt_ndb_read_backup) {
+      char msg1[128];
+      snprintf(msg1, sizeof(msg1),
+               "Alter will use the default value for READ_BACKUP (=%u) "
+               "which is different from the table's current value",
+               opt_ndb_read_backup);
+      char msg2[128];
+      snprintf(msg2, sizeof(msg2),
+               "either 'set opt_ndb_read_backup=%u;' or "
+               "add READ_BACKUP=%u to comment",
+               old_read_backup, old_read_backup);
+      my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0), "Alter table",
+               msg1, msg2);
+      DBUG_VOID_RETURN;
+    }
   }
-  if (!is_fully_replicated &&
-      old_read_backup &&
-      !mod_read_backup->m_found)
-  {
-    add_read_backup = true;
-    table_modifiers.set("READ_BACKUP", true);
-    DBUG_PRINT("info", ("added read_backup"));
-  }
-  if (old_fully_replicated && !mod_fully_replicated->m_found)
-  {
-    add_fully_replicated = true;
-    table_modifiers.set("FULLY_REPLICATED", true);
-    DBUG_PRINT("info", ("added fully_replicated"));
-  }
-  if (!mod_frags->m_found &&
-      (old_part_bal != g_default_partition_balance) &&
-      (old_part_bal != NdbDictionary::Object::PartitionBalance_Specific))
-  {
-    add_part_bal = true;
-    const char *old_part_bal_str =
+
+  bool add_part_bal = false;
+  const char *old_part_bal_str =
       NdbDictionary::Table::getPartitionBalanceString(old_part_bal);
-    table_modifiers.set("PARTITION_BALANCE", old_part_bal_str);
-    DBUG_PRINT("info", ("added part_bal_str"));
+  if (!mod_frags->m_found) {
+    if (old_table_comment[PARTITION_BALANCE]) {
+      // Not specified in current command nor specified in old table
+      add_part_bal = true;
+      table_modifiers.set("PARTITION_BALANCE", old_part_bal_str);
+      DBUG_PRINT("info", ("added part_bal_str"));
+    } else if (old_part_bal != g_default_partition_balance) {
+      const char *default_part_bal_str =
+          NdbDictionary::Table::getPartitionBalanceString(
+              g_default_partition_balance);
+      char msg1[128];
+      snprintf(msg1, sizeof(msg1),
+               "Alter will use the default value for PARTITION_BALANCE (=%s) "
+               "which is different from the table's current value",
+               default_part_bal_str);
+      char msg2[128];
+      snprintf(msg2, sizeof(msg2), "Add PARTITION_BALANCE=%s to comment",
+               old_part_bal_str);
+
+      my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0), "Alter table",
+               msg1, msg2);
+      DBUG_VOID_RETURN;
+    }
   }
-  if (!(add_nologging ||
-        add_read_backup ||
-        add_fully_replicated ||
-        add_part_bal))
-  {
+
+  if (!(add_nologging || add_read_backup || add_fully_replicated ||
+        add_part_bal)) {
     /* No change of comment is needed. */
     DBUG_VOID_RETURN;
   }
@@ -10082,8 +10223,7 @@ ha_ndbcluster::update_comment_info(HA_CREATE_INFO *create_info,
    * All necessary modifiers are set, now regenerate the comment
    */
   const char *updated_str = table_modifiers.generateCommentString();
-  if (updated_str == NULL)
-  {
+  if (updated_str == NULL) {
     mem_alloc_error(0);
     DBUG_VOID_RETURN;
   }
@@ -10099,19 +10239,9 @@ ha_ndbcluster::update_comment_info(HA_CREATE_INFO *create_info,
   DBUG_PRINT("info", ("new_str: %s", new_str));
 
   /* Update structures */
-  if (create_info != NULL)
-  {
-    create_info->comment.str = new_str;
-    create_info->comment.length = new_len;
-  }
-  else
-  {
-    table->s->comment.str = new_str;
-    table->s->comment.length = new_len;
-  }
-  DBUG_PRINT("info", ("After: comment_len: %u, comment: %s",
-                      new_len,
-                      new_str));
+  create_info->comment.str = new_str;
+  create_info->comment.length = new_len;
+  DBUG_PRINT("info", ("After: comment_len: %u, comment: %s", new_len, new_str));
   DBUG_VOID_RETURN;
 }
 
@@ -10264,6 +10394,10 @@ create_table_set_list_data(const partition_info* part_info,
 
 void ha_ndbcluster::append_create_info(String *packet)
 {
+  if (table_share->comment.length == 0) {
+    return;
+  }
+
   THD *thd = current_thd;
   Thd_ndb *thd_ndb = get_thd_ndb(thd);
   Ndb *ndb = thd_ndb->ndb;
@@ -10276,259 +10410,85 @@ void ha_ndbcluster::append_create_info(String *packet)
   bool read_backup = tab->getReadBackupFlag();
   bool fully_replicated = tab->getFullyReplicated();
 
-  DBUG_PRINT("info", ("append_create_info: comment: %s, logged_table = %u,"
-                      " part_bal = %d, read_backup = %u, fully_replicated = %u",
-                      table_share->comment.length == 0 ?
-                      "NULL" : table_share->comment.str,
-                      logged_table,
-                      part_bal,
-                      read_backup,
-                      fully_replicated));
-  if (table_share->comment.length == 0 &&
-      part_bal == NdbDictionary::Object::PartitionBalance_Specific &&
-      !read_backup &&
-      logged_table &&
-      !fully_replicated)
-  {
-    /**
-     * No comment set by user
-     * The partition balance is default and thus no need to set
-     * The table is logged which is default and thus no need to set
-     * The table is not using read backup which is default
-     */
+  /* Parse the current comment string */
+  NDB_Modifiers table_modifiers(ndb_table_modifier_prefix, ndb_table_modifiers);
+  if (table_modifiers.loadComment(table_share->comment.str,
+                                  table_share->comment.length) == -1) {
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_ILLEGAL_HA_CREATE_OPTION, "%s",
+                        table_modifiers.getErrMsg());
+    my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0), ndbcluster_hton_name,
+             "Syntax error in COMMENT modifier");
     return;
   }
-
-  /**
-   * Now parse the comment string if there is one to deduce the
-   * settings already in the comment string, no need to set a
-   * property already set in the comment string.
-   */
-  NdbDictionary::Object::PartitionBalance comment_part_bal =
-    g_default_partition_balance;
-
-  bool comment_part_bal_set = false;
-  bool comment_logged_table_set = false;
-  bool comment_read_backup_set = false;
-  bool comment_fully_replicated_set = false;
-
-  bool comment_logged_table = true;
-  bool comment_read_backup = false;
-  bool comment_fully_replicated = false;
-
-  if (table_share->comment.length)
-  {
-    /* Parse the current comment string */
-    NDB_Modifiers table_modifiers(ndb_table_modifier_prefix,
-                                  ndb_table_modifiers);
-    if (table_modifiers.loadComment(table_share->comment.str,
-                                    table_share->comment.length) == -1)
-    {
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_ILLEGAL_HA_CREATE_OPTION,
-                          "%s",
-                          table_modifiers.getErrMsg());
-      my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0), ndbcluster_hton_name,
-               "Syntax error in COMMENT modifier");
-      return;
-    }
-    const NDB_Modifier *mod_nologging = table_modifiers.get("NOLOGGING");
-    const NDB_Modifier *mod_read_backup = table_modifiers.get("READ_BACKUP");
-    const NDB_Modifier *mod_frags = table_modifiers.get("PARTITION_BALANCE");
-    const NDB_Modifier *mod_fully_replicated =
+  const NDB_Modifier *mod_nologging = table_modifiers.get("NOLOGGING");
+  const NDB_Modifier *mod_read_backup = table_modifiers.get("READ_BACKUP");
+  const NDB_Modifier *mod_frags = table_modifiers.get("PARTITION_BALANCE");
+  const NDB_Modifier *mod_fully_replicated =
       table_modifiers.get("FULLY_REPLICATED");
 
     if (mod_nologging->m_found)
     {
-      /**
-       * NOLOGGING is set, ensure that it is set to the same value as
-       * the table object value. If it is then no need to print anything.
-       */
-      comment_logged_table = !mod_nologging->m_val_bool;
-      comment_logged_table_set = true;
+      bool comment_logged_table = !mod_nologging->m_val_bool;
+      if (logged_table != comment_logged_table) {
+        /**
+         * The table property and the comment property differs, we will
+         * print comment string as is and issue a warning to this effect.
+         */
+        push_warning_printf(thd, Sql_condition::SL_WARNING, ER_GET_ERRMSG,
+                            ER_THD(thd, ER_GET_ERRMSG), 4502,
+                            "Table property is not the same as in"
+                            " comment for NOLOGGING property",
+                            "NDB");
+      }
     }
+
     if (mod_read_backup->m_found)
     {
-      comment_read_backup_set = true;
-      comment_read_backup = mod_read_backup->m_val_bool;
+    bool comment_read_backup = mod_read_backup->m_val_bool;
+    if (read_backup != comment_read_backup) {
+      /**
+       * The table property and the comment property differs, we will
+       * print comment string as is and issue a warning to this effect.
+       */
+      push_warning_printf(thd, Sql_condition::SL_WARNING, ER_GET_ERRMSG,
+                          ER_THD(thd, ER_GET_ERRMSG), 4502,
+                          "Table property is not the same as in"
+                          " comment for READ_BACKUP property",
+                          "NDB");
     }
+
     if (mod_frags->m_found)
     {
-      if (parsePartitionBalance(thd /* for pushing warning */,
-                                 mod_frags,
-                                 &comment_part_bal))
-      {
-        if (comment_part_bal != part_bal)
-        {
+      NdbDictionary::Object::PartitionBalance comment_part_bal =
+          g_default_partition_balance;
+      if (parsePartitionBalance(thd /* for pushing warning */, mod_frags,
+                                &comment_part_bal)) {
+        if (comment_part_bal != part_bal) {
           /**
            * The table property and the comment on the table differs.
            * Let the comment string stay as is, but push warning
            * about this fact.
            */
-          push_warning_printf(thd, Sql_condition::SL_WARNING,
-                              ER_GET_ERRMSG,
-                              ER(ER_GET_ERRMSG),
-                              4501,
+          push_warning_printf(thd, Sql_condition::SL_WARNING, ER_GET_ERRMSG,
+                              ER_THD(thd, ER_GET_ERRMSG), 4501,
                               "Table property is not the same as in"
                               " comment for PARTITION_BALANCE"
                               " property",
                               "NDB");
         }
       }
-      comment_part_bal_set = true;
     }
+
     if (mod_fully_replicated->m_found)
     {
-      comment_fully_replicated_set = true;
-      comment_fully_replicated = mod_fully_replicated->m_val_bool;
-    }
-  }
-  DBUG_PRINT("info", ("comment_read_backup_set: %u, comment_read_backup: %u",
-                      comment_read_backup_set,
-                      comment_read_backup));
-  DBUG_PRINT("info", ("comment_logged_table_set: %u, comment_logged_table: %u",
-                      comment_logged_table_set,
-                      comment_logged_table));
-  DBUG_PRINT("info", ("comment_part_bal_set: %u, comment_part_bal: %d",
-                      comment_part_bal_set,
-                      comment_part_bal));
-  if (!comment_read_backup_set)
-  {
-    if (read_backup && !fully_replicated)
-    {
-      /**
-       * No property was given in table comment, but table is using read backup
-       * Also table isn't fully replicated.
-       */
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_GET_ERRMSG,
-                          ER(ER_GET_ERRMSG),
-                          4502,
-                          "Table property is READ_BACKUP=1,"
-                          " but not in comment",
-                          "NDB");
-    }
-  }
-  else if (read_backup != comment_read_backup)
-  {
-    /**
-     * The table property and the comment property differs, we will
-     * print comment string as is and issue a warning to this effect.
-     */
-    push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_GET_ERRMSG,
-                        ER(ER_GET_ERRMSG),
-                        4502,
-                        "Table property is not the same as in"
-                        " comment for READ_BACKUP property",
-                        "NDB");
-  }
-  if (!comment_fully_replicated_set)
-  {
-    if (fully_replicated)
-    {
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_GET_ERRMSG,
-                          ER(ER_GET_ERRMSG),
-                          4502,
-                          "Table property is FULLY_REPLICATED=1,"
-                          " but not in comment",
-                          "NDB");
-    }
-  }
-  else if (fully_replicated != comment_fully_replicated)
-  {
-    push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_GET_ERRMSG,
-                        ER(ER_GET_ERRMSG),
-                        4502,
-                        "Table property is not the same as in"
-                        " comment for FULLY_REPLICATED property",
-                        "NDB");
-  }
-  if (!comment_logged_table_set)
-  {
-    if (!logged_table)
-    {
-      /**
-       * No property was given in table comment, but table is not logged.
-       */
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_GET_ERRMSG,
-                          ER(ER_GET_ERRMSG),
-                          4502,
-                          "Table property is NOLOGGING=1,"
-                          " but not in comment",
-                          "NDB");
-    }
-  }
-  else if (logged_table != comment_logged_table)
-  {
-    /**
-     * The table property and the comment property differs, we will
-     * print comment string as is and issue a warning to this effect.
-     */
-    push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_GET_ERRMSG,
-                        ER(ER_GET_ERRMSG),
-                        4502,
-                        "Table property is not the same as in"
-                        " comment for NOLOGGING property",
-                        "NDB");
-  }
-  if (!comment_part_bal_set)
-  {
-    if (part_bal != NdbDictionary::Object::PartitionBalance_Specific)
-    {
-      /**
-       * There is a table property not reflected in the COMMENT string,
-       * most likely someone has done an ALTER TABLE with a new comment
-       * string and hasn't changed this property in this comment string.
-       * In this case the table property will stay, so we print this in
-       * the SHOW CREATE TABLE comment string.
-       */
-
-      /**
-       * The default partition balance need not be visible in comment.
-       */
-      const NdbDictionary::Object::PartitionBalance default_partition_balance =
-        g_default_partition_balance;
-
-      if (part_bal != default_partition_balance)
-      {
-        const char * pbname = NdbDictionary::Table::getPartitionBalanceString(part_bal);
-        if (pbname != NULL)
-        {
-          char msg[200];
-          my_snprintf(msg,
-                      sizeof(msg),
-                      "Table property is PARTITION_BALANCE=%s but not in comment",
-                      pbname);
-          push_warning_printf(thd, Sql_condition::SL_WARNING,
-                              ER_GET_ERRMSG,
-                              ER(ER_GET_ERRMSG),
-                              4503,
-                              msg,
-                              "NDB");
-        }
-        else
-        {
-          assert(false);
-          /**
-           * This should never happen, the table property should not be set
-           * to an incorrect value. Potential problem if a lower MySQL version
-           * is used to print the comment string where the table property comes
-           * from a cluster on a newer version where additional types have been
-           * added.
-           */
-          push_warning_printf(thd, Sql_condition::SL_WARNING,
-                              ER_GET_ERRMSG,
-                              ER(ER_GET_ERRMSG),
-                              4503,
-                              "Table property PARTITION_BALANCE is set to"
-                              " an unknown value, could be an upgrade issue"
-                              "NDB");
-        }
+      bool comment_fully_replicated = mod_fully_replicated->m_val_bool;
+      if (fully_replicated != comment_fully_replicated) {
+        push_warning_printf(thd, Sql_condition::SL_WARNING, ER_GET_ERRMSG,
+                            ER_THD(thd, ER_GET_ERRMSG), 4502,
+                            "Table property is not the same as in"
+                            " comment for FULLY_REPLICATED property",
+                            "NDB");
       }
     }
   }
@@ -10966,10 +10926,6 @@ int ha_ndbcluster::create(const char *name,
   tab.setRowChecksum(opt_ndb_row_checksum);
   tab.setSingleUserMode(single_user_mode);
 
-  if (!is_alter)
-  {
-    update_comment_info(create_info, &tab);
-  }
   // Save frm data for this table
   if (readfrm(name, &data, &length))
   {
@@ -18617,7 +18573,7 @@ ha_ndbcluster::parse_comment_changes(NdbDictionary::Table *new_tab,
     {
       my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
                ndbcluster_hton_name,
-               "Cannot alter nologging inplace");
+               "Cannot alter nologging inplace. Try ALGORITHM=copy");
       DBUG_RETURN(true);
     }
     new_tab->setLogging(!mod_nologging->m_val_bool);
@@ -18659,7 +18615,7 @@ ha_ndbcluster::parse_comment_changes(NdbDictionary::Table *new_tab,
          "FULLY_REPLICATED not supported by current data node versions");
       DBUG_RETURN(true);
     }
-    if (!old_tab->getFullyReplicated())
+    if (old_tab->getFullyReplicated() != mod_fully_replicated->m_val_bool)
     {
       my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0),
                "ALGORITHM=INPLACE",
