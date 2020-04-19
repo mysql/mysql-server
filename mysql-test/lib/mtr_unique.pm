@@ -78,12 +78,14 @@ sub mtr_get_unique_id($$$$$) {
         for (; $build_thread > 0 ; $build_thread--) {
           if (defined $mtr_unique_fh[ $build_thread - 1 ]) {
             close $mtr_unique_fh[ $build_thread - 1 ];
-            unlink $mtr_unique_ids[ $build_thread - 1 ] or
-              warn "Could not unlink $mtr_unique_ids[$build_thread-1]: $!";
+            # This fails sometimes, but does not prevent MTR from working
+            # correctly. This applies to this instance, any instances running in
+            # parallel and future runs. We don't want to warn user about it.
+            unlink $mtr_unique_ids[ $build_thread - 1 ];
           }
         }
 
-        # Close the file opened in the current iterartion.
+        # Close the file opened in the current iteration.
         close $fh;
         last;
       }
