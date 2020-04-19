@@ -82,7 +82,6 @@ while ($i < 2)
 --let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.2.err
 # Each test will log two warnings, one fore each channel.
 --let $assert_count= 2
---let $assert_only_after= CURRENT_TEST: rpl.rpl_start_slave_after_restart_initialized_slave
 --let $assert_select=.* \[Warning\] .* Server was not able to find a rotate event
 --let $assert_text= Found the expected warning line in the error log.
 --source include/assert_grep.inc

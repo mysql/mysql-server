@@ -41,7 +41,7 @@ while($i)
   {
     --let $from=OFF
   }
-  
+
   --let $text= this must return ''
   if (`SELECT '$from' = 'ALL_GTIDS'`)
   {
@@ -68,3 +68,5 @@ while($i)
 
   --dec $i
 }
+
+RESET MASTER;

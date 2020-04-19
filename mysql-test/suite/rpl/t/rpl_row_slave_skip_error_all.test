@@ -71,7 +71,6 @@ UPDATE t SET name='Old';
 # in the error log of slave.
 --let $assert_text = Found 2 warning in the error log
 --let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.2.err
---let $assert_only_after = CURRENT_TEST: rpl.rpl_row_slave_skip_error_all
 --let $assert_select = Slave SQL.*Error executing row event: .Table .test.t. doesn.t exist., Error_code: MY-001146
 --let $assert_count = 2
 --source include/assert_grep.inc

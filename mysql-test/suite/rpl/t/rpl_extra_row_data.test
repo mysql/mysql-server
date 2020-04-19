@@ -74,3 +74,7 @@ connection master;
 --let $debug_point= extra_row_ndb_info_set
 --source include/remove_debug_point.inc
 --source include/rpl_end.inc
+
+# The state of binlog is not reverting back to original, restart is needed if
+# this case is to be tested again.
+--source include/force_restart.inc

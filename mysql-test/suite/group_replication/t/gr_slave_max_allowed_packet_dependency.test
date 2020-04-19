@@ -81,7 +81,6 @@ WHILE($rows)
 --sleep 1
 
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
---let $assert_only_after = CURRENT_TEST: group_replication.gr_slave_max_allowed_packet_dependency
 --let $assert_count = 1
 --let $assert_select = The certification information could not be set in this server: 'Certification information is too large for transmission.'
 --let $assert_text = Found the expected error about the view change log even being over size

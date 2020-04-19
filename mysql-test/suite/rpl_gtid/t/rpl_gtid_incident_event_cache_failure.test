@@ -79,7 +79,6 @@ SHOW BINARY LOGS;
 
 # Check that error is present in error log
 --let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
---let $assert_only_after = CURRENT_TEST: rpl.rpl_gtid_incident_event_cache_failure
 --let $assert_select = Hence turning logging off for the whole duration of the MySQL server process.
 --let $assert_match = .*Hence turning logging off for the whole duration of the MySQL server process.*
 --let $assert_text = Found the message about the failure of cache creation in the error log.
@@ -125,7 +124,6 @@ eval INSERT INTO t1 (c1, data)
 # Check that error is present in error log
 --source include/rpl_connection_master.inc
 --let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
---let $assert_only_after = CURRENT_TEST: rpl.rpl_gtid_incident_event_cache_failure
 --let $assert_select = Hence aborting the server
 --let $assert_match = .*Hence aborting the server.*
 --let $assert_text = Found the message about the failure of cache creation in the error log.

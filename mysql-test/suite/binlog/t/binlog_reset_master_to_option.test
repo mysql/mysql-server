@@ -126,7 +126,6 @@ RESET MASTER TO 2000000000;
 FLUSH BINARY LOGS;
 FLUSH BINARY LOGS;
 
---let $assert_only_after=CURRENT_TEST: binlog.binlog_reset_master_to_option
 --let $assert_file=$MYSQLTEST_VARDIR/tmp/binlog_reset_master_to_option.err
 --let $assert_select=.* \[Warning\] \[[^]]*\] \[[^]]*\] Next log extension: .* Please consider archiving some logs.
 --let $assert_text= Found the expected log exhaustion warnings in the error log.

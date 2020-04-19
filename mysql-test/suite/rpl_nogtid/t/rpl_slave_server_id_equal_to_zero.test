@@ -58,7 +58,6 @@ START SLAVE;
 --let $assert_text= Slave didn't started because of server_id=0
 --let $assert_select= \[ERROR\] \[[^]]*\] \[[^]]*\] Server id not set, will not start slave for channel \'\'
 --let $assert_count= 1
---let $assert_only_after= rpl_slave_server_id_equal_to_zero
 --source include/assert_grep.inc
 
 # Change master still works

@@ -3,3 +3,6 @@ select @@autocommit, @@big_tables;
 
 select * from performance_schema.variables_info
   where VARIABLE_NAME in ("autocommit", "big_tables");
+
+# MTR resets variables, restart is needed if this case is to be tested again.
+--source include/force_restart.inc
