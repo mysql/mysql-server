@@ -153,7 +153,6 @@ while ($tries <= 3)
 --echo
 # Verify in the log file that the server aborted
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
---let $assert_only_after = CURRENT_TEST: group_replication.gr_autorejoin_majority_loss_rejoin_failed_abort
 --let $assert_text = GR reported expected abort
 --let $assert_select = The plugin encountered a critical error and will abort
 --let $assert_count = 1

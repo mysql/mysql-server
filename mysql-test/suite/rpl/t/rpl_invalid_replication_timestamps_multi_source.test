@@ -90,7 +90,6 @@ DROP TABLE t2;
 --let $assert_text= Invalid replication timestamps warning is present in log
 --let $assert_select= Invalid replication timestamps: original commit timestamp is more recent than the immediate commit timestamp
 --let $assert_count= 1
---let $assert_only_after= CURRENT_TEST: rpl.rpl_invalid_replication_timestamps_multi_source
 --source include/assert_grep.inc
 
 # check if invalid gtid timestamps warning is present only once in the slave's
@@ -99,7 +98,6 @@ DROP TABLE t2;
 --let $assert_text= Normalized replication timestamps warning is present in log
 --let $assert_select= The replication timestamps have returned to normal values.
 --let $assert_count= 1
---let $assert_only_after= CURRENT_TEST: rpl.rpl_invalid_replication_timestamps_multi_source
 --source include/assert_grep.inc
 
 --let $rpl_skip_sync= 1

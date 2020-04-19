@@ -44,3 +44,4 @@ SET SESSION session_track_gtids='OWN_GTID';
 ## OFF -> OFF : this must return '' ##
 SET SESSION session_track_gtids='OFF';
 SET SESSION session_track_gtids='OFF';
+RESET MASTER;

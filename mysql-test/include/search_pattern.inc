@@ -17,27 +17,35 @@
 
 perl;
     use strict;
-    my $search_file=           $ENV{'SEARCH_FILE'}           or die "SEARCH_FILE not set";
-    my $search_pattern=        $ENV{'SEARCH_PATTERN'}        or die "SEARCH_PATTERN not set";
-    my $search_echo=           $ENV{'SEARCH_ECHO'}     || "NONE";
-    my $ignore_pattern=        $ENV{'IGNORE_PATTERN'}  || "";
-    my $search_echo_ctx=       $ENV{'SEARCH_ECHO_CTX'} || 0;
+    my $search_file =           $ENV{'SEARCH_FILE'}           or die "SEARCH_FILE not set";
+    my $search_pattern =        $ENV{'SEARCH_PATTERN'}        or die "SEARCH_PATTERN not set";
+    my $search_echo =           $ENV{'SEARCH_ECHO'}     || "NONE";
+    my $ignore_pattern =        $ENV{'IGNORE_PATTERN'}  || "";
+    my $search_echo_ctx =       $ENV{'SEARCH_ECHO_CTX'} || 0;
 
     open(FILE, "< $search_file") or die("Unable to open '$search_file': $!\n");
 
     # We include the current line and 'n' previous lines in its context
     # as a FIFO queue i.e., oldest entries in the queue are removed when
     # new lines are read from the file.
-    my @context= (undef) x ($search_echo_ctx + 1);
+    my @context = (undef) x ($search_echo_ctx + 1);
 
     my $line;
-    my $flag= 0;
+    my $flag = 0;
+    my $output = "";
 
     # Read the file line by line
-    while ($line= <FILE>)
+    while ($line = <FILE>)
     {
-        my $cur_lineno= $.;
-        my $file_pos= tell(FILE);
+        my $cur_lineno = $.;
+        my $file_pos = tell(FILE);
+
+        if ($line =~ /^CURRENT_TEST: /)
+        {
+            $output = "";
+            $flag = 0;
+            @context = (undef) x ($search_echo_ctx + 1);
+        }
 
         # Context stored as a sliding window of size 'n' lines
         shift @context;
@@ -48,7 +56,7 @@ perl;
             if (!(length $ignore_pattern) or !($line =~ /$ignore_pattern/))
             {
                 # Line matches the specified pattern
-                $flag= 1;
+                $flag = 1;
 
                 if ($search_echo eq 'FIRST')
                 {
@@ -70,15 +78,17 @@ perl;
                         # Return to current file position after reading 'n'
                         # succeeding lines
                         seek(FILE, $file_pos, 0);
-                        $.= $cur_lineno;
+                        $. = $cur_lineno;
 
                         # Separate each matching line
-                        print "---\n";
+                        $output .= "---\n";
                     }
                 }
             }
         }
     }
+
+    print $output;
 
     if ($flag == 1)
     {
@@ -99,7 +109,7 @@ perl;
         for my $ctx_line (@context)
         {
             next if not defined $ctx_line;
-            print "$cur_lineno: $ctx_line";
+            $output .= "$cur_lineno: $ctx_line";
             $cur_lineno++;
         }
     }
@@ -115,7 +125,7 @@ perl;
         while ($line= <FILE>)
         {
             last if ($. > $end_lineno);
-            print "$.: $line";
+            $output .= "$.: $line";
         }
     }
 

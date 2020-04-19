@@ -36,3 +36,7 @@ let SEARCH_PATTERN= Plugin 'pfs_example_plugin_employee' init function returned 
 --echo # CLEANUP #
 --echo ###########
 --eval UNINSTALL PLUGIN pfs_example_plugin_employee
+
+# The message searched is present only if the server starts, restart is needed
+# if this case is to be tested again.
+--source include/force_restart.inc

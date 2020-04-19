@@ -4,8 +4,6 @@
 #
 
 -- source include/have_debug.inc
-# Windows does not have grep(1)
--- source include/not_windows.inc
 
 CREATE TABLE parent (
 	a INT PRIMARY KEY
@@ -29,7 +27,9 @@ DELETE FROM parent;
 
 SET SESSION DEBUG='-d,test_upd_stats_if_needed_not_inited';
 
--- exec grep 'test_upd_stats_if_needed_not_inited was executed' $MYSQLTEST_VARDIR/log/mysqld.1.err || true
+let SEARCH_PATTERN=test_upd_stats_if_needed_not_inited was executed;
+let SEARCH_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err;
+--source include/search_pattern.inc
 
 DROP TABLE child;
 DROP TABLE parent;
