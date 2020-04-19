@@ -596,11 +596,7 @@ sub main {
     }
   }
 
-  if ($opt_parallel == 1) {
-    $num_tests_for_report = $num_tests * $opt_repeat;
-  } else {
-    $num_tests_for_report = $num_tests;
-  }
+  $num_tests_for_report = $num_tests;
 
   # When either --valgrind or --sanitize option is enabled, a dummy
   # test is created.
@@ -990,26 +986,6 @@ sub run_test_server ($$$) {
             }
           }
 
-          # Tests are already duplicated in the list if parallel value is
-          # greater than 1. Following code is needed only when parallel
-          # value is 1.
-          if ($opt_parallel == 1) {
-            # Repeat the test $opt_repeat number of times
-            my $repeat = $result->{repeat} || 1;
-
-            # Don't repeat if test was skipped
-            if ($repeat < $opt_repeat &&
-                $result->{'result'} ne 'MTR_RES_SKIPPED') {
-              $result->{retries} = 0;
-              $result->{rep_failures}++ if $result->{failures};
-              $result->{failures} = 0;
-              delete($result->{result});
-              $result->{repeat} = $repeat + 1;
-              $result->write_test($sock, 'TESTCASE');
-              next;
-            }
-          }
-
           # Remove from list of running
           mtr_error("'", $result->{name}, "' is not known to be running")
             unless delete $running{ $result->key() };
@@ -1065,7 +1041,7 @@ sub run_test_server ($$$) {
             redo;
           }
 
-          # Limit number of parallell NDB tests
+          # Limit number of parallel NDB tests
           if ($t->{ndb_test} and $num_ndb_tests >= $max_ndb) {
             next;
           }
@@ -1082,7 +1058,9 @@ sub run_test_server ($$$) {
             # Reserved for other thread, try next
             next if (defined $t->{reserved} and $t->{reserved} != $wid);
 
-            if (!defined $t->{reserved}) {
+            # criteria will not be calculated for --start --start-and-exit or
+            # --start-dirty options
+            if (!defined $t->{reserved} && defined $t->{criteria}) {
               # Force-restart not relevant when comparing *next* test
               $t->{criteria} =~ s/force-restart$/no-restart/;
               my $criteria = $t->{criteria};
@@ -2163,7 +2141,7 @@ sub set_build_thread_ports($) {
     $build_thread = 300;
     my $max_parallel = $opt_parallel * $build_threads_per_thread;
 
-    # Calucalte the upper limit value for build thread id
+    # Calculate the upper limit value for build thread id
     my $build_thread_upper =
       $max_parallel > 79 ? $max_parallel + int($max_parallel / 2) : 99;
 
@@ -4366,10 +4344,24 @@ sub run_on_all($$) {
   mtr_error("INTERNAL_ERROR: run_on_all");
 }
 
-sub mark_log {
+sub mark_log($$) {
   my ($log, $tinfo) = @_;
-  my $log_msg = "CURRENT_TEST: $tinfo->{name}\n";
+  my $log_msg = "\nCURRENT_TEST: $tinfo->{name}\n";
   mtr_tofile($log, $log_msg);
+}
+
+sub mark_testcase_start_in_logs($$) {
+  my ($mysqld, $tinfo) = @_;
+
+  # Write start of testcase to the default log file
+  mark_log($mysqld->value('#log-error'), $tinfo);
+
+  # Look for custom log file specified in the extra options.
+  my $extra_opts = get_extra_opts($mysqld, $tinfo);
+  my $extra_log = My::Options::find_option_value($extra_opts, "log-error");
+  if ($extra_log && $extra_log ne $mysqld->value('#log-error')) {
+    mark_log($extra_log, $tinfo);
+  }
 }
 
 sub find_testcase_skipped_reason($) {
@@ -4703,9 +4695,9 @@ sub run_testcase ($) {
         $opt_manual_debug ||
         $opt_manual_dbx) {
       # The configuration has been set up and user has been prompted for
-      # how to start the servers manually in the requested deugger.
+      # how to start the servers manually in the requested debugger.
       # At this time mtr.pl have no knowledge about the server processes
-      # and thus can't wait for them to finish or antyhing. In order to make
+      # and thus can't wait for them to finish or anything. In order to make
       # it apparent to user what to do next, just print message and hang
       # around until user kills mtr.pl
       mtr_print("User prompted how to start server(s) manually in debugger");
@@ -6086,7 +6078,8 @@ sub mysqld_start ($$$$) {
 
   my $output = $mysqld->value('#log-error');
 
-  # Remember this log file for valgrind error report search
+  # Remember this log file for valgrind error report search.
+  # This is used in valgrind_exit_reports().
   $logs{$output} = 1 if ($opt_valgrind or $opt_sanitize);
 
   # Remember data dir for gmon.out files if using gprof
@@ -6486,7 +6479,7 @@ sub start_servers($) {
 
     if ($mysqld->{proc}) {
       # Already started, write start of testcase to log file
-      mark_log($mysqld->value('#log-error'), $tinfo);
+      mark_testcase_start_in_logs($mysqld, $tinfo);
       next;
     }
 
@@ -6560,9 +6553,6 @@ sub start_servers($) {
     my $tmpdir = $mysqld->value('tmpdir');
     mkpath($tmpdir) unless -d $tmpdir;
 
-    # Write start of testcase to log file
-    mark_log($mysqld->value('#log-error'), $tinfo);
-
     # Run <tname>-master.sh
     if ($mysqld->option('#!run-master-sh') and
         run_sh_script($tinfo->{master_sh})) {
@@ -6576,6 +6566,13 @@ sub start_servers($) {
       $tinfo->{'comment'} = "Failed to execute '$tinfo->{slave_sh}'";
       return 1;
     }
+
+    # It's safe to not write log mark if the above sh scripts failed and
+    # caused the flow to not reach here, the test will be reported as failed and
+    # log will not be needed.
+
+    # Write start of testcase to log files.
+    mark_testcase_start_in_logs($mysqld, $tinfo);
 
     my $extra_opts = get_extra_opts($mysqld, $tinfo);
     mysqld_start($mysqld, $extra_opts, $tinfo, $bootstrap_opts);

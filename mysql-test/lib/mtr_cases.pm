@@ -593,9 +593,7 @@ sub collect_test_cases ($$$$) {
     @$cases = sort { $a->{criteria} cmp $b->{criteria}; } @$cases;
   }
 
-  # When $opt_repeat > 1 and $opt_parallel > 1, duplicate each test
-  # $opt_repeat number of times to allow them running in parallel.
-  if ($::opt_repeat > 1 and $::opt_parallel > 1) {
+  if ($::opt_repeat > 1) {
     $cases = duplicate_test_cases($cases);
   }
 
