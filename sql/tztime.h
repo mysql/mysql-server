@@ -2,7 +2,7 @@
 #define TZTIME_INCLUDED
 
 #include "my_config.h"
-/* Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -67,7 +67,7 @@ class Time_zone {
     Comverts "struct timeval" to local time in
     broken down MYSQL_TIME represendation.
   */
-  void gmt_sec_to_TIME(MYSQL_TIME *tmp, struct timeval tv) {
+  void gmt_sec_to_TIME(MYSQL_TIME *tmp, struct timeval tv) const {
     gmt_sec_to_TIME(tmp, (my_time_t)tv.tv_sec);
     tmp->second_part = tv.tv_usec;
   }

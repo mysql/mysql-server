@@ -1201,20 +1201,6 @@ inline bool advance_overflows(size_t num_bytes, uchar *to_end, uchar **to) {
   return false;
 }
 
-static inline longlong get_int_sort_key_for_item_inline(Item *item) {
-  // Temporal items are sorted on the underlying UTC value,
-  // so temporarily set the time zone.
-  Time_zone *old_tz = current_thd->variables.time_zone;
-  current_thd->variables.time_zone = my_tz_UTC;
-  longlong value = item->data_type() == MYSQL_TYPE_TIME
-                       ? item->val_time_temporal()
-                       : item->is_temporal_with_date()
-                             ? item->val_date_temporal()
-                             : item->val_int();
-  current_thd->variables.time_zone = old_tz;
-  return value;
-}
-
 /*
   Writes a NULL indicator byte (if the field may be NULL), leaves space for a
   varlength prefix (if varlen and not NULL), and then the actual sort key.
@@ -1301,7 +1287,7 @@ size_t make_sortkey_from_item(Item *item, Item_result result_type,
     }
     case INT_RESULT: {
       DBUG_ASSERT(!is_varlen);
-      longlong value = get_int_sort_key_for_item_inline(item);
+      longlong value = item->int_sort_key();
 
       /*
         Note: item->null_value can't be trusted alone here; there are cases
@@ -1369,11 +1355,6 @@ size_t make_sortkey_from_item(Item *item, Item_result result_type,
 }
 
 }  // namespace
-
-// Expose for Item_func_weight_string.
-longlong get_int_sort_key_for_item(Item *item) {
-  return get_int_sort_key_for_item_inline(item);
-}
 
 uint Sort_param::make_sortkey(Bounds_checked_array<uchar> dst,
                               const uchar *ref_pos,

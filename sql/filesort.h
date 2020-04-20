@@ -103,9 +103,6 @@ void change_double_for_sort(double nr, uchar *to);
 /// Declared here so we can unit test it.
 uint sortlength(THD *thd, st_sort_field *sortorder, uint s_length);
 
-/// Declared here for Item_func_weight_string.
-longlong get_int_sort_key_for_item(Item *item);
-
 // Avoid pulling in sql/field.h.
 template <bool Is_big_endian>
 void copy_integer(uchar *to, size_t to_length, const uchar *from,

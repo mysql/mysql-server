@@ -3217,7 +3217,7 @@ String *Item_func_weight_string::val_str(String *str) {
   sortorder.item = args[0];
   sortlength(current_thd, &sortorder, /*s_length=*/1);
   if (sortorder.result_type == INT_RESULT) {
-    longlong value = get_int_sort_key_for_item(args[0]);
+    longlong value = args[0]->int_sort_key();
     if (args[0]->maybe_null && args[0]->null_value) return error_str();
     if (tmp_value.alloc(sortorder.length)) return error_str();
     copy_native_longlong(pointer_cast<uchar *>(tmp_value.ptr()),

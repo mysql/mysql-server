@@ -1623,6 +1623,7 @@ class Item : public Parse_tree_node {
     Return time value of item in packed longlong format.
   */
   virtual longlong val_time_temporal();
+
   /**
     Return date or time value of item in packed longlong format,
     depending on item field type.
@@ -1632,6 +1633,21 @@ class Item : public Parse_tree_node {
     DBUG_ASSERT(is_temporal_with_date());
     return val_date_temporal();
   }
+
+  /**
+    Produces a key suitable for filesort. Most of the time, val_int() would
+    suffice, but for temporal values, the packed value (as sent to the handler)
+    is called for. It is also necessary that the value is in UTC. This function
+    supplies just that.
+
+     @return A sort key value.
+  */
+  longlong int_sort_key() {
+    if (data_type() == MYSQL_TYPE_TIME) return val_time_temporal_at_utc();
+    if (is_temporal_with_date()) return val_date_temporal_at_utc();
+    return val_int();
+  }
+
   /**
     Get date or time value in packed longlong format.
     Before conversion from MYSQL_TIME to packed format,
@@ -1995,6 +2011,10 @@ class Item : public Parse_tree_node {
     Convert a numeric type to time
   */
   bool get_time_from_numeric(MYSQL_TIME *ltime);
+
+  virtual longlong val_date_temporal_at_utc() { return val_date_temporal(); }
+
+  virtual longlong val_time_temporal_at_utc() { return val_time_temporal(); }
 
  public:
   type_conversion_status save_time_in_field(Field *field);
@@ -3895,6 +3915,8 @@ class Item_field : public Item_ident {
   longlong val_int() override;
   longlong val_time_temporal() override;
   longlong val_date_temporal() override;
+  longlong val_time_temporal_at_utc() override;
+  longlong val_date_temporal_at_utc() override;
   my_decimal *val_decimal(my_decimal *) override;
   String *val_str(String *) override;
   bool val_json(Json_wrapper *result) override;

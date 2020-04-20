@@ -2781,6 +2781,18 @@ longlong Item_field::val_date_temporal() {
   return field->val_date_temporal();
 }
 
+longlong Item_field::val_time_temporal_at_utc() {
+  DBUG_ASSERT(fixed == 1);
+  if ((null_value = field->is_null())) return 0;
+  return field->val_time_temporal_at_utc();
+}
+
+longlong Item_field::val_date_temporal_at_utc() {
+  DBUG_ASSERT(fixed == 1);
+  if ((null_value = field->is_null())) return 0;
+  return field->val_date_temporal_at_utc();
+}
+
 my_decimal *Item_field::val_decimal(my_decimal *decimal_value) {
   null_value = field->is_null();
   if (null_value) return nullptr;

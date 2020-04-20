@@ -4656,13 +4656,28 @@ longlong Field_temporal_with_date::val_date_temporal() const {
 }
 
 longlong Field_temporal_with_date::val_time_temporal() const {
+  ASSERT_COLUMN_MARKED_FOR_READ;
+  MYSQL_TIME ltime;
+  return get_date_internal(&ltime) ? 0 : TIME_to_longlong_time_packed(ltime);
+}
+
+longlong Field_temporal_with_date::val_date_temporal_at_utc() const {
+  ASSERT_COLUMN_MARKED_FOR_READ;
+  MYSQL_TIME ltime;
+  return get_date_internal_at_utc(&ltime)
+             ? 0
+             : TIME_to_longlong_datetime_packed(ltime);
+}
+
+longlong Field_temporal_with_date::val_time_temporal_at_utc() const {
   /*
     There are currently no tests covering this method,
     as DATETIME seems to always superseed over TIME in comparison.
   */
   ASSERT_COLUMN_MARKED_FOR_READ;
   MYSQL_TIME ltime;
-  return get_date_internal(&ltime) ? 0 : TIME_to_longlong_time_packed(ltime);
+  return get_date_internal_at_utc(&ltime) ? 0
+                                          : TIME_to_longlong_time_packed(ltime);
 }
 
 /**
@@ -4982,21 +4997,29 @@ type_conversion_status Field_timestamp::store_internal(const MYSQL_TIME *ltime,
   return error;
 }
 
+bool Field_timestamp::get_date_internal(MYSQL_TIME *ltime) const {
+  THD *thd = table != nullptr ? table->in_use : current_thd;
+  return get_date_internal_at(thd->time_zone(), ltime);
+}
+
+bool Field_timestamp::get_date_internal_at_utc(MYSQL_TIME *ltime) const {
+  return get_date_internal_at(my_tz_UTC, ltime);
+}
+
 /**
   Get a value from record, without checking fuzzy date flags.
   @retval true  - if timestamp is 0, ltime is not touched in this case.
   @retval false - if timestamp is non-zero.
 */
-bool Field_timestamp::get_date_internal(MYSQL_TIME *ltime) const {
+bool Field_timestamp::get_date_internal_at(const Time_zone *tz,
+                                           MYSQL_TIME *ltime) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  uint32 temp;
-  THD *thd = table ? table->in_use : current_thd;
-  if (table && table->s->db_low_byte_first)
-    temp = uint4korr(ptr);
-  else
-    temp = ulongget(ptr);
-  if (!temp) return true;
-  thd->time_zone()->gmt_sec_to_TIME(ltime, (my_time_t)temp);
+  my_time_t temp = (table != nullptr && table->s->db_low_byte_first)
+                       ? uint4korr(ptr)
+                       : ulongget(ptr);
+  if (temp == 0) return true;
+
+  tz->gmt_sec_to_TIME(ltime, temp);
   return false;
 }
 
@@ -5161,12 +5184,12 @@ void Field_timestampf::sql_type(String &res) const {
 }
 
 bool Field_timestampf::get_date_internal(MYSQL_TIME *ltime) const {
-  THD *thd = table ? table->in_use : current_thd;
-  struct timeval tm;
-  my_timestamp_from_binary(&tm, ptr, dec);
-  if (tm.tv_sec == 0) return true;
-  thd->time_zone()->gmt_sec_to_TIME(ltime, tm);
-  return false;
+  THD *thd = table != nullptr ? table->in_use : current_thd;
+  return get_date_internal_at(thd->time_zone(), ltime);
+}
+
+bool Field_timestampf::get_date_internal_at_utc(MYSQL_TIME *ltime) const {
+  return get_date_internal_at(my_tz_UTC, ltime);
 }
 
 bool Field_timestampf::get_timestamp(struct timeval *tm, int *) const {
@@ -5174,6 +5197,15 @@ bool Field_timestampf::get_timestamp(struct timeval *tm, int *) const {
   thd->time_zone_used = true;
   DBUG_ASSERT(!is_null());
   my_timestamp_from_binary(tm, ptr, dec);
+  return false;
+}
+
+bool Field_timestampf::get_date_internal_at(const Time_zone *tz,
+                                            MYSQL_TIME *ltime) const {
+  struct timeval tm;
+  my_timestamp_from_binary(&tm, ptr, dec);
+  if (tm.tv_sec == 0) return true;
+  tz->gmt_sec_to_TIME(ltime, tm);
   return false;
 }
 

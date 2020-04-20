@@ -102,6 +102,7 @@ class Protocol;
 class Relay_log_info;
 class Send_field;
 class THD;
+class Time_zone;
 class my_decimal;
 struct TYPELIB;
 struct timeval;
@@ -1083,6 +1084,15 @@ class Field {
     DBUG_ASSERT(0);
     return 0;
   }
+
+  virtual longlong val_time_temporal_at_utc() const {
+    return val_time_temporal();
+  }
+
+  virtual longlong val_date_temporal_at_utc() const {
+    return val_date_temporal();
+  }
+
   /**
     Returns "native" packed longlong representation of
     a TIME or DATE/DATETIME field depending on field type.
@@ -2864,6 +2874,10 @@ class Field_temporal_with_date : public Field_temporal {
   */
   virtual bool get_date_internal(MYSQL_TIME *ltime) const = 0;
 
+  virtual bool get_date_internal_at_utc(MYSQL_TIME *ltime) const {
+    return get_date_internal(ltime);
+  }
+
   /**
     Get value into MYSQL_TIME and check TIME_NO_ZERO_DATE flag.
     @retval   True on error: we get a zero value but flags disallow zero dates.
@@ -2907,6 +2921,8 @@ class Field_temporal_with_date : public Field_temporal {
   String *val_str(String *, String *) const override;
   longlong val_time_temporal() const override;
   longlong val_date_temporal() const override;
+  longlong val_time_temporal_at_utc() const override;
+  longlong val_date_temporal_at_utc() const override;
   bool get_time(MYSQL_TIME *ltime) const final override {
     return get_date(ltime, TIME_FUZZY_DATE);
   }
@@ -3021,6 +3037,7 @@ class Field_timestamp : public Field_temporal_with_date_and_time {
   type_conversion_status store_internal(const MYSQL_TIME *ltime,
                                         int *error) final override;
   bool get_date_internal(MYSQL_TIME *ltime) const final override;
+  bool get_date_internal_at_utc(MYSQL_TIME *ltime) const final;
   void store_timestamp_internal(const struct timeval *tm) final override;
 
  public:
@@ -3057,6 +3074,19 @@ class Field_timestamp : public Field_temporal_with_date_and_time {
   }
   /* Validate the value stored in a field */
   type_conversion_status validate_stored_val(THD *thd) final override;
+
+ private:
+  /**
+    Retrieves a value from a record, without checking fuzzy date flags.
+
+    @param tz The time zone to convert to
+    @param[out] ltime The timestamp value in the time zone.
+
+    @retval true  Means that the timestamp value read is 0. ltime is not touched
+    in this case.
+    @retval false If timestamp is non-zero.
+  */
+  bool get_date_internal_at(const Time_zone *tz, MYSQL_TIME *ltime) const;
 };
 
 /*
@@ -3065,6 +3095,7 @@ class Field_timestamp : public Field_temporal_with_date_and_time {
 class Field_timestampf : public Field_temporal_with_date_and_timef {
  protected:
   bool get_date_internal(MYSQL_TIME *ltime) const final override;
+  bool get_date_internal_at_utc(MYSQL_TIME *ltime) const final;
   type_conversion_status store_internal(const MYSQL_TIME *ltime,
                                         int *error) final override;
   my_time_flags_t date_flags(const THD *thd) const final override;
@@ -3122,6 +3153,19 @@ class Field_timestampf : public Field_temporal_with_date_and_timef {
   bool get_timestamp(struct timeval *tm, int *warnings) const final override;
   /* Validate the value stored in a field */
   type_conversion_status validate_stored_val(THD *thd) final override;
+
+ private:
+  /**
+    Retrieves a value from a record, without checking fuzzy date flags.
+
+    @param tz The time zone to convert to
+    @param[out] ltime The timestamp value in the time zone.
+
+    @retval true  Means that the timestamp value read is 0. ltime is not touched
+    in this case.
+    @retval false If timestamp is non-zero.
+  */
+  bool get_date_internal_at(const Time_zone *tz, MYSQL_TIME *ltime) const;
 };
 
 class Field_year final : public Field_tiny {
