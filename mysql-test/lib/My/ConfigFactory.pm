@@ -50,7 +50,7 @@ sub get_testdir {
   return $testdir;
 }
 
-# Retrive build directory (which is different from basedir
+# Retrieve build directory (which is different from basedir
 # in out-of-source build).
 sub get_bindir {
   if (defined $ENV{MTR_BINDIR}) {
@@ -64,11 +64,6 @@ sub fix_charset_dir {
   my ($self, $config, $group_name, $group) = @_;
   return my_find_dir($self->get_basedir($group), \@::share_locations,
                      "charsets");
-}
-
-sub fix_language {
-  my ($self, $config, $group_name, $group) = @_;
-  return my_find_dir($self->get_bindir($group), \@::share_locations);
 }
 
 sub fix_datadir {
@@ -655,7 +650,7 @@ sub run_generate_sections_from_cluster_config {
 sub new_config {
   my ($class, $args) = @_;
 
-  my @required_args = ('basedir', 'baseport', 'vardir', 'template_path');
+  my @required_args = ('basedir', 'baseport', 'vardir', 'template_path', 'testdir', 'tmpdir');
 
   foreach my $required (@required_args) {
     croak "you must pass '$required'" unless defined $args->{$required};
