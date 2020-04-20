@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4114,11 +4114,13 @@ runLoad(NDBT_Context* ctx, NDBT_Step* step)
   int retries = 0;
   while (!ctx->isTestStopped() && myDict->createTable(*copy)!= 0)
   {
-    /* '4009 - Cluster Failure' is acceptable since SR is in progress.
+    /* '4009 - Cluster Failure' or '4035 - Cluster temporarily unavailable'
+     * are acceptable since SR is in progress.
      * '711 - System busy with node restart, schema operations not allowed'
      * is acceptable since the stale node performs an NR during SR.
      */
     CHK((myDict->getNdbError().code == 4009 ||
+         myDict->getNdbError().code == 4035 ||
          myDict->getNdbError().code == 711),
         myDict->getNdbError().message);
     retries++;
