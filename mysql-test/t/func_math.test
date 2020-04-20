@@ -1151,3 +1151,11 @@ CALL test_round_unsigned(18446744073709551614);
 
 DROP PROCEDURE test_round;
 DROP PROCEDURE test_round_unsigned;
+
+--echo # Bug#31128028 ROUND and TRUNCATE sometimes produce wrong result types
+
+CREATE TABLE t1(a INTEGER, b INTEGER);
+INSERT INTO t1 VALUES(11, -1);
+CREATE TABLE t2 AS SELECT a, ROUND(a, b) AS c FROM t1;
+DESCRIBE t2;
+DROP TABLE t1, t2;

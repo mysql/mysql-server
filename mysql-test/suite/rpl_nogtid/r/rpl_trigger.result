@@ -25,7 +25,7 @@ insert into t2 values(3,0),(NULL,0);
 insert into t2 values(NULL,0),(500,0);
 select a,b, truncate(rand_value,4) from t1;
 a	b	truncate(rand_value,4)
-1	1	0.4320
+1	1	0.432
 2	2	0.3055
 select * from t2;
 a	b
@@ -36,7 +36,7 @@ a	b
 500	0
 select a,name, old_a, old_b, truncate(rand_value,4) from t3;
 a	name	old_a	old_b	truncate(rand_value,4)
-100	log	0	0	0.0000
+100	log	0	0	0
 101	t1	1	1	0.3203
 102	t1	0	2	0.5666
 103	t2	1	2	0.9164
@@ -49,7 +49,7 @@ include/sync_slave_sql_with_master.inc
 --- On slave --
 select a,b, truncate(rand_value,4) from t1;
 a	b	truncate(rand_value,4)
-1	1	0.4320
+1	1	0.432
 2	2	0.3055
 select * from t2;
 a	b
@@ -60,7 +60,7 @@ a	b
 500	0
 select a,name, old_a, old_b, truncate(rand_value,4) from t3;
 a	name	old_a	old_b	truncate(rand_value,4)
-100	log	0	0	0.0000
+100	log	0	0	0
 101	t1	1	1	0.3203
 102	t1	0	2	0.5666
 103	t2	1	2	0.9164

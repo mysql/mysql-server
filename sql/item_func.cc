@@ -2982,87 +2982,63 @@ my_decimal *Item_func_floor::decimal_op(my_decimal *decimal_value) {
 }
 
 bool Item_func_round::resolve_type(THD *) {
-  int decimals_to_set;
-  longlong val1;
-  bool val1_unsigned;
-
-  unsigned_flag = args[0]->unsigned_flag;
   if (reject_geometry_args(arg_count, args, this)) return true;
 
-  if (!args[1]->const_item()) {
-    decimals = args[0]->decimals;
-    max_length = float_length(decimals);
-    if (args[0]->result_type() == DECIMAL_RESULT) {
-      max_length++;
-      set_data_type(MYSQL_TYPE_NEWDECIMAL);
-      hybrid_type = DECIMAL_RESULT;
-    } else {
-      set_data_type(MYSQL_TYPE_DOUBLE);
-      hybrid_type = REAL_RESULT;
-    }
-    return false;
-  }
-
-  val1 = args[1]->val_int();
-  if ((null_value = args[1]->is_null())) {
-    // Set a data type - we do not provide excessive is_null() checks
-    if (is_numeric_type(args[0]->data_type())) {
-      set_data_type_from_item(args[0]);
-      hybrid_type = args[0]->result_type();
-    } else {
-      set_data_type(MYSQL_TYPE_DOUBLE);
-      hybrid_type = REAL_RESULT;
-    }
-    return false;
-  }
-
-  val1_unsigned = args[1]->unsigned_flag;
-  if (val1 < 0)
-    decimals_to_set = val1_unsigned ? INT_MAX : 0;
-  else
-    decimals_to_set = (val1 > INT_MAX) ? INT_MAX : (int)val1;
-
-  if (args[0]->decimals == DECIMAL_NOT_SPECIFIED) {
-    decimals = min(decimals_to_set, DECIMAL_NOT_SPECIFIED);
-    max_length = float_length(decimals);
-    set_data_type(MYSQL_TYPE_DOUBLE);
-    hybrid_type = REAL_RESULT;
-    return false;
-  }
-
   switch (args[0]->result_type()) {
+    case INT_RESULT:
+      set_data_type_longlong();
+      unsigned_flag = args[0]->unsigned_flag;
+      hybrid_type = INT_RESULT;
+      break;
+    case DECIMAL_RESULT: {
+      /*
+        If the rounding precision is known at this stage (constant), use it
+        to adjust the precision and scale of the result to the minimal
+        values that will accommodate the answer. Otherwise, use the precision
+        and scale from the first argument.
+        If wanted scale is less than argument's scale, reduce it accordingly.
+        When rounding, make sure to accommodate one extra digit in precision
+        Example: ROUND(99.999, 2). Here, the type of the argument is
+        DECIMAL(5, 3). The type of the result is DECIMAL(5,2), since the
+        result of this operation is 100.00.
+      */
+      longlong val1;
+      if (args[1]->const_item()) {
+        val1 = args[1]->val_int();
+        if ((null_value = args[1]->is_null())) {
+          val1 = 0;
+        }
+        if (args[1]->unsigned_flag) {
+          if (val1 > DECIMAL_MAX_SCALE || val1 < 0) val1 = DECIMAL_MAX_SCALE;
+        } else if (val1 > DECIMAL_MAX_SCALE) {
+          val1 = DECIMAL_MAX_SCALE;
+        } else if (val1 < -DECIMAL_MAX_SCALE) {
+          val1 = -DECIMAL_MAX_SCALE;
+        }
+      } else {
+        val1 = args[0]->decimals;
+      }
+
+      uint8 precision = args[0]->decimal_precision();
+      uint8 new_scale = args[0]->decimals;
+      if (val1 <= 0) {
+        precision -= new_scale;
+        if (!truncate) precision += 1;
+        new_scale = 0;
+      } else if (val1 < new_scale) {
+        precision -= (new_scale - val1);
+        if (!truncate) precision += 1;
+        new_scale = val1;
+      }
+      set_data_type_decimal(precision, new_scale);
+      hybrid_type = DECIMAL_RESULT;
+      break;
+    }
     case REAL_RESULT:
     case STRING_RESULT:
-      set_data_type(MYSQL_TYPE_DOUBLE);
+      set_data_type_double();
       hybrid_type = REAL_RESULT;
-      decimals = min(decimals_to_set, DECIMAL_NOT_SPECIFIED);
-      max_length = float_length(decimals);
       break;
-    case INT_RESULT:
-      if ((!decimals_to_set && truncate) ||
-          (args[0]->decimal_precision() < DECIMAL_LONGLONG_DIGITS)) {
-        bool length_can_increase = (!truncate && (val1 < 0) && !val1_unsigned);
-        max_length = args[0]->max_length + length_can_increase;
-        /* Here we can keep INT_RESULT */
-        set_data_type(MYSQL_TYPE_LONGLONG);
-        hybrid_type = INT_RESULT;
-        break;
-      }
-      /* fall through */
-    case DECIMAL_RESULT: {
-      set_data_type(MYSQL_TYPE_NEWDECIMAL);
-      hybrid_type = DECIMAL_RESULT;
-      decimals_to_set = min(DECIMAL_MAX_SCALE, decimals_to_set);
-      int decimals_delta = args[0]->decimals - decimals_to_set;
-      int precision = args[0]->decimal_precision();
-      int length_increase = ((decimals_delta <= 0) || truncate) ? 0 : 1;
-
-      precision -= decimals_delta - length_increase;
-      decimals = min(decimals_to_set, DECIMAL_MAX_SCALE);
-      max_length = my_decimal_precision_to_length_no_truncation(
-          precision, decimals, unsigned_flag);
-      break;
-    }
     default:
       DBUG_ASSERT(0); /* This result type isn't handled */
   }
