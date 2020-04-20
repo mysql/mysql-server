@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -236,7 +236,7 @@ function processTreeViewSetup(clusterName) {
                 var def = new dojo.Deferred(); 
 
                 // Expand the node 
-                _this._expandNode(node).addCallback(function() { 
+                _this._expandNode(node).then(function() {
 
                     // When expanded, expand() non-leaf childs recursively
                     var childBranches = dojo.filter(
@@ -247,8 +247,8 @@ function processTreeViewSetup(clusterName) {
                     defs = dojo.map(childBranches, expand); 
 
                     // When recursive calls finish, signal that I'm finished 
-                    new dojo.DeferredList(defs).addCallback(function () { 
-                        def.callback(); 
+                    new dojo.DeferredList(defs).then(function () {
+                        def.resolve();
                     }); 
                 }); 
                 return def; 
