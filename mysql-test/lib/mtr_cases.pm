@@ -609,7 +609,7 @@ sub collect_test_cases ($$$$) {
 sub duplicate_test_cases($) {
   my $tests = shift;
 
-  my $new_tests;
+  my $new_tests = [];
   foreach my $test (@$tests) {
     # Don't repeat the test if 'skip' flag is enabled.
     if ($test->{'skip'}) {
