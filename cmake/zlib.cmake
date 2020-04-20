@@ -20,20 +20,72 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA 
 
-MACRO (MYSQL_USE_BUNDLED_ZLIB)
+# Usage:
+#  cmake -DWITH_ZLIB="bundled"|"system"
+#
+# Default is "bundled".
+# The default should be "system" on non-windows platforms,
+# but we need at least version 1.2.11, and that's not available on
+# all the platforms we need to support.
+
+# With earier versions, several compression tests fail.
+SET(MIN_ZLIB_VERSION_REQUIRED "1.2.11")
+
+MACRO(FIND_ZLIB_VERSION)
+  FOREACH(version_part
+      ZLIB_VER_MAJOR
+      ZLIB_VER_MINOR
+      ZLIB_VER_REVISION
+      )
+    FILE(STRINGS "${ZLIB_INCLUDE_DIR}/zlib.h" ${version_part}
+      REGEX "^#[\t ]*define[\t ]+${version_part}[\t ]+([0-9]+).*")
+    STRING(REGEX REPLACE
+      "^.*${version_part}[\t ]+([0-9]+).*" "\\1"
+      ${version_part} "${${version_part}}")
+  ENDFOREACH()
+  SET(ZLIB_VERSION "${ZLIB_VER_MAJOR}.${ZLIB_VER_MINOR}.${ZLIB_VER_REVISION}")
+  SET(ZLIB_VERSION "${ZLIB_VERSION}" CACHE INTERNAL "ZLIB major.minor.step")
+  MESSAGE(STATUS "ZLIB_VERSION (${WITH_ZLIB}) is ${ZLIB_VERSION}")
+ENDMACRO()
+
+MACRO (FIND_SYSTEM_ZLIB)
+  # In case we are changing from "bundled" to "system".
+  IF(DEFINED ZLIB_LIBRARY AND ZLIB_LIBRARY STREQUAL zlib)
+    UNSET(ZLIB_LIBRARY)
+    UNSET(ZLIB_LIBRARY CACHE)
+  ENDIF()
+  FIND_PACKAGE(ZLIB)
+  IF(ZLIB_FOUND)
+    SET(ZLIB_LIBRARY ${ZLIB_LIBRARIES} CACHE INTERNAL "System zlib library")
+    IF(NOT ZLIB_INCLUDE_DIR STREQUAL "/usr/include")
+      # In case of -DCMAKE_PREFIX_PATH=</path/to/custom/zlib>
+      INCLUDE_DIRECTORIES(BEFORE SYSTEM ${ZLIB_INCLUDE_DIR})
+    ENDIF()
+  ENDIF()
+ENDMACRO()
+
+MACRO (RESET_ZLIB_VARIABLES)
   # Reset whatever FIND_PACKAGE may have left behind.
   FOREACH(zlibvar
       INCLUDE_DIR
+      INCLUDE_DIRS
       LIBRARY
+      LIBRARIES
       LIBRARY_DEBUG
       LIBRARY_RELEASE)
     UNSET(ZLIB_${zlibvar})
     UNSET(ZLIB_${zlibvar} CACHE)
     UNSET(ZLIB_${zlibvar}-ADVANCED CACHE)
   ENDFOREACH()
-  SET(BUILD_BUNDLED_ZLIB 1)
+  UNSET(FIND_PACKAGE_MESSAGE_DETAILS_ZLIB)
+  UNSET(FIND_PACKAGE_MESSAGE_DETAILS_ZLIB CACHE)
+ENDMACRO()
+
+MACRO (MYSQL_USE_BUNDLED_ZLIB)
+  RESET_ZLIB_VARIABLES()
+
+  SET(ZLIB_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/extra/zlib)
   SET(ZLIB_LIBRARY zlib CACHE INTERNAL "Bundled zlib library")
-  SET(ZLIB_FOUND  TRUE)
   SET(WITH_ZLIB "bundled" CACHE STRING "Use bundled zlib")
   INCLUDE_DIRECTORIES(BEFORE SYSTEM
     ${CMAKE_SOURCE_DIR}/extra/zlib
@@ -42,19 +94,8 @@ MACRO (MYSQL_USE_BUNDLED_ZLIB)
   ADD_SUBDIRECTORY(extra/zlib)
 ENDMACRO()
 
-# MYSQL_CHECK_ZLIB_WITH_COMPRESS
-#
-# Usage:
-#  cmake -DWITH_ZLIB="bundled"|"system"
-#
-# Default is "bundled" on windows.
-# The default should be "system" on other platforms, but
-#   - all RPM/DEB packages require zlib_decompress executable
-#   - rpl.rpl_connection_compression times out with system zlib
-#   - main.compression fails on several platforms with system zlib
-# If the system zlib does not support required features,
-# we fall back to "bundled".
-MACRO (MYSQL_CHECK_ZLIB_WITH_COMPRESS)
+
+MACRO (MYSQL_CHECK_ZLIB)
 
   IF(NOT WITH_ZLIB)
     SET(WITH_ZLIB "bundled"
@@ -63,30 +104,19 @@ MACRO (MYSQL_CHECK_ZLIB_WITH_COMPRESS)
   
   IF(WITH_ZLIB STREQUAL "bundled")
     MYSQL_USE_BUNDLED_ZLIB()
-  ELSE()
-    FIND_PACKAGE(ZLIB)
-    IF(ZLIB_FOUND)
-      INCLUDE(CheckFunctionExists)
-
-      CMAKE_PUSH_CHECK_STATE()
-      LIST(APPEND CMAKE_REQUIRED_LIBRARIES z)
-      CHECK_FUNCTION_EXISTS(crc32 HAVE_CRC32)
-      CHECK_FUNCTION_EXISTS(compressBound HAVE_COMPRESSBOUND)
-      CHECK_FUNCTION_EXISTS(deflateBound HAVE_DEFLATEBOUND)
-      CMAKE_POP_CHECK_STATE()
-
-      IF(HAVE_CRC32 AND HAVE_COMPRESSBOUND AND HAVE_DEFLATEBOUND)
-        SET(ZLIB_LIBRARY ${ZLIB_LIBRARIES} CACHE INTERNAL "System zlib library")
-        SET(WITH_ZLIB "system" CACHE STRING
-          "Which zlib to use (possible values are 'bundled' or 'system')")
-        SET(ZLIB_SOURCES "")
-      ELSE()
-        SET(ZLIB_FOUND FALSE CACHE INTERNAL "Zlib found but not usable")
-        MESSAGE(STATUS "system zlib found but not usable")
-      ENDIF()
-    ENDIF()
+  ELSEIF(WITH_ZLIB STREQUAL "system")
+    FIND_SYSTEM_ZLIB()
     IF(NOT ZLIB_FOUND)
-      MYSQL_USE_BUNDLED_ZLIB()
+      MESSAGE(FATAL_ERROR "Cannot find system zlib libraries.")
     ENDIF()
+  ELSE()
+    RESET_ZLIB_VARIABLES()
+    MESSAGE(FATAL_ERROR "WITH_ZLIB must be bundled or system")
+  ENDIF()
+  FIND_ZLIB_VERSION()
+  IF(ZLIB_VERSION VERSION_LESS MIN_ZLIB_VERSION_REQUIRED)
+    MESSAGE(FATAL_ERROR
+      "ZLIB version must be at least ${MIN_ZLIB_VERSION_REQUIRED}, "
+      "found ${ZLIB_VERSION}.\nPlease use -DWITH_ZLIB=bundled")
   ENDIF()
 ENDMACRO()

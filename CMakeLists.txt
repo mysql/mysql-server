@@ -1240,7 +1240,7 @@ IF(WITH_SYSTEM_LIBS)
 ENDIF()
 
 # Add bundled or system zlib.
-MYSQL_CHECK_ZLIB_WITH_COMPRESS()
+MYSQL_CHECK_ZLIB()
 
 # Add bundled or system zstd.
 MYSQL_CHECK_ZSTD()

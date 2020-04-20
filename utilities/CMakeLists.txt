@@ -131,13 +131,11 @@ IF(BUILD_BUNDLED_LZ4)
     )
 ENDIF()
 
-IF(BUILD_BUNDLED_ZLIB OR NOT OPENSSL_EXECUTABLE_HAS_ZLIB)
-  MYSQL_ADD_EXECUTABLE(zlib_decompress
-    zlib_decompress.cc
-    COMPONENT Server
-    LINK_LIBRARIES ${ZLIB_LIBRARY} mysys
-    )
-ENDIF()
+MYSQL_ADD_EXECUTABLE(zlib_decompress
+  zlib_decompress.cc
+  COMPONENT Server
+  LINK_LIBRARIES ${ZLIB_LIBRARY} mysys
+  )
 
 # All targets below belong to COMPONENT Server and depend on InnoDB.
 IF(WITHOUT_SERVER)
