@@ -92,24 +92,16 @@ template <typename Functor>
 void Client_list::enumerate(Functor *matcher) {
   xpl::RWLock_readlock guard(&m_clients_lock);
 
-  /*
-    Matcher can stop enumeration process by returning
-    'true'. 'std::find_if' is used as stoppable enumeration
-    dispatcher.
-   */
-  std::find_if(m_clients.begin(), m_clients.end(), *matcher);
+  for (auto &c : m_clients)
+    if ((*matcher)(c)) break;
 }
 
 template <typename Functor>
 void Client_list::enumerate(const Functor &matcher) {
   xpl::RWLock_readlock guard(&m_clients_lock);
 
-  /*
-    Matcher can stop enumeration process by returning
-    'true'. 'std::find_if' is used as stoppable enumeration
-    dispatcher.
-   */
-  std::find_if(m_clients.begin(), m_clients.end(), matcher);
+  for (auto &c : m_clients)
+    if (matcher(c)) break;
 }
 
 }  // namespace ngs

@@ -418,11 +418,7 @@ Session_impl::Session_impl(std::unique_ptr<Protocol_factory> factory)
 }
 
 Session_impl::~Session_impl() {
-  auto &connection = get_protocol().get_connection();
-
-  if (connection.state().is_connected()) {
-    connection.close();
-  }
+  if (is_connected()) get_protocol().get_connection().close();
 }
 
 XProtocol &Session_impl::get_protocol() { return *m_protocol; }
