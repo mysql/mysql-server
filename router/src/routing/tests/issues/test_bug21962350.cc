@@ -31,6 +31,7 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include "mysql/harness/stdx/expected.h"
 
 // ignore GMock warnings
 #ifdef __clang__
@@ -63,6 +64,8 @@ using ::testing::Return;
 
 class MockRouteDestination : public DestRoundRobin {
  public:
+  using result = stdx::expected<mysql_harness::socket_t, std::error_code>;
+
   void add_to_quarantine(const size_t index) noexcept {
     DestRoundRobin::add_to_quarantine(index);
   }
@@ -70,13 +73,14 @@ class MockRouteDestination : public DestRoundRobin {
   void cleanup_quarantine() noexcept { DestRoundRobin::cleanup_quarantine(); }
 
   MOCK_METHOD3(get_mysql_socket,
-               int(const TCPAddress &addr,
-                   std::chrono::milliseconds connect_timeout, bool log_errors));
+               result(const TCPAddress &addr,
+                      std::chrono::milliseconds connect_timeout,
+                      bool log_errors));
 };
 
 class Bug21962350 : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     std::ostream *log_stream =
         mysql_harness::logging::get_default_logger_stream();
 
@@ -84,7 +88,7 @@ class Bug21962350 : public ::testing::Test {
     log_stream->rdbuf(sslog.rdbuf());
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     if (orig_log_stream_) {
       std::ostream *log_stream =
           mysql_harness::logging::get_default_logger_stream();
@@ -140,7 +144,8 @@ TEST_F(Bug21962350, CleanupQuarantine) {
   EXPECT_CALL(d, get_mysql_socket(_, _, _))
       .Times(4)
       .WillOnce(Return(100))
-      .WillOnce(Return(-1))
+      .WillOnce(Return(stdx::make_unexpected(
+          make_error_code(std::errc::connection_aborted))))
       .WillOnce(Return(300))
       .WillOnce(Return(200));
   d.cleanup_quarantine();

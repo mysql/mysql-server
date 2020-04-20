@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -112,7 +112,5 @@ std::vector<std::string> split_string(const std::string &data,
  * @return ClientIpArray
  */
 ClientIpArray in_addr_to_array(const sockaddr_storage &addr);
-
-std::string get_message_error(int errcode);
 
 #endif  // UTILS_ROUTING_INCLUDED

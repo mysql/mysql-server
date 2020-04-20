@@ -193,10 +193,10 @@ std::string get_routing_strategy_name(
 class RoutingSockOpsInterface {
  public:
   virtual ~RoutingSockOpsInterface() = default;
-  virtual routing::native_handle_type get_mysql_socket(
-      mysql_harness::TCPAddress addr,
-      std::chrono::milliseconds connect_timeout_ms,
-      bool log = true) noexcept = 0;
+  virtual stdx::expected<routing::native_handle_type, std::error_code>
+  get_mysql_socket(mysql_harness::TCPAddress addr,
+                   std::chrono::milliseconds connect_timeout_ms,
+                   bool log = true) noexcept = 0;
   virtual mysql_harness::SocketOperationsBase *so() const = 0;
 };
 
@@ -228,7 +228,7 @@ class RoutingSockOps : public RoutingSockOpsInterface {
    * @param log whether to log errors or not
    * @return a socket descriptor
    */
-  routing::native_handle_type get_mysql_socket(
+  stdx::expected<routing::native_handle_type, std::error_code> get_mysql_socket(
       mysql_harness::TCPAddress addr, std::chrono::milliseconds connect_timeout,
       bool log = true) noexcept override;
 

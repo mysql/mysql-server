@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -62,10 +62,10 @@ class DestRoundRobin : public RouteDestination {
   /** @brief run Quarantine Manager Thread */
   static void *run_thread(void *context);
 
-  virtual void start(const mysql_harness::PluginFuncEnv * /*env*/) override;
+  void start(const mysql_harness::PluginFuncEnv * /*env*/) override;
 
-  int get_server_socket(
-      std::chrono::milliseconds connect_timeout, int *error,
+  stdx::expected<mysql_harness::socket_t, std::error_code> get_server_socket(
+      std::chrono::milliseconds connect_timeout,
       mysql_harness::TCPAddress *address = nullptr) noexcept override;
 
   /** @brief Returns number of quarantined servers

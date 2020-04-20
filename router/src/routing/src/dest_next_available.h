@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,16 +26,13 @@
 #define ROUTING_DEST_NEXT_AVAILABLE
 
 #include "destination.h"
-#include "mysqlrouter/routing.h"
-
-#include "mysql/harness/logging/logging.h"
 
 class DestNextAvailable final : public RouteDestination {
  public:
   using RouteDestination::RouteDestination;
 
-  int get_server_socket(
-      std::chrono::milliseconds connect_timeout, int *error,
+  stdx::expected<mysql_harness::socket_t, std::error_code> get_server_socket(
+      std::chrono::milliseconds connect_timeout,
       mysql_harness::TCPAddress *address = nullptr) noexcept override;
 };
 

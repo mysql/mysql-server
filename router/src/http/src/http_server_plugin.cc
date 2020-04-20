@@ -50,6 +50,7 @@
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/net_ts/impl/socket_error.h"
 #include "mysql/harness/plugin.h"
 #include "mysql/harness/utility/string.h"
 
@@ -199,14 +200,16 @@ class HttpRequestMainThread : public HttpRequestThread {
     std::shared_ptr<void> exit_guard(nullptr,
                                      [&](void *) { freeaddrinfo(ainfo); });
 
-    accept_fd_ = sock_ops->socket(ainfo->ai_family, ainfo->ai_socktype,
-                                  ainfo->ai_protocol);
-    if (accept_fd_ == mysql_harness::kInvalidSocket) {
-      throw std::system_error(sock_ops->get_error_code(), "socket() failed");
+    const auto accept_res = sock_ops->socket(
+        ainfo->ai_family, ainfo->ai_socktype, ainfo->ai_protocol);
+    if (!accept_res) {
+      throw std::system_error(accept_res.error(), "socket() failed");
     }
 
+    accept_fd_ = accept_res.value();
+
     if (evutil_make_socket_nonblocking(accept_fd_) < 0) {
-      const auto ec = sock_ops->get_error_code();
+      const auto ec = net::impl::socket::last_error_code();
 
       sock_ops->close(accept_fd_);
 
@@ -214,55 +217,66 @@ class HttpRequestMainThread : public HttpRequestThread {
     }
 
     if (evutil_make_socket_closeonexec(accept_fd_) < 0) {
-      const auto ec = sock_ops->get_error_code();
+      const auto ec = net::impl::socket::last_error_code();
 
       sock_ops->close(accept_fd_);
 
       throw std::system_error(ec, "evutil_make_socket_closeonexec() failed");
     }
 
-    int option_value = 1;
-    if (sock_ops->setsockopt(accept_fd_, SOL_SOCKET, SO_REUSEADDR,
-                             reinterpret_cast<const char *>(&option_value),
-                             static_cast<socklen_t>(sizeof(int))) == -1) {
-      const auto ec = sock_ops->get_error_code();
+    {
+      int option_value = 1;
+      const auto sockopt_res =
+          sock_ops->setsockopt(accept_fd_, SOL_SOCKET, SO_REUSEADDR,
+                               reinterpret_cast<const char *>(&option_value),
+                               static_cast<socklen_t>(sizeof(int)));
+      if (!sockopt_res) {
+        sock_ops->close(accept_fd_);
 
-      sock_ops->close(accept_fd_);
-
-      throw std::system_error(ec, "setsockopt(SO_REUSEADDR) failed");
-    }
-    if (sock_ops->setsockopt(accept_fd_, SOL_SOCKET, SO_KEEPALIVE,
-                             reinterpret_cast<const char *>(&option_value),
-                             static_cast<socklen_t>(sizeof(int))) == -1) {
-      const auto ec = sock_ops->get_error_code();
-
-      sock_ops->close(accept_fd_);
-
-      throw std::system_error(ec, "setsockopt(SO_KEEPALIVE) failed");
+        throw std::system_error(sockopt_res.error(),
+                                "setsockopt(SO_REUSEADDR) failed");
+      }
     }
 
-    err = sock_ops->bind(accept_fd_, ainfo->ai_addr, ainfo->ai_addrlen);
-    if (err < 0) {
-      auto ec = sock_ops->get_error_code();
+    {
+      int option_value = 1;
+      const auto sockopt_res =
+          sock_ops->setsockopt(accept_fd_, SOL_SOCKET, SO_KEEPALIVE,
+                               reinterpret_cast<const char *>(&option_value),
+                               static_cast<socklen_t>(sizeof(int)));
+      if (!sockopt_res) {
+        sock_ops->close(accept_fd_);
 
-      sock_ops->close(accept_fd_);
-
-      throw std::system_error(
-          ec, "bind('0.0.0.0:" + std::to_string(port) + ") failed");
+        throw std::system_error(sockopt_res.error(),
+                                "setsockopt(SO_KEEPALIVE) failed");
+      }
     }
 
-    if (sock_ops->listen(accept_fd_, 128) == -1) {
-      auto ec = sock_ops->get_error_code();
+    {
+      const auto bind_res =
+          sock_ops->bind(accept_fd_, ainfo->ai_addr, ainfo->ai_addrlen);
+      if (!bind_res) {
+        sock_ops->close(accept_fd_);
 
-      sock_ops->close(accept_fd_);
+        throw std::system_error(
+            bind_res.error(),
+            "bind('0.0.0.0:" + std::to_string(port) + ") failed");
+      }
+    }
 
-      throw std::system_error(ec, "listen() failed");
+    {
+      const auto listen_res = sock_ops->listen(accept_fd_, 128);
+      if (!listen_res) {
+        sock_ops->close(accept_fd_);
+
+        throw std::system_error(listen_res.error(), "listen() failed");
+      }
     }
 
     auto handle = evhttp_accept_socket_with_handle(ev_http.get(), accept_fd_);
 
     if (nullptr == handle) {
-      auto ec = sock_ops->get_error_code();
+      const auto ec = net::impl::socket::last_error_code();
 
       sock_ops->close(accept_fd_);
 

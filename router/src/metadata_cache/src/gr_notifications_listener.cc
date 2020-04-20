@@ -33,6 +33,7 @@
 
 #include <algorithm>
 #include <map>
+#include <system_error>
 #include <thread>
 
 IMPORT_LOG_FUNCTIONS()
@@ -247,21 +248,21 @@ void GRNotificationListener::Impl::listener_thread_func() {
       check_mysqlx_wait_timeout();
     }
 
-    const int poll_res = mysql_harness::SocketOperations::instance()->poll(
+    const auto poll_res = mysql_harness::SocketOperations::instance()->poll(
         fds.get(), sessions_qty, kPollTimeout);
-    if (poll_res <= 0) {
-      // poll has timed out or failed
-      const int err_no =
-          mysql_harness::SocketOperations::instance()->get_errno();
-      // if this is timeout or EINTR just sleep and go to the next iteration
-      if (poll_res == 0 || EINTR == err_no) {
+    if (!poll_res) {
+      // poll has failed
+      if (poll_res.error() == make_error_condition(std::errc::interrupted)) {
+        // got interrupted. Sleep a bit more
         std::this_thread::sleep_for(kPollTimeout);
+      } else if (poll_res.error() == make_error_code(std::errc::timed_out)) {
+        // poll has timed out, sleep time already passed.
       } else {
         // any other error is fatal
         log_error(
             "poll() failed with error: %d, clearing all the sessions in the GR "
             "Notice thread",
-            err_no);
+            poll_res.error().value());
         sessions_.clear();
         sessions_changed_ = true;
       }

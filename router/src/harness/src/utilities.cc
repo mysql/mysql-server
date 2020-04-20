@@ -134,12 +134,6 @@ bool starts_with(const std::string &str, const std::string &prefix) {
   return (str_size >= prefix_size && str.compare(0, prefix_size, prefix) == 0);
 }
 
-#ifndef _WIN32
-std::string get_message_error(int errcode) {
-  return std::string(strerror(errcode));
-}
-#endif
-
 }  // namespace utility
 
 }  // namespace mysql_harness

@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define ROUTING_CLASSICPROTOCOL_INCLUDED
 
 #include "base_protocol.h"
+#include "mysql/harness/stdx/expected.h"
 
 #include <string>
 
@@ -44,13 +45,12 @@ class ClassicProtocol : public BaseProtocol {
    *
    * @return true on success; false on error
    */
-  virtual bool on_block_client_host(int server,
-                                    const std::string &log_prefix) override;
+  bool on_block_client_host(int server, const std::string &log_prefix) override;
 
   /** @brief Reads from sender and writes it back to receiver using select
    *
    * This function reads data from the sender socket and writes it back
-   * to the receiver socket. It use `select`.
+   * to the receiver socket.
    *
    * Checking the handshaking is done when the client first connects and
    * the server sends its handshake. The client replies and the server
@@ -66,16 +66,15 @@ class ClassicProtocol : public BaseProtocol {
    * @param buffer Buffer to use for storage
    * @param curr_pktnr Pointer to storage for sequence id of packet
    * @param handshake_done Whether handshake phase is finished or not
-   * @param report_bytes_read Pointer to storage to report bytes read
    * @param from_server true if the message sender is the server, false
    *                    if it is a client
    *
    * @return 0 on success; -1 on error
    */
-  virtual int copy_packets(int sender, int receiver, bool sender_is_readable,
-                           RoutingProtocolBuffer &buffer, int *curr_pktnr,
-                           bool &handshake_done, size_t *report_bytes_read,
-                           bool from_server) override;
+  stdx::expected<size_t, std::error_code> copy_packets(
+      int sender, int receiver, bool sender_is_readable,
+      RoutingProtocolBuffer &buffer, int *curr_pktnr, bool &handshake_done,
+      bool from_server) override;
 
   /** @brief Sends error message to the provided receiver.
    *
@@ -89,13 +88,12 @@ class ClassicProtocol : public BaseProtocol {
    *
    * @return true on success; false on error
    */
-  virtual bool send_error(int destination, unsigned short code,
-                          const std::string &message,
-                          const std::string &sql_state,
-                          const std::string &log_prefix) override;
+  bool send_error(int destination, unsigned short code,
+                  const std::string &message, const std::string &sql_state,
+                  const std::string &log_prefix) override;
 
   /** @brief Gets protocol type. */
-  virtual Type get_type() override { return Type::kClassicProtocol; }
+  Type get_type() override { return Type::kClassicProtocol; }
 };
 
 #endif  // ROUTING_CLASSICPROTOCOL_INCLUDED

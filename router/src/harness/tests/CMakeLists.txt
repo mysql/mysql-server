@@ -97,11 +97,15 @@ SET(TESTS
   test_stdx_bit.cc
   test_stdx_expected.cc
   test_stdx_string_view.cc
+  test_net_ts_buffer.cc
+  test_net_ts_impl_file.cc
+  test_net_ts_impl_resolver.cc
+  test_net_ts_impl_socket.cc
 )
 
 FOREACH(TEST ${TESTS})
   ADD_TEST_FILE(${TEST} MODULE ${TEST_MODULE}
-    INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/src/harness/include/)
+    LIB_DEPENDS harness_net_ts)
 ENDFOREACH()
 
 SET(TESTS

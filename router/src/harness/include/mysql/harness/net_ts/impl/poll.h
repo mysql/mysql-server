@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,43 +22,54 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "mysql/harness/networking/ipv4_address.h"
+#ifndef MYSQL_HARNESS_NET_TS_IMPL_POLL_H_
+#define MYSQL_HARNESS_NET_TS_IMPL_POLL_H_
 
-#ifndef _WIN32
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#else
-#include <windows.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#endif
 #include <array>
-#include <stdexcept>
-#include <string>
+#include <chrono>
 #include <system_error>
 
-#include "mysql/harness/net_ts/impl/resolver.h"
+#ifdef _WIN32
+#include <WinSock2.h>
+#include <Windows.h>
+#else
+#include <poll.h>  // poll
+#endif
 
-namespace mysql_harness {
+#include "mysql/harness/net_ts/impl/socket_error.h"
+#include "mysql/harness/stdx/expected.h"
 
-IPv4Address::IPv4Address(const char *data) {
-  if (inet_pton(AF_INET, data, &address_) <= 0) {
-    throw std::invalid_argument(std::string("ipv4 parsing error"));
+namespace net {
+namespace impl {
+namespace poll {
+
+#ifdef _WIN32
+using poll_fd = WSAPOLLFD;
+#else
+using poll_fd = pollfd;
+#endif
+
+inline stdx::expected<size_t, std::error_code> poll(
+    poll_fd *fds, size_t num_fds, std::chrono::milliseconds timeout) {
+#ifdef _WIN32
+  constexpr const auto err_res{SOCKET_ERROR};
+  auto res = ::WSAPoll(fds, num_fds, timeout.count());
+#else
+  constexpr const auto err_res{-1};
+  auto res = ::poll(fds, num_fds, timeout.count());
+#endif
+
+  if (res == err_res) {
+    return stdx::make_unexpected(impl::socket::last_error_code());
   }
-}
-
-std::string IPv4Address::str() const {
-  std::array<char, INET_ADDRSTRLEN> tmp;
-
-  const auto ntop_res = net::impl::resolver::inetntop(
-      AF_INET, const_cast<in_addr *>(&address_), tmp.data(), tmp.size());
-
-  if (!ntop_res) {
-    throw std::system_error(ntop_res.error(), "inet_ntop failed");
+  if (0 == res) {
+    return stdx::make_unexpected(make_error_code(std::errc::timed_out));
   }
 
-  return ntop_res.value();
+  return res;
 }
+}  // namespace poll
+}  // namespace impl
+}  // namespace net
 
-}  // namespace mysql_harness
+#endif
