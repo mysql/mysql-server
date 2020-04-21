@@ -48,18 +48,18 @@ static const std::string kRestApiPassword("somepass");
 
 class RouterRoutingStrategyTest : public RouterComponentTest {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     RouterComponentTest::SetUp();
 
     // Valgrind needs way more time
     if (getenv("WITH_VALGRIND")) {
-      wait_for_cache_ready_timeout = 5000;
-      wait_for_process_exit_timeout = 20000;
-      wait_for_static_ready_timeout = 1000;
+      wait_for_cache_ready_timeout = 5000ms;
+      wait_for_process_exit_timeout = 20000ms;
+      wait_for_static_ready_timeout = 1000ms;
     }
   }
 
-  std::string get_metadata_cache_section(unsigned metadata_server_port) {
+  std::string get_metadata_cache_section(unsigned metadata_server_port) const {
     return "[metadata_cache:test]\n"
            "router_id=1\n"
            "bootstrap_server_addresses=mysql://localhost:" +
@@ -72,7 +72,7 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
 
   std::string get_static_routing_section(
       unsigned router_port, const std::vector<uint16_t> &destinations,
-      const std::string &strategy, const std::string &mode = "") {
+      const std::string &strategy, const std::string &mode = "") const {
     std::string result =
         "[routing:test_default]\n"
         "bind_port=" +
@@ -97,7 +97,7 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
   // for error scenarios allow empty values
   std::string get_static_routing_section_error(
       unsigned router_port, const std::vector<unsigned> &destinations,
-      const std::string &strategy, const std::string &mode) {
+      const std::string &strategy, const std::string &mode) const {
     std::string result =
         "[routing:test_default]\n"
         "bind_port=" +
@@ -117,10 +117,9 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
     return result;
   }
 
-  std::string get_metadata_cache_routing_section(unsigned router_port,
-                                                 const std::string &role,
-                                                 const std::string &strategy,
-                                                 const std::string &mode = "") {
+  std::string get_metadata_cache_routing_section(
+      unsigned router_port, const std::string &role,
+      const std::string &strategy, const std::string &mode = "") const {
     std::string result =
         "[routing:test_default]\n"
         "bind_port=" +
@@ -237,9 +236,9 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
   void kill_server(ProcessWrapper *server) { EXPECT_NO_THROW(server->kill()); }
 
   TcpPortPool port_pool_;
-  unsigned wait_for_cache_ready_timeout{1000};
-  unsigned wait_for_static_ready_timeout{100};
-  unsigned wait_for_process_exit_timeout{10000};
+  std::chrono::milliseconds wait_for_cache_ready_timeout{1000};
+  std::chrono::milliseconds wait_for_static_ready_timeout{100};
+  std::chrono::milliseconds wait_for_process_exit_timeout{10000};
 };
 
 struct MetadataCacheTestParams {
@@ -277,7 +276,7 @@ class RouterRoutingStrategyMetadataCache
     : public RouterRoutingStrategyTest,
       public ::testing::WithParamInterface<MetadataCacheTestParams> {
  protected:
-  virtual void SetUp() { RouterRoutingStrategyTest::SetUp(); }
+  void SetUp() override { RouterRoutingStrategyTest::SetUp(); }
 };
 
 ////////////////////////////////////////
@@ -339,15 +338,15 @@ TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
 
   // give the router a chance to initialise metadata-cache module
   // there is currently now easy way to check that
-  SCOPED_TRACE("// waiting " + std::to_string(wait_for_cache_ready_timeout) +
+  SCOPED_TRACE("// waiting " +
+               std::to_string(wait_for_cache_ready_timeout.count()) +
                "ms until metadata is initialized");
   RestMetadataClient::MetadataStatus metadata_status;
   RestMetadataClient rest_metadata_client("127.0.0.1", monitoring_port,
                                           kRestApiUsername, kRestApiPassword);
 
   ASSERT_NO_ERROR(rest_metadata_client.wait_for_cache_ready(
-      std::chrono::milliseconds(wait_for_cache_ready_timeout),
-      metadata_status));
+      wait_for_cache_ready_timeout, metadata_status));
 
   if (!test_params.round_robin) {
     // check if the server nodes are being used in the expected order
@@ -490,7 +489,7 @@ class RouterRoutingStrategyTestRoundRobin
       public ::testing::WithParamInterface<
           std::pair<std::string, std::string>> {
  protected:
-  virtual void SetUp() { RouterRoutingStrategyTest::SetUp(); }
+  void SetUp() override { RouterRoutingStrategyTest::SetUp(); }
 };
 
 TEST_P(RouterRoutingStrategyTestRoundRobin, StaticRoutingStrategyRoundRobin) {
@@ -553,7 +552,7 @@ class RouterRoutingStrategyTestFirstAvailable
       public ::testing::WithParamInterface<
           std::pair<std::string, std::string>> {
  protected:
-  virtual void SetUp() { RouterRoutingStrategyTest::SetUp(); }
+  void SetUp() override { RouterRoutingStrategyTest::SetUp(); }
 };
 
 TEST_P(RouterRoutingStrategyTestFirstAvailable,
@@ -594,16 +593,16 @@ TEST_P(RouterRoutingStrategyTestFirstAvailable,
   connect_client_and_query_port(router_port, node_port);
   EXPECT_EQ(std::to_string(server_ports[0]), node_port);
 
-  // "kill" server 1 and 2, expect moving to server 3
+  SCOPED_TRACE("// 'kill' server 1 and 2, expect moving to server 3");
   kill_server(server_instances[0]);
   kill_server(server_instances[1]);
-  // now we should connect to 3rd server
+  SCOPED_TRACE("// now we should connect to 3rd server");
   connect_client_and_query_port(router_port, node_port);
   EXPECT_EQ(std::to_string(server_ports[2]), node_port);
 
-  // kill also 3rd server
+  SCOPED_TRACE("// kill also 3rd server");
   kill_server(server_instances[2]);
-  // expect connection failure
+  SCOPED_TRACE("// expect connection failure");
   connect_client_and_query_port(router_port, node_port, /*should_fail=*/true);
   EXPECT_EQ("", node_port);
 
@@ -631,10 +630,7 @@ INSTANTIATE_TEST_CASE_P(
         std::make_pair(std::string(""), std::string("read-write"))));
 
 // for non-param tests
-class RouterRoutingStrategyStatic : public RouterRoutingStrategyTest {
- protected:
-  virtual void SetUp() { RouterRoutingStrategyTest::SetUp(); }
-};
+class RouterRoutingStrategyStatic : public RouterRoutingStrategyTest {};
 
 TEST_F(RouterRoutingStrategyStatic, StaticRoutingStrategyNextAvailable) {
   TempDirectory temp_test_dir;
@@ -669,25 +665,28 @@ TEST_F(RouterRoutingStrategyStatic, StaticRoutingStrategyNextAvailable) {
   connect_client_and_query_port(router_port, node_port);
   EXPECT_EQ(std::to_string(server_ports[0]), node_port);
 
-  // "kill" server 1 and 2, expect connection to server 3 after that
+  SCOPED_TRACE(
+      "// 'kill' server 1 and 2, expect connection to server 3 after that");
   kill_server(server_instances[0]);
   kill_server(server_instances[1]);
-  // now we should connect to 3rd server
+  SCOPED_TRACE("// now we should connect to 3rd server");
   connect_client_and_query_port(router_port, node_port);
   EXPECT_EQ(std::to_string(server_ports[2]), node_port);
 
-  // kill also 3rd server
+  SCOPED_TRACE("// kill also 3rd server");
   kill_server(server_instances[2]);
-  // expect connection failure
+  SCOPED_TRACE("// expect connection failure");
   connect_client_and_query_port(router_port, node_port, /*should_fail=*/true);
   EXPECT_EQ("", node_port);
 
-  // bring back 1st server
+  SCOPED_TRACE("// bring back 1st server");
   server_instances.emplace_back(
       &launch_standalone_server(server_ports[0], get_data_dir().str()));
   ASSERT_NO_FATAL_FAILURE(check_port_ready(
       *server_instances[server_instances.size() - 1], server_ports[0]));
-  // we should NOT connect to this server (in next-available we NEVER go back)
+  SCOPED_TRACE(
+      "// we should NOT connect to this server (in next-available we NEVER go "
+      "back)");
   connect_client_and_query_port(router_port, node_port, /*should_fail=*/true);
   EXPECT_EQ("", node_port);
 }
