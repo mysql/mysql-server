@@ -67,6 +67,7 @@ class TLS_channel {
                             SSL context created
                             (as in when SSL is initially disabled)
   @param [in]  callbacks    Handle to the initialization callback object
+  @param [in]  db_init      Whether database is being initialized or not
 
   @returns Initialization status
     @retval true failure to init
@@ -74,7 +75,7 @@ class TLS_channel {
 */
   static bool singleton_init(Ssl_acceptor_context_container **out,
                              std::string channel, bool use_ssl_arg,
-                             Ssl_init_callback *callbacks);
+                             Ssl_init_callback *callbacks, bool db_init);
 
   /**
     De-initialize the single instance of the acceptor

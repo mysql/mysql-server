@@ -5157,7 +5157,7 @@ static int init_ssl_communication() {
     return 1;
   }
   if (TLS_channel::singleton_init(&mysql_main, mysql_main_channel, opt_use_ssl,
-                                  &server_main_callback))
+                                  &server_main_callback, opt_initialize))
     return 1;
 
   /*
@@ -5168,10 +5168,23 @@ static int init_ssl_communication() {
   */
   if (!opt_use_admin_ssl) g_admin_ssl_configured = true;
 
+  bool initialize_admin_tls =
+      (!opt_initialize && (my_admin_bind_addr_str != nullptr))
+          ? opt_use_admin_ssl
+          : false;
+
   Ssl_init_callback_server_admin server_admin_callback;
   if (TLS_channel::singleton_init(&mysql_admin, mysql_admin_channel,
-                                  opt_use_admin_ssl, &server_admin_callback))
+                                  initialize_admin_tls, &server_admin_callback,
+                                  opt_initialize))
     return 1;
+
+  if (initialize_admin_tls && !g_admin_ssl_configured) {
+    Lock_and_access_ssl_acceptor_context context(mysql_main);
+    if (context.have_ssl())
+      LogErr(SYSTEM_LEVEL, ER_TLS_CONFIGURATION_REUSED,
+             mysql_admin_channel.c_str(), mysql_main_channel.c_str());
+  }
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   ERR_remove_thread_state(0);

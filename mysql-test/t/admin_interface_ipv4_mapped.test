@@ -1,6 +1,11 @@
 # The box should support IPv4-mapped addresses
 --source include/have_ipv4_mapped.inc
 
+--disable_query_log
+CALL mtr.add_suppression("Failed to initialize TLS for channel: mysql_admin");
+CALL mtr.add_suppression("Failed to set up SSL because of the following SSL library error");
+--enable_query_log
+
 # Check that if the admin interface is bound to an IPv4-mapped IPv6-address,
 # the server accepts client connections from both IPv4 and IPv6 worlds.
 

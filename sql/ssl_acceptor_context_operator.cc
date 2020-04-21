@@ -49,7 +49,7 @@ void Ssl_acceptor_context_container::switch_data(
 
 bool TLS_channel::singleton_init(Ssl_acceptor_context_container **out,
                                  std::string channel, bool use_ssl_arg,
-                                 Ssl_init_callback *callbacks) {
+                                 Ssl_init_callback *callbacks, bool db_init) {
   if (out == nullptr || callbacks == nullptr) return true;
   *out = nullptr;
   /*
@@ -83,6 +83,9 @@ bool TLS_channel::singleton_init(Ssl_acceptor_context_container **out,
     delete new_container;
     return true;
   }
+
+  if (!db_init && news->have_ssl())
+    LogErr(SYSTEM_LEVEL, ER_TLS_CONFIGURED_FOR_CHANNEL, channel.c_str());
 
   *out = new_container;
   return false;
