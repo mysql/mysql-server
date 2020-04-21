@@ -92,7 +92,7 @@ ELSE()
 ENDIF()
 
 ADD_INSTALL_RPATH_FOR_OPENSSL(router_lib)
-SET_PATH_TO_SSL(router_lib ${CMAKE_BINARY_DIR}/library_output_directory)
+SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(router_lib)
 
 MYSQL_ADD_EXECUTABLE(mysqlrouter
   ${source_files}

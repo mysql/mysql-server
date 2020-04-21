@@ -199,7 +199,7 @@ IF(WIN32)
 ENDIF()
 
 ADD_INSTALL_RPATH_FOR_OPENSSL(harness-library)
-SET_PATH_TO_SSL(harness-library ${CMAKE_BINARY_DIR}/library_output_directory)
+SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(harness-library)
 
 IF(NOT WIN32)
   INSTALL(TARGETS harness-library

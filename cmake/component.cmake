@@ -89,6 +89,10 @@ MACRO(MYSQL_ADD_COMPONENT component_arg)
     SET_TARGET_PROPERTIES(${target} PROPERTIES
       LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/plugin_output_directory
       )
+
+    # For APPLE: adjust path dependecy for SSL shared libraries.
+    SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(${target})
+
     IF(WIN32_CLANG AND WITH_ASAN)
       TARGET_LINK_LIBRARIES(${target}
         "${ASAN_LIB_DIR}/clang_rt.asan_dll_thunk-x86_64.lib")

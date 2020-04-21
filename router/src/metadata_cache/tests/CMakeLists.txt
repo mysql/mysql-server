@@ -76,8 +76,7 @@ ELSE()
     PRIVATE -Dmetadata_cache_tests_DEFINE_STATIC=1)
 ENDIF()
 
-SET_PATH_TO_SSL(metadata_cache_tests
-  ${CMAKE_BINARY_DIR}/library_output_directory)
+SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(metadata_cache_tests)
 
 SET_TARGET_PROPERTIES(metadata_cache_tests PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY

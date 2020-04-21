@@ -354,30 +354,42 @@ MACRO(ADD_INSTALL_RPATH_FOR_PROTOBUF TARGET)
   ENDIF()
 ENDMACRO()
 
-# For APPLE: adjust path dependecy for SSL shared libraries.
-FUNCTION(SET_PATH_TO_SSL target target_out_dir)
+# For APPLE builds we support
+#   -DWITH_SSL=</path/to/custom/openssl>
+# SSL libraries are installed in lib/
+# For Makefile buids, we need to support running in the build directory
+#   plugins are in plugin_output_directory/
+# and after 'make install'
+#   plugins are in lib/plugin/ and lib/plugin/debug/
+# For Xcode builds, we support running in the build directories only.
+FUNCTION(SET_PATH_TO_CUSTOM_SSL_FOR_APPLE target)
   IF(APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
     IF(BUILD_IS_SINGLE_CONFIG)
+      GET_TARGET_PROPERTY(TARGET_TYPE_${target} ${target} TYPE)
+      IF(TARGET_TYPE_${target} STREQUAL "MODULE_LIBRARY")
+        SET(LOADER_PATH "@loader_path")
+      ELSE()
+        SET(LOADER_PATH "@loader_path/../lib")
+      ENDIF()
+
       ADD_CUSTOM_COMMAND(TARGET ${target} POST_BUILD
         COMMAND install_name_tool -change
-              "${CRYPTO_VERSION}" "@loader_path/../lib/${CRYPTO_VERSION}"
-              $<TARGET_FILE_NAME:${target}>
+              "${CRYPTO_VERSION}" "${LOADER_PATH}/${CRYPTO_VERSION}"
+              $<TARGET_FILE:${target}>
         COMMAND install_name_tool -change
-              "${OPENSSL_VERSION}" "@loader_path/../lib/${OPENSSL_VERSION}"
-              $<TARGET_FILE_NAME:${target}>
-        WORKING_DIRECTORY ${target_out_dir}
+              "${OPENSSL_VERSION}" "${LOADER_PATH}/${OPENSSL_VERSION}"
+              $<TARGET_FILE:${target}>
       )
     ELSE()
       ADD_CUSTOM_COMMAND(TARGET ${target} POST_BUILD
         COMMAND install_name_tool -change
             "${CRYPTO_VERSION}"
             "@loader_path/../../lib/${CMAKE_CFG_INTDIR}/${CRYPTO_VERSION}"
-        $<TARGET_FILE_NAME:${target}>
+        $<TARGET_FILE:${target}>
         COMMAND install_name_tool -change
             "${OPENSSL_VERSION}"
             "@loader_path/../../lib/${CMAKE_CFG_INTDIR}/${OPENSSL_VERSION}"
-        $<TARGET_FILE_NAME:${target}>
-        WORKING_DIRECTORY ${target_out_dir}/${CMAKE_CFG_INTDIR}
+        $<TARGET_FILE:${target}>
       )
     ENDIF()
   ENDIF()

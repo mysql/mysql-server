@@ -191,6 +191,6 @@ ADD_DEPENDENCIES(mysqlrouter_all mock_server_rest_client)
 TARGET_COMPILE_DEFINITIONS(mysql_server_mock
   PRIVATE -Dmysql_protocol_DEFINE_STATIC=1
   )
-SET_PATH_TO_SSL(mysql_server_mock ${CMAKE_BINARY_DIR}/runtime_output_directory)
+SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(mysql_server_mock)
 
 ADD_DEFINITIONS(-DUSE_MYSQLX_FULL_PROTO)
