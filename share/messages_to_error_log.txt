@@ -10878,6 +10878,12 @@ ER_IB_WRN_REDO_DISABLED
 ER_IB_WRN_REDO_ENABLED
   eng "InnoDB redo logging is enabled. Data is now safe and can be recovered in case of a server crash."
 
+ER_TLS_CONFIGURED_FOR_CHANNEL
+  eng "Channel %s configured to support TLS. Encrypted connections are now supported for this channel."
+
+ER_TLS_CONFIGURATION_REUSED
+  eng "No TLS configuration was given for channel %s; re-using TLS configuration of channel %s."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

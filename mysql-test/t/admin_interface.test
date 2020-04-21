@@ -3,6 +3,11 @@
 --echo # WL#12138 -- Add Admin Port
 --echo #
 
+--disable_query_log
+CALL mtr.add_suppression("Failed to initialize TLS for channel: mysql_admin");
+CALL mtr.add_suppression("Failed to set up SSL because of the following SSL library error");
+--enable_query_log
+
 --echo # Create the user u1
 CREATE USER u1;
 --echo # Grant the user u1 the privilege SERVICE_CONNECTION_ADMIN
