@@ -654,7 +654,8 @@ TEST_P(CheckRouterVersionUpdateOnceTest, CheckRouterVersionUpdateOnce) {
       "@@SESSION.character_set_results=utf8, "
       "@@SESSION.character_set_connection=utf8, "
       "@@SESSION.sql_mode='ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_"
-      "DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION'",
+      "DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION', "
+      "@@SESSION.optimizer_switch='derived_merge=on'",
       queries.at(0).c_str());
   EXPECT_STREQ("SET @@SESSION.group_replication_consistency='EVENTUAL'",
                queries.at(1).c_str());

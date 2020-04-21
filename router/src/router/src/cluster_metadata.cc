@@ -954,23 +954,32 @@ constexpr const char *kDefaultSqlMode =
     "ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,"
     "NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION";
 
-void setup_metadata_session(MySQLSession &session) {
-  session.execute(
-      "SET @@SESSION.autocommit=1, @@SESSION.character_set_client=utf8, "
-      "@@SESSION.character_set_results=utf8, "
-      "@@SESSION.character_set_connection=utf8, @@SESSION.sql_mode='"s +
-      kDefaultSqlMode + "'");
-
+stdx::expected<void, std::string> setup_metadata_session(
+    MySQLSession &session) {
   try {
-    session.execute("SET @@SESSION.group_replication_consistency='EVENTUAL'");
-  } catch (const MySQLSession::Error &e) {
-    if (e.code() != ER_UNKNOWN_SYSTEM_VARIABLE) {
-      // ER_UNKNOWN_SYSTEM_VARIABLE is ok, means that this version does not
-      // support group_replication_consistency so we don't have to worry about
-      // it
-      throw;
+    session.execute(
+        "SET @@SESSION.autocommit=1, @@SESSION.character_set_client=utf8, "
+        "@@SESSION.character_set_results=utf8, "
+        "@@SESSION.character_set_connection=utf8, @@SESSION.sql_mode='"s +
+        kDefaultSqlMode + "', " +
+        "@@SESSION.optimizer_switch='derived_merge=on'");
+
+    try {
+      session.execute("SET @@SESSION.group_replication_consistency='EVENTUAL'");
+    } catch (const MySQLSession::Error &e) {
+      if (e.code() == ER_UNKNOWN_SYSTEM_VARIABLE) {
+        // ER_UNKNOWN_SYSTEM_VARIABLE is ok, means that this version does not
+        // support group_replication_consistency so we don't have to worry about
+        // it
+      } else {
+        throw e;
+      }
     }
+  } catch (const std::exception &e) {
+    return stdx::make_unexpected(std::string(e.what()));
   }
+
+  return {};
 }
 
 }  // namespace mysqlrouter

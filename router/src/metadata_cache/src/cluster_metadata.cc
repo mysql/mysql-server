@@ -130,15 +130,16 @@ bool ClusterMetadata::connect_and_setup_session(
   }
 
   if (do_connect(*metadata_connection_, metadata_server)) {
-    try {
-      mysqlrouter::setup_metadata_session(*metadata_connection_);
+    const auto result =
+        mysqlrouter::setup_metadata_session(*metadata_connection_);
+    if (result) {
       log_debug("Connected with metadata server running on %s:%i",
                 metadata_server.host.c_str(), metadata_server.port);
       return true;
-    } catch (const std::exception &e) {
-      // setting up the session failed
+    } else {
       log_warning("Failed setting up the session on Metadata Server %s:%d: %s",
-                  metadata_server.host.c_str(), metadata_server.port, e.what());
+                  metadata_server.host.c_str(), metadata_server.port,
+                  result.error().c_str());
     }
   } else {
     // connection attempt failed
@@ -228,6 +229,16 @@ bool ClusterMetadata::update_router_version(
     return false;
   }
 
+  const auto result = mysqlrouter::setup_metadata_session(*connection);
+  if (!result) {
+    log_warning(
+        "Updating the router version in metadata failed: could not set up the "
+        "metadata session (%s)",
+        result.error().c_str());
+
+    return false;
+  }
+
   MySQLSession::Transaction transaction(connection.get());
   // throws metadata_cache::metadata_error and
   // MetadataUpgradeInProgressException
@@ -277,6 +288,16 @@ bool ClusterMetadata::update_router_last_check_in(
     log_warning(
         "Updating the router last_check_in in metadata failed: Could not "
         "connect to the writable cluster member");
+
+    return false;
+  }
+
+  const auto result = mysqlrouter::setup_metadata_session(*connection);
+  if (!result) {
+    log_warning(
+        "Updating the router last_check_in in metadata failed: could not set "
+        "up the metadata session (%s)",
+        result.error().c_str());
 
     return false;
   }

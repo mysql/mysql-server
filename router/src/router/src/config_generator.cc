@@ -490,6 +490,12 @@ void ConfigGenerator::connect_to_metadata_server(
     throw std::runtime_error("Unable to connect to the metadata server: "s +
                              e.what());
   }
+
+  const auto result = mysqlrouter::setup_metadata_session(*mysql_);
+  if (!result) {
+    throw std::runtime_error("Failed setting up a metadata session: "s +
+                             result.error().c_str());
+  }
 }
 
 void ConfigGenerator::init_gr_data(const URI &u,
@@ -1063,7 +1069,6 @@ class ClusterAwareDecorator {
  protected:
   void connect(MySQLSession &session, const std::string &host,
                const unsigned port);
-  void setup_session(MySQLSession &session);
 
   ClusterMetadata &metadata_;
   const std::string &cluster_initial_username_;
@@ -1081,15 +1086,6 @@ void ClusterAwareDecorator::connect(MySQLSession &session,
   try {
     session.connect(host, port, cluster_initial_username_,
                     cluster_initial_password_, "", "", connection_timeout_);
-  } catch (const std::exception &) {
-    if (session.is_connected()) session.disconnect();
-    throw;
-  }
-}
-
-void ClusterAwareDecorator::setup_session(MySQLSession &session) {
-  try {
-    return mysqlrouter::setup_metadata_session(session);
   } catch (const std::exception &) {
     if (session.is_connected()) session.disconnect();
     throw;
@@ -1209,11 +1205,12 @@ R ClusterAwareDecorator::failover_on_failure(std::function<R()> wrapped_func) {
         continue;
       }
 
-      try {
-        setup_session(metadata_.get_session());
-      } catch (const std::exception &inner_e) {
+      const auto result =
+          mysqlrouter::setup_metadata_session(metadata_.get_session());
+      if (!result) {
+        metadata_.get_session().disconnect();
         log_info("Failed setting up a metadata session %s:%ld: %s, trying next",
-                 host.c_str(), port, inner_e.what());
+                 host.c_str(), port, result.error().c_str());
       }
 
       // if this fails, we should just skip it and go to the next
