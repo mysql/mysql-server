@@ -5856,7 +5856,7 @@ ER_BLOB_FIELD_IN_PART_FUNC_ERROR
         ger "In der Partitionierungsfunktion sind BLOB-Spalten nicht erlaubt"
         swe "Ett BLOB-fält är inte tillåtet i partitioneringsfunktioner"
 ER_UNIQUE_KEY_NEED_ALL_FIELDS_IN_PF
-        eng "A %-.192s must include all columns in the table's partitioning function"
+        eng "A %-.192s must include all columns in the table's partitioning function (prefixed columns are not considered)."
 ER_NO_PARTS_ERROR
         eng "Number of %-.64s = 0 is not an allowed value"
         ger "Eine Anzahl von %-.64s = 0 ist kein erlaubter Wert"
@@ -9319,7 +9319,7 @@ ER_HOSTNAME_TOO_LONG
 
 # When using this error message, use the ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT error code.
 ER_WARN_CLIENT_DEPRECATED_PARTITION_PREFIX_KEY
-  eng "Usage of column '%.64s.%.64s.%.64s' having prefix key part '%.64s(%u)' in the PARTITION BY KEY() clause is deprecated and will be removed in a future release."
+  eng "Column '%.64s.%.64s.%.64s' having prefix key part '%.64s(%u)' is ignored by the partitioning function. Use of prefixed columns in the PARTITION BY KEY() clause is deprecated and will be removed in a future release."
 
 ER_GROUP_REPLICATION_USER_EMPTY_MSG
   eng "The START GROUP_REPLICATION command failed since the username provided for recovery channel is empty."

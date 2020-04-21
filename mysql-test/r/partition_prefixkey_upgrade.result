@@ -10,8 +10,8 @@ Pattern "\[ERROR\]" not found
 
 # Should show deprecation warnings in the error log when upgrading
 # from 5.7.
-Pattern "Usage of column 'test\.t1\.a' having prefix key part 'a\(100\)' in the PARTITION BY KEY\(\) clause is deprecated and will be removed in a future release\." found
-Pattern "Usage of column 'test\.t3\.a' having prefix key part 'a\(25\)' in the PARTITION BY KEY\(\) clause is deprecated and will be removed in a future release\." found
+Pattern "Usage of column 'test\.t1\.a' having prefix key part 'a\(100\)' in the PARTITION BY KEY\(\) clause is deprecated and will be removed in a future release\." not found
+Pattern "Usage of column 'test\.t3\.a' having prefix key part 'a\(25\)' in the PARTITION BY KEY\(\) clause is deprecated and will be removed in a future release\." not found
 # Check output of SHOW CREATE TABLE.
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -29,7 +29,7 @@ b VARCHAR(10) NOT NULL,
 PRIMARY KEY (a(100),b)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 PARTITION BY KEY() PARTITIONS 3;
 Warnings:
-Warning	1681	Usage of column 'test.t2.a' having prefix key part 'a(100)' in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
+Warning	1681	Column 'test.t2.a' having prefix key part 'a(100)' is ignored by the partitioning function. Use of prefixed columns in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES
 ('a','a'),
 ('a','b'),
@@ -72,7 +72,7 @@ Pattern "\[ERROR\]" not found
 
 # Should show a deprecation warning in the error log when upgrading
 # from 8.0.19.
-Pattern "Usage of column 'test\.t1\.a' having prefix key part 'a\(100\)' in the PARTITION BY KEY\(\) clause is deprecated and will be removed in a future release\." found
+Pattern "Column 'test\.t1\.a' having prefix key part 'a\(100\)' is ignored by the partitioning function. Use of prefixed columns in the PARTITION BY KEY\(\) clause is deprecated and will be removed in a future release\." found
 
 # Stop the server.
 

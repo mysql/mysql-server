@@ -250,8 +250,8 @@ c VARCHAR (10),
 PRIMARY KEY (a(10),b,c(2))
 ) PARTITION BY KEY() PARTITIONS 2;
 Warnings:
-Warning	1681	Usage of column 'testdb.t1.a' having prefix key part 'a(10)' in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
-Warning	1681	Usage of column 'testdb.t1.c' having prefix key part 'c(2)' in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
+Warning	1681	Column 'testdb.t1.a' having prefix key part 'a(10)' is ignored by the partitioning function. Use of prefixed columns in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
+Warning	1681	Column 'testdb.t1.c' having prefix key part 'c(2)' is ignored by the partitioning function. Use of prefixed columns in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
 
 CREATE TABLE testdb.t2 (
 a VARCHAR (200),
@@ -259,7 +259,7 @@ b VARCHAR (10),
 PRIMARY KEY (a(2),b)
 ) PARTITION BY KEY() PARTITIONS 2;
 Warnings:
-Warning	1681	Usage of column 'testdb.t2.a' having prefix key part 'a(2)' in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
+Warning	1681	Column 'testdb.t2.a' having prefix key part 'a(2)' is ignored by the partitioning function. Use of prefixed columns in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
 
 CREATE TABLE testdb.t3 (
 a VARCHAR (200),
@@ -267,7 +267,7 @@ b VARCHAR (10),
 PRIMARY KEY (a(2),b)
 ) PARTITION BY KEY() PARTITIONS 10;
 Warnings:
-Warning	1681	Usage of column 'testdb.t3.a' having prefix key part 'a(2)' in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
+Warning	1681	Column 'testdb.t3.a' having prefix key part 'a(2)' is ignored by the partitioning function. Use of prefixed columns in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
 
 # Should not show deprecation warnings if prefix key is not used
 # in the PARTITION BY KEY() clause.
@@ -286,8 +286,8 @@ CREATE TABLE testdb.l1 LIKE testdb.t1;
 
 ALTER TABLE testdb.t1 COMMENT='t1';
 Warnings:
-Warning	1681	Usage of column 'testdb.t1.a' having prefix key part 'a(10)' in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
-Warning	1681	Usage of column 'testdb.t1.c' having prefix key part 'c(2)' in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
+Warning	1681	Column 'testdb.t1.a' having prefix key part 'a(10)' is ignored by the partitioning function. Use of prefixed columns in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
+Warning	1681	Column 'testdb.t1.c' having prefix key part 'c(2)' is ignored by the partitioning function. Use of prefixed columns in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
 
 # Should show deprecation warnings if a table having prefix keys is
 # altered to be partitioned by key.
@@ -299,8 +299,8 @@ PRIMARY KEY (a(10),b,c(2))
 );
 ALTER TABLE testdb.t5 PARTITION BY KEY() PARTITIONS 10;
 Warnings:
-Warning	1681	Usage of column 'testdb.t5.a' having prefix key part 'a(10)' in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
-Warning	1681	Usage of column 'testdb.t5.c' having prefix key part 'c(2)' in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
+Warning	1681	Column 'testdb.t5.a' having prefix key part 'a(10)' is ignored by the partitioning function. Use of prefixed columns in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
+Warning	1681	Column 'testdb.t5.c' having prefix key part 'c(2)' is ignored by the partitioning function. Use of prefixed columns in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
 
 # Should not show deprecation warnings on removing partitioning from an
 # affected table.
@@ -326,7 +326,7 @@ KEY (a),
 KEY (b(5))
 ) PARTITION BY KEY(B) PARTITIONS 2;
 Warnings:
-Warning	1681	Usage of column 'testdb.t7.b' having prefix key part 'b(5)' in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
+Warning	1681	Column 'testdb.t7.b' having prefix key part 'b(5)' is ignored by the partitioning function. Use of prefixed columns in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
 
 CREATE TABLE testdb.t8 (
 A VARCHAR (200),
@@ -336,7 +336,7 @@ KEY (A),
 KEY (B(5))
 ) PARTITION BY KEY(b) PARTITIONS 2;
 Warnings:
-Warning	1681	Usage of column 'testdb.t8.B' having prefix key part 'B(5)' in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
+Warning	1681	Column 'testdb.t8.B' having prefix key part 'B(5)' is ignored by the partitioning function. Use of prefixed columns in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
 
 # Should not show deprecation warnings when there is no index.
 CREATE TABLE testdb.m1 (
@@ -388,7 +388,7 @@ other_col VARCHAR (5),
 PRIMARY KEY (prefix_col(10), other_col)
 ) PARTITION BY LINEAR KEY ALGORITHM=1 () PARTITIONS 3;
 Warnings:
-Warning	1681	Usage of column 'testdb.t_char_linear_alg1.prefix_col' having prefix key part 'prefix_col(10)' in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
+Warning	1681	Column 'testdb.t_char_linear_alg1.prefix_col' having prefix key part 'prefix_col(10)' is ignored by the partitioning function. Use of prefixed columns in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
 
 CREATE TABLE testdb.t_varchar_linear_alg1 (
 prefix_col VARCHAR (100),
@@ -396,7 +396,7 @@ other_col VARCHAR (5),
 PRIMARY KEY (prefix_col(10), other_col)
 ) PARTITION BY LINEAR KEY ALGORITHM=1 () PARTITIONS 3;
 Warnings:
-Warning	1681	Usage of column 'testdb.t_varchar_linear_alg1.prefix_col' having prefix key part 'prefix_col(10)' in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
+Warning	1681	Column 'testdb.t_varchar_linear_alg1.prefix_col' having prefix key part 'prefix_col(10)' is ignored by the partitioning function. Use of prefixed columns in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
 
 CREATE TABLE testdb.t_binary_linear_alg1 (
 prefix_col BINARY (100),
@@ -404,7 +404,7 @@ other_col VARCHAR (5),
 PRIMARY KEY (prefix_col(10), other_col)
 ) PARTITION BY LINEAR KEY ALGORITHM=1 () PARTITIONS 3;
 Warnings:
-Warning	1681	Usage of column 'testdb.t_binary_linear_alg1.prefix_col' having prefix key part 'prefix_col(10)' in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
+Warning	1681	Column 'testdb.t_binary_linear_alg1.prefix_col' having prefix key part 'prefix_col(10)' is ignored by the partitioning function. Use of prefixed columns in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
 
 CREATE TABLE testdb.t_varbinary_linear_alg1 (
 prefix_col VARBINARY (100),
@@ -412,7 +412,7 @@ other_col VARCHAR (5),
 PRIMARY KEY (prefix_col(10), other_col)
 ) PARTITION BY LINEAR KEY ALGORITHM=1 () PARTITIONS 3;
 Warnings:
-Warning	1681	Usage of column 'testdb.t_varbinary_linear_alg1.prefix_col' having prefix key part 'prefix_col(10)' in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
+Warning	1681	Column 'testdb.t_varbinary_linear_alg1.prefix_col' having prefix key part 'prefix_col(10)' is ignored by the partitioning function. Use of prefixed columns in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
 
 CREATE TABLE testdb.t_char_nonlinear_alg1 (
 prefix_col CHAR (100),
@@ -420,7 +420,7 @@ other_col VARCHAR (5),
 PRIMARY KEY (prefix_col(10), other_col)
 ) PARTITION BY KEY ALGORITHM=1 () PARTITIONS 3;
 Warnings:
-Warning	1681	Usage of column 'testdb.t_char_nonlinear_alg1.prefix_col' having prefix key part 'prefix_col(10)' in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
+Warning	1681	Column 'testdb.t_char_nonlinear_alg1.prefix_col' having prefix key part 'prefix_col(10)' is ignored by the partitioning function. Use of prefixed columns in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
 
 CREATE TABLE testdb.t_varchar_nonlinear_alg1 (
 prefix_col VARCHAR (100),
@@ -428,7 +428,7 @@ other_col VARCHAR (5),
 PRIMARY KEY (prefix_col(10), other_col)
 ) PARTITION BY KEY ALGORITHM=1 () PARTITIONS 3;
 Warnings:
-Warning	1681	Usage of column 'testdb.t_varchar_nonlinear_alg1.prefix_col' having prefix key part 'prefix_col(10)' in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
+Warning	1681	Column 'testdb.t_varchar_nonlinear_alg1.prefix_col' having prefix key part 'prefix_col(10)' is ignored by the partitioning function. Use of prefixed columns in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
 
 CREATE TABLE testdb.t_binary_nonlinear_alg1 (
 prefix_col BINARY (100),
@@ -436,7 +436,7 @@ other_col VARCHAR (5),
 PRIMARY KEY (prefix_col(10), other_col)
 ) PARTITION BY KEY ALGORITHM=1 () PARTITIONS 3;
 Warnings:
-Warning	1681	Usage of column 'testdb.t_binary_nonlinear_alg1.prefix_col' having prefix key part 'prefix_col(10)' in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
+Warning	1681	Column 'testdb.t_binary_nonlinear_alg1.prefix_col' having prefix key part 'prefix_col(10)' is ignored by the partitioning function. Use of prefixed columns in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
 
 CREATE TABLE testdb.t_varbinary_nonlinear_alg1 (
 prefix_col VARBINARY (100),
@@ -444,7 +444,7 @@ other_col VARCHAR (5),
 PRIMARY KEY (prefix_col(10), other_col)
 ) PARTITION BY KEY ALGORITHM=1 () PARTITIONS 3;
 Warnings:
-Warning	1681	Usage of column 'testdb.t_varbinary_nonlinear_alg1.prefix_col' having prefix key part 'prefix_col(10)' in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
+Warning	1681	Column 'testdb.t_varbinary_nonlinear_alg1.prefix_col' having prefix key part 'prefix_col(10)' is ignored by the partitioning function. Use of prefixed columns in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
 
 CREATE TABLE testdb.t_char_linear_alg2 (
 prefix_col CHAR (100),
@@ -452,7 +452,7 @@ other_col VARCHAR (5),
 PRIMARY KEY (prefix_col(10), other_col)
 ) PARTITION BY LINEAR KEY ALGORITHM=2 () PARTITIONS 3;
 Warnings:
-Warning	1681	Usage of column 'testdb.t_char_linear_alg2.prefix_col' having prefix key part 'prefix_col(10)' in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
+Warning	1681	Column 'testdb.t_char_linear_alg2.prefix_col' having prefix key part 'prefix_col(10)' is ignored by the partitioning function. Use of prefixed columns in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
 
 CREATE TABLE testdb.t_varchar_linear_alg2 (
 prefix_col VARCHAR (100),
@@ -460,7 +460,7 @@ other_col VARCHAR (5),
 PRIMARY KEY (prefix_col(10), other_col)
 ) PARTITION BY LINEAR KEY ALGORITHM=2 () PARTITIONS 3;
 Warnings:
-Warning	1681	Usage of column 'testdb.t_varchar_linear_alg2.prefix_col' having prefix key part 'prefix_col(10)' in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
+Warning	1681	Column 'testdb.t_varchar_linear_alg2.prefix_col' having prefix key part 'prefix_col(10)' is ignored by the partitioning function. Use of prefixed columns in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
 
 CREATE TABLE testdb.t_binary_linear_alg2 (
 prefix_col BINARY (100),
@@ -468,7 +468,7 @@ other_col VARCHAR (5),
 PRIMARY KEY (prefix_col(10), other_col)
 ) PARTITION BY LINEAR KEY ALGORITHM=2 () PARTITIONS 3;
 Warnings:
-Warning	1681	Usage of column 'testdb.t_binary_linear_alg2.prefix_col' having prefix key part 'prefix_col(10)' in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
+Warning	1681	Column 'testdb.t_binary_linear_alg2.prefix_col' having prefix key part 'prefix_col(10)' is ignored by the partitioning function. Use of prefixed columns in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
 
 CREATE TABLE testdb.t_varbinary_linear_alg2 (
 prefix_col VARBINARY (100),
@@ -476,7 +476,7 @@ other_col VARCHAR (5),
 PRIMARY KEY (prefix_col(10), other_col)
 ) PARTITION BY LINEAR KEY ALGORITHM=2 () PARTITIONS 3;
 Warnings:
-Warning	1681	Usage of column 'testdb.t_varbinary_linear_alg2.prefix_col' having prefix key part 'prefix_col(10)' in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
+Warning	1681	Column 'testdb.t_varbinary_linear_alg2.prefix_col' having prefix key part 'prefix_col(10)' is ignored by the partitioning function. Use of prefixed columns in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
 
 CREATE TABLE testdb.t_char_nonlinear_alg2 (
 prefix_col CHAR (100),
@@ -484,7 +484,7 @@ other_col VARCHAR (5),
 PRIMARY KEY (prefix_col(10), other_col)
 ) PARTITION BY KEY ALGORITHM=2 () PARTITIONS 3;
 Warnings:
-Warning	1681	Usage of column 'testdb.t_char_nonlinear_alg2.prefix_col' having prefix key part 'prefix_col(10)' in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
+Warning	1681	Column 'testdb.t_char_nonlinear_alg2.prefix_col' having prefix key part 'prefix_col(10)' is ignored by the partitioning function. Use of prefixed columns in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
 
 CREATE TABLE testdb.t_varchar_nonlinear_alg2 (
 prefix_col VARCHAR (100),
@@ -492,7 +492,7 @@ other_col VARCHAR (5),
 PRIMARY KEY (prefix_col(10), other_col)
 ) PARTITION BY KEY ALGORITHM=2 () PARTITIONS 3;
 Warnings:
-Warning	1681	Usage of column 'testdb.t_varchar_nonlinear_alg2.prefix_col' having prefix key part 'prefix_col(10)' in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
+Warning	1681	Column 'testdb.t_varchar_nonlinear_alg2.prefix_col' having prefix key part 'prefix_col(10)' is ignored by the partitioning function. Use of prefixed columns in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
 
 CREATE TABLE testdb.t_binary_nonlinear_alg2 (
 prefix_col BINARY (100),
@@ -500,7 +500,7 @@ other_col VARCHAR (5),
 PRIMARY KEY (prefix_col(10), other_col)
 ) PARTITION BY KEY ALGORITHM=2 () PARTITIONS 3;
 Warnings:
-Warning	1681	Usage of column 'testdb.t_binary_nonlinear_alg2.prefix_col' having prefix key part 'prefix_col(10)' in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
+Warning	1681	Column 'testdb.t_binary_nonlinear_alg2.prefix_col' having prefix key part 'prefix_col(10)' is ignored by the partitioning function. Use of prefixed columns in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
 
 CREATE TABLE testdb.t_varbinary_nonlinear_alg2 (
 prefix_col VARBINARY (100),
@@ -508,7 +508,7 @@ other_col VARCHAR (5),
 PRIMARY KEY (prefix_col(10), other_col)
 ) PARTITION BY KEY ALGORITHM=2 () PARTITIONS 3;
 Warnings:
-Warning	1681	Usage of column 'testdb.t_varbinary_nonlinear_alg2.prefix_col' having prefix key part 'prefix_col(10)' in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
+Warning	1681	Column 'testdb.t_varbinary_nonlinear_alg2.prefix_col' having prefix key part 'prefix_col(10)' is ignored by the partitioning function. Use of prefixed columns in the PARTITION BY KEY() clause is deprecated and will be removed in a future release.
 
 # Cleanup.
 

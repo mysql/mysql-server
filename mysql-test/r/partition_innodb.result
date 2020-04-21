@@ -664,7 +664,7 @@ INSERT INTO t1 values (0,1), (1,2);
 # The below ALTER should fail. It should leave the
 # table in its original, non-corrupted, usable state.
 ALTER TABLE t1 ADD UNIQUE KEY (b);
-ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function
+ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning function (prefixed columns are not considered).
 # The below statements should succeed, as ALTER should
 # have left table intact.
 SHOW CREATE TABLE t1;
