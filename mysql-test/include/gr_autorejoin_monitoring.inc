@@ -159,7 +159,7 @@ DELIMITER ;//
 SET SESSION sql_log_bin = 1;
 --enable_query_log
 
-# The PFS data is cleared on restart - force the resart after the test case.
+# The PFS data is cleared on restart - force the restart after the test case.
 --source include/force_restart.inc
 
 --let $include_filename = gr_autorejoin_monitoring.inc

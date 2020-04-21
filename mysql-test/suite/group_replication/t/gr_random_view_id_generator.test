@@ -59,9 +59,9 @@ while ($iteration_count < $iterations_expected)
     my $line = $_;
     if ($line =~ /CURRENT_TEST: /)
     {
-      my @view_id = ();
-      my $count= 0;
-      my $count_occurence= 0;
+      @view_id = ();
+      $count= 0;
+      $count_occurence= 0;
     }
     if ($line =~ /$pattern/)
     {

@@ -61,6 +61,8 @@
 
 # Suppressions
 
+
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* \\[Repl\\] Slave SQL for channel '': \\.\\.\\. .* Error_code: MY-\\d+.*");
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 call mtr.add_suppression("Slave I/O for channel '': The queue event failed for channel '' as an invalid event according to REQUIRE_ROW_FORMAT was found.*");
 call mtr.add_suppression("Slave I/O for channel '': Relay log write failure: could not queue event from master*");

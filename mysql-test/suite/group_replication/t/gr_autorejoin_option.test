@@ -187,5 +187,3 @@ SET DEBUG_SYNC = "now SIGNAL signal.autorejoin_continue";
 SET @@GLOBAL.DEBUG = @debug_saved;
 SET GLOBAL group_replication_autorejoin_tries = default;
 --source include/group_replication_end.inc
-
-RESET MASTER;
