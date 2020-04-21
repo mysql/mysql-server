@@ -36,6 +36,12 @@
 --disable_query_log
 SET SESSION sql_log_bin = 0;
 
+# The below functions depend on clean stats, as such we truncate the
+# used performance_schema tables.
+TRUNCATE TABLE performance_schema.events_stages_current;
+TRUNCATE TABLE performance_schema.events_stages_history_long;
+TRUNCATE TABLE performance_schema.events_stages_summary_global_by_event_name;
+
 DELIMITER //;
 CREATE FUNCTION IS_AUTOREJOIN_RUNNING() RETURNS BOOLEAN
 BEGIN
@@ -158,9 +164,6 @@ DELIMITER ;//
 
 SET SESSION sql_log_bin = 1;
 --enable_query_log
-
-# The PFS data is cleared on restart - force the restart after the test case.
---source include/force_restart.inc
 
 --let $include_filename = gr_autorejoin_monitoring.inc
 --source include/end_include_file.inc
