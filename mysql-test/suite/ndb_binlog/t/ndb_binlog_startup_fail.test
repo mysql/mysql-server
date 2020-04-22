@@ -2,6 +2,8 @@
 -- source include/have_binlog_format_mixed_or_row.inc
 # We are using some debug-only features in this test
 --source include/have_debug.inc
+# Test terminates mysqld which causes valgrind warnings
+--source include/not_valgrind.inc
 
 connection server1;
 # Find NodeId of the mysqld we are connected to:
