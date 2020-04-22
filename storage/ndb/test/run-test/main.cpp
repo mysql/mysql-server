@@ -84,6 +84,7 @@ int g_mt_rr = 0;
 int g_restart = 0;
 int g_default_max_retries = 0;
 bool g_clean_shutdown = false;
+bool g_coverage = false;
 FailureMode g_default_behaviour_on_failure = Restart;
 const char *default_behaviour_on_failure[] = {"Restart", "Abort", "Skip",
                                               "Continue", NullS};
@@ -222,6 +223,11 @@ static struct my_option g_options[] = {
      (uchar **)&g_clean_shutdown,
      (uchar **)&g_clean_shutdown, 0, GET_BOOL, NO_ARG,
      g_clean_shutdown, 0, 0, 0, 0, 0},
+    {"coverage", 0,
+     "Enables clean shutdown and cluster restart after every test case",
+     (uchar **)&g_coverage,
+     (uchar **)&g_coverage, 0, GET_BOOL, NO_ARG,
+     g_coverage, 0, 0, 0, 0, 0},
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
 
 static int check_testcase_file_main(int argc, char **argv);
@@ -250,6 +256,18 @@ int main(int argc, char **argv) {
   }
 
   g_logger.info("Starting ATRT version : %s", getAtrtVersion().c_str());
+
+  if (g_coverage) {
+    if (g_default_force_cluster_restart == Before ||
+        g_default_force_cluster_restart == Both) {
+      g_logger.critical(
+        "Conflicting cluster restart parameter used with coverage parameter");
+      return atrt_exit(ATRT_FAILURE);
+    }
+
+    g_default_force_cluster_restart = After;
+    g_clean_shutdown = true;
+  }
 
   if (g_mt != 0) {
     g_resources.setRequired(g_resources.NDBMTD);
