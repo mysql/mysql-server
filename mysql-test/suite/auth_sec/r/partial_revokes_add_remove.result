@@ -1360,6 +1360,7 @@ SET GLOBAL partial_revokes = ON;
 #
 SET PERSIST partial_revokes = ON;
 # restart:--skip-grant-tables
+RESET PERSIST;
 # restart:
 ------------ End test with --skip-grant-tables option -------------------
 call mtr.add_suppression(".*At least one partial revoke .* Turning ON the system variable .*");

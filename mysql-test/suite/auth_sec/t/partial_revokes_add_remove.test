@@ -99,6 +99,7 @@ SET PERSIST partial_revokes = ON;
 --source include/restart_mysqld.inc
 --enable_reconnect
 --source include/wait_until_connected_again.inc
+RESET PERSIST;
 --let $restart_parameters = restart:
 --source include/restart_mysqld.inc
 --enable_reconnect
