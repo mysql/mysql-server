@@ -206,17 +206,19 @@ sub option_equals {
 
 sub find_option_value {
   my ($opts_list, $opt_to_find) = @_;
-  my $result;
+  my $result_found = 0;
+  my $result = undef;
   foreach my $opt (@$opts_list) {
     if (length $opt == 0) {
       next;
     }
     my ($opt_name, $opt_value) = split_option($opt);
     if (option_equals($opt_name, $opt_to_find)) {
+      $result_found = 1;
       $result = $opt_value;
     }
   }
-  return $result;
+  return ($result_found, $result);
 }
 
 1;

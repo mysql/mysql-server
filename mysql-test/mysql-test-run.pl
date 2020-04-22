@@ -4359,10 +4359,39 @@ sub mark_testcase_start_in_logs($$) {
 
   # Look for custom log file specified in the extra options.
   my $extra_opts = get_extra_opts($mysqld, $tinfo);
-  my $extra_log = My::Options::find_option_value($extra_opts, "log-error");
-  if ($extra_log && $extra_log ne $mysqld->value('#log-error')) {
-    mark_log($extra_log, $tinfo);
+  my ($extra_log_found, $extra_log) =
+    My::Options::find_option_value($extra_opts, "log-error");
+  my ($console_option_found, $console_option_value) =
+    My::Options::find_option_value($extra_opts, "console");
+
+  # --console overrides the --log-error option.
+  if ($console_option_found){
+    return;
   }
+  # no --log-error option specified
+  if (!$extra_log_found){
+    return;
+  }
+  # --log-error without the value specified - we ignore the default name for the
+  # log file.
+  if (!defined $extra_log){
+    return;
+  }
+  # --log-error=0 turns logging off
+  if ($extra_log eq "0"){
+    return;
+  }
+  # if specified log file does not have any extension then .err is added. We
+  # instead ignore such file - tests should not use such values.
+  if ($extra_log !~ '\.'){
+    return;
+  }
+  # if it is specified the same as the default log file, we would mark the log
+  # for second time.
+  if ($extra_log eq $mysqld->value('#log-error')){
+    return;
+  }
+  mark_log($extra_log, $tinfo);
 }
 
 sub find_testcase_skipped_reason($) {

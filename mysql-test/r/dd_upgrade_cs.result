@@ -12,7 +12,7 @@
 ########################################################################
 # Restart the server to trigger upgrade.
 ########################################################################
-# restart: --datadir=MYSQLD_DATADIR_UPGRADE --log-error=MYSQLD_LOG_UPGRADE --log-error-verbosity=3
+# restart: --datadir=MYSQLD_DATADIR_UPGRADE --log-error=MYSQLD_LOG --log-error-verbosity=3
 ########################################################################
 # Verify that the entities have retained the SQL mode.
 ########################################################################
