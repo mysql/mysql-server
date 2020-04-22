@@ -109,6 +109,10 @@ std::mutex log_reopen_cond_mutex;
 std::condition_variable log_reopen_cond;
 static std::atomic<bool> g_log_reopen_requested{false};
 
+// application defined pointer to function called at log rename completion
+static log_reopen_callback g_log_reopen_complete_callback_fp =
+    default_log_reopen_complete_cb;
+
 /**
  * request application shutdown.
  *
@@ -207,33 +211,60 @@ static void register_fatal_signal_handler() {
 #endif
 }
 
+/**
+ * Set the log reopen completion callback function pointer.
+ *
+ * @param cb Function to call at completion.
+ * @return void
+ */
+void set_log_reopen_complete_callback(log_reopen_callback cb) {
+  g_log_reopen_complete_callback_fp = cb;
+}
+
+/**
+ * The default implementation for log reopen thread completion callback
+ * function.
+ *
+ * @param errmsg Error message. Empty string assumes successful completion.
+ * @return void
+ */
+void default_log_reopen_complete_cb(const std::string errmsg) {
+  if (!errmsg.empty()) {
+    shutdown_fatal_error_message = errmsg;
+    request_application_shutdown(SHUTDOWN_FATAL_ERROR);
+  }
+}
+
 static void log_reopen_thread_function() {
   auto &logging_registry = mysql_harness::DIM::instance().get_LoggingRegistry();
-  bool request_shutdown{false};
-  {
-    std::unique_lock<std::mutex> lk(log_reopen_cond_mutex);
-    log_reopen_cond.wait(lk, [&] {
-      if (g_shutdown_pending) {
-        return true;
-      }
-      if (g_log_reopen_requested) {
-        g_log_reopen_requested = false;
-        try {
-          logging_registry.flush_all_loggers();
-        } catch (const std::exception &e) {
-          // we have to postpone the shutdown request as it locks the
-          // mutex that we currently hold
-          request_shutdown = true;
-          shutdown_fatal_error_message = e.what();
-          return true;
-        }
-      }
-      return false;
-    });
-  }
+  std::string errmsg = "";
+  bool exit = false;
 
-  if (request_shutdown) {
-    request_application_shutdown(SHUTDOWN_FATAL_ERROR);
+  while (!exit && (g_shutdown_pending == SHUTDOWN_NONE)) {
+    {
+      std::unique_lock<std::mutex> lk(log_reopen_cond_mutex);
+      log_reopen_cond.wait(lk);
+      if (g_shutdown_pending) {
+        break;
+      }
+      if (!g_log_reopen_requested) {
+        continue;
+      }
+      g_log_reopen_requested = false;
+      errmsg = "";
+      try {
+        logging_registry.flush_all_loggers();
+      } catch (const std::exception &e) {
+        // leave actions on error to the defined callback function
+        errmsg = e.what();
+      }
+    }
+    // trigger the completion callback once mutex is not locked
+    g_log_reopen_complete_callback_fp(errmsg);
+    {
+      std::unique_lock<std::mutex> lk(log_reopen_cond_mutex);
+      exit = (g_shutdown_pending != SHUTDOWN_NONE);
+    }
   }
 }
 

@@ -641,6 +641,8 @@ end). Actions taken for each plugin function are as follows:
 #include <thread>
 #include <tuple>
 
+typedef void (*log_reopen_callback)(const std::string);
+
 #ifdef FRIEND_TEST
 // TODO replace by #include after merge:
 // #include "../../../mysqlrouter/utils.h"  // DECLARE_TEST
@@ -1050,6 +1052,25 @@ class HARNESS_EXPORT Loader {
 };  // class Loader
 
 }  // namespace mysql_harness
+
+/**
+ * Setter for the log reopen thread completion callback function.
+ *
+ * @param cb Function to call at completion.
+ * @return void
+ */
+HARNESS_EXPORT
+void set_log_reopen_complete_callback(log_reopen_callback cb);
+
+/**
+ * The default implementation for log reopen thread completion callback
+ * function.
+ *
+ * @param errmsg Error message. Empty string assumes successful completion.
+ * @return void
+ */
+HARNESS_EXPORT
+void default_log_reopen_complete_cb(const std::string errmsg);
 
 HARNESS_EXPORT
 void request_application_shutdown();
