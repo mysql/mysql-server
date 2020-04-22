@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -624,12 +624,16 @@ HugoQueryBuilder::createQuery(bool takeOwnership)
   m_options = save;
 
   const NdbQueryDef * def = builder->prepare(m_ndb);
-  builder->destroy();
-  if (def != 0 && !takeOwnership)
+  if (def == nullptr)
+  {
+    NdbError err = builder->getNdbError();
+    ndbout << "OJA1: " << err << endl;
+  }
+  else if (!takeOwnership)
   {
     m_queries.push_back(def);
   }
-
+  builder->destroy();
   m_query.clear();
 
   return def;
