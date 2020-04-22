@@ -914,9 +914,10 @@ NdbResultStream::NdbResultStream(NdbQueryOperationImpl& operation,
           m_operation.getQueryOperationDef();
       const NdbQueryOperationDefImpl* firstInEmbeddingNestDef =
           queryOperationDef.getFirstInEmbeddingNest();
-      DBUG_ASSERT(!isScanResult() || firstInEmbeddingNestDef != nullptr);
 
-      if (firstInEmbeddingNestDef != nullptr) {
+      if (firstInEmbeddingNestDef == nullptr) {
+        m_skipFirstInnerOpNo = m_parent->getInternalOpNo();
+      } else {
         if (firstInEmbeddingNestDef->getInternalOpNo() <= m_parent->getInternalOpNo()) {
           // First is 'above' parent -> Is parent or an ancestor of 'this' stream
           m_skipFirstInnerOpNo = m_parent->getInternalOpNo();

@@ -970,9 +970,9 @@ ErrorBundle ErrorCodes[] = {
     "Query has operation with empty projection." },
   { QRY_OJ_NOT_SUPPORTED, DMEC, AE,
     "Outer joined scans not supported by data nodes." },
-  { QRY_NEST_NOT_SPECIFIED, DMEC, AE,
-    "Outer joined scans need FirstInner/Upper to be specified" },
-  { QRY_NEST_NOT_SPECIFIED, DMEC, AE,
+  //{ QRY_NEST_NOT_SPECIFIED, DMEC, AE,      <<== DEPRECATED error
+  //  "Outer joined scans need FirstInner/Upper to be specified" },
+  { QRY_NEST_NOT_SUPPORTED, DMEC, AE,
     "FirstInner/Upper has to be an ancestor or a sibling" },
 
   { NO_CONTACT_WITH_PROCESS, DMEC, AE,
