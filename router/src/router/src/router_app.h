@@ -107,8 +107,10 @@ class MySQLRouter {
    * @param arguments a vector of strings
    * @param out_stream output stream representing "stdout"
    * @param err_stream output stream representing "stderr"
-   * @param sys_user_operations .oO( ... )
    */
+#ifndef _WIN32
+  /// @param sys_user_operations system operations which provide chown, ...
+#endif
   MySQLRouter(const mysql_harness::Path &origin,
               const std::vector<std::string> &arguments,
               std::ostream &out_stream = std::cout,
@@ -137,8 +139,10 @@ class MySQLRouter {
    * @param argv pointer to first command line argument
    * @param out_stream output stream representing "stdout"
    * @param err_stream output stream representing "stderr"
-   * @param sys_user_operations .oO( ... )
    */
+#ifndef _WIN32
+  /// @param sys_user_operations system operations which provide chown, ...
+#endif
   MySQLRouter(const int argc, char **argv, std::ostream &out_stream,
               std::ostream &err_stream
 #ifndef _WIN32

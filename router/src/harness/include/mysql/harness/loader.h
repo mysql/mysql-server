@@ -1143,7 +1143,6 @@ class LogReopenThread {
  * Setter for the log reopen thread completion callback function.
  *
  * @param cb Function to call at completion.
- * @return void
  */
 HARNESS_EXPORT
 void set_log_reopen_complete_callback(log_reopen_callback cb);
@@ -1153,7 +1152,6 @@ void set_log_reopen_complete_callback(log_reopen_callback cb);
  * function.
  *
  * @param errmsg Error message. Empty string assumes successful completion.
- * @return void
  */
 HARNESS_EXPORT
 void default_log_reopen_complete_cb(const std::string errmsg);
