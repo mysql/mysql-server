@@ -42,6 +42,12 @@ set session sql_log_bin=1;
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
+# Suppress the expected errors
+set session sql_log_bin=0;
+call mtr.add_suppression("Failed to initialize TLS for channel: mysql_admin");
+call mtr.add_suppression("Failed to set up SSL because of the following SSL library error");
+set session sql_log_bin=1;
+
 --echo #
 --echo # 1. Create a replication user without SERVICE_CONNECTION_ADMIN which
 --echo #    cannot connect to the donor admin port

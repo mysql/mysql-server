@@ -9,6 +9,10 @@ call mtr.add_suppression("There was an error when connecting to the donor*");
 call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
 set session sql_log_bin=1;
 [connection server1]
+set session sql_log_bin=0;
+call mtr.add_suppression("Failed to initialize TLS for channel: mysql_admin");
+call mtr.add_suppression("Failed to set up SSL because of the following SSL library error");
+set session sql_log_bin=1;
 #
 # 1. Create a replication user without SERVICE_CONNECTION_ADMIN which
 #    cannot connect to the donor admin port
