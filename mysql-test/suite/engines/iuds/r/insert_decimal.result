@@ -1937,7 +1937,7 @@ Warning	1681	Specifying number of digits for floating point data types is deprec
 INSERT INTO t5 VALUES(1.1325,3);
 SELECT ROUND(c1,c2),TRUNCATE(c1,c2) FROM t5;
 ROUND(c1,c2)	TRUNCATE(c1,c2)
-1.133000	1.132000
+1.133	1.132
 DROP TABLE t5;
 CREATE TABLE t7(c1 FLOAT(5,10));
 ERROR 42000: For float(M,D), double(M,D) or decimal(M,D), M must be >= D (column 'c1').
@@ -2895,7 +2895,7 @@ Warning	1681	Specifying number of digits for floating point data types is deprec
 INSERT INTO t5 VALUES(1.1325,3);
 SELECT ROUND(c1,c2),TRUNCATE(c1,c2) FROM t5;
 ROUND(c1,c2)	TRUNCATE(c1,c2)
-1.132000	1.132000
+1.132	1.132
 DROP TABLE t5;
 CREATE TABLE t7(c1 DOUBLE(5,10));
 ERROR 42000: For float(M,D), double(M,D) or decimal(M,D), M must be >= D (column 'c1').
