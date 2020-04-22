@@ -211,3 +211,26 @@ EXPLAIN
             -> Filter: (cte.n < 5)  (cost=2.73 rows=1) (actual time=N.NNN..N.NNN rows=2 loops=2)
                 -> Scan new records on cte  (cost=2.73 rows=2) (actual time=N.NNN..N.NNN rows=2 loops=2)
 
+#
+# Bug#31066001 INCORRECT RESULT FROM CTE SUBQUERY WITH OUTER REFERENCE
+#
+SELECT *
+FROM
+(VALUES ROW(1),ROW(1)) AS dt(a)
+WHERE
+EXISTS(
+WITH RECURSIVE qn AS (SELECT a*0 AS b UNION ALL SELECT b+1 FROM qn WHERE b=0)
+SELECT * FROM qn WHERE b=a
+);
+a
+1
+1
+SELECT *
+FROM
+(VALUES ROW(1),ROW(1)) AS dt(a)
+WHERE
+NOT EXISTS(
+WITH RECURSIVE qn AS (SELECT a*0 AS b UNION ALL SELECT b+1 FROM qn WHERE b=0)
+SELECT * FROM qn WHERE b=a
+);
+a

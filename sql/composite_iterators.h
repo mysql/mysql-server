@@ -197,7 +197,7 @@ class LimitOffsetIterator final : public RowIterator {
   of aggregation, others (the aggregates) are added. For this reason (and also
   because we need to make copies of the group expressions -- see Read()), it
   conceptually always outputs to a temporary table. If we _are_ outputting to a
-  temporary table, that's not a problem -- we take over responsibility for
+  temporary table, that's not a problem -- we take over responsibility for
   copying the group expressions from MaterializeIterator, which would otherwise
   do it.
 
@@ -604,9 +604,8 @@ class MaterializeIterator final : public TableRowIterator {
                       Mem_root_array<QueryBlock> query_blocks_to_materialize,
                       TABLE *table,
                       unique_ptr_destroy_only<RowIterator> table_iterator,
-                      const Common_table_expr *cte, SELECT_LEX_UNIT *unit,
-                      JOIN *join, int ref_slice, bool rematerialize,
-                      ha_rows limit_rows);
+                      Common_table_expr *cte, SELECT_LEX_UNIT *unit, JOIN *join,
+                      int ref_slice, bool rematerialize, ha_rows limit_rows);
 
   /**
     A convenience form for materializing a single table only.
@@ -643,7 +642,7 @@ class MaterializeIterator final : public TableRowIterator {
                       unique_ptr_destroy_only<RowIterator> subquery_iterator,
                       Temp_table_param *temp_table_param, TABLE *table,
                       unique_ptr_destroy_only<RowIterator> table_iterator,
-                      const Common_table_expr *cte, int select_number,
+                      Common_table_expr *cte, int select_number,
                       SELECT_LEX_UNIT *unit, JOIN *join, int ref_slice,
                       bool copy_fields_and_items, bool rematerialize,
                       ha_rows limit_rows);
@@ -679,7 +678,7 @@ class MaterializeIterator final : public TableRowIterator {
   /// If we are materializing a CTE, points to it (otherwise nullptr).
   /// Used so that we see if some other iterator already materialized the table,
   /// avoiding duplicate work.
-  const Common_table_expr *m_cte;
+  Common_table_expr *m_cte;
 
   /// The query expression we are materializing. For derived tables,
   /// we materialize the entire query expression; for materialization within

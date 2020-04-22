@@ -998,6 +998,35 @@ bool SELECT_LEX_UNIT::explain(THD *explain_thd, const THD *query_thd) {
   return false;
 }
 
+bool Common_table_expr::clear_all_references() {
+  bool reset_tables = false;
+  for (TABLE_LIST *tl : references) {
+    if (tl->table && tl->derived_unit()->uncacheable & UNCACHEABLE_DEPENDENT) {
+      reset_tables = true;
+      if (tl->derived_unit()->query_result()->reset()) return true;
+    }
+    /*
+      This loop has found all non-recursive clones; one writer and N
+      readers.
+    */
+  }
+  if (!reset_tables) return false;
+  for (TABLE_LIST *tl : tmp_tables) {
+    if (tl->is_derived()) continue;  // handled above
+    if (tl->table->empty_result_table()) return true;
+    // This loop has found all recursive clones (only readers).
+  }
+  /*
+    Above, emptying all clones is necessary, to rewind every handler (cursor) to
+    the table's start. Setting materialized=false on all is also important or
+    the writer would skip materialization, see loop at start of
+    TABLE_LIST::materialize_derived()). There is one "recursive table" which we
+    don't find here: it's the UNION DISTINCT tmp table. It's reset in
+    unit::execute() of the unit which is the body of the CTE.
+  */
+  return false;
+}
+
 /**
   Empties all correlated query blocks defined within the query expression;
   that is, correlated CTEs defined in the expression's WITH clause, and
@@ -1011,33 +1040,7 @@ bool SELECT_LEX_UNIT::clear_correlated_query_blocks() {
   if (!m_with_clause) return false;
   for (auto el : m_with_clause->m_list->elements()) {
     Common_table_expr &cte = el->m_postparse;
-    bool reset_tables = false;
-    for (auto tl : cte.references) {
-      if (tl->table &&
-          tl->derived_unit()->uncacheable & UNCACHEABLE_DEPENDENT) {
-        reset_tables = true;
-        if (tl->derived_unit()->query_result()->reset()) return true;
-      }
-      /*
-        This loop has found all non-recursive clones; one writer and N
-        readers.
-      */
-    }
-    if (!reset_tables) continue;
-    for (auto tl : cte.tmp_tables) {
-      if (tl->is_derived()) continue;  // handled above
-      if (tl->table->empty_result_table()) return true;
-      // This loop has found all recursive clones (only readers).
-    }
-    /*
-      Doing delete_all_rows on all clones is good as it makes every
-      'file' up to date. Setting materialized=false on all is also important
-      or the writer would skip materialization, see loop at start of
-      TABLE_LIST::materialize_derived()).
-      There is one "recursive table" which we don't find here: it's the
-      UNION DISTINCT tmp table. It's reset in unit::execute() of the unit
-      which is the body of the CTE.
-    */
+    if (cte.clear_all_references()) return true;
   }
   return false;
 }

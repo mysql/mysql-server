@@ -2217,6 +2217,8 @@ static void fix_tables_after_pullout(SELECT_LEX *parent_select,
     /*
       If m_lateral_deps!=0, some outer ref is now a neighbour in FROM: we have
       made 'tr' LATERAL.
+      Note that 'tr' might be a common table expression: it means we now have a
+      "lateral CTE".
       @todo after WL#6570 when we don't re-resolve, remove this comment.
       Note that this above gives 'tr' enough "right to look left", but alas
       also too much of it; e.g.

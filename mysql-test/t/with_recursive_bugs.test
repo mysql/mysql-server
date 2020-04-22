@@ -206,3 +206,43 @@ EXPLAIN ANALYZE WITH RECURSIVE cte (n) AS
   SELECT n + 1 FROM cte WHERE n < 5
 )
 SELECT * FROM cte;
+
+--echo #
+--echo # Bug#31066001 INCORRECT RESULT FROM CTE SUBQUERY WITH OUTER REFERENCE
+--echo #
+
+# The CTE artificially depends on the outer table 'dt', and
+# it contains two rows, 0 (seed) and 1 (recursively generated).
+# Before the bug was fixed, this happened:
+# - for the first outer row (dt.a=1), we correctly saw a match
+# - for the second outer row, the CTE was re-materialized:
+#    * it was emptied,
+#    * 0 (seed) was written to it,
+#    * but when doing the recursive row generation, the read cursor positioned
+#    on the CTE was still where it was in the previous execution, i.e. after
+#    "row#2", so thought there was nothing in the CTE (while there was the seed
+#    at row#1!). So this cursor didn't read the seed and didn't generate 1.
+#    * So there was no match, wrongly.
+#    * As a result, only one row was returned by the query.
+
+# Semi-join:
+
+SELECT *
+FROM
+(VALUES ROW(1),ROW(1)) AS dt(a)
+WHERE
+EXISTS(
+  WITH RECURSIVE qn AS (SELECT a*0 AS b UNION ALL SELECT b+1 FROM qn WHERE b=0)
+  SELECT * FROM qn WHERE b=a
+  );
+
+# Anti-join:
+
+SELECT *
+FROM
+(VALUES ROW(1),ROW(1)) AS dt(a)
+WHERE
+NOT EXISTS(
+  WITH RECURSIVE qn AS (SELECT a*0 AS b UNION ALL SELECT b+1 FROM qn WHERE b=0)
+  SELECT * FROM qn WHERE b=a
+  );
