@@ -91,35 +91,35 @@ DROP SCHEMA S;
 # FR6: I_S.SCHEMATA_extensions.
 #--------------------------------------------------------------------
 CREATE SCHEMA s;
-SELECT * FROM information_schema.schemata_extensions;
+SELECT * FROM information_schema.schemata_extensions ORDER BY SCHEMA_NAME;
 CATALOG_NAME	SCHEMA_NAME	OPTIONS
-def	mysql	
 def	information_schema	
+def	mtr	
+def	mysql	
 def	performance_schema	
+def	s	
 def	sys	
 def	test	
-def	mtr	
-def	s	
 ALTER SCHEMA S READ ONLY=1;
-SELECT * FROM information_schema.schemata_extensions;
+SELECT * FROM information_schema.schemata_extensions ORDER BY SCHEMA_NAME;
 CATALOG_NAME	SCHEMA_NAME	OPTIONS
-def	mysql	
 def	information_schema	
-def	performance_schema	
-def	sys	
-def	test	
 def	mtr	
+def	mysql	
+def	performance_schema	
 def	s	READ ONLY=1
-ALTER SCHEMA S READ ONLY=0;
-SELECT * FROM information_schema.schemata_extensions;
-CATALOG_NAME	SCHEMA_NAME	OPTIONS
-def	mysql	
-def	information_schema	
-def	performance_schema	
 def	sys	
 def	test	
+ALTER SCHEMA S READ ONLY=0;
+SELECT * FROM information_schema.schemata_extensions ORDER BY SCHEMA_NAME;
+CATALOG_NAME	SCHEMA_NAME	OPTIONS
+def	information_schema	
 def	mtr	
+def	mysql	
+def	performance_schema	
 def	s	
+def	sys	
+def	test	
 DROP SCHEMA S;
 #--------------------------------------------------------------------
 # FR7: The read only option affects all users.

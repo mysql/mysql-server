@@ -108,11 +108,11 @@ DROP SCHEMA S;
 --echo # FR6: I_S.SCHEMATA_extensions.
 --echo #--------------------------------------------------------------------
 eval CREATE SCHEMA $CREATE_S;
-SELECT * FROM information_schema.schemata_extensions;
+SELECT * FROM information_schema.schemata_extensions ORDER BY SCHEMA_NAME;
 ALTER SCHEMA S READ ONLY=1;
-SELECT * FROM information_schema.schemata_extensions;
+SELECT * FROM information_schema.schemata_extensions ORDER BY SCHEMA_NAME;
 ALTER SCHEMA S READ ONLY=0;
-SELECT * FROM information_schema.schemata_extensions;
+SELECT * FROM information_schema.schemata_extensions ORDER BY SCHEMA_NAME;
 DROP SCHEMA S;
 
 --echo #--------------------------------------------------------------------
