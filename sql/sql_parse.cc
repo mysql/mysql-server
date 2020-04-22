@@ -1270,7 +1270,7 @@ bool do_command(THD *thd) {
                       command_name[command].str));
 #endif  // DBUG_OFF
   DBUG_PRINT("info", ("packet: '%*.s'; command: %d",
-                      thd->get_protocol_classic()->get_packet_length(),
+                      (int)thd->get_protocol_classic()->get_packet_length(),
                       thd->get_protocol_classic()->get_raw_packet(), command));
   if (thd->get_protocol_classic()->bad_packet)
     DBUG_ASSERT(0);  // Should be caught earlier
