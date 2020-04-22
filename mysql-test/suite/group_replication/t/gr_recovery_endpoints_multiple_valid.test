@@ -23,6 +23,11 @@
 --let $rpl_skip_group_replication_start= 1
 --source include/group_replication.inc
 
+set session sql_log_bin=0;
+call mtr.add_suppression("Failed to initialize TLS for channel: mysql_admin");
+call mtr.add_suppression("Failed to set up SSL because of the following SSL library error");
+set session sql_log_bin=1;
+
 --echo
 --echo # 1. Install clone plugin on server1.
 
