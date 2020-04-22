@@ -39,17 +39,11 @@
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
+#include "mysql/harness/stdx/filesystem.h"
 #include "mysql_server_mock.h"
 #include "mysqlrouter/plugin_config.h"
 
 IMPORT_LOG_FUNCTIONS()
-
-#ifndef PATH_MAX
-#ifdef _MAX_PATH
-// windows has _MAX_PATH instead
-#define PATH_MAX _MAX_PATH
-#endif
-#endif
 
 static constexpr const char kSectionName[]{"mock_server"};
 
@@ -70,15 +64,15 @@ class PluginConfig : public mysqlrouter::BasePluginConfig {
         srv_protocol(get_option_string(section, "protocol")) {}
 
   std::string get_default(const std::string &option) const override {
-    char cwd[PATH_MAX];
-
-    if (nullptr == getcwd(cwd, sizeof(cwd))) {
-      throw std::system_error(errno, std::generic_category());
+    std::error_code ec;
+    const auto cwd = stdx::filesystem::current_path(ec);
+    if (ec) {
+      throw std::system_error(ec);
     }
 
     const std::map<std::string, std::string> defaults{
         {"bind_address", "0.0.0.0"},
-        {"module_prefix", cwd},
+        {"module_prefix", cwd.native()},
         {"port", "3306"},
         {"protocol", "classic"},
     };

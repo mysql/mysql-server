@@ -22,10 +22,12 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifdef _WIN32
-#include <process.h>  // getpid()
-#include <windows.h>
-#endif
+#include <algorithm>
+#include <chrono>
+#include <cstdarg>
+#include <iostream>  // cerr
+#include <sstream>
+#include <stdexcept>
 
 #include "my_compiler.h"
 
@@ -33,21 +35,13 @@
 #include "mysql/harness/logging/handler.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/logging/registry.h"
+#include "mysql/harness/stdx/process.h"
 #ifdef _WIN32
 #include "mysql/harness/logging/eventlog_plugin.h"
 #endif
 
-#include "common.h"
+#include "common.h"  // serial_comma
 #include "dim.h"
-#include "utilities.h"
-
-#include <algorithm>
-#include <cassert>
-#include <chrono>
-#include <cstdarg>
-#include <iostream>
-#include <sstream>
-#include <stdexcept>
 
 using mysql_harness::Path;
 using mysql_harness::serial_comma;
@@ -534,7 +528,7 @@ extern "C" void log_message(LogLevel level, const char *module, const char *fmt,
   vsnprintf(message, sizeof(message), fmt, ap);
 
   // Build the record for the handler.
-  Record record{level, getpid(), now, module, message};
+  Record record{level, stdx::this_process::get_id(), now, module, message};
 
   // Pass the record to the correct logger. The record should be
   // passed to only one logger since otherwise the handler can get

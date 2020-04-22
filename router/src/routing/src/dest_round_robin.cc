@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,8 @@
 #include "common.h"
 #include "dest_round_robin.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/net_ts/impl/socket.h"
+#include "mysql/harness/stdx/expected.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -59,10 +61,12 @@ void DestRoundRobin::start(const mysql_harness::PluginFuncEnv * /*env*/) {
   quarantine_thread_.run(&run_thread, this);
 }
 
-int DestRoundRobin::get_server_socket(
-    std::chrono::milliseconds connect_timeout, int *error,
-    mysql_harness::TCPAddress *address) noexcept {
+stdx::expected<mysql_harness::socket_t, std::error_code>
+DestRoundRobin::get_server_socket(std::chrono::milliseconds connect_timeout,
+                                  mysql_harness::TCPAddress *address) noexcept {
   size_t server_pos;
+
+  std::error_code last_ec{};
 
   const size_t num_servers = size();
   // Try at most num_servers times
@@ -86,18 +90,18 @@ int DestRoundRobin::get_server_socket(
     TCPAddress server_addr = destinations_[server_pos];
     log_debug("Trying server %s (index %lu)", server_addr.str().c_str(),
               static_cast<long unsigned>(server_pos));
-    auto sock = get_mysql_socket(server_addr, connect_timeout);
-    if (sock >= 0) {
+    auto sock_res = get_mysql_socket(server_addr, connect_timeout);
+    if (sock_res) {
       // Server is available
       if (address) *address = server_addr;
-      return sock;
+      return sock_res.value();
     } else {
-#ifndef _WIN32
-      *error = errno;
-#else
-      *error = WSAGetLastError();
-#endif
-      if (errno != ENFILE && errno != EMFILE) {
+      last_ec = sock_res.error();
+
+      if (sock_res.error() !=
+              make_error_condition(std::errc::too_many_files_open) &&
+          sock_res.error() !=
+              make_error_condition(std::errc::too_many_files_open_in_system)) {
         // We failed to get a connection to the server; we quarantine.
         std::lock_guard<std::mutex> lock(mutex_quarantine_);
         add_to_quarantine(server_pos);
@@ -111,7 +115,7 @@ int DestRoundRobin::get_server_socket(
     }
   }
 
-  return -1;  // no destination is available
+  return stdx::make_unexpected(last_ec);
 }
 
 DestRoundRobin::~DestRoundRobin() {
@@ -154,16 +158,16 @@ void DestRoundRobin::cleanup_quarantine() noexcept {
     }
 
     auto addr = destinations_.at(*it);
-    auto sock = get_mysql_socket(addr, kQuarantinedConnectTimeout, false);
+    auto sock_res = get_mysql_socket(addr, kQuarantinedConnectTimeout, false);
 
-    if (sock >= 0) {
+    if (sock_res) {
+      auto sock = sock_res.value();
 #ifndef _WIN32
-      shutdown(sock, SHUT_RDWR);
-      close(sock);
+      net::impl::socket::shutdown(sock, SHUT_RDWR);
 #else
-      shutdown(sock, SD_BOTH);
-      closesocket(sock);
+      net::impl::socket::shutdown(sock, SD_BOTH);
 #endif
+      net::impl::socket::close(sock);
       log_debug("Unquarantine destination server %s (index %lu)",
                 addr.str().c_str(),
                 static_cast<long unsigned>(*it));  // 32bit Linux requires cast

@@ -38,9 +38,10 @@
 #endif
 
 #include <fcntl.h>
-#include <string.h>
+#include <cstring>
 #include <stdexcept>
 
+#include "mysql/harness/net_ts/impl/socket.h"
 #include "mysqlrouter/utils.h"
 #include "socket_operations.h"
 #include "tcp_port_pool.h"
@@ -243,30 +244,24 @@ static bool try_to_connect(uint16_t port,
       nullptr, [&](void *) { socket_ops->close(sock_id); });
 
   socket_ops->set_socket_blocking(sock_id, false);
-  status = connect(sock_id, ainfo->ai_addr, ainfo->ai_addrlen);
-  if (status >= 0) {
+  auto connect_res =
+      net::impl::socket::connect(sock_id, ainfo->ai_addr, ainfo->ai_addrlen);
+  if (connect_res) {
     return true;
   }
 
-  switch (socket_ops->get_errno()) {
-#ifdef _WIN32
-    case WSAEINPROGRESS:
-    case WSAEWOULDBLOCK:
-#else
-    case EINPROGRESS:
-#endif
-      if (0 != socket_ops->connect_non_blocking_wait(
-                   sock_id, std::chrono::milliseconds(socket_probe_timeout))) {
-        return false;
-      }
+  if (connect_res.error() ==
+          make_error_condition(std::errc::operation_in_progress) ||
+      connect_res.error() ==
+          make_error_condition(std::errc::operation_would_block)) {
+    const auto wait_res = socket_ops->connect_non_blocking_wait(
+        sock_id, std::chrono::milliseconds(socket_probe_timeout));
 
-      {
-        int so_error = 0;
-        return (0 ==
-                socket_ops->connect_non_blocking_status(sock_id, so_error));
-      }
-    default:;
-      // fallback
+    if (!wait_res) {
+      return false;
+    }
+
+    return socket_ops->connect_non_blocking_status(sock_id).has_value();
   }
 
   return false;

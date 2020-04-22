@@ -36,19 +36,7 @@ using InstanceVector = std::vector<metadata_cache::ManagedInstance>;
 
 using ::testing::_;
 
-// ignore GMock warnings
-#ifdef __clang__
-#ifndef __has_warning
-#define __has_warning(x) 0
-#endif
-#pragma clang diagnostic push
-#if __has_warning("-Winconsistent-missing-override")
-#pragma clang diagnostic ignored "-Winconsistent-missing-override"
-#endif
-#if __has_warning("-Wsign-conversion")
-#pragma clang diagnostic ignored "-Wsign-conversion"
-#endif
-#endif
+using namespace std::chrono_literals;
 
 class MetadataCacheAPIStub : public metadata_cache::MetadataCacheAPIBase {
  public:
@@ -113,9 +101,9 @@ class MetadataCacheAPIStub : public metadata_cache::MetadataCacheAPIBase {
   std::string instance_name() const override { return "foo"; }
   std::string cluster_type_specific_id() const override { return "foo"; }
   std::string cluster_name() const override { return "foo"; }
-  std::chrono::milliseconds ttl() const { return {}; }
+  std::chrono::milliseconds ttl() const override { return {}; }
 
-  RefreshStatus get_refresh_status() { return {}; }
+  RefreshStatus get_refresh_status() override { return {}; }
 
  public:
   void fill_instance_vector(const InstanceVector &iv) { instance_vector_ = iv; }
@@ -132,12 +120,10 @@ class MetadataCacheAPIStub : public metadata_cache::MetadataCacheAPIBase {
       nullptr};
 };
 
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
-
 class DestMetadataCacheTest : public ::testing::Test {
  protected:
+  using result = stdx::expected<mysql_harness::socket_t, std::error_code>;
+
   void fill_instance_vector(const InstanceVector &iv) {
     metadata_cache_api_.fill_instance_vector(iv);
   }
@@ -170,12 +156,8 @@ TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnPrimaries) {
        3308, 33062},
   });
 
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3306);
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3306);
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3306});
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3306});
 }
 
 TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnSinglePrimary) {
@@ -195,12 +177,8 @@ TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnSinglePrimary) {
        3308, 33062},
   });
 
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3306);
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3306);
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3306});
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3306});
 }
 
 TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnNoPrimary) {
@@ -220,10 +198,8 @@ TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnNoPrimary) {
        3308, 33062},
   });
 
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_), -1);
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_), -1);
+  ASSERT_FALSE(dest_mc_group.get_server_socket(0ms));
+  ASSERT_FALSE(dest_mc_group.get_server_socket(0ms));
 }
 
 TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnSecondaries) {
@@ -243,12 +219,8 @@ TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnSecondaries) {
        3308, 33062},
   });
 
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3307);
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3307);
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3307});
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3307});
 }
 
 TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnSingleSecondary) {
@@ -268,12 +240,8 @@ TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnSingleSecondary) {
        3308, 33062},
   });
 
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3308);
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3308);
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3308});
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3308});
 }
 
 TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnNoSecondary) {
@@ -293,10 +261,8 @@ TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnNoSecondary) {
        3308, 33062},
   });
 
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_), -1);
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_), -1);
+  ASSERT_FALSE(dest_mc_group.get_server_socket(0ms));
+  ASSERT_FALSE(dest_mc_group.get_server_socket(0ms));
 }
 
 TEST_F(DestMetadataCacheTest, StrategyFirstAvailablePrimaryAndSecondary) {
@@ -317,12 +283,8 @@ TEST_F(DestMetadataCacheTest, StrategyFirstAvailablePrimaryAndSecondary) {
        3308, 33062},
   });
 
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3306);
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3306);
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3306});
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3306});
 }
 
 TEST_F(DestMetadataCacheTest, StrategyRoundRobinWithFallbackUnavailableServer) {
@@ -343,15 +305,9 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinWithFallbackUnavailableServer) {
        3308, 33062},
   });
 
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3307);
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3308);
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3307);
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3307});
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3308});
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3307});
 }
 
 /*****************************************/
@@ -376,18 +332,10 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinOnPrimaries) {
        3309, 33063},
   });
 
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3306);
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3307);
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3308);
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3306);
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3306});
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3307});
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3308});
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3306});
 }
 
 TEST_F(DestMetadataCacheTest, StrategyRoundRobinOnSinglePrimary) {
@@ -407,12 +355,8 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinOnSinglePrimary) {
        3308, 33062},
   });
 
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3306);
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3306);
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3306});
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3306});
 }
 
 TEST_F(DestMetadataCacheTest, StrategyRoundRobinPrimaryMissing) {
@@ -430,10 +374,8 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinPrimaryMissing) {
        3308, 33062},
   });
 
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_), -1);
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_), -1);
+  ASSERT_FALSE(dest_mc_group.get_server_socket(0ms));
+  ASSERT_FALSE(dest_mc_group.get_server_socket(0ms));
 }
 
 TEST_F(DestMetadataCacheTest, StrategyRoundRobinOnSecondaries) {
@@ -455,18 +397,10 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinOnSecondaries) {
        3309, 33063},
   });
 
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3307);
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3308);
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3309);
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3307);
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3307});
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3308});
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3309});
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3307});
 }
 
 TEST_F(DestMetadataCacheTest, StrategyRoundRobinOnSingleSecondary) {
@@ -486,12 +420,8 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinOnSingleSecondary) {
        3308, 33062},
   });
 
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3308);
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3308);
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3308});
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3308});
 }
 
 TEST_F(DestMetadataCacheTest, StrategyRoundRobinSecondaryMissing) {
@@ -509,10 +439,8 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinSecondaryMissing) {
        3308, 33062},
   });
 
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_), -1);
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_), -1);
+  ASSERT_FALSE(dest_mc_group.get_server_socket(0ms));
+  ASSERT_FALSE(dest_mc_group.get_server_socket(0ms));
 }
 
 TEST_F(DestMetadataCacheTest, StrategyRoundRobinPrimaryAndSecondary) {
@@ -533,18 +461,10 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinPrimaryAndSecondary) {
        3309, 33063},
   });
 
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3307);
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3308);
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3309);
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3307);
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3307});
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3308});
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3309});
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3307});
 }
 
 /*****************************************/
@@ -569,15 +489,9 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinWithFallbackBasicScenario) {
   });
 
   // we have 2 SECONDARIES up so we expect round robin on them
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3307);
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3308);
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3307);
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3307});
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3308});
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3307});
 }
 
 TEST_F(DestMetadataCacheTest, StrategyRoundRobinWithFallbackSingleSecondary) {
@@ -600,12 +514,8 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinWithFallbackSingleSecondary) {
 
   // we do not fallback to PRIMARIES as long as there is at least single
   // SECONDARY available
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3308);
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3308);
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3308});
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3308});
 }
 
 TEST_F(DestMetadataCacheTest, StrategyRoundRobinWithFallbackNoSecondary) {
@@ -625,15 +535,9 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinWithFallbackNoSecondary) {
   });
 
   // no SECONDARY available so we expect round-robin on PRIAMRIES
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3306);
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3307);
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3306);
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3306});
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3307});
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3306});
 }
 
 TEST_F(DestMetadataCacheTest,
@@ -674,18 +578,10 @@ TEST_F(DestMetadataCacheTest, AllowPrimaryReadsBasic) {
   });
 
   // we expect round-robin on all the servers (PRIMARY and SECONDARY)
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3306);
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3307);
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3308);
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3306);
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3306});
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3307});
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3308});
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3306});
 }
 
 TEST_F(DestMetadataCacheTest, AllowPrimaryReadsNoSecondary) {
@@ -703,12 +599,8 @@ TEST_F(DestMetadataCacheTest, AllowPrimaryReadsNoSecondary) {
   });
 
   // we expect the PRIMARY being used
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3306);
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3306);
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3306});
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3306});
 }
 
 /*****************************************/
@@ -730,15 +622,9 @@ TEST_F(DestMetadataCacheTest, PrimaryDefault) {
   });
 
   // default for PRIMARY should be round-robin on ReadWrite servers
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3306);
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3307);
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3306);
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3306});
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3307});
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3306});
 }
 
 TEST_F(DestMetadataCacheTest, SecondaryDefault) {
@@ -759,15 +645,9 @@ TEST_F(DestMetadataCacheTest, SecondaryDefault) {
   });
 
   // default for SECONDARY should be round-robin on ReadOnly servers
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3307);
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3308);
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3307);
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3307});
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3308});
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3307});
 }
 
 TEST_F(DestMetadataCacheTest, PrimaryAndSecondaryDefault) {
@@ -790,18 +670,10 @@ TEST_F(DestMetadataCacheTest, PrimaryAndSecondaryDefault) {
 
   // default for PRIMARY_AND_SECONDARY should be round-robin on ReadOnly and
   // ReadWrite servers
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3306);
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3307);
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3308);
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3306);
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3306});
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3307});
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3308});
+  ASSERT_EQ(dest_mc_group.get_server_socket(0ms), result{3306});
 }
 
 /*****************************************/

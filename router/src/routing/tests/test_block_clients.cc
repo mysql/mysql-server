@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -137,6 +137,7 @@ TEST_F(TestBlockClients, BlockClientHostWithFakeResponse) {
       std::chrono::seconds(1), max_connect_errors, client_connect_timeout);
 
   std::FILE *fd_response = std::fopen("fake_response.data", "w");
+  ASSERT_NE(fd_response, nullptr);
 
   ASSERT_FALSE(r.get_context().block_client_host(
       client_ip_array1, string("::1"), fileno(fd_response)));
@@ -145,14 +146,21 @@ TEST_F(TestBlockClients, BlockClientHostWithFakeResponse) {
   // block_client_host() will not be able to write data to the file because in
   // windows, the syscall to writing to sockets is different than for files
   fd_response = std::fopen("fake_response.data", "r");
+  ASSERT_NE(fd_response, nullptr);
 
-  auto fake_response = mysql_protocol::HandshakeResponsePacket(
+  const auto fake_response = mysql_protocol::HandshakeResponsePacket(
       1, {}, "ROUTER", "", "fake_router_login");
 
-  auto server_response = ssout.str();
-  for (size_t i = 0; i < fake_response.size(); ++i) {
-    ASSERT_EQ(fake_response.at(i), std::fgetc(fd_response));
+  std::vector<uint8_t> written_data;
+  for (;;) {
+    auto c = std::fgetc(fd_response);
+    if (c == EOF) break;
+
+    written_data.push_back(c);
   }
+
+  EXPECT_EQ(written_data, fake_response);
+
   std::fclose(fd_response);
 #endif
   std::remove("fake_response.data");

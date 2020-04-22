@@ -33,6 +33,7 @@
 #include "harness_export.h"
 #include "mysql/harness/compiler_attributes.h"
 #include "mysql/harness/filesystem.h"
+#include "mysql/harness/stdx/process.h"
 
 #include <chrono>
 #include <cstdarg>
@@ -40,16 +41,6 @@
 #include <list>
 #include <mutex>
 #include <string>
-
-#ifndef _WIN32
-#include <sys/types.h>
-#include <unistd.h>
-#endif
-
-#ifdef _WIN32
-#include <windows.h>
-typedef int pid_t; /* getpid() */
-#endif
 
 namespace mysql_harness {
 
@@ -190,7 +181,7 @@ enum class LogTimestampPrecision {
  */
 struct Record {
   LogLevel level;
-  pid_t process_id;
+  stdx::this_process::pid_type process_id;
   std::chrono::time_point<std::chrono::system_clock> created;
   std::string domain;
   std::string message;

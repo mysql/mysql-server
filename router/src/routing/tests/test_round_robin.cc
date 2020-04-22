@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -44,8 +44,6 @@ using ::testing::StrEq;
 
 class RoundRobinDestinationTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {}
-
   MockRoutingSockOps mock_routing_sock_ops_;
 };
 
@@ -141,8 +139,6 @@ TEST_F(RoundRobinDestinationTest, SpawnAndJoinQuarantineThread) {
 }
 
 TEST_F(RoundRobinDestinationTest, get_server_socket) {
-  int error;
-
   // create round-robin (read-only) destination and add a few servers
   DestRoundRobin dest(Protocol::get_default(), &mock_routing_sock_ops_,
                       mysql_harness::kDefaultStackSizeInKiloBytes);
@@ -157,7 +153,7 @@ TEST_F(RoundRobinDestinationTest, get_server_socket) {
 
   using ThrPtr = std::unique_ptr<std::thread>;
   std::vector<ThrPtr> client_threads;
-  std::map<int, size_t>
+  std::map<mysql_harness::socket_t, size_t>
       connections;  // number of connections per each destination address
   std::mutex connections_mutex;
 
@@ -166,12 +162,13 @@ TEST_F(RoundRobinDestinationTest, get_server_socket) {
   const size_t kNumClientThreads = dest_servers_addresses.size() * 10;
   for (size_t i = 0; i < kNumClientThreads; ++i) {
     client_threads.emplace_back(new std::thread([&]() {
-      int addr =
-          dest.get_server_socket(std::chrono::milliseconds::zero(), &error);
+      auto sock_res = dest.get_server_socket(std::chrono::milliseconds::zero());
+
+      ASSERT_TRUE(sock_res);
       {
         std::unique_lock<std::mutex> lock(connections_mutex);
         // increment the counter for returned address
-        ++connections[addr];
+        ++connections[sock_res.value()];
       }
     }));
   }

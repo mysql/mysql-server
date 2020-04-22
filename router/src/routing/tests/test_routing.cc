@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,11 +28,14 @@
 
 #include "common.h"
 #include "mysql/harness/loader.h"
+#include "mysql/harness/net_ts/impl/socket.h"
+#include "mysql/harness/stdx/expected.h"
 #include "mysql_routing.h"
 #include "mysql_routing_common.h"
 #include "mysqlrouter/routing.h"
 #include "protocol/classic_protocol.h"
 #include "routing_mocks.h"
+#include "socket_operations.h"
 #include "tcp_port_pool.h"
 #include "test/helpers.h"
 
@@ -45,6 +48,8 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #endif
+
+#include "mysql/harness/net_ts/impl/socket.h"
 
 using mysql_harness::TCPAddress;
 using routing::AccessMode;
@@ -60,11 +65,6 @@ using ::testing::StrEq;
 
 class RoutingTests : public ::testing::Test {
  protected:
-  RoutingTests() {}
-  virtual void SetUp() {}
-
-  virtual void TearDown() {}
-
   MockRoutingSockOps routing_sock_ops;
   MockSocketOperations &socket_op = *routing_sock_ops.so();
 };
@@ -121,7 +121,6 @@ TEST_F(RoutingTests, CopyPacketsSingleWrite) {
   RoutingProtocolBuffer buffer(500);
   int curr_pktnr = 100;
   bool handshake_done = true;
-  size_t report_bytes_read = 0u;
 
   EXPECT_CALL(socket_op, read(sender_socket, &buffer[0], buffer.size()))
       .WillOnce(Return(200));
@@ -129,12 +128,12 @@ TEST_F(RoutingTests, CopyPacketsSingleWrite) {
       .WillOnce(Return(200));
 
   ClassicProtocol cp(&routing_sock_ops);
-  int res = cp.copy_packets(sender_socket, receiver_socket,
-                            true /* sender is writable */, buffer, &curr_pktnr,
-                            handshake_done, &report_bytes_read, false);
+  const auto copy_res = cp.copy_packets(sender_socket, receiver_socket,
+                                        true /* sender is writable */, buffer,
+                                        &curr_pktnr, handshake_done, false);
 
-  ASSERT_EQ(0, res);
-  ASSERT_EQ(200u, report_bytes_read);
+  ASSERT_TRUE(copy_res);
+  EXPECT_EQ(200u, copy_res.value());
 }
 
 TEST_F(RoutingTests, CopyPacketsMultipleWrites) {
@@ -142,7 +141,6 @@ TEST_F(RoutingTests, CopyPacketsMultipleWrites) {
   RoutingProtocolBuffer buffer(500);
   int curr_pktnr = 100;
   bool handshake_done = true;
-  size_t report_bytes_read = 0u;
 
   InSequence seq;
 
@@ -160,12 +158,12 @@ TEST_F(RoutingTests, CopyPacketsMultipleWrites) {
       .WillOnce(Return(100));
 
   ClassicProtocol cp(&routing_sock_ops);
-  int res =
+  const auto copy_res =
       cp.copy_packets(sender_socket, receiver_socket, true, buffer, &curr_pktnr,
-                      handshake_done, &report_bytes_read, false);
+                      handshake_done, false);
 
-  ASSERT_EQ(0, res);
-  ASSERT_EQ(200u, report_bytes_read);
+  ASSERT_TRUE(copy_res);
+  EXPECT_EQ(200u, copy_res.value());
 }
 
 TEST_F(RoutingTests, CopyPacketsWriteError) {
@@ -173,20 +171,20 @@ TEST_F(RoutingTests, CopyPacketsWriteError) {
   RoutingProtocolBuffer buffer(500);
   int curr_pktnr = 100;
   bool handshake_done = true;
-  size_t report_bytes_read = 0u;
 
   EXPECT_CALL(socket_op, read(sender_socket, &buffer[0], buffer.size()))
       .WillOnce(Return(200));
   EXPECT_CALL(socket_op, write(receiver_socket, &buffer[0], 200))
-      .WillOnce(Return(-1));
+      .WillOnce(Return(
+          stdx::make_unexpected(make_error_code(std::errc::connection_reset))));
 
   ClassicProtocol cp(&routing_sock_ops);
   // will log "Write error: ..." as we don't mock an errno
-  int res =
+  const auto copy_res =
       cp.copy_packets(sender_socket, receiver_socket, true, buffer, &curr_pktnr,
-                      handshake_done, &report_bytes_read, false);
+                      handshake_done, false);
 
-  ASSERT_EQ(-1, res);
+  ASSERT_FALSE(copy_res);
 }
 
 #ifndef _WIN32  // [_HERE_]
@@ -197,20 +195,23 @@ TEST_F(RoutingTests, CopyPacketsWriteError) {
 class MockServer {
  public:
   MockServer(uint16_t port) {
-    int option_value;
-
     socket_operations_ = mysql_harness::SocketOperations::instance();
 
-    if ((service_tcp_ = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-      throw std::runtime_error(mysql_harness::get_strerror(errno));
+    const auto socket_res = net::impl::socket::socket(AF_INET, SOCK_STREAM, 0);
+    if (!socket_res) {
+      throw std::system_error(socket_res.error());
     }
 
+    service_tcp_ = socket_res.value();
+
 #ifndef _WIN32
-    option_value = 1;
-    if (setsockopt(service_tcp_, SOL_SOCKET, SO_REUSEADDR,
-                   reinterpret_cast<const char *>(&option_value),
-                   static_cast<socklen_t>(sizeof(int))) == -1) {
-      throw std::runtime_error(get_message_error(errno));
+    int option_value{1};
+    const auto sockopt_res =
+        net::impl::socket::setsockopt(service_tcp_, SOL_SOCKET, SO_REUSEADDR,
+                                      &option_value, sizeof(option_value));
+    if (!sockopt_res) {
+      net::impl::socket::close(service_tcp_);
+      throw std::system_error(sockopt_res.error());
     }
 #endif
 
@@ -219,14 +220,21 @@ class MockServer {
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = INADDR_ANY;
     addr.sin_port = htons(port);
-    if (::bind(service_tcp_, (const struct sockaddr *)&addr,
-               static_cast<socklen_t>(sizeof(addr))) == -1) {
-      socket_operations_->close(service_tcp_);
-      int errcode = socket_operations_->get_errno();
-      throw std::runtime_error(get_message_error(errcode));
+
+    const auto bind_res = net::impl::socket::bind(
+        service_tcp_, (const struct sockaddr *)&addr, sizeof addr);
+    if (!bind_res) {
+      net::impl::socket::close(service_tcp_);
+
+      throw std::system_error(bind_res.error());
     }
-    if (listen(service_tcp_, 20) < 0) {
-      throw std::runtime_error(
+
+    const auto listen_res = net::impl::socket::listen(service_tcp_, 20);
+    if (!listen_res) {
+      net::impl::socket::close(service_tcp_);
+
+      throw std::system_error(
+          listen_res.error(),
           "Failed to start listening for connections using TCP");
     }
   }
@@ -255,14 +263,16 @@ class MockServer {
 
     while (!stop_ && (max_expected_accepts_ == 0 ||
                       num_accepts_ < max_expected_accepts_)) {
-      int sock_client;
       struct sockaddr_in6 client_addr;
-      socklen_t sin_size = static_cast<socklen_t>(sizeof client_addr);
-      if ((sock_client = accept(service_tcp_, (struct sockaddr *)&client_addr,
-                                &sin_size)) < 0) {
-        std::cout << mysql_harness::get_strerror(errno) << " ERROR\n";
+      socklen_t sin_size = sizeof client_addr;
+
+      const auto sock_client_res = net::impl::socket::accept(
+          service_tcp_, (struct sockaddr *)&client_addr, &sin_size);
+      if (!sock_client_res) {
+        std::cout << sock_client_res.error().message() << " ERROR\n";
         continue;
       }
+      const auto sock_client = sock_client_res.value();
       num_accepts_++;
       client_threads.emplace_back(
           std::thread([this, sock_client]() { new_client(sock_client); }));
@@ -295,11 +305,12 @@ class MockServer {
  private:
   mysql_harness::SocketOperationsBase *socket_operations_;
   std::thread thread_;
-  int service_tcp_;
+  mysql_harness::socket_t service_tcp_{mysql_harness::kInvalidSocket};
   std::atomic_bool stop_;
 };
 
-static int connect_local(uint16_t port) {
+static stdx::expected<mysql_harness::socket_t, std::error_code> connect_local(
+    uint16_t port) {
   return routing::RoutingSockOps::instance(
              mysql_harness::SocketOperations::instance())
       ->get_mysql_socket(TCPAddress("127.0.0.1", port),
@@ -315,20 +326,22 @@ static void disconnect(int sock) {
 
 #ifndef _WIN32
 static int connect_socket(const char *path) {
-  struct sockaddr_un addr;
-  int fd;
-
-  if ((fd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
-    throw std::runtime_error(mysql_harness::get_strerror(errno));
+  const auto socket_res = net::impl::socket::socket(AF_UNIX, SOCK_STREAM, 0);
+  if (!socket_res) {
+    throw std::system_error(socket_res.error());
   }
 
+  struct sockaddr_un addr;
   memset(&addr, 0, sizeof(addr));
   addr.sun_family = AF_UNIX;
   strncpy(addr.sun_path, path, sizeof(addr.sun_path) - 1);
 
-  if (connect(fd, (struct sockaddr *)&addr,
-              static_cast<socklen_t>(sizeof(addr))) == -1) {
-    throw std::runtime_error(mysql_harness::get_strerror(errno));
+  const auto fd = socket_res.value();
+
+  const auto connect_res =
+      net::impl::socket::connect(fd, (struct sockaddr *)&addr, sizeof(addr));
+  if (!connect_res) {
+    throw std::system_error(connect_res.error());
   }
 
   return fd;
@@ -387,16 +400,19 @@ TEST_F(RoutingTests, bug_24841281) {
   // open connections to the socket and see if we get a matching outgoing
   // socket connection attempt to our mock server
 
-  int sock1;
+  stdx::expected<mysql_harness::socket_t, std::error_code> sock1_res;
   // router is running in a thread, so we need to sync it
   EXPECT_TRUE(call_until([&]() -> bool {
-    sock1 = connect_local(router_port);
-    return sock1 > 0;
+    sock1_res = connect_local(router_port);
+    return sock1_res.has_value();
   })) << "timed out connecting to router_port";
-  int sock2 = connect_local(router_port);
+  auto sock2_res = connect_local(router_port);
 
-  EXPECT_THAT(sock1, ::testing::Gt(0));
-  EXPECT_THAT(sock2, ::testing::Gt(0));
+  ASSERT_TRUE(sock1_res);
+  ASSERT_TRUE(sock2_res);
+
+  auto sock1 = sock1_res.value();
+  auto sock2 = sock2_res.value();
 
   EXPECT_TRUE(call_until([&server]() -> bool {
     return server.num_connections_.load() == 2;
@@ -415,11 +431,14 @@ TEST_F(RoutingTests, bug_24841281) {
       << routing.get_context().info_active_routes_.load() << " active routes";
 
   {
-    int sock11 = connect_local(router_port);
-    int sock12 = connect_local(router_port);
+    auto sock11_res = connect_local(router_port);
+    auto sock12_res = connect_local(router_port);
 
-    EXPECT_THAT(sock11, Gt(0));
-    EXPECT_THAT(sock12, Gt(0));
+    ASSERT_TRUE(sock11_res);
+    ASSERT_TRUE(sock12_res);
+
+    auto sock11 = sock11_res.value();
+    auto sock12 = sock12_res.value();
 
     EXPECT_TRUE(call_until([&server]() -> bool {
       return server.num_connections_.load() == 3;
@@ -645,12 +664,12 @@ TEST_F(RoutingTests, DISABLED_ConnectToServerWrongPort) {
   // wrong port number
   {
     TCPAddress address("127.0.0.1", 10888);
-    int server = routing::RoutingSockOps::instance(
-                     mysql_harness::SocketOperations::instance())
-                     ->get_mysql_socket(address, TIMEOUT);
+    auto server_res = routing::RoutingSockOps::instance(
+                          mysql_harness::SocketOperations::instance())
+                          ->get_mysql_socket(address, TIMEOUT);
     // should return -1, -2 is timeout expired which is not what we expect when
     // connecting with the wrong port
-    ASSERT_EQ(server, -1);
+    ASSERT_FALSE(server_res);
   }
 
 // in darwin and solaris, attempting connection to 127.0.0.11 will fail by
@@ -659,12 +678,12 @@ TEST_F(RoutingTests, DISABLED_ConnectToServerWrongPort) {
   // wrong port number and IP
   {
     TCPAddress address("127.0.0.11", 10888);
-    int server = routing::RoutingSockOps::instance(
-                     mysql_harness::SocketOperations::instance())
-                     ->get_mysql_socket(address, TIMEOUT);
+    auto server_res = routing::RoutingSockOps::instance(
+                          mysql_harness::SocketOperations::instance())
+                          ->get_mysql_socket(address, TIMEOUT);
     // should return -1, -2 is timeout expired which is not what we expect when
     // connecting with the wrong port
-    ASSERT_EQ(server, -1);
+    ASSERT_FALSE(server_res);
   }
 #endif
 }

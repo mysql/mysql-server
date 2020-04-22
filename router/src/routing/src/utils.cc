@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 #include "utils.h"
 
 #include <algorithm>
+#include <array>
 #include <cstdlib>
 #include <cstring>
 #include <stdexcept>
@@ -40,10 +41,6 @@
 #include <ws2tcpip.h>
 #endif
 
-#include "mysqlrouter/utils.h"
-
-using mysqlrouter::get_socket_errno;
-
 void *get_in_addr(struct sockaddr *addr) {
   if (addr->sa_family == AF_INET) {
     return &(((struct sockaddr_in *)addr)->sin_addr);
@@ -55,23 +52,23 @@ void *get_in_addr(struct sockaddr *addr) {
 std::pair<std::string, int> get_peer_name(
     const struct sockaddr_storage *addr,
     mysql_harness::SocketOperationsBase *sock_op) {
-  char result_addr[105] = {0};  // For IPv4, IPv6 and Unix socket
+  std::array<char, 105> result_addr = {0};  // For IPv4, IPv6 and Unix socket
 
-  const char *res{nullptr};
+  stdx::expected<const char *, std::error_code> res;
   int port{0};
 
   if (addr->ss_family == AF_INET6) {
     // IPv6
     auto *sin6 = reinterpret_cast<const struct sockaddr_in6 *>(addr);
     port = ntohs(sin6->sin6_port);
-    res = sock_op->inetntop(AF_INET6, &sin6->sin6_addr, result_addr,
-                            static_cast<socklen_t>(sizeof result_addr));
+    res = sock_op->inetntop(AF_INET6, &sin6->sin6_addr, result_addr.data(),
+                            result_addr.size());
   } else if (addr->ss_family == AF_INET) {
     // IPv4
     const auto *sin4 = reinterpret_cast<const struct sockaddr_in *>(addr);
     port = ntohs(sin4->sin_port);
-    res = sock_op->inetntop(AF_INET, &sin4->sin_addr, result_addr,
-                            static_cast<socklen_t>(sizeof result_addr));
+    res = sock_op->inetntop(AF_INET, &sin4->sin_addr, result_addr.data(),
+                            result_addr.size());
   } else if (addr->ss_family == AF_UNIX) {
     // Unix socket, no good way to find peer
     return std::make_pair(std::string("unix socket"), 0);
@@ -80,23 +77,22 @@ std::pair<std::string, int> get_peer_name(
                              std::to_string(addr->ss_family));
   }
 
-  if (res == nullptr) {
-    throw std::system_error(get_socket_errno(), std::generic_category(),
-                            "inet_ntop() failed");
+  if (!res) {
+    throw std::system_error(res.error(), "inet_ntop() failed");
   }
 
-  return std::make_pair(std::string(result_addr), port);
+  return std::make_pair(std::string(result_addr.data()), port);
 }
 
 std::pair<std::string, int> get_peer_name(
     int sock, mysql_harness::SocketOperationsBase *sock_op) {
-  socklen_t sock_len;
   struct sockaddr_storage addr;
 
-  sock_len = static_cast<socklen_t>(sizeof addr);
-  if (0 != sock_op->getpeername(sock, (struct sockaddr *)&addr, &sock_len)) {
-    throw std::system_error(get_socket_errno(), std::generic_category(),
-                            "getpeername() failed");
+  size_t sock_len = sizeof addr;
+  auto peername_res =
+      sock_op->getpeername(sock, (struct sockaddr *)&addr, &sock_len);
+  if (!peername_res) {
+    throw std::system_error(peername_res.error(), "getpeername() failed");
   }
 
   return get_peer_name(&addr, sock_op);
@@ -153,28 +149,4 @@ ClientIpArray in_addr_to_array(const sockaddr_storage &addr) {
   }
 
   return result;
-}
-
-std::string get_message_error(int errcode) {
-#ifndef _WIN32
-  return std::string(strerror(errcode));
-#else
-  if (errcode == SOCKET_ERROR || errcode == 0) {
-    errcode = WSAGetLastError();
-  }
-  LPTSTR lpMsgBuf;
-
-  if (0 != FormatMessage(
-               FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
-                   FORMAT_MESSAGE_IGNORE_INSERTS,
-               NULL, errcode, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-               (LPTSTR)&lpMsgBuf, 0, NULL)) {
-    std::string msgerr = "SystemError: ";
-    msgerr += lpMsgBuf;
-    LocalFree(lpMsgBuf);
-    return msgerr;
-  } else {
-    return "SystemError: " + std::to_string(errcode);
-  }
-#endif
 }

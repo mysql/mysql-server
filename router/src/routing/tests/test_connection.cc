@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -57,8 +57,8 @@ class MockProtocol : public BaseProtocol {
      it is good enough for our needs here. */
   /* MOCK_METHOD8(copy_packets, int(int, int, bool,
      RoutingProtocolBuffer&, int* , bool&, size_t*, bool)); */
-  virtual int copy_packets(int, int, bool, RoutingProtocolBuffer &, int *,
-                           bool &, size_t *, bool) {
+  virtual stdx::expected<size_t, std::error_code> copy_packets(
+      int, int, bool, RoutingProtocolBuffer &, int *, bool &, bool) {
     return 1;
   }
 };
