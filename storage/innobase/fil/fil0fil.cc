@@ -4030,19 +4030,26 @@ std::string Fil_path::get_existing_path(const std::string &path,
 std::string Fil_path::get_real_path(const std::string &path, bool force) {
   bool path_exists;
   os_file_type_t path_type;
+  char abspath[OS_FILE_MAX_PATH];
+  std::string in_path{path};
+  std::string real_path;
 
   if (path.empty()) {
     return (std::string(""));
   }
 
+  /* We do not need a separator at the end in order to determine what
+  kind of object it is.  So take it off. If it is there and the last
+  part is actually a file, the correct real path will be returned. */
+  if (in_path.length() > 1 && is_separator(in_path.back())) {
+    trim_separator(in_path);
+  }
+
   /* Before we make an absolute path, check if this path exists,
   and if so, what type it is. */
-  os_file_status(path.c_str(), &path_exists, &path_type);
+  os_file_status(in_path.c_str(), &path_exists, &path_type);
 
-  char abspath[OS_FILE_MAX_PATH];
-  std::string real_path;
-
-  int ret = my_realpath(abspath, path.c_str(), MYF(0));
+  int ret = my_realpath(abspath, in_path.c_str(), MYF(0));
 
   if (ret == 0) {
     real_path.assign(abspath);
@@ -4055,7 +4062,7 @@ std::string Fil_path::get_real_path(const std::string &path, bool force) {
       exist. */
       if (force) {
         /* Use the given path and make it comparable. */
-        real_path.assign(path);
+        real_path.assign(in_path);
       } else {
         /* Return null and make a note of it.  Another attempt will be made
         later when Fil_path::get_real_path() is called with force=true. */
@@ -4067,7 +4074,7 @@ std::string Fil_path::get_real_path(const std::string &path, bool force) {
       /* The path does not exist.  Try my_realpath() again with the
       existing portion of the path. */
       std::string ghost;
-      std::string dir = get_existing_path(path, ghost);
+      std::string dir = get_existing_path(in_path, ghost);
 
       ret = my_realpath(abspath, dir.c_str(), MYF(0));
       ut_ad(ret == 0);
@@ -4109,13 +4116,19 @@ std::string Fil_path::get_real_path(const std::string &path, bool force) {
       case OS_FILE_TYPE_NAME_TOO_LONG:
       case OS_FILE_PERMISSION_ERROR:
       case OS_FILE_TYPE_UNKNOWN:
-        add_sep = !(Fil_path::has_suffix(IBD, real_path) ||
-                    Fil_path::has_suffix(IBU, real_path) ||
-                    Fil_path::has_suffix(IBT, real_path) ||
-                    Fil_path::has_suffix(CFG, real_path) ||
-                    Fil_path::has_suffix(CFP, real_path) ||
-                    Fil_path::has_suffix(DWR, real_path));
+        /* This filepath is missing or cannot be identified for some other
+        reason. If it ends in a three letter extension, assume it is a file
+        name and do not add the trailing separator. Otherwise, assume it is
+        intended to be a directory.*/
+        size_t s = real_path.size();
+        if (s > 4 && real_path[s - 4] == '.' && real_path[s - 3] != '.' &&
+            real_path[s - 2] != '.' && real_path[s - 1] != '.' &&
+            !is_separator(real_path[s - 3]) &&
+            !is_separator(real_path[s - 2])) {
+          add_sep = false;
+        }
     }
+
     if (add_sep) {
       append_separator(real_path);
     }
