@@ -90,6 +90,19 @@ SET GLOBAL partial_revokes = ON;
 --source include/restart_mysqld.inc
 --enable_reconnect
 --source include/wait_until_connected_again.inc
+--echo #
+--echo # Make the variable persitent this time
+--echo #
+SET PERSIST partial_revokes = ON;
+--let $restart_parameters = "restart:--skip-grant-tables"
+--let $wait_for_tcpsocket_status = no_wait
+--source include/restart_mysqld.inc
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
+--enable_reconnect
+--source include/wait_until_connected_again.inc
 --echo ------------ End test with --skip-grant-tables option -------------------
 
 --disable_query_log
