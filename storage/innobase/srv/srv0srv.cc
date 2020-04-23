@@ -407,6 +407,8 @@ ulong srv_buf_pool_instances;
 const ulong srv_buf_pool_instances_default = 0;
 /** Number of locks to protect buf_pool->page_hash */
 ulong srv_n_page_hash_locks = 16;
+/** Whether to validate InnoDB tablespace paths on startup */
+bool srv_validate_tablespace_paths = true;
 /** Scan depth for LRU flush batch i.e.: number of blocks scanned*/
 ulong srv_LRU_scan_depth = 1024;
 /** Whether or not to flush neighbors of a block */
