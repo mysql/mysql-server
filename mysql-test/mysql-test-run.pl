@@ -5553,7 +5553,7 @@ sub check_warnings ($) {
   return $res if $res;
 }
 
-# Loop through our list of processes and look for and entry with the
+# Loop through our list of processes and look for an entry with the
 # provided pid, if found check for the file indicating expected crash
 # and restart it.
 sub check_expected_crash_and_restart($$) {
@@ -5629,6 +5629,10 @@ sub check_expected_crash_and_restart($$) {
       # Loop ran through: we should keep waiting after a re-check
       return 2;
     }
+  }
+
+  if ($tinfo->{'secondary-engine'}) {
+    return check_expected_secondary_server_crash_and_restart($proc, $tinfo);
   }
 
   # Not an expected crash
