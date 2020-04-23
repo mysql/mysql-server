@@ -3464,9 +3464,13 @@ static MY_ATTRIBUTE((warn_unused_result)) bool boot_tablespaces(
     return (DD_FAILURE);
   }
 
-  Validate_files validator;
+  if (srv_validate_tablespace_paths) {
+    Validate_files validator;
+    return (validator.validate(tablespaces, moved_count) != DB_SUCCESS);
+  }
 
-  return (validator.validate(tablespaces, moved_count) != DB_SUCCESS);
+  ib::info(ER_IB_TABLESPACE_PATH_VALIDATION_SKIPPED);
+  return (DD_SUCCESS);
 }
 
 /** Create metadata for a predefined tablespace at server initialization.
@@ -21211,6 +21215,14 @@ static MYSQL_SYSVAR_ULONG(page_hash_locks, srv_n_page_hash_locks,
                           nullptr, nullptr, 16, 1, MAX_PAGE_HASH_LOCKS, 0);
 #endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
 
+static MYSQL_SYSVAR_BOOL(
+    validate_tablespace_paths, srv_validate_tablespace_paths,
+    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+    "Enable validation of tablespace paths against the DD. (enabled by "
+    "default)."
+    " Disable with --skip-innodb-validate-tablespace-paths.",
+    nullptr, nullptr, TRUE);
+
 // clang-format off
 static MYSQL_SYSVAR_BOOL(
     doublewrite, dblwr::enabled, PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
@@ -22218,6 +22230,7 @@ static SYS_VAR *innobase_system_variables[] = {
 #if defined UNIV_DEBUG || defined UNIV_PERF_DEBUG
     MYSQL_SYSVAR(page_hash_locks),
 #endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
+    MYSQL_SYSVAR(validate_tablespace_paths),
     MYSQL_SYSVAR(status_output),
     MYSQL_SYSVAR(status_output_locks),
     MYSQL_SYSVAR(print_all_deadlocks),

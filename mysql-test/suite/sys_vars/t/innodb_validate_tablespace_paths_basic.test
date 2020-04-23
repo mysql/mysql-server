@@ -1,0 +1,10 @@
+--echo #
+--echo # Basic test for the innodb_validate_tablespace_paths variable
+--echo #
+# The variable should be true by default
+SELECT @@global.innodb_validate_tablespace_paths;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global innodb_validate_tablespace_paths = 0;
+
+SELECT @@global.innodb_validate_tablespace_paths;
