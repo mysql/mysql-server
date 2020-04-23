@@ -9373,6 +9373,9 @@ ER_MDL_OUT_OF_RESOURCES
 ER_IMPLICIT_COMPARISON_FOR_JSON
   eng "Evaluating a JSON value in SQL boolean context does an implicit comparison against JSON integer 0; if this is not what you want, consider converting JSON to a SQL numeric type with JSON_VALUE RETURNING"
 
+ER_FUNCTION_DOES_NOT_SUPPORT_CHARACTER_SET
+  eng "The function %s does not support the character set '%s'."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

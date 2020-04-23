@@ -46,6 +46,9 @@
 
 #include "base64.h"  // base64_encode_max_arg_length
 #include "decimal.h"
+#include "field_types.h"  // MYSQL_TYPE_BIT
+#include "lex_string.h"   // LEX_CSTRING
+#include "m_ctype.h"      // is_supported_parser_charset
 #include "m_string.h"
 #include "my_aes.h"  // MY_AES_IV_SIZE
 #include "my_byteorder.h"
@@ -926,7 +929,12 @@ String *Item_func_statement_digest::val_str_ascii(String *buf) {
   {
     THD *thd = current_thd;
     Thd_parse_modifier thd_mod(thd, m_token_buffer);
-
+    const CHARSET_INFO *cs = args[0]->charset_for_protocol();
+    if (!is_supported_parser_charset(cs)) {
+      my_error(ER_FUNCTION_DOES_NOT_SUPPORT_CHARACTER_SET, myf(0), func_name(),
+               cs->name);
+      return error_str();
+    }
     if (parse(thd, args[0], statement_string)) return error_str();
     compute_digest_hash(&thd->m_digest->m_digest_storage, digest);
   }
@@ -956,7 +964,12 @@ String *Item_func_statement_digest_text::val_str(String *buf) {
 
   THD *thd = current_thd;
   Thd_parse_modifier thd_mod(thd, m_token_buffer);
-
+  const CHARSET_INFO *cs = args[0]->charset_for_protocol();
+  if (!is_supported_parser_charset(cs)) {
+    my_error(ER_FUNCTION_DOES_NOT_SUPPORT_CHARACTER_SET, myf(0), func_name(),
+             cs->name);
+    return error_str();
+  }
   if (parse(thd, args[0], statement_string)) return error_str();
 
   compute_digest_text(&thd->m_digest->m_digest_storage, buf);
