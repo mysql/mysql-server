@@ -91,6 +91,12 @@ So we maintain a std::set, which is later used to register the
 tablespaces to dictionary table mysql.tablespaces */
 missing_sys_tblsp_t missing_spaces;
 
+/** This bool denotes if we found a Table or Partition with discarded Tablespace
+during load of SYS_TABLES (in dict_check_sys_tables).
+
+We use it to stop upgrade from 5.7 to 8.0 if there are discarded Tablespaces. */
+bool has_discarded_tablespaces = false;
+
 /** Loads a table definition and also all its index definitions.
 
 Loads those foreign key constraints whose referenced table is already in
@@ -1454,9 +1460,12 @@ space_id_t dict_check_sys_tables(bool validate) {
     }
 
     if (flags2 & DICT_TF2_DISCARDED) {
-      ib::info(ER_IB_MSG_193) << "Ignoring tablespace " << table_name
-                              << " because the DISCARD flag is set .";
+      ib::info(ER_IB_MSG_193)
+          << "Tablespace " << table_name
+          << " is set as DISCARDED. Upgrade will stop, please make sure "
+             "there are no discarded Tables/Partitions before upgrading.";
       ut_free(table_name.m_name);
+      has_discarded_tablespaces = true;
       continue;
     }
 

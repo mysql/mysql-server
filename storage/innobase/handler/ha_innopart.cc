@@ -2763,8 +2763,7 @@ int ha_innopart::set_dd_discard_attribute(dd::Table *table_def, bool discard) {
     dd_part->set_se_private_id(table->id);
 
     /* Set discard flag. */
-    dd::Properties &p = dd_part->table().se_private_data();
-    p.set(dd_table_key_strings[DD_TABLE_DISCARD], discard);
+    dd_set_discarded(*dd_part, discard);
 
     /* Get Tablespace object */
     dd::Tablespace *dd_space = nullptr;
@@ -2810,10 +2809,6 @@ int ha_innopart::set_dd_discard_attribute(dd::Table *table_def, bool discard) {
       p.set(dd_index_key_strings[DD_INDEX_ROOT], index->page);
     }
   }
-
-  /* Set discard flag for the table. */
-  dd::Properties &p = table_def->table().se_private_data();
-  p.set(dd_table_key_strings[DD_TABLE_DISCARD], discard);
 
   /* Set new table id of the first partition to dd::Column::se_private_data */
   if (!discard) {
