@@ -1749,7 +1749,10 @@ static Sys_var_struct<CHARSET_INFO, Get_csname> Sys_character_set_database(
 static bool check_cs_client(sys_var *self, THD *thd, set_var *var) {
   if (check_charset_not_null(self, thd, var)) return true;
 
-  // Currently, UCS-2 cannot be used as a client character set
+  // We don't currently support any variable-width character set with a minumum
+  // length greater than 1. If we ever do, we have to revisit
+  // is_supported_parser_charset(). See Item_func_statement_digest::val_str()
+  // and Item_func_statement_digest_text::val_str().
   return (static_cast<const CHARSET_INFO *>(var->save_result.ptr))->mbminlen >
          1;
 }
