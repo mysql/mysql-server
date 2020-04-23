@@ -2201,39 +2201,54 @@ bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,
       if (thd->lex->default_roles != nullptr &&
           thd->lex->sql_command == SQLCOM_CREATE_USER) {
         List_of_auth_id_refs default_roles;
-        List_iterator<LEX_USER> role_it(*(thd->lex->default_roles));
-        LEX_USER *role;
-        while ((role = role_it++) && result == 0) {
-          if (!is_granted_role(tmp_user_name->user, tmp_user_name->host,
-                               role->user, role->host)) {
-            ACL_USER *acl_role =
-                find_acl_user(role->host.str, role->user.str, true);
-            const ACL_USER *acl_user = find_acl_user(
-                tmp_user_name->host.str, tmp_user_name->user.str, true);
-            if (acl_role == nullptr) {
-              std::string authid = create_authid_str_from(role);
-              my_error(ER_USER_DOES_NOT_EXIST, MYF(0), authid.c_str());
-              result = 1;
-            } else if (acl_user == nullptr) {
-              std::string authid = create_authid_str_from(tmp_user_name);
-              my_error(ER_USER_DOES_NOT_EXIST, MYF(0), authid.c_str());
-              result = 1;
-            } else if (!has_grant_role_privilege(thd, role->user, role->host)) {
-              my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
-                       "WITH ADMIN, ROLE_ADMIN, SUPER");
+        if (tmp_user_name->user.length == 0 ||
+            *(tmp_user_name->user.str) == '\0') {
+          my_error(ER_CANNOT_GRANT_ROLES_TO_ANONYMOUS_USER, MYF(0));
+          result = 1;
+        } else {
+          List_iterator<LEX_USER> role_it(*(thd->lex->default_roles));
+          LEX_USER *role;
+          while ((role = role_it++) && result == 0) {
+            if (role->user.length == 0 || *(role->user.str) == '\0') {
+              std::string from_user = create_authid_str_from(role);
+              std::string to_user = create_authid_str_from(tmp_user_name);
+              my_error(ER_FAILED_ROLE_GRANT, MYF(0), from_user.c_str(),
+                       to_user.c_str());
               result = 1;
             } else {
-              DBUG_ASSERT(result == 0);
-              grant_role(acl_role, acl_user, false);
-              Auth_id_ref from_user = create_authid_from(role);
-              Auth_id_ref to_user = create_authid_from(tmp_user_name);
-              result = modify_role_edges_in_table(
-                  thd, tables[ACL_TABLES::TABLE_ROLE_EDGES].table, from_user,
-                  to_user, false, false);
-            }
-          }  // end if !is_granted_role()
+              if (!is_granted_role(tmp_user_name->user, tmp_user_name->host,
+                                   role->user, role->host)) {
+                ACL_USER *acl_role =
+                    find_acl_user(role->host.str, role->user.str, true);
+                const ACL_USER *acl_user = find_acl_user(
+                    tmp_user_name->host.str, tmp_user_name->user.str, true);
+                if (acl_role == nullptr) {
+                  std::string authid = create_authid_str_from(role);
+                  my_error(ER_USER_DOES_NOT_EXIST, MYF(0), authid.c_str());
+                  result = 1;
+                } else if (acl_user == nullptr) {
+                  std::string authid = create_authid_str_from(tmp_user_name);
+                  my_error(ER_USER_DOES_NOT_EXIST, MYF(0), authid.c_str());
+                  result = 1;
+                } else if (!has_grant_role_privilege(thd, role->user,
+                                                     role->host)) {
+                  my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+                           "WITH ADMIN, ROLE_ADMIN, SUPER");
+                  result = 1;
+                } else {
+                  DBUG_ASSERT(result == 0);
+                  grant_role(acl_role, acl_user, false);
+                  Auth_id_ref from_user = create_authid_from(role);
+                  Auth_id_ref to_user = create_authid_from(tmp_user_name);
+                  result = modify_role_edges_in_table(
+                      thd, tables[ACL_TABLES::TABLE_ROLE_EDGES].table,
+                      from_user, to_user, false, false);
+                }
+              }  // end if !is_granted_role()
 
-          default_roles.push_back(create_authid_from(role));
+              default_roles.push_back(create_authid_from(role));
+            }
+          }
         }
 
         if (result == 0)
@@ -2515,6 +2530,19 @@ bool mysql_rename_user(THD *thd, List<LEX_USER> &list) {
         continue;
       }
       DBUG_ASSERT(user_to != nullptr); /* Syntax enforces pairs of users. */
+
+      /*
+        If we are renaming to anonymous user, make sure no roles are granted.
+      */
+      if (user_to->user.length == 0 || *(user_to->user.str) == '\0') {
+        List_of_granted_roles granted_roles;
+        get_granted_roles(user_from, &granted_roles);
+        if (!granted_roles.empty()) {
+          log_user(thd, &wrong_users, user_from, wrong_users.length() > 0);
+          result = 1;
+          continue;
+        }
+      }
 
       /*
         Search all in-memory structures and grant tables
