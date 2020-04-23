@@ -9384,6 +9384,9 @@ ER_DISABLE_GTID_MODE_REQUIRES_ASYNC_RECONNECT_OFF
 ER_DISABLE_AUTO_POSITION_REQUIRES_ASYNC_RECONNECT_OFF
   eng "CHANGE MASTER TO MASTER_AUTO_POSITION = 0 cannot be executed because Asynchronous Replication Connection Failover is enabled i.e. CHANGE MASTER TO MANAGED = 1."
 
+ER_FUNCTION_DOES_NOT_SUPPORT_CHARACTER_SET
+  eng "The function %s does not support the character set '%s'."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

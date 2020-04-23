@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -126,10 +126,6 @@ bool show_precheck(THD *thd, LEX *lex, bool lock);
 
 extern uint sql_command_flags[];
 extern const LEX_CSTRING command_name[];
-
-inline bool is_supported_parser_charset(const CHARSET_INFO *cs) {
-  return (cs->mbminlen == 1);
-}
 
 bool sqlcom_can_generate_row_events(enum enum_sql_command command);
 
