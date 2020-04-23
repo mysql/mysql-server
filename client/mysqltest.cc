@@ -3152,24 +3152,28 @@ static void do_exec(struct st_command *command, bool run_in_background) {
   std::uint32_t status = 0;
   int error = pclose(res_file);
 
-  if (error > 0) {
+  if (error != 0) {
 #ifdef _WIN32
     status = WEXITSTATUS(error);
 #else
-    // Do the same as many shells here: show SIGKILL as 137
-    if (WIFEXITED(error))
-      status = WEXITSTATUS(error);
-    else if (WIFSIGNALED(error))
-      status = 0x80 + WTERMSIG(error);
+    if (error > 0) {
+      // Do the same as many shells here: show SIGKILL as 137
+      if (WIFEXITED(error))
+        status = WEXITSTATUS(error);
+      else if (WIFSIGNALED(error))
+        status = 0x80 + WTERMSIG(error);
+    }
 #endif
-  }
 
-  if (error != 0 && command->abort_on_error) {
-    log_msg("exec of '%s' failed, error: %d, status: %d, errno: %d.",
-            ds_cmd.str, error, status, errno);
-    dynstr_free(&ds_cmd);
-    die("Command \"%s\" failed.\n\nOutput from before failure:\n%s",
-        command->first_argument, ds_res.str);
+    if (command->abort_on_error) {
+      log_msg("exec of '%s' failed, error: %d, status: %d, errno: %d.",
+              ds_cmd.str, error, status, errno);
+      dynstr_free(&ds_cmd);
+      die("Command \"%s\" failed.\n\nOutput from before failure:\n%s",
+          command->first_argument, ds_res.str);
+    }
+
+    if (status == 0) status = error;
   }
 
   dynstr_free(&ds_cmd);
