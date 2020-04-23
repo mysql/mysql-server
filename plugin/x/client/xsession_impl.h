@@ -103,6 +103,7 @@ class Session_impl : public XSession {
   void close() override;
 
   Argument_uobject get_connect_attrs() const override;
+  bool is_protocol() const { return m_protocol.use_count(); }
 
  private:
   using Context_ptr = std::shared_ptr<Context>;
