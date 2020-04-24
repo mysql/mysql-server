@@ -136,7 +136,6 @@ Also called "key", "field", "subkey", "key part", "key segment" elsewhere.
 #include "sql/table.h"
 #include "storage/temptable/include/temptable/storage.h"
 #include "storage/temptable/include/temptable/table.h"
-#include "storage/temptable/include/temptable/test.h"
 
 namespace temptable {
 
@@ -559,10 +558,6 @@ class Handler : public ::handler {
 
   /** Number of deleted rows by this handler object. */
   size_t m_deleted_rows;
-
-#ifdef TEMPTABLE_CPP_HOOKED_TESTS
-  void test(TABLE *mysql_table);
-#endif /* TEMPTABLE_CPP_HOOKED_TESTS */
 
 #ifndef DBUG_OFF
   /** Check if the current OS thread is the one that created this handler

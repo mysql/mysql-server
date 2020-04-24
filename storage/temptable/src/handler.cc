@@ -41,7 +41,6 @@ TempTable public handler API implementation. */
 #include "storage/temptable/include/temptable/row.h"
 #include "storage/temptable/include/temptable/storage.h"
 #include "storage/temptable/include/temptable/table.h"
-#include "storage/temptable/include/temptable/test.h"
 
 namespace temptable {
 
@@ -95,19 +94,6 @@ int Handler::create(const char *table_name, TABLE *mysql_table,
   DBUG_ASSERT(mysql_table->s != nullptr);
   DBUG_ASSERT(mysql_table->field != nullptr);
   DBUG_ASSERT(table_name != nullptr);
-
-#ifdef TEMPTABLE_CPP_HOOKED_TESTS
-  /* To run this test:
-   * - CREATE TABLE t (__temptable_embedded_unit_tests CHAR(120) NOT NULL);
-   *   (the SELECT below will create a temporary table with t's structure
-   *    plus one unique hash index on the column)
-   * - SELECT DISTINCT * FROM t; */
-  if (mysql_table->s->fields == 1 &&
-      strcmp(mysql_table->field[0]->field_name,
-             "__temptable_embedded_unit_tests") == 0) {
-    test(mysql_table);
-  }
-#endif /* TEMPTABLE_CPP_HOOKED_TESTS */
 
   bool all_columns_are_fixed_size = true;
   for (uint i = 0; i < mysql_table->s->fields; ++i) {
@@ -1062,27 +1048,6 @@ ha_rows Handler::records_in_range(uint, key_range *, key_range *) {
   DBUG_ABORT();
   return 0;
 }
-
-#ifdef TEMPTABLE_CPP_HOOKED_TESTS
-void Handler::test(TABLE *mysql_table) {
-  /* The test will call Handler::create() itself, avoid infinite recursion. */
-  static bool should_run = true;
-  if (should_run) {
-    should_run = false;
-
-    handler::table = mysql_table;
-    init_alloc_root(0, &handler::table->mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
-
-    Test t(handler::ht, handler::table_share, mysql_table);
-    t.correctness();
-    t.performance();
-
-    free_root(&handler::table->mem_root, 0);
-
-    should_run = true;
-  }
-}
-#endif /* TEMPTABLE_CPP_HOOKED_TESTS */
 
 #ifndef DBUG_OFF
 bool Handler::current_thread_is_creator() const {
