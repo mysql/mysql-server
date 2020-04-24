@@ -118,7 +118,7 @@ class ConfigGenerator {
         (cluster_type == ClusterType::RS_V2) ? "ar" : "gr";
     metadata_cache_section_ =
         "[logger]\n"
-        "level = INFO\n\n"
+        "level = DEBUG\n\n"
 
         "[metadata_cache:test]\n"
         "cluster_type=" +
@@ -334,7 +334,7 @@ class RouterRoutingConnectionCommonTest : public RouterComponentTest {
     // launch cluster nodes
     for (unsigned port = 0; port < number_of_servers; ++port) {
       const std::string js_file =
-          port == 0 ? js_for_primary : "rest_server_mock.js";
+          port == 0 ? js_for_primary : "rest_server_mock_with_gr.js";
       cluster_nodes_.push_back(
           &launch_server(cluster_nodes_ports_[port], js_file,
                          cluster_nodes_http_ports_[port], number_of_servers));
@@ -1314,9 +1314,9 @@ TEST_P(RouterRoutingConnectionMDRefreshTest,
 
   // launch the rest of secondary cluster nodes
   for (unsigned port = 2; port < 4; ++port) {
-    cluster_nodes_.push_back(
-        &launch_server(cluster_nodes_ports_[port], "rest_server_mock.js",
-                       cluster_nodes_http_ports_[port], 4));
+    cluster_nodes_.push_back(&launch_server(
+        cluster_nodes_ports_[port], "rest_server_mock_with_gr.js",
+        cluster_nodes_http_ports_[port], 4));
   }
 
   config_generator_->disconnect_on_metadata_unavailable(
