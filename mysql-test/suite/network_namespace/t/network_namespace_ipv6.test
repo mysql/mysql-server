@@ -39,7 +39,12 @@ CREATE USER root@'10.0.1.1';
 --echo # Check that client can establish connection to the address ::ffff:10.0.1.1 from the network namespace 'blue'
 --exec $EXE_MYSQL --no-defaults -u root  --port $MYSQL_PORT --host ::ffff:10.0.1.1 --network-namespace=blue -e "SELECT USER()"
 
---exec # Use network namespaces with an IPv6 admin address and admin port
+--echo # Use network namespaces with an IPv6 admin address and admin port
+
+--disable_query_log
+CALL mtr.add_suppression("Failed to initialize TLS for channel: mysql_admin");
+CALL mtr.add_suppression("Failed to set up SSL because of the following SSL library error");
+--enable_query_log
 
 # Restart with an IPv6 address from the 'red' namespace
 --let $restart_parameters=restart: --skip-name-resolve --admin-address=::1/red --admin-port=$MASTER_ADMINPORT
