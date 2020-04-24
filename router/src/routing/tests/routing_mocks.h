@@ -44,6 +44,8 @@ class MockSocketOperations : public mysql_harness::SocketOperationsBase {
   MOCK_METHOD1(shutdown, result<void>(mysql_harness::socket_t));
   MOCK_METHOD3(getaddrinfo,
                addrinfo_result(const char *, const char *, const addrinfo *));
+  MOCK_METHOD3(connect, result<void>(mysql_harness::socket_t,
+                                     const struct sockaddr *, size_t));
   MOCK_METHOD3(bind, result<void>(mysql_harness::socket_t,
                                   const struct sockaddr *, size_t));
   MOCK_METHOD3(socket, result<mysql_harness::socket_t>(int, int, int));

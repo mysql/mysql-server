@@ -74,6 +74,8 @@ class HARNESS_EXPORT SocketOperationsBase {
   virtual result<void> shutdown(socket_t fd) = 0;
   virtual addrinfo_result getaddrinfo(const char *node, const char *service,
                                       const addrinfo *hints) = 0;
+  virtual result<void> connect(socket_t fd, const struct sockaddr *addr,
+                               size_t len) = 0;
   virtual result<void> bind(socket_t fd, const struct sockaddr *addr,
                             size_t len) = 0;
   virtual result<socket_t> socket(int domain, int type, int protocol) = 0;
@@ -168,6 +170,10 @@ class HARNESS_EXPORT SocketOperations : public SocketOperationsBase {
   /** @brief Thin wrapper around socket library getaddrinfo() */
   result<std::unique_ptr<addrinfo, void (*)(addrinfo *)>> getaddrinfo(
       const char *node, const char *service, const addrinfo *hints) override;
+
+  /** @brief Thin wrapper around socket library connect() */
+  result<void> connect(socket_t fd, const struct sockaddr *addr,
+                       size_t len) override;
 
   /** @brief Thin wrapper around socket library bind() */
   result<void> bind(socket_t fd, const struct sockaddr *addr,
