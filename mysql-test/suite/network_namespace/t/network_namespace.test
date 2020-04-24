@@ -55,8 +55,13 @@ CREATE USER root@10.0.1.1;
 --echo # Check that client can establish connection to the address 10.0.1.1 from the network namespace 'blue'
 --exec $EXE_MYSQL --no-defaults -u root  --port $MYSQL_PORT --host 10.0.1.1 --network-namespace=blue -e "SELECT USER()"
 
---exec # Use network namespaces with admin port
- 
+--echo # Use network namespaces with admin port
+
+--disable_query_log
+CALL mtr.add_suppression("Failed to initialize TLS for channel: mysql_admin");
+CALL mtr.add_suppression("Failed to set up SSL because of the following SSL library error");
+--enable_query_log
+
 --let $restart_parameters=restart: --skip-name-resolve --bind-address=127.0.0.1 --admin-address=10.0.2.1/red --admin-port=$MASTER_ADMINPORT
 --replace_result $MASTER_ADMINPORT ADMIN_PORT
 --source include/restart_mysqld.inc
