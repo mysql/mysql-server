@@ -146,6 +146,9 @@ IF(protobuf_BUILD_SHARED_LIBS)
       PROPERTIES LINK_FLAGS
       "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/libprotobuf.ver"
       )
+    SET_TARGET_PROPERTIES(libprotobuf
+      PROPERTIES LINK_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/libprotobuf.ver
+      )
   ENDIF()
 
   IF(WIN32)

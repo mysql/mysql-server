@@ -844,6 +844,10 @@ add_library(event ${EVENT__LIBRARY_TYPE}
     ${SRC_CORE}
     ${SRC_EXTRA})
 
+IF(NOT WIN32)
+  SET_TARGET_PROPERTIES(event PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
+ENDIF()
+
 if (EVENT__BUILD_SHARED_LIBRARIES)
     # Prepare static library to be linked to tests that need hidden symbols
     add_library(event_extra_static STATIC

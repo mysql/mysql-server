@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -71,14 +71,21 @@ FUNCTION(add_test_file FILE)
     TARGET_INCLUDE_DIRECTORIES(${test_target} PUBLIC ${include_dir})
   ENDFOREACH()
 
+  SET(TEST_ENV_PREFIX
+    "CMAKE_SOURCE_DIR=${MySQLRouter_SOURCE_DIR};CMAKE_BINARY_DIR=${MySQLRouter_BINARY_DIR}")
+
   IF(WITH_VALGRIND)
     FIND_PROGRAM(VALGRIND valgrind)
     SET(TEST_WRAPPER ${VALGRIND} --error-exitcode=1)
-    SET(TEST_ENV_PREFIX "${TEST_ENV_PREFIX};WITH_VALGRIND=1")
+    STRING_APPEND(TEST_ENV_PREFIX ";WITH_VALGRIND=1")
   ENDIF()
 
-  SET(TEST_ENV_PREFIX
-    "CMAKE_SOURCE_DIR=${MySQLRouter_SOURCE_DIR};CMAKE_BINARY_DIR=${MySQLRouter_BINARY_DIR}")
+  IF(WITH_ASAN)
+    STRING_APPEND(TEST_ENV_PREFIX
+      ";ASAN_OPTIONS=suppressions=${CMAKE_SOURCE_DIR}/mysql-test/asan.supp")
+    STRING_APPEND(TEST_ENV_PREFIX
+      ";LSAN_OPTIONS=suppressions=${CMAKE_SOURCE_DIR}/mysql-test/lsan.supp")
+  ENDIF()
 
   IF(WIN32)
     # PATH's separator ";" needs to be escaped as CMAKE's

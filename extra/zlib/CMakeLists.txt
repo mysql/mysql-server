@@ -1,5 +1,5 @@
 
-# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -140,6 +140,10 @@ string(REGEX REPLACE ".*#define[ \t]+ZLIB_VERSION[ \t]+\"([-0-9A-Za-z.]+)\".*"
 
 ADD_CONVENIENCE_LIBRARY(zlib
   ${ZLIB_SRCS} ${ZLIB_PUBLIC_HDRS} ${ZLIB_PRIVATE_HDRS})
+
+IF(NOT WIN32)
+  ADD_COMPILE_FLAGS(${ZLIB_SRCS} COMPILE_FLAGS "-fvisibility=hidden")
+ENDIF()
 
 if(NOT CYGWIN)
     # This property causes shared libraries on Linux to have the full version
