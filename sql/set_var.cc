@@ -431,16 +431,24 @@ bool sys_var::set_default(THD *thd, set_var *var) {
 
 void sys_var::set_user_host(THD *thd) {
   memset(user, 0, sizeof(user));
-  DBUG_ASSERT(thd->security_context()->user().length < sizeof(user));
-  /* set client user */
-  if (thd->security_context()->user().length > 0)
-    strncpy(user, thd->security_context()->user().str,
-            thd->security_context()->user().length);
   memset(host, 0, sizeof(host));
-  if (thd->security_context()->host().length > 0) {
-    int host_len =
-        min<size_t>(sizeof(host) - 1, thd->security_context()->host().length);
-    strncpy(host, thd->security_context()->host().str, host_len);
+  Security_context *sctx = thd->security_context();
+  bool truncated = false;
+  if (sctx->user().length > 0) {
+    truncated = set_and_truncate(user, thd->security_context()->user().str,
+                                 sizeof(user));
+    if (truncated) {
+      LogErr(WARNING_LEVEL, ER_USERNAME_TRUNKATED, sctx->user().str,
+             USERNAME_CHAR_LENGTH);
+    }
+  }
+  if (sctx->host().length > 0) {
+    truncated = set_and_truncate(host, thd->security_context()->host().str,
+                                 sizeof(host));
+    if (truncated) {
+      LogErr(WARNING_LEVEL, ER_HOSTNAME_TRUNKATED, sctx->host().str,
+             HOSTNAME_LENGTH);
+    }
   }
 }
 

@@ -10890,6 +10890,12 @@ ER_IB_TABLESPACE_PATH_VALIDATION_SKIPPED
 ER_IB_CANNOT_UPGRADE_WITH_DISCARDED_TABLESPACES
   eng "Upgrade failed because database contains discarded tablespaces."
 
+ER_USERNAME_TRUNKATED
+  eng "The user name '%s' exceeds the maximum number of allowed characters %d and is trunkated."
+
+ER_HOSTNAME_TRUNKATED
+  eng "The host name '%s' exceeds the maximum number of allowed characters %d and is trunkated."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
