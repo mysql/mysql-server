@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,18 +25,15 @@
 #ifndef ROUTING_DEST_METADATA_CACHE_INCLUDED
 #define ROUTING_DEST_METADATA_CACHE_INCLUDED
 
-#include "destination.h"
-
 #include <system_error>
 #include <thread>
 
+#include "destination.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql_routing.h"
+#include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/metadata_cache.h"
 #include "mysqlrouter/uri.h"
-
-#include "mysql/harness/logging/logging.h"
-#include "mysqlrouter/datatypes.h"
 #include "socket_operations.h"
 #include "tcp_address.h"
 
@@ -54,9 +51,8 @@ class DestMetadataCacheGroup final
       const routing::AccessMode access_mode = routing::AccessMode::kUndefined,
       metadata_cache::MetadataCacheAPIBase *cache_api =
           metadata_cache::MetadataCacheAPI::instance(),
-      routing::RoutingSockOpsInterface *routing_sock_ops =
-          routing::RoutingSockOps::instance(
-              mysql_harness::SocketOperations::instance()));
+      mysql_harness::SocketOperationsBase *sock_ops =
+          mysql_harness::SocketOperations::instance());
 
   /** @brief Copy constructor */
   DestMetadataCacheGroup(const DestMetadataCacheGroup &other) = delete;
@@ -69,10 +65,6 @@ class DestMetadataCacheGroup final
 
   /** @brief Move assignment */
   DestMetadataCacheGroup &operator=(DestMetadataCacheGroup &&) = delete;
-
-  stdx::expected<mysql_harness::socket_t, std::error_code> get_server_socket(
-      std::chrono::milliseconds connect_timeout,
-      mysql_harness::TCPAddress *address = nullptr) noexcept override;
 
   ~DestMetadataCacheGroup() override;
 
@@ -100,6 +92,20 @@ class DestMetadataCacheGroup final
    * @param env pointer to the PluginFuncEnv object
    */
   void start(const mysql_harness::PluginFuncEnv *env) override;
+
+  Destinations destinations() override;
+
+  ServerRole server_role() const { return server_role_; }
+
+  // get cache-api
+  metadata_cache::MetadataCacheAPIBase *cache_api() { return cache_api_; }
+
+  stdx::expected<Destinations, void> refresh_destinations(
+      const Destinations &dests) override;
+
+  Destinations primary_destinations();
+
+  void advance(size_t n) { start_pos_ += n; }
 
  private:
   /** @brief The Metadata Cache to use
@@ -138,10 +144,15 @@ class DestMetadataCacheGroup final
    */
   void init();
 
-  struct AvailableDestinations {
-    AddrVector address;
-    std::vector<std::string> id;
+  struct AvailableDestination {
+    AvailableDestination(mysql_harness::TCPAddress a, std::string i)
+        : address{std::move(a)}, id{std::move(i)} {}
+
+    mysql_harness::TCPAddress address;
+    std::string id;
   };
+
+  using AvailableDestinations = std::vector<AvailableDestination>;
 
   /** @brief Gets available destinations from Metadata Cache
    *
@@ -159,9 +170,8 @@ class DestMetadataCacheGroup final
   AvailableDestinations get_available_primaries(
       const metadata_cache::LookupResult &managed_servers) const;
 
-  size_t get_next_server(
-      const DestMetadataCacheGroup::AvailableDestinations &available,
-      size_t first_available = 0);
+  Destinations balance(const AvailableDestinations &all_replicaset_nodes,
+                       bool primary_fallback);
 
   routing::RoutingStrategy routing_strategy_;
 
@@ -184,13 +194,8 @@ class DestMetadataCacheGroup final
               const bool md_servers_reachable,
               const unsigned /*view_id*/) noexcept override;
 
-  stdx::expected<mysql_harness::socket_t, std::error_code> get_server_socket_gr(
-      std::chrono::milliseconds connect_timeout,
-      mysql_harness::TCPAddress *address = nullptr) noexcept;
-
-  stdx::expected<mysql_harness::socket_t, std::error_code> get_server_socket_rs(
-      std::chrono::milliseconds connect_timeout,
-      mysql_harness::TCPAddress *address = nullptr) noexcept;
+  // MUST take the RouteDestination Mutex
+  size_t start_pos_{};
 };
 
 #endif  // ROUTING_DEST_METADATA_CACHE_INCLUDED

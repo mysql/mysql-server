@@ -68,42 +68,4 @@ class MockSocketOperations : public mysql_harness::SocketOperationsBase {
                                          struct sockaddr *, size_t *));
 };
 
-class MockRoutingSockOps : public routing::RoutingSockOpsInterface {
- public:
-  MockRoutingSockOps() : so_(std::make_unique<MockSocketOperations>()) {}
-
-  MockSocketOperations *so() const override { return so_.get(); }
-
-  stdx::expected<routing::native_handle_type, std::error_code> get_mysql_socket(
-      mysql_harness::TCPAddress addr, std::chrono::milliseconds,
-      bool = true) noexcept override {
-    get_mysql_socket_call_cnt_++;
-    if (get_mysql_socket_fails_todo_) {
-      get_mysql_socket_fails_todo_--;
-      return stdx::make_unexpected(
-          make_error_code(std::errc::connection_refused));
-    } else {
-      // if addr string starts with a number, this will return it. Therefore
-      // it's recommended that addr.addr is set to something like "42"
-      return atoi(addr.addr.c_str());
-    }
-  }
-
-  int get_mysql_socket_call_cnt() {
-    int cc = get_mysql_socket_call_cnt_;
-    get_mysql_socket_call_cnt_ = 0;
-    return cc;
-  }
-
-  void get_mysql_socket_fail(int fail_cnt) {
-    get_mysql_socket_fails_todo_ = fail_cnt;
-  }
-
- private:
-  std::atomic_int get_mysql_socket_fails_todo_{0};
-  std::atomic_int get_mysql_socket_call_cnt_{0};
-
-  std::unique_ptr<MockSocketOperations> so_;
-};
-
 #endif  // ROUTING_MOCKS_INCLUDED

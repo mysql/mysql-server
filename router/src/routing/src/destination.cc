@@ -23,32 +23,15 @@
 */
 
 #include "destination.h"
-#include "common.h"
-#include "mysql/harness/logging/logging.h"
-#include "mysqlrouter/routing.h"
-#include "mysqlrouter/utils.h"
-#include "socket_operations.h"
-#include "tcp_address.h"
-#include "utils.h"
 
-#include <algorithm>
-#include <cassert>
-#include <iostream>
-#include <stdexcept>
-#ifndef _WIN32
-#include <netdb.h>
-#include <netinet/tcp.h>
-#include <sys/socket.h>
-#else
-#include <windows.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#endif
+#include <algorithm>  // remove_if
+#include <mutex>      // lock_guard
+#include <stdexcept>  // out_of_range
+
+#include "mysqlrouter/routing.h"
+#include "tcp_address.h"
 
 using mysql_harness::TCPAddress;
-using mysqlrouter::to_string;
-using std::out_of_range;
-IMPORT_LOG_FUNCTIONS()
 
 // class DestinationNodesStateNotifier
 
@@ -102,7 +85,7 @@ TCPAddress RouteDestination::get(const std::string &address, uint16_t port) {
       return it;
     }
   }
-  throw out_of_range("Destination " + needle.str() + " not found");
+  throw std::out_of_range("Destination " + needle.str() + " not found");
 }
 
 size_t RouteDestination::size() noexcept { return destinations_.size(); }
@@ -113,27 +96,6 @@ void RouteDestination::clear() {
   }
   std::lock_guard<std::mutex> lock(mutex_update_);
   destinations_.clear();
-}
-
-size_t RouteDestination::get_next_server() {
-  std::lock_guard<std::mutex> lock(mutex_update_);
-
-  if (destinations_.empty()) {
-    throw std::runtime_error("Destination servers list is empty");
-  }
-
-  auto result = current_pos_.load();
-  current_pos_++;
-  if (current_pos_ >= destinations_.size()) current_pos_ = 0;
-
-  return result;
-}
-
-stdx::expected<mysql_harness::socket_t, std::error_code>
-RouteDestination::get_mysql_socket(const TCPAddress &addr,
-                                   std::chrono::milliseconds connect_timeout,
-                                   const bool log_errors) {
-  return routing_sock_ops_->get_mysql_socket(addr, connect_timeout, log_errors);
 }
 
 std::vector<mysql_harness::TCPAddress> RouteDestination::get_destinations()

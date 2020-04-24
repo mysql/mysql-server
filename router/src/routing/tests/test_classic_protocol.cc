@@ -45,9 +45,7 @@ using namespace mysql_protocol;
 class ClassicProtocolTest : public ::testing::Test {
  protected:
   ClassicProtocolTest()
-      : mock_routing_sock_ops_(new MockRoutingSockOps()),
-        mock_socket_operations_(mock_routing_sock_ops_->so()),
-        sut_protocol_(new ClassicProtocol(mock_routing_sock_ops_.get())) {}
+      : sut_protocol_(new ClassicProtocol(&mock_socket_operations_)) {}
 
   void SetUp() override {
     network_buffer_.resize(routing::kDefaultNetBufferLength);
@@ -56,8 +54,7 @@ class ClassicProtocolTest : public ::testing::Test {
     handshake_done_ = false;
   }
 
-  std::unique_ptr<MockRoutingSockOps> mock_routing_sock_ops_;
-  MockSocketOperations *mock_socket_operations_;
+  MockSocketOperations mock_socket_operations_;
 
   // the tested object:
   std::unique_ptr<BaseProtocol> sut_protocol_;
@@ -89,7 +86,7 @@ TEST_F(ClassicProtocolTest, OnBlockClientHostSuccess) {
   auto packet = mysql_protocol::HandshakeResponsePacket(1, {}, "ROUTER", "",
                                                         "fake_router_login");
 
-  EXPECT_CALL(*mock_socket_operations_,
+  EXPECT_CALL(mock_socket_operations_,
               write(receiver_socket_, _, packet.size()))
       .WillOnce(Return((ssize_t)packet.size()));
 
@@ -103,7 +100,7 @@ TEST_F(ClassicProtocolTest, OnBlockClientHostWriteFail) {
   auto packet = mysql_protocol::HandshakeResponsePacket(1, {}, "ROUTER", "",
                                                         "fake_router_login");
 
-  EXPECT_CALL(*mock_socket_operations_,
+  EXPECT_CALL(mock_socket_operations_,
               write(receiver_socket_, _, packet.size()))
       .WillOnce(Return(stdx::make_unexpected(
           make_error_code(std::errc::connection_refused))));
@@ -125,7 +122,7 @@ TEST_F(ClassicProtocolTest, CopyPacketsFdNotSet) {
 }
 
 TEST_F(ClassicProtocolTest, CopyPacketsReadError) {
-  EXPECT_CALL(*mock_socket_operations_, read(sender_socket_, _, _))
+  EXPECT_CALL(mock_socket_operations_, read(sender_socket_, _, _))
       .WillOnce(Return(
           stdx::make_unexpected(make_error_code(std::errc::connection_reset))));
 
@@ -141,10 +138,10 @@ TEST_F(ClassicProtocolTest, CopyPacketsHandshakeDoneOK) {
   handshake_done_ = true;
   constexpr int PACKET_SIZE = 20;
 
-  EXPECT_CALL(*mock_socket_operations_,
+  EXPECT_CALL(mock_socket_operations_,
               read(sender_socket_, &network_buffer_[0], network_buffer_.size()))
       .WillOnce(Return(PACKET_SIZE));
-  EXPECT_CALL(*mock_socket_operations_,
+  EXPECT_CALL(mock_socket_operations_,
               write(receiver_socket_, &network_buffer_[0], PACKET_SIZE))
       .WillOnce(Return(PACKET_SIZE));
 
@@ -161,10 +158,10 @@ TEST_F(ClassicProtocolTest, CopyPacketsHandshakeDoneWriteError) {
   handshake_done_ = true;
   constexpr ssize_t PACKET_SIZE = 20;
 
-  EXPECT_CALL(*mock_socket_operations_,
+  EXPECT_CALL(mock_socket_operations_,
               read(sender_socket_, &network_buffer_[0], network_buffer_.size()))
       .WillOnce(Return(PACKET_SIZE));
-  EXPECT_CALL(*mock_socket_operations_,
+  EXPECT_CALL(mock_socket_operations_,
               write(receiver_socket_, &network_buffer_[0], 20))
       .WillOnce(Return(
           stdx::make_unexpected(make_error_code(std::errc::connection_reset))));
@@ -178,7 +175,7 @@ TEST_F(ClassicProtocolTest, CopyPacketsHandshakeDoneWriteError) {
 }
 
 TEST_F(ClassicProtocolTest, CopyPacketsHandshakePacketTooSmall) {
-  EXPECT_CALL(*mock_socket_operations_,
+  EXPECT_CALL(mock_socket_operations_,
               read(sender_socket_, &network_buffer_[0], network_buffer_.size()))
       .WillOnce(Return(3));
 
@@ -199,7 +196,7 @@ TEST_F(ClassicProtocolTest, CopyPacketsHandshakeInvalidPacketNumber) {
   serialize_classic_packet_to_buffer(network_buffer_, network_buffer_offset_,
                                      error_packet);
 
-  EXPECT_CALL(*mock_socket_operations_,
+  EXPECT_CALL(mock_socket_operations_,
               read(sender_socket_, &network_buffer_[0], network_buffer_.size()))
       .WillOnce(Return(12));
 
@@ -220,11 +217,11 @@ TEST_F(ClassicProtocolTest, CopyPacketsHandshakeServerSendsError) {
   serialize_classic_packet_to_buffer(network_buffer_, network_buffer_offset_,
                                      error_packet);
 
-  EXPECT_CALL(*mock_socket_operations_,
+  EXPECT_CALL(mock_socket_operations_,
               read(sender_socket_, &network_buffer_[0], network_buffer_.size()))
       .WillOnce(Return((ssize_t)network_buffer_offset_));
 
-  EXPECT_CALL(*mock_socket_operations_,
+  EXPECT_CALL(mock_socket_operations_,
               write(receiver_socket_, _, network_buffer_offset_))
       .WillOnce(Return((ssize_t)network_buffer_offset_));
 
@@ -238,7 +235,7 @@ TEST_F(ClassicProtocolTest, CopyPacketsHandshakeServerSendsError) {
 }
 
 TEST_F(ClassicProtocolTest, SendErrorOKMultipleWrites) {
-  EXPECT_CALL(*mock_socket_operations_, write(1, _, _))
+  EXPECT_CALL(mock_socket_operations_, write(1, _, _))
       .Times(2)
       .WillOnce(Return(8))
       .WillOnce(Return(10000));
@@ -250,7 +247,7 @@ TEST_F(ClassicProtocolTest, SendErrorOKMultipleWrites) {
 }
 
 TEST_F(ClassicProtocolTest, SendErrorWriteFail) {
-  EXPECT_CALL(*mock_socket_operations_, write(1, _, _))
+  EXPECT_CALL(mock_socket_operations_, write(1, _, _))
       .WillOnce(Return(
           stdx::make_unexpected(make_error_code(std::errc::connection_reset))));
 
@@ -278,7 +275,7 @@ TEST_F(ClassicProtocolRoutingTest, NoValidDestinations) {
       routing::kDefaultMaxConnections,
       routing::kDefaultDestinationConnectionTimeout,
       routing::kDefaultMaxConnectErrors, routing::kDefaultClientConnectTimeout,
-      routing::kDefaultNetBufferLength, mock_routing_sock_ops_.get());
+      routing::kDefaultNetBufferLength, &mock_socket_operations_);
 
   constexpr int client_socket = 1;
   constexpr int server_socket = -1;
@@ -296,14 +293,14 @@ TEST_F(ClassicProtocolRoutingTest, NoValidDestinations) {
                                   "HY000");
   const auto error_packet_size = static_cast<ssize_t>(error_packet.size());
 
-  EXPECT_CALL(*mock_socket_operations_, write(client_socket, _, _))
+  EXPECT_CALL(mock_socket_operations_, write(client_socket, _, _))
       .With(Args<1, 2>(BufferEq(error_packet)))
       .WillOnce(Return(error_packet_size));
 
-  EXPECT_CALL(*mock_socket_operations_, shutdown(client_socket));
-  EXPECT_CALL(*mock_socket_operations_, close(client_socket));
+  EXPECT_CALL(mock_socket_operations_, shutdown(client_socket));
+  EXPECT_CALL(mock_socket_operations_, close(client_socket));
 
-  EXPECT_CALL(*mock_socket_operations_, inetntop(_, _, _, _))
+  EXPECT_CALL(mock_socket_operations_, inetntop(_, _, _, _))
       .WillOnce(Return("127.0.0.1"));
 
   routing.set_destinations_from_csv("127.0.0.1:7004");

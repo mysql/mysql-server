@@ -231,9 +231,7 @@ static void start(mysql_harness::PluginFuncEnv *env) {
         config.max_connections, destination_connect_timeout,
         config.max_connect_errors, client_connect_timeout,
         routing::kDefaultNetBufferLength,
-        routing::RoutingSockOps::instance(
-            mysql_harness::SocketOperations::instance()),
-        config.thread_stack_size);
+        mysql_harness::SocketOperations::instance(), config.thread_stack_size);
 
     try {
       // don't allow rootless URIs as we did already in the

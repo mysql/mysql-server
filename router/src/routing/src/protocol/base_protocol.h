@@ -39,6 +39,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "mysql/harness/stdx/expected.h"
 #include "mysqlrouter/mysql_protocol.h"
+#include "socket_operations.h"
 
 using RoutingProtocolBuffer = mysql_protocol::Packet::vector_t;
 
@@ -51,8 +52,8 @@ class BaseProtocol {
   /** @brief supported protocols */
   enum class Type { kClassicProtocol, kXProtocol };
 
-  BaseProtocol(routing::RoutingSockOpsInterface *routing_sock_ops)
-      : routing_sock_ops_(routing_sock_ops) {}
+  BaseProtocol(mysql_harness::SocketOperationsBase *sock_ops)
+      : sock_ops_(sock_ops) {}
   virtual ~BaseProtocol() = default;
 
   /** @brief Function that gets called when the client is being blocked
@@ -110,7 +111,7 @@ class BaseProtocol {
   virtual Type get_type() = 0;
 
  protected:
-  routing::RoutingSockOpsInterface *routing_sock_ops_;
+  mysql_harness::SocketOperationsBase *sock_ops_;
 };
 
 #endif  // ROUTING_BASEPROTOCOL_INCLUDED

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,10 +26,12 @@
 
 #include <algorithm>
 #include <array>
-#include <memory>
+#include <chrono>
+#include <memory>  // shared_ptr
 #include <mutex>
-#include <sstream>
+#include <sstream>  // ostringstream
 #include <stdexcept>
+#include <system_error>  // error_code
 
 #ifndef _WIN32
 #include <fcntl.h>
@@ -58,7 +60,10 @@
 #include "dest_next_available.h"
 #include "dest_round_robin.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/net_ts/impl/resolver.h"
 #include "mysql/harness/net_ts/impl/socket.h"
+#include "mysql/harness/net_ts/impl/socket_constants.h"
+#include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/stdx/io/file_handle.h"
 #include "mysqlrouter/metadata_cache.h"
 #include "mysqlrouter/routing.h"
@@ -66,6 +71,7 @@
 #include "plugin_config.h"
 #include "protocol/protocol.h"
 #include "socket_operations.h"
+#include "tcp_address.h"
 
 using mysqlrouter::string_format;
 using routing::AccessMode;
@@ -86,14 +92,13 @@ MySQLRouting::MySQLRouting(
     unsigned long long max_connect_errors,
     std::chrono::milliseconds client_connect_timeout,
     unsigned int net_buffer_length,
-    routing::RoutingSockOpsInterface *routing_sock_ops,
-    size_t thread_stack_size)
-    : context_(Protocol::create(protocol, routing_sock_ops),
-               routing_sock_ops->so(), route_name, net_buffer_length,
-               destination_connect_timeout, client_connect_timeout,
+    mysql_harness::SocketOperationsBase *sock_ops, size_t thread_stack_size)
+    : context_(Protocol::create(protocol, sock_ops), sock_ops, route_name,
+               net_buffer_length, destination_connect_timeout,
+               client_connect_timeout,
                mysql_harness::TCPAddress(bind_address, port), named_socket,
                max_connect_errors, thread_stack_size),
-      routing_sock_ops_(routing_sock_ops),
+      sock_ops_(sock_ops),
       routing_strategy_(routing_strategy),
       access_mode_(access_mode),
       max_connections_(set_max_connections(max_connections)),
@@ -101,7 +106,7 @@ MySQLRouting::MySQLRouting(
       service_named_socket_(routing::kInvalidSocket) {
   validate_destination_connect_timeout(destination_connect_timeout);
 
-  assert(routing_sock_ops_ != nullptr);
+  assert(sock_ops_ != nullptr);
 
 #ifdef _WIN32
   if (named_socket.is_set()) {
@@ -125,6 +130,12 @@ MySQLRouting::~MySQLRouting() {
     context_.get_socket_operations()->shutdown(service_tcp_);
     context_.get_socket_operations()->close(service_tcp_);
   }
+#ifndef _WIN32
+  if (service_named_socket_ != routing::kInvalidSocket) {
+    context_.get_socket_operations()->shutdown(service_named_socket_);
+    context_.get_socket_operations()->close(service_named_socket_);
+  }
+#endif
 }
 
 void MySQLRouting::start(mysql_harness::PluginFuncEnv *env) {
@@ -427,6 +438,99 @@ void MySQLRouting::start_acceptor(mysql_harness::PluginFuncEnv *env) {
   log_info("[%s] stopped", context_.get_name().c_str());
 }
 
+static stdx::expected<net::impl::socket::native_handle_type, std::error_code>
+get_server_socket(mysql_harness::SocketOperationsBase *so, Destination *dest,
+                  std::chrono::milliseconds connect_timeout) {
+  // resolve
+  struct addrinfo hints {};
+  hints.ai_family = AF_UNSPEC;
+  hints.ai_socktype = SOCK_STREAM;
+  hints.ai_protocol = IPPROTO_TCP;
+
+  const auto addrinfo_res = so->getaddrinfo(
+      dest->hostname().c_str(), std::to_string(dest->port()).c_str(), &hints);
+
+  std::error_code last_ec{};
+  net::impl::socket::native_handle_type sock{net::impl::socket::kInvalidSocket};
+  auto const *ai = addrinfo_res.value().get();
+  for (; ai != nullptr; ai = ai->ai_next) {
+    auto sock_type = ai->ai_socktype;
+#if defined(__linux__) || defined(__FreeBSD__)
+    // linux|freebsd allows to set NONBLOCK as part of the socket() call to safe
+    // the extra syscall
+    sock_type |= SOCK_NONBLOCK;
+#endif
+    auto socket_res = so->socket(ai->ai_family, sock_type, ai->ai_protocol);
+    if (!socket_res) {
+      continue;
+    }
+
+    sock = socket_res.value();
+
+    so->set_socket_blocking(sock, false);
+
+    auto connect_res = so->connect(sock, ai->ai_addr, ai->ai_addrlen);
+
+    if (!connect_res) {
+      if (connect_res.error() ==
+              make_error_condition(std::errc::operation_in_progress) ||
+          connect_res.error() ==
+              make_error_condition(std::errc::operation_would_block)) {
+        const auto wait_res =
+            so->connect_non_blocking_wait(sock, connect_timeout);
+
+        if (!wait_res) {
+          log_warning(
+              "Timeout reached trying to connect to MySQL Server %s: %s",
+              dest->hostname().c_str(), wait_res.error().message().c_str());
+
+          last_ec = wait_res.error();
+        } else {
+          const auto status_res = so->connect_non_blocking_status(sock);
+          if (status_res) {
+            // success, we can continue
+            break;
+          }
+
+          last_ec = status_res.error();
+        }
+      } else {
+        log_debug("Failed connect() to %s:%u: %s", dest->hostname().c_str(),
+                  dest->port(), connect_res.error().message().c_str());
+
+        last_ec = connect_res.error();
+      }
+    } else {
+      // everything is fine, we are connected
+      break;
+    }
+
+    // some error, close the socket again and try the next one
+    so->close(sock);
+    sock = net::impl::socket::kInvalidSocket;
+  }
+
+  if (nullptr == ai) {
+    return stdx::make_unexpected(last_ec);
+  }
+
+  // set blocking; MySQL protocol is blocking and we do not take advantage of
+  // any non-blocking possibilities
+  so->set_socket_blocking(sock, true);
+
+  int opt_nodelay = 1;
+  const auto sockopt_res = so->setsockopt(sock, IPPROTO_TCP, TCP_NODELAY,
+                                          &opt_nodelay, sizeof opt_nodelay);
+  if (!sockopt_res) {
+    log_debug("Failed setting TCP_NODELAY on client socket: %s",
+              sockopt_res.error().message().c_str());
+
+    // log it, but otherwise ignore the error.
+  }
+
+  return sock;
+}
+
 void MySQLRouting::create_connection(int client_socket,
                                      const sockaddr_storage &client_addr) {
   auto remove_callback = [this](MySQLRoutingConnection *connection) {
@@ -434,13 +538,45 @@ void MySQLRouting::create_connection(int client_socket,
   };
 
   mysql_harness::TCPAddress server_address;
-  const auto server_socket_res = destination_->get_server_socket(
-      context_.get_destination_connect_timeout(), &server_address);
-
   mysql_harness::socket_t server_socket{mysql_harness::kInvalidSocket};
 
-  if (server_socket_res) {
-    server_socket = server_socket_res.value();
+  {
+    auto dests = destination_->destinations();
+    do {
+      for (auto const &dest : dests) {
+        if (!dest->good()) continue;
+
+        auto server_sock_res =
+            get_server_socket(context_.get_socket_operations(), dest.get(),
+                              context_.get_destination_connect_timeout());
+        if (server_sock_res) {
+          server_socket = server_sock_res.value();
+          server_address =
+              mysql_harness::TCPAddress(dest->hostname(), dest->port());
+
+          break;
+        }
+
+        // report the connect status for this backend
+        dest->connect_status(server_sock_res.error());
+      }
+
+      if (server_socket == mysql_harness::kInvalidSocket) {
+        // no connection made to any of the destinations. Check if we can
+        // refresh.
+        auto refresh_res = destination_->refresh_destinations(dests);
+
+        if (refresh_res) {
+          dests = std::move(refresh_res.value());
+        } else {
+          break;
+        }
+      }
+
+      // if no connection yet, but the refresh resulted in new
+      // destinations -> retry.
+    } while ((server_socket == mysql_harness::kInvalidSocket) &&
+             !dests.empty());
   }
 
   auto new_connection = std::make_unique<MySQLRoutingConnection>(
@@ -492,6 +628,7 @@ void MySQLRouting::setup_tcp_service() {
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_flags = AI_PASSIVE;
+  hints.ai_protocol = IPPROTO_TCP;
 
   const auto addrinfo_res = context_.get_socket_operations()->getaddrinfo(
       context_.get_bind_address().addr.c_str(),
@@ -686,15 +823,14 @@ routing::RoutingStrategy get_default_routing_strategy(
 
 RouteDestination *create_standalone_destination(
     const routing::RoutingStrategy strategy, const Protocol::Type protocol,
-    routing::RoutingSockOpsInterface *routing_sock_ops,
-    size_t thread_stack_size) {
+    mysql_harness::SocketOperationsBase *sock_ops, size_t thread_stack_size) {
   switch (strategy) {
     case RoutingStrategy::kFirstAvailable:
-      return new DestFirstAvailable(protocol, routing_sock_ops);
+      return new DestFirstAvailable(protocol, sock_ops);
     case RoutingStrategy::kNextAvailable:
-      return new DestNextAvailable(protocol, routing_sock_ops);
+      return new DestNextAvailable(protocol, sock_ops);
     case RoutingStrategy::kRoundRobin:
-      return new DestRoundRobin(protocol, routing_sock_ops, thread_stack_size);
+      return new DestRoundRobin(protocol, sock_ops, thread_stack_size);
     case RoutingStrategy::kUndefined:
     case RoutingStrategy::kRoundRobinWithFallback:;  // unsupported, fall
                                                      // through
@@ -717,7 +853,7 @@ void MySQLRouting::set_destinations_from_csv(const string &csv) {
   }
 
   destination_.reset(create_standalone_destination(
-      routing_strategy_, context_.get_protocol().get_type(), routing_sock_ops_,
+      routing_strategy_, context_.get_protocol().get_type(), sock_ops_,
       context_.get_thread_stack_size()));
 
   // Fall back to comma separated list of MySQL servers

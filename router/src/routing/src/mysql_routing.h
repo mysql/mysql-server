@@ -125,7 +125,7 @@ class MySQLRouting {
    * @param max_connect_errors Maximum connect or handshake errors per host
    * @param connect_timeout Timeout waiting for handshake response
    * @param net_buffer_length send/receive buffer size
-   * @param routing_sock_ops object handling the operations on network sockets
+   * @param sock_ops object handling the operations on network sockets
    * @param thread_stack_size memory in kilobytes allocated for thread's stack
    */
   MySQLRouting(
@@ -142,9 +142,8 @@ class MySQLRouting {
       std::chrono::milliseconds connect_timeout =
           routing::kDefaultClientConnectTimeout,
       unsigned int net_buffer_length = routing::kDefaultNetBufferLength,
-      routing::RoutingSockOpsInterface *routing_sock_ops =
-          routing::RoutingSockOps::instance(
-              mysql_harness::SocketOperations::instance()),
+      mysql_harness::SocketOperationsBase *sock_ops =
+          mysql_harness::SocketOperations::instance(),
       size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes);
 
   ~MySQLRouting();
@@ -267,7 +266,7 @@ class MySQLRouting {
   MySQLRoutingContext context_;
 
   /** @brief object handling the operations on network sockets */
-  routing::RoutingSockOpsInterface *routing_sock_ops_;
+  mysql_harness::SocketOperationsBase *sock_ops_;
 
   /** @brief Destination object to use when getting next connection */
   std::unique_ptr<RouteDestination> destination_;

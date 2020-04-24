@@ -201,7 +201,7 @@ stdx::expected<size_t, std::error_code> XProtocol::copy_packets(
   auto buffer_length = buffer.size();
   size_t bytes_read = 0;
 
-  mysql_harness::SocketOperationsBase *const so = routing_sock_ops_->so();
+  mysql_harness::SocketOperationsBase *const so = sock_ops_;
   if (sender_is_readable) {
     const auto read_res = so->read(sender, &buffer.front(), buffer_length);
     if (!read_res) {
@@ -297,7 +297,7 @@ bool XProtocol::send_error(int destination, unsigned short code,
   error.set_msg(message);
 
   return send_message(log_prefix, destination, Mysqlx::ServerMessages::ERROR,
-                      error, routing_sock_ops_->so());
+                      error, sock_ops_);
 }
 
 bool XProtocol::on_block_client_host(int server,
@@ -315,7 +315,7 @@ bool XProtocol::on_block_client_host(int server,
 
   return send_message(log_prefix, server,
                       Mysqlx::ClientMessages::CON_CAPABILITIES_GET,
-                      capabilities_get, routing_sock_ops_->so());
+                      capabilities_get, sock_ops_);
 }
 
 size_t message_byte_size(const google::protobuf::MessageLite &msg) {

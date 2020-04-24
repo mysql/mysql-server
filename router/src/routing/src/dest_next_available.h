@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,15 +25,27 @@
 #ifndef ROUTING_DEST_NEXT_AVAILABLE
 #define ROUTING_DEST_NEXT_AVAILABLE
 
-#include "destination.h"
+#include "destination.h"          // Destinations
+#include "mysqlrouter/routing.h"  // RouteDestination
 
 class DestNextAvailable final : public RouteDestination {
  public:
   using RouteDestination::RouteDestination;
 
-  stdx::expected<mysql_harness::socket_t, std::error_code> get_server_socket(
-      std::chrono::milliseconds connect_timeout,
-      mysql_harness::TCPAddress *address = nullptr) noexcept override;
+  Destinations destinations() override;
+
+  // first valid index
+  size_t valid_ndx() const noexcept { return valid_ndx_; }
+
+  // mark index as invalid
+  void mark_ndx_invalid(size_t ndx) noexcept {
+    if (ndx + 1 > valid_ndx_) {
+      valid_ndx_ = ndx + 1;
+    }
+  }
+
+ private:
+  size_t valid_ndx_{};
 };
 
 #endif  // ROUTING_DEST_NEXT_AVAILABLE
