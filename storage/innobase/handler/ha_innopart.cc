@@ -4012,6 +4012,9 @@ int ha_innopart::external_lock(THD *thd, int lock_type) {
     TrxInInnoDB::end_stmt(m_prebuilt->trx);
     --m_prebuilt->trx->n_mysql_tables_in_use;
     m_mysql_has_locked = false;
+    if (m_prebuilt->trx->n_mysql_tables_in_use == 0) {
+      m_prebuilt->trx->mysql_n_tables_locked = 0;
+    }
     return (error);
   }
 

@@ -359,8 +359,8 @@ if($discarded_partition_option == 'REBUILD_PARTITION_TEST')
   #  partitions.t1
   #
 
-  #--error ER_TABLESPACE_DISCARDED
-  #ALTER TABLE partitions.t1 REBUILD PARTITION p0;
+  --error ER_TABLESPACE_DISCARDED
+  ALTER TABLE partitions.t1 REBUILD PARTITION p0;
   ALTER TABLE partitions.t1 REBUILD PARTITION p1;
   ALTER TABLE partitions.t1 REBUILD PARTITION p2;
   ALTER TABLE partitions.t1 REBUILD PARTITION p3;
@@ -378,8 +378,8 @@ if($discarded_partition_option == 'REBUILD_PARTITION_TEST')
   #  partitions.t3
   #
 
-  #--error ER_TABLESPACE_DISCARDED
-  #ALTER TABLE partitions.t3 REBUILD PARTITION p0;
+  --error ER_TABLESPACE_DISCARDED
+  ALTER TABLE partitions.t3 REBUILD PARTITION p0;
   ALTER TABLE partitions.t3 REBUILD PARTITION p1;
   ALTER TABLE partitions.t3 REBUILD PARTITION p2;
   ALTER TABLE partitions.t3 REBUILD PARTITION p3;
@@ -388,10 +388,10 @@ if($discarded_partition_option == 'REBUILD_PARTITION_TEST')
   #  partitions.t4
   #
 
-  #--error ER_TABLESPACE_DISCARDED
-  #ALTER TABLE partitions.t4 REBUILD PARTITION p0;
-  #--error ER_TABLESPACE_DISCARDED
-  #ALTER TABLE partitions.t4 REBUILD PARTITION p1;
+  --error ER_TABLESPACE_DISCARDED
+  ALTER TABLE partitions.t4 REBUILD PARTITION p0;
+  --error ER_TABLESPACE_DISCARDED
+  ALTER TABLE partitions.t4 REBUILD PARTITION p1;
   ALTER TABLE partitions.t4 REBUILD PARTITION p2;
 
 
@@ -400,8 +400,8 @@ if($discarded_partition_option == 'REBUILD_PARTITION_TEST')
   #
 
   ALTER TABLE partitions.t5 REBUILD PARTITION p0;
-  #--error ER_TABLESPACE_DISCARDED
-  #ALTER TABLE partitions.t5 REBUILD PARTITION p1;
+  --error ER_TABLESPACE_DISCARDED
+  ALTER TABLE partitions.t5 REBUILD PARTITION p1;
   ALTER TABLE partitions.t5 REBUILD PARTITION p2;
 
 
@@ -409,10 +409,10 @@ if($discarded_partition_option == 'REBUILD_PARTITION_TEST')
   #  partitions.t6
   #
 
-  #--error ER_TABLESPACE_DISCARDED
-  #ALTER TABLE partitions.t6 REBUILD PARTITION p0;
-  #--error ER_TABLESPACE_DISCARDED
-  #ALTER TABLE partitions.t6 REBUILD PARTITION p1;
+  --error ER_TABLESPACE_DISCARDED
+  ALTER TABLE partitions.t6 REBUILD PARTITION p0;
+  --error ER_TABLESPACE_DISCARDED
+  ALTER TABLE partitions.t6 REBUILD PARTITION p1;
   ALTER TABLE partitions.t6 REBUILD PARTITION p2;
 
 
