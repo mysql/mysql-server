@@ -289,7 +289,7 @@ SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 # diff hunk headers like "@@ -12,3". As this test displays the diff,
 # it can fail for certain binlog formats. Force one format:
 
-set binlog_format=row;
+set binlog_format=mixed;
 
   let $point=   before_reset_query_plan;let $query=  DELETE FROM t1 WHERE topic IN (SELECT DISTINCT topic FROM t2 WHERE NOT EXISTS(SELECT * FROM t3 WHERE numeropost=topic)) ;
   --source include/explain_for_connection.inc

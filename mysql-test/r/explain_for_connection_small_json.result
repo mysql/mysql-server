@@ -505,15 +505,15 @@ Diff: EXPLAIN NORMAL vs OTHER
        "filtered": "100.00",
 +      "using_where": true,
        "cost_info": {
-@@ -26,3 +27,2 @@
+@@ -23,3 +24,2 @@
        ],
 -      "attached_condition": "<in_optimizer>(`test`.`t1`.`topic`,<exists>(/* select#2 */ select `test`.`t2`.`topic` from `test`.`t2` anti join (`test`.`t3`) on((`test`.`t3`.`numeropost` = `test`.`t2`.`topic`)) where (<cache>(`test`.`t1`.`topic`) = `test`.`t2`.`topic`)))",
        "attached_subqueries": [
-@@ -85,2 +85,3 @@
+@@ -82,2 +82,3 @@
                    "filtered": "100.00",
 +                  "using_where": true,
                    "not_exists": true,
-@@ -95,4 +96,3 @@
+@@ -92,4 +93,3 @@
                      "numeropost"
 -                  ],
 -                  "attached_condition": "<if>(is_not_null_compl(t3), <if>(found_match(t3), false, true), true)"
