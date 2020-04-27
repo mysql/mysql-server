@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -37,8 +37,8 @@
 
 PluginInfoFrontend::PluginInfoFrontend(
     const std::string &exe_name, const std::vector<std::string> &arguments,
-    std::ostream &out, std::ostream &err)
-    : program_name_(exe_name), cout_(out), cerr_(err) {
+    std::ostream &out)
+    : program_name_(exe_name), cout_(out) {
   prepare_command_options();
   try {
     arg_handler_.process(arguments);
