@@ -2776,7 +2776,7 @@ bool Query_result_create::prepare(THD *thd, List<Item> &values,
   /* First field to copy */
   field = table->field + field_count - values.elements;
   for (Field **f = field; *f; f++) {
-    if ((*f)->gcol_info && (*field)->is_field_for_functional_index()) {
+    if ((*f)->gcol_info && !(*f)->is_field_for_functional_index()) {
       /*
         Generated columns are not allowed to be given a value for CREATE TABLE
         .. SELECT statment.
