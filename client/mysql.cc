@@ -257,7 +257,7 @@ static bool opt_build_completion_hash = false;
   A flag that indicates if --execute buffer has already been converted,
   to avoid double conversion on reconnect.
 */
-static bool execute_buffer_conversion_done = 0;
+static bool execute_buffer_conversion_done{false};
 
 /*
   my_win_is_console(...) is quite slow.
@@ -4554,7 +4554,7 @@ static int sql_real_connect(char *host, char *database, char *user,
 
 #ifdef _WIN32
   /* Convert --execute buffer from UTF8MB4 to connection character set */
-  if (!execute_buffer_conversion_done++ && status.line_buff &&
+  if (!execute_buffer_conversion_done && status.line_buff &&
       !status.line_buff->file && /* Convert only -e buffer, not real file */
       status.line_buff->buffer < status.line_buff->end && /* Non-empty */
       !my_charset_same(&my_charset_utf8mb4_bin, mysql.charset)) {
@@ -4579,6 +4579,7 @@ static int sql_real_connect(char *host, char *database, char *user,
               batch_readline_command(NULL, (char *)tmp.c_ptr_safe())))
       return 1;
   }
+  execute_buffer_conversion_done = true;
 #endif /* _WIN32 */
 
   charset_info = mysql.charset;
