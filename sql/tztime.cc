@@ -2132,11 +2132,11 @@ Time_zone *my_tz_find(THD *thd, const String *name) {
 
   if (!name || name->is_empty()) return nullptr;
 
-  Mutex_guard guard(&tz_LOCK);
-
   int displacement;
   if (!str_to_offset(name->ptr(), name->length(), &displacement)) {
     // The time zone information is a valid numeric displacement.
+    Mutex_guard guard(&tz_LOCK);
+
     const auto it = offset_tzs.find(displacement);
     if (it != offset_tzs.end())
       return it->second;
