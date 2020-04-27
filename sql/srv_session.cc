@@ -746,25 +746,16 @@ bool Srv_session::module_deinit() {
 /**
   Checks if the session is valid.
 
-  Checked is if session is NULL, or the state of the session is
-  SRV_SESSION_OPENED, SRV_SESSION_ATTACHED or SRV_SESSION_DETACHED.
+  Checked is if session is NULL, or in the list of opened sessions. If the
+  session is not in this list it was either closed or the address is invalid.
 
   @return
     true  valid
     false not valid
 */
 bool Srv_session::is_valid(const Srv_session *session) {
-  DBUG_ASSERT(session != nullptr);
-  const bool is_valid_session = ((session->state > SRV_SESSION_CREATED) &&
-                                 (session->state < SRV_SESSION_CLOSED));
-  /*
-    Make sure valid session exists and invalid sessions doesn't exists in the
-    list of opened sessions.
-  */
-  DBUG_ASSERT((is_valid_session && server_session_list.find(&session->thd)) ||
-              (!is_valid_session && !server_session_list.find(&session->thd)));
-
-  return is_valid_session;
+  const THD *thd = session ? &session->thd : nullptr;
+  return thd ? (bool)server_session_list.find(thd) : false;
 }
 
 /**
@@ -843,8 +834,6 @@ bool Srv_session::open() {
 
   server_session_list.add(&thd, plugin, this);
 
-  state = SRV_SESSION_OPENED;
-
   return false;
 }
 
@@ -856,10 +845,9 @@ bool Srv_session::open() {
     true    failure
 */
 bool Srv_session::attach() {
-  const bool first_attach = (state == SRV_SESSION_OPENED);
+  const bool first_attach = (state == SRV_SESSION_CREATED);
   DBUG_TRACE;
   DBUG_PRINT("info", ("current_thd=%p", current_thd));
-  DBUG_ASSERT(state > SRV_SESSION_CREATED && state < SRV_SESSION_CLOSED);
 
   if (is_attached()) {
     if (!my_thread_equal(thd.real_id, my_thread_self())) {
