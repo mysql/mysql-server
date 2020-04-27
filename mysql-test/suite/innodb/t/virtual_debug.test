@@ -489,4 +489,56 @@ UPDATE t1 SET isa = 1 WHERE a = 'test' AND isa = 0;
 SELECT j,a,isa,ab FROM t1;
 DROP TABLE t1;
 
---source include/wait_until_count_sessions.inc
+--echo #
+--echo # Bug#29451999: CRASH WITH RANGE QUERIES
+--echo #
+
+CREATE TABLE t1 (c1 JSON, c2 TINYTEXT, c3 TIMESTAMP(4), c4 JSON, c5 DOUBLE, c6 TIME(4), c7 LONGTEXT GENERATED ALWAYS AS ('20:30:44') VIRTUAL NOT NULL, KEY k1 (c7(12))) ENGINE=INNODB;
+INSERT INTO t1 (c1, c2, c3, c4) VALUES('{}', 1, '1991-05-27', '{}');
+INSERT INTO t1 (c1, c2, c3, c4) SELECT c1, c2, c3, c4 FROM t1;
+INSERT INTO t1 (c1, c2, c3, c4) SELECT c1, c2, c3, c4 FROM t1;
+INSERT INTO t1 (c1, c2, c3, c4) SELECT c1, c2, c3, c4 FROM t1;
+INSERT INTO t1 (c1, c2, c3, c4) SELECT c1, c2, c3, c4 FROM t1;
+INSERT INTO t1 (c1, c2, c3, c4) SELECT c1, c2, c3, c4 FROM t1;
+INSERT INTO t1 (c1, c2, c3, c4) SELECT c1, c2, c3, c4 FROM t1;
+INSERT INTO t1 (c1, c2, c3, c4) SELECT c1, c2, c3, c4 FROM t1;
+SELECT COUNT(*) FROM t1;
+
+SET GLOBAL innodb_purge_stop_now= ON;
+DELETE FROM t1;
+
+SELECT c4 FROM t1 WHERE c7 BETWEEN '16383' AND '2015-01-01';
+
+#Cleanup
+SET GLOBAL innodb_purge_run_now = ON;
+DROP TABLE t1;
+
+CREATE TABLE t2 (
+  i INT NOT NULL,
+  gc INT GENERATED ALWAYS AS (i) VIRTUAL NOT NULL,
+  KEY (gc)
+);
+
+INSERT INTO t2 (i) VALUES (-1), (0), (1), (2);
+
+BEGIN;
+--disable_query_log
+--let $i = 2000
+while ($i > 0)
+{
+  INSERT INTO t2 (i) VALUES (-10);
+  dec $i;
+}
+--enable_query_log
+
+CONNECT (con1,localhost,root,,);
+# This query used to return zero rows.
+SELECT i FROM t2 FORCE INDEX (gc) WHERE gc <= -1;
+# Similar query using covering index was correct even before.
+SELECT gc FROM t2 FORCE INDEX (gc) WHERE gc <= -1;
+DISCONNECT con1;
+CONNECTION default;
+
+COMMIT;
+
+DROP TABLE t2;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -4199,17 +4199,52 @@ row_search_idx_cond_check(
 if records are not with in view and also to avoid prefetching too
 many records into the record buffer.
 @param[in]	mysql_rec	record in MySQL format
-@param[in,out]	handler		the MySQL handler performing the scan
-@retval true	if the row in mysql_rec is out of range
-@retval false	if the row in mysql_rec is in range */
+@param[in]	rec			InnoDB record
+@param[in]	prebuilt		prebuilt struct
+@param[in]	clust_templ_for_sec	true if \a rec belongs to the secondary
+					index but the \a prebuilt template is in
+					clustered index format
+@param[in]	offsets			information about column offsets in the
+					secondary index, if virtual columns need
+					to be copied into \a mysql_rec
+@retval true	if the row in \a mysql_rec is out of range
+@retval false	if the row in \a mysql_rec is in range */
 static
 bool
 row_search_end_range_check(
-	const byte*	mysql_rec,
-	ha_innobase*	handler)
+	byte*	mysql_rec,
+	const rec_t*	rec,
+	row_prebuilt_t*	prebuilt,
+	bool clust_templ_for_sec,
+	const ulint*	offsets)
 {
-	if (handler->end_range &&
-	    handler->compare_key_in_buffer(mysql_rec) > 0) {
+	ha_innobase*    handler = prebuilt->m_mysql_handler;
+	ut_ad(handler->end_range != NULL);
+
+	/* When reading from non-covering secondary indexes, mysql_rec won't
+	have the values of virtual columns until the handler has called
+	update_generated_read_fields(). If the end-range condition refers to a
+	virtual column, we may have to copy its value from the secondary index
+	before evaluating the condition. */
+	if (clust_templ_for_sec && handler->m_virt_gcol_in_end_range) {
+		ut_ad(offsets != NULL);
+		for (ulint i = 0; i < prebuilt->n_template; ++i) {
+			const mysql_row_templ_t* templ =  prebuilt->mysql_template + i;
+			if (templ->is_virtual &&
+			    templ->icp_rec_field_no != ULINT_UNDEFINED &&
+			    !row_sel_store_mysql_field(mysql_rec, prebuilt,
+						       rec,
+						       prebuilt->index,
+						       offsets,
+						       templ->icp_rec_field_no,
+						       templ,
+						       false)) {
+				return(false);
+			}
+		}
+	}
+
+	if (handler->compare_key_in_buffer(mysql_rec) > 0) {
 		return(true);
 	}
 
@@ -5210,16 +5245,17 @@ rec_loop:
 		    && prebuilt->m_mysql_handler->end_range != NULL
 		    && prebuilt->idx_cond == NULL && end_loop >= 100) {
 
+			bool clust_templ_for_sec =
+				index != clust_index &&
+				prebuilt->need_to_access_clustered;
 			dict_index_t*	key_index = prebuilt->index;
-			bool		clust_templ_for_sec = false;
 
 			if (end_range_cache == NULL) {
 				end_range_cache = static_cast<byte*>(
 					ut_malloc_nokey(prebuilt->mysql_row_len));
 			}
 
-			if (index != clust_index
-			    && prebuilt->need_to_access_clustered) {
+			if (clust_templ_for_sec) {
 				/** Secondary index record but the template
 				based on PK. */
 				key_index = clust_index;
@@ -5236,8 +5272,8 @@ rec_loop:
 				clust_templ_for_sec)) {
 
 				if (row_search_end_range_check(
-					end_range_cache,
-					prebuilt->m_mysql_handler)) {
+					end_range_cache, prev_rec, prebuilt,
+					clust_templ_for_sec, offsets)) {
 
 					/** In case of prebuilt->fetch,
 					set the error in prebuilt->end_range. */
