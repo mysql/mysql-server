@@ -136,7 +136,6 @@ class Srv_session {
   */
   enum srv_session_state {
     SRV_SESSION_CREATED,
-    SRV_SESSION_OPENED,
     SRV_SESSION_ATTACHED,
     SRV_SESSION_DETACHED,
     SRV_SESSION_CLOSED
