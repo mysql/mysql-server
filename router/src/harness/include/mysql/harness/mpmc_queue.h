@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #ifndef MYSQL_HARNESS_MPMC_UNBOUND_QUEUE_INCLUDED
 #define MYSQL_HARNESS_MPMC_UNBOUND_QUEUE_INCLUDED
 
+#include <atomic>
 #include <mutex>
 
 #include "mysql/harness/waiting_queue_adaptor.h"
@@ -129,7 +130,7 @@ class MPMCQueueMS2Lock {
  private:
   struct Node {
     T data;
-    Node *next{nullptr};
+    std::atomic<Node *> next{nullptr};
   };
 
   std::mutex head_mutex_;

@@ -66,13 +66,8 @@ void PasswdFrontend::init_from_arguments(
 
 PasswdFrontend::PasswdFrontend(const std::string &exe_name,
                                const std::vector<std::string> &args,
-                               std::istream &is, std::ostream &os,
-                               std::ostream &es)
-    : program_name_{exe_name},
-      arg_handler_{true},
-      cin_{is},
-      cout_{os},
-      cerr_{es} {
+                               std::ostream &os, std::ostream &es)
+    : program_name_{exe_name}, arg_handler_{true}, cout_{os}, cerr_{es} {
   init_from_arguments(args);
 }
 
