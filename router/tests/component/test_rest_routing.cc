@@ -162,7 +162,9 @@ TEST_P(RestRoutingApiTest, ensure_openapi) {
           {"router_id", "3"},
           {"user", keyring_username},
           {"metadata_cluster", "test"},
-          {"bootstrap_server_addresses", "mysql://does-not-exist"},
+          // 198.51.100.0/24 is a reserved address block, it could not be
+          // connected to. https://tools.ietf.org/html/rfc5737#section-4
+          {"bootstrap_server_addresses", "mysql://198.51.100.1"},
           //"ttl", "0.5"
       }));
 
@@ -171,7 +173,7 @@ TEST_P(RestRoutingApiTest, ensure_openapi) {
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"),
-      &default_section)};
+      &default_section, "mysqlrouter.conf", "connect_timeout=1")};
 
   SCOPED_TRACE("// starting router");
   ProcessWrapper &http_server = launch_router({"-c", conf_file});
