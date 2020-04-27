@@ -46,7 +46,16 @@ sub process
         "suite/ndb/backups" .
           substr($File::Find::name, length($NDB_SAVED_BACKUPS)) .
         "\n";
-  my $output = `$NDB_PRINT_BACKUP_FILE $File::Find::name`;
+
+  my $output;
+  open(my $fh, '-|', $NDB_PRINT_BACKUP_FILE, $File::Find::name)
+    or die("Unable to open $File::Find::name: $!\n");
+  {
+    local $/;
+    $output = <$fh>;
+  }
+  close($fh) or die("Unable to close $File::Find::name: $!\n");
+
   if (!defined($output))
   {
     die "Failed running: $NDB_PRINT_BACKUP_FILE $File::Find::name";
