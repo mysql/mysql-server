@@ -8,3 +8,6 @@ perl mysql-test-run.pl --timer --testcase-timeout=30 --suite-timeout=300 --debug
 
 # Group Replication
 perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication --vardir=var-group_replication --suite=group_replication
+
+# rpl_gtid
+perl mysql-test-run.pl --debug-server --force --timer --big-test --testcase-timeout=90 --comment=rpl_gtid-big --vardir=var-rpl_gtid-big --suite=rpl_gtid

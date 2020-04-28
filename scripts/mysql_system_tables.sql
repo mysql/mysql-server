@@ -386,6 +386,7 @@ SET @cmd= "CREATE TABLE IF NOT EXISTS slave_master_info (
   Master_compression_algorithm CHAR(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'Compression algorithm supported for data transfer between master and slave.',
   Master_zstd_compression_level INTEGER UNSIGNED NOT NULL COMMENT 'Compression level associated with zstd compression algorithm.',
   Tls_ciphersuites TEXT CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL COMMENT 'Ciphersuites used for TLS 1.3 communication with the master server.',
+  Managed BOOLEAN NOT NULL DEFAULT FALSE COMMENT 'Indicates whether the channel is monitored on failures.',
   PRIMARY KEY(Channel_name)) DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT 'Master Information'";
 
 SET @str=IF(@have_innodb <> 0, CONCAT(@cmd, ' ENGINE= INNODB ROW_FORMAT=DYNAMIC TABLESPACE=mysql ENCRYPTION=\'', @is_mysql_encrypted,'\''), CONCAT(@cmd, ' ENGINE= MYISAM'));
@@ -419,6 +420,20 @@ SET @cmd= "CREATE TABLE IF NOT EXISTS gtid_executed (
     interval_start BIGINT NOT NULL COMMENT 'First number of interval.',
     interval_end BIGINT NOT NULL COMMENT 'Last number of interval.',
     PRIMARY KEY(source_uuid, interval_start))";
+
+SET @str=IF(@have_innodb <> 0, CONCAT(@cmd, ' ENGINE= INNODB ROW_FORMAT=DYNAMIC TABLESPACE=mysql ENCRYPTION=\'', @is_mysql_encrypted,'\''), CONCAT(@cmd, ' ENGINE= MYISAM'));
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+-- replication_asynchronous_connection_failover table
+SET @cmd= "CREATE TABLE IF NOT EXISTS replication_asynchronous_connection_failover (
+    Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The replication channel name that connects primary and secondary.',
+    Host CHAR(255) CHARACTER SET ASCII NOT NULL COMMENT 'The primary hostname that the secondary will attempt to switch over the replication connection to in case of a failure.',
+    Port INTEGER UNSIGNED NOT NULL COMMENT 'The primary port that the secondary will attempt to switch over the replication connection to in case of a failure.',
+    Network_namespace CHAR(64) COMMENT 'The primary network namespace that the secondary will attempt to switch over the replication connection to in case of a failure. If its value is empty, connections use the default (global) namespace.',
+    Weight TINYINT UNSIGNED NOT NULL COMMENT 'The order in which the secondary shall try to switch the connection over to when there are failures. Weights can be set to a number between 1 and 100, where 100 is the highest weigth and 1 the lowest.',
+    PRIMARY KEY(Channel_name, Host, Port, Network_namespace)) DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT 'The primary configuration details'";
 
 SET @str=IF(@have_innodb <> 0, CONCAT(@cmd, ' ENGINE= INNODB ROW_FORMAT=DYNAMIC TABLESPACE=mysql ENCRYPTION=\'', @is_mysql_encrypted,'\''), CONCAT(@cmd, ' ENGINE= MYISAM'));
 PREPARE stmt FROM @str;

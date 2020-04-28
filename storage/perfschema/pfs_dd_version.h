@@ -150,8 +150,10 @@
 
   performance_schema tables changed in MySQL 8.0.21
   - tls_channel_status (created)
+  - replication_connection_configuration, added column
+  MANAGED
 */
 
-static const uint PFS_DD_VERSION = 80021;
+static const uint PFS_DD_VERSION = 80022;
 
 #endif /* PFS_DD_VERSION_H */

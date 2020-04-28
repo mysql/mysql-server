@@ -892,6 +892,8 @@ The documentation is based on the source files such as:
 #ifdef _WIN32
 #include "sql/restart_monitor_win.h"
 #endif
+#include "sql/rpl_async_conn_failover_add_primary_udf.h"
+#include "sql/rpl_async_conn_failover_delete_primary_udf.h"
 #include "sql/rpl_filter.h"
 #include "sql/rpl_gtid.h"
 #include "sql/rpl_gtid_persist.h"  // Gtid_table_persistor
@@ -1556,6 +1558,8 @@ Le_creator le_creator;
 
 Rpl_global_filter rpl_global_filter;
 Rpl_filter *binlog_filter;
+Rpl_async_conn_failover_add_primary rpl_async_conn_failover_add_primary;
+Rpl_async_conn_failover_delete_primary rpl_async_conn_failover_delete_primary;
 
 /**
   Global system variables.
@@ -2558,6 +2562,9 @@ static void clean_up(bool print_message) {
 
   injector::free_instance();
   mysql_bin_log.cleanup();
+
+  rpl_async_conn_failover_add_primary.deinit();
+  rpl_async_conn_failover_delete_primary.deinit();
 
   if (use_slave_mask) bitmap_free(&slave_error_mask);
   my_tz_free();
@@ -6312,6 +6319,9 @@ static int init_server_components() {
   } else
 #endif
     locked_in_memory = false;
+
+  rpl_async_conn_failover_add_primary.init();
+  rpl_async_conn_failover_delete_primary.init();
 
   /* Initialize the optimizer cost module */
   init_optimizer_cost_module(true);

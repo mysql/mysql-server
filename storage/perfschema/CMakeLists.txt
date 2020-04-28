@@ -156,6 +156,7 @@ cursor_by_thread_connect_attr.h
 table_session_connect.h
 table_session_connect_attrs.h
 table_session_account_connect_attrs.h
+table_replication_asynchronous_connection_failover.h
 table_replication_connection_configuration.h
 table_replication_group_members.h
 table_replication_connection_status.h
@@ -297,6 +298,7 @@ cursor_by_thread_connect_attr.cc
 table_session_connect.cc
 table_session_connect_attrs.cc
 table_session_account_connect_attrs.cc
+table_replication_asynchronous_connection_failover.cc
 table_replication_connection_configuration.cc
 table_replication_group_members.cc
 table_replication_connection_status.cc

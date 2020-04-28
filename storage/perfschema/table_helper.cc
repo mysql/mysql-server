@@ -1768,6 +1768,11 @@ bool PFS_key_port::match(const PFS_socket *pfs) {
   return do_match(record_null, (int32)port);
 }
 
+bool PFS_key_port::match(uint port) {
+  bool record_null = (port == 0);
+  return do_match(record_null, (int32)port);
+}
+
 bool PFS_key_error_number::match_error_index(uint error_index) {
   DBUG_ASSERT(error_index < PFS_MAX_GLOBAL_SERVER_ERRORS);
 
