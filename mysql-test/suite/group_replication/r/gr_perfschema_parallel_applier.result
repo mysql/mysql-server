@@ -63,7 +63,6 @@ NETWORK_NAMESPACE
 COMPRESSION_ALGORITHM	uncompressed
 ZSTD_COMPRESSION_LEVEL	3
 TLS_CIPHERSUITES	NULL
-MANAGED	0
 
 SELECT * FROM performance_schema.replication_connection_status WHERE channel_name = "group_replication_applier";
 CHANNEL_NAME	group_replication_applier
@@ -265,7 +264,6 @@ NETWORK_NAMESPACE
 COMPRESSION_ALGORITHM	uncompressed
 ZSTD_COMPRESSION_LEVEL	3
 TLS_CIPHERSUITES	NULL
-MANAGED	0
 
 SELECT * FROM performance_schema.replication_connection_status WHERE channel_name = "group_replication_applier";
 CHANNEL_NAME	group_replication_applier

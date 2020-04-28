@@ -103,10 +103,6 @@ Preparing deadlock scenario for mysql.proxies_priv
 ROLLBACK;
 ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
 ROLLBACK;
-Preparing deadlock scenario for mysql.replication_asynchronous_connection_failover
-ROLLBACK;
-ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
-ROLLBACK;
 Preparing deadlock scenario for mysql.role_edges
 ROLLBACK;
 ERROR 40001: Deadlock found when trying to get lock; try restarting transaction

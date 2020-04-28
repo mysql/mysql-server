@@ -903,10 +903,6 @@ TARGET_LINK_LIBRARIES(master binlog sql_main)
 SET (SLAVE_SOURCE
   dynamic_ids.cc
   rpl_applier_reader.cc
-  rpl_async_conn_failover.cc
-  rpl_async_conn_failover_table_operations.cc
-  rpl_async_conn_failover_add_primary_udf.cc
-  rpl_async_conn_failover_delete_primary_udf.cc
   rpl_channel_service_interface.cc
   rpl_channel_credentials.cc
   rpl_info.cc
@@ -926,11 +922,7 @@ SET (SLAVE_SOURCE
   rpl_slave.cc
   rpl_slave_commit_order_manager.cc
   rpl_slave_until_options.cc
-  rpl_sys_key_access.cc
-  rpl_sys_table_access.cc
   rpl_trx_boundary_parser.cc
-  udf_service_impl.cc
-  udf_service_util.cc
   )
 ADD_LIBRARY(slave STATIC ${SLAVE_SOURCE})
 ADD_DEPENDENCIES(slave GenError)

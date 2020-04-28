@@ -9,10 +9,6 @@ Note	####	Storing MySQL user name or password information in the master info rep
 CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "group_replication_applier";
 ERROR HY000: CHANGE MASTER with the given parameters cannot be performed on channel 'group_replication_applier'.
 
-# CHANGE MASTER command is blocked for other options than `PRIVILEGE_CHECKS_USER`.
-CHANGE MASTER TO MANAGED=1 FOR CHANNEL "group_replication_applier";
-ERROR HY000: CHANGE MASTER with the given parameters cannot be performed on channel 'group_replication_applier'.
-
 # CHANGE MASTER command is blocked for option `PRIVILEGE_CHECKS_USER` when GR is running
 CHANGE MASTER TO PRIVILEGE_CHECKS_USER='user' FOR CHANNEL "group_replication_applier";
 ERROR HY000: This operation cannot be performed while Group Replication is running; run STOP GROUP_REPLICATION first
@@ -66,10 +62,6 @@ include/stop_group_replication.inc
 
 # CHANGE MASTER command is blocked for other options than `PRIVILEGE_CHECKS_USER`.
 CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "group_replication_applier";
-ERROR HY000: CHANGE MASTER with the given parameters cannot be performed on channel 'group_replication_applier'.
-
-# CHANGE MASTER command is blocked for other options than `PRIVILEGE_CHECKS_USER`.
-CHANGE MASTER TO MANAGED=1 FOR CHANNEL "group_replication_applier";
 ERROR HY000: CHANGE MASTER with the given parameters cannot be performed on channel 'group_replication_applier'.
 
 # CHANGE MASTER command allows option `PRIVILEGE_CHECKS_USER` when GR is stopped
