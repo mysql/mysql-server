@@ -1411,6 +1411,12 @@ bool Rewriter_change_master::rewrite(String &rlb) const {
       &rlb, comma, STRING_WITH_LEN("MASTER_ZSTD_COMPRESSION_LEVEL = "),
       lex->mi.zstd_compression_level, lex->mi.zstd_compression_level != 0);
 
+  // MANAGED
+  comma =
+      append_int(&rlb, comma, STRING_WITH_LEN("MANAGED ="),
+                 (lex->mi.m_managed == LEX_MASTER_INFO::LEX_MI_ENABLE) ? 1 : 0,
+                 lex->mi.m_managed != LEX_MASTER_INFO::LEX_MI_UNCHANGED);
+
   /* channel options -- no preceding comma here! */
   if (lex->mi.for_channel)
     append_str(&rlb, false, " FOR CHANNEL", lex->mi.channel);

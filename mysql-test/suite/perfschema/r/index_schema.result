@@ -90,6 +90,7 @@ replication_applier_status_by_coordinator	0	performance_schema	PRIMARY	HASH
 replication_applier_status_by_coordinator	1	performance_schema	THREAD_ID	HASH	
 replication_applier_status_by_worker	0	performance_schema	PRIMARY	HASH	
 replication_applier_status_by_worker	1	performance_schema	THREAD_ID	HASH	
+replication_asynchronous_connection_failover	0	performance_schema	PRIMARY	HASH	
 replication_connection_configuration	0	performance_schema	PRIMARY	HASH	
 replication_connection_status	0	performance_schema	PRIMARY	HASH	
 replication_connection_status	1	performance_schema	THREAD_ID	HASH	
@@ -292,6 +293,10 @@ replication_applier_status_by_coordinator	1	performance_schema	THREAD_ID	1	THREA
 replication_applier_status_by_worker	0	performance_schema	PRIMARY	1	CHANNEL_NAME	NULL	
 replication_applier_status_by_worker	0	performance_schema	PRIMARY	2	WORKER_ID	NULL	
 replication_applier_status_by_worker	1	performance_schema	THREAD_ID	1	THREAD_ID	NULL	YES
+replication_asynchronous_connection_failover	0	performance_schema	PRIMARY	1	CHANNEL_NAME	NULL	
+replication_asynchronous_connection_failover	0	performance_schema	PRIMARY	2	HOST	NULL	
+replication_asynchronous_connection_failover	0	performance_schema	PRIMARY	3	PORT	NULL	
+replication_asynchronous_connection_failover	0	performance_schema	PRIMARY	4	NETWORK_NAMESPACE	NULL	
 replication_connection_configuration	0	performance_schema	PRIMARY	1	CHANNEL_NAME	NULL	
 replication_connection_status	0	performance_schema	PRIMARY	1	CHANNEL_NAME	NULL	
 replication_connection_status	1	performance_schema	THREAD_ID	1	THREAD_ID	NULL	YES

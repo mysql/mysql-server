@@ -224,6 +224,7 @@ void System_tables::add_remaining_dd_tables() {
   register_table("password_history", system);
   register_table("procs_priv", system);
   register_table("proxies_priv", system);
+  register_table("replication_asynchronous_connection_failover", system);
   register_table("role_edges", system);
   register_table("servers", system);
   register_table("server_cost", system);

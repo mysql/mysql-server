@@ -1261,6 +1261,8 @@ void warn_about_deprecated_binary(THD *thd)
 %token<lexer.keyword> ENGINE_ATTRIBUTE_SYM 1154         /* MYSQL */
 %token<lexer.keyword> SECONDARY_ENGINE_ATTRIBUTE_SYM 1155 /* MYSQL */
 
+%token<lexer.keyword> MANAGED_SYM 1156                  /* MYSQL */
+
 /*
   Precedence rules used to resolve the ambiguity when using keywords as idents
   in the case e.g.:
@@ -2692,6 +2694,20 @@ master_def:
             }
           }
         | REQUIRE_TABLE_PRIMARY_KEY_CHECK_SYM EQ table_primary_key_check_def
+        | MANAGED_SYM EQ real_ulong_num
+          {
+            switch($3) {
+            case 0:
+                Lex->mi.m_managed = LEX_MASTER_INFO::LEX_MI_DISABLE;
+                break;
+            case 1:
+                Lex->mi.m_managed = LEX_MASTER_INFO::LEX_MI_ENABLE;
+                break;
+            default:
+                YYTHD->syntax_error_at(@3);
+                MYSQL_YYABORT;
+            }
+          }
         | master_file_def
         ;
 
@@ -14690,6 +14706,7 @@ ident_keywords_unambiguous:
         | LOCKS_SYM
         | LOGFILE_SYM
         | LOGS_SYM
+        | MANAGED_SYM
         | MASTER_AUTO_POSITION_SYM
         | MASTER_COMPRESSION_ALGORITHM_SYM
         | MASTER_CONNECT_RETRY_SYM

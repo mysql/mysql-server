@@ -50,6 +50,7 @@ password_history	mysql
 plugin	mysql
 procs_priv	mysql
 proxies_priv	mysql
+replication_asynchronous_connection_failover	mysql
 resource_groups	mysql
 role_edges	mysql
 routines	mysql
@@ -118,6 +119,7 @@ password_history
 plugin
 procs_priv
 proxies_priv
+replication_asynchronous_connection_failover
 resource_groups
 role_edges
 routines

@@ -1,0 +1,1 @@
+--log_error=$MYSQLTEST_VARDIR/tmp/rpl_async_conn_failover_udf_register_error.1.err
