@@ -979,9 +979,6 @@ class BtrContext {
     is_bulk() ? check_redolog_bulk() : check_redolog_normal();
   }
 
-  /** The btr mini transaction will be restarted. */
-  void restart_mtr() { is_bulk() ? restart_mtr_bulk() : restart_mtr_normal(); }
-
   /** Mark the nth field as externally stored.
   @param[in]	field_no	the field number. */
   void make_nth_extern(ulint field_no) {
@@ -1029,12 +1026,6 @@ class BtrContext {
   /** When bulk load is being done, check if there is enough space in redo
   log file. */
   void check_redolog_bulk();
-
-  /** Commit and re-start the mini transaction. */
-  void restart_mtr_normal();
-
-  /** When bulk load is being done, Commit and re-start the mini transaction. */
-  void restart_mtr_bulk();
 
   /** Recalculate some of the members after restoring the persistent
   cursor. */
@@ -1626,10 +1617,9 @@ bool rec_check_lobref_space_id(dict_index_t *index, const rec_t *rec,
 @param[in]  trx  the current transaction.
 @param[in]  index  the clustered index to which the LOB belongs.
 @param[in]  update  the update vector.
-@param[in]  mtr     the mini transaction context.
 @return DB_SUCCESS on success, error code on failure. */
 dberr_t mark_not_partially_updatable(trx_t *trx, dict_index_t *index,
-                                     const upd_t *update, mtr_t *mtr);
+                                     const upd_t *update);
 
 }  // namespace lob
 

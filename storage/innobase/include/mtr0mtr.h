@@ -516,8 +516,8 @@ struct mtr_t {
   @param object	object to search
   @param type	type of object
   @return	true if contains */
-  static bool memo_contains(mtr_buf_t *memo, const void *object, ulint type)
-      MY_ATTRIBUTE((warn_unused_result));
+  static bool memo_contains(const mtr_buf_t *memo, const void *object,
+                            ulint type) MY_ATTRIBUTE((warn_unused_result));
 
   /** Check if memo contains the given item.
   @param ptr		object to search
@@ -557,6 +557,14 @@ struct mtr_t {
   bool has_modifications() const MY_ATTRIBUTE((warn_unused_result)) {
     return (m_impl.m_modifications);
   }
+
+  /** Check if the changes done in this mtr conflicts with changes done
+  in the given mtr.  Two mtrs are said to conflict with each other, if
+  they modify the same buffer block.
+  @param[in]   mtr2  the given mtr.
+  @return true if there is conflict, false otherwise. */
+  bool conflicts_with(const mtr_t *mtr2) const
+      MY_ATTRIBUTE((warn_unused_result));
 
   /** @return the memo stack */
   const mtr_buf_t *get_memo() const MY_ATTRIBUTE((warn_unused_result)) {

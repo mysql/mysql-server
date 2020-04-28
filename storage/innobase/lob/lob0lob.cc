@@ -134,36 +134,6 @@ void BtrContext::check_redolog_normal() {
   ut_ad(validate());
 }
 
-void BtrContext::restart_mtr_normal() {
-  ut_ad(!is_bulk());
-  FlushObserver *observer = m_mtr->get_flush_observer();
-
-  if (m_pcur != nullptr) {
-    store_position();
-  }
-
-  commit_btr_mtr();
-  start_btr_mtr();
-  m_mtr->set_flush_observer(observer);
-
-  if (m_pcur != nullptr) {
-    restore_position();
-  }
-
-  ut_ad(m_pcur == nullptr || validate());
-}
-
-void BtrContext::restart_mtr_bulk() {
-  ut_ad(is_bulk());
-  FlushObserver *observer = m_mtr->get_flush_observer();
-  rec_block_fix();
-  commit_btr_mtr();
-  start_btr_mtr();
-  m_mtr->set_flush_observer(observer);
-  rec_block_unfix();
-  ut_ad(validate());
-}
-
 /** Print this blob directory into the given output stream.
 @param[in]	out	the output stream.
 @return the output stream. */
@@ -1375,7 +1345,7 @@ bool rec_check_lobref_space_id(dict_index_t *index, const rec_t *rec,
 #endif /* UNIV_DEBUG */
 
 dberr_t mark_not_partially_updatable(trx_t *trx, dict_index_t *index,
-                                     const upd_t *update, mtr_t *mtr) {
+                                     const upd_t *update) {
   if (!index->is_clustered()) {
     /* Only clustered index can have LOBs. */
     return (DB_SUCCESS);
@@ -1402,9 +1372,14 @@ dberr_t mark_not_partially_updatable(trx_t *trx, dict_index_t *index,
       ref_t ref(field_ref);
 
       if (!ref.is_null_relaxed()) {
+        mtr_t local_mtr;
+        mtr_t *mtr = &local_mtr;
         ut_ad(ref.space_id() == index->space_id());
+
+        mtr_start(mtr);
         ref.mark_not_partially_updatable(trx, mtr, index,
                                          index->get_page_size());
+        mtr_commit(mtr);
       }
     }
   }
