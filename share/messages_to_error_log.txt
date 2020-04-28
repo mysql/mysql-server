@@ -10896,18 +10896,6 @@ ER_USERNAME_TRUNKATED
 ER_HOSTNAME_TRUNKATED
   eng "The host name '%s' exceeds the maximum number of allowed characters %d and is trunkated."
 
-ER_RPL_ASYNC_RECONNECT_FAIL_NO_PRIMARIES
-  eng "Failed to automatically re-connect to a different primary, for channel '%s', because %s. To fix this %s."
-
-ER_UDF_REGISTER_SERVICE_ERROR
-  eng "Could not execute the installation of UDF functions. Check for other errors in the log"
-
-ER_UDF_REGISTER_ERROR
-  eng "Could not execute the installation of UDF function: %s. Check if the function is already present, if so, try to remove it."
-
-ER_UDF_UNREGISTER_ERROR
-  eng "Could not uninstall UDF functions. Try to remove them manually if present."
-
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

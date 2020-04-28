@@ -344,7 +344,7 @@ struct LEX_MASTER_INFO {
     LEX_MI_ENABLE
   } ssl,
       ssl_verify_server_cert, heartbeat_opt, repl_ignore_server_ids_opt,
-      retry_count_opt, auto_position, port_opt, get_public_key, m_managed;
+      retry_count_opt, auto_position, port_opt, get_public_key;
   char *ssl_key, *ssl_cert, *ssl_ca, *ssl_capath, *ssl_cipher;
   char *ssl_crl, *ssl_crlpath, *tls_version;
   /*

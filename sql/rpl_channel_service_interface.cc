@@ -356,20 +356,6 @@ int channel_create(const char *channel, Channel_creation_info *channel_info) {
     lex_mi->zstd_compression_level = channel_info->zstd_compression_level;
   }
 
-  if (channel_info->m_managed) {
-    lex_mi->m_managed = LEX_MASTER_INFO::LEX_MI_ENABLE;
-    if (mi && mi->is_managed()) {
-      // No change
-      lex_mi->m_managed = LEX_MASTER_INFO::LEX_MI_UNCHANGED;
-    }
-  } else {
-    lex_mi->m_managed = LEX_MASTER_INFO::LEX_MI_DISABLE;
-    if (mi && !mi->is_managed()) {
-      // No change
-      lex_mi->m_managed = LEX_MASTER_INFO::LEX_MI_UNCHANGED;
-    }
-  }
-
   if (channel_info->ssl_info != nullptr) {
     set_mi_ssl_options(lex_mi, channel_info->ssl_info);
   }

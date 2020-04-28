@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -494,45 +494,6 @@ class Master_info : public Rpl_info, public Gtid_mode_copy {
   }
 
   /**
-    Checks if Asynchronous Replication Connection Failover feature is enabled.
-
-    @returns true   if Asynchronous Replication Connection Failover feature is
-                    enabled.
-             false  otherwise.
-  */
-  bool is_managed() { return m_managed; }
-
-  /**
-    Enable Asynchronous Replication Connection Failover feature.
-  */
-  void set_managed() { m_managed = true; }
-
-  /**
-    Disable Asynchronous Replication Connection Failover feature.
-  */
-  void unset_managed() { m_managed = false; }
-
-  /**
-    Checks if network error has occurred.
-
-    @returns true   if slave IO thread failure was due to network error,
-             false  otherwise.
-  */
-  bool is_network_error() { return m_network_error; }
-
-  /**
-    Sets m_network_error to true. Its used by async replication connection
-    failover in case of slave IO thread failure to check if it was due to
-    network failure.
-  */
-  void set_network_error() { m_network_error = true; }
-
-  /**
-    Resets m_network_error to false.
-  */
-  void reset_network_error() { m_network_error = false; }
-
-  /**
     This member function shall return true if there are server
     ids configured to be ignored.
 
@@ -586,9 +547,7 @@ class Master_info : public Rpl_info, public Gtid_mode_copy {
   bool read_info(Rpl_info_handler *from);
   bool write_info(Rpl_info_handler *to);
 
-  bool auto_position{false};
-  bool m_managed{false};
-  bool m_network_error{false};
+  bool auto_position;
 
   Master_info(
 #ifdef HAVE_PSI_INTERFACE

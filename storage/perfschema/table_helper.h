@@ -1334,13 +1334,6 @@ class PFS_key_port : public PFS_key_long {
   ~PFS_key_port() {}
 
   bool match(const PFS_socket *pfs);
-
-  /**
-    match port number
-
-    @param port   port number to match
-  */
-  bool match(uint port);
 };
 
 class PFS_key_error_number : public PFS_key_long {
