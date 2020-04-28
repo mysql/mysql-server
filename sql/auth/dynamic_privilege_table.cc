@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -131,7 +131,11 @@ bool populate_dynamic_privilege_caches(THD *thd, TABLE_LIST *tablelst) {
           get_field(&tmp_mem, table->field[MYSQL_DYNAMIC_PRIV_FIELD_PRIV]);
       char *with_grant_option = get_field(
           &tmp_mem, table->field[MYSQL_DYNAMIC_PRIV_FIELD_WITH_GRANT_OPTION]);
-      if (priv == nullptr) priv = &empty_str;
+      if (priv == nullptr) {
+        LogErr(WARNING_LEVEL, ER_EMPTY_PRIVILEGE_NAME_IGNORED);
+        continue;  // skip invalid privilege
+      }
+
       my_caseup_str(system_charset_info, priv);
       LEX_CSTRING str_priv = {priv, strlen(priv)};
       LEX_CSTRING str_user = {user, strlen(user)};

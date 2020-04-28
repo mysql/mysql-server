@@ -10908,6 +10908,9 @@ ER_UDF_REGISTER_ERROR
 ER_UDF_UNREGISTER_ERROR
   eng "Could not uninstall UDF functions. Try to remove them manually if present."
 
+ER_EMPTY_PRIVILEGE_NAME_IGNORED
+  eng "An empty or illegal privilege identifier was ignored when global privileges were read from disk."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
