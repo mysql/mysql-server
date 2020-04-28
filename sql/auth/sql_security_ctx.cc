@@ -710,7 +710,8 @@ std::pair<bool, bool> Security_context::has_global_grant(
                                     true  - consider as privilege exists
                                     false - consider as privilege do not exist
 
-  @retval true    auth_id has the privilege but the current_auth does not
+  @retval true    auth_id has the privilege but the current_auth does not, also
+                  throws error.
   @retval false   Otherwise
 */
 bool Security_context::can_operate_with(const Auth_id &auth_id,

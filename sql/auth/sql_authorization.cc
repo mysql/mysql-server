@@ -3142,8 +3142,6 @@ bool mysql_revoke_role(THD *thd, const List<LEX_USER> *users,
                               role->user.str, role->host.str));
           Security_context *sctx = thd->security_context();
           if (sctx->can_operate_with({role}, consts::system_user)) {
-            my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
-                     consts::system_user.c_str());
             errors = true;
             break;
           }
@@ -3278,8 +3276,6 @@ bool mysql_grant_role(THD *thd, const List<LEX_USER> *users,
                               role->user.str, role->host.str));
           Security_context *sctx = thd->security_context();
           if (sctx->can_operate_with({role}, consts::system_user)) {
-            my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
-                     consts::system_user.c_str());
             errors = true;
             break;
           }
