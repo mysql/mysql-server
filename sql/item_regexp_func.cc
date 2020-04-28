@@ -89,8 +89,35 @@ static bool ParseRegexpOptions(const std::string &options_string,
   return false;
 }
 
+static bool is_binary_string(Item *item) {
+  return item->data_type() == MYSQL_TYPE_VARCHAR &&
+         item->type() != Item::PARAM_ITEM &&
+         !item->is_null() &&  // NULLs appear to have the binary charset.
+         item->charset_for_protocol() == &my_charset_bin;
+}
+
+static bool is_binary_compatible(Item *item) {
+  if ((item->data_type() == MYSQL_TYPE_BLOB ||
+       item->data_type() == MYSQL_TYPE_STRING ||
+       item->data_type() == MYSQL_TYPE_VARCHAR) &&
+      item->charset_for_protocol() != &my_charset_bin)
+    return false;
+  return true;
+}
+
 bool Item_func_regexp::resolve_type(THD *) {
   param_type_is_default(0, 2);
+
+  const CHARSET_INFO *subject_charset = subject()->charset_for_protocol();
+  const CHARSET_INFO *pattern_charset = pattern()->charset_for_protocol();
+
+  if ((is_binary_string(subject()) && !is_binary_compatible(pattern())) ||
+      (is_binary_string(pattern()) && !is_binary_compatible(subject()))) {
+    my_error(ER_CHARACTER_SET_MISMATCH, myf(0), subject_charset->name,
+             pattern_charset->name, func_name());
+    return error_bool();
+  }
+
   return agg_arg_charsets_for_comparison(collation, args, 2);
 }
 
@@ -202,6 +229,23 @@ bool Item_func_regexp_replace::resolve_type(THD *thd) {
   param_type_is_default(3, 5, MYSQL_TYPE_LONGLONG);
   if (param_type_is_rejected(5, 6))  // as we evaluate it in fix_fields
     return true;
+
+  const CHARSET_INFO *resolved_charset = collation.collation;
+  const CHARSET_INFO *replacement_charset =
+      replacement()->charset_for_protocol();
+
+  // If either of subject, pattern or replacement use the binary charset, the
+  // other two must be implicitly castable to binary charset, too.  The other
+  // combinations are checked in Item_func_regexp::resolve_type().
+  if (((is_binary_string(subject()) || is_binary_string(pattern())) &&
+       !is_binary_compatible(replacement())) ||
+      (is_binary_string(replacement()) && (!is_binary_compatible(subject()) ||
+                                           !is_binary_compatible(pattern())))) {
+    my_error(ER_CHARACTER_SET_MISMATCH, myf(0), resolved_charset->name,
+             replacement_charset->name, func_name());
+    return error_bool();
+  }
+
   set_data_type_string(ulonglong{MAX_BLOB_WIDTH});
   return false;
 }
