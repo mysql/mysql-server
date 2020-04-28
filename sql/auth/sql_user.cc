@@ -147,10 +147,9 @@ bool check_change_password(THD *thd, const char *host, const char *user,
     }
     if (check_access(thd, UPDATE_ACL, consts::mysql.c_str(), nullptr, nullptr,
                      true, false))
-      return (true);
+      return true;
 
-    if (sctx->can_operate_with({user, host}, consts::system_user))
-      return (true);
+    if (sctx->can_operate_with({user, host}, consts::system_user)) return true;
   }
 
   if (retain_current_password) {
@@ -2209,11 +2208,14 @@ bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,
           List_iterator<LEX_USER> role_it(*(thd->lex->default_roles));
           LEX_USER *role;
           while ((role = role_it++) && result == 0) {
+            Auth_id role_id(role);
             if (role->user.length == 0 || *(role->user.str) == '\0') {
-              std::string from_user = create_authid_str_from(role);
               std::string to_user = create_authid_str_from(tmp_user_name);
-              my_error(ER_FAILED_ROLE_GRANT, MYF(0), from_user.c_str(),
+              my_error(ER_FAILED_ROLE_GRANT, MYF(0), role_id.auth_str().c_str(),
                        to_user.c_str());
+              result = 1;
+            } else if (thd->security_context()->can_operate_with(
+                           role_id, consts::system_user)) {
               result = 1;
             } else {
               if (!is_granted_role(tmp_user_name->user, tmp_user_name->host,
