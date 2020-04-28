@@ -100,8 +100,11 @@ enum {
   /* line for tls_ciphersuites */
   LINE_FOR_TLS_CIPHERSUITES = 31,
 
+  /* line for managed */
+  LINE_FOR_MANAGED = 32,
+
   /* Number of lines currently used when saving master info file */
-  LINES_IN_MASTER_INFO = LINE_FOR_TLS_CIPHERSUITES
+  LINES_IN_MASTER_INFO = LINE_FOR_MANAGED
 
 };
 
@@ -140,7 +143,8 @@ const char *info_mi_fields[] = {"number_of_lines",
                                 "network_namespace",
                                 "master_compression_algorithm",
                                 "master_zstd_compression_level",
-                                "tls_ciphersuites"};
+                                "tls_ciphersuites",
+                                "managed"};
 
 const uint info_mi_table_pk_field_indexes[] = {
     LINE_FOR_CHANNEL - 1,
@@ -651,6 +655,12 @@ bool Master_info::read_info(Rpl_info_handler *from) {
     }
   }
 
+  if (lines >= LINE_FOR_MANAGED) {
+    auto temp_managed{0};
+    if (!!from->get_info(&temp_managed, 0)) return true;
+    m_managed = temp_managed;
+  }
+
   return false;
 }
 
@@ -689,7 +699,8 @@ bool Master_info::write_info(Rpl_info_handler *to) {
       to->set_info(network_namespace) || to->set_info(compression_algorithm) ||
       to->set_info((int)zstd_compression_level) ||
       to->set_info(tls_ciphersuites.first ? nullptr
-                                          : tls_ciphersuites.second.c_str()))
+                                          : tls_ciphersuites.second.c_str()) ||
+      to->set_info((int)m_managed))
     return true;
 
   return false;

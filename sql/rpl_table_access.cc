@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,6 +46,15 @@ bool System_table_access::open_table(THD *thd, const LEX_CSTRING dbstr,
                                      enum thr_lock_type lock_type,
                                      TABLE **table,
                                      Open_tables_backup *backup) {
+  return open_table(thd, to_string(dbstr), to_string(tbstr), max_num_field,
+                    lock_type, table, backup);
+}
+
+bool System_table_access::open_table(THD *thd, std::string dbstr,
+                                     std::string tbstr, uint max_num_field,
+                                     enum thr_lock_type lock_type,
+                                     TABLE **table,
+                                     Open_tables_backup *backup) {
   Query_tables_list query_tables_list_backup;
 
   DBUG_TRACE;
@@ -63,8 +72,8 @@ bool System_table_access::open_table(THD *thd, const LEX_CSTRING dbstr,
   thd->reset_n_backup_open_tables_state(backup,
                                         Open_tables_state::SYSTEM_TABLES);
 
-  TABLE_LIST tables(dbstr.str, dbstr.length, tbstr.str, tbstr.length, tbstr.str,
-                    lock_type);
+  TABLE_LIST tables(dbstr.c_str(), dbstr.length(), tbstr.c_str(),
+                    tbstr.length(), tbstr.c_str(), lock_type);
 
   tables.open_strategy = TABLE_LIST::OPEN_IF_EXISTS;
 
@@ -74,10 +83,10 @@ bool System_table_access::open_table(THD *thd, const LEX_CSTRING dbstr,
     thd->restore_backup_open_tables_state(backup);
     thd->lex->restore_backup_query_tables_list(&query_tables_list_backup);
     if (thd->is_operating_gtid_table_implicitly)
-      LogErr(WARNING_LEVEL, ER_RPL_GTID_TABLE_CANNOT_OPEN, dbstr.str,
-             tbstr.str);
+      LogErr(WARNING_LEVEL, ER_RPL_GTID_TABLE_CANNOT_OPEN, dbstr.c_str(),
+             tbstr.c_str());
     else
-      my_error(ER_NO_SUCH_TABLE, MYF(0), dbstr.str, tbstr.str);
+      my_error(ER_NO_SUCH_TABLE, MYF(0), dbstr.c_str(), tbstr.c_str());
     return true;
   }
 

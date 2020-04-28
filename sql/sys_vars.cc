@@ -4090,6 +4090,19 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var) {
     }
   }
 
+  // Cannot set OFF when MANGED is enabled for any channel.
+  if (new_gtid_mode != GTID_MODE_ON) {
+    for (mi_map::iterator it = channel_map.begin(); it != channel_map.end();
+         it++) {
+      Master_info *mi = it->second;
+      if (mi != nullptr && mi->is_managed()) {
+        my_error(ER_DISABLE_GTID_MODE_REQUIRES_ASYNC_RECONNECT_OFF, MYF(0),
+                 get_gtid_mode_string(new_gtid_mode));
+        goto err;
+      }
+    }
+  }
+
   // Can't set GTID_MODE != ON when group replication is enabled.
   if (is_group_replication_running()) {
     DBUG_ASSERT(old_gtid_mode == GTID_MODE_ON);

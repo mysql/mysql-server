@@ -20,6 +20,7 @@ password_history
 plugin
 procs_priv
 proxies_priv
+replication_asynchronous_connection_failover
 role_edges
 server_cost
 servers
@@ -65,6 +66,7 @@ password_history
 plugin
 procs_priv
 proxies_priv
+replication_asynchronous_connection_failover
 role_edges
 server_cost
 servers
