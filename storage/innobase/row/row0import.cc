@@ -2807,16 +2807,17 @@ static dberr_t row_import_read_indexes(
   cfg->m_n_indexes = mach_read_from_4(row);
 
   if (cfg->m_n_indexes == 0) {
-    ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR,
-            "Number of indexes in meta-data file is 0");
+    ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
+                strerror(errno), "Number of indexes in meta-data file is 0");
 
     return (DB_CORRUPTION);
 
   } else if (cfg->m_n_indexes > 1024) {
     // FIXME: What is the upper limit? */
-    ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR,
-            "Number of indexes in meta-data file is too high: %lu",
-            (ulong)cfg->m_n_indexes);
+    ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
+                strerror(errno),
+                "Number of indexes in meta-data file is too high: %lu",
+                (ulong)cfg->m_n_indexes);
     cfg->m_n_indexes = 0;
 
     return (DB_CORRUPTION);
@@ -2911,7 +2912,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     UT_DELETE_ARRAY(str);
 
     /* Value bytes */
-    if ((str = row_import_read_bytes(file, length)) == nullptr) {
+    if (((str = row_import_read_bytes(file, length)) == nullptr) &&
+        (length != 0)) {
       return (DB_IO_ERROR);
     }
 
@@ -3005,8 +3007,9 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
     /* FIXME: What is the maximum column name length? */
     if (len == 0 || len > 128) {
-      ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR,
-              "Column name length %lu, is invalid", (ulong)len);
+      ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
+                  strerror(errno), "Column name length %lu, is invalid",
+                  (ulong)len);
 
       return (DB_CORRUPTION);
     }
@@ -3039,9 +3042,10 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
       err = row_import_read_default_values(file, col, &cfg->m_heap, &read);
 
       if (err != DB_SUCCESS) {
-        ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR,
-                "while reading table column"
-                " default value.");
+        ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
+                    strerror(errno),
+                    "while reading table column"
+                    " default value.");
         return (err);
       }
 
