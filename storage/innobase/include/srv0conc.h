@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -62,8 +62,9 @@ extern ulong srv_thread_concurrency;
 struct row_prebuilt_t;
 /** Puts an OS thread to wait if there are too many concurrent threads
  (>= srv_thread_concurrency) inside InnoDB. The threads wait in a FIFO queue.
- @param[in,out]	prebuilt	row prebuilt handler */
-void srv_conc_enter_innodb(row_prebuilt_t *prebuilt);
+ @param[in,out]	prebuilt	row prebuilt handler
+ @return Innodb error code. */
+dberr_t srv_conc_enter_innodb(row_prebuilt_t *prebuilt);
 
 /** This lets a thread enter InnoDB regardless of the number of threads inside
  InnoDB. This must be called when a thread ends a lock wait. */
