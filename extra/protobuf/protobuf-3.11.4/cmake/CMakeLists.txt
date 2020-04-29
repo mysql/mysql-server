@@ -25,7 +25,13 @@ if (CYGWIN)
 else()
   ### cmake 3.9.1 does not understand that Developer Studio understands C++14
   IF(NOT SOLARIS)
-    set(CMAKE_CXX_STANDARD 14)
+    # https://developercommunity.visualstudio.com/content/problem/665343/
+    # vs2019-stl-with-clang-cl-and-stdc14-generates-dupl.html
+    IF(WIN32_CLANG)
+      set(CMAKE_CXX_STANDARD 17)
+    ELSE()
+      set(CMAKE_CXX_STANDARD 14)
+    ENDIF()
     set(CMAKE_CXX_STANDARD_REQUIRED ON)
     set(CMAKE_CXX_EXTENSIONS OFF)
   ENDIF()
@@ -181,9 +187,16 @@ else (protobuf_BUILD_SHARED_LIBS)
   endif (MSVC AND protobuf_MSVC_STATIC_RUNTIME)
 endif (protobuf_BUILD_SHARED_LIBS)
 
-if (MSVC AND NOT WIN32_CLANG)
+MY_CHECK_CXX_COMPILER_WARNING("-Wunused-const-variable" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
+ENDIF()
+
+if (MSVC)
   # Build with multiple processes
-  add_definitions(/MP)
+  IF(NOT WIN32_CLANG)
+    add_definitions(/MP)
+  ENDIF()
   # MSVC warning suppressions
   add_definitions(
     /wd4018 # 'expression' : signed/unsigned mismatch
@@ -211,15 +224,19 @@ if (MSVC AND NOT WIN32_CLANG)
   # Suppress linker warnings about files with no symbols defined.
   set(CMAKE_STATIC_LINKER_FLAGS "${CMAKE_STATIC_LINKER_FLAGS} /ignore:4221")
 
-  # Configure Resource Compiler
-  enable_language(RC)
-  # use English language (0x409) in resource compiler
-  set(rc_flags "/l0x409")
-  # fix rc.exe invocations because of usage of add_definitions()
-  set(CMAKE_RC_COMPILE_OBJECT "<CMAKE_RC_COMPILER> ${rc_flags} <DEFINES> /fo<OBJECT> <SOURCE>")
+  # clang-cl (the driver program for clang) does not understand these flags.
+  # So we skip the generation and usage of version.rc.
+  IF(NOT WIN32_CLANG)
+    # Configure Resource Compiler
+    enable_language(RC)
+    # use English language (0x409) in resource compiler
+    set(rc_flags "/l0x409")
+    # fix rc.exe invocations because of usage of add_definitions()
+    set(CMAKE_RC_COMPILE_OBJECT "<CMAKE_RC_COMPILER> ${rc_flags} <DEFINES> /fo<OBJECT> <SOURCE>")
 
-  configure_file(version.rc.in ${CMAKE_CURRENT_BINARY_DIR}/version.rc @ONLY)
-endif (MSVC AND NOT WIN32_CLANG)
+    configure_file(version.rc.in ${CMAKE_CURRENT_BINARY_DIR}/version.rc @ONLY)
+  ENDIF()
+endif (MSVC)
 
 
 get_filename_component(protobuf_source_dir ${protobuf_SOURCE_DIR} PATH)

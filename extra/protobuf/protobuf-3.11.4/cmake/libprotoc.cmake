@@ -159,7 +159,7 @@ set(libprotoc_headers
   ${protobuf_source_dir}/src/google/protobuf/compiler/zip_writer.h
 )
 
-if (MSVC)
+if (MSVC AND NOT WIN32_CLANG)
 set(libprotoc_rc_files
   ${CMAKE_CURRENT_BINARY_DIR}/version.rc
 )

@@ -324,7 +324,7 @@ namespace {
 bool real_find_in_file(
     const std::string &file_path,
     const std::function<bool(const std::string &)> &predicate,
-    std::ifstream &in_file, std::ios::streampos &cur_pos) {
+    std::ifstream &in_file, std::streampos &cur_pos) {
   if (!in_file.is_open()) {
     in_file.clear();
     Path file(file_path);
@@ -357,7 +357,7 @@ bool find_in_file(const std::string &file_path,
                   std::chrono::milliseconds sleep_time) {
   const auto STEP = std::chrono::milliseconds(100);
   std::ifstream in_file;
-  std::ios::streampos cur_pos;
+  std::streampos cur_pos;
   do {
     try {
       // This is proxy function to account for the fact that I/O can sometimes

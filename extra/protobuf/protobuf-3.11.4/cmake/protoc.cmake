@@ -2,7 +2,7 @@ set(protoc_files
   ${protobuf_source_dir}/src/google/protobuf/compiler/main.cc
 )
 
-if (MSVC)
+if (MSVC AND NOT WIN32_CLANG)
 set(protoc_rc_files
   ${CMAKE_CURRENT_BINARY_DIR}/version.rc
 )

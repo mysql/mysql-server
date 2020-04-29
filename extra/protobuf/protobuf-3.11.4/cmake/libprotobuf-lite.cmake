@@ -55,7 +55,7 @@ set(libprotobuf_lite_includes
   ${protobuf_source_dir}/src/google/protobuf/wire_format_lite.h
 )
 
-if (MSVC)
+if (MSVC AND NOT WIN32_CLANG)
 set(libprotobuf_lite_rc_files
   ${CMAKE_CURRENT_BINARY_DIR}/version.rc
 )
