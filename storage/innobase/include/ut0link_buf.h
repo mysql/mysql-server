@@ -128,7 +128,8 @@ class Link_buf {
 
   @return true if and only if the pointer has been advanced */
   template <typename Stop_condition>
-  bool advance_tail_until(Stop_condition stop_condition);
+  bool advance_tail_until(Stop_condition stop_condition,
+                          uint32_t max_retry = 1);
 
   /** Advances the tail pointer in the buffer without additional
   condition for stop. Stops at missing outgoing link.
@@ -299,17 +300,28 @@ inline void Link_buf<Position>::add_link_advance_tail(Position from,
 
 template <typename Position>
 template <typename Stop_condition>
-bool Link_buf<Position>::advance_tail_until(Stop_condition stop_condition) {
+bool Link_buf<Position>::advance_tail_until(Stop_condition stop_condition,
+                                            uint32_t max_retry) {
   /* multi threaded aware */
   auto position = m_tail.load(std::memory_order_acquire);
   auto from = position;
 
-  uint retry = 0;
+  uint32_t retry = 0;
   while (true) {
     auto index = slot_index(position);
     auto &slot = m_links[index];
 
     auto next_load = slot.load(std::memory_order_acquire);
+
+    if (next_load >= position + m_capacity) {
+      /* either we wrapped and tail was advanced mean while,
+      or there is link start_lsn -> end_lsn of length >= m_capacity */
+      position = m_tail.load(std::memory_order_acquire);
+      if (position != from) {
+        from = position;
+        continue;
+      }
+    }
 
     if (next_load <= position || stop_condition(position, next_load)) {
       /* nothing to advance for now */
@@ -319,13 +331,21 @@ bool Link_buf<Position>::advance_tail_until(Stop_condition stop_condition) {
     /* try to lock as storing the end */
     if (slot.compare_exchange_strong(next_load, position,
                                      std::memory_order_acq_rel)) {
-      /* can advance m_tail exclusively */
-      position = next_load;
-      break;
+      /* it could happen, that after thread read position = m_tail.load(),
+      it got scheduled out for longer; when it comes back it might still
+      see the link going forward in that slot but m_tail could have been
+      already advanced forward (as we do not reset slots when traversing
+      them); thread needs to re-check if m_tail is still behind the slot. */
+      position = m_tail.load(std::memory_order_acquire);
+      if (position == from) {
+        /* confirmed. can advance m_tail exclusively */
+        position = next_load;
+        break;
+      }
     }
 
     retry++;
-    if (retry >= 2) {
+    if (retry > max_retry) {
       /* give up */
       return false;
     }
@@ -387,45 +407,11 @@ inline bool Link_buf<Position>::has_space(Position position) {
     return true;
   }
 
-  auto index = slot_index(tail);
-  auto &slot = m_links[index];
+  auto stop_condition = [](Position from, Position to) { return false; };
+  advance_tail_until(stop_condition, 0);
 
-  auto next_load = slot.load(std::memory_order_acquire);
-
-  if (next_load <= tail) {
-    return false;
-  }
-
-  /* try to advance m_tail with no wait */
-  if (!slot.compare_exchange_strong(next_load, tail,
-                                    std::memory_order_acq_rel)) {
-    /* maybe in advance by the other */
-    return false;
-  }
-
-  /* can advance m_tail exclusively */
-  auto next = next_load;
-
-  while (next + m_capacity <= position) {
-    index = slot_index(next);
-    auto &slot2 = m_links[index];
-
-    next_load = slot2.load(std::memory_order_relaxed);
-
-    if (next_load <= next) {
-      /* found the next tail candidate */
-      break;
-    }
-
-    next = next_load;
-  }
-
-  ut_ad(tail == m_tail.load(std::memory_order_acquire));
-
-  /* unlock */
-  m_tail.store(next, std::memory_order_release);
-
-  return next + m_capacity > position;
+  tail = m_tail.load(std::memory_order_acquire);
+  return tail + m_capacity > position;
 }
 
 template <typename Position>
