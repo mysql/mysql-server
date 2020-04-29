@@ -1,7 +1,7 @@
 #ifndef SQL_BKA_ITERATOR_H_
 #define SQL_BKA_ITERATOR_H_
 
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -264,14 +264,11 @@ class MultiRangeRowIterator final : public TableRowIterator {
     @param thd Thread handle.
     @param cache_idx_cond See m_cache_idx_cond.
     @param table The inner table to scan.
-    @param keep_current_rowid If true, get the row ID on the inner table
-      for each row that we return. (Row IDs for outer tables will be
-      controlled by outer_input_tables.)
     @param ref The index condition we are looking up on.
     @param mrr_flags Flags passed on to MRR.
    */
   MultiRangeRowIterator(THD *thd, Item *cache_idx_cond, TABLE *table,
-                        bool keep_current_rowid, TABLE_REF *ref, int mrr_flags);
+                        TABLE_REF *ref, int mrr_flags);
 
   /**
     Tell the MRR iterator which tables are on the left side of the BKA join
@@ -419,12 +416,6 @@ class MultiRangeRowIterator final : public TableRowIterator {
         also known as join cache.
    */
   Item *const m_cache_idx_cond;
-
-  /// See constructor.
-  const bool m_keep_current_rowid;
-
-  /// The table we are reading from.
-  TABLE *const m_table;
 
   /// Handler for the table we are reading from.
   handler *const m_file;

@@ -2627,8 +2627,7 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       TABLE_REF &ref = qep_tab->ref();
 
       table_iterator = NewIterator<MultiRangeRowIterator>(
-          thd, qep_tab->cache_idx_cond, qep_tab->table(),
-          qep_tab->copy_current_rowid, &ref,
+          thd, qep_tab->cache_idx_cond, qep_tab->table(), &ref,
           qep_tab->position()->table->join_cache_flags);
       qep_tab->mrr_iterator =
           down_cast<MultiRangeRowIterator *>(table_iterator->real_iterator());

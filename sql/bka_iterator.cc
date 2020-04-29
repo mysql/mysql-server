@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -340,13 +340,10 @@ vector<string> BKAIterator::DebugString() const {
 }
 
 MultiRangeRowIterator::MultiRangeRowIterator(THD *thd, Item *cache_idx_cond,
-                                             TABLE *table,
-                                             bool keep_current_rowid,
-                                             TABLE_REF *ref, int mrr_flags)
+                                             TABLE *table, TABLE_REF *ref,
+                                             int mrr_flags)
     : TableRowIterator(thd, table),
       m_cache_idx_cond(cache_idx_cond),
-      m_keep_current_rowid(keep_current_rowid),
-      m_table(table),
       m_file(table->file),
       m_ref(ref),
       m_mrr_flags(mrr_flags) {}
@@ -494,10 +491,6 @@ int MultiRangeRowIterator::Read() {
   hash_join_buffer::LoadIntoTableBuffers(m_outer_input_tables, rec_ptr->data());
 
   m_last_row_returned = rec_ptr;
-
-  if (m_keep_current_rowid) {
-    m_file->position(m_table->record[0]);
-  }
 
   return 0;
 }

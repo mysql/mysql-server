@@ -1825,10 +1825,8 @@ bool SELECT_LEX::optimize(THD *thd) {
   Find how much space the prevous read not const tables takes in cache.
 */
 
-void calc_used_field_length(TABLE *table, bool needs_rowid, uint *p_used_fields,
-                            uint *p_used_fieldlength, uint *p_used_blobs,
-                            bool *p_used_null_fields,
-                            bool *p_used_uneven_bit_fields) {
+void calc_used_field_length(TABLE *table, bool needs_rowid,
+                            uint *p_used_fieldlength) {
   uint null_fields, blobs, fields, rec_length;
   Field **f_ptr, *field;
   uint uneven_bit_fields;
@@ -1859,11 +1857,7 @@ void calc_used_field_length(TABLE *table, bool needs_rowid, uint *p_used_fields,
     fields++;
   }
 
-  *p_used_fields = fields;
   *p_used_fieldlength = rec_length;
-  *p_used_blobs = blobs;
-  *p_used_null_fields = null_fields;
-  *p_used_uneven_bit_fields = uneven_bit_fields;
 }
 
 bool JOIN::init_ref_access() {

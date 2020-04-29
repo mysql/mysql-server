@@ -99,17 +99,13 @@ static uint cache_record_length(JOIN *join, uint idx) {
     JOIN_TAB *join_tab = *pos;
     if (!join_tab->used_fieldlength)  // Not calculated yet
     {
-      uint used_fields, used_blobs;
-      bool used_null_fields, used_uneven_bit_fields;
       /*
         (1) needs_rowid: we don't know if Duplicate Weedout may be
         used, length will thus be inaccurate, this is acceptable.
       */
       calc_used_field_length(join_tab->table(),
                              false,  // (1)
-                             &used_fields, &join_tab->used_fieldlength,
-                             &used_blobs, &used_null_fields,
-                             &used_uneven_bit_fields);
+                             &join_tab->used_fieldlength);
     }
     length += join_tab->used_fieldlength;
   }

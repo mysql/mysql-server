@@ -288,11 +288,7 @@ class QEP_TAB : public QEP_shared_owner {
         firstmatch_return(NO_PLAN_IDX),
         loosescan_key_len(0),
         match_tab(NO_PLAN_IDX),
-        first_unmatched(NO_PLAN_IDX),
         rematerialize(false),
-        used_null_fields(false),
-        used_uneven_bit_fields(false),
-        copy_current_rowid(nullptr),
         not_used_in_distinct(false),
         cache_idx_cond(nullptr),
         having(nullptr),
@@ -422,8 +418,6 @@ class QEP_TAB : public QEP_shared_owner {
   */
   plan_idx match_tab;
 
-  plan_idx first_unmatched; /**< used for optimization purposes only   */
-
   /// Dependent table functions have to be materialized on each new scan
   bool rematerialize;
 
@@ -436,10 +430,6 @@ class QEP_TAB : public QEP_shared_owner {
   Setup_func materialize_table = NO_SETUP;
   bool using_dynamic_range = false;
   unique_ptr_destroy_only<RowIterator> iterator;
-
-  // join-cache-related members
-  bool used_null_fields;
-  bool used_uneven_bit_fields;
 
   // Whether the row ID is needed for this table, and where the row ID can be
   // found.
