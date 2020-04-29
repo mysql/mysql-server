@@ -9,14 +9,12 @@
 connect(mysqld2,127.0.0.1,root,,test,$MASTER_MYPORT1);
 connection mysqld2;
 enable_reconnect;
---shutdown_server 30
+--shutdown_server
+# Wait until server is gone.
+--source include/wait_until_disconnected.inc
 
 connection default;
 --echo Connected to server1 as root
-
-# Disable warnings to suppress a "Node unsubscribed" warning that may appear
-# at some unpredictable time after the shutdown of mysqld2
---disable_warnings ER_GET_ERRMSG
 
 #
 # Create test tables. These are not in database "test" due to the customary

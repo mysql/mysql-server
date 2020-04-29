@@ -33,7 +33,7 @@ USE auth_test_db;
 CREATE TABLE t1 (pk INT PRIMARY KEY, a INT) engine = ndb;
 
 # Warning suppression
---connect(D_root,127.0.0.1,root,,auth_test_db,$SLAVE_MYPORT1,)
+--connect(D_root,127.0.0.1,root,,,$SLAVE_MYPORT1,)
 --connection D_root
 --echo [Server D]
 call mtr.add_suppression("You need to use --log-bin .*");
