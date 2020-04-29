@@ -2005,8 +2005,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
         err = DB_ERROR;
         trx->error_key_num = 0;
 
-        ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR, ER_AUTOINC_READ_FAILED,
-                "[NULL]");
+        ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_ERROR, ER_AUTOINC_READ_FAILED);
 
         goto func_exit;
       }

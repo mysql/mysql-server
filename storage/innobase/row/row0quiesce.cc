@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -503,8 +503,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   FILE *file = fopen(name, "w+b");
 
   if (file == nullptr) {
-    ib_errf(thd, IB_LOG_LEVEL_WARN, ER_CANT_CREATE_FILE, name, errno,
-            strerror(errno));
+    ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_CANT_CREATE_FILE, name, errno,
+                strerror(errno));
 
     err = DB_IO_ERROR;
   } else {
@@ -668,8 +668,8 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
   FILE *file = fopen(name, "w+b");
 
   if (file == nullptr) {
-    ib_errf(thd, IB_LOG_LEVEL_WARN, ER_CANT_CREATE_FILE, name, errno,
-            strerror(errno));
+    ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_CANT_CREATE_FILE, name, errno,
+                strerror(errno));
 
     err = DB_IO_ERROR;
   } else {
