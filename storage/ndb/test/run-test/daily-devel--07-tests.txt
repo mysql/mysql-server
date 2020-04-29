@@ -167,9 +167,9 @@ max-time: 520
 
 cmd: testNodeRestart
 args: -n InplaceCharPkChangeCS T1
-max-time: 600
+max-time: 1200
 
 cmd: testNodeRestart
 args: -n InplaceCharPkChangeCI T1
-max-time: 600
+max-time: 1200
 
