@@ -118,6 +118,7 @@
 #include "sql/val_int_compare.h"  // Integer_value
 #include "template_utils.h"
 #include "typelib.h"
+#include "unhex.h"
 
 using std::max;
 using std::min;
@@ -3245,8 +3246,6 @@ String *Item_func_hex::val_str_ascii(String *str) {
 /** Convert given hex string to a binary string. */
 
 String *Item_func_unhex::val_str(String *str) {
-  const char *from, *end;
-  char *to;
   String *res;
   size_t length;
   null_value = true;
@@ -3257,22 +3256,10 @@ String *Item_func_unhex::val_str(String *str) {
   if (args[0]->null_value) return nullptr;
   if (!res || tmp_value.alloc(length = (1 + res->length()) / 2)) goto err;
 
-  from = res->ptr();
   tmp_value.length(length);
-  to = tmp_value.ptr();
-  if (res->length() % 2) {
-    int hex_char = hexchar_to_int(*from++);
-    if (hex_char == -1) goto err;
-    *to++ = static_cast<char>(hex_char);
-  }
-  for (end = res->ptr() + res->length(); from < end; from += 2, to++) {
-    int hex_char = hexchar_to_int(from[0]);
-    if (hex_char == -1) goto err;
-    *to = static_cast<char>(hex_char << 4);
-    hex_char = hexchar_to_int(from[1]);
-    if (hex_char == -1) goto err;
-    *to |= hex_char;
-  }
+
+  if (unhex(res->ptr(), res->ptr() + res->length(), tmp_value.ptr())) goto err;
+
   null_value = false;
   return &tmp_value;
 

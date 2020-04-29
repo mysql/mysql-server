@@ -1,5 +1,5 @@
 # Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
-# 
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
 # as published by the Free Software Foundation.
@@ -114,6 +114,7 @@ SET(MYSYS_SOURCES
   thr_rwlock.cc
   tree.cc
   typelib.cc
+  unhex.cc
   # From deleted mysys_ssl library
   crypt_genhash_impl.cc
   my_default.cc
