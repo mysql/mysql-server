@@ -9512,17 +9512,19 @@ int runCheckCharKeyTable(NDBT_Context* ctx, NDBT_Step* step)
   const NdbDictionary::Table* nbTab = pDict->getTable(NbTabName);
   const Uint32 totalRows = NumDataSets * DataSetRows;
   Uint32 rows[totalRows];
-  for (Uint32 i=0; i < totalRows; i++)
-  {
-    rows[i] = 0;
-  }
 
-  bool unexpectedValue = false;
+  bool unexpectedValue;
   const Uint32 numDataCols = ctx->getProperty("NumDataColumns", Uint32(1));
   NdbRecAttr* ras[512];
+  Uint32 scanRetries = 20;
 
   do
   {
+    for (Uint32 i=0; i < totalRows; i++)
+    {
+      rows[i] = 0;
+    }
+
     unexpectedValue = false;
     NdbTransaction* trans = pNdb->startTransaction();
     CHECK(trans != NULL, pNdb->getNdbError());
@@ -9638,6 +9640,28 @@ int runCheckCharKeyTable(NDBT_Context* ctx, NDBT_Step* step)
         }
       }
     } // while nextResult()
+
+    if (scanRc != 1)
+    {
+      const bool retry = (sop->getNdbError().status ==
+                          NdbError::TemporaryError);
+      ndbout_c("Scan problem : %u : %s ",
+               sop->getNdbError().code,
+               sop->getNdbError().message);
+      trans->close();
+
+      if (retry &&
+          scanRetries--)
+      {
+        ndbout_c("Retrying scan, %u retries remain",
+                 scanRetries);
+        continue;
+      }
+      else
+      {
+        return NDBT_FAILED;
+      }
+    }
 
     trans->close();
 
