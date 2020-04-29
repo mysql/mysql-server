@@ -1586,15 +1586,18 @@ ulint thd_start_time_in_secs(THD *thd) /*!< in: thread handle, or NULL */
 
 /** Enter InnoDB engine after checking the max number of user threads
 allowed, else the thread is put into sleep.
-@param[in,out]	prebuilt	row prebuilt handler */
-static inline void innobase_srv_conc_enter_innodb(row_prebuilt_t *prebuilt) {
+@param[in,out]	prebuilt	row prebuilt handler
+@return InnoDB error code. */
+static inline dberr_t innobase_srv_conc_enter_innodb(row_prebuilt_t *prebuilt) {
   /* We rely on server to do external_lock(F_UNLCK) to reset the
   srv_conc.n_active counter. */
   if (prebuilt->skip_concurrency_ticket()) {
-    return;
+    return DB_SUCCESS;
   }
 
+  dberr_t err = DB_SUCCESS;
   trx_t *trx = prebuilt->trx;
+
   if (srv_thread_concurrency) {
     if (trx->n_tickets_to_enter_innodb > 0) {
       /* If trx has 'free tickets' to enter the engine left,
@@ -1608,9 +1611,11 @@ static inline void innobase_srv_conc_enter_innodb(row_prebuilt_t *prebuilt) {
                   srv_replication_delay * 1000);
 
     } else {
-      srv_conc_enter_innodb(prebuilt);
+      err = srv_conc_enter_innodb(prebuilt);
     }
   }
+
+  return err;
 }
 
 /** Note that the thread wants to leave InnoDB only if it doesn't have
@@ -2642,8 +2647,11 @@ void innobase_copy_frm_flags_from_table_share(
   innodb_table->stats_sample_pages = table_share->stats_sample_pages;
 }
 
-void ha_innobase::srv_concurrency_enter() {
-  innobase_srv_conc_enter_innodb(m_prebuilt);
+int ha_innobase::srv_concurrency_enter() {
+  auto err = innobase_srv_conc_enter_innodb(m_prebuilt);
+
+  trx_t *trx = m_prebuilt->trx;
+  return convert_error_code_to_mysql(err, 0, trx->mysql_thd);
 }
 
 void ha_innobase::srv_concurrency_exit() {
@@ -8547,7 +8555,11 @@ int ha_innobase::write_row(uchar *record) /*!< in: a row in MySQL format */
     build_template(true);
   }
 
-  innobase_srv_conc_enter_innodb(m_prebuilt);
+  error = innobase_srv_conc_enter_innodb(m_prebuilt);
+
+  if (error != DB_SUCCESS) {
+    goto report_error;
+  }
 
   /* Execute insert graph that will result in actual insert. */
   error = row_insert_for_mysql((byte *)record, m_prebuilt);
@@ -9272,7 +9284,11 @@ int ha_innobase::update_row(const uchar *old_row, uchar *new_row) {
   /* This is not a delete */
   m_prebuilt->upd_node->is_delete = FALSE;
 
-  innobase_srv_conc_enter_innodb(m_prebuilt);
+  error = innobase_srv_conc_enter_innodb(m_prebuilt);
+
+  if (error != DB_SUCCESS) {
+    goto func_exit;
+  }
 
   error = row_update_for_mysql((byte *)old_row, m_prebuilt);
 
@@ -9390,11 +9406,12 @@ int ha_innobase::delete_row(
 
   m_prebuilt->upd_node->is_delete = TRUE;
 
-  innobase_srv_conc_enter_innodb(m_prebuilt);
+  error = innobase_srv_conc_enter_innodb(m_prebuilt);
 
-  error = row_update_for_mysql((byte *)record, m_prebuilt);
-
-  innobase_srv_conc_exit_innodb(m_prebuilt);
+  if (error == DB_SUCCESS) {
+    error = row_update_for_mysql((byte *)record, m_prebuilt);
+    innobase_srv_conc_exit_innodb(m_prebuilt);
+  }
 
   /* Tell the InnoDB server that there might be work for
   utility threads: */
@@ -9706,7 +9723,12 @@ int ha_innobase::index_read(
   dberr_t ret;
 
   if (mode != PAGE_CUR_UNSUPP) {
-    innobase_srv_conc_enter_innodb(m_prebuilt);
+    ret = innobase_srv_conc_enter_innodb(m_prebuilt);
+
+    if (ret != DB_SUCCESS) {
+      return convert_error_code_to_mysql(ret, m_prebuilt->table->flags,
+                                         m_user_thd);
+    }
 
     if (!m_prebuilt->table->is_intrinsic()) {
       if (TrxInInnoDB::is_aborted(m_prebuilt->trx)) {
@@ -9961,9 +9983,11 @@ int ha_innobase::general_fetch(
     return convert_error_code_to_mysql(DB_FORCED_ABORT, 0, m_user_thd);
   }
 
-  innobase_srv_conc_enter_innodb(m_prebuilt);
+  auto ret = innobase_srv_conc_enter_innodb(m_prebuilt);
 
-  dberr_t ret;
+  if (ret != DB_SUCCESS) {
+    return convert_error_code_to_mysql(DB_FORCED_ABORT, 0, m_user_thd);
+  }
 
   if (!intrinsic) {
     ret = row_search_mvcc(buf, PAGE_CUR_UNSUPP, m_prebuilt, match_mode,
@@ -10569,12 +10593,13 @@ next_record:
     tuple. */
     innobase_fts_create_doc_id_key(tuple, index, &search_doc_id);
 
-    innobase_srv_conc_enter_innodb(m_prebuilt);
+    auto ret = innobase_srv_conc_enter_innodb(m_prebuilt);
 
-    dberr_t ret = row_search_for_mysql((byte *)buf, PAGE_CUR_GE, m_prebuilt,
-                                       ROW_SEL_EXACT, 0);
-
-    innobase_srv_conc_exit_innodb(m_prebuilt);
+    if (ret == DB_SUCCESS) {
+      ret = row_search_for_mysql((byte *)buf, PAGE_CUR_GE, m_prebuilt,
+                                 ROW_SEL_EXACT, 0);
+      innobase_srv_conc_exit_innodb(m_prebuilt);
+    }
 
     int error;
 

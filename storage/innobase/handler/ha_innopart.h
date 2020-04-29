@@ -978,7 +978,10 @@ class ha_innopart : public ha_innobase,
     the minimum value for "innodb_concurrency_tickets" is 1 */
 
     if (!trx->declared_to_be_inside_innodb) {
-      srv_concurrency_enter();
+      auto err = srv_concurrency_enter();
+      if (err != 0) {
+        return (err);
+      }
       entered = true;
     }
 

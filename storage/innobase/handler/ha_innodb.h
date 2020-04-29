@@ -531,8 +531,9 @@ class ha_innobase : public handler {
   int truncate_impl(const char *name, TABLE *form, dd::Table *table_def);
 
  protected:
-  /** Enter InnoDB engine after checking max allowed threads */
-  void srv_concurrency_enter();
+  /** Enter InnoDB engine after checking max allowed threads.
+  @return mysql error code. */
+  int srv_concurrency_enter();
 
   /** Leave Innodb, if no more tickets are left */
   void srv_concurrency_exit();

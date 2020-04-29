@@ -4870,7 +4870,7 @@ bool row_prebuilt_t::skip_concurrency_ticket() const {
   The reads, updates as part of DDLs should be exempt for concurrency
   tickets. */
   if (table->is_intrinsic() || table->is_dd_table) {
-    return (true);
+    return true;
   }
 
   /* Skip concurrency ticket while implicitly updating GTID table. This is to
@@ -4882,8 +4882,15 @@ bool row_prebuilt_t::skip_concurrency_ticket() const {
     thd = current_thd;
   }
 
-  if (thd != nullptr &&  thd->is_operating_gtid_table_implicitly) {
-    return (true);
+  if (thd != nullptr) {
+    /* Skip concurrency ticket for attachable transactions opened for
+    operating within innodb implicitly. Since it is an independent transaction
+    apart from the regular transaction owned by this THD in same thread, we
+    could end up in deadlock. */
+    if (thd->is_attachable_transaction_active() ||
+        thd->is_operating_gtid_table_implicitly) {
+      return true;
+    }
   }
-  return (false);
+  return false;
 }
