@@ -140,7 +140,7 @@ add_harness_plugin(mock_server
   mock_server_plugin.cc
   mock_server_component.cc
   authentication.cc
-  REQUIRES mysql_protocol;duktape;${PROTOBUF_LIBRARY};mysqlxmessages;
+  REQUIRES mysql_protocol;duktape;${PROTOBUF_LITE_LIBRARY};mysqlxmessages_lite;
   harness_stdx_filesystem)
 
 TARGET_INCLUDE_DIRECTORIES(mock_server SYSTEM PUBLIC
@@ -174,8 +174,8 @@ MYSQL_ADD_EXECUTABLE(mysql_server_mock
   LINK_LIBRARIES
   ${common_libraries}
   harness-library
-  mysqlxmessages
-  ${PROTOBUF_LIBRARY}
+  mysqlxmessages_lite
+  ${PROTOBUF_LITE_LIBRARY}
   harness_stdx_filesystem
   SKIP_INSTALL
   )
@@ -193,4 +193,3 @@ TARGET_COMPILE_DEFINITIONS(mysql_server_mock
   )
 SET_PATH_TO_SSL(mysql_server_mock ${CMAKE_BINARY_DIR}/runtime_output_directory)
 
-ADD_DEFINITIONS(-DUSE_MYSQLX_FULL_PROTO)
