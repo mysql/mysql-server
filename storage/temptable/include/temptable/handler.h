@@ -512,10 +512,6 @@ class Handler : public ::handler {
   @return false */
   bool check_if_incompatible_data(HA_CREATE_INFO *, uint) override;
 
-  /** Not implemented.
-  @return 0 */
-  ha_rows records_in_range(uint, key_range *, key_range *) override;
-
  private:
   void opened_table_validate();
 
