@@ -58,7 +58,6 @@ class Rpl_async_conn_failover_table_operations {
 
     @param[in] master_conn_detail  std::tuple containing <channel, host, port,
                                    network_namespace, weight>
-    @param[in] num_args            number of arguments of UDF function
 
     @returns std::tuple<bool, std::string> where each element has
              following meaning:
@@ -79,7 +78,6 @@ class Rpl_async_conn_failover_table_operations {
 
     @param[in] master_conn_detail  std::tuple containing <channel, host, port,
                             network_namespace, weight>
-    @param[in] num_args     number of arguments of UDF function
 
     @returns std::tuple<bool, std::string> where each element has
              following meaning:
@@ -99,7 +97,7 @@ class Rpl_async_conn_failover_table_operations {
     for the channel. It uses index scan (ha_index_read_idx_map) to fetch rows
     for the channel name.
 
-    @param[in]  channel      The channel name
+    @param[in]  channel_name      The channel name
 
     @returns std::tuple<bool, SENDER_CONN_LIST> where each element has
              following meaning:

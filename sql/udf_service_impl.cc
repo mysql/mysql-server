@@ -29,8 +29,6 @@
 #include "sql/sql_class.h"
 #include "sql/udf_service_impl.h"
 
-REQUIRES_SERVICE_PLACEHOLDER(udf_registration);
-
 bool Udf_service_impl::register_udf(Udf_data &udf) {
   DBUG_TRACE;
 

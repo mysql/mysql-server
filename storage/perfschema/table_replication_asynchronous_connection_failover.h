@@ -180,7 +180,6 @@ class table_replication_asynchronous_connection_failover
   /**
     Read row via random scan from position.
 
-    @param[out] buf  Buffer to read the row into
     @param      pos  Position from position() call
 
     @return Operation status
@@ -203,8 +202,6 @@ class table_replication_asynchronous_connection_failover
 
   /**
     Read next row via random scan.
-
-    @param buf  Buffer to read the row into
 
     @return Operation status
       @retval 0     Success
