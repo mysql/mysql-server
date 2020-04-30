@@ -339,7 +339,8 @@ static void z_purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
   first.set_mtr(mtr);
   first.load_x(first_page_no);
 
-  bool ok_to_free_2 = (rec_type == TRX_UNDO_UPD_EXIST_REC) &&
+  bool ok_to_free_2 = (rec_type == TRX_UNDO_UPD_EXIST_REC ||
+                       rec_type == TRX_UNDO_UPD_DEL_REC) &&
                       !first.can_be_partially_updated() &&
                       (last_trx_id == trxid) && (last_undo_no == undo_no);
 
@@ -520,7 +521,8 @@ void purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
   first.set_mtr(ctx->get_mtr());
   first.load_x(page_id, page_size);
 
-  bool ok_to_free = (rec_type == TRX_UNDO_UPD_EXIST_REC) &&
+  bool ok_to_free = (rec_type == TRX_UNDO_UPD_EXIST_REC ||
+                     rec_type == TRX_UNDO_UPD_DEL_REC) &&
                     !first.can_be_partially_updated() &&
                     (last_trx_id == trxid) && (last_undo_no == undo_no);
 
