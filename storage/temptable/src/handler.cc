@@ -1043,12 +1043,6 @@ bool Handler::check_if_incompatible_data(HA_CREATE_INFO *, uint) {
   return false;
 }
 
-ha_rows Handler::records_in_range(uint, key_range *, key_range *) {
-  DBUG_TRACE;
-  DBUG_ABORT();
-  return 0;
-}
-
 #ifndef DBUG_OFF
 bool Handler::current_thread_is_creator() const {
   return m_owner == std::this_thread::get_id();
