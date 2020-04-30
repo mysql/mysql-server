@@ -68,7 +68,7 @@ ELSE()
     mysqlclient
     mysqlxclient_lite
     mysqlxmessages_lite
-    ${PROTOBUF_LIBRARY}-lite
+    ${PROTOBUF_LITE_LIBRARY}
     )
   TARGET_COMPILE_DEFINITIONS(metadata_cache_tests
     PRIVATE -Dmetadata_cache_DEFINE_STATIC=1)
