@@ -425,6 +425,88 @@ TEST_F(LoggingTest, FileHandler) {
   g_registry->remove_handler("TestFileHandler");
 }
 
+TEST_F(LoggingTest, FileHandlerRotate) {
+  // Check that the FileHandler can rotate to supplied filename
+
+  // We do not use mktemp or friends since we want this to work on
+  // Windows as well.
+  Path log_file(g_here.join(
+      "log4-" + std::to_string(stdx::this_process::get_id()) + ".log"));
+  Path renamed_log_file(g_here.join(
+      "rotated-log4-" + std::to_string(stdx::this_process::get_id()) + ".log"));
+  std::shared_ptr<void> exit_guard(nullptr, [&](void *) {
+    std::error_code ec;
+    stdx::filesystem::remove(log_file.str(), ec);
+    stdx::filesystem::remove(renamed_log_file.str(), ec);
+  });
+
+  g_registry->add_handler("TestFileHandler",
+                          std::make_shared<FileHandler>(log_file));
+  logger.attach_handler("TestFileHandler");
+
+  // Log one record
+  logger.handle(Record{LogLevel::kInfo, stdx::this_process::get_id(),
+                       kDefaultTimepoint, "my_module", "Message"});
+
+  // Verify only the original logfile exists
+  ASSERT_TRUE(log_file.exists());
+
+  // Open and read the entire file into memory.
+  std::vector<std::string> lines;
+  {
+    std::ifstream ifs_log(log_file.str());
+    std::string line;
+    while (std::getline(ifs_log, line)) lines.push_back(line);
+  }
+
+  // We do the assertion here to ensure that we can do as many tests
+  // as possible and report issues.
+  ASSERT_THAT(lines.size(), Ge(1));
+
+  // Check basic properties for the first line.
+  EXPECT_THAT(lines.size(), Eq(1));
+
+  // Message should be logged after applying format (timestamp, etc)
+  EXPECT_THAT(lines.at(0),
+              ContainsRegex(kDateRegex + " my_module INFO.*Message"));
+
+  // Rotate existing file to old filename
+  g_registry->flush_all_loggers(renamed_log_file.str());
+
+  // Verify the renamed file exists
+  ASSERT_TRUE(renamed_log_file.exists());
+
+  // Log one record after rotation
+  logger.handle(Record{LogLevel::kInfo, stdx::this_process::get_id(),
+                       kDefaultTimepoint, "my_module", "Another message"});
+
+  // Verify the original log file once again gets logged to
+  ASSERT_TRUE(log_file.exists());
+
+  // Open and read the new file into memory after rotation
+  std::vector<std::string> lines2;
+  {
+    std::ifstream ifs_log(log_file.str());
+    std::string line;
+    while (std::getline(ifs_log, line)) lines2.push_back(line);
+  }
+
+  // We do the assertion here to ensure that we can do as many tests
+  // as possible and report issues.
+  ASSERT_THAT(lines2.size(), Ge(1));
+
+  // Check basic properties for the first line.
+  EXPECT_THAT(lines2.size(), Eq(1));
+
+  // Message should be logged after rotation and applying format (timestamp,
+  // etc)
+  EXPECT_THAT(lines2.at(0),
+              ContainsRegex(kDateRegex + " my_module INFO.*Another message"));
+
+  // clean up
+  g_registry->remove_handler("TestFileHandler");
+}
+
 /**
  * @test
  *      Verify if no exception is throw when file can be opened for writing.

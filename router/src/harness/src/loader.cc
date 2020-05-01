@@ -94,8 +94,6 @@ using std::ostringstream;
 std::mutex we_might_shutdown_cond_mutex;
 std::condition_variable we_might_shutdown_cond;
 
-enum ShutdownReason { SHUTDOWN_NONE, SHUTDOWN_REQUESTED, SHUTDOWN_FATAL_ERROR };
-
 // set when the Router receives a signal to shut down or some fatal error
 // condition occurred
 static std::atomic<ShutdownReason> g_shutdown_pending{SHUTDOWN_NONE};
@@ -107,7 +105,7 @@ static std::string shutdown_fatal_error_message;
 
 std::mutex log_reopen_cond_mutex;
 std::condition_variable log_reopen_cond;
-static std::atomic<bool> g_log_reopen_requested{false};
+mysql_harness::LogReopenThread *g_reopen_thread{nullptr};
 
 // application defined pointer to function called at log rename completion
 static log_reopen_callback g_log_reopen_complete_callback_fp =
@@ -118,7 +116,7 @@ static log_reopen_callback g_log_reopen_complete_callback_fp =
  *
  * @throws std::system_error same as std::unique_lock::lock does
  */
-static void request_application_shutdown(const ShutdownReason reason) {
+void request_application_shutdown(const ShutdownReason reason) {
   {
     std::unique_lock<std::mutex> lk(we_might_shutdown_cond_mutex);
     std::unique_lock<std::mutex> lk2(log_reopen_cond_mutex);
@@ -131,28 +129,23 @@ static void request_application_shutdown(const ShutdownReason reason) {
 }
 
 /**
- * request application shutdown.
+ * notify a "log_reopen" is requested with optional filename for old logfile.
  *
+ * @param dst rename old logfile to filename before reopen
  * @throws std::system_error same as std::unique_lock::lock does
  */
-void request_application_shutdown() {
-  request_application_shutdown(SHUTDOWN_REQUESTED);
+void request_log_reopen(const std::string dst) {
+  if (g_reopen_thread) g_reopen_thread->request_reopen(dst);
 }
 
-#ifdef USE_POSIX_SIGNALS
 /**
- * notify a "log_reopen" is requested.
- *
- * @throws std::system_error same as std::unique_lock::lock does
+ * check reopen completed
  */
-static void request_log_reopen() {
-  {
-    std::unique_lock<std::mutex> lk(log_reopen_cond_mutex);
-    g_log_reopen_requested = true;
-  }
-  log_reopen_cond.notify_one();
+bool log_reopen_completed() {
+  if (g_reopen_thread) return g_reopen_thread->is_completed();
+
+  return true;
 }
-#endif
 
 namespace {
 #ifdef USE_POSIX_SIGNALS
@@ -232,39 +225,6 @@ void default_log_reopen_complete_cb(const std::string errmsg) {
   if (!errmsg.empty()) {
     shutdown_fatal_error_message = errmsg;
     request_application_shutdown(SHUTDOWN_FATAL_ERROR);
-  }
-}
-
-static void log_reopen_thread_function() {
-  auto &logging_registry = mysql_harness::DIM::instance().get_LoggingRegistry();
-  std::string errmsg = "";
-  bool exit = false;
-
-  while (!exit && (g_shutdown_pending == SHUTDOWN_NONE)) {
-    {
-      std::unique_lock<std::mutex> lk(log_reopen_cond_mutex);
-      log_reopen_cond.wait(lk);
-      if (g_shutdown_pending) {
-        break;
-      }
-      if (!g_log_reopen_requested) {
-        continue;
-      }
-      g_log_reopen_requested = false;
-      errmsg = "";
-      try {
-        logging_registry.flush_all_loggers();
-      } catch (const std::exception &e) {
-        // leave actions on error to the defined callback function
-        errmsg = e.what();
-      }
-    }
-    // trigger the completion callback once mutex is not locked
-    g_log_reopen_complete_callback_fp(errmsg);
-    {
-      std::unique_lock<std::mutex> lk(log_reopen_cond_mutex);
-      exit = (g_shutdown_pending != SHUTDOWN_NONE);
-    }
   }
 }
 
@@ -814,62 +774,6 @@ T value_or(T a, T b) {
   return a ? a : b;
 }
 
-class LogReopenThread {
- public:
-  /**
-   * @throws std::system_error if out of threads
-   */
-  LogReopenThread() : reopen_thr_{log_reopen_thread_function} {}
-
-  /**
-   * stop the log_reopen_thread_function.
-   *
-   * @throws std::system_error from request_application_shutdown()
-   */
-  void stop() { request_application_shutdown(); }
-
-  /**
-   * join the log_reopen thread.
-   *
-   * @throws std::system_error same as std::thread::join
-   */
-  void join() { reopen_thr_.join(); }
-
-  /**
-   * destruct the thread.
-   *
-   * Same as std::thread it may call std::terminate in case the thread isn't
-   * joined yet, but joinable.
-   *
-   * In casing join() fails as best-effort, a log-message is attempted to be
-   * written.
-   */
-  ~LogReopenThread() {
-    // if it didn't throw in the constructor, it is joinable and we have to
-    // signal its shutdown
-    if (reopen_thr_.joinable()) {
-      try {
-        // if stop throws ... the join will block
-        stop();
-
-        // if join throws, log it and expect std::thread::~thread to call
-        // std::terminate
-        join();
-      } catch (const std::exception &e) {
-        try {
-          log_error("~LogReopenThread failed to join its thread: %s", e.what());
-        } catch (...) {
-          // ignore it, we did our best to tell the user why std::terminate will
-          // be called in a bit
-        }
-      }
-    }
-  }
-
- private:
-  std::thread reopen_thr_;
-};
-
 std::exception_ptr Loader::run() {
   // initialize plugins
   std::exception_ptr first_eptr = init_all();
@@ -881,7 +785,7 @@ std::exception_ptr Loader::run() {
                     // main_loop()
 
       // may throw std::system_error
-      LogReopenThread log_reopen_thread;
+      g_reopen_thread = new LogReopenThread();
 
       first_eptr = main_loop();
     } catch (const std::exception &e) {
@@ -1301,6 +1205,96 @@ bool Loader::visit(const std::string &designator,
     }
   }
   return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// LogReopenThread
+//
+////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * stop the log_reopen_thread_function.
+ */
+void LogReopenThread::stop() { request_application_shutdown(); }
+
+/**
+ * join the log_reopen thread.
+ */
+void LogReopenThread::join() { reopen_thr_.join(); }
+
+/**
+ * destruct the thread.
+ */
+LogReopenThread::~LogReopenThread() {
+  // if it didn't throw in the constructor, it is joinable and we have to
+  // signal its shutdown
+  if (reopen_thr_.joinable()) {
+    try {
+      // if stop throws ... the join will block
+      stop();
+
+      // if join throws, log it and expect std::thread::~thread to call
+      // std::terminate
+      join();
+    } catch (const std::exception &e) {
+      try {
+        log_error("~LogReopenThread failed to join its thread: %s", e.what());
+      } catch (...) {
+        // ignore it, we did our best to tell the user why std::terminate will
+        // be called in a bit
+      }
+    }
+  }
+}
+
+/**
+ * thread function
+ */
+void LogReopenThread::log_reopen_thread_function(LogReopenThread *t) {
+  auto &logging_registry = mysql_harness::DIM::instance().get_LoggingRegistry();
+
+  while (g_shutdown_pending == SHUTDOWN_NONE) {
+    {
+      std::unique_lock<std::mutex> lk(log_reopen_cond_mutex);
+      log_reopen_cond.wait(lk);
+      if (g_shutdown_pending) {
+        break;
+      }
+      if (!t->is_requested()) {
+        continue;
+      }
+      t->state_ = REOPEN_ACTIVE;
+      t->errmsg_ = "";
+      try {
+        logging_registry.flush_all_loggers(t->dst_);
+        t->dst_ = "";
+      } catch (const std::exception &e) {
+        // leave actions on error to the defined callback function
+        t->errmsg_ = e.what();
+      }
+    }
+    // trigger the completion callback once mutex is not locked
+    g_log_reopen_complete_callback_fp(t->errmsg_);
+    {
+      std::unique_lock<std::mutex> lk(log_reopen_cond_mutex);
+      t->state_ = REOPEN_NONE;
+    }
+  }
+}
+
+/*
+ * request reopen
+ */
+void LogReopenThread::request_reopen(const std::string dst) {
+  std::unique_lock<std::mutex> lk(log_reopen_cond_mutex, std::defer_lock);
+
+  if (!lk.try_lock()) return;
+
+  state_ = REOPEN_REQUESTED;
+  dst_ = dst;
+
+  log_reopen_cond.notify_one();
 }
 
 }  // namespace mysql_harness
