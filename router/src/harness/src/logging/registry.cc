@@ -155,10 +155,10 @@ std::set<std::string> Registry::get_logger_names() const {
   return result;
 }
 
-void Registry::flush_all_loggers() {
+void Registry::flush_all_loggers(const std::string dst) {
   std::lock_guard<std::mutex> lock(mtx_);
   for (const auto &handler : handlers_) {
-    handler.second->reopen();
+    handler.second->reopen(dst);
   }
 }
 

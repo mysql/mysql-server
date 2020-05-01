@@ -189,9 +189,11 @@ class HARNESS_EXPORT Registry {
   bool is_ready() const noexcept { return ready_; }
 
   /**
-   * Force the flush (reopen) on all registered logger handlers
+   * Force the flush (reopen) on all registered logger handlers, while moving
+   * old logger file to dst.
+   * @param dst destination filename for old log
    */
-  void flush_all_loggers();
+  void flush_all_loggers(const std::string dst = "");
 
  private:
   mutable std::mutex mtx_;

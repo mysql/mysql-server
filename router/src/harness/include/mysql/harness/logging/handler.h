@@ -78,10 +78,10 @@ class HARNESS_EXPORT Handler {
   /**
    * Request to reopen underlying log sink. Should be no-op for handlers NOT
    * writing to a file. Useful for log rotation, when the logger got the
-   * singal with the request to reopen the file.
-   *
+   * signal with the request to reopen the file. Provide a destination filename
+   * for the old file for file based handlers.
    */
-  virtual void reopen() = 0;
+  virtual void reopen(const std::string dst = "") = 0;
 
  protected:
   std::string format(const Record &record) const;
@@ -138,7 +138,7 @@ class HARNESS_EXPORT StreamHandler : public Handler {
                              LogTimestampPrecision::kNotSet);
 
   // for the stream handler there is nothing to do
-  void reopen() override {}
+  void reopen(const std::string /*dst*/) override {}
 
  protected:
   std::ostream &stream_;
@@ -169,7 +169,7 @@ class HARNESS_EXPORT NullHandler : public Handler {
                            LogTimestampPrecision::kNotSet);
 
   // for the null handler there is nothing to do
-  void reopen() override {}
+  void reopen(const std::string /*dst*/) override {}
 
  private:
   void do_log(const Record &record) override;
@@ -194,7 +194,7 @@ class HARNESS_EXPORT FileHandler : public StreamHandler {
                            LogTimestampPrecision::kNotSet);
   ~FileHandler() override;
 
-  virtual void reopen() override;
+  virtual void reopen(const std::string dst = "") override;
 
  private:
   void do_log(const Record &record) override;

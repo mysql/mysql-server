@@ -210,7 +210,9 @@ FileHandler::FileHandler(const Path &path, bool format_messages, LogLevel level,
   reopen();  // not opened yet so it's just for open in this context
 }
 
-void FileHandler::reopen() {
+void FileHandler::reopen(const std::string dst) {  // namespace logging
+  std::exception_ptr eptr = nullptr;
+
   // here we need to lock the mutex that's used while logging
   // to prevent other threads from trying to log to invalid stream
   std::lock_guard<std::mutex> lock(stream_mutex_);
@@ -218,6 +220,38 @@ void FileHandler::reopen() {
   // if was open before, close first
   if (fstream_.is_open()) {
     fstream_.close();
+
+    // With closed stream we may rename file on any platform, windows included
+    if (!dst.empty()) {
+      if (rename(file_path_.str().c_str(), dst.c_str())) {
+        auto last_error =
+#ifdef _WIN32
+            GetLastError()
+#else
+            errno
+#endif
+            ;
+        if (last_error != 0) {
+          // Exceptions cannot be thrown directly here, but stashed until after
+          // reopening the logfile again. Otherwise all logging ends up on
+          // console due to closed logfile.
+          mysql_harness::Path dstpath(dst);
+          if (dstpath.exists()) {
+            eptr = make_exception_ptr(std::system_error(
+                last_error, std::system_category(),
+                "File exists. Cannot rename to " + dstpath.str()));
+          } else {
+            if (last_error != ENOENT) {
+              eptr = make_exception_ptr(
+                  std::system_error(last_error, std::system_category(),
+                                    "Cannot rename file in directory " +
+                                        dstpath.dirname().str()));
+            }
+          }
+        }
+      }
+    }
+
     fstream_.clear();
   }
 
@@ -256,6 +290,11 @@ void FileHandler::reopen() {
     make_file_readable_for_everyone(file_path_.str());
   }
 #endif
+
+  // After reopening the logfile, is it safe to throw earlier execptions
+  if (eptr) {
+    std::rethrow_exception(eptr);
+  }
 }  // namespace logging
 
 void FileHandler::do_log(const Record &record) {

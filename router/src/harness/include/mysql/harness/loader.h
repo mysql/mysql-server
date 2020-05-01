@@ -1051,6 +1051,92 @@ class HARNESS_EXPORT Loader {
 
 };  // class Loader
 
+class LogReopenThread {
+ public:
+  /**
+   * @throws std::system_error if out of threads
+   */
+  LogReopenThread() : reopen_thr_{}, state_{REOPEN_NONE}, errmsg_{""} {
+    // rely on move semantics
+    reopen_thr_ =
+        std::thread{&LogReopenThread::log_reopen_thread_function, this};
+  }
+
+  /**
+   * stop the log_reopen_thread_function.
+   *
+   * @throws std::system_error from request_application_shutdown()
+   */
+  void stop();
+
+  /**
+   * join the log_reopen thread.
+   *
+   * @throws std::system_error same as std::thread::join
+   */
+  void join();
+
+  /**
+   * destruct the thread.
+   *
+   * Same as std::thread it may call std::terminate in case the thread isn't
+   * joined yet, but joinable.
+   *
+   * In case join() fails as best-effort, a log-message is attempted to be
+   * written.
+   */
+  ~LogReopenThread();
+
+  /**
+   * thread function
+   */
+  static void log_reopen_thread_function(LogReopenThread *t);
+
+  /*
+   * request reopen
+   *
+   * @note Empty dst will cause reopen only, and the old content will not be
+   * moved to dst.
+   * @note This method uses mutex::try_lock() to avoid blocking the interrupt
+   * handler if a signal is received during an already ongoing concurrent
+   * reopen. The consequence is that reopen requests are ignored if rotation is
+   * already in progress.
+   *
+   * @param dst filename to use for old log file during reopen
+   * @throws std::system_error same as std::unique_lock::lock does
+   */
+  void request_reopen(const std::string dst = "");
+
+  /* Log reopen state triplet */
+  enum LogReopenState { REOPEN_NONE, REOPEN_REQUESTED, REOPEN_ACTIVE };
+
+  /* Check log reopen completed */
+  bool is_completed() const { return (state_ == REOPEN_NONE); }
+
+  /* Check log reopen requested */
+  bool is_requested() const { return (state_ == REOPEN_REQUESTED); }
+
+  /* Check log reopen active */
+  bool is_active() const { return (state_ == REOPEN_ACTIVE); }
+
+  /* Retrieve error from the last reopen */
+  std::string get_last_error() const { return errmsg_; }
+
+ private:
+  /* The thread handle */
+  std::thread reopen_thr_;
+
+  /* The log reopen thread state */
+  LogReopenState state_;
+
+  /* The last error message from the log reopen thread */
+  std::string errmsg_;
+
+  /* The destination filename to use for the old logfile during reopen */
+  std::string dst_;
+
+};  // class LogReopenThread
+
 }  // namespace mysql_harness
 
 /**
@@ -1072,8 +1158,35 @@ void set_log_reopen_complete_callback(log_reopen_callback cb);
 HARNESS_EXPORT
 void default_log_reopen_complete_cb(const std::string errmsg);
 
+/*
+ * Reason for shutdown
+ */
+enum ShutdownReason { SHUTDOWN_NONE, SHUTDOWN_REQUESTED, SHUTDOWN_FATAL_ERROR };
+
+/**
+ * request application shutdown.
+ *
+ * @param reason reason for the shutdown
+ * @throws std::system_error same as std::unique_lock::lock does
+ */
 HARNESS_EXPORT
-void request_application_shutdown();
+void request_application_shutdown(
+    const ShutdownReason reason = SHUTDOWN_REQUESTED);
+
+/**
+ * notify a "log_reopen" is requested with optional filename for old logfile.
+ *
+ * @param dst rename old logfile to filename before reopen
+ * @throws std::system_error same as std::unique_lock::lock does
+ */
+HARNESS_EXPORT
+void request_log_reopen(const std::string dst = "");
+
+/**
+ * check reopen completed
+ */
+HARNESS_EXPORT
+bool log_reopen_completed();
 
 #ifdef _WIN32
 HARNESS_EXPORT
