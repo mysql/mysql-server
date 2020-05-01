@@ -184,11 +184,15 @@ namespace info_schema {
 
      - WL#13341: Store options for secondary engines.
 
+     - Bug#30766181 and Bug#30216864 updates I_S.KEY_COLUMN_USAGE and
+       I_S.TABLE_CONSTRAINTS views.
+
   80022: Current.
   ------------------------------------
   Changes from version 80021:
 
   - WL#13369: Added new I_S view 'SCHEMATA_EXTENSIONS'.
+
 
   80023: Next IS version number after the previous is public.
   ------------------------------------

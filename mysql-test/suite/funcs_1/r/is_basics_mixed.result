@@ -441,7 +441,7 @@ table_schema
 SELECT DISTINCT constraint_schema,table_schema
 FROM information_schema.key_column_usage
 WHERE constraint_schema LIKE 'db_data%' OR table_schema LIKE 'db_data%';
-constraint_schema	table_schema
+CONSTRAINT_SCHEMA	TABLE_SCHEMA
 SELECT DISTINCT routine_schema FROM information_schema.routines
 WHERE routine_schema LIKE 'db_data%';
 ROUTINE_SCHEMA
@@ -460,7 +460,7 @@ TABLE_SCHEMA
 SELECT DISTINCT constraint_schema,table_schema
 FROM information_schema.table_constraints
 WHERE constraint_schema LIKE 'db_data%' OR table_schema LIKE 'db_data%';
-constraint_schema	table_schema
+CONSTRAINT_SCHEMA	TABLE_SCHEMA
 SELECT DISTINCT table_schema FROM information_schema.table_privileges
 WHERE table_schema LIKE 'db_data%';
 table_schema
@@ -493,7 +493,7 @@ table_schema
 SELECT DISTINCT constraint_schema,table_schema
 FROM information_schema.key_column_usage
 WHERE constraint_schema LIKE 'db_data%' OR table_schema LIKE 'db_data%';
-constraint_schema	table_schema
+CONSTRAINT_SCHEMA	TABLE_SCHEMA
 db_datadict	db_datadict
 SELECT DISTINCT routine_schema FROM information_schema.routines
 WHERE routine_schema LIKE 'db_data%';
@@ -517,7 +517,7 @@ db_datadict
 SELECT DISTINCT constraint_schema,table_schema
 FROM information_schema.table_constraints
 WHERE constraint_schema LIKE 'db_data%' OR table_schema LIKE 'db_data%';
-constraint_schema	table_schema
+CONSTRAINT_SCHEMA	TABLE_SCHEMA
 db_datadict	db_datadict
 SELECT DISTINCT table_schema FROM information_schema.table_privileges
 WHERE table_schema LIKE 'db_data%';
@@ -544,7 +544,7 @@ table_schema
 SELECT DISTINCT constraint_schema,table_schema
 FROM information_schema.key_column_usage
 WHERE constraint_schema LIKE 'db_data%' OR table_schema LIKE 'db_data%';
-constraint_schema	table_schema
+CONSTRAINT_SCHEMA	TABLE_SCHEMA
 SELECT DISTINCT routine_schema FROM information_schema.routines
 WHERE routine_schema LIKE 'db_data%';
 ROUTINE_SCHEMA
@@ -563,7 +563,7 @@ TABLE_SCHEMA
 SELECT DISTINCT constraint_schema,table_schema
 FROM information_schema.table_constraints
 WHERE constraint_schema LIKE 'db_data%' OR table_schema LIKE 'db_data%';
-constraint_schema	table_schema
+CONSTRAINT_SCHEMA	TABLE_SCHEMA
 SELECT DISTINCT table_schema FROM information_schema.table_privileges
 WHERE table_schema LIKE 'db_data%';
 table_schema

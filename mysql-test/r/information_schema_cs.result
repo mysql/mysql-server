@@ -735,7 +735,7 @@ INDEX_NAME
 f1_key
 select constraint_name from information_schema.table_constraints
 where table_schema='test' order by constraint_name;
-constraint_name
+CONSTRAINT_NAME
 show create view v2;
 View	Create View	character_set_client	collation_connection
 v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` (`c`) AS select `t1`.`f1` AS `f1` from `t1`	latin1	latin1_swedish_ci

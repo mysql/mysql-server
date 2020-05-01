@@ -79,7 +79,7 @@ use test;
 select referenced_table_schema, referenced_table_name 
 from information_schema.key_column_usage
 where constraint_schema = 'db-1' and table_schema != 'PERFORMANCE_SCHEMA' order by referenced_table_schema, referenced_table_name;
-referenced_table_schema	referenced_table_name
+REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME
 NULL	NULL
 NULL	NULL
 db-1	t-2

@@ -601,92 +601,48 @@ INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infosch
   AND ts.name<>'mysql'
   AND ts.name<>'innodb_temporary'
 ");
-CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.KEY_COLUMN_USAGE AS (SELECT 
+CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.KEY_COLUMN_USAGE AS SELECT 
   cat.name AS CONSTRAINT_CATALOG,
   sch.name AS CONSTRAINT_SCHEMA,
-  idx.name AS CONSTRAINT_NAME,
+  constraints.CONSTRAINT_NAME AS CONSTRAINT_NAME,
   cat.name AS TABLE_CATALOG,
   sch.name AS TABLE_SCHEMA,
   tbl.name AS TABLE_NAME,
   col.name COLLATE utf8_tolower_ci AS COLUMN_NAME,
-  icu.ordinal_position AS ORDINAL_POSITION,
-  NULL AS POSITION_IN_UNIQUE_CONSTRAINT,
-  NULL AS REFERENCED_TABLE_SCHEMA,
-  NULL AS REFERENCED_TABLE_NAME,
-  NULL AS REFERENCED_COLUMN_NAME FROM 
-  mysql.indexes idx
-  JOIN mysql.tables tbl ON idx.table_id=tbl.id
+  constraints.ordinal_position AS ORDINAL_POSITION,
+  constraints.POSITION_IN_UNIQUE_CONSTRAINT AS POSITION_IN_UNIQUE_CONSTRAINT,
+  constraints.REFERENCED_TABLE_SCHEMA AS REFERENCED_TABLE_SCHEMA,
+  constraints.REFERENCED_TABLE_NAME AS REFERENCED_TABLE_NAME,
+  constraints.REFERENCED_COLUMN_NAME AS REFERENCED_COLUMN_NAME FROM 
+  mysql.tables tbl
   JOIN mysql.schemata sch ON tbl.schema_id=sch.id
   JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
-  JOIN mysql.index_column_usage icu ON icu.index_id=idx.id
-  JOIN mysql.columns col ON icu.column_id=col.id AND idx.type IN ('PRIMARY', 'UNIQUE') WHERE 
+  , LATERAL (SELECT    idx.name AS CONSTRAINT_NAME,    icu.ordinal_position AS ORDINAL_POSITION,    NULL AS POSITION_IN_UNIQUE_CONSTRAINT,    NULL AS REFERENCED_TABLE_SCHEMA,    NULL AS REFERENCED_TABLE_NAME,    NULL AS REFERENCED_COLUMN_NAME,    icu.column_id,    idx.hidden OR icu.hidden AS HIDDEN    FROM mysql.indexes idx    JOIN mysql.index_column_usage icu ON icu.index_id = idx.id    WHERE idx.table_id = tbl.id      AND idx.type IN ('PRIMARY', 'UNIQUE')  UNION ALL SELECT    fk.name COLLATE utf8_tolower_ci AS CONSTRAINT_NAME,    fkcu.ordinal_position AS ORDINAL_POSITION,    fkcu.ordinal_position AS POSITION_IN_UNIQUE_CONSTRAINT,    fk.referenced_table_schema AS REFERENCED_TABLE_SCHEMA,    fk.referenced_table_name AS REFERENCED_TABLE_NAME,    fkcu.referenced_column_name AS REFERENCED_COLUMN_NAME,    fkcu.column_id,    FALSE AS HIDDEN    FROM mysql.foreign_keys fk    JOIN mysql.foreign_key_column_usage fkcu ON fkcu.foreign_key_id = fk.id    WHERE fk.table_id = tbl.id) constraints
+  JOIN mysql.columns col ON constraints.COLUMN_ID=col.id WHERE 
   CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name)
-  AND IS_VISIBLE_DD_OBJECT(tbl.hidden, col.hidden <> 'Visible' OR idx.hidden OR icu.hidden)
-) UNION (SELECT 
+  AND IS_VISIBLE_DD_OBJECT(tbl.hidden, col.hidden <> 'Visible' OR constraints.HIDDEN)
+
+INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.KEY_COLUMN_USAGE AS SELECT 
   cat.name AS CONSTRAINT_CATALOG,
   sch.name AS CONSTRAINT_SCHEMA,
-  fk.name COLLATE utf8_tolower_ci AS CONSTRAINT_NAME,
+  constraints.CONSTRAINT_NAME AS CONSTRAINT_NAME,
   cat.name AS TABLE_CATALOG,
   sch.name AS TABLE_SCHEMA,
   tbl.name AS TABLE_NAME,
   col.name COLLATE utf8_tolower_ci AS COLUMN_NAME,
-  fkcu.ordinal_position AS ORDINAL_POSITION,
-  fkcu.ordinal_position AS POSITION_IN_UNIQUE_CONSTRAINT,
-  fk.referenced_table_schema AS REFERENCED_TABLE_SCHEMA,
-  fk.referenced_table_name AS REFERENCED_TABLE_NAME,
-  fkcu.referenced_column_name AS REFERENCED_COLUMN_NAME FROM 
-  mysql.foreign_keys fk
-  JOIN mysql.tables tbl ON fk.table_id=tbl.id
-  JOIN mysql.foreign_key_column_usage fkcu ON fkcu.foreign_key_id=fk.id
-  JOIN mysql.schemata sch ON fk.schema_id=sch.id
-  JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
-  JOIN mysql.columns col ON fkcu.column_id=col.id WHERE 
-  CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name)
-  AND IS_VISIBLE_DD_OBJECT(tbl.hidden, col.hidden <> 'Visible')
-)
-INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.KEY_COLUMN_USAGE AS (SELECT 
-  cat.name AS CONSTRAINT_CATALOG,
-  sch.name AS CONSTRAINT_SCHEMA,
-  idx.name AS CONSTRAINT_NAME,
-  cat.name AS TABLE_CATALOG,
-  sch.name AS TABLE_SCHEMA,
-  tbl.name AS TABLE_NAME,
-  col.name COLLATE utf8_tolower_ci AS COLUMN_NAME,
-  icu.ordinal_position AS ORDINAL_POSITION,
-  NULL AS POSITION_IN_UNIQUE_CONSTRAINT,
-  NULL AS REFERENCED_TABLE_SCHEMA,
-  NULL AS REFERENCED_TABLE_NAME,
-  NULL AS REFERENCED_COLUMN_NAME FROM 
-  mysql.indexes idx
-  JOIN mysql.tables tbl ON idx.table_id=tbl.id
+  constraints.ordinal_position AS ORDINAL_POSITION,
+  constraints.POSITION_IN_UNIQUE_CONSTRAINT AS POSITION_IN_UNIQUE_CONSTRAINT,
+  constraints.REFERENCED_TABLE_SCHEMA AS REFERENCED_TABLE_SCHEMA,
+  constraints.REFERENCED_TABLE_NAME AS REFERENCED_TABLE_NAME,
+  constraints.REFERENCED_COLUMN_NAME AS REFERENCED_COLUMN_NAME FROM 
+  mysql.tables tbl
   JOIN mysql.schemata sch ON tbl.schema_id=sch.id
   JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
-  JOIN mysql.index_column_usage icu ON icu.index_id=idx.id
-  JOIN mysql.columns col ON icu.column_id=col.id AND idx.type IN ('PRIMARY', 'UNIQUE') WHERE 
+  , LATERAL (SELECT    idx.name AS CONSTRAINT_NAME,    icu.ordinal_position AS ORDINAL_POSITION,    NULL AS POSITION_IN_UNIQUE_CONSTRAINT,    NULL AS REFERENCED_TABLE_SCHEMA,    NULL AS REFERENCED_TABLE_NAME,    NULL AS REFERENCED_COLUMN_NAME,    icu.column_id,    idx.hidden OR icu.hidden AS HIDDEN    FROM mysql.indexes idx    JOIN mysql.index_column_usage icu ON icu.index_id = idx.id    WHERE idx.table_id = tbl.id      AND idx.type IN ('PRIMARY', 'UNIQUE')  UNION ALL SELECT    fk.name COLLATE utf8_tolower_ci AS CONSTRAINT_NAME,    fkcu.ordinal_position AS ORDINAL_POSITION,    fkcu.ordinal_position AS POSITION_IN_UNIQUE_CONSTRAINT,    fk.referenced_table_schema AS REFERENCED_TABLE_SCHEMA,    fk.referenced_table_name AS REFERENCED_TABLE_NAME,    fkcu.referenced_column_name AS REFERENCED_COLUMN_NAME,    fkcu.column_id,    FALSE AS HIDDEN    FROM mysql.foreign_keys fk    JOIN mysql.foreign_key_column_usage fkcu ON fkcu.foreign_key_id = fk.id    WHERE fk.table_id = tbl.id) constraints
+  JOIN mysql.columns col ON constraints.COLUMN_ID=col.id WHERE 
   CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name)
-  AND IS_VISIBLE_DD_OBJECT(tbl.hidden, col.hidden <> 'Visible' OR idx.hidden OR icu.hidden)
-) UNION (SELECT 
-  cat.name AS CONSTRAINT_CATALOG,
-  sch.name AS CONSTRAINT_SCHEMA,
-  fk.name COLLATE utf8_tolower_ci AS CONSTRAINT_NAME,
-  cat.name AS TABLE_CATALOG,
-  sch.name AS TABLE_SCHEMA,
-  tbl.name AS TABLE_NAME,
-  col.name COLLATE utf8_tolower_ci AS COLUMN_NAME,
-  fkcu.ordinal_position AS ORDINAL_POSITION,
-  fkcu.ordinal_position AS POSITION_IN_UNIQUE_CONSTRAINT,
-  fk.referenced_table_schema AS REFERENCED_TABLE_SCHEMA,
-  fk.referenced_table_name AS REFERENCED_TABLE_NAME,
-  fkcu.referenced_column_name AS REFERENCED_COLUMN_NAME FROM 
-  mysql.foreign_keys fk
-  JOIN mysql.tables tbl ON fk.table_id=tbl.id
-  JOIN mysql.foreign_key_column_usage fkcu ON fkcu.foreign_key_id=fk.id
-  JOIN mysql.schemata sch ON fk.schema_id=sch.id
-  JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
-  JOIN mysql.columns col ON fkcu.column_id=col.id WHERE 
-  CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name)
-  AND IS_VISIBLE_DD_OBJECT(tbl.hidden, col.hidden <> 'Visible')
-)");
+  AND IS_VISIBLE_DD_OBJECT(tbl.hidden, col.hidden <> 'Visible' OR constraints.HIDDEN)
+");
 CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.KEYWORDS AS SELECT 
   j.word AS WORD,
   j.reserved AS RESERVED FROM 
@@ -1183,92 +1139,36 @@ INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infosch
   CAN_ACCESS_TABLE(sch.name, tbl.name)
   AND IS_VISIBLE_DD_OBJECT(tbl.hidden, idx.hidden OR icu.hidden)
 ");
-CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.TABLE_CONSTRAINTS AS (SELECT 
+CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.TABLE_CONSTRAINTS AS SELECT 
   cat.name AS CONSTRAINT_CATALOG,
   sch.name AS CONSTRAINT_SCHEMA,
-  idx.name AS CONSTRAINT_NAME,
+  constraints.CONSTRAINT_NAME AS CONSTRAINT_NAME,
   sch.name AS TABLE_SCHEMA,
   tbl.name AS TABLE_NAME,
-  IF (idx.type='PRIMARY', 'PRIMARY KEY', idx.type) AS CONSTRAINT_TYPE,
-  'YES' AS ENFORCED FROM 
-  mysql.indexes idx
-  JOIN mysql.tables tbl ON idx.table_id=tbl.id
+  constraints.CONSTRAINT_TYPE AS CONSTRAINT_TYPE,
+  constraints.ENFORCED AS ENFORCED FROM 
+  mysql.tables tbl
   JOIN mysql.schemata sch ON tbl.schema_id=sch.id
-  JOIN mysql.catalogs cat ON cat.id=sch.catalog_id AND idx.type IN ('PRIMARY', 'UNIQUE') WHERE 
-  CAN_ACCESS_TABLE(sch.name, tbl.name)
-  AND IS_VISIBLE_DD_OBJECT(tbl.hidden, idx.hidden)
-) UNION (SELECT 
-  cat.name AS CONSTRAINT_CATALOG,
-  sch.name AS CONSTRAINT_SCHEMA,
-  fk.name COLLATE utf8_tolower_ci AS CONSTRAINT_NAME,
-  sch.name AS TABLE_SCHEMA,
-  tbl.name AS TABLE_NAME,
-  'FOREIGN KEY' AS CONSTRAINT_TYPE,
-  'YES' AS ENFORCED FROM 
-  mysql.foreign_keys fk
-  JOIN mysql.tables tbl ON fk.table_id=tbl.id
-  JOIN mysql.schemata sch ON tbl.schema_id=sch.id
-  JOIN mysql.catalogs cat ON cat.id=sch.catalog_id WHERE 
+  JOIN mysql.catalogs cat ON cat.id = sch.catalog_id
+  , LATERAL ( SELECT    idx.name AS CONSTRAINT_NAME,    IF (idx.type='PRIMARY', 'PRIMARY KEY', idx.type) as CONSTRAINT_TYPE,    'YES' as ENFORCED  FROM mysql.indexes idx    WHERE idx.table_id=tbl.id AND idx.type IN ('PRIMARY', 'UNIQUE')          AND IS_VISIBLE_DD_OBJECT(tbl.hidden, idx.hidden) UNION ALL  SELECT    fk.name COLLATE utf8_tolower_ci AS CONSTRAINT_NAME,    'FOREIGN KEY' as CONSTRAINT_TYPE,    'YES' as ENFORCED  FROM mysql.foreign_keys fk WHERE fk.table_id=tbl.id UNION ALL  SELECT    cc.name AS CONSTRAINT_NAME,    'CHECK' as CONSTRAINT_TYPE,    cc.enforced as ENFORCED  FROM mysql.check_constraints cc WHERE cc.table_id=tbl.id) constraints WHERE 
   CAN_ACCESS_TABLE(sch.name, tbl.name)
   AND IS_VISIBLE_DD_OBJECT(tbl.hidden)
-) UNION (SELECT 
+
+INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.TABLE_CONSTRAINTS AS SELECT 
   cat.name AS CONSTRAINT_CATALOG,
   sch.name AS CONSTRAINT_SCHEMA,
-  cc.name AS CONSTRAINT_NAME,
+  constraints.CONSTRAINT_NAME AS CONSTRAINT_NAME,
   sch.name AS TABLE_SCHEMA,
   tbl.name AS TABLE_NAME,
-  'CHECK' AS CONSTRAINT_TYPE,
-  cc.enforced AS ENFORCED FROM 
-  mysql.check_constraints cc
-  JOIN mysql.tables tbl ON cc.table_id=tbl.id
+  constraints.CONSTRAINT_TYPE AS CONSTRAINT_TYPE,
+  constraints.ENFORCED AS ENFORCED FROM 
+  mysql.tables tbl
   JOIN mysql.schemata sch ON tbl.schema_id=sch.id
-  JOIN mysql.catalogs cat ON cat.id=sch.catalog_id WHERE 
+  JOIN mysql.catalogs cat ON cat.id = sch.catalog_id
+  , LATERAL ( SELECT    idx.name AS CONSTRAINT_NAME,    IF (idx.type='PRIMARY', 'PRIMARY KEY', idx.type) as CONSTRAINT_TYPE,    'YES' as ENFORCED  FROM mysql.indexes idx    WHERE idx.table_id=tbl.id AND idx.type IN ('PRIMARY', 'UNIQUE')          AND IS_VISIBLE_DD_OBJECT(tbl.hidden, idx.hidden) UNION ALL  SELECT    fk.name COLLATE utf8_tolower_ci AS CONSTRAINT_NAME,    'FOREIGN KEY' as CONSTRAINT_TYPE,    'YES' as ENFORCED  FROM mysql.foreign_keys fk WHERE fk.table_id=tbl.id UNION ALL  SELECT    cc.name AS CONSTRAINT_NAME,    'CHECK' as CONSTRAINT_TYPE,    cc.enforced as ENFORCED  FROM mysql.check_constraints cc WHERE cc.table_id=tbl.id) constraints WHERE 
   CAN_ACCESS_TABLE(sch.name, tbl.name)
   AND IS_VISIBLE_DD_OBJECT(tbl.hidden)
-)
-INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.TABLE_CONSTRAINTS AS (SELECT 
-  cat.name AS CONSTRAINT_CATALOG,
-  sch.name AS CONSTRAINT_SCHEMA,
-  idx.name AS CONSTRAINT_NAME,
-  sch.name AS TABLE_SCHEMA,
-  tbl.name AS TABLE_NAME,
-  IF (idx.type='PRIMARY', 'PRIMARY KEY', idx.type) AS CONSTRAINT_TYPE,
-  'YES' AS ENFORCED FROM 
-  mysql.indexes idx
-  JOIN mysql.tables tbl ON idx.table_id=tbl.id
-  JOIN mysql.schemata sch ON tbl.schema_id=sch.id
-  JOIN mysql.catalogs cat ON cat.id=sch.catalog_id AND idx.type IN ('PRIMARY', 'UNIQUE') WHERE 
-  CAN_ACCESS_TABLE(sch.name, tbl.name)
-  AND IS_VISIBLE_DD_OBJECT(tbl.hidden, idx.hidden)
-) UNION (SELECT 
-  cat.name AS CONSTRAINT_CATALOG,
-  sch.name AS CONSTRAINT_SCHEMA,
-  fk.name COLLATE utf8_tolower_ci AS CONSTRAINT_NAME,
-  sch.name AS TABLE_SCHEMA,
-  tbl.name AS TABLE_NAME,
-  'FOREIGN KEY' AS CONSTRAINT_TYPE,
-  'YES' AS ENFORCED FROM 
-  mysql.foreign_keys fk
-  JOIN mysql.tables tbl ON fk.table_id=tbl.id
-  JOIN mysql.schemata sch ON tbl.schema_id=sch.id
-  JOIN mysql.catalogs cat ON cat.id=sch.catalog_id WHERE 
-  CAN_ACCESS_TABLE(sch.name, tbl.name)
-  AND IS_VISIBLE_DD_OBJECT(tbl.hidden)
-) UNION (SELECT 
-  cat.name AS CONSTRAINT_CATALOG,
-  sch.name AS CONSTRAINT_SCHEMA,
-  cc.name AS CONSTRAINT_NAME,
-  sch.name AS TABLE_SCHEMA,
-  tbl.name AS TABLE_NAME,
-  'CHECK' AS CONSTRAINT_TYPE,
-  cc.enforced AS ENFORCED FROM 
-  mysql.check_constraints cc
-  JOIN mysql.tables tbl ON cc.table_id=tbl.id
-  JOIN mysql.schemata sch ON tbl.schema_id=sch.id
-  JOIN mysql.catalogs cat ON cat.id=sch.catalog_id WHERE 
-  CAN_ACCESS_TABLE(sch.name, tbl.name)
-  AND IS_VISIBLE_DD_OBJECT(tbl.hidden)
-)");
+");
 CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.TABLE_CONSTRAINTS_EXTENSIONS AS SELECT 
   cat.name AS CONSTRAINT_CATALOG,
   sch.name AS CONSTRAINT_SCHEMA,
