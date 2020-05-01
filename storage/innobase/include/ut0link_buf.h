@@ -125,6 +125,7 @@ class Link_buf {
                                   (lsn_t prev, lsn_t next) -> bool;
                                   returns false if we should follow
                                   the link prev->next, true to stop
+  @param[in]    max_retry       max fails to retry
 
   @return true if and only if the pointer has been advanced */
   template <typename Stop_condition>
