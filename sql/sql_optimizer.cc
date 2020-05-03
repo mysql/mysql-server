@@ -10306,8 +10306,8 @@ void JOIN::optimize_keyuse() {
     */
     keyuse->ref_table_rows = ~(ha_rows)0;  // If no ref
     if (keyuse->used_tables &
-        (map = (keyuse->used_tables &
-                ~(const_table_map | OUTER_REF_TABLE_BIT)))) {
+        (map =
+             (keyuse->used_tables & ~(const_table_map | PSEUDO_TABLE_BITS)))) {
       uint tableno;
       for (tableno = 0; !(map & 1); map >>= 1, tableno++) {
       }
