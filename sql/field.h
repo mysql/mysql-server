@@ -2704,17 +2704,19 @@ class Field_temporal : public Field {
                                       MYSQL_TIME *ltime, int *warnings);
 
   /**
-    Set a warning according to warning bit flag vector.
-    Multiple warnings are possible at the same time.
+    Set warnings from a warning vector.
+    Note, multiple warnings can be set at the same time.
     Every warning in the bit vector is set by an individual
     set_datetime_warning() call.
 
-    @param str      Warning parameter
-    @param warnings Warning bit flag
+    @param str       Value.
+    @param warnings  Warning vector.
 
     @retval false  Function reported warning
     @retval true   Function reported error
-  */
+
+    @note STRICT mode can convert warnings to error.
+   */
   bool set_warnings(const ErrConvString &str, int warnings)
       MY_ATTRIBUTE((warn_unused_result));
 
@@ -2744,16 +2746,21 @@ class Field_temporal : public Field {
   my_time_flags_t date_flags() const;
 
   /**
-    Set a single warning using make_truncated_value_warning().
+    Produce warning or note about double datetime data saved into field.
 
-    @param[in] level           Warning level (error, warning, note)
-    @param[in] code            Warning code
-    @param[in] val             Warning parameter
-    @param[in] ts_type         Timestamp type (time, date, datetime, none)
-    @param[in] truncate_increment  Incrementing of truncated field counter
+    @param level            level of message (Note/Warning/Error)
+    @param code             error code of message to be produced
+    @param val              error parameter (the value)
+    @param ts_type          type of datetime value (datetime/date/time)
+    @param truncate_increment  whether we should increase truncated fields count
 
     @retval false  Function reported warning
     @retval true   Function reported error
+
+    @note
+      This function will always produce some warning but won't increase
+    truncated fields counter if check_for_truncated_fields == FIELD_CHECK_IGNORE
+      for current thread.
   */
   bool set_datetime_warning(Sql_condition::enum_severity_level level, uint code,
                             const ErrConvString &val,
@@ -4779,18 +4786,23 @@ type_conversion_status store_internal_with_error_check(Field_new_decimal *field,
                                                        my_decimal *value);
 
 /**
-  Generate a Create_field, based on an Item.
+  Generate a Create_field from an Item.
 
-  This function will generate a Create_field based on an existing Item. This
-  is used for multiple purposes, including CREATE TABLE AS SELECT and creating
-  hidden generated columns for functional indexes.
+  This function generates a Create_field from an Item by first creating a
+  temporary table Field from the Item, and then creating the Create_field from
+  this Field (there is currently no way to go directly from Item to
+  Create_field). It is used several places:
+  - In CREATE TABLE AS SELECT for creating the target table definition.
+  - In functional indexes for creating the hidden generated column from the
+    indexed expression.
 
-  @param thd Thread handler
-  @param item The Item to generate a Create_field from
-  @param tmp_table A temporary TABLE object that is used for holding Field
-                   objects that are created
-
-  @returns A Create_field allocated on the THDs MEM_ROOT.
+  @param thd       Thread handler
+  @param item      The item to generate a Create_field from
+  @param tmp_table A table object which is used to generate a temporary table
+                   field, as described above. This doesn't need to be an
+                   existing table.
+  @return          A Create_field generated from the input item, or nullptr
+                   in case of errors.
 */
 Create_field *generate_create_field(THD *thd, Item *item, TABLE *tmp_table);
 

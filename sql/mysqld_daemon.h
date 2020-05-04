@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,15 @@
 namespace mysqld {
 namespace runtime {
 bool is_daemon();
+/**
+  Daemonize mysqld.
+
+  This function does sysv style of daemonization of mysqld.
+
+  @retval fd In daemon; file descriptor for the write end of the status pipe.
+  @retval -1 In parent, if successful.
+  @retval -2 In parent, in case of errors.
+ */
 int mysqld_daemonize();
 void signal_parent(int pipe_write_fd, char status);
 }  // namespace runtime

@@ -2666,19 +2666,19 @@ void THD::send_statement_status() {
 
 void THD::claim_memory_ownership() {
 /*
-  Ownership of the THD object is transfered to this thread.
-  This happens typically:
-  - in the event scheduler,
-    when the scheduler thread creates a work item and
-    starts a worker thread to run it
-  - in the main thread, when the code that accepts a new
-    network connection creates a work item and starts a
-    connection thread to run it.
-  Accounting for memory statistics needs to be told
-  that memory allocated by thread X now belongs to thread Y,
-  so that statistics by thread/account/user/host are accurate.
-  Inspect every piece of memory allocated in THD,
-  and call PSI_MEMORY_CALL(memory_claim)().
+        Ownership of the THD object is transfered to this thread.
+        This happens typically:
+        - in the event scheduler,
+          when the scheduler thread creates a work item and
+          starts a worker thread to run it
+        - in the main thread, when the code that accepts a new
+          network connection creates a work item and starts a
+          connection thread to run it.
+        Accounting for memory statistics needs to be told
+        that memory allocated by thread X now belongs to thread Y,
+        so that statistics by thread/account/user/host are accurate.
+        Inspect every piece of memory allocated in THD,
+        and call PSI_MEMORY_CALL(memory_claim)().
 */
 #ifdef HAVE_PSI_MEMORY_INTERFACE
   main_mem_root.Claim();
@@ -2856,20 +2856,6 @@ bool THD::secondary_storage_engine_eligible() const {
          sp_runtime_ctx == nullptr;
 }
 
-/**
-  Set the rewritten query (with passwords obfuscated etc.) on the THD.
-  Wraps this in the LOCK_thd_query mutex to protect against race conditions
-  with SHOW PROCESSLIST inspecting that string.
-
-  This uses swap() and therefore changes the argument in the caller.
-  That behavior is expected by (save|restore)_rlb() in sql_prepare.cc,
-  and harmless in sql_rewrite.cc. Using it elsewhere is almost certainly
-  wrong and must be reviewed with extreme prejudice. If in doubt, please
-  check with the runtime team.
-
-  @param query_arg  The rewritten query to use for slow/bin/general logging.
-                    The value will be changed in the caller.
-*/
 void THD::swap_rewritten_query(String &query_arg) {
   DBUG_ASSERT(this == current_thd);
 

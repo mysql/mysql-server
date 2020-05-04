@@ -4927,14 +4927,6 @@ void SELECT_LEX::delete_unused_merged_columns(
   }
 }
 
-/**
-  Add item to the hidden part of select list.
-
-  @param item  item to add
-
-  @return Pointer to reference to the added item
-*/
-
 Item **SELECT_LEX::add_hidden_item(Item *item) {
   const uint el = all_fields.elements;
   base_ref_items[el] = item;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,12 +44,36 @@ class Sql_cmd_dml : public Sql_cmd {
   virtual bool prepare(THD *thd);
 
   /**
-    Execute this query once.
+    Execute a DML statement.
 
-    @param thd Thread handler
+    @param thd       thread handler
 
-    @returns false on success, true on error
-  */
+    @returns false if success, true if error
+
+    @details
+      Processing a statement goes through 6 phases (parsing is already done)
+       - Prelocking
+       - Preparation
+       - Locking of tables
+       - Optimization
+       - Execution or explain
+       - Cleanup
+
+      If the statement is already prepared, this step is skipped.
+
+      The queries handled by this function are:
+
+      SELECT
+      INSERT ... SELECT
+      INSERT ... VALUES
+      REPLACE ... SELECT
+      REPLACE ... VALUES
+      UPDATE (single-table and multi-table)
+      DELETE (single-table and multi-table)
+      DO
+
+    @todo make this function also handle SET.
+   */
   virtual bool execute(THD *thd);
 
   virtual bool is_dml() const { return true; }

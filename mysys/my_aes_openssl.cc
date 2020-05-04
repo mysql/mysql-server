@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -213,17 +213,6 @@ int my_aes_get_size(uint32 source_length, my_aes_opmode opmode) {
   return block_size > 1 ? block_size * (source_length / block_size) + block_size
                         : source_length;
 }
-
-/**
-  Return true if the AES cipher and block mode requires an IV
-
-  SYNOPSIS
-  my_aes_needs_iv()
-  @param opmode           encryption mode
-
-  @retval true   IV needed
-  @retval false  IV not needed
-*/
 
 bool my_aes_needs_iv(my_aes_opmode opmode) {
   const EVP_CIPHER *cipher = aes_evp_type(opmode);

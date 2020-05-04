@@ -582,12 +582,16 @@ class Table_check_intact {
   virtual ~Table_check_intact() {}
 
   /**
-    Checks whether a table is intact.
+    Checks whether a table is intact. Should be done *just* after the table has
+    been opened.
 
-    @param thd Session.
-    @param table Table to check.
-    @param table_def Table definition struct.
-  */
+    @param[in] table             The table to check
+    @param[in] table_def         Expected structure of the table (column name
+                                 and type)
+
+    @retval  false  OK
+    @retval  true   There was an error.
+   */
   bool check(THD *thd, TABLE *table, const TABLE_FIELD_DEF *table_def);
 };
 
@@ -2716,6 +2720,24 @@ struct TABLE_LIST {
   bool set_insert_values(MEM_ROOT *mem_root);
 
   TABLE_LIST *first_leaf_for_name_resolution();
+  /**
+    Retrieve the last (right-most) leaf in a nested join tree with
+    respect to name resolution.
+
+
+      Given that 'this' is a nested table reference, recursively walk
+      down the right-most children of 'this' until we reach a leaf
+      table reference with respect to name resolution.
+
+      The right-most child of a nested table reference is the first
+      element in the list of children because the children are inserted
+      in reverse order.
+
+    @return
+      - If 'this' is a nested table reference - the right-most child
+        of the tree rooted in 'this',
+      - else - 'this'
+   */
   TABLE_LIST *last_leaf_for_name_resolution();
   bool is_leaf_for_name_resolution() const;
 

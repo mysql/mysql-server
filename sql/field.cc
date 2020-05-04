@@ -4421,18 +4421,6 @@ my_decimal *Field_temporal::val_decimal(my_decimal *decimal_value) const {
   return decimal_value;
 }
 
-/**
-  Set warnings from a warning vector.
-  Note, multiple warnings can be set at the same time.
-
-  @param str       Value.
-  @param warnings  Warning vector.
-
-  @retval false  Function reported warning
-  @retval true   Function reported error
-
-  @note STRICT mode can convert warnings to error.
-*/
 bool Field_temporal::set_warnings(const ErrConvString &str, int warnings) {
   bool truncate_incremented = false;
   enum_mysql_timestamp_type ts_type = field_type_to_timestamp_type(type());
@@ -4578,17 +4566,6 @@ type_conversion_status Field_temporal::store(const char *str, size_t len,
   return error;
 }
 
-/**
-
-  @param nr The datetime value specified as "number", see number_to_datetime()
-  for details on this format.
-
-  @param [out] ltime A MYSQL_TIME struct where the result is stored.
-  @param warnings Truncation warning code, see was_cut in number_to_datetime().
-
-  @retval -1    Timestamp with wrong values.
-  @retval other DATETIME as integer in YYYYMMDDHHMMSS format.
-*/
 longlong Field_temporal::convert_number_to_datetime(longlong nr, bool,
                                                     MYSQL_TIME *ltime,
                                                     int *warnings) {
@@ -9562,23 +9539,6 @@ bool Field::set_warning(Sql_condition::enum_severity_level level, uint code,
   return false;
 }
 
-/**
-  Produce warning or note about double datetime data saved into field.
-
-  @param level            level of message (Note/Warning/Error)
-  @param code             error code of message to be produced
-  @param val              error parameter (the value)
-  @param ts_type          type of datetime value (datetime/date/time)
-  @param truncate_increment  whether we should increase truncated fields count
-
-  @retval false  Function reported warning
-  @retval true   Function reported error
-
-  @note
-    This function will always produce some warning but won't increase truncated
-    fields counter if check_for_truncated_fields == FIELD_CHECK_IGNORE
-    for current thread.
-*/
 bool Field_temporal::set_datetime_warning(
     Sql_condition::enum_severity_level level, uint code,
     const ErrConvString &val, enum_mysql_timestamp_type ts_type,
@@ -10228,25 +10188,6 @@ uint32 Create_field_wrapper::max_display_length() const {
   return m_field->max_display_width_in_codepoints();
 }
 
-/**
-  Generate a Create_field from an Item.
-
-  This function generates a Create_field from an Item by first creating a
-  temporary table Field from the Item, and then creating the Create_field from
-  this Field (there is currently no way to go directly from Item to
-  Create_field). It is used several places:
-  - In CREATE TABLE AS SELECT for creating the target table definition.
-  - In functional indexes for creating the hidden generated column from the
-    indexed expression.
-
-  @param thd       Thread handler
-  @param item      The item to generate a Create_field from
-  @param tmp_table A table object which is used to generate a temporary table
-                   field, as described above. This doesn't need to be an
-                   existing table.
-  @return          A Create_field generated from the input item, or nullptr
-                   in case of errors.
-*/
 Create_field *generate_create_field(THD *thd, Item *item, TABLE *tmp_table) {
   Field *tmp_table_field;
   if (item->type() == Item::FUNC_ITEM) {

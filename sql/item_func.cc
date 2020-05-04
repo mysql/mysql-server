@@ -5664,16 +5664,6 @@ void user_var_entry::init(THD *thd, const Simple_cstring &name,
   m_type = STRING_RESULT;
 }
 
-/**
-  Set value to user variable.
-  @param from           pointer to buffer with new value
-  @param length         length of new value
-  @param type           type of new value
-
-  @retval  false   on success
-  @retval  true    on allocation error
-
-*/
 bool user_var_entry::store(const void *from, size_t length, Item_result type) {
   assert_locked();
 
@@ -5698,24 +5688,6 @@ bool user_var_entry::store(const void *from, size_t length, Item_result type) {
 void user_var_entry::assert_locked() const {
   mysql_mutex_assert_owner(&m_owner->LOCK_thd_data);
 }
-
-/**
-  Set value to user variable.
-
-  @param ptr            pointer to buffer with new value
-  @param length         length of new value
-  @param type           type of new value
-  @param cs             charset info for new value
-  @param dv             derivation for new value
-  @param unsigned_arg   indiates if a value of type INT_RESULT is unsigned
-
-  @note Sets error and fatal error if allocation fails.
-
-  @retval
-    false   success
-  @retval
-    true    failure
-*/
 
 bool user_var_entry::store(const void *ptr, size_t length, Item_result type,
                            const CHARSET_INFO *cs, Derivation dv,

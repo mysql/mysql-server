@@ -515,12 +515,6 @@ static bool set_join_hint_deps(JOIN *join,
   return false;
 }
 
-/**
-  Function applies join order hints.
-
-  @param join pointer to JOIN object
-*/
-
 void Opt_hints_qb::apply_join_order_hints(JOIN *join) {
   for (uint hint_idx = 0; hint_idx < join_order_hints.size(); hint_idx++) {
     PT_qb_level_hint *hint = join_order_hints[hint_idx];

@@ -3878,7 +3878,7 @@ class THD : public MDL_context_owner,
 
   /**
     Reset thd->m_rewritten_query. Protected with the LOCK_thd_query mutex.
- */
+*/
   void reset_rewritten_query() {
     String empty;
     swap_rewritten_query(empty);

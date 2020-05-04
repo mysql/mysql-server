@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -125,17 +125,16 @@ size_t my_pread(File Filedes, uchar *Buffer, size_t Count, my_off_t offset,
     @param offset	Position to write to
     @param MyFlags	Flags
 
-  @return if (MyFlags & (MY_NABP | MY_FNABP))
-   @retval 0  if Count == 0
-   @retval On success, 0
-   @retval On failure, (size_t)-1 == MY_FILE_ERROR
+  @return
+    If Count == 0, returns 0. If failure, (size_t)-1 == MY_FILE_ERROR.
+    Behavior otherwise depends on MyFlags:
 
-  otherwise
-    @retval 0  if Count == 0
-    @retval On success, the number of bytes written.
-    @retval On partial success (if less than Count bytes could be written),
-       the actual number of bytes written.
-    @retval On failure, (size_t)-1 == MY_FILE_ERROR
+
+    if (MyFlags & (MY_NABP | MY_FNABP))
+      On success, 0
+    otherwise
+      On success or partial success, the number of bytes actually written
+      (which can be less than Count).
 */
 
 size_t my_pwrite(File Filedes, const uchar *Buffer, size_t Count,

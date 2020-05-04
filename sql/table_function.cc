@@ -113,26 +113,6 @@ List<Create_field> *Table_function_json::get_field_list() {
   return reinterpret_cast<List<Create_field> *>(&m_vt_list);
 }
 
-/**
-  Initialize columns and lists for json table
-
-  @details This function does several things:
-  1) sets up list of fields (vt_list) for result table creation
-  2) fills array of all columns (m_all_columns) for execution
-  3) for each column that has default ON EMPTY or ON ERROR clauses, checks
-    the value to be proper json and initializes column appropriately
-  4) for each column that involves path, the path is checked to be correct.
-  The function goes recursively, starting from the top NESTED PATH clause
-  and going in the depth-first way, traverses the tree of columns.
-
-  @param nest_idx  index of parent's element in the nesting data array
-  @param parent    Parent of the NESTED PATH clause being initialized
-
-  @returns
-    false  ok
-    true   an error occurred
-*/
-
 bool Table_function_json::init_json_table_col_lists(uint *nest_idx,
                                                     Json_table_column *parent) {
   List_iterator<Json_table_column> li(*parent->m_nested_columns);
@@ -326,14 +306,6 @@ bool Table_function_json::init() {
   return false;
 }
 
-/**
-  A helper function which sets all columns under given NESTED PATH column
-  to nullptr. Used to evaluate sibling NESTED PATHS.
-
-  @param       root  root NESTED PATH column
-  @param [out] last  last column which belongs to the given NESTED PATH
-*/
-
 void Table_function_json::set_subtree_to_null(Json_table_column *root,
                                               Json_table_column **last) {
   List_iterator<Json_table_column> li(*root->m_nested_columns);
@@ -350,32 +322,6 @@ void Table_function_json::set_subtree_to_null(Json_table_column *root,
     }
   }
 }
-
-/**
-  Fill a json table column
-
-  @details Fills a column with data, according to specification in
-  JSON_TABLE. This function handles all kinds of columns:
-  Ordinality)  just saves the counter into the column's field
-  Path)        extracts value, saves it to the column's field and handles
-               ON ERROR/ON EMPTY clauses
-  Exists)      checks the path existence and saves either 1 or 0 into result
-               field
-  Nested path) matches the path expression against data source. If there're
-               matches, this function sets NESTED PATH's iterator over those
-               matches and resets ordinality counter.
-
-  @param[in]   table_function the JSON table function
-  @param[out]  skip  true <=> it's a NESTED PATH node and its path
-                     expression didn't return any matches or a
-                     previous sibling NESTED PATH clause still producing
-                     records, thus all columns of this NESTED PATH node
-                     should be skipped
-
-  @returns
-    false column is filled
-    true  an error occurred, execution should be stopped
-*/
 
 bool Json_table_column::fill_column(Table_function_json *table_function,
                                     jt_skip_reason *skip) {

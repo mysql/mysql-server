@@ -399,13 +399,6 @@ static bool validate_use_secondary_engine(const LEX *lex) {
   return false;
 }
 
-/**
-  Prepare a DML statement.
-
-  @param thd       thread handler
-
-  @returns false if success, true if error
-*/
 bool Sql_cmd_dml::prepare(THD *thd) {
   DBUG_TRACE;
 
@@ -602,38 +595,6 @@ bool Sql_cmd_select::prepare_inner(THD *thd) {
 
   return false;
 }
-
-/**
-  Execute a DML statement.
-
-  @param thd       thread handler
-
-  @returns false if success, true if error
-
-  @details
-    Processing a statement goes through 6 phases (parsing is already done)
-     - Prelocking
-     - Preparation
-     - Locking of tables
-     - Optimization
-     - Execution or explain
-     - Cleanup
-
-    If the statement is already prepared, this step is skipped.
-
-    The queries handled by this function are:
-
-    SELECT
-    INSERT ... SELECT
-    INSERT ... VALUES
-    REPLACE ... SELECT
-    REPLACE ... VALUES
-    UPDATE (single-table and multi-table)
-    DELETE (single-table and multi-table)
-    DO
-
-  @todo make this function also handle SET.
-*/
 
 bool Sql_cmd_dml::execute(THD *thd) {
   DBUG_TRACE;

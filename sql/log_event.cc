@@ -8662,18 +8662,6 @@ int Rows_log_event::close_record_scan() {
   return error;
 }
 
-/**
-  Fetches next row. If it is a HASH_SCAN over an index, it populates
-  table->record[0] with the next row corresponding to the index. If
-  the indexes are in non-contiguous ranges it fetches record corresponding
-  to the key value in the next range.
-
-  @param first_read Signifying if this is the first time we are reading a row
-          over an index.
-  @retval error code when there are no more records to be fetched or some other
-                    error occurred
-  @retval 0 otherwise.
-*/
 int Rows_log_event::next_record_scan(bool first_read) {
   DBUG_TRACE;
   DBUG_ASSERT(m_table->file->inited);

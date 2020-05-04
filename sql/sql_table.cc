@@ -18199,20 +18199,6 @@ static bool push_check_constraint_mdl_request_to_list(
   return false;
 }
 
-/**
-  Method to prepare check constraints for the CREATE operation. If name of the
-  check constraint is not specified then name is generated, check constraint
-  is pre-validated and MDL on check constraint is acquired here.
-
-  @param            thd                      Thread handle.
-  @param            db_name                  Database name.
-  @param            table_name               Table name.
-  @param            alter_info               Alter_info object with list of
-                                             check constraints to be created.
-
-  @retval           false                    Success.
-  @retval           true                     Failure.
-*/
 bool prepare_check_constraints_for_create(THD *thd, const char *db_name,
                                           const char *table_name,
                                           Alter_info *alter_info) {

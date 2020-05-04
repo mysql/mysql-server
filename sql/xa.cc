@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1646,17 +1646,6 @@ static void attach_native_trx(THD *thd) {
     thd->rpl_reattach_engine_ha_data();
   }
 }
-
-/**
-  This is a specific to "slave" applier collection of standard cleanup
-  actions to reset XA transaction states at the end of XA prepare rather than
-  to do it at the transaction commit, see @c ha_commit_one_phase.
-  THD of the slave applier is dissociated from a transaction object in engine
-  that continues to exist there.
-
-  @param  thd current thread
-  @return the value of is_error()
-*/
 
 bool applier_reset_xa_trans(THD *thd) {
   DBUG_TRACE;

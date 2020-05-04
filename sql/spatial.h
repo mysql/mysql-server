@@ -1861,7 +1861,7 @@ class Gis_wkb_vector_iterator : public Gis_wkb_vector_const_iterator<T> {
 
 };  // Gis_wkb_vector_iterator
 //@} // Gis_wkb_vector_iterators
-//@} // iterators
+///@} // iterators
 
 // These operators make "n + itr" expressions valid. Without it, you can only
 // use "itr + n"

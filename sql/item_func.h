@@ -2995,17 +2995,22 @@ class user_var_entry {
   bool unsigned_flag;  // true if unsigned, false if signed
 
   /**
-    Store a value of the given type and attributes (collation, sign)
-    into a user_var_entry instance.
-    @param ptr          Value
-    @param length       Size of the value
-    @param type         type
-    @param cs           Character set and collation of the value
-    @param dv           Collation derivation of the value
-    @param unsigned_arg Signess of the value
-    @retval        false on success
-    @retval        true on memory allocation error
-  */
+    Set value to user variable.
+
+    @param ptr            pointer to buffer with new value
+    @param length         length of new value
+    @param type           type of new value
+    @param cs             charset info for new value
+    @param dv             derivation for new value
+    @param unsigned_arg   indiates if a value of type INT_RESULT is unsigned
+
+    @note Sets error and fatal error if allocation fails.
+
+    @retval
+      false   success
+    @retval
+      true    failure
+   */
   bool store(const void *ptr, size_t length, Item_result type,
              const CHARSET_INFO *cs, Derivation dv, bool unsigned_arg);
   /**

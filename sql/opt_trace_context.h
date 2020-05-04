@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -101,11 +101,11 @@ class Opt_trace_context {
      @param  end_marker       For a key/(object|array) pair, should the key be
                               repeated in a comment when the object|array
                               closes? like
-@verbatim
+                              @verbatim
                               "key_foo": {
                                            multi-line blah
                                          } / * key_foo * /
-@endverbatim
+                              @endverbatim
                               This is for human-readability only, not valid in
                               JSON. Note that YAML supports #-prefixed
                               comments (we would just need to put the next

@@ -4524,21 +4524,6 @@ bool handler::get_foreign_dup_key(char *, uint, char *, uint) {
   return (false);
 }
 
-/**
-  Delete all files with extension from handlerton::file_extensions.
-
-  @param name		Base name of table
-
-  @note
-    We assume that the handler may return more extensions than
-    was actually used for the file.
-
-  @retval
-    0   If we successfully deleted at least one file from base_ext and
-    didn't get any other errors than ENOENT
-  @retval
-    !0  Error
-*/
 int handler::delete_table(const char *name, const dd::Table *) {
   int saved_error = 0;
   int error = 0;
@@ -8131,7 +8116,7 @@ static bool my_eval_gcolumn_expr_helper(THD *thd, TABLE *table,
     that match key fields in the used secondary index. So we trust that the
     engine has filled all base columns necessary to requested computations,
     and we ignore read_set/write_set.
- */
+*/
 
   my_bitmap_map *old_maps[2];
   dbug_tmp_use_all_columns(table, old_maps, table->read_set, table->write_set);

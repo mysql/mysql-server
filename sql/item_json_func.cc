@@ -3803,19 +3803,6 @@ Field *Item_func_array_cast::tmp_table_field(TABLE *table) {
   return array_field;
 }
 
-/**
-  Coerce JSON data to the typed array's type and append it to the array (if
-  the latter is given)
-
-  @param[in]   wr       JSON data to coerce
-  @param[in]   no_error Whether to throw error
-  @param[out]  coerced  Coerced value (optional)
-
-  @returns
-    false Given JSON was successfully converted and appended to array (if
-          provided)
-    true  Otherwise
-*/
 bool Field_typed_array::coerce_json_value(const Json_wrapper *wr, bool no_error,
                                           Json_wrapper *coerced) const {
   Json_wrapper saved;

@@ -1360,8 +1360,7 @@ typedef uint (*partition_flags_t)();
   @param tablespace_name    Name of the tablespace.
 
   @return Tablespace name validity.
-    @retval == false: The tablespace name is invalid.
-    @retval == true:  The tablespace name is valid.
+    @retval Whether the tablespace name is valid.
 */
 typedef bool (*is_valid_tablespace_name_t)(ts_command_type ts_cmd,
                                            const char *tablespace_name);
@@ -6004,8 +6003,7 @@ class handler {
                                (can be NULL for temporary tables created
                                by optimizer).
 
-    @retval   >0               Error.
-    @retval    0               Success.
+    @return  Zero on success, nonzero otherwise.
   */
   virtual int delete_table(const char *name, const dd::Table *table_def);
 
