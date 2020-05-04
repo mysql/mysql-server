@@ -442,7 +442,7 @@ static bool load_process(atrt_config& config, atrt_cluster& cluster,
 
   proc.m_proc.m_env.appfmt(" ATRT_PID=%u", (unsigned)proc_no);
 
-  if (g_clean_shutdown){
+  if (g_clean_shutdown) {
     proc.m_proc.m_shutdown_options = "SIGTERM";
   } else {
     proc.m_proc.m_shutdown_options = "SIGKILL";

@@ -105,6 +105,7 @@ do
                 --default-behaviour-on-failure=*) default_behaviour_on_failure_arg="$1";;
                 --*clean-shutdown*) clean_shutdown_arg="$1";;
                 --*-coverage*) coverage_arg="$1";;
+                --build-dir=*) build_dir_arg="$1";;
         esac
         shift
 done
@@ -457,6 +458,7 @@ else
     args="$args ${default_behaviour_on_failure_arg}"
     args="$args ${clean_shutdown_arg}"
     args="$args ${coverage_arg}"
+    args="$args ${build_dir_arg}"
     $atrt $args my.cnf | tee -a log.txt
 
     atrt_test_status=${PIPESTATUS[0]}

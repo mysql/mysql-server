@@ -104,6 +104,7 @@ const char *g_my_cnf = 0;
 const char *g_prefix = NULL;
 const char *g_prefix0 = NULL;
 const char *g_prefix1 = NULL;
+const char *g_build_dir = NULL;
 const char *g_clusters = 0;
 const char *g_config_type = NULL;  // "cnf" or "ini"
 const char *g_site = NULL;
@@ -228,6 +229,10 @@ static struct my_option g_options[] = {
      (uchar **)&g_coverage,
      (uchar **)&g_coverage, 0, GET_BOOL, NO_ARG,
      g_coverage, 0, 0, 0, 0, 0},
+    {"build-dir", 256,
+     "Full path to build directory which contains gcno files",
+     (uchar **)&g_build_dir,
+     (uchar **)&g_build_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
 
 static int check_testcase_file_main(int argc, char **argv);
@@ -264,9 +269,20 @@ int main(int argc, char **argv) {
         "Conflicting cluster restart parameter used with coverage parameter");
       return atrt_exit(ATRT_FAILURE);
     }
-
     g_default_force_cluster_restart = After;
     g_clean_shutdown = true;
+
+    if (g_build_dir == nullptr) {
+      g_logger.critical("--build-dir parameter is required for coverage "
+                        "builds");
+        return atrt_exit(ATRT_FAILURE);
+    }
+    struct stat buf;
+    if (lstat(g_build_dir, &buf) != 0 ) {
+      g_logger.critical("Build directory does not exist at location specified "
+                        "in --build-dir parameter");
+      return atrt_exit(ATRT_FAILURE);
+    }
   }
 
   if (g_mt != 0) {
