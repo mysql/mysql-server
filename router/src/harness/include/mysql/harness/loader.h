@@ -1188,6 +1188,12 @@ void request_log_reopen(const std::string dst = "");
 HARNESS_EXPORT
 bool log_reopen_completed();
 
+/**
+ * get last log reopen error
+ */
+HARNESS_EXPORT
+std::string log_reopen_get_error();
+
 #ifdef _WIN32
 HARNESS_EXPORT
 void register_ctrl_c_handler();
