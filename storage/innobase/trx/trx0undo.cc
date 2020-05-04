@@ -2010,6 +2010,14 @@ bool trx_undo_truncate_tablespace(undo::Tablespace *marked_space) {
 
   fsp_header_init(new_space_id, n_pages, &mtr, false);
 
+  /* If tablespace is to be encrypted, encrypt it now */
+  if (is_encrypted && srv_undo_log_encrypt) {
+    ut_d(bool ret =) set_undo_tablespace_encryption(new_space_id, &mtr, false);
+    /* Don't expect any error here (unless keyring plugin is uninstalled). In
+    that case too, continue truncation processing of tablespace. */
+    ut_ad(!ret);
+  }
+
   /* Step-3: Add the RSEG_ARRAY page. */
   trx_rseg_array_create(new_space_id, &mtr);
 
@@ -2084,17 +2092,6 @@ bool trx_undo_truncate_tablespace(undo::Tablespace *marked_space) {
     rseg->last_offset = 0;
     rseg->last_trx_no = 0;
     rseg->last_del_marks = FALSE;
-  }
-
-  /* If tablespace is to be encrypted, encrypt it now */
-  if (is_encrypted && srv_undo_log_encrypt) {
-    mtr_t mtr;
-    mtr.start();
-    ut_d(bool ret =) set_undo_tablespace_encryption(new_space_id, &mtr, false);
-    /* Don't expect any error here (unless keyring plugin is uninstalled). In
-    that case too, continue truncation processing of tablespace. */
-    ut_ad(!ret);
-    mtr.commit();
   }
 
   marked_rsegs->x_unlock();
