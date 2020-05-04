@@ -1078,9 +1078,6 @@ bool create_consumers(RestoreThreadData *data)
   if (printer == NULL)
     return false;
 
-  if (g_restoring_in_parallel && (ga_nParallelism > ga_part_count))
-    ga_nParallelism /= ga_part_count;
-
   char threadname[20];
   BaseString::snprintf(threadname, sizeof(threadname), "%d-%u-%u",
                        ga_nodeId,
@@ -3166,6 +3163,17 @@ main(int argc, char** argv)
    // create one restore thread per backup part
     Vector<RestoreThreadData*> thrdata;
     CyclicBarrier barrier(ga_part_count);
+
+    /**
+     * Divide data INSERT parallelism across parts, ensuring
+     * each part has at least 1
+     */
+    ga_nParallelism /= ga_part_count;
+    if (ga_nParallelism == 0)
+      ga_nParallelism = 1;
+
+    debug << "Part parallelism is " << ga_nParallelism << endl;
+
     for (int part_id=1; part_id<=ga_part_count; part_id++)
     {
       NDB_THREAD_PRIO prio = NDB_THREAD_PRIO_MEAN;
