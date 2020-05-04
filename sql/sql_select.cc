@@ -4849,7 +4849,9 @@ bool test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER_with_src *order,
           and as result we'll choose an index scan when using ref/range
           access + filesort will be cheaper.
         */
-        if (fanout >= 0)  // 'fanout' not unknown
+        if (fanout == 0)                // Would have been a division-by-zero
+          select_limit = HA_POS_ERROR;  // -> 'infinite'
+        else if (fanout > 0)            // 'fanout' not unknown
           select_limit =
               (ha_rows)(select_limit < fanout ? 1 : select_limit / fanout);
         /*
