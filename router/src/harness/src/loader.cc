@@ -147,6 +147,15 @@ bool log_reopen_completed() {
   return true;
 }
 
+/**
+ * get last log reopen error
+ */
+std::string log_reopen_get_error() {
+  if (g_reopen_thread) return g_reopen_thread->get_last_error();
+
+  return std::string("");
+}
+
 namespace {
 #ifdef USE_POSIX_SIGNALS
 const std::array<int, 6> g_fatal_signals{SIGSEGV, SIGABRT, SIGBUS,
