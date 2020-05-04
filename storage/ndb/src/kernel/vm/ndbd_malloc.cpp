@@ -77,6 +77,33 @@ touch_mem(void* arg)
   const size_t TOUCH_PAGE_SIZE = NdbMem_GetSystemPageSize();
   size_t tot_pages = (sz + (TOUCH_PAGE_SIZE - 1)) / TOUCH_PAGE_SIZE;
 
+  volatile Uint32* watchCounter = touch_mem_ptr->watchCounter;
+  Uint32 dummy_watch_counter = 0;
+  const bool do_populate = (watchCounter != nullptr);
+  if (watchCounter == nullptr)
+  {
+    /*
+     * Touching without watchdog is used by ndbd_malloc.
+     *
+     * We check that the amount of memory to be touched would not trigger
+     * watchdog kick anyway.
+     *
+     */
+    require(sz < NUM_PAGES_BETWEEN_WATCHDOG_SETS *
+                 TOUCH_PAGE_SIZE *
+                 TOUCH_PARALLELISM);
+    watchCounter = &dummy_watch_counter;
+  }
+  else
+  {
+    /*
+     * Verify that memory to be touched is aligned to system page boundary and
+     * is whole multiple of system page size.
+     */
+    require(sz % TOUCH_PAGE_SIZE == 0);
+    require((uintptr_t)p % TOUCH_PAGE_SIZE == 0);
+  }
+
   if (tot_pages > TOUCH_PARALLELISM)
   {
     num_pages_per_thread = ((tot_pages + (TOUCH_PARALLELISM - 1)) /
@@ -105,8 +132,19 @@ touch_mem(void* arg)
     const size_t size = std::min(end - ptr,
         ptrdiff_t(NUM_PAGES_BETWEEN_WATCHDOG_SETS * TOUCH_PAGE_SIZE));
 
-    require(NdbMem_PopulateSpace(ptr, size) == 0);
-    *(touch_mem_ptr->watchCounter) = 9;
+    if (do_populate)
+    {
+      // Populate address space earlier Reserved.
+      require(NdbMem_PopulateSpace(ptr, size) == 0);
+    }
+    else
+    {
+      for (Uint32 j = 0; j < size; j += TOUCH_PAGE_SIZE)
+      {
+        ptr[j] = 0;
+      }
+    }
+    *watchCounter = 9;
 
     if (debugUinitMemUse)
     {
@@ -122,7 +160,7 @@ touch_mem(void* arg)
         know that reads from this memory is an error.
        */
       MEM_UNDEFINED(ptr, size);
-      *(touch_mem_ptr->watchCounter) = 9;
+      *watchCounter = 9;
     }
   }
   return NULL;
@@ -133,12 +171,6 @@ ndbd_alloc_touch_mem(void *p, size_t sz, volatile Uint32 * watchCounter)
 {
   struct NdbThread *thread_ptr[TOUCH_PARALLELISM];
   struct AllocTouchMem touch_mem_struct[TOUCH_PARALLELISM];
-
-  Uint32 tmp = 0;
-  if (watchCounter == 0)
-  {
-    watchCounter = &tmp;
-  }
 
   for (Uint32 i = 0; i < TOUCH_PARALLELISM; i++)
   {

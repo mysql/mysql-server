@@ -957,6 +957,7 @@ Ndbd_mem_manager::init(Uint32 *watchCounter, Uint32 max_pages , bool alloc_less_
 void
 Ndbd_mem_manager::map(Uint32 * watchCounter, bool memlock, Uint32 resources[])
 {
+  require(watchCounter != nullptr);
   Uint32 limit = ~(Uint32)0;
   Uint32 sofar = 0;
 
@@ -2041,7 +2042,8 @@ Test_mem_manager::Test_mem_manager(Uint32 tot_mem,
   require(tot_mem > 0);
   tot_mem += 2 * ((tot_mem - 1) / ALLOC_PAGES_PER_REGION) + 1;
   init(NULL, tot_mem);
-  map(NULL);
+  Uint32 dummy_watchdog_counter_marking_page_mem = 0;
+  map(&dummy_watchdog_counter_marking_page_mem);
 }
 
 Test_mem_manager::~Test_mem_manager()

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -71,7 +71,8 @@ test_context(Uint32 pages)
     abort();
   }
 
-  mm.map(NULL /* watchCounter */, 0 /* memlock */); // Map all
+  Uint32 dummy_watchdog_counter_marking_page_mem = 0;
+  mm.map(&dummy_watchdog_counter_marking_page_mem, 0 /* memlock */); // Map all
 
   return pc;
 }
