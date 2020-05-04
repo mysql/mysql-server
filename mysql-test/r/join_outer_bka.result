@@ -3687,4 +3687,30 @@ EXPLAIN
 
 DROP TABLE t1, t2;
 set optimizer_switch='block_nested_loop=on';
+#
+# Bug #31252625: DATA IN WRONG ROW ON LEFT JOIN
+#
+CREATE TABLE t1 (
+id INTEGER NOT NULL,
+b INTEGER,
+PRIMARY KEY (id)
+);
+INSERT INTO t1 VALUES (17,NULL);
+INSERT INTO t1 VALUES (136,564);
+INSERT INTO t1 VALUES (137,NULL);
+CREATE TABLE t2 (
+id INTEGER NOT NULL,
+PRIMARY KEY (id)
+);
+INSERT INTO t2 VALUES (564);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+SELECT * FROM t1 LEFT JOIN t2 ON t1.b = t2.id GROUP BY t1.id;
+id	b	id
+17	NULL	NULL
+136	564	564
+137	NULL	NULL
+DROP TABLE t1, t2;
 set optimizer_switch=default;

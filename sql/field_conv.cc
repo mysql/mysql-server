@@ -573,7 +573,7 @@ Copy_field::Copy_field(MEM_ROOT *mem_root, Item_field *item) : Copy_field() {
   m_from_field = item->field->new_field(mem_root, item->field->table);
   if (m_from_field == nullptr) return;
 
-  if (m_from_field->is_nullable()) {
+  if (m_from_field->is_nullable() || m_from_field->table->is_nullable()) {
     // We need to allocate one extra byte for null handling.
     uchar *ptr = mem_root->ArrayAlloc<uchar>(m_from_field->pack_length() + 1);
     m_to_field =
