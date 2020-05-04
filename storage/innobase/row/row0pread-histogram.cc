@@ -237,13 +237,11 @@ dberr_t Histogram_sampler::sample_rec(ulint thread_id, const rec_t *rec,
   return (err);
 }
 
-dberr_t Histogram_sampler::process_non_leaf_rec(const Parallel_reader::Ctx *ctx,
-                                                row_prebuilt_t *prebuilt) {
+dberr_t Histogram_sampler::process_non_leaf_rec(
+    const Parallel_reader::Ctx *ctx_const, row_prebuilt_t *prebuilt) {
   DBUG_EXECUTE_IF("parallel_reader_histogram_induce_error",
                   set_error_state(DB_ERROR);
                   return DB_ERROR;);
-
-  ut_ad(!page_is_leaf(ctx->m_block->frame));
 
   if (skip()) {
     srv_stats.n_sampled_pages_skipped.inc();
@@ -251,6 +249,11 @@ dberr_t Histogram_sampler::process_non_leaf_rec(const Parallel_reader::Ctx *ctx,
     DBUG_PRINT("histogram_sampler_buffering_print", ("Skipping block."));
     return (DB_SUCCESS);
   }
+
+  Parallel_reader::Ctx *ctx = const_cast<Parallel_reader::Ctx *>(ctx_const);
+  const dict_index_t *index = ctx->index();
+
+  ut_ad(!page_is_leaf(ctx->m_block->frame));
 
   /* Get the child page pointed to by the record. */
 
@@ -260,10 +263,9 @@ dberr_t Histogram_sampler::process_non_leaf_rec(const Parallel_reader::Ctx *ctx,
   mtr.start();
   mtr.set_log_mode(MTR_LOG_NO_REDO);
 
-  const dict_index_t *index = ctx->index();
-
-  buf_block_t *leaf_block = btr_node_ptr_get_child(
-      ctx->m_rec, const_cast<dict_index_t *>(index), ctx->m_offsets, &mtr);
+  buf_block_t *leaf_block =
+      btr_node_ptr_get_child(ctx->m_rec, const_cast<dict_index_t *>(index),
+                             ctx->m_offsets, &mtr, RW_S_LATCH);
 
   ut_ad(page_is_leaf(leaf_block->frame));
 
@@ -273,11 +275,7 @@ dberr_t Histogram_sampler::process_non_leaf_rec(const Parallel_reader::Ctx *ctx,
   page_cur_set_before_first(leaf_block, &cur);
   page_cur_move_to_next(&cur);
 
-  ulint offsets_[REC_OFFS_NORMAL_SIZE];
-  ulint *offsets = offsets_;
-  rec_offs_init(offsets_);
-
-  mem_heap_t *heap{};
+  auto heap = mem_heap_create(srv_page_size / 4);
   dberr_t err{DB_SUCCESS};
 
   for (;;) {
@@ -285,26 +283,31 @@ dberr_t Histogram_sampler::process_non_leaf_rec(const Parallel_reader::Ctx *ctx,
       break;
     }
 
-    offsets = rec_get_offsets(cur.rec, index, offsets, ULINT_UNDEFINED, &heap);
+    ulint offsets_[REC_OFFS_NORMAL_SIZE];
+    ulint *offsets = offsets_;
+    rec_offs_init(offsets_);
 
-    err = sample_rec(ctx->m_thread_id, cur.rec, offsets, index, prebuilt);
+    const rec_t *rec = page_cur_get_rec(&cur);
+    offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 
-    if (err != DB_SUCCESS) {
-      set_error_state(err);
-    }
+    if (ctx->is_rec_visible(rec, offsets, heap, &mtr)) {
+      err = sample_rec(ctx->m_thread_id, rec, offsets, index, prebuilt);
 
-    if (is_error_set()) {
-      break;
+      if (err != DB_SUCCESS) {
+        set_error_state(err);
+      }
+
+      if (is_error_set()) {
+        break;
+      }
     }
 
     page_cur_move_to_next(&cur);
-
-    if (heap != nullptr) {
-      mem_heap_free(heap);
-    }
   }
 
   mtr.commit();
+
+  mem_heap_free(heap);
 
   return (m_err);
 }

@@ -10148,6 +10148,12 @@ int ha_innobase::sample_init(void *&scan_ctx, double sampling_percentage,
   }
 
   auto trx = m_prebuilt->trx;
+
+  /* Since histogram sampling does not have any correlation to transactions
+  we're setting the isolation level to read uncommitted to avoid unnecessarily
+  looking up old versions of a record as the version list can be very long. */
+  trx->isolation_level = TRX_ISO_READ_UNCOMMITTED;
+
   innobase_register_trx(ht, ha_thd(), trx);
   trx_start_if_not_started_xa(trx, false);
   trx_assign_read_view(trx);
