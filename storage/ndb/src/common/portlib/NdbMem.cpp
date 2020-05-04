@@ -103,7 +103,7 @@ int NdbMem_ReserveSpace(void** ptr, size_t len)
 #ifdef _WIN32
   p = VirtualAlloc(*ptr, len, MEM_RESERVE, PAGE_NOACCESS);
   *ptr = p;
-  return (p == NULL) ? 0 : -1;
+  return (p == NULL) ? -1 : 0;
 #elif defined(MAP_NORESERVE)
   /*
    * MAP_NORESERVE is essential to not reserve swap space on Solaris.
@@ -178,7 +178,7 @@ int NdbMem_PopulateSpace(void* ptr, size_t len)
 {
 #ifdef _WIN32
   void* p = VirtualAlloc(ptr, len, MEM_COMMIT, PAGE_READWRITE);
-  return (p == NULL) ? 0 : -1;
+  return (p == NULL) ? -1 : 0;
 #elif defined(MAP_GUARD) /* FreeBSD */
   void* p = mmap(ptr,
                  len,
