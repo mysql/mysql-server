@@ -622,19 +622,16 @@ void btr_node_ptr_set_child_page_no(
   }
 }
 
-buf_block_t *btr_node_ptr_get_child(
-    const rec_t *node_ptr, /*!< in: node pointer */
-    dict_index_t *index,   /*!< in: index */
-    const ulint *offsets,  /*!< in: array returned by rec_get_offsets() */
-    mtr_t *mtr)            /*!< in: mtr */
-{
+buf_block_t *btr_node_ptr_get_child(const rec_t *node_ptr, dict_index_t *index,
+                                    const ulint *offsets, mtr_t *mtr,
+                                    rw_lock_type_t type) {
   ut_ad(rec_offs_validate(node_ptr, index, offsets));
 
   const page_id_t page_id(page_get_space_id(page_align(node_ptr)),
                           btr_node_ptr_get_child_page_no(node_ptr, offsets));
 
-  return (btr_block_get(page_id, dict_table_page_size(index->table),
-                        RW_SX_LATCH, index, mtr));
+  return (btr_block_get(page_id, dict_table_page_size(index->table), type,
+                        index, mtr));
 }
 
 /** Returns the upper level node pointer to a page. It is assumed that mtr holds

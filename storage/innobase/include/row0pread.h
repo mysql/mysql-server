@@ -714,6 +714,20 @@ class Parallel_reader::Ctx {
     return m_scan_ctx->m_config.m_partition_id;
   }
 
+  /** Build an old version of the row if required.
+  @param[in,out]  rec           Current row read from the index. This can
+                                be modified by this method if an older version
+                                needs to be built.
+  @param[in,out]  offsets       Same as above but pertains to the rec offsets
+  @param[in,out]  heap          Heap to use if a previous version needs to be
+                                built from the undo log.
+  @param[in,out]  mtr           Mini transaction covering the read.
+  @return true if row is visible to the transaction. */
+  bool is_rec_visible(const rec_t *&rec, ulint *&offsets, mem_heap_t *&heap,
+                      mtr_t *mtr) {
+    return (m_scan_ctx->check_visibility(rec, offsets, heap, mtr));
+  }
+
  private:
   /** Traverse the pages by key order.
   @return DB_SUCCESS or error code. */
