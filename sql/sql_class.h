@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3880,8 +3880,10 @@ class THD : public MDL_context_owner,
     Reset thd->m_rewritten_query. Protected with the LOCK_thd_query mutex.
  */
   void reset_rewritten_query() {
-    String empty;
-    swap_rewritten_query(empty);
+    if (rewritten_query().length()) {
+      String empty;
+      swap_rewritten_query(empty);
+    }
   }
 
   /**
