@@ -253,7 +253,7 @@ static bool servers_load(THD *thd, TABLE *table) {
   init_sql_alloc(key_memory_servers, &mem, ACL_ALLOC_BLOCK_SIZE, 0);
 
   unique_ptr_destroy_only<RowIterator> iterator = init_table_iterator(
-      thd, table, nullptr, false,
+      thd, table, nullptr,
       /*ignore_not_found_rows=*/false, /*count_examined_rows=*/false);
   if (iterator == nullptr) return true;
 

@@ -49,7 +49,7 @@ AccessPath *create_table_access_path(THD *thd, TABLE *table, QEP_TAB *qep_tab,
   Returns nullptr on failure.
  */
 unique_ptr_destroy_only<RowIterator> init_table_iterator(
-    THD *thd, TABLE *table, QEP_TAB *qep_tab, bool disable_rr_cache,
-    bool ignore_not_found_rows, bool count_examined_rows);
+    THD *thd, TABLE *table, QEP_TAB *qep_tab, bool ignore_not_found_rows,
+    bool count_examined_rows);
 
 #endif /* SQL_RECORDS_H */

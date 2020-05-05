@@ -10561,7 +10561,7 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge() {
   /* index_merge currently doesn't support "using index" at all */
   head->set_keyread(false);
   read_record.reset();  // Clear out any previous iterator.
-  read_record = init_table_iterator(thd, head, nullptr, true,
+  read_record = init_table_iterator(thd, head, nullptr,
                                     /*ignore_not_found_rows=*/false,
                                     /*count_examined_rows=*/false);
   if (read_record == nullptr) return 1;

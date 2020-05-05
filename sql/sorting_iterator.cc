@@ -67,7 +67,6 @@ using std::vector;
 
 SortFileIndirectIterator::SortFileIndirectIterator(THD *thd, TABLE *table,
                                                    IO_CACHE *tempfile,
-                                                   bool request_cache,
                                                    bool ignore_not_found_rows,
                                                    ha_rows *examined_rows)
     : TableRowIterator(thd, table),
@@ -76,7 +75,6 @@ SortFileIndirectIterator::SortFileIndirectIterator(THD *thd, TABLE *table,
       m_record(table->record[0]),
       m_ref_pos(table->file->ref),
       m_ignore_not_found_rows(ignore_not_found_rows),
-      m_using_cache(request_cache),
       m_ref_length(table->file->ref_length) {}
 
 SortFileIndirectIterator::~SortFileIndirectIterator() {
@@ -107,69 +105,10 @@ bool SortFileIndirectIterator::Init() {
     return true;
   }
 
-  if (m_using_cache && thd()->variables.read_rnd_buff_size &&
-      !(table()->file->ha_table_flags() & HA_FAST_KEY_READ) &&
-      (table()->db_stat & HA_READ_ONLY ||
-       table()->reginfo.lock_type <= TL_READ_NO_INSERT) &&
-      (ulonglong)table()->s->reclength *
-              (table()->file->stats.records + table()->file->stats.deleted) >
-          (ulonglong)MIN_FILE_LENGTH_TO_USE_ROW_CACHE &&
-      m_io_cache->end_of_file / m_ref_length * table()->s->reclength >
-          (my_off_t)MIN_ROWS_TO_USE_TABLE_CACHE &&
-      !table()->s->blob_fields && m_ref_length <= MAX_REFLENGTH) {
-    m_using_cache = !InitCache();
-  } else {
-    m_using_cache = false;
-  }
-
-  DBUG_PRINT("info", ("using cache: %d", m_using_cache));
-  return false;
-}
-
-/**
-  Initialize caching of records from temporary file.
-
-  @retval
-    false OK, use caching.
-    true  Buffer is too small, or cannot be allocated.
-          Skip caching, and read records directly from temporary file.
- */
-bool SortFileIndirectIterator::InitCache() {
-  m_struct_length = 3 + MAX_REFLENGTH;
-  m_reclength = ALIGN_SIZE(table()->s->reclength + 1);
-  if (m_reclength < m_struct_length) m_reclength = ALIGN_SIZE(m_struct_length);
-
-  m_error_offset = table()->s->reclength;
-  m_cache_records =
-      thd()->variables.read_rnd_buff_size / (m_reclength + m_struct_length);
-  uint rec_cache_size = m_cache_records * m_reclength;
-  m_rec_cache_size = m_cache_records * m_ref_length;
-
-  if (m_cache_records <= 2) {
-    return true;
-  }
-
-  m_cache.reset((uchar *)my_malloc(
-      key_memory_READ_RECORD_cache,
-      rec_cache_size + m_cache_records * m_struct_length, MYF(0)));
-  if (m_cache == nullptr) {
-    return true;
-  }
-  DBUG_PRINT("info", ("Allocated buffer for %d records", m_cache_records));
-  m_read_positions = m_cache.get() + rec_cache_size;
-  m_cache_pos = m_cache_end = m_cache.get();
   return false;
 }
 
 int SortFileIndirectIterator::Read() {
-  if (m_using_cache) {
-    return CachedRead();
-  } else {
-    return UncachedRead();
-  }
-}
-
-int SortFileIndirectIterator::UncachedRead() {
   for (;;) {
     if (my_b_read(m_io_cache, m_ref_pos, m_ref_length))
       return -1; /* End of file */
@@ -185,78 +124,6 @@ int SortFileIndirectIterator::UncachedRead() {
         (tmp == HA_ERR_KEY_NOT_FOUND && m_ignore_not_found_rows))
       continue;
     return HandleError(tmp);
-  }
-}
-
-int SortFileIndirectIterator::CachedRead() {
-  uint i;
-  ulong length;
-  my_off_t rest_of_file;
-  int16 error;
-  uchar *position, *ref_position, *record_pos;
-  ulong record;
-
-  for (;;) {
-    if (m_cache_pos != m_cache_end) {
-      if (m_cache_pos[m_error_offset]) {
-        error = shortget(m_cache_pos);
-        if (error == HA_ERR_KEY_NOT_FOUND && m_ignore_not_found_rows) {
-          m_cache_pos += m_reclength;
-          continue;
-        }
-        PrintError(error);
-      } else {
-        error = 0;
-        memcpy(m_record, m_cache_pos, (size_t)table()->s->reclength);
-      }
-      m_cache_pos += m_reclength;
-      if (error == 0 && m_examined_rows != nullptr) {
-        ++*m_examined_rows;
-      }
-      return ((int)error);
-    }
-    length = m_rec_cache_size;
-    rest_of_file = m_io_cache->end_of_file - my_b_tell(m_io_cache);
-    if ((my_off_t)length > rest_of_file) length = (ulong)rest_of_file;
-    if (!length || my_b_read(m_io_cache, m_cache.get(), length)) {
-      DBUG_PRINT("info", ("Found end of file"));
-      return -1; /* End of file */
-    }
-
-    length /= m_ref_length;
-    position = m_cache.get();
-    ref_position = m_read_positions;
-    for (i = 0; i < length; i++, position += m_ref_length) {
-      memcpy(ref_position, position, (size_t)m_ref_length);
-      ref_position += MAX_REFLENGTH;
-      int3store(ref_position, (long)i);
-      ref_position += 3;
-    }
-    size_t ref_length = m_ref_length;
-    DBUG_ASSERT(ref_length <= MAX_REFLENGTH);
-    varlen_sort(m_read_positions, m_read_positions + length * m_struct_length,
-                m_struct_length, [ref_length](const uchar *a, const uchar *b) {
-                  return memcmp(a, b, ref_length) < 0;
-                });
-
-    position = m_read_positions;
-    for (i = 0; i < length; i++) {
-      memcpy(m_ref_pos, position, (size_t)m_ref_length);
-      position += MAX_REFLENGTH;
-      record = uint3korr(position);
-      position += 3;
-      record_pos = m_cache.get() + record * m_reclength;
-      error = (int16)table()->file->ha_rnd_pos(record_pos, m_ref_pos);
-      if (error) {
-        record_pos[m_error_offset] = 1;
-        shortstore(record_pos, error);
-        DBUG_PRINT("error", ("Got error: %d:%d when reading row", my_errno(),
-                             (int)error));
-      } else
-        record_pos[m_error_offset] = 0;
-    }
-    m_cache_pos = m_cache.get();
-    m_cache_end = m_cache_pos + length * m_reclength;
   }
 }
 
@@ -500,17 +367,11 @@ bool SortingIterator::Init() {
                 SortFileIterator<false>(thd(), table, m_sort_result.io_cache,
                                         &m_fs_info, m_examined_rows));
     } else {
-      /*
-        m_fs_info->addon_field is checked because if we use addon fields,
-        it doesn't make sense to use cache - we don't read from the table
-        and m_fs_info->io_cache is read sequentially
-      */
-      bool request_cache = !m_fs_info.using_addon_fields();
       m_result_iterator.reset(
           new (&m_result_iterator_holder.sort_file_indirect)
-              SortFileIndirectIterator(
-                  thd(), table, m_sort_result.io_cache, request_cache,
-                  /*ignore_not_found_rows=*/false, m_examined_rows));
+              SortFileIndirectIterator(thd(), table, m_sort_result.io_cache,
+                                       /*ignore_not_found_rows=*/false,
+                                       m_examined_rows));
     }
     m_sort_result.io_cache =
         nullptr;  // The result iterator has taken ownership.

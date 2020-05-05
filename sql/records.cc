@@ -178,8 +178,8 @@ AccessPath *create_table_access_path(THD *thd, TABLE *table, QEP_TAB *qep_tab,
 }
 
 unique_ptr_destroy_only<RowIterator> init_table_iterator(
-    THD *thd, TABLE *table, QEP_TAB *qep_tab, bool disable_rr_cache,
-    bool ignore_not_found_rows, bool count_examined_rows) {
+    THD *thd, TABLE *table, QEP_TAB *qep_tab, bool ignore_not_found_rows,
+    bool count_examined_rows) {
   unique_ptr_destroy_only<RowIterator> iterator;
 
   DBUG_ASSERT(!(table && qep_tab));
@@ -190,8 +190,8 @@ unique_ptr_destroy_only<RowIterator> init_table_iterator(
       my_b_inited(table->unique_result.io_cache)) {
     DBUG_PRINT("info", ("using SortFileIndirectIterator"));
     iterator = NewIterator<SortFileIndirectIterator>(
-        thd, table, table->unique_result.io_cache, !disable_rr_cache,
-        ignore_not_found_rows, /*examined_rows=*/nullptr);
+        thd, table, table->unique_result.io_cache, ignore_not_found_rows,
+        /*examined_rows=*/nullptr);
     table->unique_result.io_cache =
         nullptr;  // Now owned by SortFileIndirectIterator.
   } else if (table->unique_result.has_result_in_memory()) {

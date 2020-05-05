@@ -753,7 +753,6 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
 
         iterator = NewIterator<SortFileIndirectIterator>(
             thd, table, tempfile,
-            /*request_cache=*/false,
             /*ignore_not_found_rows=*/false,
             /*examined_rows=*/nullptr);
         if (iterator->Init()) return true;
@@ -763,7 +762,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
       }
     } else {
       // No ORDER BY or updated key underway, so we can use a regular read.
-      iterator = init_table_iterator(thd, nullptr, &qep_tab, false,
+      iterator = init_table_iterator(thd, nullptr, &qep_tab,
                                      /*ignore_not_found_rows=*/false,
                                      /*count_examined_rows=*/false);
       if (iterator == nullptr) return true; /* purecov: inspected */

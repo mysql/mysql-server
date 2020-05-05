@@ -249,7 +249,7 @@ static void read_server_cost_constants(THD *thd, TABLE *table,
 
   // Prepare to read from the table
   unique_ptr_destroy_only<RowIterator> iterator = init_table_iterator(
-      thd, table, nullptr, false,
+      thd, table, nullptr,
       /*ignore_not_found_rows=*/false, /*count_examined_rows=*/false);
   if (iterator != nullptr) {
     table->use_all_columns();
@@ -314,7 +314,7 @@ static void read_engine_cost_constants(THD *thd, TABLE *table,
 
   // Prepare to read from the table
   unique_ptr_destroy_only<RowIterator> iterator = init_table_iterator(
-      thd, table, nullptr, false,
+      thd, table, nullptr,
       /*ignore_not_found_rows=*/false, /*count_examined_rows=*/false);
   if (iterator != nullptr) {
     table->use_all_columns();

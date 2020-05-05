@@ -1172,9 +1172,9 @@ int Query_result_delete::do_table_deletes(THD *thd, TABLE *table) {
     Ignore any rows not found in reference tables as they may already have
     been deleted by foreign key handling
   */
-  unique_ptr_destroy_only<RowIterator> iterator = init_table_iterator(
-      thd, table, nullptr, false, /*ignore_not_found_rows=*/true,
-      /*count_examined_rows=*/false);
+  unique_ptr_destroy_only<RowIterator> iterator =
+      init_table_iterator(thd, table, nullptr, /*ignore_not_found_rows=*/true,
+                          /*count_examined_rows=*/false);
   if (iterator == nullptr) return 1;
   bool will_batch = !table->file->start_bulk_delete();
   while (!(local_error = iterator->Read()) && !thd->killed) {

@@ -270,38 +270,20 @@ class SortFileIndirectIterator final : public TableRowIterator {
   //
   // "examined_rows", if not nullptr, is incremented for each successful Read().
   SortFileIndirectIterator(THD *thd, TABLE *table, IO_CACHE *tempfile,
-                           bool request_cache, bool ignore_not_found_rows,
-                           ha_rows *examined_rows);
+                           bool ignore_not_found_rows, ha_rows *examined_rows);
   ~SortFileIndirectIterator() override;
 
   bool Init() override;
   int Read() override;
 
  private:
-  bool InitCache();
-  int CachedRead();
-  int UncachedRead();
-
   IO_CACHE *m_io_cache = nullptr;
   ha_rows *const m_examined_rows;
   uchar *m_record = nullptr;
   uchar *m_ref_pos = nullptr; /* pointer to form->refpos */
   bool m_ignore_not_found_rows;
 
-  // This is a special variant that can be used for
-  // handlers that is not using the HA_FAST_KEY_READ table flag. Instead
-  // of reading the references one by one from the temporary file it reads
-  // a set of them, sorts them and reads all of them into a buffer which
-  // is then used for a number of subsequent calls to Read().
-  // It is only used for SELECT queries and a number of other conditions
-  // on table size.
-  bool m_using_cache;
-  uint m_cache_records;
-  uint m_ref_length, m_struct_length, m_reclength, m_rec_cache_size,
-      m_error_offset;
-  unique_ptr_my_free<uchar[]> m_cache;
-  uchar *m_cache_pos = nullptr, *m_cache_end = nullptr,
-        *m_read_positions = nullptr;
+  uint m_ref_length;
 };
 
 // Used when the plan is const, ie. is known to contain a single row

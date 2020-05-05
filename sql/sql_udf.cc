@@ -248,7 +248,7 @@ void udf_read_functions_table() {
   }
 
   table = tables.table;
-  iterator = init_table_iterator(new_thd, table, nullptr, false,
+  iterator = init_table_iterator(new_thd, table, nullptr,
                                  /*ignore_not_found_rows=*/false,
                                  /*count_examined_rows=*/false);
   if (iterator == nullptr) goto end;

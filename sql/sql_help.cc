@@ -219,7 +219,7 @@ static int search_topics(THD *thd, QEP_TAB *topics,
   DBUG_TRACE;
 
   unique_ptr_destroy_only<RowIterator> iterator = init_table_iterator(
-      thd, nullptr, topics, false,
+      thd, nullptr, topics,
       /*ignore_not_found_rows=*/false, /*count_examined_rows=*/false);
   if (iterator == nullptr) return 0;
 
@@ -258,7 +258,7 @@ static int search_keyword(THD *thd, QEP_TAB *keywords,
   DBUG_TRACE;
 
   unique_ptr_destroy_only<RowIterator> iterator = init_table_iterator(
-      thd, nullptr, keywords, false,
+      thd, nullptr, keywords,
       /*ignore_not_found_rows=*/false, /*count_examined_rows=*/false);
   if (iterator == nullptr) return 0;
 
@@ -376,7 +376,7 @@ static int search_categories(THD *thd, QEP_TAB *categories,
   DBUG_TRACE;
 
   unique_ptr_destroy_only<RowIterator> iterator = init_table_iterator(
-      thd, nullptr, categories, false,
+      thd, nullptr, categories,
       /*ignore_not_found_rows=*/false, /*count_examined_rows=*/false);
   if (iterator == nullptr) return 0;
 
@@ -408,7 +408,7 @@ static void get_all_items_for_category(THD *thd, QEP_TAB *items, Field *pfname,
   DBUG_TRACE;
 
   unique_ptr_destroy_only<RowIterator> iterator = init_table_iterator(
-      thd, nullptr, items, false,
+      thd, nullptr, items,
       /*ignore_not_found_rows=*/false, /*count_examined_rows=*/false);
   if (iterator == nullptr) return;
   while (!iterator->Read()) {
