@@ -134,6 +134,7 @@ InnoDB:
 #include <limits>
 #include <map>
 #include <type_traits> /* std::is_trivially_default_constructible */
+#include <unordered_set>
 
 #include "my_basename.h"
 #include "mysql/psi/mysql_memory.h"
@@ -702,9 +703,7 @@ class ut_allocator {
 
 #ifdef UNIV_PFS_MEMORY
     ut_new_pfx_t *pfx = static_cast<ut_new_pfx_t *>(ptr);
-
     allocate_trace(total_bytes, key, pfx);
-
     return (reinterpret_cast<pointer>(pfx + 1));
 #else
     return (reinterpret_cast<pointer>(ptr));
@@ -1305,6 +1304,10 @@ using ostringstream =
 /** Specialization of vector which uses ut_allocator. */
 template <typename T>
 using vector = std::vector<T, ut_allocator<T>>;
+
+template <typename Key>
+using unordered_set = std::unordered_set<Key, std::hash<Key>,
+                                         std::equal_to<Key>, ut_allocator<Key>>;
 
 }  // namespace ut
 #endif /* ut0new_h */

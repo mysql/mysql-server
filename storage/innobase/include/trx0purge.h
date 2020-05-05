@@ -33,6 +33,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef trx0purge_h
 #define trx0purge_h
 
+#include <unordered_set>
 #include "fil0fil.h"
 #include "mtr0mtr.h"
 #include "page0page.h"
@@ -1045,6 +1046,9 @@ struct trx_purge_t {
 
   /** Heap for reading the undo log records */
   mem_heap_t *heap;
+
+  /** Set of all THDs allocated by the purge system. */
+  ut::unordered_set<THD *> thds;
 };
 
 /** Choose the rollback segment with the smallest trx_no. */
