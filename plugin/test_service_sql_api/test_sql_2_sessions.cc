@@ -696,6 +696,7 @@ static void test_sql(void *p) {
   WRITE_STR("\nClose Session 1\n");
   if (srv_session_close(session_1))
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Close session_1 failed.");
+  session_1 = nullptr;
 
   /* Statement 4 */
   WRITE_SEP();
