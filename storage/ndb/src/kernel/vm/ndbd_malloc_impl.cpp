@@ -41,6 +41,7 @@
 #endif
 
 #define PAGES_PER_REGION_LOG BPP_2LOG
+#define ALLOC_PAGES_PER_REGION ((1 << PAGES_PER_REGION_LOG) - 2)
 
 #ifdef _WIN32
 void *sbrk(int increment)
@@ -812,9 +813,15 @@ Ndbd_mem_manager::init(Uint32 *watchCounter, Uint32 max_pages , bool alloc_less_
 
 #ifdef USE_DO_VIRTUAL_ALLOC
   {
+    // Add one page per extra ZONE used due to using all zones even if not needed.
+    int zones_needed = 1;
+    for (zones_needed = 1; zones_needed <= ZONE_COUNT; zones_needed++)
+    {
+      if (pages < (zone_bound[zones_needed - 1] << PAGES_PER_REGION_LOG))
+        break;
+    }
+    pages += ZONE_COUNT - zones_needed;
     InitChunk chunks[ZONE_COUNT];
-    /* Add one more page per ZONE */
-    pages += ZONE_COUNT;
     if (do_virtual_alloc(pages, chunks, watchCounter, &m_base_page))
     {
       for (int i = 0; i < ZONE_COUNT; i++)
@@ -2014,6 +2021,14 @@ Test_mem_manager::Test_mem_manager(Uint32 tot_mem,
   rl.m_resource_id = RG_QM2;
   set_resource_limit(rl);
 
+  /*
+   * Add one extra page for the initial bitmap page and the final empty page
+   * for each complete region (8GiB).
+   * And one extra page for initial page of last region which do not need an
+   * empty page.
+   */
+  require(tot_mem > 0);
+  tot_mem += 2 * ((tot_mem - 1) / ALLOC_PAGES_PER_REGION) + 1;
   init(NULL, tot_mem);
   map(NULL);
 }
@@ -2064,12 +2079,7 @@ main(int argc, char** argv)
 void transfer_test()
 {
   const Uint32 data_pages = 18;
-#ifndef USE_DO_VIRTUAL_ALLOC
-  const Uint32 meta_pages = 1;
-#else
-  const Uint32 meta_pages = Test_mem_manager::ZONE_COUNT;
-#endif
-  Test_mem_manager mem(meta_pages + data_pages, 4, 4, 4, 4);
+  Test_mem_manager mem(data_pages, 4, 4, 4, 4);
   Ndbd_mem_manager::AllocZone zone = Ndbd_mem_manager::NDB_ZONE_LE_32;
 
   Uint32 dm[4 + 1];
