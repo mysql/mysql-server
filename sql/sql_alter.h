@@ -326,7 +326,7 @@ class Alter_info {
 
     /// Set if ANY engine attribute is used (also in CREATE) Note that
     /// this is NOT to be set for SECONDARY_ENGINE_ATTRIBUTE as this flag
-    /// controls if execution schould check if SE supports engine
+    /// controls if execution should check if SE supports engine
     /// attributes.
     ANY_ENGINE_ATTRIBUTE = 1ULL << 39
   };

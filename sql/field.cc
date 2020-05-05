@@ -132,6 +132,7 @@ namespace {
    condition, false otherwise.
 */
 bool sql_type_prevents_inplace(const Field &from, const Create_field &to) {
+  DBUG_TRACE;
   return to.sql_type != from.real_type();
 }
 
@@ -147,19 +148,35 @@ bool sql_type_prevents_inplace(const Field &from, const Create_field &to) {
    condition, false otherwise.
 */
 bool length_prevents_inplace(const Field &from, const Create_field &to) {
-  DBUG_PRINT("inplace", ("stmt: %s", current_thd->query().str));
+  DBUG_TRACE;
+  DBUG_PRINT(
+      "inplace",
+      ("from:%p, to.field:%p, to.field->row_pack_length():%u, "
+       "to.max_display_width_in_bytes():%zu",
+       &from, to.field, to.field ? to.field->row_pack_length() : (uint)-1,
+       to.max_display_width_in_bytes()));
 
-  DBUG_PRINT("inplace", ("from: field_length:%u, pack_length():%u, "
-                         "row_pack_length():%u, max_display_length():%u",
-                         from.field_length, from.pack_length(),
-                         from.row_pack_length(), from.max_display_length()));
+  if (to.pack_length() < from.pack_length()) {
+    DBUG_PRINT(
+        "inplace",
+        ("decreasing pack_length from %u to %zu, -> true for '%s'",
+         from.pack_length(), to.pack_length(), current_thd->query().str));
+    return true;
+  }
 
-  DBUG_PRINT("inplace", ("to: length:%zu, pack_length:%zu",
-                         to.max_display_width_in_bytes(), to.pack_length()));
-
-  return (
-      to.pack_length() < from.pack_length() ||
-      (to.max_display_width_in_bytes() >= 256 && from.row_pack_length() < 256));
+  if (to.max_display_width_in_bytes() >= 256 && from.row_pack_length() < 256) {
+    DBUG_PRINT("inplace",
+               ("row_pack_length increases past the 256 threshold, from %u to "
+                "%zu, -> true for '%s'",
+                from.row_pack_length(), to.max_display_width_in_bytes(),
+                current_thd->query().str));
+    DBUG_PRINT("inplace",
+               ("from:%p, to.field:%p, to.field->row_pack_length():%u", &from,
+                to.field, to.field ? to.field->row_pack_length() : (uint)-1));
+    return true;
+  }
+  DBUG_PRINT("inplace", ("-> false"));
+  return false;
 }
 
 /**
@@ -188,6 +205,8 @@ bool length_prevents_inplace(const Field &from, const Create_field &to) {
    condition, false otherwise.
 */
 bool charset_prevents_inplace(const Field_str &from, const Create_field &to) {
+  DBUG_TRACE;
+
   if (my_charset_same(to.charset, from.charset()) ||
       my_charset_same(to.charset, &my_charset_bin)) {
     return false;
@@ -208,6 +227,7 @@ bool charset_prevents_inplace(const Field_str &from, const Create_field &to) {
    condition, false otherwise.
 */
 bool change_prevents_inplace(const Field_str &from, const Create_field &to) {
+  DBUG_TRACE;
   return sql_type_prevents_inplace(from, to) ||
          length_prevents_inplace(from, to) ||
          charset_prevents_inplace(from, to);
@@ -6051,6 +6071,8 @@ bool Field::gcol_expr_is_equal(const Create_field *field) const {
 }
 
 uint Field_str::is_equal(const Create_field *new_field) const {
+  DBUG_TRACE;
+
   if (change_prevents_inplace(*this, *new_field)) {
     return IS_EQUAL_NO;
   }
@@ -6745,6 +6767,7 @@ Field *Field_varstring::new_key_field(MEM_ROOT *root, TABLE *new_table,
 }
 
 uint Field_varstring::is_equal(const Create_field *new_field) const {
+  DBUG_TRACE;
   if (change_prevents_inplace(*this, *new_field)) {
     return IS_EQUAL_NO;
   }
@@ -7281,6 +7304,8 @@ uint Field_blob::max_packed_col_length() const {
 }
 
 uint Field_blob::is_equal(const Create_field *new_field) const {
+  DBUG_TRACE;
+
   // Can't use change_prevents_inplace() here as it uses
   // sql_type_prevents_inplace() which checks real_type(), and
   // Field_blob::real_type() does NOT return the actual blob type as
@@ -8299,17 +8324,15 @@ bool Field_enum::eq_def(const Field *field) const {
 */
 
 uint Field_enum::is_equal(const Create_field *new_field) const {
+  DBUG_TRACE;
   /*
     The fields are compatible if they have the same flags,
     type, charset and have the same underlying length.
   */
-  if (change_prevents_inplace(*this, *new_field)) {
-    DBUG_PRINT("inplace", ("change_prevents_inplace() -> IS_EQUAL_NO"));
+  if (sql_type_prevents_inplace(*this, *new_field)) {
+    DBUG_PRINT("inplace", ("-> IS_EQUAL_NO"));
     return IS_EQUAL_NO;
   }
-  // Assert - either the charset is unchanged or the change is
-  // inplace-compatible.
-
   TYPELIB *new_typelib = new_field->interval;
 
   /*
