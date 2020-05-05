@@ -556,7 +556,7 @@ fts_cache_t *fts_cache_create(
       static_cast<fts_sync_t *>(mem_heap_zalloc(heap, sizeof(fts_sync_t)));
 
   cache->sync->table = table;
-  cache->sync->event = os_event_create(nullptr);
+  cache->sync->event = os_event_create();
 
   /* Create the index cache vector that will hold the inverted indexes. */
   cache->indexes =

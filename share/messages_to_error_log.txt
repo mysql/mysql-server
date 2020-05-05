@@ -8990,7 +8990,7 @@ ER_IB_MSG_1151
 ER_IB_MSG_1152
   eng "Waiting for purge to complete"
 
-ER_IB_MSG_1153
+OBSOLETE_ER_IB_MSG_1153
   eng "Waiting for dict_stats_thread to exit"
 
 ER_IB_MSG_1154
@@ -9101,8 +9101,8 @@ ER_IB_MSG_1188
 ER_IB_MSG_1189
   eng "%s"
 
-ER_IB_MSG_1190
-  eng "%s"
+ER_IB_MSG_TRX_RECOVERY_ROLLBACK_COMPLETED
+  eng "Rollback of non-prepared transactions completed"
 
 ER_IB_MSG_1191
   eng "%s"
@@ -9279,7 +9279,7 @@ ER_IB_MSG_1248
   eng "Waiting for %s to exit."
 
 ER_IB_MSG_1249
-  eng "Waiting for %lu active transactions to finish"
+  eng "Waiting for rollback of %zu recovered transactions, before shutdown."
 
 ER_IB_MSG_1250
   eng "Waiting for master thread to be suspended."
@@ -10895,6 +10895,9 @@ ER_USERNAME_TRUNKATED
 
 ER_HOSTNAME_TRUNKATED
   eng "The host name '%s' exceeds the maximum number of allowed characters %d and is trunkated."
+
+ER_IB_MSG_TRX_RECOVERY_ROLLBACK_NOT_COMPLETED
+  eng "Rollback of non-prepared transactions not completed, due to fast shutdown"
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt

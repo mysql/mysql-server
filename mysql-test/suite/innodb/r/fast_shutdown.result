@@ -1,0 +1,22 @@
+CREATE TABLE t (a INT);
+# 0. Disable checkpoints and page cleaners.
+SET GLOBAL innodb_checkpoint_disabled = 1;
+SET GLOBAL innodb_purge_stop_now = 1;
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+# 1. Commit transaction.
+BEGIN;
+INSERT INTO t(a) VALUES(1);
+COMMIT;
+# 2. Crash trying to execute next transaction.
+BEGIN;
+INSERT INTO t(a) VALUES(2);
+SET GLOBAL innodb_log_flush_now = ON;
+# Kill the server
+# 3. Start MySQL after crash but pause trx_recovery_rollback thread to simulate delay.
+# restart: --innodb-fast-shutdown=1 --debug=d,pause_rollback_on_recovery
+# 4. Stop MySQL using fast shutdown.
+# Verifying that recovery found transactions which need rollback
+Pattern "MY-013023" found
+# 5. Restart MySQL and restore defaults (clean up for next tests).
+# restart
+DROP TABLE t;

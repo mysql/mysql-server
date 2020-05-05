@@ -198,8 +198,8 @@ class Queue {
     m_front = -1;
     m_rear = -1;
     m_size = 0;
-    m_enqueue_event = os_event_create("redo_log_archive_enqueue");
-    m_dequeue_event = os_event_create("redo_log_archive_dequeue");
+    m_enqueue_event = os_event_create();
+    m_dequeue_event = os_event_create();
     mutex_create(LATCH_ID_REDO_LOG_ARCHIVE_QUEUE_MUTEX, &m_mutex);
   }
 
@@ -1242,7 +1242,7 @@ static bool redo_log_archive_start(THD *thd, const char *label,
   /*
     Create the consume_event.
   */
-  os_event_t consume_event = os_event_create("redo_log_archive_consume_event");
+  os_event_t consume_event = os_event_create();
   DBUG_EXECUTE_IF("redo_log_archive_bad_alloc", os_event_destroy(consume_event);
                   consume_event = nullptr;);
   if (consume_event == nullptr) {

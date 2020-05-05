@@ -1114,7 +1114,7 @@ void LatchDebug::init() UNIV_NOTHROW {
 
   mutex_create(LATCH_ID_RW_LOCK_DEBUG, &rw_lock_debug_mutex);
 
-  rw_lock_debug_event = os_event_create("rw_lock_debug_event");
+  rw_lock_debug_event = os_event_create();
 
   rw_lock_debug_waiters.store(false, std::memory_order_relaxed);
 }

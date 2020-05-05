@@ -329,7 +329,7 @@ void lock_sys_create(
 
   mutex_create(LATCH_ID_LOCK_SYS_WAIT, &lock_sys->wait_mutex);
 
-  lock_sys->timeout_event = os_event_create(nullptr);
+  lock_sys->timeout_event = os_event_create();
 
   lock_sys->rec_hash = hash_create(n_cells);
   lock_sys->prdt_hash = hash_create(n_cells);

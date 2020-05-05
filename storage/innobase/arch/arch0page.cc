@@ -1724,7 +1724,7 @@ void Arch_Page_Sys::track_page(buf_page_t *bpage, lsn_t track_lsn,
 
     /* Can possibly loop only two times. */
     if (count >= 2) {
-      if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
+      if (srv_shutdown_state.load() >= SRV_SHUTDOWN_CLEANUP) {
         arch_oper_mutex_exit();
         return;
       }
@@ -2121,7 +2121,7 @@ bool Arch_Page_Sys::wait_idle() {
           ut_ad(mutex_own(&m_mutex));
           result = (m_state == ARCH_STATE_PREPARE_IDLE);
 
-          if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
+          if (srv_shutdown_state.load() >= SRV_SHUTDOWN_CLEANUP) {
             return (ER_QUERY_INTERRUPTED);
           }
 
@@ -2371,7 +2371,7 @@ int Arch_Page_Sys::start(Arch_Group **group, lsn_t *start_lsn,
   if (!wait_idle()) {
     int err = 0;
 
-    if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
+    if (srv_shutdown_state.load() >= SRV_SHUTDOWN_CLEANUP) {
       err = ER_QUERY_INTERRUPTED;
       my_error(err, MYF(0));
     } else {

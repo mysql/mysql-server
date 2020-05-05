@@ -49,6 +49,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#ifndef UNIV_LINUX
+#include <unistd.h> /* std::_Exit */
+#endif              /* !UNIV_LINUX */
 #include <zlib.h>
 
 #include "my_dbug.h"
@@ -142,8 +145,6 @@ bool srv_sys_tablespaces_open = false;
 /** true if the server is being started, before rolling back any
 incomplete transactions */
 bool srv_startup_is_before_trx_rollback_phase = false;
-/** true if srv_pre_dd_shutdown() has been completed */
-bool srv_is_being_shutdown = false;
 /** true if srv_start() has been called */
 static bool srv_start_has_been_called = false;
 
@@ -165,8 +166,6 @@ enum srv_start_state_t {
 /** Track server thrd starting phases */
 static uint64_t srv_start_state = SRV_START_STATE_NONE;
 
-/** At a shutdown this value climbs from SRV_SHUTDOWN_NONE to
-SRV_SHUTDOWN_CLEANUP and then to SRV_SHUTDOWN_LAST_PHASE, and so on */
 std::atomic<enum srv_shutdown_t> srv_shutdown_state{SRV_SHUTDOWN_NONE};
 
 /** Files comprising the system tablespace */
@@ -1558,7 +1557,7 @@ static void srv_start_wait_for_purge_to_start() {
 
   ut_a(state != PURGE_STATE_DISABLED);
 
-  while (srv_shutdown_state.load() == SRV_SHUTDOWN_NONE &&
+  while (srv_shutdown_state.load() < SRV_SHUTDOWN_PURGE &&
          srv_force_recovery < SRV_FORCE_NO_BACKGROUND &&
          state == PURGE_STATE_INIT) {
     switch (state = trx_purge_state()) {
@@ -1664,14 +1663,7 @@ bool srv_start_state_is_set(
   return (srv_start_state & state);
 }
 
-/** Attempt to shutdown all background threads created by InnoDB.
-NOTE: Does not guarantee they are actually shut down, only does
-the best effort. Changes state of shutdown to SHUTDOWN_EXIT_THREADS,
-wakes up the background threads and waits a little bit. It might be
-used within startup phase or when fatal error is discovered during
-some IO operation. Therefore you must not assume anything related
-to the state in which it might be used. */
-void srv_shutdown_all_bg_threads() {
+void srv_shutdown_exit_threads() {
   srv_shutdown_state.store(SRV_SHUTDOWN_EXIT_THREADS);
 
   if (srv_start_state == SRV_START_STATE_NONE) {
@@ -1726,9 +1718,9 @@ void srv_shutdown_all_bg_threads() {
       }
     }
 
-    /* f. dict_stats_thread is signaled from
-    logs_empty_and_mark_files_at_shutdown() and should have
-    already quit or is quitting right now. */
+    if (srv_thread_is_active(srv_threads.m_dict_stats)) {
+      os_event_set(dict_stats_event);
+    }
 
     /* Try to stop archiver threads. */
     arch_wake_threads();
@@ -1808,7 +1800,7 @@ static dberr_t srv_init_abort_low(bool create_new_db,
   }
 
   clone_files_error();
-  srv_shutdown_all_bg_threads();
+  srv_shutdown_exit_threads();
 
   return (err);
 }
@@ -3095,12 +3087,47 @@ srv_fts_close(void)
 }
 #endif
 
-static void srv_shutdown_background_threads();
+/** Set srv_shutdown_state to a given state and validate change is proper.
+@remarks This function is used only from the main thread, and only during
+startup or shutdown.
+@param[in]  new_state   new state to set */
+static void srv_shutdown_set_state(srv_shutdown_t new_state) {
+  ut_a(static_cast<int>(srv_shutdown_state.load()) + 1 ==
+       static_cast<int>(new_state));
+
+  srv_shutdown_state.store(new_state);
+}
+
+static void srv_shutdown_cleanup_and_master_stop();
+
+bool srv_shutdown_waits_for_rollback_of_recovered_transactions() {
+  return (srv_force_recovery < SRV_FORCE_NO_TRX_UNDO && srv_fast_shutdown == 0);
+}
 
 /** Shut down all InnoDB background tasks that may look up objects in
 the data dictionary. */
 void srv_pre_dd_shutdown() {
-  ut_a(!srv_is_being_shutdown);
+  ut_a(srv_shutdown_state.load() == SRV_SHUTDOWN_NONE);
+
+  /* Warn and wait if there are still some query threads alive.
+  If all is correct, then all user threads should already be gone,
+  because before clean_up() -> srv_pre_dd_shutdown() is called,
+  we are joining signal_hand thread, which before exiting waits
+  for all connections to be closed (close_connections()). */
+  for (size_t count = 0; count < 10; ++count) {
+    const auto threads_count = srv_conc_get_active_threads();
+    if (threads_count == 0) {
+      break;
+    }
+    ib::warn(ER_IB_MSG_1154, ulonglong{threads_count});
+    os_thread_sleep(1000000);  // 1s
+  }
+  /* Crash if some query threads are still alive. */
+  ut_a(srv_conc_get_active_threads() == 0);
+
+  ut_a(!srv_thread_is_active(srv_threads.m_recv_writer));
+
+  trx_sys_before_pre_dd_shutdown_validate();
 
   /* Avoid fast shutdown, if redo logging is disabled. Otherwise, we won't be
   able to recover. */
@@ -3114,30 +3141,42 @@ void srv_pre_dd_shutdown() {
   gtid_persistor.stop();
 
   if (srv_read_only_mode) {
-    /* In read-only mode, no background tasks should
-    access the data dictionary. */
-    srv_is_being_shutdown = true;
-    srv_shutdown_state.store(SRV_SHUTDOWN_CLEANUP);
+    /* Check that goal of SRV_SHUTDOWN_RECOVERY_ROLLBACK is reached:
+    1. In read-only mode, no rollbacks should be executed.
+    2. The trx_recovery_rollback thread should not be started. */
+    ut_ad(trx_sys_recovered_active_trxs_count() == 0);
+    ut_a(!srv_thread_is_active(srv_threads.m_trx_recovery_rollback));
+
+    /* Check the goal of SRV_SHUTDOWN_PRE_DD_AND_SYSTEM_TRANSACTIONS,
+    the following threads should not be started in read-only mode: */
+    ut_a(!srv_thread_is_active(srv_threads.m_dict_stats));
+    ut_a(!srv_thread_is_active(srv_threads.m_fts_optimize));
+    ut_a(!srv_thread_is_active(srv_threads.m_ts_alter_encrypt));
+
+    /* In read-only mode, there is no master thread. */
+    ut_a(!srv_thread_is_active(srv_threads.m_master));
+
+    /* In read-only mode, no purge should be done, so goal of the
+    SRV_SHUTDOWN_PURGE is already satisfied (no purge threads). */
+    ut_a(!srv_purge_threads_active());
+
+    /* Advance quickly through all states to SRV_SHUTDOWN_DD. */
+    srv_shutdown_set_state(SRV_SHUTDOWN_RECOVERY_ROLLBACK);
+    srv_shutdown_set_state(SRV_SHUTDOWN_PRE_DD_AND_SYSTEM_TRANSACTIONS);
+    srv_shutdown_set_state(SRV_SHUTDOWN_PURGE);
+    srv_shutdown_set_state(SRV_SHUTDOWN_DD);
     return;
   }
 
-  if (srv_start_state_is_set(SRV_START_STATE_STAT)) {
-    fts_optimize_shutdown();
-    dict_stats_shutdown();
+  srv_shutdown_set_state(SRV_SHUTDOWN_RECOVERY_ROLLBACK);
 
-  } else {
-    /* Check that there are no longer transactions, except for
-    XA PREPARE ones. We need this wait even for the 'very fast'
-    shutdown, because the InnoDB layer may have committed or
-    prepared transactions and we don't want to lose them. */
-
+  if (srv_shutdown_waits_for_rollback_of_recovered_transactions()) {
+    /* We need to wait for rollback of recovered transactions. */
     for (uint32_t count = 0;; ++count) {
-      const ulint total_trx = trx_sys_any_active_transactions();
-
+      const auto total_trx = trx_sys_recovered_active_trxs_count();
       if (total_trx == 0) {
         break;
       }
-
       if (count >= SHUTDOWN_SLEEP_ROUNDS) {
         ib::info(ER_IB_MSG_1249, total_trx);
         count = 0;
@@ -3146,103 +3185,90 @@ void srv_pre_dd_shutdown() {
     }
   }
 
-  /* On slow shutdown, we have to wait for background thread
-  doing the rollback to finish first because it can add undo to
-  purge. So exit this thread before initiating purge shutdown. */
-  if (srv_fast_shutdown == 0 &&
-      srv_thread_is_active(srv_threads.m_trx_recovery_rollback)) {
-    /* We should wait until rollback after recovery end for slow shutdown */
+  if (srv_thread_is_active(srv_threads.m_trx_recovery_rollback)) {
+    /* We should wait until rollback after recovery end to avoid
+    adding more for purge and to avoid touching transaction objects
+    since this point. */
     srv_threads.m_trx_recovery_rollback.wait();
   }
 
-  /* Here, we will only shut down the tasks that may be looking up
-  tables or other objects in the Global Data Dictionary.
-  The following background tasks will not be affected:
-  * background rollback of recovered transactions (those table
-  definitions were already looked up IX-locked at server startup)
-  * change buffer merge (until we replace the IBUF_DUMMY objects
-  with access to the data dictionary)
-  * I/O subsystem (page cleaners, I/O threads, redo log) */
-
-  srv_shutdown_state.store(SRV_SHUTDOWN_CLEANUP);
-
-  srv_purge_wakeup();
+  srv_shutdown_set_state(SRV_SHUTDOWN_PRE_DD_AND_SYSTEM_TRANSACTIONS);
 
   if (srv_start_state_is_set(SRV_START_STATE_STAT)) {
-    os_event_set(dict_stats_event);
+    fts_optimize_shutdown();
+    dict_stats_shutdown();
+    dict_stats_thread_deinit();
   }
+  ut_a(!srv_thread_is_active(srv_threads.m_fts_optimize));
+  ut_a(!srv_thread_is_active(srv_threads.m_dict_stats));
 
-  for (uint32_t count = 1;;) {
-    bool wait = false;
-
-    if (srv_purge_threads_active()) {
-      wait = true;
-      srv_purge_wakeup();
-      if (count % SHUTDOWN_SLEEP_ROUNDS == 0) {
-        ib::info(ER_IB_MSG_1152);
-      }
-    } else {
-      switch (trx_purge_state()) {
-        case PURGE_STATE_INIT:
-        case PURGE_STATE_EXIT:
-        case PURGE_STATE_DISABLED:
-          srv_start_state &= ~SRV_START_STATE_PURGE;
-          break;
-        case PURGE_STATE_RUN:
-        case PURGE_STATE_STOP:
-          ut_ad(0);
-      }
+  for (uint32_t count = 1; srv_thread_is_active(srv_threads.m_ts_alter_encrypt);
+       ++count) {
+    if (count % SHUTDOWN_SLEEP_ROUNDS == 0) {
+      ib::info(ER_IB_MSG_WAIT_FOR_ENCRYPT_THREAD);
     }
-
-    if (srv_thread_is_active(srv_threads.m_dict_stats)) {
-      wait = true;
-      os_event_set(dict_stats_event);
-      if (count % SHUTDOWN_SLEEP_ROUNDS == 0) {
-        ib::info(ER_IB_MSG_1153);
-      }
-    }
-
-    if (srv_thread_is_active(srv_threads.m_ts_alter_encrypt)) {
-      wait = true;
-      if (count % SHUTDOWN_SLEEP_ROUNDS == 0) {
-        ib::info(ER_IB_MSG_WAIT_FOR_ENCRYPT_THREAD);
-      }
-    }
-
-    if (!wait) {
-      break;
-    }
-
-    count++;
     os_thread_sleep(SHUTDOWN_SLEEP_TIME_US);
   }
 
-  if (srv_start_state_is_set(SRV_START_STATE_STAT)) {
-    dict_stats_thread_deinit();
+  /* Wait until the master thread exits its main loop and notices that:
+    - it should do shutdown-cleanup,
+    - and still is allowed to access DD objects. */
+  if (srv_thread_is_active(srv_threads.m_master)) {
+    srv_wake_master_thread();
+    os_event_wait(srv_threads.m_master_ready_for_dd_shutdown);
   }
 
-  srv_is_being_shutdown = true;
+  /* Since this point we do not expect accesses to DD coming from InnoDB. */
 
-  ut_a(trx_sys_any_active_transactions() == 0);
+  srv_shutdown_set_state(SRV_SHUTDOWN_PURGE);
+
+  for (uint32_t count = 1; srv_purge_threads_active(); ++count) {
+    srv_purge_wakeup();
+    if (count % SHUTDOWN_SLEEP_ROUNDS == 0) {
+      ib::info(ER_IB_MSG_1152);
+    }
+    os_thread_sleep(SHUTDOWN_SLEEP_TIME_US);
+  }
+  switch (trx_purge_state()) {
+    case PURGE_STATE_INIT:
+    case PURGE_STATE_EXIT:
+    case PURGE_STATE_DISABLED:
+      srv_start_state &= ~SRV_START_STATE_PURGE;
+      break;
+    case PURGE_STATE_RUN:
+    case PURGE_STATE_STOP:
+      ut_ad(0);
+  }
+
+  /* After this phase plugins are asked to be shut down, in which case they
+  will be marked as DELETED. Note: we cannot leave any transaction in the THD,
+  because the mechanism which cleans resources in THD would not be able to
+  unregister those transactions from mysql_trx_list, because the handler
+  of close_connection in InnoDB handlerton would not be called, because
+  InnoDB has already been marked as DELETED. You should close your thread
+  here, in the srv_pre_dd_shutdown, if it might do lookups in DD objects.
+  No other transactions should be useful, so for sake of simplicity we
+  require to have no transactions at all here, except transactions:
+    - with state = TRX_STATE_PREPARED,
+    - with state = TRX_STATE_ACTIVE and with is_recovered == true */
+
+  trx_sys_after_pre_dd_shutdown_validate();
+
+  srv_shutdown_set_state(SRV_SHUTDOWN_DD);
 
   DBUG_EXECUTE_IF("wait_for_threads_in_pre_dd_shutdown",
-                  srv_shutdown_background_threads(););
+                  srv_shutdown_cleanup_and_master_stop(););
 }
 
 /** Shutdown background threads of InnoDB at the start of the shutdown phase.
-This phase happens when plugins are asked to be shut down, in which case they
-are already marked as DELETED. Note: be careful not to leave any transaction
-in the THD, because the mechanism which cleans resources in THD would not be
-able to unregister those transactions from mysql_trx_list, because the handler
-of close_connection in InnoDB handlerton would not be called, because InnoDB
-has already been marked as DELETED. You should close your thread earlier, in
-the srv_pre_dd_shutdown if it might do lookups in DD objects. That phase
-happens earlier (ha_panic function) before the shutdown of plugins happens). */
-static void srv_shutdown_background_threads() {
+Handles shutdown phases: SRV_SHUTDOWN_CLEANUP and SRV_SHUTDOWN_MASTER_STOP. */
+static void srv_shutdown_cleanup_and_master_stop() {
   DBUG_EXECUTE_IF("threads_wait_on_cleanup",
-                  os_event_set(srv_threads.shutdown_cleanup_dbg););
+                  os_event_set(srv_threads.m_shutdown_cleanup_dbg););
 
-  ut_ad(srv_shutdown_state.load() == SRV_SHUTDOWN_CLEANUP);
+  ut_a(srv_shutdown_state.load() == SRV_SHUTDOWN_DD);
+
+  srv_shutdown_set_state(SRV_SHUTDOWN_CLEANUP);
 
   struct Thread_to_stop {
     /** Name of the thread, printed to the error log if we waited too
@@ -3282,6 +3308,8 @@ static void srv_shutdown_background_threads() {
       {"master", srv_threads.m_master, srv_wake_master_thread,
        SRV_SHUTDOWN_MASTER_STOP}};
 
+  const srv_shutdown_t max_wait_on_state{SRV_SHUTDOWN_MASTER_STOP};
+
   uint32_t count = 0;
 
   for (;;) {
@@ -3295,14 +3323,12 @@ static void srv_shutdown_background_threads() {
       print = false;
     }
 
-    int active_cleanup_found = 0, active_found = 0;
-
+    size_t active_found = 0;
     for (const auto &thread_info : threads_to_stop) {
-      if (srv_thread_is_active(thread_info.m_thread)) {
+      ut_a(thread_info.m_wait_on_state <= max_wait_on_state);
+      if (thread_info.m_wait_on_state == srv_shutdown_state.load() &&
+          srv_thread_is_active(thread_info.m_thread)) {
         ++active_found;
-        if (thread_info.m_wait_on_state == SRV_SHUTDOWN_CLEANUP) {
-          ++active_cleanup_found;
-        }
         if (print) {
           ib::info(ER_IB_MSG_1248, thread_info.m_name);
         }
@@ -3310,26 +3336,29 @@ static void srv_shutdown_background_threads() {
       }
     }
 
-    if (active_cleanup_found == 0 &&
-        srv_shutdown_state.load() == SRV_SHUTDOWN_CLEANUP) {
-      /* Cleanup is ended. */
-      srv_shutdown_state.store(SRV_SHUTDOWN_MASTER_STOP);
-    }
-
     if (active_found == 0) {
-      break;
+      if (srv_shutdown_state.load() == max_wait_on_state) {
+        break;
+      }
+      srv_shutdown_set_state(static_cast<srv_shutdown_t>(
+          static_cast<int>(srv_shutdown_state.load()) + 1));
     }
 
     os_thread_sleep(SHUTDOWN_SLEEP_TIME_US);
     ++count;
   }
+
+  ut_a(srv_shutdown_state.load() == SRV_SHUTDOWN_MASTER_STOP);
+
+  trx_sys_after_background_threads_shutdown_validate();
 }
 
+/** Waits for page cleaners exit. */
 static void srv_shutdown_page_cleaners() {
   ut_a(srv_shutdown_state.load() == SRV_SHUTDOWN_MASTER_STOP);
   ut_a(!srv_master_thread_is_active());
 
-  srv_shutdown_state.store(SRV_SHUTDOWN_FLUSH_PHASE);
+  srv_shutdown_set_state(SRV_SHUTDOWN_FLUSH_PHASE);
 
   /* At this point only page_cleaner should be active. We wait
   here to let it complete the flushing of the buffer pools
@@ -3390,7 +3419,7 @@ static lsn_t srv_shutdown_log() {
     /* No redo log might be generated since now. */
     log_background_threads_inactive_validate(*log_sys);
 
-    srv_shutdown_state.store(SRV_SHUTDOWN_LAST_PHASE);
+    srv_shutdown_set_state(SRV_SHUTDOWN_LAST_PHASE);
 
     return (log_get_lsn(*log_sys));
   }
@@ -3419,7 +3448,7 @@ static lsn_t srv_shutdown_log() {
     fil_flush_file_spaces(to_int(FIL_TYPE_TABLESPACE) | to_int(FIL_TYPE_LOG));
   }
 
-  srv_shutdown_state.store(SRV_SHUTDOWN_LAST_PHASE);
+  srv_shutdown_set_state(SRV_SHUTDOWN_LAST_PHASE);
 
   if (srv_downgrade_logs) {
     ut_a(!srv_read_only_mode);
@@ -3468,7 +3497,7 @@ static void srv_shutdown_arch() {
 void srv_thread_delay_cleanup_if_needed(bool wait_for_signal) {
   DBUG_EXECUTE_IF("threads_wait_on_cleanup", {
     if (wait_for_signal) {
-      os_event_set(srv_threads.shutdown_cleanup_dbg);
+      os_event_wait(srv_threads.m_shutdown_cleanup_dbg);
     } else {
       /* In some cases we cannot wait for the signal, because we would otherwise
       never reach the end of pre_dd_shutdown, becase pre_dd_shutdown is waiting
@@ -3483,10 +3512,7 @@ void srv_thread_delay_cleanup_if_needed(bool wait_for_signal) {
 
 /** Shut down the InnoDB database. */
 void srv_shutdown() {
-  /* Warn if there are still some query threads alive. */
-  if (srv_conc_get_active_threads() != 0) {
-    ib::warn(ER_IB_MSG_1154, ulonglong{srv_conc_get_active_threads()});
-  }
+  trx_sys_after_pre_dd_shutdown_validate();
 
   /* Need to revert partition file names if minor upgrade fails. */
   uint data_version = MYSQL_VERSION_ID;
@@ -3499,13 +3525,13 @@ void srv_shutdown() {
   ib::info(ER_IB_MSG_1247);
 
   ut_a(!srv_is_being_started);
-  ut_a(srv_is_being_shutdown);
-  ut_a(trx_sys_any_active_transactions() == 0);
 
   /* Ensure threads below have been stopped. */
   const auto threads_stopped_before_shutdown = {
       std::cref(srv_threads.m_purge_coordinator),
       std::cref(srv_threads.m_ts_alter_encrypt),
+      std::cref(srv_threads.m_fts_optimize),
+      std::cref(srv_threads.m_recv_writer),
       std::cref(srv_threads.m_dict_stats)};
 
   for (const auto &thread : threads_stopped_before_shutdown) {
@@ -3514,24 +3540,25 @@ void srv_shutdown() {
 
 #ifdef UNIV_DEBUG
   /* In DEBUG we might be testing scenario in which we forced to
-  call srv_shutdown_threads_on_shutdown() to stop all threads
-  at the end of the pre_dd_shutdown (already happened). */
-  ut_ad(srv_shutdown_state.load() >= SRV_SHUTDOWN_CLEANUP);
-  srv_shutdown_state.store(SRV_SHUTDOWN_CLEANUP);
+  call srv_shutdown_cleanup_and_master_stop() to stop all threads
+  at the end of the srv_pre_dd_shutdown(). */
+  DBUG_EXECUTE_IF("wait_for_threads_in_pre_dd_shutdown",
+                  srv_shutdown_state.store(SRV_SHUTDOWN_DD););
 #endif /* UNIV_DEBUG */
 
-  /* The CLEANUP state was set during pre_dd_shutdown phase. */
-  ut_a(srv_shutdown_state.load() == SRV_SHUTDOWN_CLEANUP);
+  /* The SRV_SHUTDOWN_DD state was set during pre_dd_shutdown phase. */
+  ut_a(srv_shutdown_state.load() == SRV_SHUTDOWN_DD);
 
   /* Write dynamic metadata to DD buffer table. */
   dict_persist_to_dd_table_buffer();
 
-  /* 0. Stop background threads except:
+  /* 0. Stop remaining background threads except:
     - page-cleaners - we are shutting down page cleaners in step 1
     - redo-log-threads - these need to be shutdown after page cleaners,
     - archiver threads - these need to be shutdown after redo threads.
-  After this call the state of shutdown is advanced to FLUSH_PHASE. */
-  srv_shutdown_background_threads();
+  After this call the state of shutdown is advanced to SRV_SHUTDOWN_MASTER_STOP.
+*/
+  srv_shutdown_cleanup_and_master_stop();
 
   ut_a(srv_shutdown_state.load() == SRV_SHUTDOWN_MASTER_STOP);
 
@@ -3572,7 +3599,7 @@ void srv_shutdown() {
   /* This is to preserve the old style, we should finally get rid of the call
   here. For that, we need to ensure we have already effectively closed all
   threads. */
-  srv_shutdown_all_bg_threads();
+  srv_shutdown_exit_threads();
 
   ut_a(srv_shutdown_state.load() == SRV_SHUTDOWN_EXIT_THREADS);
   ut_ad(!os_thread_any_active());
@@ -3636,8 +3663,6 @@ void srv_shutdown() {
   ib::info(ER_IB_MSG_1155, ulonglong{shutdown_lsn});
 
   srv_start_has_been_called = false;
-  srv_is_being_shutdown = false;
-  srv_shutdown_state.store(SRV_SHUTDOWN_NONE);
   srv_start_state = SRV_START_STATE_NONE;
 }
 
@@ -3658,7 +3683,7 @@ void srv_get_encryption_data_filename(dict_table_t *table, char *filename,
   ut_free(filepath);
 }
 
-/** Call exit(3) */
+/** Call std::quick_exit(3) */
 void srv_fatal_error() {
   ib::error(ER_IB_MSG_1156);
 
@@ -3666,9 +3691,11 @@ void srv_fatal_error() {
 
   ut_d(innodb_calling_exit = true);
 
-  srv_shutdown_all_bg_threads();
-
   flush_error_log_messages();
 
-  exit(3);
+#ifdef UNIV_LINUX
+  std::quick_exit(3);
+#else
+  std::_Exit(3);
+#endif /* !UNIV_LINUX */
 }

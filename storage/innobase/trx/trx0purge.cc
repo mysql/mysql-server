@@ -207,7 +207,7 @@ void trx_purge_sys_create(ulint n_purge_threads, purge_pq_t *purge_queue) {
   purge_sys = static_cast<trx_purge_t *>(ut_zalloc_nokey(sizeof(*purge_sys)));
 
   purge_sys->state = PURGE_STATE_INIT;
-  purge_sys->event = os_event_create(nullptr);
+  purge_sys->event = os_event_create();
 
   new (&purge_sys->iter) purge_iter_t;
   new (&purge_sys->limit) purge_iter_t;

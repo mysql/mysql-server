@@ -2320,7 +2320,7 @@ fil_node_t *Fil_shard::create_node(const char *name, page_no_t size,
 
   ut_a(!is_raw || srv_start_raw_disk_in_use);
 
-  file.sync_event = os_event_create("fsync_event");
+  file.sync_event = os_event_create();
 
   file.is_raw_disk = is_raw;
 

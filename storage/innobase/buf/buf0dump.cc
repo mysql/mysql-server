@@ -55,7 +55,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 enum status_severity { STATUS_VERBOSE, STATUS_INFO, STATUS_ERR };
 
-#define SHUTTING_DOWN() (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE)
+#define SHUTTING_DOWN() (srv_shutdown_state.load() >= SRV_SHUTDOWN_CLEANUP)
 
 /* Flags that tell the buffer pool dump/load thread which action should it
 take after being waked up. */

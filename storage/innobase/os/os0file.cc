@@ -6088,8 +6088,8 @@ AIO::AIO(latch_id_t id, ulint n, ulint segments)
 
   mutex_create(id, &m_mutex);
 
-  m_not_full = os_event_create("aio_not_full");
-  m_is_empty = os_event_create("aio_is_empty");
+  m_not_full = os_event_create();
+  m_is_empty = os_event_create();
 
 #ifdef LINUX_NATIVE_AIO
   memset(&m_events[0], 0x0, sizeof(m_events[0]) * m_events.size());
@@ -6355,7 +6355,7 @@ bool AIO::start(ulint n_per_seg, ulint n_readers, ulint n_writers,
   }
 
   for (ulint i = 0; i < n_segments; ++i) {
-    os_aio_segment_wait_events[i] = os_event_create(nullptr);
+    os_aio_segment_wait_events[i] = os_event_create();
   }
 
   os_last_printout = ut_time_monotonic();

@@ -54,8 +54,8 @@ Histogram_sampler::Histogram_sampler(size_t max_threads, int sampling_seed,
     blob_heap = mem_heap_create(UNIV_PAGE_SIZE / 64);
   }
 
-  m_start_buffer_event = os_event_create("Histogram sampler buffering start");
-  m_end_buffer_event = os_event_create("Histogram sampler buffering end");
+  m_start_buffer_event = os_event_create();
+  m_end_buffer_event = os_event_create();
 
   os_event_reset(m_start_buffer_event);
   os_event_reset(m_end_buffer_event);
