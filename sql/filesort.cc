@@ -1070,7 +1070,7 @@ static int write_keys(Sort_param *param, Filesort_info *fs_info, uint count,
   Merge_chunk merge_chunk;
   DBUG_TRACE;
 
-  count = fs_info->sort_buffer(param, count);
+  count = fs_info->sort_buffer(param, count, param->max_rows);
 
   if (!my_b_inited(chunk_file) &&
       open_cached_file(chunk_file, mysql_tmpdir, TEMP_PREFIX, DISK_BUFFER_SIZE,
@@ -1087,10 +1087,6 @@ static int write_keys(Sort_param *param, Filesort_info *fs_info, uint count,
     return 1; /* purecov: inspected */
 
   merge_chunk.set_file_position(my_b_tell(tempfile));
-  if (static_cast<ha_rows>(count) > param->max_rows) {
-    // Write only SELECT LIMIT rows to the file
-    count = static_cast<uint>(param->max_rows); /* purecov: inspected */
-  }
   merge_chunk.set_rowcount(static_cast<ha_rows>(count));
 
   for (uint ix = 0; ix < count; ++ix) {
@@ -1544,7 +1540,7 @@ static bool save_index(Sort_param *param, uint count, Filesort_info *table_sort,
   table_sort->set_sort_length(param->max_compare_length(),
                               param->using_varlen_keys());
 
-  count = table_sort->sort_buffer(param, count);
+  count = table_sort->sort_buffer(param, count, param->max_rows);
   sort_result->found_records = count;
 
   if (param->using_addon_fields()) {
