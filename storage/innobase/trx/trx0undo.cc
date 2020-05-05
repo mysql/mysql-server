@@ -1965,12 +1965,10 @@ void trx_undo_free_trx_with_prepared_or_active_logs(trx_t *trx,
 
 bool trx_undo_truncate_tablespace(undo::Tablespace *marked_space) {
 #ifdef UNIV_DEBUG
-  static int truncate_fail_count;
-  DBUG_EXECUTE_IF(
-      "ib_undo_trunc_fail_truncate", if (++truncate_fail_count == 1) {
-        ib::info(ER_IB_MSG_1356) << "ib_undo_trunc_fail_truncate";
-        return (false);
-      });
+  static undo::Inject_failure_once injector("ib_undo_trunc_fail_truncate");
+  if (injector.should_fail()) {
+    return (false);
+  };
 #endif /* UNIV_DEBUG */
 
   bool success = true;
@@ -1995,9 +1993,7 @@ bool trx_undo_truncate_tablespace(undo::Tablespace *marked_space) {
     return (success);
   }
 
-  DBUG_EXECUTE_IF("ib_undo_trunc_empty_file",
-                  ib::info(ER_IB_MSG_UNDO_TRUNC_EMPTY_FILE);
-                  DBUG_SUICIDE(););
+  ut_d(undo::inject_crash("ib_undo_trunc_empty_file"));
 
   /* This undo tablespace is unused. Lock the Rsegs before the
   file_space because SYNC_RSEGS > SYNC_FSP. */
@@ -2028,9 +2024,7 @@ bool trx_undo_truncate_tablespace(undo::Tablespace *marked_space) {
   /* Step-4: Re-initialize rollback segment header that resides
   in truncated tablespaces. */
 
-  DBUG_EXECUTE_IF("ib_undo_trunc_before_rsegs",
-                  ib::info(ER_IB_MSG_UNDO_TRUNK_BEFORE_RSEG);
-                  DBUG_SUICIDE(););
+  ut_d(undo::inject_crash("ib_undo_trunc_before_rsegs"));
 
   for (auto rseg : *marked_rsegs) {
     log_free_check();

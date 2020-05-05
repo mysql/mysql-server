@@ -730,7 +730,7 @@ bool Tablespace::needs_truncation() {
   pool. */
   auto count = fil_count_deleted(undo::id2num(m_id));
   if (count > CONCURRENT_UNDO_TRUNCATE_LIMIT) {
-    ib::warn(ER_IB_MSG_UNDO_TRUNCATION_TOO_OFTEN);
+    ib::warn(ER_IB_MSG_UNDO_TRUNCATE_TOO_OFTEN);
     return (false);
   }
 
@@ -880,6 +880,7 @@ char *Tablespace::make_log_file_name(space_id_t space_id) {
 
 void Tablespace::alter_active() {
   m_rsegs->x_lock();
+  ut_d(ib::info(ER_IB_MSG_UNDO_ALTERED_ACTIVE, file_name()));
   if (m_rsegs->is_empty()) {
     m_rsegs->set_active();
   } else if (m_rsegs->is_inactive_explicit()) {
@@ -892,14 +893,32 @@ void Tablespace::alter_active() {
   m_rsegs->x_unlock();
 }
 
+#ifdef UNIV_DEBUG
+void inject_crash(const char *injection_point_name) {
+  DBUG_EXECUTE_IF(injection_point_name,
+                  ib::info(ER_IB_MSG_UNDO_INJECT_CRASH, injection_point_name);
+                  log_buffer_flush_to_disk(); DBUG_SUICIDE(););
+}
+
+bool Inject_failure_once::should_fail() {
+  DBUG_EXECUTE_IF(m_inject_name, {
+    if (!m_already_failed) {
+      m_already_failed = true;
+      ib::info(ER_IB_MSG_UNDO_INJECT_FAILURE, m_inject_name);
+      return true;
+    }
+  });
+  return false;
+}
+
+#endif /* UNIV_DEBUG */
+
 dberr_t start_logging(Tablespace *undo_space) {
 #ifdef UNIV_DEBUG
-  static int fail_start_logging_count;
-  DBUG_EXECUTE_IF(
-      "ib_undo_trunc_fail_start_logging", if (++fail_start_logging_count == 1) {
-        ib::info(ER_IB_MSG_1352) << "ib_undo_trunc_fail_start_logging";
-        return (DB_OUT_OF_MEMORY);
-      });
+  static undo::Inject_failure_once injector("ib_undo_trunc_fail_start_logging");
+  if (injector.should_fail()) {
+    return (DB_OUT_OF_MEMORY);
+  }
 #endif /* UNIV_DEBUG */
 
   dberr_t err;
@@ -1043,8 +1062,8 @@ bool is_active_truncate_log_present(space_id_t space_num) {
     os_file_close(handle);
 
     if (err != DB_SUCCESS) {
-      ib::info(ER_IB_MSG_1166)
-          << "Unable to read '" << log_file_name << "' : " << ut_strerr(err);
+      ib::info(ER_IB_MSG_UNDO_TRUNCATE_FAIL_TO_READ_LOG_FILE, log_file_name,
+               ut_strerr(err));
 
       os_file_delete(innodb_log_file_key, log_file_name);
 
@@ -1291,10 +1310,7 @@ void undo::Truncate::mark(Tablespace *undo_space) {
   accelerate the purge action and in turn truncate. */
   set_rseg_truncate_frequency(3);
 
-#ifdef UNIV_DEBUG
-  ib::info(ER_IB_MSG_1167) << "Undo tablespace number " << undo_space->num()
-                           << " is marked for truncate";
-#endif /* UNIV_DEBUG */
+  ut_d(ib::info(ER_IB_MSG_UNDO_MARKED_FOR_TRUNCATE, undo_space->file_name()));
 }
 
 size_t undo::Truncate::s_scan_pos;
@@ -1367,49 +1383,45 @@ static bool trx_purge_truncate_marked_undo_low(space_id_t space_num,
   undo::spaces->x_lock();
 
   undo::Tablespace *marked_space = undo::spaces->find(space_num);
+
 #ifdef UNIV_DEBUG
-  static int fail_marked_space_count;
-  DBUG_EXECUTE_IF(
-      "ib_undo_trunc_fail_marked_space", if (++fail_marked_space_count == 1) {
-        ib::info(ER_IB_MSG_1353) << "ib_undo_trunc_fail_marked_space";
-        marked_space = nullptr;
-      });
+  static undo::Inject_failure_once inject_marked_space(
+      "ib_undo_trunc_fail_marked_space");
+  if (inject_marked_space.should_fail()) {
+    marked_space = nullptr;
+  };
 #endif /* UNIV_DEBUG */
+
   if (marked_space == nullptr) {
     undo::spaces->x_unlock();
     return (false);
   }
 
-  DBUG_EXECUTE_IF("ib_undo_trunc_before_ddl_log_start",
-                  ib::info(ER_IB_MSG_1170)
-                      << "ib_undo_trunc_before_ddl_log_start";
-                  DBUG_SUICIDE(););
+  ut_d(undo::inject_crash("ib_undo_trunc_before_ddl_log_start"));
 
   MONITOR_INC_VALUE(MONITOR_UNDO_TRUNCATE_START_LOGGING_COUNT, 1);
   dberr_t err = undo::start_logging(marked_space);
   if (err != DB_SUCCESS) {
-    ib::error(ER_IB_MSG_1171, space_name.c_str());
+    ib::error(ER_IB_MSG_UNDO_TRUNCATE_DELAY_BY_LOG_CREATE, space_name.c_str());
     undo::spaces->x_unlock();
     return (false);
   }
   ut_ad(err == DB_SUCCESS);
 
-  DBUG_EXECUTE_IF("ib_undo_trunc_before_truncate",
-                  ib::info(ER_IB_MSG_1172) << "ib_undo_trunc_before_truncate";
-                  DBUG_SUICIDE(););
+  ut_d(undo::inject_crash("ib_undo_trunc_before_truncate"));
 
   /* Don't do the actual truncate if we are doing a fast shutdown.
   The fixup routines will do it at startup. */
   bool in_fast_shutdown = (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE &&
                            srv_fast_shutdown != 0);
 #ifdef UNIV_DEBUG
-  static int fast_shutdown_fail_count;
-  DBUG_EXECUTE_IF(
-      "ib_undo_trunc_fail_fast_shutdown", if (++fast_shutdown_fail_count == 1) {
-        ib::info(ER_IB_MSG_1354) << "ib_undo_trunc_fail_fast_shutdown";
-        in_fast_shutdown = true;
-      });
+  static undo::Inject_failure_once inject_fast_shutdown(
+      "ib_undo_trunc_fail_fast_shutdown");
+  if (inject_fast_shutdown.should_fail()) {
+    in_fast_shutdown = true;
+  };
 #endif /* UNIV_DEBUG */
+
   if (in_fast_shutdown) {
     undo::spaces->x_unlock();
     return (false);
@@ -1423,14 +1435,11 @@ static bool trx_purge_truncate_marked_undo_low(space_id_t space_num,
   if (!success) {
     /* Note: In case of error we don't enable the rsegs nor unmark the
      tablespace. So the tablespace will continue to remain inactive. */
-    ib::warn(ER_IB_MSG_1173, space_name.c_str());
+    ib::warn(ER_IB_MSG_UNDO_TRUNCATE_DELAY_BY_FAILURE, space_name.c_str());
     return (false);
   }
 
-  DBUG_EXECUTE_IF("ib_undo_trunc_before_state_update",
-                  ib::info(ER_IB_MSG_1174)
-                      << "ib_undo_trunc_before_state_update";
-                  DBUG_SUICIDE(););
+  ut_d(undo::inject_crash("ib_undo_trunc_before_state_update"));
 
   space_id_t new_space_id = marked_space->id();
 
@@ -1449,6 +1458,7 @@ static bool trx_purge_truncate_marked_undo_low(space_id_t space_num,
     an  ALTER TABLESPACE SET INACTIVE statement.
     Mark it empty now so that it can be DROPPED. */
     marked_rsegs->set_empty();
+    ut_d(ib::info(ER_IB_MSG_UNDO_MARKED_EMPTY, marked_space->file_name()));
 
   } else {
     ut_ad(marked_rsegs->is_inactive_implicit());
@@ -1458,6 +1468,7 @@ static bool trx_purge_truncate_marked_undo_low(space_id_t space_num,
     normal background undo tablespace truncation.
     Make it 'active' again. */
     marked_rsegs->set_active();
+    ut_d(ib::info(ER_IB_MSG_UNDO_MARKED_ACTIVE, marked_space->file_name()));
   }
 
   undo_trunc->reset();
@@ -1465,9 +1476,7 @@ static bool trx_purge_truncate_marked_undo_low(space_id_t space_num,
   marked_rsegs->x_unlock();
   undo::spaces->s_unlock();
 
-  DBUG_EXECUTE_IF("ib_undo_trunc_before_dd_update",
-                  ib::info(ER_IB_MSG_UNDO_TRUNC_BEFOR_DD_UPDATE);
-                  DBUG_SUICIDE(););
+  ut_d(undo::inject_crash("ib_undo_trunc_before_dd_update"));
 
   /* Update the DD with the new space ID and state. */
   if (DD_FAILURE == dd_tablespace_set_id_and_state(space_name.c_str(),
@@ -1482,12 +1491,6 @@ static bool trx_purge_truncate_marked_undo_low(space_id_t space_num,
 This wrapper does initial preparation and handles cleanup.
 @return true for success, false for failure */
 static bool trx_purge_truncate_marked_undo() {
-  /* Don't truncate if a concurrent clone is in progress. */
-  if (clone_check_active()) {
-    ib::info(ER_IB_MSG_1175) << "Clone: Skip Truncate undo tablespace.";
-    return (false);
-  }
-
   MONITOR_INC_VALUE(MONITOR_UNDO_TRUNCATE_COUNT, 1);
   auto counter_time_truncate = ut_time_monotonic_us();
 
@@ -1495,40 +1498,41 @@ static bool trx_purge_truncate_marked_undo() {
   undo::Truncate *undo_trunc = &purge_sys->undo_trunc;
   ut_ad(undo_trunc->is_marked());
   ut_ad(undo_trunc->is_marked_space_empty());
+
   undo::spaces->s_lock();
   space_id_t space_num = undo_trunc->get_marked_space_num();
   undo::Tablespace *marked_space = undo::spaces->find(space_num);
   std::string space_name = marked_space->space_name();
   undo::spaces->s_unlock();
 
-  ib::info(ER_IB_MSG_1169) << "Truncating UNDO tablespace '"
-                           << space_name.c_str() << "'.";
+  /* Don't truncate if a concurrent clone is in progress. */
+  if (clone_check_active()) {
+    ib::info(ER_IB_MSG_UNDO_TRUNCATE_DELAY_BY_CLONE, space_name.c_str());
+    return (false);
+  }
 
-  /* Since we are about to delete the current file, invalidate all
-  its buffer pages from the buffer pool. */
-  DBUG_EXECUTE_IF("ib_undo_trunc_before_mdl", ib::info(ER_IB_MSG_1168)
-                                                  << "ib_undo_trunc_before_mdl";
-                  DBUG_SUICIDE(););
+  ib::info(ER_IB_MSG_UNDO_TRUNCATE_START, space_name.c_str());
+
+  ut_d(undo::inject_crash("ib_undo_trunc_before_mdl"));
 
   /* Get the MDL lock to prevent an ALTER or DROP command from interferring
   with this undo tablespace while it is being truncated. */
   MDL_ticket *mdl_ticket;
   bool dd_result =
       dd_tablespace_get_mdl(space_name.c_str(), &mdl_ticket, false);
+
 #ifdef UNIV_DEBUG
-  static int fail_get_mdl_count;
-  DBUG_EXECUTE_IF(
-      "ib_undo_trunc_fail_get_mdl", if (++fail_get_mdl_count == 1) {
-        dd_release_mdl(mdl_ticket);
-        ib::info(ER_IB_MSG_1355) << "ib_undo_trunc_fail_get_mdl";
-        dd_result = DD_FAILURE;
-      });
+  static undo::Inject_failure_once injector("ib_undo_trunc_fail_get_mdl");
+  if (injector.should_fail()) {
+    dd_release_mdl(mdl_ticket);
+    dd_result = DD_FAILURE;
+  };
 #endif /* UNIV_DEBUG */
+
   if (dd_result != DD_SUCCESS) {
     MONITOR_INC_TIME_IN_MICRO_SECS(MONITOR_UNDO_TRUNCATE_MICROSECOND,
                                    counter_time_truncate);
-    ib::info(ER_IB_MSG_1175) << "MDL Lock: Skip Truncate of undo tablespace '"
-                             << space_name.c_str() << "'.";
+    ib::info(ER_IB_MSG_UNDO_TRUNCATE_DELAY_BY_MDL, space_name.c_str());
     return (false);
   }
   ut_ad(mdl_ticket != nullptr);
@@ -1538,8 +1542,7 @@ static bool trx_purge_truncate_marked_undo() {
   not allow truncate to proceed here. */
   if (clone_check_active()) {
     dd_release_mdl(mdl_ticket);
-    ib::info(ER_IB_MSG_1175) << "Clone: Skip Truncate of undo tablespace '"
-                             << space_name.c_str() << "'.";
+    ib::info(ER_IB_MSG_UNDO_TRUNCATE_DELAY_BY_CLONE, space_name.c_str());
     return (false);
   }
 
@@ -1554,9 +1557,7 @@ static bool trx_purge_truncate_marked_undo() {
     return (false);
   }
 
-  DBUG_EXECUTE_IF("ib_undo_trunc_before_done_logging",
-                  ib::info(ER_IB_MSG_UNDO_TRUNC_BEFORE_UNDO_LOGGING);
-                  DBUG_SUICIDE(););
+  ut_d(undo::inject_crash("ib_undo_trunc_before_done_logging"));
 
   undo::spaces->x_lock();
   undo::done_logging(space_num);
@@ -1564,14 +1565,11 @@ static bool trx_purge_truncate_marked_undo() {
   MONITOR_INC_VALUE(MONITOR_UNDO_TRUNCATE_DONE_LOGGING_COUNT, 1);
 
   /* Truncate is complete. Now it is safe to re-use the tablespace. */
-  ib::info(ER_IB_MSG_1175) << "Completed truncate of undo tablespace '"
-                           << space_name.c_str() << "'.";
+  ib::info(ER_IB_MSG_UNDO_TRUNCATE_COMPLETE, space_name.c_str());
 
   dd_release_mdl(mdl_ticket);
 
-  DBUG_EXECUTE_IF("ib_undo_trunc_trunc_done", ib::info(ER_IB_MSG_1176)
-                                                  << "ib_undo_trunc_trunc_done";
-                  DBUG_SUICIDE(););
+  ut_d(undo::inject_crash("ib_undo_trunc_trunc_done"));
 
   mutex_exit(&undo::ddl_mutex);
 

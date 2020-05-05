@@ -15291,6 +15291,7 @@ static int innodb_create_undo_tablespace(handlerton *hton, THD *thd,
 
   /* Mark the undo tablespace 'active' in undo::spaces. */
   undo::set_active(space_id);
+  ut_d(ib::info(ER_IB_MSG_UNDO_MARKED_ACTIVE, alter_info->tablespace_name));
 
 cleanup:
   trx_free_for_mysql(trx);
@@ -15388,6 +15389,7 @@ static int innodb_alter_undo_tablespace_inactive(handlerton *hton, THD *thd,
 
   /* Apply this to new transactions. */
   undo_space->set_inactive_explicit();
+  ut_d(ib::info(ER_IB_MSG_UNDO_ALTERED_INACTIVE, undo_space->file_name()));
 
   /* It is the responsibility of the purge thread to empty this undo
   tablespace, truncate it, and then mark it empty. Set the rseg truncate
