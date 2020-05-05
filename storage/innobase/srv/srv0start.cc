@@ -49,9 +49,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
-#ifndef UNIV_LINUX
-#include <unistd.h> /* std::_Exit */
-#endif              /* !UNIV_LINUX */
 #include <zlib.h>
 
 #include "my_dbug.h"
@@ -3683,7 +3680,7 @@ void srv_get_encryption_data_filename(dict_table_t *table, char *filename,
   ut_free(filepath);
 }
 
-/** Call std::quick_exit(3) */
+/** Call std::_Exit(3) */
 void srv_fatal_error() {
   ib::error(ER_IB_MSG_1156);
 
@@ -3693,9 +3690,5 @@ void srv_fatal_error() {
 
   flush_error_log_messages();
 
-#ifdef UNIV_LINUX
-  std::quick_exit(3);
-#else
   std::_Exit(3);
-#endif /* !UNIV_LINUX */
 }
