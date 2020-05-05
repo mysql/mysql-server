@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,7 @@
 
 #include "allocator_helper.h"
 #include "storage/temptable/include/temptable/allocator.h"
-#include "storage/temptable/src/allocator.cc"
+#include "storage/temptable/include/temptable/block.h"
 
 namespace temptable_test {
 
@@ -122,7 +122,8 @@ TEST(Allocator, BasicAlloc) {
   using Item = int;
   const int ITEM_COUNT = 100;
 
-  temptable::Allocator<Item> allocator;
+  temptable::Block shared_block;
+  temptable::Allocator<Item> allocator(&shared_block);
 
   std::vector<int *> item_pointers;
   item_pointers.assign(ITEM_COUNT, nullptr);
@@ -165,7 +166,8 @@ TEST(Allocator, ZeroSize) {
   Allocator_helper::set_allocator_max_ram_default();
   init_allocator_once();
 
-  temptable::Allocator<int> allocator;
+  temptable::Block shared_block;
+  temptable::Allocator<int> allocator(&shared_block);
 
   int *item = nullptr;
 
@@ -177,7 +179,8 @@ TEST(Allocator, ConstructDestroy) {
   Allocator_helper::set_allocator_max_ram_default();
   init_allocator_once();
 
-  temptable::Allocator<TestItem> allocator;
+  temptable::Block shared_block;
+  temptable::Allocator<TestItem> allocator(&shared_block);
 
   TestItem *item = nullptr;
 
@@ -212,7 +215,8 @@ TEST(Allocator, Casts) {
   using ItemType2 = int;
   using ItemType3 = TestItem;
 
-  temptable::Allocator<ItemType1> allocator1;
+  temptable::Block shared_block;
+  temptable::Allocator<ItemType1> allocator1(&shared_block);
   temptable::Allocator<ItemType2> allocator2(allocator1);
   temptable::Allocator<ItemType3> allocator3(allocator2);
 

@@ -237,12 +237,14 @@ size_t num_hton2plugins() { return se_plugin_array.size(); }
 
 st_plugin_int *insert_hton2plugin(uint slot, st_plugin_int *plugin) {
   if (se_plugin_array.assign_at(slot, plugin)) return nullptr;
+  builtin_htons.assign_at(slot, true);
   return se_plugin_array[slot];
 }
 
 st_plugin_int *remove_hton2plugin(uint slot) {
   st_plugin_int *retval = se_plugin_array[slot];
   se_plugin_array[slot] = NULL;
+  builtin_htons.assign_at(slot, false);
   return retval;
 }
 
