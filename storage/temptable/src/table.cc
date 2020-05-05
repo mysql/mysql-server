@@ -46,8 +46,10 @@ TempTable Table implementation. */
 
 namespace temptable {
 
-Table::Table(TABLE *mysql_table, bool all_columns_are_fixed_size)
-    : m_rows(&m_allocator),
+Table::Table(TABLE *mysql_table, Block *shared_block,
+             bool all_columns_are_fixed_size)
+    : m_allocator(shared_block),
+      m_rows(&m_allocator),
       m_all_columns_are_fixed_size(all_columns_are_fixed_size),
       m_indexes_are_enabled(true),
       m_mysql_row_length(mysql_table->s->rec_buff_length),

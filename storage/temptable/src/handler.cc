@@ -23,36 +23,40 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** @file storage/temptable/src/handler.cc
 TempTable public handler API implementation. */
 
-#include <limits>
-#include <new>
-#include <unordered_map>
-
-#ifndef DBUG_OFF
-#include <thread>
-#endif
-
+#include "storage/temptable/include/temptable/handler.h"
 #include "my_base.h"
 #include "my_dbug.h"
-#include "sql/handler.h"
+#include "mysql/plugin.h"
 #include "sql/mysqld.h"
+#include "sql/sql_thd_internal_api.h"
 #include "sql/system_variables.h"
-#include "sql/table.h"
-#include "storage/temptable/include/temptable/handler.h"
 #include "storage/temptable/include/temptable/row.h"
-#include "storage/temptable/include/temptable/storage.h"
-#include "storage/temptable/include/temptable/table.h"
+#include "storage/temptable/include/temptable/sharded_kv_store.h"
+#include "storage/temptable/include/temptable/shared_block_pool.h"
 
 namespace temptable {
 
-/** A container for the list of the tables. Don't allocate memory for it from
- * the Allocator because the Allocator keeps one block for reuse and it is
- * only marked for reuse after all elements from it have been removed. This
- * container, being a global variable may allocate some memory and never free
- * it before its destructor is called at thread termination time. */
-using Tables = std::unordered_map<std::string, Table>;
+/** Key-value store containing all tables for all existing connections.
+ * See `Sharded_key_value_store` documentation for more details.
+ * */
+static Sharded_key_value_store<KV_STORE_SHARDS_COUNT> kv_store_shard;
 
-/** A list of the tables that currently exist for this OS thread. */
-static thread_local Tables tls_tables;
+/* Pool of shared-blocks, an external state to the custom `TempTable` memory
+ * allocator. See `Lock_free_shared_block_pool` documentation for more details.
+ * */
+static Lock_free_shared_block_pool<SHARED_BLOCK_POOL_SIZE> shared_block_pool;
+
+/** Small helper function which debug-prints the miscelaneous statistics which
+ * key-value store has collected.
+ * */
+void kv_store_shards_debug_dump() { kv_store_shard.dbug_print(); }
+
+/** Small helper function which releases the slot (and memory occupied by the
+ * Block) in shared-block pool.
+ * */
+void shared_block_pool_release(THD *thd) {
+  shared_block_pool.try_release(thd_thread_id(thd));
+}
 
 #if defined(HAVE_WINNUMA)
 /** Page size used in memory allocation. */
@@ -64,6 +68,7 @@ DWORD win_page_size;
 Handler::Handler(handlerton *hton, TABLE_SHARE *table_share_arg)
     : ::handler(hton, table_share_arg),
       m_opened_table(),
+      m_shared_block(shared_block_pool.try_acquire(thd_thread_id(ha_thd()))),
       m_rnd_iterator(),
       m_rnd_iterator_is_positioned(),
       m_index_cursor(),
@@ -71,16 +76,30 @@ Handler::Handler(handlerton *hton, TABLE_SHARE *table_share_arg)
       m_deleted_rows() {
   handler::ref_length = sizeof(Storage::Element *);
 
+  // Overriding `handlerton::` with a function-pointer in `TempTable`, or
+  // any other plugin, is not always sufficient for server to actually invoke
+  // that hook. This is the behavior which is in contrast to what one would
+  // expect and this is not how most handlerton interfaces work. However, there
+  // is a subset of handlerton interfaces which require special care and in
+  // addition to overriding the function-pointer, they require initializing
+  // `handlerton::ha_data` with some data which is not a `nullptr`.
+  //
+  // `handlerton::close_connection()` is one of such interfaces, and being
+  // relied upon by the `TempTable` implementation, we have to fill in the
+  // `ha_data` with some existing data. In this particular case,
+  // `&shared_block_pool` is selected but from `TempTable` PoV this does not
+  // have any semantic value, e.g. it could very well have been something else.
+  //
+  // This is a bit confusing and unexpected, and hence this comment to make life
+  // easier for readers of this part of the code.
+  thd_set_ha_data(ha_thd(), hton, &shared_block_pool);
+
 #if defined(HAVE_WINNUMA)
   SYSTEM_INFO systemInfo;
   GetSystemInfo(&systemInfo);
 
   win_page_size = systemInfo.dwPageSize;
 #endif /* HAVE_WINNUMA */
-
-#ifndef DBUG_OFF
-  m_owner = std::this_thread::get_id();
-#endif /* DBUG_OFF */
 }
 
 Handler::~Handler() {}
@@ -89,7 +108,6 @@ int Handler::create(const char *table_name, TABLE *mysql_table,
                     HA_CREATE_INFO *, dd::Table *) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(current_thread_is_creator());
   DBUG_ASSERT(mysql_table != nullptr);
   DBUG_ASSERT(mysql_table->s != nullptr);
   DBUG_ASSERT(mysql_table->field != nullptr);
@@ -113,9 +131,11 @@ int Handler::create(const char *table_name, TABLE *mysql_table,
     DBUG_EXECUTE_IF("temptable_create_return_non_result_type_exception",
                     throw 42;);
 
-    const auto insert_result = tls_tables.emplace(
-        std::piecewise_construct, std::make_tuple(table_name),
-        std::forward_as_tuple(mysql_table, all_columns_are_fixed_size));
+    auto &kv_store = kv_store_shard[thd_thread_id(ha_thd())];
+    const auto insert_result = kv_store.emplace(
+        std::piecewise_construct, std::forward_as_tuple(table_name),
+        std::forward_as_tuple(mysql_table, m_shared_block,
+                              all_columns_are_fixed_size));
 
     ret = insert_result.second ? Result::OK : Result::TABLE_EXIST;
 
@@ -131,17 +151,16 @@ int Handler::create(const char *table_name, TABLE *mysql_table,
 int Handler::delete_table(const char *table_name, const dd::Table *) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(current_thread_is_creator());
   DBUG_ASSERT(table_name != nullptr);
 
   Result ret;
 
   try {
-    const auto pos = tls_tables.find(table_name);
-
-    if (pos != tls_tables.end()) {
-      if (&pos->second != m_opened_table) {
-        tls_tables.erase(pos);
+    auto &kv_store = kv_store_shard[thd_thread_id(ha_thd())];
+    auto table = kv_store.find(table_name);
+    if (table) {
+      if (m_opened_table != table) {
+        kv_store.erase(table_name);
         ret = Result::OK;
       } else {
         /* Attempt to delete the currently opened table. */
@@ -165,7 +184,6 @@ int Handler::delete_table(const char *table_name, const dd::Table *) {
 int Handler::open(const char *table_name, int, uint, const dd::Table *) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(current_thread_is_creator());
   DBUG_ASSERT(m_opened_table == nullptr);
   DBUG_ASSERT(table_name != nullptr);
   DBUG_ASSERT(!m_rnd_iterator_is_positioned);
@@ -175,13 +193,13 @@ int Handler::open(const char *table_name, int, uint, const dd::Table *) {
   Result ret;
 
   try {
-    Tables::iterator iter = tls_tables.find(table_name);
-    if (iter == tls_tables.end()) {
-      ret = Result::NO_SUCH_TABLE;
-    } else {
-      m_opened_table = &iter->second;
-      opened_table_validate();
+    auto &kv_store = kv_store_shard[thd_thread_id(ha_thd())];
+    m_opened_table = kv_store.find(table_name);
+    if (m_opened_table) {
       ret = Result::OK;
+      opened_table_validate();
+    } else {
+      ret = Result::NO_SUCH_TABLE;
     }
   } catch (std::bad_alloc &) {
     ret = Result::OUT_OF_MEM;
@@ -196,7 +214,6 @@ int Handler::open(const char *table_name, int, uint, const dd::Table *) {
 int Handler::close() {
   DBUG_TRACE;
 
-  DBUG_ASSERT(current_thread_is_creator());
   DBUG_ASSERT(m_opened_table != nullptr);
 
   m_opened_table = nullptr;
@@ -217,8 +234,6 @@ int Handler::close() {
 int Handler::rnd_init(bool) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(current_thread_is_creator());
-
   m_rnd_iterator_is_positioned = false;
 
   /* Marked unused - temporary fix for GCC 8 bug 82728. */
@@ -233,7 +248,6 @@ int Handler::rnd_init(bool) {
 int Handler::rnd_next(uchar *mysql_row) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(current_thread_is_creator());
   opened_table_validate();
 
   handler::ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
@@ -289,7 +303,6 @@ int Handler::rnd_next(uchar *mysql_row) {
 int Handler::rnd_pos(uchar *mysql_row, uchar *position) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(current_thread_is_creator());
   opened_table_validate();
 
   handler::ha_statistic_increment(&System_status_var::ha_read_rnd_count);
@@ -311,8 +324,6 @@ int Handler::rnd_pos(uchar *mysql_row, uchar *position) {
 int Handler::rnd_end() {
   DBUG_TRACE;
 
-  DBUG_ASSERT(current_thread_is_creator());
-
   m_rnd_iterator_is_positioned = false;
 
   /* Marked unused - temporary fix for GCC 8 bug 82728. */
@@ -327,7 +338,6 @@ int Handler::rnd_end() {
 int Handler::index_init(uint index_no, bool) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(current_thread_is_creator());
   opened_table_validate();
 
   Result ret;
@@ -350,7 +360,6 @@ int Handler::index_read(uchar *mysql_row, const uchar *mysql_search_cells,
                         ha_rkey_function find_flag) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(current_thread_is_creator());
   opened_table_validate();
 
   handler::ha_statistic_increment(&System_status_var::ha_read_key_count);
@@ -459,7 +468,6 @@ int Handler::index_read(uchar *mysql_row, const uchar *mysql_search_cells,
 int Handler::index_next(uchar *mysql_row) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(current_thread_is_creator());
   opened_table_validate();
 
   handler::ha_statistic_increment(&System_status_var::ha_read_next_count);
@@ -472,7 +480,6 @@ int Handler::index_next(uchar *mysql_row) {
 int Handler::index_next_same(uchar *mysql_row, const uchar *, uint) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(current_thread_is_creator());
   opened_table_validate();
 
   handler::ha_statistic_increment(&System_status_var::ha_read_next_count);
@@ -557,7 +564,6 @@ int Handler::index_read_last(uchar *mysql_row, const uchar *mysql_search_cells,
                              uint mysql_search_cells_len_bytes) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(current_thread_is_creator());
   opened_table_validate();
 
   const Result ret = static_cast<Result>(
@@ -570,7 +576,6 @@ int Handler::index_read_last(uchar *mysql_row, const uchar *mysql_search_cells,
 int Handler::index_prev(uchar *mysql_row) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(current_thread_is_creator());
   opened_table_validate();
 
   DBUG_ASSERT(m_index_cursor.is_positioned());
@@ -605,8 +610,6 @@ int Handler::index_prev(uchar *mysql_row) {
 int Handler::index_end() {
   DBUG_TRACE;
 
-  DBUG_ASSERT(current_thread_is_creator());
-
   handler::active_index = MAX_KEY;
 
   m_index_cursor.unposition();
@@ -622,8 +625,6 @@ int Handler::index_end() {
 
 void Handler::position(const uchar *) {
   DBUG_TRACE;
-
-  DBUG_ASSERT(current_thread_is_creator());
 
   Storage::Element *row;
 
@@ -643,7 +644,6 @@ void Handler::position(const uchar *) {
 int Handler::write_row(uchar *mysql_row) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(current_thread_is_creator());
   opened_table_validate();
 
   handler::ha_statistic_increment(&System_status_var::ha_write_count);
@@ -656,7 +656,6 @@ int Handler::write_row(uchar *mysql_row) {
 int Handler::update_row(const uchar *mysql_row_old, uchar *mysql_row_new) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(current_thread_is_creator());
   opened_table_validate();
 
   handler::ha_statistic_increment(&System_status_var::ha_update_count);
@@ -680,7 +679,6 @@ int Handler::update_row(const uchar *mysql_row_old, uchar *mysql_row_new) {
 int Handler::delete_row(const uchar *mysql_row) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(current_thread_is_creator());
   opened_table_validate();
 
   DBUG_ASSERT(m_rnd_iterator_is_positioned);
@@ -709,7 +707,6 @@ int Handler::delete_row(const uchar *mysql_row) {
 int Handler::truncate(dd::Table *) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(current_thread_is_creator());
   opened_table_validate();
 
   m_opened_table->truncate();
@@ -734,7 +731,6 @@ int Handler::delete_all_rows() {
 int Handler::info(uint) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(current_thread_is_creator());
   opened_table_validate();
 
   stats.deleted = m_deleted_rows;
@@ -903,7 +899,6 @@ double Handler::read_time(uint, uint, ha_rows rows) {
 int Handler::disable_indexes(uint mode) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(current_thread_is_creator());
   DBUG_ASSERT(m_opened_table != nullptr);
 
   Result ret;
@@ -922,8 +917,6 @@ int Handler::disable_indexes(uint mode) {
 
 int Handler::enable_indexes(uint mode) {
   DBUG_TRACE;
-
-  DBUG_ASSERT(current_thread_is_creator());
 
   Result ret;
 
@@ -1042,11 +1035,5 @@ bool Handler::check_if_incompatible_data(HA_CREATE_INFO *, uint) {
   DBUG_ABORT();
   return false;
 }
-
-#ifndef DBUG_OFF
-bool Handler::current_thread_is_creator() const {
-  return m_owner == std::this_thread::get_id();
-}
-#endif /* DBUG_OFF */
 
 } /* namespace temptable */

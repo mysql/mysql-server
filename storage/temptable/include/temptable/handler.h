@@ -128,16 +128,15 @@ Also called "key", "field", "subkey", "key part", "key segment" elsewhere.
 #ifndef TEMPTABLE_HANDLER_H
 #define TEMPTABLE_HANDLER_H
 
-#ifndef DBUG_OFF
-#include <thread>
-#endif /* DBUG_OFF */
-
 #include "sql/handler.h"
 #include "sql/table.h"
 #include "storage/temptable/include/temptable/storage.h"
 #include "storage/temptable/include/temptable/table.h"
 
 namespace temptable {
+
+/** Forward declarations. */
+class Block;
 
 /** Temptable engine handler. */
 class Handler : public ::handler {
@@ -524,6 +523,10 @@ class Handler : public ::handler {
   /** Currently opened table, or `nullptr` if none is opened. */
   Table *m_opened_table;
 
+  /** Pointer to the non-owned shared-block of memory to be re-used by all
+   * `Allocator` instances or copies made by `Table`. */
+  Block *m_shared_block;
+
   /** Iterator used by `rnd_init()`, `rnd_next()` and `rnd_end()` methods.
    * It points to the row that was retrieved by the last read call (e.g.
    * `rnd_next()`). */
@@ -554,17 +557,6 @@ class Handler : public ::handler {
 
   /** Number of deleted rows by this handler object. */
   size_t m_deleted_rows;
-
-#ifndef DBUG_OFF
-  /** Check if the current OS thread is the one that created this handler
-   * object.
-   * @return true if current thread == creator thread */
-  bool current_thread_is_creator() const;
-
-  /** The OS thread that created this handler object. The only thread that is
-   * supposed to use it and the tables created via it. */
-  std::thread::id m_owner;
-#endif /* DBUG_OFF */
 };
 
 inline void Handler::opened_table_validate() {
@@ -587,6 +579,9 @@ inline bool Handler::is_field_type_fixed_size(const Field &mysql_field) const {
       return true;
   }
 }
+
+void kv_store_shards_debug_dump();
+void shared_block_pool_release(THD *thd);
 
 } /* namespace temptable */
 
