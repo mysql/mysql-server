@@ -11234,6 +11234,8 @@ static bool fill_alter_inplace_info(THD *thd, TABLE *table,
   */
   uint old_field_index_without_vgc = 0;
   for (f_ptr = table->field; (field = *f_ptr); f_ptr++) {
+    DBUG_PRINT("inplace", ("Existing field: %s", field->field_name));
+
     /* Clear marker for renamed or dropped field
     which we are going to set later. */
     field->clear_flag(FIELD_IS_RENAMED);
@@ -11257,6 +11259,8 @@ static bool fill_alter_inplace_info(THD *thd, TABLE *table,
       */
       switch (field->is_equal(new_field)) {
         case IS_EQUAL_NO:
+          DBUG_PRINT("inplace", ("Field %s: IS_EQUAL_NO for '%s'",
+                                 field->field_name, thd->query().str));
           /* New column type is incompatible with old one. */
           if (field->is_virtual_gcol())
             ha_alter_info->handler_flags |=
