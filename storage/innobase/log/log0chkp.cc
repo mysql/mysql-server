@@ -444,7 +444,7 @@ void meb_log_print_file_hdr(byte *block) {
 #ifndef UNIV_HOTBACKUP
 
 void log_files_downgrade(log_t &log) {
-  ut_ad(srv_is_being_shutdown);
+  ut_ad(srv_shutdown_state.load() >= SRV_SHUTDOWN_LAST_PHASE);
   ut_a(!log_checkpointer_is_active());
 
   const uint32_t nth_file = 0;

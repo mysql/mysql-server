@@ -405,7 +405,7 @@ static dict_table_t *dd_table_open_on_id_low(THD *thd, MDL_ticket **mdl,
   btrsea_sync_check check(false);
   ut_ad(!sync_check_iterate(check));
 #endif
-  ut_ad(!srv_is_being_shutdown);
+  ut_ad(srv_shutdown_state.load() < SRV_SHUTDOWN_DD);
 
   if (thd == nullptr) {
     ut_ad(mdl == nullptr);
@@ -782,7 +782,7 @@ bool dd_table_discard_tablespace(THD *thd, const dict_table_t *table,
   ut_ad(!sync_check_iterate(check));
 #endif /* UNIV_DEBUG */
 
-  ut_ad(!srv_is_being_shutdown);
+  ut_ad(srv_shutdown_state.load() < SRV_SHUTDOWN_DD);
 
   if (table_def->se_private_id() != dd::INVALID_OBJECT_ID) {
     ut_ad(table_def->table().leaf_partitions()->empty());
@@ -873,7 +873,7 @@ dict_table_t *dd_table_open_on_name(THD *thd, MDL_ticket **mdl,
   btrsea_sync_check check(false);
   ut_ad(!sync_check_iterate(check));
 #endif
-  ut_ad(!srv_is_being_shutdown);
+  ut_ad(srv_shutdown_state.load() < SRV_SHUTDOWN_DD);
 
   dict_table_t *table = nullptr;
 
@@ -1074,7 +1074,7 @@ dberr_t dd_tablespace_rename(dd::Object_id dd_space_id, bool is_system_cs,
   btrsea_sync_check check(false);
   ut_ad(!sync_check_iterate(check));
 #endif /* UNIV_DEBUG */
-  ut_ad(!srv_is_being_shutdown);
+  ut_ad(srv_shutdown_state.load() < SRV_SHUTDOWN_DD);
 
   dd::cache::Dictionary_client *client = dd::get_dd_client(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(client);
@@ -3584,7 +3584,7 @@ const char *dd_table_get_space_name(const Table *dd_table) {
   const char *space_name;
 
   DBUG_TRACE;
-  ut_ad(!srv_is_being_shutdown);
+  ut_ad(srv_shutdown_state.load() < SRV_SHUTDOWN_DD);
 
   dd::cache::Dictionary_client *client = dd::get_dd_client(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(client);
@@ -3620,7 +3620,7 @@ char *dd_get_first_path(mem_heap_t *heap, dict_table_t *table,
   MDL_ticket *mdl = nullptr;
   dd::Object_id dd_space_id;
 
-  ut_ad(!srv_is_being_shutdown);
+  ut_ad(srv_shutdown_state.load() < SRV_SHUTDOWN_DD);
   ut_ad(!mutex_own(&dict_sys->mutex));
 
   dd::cache::Dictionary_client *client = dd::get_dd_client(thd);
@@ -3880,7 +3880,7 @@ char *dd_space_get_name(mem_heap_t *heap, dict_table_t *table,
   THD *thd = current_thd;
   dd::Tablespace *dd_space = nullptr;
 
-  ut_ad(!srv_is_being_shutdown);
+  ut_ad(srv_shutdown_state.load() < SRV_SHUTDOWN_DD);
   ut_ad(!mutex_own(&dict_sys->mutex));
 
   dd::cache::Dictionary_client *client = dd::get_dd_client(thd);

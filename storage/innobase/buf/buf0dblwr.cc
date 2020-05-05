@@ -771,7 +771,7 @@ Double_write::Double_write(uint16_t id, uint32_t n_pages) noexcept
   ut_a(m_buffer.capacity() / UNIV_PAGE_SIZE == m_buf_pages.capacity());
 
   mutex_create(LATCH_ID_DBLWR, &m_mutex);
-  m_event = os_event_create("dblwr_event");
+  m_event = os_event_create();
 }
 
 Double_write::~Double_write() noexcept {

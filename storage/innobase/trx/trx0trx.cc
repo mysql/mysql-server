@@ -588,16 +588,22 @@ void trx_free_for_background(trx_t *trx) {
   trx_free(trx);
 }
 
-/** At shutdown, frees a transaction object that is in the PREPARED state. */
-void trx_free_prepared(trx_t *trx) /*!< in, own: trx object */
-{
-  ut_a(trx_state_eq(trx, TRX_STATE_PREPARED));
+void trx_free_prepared_or_active_recovered(trx_t *trx) {
   ut_a(trx->magic_n == TRX_MAGIC_N);
+  ulint expected_undo_state;
+  if (trx->state == TRX_STATE_ACTIVE) {
+    ut_a(trx_state_eq(trx, TRX_STATE_ACTIVE));
+    ut_a(trx->is_recovered);
+    expected_undo_state = TRX_UNDO_ACTIVE;
+  } else {
+    ut_a(trx_state_eq(trx, TRX_STATE_PREPARED));
+    expected_undo_state = TRX_UNDO_PREPARED;
+  }
 
   assert_trx_in_rw_list(trx);
 
   trx_release_impl_and_expl_locks(trx, false);
-  trx_undo_free_prepared(trx);
+  trx_undo_free_trx_with_prepared_or_active_logs(trx, expected_undo_state);
 
   ut_ad(!trx->in_rw_trx_list);
   ut_a(!trx->read_only);

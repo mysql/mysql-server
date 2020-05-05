@@ -2784,8 +2784,8 @@ void buf_flush_page_cleaner_init(size_t n_page_cleaners) {
 
   mutex_create(LATCH_ID_PAGE_CLEANER, &page_cleaner->mutex);
 
-  page_cleaner->is_requested = os_event_create("pc_is_requested");
-  page_cleaner->is_finished = os_event_create("pc_is_finished");
+  page_cleaner->is_requested = os_event_create();
+  page_cleaner->is_finished = os_event_create();
 
   page_cleaner->n_slots = static_cast<ulint>(srv_buf_pool_instances);
 
@@ -3051,7 +3051,7 @@ static void buf_flush_page_cleaner_disabled_loop(void) {
   mutex_exit(&page_cleaner->mutex);
 
   while (innodb_page_cleaner_disabled_debug &&
-         srv_shutdown_state.load() == SRV_SHUTDOWN_NONE &&
+         srv_shutdown_state.load() < SRV_SHUTDOWN_CLEANUP &&
          page_cleaner->is_running) {
     os_thread_sleep(100000); /* [A] */
   }
@@ -3095,7 +3095,7 @@ void buf_flush_page_cleaner_disabled_debug_update(THD *thd, SYS_VAR *var,
     innodb_page_cleaner_disabled_debug = false;
 
     /* Enable page cleaner threads. */
-    while (srv_shutdown_state.load() == SRV_SHUTDOWN_NONE) {
+    while (srv_shutdown_state.load() < SRV_SHUTDOWN_CLEANUP) {
       mutex_enter(&page_cleaner->mutex);
       const ulint n = page_cleaner->n_disabled_debug;
       mutex_exit(&page_cleaner->mutex);
@@ -3114,7 +3114,7 @@ void buf_flush_page_cleaner_disabled_debug_update(THD *thd, SYS_VAR *var,
 
   innodb_page_cleaner_disabled_debug = true;
 
-  while (srv_shutdown_state.load() == SRV_SHUTDOWN_NONE) {
+  while (srv_shutdown_state.load() < SRV_SHUTDOWN_CLEANUP) {
     /* Workers are possibly sleeping on is_requested.
 
     We have to wake them, otherwise they could possibly
@@ -3175,7 +3175,7 @@ static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
   }
 
   while (!srv_read_only_mode &&
-         srv_shutdown_state.load() == SRV_SHUTDOWN_NONE &&
+         srv_shutdown_state.load() < SRV_SHUTDOWN_CLEANUP &&
          recv_sys->spaces != nullptr) {
     /* treat flushing requests during recovery. */
     ulint n_flushed_lru = 0;
@@ -3183,7 +3183,7 @@ static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
 
     os_event_wait(recv_sys->flush_start);
 
-    if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE ||
+    if (srv_shutdown_state.load() >= SRV_SHUTDOWN_CLEANUP ||
         recv_sys->spaces == nullptr) {
       break;
     }
@@ -3225,7 +3225,7 @@ static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
   bool was_server_active = true;
   int64_t sig_count = os_event_reset(buf_flush_event);
 
-  while (srv_shutdown_state.load() == SRV_SHUTDOWN_NONE) {
+  while (srv_shutdown_state.load() < SRV_SHUTDOWN_CLEANUP) {
     /* We consider server active if either we have just discovered a first
     activity after a period of inactive server, or we are after the period
     of active server in which case, it could be just the beginning of the
@@ -3241,7 +3241,7 @@ static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
         !is_sync_flush) {
       ret_sleep = pc_sleep_if_needed(next_loop_time, sig_count);
 
-      if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
+      if (srv_shutdown_state.load() >= SRV_SHUTDOWN_CLEANUP) {
         break;
       }
     } else if (ut_time_monotonic_ms() > next_loop_time) {
@@ -3398,7 +3398,8 @@ static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
   /* This is just for test scenarios. */
   srv_thread_delay_cleanup_if_needed(thd);
 
-  ut_ad(srv_shutdown_state.load() != SRV_SHUTDOWN_NONE);
+  ut_ad(srv_shutdown_state.load() >= SRV_SHUTDOWN_CLEANUP);
+
   if (srv_fast_shutdown == 2 ||
       srv_shutdown_state.load() == SRV_SHUTDOWN_EXIT_THREADS) {
     /* In very fast shutdown or when innodb failed to start, we
@@ -3445,11 +3446,21 @@ static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
   } while (srv_shutdown_state.load() < SRV_SHUTDOWN_FLUSH_PHASE);
 
   /* At this point all threads including the master and the purge
-  thread must have been closed, unless we are handling some fatal
-  error in which case we could have EXIT_THREADS set in the
-  srv_shutdown_all_bg_threads() and bypass the FLUSH_PHASE. */
+  thread must have been closed, unless we are handling some error
+  during initialization of InnoDB (srv_init_abort). In such case
+  we could have SRV_SHUTDOWN_EXIT_THREADS set directly from the
+  srv_shutdown_exit_threads(). */
   if (srv_shutdown_state.load() != SRV_SHUTDOWN_EXIT_THREADS) {
+    /* We could have srv_shutdown_state.load() >= FLUSH_PHASE only
+    when either: shutdown started or init is being aborted. In the
+    first case we would have FLUSH_PHASE and keep waiting until
+    this thread is alive before we switch to LAST_PHASE.
+
+    In the second case, we would jump to EXIT_THREADS from NONE,
+    so we would not enter here. */
+    ut_a(!srv_is_being_started);
     ut_a(srv_shutdown_state.load() == SRV_SHUTDOWN_FLUSH_PHASE);
+
     ut_a(!srv_master_thread_is_active());
     if (!srv_read_only_mode) {
       ut_a(!srv_purge_threads_active());

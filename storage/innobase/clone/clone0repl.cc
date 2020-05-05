@@ -503,7 +503,7 @@ void Clone_persist_gtid::periodic_write() {
 
   for (;;) {
     /* Exit if last phase of shutdown */
-    auto is_shutdown = (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE);
+    auto is_shutdown = (srv_shutdown_state.load() >= SRV_SHUTDOWN_CLEANUP);
 
     if (is_shutdown || m_close_thread.load()) {
       /* Stop accepting any more GTID */

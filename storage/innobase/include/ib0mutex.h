@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -510,7 +510,7 @@ struct TTASEventMutex {
     ut_a(m_event == nullptr);
     ut_a(!m_lock_word.load(std::memory_order_relaxed));
 
-    m_event = os_event_create(sync_latch_get_name(id));
+    m_event = os_event_create();
 
     m_policy.init(*this, id, filename, line);
   }

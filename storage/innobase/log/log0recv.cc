@@ -589,8 +589,8 @@ void recv_sys_init(ulint max_mem) {
 
 #ifndef UNIV_HOTBACKUP
   if (!srv_read_only_mode) {
-    recv_sys->flush_start = os_event_create("recv_flush_start");
-    recv_sys->flush_end = os_event_create("recv_flush_end");
+    recv_sys->flush_start = os_event_create();
+    recv_sys->flush_end = os_event_create();
   }
 #else  /* !UNIV_HOTBACKUP */
   recv_is_from_backup = true;
@@ -797,6 +797,10 @@ static void recv_writer_thread() {
   mutex_exit(&recv_sys->writer_mutex);
 
   while (srv_shutdown_state.load() == SRV_SHUTDOWN_NONE) {
+    ut_a(srv_shutdown_state_matches([](auto state) {
+      return state == SRV_SHUTDOWN_NONE || state == SRV_SHUTDOWN_EXIT_THREADS;
+    }));
+
     os_thread_sleep(100000);
 
     mutex_enter(&recv_sys->writer_mutex);

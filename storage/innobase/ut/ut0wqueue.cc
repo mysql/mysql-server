@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -56,7 +56,7 @@ ib_wqueue_t *ib_wqueue_create(void) {
   mutex_create(LATCH_ID_WORK_QUEUE, &wq->mutex);
 
   wq->items = ib_list_create();
-  wq->event = os_event_create(nullptr);
+  wq->event = os_event_create();
 
   return (wq);
 }

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2018, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -69,7 +69,7 @@ class Clone_persist_gtid {
  public:
   /** Constructor: start gtid thread */
   Clone_persist_gtid() {
-    m_event = os_event_create(nullptr);
+    m_event = os_event_create();
     /* No background is created yet. */
     m_thread_active.store(false);
     m_gtid_trx_no.store(0);

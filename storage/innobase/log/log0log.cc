@@ -521,16 +521,15 @@ bool log_sys_init(uint32_t n_files, uint64_t file_size, space_id_t space_id) {
   log.current_file_real_offset = LOG_FILE_HDR_SIZE;
   log_files_update_offsets(log, log.current_file_lsn);
 
-  log.checkpointer_event = os_event_create("log_checkpointer_event");
-  log.closer_event = os_event_create("log_closer_event");
-  log.write_notifier_event = os_event_create("log_write_notifier_event");
-  log.flush_notifier_event = os_event_create("log_flush_notifier_event");
-  log.writer_event = os_event_create("log_writer_event");
-  log.flusher_event = os_event_create("log_flusher_event");
-  log.old_flush_event = os_event_create("log_old_flush_event");
+  log.checkpointer_event = os_event_create();
+  log.closer_event = os_event_create();
+  log.write_notifier_event = os_event_create();
+  log.flush_notifier_event = os_event_create();
+  log.writer_event = os_event_create();
+  log.flusher_event = os_event_create();
+  log.old_flush_event = os_event_create();
   os_event_set(log.old_flush_event);
-  log.writer_threads_resume_event =
-      os_event_create("log_writer_threads_resume_event");
+  log.writer_threads_resume_event = os_event_create();
   os_event_set(log.writer_threads_resume_event);
 
   mutex_create(LATCH_ID_LOG_CHECKPOINTER, &log.checkpointer_mutex);
@@ -1136,7 +1135,7 @@ static void log_allocate_flush_events(log_t &log) {
   log.flush_events = UT_NEW_ARRAY_NOKEY(os_event_t, n);
 
   for (size_t i = 0; i < log.flush_events_size; ++i) {
-    log.flush_events[i] = os_event_create("log_flush_event");
+    log.flush_events[i] = os_event_create();
   }
 }
 
@@ -1162,7 +1161,7 @@ static void log_allocate_write_events(log_t &log) {
   log.write_events = UT_NEW_ARRAY_NOKEY(os_event_t, n);
 
   for (size_t i = 0; i < log.write_events_size; ++i) {
-    log.write_events[i] = os_event_create("log_write_event");
+    log.write_events[i] = os_event_create();
   }
 }
 

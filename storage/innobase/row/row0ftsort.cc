@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -226,8 +226,8 @@ ibool row_fts_psort_info_init(
   common_info->new_table = (dict_table_t *)new_table;
   common_info->trx = trx;
   common_info->all_info = psort_info;
-  common_info->sort_event = os_event_create(nullptr);
-  common_info->merge_event = os_event_create(nullptr);
+  common_info->sort_event = os_event_create();
+  common_info->merge_event = os_event_create();
   common_info->opt_doc_id_size = opt_doc_id_size;
 
   ut_ad(trx->mysql_thd != nullptr);

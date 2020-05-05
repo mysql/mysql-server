@@ -659,8 +659,10 @@ Log_handle log_buffer_reserve(log_t &log, size_t len) {
   to reflect mtr commit rate. */
   srv_stats.log_write_requests.inc();
 
-  ut_ad(srv_shutdown_state.load() <= SRV_SHUTDOWN_FLUSH_PHASE ||
-        srv_shutdown_state.load() == SRV_SHUTDOWN_EXIT_THREADS);
+  ut_ad(srv_shutdown_state_matches([](auto state) {
+    return state <= SRV_SHUTDOWN_FLUSH_PHASE ||
+           state == SRV_SHUTDOWN_EXIT_THREADS;
+  }));
 
   ut_a(len > 0);
 

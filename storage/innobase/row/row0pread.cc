@@ -181,7 +181,7 @@ Parallel_reader::Parallel_reader(size_t max_threads, bool sync)
 
   mutex_create(LATCH_ID_PARALLEL_READ, &m_mutex);
 
-  m_event = os_event_create("Parallel reader");
+  m_event = os_event_create();
   m_sig_count = os_event_reset(m_event);
 }
 

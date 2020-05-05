@@ -254,10 +254,23 @@ void trx_sys_close(void);
 UNIV_INLINE
 bool trx_sys_need_rollback();
 
-/*********************************************************************
-Check if there are any active (non-prepared) transactions.
-@return total number of active transactions or 0 if none */
-ulint trx_sys_any_active_transactions(void);
+/** Reads number of recovered transactions which have state
+equal to TRX_STATE_ACTIVE (so are not prepared transactions).
+@return number of active recovered transactions */
+size_t trx_sys_recovered_active_trxs_count();
+
+/** Validates lists of transactions at the very beginning of the
+pre-dd-shutdown phase. */
+void trx_sys_before_pre_dd_shutdown_validate();
+
+/** Validates lists of transactions at the very end of the
+pre-dd-shutdown phase. */
+void trx_sys_after_pre_dd_shutdown_validate();
+
+/** Validates lists of transactions after all background threads
+of InnoDB exited during shutdown of MySQL. */
+void trx_sys_after_background_threads_shutdown_validate();
+
 #endif /* !UNIV_HOTBACKUP */
 /**
 Add the transaction to the RW transaction set
