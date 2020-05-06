@@ -118,6 +118,7 @@ SET(TESTS
   cost_estimate
   dbug
   decimal
+  dphyp
   dynarray
   filesort_buffer
   filesort_compare
@@ -295,6 +296,7 @@ SET(SQL_GUNIT_LIB_SOURCE
   ${CMAKE_SOURCE_DIR}/sql/stateless_allocator.cc
   ${CMAKE_SOURCE_DIR}/sql-common/sql_string.cc
   ${CMAKE_SOURCE_DIR}/sql/thr_malloc.cc
+  ${CMAKE_SOURCE_DIR}/sql/join_optimizer/hypergraph.cc
   )
 
 ADD_LIBRARY(sqlgunitlib STATIC ${SQL_GUNIT_LIB_SOURCE})
