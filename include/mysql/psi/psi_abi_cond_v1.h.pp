@@ -64,6 +64,8 @@ typedef struct PSI_cond_info_v1 PSI_cond_info;
 typedef struct PSI_cond_locker_state_v1 PSI_cond_locker_state;
 #include "psi_base.h"
 #include "my_psi_config.h"
+static constexpr unsigned PSI_INSTRUMENT_ME = 0;
+static constexpr unsigned PSI_NOT_INSTRUMENTED = 0;
 struct PSI_placeholder {
   int m_placeholder;
 };
