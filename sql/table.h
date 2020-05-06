@@ -585,6 +585,7 @@ class Table_check_intact {
     Checks whether a table is intact. Should be done *just* after the table has
     been opened.
 
+    @param[in] thd               Thread handle
     @param[in] table             The table to check
     @param[in] table_def         Expected structure of the table (column name
                                  and type)
