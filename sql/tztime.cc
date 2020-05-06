@@ -1385,12 +1385,28 @@ Time_zone *my_tz_SYSTEM = &tz_SYSTEM;
 
 static MEM_ROOT tz_storage;
 
-/*
-  These mutex protects offset_tzs and tz_storage.
-  These protection needed only when we are trying to set
-  time zone which is specified as offset, and searching for existing
-  time zone in offset_tzs or creating if it didn't existed before in
-  tz_storage. So contention is low.
+/**
+  This mutex has two orthogonal purposes:
+
+  -# When the caller of my_tz_find() needs a Time_zone object
+     representing a time zone specified as a numeric displacement. The mutex is
+     then taken in order to protect the offset_tzs map and the
+     performance_schema key tz_storage. my_tz_find() uses a shared pool of
+     Time_zone objects and will search to see if there is an existing time zone,
+     and will otherwise create and insert one. So contention is low.
+
+  -# When the caller of my_tz_find() needs a Time_zone object
+     by name. First the tz_names map is searched, and if nothing is found, the
+     database tables are consulted. If nothing is found there either, an
+     error is thrown. If one is found, tz_load_from_open_tables() tries to
+     insert it in the map, and if it is already there, it fails, logging an "out
+     of memory" event. And that's the reason the whole procedure must take place
+     under a mutex, so that another session couldn't have inserted it in the
+     mean time.
+
+  It is not clear why the same mutex is used for both operations, or for that
+  matter why it is taken even before we have decided which of the two paths
+  above to take.
 */
 static mysql_mutex_t tz_LOCK;
 static bool tz_inited = false;
@@ -1709,6 +1725,7 @@ void my_tz_free() {
     tz_tables should be time_zone_name, next time_zone, then
     time_zone_transition_type and time_zone_transition should be last).
     It will also update information in hash used for time zones lookup.
+    Therefore, it is assumed that this function is called while tz_LOCK is held.
 
   RETURN VALUES
     Returns pointer to newly created Time_zone object or 0 in case of error.
@@ -1998,6 +2015,10 @@ static Time_zone *tz_load_from_open_tables(const String *tz_name,
       (tmp_tzname->name.set(tz_name_buff, tz_name->length(),
                             &my_charset_latin1),
        !tz_names.emplace(to_string(tmp_tzname->name), tmp_tzname).second)) {
+    /*
+       We get here if either some new operator or String::set() returned
+       nullptr, or if *the time zone is already in the map*.
+    */
     LogErr(ERROR_LEVEL, ER_TZ_OOM_WHILE_LOADING_TIME_ZONE);
     goto end;
   }
@@ -2132,11 +2153,11 @@ Time_zone *my_tz_find(THD *thd, const String *name) {
 
   if (!name || name->is_empty()) return nullptr;
 
+  Mutex_guard guard(&tz_LOCK);
+
   int displacement;
   if (!str_to_offset(name->ptr(), name->length(), &displacement)) {
     // The time zone information is a valid numeric displacement.
-    Mutex_guard guard(&tz_LOCK);
-
     const auto it = offset_tzs.find(displacement);
     if (it != offset_tzs.end())
       return it->second;
