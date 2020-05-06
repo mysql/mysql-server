@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,15 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 set -e
+
+GATHER_TYPE="$1"
+
+case "${GATHER_TYPE}" in
+--result) shift;;
+--coverage) shift;;
+--*) echo "Bad gather type exiting.." >&2; exit 1;;
+*) GATHER_TYPE="--result";;
+esac
 
 if [ -d result ]; then
   rm -rf result
@@ -68,8 +77,14 @@ while [ $# -gt 0 ]; do
   # rsync -a --exclude='BACKUP' --exclude='ndb_*_fs/D*' "$SRC_PATH" .
   # rsync -a --exclude='BACKUP' --exclude='ndb_*_fs/D*' --exclude='ndb_*_fs/*.dat' "$SRC_PATH" .
   # rsync -a --exclude='BACKUP' --exclude='ndb_*_fs' "$SRC_PATH" .
-  rsync -a --exclude='BACKUP' --exclude='ndb_*_fs' --exclude='mysqld.*/data' "$SRC_PATH" .
-  RESULT="$?"
+  if [ "$GATHER_TYPE" = "--result" ]; then
+    rsync -a --exclude='BACKUP' --exclude='ndb_*_fs' --exclude='mysqld.*/data' "$SRC_PATH" .
+    RESULT="$?"
+  elif [ "$GATHER_TYPE" = "--coverage" ]; then
+    mkdir -p "coverage/$HOST"
+    rsync -am --include "*.gcda" --include "*/" --exclude "*" "$SRC_PATH" "coverage/$HOST"
+    RESULT="$?"
+  fi
   set -e
   if [ ${RESULT} -ne 0 -a ${RESULT} -ne 24 ] ; then
     echo "rsync error: $RESULT"

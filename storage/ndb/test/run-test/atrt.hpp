@@ -155,6 +155,12 @@ struct atrt_config {
   Vector<atrt_process*> m_processes;
 };
 
+struct atrt_coverage_config {
+  int m_coverage_prefix_strip;
+  BaseString m_lcov_files_dir;
+  bool m_coverage;
+};
+
 struct atrt_testcase {
   int test_no;
   bool m_report;
@@ -176,7 +182,10 @@ struct atrt_testcase {
 extern Logger g_logger;
 
 bool parse_args(int argc, char** argv, MEM_ROOT* alloc);
-bool setup_config(atrt_config&, const char* mysqld);
+bool setup_config(atrt_config&, atrt_coverage_config&, const char* mysqld,
+                  bool);
+void setup_coverage_config(atrt_coverage_config&);
+void get_coverage_parameters(atrt_coverage_config&);
 bool load_deployment_options(atrt_config&);
 bool configure(atrt_config&, int setup);
 bool setup_directories(atrt_config&, int setup);
