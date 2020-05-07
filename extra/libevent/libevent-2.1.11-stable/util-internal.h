@@ -70,6 +70,11 @@ extern "C" {
 # define EVUTIL_HAS_ATTRIBUTE(x) 0
 #endif
 
+#if defined(__SUNPRO_C) || defined(__SUNPRO_CC)
+# undef EVUTIL_HAS_ATTRIBUTE
+# define EVUTIL_HAS_ATTRIBUTE(x) 0
+#endif
+
 /* If we need magic to say "inline", get it for free internally. */
 #ifdef EVENT__inline
 #define inline EVENT__inline
