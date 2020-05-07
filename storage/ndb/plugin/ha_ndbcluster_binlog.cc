@@ -768,12 +768,12 @@ class Ndb_binlog_setup {
   THD *const m_thd;
 
   /**
-     @brief Detect if the binlog is being setup during an initial data node
-            start/restart or a normal data node restart.
-     @param thd_ndb       The Thd_ndb object.
+     @brief Detect whether the binlog is being setup after an initial system
+            start/restart or after a normal system start/restart.
 
-     @return true if this is an initial data node start/restart.
-             false otherwise.
+     @param thd_ndb  The Thd_ndb object
+
+     @return true if this is an initial system start/restart, false otherwise.
    */
   bool detect_initial_restart(Thd_ndb *thd_ndb) {
     DBUG_TRACE;
@@ -787,12 +787,13 @@ class Ndb_binlog_setup {
     }
 
     if (dd_schema_uuid.empty()) {
-      // DD didn't have any schema UUID previously.
-      // This is either an initial start (or) an upgrade from
-      // a version which does not have the schema UUID implemented.
-      // Such upgrades are considered as initial starts to keep this code
-      // simple and due to the fact that the upgrade is probably being done
-      // from a 5.x or a non GA 8.0.x versions to a 8.0.x cluster GA version.
+      /*
+        DD didn't have any schema UUID previously. This is either an initial
+        start (or) an upgrade from a version which does not have the schema UUID
+        implemented. Such upgrades are considered as initial starts to keep this
+        code simple and due to the fact that the upgrade is probably being done
+        from a 5.x or a non GA 8.0.x versions to a 8.0.x cluster GA version.
+      */
       ndb_log_info("Detected an initial system start");
       return true;
     }
@@ -800,9 +801,10 @@ class Ndb_binlog_setup {
     // Check if ndb_schema table exists in NDB
     Ndb_schema_dist_table schema_dist_table(thd_ndb);
     if (!schema_dist_table.exists()) {
-      // ndb_schema table does not exist in NDB yet but
-      // the DD already has a schema UUID.
-      // This is an initial system restart.
+      /*
+        The ndb_schema table does not exist in NDB yet but the DD already has a
+        schema UUID. This is an initial system restart.
+      */
       ndb_log_info("Detected an initial system restart");
       return true;
     }
@@ -814,26 +816,31 @@ class Ndb_binlog_setup {
       DBUG_ASSERT(false);
       return false;
     }
-    // Since the ndb_schema table exists already, the schema UUID also cannot be
-    // empty as whichever mysqld created the table would also have updated the
-    // schema UUID in NDB.
+    /*
+      Since the ndb_schema table exists already, the schema UUID also cannot be
+      empty as whichever mysqld created the table would also have updated the
+      schema UUID in NDB.
+    */
     DBUG_ASSERT(!ndb_schema_uuid.empty());
 
     if (ndb_schema_uuid == dd_schema_uuid.c_str()) {
-      // Schema UUIDs are the same.
-      // This is either a normal system restart or an upgrade.
-      // Any upgrade from versions having schema UUID to another
-      // newer version will be handled here.
+      /*
+        Schema UUIDs are the same. This is either a normal system restart or an
+        upgrade. Any upgrade from versions having schema UUID to another newer
+        version will be handled here.
+      */
       ndb_log_info("Detected a normal system restart");
       return false;
     }
 
-    // Schema UUIDs don't match. This mysqld was previously connected to a
-    // cluster whose schema UUID is stored in DD. It is now connecting to a new
-    // cluster for the first time which already has a different schema UUID as
-    // this is not the first mysqld connecting to that cluster.
-    // From this mysqld's perspective, this will be treated as an
-    // initial system restart.
+    /*
+      Schema UUIDs don't match. This mysqld was previously connected to a
+      Cluster whose schema UUID is stored in DD. It is now connecting to a new
+      Cluster for the first time which already has a different schema UUID as
+      this is not the first mysqld connecting to that Cluster.
+      From this mysqld's perspective, this will be treated as an
+      initial system restart.
+    */
     ndb_log_info("Detected an initial system restart");
     return true;
   }
@@ -883,10 +890,22 @@ class Ndb_binlog_setup {
     // Check if this is a initial restart/start
     const bool initial_system_restart = detect_initial_restart(thd_ndb);
 
-    // Remove tables that have been deleted from NDB Dictionary
     Ndb_dd_sync dd_sync(m_thd, thd_ndb);
-    if (!dd_sync.remove_deleted_tables(initial_system_restart)) {
-      return false;
+    if (initial_system_restart) {
+      // Remove all NDB metadata from DD since this is an initial restart
+      if (!dd_sync.remove_all_metadata()) {
+        return false;
+      }
+    } else {
+      /*
+        Not an initial restart. Delete DD table definitions corresponding to NDB
+        tables that no longer exist in NDB Dictionary. This is to ensure that
+        synchronization of tables down the line doesn't run into issues related
+        to table ids being reused
+      */
+      if (!dd_sync.remove_deleted_tables()) {
+        return false;
+      }
     }
 
     Ndb_schema_dist_table schema_dist_table(thd_ndb);
