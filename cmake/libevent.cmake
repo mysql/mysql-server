@@ -97,14 +97,13 @@ MACRO (FIND_SYSTEM_LIBEVENT)
 ENDMACRO()
 
 MACRO (MYSQL_USE_BUNDLED_LIBEVENT)
-  SET(LIBEVENT_LIBRARIES  event)
-  ## openssl is in the 'libevent.a' static lib
-  SET(LIBEVENT_OPENSSL )
+  SET(LIBEVENT_LIBRARIES event_core event_extra event_openssl)
+  SET(LIBEVENT_BUNDLE_PATH "extra/libevent/libevent-2.1.11-stable")
   SET(LIBEVENT_INCLUDE_DIRS
-    "${CMAKE_SOURCE_DIR}/extra/libevent/include"
-    "${CMAKE_BINARY_DIR}/extra/libevent/include")
-  SET(LIBEVENT_FOUND  TRUE)
-  ADD_SUBDIRECTORY(extra/libevent)
+    "${CMAKE_SOURCE_DIR}/${LIBEVENT_BUNDLE_PATH}/include"
+    "${CMAKE_BINARY_DIR}/${LIBEVENT_BUNDLE_PATH}/include")
+  SET(LIBEVENT_FOUND TRUE)
+  ADD_SUBDIRECTORY(${LIBEVENT_BUNDLE_PATH})
 ENDMACRO()
 
 MACRO (MYSQL_CHECK_LIBEVENT)
