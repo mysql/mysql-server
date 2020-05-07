@@ -38,6 +38,7 @@
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_inttypes.h"
+#include "prealloced_array.h"
 #include "sql/mem_root_array.h"
 #include "sql/row_iterator.h"
 #include "sql/sql_list.h"
@@ -169,17 +170,19 @@ class IndexRangeScanIterator final : public TableRowIterator {
   In this case the records are fetched from a memory buffer.
  */
 template <bool Packed_addon_fields>
-class SortBufferIterator final : public TableRowIterator {
+class SortBufferIterator final : public RowIterator {
  public:
   // "examined_rows", if not nullptr, is incremented for each successful Read().
   // The table is used solely for NULL row flags.
-  SortBufferIterator(THD *thd, TABLE *table, Filesort_info *sort,
-                     Sort_result *sort_result, ha_rows *examined_rows);
+  SortBufferIterator(THD *thd, Prealloced_array<TABLE *, 4> tables,
+                     Filesort_info *sort, Sort_result *sort_result,
+                     ha_rows *examined_rows);
   ~SortBufferIterator() override;
 
   bool Init() override;
   int Read() override;
   void UnlockRow() override {}
+  void SetNullRowFlag(bool is_null_row) override;
 
  private:
   // NOTE: No m_record -- unpacks directly into each Field's field->ptr.
@@ -187,6 +190,7 @@ class SortBufferIterator final : public TableRowIterator {
   Sort_result *const m_sort_result;
   unsigned m_unpack_counter;
   ha_rows *const m_examined_rows;
+  Prealloced_array<TABLE *, 4> m_tables;
 };
 
 /**
@@ -199,7 +203,7 @@ class SortBufferIterator final : public TableRowIterator {
   In this case the record data is fetched from the handler using the saved
   reference using the rnd_pos handler call.
  */
-class SortBufferIndirectIterator final : public TableRowIterator {
+class SortBufferIndirectIterator final : public RowIterator {
  public:
   // Ownership here is suboptimal: Takes only partial ownership of
   // "sort_result", so it must be alive for as long as the RowIterator is.
@@ -208,18 +212,21 @@ class SortBufferIndirectIterator final : public TableRowIterator {
   // The pushed condition can be nullptr.
   //
   // "examined_rows", if not nullptr, is incremented for each successful Read().
-  SortBufferIndirectIterator(THD *thd, TABLE *table, Sort_result *sort_result,
+  SortBufferIndirectIterator(THD *thd, Prealloced_array<TABLE *, 4> tables,
+                             Sort_result *sort_result,
                              bool ignore_not_found_rows,
                              ha_rows *examined_rows);
   ~SortBufferIndirectIterator() override;
   bool Init() override;
   int Read() override;
+  void SetNullRowFlag(bool is_null_row) override;
+  void UnlockRow() override {}
 
  private:
   Sort_result *const m_sort_result;
-  const uint m_ref_length;
+  Prealloced_array<TABLE *, 4> m_tables;
+  uint m_sum_ref_length;
   ha_rows *const m_examined_rows;
-  uchar *m_record = nullptr;
   uchar *m_cache_pos = nullptr, *m_cache_end = nullptr;
   bool m_ignore_not_found_rows;
 };
@@ -233,21 +240,24 @@ class SortBufferIndirectIterator final : public TableRowIterator {
   necessarily suboptimal compared to e.g. SortBufferIndirectIterator.
  */
 template <bool Packed_addon_fields>
-class SortFileIterator final : public TableRowIterator {
+class SortFileIterator final : public RowIterator {
  public:
   // Takes ownership of tempfile.
   // The table is used solely for NULL row flags.
-  SortFileIterator(THD *thd, TABLE *table, IO_CACHE *tempfile,
-                   Filesort_info *sort, ha_rows *examined_rows);
+  SortFileIterator(THD *thd, Prealloced_array<TABLE *, 4> tables,
+                   IO_CACHE *tempfile, Filesort_info *sort,
+                   ha_rows *examined_rows);
   ~SortFileIterator() override;
 
   bool Init() override { return false; }
   int Read() override;
   void UnlockRow() override {}
+  void SetNullRowFlag(bool is_null_row) override;
 
  private:
   uchar *const m_rec_buf;
-  const uint m_ref_length;
+  const uint m_buf_length;
+  Prealloced_array<TABLE *, 4> m_tables;
   IO_CACHE *const m_io_cache;
   Filesort_info *const m_sort;
   ha_rows *const m_examined_rows;
@@ -262,28 +272,31 @@ class SortFileIterator final : public TableRowIterator {
   are read from file, then those record IDs are used to look up rows in the
   table.
  */
-class SortFileIndirectIterator final : public TableRowIterator {
+class SortFileIndirectIterator final : public RowIterator {
  public:
   // Takes ownership of tempfile.
   //
   // The pushed condition can be nullptr.
   //
   // "examined_rows", if not nullptr, is incremented for each successful Read().
-  SortFileIndirectIterator(THD *thd, TABLE *table, IO_CACHE *tempfile,
-                           bool ignore_not_found_rows, ha_rows *examined_rows);
+  SortFileIndirectIterator(THD *thd, Prealloced_array<TABLE *, 4> tables,
+                           IO_CACHE *tempfile, bool ignore_not_found_rows,
+                           ha_rows *examined_rows);
   ~SortFileIndirectIterator() override;
 
   bool Init() override;
   int Read() override;
+  void SetNullRowFlag(bool is_null_row) override;
+  void UnlockRow() override {}
 
  private:
   IO_CACHE *m_io_cache = nullptr;
   ha_rows *const m_examined_rows;
-  uchar *m_record = nullptr;
-  uchar *m_ref_pos = nullptr; /* pointer to form->refpos */
+  Prealloced_array<TABLE *, 4> m_tables;
+  uchar *m_ref_pos = nullptr;
   bool m_ignore_not_found_rows;
 
-  uint m_ref_length;
+  uint m_sum_ref_length;
 };
 
 // Used when the plan is const, ie. is known to contain a single row

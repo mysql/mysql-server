@@ -58,9 +58,13 @@ class SortingIterator final : public RowIterator {
   // times). It _does_ take ownership of "source", and is responsible for
   // calling Init() on it, but does not hold the memory.
   // "examined_rows", if not nullptr, is incremented for each successful Read().
+  //
+  // num_rows_estimate is used only for whether we intend to use the priority
+  // queue optimization or not; if we estimate fewer rows than we can fit into
+  // RAM, we never use the priority queue.
   SortingIterator(THD *thd, Filesort *filesort,
                   unique_ptr_destroy_only<RowIterator> source,
-                  ha_rows *examined_rows);
+                  ha_rows num_rows_estimate, ha_rows *examined_rows);
   ~SortingIterator() override;
 
   // Calls Init() on the source iterator, then does the actual sort.
@@ -123,6 +127,7 @@ class SortingIterator final : public RowIterator {
 
   Sort_result m_sort_result;
 
+  const ha_rows m_num_rows_estimate;
   ha_rows *m_examined_rows;
 
   // Holds one out of all RowIterator implementations we need so that it is

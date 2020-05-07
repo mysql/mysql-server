@@ -612,7 +612,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
 
         // Force filesort to sort by position.
         fsort.reset(new (thd->mem_root) Filesort(
-            thd, qep_tab.table(), /*keep_buffers=*/false, order, limit,
+            thd, {qep_tab.table()}, /*keep_buffers=*/false, order, limit,
             /*force_stable_sort=*/false,
             /*remove_duplicates=*/false,
             /*force_sort_positions=*/true, /*unwrap_rollup=*/false));
@@ -752,7 +752,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         }
 
         iterator = NewIterator<SortFileIndirectIterator>(
-            thd, table, tempfile,
+            thd, Prealloced_array<TABLE *, 4>{table}, tempfile,
             /*ignore_not_found_rows=*/false,
             /*examined_rows=*/nullptr);
         if (iterator->Init()) return true;

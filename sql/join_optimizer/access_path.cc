@@ -537,14 +537,18 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
     case AccessPath::SORT: {
       unique_ptr_destroy_only<RowIterator> child = CreateIteratorFromAccessPath(
           thd, path->sort().child, join, /*eligible_for_batch_mode=*/true);
+      ha_rows num_rows_estimate =
+          path->sort().child->num_output_rows < 0.0
+              ? HA_POS_ERROR
+              : lrint(path->sort().child->num_output_rows);
       Filesort *filesort = path->sort().filesort;
       iterator = NewIterator<SortingIterator>(thd, filesort, move(child),
-                                              examined_rows);
+                                              num_rows_estimate, examined_rows);
       if (filesort->m_remove_duplicates) {
-        filesort->table->duplicate_removal_iterator =
+        filesort->tables[0]->duplicate_removal_iterator =
             down_cast<SortingIterator *>(iterator->real_iterator());
       } else {
-        filesort->table->sorting_iterator =
+        filesort->tables[0]->sorting_iterator =
             down_cast<SortingIterator *>(iterator->real_iterator());
       }
       break;

@@ -452,7 +452,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
       }
 
       fsort.reset(new (thd->mem_root) Filesort(
-          thd, table, /*keep_buffers=*/false, order, HA_POS_ERROR,
+          thd, {table}, /*keep_buffers=*/false, order, HA_POS_ERROR,
           /*force_stable_sort=*/false,
           /*remove_duplicates=*/false,
           /*force_sort_positions=*/true, /*unwrap_rollup=*/false));

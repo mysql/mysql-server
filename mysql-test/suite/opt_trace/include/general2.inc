@@ -679,6 +679,7 @@ insert into t1 values(1),(2),(3);
 create database mysqltest2;
 create table mysqltest2.t2(a int);
 insert into mysqltest2.t2 values(1),(2);
+analyze table t1, mysqltest2.t2;
 --sorted_result
 select * from t1,mysqltest2.t2;
 SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;

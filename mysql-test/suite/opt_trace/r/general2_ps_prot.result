@@ -1130,7 +1130,7 @@ TRACE
               "key_size": "XXX",
               "row_size": "XXX",
               "max_rows_per_buffer": "XXX",
-              "num_rows_estimate": 18446744073709551615,
+              "num_rows_estimate": 15,
               "num_rows_found": 4,
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": "NNN",
@@ -5122,8 +5122,8 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
               "memory_available": 262144,
               "key_size": "XXX",
               "row_size": "XXX",
-              "max_rows_per_buffer": 18,
-              "num_rows_estimate": 18,
+              "max_rows_per_buffer": 7710,
+              "num_rows_estimate": 18446744073709551615,
               "num_rows_found": 8,
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": "NNN",
@@ -5253,6 +5253,10 @@ insert into t1 values(1),(2),(3);
 create database mysqltest2;
 create table mysqltest2.t2(a int);
 insert into mysqltest2.t2 values(1),(2);
+analyze table t1, mysqltest2.t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+mysqltest2.t2	analyze	status	OK
 select * from t1,mysqltest2.t2;
 a	a
 1	1

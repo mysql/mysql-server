@@ -4935,7 +4935,7 @@ bool JOIN::add_sorting_to_table(uint idx, ORDER_with_src *sort_order,
     // items from order_arg.
     Switch_ref_item_slice slice_switch(this, tab->ref_item_slice);
     tab->filesort = new (thd->mem_root)
-        Filesort(thd, tab->table(), keep_buffers, sort_order->order,
+        Filesort(thd, {tab->table()}, keep_buffers, sort_order->order,
                  HA_POS_ERROR, force_stable_sort,
                  /*remove_duplicates=*/false, force_sort_position,
                  /*unwrap_rollup=*/sort_before_group);

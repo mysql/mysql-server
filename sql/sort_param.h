@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,8 +28,9 @@
 #include "my_byteorder.h"  // uint4korr
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_io.h"          // mysql_com.h needs my_socket
-#include "mysql_com.h"      // Item_result
+#include "my_io.h"      // mysql_com.h needs my_socket
+#include "mysql_com.h"  // Item_result
+#include "prealloced_array.h"
 #include "sql/sql_array.h"  // Bounds_checked_array
 #include "sql/sql_const.h"
 #include "sql/sql_sort.h"  // Filesort_info
@@ -262,12 +263,11 @@ class Sort_param {
   uint m_fixed_rec_length{0};   ///< Maximum length of a record, see above.
   uint m_fixed_sort_length{0};  ///< Maximum number of bytes used for sorting.
  public:
-  uint ref_length{0};        // Length of record ref.
+  uint sum_ref_length{0};    // Length of record ref.
   uint m_addon_length{0};    // Length of added packed fields.
   uint fixed_res_length{0};  // Length of records in final sorted file/buffer.
   uint max_rows_per_buffer{0};  // Max (unpacked) rows / buffer.
   ha_rows max_rows{0};          // Select limit, or HA_POS_ERROR if unlimited.
-  TABLE *sort_form{nullptr};    // For quicker make_sortkey.
   bool use_hash{false};         // Whether to use hash to distinguish cut JSON
   bool m_force_stable_sort{false};  // Keep relative order of equal elements
   bool m_remove_duplicates{
@@ -296,7 +296,8 @@ class Sort_param {
   /// optimization). If we want to change this, we can probably have
   /// make_sortkey() check the read set at runtime, at the cost of slightly less
   /// precise estimation of packed row size.
-  void decide_addon_fields(Filesort *file_sort, TABLE *table,
+  void decide_addon_fields(Filesort *file_sort,
+                           const Prealloced_array<TABLE *, 4> &tables,
                            bool sort_positions);
 
   /**
@@ -306,14 +307,15 @@ class Sort_param {
                               subsequent invocations of filesort()
     @param sf_array  initialization value for local_sortorder
     @param sortlen   length of sorted columns
-    @param table     table to be sorted
+    @param tables    tables to be sorted
     @param maxrows   HA_POS_ERROR or possible LIMIT value
     @param remove_duplicates if true, items with duplicate keys will be removed
   */
   void init_for_filesort(Filesort *file_sort,
                          Bounds_checked_array<st_sort_field> sf_array,
-                         uint sortlen, TABLE *table, ha_rows maxrows,
-                         bool remove_duplicates);
+                         uint sortlen,
+                         const Prealloced_array<TABLE *, 4> &tables,
+                         ha_rows maxrows, bool remove_duplicates);
 
   /// Enables the packing of addons if possible.
   void try_to_pack_addons();
@@ -339,20 +341,22 @@ class Sort_param {
     Stores key fields in *dst.
     Then appends either *ref_pos (the @<rowid@>) or the "addon fields".
     @param  [out] dst   Where to store the result
-    @param  ref_pos     Where to find the @<rowid@>
+    @param  tables      Tables to get @<rowid@> from
     @param  [in,out] longest_addons
        The longest addon field row (sum of all addon fields for any single
        given row) found.
     @returns Number of bytes stored, or UINT_MAX if the result could not
       provably fit within the destination buffer.
    */
-  uint make_sortkey(Bounds_checked_array<uchar> dst, const uchar *ref_pos,
+  uint make_sortkey(Bounds_checked_array<uchar> dst,
+                    const Prealloced_array<TABLE *, 4> &tables,
                     size_t *longest_addons);
 
   // Adapter for Bounded_queue.
-  uint make_sortkey(uchar *dst, size_t dst_len, const uchar *ref_pos) {
+  uint make_sortkey(uchar *dst, size_t dst_len,
+                    const Prealloced_array<TABLE *, 4> &tables) {
     size_t longest_addons = 0;  // Unused.
-    return make_sortkey(Bounds_checked_array<uchar>(dst, dst_len), ref_pos,
+    return make_sortkey(Bounds_checked_array<uchar>(dst, dst_len), tables,
                         &longest_addons);
   }
 
@@ -363,7 +367,7 @@ class Sort_param {
   uchar *get_start_of_payload(uchar *p) const {
     size_t offset = using_varlen_keys() ? uint4korr(p) : max_compare_length();
     if (!using_addon_fields() && !using_varlen_keys())
-      offset -= ref_length;  // The reference is also part of the sort key.
+      offset -= sum_ref_length;  // The reference is also part of the sort key.
     return p + offset;
   }
 

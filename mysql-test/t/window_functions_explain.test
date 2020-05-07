@@ -1154,7 +1154,7 @@ SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t 
 # Note: JSON_PRETTY(JSON_EXTRACT()) is also a possibility but it shuffles keys
 # which makes the trace have non-chronological order.
 # Eliminate numbers which may vary:
---replace_regex /("peak_memory_used":) [0-9]+/\1 "NNN"/ /("key_size":) [0-9]+/\1 "XXX"/ /("row_size":) [0-9]+/\1 "XXX"/
+--replace_regex /("peak_memory_used":) [0-9]+/\1 "NNN"/ /("key_size":) [0-9]+/\1 "XXX"/ /("row_size":) [0-9]+/\1 "XXX"/ /("max_rows_per_buffer":) [0-9]+/\1 "NNN"/
 SELECT REGEXP_SUBSTR(TRACE, 'join_optimization.*', 1, 1, 'n') FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 SET optimizer_trace="enabled=off";
 

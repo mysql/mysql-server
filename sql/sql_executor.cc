@@ -2960,7 +2960,7 @@ AccessPath *JOIN::create_root_access_path_for_join() {
         // correct items from order_arg.
         Switch_ref_item_slice slice_switch(this, qep_tab->ref_item_slice);
         dup_filesort = new (thd->mem_root)
-            Filesort(thd, qep_tab->table(), /*keep_buffers=*/false, order,
+            Filesort(thd, {qep_tab->table()}, /*keep_buffers=*/false, order,
                      HA_POS_ERROR, /*force_stable_sort=*/false,
                      /*remove_duplicates=*/true, force_sort_positions,
                      /*unwrap_rollup=*/false);
@@ -2970,7 +2970,7 @@ AccessPath *JOIN::create_root_access_path_for_join() {
           // reuse its Filesort object, as it would get the wrong slice and
           // potentially addon fields. Create a new one.
           filesort = new (thd->mem_root)
-              Filesort(thd, qep_tab->table(), /*keep_buffers=*/false,
+              Filesort(thd, {qep_tab->table()}, /*keep_buffers=*/false,
                        desired_order, HA_POS_ERROR, /*force_stable_sort=*/false,
                        /*remove_duplicates=*/false, force_sort_positions,
                        /*unwrap_rollup=*/false);

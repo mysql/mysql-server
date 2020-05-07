@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -188,7 +188,7 @@ size_t Filesort_buffer::sort_buffer(Sort_param *param, size_t num_input_rows,
   // cheaper.)
   size_t key_len = param->max_compare_length();
   if (!param->using_addon_fields()) {
-    key_len -= param->ref_length;
+    key_len -= param->sum_ref_length;
   }
 
   /*

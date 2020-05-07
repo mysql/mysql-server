@@ -75,7 +75,6 @@ class MakeSortKeyTest : public ::testing::Test {
 
   Sort_param m_sort_param;
   st_sort_field m_sort_fields[2];  // sortlength() adds an end marker !!
-  uchar m_ref_buff[4];             // unused, but needed for make_sortkey()
   uchar m_buff[100];
   Bounds_checked_array<uchar> m_to;
 };
@@ -90,7 +89,7 @@ TEST_F(MakeSortKeyTest, IntResult) {
   EXPECT_EQ(INT_RESULT, m_sort_fields[0].result_type);
 
   size_t longest_addon_so_far = 0;  // Unused.
-  m_sort_param.make_sortkey(m_to, m_ref_buff, &longest_addon_so_far);
+  m_sort_param.make_sortkey(m_to, {}, &longest_addon_so_far);
   SCOPED_TRACE("");
   verify_buff(total_length);
 }
@@ -107,7 +106,7 @@ TEST_F(MakeSortKeyTest, IntResultNull) {
   EXPECT_EQ(INT_RESULT, m_sort_fields[0].result_type);
 
   size_t longest_addon_so_far = 0;  // Unused.
-  m_sort_param.make_sortkey(m_to, m_ref_buff, &longest_addon_so_far);
+  m_sort_param.make_sortkey(m_to, {}, &longest_addon_so_far);
   SCOPED_TRACE("");
   verify_buff(total_length);
 }
@@ -126,7 +125,7 @@ TEST_F(MakeSortKeyTest, DecimalResult) {
   EXPECT_EQ(DECIMAL_RESULT, m_sort_fields[0].result_type);
 
   size_t longest_addon_so_far = 0;  // Unused.
-  m_sort_param.make_sortkey(m_to, m_ref_buff, &longest_addon_so_far);
+  m_sort_param.make_sortkey(m_to, {}, &longest_addon_so_far);
   SCOPED_TRACE("");
   verify_buff(total_length);
 }
@@ -142,7 +141,7 @@ TEST_F(MakeSortKeyTest, RealResult) {
   EXPECT_EQ(REAL_RESULT, m_sort_fields[0].result_type);
 
   size_t longest_addon_so_far = 0;  // Unused.
-  m_sort_param.make_sortkey(m_to, m_ref_buff, &longest_addon_so_far);
+  m_sort_param.make_sortkey(m_to, {}, &longest_addon_so_far);
   SCOPED_TRACE("");
   verify_buff(total_length);
 }
@@ -170,8 +169,7 @@ TEST_F(MakeSortKeyTest, AddonFields) {
 
   // Test regular packing.
   size_t longest_addon_so_far = 0;  // Unused.
-  size_t len =
-      m_sort_param.make_sortkey(m_to, m_ref_buff, &longest_addon_so_far);
+  size_t len = m_sort_param.make_sortkey(m_to, {}, &longest_addon_so_far);
   EXPECT_EQ(total_length + sizeof(float) + addon_field.offset, len);
   float unpacked_val;
   field.unpack(reinterpret_cast<uchar *>(&unpacked_val),
@@ -182,7 +180,7 @@ TEST_F(MakeSortKeyTest, AddonFields) {
   // Test truncation. (The actual contents don't matter in this case.)
   std::unique_ptr<uchar[]> trunc_buf(new uchar[len - 4]);
   size_t trunc_len = m_sort_param.make_sortkey(
-      make_array(trunc_buf.get(), len - 4), m_ref_buff, &longest_addon_so_far);
+      make_array(trunc_buf.get(), len - 4), {}, &longest_addon_so_far);
   EXPECT_GT(trunc_len, len - 4)
       << "make_sortkey() should report back that there was not enough room.";
 }
