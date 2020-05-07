@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -233,6 +233,7 @@ INCLUDE(CMakePushCheckState)
 
 # Add macros
 INCLUDE(character_sets)
+INCLUDE(compile_flags)
 INCLUDE(cpu_info)
 INCLUDE(zlib)
 INCLUDE(lz4)
