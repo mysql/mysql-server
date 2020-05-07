@@ -790,11 +790,15 @@ std::exception_ptr Loader::run() {
   // run plugins if initialization didn't fail
   if (!first_eptr) {
     try {
+      std::shared_ptr<void> exit_guard(
+          nullptr, [](void *) { g_reopen_thread = nullptr; });
+
       start_all();  // if start() throws, exception is forwarded to
                     // main_loop()
 
       // may throw std::system_error
-      g_reopen_thread = new LogReopenThread();
+      LogReopenThread log_reopen_thread;
+      g_reopen_thread = &log_reopen_thread;
 
       first_eptr = main_loop();
     } catch (const std::exception &e) {
@@ -1263,9 +1267,12 @@ LogReopenThread::~LogReopenThread() {
 void LogReopenThread::log_reopen_thread_function(LogReopenThread *t) {
   auto &logging_registry = mysql_harness::DIM::instance().get_LoggingRegistry();
 
-  while (g_shutdown_pending == SHUTDOWN_NONE) {
+  while (true) {
     {
       std::unique_lock<std::mutex> lk(log_reopen_cond_mutex);
+      if (g_shutdown_pending) {
+        break;
+      }
       log_reopen_cond.wait(lk);
       if (g_shutdown_pending) {
         break;
