@@ -397,11 +397,13 @@ void SortBufferIndirectIterator::SetNullRowFlag(bool is_null_row) {
 SortingIterator::SortingIterator(THD *thd, Filesort *filesort,
                                  unique_ptr_destroy_only<RowIterator> source,
                                  ha_rows num_rows_estimate,
+                                 table_map tables_to_get_rowid_for,
                                  ha_rows *examined_rows)
     : RowIterator(thd),
       m_filesort(filesort),
       m_source_iterator(move(source)),
       m_num_rows_estimate(num_rows_estimate),
+      m_tables_to_get_rowid_for(tables_to_get_rowid_for),
       m_examined_rows(examined_rows) {}
 
 SortingIterator::~SortingIterator() {
@@ -510,9 +512,9 @@ int SortingIterator::DoSort() {
                             MYF(MY_WME | MY_ZEROFILL));
 
   ha_rows found_rows;
-  bool error =
-      filesort(thd(), m_filesort, m_source_iterator.get(), m_num_rows_estimate,
-               &m_fs_info, &m_sort_result, &found_rows);
+  bool error = filesort(thd(), m_filesort, m_source_iterator.get(),
+                        m_tables_to_get_rowid_for, m_num_rows_estimate,
+                        &m_fs_info, &m_sort_result, &found_rows);
   for (TABLE *table : m_filesort->tables) {
     table->set_keyread(false);  // Restore if we used indexes
   }

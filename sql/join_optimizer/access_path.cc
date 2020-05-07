@@ -38,6 +38,32 @@
 
 using std::vector;
 
+AccessPath *NewSortAccessPath(THD *thd, AccessPath *child, Filesort *filesort,
+                              bool count_examined_rows) {
+  AccessPath *path = new (thd->mem_root) AccessPath;
+  path->type = AccessPath::SORT;
+  path->count_examined_rows = count_examined_rows;
+  path->sort().child = child;
+  path->sort().filesort = filesort;
+
+  if (filesort->using_addon_fields()) {
+    path->sort().tables_to_get_rowid_for = 0;
+  } else {
+    if (filesort->tables.size() == 1 &&
+        filesort->tables[0]->pos_in_table_list == nullptr) {
+      // This can happen if we sort a single temporary table
+      // which is not in the table list (e.g., one that was
+      // specifically created for us). Filesort has special-casing
+      // to always get the row ID in this case.
+      path->sort().tables_to_get_rowid_for = 0;
+    } else {
+      FindTablesToGetRowidFor(path);
+    }
+  }
+
+  return path;
+}
+
 template <class Func>
 void WalkAccessPaths(AccessPath *path, bool cross_query_blocks, Func &&func) {
   if (func(path)) {
@@ -542,8 +568,9 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
               ? HA_POS_ERROR
               : lrint(path->sort().child->num_output_rows);
       Filesort *filesort = path->sort().filesort;
-      iterator = NewIterator<SortingIterator>(thd, filesort, move(child),
-                                              num_rows_estimate, examined_rows);
+      iterator = NewIterator<SortingIterator>(
+          thd, filesort, move(child), num_rows_estimate,
+          path->sort().tables_to_get_rowid_for, examined_rows);
       if (filesort->m_remove_duplicates) {
         filesort->tables[0]->duplicate_removal_iterator =
             down_cast<SortingIterator *>(iterator->real_iterator());
@@ -792,6 +819,12 @@ void FindTablesToGetRowidFor(AccessPath *path) {
       WalkAccessPaths(path, /*cross_query_blocks=*/false,
                       add_tables_handled_by_others);
       path->weedout().tables_to_get_rowid_for =
+          GetUsedTables(path) & ~handled_by_others;
+      break;
+    case AccessPath::SORT:
+      WalkAccessPaths(path, /*cross_query_blocks=*/false,
+                      add_tables_handled_by_others);
+      path->sort().tables_to_get_rowid_for =
           GetUsedTables(path) & ~handled_by_others;
       break;
     default:

@@ -29,6 +29,7 @@
 
 #include "my_alloc.h"
 #include "my_base.h"
+#include "my_table_map.h"
 #include "sql/basic_row_iterators.h"
 #include "sql/row_iterator.h"
 #include "sql/sql_sort.h"
@@ -64,7 +65,8 @@ class SortingIterator final : public RowIterator {
   // RAM, we never use the priority queue.
   SortingIterator(THD *thd, Filesort *filesort,
                   unique_ptr_destroy_only<RowIterator> source,
-                  ha_rows num_rows_estimate, ha_rows *examined_rows);
+                  ha_rows num_rows_estimate, table_map tables_to_get_rowid_for,
+                  ha_rows *examined_rows);
   ~SortingIterator() override;
 
   // Calls Init() on the source iterator, then does the actual sort.
@@ -128,6 +130,7 @@ class SortingIterator final : public RowIterator {
   Sort_result m_sort_result;
 
   const ha_rows m_num_rows_estimate;
+  const table_map m_tables_to_get_rowid_for;
   ha_rows *m_examined_rows;
 
   // Holds one out of all RowIterator implementations we need so that it is

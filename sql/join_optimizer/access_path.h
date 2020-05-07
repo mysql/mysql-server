@@ -592,6 +592,7 @@ struct AccessPath {
     struct {
       AccessPath *child;
       Filesort *filesort;
+      table_map tables_to_get_rowid_for;
     } sort;
     struct {
       AccessPath *child;
@@ -894,16 +895,10 @@ inline AccessPath *NewFilterAccessPath(THD *thd, AccessPath *child,
   return path;
 }
 
-inline AccessPath *NewSortAccessPath(THD *thd, AccessPath *child,
-                                     Filesort *filesort,
-                                     bool count_examined_rows) {
-  AccessPath *path = new (thd->mem_root) AccessPath;
-  path->type = AccessPath::SORT;
-  path->count_examined_rows = count_examined_rows;
-  path->sort().child = child;
-  path->sort().filesort = filesort;
-  return path;
-}
+// Not inline, because it needs access to filesort internals
+// (which are forward-declared in this file).
+AccessPath *NewSortAccessPath(THD *thd, AccessPath *child, Filesort *filesort,
+                              bool count_examined_rows);
 
 inline AccessPath *NewAggregateAccessPath(THD *thd, AccessPath *child,
                                           Temp_table_param *temp_table_param,
@@ -1138,7 +1133,7 @@ inline AccessPath *NewInvalidatorAccessPath(THD *thd, AccessPath *child,
   return path;
 }
 
-void FindTablesToGetRowidFor(AccessPath *weedout_path);
+void FindTablesToGetRowidFor(AccessPath *path);
 unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
     THD *thd, AccessPath *path, JOIN *join, bool eligible_for_batch_mode);
 void SetCostOnTableAccessPath(const Cost_model_server &cost_model,

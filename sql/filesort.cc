@@ -143,7 +143,8 @@ struct Mem_compare_queue_key {
 
 static ha_rows read_all_rows(
     THD *thd, Sort_param *param, const Prealloced_array<TABLE *, 4> &tables,
-    Filesort_info *fs_info, IO_CACHE *chunk_file, IO_CACHE *tempfile,
+    table_map tables_to_get_rowid_for, Filesort_info *fs_info,
+    IO_CACHE *chunk_file, IO_CACHE *tempfile,
     Bounded_queue<uchar *, uchar *, Sort_param, Mem_compare_queue_key> *pq,
     RowIterator *source_iterator, ha_rows *found_rows, size_t *longest_key,
     size_t *longest_addon);
@@ -355,6 +356,10 @@ static void trace_filesort_information(Opt_trace_context *trace,
   @param      thd            Current thread
   @param      filesort       How to sort the table
   @param      source_iterator Where to read the rows to be sorted from.
+  @param      tables_to_get_rowid_for
+                             Which tables we are responsible for getting row IDs
+                             for. Tables in this set that are not also in
+                             "tables" are ignored.
   @param      num_rows_estimate How many rows source_iterator is expected
                              to produce. Only used for whether we intend
                              to use the priority queue optimization or not;
@@ -374,8 +379,9 @@ static void trace_filesort_information(Opt_trace_context *trace,
 */
 
 bool filesort(THD *thd, Filesort *filesort, RowIterator *source_iterator,
-              ha_rows num_rows_estimate, Filesort_info *fs_info,
-              Sort_result *sort_result, ha_rows *found_rows) {
+              table_map tables_to_get_rowid_for, ha_rows num_rows_estimate,
+              Filesort_info *fs_info, Sort_result *sort_result,
+              ha_rows *found_rows) {
   int error;
   ulong memory_available = thd->variables.sortbuff_size;
   ha_rows num_rows_found = HA_POS_ERROR;
@@ -410,6 +416,15 @@ bool filesort(THD *thd, Filesort *filesort, RowIterator *source_iterator,
   my_b_clear(&tempfile);
   my_b_clear(&chunk_file);
   error = 1;
+
+  if (!param->using_addon_fields()) {
+    for (TABLE *table : filesort->tables) {
+      if (table->pos_in_table_list == nullptr ||
+          (tables_to_get_rowid_for & table->pos_in_table_list->map())) {
+        table->prepare_for_position();
+      }
+    }
+  }
 
   // Make sure the source iterator is initialized before init_for_filesort(),
   // since table->file (and in particular, ref_length) may not be initialized
@@ -512,9 +527,9 @@ bool filesort(THD *thd, Filesort *filesort, RowIterator *source_iterator,
   {
     Opt_trace_array ota(trace, "filesort_execution");
     num_rows_found = read_all_rows(
-        thd, param, filesort->tables, fs_info, &chunk_file, &tempfile,
-        param->using_pq ? &pq : nullptr, source_iterator, found_rows,
-        &longest_key, &longest_addons);
+        thd, param, filesort->tables, tables_to_get_rowid_for, fs_info,
+        &chunk_file, &tempfile, param->using_pq ? &pq : nullptr,
+        source_iterator, found_rows, &longest_key, &longest_addons);
     if (num_rows_found == HA_POS_ERROR) goto err;
   }
 
@@ -875,6 +890,10 @@ static bool alloc_and_make_sortkey(Sort_param *param, Filesort_info *fs_info,
   @param thd               Thread handle
   @param param             Sorting parameter
   @param tables            List of all tables being sorted.
+  @param tables_to_get_rowid_for
+                           Which tables we are responsible for getting row IDs
+                           for. Tables in this set that are not also in "tables"
+                           are ignored.
   @param fs_info           Struct containing sort buffer etc.
   @param chunk_file        File to write Merge_chunks describing sorted segments
                            in tempfile.
@@ -930,7 +949,8 @@ static bool alloc_and_make_sortkey(Sort_param *param, Filesort_info *fs_info,
 
 static ha_rows read_all_rows(
     THD *thd, Sort_param *param, const Prealloced_array<TABLE *, 4> &tables,
-    Filesort_info *fs_info, IO_CACHE *chunk_file, IO_CACHE *tempfile,
+    table_map tables_to_get_rowid_for, Filesort_info *fs_info,
+    IO_CACHE *chunk_file, IO_CACHE *tempfile,
     Bounded_queue<uchar *, uchar *, Sort_param, Mem_compare_queue_key> *pq,
     RowIterator *source_iterator, ha_rows *found_rows, size_t *longest_key,
     size_t *longest_addons) {
@@ -985,7 +1005,10 @@ static ha_rows read_all_rows(
     // Note where we are, for the case where we are not using addon fields.
     if (!param->using_addon_fields()) {
       for (TABLE *table : tables) {
-        table->file->position(table->record[0]);
+        if (table->pos_in_table_list == nullptr ||
+            (table->pos_in_table_list->map() & tables_to_get_rowid_for)) {
+          table->file->position(table->record[0]);
+        }
       }
     }
     DBUG_EXECUTE_IF("debug_filesort", {

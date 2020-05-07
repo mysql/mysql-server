@@ -652,4 +652,8 @@ class HashJoinIterator final : public RowIterator {
 void RequestRowId(const Prealloced_array<hash_join_buffer::Table, 4> &tables,
                   table_map tables_to_get_rowid_for);
 
+void PrepareForRequestRowId(
+    const Prealloced_array<hash_join_buffer::Table, 4> &tables,
+    table_map tables_to_get_rowid_for);
+
 #endif  // SQL_HASH_JOIN_ITERATOR_H_

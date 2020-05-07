@@ -206,6 +206,11 @@ bool HashJoinIterator::Init() {
   m_probe_chunk_current_row = 0;
   m_current_chunk = -1;
 
+  PrepareForRequestRowId(m_probe_input_tables.tables(),
+                         m_tables_to_get_rowid_for);
+  PrepareForRequestRowId(m_build_input_tables.tables(),
+                         m_tables_to_get_rowid_for);
+
   // Build the hash table
   if (BuildHashTable()) {
     DBUG_ASSERT(thd()->is_error() ||
@@ -297,6 +302,16 @@ void RequestRowId(const Prealloced_array<hash_join_buffer::Table, 4> &tables,
     if ((tables_to_get_rowid_for & table->pos_in_table_list->map()) &&
         can_call_position(table)) {
       table->file->position(table->record[0]);
+    }
+  }
+}
+
+void PrepareForRequestRowId(
+    const Prealloced_array<hash_join_buffer::Table, 4> &tables,
+    table_map tables_to_get_rowid_for) {
+  for (const hash_join_buffer::Table &it : tables) {
+    if (tables_to_get_rowid_for & it.table->pos_in_table_list->map()) {
+      it.table->prepare_for_position();
     }
   }
 }

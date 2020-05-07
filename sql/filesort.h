@@ -29,6 +29,7 @@
 #include "my_base.h" /* ha_rows */
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_table_map.h"
 #include "prealloced_array.h"
 #include "sql/sort_param.h"
 
@@ -96,8 +97,9 @@ class Filesort {
 };
 
 bool filesort(THD *thd, Filesort *filesort, RowIterator *source_iterator,
-              ha_rows num_rows_estimate, Filesort_info *fs_info,
-              Sort_result *sort_result, ha_rows *found_rows);
+              table_map tables_to_get_rowid_for, ha_rows num_rows_estimate,
+              Filesort_info *fs_info, Sort_result *sort_result,
+              ha_rows *found_rows);
 void filesort_free_buffers(TABLE *table, bool full);
 void change_double_for_sort(double nr, uchar *to);
 

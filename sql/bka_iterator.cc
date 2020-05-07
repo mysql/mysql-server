@@ -103,6 +103,8 @@ bool BKAIterator::Init() {
       return true;
     }
   }
+  PrepareForRequestRowId(m_outer_input_tables.tables(),
+                         m_outer_input_tables.tables_to_get_rowid_for());
 
   BeginNewBatch();
   m_end_of_outer_rows = false;

@@ -1324,6 +1324,12 @@ bool WeedoutIterator::Init() {
       !m_sj->tmp_table->file->inited) {
     m_sj->tmp_table->file->ha_index_init(0, false);
   }
+  for (SJ_TMP_TABLE_TAB *tab = m_sj->tabs; tab != m_sj->tabs_end; ++tab) {
+    TABLE *table = tab->qep_tab->table();
+    if (m_tables_to_get_rowid_for & table->pos_in_table_list->map()) {
+      table->prepare_for_position();
+    }
+  }
   return m_source->Init();
 }
 
