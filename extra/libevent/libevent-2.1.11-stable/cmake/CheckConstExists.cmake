@@ -1,6 +1,13 @@
 include(CheckCSourceCompiles)
 
 macro(check_const_exists CONST FILES VARIABLE)
+  if (DEFINED ${VARIABLE})
+    IF(${VARIABLE} STREQUAL "")
+      # Set, but empty: unset it to do the checking below.
+      UNSET(${VARIABLE})
+      UNSET(${VARIABLE} CACHE)
+    ENDIF()
+  endif()
   if (NOT DEFINED ${VARIABLE})
     set(check_const_exists_source "")
     foreach(file ${FILES})
