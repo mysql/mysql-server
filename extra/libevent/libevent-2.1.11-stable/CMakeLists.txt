@@ -31,15 +31,15 @@ if (POLICY CMP0075)
     cmake_policy(SET CMP0075 NEW)
 endif()
 
-if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Release
-        CACHE STRING "Set build type to Debug o Release (default Release)" FORCE)
-endif()
+# if(NOT CMAKE_BUILD_TYPE)
+#     set(CMAKE_BUILD_TYPE Release
+#         CACHE STRING "Set build type to Debug o Release (default Release)" FORCE)
+# endif()
 string(TOLOWER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_LOWER)
 
 # get rid of the extra default configurations
 # what? why would you get id of other useful build types? - Ellzey
-set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "Limited configurations" FORCE)
+# set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "Limited configurations" FORCE)
 
 set(EVENT__LIBRARY_TYPE DEFAULT CACHE STRING
     "Set library type to SHARED/STATIC/BOTH (default SHARED for MSVC, otherwise BOTH)")
@@ -322,18 +322,21 @@ if (APPLE)
     # Get rid of deprecated warnings for OpenSSL on OSX 10.7 and greater.
     add_compiler_flags(
         -Wno-error=deprecated-declarations
+        -Wno-unused-function
         -Qunused-arguments
     )
 endif()
 
+CMAKE_PUSH_CHECK_STATE()
+
 # Winsock.
 if(WIN32)
     set(CMAKE_EXTRA_INCLUDE_FILES winsock2.h ws2tcpip.h)
-    set(CMAKE_REQUIRED_LIBRARIES  ws2_32.lib shell32.lib advapi32.lib)
+    LIST(APPEND CMAKE_REQUIRED_LIBRARIES  ws2_32.lib shell32.lib advapi32.lib)
     set(CMAKE_REQUIRED_DEFINITIONS -FIwinsock2.h -FIws2tcpip.h)
 endif()
 if (SOLARIS)
-    set(CMAKE_REQUIRED_LIBRARIES socket nsl)
+    LIST(APPEND CMAKE_REQUIRED_LIBRARIES socket nsl)
 endif()
 
 # Check if _GNU_SOURCE is available.
@@ -434,6 +437,21 @@ CHECK_INCLUDE_FILE(sys/sysctl.h EVENT__HAVE_SYS_SYSCTL_H)
 CHECK_INCLUDE_FILE(sys/timerfd.h EVENT__HAVE_SYS_TIMERFD_H)
 CHECK_INCLUDE_FILE(errno.h EVENT__HAVE_ERRNO_H)
 
+IF(EVENT__HAVE_SYS_SYSCTL_H)
+  # The <sys/sysctl.h> header is deprecated and will be removed." [-W#warnings]
+  MY_CHECK_C_COMPILER_FLAG("-W#warnings" HAVE_PREPROCESSOR_WARNINGS)
+  IF(HAVE_PREPROCESSOR_WARNINGS)
+    ADD_COMPILE_FLAGS(evutil_rand.c COMPILE_FLAGS "-Wno-cpp")
+  ENDIF()
+  MY_CHECK_C_COMPILER_FLAG("-Wcpp" HAVE_CPP_WARNINGS)
+  IF(HAVE_CPP_WARNINGS)
+    ADD_COMPILE_FLAGS(evutil_rand.c COMPILE_FLAGS "-Wno-cpp")
+  ENDIF()
+  MY_CHECK_C_COMPILER_FLAG("-Wdeprecated-declarations" HAVE_DEPRECATED_DECLARATIONS)
+  IF(HAVE_DEPRECATED_DECLARATIONS)
+    ADD_COMPILE_FLAGS(evutil_rand.c COMPILE_FLAGS "-Wno-deprecated-declarations")
+  ENDIF()
+ENDIF()
 
 CHECK_FUNCTION_EXISTS_EX(epoll_create EVENT__HAVE_EPOLL)
 CHECK_FUNCTION_EXISTS_EX(epoll_ctl EVENT__HAVE_EPOLL_CTL)
@@ -468,7 +486,11 @@ CHECK_FUNCTION_EXISTS_EX(sysctl EVENT__HAVE_SYSCTL)
 CHECK_FUNCTION_EXISTS_EX(accept4 EVENT__HAVE_ACCEPT4)
 CHECK_FUNCTION_EXISTS_EX(arc4random EVENT__HAVE_ARC4RANDOM)
 CHECK_FUNCTION_EXISTS_EX(arc4random_buf EVENT__HAVE_ARC4RANDOM_BUF)
-CHECK_FUNCTION_EXISTS_EX(arc4random_addrandom EVENT__HAVE_ARC4RANDOM_ADDRANDOM)
+# Disabled, as the underlying arc4random_addrandom is not portable,
+# and is deprecated on those platforms that have it.
+# CHECK_FUNCTION_EXISTS_EX(arc4random_addrandom EVENT__HAVE_ARC4RANDOM_ADDRANDOM)
+UNSET(EVENT__HAVE_ARC4RANDOM_ADDRANDOM)
+UNSET(EVENT__HAVE_ARC4RANDOM_ADDRANDOM CACHE)
 CHECK_FUNCTION_EXISTS_EX(epoll_create1 EVENT__HAVE_EPOLL_CREATE1)
 CHECK_FUNCTION_EXISTS_EX(getegid EVENT__HAVE_GETEGID)
 CHECK_FUNCTION_EXISTS_EX(geteuid EVENT__HAVE_GETEUID)
@@ -638,7 +660,7 @@ CHECK_TYPE_SIZE("time_t" EVENT__SIZEOF_TIME_T)
 # Verify kqueue works with pipes.
 if (EVENT__HAVE_KQUEUE)
     if ((CMAKE_CROSSCOMPILING OR APPLE) AND NOT EVENT__FORCE_KQUEUE_CHECK)
-        message(WARNING "Cannot check if kqueue works with pipes when crosscompiling, use EVENT__FORCE_KQUEUE_CHECK to be sure (this requires manually running a test program on the cross compilation target)")
+        message(WARNING "Cannot check if kqueue works with pipes when running on APPLE or crosscompiling, use EVENT__FORCE_KQUEUE_CHECK to be sure (this requires manually running a test program on the cross compilation target)")
         set(EVENT__HAVE_WORKING_KQUEUE 1)
     else()
         message(STATUS "Checking if kqueue works with pipes...")
@@ -716,6 +738,8 @@ if(EVENT__HAVE_STRUCT_SOCKADDR_STORAGE)
 endif()
 
 CHECK_TYPE_SIZE("struct linger" EVENT__HAVE_STRUCT_LINGER)
+
+CMAKE_POP_CHECK_STATE()
 
 # Group the source files.
 set(HDR_PRIVATE
@@ -819,14 +843,10 @@ if(EVENT__HAVE_EVENT_PORTS)
 endif()
 
 if (NOT EVENT__DISABLE_OPENSSL)
-    find_package(OpenSSL REQUIRED)
+#   SSL is configured in cmake/ssl.cmake
+#   find_package(OpenSSL REQUIRED)
 
     set(EVENT__HAVE_OPENSSL 1)
-
-    message(STATUS "OpenSSL include: ${OPENSSL_INCLUDE_DIR}")
-    message(STATUS "OpenSSL lib: ${OPENSSL_LIBRARIES}")
-
-    include_directories(${OPENSSL_INCLUDE_DIR})
 
     list(APPEND SRC_OPENSSL bufferevent_openssl.c)
     list(APPEND HDR_PUBLIC include/event2/bufferevent_ssl.h)
@@ -848,17 +868,17 @@ if (NOT EVENT__DISABLE_THREAD_SUPPORT)
     endif()
 endif()
 
-if (NOT EVENT__DISABLE_TESTS)
-    # Zlib is only used for testing.
-    find_package(ZLIB)
-
-    if (ZLIB_LIBRARY AND ZLIB_INCLUDE_DIR)
-        include_directories(${ZLIB_INCLUDE_DIRS})
-
-        set(EVENT__HAVE_LIBZ 1)
-        list(APPEND LIB_APPS ${ZLIB_LIBRARIES})
-    endif()
-endif()
+## if (NOT EVENT__DISABLE_TESTS)
+##     # Zlib is only used for testing.
+##     find_package(ZLIB)
+## 
+##     if (ZLIB_LIBRARY AND ZLIB_INCLUDE_DIR)
+##         include_directories(${ZLIB_INCLUDE_DIRS})
+## 
+##         set(EVENT__HAVE_LIBZ 1)
+##         list(APPEND LIB_APPS ${ZLIB_LIBRARIES})
+##     endif()
+## endif()
 
 set(SRC_EXTRA
     event_tagging.c
@@ -888,6 +908,9 @@ if(WIN32)
     add_definitions(
             -D_CRT_SECURE_NO_WARNINGS
             -D_CRT_NONSTDC_NO_DEPRECATE)
+    # Removing WIN32_LEAN_AND_MEAN definition to avoid:
+    # "warning C4005: 'WIN32_LEAN_AND_MEAN': macro redefinition" in several files
+    remove_definitions(-DWIN32_LEAN_AND_MEAN)
 
     include_directories(./WIN32-Code)
 endif()
@@ -923,25 +946,33 @@ configure_file(
 
 #
 # Create the libraries.
-#
-include(AddEventLibrary)
-add_event_library(event_core SOURCES ${SRC_CORE})
-add_event_library(event_extra
-    LIBRARIES event_core_shared
-    SOURCES ${SRC_EXTRA})
+# Do not use add_event_library, it will install them.
+# include(AddEventLibrary)
+add_library(event_core STATIC ${SRC_CORE})
+add_library(event_extra STATIC ${SRC_EXTRA})
+add_library(event_openssl STATIC ${SRC_OPENSSL})
+# These are interdependent libraries.
+TARGET_LINK_LIBRARIES(event_extra event_core)
+TARGET_LINK_LIBRARIES(event_openssl event_core)
 
-if (NOT EVENT__DISABLE_OPENSSL)
-    add_event_library(event_openssl
-        LIBRARIES event_core_shared ${OPENSSL_LIBRARIES}
-        SOURCES ${SRC_OPENSSL})
-endif()
+IF(NOT WIN32)
+  SET_TARGET_PROPERTIES(event_core
+    PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
+  SET_TARGET_PROPERTIES(event_extra
+    PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
+  SET_TARGET_PROPERTIES(event_openssl
+    PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
+ENDIF()
 
 if (CMAKE_USE_PTHREADS_INIT)
-    set(SRC_PTHREADS evthread_pthread.c)
-    add_event_library(event_pthreads
-        LIBRARIES event_core_shared
-        SOURCES ${SRC_PTHREADS})
+  set(SRC_PTHREADS evthread_pthread.c)
+  add_library(event_pthreads ${SRC_PTHREADS})
+  SET_TARGET_PROPERTIES(event_pthreads
+    PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
 endif()
+
+# Do not generate legacy event library, and do not install or test anything.
+RETURN()
 
 # library exists for historical reasons; it contains the contents of
 # both libevent_core and libevent_extra. You shouldn’t use it; it may
