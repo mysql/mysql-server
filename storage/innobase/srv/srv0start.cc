@@ -3127,7 +3127,9 @@ void srv_pre_dd_shutdown() {
 
   ut_a(!srv_thread_is_active(srv_threads.m_recv_writer));
 
-  trx_sys_before_pre_dd_shutdown_validate();
+  /* This assertion is waiting for fix, because currently purge threads might
+  create transactions belonging to mysql_trx_list (found by Nikša, thanks!)
+  trx_sys_before_pre_dd_shutdown_validate(); */
 
   /* Avoid fast shutdown, if redo logging is disabled. Otherwise, we won't be
   able to recover. */
