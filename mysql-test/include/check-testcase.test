@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 
 # ==== Purpose ====
@@ -203,7 +203,12 @@ EOF
 EOF
 --list_files_append_file $infile $MYSQLTEST_VARDIR/tmp *
 #
-
+if ($MTR_PARALLEL > 1) {
+  --append_file $infile
+#---------------- MYSQL_TMP_DIR --------------------
+EOF
+--list_files_append_file $infile $MYSQL_TMP_DIR *
+}
 --append_file $infile
 #------------- MYSQLTEST_VARDIR/std_data ------------
 EOF
