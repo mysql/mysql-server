@@ -11523,14 +11523,8 @@ inline int create_clustered_index_when_no_primary(
   return (convert_error_code_to_mysql(error, flags, nullptr));
 }
 
-void create_table_info_t::log_error_invalid_location(Fil_path &dirpath,
-                                                     std::string &msg1,
-                                                     std::string &msg2,
+void create_table_info_t::log_error_invalid_location(std::string &msg,
                                                      bool ignore) {
-  std::string client_msg(msg1);
-  std::string log_msg(msg1);
-  log_msg.append(msg2);
-
   if (ignore) {
     THD *thd = current_thd;
 
@@ -11538,18 +11532,15 @@ void create_table_info_t::log_error_invalid_location(Fil_path &dirpath,
         " The DATA DIRECTORY location will be ignored and the"
         " file will be put into the default datadir location.";
 
-    client_msg.append(ignored_msg);
+    msg.append(ignored_msg);
     push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_FILE_NAME,
-                        "%s", client_msg.c_str());
+                        "%s", msg.c_str());
 
-    log_msg.append(ignored_msg);
-    ib::warn(ER_IB_MSG_INVALID_LOCATION_FOR_TABLE, m_table_name,
-             dirpath.abs_path().c_str(), log_msg.c_str());
+    ib::warn(ER_IB_MSG_INVALID_LOCATION_FOR_TABLE, m_table_name, msg.c_str());
   } else {
-    my_printf_error(ER_WRONG_FILE_NAME, "%s", MYF(0), client_msg.c_str());
+    my_printf_error(ER_WRONG_FILE_NAME, "%s", MYF(0), msg.c_str());
 
-    ib::error(ER_IB_MSG_INVALID_LOCATION_FOR_TABLE, m_table_name,
-              dirpath.abs_path().c_str(), log_msg.c_str());
+    ib::error(ER_IB_MSG_INVALID_LOCATION_FOR_TABLE, m_table_name, msg.c_str());
   }
 }
 
@@ -11594,11 +11585,10 @@ bool create_table_info_t::create_option_data_directory_is_valid(bool ignore) {
   /* Do not allow the file to be created in a unique undo directory. */
   if (MySQL_undo_path_is_unique && (MySQL_undo_path.is_same_as(dirpath) ||
                                     MySQL_undo_path.is_ancestor(dirpath))) {
-    std::string msg1(
+    std::string msg(
         "The DATA DIRECTORY location cannot be the undo directory.");
-    std::string msg2("");
 
-    log_error_invalid_location(dirpath, msg1, msg2, ignore);
+    log_error_invalid_location(msg, ignore);
 
     is_valid = false;
   }
@@ -11609,11 +11599,9 @@ bool create_table_info_t::create_option_data_directory_is_valid(bool ignore) {
   used as the DATA DIRECTORY.*/
   bool in_datadir = MySQL_datadir_path.is_same_as(dirpath);
   if (in_datadir) {
-    std::string msg1("The DATA DIRECTORY location cannot be the datadir.");
-    std::string msg2(" The datadir is: ");
-    msg2.append(MySQL_datadir_path.abs_path().c_str());
+    std::string msg("The DATA DIRECTORY location cannot be the datadir.");
 
-    log_error_invalid_location(dirpath, msg1, msg2, ignore);
+    log_error_invalid_location(msg, ignore);
 
     is_valid = false;
   }
@@ -11624,12 +11612,10 @@ bool create_table_info_t::create_option_data_directory_is_valid(bool ignore) {
       (in_datadir || under_datadir) ? true : fil_path_is_known(dirpath.path());
 
   if (!in_known_location) {
-    std::string msg1(
+    std::string msg(
         "The DATA DIRECTORY location must be in a known directory.");
-    std::string msg2(" The known directories are: ");
-    msg2.append(fil_get_dirs().c_str());
 
-    log_error_invalid_location(dirpath, msg1, msg2, ignore);
+    log_error_invalid_location(msg, ignore);
 
     is_valid = false;
   }
@@ -14757,9 +14743,9 @@ static int validate_create_tablespace_info(ib_file_suffix type, THD *thd,
                    (dirname_len == 0 ? 1 : dirname_len), true);
 
   if (!dirpath.is_directory_and_exists()) {
-    ib::error(ER_IB_MSG_DIR_DOES_NOT_EXIST, dirpath.path().c_str());
-    my_printf_error(ER_WRONG_FILE_NAME, "The directory does not exist.",
-                    MYF(0));
+    ib::error(ER_IB_MSG_WRONG_TABLESPACE_DIR, alter_info->tablespace_name);
+    my_printf_error(ER_WRONG_FILE_NAME,
+                    "The directory does not exist or is incorrect.", MYF(0));
 
     error = HA_ERR_WRONG_FILE_NAME;
   }
@@ -14773,8 +14759,7 @@ static int validate_create_tablespace_info(ib_file_suffix type, THD *thd,
     my_printf_error(ER_WRONG_FILE_NAME, "%s", MYF(0), msg.c_str());
 
     ib::error(ER_IB_MSG_INVALID_LOCATION_FOR_TABLESPACE,
-              alter_info->tablespace_name, filepath.path().c_str(),
-              msg.c_str());
+              alter_info->tablespace_name, msg.c_str());
 
     error = HA_ERR_WRONG_FILE_NAME;
   }
@@ -14787,8 +14772,7 @@ static int validate_create_tablespace_info(ib_file_suffix type, THD *thd,
     my_printf_error(ER_WRONG_FILE_NAME, "%s", MYF(0), msg.c_str());
 
     ib::error(ER_IB_MSG_INVALID_LOCATION_FOR_TABLESPACE,
-              alter_info->tablespace_name, filepath.path().c_str(),
-              msg.c_str());
+              alter_info->tablespace_name, msg.c_str());
 
     error = HA_ERR_WRONG_FILE_NAME;
   }
@@ -14807,11 +14791,8 @@ static int validate_create_tablespace_info(ib_file_suffix type, THD *thd,
 
     my_printf_error(ER_WRONG_FILE_NAME, "%s", MYF(0), msg.c_str());
 
-    msg.append(" The known directories are: ");
-    msg.append(fil_get_dirs().c_str());
     ib::error(ER_IB_MSG_INVALID_LOCATION_FOR_TABLESPACE,
-              alter_info->tablespace_name, filepath.path().c_str(),
-              msg.c_str());
+              alter_info->tablespace_name, msg.c_str());
 
     error = HA_ERR_WRONG_FILE_NAME;
   }

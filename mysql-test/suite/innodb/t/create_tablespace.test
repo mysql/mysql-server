@@ -1218,7 +1218,7 @@ call mtr.add_suppression("\\[ERROR\\].* Error number .* means");
 call mtr.add_suppression("\\[ERROR\\].* Cannot create file");
 call mtr.add_suppression("\\[ERROR\\].* Invalid use of ':' in");
 call mtr.add_suppression("\\[ERROR\\].* The file .* already exists though the corresponding table did not exist.");
-call mtr.add_suppression("\\[ERROR\\].* The directory '.*' does not exist");
-call mtr.add_suppression("\\[ERROR\\].* Cannot create tablespace .* in directory .* because it is not a valid location. The DATAFILE location must be in a known directory. The known directories are:");
+call mtr.add_suppression("\\[ERROR\\].* The directory for tablespace .* does not exist or is incorrect");
+call mtr.add_suppression("\\[ERROR\\].* Cannot create tablespace .* because the directory is not a valid location. The DATAFILE location must be in a known directory");
 --enable_query_log
 

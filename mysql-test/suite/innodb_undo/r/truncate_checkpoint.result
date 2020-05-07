@@ -142,7 +142,7 @@ SHOW WARNINGS;
 Level	Code	Message
 Error	3655	Cannot set undo_003 inactive since there would be more than 64 old versions of this undo tablespaces in cache. Please wait for the next checkpoint.
 Error	1533	Failed to alter: UNDO TABLESPACE undo_003
-Error	3655	ALTER UNDO TABLEPSPACE operation is disallowed on undo_003 
+Error	3655	ALTER UNDO TABLEPSPACE operation is disallowed on undo_003
 #
 # Do a checkpoint to clear the old undo tablespace files.
 #

@@ -8348,7 +8348,7 @@ ER_INVALID_THREAD_PRIORITY
   eng "Invalid thread priority value %d for %s resource group %s. Allowed range is [%d, %d]."
 
 ER_DISALLOWED_OPERATION
-  eng "%s operation is disallowed on %s "
+  eng "%s operation is disallowed on %s"
 
 ER_RESOURCE_GROUP_BUSY
   eng "Resource group %s is busy."
