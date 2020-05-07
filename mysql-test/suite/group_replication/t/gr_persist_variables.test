@@ -75,12 +75,21 @@ while ( $varid <= $countvars )
 --let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = $countvars
 --source include/assert.inc
 
---let $assert_text= 'Expect $countvars persisted variables shown as PERSISTED in variables_info table.'
---let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.variables_info WHERE variable_source="PERSISTED", count, 1] = $countvars
+# Table performance_schema.variables_info shows, for each system
+# variable, the source from which it was most recently set.
+# Since GR does `SET SESSION group_replication_consistency= EVENTUAL;`
+# on its SQL API internal connections, this option is shown as DYNAMIC
+# instead of PERSISTED on performance_schema.variables_info table,
+# despite being listed on performance_schema.persisted_variables table.
+--let $countvars_excluding_group_replication_consistency= $countvars
+--dec $countvars_excluding_group_replication_consistency
+
+--let $assert_text= 'Expect $countvars_excluding_group_replication_consistency variables which last value was set through SET PERSIST.'
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.variables_info WHERE variable_source="PERSISTED", count, 1] = $countvars_excluding_group_replication_consistency
 --source include/assert.inc
 
---let $assert_text= 'Expect $countvars persisted variables with matching persisted and global values.'
---let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.variables_info vi JOIN performance_schema.persisted_variables pv JOIN performance_schema.global_variables gv ON vi.variable_name=pv.variable_name AND vi.variable_name=gv.variable_name AND pv.variable_value=gv.variable_value WHERE vi.variable_source="PERSISTED", count, 1] = $countvars
+--let $assert_text= 'Expect $countvars_excluding_group_replication_consistency variables which last value was set through SET PERSIST is equal to its global value.'
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.variables_info vi JOIN performance_schema.persisted_variables pv JOIN performance_schema.global_variables gv ON vi.variable_name=pv.variable_name AND vi.variable_name=gv.variable_name AND pv.variable_value=gv.variable_value WHERE vi.variable_source="PERSISTED", count, 1] = $countvars_excluding_group_replication_consistency
 --source include/assert.inc
 
 

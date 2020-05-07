@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -72,6 +72,12 @@ int Sql_service_interface::open_session() {
     return 1; /* purecov: inspected */
   }
 
+  if (configure_session()) {
+    srv_session_close(m_session);
+    m_session = nullptr;
+    return 1;
+  }
+
   return 0;
 }
 
@@ -99,8 +105,22 @@ int Sql_service_interface::open_thread_session(void *plugin_ptr) {
     return 1; /* purecov: inspected */
   }
 
+  if (configure_session()) {
+    srv_session_close(m_session);
+    m_session = nullptr;
+    srv_session_deinit_thread();
+    return 1;
+  }
+
   m_plugin = plugin_ptr;
   return 0;
+}
+
+long Sql_service_interface::configure_session() {
+  DBUG_TRACE;
+  DBUG_ASSERT(m_session != nullptr);
+
+  return execute_query("SET SESSION group_replication_consistency= EVENTUAL;");
 }
 
 long Sql_service_interface::execute_internal(
