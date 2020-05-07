@@ -57,13 +57,108 @@ bool Ndb_dd_sync::remove_table(const char *schema_name,
   return true;  // OK
 }
 
+bool Ndb_dd_sync::remove_all_metadata() const {
+  DBUG_TRACE;
+  ndb_log_verbose(50, "Removing all NDB metadata from DD");
+
+  Ndb_dd_client dd_client(m_thd);
+
+  // Remove logfile groups
+  // Fetch logfile group names from DD
+  std::unordered_set<std::string> lfg_names;
+  if (!dd_client.fetch_ndb_logfile_group_names(lfg_names)) {
+    ndb_log_error("Failed to fetch logfile group names from DD");
+    return false;
+  }
+
+  for (const std::string &logfile_group_name : lfg_names) {
+    ndb_log_info("Removing logfile group '%s'", logfile_group_name.c_str());
+    if (!dd_client.mdl_lock_logfile_group_exclusive(
+            logfile_group_name.c_str())) {
+      ndb_log_info("MDL lock could not be acquired for logfile group '%s'",
+                   logfile_group_name.c_str());
+      return false;
+    }
+    if (!dd_client.drop_logfile_group(logfile_group_name.c_str())) {
+      ndb_log_info("Failed to remove logfile group '%s' from DD",
+                   logfile_group_name.c_str());
+      return false;
+    }
+  }
+  dd_client.commit();
+
+  // Remove tablespaces
+  // Retrieve list of tablespaces from DD
+  std::unordered_set<std::string> tablespace_names;
+  if (!dd_client.fetch_ndb_tablespace_names(tablespace_names)) {
+    ndb_log_error("Failed to fetch tablespace names from DD");
+    return false;
+  }
+
+  for (const std::string &tablespace_name : tablespace_names) {
+    ndb_log_info("Removing tablespace '%s'", tablespace_name.c_str());
+    if (!dd_client.mdl_lock_tablespace_exclusive(tablespace_name.c_str())) {
+      ndb_log_warning("MDL lock could not be acquired on tablespace '%s'",
+                      tablespace_name.c_str());
+      return true;
+    }
+    if (!dd_client.drop_tablespace(tablespace_name.c_str())) {
+      ndb_log_warning("Failed to remove tablespace '%s' from DD",
+                      tablespace_name.c_str());
+      return false;
+    }
+  }
+  dd_client.commit();
+
+  // Fetch list of schemas in DD
+  std::vector<std::string> schema_names;
+  if (!dd_client.fetch_schema_names(&schema_names)) {
+    ndb_log_error("Failed to fetch schema names from DD");
+    return false;
+  }
+
+  ndb_log_verbose(50, "Found %zu schemas in DD", schema_names.size());
+
+  // Iterate over each schema and remove all NDB tables
+  for (const std::string &name : schema_names) {
+    const char *schema_name = name.c_str();
+    // Lock the schema in DD
+    if (!dd_client.mdl_lock_schema(schema_name)) {
+      ndb_log_error("Failed to acquire MDL lock on schema '%s'", schema_name);
+      return false;
+    }
+
+    ndb_log_verbose(50, "Fetching list of NDB tables in schema '%s'",
+                    schema_name);
+
+    // Fetch list of NDB tables in DD, also acquire MDL lock on table names
+    std::unordered_set<std::string> ndb_tables;
+    if (!dd_client.get_ndb_table_names_in_schema(schema_name, &ndb_tables)) {
+      ndb_log_error("Failed to get list of NDB tables in schema '%s' from DD",
+                    schema_name);
+      return false;
+    }
+    ndb_log_verbose(50, "Found %zu NDB tables in schema '%s'",
+                    ndb_tables.size(), schema_name);
+    for (const std::string &table_name : ndb_tables) {
+      ndb_log_info("Removing table '%s.%s'", schema_name, table_name.c_str());
+      if (!remove_table(schema_name, table_name.c_str())) {
+        ndb_log_error("Failed to remove table '%s.%s' from DD", schema_name,
+                      table_name.c_str());
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 void Ndb_dd_sync::log_NDB_error(const NdbError &ndb_error) const {
   // Display error code and message returned by NDB
   ndb_log_error("Got error '%d: %s' from NDB", ndb_error.code,
                 ndb_error.message);
 }
 
-bool Ndb_dd_sync::remove_deleted_tables(bool initial_restart) const {
+bool Ndb_dd_sync::remove_deleted_tables() const {
   DBUG_TRACE;
   ndb_log_verbose(50, "Looking to remove tables deleted in NDB");
 
@@ -99,47 +194,37 @@ bool Ndb_dd_sync::remove_deleted_tables(bool initial_restart) const {
     }
     ndb_log_verbose(50, "Found %zu NDB tables in DD", ndb_tables_in_DD.size());
 
-    if (unlikely(initial_restart)) {
-      // This is an initial start/restart. Remove all NDB tables in the schema
-      for (const std::string &ndb_table_name : ndb_tables_in_DD) {
+    if (ndb_tables_in_DD.empty()) {
+      // No NDB tables in this schema
+      continue;
+    }
+
+    // Fetch list of tables in NDB
+    std::unordered_set<std::string> tables_in_NDB;
+    if (!ndb_get_table_names_in_schema(m_thd_ndb->ndb->getDictionary(),
+                                       schema_name, &tables_in_NDB)) {
+      log_NDB_error(m_thd_ndb->ndb->getDictionary()->getNdbError());
+      ndb_log_error(
+          "Failed to get list of NDB tables in schema '%s' from "
+          "NDB",
+          schema_name);
+      return false;
+    }
+
+    ndb_log_verbose(50,
+                    "Found %zu NDB tables in schema '%s' in the NDB Dictionary",
+                    tables_in_NDB.size(), schema_name);
+
+    // Iterate over all NDB tables found in DD. If they don't exist in NDB
+    // anymore, then remove the table from DD
+    for (const std::string &ndb_table_name : ndb_tables_in_DD) {
+      if (tables_in_NDB.find(ndb_table_name) == tables_in_NDB.end()) {
         ndb_log_info("Removing table '%s.%s'", schema_name,
                      ndb_table_name.c_str());
         if (!remove_table(schema_name, ndb_table_name.c_str())) {
           ndb_log_error("Failed to remove table '%s.%s' from DD", schema_name,
                         ndb_table_name.c_str());
           return false;
-        }
-      }
-    } else {
-      // This is not an initial start/restart
-      Ndb *ndb = m_thd_ndb->ndb;
-      // Fetch list of tables in NDB
-      std::unordered_set<std::string> tables_in_NDB;
-      if (!ndb_get_table_names_in_schema(ndb->getDictionary(), schema_name,
-                                         &tables_in_NDB)) {
-        log_NDB_error(ndb->getDictionary()->getNdbError());
-        ndb_log_error(
-            "Failed to get list of NDB tables in schema '%s' from "
-            "NDB",
-            schema_name);
-        return false;
-      }
-
-      ndb_log_verbose(
-          50, "Found %zu NDB tables in schema '%s' in the NDB Dictionary",
-          tables_in_NDB.size(), schema_name);
-
-      // Iterate over all NDB tables found in DD. If they don't exist in NDB
-      // anymore, then remove the table from DD
-      for (const std::string &ndb_table_name : ndb_tables_in_DD) {
-        if (tables_in_NDB.find(ndb_table_name) == tables_in_NDB.end()) {
-          ndb_log_info("Removing table '%s.%s'", schema_name,
-                       ndb_table_name.c_str());
-          if (!remove_table(schema_name, ndb_table_name.c_str())) {
-            ndb_log_error("Failed to remove table '%s.%s' from DD", schema_name,
-                          ndb_table_name.c_str());
-            return false;
-          }
         }
       }
     }
@@ -193,23 +278,22 @@ bool Ndb_dd_sync::synchronize_logfile_group(
     const std::unordered_set<std::string> &lfg_in_DD) const {
   ndb_log_verbose(1, "Synchronizing logfile group '%s'", logfile_group_name);
 
-  Ndb *ndb = m_thd_ndb->ndb;
-  NdbDictionary::Dictionary *dict = ndb->getDictionary();
-  NdbDictionary::LogfileGroup ndb_lfg =
-      dict->getLogfileGroup(logfile_group_name);
-  if (ndb_dict_check_NDB_error(dict)) {
-    // Failed to open logfile group from NDB
-    log_NDB_error(dict->getNdbError());
-    ndb_log_error("Failed to get logfile group '%s' from NDB",
-                  logfile_group_name);
-    return false;
-  }
+  NdbDictionary::Dictionary *dict = m_thd_ndb->ndb->getDictionary();
 
   const auto lfg_position = lfg_in_DD.find(logfile_group_name);
   if (lfg_position == lfg_in_DD.end()) {
     // Logfile group exists only in NDB. Install into DD
     ndb_log_info("Logfile group '%s' does not exist in DD, installing..",
                  logfile_group_name);
+    NdbDictionary::LogfileGroup ndb_lfg =
+        dict->getLogfileGroup(logfile_group_name);
+    if (ndb_dict_check_NDB_error(dict)) {
+      // Failed to open logfile group from NDB
+      log_NDB_error(dict->getNdbError());
+      ndb_log_error("Failed to get logfile group '%s' from NDB",
+                    logfile_group_name);
+      return false;
+    }
     std::vector<std::string> undofile_names;
     if (!ndb_get_undofile_names(dict, logfile_group_name, &undofile_names)) {
       log_NDB_error(dict->getNdbError());
@@ -260,6 +344,15 @@ bool Ndb_dd_sync::synchronize_logfile_group(
     return false;
   }
 
+  NdbDictionary::LogfileGroup ndb_lfg =
+      dict->getLogfileGroup(logfile_group_name);
+  if (ndb_dict_check_NDB_error(dict)) {
+    // Failed to open logfile group from NDB
+    log_NDB_error(dict->getNdbError());
+    ndb_log_error("Failed to get logfile group '%s' from NDB",
+                  logfile_group_name);
+    return false;
+  }
   const int object_id_in_NDB = ndb_lfg.getObjectId();
   const int object_version_in_NDB = ndb_lfg.getObjectVersion();
   std::vector<std::string> undofile_names_in_NDB;
@@ -309,8 +402,7 @@ bool Ndb_dd_sync::synchronize_logfile_groups() const {
 
   // Retrieve list of logfile groups from NDB
   std::unordered_set<std::string> lfg_in_NDB;
-  Ndb *ndb = m_thd_ndb->ndb;
-  const NdbDictionary::Dictionary *dict = ndb->getDictionary();
+  const NdbDictionary::Dictionary *dict = m_thd_ndb->ndb->getDictionary();
   if (!ndb_get_logfile_group_names(dict, lfg_in_NDB)) {
     log_NDB_error(dict->getNdbError());
     ndb_log_error("Failed to fetch logfile group names from NDB");
@@ -388,22 +480,21 @@ bool Ndb_dd_sync::synchronize_tablespace(
     return false;
   }
 
-  Ndb *ndb = m_thd_ndb->ndb;
-  NdbDictionary::Dictionary *dict = ndb->getDictionary();
+  NdbDictionary::Dictionary *dict = m_thd_ndb->ndb->getDictionary();
   const auto tablespace_position = tablespaces_in_DD.find(tablespace_name);
-  NdbDictionary::Tablespace ndb_tablespace =
-      dict->getTablespace(tablespace_name);
-  if (ndb_dict_check_NDB_error(dict)) {
-    // Failed to open tablespace from NDB
-    log_NDB_error(dict->getNdbError());
-    ndb_log_error("Failed to get tablespace '%s' from NDB", tablespace_name);
-    return false;
-  }
 
   if (tablespace_position == tablespaces_in_DD.end()) {
     // Tablespace exists only in NDB. Install in DD
     ndb_log_info("Tablespace '%s' does not exist in DD, installing..",
                  tablespace_name);
+    NdbDictionary::Tablespace ndb_tablespace =
+        dict->getTablespace(tablespace_name);
+    if (ndb_dict_check_NDB_error(dict)) {
+      // Failed to open tablespace from NDB
+      log_NDB_error(dict->getNdbError());
+      ndb_log_error("Failed to get tablespace '%s' from NDB", tablespace_name);
+      return false;
+    }
     std::vector<std::string> datafile_names;
     if (!ndb_get_datafile_names(dict, tablespace_name, &datafile_names)) {
       log_NDB_error(dict->getNdbError());
@@ -450,6 +541,14 @@ bool Ndb_dd_sync::synchronize_tablespace(
     return false;
   }
 
+  NdbDictionary::Tablespace ndb_tablespace =
+      dict->getTablespace(tablespace_name);
+  if (ndb_dict_check_NDB_error(dict)) {
+    // Failed to open tablespace from NDB
+    log_NDB_error(dict->getNdbError());
+    ndb_log_error("Failed to get tablespace '%s' from NDB", tablespace_name);
+    return false;
+  }
   const int object_id_in_NDB = ndb_tablespace.getObjectId();
   const int object_version_in_NDB = ndb_tablespace.getObjectVersion();
   std::vector<std::string> datafile_names_in_NDB;
@@ -498,8 +597,7 @@ bool Ndb_dd_sync::synchronize_tablespaces() const {
 
   // Retrieve list of tablespaces from NDB
   std::unordered_set<std::string> tablespaces_in_NDB;
-  Ndb *ndb = m_thd_ndb->ndb;
-  const NdbDictionary::Dictionary *dict = ndb->getDictionary();
+  const NdbDictionary::Dictionary *dict = m_thd_ndb->ndb->getDictionary();
   if (!ndb_get_tablespace_names(dict, tablespaces_in_NDB)) {
     log_NDB_error(dict->getNdbError());
     ndb_log_error("Failed to fetch tablespace names from NDB");

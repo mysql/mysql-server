@@ -246,16 +246,20 @@ class Ndb_dd_sync {
   Ndb_dd_sync(const Ndb_dd_sync &) = delete;
 
   /*
-    @brief Removes all deleted NDB tables from DD by comparing them against
-           a list of tables in NDB. Optionally during an initial start/restart,
-           removes all NDB tables from DD
-
-    @param initial_restart  Denotes whether NDB has been started/restarted with
-                            the initial option enabled
+    @brief Removes all NDB metadata from the DD. Designed to be called after an
+           initial start/restart
 
     @return true on success, false otherwise
   */
-  bool remove_deleted_tables(bool initial_restart) const;
+  bool remove_all_metadata() const;
+
+  /*
+    @brief Removes all deleted NDB tables from DD by comparing them against
+           a list of tables in NDB
+
+    @return true on success, false otherwise
+  */
+  bool remove_deleted_tables() const;
 
   /*
     @brief Synchronizes all NDB related content in the DD to match that of the
