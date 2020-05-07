@@ -55,6 +55,9 @@ CREATE TABLE t3 SELECT * FROM t1;
 ALTER TABLE t3 ADD PRIMARY KEY (d);
 ALTER TABLE t3 ADD KEY (a);
 ALTER TABLE t3 ADD KEY (a, b);
+ANALYZE TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	analyze	status	OK
 ########################################################################
 connect  con1,localhost,test,,test;
 BEGIN;
@@ -119,7 +122,7 @@ a	b	c	d	e
 01	07	343	4	01_07_343
 01	08	343	5	01_08_343
 01	09	343	6	01_09_343
-SELECT * FROM t3 WHERE a='01' FOR UPDATE ;
+SELECT * FROM t3 FORCE INDEX(a) WHERE a='01' FOR UPDATE ;
 a	b	c	d	e
 01	04	343	2	01_04_343
 01	06	343	3	01_06_343
@@ -177,6 +180,9 @@ d	a	b	c
 7	03	03	343
 8	03	06	343
 9	03	07	343
+ANALYZE TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	analyze	status	OK
 SELECT d,a,b,c FROM t3 ORDER BY d FOR SHARE SKIP LOCKED;
 d	a	b	c
 1	07	03	343
@@ -285,7 +291,7 @@ a	b	c	d	e
 01	07	343	4	01_07_343
 01	08	343	5	01_08_343
 01	09	343	6	01_09_343
-SELECT * FROM t3 WHERE a='01' FOR SHARE ;
+SELECT * FROM t3 FORCE INDEX(a) WHERE a='01' FOR SHARE ;
 a	b	c	d	e
 01	04	343	2	01_04_343
 01	06	343	3	01_06_343
@@ -386,6 +392,9 @@ d	a	b	c
 7	03	03	343
 8	03	06	343
 9	03	07	343
+ANALYZE TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	analyze	status	OK
 SELECT d,a,b,c FROM t3 ORDER BY d FOR SHARE SKIP LOCKED;
 d	a	b	c
 1	07	03	343
