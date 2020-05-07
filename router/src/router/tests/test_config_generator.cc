@@ -163,6 +163,18 @@ using mysql_harness::delete_dir_recursive;
 using mysql_harness::delete_file;
 using mysqlrouter::ConfigGenerator;
 
+static void common_pass_setup_session(MySQLSessionReplayer *m) {
+  m->expect_execute(
+      "SET @@SESSION.autocommit=1, @@SESSION.character_set_client=utf8, "
+      "@@SESSION.character_set_results=utf8, "
+      "@@SESSION.character_set_connection=utf8, "
+      "@@SESSION.sql_mode='ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_"
+      "DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION', "
+      "@@SESSION.optimizer_switch='derived_merge=on'");
+
+  m->expect_execute("SET @@SESSION.group_replication_consistency='EVENTUAL'");
+}
+
 static void common_pass_schema_version(MySQLSessionReplayer *m) {
   m->expect_query_one(
       "SELECT * FROM mysql_innodb_cluster_metadata.schema_version");
@@ -219,6 +231,7 @@ static void common_pass_member_is_primary(MySQLSessionReplayer *m) {
 
 static void common_pass_metadata_checks(MySQLSessionReplayer *m) {
   m->clear_expects();
+  common_pass_setup_session(m);
   common_pass_schema_version(m);
   common_pass_cluster_type(m);
   common_pass_metadata_supported(m);
@@ -303,6 +316,7 @@ TEST_F(ConfigGeneratorTest, metadata_checks_invalid_data) {
   {
     ConfigGenerator config_gen;
 
+    common_pass_setup_session(mock_mysql.get());
     mock_mysql->expect_query_one(
         "SELECT * FROM mysql_innodb_cluster_metadata.schema_version");
     mock_mysql->then_return(1, {// major, [minor missing]
@@ -316,6 +330,7 @@ TEST_F(ConfigGeneratorTest, metadata_checks_invalid_data) {
 
   {
     ConfigGenerator config_gen;
+    common_pass_setup_session(mock_mysql.get());
     common_pass_schema_version(mock_mysql.get());
     common_pass_cluster_type(mock_mysql.get());
     // invalid number of values returned from query for metadata support
@@ -336,6 +351,7 @@ TEST_F(ConfigGeneratorTest, metadata_checks_invalid_data) {
   {
     ConfigGenerator config_gen;
 
+    common_pass_setup_session(mock_mysql.get());
     common_pass_schema_version(mock_mysql.get());
     common_pass_cluster_type(mock_mysql.get());
     common_pass_metadata_supported(mock_mysql.get());
@@ -355,6 +371,7 @@ TEST_F(ConfigGeneratorTest, metadata_checks_invalid_data) {
   {
     ConfigGenerator config_gen;
 
+    common_pass_setup_session(mock_mysql.get());
     common_pass_schema_version(mock_mysql.get());
     common_pass_cluster_type(mock_mysql.get());
     common_pass_metadata_supported(mock_mysql.get());
@@ -3015,6 +3032,7 @@ TEST_F(ConfigGeneratorTest, ssl_stage3_create_config) {
   // bootstrap options).
 
   ConfigGenerator config_gen;
+  common_pass_setup_session(mock_mysql.get());
   common_pass_schema_version(mock_mysql.get());
   common_pass_cluster_type(mock_mysql.get());
   common_pass_metadata_supported(mock_mysql.get());
