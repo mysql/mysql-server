@@ -1,0 +1,792 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+		"http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+	<title>robot Tree A11y Test</title>
+
+	<style>
+		@import "../../../../util/doh/robot/robot.css";
+	</style>
+
+	<script type="text/javascript" src="../../../../dojo/dojo.js"></script>
+
+	<script type="text/javascript">
+		require([
+			"doh/runner", "dojo/robotx",
+			"dojo/_base/array", "dojo/dom", "dojo/keys", "dojo/query", "dojo/window",
+			"dijit/tests/helpers", "dojo/domReady!"
+		], function(doh, robot, array, dom, keys, query, winUtils, helpers){
+
+			var treeIds = ["mytree", "tree2"];
+	
+			function testTreeItemRole(/*dijit._TreeNode*/ inRoot, /*dijit.Tree*/ inTree){
+				if(inRoot){
+					var expectedrole = inTree.showRoot || inRoot !== inTree.rootNode ? 'treeitem' : 'presentation';
+					doh.is(expectedrole, inRoot.labelNode.getAttribute("role"), inRoot.label + "[" + inTree.id + "]: aria role (" + expectedrole + ")");
+
+					// recurse
+					var children = inRoot.getChildren();
+					for(var i = 0; i < children.length; i++){
+						testTreeItemRole(children[i], inTree);
+					}
+				}
+			}
+	
+			robot.initRobot('../test_Tree.html');
+
+			var registry, focus, mytree;
+
+			doh.register("_setup", [
+				{
+					name: "wait for widgets to load",
+					timeout: 20000,
+					runTest: helpers.waitForLoad
+				},
+				function setVars(){
+					registry = robot.window.require("dijit/registry");
+					focus = robot.window.require("dijit/focus");
+					mytree = registry.byId("mytree");
+				}
+			]);
+
+			// Aria role and properties tests.
+			// These tests should probably be moved to the non-robot Tree_ObjectStoreModel.html.
+			doh.register("a11yAria", [
+				function ariaTreeRole(){
+					for(var i=0; i < treeIds.length; i++){
+						var tree = registry.byId(treeIds[i]), expectedrole = tree.showRoot ? 'tree': 'presentation';
+						doh.is(expectedrole, tree.domNode.getAttribute("role"), tree.id + ": aria role (" + expectedrole + ")");
+					}
+
+					tree = registry.byId("tree2");  // the rootless tree
+					doh.is("tree", tree.rootNode.containerNode.getAttribute("role"), "rootless tree has role on containerNode");
+					doh.f(tree.rootNode.labelNode.hasAttribute("aria-selected"), "labelNode.hasAttribute('aria-selected')");
+				},
+
+				{
+					name: "ariaTreeItemStateExpanded",
+					timeout: 8000,
+					runTest: function(){
+						return mytree.expandAll().then(function(){
+							query('[widgetId]', mytree.containerNode).map(registry.byNode).forEach(function(/*TreeNode*/ inItem){
+								if(inItem.isExpandable){
+									doh.is("true", inItem.labelNode.getAttribute("aria-expanded"), inItem.label + "[" + mytree.id + "]: aria state expanded=true");
+								}else{
+									// On IE9 getAttribute("aria-expanded") returns "", on other browsers null
+									var attr = inItem.labelNode.getAttribute("aria-expanded");
+									doh.t(attr === null || attr === "", inItem.label + "[" + mytree.id + "]: aria state expanded=false");
+								}
+							});
+						});
+					}
+				},
+
+				function ariaTreeItemRole(){
+					for(var i=0; i < treeIds.length; i++){
+						var tree = registry.byId(treeIds[i]);
+						testTreeItemRole(tree.rootNode, tree);
+					}
+
+					// role=group containers should have aria label
+					var rn = mytree.rootNode;
+					var labelId1 = rn.containerNode.getAttribute('aria-labelledby');
+					doh.is("Continents", innerText(dom.byId(labelId1)), "labelledby");
+
+					var firstChild = rn.getChildren()[0].containerNode;
+					var labelId2 = firstChild.getAttribute('aria-labelledby');
+					doh.is("Africa", innerText(dom.byId(labelId2)), "labelledby");
+				},
+
+				{
+					name: "ariaTreeItemStateCollapsed",
+					timeout: 8000,
+					runTest: function(){
+						return mytree.collapseAll().then(function(){
+							query('[widgetId]', mytree.containerNode).map(registry.byNode).forEach(function(/*TreeNode*/ inItem){
+								if(inItem.isExpandable){
+									doh.is("false", inItem.labelNode.getAttribute("aria-expanded"), inItem.label + "[" + mytree.id + "]: aria state expanded=false");
+								}else{
+									// On IE9 getAttribute("aria-expanded") returns "", on other browsers null
+									var attr = inItem.labelNode.getAttribute("aria-expanded");
+									doh.t(attr === null || attr === "", inItem.label + "[" + mytree.id + "]: aria state expanded=false");
+								}
+							});
+						});
+					}
+				}
+			]);
+
+			// Basic keyboard navigation:
+			//		- tabbing in/out of tree
+			//		- arrow keys
+			//		- home/end
+			//		- space/enter to select tree nodes (although this is also covered in Tree_selector.html)
+
+			function toggle(func, expanded){
+				return function(){
+					var d = new doh.Deferred();
+
+					var mytree = registry.byId("mytree");
+
+					doh.is(expanded, mytree.focusedChild.isExpanded, "original state");
+
+					func(mytree.focusedChild.click );
+
+					robot.sequence(d.getTestCallback(function(){
+						doh.is(!expanded, mytree.focusedChild.isExpanded, "after state");
+					}), 500);
+
+					return d;
+				};
+			}
+			doh.register("basic keyboard", [
+				{
+					name: "setup",
+					timeout: 8000,
+					runTest: function(){
+						// Close all tree nodes except for Africa and Sudan, South America, and the root node itself
+						return mytree.collapseAll().then(function(){
+							return mytree.set("paths", [
+								["continentRoot", "AF", "SD", "Khartoum"],
+								["continentRoot", "SA", "AR"]				// Argentina
+							]);
+						});
+					}
+				},
+
+				{
+					name: "tab in",
+					timeout: 4000,
+					runTest: function(){
+						var d = new doh.Deferred();
+
+						dom.byId("mytree_before", robot.doc).focus();
+
+						robot.keyPress(keys.TAB, 300);			// should go to Continents
+
+						robot.sequence(d.getTestCallback(function(){
+							var curNode = focus.curNode;
+							doh.is("Continents", curNode.innerHTML, "focused on continents");
+						}), 500);
+
+						return d;
+					}
+				},
+
+				{
+					name: "down arrow #1",
+					timeout: 4000,
+					runTest: function(){
+						var d = new doh.Deferred();
+
+						robot.keyPress(keys.DOWN_ARROW, 300);		// move down to Africa
+
+						robot.sequence(d.getTestCallback(function(){
+							doh.is("Africa", mytree.focusedChild.label, "Africa is focused");
+						}), 500);
+
+						return d;
+					}
+				},
+
+				{
+					name: "left arrow",
+					timeout: 6000,
+					runTest: function(){
+						var d = new doh.Deferred();
+
+						doh.t(mytree.focusedChild.isExpanded, "initially expanded");
+
+						// first left arrow closes Africa, without moving focus
+						robot.keyPress(keys.LEFT_ARROW, 300);
+						robot.sequence(d.getTestErrback(function(){
+							doh.f(mytree.focusedChild.isExpanded, "now it's closed");
+							doh.is("Africa", mytree.focusedChild.label, "still on Africa");
+						}), 1000);
+
+						// second left arrow goes to Africa's parent
+						robot.keyPress(keys.LEFT_ARROW, 300);
+						robot.sequence(d.getTestCallback(function(){
+							doh.is("Continents", mytree.focusedChild.label, "goes to parent");
+						}), 500);
+
+						return d;
+					}
+				},
+
+				{
+					name: "right arrow",
+					timeout: 6000,
+					runTest: function(){
+						var d = new doh.Deferred();
+
+						// move from Continents to Africa
+						robot.keyPress(keys.RIGHT_ARROW, 300);
+
+						robot.sequence(d.getTestErrback(function(){
+							doh.is("Africa", focus.curNode.innerHTML, "Africa is focused");
+						}), 500);
+
+						// expand Africa node, focus still on Africa
+						robot.keyPress(keys.RIGHT_ARROW, 300);
+
+						robot.sequence(d.getTestErrback(function(){
+							doh.t(mytree.focusedChild.isExpanded, "now it's expanded");
+							doh.is("Africa", focus.curNode.innerHTML, "Africa still focused");
+						}), 1000);
+
+						// next right arrow (or down arrow) will move to child
+						robot.keyPress(keys.RIGHT_ARROW, 300);
+
+						robot.sequence(d.getTestCallback(function(){
+							doh.is("Egypt", mytree.focusedChild.label, "Egypt is focused");
+						}), 500);
+
+						return d;
+					}
+				},
+
+				{
+					name: "down arrow #2",
+					timeout: 4000,
+					runTest: function(){
+						var d = new doh.Deferred();
+
+						// testing that down arrow goes through all visible nodes, popping up and down parent-child
+						// hierarchy
+
+						// Tests that down arrow goes to child, ie from Sudan to Khartoum
+						robot.keyPress(keys.DOWN_ARROW, 300);
+						robot.keyPress(keys.DOWN_ARROW, 300);
+						robot.keyPress(keys.DOWN_ARROW, 300);
+
+						robot.sequence(d.getTestCallback(function(){
+							doh.is("Khartoum", mytree.focusedChild.label, "went down to child of Sudan");
+						}), 500);
+
+						return d;
+					}
+				},
+
+				{
+					name: "select Khartoum",
+					timeout: 4000,
+					runTest: function(){
+						var d = new doh.Deferred();
+
+						robot.keyPress(keys.ENTER, 300);			// select it
+
+						robot.sequence(d.getTestCallback(function(){
+							var item = mytree.get("selectedItem"),
+									label = mytree.model.getLabel(item);
+							doh.is("Khartoum", label, "selected");
+							doh.is("Khartoum", mytree.focusedChild.label, "and still focused");
+						}), 500);
+
+						return d;
+					}
+				},
+
+				{
+					name: "down arrow #3",
+					timeout: 4000,
+					runTest: function(){
+						var d = new doh.Deferred();
+
+						// Test that down arrow pops up two levels
+						robot.keyPress(keys.DOWN_ARROW, 300);
+						robot.sequence(d.getTestCallback(function(){
+							doh.is("Asia", mytree.focusedChild.label, "popped up to great uncle of Khartoum");
+
+							var item = mytree.get("selectedItem"),
+									label = mytree.model.getLabel(item);
+							doh.is("Khartoum", label, "but Khartoum is still selected");
+						}), 500);
+
+						return d;
+					}
+				},
+
+				{
+					name: "ENTER to open",
+					timeout: 4000,
+					runTest: toggle(function(){
+						robot.keyPress(keys.ENTER, 300);        // since openOnClick==true, this opens the node
+					}, false)
+				},
+
+				{
+					name: "ENTER to close",
+					timeout: 4000,
+					runTest: toggle(function(){
+						robot.keyPress(keys.ENTER, 300);        // since openOnClick==true, this closes the node
+					}, true)
+				},
+
+				{
+					name: "up arrow",
+					timeout: 4000,
+					runTest: function(){
+						var d = new doh.Deferred();
+
+						// up arrow should go to node visually above current node, not necessarily it's
+						// previous sibling
+						robot.keyPress(keys.UP_ARROW, 300);
+						robot.sequence(d.getTestErrback(function(){
+							doh.is("Khartoum", focus.curNode.innerHTML, "not Africa");
+						}), 500);
+
+
+						robot.keyPress(keys.UP_ARROW, 300);
+
+						robot.sequence(d.getTestCallback(function(){
+							doh.is("Sudan", focus.curNode.innerHTML, "not Africa");
+						}), 500);
+
+						return d;
+					}
+				},
+
+				{
+					name: "end",
+					timeout: 4000,
+					runTest: function(){
+						var d = new doh.Deferred();
+
+						robot.keyPress(keys.END, 300);
+
+						robot.sequence(d.getTestCallback(function(){
+							doh.is("Argentina", focus.curNode.innerHTML);
+						}), 500);
+
+						return d;
+					}
+				},
+
+				{
+					name: "home",
+					timeout: 4000,
+					runTest: function(){
+						var d = new doh.Deferred();
+
+						robot.keyPress(keys.HOME, 300);			// go to Continents
+
+						robot.sequence(d.getTestCallback(function(){
+							doh.is("Continents", focus.curNode.innerHTML, "Africa is focused");
+						}), 500);
+
+						return d;
+					}
+				},
+
+				{
+					name: "tab out",
+					timeout: 4000,
+					runTest: function(){
+						var d = new doh.Deferred();
+
+						robot.keyPress(keys.TAB, 300);
+
+						robot.sequence(d.getTestCallback(function(){
+							doh.is("mytreeDestroyButton", focus.curNode.id);
+						}), 500);
+
+						return d;
+					}
+				},
+
+				{
+					name: "shift-tab in",
+					timeout: 4000,
+					runTest: function(){
+						var d = new doh.Deferred();
+
+						robot.keyPress(keys.TAB, 300, {shift: true});
+
+						robot.sequence(d.getTestCallback(function(){
+							doh.is("Continents", focus.curNode.innerHTML, "focused on continents");
+						}), 500);
+
+						return d;
+					}
+				},
+
+				{
+					name: "shift-tab out",
+					timeout: 4000,
+					runTest: function(){
+						var d = new doh.Deferred();
+
+						robot.keyPress(keys.TAB, 300, {shift: true});
+
+						robot.sequence(d.getTestCallback(function(){
+							doh.is("mytree_before", focus.curNode.id, "focus went to input before tree");
+							query(".dijitTreeLabel", "mytree").every(function(node, idx){
+								var ti = node.getAttribute("tabindex");
+								doh.is("-1", ti, "-1 tab index on TreeNode" + idx);
+							});
+							doh.is(0, mytree.domNode.getAttribute("tabindex"), "0 tabindex on Tree.domNode itself");
+						}), 500);
+
+						return d;
+					}
+				}
+			]);
+
+			// TODO: tests on tree with showRoot=false
+
+			// Test for typing "a" to navigate to nodes that start with "a", etc.
+			doh.register("keyboard search tests", [
+				{
+					name: "Setup tree",
+					timeout: 4000,
+					runTest: function(){
+						var d = new doh.Deferred();
+
+						var tree = registry.byId("mytree");
+
+						// Close all tree nodes except for Asia and Oceania
+						array.forEach(tree.rootNode.getChildren(), function(child, idx){
+							if(child.label == "Asia" || child.label == "Oceania"){
+								console.log("expanding " + child.label);
+								if(!child.isExpanded){
+									tree._expandNode(child);
+								}
+							}else{
+								console.log("collapsing " + child.label);
+								if(child.isExpanded){
+									tree._collapseNode(child);
+								}
+							}
+						});
+
+						robot.sequence(d.getTestCallback(function(){
+							// Just waiting for animation to finish...
+						}), 500);
+
+						return d;
+					}
+				},
+				{
+					name: "Focus on Continents",
+					timeout: 4000,
+					runTest: function(){
+						var d = new doh.Deferred();
+
+						var tree = registry.byId("mytree");
+						tree.focusNode(tree.rootNode);
+
+						robot.sequence(d.getTestCallback(function(){
+							doh.t(tree.rootNode.labelNode, "focused on continents");
+						}), 500);
+
+						return d;
+					}
+				},
+				{
+					name: "First 'A' key goes to Africa",
+					timeout: 4000,
+					runTest: function(){
+						var d = new doh.Deferred();
+
+						// From Continents node, press "A".   Should go to Africa.
+						robot.keyPress("a", 100);
+						robot.sequence(d.getTestCallback(function(){
+							var focusedWidget = registry.getEnclosingWidget(focus.curNode);
+							doh.t(focusedWidget, "there is a focused widget");
+							doh.is("Africa", focusedWidget.label);
+						}), 500);
+
+						return d;
+					}
+				},
+				{
+					name: "Second 'A' key goes to Asia",
+					timeout: 4000,
+					runTest: function(){
+						var d = new doh.Deferred();
+
+						// From Africa node, press "A" again.   Should go to Asia.
+						robot.keyPress("a", 100);
+						robot.sequence(d.getTestCallback(function(){
+							var focusedWidget = registry.getEnclosingWidget(focus.curNode);
+							doh.t(focusedWidget, "there is a focused widget");
+							doh.is("Asia", focusedWidget.label);
+						}), 500);
+
+						return d;
+					}
+				},
+				{
+					name: "Third 'A' key goes to Australia (nested node)",
+					timeout: 4000,
+					runTest: function(){
+						var d = new doh.Deferred();
+
+						var oceania = registry.byId("mytree").rootNode.getChildren()[2];
+						doh.t(oceania, "found Oceania node");
+						doh.t(oceania.isExpanded, "Oceania node is expanded");
+
+						robot.keyPress("a", 100);
+						robot.sequence(d.getTestCallback(function(){
+							var focusedWidget = registry.getEnclosingWidget(focus.curNode);
+							doh.t(focusedWidget, "there is a focused widget");
+							doh.is("Australia", focusedWidget.label);
+						}), 500);
+
+						return d;
+					}
+				},
+				{
+					name: "Fourth 'A' key loops back to Africa",
+					timeout: 4000,
+					runTest: function(){
+						var d = new doh.Deferred();
+
+						robot.keyPress("a", 100);
+						robot.sequence(d.getTestCallback(function(){
+							var focusedWidget = registry.getEnclosingWidget(focus.curNode);
+							doh.t(focusedWidget, "there is a focused widget");
+							doh.is("Africa", focusedWidget.label);
+						}), 500);
+
+						return d;
+					}
+				},
+				{
+					name: "multi-key navigation (co)",
+					timeout: 4000,
+					runTest: function(){
+						var d = new doh.Deferred();
+
+						// After the 500ms delay above plus 750 delay here, character should start a new search.
+						// Skip over China and go to Continents.
+						robot.typeKeys("co", 750);
+
+						robot.sequence(d.getTestCallback(function(){
+							var focusedWidget = registry.getEnclosingWidget(focus.curNode);
+							doh.t(focusedWidget, "there is a focused widget");
+							doh.is("Continents", focusedWidget.label);
+						}), 500);
+
+						return d;
+					}
+				},
+				{
+					name: "multi-key navigation (as)",
+					timeout: 4000,
+					runTest: function(){
+						var d = new doh.Deferred();
+
+						// After the 500ms delay above plus 750 delay here, character should start a new search.
+						// By typing AS should skip over Africa and go to Asia.
+						robot.typeKeys("as", 750);
+
+						robot.sequence(d.getTestCallback(function(){
+							var focusedWidget = registry.getEnclosingWidget(focus.curNode);
+							doh.t(focusedWidget, "there is a focused widget");
+							doh.is("Asia", focusedWidget.label);
+						}), 500);
+
+						return d;
+					}
+				},
+				{
+					name: "multi-key navigation clears",
+					timeout: 4000,
+					runTest: function(){
+						var d = new doh.Deferred();
+
+						// After the 500ms delay above plus 750 delay here, character should start a new search
+						robot.typeKeys("n", 750);
+
+						robot.sequence(d.getTestCallback(function(){
+							var focusedWidget = registry.getEnclosingWidget(focus.curNode);
+							doh.t(focusedWidget, "there is a focused widget");
+							doh.is("North America", focusedWidget.label);
+						}), 500);
+
+						return d;
+					}
+				}
+			]);
+
+			doh.register("keyboard on auto expand tree", [
+				{
+					name: "end key",
+					timeout: 4000,
+					runTest: function(){
+						var d = new doh.Deferred();
+
+						var node = dom.byId("mytree3_before", robot.doc);
+						winUtils.scrollIntoView(node);
+						node.focus();
+
+						robot.keyPress(keys.TAB, 300);			// go to start of tree
+						robot.keyPress(keys.END, 300);			// go to end
+
+						robot.sequence(d.getTestCallback(function(){
+							doh.is("Argentina", robot.window.require("dijit/focus").curNode.innerHTML, "end key went to this node");
+						}), 500);
+
+						return d;
+					}
+				}
+			]);
+
+			doh.register("destroy and focus", [
+				{
+					name: "setup",
+					timeout: 8000,
+					runTest: function(){
+						return mytree.expandAll();
+					}
+				},
+
+				{
+					name: "destroy previously focused node",
+					timeout: 20000,
+					runTest: function(){
+						var d = new doh.Deferred();
+
+						// Go to Africa node
+						dom.byId("mytree_before", robot.doc).focus();
+						robot.keyPress(keys.TAB, 300);
+						robot.keyPress(keys.HOME, 300);
+						robot.keyPress(keys.DOWN_ARROW, 300);
+
+						var previouslyFocusedChild;
+						robot.sequence(d.getTestErrback(function(){
+							doh.is("Africa", mytree.focusedChild.label, "focus");
+							previouslyFocusedChild = mytree.focusedChild;
+						}), 500);
+
+
+						// Tab out of Tree, and then destroy previously focused node.
+						robot.keyPress(keys.TAB, 300, {shift: true});
+						robot.sequence(d.getTestErrback(function(){
+							doh.is("mytree_before", focus.curNode.id, "focus");
+
+							var store = mytree.model.store;
+							var item = previouslyFocusedChild.item;
+							store.deleteItem(item);
+						}), 500);
+
+						// Refocus Tree.  Since previously focused node was destroyed, focus should go to Continents.
+						robot.keyPress(keys.TAB, 300);
+						robot.sequence(d.getTestCallback(function(){
+							doh.is("Continents", focus.curNode.innerHTML, "focus");
+						}), 500);
+
+						return d;
+					}
+				},
+
+				{
+					name: "destroy previously focused node's ancestor",
+					timeout: 20000,
+					runTest: function(){
+						var d = new doh.Deferred();
+
+						dom.byId("mytree_before", robot.doc).focus();
+						robot.keyPress(keys.TAB, 300);
+						robot.keyPress(keys.HOME, 300);
+						robot.keyPress(keys.DOWN_ARROW, 300);		// move down to Asia (since Africa is gone)
+						robot.keyPress(keys.DOWN_ARROW, 300);		// move down to China
+
+						var previouslyFocusedChild;
+						robot.sequence(d.getTestErrback(function(){
+							doh.is("China", mytree.focusedChild.label, "focus");
+							previouslyFocusedChild = mytree.focusedChild;
+						}), 500);
+
+						// Tab out, and then destroy Asia (previously focused node's ancestor)
+						robot.keyPress(keys.TAB, 300, {shift: true});
+						robot.sequence(d.getTestErrback(function(){
+							doh.is("mytree_before", focus.curNode.id, "focus");
+
+							var store = mytree.model.store;
+							var item = previouslyFocusedChild.getParent().item;
+							store.deleteItem(item);
+						}), 500);
+
+						// Refocus Tree.  Since previously focused node's ancestor was destroyed,
+						// focus should go to Continents.
+						robot.keyPress(keys.TAB, 300);
+						robot.sequence(d.getTestCallback(function(){
+							doh.is("Continents", focus.curNode.innerHTML, "focus");
+						}), 500);
+
+						return d;
+					}
+				},
+
+				{
+					name: "destroy currently focused node",
+					timeout: 4000,
+					runTest: function(){
+						var d = new doh.Deferred();
+
+						// Go to Oceania node
+						dom.byId("mytree_before", robot.doc).focus();
+						robot.keyPress(keys.TAB, 300);
+						robot.keyPress(keys.HOME, 300);
+						robot.keyPress(keys.DOWN_ARROW, 300);
+
+						// Destroy it
+						robot.sequence(d.getTestErrback(function(){
+							doh.is("Oceania", mytree.focusedChild.label, "focus");
+
+							var store = mytree.model.store;
+							var item = mytree.focusedChild.item;
+							store.deleteItem(item);
+						}), 500);
+
+						// Focus should go to Continents
+						robot.sequence(d.getTestCallback(function(){
+							doh.is("Continents", mytree.focusedChild.label, "focus");
+						}), 500);
+
+						return d;
+					}
+				},
+
+				{
+					name: "destroy currently focused node's ancestor",
+					timeout: 4000,
+					runTest: function(){
+						var d = new doh.Deferred();
+
+						// Go to Germany node
+						dom.byId("mytree_before", robot.doc).focus();
+						robot.keyPress(keys.TAB, 300);
+						robot.keyPress(keys.HOME, 300);
+						robot.keyPress(keys.DOWN_ARROW, 300);	// to Europe
+						robot.keyPress(keys.DOWN_ARROW, 300);	// to Germany
+
+						// Destroy Europe (Germany's ancestor)
+						robot.sequence(d.getTestErrback(function(){
+							doh.is("Germany", mytree.focusedChild.label, "focus");
+
+							var store = mytree.model.store;
+							var item = mytree.focusedChild.getParent().item;
+							store.deleteItem(item);
+						}), 500);
+
+						// Focus should go to Continents
+						robot.sequence(d.getTestCallback(function(){
+							doh.is("Continents", mytree.focusedChild.label, "focus");
+						}), 500);
+
+						return d;
+					}
+				}
+			]);
+
+			doh.run();
+		});
+
+	</script>
+</head>
+</html>
+

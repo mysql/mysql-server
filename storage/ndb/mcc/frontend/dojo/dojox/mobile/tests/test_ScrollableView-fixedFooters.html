@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="Content-type" content="text/html; charset=utf-8"/>
+	<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no"/>
+	<meta name="apple-mobile-web-app-capable" content="yes"/>
+	<title>Test that TabBar is at the bottom of the viewport on each view</title>
+
+	<script type="text/javascript" src="../deviceTheme.js"></script>
+	<script type="text/javascript" src="../../../dojo/dojo.js" data-dojo-config="async: true, parseOnLoad: true"></script>
+
+	<script type="text/javascript">
+		require([
+		         "dojox/mobile/parser",
+		         "dojox/mobile",
+		         "dojox/mobile/compat",
+		         "dojox/mobile/ScrollableView",
+		         "dojox/mobile/TabBar"
+		     ]);
+	</script>
+
+</head>
+<body style="visibility:hidden;">
+
+    <div id="tabBar" data-dojo-type="dojox.mobile.View">
+    
+        <div id="groups" data-dojo-type="dojox.mobile.View">    
+            <div id="tabHome1" data-dojo-type="dojox.mobile.ScrollableView"
+                selected="true" fixedFooter="thetabbar">
+                <h1 data-dojo-type="dojox.mobile.Heading" fixed="top">Home1</h1>
+                <div data-dojo-type="dojox.mobile.EdgeToEdgeList"
+                    class="edgeToEdgeList">
+                    <li data-dojo-type="dojox.mobile.ListItem" moveTo="tabHome2">To Home2</li>
+                </div>
+            </div>
+            <div id="tabHome2" data-dojo-type="dojox.mobile.ScrollableView" fixedFooter="thetabbar">
+                <h1 data-dojo-type="dojox.mobile.Heading" fixed="top">Home2</h1>
+                <div data-dojo-type="dojox.mobile.EdgeToEdgeList"
+                    class="edgeToEdgeList">
+                    <li data-dojo-type="dojox.mobile.ListItem" moveTo="tabHome1">To Home1</li>
+                </div>
+                <h1 data-dojo-type="dojox.mobile.Heading" fixed="bottom">status bar</h1>
+            </div>            
+        </div>
+        
+        <div id="tabEvents" data-dojo-type="dojox.mobile.ScrollableView">
+            <h1 data-dojo-type="dojox.mobile.Heading" fixed="top">Events</h1>
+            <div data-dojo-type="dojox.mobile.RoundRect" shadow="true">Events</div>
+        </div>
+
+        <ul id="thetabbar" data-dojo-type="dojox.mobile.TabBar" fixed="bottom"
+            iconBase="images/tab-icons.png">
+            <li data-dojo-type="dojox.mobile.TabBarButton" moveTo="groups"
+                iconPos1="0,0,29,29" iconPos2="29,0,29,29" selected="true">Home</li>
+            <li data-dojo-type="dojox.mobile.TabBarButton" moveTo="tabEvents"
+                iconPos1="0,29,29,29" iconPos2="29,29,29,29">Events</li>
+        </ul>
+    </div>
+</body>
+</html>

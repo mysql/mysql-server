@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta http-equiv="Content-type" content="text/html; charset=utf-8">
+	<title>TabContainer DOH Test</title>
+
+	<script type="text/javascript" src="../boilerplate.js"></script>
+
+	<script type="text/javascript">
+		require([
+			"doh/runner",
+			"dojo/_base/array",
+			"dojo/aspect",
+			"dojo/dom",
+			"dojo/dom-class",
+			"dojo/dom-geometry",
+			"dojo/json",
+			"dojo/_base/lang",
+			"dojo/parser",
+			"dojo/query",
+			"dijit/focus",
+			"dijit/registry",
+			"dijit/layout/TabContainer",
+			"dijit/layout/ContentPane",
+			"dijit/tests/helpers",
+			"dojo/domReady!"
+		], function(doh, array, aspect, dom, domClass, domGeom, json, lang, parser, query,
+					focus, registry, TabContainer, ContentPane, helpers){
+
+
+			doh.register("parse", function(){
+				return parser.parse();
+			});
+
+			doh.register("creationAndDestruction", [
+
+				// Test that destroyRecursive removes all supporting widgets, including the list-of-tabs menu
+				// and the close menu.  Also test that the second tab doesn't get selected
+				// for a split second as the TabContainer is being destroyed.
+				{
+					name: 'destroyRecursive',
+					runTest: function(t){
+						var num = registry.length;
+
+						var cp1 = new ContentPane({title: "test pane 1", closable: true}),
+							cp2 = new ContentPane({title: "test pane 2", href: "doc0.html"}),
+							tc = new TabContainer({
+								id:"creationAndDestruction",
+								useMenu:true
+							}).placeAt(document.body);
+
+						var cp2selected = false;
+						cp2.watch("selected", function(){
+							cp2selected = true;
+						});
+
+						tc.addChild(cp1);
+						tc.addChild(cp2);
+						tc.startup();
+
+						tc.destroyRecursive();
+
+						t.is(registry.length, num, "registry length");
+						t.f(cp2selected, "second pane wasn't temporarily selected");
+					}
+				},
+
+				// Test that on destroyDescendants(), the second tab doesn't get selected
+				// for a split second as the TabContainer is being destroyed.
+				{
+					name: 'destroyDescendants',
+					runTest: function(t){
+						var cp1 = new ContentPane({
+								id: "destroyDescendants_pane1",
+								title: "test pane 1",
+								closable: true
+							}),
+							cp2 = new ContentPane({
+								id: "destroyDescendants_pane2",
+								title: "test pane 2",
+								href: "doc0.html"
+							}),
+							tc = new TabContainer({
+								id:"destroyDescendants",
+								useMenu:true
+							}).placeAt(document.body);
+
+						var cp2selected = false;
+						cp2.watch("selected", function(){
+							cp2selected = true;
+						});
+						var downloadStarted = false;
+						cp2.on("downloadstart", function(){
+							downloadStarted = true;
+						});
+
+						tc.addChild(cp1);
+						tc.addChild(cp2);
+						tc.startup();
+
+						tc.destroyDescendants();
+
+						t.f(cp2selected, "second pane wasn't temporarily selected");
+						t.f(downloadStarted, "second pane never started downloading");
+						t.is(undefined, tc._selectedChildWidget, "no selected child widget");
+					}
+				},
+
+				// Check that tab labels for initial tabs are created.
+				{
+					name: 'checkTabLabels',
+					runTest: function(t){
+						var tabLabels = query("#tc1 .tabLabel");
+						t.is(4, tabLabels.length);
+					}
+				}
+			]);
+
+			doh.register("addingTabs", [
+
+				// Test that adding a pane creates new tab button.
+				{
+					name: 'add new tab',
+					runTest: function(t){
+						var tc = registry.byId("tc1");
+						var cp1 = new ContentPane({
+							id: "newTab1",
+							title: "newTab1",
+							content: "newTab1 content"
+						});
+						tc.addChild(cp1);
+
+						var tabLabels = registry.byId("tc1").getChildren();
+
+						t.is(5, tabLabels.length, "there are 5 tabs");
+					}
+				},
+
+				// Test that scroll buttons show up when tab buttons overflow.
+				{
+					name: 'addTabsOverflowMenu',
+					runTest: function(t){
+						var tc = registry.byId("tc1");
+
+						var cp2 = new ContentPane({
+							id: "newTab2",
+							title: "newTab2",
+							content: "newTab2 content"
+						});
+						tc.addChild(cp2);
+
+						var left = dom.byId("tc1_tablist_leftBtn");
+						var right = dom.byId("tc1_tablist_rightBtn");
+						var menu = dom.byId("tc1_tablist_menuBtn");
+
+						t.t(left, "verify left scroll button exists");
+						t.t(right, "verify right scroll button exists");
+						t.t(menu, "verify dropdown menu button exists");
+
+						t.t(helpers.isVisible(left), "left scroll button is displayed");
+						t.t(helpers.isVisible(right), "right scroll button is displayed");
+						t.t(helpers.isVisible(menu), "menu button is displayed");
+					}
+				}
+			]);
+
+			doh.register("selectingTabs", [
+
+				// Check that tab button is scrolled into view when tab is selected,
+				// but that focus isn't changed because it's outside the tab container.
+				// Also, check that left/right scroll buttons are enabled/disabled correctly.
+				{
+					name: 'focus outside',
+					timeout: 10000,
+					runTest: function(){
+						var d = new doh.Deferred();
+
+						dom.byId("inputBeforeTc1").focus();
+						doh.is("inputBeforeTc1", focus.curNode.id, "initial focus");
+
+						var tc = registry.byId("tc1");
+
+						var cp = registry.byId("newTab2");
+						tc.selectChild(cp);
+
+						setTimeout(d.getTestErrback(function(){
+							doh.is("inputBeforeTc1", focus.curNode.id, "focus after selectChild()");
+
+							var cpLeft = registry.byId("tc1_tablist_leftBtn");
+							var left = domGeom.position(cpLeft.domNode).x + domGeom.position(cpLeft.domNode).w;
+
+							var cpRight = registry.byId("tc1_tablist_rightBtn");
+							var right = domGeom.position(cpRight.domNode).x;
+
+							var tab = registry.byId("tc1_tablist_newTab1");
+							var tabLeft = domGeom.position(tab.domNode).x;
+							var tabRight = domGeom.position(tab.domNode).x + domGeom.position(tab.domNode).w;
+
+							doh.t(tabLeft > left && tabRight < right, "chosen tab visible");
+
+							doh.f(cpLeft.get("disabled"), "left scroll button enabled");
+							doh.t(cpRight.get("disabled"), "right scroll button disabled");
+
+							tc.selectChild("cpTitle");
+
+							setTimeout(d.getTestCallback(function(){
+								doh.t(cpLeft.get("disabled"), "left scroll button disabled");
+								doh.f(cpRight.get("disabled"), "right scroll button enabled");
+								doh.is("inputBeforeTc1", focus.curNode.id);
+							}), 1000);
+						}), 1000);
+
+						return d;
+					}
+				},
+
+				// Test what happens when focus is inside tab1 and you call selectChild() to select tab2.
+				// In this case focus should be put on the tab2's label, so that it isn't in a hidden pane.
+				{
+					name: 'focus inside',
+					timeout: 10000,
+					runTest: function(){
+						var d = new doh.Deferred();
+
+						// ... if previous test was successful, cpTitle tab is selected ...
+
+						dom.byId("inputInsideCpTitle").focus();
+						doh.is("inputInsideCpTitle", focus.curNode.id, "initial focus");
+
+						var tc = registry.byId("tc1");
+
+						// First select a child where the tab label is already visible.
+						// The specified pane should be selected and the associated tab label should be focused.
+						tc.selectChild("t2");
+						doh.is("tc1_tablist_t2", focus.curNode.id, "focus after selectChild(t2)");
+
+						// Next, select a pane that requires scrolling the tab labels.
+						var cp = registry.byId("newTab2");
+						tc.selectChild(cp);
+
+						setTimeout(d.getTestErrback(function(){
+							doh.is("tc1_tablist_newTab2", focus.curNode.id, "focus after selectChild(newTab2)");
+
+							var cpLeft = registry.byId("tc1_tablist_leftBtn");
+							var left = domGeom.position(cpLeft.domNode).x + domGeom.position(cpLeft.domNode).w;
+
+							var cpRight = registry.byId("tc1_tablist_rightBtn");
+							var right = domGeom.position(cpRight.domNode).x;
+
+							var tab = registry.byId("tc1_tablist_newTab1");
+							var tabLeft = domGeom.position(tab.domNode).x;
+							var tabRight = domGeom.position(tab.domNode).x + domGeom.position(tab.domNode).w;
+
+							doh.t(tabLeft > left && tabRight < right, "chosen tab visible");
+
+							doh.f(cpLeft.get("disabled"), "left scroll button enabled");
+							doh.t(cpRight.get("disabled"), "right scroll button disabled");
+
+							tc.selectChild("cpTitle");
+
+							setTimeout(d.getTestCallback(function(){
+								doh.t(cpLeft.get("disabled"), "left scroll button disabled");
+								doh.f(cpRight.get("disabled"), "right scroll button enabled");
+								doh.is("tc1_tablist_cpTitle", focus.curNode.id, "focus after selectChild(cpTitle)");
+							}), 1000);
+						}), 1000);
+
+						return d;
+					}
+				},
+
+				// Test that scroll position is preserved when returning to a tab.
+				{
+					name: 'panel scroll',
+					timeout: 10000,
+					runTest: function(){
+						var d = new doh.Deferred();
+
+						var tc = registry.byId("tc1");
+						var cp = registry.byId("t4");
+						tc.selectChild(cp);
+
+						setTimeout(d.getTestErrback(function(){
+							cp.domNode.scrollTop = 10000;	// scroll to the bottom
+
+							tc.selectChild("t3");	// switch to another tab
+
+							setTimeout(d.getTestErrback(function(){
+								tc.selectChild(cp);	// and then switch back
+
+								setTimeout(d.getTestCallback(function(){
+									doh.t(cp.domNode.scrollTop > 0, "still scrolled");
+								}), 1000);
+							}), 1000);
+						}), 1000);
+
+						return d;
+					}
+				}
+			]);
+
+			doh.register("icons", [
+				{
+					name: "initialIcon",
+					runTest: function(t){
+						var cp = registry.byId("cp4");
+
+						t.is('tab1', innerText(cp.controlButton.containerNode), "tab label");
+						t.is('plusIcon', cp.controlButton.iconClass, "tab icon");
+					}
+				},
+				{
+					name: "changeIcon",
+					runTest: function(t){
+						var cp = registry.byId("cp4");
+
+						cp.set({
+							"title": "note",
+							"iconClass": "noteIcon"
+						});
+
+						t.is('note', innerText(cp.controlButton.containerNode), "the tab's label has changed");
+						t.is('noteIcon', cp.controlButton.iconClass, "new icon is displayed in tab");
+					}
+				},
+				{
+					name: "noTitle",
+					runTest: function(t){
+						var cp = registry.byId("cp7");
+						t.f(cp.controlButton.showLabel, "an icon exists, but there is no text label");
+					}
+				}
+			]);
+
+			doh.register("changeTabName", [
+				{
+					name: 'changeName',
+					runTest: function(t){
+						var cp = registry.byId('cpTitle');
+						cp.set('title', 'newTitle');
+
+						var title = query("#tc1_tablist_cpTitle")[0];
+
+						t.is('newTitle', innerText(title), "the tab's text label has changed");
+					}
+				}
+			]);
+
+			doh.register("deletingTabs", [
+
+				// Check that deleting a pane removes the tab button.
+				{
+					name: 'deleteTab',
+					runTest: function(t){
+						var tc1 = registry.byId("tc1");
+						var cp = registry.byId("cpTitle");
+
+
+						// track resizes to cp, removing it from tc1 shouldn't cause a resize call
+						var cpResizes = 0;
+						aspect.after(cp, "resize", function(){
+							cpResizes++;
+						}, true);
+
+						t.t(domClass.contains(cp.domNode, 'dijitTabPane'), 'children have correct CSS class');
+
+						tc1.removeChild(cp);
+
+						t.f(domClass.contains(cp.domNode, 'dijitTabPane'), 'children have CSS class removed upon removal');
+
+						var childPanes = tc1.getChildren();
+
+						t.is(5, childPanes.length, "verify there are now only 4 tabs instead of 5");
+						t.t(cp.domNode, "verify that the deleted tab's content pane still exists on the page");
+
+						var label = dom.byId("#tc1_tablist_cpTitle");
+						t.f(label, "verify that deleted tab's label does not exist");
+
+						t.is(0, cpResizes, "no resize");
+					}
+				},
+
+				// Check that scroll buttons disappear when no longer needed.
+				{
+					name: 'removedOverflowMenu',
+					runTest: function(t){
+						var tc = registry.byId("tc3");
+
+						var cp = registry.byId('cp10');
+						tc.removeChild(cp);
+						cp = registry.byId('cp9');
+						tc.removeChild(cp);
+						cp = registry.byId('cp8');
+						tc.removeChild(cp);
+						cp = registry.byId('cp7');
+						tc.removeChild(cp);
+
+						var left = registry.byId("tc3_tablist_leftBtn").domNode;
+						var right = registry.byId("tc3_tablist_rightBtn").domNode;
+						var menu = registry.byId("tc3_tablist_menuBtn").domNode;
+
+						t.t(helpers.isHidden(left), "left scroll is hidden");
+						t.t(helpers.isHidden(right), "right scroll is hidden");
+						t.t(helpers.isHidden(menu), "menu is hidden");
+					}
+				}
+			]);
+
+			doh.register("closableTabs", [
+				{
+					name: "closeTab",
+					runTest: function(t){
+						var cp = registry.byId("cp6");
+						var cp2 = registry.byId("cp5");
+
+						t.t(cp.controlButton.closeButton, "close button is displayed");
+						t.f(cp2.controlButton.closeButton, "close button is not displayed");
+					}
+				}
+			]);
+
+			doh.register("menu", {
+				name: "menu",
+				runTest: function(){
+					var tc1 = registry.byId("tc1"),
+						children = tc1.getChildren();
+
+					// add an icon and change the title just for testing that the icon and label appear in the menu
+					children[0].set({
+						title: "new title",
+						iconClass: "noteIcon"
+					});
+
+					var menuBtn = registry.byId("tc1_tablist_menuBtn");
+					menuBtn.toggleDropDown();
+
+					var menu = registry.byId("tc1_menu");
+					doh.t(helpers.isVisible(menu), "menu exists and is visible");
+					doh.is(menu.getChildren().length, children.length, "# of menu children");
+					doh.is("new title", innerText(menu.getChildren()[0].containerNode));
+					doh.is("noteIcon", menu.getChildren()[0].iconClass);
+				},
+				tearDown: function(){
+					var tc1 = registry.byId("tc1"),
+						children = tc1.getChildren();
+
+					children[0].set({
+						title: "old title",
+						iconClass: ""
+					});
+
+					var menuBtn = registry.byId("tc1_tablist_menuBtn");
+					menuBtn.closeDropDown();
+				}
+			});
+
+			doh.register("layoutTests", [
+				{
+					name: "tabPosition",
+					runTest: function(t){
+						// top tabs above content
+						var topTabs = dom.byId("tc1_tablist"),
+							topContent = query(".dijitTabPaneWrapper", "tc1")[0],
+							topTabsPos = domGeom.position(topTabs),
+							topContentPos = domGeom.position(topContent);
+						t.t(topTabsPos.y + topTabsPos.h <= topContentPos.y, "top tabs above content " +
+							json.stringify(topTabsPos) + json.stringify(topContentPos));
+
+						// left tabs to left of content
+						var leftTabs = dom.byId("leftTabs_tablist"),
+							leftContent = query(".dijitTabPaneWrapper", "leftTabs")[0],
+							leftTabsPos = domGeom.position(leftTabs),
+							leftContentPos = domGeom.position(leftContent);
+						t.t(leftTabsPos.x + Math.floor(leftTabsPos.w) <= leftContentPos.x, "left tabs before content " +
+							json.stringify(leftTabsPos) + json.stringify(leftContentPos));
+
+						// right tabs to right of content
+						var rightTabs = dom.byId("rightTabs_tablist"),
+							rightContent = query(".dijitTabPaneWrapper", "rightTabs")[0],
+							rightTabsPos = domGeom.position(rightTabs),
+							rightContentPos = domGeom.position(rightContent);
+						t.t(rightTabsPos.x >= rightContentPos.x + rightContentPos.w, "right tabs after content " +
+							json.stringify(rightTabsPos) + json.stringify(rightContentPos));
+
+						// bottom tabs below content
+						var bottomTabs = dom.byId("bottomTabs_tablist"),
+							bottomContent = query(".dijitTabPaneWrapper", "bottomTabs")[0],
+							bottomTabsPos = domGeom.position(bottomTabs),
+							bottomContentPos = domGeom.position(bottomContent);
+						t.t(bottomTabsPos.y >= bottomContentPos.y + bottomContentPos.h, "bottom tabs below content " +
+							json.stringify(bottomTabsPos) + json.stringify(bottomContentPos));
+					}
+				},
+				{
+					name: "nested",
+					runTest: function(t){
+						var parent = registry.byId("tcNestedParent"),
+							child = registry.byId("tcNestedChild");
+
+						t.f(parent.nested, "parent TabContainer is not nested");
+
+						var children = parent.getChildren();
+						t.is(2, children.length, "parent TabContainer has multiple children");
+
+						t.t(children[1].nested, "second child of parent TabContainer has nested tabs");
+						t.t(domClass.contains("tcNestedChild_tablist", "dijitTabContainerTabListNested"), "nested CSS applied");
+
+						// test that when TabButtons overflow to 2 rows, the content area is reduced
+						parent.selectChild(registry.byId("tcNestedChild"));
+						var content = query(".dijitTabPaneWrapper", "tcNestedChild")[0],
+							height0 = domGeom.position(content).h;
+
+						var newGrandchildren = [];
+						for(var i=0; i<10; i++){
+							var gc = new ContentPane({
+								title: "additional child #" + i,
+								content: "hello world " + i
+							});
+							newGrandchildren.push(gc);
+							child.addChild(gc);
+						}
+						var height1 = domGeom.position(content).h;
+						doh.t(height1 < height0, "content area size reduced ", height1, height0);
+
+						// and that size increases back when children are removed
+						array.forEach(newGrandchildren, lang.hitch(child, "removeChild"));
+						var height2 = domGeom.position(content).h;
+						doh.is(height0, height2, "after deleting extra children height restored to original");
+
+						// Setting the title of nested TabContainer shouldn't make a tooltip over it
+						doh.f(child.domNode.hasAttribute && child.domNode.hasAttribute("title"), "child.hasAttribute(title) before");
+						child.set("title", "Nested new title");
+						doh.f(child.domNode.hasAttribute && child.domNode.hasAttribute("title"), "child.hasAttribute(title) after");
+					}
+				},
+				{
+					name: "doLayoutFalse",
+					runTest: function(t){
+						var tc = registry.byId("tcNoLayout");
+						var cps = tc.getChildren();
+
+						tc.selectChild(cps[0]);
+						var height1 = tc.domNode.offsetHeight;
+						tc.selectChild(cps[1]);
+						var height2 = tc.domNode.offsetHeight;
+						tc.selectChild(cps[2]);
+						var height3 = tc.domNode.offsetHeight;
+
+						t.t(height1 < height2, "height 1 < height 2" + height1 + " < " + height2);
+						t.t(height2 < height3, "height 2 < height 3" + height2 + " < " + height3);
+					}
+				},
+				{
+					name: "doLayoutTrue",
+					runTest: function(t){
+						var tc = registry.byId("tc3");
+						var cps = tc.getChildren();
+
+						tc.selectChild(cps[0]);
+						var height1 = tc.domNode.offsetHeight;
+						tc.selectChild(cps[1]);
+						var height2 = tc.domNode.offsetHeight;
+						tc.selectChild(cps[2]);
+						var height3 = tc.domNode.offsetHeight;
+
+						t.is(height1, height2);
+						t.is(height2, height3);
+						t.t(height1 > 10, "make sure height measurement is giving something reasonable");
+					}
+				}
+
+			]);
+
+			var tabId = 1;
+			function addTab(tc){
+				// summary:
+				//		Add a tab to specified TabContainer.
+				var cp = new ContentPane({
+					title: 'Tab' + tabId,
+					content: "Contents of Tab " + tabId++
+				});
+				tc.addChild(cp);
+			}
+
+			doh.register("empty tab container",[
+				function createEmptyTabContainer(){
+					var emptyTC = new TabContainer({id:"emptyTC", style:'height:200px;width:500px;'});
+					document.body.appendChild(emptyTC.domNode);
+					emptyTC.startup();
+
+					var children = emptyTC.getChildren();
+					doh.is(0, children.length);
+					doh.t(helpers.isVisible(emptyTC));
+
+					var pos = domGeom.position(emptyTC.domNode);
+					var heightDiff = 200 - pos.h;
+					var widthDiff = 500 - pos.w;
+					doh.t(-0.01 < heightDiff && heightDiff < 0.01);
+					doh.t(-0.01 < widthDiff && widthDiff < 0.01);
+				},
+				function addTabToEmptyTabContainer(){
+					var tc = registry.byId("emptyTC");
+					addTab(tc);
+
+					var children = tc.getChildren();
+					doh.is(1, children.length);
+					doh.is("Tab1", children[0].title);
+					doh.is("Contents of Tab 1", tc.selectedChildWidget.domNode.innerHTML);
+
+					doh.t(helpers.isVisible(tc.tablist.containerNode.childNodes[0]));
+				},
+				function add2ndTabToEmptyTabContainer(){
+					var tc = registry.byId("emptyTC");
+					addTab(tc);
+					tc.selectChild(tc.getChildren()[1]);
+
+					var children = tc.getChildren();
+					doh.is(2, children.length);
+					doh.is("Tab2", children[1].title);
+					doh.is("Contents of Tab 2", tc.selectedChildWidget.domNode.innerHTML);
+
+					doh.t(helpers.isVisible(tc.tablist.containerNode.childNodes[1]));
+				},
+				function remove2ndTabToEmptyTabContainer(){
+					var tc = registry.byId("emptyTC");
+					tc.removeChild(tc.getChildren()[1]);
+
+					var children = tc.getChildren();
+					doh.is(1, children.length);
+					doh.is("Tab1", children[0].title);
+					doh.is("Contents of Tab 1", tc.selectedChildWidget.domNode.innerHTML);
+				}
+			]);
+
+			// Further testing for tab label scrolling.  Also tested in "selectingTabs" section.
+			doh.register("tab label scrolling", [
+				function initialScroll(){
+					// Make sure that tab labels are scrolled so that selected tab visible.
+					var tcPos = domGeom.position("scroll"),
+						labelPos = domGeom.position("scroll_tablist_nine");
+					doh.t(tcPos.x < labelPos.x, "tcPos.x (" + tcPos.x + ") < labelPos.x (" + labelPos.x + ")");
+					doh.t(tcPos.x + tcPos.w > labelPos.x + labelPos.w,
+						"tcPos.x (" + tcPos.x + ") + tcPos.w (" + tcPos.w +
+						") < labelPos.x " + labelPos.x + " + labelPos.w + (" + labelPos.w + ")");
+				},
+				function selectATab(){
+					// Make sure that tab labels are scrolled so that selected tab visible
+					var d = new doh.Deferred();
+					var tc = registry.byId("scroll");
+					tc.selectChild(registry.byId("one"));
+					setTimeout(d.getTestCallback(function(){
+						var tcPos = domGeom.position("scroll"),
+							labelPos = domGeom.position("scroll_tablist_one");
+						doh.t(tcPos.x < labelPos.x, "tcPos.x (" + tcPos.x + ") < labelPos.x (" + labelPos.x + ")");
+						doh.t(tcPos.x + tcPos.w > labelPos.x + labelPos.w,
+								"tcPos.x (" + tcPos.x + ") + tcPos.w (" + tcPos.w +
+								") < labelPos.x " + labelPos.x + " + labelPos.w + (" + labelPos.w + ")");
+					}), 500);
+
+					return d;
+				}
+			]);
+
+			doh.run();
+		});
+	</script>
+
+</head>
+<body class="claro" role="main">
+
+	<h1 class="testTitle">Dijit layout.TabContainer DOH tests</h1>
+
+	<input id="inputBeforeTc1" value="for focus testing">
+	<div id="tc1" data-dojo-type="dijit/layout/TabContainer" data-dojo-props='style:"width: 300px; height: 100px;","aria-label":"my super label" '>
+		<div id="cpTitle" data-dojo-type="dijit/layout/ContentPane" data-dojo-props='title:"tab1", selected:true'>
+			Lorem ipsum and all around...
+			<input id="inputInsideCpTitle" value="for focus testing">
+		</div>
+		<div id="t2" data-dojo-type="dijit/layout/ContentPane" data-dojo-props='title:"tab2"'>
+			Lorem ipsum and all around - second...
+		</div>
+		<div id="t3" data-dojo-type="dijit/layout/ContentPane" data-dojo-props='title:"tab3", closable:true'>
+			Lorem ipsum and all around - third...
+		</div>
+		<div id="t4" data-dojo-type="dijit/layout/ContentPane" data-dojo-props='title:"tab4", closable:true'>
+			<p>
+				Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean
+				semper sagittis velit. Cras in mi. Duis porta mauris ut ligula. Proin
+				porta rutrum lacus. Etiam consequat scelerisque quam. Nulla facilisi.
+				Maecenas luctus venenatis nulla. In sit amet dui non mi semper iaculis.
+				Sed molestie tortor at ipsum. Morbi dictum rutrum magna. Sed vitae
+				risus.
+			</p>
+			<p>
+				Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean
+				semper sagittis velit. Cras in mi. Duis porta mauris ut ligula. Proin
+				porta rutrum lacus. Etiam consequat scelerisque quam. Nulla facilisi.
+				Maecenas luctus venenatis nulla. In sit amet dui non mi semper iaculis.
+				Sed molestie tortor at ipsum. Morbi dictum rutrum magna. Sed vitae
+				risus.
+			</p>
+			<p>
+				Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean
+				semper sagittis velit. Cras in mi. Duis porta mauris ut ligula. Proin
+				porta rutrum lacus. Etiam consequat scelerisque quam. Nulla facilisi.
+				Maecenas luctus venenatis nulla. In sit amet dui non mi semper iaculis.
+				Sed molestie tortor at ipsum. Morbi dictum rutrum magna. Sed vitae
+				risus.
+			</p>
+			<p>
+				Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean
+				semper sagittis velit. Cras in mi. Duis porta mauris ut ligula. Proin
+				porta rutrum lacus. Etiam consequat scelerisque quam. Nulla facilisi.
+				Maecenas luctus venenatis nulla. In sit amet dui non mi semper iaculis.
+				Sed molestie tortor at ipsum. Morbi dictum rutrum magna. Sed vitae
+				risus.
+			</p>
+		</div>
+	</div>
+
+	<div id="tc3" data-dojo-type="dijit/layout/TabContainer" data-dojo-props='style:"width: 300px; height: 100px;" '>
+		<div id="cp4" data-dojo-type="dijit/layout/ContentPane" data-dojo-props='title:"tab1", selected:true, iconClass:"plusIcon"'>
+			Lorem ipsum and all around...
+		</div>
+		<div id="cp5" data-dojo-type="dijit/layout/ContentPane" data-dojo-props='title:"tab2"'>
+			 Lorem ipsum and all around - last...
+			<br />
+			<br />
+			<br />
+			Hmmm even more expanding tabs......
+		</div>
+		<div id="cp6" data-dojo-type="dijit/layout/ContentPane" data-dojo-props='title:"tab3", closable:true'>
+			Lorem ipsum and all around - last...
+		</div>
+		<div id="cp7" data-dojo-type="dijit/layout/ContentPane" data-dojo-props='title:"plus", closable:true, iconClass:"plusIcon", showTitle:false'>
+			Lorem ipsum and all around - last...
+		</div>
+		<div id="cp8" data-dojo-type="dijit/layout/ContentPane" data-dojo-props='title:"tab4", closable:true'>
+			Lorem ipsum and all around - last...
+		</div>
+		<div id="cp9" data-dojo-type="dijit/layout/ContentPane" data-dojo-props='title:"tab5", closable:true'>
+			Lorem ipsum and all around - last...
+		</div>
+		<div id="cp10" data-dojo-type="dijit/layout/ContentPane" data-dojo-props='title:"tab6", closable:true'>
+			Lorem ipsum and all around - last...
+		</div>
+	</div>
+
+	<div id="tcNestedParent" data-dojo-type="dijit/layout/TabContainer" data-dojo-props='style:"width: 400px; height: 300px;" '>
+		<div id="tcNestedChild" data-dojo-type="dijit/layout/TabContainer" data-dojo-props='title:"Tab 1", nested:true '>
+			<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props='title:"My first inner tab", selected:true'>
+				Lorem ipsum and all around...
+			</div>
+			<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props='title:"My second inner tab"'>
+				Lorem ipsum and all around - second...
+			</div>
+			<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props='title:"My last inner tab"'>
+				Lorem ipsum and all around - last...
+			</div>
+		</div>
+		<div data-dojo-type="dijit/layout/TabContainer" data-dojo-props='title:"Tab 2", nested:true'>
+			<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props='title:"My first inner tab", selected:true'>
+				Lorem ipsum and all around...
+			</div>
+			<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props='title:"My second inner tab"'>
+				Lorem ipsum and all around - second...
+			</div>
+			<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props='title:"My last inner tab"'>
+				Lorem ipsum and all around - last...
+			</div>
+		</div>
+	</div>
+
+	<div id="tcNoLayout" data-dojo-type="dijit/layout/TabContainer" data-dojo-props='style:"width: 100%;", doLayout:false'>
+		<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props='title:"My first tab", selected:true'>
+			Lorem ipsum and all around...
+		</div>
+		<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props='title:"My second tab", closable:true'>
+			Lorem ipsum and all around - second...
+			<br />
+			Hmmm expanding tabs......
+		</div>
+		<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props='title:"My last tab"'>
+			Lorem ipsum and all around - last...
+			<br />
+			<br />
+			<br />
+			Hmmm even more expanding tabs......
+		</div>
+	</div>
+	<br />
+
+	<div id="leftTabs" data-dojo-type="dijit/layout/TabContainer" data-dojo-props='style:"width: 500px; height: 200px;",  tabPosition:"left-h"'>
+		<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props='title:"My first tab", selected:true'>
+			Left tabs
+		</div>
+		<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props='title:"My second tab", closable:true'>
+			Lorem ipsum and all around - second...
+		</div>
+		<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props='title:"My last tab"'>
+			Lorem ipsum and all around - last...
+		</div>
+	</div>
+	<br />
+
+	<div id="rightTabs" data-dojo-type="dijit/layout/TabContainer" data-dojo-props='style:"width: 500px; height: 200px;",  tabPosition:"right-h"'>
+		<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props='title:"My first tab", selected:true'>
+			Right tabs
+		</div>
+		<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props='title:"My second tab", closable:true'>
+			Lorem ipsum and all around - second...
+		</div>
+		<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props='title:"My last tab"'>
+			Lorem ipsum and all around - last...
+		</div>
+	</div>
+	<br />
+
+	<div id="bottomTabs" data-dojo-type="dijit/layout/TabContainer" data-dojo-props='style:"width: 500px; height: 200px;",  tabPosition:"bottom"'>
+		<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props='title:"My first tab", selected:true'>
+			Bottom tabs
+		</div>
+		<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props='title:"My second tab", closable:true'>
+			Lorem ipsum and all around - second...
+		</div>
+		<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props='title:"My last tab"'>
+			Lorem ipsum and all around - last...
+		</div>
+	</div>
+
+	<div id="scroll" data-dojo-type="dijit/layout/TabContainer" data-dojo-id="scroll" style="width: 300px; height:200px;">
+		<div data-dojo-type="dijit/layout/ContentPane" title="One" data-dojo-id="one" id="one">One</div>
+		<div data-dojo-type="dijit/layout/ContentPane" title="Two" data-dojo-id="two" id="two">Two</div>
+		<div data-dojo-type="dijit/layout/ContentPane" title="Three" data-dojo-id="three" id="three">Three</div>
+		<div data-dojo-type="dijit/layout/ContentPane" title="Four" data-dojo-id="four" id="four">Four</div>
+		<div data-dojo-type="dijit/layout/ContentPane" title="Five" data-dojo-id="five" id="five">Five</div>
+		<div data-dojo-type="dijit/layout/ContentPane" title="Six" data-dojo-id="six" id="six">Six</div>
+		<div data-dojo-type="dijit/layout/ContentPane" title="Seven" data-dojo-id="seven" id="seven">Seven</div>
+		<div data-dojo-type="dijit/layout/ContentPane" title="Eight" data-dojo-id="eight" id="eight">Eight</div>
+		<div data-dojo-type="dijit/layout/ContentPane" selected="true" title="Nine" data-dojo-id="nine" id="nine">Nine</div>
+	</div>
+
+</body>
+</html>

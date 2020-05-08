@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Dijit RadioButton checked state test</title>
+		<link rel="stylesheet" href="../../themes/claro/claro.css">
+	</head>
+
+	<body class="claro">
+		<fieldset>
+			<legend>Native input[type=radio] Test</legend>
+			<p>Click the radio buttons and view the console output.</p>
+			<label>
+				<input type="radio" name="domButton" id="dom1">Native radio 1
+			</label>
+			<br>
+			<label>
+				<input type="radio" name="domButton" id="dom2">Native radio 2
+			</label>
+			<br>
+			<label>
+				<input type="radio" name="domButton" id="dom3">Native radio 3
+			</label>
+		</fieldset>
+		<br>
+		<fieldset>
+			<legend>Dijit/form/RadioButton Test</legend>
+			<p>Click the radio buttons and view the console output.</p>
+			<label>
+				<input type="radio" name="dijitButton" id="dijit1" data-dojo-type="dijit/form/RadioButton"> Dijit RadioButton 1
+			</label>
+			<br>
+			<label>
+				<input type="radio" name="dijitButton" id="dijit2" data-dojo-type="dijit/form/RadioButton"> Dijit RadioButton 2
+			</label>
+			<br>
+			<label>
+				<input type="radio" name="dijitButton" id="dijit3" data-dojo-type="dijit/form/RadioButton"> Dijit RadioButton 3
+			</label>
+			<p><b>Expectation:</b> only a single radio button can be checked at a time</p>
+			<p><b>Result:</b> two radio buttons are simultaneously checked</p>
+		</fieldset>
+
+		<p>
+			When the click handler is called, the "checked" property should be set true, but if
+			the event handler calls preventDefault(), then after a delay, the "checked" property will revert to false.
+		</p>
+		<label for="preventDefault">Call evt.preventDefault() on click:</label>
+		<input type="checkbox" id="preventDefault">
+
+		<script src="../../../dojo/dojo.js" data-dojo-config="async: true"></script>
+
+		<script>
+		require([
+			"doh/runner",
+			"dojo/dom",
+			"dojo/on",
+			"dojo/parser",
+			"dijit/registry",
+			"dijit/form/RadioButton"
+		],function(doh, dom, on, parser, registry, RadioButton){
+			parser.parse();
+
+			var dijit1 = registry.byId("dijit1");
+			var dijit2 = registry.byId("dijit2");
+			var dijit3 = registry.byId("dijit3");
+
+			if(/mode=test/i.test(window.location.href)){
+				var listeners = [];
+				doh.register("timing", [
+					{
+						name: "timing",
+						runTest: function(){
+							var d = new doh.Deferred();
+							listeners.push(dijit1.on("click", d.getTestErrback(function(){
+								doh.t(dijit1.checked, "dijit1.checked true");
+								listeners.push(dijit2.on("click", d.getTestCallback(function(){
+									doh.f(dijit1.checked, "dijit1.checked false");
+									doh.t(dijit2.checked, "dijit2.checked true");
+								})));
+								dijit2.focusNode.click();
+							})));
+							dijit1.focusNode.click();
+							return d;
+						},
+						tearDown: function(){
+							while(listeners[0]){
+								listeners.pop().remove();
+							}
+						}
+					},
+					{
+						name: "preventDefault",
+						runTest: function(){
+							var d = new doh.Deferred();
+							listeners.push(dijit3.on("click", d.getTestErrback(function(){
+								doh.f(dijit1.checked, "dijit1.checked false");
+								doh.f(dijit2.checked, "dijit2.checked false");
+								doh.t(dijit3.checked, "dijit3.checked true");
+								listeners.push(dijit2.on("click", d.getTestErrback(function(evt){
+									doh.f(dijit3.checked, "dijit3.checked false");
+									doh.t(dijit2.checked, "dijit2.checked true");
+
+									// this preventDefault() call should revert dijit2.checked to false
+									evt.preventDefault();
+
+									setTimeout(d.getTestCallback(function(){
+										doh.f(dijit2.checked, "dijit2.checked reverted to false");
+										doh.t(dijit3.checked, "dijit3.checked reverted to true");
+									}), 10);
+								})));
+								dijit2.focusNode.click();
+							})));
+							dijit3.focusNode.click();
+							return d;
+						},
+						tearDown: function(){
+							while(listeners[0]){
+								listeners.pop().remove();
+							}
+						}
+					}
+				]);
+				doh.run();
+			}else{
+				// Non (automated) test mode, setup listeners for manual testing.
+				var dom1 = dom.byId("dom1");
+				var dom2 = dom.byId("dom2");
+				var dom3 = dom.byId("dom3");
+				var preventDefault = dom.byId("preventDefault");
+
+				on(document.body, "input[name=domButton]:click", function(evt) {
+					console.group("Native radiobutton click");
+					console.log("dom1.checked = " + dom1.checked);
+					console.log("dom2.checked = " + dom2.checked);
+					console.log("dom3.checked = " + dom3.checked);
+					console.groupEnd();
+					if(preventDefault.checked){
+						evt.preventDefault();
+						setTimeout(function(){
+							console.group("After preventDefault() native radiobutton checked state:");
+							console.log("dom1.checked = " + dom1.checked);
+							console.log("dom2.checked = " + dom2.checked);
+							console.log("dom3.checked = " + dom3.checked);
+							console.groupEnd();
+						});
+					}
+				});
+
+				function logDijitState (evt) {
+					console.group("Dijit RadioButton click");
+					console.log("dijit1.checked = " + dijit1.checked);
+					console.log("dijit2.checked = " + dijit2.checked);
+					console.log("dijit3.checked = " + dijit3.checked);
+					console.groupEnd();
+					if(preventDefault.checked){
+						evt.preventDefault();
+						setTimeout(function(){
+							console.group("After preventDefault(), Dijit RadioButton checked state:");
+							console.log("dijit1.checked = " + dijit1.checked);
+							console.log("dijit2.checked = " + dijit2.checked);
+							console.log("dijit3.checked = " + dijit3.checked);
+							console.groupEnd();
+						});
+					}
+				}
+
+				on(dijit1, "click", logDijitState);
+				on(dijit2, "click", logDijitState);
+				on(dijit3, "click", logDijitState);
+			}
+		});
+		</script>
+	</body>
+</html>

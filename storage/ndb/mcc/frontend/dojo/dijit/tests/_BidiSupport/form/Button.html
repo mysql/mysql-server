@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-type" content="text/html; charset=utf-8">
+		<title>Dojo Button Widget Test</title>
+
+		<style type="text/css">
+			@import "../../../themes/claro/document.css";
+			@import "../../css/dijitTests.css";
+
+			/* group multiple buttons in a row */
+			.box {
+				display: block;
+				text-align: center;
+			}
+			BUTTON, INPUT,
+			.box .dijit {
+				margin-right: 10px;
+				vertical-align: middle;
+			}
+		</style>
+
+		<!-- required: the default dijit theme: -->
+		<link id="themeStyles" rel="stylesheet" href="../../../themes/claro/claro.css"/>
+
+		<!-- required: dojo.js -->
+		<script type="text/javascript" src="../../../../dojo/dojo.js"
+		data-dojo-config="isDebug: true, has: { 'dojo-bidi': true }"></script>
+
+		<script language="JavaScript" type="text/javascript">
+
+			require([
+				"doh/runner",
+				"dojo/dom",
+				"dojo/parser",
+				"dijit/registry",
+				"dijit/form/Button",
+				"dijit/Menu",
+				"dijit/MenuItem",
+				"dijit/form/DropDownButton",
+				"dojo/domReady!"
+			], function(doh, dom, parser, registry, Button, Menu, MenuItem, DropDownButton){
+
+				var createButton = function(){
+					var widget = new Button({label: "Button LTR ...", id: "progbLtr", textDir: "ltr"});
+					widget.placeAt("buttonContainer");	// place in page
+					var widget2 = new Button({label: "Button RTL ...", id: "progbRtl", textDir: "rtl"});
+					widget2.placeAt("buttonContainer");	// place in page
+					var widget3 = new Button({label: "START AUTO \u05e9\u05dc\u05d5\u05dd\u0021\u0021!...", id: "progbAuto1", textDir: "auto"});
+					widget3.placeAt("buttonContainer");	// place in page
+					var widget4 = new Button({label: "\u05e9\u05dc\u05d5\u05dd\u0021\u0021 AUTO END...", id: "progbAuto2"});
+					widget4.set('textDir','auto');
+					widget4.placeAt("buttonContainer");	// place in page
+				};
+
+				var createDropDownButton = function(){
+					var menu = new Menu({ });
+					menu.domNode.style.display="none";
+					var menuItem1 = new MenuItem({
+						label: "Cut!",
+						iconClass:"registryEditorIcon registryEditorIconCut",
+						id:"progCut",
+						textDir:"ltr"
+					});
+					menu.addChild(menuItem1);
+
+					var menuItem2 = new MenuItem({
+						label: "Copy!",
+						iconClass:"registryEditorIcon registryEditorIconCopy",
+						id:"progCopy",
+						textDir:"rtl"
+					});
+					menu.addChild(menuItem2);
+
+					var menuItem3 = new MenuItem({
+						label: "Paste \u05e9\u05dc\u05d5\u05dd\u0021\u0021!...",
+						iconClass:"registryEditorIcon registryEditorIconPaste",
+						id:"progPaste",
+						textDir:"auto"
+					});
+					menu.addChild(menuItem3);
+
+					var menuItem4 = new MenuItem({
+						label: "\u05e9\u05dc\u05d5\u05dd\u0021\u0021!... Save!",
+						iconClass:"registryEditorIcon registryEditorIconSave",
+						id:"progSave",
+						textDir:"auto"
+						});
+					menu.addChild(menuItem4);
+
+					var params = {
+						label: "hello!",
+						name: "programmatic2",
+						dropDown: menu,
+						id: "progButton",
+						textDir:"auto"
+					};
+					var widget = new DropDownButton(params);
+					widget.startup();
+					dom.byId("dropdownButtonContainer").appendChild(widget.domNode);
+				};
+
+				doh.register("registry.tests._BidiSupport.form.Button", [
+
+					function parse(){
+						return parser.parse();
+					},
+
+					function test_LTR_TextDir(){
+						doh.is(registry.byId("bltr").get("textDir"), "ltr");
+						doh.is(registry.byId("bltr").containerNode.dir, "ltr");
+					},
+
+					function test_LTR_TextDir_RTL_dir(){
+						doh.is(registry.byId("bltr_rtl").get("textDir"), "ltr");
+						doh.is(registry.byId("bltr_rtl").containerNode.dir, "ltr");
+					},
+
+					function test_RTL_TextDir_LTR_dir(){
+						doh.is(registry.byId("brtl_ltr").get("textDir"), "rtl");
+						doh.is(registry.byId("brtl_ltr").containerNode.dir, "rtl");
+					},
+
+					function test_RTL_TextDir(){
+						doh.is(registry.byId("brtl").get("textDir"), "rtl");
+						doh.is(registry.byId("brtl").containerNode.dir, "rtl");
+					},
+
+					function test_AUTO_TextDir(){
+						doh.is(registry.byId("bauto_ltr").get("textDir"), "auto");
+						doh.is(registry.byId("bauto_ltr").containerNode.dir, "ltr");
+						doh.is(registry.byId("bauto_rtl").get("textDir"), "auto");
+						doh.is(registry.byId("bauto_rtl").containerNode.dir, "rtl");
+					},
+
+					function test_ToggleButton_TextDirLTR(){
+						doh.is(registry.byId("togltr").get("textDir"), "ltr");
+						doh.is(registry.byId("togltr").containerNode.dir, "ltr");
+					},
+
+					function test_ToggleButton_TextDirRTL(){
+						doh.is(registry.byId("togrtl").get("textDir"), "rtl");
+						doh.is(registry.byId("togrtl").containerNode.dir, "rtl");
+					},
+
+					function test_ToggleButton_TextDirAUTO(){
+						doh.is(registry.byId("togauto_ltr").get("textDir"), "auto");
+						doh.is(registry.byId("togauto_ltr").containerNode.dir, "ltr");
+						doh.is(registry.byId("togauto_rtl").get("textDir"), "auto");
+						doh.is(registry.byId("togauto_rtl").containerNode.dir, "rtl");
+					},
+
+					function test_programmat_button(){
+						createButton();
+						doh.is(registry.byId("progbLtr").get("textDir"), "ltr");
+						doh.is(registry.byId("progbLtr").containerNode.dir, "ltr");
+						doh.is(registry.byId("progbRtl").get("textDir"), "rtl");
+						doh.is(registry.byId("progbRtl").containerNode.dir, "rtl");
+						doh.is(registry.byId("progbAuto1").get("textDir"), "auto");
+						doh.is(registry.byId("progbAuto1").containerNode.dir, "ltr");
+						doh.is(registry.byId("progbAuto2").get("textDir"), "auto");
+						doh.is(registry.byId("progbAuto2").containerNode.dir, "rtl");
+					},
+
+					function test_changeLabel_forAUTO(){
+						var item = registry.byId("bauto_rtl");
+						doh.is(item.get("textDir"), "auto");
+						doh.is(item.containerNode.dir, "rtl");
+						item.set("label", "");
+						doh.is(item.containerNode.dir, "ltr");
+						item.set("label", "new label '\u05e9\u05d9\u05de\u05d5\u05e9\u0020\u05d1\u05ea\u05d2\u05d9\u05d5\u05ea\u002e'");
+						doh.is(item.containerNode.dir, "ltr");
+						item.set("label", "'\u05e9\u05d9\u05de\u05d5\u05e9\u0020\u05d1\u05ea\u05d2\u05d9\u05d5\u05ea\u002e'");
+						doh.is(item.containerNode.dir, "rtl");
+					},
+
+					function test_DropDownButton_LTR_TextDir(){
+						doh.is(registry.byId("bltr_cut").get("textDir"), "ltr");
+						doh.is(registry.byId("bltr_cut").textDirNode.dir, "ltr");
+						doh.is(registry.byId("bltr_copy").get("textDir"), "ltr");
+						doh.is(registry.byId("bltr_copy").textDirNode.dir, "ltr");
+						doh.is(registry.byId("bltr_paste").get("textDir"), "rtl");
+						doh.is(registry.byId("bltr_paste").textDirNode.dir, "rtl");
+					},
+
+					function test_DropDownButton_RTL_TextDir(){
+						doh.is(registry.byId("brtl_cut").get("textDir"), "rtl");
+						doh.is(registry.byId("brtl_cut").textDirNode.dir, "rtl");
+						doh.is(registry.byId("brtl_copy").get("textDir"), "ltr");
+						doh.is(registry.byId("brtl_copy").textDirNode.dir, "ltr");
+						doh.is(registry.byId("brtl_paste").get("textDir"), "rtl");
+						doh.is(registry.byId("brtl_paste").textDirNode.dir, "rtl");
+					},
+
+					function test_DropDownButton_AUTO_TextDir(){
+						doh.is(registry.byId("bauto_cut").get("textDir"), "auto");
+						doh.is(registry.byId("bauto_cut").textDirNode.dir, "ltr");
+						doh.is(registry.byId("bauto_copy").get("textDir"), "auto");
+						doh.is(registry.byId("bauto_copy").textDirNode.dir, "rtl");
+					},
+
+					function test_ComboButton_TextDirLTR(){
+						doh.is(registry.byId("comboltr_cut").get("textDir"), "ltr");
+						doh.is(registry.byId("comboltr_cut").textDirNode.dir, "ltr");
+						doh.is(registry.byId("comboltr_copy").get("textDir"), "ltr");
+						doh.is(registry.byId("comboltr_copy").textDirNode.dir, "ltr");
+						doh.is(registry.byId("comboltr_paste").get("textDir"), "rtl");
+						doh.is(registry.byId("comboltr_paste").textDirNode.dir, "rtl");
+					},
+
+					function test_ComboButton_TextDirRTL(){
+						doh.is(registry.byId("combortl_cut").get("textDir"), "rtl");
+						doh.is(registry.byId("combortl_cut").textDirNode.dir, "rtl");
+						doh.is(registry.byId("combortl_copy").get("textDir"), "ltr");
+						doh.is(registry.byId("combortl_copy").textDirNode.dir, "ltr");
+						doh.is(registry.byId("combortl_paste").get("textDir"), "rtl");
+						doh.is(registry.byId("combortl_paste").textDirNode.dir, "rtl");
+					},
+
+					function test_ComboButton_TextDirAUTO(){
+						doh.is(registry.byId("comboauto_cut").get("textDir"), "auto");
+						doh.is(registry.byId("comboauto_cut").textDirNode.dir, "ltr");
+						doh.is(registry.byId("comboauto_copy").get("textDir"), "auto");
+						doh.is(registry.byId("comboauto_copy").textDirNode.dir, "rtl");
+					},
+
+					function test_programmat_DropDownButton(){
+						createDropDownButton ();
+						doh.is(registry.byId("progCut").get("textDir"), "ltr");
+						doh.is(registry.byId("progCut").textDirNode.dir, "ltr");
+						doh.is(registry.byId("progCopy").get("textDir"), "rtl");
+						doh.is(registry.byId("progCopy").textDirNode.dir, "rtl");
+						doh.is(registry.byId("progPaste").get("textDir"), "auto");
+						doh.is(registry.byId("progPaste").textDirNode.dir, "ltr");
+						doh.is(registry.byId("progSave").get("textDir"), "auto");
+						doh.is(registry.byId("progSave").textDirNode.dir, "rtl");
+					},
+
+					function test_DropDownButton_changeLabel_forAUTO(){
+						var item = registry.byId("bauto_copy");
+						doh.is(item.get("textDir"), "auto");
+						doh.is(item.textDirNode.dir, "rtl");
+						item.set("label", "");
+						doh.is(item.textDirNode.dir, "ltr");
+						item.set("label", "new label '\u05e9\u05d9\u05de\u05d5\u05e9\u0020\u05d1\u05ea\u05d2\u05d9\u05d5\u05ea\u002e'");
+						doh.is(item.textDirNode.dir, "ltr");
+						item.set("label", "'\u05e9\u05d9\u05de\u05d5\u05e9\u0020\u05d1\u05ea\u05d2\u05d9\u05d5\u05ea\u002e'");
+						doh.is(item.textDirNode.dir, "rtl");
+					},
+
+					function test_deepMenu(){
+						doh.is(registry.byId("level3_cut").get("textDir"), "auto");
+						doh.is(registry.byId("level3_cut").textDirNode.dir, "ltr");
+						doh.is(registry.byId("level4_cut").get("textDir"), "auto");
+						doh.is(registry.byId("level4_cut").textDirNode.dir, "rtl");
+					}
+				]);
+				doh.run();
+			});
+	</script>
+	</head>
+<body class="claro">
+	<h1 class="testTitle">registry Button Test</h1>
+	<h2>Simple buttons</h2>
+
+	<p class="box">
+		<button data-dojo-type="dijit/form/Button" id="bltr" data-dojo-props='onClick:function(){ console.log("clicked simple"); }, iconClass:"plusIcon", value:"Button LTR ...", textDir:"ltr"'>
+			Button LTR ...
+		</button>
+
+		<button data-dojo-type="dijit/form/Button" id="bltr_rtl" data-dojo-props='onClick:function(){ console.log("clicked simple"); }, iconClass:"plusIcon", value:"Button LTR RTL ...", textDir:"ltr", dir:"rtl"'>
+			Button LTR RTL ...
+		</button>
+
+		<button data-dojo-type="dijit/form/Button" id="brtl_ltr" data-dojo-props='onClick:function(){ console.log("clicked simple"); }, iconClass:"plusIcon", value:"Button RTL LTR ...", textDir:"rtl", dir:"ltr"'>
+			Button LTR RTL ...
+		</button>
+
+		<button data-dojo-type="dijit/form/Button" id="brtl" data-dojo-props='onClick:function(){ console.log("clicked simple"); }, iconClass:"plusIcon", value:"Button RTL ...", textDir:"rtl"'>
+			Button RTL ...
+		</button>
+
+		<button data-dojo-type="dijit/form/Button" id="bauto_ltr" data-dojo-props='onClick:function(){ console.log("clicked simple"); }, iconClass:"plusIcon", value:"START AUTO &#1495;&#1491;&#1513;!...", textDir:"auto"'>
+			START AUTO &#1495;&#1491;&#1513;!...
+		</button>
+
+		<button data-dojo-type="dijit/form/Button" id="bauto_rtl" data-dojo-props='onClick:function(){ console.log("clicked simple"); }, iconClass:"plusIcon", value:"&#1495;&#1491;&#1513; AUTO END...", textDir:"auto"'>
+			&#1495;&#1491;&#1513; AUTO END...
+		</button>
+
+		<button id="togltr" checked data-dojo-type="dijit/form/ToggleButton" data-dojo-props='
+			iconClass:"dijitCheckBoxIcon", textDir:"ltr"'>
+			Toggle Button LTR ...
+		</button>
+
+		<button id="togrtl" checked data-dojo-type="dijit/form/ToggleButton" data-dojo-props='
+			iconClass:"dijitCheckBoxIcon", textDir:"rtl"'>
+			Toggle Button RTL ...
+		</button>
+
+		<button id="togauto_ltr" checked data-dojo-type="dijit/form/ToggleButton" data-dojo-props='
+			iconClass:"dijitCheckBoxIcon", textDir:"auto"'>
+			START AUTO &#1495;&#1491;&#1513;!...
+		</button>
+
+		<button id="togauto_rtl" checked data-dojo-type="dijit/form/ToggleButton" data-dojo-props='
+			iconClass:"dijitCheckBoxIcon", textDir:"auto"'>
+			&#1495;&#1491;&#1513; AUTO END...
+		</button>
+
+		<button id="dropltr" title="edit title" value="Edit" data-dojo-type="dijit/form/DropDownButton" data-dojo-textdir="ltr" data-dojo-props='iconClass:"noteIcon"'>
+			<span>Edit<b>!</b></span>
+			<span id="bltr_editMenu" data-dojo-type="dijit/Menu">
+				<span id="bltr_cut" data-dojo-type="dijit/MenuItem" data-dojo-props='iconClass:"dijitEditorIcon dijitEditorIconCut"'>Cut!</span>
+				<span id="bltr_copy" data-dojo-type="dijit/MenuItem" data-dojo-textdir="ltr" data-dojo-props='iconClass:"dijitEditorIcon dijitEditorIconCopy"'>Copy!</span>
+				<span id="bltr_paste" data-dojo-type="dijit/MenuItem" data-dojo-textdir="rtl" data-dojo-props='iconClass:"dijitEditorIcon dijitEditorIconPaste"'>Paste!</span>
+			</span>
+		</button>
+
+		<button id="droprtl" title="edit title" value="Edit" data-dojo-type="dijit/form/DropDownButton" data-dojo-textdir="rtl" data-dojo-props='iconClass:"noteIcon"'>
+			<span>Edit<b>!</b></span>
+			<span id="brtl_editMenu" data-dojo-type="dijit/Menu">
+				<span id="brtl_cut" data-dojo-type="dijit/MenuItem" data-dojo-props='iconClass:"dijitEditorIcon dijitEditorIconCut"'>Cut!</span>
+				<span id="brtl_copy" data-dojo-type="dijit/MenuItem" data-dojo-textdir="ltr" data-dojo-props='iconClass:"dijitEditorIcon dijitEditorIconCopy"'>Copy!</span>
+				<span id="brtl_paste" data-dojo-type="dijit/MenuItem" data-dojo-textdir="rtl" data-dojo-props='iconClass:"dijitEditorIcon dijitEditorIconPaste"'>Paste!</span>
+			</span>
+		</button>
+
+		<button id="dropauto" title="edit title" value="Edit" data-dojo-type="dijit/form/DropDownButton" data-dojo-textdir="auto" data-dojo-props='iconClass:"noteIcon"'>
+			<span>Edit<b>!</b></span>
+			<span id="bauto_editMenu" data-dojo-type="dijit/Menu">
+				<span id="bauto_cut" data-dojo-type="dijit/MenuItem" data-dojo-props='iconClass:"dijitEditorIcon dijitEditorIconCut"'>START AUTO &#1495;&#1491;&#1513; Cut!</span>
+				<span id="bauto_copy" data-dojo-type="dijit/MenuItem" data-dojo-props='iconClass:"dijitEditorIcon dijitEditorIconCopy"'>&#1495;&#1491;&#1513; Copy! AUTO END</span>
+			</span>
+		</button>
+
+		<button id="comboltr" title="edit title" value="Edit" data-dojo-type="dijit/form/ComboButton" data-dojo-textdir="ltr" data-dojo-props='optionsTitle:"save options"'>
+			<span>Edit<b>!</b></span>
+			<span id="comboltr_editMenu" data-dojo-type="dijit/Menu">
+				<span id="comboltr_cut" data-dojo-type="dijit/MenuItem" data-dojo-props='iconClass:"dijitEditorIcon dijitEditorIconCut"'>Cut!</span>
+				<span id="comboltr_copy" data-dojo-type="dijit/MenuItem" data-dojo-textdir="ltr" data-dojo-props='iconClass:"dijitEditorIcon dijitEditorIconCopy"'>Copy!</span>
+				<span id="comboltr_paste" data-dojo-type="dijit/MenuItem" data-dojo-textdir="rtl" data-dojo-props='iconClass:"dijitEditorIcon dijitEditorIconPaste"'>Paste!</span>
+			</span>
+		</button>
+
+		<button id="combortl" title="edit title" value="Edit" data-dojo-type="dijit/form/ComboButton" data-dojo-textdir="rtl" data-dojo-props='optionsTitle:"save options"'>
+			<span>Edit<b>!</b></span>
+			<span id="combortl_editMenu" data-dojo-type="dijit/Menu">
+				<span id="combortl_cut" data-dojo-type="dijit/MenuItem" data-dojo-props='iconClass:"dijitEditorIcon dijitEditorIconCut"'>Cut!</span>
+				<span id="combortl_copy" data-dojo-type="dijit/MenuItem" data-dojo-textdir="ltr" data-dojo-props='iconClass:"dijitEditorIcon dijitEditorIconCopy"'>Copy!</span>
+				<span id="combortl_paste" data-dojo-type="dijit/MenuItem" data-dojo-textdir="rtl" data-dojo-props='iconClass:"dijitEditorIcon dijitEditorIconPaste"'>Paste!</span>
+			</span>
+		</button>
+
+		<button id="comboauto" title="edit title" value="Edit" data-dojo-type="dijit/form/ComboButton" data-dojo-textdir="auto" data-dojo-props='optionsTitle:"save options"'>
+			<span>Edit<b>!</b></span>
+			<span id="comboauto_editMenu" data-dojo-type="dijit/Menu">
+				<span id="comboauto_cut" data-dojo-type="dijit/MenuItem" data-dojo-props='iconClass:"dijitEditorIcon dijitEditorIconCut"'>START AUTO &#1495;&#1491;&#1513; Cut!</span>
+				<span id="comboauto_copy" data-dojo-type="dijit/MenuItem" data-dojo-props='iconClass:"dijitEditorIcon dijitEditorIconCopy"'>&#1495;&#1491;&#1513; Copy! AUTO END</span>
+			</span>
+		</button>
+
+		<button id="deepedit" title="edit title" value="Edit" data-dojo-type="dijit/form/DropDownButton" data-dojo-textdir="auto" data-dojo-props='iconClass:"noteIcon"'>
+			<span>Edit<b>!</b></span>
+			<span id="deepeditMenu" data-dojo-type="dijit/Menu">
+				<span id="level1_cut" data-dojo-type="dijit/MenuItem" data-dojo-props='iconClass:"dijitEditorIcon dijitEditorIconCut"'>Cut!</span>
+				<span id="level1_copy" data-dojo-type="dijit/MenuItem" data-dojo-textdir="ltr" data-dojo-props='iconClass:"dijitEditorIcon dijitEditorIconCopy"'>Copy!</span>
+				<span id="level1_paste" data-dojo-type="dijit/MenuItem" data-dojo-textdir="rtl" data-dojo-props='iconClass:"dijitEditorIcon dijitEditorIconPaste"'>Paste!</span>
+				<span data-dojo-type="dijit/MenuSeparator"></span>
+				<span data-dojo-type="dijit/PopupMenuItem">
+					<span>Submenu!</span>
+					<span id="submenu2" data-dojo-type="dijit/Menu">
+						<span id="level2_cut" data-dojo-type="dijit/MenuItem" data-dojo-props='iconClass:"dijitEditorIcon dijitEditorIconCut"'>Cut!</span>
+						<span id="level2_copy" data-dojo-type="dijit/MenuItem" data-dojo-textdir="ltr" data-dojo-props='iconClass:"dijitEditorIcon dijitEditorIconCopy"'>Copy!</span>
+						<span id="level2_paste" data-dojo-type="dijit/MenuItem" data-dojo-textdir="rtl" data-dojo-props='iconClass:"dijitEditorIcon dijitEditorIconPaste"'>Paste!</span>
+						<span data-dojo-type="dijit/PopupMenuItem">
+							<span>Deeper Submenu!</span>
+							<span id="submenu4" data-dojo-type="dijit/Menu">
+								<span id="level3_cut" data-dojo-type="dijit/MenuItem" data-dojo-props='iconClass:"dijitEditorIcon dijitEditorIconCut"'>START AUTO &#1495;&#1491;&#1513; Cut!</span>
+								<span id="level3_copy" data-dojo-type="dijit/MenuItem" data-dojo-textdir="ltr" data-dojo-props='iconClass:"dijitEditorIcon dijitEditorIconCopy"'>Copy!</span>
+								<span id="level3_paste" data-dojo-type="dijit/MenuItem" data-dojo-textdir="rtl" data-dojo-props='iconClass:"dijitEditorIcon dijitEditorIconPaste"'>Paste!</span>
+								<span data-dojo-type="dijit/PopupMenuItem">
+									<span>Deeper deeper Submenu!</span>
+									<span id="submenu5" data-dojo-type="dijit/Menu">
+										<span id="level4_cut" data-dojo-type="dijit/MenuItem" data-dojo-props='iconClass:"dijitEditorIcon dijitEditorIconCut"'>&#1495;&#1491;&#1513; Cut! AUTO END</span>
+										<span id="level4_copy" data-dojo-type="dijit/MenuItem" data-dojo-textdir="ltr" data-dojo-props='iconClass:"dijitEditorIcon dijitEditorIconCopy"'>Copy!</span>
+										<span id="level4_paste" data-dojo-type="dijit/MenuItem" data-dojo-textdir="rtl" data-dojo-props='iconClass:"dijitEditorIcon dijitEditorIconPaste"'>Paste!</span>
+									</span>
+								</span>
+							</span>
+						</span>
+					</span>
+				</span>
+			</span>
+		</button>
+	</p>
+	<p id="buttonContainer" style="display: none;"></p>
+	<p id="dropdownButtonContainer" style="display: none;"></p>
+</body>
+</html>

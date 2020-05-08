@@ -1,0 +1,9 @@
+.flat .dijitTreeRtl {
+  text-align: right;
+}
+.flat .dijitTreeRtl .dijitTreeContainer {
+  float: right;
+}
+.flat .dijitTreeRtl .dijitTreeExpandoClosed:before {
+  content: "\e60b";
+}

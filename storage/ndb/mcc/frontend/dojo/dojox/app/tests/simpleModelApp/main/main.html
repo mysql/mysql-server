@@ -1,0 +1,30 @@
+<div class="view mblView">
+<h1 data-dojo-type="dojox/mobile/Heading" data-app-constraint="top">The App shows how to use different types of Stores and Models</h1>
+<h2 data-dojo-type="dojox/mobile/RoundRectCategory" data-app-constraint="top">The App Shows how to use different types of Stores and Models</h2>
+
+<div data-dojo-type="dojox/app/widgets/Container" data-dojo-props="scrollable:true">    
+    <ul data-dojo-type="dojox/mobile/RoundRectList">
+        <li data-dojo-type="dojox/mobile/ListItem" data-dojo-props="clickable:true,target:'simple',url:'#simple'">
+            simple - Using an mvcModel (dojox/mvc/ModelRefController) with json data, no store.
+        </li>
+        <li data-dojo-type="dojox/mobile/ListItem" data-dojo-props="clickable:true,target:'simple2',url:'#simple2'">
+            simple2 - Using an mvcModel (dojox/mvc/EditModelRefController) with json data, no store.
+        </li>
+        <li data-dojo-type="dojox/mobile/ListItem" data-dojo-props="clickable:true,target:'simple3',url:'#simple3'">
+            simple 3 - Using simple JSON Model with data from a dojo.store.Memory
+        </li>
+        <li data-dojo-type="dojox/mobile/ListItem" data-dojo-props="clickable:true,target:'repeat',url:'#repeat'">
+            repeat - Using an mvcModel (dojox/mvc/EditStoreRefListController) with a dojo.store.JsonRest. 
+        </li>
+        <li data-dojo-type="dojox/mobile/ListItem" data-dojo-props="clickable:true,target:'repeat2',url:'#repeat2'">
+            repeat2 - Using an mvcModel (dojox/mvc/EditStoreRefListController) with an ItemFileWriteStore which gets wrapped in DataStore, with a query. 
+        </li>
+        <li data-dojo-type="dojox/mobile/ListItem" data-dojo-props="clickable:true,target:'repeat3',url:'#repeat3'">
+            repeat3 - Using an mvcModel (dojox/mvc/EditStoreRefListController) with an ItemFileWriteStore which gets wrapped in DataStore, no query. 
+        </li>
+        <li data-dojo-type="dojox/mobile/ListItem" data-dojo-props="clickable:true,target:'generate',url:'#generate'">
+            generate - Simple Form Generate
+        </li>
+    </ul>
+</div>
+</div>

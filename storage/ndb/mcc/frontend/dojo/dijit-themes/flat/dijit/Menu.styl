@@ -1,0 +1,191 @@
+/* Menu 
+
+There are three areas of styling for the Menu:  
+ 
+ 1. The menu 
+ 	There are three types of menus:
+ 	i) Context Menu
+ 	ii) Drop down Menu
+ 	iii) Navigation Menu
+ 	All three types of menus are affected by the .dijitMenu class in which you can set the background-color, padding and border
+ 	.dijitMenu affects the drop down menu in TimeTextBox, Calendar, ComboBox and FilteringSelect
+  .dijitMenuTable - for padding - also affects Select widget 	
+  	
+ 2. The menu bar
+ 	.dijitMenuBar - for border, margins, padding, background-color of the menu bar
+ 	.dijitMenuBar .dijitMenuItem - for padding, text color of menu items in the menu bar (overrides .dijitMenuItem) 
+ 	
+ 3. Menu items - items in the menu.  
+ 	.dijitMenuItem - for color
+ 	.dijitMenuItemHover, .dijitMenuItemSelected - for background-color, border, text color, padding of a menu item or menubar item that has been hovered over or selected	
+ 	.dijitMenuItemActive - for background-color of an active (mousedown) menu item
+	td.dijitMenuItemIconCell - for padding around a  menu item's icon
+	td.dijitMenuItemLabel - for padding around a menu item's label	
+	.dijitMenuSeparatorTop - for border, top border, of the separator
+	.dijitMenuSeparatorBottom - for bottom margin of the separator
+	
+	Styles specific to ComboBox and FilteringSelect widgets: 
+	.dijitComboBoxMenu .dijitMenuItem - for padding and border of a menu item in a ComboBox or FilteringSelect widget's menu
+	.dijitComboBoxMenu .dijitMenuItemSelected- for text color, background-color and border of a menu item in a ComboBox or FilteringSelect widget's menu
+
+*/
+
+@import 'dijit_variables';
+
+.{$theme-name} {
+	/* ----- Menu (Common) ----- */
+	.dijitMenu {
+		background: $menu-background-color;
+		border: 1px solid $menu-border-color;
+		border-radius: $menu-border-radius;
+		margin: 0;
+		box-shadow: $popup-box-shadow;
+	}
+
+	.dijitMenuTable,
+	.dijitComboBoxMenu {
+		padding: $menu-padding 0;
+	}
+
+	.dijitComboBoxMenu {
+		margin-left:0;
+		background-image: none;
+	}
+
+	.dijitMenuTable {
+		/* this prevents jiggling upon hover of a menu item */
+		border-collapse: separate;
+		border-spacing: 0 0;
+	}
+
+	/* ---- MenuItem ---- */
+	.dijitMenuItem,
+	.dijitMenuItem td {
+		line-height: $line-height;
+		padding: $menu-item-padding;
+		white-space: nowrap;
+	}
+
+	// hover
+	.dijitMenuItemHover td,
+	.dijitMenuItemHover {
+		color: $menu-item-hovered-text-color;
+		background-color: $menu-item-hovered-background-color;
+	}
+
+	// active
+	.dijitMenuItemActive td,
+	.dijitMenuItemActive {
+		color: $menu-item-active-text-color;
+		background-color: $menu-item-active-background-color;
+	}
+
+	// selected
+	.dijitMenuItemSelected td,
+	.dijitMenuItemSelected {
+		color: $menu-item-selected-text-color;
+		background-color: $menu-item-selected-background-color;
+	}
+	
+	// disabled
+	.dijitMenuItemDisabled {
+		color: $menu-item-disabled-text-color;
+	}
+	
+	.dijitMenuItemDisabled.dijitMenuItemSelected td,
+	.dijitMenuItemDisabled.dijitMenuItemSelected {
+		color: $menu-item-disabled-hovered-text-color;
+		background: $menu-item-disabled-hovered-background-color;
+	}
+
+	/* ---- MenuItemSeparator ---- */
+	.dijitMenuSeparatorTop {
+		height: auto
+		margin-top: 1px; /* prevents spacing above/below separator */
+		border-bottom: 1px solid $menu-item-separator-top-color;
+	}
+
+	.dijitMenuSeparatorBottom {
+		height: auto;
+		margin-bottom:1px;
+		border-top: 1px solid $menu-item-separator-bottom-color;
+	}
+
+	/* ---- MenuItem icons ---- */
+	td.dijitMenuItemIconCell {
+		padding: $menu-item-icon-padding;
+		margin: 0 0 0 $menu-item-icon-margin;
+		text-align: center;
+	}
+
+	// popup menu icon
+	.dijitMenuExpand {
+		_icon-core-style();
+		&:before {
+			content: $menu-item-icon;
+		}
+	}
+
+	// checked icon
+	.dijitCheckedMenuItemIconChar {
+		display: none;
+	}
+
+	.dijitMenuPreviousButton, .dijitMenuNextButton {
+		font-style: italic;
+	}
+
+	/* ----- Menu Bar ----- */
+	.dijitMenuBar {
+		margin: 0;
+		padding: 0;
+		background-color: $menubar-background-color;
+
+		.dijitMenuItem {  
+			padding: $menubar-item-padding;
+			margin: 0;	
+		}
+		
+		// hover
+		.dijitMenuItemHover {
+			color: $menubar-item-hover-color;
+			background-color: $menubar-item-hover-background-color;
+		}
+
+		// active
+		.dijitMenuItemActive {
+			color: $menubar-item-active-color;
+			background-color: $menubar-item-active-background-color;
+		}
+		
+		// selected
+		.dijitMenuItemSelected,
+		.dijitMenuItemHover.dijitMenuItemSelected,
+		.dijitMenuItemActive.dijitMenuItemSelected {
+			color: $menubar-item-selected-text-color;
+			background-color: $menubar-item-selected-background-color;
+		}
+		
+		// disabled
+		.dijitMenuItemDisabled.dijitMenuItemSelected,
+		.dijitMenuItemDisabled.dijitMenuItemSelected {
+			color: $menu-item-disabled-hovered-text-color;
+			background: $menu-item-disabled-hovered-background-color;
+		}
+	}
+
+	/* ---- MenuBar Dropdown ---- */
+	.dijitMenuPopup {
+		border-top-left-radius: 0;
+		border-top-right-radius: 0;
+
+		.dijitMenu {
+			border-top-left-radius: 0;
+			border-top-right-radius: 0;
+		}
+		.dijitMenuItem, 
+		.dijitMenuItem td {
+			padding: $menubar-popup-item-padding;
+		}
+	}
+}

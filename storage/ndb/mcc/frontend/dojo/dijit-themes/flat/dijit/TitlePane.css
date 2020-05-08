@@ -1,0 +1,118 @@
+/* TitlePane and Fieldset
+ *
+ * Styling TitlePane means styling the TitlePane title and its content container  (dijitTitlePane)
+ *
+ * TitlePane title:
+ * 1. TitlePane title (default styling):
+ * 		.dijitTitlePaneTitle - TitlePane's title div style: background-color, border
+ *
+ * 2. hovered TitlePane title (ie, mouse hover on a title bar)
+ * 		.dijitTitlePaneTitleHover - styles when mouse hover on the title div
+ *
+ * 3. active TitlePane title (ie, mouse down on a title bar)
+ * 		.dijitTitlePaneTitleActive - styles when mouse down on the title div
+ *
+ *
+ * TitlePane Content Container:
+ * 1. outer/inner container:
+ * 		.dijitTitlePaneContentOuter / dijitTitlePaneContentInner - styles for the content outer div
+ */
+.flat .dijitTitlePaneTitle {
+  border-style: solid;
+  border-width: 1px;
+  border-color: #9e9e9e;
+  padding: 4px;
+  border-radius: 3px;
+  line-height: 20px;
+  cursor: pointer;
+  -webkit-transition: all 0.05s linear;
+  -moz-transition: all 0.05s linear;
+  -o-transition: all 0.05s linear;
+  -ms-transition: all 0.05s linear;
+  transition: all 0.05s linear;
+  background: #fff;
+  border-radius: 3px 3px 0 0;
+}
+.flat .dijitTitlePaneTitleHover,
+.flat .dijitFieldsetTitleHover {
+  -webkit-transition: all 0.1s;
+  -moz-transition: all 0.1s;
+  -o-transition: all 0.1s;
+  -ms-transition: all 0.1s;
+  transition: all 0.1s;
+  background: #f2f2f2;
+  border-color: #d9d9d9;
+}
+.flat .dijitTitlePaneTitleActive,
+.flat .dijitFieldsetTitleActive {
+  -webkit-transition: none;
+  -moz-transition: none;
+  -o-transition: none;
+  -ms-transition: none;
+  transition: none;
+  outline: none;
+  -webkit-box-shadow: inset 0 3px 5px rgba(0,0,0,0.05);
+  box-shadow: inset 0 3px 5px rgba(0,0,0,0.05);
+  background: #e0e0e0;
+  border-color: #b3b3b3;
+}
+.flat .dijitFieldset {
+  border-radius: 3px 3px 0 0;
+}
+.flat .dijitFieldset .dijitArrowNodeInner {
+  display: none;
+}
+.flat .dijitFieldset .dijitFieldsetTitleClosed .dijitArrowNode:before {
+  content: "\f006";
+}
+.flat .dijitTitlePane .dijitArrowNode,
+.flat .dijitFieldset .dijitArrowNode {
+  font-family: "flat-icon";
+  speak: none;
+  font-style: normal;
+  font-weight: normal;
+  font-variant: normal;
+  text-transform: none;
+  line-height: 1;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-size: 18px;
+  text-align: center;
+}
+.flat .dijitTitlePane .dijitArrowNode:before,
+.flat .dijitFieldset .dijitArrowNode:before {
+  content: "\f007";
+}
+.flat .dijitTitlePane .dijitClosed,
+.flat .dijitFieldset .dijitClosed {
+  border-radius: 3px;
+}
+.flat .dijitTitlePane .dijitClosed .dijitArrowNode:before,
+.flat .dijitFieldset .dijitClosed .dijitArrowNode:before {
+  content: "\f006";
+}
+.flat .dijitTitlePaneContentOuter {
+  background-color: #fff;
+  border: 1px solid #9e9e9e;
+  border-top: none;
+  border-radius: 0 0 3px 3px;
+}
+.flat .dijitFieldset {
+  background-color: #fff;
+  border: 1px solid #9e9e9e;
+  border-radius: 3px;
+}
+.flat .dijitTitlePaneContentInner,
+.flat .dijitFieldsetContentInner {
+  padding: 8px;
+}
+.flat .dijitTitlePaneTextNode,
+.flat .dijitFieldsetLegendNode {
+  margin-left: 8px;
+  margin-right: 8px;
+  vertical-align: text-top;
+}
+.flat .dijitFieldsetLegendNode {
+  cursor: default;
+}

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="Content-type" content="text/html; charset=utf-8"/>
+	<meta name="viewport" 
+		content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no"/>
+	<meta name="apple-mobile-web-app-capable" content="yes"/>
+	<title>Filtered RoundRectList - auto</title>
+	
+	<!-- This test shows a dojox/mobile/RoundRectList filtered using dojox/mobile/FilteredListMixin. -->
+	<!-- Use-case: markup; SearchBox and ScrollableView created automatically by the mixin. -->
+	
+	<script type="text/javascript" src="../deviceTheme.js"></script>
+	<script type="text/javascript" src="../../../dojo/dojo.js" 
+		data-dojo-config="async: true, parseOnLoad: true"></script>
+	
+	<script type="text/javascript">
+		require([
+			"dojox/mobile/parser",
+			"dojox/mobile",
+			"dojox/mobile/compat",
+			"dojox/mobile/FilteredListMixin"
+			]);
+	</script>
+	
+	<style>
+		body,html{
+			width: 100%;
+		}
+	</style>
+</head>
+
+<body style="visibility:hidden;background-color:#424142;">
+	<div data-dojo-type="dojox/mobile/View">
+		<h1 data-dojo-type="dojox/mobile/Heading" data-dojo-props="fixed: 'top'">Filtered RoundRectList</h1>
+		<ul id="list" data-dojo-type="dojox/mobile/RoundRectList"
+			data-dojo-mixins="dojox/mobile/FilteredListMixin"
+			data-dojo-props="placeHolder: 'Search'">
+			<li data-dojo-type="dojox/mobile/ListItem">Alabama</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Alaska</li>
+			<li data-dojo-type="dojox/mobile/ListItem">American Samoa</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Arizona</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Arkansas</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Armed Forces Europe</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Armed Forces Pacific</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Armed Forces the Americas</li>
+			<li data-dojo-type="dojox/mobile/ListItem">California</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Colorado</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Connecticut</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Delaware</li>
+			<li data-dojo-type="dojox/mobile/ListItem">District of Columbia</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Federated States of Micronesia</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Florida</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Georgia</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Guam</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Hawaii</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Idaho</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Illinois</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Indiana</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Iowa</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Kansas</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Kentucky</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Louisiana</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Maine</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Marshall Islands</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Maryland</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Massachusetts</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Michigan</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Minnesota</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Mississippi</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Missouri</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Montana</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Nebraska</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Nevada</li>
+			<li data-dojo-type="dojox/mobile/ListItem">New Hampshire</li>
+			<li data-dojo-type="dojox/mobile/ListItem">New Jersey</li>
+			<li data-dojo-type="dojox/mobile/ListItem">New Mexico</li>
+			<li data-dojo-type="dojox/mobile/ListItem">New York</li>
+			<li data-dojo-type="dojox/mobile/ListItem">North Carolina</li>
+			<li data-dojo-type="dojox/mobile/ListItem">North Dakota</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Northern Mariana Islands</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Ohio</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Oklahoma</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Oregon</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Pennsylvania</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Puerto Rico</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Rhode Island</li>
+			<li data-dojo-type="dojox/mobile/ListItem">South Carolina</li>
+			<li data-dojo-type="dojox/mobile/ListItem">South Dakota</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Tennessee</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Texas</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Utah</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Vermont</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Virgin Islands, U.S.</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Virginia</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Washington</li>
+			<li data-dojo-type="dojox/mobile/ListItem">West Virginia</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Wisconsin</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Wyoming</li>
+		</ul>
+	</div>
+</body>
+</html>

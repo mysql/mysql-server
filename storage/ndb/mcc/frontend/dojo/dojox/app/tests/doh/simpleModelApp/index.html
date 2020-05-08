@@ -1,0 +1,273 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+	<head>
+	<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no"/> 
+		<meta name="apple-mobile-web-app-capable" content="yes" /> 
+		<title>Simple Model App Test</title> 
+		<link href="../../../../mobile/themes/iphone/base.css" rel="stylesheet">
+		<style>
+			html,body {
+				width: 100%;
+				height: 100%;
+				background: #eee;
+				font-family: arial;
+				color: #333;
+				overflow: hidden;
+				margin: 0;
+				padding: 0;
+				visibility: visible;
+			}
+
+			#splash {
+				width: 90%;
+				height: 90%;
+				margin: auto;
+				overflow: hidden;
+				border: 2px solid green;
+				color: #333;
+				text-align: center;
+			}
+
+		</style>
+		<script type="text/javascript">
+			dojoConfig = {
+				parseOnLoad: false,
+				mblHideAddressBar: false,
+				mblAndroidWorkaround: false,
+                mblAlwaysHideAddressBar: false,	
+				async:1,
+				app: {debugApp: 0}  // set debugApp to log app transitions and view activate/deactivate
+			};
+		</script>
+		<script type="text/javascript" src="../../../../../dojo/dojo.js"></script>
+
+		<script>
+            // the actual  launcher
+            require(["../../simpleModelApp/modelApp.js"], function(){});
+        </script>
+		<script type="text/javascript">
+			require([
+				"doh/runner",
+				"dojo/topic",
+				"dojo/_base/lang",
+				"dojox/mobile/TransitionEvent",				
+				"dojo/parser",
+				"dojo/when",
+				"dojo/Stateful",
+				"dijit/registry",
+				"dojox/mvc/at"
+			], function(doh, topic, lang, TransitionEvent, parser, when, Stateful, registry, at){
+				window.at = at;
+				var events = [];
+
+				var getLabelfromWid = function(wid, indx1, indx2){
+					var val = wid.labelNode.innerText || wid.labelNode.firstChild.nodeValue || "";
+					val = lang.trim(val);
+					if(indx2){
+						val = val.substring(indx1,indx2)
+					}
+					return val;
+				};
+
+				topic.subscribe("/app/status", lang.hitch(this, function(newStatus) {
+					events.push(newStatus);
+					if (newStatus == 2) {
+						var listItem_0TestStr = "simple - Using an mvcModel (dojox/mvc/ModelRefController) with json data, no store";
+						var listItem_1TestStr = "simple2 - Using an mvcModel (dojox/mvc/EditModelRefController) with json data, no store";
+						doh.register("Test-SimpleApp", [{
+							// Test initial listitem labels
+							name : "initial-listItem-labels",
+							runTest : function() {
+								var dfd = new doh.Deferred();
+								setTimeout(function() {
+									var ListItem_0Label = registry.byId("dojox_mobile_ListItem_0");
+									if(ListItem_0Label){
+										var lab = getLabelfromWid(ListItem_0Label,0,listItem_0TestStr.length); 
+										doh.is(lab, listItem_0TestStr);
+									}else{
+										throw new Error("In initial-listItem-labels ListItem_0Label not found."); 
+									}
+									var ListItem_1Label = registry.byId("dojox_mobile_ListItem_1");
+									if(ListItem_1Label){
+										doh.is(getLabelfromWid(ListItem_1Label,0,listItem_1TestStr.length), listItem_1TestStr);
+									}else{
+										throw new Error("In initial-listItem-labels ListItem_1Label not found."); 
+									}
+									return dfd.callback(true);
+								}, 500);
+								return dfd;
+							}
+						}, {
+							// Test first transition
+							name : "transition-test-1",
+							runTest : function() {
+								var dfd = new doh.Deferred();
+								setTimeout(function() {
+								// transition to first li
+									var liWidget = registry.byId("dojox_mobile_ListItem_0");
+									var ev = new TransitionEvent(liWidget.domNode, liWidget.params);
+									ev.dispatch();
+									return dfd.callback(true);
+								}, 500);
+							}
+						}, {
+							// Test simple view 1
+							name : "simple-mvc-test-1",
+							timeout: 4000,
+							runTest : function() {
+								var dfd = new doh.Deferred();
+								setTimeout(function() {
+									var wid = registry.byId("streetInput");
+									if(wid){
+										doh.is("123 Valley Rd", wid.get("value"), "Street should be of ShipTo");
+									}else{
+										throw new Error("In simple-mvc-test-1 streetInput not found.");
+										//console.warn("In simple-mvc-test-1 streetInput not found."); 
+									}
+									var wid = registry.byId("cityInput");
+									if(wid){
+										doh.is("Katonah", wid.get("value"), "City should be of ShipTo");
+									}else{
+										throw new Error("In simple-mvc-test-1 cityInput not found.");
+										//console.warn("In simple-mvc-test-1 cityInput not found."); 
+									}
+									return dfd.callback(true);
+								}, 1000);
+								return dfd;
+							}
+						}, {
+							// Test switch to billto
+							name : "simple-mvc-test-2",
+							runTest : function() {
+								var dfd = new doh.Deferred();
+								setTimeout(function() {
+									var group = registry.byId("addrGroup");
+									group.set("target", at("rel:", "BillTo"));
+									doh.is("17 Skyline Dr", registry.byId("streetInput").get("value"), "Street should be of BillTo");
+									doh.is("Hawthorne", registry.byId("cityInput").get("value"), "City should be of BillTo");
+									return dfd.callback(true);
+								}, 500);
+								return dfd;
+							}
+						}, {
+							// Test switch back to home
+							name : "backToHome1",
+							runTest : function() {
+								var dfd = new doh.Deferred();
+								setTimeout(function() {
+									var backHeader = registry.byId("dojox_mobile_Heading_1");
+									var transOpts = {
+										viewid : "home",
+										reverse : true,
+										url : "#home" // this is optional if not set it will be created from target
+									};
+									var ev = new TransitionEvent(backHeader.domNode, transOpts);
+									ev.dispatch();
+									return dfd.callback(true);
+								}, 500);
+								return dfd;
+							}
+						}, {
+							// Test verify back to at home
+							name : "testbackToHome1",
+							runTest : function() {
+								var dfd = new doh.Deferred();
+								setTimeout(function() {
+									var ListItem_0Label = registry.byId("dojox_mobile_ListItem_0");
+									if(ListItem_0Label){
+										doh.is(getLabelfromWid(ListItem_0Label,0,82), listItem_0TestStr);
+									}else{
+										throw new Error("In testbackToHome1 ListItem_0Label not found."); 
+									}
+									var ListItem_1Label = registry.byId("dojox_mobile_ListItem_1");
+									if(ListItem_1Label){
+										doh.is(getLabelfromWid(ListItem_1Label,0,87), listItem_1TestStr);
+									}else{
+										throw new Error("In testbackToHome1 ListItem_1Label not found."); 
+									}
+									return dfd.callback(true);
+								}, 500);
+								return dfd;
+							}
+						}, {
+							// Test second transition
+							name : "transition-test-2",
+							runTest : function() {
+								// transition to first li
+								var dfd = new doh.Deferred();
+								setTimeout(function() {
+									var liWidget = registry.byId("dojox_mobile_ListItem_3");
+									var ev = new TransitionEvent(liWidget.domNode, liWidget.params);
+									ev.dispatch();
+									return dfd.callback(true);
+								}, 500);
+								return dfd;
+							}
+						}, {
+							// Test verify back to at home
+							name : "testInputs1",
+							runTest : function() {
+								var dfd = new doh.Deferred();
+								setTimeout(function() {
+									var wid = registry.byId("nameInput0");
+									if (wid) {
+										doh.is("Anne", registry.byId("nameInput0").get("value"), "NameInput0 should be Anne");
+										doh.is("Anne", registry.byId("firstInput").get("value"), "firstInput should be Anne");
+									}
+									return dfd.callback(true);
+								}, 500);
+								return dfd;
+							}
+						}, {
+							// Test switch back to home
+							name : "backToHome2",
+							runTest : function() {
+								var dfd = new doh.Deferred();
+								setTimeout(function() {
+									var backHeader = registry.byId("dojox_mobile_Heading_1");
+									var transOpts = {
+										viewid : "home",
+										reverse : true,
+										url : "#home" // this is optional if not set it will be created from target
+									};
+									var ev = new TransitionEvent(backHeader.domNode, transOpts);
+									ev.dispatch();
+									return dfd.callback(true);
+								}, 500);
+								return dfd;
+							}
+						}, {
+							// Test verify back to at home
+							name : "testbackToHome",
+							runTest : function() {
+								var dfd = new doh.Deferred();
+								setTimeout(function() {
+									var ListItem_0Label = registry.byId("dojox_mobile_ListItem_0");
+									if(ListItem_0Label){
+										doh.is(getLabelfromWid(ListItem_0Label,0,82), listItem_0TestStr);
+									}else{
+										throw new Error("In testbackToHome ListItem_0Label not found."); 
+									}
+									var ListItem_1Label = registry.byId("dojox_mobile_ListItem_1");
+									if(ListItem_1Label){
+										doh.is(getLabelfromWid(ListItem_1Label,0,87), listItem_1TestStr);
+									}else{
+										throw new Error("In testbackToHome ListItem_1Label not found."); 
+									}
+									return dfd.callback(true);
+								}, 500);
+								return dfd;
+							}
+						}]);
+
+						doh.run();
+					}
+				}));
+
+			});
+		</script>
+	</head>
+	<body>
+		<script type="dojo/require">at: "dojox/mvc/at"</script>
+	</body>
+</html>

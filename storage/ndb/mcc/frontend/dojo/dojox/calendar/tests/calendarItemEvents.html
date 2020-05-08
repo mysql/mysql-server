@@ -1,0 +1,183 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+	"http://www.w3.org/TR/html4/strict.dtd">
+<html>
+	
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>Calendar Sample: Desktop</title>				
+		<style type="text/css">
+			@import "../themes/claro/Calendar.css";
+			@import "calendar.css";
+			@import "../../../dojo/resources/dojo.css";
+			@import "../../../dijit/themes/dijit.css";
+			@import "../../../dijit/themes/claro/claro.css";
+			html{
+				font-family: Lucida grande, Tahoma, Verdana, Arial, Sans-serif;
+			}
+			#calendarNode {
+		      position:absolute;
+		      left: 10px;
+		      right: 10px;
+		      top: 10px;
+		      bottom: 10px;
+		    } 
+		</style>			
+	</head>
+	
+	<body class="claro">
+		<script type="text/javascript" 
+						data-dojo-config="async: true, parseOnLoad: true"
+		 				src="../../../dojo/dojo.js"></script>
+		
+			<script type="text/javascript">
+
+			require(["dojo/_base/declare", "dojo/ready", "dojo/_base/lang", "dojo/_base/sniff", "dojo/_base/array", "dojo/_base/fx", "dojo/dom-class", "dojo/on", 
+			         "dojo/date/locale", "dojo/parser",	"dojo/dom", "dojo/dom-construct",	"dojo/store/Memory", 
+			         "dojo/store/Observable",	"dojox/calendar/Calendar", "dijit/Menu", "dijit/MenuItem"],
+
+				function(declare, ready, lang, has, arr, fx, domClass, on, locale, parser, dom, domConstruct,
+					Memory, Observable, Calendar){
+
+					ready(function(){
+																					
+						calendar.set("cssClassFunc", function(item){
+							// Use custom css class on renderers depending of a parameter (calendar).							
+							return item.calendar == "cal1" ? "Calendar1" : "Calendar2"
+						});
+						
+						// Calendar model creation						
+						var modelBase = [
+							{day: 1, start: [10,0], duration: 1400},
+							{day: 2, start: [10,30], duration: 120},
+							{day: 2, start: [12,0], duration: 240},
+							{day: 3, start: [6,0], duration: 180},
+							{day: 3, start: [0,0], duration: 2880, allDay: true}
+						];
+						
+						var someData = [];
+												
+						var startOfWeek = calendar.floorToWeek(new calendar.dateClassObj());
+						
+						for (var id=0; id<modelBase.length; id++) {
+							var newObj = {
+								id: id,
+								summary: "New Event " + id,
+								startTime: new calendar.dateClassObj(startOfWeek.getTime()),
+								endTime: new calendar.dateClassObj(startOfWeek.getTime()),
+								calendar: id%2 == 0 ? "cal1" : "cal2",
+								editable: true,
+								resizeEnabled: true,
+								moveEnabled:true,
+								allDay: modelBase[id].allDay
+							};
+
+							newObj.startTime = calendar.dateModule.add(newObj.startTime, "day", modelBase[id].day);
+							newObj.startTime.setHours(modelBase[id].start[0]);
+							newObj.startTime.setMinutes(modelBase[id].start[1]);
+
+							newObj.endTime = calendar.dateModule.add(newObj.startTime, "minute", modelBase[id].duration);
+
+							someData.push(newObj);
+						}
+						
+						var store = new Observable(new Memory({data: someData}));
+						calendar.set("store", store);
+						calendar.set("date", startOfWeek);
+						
+						// show context menu on right clicking an event
+						calendar.on("itemContextMenu", function(e){
+							dojo.stopEvent(e.triggerEvent);
+							console.log("itemContextMenu", e.item.summary);
+							if(e.item.calendar == undefined){
+								alert("itemContextMenu not ok");
+							}
+						});
+						
+						calendar.on("itemClick", function(e){
+							console.log("itemClick", e.item.summary);
+							if(e.item.calendar == undefined){
+								alert("itemClick not ok");
+							}
+						});
+						calendar.on("itemDoubleClick", function(e){
+							console.log("itemDoubleClick", e.item.summary);
+							if(e.item.calendar == undefined){
+								alert("itemDoubleClick not ok");
+							}
+						});
+						calendar.on("itemRollOver", function(e){
+							console.log("itemRollOver", e.item.summary);
+							if(e.item.calendar == undefined){
+								alert("itemRollOver not ok");
+							}
+						});
+						calendar.on("itemRollOut", function(e){
+							console.log("itemRollOut", e.item.summary);
+							if(e.item.calendar == undefined){
+								alert("itemRollOut not ok");
+							}
+						});
+						
+						// editing events
+						calendar.on("itemEditBegin", function(e){
+							console.log("itemEditBegin", e.storeItem.summary);
+							if(e.storeItem.calendar == undefined){
+								alert("itemEditBegin not ok");
+							}
+						});
+						calendar.on("itemEditBeginGesture", function(e){
+							console.log("itemEditBeginGesture", e.storeItem.summary);
+							if(e.storeItem.calendar == undefined){
+								alert("itemEditBeginGesture not ok");
+							}
+						});
+						calendar.on("itemEditMoveGesture", function(e){
+							console.log("itemEditMoveGesture", e.storeItem.summary);
+							if(e.storeItem.calendar == undefined){
+								alert("itemEditMoveGesture not ok");
+							}
+						});
+						calendar.on("itemEditResizeGesture", function(e){
+							console.log("itemEditResizeGesture", e.storeItem.summary);
+							if(e.storeItem.calendar == undefined){
+								alert("itemEditResizeGesture not ok");
+							}
+						});
+						calendar.on("itemEditEndGesture", function(e){
+							console.log("itemEditEndGesture", e.storeItem.summary);
+							if(e.storeItem.calendar == undefined){
+								alert("itemEditEndGesture not ok");
+							}
+						});
+						calendar.on("itemEditEnd", function(e){
+							console.log("itemEditEnd", e.storeItem.summary);
+							if(e.storeItem.calendar == undefined){
+								alert("itemEditEnd not ok");
+							}
+						});
+																						
+						// Hide loading panel when application is ready
+						fx.fadeOut({
+							node:"loadingPanel", 
+							onEnd: function(node){
+								node.parentNode.removeChild(node)
+							}}).play(500);
+																																
+					});
+			});
+			</script>
+			
+			<div id="loadingPanel" style="position:absolute;z-index:10;width:100%;height:100%;background:#ffffff">
+				<span style="background: #DBEB8F;padding:2px">Loading...</span>
+			</div>
+  			<div id="calendarNode" data-dojo-id="calendar" data-dojo-type="dojox.calendar.Calendar">
+  				<div data-dojo-type="dijit.Menu" data-dojo-id="calendarContextMenu" style="display: none;">
+					<div data-dojo-type="dijit.MenuItem" data-dojo-id="contextMenuEditable" >Useless menu item</div>
+				</div>
+			</div>
+			
+		    
+		</div>																		
+						
+	</body>
+</html>

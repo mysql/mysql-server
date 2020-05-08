@@ -1,0 +1,108 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="Content-type" content="text/html; charset=utf-8"/>
+	<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no"/>
+	<meta name="apple-mobile-web-app-capable" content="yes"/>
+	<title>Edge to Edge</title>
+
+	<script type="text/javascript" src="../../../deviceTheme.js" data-dojo-config="mblThemeFiles: ['base']"></script>
+	<script type="text/javascript" src="../../../../../dojo/dojo.js" data-dojo-config="async: true,parseOnLoad: true,  has: {'dojo-bidi': true }"></script>
+
+	<script type="text/javascript">	
+		require([
+			"dijit/registry",		
+			"doh/runner",
+			"dojo/dom",
+			"dojo/ready",
+			"dojo/query",			
+			"dojox/mobile/ListItem",
+			"dojox/mobile/RoundRectCategory",			
+			"dojox/mobile",
+			"dojox/mobile/compat",
+			"dojox/mobile/parser",
+			"dojox/mobile/Button"			
+			], function(registry,runner,dom,ready,query){			
+				ready(function(){
+					runner.register("Bidi EdgeToEdgeList", [
+					{
+						name: "mobile",					
+						runTest: function(){
+							var LRE = String.fromCharCode(8234);					
+							var RLE = String.fromCharCode(8235);						
+							var secondListItem = registry.byId('second');						
+							var thirdListItem = registry.byId('third');
+					
+							runner.is(RLE, secondListItem.rightTextNode.innerHTML.charAt(0), "right text node of second list item inherits textDir attribute from EdgeToEdgeList container");						
+							runner.is(LRE, thirdListItem.rightTextNode.innerHTML.charAt(0), "direction of right text node of third list item has been set to 'ltr' explicitly");
+
+							var directionalMarksCount = 0;
+							query(" > *",dom.byId('second')).forEach(function(node, index, arr){		        					
+								if(node.nodeName.toUpperCase() === "IMG" && node.nextSibling.nodeType === 3
+											&& node.nextSibling.nodeValue === String.fromCharCode(8235)){
+									directionalMarksCount = 1;				            
+								} else if(node.className === "mblListItemRightIcon" && node.previousSibling.nodeType === 3
+											&& directionalMarksCount === 1 && node.previousSibling.nodeValue === String.fromCharCode(8236)){
+									directionalMarksCount = 2;
+								}
+							});
+							runner.assertEqual(2,directionalMarksCount,"set of text containing nodes should be enclosed in directional marks");
+
+							thirdListItem.set("textDir","rtl");
+							var node = query(".mblListItemLabel",dom.byId('third'))[0];
+							runner.is(RLE, node.innerHTML.charAt(0), "label node had direction changed after change of 'textDir'");		        
+						}
+					}
+				]);	 			
+				
+				runner.register("log", function(){
+					dom.byId('failures').innerHTML = runner._failureCount;
+					dom.byId('errors').innerHTML = runner._errorCount;
+				});
+
+				runner.run();
+			});
+		},
+		toggleTextDir = function(){		
+			w2 = dijit.registry.byId("second");
+			w2.set("textDir", (w2.get("textDir") !== "rtl") ? "rtl" : "ltr");
+		});		
+	</script>
+</head>
+<body style="visibility:hidden;">
+	<button data-dojo-type="dojox.mobile.Button" data-dojo-props='type:"button", onClick:function(){ toggleTextDir(); }'>Toggle textDir of second item</button>
+	<br>
+	<div id="settings" data-dojo-type="dojox/mobile/View">
+		<h2 data-dojo-type="dojox/mobile/RoundRectCategory" data-dojo-props='textDir:"rtl"'>RTL RoundRectCategory!</h2>
+		<ul data-dojo-type="dojox/mobile/EdgeToEdgeList" data-dojo-props='textDir:"rtl"'>
+			<li id="first" data-dojo-type="dojox/mobile/ListItem" data-dojo-props='icon:"../../images/i-icon-1.png"'>
+				<font style="font-style:italic; font-size: 16pt">Rtl </font>direction!!
+				<div data-dojo-type="dojox.mobile.Switch"></div>
+			</li>
+			<li id="second" data-dojo-type="dojox/mobile/ListItem" data-dojo-props='icon:"../../images/i-icon-2.png",rightText:"mac.", moveTo:"hello."'>
+				&nbsp;Wi-Fi!&nbsp;		
+				&nbsp;<span>Internet!</span>&nbsp;				
+				&nbsp;Speedy!&nbsp;
+				&nbsp;<font style="font-style:italic">Rtl direction!</font>&nbsp;				
+			</li>
+			<li id="third" data-dojo-type="dojox/mobile/ListItem" data-dojo-props='icon:"../../images/i-icon-3.png",textDir:"ltr", rightText:"AcmePhone.", moveTo:"hello."'>
+				Rtl direction!
+			</li>
+		</ul>
+	</div>
+
+	<div id="hello" data-dojo-type="dojox/mobile/View">
+		<h1 data-dojo-type="dojox/mobile/Heading">Hello</h1>		
+		<ul data-dojo-type="dojox/mobile/EdgeToEdgeList">
+			<li data-dojo-type="dojox/mobile/ListItem" data-dojo-props='moveTo:"settings"'>
+				Hello!
+			</li>
+			<li data-dojo-type="dojox/mobile/ListItem" data-dojo-props='moveTo:"settings"'>
+				Carrier!!
+			</li>
+		</ul>
+	</div>
+	<br>Errors:&nbsp;<span id="errors">?</span>
+	<br>Failures:&nbsp;<span id="failures">?</span>		
+</body>
+</html>

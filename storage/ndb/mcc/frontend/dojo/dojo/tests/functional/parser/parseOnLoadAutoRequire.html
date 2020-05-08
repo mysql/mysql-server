@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>parser auto-require unit test</title>
+		<style type="text/css">
+			@import "../../../resources/dojo.css";
+		</style>
+		<script>
+			var ready = false;
+			var dojoConfig = {
+				async: true,
+				isDebug: true,
+				baseUrl: '.',
+				packages: [
+					{ name: 'dojo', location: '../../../node_modules/dojo' },
+					{ name: 'testing', location: '../../../' }
+				],
+				map: {
+					testing: {
+						dojo: 'testing'
+					}
+				},
+				callback: function () {
+					ready = true;
+				}
+			};
+		</script>
+		<script src="../../../dojo.js"></script>
+	</head>
+	<body>
+		<h1>parseOnLoad:true, async: true, auto-require unit test</h1>
+
+		<p>This page tests that:</p>
+		<ol>
+			<li>parseOnLoad: true parses the page on load</li>
+			<li>auto-require of modules</li>
+			<li>the parse happens before the ready() callback happens, including loading of auto-required modules</li>
+		</ol>
+		<p>See console for test results.</p>
+
+		<div data-testing-id="dr1" data-testing-type="testing/tests/functional/parser/support/AMDWidget" data-testing-props="foo: 'bar'"></div>
+		<div data-testing-id="dr2" data-testing-type="testing/tests/functional/parser/support/AMDWidget2" data-testing-props="foo: 'bar'"></div>
+		<div data-testing-id="dr3" data-testing-type="testing/tests/functional/parser/support/AMDWidget3" data-testing-props="foo: 'bar'"></div>
+
+	</body>
+</html>

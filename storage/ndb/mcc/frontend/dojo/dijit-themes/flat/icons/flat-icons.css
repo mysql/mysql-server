@@ -1,0 +1,639 @@
+/*
+ * font generated with https://icomoon.io/app
+ *
+ * all icons are Material Design icons by Google
+ * https://github.com/google/material-design-icons/blob/master/LICENSE
+ *
+ * see README for more about flat theme icons
+ */
+@font-face {
+  font-family: 'flat-icon';
+  src: url("fonts/flat-icon.eot?90nq1s");
+  src: url("fonts/flat-icon.eot?#iefix90nq1s") format('embedded-opentype'), url("fonts/flat-icon.ttf?90nq1s") format('truetype'), url("fonts/flat-icon.woff?90nq1s") format('woff'), url("fonts/flat-icon.svg?90nq1s#flat-icon") format('svg');
+  font-weight: normal;
+  font-style: normal;
+}
+[class^="flat-"],
+[class*=" flat-"] {
+  font-family: 'flat-icon';
+  speak: none;
+  font-style: normal;
+  font-weight: normal;
+  font-variant: normal;
+  text-transform: none;
+  line-height: 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+.dijitIcon,
+.dijitEditorIcon {
+  font-family: "flat-icon";
+  speak: none;
+  font-style: normal;
+  font-weight: normal;
+  font-variant: normal;
+  text-transform: none;
+  line-height: 1;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+}
+.flat-drop-left:before {
+  content: "\f000";
+}
+.flat-drop-right:before {
+  content: "\f001";
+}
+.flat-drop-down:before {
+  content: "\f002";
+}
+.flat-drop-up:before {
+  content: "\f003";
+}
+.flat-chevron-left:before {
+  content: "\f004";
+}
+.flat-chevron-right:before {
+  content: "\f005";
+}
+.flat-chevron-down:before {
+  content: "\f006";
+}
+.flat-chevron-up:before {
+  content: "\f007";
+}
+.flat-arrow-left:before {
+  content: "\f008";
+}
+.flat-arrow-right:before {
+  content: "\f009";
+}
+.flat-arrow-down:before {
+  content: "\f00a";
+}
+.flat-arrow-up:before {
+  content: "\f00b";
+}
+.flat-check:before {
+  content: "\f00c";
+}
+.flat-check-circle:before {
+  content: "\f00d";
+}
+.flat-close:before {
+  content: "\f00e";
+}
+.dijitIconClear:before,
+.flat-close-circle:before {
+  content: "\f00f";
+}
+.dijitEditorIconCancel:before,
+.flat-close-circle-o:before {
+  content: "\f010";
+}
+.flat-add:before {
+  content: "\f011";
+}
+.flat-remove:before {
+  content: "\f012";
+}
+.flat-add-circle:before {
+  content: "\f013";
+}
+.flat-remove-circle:before {
+  content: "\f014";
+}
+.flat-add-circle-o:before {
+  content: "\f015";
+}
+.flat-remove-circle-o:before {
+  content: "\f016";
+}
+.dijitIconError:before,
+.flat-error:before {
+  content: "\f017";
+}
+.flat-error-o:before {
+  content: "\f018";
+}
+.flat-warning:before {
+  content: "\f019";
+}
+.flat-report:before {
+  content: "\f01a";
+}
+.flat-help:before {
+  content: "\f01b";
+}
+.flat-no-symbol:before {
+  content: "\f01c";
+}
+.flat-update:before {
+  content: "\f01d";
+}
+.flat-calendar:before {
+  content: "\f01e";
+}
+.flat-clock:before {
+  content: "\f01f";
+}
+.dijitFolderClosed:before,
+.dijitIconFolderClosed:before,
+.flat-folder:before {
+  content: "\f020";
+}
+.dijitFolderOpened:before,
+.dijitIconFolderOpen:before,
+.flat-folder-open:before {
+  content: "\f021";
+}
+.dijitIconEdit:before,
+.flat-edit:before {
+  content: "\f022";
+}
+.dijitIconSave:before,
+.dijitEditorIconSave:before,
+.flat-save:before {
+  content: "\f023";
+}
+.dijitIconPrint:before,
+.dijitEditorIconPrint:before,
+.flat-print:before {
+  content: "\f024";
+}
+.dijitIconDelete:before,
+.dijitEditorIconDelete:before,
+.flat-delete:before {
+  content: "\f025";
+}
+.dijitLeaf:before,
+.flat-page:before {
+  content: "\f026";
+}
+.flat-page-o:before {
+  content: "\f027";
+}
+.flat-page-add:before {
+  content: "\f028";
+}
+.flat-page-remove:before {
+  content: "\f029";
+}
+.flat-page-add-o:before {
+  content: "\f02a";
+}
+.flat-page-remove-o:before {
+  content: "\f02b";
+}
+.dijitIconFile:before,
+.flat-file:before {
+  content: "\f02c";
+}
+.dijitIconMail:before,
+.flat-mail:before {
+  content: "\f02d";
+}
+.dijitIconDatabase:before,
+.flat-storage:before {
+  content: "\f02e";
+}
+.dijitIconConfigure:before,
+.flat-settings:before {
+  content: "\f02f";
+}
+.dijitIconSearch:before,
+.flat-search:before {
+  content: "\f030";
+}
+.dijitIconBookmark:before,
+.flat-bookmark:before {
+  content: "\f031";
+}
+.flat-menu:before {
+  content: "\f032";
+}
+.dijitIconApplication:before,
+.flat-application:before {
+  content: "\f033";
+}
+.dijitIconKey:before,
+.flat-key:before {
+  content: "\f034";
+}
+.dijitIconTable:before,
+.dijitEditorIconInsertTable:before,
+.flat-table:before {
+  content: "\f035";
+}
+.flat-grid:before {
+  content: "\f036";
+}
+.dijitIconChart:before,
+.flat-chart:before {
+  content: "\f037";
+}
+.dijitIconFilter:before,
+.flat-filter:before {
+  content: "\f038";
+}
+.dijitIconFunction:before,
+.flat-function:before {
+  content: "\f039";
+}
+.flat-user:before {
+  content: "\f03a";
+}
+.dijitIconUsers:before,
+.flat-users:before {
+  content: "\f03b";
+}
+.dijitIconConnector:before,
+.flat-connector:before {
+  content: "\f03c";
+}
+.dijitIconDocuments:before,
+.flat-documents:before {
+  content: "\f03d";
+}
+.dijitIconEditProperty:before,
+.flat-edit-property:before {
+  content: "\f03e";
+}
+.dijitIconTask:before,
+.flat-task:before {
+  content: "\f03f";
+}
+.dijitIconNewTask:before,
+.flat-task-new:before {
+  content: "\f040";
+}
+.dijitIconEditTask:before,
+.flat-task-edit:before {
+  content: "\f041";
+}
+.dijitIconSample:before,
+.flat-sample:before {
+  content: "\f042";
+}
+.dijitIconPackage:before,
+.flat-package:before {
+  content: "\f043";
+}
+.dijitEditorIconUndo:before,
+.flat-undo:before {
+  content: "\f044";
+}
+.dijitEditorIconRedo:before,
+.flat-redo:before {
+  content: "\f045";
+}
+.dijitIconCopy:before,
+.dijitEditorIconCopy:before,
+.flat-copy:before {
+  content: "\f046";
+}
+.dijitIconCut:before,
+.dijitEditorIconCut:before,
+.flat-cut:before {
+  content: "\f047";
+}
+.dijitEditorIconPaste:before,
+.flat-paste:before {
+  content: "\f048";
+}
+.dijitEditorIconBold:before,
+.flat-bold:before {
+  content: "\f049";
+}
+.dijitEditorIconItalic:before,
+.flat-italic:before {
+  content: "\f04a";
+}
+.dijitEditorIconUnderline:before,
+.flat-underline:before {
+  content: "\f04b";
+}
+.dijitEditorIconStrikethrough:before,
+.flat-strikethrough:before {
+  content: "\f04c";
+}
+.dijitEditorIconRemoveFormat:before,
+.flat-clear-format:before {
+  content: "\f04d";
+}
+.flat-quote:before {
+  content: "\f04e";
+}
+.dijitEditorIconSuperscript:before,
+.flat-superscript:before {
+  content: "\f04f";
+}
+.dijitEditorIconSubscript:before,
+.flat-subscript:before {
+  content: "\f050";
+}
+.dijitEditorIconForeColor:before,
+.flat-color-text:before {
+  content: "\f051";
+}
+.dijitEditorIconBackColor:before,
+.flat-color-fill:before {
+  content: "\f052";
+}
+.dijitEditorIconHiliteColor:before,
+.flat-color-highlight:before {
+  content: "\f053";
+}
+.flat-font-size:before {
+  content: "\f054";
+}
+.dijitEditorIconJustifyCenter:before,
+.flat-align-center:before {
+  content: "\f055";
+}
+.dijitEditorIconJustifyFull:before,
+.flat-align-justify:before {
+  content: "\f056";
+}
+.dijitEditorIconJustifyLeft:before,
+.flat-align-left:before {
+  content: "\f057";
+}
+.dijitEditorIconJustifyRight:before,
+.flat-align-right:before {
+  content: "\f058";
+}
+.dijitEditorIconIndent:before,
+.flat-indent:before {
+  content: "\f059";
+}
+.dijitEditorIconOutdent:before,
+.flat-outdent:before {
+  content: "\f05a";
+}
+.flat-sort:before {
+  content: "\f05b";
+}
+.dijitEditorIconSpace:before,
+.flat-keyboard-space:before {
+  content: "\f05c";
+}
+.dijitEditorIconTabIndent:before,
+.flat-keyboard-tab:before {
+  content: "\f05d";
+}
+.dijitEditorIconInsertUnorderedList:before,
+.flat-list-bullet:before {
+  content: "\f05e";
+}
+.dijitEditorIconInsertOrderedList:before,
+.flat-list-number:before {
+  content: "\f05f";
+}
+.dijitEditorIconListBulletIndent:before,
+.flat-list-bullet-indent:before {
+  content: "\f060";
+}
+.dijitEditorIconListBulletOutdent:before,
+.flat-list-bullet-outdent:before {
+  content: "\f061";
+}
+.dijitEditorIconListNumIndent:before,
+.flat-list-number-indent:before {
+  content: "\f062";
+}
+.dijitEditorIconListNumOutdent:before,
+.flat-list-number-outdent:before {
+  content: "\f063";
+}
+.dijitEditorIconViewSource:before,
+.flat-code:before {
+  content: "\f064";
+}
+.dijitEditorIconCreateLink:before,
+.flat-link:before {
+  content: "\f065";
+}
+.dijitEditorIconUnlink:before,
+.flat-unlink:before {
+  content: "\f066";
+}
+.dijitEditorIconFullScreen:before,
+.flat-fullscreen:before {
+  content: "\f067";
+}
+.flat-fullscreen-exit:before {
+  content: "\f068";
+}
+.dijitEditorIconInsertImage:before,
+.flat-image:before {
+  content: "\f069";
+}
+.dijitEditorIconNewPage:before,
+.flat-page-new:before {
+  content: "\f06a";
+}
+.dijitEditorIconToggleDir:before,
+.flat-toggle-dir:before {
+  content: "\f06b";
+}
+.dijitEditorIconLeftToRight:before,
+.flat-left-to-right:before {
+  content: "\f06c";
+}
+.dijitEditorIconRightToLeft:before,
+.flat-right-to-left:before {
+  content: "\f06d";
+}
+.dijitEditorIconSelectAll:before,
+.flat-select-all:before {
+  content: "\f06e";
+}
+.dijitEditorIconWikiword:before,
+.flat-wikiword:before {
+  content: "\f06f";
+}
+.icon-spin {
+  -webkit-animation: spin-right 2s infinite linear;
+  -moz-animation: spin-right 2s infinite linear;
+  -o-animation: spin-right 2s infinite linear;
+  -ms-animation: spin-right 2s infinite linear;
+  animation: spin-right 2s infinite linear;
+}
+.dijitIconLoading {
+  font-size: 24px;
+}
+.dijitIconLoading:before {
+  content: "\f01d";
+  -webkit-animation: spin-left 2s linear infinite;
+  -moz-animation: spin-left 2s linear infinite;
+  -o-animation: spin-left 2s linear infinite;
+  -ms-animation: spin-left 2s linear infinite;
+  animation: spin-left 2s linear infinite;
+}
+.dj_ie8 .dijitIconLoading,
+.dj_ie9 .dijitIconLoading {
+  background: url("images/loadingAnimation.gif") no-repeat;
+  height: 20px;
+  width: 20px;
+}
+.dj_ie8 .dijitIconLoading:before,
+.dj_ie9 .dijitIconLoading:before {
+  content: "";
+}
+.dijitRtl .dijitEditorIconUndo:before {
+  content: "\f044";
+}
+.dijitRtl .dijitEditorIconRedo:before {
+  content: "\f044";
+}
+.dijitRtl .dijitEditorIconTabIndent:before {
+  -webkit-transform: rotate(180deg);
+  -moz-transform: rotate(180deg);
+  -o-transform: rotate(180deg);
+  -ms-transform: rotate(180deg);
+  transform: rotate(180deg);
+}
+.dijitRtl .dijitEditorIconInsertUnorderedList,
+.dijitRtl .dijitEditorIconInsertOrderedList {
+  -webkit-transform: scale(-1, 1);
+  -moz-transform: scale(-1, 1);
+  -o-transform: scale(-1, 1);
+  -ms-transform: scale(-1, 1);
+  transform: scale(-1, 1);
+}
+:root .dijitRtl .dijitEditorIconInsertUnorderedList,
+:root .dijitRtl .dijitEditorIconInsertOrderedList {
+  filter: none;
+}
+@-moz-keyframes spin-right {
+  from {
+    -webkit-transform: rotate(0);
+    -moz-transform: rotate(0);
+    -o-transform: rotate(0);
+    -ms-transform: rotate(0);
+    transform: rotate(0);
+  }
+  to {
+    -webkit-transform: rotate(360deg);
+    -moz-transform: rotate(360deg);
+    -o-transform: rotate(360deg);
+    -ms-transform: rotate(360deg);
+    transform: rotate(360deg);
+  }
+}
+@-webkit-keyframes spin-right {
+  from {
+    -webkit-transform: rotate(0);
+    -moz-transform: rotate(0);
+    -o-transform: rotate(0);
+    -ms-transform: rotate(0);
+    transform: rotate(0);
+  }
+  to {
+    -webkit-transform: rotate(360deg);
+    -moz-transform: rotate(360deg);
+    -o-transform: rotate(360deg);
+    -ms-transform: rotate(360deg);
+    transform: rotate(360deg);
+  }
+}
+@-o-keyframes spin-right {
+  from {
+    -webkit-transform: rotate(0);
+    -moz-transform: rotate(0);
+    -o-transform: rotate(0);
+    -ms-transform: rotate(0);
+    transform: rotate(0);
+  }
+  to {
+    -webkit-transform: rotate(360deg);
+    -moz-transform: rotate(360deg);
+    -o-transform: rotate(360deg);
+    -ms-transform: rotate(360deg);
+    transform: rotate(360deg);
+  }
+}
+@keyframes spin-right {
+  from {
+    -webkit-transform: rotate(0);
+    -moz-transform: rotate(0);
+    -o-transform: rotate(0);
+    -ms-transform: rotate(0);
+    transform: rotate(0);
+  }
+  to {
+    -webkit-transform: rotate(360deg);
+    -moz-transform: rotate(360deg);
+    -o-transform: rotate(360deg);
+    -ms-transform: rotate(360deg);
+    transform: rotate(360deg);
+  }
+}
+@-moz-keyframes spin-left {
+  from {
+    -webkit-transform: rotate(360deg);
+    -moz-transform: rotate(360deg);
+    -o-transform: rotate(360deg);
+    -ms-transform: rotate(360deg);
+    transform: rotate(360deg);
+  }
+  to {
+    -webkit-transform: rotate(0);
+    -moz-transform: rotate(0);
+    -o-transform: rotate(0);
+    -ms-transform: rotate(0);
+    transform: rotate(0);
+  }
+}
+@-webkit-keyframes spin-left {
+  from {
+    -webkit-transform: rotate(360deg);
+    -moz-transform: rotate(360deg);
+    -o-transform: rotate(360deg);
+    -ms-transform: rotate(360deg);
+    transform: rotate(360deg);
+  }
+  to {
+    -webkit-transform: rotate(0);
+    -moz-transform: rotate(0);
+    -o-transform: rotate(0);
+    -ms-transform: rotate(0);
+    transform: rotate(0);
+  }
+}
+@-o-keyframes spin-left {
+  from {
+    -webkit-transform: rotate(360deg);
+    -moz-transform: rotate(360deg);
+    -o-transform: rotate(360deg);
+    -ms-transform: rotate(360deg);
+    transform: rotate(360deg);
+  }
+  to {
+    -webkit-transform: rotate(0);
+    -moz-transform: rotate(0);
+    -o-transform: rotate(0);
+    -ms-transform: rotate(0);
+    transform: rotate(0);
+  }
+}
+@keyframes spin-left {
+  from {
+    -webkit-transform: rotate(360deg);
+    -moz-transform: rotate(360deg);
+    -o-transform: rotate(360deg);
+    -ms-transform: rotate(360deg);
+    transform: rotate(360deg);
+  }
+  to {
+    -webkit-transform: rotate(0);
+    -moz-transform: rotate(0);
+    -o-transform: rotate(0);
+    -ms-transform: rotate(0);
+    transform: rotate(0);
+  }
+}

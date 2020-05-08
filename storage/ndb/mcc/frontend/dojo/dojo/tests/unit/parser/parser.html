@@ -1,0 +1,372 @@
+<div>
+	<h1>Parser Unit Test</h1>
+
+	<div id=main>
+		<script>
+			function foo(){ this.fooCalled=true; }
+		</script>
+		<div ${dojo}Type="tests.parser.Class1" data-${dojo}-id="obj"
+			strProp1="text" strProp2=""
+			intProp="5"
+			arrProp="foo, bar, baz"
+			arrProp2=""
+			boolProp1="true" boolProp2="false"
+			dateProp1="2006-01-01" dateProp2="" dateProp3="now"
+			funcProp2="foo" funcProp3="this.func3Called=true;"
+			>
+			<script type="dojo/method" data-${dojo}-event="preamble">
+				this.preambleTestProp = 3;
+			</script>
+			<script type="dojo/method">
+				// this should be run immediately
+			this.deepProp = deepTestProp;
+			</script>
+			<script type="dojo/connect" data-${dojo}-event="callInc">
+				this.callCount++;
+			</script>
+			<script type="dojo/method" data-${dojo}-event="callInc2">
+				this.callCount2++;
+			</script>
+		</div>
+		<div ${dojo}Type="tests.parser.Class2" jsId="obj3">
+		</div>
+		<div ${dojo}Type="tests.parser.Class3" data-${dojo}-id="obj4">
+		</div>
+		<input ${dojo}Type="tests.parser.InputClass" data-${dojo}-id="checkedObj" checked type="checkbox">
+		<button ${dojo}Type="tests.parser.InputClass" data-${dojo}-id="disabledObj" disabled>hi</button>
+
+		<div id="parsertest"></div>
+		<div id="parsertest2"></div>
+
+		<!-- section for testing parser recursion -->
+		<div>
+			<div ${dojo}Type="tests.parser.NormalContainer" data-${dojo}-id="container1">
+				<!-- this script tag should get passed as param to NormalContainer constructor -->
+				<script type="dojo/method" data-${dojo}-event="incr" data-${dojo}-args="x">
+					return x+1;
+				</script>
+
+				<!-- and these contained widgets should get instantiated -->
+				<div ${dojo}Type="tests.parser.Class1" data-${dojo}-id="contained1"></div>
+				<div>
+					<div ${dojo}Type="tests.parser.Class1" data-${dojo}-id="contained2"></div>
+				</div>
+			</div>
+		</div>
+
+		<div>
+			<div ${dojo}Type="tests.parser.ShieldedContainer" data-${dojo}-id="container2">
+				<!-- this script tag should get passed as param to ShieldedContainer constructor -->
+				<script type="dojo/method" data-${dojo}-event="incr" data-${dojo}-args="x">
+					return x+1;
+				</script>
+
+				<!-- but these contained widgets should *not* get instantiated -->
+				<div ${dojo}Type="tests.parser.Class1" data-${dojo}-id="contained3"></div>
+				<div>
+					<div ${dojo}Type="tests.parser.Class1" data-${dojo}-id="contained4"></div>
+				</div>
+			</div>
+		</div>
+
+		<!-- tests for new data-${dojo}-type / data-${dojo}-props syntax -->
+		<div>
+			<div data-${dojo}-id="html5simple" data-${dojo}-type="tests.parser.HTML5Props" data-${dojo}-props="simple:true"></div>
+			<div data-${dojo}-id="html5simple2" data-${dojo}-type="tests.parser.HTML5Props"
+				data-${dojo}-props="simple:false, a:1, b:'two', c:[1,2,3], d:function(){ return this; }, e:{ f:'g' }"
+				></div>
+			<!-- note needing to use a named inherited lookup because we're just mixing in -->
+			<div data-${dojo}-id="html5simple3" data-${dojo}-type="tests.parser.HTML5Props"
+				data-${dojo}-props="afn: function(){ return this.inherited('afn', arguments); }"
+				></div>
+
+			<!-- not used for tests, but thinking out loud: what about a named-resource prop, via getObject -->
+			<div data-${dojo}-id="html5fromobjectns" data-${dojo}-type="tests.parser.HTML5Props"
+				data-${dojo}-obj="tests.parser.HTML5Props._aDefaultObj"
+				></div>
+			<div data-${dojo}-id="html5fromobjectns2" data-${dojo}-type="tests.parser.HTML5Props"
+				data-${dojo}-obj="tests.parser.HTML5Props._aDefaultObj" data-${dojo}-props="simple:false"
+				></div>
+
+		</div>
+
+		<div>
+			<div data-${dojo}-id="htmldojomethod" data-${dojo}-type="tests.parser.HTML5withMethod">
+				<p>Some random markup</p>
+				<script type="dojo/method" data-${dojo}-event="someMethod" data-${dojo}-args="a, b">
+					return this.baseValue + a + b;
+				</script>
+				<script type="dojo/connect" data-${dojo}-event="diffMethod" data-${dojo}-args="a">
+					console.log("diffMethod connect, this is ", this);
+					this._fromvalue = a;
+				</script>
+				<script type="dojo/method">
+					this._methodRan = true;
+				</script>
+				<div data-${dojo}-id="objAspect" data-${dojo}-type="tests.parser.MethodClass">
+					<script type="dojo/aspect" data-${dojo}-method="method1" data-${dojo}-advice="after">
+						if(this.method1ran){
+							this.method1after = true;
+						}
+					</script>
+					<script type="dojo/aspect" data-${dojo}-method="method2" data-${dojo}-advice="around" data-${dojo}-args="origFn">
+						return function(){
+							if(!this.method2ran){
+								this.method2before = true;
+							}
+							origFn.call(this);
+							if(this.method2ran){
+								this.method2after = true;
+							}
+						};
+					</script>
+					<script type="dojo/aspect" data-${dojo}-method="method3" data-${dojo}-advice="before" data-${dojo}-args="result">
+						if(result == "something"){
+							return ["before"];
+						}
+					</script>
+					<script type="dojo/aspect" data-${dojo}-method="method4">
+						if(this.method4ran){
+							this.method4after = true;
+						}
+					</script>
+				</div>
+			</div>
+		</div>
+
+		<!-- section for testing dojo/on and dojo/watch scripts -->
+		<div>
+			<div data-${dojo}-id="objOnWatch" data-${dojo}-type="tests.parser.StatefulClass">
+				<script type="dojo/watch" data-${dojo}-prop="strProp1" data-${dojo}-args="prop,oldValue,newValue">
+					this.set("arrProp",{prop: prop, oldValue: oldValue, newValue: newValue});
+				</script>
+				<script type="dojo/on" data-${dojo}-event="click" data-${dojo}-args="e">
+					console.log("diffMethod on, this is ",this);
+					this.set("boolProp1",true);
+				</script>
+			</div>
+		</div>
+
+		<!-- section for testing mid syntax for data-${dojo}-type -->
+		<div>
+			<div data-${dojo}-id="objAMDWidget" data-${dojo}-type="${dojo}/tests/unit/parser/support/AMDWidget"
+				 data-${dojo}-props="value: 'Value1'"></div>
+		</div>
+	</div> <!-- end of <div id=main> -->
+
+	<!-- more dojo/on tests -->
+	<div id="on">
+		<form action="/SomeUrl" data-${dojo}-type="tests.parser.StatefulClass" data-${dojo}-id="on_form">
+			<input data-${dojo}-type="tests.parser.InputClass" name="ACheckBox" />
+			<script type="dojo/on" data-${dojo}-event="click">
+				this.clicked = true;
+			</script>
+		</form>
+	</div>
+
+	<!-- section for testing parse on a subnode -->
+	<div>
+		<div data-${dojo}-type="tests.parser.Class1" data-${dojo}-id="obj2" id="toParse">
+		</div>
+	</div>
+
+	<!-- section for testing that dir, lang attribute trickles down from ancestor -->
+	<div id="dirSection1">
+		<div ${dojo}Type="tests.parser.BidiClass" data-${dojo}-id="setRtl" dir="rtl" name="RTL setting"></div>
+		<div ${dojo}Type="tests.parser.BidiClass" data-${dojo}-id="noDir" name="dir not inherited or set"></div>
+	</div>
+	<div id="dirSection2" dir="rtl">
+		<div ${dojo}Type="tests.parser.BidiClass" data-${dojo}-id="inheritRtl" name="inherited RTL from parent"></div>
+		<div dir="ltr">
+			<div ${dojo}Type="tests.parser.BidiClass" data-${dojo}-id="inheritLtr" name="inherited LTR from parent"></div>
+		</div>
+		<div>
+			<div ${dojo}Type="tests.parser.BidiClass" data-${dojo}-id="inheritRtl2" name="inherited RTL from grandparent"></div>
+		</div>
+		<div ${dojo}Type="tests.parser.BidiClass" data-${dojo}-id="setLtr" dir="ltr" name="LTR setting overrides inherited RTL"></div>
+	</div>
+	<div id="langSection">
+		<div ${dojo}Type="tests.parser.BidiClass" data-${dojo}-id="noLang" name="shouldn't get lang"></div>
+		<div lang="it_it">
+			<div ${dojo}Type="tests.parser.BidiClass" data-${dojo}-id="inheritedLang" name="inherited lang from parent"></div>
+			<div ${dojo}Type="tests.parser.BidiClass" data-${dojo}-id="specifiedLang" lang="en_us" name="specified lang overrides parent"></div>
+		</div>
+	</div>
+	<div id="textDirSection">
+		<div ${dojo}Type="tests.parser.BidiClass" data-${dojo}-id="noTextdir" name="shouldn't get textdir"></div>
+		<div data-${dojo}-textdir="rtl">
+			<div ${dojo}Type="tests.parser.BidiClass" data-${dojo}-id="inheritedTextdir" name="inherited textdir from parent"></div>
+			<div ${dojo}Type="tests.parser.BidiClass" data-${dojo}-id="specifiedTextdir" data-${dojo}-textdir="ltr" name="specified textdir overrides parent"></div>
+		</div>
+	</div>
+	<div id="bidiInheritanceFromHtml">
+		<div ${dojo}Type="tests.parser.BidiClass" data-${dojo}-id="inheritedFromHtml" name="should get dir/lang/textDir from HTML tag"></div>
+	</div>
+
+	<!-- tests that we can parse parameters correctly on IE6/7, not getting tripped up by escaped quotes etc. -->
+	<div id=ie>
+		<input id="ieInput1" data-${dojo}-type="tests.parser.InputClass"
+		type=checkbox disabled foo = 'bar' readonly bar=zaz bob='escaped"dq' frank="escaped'sq" checked />
+		<input id="ieInput2" data-${dojo}-type="tests.parser.InputClass"
+		fakeout1="type=submit" fakeout2="name='test'" fakeout3="value='123'" data-${dojo}-props="foo: 'hi'"/>
+		<input id="ieInput3" data-${dojo}-type="tests.parser.InputClass"
+		type=password name="test" value="123" class="myClass" style="display:block" tabindex="3"/>
+		<textarea id="ieTextarea" data-${dojo}-type="tests.parser.InputClass" value="attrVal">contentVal</textarea>
+		<button id="ieButton1" data-${dojo}-type="tests.parser.InputClass" checked value="button1val">
+			checked ToggleButton as button
+		</button>
+		<button id="ieButton2" data-${dojo}-type="tests.parser.InputClass">
+			unchecked ToggleButton as button
+		</button>
+		<div id="ieButton3" data-${dojo}-type="tests.parser.InputClass" checked>
+			checked ToggleButton as div
+		</div>
+		<div id="ieButton4" data-${dojo}-type="tests.parser.InputClass">
+			unchecked ToggleButton as div
+		</div>
+		<form id="ieForm1" data-${dojo}-type="tests.parser.FormClass" encType="foo"></form>
+		<form id="ieForm2" data-${dojo}-type="tests.parser.FormClass"></form>
+		<ul ${dojo}Type="tests.parser.Widget" class="nav">
+			<li id="li" ${dojo}Type="tests.parser.Widget" value="home">Home</li>
+			<li ${dojo}Type="tests.parser.Widget" value="contact">Contact</li>
+			<li ${dojo}Type="tests.parser.Widget" value="group">Group</li>
+			<li ${dojo}Type="tests.parser.Widget" value="campaign">Campaign</li>
+		</ul>
+	</div>
+
+	<!-- tests for when parameters are specified both natively and in data-${dojo}-props. -->
+	<div id="mixedContainer">
+		<input data-${dojo}-type="tests.parser.InputClass" data-${dojo}-id="mixedObj"
+		value="mixedValue" title="native title" data-${dojo}-props="custom1: 999, title: 'custom title'">
+	</div>
+
+	<!-- tests for function names native to HTML, specifically an issue on IE<8 -->
+	<div id="functions">
+		<button ${dojo}Type="tests.parser.Button" onClick="buttonClicked" data-${dojo}-id="button">Click me</button>
+	</div>
+
+	<!-- section for testing parser.instantiate() -->
+	<div id="instantiate1">
+		<div ${dojo}Type="tests.parser.Class1" data-${dojo}-id="objI1" id="objId1"
+			strProp1="text" strProp2=""
+			intProp="5"
+			arrProp="foo, bar, baz"
+			arrProp2=""
+			boolProp1="true" boolProp2="false"
+			dateProp1="2006-01-01" dateProp2="" dateProp3="now"
+			funcProp2="foo" funcProp3="this.func3Called=true;"
+			>
+		</div>
+		<div data-${dojo}-type="tests.parser.Class1" data-${dojo}-id="objI2" id="objId2"
+			data-${dojo}-props="
+			strProp1:'text',
+			strProp2:'',
+			intProp:5,
+			arrProp:['foo', 'bar', 'baz'],
+			arrProp2:[],
+			boolProp1:true,
+			boolProp2:'false',
+			dateProp1:'2006-01-01',
+			dateProp2:'',
+			dateProp3:'now',
+			funcProp2:foo,
+			funcProp3:'this.func3Called=true;'"
+			>
+		</div>
+		<div ${dojo}Type="tests.parser.NormalContainer" data-${dojo}-id="contI1" id ="contId1">
+			<div ${dojo}Type="tests.parser.Class1" data-${dojo}-id="objI3" id="objId3"></div>
+			<div ${dojo}Type="tests.parser.Class1" data-${dojo}-id="objI4" id="objId4"></div>
+		</div>
+	</div>
+
+	<!-- section for testing parser.construct() -->
+	<div id="construct1">
+		<div data-${dojo}-id="objC1" id="objC1"
+			strProp1="text" strProp2=""
+			intProp="5"
+			arrProp="foo, bar, baz"
+			arrProp2=""
+			boolProp1="true" boolProp2="false"
+			dateProp1="2006-01-01" dateProp2="" dateProp3="now"
+			funcProp2="foo" funcProp3="this.func3Called=true;"
+			>
+		</div>
+		<div data-${dojo}-id="objC2" id="objC2"
+			data-${dojo}-props="
+			strProp1:'text',
+			strProp2:'',
+			intProp:5,
+			arrProp:['foo', 'bar', 'baz'],
+			arrProp2:[],
+			boolProp1:true,
+			boolProp2:'false',
+			dateProp1:'2006-01-01',
+			dateProp2:'',
+			dateProp3:'now',
+			funcProp2:foo,
+			funcProp3:'this.func3Called=true;'"
+			>
+		</div>
+	</div>
+
+	<!-- tests for data-${dojo}-mixins -->
+	<div id="mixins">
+		<div data-${dojo}-type="tests.parser.Class1" data-${dojo}-mixins="tests.parser.Mixin1,tests.parser.Mixin2,${dojo}/tests/unit/parser/support/AMDMixin"
+			data-${dojo}-id="resultMixins1"></div>
+		<div data-${dojo}-type="tests.parser.ClassForMixins" data-${dojo}-mixins="tests.parser.Mixin1, tests.parser.Mixin2, ${dojo}/tests/unit/parser/support/AMDMixin"
+			data-${dojo}-id="resultMixins2"></div>
+		<div data-${dojo}-type="MyNonDojoClass" data-${dojo}-mixins="tests.parser.Mixin1, tests.parser.Mixin2"
+			data-${dojo}-id="resultNonDojoMixin"></div>
+	</div>
+
+	<!-- tests for behavioral widgets -->
+	<div id="behavioral">
+		<div data-${dojo}-type="Behavioral1" onClick="behavioralClickCounter++;" id="bh1" foo="bar">click me</div>
+	</div>
+
+	<!-- tests for declarative require -->
+	<div id="declarativeRequire">
+		<script type="dojo/require">
+			AMDWidget: "${dojo}/tests/unit/parser/support/AMDWidget",
+			AMDWidget2: "${dojo}/tests/unit/parser/support/AMDWidget2"
+		</script>
+		<div data-${dojo}-id="dr1" data-${dojo}-type="AMDWidget" data-${dojo}-props="foo: 'bar'"></div>
+		<div data-${dojo}-id="dr2" data-${dojo}-type="AMDWidget2" data-${dojo}-props="foo: 'bar'"></div>
+		<script type="dojo/require">
+			AMDWidget3: "${dojo}/tests/unit/parser/support/AMDWidget3"
+		</script>
+		<div data-${dojo}-id="dr3" data-${dojo}-type="${dojo}/tests/unit/parser/support/AMDWidget3" data-${dojo}-props="foo: 'bar'"></div>
+		<script type="dojo/require">
+			amdmodule: "${dojo}/tests/unit/parser/support/amdmodule"
+		</script>
+		<div data-${dojo}-id="dr4" data-${dojo}-type="AMDWidget" data-${dojo}-props="foo: amdmodule(1)"></div>
+		<div data-${dojo}-id="dr5" data-${dojo}-type="AMDWidget2">
+			<script type="dojo/aspect" data-${dojo}-advice="before" data-${dojo}-method="method1" data-${dojo}-args="value">
+				return [amdmodule(value)];
+			</script>
+		</div>
+	</div>
+
+	<!-- tests for context require -->
+	<!-- The relative MIDs, because they are "up", the loader thinks they are not necessarily modules, in the
+	real world, they would most likely be in sibling paths and the need for the .js would not be
+	necessary -->
+	<div id="contextRequire">
+		<script type="dojo/require">
+			"context.AMDWidget": "../../../tests/unit/parser/support/AMDWidget.js",
+			"context.AMDWidget2": "../../../tests/unit/parser/support/AMDWidget2.js"
+		</script>
+		<div data-${dojo}-id="cr1" data-${dojo}-type="context.AMDWidget" data-${dojo}-props="foo: 'bar'"></div>
+		<div data-${dojo}-id="cr2" data-${dojo}-type="context.AMDWidget2" data-${dojo}-props="foo: 'bar'"></div>
+		<div data-${dojo}-id="cr3" data-${dojo}-type="../../../tests/unit/parser/support/AMDWidget.js" data-${dojo}-props="foo: 'bar'"></div>
+		<div data-${dojo}-id="cr4" data-${dojo}-type="../../../tests/unit/parser/support/AMDWidget3.js" data-${dojo}-props="foo: 'bar'"></div>
+	</div>
+
+	<!-- tests for promise error handling -->
+	<div id="errorHandling">
+		<div data-${dojo}-type="${dojo}/tests/unit/parser/support/AMDWidget" data-${dojo}-props="foo: bar"></div>
+	</div>
+	<div id="missingCtor">
+		<div data-${dojo}-type="some.type"></div>
+	</div>
+<div>

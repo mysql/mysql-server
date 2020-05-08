@@ -1,0 +1,67 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+	"http://www.w3.org/TR/html4/strict.dtd">
+<html>
+	
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>Calendar Sample: Desktop</title>				
+		<style type="text/css">
+			@import "../themes/claro/Calendar.css";
+			@import "../themes/claro/MonthColumnView.css";
+			@import "calendar.css";
+			@import "../../../dojo/resources/dojo.css";
+			@import "../../../dijit/themes/dijit.css";
+			@import "../../../dijit/themes/claro/claro.css";
+
+			.dojoxCalendar .dojoxCalendarGrid .Wed, 
+			.dojoxCalendar .dojoxCalendarGrid .H12,
+			.dojoxCalendar .dojoxCalendarGrid .H13	{
+				background-color: #F8F8F8 !important;
+			}
+		</style>			
+	</head>
+	
+	<body class="claro">
+		<script type="text/javascript" 
+				data-dojo-config="async: true, parseOnLoad: true, paths : {'demo' : '../dojox/calendar/tests'}"
+		 		src="../../../dojo/dojo.js"></script>
+		
+			<script type="text/javascript">
+
+			require(["dojo/ready", "dojo/_base/lang", "dojo/_base/sniff", "dojo/_base/array", "dojo/_base/fx", "dojo/dom-class", "dojo/on", 
+			         "dojo/date/locale", "dojo/parser",	"dojo/dom", "dojo/dom-construct",	"dojo/store/Memory", 
+			         "dojo/store/Observable",	"demo/ExtendedCalendar"],
+
+				function(ready, lang, has, arr, fx, domClass, on, locale, parser, dom, domConstruct,
+					Memory, Observable, Calendar){
+
+					ready(function(){
+			
+						var startOfWeek = calendar.floorToWeek(new calendar.dateClassObj());
+						
+						calendar.set("date", startOfWeek);																	
+						
+						// Hide loading panel when application is ready
+						fx.fadeOut({
+							node:"loadingPanel", 
+							onEnd: function(node){
+								node.parentNode.removeChild(node)
+							}}).play(500);
+						
+
+					});
+			});
+			</script>
+			
+			<div id="loadingPanel" style="position:absolute;z-index:10;width:100%;height:100%;background:#ffffff">
+				<span style="background: #DBEB8F;padding:2px">Loading...</span>
+			</div>
+			
+	        <div data-dojo-id="calendar" data-dojo-type="demo.ExtendedCalendar" 
+				style="position:absolute;left:10px;top:10px;bottom:10px;right:10px">
+			</div>				
+		    
+		</div>																		
+						
+	</body>
+</html>

@@ -1,0 +1,34 @@
+<div class="view mblView">
+	<div data-dojo-type="dojox/mobile/ScrollableView">
+		<div id="tst1WrapperB" style="visibility:visible">
+			<br>
+			<br>
+			<div class="field-title">This test was created to check the transition flows and calls to beforeDeactivate, beforeActivate, emit layoutView,
+				emit doResize, transit, afterDeactivate, and afterActivate.</div>
+			<div class="field-title">If these options are set in the config.json this test will run thru the following transitions and log the resulting calls.</div>
+			<div class="field-title"><B>"logTransitions": 1,</B> and <B>"timedAutoFlow": 1,</B></div>
+			<div class="field-title">I have documented the expected results in a google doc for these transitions.</div>
+			<div class="field-title">These tests were run in Tablet mode.</div>
+			<br>
+			<div class="field-title"> <B>Case 1:</B> From=V2 TO=V2 <B>Case 2:</B> From=V2 TO=V4 <B>Case 3:</B> From=V4 TO=P1,S1,V1</div>
+			<br>
+			<div class="field-title"> <B>Case 4:</B> From=P1,S1,V1 TO=P1,S1,V1 <B>Case 5:</B> P1,S1,V1 TO=P1,S1,V3 </div>
+			<br>
+			<div class="field-title"> <B>Case 6:</B> From=P1,S1,V3 TO=V2 <B>Case 7:</B> From=V2 TO=P1,S1,V1</div>
+			<br>
+			<div class="field-title"> <B>Case 8:</B> From=P1,S1,V1 TO=P2,S2,Ss2,V5 <B>Case 9:</B> From=P2,S2,Ss2 TO=P2,S2,Ss2,V6</div>
+			<br>
+			<div class="field-title"> <B>Case 10:</B> From=P2,S2,Ss2,V5,V6 TO=P1,S1,V1 <B>Case 11:</B> From=P1,S1 TO=P1,S1,V8</div>
+			<br>
+			<div class="field-title"> <B>Case 12:</B> Remove From=P1,S1,V8 <B>Case 13:</B> From=P1,S1,V1 TO=P2,S2,Ss2,V5+P2,S2,Ss2,V6</div>
+			<br>
+			<div class="field-title"> <B>Case 14:</B> From=P2,S2,Ss2,V5,V6 TO=P1,S1,TestInfo</div>
+			<br>
+			<div class="field-title">These tests were run in Phone mode.</div>
+			<br>
+			<div class="field-title"> <B>Case 16:</B> configuration,Nav1 to P1,S1,V1. <B>Case 17:</B> configuration,Nav1 to P2,S2,Ss2,V5+P2,S2,Ss2,V6.</div>
+			<br>
+			<br><br>
+		</div>
+	</div>
+</div>

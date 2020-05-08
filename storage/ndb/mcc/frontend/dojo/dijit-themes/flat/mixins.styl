@@ -1,0 +1,238 @@
+/*
+ * Includes icon and alternate color mixin functions.
+*/
+
+/* helpers */
+// to calculate when the value is an even number or not
+isEven($value) {
+	if ($value % 2 == 0) {
+ 		true;
+	} else { 
+ 		false;
+	}
+}
+
+// to take half of the given value
+half($value) {
+	$value / 2;
+}
+
+/* icons */
+// line-height and font-size can be overridden after calling _icon-core-style()
+_icon-core-style() {
+	font-family: $icon-font-family;
+	speak: none;
+	font-style: normal;
+	font-weight: normal;
+	font-variant: normal;
+	text-transform: none;
+	line-height: 1;
+	font-size: $icon-size;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+/* Button */
+_button-hover(color) {
+	background: darken(color, 5%);
+	border-color: darken(color, 15%);
+}
+
+_button-active(color) {
+	background: darken(color, 12%);
+	border-color: darken(color, 30%);
+}
+
+_button-disabled(color) {
+	background: lighten(color, 35%);
+	border-color: lighten(color, 22%)
+	color: darken($button-alternative-text-color, 5%);
+}
+
+// common button style properties
+button-style() {
+	border-style: solid;
+	border-width: 1px;
+	border-color: $border-color;
+	padding: $padding;
+	border-radius: $border-radius;
+	line-height: $line-height;
+	cursor: pointer;
+	transition: all 0.05s linear;
+	background: $theme-base-color;
+}
+
+button-hover-style() {
+	transition: all 0.1s;
+	_button-hover($theme-base-color);
+}
+
+button-active-style() {
+	transition: none;
+	outline: none;
+	box-shadow: $shadow-inset;
+	_button-active($theme-base-color);
+}
+
+button-disabled-style() {
+	cursor: default;
+	color: $button-disabled-color;
+	background-color: $button-disabled-background-color;
+	border-color: $button-disabled-border-color;
+}
+
+// alternative colors
+create-alternative-buttons(colors) {
+	colors = arguments if length(arguments) >= 1;
+	for class in colors {
+		.dijitButton.{class} .dijitButtonNode,
+		.dijitDropDownButton.{class} .dijitButtonNode,
+		.dijitComboButton.{class} .dijitButtonNode,
+		.dijitToggleButton.{class} .dijitButtonNode,
+		.dijitComboBox.{class} .dijitButtonNode,
+		.dijitSelect.{class} .dijitButtonContents, 
+		.dijitSelect.{class} .dijitButtonNode,
+		.dijitSpinner.{class} .dijitArrowButton {
+			background: colors[class];
+			color: $button-alternative-text-color;
+			border-color: darken(colors[class], 18.5%);
+		}
+		// combo button border
+		.dijitComboButton.{class} .dijitStretch {
+			border-right-color: darken(colors[class], 18.5%);
+		}
+		.dijitComboButtonRtl.{class} .dijitStretch {
+			border-left-color: darken(colors[class], 18.5%);;
+		}
+	}
+}
+
+create-alternative-buttons-hover(colors) {
+	colors = arguments if length(arguments) >= 1;
+	for class in colors {
+		.dijitButtonHover.{class} .dijitButtonNode,
+		.dijitDropDownButtonHover.{class} .dijitButtonNode,
+		.dijitComboButton.{class} .dijitButtonNodeHover,
+		.dijitComboButton.{class} .dijitDownArrowButtonHover,
+		.dijitToggleButtonHover.{class} .dijitButtonNode,
+		.dijitComboBoxHover.{class} .dijitButtonNode,
+		.dijitSelectHover.{class} .dijitButtonContents, 
+		.dijitSelectHover.{class} .dijitButtonNode,
+		.dijitSelect.dijitSelectOpened.{class} .dijitButtonContents, 
+		.dijitSelect.dijitSelectOpened.{class} .dijitArrowButton,
+		.dijitSpinner.{class} .dijitUpArrowButtonHover, 
+		.dijitSpinner.{class} .dijitDownArrowButtonHover {
+			_button-hover(colors[class]);
+		}
+	}
+}
+
+create-alternative-buttons-active(colors) {
+	colors = arguments if length(arguments) >= 1;
+	for class in colors {
+		.dijitButtonActive.{class} .dijitButtonNode,
+		.dijitDropDownButtonActive.{class} .dijitButtonNode,
+		.dijitComboButton.{class} .dijitButtonNodeActive,
+		.dijitToggleButtonActive.{class} .dijitButtonNode,
+		.dijitComboBoxActive.{class} .dijitButtonNode,
+		.dijitSelectActive.{class} .dijitButtonContents, .dijitSelectActive.{class} .dijitArrowButton,
+		.dijitSelect.dijitSelectOpened.{class} .dijitButtonContents, .dijitSelect.dijitSelectOpened.{class} .dijitArrowButton ,
+		.dijitComboBox.{class} .dijitButtonNode.dijitHasDropDownOpen,
+		.dijitSpinner.{class} .dijitUpArrowButtonActive, .dijitSpinner.{class} .dijitDownArrowButtonActive {
+			_button-active(colors[class]);
+		}
+	}
+}
+
+create-alternative-buttons-disabled(colors) {
+	colors = arguments if length(arguments) >= 1;
+	for class in colors {
+		.dijitButtonDisabled.{class},
+		.dijitDropDownButtonDisabled.{class},
+		.dijitComboButtonDisabled.{class},
+		.dijitToggleButtonDisabled.{class} { 
+			.dijitButtonNode {
+				_button-disabled(colors[class]);
+			}
+		}
+		// combo button border
+		.dijitComboButtonDisabled.{class} .dijitStretch {
+			border-right-color: lighten(colors[class], 22%);
+		}
+		.dijitComboButtonRtlDisabled.{class} .dijitStretch {
+			border-left-color: lighten(colors[class], 22%);
+		}
+		// combo box
+		.dijitComboBoxDisabled.{class} .dijitButtonNode {
+			border-left-color: lighten(colors[class], 22%);
+		}
+		.dijitComboBoxRtlDisabled.{class} .dijitButtonNode {
+			border-right-color: lighten(colors[class], 22%);
+		}
+		// time textbox
+		.dijitTimeTextBoxDisabled.{class} .dijitButtonNode {
+			border-left-color: lighten(colors[class], 22%);
+		}
+		.dijitTimeTextBoxRtlDisabled.{class} .dijitButtonNode {
+			border-right-color: lighten(colors[class], 22%);
+		}
+		// date textbox
+		.dijitDateTextBoxDisabled.{class} .dijitButtonNode {
+			border-left-color: lighten(colors[class], 22%);
+		}
+		.dijitDateTextBoxRtlDisabled.{class} .dijitButtonNode {
+			border-right-color: lighten(colors[class], 22%);
+		}
+	}
+}
+
+/* TextBox */
+// alternative colors (Textboxes in Select, ComboBox, NumberSpinner, TimeTextBox and DateTextBox)
+create-alternative-textboxes(colors) {
+	colors = arguments if length(arguments) >= 1;
+	for class in colors {
+		.dijitSelect.{class},
+		.dijitComboBox.{class},
+		.dijitSpinner.{class} {
+			border-color: colors[class];
+		}
+	}
+}
+
+create-alternative-textboxes-disabled(colors) {
+	colors = arguments if length(arguments) >= 1;
+	for class in colors {
+		.dijitComboBoxDisabled.{class},
+		.dijitSpinnerDisabled.{class} {
+			background: $disabled-background-color;
+			color: $disabled-color;
+			border: lighten(colors[class], 35%);
+		}
+		.dijitComboBoxDisabled.{class} .dijitButtonNode,
+		.dijitSpinnerDisabled.{class} .dijitButtonNode {
+			background: lighten(colors[class], 35%);
+			color: darken($button-alternative-text-color, 5%);
+		}
+		// number spinner border
+		.dijitSpinnerDisabled.{class} .dijitSpinnerButtonContainer {
+			border-left-color: lighten(colors[class], 35%);
+		}
+		.dijitSpinnerRtlDisabled.{class} .dijitSpinnerButtonContainer {
+			border-right-color: lighten(colors[class], 35%);;
+		}
+		// select
+		.dijitSelectDisabled.{class} {
+			border-color: lighten(colors[class], 35%);
+		}
+		.dijitSelectDisabled.{class} .dijitStretch,
+		.dijitSelectDisabled.{class} .dijitButtonNode {
+			background: lighten(colors[class], 35%);
+			color: darken($button-alternative-text-color, 5%);
+		}
+	}
+}
+
+/* ProgressBar alternate colors */
+_progress-bar-color-properties(color) {
+	background-color: color;
+}

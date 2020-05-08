@@ -1,0 +1,35 @@
+<div class="view mblView">
+
+	<div data-dojo-type="dojox/app/widgets/Container" data-dojo-props="scrollable: true, fixedFooter:'P1'" data-app-constraint="center">
+
+		<div class="field-title">V1 - Should scroll from under the top header to the end of the page, this text will also scroll.</div>
+
+		<form name="repeatTestForm">
+				<ul data-dojo-type="dojox/mobile/EdgeToEdgeStoreList" data-dojo-mixins="dojox/mobile/LongListMixin" id="list" data-dojo-props='append:true'></ul>
+		</form>
+		<div id="carousel1" data-dojo-type="dojox.mobile.Carousel"
+			data-dojo-props='height:"150px", navButton:true, numVisible:2, title:"Category"'>
+
+			<div data-dojo-type="dojox.mobile.SwapView">
+				<div data-dojo-type="dojox.mobile.CarouselItem"
+					data-dojo-props='value:"dish1", headerText:"dish1"'></div>
+				<div data-dojo-type="dojox.mobile.CarouselItem"
+					data-dojo-props='value:"dish2", headerText:"dish2"'></div>
+			</div>
+
+			<div data-dojo-type="dojox.mobile.SwapView">
+				<div data-dojo-type="dojox.mobile.CarouselItem"
+					data-dojo-props='value:"dish3", headerText:"dish3"'></div>
+				<div data-dojo-type="dojox.mobile.CarouselItem"
+					data-dojo-props='value:"dish4", headerText:"dish4"'></div>
+			</div>
+
+			<div data-dojo-type="dojox.mobile.SwapView">
+				<div data-dojo-type="dojox.mobile.CarouselItem"
+					data-dojo-props='value:"dish5", headerText:"dish5"'></div>
+				<div data-dojo-type="dojox.mobile.CarouselItem"
+					data-dojo-props='value:"dish6", headerText:"dish6"'></div>
+			</div>
+		</div>
+	</div>
+</div>

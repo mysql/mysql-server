@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta http-equiv="Content-type" content="text/html; charset=utf-8">
+	<title>Editor TabIndent Plugin Test</title>
+
+	<script type="text/javascript" src="../boilerplate.js"></script>
+
+	<script type="text/javascript">
+		require([
+			"dojo/parser",
+			"dijit/Editor",
+			"dijit/_editor/plugins/TabIndent",
+			"dojo/domReady!"
+		], function(parser){
+			parser.parse();
+		});
+	</script>
+</head>
+<body class="claro" role="main">
+	<p>Paragraph with focusable <span tabindex="0" style="color:blue">item </span>before editor. </p>
+	<label>Test TabIndent Plugin</label>
+	<div style="border: 1px dotted black;">
+	
+		<div id="tiTest" data-dojo-type="dijit/Editor"
+			data-dojo-props='"aria-label":"tiTest",extraPlugins:["tabIndent"]'>
+			<div>
+				<ol>
+				<li>the tabIndent plugin allows the use of the tab and shift-tab keys to
+indent list items.</li>
+				<li>another list element</li>
+				<li>and another</li>
+				<li>still one more</li>
+				</ol>
+			</div>
+			<p>
+				Ctrl-M also turns tab indent on/off.
+				(The buttons should change checked status when the user types
+				Ctrl-M, to indicate whether tab and shift-tab is enabled.)
+			</p>
+		</div>
+	</div>
+	<p>Paragraph with focusable <span tabindex="0" style="color:blue">item </span>after editor. </p>
+</body>
+</html>

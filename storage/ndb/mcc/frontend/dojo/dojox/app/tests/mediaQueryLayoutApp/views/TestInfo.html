@@ -1,0 +1,24 @@
+<div class="view mblView">
+
+	<div data-dojo-type="dojox/mobile/ScrollableView">
+		<h2 data-dojo-type="dojox/mobile/EdgeToEdgeCategory" style="height: 32px;" data-app-constraint="top">Test Info for this test.</h2>
+
+		<div>
+			<div class="field-title">This has been setup to use a custom layout controller (CssLayout) with media queries.</div>
+			<div class="field-title">The CssLayout layout controller uses css to size the views, it does not call resize on the views, this is to improve performance during orientation changes.</div>
+			<br>
+			<div class="field-title">On a desktop you can make the window smaller and the navigation area will be hidden and the Back button will display when the screen gets less than max-width: 560px.</div>
+			<br>
+			<div class="field-title">On a phone or tablet the Naviagtion will be hidden in portrait orientation and shown in landscape orientation.</div>
+			<br><br>
+			<div class="field-title">More work needs to be done for the following.</div>
+			<br>
+			<div class="field-title">1) When the Navigation area is hidden and Back button takes you to the Configuration (Navigation) view, and then the screen is rotated or enlarged to show the navigation area on the left, the configuration (navigation view) in the center should be transitioned to a different view, either the previous view or some default view.</div>
+			<br>
+			<div class="field-title">2) There are some cases where a view needs to have resize called, this should be an option set on the config to indicate that a call resize is required for a view.</div>
+			<div class="field-title">3) There are problems getting things to display without the resize calls when using a dojox/mobile/ScrollableView.</div>
+			<div class="field-title">4) I had trouble getting TestInfo to display as the defaultView until I created a TestInfo.js and set it up as the defintion.</div>
+			<br>
+		</div>
+	</div>
+</div>
