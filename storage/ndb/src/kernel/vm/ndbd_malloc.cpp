@@ -105,7 +105,7 @@ touch_mem(void* arg)
     const size_t size = std::min(end - ptr,
         ptrdiff_t(NUM_PAGES_BETWEEN_WATCHDOG_SETS * TOUCH_PAGE_SIZE));
 
-    NdbMem_PopulateSpace(ptr, size);
+    require(NdbMem_PopulateSpace(ptr, size) == 0);
     *(touch_mem_ptr->watchCounter) = 9;
 
     if (debugUinitMemUse)
