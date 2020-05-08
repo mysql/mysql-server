@@ -205,7 +205,7 @@ struct rand_struct {
   unsigned long seed1, seed2, max_value;
   double max_value_dbl;
 };
-#include <mysql/udf_registration_types.h>
+#include "mysql/udf_registration_types.h"
 enum Item_result {
   INVALID_RESULT = -1,
   STRING_RESULT = 0,
