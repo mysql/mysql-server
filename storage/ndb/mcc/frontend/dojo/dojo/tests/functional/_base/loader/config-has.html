@@ -1,0 +1,29 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+	<head>
+		<title>config has</title>
+
+		<script type="text/javascript">
+			var ready = 0;
+			var dojoConfig = {
+				someConfigSwitch: 0,
+				isDebug: 1,
+				has:{
+					"some-has-feature":5
+				},
+				packages: [
+					{ name: 'dojo', location : 'node_modules/dojo' }
+				],
+				callback: function () {
+					ready = 1;
+				}
+			};
+		</script>
+
+		<script type="text/javascript" src="../../../../dojo.js"
+			data-dojo-config="anotherConfigSwitch: 2"></script>
+	</head>
+	<body>
+		<h1>config has</h1>
+	</body>
+</html>

@@ -1,0 +1,247 @@
+/* Calendar
+ *
+ * Styling Calendar mainly includes:
+ *
+ * 1. Calendar container
+ * 		.dijitCalendar - main container
+ * 		.dijitCalendarHover / .dijitCalendarActive - states e.g. hover,active
+ *
+ * 2. Month
+ * 		.dijitCalendarMonthContainer
+ * 		.dijitCalendarMonthLabel
+ *      .dijitCalendarDecrease / .dijitCalendarDecrease - icons for switching to previous/next month
+ *      .dijitCalendarArrowActive .dijitCalendarDecrease - states e.g. hover,active
+ *
+ * 3. Date
+ * 		.dijitCalendarDayLabelTemplate - week day column header e.g. S M T W T F S
+ * 		.dijitCalendarDateTemplate - date label wrapper
+ * 		.dijitCalendarPreviousMonth .dijitCalendarDateLabel - special labels for previous or next month
+ *      .dijitCalendarSelectedDate .dijitCalendarDateLabel - styles for selected date
+ * 		.dijitCalendarDisabledDate .dijitCalendarDateLabel - styles for disabled date
+ * 		.dijitCalendarActiveDate .dijitCalendarDateLabel - states e.g. hover,active
+ *
+ * 4. Year
+ * 		.dijitCalendarYearContainer
+ * 		.dijitCalendarYearLabel
+ * 		.dijitCalendarPreviousYear /.dijitCalendarNextYear
+ *      .dijitCalendarNextYearHover / .dijitCalendarPreviousYearHover - states e.g. hover,active
+ *
+ * 5. Dropdown Month Menu
+ * 		.dijitCalendarMonthMenu - menu container
+ * 		.dijitCalendarMonthMenu .dijitCalendarMonthLabel - month label in menu item
+ * 		.dijitCalendarMonthMenu .dijitCalendarMonthLabelHover - menu item hover state
+ */
+
+@import 'dijit_variables';
+
+.{$theme-name} {
+
+	.dijitCalendar {
+		background-color: $calendar-background-color;
+		text-align:center;
+		padding: $calendar-padding;
+		border: 1px solid $calendar-border-color;
+		border-collapse: separate;	// in case user CSS has set border-collapse: collapse for tables
+		border-radius: $calendar-border-radius;
+		box-shadow: $calendar-box-shadow;
+	}
+
+	.dijitCalendarMonthContainer th {
+		text-align:center;
+		line-height: $line-height;
+		vertical-align:middle;
+		margin: $calendar-padding 0;
+	}
+
+	/* next/previous month arrows */
+
+	.dijitCalendarArrow {
+		_icon-core-style();
+		cursor: pointer;
+		font-size: $calendar-icon-size;
+		border: 1px solid transparent;
+		padding: $padding;
+	}
+
+	// Since the arrow icons are pulled from the font, the `img` tags are not needed.
+	.dijitCalendarDecrease,
+	.dijitCalendarIncrease {
+		display: none;
+	}
+
+	.dijitCalendarDecrementArrow {
+		float: left;
+		padding-left: ($padding / 2);
+
+		&:before {
+			content: $calendar-icon-decrease;
+		}
+	}
+
+	.dijitCalendarIncrementArrow {
+		float: right;
+		padding-right: ($padding / 2);
+
+		&:before {
+			content: $calendar-icon-increase;
+		}
+	}
+
+	.dijitCalendarArrowHover .dijitCalendarIncrementControl,
+	.dijitCalendarArrow:hover .dijitCalendarIncrementControl,
+	.dijitCalendarNextYearHover, .dijitCalendarNextYear:hover,
+	.dijitCalendarPreviousYearHover, .dijitCalendarPreviousYear:hover  {
+		button-style();
+		padding: $padding;
+	}
+
+	.dijitCalendarArrowActive .dijitCalendarIncrementControl,
+	.dijitCalendarArrow:active .dijitCalendarIncrementControl,
+	.dijitCalendarNextYearActive, .dijitCalendarNextYear:active
+	.dijitCalendarPreviousYearActive, .dijitCalendarPreviousYear:active  {
+		button-active-style();
+	}
+
+	.dijitA11ySideArrow {
+		/* text +/- labels instead of arrow icons, for high contrast mode */
+		display: none;
+	}
+
+	.dijitCalendarContainer {
+		th, td {
+			padding: $calendar-day-cell-padding;
+		}
+	}
+
+	/* day */
+
+	.dijitCalendarDayLabelTemplate {
+		text-align: center;
+		border-bottom: $border-color;
+	}
+
+	.dijitCalendarDayLabel {
+		font-weight: $calendar-day-cell-font-weight;
+		text-align: center;
+	}
+
+	/* date */
+
+	.dijitCalendarDateTemplate {
+		font-size: $calendar-date-font-size;
+		letter-spacing: .05em;
+		text-align:center;
+
+		.dijitCalendarDateLabel {
+			text-decoration: none;
+			display: block;
+			padding: $calendar-date-cell-padding;
+			border: 0 none;
+			border-radius: $calendar-date-cell-border-radius;
+		}
+	}
+
+	.dijitCalendarPreviousMonth,
+	.dijitCalendarNextMonth {
+		.dijitCalendarDateLabel {
+			color: $calendar-date-cell-prev-next-month-text-color;
+		}
+	}
+
+	.dijitCalendarCurrentDate {
+		.dijitCalendarDateLabel {
+			border-color: $calendar-date-cell-current-border-color;
+		}
+	}
+
+	/* hover */
+
+	.dijitCalendarHoveredDate .dijitCalendarDateLabel,
+	.dijitCalendarEnabledDate:hover .dijitCalendarDateLabel {
+		background-color: $calendar-date-cell-hovered-background-color;
+	}
+
+	/* active */
+
+	.dijitCalendarActiveDate .dijitCalendarDateLabel,
+	.dijitCalendarEnabledDate:active .dijitCalendarDateLabel {
+		background-color: $calendar-date-cell-active-background-color;
+	}
+
+	/* selected */
+
+	.dijitCalendarSelectedDate,
+	.dijitCalendarSelectedDate.dijitCalendarHoveredDate {
+		 .dijitCalendarDateLabel {
+			color:$calendar-date-cell-selected-text-color;
+			background-color: $calendar-date-cell-selected-background-color;
+		}
+	}
+
+	/* disabled */
+
+	.dijitCalendarDisabledDate .dijitCalendarDateLabel {
+		opacity: $disabled-opacity;
+	}
+
+	/* year */
+
+	.dijitCalendarYearContainer {
+		vertical-align:middle;
+	}
+
+	.dijitCalendarYearLabel {
+		padding: $calendar-year-cell-padding 0 0 0;
+		margin: 0;
+		font-size: $calendar-year-font-size;
+
+		span {
+			vertical-align:middle;
+		}
+	}
+
+	.dijitCalendarSelectedYear,
+	.dijitCalendarNextYear,
+	.dijitCalendarPreviousYear {
+		padding: $padding;
+	}
+
+	.dijitCalendarSelectedYear {
+		color: $calendar-year-prev-current-year-text-color;
+	}
+
+	.dijitCalendarNextYear,
+	.dijitCalendarPreviousYear {
+		color: $calendar-year-prev-next-year-text-color;
+		font-size: $calendar-year-prev-next-year-font-size;
+		line-height: $line-height;
+		border: 1px solid transparent;
+	}
+
+	.dijitCalendarSelectedYear {
+		padding: 0 $calendar-year-cell-padding;
+	}
+
+	/* month dropdown */
+
+	.dijitCalendar .dijitDropDownButton {
+		margin: 0;
+
+		.dijitButtonNode {
+		}
+	}
+
+	.dijitCalendarMonthMenu {
+		padding: $calendar-month-dropdown-menu-padding 0;
+
+		.dijitCalendarMonthLabel {
+			padding: $calendar-month-dropdown-menu-item-padding;
+		}
+
+		.dijitCalendarMonthLabelHover {
+			color: $calendar-month-dropdown-menu-item-hovered-text-color;
+			background-color: $calendar-month-dropdown-menu-item-hovered-background-color;
+		}
+	}
+
+}

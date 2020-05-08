@@ -1,0 +1,1402 @@
+diff --git a/tests/TODO b/tests/TODO
+index 4f66fa8..30ef027 100644
+--- a/tests/TODO
++++ b/tests/TODO
+@@ -1,10 +1,6 @@
+ This file lists tests that need to be implemented or expanded. See ticket #3121
+ for changes related to things listed here.
+
+-Tests to add:
+--------------
+-	* add tests for dojo.place()
+-
+ Tests to improve:
+ -----------------
+ 	* NodeList isn't testing several of its public methods (place, orphan, adopt, etc.)
+diff --git a/tests/_base/html.html b/tests/_base/html.html
+index 02ce9ad..d774bc3 100644
+--- a/tests/_base/html.html
++++ b/tests/_base/html.html
+@@ -43,7 +43,7 @@
+
+ 				doh.register("t",
+ 					[
+-						"doh.is(null, dojo.byId('nonExistantId'));",
++						"doh.is(null, dojo.byId('nonExistentId'));",
+ 						"doh.is(null, dojo.byId(null));",
+ 						"doh.is(null, dojo.byId(''));",
+ 						"doh.is(undefined, dojo.byId(undefined));",
+@@ -665,6 +665,19 @@
+ 							dojo.destroy(p);
+ 							doh.t(true, "no exception thrown");
+ 						}
++/*
++						// Make sure empty() doesn't disconnect grandchildren from children.
++						// Uncomment when http://bugs.dojotoolkit.org/ticket/16957 is fixed.
++						function emptyGrandchildren(){
++							var parent = dojo.byId("emptyParent"),
++								child = dojo.byId("emptyChild");
++
++							dojo.empty("emptyParent");
++
++							doh.f(!!parent.firstChild, "parent's children removed");
++							doh.t(!!child.firstChild, "child's children remain");
++						}
++*/
+ 					]
+ 				);
+
+@@ -915,6 +928,13 @@
+ 			><param name="background" value="transparent"
+ 		/></object>
+
++		<!-- Test that empty doesn't disconnect grandchildren from children -->
++		<div id="emptyParent">
++			<div id="emptyChild">
++				<div id="emptyGrandchild">hello world</div>
++			</div>
++		</div>
++
+ 		<!-- IFRAME element to test destroy -->
+ 		<iframe id="iframeToDestroy" src="about:blank"
+ 			><span></span
+diff --git a/tests/_base/i18nExhaustive.js b/tests/_base/i18nExhaustive.js
+index 227d7c5..2119eae 100644
+--- a/tests/_base/i18nExhaustive.js
++++ b/tests/_base/i18nExhaustive.js
+@@ -4,6 +4,9 @@ define([
+ 	"require"
+ ], function(dojo, doh, require){
+ 	var testParams = [
++		"sync,,src,./dojo,src,./i18n-test,legacy",
++		"sync,,src,./dojo,legacy-built,./built-i18n-test/152-build,legacy",
++		"sync,,src,./dojo,legacy-built-layer,./built-i18n-test/152-build-with-layers-and-preloads,legacy",
+ 		"sync,,src,./dojo,src,./i18n-test,amd",
+ 		"sync,,src,./dojo,built,./built-i18n-test/built/i18nTest,amd",
+ 		"sync,,src,./dojo,built,./built-i18n-test/built-with-layers/i18nTest,amd",
+@@ -16,6 +19,10 @@ define([
+ 		"sync,,cdn,http://192.168.1.114/dev/dtk/built-i18n-test/cdn/dojo,built,./built-i18n-test/built/i18nTest,amd",
+ 		"sync,,cdn,http://192.168.1.114/dev/dtk/built-i18n-test/cdn/dojo,built,./built-i18n-test/built-with-layers/i18nTest,amd",
+ 		"sync,,cdn,http://192.168.1.114/dev/dtk/built-i18n-test/cdn/dojo,built,./built-i18n-test/built-with-layers-and-preloads/i18nTest,amd",
++				
++		"sync,ab,src,./dojo,src,./i18n-test,legacy",
++		"sync,ab,src,./dojo,legacy-built,./built-i18n-test/152-build,legacy",
++		"sync,ab,src,./dojo,legacy-built-layer,./built-i18n-test/152-build-with-layers-and-preloads,legacy",
+ 		"sync,ab,src,./dojo,src,./i18n-test,amd",
+ 		"sync,ab,src,./dojo,built,./built-i18n-test/built/i18nTest,amd",
+ 		"sync,ab,src,./dojo,built,./built-i18n-test/built-with-layers/i18nTest,amd",
+@@ -28,6 +35,10 @@ define([
+ 		"sync,ab,cdn,http://192.168.1.114/dev/dtk/built-i18n-test/cdn/dojo,built,./built-i18n-test/built/i18nTest,amd",
+ 		"sync,ab,cdn,http://192.168.1.114/dev/dtk/built-i18n-test/cdn/dojo,built,./built-i18n-test/built-with-layers/i18nTest,amd",
+ 		"sync,ab,cdn,http://192.168.1.114/dev/dtk/built-i18n-test/cdn/dojo,built,./built-i18n-test/built-with-layers-and-preloads/i18nTest,amd",
++		
++		"sync,ab-cd,src,./dojo,src,./i18n-test,legacy",
++		"sync,ab-cd,src,./dojo,legacy-built,./built-i18n-test/152-build,legacy",
++		"sync,ab-cd,src,./dojo,legacy-built-layer,./built-i18n-test/152-build-with-layers-and-preloads,legacy",
+ 		"sync,ab-cd,src,./dojo,src,./i18n-test,amd",
+ 		"sync,ab-cd,src,./dojo,built,./built-i18n-test/built/i18nTest,amd",
+ 		"sync,ab-cd,src,./dojo,built,./built-i18n-test/built-with-layers/i18nTest,amd",
+@@ -40,6 +51,10 @@ define([
+ 		"sync,ab-cd,cdn,http://192.168.1.114/dev/dtk/built-i18n-test/cdn/dojo,built,./built-i18n-test/built/i18nTest,amd",
+ 		"sync,ab-cd,cdn,http://192.168.1.114/dev/dtk/built-i18n-test/cdn/dojo,built,./built-i18n-test/built-with-layers/i18nTest,amd",
+ 		"sync,ab-cd,cdn,http://192.168.1.114/dev/dtk/built-i18n-test/cdn/dojo,built,./built-i18n-test/built-with-layers-and-preloads/i18nTest,amd",
++
++		"sync,ab-cd-ef,src,./dojo,src,./i18n-test,legacy",
++		"sync,ab-cd-ef,src,./dojo,legacy-built,./built-i18n-test/152-build,legacy",
++		"sync,ab-cd-ef,src,./dojo,legacy-built-layer,./built-i18n-test/152-build-with-layers-and-preloads,legacy",
+ 		"sync,ab-cd-ef,src,./dojo,src,./i18n-test,amd",
+ 		"sync,ab-cd-ef,src,./dojo,built,./built-i18n-test/built/i18nTest,amd",
+ 		"sync,ab-cd-ef,src,./dojo,built,./built-i18n-test/built-with-layers/i18nTest,amd",
+@@ -64,6 +79,7 @@ define([
+ 		"async,,cdn,http://192.168.1.114/dev/dtk/built-i18n-test/cdn/dojo,built,./built-i18n-test/built/i18nTest,amd",
+ 		"async,,cdn,http://192.168.1.114/dev/dtk/built-i18n-test/cdn/dojo,built,./built-i18n-test/built-with-layers/i18nTest,amd",
+ 		"async,,cdn,http://192.168.1.114/dev/dtk/built-i18n-test/cdn/dojo,built,./built-i18n-test/built-with-layers-and-preloads/i18nTest,amd",
++		
+ 		"async,ab,src,./dojo,src,./i18n-test,amd",
+ 		"async,ab,src,./dojo,built,./built-i18n-test/built/i18nTest,amd",
+ 		"async,ab,src,./dojo,built,./built-i18n-test/built-with-layers/i18nTest,amd",
+@@ -76,6 +92,7 @@ define([
+ 		"async,ab,cdn,http://192.168.1.114/dev/dtk/built-i18n-test/cdn/dojo,built,./built-i18n-test/built/i18nTest,amd",
+ 		"async,ab,cdn,http://192.168.1.114/dev/dtk/built-i18n-test/cdn/dojo,built,./built-i18n-test/built-with-layers/i18nTest,amd",
+ 		"async,ab,cdn,http://192.168.1.114/dev/dtk/built-i18n-test/cdn/dojo,built,./built-i18n-test/built-with-layers-and-preloads/i18nTest,amd",
++
+ 		"async,ab-cd,src,./dojo,src,./i18n-test,amd",
+ 		"async,ab-cd,src,./dojo,built,./built-i18n-test/built/i18nTest,amd",
+ 		"async,ab-cd,src,./dojo,built,./built-i18n-test/built-with-layers/i18nTest,amd",
+@@ -88,6 +105,7 @@ define([
+ 		"async,ab-cd,cdn,http://192.168.1.114/dev/dtk/built-i18n-test/cdn/dojo,built,./built-i18n-test/built/i18nTest,amd",
+ 		"async,ab-cd,cdn,http://192.168.1.114/dev/dtk/built-i18n-test/cdn/dojo,built,./built-i18n-test/built-with-layers/i18nTest,amd",
+ 		"async,ab-cd,cdn,http://192.168.1.114/dev/dtk/built-i18n-test/cdn/dojo,built,./built-i18n-test/built-with-layers-and-preloads/i18nTest,amd",
++		
+ 		"async,ab-cd-ef,src,./dojo,src,./i18n-test,amd",
+ 		"async,ab-cd-ef,src,./dojo,built,./built-i18n-test/built/i18nTest,amd",
+ 		"async,ab-cd-ef,src,./dojo,built,./built-i18n-test/built-with-layers/i18nTest,amd",
+diff --git a/tests/_base/loader/hostenv_webworkers.js b/tests/_base/loader/hostenv_webworkers.js
+new file mode 100644
+index 0000000..104f2cc
+--- /dev/null
++++ b/tests/_base/loader/hostenv_webworkers.js
+@@ -0,0 +1,325 @@
++define([
++	"doh/main",
++	"dojo/has",
++	"dojo/sniff"
++], function(doh, has, sniff){
++	// summary:
++	//		Test the loading of Dojo in the WebWorker environment.
++
++	has.add("webworkers", (typeof Worker === 'function'));
++	if(has("webworkers")){
++		// Tests will still pass when workers not available but warning issued.
++
++		var fixtures = {
++			deferred: function(){
++				this.deferred = new doh.Deferred();
++			}
++		};
++
++		var tearDowns = {
++			killWorker: function(){
++				var self = this;
++				this.deferred.then(function(){
++					self.worker.terminate();
++				});
++
++			},
++			killBlobWorker: function(){
++				var self = this;
++				this.deferred.then(function(){
++					if(has("blobs") && has("convertObjectUrl")){
++						self.worker.terminate();
++						window.URL.revokeObjectURL(self.workerBlobURL);
++					}
++				});
++
++			}
++		};
++
++		function reflectConsole(message){
++			if(message.data.consoleType in console){
++				if(has("opera") && opera.postError){
++					opera.postError(message.data.consoleType.toUpperCase() + ": Platform does not support Blobs");
++				}else{
++					console[message.data.consoleType](message.data.value);
++				}
++			}else{
++				if(has("opera") && opera.postError){
++					opera.postError("ERROR: Could not reflect console message type: " + message.data.consoleType);
++				}else{
++					console.error("Could not reflect console message type: " + message.data.consoleType);
++				}
++			}
++		}
++
++		doh.register("tests._base.hostenv_webworkers", [{
++			name: "Loading Dojo core inside worker",
++			setUp: fixtures.deferred,
++			tearDown: tearDowns.killWorker,
++			timeout: 5000,
++			runTest: function(){
++				// summary:
++				//		Test whether dojo can be loaded in the worker
++
++				var self = this;
++				this.worker = new Worker("../../dojo/tests/_base/loader/hostenv_webworkers/worker1.js");
++
++				this.worker.addEventListener("message", function (message){
++					if(message.data.type === "testResult"){
++						if(message.data.value){
++							self.deferred.resolve();
++						}else{
++							self.deferred.reject();
++						}
++					}else if(message.data.type === "console"){
++							reflectConsole(message);
++					}
++				}, false);
++
++				return this.deferred;
++			}
++		}, {
++			name: "Load a dojo script via require",
++			setUp: fixtures.deferred,
++			tearDown: tearDowns.killWorker,
++			timeout: 5000,
++			runTest: function(){
++				// summary:
++				//		Test whether require works in the worker.
++
++				var self = this;
++				this.worker = new Worker("../../dojo/tests/_base/loader/hostenv_webworkers/worker2.js");
++
++				this.worker.addEventListener("message", function (message){
++					if(message.data.type === "testResult"){
++						if(message.data.value){
++							self.deferred.resolve();
++						}else{
++							self.deferred.reject();
++						}
++					}else if(message.data.type === "console"){
++						reflectConsole(message);
++					}
++				}, false);
++
++				return this.deferred;
++			}
++		}, {
++			name: "Load a dojo script via require in async mode",
++			setUp: fixtures.deferred,
++			tearDown: tearDowns.killWorker,
++			timeout: 5000,
++			runTest: function(){
++				// summary:
++				//		Test whether require works in the worker when in async mode.
++
++				var self = this;
++				this.worker = new Worker("../../dojo/tests/_base/loader/hostenv_webworkers/worker3.js");
++
++				this.worker.addEventListener("message", function(message){
++					if(message.data.type === "testResult"){
++						if(message.data.value){
++							self.deferred.resolve();
++						}else{
++							self.deferred.reject();
++						}
++					}else if(message.data.type === "console"){
++						reflectConsole(message);
++					}
++				}, false);
++
++				return this.deferred;
++			}
++		}, {
++			name: "Load a dojo script via require in a subworker",
++			setUp: fixtures.deferred,
++			tearDown: tearDowns.killWorker,
++			timeout: 5000,
++			runTest: function(){
++				// summary:
++				//		Test whether Dojo will load in a subworker.
++				// description:
++				// 		This is more complex as two workers are created. The first acts as a
++				// 		middleman between this function and the subworker.  Some browsers do not
++				// 		support subworkers at writing (eg. Chrome - see:
++				// 		https://code.google.com/p/chromium/issues/detail?id=31666 for current status).
++				// 		Test issues a warning if subworks not available but passes the test.
++
++				var self = this;
++				this.worker = new Worker("../../dojo/tests/_base/loader/hostenv_webworkers/worker4.js");
++
++				this.worker.addEventListener("message", function(message){
++					if(message.data.type === "testResult"){
++						if(message.data.value){
++							self.deferred.resolve();
++						}else{
++							self.deferred.reject();
++						}
++					}else if(message.data.type === "console"){
++						reflectConsole(message);
++					}
++				}, false);
++
++				return this.deferred;
++			}
++		}, {
++			name: "Test for loading in a blob worker",
++			setUp: fixtures.deferred,
++			tearDown: tearDowns.killBlobWorker,
++			timeout: 5000,
++			runTest: function(){
++				// summary:
++				//		Test for loading dojo and using require in a blob worker
++				has.add("blobs", (typeof Blob === 'function'));
++				has.add("convertObjectUrl", function(){
++					var URL = window.URL || window.webkitURL;
++					if(URL !== undefined){
++						return (typeof URL.createObjectURL === 'function');
++					}
++
++					return false;
++				});
++
++				if(has("blobs") && has("convertObjectUrl")){
++					function getBaseAbsoluteUrl(){
++						// summary:
++						// 		Blobs need absolute urls to be used within them as relative is relative
++						//		to blob://<object>.
++						// TODO:
++						//		Is there a better way of calculating the absolute url base path?
++
++						var baseUrl = require.rawConfig.baseUrl.split("/");
++						var absoluteUrl = location.pathname.split("/");
++						absoluteUrl.pop();
++						absoluteUrl.pop();
++						baseUrl.pop();
++
++						return location.protocol + "//" + location.host + absoluteUrl.join("/") + "/" + baseUrl.join("/") + "/";
++					}
++
++					var workerBlob = new Blob([
++						'var dojoConfig = {' +
++							'"baseUrl":"' + getBaseAbsoluteUrl() + '",' +
++							'"packages":[{"name":"dojo", "location":"dojo"}]' +
++						'};' +
++
++						'importScripts(' +
++							'dojoConfig.baseUrl+"dojo/dojo.js",' +
++							'dojoConfig.baseUrl+"dojo/tests/_base/loader/hostenv_webworkers/console.js"' +
++						');' +
++
++						'try{' +
++							'require(["dojo/tests/_base/loader/hostenv_webworkers/strings"], function(strings){' +
++								'this.postMessage({type:"testResult", "test":"require is working", "value":true});' +
++							'});' +
++						'}catch(e){' +
++							'this.postMessage({' +
++								'type:"testResult", "test":"require is working", "value":false' +
++						'});' +
++					'}'], {type: "text/javascript"});
++
++					var self = this;
++					var URL = window.URL || window.webkitURL;
++					self.workerBlobURL = URL.createObjectURL(workerBlob);
++
++					try{
++						this.worker = new Worker(self.workerBlobURL);
++						this.worker.addEventListener("message", function(message){
++							if(message.data.type === "testResult"){
++								if(message.data.value){
++									self.deferred.resolve();
++								}else{
++									self.deferred.reject();
++								}
++							}else if(message.data.type === "console"){
++								reflectConsole(message);
++							}
++						}, false);
++					}catch(e){
++						if(e.message.toLowerCase() === "securityerror"){
++							// IE does not support Webworkers from Blobs at present
++
++							console.warn("Blob workers are not supported");
++							self.deferred.resolve();
++						}else{
++							throw e;
++						}
++					}
++
++					return this.deferred;
++				}else{
++					if(window.opera){
++						opera.postError("WARN: Platform does not support Blobs");
++					}else{
++						console.log("Platform does not support Blobs");
++					}
++				}
++			}
++		}, {
++			name: "Test making a XHR request inside a worker using dojo/request",
++			setUp: fixtures.deferred,
++			tearDown: tearDowns.killWorker,
++			timeout: 5000,
++			runTest: function(){
++				// summary:
++					//		Test using dojo/request in a worker
++				// description:
++				//		This is a more advanced test to ensure Dojo's implementation of
++				//		XHR works in the webworker.  It is also a general test of loading
++				//		components via require and then using them.
++
++				var self = this;
++				this.worker = new Worker("../../dojo/tests/_base/loader/hostenv_webworkers/worker5.js?v=4");
++
++				this.worker.addEventListener("message", function(message){
++					if(message.data.type === "testResult"){
++						if(message.data.value){
++							self.deferred.resolve();
++						}else{
++							self.deferred.reject();
++						}
++					}else if(message.data.type === "console"){
++						reflectConsole(message);
++					}
++				}, false);
++
++				return this.deferred;
++			}
++		}, {
++			name: "Test using dojo/on in a worker",
++			setUp: fixtures.deferred,
++			tearDown: tearDowns.killWorker,
++			timeout: 5000,
++			runTest: function(){
++				// summary:
++				//		Test using dojo/on in a worker.
++				// description:
++				//		Another advanced test to see if dojo/on works in workers where there is no DOM.
++				//		Test waits for the worker to request a message and then send one. Worker uses
++				//		dojo/on to listen for messages on the worker global.  It responds with a
++				//		pass for the test if it receives it correctly.
++
++				var self = this;
++				this.worker = new Worker("../../dojo/tests/_base/loader/hostenv_webworkers/worker6.js");
++
++				this.worker.addEventListener("message", function (message){
++					if(message.data.type === "testResult"){
++						if(message.data.value){
++							self.deferred.resolve();
++						}else{
++							self.deferred.reject();
++						}
++					}else if(message.data.type === "requestMessage"){
++						self.worker.postMessage({type: "gotMessage"})
++					}else if(message.data.type === "console"){
++						reflectConsole(message);
++					}
++				}, false);
++
++				return this.deferred;
++			}
++		}]);
++	}else{
++		console.warno("Platform does not support webworkers")
++	}
++});
+diff --git a/tests/_base/loader/hostenv_webworkers/console.js b/tests/_base/loader/hostenv_webworkers/console.js
+new file mode 100644
+index 0000000..9103208
+--- /dev/null
++++ b/tests/_base/loader/hostenv_webworkers/console.js
+@@ -0,0 +1,30 @@
++// summary:
++//		Console polyfill for webworkers.
++// description:
++//		Webworkers do not have access to the console as of writing (except in Chrome).  This polyfills
++//		the console by passing messages back to the browser window for it to reflect to the console.
++//		This should make debugging of test failure a bit easier.
++
++if(!self.console){
++	console = {
++		_sendMessage: function(type, message){
++			self.postMessage({
++				type: "console",
++				consoleType: type,
++				value: message
++			});
++		},
++		log: function(message){
++			console._sendMessage("log", message);
++		},
++		error: function(message){
++			console._sendMessage("error", message);
++		},
++		warn: function(message){
++			console._sendMessage("warn", message);
++		},
++		info: function(message){
++			console._sendMessage("info", message);
++		}
++	}
++}
+\ No newline at end of file
+diff --git a/tests/_base/loader/hostenv_webworkers/strings.js b/tests/_base/loader/hostenv_webworkers/strings.js
+new file mode 100644
+index 0000000..53be273
+--- /dev/null
++++ b/tests/_base/loader/hostenv_webworkers/strings.js
+@@ -0,0 +1,5 @@
++define({
++	root: ({
++		foo: "bar"
++	})
++});
+\ No newline at end of file
+diff --git a/tests/_base/loader/hostenv_webworkers/worker1.js b/tests/_base/loader/hostenv_webworkers/worker1.js
+new file mode 100644
+index 0000000..6531e56
+--- /dev/null
++++ b/tests/_base/loader/hostenv_webworkers/worker1.js
+@@ -0,0 +1,30 @@
++// summary:
++//		Test whether Dojo will load inside the webworker.
++
++var dojoConfig = {
++	baseUrl: "../../../../../",
++	packages: [{
++		name: "dojo", location: "dojo"
++	}]
++};
++
++try{
++	importScripts("../../../../dojo.js", "console.js");
++
++	self.postMessage({
++		type: "testResult",
++		test: "dojo loaded",
++		value: true
++	});
++}catch(e){
++	self.postMessage({
++		type: "testResult",
++		test: "dojo loaded",
++		value: false
++	});
++}
++
++
++
++
++
+diff --git a/tests/_base/loader/hostenv_webworkers/worker2.js b/tests/_base/loader/hostenv_webworkers/worker2.js
+new file mode 100644
+index 0000000..fef1de8
+--- /dev/null
++++ b/tests/_base/loader/hostenv_webworkers/worker2.js
+@@ -0,0 +1,27 @@
++// summary:
++//		Test whether the require function loads modules as it should.
++
++var dojoConfig = {
++	baseUrl: "../../../../../",
++	packages: [{
++		name: "dojo", location: "dojo"
++	}]
++};
++
++importScripts("../../../../dojo.js", "console.js");
++
++try{
++	require(["dojo/tests/_base/loader/hostenv_webworkers/strings"], function(strings){
++		self.postMessage({
++			type: "testResult",
++			test: "require is working",
++			value: true
++		});
++	});
++}catch(e){
++	self.postMessage({
++		type: "testResult",
++		test: "require is working",
++		value: false
++	});
++}
+diff --git a/tests/_base/loader/hostenv_webworkers/worker3.js b/tests/_base/loader/hostenv_webworkers/worker3.js
+new file mode 100644
+index 0000000..1b94375
+--- /dev/null
++++ b/tests/_base/loader/hostenv_webworkers/worker3.js
+@@ -0,0 +1,28 @@
++// summary:
++//		Test whether the require function loads modules as it should in async mode.
++
++var dojoConfig = {
++	baseUrl: "../../../../../",
++	async: true,
++	packages: [{
++		name: "dojo", location: "dojo"
++	}]
++};
++
++importScripts("../../../../dojo.js", "console.js");
++
++try{
++	require(["dojo/tests/_base/loader/hostenv_webworkers/strings"], function(strings){
++		self.postMessage({
++			type: "testResult",
++			test: "require is working",
++			value: true
++		});
++	});
++}catch(e){
++	self.postMessage({
++		type: "testResult",
++		test: "require is working",
++		value: false
++	});
++}
+diff --git a/tests/_base/loader/hostenv_webworkers/worker4-1.js b/tests/_base/loader/hostenv_webworkers/worker4-1.js
+new file mode 100644
+index 0000000..4aeb1ca
+--- /dev/null
++++ b/tests/_base/loader/hostenv_webworkers/worker4-1.js
+@@ -0,0 +1,28 @@
++// summary:
++//		Test whether subworkers work.
++
++var dojoConfig = {
++	baseUrl: "../../../../../",
++	async: true,
++	packages: [{
++		name: "dojo", location: "dojo"
++	}]
++};
++
++importScripts("../../../../dojo.js", "console.js");
++
++try{
++	require(["dojo/tests/_base/loader/hostenv_webworkers/strings"], function(strings){
++		self.postMessage({
++			type: "testResult",
++			test: "subworkers are working",
++			value: true
++		});
++	});
++}catch(e){
++	self.postMessage({
++		type: "testResult",
++		test: "subworkers are working",
++		value: false
++	});
++}
+diff --git a/tests/_base/loader/hostenv_webworkers/worker4.js b/tests/_base/loader/hostenv_webworkers/worker4.js
+new file mode 100644
+index 0000000..a30813b
+--- /dev/null
++++ b/tests/_base/loader/hostenv_webworkers/worker4.js
+@@ -0,0 +1,38 @@
++// summary:
++//		Test subworkers, this is the worker in the middle, that spawns the subworker and passes
++//		messages between them.
++
++var dojoConfig = {
++	baseUrl: "../../../../../",
++	async: true,
++	packages: [{
++		name: "dojo", location: "dojo"
++	}]
++};
++
++importScripts("../../../../dojo.js", "console.js");
++
++require(["dojo/has"], function(has){
++	// Test for workers, currently chrome does not support subworkers.
++
++	has.add("webworkers", (typeof Worker === 'function'));
++	if(has("webworkers")){
++		var worker = new Worker("worker4-1.js");
++		worker.addEventListener("message", function(message){
++			self.postMessage(message.data);
++			worker.terminate();
++		}, false);
++	}else{
++		// Chrome does not support webworkers of writing this test
++		// (see: http://code.google.com/p/chromium/issues/detail?id=31666)
++
++		console.warn("Platform does not support subworkers");
++		self.postMessage({
++			type: "testResult",
++			test: "subworkers are working",
++			value: true
++		});
++	}
++});
++
++
+diff --git a/tests/_base/loader/hostenv_webworkers/worker5.js b/tests/_base/loader/hostenv_webworkers/worker5.js
+new file mode 100644
+index 0000000..b40bfa7
+--- /dev/null
++++ b/tests/_base/loader/hostenv_webworkers/worker5.js
+@@ -0,0 +1,46 @@
++// summary:
++//		Test loading json via dojo/request in a worker.
++
++var dojoConfig = {
++	baseUrl: "../../../../../",
++	async: true,
++	packages: [{
++		name: "dojo", location: "dojo"
++	}]
++};
++
++importScripts("../../../../dojo.js", "console.js");
++
++try{
++	require(["dojo/request"], function(request){
++		request("../../../../tests/_base/loader/hostenv_webworkers/worker5.json", {
++			handleAs: "json"
++		}).then(function(data) {
++				if(data.foo && !data.bar){
++					self.postMessage({
++						type: "testResult",
++						test: data,
++						value: true
++					});
++				}else{
++					self.postMessage({
++						type: "testResult",
++						test: "require is working",
++						value: false
++					});
++				}
++			}, function(){
++				self.postMessage({
++					type: "testResult",
++					test: "request in a worker is working",
++					value: false
++				});
++			});
++	});
++}catch(e){
++	self.postMessage({
++		type: "testResult",
++		test: "request in a worker is working",
++		value: false
++	});
++}
+diff --git a/tests/_base/loader/hostenv_webworkers/worker5.json b/tests/_base/loader/hostenv_webworkers/worker5.json
+new file mode 100644
+index 0000000..523b218
+--- /dev/null
++++ b/tests/_base/loader/hostenv_webworkers/worker5.json
+@@ -0,0 +1,4 @@
++{
++	"foo": true,
++	"bar": false
++}
+\ No newline at end of file
+diff --git a/tests/_base/loader/hostenv_webworkers/worker6.js b/tests/_base/loader/hostenv_webworkers/worker6.js
+new file mode 100644
+index 0000000..fd1eeab
+--- /dev/null
++++ b/tests/_base/loader/hostenv_webworkers/worker6.js
+@@ -0,0 +1,42 @@
++// summary:
++//		Test the use of dojo/on without access to dom in a webworker.
++
++var dojoConfig = {
++	baseUrl: "../../../../../",
++	async: true,
++	packages: [{
++		name: "dojo", location: "dojo"
++	}]
++};
++
++importScripts("../../../../dojo.js", "console.js");
++
++try{
++	require(["dojo/on"], function(on){
++		on(self, "message", function(message){
++			if(message.data.type === "gotMessage"){
++				self.postMessage({
++					type: "testResult",
++					test: "dojo/on in a worker is working",
++					value: true
++				});
++			}else{
++				self.postMessage({
++					type: "testResult",
++					test: "dojo/on in a worker is working",
++					value: false
++				});
++			}
++		});
++
++		self.postMessage({
++			type: "requestMessage"
++		});
++	});
++}catch(e){
++	self.postMessage({
++		type: "testResult",
++		test: "dojo/on in a worker is working",
++		value: false
++	});
++}
+diff --git a/tests/dom-attr.html b/tests/dom-attr.html
+new file mode 100644
+index 0000000..cf127b3
+--- /dev/null
++++ b/tests/dom-attr.html
+@@ -0,0 +1,41 @@
++<!DOCTYPE html>
++<html>
++	<head>
++		<title>testing dom-prop</title>
++		<script src="../dojo.js" data-dojo-config="isDebug:true"></script>
++		<script>
++			require(["dojo", "doh", "dojo/dom-attr", "dojo/dom", "dojo/domReady!"], function(dojo, doh, domAttr, dom){
++				doh.register([
++					{
++						name: "set / get value attribute",
++						runTest: function(t){
++							var test1 = dom.byId("test1"),
++								test2 = dom.byId("test2"),
++								value1 = domAttr.get(test1, "value"),
++								value2 = domAttr.get(test2, "value");
++
++							doh.is('6', value1);
++							doh.is('bar', value2);
++							
++							domAttr.set(test1, "value", "10");
++							domAttr.set(test2, "value", "foo");
++							
++							value1 = domAttr.get(test1, "value");
++							value2 = domAttr.get(test2, "value");
++							
++							doh.is('10', value1);
++							doh.is('foo', value2);
++							
++						}
++					}
++				]);
++
++				doh.run();
++			});
++		</script>
++	</head>
++	<body>
++		<meter id="test1" min="5" max="10" value="6"></meter>
++		<input id="test2" value="bar" />
++	</body>
++</html>
+diff --git a/tests/dom-attr.js b/tests/dom-attr.js
+new file mode 100644
+index 0000000..c1fbd09
+--- /dev/null
++++ b/tests/dom-attr.js
+@@ -0,0 +1,3 @@
++define(["doh/main", "require"], function(doh, require){
++	doh.register("tests.dom-attr", require.toUrl("./dom-attr.html"), 30000);
++});
+diff --git a/tests/dom-construct-place.html b/tests/dom-construct-place.html
+new file mode 100644
+index 0000000..3496639
+--- /dev/null
++++ b/tests/dom-construct-place.html
+@@ -0,0 +1,328 @@
++<!DOCTYPE html>
++<html>
++	<head>
++		<title>testing dom-contruct.place</title>
++		<script src="../dojo.js" data-dojo-config="isDebug:true"></script>
++		<script>
++			require(["doh", "dojo/dom-construct", "dojo/dom", "dojo/domReady!"], function(doh, construct, dom){
++
++				var TEST_POSITION = 2;
++				var lastHtml = "<div id='last'><h1>First</h1></div>";
++				var firstHtml = "<div id='first'><h1>First</h1></div>";
++				var beforeHtml = "<div id='before'></div>";
++				var afterHtml = "<div id='after'></div>";
++				var replaceHtml = "<div id='replace'></div>";
++				var onlyHtml = "<div id='only'><h1>first</h1></div>";
++
++				var posHtml = "<div id='pos'><div>first</div><div>second</div><div>last</div></div>";
++
++				var HTMLString = "<div id=\"test\">Test</div>";
++
++				var nodes = {};
++				var child;
++				var fragment;
++
++				function clearTarget() {
++					document.body.innerHTML = "";
++					child = construct.toDom(HTMLString);
++					nodes.last = construct.toDom(lastHtml);
++					nodes.first = construct.toDom(firstHtml);
++					nodes.before = construct.toDom(beforeHtml);
++					nodes.after = construct.toDom(afterHtml);
++					nodes.replace = construct.toDom(replaceHtml);
++					nodes.only = construct.toDom(onlyHtml);
++					nodes.pos = construct.toDom(posHtml);
++					document.body.appendChild(nodes.last);
++					document.body.appendChild(nodes.first);
++					document.body.appendChild(nodes.before);
++					document.body.appendChild(nodes.after);
++					document.body.appendChild(nodes.replace);
++					document.body.appendChild(nodes.only);
++					document.body.appendChild(nodes.pos);
++					fragment = document.createDocumentFragment();
++					fragment.appendChild(document.createElement("div"));
++					fragment.appendChild(document.createElement("div"));
++					fragment.appendChild(document.createElement("div"));
++				}
++
++				function elementsEqual(elementA, elementB) {
++					return elementA.id === elementB.id &&
++						elementA.tagName === elementB.tagName &&
++						elementA.innerHTML === elementB.innerHTML;
++				}
++
++				doh.register([
++					{
++						setUp: clearTarget,
++						name: "last - place html string with node reference",
++						runTest: function(t){
++							construct.place(HTMLString, nodes.last);
++							doh.assertTrue(elementsEqual(child, nodes.last.lastChild));
++						}
++					},{
++						setUp: clearTarget,
++						name: "last - place html string with id reference",
++						runTest: function(t){
++							construct.place(HTMLString, "last");
++							doh.assertTrue(elementsEqual(child, nodes.last.lastChild));
++						}
++					},{
++						setUp: clearTarget,
++						name: "last - place html string with fragment reference",
++						runTest: function(t){
++							construct.place(HTMLString, fragment);
++							doh.assertTrue(elementsEqual(child, fragment.lastChild));
++						}
++					},{
++						setUp: clearTarget,
++						name: "last - place node with node reference",
++						runTest: function(t){
++							construct.place(child, nodes.last);
++							doh.assertEqual(child, nodes.last.lastChild);
++						}
++					},{
++						setUp: clearTarget,
++						name: "last - place node with id reference",
++						runTest: function(t){
++							construct.place(child, "last");
++							doh.assertEqual(child, nodes.last.lastChild);
++						}
++					},{
++						setUp: clearTarget,
++						name: "last - place node with fragment reference",
++						runTest: function(t){
++							construct.place(child, fragment);
++							doh.assertEqual(child, fragment.lastChild);
++						}
++					},{
++						setUp: clearTarget,
++						name: "first - place html string with node reference",
++						runTest: function(t){
++							construct.place(HTMLString, nodes.first, "first");
++							doh.assertTrue(elementsEqual(child, nodes.first.firstChild));
++						}
++					},{
++						setUp: clearTarget,
++						name: "first - place html string with id reference",
++						runTest: function(t){
++							construct.place(HTMLString, "first", "first");
++							doh.assertTrue(elementsEqual(child, nodes.first.firstChild));
++						}
++					},{
++						setUp: clearTarget,
++						name: "first - place html string with fragment reference",
++						runTest: function(t){
++							construct.place(HTMLString, fragment, "first");
++							doh.assertTrue(elementsEqual(child, fragment.firstChild));
++						}
++					},{
++						setUp: clearTarget,
++						name: "first - place node with node reference",
++						runTest: function(t){
++							construct.place(child, nodes.first, "first");
++							doh.assertEqual(child, nodes.first.firstChild);
++						}
++					},{
++						setUp: clearTarget,
++						name: "first - place node with id reference",
++						runTest: function(t){
++							construct.place(child, "first", "first");
++							doh.assertEqual(child, nodes.first.firstChild);
++						}
++					},{
++						setUp: clearTarget,
++						name: "first - place node with fragment reference",
++						runTest: function(t){
++							construct.place(child, fragment, "first");
++							doh.assertEqual(child, fragment.firstChild);
++						}
++					},{
++						setUp: clearTarget,
++						name: "before - place html string with node reference",
++						runTest: function(t){
++							construct.place(HTMLString, nodes.before, "before");
++							doh.assertTrue(elementsEqual(child, nodes.before.previousSibling));
++						}
++					},{
++						setUp: clearTarget,
++						name: "before - place html string with id reference",
++						runTest: function(t){
++							construct.place(HTMLString, "before", "before");
++							doh.assertTrue(elementsEqual(child, nodes.before.previousSibling));
++						}
++					},{
++						setUp: clearTarget,
++						name: "before - place node with node reference",
++						runTest: function(t){
++							construct.place(child, nodes.before, "before");
++							doh.assertTrue(child, nodes.before.previousSibling);
++						}
++					},{
++						setUp: clearTarget,
++						name: "before - place node with id reference",
++						runTest: function(t){
++							construct.place(child, "before", "before");
++							doh.assertEqual(child, nodes.before.previousSibling);
++						}
++					},{
++						setUp: clearTarget,
++						name: "after - place html string with node reference",
++						runTest: function(t){
++							construct.place(HTMLString, nodes.after, "after");
++							doh.assertTrue(elementsEqual(child, nodes.after.nextSibling));
++						}
++					},{
++						setUp: clearTarget,
++						name: "after - place html string with id reference",
++						runTest: function(t){
++							construct.place(HTMLString, "after", "after");
++							doh.assertTrue(elementsEqual(child, nodes.after.nextSibling));
++						}
++					},{
++						setUp: clearTarget,
++						name: "after - place node with node reference",
++						runTest: function(t){
++							construct.place(child, nodes.after, "after");
++							doh.assertEqual(child, nodes.after.nextSibling);
++						}
++					},{
++						setUp: clearTarget,
++						name: "after - place node with id reference",
++						runTest: function(t){
++							construct.place(child, "after", "after");
++							doh.assertEqual(child, nodes.after.nextSibling);
++						}
++					},{
++						setUp: clearTarget,
++						name: "replace - place html string with node reference",
++						runTest: function(t){
++							construct.place(HTMLString, nodes.replace, "replace");
++							doh.assertEqual(document.getElementById("replace"), undefined);
++							doh.assertTrue(elementsEqual(child, document.getElementById('test')));
++						}
++					},{
++						setUp: clearTarget,
++						name: "replace - place html string with id reference",
++						runTest: function(t){
++							construct.place(HTMLString, "replace", "replace");
++							doh.assertEqual(document.getElementById("replace"), undefined);
++							doh.assertTrue(elementsEqual(child, document.getElementById('test')));
++						}
++					},{
++						setUp: clearTarget,
++						name: "replace - place node with node reference",
++						runTest: function(t){
++							construct.place(child, nodes.replace, "replace");
++							doh.assertEqual(document.getElementById("replace"), undefined);
++							doh.assertEqual(child, document.getElementById('test'));
++						}
++					},{
++						setUp: clearTarget,
++						name: "replace - place node with id reference",
++						runTest: function(t){
++							construct.place(child, "replace", "replace");
++							doh.assertEqual(document.getElementById("replace"), undefined);
++							doh.assertEqual(child, document.getElementById('test'));
++						}
++					},{
++						setUp: clearTarget,
++						name: "only - place html string with node reference",
++						runTest: function(t){
++							construct.place(HTMLString, nodes.only, "only");
++							doh.assertEqual(nodes.only.children.length, 1);
++							doh.assertTrue(elementsEqual(child, nodes.only.firstChild));
++						}
++					},{
++						setUp: clearTarget,
++						name: "only - place html string with id reference",
++						runTest: function(t){
++							construct.place(HTMLString, "only", "only");
++							doh.assertEqual(nodes.only.children.length, 1);
++							doh.assertTrue(elementsEqual(child, nodes.only.firstChild));
++						}
++					},{
++						setUp: clearTarget,
++						name: "only - place html string with fragment reference",
++						runTest: function(t){
++							construct.place(HTMLString, fragment, "only");
++							doh.assertEqual(fragment.childNodes.length, 1);
++							doh.assertTrue(elementsEqual(child, fragment.firstChild));
++						}
++					},{
++						setUp: clearTarget,
++						name: "only - place node with node reference",
++						runTest: function(t){
++							construct.place(child, nodes.only, "only");
++							doh.assertEqual(child, nodes.only.firstChild);
++							doh.assertEqual(1, nodes.only.children.length);
++						}
++					},{
++						setUp: clearTarget,
++						name: "only - place node with id reference",
++						runTest: function(t){
++							construct.place(child, "only", "only");
++							doh.assertEqual(child, nodes.only.firstChild);
++							doh.assertEqual(1, nodes.only.children.length);
++						}
++					},{
++						setUp: clearTarget,
++						name: "only - place node with fragment reference",
++						runTest: function(t){
++							construct.place(child, fragment, "only");
++							doh.assertEqual(fragment.childNodes.length, 1);
++							doh.assertEqual(child, fragment.firstChild);
++						}
++					},{
++						setUp: clearTarget,
++						name: "pos - place html string with node reference",
++						runTest: function(t){
++							construct.place(HTMLString, nodes.pos, TEST_POSITION);
++							doh.assertTrue(elementsEqual(child, nodes.pos.children[TEST_POSITION]));
++						}
++					},{
++						setUp: clearTarget,
++						name: "pos - place html string with id reference",
++						runTest: function(t){
++							construct.place(HTMLString, "pos", TEST_POSITION);
++							doh.assertTrue(elementsEqual(child, nodes.pos.children[TEST_POSITION]));
++						}
++					},{
++						setUp: clearTarget,
++						name: "pos - place html string with fragment reference",
++						runTest: function(t){
++							construct.place(HTMLString, fragment, TEST_POSITION);
++							doh.assertTrue(elementsEqual(child, fragment.childNodes[TEST_POSITION]));
++						}
++					},{
++						setUp: clearTarget,
++						name: "pos - place node with node reference",
++						runTest: function(t){
++							construct.place(child, nodes.pos, TEST_POSITION);
++							doh.assertEqual(child, nodes.pos.children[TEST_POSITION]);
++						}
++					},{
++						setUp: clearTarget,
++						name: "pos - place node with id reference",
++						runTest: function(t){
++							construct.place(child, "pos", TEST_POSITION);
++							doh.assertEqual(child, nodes.pos.children[TEST_POSITION]);
++						}
++					},{
++						setUp: clearTarget,
++						name: "pos - place node with fragment reference",
++						runTest: function(t){
++							construct.place(child, fragment, TEST_POSITION);
++							doh.assertEqual(child, fragment.childNodes[TEST_POSITION]);
++						}
++					}
++
++				]);
++
++				doh.run();
++			});
++		</script>
++	</head>
++	<body>
++		<div id="target"></div>
++	</body>
++</html>
+diff --git a/tests/dom-construct.js b/tests/dom-construct.js
+new file mode 100644
+index 0000000..ff308d0
+--- /dev/null
++++ b/tests/dom-construct.js
+@@ -0,0 +1,23 @@
++define([
++	"dojo/dom-construct",
++	"doh",
++	"require"
++], function(construct, doh, require){
++
++	if(doh.isBrowser){
++		doh.register("tests.dom-construct-place", require.toUrl("./dom-construct-place.html"), 30000);
++	}
++
++	doh.register("tests.dom-construct", [
++		{
++			name: "Create element with textContent",
++			runTest: function(t){
++				var x = construct.create("div", {
++					textContent: "<b>this is bold</b>"
++				});
++				t.is("&lt;b&gt;this is bold&lt;/b&gt;", x.innerHTML, "textContent was not properly set");
++			}
++		}
++	]);
++
++});
+diff --git a/tests/dom-prop.html b/tests/dom-prop.html
+new file mode 100644
+index 0000000..6ad4385
+--- /dev/null
++++ b/tests/dom-prop.html
+@@ -0,0 +1,60 @@
++<!DOCTYPE html>
++<html>
++	<head>
++		<title>testing dom-prop</title>
++		<script src="../dojo.js" data-dojo-config="isDebug:true"></script>
++		<script>
++			require(["dojo", "doh", "dojo/dom-prop", "dojo/dom", "dojo/domReady!"], function(dojo, doh, domProp, dom){
++				doh.register([
++					{
++						name: "set / get Attribute",
++						runTest: function(t){
++							var node = dom.byId("node"),
++								content = domProp.get(dom.byId("content1"), "textContent"),
++								content2 = domProp.get(dom.byId("content2"), "textContent"),
++								content3 = domProp.get(dom.byId("content3"), "textContent"),
++								content4 = domProp.get(dom.byId("content4"), "textContent");
++							node.innerHTML = "" //empty the node before testing
++							
++							doh.is(true, content != null); //test is getter works
++							doh.is("Etiam", content.substr(0, 5)); //test if getters return the expected value
++							
++							domProp.set(node, "textContent", content);
++							doh.is(content, node.innerHTML); //test is setter works (no text transformation exepcted because it's just a simple word)
++							
++							domProp.set(node, "textContent", "<b>this is bold</b>");
++							doh.is(-1, node.innerHTML.indexOf("<")); //test if setter escape properly the content
++							
++							domProp.set(node, "textContent", content2);
++
++							var test = node.innerHTML.replace(/\n/g, "");
++							doh.is(-1, test.indexOf("(comment)")); //test if html comments are ignored
++							doh.is(content4, content3);
++						}
++					}
++				]);
++
++				doh.run();
++			});
++		</script>
++	</head>
++	<body>
++	<div id="content1">Etiam</div>
++	<div id="content2">
++		<!-- <p>This should not show (comment).</p>-->
++	</div>
++	<div id="content3">
++	first line
++		second line
++			third line
++	fourth line
++	</div>
++	<div id="content4">
++	first line
++		<span>second line</span>
++		<span>	<span>third line</span></span>
++	fourth line
++	</div>
++	<pre id="node"></pre>
++	</body>
++</html>
+diff --git a/tests/dom-prop.js b/tests/dom-prop.js
+new file mode 100644
+index 0000000..e2df79c
+--- /dev/null
++++ b/tests/dom-prop.js
+@@ -0,0 +1,3 @@
++define(["doh/main", "require"], function(doh, require){
++	doh.register("tests.dom-prop", require.toUrl("./dom-prop.html"), 30000);
++});
+diff --git a/tests/dom-style.html b/tests/dom-style.html
+index 86849e4..e36aa4c 100644
+--- a/tests/dom-style.html
++++ b/tests/dom-style.html
+@@ -30,6 +30,11 @@
+ 								doh.t(false);
+ 							}
+ 						}
++					},
++					function getWidth(){
++						// see http://bugs.dojotoolkit.org/ticket/17962
++						var rowWidth = domStyle.get(dom.byId("trow"), "width");
++						doh.t(rowWidth > 0, "width: " + rowWidth);
+ 					}
+ 				]);
+
+@@ -39,5 +44,6 @@
+ 	</head>
+ 	<body>
+ 	<div id="node" style="padding: 1px 2px 3px 4px;"></div>
++	<table><tbody><tr id="trow"><td>Col A</td><td>Col B</td></tr></tbody></table>
+ 	</body>
+ </html>
+diff --git a/tests/query/query.html b/tests/query/query.html
+index 592f1ad..f65a9b2 100644
+--- a/tests/query/query.html
++++ b/tests/query/query.html
+@@ -12,8 +12,8 @@
+ 			var selector = specified ? specified[0].split("=")[1] : "acme";
+
+ 			require(["doh", "dojo/_base/array", "dojo/dom", "dojo/request/iframe",
+-				"dojo/query!"+selector, "dojo/NodeList", "dojo/sniff", "dojo/domReady!"],
+-					function(doh, array, dom, iframe, dq, NodeList, has){
++				"dojo/query!"+selector, "dojo/NodeList", "dojo/sniff", "dojo/dom-construct", "dojo/domReady!"],
++					function(doh, array, dom, iframe, dq, NodeList, has, domConstruct){
+ 				query = dq; // make a global
+
+ 				function createDocument(xml){
+@@ -236,6 +236,21 @@
+ 						var i = query("div");
+ 						// smoke test
+ 						i.sort(function(a,b){ return 1; })
++					},
++					function document_fragment() {
++						var detachedDom = domConstruct.toDom("<i><u><a></a><b id='b'></b></u></i>");
++						var documentFragment = domConstruct.toDom("<i></i>    <u><a></a><b id='b'></b></u>");
++
++						doh.is(1, query("#b", detachedDom).length);
++						doh.is(1, query("#b", detachedDom.firstChild).length);
++						doh.is(1, query("#b", documentFragment).length);
++						doh.is(1, query("#b", documentFragment.childNodes[2]).length);
++
++						var detachedDom2 = domConstruct.toDom("<i><u><a></a><b></b></u></i>");
++						var documentFragment2 = domConstruct.toDom("<i></i>    <u><a></a><b></b></u>");
++
++						doh.is(0, query("#b", detachedDom2).length);
++						doh.is(0, query("#b", documentFragment2).length);
+ 					}
+ 				]);
+
+diff --git a/tests/query/queryQuirks.html b/tests/query/queryQuirks.html
+index 8612e35..749249d 100644
+--- a/tests/query/queryQuirks.html
++++ b/tests/query/queryQuirks.html
+@@ -10,8 +10,8 @@
+ 			var specified = window.location.search.substr(1).match(/selector=(.*)/);
+ 			var selector = specified ? specified[0].split("=")[1] : "acme";
+
+-			require(["dojo", "doh", "dojo/query!"+selector, "dojo/sniff", "dojo/io/iframe", "dojo/domReady!"],
+-					function(dojo, doh, dq, has){
++			require(["dojo", "doh", "dojo/query!"+selector, "dojo/sniff", "dojo/dom-construct", "dojo/io/iframe", "dojo/domReady!"],
++					function(dojo, doh, dq, has, domConstruct){
+ 				query = dq; // make a global
+
+ 				function createDocument(xml){
+@@ -219,6 +219,27 @@
+ 						var i = query("div");
+ 						// smoke test
+ 						i.sort(function(a,b){ return 1; })
++					},
++					function document_fragment() {
++						var detachedDom = domConstruct.toDom("<i><u><a></a><b id='b'></b></u></i>");
++						var documentFragment = domConstruct.toDom("<i></i>    <u><a></a><b id='b'></b></u>");
++
++						doh.is(1, query("#b", detachedDom).length);
++						doh.is(1, query("#b", detachedDom.firstChild).length);
++						doh.is(1, query("#b", documentFragment).length);
++
++						// In IE8 in quirks mode there is no text node on the document fragment
++						if(has('ie') === 8) {
++							doh.is(1, query("#b", documentFragment.childNodes[1]).length);
++						} else {
++							doh.is(1, query("#b", documentFragment.childNodes[2]).length);
++						}
++
++						var detachedDom2 = domConstruct.toDom("<i><u><a></a><b></b></u></i>");
++						var documentFragment2 = domConstruct.toDom("<i></i>    <u><a></a><b></b></u>");
++
++						doh.is(0, query("#b", detachedDom2).length);
++						doh.is(0, query("#b", documentFragment2).length);
+ 					}
+ 				]);
+

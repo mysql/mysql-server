@@ -1,0 +1,25 @@
+<div  data-dojo-attach-point="mainOuterDiv">
+	<div data-dojo-type="dojox/app/widgets/Container" data-dojo-attach-point="mainOuterContainer" data-app-constraint="center">
+
+	<!-- <div data-dojo-type="dojox/app/widgets/Container" data-app-constraint="center" data-dojo-props="scrollable:true">  -->
+		<div>
+			<h1 data-dojo-type="dojox/mobile/Heading" data-dojo-props='label:"Main", fixed:"top"'>
+				<span data-dojo-type="dojox/mobile/ToolBarButton" tabindex="0" data-dojo-attach-point="mainheaderBackButton" 
+					data-dojo-props='label:"Nav", fixed:"top", arrow:"left"'>
+				</span>
+			</h1>
+			<h2 data-dojo-attach-point="mainH2" data-dojo-type="dojox/mobile/EdgeToEdgeCategory" data-dojo-props='label:"None selected", fixed:"top"'></h2>		
+			<ul data-dojo-attach-point="navList" data-dojo-type="dojox/mobile/RoundRectList" data-app-constraint="center">
+				<li data-dojo-type="dojox/mobile/ListItem" data-dojo-props="clickable:true" data-dojo-attach-event="onClick:lastOption1Clicked">
+					Last Option 1
+				</li>
+				<li data-dojo-type="dojox/mobile/ListItem" data-dojo-props="clickable:true" data-dojo-attach-event="onClick:lastOption2Clicked">
+					Last Option 2
+				</li>
+				<li data-dojo-type="dojox/mobile/ListItem" data-dojo-props="clickable:true" data-dojo-attach-event="onClick:lastOption3Clicked">
+					Last Option 3
+				</li>
+			</ul>
+		</div>
+	</div>
+</div>

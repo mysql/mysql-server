@@ -1,0 +1,361 @@
+/* dijit/* variables */
+
+@import '../variables';
+
+/* Common (Common.styl) */
+
+// Popup (Dropdowns and Tooltip Dialogs)
+$popup-border-radius = $border-radius;
+$popup-box-shadow = $shadow-depth2;
+
+/* Dialog, Tooltip, TooltipDialog */
+
+// Dialog
+$dialog-background-color = $theme-base-color;
+$dialog-border-color = $border-color;
+$dialog-padding = $padding * 2;
+$dialog-border-radius = $border-radius;
+$dialog-box-shadow = $shadow-depth2;
+
+// content pane
+$dialog-content-bg-color = $theme-base-color;
+
+// title bar
+$dialog-titlebar-border-color = $grey-light;
+$dialog-titlebar-font-size = 1.1em;
+
+// close icon
+$dialog-close-icon = "\f00e";
+$dialog-close-icon-size = 20px;
+
+// underlay
+$dialog-underlay-color = $black;
+$dialog-underlay-opacity = 0.65;
+
+// Tooltip Dialog connector (arrow)
+$dialog-arrow-thickness = 6px;
+$dialog-arrow-border-color = $border-color;
+$dialog-arrow-background-color = $dialog-background-color;
+
+// Tooltip
+$tooltip-background-color = $grey-dark;
+$tooltip-text-color = $theme-base-color;
+$tooltip-padding = $padding;
+$tooltip-border = 0 none;
+$tooltip-border-radius = $border-radius;
+$tooltip-opacity = 1;
+
+// tooltip connector (arrow)
+$tooltip-arrow-color = $tooltip-background-color;
+$tooltip-arrow-thickness = 4px;
+
+/* Menu */
+
+$menu-background-color = $theme-base-color;
+$menu-border-color = $border-color;
+$menu-padding = $padding * 2;
+$menu-border-radius = $border-radius;
+
+// MenuItem
+$menu-item-padding = $padding * 2;
+
+// hover
+$menu-item-hovered-text-color = $theme-base-color;
+$menu-item-hovered-background-color = $theme-base;
+
+// active
+$menu-item-active-text-color = $theme-base-color;
+$menu-item-active-background-color = $theme-base;
+
+// selected
+$menu-item-selected-text-color = $theme-base-color;
+$menu-item-selected-background-color = $theme-base;
+
+// disabled
+$menu-item-disabled-text-color = $disabled-color;
+
+// disabled hover
+$menu-item-disabled-hovered-text-color = darken($menu-item-hovered-text-color, 5%);
+$menu-item-disabled-hovered-background-color = lighten($menu-item-hovered-background-color, 35%);
+
+// separator
+$menu-item-separator-top-color = $border-color;
+$menu-item-separator-bottom-color = transparent;
+
+// icon
+$menu-item-icon-padding = $padding;
+$menu-item-icon-margin = $margin;
+$menu-item-icon = $icon-drop-right;
+$menu-item-icon-rtl = $icon-drop-left;
+
+// Menubar
+$menubar-background-color = $grey-lighter;
+$menubar-item-padding = $padding * 2 $padding * 3;
+
+// hover
+$menubar-item-hover-color = $theme-base-color;
+$menubar-item-hover-background-color = $theme-base;
+
+// active
+$menubar-item-active-color = $theme-base-color;
+$menubar-item-active-background-color = $theme-base;
+
+// selected
+$menubar-item-selected-text-color = $theme-base-color;
+$menubar-item-selected-background-color = $theme-base;
+
+// Menubar dropdown (Popup)
+$menubar-popup-item-padding = $menu-item-padding;
+
+/* Calendar */
+
+$calendar-background-color = $theme-base-color;
+$calendar-border-color = $border-color;
+$calendar-padding = $padding;
+$calendar-border-radius = $border-radius;
+$calendar-box-shadow = $shadow-depth2;
+
+// day
+// the "S, M, T, W, T, F, S"
+$calendar-day-cell-font-weight = bold;
+$calendar-day-cell-padding = $padding;
+
+// date
+$calendar-date-cell-padding = $padding * 0.5 $padding;
+$calendar-date-font-size = 0.9em;
+$calendar-date-cell-prev-next-month-text-color = lighten($grey-dark, 50);
+$calendar-date-cell-border-radius = 50%;
+$calendar-date-cell-current-border-color = $theme-base;
+
+// hover 
+$calendar-date-cell-hovered-background-color = darken($theme-base-color, 5%);
+
+// active 
+$calendar-date-cell-active-background-color = darken($theme-base-color, 10%);
+
+// selected 
+$calendar-date-cell-selected-background-color = $theme-base;
+$calendar-date-cell-selected-text-color = $theme-base-color;
+
+// year
+$calendar-year-cell-padding = $padding;
+$calendar-year-font-size = 1.15em;
+$calendar-year-prev-next-year-font-size = 0.9em;
+$calendar-year-prev-current-year-text-color = $theme-base;
+$calendar-year-prev-next-year-text-color = $calendar-year-prev-current-year-text-color;
+
+// month dropdown
+$calendar-month-dropdown-menu-padding = $padding * 2;
+$calendar-month-dropdown-menu-item-padding = $padding;
+
+// hover
+$calendar-month-dropdown-menu-item-hovered-text-color = $menu-item-hovered-text-color;
+$calendar-month-dropdown-menu-item-hovered-background-color = $menu-item-hovered-background-color;
+
+// icons (swapped for rtl)
+$calendar-icon-decrease = $icon-drop-left;
+$calendar-icon-increase = $icon-drop-right;
+$calendar-icon-size = 24px;
+
+/* Color Palette */
+
+$colorpalette-background-color = $theme-base-color;
+$colorpalette-padding = $padding;
+$colorpalette-border-color = $border-color;
+$colorpalette-border-radius = $border-radius;
+
+// Swatch
+$colorpalette-swatch-width = 15px;
+$colorpalette-swatch-height = 15px;
+$colorpalette-swatch-border-color = transparent;
+$colorpalette-swatch-radius = 2px;
+
+// Hover
+$colorpalette-swatch-hover-border-color = $border-color;
+$colorpalette-swatch-hover-box-shadow = none;
+
+// Active, Selected
+$colorpalette-swatch-selected-border-color = $theme-base;
+$colorpalette-swatch-selected-box-shadow = $shadow-depth1;
+
+/* Editor */
+
+$editor-background-color = $theme-base-color;
+$editor-border-color = $border-color;
+$editor-border-radius =$border-radius;
+
+// Iframe container
+$editor-iframe-padding = $padding $padding * 2;
+$editor-iframe-border-color = transparent;
+
+// Hover
+$editor-iframe-hover-border-color = $theme-base;
+
+// Focused
+$editor-iframe-focused-border-color = $theme-base;
+
+// Disabled
+$editor-disabled-border-color = $border-color;
+$editor-iframe-disabled-border-color = transparent;
+$editor-iframe-disabled-background-color = $disabled-background-color;
+
+/* Progress Bar */
+
+// Colors
+$progress-bar-color = $theme-base;
+$progress-bar-alternative-colors = {
+	alt-primary: $primary,
+	alt-success: $success,
+	alt-info: $info,
+	alt-warning: $warning,
+	alt-danger: $danger,
+	alt-inverse: $inverse
+};
+
+$progress-bar-empty-color = $grey-light;
+$progress-bar-border-radius = $border-radius;
+$progress-bar-strips-image-url = "images/progressBarStrips.png";
+
+// label
+$progress-bar-text-color = $theme-base-color;
+$progress-bar-font-size = 1em;
+$progress-bar-text-shadow = (1em / 10) (1em / 10) 1px $grey-dark;
+
+/* Toolbar */
+
+$toolbar-background-color = $grey-lighter;
+$toolbar-padding = $padding;
+
+// Button (Override default djitButton styles)
+$toolbar-button-border-color = transparent;
+$toolbar-button-padding = $padding;
+$toolbar-button-background-color = transparent;
+$toolbar-button-border-radius = $border-radius;
+$toolbar-button-spacing = $padding;
+
+// Label
+$toolbar-label-padding = $padding*2;
+
+// Separator
+$toolbar-separator-width = 1px;
+$toolbar-separator-height = 20px;
+$toolbar-separator-color = $border-color;
+$toolbar-separator-margin = 0 $margin;
+
+// Hover
+$toolbar-hover-border-color = $border-color;
+
+// Active
+$toolbar-active-border-color = $border-color;
+
+// Disabled
+$toolbar-disabled-background-color = $toolbar-background-color;
+$toolbar-disabled-border-bottom-color = $border-color;
+
+/* Tree */
+
+$tree-background-color = transparent;
+
+// Tree row
+// normal
+$tree-row-padding = $padding * 2 0;
+$tree-row-border-color = transparent;
+$tree-row-line-height = $line-height;
+
+// hover
+$tree-row-hover-background-color = darken($theme-base-color, 5%);
+$tree-row-hover-border-color = $tree-row-border-color;
+
+// active
+$tree-row-active-padding = $tree-row-padding;
+$tree-row-active-background-color = darken($theme-base-color, 5%);
+$tree-row-active-border-color = $tree-row-border-color;
+
+// selected
+$tree-row-selected-background-color = $theme-base;
+$tree-row-selected-border-color = $tree-row-border-color;
+$tree-row-selected-text-color = $theme-base-color;
+
+// expando
+$tree-expando-icon-width = $icon-size;
+$tree-expando-icon-height = $icon-size;
+$tree-expando-icon-color = $theme-base;
+$tree-expando-margin = $margin;
+
+// expando selected
+$tree-expando-icon-selected-color = $theme-base-color;
+
+/* Time Picker */
+
+// normal
+$timepicker-background-color = $theme-base-color;
+$timepicker-padding = $padding 0;
+$timepicker-border-color = $border-color;
+$timepicker-border-radius = $border-radius;
+$timepicker-box-shadow = $shadow-depth2;
+$timepicker-item-padding = $padding * 2;
+
+// tick (minor values)
+$timepicker-tick-text-color = $grey;
+
+// marker (major values)
+$timepicker-marker-background-color = transparent;
+
+// hover
+$timepicker-item-hovered-text-color = $grey-dark;
+$timepicker-item-hovered-background-color = darken($theme-base-color, 5%);
+
+// selected
+$timepicker-item-selected-text-color = $grey-dark;
+$timepicker-item-selected-background-color = darken($theme-base-color, 5%);
+
+/* Title Pane */
+
+$titlepane-highlight-color = $theme-base;
+$titlepane-has-border-radius = true;
+$titlepane-border-radius = $border-radius;
+
+// Content Pane
+$titlepane-content-background-color = $theme-base-color;
+$titlepane-content-border-color = $border-color;
+$titlepane-content-padding = $padding * 2;
+
+// icons
+// uses common vars directly
+
+/* Inline Edit Box */
+
+$inlineeditbox-border-color = transparent;
+$inlineeditbox-padding = $padding $padding + 2px;
+$inlineeditbox-border-radius =$input-border-radius;
+
+// hover
+$inlineeditbox-hover-background-color = transparent;
+$inlineeditbox-hover-border-color = $theme-base;
+
+/* DND */
+
+$dnd-item-border-color = transparent;
+
+// hover
+$dnd-hover-background-color = $grey-lighter;
+$dnd-hover-border-radius = $border-radius;
+
+// anchor
+$dnd-anchor-background-color = transparent;
+$dnd-anchor-border-color = $theme-base;
+$dnd-anchor-border-radius = $border-radius;
+
+// insert indicator color
+$dnd-avatar-item-insert-indicator-color = $theme-base;
+
+// avatar
+// item
+$dnd-avatar-item-background-color = $theme-base-color;
+$dnd-avatar-item-padding = $padding $padding * 2;
+$dnd-avatar-item-border-radius = $border-radius;
+$dnd-avatar-item-box-shadow = $shadow-depth2;
+
+// icons
+$dnd-icon-drop = "\f008";
+$dnd-icon-no-drop = "\f01c";

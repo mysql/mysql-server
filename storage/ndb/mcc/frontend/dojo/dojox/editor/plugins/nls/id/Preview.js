@@ -1,0 +1,6 @@
+define(
+({
+	"preview": "Pratinjau"
+})
+);
+

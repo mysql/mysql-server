@@ -1,0 +1,21 @@
+.flat .dijitTextBoxRtl .dijitValidationContainer,
+.flat .dijitTextBoxRtl .dijitSpinnerButtonContainer {
+  border-right-width: 1px !important;
+  border-left-width: 0 !important;
+}
+.flat .dijitTextBoxRtlError .dijitValidationContainer {
+  border-left-width: 0;
+  border-right-width: 1px;
+}
+.flat .dijitRtl .dijitPlaceHolder {
+  left: auto;
+  right: 0;
+}
+.flat .dijitTextBoxRtl .dijitSpinnerButtonContainer,
+.flat .dijitValidationTextBoxRtl .dijitValidationContainer,
+.flat .dijitTextBoxRtl .dijitArrowButtonContainer {
+  float: left;
+}
+.flat div.dijitNumberTextBoxRtl {
+  text-align: right;
+}

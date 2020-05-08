@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="Content-type" content="text/html; charset=utf-8"/>
+	<meta name="viewport" 
+		content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no"/>
+	<meta name="apple-mobile-web-app-capable" content="yes"/>
+	<title>Custom SpinWheel</title>
+
+	<!-- Test for #17775 -->
+	
+	<script type="text/javascript" src="../../../deviceTheme.js" 
+		data-dojo-config="mblThemeFiles: ['base','SpinWheel']"></script>
+	<script type="text/javascript" src="../../../../../dojo/dojo.js" 
+		data-dojo-config="async: true, parseOnLoad: true"></script>
+
+	<script type="text/javascript">
+		require([
+			"dojo/ready",
+			"dijit/registry",
+			"doh/runner",
+			"dojox/mobile/SpinWheel",
+			"dojox/mobile/SpinWheelSlot",
+			"dojox/mobile",
+			"dojox/mobile/View",
+			"dojox/mobile/compat",
+			"dojox/mobile/parser"
+		], function(ready, registry, runner, SpinWheel, SpinWheelSlot){
+			ready(function(){
+				runner.register("dojox.mobile.test.doh.SpinWheel", [
+					{
+						name: "Set SpinWheel value immediately after startup",
+						timeout: 4000,
+						runTest: function(){
+							var spinWheel = registry.byId("spinwheel");
+							var slots = spinWheel.getSlots();
+							var slot1 = slots[0];
+							var slot2 = slots[1];
+							var slot3 = slots[2];
+							
+							slot1.set("value", "1002");
+							slot2.set("value", "2002");
+							slot3.set("value", "3002");
+							
+							// Because of the animated scroll, the check of the values 
+							// needs to be done asynchronously
+							var d = new runner.Deferred();
+							setTimeout(d.getTestCallback(function(){
+								doh.assertEqual("1002", slot1.get("value"), "#17775 hurts again! (slot1)");
+								doh.assertEqual("2002", slot2.get("value"), "#17775 hurts again! (slot2)");
+								doh.assertEqual("3002", slot3.get("value"), "#17775 hurts again! (slot3)");
+							}), 2000);
+							return d;
+						}
+					}
+				]);
+				runner.run();
+			});
+		});
+	</script>
+	<style>
+		#spinwheel {
+			width: 304px;
+			margin: 10px auto;
+		}
+		.slot {
+		 	text-align: center; 
+		 	width: 60px;
+		 }
+	</style>
+</head>
+<body style="visibility:hidden;">
+	<div id="view1" data-dojo-type="dojox/mobile/View">
+		<h1 data-dojo-type="dojox/mobile/Heading">Custom SpinWheel</h1>
+		<div id="spinwheel" data-dojo-type="dojox/mobile/SpinWheel" >
+			<div data-dojo-type="dojox/mobile/SpinWheelSlot" class="slot"
+				data-dojo-props="labelFrom: 1000, labelTo: 1100">
+			</div>
+			<div data-dojo-type="dojox/mobile/SpinWheelSlot" class="slot"
+				data-dojo-props="labelFrom: 2000, labelTo: 2100">
+			</div>
+			<div data-dojo-type="dojox/mobile/SpinWheelSlot" class="slot"
+				data-dojo-props="labelFrom: 3000, labelTo: 3100">
+			</div>
+		</div>
+	</div>
+</body>
+</html>

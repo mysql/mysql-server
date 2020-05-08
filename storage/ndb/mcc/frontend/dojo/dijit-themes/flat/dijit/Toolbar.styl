@@ -1,0 +1,145 @@
+/* Toolbar 
+ * 
+ * Styling Toolbar means styling the toolbar container and the widget inside toolbar  (dijitToolbar)
+ * 
+ * 1. toolbar (default styling): 
+ * 		.dijitToolbar - styles for outer container
+ *
+ * 2. widget inside toolbar
+ * 		.dijitToolbar .dijitButtonNode   - Button widget
+ * 					  .dijitComboButton  - ComboButton widget
+ * 					  .dijitDropDownButton  - DropDownButton widget
+ * 					  .dijitToggleButton  - ToggleButton widget
+ * 		
+ * 3. hovered widget inside toolbar (ie, mouse hover on the widget inside)
+ * 			.dijitToolbar .dijitButtonNodeHover  - styles for hovered Button widget
+ * 
+ * 4. actived widget inside toolbar (ie, mouse down on the widget inside)
+ * 			.dijitToolbar .dijitButtonNodeActive  - mouse down on Button widget
+ */
+
+@import 'dijit_variables';
+
+.{$theme-name} {
+	
+	.dijitToolbar {
+		background-color: $toolbar-background-color;
+		padding: $toolbar-padding;
+		zoom: 1;
+
+		label {
+			padding: $toolbar-label-padding;
+		}
+
+		.dijitToggleButton, 
+		.dijitButton, 
+		.dijitDropDownButton,
+		.dijitComboButton {
+			margin-right: $toolbar-button-spacing;
+		}
+
+		/* Override default button styles */
+
+		.dijitButton .dijitButtonNode,
+		.dijitDropDownButton .dijitButtonNode,
+		.dijitComboButton .dijitButtonNode,
+		.dijitToggleButton .dijitButtonNode,
+		.dijitComboBox .dijitButtonNode {
+			border-color: $toolbar-button-border-color;
+			padding: $toolbar-button-padding;
+			background-color: $toolbar-button-background-color;
+			border-radius: $toolbar-button-border-radius;
+			transition-property: background-color;
+			transition-duration: .3s;
+		}
+
+		.dijitComboButton {
+			.dijitStretch {
+				/* no rounded border on side adjacent to arrow */
+				border-radius: $toolbar-button-border-radius 0 0 $toolbar-button-border-radius;
+			}
+			.dijitArrowButton {
+				/* no rounded border on side adjacent to button */
+				border-radius: 0 $toolbar-button-border-radius $toolbar-button-border-radius 0;
+			}
+		}
+
+		.dijitComboBox {
+			//width: 10em;
+			.dijitButtonNode {
+				padding: 0 $padding*2;
+			}
+			.dijitInputInner {
+				padding: 0;
+			}
+		}
+
+		.dijitDropDownButton .dijitArrowButtonInner {
+			margin-left: $padding;
+		}
+		
+		/* Hover */
+
+		.dijitButtonHover .dijitButtonNode,
+		.dijitDropDownButtonHover .dijitButtonNode,
+		.dijitToggleButtonHover .dijitButtonNode,
+		.dijitComboButtonHover .dijitButtonNode {
+			button-hover-style();
+			border: 1px solid $toolbar-hover-border-color;
+		}
+
+		/*
+		.dijitComboButtonHover {
+			.dijitButtonNode,
+			.dijitDownArrowButton {
+			}
+
+			.dijitButtonNodeHover,
+			.dijitDownArrowButtonHover {
+			}
+		}
+		*/
+
+		/* Active */
+		
+		.dijitButtonActive .dijitButtonNode,
+		.dijitDropDownButtonActive .dijitButtonNode,
+		.dijitToggleButtonActive .dijitButtonNode {
+			button-active-style();
+			border: 1px solid $toolbar-active-border-color;
+		}
+		// .dijitComboButtonActive {
+		// 	.dijitButtonNode,
+		// 	.dijitDownArrowButton {
+		// 	}
+		// 	.dijitButtonNodeActive {
+		// 	}
+		// 	.dijitDownArrowButtonActive {
+		// 	}
+		// }
+		
+		/* Toggle button checked status */
+		
+		.dijitToggleButtonChecked .dijitButtonNode {
+			button-active-style();
+			border: 1px solid $toolbar-active-border-color;
+		}
+	}
+
+	/* Separator */
+
+	.dijitToolbarSeparator {
+		width: $toolbar-separator-width;
+		height: $toolbar-separator-height;
+		background-color: $toolbar-separator-color;
+		padding: 0;
+		margin: $toolbar-separator-margin;
+	}
+
+	/* Toolbar inside of disabled Editor */
+	.dijitDisabled .dijitToolbar {
+		background-color: $toolbar-disabled-background-color;
+		border-bottom: 1px solid $toolbar-disabled-border-bottom-color;
+	}
+
+}

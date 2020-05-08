@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="Content-type" content="text/html; charset=utf-8"/>
+	<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no"/>
+	<meta name="apple-mobile-web-app-capable" content="yes"/>
+	<title>Store Lists</title>
+
+	<script type="text/javascript" src="../../../deviceTheme.js" data-dojo-config="mblThemeFiles: ['base']"></script>
+	<script type="text/javascript" src="../../../../../dojo/dojo.js" data-dojo-config="async: true, parseOnLoad: true,  has: {'dojo-bidi': true }"></script>
+
+	<script type="text/javascript">
+		require([
+			"dojo/store/Memory",
+			"dojo/store/Observable",
+			"dijit/registry",
+			"doh/runner",
+			"dojo/dom",
+			"dojo/ready",
+			"dojo/query",		
+			"dojox/mobile/parser",
+			"dojox/mobile",
+			"dojox/mobile/compat",
+			"dojox/mobile/RoundRectStoreList",
+			"dojox/mobile/EdgeToEdgeStoreList"			
+		], function(Memory, Observable, registry, runner, dom, ready, query){
+			var static_data1 = [
+				{ label: "Wi-Fi!", icon: "../../images/i-icon-1.png", moveTo: "wifi" },
+				{ label: "Brightness & Wallpaper!", icon: "../../images/i-icon-2.png", moveTo: "bright" },
+				{ label: "Picture Frame!", icon: "../../images/i-icon-3.png", moveTo: "picture" },
+				{ label: "Mail, Contacts, Calendars!", icon: "../../images/i-icon-5.png", moveTo: "wifi" }
+			];
+
+			var static_data2 = [
+				{label: "Apple!", 	moveTo: "dummy"},
+				{label: "Banana!", 	moveTo: "dummy"},
+				{label: "Cherry!", 	moveTo: "dummy"}
+			];
+			store1 = Observable(new Memory({idProperty:"label", data: static_data1}));
+			store2 = Observable(new Memory({idProperty:"label", data: static_data2}));
+			store1.__counter = store2.__counter = 1;
+			store = store1;
+
+			// switch to the selected store
+			switchTo = function(store){
+				window.store = store;
+				registry.byId("roundrect_list").setStore(store);
+				registry.byId("edgetoedge_list").setStore(store);				
+			};
+			// add a new item
+			add = function(){
+				store.add({label: "New Item "+(store.__counter++)+ "!",icon: "../../images/i-icon-1.png",moveTo: "dummy"});
+			};
+			
+			toggleTextDir = function(){
+				w1 = registry.byId("roundrect_list");
+				w1.set("textDir", (w1.get("textDir") !== "rtl") ? "rtl" : "ltr");
+					
+				w2 = registry.byId("edgetoedge_list");
+				w2.set("textDir", (w2.get("textDir") !== "rtl") ? "rtl" : "ltr");
+			};
+			ready(function(){				
+				runner.register("Bidi Store Lists", [
+					{
+						name: "mobile",					
+						runTest: function(){		
+							query(".mblListItemLabel").forEach(function(node, index, arr){
+								if(node.innerHTML)
+									runner.is(String.fromCharCode(8235), node.innerHTML.charAt(0), "ListItem's label node should have direction correspondent to list's 'textDir'");										
+							});								
+						}
+					}
+				]);	 			
+				
+				runner.register("log", function(){
+					dom.byId('failures').innerHTML = runner._failureCount;
+					dom.byId('errors').innerHTML = runner._errorCount;
+				});
+				runner.run();
+			});				
+		});
+	</script>
+</head>
+<body style="visibility:hidden;">
+	<div data-dojo-type="dojox.mobile.View">
+		<h1 data-dojo-type="dojox.mobile.Heading">RoundRectStoreList</h1>
+		<ul data-dojo-type="dojox.mobile.RoundRectStoreList" id="roundrect_list" data-dojo-props='textDir:"rtl", store:store, query:{}'></ul>
+		<h1 data-dojo-type="dojox.mobile.Heading">EdgeToEdgeStoreList</h1>
+		<ul data-dojo-type="dojox.mobile.EdgeToEdgeStoreList" id="edgetoedge_list" data-dojo-props='textDir:"rtl", store:store, query:{}'></ul>
+		<table border="1">  
+		<tr><th>Show the different set</th><th>Alter the object store</th></tr>
+		<tr><td>
+		<input type="button" value="Set1" onclick="switchTo(store1)">
+		<input type="button" value="Set2" onclick="switchTo(store2)">
+		</td><td>
+		<input type="button" value="Add" onclick="add()">
+		<input type="button" value="Toggle textDir" onclick="toggleTextDir()">		
+		</td></tr></table>		
+	</div>
+	<br>Errors:&nbsp;<span id="errors">?</span>
+	<br>Failures:&nbsp;<span id="failures">?</span>		
+</body>
+</html>

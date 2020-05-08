@@ -1,0 +1,212 @@
+/* dijit/form/* variables */
+
+@import '../../variables';
+
+/* Button (default) */
+
+$button-default-color = $theme-base-color;
+$button-default-border-color = $border-color;
+$button-padding = $padding $padding * 3;
+$button-border-radius = $border-radius;
+
+// arrow button
+$button-arrow-width = $line-height; // The arrow button size will be 30px by 30px
+$button-arrow-padding = $padding;
+
+// disabled
+$button-disabled-color = $disabled-color;
+$button-disabled-background-color = $disabled-background-color;
+$button-disabled-border-color = $disabled-border-color;
+
+// alternatice button styles
+
+$button-alternative-text-color = $theme-base-color;
+$button-alternative-colors = {
+	alt-primary: $primary,
+	alt-success: $success,
+	alt-info: $info,
+	alt-warning: $warning,
+	alt-danger: $danger,
+	alt-inverse: $inverse
+};
+
+/* Text Inputs (textbox, textarea, validation textbox, etc.) */
+
+$input-padding = $padding;
+$input-border-radius = $border-radius;
+
+// normal
+$input-border-color = $border-color;
+$input-background = $theme-base-color;
+
+// hover
+$input-hover-border-color = $theme-base;
+
+// focused
+$input-focused-border-color = $theme-base;
+
+// disabled
+$input-disabled-color = $disabled-color;
+$input-disabled-background-color = $disabled-background-color;
+$input-disabled-border-color = $disabled-border-color;
+
+// error
+$input-error-border-color = $error;
+
+// error: focused
+$input-focused-error-border = 1px solid darken($error, 15%);
+
+// error icon
+$input-error-icon-width = 18px; // the width of the error icon container and icon height
+$input-error-icon-background-color = $error;
+
+/* CheckBox (and Checkbox Icon) */
+
+$checkbox-height = 16px;
+$checkbox-width = 16px;
+$checkbox-padding = 0;
+$checkbox-border-radius = 2px;
+$checkbox-icon-size = $icon-size;
+$checkbox-icon = "\f00c";
+
+// normal
+$checkbox-background-color = $theme-base-color;
+$checkbox-border-color = $border-color;
+
+// checked
+$checkbox-checked-icon-color = $theme-base-color;
+$checkbox-checked-background-color = $theme-base;
+$checkbox-checked-border-color = $theme-base;
+
+// hover
+// hover unchecked
+$checkbox-hover-unchecked-background-color = $checkbox-background-color;
+$checkbox-hover-unchecked-border-color = 1px solid $theme-base;
+
+// hover checked
+$checkbox-hover-checked-background-color = lighten($checkbox-checked-background-color, 15%);
+$checkbox-hover-checked-border-color = $checkbox-checked-border-color;
+
+// Checkbox icon (within a widget, e.g. toggle button)
+$checkbox-icon-checked-icon-color = $theme-base;
+$checkbox-icon-padding = 0;
+
+// disabled
+$checkbox-disabled-color = $disabled-color;
+$checkbox-disabled-background-color = $disabled-background-color;
+$checkbox-disabled-border-color = $disabled-border-color;
+$checkbox-checked-disabled-color = darken($checkbox-checked-icon-color, 35%); // may need a &:before for icon in Checkbox.styl
+$checkbox-checked-disabled-background-color = lighten($checkbox-checked-background-color, 35%);
+$checkbox-checked-disabled-border-color = $checkbox-checked-disabled-background-color;
+
+/* Radio (and Radio Icon)the styles are using pure CSS */
+
+$radio-height = 16px;
+$radio-width = 16px;
+$radio-icon-size = 16px;
+
+//  normal
+$radio-background-color = $theme-base-color;
+$radio-border-color = $theme-base;
+$radio-border-radius = 50%;
+
+// checked
+$radio-checked-color = $theme-base;
+
+// hover
+$radio-hover-border-color = lighten($radio-checked-color, 25%);
+
+// disabled
+$radio-disabled-background-color = $disabled-background-color;
+$radio-disabled-border-color = $disabled-border-color;
+$radio-checked-disabled-color = lighten($radio-checked-color, 35%); // both border and check
+
+/* Select (only for the button part, the styles for the "dropdown" are defined in the "Menu" section) */
+
+$select-border = 1px solid $border-color;
+$select-button-border-radius = $border-radius * (2/3);
+
+// Select's normal, hover, active and disabled styles are the same as "form/Button"
+
+// focus 
+$select-focus-border = $select-border;
+
+// icons
+$select-date-icon = "\f01e";
+$select-time-icon = "\f01f";
+
+/* Slider */
+
+// bar 
+$slider-bar-width = 3px;// the height for the horizontal slider and the width for the vertical slider
+$slider-bar-radius = $slider-bar-width * .5;
+$slider-bar-spacing = $padding;// the spacing between the buttons and the bar
+
+// honrizontal slider
+// normal 
+$slider-progressbar-background-color = $theme-base;// Background color for the progress(highlight) part of slider bar
+$slider-remainingbar-background-color = $border-color;// Background color for the remaining part of slider bar
+
+// hover
+$slider-hovered-progressbar-border-color = darken($theme-base, 25%);
+
+// focus
+$slider-focused-progressbar-border-color = $slider-progressbar-border-color;
+
+// vertical slider
+// normal 
+$slider-progressbar-verticalr-background-color = $theme-base; 
+$slider-remainingbar-vertical-background-color = $slider-remainingbar-background-color;
+
+// hover
+$slider-hovered-progressbar-vertical-border-color = $slider-hovered-progressbar-border-color;
+
+// focus
+$slider-focused-progressbar-vertical-border-color = $slider-progressbar-vertical-border-color;
+
+// thumbs
+$slider-thumb-background-color = $theme-base-color;
+$slider-thumb-box-shadow = $shadow-depth1;
+$slider-thumb-border-radius = 50%;
+$slider-thumb-border-color = $theme-base;
+$slider-thumb-height = 16px;
+$slider-thumb-width = 16px;
+
+// The center part of the thumb
+$slider-thumb-inner-border-radius = 50%;
+$slider-thumb-inner-height = 10px;
+$slider-thumb-inner-width = 10px;
+$slider-thumb-inner-background-color = $theme-base;
+
+// hover (& focused)
+$slider-thumb-hover-box-shadow = $shadow-depth2;
+
+// label
+$slider-label-text-color = $grey-dark; // text color for labeling
+
+// ruler
+$slider-ruler-color = $grey-light;
+$slider-ruler-padding = $padding * 0.5;
+
+// increment and decrement buttons
+$slider-button-text-color = $theme-base;
+$slider-button-width = 20px;
+$slider-button-height = $slider-button-width;
+$slider-icon-increment = "\f011";
+$slider-icon-decrement = "\f012";
+
+/* Number Spinner */
+
+$numberspinner-button-border = 1px solid $border-color;
+$numberspinner-button-inner-padding = $padding;
+$numberspinner-button-width = ($line-height + $numberspinner-button-inner-padding * 2) + 2px; // 30px
+$numberspinner-button-padding = 0;
+$numberspinner-arrow-padding = $padding;
+$numberspinner-button-border-radius = $border-radius * (2/3);
+
+// icons
+$numberspinner-icon-up = $icon-drop-up;
+$numberspinner-icon-down = $icon-drop-down;
+
+// number spinner button's normal, active and disabled status styles are the same as "form/Button"
+// and the styles of the text input field are the same as "form/TextBox", which is defined in "form/Common.styl"

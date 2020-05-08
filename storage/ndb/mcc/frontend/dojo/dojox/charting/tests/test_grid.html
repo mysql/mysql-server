@@ -1,0 +1,78 @@
+<!--[if IE 7]>
+<!DOCTYPE>
+<html lang="en">
+	<head>
+<![endif]-->
+<!--[if IE 8]>
+<!DOCTYPE>
+<html lang="en">
+    <head>
+           <meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/>
+<![endif]-->
+<![if gte IE 9]>
+<!DOCTYPE HTML>
+<html lang="en">
+	<head>
+<![endif]>
+	<title>Chart 2D</title>
+	<style type="text/css">
+	    @import "../../../dojo/resources/dojo.css";
+		@import "../../../dijit/tests/css/dijitTests.css";
+	</style>
+	<script type="text/javascript" src="../../../dojo/dojo.js" data-dojo-config="isDebug: true, async: true"></script>
+	<script type="text/javascript">
+		require([
+		"dojo/ready",
+		"dojo/dom",
+		"dojo/_base/Color",
+		"dojox/charting/Chart",
+		"dojox/charting/axis2d/Default",
+		"dojox/charting/plot2d/Lines",	
+		"dojox/charting/plot2d/Grid"],
+		function(ready, dom, Color, Chart, Axis, Lines, Grid){
+			ready(function(){
+				var chart = new Chart(dom.byId("chart")).
+						addAxis("x", { fixLower: "minor", fixUpper: "minor", natural: true  }).
+						addAxis("y", { vertical: true, fixLower: "major", fixUpper: "major", includeZero: true }).
+						addPlot("default", { type: Lines }).
+						addPlot("grid", { type: Grid, renderOnAxis: false, majorVLine: { color: "green", width: 3 }, majorHLine: { color: "red", width: 3 } }).
+						addSeries("Series A", [ 2, 1, 0.5, -1, -2 ] ).
+						render();
+				var color = new Color({ r:246, g:249, b:253, a:0.8 });
+				var color2 = new Color({ r:146, g:149, b:153, a:0.8 });
+				var chart = new Chart(dom.byId("chartH")).
+						addAxis("x", { fixLower: "minor", fixUpper: "minor", natural: true  }).
+						addAxis("y", { vertical: true, fixLower: "major", fixUpper: "major", includeZero: true }).
+						addPlot("default", { type: Lines }).
+						addPlot("grid", { type: Grid, renderOnAxis: false, majorVLine: { color: color, width: 1 }, hMajorLines: false,
+                            hFill: color, hAlternateFill: color2, hStripes: true }).
+						addSeries("Series A", [ 2, 1, 0.5, -1, -2 ] ).
+						render();
+
+				var chart = new Chart(dom.byId("chartV")).
+						addAxis("x", { fixLower: "minor", fixUpper: "minor", natural: true  }).
+						addAxis("y", { vertical: true, fixLower: "major", fixUpper: "major", includeZero: true }).
+						addPlot("default", { type: Lines }).
+						addPlot("grid", { type: Grid, renderOnAxis: false, majorHLine: { color: color, width: 1 }, vMajorLines: false, vFill: color, vStripes: true }).
+						addSeries("Series A", [ 2, 1, 0.5, -1, -2 ] ).
+						render();
+				color = new Color({ r:246, g:249, b:253, a:0.3 });
+				var chart = new Chart(dom.byId("chartScot")).
+						addAxis("x", { fixLower: "minor", fixUpper: "minor", minorTickStep: 0.2 }).
+						addAxis("y", { vertical: true, fixLower: "major", fixUpper: "major", includeZero: true , minorTickStep: 0.2 }).
+						addPlot("default", { type: Lines }).
+						addPlot("grid", { type: Grid, renderOnAxis: false, hFill: color, vFill: color, hMajorLines: false, vMajorLines: false, hStripes: true, vStripes: true }).
+						addSeries("Series A", [ 2, 1, 0.5, -1, -2 ] ).
+						render();
+			});
+	});
+	</script>
+	</head>
+	<body>
+		<h1>Grid</h1>
+		<div id="chart" style="width:400px; height:300px"></div>
+		<div id="chartH" style="width:400px; height:300px"></div>
+		<div id="chartV" style="width:400px; height:300px"></div>
+		<div id="chartScot" style="width:400px; height:300px"></div>
+	</body>
+</html>

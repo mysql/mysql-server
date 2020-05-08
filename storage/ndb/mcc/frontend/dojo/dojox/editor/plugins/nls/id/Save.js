@@ -1,0 +1,6 @@
+define(
+({
+	"save": "Simpan"
+})
+);
+

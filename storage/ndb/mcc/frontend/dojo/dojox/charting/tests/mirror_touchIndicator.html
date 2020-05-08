@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Bidi Charts Test</title>
+<link rel="stylesheet" href="../../../dijit/themes/claro/claro.css">
+
+<script>
+	dojoConfig = {
+		parseOnLoad : true,
+		has : {
+			'dojo-bidi' : true
+		}
+	}
+</script>
+<script src='../../../dojo/dojo.js'></script>
+
+<script>
+	require([ "dojox/charting/Chart", "dojox/charting/axis2d/Default",
+			"dojox/charting/plot2d/StackedAreas",
+			"dojox/charting/action2d/TouchZoomAndPan",
+			"dojox/charting/action2d/TouchIndicator",
+			"dojox/charting/themes/Wetland", "dojo/domReady!" ], function(
+			Chart, Default, StackedAreas, TouchZoomAndPan, TouchIndicator,
+			Wetland) {
+
+		var c = new Chart("bidiChart");
+		c.addPlot("default", {
+			type : "Default",
+			markers : false,
+			lines : true,
+			tension : 3,
+			areas : true
+		})
+
+		c.addAxis("x", {
+			type : "Default",
+			font : "normal normal normal 14pt Tahoma",
+			vertical : false,
+			fixUpper : "major",
+			fixLower : "minor",
+			stroke : "gray",
+			majorTick : {
+				color : "red",
+				length : 4
+			},
+			minorTick : {
+				stroke : "blue",
+				length : 2
+			}
+		})
+
+		c.addAxis("y", {
+			vertical : true,
+			font : "normal normal normal 14pt Tahoma",
+			min : 0,
+			max : 100,
+			leftBottom : false,
+			majorTickStep : 10,
+			minorTickStep : 5,
+			stroke : "gray",
+			majorTick : {
+				stroke : "black",
+				length : 4
+			},
+			minorTick : {
+				stroke : "gray",
+				length : 2
+			}
+		})
+
+		c.setTheme(Wetland).addSeries(
+				"Series A",
+				[ 8, 7, 3, 2, 5, 7, 9, 10, 2, 10, 14, 16, 29, 13, 16, 15, 20,
+						19, 15, 12, 24, 20, 20, 26, 28, 26, 28, 14, 24, 29, 31,
+						35, 37, 31, 35, 37, 37, 36, 31, 30, 50, 49, 42, 46, 44,
+						40, 47, 43, 48, 47, 51, 52, 52, 51, 54, 57, 58, 50, 54,
+						51, 74, 68, 67, 62, 62, 65, 61, 66, 65, 62, 74, 78, 78,
+						77, 74, 62, 72, 74, 70, 78, 84, 83, 85, 86, 86, 89, 89,
+						85, 86, 86, 98, 73, 93, 91, 92, 92, 99, 93, 94, 92 ])
+		new TouchZoomAndPan(c, "default", {
+			axis : "x",
+			enableScroll : false,
+			enableZoom : false
+		});
+
+		new TouchIndicator(c, "default", {
+			series : "Series A",
+			dualIndicator : false,
+			font : "normal normal bold 16pt Tahoma",
+			fillFunc : function(v1, v2) {
+				if (v2) {
+					return v2.y > v1.y ? "green" : "red";
+				} else {
+					return "white";
+				}
+			}
+		});
+
+		c.render();
+
+	});
+</script>
+</head>
+<body class="claro">
+	<div id="bidiChart"
+		style="width: 800px; height: 480px; margin: 10px auto 0px auto;"
+		direction="rtl"></div>
+</body>
+</html>

@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-type" content="text/html; charset=utf-8">
+<title>Flat Theme Test</title>
+<link rel="stylesheet" type="text/css" href="../flat.css">
+<style type="text/css">
+html, body {
+	height: 100%;
+	width: 100%;
+	padding: 0;
+	margin: 0;
+	border: 0;
+}
+body {
+	font: 12px Myriad,Helvetica,Tahoma,Arial,clean,sans-serif;
+}
+* {
+  outline: none;
+}
+.textarea {
+	width: 60%;
+}
+.tooltips {
+	font-size: 14px;
+}
+.tooltips span {
+	color: #007ac2;
+	cursor: pointer;
+}
+.dijitSliderH {
+	margin: 40px 0;
+	width: 340px;
+}
+.dijitSliderV {
+	float: left;
+	margin: 0 40px;
+	height: 340px;
+}
+.progressBar {
+	margin: 30px 0;
+	width: 320px;
+}
+.dnd {
+	width: 160px;
+}
+.icon {
+	display: inline-block;
+	margin: 8px;
+	padding: 8px;
+	color: #424242;
+	border-radius: 3px;
+	cursor: pointer;
+}
+.icon:hover {
+	background-color: #9E9E9E;
+	color: #FAFAFA;
+}
+.icon.selected {
+	background-color: #424242;
+	color: #FAFAFA;
+}
+.icon i {
+	font-size: 24px;
+}
+</style>
+</head>
+<body class="flat">
+<div style="width:100%;height:100%;" data-dojo-type="dijit/layout/BorderContainer" data-dojo-props="design:'sidebar'">
+	<div style="width:260px;" data-dojo-type="dijit/layout/AccordionContainer" data-dojo-props="region:'leading', splitter:true, maxSize:420">
+		<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props="title:'Flat Theme'">
+			<p>A flat theme for Dojo Dijit.</p>
+			<p><input id="rtlCheckbox">&nbsp;Right-To-Left</p>
+		</div>
+		<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props="title:'dijit/Calendar'">
+			<div data-dojo-type="dijit/Calendar"></div>
+		</div>
+		<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props="title:'dijit/ColorPalette'">
+			<h4>3x4</h4>
+			<div data-dojo-type="dijit/ColorPalette" data-dojo-props="palette:'3x4'"></div>
+			<h4>7x10</h4>
+			<div data-dojo-type="dijit/ColorPalette"></div>
+		</div>
+		<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props="title:'dijit/Tree'">
+			<div data-dojo-type="dijit/Tree" data-dojo-props="model: continentModel, query:{ type:'continent'}, label:'Continents', openOnClick:true"></div>
+		</div>
+		<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props="title:'dijit/Tree (rootless)'">
+			<div data-dojo-type="dijit/Tree" data-dojo-props="model: continentModel, query:{ type:'continent'}, label:'Continents', openOnClick:true, showRoot: false"></div>
+		</div>
+	</div>
+	<div data-dojo-type="dijit/layout/BorderContainer" data-dojo-props="region:'center', splitter:true">
+		<div data-dojo-type="dijit/MenuBar" data-dojo-props="region:'top'">
+			<div data-dojo-type="dijit/PopupMenuBarItem" data-dojo-props="label:'File', popup:menu"></div>
+			<div data-dojo-type="dijit/PopupMenuBarItem" data-dojo-props="label:'Edit', popup:menu"></div>
+			<div data-dojo-type="dijit/PopupMenuBarItem" data-dojo-props="label:'Find', popup:menu"></div>
+			<div data-dojo-type="dijit/PopupMenuBarItem" data-dojo-props="label:'View', popup:menu"></div>
+			<div data-dojo-type="dijit/PopupMenuBarItem" data-dojo-props="label:'Help', popup:menu"></div>
+			<div data-dojo-type="dijit/PopupMenuBarItem" data-dojo-props="label:'Disabled', popup:menu, disabled:true"></div>
+		</div>
+		<div data-dojo-type="dijit/layout/TabContainer" data-dojo-props="region:'center'">
+			<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props="title:'Form Widgets'">
+				<h4>dijit/form/Button</h4>
+				<button data-dojo-type="dijit/form/Button">Button</button>
+				<button data-dojo-type="dijit/form/Button" data-dojo-props="disabled:true">Disabled</button>
+				<button data-dojo-type="dijit/form/Button" data-dojo-props="iconClass:'dijitIconSave'">Icon</button>
+				<p>Alternate Button Colors</p>
+				<button class="alt-primary" data-dojo-type="dijit/form/Button">Primary</button>
+				<button class="alt-success" data-dojo-type="dijit/form/Button">Success</button>
+				<button class="alt-info" data-dojo-type="dijit/form/Button">Info</button>
+				<button class="alt-warning" data-dojo-type="dijit/form/Button">Warning</button>
+				<button class="alt-danger" data-dojo-type="dijit/form/Button">Danger</button>
+				<button class="alt-inverse" data-dojo-type="dijit/form/Button">Inverse</button>
+				<p>Alternate Button Colors Disabled</p>
+				<button class="alt-primary" data-dojo-type="dijit/form/Button" data-dojo-props="disabled:true">Primary</button>
+				<button class="alt-success" data-dojo-type="dijit/form/Button" data-dojo-props="disabled:true">Success</button>
+				<button class="alt-info" data-dojo-type="dijit/form/Button" data-dojo-props="disabled:true">Info</button>
+				<button class="alt-warning" data-dojo-type="dijit/form/Button" data-dojo-props="disabled:true">Warning</button>
+				<button class="alt-danger" data-dojo-type="dijit/form/Button" data-dojo-props="disabled:true">Danger</button>
+				<button class="alt-inverse" data-dojo-type="dijit/form/Button" data-dojo-props="disabled:true">Inverse</button>
+				<h4>dijit/form/DropDownButton</h4>
+				<div data-dojo-type="dijit/form/DropDownButton">
+					<span>Basemaps</span>
+					<div data-dojo-type="dijit/DropDownMenu">
+						<div data-dojo-type="dijit/MenuItem">Imagery</div>
+						<div data-dojo-type="dijit/MenuItem">Road</div>
+						<div data-dojo-type="dijit/MenuItem">Hybrid</div>
+					</div>
+				</div>
+				<div data-dojo-type="dijit/form/DropDownButton" data-dojo-props="disabled:true">
+					<span>Basemaps</span>
+					<div data-dojo-type="dijit/DropDownMenu">
+						<div data-dojo-type="dijit/MenuItem">Imagery</div>
+						<div data-dojo-type="dijit/MenuItem">Road</div>
+						<div data-dojo-type="dijit/MenuItem">Hybrid</div>
+					</div>
+				</div>
+				<div class="alt-primary" data-dojo-type="dijit/form/DropDownButton" data-dojo-props="iconClass:'dijitIconTable'">
+					<span>Basemaps</span>
+					<div data-dojo-type="dijit/DropDownMenu">
+						<div data-dojo-type="dijit/MenuItem">Imagery</div>
+						<div data-dojo-type="dijit/MenuItem">Road</div>
+						<div data-dojo-type="dijit/MenuItem">Hybrid</div>
+					</div>
+				</div>
+				<div class="alt-primary" data-dojo-type="dijit/form/DropDownButton" data-dojo-props="iconClass:'dijitIconTable', disabled:true">
+					<span>Basemaps</span>
+					<div data-dojo-type="dijit/DropDownMenu">
+						<div data-dojo-type="dijit/MenuItem">Imagery</div>
+						<div data-dojo-type="dijit/MenuItem">Road</div>
+						<div data-dojo-type="dijit/MenuItem">Hybrid</div>
+					</div>
+				</div>
+				<h4>dijit/form/ComboButton</h4>
+				<div data-dojo-type="dijit/form/ComboButton">
+					<span>All Mail</span>
+					<div data-dojo-type="dijit/DropDownMenu">
+						<div data-dojo-type="dijit/MenuItem">Yahoo</div>
+						<div data-dojo-type="dijit/MenuItem">Google</div>
+					</div>
+				</div>
+				<div data-dojo-type="dijit/form/ComboButton" data-dojo-props="disabled:true">
+					<span>All Mail</span>
+					<div data-dojo-type="dijit/DropDownMenu">
+						<div data-dojo-type="dijit/MenuItem">Yahoo</div>
+						<div data-dojo-type="dijit/MenuItem">Google</div>
+					</div>
+				</div>
+				<div class="alt-primary" data-dojo-type="dijit/form/ComboButton" data-dojo-props="iconClass:'dijitIconMail'">
+					<span>All Mail</span>
+					<div data-dojo-type="dijit/DropDownMenu">
+						<div data-dojo-type="dijit/MenuItem">Yahoo</div>
+						<div data-dojo-type="dijit/MenuItem">Google</div>
+					</div>
+				</div>
+				<div class="alt-primary" data-dojo-type="dijit/form/ComboButton" data-dojo-props="iconClass:'dijitIconMail', disabled:true">
+					<span>All Mail</span>
+					<div data-dojo-type="dijit/DropDownMenu">
+						<div data-dojo-type="dijit/MenuItem">Yahoo</div>
+						<div data-dojo-type="dijit/MenuItem">Google</div>
+					</div>
+				</div>
+				<h4>dijit/form/ToggleButton</h4>
+				<button data-dojo-type="dijit/form/ToggleButton" data-dojo-props="iconClass:'dijitCheckBoxIcon', checked:true">Toggle</button>
+				<button data-dojo-type="dijit/form/ToggleButton" data-dojo-props="iconClass:'dijitCheckBoxIcon', disabled:true, checked:true">Toggle</button>
+				<button class="alt-primary" data-dojo-type="dijit/form/ToggleButton" data-dojo-props="iconClass:'dijitCheckBoxIcon', checked: true">Toggle</button>
+				<button class="alt-primary" data-dojo-type="dijit/form/ToggleButton" data-dojo-props="iconClass:'dijitCheckBoxIcon', checked: true, disabled:true">Toggle</button>
+				<h4>dijit/form/CheckBox</h4>
+				<input data-dojo-type="dijit/form/CheckBox">&nbsp;Check Me&nbsp;&nbsp;
+				<input data-dojo-type="dijit/form/CheckBox" data-dojo-props="disabled:true">&nbsp;Disabled&nbsp;&nbsp;
+				<input data-dojo-type="dijit/form/CheckBox" data-dojo-props="disabled:true, checked:true">&nbsp;Disabled and Checked
+				<h4>dijit/form/RadioButton</h4>
+				<input data-dojo-type="dijit/form/RadioButton" checked name="critters">&nbsp;Beaver&nbsp;&nbsp;
+				<input data-dojo-type="dijit/form/RadioButton" name="critters">&nbsp;Giraffe&nbsp;&nbsp;
+				<input data-dojo-type="dijit/form/RadioButton" name="critters">&nbsp;Squirrel&nbsp;&nbsp;
+				<input data-dojo-type="dijit/form/RadioButton" name="critters" data-dojo-props="disabled:true">&nbsp;Woolly Mammoth
+				<p>Disabled Checked</p>
+				<input data-dojo-type="dijit/form/RadioButton" checked data-dojo-props="disabled:true">
+			</div>
+			<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props="title:'Text Widgets'">
+				<h4>dijit/form/TextBox</h4>
+				<input data-dojo-type="dijit/form/TextBox" data-dojo-props="placeholder:'Type here'">
+				<input data-dojo-type="dijit/form/TextBox" data-dojo-props="placeholder:'Disabled', disabled:true">
+				<h4>dijit/form/NumberTextBox</h4>
+				<input data-dojo-type="dijit/form/NumberTextBox" required="true" value="3000" data-dojo-props="constraints:{min:-20000,max:20000,places:0}, invalidMessage:'Please enter a numeric value.', rangeMessage:'Invalid elevation.'">
+				<input data-dojo-type="dijit/form/NumberTextBox" required="true" value="3000" data-dojo-props="disabled:true, constraints:{min:-20000,max:20000,places:0}, invalidMessage:'Please enter a numeric value.', rangeMessage:'Invalid elevation.'">
+				<h4>dijit/form/CurrencyTextBox</h4>
+				<input value="54775.53" required="true" data-dojo-type="dijit/form/CurrencyTextBox" data-dojo-props="constraints:{fractional:true}, currency:'USD', invalidMessage:'Invalid amount. Cents are required.'">
+				<input value="54775.53" required="true" data-dojo-type="dijit/form/CurrencyTextBox" data-dojo-props="disabled:true, constraints:{fractional:true}, currency:'USD', invalidMessage:'Invalid amount. Cents are required.'">
+				<h4>dijit/form/DateTextBox</h4>
+				<input value="2005-12-30" data-dojo-type="dijit/form/DateTextBox" required="true">
+				<input value="2005-12-30" data-dojo-type="dijit/form/DateTextBox" data-dojo-props="disabled:true" required="true">
+				<input class="alt-primary" value="2005-12-30" data-dojo-type="dijit/form/DateTextBox" required="true">
+				<input class="alt-primary" value="2005-12-30" data-dojo-type="dijit/form/DateTextBox" data-dojo-props="disabled:true" required="true">
+				<h4>dijit/form/TimeTextBox</h4>
+				<input value="T15:00:00" data-dojo-type="dijit/form/TimeTextBox" required="true">
+				<input value="T15:00:00" data-dojo-type="dijit/form/TimeTextBox" data-dojo-props="disabled:true" required="true">
+				<input class="alt-primary" value="T15:00:00" data-dojo-type="dijit/form/TimeTextBox" required="true">
+				<input class="alt-primary" value="T15:00:00" data-dojo-type="dijit/form/TimeTextBox" data-dojo-props="disabled:true" required="true">
+				<h4>dijit/form/NumberSpinner</h4>
+				<input data-dojo-type="dijit/form/NumberSpinner" value="1000" data-dojo-props="smallDelta:10, constraints:{min:9,max:1550,places:0}">
+				<input data-dojo-type="dijit/form/NumberSpinner" value="1000" data-dojo-props="disabled:true, smallDelta:10, constraints:{min:9,max:1550,places:0}">
+				<input class="alt-primary" data-dojo-type="dijit/form/NumberSpinner" value="1000" data-dojo-props="smallDelta:10, constraints:{min:9,max:1550,places:0}">
+				<input class="alt-primary" data-dojo-type="dijit/form/NumberSpinner" value="1000" data-dojo-props="disabled:true, smallDelta:10, constraints:{min:9,max:1550,places:0}">
+				<h4>dijit/form/Textarea</h4>
+				<textarea class="textarea" data-dojo-type="dijit/form/Textarea">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Fusce ornare mattis dolor, id tincidunt eros auctor a. Duis nisi purus, consectetur malesuada iaculis vitae, dignissim a justo.</textarea>
+				<br><br>
+				<textarea class="textarea" data-dojo-type="dijit/form/Textarea" data-dojo-props="disabled: true">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Fusce ornare mattis dolor, id tincidunt eros auctor a. Duis nisi purus, consectetur malesuada iaculis vitae, dignissim a justo.</textarea>
+				<h4>dijit/form/SimpleTextarea</h4>
+				<textarea class="textarea" data-dojo-type="dijit/form/SimpleTextarea">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Fusce ornare mattis dolor, id tincidunt eros auctor a. Duis nisi purus, consectetur malesuada iaculis vitae, dignissim a justo.</textarea>
+				<br><br>
+				<textarea class="textarea" data-dojo-type="dijit/form/SimpleTextarea" data-dojo-props="disabled: true">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Fusce ornare mattis dolor, id tincidunt eros auctor a. Duis nisi purus, consectetur malesuada iaculis vitae, dignissim a justo.</textarea>
+			</div>
+			<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props="title:'Select Widgets'">
+				<h4>dijit/form/Select</h4>
+				<select data-dojo-type="dijit/form/Select">
+					<option value="TN">Tennessee</option>
+					<option value="VA" selected="selected">Virginia</option>
+					<option value="WA">Washington</option>
+					<option value="FL">Florida</option>
+					<option value="CA">California</option>
+				</select>
+				<select data-dojo-type="dijit/form/Select" data-dojo-props="disabled:true">
+					<option value="TN">Tennessee</option>
+					<option value="VA" selected="selected">Virginia</option>
+					<option value="WA">Washington</option>
+					<option value="FL">Florida</option>
+					<option value="CA">California</option>
+				</select>
+				<select class="alt-primary" data-dojo-type="dijit/form/Select">
+					<option value="TN">Tennessee</option>
+					<option value="VA" selected="selected">Virginia</option>
+					<option value="WA">Washington</option>
+					<option value="FL">Florida</option>
+					<option value="CA">California</option>
+				</select>
+				<select class="alt-primary" data-dojo-type="dijit/form/Select" data-dojo-props="disabled:true">
+					<option value="TN">Tennessee</option>
+					<option value="VA" selected="selected">Virginia</option>
+					<option value="WA">Washington</option>
+					<option value="FL">Florida</option>
+					<option value="CA">California</option>
+				</select>
+				<h4>dijit/form/FilteringSelect</h4>
+				<input data-dojo-type="dijit/form/FilteringSelect" data-dojo-props="placeHolder:'Search a place', store:continentStore, searchAttr:'name'">
+				<input data-dojo-type="dijit/form/FilteringSelect" data-dojo-props="disabled:true, placeHolder:'Search a place', store:continentStore, searchAttr:'name'">
+				<input class="alt-primary" data-dojo-type="dijit/form/FilteringSelect" data-dojo-props="placeHolder:'Search a place', store:continentStore, searchAttr:'name'">
+				<input class="alt-primary" data-dojo-type="dijit/form/FilteringSelect" data-dojo-props="placeHolder:'Search a place', store:continentStore, searchAttr:'name', disabled:true">
+				<h4>dijit/form/MultiSelect</h4>
+				<select data-dojo-type="dijit/form/MultiSelect" size="4">
+					<option value="AP">Apples</option>
+					<option value="OR">Oranges</option>
+					<option value="PE" selected="selected">Pears</option>
+				</select>
+				<h4>dijit/form/ComboBox</h4>
+				<select data-dojo-type="dijit/form/ComboBox" data-dojo-props="store:continentStore"></select>
+				<select data-dojo-type="dijit/form/ComboBox" data-dojo-props="disabled:true, store:continentStore"></select>
+				<select class="alt-primary" data-dojo-type="dijit/form/ComboBox" data-dojo-props="store:continentStore"></select>
+				<select class="alt-primary" data-dojo-type="dijit/form/ComboBox" data-dojo-props="store:continentStore, disabled:true"></select>
+			</div>
+			<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props="title:'Dialogs &amp; Tooltips'">
+				<h4>dijit/Dialog</h4>
+				<button data-dojo-type="dijit/form/Button" data-dojo-props="onClick:showDialog">Dialog</button>
+				<button data-dojo-type="dijit/form/Button" onclick="actionBarDialog.show()">Dialog with Action Bar</button>
+				<div data-dojo-type="dijit/Dialog" data-dojo-id="actionBarDialog" title="Dialog with Action Bar" style="width: 300px">
+				<div class="dijitDialogPaneContentArea">
+					<br />
+					Content Area
+					<br />
+					<br />
+					</div>
+					<div class="dijitDialogPaneActionBar">
+						<button data-dojo-type="dijit/form/Button" type="submit" id="ok" data-dojo-props="class:'alt-alt alt-success'">OK</button>
+						<button data-dojo-type="dijit/form/Button" type="button" data-dojo-props="onClick:function(){theDialog.hide();}">Cancel</button>
+					</div>
+				</div>
+				<h4>dijit/Tooltip</h4>
+				<div class="tooltips">
+					<span id="tooltipAbove">above</span> |
+					<span id="tooltipAboveCentered">above centered</span> |
+					<span id="tooltipBelow">below</span> |
+					<span id="tooltipBelowCentered">below centered</span> |
+					<span id="tooltipBefore">before</span> |
+					<span id="tooltipAfter">after</span>
+				</div>
+				<h4>dijit/TooltipDialog</h4>
+				<div data-dojo-type="dijit/form/DropDownButton">
+					<span>Tooltip Dialog</span>
+					<div style="max-width:300px;" data-dojo-type="dijit/TooltipDialog" data-dojo-props="title:'Lorem Ipsum'">
+						<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Fusce ornare mattis dolor, id tincidunt eros auctor a. Duis nisi purus, consectetur malesuada iaculis vitae, dignissim a justo. Suspendisse condimentum ex vel aliquet facilisis. Praesent efficitur dolor at nibh tristique mattis. Aliquam vulputate lobortis lacus eget sagittis. Maecenas risus velit, bibendum in nibh vitae, feugiat laoreet quam. Mauris nisi sem, accumsan ut dolor et, iaculis porta ligula.</p>
+					</div>
+				</div>
+				<div data-dojo-type="dijit/form/DropDownButton">
+					<span>Confirm Tooltip Dialog</span>
+					<div data-dojo-type="dijit/ConfirmTooltipDialog" data-dojo-props="title:'Login'">
+						<table>
+							<tr>
+								<td><label for="user">User:</label></td>
+								<td><input data-dojo-type="dijit/form/TextBox"></td>
+							</tr>
+							<tr>
+								<td><label for="pwd">Password:</label></td>
+								<td><input data-dojo-type="dijit/form/TextBox" type="password"></td>
+							</tr>
+						</table>
+					</div>
+				</div>
+			</div>
+			<div id="editorNode"></div>
+			<div data-dojo-type="dijit/layout/TabContainer" data-dojo-props="title:'Other Dijits', nested:true">
+				<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props="title:'Title Pane/Fieldset'">
+					<div data-dojo-type="dijit/TitlePane" data-dojo-props="title:'Lorem Ipsum'">
+						<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Fusce ornare mattis dolor, id tincidunt eros auctor a. Duis nisi purus, consectetur malesuada iaculis vitae, dignissim a justo. Suspendisse condimentum ex vel aliquet facilisis. Praesent efficitur dolor at nibh tristique mattis. Aliquam vulputate lobortis lacus eget sagittis. Maecenas risus velit, bibendum in nibh vitae, feugiat laoreet quam. Mauris nisi sem, accumsan ut dolor et, iaculis porta ligula.</p>
+					</div>
+					<p>&nbsp;</p>
+					<div data-dojo-type="dijit/Fieldset" data-dojo-props="title: 'Lorem Ipsum'">
+						<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Fusce ornare mattis dolor, id tincidunt eros auctor a. Duis nisi purus, consectetur malesuada iaculis vitae, dignissim a justo. Suspendisse condimentum ex vel aliquet facilisis. Praesent efficitur dolor at nibh tristique mattis. Aliquam vulputate lobortis lacus eget sagittis. Maecenas risus velit, bibendum in nibh vitae, feugiat laoreet quam. Mauris nisi sem, accumsan ut dolor et, iaculis porta ligula.</p>
+					</div>
+				</div>
+				<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props="title:'Sliders'">
+					<h4>dijit/form/HorizontalSlider</h4>
+					<div id="horizontalSlider"></div>
+					<div id="horizontalSliderAdvanced"></div>
+					<h4>dijit/form/VerticalSlider</h4>
+					<div id="verticalSlider"></div>
+					<div id="verticalSliderAdvanced"></div>
+				</div>
+				<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props="title:'Toolbar'">
+					<h4>dijit/Toolbar</h4>
+					<div data-dojo-type="dijit/Toolbar">
+						<button data-dojo-type="dijit/form/Button">One</button>
+						<button data-dojo-type="dijit/form/Button">Two</button>
+						<button data-dojo-type="dijit/form/Button">Three</button>
+						<button data-dojo-type="dijit/form/Button" data-dojo-props="disabled:true">Disabled</button>
+						<button data-dojo-type="dijit/form/Button" data-dojo-props="iconClass:'dijitIconSave'">Icon</button>
+						<div data-dojo-type="dijit/form/DropDownButton">
+							<span>Basemaps</span>
+							<div data-dojo-type="dijit/DropDownMenu">
+								<div data-dojo-type="dijit/MenuItem">Imagery</div>
+								<div data-dojo-type="dijit/MenuItem">Road</div>
+								<div data-dojo-type="dijit/MenuItem">Hybrid</div>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props="title:'Progress Bars'">
+					<h4>Determinate</h4>
+					<div class="progressBar" data-dojo-type="dijit/ProgressBar" data-dojo-props="maximum:1, value:0.5"></div>
+					<div class="progressBar alt-primary" data-dojo-type="dijit/ProgressBar" data-dojo-props="maximum:1, value:0.40"></div>
+					<div class="progressBar alt-success" data-dojo-type="dijit/ProgressBar" data-dojo-props="maximum:1, value:0.75"></div>
+					<div class="progressBar alt-info" data-dojo-type="dijit/ProgressBar" data-dojo-props="maximum:1, value:0.35"></div>
+					<div class="progressBar alt-warning" data-dojo-type="dijit/ProgressBar" data-dojo-props="maximum:1, value:1"></div>
+					<div class="progressBar alt-danger" data-dojo-type="dijit/ProgressBar" data-dojo-props="maximum:1, value:0.82"></div>
+					<div class="progressBar alt-inverse" data-dojo-type="dijit/ProgressBar" data-dojo-props="maximum:1, value:0.37"></div>
+					<h4>Indeterminate</h4>
+					<div class="progressBar" data-dojo-type="dijit/ProgressBar" data-dojo-props="indeterminate:true"></div>
+					<div class="progressBar alt-primary" data-dojo-type="dijit/ProgressBar" data-dojo-props="indeterminate:true"></div>
+					<div class="progressBar alt-success" data-dojo-type="dijit/ProgressBar" data-dojo-props="indeterminate:true"></div>
+					<div class="progressBar alt-info" data-dojo-type="dijit/ProgressBar" data-dojo-props="indeterminate:true"></div>
+					<div class="progressBar alt-warning" data-dojo-type="dijit/ProgressBar" data-dojo-props="indeterminate:true"></div>
+					<div class="progressBar alt-danger" data-dojo-type="dijit/ProgressBar" data-dojo-props="indeterminate:true"></div>
+					<div class="progressBar alt-inverse" data-dojo-type="dijit/ProgressBar" data-dojo-props="indeterminate:true"></div>
+				</div>
+				<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props="title:'Inline Edit'">
+					<h3 data-dojo-type="dijit/InlineEditBox">Click to edit me</h3>
+					<p data-dojo-type="dijit/InlineEditBox" data-dojo-props='editor: "dijit/form/Textarea", autoSave:false'>I'm one big &#8234;paragraph.&#8236; Go ahead and edit &#8234;me.&#8236; I dare &#8234;you.&#8236;The quick brown fox jumped over the lazy &#8234;dog.&#8236; Blah blah blah blah blah blah &#8234;blah ...&#8236;</p>
+					<span data-dojo-type="dijit/InlineEditBox" data-dojo-props='editor: "dijit/form/FilteringSelect", editorParams:{ store: continentStore, autoComplete: true, promptMessage: "Please enter a place"}, width:"300px"'>The earth</span>
+				</div>
+				<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props="title:'DnD'">
+					<ol class="dnd" id="DnDList"></ol>
+				</div>
+				<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props="title:'Closeable', closable:true">
+					<p>Just a closable tab.</p>
+				</div>
+			</div>
+			<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props="title:'Tabs!!!'">
+				<div style="width:100%;height:100%;" data-dojo-type="dijit/layout/BorderContainer" data-dojo-props="design:'sidebar'">
+					<div style="width:30%" data-dojo-type="dijit/layout/TabContainer" data-dojo-props="region:'left', tabPosition:'left-h'">
+						<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props="title:'Tab'">I'm just a tab.</div>
+						<div style="width:30%" data-dojo-type="dijit/layout/TabContainer" data-dojo-props="title:'Nested', nested:true">
+							<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props="title:'Tab'">I'm just a tab.</div>
+							<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props="title:'Closable', closable:true">I'm a closable tab.</div>
+						</div>
+						<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props="title:'Closable', closable:true">I'm a closable tab.</div>
+					</div>
+					<div style="height:30%" data-dojo-type="dijit/layout/TabContainer" data-dojo-props="region:'top', tabPosition:'top'">
+						<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props="title:'Tab'">I'm just a tab.</div>
+						<div style="width:30%" data-dojo-type="dijit/layout/TabContainer" data-dojo-props="title:'Nested', nested:true">
+							<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props="title:'Tab'">I'm just a tab.</div>
+							<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props="title:'Closable', closable:true">I'm a closable tab.</div>
+						</div>
+						<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props="title:'Closable', closable:true">I'm a closable tab.</div>
+					</div>
+					<div style="width:30%" data-dojo-type="dijit/layout/TabContainer" data-dojo-props="region:'right', tabPosition:'right-h'">
+						<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props="title:'Tab'">I'm just a tab.</div>
+						<div style="width:30%" data-dojo-type="dijit/layout/TabContainer" data-dojo-props="title:'Nested', nested:true">
+							<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props="title:'Tab'">I'm just a tab.</div>
+							<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props="title:'Closable', closable:true">I'm a closable tab.</div>
+						</div>
+						<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props="title:'Closable', closable:true">I'm a closable tab.</div>
+					</div>
+					<div style="height:30%" data-dojo-type="dijit/layout/TabContainer" data-dojo-props="region:'bottom', tabPosition:'bottom'">
+						<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props="title:'Tab'">I'm just a tab.</div>
+						<div style="width:30%" data-dojo-type="dijit/layout/TabContainer" data-dojo-props="title:'Nested', nested:true">
+							<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props="title:'Tab'">I'm just a tab.</div>
+							<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props="title:'Closable', closable:true">I'm a closable tab.</div>
+						</div>
+						<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props="title:'Closable', closable:true">I'm a closable tab.</div>
+					</div>
+					<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props="region:'center'">Hello Tabs!</div>
+				</div>
+			</div>
+			<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props="title:'Icons'">
+				<h4>Flat Theme Icons</h4>
+				<p>
+					<b>Name:</b> <span id="icon-name"></span><br>
+					<b>Dijit Alias:</b> <span id="icon-alias"></span><br>
+					<b>Code:</b> <span id="icon-code"></span>
+				</p>
+				<div id="icons"></div>
+				<h4>dijitIconLoading and Animation Test</h4>
+				<p>
+					<i class="dijitIcon dijitIconLoading"></i>
+				</p>
+				<p>
+					Just spinning away... <i class="flat-arrow-up icon-spin"></i>
+				</p>
+				<h4>Dijit Icon Alias Test</h4>
+				<div id="dijit-icons"></div>
+			</div>
+		</div>
+	</div>
+</div>
+<script src="//archive.dojotoolkit.org/cdn/1.12.2-cdn/1.12.2/dojo/dojo.js"></script>
+<script>
+var continentStore, continentModel, menu, showDialog;
+require([
+	'dojo/io-query', 'dijit/registry', 'dojo/parser', 'dojo/store/Memory', 'dijit/tree/ObjectStoreModel', 'dojo/dnd/Source', 'dojo/aspect',
+
+	'dojo/request/xhr', 'dojo/_base/array', 'dojo/dom-construct', 'dojo/dom-class', 'dojo/dom-attr', 'dojo/dom', 'dojo/on',
+
+	'dijit/Menu', 'dijit/MenuItem', 'dijit/CheckedMenuItem', 'dijit/RadioMenuItem', 'dijit/PopupMenuItem', 'dijit/MenuSeparator',
+
+	'dijit/Tooltip', 'dijit/ColorPalette', 'dijit/Dialog', 'dijit/Editor', 'dijit/form/CheckBox',
+
+	'dijit/form/HorizontalSlider', 'dijit/form/VerticalSlider', 'dijit/form/HorizontalRule', 'dijit/form/HorizontalRuleLabels', 'dijit/form/VerticalRule', 'dijit/form/VerticalRuleLabels',
+
+	// declarative
+	'dijit/layout/BorderContainer', 'dijit/layout/AccordionContainer', 'dijit/layout/TabContainer', 'dijit/layout/ContentPane',
+
+	'dijit/TitlePane', 'dijit/ProgressBar', 'dijit/Calendar', 'dijit/InlineEditBox', 'dijit/Tree', 'dijit/Toolbar',
+
+	'dijit/MenuBar', 'dijit/PopupMenuBarItem',
+
+	'dijit/form/Button', 'dijit/form/ComboButton', 'dijit/form/DropDownButton', 'dijit/form/ToggleButton', 'dijit/form/RadioButton',
+
+	'dijit/form/TextBox','dijit/form/NumberTextBox', 'dijit/form/CurrencyTextBox', 'dijit/form/DateTextBox', 'dijit/form/TimeTextBox', 'dijit/form/NumberSpinner',
+
+	'dijit/form/Select', 'dijit/form/MultiSelect',
+
+	'dijit/form/Textarea', 'dijit/form/SimpleTextarea',
+
+	'dijit/TooltipDialog', 'dijit/ConfirmTooltipDialog',
+
+	'dijit/form/Textarea', 'dijit/form/SimpleTextarea',
+
+	'dijit/_editor/_Plugin', 'dijit/_editor/plugins/AlwaysShowToolbar', 'dijit/_editor/plugins/FontChoice', 'dijit/_editor/plugins/TextColor', 'dijit/_editor/plugins/LinkDialog',
+	'dijit/_editor/plugins/FullScreen', 'dijit/_editor/plugins/ViewSource', 'dijit/_editor/plugins/NewPage', 'dijit/_editor/plugins/Print', 'dijit/_editor/plugins/TabIndent', 'dijit/_editor/plugins/ToggleDir',
+
+	'dojo/domReady!'
+], function (
+	ioQuery, registry, parser, Memory, ObjectStoreModel, Source, aspect,
+	xhr, array, domConst, domClass, domAttr, dom, on,
+	Menu, MenuItem, CheckedMenuItem, RadioMenuItem, PopupMenuItem, MenuSeparator,
+	Tooltip, ColorPalette, Dialog, Editor, CheckBox,
+	HorizontalSlider, VerticalSlider, HorizontalRule, HorizontalRuleLabels, VerticalRule, VerticalRuleLabels
+) {
+	// RTL
+	var _direction = 'ltr';
+	var uri = location.href;
+	var queryString = uri.substring(uri.indexOf('?') + 1, uri.length);
+	var queryObject = ioQuery.queryToObject(queryString);
+	if (queryObject.dir && queryObject.dir === 'rtl') {
+		document.body.dir = 'rtl';
+		_direction = 'rtl';
+	}
+
+	var rtlCheckbox = new CheckBox({
+		checked: (_direction === 'rtl'),
+		onChange: function (checked) {
+			var uri = window.location.href,
+			uriHash = window.location.hash;
+			if (uriHash) {
+				uri = uri.substring(0, uri.indexOf(uriHash));
+			}
+			if (checked) {
+				if (_direction === 'rtl') {
+					return;
+				}
+				window.location.href = uri + '?dir=rtl';
+			} else {
+				window.location.href = uri.substring(0, uri.indexOf('?'));
+			}
+		}
+	}, 'rtlCheckbox');
+
+	// one menu for most uses
+	menu = new Menu();
+	menu.startup();
+	menu.addChild(new MenuItem({
+		label: 'Menu Item'
+	}));
+	menu.addChild(new MenuItem({
+		label: 'Disabled Menu Item',
+		disabled: true
+	}));
+	menu.addChild(new MenuSeparator());
+	var checkedMenu = new Menu();
+	menu.addChild(new PopupMenuItem({
+		label: 'Checked',
+		popup: checkedMenu
+	}));
+	checkedMenu.addChild(new CheckedMenuItem({
+		label: 'Check',
+		checked: false
+	}));
+	checkedMenu.addChild(new CheckedMenuItem({
+		label: 'Disabled',
+		checked: false,
+		disabled: true
+	}));
+	checkedMenu.addChild(new CheckedMenuItem({
+		label: 'Checked Disabled',
+		checked: true,
+		disabled: true
+	}));
+	var radioMenu = new Menu();
+	menu.addChild(new PopupMenuItem({
+		label: 'Radio',
+		popup: radioMenu
+	}));
+	radioMenu.addChild(new RadioMenuItem({
+		label: 'One',
+		group: 'menu-radio-group',
+		checked: true
+	}));
+	radioMenu.addChild(new RadioMenuItem({
+		label: 'Two',
+		group: 'menu-radio-group'
+	}));
+	radioMenu.addChild(new RadioMenuItem({
+		label: 'Three',
+		group: 'menu-radio-group'
+	}));
+	var iconMenu = new Menu();
+	menu.addChild(new PopupMenuItem({
+		label: 'Icons',
+		popup: iconMenu
+	}));
+	iconMenu.addChild(new MenuItem({
+		label: 'Save',
+		iconClass:'dijitIconSave'
+	}));
+	iconMenu.addChild(new MenuItem({
+		label: 'Copy',
+		iconClass:'dijitIconCopy'
+	}));
+	iconMenu.addChild(new MenuItem({
+		label: 'Paste',
+		iconClass:'dijitEditorIconPaste'
+	}));
+	menu.addChild(new MenuSeparator());
+	menu.addChild(new PopupMenuItem({
+		label: 'Color Palette',
+		popup: new ColorPalette()
+	}));
+
+	// Data for Tree, ComboBox, InlineEditBox
+	var data = [
+		{ id: "earth", name: "The earth", type: "planet", population: "6 billion"},
+		{ id: "AF", name: "Africa", type: "continent", population: "900 million", area: "30,221,532 sq km", timezone: "-1 UTC to +4 UTC", parent: "earth"},
+		{ id: "EG", name: "Egypt", type: "country", parent: "AF" },
+		{ id: "KE", name: "Kenya", type: "country", parent: "AF" },
+		{ id: "Nairobi", name: "Nairobi", type: "city", parent: "KE" },
+		{ id: "Mombasa", name: "Mombasa", type: "city", parent: "KE" },
+		{ id: "SD", name: "Sudan", type: "country", parent: "AF" },
+		{ id: "Khartoum", name: "Khartoum", type: "city", parent: "SD" },
+		{ id: "AS", name: "Asia", type: "continent", parent: "earth" },
+		{ id: "CN", name: "China", type: "country", parent: "AS" },
+		{ id: "IN", name: "India", type: "country", parent: "AS" },
+		{ id: "RU", name: "Russia", type: "country", parent: "AS" },
+		{ id: "MN", name: "Mongolia", type: "country", parent: "AS" },
+		{ id: "OC", name: "Oceania", type: "continent", population: "21 million", parent: "earth"},
+		{ id: "AU", name: "Australia", type: "country", population: "21 million", parent: "OC"},
+		{ id: "EU", name: "Europe", type: "continent", parent: "earth" },
+		{ id: "DE", name: "Germany", type: "country", parent: "EU" },
+		{ id: "FR", name: "France", type: "country", parent: "EU" },
+		{ id: "ES", name: "Spain", type: "country", parent: "EU" },
+		{ id: "IT", name: "Italy", type: "country", parent: "EU" },
+		{ id: "NA", name: "North America", type: "continent", parent: "earth" },
+		{ id: "MX", name: "Mexico", type: "country", population: "108 million", area: "1,972,550 sq km", parent: "NA" },
+		{ id: "Mexico City", name: "Mexico City", type: "city", population: "19 million", timezone: "-6 UTC", parent: "MX"},
+		{ id: "Guadalajara", name: "Guadalajara", type: "city", population: "4 million", timezone: "-6 UTC", parent: "MX" },
+		{ id: "CA", name: "Canada", type: "country", population: "33 million", area: "9,984,670 sq km", parent: "NA" },
+		{ id: "Ottawa", name: "Ottawa", type: "city", population: "0.9 million", timezone: "-5 UTC", parent: "CA"},
+		{ id: "Toronto", name: "Toronto", type: "city", population: "2.5 million", timezone: "-5 UTC", parent: "CA" },
+		{ id: "US", name: "United States of America", type: "country", parent: "NA" },
+		{ id: "SA", name: "South America", type: "continent", parent: "earth" },
+		{ id: "BR", name: "Brazil", type: "country", population: "186 million", parent: "SA" },
+		{ id: "AR", name: "Argentina", type: "country", population: "40 million", parent: "SA" }
+	];
+
+	// Create test store.
+	continentStore = new Memory({
+		data: data
+	});
+
+	// Since dojo.store.Memory doesn't have various store methods we need, we have to add them manually
+	continentStore.getChildren = function(object){
+		// Add a getChildren() method to store for the data model where
+		// children objects point to their parent (aka relational model)
+		return this.query({parent: this.getIdentity(object)});
+	};
+
+	// Create the model for the Tree
+	continentModel = new ObjectStoreModel({store: continentStore, query: {id: "earth"}});
+
+	// dialog
+	var dialog = new Dialog({
+		title: 'Dialog',
+		content: '<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Fusce ornare mattis dolor, id tincidunt eros auctor a. Duis nisi purus, consectetur malesuada iaculis vitae, dignissim a justo. Suspendisse condimentum ex vel aliquet facilisis. Praesent efficitur dolor at nibh tristique mattis. Aliquam vulputate lobortis lacus eget sagittis. Maecenas risus velit, bibendum in nibh vitae, feugiat laoreet quam. Mauris nisi sem, accumsan ut dolor et, iaculis porta ligula.</p>',
+		style: 'width:300px'
+	});
+	showDialog = function () {
+		dialog.show();
+	};
+
+	//tooltips
+	new Tooltip({
+		connectId: 'tooltipAbove',
+		label: 'tooltip: above',
+		position: ['above']
+	});
+	new Tooltip({
+		connectId: 'tooltipAboveCentered',
+		label: 'tooltip: above centered',
+		position: ['above-centered']
+	});
+	new Tooltip({
+		connectId: 'tooltipBelow',
+		label: 'tooltip: below',
+		position: ['below']
+	});
+	new Tooltip({
+		connectId: 'tooltipBelowCentered',
+		label: 'tooltip: below centered',
+		position: ['below-centered']
+	});
+	new Tooltip({
+		connectId: 'tooltipBefore',
+		label: 'tooltip: before',
+		position: ['before']
+	});
+	new Tooltip({
+		connectId: 'tooltipAfter',
+		label: 'tooltip: after',
+		position: ['after']
+	});
+
+	// sliders
+	new HorizontalSlider({
+		value: 5,
+		minimum: -10,
+		maximum: 10,
+		intermediateChanges: true,
+		showButtons: false
+	}, 'horizontalSlider');
+	var sliderRulesH = new HorizontalRule({
+		count: 11,
+		style: { height: '5px' }
+	});
+	var sliderRuleLabelsH = new HorizontalRuleLabels({
+		labels: ['low', 'mid', 'high']
+	});
+	var horizontalSliderAdvanced = new HorizontalSlider({
+		value: 5,
+		minimum: -10,
+		maximum: 10,
+		intermediateChanges: true,
+		discreteValues: 11
+	}, 'horizontalSliderAdvanced');
+	sliderRulesH.placeAt(horizontalSliderAdvanced.containerNode);
+	sliderRuleLabelsH.placeAt(horizontalSliderAdvanced.containerNode);
+	new VerticalSlider({
+		value: 5,
+		minimum: -10,
+		maximum: 10,
+		intermediateChanges: true,
+		style: 'height:240px',
+		showButtons: false
+	}, 'verticalSlider');
+	var sliderRulesV = new VerticalRule({
+		count: 11,
+		style: { width: '5px' }
+	});
+	var sliderRuleLabelsV = new VerticalRuleLabels({
+		labels: ['low', 'mid', 'high']
+	});
+	var verticalSliderAdvanced = new VerticalSlider({
+		value: 5,
+		minimum: -10,
+		maximum: 10,
+		intermediateChanges: true,
+		discreteValues: 11,
+		style: 'height:240px;'
+	}, 'verticalSliderAdvanced');
+	sliderRulesV.placeAt(verticalSliderAdvanced.containerNode);
+	sliderRuleLabelsV.placeAt(verticalSliderAdvanced.containerNode);
+
+	// editor
+	var editor = new Editor({
+		title: 'Editor',
+		//extraPlugins: [dijit._editor.plugins.AlwaysShowToolbar],
+		plugins: ['undo', 'redo', '|', 'cut', 'copy', 'paste', 'selectAll', 'delete', '|',
+		'bold', 'italic', 'underline', 'strikethrough', 'subscript', 'superscript', 'removeFormat', '|',
+		'insertOrderedList', 'insertUnorderedList', 'indent', 'outdent', 'justifyLeft', 'justifyRight', 'justifyCenter', 'justifyFull', '|',
+		'insertHorizontalRule', 'insertImage', 'createLink', 'unlink', 'foreColor', 'hiliteColor', '|',
+		'fontSize', 'formatBlock', 'viewSource', '|', 'newpage', 'fullscreen', 'print', 'tabIndent', 'toggleDir']
+	}, 'editorNode');
+	editor.startup();
+
+	// DnD
+	var dndList = new Source('DnDList', {});
+	dndList.insertNodes(false, [
+		'Wrist watch',
+		'Life jacket',
+		'Toy bulldozer',
+		'Vintage microphone',
+		'TIE fighter'
+	]);
+
+	parser.parse();
+
+	// icons
+	var selectedIcon,
+		iconsDiv = dom.byId('icons'),
+		aliasDiv = dom.byId('dijit-icons'),
+		iconName = dom.byId('icon-name'),
+		iconAlias = dom.byId('icon-alias'),
+		iconCode = dom.byId('icon-code');
+	function makeIcons (result) {
+		array.forEach(result.icons, function (icon) {
+			var name = icon.properties.name,
+				iconClass = 'flat-' + name,
+				decCode = icon.properties.code;
+			var div = domConst.create('div', {
+				'class': 'icon',
+				'title': iconClass + ' (\\' + decCode.toString(16) + ')',
+				'data-name': iconClass,
+				'data-alias': icon.icon.tags.join() || 'n/a',
+				'data-code': '\\' + decCode.toString(16)
+			}, iconsDiv, 'last');
+			domConst.create('i', {
+				'class': iconClass
+			}, div);
+			on(div, 'click', function (evt) {
+				var el = (evt.target.tagName !== 'I') ? evt.target : evt.target.parentNode;
+				if (selectedIcon) {
+					domClass.remove(selectedIcon, 'selected');
+				}
+				selectedIcon = el;
+				domClass.add(el, 'selected');
+				iconName.innerHTML = domAttr.get(el, 'data-name');
+				iconAlias.innerHTML = domAttr.get(el, 'data-alias');
+				iconCode.innerHTML = domAttr.get(el, 'data-code');
+			});
+			if (icon.icon.tags.length && (icon.icon.tags.length >= 1 && icon.icon.tags[0])) {
+				array.forEach(icon.icon.tags, function (tag) {
+					var div = domConst.create('div', {}, aliasDiv, 'last');
+					domConst.create('i', {
+						'class': 'dijitIcon ' + tag,
+						'style': 'font-size: 2em; color: #424242;'
+					}, div);
+					domConst.create('span', {
+						'innerHTML': '&nbsp;&nbsp;' + tag
+					}, div, 'last');
+				});
+			}
+		});
+		iconsDiv.firstChild.click();
+	}
+	xhr('../icons/selection.json', {
+		handleAs: 'json'
+	}).then(makeIcons);
+
+	// helper to create the icon classes from selection.json
+	window.createIconClasses = function () {
+		xhr('../icons/selection.json', {
+			handleAs: 'json'
+		}).then(function (result) {
+			var a = '';
+			array.forEach(result.icons, function (icon) {
+				if (icon.icon.tags.length && (icon.icon.tags.length >= 1 && icon.icon.tags[0])) {
+					array.forEach(icon.icon.tags, function (tag) {
+						a += '.' + tag + ':before,\r\n';
+					});
+				}
+				a += '.flat-' + icon.properties.name + ':before {\r\n\tcontent: "\\' + icon.properties.code.toString(16) + '";\r\n}\r\n';
+			});
+			var blob = new window.Blob([a], {
+				type: 'octet/stream'
+			});
+			var url = window.URL.createObjectURL(blob);
+			var link = domConst.create('a', {
+				'href': url,
+				'download': 'icon-styles.txt'
+			});
+			link.click();
+			window.URL.revokeObjectURL(url);
+		});
+	};
+});
+</script>
+</body>
+</html>

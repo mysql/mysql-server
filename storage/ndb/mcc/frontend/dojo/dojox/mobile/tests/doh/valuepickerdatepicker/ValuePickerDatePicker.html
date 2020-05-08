@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="Content-type" content="text/html; charset=utf-8"/>
+	<meta name="viewport"
+		content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no"/>
+	<meta name="apple-mobile-web-app-capable" content="yes"/>
+	<title>ValuePickerDatePicker</title>
+
+	<script type="text/javascript"
+		src="../../../deviceTheme.js" data-dojo-config="mblThemeFiles: ['base','ValuePicker']"></script>
+	<script type="text/javascript"
+		src="../../../../../dojo/dojo.js" data-dojo-config="async: true, parseOnLoad: true"></script>
+
+	<script type="text/javascript">
+		var onYearSet, onMonthSet, onDaySet;
+		require([
+			"dojo/ready", "dijit/registry", "doh/runner", 
+			"dojox/mobile", "dojox/mobile/compat", "dojox/mobile/parser", 
+			"dojox/mobile/ValuePickerDatePicker"],
+			function(ready, registry, runner){
+						
+			var onYearSetCounter = 0, onMonthSetCounter = 0, onDaySetCounter = 0,
+				yearWatchCounter = 0, monthWatchCounter = 0, dayWatchCounter = 0;
+			var initCounters, checkCounters;
+
+			onYearSet = function(){
+				onYearSetCounter++;
+			};
+			onMonthSet = function(){
+				onMonthSetCounter++;
+			};
+			onDaySet = function(){
+				onDaySetCounter++;
+			};
+
+			var initCounters = function(){
+				onYearSetCounter = onMonthSetCounter = onDaySetCounter = 0;
+				yearWatchCounter = monthWatchCounter = dayWatchCounter = 0;
+			};
+
+			ready(function(){
+				var picker = registry.byId("picker1"),
+					yearSlot = picker.slots[0],
+					monthSlot = picker.slots[1],
+					daySlot = picker.slots[2];
+
+				yearSlot.watch("value", function(name, oldVal, newVal){
+					yearWatchCounter++;
+				});
+				monthSlot.watch("value", function(name, oldVal, newVal){
+					monthWatchCounter++;
+				});
+				daySlot.watch("value", function(name, oldVal, newVal){
+					dayWatchCounter++;
+				});
+
+				var showCounters = function(txt){
+					// Just for debugging.
+					console.log("==============================");
+					if(txt) console.log(txt + ":");
+					console.log("yearSetCounter: " + onYearSetCounter);
+					console.log("monthSetCounter: " + onMonthSetCounter);
+					console.log("daySetCounter: " + onDaySetCounter);
+					console.log("yearWatchCounter: " + yearWatchCounter);
+					console.log("monthWatchCounter: " + monthWatchCounter);
+					console.log("dayWatchCounter: " + dayWatchCounter);
+					console.log("==============================");
+				};
+				
+				var checkCounters = function(
+						expectedOnYearSetCounter, expectedOnMonthSetCounter, expectedOnDaySetCounter,
+						expectedYearWatchCounter, expectedMonthWatchCounter, expectedDayWatchCounter){
+					// showCounters();
+					runner.assertEqual(expectedOnYearSetCounter, onYearSetCounter, "Unexpected onYearSetCounter");
+					runner.assertEqual(expectedOnMonthSetCounter, onMonthSetCounter, "Unexpected onMonthSetCounter");
+					runner.assertEqual(expectedOnDaySetCounter, onDaySetCounter, "Unexpected onDaySetCounter");
+					runner.assertEqual(expectedYearWatchCounter, yearWatchCounter, "Unexpected yearWatchCounter");
+					runner.assertEqual(expectedMonthWatchCounter, monthWatchCounter, "Unexpected monthWatchCounter");
+					runner.assertEqual(expectedDayWatchCounter, dayWatchCounter, "Unexpected dayWatchCounter");
+				};
+				
+				var checkSlotValues = function(expectedYear, expectedMonth, expectedDay){
+					runner.assertEqual(expectedYear, picker.slots[0].get("value"), "Unexpected value of year slot");
+					runner.assertEqual(expectedDay, picker.slots[2].get("value"), "Unexpected value of day slot");
+					// For the month, note that the label (and value) of the month slot is 
+					// localized, and is also browser-dependant (for instance, on IE8 in English
+					// locale, the value for the fifth month is "may", while on other browsers
+					// it is "May". Hence, in this test, instead of comparing directly the
+					// value of the slot with a given string ("May"), we start from the month
+					// number and we compare the current value of the slot with the label 
+					// at the corresponding index. Thus the test is independent on locale 
+					// and browser localization of month names.  
+					var monthSlot = picker.slots[1];
+					var expectedMonthLabel = monthSlot.labels[expectedMonth - 1];
+					runner.assertEqual(expectedMonthLabel, monthSlot.get("value"), "Unexpected value of month slot");
+				};
+				
+				var checkEndDaysOfMonth = function(nDaysInMonth, title){
+					var daySlot = picker.slots[2];
+					runner.assertEqual(nDaysInMonth, daySlot.items.length, title);
+				};
+				
+				// Test case for #16502
+				runner.register("dojox.mobile.test.doh.SpinWheelTests", [
+					{
+						name: "SpinWheelTest1",
+						timeout: 4000,
+						runTest: function(){
+							picker.set('value', '2020-06-06');
+							// setTimeout used because the handlers onYearSet, onMonthSet 
+							// and onDaySet are called asynchronously
+							var d = new runner.Deferred();
+							setTimeout(function(){
+								initCounters();
+								// ensure year, month, and day change:
+								picker.set('value', '2019-05-05');
+								// setTimeout used because the handlers onYearSet, onMonthSet 
+								// and onDaySet are called asynchronously
+								setTimeout(d.getTestCallback(function(){
+									// notifications for year, month and day
+									checkCounters(1, 1, 1, 1, 1, 1);
+									checkSlotValues("2019", 5/*"May"*/, "5");
+  								}), 1000);
+							}, 1000);
+							return d;
+						}
+					},
+					{
+						name: "SpinWheelTest2",
+						timeout: 4000,
+						runTest: function(){
+							picker.set('value', '2020-06-06');
+							// setTimeout used because the handlers onYearSet, onMonthSet 
+							// and onDaySet are called asynchronously
+							var d = new runner.Deferred();
+							setTimeout(function(){
+								initCounters();
+								// now only the year changes
+								picker.set('value', '2021-06-06');
+								// setTimeout used because the handlers onYearSet, onMonthSet 
+								// and onDaySet are called asynchronously
+								setTimeout(d.getTestCallback(function(){
+									// notifications for year, not for month and day
+									checkCounters(1, 0, 0, 1, 0, 0);
+									checkSlotValues("2021", 6/*"Jun"*/, "6");
+  								}), 1000);
+							}, 1000);
+							return d;
+						}
+					},
+					{
+						name: "SpinWheelTest3",
+						timeout: 4000,
+						runTest: function(){
+							picker.set('value', '2013-01-31');
+							// setTimeout used because the handlers onYearSet, onMonthSet 
+							// and onDaySet are called asynchronously
+							var d = new runner.Deferred();
+							setTimeout(function(){
+								initCounters();
+								// now change the month from Jan to Feb
+								// The labels/values being localized, let's set 
+								var februaryLabel = picker.slots[1].labels[1]; // the second label is for February
+								picker.slots[1].set("value", februaryLabel);
+								// setTimeout used because the handlers onYearSet, onMonthSet 
+								// and onDaySet are called asynchronously
+								setTimeout(d.getTestCallback(function(){
+									// notifications for month and day, not for year
+									checkCounters(0, 1, 1, 0, 1, 1);
+									// Check that changing the month also changes the day value 
+									// to the last day of Feb. 2012 (leap year, hence last day is 29).
+									checkSlotValues("2013", 2/*"Feb"*/, "28");
+									checkEndDaysOfMonth(28, "SpinWheelTest3"); // grayed out starting with day 29
+  								}), 1000);
+							}, 1000);
+							return d;
+						}
+					},
+					{
+						name: "SpinWheelTest4",
+						timeout: 4000,
+						runTest: function(){
+							picker.set('value', '2012-02-29');
+							// setTimeout used because the handlers onYearSet, onMonthSet 
+							// and onDaySet are called asynchronously
+							var d = new runner.Deferred();
+							setTimeout(function(){
+								initCounters();
+								// now change the year to 2013
+								picker.slots[0].set("value", "2013");
+								// setTimeout used because the handlers onYearSet, onMonthSet 
+								// and onDaySet are called asynchronously
+								setTimeout(d.getTestCallback(function(){
+									// notifications for year and day, not for month
+									checkCounters(1, 0, 1, 1, 0, 1);
+									// Check that changing the year also changes the day value 
+									// to the last day of Feb. 2013 (non leap year, hence last day is 28).
+									checkSlotValues("2013", 2/*"Feb"*/, "28");
+									checkEndDaysOfMonth(28, "SpinWheelTest4"); // grayed out starting with day 29
+  								}), 1000);
+							}, 1000);
+							return d;
+						}
+					}
+				]);
+				
+				runner.run();
+			});
+		});				
+		</script>
+	</head>
+	<body style="visibility:hidden;">
+		<div data-dojo-type="dojox/mobile/View">
+			<form>
+				<div data-dojo-type="dojox/mobile/Heading">
+					SpinWheel
+				</div>
+				<div id="picker1" data-dojo-type="dojox/mobile/ValuePickerDatePicker"
+					data-dojo-props="onYearSet: onYearSet, onMonthSet: onMonthSet, onDaySet: onDaySet"></div>
+			</form>
+		</div>
+	</body>
+</html>

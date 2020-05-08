@@ -1,0 +1,116 @@
+<!DOCTYPE HTML>
+	<html>
+	        <head>
+	        <title>App and View Fixed Bars</title>
+	        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+	        <meta name="viewport"
+	                content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no" />
+	        <meta name="apple-mobile-web-app-capable" content="yes" />
+	        <script type="text/javascript" src="../../../../dojox/mobile/deviceTheme.js"></script>
+	        <script type="text/javascript" src="../../../../dojo/dojo.js" data-dojo-config="parseOnLoad:true, async:true, mblFixedBarSupportForViews: true"></script>
+	        <script type="text/javascript" charset="utf-8">
+	                require([
+	                         "dojo/ready",
+ 							 "dijit/registry",  // dijit.byId
+							 "doh/runner",	//doh functions
+							 "dojo/dom",
+	                         "dojo/dom-style",
+	                         "dojox/mobile/parser",
+	                         "dojox/mobile",
+	                         "dojox/mobile/ScrollableView",
+	                         "dojox/mobile/Heading",
+	                         "dojox/mobile/ToolBarButton"], function(ready, registry, runner, dom, domStyle) {
+	                	
+	                	var populateView = function(view, headerLabel, previousViewId, nextViewId) {
+	                		var header, footer, previousButton, NextButton;
+	                		header = new dojox.mobile.Heading({id: view.domNode.id + "Header", label: headerLabel, fixed: 'top'});
+	                		if (previousViewId) {
+		                		previousButton = new dojox.mobile.ToolBarButton({label: 'Previous', arrow: 'left', transitionDir: -1, moveTo: previousViewId});
+		                		header.addChild(previousButton);
+	                		}
+	                		if (nextViewId) {
+		                		nextButton = new dojox.mobile.ToolBarButton({label: 'Next', arrow: 'right', moveTo: nextViewId});
+		                		domStyle.set(nextButton.domNode, "float", "right");
+		                		header.addChild(nextButton);
+	                		}
+ 	                		if (view.addFixedBar) {
+		                		view.addFixedBar(header);
+	                		} else {
+		                		view.addChild(header);	                			
+ 	                		}
+	                		footer = new dojox.mobile.Heading({id: view.domNode.id + "Footer", label: 'status ' + view.domNode.id, fixed: 'bottom'});
+ 	                		if (view.addFixedBar) {
+		                		view.addFixedBar(footer);
+	                		} else {
+		                		view.addChild(footer);	                			
+ 	                		}
+	                	}
+	                	
+	                	ready(function() {
+	                		
+	                		// Create views programmaticaly
+   	                		var view = new dojox.mobile.ScrollableView({}, "view3");
+	                		populateView(view, "Programmatic ScrollableView", "view2");
+	                		view.startup();
+	                		
+	                		// Test suite
+	     					runner.register("dojox.mobile.test.doh.HeadingFixedBarsTests", [
+           						{
+           							name: "Verify ticket #16681 is fixed",
+           							timeout: 10000,
+           							setUp: function() {
+	    								this.data = {runner: runner,
+	    											 dom: dom,
+	    										     appHeader: dom.byId("appHeader"),
+	    										     appFooter: dom.byId("appFooter"),
+	    										     view2Header: dom.byId("view2Header"),
+	    										     view2Footer: dom.byId("view2Footer")
+	    										    };
+           							},
+           							runTest: function(){
+           								var d = new runner.Deferred();
+           								// verify view2 layout
+										runner.assertEqual(0, this.data.appHeader.offsetTop);
+										runner.assertEqual(0, this.data.view2Header.offsetTop);
+										runner.assertTrue(this.data.view2Footer.offsetTop > this.data.view2Header.offsetHeight);
+										runner.assertTrue(this.data.appFooter.offsetTop == this.data.view2Footer.offsetTop + this.data.view2Footer.offsetHeight + this.data.view2Header.offsetHeight);
+										// click the transition button
+           								// verify there is no padding top on the second view
+           								registry.byId("rightButton")._onClick({});
+	           							setTimeout(d.getTestCallback(function(){
+										    var view3Header = this.fixture.data.dom.byId("view3Header");
+										    var view3Footer = this.fixture.data.dom.byId("view3Footer");
+	 										// verify view3 layout
+ 											this.fixture.data.runner.assertEqual(0, this.fixture.data.appHeader.offsetTop);
+											this.fixture.data.runner.assertEqual(0, view3Header.offsetTop);
+											this.fixture.data.runner.assertTrue(view3Footer.offsetTop > view3Header.offsetHeight);
+											this.fixture.data.runner.assertTrue(this.fixture.data.appFooter.offsetTop == view3Footer.offsetTop + view3Footer.offsetHeight + view3Header.offsetHeight);
+           								}), 2000);
+           								return d;
+           							}
+           						}]);
+           					runner.run();
+
+ 	                	});
+	                });   
+	        </script>
+	        </head>
+	        <body style="visibility:hidden;">
+        		<!-- App header -->
+                 	<div id="appHeader" data-dojo-type="dojox.mobile.Heading" data-dojo-props="fixed: 'top', label: 'App header'"></div>
+ 
+        		<!-- Scrollable View -->
+	                <div id="view2" data-dojo-type="dojox.mobile.ScrollableView">
+                	<div id="view2Header" data-dojo-type="dojox.mobile.Heading" data-dojo-props="fixed: 'top', label: 'ScrollableView Header'">
+                		<div id="rightButton" data-dojo-type="dojox.mobile.ToolBarButton" data-dojo-props="arrow: 'right', moveTo: 'view3'" style="float: right;">Next</div>
+					</div>
+	            	<div id="view2Footer" data-dojo-type="dojox.mobile.Heading" data-dojo-props="fixed: 'bottom'">ScrollableView Footer</div>
+                </div>
+
+        		<!-- Programmatic Scrollable View -->
+        		<div id="view3"></div>
+
+        		<!-- App footer -->
+                	<div id="appFooter" data-dojo-type="dojox.mobile.Heading" data-dojo-props="fixed: 'bottom'">App Footer</div>
+	        </body>
+	</html>

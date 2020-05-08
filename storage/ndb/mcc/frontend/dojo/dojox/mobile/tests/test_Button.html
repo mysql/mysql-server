@@ -1,0 +1,89 @@
+<!doctype html>
+<html>
+<head>
+	<meta http-equiv="Content-type" content="text/html; charset=utf-8"/>
+	<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no"/>
+	<meta name="apple-mobile-web-app-capable" content="yes"/>
+	<title>Button</title>
+	<script type="text/javascript" src="../deviceTheme.js" data-dojo-config="mblThemeFiles: ['base','Button']"></script>
+	<script type="text/javascript" src="../../../dojo/dojo.js" data-dojo-config="async: true, parseOnLoad: true"></script>
+
+	<script type="text/javascript">
+		require([
+			"dojo/_base/connect",
+			"dojo/ready",
+			"dojo/_base/array",
+			"dojo/dom",
+			"dijit/registry",
+			"dojox/mobile/parser",
+			"dojox/mobile",
+			"dojox/mobile/compat",
+			"dojox/mobile/Button",
+			"dojox/mobile/ScrollableView"
+		], function(connect, ready, array, dom, registry){
+			ready(function(){
+				array.forEach(["btn1", "btn2", "btn3", "btn4", "btn5"], function(btnId){
+					var btnWidget = registry.byId(btnId);
+					connect.connect(btnWidget.domNode, "click", onBtnClicked);
+				});
+			});
+			var clickCount = 0;
+			function onBtnClicked(e){
+				clickCount = ++clickCount;
+				var span = dom.byId("msgArea");
+				span.innerHTML = "button '" + this.id + "' received a " + ((e._dojo_click)?"dojo":"native") + " click (" + clickCount + ").<br />" + span.innerHTML ;
+			}
+		});
+	</script>
+
+	<style>
+	html,body {
+		overflow: hidden;
+	}
+	hr {
+		border: none;
+		margin: 0;
+	}
+	button {
+		width: 120px;
+		margin: 15px 10px 0;
+	}
+	button.customButton {
+		border-color: #cc3333;
+		background-image: url(images/red-button-bg.png);
+		color: #ffffff;
+		height: 27px;
+	}
+	button.customButtonSelected {
+		background-image: url(images/red-button-sel-bg.png);
+	}
+	</style>
+</head>
+<body style="visibility:hidden;">
+	<div data-dojo-type="dojox.mobile.ScrollableView">
+		<h1 data-dojo-type="dojox.mobile.Heading">Button</h1>
+		<div data-dojo-type="dojox.mobile.RoundRect" data-dojo-props='shadow:true'>
+			<br>
+			<br>Scroll down and click buttons. On Touch devices, a touch should fire a "dojo" click. On desktop a
+			mouse click should fire a "native" event.
+			<br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>
+			<br>onClick response:<br>
+			<div id="msgArea" style="margin:15px"></div>
+			<br>
+			<button data-dojo-type="dojox/mobile/Button" id="btn1">Default</button>
+			<hr>
+			<button data-dojo-type="dojox/mobile/Button" id="btn2" class="mblBlueButton">Blue</button>
+			class="mblBlueButton"
+			<hr>
+			<button data-dojo-type="dojox/mobile/Button" id="btn3" class="mblRedButton">Red</button>
+			class="mblRedButton"
+			<hr>
+			<button data-dojo-type="dojox/mobile/Button" id="btn4" disabled>Disabled</button>
+			disabled
+			<hr>
+			<button data-dojo-type="dojox/mobile/Button" id="btn5" class="customButton">Custom</button>
+			class="customButton"
+		</div>
+	</div>
+</body>
+</html>

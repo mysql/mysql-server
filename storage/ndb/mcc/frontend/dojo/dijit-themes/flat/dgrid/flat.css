@@ -1,0 +1,12 @@
+.flat {
+  import: '../../dgrid/css/skins/skin';
+}
+.flat .dgrid-cell-padding {
+  padding: 5px 10px;
+}
+.flat .dgrid-header .dgrid-cell {
+  border-bottom-width: 2px;
+}
+.flat .dgrid-selected {
+  border: 1px solid #007ac2;
+}

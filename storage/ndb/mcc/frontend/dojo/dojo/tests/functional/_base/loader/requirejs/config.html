@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>require.js: Config Test</title>
+    <script>
+        var s;
+        var d;
+        var f;
+        var require = {
+            baseUrl: './',
+            deps: [ 'simple', 'dimple', 'func' ],
+            callback: function (simple, dimple, func) {
+                window.testData = {
+                    simpleColor: simple.color,
+                    dimpleColor: dimple.color,
+                    funcOut: func()
+                };
+            }
+        };
+    </script>
+    <script type="text/javascript" src="requirejs-setup.js"></script>
+    <script type="text/javascript" src="../../../../../dojo.js"></script>
+</head>
+<body>
+<h1>require.js: Config Test</h1>
+
+<p>Tests require being defined as an object with init and ready configuration.</p>
+
+<p>Check console for messages.</p>
+</body>
+</html>
