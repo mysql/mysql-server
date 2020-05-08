@@ -253,6 +253,7 @@ public:
   void set_max_page(Uint32 page);
   void set_allocated(Uint32 cnt);
   void set_free_reserved(Uint32 cnt);
+  void update_low_prio_shared_limit();
 
   Uint32 post_alloc_resource_pages(Uint32 id, Uint32 cnt);
   void post_release_resource_pages(Uint32 id, Uint32 cnt);
@@ -580,7 +581,11 @@ Uint32 Resource_limits::get_reserved() const
 inline
 Uint32 Resource_limits::get_shared() const
 {
-  return get_allocated() - get_reserved();
+  const Uint32 reserved = get_reserved();
+  const Uint32 allocated = get_allocated();
+  if (allocated < reserved)
+    return 0;
+  return allocated - reserved;
 }
 
 inline
@@ -808,16 +813,19 @@ inline
 void Resource_limits::set_allocated(Uint32 cnt)
 {
   m_allocated = cnt;
-  // Leave the last percentage of shared memory for high prio resource groups.
-  m_prio_free_limit = (m_allocated - m_free_reserved) * HIGH_PRIO_FREE_PCT / 100;
+}
+
+inline
+void Resource_limits::update_low_prio_shared_limit()
+{
+  Uint32 shared = get_shared();
+  m_prio_free_limit = shared * HIGH_PRIO_FREE_PCT / 100 + 1;
 }
 
 inline
 void Resource_limits::set_free_reserved(Uint32 cnt)
 {
   m_free_reserved = cnt;
-  // Leave the last percentage of shared memory for high prio resource groups.
-  m_prio_free_limit = (m_allocated - m_free_reserved) * HIGH_PRIO_FREE_PCT / 100;
 }
 
 inline

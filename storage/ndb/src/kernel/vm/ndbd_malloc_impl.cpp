@@ -433,7 +433,8 @@ Resource_limits::Resource_limits()
   m_spare = 0;
   m_untaken = 0;
   m_max_page = 0;
-  m_prio_free_limit = 0;
+  // By default allow no low prio usage of shared
+  m_prio_free_limit = UINT32_MAX;
   m_lent = 0;
   m_borrowed = 0;
   memset(m_limit, 0, sizeof(m_limit));
@@ -1048,6 +1049,11 @@ Ndbd_mem_manager::map(Uint32 * watchCounter, bool memlock, Uint32 resources[])
   }
   
   mt_mem_manager_lock();
+  if (resources == nullptr)
+  {
+    // Allow low prio use of shared only when all memory is mapped.
+    m_resource_limits.update_low_prio_shared_limit();
+  }
   m_resource_limits.check();
   mt_mem_manager_unlock();
 
