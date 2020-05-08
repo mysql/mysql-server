@@ -66,6 +66,7 @@ SET(XPL_TEST_SRC
   xpl/stubs/plugin.cc
   xpl/stubs/security_context_service.cc
   xpl/stubs/sql_session_service.cc
+  xpl/mock/mock_component_services.cc
 
   xpl/mysqlx_pb_wrapper.cc
 
@@ -107,6 +108,7 @@ SET(XPL_TEST_SRC
   xpl/server_client_timeout_t.cc
   xpl/set_variable_adaptor_t.cc
   xpl/sha256_cache_t.cc
+  xpl/sql_data_context_t.cc
   xpl/socket_acceptor_task_t.cc
   xpl/sql_statement_builder_t.cc
   xpl/sync_variable_t.cc
