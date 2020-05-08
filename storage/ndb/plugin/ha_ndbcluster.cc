@@ -52,8 +52,6 @@
 #include "storage/ndb/include/ndb_global.h"
 #include "storage/ndb/include/ndb_version.h"
 #include "storage/ndb/include/ndbapi/NdbApi.hpp"
-#include "storage/ndb/include/ndbapi/NdbIndexStat.hpp"
-#include "storage/ndb/include/ndbapi/NdbInterpretedCode.hpp"
 #include "storage/ndb/include/util/SparseBitmask.hpp"
 #include "storage/ndb/plugin/ha_ndb_index_stat.h"
 #include "storage/ndb/plugin/ha_ndbcluster_binlog.h"
@@ -12553,12 +12551,6 @@ void ha_ndbcluster::set_tabname(const char *path_name) {
   ndb_set_tabname(path_name, m_tabname);
 }
 
-/*
-  If there are no stored stats, should we do a tree-dive on all db
-  nodes.  The result is fairly good but does mean a round-trip.
- */
-static const bool g_ndb_records_in_range_tree_dive = false;
-
 /* Determine roughly how many records are in the range specified */
 ha_rows ha_ndbcluster::records_in_range(uint inx, key_range *min_key,
                                         key_range *max_key) {
@@ -12613,41 +12605,6 @@ ha_rows ha_ndbcluster::records_in_range(uint inx, key_range *min_key,
                             " unexpected error %d",
                             key_info->name, err);
       }
-      /*fall through*/
-    }
-
-    if (g_ndb_records_in_range_tree_dive) {
-      NDB_INDEX_DATA &d = m_index[inx];
-      const NDBINDEX *index = d.index;
-      Ndb *ndb = get_ndb(thd);
-      NdbTransaction *active_trans = m_thd_ndb ? m_thd_ndb->trans : 0;
-      NdbTransaction *trans = NULL;
-      int res = 0;
-      Uint64 rows;
-
-      do {
-        if ((trans = active_trans) == NULL ||
-            trans->commitStatus() != NdbTransaction::Started) {
-          DBUG_PRINT("info", ("no active trans"));
-          if (!(trans = ndb->startTransaction()))
-            ERR_BREAK(ndb->getNdbError(), res);
-        }
-
-        /* Create an IndexBound struct for the keys */
-        NdbIndexScanOperation::IndexBound ib;
-        compute_index_bounds(ib, key_info, min_key, max_key, 0);
-
-        ib.range_no = 0;
-
-        NdbIndexStat is;
-        if (is.records_in_range(index, trans, d.ndb_record_key, m_ndb_record,
-                                &ib, 0, &rows, 0) == -1)
-          ERR_BREAK(is.getNdbError(), res);
-      } while (0);
-
-      if (trans != active_trans && rows == 0) rows = 1;
-      if (trans != active_trans && trans != NULL) ndb->closeTransaction(trans);
-      if (res == 0) return rows;
       /*fall through*/
     }
   }
