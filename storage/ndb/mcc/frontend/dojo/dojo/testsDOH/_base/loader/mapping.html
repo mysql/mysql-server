@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<title>Dojo loader mapping after build test</title>
+</head>
+<body>
+	<script>
+		var dojoConfig = {
+			async: true,
+			map: {
+				'my/replacement/A': {
+					'my/A': 'my/A'
+				},
+				'*': {
+					'my/A': 'my/replacement/A'
+				}
+			}
+		};
+	</script>
+	<script src="../../../dojo.js"></script>
+	<script>
+		// simulate a built layer, this is added to dojo.js by the builder
+		require({
+			cache: {
+				'my/replacement/A': function () {
+					define([ '../A' ], function (A) {
+						return { it: 'is a replacement module' };
+					});
+				},
+				'my/A': function () {
+					define([ './B' ], function (B) {
+						return { it: 'is the original module' };
+					});
+				},
+				'my/B': function () {
+					define([], function () {
+						return { it: 'is a module dependency' };
+					});
+				}
+			}
+		});
+		// consume pending cache, the following are added at the end of a built dojo.js in a closure
+		require({ cache: {} });
+		!require.async && require(['dojo']);
+		require.boot && require.apply(null, require.boot);
+
+		require([ 'doh' ], function (doh) {
+			// begin test:
+			// moving modules from the pending cache to the module cache should ignore
+			// any mapping, pathing, or alias rules
+
+			doh.register('star-mapping', [
+				{
+					name: 'mapping after build',
+					runTest: function (t) {
+						var def = new doh.Deferred();
+
+						t.requireHandle = require.on('error', function (e) {
+							def.errback(e);
+						});
+						require(['my/A'], def.getTestCallback(function (A) {
+							t.is('is a replacement module', A.it, 'A should be a replacement module');
+						}));
+
+						return def;
+					},
+					tearDown: function (t) {
+						t.requireHandle.remove();
+					}
+				}
+			]);
+			doh.runOnLoad();
+		});
+	</script>
+</body>
+</html>

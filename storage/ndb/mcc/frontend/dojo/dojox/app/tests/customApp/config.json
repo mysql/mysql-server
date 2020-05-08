@@ -1,0 +1,61 @@
+{
+	"id": "customApp",
+	"name": "customApp",
+	"description": "A simple app to show how to plug custom view controllers",
+
+	"loaderConfig": {
+		"paths": {
+			"customApp": "../dojox/app/tests/customApp"
+		}
+	},
+
+	"modules": [
+	],
+
+	"controllers": [
+		"dojox/app/controllers/Load",
+		"dojox/app/controllers/Transition",
+		"dojox/app/controllers/Layout"
+	],
+	
+	// The has section will include the sections for which the has checks are true.  
+	// For the sections with ! it will include the section if the has check is not true.
+	"has" : {
+		"ie9orLess" : {
+			"controllers": [
+				"dojox/app/controllers/HistoryHash"
+			]
+		},
+		"!ie9orLess" : {
+			"controllers": [
+				"dojox/app/controllers/History"
+			]
+		}
+	},	
+	
+	"defaultView": "home",
+
+	"views": {
+		"home": {
+			"template": "customApp/home.html",
+			"dependencies":	[
+				"dojox/mobile/RoundRectList",
+				"dojox/mobile/ListItem"
+			]
+		},
+		"dtl": {
+			"type": "customApp/DtlView",
+			"controller" : "customApp/dtl",
+			"template": "customApp/dtl.html"
+		},
+		"widget": {
+			"type": "customApp/WidgetView",
+			"templateString": "<div><button data-dojo-attach-point='myButton' data-dojo-type='dojox/mobile/Button'>I'm the templated view widget</button></div>"
+		},
+		"widget2": {
+			"type": "customApp/WidgetView2",
+			"controller": "customApp/widget"
+		}
+
+	}
+}

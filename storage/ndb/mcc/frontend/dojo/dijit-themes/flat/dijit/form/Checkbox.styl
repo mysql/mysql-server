@@ -1,0 +1,137 @@
+/* CheckBox
+ * 
+ * Styling CheckBox mainly includes:
+ * 
+ * 1. Containers
+ * 		.dijitCheckBox
+ * 
+ * 2. CheckBox within ToggleButton
+ * 		.dijitCheckBoxIcon
+ * 
+ * 3. States - Checked, Hover, Disabled.
+ *		.dijitCheckBoxChecked
+ * 		.dijitCheckBoxHover
+ * 		.dijitCheckBoxCheckedHover
+ * 		.dijitCheckBoxDisabled
+ *		.dijitCheckBoxCheckedDisabled
+ */
+
+
+@import 'dijit_form_variables';
+
+.{$theme-name} {
+		
+	.dijitCheckBox {
+		background-color: $checkbox-background-color;
+		border: 1px solid $checkbox-border-color;
+		width: $checkbox-width;
+		height: $checkbox-height;
+		line-height: 1;
+		padding: $checkbox-padding;
+		border-radius: $checkbox-border-radius;
+		text-align: center;
+		position: relative;
+		overflow: visible;
+		transition: all 0.1s linear;
+		input {
+			position: absolute;
+			top: 0;
+		}
+	}
+
+	/* Icon */
+
+	.dijitCheckBoxIcon,
+	.dijitCheckBoxChecked,
+	.dijitCheckBoxCheckedDisabled {
+		&:before {
+			_icon-core-style();
+			content: $checkbox-icon;
+			color: $checkbox-checked-icon-color;
+		}
+	}
+
+	/* This is the checkbox icon within a widget, e.g. toggle button */
+	
+	.dijitCheckBoxIcon {
+		padding: $checkbox-icon-padding;
+
+		&:before {
+			color: $checkbox-icon-checked-icon-color;
+		}
+	}
+	
+	// checkbox icon within alternative buttons
+	if($button-alternative-colors && length($button-alternative-colors) > 0) {
+		for class in $button-alternative-colors {
+			.{class} {
+				.dijitCheckBoxIcon {
+					&:before {
+						color: $checkbox-checked-icon-color;
+					}
+				}
+			}
+		}
+	}
+
+	/* checked */
+
+	.dijitCheckBoxChecked {
+		background-color: $checkbox-checked-background-color;
+		border-color: $checkbox-checked-border-color;
+	}
+
+	/* hovered */
+	/* over unchecked */
+
+	.dijitCheckBoxHover {
+		background-color: $checkbox-hover-unchecked-background-color;
+		border: $checkbox-hover-unchecked-border-color;
+	}
+
+	/* over checked */
+
+	.dijitCheckBoxCheckedHover {
+		background-color: $checkbox-hover-checked-background-color;
+		border: $checkbox-hover-checked-border-color;
+	}
+
+	/* disabled */
+
+	.dijitCheckBoxDisabled {
+		color: $checkbox-disabled-color;
+		background-color: $checkbox-disabled-background-color;
+		border-color: $checkbox-disabled-border-color;
+	}
+	
+	.dijitCheckBoxCheckedDisabled {
+		color: $checkbox-checked-disabled-color;
+		background-color: $checkbox-checked-disabled-background-color;
+		border-color: $checkbox-checked-disabled-border-color;
+	}
+	
+	/* Checkbox within a menu item */
+	
+	.dijitCheckedMenuItem .dijitCheckedMenuItemIcon {
+		background-color: $checkbox-background-color;
+		border: 1px solid $checkbox-border-color;
+		width: $checkbox-width;
+		height: $checkbox-height;
+		line-height: 1;
+		padding: $checkbox-padding;
+		border-radius: $checkbox-border-radius;
+		text-align: center;
+		position: relative;
+		overflow: visible;
+		transition: all 0.1s linear;
+	}
+		
+	.dijitCheckedMenuItemChecked .dijitCheckedMenuItemIcon {
+		&:before {
+			_icon-core-style();
+			content: $checkbox-icon;
+			color: $theme-base;
+		}
+	}
+	
+}

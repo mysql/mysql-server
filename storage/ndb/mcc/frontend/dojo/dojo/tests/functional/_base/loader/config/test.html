@@ -1,0 +1,61 @@
+<!DOCTYPE HTML PUBLIC '-//W3C//DTD HTML 4.01//EN' 'http://www.w3.org/TR/html4/strict.dtd'>
+<html>
+<head>
+    <title>config/test</title>
+    <!--
+    The 'loader' package depends on the package 'pkg'; the application also
+    depends on the package 'pkg', but configured in a different way. Therefore, solve
+    the problem by mapping 'pkg' as seen by 'loader' to 'pkgMapped'. Then configure
+    the packages 'pkg' and 'pkgMapped' differently.
+
+    At the app (global) level, config can be accomplished via the names 'pkg' and 'pkgMapped'.
+    Notice also that 'pkg' does some of it's own configuration based on user configuration.
+    This tests the ability to configure a mapped package.
+    -->
+
+    <script>
+        var dojoConfig = {
+            async: 1,
+            baseUrl: '../../../../..',
+            packages: [
+                {
+                    name: 'loader',
+                    location: 'tests/functional/_base/loader/config',
+                    packageMap: {
+                        'pkg': 'pkgMapped'
+                    }
+                },
+                {
+                    name: 'pkg',
+                    location: 'tests/functional/_base/loader/config/pkg'
+                },
+                {
+                    name: 'pkgMapped',
+                    location: 'tests/functional/_base/loader/config/pkg',
+                    packageMap: {
+                        'pkg': 'pkgMapped'
+                    }
+                },
+                {
+                    name: 'dojo',
+                    location: 'node_modules/dojo'
+                }
+            ],
+            config: {
+                'loader/someModuleConfiggedPriorToBoot': {
+                    someConfig: 'this is the config for someModuleConfiggedPriorToBoot'
+                }
+            },
+            deps: [],
+            callback: function () {
+                window.ready = true;
+            }
+        };
+    </script>
+
+    <script src='../../../../../dojo.js'></script>
+</head>
+<body>
+<h1>config/test</h1>
+</body>
+</html>

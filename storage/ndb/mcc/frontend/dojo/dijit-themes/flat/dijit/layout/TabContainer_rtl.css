@@ -1,0 +1,13 @@
+.flat .dijitTabContainerTop-tabs .dijitTabRtl,
+.flat .dijitTabContainerBottom-tabs .dijitTabRtl {
+  margin-right: 0;
+  margin-left: -1px;
+}
+.flat .dijitTabControllerRtl,
+.flat .dijitTabControllerRtl .nowrapTabStrip {
+  text-align: right;
+}
+.flat .dijitTabRtl .dijitTabCloseButton {
+  margin-left: 0;
+  margin-right: 4px;
+}

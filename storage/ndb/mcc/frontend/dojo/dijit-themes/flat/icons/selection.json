@@ -1,0 +1,3388 @@
+{
+	"IcoMoonType": "selection",
+	"icons": [
+		{
+			"icon": {
+				"paths": [
+					"M598 298v428l-214-214z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					""
+				],
+				"defaultCode": 57857,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 23,
+				"id": 798,
+				"name": "drop-left",
+				"prevSize": 24,
+				"code": 61440
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 0
+		},
+		{
+			"icon": {
+				"paths": [
+					"M426 726v-428l214 214z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					""
+				],
+				"defaultCode": 57857,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 3,
+				"id": 797,
+				"name": "drop-right",
+				"prevSize": 24,
+				"code": 61441
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 1
+		},
+		{
+			"icon": {
+				"paths": [
+					"M298 426h428l-214 214z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					""
+				],
+				"defaultCode": 57857,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 1,
+				"id": 513,
+				"prevSize": 24,
+				"code": 61442,
+				"name": "drop-down",
+				"ligatures": "arrow-drop-down"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 2
+		},
+		{
+			"icon": {
+				"paths": [
+					"M298 598l214-214 214 214h-428z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					""
+				],
+				"defaultCode": 57859,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 41,
+				"id": 515,
+				"prevSize": 24,
+				"code": 61443,
+				"name": "drop-up",
+				"ligatures": "arrow-drop-up"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 3
+		},
+		{
+			"icon": {
+				"paths": [
+					"M658 316l-196 196 196 196-60 60-256-256 256-256z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					""
+				],
+				"defaultCode": 57863,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 33,
+				"id": 519,
+				"prevSize": 24,
+				"code": 61444,
+				"name": "chevron-left",
+				"ligatures": "chevron-left"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 4
+		},
+		{
+			"icon": {
+				"paths": [
+					"M426 256l256 256-256 256-60-60 196-196-196-196z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					""
+				],
+				"defaultCode": 57864,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 34,
+				"id": 520,
+				"prevSize": 24,
+				"code": 61445,
+				"name": "chevron-right",
+				"ligatures": "chevron-right"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 5
+		},
+		{
+			"icon": {
+				"paths": [
+					"M708 366l60 60-256 256-256-256 60-60 196 196z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					""
+				],
+				"defaultCode": 57867,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 37,
+				"id": 523,
+				"prevSize": 24,
+				"code": 61446,
+				"name": "chevron-down",
+				"ligatures": "chevron-down"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 6
+		},
+		{
+			"icon": {
+				"paths": [
+					"M512 342l256 256-60 60-196-196-196 196-60-60z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					""
+				],
+				"defaultCode": 57866,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 36,
+				"id": 522,
+				"prevSize": 24,
+				"code": 61447,
+				"name": "chevron-up",
+				"ligatures": "chevron-up"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 7
+		},
+		{
+			"icon": {
+				"paths": [
+					"M854 470v84h-520l238 240-60 60-342-342 342-342 60 60-238 240h520z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					""
+				],
+				"defaultCode": 57856,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 31,
+				"id": 512,
+				"prevSize": 24,
+				"code": 61448,
+				"name": "arrow-left",
+				"ligatures": "arrow-back"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 8
+		},
+		{
+			"icon": {
+				"paths": [
+					"M512 170l342 342-342 342-60-60 238-240h-520v-84h520l-238-240z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					""
+				],
+				"defaultCode": 57860,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 4,
+				"id": 799,
+				"name": "arrow-right",
+				"prevSize": 24,
+				"code": 61449
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 9
+		},
+		{
+			"icon": {
+				"paths": [
+					"M854 512l-342 342-342-342 60-60 240 238v-520h84v520l240-238z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					""
+				],
+				"defaultCode": 57860,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 5,
+				"id": 800,
+				"name": "arrow-down",
+				"prevSize": 24,
+				"code": 61450
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 10
+		},
+		{
+			"icon": {
+				"paths": [
+					"M170 512l342-342 342 342-60 60-240-238v520h-84v-520l-240 238z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					""
+				],
+				"defaultCode": 57860,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 156,
+				"id": 516,
+				"prevSize": 24,
+				"code": 61451,
+				"name": "arrow-up",
+				"ligatures": "arrow-forward"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 11
+		},
+		{
+			"icon": {
+				"paths": [
+					"M384 690l452-452 60 60-512 512-238-238 60-60z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					""
+				],
+				"defaultCode": 57862,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 32,
+				"id": 518,
+				"prevSize": 24,
+				"code": 61452,
+				"name": "check",
+				"ligatures": "check"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 12
+		},
+		{
+			"icon": {
+				"paths": [
+					"M426 726l384-384-60-62-324 324-152-152-60 60zM512 86q176 0 301 125t125 301-125 301-301 125-301-125-125-301 125-301 301-125z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					""
+				],
+				"defaultCode": 57985,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 74,
+				"id": 641,
+				"prevSize": 24,
+				"code": 61453,
+				"name": "check-circle",
+				"ligatures": "check-circle"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 13
+		},
+		{
+			"icon": {
+				"paths": [
+					"M810 274l-238 238 238 238-60 60-238-238-238 238-60-60 238-238-238-238 60-60 238 238 238-238z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					""
+				],
+				"defaultCode": 57865,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 35,
+				"id": 521,
+				"prevSize": 24,
+				"code": 61454,
+				"name": "close",
+				"ligatures": "close"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 14
+		},
+		{
+			"icon": {
+				"paths": [
+					"M726 666l-154-154 154-154-60-60-154 154-154-154-60 60 154 154-154 154 60 60 154-154 154 154zM512 86q176 0 301 125t125 301-125 301-301 125-301-125-125-301 125-301 301-125z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitIconClear"
+				],
+				"defaultCode": 57861,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 165,
+				"id": 517,
+				"prevSize": 24,
+				"code": 61455,
+				"name": "close-circle",
+				"ligatures": "cancel"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 15
+		},
+		{
+			"icon": {
+				"paths": [
+					"M512 854q140 0 241-101t101-241-101-241-241-101-241 101-101 241 101 241 241 101zM512 86q176 0 301 125t125 301-125 301-301 125-301-125-125-301 125-301 301-125zM622 342l60 60-110 110 110 110-60 60-110-110-110 110-60-60 110-110-110-110 60-60 110 110z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitEditorIconCancel"
+				],
+				"defaultCode": 58012,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 75,
+				"id": 668,
+				"prevSize": 24,
+				"code": 61456,
+				"name": "close-circle-o",
+				"ligatures": "cancel-outline"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 16
+		},
+		{
+			"icon": {
+				"paths": [
+					"M810 554h-256v256h-84v-256h-256v-84h256v-256h84v256h256v84z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					""
+				],
+				"defaultCode": 57449,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 66,
+				"id": 105,
+				"prevSize": 24,
+				"code": 61457,
+				"name": "add",
+				"ligatures": "add"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 17
+		},
+		{
+			"icon": {
+				"paths": [
+					"M810 554h-596v-84h596v84z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					""
+				],
+				"defaultCode": 57471,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 65,
+				"id": 127,
+				"prevSize": 24,
+				"code": 61458,
+				"name": "remove",
+				"ligatures": "remove"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 18
+		},
+		{
+			"icon": {
+				"paths": [
+					"M726 554v-84h-172v-172h-84v172h-172v84h172v172h84v-172h172zM512 86q176 0 301 125t125 301-125 301-301 125-301-125-125-301 125-301 301-125z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					""
+				],
+				"defaultCode": 57451,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 61,
+				"id": 107,
+				"prevSize": 24,
+				"code": 61459,
+				"name": "add-circle",
+				"ligatures": "add-circle"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 19
+		},
+		{
+			"icon": {
+				"paths": [
+					"M726 554v-84h-428v84h428zM512 86q176 0 301 125t125 301-125 301-301 125-301-125-125-301 125-301 301-125z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					""
+				],
+				"defaultCode": 57472,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 64,
+				"id": 128,
+				"prevSize": 24,
+				"code": 61460,
+				"name": "remove-circle",
+				"ligatures": "remove-circle"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 20
+		},
+		{
+			"icon": {
+				"paths": [
+					"M512 854q140 0 241-101t101-241-101-241-241-101-241 101-101 241 101 241 241 101zM512 86q176 0 301 125t125 301-125 301-301 125-301-125-125-301 125-301 301-125zM554 298v172h172v84h-172v172h-84v-172h-172v-84h172v-172h84z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					""
+				],
+				"defaultCode": 57452,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 62,
+				"id": 108,
+				"prevSize": 24,
+				"code": 61461,
+				"name": "add-circle-o",
+				"ligatures": "add-circle-outline"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 21
+		},
+		{
+			"icon": {
+				"paths": [
+					"M512 854q140 0 241-101t101-241-101-241-241-101-241 101-101 241 101 241 241 101zM512 86q176 0 301 125t125 301-125 301-301 125-301-125-125-301 125-301 301-125zM298 470h428v84h-428v-84z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					""
+				],
+				"defaultCode": 57473,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 63,
+				"id": 129,
+				"prevSize": 24,
+				"code": 61462,
+				"name": "remove-circle-o",
+				"ligatures": "remove-circle-outline"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 22
+		},
+		{
+			"icon": {
+				"paths": [
+					"M554 554v-256h-84v256h84zM554 726v-86h-84v86h84zM512 86q176 0 301 125t125 301-125 301-301 125-301-125-125-301 125-301 301-125z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitIconError"
+				],
+				"defaultCode": 57344,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 149,
+				"id": 0,
+				"prevSize": 24,
+				"code": 61463,
+				"name": "error",
+				"ligatures": "error"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 23
+		},
+		{
+			"icon": {
+				"paths": [
+					"M512 854q140 0 241-101t101-241-101-241-241-101-241 101-101 241 101 241 241 101zM512 86q176 0 301 125t125 301-125 301-301 125-301-125-125-301 125-301 301-125zM470 298h84v256h-84v-256zM470 640h84v86h-84v-86z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					""
+				],
+				"defaultCode": 57345,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 148,
+				"id": 1,
+				"prevSize": 24,
+				"code": 61464,
+				"name": "error-o",
+				"ligatures": "error-outline"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 24
+		},
+		{
+			"icon": {
+				"paths": [
+					"M554 598v-172h-84v172h84zM554 768v-86h-84v86h84zM42 896l470-810 470 810h-940z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					""
+				],
+				"defaultCode": 57346,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 59,
+				"id": 2,
+				"prevSize": 24,
+				"code": 61465,
+				"name": "warning",
+				"ligatures": "warning"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 25
+		},
+		{
+			"icon": {
+				"paths": [
+					"M554 554v-256h-84v256h84zM512 738q22 0 39-17t17-39-17-38-39-16-39 16-17 38 17 39 39 17zM672 128l224 224v320l-224 224h-320l-224-224v-320l224-224h320z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					""
+				],
+				"defaultCode": 57476,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 111,
+				"id": 132,
+				"prevSize": 24,
+				"code": 61466,
+				"name": "report",
+				"ligatures": "report"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 26
+		},
+		{
+			"icon": {
+				"paths": [
+					"M642 480q40-40 40-96 0-70-50-120t-120-50-120 50-50 120h84q0-34 26-60t60-26 60 26 26 60-26 60l-52 54q-50 54-50 120v22h84q0-66 50-120zM554 810v-84h-84v84h84zM512 86q176 0 301 125t125 301-125 301-301 125-301-125-125-301 125-301 301-125z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					""
+				],
+				"defaultCode": 58011,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 82,
+				"id": 667,
+				"prevSize": 24,
+				"code": 61467,
+				"name": "help",
+				"ligatures": "help"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 27
+		},
+		{
+			"icon": {
+				"paths": [
+					"M782 722q72-90 72-210 0-140-101-241t-241-101q-120 0-210 72zM512 854q120 0 210-72l-480-480q-72 90-72 210 0 140 101 241t241 101zM512 86q176 0 301 125t125 301-125 301-301 125-301-125-125-301 125-301 301-125z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					""
+				],
+				"defaultCode": 57880,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 42,
+				"id": 536,
+				"prevSize": 24,
+				"code": 61468,
+				"name": "no-symbol",
+				"ligatures": "no-symbol"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 28
+		},
+		{
+			"icon": {
+				"paths": [
+					"M512 768v-128l170 170-170 172v-128q-140 0-241-101t-101-241q0-100 54-182l62 62q-30 54-30 120 0 106 75 181t181 75zM512 170q140 0 241 101t101 241q0 100-54 182l-62-62q30-54 30-120 0-106-75-181t-181-75v128l-170-170 170-172v128z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					""
+				],
+				"defaultCode": 57899,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 43,
+				"id": 555,
+				"prevSize": 24,
+				"code": 61469,
+				"name": "update",
+				"ligatures": "sync"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 29
+		},
+		{
+			"icon": {
+				"paths": [
+					"M810 810v-468h-596v468h596zM682 42h86v86h42q34 0 60 26t26 60v596q0 34-26 60t-60 26h-596q-36 0-61-26t-25-60v-596q0-34 25-60t61-26h42v-86h86v86h340v-86zM726 512v214h-214v-214h214z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					""
+				],
+				"defaultCode": 57996,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 123,
+				"id": 652,
+				"prevSize": 24,
+				"code": 61470,
+				"name": "calendar",
+				"ligatures": "event"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 30
+		},
+		{
+			"icon": {
+				"paths": [
+					"M534 298v224l192 114-32 54-224-136v-256h64zM512 854q140 0 241-101t101-241-101-241-241-101-241 101-101 241 101 241 241 101zM512 86q176 0 301 125t125 301-125 301-301 125-301-125-125-301 125-301 301-125z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					""
+				],
+				"defaultCode": 57486,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 67,
+				"id": 142,
+				"prevSize": 24,
+				"code": 61471,
+				"name": "clock",
+				"ligatures": "clock"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 31
+		},
+		{
+			"icon": {
+				"paths": [
+					"M426 170l86 86h342q34 0 59 26t25 60v426q0 34-25 60t-59 26h-684q-34 0-59-26t-25-60v-512q0-34 25-60t59-26h256z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitFolderClosed",
+					"dijitIconFolderClosed"
+				],
+				"defaultCode": 57601,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 9,
+				"id": 257,
+				"prevSize": 24,
+				"code": 61472,
+				"name": "folder",
+				"ligatures": "folder"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 32
+		},
+		{
+			"icon": {
+				"paths": [
+					"M854 768v-426h-684v426h684zM854 256q34 0 59 26t25 60v426q0 34-25 60t-59 26h-684q-34 0-59-26t-25-60v-512q0-34 25-60t59-26h256l86 86h342z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitFolderOpened",
+					"dijitIconFolderOpen"
+				],
+				"defaultCode": 57602,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 10,
+				"id": 258,
+				"prevSize": 24,
+				"code": 61473,
+				"name": "folder-open",
+				"ligatures": "folder_open"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 33
+		},
+		{
+			"icon": {
+				"paths": [
+					"M884 300l-78 78-160-160 78-78q12-12 30-12t30 12l100 100q12 12 12 30t-12 30zM128 736l472-472 160 160-472 472h-160v-160z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitIconEdit"
+				],
+				"defaultCode": 57582,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 109,
+				"id": 238,
+				"prevSize": 24,
+				"code": 61474,
+				"name": "edit",
+				"ligatures": "edit"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 34
+		},
+		{
+			"icon": {
+				"paths": [
+					"M640 384v-170h-426v170h426zM512 810q52 0 90-38t38-90-38-90-90-38-90 38-38 90 38 90 90 38zM726 128l170 170v512q0 34-26 60t-60 26h-596q-36 0-61-26t-25-60v-596q0-34 25-60t61-26h512z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitIconSave",
+					"dijitEditorIconSave"
+				],
+				"defaultCode": 57477,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 16,
+				"id": 133,
+				"prevSize": 24,
+				"code": 61475,
+				"name": "save",
+				"ligatures": "save"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 35
+		},
+		{
+			"icon": {
+				"paths": [
+					"M768 128v170h-512v-170h512zM810 512q18 0 31-12t13-30-13-31-31-13-30 13-12 31 12 30 30 12zM682 810v-212h-340v212h340zM810 342q52 0 90 38t38 90v256h-170v170h-512v-170h-170v-256q0-52 38-90t90-38h596z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitIconPrint",
+					"dijitEditorIconPrint"
+				],
+				"defaultCode": 58049,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 21,
+				"id": 705,
+				"prevSize": 24,
+				"code": 61476,
+				"name": "print",
+				"ligatures": "print"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 36
+		},
+		{
+			"icon": {
+				"paths": [
+					"M810 170v86h-596v-86h148l44-42h212l44 42h148zM256 810v-512h512v512q0 34-26 60t-60 26h-340q-34 0-60-26t-26-60z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitIconDelete",
+					"dijitEditorIconDelete"
+				],
+				"defaultCode": 57991,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 91,
+				"id": 647,
+				"prevSize": 24,
+				"code": 61477,
+				"name": "delete",
+				"ligatures": "delete"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 37
+		},
+		{
+			"icon": {
+				"paths": [
+					"M554 384h236l-236-234v234zM256 86h342l256 256v512q0 34-26 59t-60 25h-512q-34 0-60-25t-26-59l2-684q0-34 25-59t59-25z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitLeaf"
+				],
+				"defaultCode": 57575,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 25,
+				"id": 231,
+				"prevSize": 24,
+				"code": 61478,
+				"name": "page",
+				"ligatures": "page-blank"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 38
+		},
+		{
+			"icon": {
+				"paths": [
+					"M382 544q-40 40-40 96 0 70 50 120t120 50 120-50 50-120h-84q0 34-26 60t-60 26-60-26-26-60 26-60l52-54q50-54 50-120v-22h-84q0 66-50 120zM470 214v84h84v-84h-84zM512 938q-176 0-301-125t-125-301 125-301 301-125 301 125 125 301-125 301-301 125z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					""
+				],
+				"defaultCode": 58011,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 160,
+				"id": 827,
+				"name": "page-o",
+				"prevSize": 24,
+				"code": 61479
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 39
+		},
+		{
+			"icon": {
+				"paths": [
+					"M382 544q-40 40-40 96 0 70 50 120t120 50 120-50 50-120h-84q0 34-26 60t-60 26-60-26-26-60 26-60l52-54q50-54 50-120v-22h-84q0 66-50 120zM470 214v84h84v-84h-84zM512 938q-176 0-301-125t-125-301 125-301 301-125 301 125 125 301-125 301-301 125z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					""
+				],
+				"defaultCode": 58011,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 161,
+				"id": 829,
+				"name": "page-add",
+				"prevSize": 24,
+				"code": 61480
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 40
+		},
+		{
+			"icon": {
+				"paths": [
+					"M382 544q-40 40-40 96 0 70 50 120t120 50 120-50 50-120h-84q0 34-26 60t-60 26-60-26-26-60 26-60l52-54q50-54 50-120v-22h-84q0 66-50 120zM470 214v84h84v-84h-84zM512 938q-176 0-301-125t-125-301 125-301 301-125 301 125 125 301-125 301-301 125z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					""
+				],
+				"defaultCode": 58011,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 162,
+				"id": 830,
+				"name": "page-remove",
+				"prevSize": 24,
+				"code": 61481
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 41
+		},
+		{
+			"icon": {
+				"paths": [
+					"M382 544q-40 40-40 96 0 70 50 120t120 50 120-50 50-120h-84q0 34-26 60t-60 26-60-26-26-60 26-60l52-54q50-54 50-120v-22h-84q0 66-50 120zM470 214v84h84v-84h-84zM512 938q-176 0-301-125t-125-301 125-301 301-125 301 125 125 301-125 301-301 125z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					""
+				],
+				"defaultCode": 58011,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 163,
+				"id": 828,
+				"name": "page-add-o",
+				"prevSize": 24,
+				"code": 61482
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 42
+		},
+		{
+			"icon": {
+				"paths": [
+					"M382 544q-40 40-40 96 0 70 50 120t120 50 120-50 50-120h-84q0 34-26 60t-60 26-60-26-26-60 26-60l52-54q50-54 50-120v-22h-84q0 66-50 120zM470 214v84h84v-84h-84zM512 938q-176 0-301-125t-125-301 125-301 301-125 301 125 125 301-125 301-301 125z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					""
+				],
+				"defaultCode": 58011,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 164,
+				"id": 831,
+				"name": "page-remove-o",
+				"prevSize": 24,
+				"code": 61483
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 43
+		},
+		{
+			"icon": {
+				"paths": [
+					"M554 384h236l-236-234v234zM682 598v-86h-340v86h340zM682 768v-86h-340v86h340zM598 86l256 256v512q0 34-26 59t-60 25h-512q-34 0-60-25t-26-59l2-684q0-34 25-59t59-25h342z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitIconFile"
+				],
+				"defaultCode": 57992,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 92,
+				"id": 648,
+				"prevSize": 24,
+				"code": 61484,
+				"name": "file",
+				"ligatures": "page"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 44
+		},
+		{
+			"icon": {
+				"paths": [
+					"M854 342v-86l-342 214-342-214v86l342 212zM854 170q34 0 59 26t25 60v512q0 34-25 60t-59 26h-684q-34 0-59-26t-25-60v-512q0-34 25-60t59-26h684z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitIconMail"
+				],
+				"defaultCode": 57836,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 29,
+				"id": 492,
+				"prevSize": 24,
+				"code": 61485,
+				"name": "mail",
+				"ligatures": "mail"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 45
+		},
+		{
+			"icon": {
+				"paths": [
+					"M170 470v84h86v-84h-86zM86 598v-172h852v172h-852zM256 298v-84h-86v84h86zM86 170h852v172h-852v-172zM170 726v84h86v-84h-86zM86 854v-172h852v172h-852z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitIconDatabase"
+				],
+				"defaultCode": 57532,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 105,
+				"id": 188,
+				"prevSize": 24,
+				"code": 61486,
+				"name": "storage",
+				"ligatures": "storage"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 46
+		},
+		{
+			"icon": {
+				"paths": [
+					"M512 662q62 0 106-44t44-106-44-106-106-44-106 44-44 106 44 106 106 44zM830 554l90 70q14 10 4 28l-86 148q-8 14-26 8l-106-42q-42 30-72 42l-16 112q-4 18-20 18h-172q-16 0-20-18l-16-112q-38-16-72-42l-106 42q-18 6-26-8l-86-148q-10-18 4-28l90-70q-2-14-2-42t2-42l-90-70q-14-10-4-28l86-148q8-14 26-8l106 42q42-30 72-42l16-112q4-18 20-18h172q16 0 20 18l16 112q38 16 72 42l106-42q18-6 26 8l86 148q10 18-4 28l-90 70q2 14 2 42t-2 42z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitIconConfigure"
+				],
+				"defaultCode": 58059,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 83,
+				"id": 715,
+				"prevSize": 24,
+				"code": 61487,
+				"name": "settings",
+				"ligatures": "settings"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 47
+		},
+		{
+			"icon": {
+				"paths": [
+					"M406 598q80 0 136-56t56-136-56-136-136-56-136 56-56 136 56 136 136 56zM662 598l212 212-64 64-212-212v-34l-12-12q-76 66-180 66-116 0-197-80t-81-196 81-197 197-81 196 81 80 197q0 104-66 180l12 12h34z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitIconSearch"
+				],
+				"defaultCode": 58058,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 87,
+				"id": 714,
+				"prevSize": 24,
+				"code": 61488,
+				"name": "search",
+				"ligatures": "search"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 48
+		},
+		{
+			"icon": {
+				"paths": [
+					"M726 128q34 0 59 26t25 60v682l-298-128-298 128v-682q0-34 25-60t59-26h428z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitIconBookmark"
+				],
+				"defaultCode": 58104,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 55,
+				"id": 760,
+				"prevSize": 24,
+				"code": 61489,
+				"name": "bookmark",
+				"ligatures": "bookmark"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 49
+		},
+		{
+			"icon": {
+				"paths": [
+					"M128 256h768v86h-768v-86zM128 554v-84h768v84h-768zM128 768v-86h768v86h-768z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					""
+				],
+				"defaultCode": 57870,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 76,
+				"id": 526,
+				"prevSize": 24,
+				"code": 61490,
+				"name": "menu",
+				"ligatures": "menu"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 50
+		},
+		{
+			"icon": {
+				"paths": [
+					"M854 768v-384h-172v384h172zM640 554v-170h-470v170h470zM640 768v-170h-470v170h470zM854 170q34 0 59 26t25 60v512q0 34-25 60t-59 26h-684q-34 0-59-26t-25-60v-512q0-34 25-60t59-26h684z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitIconApplication"
+				],
+				"defaultCode": 57396,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 151,
+				"id": 52,
+				"prevSize": 24,
+				"code": 61491,
+				"name": "application",
+				"ligatures": "application"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 51
+		},
+		{
+			"icon": {
+				"paths": [
+					"M298 598q34 0 60-26t26-60-26-60-60-26-59 26-25 60 25 60 59 26zM540 426h442v172h-86v170h-170v-170h-186q-26 76-92 123t-150 47q-106 0-181-75t-75-181 75-181 181-75q84 0 150 47t92 123z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitIconKey"
+				],
+				"defaultCode": 57443,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 60,
+				"id": 99,
+				"prevSize": 24,
+				"code": 61492,
+				"name": "key",
+				"ligatures": "key"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 52
+		},
+		{
+			"icon": {
+				"paths": [
+					"M170 214h684v84h-684v-84zM170 470v-86h684v86h-684zM170 810v-84h684v84h-684zM170 640v-86h684v86h-684z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitIconTable",
+					"dijitEditorIconInsertTable"
+				],
+				"defaultCode": 58112,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 79,
+				"id": 768,
+				"prevSize": 24,
+				"code": 61493,
+				"name": "table",
+				"ligatures": "table"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 53
+		},
+		{
+			"icon": {
+				"paths": [
+					"M768 214h170v170h-170v-170zM768 810v-170h170v170h-170zM554 810v-170h172v170h-172zM342 810v-170h170v170h-170zM128 810v-170h170v170h-170zM768 598v-172h170v172h-170zM554 214h172v170h-172v-170zM342 384v-170h170v170h-170zM554 598v-172h172v172h-172zM342 598v-172h170v172h-170zM128 598v-172h170v172h-170zM128 384v-170h170v170h-170z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					""
+				],
+				"defaultCode": 57787,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 94,
+				"id": 443,
+				"prevSize": 24,
+				"code": 61494,
+				"name": "grid",
+				"ligatures": "grid"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 54
+		},
+		{
+			"icon": {
+				"paths": [
+					"M682 384h172v470h-172v-470zM170 854v-342h172v342h-172zM426 854v-684h172v684h-172z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitIconChart"
+				],
+				"defaultCode": 57351,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 137,
+				"id": 7,
+				"prevSize": 24,
+				"code": 61495,
+				"name": "chart",
+				"ligatures": "bar-chart"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 55
+		},
+		{
+			"icon": {
+				"paths": [
+					"M256 554v-84h512v84h-512zM128 256h768v86h-768v-86zM426 768v-86h172v86h-172z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitIconFilter"
+				],
+				"defaultCode": 57462,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 135,
+				"id": 118,
+				"prevSize": 24,
+				"code": 61496,
+				"name": "filter",
+				"ligatures": "filter"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 56
+		},
+		{
+			"icon": {
+				"paths": [
+					"M768 170v128h-298l212 214-212 214h298v128h-512v-86l278-256-278-256v-86h512z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitIconFunction"
+				],
+				"defaultCode": 57572,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 24,
+				"id": 228,
+				"prevSize": 24,
+				"code": 61497,
+				"name": "function",
+				"ligatures": "functions"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 57
+		},
+		{
+			"icon": {
+				"paths": [
+					"M512 598q108 0 225 47t117 123v86h-684v-86q0-76 117-123t225-47zM512 512q-70 0-120-50t-50-120 50-121 120-51 120 51 50 121-50 120-120 50z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					""
+				],
+				"defaultCode": 57939,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 45,
+				"id": 595,
+				"prevSize": 24,
+				"code": 61498,
+				"name": "user",
+				"ligatures": "user"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 58
+		},
+		{
+			"icon": {
+				"paths": [
+					"M682 554q56 0 122 16t122 52 56 82v106h-256v-106q0-88-84-148 14-2 40-2zM342 554q56 0 122 16t121 52 55 82v106h-598v-106q0-46 56-82t122-52 122-16zM342 470q-52 0-90-38t-38-90 38-90 90-38 89 38 37 90-37 90-89 38zM682 470q-52 0-90-38t-38-90 38-90 90-38 90 38 38 90-38 90-90 38z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitIconUsers"
+				],
+				"defaultCode": 57937,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 46,
+				"id": 593,
+				"prevSize": 24,
+				"code": 61499,
+				"name": "users",
+				"ligatures": "users"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 59
+		},
+		{
+			"icon": {
+				"paths": [
+					"M382 544q-40 40-40 96 0 70 50 120t120 50 120-50 50-120h-84q0 34-26 60t-60 26-60-26-26-60 26-60l52-54q50-54 50-120v-22h-84q0 66-50 120zM470 214v84h84v-84h-84zM512 938q-176 0-301-125t-125-301 125-301 301-125 301 125 125 301-125 301-301 125z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitIconConnector"
+				],
+				"defaultCode": 58011,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 11,
+				"id": 810,
+				"name": "connector",
+				"prevSize": 24,
+				"code": 61500
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 60
+		},
+		{
+			"icon": {
+				"paths": [
+					"M382 544q-40 40-40 96 0 70 50 120t120 50 120-50 50-120h-84q0 34-26 60t-60 26-60-26-26-60 26-60l52-54q50-54 50-120v-22h-84q0 66-50 120zM470 214v84h84v-84h-84zM512 938q-176 0-301-125t-125-301 125-301 301-125 301 125 125 301-125 301-301 125z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitIconDocuments"
+				],
+				"defaultCode": 58011,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 10,
+				"id": 809,
+				"name": "documents",
+				"prevSize": 24,
+				"code": 61501
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 61
+		},
+		{
+			"icon": {
+				"paths": [
+					"M382 544q-40 40-40 96 0 70 50 120t120 50 120-50 50-120h-84q0 34-26 60t-60 26-60-26-26-60 26-60l52-54q50-54 50-120v-22h-84q0 66-50 120zM470 214v84h84v-84h-84zM512 938q-176 0-301-125t-125-301 125-301 301-125 301 125 125 301-125 301-301 125z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitIconEditProperty"
+				],
+				"defaultCode": 58011,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 8,
+				"id": 808,
+				"name": "edit-property",
+				"prevSize": 24,
+				"code": 61502
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 62
+		},
+		{
+			"icon": {
+				"paths": [
+					"M382 544q-40 40-40 96 0 70 50 120t120 50 120-50 50-120h-84q0 34-26 60t-60 26-60-26-26-60 26-60l52-54q50-54 50-120v-22h-84q0 66-50 120zM470 214v84h84v-84h-84zM512 938q-176 0-301-125t-125-301 125-301 301-125 301 125 125 301-125 301-301 125z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitIconTask"
+				],
+				"defaultCode": 58011,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 5,
+				"id": 807,
+				"name": "task",
+				"prevSize": 24,
+				"code": 61503
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 63
+		},
+		{
+			"icon": {
+				"paths": [
+					"M382 544q-40 40-40 96 0 70 50 120t120 50 120-50 50-120h-84q0 34-26 60t-60 26-60-26-26-60 26-60l52-54q50-54 50-120v-22h-84q0 66-50 120zM470 214v84h84v-84h-84zM512 938q-176 0-301-125t-125-301 125-301 301-125 301 125 125 301-125 301-301 125z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitIconNewTask"
+				],
+				"defaultCode": 58011,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 6,
+				"id": 806,
+				"name": "task-new",
+				"prevSize": 24,
+				"code": 61504
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 64
+		},
+		{
+			"icon": {
+				"paths": [
+					"M382 544q-40 40-40 96 0 70 50 120t120 50 120-50 50-120h-84q0 34-26 60t-60 26-60-26-26-60 26-60l52-54q50-54 50-120v-22h-84q0 66-50 120zM470 214v84h84v-84h-84zM512 938q-176 0-301-125t-125-301 125-301 301-125 301 125 125 301-125 301-301 125z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitIconEditTask"
+				],
+				"defaultCode": 58011,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 7,
+				"id": 805,
+				"name": "task-edit",
+				"prevSize": 24,
+				"code": 61505
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 65
+		},
+		{
+			"icon": {
+				"paths": [
+					"M382 544q-40 40-40 96 0 70 50 120t120 50 120-50 50-120h-84q0 34-26 60t-60 26-60-26-26-60 26-60l52-54q50-54 50-120v-22h-84q0 66-50 120zM470 214v84h84v-84h-84zM512 938q-176 0-301-125t-125-301 125-301 301-125 301 125 125 301-125 301-301 125z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitIconSample"
+				],
+				"defaultCode": 58011,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 4,
+				"id": 804,
+				"name": "sample",
+				"prevSize": 24,
+				"code": 61506
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 66
+		},
+		{
+			"icon": {
+				"paths": [
+					"M382 544q-40 40-40 96 0 70 50 120t120 50 120-50 50-120h-84q0 34-26 60t-60 26-60-26-26-60 26-60l52-54q50-54 50-120v-22h-84q0 66-50 120zM470 214v84h84v-84h-84zM512 938q-176 0-301-125t-125-301 125-301 301-125 301 125 125 301-125 301-301 125z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitIconPackage"
+				],
+				"defaultCode": 58011,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 3,
+				"id": 803,
+				"name": "package",
+				"prevSize": 24,
+				"code": 61507
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 67
+		},
+		{
+			"icon": {
+				"paths": [
+					"M534 342q146 0 262 86t162 222l-100 32q-34-104-123-169t-201-65q-124 0-220 80l156 154h-384v-384l152 154q126-110 296-110z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitEditorIconUndo"
+				],
+				"defaultCode": 57482,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 2,
+				"id": 138,
+				"prevSize": 24,
+				"code": 61508,
+				"name": "undo",
+				"ligatures": "undo"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 68
+		},
+		{
+			"icon": {
+				"paths": [
+					"M786 452l152-154v384h-384l156-154q-96-80-220-80-112 0-201 65t-123 169l-100-32q44-136 161-222t263-86q170 0 296 110z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitEditorIconRedo"
+				],
+				"defaultCode": 57470,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 1,
+				"id": 126,
+				"prevSize": 24,
+				"code": 61509,
+				"name": "redo",
+				"ligatures": "redo"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 69
+		},
+		{
+			"icon": {
+				"paths": [
+					"M810 896v-598h-468v598h468zM810 214q34 0 60 25t26 59v598q0 34-26 60t-60 26h-468q-34 0-60-26t-26-60v-598q0-34 26-59t60-25h468zM682 42v86h-512v598h-84v-598q0-34 25-60t59-26h512z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitIconCopy",
+					"dijitEditorIconCopy"
+				],
+				"defaultCode": 57457,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 13,
+				"id": 113,
+				"prevSize": 24,
+				"code": 61510,
+				"name": "copy",
+				"ligatures": "copy"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 70
+		},
+		{
+			"icon": {
+				"paths": [
+					"M810 128h128v42l-298 300-86-86zM512 534q22 0 22-22t-22-22-22 22 22 22zM256 854q34 0 60-25t26-61-26-61-60-25-60 25-26 61 26 61 60 25zM256 342q34 0 60-25t26-61-26-61-60-25-60 25-26 61 26 61 60 25zM412 326l526 528v42h-128l-298-298-100 100q14 30 14 70 0 70-50 120t-120 50-120-50-50-120 50-120 120-50q40 0 70 14l100-100-100-100q-30 14-70 14-70 0-120-50t-50-120 50-120 120-50 120 50 50 120q0 40-14 70z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitIconCut",
+					"dijitEditorIconCut"
+				],
+				"defaultCode": 57458,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 14,
+				"id": 114,
+				"prevSize": 24,
+				"code": 61511,
+				"name": "cut",
+				"ligatures": "cut"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 71
+		},
+		{
+			"icon": {
+				"paths": [
+					"M810 854v-684h-84v128h-428v-128h-84v684h596zM512 86q-18 0-30 12t-12 30 12 30 30 12 30-12 12-30-12-30-30-12zM810 86q34 0 60 25t26 59v684q0 34-26 59t-60 25h-596q-34 0-60-25t-26-59v-684q0-34 26-59t60-25h178q14-38 46-62t74-24 74 24 46 62h178z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitEditorIconPaste"
+				],
+				"defaultCode": 57459,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 15,
+				"id": 115,
+				"prevSize": 24,
+				"code": 61512,
+				"name": "paste",
+				"ligatures": "paste"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 72
+		},
+		{
+			"icon": {
+				"paths": [
+					"M576 662q28 0 46-19t18-45-18-45-46-19h-150v128h150zM426 278v128h128q26 0 45-19t19-45-19-45-45-19h-128zM666 460q92 42 92 146 0 68-45 115t-113 47h-302v-598h268q72 0 121 50t49 122-70 118z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitEditorIconBold"
+				],
+				"defaultCode": 57554,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 12,
+				"id": 210,
+				"prevSize": 24,
+				"code": 61513,
+				"name": "bold",
+				"ligatures": "format-bold"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 73
+		},
+		{
+			"icon": {
+				"paths": [
+					"M426 170h342v128h-120l-144 342h94v128h-342v-128h120l144-342h-94v-128z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitEditorIconItalic"
+				],
+				"defaultCode": 57561,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 10,
+				"id": 217,
+				"prevSize": 24,
+				"code": 61514,
+				"name": "italic",
+				"ligatures": "format-italic"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 74
+		},
+		{
+			"icon": {
+				"paths": [
+					"M214 810h596v86h-596v-86zM512 726q-106 0-181-75t-75-181v-342h106v342q0 62 44 105t106 43 106-43 44-105v-342h106v342q0 106-75 181t-181 75z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitEditorIconUnderline"
+				],
+				"defaultCode": 57571,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 11,
+				"id": 227,
+				"prevSize": 24,
+				"code": 61515,
+				"name": "underline",
+				"ligatures": "format-underlined"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 75
+		},
+		{
+			"icon": {
+				"paths": [
+					"M128 598v-86h768v86h-768zM214 170h596v128h-212v128h-172v-128h-212v-128zM426 810v-128h172v128h-172z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitEditorIconStrikethrough"
+				],
+				"defaultCode": 57568,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 9,
+				"id": 224,
+				"prevSize": 24,
+				"code": 61516,
+				"name": "strikethrough",
+				"ligatures": "format-strikethrough"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 76
+		},
+		{
+			"icon": {
+				"paths": [
+					"M256 214h598v128h-248l-68 160-90-88 30-72h-102l-120-120v-8zM140 214l12 10 616 618-54 54-242-242-66 156h-128l104-246-296-296z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitEditorIconRemoveFormat"
+				],
+				"defaultCode": 57555,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 28,
+				"id": 211,
+				"prevSize": 24,
+				"code": 61517,
+				"name": "clear-format",
+				"ligatures": "format-clear"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 77
+		},
+		{
+			"icon": {
+				"paths": [
+					"M598 726l84-172h-128v-256h256v256l-84 172h-128zM256 726l86-172h-128v-256h256v256l-86 172h-128z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					""
+				],
+				"defaultCode": 57566,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 142,
+				"id": 222,
+				"prevSize": 24,
+				"code": 61518,
+				"name": "quote",
+				"ligatures": "format-quote"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 78
+		},
+		{
+			"icon": {
+				"paths": [
+					"M382 544q-40 40-40 96 0 70 50 120t120 50 120-50 50-120h-84q0 34-26 60t-60 26-60-26-26-60 26-60l52-54q50-54 50-120v-22h-84q0 66-50 120zM470 214v84h84v-84h-84zM512 938q-176 0-301-125t-125-301 125-301 301-125 301 125 125 301-125 301-301 125z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitEditorIconSuperscript"
+				],
+				"defaultCode": 58011,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 157,
+				"id": 826,
+				"name": "superscript",
+				"prevSize": 24,
+				"code": 61519
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 79
+		},
+		{
+			"icon": {
+				"paths": [
+					"M382 544q-40 40-40 96 0 70 50 120t120 50 120-50 50-120h-84q0 34-26 60t-60 26-60-26-26-60 26-60l52-54q50-54 50-120v-22h-84q0 66-50 120zM470 214v84h84v-84h-84zM512 938q-176 0-301-125t-125-301 125-301 301-125 301 125 125 301-125 301-301 125z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitEditorIconSubscript"
+				],
+				"defaultCode": 58011,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 158,
+				"id": 825,
+				"name": "subscript",
+				"prevSize": 24,
+				"code": 61520
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 80
+		},
+		{
+			"icon": {
+				"paths": [
+					"M410 512h204l-102-270zM470 128h84l234 598h-96l-46-128h-268l-48 128h-96zM0 854h1024v170h-1024v-170z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitEditorIconForeColor"
+				],
+				"defaultCode": 57558,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 26,
+				"id": 214,
+				"prevSize": 24,
+				"code": 61521,
+				"name": "color-text",
+				"ligatures": "format-color-text"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 81
+		},
+		{
+			"icon": {
+				"paths": [
+					"M0 854h1024v170h-1024v-170zM810 490q86 94 86 150 0 34-26 60t-60 26-59-26-25-60q0-24 21-62t41-62zM222 426h410l-206-204zM706 382q20 20 20 46t-20 44l-234 234q-20 20-46 20-24 0-44-20l-236-234q-20-18-20-44t20-46l220-220-102-102 62-60z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitEditorIconBackColor"
+				],
+				"defaultCode": 57556,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 27,
+				"id": 212,
+				"prevSize": 24,
+				"code": 61522,
+				"name": "color-fill",
+				"ligatures": "format-color-fill"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 82
+		},
+		{
+			"icon": {
+				"paths": [
+					"M680 790h90l-218-556h-80l-218 556h90l48-128h240zM854 86q34 0 59 25t25 59v684q0 34-25 59t-59 25h-684q-34 0-59-25t-25-59v-684q0-34 25-59t59-25h684zM424 576l88-236 88 236h-176z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitEditorIconHiliteColor"
+				],
+				"defaultCode": 57483,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 11,
+				"id": 139,
+				"prevSize": 24,
+				"code": 61523,
+				"name": "color-highlight",
+				"ligatures": "font_download"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 83
+		},
+		{
+			"icon": {
+				"paths": [
+					"M128 512v-128h384v128h-128v298h-128v-298h-128zM384 170h554v128h-212v512h-128v-512h-214v-128z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					""
+				],
+				"defaultCode": 57567,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 141,
+				"id": 223,
+				"prevSize": 24,
+				"code": 61524,
+				"name": "font-size",
+				"ligatures": "format-size"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 84
+		},
+		{
+			"icon": {
+				"paths": [
+					"M128 128h768v86h-768v-86zM298 298h428v86h-428v-86zM128 554v-84h768v84h-768zM128 896v-86h768v86h-768zM298 640h428v86h-428v-86z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitEditorIconJustifyCenter"
+				],
+				"defaultCode": 57550,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 3,
+				"id": 206,
+				"prevSize": 24,
+				"code": 61525,
+				"name": "align-center",
+				"ligatures": "format-align-center"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 85
+		},
+		{
+			"icon": {
+				"paths": [
+					"M128 128h768v86h-768v-86zM128 384v-86h768v86h-768zM128 554v-84h768v84h-768zM128 726v-86h768v86h-768zM128 896v-86h768v86h-768z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitEditorIconJustifyFull"
+				],
+				"defaultCode": 57551,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 4,
+				"id": 207,
+				"prevSize": 24,
+				"code": 61526,
+				"name": "align-justify",
+				"ligatures": "format-align-justify"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 86
+		},
+		{
+			"icon": {
+				"paths": [
+					"M128 128h768v86h-768v-86zM128 896v-86h768v86h-768zM128 554v-84h768v84h-768zM640 298v86h-512v-86h512zM640 640v86h-512v-86h512z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitEditorIconJustifyLeft"
+				],
+				"defaultCode": 57552,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 5,
+				"id": 208,
+				"prevSize": 24,
+				"code": 61527,
+				"name": "align-left",
+				"ligatures": "format-align-left"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 87
+		},
+		{
+			"icon": {
+				"paths": [
+					"M128 128h768v86h-768v-86zM384 384v-86h512v86h-512zM128 554v-84h768v84h-768zM384 726v-86h512v86h-512zM128 896v-86h768v86h-768z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitEditorIconJustifyRight"
+				],
+				"defaultCode": 57553,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 6,
+				"id": 209,
+				"prevSize": 24,
+				"code": 61528,
+				"name": "align-right",
+				"ligatures": "format-align-right"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 88
+		},
+		{
+			"icon": {
+				"paths": [
+					"M470 554v-84h426v84h-426zM470 384v-86h426v86h-426zM128 128h768v86h-768v-86zM470 726v-86h426v86h-426zM128 342l170 170-170 170v-340zM128 896v-86h768v86h-768z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitEditorIconIndent"
+				],
+				"defaultCode": 57560,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 8,
+				"id": 216,
+				"prevSize": 24,
+				"code": 61529,
+				"name": "indent",
+				"ligatures": "format-indent-increase"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 89
+		},
+		{
+			"icon": {
+				"paths": [
+					"M470 554v-84h426v84h-426zM470 384v-86h426v86h-426zM128 128h768v86h-768v-86zM128 896v-86h768v86h-768zM128 512l170-170v340zM470 726v-86h426v86h-426z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitEditorIconOutdent"
+				],
+				"defaultCode": 57559,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 7,
+				"id": 215,
+				"prevSize": 24,
+				"code": 61530,
+				"name": "outdent",
+				"ligatures": "format-indent-decrease"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 90
+		},
+		{
+			"icon": {
+				"paths": [
+					"M128 554v-84h512v84h-512zM128 256h768v86h-768v-86zM128 768v-86h256v86h-256z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					""
+				],
+				"defaultCode": 57480,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 134,
+				"id": 136,
+				"prevSize": 24,
+				"code": 61531,
+				"name": "sort",
+				"ligatures": "sort"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 91
+		},
+		{
+			"icon": {
+				"paths": [
+					"M768 384h86v256h-684v-256h86v170h512v-170z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitEditorIconSpace"
+				],
+				"defaultCode": 57584,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 71,
+				"id": 240,
+				"prevSize": 24,
+				"code": 61532,
+				"name": "keyboard-space",
+				"ligatures": "keyboard-space"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 92
+		},
+		{
+			"icon": {
+				"paths": [
+					"M854 256h84v512h-84v-512zM494 316l60-60 256 256-256 256-60-60 154-154h-606v-84h606z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitEditorIconTabIndent"
+				],
+				"defaultCode": 57623,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 132,
+				"id": 279,
+				"prevSize": 24,
+				"code": 61533,
+				"name": "keyboard-tab",
+				"ligatures": "keyboard-tab"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 93
+		},
+		{
+			"icon": {
+				"paths": [
+					"M298 214h598v84h-598v-84zM298 554v-84h598v84h-598zM298 810v-84h598v84h-598zM170 712q24 0 41 16t17 40-17 40-41 16-40-16-16-40 16-40 40-16zM170 192q26 0 45 18t19 46-19 46-45 18-45-18-19-46 19-46 45-18zM170 448q26 0 45 18t19 46-19 46-45 18-45-18-19-46 19-46 45-18z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitEditorIconInsertUnorderedList"
+				],
+				"defaultCode": 57563,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 18,
+				"id": 219,
+				"prevSize": 24,
+				"code": 61534,
+				"name": "list-bullet",
+				"ligatures": "format-list-bulleted"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 94
+		},
+		{
+			"icon": {
+				"paths": [
+					"M298 554v-84h598v84h-598zM298 810v-84h598v84h-598zM298 214h598v84h-598v-84zM86 470v-44h128v40l-78 88h78v44h-128v-40l76-88h-76zM128 342v-128h-42v-44h84v172h-42zM86 726v-44h128v172h-128v-44h84v-20h-42v-44h42v-20h-84z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitEditorIconInsertOrderedList"
+				],
+				"defaultCode": 57564,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 19,
+				"id": 220,
+				"prevSize": 24,
+				"code": 61535,
+				"name": "list-number",
+				"ligatures": "format-list-numbered"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 95
+		},
+		{
+			"icon": {
+				"paths": [
+					"M382 544q-40 40-40 96 0 70 50 120t120 50 120-50 50-120h-84q0 34-26 60t-60 26-60-26-26-60 26-60l52-54q50-54 50-120v-22h-84q0 66-50 120zM470 214v84h84v-84h-84zM512 938q-176 0-301-125t-125-301 125-301 301-125 301 125 125 301-125 301-301 125z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitEditorIconListBulletIndent"
+				],
+				"defaultCode": 58011,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 13,
+				"id": 814,
+				"name": "list-bullet-indent",
+				"prevSize": 24,
+				"code": 61536
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 96
+		},
+		{
+			"icon": {
+				"paths": [
+					"M382 544q-40 40-40 96 0 70 50 120t120 50 120-50 50-120h-84q0 34-26 60t-60 26-60-26-26-60 26-60l52-54q50-54 50-120v-22h-84q0 66-50 120zM470 214v84h84v-84h-84zM512 938q-176 0-301-125t-125-301 125-301 301-125 301 125 125 301-125 301-301 125z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitEditorIconListBulletOutdent"
+				],
+				"defaultCode": 58011,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 14,
+				"id": 815,
+				"name": "list-bullet-outdent",
+				"prevSize": 24,
+				"code": 61537
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 97
+		},
+		{
+			"icon": {
+				"paths": [
+					"M382 544q-40 40-40 96 0 70 50 120t120 50 120-50 50-120h-84q0 34-26 60t-60 26-60-26-26-60 26-60l52-54q50-54 50-120v-22h-84q0 66-50 120zM470 214v84h84v-84h-84zM512 938q-176 0-301-125t-125-301 125-301 301-125 301 125 125 301-125 301-301 125z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitEditorIconListNumIndent"
+				],
+				"defaultCode": 58011,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 15,
+				"id": 816,
+				"name": "list-number-indent",
+				"prevSize": 24,
+				"code": 61538
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 98
+		},
+		{
+			"icon": {
+				"paths": [
+					"M382 544q-40 40-40 96 0 70 50 120t120 50 120-50 50-120h-84q0 34-26 60t-60 26-60-26-26-60 26-60l52-54q50-54 50-120v-22h-84q0 66-50 120zM470 214v84h84v-84h-84zM512 938q-176 0-301-125t-125-301 125-301 301-125 301 125 125 301-125 301-301 125z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitEditorIconListNumOutdent"
+				],
+				"defaultCode": 58011,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 16,
+				"id": 817,
+				"name": "list-number-outdent",
+				"prevSize": 24,
+				"code": 61539
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 99
+		},
+		{
+			"icon": {
+				"paths": [
+					"M622 708l198-196-198-196 60-60 256 256-256 256zM402 708l-60 60-256-256 256-256 60 60-198 196z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitEditorIconViewSource"
+				],
+				"defaultCode": 57988,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 51,
+				"id": 644,
+				"prevSize": 24,
+				"code": 61540,
+				"name": "code",
+				"ligatures": "code"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 100
+		},
+		{
+			"icon": {
+				"paths": [
+					"M726 298q88 0 150 63t62 151-62 151-150 63h-172v-82h172q54 0 93-39t39-93-39-93-93-39h-172v-82h172zM342 554v-84h340v84h-340zM166 512q0 54 39 93t93 39h172v82h-172q-88 0-150-63t-62-151 62-151 150-63h172v82h-172q-54 0-93 39t-39 93z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitEditorIconCreateLink"
+				],
+				"defaultCode": 57578,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 17,
+				"id": 234,
+				"prevSize": 24,
+				"code": 61541,
+				"name": "link",
+				"ligatures": "link"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 101
+		},
+		{
+			"icon": {
+				"paths": [
+					"M382 544q-40 40-40 96 0 70 50 120t120 50 120-50 50-120h-84q0 34-26 60t-60 26-60-26-26-60 26-60l52-54q50-54 50-120v-22h-84q0 66-50 120zM470 214v84h84v-84h-84zM512 938q-176 0-301-125t-125-301 125-301 301-125 301 125 125 301-125 301-301 125z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitEditorIconUnlink"
+				],
+				"defaultCode": 58011,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 21,
+				"id": 822,
+				"name": "unlink",
+				"prevSize": 24,
+				"code": 61542
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 102
+		},
+		{
+			"icon": {
+				"paths": [
+					"M598 214h212v212h-84v-128h-128v-84zM726 726v-128h84v212h-212v-84h128zM214 426v-212h212v84h-128v128h-84zM298 598v128h128v84h-212v-212h84z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitEditorIconFullScreen"
+				],
+				"defaultCode": 57868,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 38,
+				"id": 524,
+				"prevSize": 24,
+				"code": 61543,
+				"name": "fullscreen",
+				"ligatures": "fullscreen"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 103
+		},
+		{
+			"icon": {
+				"paths": [
+					"M682 342h128v84h-212v-212h84v128zM598 810v-212h212v84h-128v128h-84zM342 342v-128h84v212h-212v-84h128zM214 682v-84h212v212h-84v-128h-128z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					""
+				],
+				"defaultCode": 57869,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 39,
+				"id": 525,
+				"prevSize": 24,
+				"code": 61544,
+				"name": "fullscreen-exit",
+				"ligatures": "fullscreen-exit"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 104
+		},
+		{
+			"icon": {
+				"paths": [
+					"M362 576l-148 192h596l-192-256-148 192zM896 810q0 34-26 60t-60 26h-596q-34 0-60-26t-26-60v-596q0-34 26-60t60-26h596q34 0 60 26t26 60v596z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitEditorIconInsertImage"
+				],
+				"defaultCode": 57579,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 8,
+				"id": 235,
+				"prevSize": 24,
+				"code": 61545,
+				"name": "image",
+				"ligatures": "insert_photo"
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 105
+		},
+		{
+			"icon": {
+				"paths": [
+					"M382 544q-40 40-40 96 0 70 50 120t120 50 120-50 50-120h-84q0 34-26 60t-60 26-60-26-26-60 26-60l52-54q50-54 50-120v-22h-84q0 66-50 120zM470 214v84h84v-84h-84zM512 938q-176 0-301-125t-125-301 125-301 301-125 301 125 125 301-125 301-301 125z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitEditorIconNewPage"
+				],
+				"defaultCode": 58011,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 20,
+				"id": 821,
+				"name": "page-new",
+				"prevSize": 24,
+				"code": 61546
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 106
+		},
+		{
+			"icon": {
+				"paths": [
+					"M382 544q-40 40-40 96 0 70 50 120t120 50 120-50 50-120h-84q0 34-26 60t-60 26-60-26-26-60 26-60l52-54q50-54 50-120v-22h-84q0 66-50 120zM470 214v84h84v-84h-84zM512 938q-176 0-301-125t-125-301 125-301 301-125 301 125 125 301-125 301-301 125z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitEditorIconToggleDir"
+				],
+				"defaultCode": 58011,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 17,
+				"id": 820,
+				"name": "toggle-dir",
+				"prevSize": 24,
+				"code": 61547
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 107
+		},
+		{
+			"icon": {
+				"paths": [
+					"M382 544q-40 40-40 96 0 70 50 120t120 50 120-50 50-120h-84q0 34-26 60t-60 26-60-26-26-60 26-60l52-54q50-54 50-120v-22h-84q0 66-50 120zM470 214v84h84v-84h-84zM512 938q-176 0-301-125t-125-301 125-301 301-125 301 125 125 301-125 301-301 125z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitEditorIconLeftToRight"
+				],
+				"defaultCode": 58011,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 18,
+				"id": 819,
+				"name": "left-to-right",
+				"prevSize": 24,
+				"code": 61548
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 108
+		},
+		{
+			"icon": {
+				"paths": [
+					"M382 544q-40 40-40 96 0 70 50 120t120 50 120-50 50-120h-84q0 34-26 60t-60 26-60-26-26-60 26-60l52-54q50-54 50-120v-22h-84q0 66-50 120zM470 214v84h84v-84h-84zM512 938q-176 0-301-125t-125-301 125-301 301-125 301 125 125 301-125 301-301 125z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitEditorIconRightToLeft"
+				],
+				"defaultCode": 58011,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 19,
+				"id": 818,
+				"name": "right-to-left",
+				"prevSize": 24,
+				"code": 61549
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 109
+		},
+		{
+			"icon": {
+				"paths": [
+					"M382 544q-40 40-40 96 0 70 50 120t120 50 120-50 50-120h-84q0 34-26 60t-60 26-60-26-26-60 26-60l52-54q50-54 50-120v-22h-84q0 66-50 120zM470 214v84h84v-84h-84zM512 938q-176 0-301-125t-125-301 125-301 301-125 301 125 125 301-125 301-301 125z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitEditorIconSelectAll"
+				],
+				"defaultCode": 58011,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 159,
+				"id": 824,
+				"name": "select-all",
+				"prevSize": 24,
+				"code": 61550
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 110
+		},
+		{
+			"icon": {
+				"paths": [
+					"M382 544q-40 40-40 96 0 70 50 120t120 50 120-50 50-120h-84q0 34-26 60t-60 26-60-26-26-60 26-60l52-54q50-54 50-120v-22h-84q0 66-50 120zM470 214v84h84v-84h-84zM512 938q-176 0-301-125t-125-301 125-301 301-125 301 125 125 301-125 301-301 125z"
+				],
+				"attrs": [
+					{}
+				],
+				"isMulticolor": false,
+				"tags": [
+					"dijitEditorIconWikiword"
+				],
+				"defaultCode": 58011,
+				"grid": 24
+			},
+			"attrs": [
+				{}
+			],
+			"properties": {
+				"order": 22,
+				"id": 823,
+				"name": "wikiword",
+				"prevSize": 24,
+				"code": 61551
+			},
+			"setIdx": 0,
+			"setId": 0,
+			"iconIdx": 111
+		}
+	],
+	"height": 1024,
+	"metadata": {
+		"name": "flat-icon"
+	},
+	"preferences": {
+		"showGlyphs": true,
+		"showQuickUse": true,
+		"showQuickUse2": true,
+		"showSVGs": true,
+		"fontPref": {
+			"prefix": "flat-",
+			"metadata": {
+				"fontFamily": "flat-icon",
+				"majorVersion": 1,
+				"minorVersion": 0
+			},
+			"metrics": {
+				"emSize": 1024,
+				"baseline": 6.25,
+				"whitespace": 50
+			},
+			"embed": false,
+			"showVersion": false,
+			"showMetadata": false,
+			"showMetrics": false,
+			"showSelector": false,
+			"ie7": false,
+			"includeMetadata": false,
+			"cssVars": false,
+			"cssVarsFormat": "stylus",
+			"resetPoint": 61440
+		},
+		"imagePref": {
+			"prefix": "icon-",
+			"png": true,
+			"useClassSelector": true,
+			"color": 4473924,
+			"bgColor": 16777215
+		},
+		"historySize": 100,
+		"showCodes": true,
+		"gridSize": 16,
+		"showGrid": true,
+		"showLiga": false
+	}
+}

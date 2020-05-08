@@ -1,0 +1,294 @@
+<!doctype html>
+<html>
+<head>
+	<meta http-equiv="Content-type" content="text/html; charset=utf-8"/>
+	<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no">
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<title>Bidi Mobile test - Tooltip</title>
+
+	<script type="text/javascript" src="../../deviceTheme.js" data-dojo-config="mblThemeFiles: ['base','Tooltip']"></script>
+	<script type="text/javascript" src="../../../../dojo/dojo.js" data-dojo-config="async: true, parseOnLoad: true, has: { 'dojo-bidi': true }"></script>
+
+	<script type="text/javascript">
+		require([
+			"dojo/_base/connect",
+			"dojo/ready",
+			"dojo/_base/array",
+			"dojo/dom",
+			"dijit/registry",
+			"dijit/_base/manager",
+			"dojox/mobile/parser",
+			"dojox/mobile",
+			"dojox/mobile/compat",
+			"dojox/mobile/Tooltip",
+			"dojox/mobile/Button",
+			"dojox/mobile/ScrollableView",
+			"dojox/mobile/ListItem"
+		], function(connect, ready, array, dom, registry){
+			ready(function(){
+			
+				//change textDir 
+				var btn0 = registry.byId("btn0");	
+				btn0.connect(btn0, "onClick", function(){
+					registry.byId("textTooltip4").set("textDir", "ltr");
+				});	
+				
+				var btn0 = registry.byId("btn1");	
+				btn0.connect(btn0, "onClick", function(){
+					registry.byId("textTooltip4").set("textDir", "rtl");
+				});	
+					
+				var btn0 = registry.byId("btn2");	
+				btn0.connect(btn0, "onClick", function(){
+					registry.byId("textTooltip4").set("textDir", "auto");
+				});
+			});
+	
+	});
+	</script>
+
+	<style>
+	html,body {
+		height: 100%;
+		overflow: hidden;
+	}
+	hr {
+		border: none;
+		margin: 0;
+	}
+	button {
+		width: 180px;
+		margin: 15px 10px 0;
+	}
+	button.customButton {
+		border-color: #cc3333;
+		background-image: url(../images/red-button-bg.png);
+		background-image: -webkit-gradient(linear, left top, left bottom, from(#D3656D), to(#BC1320), color-stop(0.5, #C9404B), color-stop(0.5, #BC1421));
+		color: #ffffff;
+	}
+	</style>
+</head>
+<body style="visibility:hidden;">
+<div id="group1" data-dojo-type="dojox.mobile.View" data-dojo-props='keepScrollPos:false'><!-- keepScrollPos=false is to improve performance -->
+
+	<div id="view0" data-dojo-type="dojox.mobile.ScrollableView">
+	        <h2 data-dojo-type="dojox.mobile.Heading">Tooltip widget</h2>
+		<h1 data-dojo-type="dojox.mobile.Heading">dir LTR</h1>	
+		<ul data-dojo-type="dojox.mobile.EdgeToEdgeList" >
+			<li id="l1" data-dojo-type="dojox.mobile.ListItem" data-dojo-props='icon:"../images/LTR.png", moveTo:"view1"'>Tex Dir LTR</li>
+			<li id="l2" data-dojo-type="dojox.mobile.ListItem" data-dojo-props='icon:"../images/RTL.png", moveTo:"view2"'>Tex Dir RTL</li>
+			<li id="l3" data-dojo-type="dojox.mobile.ListItem"  data-dojo-props='icon:"../images/auto.png", moveTo:"view3"'>Tex Dir AUTO (with Span tag)</li>
+		</ul>
+		<h1 data-dojo-type="dojox.mobile.Heading">dir RTL</h1>
+		<ul data-dojo-type="dojox.mobile.EdgeToEdgeList" >
+			<li id="l4" data-dojo-type="dojox.mobile.ListItem"  data-dojo-props='icon:"../images/LTR.png", moveTo:"view4"'>Tex Dir LTR</li>
+			<li id="l5" data-dojo-type="dojox.mobile.ListItem"  data-dojo-props='icon:"../images/RTL.png", moveTo:"view5"'>Tex Dir RTL</li>
+			<li id="l6" data-dojo-type="dojox.mobile.ListItem"  data-dojo-props='icon:"../images/auto.png", moveTo:"view6"'>Tex Dir AUTO (with Bold tag)</li>
+		</ul>	
+		
+	</div>	
+	
+	
+	<div id="view1" data-dojo-type="dojox.mobile.ScrollableView">
+		<h1 data-dojo-type="dojox.mobile.Heading" data-dojo-props='back:"Back", moveTo:"view0"'>Dir LTR | textDir LTR</h1>
+		<div data-dojo-type="dojox/mobile/RoundRect" data-dojo-props='shadow:true'>	
+		<div id="textTooltip1" data-dojo-type="dojox.mobile.Tooltip" data-dojo-props='textDir:"ltr"' class="mblTooltipBubble">Hello world!</div>					
+		<input readonly onclick="dijit.byId('textTooltip1').show(this, ['after','before','above','below'])" value="Click on me!" size="10">
+		</div>
+		<br>
+		<div data-dojo-type="dojox/mobile/RoundRect" data-dojo-props='shadow:true'>	
+		<div id="textTooltip2" data-dojo-type="dojox.mobile.Tooltip" data-dojo-props='textDir:"ltr"' class="mblTooltipBubble">&#1513;&#1500;&#1493;&#1501; &#1506;&#1493;&#1500;&#1501;!</div>					
+		<input readonly onclick="dijit.byId('textTooltip2').show(this, ['after','before','above','below'])" value="Click on me!" size="10">
+		</div>
+		<br>
+		<div data-dojo-type="dojox/mobile/RoundRect" data-dojo-props='shadow:true'>	
+		<div id="textTooltip3" data-dojo-type="dojox.mobile.Tooltip" data-dojo-props='textDir:"ltr"' class="mblTooltipBubble">Hello &#1506;&#1493;&#1500;&#1501;!</div>					
+		<input readonly onclick="dijit.byId('textTooltip3').show(this, ['after','before','above','below'])" value="Click on me!" size="10">
+		</div>
+		<br>
+		<div data-dojo-type="dojox/mobile/RoundRect" data-dojo-props='shadow:true'>
+		<div id="textTooltip4" data-dojo-type="dojox.mobile.Tooltip" data-dojo-props='textDir:"ltr"' class="mblTooltipBubble">&#1513;&#1500;&#1493;&#1501; World!</div>					
+		<input readonly onclick="dijit.byId('textTooltip4').show(this, ['after','before','above','below'])" value="Click on me!" size="10">
+		</div>
+		
+		
+		<center>
+		<button readonly onclick="dijit.byId('textTooltip1').hide()"> Click to hide first text tooltip </button>
+		<button readonly onclick="dijit.byId('textTooltip2').hide()"> Click to hide second text tooltip </button>
+		<button readonly onclick="dijit.byId('textTooltip3').hide()"> Click to hide third text tooltip </button>
+		<button readonly onclick="dijit.byId('textTooltip4').hide()"> Click to hide fourth text tooltip </button>
+		</center>
+		<br>
+		<br>
+		<center>
+		<button data-dojo-type="dojox.mobile.Button" id="btn0" >Set textDir for last Tooltip to ltr</button>
+		<button data-dojo-type="dojox.mobile.Button" id="btn1" >Set textDir for last Tooltip to rtl</button>
+		<button data-dojo-type="dojox.mobile.Button" id="btn2" >Set textDir for last Tooltip to auto</button>
+		</center>
+			
+	</div>
+	
+		
+	<div id="view2" data-dojo-type="dojox.mobile.ScrollableView">
+		<h1 data-dojo-type="dojox.mobile.Heading" data-dojo-props='back:"Back", moveTo:"view0"'>Dir LTR | textDir RTL</h1>
+		<div data-dojo-type="dojox/mobile/RoundRect" data-dojo-props='shadow:true'>	
+		<div id="textTooltip5" data-dojo-type="dojox.mobile.Tooltip" data-dojo-props='textDir:"rtl"' class="mblTooltipBubble">Hello world!</div>					
+		<input readonly onclick="dijit.byId('textTooltip5').show(this, ['after','before','above','below'])" value="Click on me!" size="10">
+		</div>
+		<br>
+		<div data-dojo-type="dojox/mobile/RoundRect" data-dojo-props='shadow:true'>	
+		<div id="textTooltip6" data-dojo-type="dojox.mobile.Tooltip" data-dojo-props='textDir:"rtl"' class="mblTooltipBubble">&#1513;&#1500;&#1493;&#1501; &#1506;&#1493;&#1500;&#1501;!</div>					
+		<input readonly onclick="dijit.byId('textTooltip6').show(this, ['after','before','above','below'])" value="Click on me!" size="10">
+		</div>
+		<br>
+		<div data-dojo-type="dojox/mobile/RoundRect" data-dojo-props='shadow:true'>	
+		<div id="textTooltip7" data-dojo-type="dojox.mobile.Tooltip" data-dojo-props='textDir:"rtl"' class="mblTooltipBubble">Hello &#1506;&#1493;&#1500;&#1501;!</div>					
+		<input readonly onclick="dijit.byId('textTooltip7').show(this, ['after','before','above','below'])" value="Click on me!" size="10">
+		</div>
+		<br>
+		<div data-dojo-type="dojox/mobile/RoundRect" data-dojo-props='shadow:true'>
+		<div id="textTooltip8" data-dojo-type="dojox.mobile.Tooltip" data-dojo-props='textDir:"rtl"' class="mblTooltipBubble">&#1513;&#1500;&#1493;&#1501; World!</div>					
+		<input readonly onclick="dijit.byId('textTooltip8').show(this, ['after','before','above','below'])" value="Click on me!" size="10">
+		</div>
+		
+		<center>
+		<button readonly onclick="dijit.byId('textTooltip5').hide()"> Click to hide first text tooltip </button>
+		<button readonly onclick="dijit.byId('textTooltip6').hide()"> Click to hide second text tooltip </button>
+		<button readonly onclick="dijit.byId('textTooltip7').hide()"> Click to hide third text tooltip </button>
+		<button readonly onclick="dijit.byId('textTooltip8').hide()"> Click to hide fourth text tooltip </button>
+		</center>
+		
+		
+					
+		
+	</div>
+		
+	<div id="view3" data-dojo-type="dojox.mobile.ScrollableView">	
+		<h1 data-dojo-type="dojox.mobile.Heading" data-dojo-props='back:"Back", moveTo:"view0"'>Dir LTR | textDir AUTO</h1>
+		<div data-dojo-type="dojox/mobile/RoundRect" data-dojo-props='shadow:true'>
+		<div id="textTooltip9" data-dojo-type="dojox.mobile.Tooltip" data-dojo-props='textDir:"auto"' class="mblTooltipBubble">Hello world!<br><span style="background-color:Lime">Hello world!</span></div>					
+		<input readonly onclick="dijit.byId('textTooltip9').show(this, ['after','before','above','below'])" value="Click on me!" size="10">
+		</div>
+		<br>
+		<div data-dojo-type="dojox/mobile/RoundRect" data-dojo-props='shadow:true'>	
+		<div id="textTooltip10" data-dojo-type="dojox.mobile.Tooltip" data-dojo-props='textDir:"auto"' class="mblTooltipBubble">&#1513;&#1500;&#1493;&#1501; &#1506;&#1493;&#1500;&#1501;!<br><span style="background-color:Lime">&#1513;&#1500;&#1493;&#1501; &#1506;&#1493;&#1500;&#1501;!</span></div>					
+		<input readonly onclick="dijit.byId('textTooltip10').show(this, ['after','before','above','below'])" value="Click on me!" size="10">
+		</div>
+		<br>
+		<div data-dojo-type="dojox/mobile/RoundRect" data-dojo-props='shadow:true'>	
+		<div id="textTooltip11" data-dojo-type="dojox.mobile.Tooltip" data-dojo-props='textDir:"auto"' class="mblTooltipBubble">Hello &#1506;&#1493;&#1500;&#1501;!<br><span style="background-color:Lime">Hello &#1506;&#1493;&#1500;&#1501;!</span></div>					
+		<input readonly onclick="dijit.byId('textTooltip11').show(this, ['after','before','above','below'])" value="Click on me!" size="10">
+		</div>
+		<br>
+		<div data-dojo-type="dojox/mobile/RoundRect" data-dojo-props='shadow:true'>
+		<div id="textTooltip12" data-dojo-type="dojox.mobile.Tooltip" data-dojo-props='textDir:"auto"' class="mblTooltipBubble">&#1513;&#1500;&#1493;&#1501; World!<br><span style="background-color:Lime">&#1513;&#1500;&#1493;&#1501; World!</span></div>					
+		<input readonly onclick="dijit.byId('textTooltip12').show(this, ['after','before','above','below'])" value="Click on me!" size="10">		
+		
+		</div>		
+		
+		<center>
+		<button readonly onclick="dijit.byId('textTooltip9').hide()"> Click to hide first text tooltip </button>
+		<button readonly onclick="dijit.byId('textTooltip10').hide()"> Click to hide second text tooltip </button>
+		<button readonly onclick="dijit.byId('textTooltip11').hide()"> Click to hide third text tooltip </button>
+		<button readonly onclick="dijit.byId('textTooltip12').hide()"> Click to hide fourth text tooltip </button>
+		</center>
+		
+	</div>	
+	 
+	 
+	<div  id="view4" data-dojo-type="dojox.mobile.ScrollableView">
+		<h1 data-dojo-type="dojox.mobile.Heading" data-dojo-props='back:"Back", moveTo:"view0"'>Dir RTL | textDir LTR</h1>
+		<div dir="rtl" data-dojo-type="dojox/mobile/RoundRect" data-dojo-props='shadow:true, textDir:"ltr"'>	
+		<div id="textTooltip13" data-dojo-type="dojox.mobile.Tooltip" class="mblTooltipBubble">Hello world!</div>					
+		<input readonly onclick="dijit.byId('textTooltip13').show(this, ['after','before','above','below'])" value="Click on me!" size="10">
+		</div>
+		<br>
+		<div dir="rtl" data-dojo-type="dojox/mobile/RoundRect" data-dojo-props='shadow:true'>	
+		<div id="textTooltip14" data-dojo-type="dojox.mobile.Tooltip" data-dojo-props='textDir:"ltr"' class="mblTooltipBubble">&#1513;&#1500;&#1493;&#1501; &#1506;&#1493;&#1500;&#1501;!</div>					
+		<input readonly onclick="dijit.byId('textTooltip14').show(this, ['after','before','above','below'])" value="Click on me!" size="10">
+		</div>
+		<br>
+		<div dir="rtl" data-dojo-type="dojox/mobile/RoundRect" data-dojo-props='shadow:true'>	
+		<div id="textTooltip15" data-dojo-type="dojox.mobile.Tooltip" data-dojo-props='textDir:"ltr"' class="mblTooltipBubble">Hello &#1506;&#1493;&#1500;&#1501;!</div>					
+		<input readonly onclick="dijit.byId('textTooltip15').show(this, ['after','before','above','below'])" value="Click on me!" size="10">
+		</div>
+		<br>
+		<div dir="rtl" data-dojo-type="dojox/mobile/RoundRect" data-dojo-props='shadow:true'>
+		<div id="textTooltip16" data-dojo-type="dojox.mobile.Tooltip" data-dojo-props='textDir:"ltr"' class="mblTooltipBubble">&#1513;&#1500;&#1493;&#1501; World!</div>					
+		<input readonly onclick="dijit.byId('textTooltip16').show(this, ['after','before','above','below'])" value="Click on me!" size="10">
+		</div>
+	
+		
+		<center>
+		<button readonly onclick="dijit.byId('textTooltip13').hide()"> Click to hide first text tooltip </button>
+		<button readonly onclick="dijit.byId('textTooltip14').hide()"> Click to hide second text tooltip </button>
+		<button readonly onclick="dijit.byId('textTooltip15').hide()"> Click to hide third text tooltip </button>
+		<button readonly onclick="dijit.byId('textTooltip16').hide()"> Click to hide fourth text tooltip </button>
+		</center>
+		
+	</div>
+	<div id="view5" data-dojo-type="dojox.mobile.ScrollableView">
+		<h1 data-dojo-type="dojox.mobile.Heading" data-dojo-props='back:"Back", moveTo:"view0"'>Dir RTL | textDir RTL</h1>
+		<div dir="rtl" data-dojo-type="dojox/mobile/RoundRect" data-dojo-props='shadow:true'>	
+		<div id="textTooltip17" data-dojo-type="dojox.mobile.Tooltip" data-dojo-props='textDir:"rtl"' class="mblTooltipBubble">Hello world!</div>					
+		<input readonly onclick="dijit.byId('textTooltip17').show(this, ['after','before','above','below'])" value="Click on me!" size="10">
+		</div>
+		<br>
+		<div dir="rtl" data-dojo-type="dojox/mobile/RoundRect" data-dojo-props='shadow:true'>	
+		<div id="textTooltip18" data-dojo-type="dojox.mobile.Tooltip" data-dojo-props='textDir:"rtl"' class="mblTooltipBubble">&#1513;&#1500;&#1493;&#1501; &#1506;&#1493;&#1500;&#1501;!</div>					
+		<input readonly onclick="dijit.byId('textTooltip18').show(this, ['after','before','above','below'])" value="Click on me!" size="10">
+		</div>
+		<br>
+		<div dir="rtl" data-dojo-type="dojox/mobile/RoundRect" data-dojo-props='shadow:true'>	
+		<div id="textTooltip19" data-dojo-type="dojox.mobile.Tooltip" data-dojo-props='textDir:"rtl"' class="mblTooltipBubble">Hello &#1506;&#1493;&#1500;&#1501;!</div>					
+		<input readonly onclick="dijit.byId('textTooltip19').show(this, ['after','before','above','below'])" value="Click on me!" size="10">
+		</div>
+		<br>
+		<div dir="rtl" data-dojo-type="dojox/mobile/RoundRect" data-dojo-props='shadow:true'>
+		<div id="textTooltip20" data-dojo-type="dojox.mobile.Tooltip" data-dojo-props='textDir:"rtl"' class="mblTooltipBubble">&#1513;&#1500;&#1493;&#1501; World!</div>					
+		<input readonly onclick="dijit.byId('textTooltip20').show(this, ['after','before','above','below'])" value="Click on me!" size="10">
+		</div>
+			
+			<center>
+		<button readonly onclick="dijit.byId('textTooltip17').hide()"> Click to hide first text tooltip </button>
+		<button readonly onclick="dijit.byId('textTooltip18').hide()"> Click to hide second text tooltip </button>
+		<button readonly onclick="dijit.byId('textTooltip19').hide()"> Click to hide third text tooltip </button>
+		<button readonly onclick="dijit.byId('textTooltip20').hide()"> Click to hide fourth text tooltip </button>
+		</center>	
+		
+	</div>	
+	<div id="view6" data-dojo-type="dojox.mobile.ScrollableView">	
+		<h1 data-dojo-type="dojox.mobile.Heading" data-dojo-props='back:"Back", moveTo:"view0"'>Dir RTL | textDir AUTO</h1>
+		<div dir="rtl" data-dojo-type="dojox/mobile/RoundRect" data-dojo-props='shadow:true'>
+		<div id="textTooltip21" data-dojo-type="dojox.mobile.Tooltip" data-dojo-props='textDir:"auto"' class="mblTooltipBubble">Hello world!<br><b style="background-color:Lime"> Hello world! </b></div>					
+		<input readonly onclick="dijit.byId('textTooltip21').show(this, ['after','before','above','below'])" value="Click on me!" size="10">
+		</div>
+		<br>
+		<div dir="rtl" data-dojo-type="dojox/mobile/RoundRect" data-dojo-props='shadow:true'>	
+		<div id="textTooltip22" data-dojo-type="dojox.mobile.Tooltip" data-dojo-props='textDir:"auto"' class="mblTooltipBubble">&#1513;&#1500;&#1493;&#1501; &#1506;&#1493;&#1500;&#1501;!<br><b style="background-color:Lime">&#1513;&#1500;&#1493;&#1501; &#1506;&#1493;&#1500;&#1501;!</b></div>					
+		<input readonly onclick="dijit.byId('textTooltip22').show(this, ['after','before','above','below'])" value="Click on me!" size="10">
+		</div>
+		<br>
+		<div dir="rtl" data-dojo-type="dojox/mobile/RoundRect" data-dojo-props='shadow:true'>	
+		<div id="textTooltip23" data-dojo-type="dojox.mobile.Tooltip" data-dojo-props='textDir:"auto"' class="mblTooltipBubble">Hello &#1506;&#1493;&#1500;&#1501;!<br><b style="background-color:Lime">Hello &#1506;&#1493;&#1500;&#1501;!</b></div>					
+		<input readonly onclick="dijit.byId('textTooltip23').show(this, ['after','before','above','below'])" value="Click on me!" size="10">
+		</div>
+		<br>
+		<div dir="rtl" data-dojo-type="dojox/mobile/RoundRect" data-dojo-props='shadow:true'>
+		<div id="textTooltip24" data-dojo-type="dojox.mobile.Tooltip" data-dojo-props='textDir:"auto"' class="mblTooltipBubble">&#1513;&#1500;&#1493;&#1501; World!<br><b style="background-color:Lime">&#1513;&#1500;&#1493;&#1501; World!</b></div>					
+		<input readonly onclick="dijit.byId('textTooltip24').show(this, ['after','before','above','below'])" value="Click on me!" size="10">		
+		
+		</div>				
+		
+		<center>
+		<button readonly onclick="dijit.byId('textTooltip21').hide()"> Click to hide first text tooltip </button>
+		<button readonly onclick="dijit.byId('textTooltip22').hide()"> Click to hide second text tooltip </button>
+		<button readonly onclick="dijit.byId('textTooltip23').hide()"> Click to hide third text tooltip </button>
+		<button readonly onclick="dijit.byId('textTooltip24').hide()"> Click to hide fourth text tooltip </button>
+		</center>
+	</div>	
+</div>
+
+</div>
+</body>
+</html>

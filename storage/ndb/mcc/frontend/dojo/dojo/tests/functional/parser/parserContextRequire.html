@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>parser auto-require unit test</title>
+		<style type="text/css">
+			@import "../../../resources/dojo.css";
+		</style>
+		<script>
+			var ready = false;
+			var dojoConfig = {
+				async: true,
+				isDebug: true,
+				baseUrl: '.',
+				packages: [
+					{ name: 'dojo', location: '../../../node_modules/dojo' },
+					{ name: 'testing', location: '../../../' }
+				],
+				map: {
+					testing: {
+						dojo: 'testing'
+					}
+				},
+				callback: function () {
+					ready = true;
+				}
+			};
+		</script>
+		<script src="../../../dojo.js"></script>
+	</head>
+	<body>
+		<h1>parseOnLoad:true, async: true, auto-require unit test</h1>
+
+		<p>This page tests that:</p>
+		<ol>
+			<li>parser resolves relative MIDs in widget templates</li>
+			<li>parser correctly caches constructors with same relative MIDs</li>
+		</ol>
+		<p>See console for test results.</p>
+
+
+		<div data-testing-id="cr1" data-testing-type="testing/tests/functional/parser/support/a/AMDWidget"></div>
+		<div data-testing-id="cr2" data-testing-type="testing/tests/functional/parser/support/b/AMDWidget"></div>
+
+	</body>
+</html>

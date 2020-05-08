@@ -1,0 +1,136 @@
+﻿/* RadioButton
+ * 
+ * Styling RadioButton mainly includes:
+ * 
+ * 1. Containers
+ * 		.dijitRadio|.dijitRadioIcon
+ * 
+ * 2. RadioButton within ToggleButton
+ * 		.dijitToggleButton|.dijitToggleButtonChecked
+ * 
+ * 3. Checked state
+ * 		.dijitRadioChecked
+ * 		.dijitToggleButtonChecked
+ * 
+ * 4. Hover state
+ * 		.dijitRadioHover|.dijitRadioCheckedHover
+ * 
+ * 5. Disabled state
+ * 		.dijitRadioDisabled|.dijitRadioCheckedDisabled
+ */
+
+@import 'dijit_form_variables';
+
+.{$theme-name} {
+	
+	.dijitRadio,
+	.dijitRadioIcon	{ /* inside a toggle button */
+		width: $radio-width;
+		height: $radio-height;
+		background: $radio-background-color;
+		border: 1px solid $radio-border-color;
+		border-radius: 50%;
+		position: relative;
+		overflow: visible;
+		box-sizing: border-box;
+		&:after {
+			content: " ";
+			display: block;
+			width: 0;
+			height: 0;
+			background-color: $radio-checked-color;
+			border-radius: 50%;
+			opacity: 0;
+			margin: ($radio-width) * .5;
+			position: absolute;
+			top: 0;
+			left: 0;
+			transition: all 0.15s ease-in-out;
+		}
+	}
+
+	// hover
+	.dijitRadioHover {
+		border-color: $radio-hover-border-color;
+	}
+
+	// checked
+	.dijitRadioChecked,
+	.dijitChecked .dijitRadioIcon {
+		&:after {
+			width: $radio-width - 8px;
+			height: @width;
+			margin: 3px;
+			opacity: 1;
+		}
+	}
+
+	// checkbox icon within alternative buttons
+	if($button-alternative-colors && length($button-alternative-colors) > 0) {
+		for class in $button-alternative-colors {
+			.{class} {
+				.dijitRadioIcon {
+					border-color: $white;
+					&:after {
+						background-color: $white;
+					}
+				}
+			}
+		}
+	}
+
+	// disabled
+	.dijitRadioDisabled {
+		background-color: $radio-disabled-background-color;
+		border-color: $radio-disabled-border-color;
+	}
+	
+	.dijitRadioCheckedDisabled {
+		background-color: $radio-disabled-background-color;
+		border-color: $radio-checked-disabled-color;
+		&:after {
+			background-color: $radio-checked-disabled-color;
+		}
+	}
+
+	/* ---- RadioMenuItem ---- */
+	.dijitRadioMenuItem {
+		.dijitCheckedMenuItemIcon {
+			width: $radio-width;
+			height: $radio-height;
+			background: $radio-background-color;
+			border: 1px solid $border-color;
+			border-radius: 50%;
+			position: relative;
+			overflow: visible;
+			box-sizing: border-box;
+			&:after {
+				content: " ";
+				display: block;
+				width: 0;
+				height: 0;
+				background-color: $radio-checked-color;
+				border-radius: 50%;
+				opacity: 0;
+				margin: ($radio-width) * .5;
+				position: absolute;
+				top: 0;
+				left: 0;
+				transition: all 0.15s ease-in-out;
+			}
+		}
+	}
+	
+	.dijitRadioMenuItemChecked {
+		.dijitCheckedMenuItemIcon {
+			border-color: $border-color;
+			&:after {
+				width: $radio-width - 8px;
+				height: @width;
+				margin: 3px;
+				opacity: 1;
+			}
+		}
+	}
+
+}

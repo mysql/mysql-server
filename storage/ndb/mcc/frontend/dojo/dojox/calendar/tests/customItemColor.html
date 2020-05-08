@@ -1,0 +1,127 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+	"http://www.w3.org/TR/html4/strict.dtd">
+<html>
+
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>Calendar Sample: Desktop</title>
+		<style type="text/css">
+			@import "../themes/claro/Calendar.css";
+			@import "calendar.css";
+			@import "../../../dojo/resources/dojo.css";
+			@import "../../../dijit/themes/dijit.css";
+			@import "../../../dijit/themes/claro/claro.css";
+		</style>
+	</head>
+
+	<body class="claro">
+		<script type="text/javascript"
+				data-dojo-config="async: true, parseOnLoad: true, paths : {'demo' : '../dojox/calendar/tests'}"
+ 				src="../../../dojo/dojo.js"></script>
+
+			<script type="text/javascript">
+
+			require(["dojo/ready", "dojo/_base/declare", "dojo/_base/lang", "dojo/_base/sniff", "dojo/_base/array", "dojo/_base/fx", "dojo/dom-style", "dojo/dom-class", "dojo/on",
+			         "dojo/date/locale", "dojo/parser",	"dojo/dom", "dojo/dom-construct",	"dojo/store/Memory",
+			         "dojo/store/Observable", "dojox/calendar/Calendar", "dojox/calendar/VerticalRenderer", "demo/DatePicker",  "dijit/TitlePane",
+			         "dijit/layout/BorderContainer", "dijit/layout/ContentPane", "dijit/form/CheckBox",
+			         "dijit/form/TextBox", "dijit/form/DateTextBox", "dijit/form/TimeTextBox",
+			         "dijit/form/Button", "dijit/form/ComboBox", "dijit/Menu", "dijit/MenuItem"	],
+
+				function(ready, declare, lang, has, arr, fx, domStyle, domClass, on, locale, parser, dom, domConstruct,
+					Memory, Observable, Calendar, VerticalRenderer){
+
+					ready(function(){
+
+
+						// Use color property of the data item as background color
+						var VerticalRendererExt = declare(VerticalRenderer, {
+							_setItemAttr: function(value){
+								this.inherited(arguments);
+
+								if(value != null){
+									var color = value.item._item.color;
+									var bgNode = this.domNode.childNodes[1];
+									domStyle.set(bgNode, "background-color", color);
+									domStyle.set(this.startTimeLabel, "background-color", color);
+									domStyle.set(this.endTimeLabel, "background-color", color);
+								}
+							}
+						});
+
+						calendar.columnView.set("verticalRenderer", VerticalRendererExt);
+
+						// Calendar model creation
+						var dataItemsTemplate = [
+							{day: 1, start: [10,0], duration: 1400, calendar: "cal1"},
+							{day: 2, start: [10,30], duration: 120, calendar: "cal2"},
+							{day: 2, start: [12,0], duration: 240, calendar: "cal1"},
+							{day: 3, start: [6,0], duration: 180, calendar: "cal2"}
+						];
+
+						var dateClassObj = calendar.dateClassObj;
+
+						var startOfWeek = calendar.floorToWeek(new dateClassObj());
+
+						var createModel = function(modelTemplate){
+
+							var someData = [];
+
+							for (var id=0; id<modelTemplate.length; id++) {
+
+								var evtTmpl = modelTemplate[id];
+								var newObj = {
+									id: id,
+									summary: "New Event " + id,
+									startTime: new dateClassObj(startOfWeek.getTime()),
+									endTime: new dateClassObj(startOfWeek.getTime()),
+									calendar: evtTmpl.calendar,
+									allDay: evtTmpl.allDay,
+									color: "#ccc"
+								};
+
+								newObj.startTime = calendar.dateModule.add(newObj.startTime, "day", evtTmpl.day);
+								newObj.startTime.setHours(evtTmpl.start[0]);
+								newObj.startTime.setMinutes(evtTmpl.start[1]);
+
+								newObj.endTime = calendar.dateModule.add(newObj.startTime, "minute", evtTmpl.duration);
+
+								someData.push(newObj);
+							}
+
+							return someData;
+						}
+
+
+						var itemsData = createModel(dataItemsTemplate);
+						var id = itemsData.length;
+						var store = new Observable(new Memory({data: itemsData}));
+
+						calendar.set("store", store);
+						calendar.set("date", startOfWeek);
+
+						// Hide loading panel when application is ready
+						fx.fadeOut({
+							node:"loadingPanel",
+							onEnd: function(node){
+								node.parentNode.removeChild(node)
+							}}).play(500);
+
+
+					});
+			});
+			</script>
+
+			<div id="loadingPanel" style="position:absolute;z-index:10;width:100%;height:100%;background:#ffffff">
+				<span style="background: #DBEB8F;padding:2px">Loading...</span>
+			</div>
+
+
+		     <div data-dojo-id="calendar" data-dojo-type="dojox.calendar.Calendar"
+				style="position:absolute;left:10px;top:10px;bottom:10px;right:10px">
+			</div>
+
+		</div>
+
+	</body>
+</html>

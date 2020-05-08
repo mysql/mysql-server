@@ -1,0 +1,4 @@
+define([
+    './query',
+    './xml'
+], function () { });

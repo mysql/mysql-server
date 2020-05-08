@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>dojo/behavior tests</title>
+	<link rel="stylesheet" href="../../resources/dojo.css">
+</head>
+<body>
+	<div class="foo" id="fooOne">
+		<span>.foo &gt; span</span>
+		<div class="bar">
+			<span>.foo &gt; .bar &gt; span</span>
+		</div>
+	</div>
+
+	<!--for focus/topic tests -->
+	<input id="another" value="another">
+	<input type="text" id="blah" class="foo blah" name="thinger" value="thinger" tabIndex="0">
+
+	<script src="../../dojo.js" data-dojo-config="async: true, isDebug: true"></script>
+	<script>
+		var ready = false,
+			applyCount = 0,
+			topicCount = 0,
+			behaviorObject = {
+				'.bar':function(elem){
+					domStyle.set(elem, 'opacity', 0.5);
+					applyCount++;
+				},
+				'.foo > span':function(elem){
+					elem.style.fontStyle = 'italic';
+					applyCount++;
+				}
+			},
+			behavior,
+			domStyle;
+
+		require([
+			'dojo/behavior',
+			'dojo/dom-style',
+			'dojo/topic',
+			'dojo/domReady!'
+		], function (_behavior, _domStyle, topic) {
+			behavior = _behavior;
+			domStyle = _domStyle;
+
+			topic.subscribe('/foo', function () {
+				topicCount++;
+			});
+
+			ready = true;
+		});
+	</script>
+</body>
+</html>

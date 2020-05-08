@@ -1,0 +1,96 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+		"http://www.w3.org/TR/html4/strict.dtd">
+<html>
+	<head>
+		<title>doh.robot Tooltip Mouse Quirks Test</title>
+
+		<style>
+			@import "../../../../util/doh/robot/robot.css";
+		</style>
+
+		<!-- required: dojo.js -->
+		<script type="text/javascript" src="../../../../dojo/dojo.js" data-dojo-config="isDebug: true"></script>
+
+		<script type="text/javascript">
+			require([
+				"dojo/ready", // dojo.ready
+				"doh/runner",	//doh functions
+				"dojo/dom",
+				"dojo/query",
+				"dijit/robotx"
+			], function(ready, runner, dom, query){
+					ready(function(){
+
+					runner.robot.initRobot("../test_RoundRectList-connect.html");
+	
+					runner.register("dojox.mobile.RoundRectList mouse tests", [
+						{
+							name: "RoundRectList mouse tests",
+							timeout: 10000,
+							runTest: function(){
+								// The encapsulation of the query in an anonymous function ensure that the query is evaluated only 
+								// when the movement begin.	Therefore the requested element has the time to appear.							
+								var getInTime = function (/*String*/ root, /*String?*/ className){
+									className = "." + (className || "mblDomButtonGrayKnob");
+									return function(){return query(className, dom.byId(root))[0];};
+								}
+
+								var d = new runner.Deferred();
+								var btn = dom.byId("btn1");
+								
+								// Start editing
+								runner.robot.mouseMoveAt(btn, 100, 200);
+								runner.robot.mouseClick({left: true}, 100);
+								
+								// drag n drop
+								runner.robot.mouseMoveAt(getInTime("item1"), 100, 200);
+								runner.robot.mousePress({left: true}, 100);
+								runner.robot.mouseMoveAt(dom.byId("msgArea1"), 100, 500);
+								runner.robot.mouseRelease({left: true}, 100);
+								
+								// drag n drop
+								runner.robot.mouseMoveAt(getInTime("item7"), 100, 200);
+								runner.robot.mousePress({left: true}, 100);
+								runner.robot.mouseMoveAt(dom.byId("item4"), 100, 500);
+								runner.robot.mouseRelease({left: true}, 100);
+								
+								// delete
+								runner.robot.mouseMoveAt(getInTime("item7", "mblDomButtonRedCircleMinus"), 100, 200);
+								runner.robot.mouseClick({left: true}, 100);
+								runner.robot.mouseMoveAt(getInTime("item7", "mblDomButtonMyRedButton_0"), 100, 200);
+								runner.robot.mouseClick({left: true}, 100);
+								
+								
+								// drag n drop
+								runner.robot.mouseMoveAt(getInTime("item8"), 100, 200);
+								runner.robot.mousePress({left: true}, 100);
+								runner.robot.mouseMoveAt(dom.byId("item2"), 100, 500);
+								runner.robot.mouseRelease({left: true}, 100);
+								
+								//End editing
+								runner.robot.mouseMoveAt(btn, 100, 200);
+								runner.robot.mouseClick({left: true}, 100);
+								
+								runner.robot.sequence(d.getTestCallback(function(){
+									doh.assertTrue(dom.byId("msgArea1").innerHTML === "Start editing...", "onStartEdit Error");
+									doh.assertTrue(dom.byId("msgArea2").innerHTML === "MoveItem: Item 1 (0 -&gt; 7) " + 
+																					  "MoveItem: Item 7 (5 -&gt; 2) " +
+																					  "MoveItem: Item 8 (5 -&gt; 0) ", "onMoveItem Error");
+									doh.assertTrue(dom.byId("msgArea3").innerHTML === "DeleteItem: Item 7", "onDeleteItem Error");
+									doh.assertTrue(dom.byId("msgArea4").innerHTML === "End editing !", "onEndEdit Error");
+									
+								}), 1000);
+								
+								return d;
+							}
+						}
+					]);
+					runner.run();
+				});
+			});
+		</script>
+	</head>
+	<body>
+		
+	</body>
+</html>

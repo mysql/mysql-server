@@ -1,0 +1,176 @@
+<!doctype html>
+<html>
+<head>
+	<meta http-equiv="Content-type" content="text/html; charset=utf-8"/>
+	<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no"/>
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<title>Bidi Mobile test - Icon Container</title>
+
+	<script type="text/javascript" src="../../deviceTheme.js" data-dojo-config="mblThemeFiles: ['base','IconContainer','TabBar']"></script>
+	<script type="text/javascript" src="../../../../dojo/dojo.js" data-dojo-config="async: true, parseOnLoad: true, mblAlwaysHideAddressBar: true, has: { 'dojo-bidi': true }"></script>
+
+<script type="text/javascript">
+		require([
+			"dojo/_base/connect",
+			"dojo/ready",
+			"dojo/_base/array",
+			"dojo/dom",
+			"dijit/registry",
+			"dojox/mobile/parser",
+			"dojox/mobile",
+			"dojox/mobile/compat",
+			"dojox/mobile/IconContainer",
+			"dojox/mobile/IconItem",  	
+			"dojox/mobile/Button",
+			"dojox/mobile/EdgeToEdgeDataList",
+			"dojox/mobile/ScrollableView",
+			"dojox/mobile/ListItem"
+		], function(connect, ready, array, dom, registry){
+			ready(function(){
+				//change textDir for icon4	
+				var btn0 = registry.byId("btn0");	
+				btn0.connect(btn0, "onClick", function(){
+					registry.byId("icon4").set("textDir", "ltr");
+				});	
+				
+				var btn0 = registry.byId("btn1");	
+				btn0.connect(btn0, "onClick", function(){
+					registry.byId("icon4").set("textDir", "rtl");
+				});	
+					
+				var btn0 = registry.byId("btn2");	
+				btn0.connect(btn0, "onClick", function(){
+					registry.byId("icon4").set("textDir", "auto");
+				});
+				// change label for icon container				
+				var btnLbl = registry.byId("btnLbl");
+				btnLbl.connect(btnLbl, "onClick", function(){
+				var c = registry.byId("icon4_auto");
+				var l = c.get("label");
+				c.set("label", "new");
+				var n =  c.get("label");
+				
+					registry.byId("icon4_auto").set("label", "\u05e9\u05dc\u05d5\u05dd for test!");
+				});
+			});
+	
+	});
+	</script>  
+	
+	
+
+	<style>
+	.box {
+			border: 1px solid #A7C0E0;
+			width: 300px;
+			height: 250px;
+			background-image: url('../images/widget-bg.png');
+			background-repeat: no-repeat;
+			background-color: white;
+		}
+	</style>
+	
+	
+</head>
+	
+<body style="visibility:hidden;">
+
+	<div id="view0" data-dojo-type="dojox.mobile.View">
+	        <h2 data-dojo-type="dojox.mobile.Heading">Icon Container widget</h2>
+		<h1 data-dojo-type="dojox.mobile.Heading">dir LTR</h1>	
+		<ul data-dojo-type="dojox.mobile.EdgeToEdgeList" >
+			<li id="l1" data-dojo-type="dojox.mobile.ListItem" data-dojo-props='icon:"../images/LTR.png", moveTo:"view1"'>Tex Dir LTR</li>
+			<li id="l2" data-dojo-type="dojox.mobile.ListItem" data-dojo-props='icon:"../images/RTL.png", moveTo:"view2"'>Tex Dir RTL</li>
+			<li id="l3" data-dojo-type="dojox.mobile.ListItem"  data-dojo-props='icon:"../images/auto.png", moveTo:"view3"'>Tex Dir AUTO</li>
+		</ul>
+		<h1 data-dojo-type="dojox.mobile.Heading">dir RTL</h1>
+		<ul data-dojo-type="dojox.mobile.EdgeToEdgeList" >
+			<li id="l4" data-dojo-type="dojox.mobile.ListItem"  data-dojo-props='icon:"../images/LTR.png", moveTo:"view4"'>Tex Dir LTR</li>
+			<li id="l5" data-dojo-type="dojox.mobile.ListItem"  data-dojo-props='icon:"../images/RTL.png", moveTo:"view5"'>Tex Dir RTL</li>
+			<li id="l6" data-dojo-type="dojox.mobile.ListItem"  data-dojo-props='icon:"../images/auto.png", moveTo:"view6"'>Tex Dir AUTO</li>
+		</ul>	
+	</div>	
+	
+	
+	<div id="view1" data-dojo-type="dojox.mobile.View">
+		<h1 data-dojo-type="dojox.mobile.Heading" data-dojo-props='back:"Back", moveTo:"view0"'>Dir LTR | textDir LTR</h1>
+		
+		<ul data-dojo-type="dojox.mobile.IconContainer" data-dojo-props='textDir:"ltr"'>
+			<li data-dojo-type="dojox.mobile.IconItem" id="icon1" data-dojo-props='label:"Hello world!", icon:"../images/icon-1.png", lazy:true'><div class="box"></div></li>
+			<li data-dojo-type="dojox.mobile.IconItem" id="icon2" data-dojo-props='label:"&#1513;&#1500;&#1493;&#1501; &#1506;&#1493;&#1500;&#1501;!", icon:"../images/icon-1.png", lazy:true'><div class="box"></div></li>
+			<li data-dojo-type="dojox.mobile.IconItem" data-dojo-props='label:"Hello &#1506;&#1493;&#1500;&#1501;!", icon:"../images/icon-1.png", lazy:true'><div class="box"></div></li>
+			<li data-dojo-type="dojox.mobile.IconItem" id="icon4" data-dojo-props='label:"&#1513;&#1500;&#1493;&#1501; World!", icon:"../images/icon1.png", href:"../data/fragment1.html", transition:"slide"'></li>
+			</ul>
+			
+			<button data-dojo-type="dojox.mobile.Button" id="btn0" >Set textDir for Icon container to ltr</button>
+			<button data-dojo-type="dojox.mobile.Button" id="btn1" >Set textDir for Icon container to rtl</button>
+			<button data-dojo-type="dojox.mobile.Button" id="btn2" >Set textDir for Icon container to auto</button>
+	
+	</div>
+	
+		
+	<div id="view2" data-dojo-type="dojox.mobile.View">
+		<h1 data-dojo-type="dojox.mobile.Heading" data-dojo-props='back:"Back", moveTo:"view0"'>Dir LTR | textDir RTL</h1>
+			
+			<ul data-dojo-type="dojox.mobile.IconContainer" data-dojo-props='textDir:"rtl"'>
+			<li data-dojo-type="dojox.mobile.IconItem" data-dojo-props='label:"Hello world!", icon:"../images/icon-1.png", lazy:true'><div class="box"></div></li>
+			<li data-dojo-type="dojox.mobile.IconItem" data-dojo-props='label:"&#1513;&#1500;&#1493;&#1501; &#1506;&#1493;&#1500;&#1501;!", icon:"../images/icon-1.png", lazy:true'><div class="box"></div></li>
+			<li data-dojo-type="dojox.mobile.IconItem" data-dojo-props='label:"Hello &#1506;&#1493;&#1500;&#1501;!", icon:"../images/icon-1.png", lazy:true'><div class="box"></div></li>
+			<li data-dojo-type="dojox.mobile.IconItem" data-dojo-props='label:"&#1513;&#1500;&#1493;&#1501; World!", icon:"../images/icon1.png", href:"../data/fragment1.html", transition:"slide"'></li>
+			</ul>	
+		
+	</div>
+		
+	<div id="view3" data-dojo-type="dojox.mobile.View">	
+		<h1 data-dojo-type="dojox.mobile.Heading" data-dojo-props='back:"Back", moveTo:"view0"'>Dir LTR | textDir AUTO</h1>
+		<ul data-dojo-type="dojox.mobile.IconContainer" data-dojo-props='textDir:"auto"'>
+			<li data-dojo-type="dojox.mobile.IconItem" data-dojo-props='label:"Hello world!", icon:"../images/icon-1.png", lazy:true'><div class="box"></div></li>
+			<li data-dojo-type="dojox.mobile.IconItem" data-dojo-props='label:"&#1513;&#1500;&#1493;&#1501; &#1506;&#1493;&#1500;&#1501;!", icon:"../images/icon-1.png", lazy:true'><div class="box"></div></li>
+			<li data-dojo-type="dojox.mobile.IconItem" data-dojo-props='label:"Hello &#1506;&#1493;&#1500;&#1501;!", icon:"../images/icon-1.png", lazy:true'><div class="box"></div></li>
+			<li data-dojo-type="dojox.mobile.IconItem" id="icon4_auto" data-dojo-props='label:"&#1513;&#1500;&#1493;&#1501; World!", icon:"../images/icon1.png", href:"../data/fragment1.html", transition:"slide"'></li>
+			</ul>
+				
+		<button data-dojo-type="dojox.mobile.Button" id="btnLbl" >Set new text Button</button>
+	</div>	
+	 
+	 
+	<div dir=rtl  id="view4" data-dojo-type="dojox.mobile.View">
+		<h1 data-dojo-type="dojox.mobile.Heading" data-dojo-props='back:"Back", moveTo:"view0"'>Dir RTL | textDir LTR</h1>
+		
+		<ul data-dojo-type="dojox.mobile.IconContainer" dir="rtl" data-dojo-props='textDir:"ltr"'>
+			<li data-dojo-type="dojox.mobile.IconItem" data-dojo-props='label:"Hello world!", icon:"../images/icon-1.png", lazy:true'><div class="box"></div></li>
+			<li data-dojo-type="dojox.mobile.IconItem" data-dojo-props='label:"&#1513;&#1500;&#1493;&#1501; &#1506;&#1493;&#1500;&#1501;!", icon:"../images/icon-1.png", lazy:true'><div class="box"></div></li>
+			<li data-dojo-type="dojox.mobile.IconItem" data-dojo-props='label:"Hello &#1506;&#1493;&#1500;&#1501;!", icon:"../images/icon-1.png", lazy:true'><div class="box"></div></li>
+			<li data-dojo-type="dojox.mobile.IconItem" data-dojo-props='label:"&#1513;&#1500;&#1493;&#1501; World!", icon:"../images/icon1.png", href:"../data/fragment1.html", transition:"slide"'></li>
+			</ul>
+	</div>
+	
+	
+	<div dir="rtl" id="view5" data-dojo-type="dojox.mobile.View">
+		<h1 data-dojo-type="dojox.mobile.Heading" data-dojo-props='back:"Back", moveTo:"view0"'>Dir RTL | textDir RTL</h1>
+			<ul data-dojo-type="dojox.mobile.IconContainer" data-dojo-props='textDir:"rtl"'>
+			<li data-dojo-type="dojox.mobile.IconItem" data-dojo-props='label:"Hello world!", icon:"../images/icon-1.png", lazy:true'><div class="box"></div></li>
+			<li data-dojo-type="dojox.mobile.IconItem" data-dojo-props='label:"&#1513;&#1500;&#1493;&#1501; &#1506;&#1493;&#1500;&#1501;!", icon:"../images/icon-1.png", lazy:true'><div class="box"></div></li>
+			<li data-dojo-type="dojox.mobile.IconItem" data-dojo-props='label:"Hello &#1506;&#1493;&#1500;&#1501;!", icon:"../images/icon-1.png", lazy:true'><div class="box"></div></li>
+			<li data-dojo-type="dojox.mobile.IconItem" data-dojo-props='label:"&#1513;&#1500;&#1493;&#1501; World!", icon:"../images/icon1.png", href:"../data/fragment1.html", transition:"slide"'></li>
+			</ul>	
+		
+	</div>	
+	
+	<div dir=rtl id="view6" data-dojo-type="dojox.mobile.View">	
+		<h1 data-dojo-type="dojox.mobile.Heading" data-dojo-props='back:"Back", moveTo:"view0"'>Dir RTL | textDir AUTO</h1>
+			
+		<ul data-dojo-type="dojox.mobile.IconContainer" data-dojo-props='textDir:"auto"'>
+			<li data-dojo-type="dojox.mobile.IconItem" dir="rtl" data-dojo-props='label:"Hello world!", icon:"../images/icon-1.png", lazy:true'><div class="box"></div></li>
+			<li data-dojo-type="dojox.mobile.IconItem" dir="rtl" data-dojo-props='label:"&#1513;&#1500;&#1493;&#1501; &#1506;&#1493;&#1500;&#1501;!", icon:"../images/icon-1.png", lazy:true'><div class="box"></div></li>
+			<li data-dojo-type="dojox.mobile.IconItem" dir=rtl data-dojo-props='label:"Hello &#1506;&#1493;&#1500;&#1501;!", icon:"../images/icon-1.png", lazy:true'><div class="box"></div></li>
+			<li data-dojo-type="dojox.mobile.IconItem" dir=rtl data-dojo-props='label:"&#1513;&#1500;&#1493;&#1501; World!", icon:"../images/icon1.png", href:"../data/fragment1.html", transition:"slide"'></li>
+			</ul>
+				
+		
+	</div>	
+
+
+</div>
+</body>
+</html>

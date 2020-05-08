@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>ConfirmDialog Widget Automated (non-robot) Tests</title>
+
+	<script src="boilerplate.js"></script>
+
+	<script type="text/javascript">
+		require([
+			"doh/runner",
+			"dojo/_base/declare", "dojo/dom", "dojo/dom-geometry", "dojo/dom-style", "dojo/window",
+			"dijit/focus", "dijit/registry", "dijit/ConfirmDialog", "dijit/DialogUnderlay", "dijit/_WidgetBase",
+			"dijit/tests/helpers", "dojo/domReady!"
+		], function(doh, declare, dom, domGeom, domStyle, winUtils,
+					focus, registry, ConfirmDialog, DialogUnderlay, _WidgetBase, helpers){
+
+			doh.register("resize", [
+				{
+					name: "create",
+					timeout: 10000,
+					runTest: function () {
+						// Create and show ConfirmDialog
+						dlg1 = new ConfirmDialog({
+							id: "dlg1",
+							title: "ConfirmDialog 1",
+							content: "<input id='dlg1_inputA'><br>" +
+							"<input id='dlg1_inputB'><br>" +
+							"<input id='dlg1_inputC'><br>" +
+							"<input id='dlg1_inputD'><br>" +
+							"<input id='dlg1_inputE'><br>" +
+							"<input id='dlg1_inputF'><br>" +
+							"<input id='dlg1_inputG'><br>" +
+							"<input id='dlg1_inputH'><br>"
+						});
+
+						return dlg1.show().then(function() {
+							doh.t(helpers.isVisible(dlg1), "ConfirmDialog 1 is visible");
+						});
+					}
+				},
+
+				{
+					name: "resize",
+					timeout: 10000,
+					runTest: function(){
+						dlg1.resize({h: 150, w: 300});
+
+						var domPos = domGeom.position(dlg1.domNode);
+						doh.is(150, domPos.h, "domNode.h");
+						doh.is(300, domPos.w, "domNode.w");
+
+						// dialog should show title, containerNode, then finally actionBar
+						var titlePos = domGeom.position(dlg1.titleBar),
+							containerPos = domGeom.position(dlg1.containerNode),
+							actionBarPos = domGeom.position(dlg1.actionBarNode);
+						doh.t(Math.abs(titlePos.h + containerPos.h + actionBarPos.h - 148) < 1, "heights add up");
+						doh.t(titlePos.h > 0, "title has height");
+						doh.t(containerPos.h > 0, "container has height");
+						doh.t(actionBarPos.h > 0, "container has height");
+
+						// and the containerNode should have a scroll bar
+						doh.is("auto", dlg1.containerNode.style.overflow, "overflow style");
+					}
+				}
+			]);
+
+			doh.run();
+		});
+	</script>
+</head>
+<body>
+	<h1 class="testTitle">Dijit ConfirmDialog Automated (non-robot) tests</h1>
+</body>
+</html>
+
+

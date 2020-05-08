@@ -1,0 +1,104 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+		"http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+	<title>dijit/place with margin on body unit test</title>
+
+	<script src="boilerplate.js"></script>
+
+	<style type="text/css">
+		html {
+			overflow: hidden; /* ie6 needs this */
+		}
+		body {
+			height: 100%;
+			padding: 0;
+			border: 0;
+
+			/* testing for margin on <body>, see #16148 */
+			position: relative;
+			top: 0;
+			margin-top: 40px;
+			margin-left: 10px;
+			margin-right: 20px;
+		}
+
+		.aroundNode {
+			position: absolute;
+			width: 20px;
+			height: 20px;
+			background: yellow;
+		}
+
+		#popup {
+			position: absolute;
+			width: 75px;
+			background: blue;
+			color: white;
+		}
+	</style>
+
+	<script type="text/javascript">
+		require([
+			"doh/runner",
+			"dojo/dom", "dojo/dom-geometry", "dojo/window",
+			"dijit/place", "dojo/domReady!"
+		], function(doh, dom, domGeometry, winUtils, place){
+
+			// The around nodes
+			var aroundTop = dom.byId("aroundTop"),
+				aroundLeft = dom.byId("aroundLeft"),
+				aroundRight = dom.byId("aroundRight");
+
+			// The popup (aka dropdown)
+			var popup = dom.byId("popup");
+
+			doh.register("around with body margin", [
+				function aroundT(t){
+					// Dropdown from "aroundTop" node.
+					var ret = place.around(popup, aroundTop, [
+						"below"	// aroundTop's bottom-left corner with the popup's top-left corner
+					], true);
+
+					doh.is("20px", popup.style.top, "underneath around node");
+				},
+				function aroundL(t){
+					// middle left popup from "aroundLeft" node
+					var ret = place.around(popup, aroundLeft, [
+						"after-centered"	// aroundLeft's middle-right with the popup's middle-left
+					], true);
+
+					var popupPos = domGeometry.position(popup);
+					var aroundPos = domGeometry.position(aroundLeft);
+					doh.is(Math.round(aroundPos.x + aroundPos.w), Math.round(popupPos.x), "after around node");
+				},
+				function aroundR(t){
+					// This will put the drop-down to the left of the "aroundRight" node
+					var ret = place.around(popup, aroundRight, ["before-centered"], true);
+
+					var popupPos = domGeometry.position(popup);
+					var aroundPos = domGeometry.position(aroundRight);
+					doh.is(Math.round(popupPos.x + popupPos.w), Math.round(aroundPos.x),
+							"right aligned with around node");
+				}
+			]);
+
+			doh.run();
+		});
+
+	</script>
+</head>
+<body style="position: relative; top: 0; margin-top: 40px;">
+	<h1>Dijit Place With Margin On BODY Unit Test</h1>
+	<div id="aroundTop" class="aroundNode" style="top: 0px; left: 50%">T</div>
+	<div id="aroundLeft" class="aroundNode" style="bottom: 30%; left: 0px;">L</div>
+	<div id="aroundRight" class="aroundNode" style="bottom: 30%; right: 0px;">R</div>
+
+	<div id="popup">
+		I'm a drop down, wider and taller than the around nodes I'm placed next to.
+	</div>
+	<div style="height: 200px">
+		<!-- spacer -->
+	</div>
+</body>
+</html>
