@@ -21,7 +21,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "plugin/group_replication/include/plugin_handlers/primary_election_invocation_handler.h"
-#include "plugin/group_replication/include/hold_transactions.h"
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/plugin_handlers/primary_election_utils.h"
 
@@ -266,8 +265,7 @@ int Primary_election_handler::internal_primary_election(
   group_member_mgr->update_primary_member_flag(true);
 
   if (!local_member_info->get_uuid().compare(primary_to_elect)) {
-    hold_transactions->enable();
-    register_transaction_observer();
+    notify_election_running();
     primary_election_handler.launch_primary_election_process(
         mode, primary_to_elect, members_info);
   } else {
@@ -500,52 +498,10 @@ void sort_members_for_election(
               Group_member_info::comparator_group_member_uuid);
 }
 
-void Primary_election_handler::register_transaction_observer() {
-  group_transaction_observation_manager->register_transaction_observer(this);
+void Primary_election_handler::notify_election_running() {
+  transaction_consistency_manager->enable_primary_election_checks();
 }
 
-void Primary_election_handler::unregister_transaction_observer() {
-  group_transaction_observation_manager->unregister_transaction_observer(this);
+void Primary_election_handler::notify_election_end() {
+  transaction_consistency_manager->disable_primary_election_checks();
 }
-
-int Primary_election_handler::before_transaction_begin(
-    my_thread_id, ulong gr_consistency, ulong hold_timeout,
-    enum_rpl_channel_type channel_type) {
-  DBUG_TRACE;
-
-  if (GR_RECOVERY_CHANNEL == channel_type ||
-      GR_APPLIER_CHANNEL == channel_type) {
-    return 0;
-  }
-
-  const enum_group_replication_consistency_level consistency_level =
-      static_cast<enum_group_replication_consistency_level>(gr_consistency);
-
-  if (consistency_level ==
-          GROUP_REPLICATION_CONSISTENCY_BEFORE_ON_PRIMARY_FAILOVER ||
-      consistency_level == GROUP_REPLICATION_CONSISTENCY_AFTER) {
-    return hold_transactions->wait_until_primary_failover_complete(
-        hold_timeout);
-  }
-
-  return 0;
-}
-
-/*
-  These methods are necessary to fulfil the Group_transaction_listener
-  interface.
-*/
-/* purecov: begin inspected */
-int Primary_election_handler::before_commit(
-    my_thread_id, Group_transaction_listener::enum_transaction_origin) {
-  return 0;
-}
-int Primary_election_handler::before_rollback(
-    my_thread_id, Group_transaction_listener::enum_transaction_origin) {
-  return 0;
-}
-int Primary_election_handler::after_rollback(my_thread_id) { return 0; }
-int Primary_election_handler::after_commit(my_thread_id, rpl_sidno, rpl_gno) {
-  return 0;
-}
-/* purecov: end */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -218,7 +218,7 @@ int Transaction_consistency_info::handle_member_leave(
 }
 
 Transaction_consistency_manager::Transaction_consistency_manager()
-    : m_plugin_stopping(true) {
+    : m_plugin_stopping(true), m_primary_election_active(false) {
   m_map_lock = new Checkable_rwlock(
 #ifdef HAVE_PSI_INTERFACE
       key_GR_RWLOCK_transaction_consistency_manager_map
@@ -576,6 +576,14 @@ int Transaction_consistency_manager::before_transaction_begin(
     /* purecov: end */
   }
 
+  if (m_primary_election_active) {
+    if (consistency_level ==
+            GROUP_REPLICATION_CONSISTENCY_BEFORE_ON_PRIMARY_FAILOVER ||
+        consistency_level == GROUP_REPLICATION_CONSISTENCY_AFTER) {
+      return m_hold_transactions.wait_until_primary_failover_complete(timeout);
+    }
+  }
+
   return 0;
 }
 
@@ -829,6 +837,15 @@ void Transaction_consistency_manager::unregister_transaction_observer() {
   group_transaction_observation_manager->unregister_transaction_observer(this);
 }
 
+void Transaction_consistency_manager::enable_primary_election_checks() {
+  m_hold_transactions.enable();
+  m_primary_election_active = true;
+}
+
+void Transaction_consistency_manager::disable_primary_election_checks() {
+  m_primary_election_active = false;
+  m_hold_transactions.disable();
+}
 /*
   These methods are necessary to fulfil the Group_transaction_listener
   interface.

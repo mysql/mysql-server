@@ -21,7 +21,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "plugin/group_replication/include/plugin_handlers/primary_election_primary_process.h"
-#include "plugin/group_replication/include/hold_transactions.h"
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/plugin_handlers/primary_election_utils.h"
 
@@ -287,8 +286,7 @@ wait_for_queued_message:
 
   DBUG_EXECUTE_IF("group_replication_cancel_apply_backlog", { goto end; };);
 
-  hold_transactions->disable();
-  primary_election_handler->unregister_transaction_observer();
+  primary_election_handler->notify_election_end();
 
 end:
 

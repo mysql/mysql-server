@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,6 +35,7 @@
 #include <utility>
 
 #include "my_dbug.h"
+#include "plugin/group_replication/include/hold_transactions.h"
 #include "plugin/group_replication/include/member_info.h"
 #include "plugin/group_replication/include/pipeline_interfaces.h"
 #include "plugin/group_replication/include/plugin_observers/group_transaction_observation_manager.h"
@@ -391,6 +392,18 @@ class Transaction_consistency_manager : public Group_transaction_listener {
 
   virtual int after_rollback(my_thread_id thread_id);
 
+  /**
+    Tells the consistency manager that a primary election is running so it
+    shall enable primary election checks
+  */
+  void enable_primary_election_checks();
+
+  /**
+    Tells the consistency manager that a primary election ended so it
+    shall disable primary election checks
+  */
+  void disable_primary_election_checks();
+
  private:
   /**
     Help method called by transaction begin action that, for
@@ -458,6 +471,10 @@ class Transaction_consistency_manager : public Group_transaction_listener {
   std::list<Pipeline_event *> m_delayed_view_change_events;
 
   std::atomic<bool> m_plugin_stopping;
+  std::atomic<bool> m_primary_election_active;
+
+  /** Hold transaction mechanism */
+  Hold_transactions m_hold_transactions;
 };
 
 #endif /* CONSISTENCY_MANAGER_INCLUDED */
