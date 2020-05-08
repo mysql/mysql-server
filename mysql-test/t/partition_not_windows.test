@@ -4,7 +4,7 @@
 --disable_query_log
 CALL mtr.add_suppression("\\[ERROR\\].* Operating system error number");
 CALL mtr.add_suppression("\\[ERROR\\].* The error means mysqld does not have the access");
-CALL mtr.add_suppression("\\[ERROR\\].* Cannot create a tablespace for table .* in directory .* because it is not a valid location. The DATA DIRECTORY location must be in a known directory. The known directories are");
+CALL mtr.add_suppression("\\[ERROR\\].* Cannot create a tablespace for table .* because the directory is not a valid location. The DATA DIRECTORY location must be in a known directory");
 # Different error messages on MacOS
 CALL mtr.add_suppression("\\[ERROR\\].* Error number 30 means 'Read-only file system'");
 CALL mtr.add_suppression("\\[ERROR\\].* 'mkdir' returned OS error 130");

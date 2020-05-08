@@ -5,8 +5,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection server1]
 [connection server1]
 SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("Cannot create a tablespace for table .* in directory .* because it is not a valid location. The DATA DIRECTORY location must be in a known directory. The known directories are");
-call mtr.add_suppression("Cannot create tablespace .* in directory .* because it is not a valid location. The DATAFILE location must be in a known directory. The known directories are");
+call mtr.add_suppression("Cannot create a tablespace for table .* because the directory is not a valid location. The DATA DIRECTORY location must be in a known directory");
+call mtr.add_suppression("Cannot create tablespace .* because the directory is not a valid location. The DATAFILE location must be in a known directory");
 SET SESSION sql_log_bin= 1;
 #
 # Attempt to create a table in an unknown directory.

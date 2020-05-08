@@ -7227,7 +7227,7 @@ ER_IB_MSG_564
   eng "%s"
 
 ER_IB_MSG_INVALID_LOCATION_FOR_TABLE
-  eng "Cannot create a tablespace for table %s in directory %s because it is not a valid location. %s"
+  eng "Cannot create a tablespace for table %s because the directory is not a valid location. %s"
 
 ER_IB_MSG_566
   eng "%s"
@@ -9867,8 +9867,8 @@ ER_IB_MSG_FAILED_TO_FINISH_TRUNCATE
 ER_IB_MSG_DEPRECATED_INNODB_UNDO_TABLESPACES
   eng "The setting INNODB_UNDO_TABLESPACES is deprecated and is no longer used.  InnoDB always creates 2 undo tablespaces to start with. If you need more, please use CREATE UNDO TABLESPACE."
 
-ER_IB_MSG_DIR_DOES_NOT_EXIST
-  eng "The directory '%s' does not exist."
+ER_IB_MSG_WRONG_TABLESPACE_DIR
+  eng "The directory for tablespace %s does not exist or is incorrect."
 
 ER_IB_MSG_LOCK_FREE_HASH_USAGE_STATS
   eng "%s"
@@ -10837,7 +10837,7 @@ ER_GRP_RPL_IS_STARTING
   eng "Plugin 'group_replication' is starting."
 
 ER_IB_MSG_INVALID_LOCATION_FOR_TABLESPACE
-  eng "Cannot create tablespace %s in directory %s because it is not a valid location. %s";
+  eng "Cannot create tablespace %s because the directory is not a valid location. %s";
 
 ER_IB_MSG_INVALID_LOCATION_WRONG_DB
   eng "Scanned file '%s' for tablespace %s cannot be opened because it is not in a sub-directory named for the schema.");

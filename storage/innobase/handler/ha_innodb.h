@@ -838,14 +838,11 @@ class create_table_info_t {
  private:
   /** Put a warning or error message to the error log for the
   DATA DIRECTORY option.
-  @param[in]  dirpath  The directory path that is invalid
-  @param[in]  msg1     The reason that data directory is wrong.
-  @param[in]  msg2     A second message meant for the error log.
-  @param[in]  ignore   If true, append a message about ignoring
-                       the data directory location.
+  @param[in]  msg     The reason that data directory is wrong.
+  @param[in]  ignore  If true, append a message about ignoring
+                      the data directory location.
   @return true if valid, false if not. */
-  void log_error_invalid_location(Fil_path &dirpath, std::string &msg1,
-                                  std::string &msg2, bool ignore);
+  void log_error_invalid_location(std::string &msg, bool ignore);
 
  public:
   /** Validate DATA DIRECTORY option. */

@@ -403,15 +403,15 @@ ts2	TABLESPACE	InnoDB	NORMAL	ts2	MYSQL_TMP_DIR/undo_dir/ts2.ibd
 #
 # Validate the messages that should have been put into the error log.
 #
-Pattern "Cannot create a tablespace for table test/bad_1 in directory .* because it is not a valid location. The DATA DIRECTORY location must be in a known directory. The known directories are" found
-Pattern "Cannot create a tablespace for table data/bad_2 in directory .* because it is not a valid location. The DATA DIRECTORY location cannot be the datadir. The datadir is:" found
-Pattern "Cannot create tablespace bad_4 in directory .* because it is not a valid location. The DATAFILE location must be in a known directory. The known directories are" found
-Pattern "Cannot create tablespace bad_6 in directory .* because it is not a valid location. The DATAFILE location cannot be under the datadir" found
-Pattern "Cannot create tablespace bad_7 in directory .* because it is not a valid location. The UNDO DATAFILE location must be in a known directory. The known directories are" found
-Pattern "Cannot create a tablespace for table test/bad_8.*p2 in directory .* because it is not a valid location. The DATA DIRECTORY location must be in a known directory. The known directories are" found
-Pattern "Cannot create a tablespace for table test/bad_10.*p2.*s3 in directory .* because it is not a valid location. The DATA DIRECTORY location must be in a known directory. The known directories are" found
-Pattern "Cannot create a tablespace for table test/tp3.*p3.*s6 in directory .* because it is not a valid location. The DATA DIRECTORY location must be in a known directory. The known directories are" found
-Pattern "Cannot create a tablespace for table test/tp3.*p3.*s5#tmp in directory .* because it is not a valid location. The DATA DIRECTORY location must be in a known directory. The known directories are" found
+Pattern "Cannot create a tablespace for table test/bad_1 because the directory is not a valid location. The DATA DIRECTORY location must be in a known directory" found
+Pattern "Cannot create a tablespace for table data/bad_2 because the directory is not a valid location. The DATA DIRECTORY location cannot be the datadir" found
+Pattern "Cannot create tablespace bad_4 because the directory is not a valid location. The DATAFILE location must be in a known directory" found
+Pattern "Cannot create tablespace bad_6 because the directory is not a valid location. The DATAFILE location cannot be under the datadir" found
+Pattern "Cannot create tablespace bad_7 because the directory is not a valid location. The UNDO DATAFILE location must be in a known directory" found
+Pattern "Cannot create a tablespace for table test/bad_8.*p2 because the directory is not a valid location. The DATA DIRECTORY location must be in a known directory" found
+Pattern "Cannot create a tablespace for table test/bad_10.*p2.*s3 because the directory is not a valid location. The DATA DIRECTORY location must be in a known directory" found
+Pattern "Cannot create a tablespace for table test/tp3.*p3.*s6 because the directory is not a valid location. The DATA DIRECTORY location must be in a known directory" found
+Pattern "Cannot create a tablespace for table test/tp3.*p3.*s5#tmp because the directory is not a valid location. The DATA DIRECTORY location must be in a known directory" found
 #
 # Cleanup
 #

@@ -502,11 +502,11 @@ Warning	1812	Tablespace is missing for table undo_004.
 #
 # Validate the messages that should have been put into the error log.
 #
-Pattern "Cannot create a tablespace for table test/t1 in directory .* because it is not a valid location. The DATA DIRECTORY location must be in a known directory. The known directories are: .* The DATA DIRECTORY location will be ignored and the file will be put into the default datadir location" found
-Pattern "Cannot create a tablespace for table test/t2 in directory .* because it is not a valid location. The DATA DIRECTORY location must be in a known directory. The known directories are: .* The DATA DIRECTORY location will be ignored and the file will be put into the default datadir location" found
-Pattern "Cannot create a tablespace for table test/tp1#p#p2 in directory .* because it is not a valid location. The DATA DIRECTORY location must be in a known directory. The known directories are: .* The DATA DIRECTORY location will be ignored and the file will be put into the default datadir location" found
-Pattern "Cannot create a tablespace for table test/tsp1#p#p1#sp#s1 in directory .* because it is not a valid location. The DATA DIRECTORY location must be in a known directory. The known directories are: .* The DATA DIRECTORY location will be ignored and the file will be put into the default datadir location" found
-Pattern "Cannot create a tablespace for table test/tsp1#p#p1#sp#s3 in directory .* because it is not a valid location. The DATA DIRECTORY location must be in a known directory. The known directories are: .* The DATA DIRECTORY location will be ignored and the file will be put into the default datadir location" not found
+Pattern "Cannot create a tablespace for table test/t1 because the directory is not a valid location. The DATA DIRECTORY location must be in a known directory. The DATA DIRECTORY location will be ignored and the file will be put into the default datadir location" found
+Pattern "Cannot create a tablespace for table test/t2 because the directory is not a valid location. The DATA DIRECTORY location must be in a known directory. The DATA DIRECTORY location will be ignored and the file will be put into the default datadir location" found
+Pattern "Cannot create a tablespace for table test/tp1#p#p2 because the directory is not a valid location. The DATA DIRECTORY location must be in a known directory. The DATA DIRECTORY location will be ignored and the file will be put into the default datadir location" found
+Pattern "Cannot create a tablespace for table test/tsp1#p#p1#sp#s1 because the directory is not a valid location. The DATA DIRECTORY location must be in a known directory. The DATA DIRECTORY location will be ignored and the file will be put into the default datadir location" found
+Pattern "Cannot create a tablespace for table test/tsp1#p#p2#sp#s3 because the directory is not a valid location. The DATA DIRECTORY location must be in a known directory. The DATA DIRECTORY location will be ignored and the file will be put into the default datadir location" found
 #
 # Cleanup the IBD tablespaces
 #

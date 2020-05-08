@@ -267,23 +267,23 @@ SHOW CREATE TABLE tp4;
 # include/search_pattern.inc uses the environment variable SEARCH_FILE.
 let SEARCH_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err;
 
-let SEARCH_PATTERN=Cannot create a tablespace for table test/bad_1 in directory .* because it is not a valid location. The DATA DIRECTORY location must be in a known directory. The known directories are;
+let SEARCH_PATTERN=Cannot create a tablespace for table test/bad_1 because the directory is not a valid location. The DATA DIRECTORY location must be in a known directory;
 --source include/search_pattern.inc
-let SEARCH_PATTERN=Cannot create a tablespace for table data/bad_2 in directory .* because it is not a valid location. The DATA DIRECTORY location cannot be the datadir. The datadir is:;
+let SEARCH_PATTERN=Cannot create a tablespace for table data/bad_2 because the directory is not a valid location. The DATA DIRECTORY location cannot be the datadir;
 --source include/search_pattern.inc
-let SEARCH_PATTERN=Cannot create tablespace bad_4 in directory .* because it is not a valid location. The DATAFILE location must be in a known directory. The known directories are;
+let SEARCH_PATTERN=Cannot create tablespace bad_4 because the directory is not a valid location. The DATAFILE location must be in a known directory;
 --source include/search_pattern.inc
-let SEARCH_PATTERN=Cannot create tablespace bad_6 in directory .* because it is not a valid location. The DATAFILE location cannot be under the datadir;
+let SEARCH_PATTERN=Cannot create tablespace bad_6 because the directory is not a valid location. The DATAFILE location cannot be under the datadir;
 --source include/search_pattern.inc
-let SEARCH_PATTERN=Cannot create tablespace bad_7 in directory .* because it is not a valid location. The UNDO DATAFILE location must be in a known directory. The known directories are;
+let SEARCH_PATTERN=Cannot create tablespace bad_7 because the directory is not a valid location. The UNDO DATAFILE location must be in a known directory;
 --source include/search_pattern.inc
-let SEARCH_PATTERN=Cannot create a tablespace for table test/bad_8.*p2 in directory .* because it is not a valid location. The DATA DIRECTORY location must be in a known directory. The known directories are;
+let SEARCH_PATTERN=Cannot create a tablespace for table test/bad_8.*p2 because the directory is not a valid location. The DATA DIRECTORY location must be in a known directory;
 --source include/search_pattern.inc
-let SEARCH_PATTERN=Cannot create a tablespace for table test/bad_10.*p2.*s3 in directory .* because it is not a valid location. The DATA DIRECTORY location must be in a known directory. The known directories are;
+let SEARCH_PATTERN=Cannot create a tablespace for table test/bad_10.*p2.*s3 because the directory is not a valid location. The DATA DIRECTORY location must be in a known directory;
 --source include/search_pattern.inc
-let SEARCH_PATTERN=Cannot create a tablespace for table test/tp3.*p3.*s6 in directory .* because it is not a valid location. The DATA DIRECTORY location must be in a known directory. The known directories are;
+let SEARCH_PATTERN=Cannot create a tablespace for table test/tp3.*p3.*s6 because the directory is not a valid location. The DATA DIRECTORY location must be in a known directory;
 --source include/search_pattern.inc
-let SEARCH_PATTERN=Cannot create a tablespace for table test/tp3.*p3.*s5#tmp in directory .* because it is not a valid location. The DATA DIRECTORY location must be in a known directory. The known directories are;
+let SEARCH_PATTERN=Cannot create a tablespace for table test/tp3.*p3.*s5#tmp because the directory is not a valid location. The DATA DIRECTORY location must be in a known directory;
 --source include/search_pattern.inc
 
 --echo #
@@ -312,14 +312,14 @@ DROP UNDO TABLESPACE undo_004;
 --force-rmdir $UNKNOWN_DIR
 
 --disable_query_log
-call mtr.add_suppression("Cannot create a tablespace for table .* in directory .* because it is not a valid location. The DATA DIRECTORY location cannot be the undo directory");
-call mtr.add_suppression("Cannot create a tablespace for table .* in directory .* because it is not a valid location. The DATA DIRECTORY location must be in a known directory. The known directories are");
-call mtr.add_suppression("Cannot create a tablespace for table .* in directory .* because it is not a valid location. The DATA DIRECTORY location cannot be the datadir");
-call mtr.add_suppression("Cannot create tablespace .* in directory .* because it is not a valid location. The DATAFILE location cannot be the undo directory.");
-call mtr.add_suppression("Cannot create tablespace .* in directory .* because it is not a valid location. The DATAFILE location cannot be under the datadir.");
-call mtr.add_suppression("Cannot create tablespace .* in directory .* because it is not a valid location. The DATAFILE location must be in a known directory. The known directories are");
-call mtr.add_suppression("Cannot create tablespace .* in directory .* because it is not a valid location. The UNDO DATAFILE location must be in a known directory. The known directories are");
+call mtr.add_suppression("Cannot create a tablespace for table .* because the directory is not a valid location. The DATA DIRECTORY location cannot be the undo directory");
+call mtr.add_suppression("Cannot create a tablespace for table .* because the directory is not a valid location. The DATA DIRECTORY location must be in a known directory");
+call mtr.add_suppression("Cannot create a tablespace for table .* because the directory is not a valid location. The DATA DIRECTORY location cannot be the datadir");
+call mtr.add_suppression("Cannot create tablespace .* because the directory is not a valid location. The DATAFILE location cannot be the undo directory");
+call mtr.add_suppression("Cannot create tablespace .* because the directory is not a valid location. The DATAFILE location cannot be under the datadir");
+call mtr.add_suppression("Cannot create tablespace .* because the directory is not a valid location. The DATAFILE location must be in a known directory");
+call mtr.add_suppression("Cannot create tablespace .* because the directory is not a valid location. The UNDO DATAFILE location must be in a known directory");
 call mtr.add_suppression("MySQL is freeing a thd though trx->n_mysql_tables_in_use is 0 and trx->mysql_n_tables_locked is 1.");
-call mtr.add_suppression("The directory 'general.' does not exist");
+call mtr.add_suppression("The directory for tablespace .* does not exist or is incorrect");
 --enable_query_log
 

@@ -226,19 +226,19 @@ SHOW CREATE TABLE tsp1;
 --echo #
 --echo # Validate the messages that should have been put into the error log.
 --echo #
-let SEARCH_PATTERN=Cannot create a tablespace for table test/t1 in directory .* because it is not a valid location. The DATA DIRECTORY location must be in a known directory. The known directories are: .* The DATA DIRECTORY location will be ignored and the file will be put into the default datadir location;
+let SEARCH_PATTERN=Cannot create a tablespace for table test/t1 because the directory is not a valid location. The DATA DIRECTORY location must be in a known directory. The DATA DIRECTORY location will be ignored and the file will be put into the default datadir location;
 --source include/search_pattern.inc
 
-let SEARCH_PATTERN=Cannot create a tablespace for table test/t2 in directory .* because it is not a valid location. The DATA DIRECTORY location must be in a known directory. The known directories are: .* The DATA DIRECTORY location will be ignored and the file will be put into the default datadir location;
+let SEARCH_PATTERN=Cannot create a tablespace for table test/t2 because the directory is not a valid location. The DATA DIRECTORY location must be in a known directory. The DATA DIRECTORY location will be ignored and the file will be put into the default datadir location;
 --source include/search_pattern.inc
 
-let SEARCH_PATTERN=Cannot create a tablespace for table test/tp1#p#p2 in directory .* because it is not a valid location. The DATA DIRECTORY location must be in a known directory. The known directories are: .* The DATA DIRECTORY location will be ignored and the file will be put into the default datadir location;
+let SEARCH_PATTERN=Cannot create a tablespace for table test/tp1#p#p2 because the directory is not a valid location. The DATA DIRECTORY location must be in a known directory. The DATA DIRECTORY location will be ignored and the file will be put into the default datadir location;
 --source include/search_pattern.inc
 
-let SEARCH_PATTERN=Cannot create a tablespace for table test/tsp1#p#p1#sp#s1 in directory .* because it is not a valid location. The DATA DIRECTORY location must be in a known directory. The known directories are: .* The DATA DIRECTORY location will be ignored and the file will be put into the default datadir location;
+let SEARCH_PATTERN=Cannot create a tablespace for table test/tsp1#p#p1#sp#s1 because the directory is not a valid location. The DATA DIRECTORY location must be in a known directory. The DATA DIRECTORY location will be ignored and the file will be put into the default datadir location;
 --source include/search_pattern.inc
 
-let SEARCH_PATTERN=Cannot create a tablespace for table test/tsp1#p#p1#sp#s3 in directory .* because it is not a valid location. The DATA DIRECTORY location must be in a known directory. The known directories are: .* The DATA DIRECTORY location will be ignored and the file will be put into the default datadir location;
+let SEARCH_PATTERN=Cannot create a tablespace for table test/tsp1#p#p2#sp#s3 because the directory is not a valid location. The DATA DIRECTORY location must be in a known directory. The DATA DIRECTORY location will be ignored and the file will be put into the default datadir location;
 --source include/search_pattern.inc
 
 --echo #
@@ -273,6 +273,6 @@ call mtr.add_suppression("\\[Warning\\] .* Tablespace .*, name 'undo_004', file 
 call mtr.add_suppression("\\[ERROR\\] .* Cannot find undo tablespace undo_004 with filename '.*' as indicated by the Data Dictionary. Did you move or delete this tablespace. Any undo logs in it cannot be used");
 call mtr.add_suppression("\\[Warning\\] .* The datafile '.*' for tablespace .* is in an unprotected location. This file cannot be recovered after a crash until this location is added to innodb_directories");
 call mtr.add_suppression("\\[Warning\\] .* Trying to access missing tablespace");
-call mtr.add_suppression("\\[Warning\\] .* Cannot create a tablespace for table .* in directory .* because it is not a valid location. The DATA DIRECTORY location must be in a known directory");
+call mtr.add_suppression("\\[Warning\\] .* Cannot create a tablespace for table .* because the directory is not a valid location. The DATA DIRECTORY location must be in a known directory");
 --enable_query_log
 

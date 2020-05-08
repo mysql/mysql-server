@@ -54,10 +54,10 @@ ERROR HY000: InnoDB does not support FILE_BLOCK_SIZE=3072
 CREATE TABLESPACE s_bad ADD DATAFILE 's_bad.ibd' FILE_BLOCK_SIZE=65k;
 ERROR HY000: InnoDB does not support FILE_BLOCK_SIZE=66560
 CREATE TABLESPACE `s_bad` ADD DATAFILE '../sub/dir/////s_bad.ibd';
-ERROR HY000: The directory does not exist.
+ERROR HY000: The directory does not exist or is incorrect.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3121	The directory does not exist.
+Error	3121	The directory does not exist or is incorrect.
 Error	3121	The DATAFILE location must be in a known directory.
 Error	1528	Failed to create TABLESPACE s_bad
 Error	3121	Incorrect File Name '../sub/dir/////s_bad.ibd'.
@@ -279,7 +279,7 @@ ERROR HY000: The ADD DATAFILE filepath does not have a proper filename.
 SHOW WARNINGS;
 Level	Code	Message
 Error	3121	The ADD DATAFILE filepath does not have a proper filename.
-Error	3121	The directory does not exist.
+Error	3121	The directory does not exist or is incorrect.
 Error	3121	The DATAFILE location must be in a known directory.
 Error	1528	Failed to create TABLESPACE s_bad
 Error	3121	Incorrect File Name '../s_dir/s_subdir/.ibd'.
@@ -288,7 +288,7 @@ ERROR HY000: The ADD DATAFILE filepath must end with '.ibd'.
 SHOW WARNINGS;
 Level	Code	Message
 Error	3121	The ADD DATAFILE filepath must end with '.ibd'.
-Error	3121	The directory does not exist.
+Error	3121	The directory does not exist or is incorrect.
 Error	3121	The DATAFILE location must be in a known directory.
 Error	1528	Failed to create TABLESPACE s_bad
 Error	3121	Incorrect File Name '../s_dir/s_bad.ibs'.
