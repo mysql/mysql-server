@@ -217,7 +217,6 @@ static void register_fatal_signal_handler() {
  * Set the log reopen completion callback function pointer.
  *
  * @param cb Function to call at completion.
- * @return void
  */
 void set_log_reopen_complete_callback(log_reopen_callback cb) {
   g_log_reopen_complete_callback_fp = cb;
@@ -228,7 +227,6 @@ void set_log_reopen_complete_callback(log_reopen_callback cb) {
  * function.
  *
  * @param errmsg Error message. Empty string assumes successful completion.
- * @return void
  */
 void default_log_reopen_complete_cb(const std::string errmsg) {
   if (!errmsg.empty()) {
@@ -691,6 +689,23 @@ const Plugin *Loader::load(const std::string &plugin_name) {
       }
     }
     return plugin;
+  }
+
+  if (!config_.has_any(plugin_name)) {
+    // if no section for the plugin exists, try to load it anyway with an empty
+    // key-less section
+    //
+    // in case the plugin fails to load with bad_plugin, return bad_section to
+    // be consistent with existing behaviour
+    config_.add(plugin_name).add("library", plugin_name);
+
+    try {
+      return load_from(plugin_name, plugin_name);  // throws bad_plugin
+    } catch (const bad_plugin &e) {
+      std::ostringstream buffer;
+      buffer << "Section name '" << plugin_name << "' does not exist";
+      throw bad_section(buffer.str());
+    }
   }
 
   Config::SectionList plugins = config_.get(plugin_name);  // throws bad_section

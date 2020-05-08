@@ -129,6 +129,11 @@ SocketOperations::result<void> SocketOperations::bind(
   return net::impl::socket::bind(fd, addr, len);
 }
 
+SocketOperations::result<void> SocketOperations::connect(
+    socket_t fd, const struct sockaddr *addr, size_t len) {
+  return net::impl::socket::connect(fd, addr, len);
+}
+
 SocketOperations::result<socket_t> SocketOperations::socket(int domain,
                                                             int type,
                                                             int protocol) {

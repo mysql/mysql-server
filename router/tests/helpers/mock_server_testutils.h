@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -62,7 +62,8 @@ using JsonStringBuffer =
  * @param gr_node_host address of the host with the nodes
  * @param gr_node_xports vector with the X protocol ports of the cluster nodes
  * reported by the metadata
- * @param attributes vector with the JSON with attributes of the cluster nodes
+ * @param node_attributes vector with the JSON with attributes of the cluster
+ * nodes
  *
  * @return JSON object with the GR mock data.
  */
@@ -88,7 +89,8 @@ JsonValue mock_GR_metadata_as_json(
  * query
  * @param gr_node_xports vector with the X protocol ports of the cluster nodes
  * reported by the metadata
- * @param attributes vector with the JSON with attributes of the cluster nodes
+ * @param node_attributes vector with the JSON with attributes of the cluster
+ * nodes
  */
 void set_mock_metadata(uint16_t http_port, const std::string &gr_id,
                        const std::vector<uint16_t> &gr_node_ports,

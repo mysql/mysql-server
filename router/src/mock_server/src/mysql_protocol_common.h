@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -33,8 +33,6 @@
 #include <ws2tcpip.h>
 #endif
 
-// TODO after migration to Server repo: delete mysqlrouter/ after moving stuff 1
-// level up
 #include "mysqlrouter/mysql_protocol.h"
 #include "socket_operations.h"
 
@@ -66,7 +64,9 @@ enum class MySQLColumnType {
   NEWDATE = 0x0e,
   VARCHAR = 0x0f,
   BIT = 0x10,
-  NEWDECIMAL = 0xf7,
+  TIMESTAMP2 = 0x11,
+  JSON = 0xf5,
+  NEWDECIMAL = 0xf6,
   ENUM = 0xf7,
   SET = 0xf8,
   TINY_BLOB = 0xf9,

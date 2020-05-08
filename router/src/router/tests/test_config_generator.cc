@@ -3801,6 +3801,8 @@ class MockSocketOperations : public mysql_harness::SocketOperationsBase {
                addrinfo_result(const char *, const char *, const addrinfo *));
   MOCK_METHOD3(bind, result<void>(mysql_harness::socket_t,
                                   const struct sockaddr *, size_t));
+  MOCK_METHOD3(connect, result<void>(mysql_harness::socket_t,
+                                     const struct sockaddr *, size_t));
   MOCK_METHOD3(socket, result<mysql_harness::socket_t>(int, int, int));
   MOCK_METHOD5(setsockopt, result<void>(mysql_harness::socket_t, int, int,
                                         const void *, size_t));

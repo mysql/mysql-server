@@ -303,13 +303,18 @@ const Plugin_data router_plugins[]{
                 "Routing MySQL connections between MySQL clients/connectors "
                 "and servers",
                 "0.0.1", R"(
-        "logger"
+        "logger",
+        "router_protobuf"
     )",
                 ""},
     Plugin_data{
         "metadata_cache",
         "Metadata Cache, managing information fetched from the Metadata Server",
-        "0.0.1", "", ""},
+        "0.0.1", R"(
+        "logger",
+        "router_protobuf"
+    )",
+        ""},
     Plugin_data{"keepalive", "Keepalive Plugin", "0.0.1", "", ""},
 };
 
