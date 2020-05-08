@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta http-equiv="Content-type" content="text/html; charset=utf-8">
+		<title>Calendar Widget Test</title>
+
+		<script type="text/javascript" src="boilerplate.js"></script>
+
+		<style>
+			#calendar5 .dijitCalendarDateTemplate { height: 50px; width: 50px; border: 1px solid #ccc; vertical-align: top }
+			#calendar5 .dijitCalendarDateLabel, #calendar5 .dijitCalendarDateTemplate { text-align: inherit }
+			#calendar5 .dijitCalendarDayLabel { font-weight: bold }
+			#calendar5 .dijitCalendarSelectedYear { font-size: 1.5em }
+			#calendar5 .dijitCalendarMonthLabel { font-family: serif; letter-spacing: 0.2em; font-size: 2em }
+			.blue { color: blue !important /* override claro rule */ }
+		</style>
+
+		<script type="text/javascript">
+			require([
+				"dojo/_base/declare",
+				"dojo/date/locale",
+				"dojo/parser",
+				"dijit/Calendar",
+				"dojo/domReady!"
+			], function(declare, locale, parser, Calendar){
+				declare("BigCalendar", Calendar, {
+					isDisabledDate: locale.isWeekend,
+					getClassForDate: function(date){
+						if(!(date.getDate() % 10)){ return "blue"; } // apply special style to all days divisible by 10
+					}
+				});
+
+				parser.parse();
+
+				disableWeekends = function(){
+					calendar1.isDisabledDate = locale.isWeekend;
+					calendar1._populateGrid();
+				};
+			});
+
+			function myHandler(id,newValue){
+				console.debug("onChange for id = " + id + ", value: " + newValue);
+			}
+		</script>
+	</head>
+	<body class="claro" role="main">
+
+		<h1 class="testTitle">Dijit Calendar Test</h1>
+
+		<label for="before">input before: </label><input id="before"/>
+		<input id="calendar1" data-dojo-id="calendar1" data-dojo-type="dijit/Calendar" summary="Small calendar" data-dojo-props='onChange:function(v){ myHandler(this.id, v) }'/>
+		<label for="after">input after: </label><input id="after"/>
+		<p>
+			<a href="#" onclick="disableWeekends();">disable weekends</a>
+		</p>
+
+		<p>Big Calendar</p>
+		<input id="calendar5" data-dojo-type="BigCalendar" data-dojo-props='dayWidth:"abbr"' value="2008-03-14"/>
+	</body>
+</html>

@@ -1,0 +1,53 @@
+/* Editor 
+ * 
+ * Styling Editor means styling the Editor inside iframe container (dijitEditorIFrameContainer)
+ * 
+ * 1. Editor iframe container (default styling): 
+ * 		.dijitEditorIFrameContainer - normal state styles: background-color, border, padding
+ *
+ * 2. hovered Editor iframe container (ie, mouse hover on editor)
+ * 		.dijitEditorHover .dijitEditorIFrameContainer/dijitEditorIFrame - styles when mouse hover on the container
+ * 
+ * 3. focused Editor iframe container (ie, mouse focus on the editor pane)
+ * 		.dijitEditorFocused .dijitEditorIFrameContainer/dijitEditorIFrame - styles when container focused
+ * 
+ * 3. disabled Editor iframe container 
+ * 		.dijitEditorDisabled - editor's inner iframe container disable status styles: background, border
+ */
+.flat .dijitEditor {
+  background-color: #fff;
+  border: 1px solid #9e9e9e;
+  border-radius: 3px;
+}
+.flat .dijitEditor .dijitEditorIFrameContainer {
+  border: 1px solid transparent;
+  border-top: 1px solid #9e9e9e;
+  padding: 4px 8px;
+  -webkit-transition: border 0.2s linear 0s;
+  -moz-transition: border 0.2s linear 0s;
+  -o-transition: border 0.2s linear 0s;
+  -ms-transition: border 0.2s linear 0s;
+  transition: border 0.2s linear 0s;
+}
+.flat .dijitEditorHover .dijitEditorIFrameContainer,
+.flat .dijitEditorHover .dijitEditorIFrameContainer .dijitEditorIFrame {
+  border: 1px solid #2196f3;
+}
+.flat .dijitEditorFocused .dijitEditorIFrameContainer {
+  border: 1px solid #2196f3;
+}
+.flat .dijitEditorFocused .dijitEditorIFrameContainer .dijitEditorIFrame {
+  border: 1px solid #2196f3;
+}
+.flat .dijitEditorDisabled {
+  border: 1px solid #9e9e9e;
+  opacity: 0.65;
+  -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=65)";
+  filter: alpha(opacity=65);
+}
+.flat .dijitEditorDisabled .dijitEditorIFrame,
+.flat .dijitEditorDisabled .dijitEditorIFrameContainer,
+.flat .dijitEditorDisabled .dijitEditorIFrameContainer .dijitEditorIFrame {
+  background-color: #f5f5f5;
+  border: 1px solid transparent;
+}

@@ -1,0 +1,29 @@
+<div data-dojo-attach-point="navOuterDiv">
+	<!-- left -->
+	<div data-dojo-type="dojox/app/widgets/Container" data-dojo-attach-point="navOuterContainer">
+
+	<!-- <div data-dojo-type="dojox/app/widgets/Container" data-app-constraint="center" data-dojo-props="scrollable:true">  -->
+		<div>
+			<h1 data-dojo-type="dojox/mobile/Heading" data-dojo-props='label:"Nav", fixed:"top"'>
+				<span data-dojo-type="dojox/mobile/ToolBarButton" tabindex="0" data-dojo-attach-point="navheaderBackButton" 
+					data-dojo-props='label:"Back", fixed:"top", arrow:"left"'>
+				</span>
+			</h1>
+			
+			<ul data-dojo-attach-point="navList" data-dojo-type="dojox/mobile/RoundRectList" data-app-constraint="center">
+				<li data-dojo-type="dojox/mobile/ListItem" data-dojo-props="clickable:true" data-dojo-attach-event="onClick:mainOption1Clicked">
+					Main Option 1
+				</li>
+				<li data-dojo-type="dojox/mobile/ListItem" data-dojo-props="clickable:true" data-dojo-attach-event="onClick:mainOption2Clicked">
+					Main Option 2
+				</li>
+				<li data-dojo-type="dojox/mobile/ListItem" data-dojo-props="clickable:true" data-dojo-attach-event="onClick:mainOption3Clicked">
+					Main Option 3
+				</li>
+				<li data-dojo-type="dojox/mobile/ListItem" data-dojo-props="clickable:true" data-dojo-attach-event="onClick:testOption1Clicked">
+					Test Information
+				</li>
+			</ul>
+		</div>
+	</div>
+</div>

@@ -1,0 +1,279 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta http-equiv="content-type"ibm content="text/html; charset=utf-8"/>
+<meta name="viewport" 
+	content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<title>Combo Box Tests</title>
+<script type="text/javascript" src="../../../deviceTheme.js"></script>
+<script type="text/javascript" src="../../../../../dojo/dojo.js" 
+	data-dojo-config="async: true, parseOnLoad: true"></script>
+<script type="text/javascript" src="../TestUtil.js"></script>
+<script language="JavaScript" type="text/javascript">
+	var timeoutInterval = 1000;
+	require([
+		"dojo/_base/connect",
+		"dojo/_base/lang",
+		"dojo/sniff",
+		"dojo/Deferred",
+		"dojo/dom",
+		"dojo/dom-construct", // dojo.place
+		"dojo/dom-class", // dojo.hasClass
+		"dojo/dom-style",
+		"dojo/store/Memory", // dojo.store.Memory
+		"dojo/ready", // dojo.ready
+		"dijit/registry",  // dijit.byId
+		"doh/runner",	//doh functions
+		"dojox/mobile/ComboBox",
+		"dojox/mobile",				// This is a mobile app.
+		"dojox/mobile/View",		// This mobile app uses mobile view
+		"dojox/mobile/compat",		// This mobile app supports running on desktop browsers
+		"dojox/mobile/parser"		// This mobile app uses declarative programming with fast mobile parser
+	], function(connect, lang, has, Deferred, dom, domConst, domClass, domStyle, 
+		Memory, ready, registry, runner, ComboBox){
+
+		var FRUITS = new Memory({
+				idProperty:"name",
+				data:[
+					{name:"Apple"},
+					{name:"Banana"},
+					{name:"Cherry"}
+			]});
+
+		function _createComboBoxDeclaratively(id) {
+			return registry.byId(id);
+		};
+		
+		function _createComboBoxProgrammatically(placeHolderId){
+			var widget = new ComboBox({store:FRUITS, id:placeHolderId, value:'Apple'});
+			runner.assertNotEqual(null, widget);
+			domConst.place(widget.domNode, placeHolderId, "replace");
+			widget.startup();
+			return widget;
+		};
+		
+		function _createComboBoxProgrammaticallyWithSourceNodeReference(id){
+			var widget = new ComboBox({store:FRUITS, value:'Apple'}, id);
+			widget.startup();
+			return widget;
+		};
+
+		function _assertCorrectComboBox(comboBox, def){
+ 			runner.assertNotEqual(null, comboBox, "combobox shouldn't be null");
+			runner.assertEqual(FRUITS.data[0].name, comboBox.domNode.value, comboBox.toString() + 
+				" value is not the expected one at init");
+			// Display the dropdown
+			fireOnClick(comboBox.domNode);
+			setTimeout(def.getTestErrback(function(){
+				var dropDownNode = dom.byId(comboBox.id + "_dropdown");
+				runner.assertNotEqual(null, dropDownNode, 
+					"can't find dropdown node for " + comboBox.toString());
+				runner.assertEqual("block", domStyle.get(dropDownNode, "display"), 
+					" dropdown node for " + comboBox.toString() + " should be visible after click");
+				// Verify available options
+				_checkComboBoxOptions(comboBox, 
+					[{containsClass: "mblComboBoxMenuPreviousButton", displayed: false},
+					{label: "Apple", displayed: true},
+					{label: "Banana", displayed: true},
+					{label: "Cherry", displayed: true},
+					{containsClass: "mblComboBoxMenuNextButton", displayed: false}]);
+				// Type letter c in the input field
+ 				comboBox.domNode.value = "c";
+				fireOnInput(comboBox.domNode);
+				setTimeout(def.getTestErrback(function(){
+					// Verify available options
+					_checkComboBoxOptions(comboBox, 
+						[{containsClass: "mblComboBoxMenuPreviousButton", displayed: false},
+						{label: "Cherry", displayed: true},
+						{containsClass: "mblComboBoxMenuNextButton", displayed: false}]);
+					// click in the dropdown to select an option
+					fireOnClick(dom.byId(comboBox.id + "_popup0"));
+					setTimeout(def.getTestCallback(function(){
+						// check that the dropdown is not visible anymore
+						runner.assertEqual("none", domStyle.get(dropDownNode, "display"),
+							" dropdown node for " + comboBox.toString() + " should be invisible after click");
+						// check the clicked option value is now the input field value
+						runner.assertEqual("Cherry", comboBox.domNode.value, comboBox.toString() +
+							" value is not the expected one after clicking the option");
+						// programmatically set value
+		  				comboBox.set("value", FRUITS.data[1].name);
+						runner.assertEqual(FRUITS.data[1].name, comboBox.domNode.value, comboBox.toString() +
+							" value is not the expected one after programmatic set");
+					}), 500);
+				}), 500);
+			}), 500);
+ 		};
+
+		function _checkComboBoxOptions(comboBox, expected){
+			var options = dom.byId(comboBox.id + "_dropdown").firstChild.firstChild.children;
+			var i = 0;
+			runner.assertEqual(expected.length, options.length, 
+				"The number of options is not the expected one for " + comboBox.id);
+			for(i = 0; i < options.length; i++){
+				if(expected[i].label){
+					runner.assertEqual(expected[i].label, options[i].innerText || options[i].textContent, 
+						"label for option " + i + " of " + comboBox.id + " is not the expected one");
+				}
+				if(expected[i].containsClass){
+					runner.assertTrue(domClass.contains(options[i], expected[i].containsClass), 
+						"class for option " + i + " of " + comboBox.id + " is not the expected one");
+				}
+			}
+		};
+
+		function _showView2(){
+			var view1 = registry.byId("view1");
+			view1.performTransition("view2", 1, "none");
+		};
+
+		ready(function(){
+			runner.register("dojox.mobile.test.doh.ComboBoxTests", [
+				{
+					name: "test view1-comboBox1",
+					timeout: 4000,
+					runTest: function(){
+
+						var d = new runner.Deferred();
+						var comboBox1 = _createComboBoxDeclaratively("view1-comboBox1");
+						setTimeout(d.getTestErrback(function(){
+							_assertCorrectComboBox(comboBox1, d);
+						}), timeoutInterval);
+						return d;
+					}
+				},
+				{
+					name: "test view1-comboBox2",
+					timeout: 4000,
+					runTest: function(){
+
+						var d = new runner.Deferred();
+						var comboBox2 = _createComboBoxProgrammatically("view1-comboBox2");
+						setTimeout(d.getTestErrback(function(){
+ 							_assertCorrectComboBox(comboBox2, d);
+						}), timeoutInterval);
+						return d;
+					}
+				},
+				{
+					name: "test view1-comboBox3",
+					timeout: 4000,
+					runTest: function(){
+
+						var d = new runner.Deferred();
+						var comboBox3 = _createComboBoxProgrammaticallyWithSourceNodeReference("view1-comboBox3");
+						setTimeout(d.getTestErrback(function(){
+							_assertCorrectComboBox(comboBox3, d);
+						}), timeoutInterval);
+						return d;
+					}
+				},
+				{
+					name: "test view2-comboBox1",
+					timeout: 4000,
+					runTest: function(){
+
+						var d = new runner.Deferred();
+						var comboBox1 = _createComboBoxDeclaratively("view2-comboBox1");
+						_createComboBoxProgrammatically("view2-comboBox2");
+						_createComboBoxProgrammaticallyWithSourceNodeReference("view2-comboBox3");
+						_showView2();
+						setTimeout(d.getTestErrback(function(){
+							_assertCorrectComboBox(comboBox1, d);
+						}), timeoutInterval);
+						return d;
+					}
+				},
+				{
+					name: "test view2-comboBox2",
+					timeout: 4000,
+					runTest: function(){
+
+						var d = new runner.Deferred();
+						var comboBox2 = registry.byId("view2-comboBox2");
+						setTimeout(d.getTestErrback(function(){
+ 							_assertCorrectComboBox(comboBox2, d);
+						}), timeoutInterval);
+						return d;
+					}
+				},
+				{
+					name: "test view2-comboBox3",
+					timeout: 4000,
+					runTest: function(){
+
+						var d = new runner.Deferred();
+						var comboBox3 = registry.byId("view2-comboBox3");
+						setTimeout(d.getTestErrback(function(){
+							_assertCorrectComboBox(comboBox3, d);
+						}), timeoutInterval);
+						return d;
+					}
+				},
+				{
+					// Test case for #17944. 
+					name: "test view2-trac-ticket-17944",
+					timeout: 4000,
+					runTest: function(){
+
+						var d = new runner.Deferred();
+						var comboBox1 = registry.byId("view2-comboBox1");
+						var comboBox2 = registry.byId("view2-comboBox2");
+						var errorCounter = 0;
+						var errorMsg;
+						// Check that no error is thrown when opening the dropdown
+						// of a combobox while the dropdown of another combobox is opening.
+						// To test it, we cannot use a simple try-catch, because
+						// the error is thrown asynchronously. Hence:
+						window.onerror = function(msg, url, lineNumber){
+							errorCounter++;
+							errorMsg = "After firing click: " + msg + "\nURL: " + url + 
+								"\nLine number: " + lineNumber;
+							console.log(errorMsg);
+						};
+						fireOnClick(comboBox1.domNode);
+						fireOnClick(comboBox2.domNode);
+						// Check that no error has been thrown
+						setTimeout(d.getTestCallback(function(){
+							runner.assertEqual(0, errorCounter, errorMsg);
+						}), 2000); // smaller than the total timeout of the test case
+						
+						return d;
+					}
+				}
+			]);
+			
+			runner.run();
+		});
+	});
+</script>
+</head>
+<body>
+	<div id="view1" data-dojo-type="dojox/mobile/View" selected="true">
+		<h1>View 1</h1>
+		<datalist id="fruits">
+			<select data-dojo-type="dijit/form/DataList" data-dojo-props="id:'fruits'">
+				<option value="fruit1">Apple</option>
+				<option value="fruit2">Banana</option>
+				<option value="fruit3">Cherry</option>
+			</select>
+		</datalist>
+		<input id="view1-comboBox1" type="text" data-dojo-type="dojox/mobile/ComboBox" 
+			data-dojo-props="value:'Apple', list:'fruits'"></input>
+		<div id="view1-comboBox2"></div>
+		<input id="view1-comboBox3" type="text"></input>
+	</div>
+	<div id="view2" data-dojo-type="dojox/mobile/View">
+		<h1>View 2</h1>
+		<select data-dojo-type="dijit/form/DataList" data-dojo-props="id:'fruits2'">
+			<option>Apple</option>
+			<option>Banana</option>
+			<option>Cherry</option>
+		</select>
+		<input id="view2-comboBox1" type="text" data-dojo-type="dojox/mobile/ComboBox" 
+			data-dojo-props="value:'Apple', list:'fruits2'"></input>
+		<div id="view2-comboBox2"></div>
+		<input id="view2-comboBox3" type="text"></input>
+	</div>
+</body>
+</html>

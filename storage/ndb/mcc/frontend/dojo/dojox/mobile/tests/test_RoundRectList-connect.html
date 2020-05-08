@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="Content-type" content="text/html; charset=utf-8"/>
+	<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no"/>
+	<meta name="apple-mobile-web-app-capable" content="yes"/>
+	<title>RoundRectList - connect</title>
+
+	<link href="../themes/common/domButtons/DomButtonRedCircleMinus.css" rel="stylesheet"/>
+	<link href="../themes/common/domButtons/DomButtonGrayKnob.css" rel="stylesheet"/>
+	<script type="text/javascript" src="../deviceTheme.js" data-dojo-config="mblThemeFiles: ['base']"></script>
+	<script type="text/javascript" src="../../../dojo/dojo.js" data-dojo-config="async: true, parseOnLoad: true"></script>
+
+	<script type="text/javascript">
+		require([
+			"dojo/_base/connect",
+			"dojo/dom-class",
+			"dojo/dom",
+			"dojo/ready",
+			"dijit/registry",
+			"dojox/mobile/parser",
+			"dojox/mobile",
+			"dojox/mobile/compat"
+		], function(connect, domClass, dom, ready, registry){
+			var delItem, handler, btn1, list1;
+
+			function showDeleteButton(item){
+				hideDeleteButton();
+				delItem = item;
+				item.rightIconNode.style.display = "none";
+				if(!item.rightIcon2Node){
+					item.set("rightIcon2", "mblDomButtonMyRedButton_0");
+					item.rightIcon2Node.firstChild.innerHTML = "Delete";
+				}
+				item.rightIcon2Node.style.display = "";
+				handler = connect.connect(list1.domNode, "onclick", onClick);
+			}
+
+			function hideDeleteButton(){
+				if(delItem){
+					delItem.rightIconNode.style.display = "";
+					delItem.rightIcon2Node.style.display = "none";
+					delItem = null;
+				}
+				connect.disconnect(handler);
+			}
+
+			function onClick(e){
+				var item = registry.getEnclosingWidget(e.target);
+				if(domClass.contains(e.target, "mblDomButtonMyRedButton_0")){
+					setTimeout(function(){
+						item.destroy();
+					}, 0);
+				}
+				hideDeleteButton();
+			}
+
+			connect.subscribe("/dojox/mobile/deleteListItem", function(item){
+				showDeleteButton(item);
+			});
+
+			
+			edit = function(){
+				var flag = btn1._flag = !btn1._flag; // true: editable
+				if(flag){
+					list1.startEdit();
+					btn1.set("label", "Done");
+				}else{
+					hideDeleteButton();
+					list1.endEdit();
+					btn1.set("label", "Edit");
+				}
+			}
+			
+			ready(function(){
+				btn1 = registry.byId("btn1");
+				list1 = registry.byId("list1");
+				connect.connect(list1, "onStartEdit", null, function(){
+					dom.byId("msgArea1").innerHTML = "Start editing...";
+				});
+				connect.connect(list1, "onMoveItem", null, function(widget, from, to){
+					dom.byId("msgArea2").innerHTML += "MoveItem: " + widget.label + " (" + from + " -> " + to + ") ";
+				});
+				connect.connect(list1, "onDeleteItem", null, function(widget){
+					dom.byId("msgArea3").innerHTML = "DeleteItem: " + widget.label;
+				});
+				connect.connect(list1, "onEndEdit", null, function(){
+					dom.byId("msgArea4").innerHTML = "End editing !";
+				});
+			});
+		});
+	</script>
+
+	<style>
+	/* inline custom DOM Button */
+	.mblDomButtonMyRedButton_0 {
+		position: relative;
+		height: 29px;
+		line-height: 29px;
+		padding: 0px 8px;
+		color: white;
+		font-family: Helvetica;
+		font-size: 13px;
+		font-weight: bold;
+		border: 1px outset #9cacc0;
+		border-radius: 5px;
+		background: -webkit-gradient(linear, left top, left bottom, from(#d3656d), to(#bc1320), color-stop(0.5, #c9404b), color-stop(0.5, #bc1421));
+		background-color: #c9404b;
+		text-align: center;
+	}
+	</style>
+</head>
+<body style="visibility:hidden;">
+	<div id="view1" data-dojo-type="dojox.mobile.View">
+		<div data-dojo-type="dojox.mobile.Heading" data-dojo-props='label:"RoundRectList - Connect"'>
+			<span id="btn1" data-dojo-type="dojox.mobile.ToolBarButton" data-dojo-props='toggle:true' style="padding: 0px 14px;float:left" onclick="edit">Edit</span>
+		</div>
+		<h2 data-dojo-type="dojox.mobile.RoundRectCategory">Transition Effects</h2>
+		<ul id="list1" data-dojo-type="dojox.mobile.RoundRectList" data-dojo-props='editable:true'>
+			<li id="item1" data-dojo-type="dojox.mobile.ListItem" data-dojo-props='icon:"images/i-icon-1.png", label:"Item 1"'></li>
+			<li id="item2" data-dojo-type="dojox.mobile.ListItem" data-dojo-props='icon:"images/i-icon-1.png", label:"Item 2"'></li>
+			<li id="item3" data-dojo-type="dojox.mobile.ListItem" data-dojo-props='icon:"images/i-icon-1.png", label:"Item 3"'></li>
+			<li id="item4" data-dojo-type="dojox.mobile.ListItem" data-dojo-props='icon:"images/i-icon-2.png", label:"Item 4"'></li>
+			<li id="item5" data-dojo-type="dojox.mobile.ListItem" data-dojo-props='icon:"images/i-icon-2.png", label:"Item 5"'></li>
+			<li id="item6" data-dojo-type="dojox.mobile.ListItem" data-dojo-props='icon:"images/i-icon-3.png", label:"Item 6"'></li>
+			<li id="item7" data-dojo-type="dojox.mobile.ListItem" data-dojo-props='icon:"images/i-icon-3.png", label:"Item 7"'></li>
+			<li id="item8" data-dojo-type="dojox.mobile.ListItem" data-dojo-props='icon:"images/i-icon-3.png", label:"Item 8"'></li>
+		</ul>
+			
+		<div id="msgArea1" style="margin-top:10px; margin-left:10px;"></div>
+		<div id="msgArea2" style="margin-top:10px; margin-left:10px;"></div>
+		<div id="msgArea3" style="margin-top:10px; margin-left:10px;"></div>
+		<div id="msgArea4" style="margin-top:10px; margin-left:10px;"></div>
+	</div>
+</body>
+</html>

@@ -1,0 +1,284 @@
+<!DOCTYPE HTML>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+		<title>Pie 2D</title>
+		<style type="text/css">
+			@import "../../../dojo/resources/dojo.css";
+			@import "../../../dijit/tests/css/dijitTests.css";
+		</style>
+		<script type="text/javascript" src="../../../dojo/dojo.js" data-dojo-config="isDebug: true, async: true"></script>
+		<script type="text/javascript">
+			require([
+				"dojox/charting/Chart",
+				"dojox/charting/plot2d/Pie",
+				"dojox/charting/themes/PlotKit/blue",
+				"dojox/charting/themes/PlotKit/green",
+				"dojox/charting/themes/PlotKit/red",
+				"dojox/charting/themes/Adobebricks",
+				"dojox/charting/themes/Algae",
+				"dojox/charting/themes/Claro",
+				"dojo/domReady!"
+			], function(Chart, Pie, pkBlue, pkGreen, pkRed, Adobebricks, Algae, Claro){
+				var chart1 = new Chart("test1");
+				chart1.setTheme(pkBlue);
+				chart1.addPlot("default", {
+					type: Pie,
+					font: "normal normal bold 12pt Tahoma",
+					fontColor: "white",
+					labelOffset: 40
+				});
+				chart1.addSeries("Series A", [4, 2, 1, 1]);
+				chart1.render();
+
+				var chart2 = new Chart("test2");
+				chart2.setTheme(pkBlue);
+				chart2.addPlot("default", {
+					type: Pie,
+					font: "normal normal bold 12pt Tahoma",
+					fontColor: "black",
+					labelOffset: -25,
+					precision: 0
+				});
+				chart2.addSeries("Series A", [4, 2, 1, 1]);
+				chart2.render();
+
+				var chart3 = new Chart("test3");
+				chart3.setTheme(pkBlue);
+				chart3.addPlot("default", {
+					font: "normal normal bold 12pt Tahoma",
+					fontColor: "black",
+					htmlLabels: true,
+					labelStyle: "columns",
+					labels: true,
+					precision: 0,
+					radius: 75,
+					startAngle: -10,
+					type: Pie
+				});
+				chart3.addSeries("Series A", [
+					{ y: 52.39, text: "Chrome" },
+					{ y: 14.4, text: "Safari" },
+					{ y: 8.55, text: "UC Browser" },
+					{ y: 6.73, text: "Firefox" },
+					{ y: 4.37, text: "IE" },
+					{ y: 3.78, text: "Opera" },
+					{ y: 3.24, text: "Samsung" },
+					{ y: 1.77, text: "Edge" },
+					{ y: 0, text: "Other" }
+				]);
+				chart3.render();
+
+				var chart4 = new Chart("test4");
+				chart4.setTheme(pkGreen);
+				chart4.addPlot("default", {
+					type: Pie,
+					font: "normal normal bold 10pt Tahoma",
+					fontColor: "white",
+					labelOffset: 25,
+					radius: 90
+				});
+				chart4.addSeries("Series A", [4, 2, 1, 1]);
+				chart4.render();
+
+				var chart5 = new Chart("test5");
+				chart5.setTheme(pkGreen);
+				chart5.addPlot("default", {
+					type: Pie,
+					font: "normal normal bold 10pt Tahoma",
+					fontColor: "black",
+					labelOffset: -25,
+					radius: 90
+				});
+				chart5.addSeries("Series A", [4, 2, 1, 1]);
+				chart5.render();
+
+				var chart6 = new Chart("test6");
+				chart6.setTheme(pkRed);
+				chart6.addPlot("default", {
+					type: Pie,
+					font: "normal normal bold 14pt Tahoma",
+					fontColor: "white",
+					labelOffset: 40
+				});
+				chart6.addSeries("Series A", [{
+					y: 4,
+					text: "Red"
+				}, {
+					y: 2,
+					text: "Green"
+				}, {
+					y: 1,
+					text: "Blue"
+				}, {
+					y: 1,
+					text: "Other"
+				}]);
+				chart6.render();
+
+				var chart7 = new Chart("test7");
+				chart7.setTheme(pkRed);
+				chart7.addPlot("default", {
+					type: Pie,
+					font: "normal normal bold 14pt Tahoma",
+					fontColor: "black",
+					labelOffset: 40,
+					startAngle: -45
+				});
+				chart7.addSeries("Series A", [{
+					y: 4,
+					text: "Red",
+					color: "red"
+				}, {
+					y: 2,
+					text: "Green",
+					color: "green"
+				}, {
+					y: 1,
+					text: "Blue",
+					color: "blue"
+				}, {
+					y: 1,
+					text: "Other",
+					color: "white",
+					fontColor: "black"
+				}]);
+				chart7.render();
+
+				var chart8 = new Chart("test8");
+				chart8.setTheme(Adobebricks);
+				chart8.addPlot("default", {
+					type: Pie,
+					font: "normal normal bold 12pt Tahoma",
+					fontColor: "white",
+					radius: 80
+				});
+				chart8.addSeries("Series A", [4]);
+				chart8.render();
+
+				var chart9 = new Chart("test9");
+				chart9.setTheme(Algae);
+				chart9.addPlot("default", {
+					type: Pie,
+					font: "normal normal bold 12pt Tahoma",
+					fontColor: "white",
+					radius: 80
+				});
+				chart9.addSeries("Series A", [{
+					y: -1,
+					text: "Red",
+					color: "red"
+				}, {
+					y: 5,
+					text: "Green",
+					color: "green"
+				}, {
+					y: 0,
+					text: "Blue",
+					color: "blue"
+				}, {
+					y: 0,
+					text: "Other",
+					color: "white",
+					fontColor: "black"
+				}]);
+				chart9.render();
+
+				var chart10 = new Chart("test10");
+				chart10.setTheme(Claro);
+				chart10.addPlot("default", {
+					type: Pie,
+					font: "normal normal bold 12pt Tahoma",
+					fontColor: "white",
+					radius: 80
+				});
+				chart10.addSeries("Series A", []);
+				chart10.render();
+
+				var chart11 = new Chart("test11");
+				chart11.setTheme(Claro);
+				chart11.addPlot("default", {
+					type: Pie,
+					font: "normal normal bold 12pt Tahoma",
+					fontColor: "white",
+					radius: 80,
+					zeroDataMessage: "No Non-Zero Data"
+				});
+				chart11.addSeries("Series A", []);
+				chart11.render();
+
+				var chart12 = new Chart("test12");
+				chart12.setTheme(Claro);
+				chart12.addPlot("default", {
+					type: Pie,
+					font: "normal normal bold 12pt Tahoma",
+					fontColor: "white",
+					radius: 80,
+					zeroDataMessage: "No Non-Zero Data"
+				});
+				chart12.addSeries("Series A", [{
+					y: 0,
+					text: "Red",
+					color: "red"
+				}, {
+					y: 0,
+					text: "Green",
+					color: "green"
+				}, {
+					y: 0,
+					text: "Blue",
+					color: "blue"
+				}, {
+					y: 0,
+					text: "Other",
+					color: "white",
+					fontColor: "black"
+				}]);
+				chart12.render();
+			});
+		</script>
+	</head>
+	<body>
+		<h1>Pie 2D</h1>
+		<!--<p><button onclick="makeObjects();">Go</button></p>-->
+		<p>1: Pie with internal labels.</p>
+		<div id="test1" style="width: 300px; height: 300px;"></div>
+		<p>2: Pie with external labels and precision=0.</p>
+		<div id="test2" style="width: 300px; height: 300px;"></div>
+		<p>3: Pie with `labelStyle="columns"`, a constant radius, and a `0` plot value.</p>
+		<div id="test3" style="width: 400px; height: 400px;"></div>
+		<p>4/5: Two pies with internal and external labels with a constant radius.</p>
+		<table border="1">
+			<tr>
+				<td>
+					<div id="test4" style="width: 300px; height: 300px;"></div>
+				</td>
+				<td>
+					<div id="test5" style="width: 300px; height: 300px;"></div>
+				</td>
+			</tr>
+		</table>
+		<p>6/7: Pie with internal custom labels and custom colors (#7 is rotated).</p>
+		<table border="1">
+			<tr>
+				<td>
+					<div id="test6" style="width: 300px; height: 300px;"></div>
+				</td>
+				<td>
+					<div id="test7" style="width: 300px; height: 300px;"></div>
+				</td>
+			</tr>
+		</table>
+		<p>8: Degenerated pie with 1 element.</p>
+		<div id="test8" style="width: 200px; height: 200px;"></div>
+		<p>9: Degenerated pie with 1 positive elements (out of 5).</p>
+		<div id="test9" style="width: 200px; height: 200px;"></div>
+		<p>10: Pie with no data.</p>
+		<div id="test10" style="width: 200px; height: 200px;"></div>
+		<p>11: Pie with all data zero (no data).</p>
+		<div id="test11" style="width: 200px; height: 200px;"></div>
+		<p>12: Pie with all data zero (no data) and a message.</p>
+		<div id="test12" style="width: 200px; height: 200px;"></div>
+		<p>That's all Folks!</p>
+	</body>
+</html>

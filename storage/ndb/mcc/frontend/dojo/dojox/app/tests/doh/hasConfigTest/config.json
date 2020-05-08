@@ -1,0 +1,72 @@
+{
+	"id": "testApp",
+	"name": "Test App",
+	"description": "A testApp",
+	"splash": "splash",
+
+	"dependencies": [
+	],
+
+	"modules": [
+	],
+	
+	"controllers": [
+		"dojox/app/controllers/Load",
+		"dojox/app/controllers/Transition",
+		"dojox/app/controllers/Layout"
+	],
+
+	// These configTest... lines are only used for the doh test, this is not typical for a config
+	"configTestSetTrueInHas": "FAILED",
+	"configTestNotSetInHas": "InitOk",
+	"configTestTablet": "No",
+	"configTestPhone": "No",
+	"configTestPhoneIosOrAndroid": "No",
+	"configTestTabletIosOrAndroid": "No",
+
+	// These configTest... lines are only used for the doh test, this is not typical for a config
+	"has" : {
+		"testTrue" : {
+			"configTestSetTrueInHas": "SetInHasOk"
+		},
+		"testFalse" : {
+			"configTestNotSetInHas": "FAILED"
+		},
+		"phone,ios,android" : {
+			"configTestPhoneIosOrAndroid": "Yes"
+		},
+		"ios,android,!phone" : {
+			"configTestTabletIosOrAndroid": "Yes"
+		},
+		"phone" : {
+			"configTestPhone": "Yes",
+			"isTablet" : false
+		},
+		"!phone" : {
+			"configTestTablet": "Yes",
+			"isTablet" : true
+		},
+		"ie" : {
+			"controllers": [
+				"dojox/app/controllers/HistoryHash"
+			]
+		},
+		"!ie" : {
+			"controllers": [
+				"dojox/app/controllers/History"
+			]
+		}
+	},	
+
+	"defaultView": "home",
+
+	"defaultTransition": "slide",
+
+	"views": {
+
+		"home": { 
+			"template": "dojox/app/tests/doh/config.html"
+		}
+
+	}
+}

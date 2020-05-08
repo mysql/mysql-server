@@ -1,0 +1,39 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+	<head>
+		<title>Programmatic Gauges</title>
+		<script type="text/javascript">
+			var djConfig = {
+				parseOnLoad: true,
+				async: true
+			}
+		</script>
+		<script type="text/javascript" src="../../../dojo/dojo.js">
+		</script>
+		<script type="text/javascript">
+			require([
+						"dojo/ready", 
+						"dojo/dom",
+						"dojox/dgauges/components/black/CircularLinearGauge", 
+						"dojox/dgauges/components/black/VerticalLinearGauge"], 
+						function(ready, dom, CircularLinearGauge, VerticalLinearGauge){
+				ready(function(){
+					new CircularLinearGauge({
+						maximum: 50,
+						value: 50
+					}, dom.byId("circularGauge"));
+					new VerticalLinearGauge({
+						maximum: 50,
+						value: 50
+					}, dom.byId("verticalGauge"));
+				});
+			});
+		</script>
+	</head>
+	<body>
+		<div id="circularGauge" style="width:250px; height:250px">
+		</div>
+		<div id="verticalGauge" style="width:250px; height:250px;"/>
+		</div>
+	</body>
+</html>

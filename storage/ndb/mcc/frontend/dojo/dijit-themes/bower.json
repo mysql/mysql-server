@@ -1,0 +1,20 @@
+{
+	"name": "dijit-themes",
+	"licenses": [ "BSD-3-Clause", "AFL-2.1"],
+	"ignore": [
+		".*"
+	],
+	"keywords": ["JavaScript", "Dojo", "Toolkit", "Themes"],
+	"authors": [],
+	"homepage": "http://dojotoolkit.org/",
+	"repository":{
+		"type": "git",
+		"url": "https://github.com/dojo/dijit-themes.git"
+	},
+	"dependencies": {
+	},
+	"devDependencies": {
+		"stylus": "0.53.0",
+		"nib": "1.1.0"
+	}
+}

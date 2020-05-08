@@ -1,0 +1,62 @@
+${docType}
+<html dir="${direction}">
+	<!-- Each layout scenario will generate a document using this template. -->
+	<head>
+		<style>
+			* {
+				border:0px solid white;
+				padding:0px;
+				margin:0px;
+				font-style:normal;
+				font-family:monospace;
+				font-size:0px;
+				line-height:normal;
+			}
+
+			input {
+				display:block;
+				background-color:red;
+				font-size:0px;
+				line-height:0px;
+				overflow:hidden;
+				width:20px;
+				height:20px;
+			}
+			
+			ul {
+				list-style-type: none;
+				line-height:0px;
+				width:45px;
+				overflow:auto;
+			}
+
+			li {
+				list-style-type: none;
+				line-height:20px;
+				overflow:visible;
+				max-width:20px;
+				max-height:20px;
+				height:20px;
+				width:20px;
+				float:left;
+			}
+			
+			hr {
+				width:120px;
+				height:1px;
+				visibility:hidden;
+				display:block;
+			}
+			
+			${styles}
+		
+		</style>
+	</head>
+	<body>
+		${content}
+		<script type=text/javascript>
+			// signal parent that we are ready
+			window.ready();
+		</script>
+	</body>
+</html>

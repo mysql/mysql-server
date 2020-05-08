@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta http-equiv="Content-type" content="text/html; charset=utf-8">
+	<title>ContentPane Test</title>
+
+	<script type="text/javascript" src="../boilerplate.js"></script>
+
+	<style>
+		.box {
+			position: relative;
+			background-color: white;
+			border: 2px solid black;
+			padding: 8px;
+			margin: 4px;
+		}
+	</style>
+
+	<script type="text/javascript">
+		require([
+			"doh/runner",
+			"dojo/_base/declare",
+			"dojo/dom",
+			"dojo/dom-construct",
+			"dojo/parser",
+			"dijit/registry",
+			"dijit/_WidgetBase",
+			"dijit/_TemplatedMixin",
+			"dijit/layout/ContentPane",
+			"dijit/Dialog",
+			"dojo/domReady!"
+		], function(doh, declare, dom, domConstruct, parser,
+					registry, _WidgetBase, _TemplatedMixin){
+
+
+			// create a do nothing, only for test widget
+			declare("TestWidget", [_WidgetBase, _TemplatedMixin], {
+				templateString: "<span class='dojoxTestWidget'></span>"
+			});
+
+			doh.register("parse", function(){
+				parser.parse();
+
+				pane1 = registry.byId('parsedPane');
+				dialogCtrPane = registry.byId("dialogContainer");
+			});
+
+			doh.register("basicChecks", [
+				{
+					name: 'setContent',
+					runTest: function(t){
+						console.log("basicChecks: " + this.name);
+						var msg = "Simple Test";
+						pane1.set('content', msg);
+						t.is(msg, pane1.domNode.innerHTML);
+					}
+				},
+				{
+					name: 'parseInitialContent',
+					runTest: function(t){
+						console.log("basicChecks: " + this.name);
+						var parserTest = registry.byId("parserTest");
+						t.t(parserTest);
+					}
+				},
+				{
+					name: 'parseNewContent',
+					runTest: function(t){
+						console.log("basicChecks: " + this.name);
+						dialogCtrPane.set(
+							"content",
+							'<div data-dojo-type="dijit/Dialog" id="sacrificialDlg" title="Life is short for this fellow">'
+							+'	<p>This dialog should be cleanly destroyed when the unit tests run</p>'
+							+'</div>'
+						);
+
+						t.t(registry.byId("sacrificialDlg"));
+						t.f(registry.byId("parserTest"));
+					}
+				},
+				{
+					name: 'empty',
+					runTest: function(t){
+						console.log("basicChecks: " + this.name);
+						t.t(registry.byId("sacrificialDlg"));
+
+						var dialog = registry.byId("sacrificialDlg");
+						// dialog is supposed to move its domNode to the body..
+						// we need to check it gets cleanly removed when we set content on the CP
+						t.t(dialog);
+						t.t(dialog.domNode.parentNode == document.body);
+
+						dialogCtrPane.set('content', "new content, no more dialog");
+						t.f(registry.byId("sacrificialDlg"));
+						t.f(dom.byId("sacrificialDlg"));
+					}
+				},
+				{
+					name: 'reuse',
+					runTest: function(t){
+						console.log("basicChecks: " + this.name);
+						// do the same thing over again - we should be error free
+						dialogCtrPane.set(
+							"content",
+							'<div data-dojo-type="dijit/Dialog" id="sacrificialDlg" title="Life is short for this fellow">'
+							+'	<p>This dialog should be cleanly destroyed when the unit tests run</p>'
+							+'</div>'
+						);
+						var dialog = registry.byId("sacrificialDlg");
+						// dialog is supposed to move its domNode to the body..
+						// we need to check it gets cleanly removed when we set content on the CP
+						t.t(dialog);
+						t.t(dialog.domNode.parentNode == document.body);
+					}
+				},
+				{
+					name: 'destroy',
+					runTest: function(t){
+						console.log("basicChecks: " + this.name);
+
+						// manually stick a widget into the ContentPane
+						var manualWidget = new TestWidget({id: "destroyTestWidget"});
+						domConstruct.place(manualWidget.domNode, dialogCtrPane.domNode, "last");
+
+						// make sure widget created via get('content') and also the above widget are there
+						t.t(registry.byId("sacrificialDlg"), "dialog in dialogContainer still there");
+						t.t(registry.byId("destroyTestWidget"), "test widget in dialogContainer still there");
+
+						// when we kill the CP, it should also destroy any widgets created when we set content,
+						// and for backwards-compatibility reasons, any widgets that user stuck in there
+						// manually too
+						dialogCtrPane.destroyRecursive();
+
+						// make sure everything got deleted
+						t.f(registry.byId("dialogContainer"));
+						t.f(registry.byId("sacrificialDlg"), "dialog in dialogContainer was destroyed");
+						t.f(registry.byId("destroyTestWidget"), "test widget in dialogContainer was destroyed");
+						t.f(dom.byId("sacrificialDlg"));
+					}
+				}
+			]);
+
+			doh.run();
+		});
+	</script>
+
+</head>
+<body class="claro" role="main">
+
+	<h1 class="testTitle">Dijit layout.ContentPane tests</h1>
+		<p>pre-container paragraph</p>
+
+		<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props='"class":"box"'>
+			some text (top-level container)
+
+			<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props='"class":"box"'>
+
+				text in the inner container (1)
+
+				<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props='"class":"box", href:"tab2.html"'>
+					hi
+				</div>
+
+				text in the inner container (2)
+
+				<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props='"class":"box"'>
+					inner-inner 2
+				</div>
+
+				text in the inner container (3)
+
+				<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props='"class":"box"'>
+					inner-inner 3
+				</div>
+
+				text in the inner container (4)
+
+			</div>
+
+			some more text (top-level container)
+		</div>
+
+		<p>mid-container paragraph</p>
+
+		<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props='"class":"box"'>
+			2nd top-level container
+		</div>
+
+		<p>post-container paragraph</p>
+
+		<div id="test" data-dojo-type="dijit/layout/ContentPane" data-dojo-props='"class":"box", href:"combotab.html" '>
+			<p style='background-color:yellow;border:1px solid red;text-align:center;'>This text should automatically be replaced by downloaded content from combotab.html</p>
+		</div>
+
+		<hr/>
+		<p>ContentPanes used by the unit tests to verify functionality
+		<div id='parsedPane' data-dojo-type="dijit/layout/ContentPane" data-dojo-props='"class":"box" '>
+			Some Content Here
+		</div>
+		<div id='dialogContainer' data-dojo-type="dijit/layout/ContentPane" data-dojo-props='"class":"box" '>
+			<div id="parserTest" data-dojo-type="TestWidget" ></div>
+		</div>
+	</body>
+</html>

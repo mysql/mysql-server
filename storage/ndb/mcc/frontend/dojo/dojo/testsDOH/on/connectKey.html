@@ -1,0 +1,33 @@
+<html>
+<head>
+	<title>dojo/on keypress/keydown test</title>
+	<script src="../../dojo.js"></script>
+	<script>
+		require(["dojo/dom", "dojo/on", "dojo/domReady!"],
+				function(dom, on){
+					on(dom.byId("textbox"), "keypress, keydown, compositionend", function(evt){
+						console.log(evt.type +
+								("keyCode" in evt ? " keyCode = " + evt.keyCode : "") +
+								("charCode" in evt ? " charCode = " + evt.charCode : "")
+						);
+
+						// stop Ctrl-W from closing the browser window, etc.
+						evt.preventDefault();
+						evt.stopPropagation();
+					});
+				});
+	</script>
+</head>
+<body>
+<h1>dojo/on keypress/keydown test</h1>
+
+<p>
+	Test how browsers fire keydown and keypress events
+</p>
+
+<p>
+	Type into &lt;input&gt;, and watch console for log messages.
+</p>
+<input id="textbox">
+</body>
+</html>

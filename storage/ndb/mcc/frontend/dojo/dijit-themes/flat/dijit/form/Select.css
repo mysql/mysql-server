@@ -1,0 +1,167 @@
+/* Select | Combobox
+ * And minor style for DateTextBox | MultiSelect
+ *
+ * Styling Select mainly includes:
+ * 
+ * 1. Containers
+ *	Select:
+ * 		.dijitSelect
+ * 		.dijitButtonContents
+ *	Combobox:
+ *		.dijitComboBox
+ *
+ * 2. Arrow Button
+ * 		.dijitArrowButton
+ * 		.dijitArrowButtonInner
+ *		.dijitComboBox .dijitButtonNode
+ *
+ * 3. Menu
+ * 		.dijitSelectMenu
+ * 
+ * 4. States - Hover, Active, Focused, Disabled, e.g.
+ *
+ *	Select: Hover, Active, Focused, Disabled
+ * 		.dijitSelectHover
+ * 		.dijitSelectFocused
+ * 		.dijitSelectDisabled
+ *
+ *	Combobox: Hover, Focused (Open), Disabled
+ *		.dijitComboBox .dijitDownArrowButtonHover		
+ *		.dijitComboBoxOpenHover .dijitButtonNode
+ *		.dijitComboBoxDisabled .dijitButtonNode
+ *
+ */
+.flat .dijitSelect .dijitArrowButtonInner,
+.flat .dijitComboBox .dijitArrowButtonInner {
+  margin: 0;
+  width: 0;
+  height: 0;
+}
+.flat .dijitSelect {
+  border-style: solid;
+  border-width: 1px;
+  border-color: #9e9e9e;
+  padding: 4px;
+  border-radius: 3px;
+  line-height: 20px;
+  cursor: pointer;
+  -webkit-transition: all 0.05s linear;
+  -moz-transition: all 0.05s linear;
+  -o-transition: all 0.05s linear;
+  -ms-transition: all 0.05s linear;
+  transition: all 0.05s linear;
+  background: #fff;
+  table-layout: fixed;
+}
+.flat .dijitSelect .dijitButtonContents,
+.flat .dijitSelect .dijitArrowButton {
+  line-height: 20px;
+  padding: 4px 12px;
+  border: 0;
+  border-radius: 0 2.000000000000001px 2.000000000000001px 0;
+}
+.flat .dijitSelect .dijitButtonContents {
+  padding: 0;
+  overflow: hidden;
+  -o-text-overflow: ellipsis;
+  text-overflow: ellipsis;
+  border-radius: 2.000000000000001px 0 0 2.000000000000001px;
+}
+.flat .dijitSelect .dijitInputField {
+  padding: 0 0 0 12px;
+}
+.flat .dijitSelect .dijitArrowButton {
+  width: 20px;
+  padding: 4px;
+}
+.flat .dijitSelectHover {
+  -webkit-transition: all 0.1s;
+  -moz-transition: all 0.1s;
+  -o-transition: all 0.1s;
+  -ms-transition: all 0.1s;
+  transition: all 0.1s;
+  background: #f2f2f2;
+  border-color: #d9d9d9;
+}
+.flat .dijitSelectActive {
+  -webkit-transition: none;
+  -moz-transition: none;
+  -o-transition: none;
+  -ms-transition: none;
+  transition: none;
+  outline: none;
+  -webkit-box-shadow: inset 0 3px 5px rgba(0,0,0,0.05);
+  box-shadow: inset 0 3px 5px rgba(0,0,0,0.05);
+  background: #e0e0e0;
+  border-color: #b3b3b3;
+}
+.flat .dijitSelectFocused {
+  border: 1px solid #9e9e9e;
+}
+.flat .dijitSelectDisabled {
+  cursor: default;
+  color: #9e9e9e;
+  background-color: #f5f5f5;
+  border-color: #e3e3e3;
+}
+.flat .dijitComboBox .dijitButtonNode {
+  border-style: solid;
+  border-width: 1px;
+  border-color: #9e9e9e;
+  padding: 4px;
+  border-radius: 3px;
+  line-height: 20px;
+  cursor: pointer;
+  -webkit-transition: all 0.05s linear;
+  -moz-transition: all 0.05s linear;
+  -o-transition: all 0.05s linear;
+  -ms-transition: all 0.05s linear;
+  transition: all 0.05s linear;
+  background: #fff;
+  border-radius: 0 2.000000000000001px 2.000000000000001px 0;
+}
+.flat .dijitComboBoxOpenHover .dijitButtonNode,
+.flat .dijitComboBox .dijitDownArrowButtonHover {
+  -webkit-transition: all 0.1s;
+  -moz-transition: all 0.1s;
+  -o-transition: all 0.1s;
+  -ms-transition: all 0.1s;
+  transition: all 0.1s;
+  background: #f2f2f2;
+  border-color: #d9d9d9;
+  -webkit-box-shadow: none;
+  box-shadow: none;
+}
+.flat .dijitComboBoxDisabled .dijitButtonNode {
+  cursor: default;
+  color: #9e9e9e;
+  background-color: #f5f5f5;
+  border-color: #e3e3e3;
+}
+.flat .dijitComboBox .dijitArrowButton {
+  width: 20px;
+  padding: 4px;
+}
+.flat .dijitToolbar .dijitComboBox .dijitArrowButtonInner {
+  border: none;
+}
+.flat .dijitDateTextBox .dijitArrowButton:before {
+  content: "\f01e";
+}
+.flat .dijitTimeTextBox .dijitArrowButton:before {
+  content: "\f01f";
+}
+.flat select {
+  padding: 4px 0;
+  border: 1px solid #9e9e9e;
+  -webkit-box-shadow: 0 1px 0.5px rgba(0,0,0,0.3), 0 2px 2px rgba(0,0,0,0.2);
+  box-shadow: 0 1px 0.5px rgba(0,0,0,0.3), 0 2px 2px rgba(0,0,0,0.2);
+}
+.flat select option {
+  padding: 4px 8px;
+}
+.flat .dijitSelectMenu td.dijitMenuItemIconCell,
+.flat .dijitSelectMenu td.dijitMenuArrowCell {
+/* so that arrow and icon cells from MenuItem are not displayed */
+  display: none;
+}

@@ -1,0 +1,26 @@
+/* RTL files */
+@import url("flat_dijit_rtl.css");
+
+/* dijit */
+@import url("dijit/Calendar_rtl.css");
+@import url("dijit/ColorPalette_rtl.css");
+@import url("dijit/Dialog_rtl.css");
+@import url("dijit/Editor_rtl.css");
+@import url("dijit/Menu_rtl.css");
+@import url("dijit/TitlePane_rtl.css");
+@import url("dijit/Toolbar_rtl.css");
+@import url("dijit/Tree_rtl.css");
+
+/* layout */
+@import url("dijit/layout/AccordionContainer_rtl.css");
+@import url("dijit/layout/TabContainer_rtl.css");
+
+/* dijit */
+@import url("dijit/form/Button_rtl.css");
+@import url("dijit/form/NumberSpinner_rtl.css");
+@import url("dijit/form/Select_rtl.css");
+@import url("dijit/form/Slider_rtl.css");
+@import url("dijit/form/TextBox_rtl.css");
+
+/* not in flat theme */
+/*@import url("dijit/ProgressBar_rtl.css");*/

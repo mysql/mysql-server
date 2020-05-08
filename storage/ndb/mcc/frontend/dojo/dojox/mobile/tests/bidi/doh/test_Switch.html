@@ -1,0 +1,104 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="Content-type" content="text/html; charset=utf-8"/>
+	<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no"/>
+	<meta name="apple-mobile-web-app-capable" content="yes"/>
+	<title>Switch</title>
+
+	<script type="text/javascript" src="../../../deviceTheme.js" data-dojo-config="mblThemeFiles: ['base']"></script>
+	<script type="text/javascript" src="../../../../../dojo/dojo.js" data-dojo-config="async: true,parseOnLoad: true,  has: {'dojo-bidi': true }"></script>
+
+	<script type="text/javascript">
+		require([
+			"dijit/registry",		
+			"doh/runner",
+			"dojo/dom",
+			"dojo/ready",
+			"dojo/query",			
+			"dojox/mobile/Switch",
+			"dojox/mobile",
+			"dojox/mobile/compat",
+			"dojox/mobile/parser",
+			"dojox/mobile/Button"
+			], function(registry,runner,dom,ready,query){
+				ready(function(){
+					runner.register("Bidi Switch", [
+						{
+							name: "mobile",					
+							runTest: function(){						
+								runner.is(String.fromCharCode(8235), registry.byId('first').right.firstChild.innerHTML.charAt(0), "right text node of first switch item inherits textDir attribute from container");						
+								runner.is(String.fromCharCode(8235), registry.byId('third').right.firstChild.innerHTML.charAt(0), "text direction of right text node of third switch item has been set to 'rtl' explicitly");
+								
+								registry.byId('second').set("textDir","rtl");
+								var node = query(".mblSwitchTextRight",dom.byId('second'))[0];
+								runner.is(String.fromCharCode(8235), node.innerHTML.charAt(0), "node had direction changed after change of 'textDir'");			        
+							}
+						}
+					]);	 			
+					
+					runner.register("log", function(){
+						dom.byId('failures').innerHTML = runner._failureCount;
+						dom.byId('errors').innerHTML = runner._errorCount;
+					});
+
+					runner.run();
+				});
+		},
+		toggleTextDir = function(){		
+			w2 = dijit.registry.byId("first");
+			w2.set("textDir", (w2.get("textDir") !== "rtl") ? "rtl" : "ltr");
+		});		
+	</script>
+	
+	<style>
+	.color1 .mblSwitchBgLeft {
+		background: -webkit-gradient(linear, left top, left bottom, from(#28B159), to(#75FBAC), color-stop(0.5, #3FEB84), color-stop(0.5, #4CEE8E));
+	}
+	.color1 .mblSwitchBgRight {
+		background: -webkit-gradient(linear, left top, left bottom, from(#CECECE), to(#FDFDFD), color-stop(0.5, #EEEEEE), color-stop(0.5, #F8F8F8));
+	}
+	.color2 .mblSwitchBgLeft {
+		background: -webkit-gradient(linear, left top, left bottom, from(#FF9D00), to(#FFCE80), color-stop(0.5, #FFBB4D), color-stop(0.5, #FFC871));
+	}
+	.color2 .mblSwitchBgRight {
+		background: -webkit-gradient(linear, left top, left bottom, from(#CECECE), to(#FDFDFD), color-stop(0.5, #EEEEEE), color-stop(0.5, #F8F8F8));
+	}
+	.color1 .mblSwitchKnob,
+	.color2 .mblSwitchKnob {
+		background: -webkit-gradient(linear, left top, left bottom, from(#999999), to(#FAFAFA), color-stop(0.5, #BBBBBB), color-stop(0.5, #CACACA));
+	}
+	.mblSwitch {
+		margin-right: 10px;
+	}
+	.bold {
+		font-weight: bold;
+	}
+	</style>
+</head>
+<body style="visibility:hidden;">
+	<button data-dojo-type="dojox.mobile.Button" data-dojo-props='type:"button", onClick:function(){ toggleTextDir(); }'>Toggle textDir of first switch</button>
+	<br>
+	<div data-dojo-type="dojox/mobile/View">
+		<div data-dojo-type="dojox/mobile/RoundRect" data-dojo-props='shadow:true, textDir:"rtl"'>
+			<span class="bold">Default Shape</span><br>
+			<div data-dojo-type="dojox/mobile/Switch" data-dojo-props='value:"off"'></div>
+			<div  id="first" class="color1" data-dojo-type="dojox/mobile/Switch" data-dojo-props='value:"on", leftLabel:"Start.", rightLabel:"Stop."'></div>
+		</div>
+
+		<div data-dojo-type="dojox/mobile/RoundRect" data-dojo-props='shadow:true'>
+			<span class="bold">Square Shape</span><br>
+			<div class="mblSwSquareShape" data-dojo-type="dojox/mobile/Switch" data-dojo-props='value:"off"'></div>
+			<div  id="second" class="color2" data-dojo-type="dojox/mobile/Switch" data-dojo-props='value:"on", leftLabel:"Start.", rightLabel:"Stop.", shape:"mblSwSquareShape"'></div>
+		</div>
+
+		<div data-dojo-type="dojox/mobile/RoundRect" data-dojo-props='shadow:true, textDir:"ltr"'>
+			<span class="bold">Round Shape 1</span><br>
+			<div class="mblSwRoundShape1" data-dojo-type="dojox/mobile/Switch" data-dojo-props='value:"off" '></div>
+			<div  id="third" class="color1" data-dojo-type="dojox/mobile/Switch" data-dojo-props='value:"on",textDir:"rtl", leftLabel:"Start.", rightLabel:"Stop.", shape:"mblSwRoundShape1"'></div>
+		</div>
+	</div>
+	<br>Errors:&nbsp;<span id="errors">?</span>
+	<br>Failures:&nbsp;<span id="failures">?</span>			
+</body>
+</html>
