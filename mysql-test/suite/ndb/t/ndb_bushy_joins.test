@@ -23,6 +23,11 @@
 --source include/have_ndb.inc
 --source include/have_multi_ndb.inc
 
+# Turn on DumpPageMemoryOnFail to dump page usage statistics on page allocation
+# failure, giving extra information for debugging if test fails due to out of
+# page memory.
+exec $NDB_MGM --verbose=0 --execute="ALL DUMP 1001 1";
+
 connect (ddl,localhost,root,,test);
 connect (j1,localhost,root,,test);
 connect (j2,localhost,root,,test);
@@ -484,3 +489,4 @@ reap;
 connection ddl;
 drop table parent, eq_child, ref_child;
 
+exec $NDB_MGM --verbose=0 --execute="ALL DUMP 1001 0";

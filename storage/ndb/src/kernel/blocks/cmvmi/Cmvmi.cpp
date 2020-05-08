@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2072,7 +2072,7 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
                   id, rl.m_min, rl.m_max, rl.m_curr, rl.m_spare);
       }
     }
-    m_ctx.m_mm.dump(); // To data node log
+    m_ctx.m_mm.dump(false); // To data node log
     return;
   }
   if (dumpState->args[0] == DumpStateOrd::DumpPageMemoryOnFail)

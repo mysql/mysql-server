@@ -1139,7 +1139,7 @@ Ndbd_mem_manager::grow(Uint32 start, Uint32 cnt)
                          __LINE__, start, cnt,
                          (cnt >> (20 - 15)));
 
-    dump();
+    dump(false);
     return;
   }
   
@@ -1287,12 +1287,12 @@ Ndbd_mem_manager::alloc(AllocZone zone,
     {
       if (unlikely(m_dump_on_alloc_fail))
       {
-        printf("%s: Page allocation failed: zone=%u pages=%u (at least %u)\n",
+        printf("Page allocation failed in %s: zone=%u pages=%u (at least %u)\n",
                __func__,
                zone,
                save,
                min);
-        dump();
+        dump(true);
       }
       return;
     }
@@ -1440,9 +1440,10 @@ Ndbd_mem_manager::remove_free_list(Uint32 zone, Uint32 start, Uint32 list)
 }
 
 void
-Ndbd_mem_manager::dump() const
+Ndbd_mem_manager::dump(bool locked) const
 {
-  mt_mem_manager_lock();
+  if (!locked)
+    mt_mem_manager_lock();
   printf("Begin Ndbd_mem_manager::dump\n");
   for (Uint32 zone = 0; zone < ZONE_COUNT; zone ++)
   {
@@ -1465,7 +1466,9 @@ Ndbd_mem_manager::dump() const
   }
   m_resource_limits.dump();
   printf("End Ndbd_mem_manager::dump\n");
-  mt_mem_manager_unlock();
+  fflush(stdout);
+  if (!locked)
+    mt_mem_manager_unlock();
 }
 
 void
@@ -1511,6 +1514,12 @@ Ndbd_mem_manager::alloc_page(Uint32 type,
       const Uint32 free = m_resource_limits.get_resource_free(idx);
       if (free < min || (free_shr + free_res < min))
       {
+        if (unlikely(m_dump_on_alloc_fail))
+        {
+          printf("Page allocation failed in %s: no free resource page.\n",
+                 __func__);
+          dump(true);
+        }
         if (!locked)
           mt_mem_manager_unlock();
         return NULL;
@@ -1518,6 +1527,12 @@ Ndbd_mem_manager::alloc_page(Uint32 type,
     }
     else
     {
+      if (unlikely(m_dump_on_alloc_fail))
+      {
+        printf("Page allocation failed in %s: no free reserved resource page.\n",
+               __func__);
+        dump(true);
+      }
       if (!locked)
         mt_mem_manager_unlock();
       return NULL;
@@ -1532,6 +1547,12 @@ Ndbd_mem_manager::alloc_page(Uint32 type,
       require(spare_taken == cnt);
       release(*i, spare_taken);
       m_resource_limits.check();
+      if (unlikely(m_dump_on_alloc_fail))
+      {
+        printf("Page allocation failed in %s: no free non-spare resource page.\n",
+               __func__);
+        dump(true);
+      }
       if (!locked)
         mt_mem_manager_unlock();
       *i = RNIL;
@@ -1546,6 +1567,13 @@ Ndbd_mem_manager::alloc_page(Uint32 type,
 #else
     return m_base_page + *i;
 #endif
+  }
+  if (unlikely(m_dump_on_alloc_fail))
+  {
+    printf("Page allocation failed in %s: no page available in zone %d.\n",
+           __func__,
+           zone);
+    dump(true);
   }
   if (!locked)
     mt_mem_manager_unlock();
@@ -1577,6 +1605,12 @@ Ndbd_mem_manager::alloc_spare_page(Uint32 type, Uint32* i, AllocZone zone)
       return m_base_page + *i;
 #endif
     }
+  }
+  if (unlikely(m_dump_on_alloc_fail))
+  {
+    printf("Page allocation failed in %s: no spare page.\n",
+           __func__);
+    dump(true);
   }
   mt_mem_manager_unlock();
   return 0;
@@ -1634,6 +1668,12 @@ Ndbd_mem_manager::alloc_pages(Uint32 type,
     if (req < min)
     {
       *cnt = 0;
+      if (unlikely(m_dump_on_alloc_fail))
+      {
+        printf("Page allocation failed in %s: not enough free resource pages.\n",
+               __func__);
+        dump(true);
+      }
       if (!locked)
         mt_mem_manager_unlock();
       return;
@@ -1656,6 +1696,13 @@ Ndbd_mem_manager::alloc_pages(Uint32 type,
   }
   * cnt = req;
   m_resource_limits.check();
+  if (req == 0 && unlikely(m_dump_on_alloc_fail))
+  {
+    printf("Page allocation failed in %s: no page available in zone %d.\n",
+           __func__,
+           zone);
+    dump(true);
+  }
   if (!locked)
     mt_mem_manager_unlock();
 #ifdef NDBD_RANDOM_START_PAGE
@@ -2030,7 +2077,7 @@ void transfer_test()
   Uint32 tm[6];
   Uint32 tm2[6];
 
-  if (DEBUG) mem.dump();
+  if (DEBUG) mem.dump(false);
 
   // Allocate 4 pages each from DM and DM2 resources.
   for (int i = 0; i < 4; i++)
@@ -2093,7 +2140,7 @@ void transfer_test()
     mem.release_page(RG_TM2, tm2[i]);
   }
 
-  if (DEBUG) mem.dump();
+  if (DEBUG) mem.dump(false);
 }
 
 void perf_test(int sz, int run_time)
@@ -2106,7 +2153,7 @@ void perf_test(int sz, int run_time)
   const Uint32 data_sz = sz / 3;
   const Uint32 trans_sz = sz / 3;
   Test_mem_manager mem(sz, data_sz, trans_sz);
-  mem.dump();
+  mem.dump(false);
 
   printf("pid: %d press enter to continue\n", NdbHost_GetProcessId());
   fgets(buf, sizeof(buf), stdin);
@@ -2116,7 +2163,7 @@ void perf_test(int sz, int run_time)
   time_t stop = time(0) + run_time;
   for (Uint32 i = 0; time(0) < stop; i++)
   {
-    mem.dump();
+    mem.dump(false);
     printf("pid: %d press enter to continue\n", NdbHost_GetProcessId());
     fgets(buf, sizeof(buf), stdin);
     time_t stop = time(0) + run_time;
@@ -2242,7 +2289,7 @@ void perf_test(int sz, int run_time)
   {
     timer[i].print(title[i]);
   }
-  mem.dump();
+  mem.dump(false);
 }
 
 template class Vector<Chunk>;

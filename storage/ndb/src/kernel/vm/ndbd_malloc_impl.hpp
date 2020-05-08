@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -295,7 +295,7 @@ public:
   void init_resource_spare(Uint32 id, Uint32 pct);
   void* get_memroot() const;
   
-  void dump() const ;
+  void dump(bool locked) const ;
   void dump_on_alloc_fail(bool on);
 
   enum AllocZone

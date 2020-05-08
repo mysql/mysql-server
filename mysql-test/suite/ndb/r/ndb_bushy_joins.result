@@ -1,3 +1,8 @@
+Sending dump signal with data:
+0x000003e9 0x00000001 
+Sending dump signal with data:
+0x000003e9 0x00000001 
+
 create table parent(a int primary key, b int, c int, d int) engine=ndb;
 create table eq_child(a int, b int, c int, d int, primary key(a,b)) engine=ndb;
 create table ref_child(a int, b int, c int, d int, primary key(a,b)) engine=ndb;
@@ -1519,3 +1524,8 @@ count(*)
 count(*)
 999
 drop table parent, eq_child, ref_child;
+Sending dump signal with data:
+0x000003e9 0x00000000 
+Sending dump signal with data:
+0x000003e9 0x00000000 
+
