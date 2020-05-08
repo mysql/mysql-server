@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -389,6 +389,15 @@ IF(${REALPATH_CMAKE_SOURCE_DIR} STREQUAL ${REALPATH_CMAKE_BINARY_DIR})
       "simply remove the build directory "
       "(note that 'make clean' or 'make distclean' does *not* work) "
       "\nYou *can* force in-source build by invoking cmake with -DFORCE_INSOURCE_BUILD=1")
+  ENDIF()
+ENDIF()
+
+IF(WIN32)
+  STRING(LENGTH "${REALPATH_CMAKE_BINARY_DIR}" CMAKE_BINARY_DIR_LENGTH)
+  IF(CMAKE_BINARY_DIR_LENGTH LESS_EQUAL 3)
+    MESSAGE(FATAL_ERROR
+      "It seems your build directory ${CMAKE_BINARY_DIR} is a filesystem root, "
+      "this is not supported. Please build in a subdirectory.")
   ENDIF()
 ENDIF()
 
