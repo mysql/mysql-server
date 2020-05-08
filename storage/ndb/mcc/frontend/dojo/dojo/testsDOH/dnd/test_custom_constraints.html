@@ -1,0 +1,48 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+	<title>Dojo custom constraint test</title>
+	<style type="text/css">
+		@import "../../resources/dojo.css";
+
+		body {
+			padding: 1em;
+		}
+
+		.moveable {
+			background: #FFFFBF;
+			border: 1px solid black;
+			width: 300px;
+			padding: 10px 20px;
+			margin: 0;
+			cursor: pointer;
+		}
+	</style>
+	<script type="text/javascript" src="../../dojo.js" data-dojo-config="isDebug: true"></script>
+
+	<script type="text/javascript">
+		require(["dojo/aspect", "dojo/dom-geometry", "dojo/dnd/Moveable", "dojo/domReady!"], function(aspect, domGeom, Moveable){
+			var STEP = 50;
+		
+			// 1st way
+			var m1 = new Moveable("moveable1");
+			m1.onMove = function(mover, leftTop){
+				leftTop.l -= leftTop.l % STEP;
+				leftTop.t -= leftTop.t % STEP;
+				domGeom.setMarginBox(mover.node, leftTop);
+			};
+			// 2nd way
+			var m2 = new Moveable("moveable2");
+			aspect.after(m2, "onMoving", function(mover, leftTop){
+				leftTop.l -= leftTop.l % STEP;
+				leftTop.t -= leftTop.t % STEP;
+			}, true);
+		});
+	</script>
+</head>
+<body>
+	<h1>Dojo custom constraint test</h1>
+	<div class="moveable" id="moveable1"><strong>This paragraph stops at 50x50 grid knots:</strong> Donec ac odio sed pede aliquet auctor. Donec et lectus. Praesent feugiat ultrices enim. Morbi lectus. Donec vestibulum posuere libero. Donec quam enim, nonummy a, auctor vitae, placerat id, massa. Vivamus vulputate luctus nibh. Donec dolor orci, sagittis ac, pretium sed, ornare sit amet, pede. Vestibulum leo justo, pellentesque sit amet, tristique sed, tempor eu, felis. Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Nullam scelerisque velit vel sem. Curabitur vulputate. Morbi pretium porta dui.</div>
+	<div class="moveable" id="moveable2"><strong>This paragraph stops at 50x50 grid knots:</strong> Donec ac odio sed pede aliquet auctor. Donec et lectus. Praesent feugiat ultrices enim. Morbi lectus. Donec vestibulum posuere libero. Donec quam enim, nonummy a, auctor vitae, placerat id, massa. Vivamus vulputate luctus nibh. Donec dolor orci, sagittis ac, pretium sed, ornare sit amet, pede. Vestibulum leo justo, pellentesque sit amet, tristique sed, tempor eu, felis. Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Nullam scelerisque velit vel sem. Curabitur vulputate. Morbi pretium porta dui.</div>
+</body>
+</html>

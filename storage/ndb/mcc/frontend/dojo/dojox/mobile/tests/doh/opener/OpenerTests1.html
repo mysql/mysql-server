@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="Content-type" content="text/html; charset=utf-8"/>
+	<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no"/>
+	<meta name="apple-mobile-web-app-capable" content="yes"/>
+	<title>Opener Tests (Overlay and Tooltip)</title>
+
+	<!-- Test for #16880 affecting Overlay and Tooltip (thus, Opener) -->
+	
+	<script type="text/javascript" src="../../../deviceTheme.js"></script>
+	<script type="text/javascript" src="../../../../../dojo/dojo.js" 
+		data-dojo-config="async: true, parseOnLoad: true"></script>
+
+	<script type="text/javascript">
+		require([
+			"doh/runner",
+			"dijit/registry",
+			"dojo/ready",
+			"dojox/mobile/parser",
+			"dojox/mobile",
+			"dojox/mobile/compat",
+			"dojox/mobile/Opener",
+			"dojox/mobile/Tooltip",
+			"dojox/mobile/Overlay",
+			"dojox/mobile/SpinWheelDatePicker",
+			"dojox/mobile/ScrollableView"
+		], function(runner, registry, ready){
+			var testInView = function(id){
+				var spinWheel = registry.byId(id);
+				// When spinwheel's centerPos is 0, the wheel is broken. Hence, using
+				// it for detecting the failure case. 
+				runner.assertTrue(spinWheel.centerPos > 0, 
+					id + ": centerPos should be > 0! got: " + spinWheel.centerPos);
+			};
+					
+			ready(function(){
+				runner.register("dojox.mobile.test.doh.OpenerTests", [
+					function testInView2(){
+						testInView("spin2");
+					}, 
+					function testInView3(){
+						testInView("spin3");
+					},
+					function testInView4(){
+						testInView("spin4");
+					},
+					function testInView5(){
+						testInView("spin5");
+					}
+				]);
+				runner.run();
+			});
+		})
+	</script>
+</head>
+<body>
+	<div id="view1" data-dojo-type="dojox/mobile/View" data-dojo-props="selected: true">
+		<ul data-dojo-type="dojox/mobile/RoundRectList">
+			<li data-dojo-type="dojox/mobile/ListItem" 
+				data-dojo-props="moveTo: 'view2'">view2 (SpinWheel in ScrollableView)</li>
+			<li data-dojo-type="dojox/mobile/ListItem" 
+				data-dojo-props="moveTo: 'view3'">view3 (SpinWheel in Opener lazy:false)</li>
+			<li data-dojo-type="dojox/mobile/ListItem" 
+				data-dojo-props="moveTo: 'view4'">view4 (SpinWheel in Overlay)</li>
+			<li data-dojo-type="dojox/mobile/ListItem" 
+				data-dojo-props="moveTo: 'view5'">view5 (SpinWheel in Tooltip)</li>
+			<li data-dojo-type="dojox/mobile/ListItem" 
+				data-dojo-props="moveTo: 'view6'">view6 (SpinWheel in Opener lazy:true)</li>
+		</ul>
+	</div>
+	
+	<div id="view2" data-dojo-type="dojox/mobile/ScrollableView" data-dojo-props="selected: false">
+		<div id="spin2" data-dojo-type="dojox/mobile/SpinWheelDatePicker"></div>
+	</div>
+	
+	<div id="view3" data-dojo-type="dojox/mobile/ScrollableView" data-dojo-props="selected: false">
+		<div data-dojo-type="dojox/mobile/Opener" 
+			data-dojo-props="lazy:false">
+			<div id="spin3" data-dojo-type="dojox/mobile/SpinWheelDatePicker"></div>
+		</div>
+	</div>
+	
+	<div id="view4" data-dojo-type="dojox/mobile/ScrollableView" data-dojo-props="selected: false">
+		<div data-dojo-type="dojox/mobile/Overlay">
+			<div id="spin4" data-dojo-type="dojox/mobile/SpinWheelDatePicker"></div>
+		</div>
+	</div>
+	
+	<div id="view5" data-dojo-type="dojox/mobile/ScrollableView" data-dojo-props="selected: false">
+		<div data-dojo-type="dojox/mobile/Tooltip">
+			<div id="spin5" data-dojo-type="dojox/mobile/SpinWheelDatePicker"></div>
+		</div>
+	</div>
+	
+	<div id="view6" data-dojo-type="dojox/mobile/ScrollableView" data-dojo-props="selected: false">
+		<div data-dojo-type="dojox/mobile/Opener" 
+			data-dojo-props="lazy:true">
+			<div id="spin6" data-dojo-type="dojox/mobile/SpinWheelDatePicker"></div>
+		</div>
+	</div>
+</body>
+</html>

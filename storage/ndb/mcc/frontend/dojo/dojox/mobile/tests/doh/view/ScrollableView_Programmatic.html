@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="Content-type" content="text/html; charset=utf-8"/>
+	<meta name="viewport"
+		content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no"/>
+	<meta name="apple-mobile-web-app-capable" content="yes"/>
+	<title>ScrollableView</title>
+
+	<!-- Test for ScrollableView's onFlickAnimationStart/End (Trac #17822) -->
+	
+	<script type="text/javascript" src="../../../deviceTheme.js"></script>
+	<script type="text/javascript" src="../../../../../dojo/dojo.js" 
+		data-dojo-config="async: true, parseOnLoad: true"></script>
+
+	<script type="text/javascript">
+		var onYearSet, onMonthSet, onDaySet;
+		require([
+			"dojo/ready", "dojo/dom-construct", "dijit/registry", "doh/runner",
+			"dojox/mobile/ScrollableView", "dojox/mobile", "dojox/mobile/compat", "dojox/mobile/parser",
+			"dojo/fx", "dojo/fx/easing" // needed by dojox/mobile/scrollable for browsers non supporting css3 animations 
+			],
+			function(ready, domConstruct, registry, runner, ScrollableView){
+			
+			var onFlickAnimationStartCounter, onFlickAnimationEndCounter;
+
+			ready(function(){
+				var installCounters = function(scrollableView){
+					scrollableView.on("flickAnimationStart", function(){
+						onFlickAnimationStartCounter++;
+					});
+					scrollableView.on("flickAnimationEnd", function(){
+						onFlickAnimationEndCounter++;
+					});
+				};
+				
+				var initCounters = function(){
+					onFlickAnimationStartCounter = onFlickAnimationEndCounter = 0;
+				};
+				
+				var checkCounters = function(scrollType, expectedStartCounter, expectedEndCounter){
+					var msg = "scrollType: " + scrollType;
+					runner.assertEqual(expectedStartCounter, onFlickAnimationStartCounter, 
+						msg + " Unexpected onFlickAnimationStartCounter");
+					runner.assertEqual(expectedEndCounter, onFlickAnimationEndCounter, 
+						msg + " Unexpected onFlickAnimationEndCounter");
+				};
+				
+				var createScrollableView = function(scrollType){
+					var scrollableView = new ScrollableView({scrollType: scrollType});
+					installCounters(scrollableView);
+					document.body.innerHTML = "";
+					document.body.appendChild(scrollableView.domNode);
+					scrollableView.startup();
+					var rect = domConstruct.create("div");
+					// larger than the ScrollableView to ensure actual scroll
+					rect.style.height = "1000px";
+					scrollableView.containerNode.appendChild(rect);
+					scrollableView.style.height = "500px";
+					scrollableView.startup();
+					scrollableView.resize();
+					return scrollableView;
+				};
+				
+				var testScrollableView = function(scrollType){
+					var scrollableView = createScrollableView(scrollType);
+					initCounters();
+					scrollableView.slideTo({y: -100}, 0.2/*duration*/); // animated scroll 
+					var d = new runner.Deferred();
+					// setTimeout used because onFlickAnimationEnd is called asynchronously
+					setTimeout(d.getTestCallback(function(){
+						checkCounters(scrollType, 1, 1);
+  					}), 1000);
+					return d;
+				};
+				
+				runner.register("dojox.mobile.test.doh.ScrollableView", [
+					{
+						name: "onFlickAnimationStart/End scrollType 1",
+						timeout: 2000,
+						runTest: function(){
+							return testScrollableView(1);
+						}
+					},
+					{
+						name: "onFlickAnimationStart/End scrollType 2",
+						timeout: 2000,
+						runTest: function(){
+							return testScrollableView(2);
+						}
+					},
+					{
+						name: "onFlickAnimationStart/End scrollType 3",
+						timeout: 2000,
+						runTest: function(){
+							return testScrollableView(3);
+						}
+					}
+				]);
+				
+				runner.run();
+			});
+		});
+		</script>
+	</head>
+	<body style="visibility:hidden;">
+	</body>
+</html>

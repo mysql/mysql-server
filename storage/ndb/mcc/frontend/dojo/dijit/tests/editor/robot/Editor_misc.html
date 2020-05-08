@@ -1,0 +1,379 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+		"http://www.w3.org/TR/html4/strict.dtd">
+<html>
+	<head>
+		<title>doh.robot Editor Miscellaneous Tests</title>
+
+		<style>
+			@import "../../../../util/doh/robot/robot.css";
+		</style>
+
+		<script type="text/javascript" src="../../../../dojo/dojo.js"></script>
+
+		<script type="text/javascript">
+			require([
+				"doh/runner", "dojo/robotx",
+				"dojo/_base/array", "dojo/dom", "dojo/dom-style", "dojo/keys", "dojo/sniff", "dojo/window",
+				"dijit/tests/helpers", "dojo/domReady!"
+			], function(doh, robot, array, dom, domStyle, keys, has, winUtils, helpers){
+
+				robot.initRobot('../test_Editor.html');
+				var editor0;
+				var height;
+				var value;
+				var editor1;
+				var editor1OriginalBackgroundColor;
+
+				function getPlugin(/*Editor*/ editor, /*String*/ command){
+					return array.filter(editor._plugins, function(p){
+						return p.command == command;
+					})[0];
+				}
+
+				var registry;
+				doh.register("setup", [
+					{
+						name: "wait for editors to load",
+						timeout: 5000,
+						runTest: helpers.waitForLoad
+					},
+					function setVars(){
+						registry = robot.window.require("dijit/registry");
+					}
+				]);
+
+				doh.register("Miscellaneous_tests", [
+					{
+						name: "addStylesheet",
+						timeout: 3000,
+						setUp: function(){
+							editor1 = registry.byId("editor1");
+							editor1.setValue("<h1>header one</h1>");
+							var editorTextNode = editor1.editNode.firstChild;
+							editor1OriginalBackgroundColor = domStyle.getComputedStyle(editorTextNode).backgroundColor;
+						},
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							winUtils.scrollIntoView(editor1.domNode);
+							editor1.addStyleSheet('test_editor.css');
+
+							setTimeout(d.getTestCallback(function(){
+								var editorTextNode = editor1.editNode.firstChild;
+								var backgroundColor = domStyle.getComputedStyle(editorTextNode).backgroundColor;
+								var borderStyle = domStyle.getComputedStyle(editorTextNode).borderBottomStyle;
+								var borderWidth = domStyle.getComputedStyle(editorTextNode).borderBottomWidth;
+								doh.is("header one", editorTextNode.innerHTML);
+								doh.t(backgroundColor==="rgb(255, 0, 0)" || backgroundColor==="red" || backgroundColor==="#ff0000", "backgroundColor " + backgroundColor);
+								doh.is("solid", borderStyle);
+								doh.is("1px", borderWidth);
+							}), 1000);
+
+							return d;
+						}
+					},
+					{
+						name: "removeStylesheet",
+						timeout: 3000,
+						runTest: function(){
+							var d = new doh.Deferred();
+								editor1.removeStyleSheet('test_editor.css');
+
+							setTimeout(d.getTestCallback(function(){
+								var editorNodeText = editor1.editNode.firstChild;
+								var backgroundColor = domStyle.getComputedStyle(editorNodeText).backgroundColor;
+								doh.is("header one", editorNodeText.innerHTML);
+								doh.is(editor1OriginalBackgroundColor, backgroundColor, "backgroundColor");
+							}), 1000);
+
+							return d;
+						}
+					},
+					{
+						name: "auto expand",
+						timeout: 20000,
+						setUp: function(){
+							editor0 = registry.byId("thud");
+							height = dojo.style(editor0.domNode, "height");
+							value = editor0.get("value");
+						},
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							// Focus on the editor window
+							winUtils.scrollIntoView(editor0.domNode);
+							robot.mouseMoveAt(editor0.iframe, 500, null, 10, 10);
+							robot.mouseClick({left:true}, 500);
+							robot.keyPress(keys.ENTER, 500);
+							robot.keyPress(keys.ENTER, 500);
+							robot.keyPress(keys.ENTER, 500);
+							robot.keyPress(keys.ENTER, 500);
+							robot.keyPress(keys.ENTER, 500);
+							robot.keyPress(keys.ENTER, 500);
+							robot.keyPress(keys.ENTER, 500);
+							robot.keyPress(keys.ENTER, 500);
+							robot.sequence(d.getTestCallback(function(){
+								// Now check the state!
+								var newHeight = dojo.style(editor0.domNode, "height");
+								doh.t(height < newHeight, "height decreased from " + height + " to " + newHeight);
+							}), 1000);
+
+							return d;
+						},
+						tearDown: function(){
+							if(editor0){editor0.set("value", value);}
+						}
+					},
+					{
+						name: "font-size style migrated to editor body",
+						runTest: function(){
+							editor0 = registry.byId("fontSizedEditor");
+							var bStyle = editor0.document.body.style["fontSize"];
+							doh.t(bStyle != null, "bStyle set");
+							doh.is("30pt", bStyle.toLowerCase());
+						}
+					},
+					{
+						name: "prefilters do process initial content",
+						timeout: 20000,
+						setUp: function(){
+							editor0 = registry.byId("filteredEditor");
+						},
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							// Focus on the editor window
+							winUtils.scrollIntoView(editor0.domNode);
+							robot.mouseMoveAt(editor0.iframe, 500, null, 10, 10);
+							robot.mouseClick({left:true}, 500);
+
+							robot.sequence(d.getTestCallback(function(){
+								// Now check the state!
+								var val = editor0.get("value");
+								doh.t(val.indexOf("DOJO") >= 0, "dojo in val " + val);
+								doh.t(val.indexOf("notdojo") < 0, "notdojo not in val " + val);
+							}), 500);
+
+							return d;
+						}
+					},
+					{
+						name: "placeCursorAtStart (br tag) moves input before br, not inside",
+						timeout: 20000,
+						setUp: function(){
+							editor0 = registry.byId("brEditor");
+							value = editor0.get("value");
+						},
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							// Focus on the editor window
+							winUtils.scrollIntoView(editor0.domNode);
+							robot.mouseMoveAt(editor0.iframe, 500, null, 10, 10);
+							robot.mouseClick({left:true}, 500);
+							robot.sequence(d.getTestErrback(function(){
+								editor0.placeCursorAtStart();
+							}), 500);
+							robot.typeKeys("abc", 500);
+							robot.sequence(d.getTestCallback(function(){
+								// Now check the state!
+								var content = editor0.get("value").replace(/[\s]/g, "");
+								doh.t(content.indexOf("abc<br") >= 0, "looked for 'abc<br', found: " + content);
+							}), 1000);
+
+							return d;
+						},
+						tearDown: function(){
+							if(editor0){editor0.set("value", value);}
+						}
+					},
+					{
+						name: "custom editor content (programmatic creation)",
+						timeout: 20000,
+						setUp: function(){
+							editor0 = registry.byId("programmatic3");
+							value = editor0.get("value");
+						},
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							// Focus on the editor window
+							winUtils.scrollIntoView(editor0.domNode);
+							robot.mouseMoveAt(editor0.iframe, 500, null, 10, 10);
+							robot.mouseClick({left:true}, 500);
+							robot.sequence(d.getTestCallback(function(){
+								// Now check the state!
+								var content = editor0.get("value");
+								doh.t(content.indexOf("Custom Initial Content.") >= 0);
+							}), 1000);
+
+							return d;
+						},
+						tearDown: function(){
+							if(editor0){editor0.set("value", value);}
+						}
+					},
+					{
+						name: "custom filters passed in constructor are not lost",
+						timeout: 20000,
+						setUp: function(){
+							editor0 = registry.byId("programmatic4");
+							value = editor0.get("value");
+						},
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							// Focus on the editor window
+							winUtils.scrollIntoView(editor0.domNode);
+							robot.mouseMoveAt(editor0.iframe, 500, null, 10, 10);
+							robot.mouseClick({left:true}, 500);
+							robot.sequence(d.getTestCallback(function(){
+								// Now check the state!
+								doh.t(editor0.contentPreFilters.length > 1);
+							}), 1000);
+
+							return d;
+						},
+						tearDown: function(){
+							if(editor0){editor0.set("value", value);}
+						}
+					},
+					{
+						name: "replaceValue",
+						timeout: 20000,
+						setUp: function(){
+							editor0 = registry.byId("programmatic4");
+							value = editor0.get("value");
+						},
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							// Focus on the editor window
+							winUtils.scrollIntoView(editor0.domNode);
+							dojo.style(editor0.domNode, "display", "none");
+							editor0.replaceValue("New Value");
+							dojo.style(editor0.domNode, "display", "none");
+							robot.sequence(d.getTestCallback(function(){
+								// Now check the state!
+								dojo.style(editor0.domNode, "display", "");
+								winUtils.scrollIntoView(editor0.domNode);
+								var newValue = editor0.get("value");
+								editor0.undo();
+								var curValue = editor0.get("value");
+								doh.t(newValue.indexOf(value) < 0, "content changed with no trace of old content");
+								doh.t(curValue != newValue, "undo undid the change");
+								doh.t(curValue == value, "original value was restored");
+							}), 1000);
+
+							return d;
+						},
+						tearDown: function(){
+							if(editor0){editor0.set("value", value);}
+						}
+					},
+					{
+						name: "page up/down",
+						timeout: 6000,
+						setUp: function(){
+							editor0 = registry.byId("editor0");
+							value = editor0.get("value");
+						},
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							// Focus on the editor window
+							winUtils.scrollIntoView(editor0.domNode);
+							robot.sequence(d.getTestErrback(function(){
+								editor0.focus();
+							}), 500);
+							
+							robot.keyPress(keys.PAGE_UP, 500);
+							robot.typeKeys("abc", 500);
+							robot.keyPress(keys.PAGE_DOWN, 500);
+							robot.typeKeys("def", 500);
+							
+							robot.sequence(d.getTestCallback(function(){
+								var value = editor0.get("value");
+								if(!has("webkit")){	// commented out due to #14193
+									doh.t(value.indexOf("abcdef") == 0, "editor value = " + value);
+								}
+							}), 500);
+
+							return d;
+						},
+						tearDown: function(){
+							if(editor0){editor0.set("value", value);}
+						}
+					},
+					{
+						name: "emptyAltTag",
+						timeout: 20000,
+						setUp: function(){
+							editor0 = registry.byId("programmatic4");
+							value = editor0.get("value");
+						},
+						runTest: function(){
+							var d = new doh.Deferred();
+							// Focus on the editor window
+							winUtils.scrollIntoView(editor0.domNode);
+							editor0.set("value", "<img alt=\"''\" src=\"http://blogsearch.google.com/blogsearch/intl/en_ALL/images/blogs_logo.gif\">");
+							robot.sequence(d.getTestCallback(function(){
+								// Now check the state!
+								winUtils.scrollIntoView(editor0.domNode);
+								var newValue = editor0.get("value");
+								var test = "alt=\"''\"";
+								doh.t(newValue.indexOf(test) > 0, "content includes empty string alt");
+							}), 1000);
+
+							return d;
+						},
+						tearDown: function(){
+							if(editor0){editor0.set("value", value);}
+						}
+					},
+					{
+						name: "caret pos #1",
+						timeout: 20000,
+						setUp: function(){
+							editor1 = registry.byId("editor1");
+
+							// Scroll editor into view, set content to list except for middle item isn't part of list
+							winUtils.scrollIntoView(editor1.domNode);
+							editor1.set("value", "<ul><li>one</li><li>two</li></ul><p id='three'>three</p><ul><li>four</li><li>five</li></ul>");
+						},
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							// Select middle item ("three")
+							robot.mouseMoveAt(dom.byId("three", editor1.document), 500);
+							robot.mouseClick({left:true}, 500);
+
+							// Press indent button, so that "three" becomes part of list
+							robot.mouseMoveAt(function(){
+								return getPlugin(editor1, "indent").button.domNode;
+							}, 500);
+							robot.mouseClick({left:true}, 500);
+
+							robot.sequence(d.getTestCallback(function(){
+								var value = editor1.get("value").toLowerCase();
+								value = value.replace(/blockquote[^>]*>/, "blockquote>").replace(/ id="three"/, "");
+
+								// Ideally three would become part of the list, but it becomes a separate block quote.
+								// Maybe it would be part of the list w/dojox/Editor/plugins/NormalizeIndentOutdent.
+								doh.is(
+									"<ul><li>one</li><li>two</li></ul>" +
+										"<blockquote><p>three</p></blockquote>" +
+										"<ul><li>four</li><li>five</li></ul>",
+									value, "element 'three' indented")
+							}), 500);
+
+							return d;
+						}
+					}
+				]);
+
+				doh.run();
+			});
+		</script>
+	</head>
+</html>

@@ -1,0 +1,159 @@
+{
+	"id": "domOrderByConstraint",
+	"name": "VoiceOver App",
+	"description": "A VoiceOver dom layout test App",
+	"splash": "splash",
+
+	"loaderConfig": {
+		"paths": {
+			"domOrderByConstraint": "../dojox/app/tests/domOrderByConstraint"
+		}
+	},
+
+	"dependencies": [
+		"dojox/app/utils/simpleModel",
+		"dojox/app/widgets/Container",
+		"dojo/store/Observable",
+		"dojox/mobile/_base",
+		"dojox/mobile/compat",
+		"dojox/mobile/TabBar",
+		"dojox/mobile/RoundRect",
+		"dojox/mobile/TabBarButton",
+		"dojox/mobile/Button",
+		"dojox/mobile/TextBox",
+		"dojox/mobile/RoundRect",
+		"dojox/mobile/Heading",
+		"dojox/mobile/EdgeToEdgeStoreList",
+		"dojox/mobile/EdgeToEdgeList",
+		"dojox/mobile/DatePicker",
+		"dojox/mobile/Opener",
+		"dojo/store/Memory",
+		"dojox/mobile/deviceTheme"
+	],
+
+	"modules": [
+	],
+
+	"controllers": [
+		"dojox/app/controllers/Load",
+		"dojox/app/controllers/Transition",
+		"dojox/app/controllers/Layout",
+		"dojox/app/tests/domOrderByConstraint/controllers/UnloadViewController"
+	],
+
+	//stores we are using
+	"stores": {
+       "listStore":{
+           "type": "dojo/store/Memory",
+	       "observable": true,
+           "params": {
+                "data": "domOrderByConstraint.listData"
+           }
+       }
+	},
+
+	// The has section will include the sections for which the has checks are true.
+	// For the sections with ! it will include the section if the has check is not true.
+	"has" : {
+		"ie9orLess" : {
+			"controllers": [
+				"dojox/app/controllers/HistoryHash"
+			]
+		},
+		"!ie9orLess" : {
+			"controllers": [
+				"dojox/app/controllers/History"
+			]
+		}
+	},
+
+	//the name of the scene to load when the app is initialized.
+	"defaultView": "footer,header,right,left,center",
+
+	//"useConfigOrder": true, // test to see how it would layout without ordering dom by constraint
+
+	"defaultTransition": "slide",
+	//scenes are groups of views and models loaded at once
+	"views": {
+
+		"footer": {
+			"dependencies":["dojox/mobile/ListItem","dojox/mobile/RoundRectList","dojox/mobile/RoundRectCategory","dojox/mobile/Heading"],
+			"template": "domOrderByConstraint/main/footer.html",
+			"views": {
+				"header": {
+					"dependencies":["dojox/mobile/ListItem","dojox/mobile/RoundRectList","dojox/mobile/RoundRectCategory","dojox/mobile/Heading"],
+					"controller" : "domOrderByConstraint/main/header.js",
+					"template": "domOrderByConstraint/main/header.html",
+					"views": {
+						"right": {
+							"dependencies":["dojox/mobile/ListItem","dojox/mobile/RoundRectList","dojox/mobile/RoundRectCategory","dojox/mobile/Heading"],
+							"template": "domOrderByConstraint/main/right.html",
+							"views": {
+								"left": {
+									"template": "domOrderByConstraint/main/left.html",
+									"views": {
+										"center": {
+											"controller" : "domOrderByConstraint/main/main.js",
+											"template": "domOrderByConstraint/main/main.html"
+										},
+										"center2": {
+											"controller" : "domOrderByConstraint/main/main2.js",
+											"template": "domOrderByConstraint/main/main2.html"
+										}
+									}
+								}
+							}
+						},
+						"listMain": {
+							"defaultView": "list",
+							"defaultTransition": "slide",
+
+							"views": {
+								"list":{
+									"controller" : "domOrderByConstraint/list/list.js",
+									"template": "domOrderByConstraint/list/list.html",
+									"dependencies":["dojox/mobile/TextBox"]
+								},
+								"itemDetails":{
+									"controller" : "domOrderByConstraint/list/itemDetails.js",
+									"template": "domOrderByConstraint/list/itemDetails.html",
+									"dependencies":["dojox/mobile/TextBox"],
+									"defaultParams": {"cursor":"2"}
+								}
+							}
+						},
+
+						"simple":{
+							"stores": {
+								"namesStore":{
+									"type": "dojo/store/Memory",
+									"params": {
+						    	  		"data": "domOrderByConstraint.names"
+						  		 	}
+						  		 }
+					   		},
+				            "models": {
+								"names": {
+									"modelLoader": "dojox/app/utils/simpleModel",
+									"params":{
+										"store": {"$ref":"#views.simple.stores.namesStore"}
+									}
+								}
+							},
+							"controller" : "domOrderByConstraint/simple/simple.js",
+							"template": "domOrderByConstraint/simple/simple.html",
+							"dependencies":["dojox/mobile/TextBox"]
+						},
+
+						"date": {
+				            "controller": "domOrderByConstraint/date/date.js",
+				            "template": "domOrderByConstraint/date/date.html",
+				            "dependencies":["dojox/mobile/TextBox", "dojox/mobile/TextArea"]
+						}
+				}
+				}
+			}
+		}
+
+	}
+}

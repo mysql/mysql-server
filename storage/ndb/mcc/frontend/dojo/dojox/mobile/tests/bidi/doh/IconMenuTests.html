@@ -1,0 +1,98 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<title>IconMenu Bidi Tests</title>
+<script type="text/javascript" src="../../../deviceTheme.js"></script>
+<script type="text/javascript" src="../../../../../dojo/dojo.js" data-dojo-config="async: true, parseOnLoad: true,  has: {'dojo-bidi': true }"></script>
+<script language="JavaScript" type="text/javascript">
+
+	require([
+		"dojo/sniff",
+		"dojo/dom-construct", // dojo.place
+		"dojo/ready", // dojo.ready
+		"dijit/registry",  // dijit.byId
+		"doh/runner",	//doh functions
+		"dojox/mobile/bidi/common",		
+		"dojox/mobile",				// This is a mobile app.
+		"dojox/mobile/View",		// This mobile app uses mobile view
+		"dojox/mobile/compat",		// This mobile app supports running on desktop browsers
+		"dojox/mobile/parser",		// This mobile app uses declarative programming with fast mobile parser
+		"dojox/mobile/IconMenu" 
+
+	], function(has, domConst, ready, registry, runner, common){
+
+		ready(function(){
+			var lre = common.MARK.LRE;
+			var rle = common.MARK.RLE;
+
+			function getFirstChar(item){
+				var text = item.labelNode.innerHTML;
+				return text ? text.charAt(0) : "";
+			};
+				
+			runner.register("dojox.mobile.test.bidi.doh.IconMenuTests", [			
+				
+				function test_LTR_TextDir(){
+					var item = registry.byId("item11");
+					runner.assertEqual(lre, getFirstChar(item));
+					item = registry.byId("item12");
+					runner.assertEqual(lre, getFirstChar(item));
+					item = registry.byId("item24");
+					runner.assertEqual(lre, getFirstChar(item));
+				},
+				
+				function test_RTL_TextDir(){
+					var item = registry.byId("item21");
+					runner.assertEqual(rle, getFirstChar(item));
+					item = registry.byId("item22");
+					runner.assertEqual(rle, getFirstChar(item));
+					item = registry.byId("item14");
+					runner.assertEqual(rle, getFirstChar(item));			
+				},
+				
+				function test_auto_TextDir(){
+					var item = registry.byId("item31");
+					runner.assertEqual(rle, getFirstChar(item));
+					item = registry.byId("item32");
+					runner.assertEqual(lre, getFirstChar(item));				
+				},
+						
+				function test_change_Label(){
+					var item = registry.byId("item34");				
+					item.set("label", "New label...");
+					runner.assertEqual("auto", item.get("textDir"));	
+					runner.assertEqual(lre, getFirstChar(item));
+				}
+			]);
+			runner.run();
+		});
+	})
+</script>
+</head>
+<body>
+TextDir LTR
+		<ul data-dojo-type="dojox.mobile.IconMenu" style="width:274px;height:210px;margin:20px;" data-dojo-props='cols:2, textDir:"ltr"'>
+			<li data-dojo-type="dojox.mobile.IconMenuItem"  id="item11" data-dojo-props='label:"\u05e9\u05dc\u05d5\u05dd dojo!", icon:"images/tab-icon-36w.png", selected:true'></li>
+			<li data-dojo-type="dojox.mobile.IconMenuItem"  id="item12" data-dojo-props='label:"Hello dojo!", icon:"images/tab-icon-32w.png"'></li>
+			<li data-dojo-type="dojox.mobile.IconMenuItem"  id="item13" data-dojo-props='label:"speaker", icon:"images/tab-icon-30w.png", selected:true'></li>
+			<li data-dojo-type="dojox.mobile.IconMenuItem"  id="item14" data-dojo-props='label:"I am RTL!", icon:"images/tab-icon-16w.png", textDir:"rtl"'></li>
+		</ul>
+TextDir RTL
+		<ul data-dojo-type="dojox.mobile.IconMenu" style="width:274px;height:210px;margin:20px;" data-dojo-props='cols:2, textDir:"rtl"'>
+			<li data-dojo-type="dojox.mobile.IconMenuItem"  id="item21" data-dojo-props='label:"\u05e9\u05dc\u05d5\u05dd dojo!", icon:"images/tab-icon-36w.png", selected:true, textDir:"rtl"'></li>
+			<li data-dojo-type="dojox.mobile.IconMenuItem"  id="item22" data-dojo-props='label:"Hello dojo!", icon:"images/tab-icon-32w.png"'></li>
+			<li data-dojo-type="dojox.mobile.IconMenuItem"  id="item23" data-dojo-props='label:"speaker", icon:"images/tab-icon-30w.png", selected:true'></li>
+			<li data-dojo-type="dojox.mobile.IconMenuItem"  id="item24" data-dojo-props='label:"I am LTR!", icon:"images/tab-icon-16w.png", textDir:"ltr"'></li>
+		</ul>
+TextDir AUTO
+		<ul data-dojo-type="dojox.mobile.IconMenu" style="width:274px;height:210px;margin:20px;" data-dojo-props='cols:2, textDir:"auto"'>
+			<li data-dojo-type="dojox.mobile.IconMenuItem"  id="item31" data-dojo-props='label:"\u05e9\u05dc\u05d5\u05dd dojo!", icon:"images/tab-icon-36w.png", selected:true'></li>
+			<li data-dojo-type="dojox.mobile.IconMenuItem"  id="item32" data-dojo-props='label:"Hello dojo!", icon:"images/tab-icon-32w.png"'></li>
+			<li data-dojo-type="dojox.mobile.IconMenuItem"  id="item33" data-dojo-props='label:"speaker", icon:"images/tab-icon-30w.png", selected:true'></li>
+			<li data-dojo-type="dojox.mobile.IconMenuItem"  id="item34" data-dojo-props='label:"\u05e9\u05dc\u05d5\u05dd!", icon:"images/tab-icon-16w.png"'></li>
+		</ul>			
+</body>
+</html>

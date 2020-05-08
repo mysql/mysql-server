@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no"/>
+	<meta http-equiv="Content-type" content="text/html; charset=utf-8">
+	<title>Button non-robot tests</title>
+
+	<style type="text/css">
+		@import "../../themes/claro/document.css";
+		@import "../../themes/dijit.css";
+	</style>
+	<link id="themeStyles" rel="stylesheet" href="../../../dijit/themes/claro/claro.css"/>
+
+	<script type="text/javascript" src="../../../dojo/dojo.js"
+			data-dojo-config=" async: true, isDebug: true"></script>
+
+	<script type="text/javascript">
+		require([
+			"doh/runner",
+			"dojo/_base/declare",
+			"dojo/dom",
+			"dijit/_WidgetBase",
+			"dijit/_TemplatedMixin",
+			"dijit/_WidgetsInTemplateMixin",
+			"dijit/form/Button",
+			"dojo/domReady!"
+		],function(doh, declare, dom, _WidgetBase, _TemplatedMixin, _WidgetsInTemplateMixin, Button){
+			doh.register("title", function(){
+				// This button has a title specified explicitly.  It should not be overridden.
+				var b1 = new Button({
+					label: "my label",
+					title: "my title",
+					showLabel: false
+				});
+				b1.placeAt(document.body);
+				doh.is("my title", b1.titleNode.title);
+
+				// This button's title should be set from its label.
+				var b2 = new Button({
+					label: "my label",
+					showLabel: false
+				});
+				b2.placeAt(document.body);
+				doh.is("my label", b2.titleNode.title);
+			});
+
+			doh.register("buttons in templates", function(){
+				var Test1Widget = declare('Test1Widget', [_WidgetBase, _TemplatedMixin, _WidgetsInTemplateMixin], {
+					templateString:
+						'<div>\
+							<div data-dojo-type="dijit/form/Button">\
+								<div>\
+								<h3 data-dojo-attach-point="titleNode"></h3>\
+								<span>Something else</span>\
+								</div>\
+								<span>Something else</span>\
+							</div>\
+						</div>'
+				});
+
+				var myWidget = new Test1Widget();
+				doh.t(dom.isDescendant(myWidget.titleNode, myWidget.domNode), "titleNode inside domNode");
+			});
+
+			// ARIA tests.  See also Button_a11y.html.
+			doh.register("aria", function(){
+				var b1 = new Button({
+					label: "disabled",
+					disabled: true
+				});
+				b1.placeAt(document.body);
+				doh.is("true", b1.focusNode.getAttribute("aria-disabled"), "aria-disabled");
+				doh.f(b1.focusNode.disabled, "disabled not set since it's a <span>")
+			});
+
+			doh.run();
+		});
+	</script>
+</head>
+<body class="claro" role="main">
+	<h1 class="testTitle">Button non-robot tests</h1>
+</body>
+</html>

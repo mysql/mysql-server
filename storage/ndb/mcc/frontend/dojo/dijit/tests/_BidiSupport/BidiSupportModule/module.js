@@ -1,0 +1,3 @@
+define([
+	"./BidiSupportTest"
+], 1);

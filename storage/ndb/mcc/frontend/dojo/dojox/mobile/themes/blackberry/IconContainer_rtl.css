@@ -1,0 +1,14 @@
+/* dojox.mobile.IconItem Rtl */
+.mblIconItemRtl {
+  float: right;
+}
+.mblIconItemRtl .mblIconItemDeleteIcon {
+  right: 2px;
+}
+/* dojox.mobile._IconItemPane Rtl*/
+.mblIconItemPaneRtl .mblIconItemPaneHeading {
+  padding-right: 40px;
+}
+.mblIconItemPaneRtl .mblIconItemPaneIcon {
+  right: 1px;
+}

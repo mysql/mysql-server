@@ -1,0 +1,29 @@
+{
+	"id": "testApp",
+
+	"dependencies": [
+	],
+
+	"modules": [
+	],
+	
+	"controllers": [
+		"dojox/app/controllers/History"
+	],
+
+	"defaultView": "home",
+
+	"defaultTransition": "slide",
+
+	"stores": {
+		"namesStore":{
+			"type": "dojo/store/Memory"
+		}
+	},
+
+	"views": {
+		"home": {
+			"template": "dojox/app/tests/doh/config.html"
+		}
+	}
+}

@@ -1,0 +1,23 @@
+@import 'dijit_layout_variables';
+
+.{$theme-name} {
+
+	.dijitTabContainerTop-tabs,
+	.dijitTabContainerBottom-tabs {
+		.dijitTabRtl {
+			margin-right: 0;
+			margin-left: -1px;
+		}
+	}
+
+	.dijitTabControllerRtl,
+	.dijitTabControllerRtl .nowrapTabStrip {
+	    text-align: right;  
+	}
+
+	.dijitTabRtl .dijitTabCloseButton {
+		margin-left: 0;
+		margin-right: $tab-padding;
+	}
+	
+}

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+	<meta charset="UTF-8">
+	<title>standard functional test html</title>
+	<link rel="stylesheet" href="../../../resources/dojo.css">
+</head>
+<body>
+	<div id="container"></div>
+	<ul class="zork notdone">initial content</ul>
+	<ul class="zork notdone">initial content</ul>
+	<ul class="zork notdone">initial content</ul>
+	<table id='tableTest' class='box'>
+		<thead>
+		<tr>
+			<td></td>
+		</tr>
+		</thead>
+		<tbody>
+		<tr>
+			<td></td>
+		</tr>
+		<tbody>
+	</table>
+	<script>
+		var dojoConfig = {
+			async: true,
+			isDebug: true,
+			packages: [
+				{ name: 'sinon', location: 'node_modules/sinon/pkg', main: 'sinon'}
+			]
+		}
+	</script>
+	<script src="../../../dojo.js"></script>
+</body>
+</html>

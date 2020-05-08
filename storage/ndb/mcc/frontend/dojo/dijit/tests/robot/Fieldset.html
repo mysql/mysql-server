@@ -1,0 +1,94 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+		"http://www.w3.org/TR/html4/strict.dtd">
+<html>
+	<head>
+		<title>robot Fieldset Test</title>
+
+		<style>
+			@import "../../../util/doh/robot/robot.css";
+		</style>
+
+		<!-- required: dojo.js -->
+		<script type="text/javascript" src="../../../dojo/dojo.js"
+			data-dojo-config="isDebug: true"></script>
+
+		<script type="text/javascript">
+			require([
+				"doh/runner", "dojo/robotx",
+				"dojo/dom", "dojo/keys",
+				"dijit/tests/helpers", "dojo/domReady!"
+			], function(doh, robot, dom, keys, helpers){
+
+				robot.initRobot('../test_Fieldset.html');
+
+				doh.register(function setup(){
+					// get pointer to registry in the iframe
+					registry = robot.window.require("dijit/registry");
+					dfocus = robot.window.require("dijit/focus");
+				});
+
+				doh.register("keyboard", [
+					{
+						name: "tabbing",
+						timeout: 20000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							dom.byId("first", robot.document).focus();
+
+							// go to first legend
+							robot.keyPress(keys.TAB, 500, {});
+							robot.sequence(d.getTestErrback(function(){
+								doh.is("Fieldset 1", helpers.innerText(dfocus.curNode).replace("-", ""));
+							}), 500);
+
+							// go to second legend
+							robot.keyPress(keys.TAB, 500, {});
+							robot.keyPress(keys.TAB, 500, {});
+							robot.keyPress(keys.TAB, 500, {});
+							robot.sequence(d.getTestErrback(function(){
+								doh.is("Fieldset 2", helpers.innerText(dfocus.curNode).replace("-", ""));
+							}), 500);
+
+							// go to last input
+							robot.keyPress(keys.TAB, 500, {});
+							robot.keyPress(keys.TAB, 500, {});
+							robot.keyPress(keys.TAB, 500, {});
+							robot.sequence(d.getTestErrback(function(){
+								doh.is("last", dfocus.curNode.id);
+							}), 500);
+
+							// go to second legend
+							robot.keyPress(keys.TAB, 500, {shift: true});
+							robot.keyPress(keys.TAB, 500, {shift: true});
+							robot.keyPress(keys.TAB, 500, {shift: true});
+							robot.sequence(d.getTestErrback(function(){
+								doh.is("Fieldset 2", helpers.innerText(dfocus.curNode).replace("-", ""));
+							}), 500);
+
+							// go to first legend
+							robot.keyPress(keys.TAB, 500, {shift: true});
+							robot.keyPress(keys.TAB, 500, {shift: true});
+							robot.keyPress(keys.TAB, 500, {shift: true});
+							robot.sequence(d.getTestErrback(function(){
+								doh.is("Fieldset 1", helpers.innerText(dfocus.curNode).replace("-", ""));
+							}), 500);
+
+							// go to first input
+							robot.keyPress(keys.TAB, 500, {shift: true});
+							robot.sequence(d.getTestCallback(function(){
+								doh.is("first", dfocus.curNode.id)
+							}), 500);
+
+							return d;
+						}
+					}
+
+					// TODO: add basic tests for open/close
+				]);
+
+				doh.run();
+			});
+		</script>
+	</head>
+</html>

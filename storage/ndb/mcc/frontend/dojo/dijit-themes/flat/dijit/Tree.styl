@@ -1,0 +1,122 @@
+/* Tree
+ *
+ * Styling Tree mostly means styling the TreeRow (dijitTreeRow)
+ * There are 4 basic states to style:
+ *
+ * Tree Row:
+ * 1. tree row (default styling):
+ * 		.dijitTreeRow - styles for each row of the tree
+ *
+ * 2. hovered tree row (mouse hover on a tree row)
+ * 		.dijitTreeRowHover - styles when mouse over on one row
+ *
+ * 3. active tree row (mouse down on a tree row)
+ * 		.dijitTreeRowActive - styles when mouse down on one row
+ *
+ * 4. selected tree row
+ * 		dijitTreeRowSelected - style when the row has been selected
+ *
+ * Tree Expando:
+ * 	    dijitTreeExpando - the expando at the left of the text of each tree row
+ *
+ */
+
+@import 'dijit_variables';
+
+.{$theme-name} {
+
+	.dijitTreeIsRoot {
+	    background-color: $tree-background-color;
+	}
+
+	.dijitTreeRow,
+	.dijitTreeNode .dojoDndItemBefore,
+	.dijitTreeNode .dojoDndItemAfter {
+		padding: $tree-row-padding;
+		border: 0 $tree-row-border-color;
+		line-height: $tree-row-line-height;
+		transition-property: background-color;
+		transition-duration: .15s;
+		transition-timing-function: ease-out;
+	}
+
+	/* Hover */
+
+	.dijitTreeRowHover {
+		background-color: $tree-row-hover-background-color;
+		border-color: $tree-row-hover-border-color;
+		transition-duration: .15s;
+	}
+
+	/* Active */
+
+	.dijitTreeRowActive {
+		background-color:$tree-row-active-background-color;
+		border-color: $tree-row-active-border-color;
+	}
+
+	/* Selected */
+
+	.dijitTreeRowSelected,
+	.dijitTreeRowHover.dijitTreeRowSelected,
+	.dijitTreeRowActive.dijitTreeRowSelected {
+		color: $tree-row-selected-text-color;
+		background-color: $tree-row-selected-background-color;
+		border-color: $tree-row-selected-border-color;
+		.dijitTreeExpando {
+			color: $tree-expando-icon-selected-color;
+		}
+	}
+
+	/* Focused */
+
+	/*
+	.dijitTreeRowFocused {
+	}
+	*/
+
+	/* expando (open/closed) icon */
+
+	.dijitTreeExpando {
+		_icon-core-style();
+	    width: $tree-expando-icon-width;
+	    height: $tree-expando-icon-height;
+		line-height: @height;
+		text-align: center;
+		margin-left: $tree-expando-margin;
+		margin-right: $tree-expando-margin;
+		color: $tree-expando-icon-color;
+		vertical-align: middle;
+	}
+
+	.dijitTreeExpandoOpened:before {
+		content: "\f012";
+		cursor: pointer;
+	}
+
+	.dijitTreeExpandoClosed:before {
+		content: "\f011";
+	}
+
+	.dijitTreeExpandoLoading {
+		animation: spinning 2s linear infinite;
+		&:before {
+			content: "\f01d";
+
+		}
+	}
+}
+
+.dj_ie8 .dijitTreeExpandoLoading,
+.dj_ie9 .dijitTreeExpandoLoading {
+	background:url('images/loadingAnimation.gif') no-repeat;
+
+	&:before {
+		content: "";
+	}
+}
+
+@keyframes spinning {
+	from {transform: rotate(0);}
+    to {transform: rotate(-360deg);}
+}

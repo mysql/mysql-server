@@ -1,0 +1,37 @@
+/* dijit base */
+@import url("flat_dijit.css");
+
+/* dijit */
+@import url("dijit/Calendar.css");
+@import url("dijit/ColorPalette.css");
+@import url("dijit/Common.css");
+@import url("dijit/Dialog.css");
+@import url("dijit/Editor.css");
+@import url("dijit/InlineEditBox.css");
+@import url("dijit/Menu.css");
+@import url("dijit/ProgressBar.css");
+@import url("dijit/TimePicker.css");
+@import url("dijit/TitlePane.css");
+@import url("dijit/Toolbar.css");
+@import url("dijit/Tree.css"); 
+
+/* layout */
+@import url("dijit/layout/AccordionContainer.css");
+@import url("dijit/layout/BorderContainer.css");
+@import url("dijit/layout/ContentPane.css");
+@import url("dijit/layout/TabContainer.css");
+
+/* form */
+@import url("dijit/form/Button.css");
+@import url("dijit/form/Checkbox.css");
+@import url("dijit/form/NumberSpinner.css");
+@import url("dijit/form/RadioButton.css");
+@import url("dijit/form/Select.css");
+@import url("dijit/form/Slider.css");
+@import url("dijit/form/TextBox.css");
+
+/* icons */
+@import url("icons/flat-icons.css");
+
+/* rtl */
+@import url("flat_rtl.css");

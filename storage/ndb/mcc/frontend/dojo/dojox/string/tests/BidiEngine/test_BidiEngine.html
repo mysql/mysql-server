@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Test Bidi Engine</title>
+<script type="text/javascript" src="../../../../dojo/dojo.js" data-dojo-config="parseOnLoad: true, isDebug: true"></script>
+<script language="javascript" type="text/javascript">
+var doTransform, showMap, changeInp;
+require(["dojox/string/BidiEngine"], function(BidiEngine) {
+	var bdEngine = new BidiEngine();
+	doTransform = function() {
+		var txt = document.getElementById("inp").value;
+		document.getElementById("div0").innerHTML = txt;
+		document.getElementById("div1").innerHTML = txt;
+		var sp = document.getElementById("sform").value +
+				 document.getElementById("sdir").value +
+				 document.getElementById("sswap").value +
+				 document.getElementById("sshap").value + "N";
+		var tp = document.getElementById("tform").value +
+		 		 document.getElementById("tdir").value +
+		 		 document.getElementById("tswap").value +
+		 		 document.getElementById("tshap").value + "N";
+		document.getElementById("div11").innerHTML = sp + " - " + tp;
+		var rCls = sp.substring(0,2).toLowerCase();
+		var tCls = tp.substring(0,2).toLowerCase();
+		document.getElementById("div0").className = rCls;
+		document.getElementById("div2").className = tCls;
+		var res = bdEngine.bidiTransform(txt, sp, tp);
+		document.getElementById("div2").innerHTML = res;
+		document.getElementById("div3").innerHTML = res;
+		var arrays = [bdEngine.sourceToTarget, bdEngine.targetToSource, bdEngine.levels];
+		var divNames = ["div5", "div6", "div7"];
+		for (var i=0; i<3; i++) {
+			showMap(arrays[i], divNames[i]);
+		}
+	};
+	showMap = function (arr, divName) {
+		var map = "", sps;
+		for (var i=0; i<arr.length; i++) {
+			sps = "";
+			if (arr[i].toString().length < 2)
+				sps = "&#160;";
+			map = map + sps + arr[i].toString() + "&#160;";
+		}
+		document.getElementById(divName).innerHTML = map;		
+	};
+	changeInp = function(b) {
+		if (b.innerHTML == "Visual") {
+			document.getElementById("inp").className = "v";
+			b.innerHTML = "Logical";
+		} else {
+			document.getElementById("inp").className = "i";
+			b.innerHTML = "Visual";			
+		}
+	}
+});
+</script>
+<style>
+	.il {
+		direction: ltr;	
+		unicode-bidi: embed;
+	}
+	.vl {
+		direction: ltr;
+		unicode-bidi: bidi-override;
+	}
+	.ir {
+		direction: rtl;
+		unicode-bidi: embed;
+		text-align: left;
+	}
+	.vr {
+		direction: rtl;
+		text-align: left;
+		unicode-bidi: bidi-override;
+	}
+	input.v {
+		unicode-bidi: bidi-override;
+	}
+	input.i {
+		unicode-bidi: normal;
+	}
+</style>
+</head>
+<body>
+<h1 align="center">Test Bidi Engine</h1>
+</br></br>
+<table>
+<tr>
+<td>Type text: </td> 
+<td><input id="inp" type="text" size=200 /></td>
+<td><button id="b2" onClick="changeInp(this);">Visual</button></td>
+</tr>
+<tr>
+<td>Source looks: </td>
+<td><div id="div0"></div></td>
+</tr>
+<tr>
+<td> Buffer: </td>
+<td><div id="div1" style="unicode-bidi: bidi-override;"></div></td>
+</tr>
+<tr>
+<td> Params: </td>
+<td><div id="div11"></div></td>
+</tr>
+<tr><td></br></br></td></tr>
+<tr>
+<td>Result looks: </td> 
+<td><div id="div2"></div></td>
+</tr>
+<tr>
+<td> Buffer: </td>
+<td><div id="div3"  style="unicode-bidi: bidi-override;"></div></td>
+</tr>
+<tr>
+<td>Maps </td>
+<td><div id="div4"></div></td>
+</tr>
+<tr>
+<td>Source to Target: </td>
+<td><div id="div5" style="font-family: 'Courier New';"></div></td>
+</tr>
+<tr>
+<td>Target to Source: </td>
+<td><div id="div6" style="font-family: 'Courier New';"></div></td>
+</tr>
+<tr>
+<td>Levels: </td>
+<td><div id="div7" style="font-family: 'Courier New';"></div></td>
+</tr>
+</table>
+</br></br>
+<table>
+<tr>
+<table><tr>
+<td>Source format:</td>
+<td><select id="sform">
+<option value="I">Implicit</option>
+<option value="V">Visual</option>
+</select></td>
+<td><select id="sdir">
+<option value="L">LTR</option>
+<option value="R">RTL</option>
+<option value="C">Contextual LTR</option>
+<option value="D">Contextual RTL</option>
+</select></td>
+<td><select id="sswap">
+<option value="Y">Y</option>
+<option value="N">N</option>
+</select></td>
+<td><select id="sshap">
+<option value="N">N</option>
+<option value="S">S</option>
+</select></td>
+</tr>
+<tr>
+<td>Target format:</td>
+<td><select id="tform">
+<option value="V">Visual</option>
+<option value="I">Implicit</option>
+</select></td>
+<td><select id="tdir">
+<option value="L">LTR</option>
+<option value="R">RTL</option>
+<option value="C">Contextual LTR</option>
+<option value="D">Contextual RTL</option>
+</select></td>
+<td><select id="tswap">
+<option value="N">N</option>
+<option value="Y">Y</option>
+</select></td>
+<td><select id="tshap">
+<option value="N">N</option>
+<option value="S">S</option>
+</select></td>
+</tr></table>
+</tr>
+</table>
+</br>
+<button id="b1" height="50px" onClick="doTransform();">Go</button>
+</body>
+</html>
