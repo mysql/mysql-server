@@ -24,7 +24,8 @@
 #include <gtest/gtest.h>
 #include <memory>
 
-#include "mock/mock_component_services.h"
+#include "unittest/gunit/xplugin/xpl/mock/mock_component_services.h"
+#include "unittest/gunit/xplugin/xpl/mock/mock_srv_session_services.h"
 
 #include "plugin/x/src/sql_data_context.h"
 
@@ -44,6 +45,8 @@ class Sql_data_context_test_suite : public ::testing::Test {
   StrictMock<Mock_mysql_plugin_registry> m_mock_plugin_registry;
   StrictMock<Mock_service_registry> m_mock_registry;
   StrictMock<Mock_service_admin_session> m_mock_admin_session;
+  StrictMock<Mock_srv_session> m_mock_srv_session;
+  StrictMock<Mock_srv_session_info> m_mock_srv_session_info;
   std::unique_ptr<xpl::Sql_data_context> m_sut{new xpl::Sql_data_context()};
 };
 
@@ -75,6 +78,9 @@ TEST_F(Sql_data_context_test_suite, initialize_admin_session_and_release) {
   const auto admin_service =
       reinterpret_cast<my_h_service>(m_mock_admin_session.get());
 
+  EXPECT_CALL(m_mock_srv_session_info, get_session_id(k_session))
+      .WillRepeatedly(Return(0));
+
   InSequence forceSequenceOfFollowingExpects;
   EXPECT_CALL(m_mock_plugin_registry, mysql_plugin_registry_acquire())
       .WillOnce(Return(m_mock_registry.get()));
@@ -88,6 +94,7 @@ TEST_F(Sql_data_context_test_suite, initialize_admin_session_and_release) {
               mysql_plugin_registry_release(m_mock_registry.get()))
       .WillOnce(Return(k_ok));
 
+  EXPECT_CALL(m_mock_srv_session, close_session(k_session)).WillOnce(Return(0));
   // Call the Object-under-test
   ASSERT_FALSE(m_sut->init(k_request_admin_session));
 }

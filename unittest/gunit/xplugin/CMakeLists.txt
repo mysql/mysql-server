@@ -67,6 +67,7 @@ SET(XPL_TEST_SRC
   xpl/stubs/security_context_service.cc
   xpl/stubs/sql_session_service.cc
   xpl/mock/mock_component_services.cc
+  xpl/mock/mock_srv_session_services.cc
 
   xpl/mysqlx_pb_wrapper.cc
 
