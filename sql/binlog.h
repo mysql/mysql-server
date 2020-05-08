@@ -720,7 +720,8 @@ class MYSQL_BIN_LOG : public TC_LOG {
 
      @return Returns false if succeeds, otherwise true is returned.
   */
-  bool write_dml_directly(THD *thd, const char *stmt, size_t stmt_len);
+  bool write_dml_directly(THD *thd, const char *stmt, size_t stmt_len,
+                          enum enum_sql_command sql_command);
 
   void report_cache_write_error(THD *thd, bool is_transactional);
   bool check_write_error(const THD *thd);
