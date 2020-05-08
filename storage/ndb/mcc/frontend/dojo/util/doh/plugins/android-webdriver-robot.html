@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script type="text/javascript" src="../../../dojo/dojo.js"
+		data-dojo-config="isDebug: true, async: true, parseOnLoad: true"></script>
+<link id="themeStyles" rel="stylesheet" href="../../../dijit/themes/claro/claro.css"/>
+<script>
+onSubmit1 = null;
+onSubmit2 = null;
+require(["dojo/dom", "dojo/_base/xhr", "dijit/form/Form", "dijit/form/Button", "dojo/parser", "dijit/registry"], function(dom, xhr, Form, Button, parser, registry){
+	var baseURL=null;
+	onSubmit1 = function(){
+		baseURL = "http://"+dom.byId('baseIP').value+":8080/wd/hub";
+		var status = dom.byId('status');
+		var message = dom.byId('message');
+		var sessionId = null;
+		// WebDriver sends a 302 to the new test session.
+		// Sadly, the browser tries to follow it automatically, so the xhr will always throw an error.
+		xhr("POST",{
+			url:baseURL+"/session",
+			headers: { "Content-Type": "application/json"},
+			handleAs:"json",
+			postData:'{desiredCapabilities:{"nativeEvents": "true", "browserName":"android",platform:"ANDROID","version":"","browserConnectionEnabled":"true","javascriptEnabled":"true"}}',
+			load:function(json){
+				// didn't expect a JSON response...
+				console.log(json);
+			},
+			error:function(e,ioArgs){
+				console.log(msg);
+				status.innerHTML = "Check network tab to get session ID.";
+			}
+		});
+		return false;
+	};
+	onSubmit2 = function(){
+		// expected result: couldn't load new address
+		// instead, issue new POST to load test in session
+		var testURL = dom.byId('testURL').value;
+		var status = dom.byId('status');
+		var message = dom.byId('message');
+		sessionId = dom.byId('sessionID').value;
+		dojo.xhr("POST",{
+			url:baseURL+"/session/"+sessionId+"/url",
+			headers: { "Content-Type": "application/json"},
+			handleAs:"json",
+			postData:'{url:"'+testURL+'&remoteRobotURL=http://localhost:8080/wd/hub/session/'+sessionId+'"}',
+			load:function(msg){
+				console.log(msg);
+				status.innerHTML = "Test started";
+				message.innerHTML = msg;
+			},
+			error:function(e){
+				status.innerHTML = "Test did not start";
+				message.innerHTML = e;
+			}
+		});
+	};
+});
+</script>
+</head>
+<body class="claro">
+<p>This is a prototype tool to assist starting a DOH test on an Android WebDriver. The goal is to automate this process into just one form submit.</p>
+<p>To start a test:</p>
+<ol>
+<li>On your Android device, <a href="http://haysmark.dojotoolkit.org/android-server.apk">download the patched WebDriver apk</a> and start it. You will get a black screen that says WebDriver at the top.</li>
+<li>Enter the IP of your Android device: <input type=text id="baseIP" name="baseIP" value="myandroidIP" /></li>
+<li>Open the Network tab in the browser's debugger</li>
+<li>Press <button type="button" id="button" data-dojo-type="dijit/form/Button" data-dojo-props='type:"button",label:"Submit"'>
+	<script type="dojo/method" data-dojo-event="onClick" data-dojo-args="evt">
+		onSubmit1();
+	</script>
+</button></li>
+<li>Enter the number you see in the Network tab for the failed redirect (should look something like 1342108893269 for instance): <input type=text id="sessionID" name="sessionID" value="1342108893269" /></li>
+<li>Enter the DOH mobileRunner.html URL you want to test (note the loaded plugin at the end): <input type=text id="testURL" name="testURL" value="http://mywebserver/util/doh/mobileRunner.html?test=dojox/mobile/tests/robot/module&dohPlugins=doh/plugins/remoteRobot" /></li>
+<li>Press <button type="button" id="button2" data-dojo-type="dijit/form/Button" data-dojo-props='type:"button",label:"Submit"'>
+	<script type="dojo/method" data-dojo-event="onClick" data-dojo-args="evt">
+		onSubmit2();
+	</script>
+</button></li>
+<li>The test should momentarily start (after ~10s) on the device (if it doesn't load after a minute, repeat the procedure; some times an unbuilt Dojo will time out while the browser is caching everything for the first time.)</li>
+<hr />
+<h1 id="status" />
+<div id="message" />
+</body>
+</html>

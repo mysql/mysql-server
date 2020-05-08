@@ -1,0 +1,6 @@
+define(
+({
+	"blockquote": "Blockquote"
+})
+);
+

@@ -1,0 +1,227 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<title>ListItem Programmatic 3</title>
+<script type="text/javascript" src="../../../deviceTheme.js"></script>
+<script type="text/javascript" src="../../../../../dojo/dojo.js" 
+	data-dojo-config="async: true, parseOnLoad: true"></script>
+<script language="JavaScript" type="text/javascript">
+	require([
+		"dojox/mobile/parser",
+		"dojo/ready",
+		"dojo/on",
+		"dojo/aspect",
+		"dijit/registry",
+		"doh/runner",
+		"dojox/mobile/Heading",
+		"dojox/mobile/ListItem",
+		"dojox/mobile",
+		"dojox/mobile/View",
+		"dojox/mobile/compat"
+	], function(parser, ready, on, aspect, registry, runner, Heading, ListItem){
+
+		// This main purpose of this test is to check the correct handling of 
+		// calls AFTER startup of setters for the following properties of ListItem:
+		// clickable, moveTo, href, url, and the property _selStartMethod of _ItemBase. 
+		// Their value impacts the way ListItem treats the click events. We test it
+		// by directly checking item._handleClick and item._onTouchStartHandle.
+		// Trac: #16133.
+		
+		// 1. ListItem with "clickable" set at false via the constructor
+		function _createListItem1(){
+			var list = registry.byId("list");
+			var item = new ListItem({clickable: false});
+			list.addChild(item);
+			return item;
+		};
+		
+		// 2. ListItem with "clickable" set at true via the constructor
+		function _createListItem2(){
+			var list = registry.byId("list");
+			var item = new ListItem({clickable: true});
+			list.addChild(item);
+			return item;
+		};
+		
+		// 3. ListItem created with "clickable" at true and set at false before startup
+		function _createListItem3(){
+			var list = registry.byId("list");
+			var item = new ListItem({clickable: true});
+			item.set("clickable", false); // before startup
+			list.addChild(item);
+			return item;
+		};
+		
+		// 4. ListItem created with "clickable" at true and set at false after startup
+		function _createListItem4(){
+			var list = registry.byId("list");
+			var item = new ListItem({clickable: true});
+			list.addChild(item);
+			item.set("clickable", false); // after startup
+			return item;
+		};
+		
+		// 5. ListItem created with "clickable" at true and set at false after startup
+		function _createListItem5(){
+			var list = registry.byId("list");
+			var item = new ListItem({clickable: true});
+			list.addChild(item);
+			item.set("clickable", false); // after startup
+			item.set("_selStartMethod", "none");
+			return item;
+		};
+		
+		// 6. ListItem created with "clickable" at false and moveTo set after startup
+		function _createListItem6(){
+			var list = registry.byId("list");
+			var item = new ListItem({clickable: false});
+			list.addChild(item);
+			item.set("moveTo", "view2"); // after startup
+			return item;
+		};
+		
+		// 7. ListItem created with "clickable" at false and href set after startup
+		function _createListItem7(){
+			var list = registry.byId("list");
+			var item = new ListItem({clickable: false});
+			list.addChild(item);
+			item.set("href", "someurl"); // after startup
+			return item;
+		};
+		
+		// 8. ListItem created with "clickable" at false and url set after startup
+		function _createListItem8(){
+			var list = registry.byId("list");
+			var item = new ListItem({clickable: false});
+			list.addChild(item);
+			item.set("url", "someurl"); // after startup
+			return item;
+		};
+		
+		function _assertCorrectListItem(widget, expectedValueOfClickable, 
+										expectedValueOfSelStartMethod, caseName){
+			runner.assertEqual(expectedValueOfClickable, widget.get("clickable"), 
+				"Unexpected value of clickable for " + caseName);
+			runner.assertEqual(expectedValueOfSelStartMethod, widget.get("_selStartMethod"), 
+				"Unexpected value of _selStartMethod for " + caseName);	
+			
+			// ListItem sets _handleClick at true if any of the properties 
+			//    clickable, moveTo, href, and url
+			// is set to a non-empty/null value. 
+			if(widget.get("clickable") || widget.get("moveTo") || widget.get("href") || widget.get("url")){
+				runner.assertTrue(widget._handleClick, 
+					"'item._handleClick' should be true for " + caseName);
+				if(widget.get("_selStartMethod") === "touch"){
+					runner.assertNotEqual(null, widget._onTouchStartHandle,
+						"'item._onTouchStartHandle' should not be null for " + caseName);
+				}
+			}else{
+				runner.assertFalse(widget._handleClick, 
+					"'item._handleClick' should be false for " + caseName);
+				runner.assertEqual(null, widget._onTouchStartHandle, 
+					"'item._onTouchStartHandle' should be null for " + caseName);			
+			}
+		};
+		
+		ready(function(){
+			runner.register("dojox.mobile.test.doh.ListItem3_Programmatic", [
+				{
+					name: "ListItem3_Programmatic for ListItem created with clickable at false",
+					timeout: 2000,
+					runTest: function(){
+						var widget = _createListItem1();
+						_assertCorrectListItem(widget, false, "touch", 
+							"ListItem created with clickable at false");
+					}
+				},
+				{
+					name: "ListItem3_Programmatic for ListItem created with clickable at true",
+					timeout: 2000,
+					runTest: function(){
+						var widget = _createListItem2();
+						_assertCorrectListItem(widget, true, "touch", 
+							"ListItem created with clickable at true");
+						// check the keyboard event handler is registered once (#17825)
+						var c = 0;
+						aspect.after(widget, "_onClick", function(){
+							++c;
+						});
+						on.emit(widget.domNode, "keydown", { keyCode: 13, type: "keydown"});
+						runner.assertEqual(1, c, "Unexpected onClick() calls count.");
+					}
+				},
+				{
+					name: "ListItem3_Programmatic for ListItem created with clickable at true and set at false before startup",
+					timeout: 2000,
+					runTest: function(){
+						var widget = _createListItem3();
+						_assertCorrectListItem(widget, false, "touch", 
+							"ListItem created with clickable at true and set at false before startup");
+					}
+				},
+				{
+					name: "ListItem3_Programmatic for ListItem created with clickable at true and set at false after startup",
+					timeout: 2000,
+					runTest: function(){
+						var widget = _createListItem4();
+						_assertCorrectListItem(widget, false, "touch", 
+							"ListItem created with clickable at true and set at false after startup");
+					}
+				},
+				{
+					name: "ListItem3_Programmatic for ListItem created with clickable at true and set at false after startup " +
+							"while _selStartMethod is set at none",
+					timeout: 2000,
+					runTest: function(){
+						var widget = _createListItem5();
+						_assertCorrectListItem(widget, false, "none", 
+							"ListItem created with clickable at true and set at false " + 
+							"after startup while _selStartMethod is set at none");
+					}
+				},
+				{
+					name: "ListItem3_Programmatic for ListItem created with clickable at false and moveTo set after startup",
+					timeout: 2000,
+					runTest: function(){
+						var widget = _createListItem6();
+						_assertCorrectListItem(widget, false, "touch", 
+							"ListItem created with clickable at false and moveTo set after startup");
+					}
+				},
+				{
+					name: "ListItem3_Programmatic for ListItem created with clickable at false and href set after startup",
+					timeout: 2000,
+					runTest: function(){
+						var widget = _createListItem7();
+						_assertCorrectListItem(widget, false, "touch", 
+							"ListItem created with clickable at false and href set after startup");
+					}
+				},
+				{
+					name: "ListItem3_Programmatic for ListItem created with clickable at false and url set after startup",
+					timeout: 2000,
+					runTest: function(){
+						var widget = _createListItem8();
+						_assertCorrectListItem(widget, false, "touch", 
+							"ListItem created with clickable at false and url set after startup");
+					}
+				}
+			]);
+			runner.run();
+		});
+	});
+</script>
+</head>
+<body style="visibility:hidden;">
+	<div id="view1" data-dojo-type="dojox/mobile/View" selected="true">
+		<h1 data-dojo-type="dojox/mobile/Heading">RoundRectList</h1>
+		<ul id="list" data-dojo-type="dojox/mobile/RoundRectList">
+		</ul>
+	</div>
+	<div id="view2" data-dojo-type="dojox/mobile/View">
+	</div>
+</body>
+</html>

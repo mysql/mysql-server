@@ -1,0 +1,6 @@
+define(
+({
+	"pageBreak": "Pemisah Halaman"
+})
+);
+

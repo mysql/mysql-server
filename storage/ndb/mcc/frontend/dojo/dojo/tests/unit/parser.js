@@ -1,0 +1,3 @@
+define([
+	'./parser/parser'
+], function () {});

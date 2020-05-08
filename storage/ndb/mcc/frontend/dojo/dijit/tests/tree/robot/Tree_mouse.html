@@ -1,0 +1,230 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+		"http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+	<title>robot Tree Mouse Test</title>
+
+	<style>
+		@import "../../../../util/doh/robot/robot.css";
+	</style>
+
+	<script type="text/javascript" src="../../../../dojo/dojo.js"></script>
+
+	<script type="text/javascript">
+		require([
+			"doh/runner", "dojo/robotx",
+			"dojo/aspect", "dojo/query",
+			"dijit/tests/helpers", "dojo/domReady!"
+		], function(doh, robot, aspect, query, helpers){
+
+			robot.initRobot('../test_Tree.html');
+
+			var registry, focus, mytree, africa, asia;
+
+			doh.register("_setup", [
+				{
+					name: "wait for widgets to load",
+					timeout: 20000,
+					runTest: helpers.waitForLoad
+				},
+				function setVars(){
+					registry = robot.window.require("dijit/registry");
+					focus = robot.window.require("dijit/focus");
+					mytree = registry.byId("mytree");
+
+					// find TreeNodes for Africa, Asia (this assumes that we haven't loaded any of mytree's
+					// grandchild TreeNodes yet)
+					var nodes = query(".dijitTreeLabel");
+					africa = registry.getEnclosingWidget(nodes[1]);
+					asia = registry.getEnclosingWidget(nodes[2]);
+				}
+			]);
+
+			function toggle(func, expanded){
+				return function(){
+					var d = new doh.Deferred();
+
+					doh.is(expanded, africa.isExpanded, "original state");
+
+					func(d);
+
+					robot.sequence(d.getTestCallback(function(){
+						doh.is(!expanded, africa.isExpanded, "after state");
+					}), 500);
+
+					return d;
+				};
+			}
+
+			doh.register("label click", [
+				{
+					name: "click to open",
+					timeout: 8000,
+					runTest: toggle(function(d){
+						robot.mouseMoveAt(africa.labelNode);
+						robot.mouseClick({left:true}, 100);
+						robot.sequence(d.getTestErrback(function(){
+							doh.is(1, robot.window.mouseDowns, "mouse down reported");
+						}), 500);
+					}, false)
+				},
+
+				{
+					name: "click to close",
+					timeout: 8000,
+					runTest: toggle(function(){
+						robot.mouseClick({left:true}, 100);
+					}, true)
+				},
+
+				{
+					name: "double click to open",
+					timeout: 8000,
+					setUp: function(){
+						mytree.openOnClick = false;
+						mytree.openOnDblClick = true;
+					},
+					runTest: toggle(function(){
+						robot.mouseClick({left:true}, 100);
+						robot.mouseClick({left:true}, 100);
+					}, false)
+				},
+
+				{
+					name: "double click to close",
+					timeout: 8000,
+					runTest: toggle(function(){
+						robot.mouseClick({left:true}, 100);
+						robot.mouseClick({left:true}, 100);
+					}, true)
+				}
+			]);
+
+			doh.register("not a click", [
+				{
+					name: "setup",
+					timeout: 8000,
+					runTest: function(){
+						mytree.set("openOnClick", true);
+						return mytree.collapseAll().then(function(){
+							return mytree.set("path", ["continentRoot", "EU", "FR"]);
+						});
+					}
+				},
+
+				{
+					name: "mouse down france, up on italy",
+					timeout: 8000,
+					runTest: function(){
+						var labels = query(".dijitTreeLabel"),
+							europe = labels.filter(function(node){
+								return node.innerHTML == "Europe";
+							})[0],
+							france = labels.filter(function(node){
+								return node.innerHTML == "France";
+							})[0],
+							italy = labels.filter(function(node){
+								return node.innerHTML == "Italy";
+							})[0];
+
+						var d = new doh.Deferred();
+
+						robot.mouseMoveAt(france, 500, 0);
+						robot.mousePress({left:true}, 500);
+						robot.mouseMoveAt(italy, 500, 0);
+						robot.mouseRelease({left:true}, 500);
+						robot.sequence(d.getTestCallback(function(){
+							var europeNode = registry.getEnclosingWidget(europe);
+							doh.t(europeNode.isExpanded, "europe node still expanded");
+							doh.isNot("Europe", mytree.focusedChild.label, "focus didn't shift to Europe");
+						}), 500);
+
+						return d;
+					}
+				}
+			]);
+
+			doh.register("focus", [
+				{
+					name: "setup",
+					runTest: function(){
+						// prevent TreeNodes from moving around as we are moving the mouse to find them
+						mytree.set("openOnClick", false);
+					}
+				},
+				{
+					name: "focus africa",
+					timeout: 8000,
+					runTest: function(){
+						var d = new doh.Deferred();
+						robot.mouseMoveAt(africa.labelNode);
+						robot.mouseClick({left:true}, 100);
+						robot.sequence(d.getTestCallback(function(){
+							doh.is("Africa", helpers.innerText(focus.curNode));
+						}), 500);
+						return d;
+					}
+				},
+
+				{
+					name: "blur tree",
+					timeout: 8000,
+					runTest: function(){
+						var d = new doh.Deferred();
+						robot.mouseMoveAt("mytree_before");
+						robot.mouseClick({left:true}, 100);
+						robot.sequence(d.getTestCallback(function(){
+							doh.is("mytree_before", focus.curNode.id);
+						}), 500);
+						return d;
+					}
+				},
+
+				{
+					name: "click on asia's expando",
+					timeout: 8000,
+					runTest: function(){
+						var d = new doh.Deferred(),
+							africaGotFocus;
+						aspect.after(africa, "focus", function(){
+							africaGotFocus = true;
+						});
+						robot.mouseMoveAt(asia.expandoNode);
+						robot.mouseClick({left:true}, 100);
+						robot.sequence(d.getTestCallback(function(){
+							// Clicking the expando or anywhere on the row should focus that row.
+							// In addition, there shouldn't even be a momentary (possibly scroll inducing) focus on
+							// the previously focused row.
+							doh.is("Asia", helpers.innerText(focus.curNode));
+							doh.f(africaGotFocus, "africa didn't get momentary focus");
+						}), 500);
+						return d;
+					}
+				},
+
+				{
+					name: "focus long label",
+					timeout: 8000,
+					runTest: function(){
+						var d = new doh.Deferred();
+						var thinTree = registry.byId('thinTree');
+						var rootNode = thinTree.rootNode;
+
+						robot.mouseMoveAt(rootNode.expandoNode);
+						robot.mouseClick({left: true}, 100);
+						robot.sequence(d.getTestCallback(function(){
+							doh.f(rootNode.isExpanded, 'Clicking expando of node with long label should collapse node');
+							doh.is(0, thinTree.domNode.scrollLeft, 'Focusing node with long label should not scroll container');
+						}), 500);
+						return d;
+					}
+				}
+			]);
+
+			doh.run();
+		});
+
+	</script>
+</head>
+</html>
+

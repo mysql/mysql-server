@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="Content-type" content="text/html; charset=utf-8">
+	<title>Fieldset Widget Tests</title>
+
+	<script type="text/javascript" src="boilerplate.js"></script>
+
+	<script type="text/javascript">
+		require([
+			"dojo/parser",
+
+			// used by parser
+			"dijit/Fieldset",
+			"dijit/form/TextBox",
+
+			"dojo/domReady!"
+		], function(parser){
+			parser.parse();
+		});
+	</script>
+</head>
+<body>
+	<h1>Fieldset Test</h1>
+	<label for="first">focus here first:</label><input id="first">
+	<fieldset data-dojo-type="dijit/Fieldset" title="Fieldset 1" id="f1">
+		<label for="f1i1">input 1:</label> <input data-dojo-type="dijit/form/TextBox" id="f1i1"><br>
+		<label for="f1i2">input 2:</label> <input data-dojo-type="dijit/form/TextBox" id="f1i2">
+	</fieldset>
+	<fieldset data-dojo-type="dijit/Fieldset" title="Fieldset 2" id="f2">
+		<label for="f2i1">input 1:</label> <input data-dojo-type="dijit/form/TextBox" id="f2i1"><br>
+		<label for="f2i2">input 2:</label> <input data-dojo-type="dijit/form/TextBox" id="f2i2">
+	</fieldset>
+	<label for="last">last focus point:</label><input id="last">
+</body>

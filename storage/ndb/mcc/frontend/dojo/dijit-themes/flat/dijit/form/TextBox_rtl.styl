@@ -1,0 +1,30 @@
+@import 'dijit_form_variables';
+
+.{$theme-name} {
+	.dijitTextBoxRtl .dijitValidationContainer,
+	.dijitTextBoxRtl .dijitSpinnerButtonContainer {
+		border-right-width: 1px !important;
+		border-left-width: 0 !important;
+	}
+
+	.dijitTextBoxRtlError .dijitValidationContainer {
+  		border-left-width: 0;
+  		border-right-width: 1px;
+	}
+	
+	.dijitRtl .dijitPlaceHolder {
+		left: auto;
+		right: 0;
+	}
+	
+	.dijitTextBoxRtl .dijitSpinnerButtonContainer,
+	.dijitValidationTextBoxRtl .dijitValidationContainer,
+	.dijitTextBoxRtl .dijitArrowButtonContainer {
+		float: left;
+	}
+	
+	div.dijitNumberTextBoxRtl {
+		text-align: right;
+	}
+
+}

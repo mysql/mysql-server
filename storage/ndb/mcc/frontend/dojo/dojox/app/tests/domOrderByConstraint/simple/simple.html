@@ -1,0 +1,101 @@
+<div id="settings" class="view mblView">
+    <h1 data-dojo-type="dojox/mobile/Heading" data-dojo-props='back:"Home"'>Simple Form Data</h1>
+    <form name="testForm" id="testForm">    
+		<h2 data-dojo-type="dojox/mobile/EdgeToEdgeCategory" style="height: 32px;" data-app-constraint="top">Using simple JSON Model with data from a dojo/store/Memory</h2>
+  			<table id="table" cellspacing="10"  style="width: 100%">
+				<tr>
+					<td style="width: 100px;" class="layout">First</td>
+					<td class="layout">							
+						<input  id="firstInput1" data-dojo-type="dojox/mobile/TextBox" 
+								data-dojo-props="placeholder:'First'">
+					</td>
+				</tr>
+				<tr>
+					<td style="width: 100px;" class="layout">Last Name</td>
+					<td class="layout">
+						<input 	id="lastInput1" data-dojo-type="dojox/mobile/TextBox" 								 
+								data-dojo-props="placeholder:'Last Name'">
+					</td>
+				</tr>
+				<tr>
+					<td style="width: 100px;" class="layout">Email</td>
+					<td class="layout">
+						<input id="emailInput1" data-dojo-type="dojox/mobile/TextBox" 								 
+								data-dojo-props="placeholder:'Email'">
+					</td>
+				</tr>
+			</table>
+		
+	
+  			<div class="spacer"></div>
+			<button id="shipto" type="button" data-dojo-type="dojox/mobile/Button" class="mblBlueButton">Ship To</button>
+			<button id="billto" type="button" data-dojo-type="dojox/mobile/Button" class="mblBlueButton">Bill To</button>		
+			<br/>
+			<div class="fieldset" id="shiptodiv" >Ship To:
+	  			<table id="table2" cellspacing="10" style="width: 100%">
+					<tr>
+						<td style="width: 100px;" class="layout">Street</td>
+						<td class="layout">							
+							<input  id="shiptostreetInput1" data-dojo-type="dojox/mobile/TextBox" 
+									data-dojo-props="placeholder:'Street'">
+						</td>
+					</tr>
+					<tr>
+						<td style="width: 100px;" class="layout">City</td>
+						<td class="layout">
+							<input 	id="shiptocityInput1" data-dojo-type="dojox/mobile/TextBox" 								 
+									data-dojo-props="placeholder:'City'">
+						</td>
+					</tr>
+					<tr>
+						<td style="width: 100px;" class="layout">State</td>
+						<td class="layout">
+							<input id="shiptostateInput1" data-dojo-type="dojox/mobile/TextBox" 								 
+									data-dojo-props="placeholder:'State'">
+						</td>
+					</tr>
+					<tr>
+						<td style="width: 100px;" class="layout">Zip Code</td>
+						<td class="layout">
+							<input id="shiptozipInput1" data-dojo-type="dojox/mobile/TextBox" 								 
+									data-dojo-props="placeholder:'Zip Code'">
+						</td>
+					</tr>
+				</table>
+			</div>
+			<div class="fieldset" id="billtodiv" >Bill To:
+	  			<table id="table3" cellspacing="10" style="width: 100%">
+					<tr>
+						<td style="width: 100px;" class="layout">Street</td>
+						<td class="layout">							
+							<input  id="billtostreetInput1" data-dojo-type="dojox/mobile/TextBox" 
+									data-dojo-props="placeholder:'Street'">
+						</td>
+					</tr>
+					<tr>
+						<td style="width: 100px;" class="layout">City</td>
+						<td class="layout">
+							<input 	id="billtocityInput1" data-dojo-type="dojox/mobile/TextBox" 								 
+									data-dojo-props="placeholder:'City'">
+						</td>
+					</tr>
+					<tr>
+						<td style="width: 100px;" class="layout">State</td>
+						<td class="layout">
+							<input id="billtostateInput1" data-dojo-type="dojox/mobile/TextBox" 								 
+									data-dojo-props="placeholder:'State'">
+						</td>
+					</tr>
+					<tr>
+						<td style="width: 100px;" class="layout">Zip Code</td>
+						<td class="layout">
+							<input id="billtozipInput1" data-dojo-type="dojox/mobile/TextBox" 								 
+									data-dojo-props="placeholder:'Zip Code'">
+						</td>
+					</tr>
+				</table>
+			</div>
+			<div class="spacer"></div>
+			<button id="reset1" type="button" data-dojo-type="dojox/mobile/Button" class="mblBlueButton">Reset</button>
+    </form>
+</div>

@@ -1,0 +1,122 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+	<title>Test text bbox</title>
+	<script type="text/javascript" src="../../../dojo/dojo.js" data-dojo-config="isDebug: true, packageMap:[{name:'doh',location:'util/doh'}]"></script>
+	<script type="text/javascript">
+		require([
+			"doh/runner",
+			"dojo/ready",
+            "dojo/_base/window",
+			"dojox/gfx",
+			"dojox/gfx/shape",
+			"dojox/gfx/matrix"],
+				function(doh, ready, win, gfx, gfxshape, matrix){
+
+					var textShape = { x:20, y:40, text:"Hello !"};
+
+					ready(function(){
+						var surface, r,
+								checkSurface = function(){
+									if(!surface){
+										surface = gfx.createSurface("gfxObject", 300, 300);
+									}
+								};
+
+						doh.register("text.getBoundingBox", [
+							{
+								name: "text.getBoundingBox",
+								timeout: 1000,
+								setUp: function(){
+									if(surface){
+										surface.destroy();
+										surface = null;
+									}
+									checkSurface();
+								},
+								runTest: function(t){
+									var text = surface.createText(textShape).setFill("black");
+									var bbox = text.getBoundingBox();
+									t.assertTrue(bbox !== null, "Unexpected null bbox.");
+									// it's impossible to test for bbox coordinates as it varies depending on the browser...
+								},
+								tearDown: function(){
+									surface.clear();
+								}
+							},{
+								name: "getBoundingBox (empty string)",
+								timeout: 1000,
+								setUp: function(){
+									if(surface){
+										surface.destroy();
+										surface = null;
+									}
+									checkSurface();
+								},
+								runTest: function(t){
+									var text = surface.createText().setFill("black");
+									var bbox = text.getBoundingBox();
+									t.assertTrue(bbox == null, "Unexpected non-null bbox.");
+								},
+								tearDown: function(){
+									surface.clear();
+								}
+							},{
+                                name: "getBoundingBox (orphan)",
+                                timeout: 1000,
+                                setUp: function(){
+                                    if(surface){
+                                        surface.destroy();
+                                        surface = null;
+                                    }
+                                    checkSurface();
+                                },
+                                runTest: function(t){
+                                    var text = surface.createText(textShape).setFill("black");
+                                    text.removeShape();
+                                    var bbox = text.getBoundingBox();
+                                    t.assertTrue(bbox != null, "Unexpected bbox.");
+                                    t.assertTrue(bbox.x==0 && bbox.y==0 && bbox.width==0 && bbox.height==0, "Unexpected non empty bbox.");
+                                    var g = surface.createGroup();
+                                    text = g.createText(textShape);
+                                    g.removeShape();
+                                    bbox = text.getBoundingBox();
+                                    t.assertTrue(bbox != null, "Unexpected bbox [2].");
+                                    t.assertTrue(bbox.x==0 && bbox.y==0 && bbox.width==0 && bbox.height==0, "Unexpected non empty bbox.[2]");
+                                },
+                                tearDown: function(){
+                                    surface.clear();
+                                }
+                            },{
+                                name: "_getTextBox",
+                                timeout: 1000,
+                                runTest: function(t){
+                                    var bbox = gfx._base._getTextBox(textShape.text);
+                                    t.assertTrue(bbox !== null, "Unexpected null bbox.");
+                                    // it's impossible to test for bbox coordinates as it varies depending on the browser...
+                                    // but at least verify that it is a {l,t,w,h} object
+                                    t.assertTrue("l" in bbox, "Not a bbox");
+                                    t.assertTrue("t" in bbox, "Not a bbox");
+                                    t.assertTrue("w" in bbox, "Not a bbox");
+                                    t.assertTrue("h" in bbox, "Not a bbox");
+                                    t.assertTrue(bbox.w > 0, "Not a bbox");
+                                    t.assertTrue(bbox.h > 0, "Not a bbox");
+                                    // and that the measuring node is invisible and empty after calling the function
+                                    t.assertEqual("hidden", win.body().lastChild.style.visibility,
+                                            "Document's last child should be invisible");
+                                    t.assertEqual("", win.body().lastChild.innerHTML,
+                                            "Document's last child should be empty");
+                                }
+                            }
+
+
+						]);
+						doh.run();
+					});
+				});
+	</script>
+</head>
+<body>
+<div id="gfxObject" style="width: 500px; height: 500px;font-weight:bold;"></div>
+</body>
+</html>

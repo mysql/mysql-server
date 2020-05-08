@@ -1,0 +1,39 @@
+@import 'dijit_form_variables';
+
+.{$theme-name} {
+		
+	.dijitSliderRtl {
+		.dijitSliderProgressBarH {
+			float:right;
+			right:0;
+			left:auto;
+		}
+		.dijitSliderLeftBumper {
+			border-left-width: 0;
+			border-right-width: 1px;
+			margin-left: 0;
+			margin-right: $slider-bar-spacing;
+			border-radius: 0 $slider-bar-radius $slider-bar-radius 0;
+		}
+		.dijitSliderRightBumper {
+			border-left-width: 1px;
+			border-right-width: 0;
+			margin-left: $slider-bar-spacing;
+			margin-right: -2px;
+			border-radius: $slider-bar-radius 0 0 $slider-bar-radius;
+		}
+		.dijitSliderMoveableH {
+			right: auto;
+			left: 0;
+		}
+		.dijitSliderImageHandleV {
+			left:auto;
+		}
+		.dijitSliderImageHandleH {
+			left:-50%;
+		}
+		.dijitRuleContainerV {
+			float:right;
+		}
+	}
+}

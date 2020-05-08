@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>loader mapping after build</title>
+</head>
+<body>
+<h1>loader mapping after build</h1>
+
+<script>
+    var dojoConfig = {
+        async: true,
+        packages: [
+            { name: 'dojo', location: 'node_modules/dojo' }
+        ],
+        map: {
+            'my/replacement/A': {
+                'my/A': 'my/A'
+            },
+            '*': {
+                'my/A': 'my/replacement/A'
+            }
+        }
+    };
+</script>
+
+<script src="../../../../dojo.js"></script>
+</body>
+</html>

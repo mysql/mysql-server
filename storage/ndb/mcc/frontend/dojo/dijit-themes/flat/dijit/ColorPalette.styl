@@ -1,0 +1,69 @@
+/* ColorPalette
+ * 
+ * Styling of the ColorPalette consists of the following:
+ * 
+ * 1. the whole color palette
+ *		.dijitColorPalette - for outline, border, and background color of the whole color palette
+ *		Note: outline does not work for IE
+ *
+ * 2. the color swatch 
+ *		.dijitColorPalette .dijitPaletteImg
+ *		transparent (but clickable) <img> node inside of each <td>, overlaying the color swatch.
+ *		displays border around a color swatch
+ *
+ * 3. hovered swatch
+ * 		.dijitColorPalette .dijitPaletteCell:hover .dijitPaletteImg
+ *		the hovered state of the color swatch - adds border
+ * 	
+ * 4. active and selected swatch
+ * 		.dijitColorPalette .dijitPaletteCell:active .dijitPaletteImg
+ *		.dijitColorPalette .dijitPaletteCellSelected .dijitPaletteImg
+ *		adds border for active or selected state
+ */
+
+@import 'dijit_variables';
+
+.{$theme-name} {
+
+	.dijitColorPalette {
+		border: 1px solid $colorpalette-border-color;
+		background-color: $colorpalette-background-color;
+		border-radius: $colorpalette-border-radius;
+
+		.dijitPaletteTable {
+			padding: $colorpalette-padding;
+		}
+
+		/* swatch */
+
+		.dijitColorPaletteSwatch {
+			height: $colorpalette-swatch-height;
+			width: $colorpalette-swatch-width;
+			border-radius:$colorpalette-swatch-radius;
+		}
+
+		.dijitPaletteImg {
+			/* transparent (but clickable) <img> node inside of each <td>, overlaying the color swatch.
+			 * displays border around a color swatch
+			 * overrides border color in dijit.css */
+			border: 1px solid $colorpalette-swatch-border-color;
+			line-height: normal;
+		}
+
+		.dijitPaletteCell:hover .dijitPaletteImg {
+			border-color: $colorpalette-swatch-hover-border-color;
+			box-shadow: $colorpalette-swatch-hover-box-shadow;
+			border-radius: $colorpalette-swatch-radius;
+			transform: scale(1.2);
+		}
+
+		.dijitPaletteCell:active .dijitPaletteImg,
+		.dijitPaletteTable .dijitPaletteCellSelected .dijitPaletteImg {
+			border: 1px solid $colorpalette-swatch-selected-border-color;
+			box-shadow: $colorpalette-swatch-selected-box-shadow;
+			border-radius: $colorpalette-swatch-radius;
+			transform: scale(1.2);
+		}
+	}
+	
+}

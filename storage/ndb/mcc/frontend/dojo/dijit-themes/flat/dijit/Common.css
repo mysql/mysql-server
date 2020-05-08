@@ -1,0 +1,87 @@
+.dijitPopup {
+  border-radius: 3px;
+}
+/* ----- Drag and Drop ----- */
+.dojoDndItem {
+  border: 1px solid transparent;
+  cursor: pointer;
+  -webkit-transition-duration: 0.25s;
+  -moz-transition-duration: 0.25s;
+  -o-transition-duration: 0.25s;
+  -ms-transition-duration: 0.25s;
+  transition-duration: 0.25s;
+  -webkit-transition-property: background-color, border-color, opacity;
+  -moz-transition-property: background-color, border-color, opacity;
+  -o-transition-property: background-color, border-color, opacity;
+  -ms-transition-property: background-color, border-color, opacity;
+  transition-property: background-color, border-color, opacity;
+}
+/* hover */
+.dojoDndItemOver {
+  background-color: #f5f5f5;
+  border-radius: 3px;
+}
+.dojoDndItemAnchor {
+  background-color: transparent;
+  border: 1px dashed #2196f3;
+  border-radius: 3px;
+}
+/* selected */
+.dojoDndItemBefore {
+  background: transparent;
+  padding-top: 2px;
+  border-top: 1px solid #2196f3;
+}
+.dojoDndItemAfter {
+  background: transparent;
+  padding-bottom: 2px;
+  border-bottom: 1px solid #2196f3;
+}
+/* Avatar */
+table.dojoDndAvatar {
+  display: block;
+}
+.dojoDndAvatarHeader td {
+  display: none;
+}
+.dojoDndAvatarHeader:before {
+  font-family: "flat-icon";
+  speak: none;
+  font-style: normal;
+  font-weight: normal;
+  font-variant: normal;
+  text-transform: none;
+  line-height: 1;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  display: table-cell;
+}
+/* cannot drop */
+.dojoDndMove .dojoDndAvatarHeader:before {
+  color: #dd2c00;
+  content: "\f01c";
+}
+.dojoDndCopy .dojoDndAvatarHeader:before {
+  color: #dd2c00;
+  content: "\f01c";
+}
+/* can drop */
+.dojoDndMove .dojoDndAvatarCanDrop .dojoDndAvatarHeader:before {
+  color: #43a047;
+  content: "\f008";
+}
+.dojoDndCopy .dojoDndAvatarCanDrop .dojoDndAvatarHeader:before {
+  color: #43a047;
+  content: "\f008";
+}
+.dojoDndAvatarItem {
+  border-radius: 3px;
+}
+.dojoDndAvatarItem td > * {
+  padding: 4px 8px;
+  list-style-type: none;
+  background-color: #fff;
+  -webkit-box-shadow: 0 7px 3px -4px rgba(0,0,0,0.3), 0 8px 8px rgba(0,0,0,0.2);
+  box-shadow: 0 7px 3px -4px rgba(0,0,0,0.3), 0 8px 8px rgba(0,0,0,0.2);
+}

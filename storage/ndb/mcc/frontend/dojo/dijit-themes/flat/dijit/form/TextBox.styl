@@ -1,0 +1,104 @@
+/* Text Inputs: [TextBox | DateTextBox | CurrencyTextBox | ValidationTextBox | ...] | TextArea
+ * Mainly includes:
+ * 
+ * 1. Containers
+ * 		.dijitTextBox
+ * 		.dijitInputField - container that wraps "dijitInputInner" or "dijitPlaceHolder"
+ *
+ * 2. Textbox input
+ * 		.dijitInputInner
+ * 		.dijitPlaceHolder
+ *
+ * 3. States - Hover, Focused, Disabled, Error, Error while Focused e.g.
+ * 		.dijitTextBoxHover
+ * 		.dijitTextBoxFocused
+ * 		.dijitTextBoxDisabled
+ *      .dijitTextBoxError
+ *      .dijitTextBoxErrorFocused
+ *
+*/
+
+@import 'dijit_form_variables';
+
+.{$theme-name} {
+
+	.dijitTextBox,
+	.dijitInputInner {
+		line-height: $line-height;
+	}
+
+	.dijitTextBox {
+		background: $input-background;
+		border: 1px solid $input-border-color;
+		border-radius: $input-border-radius;
+		transition: border 0.2s linear 0s, box-shadow 0.2s linear 0s;
+	}
+
+	.dijitTextArea {
+		padding: $input-padding $input-padding + 2px;
+	}
+
+	.dijitTextBox {
+		.dijitInputField {
+			padding: 0  $input-padding;
+			margin:0 2px;
+		}
+	}
+
+	create-alternative-textboxes($button-alternative-colors);
+
+	.dijitTextBox .dijitInputInner,
+	.dijitValidationTextBox .dijitValidationContainer,
+	.dijitTextBox .dijitInputField .dijitPlaceHolder {
+		padding: $input-padding;
+	}
+
+	// hover
+	.dijitTextBoxHover {
+		border-color: $input-hover-border-color;
+		transition-duration: .25s;
+	}
+
+	// focused
+	.dijitTextBoxFocused {
+		border-color: $input-focused-border-color;
+		transition-duration: .1s;
+	}
+
+	// disabled
+	.dijitTextBoxDisabled {
+		color: $input-disabled-color;
+		background-color: $input-disabled-background-color;
+		border-color: $input-disabled-border-color;
+	}
+	
+	create-alternative-textboxes-disabled($button-alternative-colors);
+
+	// error
+	.dijitTextBoxError,
+	.dijitTextBoxError .dijitButtonNode {
+		border-color: $input-error-border-color;
+	}
+
+	// error: focused
+	.dijitTextBoxErrorFocused,
+	.dijitTextBoxErrorFocused .dijitButtonNode {
+		border: $input-focused-error-border;
+	}
+
+	// error: icon
+	.dijitValidationTextBoxError {
+		.dijitValidationContainer {
+			color: $input-error-icon-background-color;
+			width: $input-error-icon-width;
+			_icon-core-style();
+			font-size: $input-error-icon-width;
+			&:before {
+				content: $icon-error;
+			}
+		}
+		.dijitValidationIcon {
+			display: none;
+		}
+	}
+}

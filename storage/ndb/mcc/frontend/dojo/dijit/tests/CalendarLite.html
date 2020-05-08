@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta http-equiv="Content-type" content="text/html; charset=utf-8">
+		<title>CalendarLite Widget Test</title>
+
+		<script src="boilerplate.js"></script>
+
+		<script type="text/javascript">
+			require(["doh/runner", "dojo/date/stamp", "dojo/dom", "dijit/CalendarLite", "dojo/query", "dojo/domReady!"],
+					function(doh, stamp, dom, CalendarLite, query){
+
+				doh.register("CalendarLite", [
+					function create(){
+						cal = new CalendarLite({
+							id: "cal",
+							value: "1999-12-31",
+							onChange: function myHandler(id,newValue){
+								console.debug("onChange for id = " + id + ", value: " + newValue);
+							}
+						}, dom.byId("calendar1"));
+
+						doh.is("1999-12-31", stamp.toISOString(cal.get("value"), {selector: "date"}), "value");
+						doh.is("December", cal.gridNode.getAttribute("summary"));
+					},
+
+					function change(){
+						cal.set("value", "2000-11-30");
+						doh.is("2000-11-30", stamp.toISOString(cal.get("value"), {selector: "date"}), "value");
+						doh.is("November", cal.gridNode.getAttribute("summary"));
+
+						//Verify default dayOffset is for locale.
+						doh.is(-1, cal.get('dayOffset'), "CalendarLite should default to -1 if no value specified");
+					},
+
+					function createWithSummary(){
+						cal2 = new CalendarLite({
+							id: "cal2",
+							value: "1999-12-31",
+							summary: "explicit summary"
+						}, dom.byId("calendar2"));
+
+						doh.is("explicit summary", cal2.gridNode.getAttribute("summary"));
+					},
+
+					function createWithFirstDayOfWeek(){
+						cal3 = new CalendarLite({
+							id: "cal3",
+							value: "1999-12-31",
+							dayOffset: 3
+						}, dom.byId("calendar3"));
+
+						var firstCol = query('thead tr[role="row"] > *', cal3.domNode);
+						doh.is("W", firstCol[0].textContent || firstCol[0].innerText ,
+								"W should be first column heading with offset of 3");
+					}
+
+				]);
+				doh.run();
+			});
+		</script>
+	</head>
+	<body role="main">
+
+		<h1 class="testTitle">Dijit CalendarLite Test</h1>
+
+		<label for="before">before:</label><input value="input" id="before"/>
+		<input id="calendar1"/>
+		<label for="after">between:</label><input value="input" id="between"/>
+		<input id="calendar2"/>
+		<label for="after">after:</label><input value="input" id="after"/>
+		<input id="calendar3"/>
+	</body>
+</html>

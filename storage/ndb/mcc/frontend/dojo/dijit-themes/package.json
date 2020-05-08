@@ -1,0 +1,28 @@
+{
+	"name": "dijit-themes",
+	"version": "1.15.3",
+	"description": "Dojo 1.x modern themes",
+	"license" : "BSD-3-Clause OR AFL-2.1",
+	"bugs": "http://bugs.dojotoolkit.org/",
+	"keywords": ["Dojo", "Dijit", "Themes"],
+	"homepage": "http://dojotoolkit.org/",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/dojo/dijit-themes.git"
+	},
+	"dojoBuild": "themes.profile.js",
+	"peerDependencies": {
+		"dojo": "1.15.3",
+		"dijit": "1.15.3"
+	},
+	"devDependencies": {
+		"grunt": "^0.4",
+		"grunt-contrib-watch": "^0",
+		"grunt-concurrent": "^2",
+		"grunt-contrib-connect": "^0",
+		"grunt-contrib-stylus": "^0.21.0",
+		"grunt-open": "^0",
+		"grunt-newer": "^1.1.0"
+	},
+	"engine": "node >= 0.10"
+}

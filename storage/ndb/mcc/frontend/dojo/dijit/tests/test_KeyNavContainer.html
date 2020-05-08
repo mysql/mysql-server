@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+	<meta http-equiv="Content-type" content="text/html; charset=utf-8">
+
+	<title>KeyNavContainer test</title>
+
+	<script src="boilerplate.js"></script>
+
+	<script type="text/javascript">
+		require([
+			"dojo/_base/declare", "dojo/dom", "dojo/keys", "dojo/_base/lang", "dojo/on", "dojo/parser",
+			"dijit/a11yclick", "dijit/_WidgetBase", "dijit/_KeyNavContainer",
+			"dojo/domReady!"
+		], function(declare, dom, keys, lang, on, parser, a11yclick, _WidgetBase, _KeyNavContainer){
+
+			declare("TestContainer", [_WidgetBase, _KeyNavContainer], {
+				postCreate: function(){
+					this.inherited(arguments);
+					this.connectKeyNavHandlers([keys.LEFT_ARROW, keys.UP_ARROW], [keys.RIGHT_ARROW, keys.DOWN_ARROW]);
+				}
+			});
+	
+			declare("TestContained", _WidgetBase, {
+				// _KeyNavContainer requires children to have focus()
+				focus: function(){
+					this.domNode.focus();
+				}
+			});
+
+			// For testing keyboard search
+			declare("KeyboardContainer", TestContainer, {
+				postCreate: function(){
+					this.inherited(arguments);
+					on(this.domNode, a11yclick.click, lang.hitch(this, function(){
+						console.log("a11yclick");
+						dom.byId("clicks").innerHTML = dom.byId("clicks").innerHTML - -1;
+					}));
+				}
+			});
+
+			parser.parse();
+		});
+	</script>
+</head>
+<body>
+	<h1>_KeyNavContainer Tests</h1>
+
+	<label for="input">focus point:</label><input id="input"/>
+
+	<div id="keyboard" data-dojo-type="KeyboardContainer" style="border: 1px solid black;">
+		<div data-dojo-type="TestContained" value="AL">Alabama</div>
+		<div data-dojo-type="TestContained" value="AK">Alaska</div>
+		<div data-dojo-type="TestContained" value="AZ">Arizona</div>
+		<div data-dojo-type="TestContained" value="AR">Arkansas</div>
+		<div data-dojo-type="TestContained" value="CA">California</div>
+		<div data-dojo-type="TestContained" value="NH">New Hampshire</div>
+		<div data-dojo-type="TestContained" value="NJ">New Jersey</div>
+		<div data-dojo-type="TestContained" value="NM">New Mexico</div>
+		<div data-dojo-type="TestContained" value="NY">New York</div>
+	</div>
+
+	a11yclick events: <span id="clicks">0</span>
+</body>
+</html>

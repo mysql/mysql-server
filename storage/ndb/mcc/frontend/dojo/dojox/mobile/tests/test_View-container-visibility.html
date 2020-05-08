@@ -1,0 +1,71 @@
+<!doctype html>
+<html>
+<head>
+	<meta http-equiv="Content-type" content="text/html; charset=utf-8"/>
+	<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no">
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<title>View/container visibility test</title>
+
+	<script type="text/javascript" src="../deviceTheme.js"></script>
+	<script type="text/javascript" src="../../../dojo/dojo.js"	data-dojo-config="async: true"></script>
+
+	<script type="text/javascript">
+		require([
+			"dijit/registry",
+			"dojox/mobile/View",
+			"dojox/mobile/Heading",
+			"dojo/domReady!"
+		], function(registry, View, Heading){
+
+			var view1 = new View(null, "view1");
+			var heading1 = new Heading({label: "View 1"});
+			view1.addChild(heading1);
+
+			var view2 = new View(null, "view2");
+			var heading2 = new Heading({label: "View 2"});
+			view2.addChild(heading2);
+
+			setVisible = function(){
+				var container = document.getElementById("container");
+				container.style.visibility = "visible";
+			};
+
+			doTransition = function(from, to){
+				registry.byId(from).performTransition(to,1,"slide");
+			};
+
+			view1.startup();
+			view2.startup();
+		});
+	</script>
+</head>
+<body>
+<pre style="font-size: 0.6em">Test case #1
+1) reload this page
+2) click on [A]
+- View1 should be visible
+- "container is visible" should display above the view
+3) click on [B]
+- view1 should transition to view2
+4) click on [C]
+- view2 should transition back to view1
+Test case #2
+1) reload this page
+2) click on [B]
+3) click on [A]
+- View2 should be visible
+- "container is visible" should display above the view
+4) click on [C]
+- view2 should transition to view1
+5) click on [B]
+- view1 should transition back to view2
+</pre>
+<input type="button" value="[A] make container visible" onclick="setVisible();">
+<input type="button" value="[B] transition: view1>view2" onclick="doTransition('view1','view2');">
+<input type="button" value="[C] transition: view2>view1" onclick="doTransition('view2','view1');">
+<div id="container" style="visibility:hidden;">container is visible
+	<div id="view1"></div>
+	<div id="view2"></div>
+</div>
+</body>
+</html>

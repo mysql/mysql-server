@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+	<meta http-equiv="Content-type" content="text/html; charset=utf-8">
+
+	<title>Menu System Test</title>
+
+	<style type="text/css">
+		@import "../../../../dijit/themes/claro/document.css";
+		@import "../../../../dijit/tests/css/dijitTests.css";
+
+		body { padding: 0; }
+
+		/* styling for left-hand-side navigation menu to become a column equal to length of page */
+		#formattingTable {
+			border: 0;
+			border-spacing: 0;
+		}
+		#contentContainer { padding: 2em; }
+
+		#navMenu {
+			/* make the sidebar menu blend in with the whole sidebar */
+			border: none;
+		}
+	</style>
+
+	<!-- required: a default dijit theme: -->
+	<link id="themeStyles" rel="stylesheet" href="../../../../dijit/themes/claro/claro.css"/>
+
+	<!-- required: dojo.js -->
+	<script type="text/javascript" src="../../../../dojo/dojo.js"
+		data-dojo-config="parseOnLoad: 0, isDebug: 1, async: 1, mvc: {debugBindings: 1}"></script>
+
+	<!-- not needed, for testing alternate themes -->
+	<script type="text/javascript" src="../../../../dijit/tests/_testCommon.js"></script>
+
+	<script type="text/javascript">
+		require([
+			"dojo/_base/declare",
+			"dojo/_base/lang",
+			"dojo/aspect",
+			"dojo/dom",
+			"dojo/parser",	// scan page for widgets and instantiate them
+			"dojo/when",
+			"dojox/mvc/at",
+			"dijit/Menu",
+			"dijit/MenuItem",
+			"dijit/PopupMenuItem",
+			"dijit/PopupMenuBarItem",
+			"dijit/CheckedMenuItem",
+			"dijit/MenuSeparator",
+			"dojox/mvc/getStateful",
+			"dojox/mvc/WidgetList",
+			"dijit/MenuBar",
+			"dijit/MenuBarItem",
+			"dijit/ColorPalette",
+			"dijit/form/TextBox",
+			"dijit/dijit", // optimize: load dijit layer
+			"dojo/domReady!"
+		], function(declare, lang, aspect, dom, parser, when, at, Menu, MenuItem, PopupMenuItem, PopupMenuBarItem, CheckedMenuItem, MenuSeparator, getStateful, WidgetList){
+			var mixin = declare(null, {
+				_getPropertiesAttr: function(){
+					var list = this.inherited(arguments);
+					return ["children", "popupType"].concat(list);
+				},
+
+				startup: function(){
+					this.popup = new Menu(); // Stop PopupMenuItem.startup() from attempting to find popup from DOM
+					this.inherited(arguments);
+					this.popup.destroy();
+					this.popup = null;
+					if(this.popupType){
+						this.popup = new (lang.getObject(this.popupType) || require(this.popupType))(this.params);
+					}else if(this.children){
+						this.popup = new (declare([Menu, WidgetList], {childType: getChildMenuType, childParams: getChildMenuParams}))(this.params);
+					}
+					if(this.popupType || this.children){
+						this.ownerDocumentBody.appendChild(this.popup.domNode);
+						this.popup.startup();
+						this.popup.domNode.style.display = "none";
+					}
+				}
+			});
+
+			declare("dojox.mvc.tests.PopupMenuItem", [PopupMenuItem, mixin]);
+			declare("dojox.mvc.tests.PopupMenuBarItem", [PopupMenuBarItem, mixin]);
+
+			getChildMenuType = function(parent){
+				return this.children || this.popupType ? (parent._isMenuBar ? "dojox.mvc.tests.PopupMenuBarItem" : "dojox.mvc.tests.PopupMenuItem") :
+				 this.isSeparator ? "dijit/MenuSeparator" :
+				 this.checked !== void 0 ? "dijit/CheckedMenuItem" :
+				 parent._isMenuBar ? "dijit/MenuBarItem" :
+				 "dijit/MenuItem";
+			};
+
+			getChildMenuParams = function(){
+				return {"*": at(this.target, "*")};
+			};
+
+			updateButtons = function(created){
+				dom.byId("prog_menu").innerHTML = created ? "This div has a programmatic context menu on it that's different to the page menu." : "No programmatic menu on this div, should get page level menu.";
+				dom.byId("createButton").disabled = created;
+				dom.byId("destroyButton").disabled = !created;
+			};
+
+			var separatorItem = {isSeparator: true},
+			 disabledItem = {label: "Disabled Item", disabled: true, onClick: function(){ alert("this should NOT appear"); }},
+			 differentPopupItem = {label: "Different popup", popupType: "dijit/ColorPalette"},
+			 enabledSubmenuItem = {
+			 	label: "{E}nabled Submenu",
+			 	children: [
+					{label: "Submenu Item One", onClick: function(){ console.log("Submenu 1!") }},
+					{label: "Submenu Item Two", onClick: function(){ console.log("Submenu 2!") }},
+					{label: "Deeper Submenu", children: [
+						{label: "Sub-sub-menu Item One", onClick: function(){ console.log("Sub-submenu 1!") }},
+						{label: "Sub-sub-menu Item Two", onClick: function(){ console.log("Sub-submenu 2!") }}
+					]}
+				]
+			}, disabledSubmenuItem = {
+				label: "Disabled Submenu",
+				disabled: true,
+				children: [
+					{label: "Submenu Item One", onClick: function(){ console.log("Submenu 1!") }},
+					{label: "Submenu Item Two", onClick: function(){ console.log("Submenu 2!") }}
+				]
+			}, checkedMenuItems = [
+				{label: "Checked", checked: true, onChange: function(val){ console.log("Now set to " + val); }},
+				{label: "Not Checked", checked: false},
+				{label: "Checked Disabled", checked: true, disabled: true}
+			], editMenuItems = [
+				{label: "C{u}t", iconClass: "dijitEditorIcon dijitEditorIconCut", onClick: function(){ console.log("not actually cutting anything, just a test!") }, accelKey: "Ctrl+X"},
+				{label: "{C}opy", iconClass: "dijitEditorIcon dijitEditorIconCopy", onClick: function(){ console.log("not actually copying anything, just a test!") }, accelKey: "Ctrl+C"},
+				{label: "{P}aste", iconClass: "dijitEditorIcon dijitEditorIconPaste", onClick: function(){ console.log("not actually pasting anything, just a test!") }, accelKey: "Ctrl+V"}
+			];
+
+			menubarData = getStateful([
+				{
+					label: "{F}ile",
+					accessKey: "F",
+					children: [
+						{label: "{N}ew"},
+						{label: "{O}pen"},
+						separatorItem,
+						{label: "{S}ave", iconClass:"dijitEditorIconSave"},
+						{label: "Save {A}s..."}
+					]
+				},
+				{
+					label: "{E}dit",
+					accessKey: "E",
+					children: editMenuItems
+				},
+				{
+					label: "{V}iew",
+					accessKey: "V",
+					children: [
+						{label: "Normal"},
+						{label: "Outline"},
+						{
+							label: "{Z}oom",
+							children: [
+								{label: "50%"},
+								{label: "75%"},
+								{label: "100%"},
+								{label: "150%"},
+								{label: "200%"}
+							]
+						}
+					]
+				},
+				{
+					label: "{H}elp",
+					accessKey: "H",
+					children: [
+						{label: "Help Topics"},
+						{label: "About dojox/mvc"}
+					]
+				},
+				{label: "{D}isabled", accessKey: "D", disabled: true, children: [{label: "You should not see this"}]},
+				{label: "E{m}pty", accessKey: "M", children: []},
+				{label: "Click me! ({Z})", accessKey: "Z", onClick: function(){ console.log("no submenu, just a clickable MenuItem"); }}
+			]);
+
+			windowContextMenuData = getStateful([
+				{label: "Context Menu", onClick: function(){ console.log("Hello world"); }},
+				separatorItem,
+				disabledItem
+			].concat(editMenuItems).concat([
+				separatorItem,
+				enabledSubmenuItem,
+				disabledSubmenuItem,
+				differentPopupItem,
+				separatorItem
+			]).concat(checkedMenuItems).concat([
+				separatorItem,
+				{label: "Bigger Submenu", children: [
+					{label: "Item One"},
+					{label: "Item Two"},
+					{label: "Item Three"},
+					{label: "Item Four"},
+					{label: "Item Five"},
+					{label: "Item Six"},
+					{label: "Item Seven"},
+					{label: "Item Eight"},
+					{label: "Item Nine"},
+					{label: "Item Ten"}
+				]}
+			]));
+
+			leftClickContextMenuData = getStateful([
+				{label: "Left Click Menu", disabled: true},
+				{label: "Enabled Item", onClick: function(){ console.log("Hello world"); }},
+				disabledItem,
+				separatorItem
+			].concat(editMenuItems).concat([
+				separatorItem,
+				enabledSubmenuItem,
+				disabledSubmenuItem,
+				differentPopupItem
+			]));
+
+			navMenuData = getStateful([
+				{label: "Drama", iconClass: "dijitEditorIcon dijitEditorIconPaste", onClick: function(){ console.log("drama!"); }},
+				{label: "Cut", iconClass: "dijitEditorIcon dijitEditorIconCut", onClick: function(){ console.log("not actually cutting anything, just a test!") }},
+				{label: "Copy", iconClass: "dijitEditorIcon dijitEditorIconCopy", onClick: function(){ console.log("not actually copying anything, just a test!") }},
+				{label: "Paste", iconClass: "dijitEditorIcon dijitEditorIconPaste", onClick: function(){ console.log("not actually pasting anything, just a test!") }},
+				separatorItem,
+				enabledSubmenuItem,
+				disabledSubmenuItem,
+				differentPopupItem,
+				separatorItem
+			].concat(checkedMenuItems));
+
+			createMenu = function(){
+				// create a menu programmatically
+				function fClick(){console.log("clicked!")}
+
+				pMenu = new (declare([Menu, WidgetList], {
+					childType: getChildMenuType,
+					childParams: getChildMenuParams
+				}))({
+					targetNodeIds: ["prog_menu"],
+					id: "progMenu",
+					children: getStateful([
+						{label: "Programmatic Context Menu", disabled: true},
+						separatorItem,
+						{label: "Simple menu item", onClick: fClick, accelKey: "Shift+S"},
+						{label: "Another menu item", onClick: fClick, accelKey: "Ctrl+A"},
+						{label: "With an icon", iconClass: "dijitEditorIcon dijitEditorIconCut", onClick: fClick},
+						{label: "dojo/aspect clicking", accelKey: "Alt+D"},
+						{label: "checkable menu item", checked: false},
+						enabledSubmenuItem
+					])
+				});
+				pMenu.startup();
+
+				aspect.after(pMenu.getChildren()[5], "onClick", function(){ console.log("click! handler created via dojo/aspect" )});
+
+				updateButtons(true);
+
+				dom.byId("prog_menu").innerHTML="This div has a programmatic context menu on it that's different to the page menu.";
+
+				dom.byId("createButton").disabled = true;
+				dom.byId("destroyButton").disabled = false;
+			};
+
+			destroyMenu = function(){
+				pMenu.destroyRecursive();
+				updateButtons(false);
+			};
+
+			when(parser.parse(), function(){
+				// need to explicitly update our buttons states, otherwise the
+				// browser will remember the last states of them before reloading
+				// (so a programmatic menu is created, reload, and "the create
+				// programmatic menu" button is still in disabled state)
+				updateButtons(false);
+			});
+		});
+	</script>
+</head>
+<body class="claro" role="main">
+	<div id="windowContextMenu"
+	 data-dojo-type="dijit/Menu"
+	 data-dojo-mixins="dojox/mvc/WidgetList"
+	 data-dojo-props='contextMenuForWindow: true, style: "display: none;", children: windowContextMenuData, childType: getChildMenuType, childParams: getChildMenuParams'>
+	</div>
+
+	<div id="leftClickContextMenu"
+	 data-dojo-type="dijit/Menu"
+	 data-dojo-mixins="dojox/mvc/WidgetList"
+	 data-dojo-props='leftClickToOpen: true, targetNodeIds: ["input2"], style: "display: none;", children: leftClickContextMenuData, childType: getChildMenuType, childParams: getChildMenuParams'>
+	</div>
+
+	<table id="formattingTable" role="presentation">
+		<tr>
+			<td style="width:0;">
+				<!-- This is here for tabIndex testing.
+					 Use textarea since Chrome 1.0 likes it better for TABing and
+					 because it has innerText property and because it doesn't mess
+					 with the URL when clicked -->
+				<textarea aria-label="random link" id="link" tabIndex="0" readOnly class="dijitReset" style="font-family:monospace;font-size:12px;width:84px;text-decoration:underline;overflow:hidden;background-color:transparent;" rows=1>random link</textarea>
+			</td>
+			<td id="menuBarContainer" style="width:100%;">
+				<div id="menubar"
+				 data-dojo-type="dijit/MenuBar"
+				 data-dojo-mixins="dojox/mvc/WidgetList"
+				 data-dojo-props="children: menubarData, childType: getChildMenuType, childParams: getChildMenuParams">
+				</div>
+			</td>
+		</tr>
+		<tr>
+			<td id="navMenuContainer" class="dijitMenu" style="vertical-align:top; width:0;">
+				<h3 style="margin-bottom: 2em;">Navigation menu:</h3>
+				<div id="navMenu" aria-label="navigation"
+				 data-dojo-type="dijit/Menu"
+				 data-dojo-mixins="dojox/mvc/WidgetList"
+				 data-dojo-props="children: navMenuData, childType: getChildMenuType, childParams: getChildMenuParams">
+				</div>
+			</td>
+
+			<td style="padding: 1em" id="contentContainer">
+
+				<h1 class="testTitle">Dijit Menu System Test</h1>
+
+				<p>This page contains:</p>
+				<ul>
+					<li>"Navigation bar" Menu widget on left, a.k.a vertical MenuBar
+					<li>MenuBar on top
+					<li>page level context menu (right-click anywhere on page)
+					<li>form widget context menu (right-click on textbox widget)</li>
+					<li>left click context menu (left click on input on far right)
+					<li>Example of programatically created menu
+					<li>Note: while some accelerator (shortcut) keys are displayed in the context menu, they are not actually hooked up to the corresponding actions (if any), they need to be setup explicitly by the user
+				</ul>
+
+				<h3>Form</h3>
+
+				<form>
+					<p style="float:right; text-align: right;">
+						left click to open the menu for this input:<br/>
+						Note: because of the window contextMenu, make sure you get<br/>
+						the right menu by verifying the left<br/>
+						click one starts with "Left Click Menu"<br/>
+						at the very top.
+						<input aria-label="input2" id=input2 value="top-right"/>
+					</p>
+					<input aria-label="input1" id=input1 value="top-left"/>
+					<textarea aria-label="textara" id=textarea>hello there!</textarea><br>
+					<select aria-label="select">
+						<option>check if i</option>
+						<option>bleed through</option>
+						<option>on IE6</option>
+					</select>
+					<button id=button>push me</button><br>
+					<input data-dojo-type="dijit/form/TextBox" aria-label="focus test" id="formwidget" data-dojo-props='style:"width:25em;", value:"dijit.form._FormWidget focus test"'/>
+				</form>
+
+				<div id="prog_menu" style="clear: both; border:1px solid blue; padding:10px; margin:20px 0;">
+					Click button below to create special menu on this div.
+				</div>
+				<button id="createButton" onclick="createMenu();">create programmatic menu</button>
+				<button id="destroyButton" onclick="destroyMenu();" disabled>destroy programmatic menu</button>
+
+				<div style="height:500px"></div>
+				<p>(this space intentionally left blank to aid testing with controls
+				at the bottom of the browser window)</p>
+				<div style="height:500px"></div>
+				<input id=input3 aria-label="input3" value="bottom-left"/>
+				<p style="text-align:right"><input aria-label="input4" id=input4 value="bottom-right"/></p>
+
+				<p>See also: <a href="form/test_Button.html">form/test_Button</a>
+				(PopupMenu is used with DropDownButton and ComboButton)</p>
+
+				<h3>Mouse opening tests</h3>
+
+				<ul>
+					<li>Right click on the client area of the page (ctrl-click for Macintosh). Menu should open.</li>
+					<li>Right click on each of the form controls above. Menu should open.</li>
+					<li>Right click near the right hand window border. Menu should open to the left of the pointer.</li>
+					<li>Right click near the bottom window border. Menu should open above the pointer.</li>
+				</ul>
+
+
+				<h3>Mouse hover tests</h3>
+
+				<ul>
+					<li>Hover over the first item with the pointer. Item should highlight and get focus.</li>
+					<li>Hover over the second (disabled) item. Item should highlight and get focus.</li>
+					<li>Separator items should not highlight on hover - no items should highlight in this case.</li>
+				</ul>
+
+
+				<h3>Mouse click tests</h3>
+
+				<ul>
+					<li>Click on the first menu item. console.log should log the message "Hello world". The menu should dissapear.</li>
+					<li>Click on the second menu item (disabled). Should not do anything - focus should remain on the disabled item.</li>
+					<li>Click anywhere outside the menu. Menu should close. Focus will be set by the browser based on where the user clicks.</li>
+				</ul>
+
+
+				<h3>Mouse submenu tests</h3>
+
+				<ul>
+					<li>Hover over the "Enabled Submenu" item. Item should highlight and then pop open a submenu after a short (500ms) delay.</li>
+					<li>Hover over any of the other menu items. Submenu should close immediately and deselect the submenu parent item. The newly hovered item should become selected.</li>
+					<li>Hover over the "Disabled Submenu" item. Item should highlight, but no submenu should appear.</li>
+					<li>Clicking on the "Enabled Submenu" item before the submenu has opened (you'll have to be quick!) should immediatley open the submenu.</li>
+					<li>Clicking on the "Enabled Submenu" item <i>after</i> the submenu has opened should have no effect - the item is still selected and the submenu still open.</li>
+					<li>Hover over submenu item 1. Should select it - the parent menu item should stay selected also.</li>
+					<li>Hover over submenu item 2. Should select it - the parent menu item should stay selected also.</li>
+				</ul>
+
+
+				<h3>Keyboard opening tests</h3>
+
+				<ul>
+					<li>On Windows: press shift-f10 with focus on any of the form controls. Should open the menu.</li>
+					<li>On Windows: press the context menu key (located on the right of the space bar on North American keyboards) with focus on any of the form controls. Should open the menu.</li>
+					<li>On Firefox on the Mac: press ctrl-space with focus on any of the form controls. Should open the menu.</li>
+				</ul>
+
+
+				<h3>Keyboard closing tests</h3>
+
+				<ul>
+					<li>Open the menu.</li>
+					<li>Press tab. Should close the menu and return focus to where it was before the menu was opened.</li>
+					<li>Open the menu.</li>
+					<li>Press escape. Should close the menu and return focus to where it was before the menu was opened.</li>
+				</ul>
+
+
+				<h3>Keyboard navigation tests</h3>
+
+				<ul>
+					<li>Open the menu.</li>
+					<li>Pressing up or down arrow should cycle focus through the items in that menu.</li>
+					<li>Pressing enter or space should invoke the menu item.</li>
+					<li>Disabled items receive focus but no action is taken upon pressing enter or space.</li>
+				</ul>
+
+
+				<h3>Keyboard submenu tests</h3>
+
+				<ul>
+					<li>Open the menu.</li>
+					<li>The first item should become selected.</li>
+					<li>Press the right arrow key. Nothing should happen.</li>
+					<li>Press the left arrow key. Nothing should happen.</li>
+					<li>Press the down arrow until "Enabled Submenu" is selected. The submenu should not appear.</li>
+					<li>Press enter. The submenu should appear with the first item selected.</li>
+					<li>Press escape. The submenu should vanish - "Enabled Submenu" should remain selected.</li>
+					<li>Press the right arrow key. The submenu should appear with the first item selected.</li>
+					<li>Press the right arrow key. Nothing should happen.</li>
+					<li>Press the left arrow key. The submenu should close - "Enabled Submenu" should remain selected.</li>
+					<li>Press the left arrow key. The menu should <i>not</i> close and "Enabled Submenu" should remain selected.</li>
+					<li>Press escape. The menu should close and focus should be returned to where it was before the menu was opened.</li>
+				</ul>
+			</td>
+		</tr>
+	</table>
+</body>
+</html>

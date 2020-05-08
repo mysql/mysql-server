@@ -1,0 +1,110 @@
+/* TitlePane and Fieldset
+ *
+ * Styling TitlePane means styling the TitlePane title and its content container  (dijitTitlePane)
+ *
+ * TitlePane title:
+ * 1. TitlePane title (default styling):
+ * 		.dijitTitlePaneTitle - TitlePane's title div style: background-color, border
+ *
+ * 2. hovered TitlePane title (ie, mouse hover on a title bar)
+ * 		.dijitTitlePaneTitleHover - styles when mouse hover on the title div
+ *
+ * 3. active TitlePane title (ie, mouse down on a title bar)
+ * 		.dijitTitlePaneTitleActive - styles when mouse down on the title div
+ *
+ *
+ * TitlePane Content Container:
+ * 1. outer/inner container:
+ * 		.dijitTitlePaneContentOuter / dijitTitlePaneContentInner - styles for the content outer div
+ */
+
+@import 'dijit_variables';
+
+.{$theme-name} {
+
+	.dijitTitlePaneTitle {
+		button-style();
+		if($titlepane-border-radius && $titlepane-border-radius >= 0) {
+			border-radius: $titlepane-border-radius $titlepane-border-radius 0 0;
+		}
+	}
+
+	.dijitTitlePaneTitleHover, .dijitFieldsetTitleHover {
+		button-hover-style();
+	}
+
+	.dijitTitlePaneTitleActive, .dijitFieldsetTitleActive {
+		button-active-style();
+	}
+
+	//.dijitTitlePaneTitleFocus {
+	//}
+
+	.dijitFieldset {
+		if($titlepane-border-radius && $titlepane-border-radius >= 0) {
+			border-radius: $titlepane-border-radius $titlepane-border-radius 0 0;
+		}
+
+		.dijitArrowNodeInner {
+			display: none;
+		}
+
+		.dijitFieldsetTitleClosed .dijitArrowNode:before {
+			content: $icon-expand;
+		}
+	}
+
+	.dijitTitlePane, .dijitFieldset {
+		.dijitArrowNode {
+			_icon-core-style();
+			font-size: $icon-expand-collapse-size;
+			text-align: center;
+			&:before {
+				content: $icon-collapse;
+			}
+		}
+
+		.dijitClosed {
+			if($titlepane-has-border-radius) {
+				border-radius: $titlepane-border-radius;
+			} else {
+				border-radius: 0;
+			}
+			.dijitArrowNode:before {
+				content: $icon-expand;
+			}
+		}
+	}
+
+	.dijitTitlePaneContentOuter {
+		background-color: $titlepane-content-background-color;
+		border: 1px solid $titlepane-content-border-color;
+		border-top: none;
+		if($titlepane-border-radius && $titlepane-border-radius >= 0) {
+			border-radius: 0 0 $titlepane-border-radius $titlepane-border-radius;
+		}
+	}
+
+	.dijitFieldset {
+		background-color: $titlepane-content-background-color;
+		border: 1px solid $titlepane-content-border-color;
+		if($titlepane-border-radius && $titlepane-border-radius >= 0) {
+			border-radius: $titlepane-border-radius;
+		}
+	}
+
+	.dijitTitlePaneContentInner, .dijitFieldsetContentInner {
+		padding: $titlepane-content-padding;
+	}
+
+	.dijitTitlePaneTextNode, .dijitFieldsetLegendNode {
+		margin-left: $padding*2;
+		margin-right: $padding*2;
+		vertical-align:text-top;
+	}
+
+	.dijitFieldsetLegendNode {
+		cursor: default;
+	}
+
+}

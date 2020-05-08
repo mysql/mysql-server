@@ -1,0 +1,290 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html lang="en">
+<head>
+	<title>dijit/layout/LayoutContainer Test</title>
+
+	<script type="text/javascript" src="../boilerplate.js"></script>
+
+	<script type="text/javascript">
+		require([
+			"doh/runner",
+			"dojo/_base/array",
+			"dojo/dom-geometry",
+			"dojo/json",
+			"dojo/parser",
+			"dijit/registry",
+			"dijit/layout/ContentPane",
+			"dijit/layout/LayoutContainer",
+			"dijit/tests/helpers",
+			"dijit/form/FilteringSelect",
+			"dojo/domReady!"
+		], function(doh, array,domGeom, json, parser,
+					registry, ContentPane, LayoutContainer, helpers){
+
+			function checkInside(/*Widget*/ child, /*Widget*/ parent){
+				// summary:
+				//		Test that child is fully inside of parent
+				var cp = domGeom.position(child.domNode, true),
+					pp = domGeom.position(parent.domNode, true);
+
+				doh.t(
+					cp.y > pp.y && cp.y+cp.h < pp.y+pp.h &&
+					cp.x > pp.x && cp.x+cp.w < pp.x+pp.w,
+					child.layoutAlign + " inside " + parent.id + json.stringify(cp) + json.stringify(pp)
+				);
+			}
+			function checkAbove(/*String*/ comment, /*Widget*/ above, /*Widget*/ below){
+				// summary:
+				//		Test that "above" widget is above "below" widget
+
+				var ap = domGeom.position(above.domNode, true),
+					bp = domGeom.position(below.domNode, true);
+
+				doh.t(Math.round(ap.y+ap.h) <= Math.round(bp.y),
+					comment + " " + above.layoutAlign + " above " + below.layoutAlign + json.stringify(ap) + json.stringify(bp)
+				);
+			}
+			function checkLeft(/*String*/ comment, /*Widget*/ left, /*Widget*/ right){
+				// summary:
+				//		Test that "left" widget is to left of "right" widget
+
+				var lp = domGeom.position(left.domNode, true),
+					rp = domGeom.position(right.domNode, true);
+
+				doh.t(lp.x+lp.w <= rp.x,
+					comment + " " + left.layoutAlign + " to left of " + right.layoutAlign + json.stringify(lp) + json.stringify(rp)
+				);
+			}
+
+			doh.register("parse", function(){
+				return parser.parse();
+			});
+
+			doh.register("LayoutContainer", [
+				function basic(){
+					var lc = registry.byId("basic");
+					array.forEach(lc.getChildren(), function(child){
+						checkInside(child, lc);
+					});
+
+					var left = registry.byId("leftcp_layout1"),
+						top = registry.byId("topcp_layout1"),
+						right = registry.byId("rightcp_layout1"),
+						center = registry.byId("centercp_layout1"),
+						bottom = registry.byId("bottomcp_layout1");
+
+					// Check positions
+					checkLeft("left vs top", left, top);
+					checkLeft("left vs center", left, center);
+					checkLeft("bottom vs right", bottom, right);
+					checkAbove("top vs center", top, center);
+					checkAbove("center vs bottom", center, bottom);
+
+					// Check tab order
+					var tabbable = helpers.tabOrder(lc.domNode);
+					doh.is(7, tabbable.length, "each pane plus link and select");
+					doh.is(left.id, tabbable[0].id, "left");
+					doh.is(right.id, tabbable[1].id, "right");
+					doh.is(top.id, tabbable[2].id, "top");
+					doh.is(center.id, tabbable[3].id, "center");
+					doh.is(bottom.id, tabbable[6].id, "bottom");
+				},
+
+				function advanced(){
+					var lc = registry.byId("advanced");
+					array.forEach(lc.getChildren(), function(child){
+						checkInside(child, lc);
+					});
+
+					var left = registry.byId("leftcp_layout2"),
+						top = registry.byId("topcp_layout2"),
+						right = registry.byId("rightcp_layout2"),
+						centerLeft = registry.byId("centerLeftcp_layout2"),
+						center = registry.byId("centercp_layout2"),
+						centerRight = registry.byId("centerRightcp_layout2"),
+						bottom = registry.byId("bottomcp_layout2");
+
+					// Check positions
+					checkLeft("left vs top", left, top);
+					checkLeft("left vs centerLeft", left, centerLeft);
+					checkLeft("centerLeft vs center", centerLeft, center);
+					checkLeft("center vs centerRight", center, centerRight);
+					checkAbove("top vs center", top, center);
+					checkAbove("top vs inner right", top, centerRight);
+					checkAbove("centerLeft vs bottom", centerLeft, bottom);
+
+					// Check tab order
+					var tabbable = helpers.tabOrder(lc.domNode);
+					doh.is(8, tabbable.length, "each pane plus link and select");
+					doh.is(left.id, tabbable[0].id, "left");
+					doh.is(top.id, tabbable[1].id, "top");
+					doh.is(bottom.id, tabbable[2].id, "bottom");
+					doh.is(centerLeft.id, tabbable[3].id, "center left");
+					doh.is(center.id, tabbable[4].id, "center");
+					doh.is(centerRight.id, tabbable[7].id, "center right");
+				}
+			]);
+			
+			doh.run();
+		});
+	</script>
+
+</head>
+<body class="claro" role="main">
+	<h2 id="heading" >Dijit layout.LayoutContainer Old API tests</h2>
+	<p>
+		Tests for using layoutAlign property rather than region, so design setting (headline or sidebar) has no effect.
+		Remove for 2.0.
+	</p>
+
+	<p>Basic layout. Tabindex=&quot;0&quot; added to each pane to test for tab order matching source code order.  Tab order
+	should be:  left, right, top, middle/main, bottom</p>
+
+	<div id="basic" data-dojo-type="dijit/layout/LayoutContainer"
+		style="border: 2px solid black; width: 90%; height: 300px; padding: 10px;"
+	>
+		<div data-dojo-type="dijit/layout/ContentPane" id="leftcp_layout1" layoutAlign="left" style="background-color: #acb386; width: 100px;" tabindex="0">
+			left
+		</div>
+		<div data-dojo-type="dijit/layout/ContentPane" id="rightcp_layout1" layoutAlign="right" style="background-color: #acb386;"  tabindex="0">
+			right
+		</div>
+		<div data-dojo-type="dijit/layout/ContentPane" id="topcp_layout1" layoutAlign="top" style="background-color: #b39b86; "  tabindex="0">
+			top bar
+		</div>
+		<div data-dojo-type="dijit/layout/ContentPane" id="centercp_layout1" layoutAlign="client" style="background-color: #f5ffbf; padding: 10px;"  tabindex="0">
+			main panel with <a href="http://www.dojotoolkit.org/">a link</a>.<br />
+			(to check we're copying children around properly).<br />
+			<select data-dojo-type="dijit/form/FilteringSelect" aria-label="select">
+				<option value="1">foo</option>
+				<option value="2">bar</option>
+				<option value="3">baz</option>
+			</select>
+			Here's some text that comes AFTER the combo box.
+		</div>
+
+		<div data-dojo-type="dijit/layout/ContentPane" id="bottomcp_layout1" layoutAlign="bottom" style="background-color: #b39b86;"  tabindex="0">
+			bottom bar
+		</div>
+
+	</div>
+
+	<p>Advanced layout. Tabindex=&quot;0&quot; added to each pane to test for tab order matching source code order.  Tab order
+	should be:  left, top, bottom, inner left, inner middle, inner right. This is not an ideal tab order. See below to use nested
+	layout containers to achieve a tab order which matches presentation and source code order.</p>
+	<div id="advanced" data-dojo-type="dijit/layout/LayoutContainer"
+		style="border: 2px solid black; width: 90%; height: 300px; padding: 10px;"
+	>
+		<div data-dojo-type="dijit/layout/ContentPane" id="leftcp_layout2" layoutAlign="left" style="background-color: #acb386; width: 100px; margin: 5px;" tabindex="0">
+			left
+		</div>
+		<div data-dojo-type="dijit/layout/ContentPane" id="topcp_layout2" layoutAlign="top" style="background-color: #b39b86;  margin: 5px;" tabindex="0">
+			top bar
+		</div>
+		<div data-dojo-type="dijit/layout/ContentPane" id="bottomcp_layout2" layoutAlign="bottom" style="background-color: #b39b86; margin: 5px;" tabindex="0">
+
+			bottom bar
+		</div>
+		<div data-dojo-type="dijit/layout/ContentPane" id="centerLeftcp_layout2" layoutAlign="left" style="background-color: #eeeeee; width: 100px; margin: 5px;" tabindex="0">
+			inner left
+		</div>
+
+		<div data-dojo-type="dijit/layout/ContentPane" id="centercp_layout2" layoutAlign="client" style="background-color: #f5ffbf; padding: 10px; margin: 5px;" tabindex="0">
+			main panel with <a href="http://www.dojotoolkit.org/">a link</a>.<br />
+
+			(to check we're copying children around properly).<br />
+			<select data-dojo-type="dijit/form/FilteringSelect" aria-label="select">
+				<option value="1">foo</option>
+				<option value="2">bar</option>
+				<option value="3">baz</option>
+			</select>
+			Here's some text that comes AFTER the combo box.
+		</div>
+		<div data-dojo-type="dijit/layout/ContentPane" id="centerRightcp_layout2" layoutAlign="right" style="background-color: #eeeeee; width: 100px; margin: 5px;" tabindex="0">
+			inner right
+		</div>
+	</div>
+
+	<p>Advanced layout with nested containers.  Tabindex=&quot;0&quot; added to content panes to show tab order. Order should be:
+	left, top, inner left, inner middle, inner right, bottom. This is the preferred tab order for this type of layout.</p>
+	<div data-dojo-type="dijit/layout/LayoutContainer"
+		style="border: 2px solid black; width: 90%; height: 300px; padding: 10px;"
+	>
+		<div data-dojo-type="dijit/layout/ContentPane" id="leftcp_layout3" layoutAlign="left" style="background-color: #acb386; width: 100px; margin: 5px;" tabindex="0">
+			left
+		</div>
+		<div data-dojo-type="dijit/layout/ContentPane" layoutAlign="client" style="margin: 5px;" >
+			<div data-dojo-type="dijit/layout/LayoutContainer"	style="height:90%;border: 2px solid black;padding: 10px;">
+
+				<div data-dojo-type="dijit/layout/ContentPane" id="topcp_layout3" layoutAlign="top" style="background-color: #b39b86;  margin: 5px;" tabindex="0">
+					top bar
+				</div>
+				<div data-dojo-type="dijit/layout/ContentPane" layoutAlign="client" style="margin: 5px;">
+					<div data-dojo-type="dijit/layout/LayoutContainer"	style="height:80%;border: 2px solid black;padding: 10px;">
+						<div data-dojo-type="dijit/layout/ContentPane" id="centerLeftcp_layout3" layoutAlign="left" style="background-color: #eeeeee; width: 100px; margin: 5px;" tabindex="0">
+							inner left
+						</div>
+						<div data-dojo-type="dijit/layout/ContentPane" id="centercp_layout3" layoutAlign="client" style="background-color: #f5ffbf; padding: 10px; margin: 5px;" tabindex="0">
+							main panel with <a href="http://www.dojotoolkit.org/">a link</a>.<br />
+							(to check we're copying children around properly).<br />
+							<select data-dojo-type="dijit/form/FilteringSelect" aria-label="select">
+								<option value="1">foo</option>
+								<option value="2">bar</option>
+								<option value="3">baz</option>
+							</select>
+							Here's some text that comes AFTER the combo box.
+						</div>
+						<div data-dojo-type="dijit/layout/ContentPane" id="centerRightcp_layout3" layoutAlign="right" style="background-color: #eeeeee; width: 100px; margin: 5px;" tabindex="0">
+							inner right
+						</div>
+					</div>
+				</div>
+				<div data-dojo-type="dijit/layout/ContentPane" id="bottomcp_layout3" layoutAlign="bottom" style="background-color: #b39b86; margin: 5px;" tabindex="0"	>
+					bottom bar
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<p>Goofy spiral layout.  Match of source code order to tab order can not be achieved with this type of layout.</p>
+	<div data-dojo-type="dijit/layout/LayoutContainer"
+		style="border: 2px solid black; width: 90%; height: 300px; padding: 10px;"
+	>
+		<div data-dojo-type="dijit/layout/ContentPane" layoutAlign="left" style="background-color: #663333; color: white; width: 100px;">
+			outer left
+		</div>
+		<div data-dojo-type="dijit/layout/ContentPane" layoutAlign="top" style="background-color: #333366; color: white; height: 50px;">
+			outer top
+		</div>
+		<div data-dojo-type="dijit/layout/ContentPane" layoutAlign="right" style="background-color: #663333; color: white; width: 100px;">
+			outer right
+		</div>
+		<div data-dojo-type="dijit/layout/ContentPane" layoutAlign="bottom" style="background-color: #333366; color: white; height: 50px;">
+			outer bottom
+		</div>
+		<div data-dojo-type="dijit/layout/ContentPane" layoutAlign="left" style="background-color: #99CC99; width: 100px;">
+			inner left
+		</div>
+		<div data-dojo-type="dijit/layout/ContentPane" layoutAlign="top" style="background-color: #999966; height: 50px;">
+			inner top
+		</div>
+		<div data-dojo-type="dijit/layout/ContentPane" layoutAlign="right" style="background-color: #99CC99; width: 100px;">
+			inner right
+		</div>
+		<div data-dojo-type="dijit/layout/ContentPane" layoutAlign="bottom" style="background-color: #999966; height: 50px;">
+			inner bottom
+		</div>
+		<div data-dojo-type="dijit/layout/ContentPane" layoutAlign="client" style="padding: 10px;">
+			main panel with <a href="http://www.dojotoolkit.org/">a link</a>.<br />
+			(to check we're copying children around properly).<br />
+			<select data-dojo-type="dijit/form/FilteringSelect" aria-label="select">
+				<option value="1">foo</option>
+				<option value="2">bar</option>
+				<option value="3">baz</option>
+			</select>
+			Here's some text that comes AFTER the combo box.
+		</div>
+	</div>
+
+</body>
+</html>

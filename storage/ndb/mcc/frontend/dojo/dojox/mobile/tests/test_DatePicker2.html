@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="Content-type" content="text/html; charset=utf-8"/>
+	<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no"/>
+	<meta name="apple-mobile-web-app-capable" content="yes"/>
+	<title>DatePicker2</title>
+
+	<script type="text/javascript" src="../deviceTheme.js" ></script>
+	<script type="text/javascript" src="../../../dojo/dojo.js" 
+		data-dojo-config="async: true, parseOnLoad: false"></script>
+	
+	<script type="text/javascript">
+		var opener, updateDate, showDatePicker, onShow, onHide, datePicker1, datePicker2;
+		onShow = function(){
+				// console.log("Set datePicker to current date: ", date.toISOString());
+				datePicker2.set("value", date);
+			};
+		onHide = function(node, v){
+				if(v){
+					var newDate = datePicker2.get("value");
+					// console.log("newDate: ", newDate);
+					node.value = newDate;
+					// set new Date
+					date = newDate;
+				}
+		};
+		require(["dojo/ready","dojox/mobile/parser",
+			"dijit/registry", "dojox/mobile/DatePicker", "dojo/date/stamp", "dojox/mobile/Opener", "dojox/mobile/compat",
+			"dojox/mobile/Heading", "dojox/mobile/ToolBarButton"], 
+	function(ready, parser, registry, DatePicker, stamp) {
+		ready(function() {
+			parser.parse();
+					
+			// First DatePicker:
+			datePicker1 = registry.byId("datePicker1");
+			// set the value of a picker already displayed, after construction time
+			datePicker1.set("value", "2020-01-01");
+
+			// Second DatePicker:
+			datePicker2 = registry.byId("datePicker2");
+			opener = registry.byId("opener");
+			// initialize the globale Date variable as today
+			date = stamp.toISOString(new Date(), {selector: "date"});
+			// console.log("Initial date is: ", date);
+			
+			showDatePicker = function(toto) {
+				opener.show(toto, ['below-centered','above-centered','after','before']);
+			};
+			updateDate = function() {
+				// console.log("update date to new Date:", date);
+				var newDate = new Date(stamp.fromISOString(date));
+				newDate.setFullYear("2020");
+				date = stamp.toISOString(newDate, {selector: "date"});
+			}
+		});
+	});
+</script>
+</head>
+<body>
+
+<div>
+	<div style="text-align:left;font-weight:bold">The date picker below should be 
+		displaying: Jan-01-2020</div>
+	<div id="datePicker1" data-dojo-type="dojox/mobile/DatePicker"></div>
+	<hr>
+	<div style="text-align:left;font-weight:bold">The date picker below should display 
+		the current date unless you change the year using the button</div>
+	<input readOnly value="" placeholder="Select a date" 
+		onclick="showDatePicker(this)"></input>
+	<div id="opener" data-dojo-type="dojox/mobile/Opener"
+		data-dojo-props="onShow: onShow, onHide: onHide">
+		<h1 data-dojo-type="dojox/mobile/Heading" label="Date Picker">
+			<span data-dojo-type="dojox/mobile/ToolBarButton" 
+				data-dojo-props="label:'Done'" class="mblColorBlue"
+				onclick="opener.hide(true)" 
+				style="position:absolute;width:45px;right:0;">
+			</span>
+			<span data-dojo-type="dojox/mobile/ToolBarButton" 
+				data-dojo-props="label:'Cancel'" class="mblColorBlue" 
+				onclick="opener.hide(false)"
+				style="position:absolute;width:45px;left:0;">
+			</span>
+		</h1>
+		<div id="datePicker2" data-dojo-type="dojox/mobile/DatePicker"></div>
+	</div>
+	<button onclick="updateDate();">Change year to 2020</button>
+</div>
+</body>
+</html>
