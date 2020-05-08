@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -6087,6 +6087,27 @@ bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, bool need_lock_log,
 
   DBUG_RETURN(error);
 }
+
+bool MYSQL_BIN_LOG::write_dml_directly(THD* thd, const char *stmt, size_t stmt_len,
+                                       enum_sql_command sql_command)
+{
+  bool ret= false;
+  /* backup the original command */
+  enum_sql_command save_sql_command= thd->lex->sql_command;
+  thd->lex->sql_command= sql_command;
+
+  if (thd->binlog_query(THD::STMT_QUERY_TYPE, stmt, stmt_len,
+                        FALSE, FALSE, FALSE, 0) ||
+      commit(thd, false) != TC_LOG::RESULT_SUCCESS)
+  {
+    ret= true;
+  }
+
+  thd->lex->sql_command= save_sql_command;
+  return ret;
+}
+
+
 /**
   Creates an incident event and writes it to the binary log.
 

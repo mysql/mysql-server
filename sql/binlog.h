@@ -1,5 +1,5 @@
 #ifndef BINLOG_H_INCLUDED
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -592,6 +592,24 @@ public:
   bool write_event(Log_event* event_info);
   bool write_cache(THD *thd, class binlog_cache_data *binlog_cache_data);
   int  do_write_cache(IO_CACHE *cache);
+
+  /**
+     Write a DML into statement cache and then flush it into binlog. It writes
+     Gtid_log_event and BEGIN, COMMIT automatically.
+
+     It is aimed to handle cases of "background" logging where a statement is
+     logged indirectly, like "DELETE FROM a_memory_table". So don't use it on any
+     normal statement.
+
+     @param[IN] thd  the THD object of current thread.
+     @param[IN] stmt the DML statement.
+     @param[IN] stmt_len the length of the DML statement.
+     @param[IN] sql_command type of the DML statement.
+
+     @return Returns false if succeeds, otherwise true is returned.
+  */
+  bool write_dml_directly(THD* thd, const char *stmt, size_t stmt_len,
+                          enum enum_sql_command sql_command);
 
   void set_write_error(THD *thd, bool is_transactional);
   bool check_write_error(THD *thd);
