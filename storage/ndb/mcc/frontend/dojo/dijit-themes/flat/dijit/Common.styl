@@ -1,0 +1,104 @@
+@import 'dijit_variables';
+
+.dijitPopup {
+	border-radius: $popup-border-radius;
+}
+
+/* ----- Drag and Drop ----- */
+
+.dojoDndItem {
+	border: 1px solid $dnd-item-border-color;
+	cursor: pointer;
+	transition-duration: .25s;
+	transition-property: background-color, border-color, opacity;
+}
+
+/* hover */
+
+.dojoDndItemOver {
+	background-color: $dnd-hover-background-color;
+	border-radius: $dnd-hover-border-radius;
+}
+
+.dojoDndItemAnchor {
+	background-color: $dnd-anchor-background-color;
+	border: 1px dashed $dnd-anchor-border-color;
+	border-radius: $dnd-anchor-border-radius;
+}
+
+/* selected */
+
+.dojoDndItemSelected {
+}
+
+.dojoDndItemBefore {
+	background: transparent;
+	padding-top: 2px;
+	border-top: 1px solid $dnd-avatar-item-insert-indicator-color;
+}
+
+.dojoDndItemAfter {
+	background: transparent;
+	padding-bottom: 2px;
+	border-bottom: 1px solid $dnd-avatar-item-insert-indicator-color;
+}
+
+/* Avatar */
+
+table.dojoDndAvatar {
+	display: block;
+}
+
+.dojoDndAvatarHeader {
+	td	{ 
+		display: none;
+	}
+	&:before {
+		_icon-core-style();
+		display: table-cell;
+	}
+}
+
+/* cannot drop */
+
+.dojoDndMove .dojoDndAvatarHeader {
+	&:before {
+		color: $error;
+		content: $dnd-icon-no-drop;
+	}
+}
+
+.dojoDndCopy .dojoDndAvatarHeader {
+	&:before {
+		color: $error;
+		content: $dnd-icon-no-drop;
+	}
+}
+
+/* can drop */
+
+.dojoDndMove .dojoDndAvatarCanDrop .dojoDndAvatarHeader	{
+	&:before {
+		color: $success;
+		content: $dnd-icon-drop;
+	}
+}
+
+.dojoDndCopy .dojoDndAvatarCanDrop .dojoDndAvatarHeader	{
+	&:before {
+		color: $success;
+		content: $dnd-icon-drop;
+	}
+}
+
+.dojoDndAvatarItem {
+	border-radius: $dnd-avatar-item-border-radius;
+	td {
+		> * {
+			padding: $dnd-avatar-item-padding;
+			list-style-type: none;
+			background-color: $dnd-avatar-item-background-color;
+			box-shadow: $dnd-avatar-item-box-shadow;
+		}
+	}
+}

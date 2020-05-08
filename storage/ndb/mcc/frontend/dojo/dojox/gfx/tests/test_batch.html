@@ -1,0 +1,311 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+		"http://www.w3.org/TR/html4/strict.dtd">
+<html>
+	<head>
+		<title>Test Batch</title>
+		<style type="text/css">
+			@import "../../../dojo/resources/dojo.css";
+			@import "../../../dijit/tests/css/dijitTests.css";
+		</style>
+		<script type="text/javascript" src="../../../dojo/dojo.js" data-dojo-config="isDebug: true, packageMap:[{name:'doh',location:'util/doh'}]"></script>
+		<script type="text/javascript">
+			require([
+			"doh/runner",
+			"dojo/ready",
+			"dojo/aspect",
+			"dojox/gfx",
+			"dojox/gfx/shape",
+			"dojox/gfx/svg",
+			"dojox/gfx/canvas"],
+			function(doh, ready, aspect, gfx, gfxshape, svg, canvas){
+				
+				ready(function(){
+					var surface, r,
+						checkSurface = function(){
+							if(!surface){
+								surface = gfx.createSurface(dojo.byId("gfxObject"), 300, 300);
+							}
+						};
+					
+					doh.register("GFX: batching operations [SVG]", [
+						{
+							name: "Surface.openBatch",
+							timeout: 1000,
+							setUp: function(){
+								if(surface){
+									surface.destroy();
+									surface = null;
+								}
+								gfx.switchTo(svg);
+								checkSurface();
+
+							},
+							runTest: function(){
+								var ret = surface.openBatch();
+								doh.assertTrue(ret === surface, "Invalid openBatch return value.");
+								var rect = surface.createRect();
+								var p = rect.rawNode.parentNode;
+								doh.assertTrue(p !== surface.rawNode, "Unexpected DOM parent node.");
+							},
+							tearDown: function(){
+								surface.clear();
+							}
+						},{
+							name: "Surface.closeBatch",
+							timeout: 1000,
+							setUp: function(){
+								if(surface){
+									surface.destroy();
+									surface = null;
+								}
+								gfx.switchTo(svg);
+								checkSurface();
+
+							},
+							runTest: function(){
+								surface.openBatch();
+								var rect = surface.createRect();
+								var ret = surface.closeBatch();
+								doh.assertTrue(ret === surface, "Invalid closeBatch return value.");
+								var p = rect.rawNode.parentNode;
+								doh.assertTrue(p === surface.rawNode, "Unexpected DOM parent node.");
+							},
+							tearDown: function(){
+								surface.clear();
+							}
+						},{
+							name: "nested openBatch",
+							timeout: 1000,
+							setUp: function(){
+								if(surface){
+									surface.destroy();
+									surface = null;
+								}
+								gfx.switchTo(svg);
+								checkSurface();
+							},
+							runTest: function(){
+								surface.openBatch();
+								var rect = surface.createRect().setFill("red");
+								surface.openBatch();
+								var rect2 = surface.createRect({x:200}).setFill("green");
+								doh.assertTrue(rect.rawNode.parentNode === rect2.rawNode.parentNode, "Unexpected parent nodes for rects.");
+								surface.closeBatch();
+								var p = rect2.rawNode.parentNode;
+								doh.assertTrue(p !== surface.rawNode, "Unexpected rect2 DOM parent node in nested batch.");
+								p = rect.rawNode.parentNode;
+								doh.assertTrue(p !== surface.rawNode, "Unexpected rect DOM parent node in nested batch.");
+								surface.closeBatch();
+								p = rect2.rawNode.parentNode;
+								doh.assertTrue(p === surface.rawNode, "Unexpected rect2 DOM parent node in nested batch. Expected: surface.parentNode");
+								p = rect.rawNode.parentNode;
+								doh.assertTrue(p === surface.rawNode, "Unexpected rect DOM parent node in nested batch. Expected: surface.parentNode");
+							},
+							tearDown: function(){
+								surface.clear();
+							}
+						},{
+							name: "Group batching",
+							timeout: 1000,
+							setUp: function(){
+								if(surface){
+									surface.destroy();
+									surface = null;
+								}
+								gfx.switchTo(svg);
+								checkSurface();
+							},
+							runTest: function(){
+								var g = surface.createGroup();
+								g.openBatch();
+								var rect = g.createRect().setFill("red");
+								doh.assertTrue(rect.rawNode.parentNode !== g.rawNode, "Unexpected parent node for rect.");
+								var rect2 = surface.createRect();
+								doh.assertTrue(rect2.rawNode.parentNode === surface.rawNode, "Unexpected parent node for rect2.");
+								g.closeBatch();
+								doh.assertTrue(rect.rawNode.parentNode === g.rawNode, "Unexpected parent node for rect after closeBatch.");
+							},
+							tearDown: function(){
+								surface.clear();
+							}
+						},{
+							name: "Nested Group/Surface batching",
+							timeout: 1000,
+							setUp: function(){
+								if(surface){
+									surface.destroy();
+									surface = null;
+								}
+								gfx.switchTo(svg);
+								checkSurface();
+							},
+							runTest: function(){
+								surface.openBatch();
+								var g = surface.createGroup();
+								doh.assertTrue(g.rawNode.parentNode !== surface.rawNode, "Unexpected parent node for g.");
+								g.openBatch();
+								var rect = g.createRect().setFill("red");
+								doh.assertTrue(rect.rawNode.parentNode !== g.rawNode, "Unexpected parent node for rect.");
+								g.closeBatch();
+								doh.assertTrue(rect.rawNode.parentNode === g.rawNode, "Unexpected parent node for rect after closeBatch.");
+								doh.assertTrue(g.rawNode.parentNode !== surface.rawNode, "Unexpected parent node for g.");
+								surface.closeBatch();
+								doh.assertTrue(g.rawNode.parentNode === surface.rawNode, "Unexpected parent node for g after closeBatch.");
+							},
+							tearDown: function(){
+								surface.clear();
+							}
+						}
+					]);
+					//
+					// Canvas
+					//
+					doh.register("GFX: batching operations [Canvas]", [
+						{
+							name: "Surface.openBatch",
+							timeout: 1000,
+							setUp: function(){
+								if(surface){
+									surface.destroy();
+									surface = null;
+								}
+								gfx.switchTo(canvas);
+								checkSurface();
+							},
+							runTest: function(t){
+								var ret = surface.openBatch();
+								doh.assertTrue(ret === surface, "Invalid openBatch return value.");
+								var called = false;
+								aspect.after(surface,"makeDirty",function(){
+									called = true;
+								});
+								var rect = surface.createRect();
+								doh.assertTrue(!called, "Unexpected surface.render() call.");
+							},
+							tearDown: function(){
+								surface.clear();
+							}
+						},{
+							name: "Surface.closeBatch",
+							timeout: 1000,
+							setUp: function(){
+								if(surface){
+									surface.destroy();
+									surface = null;
+								}
+								gfx.switchTo(canvas);
+								checkSurface();
+							},
+							runTest: function(t){
+								surface.openBatch();
+								var rect = surface.createRect();
+								var called = false;
+								aspect.after(surface,"makeDirty",function(){
+									called = true;
+								});
+								var ret = surface.closeBatch();
+								doh.assertTrue(ret === surface, "Invalid closeBatch return value.");
+								doh.assertTrue(called, "Unexpected surface.render() call.");
+							},
+							tearDown: function(){
+								surface.clear();
+							}
+						},{
+							name: "nested openBatch",
+							timeout: 1000,
+							setUp: function(){
+								if(surface){
+									surface.destroy();
+									surface = null;
+								}
+								gfx.switchTo(canvas);
+								checkSurface();
+							},
+							runTest: function(){
+								surface.openBatch();
+								var rect = surface.createRect().setFill("red");
+								var called = false;
+								aspect.after(surface,"makeDirty",function(){
+									called = true;
+								});
+								surface.openBatch();
+								var rect2 = surface.createRect({x:200}).setFill("green");
+								doh.assertTrue(!called, "Unexpected surface.render() call in nested batch [0].");
+								surface.closeBatch();
+								doh.assertTrue(!called, "Unexpected surface.render() call in nested batch [1].");
+								surface.closeBatch();
+								doh.assertTrue(called, "Surface.render() not called in nested batch.");
+							},
+							tearDown: function(){
+								surface.clear();
+							}
+						},{
+							name: "Group batching",
+							timeout: 1000,
+							setUp: function(){
+								if(surface){
+									surface.destroy();
+									surface = null;
+								}
+								gfx.switchTo(canvas);
+								checkSurface();
+								surface._render(); // flushes pendingRender coming from ctor
+							},
+							runTest: function(){
+								var g = surface.createGroup();
+								var ret = g.openBatch();
+								doh.assertTrue(ret == g, "Unexpected openBatch return value");
+								var called = false;
+								aspect.after(surface,"makeDirty", function(){
+									called = true;
+								});
+								var rect = g.createRect().setFill("red");
+								doh.assertTrue(!called, "Unexpected surface.render called.");
+								g.closeBatch();
+								doh.assertTrue(called, "surface.render not called after group.closeBatch().");
+							},
+							tearDown: function(){
+								surface.clear();
+							}
+						},{
+							name: "Nested Group/Surface batching",
+							timeout: 1000,
+							setUp: function(){
+								if(surface){
+									surface.destroy();
+									surface = null;
+								}
+								gfx.switchTo(canvas);
+								checkSurface();
+								surface._render(); // flushes pendingRender coming from ctor
+							},
+							runTest: function(){
+								surface.openBatch();
+								var g = surface.createGroup();
+								g.openBatch();
+								var called = false;
+								aspect.after(surface,"makeDirty", function(){
+									called = true;
+								});
+								var rect = g.createRect().setFill("red");
+								doh.assertTrue(!called, "Unexpected surface.render called.");
+								g.closeBatch();
+								doh.assertTrue(!surface.pendingRender, "Unexpected surface.render called.");
+								called = false;
+								surface.closeBatch();
+								doh.assertTrue(called, "surface.render not called after group.closeBatch().");
+							},
+							tearDown: function(){
+								surface.clear();
+							}
+						}
+					]);
+				doh.run();
+			});
+		});
+		</script>
+	</head>
+	<body>
+		<div id="gfxObject" style="width: 500px; height: 500px;font-weight:bold;"></div>
+	</body>
+</html>

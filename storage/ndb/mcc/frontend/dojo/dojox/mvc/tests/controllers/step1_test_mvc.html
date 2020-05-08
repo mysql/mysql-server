@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-type" content="text/html; charset=utf-8">
+		<title>Step 1 of test for Controllers, use getStateful() only.</title>
+		<style type="text/css">
+			@import "../css/app-format.css";
+			@import "../../../../dijit/themes/claro/claro.css";
+		</style>
+		<script type="text/javascript" data-dojo-config="parseOnLoad:0,isDebug:1,async:1,mvc:{debugBindings:1}" src="../../../../dojo/dojo.js"></script>
+		<script type="text/javascript">
+		var model;
+
+		require([
+			'dojo/parser',
+			'dojo/ready',
+			'dojox/mvc/getStateful',
+			'dojox/mvc/parserExtension', // required for data-mvc-bindings to bind to non-widgets
+			'dijit/form/TextBox',
+			'dijit/form/Button',
+			'dojox/mvc/Group',
+			'dojox/mvc/Output'
+			], function(parser, ready, getStateful){
+
+				// Initial data
+				var data = {
+					"id" : "360324",
+					"FullName" : "Mr. John Doe",
+					"Email" : "jdoe@example.com",
+					"AddressLine1" : "123 Valley Rd.",
+					"AddressLine2" : "",
+					"City" : "Cary",
+					"State" : "NC",
+					"Zip" : "27513"
+				};
+
+				transformAddress2Class = {
+						format: function(value){
+							if(value && value.trim().length > 0){ 
+								return "row" // if AddressLine2 is set return row for class
+							}
+							return "hiderow"; // if AddressLine2 is not set return hiderow for class
+						}
+
+				};
+
+				// The getStateful call will take json data and make it Stateful
+				//
+				// In this example a transform (transformAddress2Class) is used to hide the row for AddressLine2 if it is blank.
+				// 'dojox/mvc/parserExtension' is required for this since the row being hidden is not a widget.  
+				// The class attribute is bound to AddressLine2 with a direction and a transform.
+				//
+				model = getStateful(data);
+
+				parser.parse();
+			});
+		</script>
+	</head>
+	<body class="claro">
+		<script type="dojo/require">at: "dojox/mvc/at"</script>
+		<div id="wrapper">
+		<div id="main">
+			<div>
+				<h2>Step 1 of test for Controllers, use getStateful() only.</h2>
+				<h2>Enter Shipping Address</h2>
+			</div>
+			<div class="fullrow" data-dojo-type="dojox/mvc/Group" data-dojo-props="target: at(model)">
+				<div class="fullrow">
+					<label class="cell" for="nameInput">Full Name:</label>
+					<input class="cell" id="nameInput" data-dojo-type="dijit/form/TextBox"
+							data-dojo-props="value: at('rel:', 'FullName')">
+				</div>
+				<div class="fullrow">
+					<label class="cell" for="AddressLine1Input">Address Line1:</label>
+					<input class="cell" id="AddressLine1Input" data-dojo-type="dijit/form/TextBox"
+						data-dojo-props="value: at('rel:', 'AddressLine1')">
+				</div>
+				<div class="fullrow">
+					<label class="cell" for="AddressLine2Input">Address Line2:</label>
+					<input class="cell" id="AddressLine2Input" data-dojo-type="dijit/form/TextBox"
+						data-dojo-props="value: at('rel:', 'AddressLine2')">
+				</div>
+				<div class="fullrow">
+					<label class="cell" for="cityInput">City:</label>
+					<input class="cell" id="cityInput" data-dojo-type="dijit/form/TextBox"
+						data-dojo-props="value: at('rel:', 'City')">
+				</div>
+				<div class="fullrow">
+					<label class="cell" for="stateInput">State:</label>
+					<input class="cell" id="stateInput" data-dojo-type="dijit/form/TextBox"
+						data-dojo-props="value: at('rel:', 'State')">
+				</div>
+				<div class="fullrow">
+					<label class="cell" for="zipInput">Zipcode:</label>
+					<input class="cell" id="zipInput" data-dojo-type="dijit/form/TextBox"
+						data-dojo-props="value: at('rel:', 'Zip')">
+				</div>
+			</div>
+			<br/>
+			<div>
+				<h2>Verify the shipping address</h2>
+			</div>
+			<div class="fullrow" data-dojo-type="dojox/mvc/Group" data-dojo-props="target: at(model)">
+				<div class="fullrow">
+					<div class="boldnamecell" data-dojo-type="dojox/mvc/Output"
+							data-dojo-props="value: at('rel:', 'FullName')"></div>
+				</div>
+				<div class="fullrow">
+					<div class="namecell" data-dojo-type="dojox/mvc/Output"
+						data-dojo-props="value: at('rel:', 'AddressLine1')"></div>
+				</div>
+				<div class="hiderow" data-mvc-bindings="class: at('rel:', 'AddressLine2').direction(at.from).transform(transformAddress2Class)">
+					<div class="namecell" data-dojo-type="dojox/mvc/Output"
+						data-dojo-props="value: at('rel:', 'AddressLine2')"></div>
+				</div>
+				<div class="fullrow">
+					<div class="namecell" data-dojo-type="dojox/mvc/Output"
+						data-dojo-props="value: at('rel:', 'City')">${this.value},</div>
+					<div class="namecell" data-dojo-type="dojox/mvc/Output"
+						data-dojo-props="value: at('rel:', 'State')"></div>
+					<div class="namecell" data-dojo-type="dojox/mvc/Output"
+						data-dojo-props="value: at('rel:', 'Zip')"></div>
+				</div>
+			</div>
+		</div>
+		</div>
+	</body>
+</html>

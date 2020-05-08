@@ -1,0 +1,22 @@
+<html>
+<head>
+    <title>require.js: Simple Bad Base Test</title>
+    <base href="http://some.example.com/path/"/>
+    <script type="text/javascript">
+        this.testBase = this.location.href.replace(/\/loader\/requirejs\/simple-badbase\.html.*$/, '');
+        document.write('<scr' + 'ipt type="text/javascript" src="' +
+                testBase + '/loader/requirejs/requirejs-setup.js' +
+                '"><' + '/script>');
+        document.write('<scr' + 'ipt type="text/javascript" src="' +
+                testBase + '/../../../dojo.js' +
+                '"><' + '/script>');
+    </script>
+</head>
+<body>
+<h1>require.js: Simple Test</h1>
+
+<p>You may need to change the IP address used for this test for it to work correctly.</p>
+
+<p>Check console for messages</p>
+</body>
+</html>

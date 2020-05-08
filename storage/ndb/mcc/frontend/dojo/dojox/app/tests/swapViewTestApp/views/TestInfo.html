@@ -1,0 +1,24 @@
+<div class="view mblView">
+	<div>
+		<h2 data-dojo-type="dojox/mobile/EdgeToEdgeCategory" style="height: 32px;" data-app-constraint="top">Test Info for this test.</h2>
+
+		<div>
+			<div class="field-title">This test has been setup to show the usage of two custom layout controllers along with mobile/SwapView and mobile/PageIndicator.</div>
+			<div class="field-title">1) The DivIdBasedLayout will layout views by appending them inside the main template into the div with the id that matches the value set in the constraints for the view.</div>
+			<div class="field-title">2) The ObjBasedLayout will layout views by appending them inside the main template into the div with the id that matches the "parentId" of the object set in the constraints for the view.</div>
+			<div class="field-title">The ObjBasedLayout can handle a constraint object which can hold both a "parentId" and a "class" ( for example {"parentId":"swapView3Id", "class": "center"}).</div>
+			<div class="field-title">The "parentId" will be used to position the view, and the "class" will be added to the domNode for the view, if one view should replace another view, the views must have the same "parentId" and "class".</div>
+			<div class="field-title">The main.html which has the base layout with the divIds setup is the template used for the application.</div>
+			<br>
+			<div class="field-title">There are 3 views shown in the SwapViews, they can be seen by swipping from the left to the right in the main content area, the Header and Nav area are also added to the main area by div id.</div>
+			<div class="field-title">or  by clicking the ListItem for Next, Previous or a specific view.</div>
+			<div class="field-title">The 3 views shown in the SwapView are all loaded as part of the defaultView for the application..</div>
+			<div class="field-title">The Header and Nav area are also added to the main area by div id.</div>
+			<div class="field-title">The 3rd view will transition to a details view, which will add a Back button to return to this view, the swapViews are still active after the transition.</div>
+			<br>
+			<div class="field-title">Some of the css from the mediaQueryLayout test is included, so on a desktop you can make the window smaller and the navigation area will become hidden when the screen gets less than max-width: 560px.</div>
+			<br>
+			<br><br>
+		</div>
+	</div>
+</div>

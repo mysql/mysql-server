@@ -1,0 +1,273 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+		"http://www.w3.org/TR/html4/strict.dtd">
+<html>
+	<head>
+		<title>Checkbox unit Test</title>
+
+		<script type="text/javascript" src="../boilerplate.js"></script>
+
+		<script type="text/javascript">
+			function defaultSubmitHandler(values){
+				console.debug('actual submitted values: ' + json.stringify(values));
+			}
+			submittedValues = defaultSubmitHandler;
+
+			require([
+				"doh/runner",
+				"dojo/dom", "dojo/json", "dojo/parser", "dojo/query",
+				"dijit/registry", "dijit/form/CheckBox", "dijit/form/Form", "dojo/domReady!"
+			], function(doh, dom, json, parser, query, registry, CheckBox){
+
+				// These are the values assigned to the widgets in the page's HTML
+				var originalGet = {
+					cb1: [],
+					cb2: ["on"],
+					cb4: ["on"],
+					cb5: [],
+					cb6: ["on"],
+					cb7: []
+				};
+	
+				var originalSubmit = {
+					cb2: "on",
+					cb4: "on",
+					cb6: "on"
+				};
+	
+				// attempt to change these values
+				var change = {
+					cb1: ["foo"],
+					cb2: [],
+					cb3: ["on"],
+					cb4: [],
+					cb5: ["on"],
+					cb6: ["foo"]
+				};
+	
+				// changed values
+				var changedGet = {
+					cb1: ["foo"],
+					cb2: [],
+					cb4: [],
+					cb5: ["on"],
+					cb6: [],
+					cb7: []
+				};
+	
+				var changedSubmit = {
+					cb1: "foo",
+					cb5: "on"
+				};
+		
+				doh.register("setup", [
+					function parse(){
+						parser.parse();
+					},
+					function programmatic(){
+						new CheckBox({id: "cb6", name: "cb6", checked: true }, "cb6");
+					}
+				]);
+
+				// should be able to query for all of the inputs, including hidden ones
+				doh.register("query input by checked state", [
+					{
+						name: "query checked",
+						runTest: function(){
+							var queried = query("input[checked]", dom.byId('myForm'));
+							doh.is(3, queried.length, "num checked widgets");
+						}
+					}
+				]);
+
+				doh.register("query input by name", [
+					{
+						name: "query name",
+						runTest: function(){
+							var queried = query("input[name]", dom.byId('myForm'));
+							doh.is(7, queried.length, "input[name]");
+						}
+					}
+				]);
+
+				var formWidget = registry.byId("myForm");
+
+				var submitForm = function(name, testValues){
+					return {
+						name: name,
+						timeout: 5000,
+						runTest: function(){
+							var d = new doh.Deferred();
+							submittedValues = function(formValues){
+								d.getTestCallback(function(){
+									for(var i in originalGet){ doh.is(testValues[i], formValues[i], i); }
+								})();
+							};
+							formWidget.submit();
+							return d;
+						},
+						tearDown: function(){
+							submittedValues = defaultSubmitHandler;
+						}
+					};
+				};
+
+				doh.register("CheckBox values", [
+					function getValues(){
+						doh.is( json.stringify(originalGet), json.stringify(registry.byId("myForm").get('value')) );
+					},
+					function resetWithoutStateChange(){
+						var dfd = new doh.Deferred();
+						var passed = true;
+						var handle = cb1.on("change", function () { passed = false; });
+						cb1.reset();
+						setTimeout(dfd.getTestCallback(function() {
+							handle.remove();
+							doh.t(passed, "Change event should not fire when checkbox state is not changed from its initial value");
+						}), 50);
+						return dfd;
+					},
+					{
+						timeout: 6000,
+						name: "setValues",
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							setTimeout(d.getTestErrback(function(){
+								submitForm("original submit", originalSubmit);
+								setTimeout(d.getTestErrback(function(){
+									registry.byId("myForm").set('value', change);
+									setTimeout(d.getTestCallback(function(){
+										doh.is(json.stringify(changedGet), json.stringify(registry.byId("myForm").get('value')) );
+									}), 1000);
+								}), 500);
+							}), 500);
+
+							return d;
+						}
+					},
+					{
+						timeout: 6000,
+						name: "resetValues",
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							setTimeout(d.getTestErrback(function(){
+								submitForm("changed submit", changedSubmit);
+								setTimeout(d.getTestErrback(function(){
+									registry.byId("myForm").reset();
+									setTimeout(d.getTestCallback(function(){
+										doh.is( json.stringify(originalGet), json.stringify(registry.byId("myForm").get('value')), "reset to original values" );
+									}), 1000);
+								}), 500);
+							}), 500);
+
+							return d;
+						}
+					},
+					{
+						name: "reset blank value",
+						runTest: function(){
+							doh.f(registry.byId('cb4').params.value, "blank parameter");
+							doh.is("on", registry.byId('cb4').value, "value initially on");
+							registry.byId('cb4').reset();
+							doh.is("on", registry.byId('cb4').value, "on after reset");
+						}
+					}
+				]);
+
+				doh.register("CheckBox onChange", [
+					function fireOnChange(){
+						var d = new doh.Deferred();
+						var cb = registry.byId('cb2');
+						var changed;
+						cb.on("change", function(){ changed = true; });
+						cb.set('checked', !cb.get('checked'));
+						setTimeout(d.getTestCallback(function(){
+							doh.t(changed, "got onchange");
+						}), 50);
+						return d;
+					},
+
+					function skipOnChange(){
+						var d = new doh.Deferred();
+						var cb = registry.byId('cb2');
+						var changed;
+						cb.on("change", function(){ changed = true; });
+						cb.set('checked', !cb.get('checked'), false);
+						setTimeout(d.getTestCallback(function(){
+							doh.f(changed, "no onchange");
+						}), 50);
+						return d;
+					}
+				]);
+
+				doh.register("CheckBox watch", [
+					function w(){
+						var cb = registry.byId('cb2');
+						cb.set("checked", true);
+
+						var oldWatch, newWatch;
+						cb.watch("checked", function(name, o, n){
+							oldWatch = o;
+							newWatch = n;
+						});
+
+						cb.set("checked", false);
+						doh.t(oldWatch, "old value was checked");
+						doh.f(newWatch, "new value is unchecked");
+
+						cb.set("checked", true);
+						doh.f(oldWatch, "old value was unchecked");
+						doh.t(newWatch, "new value is checked");
+					}
+				]);
+
+				// ARIA tests.  See also CheckBox_a11y.html.
+				doh.register("aria", function(){
+					var c1 = new CheckBox({
+						disabled: true
+					});
+					c1.placeAt(document.body);
+					doh.t(c1.focusNode.disabled, "disabled set")
+					doh.f(c1.focusNode.hasAttribute("aria-disabled"),
+						"aria-disabled not set, that would be redundant");
+				});
+
+				doh.run();
+			});
+		</script>
+	</head>
+	<body role="main">
+
+		<h1 class="testTitle">Dijit CheckBox Test</h1>
+		<p>
+			Here are some checkboxes.  Try clicking, and hovering, tabbing, and using the space bar to select:
+		</p>
+		<!--    to test form submission, you'll need to create an action handler similar to
+			http://www.utexas.edu/teamweb/cgi-bin/generic.cgi -->
+		<form id="myForm" data-dojo-type="dijit/form/Form" data-dojo-props='action:"../formAction.html", method:"", target:"formSubmitIframe"'>
+			<input id="cb1" data-dojo-id="cb1" data-dojo-type="dijit/form/CheckBox" name="cb1" value="foo"/>
+			<label for="cb1">cb1: normal checkbox, with value=foo</label>
+			<br>
+			<input id="cb2" data-dojo-type="dijit/form/CheckBox" name="cb2" checked/>
+			<label for="cb2">cb2: normal checkbox, with default value, initially turned on.</label>
+			<br>
+			<input id="cb3" data-dojo-type="dijit/form/CheckBox" name="cb3" disabled/>
+			<label for="cb3">cb3: disabled checkbox</label>
+			<br>
+			<input id="cb4" data-dojo-type="dijit/form/CheckBox" name="cb4" readOnly checked value=""/><!-- blank value => "on" -->
+			<label for="cb4">cb4: readOnly checkbox, turned on</label>
+			<br>
+			<input id="cb5" data-dojo-type="dijit/form/CheckBox" name="cb5" value=""/>
+			<label for="cb5">cb5: normal checkbox, with specified value=""</label>
+			<br>
+			<input id="cb6"/>
+			<label for="cb6">cb6: instantiated from script</label>
+			<br>
+			<input id="cb7" data-dojo-type="dijit/form/CheckBox" name="cb7"/>
+			<label for="cb7">cb7: normal checkbox.</label>
+			<br>
+		</form>
+		<iframe name="formSubmitIframe" src="about:blank" onload="if(this.values)submittedValues(this.values)" style="display:none;"></iframe>
+	</body>
+</html>

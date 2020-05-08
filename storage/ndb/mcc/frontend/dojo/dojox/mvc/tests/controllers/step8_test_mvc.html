@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-type" content="text/html; charset=utf-8">
+		<title>Step 8 of test for Controllers, uses an EditStoreRefListController.</title>
+		<style type="text/css">
+			@import "../css/app-format.css";
+			@import "../../../../dijit/themes/claro/claro.css";
+		</style>
+		<script type="text/javascript" data-dojo-config="parseOnLoad:0,isDebug:1,async:1,mvc:{debugBindings:1}" src="../../../../dojo/dojo.js"></script>
+		<script type="text/javascript">
+		var ctrl;
+
+		require([
+			'dojo/parser',
+			'dojo/_base/declare',
+			'dojo/ready',
+			'dojo/when',
+			'dojo/store/Memory',
+			'dojox/mvc/getStateful',
+			'dojox/mvc/EditStoreRefListController',
+			'dojox/mvc/parserExtension',
+			'dijit/form/TextBox',
+			'dijit/form/Button',
+			'dijit/form/RadioButton',
+			'dojox/mvc/Group',
+			'dojox/mvc/WidgetList',
+			'dojox/mvc/_InlineTemplateMixin',
+			'dojox/mvc/Output'
+			], function(parser, declare, ready, when, Memory, getStateful, EditStoreRefListController){
+				// Initial data
+				var storeData = {
+					"identifier": "id",
+					"items": [
+						{
+							"id" : "360324",
+							"AddressName" : "Home",
+							"Checked" : true,
+							"FullName" : "Mr. John Doe",
+							"Email" : "jdoe@example.com",
+							"AddressLine1" : "123 Valley Rd.",
+							"AddressLine2" : "",
+							"City" : "Cary",
+							"State" : "NC",
+							"Zip" : "27513"
+						},
+						{
+							"id" : "360325",
+							"AddressName" : "Work",
+							"Checked" : false,
+							"FullName" : "Mr. John Doe",
+							"Email" : "jdoe@example.com",
+							"AddressLine1" : "4567 S Miami Blvd",
+							"AddressLine2" : "Bldg:502, Office:M120",
+							"City" : "Durham",
+							"State" : "NC",
+							"Zip" : "27703"
+						}
+					]
+				};
+
+
+				// To move from ModelRefController with EditModelRefController and a ListController to a EditStoreRefListController
+				// Need to require the EditStoreRefListController, when, and Memory 
+				// I also needed to change the data to be valid for a store query.   
+				// Needed to setup ctrlclz with EditStoreRefListController, and use when and ctrl.queryStore() to setup the models. 
+				//
+				// This test uses holdModelUntilCommit: false on the WidgetList, so updates to the address will immediately show-up in 
+				// the verify section and in the select an address section, but changes can be "Reset" back to their last saved state.
+				//
+
+				var ctrlclz = declare([EditStoreRefListController], {
+
+					transformRadioChecked : {
+						format: function(checked){
+							if(checked){
+								ctrl.set('cursorIndex', this.target.index);
+								console.log("in transformRadioChecked setting cursorIndex to "+this.target.index);
+							}
+							return checked;
+						},
+						parse: function(checked){
+							return checked;
+						}
+					},
+
+					transformAddress2Class : {
+						format: function(value){
+							if(value && value.trim().length > 0){ 
+								return "row" // if AddressLine2 is set return row for class
+							}
+							return "hiderow"; // if AddressLine2 is not set return hiderow for class
+						}
+					},
+
+					addEmpty : function(empty){
+						var idx = this.model.length;
+						var data = {
+							"id" : Math.random(), 
+							"AddressName" : "New Address",
+							"Checked" : true,
+							"FullName" : "",
+							"Email" : "",
+							"AddressLine1" : "",
+							"AddressLine2" : "",
+							"City" : "",
+							"State" : "",
+							"Zip" : ""
+						};
+						if(!empty){
+							data = {
+								"id" : Math.random(), 
+								"AddressName" : "Copy of "+this.cursor.AddressName,
+								"Checked" : true,
+								"FullName" : "" || this.cursor.Name,
+								"Email" : this.cursor.Email,
+								"AddressLine1" : this.cursor.AddressLine1,
+								"AddressLine2" : this.cursor.AddressLine2,
+								"City" : this.cursor.City,
+								"State" : this.cursor.State,
+								"Zip" : this.cursor.Zip
+							};
+						}
+						this.model.splice(idx, 0, getStateful(data));
+					}
+
+				});
+				ctrl = new ctrlclz({store: new Memory({data:storeData}), holdModelUntilCommit: false});
+				when(ctrl.queryStore(), function(){
+							parser.parse();
+				});
+			});
+		</script>
+	</head>
+	<body class="claro">
+		<script type="dojo/require">at: "dojox/mvc/at"</script>
+		<div id="wrapper">
+		<div id="main">
+			<div>
+				<h2>Step 8 of test for Controllers, uses an EditStoreRefListController with holdModelUntilCommit: false</h2>
+				<h2>Select the Shipping Address to use.</h2>
+			</div>
+
+			<div data-dojo-type="dojox/mvc/WidgetList"
+				 data-dojo-mixins="dojox/mvc/_InlineTemplateMixin"
+				 data-dojo-props="children: at(ctrl, 'model'), partialRebuild:true">
+					<script type="dojox/mvc/InlineTemplate">
+						<div>
+							<input type="radio" data-dojo-type="dijit/form/RadioButton" name="AddressName" id="radio${indexAtStartup}" 
+								data-dojo-props="index: ${indexAtStartup},
+											//	value: at('rel:', 'AddressName'), // do not set value on the radio button or it will also set checked.
+												checked: at('rel:', 'Checked').transform(ctrl.transformRadioChecked)"/> 
+							<label class="radioLabel" for="radio${indexAtStartup}" data-dojo-type="dojox/mvc/Output" 
+									data-dojo-props="value: at('rel:', 'AddressName')"></label> <br />
+						</div>
+					</script>
+			</div>
+			<div class="fullrow">
+				<button  class="buttoncell" id="add" type="button" data-dojo-type="dijit/form/Button"  
+						data-dojo-props="onClick: function(){ ctrl.addEmpty(true); }">New Address</button>
+				<button  class="buttoncell" id="addcopy" type="button" data-dojo-type="dijit/form/Button"  
+						data-dojo-props="onClick: function(){ ctrl.addEmpty(false); }">New copy of selected.</button>
+			</div>
+
+			<div class="spacer"></div>
+			<h2>Enter the Shipping Address</h2>
+
+			<div class="fullrow" data-dojo-type="dojox/mvc/Group" data-dojo-props="target: at(ctrl,'cursor')">
+				<div class="fullrow">
+					<label class="cell" for="AddressNameInput">Address Name:</label>
+					<input class="cell" id="AddressNameInput" data-dojo-type="dijit/form/TextBox"
+							data-dojo-props="value: at('rel:', 'AddressName')">
+				</div>
+				<br/>
+				<div class="fullrow">
+					<label class="cell" for="nameInput">Full Name:</label>
+					<input class="cell" id="nameInput" data-dojo-type="dijit/form/TextBox"
+							data-dojo-props="value: at('rel:', 'FullName')">
+				</div>
+				<div class="fullrow">
+					<label class="cell" for="AddressLine1Input">Address Line1:</label>
+					<input class="cell" id="AddressLine1Input" data-dojo-type="dijit/form/TextBox"
+						data-dojo-props="value: at('rel:', 'AddressLine1')">
+				</div>
+				<div class="fullrow">
+					<label class="cell" for="AddressLine2Input">Address Line2:</label>
+					<input class="cell" id="AddressLine2Input" data-dojo-type="dijit/form/TextBox"
+						data-dojo-props="value: at('rel:', 'AddressLine2')">
+				</div>
+				<div class="fullrow">
+					<label class="cell" for="cityInput">City:</label>
+					<input class="cell" id="cityInput" data-dojo-type="dijit/form/TextBox"
+						data-dojo-props="value: at('rel:', 'City')">
+				</div>
+				<div class="fullrow">
+					<label class="cell" for="stateInput">State:</label>
+					<input class="cell" id="stateInput" data-dojo-type="dijit/form/TextBox"
+						data-dojo-props="value: at('rel:', 'State')">
+				</div>
+				<div class="fullrow">
+					<label class="cell" for="zipInput">Zipcode:</label>
+					<input class="cell" id="zipInput" data-dojo-type="dijit/form/TextBox"
+						data-dojo-props="value: at('rel:', 'Zip')">
+				</div>
+			</div>
+			<br/>
+
+			<div class="fullrow">
+				<button  class="buttoncell" id="reset" type="button" data-dojo-type="dijit/form/Button"  data-dojo-props="onClick: function(){ ctrl.reset(); }">Reset</button>
+				<button  class="buttoncell" id="commit" type="button" data-dojo-type="dijit/form/Button"  data-dojo-props="onClick: function(){ ctrl.commit(); }">Save</button>
+			</div>
+
+			<br/>
+
+			<div class="fullrow" data-dojo-type="dojox/mvc/Group" data-dojo-props="target: at(ctrl,'cursor')"> 
+			<div>
+				<h2>Verify the shipping address for:
+					<div class="namecell" id="AddressNameOutput" data-dojo-type="dojox/mvc/Output"
+							data-dojo-props="value: at('rel:', 'AddressName')"></div>
+
+				</h2>
+			</div>
+				<div class="fullrow">
+					<div class="boldnamecell" data-dojo-type="dojox/mvc/Output"
+							data-dojo-props="value: at('rel:', 'FullName')"></div>
+				</div>
+				<div class="fullrow">
+					<div class="namecell" data-dojo-type="dojox/mvc/Output"
+						data-dojo-props="value: at('rel:', 'AddressLine1')"></div>
+				</div>
+				<div class="hiderow" data-mvc-bindings="class: at('rel:', 'AddressLine2').direction(at.from).transform(ctrl.transformAddress2Class)">
+					<div class="namecell" data-dojo-type="dojox/mvc/Output"
+						data-dojo-props="value: at('rel:', 'AddressLine2')"></div>
+				</div>
+				<div class="fullrow">
+					<div class="namecell" data-dojo-type="dojox/mvc/Output"
+						data-dojo-props="exprchar:'%', value: at('rel:', 'City')">%{this.value},</div>
+					<div class="namecell" data-dojo-type="dojox/mvc/Output"
+						data-dojo-props="value: at('rel:', 'State')"></div>
+					<div class="namecell" data-dojo-type="dojox/mvc/Output"
+						data-dojo-props="value: at('rel:', 'Zip')"></div>
+				</div>
+			</div>
+		</div>
+		</div>
+	</body>
+</html>

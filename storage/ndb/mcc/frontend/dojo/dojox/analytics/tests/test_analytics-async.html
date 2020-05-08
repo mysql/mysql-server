@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>DojoX Analytics Async Test</title>
+
+		<style type="text/css">
+			@import "../../../dojo/resources/dojo.css";
+			@import "../../../dijit/tests/css/dijitTests.css";
+		</style>
+
+		<!-- required: a default theme file -->
+		<link rel="stylesheet" id="themeStyles" href="../../../dijit/themes/tundra/tundra.css">
+
+		<!-- required: dojo.js Update analyticsUrl: to point to your test server-->
+		<script src="../../../dojo/dojo.js"
+			data-dojo-config="parseOnLoad:true, async:true, isDebug: true, usePlainJson: true,
+			//sendMethod: 'script',
+			sendInterval: 5000,
+			// the line below can be used to override the sampleDelay for mouseOver and targetProps and textContentMaxChars
+			//sampleDelay : 2000, targetProps : ['id','className'], textContentMaxChars : 12,
+			analyticsUrl: 'http://dojotoolkit.org/~dmachi/dojo-1.0/dojox/analytics/logger/dojoxAnalytics.php'">
+		</script>
+
+		<!-- do not use: only for testing alternate themes -->
+		<script src="../../../dijit/tests/_testCommon.js"></script>
+
+		<script>
+			require([
+				"dojo/ready",
+				"dojox/analytics",
+				"dojox/analytics/plugins/dojo",
+				"dojox/analytics/plugins/window",
+				"dojox/analytics/plugins/consoleMessages",
+				"dojox/analytics/plugins/mouseOver",
+				"dojox/analytics/plugins/mouseClick",
+				"dojox/analytics/plugins/idle",
+				"dijit/TitlePane",
+				"dojo/parser",
+				"dojo/request/script",
+				"dijit/form/Button",
+				"dijit/form/ComboBox"],
+			function(ready, analytics, dojoplugin, windowplugin, consolemsgplugin, mouseoverplugin, mouseclickplugin,
+					idleplugin, TitlePane, parser, scriptIO, Button, ComboBox){
+
+				ready(function(){
+					console.info("Async Page Loaded Sample Message");
+				});
+			});
+		</script>
+	</head>
+	<body class="tundra">
+		<table>
+			<tr>
+				<td colspan=3>
+					<h1 class="testTitle">DojoX Analytics Async Test</h1>
+				</td>
+			</tr>
+			<tr>
+				<td width="20%"></td>
+				<td>
+					<div data-dojo-type="dijit/TitlePane" data-dojo-props="title:'dgrid', style:'width: 300px;'">
+						Lorem Ipsum Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Quisque
+						iaculis, nulla id semper faucibus, pede tellus nonummy magna, vitae adipiscing
+						orci arcu ut augue. Nunc condimentum, magna a vestibulum convallis, libero purus
+						pulvinar orci, sed vestibulum urna sem ut pede. More Ipsum...
+						Sed sollicitudin suscipit risus. Nam ullamcorper. Sed nisl lectus, pellentesque
+						nec, malesuada eget, ornare a, libero. Lorem ipsum dolor sit amet,
+						consectetuer adipiscing elit.
+
+						<a href="http://dgrid.io">dgrid.io</a>
+					</div>
+
+					<div data-dojo-type="dijit/TitlePane" data-dojo-props="title:'dojo', style:'width: 300px;'">
+						Lorem Ipsum Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Quisque
+						iaculis, nulla id semper faucibus, pede tellus nonummy magna, vitae adipiscing
+						orci arcu ut augue. Nunc condimentum, magna a vestibulum convallis, libero purus
+						pulvinar orci, sed vestibulum urna sem ut pede. More Ipsum...
+						Sed sollicitudin suscipit risus. Nam ullamcorper. Sed nisl lectus, pellentesque
+						nec, malesuada eget, ornare a, libero. Lorem ipsum dolor sit amet,
+						consectetuer adipiscing elit.
+
+						<a href="http://dojotoolkit.org">dojotoolkit.org</a>
+					</div>
+				</td>
+				<td width="20%"></td>
+			</tr>
+		</table>
+	</body>
+</html>

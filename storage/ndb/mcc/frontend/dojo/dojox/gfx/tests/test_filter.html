@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Test SVG Filters</title>
+</head>
+<script type="text/javascript" src="../../../dojo/dojo.js"></script>
+<script type="text/javascript">
+	require([
+	"dojo/ready",
+	"dojo/_base/array",
+	"dojox/gfx",
+	"dojox/gfx/matrix",
+	"dojox/gfx/filters",
+	"dojox/gfx/svgext"
+	], function(ready, array, gfx, matrix, filters){
+
+		var surface;
+
+		function makeShape(filter, title){
+			var topg = surface.createGroup();
+			var g = topg.createGroup();
+			g.createPath({path:"M50,90 C0,90 0,30 50,30 L150,30 C200,30 200,90 150,90 z"}).setStroke({color:"#0000D9",width:10});
+			g.createPath({path:"M60,80 C30,80 30,40 60,40 L140,40 C170,40 170,80 140,80 z"}).setFill("#D90000");
+			g.createGroup().createText({x:52, y:76, text:"SVG"}).setFill("white").setFont({family:"verdana", size:45});
+			if(filter){
+				g.setFilter(filter);
+			}
+			topg.createText({x:100, y:140, text: title, align:"middle"}).setFill("black").setFont({family:"verdana", size:20});
+			var tooltip = document.createElementNS("http://www.w3.org/2000/svg", "title");
+			tooltip.appendChild(document.createTextNode(title));
+			topg.rawNode.appendChild(tooltip);
+			return topg;
+		}
+
+		ready(function(){
+			surface = gfx.createSurface("canvas", 800, 900);
+			var count = 0;
+			makeShape(null, "none").setTransform(matrix.scale(.65,.65));
+			array.forEach(["convolutions", "blurs", "colors", "miscs", "shadows", "textures", "reliefs"], function(lib){
+				for(var func in filters[lib]){
+					++count;
+					var f = filters[lib][func];
+					var s = makeShape(f(), func);
+					s.setTransform([matrix.translate((count%6)*132, Math.floor(count/6)*90), matrix.scale(.65,.65)]);
+				}
+			});
+
+			var customFilter = filters.createFilter({
+			        // no id to test id auto assignment
+					x: 0, y:0, width:200, height:120
+				},[
+				filters.feGaussianBlur({
+					"in": "SourceAlpha",
+					"stdDeviation":"4",
+					"result":"blur"
+				}),
+				filters.feOffset({
+					"in":"blur",
+					"dx":4,
+					"dy":4,
+					"result":"offsetBlur"
+				}),
+				filters.feSpecularLighting({
+					"in":"blur",
+					"surfaceScale":5,
+					"specularConstant":.75,
+					"specularExponent":20,
+					"lighting-color":"#bbbbbb",
+					"result":"specOut"
+				}, [filters.fePointLight({
+					x:-5000,
+					y:-10000,
+					z:20000
+				})]),
+				filters.feComposite({
+					"in":"specOut",
+					"in2":"SourceAlpha",
+					"operator":"in",
+					"result":"specOut"
+				}),
+				filters.feComposite({
+					"in":"SourceGraphic",
+					"in2":"specOut",
+					"operator":"arithmetic",
+					k1:0,
+					k2:1,
+					k3:1,
+					k4:0,
+					"result":"litPaint"
+				}),
+				filters.feMerge("offsetBlur","litPaint")
+			]);
+			++count;
+			makeShape(customFilter,"custom").setTransform([matrix.translate((count%6)*132, Math.floor(count/6)*90), matrix.scale(.65,.65)]);
+			++count;
+			makeShape(customFilter,"none").setTransform([matrix.translate((count%6)*132, Math.floor(count/6)*90), matrix.scale(.65,.65)])
+				.children[0].setFilter(null);
+
+		});
+	});
+</script>
+<body>
+<div id="canvas" style="width:800px;height:900px"></div>
+</body>
+</html>

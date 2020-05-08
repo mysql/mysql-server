@@ -1,0 +1,66 @@
+/* ColorPalette
+ * 
+ * Styling of the ColorPalette consists of the following:
+ * 
+ * 1. the whole color palette
+ *		.dijitColorPalette - for outline, border, and background color of the whole color palette
+ *		Note: outline does not work for IE
+ *
+ * 2. the color swatch 
+ *		.dijitColorPalette .dijitPaletteImg
+ *		transparent (but clickable) <img> node inside of each <td>, overlaying the color swatch.
+ *		displays border around a color swatch
+ *
+ * 3. hovered swatch
+ * 		.dijitColorPalette .dijitPaletteCell:hover .dijitPaletteImg
+ *		the hovered state of the color swatch - adds border
+ * 	
+ * 4. active and selected swatch
+ * 		.dijitColorPalette .dijitPaletteCell:active .dijitPaletteImg
+ *		.dijitColorPalette .dijitPaletteCellSelected .dijitPaletteImg
+ *		adds border for active or selected state
+ */
+.flat .dijitColorPalette {
+  border: 1px solid #9e9e9e;
+  background-color: #fff;
+  border-radius: 3px;
+/* swatch */
+}
+.flat .dijitColorPalette .dijitPaletteTable {
+  padding: 4px;
+}
+.flat .dijitColorPalette .dijitColorPaletteSwatch {
+  height: 15px;
+  width: 15px;
+  border-radius: 2px;
+}
+.flat .dijitColorPalette .dijitPaletteImg {
+/* transparent (but clickable) <img> node inside of each <td>, overlaying the color swatch.
+			 * displays border around a color swatch
+			 * overrides border color in dijit.css */
+  border: 1px solid transparent;
+  line-height: normal;
+}
+.flat .dijitColorPalette .dijitPaletteCell:hover .dijitPaletteImg {
+  border-color: #9e9e9e;
+  -webkit-box-shadow: none;
+  box-shadow: none;
+  border-radius: 2px;
+  -webkit-transform: scale(1.2);
+  -moz-transform: scale(1.2);
+  -o-transform: scale(1.2);
+  -ms-transform: scale(1.2);
+  transform: scale(1.2);
+}
+.flat .dijitColorPalette .dijitPaletteCell:active .dijitPaletteImg,
+.flat .dijitColorPalette .dijitPaletteTable .dijitPaletteCellSelected .dijitPaletteImg {
+  border: 1px solid #2196f3;
+  -webkit-box-shadow: 0 1px 0.5px rgba(0,0,0,0.3), 0 2px 2px rgba(0,0,0,0.2);
+  box-shadow: 0 1px 0.5px rgba(0,0,0,0.3), 0 2px 2px rgba(0,0,0,0.2);
+  border-radius: 2px;
+  -webkit-transform: scale(1.2);
+  -moz-transform: scale(1.2);
+  -o-transform: scale(1.2);
+  -ms-transform: scale(1.2);
+  transform: scale(1.2);
+}

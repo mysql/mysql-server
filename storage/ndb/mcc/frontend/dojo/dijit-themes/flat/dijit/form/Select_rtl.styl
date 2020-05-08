@@ -1,0 +1,27 @@
+@import 'dijit_form_variables';
+
+.{$theme-name} {
+	
+	.dijitSelectRtl {
+		.dijitButtonText {
+			float: right;
+			padding: 0 $input-padding*3 0 0;
+		}
+		.dijitButtonContents {
+			border-style: none none none solid;
+			text-align: right;
+		}
+	}
+	
+	.dijitComboBoxRtl {
+		.dijitButtonNode.dijitArrowButtonContainer {
+			border-radius: $button-border-radius 0 0 $button-border-radius;
+		}
+	
+		.dijitArrowButtonContainer {
+			border-right-width: 1px !important;
+			border-left-width: 0 !important;
+		}
+	}
+	
+}

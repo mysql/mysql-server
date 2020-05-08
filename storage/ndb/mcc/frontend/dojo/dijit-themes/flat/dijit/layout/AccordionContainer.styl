@@ -1,0 +1,160 @@
+/* Accordion
+ * 
+ * Styling AccordionContainer basically means styling the accordion pane (dijitAccordionInnerContainer)
+ * and the title inside of it (dijitAccordionTitle).   There are 4 basic states to style:
+ * 
+ * 1. closed pane (and default styling): 
+ * 		.dijitAccordionInnerContainer - container for each accordion child
+ * 		.dijitAccordionTitle - title for each accordion child
+ *
+ * 2. active closed pane (ie, mouse down on a title bar)
+ * 		.dijitAccordionInnerContainerActive - for background-color, border
+ * 		.dijitAccordionInnerContainerActive dijitAccordionTitle - for text color
+ * 
+ * 3. open pane (expanded child)
+ *		.dijitAccordionChildWrapper - wraps around the child widget (typically ContentPane)
+ *			setting a margin so that there's blue trim all the way around the child
+ *
+ * 		These rules need to override the closed pane active:
+ *
+ * 		.dijitAccordionInnerContainerSelected - for background-color, border
+ * 		.dijitAccordionInnerContainerSelected .dijitAccordionTitle - for text color
+ * 
+ * 4. hovered pane, open or closed
+ * 		The selectors below affect hovering over both a closed pane (ie, hovering a title bar),
+ * 		and hovering over an open pane.   Also, treat mouse down on an open pane as a hover:
+ *
+ * 		.dijitAccordionInnerContainerHover, .dijitAccordionInnerContainerSelectedActive - for background-color, border
+ * 		.dijitAccordionInnerContainerHover .dijitAccordionTitle - for text color
+ */
+
+@import 'dijit_layout_variables';
+
+.{$theme-name} {
+
+	.dijitAccordionContainer {
+		border: 0 none;
+		border-radius: $accordion-border-radius;
+	}
+
+	.dijitAccordionInnerContainer {
+		background-color: $accordion-background-color;
+		border: 1px solid $accordion-border-color;
+		border-radius: $accordion-border-radius;
+		transition-property: background-color, border;
+		transition-duration: .3s;
+		transition-timing-function: linear;
+
+		+.dijitAccordionInnerContainer {
+			margin-top: $accordion-spacing;
+			position: relative;
+		}
+	}
+
+	/* title bar */
+
+	.dijitAccordionTitle {
+		button-style();
+		border: 0 none;
+		border-radius: $accordion-border-radius;
+
+		.arrowTextUp,
+		.arrowTextDown {
+			display: none;
+			float: right;
+			_icon-core-style();
+			text-align: center;
+			font-size: 0px;
+			&:before {
+				content: $icon-collapse;
+				font-size: $icon-expand-collapse-size;
+			}
+		}
+		.arrowTextUp {
+			display: block;
+			&:before {
+				content: $icon-expand;
+			}
+		}
+	}
+
+	/* Hover */
+
+	.dijitAccordionInnerContainerHover .dijitAccordionTitle {
+		button-hover-style();
+	}
+
+	/* Active */
+
+	.dijitAccordionInnerContainerActive .dijitAccordionTitle {
+		button-active-style();
+	}
+
+	/* Selected */
+
+	.dijitAccordionInnerContainerSelected {
+		border: 0 none;
+		.dijitAccordionTitle {
+			color: $accordion-title-bar-checked-text-color;
+			background-color: $accordion-title-bar-checked-background-color;
+			border-radius: $accordion-border-radius $accordion-border-radius 0 0;
+
+			.arrowTextUp {
+				display: none;
+			}
+			.arrowTextDown {
+				display: block;
+			}
+		}
+	}
+
+	/* content wrapper */
+
+	.dijitAccordionContainer .dijitAccordionChildWrapper {
+		background-color: $accordion-content-background-color;
+		border: 1px solid $accordion-content-border-color;
+		border-top: 0 none;
+		position: relative;
+		z-index: 1;
+		clear: both;
+		border-radius: 0 0 $accordion-border-radius $accordion-border-radius;
+	}
+
+
+	/* if the spacing between panes is 0 */
+
+	if($accordion-spacing[0] <= "0") {
+		.dijitAccordionInnerContainer {
+			border-radius: 0;
+			
+			.dijitAccordionTitle {
+				border-radius: 0;
+			}
+
+			&:not(:last-child) {
+				.dijitAccordionChildWrapper {
+					border-radius: 0;
+				}
+			}
+
+			+.dijitAccordionInnerContainer {
+				border-top: 0 none;
+			}
+			+.dijitAccordionInnerContainerSelected:last-child {
+				.dijitAccordionTitle {
+					border-radius: 0;
+				}
+			}
+
+			&:first-child,
+			&:first-child .dijitAccordionTitle {
+				border-radius: $accordion-border-radius $accordion-border-radius 0 0;
+			}
+			&:last-child,
+			&:last-child .dijitAccordionTitle {
+				border-radius: 0 0 $accordion-border-radius $accordion-border-radius;
+			}
+		}	
+	}
+	
+}

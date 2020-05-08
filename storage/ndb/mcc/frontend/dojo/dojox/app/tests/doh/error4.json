@@ -1,0 +1,28 @@
+{
+	"id": "testApp",
+	"name": "Test App",
+	"description": "A testApp",
+	"splash": "splash",
+
+	"dependencies": [
+	],
+
+	"modules": [
+	],
+	
+	"controllers": [
+		"dojox/app/controllers/History"
+	],
+
+	"defaultView": "home",
+
+	"defaultTransition": "slide",
+
+	"views": {
+
+		"home": { 
+			"template": "dojox/app/tests/doh/doesnotexist.html"
+		}
+
+	}
+}

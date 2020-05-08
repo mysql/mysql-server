@@ -1,0 +1,23 @@
+@import url("../common/transitions/coverv.css");
+
+@import url("../common/transitions/revealv.css");
+/* dojox.mobile.Overlay */
+.mblOverlay {
+  position: fixed;
+  z-index: 2000;
+  left: 0;
+  bottom: 0;
+  margin: 0;
+  width: 100%;
+  text-align: -webkit-center;
+  position: fixed !important;
+  top: 0px !important;
+  background-color: #1f1f1f;
+  background-image: none;
+  padding: 12px 10px 12px 15px;
+  width: calc(100% - 15px);
+}
+.mblOverlayHidden *,
+.mblOverlayHidden {
+  visibility: hidden !important;
+}

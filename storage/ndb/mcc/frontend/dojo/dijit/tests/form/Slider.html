@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta http-equiv="Content-type" content="text/html; charset=utf-8">
+		<title>Dojo Slider Widget Test (non-robot)</title>
+
+		<script type="text/javascript" src="../boilerplate.js"></script>
+
+		<script type="text/javascript">
+			var registry, dom;
+			require([
+				"doh/runner",
+				"dojo/dom",
+				"dojo/dom-construct",
+				"dojo/parser",
+				"dojo/query",
+				"dijit/registry",
+				"dijit/form/HorizontalSlider",
+				"dijit/form/VerticalSlider",
+				"dijit/form/HorizontalRule",
+				"dijit/form/VerticalRule",
+				"dijit/form/HorizontalRuleLabels",
+				"dijit/form/VerticalRuleLabels",
+				"dojo/domReady!"
+			], function(doh, dom, domConstruct, parser, query, registry,
+				HorizontalSlider, VerticalSlider, HorizontalRule,
+				VerticalRule, HorizontalRuleLabels, VerticalRuleLabels) {
+
+				var slider1, slider2;
+
+				doh.register("create", {
+
+					one: function () {
+						// Create a slider w/out a root node.  Note: tests #13815.
+						slider1 = new HorizontalSlider({
+							value: 10,
+							showButtons: false,
+							minimum: 0,
+							maximum: 50,
+							discreteValues: 51
+						});
+
+						var hrLabels1 = new HorizontalRuleLabels({
+							container: "topDecoration",
+							style: "height: 12px",
+							minimum: 0,
+							maximum: 0.5,
+							count: 6
+						});
+						slider1.addChild(hrLabels1);
+
+						var hrRule1 = new HorizontalRule({
+							container: "topDecoration",
+							style: "height: 5px",
+							count: 11
+						});
+						slider1.addChild(hrRule1);
+
+						slider1.placeAt(document.body);
+
+						doh.is(10, slider1.get("value"), "value");
+					},
+
+					two: function () {
+						// Create a second slider.
+						slider2 = new HorizontalSlider({
+							value: 0,
+							showButtons: false,
+							minimum: 0,
+							maximum: 90,
+							discreteValues: 91
+						});
+
+						var hrLabels3 = new HorizontalRuleLabels({
+							container: "topDecoration",
+							style: "height: 12px",
+							minimum: 0,
+							maximum: 0.9,
+							count: 10
+						});
+						slider2.addChild(hrLabels3);
+
+						var hrRule3 = new HorizontalRule({
+							container: "topDecoration",
+							style: "height: 5px",
+							count: 21
+						});
+						slider2.addChild(hrRule3);
+
+						slider2.placeAt(document.body);
+
+						// Should get ten labels, not five (#18113)
+						doh.is(10, query(".dijitRuleLabelContainer", slider2.domNode).length, "# of labels");
+					}
+				});
+
+				// aria role and properties tests.
+				doh.register("aria", function() {
+					doh.is("slider", slider1.focusNode.getAttribute("role"), "aria role (slider)");
+					doh.is(slider1.minimum, slider1.focusNode.getAttribute("aria-valuemin"), "aria-valuemin");
+					doh.is(slider1.maximum, slider1.focusNode.getAttribute("aria-valuemax"), "aria-valuemax");
+					doh.is(slider1.get('value'), slider1.focusNode.getAttribute("aria-valuenow"), "initial aria-valuenow");
+					var half = (slider1.maximum + slider1.minimum) >> 1;
+					slider1.set('value', half, true);
+					doh.is(half, slider1.focusNode.getAttribute("aria-valuenow"), "half aria-valuenow");
+				});
+
+				doh.register("API", [
+					function increment() {
+						var v = slider1.get('value');
+						slider1._bumpValue(1, true);
+						var v2 = slider1.get('value');
+						doh.t(v2 > v, "increment");
+						slider1.maximum = v2;
+						slider1._bumpValue(1, true);
+						var v3 = slider1.get('value');
+						doh.is(v2, v3, "no increment");
+					},
+					function decrement() {
+						var v = slider1.get('value');
+						slider1._bumpValue(-1, true);
+						var v2 = slider1.get('value');
+						doh.t(v2 < v, "decrement");
+						slider1.minimum = v2;
+						slider1._bumpValue(-1, true);
+						var v3 = slider1.get('value');
+						doh.is(v2, v3, "no decrement");
+					},
+					function locked() {
+						var v = slider1.get('value');
+						slider1.maximum = slider1.minimum;
+						slider1._bumpValue(-1, true);
+						var v2 = slider1.get('value');
+						doh.is(v, v2, "no decrement");
+						slider1._bumpValue(1, true);
+						var v2 = slider1.get('value');
+						doh.is(v, v2, "no increment");
+						this.slideDuration = 0;
+						slider1.set('value', v, true);
+						slider1.progressBar.style.width = "0%";
+						slider1.remainingBar.style.width = "100%";
+					}
+				]);
+
+				doh.run();
+			});
+		</script>
+	</head>
+
+	<body role="main">
+		<h1 class="testTitle">Slider Non-Robot Test</h1>
+	</body>
+</html>

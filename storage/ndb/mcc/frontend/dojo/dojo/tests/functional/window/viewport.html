@@ -1,0 +1,71 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+	<head>
+		<title>dojo.window.getBox() test</title>
+		<link rel="stylesheet" href="../../../resources/dojo.css">
+		<style type="text/css">
+			html, body { margin: 0px; padding: 0px; }
+		</style>
+		<script type="text/javascript" src="../../../dojo.js"
+			data-dojo-config="async: true, isDebug: true"></script>
+
+		<script type="text/javascript">
+			var ready = false;
+			require([
+				'dojo/dom',
+				'dojo/dom-geometry',
+				'dojo/window',
+				'dojo/domReady!'
+			], function (dom, domGeom, winUtils) {
+				window.compute = function () {
+					var v = winUtils.getBox();
+					var d = domGeom.getMarginBox(dom.byId('documentBorder'));
+					dom.byId('viewportHeight').value = v.h;
+					dom.byId('viewportWidth').value = v.w;
+					dom.byId('documentHeight').value = d.h;
+					dom.byId('documentWidth').value = d.w;
+				}
+
+				window.addText = function () {
+					dom.byId('results').innerHTML += 'Adding text...<br><br>';
+					var text = [];
+					for(var i = 0; i < 100; i++) {
+						text.push('<span style="white-space: nowrap">');
+						for (var j = 0; j < 3; j++) {
+							text.push('Now is the time for all good men to come to the aid of their country.');
+						}
+						text.push('<' + '/span><br>');
+					}
+					dom.byId('documentBorder').innerHTML += text.join('\n');
+				}
+
+				ready = true;
+			});
+		</script>
+	</head>
+	<body>
+		<div id="documentBorder" style="border: solid red 2px;">
+			<h1>dojo/window.getBox() test</h1>
+			<div style="padding: 10px; border: solid blue 1px;">padding div</div>
+			<button onclick="addText(); compute();">add text and compute size</button>
+			<button onclick="compute();">recompute size</button>
+			<ol>
+				<li>check results div below to see that before adding text, document is smaller than viewport
+				<li>after adding text, document should be bigger than viewport,and check that viewport size hasn't changed,
+					except maybe being a little bit smaller (about 15px) because of the size of the scrollbars
+				<li>resize browser window and click the "recompute size" button; reported viewport size should change
+				<li>scroll the window and click "recompute size" to see that the scroll position is taken into effect
+			</ol>
+			<div id=results style="border: 5px solid blue;"></div>
+			<label for="viewportHeight" >ViewPort Height:</label>
+			<input id="viewportHeight" type=text/>
+			<label for="viewportWidth" >ViewPort Width:</label>
+			<input id="viewportWidth" type=text/>
+			<br>
+			<label for="documentHeight" >Document Border Height:</label>
+			<input id="documentHeight" type=text/>
+			<label for="documentWidth" >Document Border Width:</label>
+			<input id="documentWidth" type=text/>
+		</div>
+	</body>
+</html>

@@ -1,0 +1,43 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+    <title>async loading sync</title>
+
+    <script type="text/javascript">
+		var ready = 0;
+        var dojoConfig = {
+            async: true,
+            baseUrl: '.',
+            packages: [
+                { name: 'dijit', location: 'dijit' },
+                { name: 'dojox', location: 'dojox' },
+                { name: 'dojo', location: '../../../../node_modules/dojo' },
+                { name: 'test-files', location: '.' }
+            ],
+			callback: function () {
+				ready = 1;
+			}
+        };
+    </script>
+
+    <script type="text/javascript" src="../../../../dojo.js"></script>
+
+    <script type="text/javascript">
+        var mid = 'test-files/syncFromAsyncModule';
+
+        // dojo must be loaded for legacy modes to work
+        // use stripStrict because strict mode + instrumentation + sync loading don't mix
+        require({ async: 'sync' }, [ 'dojo' ]);
+
+        // now we can switch to legacy async mode
+        require({ async: 'legacyAsync' });
+
+        require([ mid ], function () {
+            window.ready = true;
+        });
+    </script>
+</head>
+<body>
+<h1>async loading sync</h1>
+</body>
+</html>

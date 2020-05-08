@@ -1,0 +1,291 @@
+<!DOCTYPE HTML>
+<html lang="en">
+	<head>
+		<title>Chart 2D - Log Axis</title>
+		<meta http-equiv="X-UA-Compatible" content="IE=Edge">
+		<style type="text/css">
+			@import "../../../../dojo/resources/dojo.css";
+			@import "../../../../dijit/tests/css/dijitTests.css";
+		</style>
+		<!-- NOTE: This test uses amd style modules and loading, but must run in sync loading mode because it uses DTL which does not work async-->
+		<script type="text/javascript" src="../../../../dojo/dojo.js" data-dojo-config="isDebug: true, async: true"></script>
+		<script type="text/javascript">
+			require([
+				"dojo/_base/array",
+				"dojo/request",
+				"dojo/dom",
+				"dojo/dom-style",
+				"dojo/ready",
+				"dojox/charting/Chart",
+				"dojox/charting/themes/ThreeD",
+				"dojox/dtl",
+				"dojox/dtl/Context",
+				"dojox/dtl/tag/logic",
+				"dojox/charting/axis2d/Default",
+				"dojox/charting/axis2d/Log",
+				"dojox/charting/plot2d/Default",
+				"dojox/charting/plot2d/Lines",
+				"dojox/charting/plot2d/Areas",
+				"dojox/charting/plot2d/Markers",
+				"dojox/charting/plot2d/MarkersOnly",
+				"dojox/charting/plot2d/StackedLines",
+				"dojox/charting/plot2d/StackedAreas",
+				"dojox/charting/plot2d/Bars",
+				"dojox/charting/plot2d/ClusteredBars",
+				"dojox/charting/plot2d/Stacked",
+				"dojox/charting/plot2d/StackedBars",
+				"dojox/charting/plot2d/ClusteredColumns",
+				"dojox/charting/plot2d/StackedColumns",
+				"dojox/charting/plot2d/Bubble",
+				"dojox/charting/plot2d/Grid",
+				"dojox/charting/plot2d/Candlesticks",
+				"dojox/charting/plot2d/OHLC",
+				"dojox/charting/plot2d/Scatter"], function(arr, request, dom, domStyle, ready, Chart, ThreeD, dtl, Context, logic, DefaultAxis, LogAxis){
+				var charts = [
+					{
+						description: "Clustered columns with a Log Axis applied to Y Axis.",
+						makeChart: function(node){
+							(new Chart(node)).
+								setTheme(ThreeD).
+								addAxis("x", { fixLower: "minor", fixUpper: "minor", natural: true }).
+								addAxis("y", { type: LogAxis, vertical: true}).
+								addPlot("default", { type: "ClusteredColumns", gap: 10 }).
+								addSeries("Series A", [ 2, 1.1, 0.5, 1000, 500 ] ).
+								addSeries("Series B", [ 3, 1500, 250, 1, 2 ] ).
+								addSeries("Series C", [ 1000, 0.5, 1.1, 2, 3 ] ).
+								addSeries("Series D", [ 0.7, 1.5, 1.2, 1.25, 3] ).
+								render();
+						}
+					},
+					{
+						description: "Stacked columns with a Log Axis applied to Y Axis.",
+						makeChart: function(node){
+							(new Chart(node)).
+								setTheme(ThreeD).
+								addAxis("x", { fixLower: "minor", fixUpper: "minor", natural: true }).
+								addAxis("y", { type: LogAxis, vertical: true}).
+								addPlot("default", { type: "StackedColumns", gap: 10 }).
+								addSeries("Series A", [ 2, 1.1, 0.5, 1000, 500 ] ).
+								addSeries("Series B", [ 3, 1500, 250, 1, 2 ] ).
+								addSeries("Series C", [ 1000, 0.5, 1.1, 2, 3 ] ).
+								addSeries("Series D", [ 0.7, 1.5, 1.2, 1.25, 3] ).
+								render();
+						}
+					},
+					{
+						description: "Columns with a Log Axis applied to Y Axis.",
+						makeChart: function(node){
+							(new Chart(node)).
+								setTheme(ThreeD).
+								addAxis("x", { fixLower: "minor", fixUpper: "minor", natural: true }).
+								addAxis("y", { type: LogAxis, vertical: true}).
+								addPlot("default", { type: "Columns", gap: 10 }).
+								addSeries("Series A", [ 2, 1.1, 0.5, 1000, 500 ] ).
+								render();
+						}
+					},
+					{
+						description: "Bars with a Log Axis applied to X Axis.",
+						makeChart: function(node){
+							(new Chart(node)).
+								setTheme(ThreeD).
+								addAxis("x", { type: LogAxis, includeZero: true}).
+								addAxis("y", { vertical: true, fixLower: "minor", fixUpper: "minor", natural: true }).
+								addPlot("default", { type: "Bars", gap: 10 }).
+								addSeries("Series A", [ 2, 1.1, 0.5, 1000, 500 ] ).
+								render();
+						}
+					},
+					{
+						description: "Stacked bars with a Log Axis applied to X Axis.",
+						makeChart: function(node){
+							(new Chart(node)).
+								setTheme(ThreeD).
+								addAxis("x", { type: LogAxis, includeZero: true}).
+								addAxis("y", { vertical: true, fixLower: "minor", fixUpper: "minor", natural: true }).
+								addPlot("default", { type: "StackedBars", gap: 10 }).
+								addSeries("Series A", [ 2, 1.1, 0.5, 1000, 500 ] ).
+								addSeries("Series B", [ 3, 1500, 250, 1, 2 ] ).
+								addSeries("Series C", [ 1000, 0.5, 1.1, 2, 3 ] ).
+								addSeries("Series D", [ 0.7, 1.5, 1.2, 1.25, 3] ).
+								render();
+						}
+					},
+					{
+						description: "Line Chart with a Log Axis applied to Y Axis.",
+						makeChart: function(node){
+							(new Chart(node)).
+								setTheme(ThreeD).
+								addAxis("x", { fixLower: "minor", fixUpper: "minor", natural: true }).
+								addAxis("y", { type: LogAxis, vertical: true}).
+								addPlot("default", { type: "Lines", markers: true}).
+								addSeries("Series A", [ 2, 1.1, 0.5, 1000, 500 ] ).
+								addSeries("Series B", [ 3, 1500, 250, 1, 2 ] ).
+								addSeries("Series C", [ 1000, 0.5, 1.1, 2, 3 ] ).
+								addSeries("Series D", [ 0.7, 1.5, 1.2, 1.25, 3] ).
+								render();
+						}
+					},
+					{
+						description: "Line Chart with a Log Axis applied to Y Axis.",
+						makeChart: function(node){
+							(new Chart(node)).
+								setTheme(ThreeD).
+								addAxis("x", { fixLower: "minor", fixUpper: "minor", natural: true }).
+								addAxis("y", { type: LogAxis, vertical: true}).
+								addPlot("default", { type: "Stacked", lines: true, areas: false, markers: true}).
+								addSeries("Series A", [ 2, 1.1, 0.5, 1000, 500 ] ).
+								addSeries("Series B", [ 3, 1500, 250, 1, 2 ] ).
+								addSeries("Series C", [ 1000, 0.5, 1.1, 2, 3 ] ).
+								addSeries("Series D", [ 0.7, 1.5, 1.2, 1.25, 3] ).
+								render();
+						}
+					},
+					{
+						description: "Line Chart with a Log Axis applied to Y Axis, Log base 2.",
+						makeChart: function(node){
+							(new Chart(node)).
+								setTheme(ThreeD).
+								addAxis("x", { fixLower: "minor", fixUpper: "minor", natural: true }).
+								addAxis("y", { type: LogAxis, vertical: true, log: 2}).
+								addPlot("default", { type: "Stacked", lines: true, areas: false, markers: true}).
+								addSeries("Series A", [ 2, 1.1, 0.5, 1000, 500 ] ).
+								addSeries("Series B", [ 3, 1500, 250, 1, 2 ] ).
+								addSeries("Series C", [ 1000, 0.5, 1.1, 2, 3 ] ).
+								addSeries("Series D", [ 0.7, 1.5, 1.2, 1.25, 3] ).
+								render();
+						}
+					},
+					{
+						description: "Line Chart with a Log Axis applied to Y Axis, Log base 16.",
+						makeChart: function(node){
+							(new Chart(node)).
+								setTheme(ThreeD).
+								addAxis("x", { fixLower: "minor", fixUpper: "minor", natural: true }).
+								addAxis("y", { type: LogAxis, vertical: true, log: 16}).
+								addPlot("default", { type: "Stacked", lines: true, areas: false, markers: true}).
+								addSeries("Series A", [ 2, 1.1, 0.5, 1000, 500 ] ).
+								addSeries("Series B", [ 3, 1500, 250, 1, 2 ] ).
+								addSeries("Series C", [ 1000, 0.5, 1.1, 2, 3 ] ).
+								addSeries("Series D", [ 0.7, 1.5, 1.2, 1.25, 3] ).
+								render();
+						}
+					},
+					{
+						description: "Line Chart with a Log Axis applied to Y Axis, Log base E (Eulers Number).",
+						makeChart: function(node){
+							(new Chart(node)).
+								setTheme(ThreeD).
+								addAxis("x", { fixLower: "minor", fixUpper: "minor", natural: true }).
+								addAxis("y", { type: LogAxis, vertical: true, log: Math.E}).
+								addPlot("default", { type: "Stacked", lines: true, areas: false, markers: true}).
+								addSeries("Series A", [ 2, 1.1, 0.5, 1000, 500 ] ).
+								addSeries("Series B", [ 3, 1500, 250, 1, 2 ] ).
+								addSeries("Series C", [ 1000, 0.5, 1.1, 2, 3 ] ).
+								addSeries("Series D", [ 0.7, 1.5, 1.2, 1.25, 3] ).
+								render();
+						}
+					},
+					{
+						description: "Line Chart with a Log Axis applied to Y Axis with Large Data.",
+						makeChart: function(node){
+							request("largedata.json", {
+								handleAs: "json"
+							}). then(function(data){
+								var c = new Chart(node).
+									setTheme(ThreeD).
+									addAxis("x", { fixLower: "minor", fixUpper: "minor", natural: true }).
+									addAxis("y", { type: LogAxis, vertical: true}).
+									addPlot("default", { type: "Lines"});
+								var s;
+								for(s in data){
+									c.addSeries(s, data[s]);
+								}
+								c.render();
+							});
+						}
+					},
+					{
+						description: "Stacked Line Chart with a Log Axis applied to Y Axis with Large Data.",
+						makeChart: function(node){
+							request("largedata.json", {
+								handleAs: "json"
+							}). then(function(data){
+								var c = new Chart(node).
+									setTheme(ThreeD).
+									addAxis("x", { fixLower: "minor", fixUpper: "minor", natural: true }).
+									addAxis("y", { type: LogAxis, vertical: true}).
+									addPlot("default", { type: "Stacked", lines: true, areas: false});
+								var s;
+								for(s in data){
+									c.addSeries(s, data[s]);
+								}
+								c.render();
+							});
+						}
+					},
+					{
+						description: "Area Chart with a Log Axis applied to Y Axis.",
+						makeChart: function(node){
+							(new Chart(node)).
+								setTheme(ThreeD).
+								addAxis("x", { fixLower: "minor", fixUpper: "minor", natural: true }).
+								addAxis("y", { type: LogAxis, vertical: true}).
+								addPlot("default", { type: "Areas"}).
+								addSeries("Series A", [ 2, 1.1, 0.5, 1000, 500 ] ).
+								addSeries("Series B", [ 3, 1500, 250, 1, 2 ] ).
+								addSeries("Series C", [ 1000, 0.5, 1.1, 2, 3 ] ).
+								addSeries("Series D", [ 0.7, 1.5, 1.2, 1.25, 3] ).
+								render();
+						}
+					},
+					{
+						description: "Area Chart with a Log Axis applied to Y Axis.",
+						makeChart: function(node){
+							(new Chart(node)).
+								setTheme(ThreeD).
+								addAxis("x", { fixLower: "minor", fixUpper: "minor", natural: true }).
+								addAxis("y", { type: LogAxis, vertical: true}).
+								addPlot("default", { type: "StackedAreas"}).
+								addSeries("Series A", [ 2, 1.1, 0.5, 1000, 500 ] ).
+								addSeries("Series B", [ 3, 1500, 250, 1, 2 ] ).
+								addSeries("Series C", [ 1000, 0.5, 1.1, 2, 3 ] ).
+								addSeries("Series D", [ 0.7, 1.5, 1.2, 1.25, 3] ).
+								render();
+						}
+					}
+				];
+				var now = function(){
+					return (new Date()).getTime();
+				};
+				
+				
+				ready(function(){
+					var defaultStyle = { width: "400px", height: "200px" };
+					var tmpl = new dtl.Template(dom.byId("template").value);
+					var context = new Context({ charts: charts });
+					dom.byId("charts").innerHTML = tmpl.render(context);
+				
+					arr.forEach(charts, function(item, idx){
+						var start = now();
+						var n = dom.byId("chart_"+idx);
+						domStyle.set(n, item.style||defaultStyle);
+						item.makeChart(n);
+						console.debug((now()-start), "ms to create:", (idx+1)+":", item.description);
+					});
+				});
+			});
+		</script>
+	</head>
+	<body>
+		<textarea id="template" style="display: none;">
+			{% for item in charts %}
+				<p>{{ forloop.counter }}: {{ item.description }}</p>
+				<div id="chart_{{ forloop.counter0 }}"></div>
+			{% endfor %}
+		</textarea>
+		<h1>Chart 2D - Log Axis</h1>
+		<div id="charts"></div>
+	</body>
+</html>
+

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<title>Dojo loader mapping after build test</title>
+</head>
+<body>
+	<script>
+		var dojoConfig = {
+			async: true,
+			packages: [
+				{ name: 'dojo', location: 'node_modules/dojo' }
+				{
+					name: 'test',
+					location: './tests/_base/loader/mapping-multi-layer'
+				},
+				{
+					name: 'app1',
+					location: './tests/_base/loader/mapping-multi-layer/App1'
+				},
+				{
+					name: 'app2',
+					location: './tests/_base/loader/mapping-multi-layer/App2'
+				},
+				{
+					name: 'common1',
+					location: './tests/_base/loader/mapping-multi-layer/Common1'
+				},
+				{
+					name: 'common2',
+					location: './tests/_base/loader/mapping-multi-layer/Common2'
+				},
+				{
+					name: 'router',
+					location: './tests/_base/loader/mapping-multi-layer/Router'
+				},
+				{
+					name: 'mappedModule',
+					location: './tests/_base/loader/mapping-multi-layer/MappedModule'
+				}
+			],
+			map: {
+				'app1': {
+					'common': 'common1'
+				},
+				'app2': {
+					'common': 'common2'
+				},
+				'my/replacement/A': {
+					'my/A': 'my/A'
+				},
+				'*': {
+					'starmap/demo1': 'router/demoA',
+					'starmap/demo2': 'router/demoB',
+					'starmapModule': 'mappedModule',
+					'my/A': 'my/replacement/A'
+				}
+			}
+		};
+	</script>
+	<script src="../../../../dojo.js"></script>
+</body>
+</html>

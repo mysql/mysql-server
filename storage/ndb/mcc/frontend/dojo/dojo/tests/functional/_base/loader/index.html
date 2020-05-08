@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>Loader test page</title>
+</head>
+<body>
+	<script>
+		var ready = 0;
+		var dojoConfig;
+
+		function configureLoader(config) {
+			dojoConfig = JSON.parse(config);
+			dojoConfig.callback = function () {
+				ready = 1;
+			};
+			var script = document.createElement('script');
+			script.src = '../../../../dojo.js';
+			document.body.appendChild(script);
+		}
+	</script>
+</body>
+</html>

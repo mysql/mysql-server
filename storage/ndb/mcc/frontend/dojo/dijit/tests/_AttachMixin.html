@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-type" content="text/html; charset=utf-8">
+		<title>_AttachMixin Test</title>
+
+		<script src="boilerplate.js"></script>
+
+		<style type="text/css">
+			/* Make our tests stand out as easily identifiable content */
+			.testcontainer {
+				border: 10px yellow;
+				border-style: dashed;
+				padding: 1em;
+				margin: 1em;
+			}
+			.testcontainer > p {
+				padding: 0 1em;
+				font-weight: bold;
+			}
+		</style>
+
+		<script type="text/javascript">
+			require([
+				"doh/runner", "dojo/_base/declare", "dojo/dom", "dojo/html", "dojo/on", "dojo/parser",
+				"dijit/registry", "dijit/_WidgetBase", "dijit/_AttachMixin", "dijit/_TemplatedMixin",
+				"dijit/form/Button", "dijit/Editor", "dojo/domReady!"
+			], function(doh, declare, dom, html, on, parser,
+				registry, _WidgetBase, _AttachMixin, _TemplatedMixin, Button, Editor) {
+
+				doh.register("_AttachMixin", [
+					function basic() {
+						
+						/*** TEST _AttachMixin on a simple _WidgetBase ***/
+						var WidgetWithAttachMagic = declare([ _WidgetBase, _AttachMixin ], {
+							postCreate: function() {
+								html.set(this.heading, "I am an attach point, hear me raar!");
+								this.field.value = "Value is objective.";
+							},
+							_fieldChanged: function(e) {
+								html.set(this.heading, "Oooh! Saucy! Now I am '" + e.target.value + "'");
+							}
+						});
+
+						var mydijit = new WidgetWithAttachMagic({}, dom.byId("attachMe"));
+						mydijit.startup();
+						
+						doh.t(mydijit.heading, "heading");
+						doh.t(mydijit.field, "field");
+						doh.is("I am an attach point, hear me raar!", mydijit.heading.innerHTML, "Initial value");
+						
+						// Simulate a change
+						mydijit.field.value = 'something new';
+						on.emit(mydijit.field, "keyup", {bubbles: true});
+						
+						doh.is("Oooh! Saucy! Now I am 'something new'", mydijit.heading.innerHTML, "Post-op value");
+					},
+
+					function attachScope() {
+						/*** Test an inner dijit's attach-point and attach-event behaviour being attached to a
+						 * different widget instance, in this case the outer one.
+						 */
+						var InnerDijit = declare([ _WidgetBase, _TemplatedMixin ], {
+							declaredClass: "InnerDijit",	// for debugging
+							templateString: "<div><input data-dojo-attach-point='field' data-dojo-attach-event='onkeyup: inputKeyUp'></div>"
+						});
+						
+						var OuterDijit = declare([ _WidgetBase, _TemplatedMixin ], {
+							declaredClass: "OuterDijit",	// for debugging
+							templateString:
+									"<div>" +
+										"<h2 data-dojo-attach-point='heading'>Initial value</h2>" +
+										"<div data-dojo-attach-point='content'></div>" +
+									"</div>",
+							buildRendering: function() {
+								this.inherited(arguments);
+								this.iw = new InnerDijit({
+									attachScope: this // Cause attach points in inner dijit to attach to us
+								});
+								// NB don't own as we will do a destroy test later this.own(id);
+								this.iw.placeAt(this.content, 'last');
+							},
+							// This handler is attached to the field in our inner dijit
+							inputKeyUp: function(e) {
+								var target = e.target;
+								html.set(this.heading, "Event: " + e.type + " value: " + target.value);
+							}
+						});
+						
+						var od = new OuterDijit({}, dom.byId('destthree'));
+						od.startup();
+
+						// Confirm that the outer dijit has attached points both
+						//  from its own template, and the inner dijit.
+						doh.t(od.heading, "heading");
+						doh.t(od.field, "field");
+						doh.is("Initial value", od.heading.innerHTML, "Initial value");
+						
+						// Simulate a change on the field in the inner dijit
+						od.field.value = 'something new';
+						on.emit(od.field, "keyup", {bubbles: true});
+						
+						// Confirm the change ran the event handler in the outer dijit
+						doh.is("Event: keyup value: something new", od.heading.innerHTML, "Post-op value");
+						
+						// Now destroy the inner dijit and ensure its attach points on the parent
+						//  were removed.
+						od.iw.destroy();
+						delete od.iw;
+						doh.t(od.heading, "heading remains"); // heading remains
+						doh.f(od.field, "inner content was detached");  // inner content was detached
+					},
+
+					function containerNode(){
+						// Test that code inside of containerNode isn't scanned
+						var WidgetWithAttachMagic = declare([ _WidgetBase, _AttachMixin ]);
+						var cd = new WidgetWithAttachMagic({}, dom.byId("attachMeFive"));
+						doh.t(cd.heading, "heading attach point set up");
+						doh.f("mybutton" in cd, "attach point inside containerNode ignored");
+					}
+				]);
+				
+				doh.run();
+			});
+		</script>
+	</head>
+	<body>
+
+		<h1 class="testTitle">Dijit _AttachMixin Test</h1>
+
+		<div class="testcontainer">
+			<p>This markup may have come from a server side templating engine like Catalyst. 
+			The aim is to allow us to use data-dojo-attach-* magic on the content.<br>
+			Change the input value to see attach event and attach point at work.</p>
+			<div id="attachMe">
+				<h2 data-dojo-attach-point="heading"></h2>
+				<label for="${id}_field">You say "Hello":</label>
+				<input id="${id}_field" placeHolder="I say 'Goodbye'"
+					   data-dojo-attach-point="field"
+					   data-dojo-attach-event="onkeyup: _fieldChanged">
+			</div>
+		</div>
+		
+		<div class="testcontainer">
+			<p>This test shows an inner dijit being created with attachScope referencing its enclosing dijit.</p>
+			<div id="destthree"></div>
+		</div>
+
+		<!-- Test that data-dojo-attach-point etc. inside containerNode are ignored -->
+		<div class="testcontainer">
+			<p>This tests that nodes inside of data-dojo-attach-point="containerNode" are ignored<br>
+			<div id="attachMeFive">
+				<h2 data-dojo-attach-point='heading'></h2>
+				<div data-dojo-attach-point='containerNode'>
+					<span data-dojo-type='AnotherAttachPointWidget'>
+						<button data-dojo-attach-point='mybutton'
+							data-dojo-attach-event='onClick: _buttonClicked'>A button
+						</button>
+					</span>
+				</div>
+			</div>
+		</div>
+
+	</body>
+</html>

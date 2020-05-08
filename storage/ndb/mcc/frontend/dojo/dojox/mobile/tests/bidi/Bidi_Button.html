@@ -1,0 +1,179 @@
+<!doctype html>
+<html>
+<head>
+	<meta http-equiv="Content-type" content="text/html; charset=utf-8"/>
+	<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no">
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<title>Bidi Mobile test - Button</title>
+
+	<script type="text/javascript" src="../../deviceTheme.js" data-dojo-config="mblThemeFiles: ['base']"></script>
+	<script type="text/javascript" src="../../../../dojo/dojo.js" data-dojo-config="async: true, parseOnLoad: true, has: { 'dojo-bidi': true }"></script>
+
+	<script type="text/javascript">
+		require([
+			"dojo/_base/connect",
+			"dojo/ready",
+			"dojo/_base/array",
+			"dojo/dom",
+			"dijit/registry",
+			"dojox/mobile/Button",
+			"dojox/mobile/Heading",
+			//"dojo/parser",
+			"dojox/mobile/parser",
+			"dojox/mobile",
+			"dojox/mobile/compat",
+			"dojox/mobile/ScrollableView"						
+		], function(connect, ready, array, dom, registry, Button, Heading){
+			ready(function(){
+				//create list programmaticaly
+				var view = registry.byId("view2");
+				var heading = new Heading({label:"Created programmatically"});
+				view.addChild(heading);
+				var button = new Button({label:"\u05e9\u05dc\u05d5\u05dd end",  textDir:"rtl"});
+				view.addChild(button);
+				//change textDir, text
+				var btnLtr = registry.byId("btn5");				
+				btnLtr.connect(btnLtr, "onClick", function(){
+					array.forEach(["btn11", "btn12", "btn13", "btn14"], function (btnId){
+						registry.byId(btnId).set("textDir", "ltr");
+					});							
+				});
+				var btnRtl = registry.byId("btn6");
+				btnLtr.connect(btnRtl, "onClick", function(){
+					array.forEach(["btn11", "btn12", "btn13", "btn14"], function (btnId){
+						registry.byId(btnId).set("textDir", "rtl");
+					});							
+				});	
+				var btnAuto = registry.byId("btn7");
+				btnAuto.connect(btnAuto, "onClick", function(){
+					array.forEach(["btn11", "btn12", "btn13", "btn14"], function (btnId){
+						registry.byId(btnId).set("textDir", "auto");
+					});							
+				});						
+				var btnLbl = registry.byId("btnLbl");
+				btnLbl.connect(btnLbl, "onClick", function(){
+					registry.byId("btn31").set("label", "\u05e9\u05dc\u05d5\u05dd for test!");
+				});
+		});
+	
+	});
+	</script>
+
+	<style>
+	html,body {
+		height: 100%;
+		overflow: hidden;
+	}
+	hr {
+		border: none;
+		margin: 0;
+	}
+	button {
+		width: 180px;
+		margin: 15px 10px 0;
+	}
+	button.customButton {
+		border-color: #cc3333;
+		background-image: url('../images/red-button-bg.png');
+		background-image: -webkit-gradient(linear, left top, left bottom, from(#D3656D), to(#BC1320), color-stop(0.5, #C9404B), color-stop(0.5, #BC1421));
+		color: #ffffff;
+	}
+	</style>
+</head>
+<body style="visibility:hidden;">
+<div id="group1" data-dojo-type="dojox.mobile.View" data-dojo-props='keepScrollPos:false'><!-- keepScrollPos=false is to improve performance -->
+	<div id="view0" data-dojo-type="dojox.mobile.ScrollableView">
+	 <h2 data-dojo-type="dojox.mobile.Heading">Button widget</h2>
+		<h1 data-dojo-type="dojox.mobile.Heading">dir LTR</h1>	
+		<ul data-dojo-type="dojox.mobile.EdgeToEdgeList" >
+			<li id="l1" data-dojo-type="dojox.mobile.ListItem" data-dojo-props='icon:"../images/LTR.png", moveTo:"view1"'>Tex Dir LTR</li>
+			<li id="l2" data-dojo-type="dojox.mobile.ListItem" data-dojo-props='icon:"../images/RTL.png", moveTo:"view2"'>Tex Dir RTL</li>
+			<li id="l3" data-dojo-type="dojox.mobile.ListItem"  data-dojo-props='icon:"../images/auto.png", moveTo:"view3"'>Tex Dir AUTO</li>
+		</ul>
+		<h1 data-dojo-type="dojox.mobile.Heading">dir RTL</h1>
+		<ul data-dojo-type="dojox.mobile.EdgeToEdgeList" >
+			<li id="l4" data-dojo-type="dojox.mobile.ListItem"  data-dojo-props='icon:"../images/LTR.png", moveTo:"view4"'>Tex Dir LTR</li>
+			<li id="l5" data-dojo-type="dojox.mobile.ListItem"  data-dojo-props='icon:"../images/RTL.png", moveTo:"view5"'>Tex Dir RTL</li>
+			<li id="l6" data-dojo-type="dojox.mobile.ListItem"  data-dojo-props='icon:"../images/auto.png", moveTo:"view6"'>Tex Dir AUTO</li>
+		</ul>	
+	</div>	
+	<div id="view1" data-dojo-type="dojox.mobile.ScrollableView">
+		<h1 data-dojo-type="dojox.mobile.Heading" data-dojo-props='back:"Back", moveTo:"view0"'>textDir LTR</h1>
+		<button data-dojo-type="dojox.mobile.Button" id="btn11" class="mblBlueButton"  data-dojo-props='textDir:"ltr"'>Hello World!</button>
+		<hr>
+		<button data-dojo-type="dojox.mobile.Button" id="btn12" class="mblRedButton" data-dojo-props='textDir:"ltr"'>&#1513;&#1500;&#1493;&#1501; &#1506;&#1493;&#1500;&#1501;!</button>
+		<hr>
+		<button data-dojo-type="dojox.mobile.Button" id="btn13"  data-dojo-props='textDir:"ltr"' >Hello &#1506;&#1493;&#1500;&#1501;!</button>
+		<hr>
+		<button data-dojo-type="dojox.mobile.Button" id="btn14"  data-dojo-props='textDir:"ltr"' >&#1513;&#1500;&#1493;&#1501; World!</button>
+		<hr>
+		<br>
+		<b>++++++++++++++++++++++++++++++++++++++++++++++++</b>
+		<br>
+		<button data-dojo-type="dojox.mobile.Button" id="btn5" class="mblRedButton" data-dojo-props='label:"Set textDir ltr"'></button>
+		<button data-dojo-type="dojox.mobile.Button" id="btn6" class="mblRedButton" data-dojo-props='label:"Set textDir rtl"'></button>
+		<button data-dojo-type="dojox.mobile.Button" id="btn7" class="mblRedButton" data-dojo-props='label:"Set textDir auto"'></button>
+
+	</div>	
+	<div id="view2" data-dojo-type="dojox.mobile.ScrollableView">
+		<h1 data-dojo-type="dojox.mobile.Heading" data-dojo-props='back:"Back", moveTo:"view0"'>textDir RTL</h1>
+		<button data-dojo-type="dojox.mobile.Button" id="btn21" class="mblBlueButton"  data-dojo-props='textDir:"rtl"'>Hello World!</button>
+		<hr>
+		<button data-dojo-type="dojox.mobile.Button" id="btn22" class="mblRedButton" data-dojo-props='textDir:"rtl"'>&#1513;&#1500;&#1493;&#1501; &#1506;&#1493;&#1500;&#1501;!</button>
+		<hr>
+		<button data-dojo-type="dojox.mobile.Button" id="btn23"  data-dojo-props='textDir:"rtl"' >Hello &#1506;&#1493;&#1500;&#1501;!</button>
+		<hr>
+		<button data-dojo-type="dojox.mobile.Button" id="btn24"  data-dojo-props='textDir:"rtl"' >&#1513;&#1500;&#1493;&#1501; World!</button>
+		<hr>
+	</div>	
+	<div id="view3" data-dojo-type="dojox.mobile.ScrollableView">	
+		<h1 data-dojo-type="dojox.mobile.Heading" data-dojo-props='back:"Back", moveTo:"view0"'>textDir AUTO</h1>
+		<button data-dojo-type="dojox.mobile.Button" id="btn31" class="mblBlueButton"  data-dojo-props='textDir:"auto"'>Hello World!</button>
+		<hr>
+		<button data-dojo-type="dojox.mobile.Button" id="btn32" class="mblRedButton" data-dojo-props='textDir:"auto"'>&#1513;&#1500;&#1493;&#1501; &#1506;&#1493;&#1500;&#1501;!</button>
+		<hr>
+		<button data-dojo-type="dojox.mobile.Button" id="btn33"  data-dojo-props='textDir:"auto"' >Hello &#1506;&#1493;&#1500;&#1501;!</button>
+		<hr>
+		<button data-dojo-type="dojox.mobile.Button" id="btn34"  data-dojo-props='textDir:"auto"' >&#1513;&#1500;&#1493;&#1501; World!</button>
+		<hr>		
+		<button data-dojo-type="dojox.mobile.Button" id="btnLbl" >Set new text Button</button>
+	</div>	
+	 
+	<div dir="rtl" id="view4" data-dojo-type="dojox.mobile.ScrollableView">
+		<h1 data-dojo-type="dojox.mobile.Heading" data-dojo-props='back:"Back", moveTo:"view0"'>dir RTL, textDir LTR</h1>
+		<button data-dojo-type="dojox.mobile.Button" id="btn41" class="mblBlueButton"  data-dojo-props='textDir:"ltr"'>Hello World!</button>
+		<hr>
+		<button data-dojo-type="dojox.mobile.Button" id="btn42" class="mblRedButton" data-dojo-props='textDir:"ltr"'>&#1513;&#1500;&#1493;&#1501; &#1506;&#1493;&#1500;&#1501;!</button>
+		<hr>
+		<button data-dojo-type="dojox.mobile.Button" id="btn43"  data-dojo-props='textDir:"ltr"' >Hello &#1506;&#1493;&#1500;&#1501;!</button>
+		<hr>
+		<button data-dojo-type="dojox.mobile.Button" id="btn44"  data-dojo-props='textDir:"ltr"' >&#1513;&#1500;&#1493;&#1501; World!</button>
+		<hr>
+	</div>
+	<div dir="rtl" id="view5" data-dojo-type="dojox.mobile.ScrollableView">
+		<h1 data-dojo-type="dojox.mobile.Heading" data-dojo-props='back:"Back", moveTo:"view0"'>dir RTL, textDirRTR</h1>
+		<button data-dojo-type="dojox.mobile.Button" id="btn51" class="mblBlueButton"  data-dojo-props='textDir:"rtl"'>Hello World!</button>
+		<hr>
+		<button data-dojo-type="dojox.mobile.Button" id="btn52" class="mblRedButton" data-dojo-props='textDir:"rtl"'>&#1513;&#1500;&#1493;&#1501; &#1506;&#1493;&#1500;&#1501;!</button>
+		<hr>
+		<button data-dojo-type="dojox.mobile.Button" id="btn53"  data-dojo-props='textDir:"rtl"' >Hello &#1506;&#1493;&#1500;&#1501;!</button>
+		<hr>
+		<button data-dojo-type="dojox.mobile.Button" id="btn54"  data-dojo-props='textDir:"rtl"' >&#1513;&#1500;&#1493;&#1501; World!</button>
+		<hr>
+	</div>	
+	<div dir="rtl" id="view6" data-dojo-type="dojox.mobile.ScrollableView">	
+		<h1 data-dojo-type="dojox.mobile.Heading" data-dojo-props='back:"Back", moveTo:"view0"'>dir RTL, textDir AUTO</h1>
+		<button data-dojo-type="dojox.mobile.Button" id="btn61" class="mblBlueButton"  data-dojo-props='textDir:"auto"'>Hello World!</button>
+		<hr>
+		<button data-dojo-type="dojox.mobile.Button" id="btn62" class="mblRedButton" data-dojo-props='textDir:"auto"'>&#1513;&#1500;&#1493;&#1501; &#1506;&#1493;&#1500;&#1501;!</button>
+		<hr>
+		<button data-dojo-type="dojox.mobile.Button" id="btn63"  data-dojo-props='textDir:"auto"' >Hello &#1506;&#1493;&#1500;&#1501;!</button>
+		<hr>
+		<button data-dojo-type="dojox.mobile.Button" id="btn64"  data-dojo-props='textDir:"auto"' >&#1513;&#1500;&#1493;&#1501; World!</button>
+		<hr>		
+	</div>	
+</div>
+
+</div>
+</body>
+</html>

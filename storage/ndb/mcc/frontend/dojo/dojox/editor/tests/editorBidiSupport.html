@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="Content-type" content="text/html; charset=utf-8">
+	<title>Editor Test: BidiSupport Plugin</title>
+	<style type="text/css">
+		@import "../../../dojo/resources/dojo.css";
+		@import "../../../dijit/themes/claro/claro.css";
+		@import "../../../dijit/themes/claro/document.css";
+		@import "../../../dijit/themes/claro/Editor.css";
+		@import "../plugins/resources/css/BidiSupport.css";
+	</style>
+	<script type="text/javascript" src="../../../dojo/dojo.js"
+		data-dojo-config="parseOnLoad: false, async: true, isDebug: true"></script>
+
+	<script type="text/javascript">
+		require([
+			"dojo/parser",
+			"dijit/registry",
+			"dijit/Editor",
+			"dojox/editor/plugins/BidiSupport",
+			"dijit/_editor/plugins/FontChoice",
+			"dijit/_editor/plugins/ViewSource",
+			"dijit/_editor/plugins/EnterKeyHandling",
+			"dojox/editor/plugins/CollapsibleToolbar",			
+			"dojo/domReady!"
+		], function(parser, registry){
+			parser.parse();
+			registry.byId("startEditor").focus();
+		});	
+	</script>
+</head>
+<body class="claro">
+<h2 align="center">Editor Test: BidiSupport plugin</h2>
+<table width="100%">
+<tr style="padding: 0 0 20px 0"><td style="padding: 0 10px">
+<h3 style="text-align: center;">LTR Editor with bidi buttons</h3><br/>
+<div style="border: 1px dotted black;">
+	<div data-dojo-type="dijit/Editor" id="startEditor"
+	        data-dojo-props='plugins: ["bold","italic","|","justifyLeft","justifyCenter","justifyRight","|","formatBlock"], 
+			extraPlugins: ["|","insertOrderedList","insertUnorderedList","|","indent","outdent","|", "bidiSupport", "|",
+			"dijit/_editor/plugins/ViewSource"], height: "230px", disableSpellCheck:true'>
+Type some text here.<br/>Select lines and push RTL or LTR button to change their direction.<br/>Use shortcut Ctrl+9 to change their direction to opposite.				
+	</div>
+</div>
+</td><td style="padding: 0 10px; width: 50%">
+<h3 style="text-align: center;">RTL Editor with bidi buttons</h3><br/>
+<div style="border: 1px dotted black;">
+	<div data-dojo-type="dijit/Editor" dir="rtl" 
+	        data-dojo-props='plugins: ["bold","italic","|","justifyRight","justifyCenter","justifyLeft","|","formatBlock"], 
+			extraPlugins: ["|","insertOrderedList","insertUnorderedList","|","indent","outdent","|",  "bidiSupport", "|",
+			"dijit/_editor/plugins/ViewSource"], height: "230px", disableSpellCheck:true'>
+Type some text here.<br/>Select lines and push RTL or LTR button to change their direction.<br/>Use shortcut Ctrl+9 to change their direction to opposite.				
+	</div>
+</div></td></tr>
+<tr><td style="padding: 0 10px">
+<h3 style="text-align: center;">LTR Editor with collapsible toolbar, without bidi buttons</h3><br/>
+<div style="border: 1px dotted black;">
+	<div data-dojo-type="dijit/Editor" 
+	        data-dojo-props='plugins: ["bold","italic","|","justifyLeft","justifyCenter","justifyRight","|","formatBlock"], 
+			extraPlugins: ["|","insertOrderedList","insertUnorderedList","|","indent","outdent","|",
+			{name: "dojox/editor/plugins/BidiSupport", shortcutonly: true},"|",
+			"dijit/_editor/plugins/ViewSource", "collapsibletoolbar"], height: "230px", disableSpellCheck:true'>
+Type some text here.<br/>Select lines and use the following shortcuts:<br/>Ctrl+8 to change their direction to LTR, Ctrl+0 - to RTL, Ctrl+9 - to opposite.				
+	</div>
+</div>
+</td><td style="padding: 0 10px">
+<h3 style="text-align: center;">LTR Editor with blockMode "P"</h3><br/>
+<div style="border: 1px dotted black;">
+	<div data-dojo-type="dijit/Editor"
+	        data-dojo-props='plugins: ["bold","italic","|","justifyLeft","justifyCenter","justifyRight","|","formatBlock", "dijit/_editor/plugins/EnterKeyHandling"], 
+			extraPlugins: ["|","insertOrderedList","insertUnorderedList","|","indent","outdent","|",
+			{name: "dojox/editor/plugins/BidiSupport", blockMode: "P"}, "|",
+			"dijit/_editor/plugins/ViewSource"], height: "230px", disableSpellCheck:true'>
+Type some text here.<br/>Select lines and push RTL or LTR button to change their direction.<br/>Use shortcut Ctrl+9 to change their direction to opposite.				
+	</div>
+</div></td></tr>
+</table>
+</body>
+</html>

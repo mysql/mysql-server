@@ -1,0 +1,135 @@
+/* dijit/layout/* variables */
+
+@import '../../variables';
+
+/* BorderContainer*/
+
+$bordercontainer-padding = $padding;
+$bordercontainer-border-color = $border-color;
+
+// splitter
+$splitter-size = isEven($bordercontainer-padding) ? $bordercontainer-padding + 1 : $bordercontainer-padding; // the width of the splitter, will always be an odd number since the splitter bar's width is always 1px 
+$splitter-color = $border-color; // color of the splitter thumb (the 1px wide bar)
+$splitter-hovered-color = darken($splitter-color, 25%);
+$splitter-dragged-color = $splitter-hovered-color;
+$splitter-background-color = none;
+$splitter-hovered-background-color = darken(#fff, 5%);
+$splitter-dragged-background-color = darken(#fff, 5%);
+ 
+/* ContentPane */
+
+$contentpane-padding = $padding * 2;
+$contentpane-background-color = $theme-base-color;
+
+// contentpane in other layout widgets (accordion and tab container)
+$contentpane-nested-padding = $padding * 2;
+$contentpane-nested-background-color = $theme-base-color;
+
+/* TabContainer */
+
+$tab-highlight-color = $theme-base;
+$tab-padding = $padding;
+$tab-checked-has-highlight-border = true; // whether to have a highlight bar on the edge of the tab
+
+// TabContainer: wrapper
+// (the outer container)
+$tab-wrapper-background-color = $theme-base-color;
+$tab-wrapper-border-color = $border-color;
+$tab-wrapper-border-radius = $border-radius;
+
+// tabs
+$tab-background-color = $tab-wrapper-background-color;
+$tab-border-color = transparent;
+$tab-spacing = 0; // space between tabs
+
+// hover
+$tab-hover-background-color = darken($theme-base-color, 5%);
+
+// active
+$tab-active-background-color = darken($theme-base-color, 10%);
+
+// checked
+$tab-checked-border-color = $tab-wrapper-border-color;
+$tab-checked-background-color = $tab-wrapper-background-color;
+$tab-checked-text-color = $grey-dark;
+
+// icons
+$tab-left-icon = "\f004";
+$tab-right-icon = "\f005";
+$tab-menu-icon = "\f006";
+
+// close button
+$tab-close-button-icon = "\f00e";
+$tab-close-button-opacity = .35;
+
+// hover
+$tab-close-button-hover-opacity = .75;
+
+// active
+$tab-close-button-active-opacity = 1;
+
+// tab dtrip button
+$tab-strip-button-background-color = $tab-background-color;
+$tab-strip-button-border-color = $tab-border-color;
+
+// hover
+$tab-strip-button-hover-background-color = $tab-hover-background-color;
+
+// active
+$tab-strip-button-active-background-color = $tab-active-background-color;
+
+// arrow
+$tab-strip-button-arrow-color = $theme-base;
+
+// tabs: top
+$tab-top-padding = $tab-padding * 1.5 $tab-padding * 4;
+
+// tabs: bottom
+$tab-bottom-padding = $tab-top-padding;
+
+// tabs: left
+$tab-left-padding = $tab-padding * 2 $tab-padding * 3;
+
+// tabs: right
+$tab-right-padding = $tab-left-padding;
+
+// nested tab container
+$nestedtab-spacing = $padding;
+$nestedtab-padding = $tab-padding $tab-padding * 2;
+$nestedtab-border-color = transparent;
+$nestedtab-border-radius = $border-radius;
+
+// normal
+$nestedtab-text-color = $theme-base;
+
+// hover
+$nestedtab-hover-background-color = $tab-hover-background-color;
+
+// active
+$nestedtab-active-text-color = $theme-base;
+$nestedtab-active-background-color = $tab-active-background-color;
+
+// checked
+$nestedtab-checked-background-color = $theme-base;
+$nestedtab-checked-text-color = $theme-base-color;
+
+/* AccordionContainer */
+
+$accordion-spacing = 0; // space between accordion panes; minimum value is 0
+$accordion-border-color = $border-color;
+$accordion-border-radius = $border-radius;
+$accordion-background-color = $theme-base-color;
+
+// accordion title bar 
+// normal, hover and active status styles are inherited from "form/Button"
+
+// checked
+$accordion-title-bar-checked-background-color = $theme-base;
+$accordion-title-bar-checked-text-color = $theme-base-color;
+
+// content pane
+$accordion-content-border-color = $accordion-border-color;
+$accordion-content-background-color = $theme-base-color;
+
+// icons
+// uses common vars directly

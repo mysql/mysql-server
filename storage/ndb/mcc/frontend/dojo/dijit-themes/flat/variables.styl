@@ -1,0 +1,74 @@
+// http://tj.github.io/nib/
+@import 'nib';
+
+// theme mixins and functions
+@import 'mixins';
+
+@import 'variables_material_colors';
+
+// theme name
+// easily copy flat theme, adjust variables and compile new theme
+$theme-name = flat;
+
+// colors
+// base color of the theme
+// default TextBox & CheckBox borders, Menu hover, AccordionPane/TtilePane header, etc 
+$theme-base = $blue-500;
+// base color for default Button, text on $theme-base, ContentPane background, etc
+$theme-base-color = $white;
+
+// gray colors
+$white = $white;
+$black = $black;
+$grey-dark = $grey-800;
+$grey = $grey-500;
+$grey-light = $grey-300;
+$grey-lighter = $grey-100;
+
+// misc colors
+$error = $deep-orange-a700;
+
+// alternate colors
+$primary = $blue-600;
+$success = $green-600;
+$info = $light-blue-500;
+$warning = $orange-600;
+$danger = $red-600;
+$inverse = $grey-700;
+
+// !! should not be using transparency for disabled !!
+$disabled-opacity = 0.65;
+
+// default disabled colors
+$disabled-color = $grey;
+$disabled-background-color = $grey-lighter;
+$disabled-border-color = lighten($grey-light, 10%);
+
+// typography
+$line-height = 20px;
+
+// box 
+$border-color = $grey;
+$border-radius = 3px;
+$padding = 4px;
+$margin = 4px;
+
+// box shadows
+$shadow-depth1 = 0 1px .5px rgba(0,0,0,0.3), 0 2px 2px rgba(0,0,0,.2);
+$shadow-depth1_5 = 0 4px 2px -2px rgba(0,0,0,0.3), 0 4px 6px rgba(0,0,0,0.2);
+$shadow-depth2 = 0 7px 3px -4px rgba(0,0,0,0.3), 0 8px 8px rgba(0,0,0,.2);
+$shadow-depth3 = 0 12px 8px -4px rgba(0,0,0,0.3), 0 15px 20px rgba(0,0,0,.2);
+$shadow-inset = inset 0 3px 5px rgba(0,0,0,0.05);
+
+// icons
+$icon-font-family = "flat-icon";
+$icon-size = 16px;
+// common icon vars
+$icon-drop-down = "\f002"; // drop down icons
+$icon-drop-up = "\f003";
+$icon-drop-right = "\f001";
+$icon-drop-left = "\f000";
+$icon-expand = "\f006"; // accordion and title panes
+$icon-collapse = "\f007";
+$icon-expand-collapse-size = 18px;
+$icon-error = "\f017"; // validation error

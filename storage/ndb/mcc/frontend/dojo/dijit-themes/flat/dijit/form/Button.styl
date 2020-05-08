@@ -1,0 +1,165 @@
+/* Button | DropDownButton | ComboButton | ToggleButton
+ * 
+ * Styling Buttons mainly includes:
+ * 
+ * 1. Containers
+ * 		.dijitButton
+ * 		.dijitDropDownButton
+ * 		.dijitComboButton
+ * 		.dijitButtonNode - common button/arrow wrapper shared across all three button types 
+ *
+ * 2. Button text
+ * 		.dijitButtonText
+ * 
+ * 3. Arrows - only for DropDownButton and ComboButton
+ * 	     There are total four directions arrows - down, left, right, up:
+ * 		.dijitArrowButtonInner - down arrow by default
+ *      .dijitLeftArrowButton .dijitArrowButtonInner - left arrow
+ *      .dijitRightArrowButton .dijitArrowButtonInner - right arrow
+ *      .dijitUpArrowButton .dijitArrowButtonInner - up arrow
+ * 
+ * 4. States - Hover, Active, Disabled, e.g.
+ * 		.dijitButtonHover .dijitButtonNode
+ * 		.dijitButtonActive .dijitButtonNode
+ * 		.dijitButtonDisabled .dijitButtonNode
+ *      
+ *      .dijitDisabled .dijitArrowButtonInner  - disabled arrow states 
+ */
+
+@import 'dijit_form_variables';
+
+.{$theme-name} {
+	/* ----- Button ----- */
+	.dijitButtonText {
+		padding: 0 $padding;
+		text-align: center;
+	}
+
+	.dijitButton,
+	.dijitDropDownButton,
+	.dijitComboButton,
+	.dijitToggleButton {
+		.dijitButtonNode {
+			button-style();
+		}
+	}
+
+	create-alternative-buttons($button-alternative-colors);
+
+	// hover
+	.dijitButtonHover,
+	.dijitDropDownButtonHover,
+	.dijitToggleButtonHover {
+		.dijitButtonNode {
+			button-hover-style();
+		}
+	}
+	.dijitComboButton {
+		.dijitButtonNodeHover, 
+		.dijitDownArrowButtonHover {
+			button-hover-style();
+		}
+	}
+
+	create-alternative-buttons-hover($button-alternative-colors);
+
+	// active and checked
+	.dijitButtonActive, 
+	.dijitDropDownButtonActive,
+	.dijitToggleButtonActive,
+	.dijitToggleButtonChecked {
+		.dijitButtonNode {
+			button-active-style();
+		}
+	}
+	.dijitComboButton {
+		.dijitButtonNodeActive, 
+		.dijitDownArrowButtonActive {
+			button-active-style();
+		}
+	}
+
+	create-alternative-buttons-active($button-alternative-colors);
+
+	// disabled
+	.dijitButtonDisabled,
+	.dijitDropDownButtonDisabled,
+	.dijitComboButtonDisabled,
+	.dijitToggleButtonDisabled {
+		outline: none;
+	}
+
+	.dijitButtonDisabled,
+	.dijitDropDownButtonDisabled,
+	.dijitComboButtonDisabled,
+	.dijitToggleButtonDisabled { 
+		.dijitButtonNode {
+			button-disabled-style();
+		}
+	}
+	
+	create-alternative-buttons-disabled($button-alternative-colors);
+
+	.dijitComboButtonDisabled .dijitArrowButton { 
+		border-left-width: 0;
+	}
+
+	/* ----- DropDownButton ----- */
+	.dijitDropDownButton .dijitButtonNode {
+		padding-right: $padding * 2;
+	}
+	
+	/* ----- ComboButton ----- */
+	table.dijitComboButton {
+		border-collapse: separate;	/* override dijit.css so that ComboBox rounded corners work */
+		.dijitStretch {
+			border-radius: $border-radius 0 0 $border-radius;
+		}
+		.dijitArrowButton {
+			padding: $padding;
+			width: $button-arrow-width;
+			border-radius: 0 $border-radius $border-radius 0;
+			border-left-width: 0;
+		}
+	}
+
+	/* ----- ToggleButton ----- */
+	.dijitToggleButton {
+		.dijitCheckBoxIcon {
+			display: none;
+		}
+	}
+
+	.dijitToggleButtonChecked {
+		.dijitIcon {
+			display: inline-block;
+		}
+	}
+
+	// arrow styles for down/up/left/right directions
+	.dijitDropDownButton .dijitArrowButtonInner{
+		margin-left: $padding * 0.75;
+	}
+
+	.dijitDropDownButton .dijitArrowButtonInner,
+	.dijitArrowButton  {
+		_icon-core-style();
+	}
+
+	.dijitDropDownButton .dijitArrowButtonInner:before,
+	.dijitArrowButton:before {
+		content: $icon-drop-down;
+	}
+
+	.dijitLeftArrowButton:before {
+		content: $icon-drop-left;
+	}
+
+	.dijitRightArrowButton:before {
+		content: $icon-drop-right;
+	}
+
+	.dijitUpArrowButton:before {
+		content: $icon-drop-up;
+	}
+}
