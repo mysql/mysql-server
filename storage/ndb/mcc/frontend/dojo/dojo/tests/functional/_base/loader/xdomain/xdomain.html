@@ -1,0 +1,183 @@
+<html>
+<head>
+    <script type="text/javascript">
+        var testArgs = { async: 0, variation: 2 };
+        // Looking for a query string parameter
+        var search = location.search;
+        var params, param, parts;
+        if (search) {
+            search = search.substring(1);
+            params = search.split('&');
+            while ((param = params.shift())) {
+                parts = param.split('=');
+                if (parts[0] === 'async') {
+                    testArgs.async = parts[1];
+                } else {
+                    testArgs.variation = parseInt(parts[1]);
+                }
+            }
+        }
+
+        var dojoConfig = {
+            async: testArgs.async,
+            packages: [
+                { name: 'dojo', location: 'node_modules/dojo' },
+                { name: 'testing', location: '.' }
+            ],
+            map: {
+                '*': {
+                    'dojo/tests': 'testing/tests/functional'
+                }
+            }
+        };
+
+        var expectedSequence;
+        var xdomainExecSequence = [];
+        var xdomainLog = [];
+
+        var built = 1;
+        //>>excludeStart("srcVersion", kwArgs.copyTests=="build");
+
+        built = 0;
+        //>>excludeEnd("srcVersion");
+
+        if ((testArgs.async === 'legacyAsync' || built) && testArgs.variation === 2) {
+            expectedSequence = [
+                'local1-5',
+                'local1-17',
+                'local2-1',
+                'local2-2',
+                'local2-3',
+                'local3-1',
+                'local3-2',
+                'local1-1',
+                'local1-2',
+                'local1-3',
+                'local1-dep-1',
+                'local1-dep-2',
+                'local1-4',
+                'local1-6',
+                'dojo.tests._base.loader.xdomain.local1-runtimeDependent1-1',
+                'dojo.tests._base.loader.xdomain.local1-runtimeDependent1-2',
+                'local1-7',
+                'local1-8',
+                'dojo.tests._base.loader.xdomain.local1-browser-1',
+                'dojo.tests._base.loader.xdomain.local1-browser-2',
+                'dojo.tests._base.loader.xdomain.local1-browser-skip-1',
+                'local1-9',
+                'local1-10',
+                'local1-11',
+                'local1-12',
+                'local1-13',
+                'local1-14',
+                'local1-15',
+                'local1-16',
+                'local1-18',
+                'local3-3',
+                'local2-4'
+            ].join(';');
+        }
+        else if (testArgs.async === 0 && testArgs.variation === 2) {
+            expectedSequence = [
+                'local2-1',
+                'local2-2',
+                'local2-3',
+                'local2-4',
+                'local1-5',
+                'local1-17',
+                'local3-1',
+                'local3-2',
+                'local1-1',
+                'local1-2',
+                'local1-3',
+                'local1-dep-1',
+                'local1-dep-2',
+                'local1-4',
+                'local1-6',
+                'dojo.tests._base.loader.xdomain.local1-runtimeDependent1-1',
+                'dojo.tests._base.loader.xdomain.local1-runtimeDependent1-2',
+                'local1-7',
+                'local1-8',
+                'dojo.tests._base.loader.xdomain.local1-browser-1',
+                'dojo.tests._base.loader.xdomain.local1-browser-2',
+                'dojo.tests._base.loader.xdomain.local1-browser-skip-1',
+                'local1-9',
+                'local1-10',
+                'local1-11',
+                'local1-12',
+                'local1-13',
+                'local1-14',
+                'local1-15',
+                'local1-16',
+                'local1-18',
+                'local3-3'
+            ].join(';');
+        }
+        else if ((testArgs.async === 'legacyAsync' || built) && testArgs.variation === 1) {
+            expectedSequence = [
+                'local1-5',
+                'local1-17',
+                'local1-1',
+                'local1-2',
+                'local1-3',
+                'local1-dep-1',
+                'local1-dep-2',
+                'local1-4',
+                'local1-6',
+                'dojo.tests._base.loader.xdomain.local1-runtimeDependent1-1',
+                'dojo.tests._base.loader.xdomain.local1-runtimeDependent1-2',
+                'local1-7',
+                'local1-8',
+                'dojo.tests._base.loader.xdomain.local1-browser-1',
+                'dojo.tests._base.loader.xdomain.local1-browser-2',
+                'dojo.tests._base.loader.xdomain.local1-browser-skip-1',
+                'local1-9',
+                'local1-10',
+                'local1-11',
+                'local1-12',
+                'local1-13',
+                'local1-14',
+                'local1-15',
+                'local1-16',
+                'local1-18'
+            ].join(';');
+        }
+        else if (testArgs.async === 0 && testArgs.variation === 1) {
+            expectedSequence = [
+                'local1-1',
+                'local1-2',
+                'local1-3',
+                'local1-4',
+                'local1-5',
+                'local1-6',
+                'local1-7',
+                'local1-8',
+                'local1-9',
+                'local1-10',
+                'local1-11',
+                'local1-12',
+                'local1-13',
+                'local1-14',
+                'local1-15',
+                'local1-16',
+                'local1-17',
+                'local1-18',
+                'local1-dep-1',
+                'local1-dep-2',
+                'dojo.tests._base.loader.xdomain.local1-runtimeDependent1-1',
+                'dojo.tests._base.loader.xdomain.local1-runtimeDependent1-2',
+                'dojo.tests._base.loader.xdomain.local1-browser-1',
+                'dojo.tests._base.loader.xdomain.local1-browser-2',
+                'dojo.tests._base.loader.xdomain.local1-browser-skip-1'
+            ].join(';');
+        }
+    </script>
+
+    <script type='text/javascript' src='../../../../../dojo.js'></script>
+</head>
+<body>
+<h1>check console</h1>
+
+<p>This test loads a not-xdomain module that contains a xdomain and a not-xdomain module</p>
+</body>
+</html>

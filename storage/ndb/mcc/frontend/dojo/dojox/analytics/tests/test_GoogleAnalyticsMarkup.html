@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>DojoX Google Analytics Test</title>
+
+		<style type="text/css">
+			@import "../../../dojo/resources/dojo.css";
+			@import "../../../dijit/tests/css/dijitTests.css";
+		</style>
+
+		<!-- required: dojo.js -->
+		<script src="../../../dojo/dojo.js"
+			data-dojo-config="parseOnLoad: true, isDebug: true, async:true, urchin: 'UA-123456-7'">
+		</script>
+
+		<!-- do not use: only for testing alternate themes -->
+		<script src="../../../dijit/tests/_testCommon.js"></script>
+
+		<script>
+			require([
+				"dojo/ready",
+				"dojo/parser",
+				"dojox/analytics",
+				"dojox/analytics/Urchin",
+				"dojo/on",
+				"dojo/dom-attr",
+				"dojo/dom"
+			], function(ready, analytics, Urchin, on, domAttr, dom){
+				ready(function(){
+					// NOTE: this method does not permit you to do Ajax-style page tracking
+					// you will need to manually create a tracker programatically, and save
+					// a reference. This is done to avoid taking in _Widget overhead for
+					// this simple class.
+					console.log("dom ready, now loading Urchin in background");
+					console.log("passed:", inmarkup.acct == "UA-12345-6785");
+					console.log("passed:", fromconfig.acct == "UA-123456-7");
+				});
+			});
+		</script>
+	</head>
+	<body>
+		<h1>Simple Lazy loading of Google Analytics Code</h1>
+		<div data-dojo-id="fromconfig" data-dojo-type="dojox/analytics/Urchin" data-dojo-props="acct:'UA-123456-7'"></div>
+		<div data-dojo-id="inmarkup" dojoType="dojox/analytics/Urchin" data-dojo-props="acct:'acctUA-12345-6785'"></div>
+	</body>
+</html>

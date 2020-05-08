@@ -1,0 +1,187 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+	"http://www.w3.org/TR/html4/strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" width="100%" height="100%">
+	
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>ColumnView Sample: Desktop</title>				
+		<style type="text/css">
+			@import "../themes/claro/ColumnView.css";
+			@import "../themes/claro/MatrixView.css";
+			@import "columnview.css";
+			@import "../../../dojo/resources/dojo.css";
+			@import "../../../dijit/themes/dijit.css";
+			@import "../../../dijit/themes/claro/claro.css";
+			
+			.overnight,
+			.overnight .span {
+				background-color: #E2E2E2 !important;				
+			}
+		</style>			
+	</head>
+	
+	<body class="claro">
+		<script type="text/javascript" 
+						data-dojo-config="async: true, parseOnLoad: true"
+		 				src="../../../dojo/dojo.js"></script>
+		
+			<script type="text/javascript">
+
+			require(["dojo/ready", "dojo/_base/declare", "dojo/_base/fx", "dojo/on", "dojo/date/locale", "dojo/parser", "dojo/date", "dojo/_base/lang",
+					"dojo/dom", "dojo/dom-style", "dojo/dom-construct", "dojo/dom-class", "dojo/_base/window", "dijit/registry", "dojo/query", "dojox/calendar/SimpleColumnView", 
+					"dojox/calendar/ColumnViewSecondarySheet", "dojox/calendar/Keyboard", "dojox/calendar/Mouse",	"dojox/calendar/VerticalRenderer", 
+					"dojox/calendar/HorizontalRenderer", "dojox/calendar/ExpandRenderer", "dojo/store/Memory", "dojo/store/Observable",
+					"dijit/form/VerticalSlider", "dijit/form/NumberSpinner", "dijit/form/ComboBox", "dijit/form/DateTextBox", "dijit/form/TimeTextBox", 
+					"dijit/form/TextBox", "dijit/form/Button", "dijit/TitlePane", "dijit/Tooltip", "dijit/form/CheckBox"],
+
+				function(ready, declare, fx,on, locale, parser, date, lang, dom, domStyle, domConstruct, domClass, win, registry, query,
+					ColumnView, ColumnViewSecondarySheet, CalendarKeyboard, CalendarMouse, VerticalRenderer, HorizontalRenderer, ExpandRenderer, Memory, Observable, VerticalSlider, 
+					NumberSpinner, ComboBox, DateTextBox, TimeTextBox, TextBox, Button, TitlePane, Tooltip, CheckBox){
+
+					ready(function(){
+
+						
+						// Calendar model creation
+						
+						var dateClassObj = Date;
+						
+						var modelBase = [
+							{day: 1, start: [9,0], duration: 60},
+							{day: 2, start: [10,30], duration: 120},
+							{day: 2, start: [12,0], duration: 240},
+							{day: 3, start: [6,0], duration: 180},
+							{day: 3, start: [0,0], duration: 2880, allDay: true}
+						];
+						
+						// TODO manage first day of week
+						var floorToWeek= function(d){
+							d.setHours(0);
+							d.setMinutes(0);
+							d.setSeconds(0);
+							d.setMilliseconds(0);
+							d = date.add(d, "day", -d.getDay());
+							return d;
+						};
+						
+						var someData = [];
+						
+						var startOfWeek = new dateClassObj();
+						startOfWeek = floorToWeek(startOfWeek);
+												
+						for (var id=0; id<modelBase.length; id++) {
+							var newObj = {
+								id: id,
+								summary: "New Event " + id,
+								startTime: new dateClassObj(startOfWeek.getTime()),
+								endTime: new dateClassObj(startOfWeek.getTime()),
+								calendar: id%2 == 0 ? "cal1" : "cal2",
+								allDay: modelBase[id].allDay
+							};
+
+							newObj.startTime = date.add(newObj.startTime, "day", modelBase[id].day);
+							newObj.startTime.setHours(modelBase[id].start[0]);
+							newObj.startTime.setMinutes(modelBase[id].start[1]);
+
+							newObj.endTime = date.add(newObj.startTime, "minute", modelBase[id].duration);
+
+							someData.push(newObj);
+						}
+						
+						
+						
+						// Calendar creation & configuration
+						
+						colView = declare([ColumnView, CalendarKeyboard, CalendarMouse])({
+							store: new Observable(new Memory({data: someData})),
+							
+							startDate: startOfWeek,
+							
+							minHours: 12,
+							maxHours: 36,							
+							
+							verticalRenderer: VerticalRenderer,
+							horizontalRenderer: HorizontalRenderer,
+							expandRenderer: ExpandRenderer,							
+							cssClassFunc: function(item){
+								return item.calendar == "cal1" ? "Calendar1" : "Calendar2"
+							},
+							styleRowHeaderCell: function(node, h, m, rd){
+								if(h >= 24){									
+									domClass.add(node, "overnight");									
+								}
+							},
+							style:"position:absolute;left:10px;right:10px;top:10px;bottom:10px"
+						}, "calendarNode2");
+
+						// Events management
+						
+						
+						// Enable creation of event interactively by ctrl clicking grid.
+						var createItem = function(view, d, e, subColumn){
+													
+							// create item by maintaining control key
+							if(!e.ctrlKey || e.shiftKey || e.altKey){
+								return null;
+							}
+						
+							// create a new event
+							var start, end;
+							var cal = colView.dateModule;
+							
+							start = colView.floorDate(d, "minute", colView.timeSlotDuration);
+							end = cal.add(start, "minute", colView.timeSlotDuration); 
+							
+							var item = {
+								id: id,
+								summary: "New event " + id,
+								startTime: start,
+								endTime: end,
+								calendar: subColumn,
+								allDay: view.viewKind == "matrix"
+							};
+							
+							id++;	
+							
+							return item;							
+						};
+						
+						colView.set("createOnGridClick", true);
+						colView.set("createItemFunc", createItem);		
+
+						var startDateSave;
+						var columnCountSave;
+
+						colView.on("columnHeaderClick", function(e){
+							if (colView.get("columnCount") == 1) {
+								colView.set("startDate", startDateSave);
+								colView.set("columnCount", columnCountSave);
+							} else {
+								startDateSave = colView.get("startDate");
+								columnCountSave = colView.get("columnCount");
+								colView.set("startDate", e.date);
+								colView.set("columnCount", 1);
+							}
+						});
+																	
+						window.onresize = function(){							
+							colView.resize();
+						}
+						
+						fx.fadeOut({
+							node:"loadingPanel", 
+							onEnd: function(node){
+								node.parentNode.removeChild(node)
+							}}).play(500);
+
+					});
+			});
+			</script>
+			
+			<div id="loadingPanel" style="position:absolute;z-index:10;width:100%;height:100%;background:#ffffff">
+				<span style="background: #DBEB8F;padding:2px">Loading...</span>
+			</div>
+								
+			<div id="calendarNode2"></div>
+									
+	</body>
+</html>

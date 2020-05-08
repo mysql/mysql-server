@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="Content-type" content="text/html; charset=utf-8"/>
+	<meta name="viewport" 
+		content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no"/>
+	<meta name="apple-mobile-web-app-capable" content="yes"/>
+	<title>Filtered List Tests</title>
+
+	<!-- DOH test for the filtering capabilities added to all list widgets by dojox/mobile/FilteredListMixin -->
+	
+	<script type="text/javascript" src="../../../deviceTheme.js"></script>
+	<script type="text/javascript" src="../../../../../dojo/dojo.js" 
+		data-dojo-config="async: true, parseOnLoad: true, mblAlwaysHideAddressBar: true"></script>
+
+	<script type="text/javascript">
+		require([
+			"dojo/_base/declare",
+			"dojo/dom-construct",
+			"dojo/dom-class",
+			"dojo/ready",
+			"dijit/registry",
+			"doh/runner",
+			"dojo/store/Memory",
+			"dojo/data/ItemFileReadStore",
+			"dojox/mobile/EdgeToEdgeStoreList",
+			"dojox/mobile/EdgeToEdgeDataList",
+			"dojox/mobile/FilteredListMixin",
+			"dojox/mobile/parser",
+			"dojox/mobile",
+			"dojox/mobile/compat",
+			"dojox/mobile/ScrollableView",
+			"dojox/mobile/SearchBox"
+		], function(declare, domConstruct, domClass, ready, registry, runner, 
+					Memory, ItemFileReadStore, EdgeToEdgeStoreList, EdgeToEdgeDataList, 
+					FilteredListMixin){
+			
+			var EDGE_TO_EDGE_LIST_FILTER_BOX_CLASSNAME = "mblFilteredEdgeToEdgeListSearchBox";
+			var ROUND_RECT_LIST_FILTER_BOX_CLASSNAME = "mblFilteredRoundRectListSearchBox";
+			var CUSTOM_FILTER_BOX_CLASSNAME = "myCustomClass";
+			
+			var static_data = { 
+				items: [ 
+					{label: "Alabama"},
+					{label: "Alaska"},
+					{label: "American Samoa"},
+					{label: "Arizona"},
+					{label: "Arkansas"},
+					{label: "Armed Forces Europe"},
+					{label: "Armed Forces Pacific"},
+					{label: "Armed Forces the Americas"},
+					{label: "California"},
+					{label: "Colorado"},
+					{label: "Connecticut"},
+					{label: "Delaware"},
+					{label: "District of Columbia"},
+					{label: "Federated States of Micronesia"},
+					{label: "Florida"},
+					{label: "Georgia"},
+					{label: "Guam"},
+					{label: "Hawaii"},
+					{label: "Idaho"},
+					{label: "Illinois"},
+					{label: "Indiana"},
+					{label: "Iowa"},
+					{label: "Kansas"},
+					{label: "Kentucky"},
+					{label: "Louisiana"},
+					{label: "Maine"},
+					{label: "Marshall Islands"},
+					{label: "Maryland"},
+					{label: "Massachusetts"},
+					{label: "Michigan"},
+					{label: "Minnesota"},
+					{label: "Mississippi"},
+					{label: "Missouri"},
+					{label: "Montana"},
+					{label: "Nebraska"},
+					{label: "Nevada"},
+					{label: "New Hampshire"},
+					{label: "New Jersey"},
+					{label: "New Mexico"},
+					{label: "New York"},
+					{label: "North Carolina"},
+					{label: "North Dakota"},
+					{label: "Northern Mariana Islands"},
+					{label: "Ohio"},
+					{label: "Oklahoma"},
+					{label: "Oregon"},
+					{label: "Pennsylvania"},
+					{label: "Puerto Rico"},
+					{label: "Rhode Island"},
+					{label: "South Carolina"},
+					{label: "South Dakota"},
+					{label: "Tennessee"},
+					{label: "Texas"},
+					{label: "Utah"},
+					{label: "Vermont"},
+					{label: "Virgin Islands, U.S."},
+					{label: "Virginia"},
+					{label: "Washington"},
+					{label: "West Virginia"},
+					{label: "Wisconsin"},
+					{label: "Wyoming"}
+				]
+			};
+			
+			// store for the dojox/mobile/EdgeToEdgeStoreList
+			store = new Memory({idProperty:"label", data: static_data});
+			
+			// dojo/data store for dojox/mobile/EdgeToEdgeDataList
+			dataStore = new ItemFileReadStore({data: static_data});
+			
+			ready(function(){
+				doh.register("dojox.mobile.test.doh.filteredlistmixin", [
+					function testInView1(){
+						// EdgeToEdgeStoreList filtered using FilteredListMixin.
+						// Use-case: markup; SearchBox and ScrollableView created automatically by the mixin.
+						var list = registry.byId("list1");
+						var filterBox = list.getFilterBox();
+						runner.assertNotEqual(null, filterBox);
+						runner.assertNotEqual(null, list.getScrollableView());
+						// Check that the class specified by EdgeToEdgeList.filterBoxClass is added by the
+						// mixin to the SearchBox:
+						runner.assertTrue(domClass.contains(filterBox.domNode.parentNode, EDGE_TO_EDGE_LIST_FILTER_BOX_CLASSNAME),
+							EDGE_TO_EDGE_LIST_FILTER_BOX_CLASSNAME + " id=" + filterBox.id + 
+							" value=" + filterBox.domNode.className);
+						// Check that the filtering actually works
+						var n = list.getChildren().length;
+						runner.assertEqual(61, n);
+						filterBox.on("search", function(results, query, options){
+							runner.assertEqual(2, list.getChildren().length);
+						});
+						filterBox._startSearch("Co"); // Matches 2 items (Colorado and Connecticut)
+					},
+					function testInView2(){
+						// EdgeToEdgeStoreList filtered using FilteredListMixin.
+						// Use-case: markup; SearchBox and ScrollableView are provided.
+						var list = registry.byId("list2");
+						var filterBox = list.getFilterBox();
+						runner.assertNotEqual(null, filterBox);
+						// Check that the class specified by the user for the SearchBox is preserved:
+						runner.assertTrue(domClass.contains(filterBox.domNode, CUSTOM_FILTER_BOX_CLASSNAME),
+							CUSTOM_FILTER_BOX_CLASSNAME + " id=" + filterBox.id + 
+							" value=" + filterBox.domNode.className);
+						// Check that the filtering actually works
+						var n = list.getChildren().length;
+						runner.assertEqual(61, n);
+						filterBox.set("searchDelay", 0); // to help testing
+						var expectedNumberOfMatchingItems;
+						runner.assertEqual("Search", filterBox.placeHolder);
+						filterBox.on("search", function(results, query, options){
+							runner.assertEqual(expectedNumberOfMatchingItems, list.getChildren().length);
+						});
+						expectedNumberOfMatchingItems = 2;
+						filterBox._startSearch("Co"); // Matches 2 items (Colorado and Connecticut)
+						
+						// Test changing parameters of the SearchBox
+						filterBox.set("queryExpr", "*${0}*"); // switched from "starts with..." to "contains"
+						// wait 500 ms to give time to the first asynchronous search, otherwise the 
+						// second search cancels the first one
+						setTimeout(function(){
+							expectedNumberOfMatchingItems = 12;
+							filterBox._startSearch("or"); // Matches 12 items
+						}, 500); 
+					},
+					function testInView3(){
+						// EdgeToEdgeStoreList filtered using FilteredListMixin.
+						// Use-case: markup; SearchBox and ScrollableView are provided; SearchBox with custom placeHolder.
+						var list = registry.byId("list3");
+						var filterBox = list.getFilterBox();
+						runner.assertNotEqual(null, filterBox);
+						// Check that the class specified by the user for the SearchBox is preserved:
+						runner.assertTrue(domClass.contains(filterBox.domNode, CUSTOM_FILTER_BOX_CLASSNAME),
+							CUSTOM_FILTER_BOX_CLASSNAME + " id=" + filterBox.id + 
+							" value=" + filterBox.domNode.className);
+						// Check that the filtering actually works
+						var n = list.getChildren().length;
+						runner.assertEqual(61, n);
+						// Check that the placeHolder set on the provided SearchBox
+						// takes precedence over the placeHolder set on the filtered list.
+						runner.assertEqual("CustomPlaceHolder", filterBox.placeHolder);
+					},
+					function testInView4(){
+						// EdgeToEdgeDataList filtered using FilteredListMixin.
+						// Use-case: markup; SearchBox and ScrollableView are provided.
+						var list = registry.byId("list4");
+						var filterBox = list.getFilterBox();
+						runner.assertNotEqual(null, filterBox);
+						// Check that the class specified by the user for the SearchBox is preserved:
+						runner.assertTrue(domClass.contains(filterBox.domNode, CUSTOM_FILTER_BOX_CLASSNAME),
+							CUSTOM_FILTER_BOX_CLASSNAME + " id=" + filterBox.id + 
+							" value=" + filterBox.domNode.className);
+						// Check that the filtering actually works
+						var n = list.getChildren().length;
+						runner.assertEqual(61, n);
+						filterBox.on("search", function(results, query, options){
+							runner.assertEqual(2, list.getChildren().length);
+						});
+						filterBox._startSearch("Co"); // Matches 2 items (Colorado and Connecticut)
+					},
+					function testInView5(){
+						// EdgeToEdgeStoreList filtered using FilteredListMixin.
+						// Use-case: programmatic; SearchBox and ScrollableView created automatically by the mixin.
+						var list = new declare([EdgeToEdgeStoreList, FilteredListMixin])(
+								{placeHolder: 'Search', store: store}, "list5");
+						list.startup();
+						var filterBox = list.getFilterBox();
+						runner.assertNotEqual(null, filterBox);
+						runner.assertNotEqual(null, list.getScrollableView());
+						// Check that the class specified by EdgeToEdgeList.filterBoxClass is added by the
+						// mixin to the SearchBox:
+						runner.assertTrue(domClass.contains(filterBox.domNode.parentNode, EDGE_TO_EDGE_LIST_FILTER_BOX_CLASSNAME),
+							EDGE_TO_EDGE_LIST_FILTER_BOX_CLASSNAME + " id=" + filterBox.id + 
+							" value=" + filterBox.domNode.className);
+						// Check that the filtering actually works
+						var n = list.getChildren().length;
+						runner.assertEqual(61, n);
+						filterBox.on("search", function(results, query, options){
+							runner.assertEqual(2, list.getChildren().length);
+						});
+						filterBox._startSearch("Co"); // Matches 2 items (Colorado and Connecticut)
+					},
+					function testInView6(){
+						// RoundRectList filtered using FilteredListMixin.
+						// Use-case: markup; SearchBox and ScrollableView created automatically by the mixin.
+						var list = registry.byId("list6");
+						var filterBox = list.getFilterBox();
+						runner.assertNotEqual(null, filterBox);
+						runner.assertNotEqual(null, list.getScrollableView());
+						// Check that the class specified by RoundReectList.filterBoxClass is added by the
+						// mixin to the SearchBox:
+						runner.assertTrue(domClass.contains(filterBox.domNode.parentNode, ROUND_RECT_LIST_FILTER_BOX_CLASSNAME),
+							ROUND_RECT_LIST_FILTER_BOX_CLASSNAME + " id=" + filterBox.id + 
+							" value=" + filterBox.domNode.className);
+						// Check that the filtering actually works
+						var n = list.getChildren().length;
+						runner.assertEqual(61, n);
+						filterBox.on("search", function(results, query, options){
+							runner.assertEqual(2, list.getChildren().length);
+						});
+						filterBox._startSearch("Co"); // Matches 2 items (Colorado and Connecticut)
+					}
+				]);
+				runner.run();
+			});
+		})
+	</script>
+
+</head>
+<body>
+	<div id="view1" data-dojo-type="dojox/mobile/View">
+		<!-- EdgeToEdgeStoreList filtered using FilteredListMixin. -->
+		<!-- Use-case: markup; SearchBox and ScrollableView created automatically by the mixin. -->
+		<h1 data-dojo-type="dojox/mobile/Heading" data-dojo-props="fixed: 'top'">Filtered EdgeToEdgeStoreList</h1>
+		<ul data-dojo-type="dojox/mobile/EdgeToEdgeStoreList" id="list1"
+			data-dojo-mixins="dojox/mobile/FilteredListMixin"
+			data-dojo-props="placeHolder: 'Search', store: store"></ul>
+	</div>
+	<div id="view2" data-dojo-type="dojox/mobile/View">
+		<!-- EdgeToEdgeStoreList filtered using FilteredListMixin. -->
+		<!-- Use-case: markup; SearchBox and ScrollableView are provided. -->
+		<h1 data-dojo-type="dojox/mobile/Heading" data-dojo-props="fixed: 'top'">Filtered EdgeToEdgeStoreList</h1>
+		<input data-dojo-type="dojox/mobile/SearchBox" type="search" id="filterBox2"
+			class="myCustomClass mblFilteredEdgeToEdgeListSearchBox">
+		<div data-dojo-type="dojox/mobile/ScrollableView">
+			<ul data-dojo-type="dojox/mobile/EdgeToEdgeStoreList" id="list2"
+				data-dojo-mixins="dojox/mobile/FilteredListMixin"
+				data-dojo-props="filterBoxRef: 'filterBox2', placeHolder: 'Search', store: store"></ul>
+		</div>
+	</div>
+	<div id="view3" data-dojo-type="dojox/mobile/View">
+		<!-- EdgeToEdgeStoreList filtered using FilteredListMixin. -->
+		<!-- Use-case: markup; SearchBox and ScrollableView are provided; SearchBox with custom placeHolder. -->
+		<h1 data-dojo-type="dojox/mobile/Heading" data-dojo-props="fixed: 'top'">Filtered EdgeToEdgeStoreList</h1>
+		<input data-dojo-type="dojox/mobile/SearchBox" type="search" id="filterBox3"
+			data-dojo-props="filterBoxRef: 'filterBox', placeHolder: 'CustomPlaceHolder', store: store"
+			class="myCustomClass mblFilteredEdgeToEdgeListSearchBox">
+		<div data-dojo-type="dojox/mobile/ScrollableView">
+			<ul data-dojo-type="dojox/mobile/EdgeToEdgeStoreList" id="list3"
+				data-dojo-mixins="dojox/mobile/FilteredListMixin"
+				data-dojo-props="filterBoxRef: 'filterBox3', placeHolder: 'Search', store: store"></ul>
+		</div>
+	</div>
+	<div id="view4" data-dojo-type="dojox/mobile/View">
+		<!-- EdgeToEdgeDataList filtered using FilteredListMixin. -->
+		<!-- Use-case: markup; SearchBox and ScrollableView are provided. -->
+		<h1 data-dojo-type="dojox/mobile/Heading" data-dojo-props="fixed: 'top'">Filtered EdgeToEdgeDataList</h1>
+		<input data-dojo-type="dojox/mobile/SearchBox" type="search" id="filterBox4"
+			class="myCustomClass mblFilteredEdgeToEdgeListSearchBox">
+		<div data-dojo-type="dojox/mobile/ScrollableView">
+			<ul data-dojo-type="dojox/mobile/EdgeToEdgeDataList" id="list4" 
+				data-dojo-mixins="dojox/mobile/FilteredListMixin"
+				data-dojo-props="filterBoxRef: 'filterBox4', placeHolder: 'Search', store: dataStore"></ul>
+		</div>
+	</div>
+	<div id="view5" data-dojo-type="dojox/mobile/View">
+		<!-- EdgeToEdgeStoreList filtered using FilteredListMixin. -->
+		<!-- Use-case: programmatic; SearchBox and ScrollableView created automatically by the mixin. -->
+		<h1 data-dojo-type="dojox/mobile/Heading" data-dojo-props="fixed: 'top'">Filtered EdgeToEdgeStoreList</h1>
+		<div id="list5" style="height:100%"></div>
+	</div>
+	<div id="view6" data-dojo-type="dojox/mobile/View">
+		<!-- RoundRectList filtered using FilteredListMixin. -->
+		<!-- Use-case: markup; SearchBox and ScrollableView created automatically by the mixin. -->
+		<h1 data-dojo-type="dojox/mobile/Heading" data-dojo-props="fixed: 'top'">Filtered RoundRectList</h1>
+		<ul id="list6" data-dojo-type="dojox/mobile/RoundRectList"
+			data-dojo-mixins="dojox/mobile/FilteredListMixin"
+			data-dojo-props="placeHolder: 'Search'">
+			<li data-dojo-type="dojox/mobile/ListItem">Alabama</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Alaska</li>
+			<li data-dojo-type="dojox/mobile/ListItem">American Samoa</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Arizona</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Arkansas</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Armed Forces Europe</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Armed Forces Pacific</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Armed Forces the Americas</li>
+			<li data-dojo-type="dojox/mobile/ListItem">California</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Colorado</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Connecticut</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Delaware</li>
+			<li data-dojo-type="dojox/mobile/ListItem">District of Columbia</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Federated States of Micronesia</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Florida</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Georgia</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Guam</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Hawaii</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Idaho</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Illinois</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Indiana</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Iowa</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Kansas</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Kentucky</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Louisiana</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Maine</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Marshall Islands</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Maryland</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Massachusetts</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Michigan</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Minnesota</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Mississippi</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Missouri</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Montana</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Nebraska</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Nevada</li>
+			<li data-dojo-type="dojox/mobile/ListItem">New Hampshire</li>
+			<li data-dojo-type="dojox/mobile/ListItem">New Jersey</li>
+			<li data-dojo-type="dojox/mobile/ListItem">New Mexico</li>
+			<li data-dojo-type="dojox/mobile/ListItem">New York</li>
+			<li data-dojo-type="dojox/mobile/ListItem">North Carolina</li>
+			<li data-dojo-type="dojox/mobile/ListItem">North Dakota</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Northern Mariana Islands</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Ohio</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Oklahoma</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Oregon</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Pennsylvania</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Puerto Rico</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Rhode Island</li>
+			<li data-dojo-type="dojox/mobile/ListItem">South Carolina</li>
+			<li data-dojo-type="dojox/mobile/ListItem">South Dakota</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Tennessee</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Texas</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Utah</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Vermont</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Virgin Islands, U.S.</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Virginia</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Washington</li>
+			<li data-dojo-type="dojox/mobile/ListItem">West Virginia</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Wisconsin</li>
+			<li data-dojo-type="dojox/mobile/ListItem">Wyoming</li>
+		</ul>
+	</div>
+</body>
+</html>

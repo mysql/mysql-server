@@ -1,0 +1,275 @@
+/* Text Inputs: [TextBox | DateTextBox | CurrencyTextBox | ValidationTextBox | ...] | TextArea
+ * Mainly includes:
+ * 
+ * 1. Containers
+ * 		.dijitTextBox
+ * 		.dijitInputField - container that wraps "dijitInputInner" or "dijitPlaceHolder"
+ *
+ * 2. Textbox input
+ * 		.dijitInputInner
+ * 		.dijitPlaceHolder
+ *
+ * 3. States - Hover, Focused, Disabled, Error, Error while Focused e.g.
+ * 		.dijitTextBoxHover
+ * 		.dijitTextBoxFocused
+ * 		.dijitTextBoxDisabled
+ *      .dijitTextBoxError
+ *      .dijitTextBoxErrorFocused
+ *
+*/
+.flat .dijitTextBox,
+.flat .dijitInputInner {
+  line-height: 20px;
+}
+.flat .dijitTextBox {
+  background: #fff;
+  border: 1px solid #9e9e9e;
+  border-radius: 3px;
+  -webkit-transition: border 0.2s linear 0s, box-shadow 0.2s linear 0s;
+  -moz-transition: border 0.2s linear 0s, box-shadow 0.2s linear 0s;
+  -o-transition: border 0.2s linear 0s, box-shadow 0.2s linear 0s;
+  -ms-transition: border 0.2s linear 0s, box-shadow 0.2s linear 0s;
+  transition: border 0.2s linear 0s, box-shadow 0.2s linear 0s;
+}
+.flat .dijitTextArea {
+  padding: 4px 6px;
+}
+.flat .dijitTextBox .dijitInputField {
+  padding: 0 4px;
+  margin: 0 2px;
+}
+.flat .dijitSelect.alt-primary,
+.flat .dijitComboBox.alt-primary,
+.flat .dijitSpinner.alt-primary {
+  border-color: #1e88e5;
+}
+.flat .dijitSelect.alt-success,
+.flat .dijitComboBox.alt-success,
+.flat .dijitSpinner.alt-success {
+  border-color: #43a047;
+}
+.flat .dijitSelect.alt-info,
+.flat .dijitComboBox.alt-info,
+.flat .dijitSpinner.alt-info {
+  border-color: #03a9f4;
+}
+.flat .dijitSelect.alt-warning,
+.flat .dijitComboBox.alt-warning,
+.flat .dijitSpinner.alt-warning {
+  border-color: #fb8c00;
+}
+.flat .dijitSelect.alt-danger,
+.flat .dijitComboBox.alt-danger,
+.flat .dijitSpinner.alt-danger {
+  border-color: #e53935;
+}
+.flat .dijitSelect.alt-inverse,
+.flat .dijitComboBox.alt-inverse,
+.flat .dijitSpinner.alt-inverse {
+  border-color: #616161;
+}
+.flat .dijitTextBox .dijitInputInner,
+.flat .dijitValidationTextBox .dijitValidationContainer,
+.flat .dijitTextBox .dijitInputField .dijitPlaceHolder {
+  padding: 4px;
+}
+.flat .dijitTextBoxHover {
+  border-color: #2196f3;
+  -webkit-transition-duration: 0.25s;
+  -moz-transition-duration: 0.25s;
+  -o-transition-duration: 0.25s;
+  -ms-transition-duration: 0.25s;
+  transition-duration: 0.25s;
+}
+.flat .dijitTextBoxFocused {
+  border-color: #2196f3;
+  -webkit-transition-duration: 0.1s;
+  -moz-transition-duration: 0.1s;
+  -o-transition-duration: 0.1s;
+  -ms-transition-duration: 0.1s;
+  transition-duration: 0.1s;
+}
+.flat .dijitTextBoxDisabled {
+  color: #9e9e9e;
+  background-color: #f5f5f5;
+  border-color: #e3e3e3;
+}
+.flat .dijitComboBoxDisabled.alt-primary,
+.flat .dijitSpinnerDisabled.alt-primary {
+  background: #f5f5f5;
+  color: #9e9e9e;
+  border: 1px solid #6db2ee;
+}
+.flat .dijitComboBoxDisabled.alt-primary .dijitButtonNode,
+.flat .dijitSpinnerDisabled.alt-primary .dijitButtonNode {
+  background: #6db2ee;
+  color: #f2f2f2;
+}
+.flat .dijitSpinnerDisabled.alt-primary .dijitSpinnerButtonContainer {
+  border-left-color: #6db2ee;
+}
+.flat .dijitSpinnerRtlDisabled.alt-primary .dijitSpinnerButtonContainer {
+  border-right-color: #6db2ee;
+}
+.flat .dijitSelectDisabled.alt-primary {
+  border-color: #6db2ee;
+}
+.flat .dijitSelectDisabled.alt-primary .dijitStretch,
+.flat .dijitSelectDisabled.alt-primary .dijitButtonNode {
+  background: #6db2ee;
+  color: #f2f2f2;
+}
+.flat .dijitComboBoxDisabled.alt-success,
+.flat .dijitSpinnerDisabled.alt-success {
+  background: #f5f5f5;
+  color: #9e9e9e;
+  border: 1px solid #7dc981;
+}
+.flat .dijitComboBoxDisabled.alt-success .dijitButtonNode,
+.flat .dijitSpinnerDisabled.alt-success .dijitButtonNode {
+  background: #7dc981;
+  color: #f2f2f2;
+}
+.flat .dijitSpinnerDisabled.alt-success .dijitSpinnerButtonContainer {
+  border-left-color: #7dc981;
+}
+.flat .dijitSpinnerRtlDisabled.alt-success .dijitSpinnerButtonContainer {
+  border-right-color: #7dc981;
+}
+.flat .dijitSelectDisabled.alt-success {
+  border-color: #7dc981;
+}
+.flat .dijitSelectDisabled.alt-success .dijitStretch,
+.flat .dijitSelectDisabled.alt-success .dijitButtonNode {
+  background: #7dc981;
+  color: #f2f2f2;
+}
+.flat .dijitComboBoxDisabled.alt-info,
+.flat .dijitSpinnerDisabled.alt-info {
+  background: #f5f5f5;
+  color: #9e9e9e;
+  border: 1px solid #56c9fd;
+}
+.flat .dijitComboBoxDisabled.alt-info .dijitButtonNode,
+.flat .dijitSpinnerDisabled.alt-info .dijitButtonNode {
+  background: #56c9fd;
+  color: #f2f2f2;
+}
+.flat .dijitSpinnerDisabled.alt-info .dijitSpinnerButtonContainer {
+  border-left-color: #56c9fd;
+}
+.flat .dijitSpinnerRtlDisabled.alt-info .dijitSpinnerButtonContainer {
+  border-right-color: #56c9fd;
+}
+.flat .dijitSelectDisabled.alt-info {
+  border-color: #56c9fd;
+}
+.flat .dijitSelectDisabled.alt-info .dijitStretch,
+.flat .dijitSelectDisabled.alt-info .dijitButtonNode {
+  background: #56c9fd;
+  color: #f2f2f2;
+}
+.flat .dijitComboBoxDisabled.alt-warning,
+.flat .dijitSpinnerDisabled.alt-warning {
+  background: #f5f5f5;
+  color: #9e9e9e;
+  border: 1px solid #ffb557;
+}
+.flat .dijitComboBoxDisabled.alt-warning .dijitButtonNode,
+.flat .dijitSpinnerDisabled.alt-warning .dijitButtonNode {
+  background: #ffb557;
+  color: #f2f2f2;
+}
+.flat .dijitSpinnerDisabled.alt-warning .dijitSpinnerButtonContainer {
+  border-left-color: #ffb557;
+}
+.flat .dijitSpinnerRtlDisabled.alt-warning .dijitSpinnerButtonContainer {
+  border-right-color: #ffb557;
+}
+.flat .dijitSelectDisabled.alt-warning {
+  border-color: #ffb557;
+}
+.flat .dijitSelectDisabled.alt-warning .dijitStretch,
+.flat .dijitSelectDisabled.alt-warning .dijitButtonNode {
+  background: #ffb557;
+  color: #f2f2f2;
+}
+.flat .dijitComboBoxDisabled.alt-danger,
+.flat .dijitSpinnerDisabled.alt-danger {
+  background: #f5f5f5;
+  color: #9e9e9e;
+  border: 1px solid #ee7e7c;
+}
+.flat .dijitComboBoxDisabled.alt-danger .dijitButtonNode,
+.flat .dijitSpinnerDisabled.alt-danger .dijitButtonNode {
+  background: #ee7e7c;
+  color: #f2f2f2;
+}
+.flat .dijitSpinnerDisabled.alt-danger .dijitSpinnerButtonContainer {
+  border-left-color: #ee7e7c;
+}
+.flat .dijitSpinnerRtlDisabled.alt-danger .dijitSpinnerButtonContainer {
+  border-right-color: #ee7e7c;
+}
+.flat .dijitSelectDisabled.alt-danger {
+  border-color: #ee7e7c;
+}
+.flat .dijitSelectDisabled.alt-danger .dijitStretch,
+.flat .dijitSelectDisabled.alt-danger .dijitButtonNode {
+  background: #ee7e7c;
+  color: #f2f2f2;
+}
+.flat .dijitComboBoxDisabled.alt-inverse,
+.flat .dijitSpinnerDisabled.alt-inverse {
+  background: #f5f5f5;
+  color: #9e9e9e;
+  border: 1px solid #989898;
+}
+.flat .dijitComboBoxDisabled.alt-inverse .dijitButtonNode,
+.flat .dijitSpinnerDisabled.alt-inverse .dijitButtonNode {
+  background: #989898;
+  color: #f2f2f2;
+}
+.flat .dijitSpinnerDisabled.alt-inverse .dijitSpinnerButtonContainer {
+  border-left-color: #989898;
+}
+.flat .dijitSpinnerRtlDisabled.alt-inverse .dijitSpinnerButtonContainer {
+  border-right-color: #989898;
+}
+.flat .dijitSelectDisabled.alt-inverse {
+  border-color: #989898;
+}
+.flat .dijitSelectDisabled.alt-inverse .dijitStretch,
+.flat .dijitSelectDisabled.alt-inverse .dijitButtonNode {
+  background: #989898;
+  color: #f2f2f2;
+}
+.flat .dijitTextBoxError,
+.flat .dijitTextBoxError .dijitButtonNode {
+  border-color: #dd2c00;
+}
+.flat .dijitTextBoxErrorFocused,
+.flat .dijitTextBoxErrorFocused .dijitButtonNode {
+  border: 1px solid #bc2500;
+}
+.flat .dijitValidationTextBoxError .dijitValidationContainer {
+  color: #dd2c00;
+  width: 18px;
+  font-family: "flat-icon";
+  speak: none;
+  font-style: normal;
+  font-weight: normal;
+  font-variant: normal;
+  text-transform: none;
+  line-height: 1;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-size: 18px;
+}
+.flat .dijitValidationTextBoxError .dijitValidationContainer:before {
+  content: "\f017";
+}
+.flat .dijitValidationTextBoxError .dijitValidationIcon {
+  display: none;
+}

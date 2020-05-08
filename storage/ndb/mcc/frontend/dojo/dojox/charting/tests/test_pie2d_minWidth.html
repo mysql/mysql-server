@@ -1,0 +1,59 @@
+<!DOCTYPE HTML>
+<html lang="en">
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+		<title>Pie 2D</title>
+		<style type="text/css">
+			@import "../../../dojo/resources/dojo.css";
+			@import "../../../dijit/tests/css/dijitTests.css";
+		</style>
+		<script type="text/javascript" src="../../../dojo/dojo.js" data-dojo-config="isDebug: true, async: true"></script>
+		<script type="text/javascript">
+			require([
+				"dojox/charting/Chart",
+				"dojox/charting/plot2d/Pie",
+				"dojox/charting/themes/PlotKit/blue",
+				"dojox/charting/widget/Legend",
+				"dojo/domReady!"
+			], function (Chart, Pie, pkBlue, Legend) {
+				var chart1 = new Chart("test1");
+				chart1.setTheme(pkBlue);
+				chart1.addPlot("default", {
+					type: Pie,
+					font: "normal normal bold 12pt Tahoma",
+					fontColor: "blue",
+					labelOffset: 5,
+					labelStyle: "columns",
+					labelWiring: "ccc",
+					minWidth: 10 // 10 pixes min
+				});
+				chart1.addSeries("Series A", [{
+					y: 0.004,
+					text: 0.004
+				}, {
+					y: 0.002,
+					text: 0.002
+				}, {
+					y: 400000,
+					text: "400,000"
+				}, {
+					y: 0.004,
+					text: 0.004
+				}]);
+				chart1.render();
+				var legend = Legend({
+					chart: chart1,
+					horizontal: false
+				}, "legend");
+			});
+		</script>
+	</head>
+	<body>
+		<h1>Pie</h1>
+		<p>Pie with 2 slices with one MUCH larger than all the others, but minwidth keeps it from not showing the small ones.</p>
+		<div id="test1" style="width: 300px; height: 300px;"></div>
+		<div id="legend"></div>
+		<p>That's all Folks!</p>
+	</body>
+</html>
+

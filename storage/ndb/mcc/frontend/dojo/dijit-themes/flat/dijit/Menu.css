@@ -1,0 +1,157 @@
+/* Menu 
+
+There are three areas of styling for the Menu:  
+ 
+ 1. The menu 
+ 	There are three types of menus:
+ 	i) Context Menu
+ 	ii) Drop down Menu
+ 	iii) Navigation Menu
+ 	All three types of menus are affected by the .dijitMenu class in which you can set the background-color, padding and border
+ 	.dijitMenu affects the drop down menu in TimeTextBox, Calendar, ComboBox and FilteringSelect
+  .dijitMenuTable - for padding - also affects Select widget 	
+  	
+ 2. The menu bar
+ 	.dijitMenuBar - for border, margins, padding, background-color of the menu bar
+ 	.dijitMenuBar .dijitMenuItem - for padding, text color of menu items in the menu bar (overrides .dijitMenuItem) 
+ 	
+ 3. Menu items - items in the menu.  
+ 	.dijitMenuItem - for color
+ 	.dijitMenuItemHover, .dijitMenuItemSelected - for background-color, border, text color, padding of a menu item or menubar item that has been hovered over or selected	
+ 	.dijitMenuItemActive - for background-color of an active (mousedown) menu item
+	td.dijitMenuItemIconCell - for padding around a  menu item's icon
+	td.dijitMenuItemLabel - for padding around a menu item's label	
+	.dijitMenuSeparatorTop - for border, top border, of the separator
+	.dijitMenuSeparatorBottom - for bottom margin of the separator
+	
+	Styles specific to ComboBox and FilteringSelect widgets: 
+	.dijitComboBoxMenu .dijitMenuItem - for padding and border of a menu item in a ComboBox or FilteringSelect widget's menu
+	.dijitComboBoxMenu .dijitMenuItemSelected- for text color, background-color and border of a menu item in a ComboBox or FilteringSelect widget's menu
+
+*/
+.flat .dijitMenu {
+  background: #fff;
+  border: 1px solid #9e9e9e;
+  border-radius: 3px;
+  margin: 0;
+  -webkit-box-shadow: 0 7px 3px -4px rgba(0,0,0,0.3), 0 8px 8px rgba(0,0,0,0.2);
+  box-shadow: 0 7px 3px -4px rgba(0,0,0,0.3), 0 8px 8px rgba(0,0,0,0.2);
+}
+.flat .dijitMenuTable,
+.flat .dijitComboBoxMenu {
+  padding: 8px 0;
+}
+.flat .dijitComboBoxMenu {
+  margin-left: 0;
+  background-image: none;
+}
+.flat .dijitMenuTable {
+/* this prevents jiggling upon hover of a menu item */
+  border-collapse: separate;
+  border-spacing: 0 0;
+}
+.flat .dijitMenuItem,
+.flat .dijitMenuItem td {
+  line-height: 20px;
+  padding: 8px;
+  white-space: nowrap;
+}
+.flat .dijitMenuItemHover td,
+.flat .dijitMenuItemHover {
+  color: #fff;
+  background-color: #2196f3;
+}
+.flat .dijitMenuItemActive td,
+.flat .dijitMenuItemActive {
+  color: #fff;
+  background-color: #2196f3;
+}
+.flat .dijitMenuItemSelected td,
+.flat .dijitMenuItemSelected {
+  color: #fff;
+  background-color: #2196f3;
+}
+.flat .dijitMenuItemDisabled {
+  color: #9e9e9e;
+}
+.flat .dijitMenuItemDisabled.dijitMenuItemSelected td,
+.flat .dijitMenuItemDisabled.dijitMenuItemSelected {
+  color: #f2f2f2;
+  background: #6fbbf7;
+}
+.flat .dijitMenuSeparatorTop {
+  height: auto;
+  margin-top: 1px; /* prevents spacing above/below separator */
+  border-bottom: 1px solid #9e9e9e;
+}
+.flat .dijitMenuSeparatorBottom {
+  height: auto;
+  margin-bottom: 1px;
+  border-top: 1px solid transparent;
+}
+.flat td.dijitMenuItemIconCell {
+  padding: 4px;
+  margin: 0 0 0 4px;
+  text-align: center;
+}
+.flat .dijitMenuExpand {
+  font-family: "flat-icon";
+  speak: none;
+  font-style: normal;
+  font-weight: normal;
+  font-variant: normal;
+  text-transform: none;
+  line-height: 1;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+.flat .dijitMenuExpand:before {
+  content: "\f001";
+}
+.flat .dijitCheckedMenuItemIconChar {
+  display: none;
+}
+.flat .dijitMenuPreviousButton,
+.flat .dijitMenuNextButton {
+  font-style: italic;
+}
+.flat .dijitMenuBar {
+  margin: 0;
+  padding: 0;
+  background-color: #f5f5f5;
+}
+.flat .dijitMenuBar .dijitMenuItem {
+  padding: 8px 12px;
+  margin: 0;
+}
+.flat .dijitMenuBar .dijitMenuItemHover {
+  color: #fff;
+  background-color: #2196f3;
+}
+.flat .dijitMenuBar .dijitMenuItemActive {
+  color: #fff;
+  background-color: #2196f3;
+}
+.flat .dijitMenuBar .dijitMenuItemSelected,
+.flat .dijitMenuBar .dijitMenuItemHover.dijitMenuItemSelected,
+.flat .dijitMenuBar .dijitMenuItemActive.dijitMenuItemSelected {
+  color: #fff;
+  background-color: #2196f3;
+}
+.flat .dijitMenuBar .dijitMenuItemDisabled.dijitMenuItemSelected {
+  color: #f2f2f2;
+  background: #6fbbf7;
+}
+.flat .dijitMenuPopup {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+.flat .dijitMenuPopup .dijitMenu {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+.flat .dijitMenuPopup .dijitMenuItem,
+.flat .dijitMenuPopup .dijitMenuItem td {
+  padding: 8px;
+}

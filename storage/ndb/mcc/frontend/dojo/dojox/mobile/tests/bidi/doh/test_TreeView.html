@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="Content-type" content="text/html; charset=utf-8"/>
+	<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no"/>
+	<meta name="apple-mobile-web-app-capable" content="yes"/>
+	<title>Tree View example (FileStore)</title>
+
+	<script type="text/javascript" src="../../../deviceTheme.js" data-dojo-config="mblThemeFiles: ['base']"></script>
+	<script type="text/javascript" src="../../../../../dojo/dojo.js" data-dojo-config="async: true, parseOnLoad: true,  has: {'dojo-bidi': true }"></script>
+
+	<script type="text/javascript">
+		require([
+			"dijit/registry",		
+			"doh/runner",
+			"dojo/dom",
+			"dojo/ready",
+			"dojo/query",
+			"dojo/on",
+			"dojo/data/ItemFileReadStore",
+			"dijit/tree/ForestStoreModel",
+			"dojox/mobile/ListItem",			
+			"dojox/mobile/parser",
+			"dojox/mobile",
+			"dojox/mobile/compat",
+			"dojox/mobile/TreeView",			
+			"dojox/mobile/EdgeToEdgeDataList"
+		], function(registry,runner,dom,ready,query,on,ItemFileReadStore, ForestStoreModel,ListItem){
+				var store = new ItemFileReadStore({
+					data: {
+						identifier: 'id',
+						label: 'name',
+						items: [{id:"1",name:"First!",type:"",undefined: "&#1513;&#1500;&#1493;&#1501; First Item!"},{id:"2",name:"&#1513;&#1500;&#1493;&#1501;  Second!",type:"",undefined: "Second Item!"}]
+					}
+				});	
+				
+				treeModel = new ForestStoreModel({
+					store: store,
+					rootLabel: "&#1513;&#1500;&#1493;&#1501; Tree Items!",
+					childrenAttrs: ["children"],
+					query:{type:'*'}
+				});
+				
+				ready(function(){				
+					runner.register("Bidi TreeView", [
+						{
+							name: "mobile",					
+							runTest: function(){
+								var label = "Left-to-right ListItem!";
+								listItem = new ListItem({label: label,noArrow: true});
+								registry.byId("list").addChild(listItem);							
+								var listItemLabels = query(".mblListItemLabel",dom.byId('list'));
+								runner.is(label.charAt(0),listItemLabels[0].innerHTML.charAt(0), "ListItem's label has default direction and shouldn't contain UCC marks");
+								listItem.destroy();
+								
+								var treeView = registry.byId('treeView');
+								var children = treeView.getChildren();
+								if(children[0] && children[0].getChildren() && children[0].getChildren()[0].declaredClass === "dojox.mobile.ListItem"){
+									children[0].getChildren()[0].on("click", function(){
+										query(".mblListItemLabel").forEach(function(node, index, arr){										
+											runner.is(String.fromCharCode(8235), node.innerHTML.charAt(0), "ListItem's label node should have direction correspondent to 'textDir'");
+										});
+									});
+								}
+		        
+								query(".mblListItemLabel",dom.byId('treeView')).forEach(function(node, index, arr){							
+									runner.is(String.fromCharCode(8235), node.innerHTML.charAt(0), "ListItem's label node should have direction correspondent to 'textDir'");										
+								});								
+							}
+						}
+					]);	 			
+					
+					runner.register("log", function(){
+						dom.byId('failures').innerHTML = runner._failureCount;
+						dom.byId('errors').innerHTML = runner._errorCount;
+					});
+					runner.run();
+				});				
+		});
+	</script>
+</head>
+<body style="visibility:hidden;">
+
+	<ul data-dojo-type="dojox.mobile.EdgeToEdgeDataList" id="list" data-dojo-props='append:true'></ul>
+	
+	<div id="treeView" data-dojo-type="dojox.mobile.TreeView" data-dojo-props='textDir:"rtl", model: treeModel'></div>
+	
+	<br>Errors:&nbsp;<span id="errors">?</span>
+	<br>Failures:&nbsp;<span id="failures">?</span>		
+</body>
+</html>

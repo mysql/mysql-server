@@ -1,0 +1,22 @@
+<div class="view mblView">
+	<h1 id="heading4" data-dojo-type="dojox/mobile/Heading" data-dojo-props='label:"Long List Four"' data-app-constraint="top">
+		<span id="sc4back1" data-dojo-type="dojox/mobile/ToolBarButton" arrow="left" 
+		data-dojo-props="target: 'configuration,ScrollableListSelection', url: '#configuration,ScrollableListSelection', transitionDir: -1">Back</span>
+		<span data-dojo-type="dojox/mobile/ToolBarButton" id="sc4insert10x" data-dojo-props='icon:"mblDomButtonWhitePlus"' style="float:right;">5</span>
+	</h1>     
+	<div data-app-constraint="top">
+		<div class="field-title">Should scroll between this text and the bottom footer.</div>
+	</div>     
+
+	<div data-dojo-type="dojox/app/widgets/Container" data-app-constraint="center" data-dojo-props="scrollable: true">
+
+		<div class="field-title">Should scroll from under the top header to the end of the page, this text will also scroll.</div>
+
+		<form name="repeatTestForm3">
+				<ul data-dojo-type="dojox/mobile/EdgeToEdgeStoreList" data-dojo-mixins="dojox/mobile/LongListMixin" id="list4" data-dojo-props='append:true'></ul> 
+		<!--		<ul data-dojo-type="dojox/mobile/EdgeToEdgeStoreList" id="list4" data-dojo-props='append:true'></ul> -->
+				
+		</form>
+	</div>
+	<h1 data-dojo-type="dojox/mobile/Heading" data-dojo-props="label: 'Scrollable List One Footer Bar'" data-app-constraint="bottom"></h1>
+</div>

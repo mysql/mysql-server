@@ -1,0 +1,700 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+	"http://www.w3.org/TR/html4/strict.dtd">
+<!--
+	we use a strict-mode DTD to ensure that the box model is the same for these
+	basic tests
+-->
+<html>
+	<head>
+		<title>testing Core HTML/DOM/CSS/Style utils</title>
+		<style type="text/css">
+			@import "../../resources/dojo.css";
+		</style>
+		<script type="text/javascript" src="../../dojo.js" data-dojo-config="isDebug:true"></script>
+		<script type="text/javascript">
+			require(["dojo", "doh", "dojo/sniff", "dojo/domReady!"], function(dojo, doh, has){
+
+				function getIframeDocument(/*DOMNode*/iframeNode){
+					//summary: Returns the document object associated with the iframe DOM Node argument.
+					var doc = iframeNode.contentDocument || // W3
+						(
+							(iframeNode.contentWindow)&&(iframeNode.contentWindow.document)
+						) ||  // IE
+						(
+							(iframeNode.name)&&(document.frames[iframeNode.name])&&
+							(documendoh.frames[iframeNode.name].document)
+						) || null;
+					return doc;
+				}
+
+				// IE gets confused by the iframe when you press Refresh so load them dynamically
+				var iframe_div = dojo.byId('iframe_div');
+				dojo.addOnWindowUnload(function(){
+					iframe_div.innerHTML = 'unloading';
+				});
+				setTimeout(function(){
+					iframe_div.innerHTML = '<iframe src="absStrictIframe.html" name="iframe_strict" id="iframe_strict" \
+						style="border:3px solid black; padding:4px; margin:5px; background-color:black;" \
+						scrolling=yes allowtransparency=true></iframe>\
+					<iframe src="absQuirksIframe.html" name="iframe_quirks" id="iframe_quirks" \
+						style="border:3px solid black; padding:4px; margin:5px; background-color:black;" \
+						scrolling=yes allowtransparency=true></iframe>'; //'balanced
+				}, 0);
+
+				doh.register("t",
+					[
+						"doh.is(100, dojo.marginBox('sq100').w);",
+						"doh.is(100, dojo.marginBox('sq100').h);",
+						"doh.is(100, dojo._getMarginSize('sq100').w);",
+						"doh.is(100, dojo._getMarginSize('sq100').h);",
+
+						"doh.is(120, dojo.marginBox('sq100margin10').w);",
+						"doh.is(120, dojo.marginBox('sq100margin10').h);",
+						"doh.is(100, dojo.contentBox('sq100margin10').w);",
+						"doh.is(100, dojo.contentBox('sq100margin10').h);",
+
+						"doh.is(140, dojo.marginBox('sq100margin10pad10').w);",
+						"doh.is(140, dojo.marginBox('sq100margin10pad10').h);",
+						"doh.is(140, dojo._getMarginSize('sq100margin10pad10').w);",
+						"doh.is(140, dojo._getMarginSize('sq100margin10pad10').h);",
+
+						"doh.is(120, dojo.marginBox('sq100pad10').w);",
+						"doh.is(120, dojo.marginBox('sq100pad10').h);",
+
+						"doh.is(110, dojo.marginBox('sq100ltpad10').w);",
+						"doh.is(110, dojo.marginBox('sq100ltpad10').h);",
+						"doh.is(100, dojo.contentBox('sq100ltpad10').w);",
+						"doh.is(100, dojo.contentBox('sq100ltpad10').h);",
+
+						"doh.is(120, dojo.marginBox('sq100ltpad10rbmargin10').w);",
+						"doh.is(120, dojo.marginBox('sq100ltpad10rbmargin10').h);",
+
+						"doh.is(120, dojo.marginBox('sq100border10').w);",
+						"doh.is(120, dojo.marginBox('sq100border10').h);",
+						"doh.is(100, dojo.contentBox('sq100border10').w);",
+						"doh.is(100, dojo.contentBox('sq100border10').h);",
+
+						"doh.is(140, dojo.marginBox('sq100border10margin10').w);",
+						"doh.is(140, dojo.marginBox('sq100border10margin10').h);",
+						"doh.is(100, dojo.contentBox('sq100border10margin10').w);",
+						"doh.is(100, dojo.contentBox('sq100border10margin10').h);",
+
+						"doh.is(160, dojo.marginBox('sq100border10margin10pad10').w);",
+						"doh.is(160, dojo.marginBox('sq100border10margin10pad10').h);",
+						"doh.is(100, dojo.contentBox('sq100border10margin10pad10').w);",
+						"doh.is(100, dojo.contentBox('sq100border10margin10pad10').h);",
+
+						// FIXME: the 'correct' w is not 100 on Safari WebKit (2.0.4 [419.3]), the right-margin extends to the document edge
+						// "doh.is(100, dojo.marginBox('sq100nopos').w);",
+						"doh.is(100, dojo.marginBox('sq100nopos').h);",
+
+						"doh.is(10, dojo._getPadExtents(dojo.byId('sq100ltpad10rbmargin10')).l);",
+						"doh.is(10, dojo._getPadExtents(dojo.byId('sq100ltpad10rbmargin10')).t);",
+						"doh.is(10, dojo._getPadExtents(dojo.byId('sq100ltpad10rbmargin10')).w);",
+						"doh.is(10, dojo._getPadExtents(dojo.byId('sq100ltpad10rbmargin10')).h);",
+
+						"doh.is(0, dojo._getMarginExtents(dojo.byId('sq100ltpad10rbmargin10')).l);",
+						"doh.is(0, dojo._getMarginExtents(dojo.byId('sq100ltpad10rbmargin10')).t);",
+						"doh.is(10, dojo._getMarginExtents(dojo.byId('sq100ltpad10rbmargin10')).w);",
+						"doh.is(10, dojo._getMarginExtents(dojo.byId('sq100ltpad10rbmargin10')).h);",
+
+						"doh.is(10, dojo._getBorderExtents(dojo.byId('sq100border10margin10pad10')).l);",
+						"doh.is(10, dojo._getBorderExtents(dojo.byId('sq100border10margin10pad10')).t);",
+						"doh.is(20, dojo._getBorderExtents(dojo.byId('sq100border10margin10pad10')).w);",
+						"doh.is(20, dojo._getBorderExtents(dojo.byId('sq100border10margin10pad10')).h);",
+
+						"doh.is(20, dojo._getPadBorderExtents(dojo.byId('sq100border10margin10pad10')).l);",
+						"doh.is(20, dojo._getPadBorderExtents(dojo.byId('sq100border10margin10pad10')).t);",
+						"doh.is(40, dojo._getPadBorderExtents(dojo.byId('sq100border10margin10pad10')).w);",
+						"doh.is(40, dojo._getPadBorderExtents(dojo.byId('sq100border10margin10pad10')).h);",
+
+						function scrollUp(){
+							scrollTo(0, 0);
+						},
+
+						function coordsBasic(t){
+							var pos = dojo.position("sq100", false);
+							// console.debug(pos);
+							doh.is(100, pos.x);
+							doh.is(100, pos.y);
+							doh.is(100, pos.w);
+							doh.is(100, pos.h);
+						},
+						function coordsMargin(t){
+							// position() is getting us the border-box location
+							var pos = dojo.position("sq100margin10", false);
+							doh.is(260, pos.x);
+							doh.is(110, pos.y);
+							doh.is(100, pos.w);
+							doh.is(100, pos.h);
+							pos = dojo.marginBox("sq100margin10");
+							doh.is(120, pos.w);
+							doh.is(120, pos.h);
+							// Though coords shouldn't be used, test it for backward compatibility.
+							// coords returns the border-box location and margin-box size
+							pos = dojo.coords("sq100margin10", false);
+							doh.is(260, pos.x);
+							doh.is(110, pos.y);
+							doh.is(120, pos.w);
+							doh.is(120, pos.h);
+						},
+						function coordsBorder(t){
+							var pos = dojo.position("sq100border10", false);
+							doh.is(100, pos.x);
+							doh.is(400, pos.y);
+						},
+						function sq100nopos(t){
+							var pos = dojo.position("sq100nopos", false);
+							// console.debug(pos);
+							doh.is(0, pos.x);
+							doh.t(pos.y > 0);
+							// FIXME: the 'correct' w is not 100 on Safari WebKit (2.0.4 [419.3]), the right-margin extends to the document edge
+							// doh.is(100, pos.w);
+							doh.is(100, pos.h);
+						},
+						function coordsScrolled(t) {
+							var s = document.createElement('div');
+							var c = document.createElement('div');
+							document.body.appendChild(s);
+							s.appendChild(c);
+							var x=257, y= 285;
+							with (s.style) {
+								position = 'absolute';
+								overflow = 'scroll';
+								border = "10px solid black";
+							}
+							dojo.marginBox(s, {l: x, t: y, w: 100, h: 100});
+							dojo.marginBox(c, {l: 0, t: 0, w: 500, h: 500});
+							s.scrollTop = 200;
+							var pos = dojo.position(s, true);
+							doh.is(x, pos.x);
+							doh.is(y, pos.y);
+						},
+						{
+							name: "coordsIframe",
+							timeout: 2000,
+							runTest: function(){
+								var def = new doh.Deferred();
+								setTimeout(function(){ try{
+									var oldLtr = dojo._isBodyLtr();
+									var oldQuirks = has("quirks");
+									dojo.withGlobal(dojo.byId('iframe_quirks').win, function(){
+										doh.t(has("quirks"), "has('quirks') == true in quirks/iframe");
+										doh.f(dojo._isBodyLtr(), "isBodyLtr == false in RTL/iframe");
+										var pos = dojo.position('iframe_00_quirks');
+										doh.t(pos.x===0, "quirks iframe element x == 0 (x,y,w,h="+pos.x+","+pos.y+","+pos.w+","+pos.h+")");
+										doh.t(pos.y===0, "quirks iframe element y == 0 (x,y,w,h="+pos.x+","+pos.y+","+pos.w+","+pos.h+")");
+										doh.t(pos.w>0, "quirks iframe element w > 0 (x,y,w,h="+pos.x+","+pos.y+","+pos.w+","+pos.h+")");
+										doh.t(pos.h>0, "quirks iframe element h > 0 (x,y,w,h="+pos.x+","+pos.y+","+pos.w+","+pos.h+")");
+									});
+									dojo.withGlobal(dojo.byId('iframe_strict').win, function(){
+										doh.f(has("quirks"), "has('quirks') == false in strict/ifraee");
+										doh.f(dojo._isBodyLtr(), "isBodyLtr == false in RTL/iframe");
+										var pos = dojo.position('iframe_00_strict');
+										doh.t(pos.x===0, "strict iframe element x == 0 (x,y,w,h="+pos.x+","+pos.y+","+pos.w+","+pos.h+")");
+										doh.t(pos.y===0, "strict iframe element y == 0 (x,y,w,h="+pos.x+","+pos.y+","+pos.w+","+pos.h+")");
+										doh.t(pos.w>0, "strict iframe element w > 0 (x,y,w,h="+pos.x+","+pos.y+","+pos.w+","+pos.h+")");
+										doh.t(pos.h>0, "strict iframe element h > 0 (x,y,w,h="+pos.x+","+pos.y+","+pos.w+","+pos.h+")");
+									});
+									doh.t(!oldLtr == !dojo._isBodyLtr(), "isBodyLtr restored after withGlobal");
+									doh.is(oldQuirks, has("quirks"), "has('quirks') restored after withGlobal");
+									def.callback(true);
+								}catch(e){ def.errback(e); } }, 1000);
+								return def;
+							}
+						},
+						"doh.is(1, dojo.style('sq100nopos', 'opacity'));",
+
+						// never compare floating numbers directly!
+						"doh.is((0.1).toFixed(4), Number(dojo.style('sq100nopos', 'opacity', 0.1)).toFixed(4));",
+						"doh.is((0.8).toFixed(4), Number(dojo.style('sq100nopos', 'opacity', 0.8)).toFixed(4));",
+						function styleObject(){
+							dojo.style('sq100nopos', { 'opacity': 0.1 });
+							doh.is((0.1).toFixed(4), Number(dojo.style('sq100nopos', 'opacity')).toFixed(4));
+							dojo.style('sq100nopos', { 'opacity': 0.8 });
+							doh.is((0.8).toFixed(4), Number(dojo.style('sq100nopos', 'opacity')).toFixed(4));
+						},
+
+						"doh.is('static', dojo.style('sq100nopos', 'position'));",
+						function getBgcolor(t){
+							var bgc = dojo.style('sq100nopos', 'backgroundColor');
+							doh.t((bgc == "rgb(0, 0, 0)")||(bgc == "black")||(bgc == "#000000"));
+						},
+						function testClassFunctions(t){
+							var node = dojo.byId("sq100");
+							dojo.removeClass(node);
+							dojo.addClass(node, "a");
+							doh.is("a", node.className, "class is a");
+							dojo.removeClass(node, "c");
+							doh.is("a", node.className, "class is still a");
+							t.assertTrue(dojo.hasClass(node, "a"), "class is a, test for a");
+							t.assertFalse(dojo.hasClass(node, "b"), "class is a, test for b");
+							dojo.addClass(node, "b");
+							doh.is("a b", node.className, "class is a b");
+							t.assertTrue(dojo.hasClass(node, "a"), "class is a b, test for a");
+							t.assertTrue(dojo.hasClass(node, "b"), "class is a b, test for b");
+							dojo.removeClass(node, "a");
+							doh.is("b", node.className, "class is b");
+							t.assertFalse(dojo.hasClass(node, "a"), "class is b, test for a");
+							t.assertTrue(dojo.hasClass(node, "b"), "class is b, test for b");
+							dojo.toggleClass(node, "a");
+							doh.is("b a", node.className, "class is b a");
+							t.assertTrue(dojo.hasClass(node, "a"), "class is b a, test for a");
+							t.assertTrue(dojo.hasClass(node, "b"), "class is b a, test for b");
+							dojo.toggleClass(node, "a");
+							doh.is("b", node.className, "class is b (again)");
+							t.assertFalse(dojo.hasClass(node, "a"), "class is b (again), test for a");
+							t.assertTrue(dojo.hasClass(node, "b"), "class is b (again), test for b");
+							dojo.toggleClass(node, "b");
+							doh.is("", node.className, "class is blank");
+							t.assertFalse(dojo.hasClass(node, "a"), "class is blank, test for a");
+							t.assertFalse(dojo.hasClass(node, "b"), "class is blank, test for b");
+							dojo.removeClass(node, "c");
+							t.assertTrue(!node.className, "no class");
+							var acuWorked = true;
+							try{
+								dojo.addClass(node);
+							}catch(e){
+								acuWorked = false;
+							}
+							doh.is(true, acuWorked, "addClass handles undefined class");
+							dojo.addClass(node, "a");
+							dojo.replaceClass(node, "b", "a");
+							t.assertTrue(dojo.hasClass(node, "b"), "class is b after replacing a, test for b");
+							t.assertFalse(dojo.hasClass(node, "a"), "class is b after replacing a, test for not a");
+							
+							dojo.replaceClass(node, "", "b");
+							t.assertFalse(dojo.hasClass(node, "b"), "class b should be removed, with no class added");
+							t.is("", node.className, "The className is empty");
+							
+							dojo.addClass(node, "b a");
+							dojo.replaceClass(node, "c", "");
+							t.is("b a c", node.className, 
+								"The className is  is 'b a c' after using an empty string in replaceClass");
+							
+							t.f(dojo.hasClass(document, "ab"), "hasClass on document should not throw error");
+						},
+						function testAddRemoveClassMultiple(t){
+							var node = dojo.byId("sq100");
+							dojo.removeClass(node);
+							dojo.addClass(node, "a");
+							t.is("a", node.className, "class is a");
+							dojo.addClass(node, "a b");
+							t.is("a b", node.className, "class is a b");
+							dojo.addClass(node, "b a");
+							t.is("a b", node.className, "class is still a b");
+							dojo.addClass(node, ["a", "c"]);
+							t.is("a b c", node.className, "class is a b c");
+							dojo.removeClass(node, "c a");
+							t.is("b", node.className, "class is b");
+							dojo.removeClass(node);
+							t.is("", node.className, "empty class");
+							dojo.addClass(node, "  c   b   a ");
+							t.is("c b a", node.className, "class is c b a");
+							dojo.removeClass(node, " c b ");
+							t.is("a", node.className, "class is a");
+							dojo.removeClass(node, ["a", "c"]);
+							t.is("", node.className, "empty class");
+							dojo.addClass(node, "a b");
+							dojo.replaceClass(node, "c", "a b");
+							t.is("c", node.className, "class is c");
+							dojo.replaceClass(node, "");
+							t.is("", node.className, "empty class");
+							node.className = "";
+						},
+						function attrInnerHtmlDiv(t){
+							var n = dojo.create("div", {
+									innerHTML: "1<em>2</em>3"
+								}, dojo.body());
+							doh.is("1<em>2</em>3", n.innerHTML.toLowerCase());
+							dojo.destroy(n);
+						},
+						function attrInnerHtmlTable(t){
+							var n = dojo.create("table", {
+									innerHTML: "<thead><tr><th>1st!</th></tr></thead><tbody></tbody>"
+								}, dojo.body());
+							doh.is("<thead><tr><th>1st!</th></tr></thead><tbody></tbody>",
+								n.innerHTML.toLowerCase().replace(/\s+/g, ""));
+							dojo.destroy(n);
+						},
+                        function attr_map(t) {
+                            var input = document.createElement("input");
+                            dojo.attr(input, {
+                                "class": "thinger blah",
+                                "tabIndex": 1,
+                                "type": "text"
+                            });
+                            doh.t(dojo.hasClass(input, "thinger"), "hasClass of thinger");
+                            doh.t(dojo.hasClass(input, "blah"), "hasClass of blah");
+                        },
+                        function attrSpecials() {
+                            var node = document.createElement("div");
+                            dojo.body().appendChild(node);
+                            dojo.attr(node, {
+                                style: {
+                                    opacity: 0.5,
+                                    width: "30px",
+                                    border: "1px solid black"
+                                }
+                            });
+                            doh.is(0.5, dojo.style(node, "opacity"));
+                            doh.is(30, dojo.style(node, "width"));
+                            doh.is(1, dojo.style(node, "borderWidth"));
+
+                        },
+                        function testIframeDestroy10095(t) {
+							var iframeWin = dojo.byId('10095_iframe').win;
+							doh.t(!iframeWin.document.getElementById('10095_textbox'), "reloaded iframe element destroyed");
+						},
+						function testGCSsvg(t){
+							var s = dojo.getComputedStyle(dojo.byId("rect1"));
+							doh.t(typeof s != "undefined", "dojo.getComputedStyle succeeded on an svg shape");
+						}
+					]
+				);
+				// test to make sure position() works with a variety of scrollbars
+				dojo.forEach(["None", "Vert", "Both"], function(scroll){
+					dojo.forEach(["Quirks", "Strict"], function(doctype){
+						var id = "scrolling" + doctype + "Iframe" + scroll;
+						doh.register(id, {
+							name: "test_" + id,
+							timeout: 4000,
+							runTest: function(t){
+								var d = new doh.Deferred(),
+									s = document.createElement('SPAN');
+								s.loaded = function(iframe){
+									// resultReady is called from inside the iframe
+									iframe.resultReady = d.getTestCallback(function(){
+										t.is('EQUAL', iframe.testResult);
+									});
+									iframe.runScrollingTest(iframe);
+								};
+								s.innerHTML = '<iframe class="iframeTest" id="' + id + '" src="scrolling' + doctype + 'Iframe.html?ltr&' + scroll + '&large" frameborder="0" onload="this.parentNode.loaded(this)" style="background-color:gray;" allowtransparency></iframe>';
+								dojo.byId("iframeContainer").appendChild(s);
+								return d;
+							}
+						});
+					});
+				});
+
+				doh.register("t",
+					[
+						function emptySvg(t){
+							dojo.empty(dojo.byId("surface"));
+							doh.f(!!dojo.byId("surface").firstChild, "svg firstChild");
+						},
+						function destroySvg(t){
+							dojo.destroy(dojo.byId("surface"));
+							doh.f(!!dojo.byId("surface"), "svg byId");
+						},
+						function emptyObject(t){
+							dojo.empty(dojo.byId("objectToEmpty"));
+							doh.f(!!dojo.byId("objectToEmpty").firstChild, "object firstChild");
+						},
+						function destroyObject(t){
+							dojo.destroy(dojo.byId("objectToEmpty"));
+							doh.f(!!dojo.byId("objectToEmpty"), "object byId");
+						},
+						function destroyIframe(t){
+							dojo.destroy(dojo.byId("iframeToDestroy"));
+							doh.f(!!dojo.byId("iframeToDestroy"), "iframe byId");
+						},
+						function destroyDivNotInDOM(t){
+							var p = dojo.byId("divToRemoveFromDOM");
+							var n = dojo.byId("divToDestroy");
+							p = p.parentNode.removeChild(p);
+							doh.f(!!dojo.byId("divToRemoveFromDOM"), "div byId");
+							doh.t(!!p.firstChild, "div child 1");
+							doh.is(p.firstChild, n, "div 1st child");
+							doh.isNot(p.firstChild, p.lastChild, "div 1st child");
+							dojo.destroy(n);
+							doh.t(!!p.firstChild, "div child 2");
+							doh.isNot(p.firstChild, n, "div 2nd child");
+							doh.is(p.firstChild, p.lastChild, "div 2nd child");
+							dojo.empty(p);
+							doh.f(!!p.firstChild, "div child 3");
+							dojo.destroy(p);
+							doh.t(true, "no exception thrown");
+						}
+/*
+						// Make sure empty() doesn't disconnect grandchildren from children.
+						// Uncomment when http://bugs.dojotoolkit.org/ticket/16957 is fixed.
+						function emptyGrandchildren(){
+							var parent = dojo.byId("emptyParent"),
+								child = dojo.byId("emptyChild");
+
+							dojo.empty("emptyParent");
+
+							doh.f(!!parent.firstChild, "parent's children removed");
+							doh.t(!!child.firstChild, "child's children remain");
+						}
+*/
+					]
+				);
+
+				doh.runOnLoad();
+			});
+		</script>
+		<style type="text/css">
+			html, body {
+				padding: 0px;
+				margin: 0px;
+				border: 0px;
+			}
+
+			#sq100 {
+				background-color: black;
+				color: white;
+				position: absolute;
+				left: 100px;
+				top: 100px;
+				width: 100px;
+				height: 100px;
+				border: 0px;
+				padding: 0px;
+				margin: 0px;
+				overflow: hidden;
+			}
+
+			#sq100margin10 {
+				background-color: black;
+				color: white;
+				position: absolute;
+				left: 250px;
+				top: 100px;
+				width: 100px;
+				height: 100px;
+				border: 0px;
+				padding: 0px;
+				margin: 10px;
+				overflow: hidden;
+			}
+
+			#sq100margin10pad10 {
+				background-color: black;
+				color: white;
+				position: absolute;
+				left: 400px;
+				top: 100px;
+				width: 100px;
+				height: 100px;
+				border: 0px;
+				padding: 10px;
+				margin: 10px;
+				overflow: hidden;
+			}
+
+			#sq100pad10 {
+				background-color: black;
+				color: white;
+				position: absolute;
+				left: 100px;
+				top: 250px;
+				width: 100px;
+				height: 100px;
+				border: 0px;
+				padding: 10px;
+				margin: 0px;
+				overflow: hidden;
+			}
+
+			#sq100ltpad10 {
+				background-color: black;
+				color: white;
+				position: absolute;
+				left: 250px;
+				top: 250px;
+				width: 100px;
+				height: 100px;
+				border: 0px;
+				padding-left: 10px;
+				padding-top: 10px;
+				padding-right: 0px;
+				padding-bottom: 0px;
+				margin: 0px;
+				overflow: hidden;
+			}
+
+			#sq100ltpad10rbmargin10 {
+				background-color: black;
+				color: white;
+				position: absolute;
+				left: 400px;
+				top: 250px;
+				width: 100px;
+				height: 100px;
+				border: 0px;
+				padding-left: 10px;
+				padding-top: 10px;
+				padding-right: 0px;
+				padding-bottom: 0px;
+				margin-left: 0px;
+				margin-top: 0px;
+				margin-right: 10px;
+				margin-bottom: 10px;
+				overflow: hidden;
+			}
+
+			#sq100border10 {
+				background-color: black;
+				color: white;
+				position: absolute;
+				left: 100px;
+				top: 400px;
+				width: 100px;
+				height: 100px;
+				border: 10px solid yellow;
+				padding: 0px;
+				margin: 0px;
+				overflow: hidden;
+			}
+
+			#sq100border10margin10 {
+				background-color: black;
+				color: white;
+				position: absolute;
+				left: 250px;
+				top: 400px;
+				width: 100px;
+				height: 100px;
+				border: 10px solid yellow;
+				padding: 0px;
+				margin: 10px;
+				overflow: hidden;
+			}
+
+			#sq100border10margin10pad10 {
+				background-color: black;
+				color: white;
+				position: absolute;
+				left: 400px;
+				top: 400px;
+				width: 100px;
+				height: 100px;
+				border: 10px solid yellow;
+				padding: 10px;
+				margin: 10px;
+				overflow: hidden;
+			}
+
+			#sq100nopos {
+				background-color: black;
+				color: white;
+				width: 100px;
+				height: 100px;
+				padding: 0px;
+				margin: 0px;
+			}
+
+			#scrollingStrictIframe,
+			#scrollingQuirksIframe {
+				border: 10px solid black;
+			}
+		</style>
+	</head>
+	<body>
+		<h1>testing Core HTML/DOM/CSS/Style utils</h1>
+		<div id="sq100">
+			100px square, abs
+		</div>
+		<div id="sq100margin10">
+			100px square, abs, 10px margin
+		</div>
+		<div id="sq100margin10pad10">
+			100px square, abs, 10px margin, 10px padding
+		</div>
+		<div id="sq100pad10">
+			100px square, abs, 10px padding
+		</div>
+		<div id="sq100ltpad10">
+			100px square, abs, 10px left and top padding
+		</div>
+		<div id="sq100ltpad10rbmargin10">
+			100px square, abs, 10px left and top padding, 10px bottom and right margin
+		</div>
+		<div id="sq100border10">
+			100px square, abs, 10px yellow border
+		</div>
+		<div id="sq100border10margin10">
+			100px square, abs, 10px yellow border, 10px margin
+		</div>
+		<div id="sq100border10margin10pad10">
+			100px square, abs, 10px yellow border, 10px margin, 10px padding
+		</div>
+		<div id="sq100nopos">
+			100px square, no positioning
+		</div>
+
+		<iframe id="blah" name="blah" src="javascript:'&lt;html&gt&lt;body&gt;&lt;div id=subDiv&gt;&lt;/div&gt;&lt;/body&gt;&lt;/html&gt;'"></iframe>
+
+		<script type="text/javascript">
+		var reloaded = false;
+		function iframe10095loaded() {
+			require(["dojo", "dojo/domReady!"], function(dojo) {
+				var iframeWin = dojo.byId('10095_iframe').win;
+				dojo.withGlobal(iframeWin, function(){ dojo.destroy(dojo.byId('10095_textbox')) });
+				if(!reloaded){
+					reloaded = true;
+					dojo.byId('10095_iframe').src=iframeWin.frameElement.src;
+				}
+			});
+		}
+		</script>
+		<iframe id="10095_iframe" style="display:none;" src="javascript:'&lt;html&gt;&lt;head&gt;&lt;script&gt;frameElement.win=window&lt;/script&gt;&lt;/head&gt;&lt;body&gt;&lt;input id=10095_textbox&gt;&lt;/body&gt;&lt;/html&gt;'" onload="iframe10095loaded()"></iframe>
+
+		<div id='iframe_div' style="position:absolute;top:0;left:500px;"></div>
+
+		<div id="div-no-tabindex"></div>
+		<div id="div-tabindex-minus-1" tabIndex="-1"></div>
+		<div id="div-tabindex-0" tabIndex="0"></div>
+		<div id="div-tabindex-1" tabIndex="1"></div>
+
+		<div>
+			<input id="input-no-type">
+			<input id="input-with-type" type="checkbox">
+			<input id="input-no-tabindex">
+			<input id="input-tabindex-minus-1" tabIndex="-1">
+			<input id="input-tabindex-0" tabIndex="0">
+			<input id="input-tabindex-1" tabIndex="1">
+			<input id="input-text-value" type="text" value="123">
+			<input id="input-no-disabled" type="text">
+			<input id="input-with-disabled" type="text" disabled>
+			<input id="input-with-disabled-true" disabled="disabled">
+		</div>
+		<div>
+			<label id="label-no-for">label with no for </label><input type="text" id="label-test-input">
+			<label id="label-with-for" for="input-with-label">label with for </label><input type="text" id="input-with-label">
+		</div>
+
+		<div id="iframeContainer"></div>
+
+		<!-- SVG element to test dojo.getComputedStyle on IE9 (#14103) -->
+		<!-- SVG element to test empty -->
+		<svg id="surface" xmlns="http://www.w3.org/2000/svg" width="100px" height="100px"
+			><rect id="rect1" fill="rgb(255, 0, 0)" x="0" y="0" width="80" height="60" ry="0" rx="0" fill-rule="evenodd"
+		/></svg>
+
+		<!-- OBJECT element to test empty -->
+		<object width="500" height="500" id="objectToEmpty" data="data:application/x-silverlight," type="application/x-silverlight"
+			><param name="background" value="transparent"
+		/></object>
+
+		<!-- Test that empty doesn't disconnect grandchildren from children -->
+		<div id="emptyParent">
+			<div id="emptyChild">
+				<div id="emptyGrandchild">hello world</div>
+			</div>
+		</div>
+
+		<!-- IFRAME element to test destroy -->
+		<iframe id="iframeToDestroy" src="about:blank"
+			><span></span
+		></iframe>
+
+		<!-- DIV element to test destroy of element not in the DOM -->
+		<div id="divToRemoveFromDOM"
+			><div id="divToDestroy"></div
+			><div></div
+		></div>
+	</body>
+</html>

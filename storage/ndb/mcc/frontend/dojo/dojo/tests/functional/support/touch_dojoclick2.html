@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>test dojo/touch dojoClick property with input of type checkbox and radio</title>
+		<meta http-equiv="Content-type" content="text/html; charset=utf-8"/>
+		<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no"/>
+		<meta name="apple-mobile-web-app-capable" content="yes"/>
+
+		<!-- Test for #18352 -->
+		<!-- Checks that dojo/touch with dojoClick=true does not break interaction with "native" HTML input -->
+		<!-- of type checkbox and radio (used to be broken on iOS and Android).	-->
+
+		<script src="../../../dojo.js" data-dojo-config="async: true, isDebug: true"></script>
+
+		<script>
+			document.dojoClick = true;
+			var ready = false;
+			// loading dojo/touch, along with setting document.dojoClick at true, triggers the bug
+			require(["dojo/touch", "dojo/domReady!"], function(){
+				ready = true;
+			});
+			
+		</script>
+	</head>
+	<body>
+		<h1>Test dojo/touch's dojoClick property with input of type checkbox and radio</h1>
+
+		<p>
+			<input type="checkbox" id="dojoClickCheckbox">
+			<label for="dojoClickCheckbox">dojoClick=true</label>
+		</p>
+
+		<p>
+			<input type="radio" id="dojoClickRadio1" name="dojoClickRadio" value="1" checked>
+			<label for="dojoClickRadio1">One</label>
+		</p>
+		<p>
+			<input type="radio" id="dojoClickRadio2" name="dojoClickRadio" value="2">
+			<label for="dojoClickRadio2">Two</label>
+		</p>
+	</body>
+</html>

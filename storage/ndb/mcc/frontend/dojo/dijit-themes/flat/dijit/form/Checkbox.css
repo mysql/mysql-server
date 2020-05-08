@@ -1,0 +1,131 @@
+/* CheckBox
+ * 
+ * Styling CheckBox mainly includes:
+ * 
+ * 1. Containers
+ * 		.dijitCheckBox
+ * 
+ * 2. CheckBox within ToggleButton
+ * 		.dijitCheckBoxIcon
+ * 
+ * 3. States - Checked, Hover, Disabled.
+ *		.dijitCheckBoxChecked
+ * 		.dijitCheckBoxHover
+ * 		.dijitCheckBoxCheckedHover
+ * 		.dijitCheckBoxDisabled
+ *		.dijitCheckBoxCheckedDisabled
+ */
+.flat .dijitCheckBox {
+  background-color: #fff;
+  border: 1px solid #9e9e9e;
+  width: 16px;
+  height: 16px;
+  line-height: 1;
+  padding: 0;
+  border-radius: 2px;
+  text-align: center;
+  position: relative;
+  overflow: visible;
+  -webkit-transition: all 0.1s linear;
+  -moz-transition: all 0.1s linear;
+  -o-transition: all 0.1s linear;
+  -ms-transition: all 0.1s linear;
+  transition: all 0.1s linear;
+}
+.flat .dijitCheckBox input {
+  position: absolute;
+  top: 0;
+}
+.flat .dijitCheckBoxIcon:before,
+.flat .dijitCheckBoxChecked:before,
+.flat .dijitCheckBoxCheckedDisabled:before {
+  font-family: "flat-icon";
+  speak: none;
+  font-style: normal;
+  font-weight: normal;
+  font-variant: normal;
+  text-transform: none;
+  line-height: 1;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  content: "\f00c";
+  color: #fff;
+}
+.flat .dijitCheckBoxIcon {
+  padding: 0;
+}
+.flat .dijitCheckBoxIcon:before {
+  color: #2196f3;
+}
+.flat .alt-primary .dijitCheckBoxIcon:before {
+  color: #fff;
+}
+.flat .alt-success .dijitCheckBoxIcon:before {
+  color: #fff;
+}
+.flat .alt-info .dijitCheckBoxIcon:before {
+  color: #fff;
+}
+.flat .alt-warning .dijitCheckBoxIcon:before {
+  color: #fff;
+}
+.flat .alt-danger .dijitCheckBoxIcon:before {
+  color: #fff;
+}
+.flat .alt-inverse .dijitCheckBoxIcon:before {
+  color: #fff;
+}
+.flat .dijitCheckBoxChecked {
+  background-color: #2196f3;
+  border-color: #2196f3;
+}
+.flat .dijitCheckBoxHover {
+  background-color: #fff;
+  border: 1px solid #2196f3;
+}
+.flat .dijitCheckBoxCheckedHover {
+  background-color: #42a6f5;
+  border: 1px solid #2196f3;
+}
+.flat .dijitCheckBoxDisabled {
+  color: #9e9e9e;
+  background-color: #f5f5f5;
+  border-color: #e3e3e3;
+}
+.flat .dijitCheckBoxCheckedDisabled {
+  color: #a6a6a6;
+  background-color: #6fbbf7;
+  border-color: #6fbbf7;
+}
+.flat .dijitCheckedMenuItem .dijitCheckedMenuItemIcon {
+  background-color: #fff;
+  border: 1px solid #9e9e9e;
+  width: 16px;
+  height: 16px;
+  line-height: 1;
+  padding: 0;
+  border-radius: 2px;
+  text-align: center;
+  position: relative;
+  overflow: visible;
+  -webkit-transition: all 0.1s linear;
+  -moz-transition: all 0.1s linear;
+  -o-transition: all 0.1s linear;
+  -ms-transition: all 0.1s linear;
+  transition: all 0.1s linear;
+}
+.flat .dijitCheckedMenuItemChecked .dijitCheckedMenuItemIcon:before {
+  font-family: "flat-icon";
+  speak: none;
+  font-style: normal;
+  font-weight: normal;
+  font-variant: normal;
+  text-transform: none;
+  line-height: 1;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  content: "\f00c";
+  color: #2196f3;
+}

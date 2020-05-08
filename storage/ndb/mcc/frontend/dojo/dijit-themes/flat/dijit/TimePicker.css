@@ -1,0 +1,60 @@
+/* Time Picker 
+ *
+ * Styling the Time Picker consists of the following: 
+ *
+ * 1. minor time values
+ * 		.dijitTimePickerTick - set text color, size, background color of minor values
+ * 		.dijitTimePickerTickHover - set hover style of minor time values
+ * 		dijitTimePickerTickSelected - set selected style of minor time values
+ *
+ * 2. major time values - 1:00, 2:00, times on the hour 
+ * 		set text color, size, background color, left/right margins for "zoom" affect
+ * 		.dijitTimePickerMarkerHover - to set hover style of major time values
+ * 		.dijitTimePickerMarkerSelected - set selected style of major time values
+ * 
+ * 3. up and down arrow buttons
+ * 		.dijitTimePicker .dijitButtonNode - background-color, border
+ * 		.dijitTimePicker .dijitUpArrowHover, .dijitTimePicker .dijitDownArrowHover - set background-color for hover state
+ *
+ *	Other classes provide the fundamental structure of the TimePicker and should not be modified. 
+ */
+.dijitTimePickerPopup {
+  -webkit-box-shadow: 0 7px 3px -4px rgba(0,0,0,0.3), 0 8px 8px rgba(0,0,0,0.2);
+  box-shadow: 0 7px 3px -4px rgba(0,0,0,0.3), 0 8px 8px rgba(0,0,0,0.2);
+  height: 200px;
+}
+.dijitTimePicker {
+  background-color: #fff;
+  padding: 4px 0;
+  border: 1px solid #9e9e9e;
+  border-radius: 3px;
+}
+.dijitTimePickerItem {
+  margin: 0;
+}
+.dijitTimePickerTick {
+/* minor value */
+  color: #9e9e9e;
+  border: 0 none;
+}
+.dijitTimePickerMarker {
+/* major value - 1:00, 2:00, times on the hour */
+  background-color: transparent;
+  white-space: nowrap;
+  border: 0 none;
+}
+.dijitTimePickerTickHover,
+.dijitTimePickerMarkerHover {
+  background: #f2f2f2;
+  color: #424242;
+}
+.dijitTimePickerMarkerSelected,
+.dijitTimePickerTickSelected {
+  background: #f2f2f2;
+  color: #424242;
+}
+.dijitTimePickerTick .dijitTimePickerItemInner,
+.dijitTimePickerMarker .dijitTimePickerItemInner {
+  padding: 8px;
+  margin: 0;
+}

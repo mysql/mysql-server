@@ -1,0 +1,1074 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+		"http://www.w3.org/TR/html4/strict.dtd">
+<html>
+	<head>
+		<title>robot Menu Keyboard Tests</title>
+
+		<style>
+			@import "../../../util/doh/robot/robot.css";
+		</style>
+
+		<!-- required: dojo.js -->
+		<script type="text/javascript" src="../../../dojo/dojo.js"></script>
+
+		<script type="text/javascript">
+			require([
+				"doh/runner", "dojo/robotx",
+				"dojo/_base/array", "dojo/dom", "dojo/dom-class", "dojo/dom-geometry",
+				"dojo/keys", "dojo/query", "dojo/sniff",
+				"dijit/tests/helpers", "dojo/domReady!"
+			], function(doh, robot, array, dom, domClass, domGeom, keys, query, has, helpers){
+
+				robot.initRobot('../test_Menu.html');
+
+				doh.register(function setup(){
+					// get pointer to registry in the iframe
+					registry = robot.window.require("dijit/registry");
+					dfocus = robot.window.require("dijit/focus");
+				});
+
+				doh.register("dijit.MenuBar general keyboard tests", [
+					{
+						name: "start focus on the link, outside of menubar",
+						timeout: 5000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							// Start at the link
+							robot.sequence(function(){
+								dom.byId("link").focus();
+							}, 500, 500);
+
+							robot.sequence(d.getTestCallback(function(){
+								doh.t(dfocus.curNode, "something has focus");
+								doh.is("random link", dfocus.curNode.innerHTML, "focus on the link");
+							}), 1000);
+
+							return d;
+						}
+					},
+
+					{
+						name: "tab to the menubar",
+						timeout: 5000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							// tab to the MenuBar... then focus should automatically shift to "File" menu,
+							robot.keyPress(keys.TAB, 500, {});
+
+							robot.sequence(d.getTestCallback(function(){
+								doh.is("File", helpers.innerText(dfocus.curNode), "focus on File menu");
+							}), 1000);
+
+							return d;
+						}
+					},
+
+					{
+						name: "arrow to the edit menu",
+						timeout: 5000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							robot.keyPress(keys.RIGHT_ARROW, 500, {});		// TODO: use left arrow in RTL mode
+
+							robot.sequence(d.getTestCallback(function(){
+								doh.is("Edit", helpers.innerText(dfocus.curNode), "focus on Edit MenuItem");
+							}), 1000);
+
+							return d;
+						}
+					},
+
+					{
+						name: "shift-tab back",
+						timeout: 5000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							robot.keyPress(keys.TAB, 500, {shift:true});
+
+							robot.sequence(d.getTestCallback(function(){
+								doh.is("random link", helpers.innerText(dfocus.curNode),
+										"focus back on the link");
+							}), 1000);
+
+							return d;
+						}
+					},
+
+					{
+						name: "open file menu",
+						timeout: 5000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							// Start at the link
+							robot.sequence(function(){
+								dom.byId("link").focus();
+							}, 500, 500);
+
+							// tab to the MenuBar... then focus should automatically shift to "File" menu
+							robot.keyPress(keys.TAB, 500, {});
+
+							// and then down arrow to menu... focus should go to "New"
+							robot.keyPress(keys.DOWN_ARROW, 500, {});
+
+							robot.sequence(d.getTestCallback(function(){
+								doh.is("New", helpers.innerText(dfocus.curNode).substr(0, 3),
+										"focus on New menu item of the File menu (indirectly checks that menu is visible)");
+
+								// Check aria-labelledby property
+								var menuNode;
+								for(var menuNode = dfocus.curNode; menuNode.getAttribute("role") != "menu";
+									menuNode = menuNode.parentNode){}
+								var menuLabelNode = dom.byId(menuNode.getAttribute("aria-labelledby"), robot.doc),
+									menuLabel = helpers.innerText(menuLabelNode);
+								doh.is("File", menuLabel, "label of menu");
+							}), 1000);
+
+							return d;
+						}
+					},
+
+					{
+						name: "click 'new' using enter key",
+						timeout: 5000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							var clicked = false;
+							registry.byId("new").onClick = function(){ clicked = true; };
+
+							robot.keyPress(keys.ENTER, 500, {});
+
+							robot.sequence(d.getTestCallback(function(){
+								doh.t(clicked, "new was clicked");
+								doh.t(helpers.isHidden("fileMenu"), "File menu disappeared");
+								doh.f(domClass.contains("file", "dijitMenuItemSelected"),
+									"File MenuBarItem should no longer have selected effect, actual class is: " + dom.byId("file").className);
+							}), 1000);
+
+							return d;
+						}
+					},
+
+					{
+						name: "open submenu",
+						timeout: 8000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							// Start at the link
+							robot.sequence(function(){
+								dom.byId("link").focus();
+							}, 500, 500);
+
+							// tab to the MenuBar... then focus should automatically shift to "File" menu item
+							robot.keyPress(keys.TAB, 500, {});
+
+							// and then move to "View" menu item
+							robot.typeKeys("v", 500, 200);
+
+							// open the Zoom submenu (landing on first item)
+							robot.typeKeys("z", 500, 200);
+
+							robot.sequence(d.getTestCallback(function(){
+								doh.t(/50%/.test(helpers.innerText(dfocus.curNode)), "focus on '50%'");
+								robot.keyPress(keys.ENTER, 0, {}, true); // close popup menus
+							}), 1000, 500);
+
+							return d;
+						}
+					}
+				]);
+
+				doh.register("dijit.MenuBar focus after execute", [
+					{
+						name: "open edit menu",
+						timeout: 5000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							// Start at the link
+							robot.sequence(function(){
+								dom.byId("link").focus();
+							}, 500, 500);
+
+							// tab to the MenuBar... then focus should automatically shift to "File" menu
+							robot.keyPress(keys.TAB, 500, {});
+
+							// arrow to edit menu
+							robot.keyPress(keys.RIGHT_ARROW, 500, {});		// TODO: use left arrow in RTL mode
+
+							// and then down arrow to menu... focus should go to "Cut"
+							robot.keyPress(keys.DOWN_ARROW, 500, {});
+
+							robot.sequence(d.getTestCallback(function(){
+								doh.is("Cut", helpers.innerText(dfocus.curNode).substr(0, 3));
+							}), 1000);
+
+							return d;
+						}
+					},
+
+					{
+						name: "click 'cut' using enter key",
+						timeout: 5000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							robot.keyPress(keys.ENTER, 500, {});
+
+							robot.sequence(d.getTestCallback(function(){
+								// Although "Edit" is not marked as selected, and although the MenuBar is in passive
+								// mode, focus should be back on "Edit"
+								doh.is("Edit", helpers.innerText(dfocus.curNode), "focus back on Edit in MenuBar")
+							}), 1000);
+
+							return d;
+						}
+					},
+
+					{
+						name: "right arrow to view",
+						timeout: 5000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							// arrow to view MenuBarItem
+							robot.keyPress(keys.RIGHT_ARROW, 500, {});		// TODO: use left arrow in RTL mode
+
+							robot.sequence(d.getTestCallback(function(){
+								doh.is("View", helpers.innerText(dfocus.curNode));
+								doh.t(domClass.contains(dom.byId("view"), "dijitMenuItemSelected"),
+										"View MenuBarItem should have selected class, actual class is:" + dom.byId("view").className);
+							}), 1000);
+
+							return d;
+						}
+					}
+				]);
+
+				doh.register("dijit.MenuBar repeat open keyboard tests", [
+					{
+						name: "start focus on the link, outside of menubar",
+						timeout: 5000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							// Start at the link
+							robot.sequence(function(){
+								dom.byId("link").focus();
+							}, 500, 500);
+
+							robot.sequence(d.getTestCallback(function(){
+								doh.t(dfocus.curNode, "something has focus");
+								doh.is("random link", dfocus.curNode.innerHTML, "focus on the link");
+							}), 1000);
+
+							return d;
+						}
+					},
+
+					{
+						name: "tab to the menubar",
+						timeout: 5000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							// tab to the MenuBar... then focus should automatically shift to "File" menu,
+							robot.keyPress(keys.TAB, 500, {});
+
+							robot.sequence(d.getTestCallback(function(){
+								doh.is("File", helpers.innerText(dfocus.curNode), "focus on File menu");
+							}), 1000);
+
+							return d;
+						}
+					},
+
+					{
+						name: "open file menu #1",
+						timeout: 5000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							robot.keyPress(keys.DOWN_ARROW, 500, {});
+
+							robot.sequence(d.getTestCallback(function(){
+								doh.is("New", helpers.innerText(dfocus.curNode).substr(0, 3),
+										"focus on New MenuItem");
+							}), 500);
+
+							return d;
+						}
+					},
+
+					{
+						name: "close file menu #1",
+						timeout: 5000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							robot.keyPress(keys.ENTER, 500, {});
+
+							robot.sequence(d.getTestCallback(function(){
+								doh.is("File", helpers.innerText(dfocus.curNode),
+										"focus on File MenuBarItem again");
+							}), 500);
+
+							return d;
+						}
+					},
+
+					{
+						name: "open file menu #2",
+						timeout: 5000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							robot.keyPress(keys.DOWN_ARROW, 500, {});
+
+							robot.sequence(d.getTestCallback(function(){
+								doh.is("New", helpers.innerText(dfocus.curNode).substr(0, 3),
+										"focus on New MenuItem again");
+							}), 750);
+
+							return d;
+						}
+					},
+
+					{
+						name: "close file menu #2",
+						timeout: 5000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							robot.keyPress(keys.ENTER, 500, {});
+
+							robot.sequence(d.getTestCallback(function(){
+								doh.is("File", helpers.innerText(dfocus.curNode),
+										"focus on File MenuBarItem yet again");
+							}), 500);
+
+							return d;
+						}
+					}
+				]);
+
+				// Using left-arrow to back up (#10437)
+				doh.register("dijit.MenuBar left arrow tests", [
+					{
+						name: "start focus on the link, outside of menubar",
+						timeout: 5000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							// Start at the link
+							robot.sequence(function(){
+								dom.byId("link").focus();
+							}, 500, 500);
+
+							robot.sequence(d.getTestCallback(function(){
+								doh.t(dfocus.curNode, "something has focus");
+								doh.is("random link", dfocus.curNode.innerHTML, "focus on the link");
+							}), 1000);
+
+							return d;
+						}
+					},
+
+					{
+						name: "tab to the menubar",
+						timeout: 5000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							// tab to the MenuBar... then focus should automatically shift to "File" menu,
+							robot.keyPress(keys.TAB, 500, {});
+
+							robot.sequence(d.getTestCallback(function(){
+								doh.is("{F}ile", registry.getEnclosingWidget(dfocus.curNode).label,
+										"focus on File MenuItem");
+							}), 1000);
+
+							return d;
+						}
+					},
+
+					{
+						name: "arrow to the view menu",
+						timeout: 5000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							robot.keyPress(keys.RIGHT_ARROW, 500, {});		// TODO: use left arrow in RTL mode
+							robot.keyPress(keys.RIGHT_ARROW, 500, {});		// TODO: use left arrow in RTL mode
+
+							robot.sequence(d.getTestCallback(function(){
+								doh.is("View", helpers.innerText(dfocus.curNode),
+										"focus on View MenuItem");
+							}), 1000);
+
+							return d;
+						}
+					},
+
+					{
+						name: "down to the zoom menuitem",
+						timeout: 5000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							robot.keyPress(keys.DOWN_ARROW, 500, {});	// focuses "Normal", first menu item
+							robot.keyPress(keys.DOWN_ARROW, 500, {});	// focuses "Outline", second menu item
+							robot.keyPress(keys.DOWN_ARROW, 500, {});	// focuses "Zoom", third menu item
+
+							robot.sequence(d.getTestCallback(function(){
+								doh.is("{Z}oom", registry.getEnclosingWidget(dfocus.curNode).label,
+										"focus on Zoom MenuItem");
+							}), 1000);
+
+							return d;
+						}
+					},
+
+					{
+						name: "open the zoom menu",
+						timeout: 5000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							robot.keyPress(keys.RIGHT_ARROW, 500, {});
+
+							robot.sequence(d.getTestCallback(function(){
+								doh.is("50%", registry.getEnclosingWidget(dfocus.curNode).label,
+										"focus on Zoom MenuItem");
+							}), 1000);
+
+							return d;
+						}
+					},
+
+					{
+						name: "close Zoom menu, back to View menu",
+						timeout: 5000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							robot.keyPress(keys.LEFT_ARROW, 500, {});
+
+							robot.sequence(d.getTestCallback(function(){
+								doh.is("{Z}oom", registry.getEnclosingWidget(dfocus.curNode).label,
+										"focus on Zoom MenuItem");
+
+								doh.is(0, query("#zoomMenu .dijitMenuItemSelected").length,
+									"dijitMenuItemSelected removed from Zoom Menu")
+							}), 1000);
+
+							return d;
+						}
+					},
+
+					{
+						name: "close View menu, back to MenuBar",
+						timeout: 5000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							// This should move focus to "Edit" in the MenuBar, which then opens
+							// the drop down and focuses on the first item (Cut)
+							robot.keyPress(keys.LEFT_ARROW, 500, {});
+
+							robot.sequence(d.getTestCallback(function(){
+								doh.is("C{u}t", registry.getEnclosingWidget(dfocus.curNode).label,
+										"focus on first MenuItem in Edit Menu");
+
+								doh.is(0, query("#viewMenu .dijitMenuItemSelected").length,
+									"dijitMenuItemSelected removed from View Menu")
+							}), 1000);
+
+							return d;
+						}
+					}
+				]);
+
+				doh.register("dijit.MenuBar nested click focus test", [
+					{
+						name: "start focus on the link, outside of menubar",
+						timeout: 5000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							// Start at the link
+							robot.sequence(function(){
+								dom.byId("link").focus();
+							}, 500);
+
+							robot.sequence(d.getTestCallback(function(){
+								doh.t(dfocus.curNode, "something has focus");
+								doh.is("random link", dfocus.curNode.innerHTML, "focus on the link");
+							}), 1000);
+
+							return d;
+						}
+					},
+
+					{
+						name: "tab to the menubar",
+						timeout: 5000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							// tab to the MenuBar... then focus should automatically shift to "File" menu,
+							robot.keyPress(keys.TAB, 500, {});
+
+							robot.sequence(d.getTestCallback(function(){
+								doh.is("{F}ile", registry.getEnclosingWidget(dfocus.curNode).label,
+										"focus on File MenuItem");
+							}), 1000);
+
+							return d;
+						}
+					},
+
+					{
+						name: "arrow to the view menu",
+						timeout: 5000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							robot.keyPress(keys.RIGHT_ARROW, 500, {});		// TODO: use left arrow in RTL mode
+							robot.keyPress(keys.RIGHT_ARROW, 500, {});		// TODO: use left arrow in RTL mode
+
+							robot.sequence(d.getTestCallback(function(){
+								doh.is("View", helpers.innerText(dfocus.curNode), "focus on View MenuItem");
+							}), 1000);
+
+							return d;
+						}
+					},
+
+					{
+						name: "down to the zoom menuitem",
+						timeout: 5000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							robot.keyPress(keys.DOWN_ARROW, 250, {});	// focuses "Normal", first menu item
+							robot.keyPress(keys.DOWN_ARROW, 250, {});	// focuses "Outline", second menu item
+							robot.keyPress(keys.DOWN_ARROW, 250, {});	// focuses "Zoom", third menu item
+
+							robot.sequence(d.getTestCallback(function(){
+								doh.is("{Z}oom", registry.getEnclosingWidget(dfocus.curNode).label,
+										"focus on Zoom MenuItem");
+							}), 250);
+
+							return d;
+						}
+					},
+
+					{
+						name: "open the zoom menu",
+						timeout: 5000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							robot.keyPress(keys.RIGHT_ARROW, 250, {});
+
+							robot.sequence(d.getTestCallback(function(){
+								doh.is("50%", registry.getEnclosingWidget(dfocus.curNode).label,
+										"focus on Zoom MenuItem");
+							}), 1000);
+
+							return d;
+						}
+					},
+
+					{
+						name: "click to close Zoom menu, focus back to MenuBar",
+						timeout: 5000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							// This should move focus to "Edit" in the MenuBar, which then opens
+							// the drop down and focuses on the first item (Cut)
+							robot.keyPress(keys.ENTER, 500, {});
+
+							robot.sequence(d.getTestCallback(function(){
+								doh.is("{V}iew", registry.getEnclosingWidget(dfocus.curNode).label,
+										"focus on first View item in MenuBar");
+							}), 1000);
+
+							return d;
+						}
+					}
+				]);
+
+				doh.register("dijit.MenuBar MenuBarItem tests", [
+					{
+						name: "navigate to MenuBarItem",
+						timeout: 10000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							// Start at the link
+							robot.sequence(function(){
+								dom.byId("link").focus();
+							}, 500, 500);
+
+							// tab to the MenuBar... then focus should automatically shift to "File" menu,
+							robot.keyPress(keys.TAB, 500, {});
+
+							// arrow six times gets to "Click me!"
+							for(var i=0; i<6; i++){
+								robot.keyPress(keys.RIGHT_ARROW, 250, {});		// TODO: use left arrow in RTL mode
+							}
+
+							robot.sequence(d.getTestCallback(function(){
+								doh.is("Click me! (Z)", helpers.innerText(dfocus.curNode),
+										"focus on MenuBarItem");
+							}), 500);
+
+							return d;
+						}
+					},
+					{
+						name: "down arrow",
+						timeout: 5000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							// down arrow... should have no effect since there's no menu
+							robot.keyPress(keys.DOWN_ARROW, 250, {});
+
+							robot.sequence(d.getTestCallback(function(){
+								doh.is("Click me! (Z)", helpers.innerText(dfocus.curNode),
+										"focus is still on MenuBarItem");
+							}), 500);
+
+							return d;
+						}
+					},
+					{
+						name: "click",
+						timeout: 5000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							var clicked;
+							robot.window.noPopupMenuBarItem.on("click", function(){ clicked = true; });
+
+							robot.keyPress(keys.SPACE, 250, {});
+
+							robot.sequence(d.getTestCallback(function(){
+								doh.t(clicked, "clicked");
+							}), 500);
+
+							return d;
+						}
+					},
+					{
+						name: "right arrow",
+						timeout: 5000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							// right arrow show go back to File menu
+							robot.keyPress(keys.RIGHT_ARROW, 250, {});
+
+							robot.sequence(d.getTestCallback(function(){
+								doh.is("File", helpers.innerText(dfocus.curNode), "focus moved to File menu");
+							}), 500);
+
+							return d;
+						}
+					}
+				]);
+
+				// Run test about opening context menu via keyboard, except on safari/mac where that isn't
+				// possible (#9927)
+				if(!has("mac") || !has("webkit")){
+					var tests = has("mac") ?
+						[
+							{label: "ctrl-space", key: keys.SPACE, options: {ctrl: true}}
+						] :
+						[
+							{label: "context menu key", key: 525, options: {}},	// 93 in JS but 525 in Java
+							{label: "shift-F10", key: keys.F10, options: {shift: true}}
+						];
+					doh.register("Context menu keyboard tests", array.map(tests, function(test){
+						return {
+							name: "open global context menu via " + test.label,
+							timeout: 5000,
+							runTest: function(){
+								var d = new doh.Deferred();
+
+								// Focus random element to make sure menu is opened near focus point.
+								robot.sequence(function(){
+									dom.byId("input").focus();
+								}, 500);
+
+								// open via keyboard
+								robot.keyPress(test.key, 500, test.options);
+
+								robot.sequence(d.getTestErrback(function(){
+									var menu = registry.byId("windowContextMenu");
+									doh.t(helpers.isVisible(menu), "menu is now shown");
+
+									var menuCoords = domGeom.position(menu.domNode),
+										aroundCoords = domGeom.position("input");
+
+									// Check that menu's top left corner is near focus point,
+									// rather than upper-left hand corner of browser window.
+									doh.t(menuCoords.x < aroundCoords.x + 100, "x < 100", "actual x: " + menuCoords.x);
+									doh.t(menuCoords.y < aroundCoords.y + 50, "y < 50", "actual y: " + menuCoords.y);
+									doh.t(menuCoords.x >= aroundCoords.x, "x >= 0", "actual x: " + menuCoords.x);
+									doh.t(menuCoords.y >= aroundCoords.y, "y >= 0", "actual y: " + menuCoords.y);
+									doh.t(domClass.contains("windowContextMenuFirstChoice", "dijitMenuItemSelected"),
+											"first choice selected");
+
+									robot.keyPress(keys.ESCAPE, 250, {}); // close context menu
+
+									robot.sequence(d.getTestCallback(function(){
+										doh.t(helpers.isHidden(menu), "menu disappeared");
+									}), 1000);
+								}), 1000);
+
+								return d;
+							}
+						};
+					}));
+				}
+
+				doh.register("Left click menu keyboard tests", {
+					name: "open left click context menu",
+					timeout: 5000,
+					runTest: function(){
+						var d = new doh.Deferred();
+
+						// Tab to node to be opened by keyboard.
+						robot.sequence(function(){
+							dom.byId("input").focus();
+						}, 500);
+						robot.keyPress(keys.TAB, 500);
+
+						// open via keyboard
+						robot.keyPress(keys.SPACE, 500);
+
+						robot.sequence(d.getTestErrback(function(){
+							var menu = registry.byId("leftClickContextMenu");
+							doh.t(helpers.isVisible(menu), "menu is now shown");
+
+							// Check that menu's top is near focus point, rather than upper-left hand corner of browser
+							// window.  Since the focus node is on the right of the screen though, it might be to the
+							// left.
+							var menuCoords = domGeom.position(menu.domNode);
+							doh.t(menuCoords.x > 100, "actual x: " + menuCoords.x);
+							doh.t(menuCoords.y > 100, "actual y: " + menuCoords.y);
+							doh.t(domClass.contains("leftClickMenuFirstChoice", "dijitMenuItemSelected"),
+									"first choice selected");
+
+							robot.keyPress(keys.ESCAPE, 250, {}); // close context menu
+
+							robot.sequence(d.getTestCallback(function(){
+								doh.t(helpers.isHidden(menu), "menu disappeared");
+							}), 1000);
+						}), 1000);
+
+						return d;
+					}
+				});
+
+				doh.register("Cancellation (ESCAPE) tests", [
+					{
+						name: "MenuBar selection and cancellation",
+						timeout: 20000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							// Start at the link
+							robot.sequence(function(){
+								dom.byId("link").focus();
+							}, 500, 500);
+
+							// tab to the MenuBar... then focus should automatically shift to "File" menu,
+							robot.keyPress(keys.TAB, 500, {});
+
+							robot.keyPress(keys.DOWN_ARROW, 500, {}); // open File menu
+
+							robot.sequence(d.getTestErrback(function(){
+								doh.t(helpers.isVisible("fileMenu"), "File menu should be visible");
+							}), 1000);
+
+							robot.keyPress(keys.ESCAPE, 250, {}); // close File menu
+							robot.sequence(d.getTestErrback(function(){
+								doh.t(helpers.isHidden("fileMenu"), "File menu is hidden after cancel");
+								doh.t(domClass.contains("file", "dijitMenuItemSelected"),
+									"File MenuBarItem should have selected class, actual class is: " + dom.byId("file").className);
+							}), 1000);
+
+							robot.keyPress(keys.RIGHT_ARROW, 250, {}); // move to Edit menu
+							robot.sequence(d.getTestErrback(function(){
+								doh.f(domClass.contains("file", "dijitMenuItemSelected"),
+									"File MenuBarItem should not have selected class, actual class is: " + dom.byId("file").className);
+								doh.t(helpers.isHidden("editMenu"), "Edit menu is hidden after cancel and select");
+								doh.t(domClass.contains("edit", "dijitMenuItemSelected"),
+									"Edit MenuBarItem should have selected class, actual class is: " + dom.byId("edit").className);
+							}), 500);
+
+							robot.typeKeys("e", 250, 1000); // open Edit menu
+							robot.sequence(d.getTestErrback(function(){
+								doh.t(helpers.isVisible("editMenu"), "edit menu appeared");
+							}), 1000);
+
+							robot.typeKeys("p", 250, 300); // select paste
+
+							robot.sequence(d.getTestErrback(function(){
+								doh.t(helpers.isHidden("editMenu"), "edit menu disappeared");
+							}), 1000);
+
+							robot.typeKeys("f", 250, 300); // open File menu
+							robot.sequence(d.getTestErrback(function(){
+								doh.t(helpers.isVisible("fileMenu"), "File menu should be visible");
+							}), 1000);
+
+							robot.keyPress(keys.RIGHT_ARROW, 75, {}); // #9846
+							robot.keyPress(keys.RIGHT_ARROW, 75, {}); // move to View menu
+							robot.keyPress(keys.LEFT_ARROW, 75, {}); // move to Edit menu
+							robot.sequence(d.getTestErrback(function(){
+								doh.t(helpers.isVisible("editMenu"), "Edit menu should be visible and File menu hidden");
+								doh.t(helpers.isHidden("fileMenu"), "File menu should be hidden and Edit menu visible");
+							}), 1000);
+
+							robot.keyPress(keys.ESCAPE, 250, {}); // close Edit menu
+
+							robot.sequence(d.getTestCallback(function(){
+								doh.t(helpers.isHidden("editMenu"), "edit menu disappeared");
+							}), 1000);
+
+							return d;
+						}
+					}
+				]);
+
+				doh.register("CheckedMenuItem", [
+					{
+						name: "initial conditions",
+						runTest: function(){
+							doh.is("true", registry.byId("checked1").domNode.getAttribute("aria-checked"), "checked1 aria-checked");
+							doh.t(registry.byId("checked1").checked, "checked1 value");
+							doh.is("false", registry.byId("checked2").domNode.getAttribute("aria-checked"), "checked2 aria-checked");
+							doh.f(registry.byId("checked2").checked, "checked2 value");
+						}
+					},
+
+					{
+						name: "nav to checked1",
+						timeout: 10000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							// Start at the link
+							robot.sequence(function(){
+								dom.byId("link").focus();
+							}, 500, 500);
+
+							// tab to the MenuBar, then to the left hand menu
+							robot.keyPress(keys.TAB, 500, {});
+							robot.keyPress(keys.TAB, 500, {});
+
+							// down arrow to "checked 1"
+							robot.keyPress(keys.DOWN_ARROW, 500, {});
+							robot.keyPress(keys.DOWN_ARROW, 250, {});
+							robot.keyPress(keys.DOWN_ARROW, 250, {});
+							robot.keyPress(keys.DOWN_ARROW, 250, {});
+							robot.keyPress(keys.DOWN_ARROW, 250, {});
+							robot.keyPress(keys.DOWN_ARROW, 250, {});
+							robot.keyPress(keys.DOWN_ARROW, 250, {});
+
+							robot.sequence(d.getTestCallback(function(){
+								doh.is("checked1", dfocus.curNode.getAttribute("id"), "focus on checked1");
+							}), 1000);
+
+							return d;
+						}
+					},
+
+					{
+						name: "click checked1",
+						timeout: 5000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							robot.keyPress(keys.SPACE, 250, {});
+
+							robot.sequence(d.getTestCallback(function(){
+								doh.f(registry.byId("checked1").checked, "checked1 --> unchecked");
+							}), 500);
+
+							return d;
+						}
+					},
+
+					{
+						name: "nav to checked2",
+						timeout: 5000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							robot.keyPress(keys.DOWN_ARROW, 250, {});
+
+							robot.sequence(d.getTestCallback(function(){
+								doh.is("checked2", dfocus.curNode.getAttribute("id"), "focus on checked2");
+							}), 500);
+
+							return d;
+						}
+					},
+
+					{
+						name: "click checked2",
+						timeout: 5000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							robot.keyPress(keys.SPACE, 250, {});
+
+							robot.sequence(d.getTestCallback(function(){
+								doh.t(registry.byId("checked2").checked, "checked2 --> checked");
+							}), 500);
+
+							return d;
+						}
+					}
+				]);
+
+				doh.register("keyboard search", [
+					{
+						name: "multi-char search failure",
+						timeout: 9000,
+						runTest: function(){
+							var d = new doh.Deferred();
+							dom.byId("link").focus();
+
+							// tab to the MenuBar, then to the left hand menu
+							robot.keyPress(keys.TAB, 500, {});
+							robot.keyPress(keys.TAB, 500, {});
+							robot.keyPress(keys.DOWN_ARROW, 250, {});
+							robot.keyPress(keys.DOWN_ARROW, 250, {});
+							robot.keyPress(keys.DOWN_ARROW, 250, {});
+							robot.keyPress(keys.DOWN_ARROW, 250, {});
+							robot.keyPress(keys.RIGHT_ARROW, 250, {});
+							robot.typeKeys("sd", 500, 400); // multi-char letter search should fail
+
+							robot.sequence(d.getTestCallback(function(){
+								var menu = registry.byId("navMenuSub2");
+								doh.f(helpers.isVisible(menu), "sub-sub-menu is not shown");
+							}), 500);
+
+							return d;
+						}
+					},
+					{
+						name: "search with SPACE",
+						timeout: 9000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							robot.typeKeys("submenu Item t", 600, 2000); // multi letter search should work
+
+							robot.sequence(d.getTestCallback(function(){
+								doh.is("Submenu Item Two", registry.getEnclosingWidget(dfocus.curNode).label, "focus on second MenuItem in sub Menu");
+							}), 500);
+
+							return d;
+						}
+					},
+					{
+						name: "search with full text to make sure it's found",
+						timeout: 9000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							robot.typeKeys("sUBMENU iTEM oNE", 600, 3000); // multi letter search should work
+
+							robot.sequence(d.getTestCallback(function(){
+								doh.is("Submenu Item One", registry.getEnclosingWidget(dfocus.curNode).label, "focus on second MenuItem in sub Menu");
+							}), 500);
+
+							return d;
+						}
+					},
+					{
+						name: "search with full text to make sure it's moving",
+						timeout: 9000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							robot.typeKeys("submenu item two", 600, 3000); // multi letter search should work
+
+							robot.sequence(d.getTestCallback(function(){
+								doh.is("Submenu Item Two", registry.getEnclosingWidget(dfocus.curNode).label, "focus on second MenuItem in sub Menu");
+							}), 500);
+
+							return d;
+						}
+					},
+					{
+						name: "search again with the same full text to make sure it's not just picking the next item",
+						timeout: 9000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							robot.typeKeys("submenu item two", 600, 3000); // multi letter search should work
+
+							robot.sequence(d.getTestCallback(function(){
+								doh.is("Submenu Item Two", registry.getEnclosingWidget(dfocus.curNode).label, "focus on second MenuItem in sub Menu");
+							}), 500);
+
+							return d;
+						}
+					},
+					{
+						name: "search opens sub-menu",
+						timeout: 9000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							robot.typeKeys("sds", 600, 3500); // single letter search should work after long delays
+
+							robot.sequence(d.getTestCallback(function(){
+								var menu = registry.byId("navMenuSub2");
+								doh.t(helpers.isVisible(menu), "sub-sub-menu is shown");
+								doh.is("Sub-sub-menu Item Two", registry.getEnclosingWidget(dfocus.curNode).label, "focus on second MenuItem in sub-sub Menu");
+							}), 500);
+
+							return d;
+						}
+					},
+					{
+						name: "SPACE closes menu after keyboard search",
+						timeout: 9000,
+						runTest: function(){
+							var d = new doh.Deferred();
+
+							robot.typeKeys(" ", 600, 300);
+
+							robot.sequence(d.getTestCallback(function(){
+								doh.f(helpers.isVisible(registry.byId("navMenuSub1")), "sub-menu is shown");
+								doh.f(helpers.isVisible(registry.byId("navMenuSub2")), "sub-sub-menu is shown");
+							}), 500);
+
+							return d;
+						}
+					}
+				]);
+
+				doh.run();
+			});
+		</script>
+	</head>
+</html>

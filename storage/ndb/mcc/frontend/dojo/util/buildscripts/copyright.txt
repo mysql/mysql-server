@@ -1,0 +1,5 @@
+/*
+	Copyright (c) 2004-2016, The JS Foundation All Rights Reserved.
+	Available via the New BSD license OR the Academic Free License >= 2.1.
+	see: http://dojotoolkit.org/license for details
+*/

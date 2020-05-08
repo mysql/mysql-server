@@ -1,0 +1,75 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+	<script src="../../../dojo/dojo.js"></script>
+	<script>
+		require(["dojo/dom", "dojo/on", "dojo/dom-construct", "dojo/query", "dojo/_base/array", "dojox/validate", "dojox/validate/check", "dojox/validate/web", "dojo/domReady!"
+		], function(dom, on, domConstruct, query, arrayUtil, validate) {
+			var thisForm = dom.byId('myForm');
+			on(thisForm, "submit", function(event) {
+				event.preventDefault();
+				var profile = {
+					required: [ "field1", "field2", "field3" ],
+					constraints: {
+						field1: [myValidationFunction, { "message" : "Field 1 is incorrect. Please try again." }],
+						field2: [validate.isEmailAddress, false, true],
+						field3: ["myValidationFunction", { "message" : "Field 3 is incorrect. Please try again." }]
+					}
+				}
+
+				var results = validate.check(thisForm, profile);
+				if (results.isSuccessful()) { // If validation is a success
+					return true;
+				} else {
+					// Start by removing error messages already generated from previous submission attempt
+					query(".error", thisForm).forEach(domConstruct.destroy);
+
+					var missing = results.getMissing();
+					if (missing.length){
+						arrayUtil.forEach(missing, function(missingField){
+							domConstruct.create("span", { innerHTML : missingField + " is required.", "class" : "error" }, query("input[name=" + missingField + "]")[0], "after");
+						});
+					}
+
+					var invalid = results.getInvalid();
+					console.log(invalid);
+					if (invalid.length) {
+						arrayUtil.forEach(invalid, function(constraintResponse){
+							domConstruct.create("span", { innerHTML : constraintResponse.message || "Invalid input. Please try again.", "class" : "error" }, query("input[name=" + constraintResponse.field + "]")[0], "after");
+						});
+					}
+
+					return false;
+				}
+			});
+		});
+		function myValidationFunction(value, options) {
+			// validation stuff goes here
+			return { isValid : false, message : options.message }
+		}
+	</script>
+	<style>
+		body { font-family: sans-serif; }
+		.error { font-size:0.8em; color:red; font-style:italic; }
+		dd { margin-bottom:20px; }
+		input[type=text] { padding:5px; color:#242424; border:1px solid #242424; width: 50%; margin-right:5%; }
+		input[type=submit] { padding:10px; font-weight:bold; text-transform:uppercase; margin:10px 0; }
+	</style>
+</head>
+<body>
+	<form id="myForm">
+		<fieldset>
+			<legend>Validate Check Demo</legend>
+			<dl>
+				<dt><label for="field1">Field 1 (custom validation function)</label></dt>
+				<dd><input type='text' name='field1' value='field1 test value' /></dd>
+				<dt><label for="field2">Field 2 (validate.isEmailAddress)</label></dt>
+				<dd><input type='text' name='field2' value='field2@testvalue.com' /></dd>
+				<dt><label for="field3">Field 3 (custom validation function called by string)</label></dt>
+				<dd><input type='text' name='field3' value='field3 test value' /></dd>
+			</dl>
+		</fieldset>
+		<input type="submit" value="Submit" />
+	</form>
+</body>
+</html>

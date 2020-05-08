@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="Content-type" content="text/html; charset=utf-8"/>
+	<meta name="viewport" 
+		content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no"/>
+	<meta name="apple-mobile-web-app-capable" content="yes"/>
+	<title>HTML5 Attribute Compliance</title>
+
+	<!-- DOH test for the changes introduced for HTML5 compliance 
+		of attributes (#16188) -->
+	
+	<script type="text/javascript" src="../../deviceTheme.js"></script>
+	<script type="text/javascript" src="../../../../dojo/dojo.js" 
+		data-dojo-config="async: true, parseOnLoad: true"></script>
+
+	<script type="text/javascript">
+		require([
+			"dojo/dom",
+			"dojo/dom-class",
+			"dojo/ready",
+			"dijit/registry",
+			"doh/runner",
+			"dojox/mobile/parser",
+			"dojox/mobile",
+			"dojox/mobile/compat",
+			"dojox/mobile/ScrollableView",
+			"dojox/mobile/SwapView",
+			"dojox/mobile/Carousel",
+			"dojox/mobile/CarouselItem"
+		], function(dom, domClass, ready, registry, runner){
+			
+			ready(function(){
+				doh.register("dojox/mobile/test.doh.HTML5compliance", [
+					function testInView1(){
+						// Check support for "fixed" attribute on widgets
+						var view = registry.byId("view1");
+						var header = registry.byId("fixedTop1");
+						var footer = registry.byId("fixedBottom1");
+						runner.assertTrue(view.fixedHeader == header.domNode, "wrong header");
+						runner.assertTrue(view.fixedFooter == footer.domNode, "wrong footer");
+					},
+					function testInView2(){
+						// Check support for "fixed" attribute on HTML elements
+						var view = registry.byId("view2");
+						var header = dom.byId("fixedTop2");
+						var footer = dom.byId("fixedBottom2");
+						runner.assertTrue(view.fixedHeader == header, "wrong header");
+						runner.assertTrue(view.fixedFooter == footer, "wrong footer");
+					},
+					function testInView3(){
+						// Check support for "data-mobile-fixed" attribute on widgets (new in Dojo 1.9)
+						var view = registry.byId("view3");
+						var header = registry.byId("fixedTop3");
+						var footer = registry.byId("fixedBottom3");
+						runner.assertTrue(view.fixedHeader == header.domNode, "wrong header");
+						runner.assertTrue(view.fixedFooter == footer.domNode, "wrong footer");
+					},
+					function testInView4(){
+						// Check support for "data-mobile-fixed" attribute on HTML elements (new in Dojo 1.9)
+						var view = registry.byId("view4");
+						var header = dom.byId("fixedTop4");
+						var footer = dom.byId("fixedBottom4");
+						runner.assertTrue(view.fixedHeader == header, "wrong header");
+						runner.assertTrue(view.fixedFooter == footer, "wrong footer");
+					},
+					function testInView5(){
+						// Check support for "lazy":
+						// - as attribute (legacy), or
+						// - in data-dojo-props (new in Dojo 1.9);
+						var swapview = registry.byId("swapview1");
+						runner.assertTrue(!!swapview._instantiated, 
+							"wrong instanciation of swapview1 (not lazy)");
+						swapview = registry.byId("swapview2");
+						runner.assertFalse(!!swapview._instantiated, 
+							"wrong instanciation of swapview2 (lazy attribute)");
+						swapview = registry.byId("swapview3");
+						runner.assertFalse(!!swapview._instantiated, 
+							"wrong instanciation of swapview3 (lazy in data-dojo-props)");
+					},
+					function testInView6(){
+						// Check support for "layout" / "data-mobile-layout" attributes 
+						// on ListItem children:
+						// - "layout" (legacy), or
+						// - "data-mobile-layout" (new in Dojo 1.9);
+						
+						var child = dom.byId("listItemChild1"); // left
+						runner.assertTrue(domClass.contains(child, "mblListItemLayoutLeft"), "layout - Left");
+						child = dom.byId("listItemChild2"); // center
+						runner.assertTrue(domClass.contains(child, "mblListItemLayoutCenter"), "layout - Center");
+						child = dom.byId("listItemChild3"); // center
+						runner.assertTrue(domClass.contains(child, "mblListItemLayoutRight"), "layout - Right");
+						
+						child = dom.byId("listItemChild4"); // left
+						runner.assertTrue(domClass.contains(child, "mblListItemLayoutLeft"), "data-mobile-layout - Left");
+						child = dom.byId("listItemChild5"); // center
+						runner.assertTrue(domClass.contains(child, "mblListItemLayoutCenter"), "data-mobile-layout - Center");
+						child = dom.byId("listItemChild6"); // center
+						runner.assertTrue(domClass.contains(child, "mblListItemLayoutRight"), "data-mobile-layout - Right");
+					}
+				]);
+				runner.run();
+			});
+		})
+	</script>
+
+</head>
+<body>
+	<!-- 1. "fixed" / "data-mobile-fixed" attribute for view header/footer --> 
+	
+	<!-- Using fixed as attribute (legacy) on widgets -->
+	<div id="view1" data-dojo-type="dojox/mobile/ScrollableView">
+		<!-- "fixed" attribute on widgets -->
+		<h1 id="fixedTop1" data-dojo-type="dojox/mobile/Heading" 
+			fixed="top">Top 1</h1>
+		<h1 id="fixedBottom1" data-dojo-type="dojox/mobile/Heading" 
+			fixed="bottom">Bottom 1</h1>
+	</div>
+	
+	<!-- Using fixed as attribute (legacy) on HTML elements -->
+	<div id="view2" data-dojo-type="dojox/mobile/ScrollableView">
+		<!-- "fixed" attribute on HTML elements -->
+		<h1 id="fixedTop2" fixed="top">Top 2</h1>
+		<h1 id="fixedBottom2" fixed="bottom">Bottom 2</h1>
+	</div>
+	
+	<!-- Using data-mobile-fixed as attribute (new in Dojo 1.9) on widgets -->
+	<div id="view3" data-dojo-type="dojox/mobile/ScrollableView">
+		<!-- "data-mobilefixed" attribute on widgets -->
+		<h1 id="fixedTop3" data-dojo-type="dojox/mobile/Heading" 
+			data-mobile-fixed="top">Top 1</h1>
+		<h1 id="fixedBottom3" data-dojo-type="dojox/mobile/Heading" 
+			data-mobile-fixed="bottom">Bottom 1</h1>
+	</div>
+	
+	<!-- Using data-mobile fixed as attribute (new in Dojo 1.9) on HTML elements -->
+	<div id="view4" data-dojo-type="dojox/mobile/ScrollableView">
+		<!-- "data-mobile-fixed" attribute on HTML elements -->
+		<h1 id="fixedTop4" data-mobile-fixed="top">Top 2</h1>
+		<h1 id="fixedBottom4" data-mobile-fixed="bottom">Bottom 2</h1>
+	</div>	
+	
+	<!-- 2. "lazy" / "data-mobile-lazy" attribute for Carusel's children --> 
+	
+	<div id="view5" data-dojo-type="dojox/mobile/View">
+		<div id="carousel1" data-dojo-type="dojox/mobile/Carousel"
+			data-dojo-props='height:"150px", navButton:true, numVisible:2, title:"Category"'>
+
+			<div id="swapview1" data-dojo-type="dojox/mobile/SwapView">
+				<div data-dojo-type="dojox/mobile/CarouselItem"
+					data-dojo-props='src:"../images/dish1.jpg", value:"dish1", headerText:"dish1"'></div>
+				<div data-dojo-type="dojox/mobile/CarouselItem"
+					data-dojo-props='src:"../images/dish2.jpg", value:"dish2", headerText:"dish2"'></div>
+			</div>
+
+			<!-- Using lazy as attribute (legacy) --> 
+			<div id="swapview2" data-dojo-type="dojox/mobile/SwapView" lazy="true">
+				<div data-dojo-type="dojox/mobile/CarouselItem"
+					data-dojo-props='src:"../images/dish3.jpg", value:"dish3", headerText:"dish3"'></div>
+				<div data-dojo-type="dojox/mobile/CarouselItem"
+					data-dojo-props='src:"../images/dish4.jpg", value:"dish4", headerText:"dish4"'></div>
+			</div>
+			
+			<!-- Using lazy in data-dojo-props (new in Dojo 1.9) --> 
+			<div id="swapview3" data-dojo-type="dojox/mobile/SwapView" data-dojo-props="lazy:'true'">
+				<div data-dojo-type="dojox/mobile/CarouselItem"
+					data-dojo-props='src:"../images/dish5.jpg", value:"dish5", headerText:"dish5"'></div>
+				<div data-dojo-type="dojox/mobile/CarouselItem"
+					data-dojo-props='src:"../images/dish6.jpg", value:"dish6", headerText:"dish6"'></div>
+			</div>
+		</div>
+	</div>
+
+	<div id="view6" data-dojo-type="dojox/mobile/View">
+		<ul data-dojo-type="dojox/mobile/RoundRectList">
+			<li data-dojo-type="dojox/mobile/ListItem">
+				<div id="listItemChild1" layout="left"><div>Left</div></div>
+			</li>
+			<li data-dojo-type="dojox/mobile/ListItem">
+				<div id="listItemChild2" layout="center">Center</div>
+			</li>
+			<li data-dojo-type="dojox/mobile/ListItem">
+				<div id="listItemChild3" layout="right">Right</div>
+			</li>
+			<li data-dojo-type="dojox/mobile/ListItem">
+				<div id="listItemChild4" data-mobile-layout="left">Left</div>
+			</li>
+			<li data-dojo-type="dojox/mobile/ListItem">
+				<div id="listItemChild5" data-mobile-layout="center">Center</div>
+			</li>
+			<li data-dojo-type="dojox/mobile/ListItem">
+				<div id="listItemChild6" data-mobile-layout="right">Right</div>
+			</li>
+		</ul>
+	</div>
+</body>
+</html>

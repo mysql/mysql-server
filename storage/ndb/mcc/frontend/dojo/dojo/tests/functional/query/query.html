@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<script src="../../../dojo.js" data-dojo-config="async: true, isDebug: true"></script>
+	<title></title>
+	<script>
+		var query,
+				has,
+				dom,
+				domConstruct,
+				iframe;
+	</script>
+	<meta charset="utf-8" />
+</head>
+<body>
+<div class="upperclass">
+	<h1>Testing dojo/query module.</h1>
+	<div id="t" class="lowerclass">
+		<h3>h3 <span>span</span> endh3 </h3>
+		<!-- comment to throw things off -->
+		<div class="foo bar" id="_foo">
+			<h3>h3</h3>
+			<span id="foo"></span>
+			<span></span>
+		</div>
+		<h3>h3</h3>
+		<h3 class="baz foobar" title="thud">h3</h3>
+		<span class="fooBar baz foo"></span>
+		<span foo="bar"></span>
+		<span foo="baz bar thud"></span>
+		<!-- FIXME: should foo="bar-baz-thud" match? [foo$=thud] ??? -->
+		<span foo="bar-baz-thudish" id="silly:id::with:colons"></span>
+		<div id="container">
+			<div id="child1" qux="true"></div>
+			<div id="child2"></div>
+			<div id="child3" qux="true"></div>
+		</div>
+		<div id="silly~id" qux="true"></div>
+		<input id="notbug" name="bug" type="hidden" value="failed">
+		<input id="bug" type="hidden" value="passed">
+	</div>
+	<div id="t2" class="lowerclass">
+		<input type="checkbox" name="checkbox1" id="checkbox1" value="foo">
+		<input type="checkbox" name="checkbox2" id="checkbox2" value="bar" checked>
+
+		<input type="radio" disabled="true" name="radio" id="radio1" value="thinger">
+		<input type="radio" name="radio" id="radio2" value="stuff" checked>
+		<input type="radio" name="radio" id="radio3" value="blah">
+	</div>
+	<select id="t2select" multiple="multiple">
+		<option>0</option>
+		<option selected="selected">1</option>
+		<option selected="selected">2</option>
+	</select>
+
+	<iframe id="t3" name="t3" src="./blank.html"></iframe>
+	<div id="t4">
+		<div id="one" class="subDiv">
+			<p class="one subP"><a class="subA">one</a></p>
+			<div id="two" class="subDiv">
+				<p class="two subP"><a class="subA">two</a></p>
+			</div>
+		</div>
+	</div>
+	<section></section>
+	<div id='other'>
+		<div id='abc55555'></div>
+		<div id='abd55555efg'></div>
+		<div id='55555abc'></div>
+		<div id='1'></div>
+		<div id='2c'></div>
+		<div id='3ch'></div>
+		<div id='4chr'></div>
+		<div id='5char'></div>
+		<div id='6chars'></div>
+	</div>
+
+	<div id="attrSpecialChars">
+		<select name="special">
+			<!-- tests for special characters in attribute values (characters that are part of query syntax) -->
+			<option value="a+b">1</option>
+			<option value="a~b">2</option>
+			<option value="a^b">3</option>
+			<option value="a,b">4</option>
+		</select>
+
+		<!-- tests for quotes in attribute values -->
+		<a href="foo=bar">hi</a>
+		<!-- tests for brackets in attribute values -->
+		<input name="data[foo][bar]">
+		<!-- attribute name with a dot, goes down separate code path -->
+		<input name="foo[0].bar">
+		<input name="test[0]">
+	</div>
+</div>
+</body>
+</html>

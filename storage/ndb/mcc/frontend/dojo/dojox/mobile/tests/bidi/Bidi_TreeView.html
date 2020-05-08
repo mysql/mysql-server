@@ -1,0 +1,186 @@
+<!doctype html>
+<html>
+<head>
+	<meta http-equiv="Content-type" content="text/html; charset=utf-8"/>
+	<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no"/>
+	<meta name="apple-mobile-web-app-capable" content="yes"/>
+	<title>Bidi Mobile test - TreeView</title>
+
+	<script type="text/javascript" src="../../deviceTheme.js" data-dojo-config="mblThemeFiles: ['base']"></script>
+	<script type="text/javascript" src="../../../../dojo/dojo.js" data-dojo-config="async: true, parseOnLoad: true, has: { 'dojo-bidi': true }"></script>
+
+
+	
+	<script type="text/javascript">
+		require([
+			"dojo/data/ItemFileReadStore",
+			"dijit/tree/TreeStoreModel",
+			"dojox/mobile/parser",
+			"dojox/mobile",
+			"dojox/mobile/compat",
+			"dojox/mobile/TreeView"
+		], function(ItemFileReadStore, TreeStoreModel){
+			var store = new ItemFileReadStore({
+/*			
+			data: {	
+					identifier: 'id',
+					items: [{ id:"upper",path:"Upper!",type:"bidi", undefined: "Root!", children:[{_reference:"first"}, {_reference:"second"}, {_reference:"third"}] },
+					{id:"first",path:"first",type:"", undefined: "&#1513;&#1500;&#1493;&#1501; world!"},
+					{id:"second",path:"second",type:"",undefined: "Hello world!"},						
+					{id:"third",path:"third",type:"",undefined: "Hello &#1506;&#1493;&#1500;&#1501;!"}]
+				}
+			});
+*/
+			data: {	
+					identifier: 'id',
+					items: [{ id:"ltr",path:"ltr",type:"ltr", undefined: "Ltr", children:[{_reference:"first"}, {_reference:"second"}, {_reference:"third"}] },
+					{ id:"rtl",path:"rtl",type:"rtl", undefined: "Rtl", children:[{_reference:"first"}, {_reference:"second"}, {_reference:"third"}] },
+					{ id:"auto",path:"auto",type:"auto", undefined: "Auto", children:[{_reference:"first"}, {_reference:"second"}, {_reference:"third"}] },
+					{ id:"ltr2",path:"ltr2",type:"ltr2", undefined: "Ltr2", children:[{_reference:"first"}, {_reference:"second"}, {_reference:"third"}] },
+					{ id:"rtl2",path:"rtl2",type:"rtl2", undefined: "Rtl2", children:[{_reference:"first"}, {_reference:"second"}, {_reference:"third"}] },
+					{ id:"auto2",path:"auto2",type:"auto2", undefined: "Auto2", children:[{_reference:"first"}, {_reference:"second"}, {_reference:"third"}] },
+					
+					{id:"first",path:"first",type:"", undefined: "&#1513;&#1500;&#1493;&#1501; world!"},
+					{id:"second",path:"second",type:"",undefined: "Hello world!"},						
+					{id:"third",path:"third",type:"",undefined: "Hello &#1506;&#1493;&#1500;&#1501;!"}]
+				}
+			});
+			
+			treeModelLtr1 = new TreeStoreModel({
+				store: store,
+				rootLabel: "&#1513;&#1500;&#1493;&#1501; World !",
+				childrenAttrs: ["children"],
+				newItemIdAttr: "path",
+				query:{type:'ltr'}
+			});
+
+			treeModelRtl1 = new TreeStoreModel({
+				store: store,
+				rootLabel: "&#1513;&#1500;&#1493;&#1501; World !",
+				childrenAttrs: ["children"],
+				newItemIdAttr: "path",			
+				query:{type:'rtl'}
+			});
+
+			treeModelAuto1 = new TreeStoreModel({
+				store: store,
+				rootLabel: "&#1513;&#1500;&#1493;&#1501; World !",
+				childrenAttrs: ["children"],
+				newItemIdAttr: "path",				
+				query:{type:'auto'}
+			});
+			
+			treeModelLtr2 = new TreeStoreModel({
+				store: store,
+				rootLabel: "&#1513;&#1500;&#1493;&#1501; World !",
+				childrenAttrs: ["children"],
+				newItemIdAttr: "path",
+				query:{type:'ltr2'}
+			});
+
+			treeModelRtl2 = new TreeStoreModel({
+				store: store,
+				rootLabel: "&#1513;&#1500;&#1493;&#1501; World !",
+				childrenAttrs: ["children"],
+				newItemIdAttr: "path",			
+				query:{type:'rtl2'}
+			});
+
+			treeModelAuto2 = new TreeStoreModel({
+				store: store,
+				rootLabel: "&#1513;&#1500;&#1493;&#1501; World !",
+				childrenAttrs: ["children"],
+				newItemIdAttr: "path",				
+				query:{type:'auto2'}
+			});
+			
+			
+		});
+	</script>
+
+	<style>
+	html,body {
+		height: 100%;
+		overflow: hidden;
+	}
+	hr {
+		border: none;
+		margin: 0;
+	}
+	
+	</style>
+	
+	
+</head>
+
+<body style="visibility:hidden;">
+<div id="group1" data-dojo-type="dojox.mobile.View" data-dojo-props='keepScrollPos:false'><!-- keepScrollPos=false is to improve performance -->
+
+	<div id="view0" data-dojo-type="dojox.mobile.ScrollableView">
+	        <h2 data-dojo-type="dojox.mobile.Heading">TreeView widget</h2>
+		<h1 data-dojo-type="dojox.mobile.Heading">dir LTR</h1>	
+		<ul data-dojo-type="dojox.mobile.EdgeToEdgeList" >
+			<li id="l1" data-dojo-type="dojox.mobile.ListItem" data-dojo-props='icon:"../images/LTR.png", moveTo:"view1"'>Tex Dir LTR</li>
+			<li id="l2" data-dojo-type="dojox.mobile.ListItem" data-dojo-props='icon:"../images/RTL.png", moveTo:"view2"'>Tex Dir RTL</li>
+			<li id="l3" data-dojo-type="dojox.mobile.ListItem"  data-dojo-props='icon:"../images/auto.png", moveTo:"view3"'>Tex Dir AUTO</li>
+		</ul>
+		<h1 data-dojo-type="dojox.mobile.Heading">dir RTL</h1>
+		<ul data-dojo-type="dojox.mobile.EdgeToEdgeList" >
+			<li id="l4" data-dojo-type="dojox.mobile.ListItem"  data-dojo-props='icon:"../images/LTR.png", moveTo:"view4"'>Tex Dir LTR</li>
+			<li id="l5" data-dojo-type="dojox.mobile.ListItem"  data-dojo-props='icon:"../images/RTL.png", moveTo:"view5"'>Tex Dir RTL</li>
+			<li id="l6" data-dojo-type="dojox.mobile.ListItem"  data-dojo-props='icon:"../images/auto.png", moveTo:"view6"'>Tex Dir AUTO</li>
+		</ul>	
+	</div>	
+	
+	
+	<div id="view1" data-dojo-type="dojox.mobile.ScrollableView">
+		<h1 data-dojo-type="dojox.mobile.Heading" data-dojo-props='back:"Back", moveTo:"view0"'>Dir LTR | textDir LTR</h1>
+		
+			
+	<div id="treeView1" data-dojo-type="dojox.mobile.TreeView" data-dojo-props='textDir:"ltr", model: treeModelLtr1'></div>
+
+
+
+
+	</div>
+	
+		
+	<div id="view2" data-dojo-type="dojox.mobile.ScrollableView">
+		<h1 data-dojo-type="dojox.mobile.Heading" data-dojo-props='back:"Back", moveTo:"view0"'>Dir LTR | textDir RTL</h1>
+		
+		<div id="treeView2" data-dojo-type="dojox.mobile.TreeView" data-dojo-props='textDir:"rtl", model: treeModelRtl1'></div>
+					
+		
+	</div>
+		
+	<div id="view3" data-dojo-type="dojox.mobile.ScrollableView">	
+		<h1 data-dojo-type="dojox.mobile.Heading" data-dojo-props='back:"Back", moveTo:"view0"'>Dir LTR | textDir AUTO</h1>
+		
+		<div id="treeView3" data-dojo-type="dojox.mobile.TreeView" data-dojo-props='textDir:"auto", model: treeModelAuto1'></div>
+		
+	</div>	
+	 
+	 
+	<div dir="rtl" id="view4" data-dojo-type="dojox.mobile.ScrollableView">
+		<h1 data-dojo-type="dojox.mobile.Heading" data-dojo-props='back:"Back", moveTo:"view0"'>Dir RTL | textDir LTR</h1>
+		
+		<div id="treeView4" data-dojo-type="dojox.mobile.TreeView" data-dojo-props='textDir:"ltr", model: treeModelLtr2'></div>
+	</div>
+	
+	<div id="view5" data-dojo-type="dojox.mobile.ScrollableView">
+		<h1 data-dojo-type="dojox.mobile.Heading" data-dojo-props='back:"Back", moveTo:"view0"'>Dir RTL | textDir RTL</h1>
+			
+		<div id="treeView5" dir=rtl data-dojo-type="dojox.mobile.TreeView" data-dojo-props='textDir:"rtl", model: treeModelRtl2'></div>
+	</div>	
+	
+	<div dir="rtl" id="view6" data-dojo-type="dojox.mobile.ScrollableView">	
+		<h1 data-dojo-type="dojox.mobile.Heading" data-dojo-props='back:"Back", moveTo:"view0"'>Dir RTL | textDir AUTO</h1>
+		
+		<div id="treeView6" data-dojo-type="dojox.mobile.TreeView" data-dojo-props='textDir:"auto", model: treeModelAuto2'></div>				
+		
+	</div>	
+
+
+</div>
+</body>
+</html>

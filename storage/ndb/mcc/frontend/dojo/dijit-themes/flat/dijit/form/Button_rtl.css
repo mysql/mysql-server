@@ -1,0 +1,15 @@
+.flat table.dijitComboButtonRtl .dijitStretch {
+  border-radius: 0 3px 3px 0;
+}
+.flat table.dijitComboButtonRtl .dijitArrowButton {
+  border-radius: 3px 0 0 3px;
+  border-left-width: 1px;
+  border-right-width: 0;
+}
+.flat .dijitDropDownButtonRtl .dijitButtonNode {
+  padding-left: 8px;
+}
+.flat .dijitDropDownButtonRtl .dijitArrowButtonInner {
+  margin-left: 0;
+  margin-right: 12px;
+}

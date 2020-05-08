@@ -1,0 +1,59 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+        "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+	<head>
+		<title>PROGRAMMATIC - Dojo Widget Creation Test</title>
+		<script type="text/javascript" src="../../dojo/dojo.js"></script>
+		<script type="text/javascript">
+			var queryCount = location.search.match(/count=(\d*)/);
+			var count = (queryCount ? parseInt(queryCount[1]) : 100);
+			var queryClass = location.search.match(/class=([a-zA-Z\.]*)/);
+			var className = (queryClass ? queryClass[1] : "form.Button");
+
+			dojo.require("dijit." + className);
+			dojo.require("dojo.parser");
+			logMessage = window.alert;
+
+			var constructor = dojo.getObject("dijit."+className);
+			function makeEm(){
+				var container = dojo.byId("buttonContainer");
+				var t0 = new Date().getTime();
+				for(var i = 1; i <= count; i++){
+					var it =
+						new constructor(
+								{label:"Button "+i, onclick:'logMessage("clicked simple")'}
+							);
+					container.appendChild(it.domNode);
+					it.domNode.style.display = '';
+				}
+				var t1 = new Date().getTime();
+				dojo.byId("results").innerHTML = "It took " + (t1 - t0) + " msec to create " + count + " "+className+" instances programmatically.";
+			}
+			dojo.ready(makeEm);
+		</script>
+
+		<style type="text/css">
+			@import "../themes/tundra/tundra.css";
+
+			#buttonContainer {
+				border: 1px solid black;
+				width: 100%;
+			}
+
+			#results {
+				color: darkred;
+			}
+		</style>
+	</head>
+	<body class=tundra>
+		<script language='javascript'>
+			document.write("<h2>Currently Creating "+count+" "+className+" instances</h2>");
+		</script>
+		Pass <code>?count=<i><b>100</b></i></code> in the query string to change the number of widgets.<br>
+		Pass <code>?class=<i><b>form.Button</b></i></code> in the query string to change the widget class.
+		<h3 id="results"></h3>
+
+		<div id="buttonContainer" class='box'></div>
+		<br>
+	</body>
+</html>

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta http-equiv="Content-type" content="text/html; charset=utf-8">
+	<title>TooltipDialog non-robot Automated Test</title>
+
+	<script src="boilerplate.js"></script>
+
+	<script type="text/javascript">
+		require([
+			"doh/runner", "dojo/dom-class", "dojo/dom-geometry", "dojo/_base/window",
+			"dijit/popup", "dijit/form/DropDownButton", "dijit/TooltipDialog",
+			"dojo/domReady!"
+		], function(doh, domClass, domGeometry, win, popup, DropDownButton, TooltipDialog){
+			doh.register("TooltipDialog", [
+				function create(){
+					td = new TooltipDialog({
+						id:"mytooltip",
+						content: "hello world"
+					});
+					button = new DropDownButton({
+						id: "tooltipDropDownButton",
+						label: "show tooltip",
+						dropDown: td
+					});
+					button.placeAt(win.body());
+				},
+				function openAround(){
+					button.openDropDown();
+					doh.t(domClass.contains(td.domNode, "dijitTooltipBelow"), "dijitTooltipBelow");
+					button.closeDropDown();
+				},
+				function openAt(){
+					popup.open({
+						popup: td,
+						x: 10,
+						y: 15
+					});
+
+					var popupCoords = domGeometry.position(td.domNode);
+					doh.is(10, popupCoords.x, "popup x coord");
+					doh.is(15, popupCoords.y, "popup y coord");
+					doh.t(domClass.contains(td.domNode, "dijitTooltipBelow"), "dijitTooltipBelow");
+					doh.t(domClass.contains(td.domNode, "dijitTooltipABLeft"), "dijitTooltipABLeft");
+
+					popup.close(td);
+				}
+			]);
+
+			doh.run();
+		});
+	</script>
+</head>
+<body class="claro" role="main">
+</body>
+</html>

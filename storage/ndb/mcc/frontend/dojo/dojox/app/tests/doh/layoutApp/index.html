@@ -1,0 +1,146 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+	<head>
+	<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no"/> 
+		<meta name="apple-mobile-web-app-capable" content="yes" /> 
+		<title>Layout App</title>
+		<link type="text/css" href="../../layoutApp/css/layoutApp.css" rel="stylesheet" />
+		<link href="../../../../mobile/themes/iphone/base.css" rel="stylesheet">
+		<style>
+			html,body {
+				width: 100%;
+				height: 100%;
+				background: #eee;
+				font-family: arial;
+				color: #333;
+				overflow: hidden;
+				margin: 0;
+				padding: 0;
+				visibility: visible;
+			}
+
+			#splash {
+				width: 90%;
+				height: 90%;
+				margin: auto;
+				overflow: hidden;
+				border: 2px solid green;
+				color: #333;
+				text-align: center;
+			}
+
+		</style>
+		<script type="text/javascript">
+			dojoConfig = {
+				parseOnLoad: false,
+				mblHideAddressBar: false,
+				mblAndroidWorkaround: false,
+                mblAlwaysHideAddressBar: false,	
+				async:1,
+				app: {debugApp: 0}  // set debugApp to log app transitions and view activate/deactivate
+			};
+		</script>
+		<script type="text/javascript" src="../../../../../dojo/dojo.js"></script>
+
+		<script>
+            // the actual  launcher
+            require(["../../layoutApp/layoutApp.js"], function(){});
+        </script>
+		<script type="text/javascript">
+			require([
+				"doh/runner",
+				"dojo/topic",
+				"dojo/_base/lang",
+				"dojo/dom",
+				"dojox/mobile/TransitionEvent",				
+				"dijit/registry"
+					], function(doh, topic, lang, dom, TransitionEvent, registry) {
+						var events = [];
+
+						var getLabelfromWid = function(wid, indx1, indx2){
+							var val = wid.labelNode.innerText || wid.labelNode.firstChild.nodeValue || "";
+							val = lang.trim(val);
+							if(indx2){
+								val = val.substring(indx1,indx2)
+							}
+							return val;
+						};
+
+						topic.subscribe("/app/status", lang.hitch(this, function(newStatus) {
+							events.push(newStatus);
+							if (newStatus == 2) {
+								var listItem_0TestStr = "Simple Form Data";
+								var listItem_1TestStr = "List Data Test";
+								doh.register("Test-layoutApp1", [{
+									// Test initial values
+									name : "initial-listItem-labels",
+									runTest : function() {
+										var dfd = new doh.Deferred();
+										setTimeout(function() {
+											var ListItem_0Label = registry.byId("dojox_mobile_ListItem_0");
+											if(ListItem_0Label){
+												var lab = getLabelfromWid(ListItem_0Label,0,listItem_0TestStr.length); 
+												doh.is(lab, listItem_0TestStr);
+											}
+											var ListItem_1Label = registry.byId("dojox_mobile_ListItem_1");
+											if(ListItem_1Label){
+												doh.is(getLabelfromWid(ListItem_1Label,0,listItem_1TestStr.length), listItem_1TestStr);
+											}
+											var shiptostreetInput1Text = registry.byId("shiptostreetInput1");
+											if(shiptostreetInput1Text){
+												doh.is(shiptostreetInput1Text.value,"123 Valley Rd");
+											}
+											return dfd.callback(true);
+										}, 500);
+										return dfd;
+									}
+								}, {
+									// Test first transition
+									name : "transition-test-1",
+									runTest : function() {
+										var dfd = new doh.Deferred();
+										setTimeout(function() {
+											var liWidget = registry.byId("dojox_mobile_ListItem_1");
+											var ev = new TransitionEvent(liWidget.domNode, liWidget.params);
+											ev.dispatch();
+											return dfd.callback(true);
+										}, 500);
+									}
+								}, {
+									// Test layout data 1
+									name : "layout-data-test-1",
+									runTest : function() {
+										var dfd = new doh.Deferred();
+										setTimeout(function() {
+											var d = registry.byId("dojox_mobile_EdgeToEdgeCategory_2");
+											if(d){
+												doh.is("Using a dojox/mobile/EdgeToEdgeStoreList", d.domNode.innerHTML, "dojox_mobile_EdgeToEdgeCategory_2 should be set");
+											}
+											doh.t(layoutApp.children["layoutApp_listMain"], "layoutApp_listMain viewShowing should be true");
+											return dfd.callback(true);
+										}, 1000);
+										return dfd;
+									}
+								}, {
+									// Test back transition
+									name : "transition-back-1",
+									runTest : function() {
+										var dfd = new doh.Deferred();
+										if(history){
+											history.back();
+											setTimeout(function() {
+												doh.t(layoutApp.children["layoutApp_simple"], "layoutApp_simple viewShowing should be true");
+												return dfd.callback(true);
+											}, 500);
+										}
+									}
+								}]);
+								doh.run();
+							}
+						}));
+					});
+		</script>
+	</head>
+	<body>
+	</body>
+</html>

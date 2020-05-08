@@ -1,0 +1,48 @@
+@require 'nib/gradients';
+@require 'nib/vendor';
+
+$flat_path_to_dgrid ?= '../../dgrid';
+
+$dgrid-background ?= #fff;
+$dgrid-border-color ?= #d0d0d0;
+$dgrid-cell-padding ?= 5px 10px;
+
+$dgrid-cell-has-vertical-border ?= false;
+
+$dgrid-header-background ?= #fff;
+$dgrid-header-cell-border-color ?= #d0d0d0;
+$dgrid-header-cell-border-bottom-width ?= 2px;
+$dgrid-header-cell-font-weight ?= bold;
+$dgrid-header-cell-hover-background ?= #f2f2f2;
+$dgrid-header-text-transform ?= uppercase;
+
+$dgrid-body-cell-border-color ?= #d0d0d0;
+$dgrid-body-row-transition-duration ?= 0.1s;
+$dgrid-body-row-transition-property ?= unquote('background-color');
+$dgrid-body-row-background ?= transparent;
+
+$dgrid-body-row-hover-background-color ?= #f2f2f2;
+
+$dgrid-selected-background-color ?= #fff;
+$dgrid-selected-border ?= 1px solid #007ac2;
+$dgrid-selected-hover-background-color ?= #f2f2f2;
+
+.flat {
+	import $flat_path_to_dgrid + '/css/skins/skin';
+
+	.dgrid-cell-padding {
+		padding: $dgrid-cell-padding;
+	}
+	.dgrid-header .dgrid-cell {
+		border-bottom-width: $dgrid-header-cell-border-bottom-width;
+	}
+	$dgrid-header-cell-border-bottom-width .dgrid-cell {
+		if (!$dgrid-cell-has-vertical-border) {
+			border-left: 0;
+			border-right: 0;
+		}
+	}
+	.dgrid-selected {
+		border: $dgrid-selected-border;
+	}
+}

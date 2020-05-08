@@ -1,0 +1,134 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" 
+	"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+	<head>
+        <title>dojox.grid.TreeGrid Lazy-loading for children items test</title>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8"></meta>
+        <style type="text/css">
+            @import "../../../../dojo/resources/dojo.css";
+            @import "../../../../dijit/themes/claro/claro.css";
+            @import "../../../../dojox/grid/resources/Grid.css";
+	    @import "../../../../dojox/grid/resources/tundraGrid.css";
+            @import "../../../../dojox/grid/resources/claroGrid.css";
+            body {
+				font-size: 0.9em;
+				font-family: Geneva, Arial, Helvetica, sans-serif;
+				padding: 0.5em;
+			}
+			.title {
+				text-align:center;
+				margin:1em;
+			}
+			#grid1 {
+                width: 50em;
+                height: 15em;
+				border: 1px solid #333333;
+            }
+        </style>
+        <script type="text/javascript" src="../../../../dojo/dojo.js" data-dojo-config="async: true, parseOnLoad: true, has: {'dojo-bidi': true}, mblAlwaysHideAddressBar: true"></script>
+        <script type="text/javascript">            		
+		require([
+			"dojo/ready",
+			"doh/runner",
+			"dojo/dom",
+			"dojo/query",
+			"dojo/_base/lang",			
+			"dojo/data/ItemFileReadStore",
+			"dojox/grid/LazyTreeGridStoreModel",
+			"dojo/parser",			
+			"dojox/grid/cells/dijit",
+			"dijit/form/ComboBox"
+		], function(ready, runner, dom, query, lang, ItemFileReadStore, LazyTreeGridStoreModel){
+			var continentItems = [
+				{name:'South America!', type:'continent', population:''},
+				{name:'North America!', type:'continent', population:''},
+				{name:'Asia!', type:'continent', population:''},
+				{name:'Oceania!', type:'continent', population:''},
+				{name:'Europe!', type:'continent', population:''}
+			];
+			var continentChildrenList = [];
+			for(var i=0; i < continentItems.length; i++){
+				continentChildrenList.push(lang.mixin({ id: 'continent_' + i }, continentItems[i]));
+			}
+			
+			var countryItems = [
+				{name:'Egypt!', type:'country', population:''},
+				{name: 'Kenya!', type: 'country', population:''},
+				{name:'Sudan!', type:'country', population:''},
+				{name:'China!', type:'country' , population:''},
+		        {name:'India!', type:'country' , population:''}
+			];
+			
+			var countryChildrenList = [];
+			for(var i=0; i < countryItems.length; i++){
+				countryChildrenList.push(lang.mixin({ id: 'country_' + i }, countryItems[i]));
+			}
+			
+			cityItems = [
+				{name:'Nairobi!', type:'city', population:''},
+		        {name:'Mombasa!', type:'city', population:''},
+		        {name:'Khartoum!', type:'city', population:''},
+				{name:'Mexico City!', type:'city', population:'19 million.'},
+		        {name:'Guadalajara!', type:'city', population:'4 million.'}
+			];
+			
+			var cityChildrenList = [];
+			for(var i=0; i < cityItems.length; i++){
+				cityChildrenList.push(lang.mixin({ id: 'city_' + i }, cityItems[i]));
+			}
+
+			var dataItems = {
+				identifier: 'id',
+                label: 'name',
+				items: [
+					{id:'Continent', name:'Continent!', type:'', population: '', children: continentChildrenList},
+					{id:"Country", name:"Country!", type:"", population: '', children: countryChildrenList},
+					{id:"City", name:"City!", type:"", population: '', children: cityChildrenList}
+				]
+			};
+			
+			var readStore = new ItemFileReadStore({data: dataItems});
+			model1 = new LazyTreeGridStoreModel({store: readStore, childrenAttrs: ['children']})			
+			layout = [
+				{name: 'Name!', field: 'name', width: 'auto'},
+				{name: 'Type!', field: 'type', width: 'auto'},
+				{name: 'Population!', field: 'population', width: 'auto'}
+			]
+			
+			ready(function(){				
+				runner.register("grid.tests.bidi.test_LazyLoadTree", [
+					{
+						name: "Lazyload Tree Grid , Bidi",					
+						runTest: function(){
+							query("th.dojoxGridCell").forEach(function(node, index, arr){							
+								runner.is("rtl", node.style.direction, "header should have 'direction' style corresponding to 'textDir'");							
+							});
+
+							query("td.dojoxGridCell").forEach(function(node, index, arr){
+								if(node.lastChild && node.lastChild.tagName && 
+								node.lastChild.tagName.toUpperCase() === "DIV" && node.lastChild.lastChild 
+								&& node.lastChild.lastChild.nodeType === 3 && node.lastChild.lastChild.nodeValue) {								
+									runner.is(String.fromCharCode(8235), node.lastChild.lastChild.nodeValue.charAt(0), "content cell should have direction corresponding to 'textDir'");
+								}
+							});							
+						}
+					}
+				]);
+				runner.register("log", function(){
+					dom.byId('failures').innerHTML = runner._failureCount;
+					dom.byId('errors').innerHTML = runner._errorCount;
+				});
+				runner.run();
+			});				
+		});			
+        </script>
+    </head>
+    <body class="claro">
+        <h1 class="title">Bidi TreeGrid - Lazy-loading</h1>
+		<div id='grid1' data-dojo-id='grid1' data-dojo-type='dojox/grid/LazyTreeGrid'
+				data-dojo-props='textDir: "rtl", structure:layout, treeModel:model1, rowSelector:"true" '></div>
+				
+		<br>Errors:&nbsp;<span id="errors">?</span>
+		<br>Failures:&nbsp;<span id="failures">?</span>					
+    </body>
+</html>

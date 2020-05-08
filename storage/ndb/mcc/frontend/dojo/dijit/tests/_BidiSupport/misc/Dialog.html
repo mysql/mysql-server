@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="Content-type" content="text/html; charset=utf-8">
+	<title>Dialog Widget Automated (non-robot) Tests</title>
+
+	<style type="text/css">
+		@import "../../../themes/claro/document.css";
+		@import "../../css/dijitTests.css";
+	</style>
+
+	<!-- required: a default dijit theme: -->
+	<link id="themeStyles" rel="stylesheet" href="../../../themes/claro/claro.css"/>
+
+	<!-- required: dojo.js -->
+	<script type="text/javascript" src="../../../../dojo/dojo.js"
+			data-dojo-config="async: true, has: { 'dojo-bidi': true }"></script>
+
+	<script type="text/javascript">
+		require([
+			"doh/runner",
+			"dojo/query",
+			"dijit/Dialog",
+			"dojo/domReady!"
+		], function(doh, query, Dialog){
+			toggleTextDir = function(){
+				dlg.set("textDir", (dlg.get("textDir") !== "rtl") ? "rtl" : "ltr");
+			};
+			doh.register("tests._BidiSupport.form.DialogBidi", [
+				{
+					name: "Bidi Dialog test",
+					runTest: function(){
+						var d = new doh.Deferred();
+						dlg = new Dialog({
+							textDir: "rtl",
+							title: "Title!",
+							content: "<input id='dlg1_inputA'><br>" +
+									"<input id='dlg1_inputB'><br>" +
+									"<input id='dlg1_inputC'><br>" +
+									"<input type='button' value='Toggle title textDir' onclick='toggleTextDir()'>"
+						});
+						dlg.show().then(d.getTestCallback(function(){
+							doh.is(dlg.get("textDir"), query(".dijitDialogTitle")[0].dir, "Dialog title node should have 'dir' attribute equal to dialog's 'textDir' property");
+						}));
+						return d;
+					}
+				}
+			]);
+			doh.run();
+		});
+	</script>
+</head>
+<body class="claro">
+<h1 class="testTitle">Bidi Dialog Test</h1>
+</body>
+</html>
+
+

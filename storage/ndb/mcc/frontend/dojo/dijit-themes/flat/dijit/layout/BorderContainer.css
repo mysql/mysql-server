@@ -1,0 +1,97 @@
+/* BorderContainer 
+
+Splitters and gutters separate panes within a BorderContainer. Splitters can be moved up and down (horizonal splitters) or left and right (vertical splitters), while Gutters are static. A "thumb" is the slit on a Splitter that indicates it is movable. 
+
+Styling the BorderContainer widget consists of the following: 
+
+.dijitBorderContainer - for border and padding of the entire border container
+
+.dijitSplitContainer-child, .dijitBorderContainer-child - for border or child panes of the border container. By default borders are put on all children of BorderContainer.  
+
+.dijitBorderContainer-dijitTabContainerTop,
+.dijitBorderContainer-dijitTabContainerBottom,
+.dijitBorderContainer-dijitTabContainerLeft,
+.dijitBorderContainer-dijitTabContainerRight,
+.dijitBorderContainer-dijitAccordionContainer   -for border of the border containers within TabContainer or AccordionContainer widget
+
+.dijitBorderContainer-dijitBorderContainer - for border and padding of nested BorderContainers
+
+Splitters and gutters:  
+
+.dijitSplitterH, .dijitGutterH - for height, background, and border of a horizontal splitter and gutter 
+.dijitSplitterH .dijitSplitterThumb - for color, height/width of the thumb on a horizontal splitter
+.dijitSplitterV, .dijitGutterV - - for height, background, and border of a vertical splitter and gutter 
+.dijitSplitterV .dijitSplitterThumb - for color, height/width of the thumb on a vertical splitter
+.dijitSplitterHHover - for background-color of a hovered horizontal splitter
+.dijitSplitterHHover .dijitSplitterThumb - for background-color of a hovered thumb on a horizontal splitter
+.dijitSplitterVHover  - for background-color of a hovered vertical splitter
+.dijitSplitterVHover .dijitSplitterThumb - for background-color of a hovered thumb on a vertical splitter
+.dijitSplitterHActive - for background-color of an active horizontal splitter
+.dijitSplitterVActive - for background-color of an active horizontal splitter
+*/
+.flat .dijitBorderContainer {
+/* matches the width of the splitters between panes */
+  padding: 5px;
+}
+.flat .dijitSplitContainer-child,
+.flat .dijitBorderContainer-child {
+  border: 1px solid #9e9e9e;
+}
+.flat .dijitBorderContainer-dijitTabContainerTop,
+.flat .dijitBorderContainer-dijitTabContainerBottom,
+.flat .dijitBorderContainer-dijitTabContainerLeft,
+.flat .dijitBorderContainer-dijitTabContainerRight,
+.flat .dijitBorderContainer-dijitAccordionContainer {
+/* except that TabContainer defines borders on it's sub-nodes (tablist and dijitTabPaneWrapper),
+		 * so override rule setting border on domNode
+		 */
+  border: none;
+}
+.flat .dijitBorderContainer-dijitBorderContainer {
+  border: 0;
+  padding: 0;
+}
+.flat .dijitSplitterH,
+.flat .dijitGutterH {
+  background: none;
+  border: 0;
+  height: 5px;
+}
+.flat .dijitSplitterH .dijitSplitterThumb {
+  background: #9e9e9e;
+  height: 1px;
+  top: 2px;
+  width: 19px;
+}
+.flat .dijitSplitterV,
+.flat .dijitGutterV {
+  background: none;
+  border: 0;
+  width: 5px;
+  margin: 0;
+}
+.flat .dijitSplitterV .dijitSplitterThumb {
+  background: #9e9e9e;
+  height: 19px;
+  left: 2px;
+  width: 1px;
+  margin: 0;
+}
+.flat .dijitSplitterHHover,
+.flat .dijitSplitterVHover {
+  font-size: 1px;
+  background: #f2f2f2;
+}
+.flat .dijitSplitterHHover .dijitSplitterThumb,
+.flat .dijitSplitterVHover .dijitSplitterThumb {
+  background: #767676;
+}
+.flat .dijitSplitterHActive,
+.flat .dijitSplitterVActive {
+  font-size: 1px;
+  background: #f2f2f2;
+}
+.flat .dijitSplitterHActive .dijitSplitterThumb,
+.flat .dijitSplitterVActive .dijitSplitterThumb {
+  background: #767676;
+}

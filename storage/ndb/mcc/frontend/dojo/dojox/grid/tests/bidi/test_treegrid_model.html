@@ -1,0 +1,101 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+    <head>
+        <title>TreeGrid Model-based test</title>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8"></meta>
+        <style type="text/css">
+            @import "../../../../dojo/resources/dojo.css";
+            @import "../../../../dijit/themes/claro/claro.css";
+            @import "../../../../dojox/grid/resources/Grid.css";
+            @import "../../../../dojox/grid/resources/claroGrid.css";
+            .grid {
+                width: 70em;
+                height: 40em;
+            }
+        </style>
+        <script type="text/javascript" src="../../../../dojo/dojo.js" data-dojo-config="async: true, parseOnLoad: true, has: {'dojo-bidi': true}, mblAlwaysHideAddressBar: true"></script>
+
+        <script type="text/javascript">
+		require([
+			"dojo/ready",
+			"doh/runner",
+			"dojo/dom",
+			"dojo/query",
+			"dojo/_base/lang",
+			"dojo/data/ItemFileWriteStore",
+			"dijit/tree/ForestStoreModel",
+			"dojox/grid/TreeGrid",
+			"dojo/parser",			
+			"dojox/grid/cells/dijit"
+		], function(ready, runner, dom, query, lang, ItemFileWriteStore, ForestStoreModel, TreeGrid){
+			ready(function(){		
+				var dataItems = {
+					identifier: 'id',
+					label: 'name',
+					items: [
+						{ id: 'AF', name:'Africa!', type:'continent', population:'900 million!', area: '30,221,532 sq km',
+							timezone: '-1 UTC to +4 UTC',
+							children:[{_reference:'EG'}, {_reference:'KE'}] },
+						{ id: 'EG', name:'Egypt!', type:'country' },
+						{ id: 'KE', name:'Kenya!', type:'country',
+							children:[{_reference:'Nairobi'}, {_reference:'Mombasa'}] },
+						{ id: 'Nairobi', name:'Nairobi!', type:'city' },
+						{ id: 'Mombasa', name:'Mombasa!', type:'city' }
+					]};
+				var dataItems1 = lang.clone(dataItems);
+				
+				var layout = [
+					{ name: "Name!", field: "name", width: "auto" },
+					{ name: "Population!", field: "population", width: "auto" },
+					{ name: "Timezone!", field: "timezone", width: "auto" }
+				];
+				var jsonStore = new ItemFileWriteStore({ data: dataItems1 });
+				var treeModel = new ForestStoreModel({
+					store: jsonStore,
+					query: { type: 'continent' },
+					rootId: 'continentRoot',
+					rootLabel: 'Continents',
+					childrenAttrs: ['children']
+				});
+				var grid2 = new TreeGrid({
+					treeModel: treeModel,
+					structure: layout,
+					defaultOpen: true,
+					textDir: "rtl"
+				}, 'programmatic_grid');
+				grid2.startup();
+				dojo.connect(window, "onresize", grid2, "resize");
+				
+				runner.register("grid.tests.bidi.test_Tree", [
+					{
+						name: "Tree Grid , Bidi",					
+						runTest: function(){
+							query("th.dojoxGridCell").forEach(function(node, index, arr){
+								runner.is("rtl", node.style.direction, "header should have 'direction' style corresponding to 'textDir'");							
+							});
+
+							query("td.dojoxGridCell").forEach(function(node, index, arr){
+								if(node.lastChild && node.lastChild.nodeType === 3) {							
+									runner.is(String.fromCharCode(8235), node.lastChild.nodeValue.charAt(0), "content cell should have direction corresponding to 'textDir'");
+								}
+							});	
+						}
+					}
+				]);
+				runner.register("log", function(){
+					dom.byId('failures').innerHTML = runner._failureCount;
+					dom.byId('errors').innerHTML = runner._errorCount;
+				});
+				runner.run();				
+			});			
+		});
+        </script>
+    </head>
+    <body class="claro">
+		<h1 class="testSubtitle">Bidi TreeGrid Programmatic</h1>
+		<div id="programmatic_grid"></div>
+		<br>
+		<br>Errors:&nbsp;<span id="errors">?</span>
+		<br>Failures:&nbsp;<span id="failures">?</span>			
+    </body>
+</html>
