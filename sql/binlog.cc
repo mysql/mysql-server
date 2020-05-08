@@ -7996,14 +7996,13 @@ bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, THD *thd,
   DBUG_RETURN(error);
 }
 
-bool MYSQL_BIN_LOG::write_dml_directly(THD* thd, const char *stmt, size_t stmt_len)
+bool MYSQL_BIN_LOG::write_dml_directly(THD* thd, const char *stmt, size_t stmt_len,
+                                       enum_sql_command sql_command)
 {
   bool ret= false;
   /* backup the original command */
   enum_sql_command save_sql_command= thd->lex->sql_command;
-
-  /* Fake it as a DELETE statement, so it can be binlogged correctly */
-  thd->lex->sql_command= SQLCOM_DELETE;
+  thd->lex->sql_command= sql_command;
 
   if (thd->binlog_query(THD::STMT_QUERY_TYPE, stmt, stmt_len,
                         FALSE, FALSE, FALSE, 0) ||
