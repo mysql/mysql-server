@@ -53,7 +53,6 @@
 
 // Forward declarations
 class Autorejoin_thread;
-class Hold_transactions;
 class Transaction_consistency_manager;
 
 // Definition of system var structures
@@ -154,7 +153,6 @@ extern Shared_writelock *shared_plugin_stop_lock;
 extern Delayed_initialization_thread *delayed_initialization_thread;
 extern Group_action_coordinator *group_action_coordinator;
 extern Primary_election_handler *primary_election_handler;
-extern Hold_transactions *hold_transactions;
 extern Autorejoin_thread *autorejoin_module;
 extern Message_service_handler *message_service_handler;
 

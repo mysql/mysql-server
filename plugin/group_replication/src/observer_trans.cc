@@ -638,6 +638,14 @@ int group_replication_trans_begin(Trans_param *param, int &out) {
   }
 
   group_transaction_observation_manager->read_lock_observer_list();
+
+  DBUG_EXECUTE_IF("group_replication_wait_on_observer_trans", {
+    const char act[] =
+        "now signal signal.group_replication_wait_on_observer_trans_waiting "
+        "wait_for signal.group_replication_wait_on_observer_trans_continue";
+    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+  });
+
   std::list<Group_transaction_listener *> *transaction_observers =
       group_transaction_observation_manager->get_all_observers();
   for (Group_transaction_listener *transaction_observer :

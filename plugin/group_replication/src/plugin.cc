@@ -30,7 +30,6 @@
 #include "my_io.h"
 #include "plugin/group_replication/include/autorejoin.h"
 #include "plugin/group_replication/include/consistency_manager.h"
-#include "plugin/group_replication/include/hold_transactions.h"
 #include "plugin/group_replication/include/mysql_version_gcs_protocol_map.h"
 #include "plugin/group_replication/include/observer_server_actions.h"
 #include "plugin/group_replication/include/observer_server_state.h"
@@ -109,8 +108,6 @@ Blocked_transaction_handler *blocked_transaction_handler = nullptr;
 Group_action_coordinator *group_action_coordinator = nullptr;
 /** The primary election handler */
 Primary_election_handler *primary_election_handler = nullptr;
-/** Hold transaction mechanism */
-Hold_transactions *hold_transactions = nullptr;
 /** The thread that handles the auto-rejoin process */
 Autorejoin_thread *autorejoin_module = nullptr;
 /** The handler to invoke clone */
@@ -690,9 +687,8 @@ err:
     DBUG_ASSERT(transactions_latch->empty());
     // Inform the transaction observer that we won't apply any further backlog
     // (because we are erroring out).
-    hold_transactions->disable();
     if (primary_election_handler) {
-      primary_election_handler->unregister_transaction_observer();
+      primary_election_handler->notify_election_end();
       delete primary_election_handler;
       primary_election_handler = nullptr;
     }
@@ -1063,9 +1059,8 @@ int plugin_group_replication_stop(char **error_message) {
   }
 
   // plugin is stopping, resume hold connections
-  hold_transactions->disable();
   if (primary_election_handler) {
-    primary_election_handler->unregister_transaction_observer();
+    primary_election_handler->notify_election_end();
     delete primary_election_handler;
     primary_election_handler = nullptr;
   }
@@ -1606,7 +1601,6 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info) {
   shared_plugin_stop_lock = new Shared_writelock(lv.plugin_stop_lock);
   transactions_latch = new Wait_ticket<my_thread_id>();
   transaction_consistency_manager = new Transaction_consistency_manager();
-  hold_transactions = new Hold_transactions();
   advertised_recovery_endpoints = new Advertised_recovery_endpoints();
 
   lv.plugin_info_ptr = plugin_info;
@@ -1789,7 +1783,6 @@ int plugin_group_replication_deinit(void *p) {
   sql_service_interface_deinit();
 
   if (advertised_recovery_endpoints) delete advertised_recovery_endpoints;
-  if (hold_transactions) delete hold_transactions;
   delete transaction_consistency_manager;
   transaction_consistency_manager = nullptr;
   delete transactions_latch;
