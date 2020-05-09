@@ -1,0 +1,124 @@
+/* NumberSpinner - namespace "dijitSpinner"
+ * 
+ * Styling NumberSpinner mainly includes:
+ * 
+ * 1. Arrows
+ * 		Outer containers: .dijitSpinnerButtonContainer|.dijitSpinnerButtonInner  - for border, padding and position
+ * 		Arrows: .dijitArrowButton|.dijitUpArrowButton.|dijitDownArrowButton
+ * 		Inner container: .dijitArrowButtonInner - for border, padding, width|height and background image
+ * 
+ * 2. Hover state
+ * 		.dijitUpArrowButtonHover|.dijitDownArrowButtonHover .*  - for background color|image
+ * 
+ * 3. Active state
+ * 		.dijitUpArrowButtonActive|.dijitDownArrowButtonActive .*  - for border, padding, margin and background color|image
+ * 
+ * 4. Focused state
+ * 		.dijitSpinnerFocused .* - for background color|image
+ * 
+ * 5. Disabled state
+ * 		.dijitSpinnerDisabled .* - for background color|image
+ */
+
+@import 'dijit_form_variables';
+
+.{$theme-name} {
+	
+	.dijitSpinner {
+
+		.dijitSpinnerButtonContainer {
+			overflow: hidden;
+			position: relative;
+			width: auto;
+			padding: 0;
+			border: $numberspinner-button-border;
+		}
+
+		.dijitSpinnerButtonInner {
+			width: $numberspinner-button-width;
+			padding: $numberspinner-button-inner-padding 0 !important;
+			margin: 0;
+		}
+
+		/* up & down buttons */
+		
+		.dijitArrowButton {
+			button-style();
+			border-radius: 0;
+			border: 0;
+			width: auto;
+			overflow: hidden;
+			left: 0;
+			right: 0;
+			padding: $numberspinner-button-padding;
+			&:before {
+				content: none; // remove arrow icons from dijitArrowButton nodes
+			}
+		}
+
+		/* up button */
+		.dijitUpArrowButton {
+			border-top-right-radius: $numberspinner-button-border-radius
+		}
+
+		/* down button */
+		.dijitDownArrowButton {
+			border-bottom-right-radius: $numberspinner-button-border-radius
+		}
+
+		/* hover */
+
+		.dijitUpArrowButtonHover,
+		.dijitDownArrowButtonHover {
+			button-hover-style();
+		}
+
+		/* active */
+
+		.dijitDownArrowButtonActive,
+		.dijitUpArrowButtonActive {
+			button-active-style();
+		}
+
+		/* up & down arrows */
+
+		.dijitArrowButtonInner {
+			line-height: $icon-size;
+			display: block;
+
+			.dijitInputField {
+				padding: 0;
+			}
+
+			&:before {
+				content: $numberspinner-icon-up;
+			}
+		}
+
+		.dijitDownArrowButton .dijitArrowButtonInner {
+			&:before {
+				content: $numberspinner-icon-down;
+			}
+		}
+	}
+
+	/* disabled */
+
+	.dijitSpinnerDisabled {
+		.dijitDownArrowButton,
+		.dijitUpArrowButton {
+			button-disabled-style();
+		}
+	}
+	
+	// checkbox icon within alternative buttons
+	if($button-alternative-colors && length($button-alternative-colors) > 0) {
+		for class in $button-alternative-colors {
+			.{class} {
+				.dijitSpinnerButtonContainer {
+					border-color: $button-alternative-colors[class];
+				}
+			}
+		}
+	}
+}

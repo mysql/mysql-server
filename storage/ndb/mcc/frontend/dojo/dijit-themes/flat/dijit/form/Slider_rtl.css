@@ -1,0 +1,32 @@
+.flat .dijitSliderRtl .dijitSliderProgressBarH {
+  float: right;
+  right: 0;
+  left: auto;
+}
+.flat .dijitSliderRtl .dijitSliderLeftBumper {
+  border-left-width: 0;
+  border-right-width: 1px;
+  margin-left: 0;
+  margin-right: 4px;
+  border-radius: 0 1.5px 1.5px 0;
+}
+.flat .dijitSliderRtl .dijitSliderRightBumper {
+  border-left-width: 1px;
+  border-right-width: 0;
+  margin-left: 4px;
+  margin-right: -2px;
+  border-radius: 1.5px 0 0 1.5px;
+}
+.flat .dijitSliderRtl .dijitSliderMoveableH {
+  right: auto;
+  left: 0;
+}
+.flat .dijitSliderRtl .dijitSliderImageHandleV {
+  left: auto;
+}
+.flat .dijitSliderRtl .dijitSliderImageHandleH {
+  left: -50%;
+}
+.flat .dijitSliderRtl .dijitRuleContainerV {
+  float: right;
+}

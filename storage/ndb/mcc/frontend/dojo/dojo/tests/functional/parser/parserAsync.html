@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Parser Asynchronous Widget Creation Unit Test</title>
+	<style type="text/css">
+		@import "../../../resources/dojo.css";
+	</style>
+	<script>
+		var ready = false;
+		var dojoConfig = {
+			async: true,
+			isDebug: true,
+			baseUrl: '.',
+			packages: [
+				{ name: 'dojo', location: '../../../' }
+			]
+		};
+	</script>
+	<script src="../../../dojo.js"></script>
+	<script>
+		var finishCreatingAsyncWidgets;
+		var AsyncWidget;
+		var SyncWidget;
+		var parsePromise;
+
+		require([
+			'dojo/_base/declare',
+			'dojo/_base/lang',
+			'dojo/Deferred',
+			'dojo/domReady!'
+		], function (declare, lang, Deferred) {
+			// instances of AsyncWidget will finish initializing when this Deferred is resolved
+			finishCreatingAsyncWidgets = new Deferred();
+
+			AsyncWidget = declare(null, {
+				declaredClass: 'AsyncWidget',
+				_started: false,
+				markupFactory: function(params, node){
+					// the markup factory can return a promise, and the parser will wait
+					return finishCreatingAsyncWidgets.then(function(){return new AsyncWidget(params, node); });
+				},
+				constructor: function(args, node){
+					this.params = args;
+					lang.mixin(this, args);
+				},
+				startup: function(){
+					this._started = true;
+				}
+			});
+
+			SyncWidget = declare(null, {
+				declaredClass: 'SyncWidget',
+				_started: false,
+				constructor: function(args, node){
+					this.params = args;
+					lang.mixin(this, args);
+				},
+				startup: function(){
+					this._started = true;
+				}
+			});
+
+			ready = true;
+		});
+	</script>
+</head>
+<body>
+<h1>Parser Asynchronous Widget Creation Unit Test</h1>
+
+<div id=main>
+	<span data-dojo-id="asyncWidget" data-dojo-type="AsyncWidget">hi</span>
+	<span data-dojo-id="syncWidget" data-dojo-type="SyncWidget">there</span>
+</div>
+
+</body>
+</html>

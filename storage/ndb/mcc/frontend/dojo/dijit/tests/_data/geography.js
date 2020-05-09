@@ -1,0 +1,37 @@
+// Array of countries and cities, with children having references to their parents rather than vice-versa.
+// Used with dijit/tree/ObjectStoreModel.
+
+define([
+	{ id: "earth", name:"The earth", type:"planet", population: "6 billion"},
+	{ id: "AF", name:"Africa", type:"continent", population:"900 million", area: "30,221,532 sq km",
+		timezone: "-1 UTC to +4 UTC", parent: "earth"},
+	{ id: "EG", name:"Egypt", type:"country", parent: "AF" },
+	{ id: "KE", name:"Kenya", type:"country", parent: "AF" },
+	{ id: "Nairobi", name:"Nairobi", type:"city", parent: "KE" },
+	{ id: "Mombasa", name:"Mombasa", type:"city", parent: "KE" },
+	{ id: "SD", name:"Sudan", type:"country", parent: "AF" },
+	{ id: "Khartoum", name:"Khartoum", type:"city", parent: "SD" },
+	{ id: "AS", name:"Asia", type:"continent", parent: "earth" },
+	{ id: "CN", name:"China", type:"country", parent: "AS" },
+	{ id: "IN", name:"India", type:"country", parent: "AS" },
+	{ id: "RU", name:"Russia", type:"country", parent: "AS" },
+	{ id: "MN", name:"Mongolia", type:"country", parent: "AS" },
+	{ id: "OC", name:"Oceania", type:"continent", population:"21 million", parent: "earth"},
+	{ id: "AU", name:"Australia", type:"country", population:"21 million", parent: "OC"},
+	{ id: "EU", name:"Europe", type:"continent", parent: "earth" },
+	{ id: "DE", name:"Germany", type:"country", parent: "EU" },
+	{ id: "FR", name:"France", type:"country", parent: "EU" },
+	{ id: "ES", name:"Spain", type:"country", parent: "EU" },
+	{ id: "IT", name:"Italy", type:"country", parent: "EU" },
+	{ id: "NA", name:"North America", type:"continent", parent: "earth" },
+	{ id: "MX", name:"Mexico", type:"country",  population:"108 million", area:"1,972,550 sq km", parent: "NA" },
+	{ id: "Mexico City", name:"Mexico City", type:"city", population:"19 million", timezone:"-6 UTC", parent: "MX"},
+	{ id: "Guadalajara", name:"Guadalajara", type:"city", population:"4 million", timezone:"-6 UTC", parent: "MX" },
+	{ id: "CA", name:"Canada", type:"country",  population:"33 million", area:"9,984,670 sq km", parent: "NA" },
+	{ id: "Ottawa", name:"Ottawa", type:"city", population:"0.9 million", timezone:"-5 UTC", parent: "CA"},
+	{ id: "Toronto", name:"Toronto", type:"city", population:"2.5 million", timezone:"-5 UTC", parent: "CA" },
+	{ id: "US", name:"United States of America", type:"country", parent: "NA" },
+	{ id: "SA", name:"South America", type:"continent", parent: "earth" },
+	{ id: "BR", name:"Brazil", type:"country", population:"186 million", parent: "SA" },
+	{ id: "AR", name:"Argentina", type:"country", population:"40 million", parent: "SA" }
+]);

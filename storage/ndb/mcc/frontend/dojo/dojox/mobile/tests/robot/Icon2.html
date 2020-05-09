@@ -1,0 +1,50 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+		"http://www.w3.org/TR/html4/strict.dtd">
+<html>
+	<head>
+		<title>doh.robot Tooltip Mouse Quirks Test</title>
+
+		<style>
+			@import "../../../../util/doh/robot/robot.css";
+		</style>
+
+		<!-- required: dojo.js -->
+		<script type="text/javascript" src="../../../../dojo/dojo.js" data-dojo-config="isDebug: true"></script>
+
+		<script type="text/javascript">
+			require([
+				"dojo/_base/kernel",
+				"dojo/ready", // dojo.ready
+				"doh/runner",	//doh functions
+				"dijit/registry",  // dijit.registry.byId
+				"dijit/robotx"
+			], function(kernel, ready, runner, registry){
+				ready(function(){
+					doh.robot.initRobot("../test_IconContainer.html?theme=Android");
+					var reg = null;
+
+					doh.register("dojox.mobile.Icon mouse tests", [
+						{
+							name: "Icon mouse tests",
+							timeout: 4000,
+							runTest: function(){
+								var d = new doh.Deferred();
+								reg = kernel.global.dijit.registry;
+
+								doh.robot.mouseMoveAt(reg.byId("dojox_mobile_IconItem_0").iconNode, 1000);
+								doh.robot.mouseClick({left: true}, 500);
+
+								doh.robot.sequence(d.getTestCallback(function(){
+									doh.assertEqual("",  reg.byId("dojox_mobile__IconItemPane_0").domNode.style.display);
+								}), 1000);
+								return d;
+							}
+						}
+					]);
+					doh.run();
+				});
+			});
+		</script>
+	</head>
+	<body />
+</html>

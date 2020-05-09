@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="Content-type" content="text/html; charset=utf-8"/>
+	<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no"/>
+	<meta name="apple-mobile-web-app-capable" content="yes"/>
+	<title>EdgeToEdgeStoreList with lazy data loading</title>
+
+	<script type="text/javascript" src="../deviceTheme.js" data-dojo-config="mblThemeFiles: ['base']"></script>
+	<script type="text/javascript" src="../../../dojo/dojo.js" data-dojo-config="async: true"></script>
+
+	<script type="text/javascript">
+		var store;
+		require([
+			"dojo/parser",
+			"dojo/ready",
+			"dojo/on",
+			"dojo/when",
+			"dojo/store/Memory",
+			"dojo/store/Observable",
+			"dijit/registry",
+			"dojox/mobile/compat"
+		], function(parser, ready, on, when, Memory, Observable, registry){
+			ready(function(){
+				var data = [
+					{ label: "label1" }, { label: "label2" }, { label: "label3" }, { label: "label4" }, { label: "label5" },
+					{ label: "label6" }, { label: "label7" }, { label: "label8" }, { label: "label9" }, { label: "labela" },
+					{ label: "labelb" }, { label: "labelc" }, { label: "labeld" }, { label: "labele" }, { label: "labelf" },
+					{ label: "labelg" }, { label: "labelh" }, { label: "labeli" }, { label: "labelj" }, { label: "labelk" },
+					{ label: "labell" }, { label: "labelm" }, { label: "labeln" }, { label: "labelo" }, { label: "labelp" },
+					{ label: "labelq" }, { label: "labelr" }, { label: "labels" }, { label: "labelt" }, { label: "labelu" },
+					{ label: "labelv" }, { label: "labelw" }, { label: "labelx" }, { label: "labely" }, { label: "labelz" },
+					{ label: "label1" }, { label: "label2" }, { label: "label3" }, { label: "label4" }, { label: "label5" },
+					{ label: "label6" }, { label: "label7" }, { label: "label8" }, { label: "label9" }, { label: "labela" },
+					{ label: "labelb" }, { label: "labelc" }, { label: "labeld" }, { label: "labele" }, { label: "labelf" },
+					{ label: "labelg" }, { label: "labelh" }, { label: "labeli" }, { label: "labelj" }, { label: "labelk" },
+					{ label: "labell" }, { label: "labelm" }, { label: "labeln" }, { label: "labelo" }, { label: "labelp" },
+					{ label: "labelq" }, { label: "labelr" }, { label: "labels" }, { label: "labelt" }, { label: "labelu" },
+					{ label: "labelv" }, { label: "labelw" }, { label: "labelx" }, { label: "labely" }, { label: "labelz" },
+					{ label: "label1" }, { label: "label2" }, { label: "label3" }, { label: "label4" }, { label: "label5" },
+					{ label: "label6" }, { label: "label7" }, { label: "label8" }, { label: "label9" }, { label: "labela" },
+					{ label: "labelb" }, { label: "labelc" }, { label: "labeld" }, { label: "labele" }, { label: "labelf" },
+					{ label: "labelg" }, { label: "labelh" }, { label: "labeli" }, { label: "labelj" }, { label: "labelk" },
+					{ label: "labell" }, { label: "labelm" }, { label: "labeln" }, { label: "labelo" }, { label: "labelp" },
+					{ label: "labelq" }, { label: "labelr" }, { label: "labels" }, { label: "labelt" }, { label: "labelu" },
+					{ label: "labelv" }, { label: "labelw" }, { label: "labelx" }, { label: "labely" }, { label: "labelz" },
+					{ label: "label1" }, { label: "label2" }, { label: "label3" }, { label: "label4" }, { label: "label5" },
+					{ label: "label6" }, { label: "label7" }, { label: "label8" }, { label: "label9" }, { label: "labela" },
+					{ label: "labelb" }, { label: "labelc" }, { label: "labeld" }, { label: "labele" }, { label: "labelf" },
+					{ label: "labelg" }, { label: "labelh" }, { label: "labeli" }, { label: "labelj" }, { label: "labelk" },
+					{ label: "labell" }, { label: "labelm" }, { label: "labeln" }, { label: "labelo" }, { label: "labelp" },
+					{ label: "labelq" }, { label: "labelr" }, { label: "labels" }, { label: "labelt" }, { label: "labelu" },
+					{ label: "labelv" }, { label: "labelw" }, { label: "labelx" }, { label: "labely" }, { label: "labelz" },
+					{ label: "label1" }, { label: "label2" }, { label: "label3" }, { label: "label4" }, { label: "label5" },
+					{ label: "label6" }, { label: "label7" }, { label: "label8" }, { label: "label9" }, { label: "labela" },
+					{ label: "labelb" }, { label: "labelc" }, { label: "labeld" }, { label: "labele" }, { label: "labelf" },
+					{ label: "labelg" }, { label: "labelh" }, { label: "labeli" }, { label: "labelj" }, { label: "labelk" },
+					{ label: "labell" }, { label: "labelm" }, { label: "labeln" }, { label: "labelo" }, { label: "labelp" },
+					{ label: "labelq" }, { label: "labelr" }, { label: "labels" }, { label: "labelt" }, { label: "labelu" },
+					{ label: "labelv" }, { label: "labelw" }, { label: "labelx" }, { label: "labely" }, { label: "labelz" }
+				];
+				store = Observable(new Memory({idProperty:"label", data: data}));
+				when(parser.parse(), function(){
+					var list = registry.byId("list");
+					var scroll = registry.byId("scroll");
+					var itemHeight = 43;
+					var busy = false;
+ 					on(scroll, "afterscroll", function(evt){
+	 					if(evt.afterBottom){
+	 						if(!busy){
+								var start = list.pageSize;
+								console.log("load more items");
+								busy = true;
+								setTimeout(function(){
+									when(list.setQuery({}, {start: start, count: list.pageSize}), function(){
+										busy = false;
+										scroll.resize();
+									});
+								// simulate network latency with timeout
+								}, 1000);
+								start += list.pageSize;
+	 						}
+	 					}
+					});
+				});
+			});
+		});
+	</script>
+</head>
+<body style="visibility:hidden;">
+	<div id="scroll" data-dojo-type="dojox/mobile/ScrollableView">
+		<h1 data-dojo-type="dojox/mobile/Heading"  data-dojo-props="fixed: 'top'">EdgeToEdgeStoreList</h1>
+		<ul data-dojo-type="dojox/mobile/EdgeToEdgeStoreList" data-dojo-mixins="dojox/mobile/LongListMixin"
+			id="list" data-dojo-props="append: true, constraint: false, store:store, query:{}, queryOptions: { count: 20, start: 0}"></ul>
+	</div>
+</body>
+</html>

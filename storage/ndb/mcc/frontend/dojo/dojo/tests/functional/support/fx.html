@@ -1,0 +1,143 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+		"http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+	<title>Testing fx</title>
+	<style type="text/css">
+		@import "../../../resources/dojo.css";
+
+		body {
+			text-shadow: 0px 0px;
+			margin: 1em;
+			background-color: #DEDEDE;
+		}
+
+		.box {
+			color: #292929;
+			/* color: #424242; */
+			/* text-align: left; */
+			width: 300px;
+			border: 1px solid #BABABA;
+			background-color: white;
+			padding-left: 10px;
+			padding-right: 10px;
+			margin-left: 10px;
+			margin-bottom: 1em;
+			-o-border-radius: 10px;
+			-moz-border-radius: 12px;
+			-webkit-border-radius: 10px;
+			-webkit-box-shadow: 0px 3px 7px #adadad;
+			/* -opera-border-radius: 10px; */
+			border-radius: 10px;
+			-moz-box-sizing: border-box;
+			-opera-sizing: border-box;
+			-webkit-box-sizing: border-box;
+			-khtml-box-sizing: border-box;
+			box-sizing: border-box;
+			overflow: hidden;
+			/* position: absolute; */
+		}
+
+		.compressed {
+			height: 0
+		}
+	</style>
+</head>
+<body>
+<div class="box" id="a">a</div>
+<div class="box" id="b">b</div>
+<div class="box" id="c">c</div>
+<div class="box" id="d">d</div>
+
+<div id="foo" class="box">
+	<p>
+		Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean
+		semper sagittis velit. Cras in mi. Duis porta mauris ut ligula.
+		Proin porta rutrum lacus. Etiam consequat scelerisque quam. Nulla
+		facilisi. Maecenas luctus venenatis nulla. In sit amet dui non mi
+		semper iaculis. Sed molestie tortor at ipsum. Morbi dictum rutrum
+		magna. Sed vitae risus.
+	</p>
+
+	<p>
+		Aliquam vitae enim. Duis scelerisque metus auctor est venenatis
+		imperdiet. Fusce dignissim porta augue. Nulla vestibulum. Integer
+		lorem nunc, ullamcorper a, commodo ac, malesuada sed, dolor. Aenean
+		id mi in massa bibendum suscipit. Integer eros. Nullam suscipit
+		mauris. In pellentesque. Mauris ipsum est, pharetra semper,
+		pharetra in, viverra quis, tellus. Etiam purus. Quisque egestas,
+		tortor ac cursus lacinia, felis leo adipiscing nisi, et rhoncus
+		elit dolor eget eros. Fusce ut quam. Suspendisse eleifend leo vitae
+		ligula. Nulla facilisi. Nulla rutrum, erat vitae lacinia dictum,
+		pede purus imperdiet lacus, ut semper velit ante id metus. Praesent
+		massa dolor, porttitor sed, pulvinar in, consequat ut, leo. Nullam
+		nec est. Aenean id risus blandit tortor pharetra congue.
+		Suspendisse pulvinar.
+	</p>
+</div>
+<div id="foo2">foo2</div>
+
+<div>
+	<p id="chained">foo</p>
+
+	<p id="chainedtoo">bar</p>
+</div>
+
+<p id="a1">p</p>
+
+<p id="a2">p</p>
+<div id="baz">baz</div>
+<script src="../../../dojo.js" data-dojo-config="async: true, isDebug: true"></script>
+<script>
+	var ready = false;
+	var fx;
+	var on;
+	var domGeometry;
+	var domClass;
+	var baseFx;
+	var aspect;
+	var easing;
+	var Toggler;
+
+	require([
+		'dojo/fx',
+		'dojo/on',
+		'dojo/dom-geometry',
+		'dojo/dom-class',
+		'dojo/_base/fx',
+		'dojo/aspect',
+		"dojo/fx/easing",
+		"dojo/fx/Toggler",
+		'dojo/domReady!'
+	], function (_fx, _on, _domGeometry, _domClass, _baseFx, _aspect, _easing, _Toggler) {
+		fx = _fx;
+		on = _on;
+		domGeometry = _domGeometry;
+		domClass = _domClass;
+		baseFx = _baseFx;
+		aspect = _aspect;
+		easing = _easing;
+		Toggler = _Toggler;
+
+		ready = true;
+	});
+</script>
+<script>
+	function createAnimationList() {
+		var delay = 100;
+		var anims = [];
+		var nodes = ['a', 'b', 'c', 'd'];
+
+		nodes.forEach(function(value) {
+			anims.push(baseFx.fadeOut({
+				node: value,
+				duration: 100,
+				delay: delay += 100
+			}));
+		});
+
+		return anims;
+	}
+</script>
+</body>
+</html>

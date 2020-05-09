@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="Content-type" content="text/html; charset=utf-8"/>
+	<meta name="viewport" 
+		content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no"/>
+	<meta name="apple-mobile-web-app-capable" content="yes"/>
+	<title>Filtered EdgeToEdgeStoreList - auto - prog</title>
+
+	<!-- This test shows a dojox/mobile/EdgeToEdgeStoreList filtered using dojox/mobile/FilteredListMixin. -->
+	<!-- Use-case: programmatic; SearchBox and ScrollableView created automatically by the mixin. -->
+	
+	<script type="text/javascript" src="../deviceTheme.js" data-dojo-config="mblThemeFiles: ['base', 'SearchBox']"></script>
+	<script type="text/javascript" src="../../../dojo/dojo.js" data-dojo-config="async: true, parseOnLoad: true, mblAlwaysHideAddressBar: true"></script>
+
+	<script type="text/javascript">
+		require([
+			"dojo/_base/declare",
+			"dojo/ready",
+			"dojo/dom",
+			"dojo/store/Memory",
+			"dojox/mobile/EdgeToEdgeStoreList",
+			"dojox/mobile/FilteredListMixin",
+			"dojox/mobile/Heading",
+			"dojox/mobile",
+			"dojox/mobile/View",
+			"dojox/mobile/compat",
+			"dojox/mobile/parser"
+		], function(declare, ready, dom, Memory, EdgeToEdgeStoreList, FilteredListMixin){
+			var static_data = { 
+				items: [ 
+					{label: "Alabama"},
+					{label: "Alaska"},
+					{label: "American Samoa"},
+					{label: "Arizona"},
+					{label: "Arkansas"},
+					{label: "Armed Forces Europe"},
+					{label: "Armed Forces Pacific"},
+					{label: "Armed Forces the Americas"},
+					{label: "California"},
+					{label: "Colorado"},
+					{label: "Connecticut"},
+					{label: "Delaware"},
+					{label: "District of Columbia"},
+					{label: "Federated States of Micronesia"},
+					{label: "Florida"},
+					{label: "Georgia"},
+					{label: "Guam"},
+					{label: "Hawaii"},
+					{label: "Idaho"},
+					{label: "Illinois"},
+					{label: "Indiana"},
+					{label: "Iowa"},
+					{label: "Kansas"},
+					{label: "Kentucky"},
+					{label: "Louisiana"},
+					{label: "Maine"},
+					{label: "Marshall Islands"},
+					{label: "Maryland"},
+					{label: "Massachusetts"},
+					{label: "Michigan"},
+					{label: "Minnesota"},
+					{label: "Mississippi"},
+					{label: "Missouri"},
+					{label: "Montana"},
+					{label: "Nebraska"},
+					{label: "Nevada"},
+					{label: "New Hampshire"},
+					{label: "New Jersey"},
+					{label: "New Mexico"},
+					{label: "New York"},
+					{label: "North Carolina"},
+					{label: "North Dakota"},
+					{label: "Northern Mariana Islands"},
+					{label: "Ohio"},
+					{label: "Oklahoma"},
+					{label: "Oregon"},
+					{label: "Pennsylvania"},
+					{label: "Puerto Rico"},
+					{label: "Rhode Island"},
+					{label: "South Carolina"},
+					{label: "South Dakota"},
+					{label: "Tennessee"},
+					{label: "Texas"},
+					{label: "Utah"},
+					{label: "Vermont"},
+					{label: "Virgin Islands, U.S."},
+					{label: "Virginia"},
+					{label: "Washington"},
+					{label: "West Virginia"},
+					{label: "Wisconsin"},
+					{label: "Wyoming"}
+				]
+			};
+			
+			// store for the dojox/mobile/EdgeToEdgeStoreList
+			var store = new Memory({idProperty: "label", data: static_data});
+		    
+			ready(function(){
+				var listWidget = new declare([EdgeToEdgeStoreList, FilteredListMixin])(
+					{placeHolder: 'Search', store: store}, "list");
+				listWidget.startup();
+			});
+		});
+	</script>
+</head>
+<body style="visibility:hidden;">
+	<div id="view" data-dojo-type="dojox/mobile/View">
+		<h1 data-dojo-type="dojox/mobile/Heading" data-dojo-props="fixed: 'top'">Filtered EdgeToEdgeStoreList</h1>
+		<div id="list" style="height:100%"></div>
+	</div>
+</body>
+</html>
+

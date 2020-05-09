@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>parseOnLoad:true, async:false unit test</title>
+		<style type="text/css">
+			@import "../../../resources/dojo.css";
+		</style>
+		<script>
+			var ready = false;
+			var dojoConfig = {
+				isDebug: true,
+				parseOnLoad: true,
+				// without this, the instrumentation will cause strict modules
+				// to throw exceptions
+				stripStrict: true,
+				baseUrl: '.',
+				packages: [
+					{ name: 'dojo', location: '../../../' }
+				]
+			};
+		</script>
+		<script src="../../../dojo.js"></script>
+		<script>
+			dojo.ready(function(){
+				ready = true;
+			});
+		</script>
+	</head>
+	<body>
+		<h1>parseOnLoad:true, async:false unit test</h1>
+
+		<p>This page tests that:</p>
+		<ol>
+			<li>parseOnLoad: true parses the page on load</li>
+			<li>since async:true is NOT set, parseOnLoad:true works (with deprecation message)
+				even if there's no explicit require() of dojo/parser</li>
+			<li>the parse happens before the ready() callback happens, including processing of declarative requires</li>
+		</ol>
+		<p>See console for test results.</p>
+
+		<script type="dojo/require">
+			AMDWidget: "dojo/tests/functional/parser/support/AMDWidget",
+			AMDWidget2: "dojo/tests/functional/parser/support/AMDWidget2"
+		</script>
+		<div data-dojo-id="dr1" data-dojo-type="AMDWidget" data-dojo-props="foo: 'bar'"></div>
+		<div data-dojo-id="dr2" data-dojo-type="AMDWidget2" data-dojo-props="foo: 'bar'"></div>
+		<script type="dojo/require">
+			"acme.AMDWidget3": "dojo/tests/functional/parser/support/AMDWidget3"
+		</script>
+		<div data-dojo-id="dr3" data-dojo-type="acme.AMDWidget3" data-dojo-props="foo: 'bar'"></div>
+		<script type="dojo/require">
+			amdmodule: "dojo/tests/functional/parser/support/amdmodule"
+		</script>
+		<div data-dojo-id="dr4" data-dojo-type="AMDWidget" data-dojo-props="foo: amdmodule(1)"></div>
+		<div data-dojo-id="dr5" data-dojo-type="AMDWidget2">
+			<script type="dojo/aspect" data-dojo-advice="before" data-dojo-method="method1" data-dojo-args="value">
+				return [amdmodule(value)];
+			</script>
+		</div>
+	</body>
+</html>

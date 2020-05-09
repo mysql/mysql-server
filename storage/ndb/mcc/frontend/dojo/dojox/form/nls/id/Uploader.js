@@ -1,0 +1,6 @@
+define(
+({
+	label: "Pilih File..."
+})
+);
+

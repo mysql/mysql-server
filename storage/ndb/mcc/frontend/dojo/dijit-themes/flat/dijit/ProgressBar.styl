@@ -1,0 +1,70 @@
+/* ProgressBar
+ * 
+ * Styling of the ProgressBar consists of the following:
+ * 
+ * 1. the base progress bar
+ *		.dijitProgressBar -	sets margins for the progress bar
+ *
+ * 2. the empty bar
+ *		.dijitProgressBarEmpty  - sets background img and color for bar or parts of bar that are not finished yet
+ *		Also sets border color for whole bar
+ *
+ * 3. tile mode
+ * 		.dijitProgressBarTile
+ *		inner container for finished portion when in 'tile' (image) mode 
+ * 	
+ * 4. full bar mode
+ * 		.dijitProgressBarFull
+ *		adds border to right side of the filled portion of bar
+ *
+ * 5. text for label of  bar
+ *		.dijitProgressBarLabel - sets text color, which must contrast with both the "Empty" and "Full" parts. 
+ * 	
+ * 6. indeterminate mode
+ *		.dijitProgressBarIndeterminate .dijitProgressBarTile 
+ * 		sets animated gif for the progress bar in 'indeterminate' mode
+ */
+
+@import 'dijit_variables';
+
+.{$theme-name} {
+	
+	.dijitProgressBar {
+		background-color: $progress-bar-empty-color;
+		border: 0 none;
+		border-radius: $progress-bar-border-radius; 
+	}
+
+	.dijitProgressBarTile {	
+		background: url($progress-bar-strips-image-url) repeat-x top;
+		animation: progress-bar-stripes 2s linear infinite;
+	} 
+
+	.dijitProgressBarFull {
+		_progress-bar-color-properties($progress-bar-color);
+		transition-property: width;
+		transition-duration: .25s;
+		height: 100%;
+	}
+
+	// alternative colors
+	for class in $progress-bar-alternative-colors {
+		.dijitProgressBar.{class} .dijitProgressBarFull {
+			_progress-bar-color-properties($progress-bar-alternative-colors[class]);
+		}
+	}
+
+	.dijitProgressBarLabel {
+		margin-top: 0.2em;
+		margin-bottom: 0.2em;
+		color: $progress-bar-text-color;
+		font-size: $progress-bar-font-size;
+		text-shadow: $progress-bar-text-shadow;
+	}
+}
+
+// animation
+@keyframes progress-bar-stripes {
+  from { background-position: 75px 0; }
+  to { background-position: 0 0; }
+}

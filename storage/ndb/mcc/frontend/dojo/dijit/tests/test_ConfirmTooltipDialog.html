@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta http-equiv="Content-type" content="text/html; charset=utf-8">
+	<title>ConfirmTooltipDialog Widget Tests</title>
+
+	<script type="text/javascript" src="boilerplate.js"></script>
+	<script type="text/javascript">
+		require([
+			"dojo/parser",
+			"dijit/form/DropDownButton",
+			"dijit/ConfirmTooltipDialog",
+			"dijit/ColorPalette",
+			"dijit/form/TextBox",
+			"dijit/form/_FormMixin",
+			"dojo/domReady!"
+		], function(parser){
+			parser.parse();
+		});
+
+	</script>
+</head>
+<body class="claro" role="main">
+
+	<h1 class="testTitle">dijit.ConfirmTooltipDialog tests</h1>
+
+	<div id="colorButton" data-dojo-type="dijit/form/DropDownButton">
+		<span>Color</span>
+		<div id="colorDlg" data-dojo-type="dijit/ConfirmTooltipDialog" title="Pick color">
+			<script type="dojo/method" data-dojo-event="onExecute">
+				var color = this.get("value").color;
+				document.getElementById("selectedColor").value = color;
+				console.log("picked color " + color);
+			</script>
+			<script type="dojo/method" data-dojo-event="onCancel">
+				document.getElementById("selectedColor").value = "";
+			</script>
+			<div data-dojo-type="dijit/ColorPalette" name="color"></div>
+		</div>
+	</div>
+
+	<label for="selectedColor">Selected color:</label>
+	<input readonly id="selectedColor">
+	|
+
+	<div id="loginButton" data-dojo-type="dijit/form/DropDownButton">
+		<span>Login</span>
+		<div id="loginDlg" data-dojo-type="dijit/ConfirmTooltipDialog"
+			 title="Enter Login information">
+			<script type="dojo/method" data-dojo-event="onExecute">
+				var value = this.get("value");
+				document.getElementById("formData").value = value.user + "/" + value.password;
+				console.log("login as " + value.user + ", " + value.password);
+			</script>
+			<script type="dojo/method" data-dojo-event="onCancel">
+				document.getElementById("formData").value = "";
+			</script>
+			<table role="presentation">
+				<tr>
+					<td><label for="user">User:</label></td>
+					<td><input id="user" name="user" data-dojo-type=dijit/form/TextBox></td>
+				</tr>
+				<tr>
+					<td><label for="password">Password:</label></td>
+					<td><input id="password" name="password" type=password data-dojo-type=dijit/form/TextBox></td>
+				</tr>
+			</table>
+		</div>
+	</div>
+
+	<label for="formData">Form data:</label>
+	<input readonly id="formData">
+
+</body>
+</html>

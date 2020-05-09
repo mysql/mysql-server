@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta http-equiv="Content-type" content="text/html; charset=utf-8">
+	<title>dijit.layout.BorderContainer Test - Full Screen</title>
+
+	<style type="text/css">
+		@import "../../../../dijit/themes/claro/document.css";
+		@import "../../../../dijit/tests/css/dijitTests.css";
+
+		html, body, #main{
+			width: 100%;	/* make the body expand to fill the visible window */
+			height: 100%;
+			overflow: hidden;	/* erase window level scrollbars */
+			padding: 0 0 0 0;
+			margin: 0 0 0 0;
+			font: 10pt Arial,Myriad,Tahoma,Verdana,sans-serif;
+		}
+	</style>
+
+	<!-- required: the default dijit theme: -->
+	<link id="themeStyles" rel="stylesheet" href="../../../../dijit/themes/claro/claro.css"/>
+
+	<!-- required: dojo.js -->
+	<script type="text/javascript" src="../../../../dojo/dojo.js"
+		data-dojo-config="isDebug: true, parseOnLoad: true"></script>
+
+	<!-- only needed for alternate theme testing: do NOT use in your code! -->
+	<script type="text/javascript" src="../../../../dijit/tests/_testCommon.js"></script>
+
+	<script type="text/javascript">
+	//	dojo.require("dijit.dijit"); // optimize: load dijit layer
+	//	dojo.require("dijit/layout/BorderContainer");
+	//	dojo.require("dijit/layout/ContentPane");
+	//	dojo.require("dojox/app/widgets/Container");
+	//	dojo.require("dijit/form/FilteringSelect");
+		var bc, cp1, cp2, cp3, stack, cp2b, cp2c;
+		require([
+			'dojo/parser',
+			'dojo/ready',
+			'dijit/layout/BorderContainer',
+			'dijit/layout/StackContainer',
+			'dijit/layout/StackController',
+			'dijit/layout/ContentPane', 
+			'dojox/app/widgets/Container',
+			'dijit/form/Button',
+			'dijit/form/FilteringSelect'
+			], function(parser, ready, BorderContainer, StackContainer, StackController, ContentPane){
+		
+        dojo.ready(function(){
+				
+			bc = new BorderContainer({style:'height:400px;width:500px;border:1px solid black'}, dojo.byId('main2'));
+			
+			cp1 = new ContentPane({region:'top',style:'height:100px;background-color:red',splitter:true, id:"cp1"});
+			cp1.domNode.innerHTML = "top pane";
+			bc.addChild(cp1);
+
+		//	cp2 = new ContentPane({region:'center',style:'background-color:green', id:'cp2'});
+			stack = new StackContainer({region:'center',style:'background-color:green', id: "sc" });
+			bc.addChild(stack);
+		//	cp2.addChild(stack);
+
+			cp2b = new ContentPane({style:'background-color:green', id:'cp2b'});
+			cp2b.domNode.innerHTML = "center pane1 in stack";
+			stack.addChild(cp2b);
+
+			cp2c = new ContentPane({style:'background-color:yellow', id:'cp2c'});
+			cp2c.domNode.innerHTML = "center pane2 in stack";
+			stack.addChild(cp2c);
+
+		//	bc.addChild(cp2);
+
+			cp3 = new ContentPane({region:'left', splitter: true, style:'width: 100px;', id:'cp3'});
+			cp3.domNode.innerHTML = "left pane";
+			
+			bc.startup();
+        });
+
+			});
+		
+	</script>
+
+</head>
+<body class="claro">
+		<div id='main2'></div>
+
+	<button id="addLeft" onclick="bc.addChild(cp3);">add left pane</button>
+	<button id="removeLeft" onclick="bc.removeChild(cp3);">remove left pane</button>
+	<button id="addTop" onclick="bc.addChild(cp1);">add top pane</button>
+	<button id="removeTop" onclick="bc.removeChild(cp1);">remove top pane</button>
+	<button id="selectStack1" onclick="stack.selectChild(cp2b);">Select Stack 1</button>
+	<button id="selectStack2" onclick="stack.selectChild(cp2c);">Select Stack 2</button>
+
+	<div id="main" data-dojo-type="dijit/layout/BorderContainer" data-dojo-props='design:"sidebar" '>
+		<div data-dojo-type="dojox/app/widgets/Container" data-dojo-props='id:"main-leading", region:"left", style:"background-color: #acb386; width: 100px; height: 500px"'>
+			leading
+		</div>
+		<div data-dojo-type="dojox/app/widgets/Container" data-dojo-props='id:"main-top", region:"top", style:"background-color: #b39b86; height: 100px;"'>
+			top bar
+		</div>
+		<div data-dojo-type="dojox/app/widgets/Container" data-dojo-props='id:"main-center", region:"center", style:"background-color: #f5ffbf; padding: 10px;"'>
+			main panel with <a href="http://www.dojotoolkit.org/">a link</a>.<br />
+			(to check we're copying children around properly).<br />
+			<select aria-label="select" data-dojo-type="dijit/form/FilteringSelect">
+				<option value="1">foo</option>
+				<option value="2">bar</option>
+				<option value="3">baz</option>
+			</select>
+			Here's some text that comes AFTER the combo box.
+		</div>
+		<div data-dojo-type="dojox/app/widgets/Container" data-dojo-props='id:"main-bottom", region:"bottom", style:"background-color: #b39b86; height: 100px;", splitter:true'>
+			bottom bar
+		</div>
+		<div data-dojo-type="dojox/app/widgets/Container" data-dojo-props='id:"main-trailing", region:"trailing", style:"background-color: #acb386; width: 100px;", splitter:true'>
+			trailing
+		</div>
+	</div>
+
+
+</body>
+</html>

@@ -1,0 +1,150 @@
+<!doctype html>
+<html xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" >
+<head>
+	<title>Testing Bubbling events</title>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<style type="text/css">
+		@import "../../../dojo/resources/dojo.css";
+		@import "../../../dijit/tests/css/dijitTests.css";
+	</style>
+	<script type="text/javascript">
+		var dojoConfig = {
+			isDebug: true,
+			gfxRenderer: 'canvas'
+		}
+	</script>
+	<script type="text/javascript" src="../../../dojo/dojo.js"></script>
+	<script type="text/javascript">
+
+		require([
+			"dojo/_base/array",
+			"dojox/gfx",
+			"dojo/touch",
+			"dojo/dom",
+			"dojo/on",
+			"dojo/sniff",
+			"dojo/ready"
+		], function(array, gfx, touch, dom, on, has, ready){
+
+			var touchMaps = {
+				"press" : touch.press,
+				"release" : touch.release,
+				"move" : touch.move,
+				"over" : touch.over,
+				"out": touch.out
+			}, nativeMaps = has("touch") ? {
+				"press" : "touchstart",
+				"release" : "touchend",
+				"move" : "touchmove"
+			} : {
+				"press" : "mousedown",
+				"release":"mouseup",
+				"move" : "mousemove",
+				"over" : "mouseover",
+				"out" : "mouseout"
+			}, surfaces;
+
+			function log(msg) {
+				var elt = document.createTextNode(msg);
+				var div = dom.byId('log');
+				div.insertBefore(elt, div.firstChild);
+				div.insertBefore(document.createElement('br'), elt.nextSibling);
+			}
+
+			function wireEvents(shape, events, dojoTouch){
+				var maps = dojoTouch ? touchMaps : nativeMaps;
+				array.forEach(events, function(evt){
+					var event = maps[evt];
+					if(!event){ return; }
+					shape.on(maps[evt], function(e){
+						e.preventDefault();
+						var m = dojoTouch ? "touch." + evt : maps[evt];
+						log(m +" received on " + shape.id + ". gfxTarget:" + (e.gfxTarget ? e.gfxTarget.id : "null"));
+					});
+				});
+			}
+
+			function makeShapes(surface, useDojoTouch){
+				var g   = surface.createGroup();
+				g.id = "g";
+				var rect = g.createRect({x:50,y:10,width:180,height:220}).setFill('red');
+				rect.id='rect1';
+				var rect2 = g.createRect({x:10,y:150,width:110,height:175}).setFill('blue');
+				rect2.id='rect2';
+				var rect3 = g.createRect({x:50,y:360,width:50,height:50}).setFill('green');
+				rect3.id='rect3';
+
+				wireEvents(rect, ["press", "release", "move", "over", "out"], useDojoTouch);
+				wireEvents(rect2, ["move", "over", "out"], useDojoTouch);
+				wireEvents(rect3, ["over", "out"], useDojoTouch);
+				wireEvents(rect3, ["over", "out"], useDojoTouch);
+				wireEvents(g, ["press","out"], useDojoTouch);
+				wireEvents(surface, ["press","move"], useDojoTouch);
+			}
+
+			function buildScenes(){
+				surfaces = [];
+				var surface = gfx.createSurface("testDojoTouch", 300, 400);
+				surface.id = "surface";
+				surfaces.push(surface);
+				makeShapes(surface, true);
+				surface = gfx.createSurface("testNative", 300, 400);
+				surface.id = "surface";
+				surfaces.push(surface);
+				makeShapes(surface, false);
+				log("renderer:"+gfx.renderer);
+			}
+
+			var switchRenderer = function(){
+				var select = dom.byId("selectGfx");
+				var r = select.options[select.selectedIndex].value;
+				require(["dojox/gfx/"+r], function(r){
+					for(var i=0; i<surfaces.length; ++i){
+						surfaces[i].destroy();
+					}
+					gfx.switchTo(r);
+					buildScenes();
+				});
+			};
+
+			ready(function(){
+				buildScenes();
+				var select = dom.byId("selectGfx");
+				on(select,"change",function(e){
+					switchRenderer();
+				});
+				array.forEach(select.options, function(opt,i){
+					if (gfx.renderer.indexOf(opt.value) !== -1){
+						select.selectedIndex = i;
+					}
+				});
+			});
+		});
+
+	</script>
+	<style>
+	.drawing {
+		width: 300px;
+		height: 400px;
+		display:inline-block;
+		border-color: black;
+		border-width: 2;
+		border-style: solid;
+	}
+	</style>
+</head>
+<body>
+<h1>Test bubbling with canvas.</h1>
+<p>This page shows two canvas-based gfx surfaces: the surface on the left connects its shapes to input events via the dojo/touch API.
+The surface on the right connects its shapes using native input event types (e.g. 'touchstart' or 'mousedown' depending
+on the device).</p>
+GFX Renderer: <select id="selectGfx">
+	<option value="svg">SVG</option>
+	<option value="canvasWithEvents">Canvas</option>
+</select>
+</p>
+<div id="testDojoTouch" class="drawing"></div>
+<div id="testNative" class="drawing"></div>
+<div id="log" style="width: 500px; height: 100px;overflow:scroll;"></div>
+</body>
+</html>

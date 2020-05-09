@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="Content-type" content="text/html; charset=utf-8"/>
+	<meta name="viewport"
+		  content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no"/>
+	<meta name="apple-mobile-web-app-capable" content="yes"/>
+	<title>Simple Dialog Test</title>
+
+	<link href="../../themes/common/domButtons.css" rel="stylesheet"/>
+	<script type="text/javascript" src="../../deviceTheme.js"
+			data-dojo-config="'dojo-bidi': true, mblThemeFiles: ['base','SimpleDialog','TextBox','Button','Slider']"></script>
+	<script type="text/javascript" src="../../../../dojo/dojo.js"
+			data-dojo-config="async: true, parseOnLoad: true, has: {'dojo-bidi':true}"></script>
+
+	<script type="text/javascript">
+		require([
+			"dojo/dom",
+			"dijit/registry",
+			"dojox/mobile/ProgressIndicator",
+			"dojo/parser",
+			"dojox/mobile",
+			"dojox/mobile/compat",
+			"dojox/mobile/SimpleDialog",
+			"dojox/mobile/TextBox",
+			"dojox/mobile/Button",
+			"dojox/mobile/Slider"
+		], function(dom, registry, ProgressIndicator){
+			show = function(dlg){
+				registry.byId(dlg).show();
+			}
+			hide = function(dlg){
+				registry.byId(dlg).hide();
+			}
+			var prog;
+			show_progress_indicator = function(dlg, cont){
+				show(dlg);
+				var container = dom.byId(cont);
+				prog = ProgressIndicator.getInstance({dir:"rtl"});
+				container.appendChild(prog.domNode);
+				prog.start();
+				setTimeout(function(){
+					hide_progress_indicator(dlg);
+				}, 5000);
+			}
+			hide_progress_indicator = function(dlg){
+				prog.stop();
+				hide(dlg);
+			}
+		});
+
+	</script>
+
+	<style>
+		.mblSimpleDialog .mblProgressIndicator {
+			position: relative;
+			margin: 14px 0 7px;
+			top: 0;
+		}
+	</style>
+</head>
+<body style="visibility:hidden;">
+
+<div dir="rtl" id="dlg_progress" data-dojo-type="dojox.mobile.SimpleDialog">
+	<div class="mblSimpleDialogText">Please wait for 5 seconds.</div>
+	<div class="mblSimpleDialogText" id="progress_indicator_container"></div>
+	<button data-dojo-type="dojox.mobile.Button" class="mblSimpleDialogButton mblRedButton"
+			onclick="hide_progress_indicator('dlg_progress')">Cancel
+	</button>
+</div>
+
+<div data-dojo-type="dojox.mobile.RoundRect" data-dojo-props='shadow:true'>
+	Progress Indicator
+	<button onclick="show_progress_indicator('dlg_progress','progress_indicator_container')">Show Dialog</button>
+</div>
+
+
+</body>
+</html>

@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+	<meta http-equiv="Content-type" content="text/html; charset=utf-8">
+
+	<title>_KeyNavContainer</title>
+
+	<script src="boilerplate.js"></script>
+
+	<script type="text/javascript">
+		require([
+			"doh/runner",
+			"dojo/_base/declare", "dojo/dom", "dojo/keys", "dojo/on", "dojo/parser",
+			"dijit/a11y", "dijit/focus", "dijit/registry",
+			"dijit/_WidgetBase", "dijit/_KeyNavContainer",
+			"dijit/tests/helpers", "dojo/domReady!"
+		], function(doh, declare, dom, keys, on, parser, a11y, focus, registry, _WidgetBase, _KeyNavContainer, helpers){
+
+			declare("TestContainer", [_WidgetBase, _KeyNavContainer], {
+				postCreate: function(){
+					this.inherited(arguments);
+					this.connectKeyNavHandlers([keys.LEFT_ARROW, keys.UP_ARROW], [keys.RIGHT_ARROW, keys.DOWN_ARROW]);
+				}
+			});
+
+			declare("TestContained", _WidgetBase, {
+				// _KeyNavContainer requires children to have focus()
+				focus: function(){
+					this.domNode.focus();
+				}
+			});
+
+			declare("TestNotFocusedChildContainer", [_WidgetBase, _KeyNavContainer], {
+				// Some container may override focus and have 'focusedChild==null'
+				// dijit/form/Select is a sample
+				focus: function(){
+					this.domNode.focus();
+				}
+			});
+
+			doh.register("parse", function(){
+				parser.parse();
+			});
+
+
+			/*
+			 * Most of _KeyNavContainer is tested indirectly via Menu, Toolbar, etc. test suites, but
+			 * starting to build up some basic tests here.
+			 */
+
+			doh.register("basic", [
+				{
+					name: "initial",
+					runTest: function(){
+						var c = registry.byId("container");
+
+						// initially container has tabIndex of 0
+						doh.is(0, c.domNode.getAttribute("tabIndex"), "container tabIndex=0");
+
+						// and all the contents have tabIndex of -1, or no tab index
+						doh.f(a11y.isTabNavigable("zero"), "child not tab navigable");
+					}
+				},
+				{
+					name: "tab in",
+					runTest: function(t){
+						var d = new doh.Deferred();
+
+						var c = registry.byId("container");
+
+						// focusing container (simulated tabbing into container) should move focus to first child
+						c.focus();
+
+						setTimeout(d.getTestCallback(function(){
+							doh.is("zero", focus.curNode.id, "focus moved to first child");
+							doh.t(a11y.isTabNavigable("zero"), "child is tab navigable");
+							doh.isNot(0, c.domNode.getAttribute("tabIndex"), "container tabIndex removed or set to -1");
+						}), 0);
+
+						return d;
+					}
+				},
+				{
+					name: "next",
+					runTest: function(t){
+						var d = new doh.Deferred();
+
+						var c = registry.byId("container");
+
+						on.emit(c.domNode, "keydown", {keyCode: keys.DOWN_ARROW, bubbles: true, cancelable: true});
+
+						setTimeout(d.getTestCallback(function(){
+							doh.is("one", focus.curNode.id, "focus moved to second child");
+							doh.f(a11y.isTabNavigable("zero"), "zero not tab navigable");
+							doh.t(a11y.isTabNavigable("one"), "one tab navigable");
+						}), 0);
+
+						return d;
+					}
+				},
+				{
+					name: "previous",
+					runTest: function(t){
+						var d = new doh.Deferred();
+
+						var c = registry.byId("container");
+
+						on.emit(c.domNode, "keydown", {keyCode: keys.LEFT_ARROW, bubbles: true, cancelable: true});
+
+						setTimeout(d.getTestCallback(function(){
+							doh.is("zero", focus.curNode.id, "focus moved to first child");
+							doh.f(a11y.isTabNavigable("one"), "one not tab navigable");
+							doh.t(a11y.isTabNavigable("zero"), "zero tab navigable");
+						}), 0);
+
+						return d;
+					}
+				},
+				{
+					name: "tab out",
+					runTest: function(t){
+						var d = new doh.Deferred();
+
+						var c = registry.byId("container");
+
+						dom.byId("input").focus();
+
+						// tab index on container restored
+						setTimeout(d.getTestCallback(function(){
+							doh.f(a11y.isTabNavigable("zero"), "child not tab navigable");
+							doh.is(0, c.domNode.getAttribute("tabIndex"), "container tabIndex restored");
+						}), 0);
+
+						return d;
+					}
+				},
+				{
+					name: "mouse in",
+					runTest: function(t){
+						var d = new doh.Deferred();
+
+						var c = registry.byId("container");
+
+						dom.byId("zero").focus();
+
+						// focusing first child directly (simulated mouse click) should remove tabIndex on container
+						setTimeout(d.getTestCallback(function(){
+							doh.isNot(0, c.domNode.getAttribute("tabIndex"), "container tabIndex removed or set to -1");
+							doh.t(a11y.isTabNavigable("zero"), "child tab navigable");
+						}), 0);
+
+						return d;
+					}
+				},
+				{
+					name: "search (& match) in container with not focused child",
+					runTest: function(t){
+						var d = new doh.Deferred();
+
+						var c = registry.byId("notFocusedChildContainer");
+						c.focus();
+
+						doh.is("notFocusedChildContainer", focus.curNode.id, "container is focused");
+
+						// searach with no match
+						on.emit(c.domNode, "keypress", {charCode: 115 /* "s" */, bubbles: true, cancelable: true});
+
+						setTimeout(d.getTestCallback(function(){
+							doh.is("single", focus.curNode.id, "focus changed to child 'single'");
+						}), 0);
+
+						return d;
+					}
+				},
+				{
+					name: "search (& no match) in container with not focused child",
+					setUp: function() {
+						var d = this.d = new doh.Deferred();
+						window.onerror = function(msg){
+							d.reject(new Error(msg));
+						};
+					},
+					runTest: function(t){
+						var d = this.d;
+
+						var c = registry.byId("notFocusedChildContainer");
+						c.focus();
+
+						doh.is("notFocusedChildContainer", focus.curNode.id, "container is focused");
+
+						// searach with no match
+						on.emit(c.domNode, "keypress", {charCode: 97 /* "a" */, bubbles: true, cancelable: true});
+
+						setTimeout(d.getTestCallback(function(){
+							doh.is("notFocusedChildContainer", focus.curNode.id, "focus not changed");
+						}), 0);
+
+						return d;
+					},
+					tearDown: function(){
+						window.onerror = null;
+					}
+				}
+			]);
+
+			doh.run();
+		});
+
+	</script>
+</head>
+<body>
+
+	<label for="input">before:</label><input id="input"/>
+	<div id="container" data-dojo-type="TestContainer">
+		<!-- comment just to make sure that numbering isn't thrown off -->
+		<div id="zero" data-dojo-type="TestContained">zero</div>
+		<div id="one" data-dojo-type="TestContained">one</div>
+		<div id="two" data-dojo-type="TestContained">two</div>
+		<div id="three" data-dojo-type="TestContained">three</div>
+	</div>
+
+	<div id="notFocusedChildContainer" data-dojo-type="TestNotFocusedChildContainer">
+		<div id="single" data-dojo-type="TestContained">single</div>
+	</div>
+</body>
+</html>

@@ -1,0 +1,15 @@
+.flat .dijitSelectRtl .dijitButtonText {
+  float: right;
+  padding: 0 12px 0 0;
+}
+.flat .dijitSelectRtl .dijitButtonContents {
+  border-style: none none none solid;
+  text-align: right;
+}
+.flat .dijitComboBoxRtl .dijitButtonNode.dijitArrowButtonContainer {
+  border-radius: 3px 0 0 3px;
+}
+.flat .dijitComboBoxRtl .dijitArrowButtonContainer {
+  border-right-width: 1px !important;
+  border-left-width: 0 !important;
+}

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+	<meta charset="UTF-8">
+	<title>dojo/touch tests</title>
+	<link rel="stylesheet" href="../../../resources/dojo.css">
+	<style>
+		#box {
+			width: 100%
+		}
+
+		.innerbox {
+			border: 0 solid black;
+			width: 50%;
+			height: 150px;
+			display: inline-block;
+			margin: 0;
+			padding: 0;
+			touch-action: none;
+			-ms-touch-action: none;
+		}
+
+		.innerbox:hover {
+			background: black !important;
+		}
+
+		.ul {
+			background: red;
+		}
+
+		.ur {
+			background: blue;
+		}
+
+		.ll {
+			background: yellow;
+		}
+
+		.lr {
+			background: green;
+		}
+	</style>
+</head>
+<body>
+	<div id="box">
+		<div id="upper-left" class="innerbox ul">upper left
+		</div><div id="upper-right" class="innerbox ur">upper right
+		</div><div id="lower-left" class="innerbox ll">lower left
+		</div><div id="lower-right" class="innerbox lr">lower right
+		</div>
+	</div>
+
+	<script>
+		var dojoConfig = {
+			async: true,
+			isDebug: true,
+			packages: [
+				{ name: 'sinon', location: 'node_modules/sinon/pkg', main: 'sinon'}
+			]
+		}
+	</script>
+	<script src="../../../dojo.js"></script>
+</body>
+</html>

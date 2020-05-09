@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Dijit RadioButton Bidi test</title>
+		<link rel="stylesheet" href="../../../themes/claro/claro.css">
+
+		<script type="text/javascript" src="../../../../dojo/dojo.js"
+				data-dojo-config="isDebug: true, async: true, has: { 'dojo-bidi': true }"></script>
+
+		<script>
+			require([
+				"doh/runner",
+				"dojo/parser",
+				"dijit/registry",
+				"dijit/form/RadioButton",
+				"dojo/domReady!"
+			], function(doh, parser, registry){
+				doh.register("basic", [
+					{
+						name: "creation",
+						runTest: function(){
+							// then() calls in parser() make it asynchronous even when module already loaded
+							return parser.parse().then(function(){
+								doh.t(registry.byId("radio"), "created");
+							});
+						}
+					}
+				]);
+
+				doh.run();
+			});
+		</script>
+	</head>
+	<body>
+		<div data-dojo-type="dijit/form/RadioButton" id="radio"></div>
+	</body>
+</html>

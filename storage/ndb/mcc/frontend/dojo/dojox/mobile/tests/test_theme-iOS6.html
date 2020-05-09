@@ -1,0 +1,102 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<title>iOS6 showcase</title>
+<script type="text/javascript" src="../deviceTheme.js"></script>
+<script type="text/javascript" src="../../../dojo/dojo.js" data-dojo-config="async: true, parseOnLoad: true"></script>
+<script language="JavaScript" type="text/javascript">
+	require([
+	 	"dijit/registry",
+	 	"dojox/mobile",				// This is a mobile app.
+		"dojox/mobile/ScrollableView",		// This mobile app uses mobile view
+		"dojox/mobile/Heading",
+		"dojox/mobile/RoundRectList",
+		"dojox/mobile/TabBar",
+		"dojox/mobile/Opener",
+		"dojox/mobile/SimpleDialog",
+		"dojox/mobile/Button",
+		"dojox/mobile/SpinWheelDatePicker",
+		"dojox/mobile/parser"		// This mobile app uses declarative programming with fast mobile parser
+	], function(registry) {
+ 		show = function(dlg, node){
+		    registry.byId(dlg).show(node);
+		  };
+		  hide = function(dlg){
+		    registry.byId(dlg).hide();
+		  };
+	});
+</script>
+</head>
+<body style="visibility:hidden;">
+	<div id="view1" data-dojo-type="dojox.mobile.ScrollableView">
+		<div data-dojo-type="dojox.mobile.Heading" data-dojo-props='back: "Back", label:"Settings"'>
+			<span data-dojo-type="dojox.mobile.ToolBarButton" style="float: right;">Edit</span>
+			<span data-dojo-type="dojox.mobile.ToolBarButton"
+			        data-dojo-props='label:"Done",defaultColor:"mblColorBlue"'
+			        style="float:right;"></span>
+		</div>
+		<h2 data-dojo-type="dojox.mobile.RoundRectCategory">Round Rect Category</h2>
+		<ul data-dojo-type="dojox.mobile.RoundRectList">
+			<li data-dojo-type="dojox.mobile.ListItem">Airplane Mode
+				<div data-dojo-type="dojox.mobile.Switch" class="mblItemSwitch"></div>
+			</li>
+			<li data-dojo-type="dojox.mobile.ListItem" data-dojo-props='rightText: "IBM", moveTo: "view2"'>Wi-Fi</li>
+			<li data-dojo-type="dojox.mobile.ListItem" data-dojo-props='moveTo: "view2"'>Bluetooth</li>
+		</ul>
+		<div data-dojo-type="dojox.mobile.Heading" fixed="bottom">
+		</div>
+	</div>
+	<div id="view2" data-dojo-type="dojox.mobile.ScrollableView">
+		<div data-dojo-type="dojox.mobile.Heading" data-dojo-props='label:"Second View"'>
+			<span data-dojo-type="dojox.mobile.ToolBarButton"
+			        data-dojo-props='arrow:"right",
+			                         moveTo:"view3",
+			                         transition:"slide",
+			                         transitionDir:1'
+               		style="float: right;">Next</span>
+		</div>
+		<div data-dojo-type="dojox.mobile.RoundRect" data-dojo-props='shadow:true'>
+		  This view displays a segmented control tab bar, at the bottom.
+		</div>
+		<ul data-dojo-type="dojox.mobile.TabBar" data-dojo-props='barType:"segmentedControl"' fixed="bottom">
+		  <li data-dojo-type="dojox.mobile.TabBarButton" data-dojo-props='selected:true'>New</li>
+		  <li data-dojo-type="dojox.mobile.TabBarButton">What's Hot</li>
+		  <li data-dojo-type="dojox.mobile.TabBarButton">Genius</li>
+		</ul>
+	</div>
+	<div id="view3" data-dojo-type="dojox.mobile.ScrollableView">
+		<div data-dojo-type="dojox.mobile.Heading" data-dojo-props='label:"Third View"'>
+			<span data-dojo-type="dojox.mobile.ToolBarButton"
+			        data-dojo-props='arrow:"right",
+			                         moveTo:"view1",
+			                         transition:"slide",
+			                         transitionDir:1'
+               		style="float: right;">Next</span>
+		</div>
+		<ul data-dojo-type="dojox.mobile.TabBar" data-dojo-props='barType:"standardTab"'>
+		  <li data-dojo-type="dojox.mobile.TabBarButton" data-dojo-props='selected:true'>New</li>
+		  <li data-dojo-type="dojox.mobile.TabBarButton">What's Hot</li>
+		  <li data-dojo-type="dojox.mobile.TabBarButton">Genius</li>
+		</ul>
+
+		<button data-dojo-type="dojox.mobile.Button" onclick="show('customPicker', this.domNode)">Show Opener</button>
+		<div id="customPicker" data-dojo-type="dojox.mobile.Opener">
+		      <h1 data-dojo-type="dojox.mobile.Heading" label="Custom Picker">
+		              <div data-dojo-type="dojox.mobile.ToolBarButton" label="Done" class="mblColorBlue" style="width:45px;float:right;" onClick="hide('customPicker')"></div>
+		      </h1>
+		      <div id="spin1" data-dojo-type="dojox.mobile.SpinWheelDatePicker"></div>
+		</div>
+
+		<div id="dlg_message" data-dojo-type="dojox.mobile.SimpleDialog">
+		  <div class="mblSimpleDialogTitle">Information</div>
+		  <div class="mblSimpleDialogText">This is a sample dialog.</div>
+		  <button data-dojo-type="dojox.mobile.Button" class="mblSimpleDialogButton"
+		          style="width:100px;" onclick="hide('dlg_message')">OK</button>
+		</div>		
+		<button onclick="show('dlg_message')">Show Dialog</button>
+	</div>
+</body>
+</html>

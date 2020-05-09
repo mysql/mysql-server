@@ -1,0 +1,100 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+    <title>config</title>
+
+    <script type="text/javascript">
+		var ready = 0;
+        var _dojoConfig = {
+            baseUrl: '../../../..',
+            waitSeconds: 5,
+            locale: 'us-en1',
+            has: {
+                configTestHas1: 1
+            },
+            cats: 'dojo-config-dogs',
+            a: 2,
+            b: [ 3, 4, 5 ],
+            packages: [
+                { name: 'dojo', location: 'node_modules/dojo' }
+            ],
+			callback: function () {
+				ready = 1;
+			}
+        };
+
+        var _djConfig = {
+            baseUrl: '../../../..',
+            waitSeconds: 6,
+            locale: 'us-en2',
+            has: {
+                configTestHas2: 1
+            },
+            cats: 'dj-config-dogs',
+            a: 6,
+            b: [ 7, 8, 9],
+            packages: [
+                { name: 'dojo', location: 'node_modules/dojo' }
+            ],
+			callback: function () {
+				ready = 1;
+			}
+        };
+
+        var _require = {
+            baseUrl: '../../../..',
+            waitSeconds: 7,
+            locale: 'us-en3',
+            has: {
+                configTestHas3: 1
+            },
+            cats: 'require-config-dogs',
+            a: 10,
+            b: [ 11, 12, 13 ],
+            packages: [
+                { name: 'dojo', location: 'node_modules/dojo' }
+            ],
+			callback: function () {
+				ready = 1;
+			}
+        };
+
+        var _selectedConfig;
+
+        switch (location.search) {
+            case '?dojoConfig-djConfig-require':
+                dojoConfig = _dojoConfig;
+                djConfig = _djConfig;
+                require = _require;
+                break;
+            case '?dojoConfig-djConfig':
+                dojoConfig = _dojoConfig;
+                djConfig = _djConfig;
+                break;
+            case '?dojoConfig-require':
+                dojoConfig = _dojoConfig;
+                require = _require;
+                break;
+            case '?djConfig-require':
+                djConfig = _djConfig;
+                require = _require;
+                break;
+            case '?djConfig':
+                djConfig = _djConfig;
+                break;
+            case '?require':
+                require = _require;
+                break;
+            case '?dojoConfig':
+                dojoConfig = _dojoConfig;
+                break;
+        }
+    </script>
+
+    <script type='text/javascript' src='../../../../dojo.js'
+            data-dojo-config='isDebug: 1, async: 1'></script>
+</head>
+<body>
+<h1>config</h1>
+</body>
+</html>
