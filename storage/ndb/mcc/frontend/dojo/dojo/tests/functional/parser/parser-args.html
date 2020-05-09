@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Parser args Unit Test</title>
+		<style type="text/css">
+			@import "../../../resources/dojo.css";
+		</style>
+		<script>
+			var ready = false;
+			var dojoConfig = {
+				async: true,
+				isDebug: true,
+				baseUrl: '.',
+				packages: [
+					{ name: 'dojo', location: '../../../node_modules/dojo' },
+					{ name: 'testing', location: '../../../' }
+				],
+				map: {
+					testing: {
+						dojo: 'testing'
+					}
+				}
+			};
+		</script>
+		<script src="../../../dojo.js"></script>
+		<script>
+			require([
+				'testing/parser',
+				'dojo/_base/lang',
+				'dojo/_base/declare',
+				'dojo/domReady!'
+			], function (parser, lang, declare) {
+				declare('tests.parser.Class1', null, {
+					constructor: function (args) {
+						this.params = args;
+						lang.mixin(this, args);
+					},
+					strProp1: 'original1',
+					strProp2: 'original2'
+				});
+
+				try {
+					// Test when only the options argument is passed, and it does not contain a rootNode.
+					// For 2.0, if we drop scope parameter, change this test.
+					scopedWidgets = parser.parse({scope: 'myscope'});
+				} catch(err) {
+					// For help in debugging output
+					scopedWidgets = err;
+				}
+				ready = true;
+			});
+		</script>
+	</head>
+	<body>
+		<h1>Parser args Unit Test</h1>
+
+		<!-- these should match -->
+		<div data-myscope-type="tests.parser.Class1" data-myscope-id="scopeObj1"
+			 data-myscope-props="strProp1:'text1'">
+		</div>
+		<div myscopeType="tests.parser.Class1" data-myscope-id="scopeObj2"
+			 data-myscope-props="strProp1:'text2'">
+		</div>
+
+		<!-- this shouldn't match -->
+		<div data-dojo-type="tests.parser.Class1" data-dojo-id="normalObj"
+			 data-dojo-props="strProp1:'text3'">
+		</div>
+	</body>
+</html>

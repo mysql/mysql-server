@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta http-equiv="Content-type" content="text/html; charset=utf-8">
+	<title>Dialog Widget Dojo Tests</title>
+
+	<script type="text/javascript" src="boilerplate.js"></script>
+
+	<style type="text/css">
+		body { font-family : sans-serif; }
+		form { margin-bottom : 0; }
+		table { border: none; }
+		#dialog3_underlay { background-color: #027 }
+	</style>
+
+
+	<script type="text/javascript">
+		require(["dojo/parser", "dijit/Dialog", "dijit/form/Button", "dojo/domReady!"], function(parser, Dialog, Button){
+
+			createAndShow = function(){
+				var node = document.createElement("div");
+				document.body.appendChild(node);
+				var dlg = new Dialog({ title: "test input focus" }, node);
+
+				var input = document.createElement("input");
+				input.tabIndex = 0;
+				dlg.containerNode.appendChild(input);
+
+				var btn = new Button({
+					id: "destroyButton",
+					label: "Close",
+					onClick: function(){
+						console.log("destroying, while visible");
+						dlg.destroy();
+					}
+				});
+				dlg.containerNode.appendChild(btn.domNode);
+
+				dlg.show();
+			};
+
+			parser.parse();
+
+		});
+	</script>
+</head>
+<body class="claro" role="main">
+
+	<h1 class="testTitle">Dijit layout.Dialog tests</h1>
+
+	<p>If you input this box, you can type. You should be able to type and use backspace/etc
+	when you destroy the visible dialog. refs <a href="http://trac.dojotoolkit.org/ticket/5351">#5351</a>
+	</p>
+
+	<label for="testInput">testInput:</label><input id="testInput" name="foo" value="bar" />
+
+	<button id="showDialog" data-dojo-type="dijit/form/Button" data-dojo-props='onClick:function(){ createAndShow() }'>Show Dialog</button>
+
+</body>
+</html>

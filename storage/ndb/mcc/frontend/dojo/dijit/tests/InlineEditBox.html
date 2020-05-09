@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Menu Automated (non-robot) Tests</title>
+
+	<script type="text/javascript" src="boilerplate.js"></script>
+
+	<script type="text/javascript">
+		require([
+			"doh/runner",
+			"dijit/InlineEditBox",
+			"dijit/registry",
+			"dojo/parser",
+			"dojo/domReady!"
+		], function(doh, InlineEditBox, registry, parser){
+
+			doh.register("parse", function parse(){
+				return parser.parse();
+			});
+
+			doh.register("password", [
+				function charsAreHidden() {
+					var password = registry.byId('password'),
+						notExpected = "password";
+
+					password.set("value", notExpected);
+
+					doh.isNot(notExpected, password.displayNode.innerHTML);
+				}
+			]);
+
+			doh.run();
+		});
+	</script>
+</head>
+<body class="claro">
+	<h1 class="testTitle">Menu Automated (non-robot) tests</h1>
+	<input id="password" data-dojo-type="dijit/InlineEditBox"
+		type="password"
+		>
+
+	</div>
+</body>
+</html>

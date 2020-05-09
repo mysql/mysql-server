@@ -1,0 +1,17 @@
+Setup to run robot tests on windows:
+
+	1. Install java (from java.com)
+	2. Launch java control panel (aka "Configure java")
+	3. On security tab, add your machine (192.168.1.12 in my case) to the "Exception site list".
+
+	In addition, respond to any browser prompts to allow the plugin to run.
+
+To build the JAR file:
+
+	$ sh compilerobot.sh
+
+To sign the JAR file:
+
+	Get the dojo.pfx file plus password from Dylan, and run:
+
+	$ jarsigner -storetype pkcs12 -keystore ~/Downloads/dojo.pfx DOHRobot.jar "js foundation's comodo ca limited id"

@@ -1,0 +1,25 @@
+<div class="view mblView">
+	<div data-dojo-type="dojox/mobile/ScrollableView">
+		<div id="tst1WrapperB" style="visibility:visible">
+			<br>
+			<br>
+			<div class="field-title">Each test is sharing an observable store and using an EdgeToEdgeStoreList with a LongListMixin.</div>
+			<div class="field-title">Use the +5 button to add 5 rows to the lists, it will update all lists.</div>
+			<br>
+			<div class="field-title">There was a problem with LongListMixin in a scrollable view where it would not get added on the pages which were not visible when the rows were added, but now it is fixed.</div>
+			<br>
+			<div class="field-title">The fix to the above problem caused a new problem where it would scroll up a little on a transition back to a page which had been scrolled all the way down.</div>
+			<br>
+			<div class="field-title">My attempt to fix that problem worked, but only if the footer were included as a sibling of the scrollable container, or if fixedFooter is set on the Container. If the footer is from a different view it will not be found without fixedFooter.</div>
+			<br>
+			<div class="field-title">I have setup LongList One and Three using the separate Footer View, and Long List Two and Four with their own footer.  So Two and Four work and One and Three only work because fixedFooter is set.</div>
+			<br>
+			<div class="field-title">To see what had been the problem with LongList One or Three, select that view, hit the +5 button enough to fill the page, scroll to the bottom and then hit select the view again.</div>
+			<br>
+			<div class="field-title">View Two or Four, do not have the problem because the Footer is being found and the size of the footer is taken into account for the size of the scrollable area.</div>
+			<br>
+			<div class="field-title">If fixedHeader is set (in addition to fixedFooter) that will cause problems, similar to not setting fixedFooter, it will not scroll to the bottom correctly.</div>
+			<br><br>
+		</div>
+	</div>
+</div>

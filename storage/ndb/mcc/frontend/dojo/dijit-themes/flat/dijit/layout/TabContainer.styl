@@ -1,0 +1,446 @@
+/* TabContainer 
+ * 
+ * Styling TabContainer means styling the TabList and Its content container  (dijitTitlePane)
+ * 
+ * Tab List: (including 4 kinds of tab location)
+ * 		.dijitTabContainerTop-tabs     - tablist container at top
+ * 		.dijitTabContainerBottom-tabs  - tablist container at bottom
+ * 		.dijitTabContainerLeft-tabs    - tablist container at left
+ * 		.dijitTabContainerRight-tabs   - tablist container at right
+ * 
+ * Tab Strip Button:
+ * 		.dijitTabStripIcon - tab strip button icon
+ * 		.dijitTabStripMenuIcon - down arrow icon position
+ * 		.dijitTabStripSlideLeftIcon - left arrow icon position
+ * 		.dijitTabStripSlideRightIcon - right arrow icon position
+ * 
+ * 		.tabStripButtonDisabled - styles for disabled tab strip buttons
+ * 
+ * Tab Button:
+ * 		.dijitTabContainerTop-tabs .dijitTab     - styles for top tab button container
+ * 		.dijitTabContainerBottom-tabs .dijitTab  - styles for bottom tab button container
+ * 		.dijitTabContainerLeft-tabs .dijitTab    - styles for left tab button container
+ * 		.dijitTabContainerRight-tabs .dijitTab   - styles for right tab button container
+ * 
+ * 		.dijitTabContainerTop-tabs .dijitTabChecked .dijitTab
+ * 				- styles for selected status of top tab button
+ * 		same to Bottom, Left, Right Tabs
+ * 
+ * 		.dijitTabHover .dijitTab   - styles when mouse hover on tab buttons
+ * 		.dijitTabActive .dijitTab  - styles when mouse down on tab buttons
+ * 		.dijitTabChecked .dijitTab  - styles when on buttons of selected tab
+ * 
+ * 		.dijitTabCloseButton - the close action buttons lie at the right top of each tab button on closable tabs
+ * 		.dijitTabCloseButtonHover - styles when mouse hover on close action button
+ * 		.dijitTabCloseButtonActive - styles when mouse down on close action button
+ * 
+ * Tab Button: (checked status)
+ * 
+ * Tab Content Container:
+ * 		.dijitTabContainerTop-dijitContentPane
+ * 		.dijitTabContainerBottom-dijitContentPane
+ * 		.dijitTabContainerLeft-dijitContentPane
+ * 		.dijitTabContainerRight-dijitContentPane - for background and padding
+ * 
+ * Nested Tabs:
+ * 		.dijitTabContainerNested - Container for nested tabs
+ * 		.dijitTabContainerTabListNested - tab list container for nested tabs
+ */
+
+@import 'dijit_layout_variables';
+
+.{$theme-name} {
+
+	/************ common styles *************/
+
+	.dijitTabContainer {
+		border-radius: $tab-wrapper-border-radius;
+	}
+
+	.dijitTabPaneWrapper {
+		background: $tab-wrapper-background-color;
+		border: 1px solid $tab-wrapper-border-color;
+		margin: 0;
+		padding: 0;
+		border-radius: 0 0 $tab-wrapper-border-radius $tab-wrapper-border-radius;
+	}
+
+	.dijitTabContainerTop-tabs,
+	.dijitTabContainerBottom-tabs,
+	.dijitTabContainerLeft-tabs,
+	.dijitTabContainerRight-tabs {
+		border: none;
+	}
+
+	.dijitTabSpacer {
+		// display: none if !$tab-has-gutter;
+		display: none;
+	}
+
+	/* tabs */
+
+	.dijitTab {
+		border: 1px solid $tab-border-color;
+		background-color: $tab-background-color;
+		text-align: center;
+		transition-property: background, padding, margin;
+		transition-duration: .2s;
+		transition-timing-function: ease;
+		position: relative;
+		z-index: 0;
+		if ($tab-checked-has-highlight-border) {
+			&:before {
+				content: "";
+				display: block;
+				position: absolute;
+			}
+		}
+	}
+
+	/* tabs: hover */
+
+	.dijitTabHover {
+		background-color: $tab-hover-background-color;
+	}
+
+	/* tabs: active */
+
+	.dijitTabActive {
+		background-color: $tab-active-background-color;
+	}
+
+	/* tabs: checked */
+
+	.dijitTabChecked {
+		border: 1px solid $tab-checked-border-color;
+		z-index: 1;
+		&.dijitTabHover,
+		&.dijitTabActive {
+			border: 1px solid $tab-checked-border-color;
+			background-color: $tab-checked-background-color;
+			color: $tab-checked-text-color;
+		}
+	}
+
+	/* tabs: disabled */
+
+	.dijitTabDisabled {
+		opacity: $disabled-opacity;
+	}
+
+	/* tabs: strip button */
+
+	.tabStripButton {
+		background-color: transparent;
+		border: none;
+	}
+
+	/* tabs: close button */
+
+	.dijitTabCloseButton {
+		_icon-core-style();
+		line-height: 1;
+		font-size: 1em;
+		vertical-align: middle;
+		margin-left: $tab-padding;
+		opacity: $tab-close-button-opacity;
+		&:before {
+			content: $tab-close-button-icon;
+		}
+	}
+	.dijitTabCloseButtonHover {
+		opacity: $tab-close-button-hover-opacity;
+	}
+	.dijitTabCloseButtonActive {
+		opacity: $tab-close-button-active-opacity;
+	}
+
+	/************* end common **************/
+
+
+	/*************** top tabs ***************/
+
+	.dijitTabContainerTop-tabs {
+		.dijitTab {
+			margin-right: $tab-spacing;
+			padding: $tab-top-padding;
+			border-bottom-color: $tab-wrapper-border-color;
+			border-left: none;
+			border-right: none;
+		}
+		// .dijitTabHover,
+		// .dijitTabActive,
+		// .dijitTabChecked {
+		// }
+		.dijitTabChecked {
+			border-bottom: 1px solid $tab-wrapper-background-color;
+			border-left: 1px solid $tab-wrapper-border-color;
+			border-right: 1px solid $tab-wrapper-border-color;
+			if ($tab-checked-has-highlight-border) {
+				&:before {
+					height: 3px;
+					background: $tab-highlight-color;
+					top: -1px;
+					left: -1px;
+					right: -1px;
+				}
+			}
+		}
+	}
+
+	.dijitTabListContainer-top {
+		margin-top: 1px;
+		.dijitTab {
+			top:0;
+		}
+	}
+
+	/*************** end top tabs **************/
+
+	/*************** bottom tabs ***************/
+
+	.dijitTabPaneWrapper.dijitTabContainerBottom-container {
+		border-radius: $tab-wrapper-border-radius $tab-wrapper-border-radius 0 0;
+	}
+
+	.dijitTabContainerBottom-tabs {
+		.dijitTab {
+			margin-right: $tab-spacing;
+			padding: $tab-bottom-padding;
+			border-top-color: $tab-wrapper-border-color;
+			border-left: none;
+			border-right: none;
+		}
+		// .dijitTabHover,
+		// .dijitTabActive,
+		// .dijitTabChecked {
+		// }
+		.dijitTabChecked {
+			border-top: 1px solid $tab-wrapper-background-color;
+			border-left: 1px solid $tab-wrapper-border-color;
+			border-right: 1px solid $tab-wrapper-border-color;
+			if ($tab-checked-has-highlight-border) {
+				&:before {
+					height: 3px;
+					background: $tab-highlight-color;
+					bottom: -1px;
+					left: -1px;
+					right: -1px;
+				}
+			}
+		}
+	}
+
+	.dijitTabListContainer-bottom {
+		margin-top: -1px;
+		.dijitTab {
+			top: 0;
+		}
+	}
+
+	/************ end bottom tabs ************/
+
+	/*************** left tabs ***************/
+
+	.dijitTabPaneWrapper.dijitTabContainerLeft-container {
+		border-radius: 0 $tab-wrapper-border-radius $tab-wrapper-border-radius 0;
+	}
+
+	.dijitTabContainerLeft-tabs {
+		.dijitTab {
+			margin-bottom: $tab-spacing;
+			padding: $tab-left-padding;
+			border-right-color: $tab-wrapper-border-color;
+			border-top: none;
+			border-bottom: none;
+		}
+		// .dijitTabHover,
+		// .dijitTabActive,
+		// .dijitTabChecked {
+		// }
+		.dijitTabChecked {
+			border-right: 1px solid $tab-wrapper-background-color;
+			border-top: 1px solid $tab-wrapper-border-color;
+			border-bottom: 1px solid $tab-wrapper-border-color;
+			if ($tab-checked-has-highlight-border) {
+				&:before {
+					width: 3px;
+					background: $tab-highlight-color;
+					bottom: -1px;
+					left: -1px;
+					top: -1px;
+				}
+			}
+		}
+	}
+
+	/************** end left tabs *************/
+
+	/*************** right tabs ***************/
+
+	.dijitTabPaneWrapper.dijitTabContainerRight-container{
+		border-radius: $tab-wrapper-border-radius 0 0 $tab-wrapper-border-radius
+	 }
+
+	.dijitTabContainerRight-tabs {
+		 .dijitTab {
+			margin-bottom: $tab-spacing;
+			padding: $tab-right-padding;
+			border-left-color: $tab-wrapper-border-color;
+			border-top: none;
+			border-bottom: none;
+		}
+		// .dijitTabHover,
+		// .dijitTabActive,
+		// .dijitTabChecked {
+		// }
+		.dijitTabChecked {
+			border-left: 1px solid $tab-wrapper-background-color;
+			border-top: 1px solid $tab-wrapper-border-color;
+			border-bottom: 1px solid $tab-wrapper-border-color;
+			if ($tab-checked-has-highlight-border) {
+				&:before {
+					width: 3px;
+					background: $tab-highlight-color;
+					bottom: -1px;
+					right: -1px;
+					top: -1px;
+				}
+			}
+		}
+	}
+
+	/************* end right tabs *************/
+
+	/************ left/right scroll buttons + menu button ***********/
+	.tabStripButton {
+		background-color: $tab-strip-button-background-color;
+		border: 1px solid $tab-strip-button-border-color;
+		transition-property: background-color;
+	}
+
+	.dijitTabListContainer-top ,
+	.dijitTabListContainer-bottom {
+		.tabStripButton {
+			padding: $tab-padding $tab-padding*2;
+			margin-left: $tab-spacing;
+			margin-right $tab-spacing;
+		}
+	}
+
+	.dijitTabListContainer-top {
+		.tabStripButton {
+			margin-bottom: 1px;
+		}
+	}
+
+	.dijitTabListContainer-bottom {
+		.tabStripButton {
+			margin-top: 1px;
+		}
+	}
+
+	.tabStripButtonHover {
+		background-color: $tab-strip-button-hover-background-color;
+	}
+
+	.tabStripButtonActive {
+		background-color: $tab-strip-button-active-background-color;
+	}
+
+	.dijitTabStripIcon {
+		_icon-core-style();
+		color: $tab-strip-button-arrow-color;
+		vertical-align: middle;
+		&:before {
+			content: $tab-left-icon;
+		}
+	}
+
+	.dijitTabStripSlideRightIcon {
+		&:before {
+			content: $tab-right-icon;
+		}
+	}
+
+	.dijitTabStripMenuIcon {
+		&:before {
+			content: $tab-menu-icon;
+		}
+	}
+
+	/* disabled */
+
+	.dijitTabListContainer-top .tabStripButtonDisabled,
+	.dijitTabListContainer-bottom .tabStripButtonDisabled {
+		opacity: $disabled-opacity;
+	}
+
+	/*********** end left/right scroll buttons + menu button *********/
+
+	/*************** nested tabs ***************/
+
+	.dijitTabContainerNested .dijitTabListWrapper {
+		height: auto;
+	}
+
+	.dijitTabContainerTabListNested {
+		.dijitTab {
+			color: $nestedtab-text-color;
+			margin: $tab-padding;
+			padding: $nestedtab-padding;
+			border: 1px solid $nestedtab-border-color;
+			border-radius: $nestedtab-border-radius;
+			transition-property: background-color, border-color;
+	 		transition-duration: .3s;
+		}
+		.dijitTabHover {
+			background-color: $nestedtab-hover-background-color;
+		}
+		.dijitTabActive {
+			color: $nestedtab-active-text-color;
+			background-color:$nestedtab-active-background-color;
+		}
+		.dijitTabChecked,
+		.dijitTabChecked.dijitTabHover,
+		.dijitTabChecked.dijitTabActive {
+			color: $nestedtab-checked-text-color;
+			background-color: $nestedtab-checked-background-color;
+			&:before {
+				display: none;
+			}
+		}
+
+	}
+
+	/************* nested top tabs *************/
+
+	.dijitTabContainerTabListNested.dijitTabContainerTop-tabs .dijitTab {
+		margin-right: $nestedtab-spacing;
+	}
+
+	/************* nested bottom tabs *************/
+
+	.dijitTabContainerTabListNested.dijitTabContainerBottom-tabs .dijitTab {
+		margin-right: $nestedtab-spacing;
+	}
+
+	/************* nested left tabs *************/
+
+	.dijitTabContainerTabListNested.dijitTabContainerLeft-tabs .dijitTab {
+		margin-bottom: $nestedtab-spacing;
+	}
+
+	/************* nested right tabs *************/
+
+	.dijitTabContainerTabListNested.dijitTabContainerRight-tabs .dijitTab {
+		margin-bottom: $nestedtab-spacing;
+	}
+
+
+	.dijitTabPaneWrapperNested {
+		border: none; /* prevent double border */
+		box-shadow: none;
+	}
+
+}

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>test dojo/touch dojoClick property</title>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<script src="../../../dojo.js" data-dojo-config="async: true, isDebug: true"></script>
+		<script>
+		    var ready = false;
+			// this, along with setting dojoClick, triggers the bug
+			require(["dojo/touch", "dojo/domReady!"], function(){
+			    ready = true;
+			});
+		</script>
+		<style>
+			.button {
+                background: #ccc;
+                padding: 5px;
+				-webkit-user-select: none;
+				-moz-user-select: none;
+				-ms-user-select: none;
+				user-select: none;
+			}
+		</style>
+	</head>
+	<body>
+	    <h1>Test dojo/touch's dojoClick property</h1>
+		<span id="dojoClickBtn" class="button">dojoClick=true</span>
+		<script>
+			dojoClickBtn.dojoClick = true;
+			dojoClickBtn.onclick = function(){
+                dojoClicks.value++;
+			};
+		</script>
+		clicks: <input id="dojoClicks" value="0" autocomplete="off">
+		<br><br>
+
+		<span id="nativeClickBtn" class="button">dojoClick=false</span>
+		<script>
+			nativeClickBtn.onclick = function(){
+                nativeClicks.value++;
+			};
+		</script>
+        clicks: <input id="nativeClicks" value="0" autocomplete="off">
+        <br><br>
+	</body>
+</html>

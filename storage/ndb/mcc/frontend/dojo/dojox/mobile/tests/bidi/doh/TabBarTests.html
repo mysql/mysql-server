@@ -1,0 +1,170 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<title>TabBar Bidi Tests</title>
+<script type="text/javascript" src="../../../deviceTheme.js"></script>
+<script type="text/javascript" src="../../../../../dojo/dojo.js" data-dojo-config="async: true, parseOnLoad: true,  has: {'dojo-bidi': true }"></script>
+<script language="JavaScript" type="text/javascript">
+
+	require([
+		"dojo/sniff",
+		"dojo/_base/array",
+		"dojo/dom-construct", // dojo.place
+		"dojo/_base/window",		
+		"dojo/ready", // dojo.ready
+		"dijit/registry",  // dijit.byId
+		"doh/runner",	//doh functions
+		"dojox/mobile/bidi/common",		
+		"dojox/mobile/TabBar",
+		"dojox/mobile/TabBarButton",
+		"dojox/mobile",				// This is a mobile app.
+		"dojox/mobile/compat",		// This mobile app supports running on desktop browsers
+		"dojox/mobile/parser"		// This mobile app uses declarative programming with fast mobile parser
+
+	], function(has, array, domConst, win, ready, registry, runner, common, TabBar, TabBarButton){
+
+		function _createTabBarProgrammatically(){
+				domConst.create("div", {className:"label", innerHTML:"Segmented Control"}, win.body());
+				var tabBar = new TabBar({barType:"segmentedControl"});
+				win.body().appendChild(tabBar.domNode);
+				tabBar.startup();
+
+				var tabBarButton = new TabBarButton({moveTo:"view1", textDir:"rtl", selected:"true", label:"Hello \u05e9\u05dc\u05d5\u05dd\u0021"});
+				tabBar.addChild(tabBarButton);
+				tabBarButton = new TabBarButton({moveTo:"view2", textDir:"rtl", label:"\u05e9\u05dc\u05d5\u05dd\ - hello!"});
+				tabBar.addChild(tabBarButton);
+				tabBarButton = new TabBarButton({moveTo:"view3", textDir:"rtl", label:"Genius"});
+				tabBar.addChild(tabBarButton);
+				tabBar.resize();
+			
+			return tabBar;			
+		}
+		ready(function(){
+			var tabbar = _createTabBarProgrammatically();
+			var btn;
+			var lre = common.MARK.LRE;
+			var rle = common.MARK.RLE;
+			
+			function getFirstChar(obj){
+				var node = obj.labelNode;
+				var text = node.innerHTML;
+				return text ? text.charAt(0) : "";
+			};						
+		
+			runner.register("dojox.mobile.test.bidi.doh.HeadingTests", [			
+					
+				function test_LTR_TextDir_tabBarButton(){
+					btn = registry.byId("tbb13");
+					runner.assertEqual("ltr", btn.get("textDir"));
+					runner.assertEqual(lre, getFirstChar(btn));
+				},
+				
+				function test_RTL_TextDir_tabBarButton(){
+					btn = registry.byId("tbb11");
+					runner.assertEqual("rtl", btn.get("textDir"));
+					runner.assertEqual(rle, getFirstChar(btn));
+					btn = registry.byId("tbb12");
+				},
+				
+				function test_auto_TextDir_tabBarButton(){
+					btn = registry.byId("tbb21");
+					runner.assertEqual("auto", btn.get("textDir"));
+					runner.assertEqual(rle, getFirstChar(btn));
+					btn = registry.byId("tbb22");
+					runner.assertEqual("auto", btn.get("textDir"));
+					runner.assertEqual(lre, getFirstChar(btn));					
+				    btn = registry.byId("tbb23");
+					runner.assertEqual("auto", btn.get("textDir"));					
+					runner.assertEqual(lre, getFirstChar(btn));
+				},
+				
+				function test_TextDir_Badge(){
+					btn = registry.byId("tbb31");
+					runner.assertEqual("auto", btn.badgeObj.textDir);
+					runner.assertEqual(lre, btn.badgeObj.getValue().charAt(0));
+					btn = registry.byId("tbb32");
+					runner.assertEqual("auto", btn.badgeObj.textDir);
+					runner.assertEqual(rle, btn.badgeObj.getValue().charAt(0));
+					
+				},				
+				
+				function test_change_textDir(){
+					var tb = registry.byId("tab1");
+					tb.set("textDir", "rtl");
+					runner.assertEqual("rtl", tb.get("textDir"));
+					btn = registry.byId("tbb13");
+					runner.assertEqual("rtl", btn.get("textDir"));
+					runner.assertEqual(rle, getFirstChar(btn));					
+				},	
+
+				function test_change_Label(){
+					btn = registry.byId("tbb21");
+					btn.set("label", "New Label!")
+					runner.assertEqual("auto", btn.get("textDir"));
+					runner.assertEqual(lre, getFirstChar(btn));
+					btn = registry.byId("tbb22");
+					btn.set("label", "\u05e9\u05dc\u05d5\u05dd\u0021\u0021")
+					runner.assertEqual("auto", btn.get("textDir"));
+					runner.assertEqual(rle, getFirstChar(btn));					
+				}, 
+				
+				function test_program_created_TBButton(){
+					var children = tabbar.getChildren();
+					array.forEach(children, function(ch){
+						runner.assertEqual("rtl", ch.get("textDir"));
+						runner.assertEqual(rle, getFirstChar(ch));
+					}, this); 
+					
+				}
+			]);
+			runner.run();
+		});
+	})
+</script>
+</head>
+<body>
+
+
+	<h3> textDir for TabBarButton </h3>
+	<ul data-dojo-type="dojox.mobile.TabBar" id="tab1" data-dojo-props='barType:"segmentedControl", textDir:"ltr"'>
+		<li data-dojo-type="dojox.mobile.TabBarButton" id="tbb11" data-dojo-props='selected:true, icon1:"../../images/tab-icon-21.png", icon2:"../../images/tab-icon-21h.png",textDir:"rtl"'>New &#1495;&#1491;&#1513; !</li>
+		<li data-dojo-type="dojox.mobile.TabBarButton" id="tbb12" data-dojo-props='textDir:"rtl"'>&#1495;&#1491;&#1513; RTL ...</li>
+		<li data-dojo-type="dojox.mobile.TabBarButton" id="tbb13" data-dojo-props='textDir:"ltr"'>&#1495;&#1491;&#1513; LTR...</li>
+	</ul>
+
+	<div class="label">textDir RTL in Heading, textDir AUTO in TabBar </div>
+	<div data-dojo-type="dojox.mobile.Heading" textDir="rtl">
+		<ul data-dojo-type="dojox.mobile.TabBar" id="tab2" data-dojo-props='barType:"segmentedControl", textDir:"auto"'>
+			<li data-dojo-type="dojox.mobile.TabBarButton" id="tbb21" data-dojo-props='selected:true'>&#1495;&#1491;&#1513; Catalog</li>
+			<li data-dojo-type="dojox.mobile.TabBarButton" id="tbb22" >Share ...</li>
+			<li data-dojo-type="dojox.mobile.TabBarButton" id="tbb23" >Start &#1495;&#1491;&#1513;!! </li>
+		</ul>
+		<span data-dojo-type="dojox.mobile.ToolBarButton" data-dojo-props=''>Button...</span>
+	</div><br>
+	<h3> TabBar with badge textDir AUTO</h3>
+	<ul data-dojo-type="dojox.mobile.TabBar" id="tab3" data-dojo-props='barType:"standardTab", textDir:"auto", closable:true, center:false'>
+		<li data-dojo-type="dojox.mobile.TabBarButton" id="tbb31" data-dojo-props='selected:true,  badge:"New..."'>Dashboard...</li>
+		<li data-dojo-type="dojox.mobile.TabBarButton" id="tbb32" data-dojo-props='selected:true,  badge:"&#1495;&#1491;&#1513;..."'>&#1495;&#1491;&#1513;!</li>
+		<li data-dojo-type="dojox.mobile.TabBarButton">Today's Main Event</li>
+	</ul><br>	
+	
+	<h3> textDir for Mirrored TabBarButton </h3>
+	<ul data-dojo-type="dojox.mobile.TabBar" data-dojo-props='barType:"segmentedControl"'>
+		<li data-dojo-type="dojox.mobile.TabBarButton" data-dojo-props='selected:true, icon1:"../../images/tab-icon-21.png", icon2:"../../images/tab-icon-21h.png",textDir:"auto"'>&#1495;&#1491;&#1513; New</li>
+		<li data-dojo-type="dojox.mobile.TabBarButton" data-dojo-props='textDir:"rtl"'>&#1495;&#1491;&#1513; RTL ...</li>
+		<li data-dojo-type="dojox.mobile.TabBarButton" data-dojo-props='textDir:"ltr"'>&#1495;&#1491;&#1513; LTR...</li>
+	</ul>	
+
+	<div data-dojo-type="dojox.mobile.Heading" textDir="rtl">
+		<ul data-dojo-type="dojox.mobile.TabBar" data-dojo-props='barType:"segmentedControl", textDir:"auto"'>
+			<li data-dojo-type="dojox.mobile.TabBarButton" data-dojo-props='selected:true'>&#1495;&#1491;&#1513; Catalog</li>
+			<li data-dojo-type="dojox.mobile.TabBarButton">Share ...</li>
+			<li data-dojo-type="dojox.mobile.TabBarButton">Start &#1495;&#1491;&#1513;!! </li>
+		</ul>
+		<span data-dojo-type="dojox.mobile.ToolBarButton" data-dojo-props=''>Button...</span>
+	</div><br>	
+</body>
+</html>

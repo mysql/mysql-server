@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="Content-type" content="text/html; charset=utf-8">
+	<title>Bidi TimeTextBox</title>
+
+	<script type="text/javascript" src="../../boilerplate.js"
+			data-dojo-config="parseOnLoad: true, has: { 'dojo-bidi': true }"></script>
+
+	<script type="text/javascript">
+		require([
+			"doh/runner",
+			"dojo/_base/array",
+			"dojo/dom-class",
+			"dojo/parser",
+			"dijit/registry",
+			"dijit/form/TimeTextBox",
+			"dijit/form/Button",
+			"dojo/domReady!"
+		], function(doh, array, domClass, parser, registry, TimeTextBox){
+
+			doh.register("parse", function(){
+				return parser.parse();
+			});
+
+			function testWidget(element, guiDir, textDir, isfirstChildLatin){
+				doh.is(textDir, registry.byId(element).get("textDir"), "widget textDir");
+				doh.is(guiDir, registry.byId(element).dir.toLowerCase(), "GUI dir");
+				doh.is(guiDir.toLowerCase() == "ltr", registry.byId(element).isLeftToRight(), "isLeftToRight()");
+				if(textDir == "auto"){
+					textDir = isfirstChildLatin? "ltr" : "rtl";
+				}
+				doh.is(textDir, registry.byId(element).focusNode.dir, "focusNode textDir");
+				doh[guiDir.toLowerCase() == "rtl" ? "t" : "f"](domClass.contains(registry.byId(element).domNode, "dijitTimeTextBoxRtl"), "dijitTimeTextBoxRtl");
+			}
+
+			function testDropDownList(widgetId){
+				var widget = registry.byId(widgetId);
+				widget.openDropDown();
+				var widgetTextDir = widget.get("textDir");
+				var itemTextDir = widgetTextDir;
+				var list = widget.dropDown.getChildren();
+				var correct = true;
+				array.forEach(list, function(child){
+					if(widgetTextDir == "auto"){
+						itemTextDir = widget._checkContextual(child.label.replace(/<[^>]*>/gm," "));
+					}
+					correct &= itemTextDir == child.textDirNode.dir;
+				});
+				widget.closeDropDown();
+				doh.t(correct, "child textDir");
+			}
+
+			doh.register("setup", function(){
+				//change textDir dynamically
+				var btnLtr = registry.byId("btn1");
+				btnLtr.on("click", function(){
+					registry.byId("q1").set("textDir", "ltr");
+
+				});
+				var btnRtl = registry.byId("btn2");
+				btnRtl.on("click", function(){
+					registry.byId("q1").set("textDir", "rtl");
+
+				});
+				var btnAuto = registry.byId("btn3");
+				btnAuto.on("click", function(){
+					registry.byId("q1").set("textDir", "auto");
+
+				});
+
+				var programmatic1 = new TimeTextBox({});
+				programmatic1.placeAt('testProgramatic1');
+				programmatic1.set("textDir",'ltr');
+
+				var programmatic2 = new TimeTextBox({});
+				programmatic2.placeAt('testProgramatic2');
+				programmatic2.set("textDir",'rtl');
+
+				var programmatic3 = new TimeTextBox({});
+				programmatic3.placeAt('testProgramatic3');
+				programmatic3.set("textDir",'auto');
+			});
+
+			doh.register("LTR GUI, LTR textDir", [
+				{
+					name:"textbox",
+					runTest:function(){
+						testWidget("q1", "ltr", "ltr", true);
+					}
+				},
+				{
+					name:"dropdown",
+					runTest:function(){
+						testDropDownList("q1");
+					}
+				}
+			]);
+
+			doh.register("LTR GUI, RTL textDir", [
+				{
+					name:"textbox",
+					runTest:function(){
+						testWidget("q2", "ltr", "rtl", true);
+					}
+				},
+				{
+					name:"dropdown",
+					runTest:function(){
+						testDropDownList("q2");
+					}
+				}
+			]);
+
+			doh.register("LTR GUI, auto textDir with LTR text", [
+				{
+					name:"textbox",
+					runTest:function(){
+						testWidget("q3", "ltr", "auto", true);
+					}
+				},
+				{
+					name:"dropdown",
+					runTest:function(){
+						testDropDownList("q3");
+					}
+				}
+			]);
+
+			doh.register("LTR GUI, auto textDir with RTL text", [
+				{
+					name:"textbox",
+					runTest:function(){
+						testWidget("q4", "ltr", "auto", false);
+					}
+				},
+				{
+					name:"dropdown",
+					runTest:function(){
+						testDropDownList("q4");
+					}
+				}
+			]);
+
+			doh.register("RTL GUI, LTR textDir", [
+				{
+					name:"textbox",
+					runTest:function(){
+						testWidget("q5", "rtl", "ltr", true);
+					}
+				},
+				{
+					name:"dropdown",
+					runTest:function(){
+						testDropDownList("q5");
+					}
+				}
+			]);
+
+			doh.register("RTL GUI, RTL textDir", [
+				{
+					name:"textbox",
+					runTest:function(){
+						testWidget("q6", "rtl", "rtl", true);
+					}
+				},
+				{
+					name:"dropdown",
+					runTest:function(){
+						testDropDownList("q6");
+					}
+				}
+			]);
+
+			doh.register("RTL GUI, auto textDir with LTR text", [
+				{
+					name:"textbox",
+					runTest:function(){
+						testWidget("q7", "rtl", "auto", true);
+					}
+				},
+				{
+					name:"dropdown",
+					runTest:function(){
+						testDropDownList("q7");
+					}
+				}
+			]);
+
+			doh.register("RTL GUI, auto textDir with RTL text", [
+				{
+					name:"textbox",
+					runTest:function(){
+						testWidget("q8", "rtl", "auto", false);
+					}
+				},
+				{
+					name:"dropdown",
+					runTest:function(){
+						testDropDownList("q8");
+					}
+				}
+			]);
+
+			doh.run();
+		});
+	</script>
+
+</head>
+<body>
+
+	<h1 class="testTitle">TimeTextBox</h1>
+	<br>
+	<table border="1">
+		<tr>
+			<td colspan="2" rowspan="2"></td>
+			<th colspan="4" align="right"><h2><div align=center><font size="5">Base text direction</font></div></h2></th>
+		</tr>
+		<tr>
+			<td>  <font size=4 color=red> LTR </font></td>
+			<td>  <font size=4 color=red> RTL </font></td>
+			<td>  <font size=4 color=red> Auto/LTR </font></td>
+			<td>  <font size=4 color=red> Auto/RTL </font></td>
+		</tr>
+		<tr>
+
+			<th rowspan="2" ><h2><div align=center><font size="5">GUI direction</font></div></h2></th>
+			<td >  <font size=4 color=blue>LTR</font></td>
+			<td>
+				<input dir="ltr" id="q1" data-dojo-type="dijit/form/TimeTextBox"
+					data-dojo-props='type:"text", name:"time1a", value:"T10:30:00", textDir:"ltr",
+					constraints:{formatLength:"short"},
+					required:true,
+					invalidMessage:"" '/>
+			</td>
+			<td>
+				<input dir="ltr" id="q2" data-dojo-type="dijit/form/TimeTextBox"
+					data-dojo-props='type:"text", name:"time1a", value:"T11:30:00", textDir:"rtl",
+					constraints:{formatLength:"short"},
+					required:true,
+					invalidMessage:"" '/>
+			</td>
+			<td>
+				<input dir="ltr" id="q3" data-dojo-type="dijit/form/TimeTextBox"
+					data-dojo-props='type:"text", name:"time1a", value:"T12:30:00", textDir:"auto",
+					constraints:{formatLength:"short"},
+					required:true,
+					invalidMessage:"" '/>
+			</td>
+			<td>
+				<input dir="LTR" id="q4" data-dojo-type="dijit/form/TimeTextBox"
+					data-dojo-props='type:"text", name:"time1a", value:"T12:30:00", textDir:"auto",
+					constraints:{formatLength:"short"},
+					lang:"ar",
+					required:true,
+					invalidMessage:"" '/>
+			</td>
+		</tr>
+		<tr>
+			<td >  <font size=4 color=blue>RTL</font></td>
+			<td>
+				<input dir="RTL" id="q5" data-dojo-type="dijit/form/TimeTextBox"
+					data-dojo-props='type:"text", name:"time1a", value:"T10:30:00", textDir:"ltr",
+					constraints:{formatLength:"short"},
+					required:true,
+					invalidMessage:"" '/>
+			</td>
+			<td>
+				<input dir="rtl" id="q6" data-dojo-type="dijit/form/TimeTextBox"
+					data-dojo-props='type:"text", name:"time1a", value:"T11:30:00", textDir:"rtl",
+					constraints:{formatLength:"short"},
+					required:true,
+					invalidMessage:"" '/>
+			</td>
+			<td>
+				<input dir="rtl" id="q7" data-dojo-type="dijit/form/TimeTextBox"
+					data-dojo-props='type:"text", name:"time1a", value:"T12:30:00", textDir:"auto",
+					constraints:{formatLength:"short"},
+					required:true,
+					invalidMessage:"" '/>
+			</td>
+			<td>
+				<input dir="rtl" id="q8" data-dojo-type="dijit/form/TimeTextBox"
+					data-dojo-props='type:"text", name:"time1a", value:"T12:30:00", textDir:"auto",
+					constraints:{formatLength:"short"},
+					lang:"ar",
+					required:true,
+					invalidMessage:"" '/>
+			</td>
+		</tr>
+	</table>
+
+	<br>
+
+	<h4 class="testSubtitle">Buttons to change BTD dynamically (for LTR-LTR cell)</h4><br>
+		<button data-dojo-type="dijit/form/Button" id="btn1" data-dojo-props='label:"Set textDir to ltr"'></button>
+		<button data-dojo-type="dijit/form/Button" id="btn2" data-dojo-props='label:"Set textDir to rtl"'></button>
+		<button data-dojo-type="dijit/form/Button" id="btn3" data-dojo-props='label:"Set textDir to auto"'></button>
+	<br>
+	<br>
+	<br>
+	<hr>
+	<h4 class="testSubtitle">Widgets created programmatically:</h4><br>
+
+	<span id="testProgramatic1">LTR:&nbsp;</span>
+	<span id="testProgramatic2">&nbsp;&nbsp;RTL:&nbsp;</span>
+	<span id="testProgramatic3">&nbsp;&nbsp;AUTO:&nbsp;</span>
+
+</body>
+</html>

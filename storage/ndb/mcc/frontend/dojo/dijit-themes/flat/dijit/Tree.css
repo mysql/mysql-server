@@ -1,0 +1,181 @@
+/* Tree
+ *
+ * Styling Tree mostly means styling the TreeRow (dijitTreeRow)
+ * There are 4 basic states to style:
+ *
+ * Tree Row:
+ * 1. tree row (default styling):
+ * 		.dijitTreeRow - styles for each row of the tree
+ *
+ * 2. hovered tree row (mouse hover on a tree row)
+ * 		.dijitTreeRowHover - styles when mouse over on one row
+ *
+ * 3. active tree row (mouse down on a tree row)
+ * 		.dijitTreeRowActive - styles when mouse down on one row
+ *
+ * 4. selected tree row
+ * 		dijitTreeRowSelected - style when the row has been selected
+ *
+ * Tree Expando:
+ * 	    dijitTreeExpando - the expando at the left of the text of each tree row
+ *
+ */
+.flat .dijitTreeIsRoot {
+  background-color: transparent;
+}
+.flat .dijitTreeRow,
+.flat .dijitTreeNode .dojoDndItemBefore,
+.flat .dijitTreeNode .dojoDndItemAfter {
+  padding: 8px 0;
+  border: 0 transparent;
+  line-height: 20px;
+  -webkit-transition-property: background-color;
+  -moz-transition-property: background-color;
+  -o-transition-property: background-color;
+  -ms-transition-property: background-color;
+  transition-property: background-color;
+  -webkit-transition-duration: 0.15s;
+  -moz-transition-duration: 0.15s;
+  -o-transition-duration: 0.15s;
+  -ms-transition-duration: 0.15s;
+  transition-duration: 0.15s;
+  -webkit-transition-timing-function: ease-out;
+  -moz-transition-timing-function: ease-out;
+  -o-transition-timing-function: ease-out;
+  -ms-transition-timing-function: ease-out;
+  transition-timing-function: ease-out;
+}
+.flat .dijitTreeRowHover {
+  background-color: #f2f2f2;
+  border-color: transparent;
+  -webkit-transition-duration: 0.15s;
+  -moz-transition-duration: 0.15s;
+  -o-transition-duration: 0.15s;
+  -ms-transition-duration: 0.15s;
+  transition-duration: 0.15s;
+}
+.flat .dijitTreeRowActive {
+  background-color: #f2f2f2;
+  border-color: transparent;
+}
+.flat .dijitTreeRowSelected,
+.flat .dijitTreeRowHover.dijitTreeRowSelected,
+.flat .dijitTreeRowActive.dijitTreeRowSelected {
+  color: #fff;
+  background-color: #2196f3;
+  border-color: transparent;
+}
+.flat .dijitTreeRowSelected .dijitTreeExpando,
+.flat .dijitTreeRowHover.dijitTreeRowSelected .dijitTreeExpando,
+.flat .dijitTreeRowActive.dijitTreeRowSelected .dijitTreeExpando {
+  color: #fff;
+}
+.flat .dijitTreeExpando {
+  font-family: "flat-icon";
+  speak: none;
+  font-style: normal;
+  font-weight: normal;
+  font-variant: normal;
+  text-transform: none;
+  line-height: 1;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  width: 16px;
+  height: 16px;
+  line-height: 16px;
+  text-align: center;
+  margin-left: 4px;
+  margin-right: 4px;
+  color: #2196f3;
+  vertical-align: middle;
+}
+.flat .dijitTreeExpandoOpened:before {
+  content: "\f012";
+  cursor: pointer;
+}
+.flat .dijitTreeExpandoClosed:before {
+  content: "\f011";
+}
+.flat .dijitTreeExpandoLoading {
+  -webkit-animation: spinning 2s linear infinite;
+  -moz-animation: spinning 2s linear infinite;
+  -o-animation: spinning 2s linear infinite;
+  -ms-animation: spinning 2s linear infinite;
+  animation: spinning 2s linear infinite;
+}
+.flat .dijitTreeExpandoLoading:before {
+  content: "\f01d";
+}
+.dj_ie8 .dijitTreeExpandoLoading,
+.dj_ie9 .dijitTreeExpandoLoading {
+  background: url("images/loadingAnimation.gif") no-repeat;
+}
+.dj_ie8 .dijitTreeExpandoLoading:before,
+.dj_ie9 .dijitTreeExpandoLoading:before {
+  content: "";
+}
+@-moz-keyframes spinning {
+  from {
+    -webkit-transform: rotate(0);
+    -moz-transform: rotate(0);
+    -o-transform: rotate(0);
+    -ms-transform: rotate(0);
+    transform: rotate(0);
+  }
+  to {
+    -webkit-transform: rotate(-360deg);
+    -moz-transform: rotate(-360deg);
+    -o-transform: rotate(-360deg);
+    -ms-transform: rotate(-360deg);
+    transform: rotate(-360deg);
+  }
+}
+@-webkit-keyframes spinning {
+  from {
+    -webkit-transform: rotate(0);
+    -moz-transform: rotate(0);
+    -o-transform: rotate(0);
+    -ms-transform: rotate(0);
+    transform: rotate(0);
+  }
+  to {
+    -webkit-transform: rotate(-360deg);
+    -moz-transform: rotate(-360deg);
+    -o-transform: rotate(-360deg);
+    -ms-transform: rotate(-360deg);
+    transform: rotate(-360deg);
+  }
+}
+@-o-keyframes spinning {
+  from {
+    -webkit-transform: rotate(0);
+    -moz-transform: rotate(0);
+    -o-transform: rotate(0);
+    -ms-transform: rotate(0);
+    transform: rotate(0);
+  }
+  to {
+    -webkit-transform: rotate(-360deg);
+    -moz-transform: rotate(-360deg);
+    -o-transform: rotate(-360deg);
+    -ms-transform: rotate(-360deg);
+    transform: rotate(-360deg);
+  }
+}
+@keyframes spinning {
+  from {
+    -webkit-transform: rotate(0);
+    -moz-transform: rotate(0);
+    -o-transform: rotate(0);
+    -ms-transform: rotate(0);
+    transform: rotate(0);
+  }
+  to {
+    -webkit-transform: rotate(-360deg);
+    -moz-transform: rotate(-360deg);
+    -o-transform: rotate(-360deg);
+    -ms-transform: rotate(-360deg);
+    transform: rotate(-360deg);
+  }
+}

@@ -1,0 +1,174 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+	<head>
+		<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no"/>
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<title>Heading</title>
+		<link href="../../../themes/android/base.css" rel="stylesheet"/>
+		<link href="../../../themes/common/domButtons.css" rel="stylesheet"/>
+
+		<script type="text/javascript" src="../../../../../dojo/dojo.js" data-dojo-config="parseOnLoad: true"></script>
+
+		<script language="JavaScript" type="text/javascript">
+			//dojo.require("dojo.parser"); // Use the lightweight parser.
+			dojo.require("dojox.mobile.parser");
+			dojo.require("dojox.mobile");
+			dojo.requireIf(!dojo.isWebKit, "dojox.mobile.compat");
+			dojo.require("dojo.window");
+			
+	        dojo.require("doh.runner");
+			dojo.addOnLoad(function(){
+				var HEADING_CSS = dojo.isIE < 10 ? 'mblHeading' : 'mblHeading unselectable';
+				var HEADING_CSS_CENTER = dojo.isIE < 10 ? 'mblHeading mblHeadingCenterTitle' : 'mblHeading unselectable mblHeadingCenterTitle';
+				var view = dijit.byId("general");
+				var demoWidget = new dojox.mobile.Heading({back:"Settings", moveTo:"settings", label:"General"});
+//				view.addChild(demoWidget);
+				demoWidget.placeAt(view.containerNode);
+				demoWidget.startup();
+
+				demoWidget = new dojox.mobile.Heading({back:"Long Button", moveTo:"settings"});
+				demoWidget.set({label:"Very Very Long Title May Not Be Displayed in the Narrow Space"});
+//				view.addChild(demoWidget);
+				demoWidget.placeAt(view.containerNode);
+				demoWidget.startup();
+
+				demoWidget = new dojox.mobile.Heading({label:"World Clock"});
+				dojo.doc.body.appendChild(demoWidget.containerNode);
+				demoWidget.startup();
+
+				demoWidget = new dojox.mobile.Heading();
+				dojo.doc.body.appendChild(demoWidget.containerNode);
+				demoWidget.startup();
+				var childWidget = new dojox.mobile.ToolBarButton({label:"Edit"});
+				childWidget.domNode.style.padding = "0px 14px";
+//				demoWidget.addChild(childWidget);
+				childWidget.placeAt(demoWidget.containerNode);
+				childWidget.startup();
+				childWidget = new dojox.mobile.ToolBarButton({icon:"mblDomButtonWhitePlus"});
+				childWidget.domNode.style.float = "right";
+//				demoWidget.addChild(childWidget);
+				childWidget.placeAt(demoWidget.containerNode);
+				childWidget.startup();
+				demoWidget.domNode.appendChild(dojo.doc.createTextNode("Alarm Clock"));
+
+				// Test case for #16275 and #16991
+				demoWidget = new dojox.mobile.Heading();
+				dojo.doc.body.appendChild(demoWidget.containerNode);
+				
+				demoWidget.set("moveTo", "view1");
+				demoWidget.set("back", "Back");
+				demoWidget.set("moveTo", "view2");
+				// If #16275 is not fixed, this is needed for changing the moveTo afterwards:
+				// demoWidget.backButton.set("moveTo", "view2");
+				
+				demoWidget.startup();
+				
+				// Test case for #16349
+				demoWidget = new dojox.mobile.Heading();
+				dojo.doc.body.appendChild(demoWidget.containerNode);
+				
+				demoWidget.set("href", "fragment1.html");
+				demoWidget.set("transition", "flip");
+				demoWidget.set("back", "Back");
+				demoWidget.set("href", "fragment2.html");
+				demoWidget.set("transition", "fade");
+				// If #16349 is not fixed, this is needed for changing the href or transition afterwards:
+				// demoWidget.backButton.set("href", "fragment2.html");
+				// demoWidget.backButton.set("transition", "fade");
+				
+				doh.register("dojox.mobile.test.doh.Heading1", [
+					function test_Heading_Verification(){
+						var demoWidget = dijit.byId("dojox_mobile_Heading_0");
+						doh.assertTrue(HEADING_CSS_CENTER == demoWidget.domNode.className || HEADING_CSS == demoWidget.domNode.className);
+						doh.assertEqual('General', demoWidget.domNode.childNodes[1].childNodes[0].nodeValue);
+
+						demoWidget = dijit.byId("dojox_mobile_Heading_1");
+						doh.assertTrue(HEADING_CSS_CENTER == demoWidget.domNode.className || HEADING_CSS == demoWidget.domNode.className);
+						doh.assertEqual('Very Very Long Title May Not Be Displayed in the Narrow Space', demoWidget.domNode.childNodes[1].childNodes[0].nodeValue);
+						
+						demoWidget = dijit.byId("dojox_mobile_Heading_2");
+						doh.assertTrue(HEADING_CSS_CENTER == demoWidget.domNode.className || HEADING_CSS == demoWidget.domNode.className);
+						doh.assertEqual('World Clock', demoWidget.domNode.childNodes[0].childNodes[0].nodeValue);
+
+						demoWidget = dijit.byId("dojox_mobile_Heading_3");
+						doh.assertTrue(HEADING_CSS_CENTER == demoWidget.domNode.className || HEADING_CSS == demoWidget.domNode.className);
+						
+						// Test case for #16275
+						demoWidget = dijit.byId("dojox_mobile_Heading_4");
+						doh.assertTrue(demoWidget.backButton.get("moveTo") == "view2", "when changing Heading.moveTo afterwards");
+						
+						// Test case for #16349
+						demoWidget = dijit.byId("dojox_mobile_Heading_5");
+						doh.assertTrue(demoWidget.backButton.get("href") == "fragment2.html", "when changing Heading.href afterwards");
+						doh.assertTrue(demoWidget.backButton.get("transition") == "fade", "when changing Heading.transition afterwards");
+						
+						// Test case for #16313 
+						var noError = true; 
+						try{
+							demoWidget.set("busy", false);
+						}catch(err){ 
+							noError = false;
+						} 
+						doh.assertTrue(noError, "Setting busy to false before ever being set to true shouldn't throw an exception!");
+						
+						// Test case for #16991
+						demoWidget.set("moveTo", "view2");
+						demoWidget.set("href", "");
+						doh.assertFalse(demoWidget.backButton.get("back"), 
+							"heading.backButton.back should be false when moveTo is specified");
+						
+						demoWidget.set("moveTo", "");
+						demoWidget.set("href", "fragment2.html");
+						doh.assertFalse(demoWidget.backButton.get("back"), 
+							"heading.backButton.back should be false when href is specified");
+							
+						demoWidget.set("moveTo", "view2");
+						demoWidget.set("href", "fragment2.html");
+						doh.assertFalse(demoWidget.backButton.get("back"), 
+							"heading.backButton.back should be false when moveTo and href are specified");
+						
+						demoWidget.set("moveTo", "");
+						demoWidget.set("href", "");
+						doh.assertTrue(demoWidget.backButton.get("back"), 
+							"heading.backButton.back should be true when moveTo and href are NOT specified");
+					},
+					{
+						name: "test_Heading_Verification2",
+						timeout: 3000,
+						runTest: function(){
+							// Test case for #15064.
+							var widget = new dojox.mobile.Heading();
+							var d = new doh.Deferred();
+							var errorCounter = 0;
+							var errorMsg;
+							// Before the fix of #15064, there used to be an error thrown when destroying 
+							// right after startup(). To test it, we cannot use a simple try-catch, because
+							// this is about an error thrown by the setTimeout function which used to be set 
+							// Heading's startup(). Hence:
+							window.onerror = function(msg, url, lineNumber){
+								errorCounter++;
+								errorMsg = "After destroy: " + msg + "\nURL: " + url + 
+									"\nLine number: " + lineNumber;
+								console.log(errorMsg);
+							};
+							widget.startup();
+							widget.destroyRecursive(false/*preserveDom*/);
+							// Check that no error has been thrown
+							setTimeout(d.getTestCallback(function(){
+								doh.assertEqual(0, errorCounter, errorMsg);
+							}), 2000); // smaller than the total timeout of the test case
+						
+							return d;
+						}
+					}
+				]);
+				doh.run();
+			});
+
+		</script>
+	</head>
+	<body>
+		<div id="general" dojoType="dojox.mobile.View" selected="true">
+		</div>
+	</body>
+</html>

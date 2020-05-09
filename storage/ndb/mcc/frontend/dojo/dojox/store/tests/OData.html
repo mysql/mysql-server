@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>Dojo OData Store</title>
+	<link rel="stylesheet" type="text/css" href="../../dijit/themes/claro/claro.css">
+	<style>
+		body {
+			font-family : 'Helvetica Neue', Helvetica, Arial, sans-serif;
+			color : #222;
+			max-width:979px;
+			margin-left:auto;
+			margin-right:auto;
+			background:white;
+			margin: 20px auto;
+			border-radius:4px;
+			padding-bottom:20px;
+		}
+
+		h1 {
+			font-weight: bold;
+			letter-spacing: -1px;
+			line-height: 1;
+			font-size:60px;
+			text-shadow: 0 1px 3px rgba(0,0,0,.4), 0 0 30px rgba(0,0,0,.075);
+			padding : 30px 0 0 0;
+			margin : 0 0;
+		}
+
+		h2 {
+			margin: 20px 0;
+			color:#888;
+		}
+
+		pre {
+			font-size: 18px;
+		}
+
+		.results {
+			border-radius:3px;
+			background:#DDD;
+
+		}
+
+		.status {
+			font-weight: bold;
+			margin-left: 20px;
+		}
+
+		.nav {
+			height:500px;
+			width:200px;
+			position:absolute;
+			top:0;
+			left:0;
+			border: 1px solid #DDD;
+			border-top-left-radius: 4px;
+			border-bottom-left-radius: 4px;
+			cursor: pointer;
+		}
+
+		.nav div{
+			height: 40px;
+			border-bottom: 1px solid #DDD;
+			line-height: 40px;
+			padding: 0 0 0 20px;
+			cursor: pointer;
+		}
+
+		.nav div:hover{
+			background: #DDD;
+		}
+
+		.guide {
+			height: 500px;
+			padding-left: 200px;
+			border-top: 1px solid #DDD;
+			border-right: 1px solid #DDD;
+			border-bottom: 1px solid #DDD;
+			border-radius: 4px;
+		}
+
+		.nav div.active{
+			background: #0088cc;
+			color: white;
+		}
+
+		.guide div{
+			display: none;
+			padding: 20px;
+			height:100%;
+		}
+
+		.guide h2{
+			margin: 0px !important;
+		}
+
+		.guide div.active{
+			display:block;
+		}
+
+		.content{
+			position: relative;
+			box-shadow: 0 0 15px #888;
+			border-radius: 4px;
+		}
+	</style>
+</head>
+<body class="claro">
+	<h1>Dojo OData Store</h1>
+	<h2>This page should serve as a general guide to the OData store API.</h2>
+	<div class="content">
+		<div class="nav">
+			<div data-target="getIdentity" class="active">getIdentity</div>
+			<div data-target="get">get</div>
+			<div data-target="put">put</div>
+			<div data-target="add">add</div>
+			<div data-target="remove">remove</div>
+			<div data-target="query">query</div>
+			<div data-target="getChildren">getChildren</div>
+			<div data-target="getFormDigest">getFormDigest</div>
+		</div>
+		<div class="guide">
+			<div class="getIdentity active">
+				<h2>Summary</h2>
+				<p>Returns an object's identity</p>
+				<h2>Example</h2>
+				<pre>
+var id = store.getIdentity(someObject);
+				</pre>
+			</div>
+			<div class="get">
+				<h2>Summary</h2>
+				<p>
+				Retrieves an object by its identity. This will trigger a GET request to the server using the url <code>this.target + "("+id+")"</code>.
+				</p>
+				<h2>Example</h2>
+				<pre>
+store.get("2").then(function(){
+	// do something with item
+});
+				</pre>
+			</div>
+			<div class="put">
+				<h2>Summary</h2>
+				<p>
+				Stores an object. This will trigger a POST or MERGE request to the server depending on if it is an incremental update
+				</p>
+				<h2>Example</h2>
+				<pre>
+store.put({
+	'__metadata': {
+		'type': 'Microsoft.SharePoint.DataService.DojoItem'
+	},
+	'Title': 'New Item'
+}).then(function(success){
+	// success
+});
+				</pre>
+			</div>
+			<div class="add">
+				<h2>Summary</h2>
+				<p>
+				Adds an object. This will trigger a POST request to the server.
+				</p>
+				<h2>Example</h2>
+				<pre>
+store.add({
+	'__metadata': {
+		'type': 'Microsoft.SharePoint.DataService.DojoItem'
+	},
+	'Title': 'New Item'
+}).then(function(success){
+	// success
+});
+				</pre>
+			</div>
+			<div class="remove">
+				<h2>Summary</h2>
+				<p>
+				Deletes an object by its identity. This will trigger a DELETE request to the server.
+				</p>
+				<h2>Example</h2>
+				<pre>
+store.remove("27",{
+	headers: {"X-RequestDigest": token}
+}).then(function(success){
+	// success
+});
+				</pre>
+			</div>
+			<div class="query">
+				<h2>Summary</h2>
+				<p>
+				Queries the store for objects. This will trigger a GET request to the server, with the query added as a query string that adheres to OData URI conventions.
+				</p>
+				<h2>Example</h2>
+				<pre>
+store.query({
+	Title: "Dojo*",
+	$filter: "Foo eq 'Bar'"
+}).then(function(items){
+	// do something with items
+});
+				</pre>
+			</div>
+			<div class="getChildren">
+				<h2>Summary</h2>
+				<p>
+				Retrieves the children of an object.
+				</p>
+				<h2>Example</h2>
+				<pre>
+store.getChildren(someObject).then(function(children){
+	// do something with items
+});
+				</pre>
+			</div>
+			<div class="getFormDigest">
+				<h2>Summary</h2>
+				<p>
+				Depending on the implementation of the OData endpoint being targeted, a form digest value may be required on specific requests. The store provides a convenient way to acquire this token.
+				</p>
+				<h2>Example</h2>
+				<pre>
+store.getFormDigest().then(function(token){
+	store.put({
+		'__metadata': {
+			'type': 'Microsoft.SharePoint.DataService.DojoItem'
+		},
+		'Title': 'New Item'
+	},{
+		headers: {"X-RequestDigest": token}
+	}).then(function(success){
+		// success
+	});
+});
+				</pre>
+
+			</div>
+		</div>
+	</div>
+	<script src="../../../dojo/dojo.js" data-dojo-config="async: true"></script>
+	<script>
+
+		require([
+			"dojo/query",
+			"dojo/dom-class",
+			"dojo/dom-attr",
+			"dijit/form/FilteringSelect",
+			"dojo/NodeList-dom"
+		],function(query, domClass, domAttr, FilteringSelect){
+			// set up basic handler
+			query("div.nav").on("click", function(e){
+				var target = domAttr.get(e.target, "data-target");
+				query(".active").removeClass("active");
+				domClass.add(e.target, "active");
+				query("."+target).addClass("active");
+			});
+		});
+
+	</script>
+</body>
+</html>

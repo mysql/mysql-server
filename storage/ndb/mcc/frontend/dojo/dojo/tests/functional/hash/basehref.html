@@ -1,0 +1,24 @@
+<html>
+<head>
+	<title>dojo.hash() with &lt;base&gt; test</title>
+	<script>
+		var ready = false;
+	</script>
+	<script type="text/javascript" src="../../../dojo.js" ></script>
+	<script>dojo.require('dojo.hash');</script>
+	<base href="http://dojotoolkit.org/">
+	<script>
+		dojo.ready(function(){
+			ready = true;
+		});
+	</script>
+</head>
+<body>
+	<h1>dojo.hash() with &lt;base&gt; test</h1>
+	<p id="_location"></p>
+	<div style="padding: 20px">
+		<button id='sethash' onclick="dojo.hash('#myhash1')">dojo.hash('#myhash1')</button>
+		<button id='sethashtrue' onclick="dojo.hash('#myhash2', true)">dojo.hash('#myhash2', true)</button>
+	</div>
+</body>
+</html>
