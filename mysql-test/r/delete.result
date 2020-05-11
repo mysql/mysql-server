@@ -797,13 +797,6 @@ WHERE c < b OR
 a != ( SELECT 1 UNION SELECT 2 );
 Warnings:
 Warning	1242	Subquery returns more than 1 row
-SELECT a,b FROM t1;
-a	b
-1	a
-SELECT c,d FROM t2;
-c	d
-foobar	10000
-foobar	10000
 DROP TABLE t1, t2;
 #
 # Bug#29153485: ASSERTION IN JOIN_READ_CONST_TABLE()

@@ -816,10 +816,6 @@ SELECT a,b FROM t1;
 DELETE IGNORE t1.*, t2.* FROM t1, t2
   WHERE c < b OR
         a != ( SELECT 1 UNION SELECT 2 );
---sorted_result
-SELECT a,b FROM t1;
---sorted_result
-SELECT c,d FROM t2;
 
 DROP TABLE t1, t2;
 
