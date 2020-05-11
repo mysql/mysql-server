@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -116,7 +116,7 @@ Auth_id::Auth_id(const LEX_USER *lex_user)
 Auth_id::Auth_id(const ACL_USER *acl_user) {
   if (acl_user) {
     if (acl_user->user != nullptr)  // Not an anonymous user
-      m_user.assign(acl_user->user, strlen(acl_user->user));
+      m_user.assign(acl_user->user, acl_user->get_username_length());
     m_host.assign(acl_user->host.get_host(), acl_user->host.get_host_len());
     create_key();
   }

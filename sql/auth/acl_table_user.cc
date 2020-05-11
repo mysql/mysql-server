@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -1923,8 +1923,7 @@ void Acl_table_user_reader::read_password_require_current(ACL_USER &user) {
 bool Acl_table_user_reader::read_user_attributes(ACL_USER &user) {
   /* Read user_attributes field */
   if (m_table->s->fields > m_table_schema->user_attributes_idx()) {
-    Auth_id auth_id(user.user ? user.user : "",
-                    user.user ? strlen(user.user) : 0,
+    Auth_id auth_id(user.user ? user.user : "", user.get_username_length(),
                     user.host.get_host() ? user.host.get_host() : "",
                     user.host.get_host() ? strlen(user.host.get_host()) : 0);
     Acl_user_attributes user_attributes(&m_mem_root, true, auth_id,

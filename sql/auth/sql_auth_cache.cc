@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -164,6 +164,20 @@ bool validate_user_plugins = true;
 
 #define IP_ADDR_STRLEN (3 + 1 + 3 + 1 + 3 + 1 + 3)
 #define ACL_KEY_LENGTH (IP_ADDR_STRLEN + 1 + NAME_LEN + 1 + USERNAME_LENGTH + 1)
+
+/** Helper: Set user name */
+static void set_username(char **user, const char *user_arg, MEM_ROOT *mem) {
+  DBUG_ASSERT(user != nullptr);
+  *user = (user_arg && *user_arg) ? strdup_root(mem, user_arg) : nullptr;
+}
+
+/** Helper: Set host name */
+static void set_hostname(ACL_HOST_AND_IP *host, const char *host_arg,
+                         MEM_ROOT *mem) {
+  DBUG_ASSERT(host != nullptr);
+  host->update_hostname((host_arg && *host_arg) ? strdup_root(mem, host_arg)
+                                                : nullptr);
+}
 
 /**
   Allocates the memory in the the global_acl_memory MEM_ROOT.
@@ -420,6 +434,14 @@ ACL_USER *ACL_USER::copy(MEM_ROOT *root) {
   return dst;
 }
 
+void ACL_USER::set_user(MEM_ROOT *mem, const char *user_arg) {
+  set_username(&user, user_arg, mem);
+}
+
+void ACL_USER::set_host(MEM_ROOT *mem, const char *host_arg) {
+  set_hostname(&host, host_arg, mem);
+}
+
 void ACL_PROXY_USER::init(const char *host_arg, const char *user_arg,
                           const char *proxied_host_arg,
                           const char *proxied_user_arg, bool with_grant_arg) {
@@ -581,6 +603,22 @@ int ACL_PROXY_USER::store_data_record(TABLE *table, const LEX_CSTRING &hostname,
     return true;
 
   return false;
+}
+
+void ACL_PROXY_USER::set_user(MEM_ROOT *mem, const char *user_arg) {
+  set_username(const_cast<char **>(&user), user_arg, mem);
+}
+
+void ACL_PROXY_USER::set_host(MEM_ROOT *mem, const char *host_arg) {
+  set_hostname(&host, host_arg, mem);
+}
+
+void ACL_DB::set_user(MEM_ROOT *mem, const char *user_arg) {
+  set_username(&user, user_arg, mem);
+}
+
+void ACL_DB::set_host(MEM_ROOT *mem, const char *host_arg) {
+  set_hostname(&host, host_arg, mem);
 }
 
 /**
@@ -783,7 +821,7 @@ GRANT_COLUMN::GRANT_COLUMN(String &c, ulong y)
 void GRANT_NAME::set_user_details(const char *h, const char *d, const char *u,
                                   const char *t, bool is_routine) {
   /* Host given by user */
-  host.update_hostname(strdup_root(&memex, h));
+  set_hostname(&host, h, &memex);
   if (db != d) {
     db = strdup_root(&memex, d);
     if (lower_case_table_names) my_casedn_str(files_charset_info, db);
@@ -2752,10 +2790,8 @@ void acl_users_add_one(const char *user, const char *host,
   */
   acl_user.can_authenticate = true;
 
-  acl_user.user =
-      user && *user ? strdup_root(&global_acl_memory, user) : nullptr;
-  acl_user.host.update_hostname(
-      host && *host ? strdup_root(&global_acl_memory, host) : nullptr);
+  acl_user.set_user(&global_acl_memory, user);
+  acl_user.set_host(&global_acl_memory, host);
   DBUG_ASSERT(plugin.str);
   if (plugin.str[0]) {
     acl_user.plugin = plugin;
@@ -2923,9 +2959,8 @@ void acl_insert_db(const char *user, const char *host, const char *db,
                    ulong privileges) {
   ACL_DB acl_db;
   DBUG_ASSERT(assert_acl_cache_write_lock(current_thd));
-  acl_db.user = strdup_root(&global_acl_memory, user);
-  acl_db.host.update_hostname(*host ? strdup_root(&global_acl_memory, host)
-                                    : nullptr);
+  acl_db.set_user(&global_acl_memory, user);
+  acl_db.set_host(&global_acl_memory, host);
   acl_db.db = strdup_root(&global_acl_memory, db);
   acl_db.access = privileges;
   acl_db.sort = get_sort(3, acl_db.host.get_host(), acl_db.db, acl_db.user);

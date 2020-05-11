@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -1754,9 +1754,9 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
            */
           idx--;
         } else if (user_to) {
-          acl_user->user = strdup_root(&global_acl_memory, user_to->user.str);
-          acl_user->host.update_hostname(
-              strdup_root(&global_acl_memory, user_to->host.str));
+          acl_user->set_user(&global_acl_memory, user_to->user.str);
+          acl_user->set_host(&global_acl_memory, user_to->host.str);
+
           rebuild_cached_acl_users_for_name();
         } else {
           /* If search is requested, we do not need to search further. */
@@ -1774,9 +1774,8 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
           acl_dbs->erase(idx);
           idx--;
         } else if (user_to) {
-          acl_db->user = strdup_root(&global_acl_memory, user_to->user.str);
-          acl_db->host.update_hostname(
-              strdup_root(&global_acl_memory, user_to->host.str));
+          acl_db->set_user(&global_acl_memory, user_to->user.str);
+          acl_db->set_host(&global_acl_memory, user_to->host.str);
         } else {
           /* If search is requested, we do not need to search further. */
           break;
@@ -1826,10 +1825,7 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
           idx--;
         } else if (user_to) {
           acl_proxy_user->set_user(&global_acl_memory, user_to->user.str);
-          acl_proxy_user->host.update_hostname(
-              (user_to->host.str && *user_to->host.str)
-                  ? strdup_root(&global_acl_memory, user_to->host.str)
-                  : nullptr);
+          acl_proxy_user->set_host(&global_acl_memory, user_to->host.str);
         } else {
           /* If search is requested, we do not need to search further. */
           break;
