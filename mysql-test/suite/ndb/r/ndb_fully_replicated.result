@@ -314,7 +314,7 @@ alter table t1 algorithm=inplace, comment="NDB_TABLE=FULLY_REPLICATED=1";
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Turning FULLY_REPLICATED on after create. Try ALGORITHM=COPY.
 alter table t1 algorithm=copy, comment="NDB_TABLE=FULLY_REPLICATED=1";
 alter table t1 algorithm=inplace, comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM";
-ERROR 0A000: Alter table is not supported. Reason: Alter will use the default value for READ_BACKUP (=0) which is different from the table's current value. Try either 'set opt_ndb_read_backup=1;' or add READ_BACKUP=1 to comment.
+ERROR 0A000: Alter table is not supported. Reason: Alter will use the default value for READ_BACKUP (=0) which is different from the table's current value. Try either 'set global ndb_read_backup=1;' or add READ_BACKUP=1 to comment.
 alter table t1 algorithm=inplace, comment="NDB_TABLE=READ_BACKUP=0";
 ERROR 0A000: Alter table is not supported. Reason: cannot change READ_BACKUP to 0 for fully replicated tables. Try fully_replicated=0 if that is the intention.
 drop table t1;
