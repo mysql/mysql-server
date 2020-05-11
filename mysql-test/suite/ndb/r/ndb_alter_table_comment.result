@@ -32,9 +32,9 @@ CREATE TABLE t (x int primary key)
 ENGINE=ndbcluster comment="A comment";
 set global ndb_read_backup=0;
 ALTER TABLE t algorithm=copy, comment="NDB_TABLE=NOLOGGING=1";
-ERROR 0A000: Alter table is not supported. Reason: Alter will use the default value for READ_BACKUP (=0) which is different from the table's current value. Try either 'set opt_ndb_read_backup=1;' or add READ_BACKUP=1 to comment.
+ERROR 0A000: Alter table is not supported. Reason: Alter will use the default value for READ_BACKUP (=0) which is different from the table's current value. Try either 'set global ndb_read_backup=1;' or add READ_BACKUP=1 to comment.
 ALTER TABLE t algorithm=inplace, comment="NDB_TABLE=NOLOGGING=1";
-ERROR 0A000: Alter table is not supported. Reason: Alter will use the default value for READ_BACKUP (=0) which is different from the table's current value. Try either 'set opt_ndb_read_backup=1;' or add READ_BACKUP=1 to comment.
+ERROR 0A000: Alter table is not supported. Reason: Alter will use the default value for READ_BACKUP (=0) which is different from the table's current value. Try either 'set global ndb_read_backup=1;' or add READ_BACKUP=1 to comment.
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
@@ -46,7 +46,7 @@ t	CREATE TABLE `t` (
 # Will fail due to the new default of the non-specified FR #
 set global ndb_fully_replicated=0;
 ALTER TABLE t ALGORITHM=copy, comment="NDB_TABLE=NOLOGGING=0";
-ERROR 0A000: Alter table is not supported. Reason: Alter will use the default value for FULLY_REPLICATED (=0) which is different from the table's current value. Try either 'set opt_ndb_fully_replicated=1;' or add FULLY_REPLICATED=1 to comment.
+ERROR 0A000: Alter table is not supported. Reason: Alter will use the default value for FULLY_REPLICATED (=0) which is different from the table's current value. Try either 'set global ndb_fully_replicated=1;' or add FULLY_REPLICATED=1 to comment.
 DROP TABLE t;
 
 # Change the default to NL=1 and alter another comment item #
@@ -84,9 +84,9 @@ t30	CREATE TABLE `t30` (
 # Cannot alter fully replicated tables when read backup=0 #
 # is specified by the user                                #
 ALTER TABLE t30 ALGORITHM=inplace, COMMENT="NDB_TABLE=FULLY_REPLICATED=1";
-ERROR 0A000: Alter table is not supported. Reason: READ_BACKUP=0 cannot be used for fully replicated tables. Try either 'set opt_ndb_read_backup=1;' or add READ_BACKUP=1 to comment.
+ERROR 0A000: Alter table is not supported. Reason: READ_BACKUP=0 cannot be used for fully replicated tables. Try either 'set global ndb_read_backup=1;' or add READ_BACKUP=1 to comment.
 ALTER TABLE t30 ALGORITHM=copy, COMMENT="NDB_TABLE=FULLY_REPLICATED=1";
-ERROR 0A000: Alter table is not supported. Reason: READ_BACKUP=0 cannot be used for fully replicated tables. Try either 'set opt_ndb_read_backup=1;' or add READ_BACKUP=1 to comment.
+ERROR 0A000: Alter table is not supported. Reason: READ_BACKUP=0 cannot be used for fully replicated tables. Try either 'set global ndb_read_backup=1;' or add READ_BACKUP=1 to comment.
 drop table t30;
 
 # Even though a table is created with default              #
