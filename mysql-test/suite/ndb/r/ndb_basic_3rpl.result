@@ -143,6 +143,7 @@ ndb_log_binlog_index	#
 ndb_log_empty_epochs	#
 ndb_log_empty_update	#
 ndb_log_exclusive_reads	#
+ndb_log_fail_terminate	#
 ndb_log_orig	#
 ndb_log_transaction_id	#
 ndb_log_update_as_write	#
