@@ -2591,9 +2591,6 @@ static void clean_up(bool print_message) {
   if (!is_help_or_validate_option() && !opt_initialize)
     resourcegroups::Resource_group_mgr::destroy_instance();
   mysql_client_plugin_deinit();
-  finish_client_errs();
-  deinit_errmessage();  // finish server errs
-  DBUG_PRINT("quit", ("Error messages freed"));
 
   Global_THD_manager::destroy_instance();
 
@@ -2628,6 +2625,10 @@ static void clean_up(bool print_message) {
   */
   sys_var_end();
   free_status_vars();
+
+  finish_client_errs();
+  deinit_errmessage();  // finish server errs
+  DBUG_PRINT("quit", ("Error messages freed"));
 
   if (have_statement_timeout == SHOW_OPTION_YES) my_timer_deinitialize();
 
