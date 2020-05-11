@@ -21075,6 +21075,25 @@ static void test_bug31082201() {
   mysql_close(mysql_local);
 }
 
+static void test_bug31104389() {
+  myheader("test_bug31104389");
+
+  MYSQL *mysql_local;
+
+  if (!(mysql_local = mysql_client_init(NULL))) {
+    myerror("mysql_client_init() failed");
+    exit(1);
+  }
+  /* make new non blocking connection to an invalid host */
+  mysql_real_connect_nonblocking(mysql_local, "0100::", opt_user, opt_password,
+                                 current_db, opt_port, opt_unix_socket,
+                                 CLIENT_MULTI_STATEMENTS);
+
+  /* this call should not crash and report error */
+  mysql_close(mysql_local);
+  fprintf(stderr, "\n %s", mysql_error(mysql_local));
+}
+
 static struct my_tests_st my_tests[] = {
     {"disable_query_logs", disable_query_logs},
     {"test_view_sp_list_fields", test_view_sp_list_fields},
@@ -21366,6 +21385,7 @@ static struct my_tests_st my_tests[] = {
     {"test_wl13510_multi_statements", test_wl13510_multi_statements},
     {"test_bug31048553", test_bug31048553},
     {"test_bug31082201", test_bug31082201},
+    {"test_bug31104389", test_bug31104389},
     {nullptr, nullptr}};
 
 static struct my_tests_st *get_my_tests() { return my_tests; }

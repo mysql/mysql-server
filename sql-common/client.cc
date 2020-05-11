@@ -1436,6 +1436,15 @@ net_async_status cli_advanced_command_nonblocking(
     set_mysql_error(mysql, CR_SERVER_GONE_ERROR, unknown_sqlstate);
     goto end;
   }
+  /**
+    When non blocking API execution is pending and did not complete then
+    it can result in async context to be null. In such case if user executes
+    any other API report command out of sync error.
+  */
+  if (net_async == nullptr) {
+    set_mysql_error(mysql, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate);
+    goto end;
+  }
   if (net_async->async_send_command_status == NET_ASYNC_SEND_COMMAND_IDLE) {
     if (vio_is_blocking(mysql->net.vio)) {
       vio_set_blocking_flag(net->vio, false);
@@ -3176,7 +3185,19 @@ MYSQL_EXTENSION *mysql_extension_init(MYSQL *mysql MY_ATTRIBUTE((unused))) {
 void mysql_extension_free(MYSQL_EXTENSION *ext) {
   if (!ext) return;
   if (ext->trace_data) my_free(ext->trace_data);
-  if (ext->mysql_async_context) my_free(ext->mysql_async_context);
+  if (ext->mysql_async_context) {
+    if (ext->mysql_async_context->connect_context) {
+      if (ext->mysql_async_context->connect_context
+              ->scramble_buffer_allocated) {
+        my_free(ext->mysql_async_context->connect_context->scramble_buffer);
+        ext->mysql_async_context->connect_context->scramble_buffer = nullptr;
+      }
+      my_free(ext->mysql_async_context->connect_context);
+      ext->mysql_async_context->connect_context = nullptr;
+    }
+    my_free(ext->mysql_async_context);
+    ext->mysql_async_context = nullptr;
+  }
   // free state change related resources.
   free_state_change_info(ext);
 
@@ -5636,13 +5657,8 @@ net_async_status STDCALL mysql_real_connect_nonblocking(
     /* Free alloced memory */
     end_server(mysql);
     mysql_close_free(mysql);
-    if (!(ctx->client_flag & CLIENT_REMEMBER_OPTIONS))
+    if (!(mysql->options.client_flag & CLIENT_REMEMBER_OPTIONS))
       mysql_close_free_options(mysql);
-    if (ctx->scramble_buffer_allocated) {
-      my_free(ctx->scramble_buffer);
-      ctx->scramble_buffer = nullptr;
-    }
-    my_free(ctx);
     return NET_ASYNC_ERROR;
   }
   return NET_ASYNC_NOT_READY;
