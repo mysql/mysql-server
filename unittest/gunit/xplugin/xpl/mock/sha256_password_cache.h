@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -41,9 +41,8 @@ class Mock_sha256_password_cache : public iface::SHA256_password_cache {
   MOCK_METHOD3(upsert, bool(const std::string &, const std::string &,
                             const std::string &));
   MOCK_METHOD2(remove, bool(const std::string &, const std::string &));
-  MOCK_CONST_METHOD2(get_entry,
-                     std::pair<bool, std::string>(const std::string &,
-                                                  const std::string &));
+  MOCK_CONST_METHOD2(get_entry, const std::string *(const std::string &,
+                                                    const std::string &));
   MOCK_CONST_METHOD3(contains, bool(const std::string &, const std::string &,
                                     const std::string &));
   MOCK_CONST_METHOD0(size, std::size_t());

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -28,20 +28,22 @@
 #include <memory>
 #include <string>
 
-#include "plugin/x/src/account_verification_handler.h"
+#include "plugin/x/src/interface/account_verification_handler.h"
 #include "plugin/x/src/interface/authentication.h"
 #include "plugin/x/src/interface/sha256_password_cache.h"
+#include "plugin/x/src/interface/temporary_account_locker.h"
 
 namespace xpl {
 
 class Sasl_plain_auth : public iface::Authentication {
  public:
-  explicit Sasl_plain_auth(Account_verification_handler *handler)
+  explicit Sasl_plain_auth(iface::Account_verification_handler *handler)
       : m_verification_handler(handler) {}
 
   static std::unique_ptr<iface::Authentication> create(
       iface::Session *session,
-      iface::SHA256_password_cache *sha256_password_cache);
+      iface::SHA256_password_cache *sha256_password_cache,
+      iface::Temporary_account_locker *temporary_account_locker);
 
   Response handle_start(const std::string &mechanism, const std::string &data,
                         const std::string &initial_response) override;
@@ -58,7 +60,7 @@ class Sasl_plain_auth : public iface::Authentication {
   }
 
  private:
-  Account_verification_handler::Unique_ptr m_verification_handler;
+  std::unique_ptr<iface::Account_verification_handler> m_verification_handler;
   iface::Authentication_info m_auth_info;
 };
 

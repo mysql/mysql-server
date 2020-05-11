@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -59,10 +59,9 @@ AssertionResult assert_responce(const char *e1_expr, const char *e2_expr,
 
 class Sasl_plain_auth_test : public Test {
  public:
-  StrictMock<Mock_account_verification_handler> *mock_handler{
-      new StrictMock<Mock_account_verification_handler>(nullptr)};
+  Mock_account_verification_handler *mock_handler =
+      new StrictMock<Mock_account_verification_handler>();
   Sasl_plain_auth auth{mock_handler};
-  StrictMock<Mock_account_verification> mock_account_verification;
 
   typedef iface::Authentication::Response Response;
 };

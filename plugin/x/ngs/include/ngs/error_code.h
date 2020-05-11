@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,14 +25,14 @@
 #ifndef PLUGIN_X_NGS_INCLUDE_NGS_ERROR_CODE_H_
 #define PLUGIN_X_NGS_INCLUDE_NGS_ERROR_CODE_H_
 
-#include <stdio.h>
 #include <cstdarg>
+#include <cstdio>
 #include <string>
 
-#include "my_compiler.h"
-#include "my_dbug.h"
-#include "my_sys.h"
-#include "mysqld_error.h"
+#include "my_compiler.h"   // NOLINT(build/include_subdir)
+#include "my_dbug.h"       // NOLINT(build/include_subdir)
+#include "my_sys.h"        // NOLINT(build/include_subdir)
+#include "mysqld_error.h"  // NOLINT(build/include_subdir)
 
 namespace ngs {
 
@@ -52,9 +52,7 @@ struct Error_code {
   Error_code(int e, const std::string &m, const std::string &state = "HY000",
              Severity sev = ERROR)
       : error(e), message(m), sql_state(state), severity(sev) {
-    if (e) {
-      DBUG_PRINT("info", ("Error_code: %s", m.c_str()));
-    }
+    DBUG_PRINT("info", ("Error_code: %s (%i)", m.c_str(), e));
   }
 
   Error_code(int e, const std::string &state, Severity sev, const char *fmt,
@@ -81,9 +79,7 @@ inline Error_code::Error_code(int e, const std::string &state, Severity sev,
   char buffer[MAX_MESSAGE_LENGTH];
   vsnprintf(buffer, sizeof(buffer), fmt, args);
   message = buffer;
-  if (e) {
-    DBUG_PRINT("info", ("Error_code: %s", message.c_str()));
-  }
+  DBUG_PRINT("info", ("Error_code: %s (%i)", message.c_str(), e));
 }
 
 inline Error_code Success(const char *msg, ...)
@@ -96,7 +92,7 @@ inline Error_code Fatal(int e, const char *msg, ...)
 inline Error_code Success(const char *msg, ...) {
   va_list ap;
   va_start(ap, msg);
-  Error_code tmp(Error_code(0, "", Error_code::OK, msg, ap));
+  Error_code tmp(0, "", Error_code::OK, msg, ap);
   va_end(ap);
   return tmp;
 }
@@ -108,10 +104,9 @@ inline Error_code SQLError(const int error_code, ...) {
   va_start(ap, error_code);
   const auto format = my_get_err_msg(error_code);
 
-  Error_code tmp(error_code, "");
-
-  if (nullptr != format)
-    tmp = Error_code(error_code, "HY000", Error_code::ERROR, format, ap);
+  Error_code tmp = nullptr != format ? Error_code(error_code, "HY000",
+                                                  Error_code::ERROR, format, ap)
+                                     : Error_code(error_code, "");
 
   va_end(ap);
 
@@ -125,7 +120,7 @@ inline Error_code SQLError_access_denied() {
 inline Error_code Error(int e, const char *msg, ...) {
   va_list ap;
   va_start(ap, msg);
-  Error_code tmp(Error_code(e, "HY000", Error_code::ERROR, msg, ap));
+  Error_code tmp(e, "HY000", Error_code::ERROR, msg, ap);
   va_end(ap);
   return tmp;
 }
@@ -133,7 +128,7 @@ inline Error_code Error(int e, const char *msg, ...) {
 inline Error_code Fatal(int e, const char *msg, ...) {
   va_list ap;
   va_start(ap, msg);
-  Error_code tmp(Error_code(e, "HY000", Error_code::FATAL, msg, ap));
+  Error_code tmp(e, "HY000", Error_code::FATAL, msg, ap);
   va_end(ap);
   return tmp;
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,8 @@ template <typename Auth_type>
 class AuthenticationTestSuite : public Test {
  public:
   void SetUp() {
-    sut = Auth_type::create(&mock_session, nullptr);
+    sut = Auth_type::create(&mock_session, nullptr,
+                            &mock_temporary_account_locker);
 
     ON_CALL(mock_data_context, authenticate(_, _, _, _, _, _, _))
         .WillByDefault(Return(default_error));
@@ -71,6 +72,7 @@ class AuthenticationTestSuite : public Test {
   StrictMock<Mock_client> mock_client;
   StrictMock<Mock_vio> mock_connection;
   StrictMock<Mock_session> mock_session;
+  StrictMock<Mock_temporary_account_locker> mock_temporary_account_locker;
   std::unique_ptr<iface::Authentication> sut;
 };
 

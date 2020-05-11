@@ -32,15 +32,17 @@
 #include "plugin/x/src/interface/authentication.h"
 #include "plugin/x/src/interface/authentication_container.h"
 #include "plugin/x/src/interface/client.h"
+#include "plugin/x/src/interface/temporary_account_locker.h"
 
 namespace xpl {
 
 class Authentication_container : public iface::Authentication_container {
  public:
-  Authentication_container();
+  explicit Authentication_container();
 
   std::unique_ptr<iface::Authentication> get_auth_handler(
       const std::string &name, iface::Session *session) override;
+
   std::vector<std::string> get_authentication_mechanisms(
       iface::Client *client) override;
 
@@ -54,7 +56,8 @@ class Authentication_container : public iface::Authentication_container {
   class Auth_entry {
    public:
     using Create = std::unique_ptr<iface::Authentication> (*)(
-        iface::Session *, iface::SHA256_password_cache *);
+        iface::Session *, iface::SHA256_password_cache *,
+        iface::Temporary_account_locker *);
 
    public:
     Auth_entry(const std::string &name, const bool is_secure,

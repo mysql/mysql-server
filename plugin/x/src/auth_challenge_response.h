@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,7 @@
 
 #include "plugin/x/src/account_verification_handler.h"
 #include "plugin/x/src/cache_based_verification.h"
+#include "plugin/x/src/interface/account_verification_handler.h"
 #include "plugin/x/src/interface/authentication.h"
 #include "plugin/x/src/interface/sha256_password_cache.h"
 #include "plugin/x/src/native_verification.h"
@@ -66,11 +67,13 @@ template <iface::Account_verification::Account_type Auth_type,
           typename Auth_verificator_t>
 class Sasl_challenge_response_auth : public iface::Authentication {
  public:
-  explicit Sasl_challenge_response_auth(Account_verification_handler *handler)
+  explicit Sasl_challenge_response_auth(
+      iface::Account_verification_handler *handler)
       : m_verification_handler(handler), m_state(S_starting) {}
 
   static std::unique_ptr<iface::Authentication> create(
-      iface::Session *session, iface::SHA256_password_cache *cache);
+      iface::Session *session, iface::SHA256_password_cache *cache,
+      iface::Temporary_account_locker *temporary_account_locker);
 
   Response handle_start(const std::string &, const std::string &,
                         const std::string &) override;
@@ -86,7 +89,7 @@ class Sasl_challenge_response_auth : public iface::Authentication {
   }
 
  private:
-  Account_verification_handler::Unique_ptr m_verification_handler;
+  std::unique_ptr<iface::Account_verification_handler> m_verification_handler;
   iface::Authentication_info m_auth_info;
 
   enum State { S_starting, S_waiting_response, S_done, S_error } m_state;
@@ -105,9 +108,11 @@ template <iface::Account_verification::Account_type Account_type,
           typename Auth_verificator_t>
 std::unique_ptr<iface::Authentication>
 Sasl_challenge_response_auth<Account_type, Auth_verificator_t>::create(
-    iface::Session *session, iface::SHA256_password_cache *cache) {
-  Account_verification_handler *handler = new Account_verification_handler(
-      session, Account_type, new Auth_verificator_t(cache));
+    iface::Session *session, iface::SHA256_password_cache *cache,
+    iface::Temporary_account_locker *temporary_account_locker) {
+  auto *handler = new Account_verification_handler(
+      session, Account_type, new Auth_verificator_t(cache),
+      temporary_account_locker);
   return std::make_unique<
       Sasl_challenge_response_auth<Account_type, Auth_verificator_t>>(handler);
 }

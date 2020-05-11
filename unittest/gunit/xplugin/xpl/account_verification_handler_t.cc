@@ -63,17 +63,20 @@ class User_verification_test : public Test {
   StrictMock<Mock_sql_data_context> mock_sql_data_context;
   Mock_account_verification *mock_account_verification{
       new StrictMock<Mock_account_verification>()};
+  StrictMock<Mock_temporary_account_locker> mock_temporary_account_locker;
 
   iface::Authentication_info m_auth_info;
 
   Account_verification_handler handler{
       &mock_session, iface::Account_verification::Account_type::k_native,
-      mock_account_verification};
+      mock_account_verification, &mock_temporary_account_locker};
 
   void SetUp() {
     EXPECT_CALL(mock_session, data_context())
         .WillRepeatedly(ReturnRef(mock_sql_data_context));
     EXPECT_CALL(mock_session, client()).WillRepeatedly(ReturnRef(mock_client));
+    EXPECT_CALL(mock_temporary_account_locker, check(_, _, _, _, _))
+        .WillRepeatedly(Return(ngs::Success()));
   }
 };
 
@@ -88,7 +91,9 @@ TEST_F(User_verification_test, everything_matches_and_hash_is_right) {
                          EMPTY,
                          EMPTY,
                          EMPTY,
-                         EMPTY};
+                         EMPTY,
+                         0,
+                         0};
 
   EXPECT_CALL(mock_sql_data_context, execute(_, _, _))
       .WillOnce(DoAll(SetUpResultset(data), Return(ngs::Success())));
@@ -129,14 +134,23 @@ TEST_F(User_verification_test, dont_match_anything_when_hash_isnt_right) {
                          EMPTY,
                          EMPTY,
                          EMPTY,
-                         EMPTY};
+                         EMPTY,
+                         0,
+                         0};
 
   EXPECT_CALL(mock_sql_data_context, execute(_, _, _))
       .WillOnce(DoAll(SetUpResultset(data), Return(ngs::Success())));
 
+  EXPECT_CALL(mock_client, connection())
+      .WillRepeatedly(ReturnRef(mock_connection));
+
   EXPECT_CALL(*mock_account_verification,
               verify_authentication_string(_, _, _, _))
       .WillOnce(Return(false));
+
+  EXPECT_CALL(mock_temporary_account_locker,
+              check(USER_NAME, USER_IP, 0, 0, false))
+      .WillOnce(Return(ngs::SQLError_access_denied()));
 
   EXPECT_EQ(
       ER_ACCESS_DENIED_ERROR,
@@ -156,7 +170,9 @@ TEST_F(User_verification_test,
                          EMPTY,
                          EMPTY,
                          EMPTY,
-                         EMPTY};
+                         EMPTY,
+                         0,
+                         0};
   data.set_server_status(SERVER_STATUS_IN_TRANS);
 
   EXPECT_CALL(mock_sql_data_context, execute(_, _, _))
@@ -204,7 +220,9 @@ TEST_P(User_verification_param_test, User_verification_on_given_account_param) {
                          EMPTY,
                          EMPTY,
                          EMPTY,
-                         EMPTY};
+                         EMPTY,
+                         0,
+                         0};
 
   EXPECT_CALL(mock_client, client_hostname_or_address())
       .WillRepeatedly(Return(""));
@@ -270,7 +288,9 @@ TEST_P(User_verification_param_test_with_connection_type_combinations,
                          EMPTY,
                          EMPTY,
                          EMPTY,
-                         EMPTY};
+                         EMPTY,
+                         0,
+                         0};
 
   EXPECT_CALL(mock_sql_data_context, execute(_, _, _))
       .WillOnce(DoAll(SetUpResultset(data), Return(ngs::Success())));
