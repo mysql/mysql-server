@@ -218,7 +218,7 @@ class Mysqld_socket_listener {
   /**
     Set up connection events for poll or select.
 
-    @param socket_map  sockets to listen for connection requests.
+    @param socket_vector  sockets to listen for connection requests.
   */
   void setup_connection_events(const socket_vector_t &socket_vector);
 };
