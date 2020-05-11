@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -985,7 +985,7 @@ void make_global_privilege_statement(THD *thd, ulong want_access,
     }
   }
   global->append(STRING_WITH_LEN(" ON *.* TO "));
-  size_t len = acl_user->user == nullptr ? 0 : strlen(acl_user->user);
+  size_t len = acl_user->get_username_length();
   append_identifier(thd, global, acl_user->user, len);
   global->append('@');
   append_identifier(thd, global, acl_user->host.get_host(),
@@ -1042,8 +1042,7 @@ void make_database_privilege_statement(THD *thd, ACL_USER *role,
       db.append(STRING_WITH_LEN(" ON "));
       append_identifier(thd, &db, db_name.c_str(), db_name.length());
       db.append(STRING_WITH_LEN(".* TO "));
-      append_identifier(thd, &db, role->user,
-                        role->user ? strlen(role->user) : 0);
+      append_identifier(thd, &db, role->user, role->get_username_length());
       db.append('@');
       // host and lex_user->host are equal except for case
       append_identifier(thd, &db, role->host.get_host(),
@@ -1091,7 +1090,7 @@ void make_database_privilege_statement(THD *thd, ACL_USER *role,
                           rl_itr.first.length());
         db.append(STRING_WITH_LEN(".* FROM "));
         append_identifier(thd, &db, acl_user->user,
-                          acl_user->user ? strlen(acl_user->user) : 0);
+                          acl_user->get_username_length());
         db.append('@');
         // host and lex_user->host are equal except for case
         append_identifier(thd, &db, acl_user->host.get_host(),
@@ -1180,8 +1179,7 @@ void make_sp_privilege_statement(THD *thd, ACL_USER *role, Protocol *protocol,
       db.append(STRING_WITH_LEN("FUNCTION "));
     db.append(sp_name.c_str(), sp_name.length());
     db.append(STRING_WITH_LEN(" TO "));
-    append_identifier(thd, &db, role->user,
-                      role->user ? strlen(role->user) : 0);
+    append_identifier(thd, &db, role->user, role->get_username_length());
     db.append(STRING_WITH_LEN("@"));
     // host and lex_user->host are equal except for case
     append_identifier(thd, &db, role->host.get_host(),
@@ -1223,7 +1221,8 @@ void make_with_admin_privilege_statement(
   }
   if (found) {
     global.append(STRING_WITH_LEN(" TO "));
-    append_identifier(thd, &global, acl_user->user, strlen(acl_user->user));
+    append_identifier(thd, &global, acl_user->user,
+                      acl_user->get_username_length());
     global.append('@');
     append_identifier(thd, &global, acl_user->host.get_host(),
                       acl_user->host.get_host_len());
@@ -1259,7 +1258,8 @@ void make_dynamic_privilege_statement(THD *thd, ACL_USER *role,
       /* Dynamic privileges are always applied on global level */
       global.append(STRING_WITH_LEN(" ON *.* TO "));
       if (role->user != nullptr)
-        append_identifier(thd, &global, role->user, strlen(role->user));
+        append_identifier(thd, &global, role->user,
+                          role->get_username_length());
       else
         global.append(STRING_WITH_LEN("''"));
       global.append('@');
@@ -1326,8 +1326,7 @@ void make_roles_privilege_statement(THD *thd, ACL_USER *role,
   }  // end while
   if (found) {
     global.append(STRING_WITH_LEN(" TO "));
-    append_identifier(thd, &global, role->user,
-                      role->user ? strlen(role->user) : 0);
+    append_identifier(thd, &global, role->user, role->get_username_length());
     global.append('@');
     append_identifier(thd, &global, role->host.get_host(),
                       role->host.get_host_len());
@@ -1399,7 +1398,7 @@ void make_table_privilege_statement(THD *thd, ACL_USER *role,
     global.append(STRING_WITH_LEN(" ON "));
     global.append(qualified_table_name.c_str(), qualified_table_name.length());
     global.append(STRING_WITH_LEN(" TO "));
-    append_identifier(thd, &global, role->user, strlen(role->user));
+    append_identifier(thd, &global, role->user, role->get_username_length());
     global.append('@');
     // host and lex_user->host are equal except for case
     append_identifier(thd, &global, role->host.get_host(),
@@ -1589,7 +1588,7 @@ class Get_access_maps : public boost::default_bfs_visitor {
         m_with_admin_acl(with_admin_acl),
         m_dynamic_acl(dyn_acl),
         m_restrictions(restrictions),
-        m_grantee{acl_user->user, strlen(acl_user->user),
+        m_grantee{acl_user->user, acl_user->get_username_length(),
                   acl_user->host.get_host(), acl_user->host.get_host_len()} {}
   template <typename Vertex, typename Graph>
   void discover_vertex(Vertex u, const Graph &) const {
@@ -5976,7 +5975,7 @@ bool find_if_granted_role(Role_vertex_descriptor v, LEX_CSTRING role,
     ACL_USER acl_user =
         get(boost::vertex_acl_user_t(),
             *g_granted_roles)[boost::target(*ei, *g_granted_roles)];
-    if ((role.length == strlen(acl_user.user)) &&
+    if ((role.length == acl_user.get_username_length()) &&
         (role_host.length == acl_user.host.get_host_len()) &&
         !strncmp(role.str, acl_user.user, role.length) &&
         (role_host.length == 0 ||
@@ -6007,7 +6006,7 @@ void get_granted_roles(Role_vertex_descriptor &v,
     int with_admin_opt = edge_with_admin[*ei];
     LEX_CSTRING tmp_user, tmp_host;
     tmp_user.str = acl_user.user;
-    tmp_user.length = strlen(acl_user.user);
+    tmp_user.length = acl_user.get_username_length();
     tmp_host.str = acl_user.host.get_host();
     tmp_host.length = acl_user.host.get_host_len();
     Role_id id(tmp_user, tmp_host);
@@ -6518,7 +6517,7 @@ Auth_id_ref create_authid_from(const LEX_CSTRING &user,
 */
 std::string create_authid_str_from(const ACL_USER *user) {
   String tmp;
-  size_t length = user->user == nullptr ? 0 : strlen(user->user);
+  size_t length = user->get_username_length();
   append_identifier(&tmp, user->user, length);
   tmp.append("@");
   append_identifier(&tmp, user->host.get_host(), user->host.get_host_len());
@@ -6538,10 +6537,7 @@ Auth_id_ref create_authid_from(const ACL_USER *user) {
   LEX_CSTRING username;
   LEX_CSTRING host;
   username.str = user->user;
-  if (user->user != nullptr)
-    username.length = strlen(user->user);
-  else
-    username.length = 0;
+  username.length = user->get_username_length();
   host.str = user->host.get_host();
   host.length = user->host.get_host_len();
   id = std::make_pair(username, host);
