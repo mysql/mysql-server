@@ -715,8 +715,9 @@ class MYSQL_BIN_LOG : public TC_LOG {
      any normal statement.
 
      @param[in] thd  the THD object of current thread.
-     @param[in] stmt the DELETE statement.
-     @param[in] stmt_len the length of DELETE statement.
+     @param[in] stmt the DML statement.
+     @param[in] stmt_len the length of the DML statement.
+     @param[in] sql_command the type of SQL command.
 
      @return Returns false if succeeds, otherwise true is returned.
   */
