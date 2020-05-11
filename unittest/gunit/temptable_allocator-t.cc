@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -81,6 +81,54 @@ TEST(temptable_allocator, shared_block_is_kept_after_last_deallocation) {
 
       allocator.deallocate(ptr, 16);
       EXPECT_FALSE(temptable::shared_block.is_empty());
+    });
+    t.join();
+    EXPECT_TRUE(temptable::shared_block.is_empty());
+  }
+}
+
+TEST(temptable_allocator, rightmost_chunk_deallocated_reused_for_allocation) {
+  {
+    EXPECT_TRUE(temptable::shared_block.is_empty());
+    std::thread t([]() {
+      temptable::Allocator<uint8_t> allocator;
+
+      // Allocate first Chunk which is less than the 1MB
+      size_t first_chunk_size = 512 * 1024;
+      uint8_t *first_chunk = allocator.allocate(first_chunk_size);
+
+      // Calculate and allocate second chunk in such a way that
+      // it lies within the block and fills it
+      size_t first_chunk_actual_size =
+          temptable::Chunk::size_hint(first_chunk_size);
+      size_t space_left_in_block =
+          temptable::shared_block.size() -
+          temptable::Block::size_hint(first_chunk_actual_size);
+      size_t second_chunk_size =
+          space_left_in_block - (first_chunk_actual_size - first_chunk_size);
+      uint8_t *second_chunk = allocator.allocate(second_chunk_size);
+
+      // Make sure that pointers (Chunk's) are from same blocks
+      EXPECT_EQ(temptable::Block(temptable::Chunk(first_chunk)),
+                temptable::Block(temptable::Chunk(second_chunk)));
+
+      EXPECT_FALSE(temptable::shared_block.can_accommodate(1));
+
+      // Deallocate Second Chunk
+      allocator.deallocate(second_chunk, second_chunk_size);
+
+      // Allocate Second Chunk again
+      second_chunk = allocator.allocate(second_chunk_size);
+
+      // Make sure that pointers (Chunk's) are from same blocks
+      EXPECT_EQ(temptable::Block(temptable::Chunk(first_chunk)),
+                temptable::Block(temptable::Chunk(second_chunk)));
+
+      // Deallocate Second Chunk
+      allocator.deallocate(second_chunk, second_chunk_size);
+
+      // Deallocate First Chunk
+      allocator.deallocate(first_chunk, first_chunk_size);
     });
     t.join();
     EXPECT_TRUE(temptable::shared_block.is_empty());
