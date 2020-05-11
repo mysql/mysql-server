@@ -42,6 +42,8 @@ int ndbcluster_binlog_setup_table(THD *thd, class Ndb *ndb, const char *db,
                                   const char *table_name,
                                   const dd::Table *table_def);
 
+void ndbcluster_handle_incomplete_binlog_setup();
+
 int ndbcluster_binlog_wait_synch_drop_table(THD *thd, struct NDB_SHARE *share);
 
 int ndbcluster_binlog_start();

@@ -88,6 +88,7 @@ extern bool opt_ndb_log_transaction_id;
 extern bool log_bin_use_v1_row_events;
 extern bool opt_ndb_log_empty_update;
 extern bool opt_ndb_clear_apply_status;
+extern bool opt_ndb_log_fail_terminate;
 extern bool opt_ndb_schema_dist_upgrade_allowed;
 extern int opt_ndb_schema_dist_timeout;
 extern ulong opt_ndb_schema_dist_lock_wait_timeout;
@@ -5096,7 +5097,34 @@ int ndbcluster_binlog_setup_table(THD *thd, Ndb *ndb, const char *db,
 
   NDB_SHARE::release_reference(share, "create_binlog_setup");  // temporary ref.
 
+#ifndef DBUG_OFF
+  // Force failure of setting up binlogging of a user table
+  if (DBUG_EVALUATE_IF("ndb_binlog_fail_setup", true, false) &&
+      !Ndb_schema_dist_client::is_schema_dist_table(db, table_name) &&
+      !Ndb_schema_dist_client::is_schema_dist_result_table(db, table_name) &&
+      !Ndb_apply_status_table::is_apply_status_table(db, table_name) &&
+      !(!strcmp("test", db) && !strcmp(table_name, "check_not_readonly"))) {
+    ret = -1;
+  }
+#endif
+
+  /*
+   * Handle failure of setting up binlogging of a table
+   */
+  if (ret != 0) {
+    ndb_log_error("Failed to setup binlogging for table '%s.%s'", db,
+                  table_name);
+    ndbcluster_handle_incomplete_binlog_setup();
+  }
+
   return ret;
+}
+
+extern void kill_mysql(void);
+
+void ndbcluster_handle_incomplete_binlog_setup() {
+  ndb_log_error("NDB Binlog: ndbcluster_handle_incomplete_binlog_setup");
+  if (opt_ndb_log_fail_terminate) kill_mysql();
 }
 
 int Ndb_binlog_client::create_event(Ndb *ndb,
