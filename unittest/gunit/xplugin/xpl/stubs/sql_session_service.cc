@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,47 +20,86 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_dbug.h"
-#include "mysql/service_srv_session.h"
+#include "my_dbug.h"  // NOLINT(build/include_subdir)
 
-int srv_session_init_thread(const void *) {
+#include "mysql/service_srv_session.h"
+#include "unittest/gunit/xplugin/xpl/mock/mock_srv_session_services.h"
+
+using xpl::test::Mock_srv_session;
+using xpl::test::Mock_srv_session_info;
+
+// Srv_session service
+//
+
+int srv_session_init_thread(const void *plugin) {
+  if (Mock_srv_session::m_srv_session)
+    return Mock_srv_session::m_srv_session->init_session_thread(plugin);
+
   DBUG_ASSERT(0);
   return 0;
 }
 
-void srv_session_deinit_thread() { DBUG_ASSERT(0); }
+void srv_session_deinit_thread() {
+  if (Mock_srv_session::m_srv_session) {
+    Mock_srv_session::m_srv_session->deinit_session_thread();
+    return;
+  }
+
+  DBUG_ASSERT(0);
+}
+
+MYSQL_SESSION srv_session_open(srv_session_error_cb error_cb, void *ctxt) {
+  if (Mock_srv_session::m_srv_session)
+    return Mock_srv_session::m_srv_session->open_session(error_cb, ctxt);
+
+  DBUG_ASSERT(0);
+  return nullptr;
+}
+
+int srv_session_close(MYSQL_SESSION session) {
+  if (Mock_srv_session::m_srv_session)
+    return Mock_srv_session::m_srv_session->close_session(session);
+
+  DBUG_ASSERT(0);
+  return 0;
+}
+
+int srv_session_detach(MYSQL_SESSION session) {
+  if (Mock_srv_session::m_srv_session)
+    return Mock_srv_session::m_srv_session->detach_session(session);
+
+  DBUG_ASSERT(0);
+  return 0;
+}
+
+int srv_session_attach(MYSQL_SESSION session, MYSQL_THD *old_thd) {
+  if (Mock_srv_session::m_srv_session)
+    return Mock_srv_session::m_srv_session->attach_session(session, old_thd);
+
+  DBUG_ASSERT(0);
+  return 0;
+}
+
+int srv_session_server_is_available() {
+  if (Mock_srv_session::m_srv_session)
+    return Mock_srv_session::m_srv_session->server_is_available();
+
+  DBUG_ASSERT(0);
+  return 0;
+}
+
+// Srv_session info service
+//
 
 MYSQL_THD srv_session_info_get_thd(MYSQL_SESSION) {
   DBUG_ASSERT(0);
   return nullptr;
 }
 
-MYSQL_SESSION srv_session_open(srv_session_error_cb, void *) {
-  DBUG_ASSERT(0);
-  return nullptr;
-}
+my_thread_id srv_session_info_get_session_id(MYSQL_SESSION session) {
+  if (Mock_srv_session_info::m_srv_session_info)
+    return Mock_srv_session_info::m_srv_session_info->get_session_id(session);
 
-int srv_session_close(MYSQL_SESSION) {
-  DBUG_ASSERT(0);
-  return 0;
-}
-
-int srv_session_detach(MYSQL_SESSION) {
-  DBUG_ASSERT(0);
-  return 0;
-}
-
-int srv_session_attach(MYSQL_SESSION, MYSQL_THD *) {
-  DBUG_ASSERT(0);
-  return 0;
-}
-
-my_thread_id srv_session_info_get_session_id(MYSQL_SESSION) {
-  DBUG_ASSERT(0);
-  return 0;
-}
-
-int srv_session_server_is_available() {
   DBUG_ASSERT(0);
   return 0;
 }
