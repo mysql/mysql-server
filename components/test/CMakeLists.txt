@@ -147,4 +147,5 @@ MYSQL_ADD_COMPONENT(test_component_deinit
   test_component_deinit.cc
   MODULE_ONLY
   TEST_ONLY
+  LINK_LIBRARIES mysys
   )
