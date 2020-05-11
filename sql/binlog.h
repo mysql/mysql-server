@@ -790,8 +790,9 @@ public:
      normal statement.
 
      @param[IN] thd  the THD object of current thread.
-     @param[IN] stmt the DELETE statement.
-     @param[IN] stmt_len the length of DELETE statement.
+     @param[IN] stmt the DML statement.
+     @param[IN] stmt_len the length of the DML statement.
+     @param[IN] sql_command the type of SQL command.
 
      @return Returns false if succeeds, otherwise true is returned.
   */
