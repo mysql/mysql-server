@@ -356,7 +356,14 @@ void mysql_dynamic_loader_imp::deinit() {
            vector iterator invalidation. So, we need to make a copy
            of the vector and pass it to below function */
         auto components_to_unload = (*it);
-        unload_do_topological_order(components_to_unload);
+        if (unload_do_topological_order(components_to_unload)) {
+          /* since there is a error in the deinit function, report
+             the error and clear the vector elements(i.e components in that
+             group and then remove the component group node */
+          it->clear();
+          // removes the forward_list node
+          mysql_dynamic_loader_imp::urns_with_gen_list.remove(*it);
+        }
         /* Updating the iterator because unload_do_unload_components
           removes the mysql_dynamic_loader_imp::urns_with_gen_list node */
         it = mysql_dynamic_loader_imp::urns_with_gen_list.begin();
