@@ -1165,7 +1165,7 @@ double Item_singlerow_subselect::val_real() {
     return value->val_real();
   } else {
     reset();
-    return 0;
+    return error_real();
   }
 }
 
@@ -1176,7 +1176,7 @@ longlong Item_singlerow_subselect::val_int() {
     return value->val_int();
   } else {
     reset();
-    return 0;
+    return error_int();
   }
 }
 
@@ -1186,7 +1186,7 @@ String *Item_singlerow_subselect::val_str(String *str) {
     return value->val_str(str);
   } else {
     reset();
-    return nullptr;
+    return error_str();
   }
 }
 
