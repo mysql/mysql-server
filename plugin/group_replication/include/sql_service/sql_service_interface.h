@@ -78,6 +78,16 @@ class Sql_service_interface {
   */
   int wait_for_session_server(ulong total_timeout);
 
+  /**
+    Configures the session's session variables.
+
+    @return the sql error number
+      @retval  0    OK
+      @retval >0    SQL Error Number returned from MySQL Service API
+      @retval <0    local errors
+  */
+  long configure_session();
+
  public:
   /**
     Sql_service_interface constructor - Non-threaded version
