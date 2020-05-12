@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2020, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -223,9 +223,11 @@ MACRO(MYSQL_ADD_PLUGIN plugin_arg)
       MYSQL_INSTALL_TARGET(${target}
         DESTINATION ${INSTALL_PLUGINDIR}
         COMPONENT ${INSTALL_COMPONENT})
-      INSTALL_DEBUG_TARGET(${target}
-        DESTINATION ${INSTALL_PLUGINDIR}/debug
-        COMPONENT ${INSTALL_COMPONENT})
+      IF(NOT ARG_CLIENT_ONLY)
+        INSTALL_DEBUG_TARGET(${target}
+          DESTINATION ${INSTALL_PLUGINDIR}/debug
+          COMPONENT ${INSTALL_COMPONENT})
+      ENDIF()
     ENDIF()
   ELSE()
     IF(WITHOUT_${plugin})
