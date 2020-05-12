@@ -144,7 +144,7 @@ source ../include/connection_test_helpers.inc;
 --echo #
 --echo # try login with invalid host when mysqx plugin is installed
 --echo #
---exec $MYSQLXTEST --expect-error CR_UNKNOWN_HOST -ux_root --password='' -hinvalid  --sql "SELECT THIS_MUST_NOT_BE_EXECUTED()" 2>&1
+--exec $MYSQLXTEST --expect-error CR_UNKNOWN_HOST -ux_root --password='' -hmtr_test_invalid_mysql_host  --sql "SELECT THIS_MUST_NOT_BE_EXECUTED()" 2>&1
 
 # replace_regex did consume last character in line, lets put it back
 --echo

@@ -168,7 +168,7 @@ Mysqlx_sessions_rejected	2
 #
 # try login with invalid host when mysqx plugin is installed
 #
-Application terminated with expected error: No such host is known 'invalid' (code 2005)
+Application terminated with expected error: No such host is known 'mtr_test_invalid_mysql_host' (code 2005)
 ok
 
 # Syncing with status [ 'Mysqlx_sessions_rejected' == 2 ]
