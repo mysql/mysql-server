@@ -21091,7 +21091,6 @@ static void test_bug31104389() {
 
   /* this call should not crash and report error */
   mysql_close(mysql_local);
-  fprintf(stderr, "\n %s", mysql_error(mysql_local));
 }
 
 static struct my_tests_st my_tests[] = {
