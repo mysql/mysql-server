@@ -8714,7 +8714,7 @@ void ha_ndbcluster::update_comment_info(THD *thd, HA_CREATE_INFO *create_info,
       old_table_comment[READ_BACKUP]) {
     my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0), "Alter table",
              "READ_BACKUP=0 cannot be used for fully replicated tables",
-             "either 'set opt_ndb_read_backup=1;' or "
+             "either 'set global ndb_read_backup=1;' or "
              "add READ_BACKUP=1 to comment");
     return;
   }
@@ -8771,7 +8771,7 @@ void ha_ndbcluster::update_comment_info(THD *thd, HA_CREATE_INFO *create_info,
                opt_ndb_fully_replicated);
       char msg2[128];
       snprintf(msg2, sizeof(msg2),
-               "either 'set opt_ndb_fully_replicated=%u;' or "
+               "either 'set global ndb_fully_replicated=%u;' or "
                "add FULLY_REPLICATED=%u to comment",
                old_fully_replicated, old_fully_replicated);
 
@@ -8796,7 +8796,7 @@ void ha_ndbcluster::update_comment_info(THD *thd, HA_CREATE_INFO *create_info,
                opt_ndb_read_backup);
       char msg2[128];
       snprintf(msg2, sizeof(msg2),
-               "either 'set opt_ndb_read_backup=%u;' or "
+               "either 'set global ndb_read_backup=%u;' or "
                "add READ_BACKUP=%u to comment",
                old_read_backup, old_read_backup);
       my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0), "Alter table",
