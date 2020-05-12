@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -67,6 +67,13 @@ class One_row_resultset : public xpl::Collect_resultset {
     resultset.push_back(row);
     callbacks.set_resultset(resultset);
     callbacks.set_field_types(types);
+  }
+
+  void set_server_status(const uint32_t bit) {
+    auto &callbacks = get_callbacks();
+    auto status_info = callbacks.get_info();
+    status_info.server_status |= bit;
+    callbacks.set_status_info(status_info);
   }
 };
 
