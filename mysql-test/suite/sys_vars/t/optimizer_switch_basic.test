@@ -58,5 +58,15 @@ set global optimizer_switch = 'def'; # means default
 --error ER_WRONG_VALUE_FOR_VAR
 set global optimizer_switch = 'e';
 
+--echo #
+--echo # Bug#31326120 UBSAN:
+--echo # SHIFT EXPONENT 4294967294 IS TOO LARGE FOR 64-BIT TYPE
+
+--error ER_WRONG_VALUE_FOR_VAR
+set optimizer_switch ='b';
+
+--error ER_WRONG_VALUE_FOR_VAR
+set optimizer_switch = 0x6400ec62;
+
 SET @@global.optimizer_switch = @start_global_value;
 SELECT @@global.optimizer_switch;

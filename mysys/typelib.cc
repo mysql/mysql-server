@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -242,15 +242,17 @@ static TYPELIB on_off_default_typelib = {
   followed by comma, '=', or end of the buffer.
 
   @retval
+    -1  Too many matching values
+  @retval
     0   No matching name
   @retval
     >0  Offset+1 in typelib for matched name
 */
 
-static uint parse_name(const TYPELIB *lib, const char **strpos,
-                       const char *end) {
+static int parse_name(const TYPELIB *lib, const char **strpos,
+                      const char *end) {
   const char *pos = *strpos;
-  uint find = find_type(pos, lib, FIND_TYPE_COMMA_TERM);
+  int find = find_type(pos, lib, FIND_TYPE_COMMA_TERM);
   for (; pos != end && *pos != '=' && *pos != ','; pos++)
     ;
   *strpos = pos;
@@ -292,7 +294,7 @@ static uint parse_name(const TYPELIB *lib, const char **strpos,
     Parsed set value if (*errpos == NULL), otherwise undefined
 */
 
-uint64_t find_set_from_flags(const TYPELIB *lib, size_t default_name,
+uint64_t find_set_from_flags(const TYPELIB *lib, int default_name,
                              uint64_t cur_set, uint64_t default_set,
                              const char *str, uint length, const char **err_pos,
                              uint *err_len) {
@@ -305,9 +307,10 @@ uint64_t find_set_from_flags(const TYPELIB *lib, size_t default_name,
     const char *start = str;
     for (;;) {
       const char *pos = start;
-      uint flag_no, value;
+      uint value;
 
-      if (!(flag_no = parse_name(lib, &pos, end))) goto err;
+      int flag_no = parse_name(lib, &pos, end);
+      if (flag_no <= 0) goto err;
 
       if (flag_no == default_name) {
         /* Using 'default' twice isn't allowed. */
