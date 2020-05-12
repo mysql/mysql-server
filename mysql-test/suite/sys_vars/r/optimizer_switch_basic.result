@@ -67,6 +67,13 @@ ERROR 42000: Variable 'optimizer_switch' can't be set to the value of 'foobar'
 set global optimizer_switch = 'def';
 set global optimizer_switch = 'e';
 ERROR 42000: Variable 'optimizer_switch' can't be set to the value of 'e'
+#
+# Bug#31326120 UBSAN:
+# SHIFT EXPONENT 4294967294 IS TOO LARGE FOR 64-BIT TYPE
+set optimizer_switch ='b';
+ERROR 42000: Variable 'optimizer_switch' can't be set to the value of 'b'
+set optimizer_switch = 0x6400ec62;
+ERROR 42000: Variable 'optimizer_switch' can't be set to the value of 'd\x00\xECb'
 SET @@global.optimizer_switch = @start_global_value;
 SELECT @@global.optimizer_switch;
 @@global.optimizer_switch
