@@ -1126,25 +1126,18 @@ DB_restrictions_aggregator_global_revoke::validate() {
 }
 
 /**
-  Generates DB_restrictions based on the requested access, grantor and
-  grantee's DB_restrictions in the ACL cache.
   - If grantee has the restriction list
     - Remove only requested restrictions from restriction_list
-  - Else clear the DB_restrictions paramater
 
-  @param  [out]  restrictions  Fills the paramter with the aggregated
-                                  DB_restrictions
+  @param  [out]  restrictions  Fills the parater with the aggregated
+                               DB_restrictions
 */
 void DB_restrictions_aggregator_global_revoke::aggregate(
     DB_restrictions &restrictions) {
   DBUG_ASSERT(m_status == Status::Validated);
+  restrictions = m_grantee_rl;
   if (test_all_bits(m_grantee_global_access, m_requested_access)) {
-    if (m_grantee_rl.is_not_empty()) {
-      restrictions = m_grantee_rl;
-      restrictions.remove(m_requested_access);
-    } else {
-      restrictions.clear();
-    }
+    restrictions.remove(m_requested_access);
   }
   m_status = Status::Aggregated;
 }
