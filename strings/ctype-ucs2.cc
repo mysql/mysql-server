@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -457,7 +457,7 @@ bs:
     return (~(ulonglong)0);
   }
 
-  return (negative ? -((longlong)res) : (longlong)res);
+  return negative ? -res : res;
 }
 
 static double my_strntod_mb2_or_mb4(const CHARSET_INFO *cs, const char *nptr,
