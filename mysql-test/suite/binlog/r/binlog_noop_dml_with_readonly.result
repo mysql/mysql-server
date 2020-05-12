@@ -1,0 +1,60 @@
+SET @saved_value_super= @@GLOBAL.SUPER_READ_ONLY;
+SET @saved_value= @@GLOBAL.read_only;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1);
+include/save_binlog_position.inc
+BEGIN;
+UPDATE t1 SET a = 1;
+SET GLOBAL SUPER_READ_ONLY=1;
+COMMIT;
+ERROR HY000: The MySQL server is running with the --super-read-only option so it cannot execute this statement
+include/assert.inc [Binlog position did not advance]
+check RO transaction still commits
+BEGIN;
+SELECT * FROM t1;
+a
+1
+COMMIT;
+check RO txs still can use implicit temporary tables
+BEGIN;
+SELECT * FROM t1 UNION SELECT * FROM t1;
+a
+1
+COMMIT;
+SET GLOBAL SUPER_READ_ONLY=0;
+CREATE TEMPORARY TABLE t2 (a INT ) ENGINE=INNODB;
+include/save_binlog_position.inc
+BEGIN;
+UPDATE t1 SET a = 1;
+INSERT INTO t2 values(10);
+SET GLOBAL SUPER_READ_ONLY=1;
+COMMIT;
+ERROR HY000: The MySQL server is running with the --super-read-only option so it cannot execute this statement
+include/assert.inc [Binlog position did not advance]
+DROP TABLE t2;
+SET GLOBAL SUPER_READ_ONLY=0;
+SET GLOBAL READ_ONLY=0;
+CREATE USER test@localhost;
+GRANT CREATE TEMPORARY TABLES, UPDATE, DROP ON *.* TO test@localhost;
+include/save_binlog_position.inc
+BEGIN;
+UPDATE t1 SET a = 1;
+SET GLOBAL READ_ONLY=1;
+COMMIT;
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+include/assert.inc [Binlog position did not advance]
+SET GLOBAL READ_ONLY=0;
+CREATE TEMPORARY TABLE t2 (a INT) ENGINE=INNODB;
+include/save_binlog_position.inc
+BEGIN;
+UPDATE t1 SET a = 1;
+INSERT INTO t2 values(10);
+SET GLOBAL READ_ONLY=1;
+COMMIT;
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+include/assert.inc [Binlog position did not advance]
+DROP TABLE t2;
+DROP USER test@localhost;
+SET GLOBAL SUPER_READ_ONLY= @saved_value_super;
+SET GLOBAL read_only= @saved_value;
+DROP TABLE t1;
