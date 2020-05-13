@@ -1036,3 +1036,63 @@ SELECT JSON_VALUE('[12345.67]', '$[0]' RETURNING DECIMAL(5, 2)) v;
 SELECT JSON_VALUE('[12345.67]', '$[0]' RETURNING DECIMAL(5, 2) ERROR ON ERROR);
 --error ER_DATA_OUT_OF_RANGE
 SELECT JSON_VALUE('{}', '$.x' RETURNING DECIMAL(5, 2) DEFAULT 12345.67 ON EMPTY);
+
+--echo #
+--echo # Bug#31168181 FILTERING USING JSON FIELD, IS TRUE DOES NOT WORK
+--echo #
+
+CREATE TABLE test (id INT, j JSON);
+INSERT INTO test VALUES (1, '{"some_key": true}');
+INSERT INTO test VALUES (2, '{"some_key": false}');
+INSERT INTO test VALUES (3, '{"some_key": null}');
+INSERT INTO test VALUES (4, '{"some_key": "true"}'); # a string, NOT a literal!
+
+# The results are not always intuitive. We want to test that a warning
+# is emitted when this happens. That should happen only for comparison against
+# TRUE or FALSE. Not for IS NULL as there is risk of false positives.
+
+SELECT j, (j->'$.some_key' IS TRUE) AS ist,
+          (j->'$.some_key' IS FALSE) AS isf,
+          (j->'$.some_key' IS NULL) AS isn
+FROM test;
+
+SELECT j FROM test
+WHERE j->'$.some_key';
+
+SELECT j FROM test
+WHERE NOT j->'$.some_key';
+
+# Test the workaround suggested by the warnings above; now results
+# should be good:
+
+SELECT j, (json_value(j, '$.some_key' RETURNING SIGNED) IS TRUE) AS ist,
+          (json_value(j, '$.some_key' RETURNING SIGNED) IS FALSE) AS isf,
+          (json_value(j, '$.some_key' RETURNING SIGNED) IS NULL) AS isn
+FROM test;
+
+SELECT j FROM test
+WHERE json_value(j, '$.some_key' RETURNING SIGNED);
+
+SELECT j FROM test
+WHERE NOT json_value(j, '$.some_key' RETURNING SIGNED);
+
+# Other cases of warning:
+
+SELECT json_extract(json_object( "a",FALSE),'$.a') IS TRUE;
+
+SELECT CAST(TRUE AS JSON) IS TRUE AS ist,
+       CAST(TRUE AS JSON) IS FALSE AS isf;
+
+SELECT CAST(FALSE AS JSON) IS TRUE AS ist,
+       CAST(FALSE AS JSON) IS FALSE AS isf;
+
+SELECT CAST(NULL AS JSON) IS TRUE AS ist,
+       CAST(NULL AS JSON) IS FALSE AS isf;
+
+SELECT CAST(123 AS JSON) IS TRUE AS ist,
+       CAST(123 AS JSON) IS FALSE AS isf;
+
+SELECT CAST('"ab"' AS JSON) IS TRUE AS ist,
+       CAST('"ab"' AS JSON) IS FALSE AS isf;
+
+DROP TABLE test;

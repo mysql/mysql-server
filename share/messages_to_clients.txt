@@ -9370,6 +9370,9 @@ ER_MDL_OUT_OF_RESOURCES
   eng "Not enough resources to complete lock request."
 
 
+ER_IMPLICIT_COMPARISON_FOR_JSON
+  eng "Evaluating a JSON value in SQL boolean context does an implicit comparison against JSON integer 0; if this is not what you want, consider converting JSON to a SQL numeric type with JSON_VALUE RETURNING"
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!
