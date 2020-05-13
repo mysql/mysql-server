@@ -1,4 +1,4 @@
-# Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -30,9 +30,11 @@ TARGET_SOURCES(harness_stdx
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/stdx/type_traits.h
   )
 
-ADD_LIBRARY(harness_net_ts INTERFACE)
+ADD_LIBRARY(harness_net_ts STATIC
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/socket.cpp
+  )
 TARGET_INCLUDE_DIRECTORIES(harness_net_ts
-  INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
+  PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 TARGET_SOURCES(harness_net_ts
   INTERFACE
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/buffer.h
@@ -42,6 +44,9 @@ TARGET_SOURCES(harness_net_ts
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/impl/socket.h
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/impl/socket_error.h
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/impl/socket_constants.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/internet.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/local.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/socket.h
   )
 TARGET_LINK_LIBRARIES(harness_net_ts INTERFACE harness_stdx)
 

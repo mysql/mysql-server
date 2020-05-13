@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -35,13 +35,19 @@
 #include <sys/un.h>
 #endif
 
+#include <gmock/gmock.h>  // EXPECT_THAT
+#include <gtest/gtest.h>
 #include <gtest/gtest_prod.h>  // FRIEND_TEST
 
 #include "common.h"
 #include "mysql/harness/loader.h"
 #include "mysql/harness/net_ts/impl/resolver.h"
 #include "mysql/harness/net_ts/impl/socket.h"
+#include "mysql/harness/net_ts/internet.h"
+#include "mysql/harness/net_ts/local.h"
+#include "mysql/harness/net_ts/socket.h"
 #include "mysql/harness/stdx/expected.h"
+#include "mysql/harness/stdx/expected_ostream.h"
 #include "mysql_routing.h"  // AccessMode
 #include "mysql_routing_common.h"
 #include "mysqlrouter/routing.h"
@@ -187,67 +193,59 @@ static const std::array<char, 5> kByeMessage = {{0x01, 0x00, 0x00, 0x00, 0x03}};
 
 class MockServer {
  public:
-  MockServer(uint16_t port) {
-    const auto socket_res = net::impl::socket::socket(AF_INET, SOCK_STREAM, 0);
+  MockServer() = default;
+
+  ~MockServer() { stop(); }
+
+  stdx::expected<void, std::error_code> start(
+      const net::ip::tcp::endpoint &ep) {
+    const auto protocol = ep.protocol();
+
+    const auto socket_res = net::impl::socket::socket(
+        protocol.family(), protocol.type(), protocol.protocol());
     if (!socket_res) {
-      throw std::system_error(socket_res.error());
+      return stdx::make_unexpected(socket_res.error());
     }
 
     service_tcp_ = socket_res.value();
 
-#ifndef _WIN32
-    int option_value{1};
-    const auto sockopt_res =
-        net::impl::socket::setsockopt(service_tcp_, SOL_SOCKET, SO_REUSEADDR,
-                                      &option_value, sizeof(option_value));
+    net::socket_base::reuse_address reuse_opt{true};
+    const auto sockopt_res = net::impl::socket::setsockopt(
+        service_tcp_, reuse_opt.level(protocol), reuse_opt.name(protocol),
+        reuse_opt.data(protocol), reuse_opt.size(protocol));
     if (!sockopt_res) {
-      net::impl::socket::close(service_tcp_);
-      throw std::system_error(sockopt_res.error());
+      return stdx::make_unexpected(sockopt_res.error());
     }
-#endif
-
-    struct sockaddr_in addr;
-    memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = INADDR_ANY;
-    addr.sin_port = htons(port);
 
     const auto bind_res = net::impl::socket::bind(
-        service_tcp_, reinterpret_cast<const struct sockaddr *>(&addr),
-        sizeof addr);
+        service_tcp_, reinterpret_cast<const struct sockaddr *>(ep.data()),
+        ep.size());
     if (!bind_res) {
-      net::impl::socket::close(service_tcp_);
-
-      throw std::system_error(bind_res.error());
+      return stdx::make_unexpected(bind_res.error());
     }
 
     const auto listen_res = net::impl::socket::listen(service_tcp_, 20);
     if (!listen_res) {
-      net::impl::socket::close(service_tcp_);
-
-      throw std::system_error(
-          listen_res.error(),
-          "Failed to start listening for connections using TCP");
+      return stdx::make_unexpected(listen_res.error());
     }
-  }
 
-  ~MockServer() { stop(); }
-
-  void start() {
     stop_ = false;
     thread_ = std::thread(&MockServer::runloop, this);
+
+    return {};
   }
 
   void stop() {
-    if (!stop_) {
-      stop_ = true;
-#if defined(_WIN32)
-      int shut = SD_SEND;
-#else
-      int shut = SHUT_WR;
-#endif
-      net::impl::socket::shutdown(service_tcp_, shut);
+    if (service_tcp_ != mysql_harness::kInvalidSocket) {
+      net::impl::socket::shutdown(
+          service_tcp_, static_cast<int>(net::socket_base::shutdown_send));
       net::impl::socket::close(service_tcp_);
+      service_tcp_ = mysql_harness::kInvalidSocket;
+    }
+
+    if (thread_.joinable()) {
+      // signal acceptor thread to exit.
+      stop_ = true;
       thread_.join();
     }
   }
@@ -395,21 +393,18 @@ static void disconnect(int sock) {
 
 #ifndef _WIN32
 static stdx::expected<mysql_harness::socket_t, std::error_code> connect_socket(
-    const char *path) {
-  const auto socket_res = net::impl::socket::socket(AF_UNIX, SOCK_STREAM, 0);
+    const local::stream_protocol::endpoint &ep) {
+  auto protocol = ep.protocol();
+  const auto socket_res = net::impl::socket::socket(
+      protocol.family(), protocol.type(), protocol.protocol());
   if (!socket_res) {
     return stdx::make_unexpected(socket_res.error());
   }
 
-  struct sockaddr_un addr;
-  memset(&addr, 0, sizeof(addr));
-  addr.sun_family = AF_UNIX;
-  strncpy(addr.sun_path, path, sizeof(addr.sun_path) - 1);
-
   const auto sock = socket_res.value();
 
-  const auto connect_res =
-      net::impl::socket::connect(sock, (struct sockaddr *)&addr, sizeof(addr));
+  const auto connect_res = net::impl::socket::connect(
+      sock, reinterpret_cast<const struct sockaddr *>(ep.data()), ep.size());
   if (!connect_res) {
     return stdx::make_unexpected(socket_res.error());
   }
@@ -438,19 +433,36 @@ TEST_F(RoutingTests, bug_24841281) {
 
   const uint16_t server_port = port_pool_.get_next_available();
   const uint16_t router_port = port_pool_.get_next_available();
+  using socket_res_type =
+      stdx::expected<mysql_harness::socket_t, std::error_code>;
 
-  MockServer server(server_port);
-  server.start();
+  const net::ip::tcp::endpoint server_endpoint(net::ip::tcp::v4(), server_port);
+
+  MockServer server;
+  ASSERT_THAT(server.start(server_endpoint),
+              ::testing::Truly([](const auto &v) { return bool(v); }))
+      << server_endpoint;
 
   TmpDir tmp_dir;  // create a tmp dir (it will be destroyed via RAII later)
-  std::string sock_path = tmp_dir() + "/sock";
+  mysql_harness::Path sock_path
+#ifndef _WIN32
+      (tmp_dir() + "/sock")
+#endif
+          ;
+
+  const int expected_accepts{
+#ifdef _WIN32
+      4
+#else
+      6
+#endif
+  };
 
   // check that connecting to a TCP socket or a UNIX socket works
   MySQLRouting routing(
       routing::RoutingStrategy::kNextAvailable, router_port,
       Protocol::Type::kXProtocol, routing::AccessMode::kReadWrite, "0.0.0.0",
-      mysql_harness::Path(sock_path), "routing:testroute",
-      routing::kDefaultMaxConnections,
+      sock_path, "routing:testroute", routing::kDefaultMaxConnections,
       routing::kDefaultDestinationConnectionTimeout,
       routing::kDefaultMaxConnectErrors, routing::kDefaultClientConnectTimeout,
       routing::kDefaultNetBufferLength);
@@ -458,19 +470,16 @@ TEST_F(RoutingTests, bug_24841281) {
   mysql_harness::PluginFuncEnv env(nullptr, nullptr, true);
   std::thread thd(&MySQLRouting::start, &routing, &env);
 
-  // set the number of accepts that the server should expect for before stopping
-#ifdef _WIN32
-  server.stop_after_n_accepts(4);
-#else
-  server.stop_after_n_accepts(6);
-#endif
+  // set the number of accepts that the server should expect for before
+  // stopping
+  server.stop_after_n_accepts(expected_accepts);
 
   EXPECT_EQ(routing.get_context().info_active_routes_.load(), 0);
 
   // open connections to the socket and see if we get a matching outgoing
   // socket connection attempt to our mock server
 
-  stdx::expected<mysql_harness::socket_t, std::error_code> sock1_res;
+  socket_res_type sock1_res;
   // router is running in a thread, so we need to sync it
   EXPECT_TRUE(call_until([&]() -> bool {
     sock1_res = connect_local(router_port);
@@ -545,8 +554,9 @@ TEST_F(RoutingTests, bug_24841281) {
 
 #ifndef _WIN32
   // now try the same with socket ops
-  auto sock3_res = connect_socket(sock_path.c_str());
-  auto sock4_res = connect_socket(sock_path.c_str());
+  const auto unix_sock_ep = local::stream_protocol::endpoint(sock_path.str());
+  auto sock3_res = connect_socket(unix_sock_ep);
+  auto sock4_res = connect_socket(unix_sock_ep);
 
   ASSERT_TRUE(sock3_res);
   ASSERT_TRUE(sock4_res);
@@ -757,6 +767,8 @@ TEST_F(RoutingTests, DISABLED_ConnectToServerWrongPort) {
 }
 
 int main(int argc, char *argv[]) {
+  net::impl::socket::init();
+
   init_test_logger();
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

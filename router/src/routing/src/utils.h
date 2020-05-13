@@ -26,16 +26,11 @@
 #define UTILS_ROUTING_INCLUDED
 
 #include <array>
-#include <iostream>
-#include <sstream>
-#include <stdexcept>
+#include <cstdint>
 #include <vector>
 #ifndef _WIN32
-#include <netdb.h>
-#include <netinet/in.h>
-#include <unistd.h>
+#include <sys/socket.h>  // sockaddr_storage
 #else
-#include <stdint.h>
 #include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -44,14 +39,6 @@
 #include "socket_operations.h"
 
 using ClientIpArray = std::array<uint8_t, 16>;
-
-/**
- * Socket address from either IPv4 or IPv6
- *
- * @param addr addrinfo struct
- * @return struct in_addr
- */
-void *get_in_addr(struct sockaddr *addr);
 
 /**
  * Get address of connected peer

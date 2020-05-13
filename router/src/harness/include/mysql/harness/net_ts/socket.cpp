@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,43 +22,19 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "mysql/harness/networking/ipv4_address.h"
+#include "mysql/harness/net_ts/socket.h"
 
-#ifndef _WIN32
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#else
-#include <windows.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#endif
-#include <array>
-#include <stdexcept>
-#include <string>
-#include <system_error>
+// materialize constexpr's
 
-#include "mysql/harness/net_ts/impl/resolver.h"
+constexpr net::socket_base::wait_type net::socket_base::wait_write;
+constexpr net::socket_base::wait_type net::socket_base::wait_read;
+constexpr net::socket_base::wait_type net::socket_base::wait_error;
 
-namespace mysql_harness {
+constexpr net::socket_base::shutdown_type net::socket_base::shutdown_receive;
+constexpr net::socket_base::shutdown_type net::socket_base::shutdown_send;
+constexpr net::socket_base::shutdown_type net::socket_base::shutdown_both;
 
-IPv4Address::IPv4Address(const char *data) {
-  if (inet_pton(AF_INET, data, &address_) <= 0) {
-    throw std::invalid_argument(std::string("ipv4 parsing error"));
-  }
-}
-
-std::string IPv4Address::str() const {
-  std::array<char, INET_ADDRSTRLEN> tmp;
-
-  const auto ntop_res = net::impl::resolver::inetntop(
-      AF_INET, const_cast<in_addr *>(&address_), tmp.data(), tmp.size());
-
-  if (!ntop_res) {
-    throw std::system_error(ntop_res.error(), "inet_ntop failed");
-  }
-
-  return ntop_res.value();
-}
-
-}  // namespace mysql_harness
+constexpr net::socket_base::message_flags net::socket_base::message_peek;
+constexpr net::socket_base::message_flags
+    net::socket_base::message_do_not_route;
+constexpr net::socket_base::message_flags net::socket_base::message_out_of_band;

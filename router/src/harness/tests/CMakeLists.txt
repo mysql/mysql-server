@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -60,9 +60,7 @@ SET(TESTS
   test_config.cc
   test_filesystem.cc
   test_hostname_validator.cc
-  test_ip_address.cc
   test_bug22104451.cc
-  test_resolver.cc
   test_random_generator.cc
   test_mysql_router_thread.cc
   test_mpmc_queue.cc
@@ -101,12 +99,20 @@ SET(TESTS
   test_net_ts_impl_file.cc
   test_net_ts_impl_resolver.cc
   test_net_ts_impl_socket.cc
+  test_net_ts_internet.cc
 )
 
 FOREACH(TEST ${TESTS})
   ADD_TEST_FILE(${TEST} MODULE ${TEST_MODULE}
     LIB_DEPENDS harness_net_ts)
 ENDFOREACH()
+
+ADD_TEST_FILE(test_net_ts_local.cc
+  MODULE ${TEST_MODULE}
+  LIB_DEPENDS harness_net_ts
+  LIB_DEPENDS test-helpers
+  INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/src/harness/shared/include/
+  )
 
 SET(TESTS
   test_stdx_io_file_handle.cc
@@ -116,7 +122,6 @@ FOREACH(TEST ${TESTS})
   ADD_TEST_FILE(${TEST} MODULE ${TEST_MODULE}
     LIB_DEPENDS harness_stdx_io)
 ENDFOREACH()
-
 
 # Use configuration file templates to generate configuration files
 CONFIGURE_TEST_FILE_TEMPLATES(${CMAKE_CURRENT_SOURCE_DIR}/data

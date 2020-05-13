@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,8 +24,12 @@
 
 #ifndef _WIN32
 #include <arpa/inet.h>
+#include <netinet/in.h>
 #include <sys/socket.h>
 #endif
+
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include "connection.h"
 #include "context.h"
@@ -35,9 +39,6 @@
 #include "socket_operations.h"
 #include "tcp_port_pool.h"
 #include "test/helpers.h"
-
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 using ::testing::_;
 using ::testing::DoAll;

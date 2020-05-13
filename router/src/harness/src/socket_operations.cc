@@ -41,6 +41,7 @@
 #include "mysql/harness/net_ts/impl/resolver.h"
 #include "mysql/harness/net_ts/impl/socket.h"
 #include "mysql/harness/net_ts/impl/socket_error.h"
+#include "mysql/harness/net_ts/internet.h"
 #include "mysql/harness/stdx/expected.h"
 
 namespace mysql_harness {
@@ -171,7 +172,6 @@ std::string SocketOperations::get_local_hostname() {
         " (error: " + std::to_string(res.error().value()) + ")");
   }
 #else
-  int family;
 
   std::unique_ptr<ifaddrs, decltype(&freeifaddrs)> iface_addrs(nullptr,
                                                                &freeifaddrs);
@@ -191,27 +191,47 @@ std::string SocketOperations::get_local_hostname() {
   stdx::expected<void, std::error_code> getnameinfo_res{};
   for (const auto *ifap = iface_addrs.get(); ifap != nullptr;
        ifap = ifap->ifa_next) {
+    // skip
+    // - loopback interface
+    // - interfaces that are down
     if ((ifap->ifa_addr == nullptr) || (ifap->ifa_flags & IFF_LOOPBACK) ||
         (!(ifap->ifa_flags & IFF_UP)))
       continue;
-    family = ifap->ifa_addr->sa_family;
-    if (family != AF_INET && family != AF_INET6) continue;
-    if (family == AF_INET6) {
-      struct sockaddr_in6 *sin6;
 
-      sin6 = (struct sockaddr_in6 *)ifap->ifa_addr;
-      if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr) ||
-          IN6_IS_ADDR_MC_LINKLOCAL(&sin6->sin6_addr))
-        continue;
-    }
+    const int family = ifap->ifa_addr->sa_family;
+
+    // skip non-IPv4|IPv6 addresses
+    if (family != AF_INET && family != AF_INET6) continue;
+
     const auto addrlen = static_cast<socklen_t>(
         (family == AF_INET) ? sizeof(struct sockaddr_in)
                             : sizeof(struct sockaddr_in6));
+
+    net::ip::tcp::endpoint ep;
+    if (addrlen > ep.capacity()) {
+      getnameinfo_res =
+          stdx::make_unexpected(make_error_code(std::errc::no_space_on_device));
+      continue;
+    }
+    std::memcpy(ep.data(), ifap->ifa_addr, addrlen);
+    ep.resize(addrlen);
+
+    // skip link-local and loopback addresses
+    if (ep.address().is_loopback()) {
+      continue;
+    } else if (ep.address().is_v6()) {
+      auto const &a_v6 = ep.address().to_v6();
+
+      if (a_v6.is_link_local() || a_v6.is_multicast_link_local()) {
+        continue;
+      }
+    }
 
     getnameinfo_res =
         net::impl::resolver::getnameinfo(ifap->ifa_addr, addrlen, &buf.front(),
                                          buf.size(), nullptr, 0, NI_NAMEREQD);
 
+    // in case the address could be resolved into a name, break.
     if (getnameinfo_res) break;
   }
 

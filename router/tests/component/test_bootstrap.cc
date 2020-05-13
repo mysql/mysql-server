@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,9 @@
 #include "keyring/keyring_manager.h"
 #include "mock_server_rest_client.h"
 #include "mock_server_testutils.h"
-#include "mysql/harness/networking/resolver.h"
+#include "mysql/harness/net_ts/impl/resolver.h"
+#include "mysql/harness/net_ts/internet.h"
+#include "mysql/harness/stdx/expected.h"
 #include "mysqld_error.h"
 #include "mysqlrouter/cluster_metadata.h"
 #include "random_generator.h"
@@ -55,9 +57,6 @@
 #include "socket_operations.h"
 #include "tcp_port_pool.h"
 #include "utils.h"
-
-using namespace std::chrono_literals;
-using namespace std::string_literals;
 
 /**
  * @file
@@ -1711,26 +1710,48 @@ class AccountReuseTestBase : public CommonBootstrapTest {
   static std::string get_local_hostname() {
     return mysql_harness::SocketOperations::instance()->get_local_hostname();
   }
-  static std::string get_local_ip(std::string local_hostname = "") {
-    if (local_hostname.empty()) {
-      local_hostname = get_local_hostname();
+
+  static stdx::expected<std::string, std::error_code> get_local_ipv4(
+      const std::string &local_hostname) {
+    addrinfo hints{};
+
+    hints.ai_socktype = SOCK_STREAM;
+    auto ai_res = net::impl::resolver::getaddrinfo(local_hostname.c_str(),
+                                                   "3306", &hints);
+    if (!ai_res) {
+      return stdx::make_unexpected(ai_res.error());
     }
 
-    mysql_harness::Resolver rs;
-    std::vector<mysql_harness::IPAddress> local_ips =
-        rs.hostname(local_hostname);
+    auto localhost_ip_res = net::ip::make_address("127.0.0.1");
+    if (!localhost_ip_res) {
+      return stdx::make_unexpected(localhost_ip_res.error());
+    }
 
-    // find local IPv4 that's not a loopback
-    std::string local_ip;
-    for (const auto &ip : local_ips) {
-      if (ip.is_ipv4() && ip.str() != "127.0.0.1") {
-        local_ip = ip.str();
-        break;
+    const auto localhost_ip = localhost_ip_res.value();
+
+    for (auto ai = ai_res.value().get(); ai != nullptr; ai = ai->ai_next) {
+      if (ai->ai_family != AF_INET && ai->ai_family != AF_INET6) continue;
+
+      net::ip::tcp::endpoint ep;
+
+      if (ai->ai_addrlen > ep.capacity()) {
+        return stdx::make_unexpected(
+            make_error_code(std::errc::no_space_on_device));
+      }
+      std::memcpy(ep.data(), ai->ai_addr, ai->ai_addrlen);
+      ep.resize(ai->ai_addrlen);
+
+      // get an IPv4 address that is not refering to 127.0.0.1.
+      //
+      // it may refer to another address on the loopback interface though like
+      // 127.0.1.1
+      if (ep.address().is_v4() && ep.address() != localhost_ip) {
+        return ep.address().to_string();
       }
     }
-    EXPECT_FALSE(local_ip.empty());
 
-    return local_ip;
+    return stdx::make_unexpected(
+        make_error_code(std::errc::no_such_file_or_directory));
   }
 
   static std::string dump(ProcessWrapper &router, ProcessWrapper &server_mock,
@@ -2649,7 +2670,11 @@ class AccountReuseCreateComboTestP
     const std::string D = kHostD_inDB;
 
     const std::string HOST = get_local_hostname();
-    const std::string IP = get_local_ip(HOST);
+    const auto local_ipv4_res = get_local_ipv4(HOST);
+    EXPECT_TRUE(local_ipv4_res)
+        << "for host " << HOST << ": " << local_ipv4_res.error() << " "
+        << local_ipv4_res.error().message();
+    const std::string IP = local_ipv4_res.value_or("");
 
     const std::string kColonUser = kAccountUser + ":" + kAccountUserPassword;
 

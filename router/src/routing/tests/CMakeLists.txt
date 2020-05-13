@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -126,6 +126,8 @@ TARGET_COMPILE_DEFINITIONS(${test_target}
 ROUTERTEST_GET_TARGET(test_target "test_routing.cc" ${TEST_MODULE})
 TARGET_COMPILE_DEFINITIONS(${test_target}
   PRIVATE -Dmysql_protocol_DEFINE_STATIC=1)
+TARGET_LINK_LIBRARIES(${test_target}
+  harness_net_ts)
 
 ROUTERTEST_GET_TARGET(test_target "test_x_protocol.cc" ${TEST_MODULE})
 TARGET_COMPILE_DEFINITIONS(${test_target}
