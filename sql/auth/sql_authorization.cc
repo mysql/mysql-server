@@ -1970,8 +1970,13 @@ bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *all_tables) {
 
 bool check_single_table_access(THD *thd, ulong privilege,
                                TABLE_LIST *all_tables, bool no_errors) {
-  if (all_tables->is_internal()) {
-    // Optimizer internal tables does not need any privilege checking.
+  /*
+    Optimizer internal tables and the DD tables used under the
+    INFORMATION_SCHEMA system views does not need any privilege checking.
+  */
+  if (all_tables->is_internal() ||
+      (all_tables->referencing_view &&
+       all_tables->referencing_view->is_system_view)) {
     all_tables->set_privileges(privilege);
     return false;
   }
