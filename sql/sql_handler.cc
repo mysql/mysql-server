@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -513,8 +513,8 @@ bool Sql_cmd_handler_read::execute(THD *thd)
   offset_limit_cnt= unit->offset_limit_cnt;
 
   select_lex->context.resolve_in_table_list_only(tables);
-  list.push_front(new Item_field(&select_lex->context,
-                                 NULL, NULL, "*"));
+  list.push_front(new Item_asterisk(&select_lex->context,
+                                    NULL, NULL));
   List_iterator<Item> it(list);
   it++;
 

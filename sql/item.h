@@ -1,7 +1,7 @@
 #ifndef ITEM_INCLUDED
 #define ITEM_INCLUDED
 
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3042,6 +3042,61 @@ public:
   }
 
   bool repoint_const_outer_ref(uchar *arg);
+
+
+  /**
+    Checks if the current object represents an asterisk select list item
+
+    @returns false if a regular column reference, true if an asterisk
+             select list item.
+  */
+  virtual bool is_asterisk() const { return false; }
+};
+
+/**
+  Represents [schema.][table.]* in a select list
+
+  Item_asterisk is used to insert placeholder objects for the special
+  select list item * (asterisk) into AST.
+  Those placeholder objects are to be substituted later with e.g. a list of real
+  table columns by a resolver (@see setup_wild).
+
+  @todo The parent class Item_field is redundant. Refactor setup_wild() to
+        replace Item_field with a simpler one.
+*/
+class Item_asterisk : public Item_field
+{
+  typedef Item_field super;
+
+public:
+  /**
+    Constructor
+
+    @param context_arg          Name resolution context.
+    @param opt_schema_name      Schema name or NULL.
+    @param opt_table_name       Table name or NULL.
+  */
+
+  Item_asterisk(Name_resolution_context *context_arg,
+                const char *opt_schema_name, const char *opt_table_name);
+
+  /**
+    Constructor
+
+    @param pos                  Location of the * (asterisk) lexeme.
+    @param opt_schema_name      Schema name or NULL.
+    @param opt_table_name       Table name or NULL.
+  */
+  Item_asterisk(const POS &pos, const char *opt_schema_name,
+                const char *opt_table_name)
+      : super(pos, opt_schema_name, opt_table_name, "*") {}
+
+  virtual bool itemize(Parse_context *pc, Item **res);
+  virtual bool fix_fields(THD *, Item **) {
+    DBUG_ASSERT(false);  // should never happen: see setup_wild()
+    return true;
+  }
+  virtual bool is_asterisk() const { return true; }
 };
 
 class Item_null :public Item_basic_constant

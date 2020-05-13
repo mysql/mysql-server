@@ -2748,9 +2748,6 @@ bool Item_field::itemize(Parse_context *pc, Item **res)
   if (select->parsing_place != CTX_HAVING)
     select->select_n_where_fields++;
 
-  if (select->parsing_place == CTX_SELECT_LIST &&
-      field_name && field_name[0] == '*' && field_name[1] == 0)
-    select->with_wild++;
   return false;
 }
 
@@ -11017,5 +11014,28 @@ bool Item_field::repoint_const_outer_ref(uchar *arg)
   if (*is_outer_ref)
     result_field= field;
   *is_outer_ref= false;
+  return false;
+}
+
+
+Item_asterisk::Item_asterisk(Name_resolution_context *context_arg,
+                             const char *opt_schema_name,
+                             const char *opt_table_name)
+    : super(context_arg, opt_schema_name, opt_table_name, "*")
+{
+  context_arg->select_lex->with_wild++;
+}
+
+
+bool Item_asterisk::itemize(Parse_context *pc, Item **res)
+{
+  DBUG_ASSERT(pc->select->parsing_place == CTX_SELECT_LIST);
+
+  if (skip_itemize(res))
+    return false;
+  if (super::itemize(pc, res))
+    return true;
+
+  pc->select->with_wild++;
   return false;
 }
