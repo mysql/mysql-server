@@ -330,6 +330,96 @@ MACRO(ADD_INSTALL_RPATH_FOR_OPENSSL TARGET)
   ENDIF()
 ENDMACRO()
 
+# See macro ADD_INSTALL_RPATH_FOR_PROTOBUF
+MACRO(MYSQL_CHECK_PROTOBUF_DLLS)
+  IF(APPLE AND WITH_PROTOBUF STREQUAL "bundled")
+    ADD_CUSTOM_TARGET(symlink_protobuf_dlls)
+    ADD_CUSTOM_TARGET(link_protobuf_dlls_bin ALL
+      COMMAND ${CMAKE_COMMAND} -E create_symlink
+      "../lib/$<TARGET_FILE_NAME:libprotobuf>" "$<TARGET_FILE_NAME:libprotobuf>"
+      COMMAND ${CMAKE_COMMAND} -E create_symlink
+      "../lib/$<TARGET_FILE_NAME:libprotobuf-lite>" "$<TARGET_FILE_NAME:libprotobuf-lite>"
+      WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/runtime_output_directory"
+
+      BYPRODUCTS
+      "${CMAKE_BINARY_DIR}/runtime_output_directory/$<TARGET_FILE_NAME:libprotobuf>"
+      "${CMAKE_BINARY_DIR}/runtime_output_directory/$<TARGET_FILE_NAME:libprotobuf-lite>"
+      )
+    ADD_DEPENDENCIES(symlink_protobuf_dlls link_protobuf_dlls_bin)
+    ADD_CUSTOM_TARGET(link_protobuf_dlls_plugin ALL
+      COMMAND ${CMAKE_COMMAND} -E create_symlink
+      "../lib/$<TARGET_FILE_NAME:libprotobuf>" "$<TARGET_FILE_NAME:libprotobuf>"
+      COMMAND ${CMAKE_COMMAND} -E create_symlink
+      "../lib/$<TARGET_FILE_NAME:libprotobuf-lite>" "$<TARGET_FILE_NAME:libprotobuf-lite>"
+      WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/plugin_output_directory"
+
+      BYPRODUCTS
+      "${CMAKE_BINARY_DIR}/plugin_output_directory/$<TARGET_FILE_NAME:libprotobuf>"
+      "${CMAKE_BINARY_DIR}/plugin_output_directory/$<TARGET_FILE_NAME:libprotobuf-lite>"
+      )
+    ADD_DEPENDENCIES(symlink_protobuf_dlls link_protobuf_dlls_plugin)
+    # INSTALL the symlinks
+    INSTALL(FILES
+      "${CMAKE_BINARY_DIR}/runtime_output_directory/$<TARGET_FILE_NAME:libprotobuf>"
+      "${CMAKE_BINARY_DIR}/runtime_output_directory/$<TARGET_FILE_NAME:libprotobuf-lite>"
+      DESTINATION ${INSTALL_BINDIR} COMPONENT SharedLibraries
+      )
+    # Directory layout after 'make install' is different.
+    # Create some symlinks from lib/plugin/*.dylib to ../../lib/*.dylib
+    FILE(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/plugin_output_directory/plugin")
+    ADD_CUSTOM_TARGET(link_protobuf_dlls_plugin_install ALL
+      COMMAND ${CMAKE_COMMAND} -E create_symlink
+      "../../lib/$<TARGET_FILE_NAME:libprotobuf>" "$<TARGET_FILE_NAME:libprotobuf>"
+      COMMAND ${CMAKE_COMMAND} -E create_symlink
+      "../../lib/$<TARGET_FILE_NAME:libprotobuf-lite>" "$<TARGET_FILE_NAME:libprotobuf-lite>"
+      WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/plugin_output_directory/plugin"
+      )
+    INSTALL(FILES
+      "${CMAKE_BINARY_DIR}/plugin_output_directory/plugin/$<TARGET_FILE_NAME:libprotobuf>"
+      "${CMAKE_BINARY_DIR}/plugin_output_directory/plugin/$<TARGET_FILE_NAME:libprotobuf-lite>"
+      DESTINATION ${INSTALL_PLUGINDIR} COMPONENT SharedLibraries
+      )
+    IF(EXISTS ${DEBUGBUILDDIR})
+      FILE(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/plugin_output_directory/plugin/debug")
+      ADD_CUSTOM_TARGET(link_protobuf_dlls_plugin_install_debug ALL
+        COMMAND ${CMAKE_COMMAND} -E create_symlink
+        "../../../lib/$<TARGET_FILE_NAME:libprotobuf>" "$<TARGET_FILE_NAME:libprotobuf>"
+        COMMAND ${CMAKE_COMMAND} -E create_symlink
+        "../../../lib/$<TARGET_FILE_NAME:libprotobuf-lite>" "$<TARGET_FILE_NAME:libprotobuf-lite>"
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/plugin_output_directory/plugin/debug"
+        )
+      ADD_DEPENDENCIES(symlink_protobuf_dlls link_protobuf_dlls_plugin_install_debug)
+      INSTALL(FILES
+        "${CMAKE_BINARY_DIR}/plugin_output_directory/plugin/debug/$<TARGET_FILE_NAME:libprotobuf>"
+        "${CMAKE_BINARY_DIR}/plugin_output_directory/plugin/debug/$<TARGET_FILE_NAME:libprotobuf-lite>"
+        DESTINATION ${INSTALL_PLUGINDIR}/debug COMPONENT SharedLibraries
+        )
+    ENDIF()
+    IF(NOT BUILD_IS_SINGLE_CONFIG)
+      ADD_CUSTOM_TARGET(link_protobuf_dlls_plugin_xcode ALL
+        COMMAND ${CMAKE_COMMAND} -E create_symlink
+        "../../lib/${CMAKE_CFG_INTDIR}/$<TARGET_FILE_NAME:libprotobuf>"
+        "$<TARGET_FILE_NAME:libprotobuf>"
+        COMMAND ${CMAKE_COMMAND} -E create_symlink
+        "../../lib/${CMAKE_CFG_INTDIR}/$<TARGET_FILE_NAME:libprotobuf-lite>"
+        "$<TARGET_FILE_NAME:libprotobuf-lite>"
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/plugin_output_directory/${CMAKE_CFG_INTDIR}"
+        )
+      ADD_DEPENDENCIES(symlink_protobuf_dlls link_protobuf_dlls_plugin_xcode)
+      ADD_CUSTOM_TARGET(link_protobuf_dlls_bin_xcode ALL
+        COMMAND ${CMAKE_COMMAND} -E create_symlink
+        "../../lib/${CMAKE_CFG_INTDIR}/$<TARGET_FILE_NAME:libprotobuf>"
+        "$<TARGET_FILE_NAME:libprotobuf>"
+        COMMAND ${CMAKE_COMMAND} -E create_symlink
+        "../../lib/${CMAKE_CFG_INTDIR}/$<TARGET_FILE_NAME:libprotobuf-lite>"
+        "$<TARGET_FILE_NAME:libprotobuf-lite>"
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}"
+        )
+      ADD_DEPENDENCIES(symlink_protobuf_dlls link_protobuf_dlls_bin_xcode)
+    ENDIF()
+  ENDIF()
+ENDMACRO()
+
 # For APPLE: set INSTALL_RPATH, and adjust path dependecy for libprotobuf.
 # Use 'otool -L' to inspect results.
 # For UNIX: extend INSTALL_RPATH with libprotobuf location.
@@ -337,20 +427,26 @@ MACRO(ADD_INSTALL_RPATH_FOR_PROTOBUF TARGET)
   IF(APPLE)
     SET_PROPERTY(TARGET ${TARGET} PROPERTY INSTALL_RPATH "@loader_path")
     # install_name_tool [-change old new] input
-    # Changing it to @loader_path/../lib/ works in build sandbox
-    # because we have a symlink to ./library_output_directory.
+
     ADD_CUSTOM_COMMAND(TARGET ${TARGET} POST_BUILD
       COMMAND install_name_tool -change
-      "@rpath/$<TARGET_FILE_NAME:libprotobuf-lite>"
-      "@loader_path/../lib/$<TARGET_FILE_NAME:libprotobuf-lite>"
-      "$<TARGET_FILE:${TARGET}>"
+          "@rpath/$<TARGET_FILE_NAME:libprotobuf-lite>"
+          "@loader_path/$<TARGET_FILE_NAME:libprotobuf-lite>"
+          "$<TARGET_FILE:${TARGET}>"
       COMMAND install_name_tool -change
-      "@rpath/$<TARGET_FILE_NAME:libprotobuf>"
-      "@loader_path/../lib/$<TARGET_FILE_NAME:libprotobuf>"
-      "$<TARGET_FILE:${TARGET}>"
+          "@rpath/$<TARGET_FILE_NAME:libprotobuf>"
+          "@loader_path/$<TARGET_FILE_NAME:libprotobuf>"
+          "$<TARGET_FILE:${TARGET}>"
       )
   ELSEIF(UNIX)
-    ADD_INSTALL_RPATH(${TARGET} "\$ORIGIN/../${INSTALL_PRIV_LIBDIR}")
+    GET_TARGET_PROPERTY(TARGET_TYPE_${TARGET} ${TARGET} TYPE)
+    IF(TARGET_TYPE_${TARGET} STREQUAL "EXECUTABLE")
+      ADD_INSTALL_RPATH(${TARGET} "\$ORIGIN/../${INSTALL_PRIV_LIBDIR}")
+    ELSEIF(TARGET_TYPE_${TARGET} STREQUAL "MODULE_LIBRARY")
+      ADD_INSTALL_RPATH(${TARGET} "\$ORIGIN/../private")
+    ELSE()
+      MESSAGE(FATAL_ERROR "unknown type ${TARGET_TYPE_${TARGET}} for ${TARGET}")
+    ENDIF()
   ENDIF()
 ENDMACRO()
 

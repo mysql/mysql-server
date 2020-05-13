@@ -1366,6 +1366,7 @@ MYSQL_CHECK_ICU()
 # Add protoc and libprotobuf
 IF(NOT WITHOUT_SERVER)
   MYSQL_CHECK_PROTOBUF()
+  MYSQL_CHECK_PROTOBUF_DLLS()
 ENDIF()
 # Try and set CURL_LIBRARY
 MYSQL_CHECK_CURL()
@@ -1427,6 +1428,16 @@ IF(WITH_PROTOBUF STREQUAL "bundled")
   # INSTALL_RPATH must be set for all binaries linking with libprotobuf.
   SET(UNIX_INSTALL_RPATH_ORIGIN_PRIV_LIBDIR 1)
   ADD_SUBDIRECTORY(extra/protobuf)
+  IF(NOT APPLE AND NOT WIN32)
+    # Debug versions of plugins may be installed to <root>/lib/plugin/debug
+    FOREACH(LINK_FLAG
+        CMAKE_MODULE_LINKER_FLAGS_DEBUG
+        CMAKE_SHARED_LINKER_FLAGS_DEBUG
+        )
+      STRING_APPEND(${LINK_FLAG} " -Wl,-rpath,'\$ORIGIN/../../private'")
+      MESSAGE(STATUS "${LINK_FLAG} ${${LINK_FLAG}}")
+    ENDFOREACH()
+  ENDIF()
 ENDIF()
 
 #

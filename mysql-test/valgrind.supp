@@ -1147,6 +1147,16 @@
 }
 
 {
+   General protobuf globals
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:_Znwm
+   ...
+   fun:_ZN6google8protobuf8internal11InitSCCImplEPNS1_11SCCInfoBaseE
+   fun:_ZN6google8protobuf8internal7InitSCCEPNS1_11SCCInfoBaseE
+}
+
+{
    mysqlx plugin install
    Memcheck:Leak
    fun:*alloc

@@ -220,8 +220,6 @@ int Module_mysqlx::deinitialize(MYSQL_PLUGIN) {
 
   xpl::plugin_handle = nullptr;
 
-  google::protobuf::ShutdownProtobufLibrary();
-
   return 0;
 }
 
