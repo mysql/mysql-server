@@ -409,7 +409,7 @@ using select_ctor_base =
                    ? member_policy::copy
                    : member_policy::none) |
               (and_<or_<std::is_void<T>, std::is_move_constructible<T>>,
-                    or_<std::is_void<T>, std::is_move_constructible<E>>>::value
+                    or_<std::is_void<E>, std::is_move_constructible<E>>>::value
                    ? member_policy::move
                    : member_policy::none)>;
 
