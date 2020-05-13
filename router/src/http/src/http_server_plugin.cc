@@ -57,6 +57,7 @@
 #include "http_auth.h"
 #include "http_server_plugin.h"
 #include "mysqlrouter/http_auth_realm_component.h"
+#include "mysqlrouter/http_common.h"
 #include "mysqlrouter/http_server_component.h"
 #include "mysqlrouter/plugin_config.h"
 #include "posix_re.h"
@@ -131,6 +132,33 @@ void HttpRequestRouter::route(HttpRequest req) {
   std::lock_guard<std::mutex> lock(route_mtx_);
 
   auto uri = req.get_uri();
+
+  // CONNECT can't be routed to the request handlers as it doesn't have a "path"
+  // part.
+  //
+  // If the client Accepts "application/problem+json", send it a RFC7807 error
+  // otherwise a classic text/html one.
+  if (req.get_method() == HttpMethod::Connect) {
+    const char *hdr_accept = req.get_input_headers().get("Accept");
+    if (hdr_accept &&
+        std::string(hdr_accept).find("application/problem+json") !=
+            std::string::npos) {
+      req.get_output_headers().add("Content-Type", "application/problem+json");
+      auto buffers = req.get_output_buffer();
+      std::string json_problem(R"({
+  "title": "Method Not Allowed",
+  "status": 405
+})");
+      buffers.add(json_problem.data(), json_problem.size());
+      int status_code = HttpStatusCode::MethodNotAllowed;
+      req.send_reply(status_code,
+                     HttpStatusCode::get_default_status_text(status_code),
+                     buffers);
+    } else {
+      req.send_error(HttpStatusCode::MethodNotAllowed);
+    }
+    return;
+  }
 
   for (auto &request_handler : request_handlers_) {
     if (request_handler.url_regex.search(uri.get_path())) {
