@@ -291,7 +291,6 @@ do_malloc(Uint32 pages,
           Uint32 *watchCounter,
           void * baseaddress)
 {
-  pages += 1;
   void * ptr = 0;
   Uint32 sz = pages;
 
@@ -353,7 +352,7 @@ retry:
       if (watchCounter)
         *watchCounter = 9;
 
-      ptr = malloc(sizeof(Alloc_page) * sz);
+      ptr = NdbMem_AlignedAlloc(sizeof(Alloc_page), sizeof(Alloc_page) * sz);
       if (UintPtr(ptr) < UintPtr(baseaddress))
       {
         ndbout_c("malloc(%lluMb) => %p which is less than baseaddress!!",
@@ -387,6 +386,12 @@ retry:
   chunk->m_cnt = sz;
   chunk->m_ptr = (Alloc_page*)ptr;
   const UintPtr align = sizeof(Alloc_page) - 1;
+  /*
+   * Ensure aligned to 32KB boundary.
+   * Unsure why that is needed.
+   * NdbMem_PopulateSpace() in ndbd_alloc_touch_mem() need system page
+   * alignment, typically 4KB or 8KB.
+   */
   if (UintPtr(ptr) & align)
   {
     chunk->m_cnt--;
