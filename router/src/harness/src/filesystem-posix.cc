@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -239,13 +239,10 @@ void Directory::DirectoryIterator::State::fill_result() {
 // be here since the automatically generated default
 // constructor/destructor uses the definition of the class 'State',
 // which is not available when the header file is read.
-Directory::DirectoryIterator::~DirectoryIterator() {}
+Directory::DirectoryIterator::~DirectoryIterator() = default;
 Directory::DirectoryIterator::DirectoryIterator(DirectoryIterator &&) = default;
-Directory::DirectoryIterator::DirectoryIterator(const DirectoryIterator &other)
-    : DirectoryIteratorBase(other),
-      path_(other.path_),
-      pattern_(other.pattern_),
-      state_(other.state_) {}
+Directory::DirectoryIterator::DirectoryIterator(const DirectoryIterator &) =
+    default;
 
 Directory::DirectoryIterator::DirectoryIterator()
     : path_("*END*"), state_(std::make_shared<State>()) {}

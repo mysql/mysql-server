@@ -319,12 +319,16 @@ class HARNESS_EXPORT Directory : public Path {
    *
    * A directory iterator is an input iterator.
    */
-  using DirectoryIteratorBase = std::iterator<std::input_iterator_tag, Path>;
-
-  class HARNESS_EXPORT DirectoryIterator : public DirectoryIteratorBase {
+  class HARNESS_EXPORT DirectoryIterator {
     friend class Directory;
 
    public:
+    using value_type = Path;
+    using iterator_category = std::input_iterator_tag;
+    using difference_type = std::ptrdiff_t;
+    using pointer = value_type *;
+    using reference = value_type &;
+
     DirectoryIterator(const Path &path,
                       const std::string &pattern = std::string());
 
