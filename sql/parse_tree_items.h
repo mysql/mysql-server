@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,23 +31,6 @@
 #include "sp.h"                 // sp_check_name
 #include "sp_head.h"            // sp_head
 #include "sql_parse.h"          // negate_expression
-
-class PTI_table_wild : public Parse_tree_item
-{
-  typedef Parse_tree_item super;
-
-  const char *schema;
-  const char *table;
-
-public:
-  explicit PTI_table_wild(const POS &pos,
-                          const char *schema_arg, const char *table_arg)
-  : super(pos), schema(schema_arg), table(table_arg)
-  {}
-
-  virtual bool itemize(Parse_context *pc, Item **item);
-};
-
 
 class PTI_negate_expression : public Parse_tree_item
 {
