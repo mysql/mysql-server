@@ -4197,12 +4197,9 @@ bool Item_func_json_value::resolve_type(THD *) {
               !args[3]->maybe_null);
 
   // JSON_VALUE can return NULL if its first argument is nullable, or if NULL
-  // ON EMPTY or NULL ON ERROR is specified or implied.
-  maybe_null = args[0]->maybe_null ||
-               (m_on_empty == Json_on_response_type::IMPLICIT ||
-                m_on_empty == Json_on_response_type::NULL_VALUE) ||
-               (m_on_error == Json_on_response_type::IMPLICIT ||
-                m_on_error == Json_on_response_type::NULL_VALUE);
+  // ON EMPTY or NULL ON ERROR is specified or implied, or if the extracted JSON
+  // value is the JSON null literal.
+  maybe_null = true;
   return false;
 }
 
@@ -4561,6 +4558,16 @@ bool Item_func_json_value::extract_json_value(
 
     if (v.size() == 1) {
       *json = std::move(v[0]);
+      if (json->type() == enum_json_type::J_NULL) {
+        /*
+          SQL:2016 : following the rule of JSON_VALUE we come to:
+          9.36 Parsing JSON text GenRule 3-a-iii-3-A-III
+          then to
+          9.40 Casting an SQL/JSON sequence to an SQL type GenRule 4-b-ii,
+          So, JSON null literal -> SQL/JSON null -> SQL NULL.
+        */
+        null_value = true;
+      }
       return false;
     }
 
