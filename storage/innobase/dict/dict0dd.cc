@@ -375,6 +375,11 @@ int dd_table_open_on_dd_obj(dd::cache::Dictionary_client *client,
 
       if (dd_part == nullptr) {
         table = dd_open_table(client, &td, tab_namep, &dd_table, thd);
+
+        if (table == nullptr) {
+          error = HA_ERR_GENERIC;
+        }
+
       } else {
         table = dd_open_table(client, &td, tab_namep, dd_part, thd);
       }
@@ -862,11 +867,12 @@ bool dd_table_discard_tablespace(THD *thd, const dict_table_t *table,
 @param[in]	name		InnoDB table name
 @param[in]	dict_locked	has dict_sys mutex locked
 @param[in]	ignore_err	whether to ignore err
+@param[out]	error		pointer to error
 @return handle to non-partitioned table
 @retval NULL if the table does not exist */
 dict_table_t *dd_table_open_on_name(THD *thd, MDL_ticket **mdl,
                                     const char *name, bool dict_locked,
-                                    ulint ignore_err) {
+                                    ulint ignore_err, int *error) {
   DBUG_TRACE;
 
 #ifdef UNIV_DEBUG
@@ -977,7 +983,11 @@ dict_table_t *dd_table_open_on_name(THD *thd, MDL_ticket **mdl,
       }
     } else {
       ut_ad(dd_table->leaf_partitions().empty());
-      dd_table_open_on_dd_obj(client, *dd_table, nullptr, name, table, thd);
+      int err =
+          dd_table_open_on_dd_obj(client, *dd_table, nullptr, name, table, thd);
+      if (error) {
+        *error = err;
+      }
     }
   }
 
@@ -1348,8 +1358,14 @@ static bool format_validate(THD *thd, const TABLE *form, row_type real_type,
     dberr_t err = Compression::check(algorithm, &compression);
 
     if (err == DB_UNSUPPORTED) {
-      my_error(ER_WRONG_VALUE, MYF(0), "COMPRESSION", algorithm);
-      invalid = true;
+      if (strict) {
+        my_error(ER_WRONG_VALUE, MYF(0), "COMPRESSION", algorithm);
+        invalid = true;
+      } else {
+        push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_VALUE,
+                            ER_DEFAULT(ER_WRONG_VALUE), "COMPRESSION",
+                            algorithm);
+      }
     } else if (compression.m_type != Compression::NONE) {
       if (*zip_ssize != 0) {
         if (strict) {

@@ -3832,9 +3832,14 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
     /* If it's called from server, then it should exist in cache */
     if (table == nullptr) {
       /* MDL should already be held by server */
+      int error = 0;
       table = dd_table_open_on_name(
           thd, nullptr, name, true,
-          DICT_ERR_IGNORE_INDEX_ROOT | DICT_ERR_IGNORE_CORRUPT);
+          DICT_ERR_IGNORE_INDEX_ROOT | DICT_ERR_IGNORE_CORRUPT, &error);
+      if (table == nullptr && error == HA_ERR_GENERIC) {
+        err = DB_ERROR;
+        goto funct_exit;
+      }
     } else {
       table->acquire();
     }
