@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -10914,6 +10914,17 @@ ER_EMPTY_PRIVILEGE_NAME_IGNORED
 ER_IB_MSG_TRX_RECOVERY_ROLLBACK_NOT_COMPLETED
   eng "Rollback of non-prepared transactions not completed, due to fast shutdown"
 
+ER_AUTHCACHE_ROLE_EDGES_IGNORED_EMPTY_NAME
+  eng "Found an entry in the 'role_edges' table with empty authorization ID; Skipped"
+
+ER_AUTHCACHE_ROLE_EDGES_UNKNOWN_AUTHORIZATION_ID
+  eng "Found an entry in the 'role_edges' table with unknown authorization ID '%s'; Skipped"
+
+ER_AUTHCACHE_DEFAULT_ROLES_IGNORED_EMPTY_NAME
+  eng "Found an entry in the 'default_roles' table with empty authorization ID; Skipped"
+
+ER_AUTHCACHE_DEFAULT_ROLES_UNKNOWN_AUTHORIZATION_ID
+  eng "Found an entry in the 'default_roles' table with unknown authorization ID '%s'; Skipped"
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

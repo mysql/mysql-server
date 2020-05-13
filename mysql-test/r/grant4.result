@@ -132,7 +132,9 @@ USE test;
 call mtr.add_suppression("The plugin .* used to authenticate user .* is not loaded. Nobody can currently login using this account");
 call mtr.add_suppression("User entry .* has an empty plugin value. The user will be ignored and no one can login with this user anymore.");
 call mtr.add_suppression("Some of the user accounts with SUPER privileges were disabled because of empty mysql.user.plugin value.");
+call mtr.add_suppression("Found an entry in the 'role_edges' table with unknown authorization ID '`r3`@`%`'");
 CREATE TEMPORARY TABLE save_user AS SELECT * FROM mysql.user;
+CREATE TEMPORARY TABLE save_role_edges AS SELECT * FROM mysql.role_edges;
 # Test
 INSERT INTO mysql.user(user,plugin,ssl_cipher,x509_issuer,x509_subject) VALUES ('foo','bar','','',''),('bar','bar','','',''),('baz','bar','','','');
 CREATE ROLE r1,r2,r3;
@@ -144,9 +146,10 @@ UPDATE mysql.user SET plugin='';
 CREATE USER plug IDENTIFIED WITH 'server';
 ERROR HY000: Plugin 'server' is not loaded
 # Cleanup
-REVOKE r3 FROM r2;
 DELETE FROM mysql.user;
 INSERT INTO mysql.user SELECT * FROM save_user;
+DELETE FROM mysql.role_edges;
+INSERT INTO mysql.role_edges SELECT * FROM save_role_edges;
 FLUSH PRIVILEGES;
 #
 # Bug#29395197 REVOKE ALLOWS INCORRECT VALUES
