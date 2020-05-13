@@ -29,6 +29,7 @@
 #else
 #include <stdlib.h> // aligned_alloc or posix_memalign
 #include <sys/mman.h>
+#include <unistd.h> // sysconf
 #endif
 
 #include <NdbMem.h>
@@ -278,5 +279,16 @@ void NdbMem_AlignedFree(void* p)
   void** qp = (void**)p;
   p = qp[-1];
   free(p);
+#endif
+}
+
+size_t NdbMem_GetSystemPageSize()
+{
+#ifndef _WIN32
+  return (size_t) sysconf(_SC_PAGESIZE);
+#else
+  SYSTEM_INFO si;
+  GetSystemInfo(&si);
+  return si.dwPageSize;
 #endif
 }

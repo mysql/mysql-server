@@ -44,7 +44,6 @@ extern void do_refresh_watch_dog(Uint32 place);
 
 #define TOUCH_PARALLELISM 8
 #define MIN_START_THREAD_SIZE (128 * 1024 * 1024)
-#define TOUCH_PAGE_SIZE 4096
 #define NUM_PAGES_BETWEEN_WATCHDOG_SETS 32768
 
 struct AllocTouchMem
@@ -74,6 +73,8 @@ touch_mem(void* arg)
   unsigned char *p = (unsigned char *)touch_mem_ptr->p;
   size_t num_pages_per_thread = 1;
   size_t first_page;
+
+  const size_t TOUCH_PAGE_SIZE = NdbMem_GetSystemPageSize();
   size_t tot_pages = (sz + (TOUCH_PAGE_SIZE - 1)) / TOUCH_PAGE_SIZE;
 
   if (tot_pages > TOUCH_PARALLELISM)
@@ -102,7 +103,7 @@ touch_mem(void* arg)
        ptr += NUM_PAGES_BETWEEN_WATCHDOG_SETS * TOUCH_PAGE_SIZE)
   {
     const size_t size = std::min(end - ptr,
-        ptrdiff_t{NUM_PAGES_BETWEEN_WATCHDOG_SETS * TOUCH_PAGE_SIZE});
+        ptrdiff_t(NUM_PAGES_BETWEEN_WATCHDOG_SETS * TOUCH_PAGE_SIZE));
 
     NdbMem_PopulateSpace(ptr, size);
     *(touch_mem_ptr->watchCounter) = 9;

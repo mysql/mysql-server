@@ -65,6 +65,8 @@ int NdbMem_FreeSpace(void* ptr, size_t len);
 void* NdbMem_AlignedAlloc(size_t alignment, size_t size);
 void NdbMem_AlignedFree(void* p);
 
+size_t NdbMem_GetSystemPageSize();
+
 #ifdef	__cplusplus
 }
 #endif
