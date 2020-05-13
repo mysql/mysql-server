@@ -302,7 +302,7 @@ bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst) {
         continue;
       }
 
-      ACL_USER *acl_user = find_acl_user(host, user, true);
+      acl_user = find_acl_user(host, user, true);
       if (acl_user == nullptr) {
         Auth_id_ref auth_id =
             create_authid_from(to_lex_cstring(user), to_lex_cstring(host));
