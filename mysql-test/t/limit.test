@@ -368,25 +368,25 @@ DROP TABLE t1;
 # Storing that (with type cast) into a ha_rows data type is undefined behavior.
 # Thus 'zero' ended up being stored (or possibly just left unassigned)
 
-CREATE TABLE A (
+CREATE TABLE a (
   col_int int,
   col_varchar_255 varchar(255),
   pk integer auto_increment  primary key
 ) ENGINE=myisam;
 
-CREATE TABLE B (
+CREATE TABLE b (
   col_varchar_10 varchar(10),
   pk integer primary key
 ) ENGINE=myisam;
 
 let $query=
-SELECT STRAIGHT_JOIN A.pk
-FROM A
-  JOIN B ON A.col_varchar_255 = B.col_varchar_10
-WHERE B.pk <= A.col_int
-ORDER BY A.pk LIMIT 10;
+SELECT STRAIGHT_JOIN a.pk
+FROM a
+  JOIN b ON a.col_varchar_255 = b.col_varchar_10
+WHERE b.pk <= a.col_int
+ORDER BY a.pk LIMIT 10;
 
-INSERT INTO A(col_int,col_varchar_255) VALUES (0,""),(1,"");
+INSERT INTO a(col_int,col_varchar_255) VALUES (0,""),(1,"");
 
 ##############################
 # Independent of whether there are more or less rows in table A than the
@@ -395,22 +395,22 @@ INSERT INTO A(col_int,col_varchar_255) VALUES (0,""),(1,"");
 
 eval explain format=tree $query;
 
-INSERT INTO A(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM A;
-INSERT INTO A(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM A;
-INSERT INTO A(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM A;
-INSERT INTO A(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM A;
-INSERT INTO A(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM A;
-INSERT INTO A(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM A;
-INSERT INTO A(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM A;
-INSERT INTO A(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM A;
-INSERT INTO A(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM A;
-INSERT INTO A(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM A;
-INSERT INTO A(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM A;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
+INSERT INTO a(col_int,col_varchar_255) SELECT col_int,col_varchar_255 FROM a;
 
 #################################
 # Table A now contains 4096 rows, still all rows should be read.
 
 eval explain format=tree $query;
 
-DROP TABLE A;
-DROP TABLE B;
+DROP TABLE a;
+DROP TABLE b;
