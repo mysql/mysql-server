@@ -6162,7 +6162,7 @@ static mysql_state_machine_status csm_complete_connect(
 
   /* Get version info */
   mysql->protocol_version = PROTOCOL_VERSION; /* Assume this */
-  if (mysql->options.connect_timeout &&
+  if (mysql->options.connect_timeout && !ctx->non_blocking &&
       (vio_io_wait(net->vio, VIO_IO_EVENT_READ,
                    get_vio_connect_timeout(mysql)) < 1)) {
     set_mysql_extended_error(mysql, CR_SERVER_LOST, unknown_sqlstate,
