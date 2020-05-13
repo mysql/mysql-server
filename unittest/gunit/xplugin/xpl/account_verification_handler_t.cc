@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -140,6 +140,42 @@ TEST_F(User_verification_test, dont_match_anything_when_hash_isnt_right) {
 
   EXPECT_EQ(
       ER_ACCESS_DENIED_ERROR,
+      handler.verify_account(USER_NAME, USER_IP, EXPECTED_HASH, &m_auth_info)
+          .error);
+}
+
+TEST_F(User_verification_test,
+       everything_matches_and_hash_is_right_and_autocommit_off) {
+  One_row_resultset data{NOT REQUIRE_SECURE_TRANSPORT,
+                         EXPECTED_HASH,
+                         AUTH_PLUGIN_NAME,
+                         NOT ACCOUNT_LOCKED,
+                         NOT PASSWORD_EXPIRED,
+                         NOT DISCONNECT_ON_EXPIRED_PASSWORD,
+                         NOT OFFLINE_MODE,
+                         EMPTY,
+                         EMPTY,
+                         EMPTY,
+                         EMPTY};
+  data.set_server_status(SERVER_STATUS_IN_TRANS);
+
+  EXPECT_CALL(mock_sql_data_context, execute(_, _, _))
+      .WillRepeatedly(DoAll(SetUpResultset(data), Return(ngs::Success())));
+
+  const std::string k_commit = "commit";
+  EXPECT_CALL(mock_sql_data_context,
+              execute(k_commit.data(), k_commit.length(), _))
+      .WillRepeatedly(Return(ngs::Success()));
+
+  EXPECT_CALL(mock_client, connection())
+      .WillRepeatedly(ReturnRef(mock_connection));
+
+  EXPECT_CALL(*mock_account_verification,
+              verify_authentication_string(_, _, _, _))
+      .WillOnce(Return(true));
+
+  EXPECT_EQ(
+      ER_SUCCESS,
       handler.verify_account(USER_NAME, USER_IP, EXPECTED_HASH, &m_auth_info)
           .error);
 }

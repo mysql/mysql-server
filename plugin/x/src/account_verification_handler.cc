@@ -196,6 +196,9 @@ ngs::Error_code Account_verification_handler::get_account_record(
              &record.user_required.ssl_x509_issuer,
              &record.user_required.ssl_x509_subject);
 
+  if (result.is_server_status_set(SERVER_STATUS_IN_TRANS))
+    result.query("COMMIT");
+
   return ngs::Success();
 } catch (const ngs::Error_code &e) {
   return e;
@@ -224,7 +227,7 @@ ngs::PFS_string Account_verification_handler::get_sql(
         "@@disconnect_on_expired_password as "
         "`disconnect_on_expired_password`, "
         "@@offline_mode and (`Super_priv`='N') as "
-        "`is_offline_mode_and_not_super_user`,"
+        "`is_offline_mode_and_not_super_user`, "
         "`ssl_type`, `ssl_cipher`, `x509_issuer`, `x509_subject` "
         "FROM mysql.user WHERE ")
       .quote_string(user)
