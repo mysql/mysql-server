@@ -9,6 +9,7 @@
 # *************************************************************************
 --source include/have_innodb_16k.inc
 --source include/not_valgrind.inc
+--source include/not_ndb.inc
 --source include/linux.inc
 --source include/not_windows.inc
 # Added below inc file due to Bug#22740362
