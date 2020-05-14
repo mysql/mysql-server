@@ -244,8 +244,7 @@ class Latches {
   friend class Global_exclusive_try_latch;
   friend class Global_shared_latch_guard;
   friend class Shard_naked_latch_guard;
-  friend class Shard_latch_guard;
-  friend class Shard_latches_guard;
+  friend class Shard_naked_latches_guard;
 
   /** You should not use this functionality in new code.
   Instead use Global_exclusive_latch_guard.
