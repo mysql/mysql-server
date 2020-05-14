@@ -193,11 +193,6 @@ FLUSH PRIVILEGES;
 
 --exec $MYSQL_PUMP --include-databases=db1 --log-error-file=$MYSQLTEST_VARDIR/log/bug27096081.log > $MYSQLTEST_VARDIR/tmp/bug27096081.sql
 
---let SEARCH_FILE= $MYSQLTEST_VARDIR/log/bug27096081.log
---let SEARCH_PATTERN= \[NOTE\] \(1449\) The user specified as a definer \('u1'@'%'\) does not exist
---source include/search_pattern_in_file.inc
---remove_file $SEARCH_FILE
-
 --error 23, 42, 169, 1449
 --exec $MYSQL_PUMP --include-databases=db2 --log-error-file=$MYSQLTEST_VARDIR/log/bug27096081.log > $MYSQLTEST_VARDIR/tmp/bug27096081.sql
 
