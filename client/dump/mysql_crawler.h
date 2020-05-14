@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -43,6 +43,7 @@
 #include "client/dump/table.h"
 #include "client/dump/tables_definition_ready_dump_task.h"
 #include "my_inttypes.h"
+#include "mysqldump_tool_chain_maker_options.h"
 
 namespace Mysql {
 namespace Tools {
@@ -54,12 +55,14 @@ namespace Dump {
 class Mysql_crawler : public Abstract_crawler,
                       public Abstract_mysql_chain_element_extension {
  public:
-  Mysql_crawler(I_connection_provider *connection_provider,
-                std::function<bool(const Mysql::Tools::Base::Message_data &)>
-                    *message_handler,
-                Simple_id_generator *object_id_generator,
-                Mysql_chain_element_options *options,
-                Mysql::Tools::Base::Abstract_program *program);
+  Mysql_crawler(
+      I_connection_provider *connection_provider,
+      std::function<bool(const Mysql::Tools::Base::Message_data &)>
+          *message_handler,
+      Simple_id_generator *object_id_generator,
+      Mysql_chain_element_options *options,
+      Mysqldump_tool_chain_maker_options *m_mysqldump_tool_cmaker_options,
+      Mysql::Tools::Base::Abstract_program *program);
   /**
     Enumerates all objects it can access, gets chains from all registered
     chain_maker for each object and then execute each chain.
@@ -99,6 +102,8 @@ class Mysql_crawler : public Abstract_crawler,
   void enumerate_event_scheduler_events(const Database &db);
 
   void enumerate_users();
+
+  Mysqldump_tool_chain_maker_options *m_mysqldump_tool_cmaker_options;
 
   /**
     Rewrite statement, enclosing it with version specific comment and with

@@ -610,7 +610,7 @@ CREATE TABLE t (i INT);
 INSERT INTO t VALUES (9), (0);
 DROP DATABASE bug26694675;
 check for warnings
-Pattern "mysqlpump: \[WARNING\]" found
+Pattern "mysqlpump: \[WARNING\]" not found
 #
 # Bug#26116415 TABLESPACE CLAUSE CONFUSES MYSQLPUMP
 #
