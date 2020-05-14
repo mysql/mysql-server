@@ -1523,6 +1523,94 @@ count(*)
 999
 count(*)
 999
+========================================================
+Bug#31343524: 'Job buffer full' reintroduced by WL#10234
+Even a non-bushy query could fail due to this.
+========================================================
+update parent set b = 1;
+==========================================
+Run multiple 'non_bushy_query' in parallel
+==========================================
+select straight_join count(*) from parent
+left join eq_child as c on c.a = parent.b and c.b = parent.b
+;
+select straight_join count(*) from parent
+left join eq_child as c on c.a = parent.b and c.b = parent.b
+;
+select straight_join count(*) from parent
+left join eq_child as c on c.a = parent.b and c.b = parent.b
+;
+Await completion or failure
+count(*)
+8192
+count(*)
+8192
+count(*)
+8192
+=========================================
+Run multiple 'query1' (bushy) in parallel
+=========================================
+select straight_join count(*) from parent
+left join eq_child as c1 on c1.a = parent.b and c1.b = parent.b
+left join eq_child as c2 on c2.a = parent.b and c2.b = parent.b
+left join eq_child as c3 on c3.a = parent.b and c3.b = parent.b
+left join eq_child as c4 on c4.a = parent.b and c4.b = parent.b
+left join eq_child as c5 on c5.a = parent.b and c5.b = parent.b
+left join eq_child as c6 on c6.a = parent.b and c6.b = parent.b
+left join eq_child as c7 on c7.a = parent.b and c7.b = parent.b
+left join eq_child as c8 on c8.a = parent.b and c8.b = parent.b
+left join eq_child as c9 on c9.a = parent.b and c9.b = parent.b
+left join eq_child as c10 on c10.a = parent.b and c10.b = parent.b
+left join eq_child as c11 on c11.a = parent.b and c11.b = parent.b
+left join eq_child as c12 on c12.a = parent.b and c12.b = parent.b
+left join eq_child as c13 on c13.a = parent.b and c13.b = parent.b
+left join eq_child as c14 on c14.a = parent.b and c14.b = parent.b
+left join eq_child as c15 on c15.a = parent.b and c15.b = parent.b
+left join eq_child as c16 on c16.a = parent.b and c16.b = parent.b
+;
+select straight_join count(*) from parent
+left join eq_child as c1 on c1.a = parent.b and c1.b = parent.b
+left join eq_child as c2 on c2.a = parent.b and c2.b = parent.b
+left join eq_child as c3 on c3.a = parent.b and c3.b = parent.b
+left join eq_child as c4 on c4.a = parent.b and c4.b = parent.b
+left join eq_child as c5 on c5.a = parent.b and c5.b = parent.b
+left join eq_child as c6 on c6.a = parent.b and c6.b = parent.b
+left join eq_child as c7 on c7.a = parent.b and c7.b = parent.b
+left join eq_child as c8 on c8.a = parent.b and c8.b = parent.b
+left join eq_child as c9 on c9.a = parent.b and c9.b = parent.b
+left join eq_child as c10 on c10.a = parent.b and c10.b = parent.b
+left join eq_child as c11 on c11.a = parent.b and c11.b = parent.b
+left join eq_child as c12 on c12.a = parent.b and c12.b = parent.b
+left join eq_child as c13 on c13.a = parent.b and c13.b = parent.b
+left join eq_child as c14 on c14.a = parent.b and c14.b = parent.b
+left join eq_child as c15 on c15.a = parent.b and c15.b = parent.b
+left join eq_child as c16 on c16.a = parent.b and c16.b = parent.b
+;
+select straight_join count(*) from parent
+left join eq_child as c1 on c1.a = parent.b and c1.b = parent.b
+left join eq_child as c2 on c2.a = parent.b and c2.b = parent.b
+left join eq_child as c3 on c3.a = parent.b and c3.b = parent.b
+left join eq_child as c4 on c4.a = parent.b and c4.b = parent.b
+left join eq_child as c5 on c5.a = parent.b and c5.b = parent.b
+left join eq_child as c6 on c6.a = parent.b and c6.b = parent.b
+left join eq_child as c7 on c7.a = parent.b and c7.b = parent.b
+left join eq_child as c8 on c8.a = parent.b and c8.b = parent.b
+left join eq_child as c9 on c9.a = parent.b and c9.b = parent.b
+left join eq_child as c10 on c10.a = parent.b and c10.b = parent.b
+left join eq_child as c11 on c11.a = parent.b and c11.b = parent.b
+left join eq_child as c12 on c12.a = parent.b and c12.b = parent.b
+left join eq_child as c13 on c13.a = parent.b and c13.b = parent.b
+left join eq_child as c14 on c14.a = parent.b and c14.b = parent.b
+left join eq_child as c15 on c15.a = parent.b and c15.b = parent.b
+left join eq_child as c16 on c16.a = parent.b and c16.b = parent.b
+;
+Await completion or failure
+count(*)
+8192
+count(*)
+8192
+count(*)
+8192
 drop table parent, eq_child, ref_child;
 Sending dump signal with data:
 0x000003e9 0x00000000 

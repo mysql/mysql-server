@@ -483,7 +483,78 @@ reap;
 connection j3;
 reap;
 
+#
+# Bug#31343524: SPJ QUERIES HIT 'JOB BUFFER FULL' WHILE PROCESSING LQHKEYCONF
+#
+# It turned out that WL#10234 'Use multiple fragments in SCAN_FRAGREQ to SPJ'
+# reintroduced the possibility to hit 'job buffer full' during SPJ execution.
+# Root cause for this was that the effective batchSize was multiplied by
+# the 'multiple fragment' factor from this WL. Thus effectively allowing
+# the SPJ-workers internal batchsize to grow to 4096 rows
+# (limited by maxCorrelationId). Thus, even a non-bushy scan-lookup query
+# could send upto 4096 LQHKEYREQ's. A few such queries in parallel could
+# then easily saturate the job buffers if signaling isn't limited.
+#
 
+-- echo ========================================================
+-- echo Bug#31343524: 'Job buffer full' reintroduced by WL#10234
+-- echo Even a non-bushy query could fail due to this.
+-- echo ========================================================
+
+let $non_bushy_query =
+ select straight_join count(*) from parent
+ left join eq_child as c on c.a = parent.b and c.b = parent.b
+;
+
+# As all joins are 'on c.a = parent.b and c.b = parent.b', setting parent.b
+# to a fixed value will cause all child-lookups KEYREQ's to the same child.
+# Thus increasing the chance for hitting a job buffer congestion.
+update parent set b = 1;
+
+-- echo ==========================================
+-- echo Run multiple 'non_bushy_query' in parallel
+-- echo ==========================================
+let $query = $non_bushy_query;
+
+connection j1;
+send_eval $query;
+connection j2;
+send_eval $query;
+connection j3;
+send_eval $query;
+
+-- echo Await completion or failure
+connection j1;
+reap;
+connection j2;
+reap;
+connection j3;
+reap;
+
+
+# If the above passed, also test the full 'bushy' query1:
+# (With modified parent data relative to previous test)
+
+-- echo =========================================
+-- echo Run multiple 'query1' (bushy) in parallel
+-- echo =========================================
+
+let $query = $query1;
+
+connection j1;
+send_eval $query;
+connection j2;
+send_eval $query;
+connection j3;
+send_eval $query;
+
+-- echo Await completion or failure
+connection j1;
+reap;
+connection j2;
+reap;
+connection j3;
+reap;
 
 connection ddl;
 drop table parent, eq_child, ref_child;
