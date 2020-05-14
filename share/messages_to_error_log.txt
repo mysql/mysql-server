@@ -10910,6 +10910,10 @@ ER_AUTHCACHE_DEFAULT_ROLES_IGNORED_EMPTY_NAME
 
 ER_AUTHCACHE_DEFAULT_ROLES_UNKNOWN_AUTHORIZATION_ID
   eng "Found an entry in the 'default_roles' table with unknown authorization ID '%s'; Skipped"
+
+ER_IB_ERR_DDL_LOG_INSERT_FAILURE
+  eng "Couldn't insert entry in ddl log for ddl."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

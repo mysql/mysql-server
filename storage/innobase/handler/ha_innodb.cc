@@ -15017,6 +15017,8 @@ static int innobase_alter_encrypt_tablespace(handlerton *hton, THD *thd,
 
   /* Get the transaction associated with the current thd */
   trx = check_trx_exists(thd);
+  innobase_register_trx(hton, thd, trx);
+
   trx_start_if_not_started(trx, true);
 
   /* Make an entry in DDL LOG for this tablespace. */
