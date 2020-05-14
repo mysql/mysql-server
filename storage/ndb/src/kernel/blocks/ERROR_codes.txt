@@ -1,4 +1,4 @@
-# Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -30,7 +30,7 @@ Next DBDICT 6223
 Next DBDIH 7249
 Next DBTC 8115
 Next CMVMI 9000
-Next BACKUP 10043
+Next BACKUP 10054
 Next PGMAN 11010
 Next DBTUX 12010
 Next SUMA 13054
@@ -636,6 +636,11 @@ Backup Stuff:
 10042: Change #records and #bytes backed up to a value > 2^32 to test
        NDB_LE_BackupCompleted prints the 64-bit value out correctly
        without truncating it to 32 bit values.
+10051: Get duplicate replies to DEFINE_BACKUP_REQ by crashing non-master node
+       after receiving DEFINE_BACKUP_CONF. Also delay DEFINE_BACKUP_CONF from
+       master so that master waits to receive the duplicate REF
+10052: Same as 10051 for START_BACKUP_REQ
+10053: Same as 10051 for STOP_BACKUP_REQ
 
 11001: Send UTIL_SEQUENCE_REF (in master)
 
