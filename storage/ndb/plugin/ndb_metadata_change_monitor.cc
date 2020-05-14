@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -123,7 +123,7 @@ bool Ndb_metadata_change_monitor::detect_logfile_group_changes(
     return false;
   }
 
-  for (const auto logfile_group_name : lfg_in_NDB) {
+  for (const auto &logfile_group_name : lfg_in_NDB) {
     if (lfg_in_DD.find(logfile_group_name) == lfg_in_DD.end()) {
       // Exists in NDB but not in DD
       std::vector<std::string> undofile_names;
@@ -154,7 +154,7 @@ bool Ndb_metadata_change_monitor::detect_logfile_group_changes(
     }
   }
 
-  for (const auto logfile_group_name : lfg_in_DD) {
+  for (const auto &logfile_group_name : lfg_in_DD) {
     // Exists in DD but not in NDB
     if (ndbcluster_binlog_check_logfile_group_async(logfile_group_name)) {
       increment_metadata_detected_count();
@@ -187,7 +187,7 @@ bool Ndb_metadata_change_monitor::detect_tablespace_changes(
     return false;
   }
 
-  for (const auto tablespace_name : tablespaces_in_NDB) {
+  for (const auto &tablespace_name : tablespaces_in_NDB) {
     if (tablespaces_in_DD.find(tablespace_name) == tablespaces_in_DD.end()) {
       // Exists in NDB but not in DD
       std::vector<std::string> datafile_names;
@@ -217,7 +217,7 @@ bool Ndb_metadata_change_monitor::detect_tablespace_changes(
     }
   }
 
-  for (const auto tablespace_name : tablespaces_in_DD) {
+  for (const auto &tablespace_name : tablespaces_in_DD) {
     // Exists in DD but not in NDB
     if (ndbcluster_binlog_check_tablespace_async(tablespace_name)) {
       increment_metadata_detected_count();
@@ -289,7 +289,7 @@ bool Ndb_metadata_change_monitor::detect_table_changes_in_schema(
   // Special case when all NDB tables belonging to a schema still exist in DD
   // but not in NDB
   if (ndb_tables_in_NDB.empty() && !ndb_tables_in_DD.empty()) {
-    for (const auto ndb_table_name : ndb_tables_in_DD) {
+    for (const auto &ndb_table_name : ndb_tables_in_DD) {
       // Exists in DD but not in NDB
       if (ndbcluster_binlog_check_table_async(schema_name, ndb_table_name)) {
         increment_metadata_detected_count();
@@ -305,7 +305,7 @@ bool Ndb_metadata_change_monitor::detect_table_changes_in_schema(
   // not in DD (as either NDB or shadow tables)
   if (!ndb_tables_in_NDB.empty() && ndb_tables_in_DD.empty() &&
       local_tables_in_DD.empty()) {
-    for (const auto ndb_table_name : ndb_tables_in_NDB) {
+    for (const auto &ndb_table_name : ndb_tables_in_NDB) {
       // Exists in NDB but not in DD
       if (ndbcluster_binlog_check_table_async(schema_name, ndb_table_name)) {
         increment_metadata_detected_count();
@@ -317,7 +317,7 @@ bool Ndb_metadata_change_monitor::detect_table_changes_in_schema(
     return true;
   }
 
-  for (const auto ndb_table_name : ndb_tables_in_NDB) {
+  for (const auto &ndb_table_name : ndb_tables_in_NDB) {
     if (ndb_tables_in_DD.find(ndb_table_name) == ndb_tables_in_DD.end() &&
         local_tables_in_DD.find(ndb_table_name) == local_tables_in_DD.end()) {
       // Exists in NDB but not in DD
@@ -333,7 +333,7 @@ bool Ndb_metadata_change_monitor::detect_table_changes_in_schema(
     }
   }
 
-  for (const auto ndb_table_name : ndb_tables_in_DD) {
+  for (const auto &ndb_table_name : ndb_tables_in_DD) {
     // Exists in DD but not in NDB
     if (ndbcluster_binlog_check_table_async(schema_name, ndb_table_name)) {
       increment_metadata_detected_count();
