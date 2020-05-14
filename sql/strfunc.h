@@ -186,4 +186,15 @@ inline LEX_STRING_TYPE LexStringDupRootUnlessEmpty(MEM_ROOT *mem_root,
   return s.length == 0 ? LEX_CSTRING{"", 0} : LexStringDupRoot(mem_root, s);
 }
 
+/**
+  Utility function for collating (using strnncoll) two LEX_STRING_TYPEs.
+  Saves the boiler plate and casting needed when calling the function directly.
+*/
+template <class LEX_STRING_TYPE>
+inline int strnncmp_nopads(const CHARSET_INFO &cs, LEX_STRING_TYPE &&a,
+                           LEX_STRING_TYPE &&b) {
+  return cs.coll->strnncoll(
+      &cs, pointer_cast<const unsigned char *>(a.str), a.length,
+      pointer_cast<const unsigned char *>(b.str), b.length, false);
+}
 #endif /* STRFUNC_INCLUDED */

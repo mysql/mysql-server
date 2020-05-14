@@ -6134,8 +6134,7 @@ static int init_server_components() {
     unireg_abort(MYSQLD_ABORT_EXIT);
 
   if (!opt_initialize && !opt_noacl) {
-    std::string disabled_se_str(opt_disabled_storage_engines);
-    ha_set_normalized_disabled_se_str(disabled_se_str);
+    set_externally_disabled_storage_engine_names(opt_disabled_storage_engines);
 
     // Log warning if default_storage_engine is a disabled storage engine.
     handlerton *default_se_handle =

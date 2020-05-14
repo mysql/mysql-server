@@ -424,3 +424,28 @@ FROM
 	v0,
 	v0 AS v1
 	NATURAL JOIN v0 AS v2;
+
+--echo #
+--echo # Bug#29899151: CORE AT CREATE TABLE WITH FK FOR TABLE TRANSFERRED
+--echo # FROM MYISAM TO INNODB
+--echo #
+
+--echo # Verify that default_tmp_storage_engine is substituted and works
+--echo # when the source storage engine of LIKE does not support
+--echo # temporary tables.
+CREATE TEMPORARY TABLE tt1(c1 INT);
+SHOW CREATE TABLE tt1;
+DROP TABLE tt1;
+
+CREATE TEMPORARY TABLE tt1 LIKE performance_schema.setup_consumers;
+SHOW CREATE TABLE tt1;
+DROP TABLE tt1;
+
+SET default_tmp_storage_engine=MYISAM;
+CREATE TEMPORARY TABLE tt1(c1 INT);
+SHOW CREATE TABLE tt1;
+DROP TABLE tt1;
+
+CREATE TEMPORARY TABLE tt1 LIKE performance_schema.setup_consumers;
+SHOW CREATE TABLE tt1;
+DROP TABLE tt1;
