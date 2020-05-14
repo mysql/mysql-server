@@ -129,6 +129,10 @@ cmd: testBackup
 args: -n ConsistencyUnderLoadStallGCP T1
 max-time: 1200
 
+cmd: testSystemRestart
+args : -n LaggardShutdown T1
+max-time : 240
+
 cmd: test_event
 args: -n checkParallelTriggerDropReqHandling T1
 max-time: 120
