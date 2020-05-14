@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -84,6 +84,8 @@ void Dbdih::initData()
   c_handled_master_take_over_copy_gci = 0;
   
   c_lcpTabDefWritesControl.init(MAX_CONCURRENT_LCP_TAB_DEF_FLUSHES);
+
+  c_shutdownReqNodes.clear();
 }//Dbdih::initData()
 
 void Dbdih::initRecords()

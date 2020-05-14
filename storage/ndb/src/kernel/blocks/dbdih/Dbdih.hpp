@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1799,6 +1799,11 @@ private:
      */
     Uint32 waitGCI;
 
+    /**
+     * Special value indicating a request for shutdown sync
+     */
+    static const Uint32 ShutdownSyncGci = 0xffffffff;
+
     union { Uint32 nextPool; Uint32 nextList; };
     Uint32 prevList;
   };
@@ -1820,8 +1825,13 @@ private:
 
   void checkWaitGCPProxy(Signal*, NodeId failedNodeId);
   void checkWaitGCPMaster(Signal*, NodeId failedNodeId);
+  void checkShutdownSync();
   void emptyWaitGCPMasterQueue(Signal*, Uint64, WaitGCPList&);
-  
+
+  void getNodeBitmap(NdbNodeBitmask& map,
+                     Uint32 listHead,
+                     int (*versionFunction) (Uint32));
+
   /**
    * Stop me
    */
@@ -1977,6 +1987,8 @@ private:
 
   bool handle_master_take_over_copy_gci(Signal *signal,
                                         NodeId newMasterNodeId);
+
+  NdbNodeBitmask c_shutdownReqNodes;
 };
 
 #if (DIH_CDATA_SIZE < _SYSFILE_SIZE32)

@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -61,4 +61,8 @@ max-time: 360
 cmd: testBackup
 args: -n ConsistencyUnderLoadStallGCP T1
 max-time: 1200
+
+cmd: testSystemRestart
+args : -n LaggardShutdown T1
+max-time : 240
 
