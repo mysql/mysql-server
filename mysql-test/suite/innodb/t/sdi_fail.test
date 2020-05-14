@@ -7,6 +7,7 @@
 --disable_query_log
 call mtr.add_suppression("sdi_delete failed: tablespace_id:");
 call mtr.add_suppression("Cannot save table statistics for table");
+call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] \\[[^]]*\\] Couldn't insert entry in ddl log for ddl.");
 --enable_query_log
 
 create table t1(c1 int primary key, c2 char(1), c3 int unsigned);
@@ -14,7 +15,7 @@ show create table t1;
 
 SET DEBUG='+d,ib_create_table_fail_too_many_trx';
 
---error ER_SDI_OPERATION_FAILED,
+--error ER_TOO_MANY_CONCURRENT_TRXS
 ALTER TABLE t1 ADD INDEX (c2), ADD INDEX (c3);
 
 SET DEBUG='-d,ib_create_table_fail_too_many_trx';
