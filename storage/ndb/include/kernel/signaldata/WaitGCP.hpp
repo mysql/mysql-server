@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,8 @@ public:
     BlockStartGcp     = 9,
     UnblockStartGcp   = 10,
     WaitEpoch         = 11, // If GCP is blocked, wait for epoch to not start
-    RestartGCI        = 12  // Return restart GCI
+    RestartGCI        = 12, // Return restart GCI
+    ShutdownSync      = 13  // System-wide shutdown synchronisation
   };
 
   Uint32 senderRef;

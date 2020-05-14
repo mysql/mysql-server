@@ -1,4 +1,4 @@
-# Copyright (c) 2003, 2020, Oracle and/or its affiliates.
+# Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -21,7 +21,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 Next QMGR 950
-Next NDBCNTR 1006
+Next NDBCNTR 1023
 Next NDBFS 2002
 Next DBACC 3005
 Next DBTUP 4039
@@ -815,6 +815,12 @@ NDBCNTR:
 
 1000: Crash insertion on SystemError::CopyFragRef
 1001: Delay sending NODE_FAILREP (to own node), until error is cleared
+
+1022 : Increase system shutdown TC timeout by 5 seconds
+1023 : Increase system shutdown TC timeout by 5 seconds
+       Fail node rather than send WAIT_GCP_REQ
+1024 : Increase system shutdown TC timeout by 5 seconds
+       Fail master node concurrent with sending WAIT_GCP_REQ
 
 SUMA:
 13036: Simulate report MISSING_DATA at node failure
