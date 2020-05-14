@@ -33,6 +33,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cstring>
+#include <functional>
 #include <memory>
 #include <new>
 #include <string>
@@ -178,6 +179,219 @@ using std::min;
   ((thd) ? ER_THD_NONCONST(thd, X) : ER_DEFAULT_NONCONST(X))
 
 const char *primary_key_name = "PRIMARY";
+namespace {
+bool is_temp_table(const HA_CREATE_INFO &ci) {
+  return (ci.options & HA_LEX_CREATE_TMP_TABLE);
+}
+
+bool is_engine_specified(const HA_CREATE_INFO &ci) {
+  DBUG_ASSERT((ci.used_fields & HA_CREATE_USED_ENGINE) == 0 ||
+              ci.db_type != nullptr);
+  return (ci.used_fields & HA_CREATE_USED_ENGINE);
+}
+
+handlerton *default_handlerton(THD *thd, const HA_CREATE_INFO &ci) {
+  return is_temp_table(ci) ? ha_default_temp_handlerton(thd)
+                           : ha_default_handlerton(thd);
+}
+
+handlerton *requested_handlerton(THD *thd, const HA_CREATE_INFO &ci) {
+  return is_engine_specified(ci) ? ci.db_type : default_handlerton(thd, ci);
+}
+
+struct Handlerton_pair {
+  handlerton *requested;
+  handlerton *alternate;
+};
+
+using Viability_error_emitter = std::function<void(const char *engine_name)>;
+using Viability_substitution_warning_emitter = std::function<void(
+    THD *, const char *requested_engine_name,
+    const char *substituted_engine_name, const char *table_name)>;
+
+struct Viability {
+  bool value{true};
+  Viability_error_emitter emit_error;
+  Viability_substitution_warning_emitter emit_substitution_warning;
+  Viability() = default;
+  Viability(Viability_error_emitter &&error_emitter,
+            Viability_substitution_warning_emitter &&warning_emitter)
+      : value{false},
+        emit_error{std::move(error_emitter)},
+        emit_substitution_warning{std::move(warning_emitter)} {
+    DBUG_ASSERT(emit_error);
+    DBUG_ASSERT(emit_substitution_warning);
+  }
+};
+
+Viability get_viability(const handlerton &hton, const HA_CREATE_INFO &ci) {
+  DBUG_TRACE;
+  if (ha_is_externally_disabled(hton)) {
+    return {[](const char *en) {
+              my_error(ER_DISABLED_STORAGE_ENGINE, MYF(0), en);
+            },
+            [](THD *t, const char *ren, const char *sen, const char *tn) {
+              push_warning_printf(t, Sql_condition::SL_WARNING,
+                                  ER_DISABLED_STORAGE_ENGINE,
+                                  ER_THD(t, ER_DISABLED_STORAGE_ENGINE), ren);
+              push_warning_printf(
+                  t, Sql_condition::SL_WARNING, ER_WARN_USING_OTHER_HANDLER,
+                  ER_THD(t, ER_WARN_USING_OTHER_HANDLER), sen, tn);
+            }};
+  }
+  if (is_temp_table(ci) &&
+      ha_check_storage_engine_flag(&hton, HTON_TEMPORARY_NOT_SUPPORTED)) {
+    return {
+        [](const char *en) {
+          my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0), en, "TEMPORARY");
+        },
+        [](THD *, const char *, const char *,
+           const char *) { /* Nothing, no warning emitted in this case */ }};
+  }
+  return {};
+}
+
+handlerton *get_viable_handlerton_for_create_impl(THD *thd,
+                                                  const char *table_name,
+                                                  const HA_CREATE_INFO &ci,
+                                                  Handlerton_pair hp) {
+  DBUG_TRACE;
+  DBUG_ASSERT(hp.requested != nullptr);
+  auto viability = get_viability(*hp.requested, ci);
+  if (viability.value) {
+    return hp.requested;
+  }
+  DBUG_ASSERT(viability.emit_error);
+
+  const char *en = ha_resolve_storage_engine_name(hp.requested);
+  if (hp.alternate == nullptr) {
+    viability.emit_error(en);
+    return nullptr;
+  }
+  auto alt_viability = get_viability(*hp.alternate, ci);
+
+  const char *an = ha_resolve_storage_engine_name(hp.alternate);
+  if (!alt_viability.value) {
+    viability.emit_error(en);
+    return nullptr;
+  }
+  viability.emit_substitution_warning(thd, en, an, table_name);
+  return hp.alternate;
+}
+
+/**
+  Check if source is enabled AND NOT explicitly disabled (listed in the
+  disabled_storages_engines system variable.
+
+  If not; falls back to the default (tmp) storage engine if substitution
+  is allowed, unless this is also disabled.
+
+  Otherwise, if substitution does take place, ER_DISABLED_STORAGE_ENGINE and
+  ER_USING_OTHER_HANDLER are emitted as warnings.
+
+  For temporary tables the above also applies, and in addition the source
+  handlerton is checked to see if it supports temporary tables.
+
+  Note that this substitution is allowed even when no_substitution is ON, but
+  will fail if the default handlerton for temporary tables is disabled or does
+  not support temporary tables (unlikely).
+
+  @param thd        Thread handler.
+  @param table_name Table name.
+  @param ci         create info struct from parser.
+  @param source     Handlerton requested by query.
+
+  @retval source if this is viable.
+  @retval The default hton if viable and engine substitution is allowed.
+  @retval The default temp hton if viable and a temporary table and source
+          does not support temporary tables.
+  @retval nullptr if error (source not viable and substitution
+          not possible).
+*/
+handlerton *get_viable_handlerton_for_create_like(THD *thd,
+                                                  const char *table_name,
+                                                  const HA_CREATE_INFO &ci,
+                                                  handlerton *source) {
+  return get_viable_handlerton_for_create_impl(
+      thd, table_name, ci,
+      {source, is_engine_substitution_allowed(thd) || is_temp_table(ci)
+                   ? default_handlerton(thd, ci)
+                   : nullptr});
+}
+
+/**
+  Does nothing (returns existing) unless ALTER changes the ENGINE. The
+  handlerton for the specified ENGINE is considered viable if it is enabled AND
+  NOT explicitly disabled (listed in the disabled_storages_engines system
+  variable).
+
+  If the specified handleton is not viable it falls back to existing if
+  substitution is allowed. existing is used without further checking,
+  and ER_UNKNOWN_STORAGE_ENGINE is emitted as warning.
+
+  @param thd        Thread handler.
+  @param table_name Table name.
+  @param ci         create info struct from parser.
+  @param existing   Handlerton requested by query.
+
+  @retval existing if ENGINE is not specified or is the same as existing, or if
+         ENGINE is not viable and substitution is permitted.
+  @retval Handlerton of specified engine if this is viable.
+  @retval nullptr if error (specified engine not viable and substitution
+         not permitted).
+*/
+handlerton *get_viable_handlerton_for_alter(THD *thd, const HA_CREATE_INFO &ci,
+                                            handlerton *existing) {
+  DBUG_TRACE;
+  if (!is_engine_specified(ci) || ci.db_type == existing) return existing;
+
+  Handlerton_pair hp = {
+      ci.db_type, is_engine_substitution_allowed(thd) ? existing : nullptr};
+  DBUG_ASSERT(hp.requested != nullptr);
+  auto viability = get_viability(*hp.requested, ci);
+  if (viability.value) {
+    return hp.requested;
+  }
+  const char *en = ha_resolve_storage_engine_name(hp.requested);
+  if (hp.alternate == nullptr) {
+    viability.emit_error(en);
+    return nullptr;
+  }
+  push_warning_printf(thd, Sql_condition::SL_WARNING, ER_UNKNOWN_STORAGE_ENGINE,
+                      ER_THD(thd, ER_UNKNOWN_STORAGE_ENGINE), en);
+  return hp.alternate;
+}
+}  // namespace
+
+/**
+  Checks if the handlerton for the specified ENGINE is enabled AND NOT
+  explicitly disabled (listed in the disabled_storages_engines system
+  variable). In the case of temporary tables the handlerton must also support
+  those to be viable.
+
+  When returning a handlerton different from the one specified
+  ER_DISABLED_STORAGE_ENGINE and ER_USING_OTHER_HANDLER are emitted as
+  warnings.
+
+  @param thd         Thread handler.
+  @param table_name  Table name.
+  @param ci          create_info struct from parser.
+
+  @retval Handlerton for specified ENGINE if this is viable.
+  @retval The default (tmp) handlerton if viable and engine substitution is
+  allowed.
+  @retval nullptr if error (specified ENGINE not viable and substitution
+          not permitted).
+*/
+handlerton *get_viable_handlerton_for_create(THD *thd, const char *table_name,
+                                             const HA_CREATE_INFO &ci) {
+  return get_viable_handlerton_for_create_impl(
+      thd, table_name, ci,
+      {requested_handlerton(thd, ci),
+       (is_engine_specified(ci) && is_engine_substitution_allowed(thd))
+           ? default_handlerton(thd, ci)
+           : nullptr});
+}
 
 static bool check_if_keyname_exists(const char *name, KEY *start, KEY *end);
 static const char *make_unique_key_name(const char *field_name, KEY *start,
@@ -198,7 +412,7 @@ static int copy_data_between_tables(
 
 static bool prepare_blob_field(THD *thd, Create_field *sql_field,
                                bool convert_character_set);
-static bool check_engine(THD *thd, const char *db_name, const char *table_name,
+static bool check_engine(const char *db_name, const char *table_name,
                          HA_CREATE_INFO *create_info);
 
 static bool prepare_set_field(THD *thd, Create_field *sql_field);
@@ -8263,46 +8477,7 @@ static bool create_table_impl(
     return true;
   }
 
-  if (check_engine(thd, db, table_name, create_info)) return true;
-
-  // Check if new table creation is disallowed by the storage engine.
-  if (!internal_tmp_table &&
-      ha_is_storage_engine_disabled(create_info->db_type)) {
-    /*
-      If table creation is disabled for the engine then substitute the engine
-      for the table with the default engine only if sql mode
-      NO_ENGINE_SUBSTITUTION is disabled.
-    */
-    handlerton *new_engine = nullptr;
-    if (is_engine_substitution_allowed(thd))
-      new_engine = ha_default_handlerton(thd);
-
-    /*
-      Proceed with the engine substitution only if,
-      1. The disabled engine and the default engine are not the same.
-      2. The default engine is not in the disabled engines list.
-      else report an error.
-    */
-    if (new_engine && create_info->db_type &&
-        new_engine != create_info->db_type &&
-        !ha_is_storage_engine_disabled(new_engine)) {
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_DISABLED_STORAGE_ENGINE,
-                          ER_THD(thd, ER_DISABLED_STORAGE_ENGINE),
-                          ha_resolve_storage_engine_name(create_info->db_type));
-
-      create_info->db_type = new_engine;
-
-      push_warning_printf(
-          thd, Sql_condition::SL_WARNING, ER_WARN_USING_OTHER_HANDLER,
-          ER_THD(thd, ER_WARN_USING_OTHER_HANDLER),
-          ha_resolve_storage_engine_name(create_info->db_type), table_name);
-    } else {
-      my_error(ER_DISABLED_STORAGE_ENGINE, MYF(0),
-               ha_resolve_storage_engine_name(create_info->db_type));
-      return true;
-    }
-  }
+  if (check_engine(db, table_name, create_info)) return true;
 
   // Secondary engine cannot be defined for temporary tables.
   if (create_info->secondary_engine.str != nullptr &&
@@ -9523,6 +9698,12 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
   Foreign_key_parents_invalidator fk_invalidator;
   DBUG_TRACE;
 
+  handlerton *actual_hton = get_viable_handlerton_for_create(
+      thd, create_table->table_name, *create_info);
+  if (actual_hton == nullptr) return true;
+
+  create_info->db_type = actual_hton;
+
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   if (create_info->m_transactional_ddl) {
@@ -10261,7 +10442,13 @@ bool mysql_create_like_table(THD *thd, TABLE_LIST *table, TABLE_LIST *src_table,
 
   /* Fill HA_CREATE_INFO and Alter_info with description of source table. */
   HA_CREATE_INFO local_create_info;
-  local_create_info.db_type = src_table->table->s->db_type();
+  local_create_info.db_type = get_viable_handlerton_for_create_like(
+      thd, table->table_name, *create_info, src_table->table->s->db_type());
+  if (local_create_info.db_type == nullptr) return true;
+
+  // This should be ok even if engine substitution has taken place since
+  // row_type denontes the desired row_type, and a different row_type may be
+  // assigned to real_row_type later.
   local_create_info.row_type = src_table->table->s->row_type;
   if (mysql_prepare_alter_table(thd, src_table_obj, src_table->table,
                                 &local_create_info, &local_alter_info,
@@ -15622,30 +15809,16 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     return true;
   }
 
-  /*
-    Check if ALTER TABLE ... ENGINE is disallowed by the desired storage
-    engine.
-  */
   if (table_list->table->s->db_type() != create_info->db_type &&
       (alter_info->flags & Alter_info::ALTER_OPTIONS) &&
-      (create_info->used_fields & HA_CREATE_USED_ENGINE) &&
-      ha_is_storage_engine_disabled(create_info->db_type)) {
-    /*
-      If NO_ENGINE_SUBSTITUTION is disabled, then report a warning and do not
-      alter the table.
-    */
-    if (is_engine_substitution_allowed(thd)) {
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_UNKNOWN_STORAGE_ENGINE,
-                          ER_THD(thd, ER_UNKNOWN_STORAGE_ENGINE),
-                          ha_resolve_storage_engine_name(create_info->db_type));
-      create_info->db_type = table_list->table->s->db_type();
-    } else {
-      my_error(ER_DISABLED_STORAGE_ENGINE, MYF(0),
-               ha_resolve_storage_engine_name(create_info->db_type));
-      return true;
-    }
+      (create_info->used_fields & HA_CREATE_USED_ENGINE)) {
+    handlerton *actual_hton = get_viable_handlerton_for_alter(
+        thd, *create_info, table_list->table->s->db_type());
+    if (actual_hton == nullptr) return true;
+
+    create_info->db_type = actual_hton;
   }
+
   const handlerton *hton = create_info->db_type;
   if (hton == nullptr) {
     hton = table_list->table->s->db_type();
@@ -15795,7 +15968,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       create_info->db_type = table->s->db_type();
   }
 
-  if (check_engine(thd, alter_ctx.new_db, alter_ctx.new_name, create_info))
+  if (check_engine(alter_ctx.new_db, alter_ctx.new_name, create_info))
     return true;
 
   /*
@@ -18055,9 +18228,8 @@ err:
 
   Checks if the storage engine is enabled and supports the given table
   type (e.g. normal, temporary, system). May do engine substitution
-  if the requested engine is disabled.
+  if the requested engine does not support temporary tables.
 
-  @param thd          Thread descriptor.
   @param db_name      Database name.
   @param table_name   Name of table to be created.
   @param create_info  Create info from parser, including engine.
@@ -18065,32 +18237,10 @@ err:
   @retval true  Engine not available/supported, error has been reported.
   @retval false Engine available/supported.
 */
-static bool check_engine(THD *thd, const char *db_name, const char *table_name,
+static bool check_engine(const char *db_name, const char *table_name,
                          HA_CREATE_INFO *create_info) {
   DBUG_TRACE;
   handlerton **new_engine = &create_info->db_type;
-  handlerton *req_engine = *new_engine;
-  bool no_substitution = (!is_engine_substitution_allowed(thd));
-  if (!(*new_engine = ha_checktype(thd, ha_legacy_type(req_engine),
-                                   no_substitution, true)))
-    return true;
-
-  if (req_engine && req_engine != *new_engine) {
-    push_warning_printf(
-        thd, Sql_condition::SL_NOTE, ER_WARN_USING_OTHER_HANDLER,
-        ER_THD(thd, ER_WARN_USING_OTHER_HANDLER),
-        ha_resolve_storage_engine_name(*new_engine), table_name);
-  }
-  if (create_info->options & HA_LEX_CREATE_TMP_TABLE &&
-      ha_check_storage_engine_flag(*new_engine, HTON_TEMPORARY_NOT_SUPPORTED)) {
-    if (create_info->used_fields & HA_CREATE_USED_ENGINE) {
-      my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
-               ha_resolve_storage_engine_name(*new_engine), "TEMPORARY");
-      *new_engine = nullptr;
-      return true;
-    }
-    *new_engine = myisam_hton;
-  }
 
   /*
     Check, if the given table name is system table, and if the storage engine

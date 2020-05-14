@@ -36,10 +36,6 @@
 #include <stdlib.h>
 #include <algorithm>
 #include <atomic>
-#include <boost/algorithm/string/case_conv.hpp>
-#include <boost/foreach.hpp>
-#include <boost/token_functions.hpp>
-#include <boost/tokenizer.hpp>
 #include <cmath>
 #include <list>
 #include <random>  // std::uniform_real_distribution
@@ -119,6 +115,7 @@
 #include "sql/sql_plugin.h"  // plugin_foreach
 #include "sql/sql_select.h"  // actual_key_parts
 #include "sql/sql_table.h"   // build_table_filename
+#include "sql/strfunc.h"     // strnncmp_nopads
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/tc_log.h"
@@ -260,15 +257,19 @@ ulong total_ha_2pc = 0;
 /* size of savepoint storage area (see ha_init) */
 ulong savepoint_alloc_size = 0;
 
-static const LEX_CSTRING sys_table_aliases[] = {{STRING_WITH_LEN("INNOBASE")},
-                                                {STRING_WITH_LEN("INNODB")},
-                                                {STRING_WITH_LEN("NDB")},
-                                                {STRING_WITH_LEN("NDBCLUSTER")},
-                                                {STRING_WITH_LEN("HEAP")},
-                                                {STRING_WITH_LEN("MEMORY")},
-                                                {STRING_WITH_LEN("MERGE")},
-                                                {STRING_WITH_LEN("MRG_MYISAM")},
-                                                {NullS, 0}};
+namespace {
+struct Storage_engine_identifier {
+  const LEX_CSTRING canonical;
+  const LEX_CSTRING legacy;
+};
+const Storage_engine_identifier se_names[] = {
+    {{STRING_WITH_LEN("INNODB")}, {STRING_WITH_LEN("INNOBASE")}},
+    {{STRING_WITH_LEN("NDBCLUSTER")}, {STRING_WITH_LEN("NDB")}},
+    {{STRING_WITH_LEN("MEMORY")}, {STRING_WITH_LEN("HEAP")}},
+    {{STRING_WITH_LEN("MRG_MYISAM")}, {STRING_WITH_LEN("MERGE")}}};
+const auto se_names_end = std::end(se_names);
+std::vector<std::string> disabled_se_names;
+}  // namespace
 
 const char *ha_row_type[] = {"",
                              "FIXED",
@@ -381,31 +382,40 @@ plugin_ref ha_resolve_by_name_raw(THD *thd, const LEX_CSTRING &name) {
   return plugin_lock_by_name(thd, name, MYSQL_STORAGE_ENGINE_PLUGIN);
 }
 
-/** @brief
+static const CHARSET_INFO &hton_charset() { return *system_charset_info; }
+
+/**
   Return the storage engine handlerton for the supplied name
 
-  SYNOPSIS
-    ha_resolve_by_name(thd, name)
-    thd         current thread
-    name        name of storage engine
+  @param thd   current thread. May be nullptr, (e.g. during initialize).
+  @param name  name of storage engine
 
-  RETURN
-    pointer to storage engine plugin handle
+  @return pointer to storage engine plugin handle
 */
 plugin_ref ha_resolve_by_name(THD *thd, const LEX_CSTRING *name,
                               bool is_temp_table) {
-  const LEX_CSTRING *table_alias;
-  plugin_ref plugin;
-
-redo:
-  /* my_strnncoll is a macro and gcc doesn't do early expansion of macro */
-  if (thd && !my_charset_latin1.coll->strnncoll(
-                 &my_charset_latin1, (const uchar *)name->str, name->length,
-                 (const uchar *)STRING_WITH_LEN("DEFAULT"), false))
+  if (thd && 0 == strnncmp_nopads(hton_charset(), *name,
+                                  {STRING_WITH_LEN("DEFAULT")})) {
     return is_temp_table ? ha_default_plugin(thd) : ha_default_temp_plugin(thd);
+  }
 
-  LEX_CSTRING cstring_name = {name->str, name->length};
-  if ((plugin = ha_resolve_by_name_raw(thd, cstring_name))) {
+  // Note that thd CAN be nullptr here - it is not actually needed by
+  // ha_resolve_by_name_raw().
+  plugin_ref plugin = ha_resolve_by_name_raw(thd, *name);
+  if (plugin == nullptr) {
+    // If we fail to resolve the name passed in, we try to see if it is a
+    // historical alias.
+    auto match = std::find_if(
+        std::begin(se_names), se_names_end,
+        [&](const Storage_engine_identifier &sei) {
+          return (0 == strnncmp_nopads(hton_charset(), *name, sei.legacy));
+        });
+    if (match != se_names_end) {
+      // if it is, we resolve using the new name
+      plugin = ha_resolve_by_name_raw(thd, match->canonical);
+    }
+  }
+  if (plugin != nullptr) {
     handlerton *hton = plugin_data<handlerton *>(plugin);
     if (hton && !(hton->flags & HTON_NOT_USER_SELECTABLE)) return plugin;
 
@@ -414,60 +424,73 @@ redo:
     */
     plugin_unlock(thd, plugin);
   }
-
-  /*
-    We check for the historical aliases.
-  */
-  for (table_alias = sys_table_aliases; table_alias->str; table_alias += 2) {
-    if (!my_strnncoll(&my_charset_latin1, (const uchar *)name->str,
-                      name->length, (const uchar *)table_alias->str,
-                      table_alias->length)) {
-      name = table_alias + 1;
-      goto redo;
-    }
-  }
-
   return nullptr;
 }
 
-std::string normalized_se_str = "";
-
-/*
-  Parse comma separated list of disabled storage engine names
-  and create a normalized string by appending storage names that
-  have aliases. This normalized string is used to disallow
-  table/tablespace creation under the storage engines specified.
+/**
+  Read a comma-separated list of storage engine names. Look up each in the
+  known list of canonical and legacy names. In case of a match; add both the
+  canonical and the legacy name to disabled_se_names, which is a static vector
+  of disabled storage engine names.
+  If there is no match, the unmodified name is added to the vector.
 */
-void ha_set_normalized_disabled_se_str(const std::string &disabled_se) {
-  boost::char_separator<char> sep(",");
-  boost::tokenizer<boost::char_separator<char>> tokens(disabled_se, sep);
-  normalized_se_str.append(",");
-  BOOST_FOREACH (std::string se_name, tokens) {
-    const LEX_CSTRING *table_alias;
-    boost::algorithm::to_upper(se_name);
-    for (table_alias = sys_table_aliases; table_alias->str; table_alias += 2) {
-      if (!native_strcasecmp(se_name.c_str(), table_alias->str) ||
-          !native_strcasecmp(se_name.c_str(), (table_alias + 1)->str)) {
-        normalized_se_str.append(std::string(table_alias->str) + "," +
-                                 std::string((table_alias + 1)->str) + ",");
-        break;
+void set_externally_disabled_storage_engine_names(const char *disabled_list) {
+  DBUG_ASSERT(disabled_list != nullptr);
+  const char *dse_begin = disabled_list;
+
+  const char *dse_end = dse_begin + strlen(dse_begin);
+  while (true) {
+    const char *comma_or_end = std::find(dse_begin, dse_end, ',');
+    if (comma_or_end > dse_begin) {
+      const LEX_CSTRING dse{dse_begin,
+                            static_cast<size_t>(comma_or_end - dse_begin)};
+      auto match = std::find_if(
+          std::begin(se_names), se_names_end,
+          [&](const Storage_engine_identifier &seid) {
+            return (
+                (0 == strnncmp_nopads(hton_charset(), dse, seid.canonical)) ||
+                (0 == strnncmp_nopads(hton_charset(), dse, seid.legacy)));
+          });
+      if (match != se_names_end) {
+        disabled_se_names.emplace_back(match->canonical.str,
+                                       match->canonical.length);
+        disabled_se_names.emplace_back(match->legacy.str, match->legacy.length);
+      } else {
+        disabled_se_names.emplace_back(dse.str, dse.length);
       }
     }
 
-    if (table_alias->str == nullptr) normalized_se_str.append(se_name + ",");
-  }
+    if (comma_or_end == dse_end) break;
+    dse_begin = comma_or_end + 1;
+  }  // while (true)
+}
+
+static bool is_storage_engine_name_externally_disabled(const char *name) {
+  const LEX_CSTRING n{name, strlen(name)};
+  return std::any_of(
+      disabled_se_names.begin(), disabled_se_names.end(),
+      [&](const std::string &dse) {
+        return (0 == strnncmp_nopads(hton_charset(), n,
+                                     {dse.c_str(), dse.length()}));
+      });
+}
+
+/**
+  Returns true if the storage engine of the handlerton argument has
+  been listed in the disabled_storage_engines system variable. @note
+  that the SE may still be internally enabled, that is
+  HaIsInternallyEnabled may return true.
+ */
+bool ha_is_externally_disabled(const handlerton &htnr) {
+  const char *se_name = ha_resolve_storage_engine_name(&htnr);
+  DBUG_ASSERT(se_name != nullptr);
+  return is_storage_engine_name_externally_disabled(se_name);
 }
 
 // Check if storage engine is disabled for table/tablespace creation.
 bool ha_is_storage_engine_disabled(handlerton *se_handle) {
-  if (normalized_se_str.size()) {
-    std::string se_name(",");
-    se_name.append(ha_resolve_storage_engine_name(se_handle));
-    se_name.append(",");
-    boost::algorithm::to_upper(se_name);
-    if (strstr(normalized_se_str.c_str(), se_name.c_str())) return true;
-  }
-  return false;
+  DBUG_ASSERT(se_handle != nullptr);
+  return ha_is_externally_disabled(*se_handle);
 }
 
 plugin_ref ha_lock_engine(THD *thd, const handlerton *hton) {
@@ -521,6 +544,7 @@ handlerton *ha_resolve_by_legacy_type(THD *thd, enum legacy_db_type db_type) {
 */
 handlerton *ha_checktype(THD *thd, enum legacy_db_type database_type,
                          bool no_substitute, bool report_error) {
+  DBUG_TRACE;
   handlerton *hton = ha_resolve_by_legacy_type(thd, database_type);
   if (ha_storage_engine_is_enabled(hton)) return hton;
 

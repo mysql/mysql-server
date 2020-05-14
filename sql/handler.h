@@ -959,6 +959,9 @@ enum Ha_clone_type : size_t {
 
 using Ha_clone_flagset = std::bitset<HA_CLONE_TYPE_MAX>;
 
+void set_externally_disabled_storage_engine_names(const char *);
+bool ha_is_externally_disabled(const handlerton &);
+
 /** File reference for clone */
 struct Ha_clone_file {
   /** File reference type */
@@ -6739,7 +6742,16 @@ static inline bool ha_check_storage_engine_flag(const handlerton *db_type,
   return db_type == nullptr ? false : (db_type->flags & flag);
 }
 
-static inline bool ha_storage_engine_is_enabled(const handlerton *db_type) {
+/**
+  Predicate to determine if a storage engine, represented by a handlerton*, is
+  enabled.
+  @note "Enabled" in this context refers only the state of the handlerton
+  object, and does not consider the disabled_storage_engines system variable.
+  This leads to the very counter-intuitive and confusing situation that it is
+  possible for a storage engine to be enabled, but at the same time also be
+  disabled.
+  */
+inline bool ha_storage_engine_is_enabled(const handlerton *db_type) {
   return (db_type && db_type->create) ? (db_type->state == SHOW_OPTION_YES)
                                       : false;
 }
@@ -6894,7 +6906,6 @@ inline void print_keydup_error(TABLE *table, KEY *key, myf errflag) {
   print_keydup_error(table, key, errflag, nullptr);
 }
 
-void ha_set_normalized_disabled_se_str(const std::string &disabled_se_str);
 bool ha_is_storage_engine_disabled(handlerton *se_engine);
 
 bool ha_notify_exclusive_mdl(THD *thd, const MDL_key *mdl_key,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -83,6 +83,9 @@ static const uint NO_DD_COMMIT = 1 << 3;
 static const uint NO_FK_RENAME = 1 << 4;
 /** Don't change generated check constraint names while renaming table. */
 static const uint NO_CC_RENAME = 1 << 5;
+
+handlerton *get_viable_handlerton_for_create(THD *thd, const char *table_name,
+                                             const HA_CREATE_INFO &ci);
 
 size_t filename_to_tablename(const char *from, char *to, size_t to_length,
                              bool stay_quiet = false);
