@@ -820,22 +820,18 @@ makeExternalTableName(const BaseString &internalName)
   return externalName;
 }
 
-// Exclude the legacy list of six privilege tables from Cluster 7.x
-#include "storage/ndb/plugin/ndb_dist_priv_util.h"
-void
-exclude_privilege_tables()
-{
-  const char* table_name;
-  Ndb_dist_priv_util dist_priv;
-  while((table_name= dist_priv.iter_next_table()))
-  {
-    BaseString priv_tab;
-    priv_tab.assfmt("%s.%s", dist_priv.database(), table_name);
-    g_exclude_tables.push_back(priv_tab);
-    save_include_exclude(OPT_EXCLUDE_TABLES, (char *)priv_tab.c_str());
+// Exclude the legacy privilege tables from Cluster 7.x
+void exclude_privilege_tables() {
+  static const char *priv_tables[] = {
+      "mysql.user",         "mysql.db",         "mysql.tables_priv",
+      "mysql.columns_priv", "mysql.procs_priv", "mysql.proxies_priv"};
+
+  for (size_t i = 0; i < array_elements(priv_tables); i++) {
+    g_exclude_tables.push_back(priv_tables[i]);
+    save_include_exclude(OPT_EXCLUDE_TABLES,
+                         const_cast<char *>(priv_tables[i]));
   }
 }
-
 
 bool
 readArguments(Ndb_opts & opts, char*** pargv)

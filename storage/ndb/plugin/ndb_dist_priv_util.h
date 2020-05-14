@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,7 @@
 #ifndef NDB_DIST_PRIV_UTIL_H
 #define NDB_DIST_PRIV_UTIL_H
 
-class THD;
+#include <cstring>  // strcmp
 
 class Ndb_dist_priv_util {
   size_t m_iter_curr_table;
