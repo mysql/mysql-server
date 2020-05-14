@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -338,7 +338,7 @@ void Binlog_sender::run() {
   }
 
   THD_STAGE_INFO(m_thd, stage_waiting_to_finalize_termination);
-  char error_text[MAX_SLAVE_ERRMSG];
+  char error_text[MAX_SLAVE_ERRMSG + 100];
 
   /*
     If the dump thread was killed because of a duplicate slave UUID we
