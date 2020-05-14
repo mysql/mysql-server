@@ -85,26 +85,26 @@ Global_shared_latch_guard::~Global_shared_latch_guard() {
   lock_sys->latches.global_latch.s_unlock();
 }
 
-/* Shard_latches_guard */
+/* Shard_naked_latches_guard */
 
-Shard_latches_guard::Shard_latches_guard(Lock_mutex &shard_mutex_a,
-                                         Lock_mutex &shard_mutex_b)
-    : m_global_shared_latch_guard{},
-      m_shard_mutex_1{*std::min(&shard_mutex_a, &shard_mutex_b, MUTEX_ORDER)},
+Shard_naked_latches_guard::Shard_naked_latches_guard(Lock_mutex &shard_mutex_a,
+                                                     Lock_mutex &shard_mutex_b)
+    : m_shard_mutex_1{*std::min(&shard_mutex_a, &shard_mutex_b, MUTEX_ORDER)},
       m_shard_mutex_2{*std::max(&shard_mutex_a, &shard_mutex_b, MUTEX_ORDER)} {
+  ut_ad(owns_shared_global_latch());
   if (&m_shard_mutex_1 != &m_shard_mutex_2) {
     mutex_enter(&m_shard_mutex_1);
   }
   mutex_enter(&m_shard_mutex_2);
 }
 
-Shard_latches_guard::Shard_latches_guard(const buf_block_t &block_a,
-                                         const buf_block_t &block_b)
-    : Shard_latches_guard{
+Shard_naked_latches_guard::Shard_naked_latches_guard(const buf_block_t &block_a,
+                                                     const buf_block_t &block_b)
+    : Shard_naked_latches_guard{
           lock_sys->latches.page_shards.get_mutex(block_a.get_page_id()),
           lock_sys->latches.page_shards.get_mutex(block_b.get_page_id())} {}
 
-Shard_latches_guard::~Shard_latches_guard() {
+Shard_naked_latches_guard::~Shard_naked_latches_guard() {
   mutex_exit(&m_shard_mutex_2);
   if (&m_shard_mutex_1 != &m_shard_mutex_2) {
     mutex_exit(&m_shard_mutex_1);

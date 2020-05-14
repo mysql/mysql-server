@@ -117,29 +117,54 @@ class Shard_latch_guard {
 };
 
 /**
-A RAII wrapper class which s-latches the global lock_sys shard, and mutexes
-protecting specified shards for the duration of its scope.
+A RAII helper which latches the mutexes protecting specified shards for the
+duration of its scope.
 It makes sure to take the latches in correct order and handles the case where
 both pages are in the same shard correctly.
+You quite probably don't want to use this class, which only takes a shard's
+latch, without acquiring global_latch - which gives no protection from threads
+which latch only the global_latch exclusively to prevent any activity.
+You should use it in combination with Global_shared_latch_guard, so that you
+first obtain an s-latch on the global_latch, or simply use the
+Shard_latches_guard class which already combines the two for you.
 */
-class Shard_latches_guard {
-  explicit Shard_latches_guard(Lock_mutex &shard_mutex_a,
-                               Lock_mutex &shard_mutex_b);
+class Shard_naked_latches_guard {
+  explicit Shard_naked_latches_guard(Lock_mutex &shard_mutex_a,
+                                     Lock_mutex &shard_mutex_b);
 
  public:
-  explicit Shard_latches_guard(const buf_block_t &block_a,
-                               const buf_block_t &block_b);
+  explicit Shard_naked_latches_guard(const buf_block_t &block_a,
+                                     const buf_block_t &block_b);
 
-  ~Shard_latches_guard();
+  ~Shard_naked_latches_guard();
 
  private:
-  Global_shared_latch_guard m_global_shared_latch_guard;
   /** The "smallest" of the two shards' mutexes in the latching order */
   Lock_mutex &m_shard_mutex_1;
   /** The "largest" of the two shards' mutexes in the latching order */
   Lock_mutex &m_shard_mutex_2;
   /** The ordering on shard mutexes used to avoid deadlocks */
   static constexpr std::less<Lock_mutex *> MUTEX_ORDER{};
+};
+
+/**
+A RAII wrapper class which s-latches the global lock_sys shard, and mutexes
+protecting specified shards for the duration of its scope.
+It makes sure to take the latches in correct order and handles the case where
+both pages are in the same shard correctly.
+The order of initialization is important: we have to take shared global latch
+BEFORE we attempt to use hash function to compute correct shard and latch it.
+*/
+class Shard_latches_guard {
+ public:
+  explicit Shard_latches_guard(const buf_block_t &block_a,
+                               const buf_block_t &block_b)
+      : m_global_shared_latch_guard{},
+        m_shard_naked_latches_guard{block_a, block_b} {}
+
+ private:
+  Global_shared_latch_guard m_global_shared_latch_guard;
+  Shard_naked_latches_guard m_shard_naked_latches_guard;
 };
 
 }  // namespace locksys

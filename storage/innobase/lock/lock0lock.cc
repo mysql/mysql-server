@@ -43,6 +43,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "btr0btr.h"
 #include "current_thd.h"
+#include "debug_sync.h" /* CONDITIONAL_SYNC_POINT */
 #include "dict0boot.h"
 #include "dict0mem.h"
 #include "ha_prototypes.h"
@@ -362,6 +363,18 @@ void lock_sys_resize(ulint n_cells) {
   lock_sys->rec_hash = hash_create(n_cells);
   HASH_MIGRATE(old_hash, lock_sys->rec_hash, lock_t, hash, lock_rec_lock_fold);
   hash_table_free(old_hash);
+
+  DBUG_EXECUTE_IF("syncpoint_after_lock_sys_resize_rec_hash", {
+    /* A workaround for buf_resize_thread() not using create_thd().
+    TBD: if buf_resize_thread() were to use create_thd() then should it be
+    instrumented (together or instead of os_thread_create instrumentation)? */
+    ut_ad(current_thd == nullptr);
+    THD *thd = create_thd(false, true, true, PSI_NOT_INSTRUMENTED);
+    ut_ad(current_thd == thd);
+    CONDITIONAL_SYNC_POINT("after_lock_sys_resize_rec_hash");
+    destroy_thd(thd);
+    ut_ad(current_thd == nullptr);
+  });
 
   old_hash = lock_sys->prdt_hash;
   lock_sys->prdt_hash = hash_create(n_cells);
@@ -2627,7 +2640,7 @@ void lock_move_reorganize_page(
 
       ut_ad(lock_rec_find_set_bit(lock) == ULINT_UNDEFINED);
     }
-  } /* Shard_latches_guard */
+  } /* Shard_latch_guard */
 
   mem_heap_free(heap);
 
@@ -3211,6 +3224,7 @@ void lock_rec_restore_from_page_infimum(
                                 state; lock bits are reset on
                                 the infimum */
 {
+  DEBUG_SYNC_C("lock_rec_restore_from_page_infimum_will_latch");
   ulint heap_no = page_rec_get_heap_no(rec);
 
   locksys::Shard_latches_guard guard{*block, *donator};
