@@ -117,6 +117,10 @@ INSERT INTO t1 VALUES (1);
 --echo
 --echo ############################################################
 --echo # 6. Clean up.
+
+--let $wait_condition= SELECT @@GLOBAL.super_read_only = '0'
+--source include/wait_condition.inc
+
 DROP TABLE t1;
 
 --source include/group_replication_end.inc
