@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -217,7 +217,7 @@ err:
   @param  lex   LEX for this thread.
 */
 
-static void make_valid_column_names(LEX *lex) {
+void make_valid_column_names(LEX *lex) {
   Item *item;
   size_t name_len;
   char buff[NAME_LEN];
@@ -561,9 +561,9 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   */
   for (tbl = lex->query_tables; tbl; tbl = tbl->next_global) {
     /* is this table view and the same view which we creates now? */
-    if (tbl->is_view() && strcmp(tbl->view_db.str, view->db) == 0 &&
-        strcmp(tbl->view_name.str, view->table_name) == 0) {
-      my_error(ER_NO_SUCH_TABLE, MYF(0), tbl->view_db.str, tbl->view_name.str);
+    if (tbl->is_view() && strcmp(tbl->db, view->db) == 0 &&
+        strcmp(tbl->table_name, view->table_name) == 0) {
+      my_error(ER_NO_SUCH_TABLE, MYF(0), tbl->db, tbl->table_name);
       res = true;
       goto err;
     }
@@ -577,8 +577,8 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     */
     if (tbl->table) {
       /* is this table temporary and is not view? */
-      if (tbl->table->s->tmp_table != NO_TMP_TABLE && !tbl->is_view() &&
-          !tbl->schema_table) {
+      if (tbl->table->s->tmp_table != NO_TMP_TABLE &&
+          !tbl->is_view_or_derived() && !tbl->schema_table) {
         my_error(ER_VIEW_SELECT_TMPTABLE, MYF(0), tbl->alias);
         res = true;
         goto err;
@@ -588,37 +588,45 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
 
   /* prepare select to resolve all fields */
   lex->context_analysis_only |= CONTEXT_ANALYSIS_ONLY_VIEW;
-  if (unit->prepare(thd, nullptr, 0, 0)) {
+  if (!unit->is_prepared()) {
     /*
-      some errors from prepare are reported to user, if is not then
-      it will be checked after err: label
+      @todo - the following code is duplicated in mysql_test_create_view.
+              ensure that we have a single preparation function for create view.
     */
-    res = true;
-    goto err;
-  }
+    if (unit->prepare(thd, nullptr, nullptr, 0, 0)) {
+      /*
+        some errors from prepare are reported to user, if is not then
+        it will be checked after err: label
+      */
+      res = true;
+      goto err;
+    }
+    /* Check if the auto generated column names are conforming. */
+    make_valid_column_names(lex);
 
-  /* Check if the auto generated column names are conforming. */
-  make_valid_column_names(lex);
+    /*
+      Only column names of the first query block should be checked for
+      duplication; any further UNION-ed part isn't used for determining
+      names of the view's columns.
+    */
+    if (check_duplicate_names(view->derived_column_names(),
+                              select_lex->fields_list, true)) {
+      res = true;
+      goto err;
+    }
 
-  /*
-    Only column names of the first select_lex should be checked for
-    duplication; any further UNION-ed part isn't used for determining
-    names of the view's columns.
-  */
-  if (check_duplicate_names(view->derived_column_names(),
-                            select_lex->fields_list, true)) {
-    res = true;
-    goto err;
-  }
-
-  /*
-    Make sure the view doesn't have so many columns that we hit the
-    64k header limit if the view is materialized as a MyISAM table.
-  */
-  if (select_lex->fields_list.elements > MAX_FIELDS) {
-    my_error(ER_TOO_MANY_FIELDS, MYF(0));
-    res = true;
-    goto err;
+    /*
+      Make sure the view doesn't have so many columns that we hit the
+      64k header limit if the view is materialized as a MyISAM table.
+    */
+    if (select_lex->fields_list.elements > MAX_FIELDS) {
+      my_error(ER_TOO_MANY_FIELDS, MYF(0));
+      res = true;
+      goto err;
+    }
+  } else {
+    lex->restore_cmd_properties();
+    bind_fields(thd->stmt_arena->item_list());
   }
 
   /*
@@ -1087,7 +1095,7 @@ bool open_and_read_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *view_ref) {
   if (view_ref->is_view()) {
     DBUG_PRINT("info",
                ("VIEW %s.%s is already processed on previous PS/SP execution",
-                view_ref->view_db.str, view_ref->view_name.str));
+                view_ref->db, view_ref->table_name));
     return false;
   }
 
@@ -1100,14 +1108,12 @@ bool open_and_read_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *view_ref) {
   // Check that view is not referenced recursively
   for (TABLE_LIST *precedent = view_ref->referencing_view; precedent;
        precedent = precedent->referencing_view) {
-    if (precedent->view_name.length == view_ref->table_name_length &&
-        precedent->view_db.length == view_ref->db_length &&
-        my_strcasecmp(system_charset_info, precedent->view_name.str,
+    if (precedent->table_name_length == view_ref->table_name_length &&
+        precedent->db_length == view_ref->db_length &&
+        my_strcasecmp(system_charset_info, precedent->table_name,
                       view_ref->table_name) == 0 &&
-        my_strcasecmp(system_charset_info, precedent->view_db.str,
-                      view_ref->db) == 0) {
-      my_error(ER_VIEW_RECURSIVE, MYF(0), top_view->view_db.str,
-               top_view->view_name.str);
+        my_strcasecmp(system_charset_info, precedent->db, view_ref->db) == 0) {
+      my_error(ER_VIEW_RECURSIVE, MYF(0), top_view->db, top_view->table_name);
       return true;
     }
   }
@@ -1216,9 +1222,6 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref) {
     return false;
   }
 
-  // Save view's name, which will be wiped out by materialization
-  view_ref->save_name_temporary();
-
   /*
     We don't invalidate a prepared statement when a view changes,
     or when someone creates a temporary table.
@@ -1258,7 +1261,7 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref) {
     that the view is parsed and prepared correctly.
   */
   mysql_mutex_lock(&thd->LOCK_thd_data);
-  thd->reset_db(view_ref->view_db);
+  thd->reset_db({view_ref->db, view_ref->db_length});
   mysql_mutex_unlock(&thd->LOCK_thd_data);
 
   lex_start(thd);
@@ -1540,6 +1543,8 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref) {
 
   // Move nondeterminism information to whole query.
   old_lex->safe_to_cache_query &= view_lex->safe_to_cache_query;
+
+  if (view_lex->has_udf()) old_lex->set_has_udf();
 
   Security_context *security_ctx;
 

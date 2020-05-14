@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -124,6 +124,7 @@
 #include "sql/table.h"
 #include "sql/table_trigger_dispatcher.h"  // Table_trigger_dispatcher
 #include "sql/temp_table_param.h"          // Temp_table_param
+#include "sql/thd_raii.h"                  // Prepared_stmt_arena_holder
 #include "sql/trigger.h"                   // Trigger
 #include "sql/tztime.h"                    // my_tz_SYSTEM
 #include "sql_string.h"
@@ -545,10 +546,12 @@ bool mysqld_show_create(THD *thd, TABLE_LIST *table_list) {
     Show_create_error_handler view_error_suppressor(thd, table_list);
     thd->push_internal_handler(&view_error_suppressor);
 
+    Prepared_stmt_arena_holder ps_arena_holder(thd);
     uint counter;
     bool open_error = open_tables(thd, &table_list, &counter,
                                   MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL);
-    if (!open_error && table_list->is_view_or_derived()) {
+    if (!open_error && table_list->is_view_or_derived() &&
+        !table_list->derived_unit()->is_prepared()) {
       /*
         Prepare result table for view so that we can read the column list.
         Notice that Show_create_error_handler remains active, so that any
@@ -616,7 +619,7 @@ bool mysqld_show_create(THD *thd, TABLE_LIST *table_list) {
 
   protocol->start_row();
   if (table_list->is_view())
-    protocol->store(table_list->view_name.str, system_charset_info);
+    protocol->store(table_list->table_name, system_charset_info);
   else {
     if (table_list->schema_table)
       protocol->store(table_list->schema_table->table_name,
@@ -791,8 +794,8 @@ void mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild) {
         !wild_case_compare(system_charset_info, field->field_name, wild)) {
       Item *item;
       if (table_list->is_view()) {
-        item = new Item_ident_for_show(field, table_list->view_db.str,
-                                       table_list->view_name.str);
+        item = new Item_ident_for_show(field, table_list->db,
+                                       table_list->table_name);
         (void)item->fix_fields(thd, nullptr);
       } else {
         item = new Item_field(field);
@@ -803,6 +806,11 @@ void mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild) {
   restore_record(table, s->default_values);  // Get empty record
   table->use_all_columns();
   if (thd->send_result_metadata(&field_list, Protocol::SEND_DEFAULTS)) return;
+  if (table_list->is_view_or_derived()) {
+    close_tmp_table(thd, table);
+    free_tmp_table(table);
+    table_list->table = nullptr;
+  }
   my_eof(thd);
 }
 
@@ -1951,7 +1959,7 @@ static void view_store_create_info(const THD *thd, TABLE_LIST *table,
 
   // Print compact view name if the view belongs to the current database
   bool compact_view_name =
-      thd->db().str != nullptr && (!strcmp(thd->db().str, table->view_db.str));
+      thd->db().str != nullptr && (!strcmp(thd->db().str, table->db));
 
   buff->append(STRING_WITH_LEN("CREATE "));
   if (!foreign_db_mode) {
@@ -1959,10 +1967,10 @@ static void view_store_create_info(const THD *thd, TABLE_LIST *table,
   }
   buff->append(STRING_WITH_LEN("VIEW "));
   if (!compact_view_name) {
-    append_identifier(thd, buff, table->view_db.str, table->view_db.length);
+    append_identifier(thd, buff, table->db, table->db_length);
     buff->append('.');
   }
-  append_identifier(thd, buff, table->view_name.str, table->view_name.length);
+  append_identifier(thd, buff, table->table_name, table->table_name_length);
   print_derived_column_names(thd, buff, table->derived_column_names());
 
   buff->append(STRING_WITH_LEN(" AS "));
@@ -3053,7 +3061,7 @@ static int show_temporary_tables(THD *thd, TABLE_LIST *tables, Item *) {
   }
 
 end:
-  lex->unit->cleanup(thd, true);
+  lex->cleanup(thd, true);
 
   /* Restore original LEX value, statement's arena and THD arena values. */
   lex_end(thd->lex);
@@ -3794,9 +3802,10 @@ static int make_tmp_table_columns_format(THD *thd,
 */
 
 bool mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list) {
-  TABLE *table;
   DBUG_TRACE;
-  if (!(table = create_schema_table(thd, table_list))) return true;
+  TABLE *table = create_schema_table(thd, table_list);
+  if (table == nullptr) return true;
+
   table->s->tmp_table = SYSTEM_TMP_TABLE;
   table_list->grant.privilege = SELECT_ACL;
   /*
@@ -3806,11 +3815,8 @@ bool mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list) {
     views
     working correctly
   */
-  if (table_list->schema_table_name)
-    table->alias_name_used = my_strcasecmp(
-        table_alias_charset, table_list->schema_table_name, table_list->alias);
-  table_list->table_name = table->s->table_name.str;
-  table_list->table_name_length = table->s->table_name.length;
+  table->alias_name_used = my_strcasecmp(
+      table_alias_charset, table_list->table_name, table_list->alias);
   table_list->table = table;
   table->pos_in_table_list = table_list;
   if (table_list->select_lex->first_execution)
@@ -4727,6 +4733,10 @@ void show_sql_type(enum_field_types type, bool is_array, uint metadata,
   DBUG_PRINT("enter", ("type: %d, metadata: 0x%x", type, metadata));
 
   switch (type) {
+    case MYSQL_TYPE_BOOL:
+      str->set_ascii(STRING_WITH_LEN("boolean"));
+      break;
+
     case MYSQL_TYPE_TINY:
       str->set_ascii(STRING_WITH_LEN("tinyint"));
       break;
@@ -4904,6 +4914,7 @@ void show_sql_type(enum_field_types type, bool is_array, uint metadata,
       str->set_ascii(STRING_WITH_LEN("json"));
       break;
 
+    case MYSQL_TYPE_INVALID:
     default:
       str->set_ascii(STRING_WITH_LEN("<unknown type>"));
   }

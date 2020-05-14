@@ -983,7 +983,7 @@ EXPLAIN
       "used_columns": [
         "f1"
       ],
-      "attached_condition": "((`mysqltest1`.`t1`.`f1`,`mysqltest1`.`t1`.`f1`) >= <cache>(('1',(/* select#2 */ select 1 from `mysqltest1`.`t1` where (`t1`.`f1` > 1234)))))"
+      "attached_condition": "((`mysqltest1`.`t1`.`f1`,`mysqltest1`.`t1`.`f1`) >= ('1',(/* select#2 */ select 1 from `mysqltest1`.`t1` where (`t1`.`f1` > 1234))))"
     },
     "optimized_away_subqueries": [
       {
@@ -1017,7 +1017,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from `mysqltest1`.`t1` where ((`mysqltest1`.`t1`.`f1`,`mysqltest1`.`t1`.`f1`) >= <cache>(('1',(/* select#2 */ select 1 from `mysqltest1`.`t1` where (`t1`.`f1` > 1234)))))
+Note	1003	/* select#1 */ select 1 AS `1` from `mysqltest1`.`t1` where ((`mysqltest1`.`t1`.`f1`,`mysqltest1`.`t1`.`f1`) >= ('1',(/* select#2 */ select 1 from `mysqltest1`.`t1` where (`t1`.`f1` > 1234))))
 CREATE TABLE t3 (pk INT PRIMARY KEY);
 INSERT INTO t3 SELECT DISTINCT * FROM t1;
 EXPLAIN FORMAT=JSON FOR QUERY 'SELECT * FROM t3 WHERE pk=(SELECT f1 FROM t1 limit 1)'

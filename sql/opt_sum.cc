@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -471,7 +471,8 @@ bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
 
             ref.key_buff = key_buff;
             Item_field *item_field = down_cast<Item_field *>(expr);
-            TABLE *table = item_field->field->table;
+            TABLE_LIST *tr = item_field->table_ref;
+            TABLE *table = tr->table;
 
             /*
               We must not have accessed this table instance yet, because
@@ -493,7 +494,7 @@ bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
               Type of range for the key part for this field will be
               returned in range_fl.
             */
-            if ((inner_tables & item_field->table_ref->map()) ||
+            if ((inner_tables & tr->map()) ||
                 !find_key_for_maxmin(is_max, &ref, item_field, conds, &range_fl,
                                      &prefix_len)) {
               aggr_impossible = true;
@@ -549,7 +550,7 @@ bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
               table->file->print_error(error, MYF(0));
               return true;
             }
-            removed_tables |= item_field->table_ref->map();
+            removed_tables |= tr->map();
           } else if (!expr->const_item() || conds || !have_exact_count) {
             /*
               We get here if the aggregate function is not based on a field.

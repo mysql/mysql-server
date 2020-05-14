@@ -1,7 +1,7 @@
 #ifndef SQL_SELECT_INCLUDED
 #define SQL_SELECT_INCLUDED
 
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -81,8 +81,9 @@ class Sql_cmd_select : public Sql_cmd_dml {
   const MYSQL_LEX_CSTRING *eligible_secondary_storage_engine() const override;
 
  protected:
+  bool may_use_cursor() const override { return true; }
   bool precheck(THD *thd) override;
-
+  bool check_privileges(THD *thd) override;
   bool prepare_inner(THD *thd) override;
 };
 
@@ -777,6 +778,12 @@ extern "C" int refpos_order_cmp(const void *arg, const void *a, const void *b);
 
 /// The name of store_key instances that represent constant items.
 constexpr const char *STORE_KEY_CONST_NAME = "const";
+
+/// Check privileges for all columns referenced from join expression
+bool check_privileges_for_join(THD *thd, mem_root_deque<TABLE_LIST *> *tables);
+
+/// Check privileges for all columns referenced from an expression list
+bool check_privileges_for_list(THD *thd, List<Item> *items, ulong privileges);
 
 /** class to copying an field/item to a key struct */
 

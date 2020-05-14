@@ -1,7 +1,7 @@
 #ifndef ITEM_INETFUNC_INCLUDED
 #define ITEM_INETFUNC_INCLUDED
 
-/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,6 +49,7 @@ class Item_func_inet_aton : public Item_int_func {
   const char *func_name() const override { return "inet_aton"; }
 
   bool resolve_type(THD *) override {
+    param_type_is_default(0, 1);
     maybe_null = true;
     unsigned_flag = true;
     return false;
@@ -70,6 +71,7 @@ class Item_func_inet_ntoa : public Item_str_func {
   const char *func_name() const override { return "inet_ntoa"; }
 
   bool resolve_type(THD *) override {
+    param_type_is_default(0, 1, MYSQL_TYPE_LONGLONG);
     set_data_type_string(3 * 8 + 7, default_charset());
     maybe_null = true;
     return false;
@@ -125,6 +127,7 @@ class Item_func_inet6_aton : public Item_func_inet_str_base {
   const char *func_name() const override { return "inet6_aton"; }
 
   bool resolve_type(THD *) override {
+    param_type_is_default(0, 1);
     set_data_type_string(16, &my_charset_bin);
     maybe_null = true;
     return false;
@@ -147,6 +150,7 @@ class Item_func_inet6_ntoa : public Item_func_inet_str_base {
   const char *func_name() const override { return "inet6_ntoa"; }
 
   bool resolve_type(THD *) override {
+    param_type_is_default(0, 1);
     // max length: IPv6-address -- 16 bytes
     // 16 bytes / 2 bytes per group == 8 groups => 7 delimiter
     // 4 symbols per group

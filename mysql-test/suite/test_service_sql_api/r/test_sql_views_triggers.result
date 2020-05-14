@@ -200,7 +200,7 @@ EXECUTING:[102][SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE
 		[meta] server status: AUTOCOMMIT 
 		[meta] warning count: 0
 
-			[meta][field] db name: 
+			[meta][field] db name: information_schema
 			[meta][field] table name: VIEWS
 			[meta][field] org table name: VIEWS
 			[meta][field] col name: VIEW_DEFINITION
@@ -232,7 +232,7 @@ EXECUTING:[102][SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE
 		[meta] server status: AUTOCOMMIT 
 		[meta] warning count: 0
 
-			[meta][field] db name: 
+			[meta][field] db name: information_schema
 			[meta][field] table name: VIEWS
 			[meta][field] org table name: VIEWS
 			[meta][field] col name: VIEW_DEFINITION
@@ -531,7 +531,7 @@ EXECUTING:[108][SELECT TRIGGER_NAME FROM INFORMATION_SCHEMA.TRIGGERS WHERE TRIGG
 		[meta] server status: AUTOCOMMIT QUERY_NO_INDEX_USED 
 		[meta] warning count: 0
 
-			[meta][field] db name: mysql
+			[meta][field] db name: information_schema
 			[meta][field] table name: TRIGGERS
 			[meta][field] org table name: TRIGGERS
 			[meta][field] col name: TRIGGER_NAME
@@ -563,7 +563,7 @@ EXECUTING:[108][SELECT TRIGGER_NAME FROM INFORMATION_SCHEMA.TRIGGERS WHERE TRIGG
 		[meta] server status: AUTOCOMMIT QUERY_NO_INDEX_USED 
 		[meta] warning count: 0
 
-			[meta][field] db name: mysql
+			[meta][field] db name: information_schema
 			[meta][field] table name: TRIGGERS
 			[meta][field] org table name: TRIGGERS
 			[meta][field] col name: TRIGGER_NAME
@@ -940,7 +940,7 @@ EXECUTING:[102][SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE
 		[meta] server status: AUTOCOMMIT 
 		[meta] warning count: 0
 
-			[meta][field] db name: 
+			[meta][field] db name: information_schema
 			[meta][field] table name: VIEWS
 			[meta][field] org table name: VIEWS
 			[meta][field] col name: VIEW_DEFINITION
@@ -972,7 +972,7 @@ EXECUTING:[102][SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE
 		[meta] server status: AUTOCOMMIT 
 		[meta] warning count: 0
 
-			[meta][field] db name: 
+			[meta][field] db name: information_schema
 			[meta][field] table name: VIEWS
 			[meta][field] org table name: VIEWS
 			[meta][field] col name: VIEW_DEFINITION
@@ -1283,7 +1283,7 @@ EXECUTING:[108][SELECT TRIGGER_NAME FROM INFORMATION_SCHEMA.TRIGGERS WHERE TRIGG
 		[meta] server status: AUTOCOMMIT QUERY_NO_INDEX_USED 
 		[meta] warning count: 0
 
-			[meta][field] db name: mysql
+			[meta][field] db name: information_schema
 			[meta][field] table name: TRIGGERS
 			[meta][field] org table name: TRIGGERS
 			[meta][field] col name: TRIGGER_NAME
@@ -1315,7 +1315,7 @@ EXECUTING:[108][SELECT TRIGGER_NAME FROM INFORMATION_SCHEMA.TRIGGERS WHERE TRIGG
 		[meta] server status: AUTOCOMMIT QUERY_NO_INDEX_USED 
 		[meta] warning count: 0
 
-			[meta][field] db name: mysql
+			[meta][field] db name: information_schema
 			[meta][field] table name: TRIGGERS
 			[meta][field] org table name: TRIGGERS
 			[meta][field] col name: TRIGGER_NAME

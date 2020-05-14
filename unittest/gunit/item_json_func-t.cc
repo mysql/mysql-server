@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,11 +39,12 @@ class ItemJsonFuncTest : public ::testing::Test {
  protected:
   void SetUp() override {
     initializer.SetUp();
-    m_table.in_use = thd();
+    m_table = new Fake_TABLE(&m_field);
   }
 
   void TearDown() override {
-    m_table.cleanup_partial_update();
+    m_table->cleanup_partial_update();
+    delete m_table;
     initializer.TearDown();
   }
 
@@ -53,7 +54,7 @@ class ItemJsonFuncTest : public ::testing::Test {
 
   Base_mock_field_json m_field{};
 
-  Fake_TABLE m_table{&m_field};
+  Fake_TABLE *m_table;
 };
 
 /**
@@ -182,8 +183,8 @@ TEST_F(ItemJsonFuncTest, PartialUpdate) {
       thd(), new Item_field(&m_field), new_item_string("$[1]"),
       new_item_string("abc"), new_item_string("$[2]"), new Item_int(100));
 
-  EXPECT_FALSE(m_table.mark_column_for_partial_update(&m_field));
-  EXPECT_FALSE(m_table.setup_partial_update(true));
+  EXPECT_FALSE(m_table->mark_column_for_partial_update(&m_field));
+  EXPECT_FALSE(m_table->setup_partial_update(true));
 
   // Logical update OK, but not enough space for binary update.
   {
@@ -204,8 +205,8 @@ TEST_F(ItemJsonFuncTest, PartialUpdate) {
     SCOPED_TRACE("");
     do_partial_update(json_set, &m_field, "[0,\"abc\",100]", "[0,\"abc\",100]",
                       true, true);
-    EXPECT_EQ(0U, m_table.get_binary_diffs(&m_field)->size());
-    EXPECT_EQ(0U, m_table.get_logical_diffs(&m_field)->size());
+    EXPECT_EQ(0U, m_table->get_binary_diffs(&m_field)->size());
+    EXPECT_EQ(0U, m_table->get_logical_diffs(&m_field)->size());
   }
 
   // The array grows, so only logical update is OK.

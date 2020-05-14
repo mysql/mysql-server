@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1474,7 +1474,8 @@ void THD::cleanup_after_query() {
     ctx->logout();
   }
   m_view_ctx_list.empty();
-  /* Free Items that were created during this execution */
+  // Cleanup and free items that were created during this execution
+  cleanup_items(item_list());
   free_items();
   /* Reset where. */
   where = THD::DEFAULT_WHERE;
@@ -1627,9 +1628,10 @@ void THD::nocheck_register_item_tree_change(Item **place, Item *new_value) {
   Item_change_record *change;
   /*
     Now we use one node per change, which adds some memory overhead,
-    but still is rather fast as we use alloc_root for allocations.
+    but still is rather fast as we use mem_root->alloc() for allocations.
     A list of item tree changes of an average query should be short.
   */
+
   void *change_mem = mem_root->Alloc(sizeof(*change));
   if (change_mem == nullptr) {
     /*
@@ -1642,86 +1644,6 @@ void THD::nocheck_register_item_tree_change(Item **place, Item *new_value) {
   change_list.push_front(change);
 }
 
-Item *THD::replace_rollback_place(Item **new_place) {
-  I_List_iterator<Item_change_record> it(change_list);
-  Item_change_record *change;
-  while ((change = it++)) {
-    if (change->new_value == *new_place) {
-      DBUG_PRINT("info", ("replace_rollback_place new_value %p place %p",
-                          *new_place, new_place));
-      change->place = new_place;
-      return change->old_value;
-    }
-  }
-  return nullptr;
-}
-
-void THD::alias_rollback(Item **place) {
-  if (stmt_arena->is_regular()) return;
-
-  Item *new_value = *place;
-  Item *old_value = nullptr;
-  I_List_iterator<Item_change_record> it(change_list);
-  Item_change_record *change;
-  while ((change = it++)) {
-    if (change->new_value == new_value) {
-      old_value = change->old_value;
-      break;
-    }
-  }
-  DBUG_ASSERT(old_value != nullptr);
-  *place = old_value;
-  nocheck_register_item_tree_change(place, new_value);
-  *place = new_value;
-}
-
-/**
-  After a permant transformation by SELECT_LEX::transform_grouped_to_derived,
-  a block's from list is moved to a new derived table.
-  We may have fields that originally resolved to tables in orig_block
-  but that now belong to tables in new_block.
-  Such field may be rolled back and thus need their name resolution contexts
-  updated, so they will resolve correctly on EXECUTE a being rolled back at the
-  end of a PREPARE. Can be removed after WL#6570.
-
-  @param orig_block  The query block to which these fields originally belonged
-  @param new_block   The query block they now belong to and whose name
-                     resolution context they need.
-*/
-void THD::update_ident_context(SELECT_LEX *orig_block, SELECT_LEX *new_block) {
-  I_List_iterator<Item_change_record> it(change_list);
-  Item_change_record *change;
-  while ((change = it++)) {
-    Item *old_item = change->old_value;
-    if (old_item->type() == Item::FIELD_ITEM) {
-      Item_field *orig_field = down_cast<Item_field *>(old_item);
-      if (orig_field->context->select_lex == orig_block)
-        orig_field->context = &new_block->context;
-    }
-  }
-}
-
-void THD::cancel_rollback(Item *i) {
-  I_List_iterator<Item_change_record> it(change_list);
-  Item_change_record *change;
-  while ((change = it++)) {
-    if (change->new_value == i) {
-      change->m_cancel = true;
-      // Find any other change records for this location also
-      cancel_rollback_at(change->place);
-    }
-  }
-}
-
-void THD::cancel_rollback_at(Item **place) {
-  I_List_iterator<Item_change_record> it(change_list);
-  Item_change_record *change;
-  while ((change = it++)) {
-    if (change->place == place) {
-      change->m_cancel = true;
-    }
-  }
-}
 void THD::rollback_item_tree_changes() {
   I_List_iterator<Item_change_record> it(change_list);
   Item_change_record *change;
@@ -1771,8 +1693,6 @@ void THD::end_statement() {
   DBUG_TRACE;
   /* Cleanup SQL processing state to reuse this statement in next query. */
   lex_end(lex);
-  //@todo Check lifetime of Query_result objects.
-  // delete lex->result;
   lex->result = nullptr;  // Prepare for next statement
   /* Note that item list is freed in cleanup_after_query() */
 
@@ -2760,28 +2680,6 @@ THD::Transaction_state::Transaction_state()
       m_ha_data(PSI_NOT_INSTRUMENTED, m_ha_data.initial_capacity) {}
 
 THD::Transaction_state::~Transaction_state() { delete m_query_tables_list; }
-
-void THD::change_item_tree(Item **place, Item *new_value) {
-  if (m_permanent_transform) {
-    // Delete any change records for this location
-    I_List_iterator<Item_change_record> it(change_list);
-    Item_change_record *change;
-    while ((change = it++))
-      if (change->place == place) change->m_cancel = true;
-
-    *place = new_value;
-  } else {
-    /* TODO: check for OOM condition here */
-    if (!stmt_arena->is_regular()) {
-      DBUG_PRINT("info", ("change_item_tree place %p old_value %p new_value %p",
-                          place, *place, new_value));
-      if (new_value)
-        new_value->set_runtime_created(); /* Note the change of item tree */
-      nocheck_register_item_tree_change(place, new_value);
-    }
-    *place = new_value;
-  }
-}
 
 bool THD::notify_hton_pre_acquire_exclusive(const MDL_key *mdl_key,
                                             bool *victimized) {

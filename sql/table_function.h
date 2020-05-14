@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -145,13 +145,14 @@ class Table_function {
   */
   virtual bool print(String *str, enum_query_type query_type) const = 0;
   /**
-    Clean up table function
+    Clean up table function after one execution
   */
-  void cleanup() {
-    do_cleanup();
-    table = nullptr;
-    inited = false;
-  }
+  void cleanup() { do_cleanup(); }
+
+  /**
+    Destroy table function object after all executions are complete
+  */
+  void destroy() { this->~Table_function(); }
 
   virtual bool walk(Item_processor processor, enum_walk walk, uchar *arg) = 0;
 
@@ -216,7 +217,6 @@ class JT_data_source {
   bool producing_records;
 
   JT_data_source() : v(key_memory_JSON), producing_records(false) {}
-  ~JT_data_source() {}
 
   void cleanup();
 };
@@ -282,7 +282,8 @@ class Json_table_column : public Create_field {
       : m_jtc_type(enum_jt_column::JTC_NESTED_PATH),
         m_nested_columns(cols),
         m_path_string(path) {}
-  void cleanup();
+  ~Json_table_column();
+  void cleanup() {}
 
   /**
     Fill a json table column
@@ -334,6 +335,11 @@ class Table_function_json final : public Table_function {
  public:
   Table_function_json(THD *thd_arg, const char *alias, Item *a,
                       List<Json_table_column> *cols);
+
+  ~Table_function_json() override {
+    for (uint i = 0; i < m_all_columns.size(); i++)
+      m_all_columns[i]->~Json_table_column();
+  }
 
   /**
     Returns function's name

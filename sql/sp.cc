@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2161,6 +2161,7 @@ void sp_finish_parsing(THD *thd) {
 Item_result sp_map_result_type(enum enum_field_types type) {
   switch (type) {
     case MYSQL_TYPE_BIT:
+    case MYSQL_TYPE_BOOL:
     case MYSQL_TYPE_TINY:
     case MYSQL_TYPE_SHORT:
     case MYSQL_TYPE_LONG:
@@ -2182,6 +2183,7 @@ Item_result sp_map_result_type(enum enum_field_types type) {
 Item::Type sp_map_item_type(enum enum_field_types type) {
   switch (type) {
     case MYSQL_TYPE_BIT:
+    case MYSQL_TYPE_BOOL:
     case MYSQL_TYPE_TINY:
     case MYSQL_TYPE_SHORT:
     case MYSQL_TYPE_LONG:
@@ -2399,12 +2401,20 @@ bool sp_check_name(LEX_STRING *ident) {
 Item *sp_prepare_func_item(THD *thd, Item **it_addr) {
   it_addr = (*it_addr)->this_item_addr(thd, it_addr);
 
-  if (!(*it_addr)->fixed &&
-      ((*it_addr)->fix_fields(thd, it_addr) || (*it_addr)->check_cols(1))) {
+  if ((*it_addr)->fixed) {
+    thd->lex->set_exec_started();
+    return *it_addr;
+  }
+
+  Prepared_stmt_arena_holder ps_arena_holder(thd);
+  Prepare_error_tracker tracker(thd);
+
+  if ((*it_addr)->fix_fields(thd, it_addr) || (*it_addr)->check_cols(1)) {
     DBUG_PRINT("info", ("fix_fields() failed"));
     return nullptr;
   }
-
+  thd->lex->unit->set_prepared();
+  thd->lex->save_cmd_properties(thd);
   thd->lex->set_exec_started();
 
   return *it_addr;

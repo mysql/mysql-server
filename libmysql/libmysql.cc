@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3453,6 +3453,7 @@ static void fetch_result_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
   uint field_is_unsigned = field->flags & UNSIGNED_FLAG;
 
   switch (field_type) {
+    case MYSQL_TYPE_BOOL:
     case MYSQL_TYPE_TINY: {
       uchar value = **row;
       /* sic: we need to cast to 'signed char' as 'char' may be unsigned */

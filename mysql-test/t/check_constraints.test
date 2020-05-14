@@ -1058,10 +1058,10 @@ CREATE TABLE t1 (id INt CHECK (id != @@session.max_execution_time));
 CREATE TABLE t1 (id INT CHECK (id != (SELECT 1)));
 
 --echo # Parameter
-PREPARE stmt FROM 'CREATE TABLE t1 (id INT CHECK(id != ?))';
+#PREPARE stmt FROM 'CREATE TABLE t1 (id INT CHECK(id != ?))';
 --error ER_CHECK_CONSTRAINT_FUNCTION_IS_NOT_ALLOWED
-EXECUTE stmt using @v;
-DEALLOCATE PREPARE stmt;
+#EXECUTE stmt using @v;
+#DEALLOCATE PREPARE stmt;
 
 
 --echo #------------------------------------------------------------------------

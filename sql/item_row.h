@@ -1,7 +1,7 @@
 #ifndef ITEM_ROW_INCLUDED
 #define ITEM_ROW_INCLUDED
 
-/* Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -88,8 +88,15 @@ class Item_row : public Item {
         used_tables_cache(item->used_tables_cache),
         not_null_tables_cache(0),
         arg_count(item->arg_count),
-        with_null(false) {}
-
+        with_null(false) {
+    /*
+      The convention for data_type() of this class is that it starts as
+      MYSQL_TYPE_INVALID and ends as MYSQL_TYPE_NULL when resolving is complete.
+      This is just used as an indicator of resolver progress. A row object does
+      not have a data type by itself.
+    */
+    set_data_type(MYSQL_TYPE_INVALID);
+  }
   bool itemize(Parse_context *pc, Item **res) override;
 
   enum Type type() const override { return ROW_ITEM; }
@@ -124,6 +131,7 @@ class Item_row : public Item {
   bool fix_fields(THD *thd, Item **ref) override;
   void fix_after_pullout(SELECT_LEX *parent_select,
                          SELECT_LEX *removed_select) override;
+  void propagate_type(const Type_properties &type) override;
   void cleanup() override;
   void split_sum_func(THD *thd, Ref_item_array ref_item_array,
                       List<Item> &fields) override;

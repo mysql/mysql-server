@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -371,6 +371,8 @@ class sp_lex_instr : public sp_instr {
   */
   virtual void get_query(String *sql_query) const;
 
+  virtual void adjust_sql_command(LEX *) {}
+
   /**
     @return the expression query string. This string can not be passed directly
     to the parser as it is most likely not a valid SQL-statement.
@@ -533,19 +535,19 @@ class sp_instr_set : public sp_lex_instr {
   // sp_printable implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual void print(const THD *thd, String *str);
+  void print(const THD *thd, String *str) override;
 
   /////////////////////////////////////////////////////////////////////////
   // sp_lex_instr implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool exec_core(THD *thd, uint *nextp);
+  bool exec_core(THD *thd, uint *nextp) override;
 
-  virtual bool is_invalid() const { return m_value_item == nullptr; }
+  bool is_invalid() const override { return m_value_item == nullptr; }
 
-  virtual void invalidate() { m_value_item = nullptr; }
+  void invalidate() override { m_value_item = nullptr; }
 
-  virtual bool on_after_expr_parsing(THD *thd) {
+  bool on_after_expr_parsing(THD *thd) override {
     DBUG_ASSERT(thd->lex->select_lex->fields_list.elements == 1);
 
     m_value_item = thd->lex->select_lex->fields_list.head();
@@ -553,7 +555,11 @@ class sp_instr_set : public sp_lex_instr {
     return false;
   }
 
-  virtual LEX_CSTRING get_expr_query() const { return m_value_query; }
+  LEX_CSTRING get_expr_query() const override { return m_value_query; }
+
+  void adjust_sql_command(LEX *lex) override {
+    lex->sql_command = SQLCOM_SET_OPTION;
+  }
 
  private:
   /// Frame offset.
@@ -568,7 +574,7 @@ class sp_instr_set : public sp_lex_instr {
 #ifdef HAVE_PSI_INTERFACE
  public:
   static PSI_statement_info psi_info;
-  virtual PSI_statement_info *get_psi_info() { return &psi_info; }
+  PSI_statement_info *get_psi_info() override { return &psi_info; }
 #endif
 };
 

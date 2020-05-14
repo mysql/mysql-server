@@ -1,4 +1,8 @@
- #Get deafult engine value
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+# because max_length in metadata is different in PS protocol.
+--source include/no_protocol.inc
+
+#Get default engine value
 --let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 
 ###############################################

@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -9386,6 +9386,12 @@ ER_DISABLE_AUTO_POSITION_REQUIRES_ASYNC_RECONNECT_OFF
 
 ER_FUNCTION_DOES_NOT_SUPPORT_CHARACTER_SET
   eng "The function %s does not support the character set '%s'."
+
+ER_INVALID_PARAMETER_USE
+  eng "Invalid use of parameters in '%s'"
+
+ER_IMPOSSIBLE_STRING_CONVERSION
+  eng "Conversion from collation %s into %s impossible for %s"
 
 #
 #  End of 8.0 error messages (server-to-client).

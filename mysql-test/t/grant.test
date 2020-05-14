@@ -16,12 +16,6 @@ SET GLOBAL log_bin_trust_function_creators = 1;
 set @orig_sql_mode_session= @@SESSION.sql_mode;
 set @orig_sql_mode_global= @@GLOBAL.sql_mode;
 
-# Cleanup
---disable_warnings
-drop table if exists t1;
-drop database if exists mysqltest;
---enable_warnings
-
 connect (master,localhost,root,,);
 connection master;
 SET NAMES binary;
@@ -402,9 +396,7 @@ SHOW PRIVILEGES;
 #
 connect (root,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection root;
---disable_warnings
 create database mysqltest;
---enable_warnings
 create table mysqltest.t1 (a int,b int,c int);
 create user mysqltest_1@localhost;
 grant all on mysqltest.t1 to mysqltest_1@localhost;
@@ -1017,13 +1009,6 @@ connection default;
 
 # Prepare.
 
---disable_warnings
-DROP DATABASE IF EXISTS mysqltest1;
-DROP DATABASE IF EXISTS mysqltest2;
-DROP DATABASE IF EXISTS mysqltest3;
-DROP DATABASE IF EXISTS mysqltest4;
---enable_warnings
-
 CREATE DATABASE mysqltest1;
 CREATE DATABASE mysqltest2;
 CREATE DATABASE mysqltest3;
@@ -1104,11 +1089,6 @@ DROP USER mysqltest_1@localhost;
 
 # Prepare.
 
---disable_warnings
-DROP DATABASE IF EXISTS mysqltest1;
-DROP DATABASE IF EXISTS mysqltest2;
---enable_warnings
-
 CREATE DATABASE mysqltest1;
 CREATE DATABASE mysqltest2;
 
@@ -1160,11 +1140,6 @@ DROP USER mysqltest_1@localhost;
 # Test case 2: privileges are not checked properly for prepared statements.
 
 # Prepare.
-
---disable_warnings
-DROP DATABASE IF EXISTS mysqltest1;
-DROP DATABASE IF EXISTS mysqltest2;
---enable_warnings
 
 CREATE DATABASE mysqltest1;
 CREATE DATABASE mysqltest2;
@@ -1317,11 +1292,6 @@ SET PASSWORD FOR CURRENT_USER() = "";
 --echo
 --echo # Bug#57952
 --echo
-
---disable_warnings
-DROP DATABASE IF EXISTS mysqltest1;
-DROP DATABASE IF EXISTS mysqltest2;
---enable_warnings
 
 CREATE DATABASE mysqltest1;
 CREATE DATABASE mysqltest2;
@@ -1906,10 +1876,6 @@ DELETE FROM mysql.tables_priv WHERE User LIKE 'mysqltest_%';
 DELETE FROM mysql.columns_priv WHERE User LIKE 'mysqltest_%';
 FLUSH PRIVILEGES;
 
---disable_warnings
-DROP DATABASE IF EXISTS mysqltest_db1;
---enable_warnings
-
 CREATE DATABASE mysqltest_db1;
 
 CREATE TABLE mysqltest_db1.t1(a INT);
@@ -2199,9 +2165,6 @@ DROP USER mysqltest_u1@localhost;
 --echo # BUG#11759114 - '51401: GRANT TREATS NONEXISTENT FUNCTIONS/PRIVILEGES
 --echo #                 DIFFERENTLY'.
 --echo #
---disable_warnings
-drop database if exists mysqltest_db1;
---enable_warnings
 create database mysqltest_db1;
 create user mysqltest_u1;
 --echo # Both GRANT statements below should fail with the same error.
@@ -2223,11 +2186,6 @@ drop user mysqltest_u1;
 --echo # Bug#11756966 - 48958: STORED PROCEDURES CAN BE LEVERAGED TO BYPASS
 --echo #                DATABASE SECURITY
 --echo #
-
---disable_warnings
-DROP DATABASE IF EXISTS secret;
-DROP DATABASE IF EXISTS no_such_db;
---enable_warnings
 
 CREATE DATABASE secret;
 CREATE USER 'untrusted'@localhost;
@@ -2806,6 +2764,392 @@ disconnect conn1;
 connection default;
 DROP USER mysqluser1@localhost, MySQLuser1@localhost;
 DROP DATABASE mysqltest_1;
+
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc
+
+--echo #
+--echo # Test prepared statements and REVOKE between PREPARE and EXECUTE
+--echo #
+
+CREATE DATABASE mysqltest;
+
+CREATE USER mysqltest@localhost;
+
+CREATE TABLE mysqltest.visible(s INTEGER, u INTEGER, d INTEGER);
+
+GRANT ALL PRIVILEGES ON mysqltest.visible TO mysqltest@localhost;
+
+CREATE VIEW mysqltest.v0 AS SELECT s, u, d FROM mysqltest.visible;
+
+GRANT ALL PRIVILEGES ON mysqltest.v0 TO mysqltest@localhost;
+
+CREATE TABLE mysqltest.cols(
+ s1 INTEGER, s2 INTEGER,
+ u1 INTEGER, u2 INTEGER,
+ i1 INTEGER, i2 INTEGER);
+
+GRANT SELECT(s1, s2, u1, u2, i1, i2) ON mysqltest.cols TO mysqltest@localhost;
+GRANT INSERT(s1, s2, u1, u2, i1, i2) ON mysqltest.cols TO mysqltest@localhost;
+GRANT UPDATE(u1, u2) ON mysqltest.cols TO mysqltest@localhost;
+GRANT DELETE ON mysqltest.cols TO mysqltest@localhost;
+
+CREATE TABLE mysqltest.ins(i1 INTEGER, i2 INTEGER, i3 INTEGER);
+
+GRANT SELECT(i1, i2, i3) ON mysqltest.ins TO mysqltest@localhost;
+GRANT INSERT(i1, i2, i3) ON mysqltest.ins TO mysqltest@localhost;
+GRANT UPDATE(i1, i2, i3) ON mysqltest.ins TO mysqltest@localhost;
+
+CREATE TABLE mysqltest.source(b1 INTEGER, b2 INTEGER);
+
+INSERT INTO mysqltest.source VALUES(1, 1);
+
+GRANT SELECT(b1, b2) ON mysqltest.source TO mysqltest@localhost;
+
+CREATE VIEW mysqltest.v1 AS
+SELECT s1, s2, u1, u2, i1, i2 FROM mysqltest.cols;
+
+GRANT SELECT(s1, s2, u1, u2, i1, i2) ON mysqltest.v1 TO mysqltest@localhost;
+GRANT INSERT(s1, s2, u1, u2, i1, i2) ON mysqltest.v1 TO mysqltest@localhost;
+GRANT UPDATE(u1, u2) ON mysqltest.v1 TO mysqltest@localhost;
+GRANT DELETE ON mysqltest.v1 TO mysqltest@localhost;
+
+CREATE FUNCTION mysqltest.f1() RETURNS INTEGER DETERMINISTIC RETURN 1;
+
+GRANT EXECUTE ON FUNCTION mysqltest.f1 TO mysqltest@localhost;
+
+CREATE PROCEDURE mysqltest.p1(a INTEGER) SELECT a;
+
+GRANT EXECUTE ON PROCEDURE mysqltest.p1 TO mysqltest@localhost;
+
+CREATE PROCEDURE mysqltest.p2(a INTEGER) SELECT a;
+
+GRANT EXECUTE ON PROCEDURE mysqltest.p2 TO mysqltest@localhost;
+
+--connect (con1,localhost,mysqltest,,mysqltest)
+
+PREPARE stmt_i0 FROM 'INSERT INTO mysqltest.visible VALUES(1, 1, 1)';
+PREPARE stmt_s0 FROM 'SELECT s FROM mysqltest.visible';
+PREPARE stmt_u0 FROM 'UPDATE mysqltest.visible SET u=1';
+PREPARE stmt_d0 FROM 'DELETE FROM mysqltest.visible WHERE d=1';
+
+PREPARE stmt_i0v FROM 'INSERT INTO mysqltest.v0 VALUES(1, 1, 1)';
+PREPARE stmt_s0v FROM 'SELECT s FROM mysqltest.v0';
+PREPARE stmt_u0v FROM 'UPDATE mysqltest.v0 SET u=1';
+PREPARE stmt_d0v FROM 'DELETE FROM mysqltest.v0 WHERE d=1';
+
+PREPARE stmt_i1 FROM 'INSERT INTO mysqltest.cols(i1, s1, u1) VALUES(1, 1, 1)';
+PREPARE stmt_i2 FROM 'INSERT INTO mysqltest.cols(i2, s2, u2) VALUES(1, 1, 1)';
+PREPARE stmt_iv1 FROM
+'INSERT INTO mysqltest.cols(i1) VALUES((SELECT b1 FROM mysqltest.source))';
+PREPARE stmt_iv2 FROM
+'INSERT INTO mysqltest.cols(i1) VALUES((SELECT b2 FROM mysqltest.source))';
+PREPARE stmt_is1 FROM
+'INSERT INTO mysqltest.cols(i1) SELECT b1 FROM mysqltest.source';
+PREPARE stmt_is2 FROM
+'INSERT INTO mysqltest.cols(i1) SELECT b2 FROM mysqltest.source';
+PREPARE stmt_ii1 FROM 'INSERT INTO mysqltest.ins(i1, i3) VALUES(1, i1)';
+PREPARE stmt_ii2 FROM 'INSERT INTO mysqltest.ins(i2, i3) VALUES(1, i2)';
+PREPARE stmt_iu1 FROM
+'INSERT INTO mysqltest.ins(i1)
+ VALUES(1) ON DUPLICATE KEY UPDATE i1=i1+VALUES(i1)';
+PREPARE stmt_iu2 FROM
+'INSERT INTO mysqltest.ins(i2)
+ VALUES(1) ON DUPLICATE KEY UPDATE i2=i2+VALUES(i2)';
+PREPARE stmt_s1 FROM 'SELECT s1 FROM mysqltest.cols';
+PREPARE stmt_s2 FROM 'SELECT s2 FROM mysqltest.cols';
+PREPARE stmt_sw1 FROM 'SELECT 1 FROM mysqltest.cols WHERE s1=1';
+PREPARE stmt_sw2 FROM 'SELECT 1 FROM mysqltest.cols WHERE s2=1';
+PREPARE stmt_su1 FROM
+'SELECT 1 FROM mysqltest.cols AS a JOIN mysqltest.cols AS b USING (s1)';
+PREPARE stmt_su2 FROM
+'SELECT 1 FROM mysqltest.cols AS a JOIN mysqltest.cols AS b USING (s2)';
+PREPARE stmt_sj1 FROM
+'SELECT 1 FROM mysqltest.cols AS a JOIN mysqltest.cols AS b ON a.s1=b.s1';
+PREPARE stmt_sj2 FROM
+'SELECT 1 FROM mysqltest.cols AS a JOIN mysqltest.cols AS b ON a.s2=b.s2';
+PREPARE stmt_sg1 FROM 'SELECT 1 FROM mysqltest.cols GROUP BY s1';
+PREPARE stmt_sg2 FROM 'SELECT 1 FROM mysqltest.cols GROUP BY s2';
+PREPARE stmt_sh1 FROM 'SELECT 1 FROM mysqltest.cols HAVING SUM(s1)=1';
+PREPARE stmt_sh2 FROM 'SELECT 1 FROM mysqltest.cols HAVING SUM(s2)=1';
+PREPARE stmt_so1 FROM 'SELECT 1 FROM mysqltest.cols ORDER BY s1';
+PREPARE stmt_so2 FROM 'SELECT 1 FROM mysqltest.cols ORDER BY s2';
+PREPARE stmt_sr1 FROM 'SELECT SUM(1) OVER (ORDER BY s1) FROM mysqltest.cols';
+PREPARE stmt_sr2 FROM 'SELECT SUM(1) OVER (ORDER BY s2) FROM mysqltest.cols';
+PREPARE stmt_sp1 FROM
+'SELECT SUM(1) OVER (PARTITION BY s1) FROM mysqltest.cols';
+PREPARE stmt_sp2 FROM
+'SELECT SUM(1) OVER (PARTITION BY s2) FROM mysqltest.cols';
+PREPARE stmt_sq1 FROM
+'SELECT 1 FROM mysqltest.cols WHERE s1 IN (SELECT s1 FROM mysqltest.cols)';
+PREPARE stmt_sq2 FROM
+'SELECT 1 FROM mysqltest.cols WHERE s1 IN (SELECT s2 FROM mysqltest.cols)';
+PREPARE stmt_u1 FROM 'UPDATE mysqltest.cols SET u1=1';
+PREPARE stmt_u2 FROM 'UPDATE mysqltest.cols SET u2=1';
+PREPARE stmt_us1 FROM 'UPDATE mysqltest.cols SET u1=s1';
+PREPARE stmt_us2 FROM 'UPDATE mysqltest.cols SET u1=s2';
+PREPARE stmt_uj1 FROM
+'UPDATE mysqltest.cols AS a JOIN mysqltest.cols AS b ON a.s1=b.s1 SET a.u1=1';
+PREPARE stmt_uj2 FROM
+'UPDATE mysqltest.cols AS a JOIN mysqltest.cols AS b ON a.s2=b.s2 SET a.u1=1';
+PREPARE stmt_uw1 FROM 'UPDATE mysqltest.cols SET u1=1 WHERE s1=1';
+PREPARE stmt_uw2 FROM 'UPDATE mysqltest.cols SET u1=1 WHERE s2=1';
+PREPARE stmt_uo1 FROM 'UPDATE mysqltest.cols SET u1=1 ORDER BY s1';
+PREPARE stmt_uo2 FROM 'UPDATE mysqltest.cols SET u1=1 ORDER BY s2';
+PREPARE stmt_d1 FROM 'DELETE FROM mysqltest.cols WHERE s1=1';
+PREPARE stmt_d2 FROM 'DELETE FROM mysqltest.cols WHERE s2=1';
+PREPARE stmt_dj1 FROM
+'DELETE a FROM mysqltest.cols AS a JOIN mysqltest.cols AS b ON a.s1=b.s1';
+PREPARE stmt_dj2 FROM
+'DELETE a FROM mysqltest.cols AS a JOIN mysqltest.cols AS b ON a.s2=b.s2';
+PREPARE stmt_do1 FROM 'DELETE FROM mysqltest.cols WHERE s1=1 ORDER BY s1';
+PREPARE stmt_do2 FROM 'DELETE FROM mysqltest.cols WHERE s1=1 ORDER BY s2';
+
+PREPARE stmt_set1 FROM 'SET @a = (SELECT COUNT(s1) FROM mysqltest.cols)';
+PREPARE stmt_set2 FROM 'SET @b = (SELECT COUNT(s2) FROM mysqltest.cols)';
+
+PREPARE stmt_i1v FROM 'INSERT INTO mysqltest.v1(i1, s1, u1) VALUES(1, 1, 1)';
+PREPARE stmt_i2v FROM 'INSERT INTO mysqltest.v1(i2, s2, u2) VALUES(1, 1, 1)';
+PREPARE stmt_s1v FROM 'SELECT s1 FROM mysqltest.v1';
+PREPARE stmt_s2v FROM 'SELECT s2 FROM mysqltest.v1';
+PREPARE stmt_u1v FROM 'UPDATE mysqltest.v1 SET u1=1';
+PREPARE stmt_u2v FROM 'UPDATE mysqltest.v1 SET u2=1';
+PREPARE stmt_d1v FROM 'DELETE FROM mysqltest.v1 WHERE s1=1';
+PREPARE stmt_d2v FROM 'DELETE FROM mysqltest.v1 WHERE s2=1';
+
+PREPARE stmt_f1 FROM 'SELECT mysqltest.f1()';
+
+PREPARE stmt_p1 FROM 'CALL mysqltest.p1(10)';
+
+PREPARE stmt_c1 FROM 'CALL mysqltest.p2((SELECT b1 FROM mysqltest.source))';
+PREPARE stmt_c2 FROM 'CALL mysqltest.p2((SELECT b2 FROM mysqltest.source))';
+
+EXECUTE stmt_i0;
+EXECUTE stmt_s0;
+EXECUTE stmt_u0;
+EXECUTE stmt_d0;
+
+EXECUTE stmt_i0v;
+EXECUTE stmt_s0v;
+EXECUTE stmt_u0v;
+EXECUTE stmt_d0v;
+
+EXECUTE stmt_i1;
+EXECUTE stmt_i2;
+EXECUTE stmt_iv1;
+EXECUTE stmt_iv2;
+EXECUTE stmt_is1;
+EXECUTE stmt_is2;
+EXECUTE stmt_ii1;
+EXECUTE stmt_ii2;
+EXECUTE stmt_iu1;
+EXECUTE stmt_iu2;
+EXECUTE stmt_s1;
+EXECUTE stmt_s2;
+EXECUTE stmt_sw1;
+EXECUTE stmt_sw2;
+EXECUTE stmt_su1;
+EXECUTE stmt_su2;
+EXECUTE stmt_sj1;
+EXECUTE stmt_sj2;
+EXECUTE stmt_sg1;
+EXECUTE stmt_sg2;
+EXECUTE stmt_sh1;
+EXECUTE stmt_sh2;
+EXECUTE stmt_so1;
+EXECUTE stmt_so2;
+EXECUTE stmt_sr1;
+EXECUTE stmt_sr2;
+EXECUTE stmt_sp1;
+EXECUTE stmt_sp2;
+EXECUTE stmt_sq1;
+EXECUTE stmt_sq2;
+EXECUTE stmt_u1;
+EXECUTE stmt_u2;
+EXECUTE stmt_us1;
+EXECUTE stmt_us2;
+EXECUTE stmt_uj1;
+EXECUTE stmt_uj2;
+EXECUTE stmt_uw1;
+EXECUTE stmt_uw2;
+EXECUTE stmt_uo1;
+EXECUTE stmt_uo2;
+EXECUTE stmt_d1;
+EXECUTE stmt_d2;
+EXECUTE stmt_dj1;
+EXECUTE stmt_dj2;
+EXECUTE stmt_do1;
+EXECUTE stmt_do2;
+
+EXECUTE stmt_set1;
+EXECUTE stmt_set2;
+
+EXECUTE stmt_i1v;
+EXECUTE stmt_i2v;
+EXECUTE stmt_s1v;
+EXECUTE stmt_s2v;
+EXECUTE stmt_u1v;
+EXECUTE stmt_u2v;
+EXECUTE stmt_d1v;
+EXECUTE stmt_d2v;
+
+EXECUTE stmt_f1;
+
+EXECUTE stmt_p1;
+
+EXECUTE stmt_c1;
+EXECUTE stmt_c2;
+
+--connection default
+
+REVOKE ALL PRIVILEGES ON mysqltest.v0 FROM mysqltest@localhost;
+REVOKE SELECT(s2) ON mysqltest.v1 FROM mysqltest@localhost;
+REVOKE INSERT(i2,s2,u2) ON mysqltest.v1 FROM mysqltest@localhost;
+REVOKE UPDATE(u2) ON mysqltest.v1 FROM mysqltest@localhost;
+
+--connection con1
+
+--error ER_TABLEACCESS_DENIED_ERROR
+EXECUTE stmt_i0v;
+--error ER_TABLEACCESS_DENIED_ERROR
+EXECUTE stmt_s0v;
+--error ER_TABLEACCESS_DENIED_ERROR
+EXECUTE stmt_u0v;
+--error ER_TABLEACCESS_DENIED_ERROR
+EXECUTE stmt_d0v;
+
+EXECUTE stmt_i1v;
+EXECUTE stmt_s1v;
+EXECUTE stmt_u1v;
+EXECUTE stmt_d1v;
+
+--error ER_COLUMNACCESS_DENIED_ERROR
+EXECUTE stmt_i2v;
+--error ER_COLUMNACCESS_DENIED_ERROR
+EXECUTE stmt_s2v;
+--error ER_COLUMNACCESS_DENIED_ERROR
+EXECUTE stmt_u2v;
+--error ER_COLUMNACCESS_DENIED_ERROR
+EXECUTE stmt_d2v;
+
+--connection default
+
+REVOKE ALL PRIVILEGES ON mysqltest.visible FROM mysqltest@localhost;
+REVOKE SELECT(s2) ON mysqltest.cols FROM mysqltest@localhost;
+REVOKE INSERT(i2,s2,u2) ON mysqltest.cols FROM mysqltest@localhost;
+REVOKE UPDATE(u2) ON mysqltest.cols FROM mysqltest@localhost;
+REVOKE SELECT(i2) ON mysqltest.ins FROM mysqltest@localhost;
+REVOKE SELECT(b2) ON mysqltest.source FROM mysqltest@localhost;
+REVOKE EXECUTE ON FUNCTION mysqltest.f1 FROM mysqltest@localhost;
+REVOKE EXECUTE ON PROCEDURE mysqltest.p1 FROM mysqltest@localhost;
+
+--connection con1
+
+--error ER_TABLEACCESS_DENIED_ERROR
+EXECUTE stmt_i0;
+--error ER_TABLEACCESS_DENIED_ERROR
+EXECUTE stmt_s0;
+--error ER_TABLEACCESS_DENIED_ERROR
+EXECUTE stmt_u0;
+--error ER_TABLEACCESS_DENIED_ERROR
+EXECUTE stmt_d0;
+
+EXECUTE stmt_i1;
+EXECUTE stmt_iv1;
+EXECUTE stmt_is1;
+EXECUTE stmt_ii1;
+EXECUTE stmt_iu1;
+EXECUTE stmt_s1;
+EXECUTE stmt_sw1;
+EXECUTE stmt_su1;
+EXECUTE stmt_sj1;
+EXECUTE stmt_sg1;
+EXECUTE stmt_sh1;
+EXECUTE stmt_so1;
+EXECUTE stmt_sp1;
+EXECUTE stmt_sr1;
+EXECUTE stmt_sq1;
+EXECUTE stmt_u1;
+EXECUTE stmt_us1;
+EXECUTE stmt_uj1;
+EXECUTE stmt_uw1;
+EXECUTE stmt_uo1;
+EXECUTE stmt_d1;
+EXECUTE stmt_dj1;
+EXECUTE stmt_do1;
+EXECUTE stmt_set1;
+EXECUTE stmt_c1;
+
+--error ER_COLUMNACCESS_DENIED_ERROR
+EXECUTE stmt_i2;
+--error ER_COLUMNACCESS_DENIED_ERROR
+EXECUTE stmt_iv2;
+--error ER_COLUMNACCESS_DENIED_ERROR
+EXECUTE stmt_is2;
+--error ER_COLUMNACCESS_DENIED_ERROR
+EXECUTE stmt_ii2;
+--error ER_COLUMNACCESS_DENIED_ERROR
+EXECUTE stmt_iu2;
+--error ER_COLUMNACCESS_DENIED_ERROR
+EXECUTE stmt_s2;
+--error ER_COLUMNACCESS_DENIED_ERROR
+EXECUTE stmt_sw2;
+--error ER_COLUMNACCESS_DENIED_ERROR
+EXECUTE stmt_su2;
+--error ER_COLUMNACCESS_DENIED_ERROR
+EXECUTE stmt_sj2;
+--error ER_COLUMNACCESS_DENIED_ERROR
+EXECUTE stmt_sg2;
+--error ER_COLUMNACCESS_DENIED_ERROR
+EXECUTE stmt_sh2;
+--error ER_COLUMNACCESS_DENIED_ERROR
+EXECUTE stmt_so2;
+--error ER_COLUMNACCESS_DENIED_ERROR
+EXECUTE stmt_sp2;
+--error ER_COLUMNACCESS_DENIED_ERROR
+EXECUTE stmt_sr2;
+--error ER_COLUMNACCESS_DENIED_ERROR
+EXECUTE stmt_sq2;
+--error ER_COLUMNACCESS_DENIED_ERROR
+EXECUTE stmt_u2;
+--error ER_COLUMNACCESS_DENIED_ERROR
+EXECUTE stmt_us2;
+--error ER_COLUMNACCESS_DENIED_ERROR
+EXECUTE stmt_uj2;
+--error ER_COLUMNACCESS_DENIED_ERROR
+EXECUTE stmt_uw2;
+--error ER_COLUMNACCESS_DENIED_ERROR
+EXECUTE stmt_uo2;
+--error ER_COLUMNACCESS_DENIED_ERROR
+EXECUTE stmt_d2;
+--error ER_COLUMNACCESS_DENIED_ERROR
+EXECUTE stmt_dj2;
+--error ER_COLUMNACCESS_DENIED_ERROR
+EXECUTE stmt_do2;
+--error ER_COLUMNACCESS_DENIED_ERROR
+EXECUTE stmt_set2;
+
+--error ER_PROCACCESS_DENIED_ERROR
+EXECUTE stmt_f1;
+
+--error ER_PROCACCESS_DENIED_ERROR
+EXECUTE stmt_p1;
+
+--error ER_COLUMNACCESS_DENIED_ERROR
+EXECUTE stmt_c2;
+
+--connection default
+--disconnect con1
+
+DROP TABLE mysqltest.visible, mysqltest.cols, mysqltest.source, mysqltest.ins;
+DROP VIEW mysqltest.v0, mysqltest.v1;
+DROP FUNCTION mysqltest.f1;
+DROP PROCEDURE mysqltest.p1;
+DROP PROCEDURE mysqltest.p2;
+
+DROP DATABASE mysqltest;
+
+DROP USER mysqltest@localhost;
 
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc

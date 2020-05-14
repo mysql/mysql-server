@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -746,7 +746,7 @@ static int trx_i_s_common_fill_table(
   cache = trx_i_s_cache;
 
   /* which table we have to fill? */
-  table_name = tables->schema_table_name;
+  table_name = tables->table_name;
   /* or table_name = tables->schema_table->table_name; */
 
   /* update the cache */

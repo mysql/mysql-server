@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -94,10 +94,12 @@
 #include "sql/sql_do.h"
 #include "sql/sql_error.h"
 #include "sql/sql_executor.h"
+#include "sql/sql_insert.h"       // Sql_cmd_insert_base
 #include "sql/sql_join_buffer.h"  // JOIN_CACHE
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_optimizer.h"  // JOIN
+#include "sql/sql_parse.h"      // bind_fields
 #include "sql/sql_planner.h"    // calculate_condition_filter
 #include "sql/sql_test.h"       // misc. debug printing utilities
 #include "sql/sql_timer.h"      // thd_timer_set
@@ -159,10 +161,9 @@ bool handle_query(THD *thd, LEX *lex, Query_result *result,
 
   SELECT_LEX_UNIT *const unit = lex->unit;
   SELECT_LEX *const select = unit->first_select();
-  bool res;
 
-  DBUG_ASSERT(!unit->is_prepared() && !unit->is_optimized() &&
-              !unit->is_executed());
+  // Prepared statements may be prepared already
+  DBUG_ASSERT(!unit->is_optimized() && !unit->is_executed());
 
   const bool single_query = unit->is_simple();
 
@@ -171,25 +172,31 @@ bool handle_query(THD *thd, LEX *lex, Query_result *result,
   if (thd->lex->set_var_list.elements && resolve_var_assignments(thd, lex))
     goto err;
 
-  if (single_query) {
-    if (unit->prepare_limit(thd, unit->global_parameters()))
-      goto err; /* purecov: inspected */
+  if (!unit->is_prepared()) {
+    Prepared_stmt_arena_holder ps_arena_holder(thd);
+    if (single_query) {
+      select->context.resolve_in_select_list = true;
+      select->set_query_result(result);
+      select->make_active_options(added_options, removed_options);
 
-    select->context.resolve_in_select_list = true;
-    select->set_query_result(result);
-    select->make_active_options(added_options, removed_options);
+      if (select->prepare(thd, nullptr)) goto err;
 
-    if (select->prepare(thd)) goto err;
-
-    unit->set_prepared();
+      unit->set_prepared();
+    } else {
+      if (unit->prepare(thd, result, nullptr, SELECT_NO_UNLOCK | added_options,
+                        removed_options))
+        goto err;
+    }
 
     // TODO(sgunders): Get rid of this when we remove Query_result from the
     // SELECT_LEX_UNIT.
     unit->set_query_result(result);
-  } else {
-    if (unit->prepare(thd, result, SELECT_NO_UNLOCK | added_options,
-                      removed_options))
+    if (!thd->stmt_arena->is_regular() && lex->save_cmd_properties(thd))
       goto err;
+  } else {
+    // Restore prepared statement properties, bind table and field information
+    lex->restore_cmd_properties();
+    bind_fields(thd->stmt_arena->item_list());
   }
 
   lex->set_exec_started();
@@ -217,19 +224,23 @@ bool handle_query(THD *thd, LEX *lex, Query_result *result,
   THD_STAGE_INFO(thd, stage_end);
 
   // Do partial cleanup (preserve plans for EXPLAIN).
-  res = unit->cleanup(thd, false);
+  unit->cleanup(thd, false);
 
-  return res;
+  result->cleanup(thd);
+
+  return false;
 
 err:
   DBUG_ASSERT(thd->is_error() || thd->killed);
   DBUG_PRINT("info", ("report_error: %d", thd->is_error()));
   THD_STAGE_INFO(thd, stage_end);
 
-  (void)unit->cleanup(thd, false);
+  lex->cleanup(thd, false);
 
   // Abort the result set (if it has been prepared).
   result->abort_result_set(thd);
+
+  result->cleanup(thd);
 
   return thd->is_error();
 }
@@ -409,20 +420,20 @@ bool Sql_cmd_dml::prepare(THD *thd) {
 
   // @todo: Move this to constructor?
   lex = thd->lex;
-  result = lex->result;
 
-  SELECT_LEX_UNIT *const unit = lex->unit;
+  // Parser may have assigned a specific query result handler
+  result = lex->result;
 
   DBUG_ASSERT(!is_prepared());
 
-  DBUG_ASSERT(!unit->is_prepared() && !unit->is_optimized() &&
-              !unit->is_executed());
+  DBUG_ASSERT(!lex->unit->is_prepared() && !lex->unit->is_optimized() &&
+              !lex->unit->is_executed());
 
   /*
     Constant folding could cause warnings during preparation. Make
     sure they are promoted to errors when strict mode is enabled.
   */
-  if (is_data_change_stmt()) {
+  if (is_data_change_stmt() && needs_explicit_preparation()) {
     // Push ignore / strict error handler
     if (lex->is_ignore()) {
       thd->push_internal_handler(&ignore_handler);
@@ -451,29 +462,32 @@ bool Sql_cmd_dml::prepare(THD *thd) {
     if (thd->is_error())  // @todo - dictionary code should be fixed
       goto err;
     if (error_handler_active) thd->pop_internal_handler();
-    (void)unit->cleanup(thd, false);
+    lex->cleanup(thd, false);
     return true;
   }
 #ifndef DBUG_OFF
   if (sql_command_code() == SQLCOM_SELECT) DEBUG_SYNC(thd, "after_table_open");
 #endif
+
   if (lex->set_var_list.elements && resolve_var_assignments(thd, lex))
     goto err; /* purecov: inspected */
 
-  /*
-    @todo add consistent error tracking for all query preparation by adding
-    this line: (when done, remove all other occurrences in preparation code)
-
+  {
     Prepare_error_tracker tracker(thd);
-  */
-
-  if (prepare_inner(thd)) goto err;
-
-  set_prepared();
-  unit->set_prepared();
+    Prepared_stmt_arena_holder ps_arena_holder(thd);
+    if (prepare_inner(thd)) goto err;
+    if (!is_regular()) {
+      if (save_cmd_properties(thd)) goto err;
+      lex->set_secondary_engine_execution_context(nullptr);
+    }
+    set_prepared();
+  }
 
   // Pop ignore / strict error handler
   if (error_handler_active) thd->pop_internal_handler();
+
+  // Revertable changes are not supported during preparation
+  DBUG_ASSERT(thd->change_list.is_empty());
 
   return false;
 
@@ -481,9 +495,11 @@ err:
   DBUG_ASSERT(thd->is_error());
   DBUG_PRINT("info", ("report_error: %d", thd->is_error()));
 
+  lex->set_secondary_engine_execution_context(nullptr);
+
   if (error_handler_active) thd->pop_internal_handler();
 
-  (void)unit->cleanup(thd, false);
+  lex->cleanup(thd, false);
 
   return true;
 }
@@ -550,19 +566,16 @@ bool Sql_cmd_select::prepare_inner(THD *thd) {
       EXPLAIN to any query and receive output for it, even if the query itself
       redirects the output.
     */
-    Prepared_stmt_arena_holder ps_arena_holder(thd);
     result = new (thd->mem_root) Query_result_send();
-    if (!result) return true; /* purecov: inspected */
+    if (result == nullptr) return true; /* purecov: inspected */
   } else {
-    Prepared_stmt_arena_holder ps_arena_holder(thd);
-    if (lex->result == nullptr) {
+    if (result == nullptr) {
       if (sql_command_code() == SQLCOM_SELECT)
-        lex->result = new (thd->mem_root) Query_result_send();
+        result = new (thd->mem_root) Query_result_send();
       else if (sql_command_code() == SQLCOM_DO)
-        lex->result = new (thd->mem_root) Query_result_do();
-      if (lex->result == nullptr) return true; /* purecov: inspected */
+        result = new (thd->mem_root) Query_result_do();
+      if (result == nullptr) return true; /* purecov: inspected */
     }
-    result = lex->result;
   }
 
   SELECT_LEX_UNIT *const unit = lex->unit;
@@ -573,9 +586,6 @@ bool Sql_cmd_select::prepare_inner(THD *thd) {
     if (parameters->select_limit == nullptr)
       return true; /* purecov: inspected */
   }
-  if (unit->prepare_limit(thd, parameters))
-    return true; /* purecov: inspected */
-
   if (unit->is_simple()) {
     SELECT_LEX *const select = unit->first_select();
     select->context.resolve_in_select_list = true;
@@ -584,13 +594,13 @@ bool Sql_cmd_select::prepare_inner(THD *thd) {
     // Unlock the table as soon as possible, so don't set SELECT_NO_UNLOCK.
     select->make_active_options(0, 0);
 
-    if (select->prepare(thd)) return true;
+    if (select->prepare(thd, nullptr)) return true;
 
     unit->set_prepared();
   } else {
     // If we have multiple query blocks, don't unlock and re-lock
     // tables between each each of them.
-    if (unit->prepare(thd, result, SELECT_NO_UNLOCK, 0)) return true;
+    if (unit->prepare(thd, result, nullptr, SELECT_NO_UNLOCK, 0)) return true;
   }
 
   return false;
@@ -600,56 +610,26 @@ bool Sql_cmd_dml::execute(THD *thd) {
   DBUG_TRACE;
 
   lex = thd->lex;
-  result = lex->result;
 
   SELECT_LEX_UNIT *const unit = lex->unit;
 
   bool statement_timer_armed = false;
   bool error_handler_active = false;
-  bool res;
 
   Ignore_error_handler ignore_handler;
   Strict_error_handler strict_handler;
 
-  // @todo - enable when needs_explicit_preparation is changed
-  // DBUG_ASSERT(!needs_explicit_preparation() || is_prepared());
+  // If statement is preparable, it must be prepared
+  DBUG_ASSERT(owner() == nullptr || is_prepared());
+  // If statement is regular, it must be unprepared
+  DBUG_ASSERT(!is_regular() || !is_prepared());
+  // If statement is part of SP, it can be both prepared and unprepared.
 
   // If a timer is applicable to statement, then set it.
   if (is_timer_applicable_to_statement(thd))
     statement_timer_armed = set_statement_timer(thd);
 
-  if (!is_prepared()) {
-    prepare_only = false;  // Indicate that call is from execute
-    if (prepare(thd)) goto err;
-    prepare_only = true;
-  } else {
-    /*
-      When statement is prepared, authorization check and opening of tables is
-      still needed.
-    */
-    if (precheck(thd)) goto err;
-    if (open_tables_for_query(thd, lex->query_tables, 0)) goto err;
-#ifndef DBUG_OFF
-    if (sql_command_code() == SQLCOM_SELECT)
-      DEBUG_SYNC(thd, "after_table_open");
-#endif
-  }
-
-  if (validate_use_secondary_engine(lex)) goto err;
-
-  lex->set_exec_started();
-
-  DBUG_EXECUTE_IF("use_attachable_trx",
-                  thd->begin_attachable_ro_transaction(););
-
-  THD_STAGE_INFO(thd, stage_init);
-
-  thd->clear_current_query_costs();
-
   if (is_data_change_stmt()) {
-    // Replication may require extra check of data change statements
-    if (run_before_dml_hook(thd)) goto err;
-
     // Push ignore / strict error handler
     if (lex->is_ignore()) {
       thd->push_internal_handler(&ignore_handler);
@@ -668,6 +648,48 @@ bool Sql_cmd_dml::execute(THD *thd) {
     }
   }
 
+  if (!is_prepared()) {
+    if (prepare(thd)) goto err;
+  } else {
+    /*
+      Prepared statement, open tables referenced in statement and check
+      privileges for it.
+    */
+    cleanup(thd);
+    if (open_tables_for_query(thd, lex->query_tables, 0)) goto err;
+#ifndef DBUG_OFF
+    if (sql_command_code() == SQLCOM_SELECT)
+      DEBUG_SYNC(thd, "after_table_open");
+#endif
+    // Bind table and field information
+    if (restore_cmd_properties(thd)) return true;
+    if (check_privileges(thd)) goto err;
+
+    if (m_lazy_result) {
+      Prepared_stmt_arena_holder ps_arena_holder(thd);
+
+      if (result->prepare(thd, *unit->get_unit_column_types(), unit)) goto err;
+      m_lazy_result = false;
+    }
+  }
+
+  if (validate_use_secondary_engine(lex)) goto err;
+
+  lex->set_exec_started();
+
+  DBUG_EXECUTE_IF("use_attachable_trx",
+                  thd->begin_attachable_ro_transaction(););
+
+  THD_STAGE_INFO(thd, stage_init);
+
+  thd->clear_current_query_costs();
+
+  // Replication may require extra check of data change statements
+  if (is_data_change_stmt() && run_before_dml_hook(thd)) goto err;
+
+  // Revertable changes are not supported during preparation
+  DBUG_ASSERT(thd->change_list.is_empty());
+
   DBUG_ASSERT(!lex->is_query_tables_locked());
   /*
     Locking of tables is done after preparation but before optimization.
@@ -680,25 +702,21 @@ bool Sql_cmd_dml::execute(THD *thd) {
   }
 
   // Perform statement-specific execution
-  res = execute_inner(thd);
+  if (execute_inner(thd)) goto err;
 
   // Count the number of statements offloaded to a secondary storage engine.
   if (using_secondary_storage_engine() && lex->unit->is_executed())
     ++thd->status_var.secondary_engine_execution_count;
 
-  if (res) goto err;
   DBUG_ASSERT(!thd->is_error());
 
   // Pop ignore / strict error handler
-  if (error_handler_active) {
-    thd->pop_internal_handler();
-    error_handler_active = false;
-  }
+  if (error_handler_active) thd->pop_internal_handler();
 
   THD_STAGE_INFO(thd, stage_end);
 
   // Do partial cleanup (preserve plans for EXPLAIN).
-  res = unit->cleanup(thd, false);
+  lex->cleanup(thd, false);
   lex->clear_values_map();
   lex->set_secondary_engine_execution_context(nullptr);
 
@@ -717,22 +735,18 @@ bool Sql_cmd_dml::execute(THD *thd) {
     This sync point is normally right before thd->query_plan is reset, so
     EXPLAIN FOR CONNECTION can catch the plan. It is copied here as
     after unprepare() EXPLAIN considers the query as "not ready".
-    @todo remove in WL#6570 together with unprepare().
+    @todo remove in WL#6570 when unprepare() is gone.
   */
   DEBUG_SYNC(thd, "before_reset_query_plan");
 
-  // "unprepare" this object since unit->cleanup actually unprepares.
-  unprepare(thd);
-
-  return res;
+  return false;
 
 err:
   DBUG_ASSERT(thd->is_error() || thd->killed);
   DBUG_PRINT("info", ("report_error: %d", thd->is_error()));
   THD_STAGE_INFO(thd, stage_end);
-  prepare_only = true;
 
-  (void)unit->cleanup(thd, false);
+  lex->cleanup(thd, false);
   lex->clear_values_map();
   lex->set_secondary_engine_execution_context(nullptr);
 
@@ -752,8 +766,6 @@ err:
   thd->save_current_query_costs();
 
   DBUG_EXECUTE_IF("use_attachable_trx", thd->end_attachable_transaction(););
-
-  if (is_prepared()) unprepare(thd);
 
   return thd->is_error();
 }
@@ -860,10 +872,11 @@ static bool optimize_secondary_engine(THD *thd) {
           Secondary_engine_optimization::PRIMARY_TENTATIVELY &&
       thd->lex->m_sql_cmd != nullptr &&
       thd->lex->m_sql_cmd->is_optional_transform_prepared()) {
-    // For some reason we could not use secondary engine and we have a
-    // secondary engine specific prepare and the primary engine didn't have the
-    // same set of optional transforms enabled, so we need to reprepare for
-    // primary engine without those optional transforms
+    // A previous preparation did a secondary engine specific transform,
+    // and this transform wasn't requested for the primary engine (in
+    // 'optimizer_switch'), so in this new execution we need to reprepare for
+    // the primary engine without the optional transform, for likely better
+    // performance.
     thd->lex->m_sql_cmd->set_optional_transform_prepared(false);
     thd->get_stmt_da()->reset_diagnostics_area();
     thd->get_stmt_da()->set_error_status(thd, ER_NEED_REPREPARE);
@@ -897,6 +910,8 @@ bool Sql_cmd_dml::execute_inner(THD *thd) {
   // Perform secondary engine optimizations, if needed.
   if (optimize_secondary_engine(thd)) return true;
 
+  // We know by now that execution will complete (successful or with error)
+  lex->set_exec_completed();
   if (lex->is_explain()) {
     if (explain_query(thd, thd, unit)) return true; /* purecov: inspected */
   } else {
@@ -904,6 +919,37 @@ bool Sql_cmd_dml::execute_inner(THD *thd) {
   }
 
   return false;
+}
+
+bool Sql_cmd_dml::restore_cmd_properties(THD *thd) {
+  lex->restore_cmd_properties();
+  bind_fields(thd->stmt_arena->item_list());
+
+  return false;
+}
+
+bool Sql_cmd_dml::save_cmd_properties(THD *thd) {
+  return lex->save_cmd_properties(thd);
+}
+
+Query_result *Sql_cmd_dml::query_result() const {
+  DBUG_ASSERT(is_prepared());
+  return lex->unit->query_result() != nullptr
+             ? lex->unit->query_result()
+             : lex->unit->first_select()->query_result();
+}
+
+void Sql_cmd_dml::set_query_result(Query_result *result_arg) {
+  result = result_arg;
+  SELECT_LEX_UNIT *unit = lex->unit;
+  if (unit->fake_select_lex != nullptr)
+    unit->fake_select_lex->set_query_result(result);
+  else {
+    for (SELECT_LEX *sl = unit->first_select(); sl; sl = sl->next_select()) {
+      sl->set_query_result(result);
+    }
+  }
+  unit->set_query_result(result);
 }
 
 /**
@@ -945,7 +991,10 @@ static bool check_locking_clause_access(THD *thd, Global_tables_list tables) {
 }
 
 /**
-  Perform an authorization precheck for a SELECT statement.
+  Perform an authorization precheck for an unprepared SELECT statement.
+
+  This function will check that we have some privileges to all involved tables
+  of the query (and possibly to other entities).
 */
 
 bool Sql_cmd_select::precheck(THD *thd) {
@@ -988,6 +1037,72 @@ bool Sql_cmd_select::precheck(THD *thd) {
     res = check_access(thd, SELECT_ACL, any_db, nullptr, nullptr, false, false);
 
   return res || check_locking_clause_access(thd, Global_tables_list(tables));
+}
+
+/**
+  Perform an authorization check for a prepared SELECT statement.
+*/
+
+bool Sql_cmd_select::check_privileges(THD *thd) {
+  /*
+    lex->exchange != nullptr implies SELECT .. INTO OUTFILE and this
+    requires FILE_ACL access.
+  */
+  if (result->needs_file_privilege() &&
+      check_access(thd, FILE_ACL, any_db, nullptr, nullptr, false, false))
+    return true;
+
+  if (check_all_table_privileges(thd)) return true;
+
+  if (check_locking_clause_access(thd, Global_tables_list(lex->query_tables)))
+    return true;
+
+  SELECT_LEX_UNIT *const unit = lex->unit;
+  for (SELECT_LEX *sl = unit->first_select(); sl; sl = sl->next_select()) {
+    if (sl->check_column_privileges(thd)) return true;
+  }
+  if (unit->fake_select_lex != nullptr) {
+    if (unit->fake_select_lex->check_column_privileges(thd)) return true;
+  }
+  return false;
+}
+
+bool Sql_cmd_dml::check_all_table_privileges(THD *thd) {
+  // Check for all possible DML privileges
+
+  for (TABLE_LIST *tr = lex->query_tables; tr != nullptr;
+       tr = tr->next_global) {
+    if (tr->is_internal())  // No privilege check required for internal tables
+      continue;
+    // Calculated wanted privilege based on how table/view is used:
+    ulong want_privilege = 0;
+    if (tr->is_inserted()) {
+      want_privilege |= INSERT_ACL;
+    }
+    if (tr->is_updated()) {
+      want_privilege |= UPDATE_ACL;
+    }
+    if (tr->is_deleted()) {
+      want_privilege |= DELETE_ACL;
+    }
+    if (want_privilege == 0) {
+      want_privilege = SELECT_ACL;
+    }
+    if (tr->referencing_view == nullptr) {
+      // This is a base table
+      if (check_single_table_access(thd, want_privilege, tr, false))
+        return true;
+    } else {
+      // This is a view, set handler for transformation of errors
+      Internal_error_handler_holder<View_error_handler, TABLE_LIST>
+          view_handler(thd, true, tr);
+      for (TABLE_LIST *t = tr; t->referencing_view; t = t->referencing_view) {
+        if (check_single_table_access(thd, want_privilege, t, false))
+          return true;
+      }
+    }
+  }
+  return false;
 }
 
 /*****************************************************************************
@@ -1536,7 +1651,8 @@ static void destroy_sj_tmp_tables(JOIN *join) {
     if (table->file != nullptr) {
       table->file->ha_index_or_rnd_end();
     }
-    free_tmp_table(join->thd, table);
+    close_tmp_table(join->thd, table);
+    free_tmp_table(table);
   }
   join->sj_tmp_tables.empty();
 }
@@ -1664,13 +1780,9 @@ err:
 
 /**
   Clean up and destroy join object.
-
-  @return false if previous execution was successful, and true otherwise
 */
 
-bool JOIN::destroy() {
-  DBUG_TRACE;
-
+void JOIN::destroy() {
   cond_equal = nullptr;
 
   set_plan_state(NO_PLAN);
@@ -1721,6 +1833,14 @@ bool JOIN::destroy() {
                                        m_windows.elements]);  // frame buffer
     }
   }
+
+  /*
+    If current optimization detected any const tables, expressions may have
+    been updated without used tables information from those const tables, so
+    make sure to restore used tables information as from resolving.
+  */
+  if (const_tables > 0) select_lex->update_used_tables();
+
   destroy_sj_tmp_tables(this);
 
   List_iterator<Semijoin_mat_exec> sjm_list_it(sjm_exec_list);
@@ -1729,7 +1849,13 @@ bool JOIN::destroy() {
   sjm_exec_list.empty();
 
   keyuse_array.clear();
-  return error;
+  // Free memory for rollup arrays
+  if (select_lex->olap == ROLLUP_TYPE) {
+    rollup_group_items.clear();
+    rollup_group_items.shrink_to_fit();
+    rollup_sums.clear();
+    rollup_sums.shrink_to_fit();
+  }
 }
 
 void JOIN::cleanup_item_list(List<Item> &items) const {
@@ -1774,6 +1900,132 @@ bool SELECT_LEX::optimize(THD *thd) {
       return true;
   }
 
+  return false;
+}
+
+/**
+  Check privileges for all columns referenced from this query block.
+  Also check privileges for referenced subqueries.
+
+  @param thd      thread handler
+
+  @returns false if success, true if error (insufficient privileges)
+
+  @todo - skip this if we have table SELECT privileges for all tables
+*/
+bool SELECT_LEX::check_column_privileges(THD *thd) {
+  Column_privilege_tracker tracker(thd, SELECT_ACL);
+  Item *item;
+  List_iterator<Item> it(fields_list);
+
+  while ((item = it++)) {
+    if (item->walk(&Item::check_column_privileges, enum_walk::PREFIX,
+                   pointer_cast<uchar *>(thd)))
+      return true;
+  }
+  if (join_list && check_privileges_for_join(thd, join_list)) return true;
+  if (where_cond() != nullptr &&
+      where_cond()->walk(&Item::check_column_privileges, enum_walk::PREFIX,
+                         pointer_cast<uchar *>(thd)))
+    return true;
+  for (ORDER *group = group_list.first; group; group = group->next) {
+    if ((*group->item)
+            ->walk(&Item::check_column_privileges, enum_walk::PREFIX,
+                   pointer_cast<uchar *>(thd)))
+      return true;
+  }
+  if (having_cond() != nullptr &&
+      having_cond()->walk(&Item::check_column_privileges, enum_walk::PREFIX,
+                          pointer_cast<uchar *>(thd)))
+    return true;
+  List_iterator<Window> wi(m_windows);
+  Window *w;
+  while ((w = wi++)) {
+    for (ORDER *wp = w->first_partition_by(); wp != nullptr; wp = wp->next)
+      if ((*wp->item)->walk(&Item::check_column_privileges, enum_walk::PREFIX,
+                            pointer_cast<uchar *>(thd)))
+        return true;
+
+    for (ORDER *wo = w->first_order_by(); wo != nullptr; wo = wo->next)
+      if ((*wo->item)->walk(&Item::check_column_privileges, enum_walk::PREFIX,
+                            pointer_cast<uchar *>(thd)))
+        return true;
+  }
+  for (ORDER *order = order_list.first; order; order = order->next) {
+    if ((*order->item)
+            ->walk(&Item::check_column_privileges, enum_walk::PREFIX,
+                   pointer_cast<uchar *>(thd)))
+      return true;
+  }
+
+  if (check_privileges_for_subqueries(thd)) return true;
+
+  return false;
+}
+
+/**
+  Check privileges for column references in a JOIN expression
+
+  @param thd      thread handler
+  @param tables   list of joined tables
+
+  @returns false if success, true if error (insufficient privileges)
+*/
+
+bool check_privileges_for_join(THD *thd, mem_root_deque<TABLE_LIST *> *tables) {
+  thd->want_privilege = SELECT_ACL;
+
+  for (TABLE_LIST *table_ref : *tables) {
+    if (table_ref->join_cond() != nullptr &&
+        table_ref->join_cond()->walk(&Item::check_column_privileges,
+                                     enum_walk::PREFIX,
+                                     pointer_cast<uchar *>(thd)))
+      return true;
+
+    if (table_ref->nested_join != nullptr &&
+        check_privileges_for_join(thd, &table_ref->nested_join->join_list))
+      return true;
+  }
+
+  return false;
+}
+
+/**
+  Check privileges for column references in an item list
+
+  @param thd      thread handler
+  @param items    list of items
+  @param privileges the required privileges
+
+  @returns false if success, true if error (insufficient privileges)
+*/
+bool check_privileges_for_list(THD *thd, List<Item> *items, ulong privileges) {
+  thd->want_privilege = privileges;
+  Item *item;
+  List_iterator<Item> ufi(*items);
+  while ((item = ufi++)) {
+    if (item->walk(&Item::check_column_privileges, enum_walk::PREFIX,
+                   pointer_cast<uchar *>(thd)))
+      return true;
+  }
+  return false;
+}
+
+/**
+  Check privileges for column references in subqueries of a query block
+
+  @param thd      thread handler
+
+  @returns false if success, true if error (insufficient privileges)
+*/
+
+bool SELECT_LEX::check_privileges_for_subqueries(THD *thd) {
+  for (SELECT_LEX_UNIT *unit = first_inner_unit(); unit;
+       unit = unit->next_unit()) {
+    for (SELECT_LEX *sl = unit->first_select(); sl; sl = sl->next_select()) {
+      if (sl->check_column_privileges(thd)) return true;
+    }
+  }
   return false;
 }
 
@@ -2003,7 +2255,8 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
     j->ref().items[0] = ((Item_func *)(keyuse->val))->key_item();
     /* Predicates pushed down into subquery can't be used FT access */
     j->ref().cond_guards[0] = nullptr;
-    if (keyuse->used_tables) return true;  // not supported yet. SerG
+    // not supported yet. SerG
+    DBUG_ASSERT(!(keyuse->used_tables & ~PSEUDO_TABLE_BITS));
 
     j->set_type(JT_FT);
     j->set_ft_func(down_cast<Item_func_match *>(keyuse->val));
@@ -2031,7 +2284,8 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
                         &keyinfo->key_part[part_no], key_buff, maybe_null);
       if (unlikely(!s_key || thd->is_fatal_error())) return true;
 
-      if (keyuse->used_tables) /* Comparing against a non-constant. */
+      if (keyuse->used_tables & ~INNER_TABLE_BIT)
+        /* Comparing against a non-constant. */
         j->ref().key_copy[part_no] = s_key;
       else {
         /**
@@ -3188,7 +3442,10 @@ void QEP_TAB::cleanup() {
 
   TABLE *const t = table();
 
-  if (t) t->reginfo.qep_tab = nullptr;
+  if (t) {
+    t->reginfo.qep_tab = nullptr;
+    t->const_table = false;  // Note: Also done in TABLE::init()
+  }
 
   // Delete shared parts:
   qs_cleanup();
@@ -3199,10 +3456,15 @@ void QEP_TAB::cleanup() {
       op_type == QEP_TAB::OT_AGGREGATE_INTO_TMP_TABLE ||
       op_type == QEP_TAB::OT_WINDOWING_FUNCTION) {
     if (t)  // Check tmp table is not yet freed.
-      free_tmp_table(current_thd, t);
+    {
+      close_tmp_table(current_thd, t);
+      free_tmp_table(t);
+    }
     destroy(tmp_table_param);
     tmp_table_param = nullptr;
   }
+  if (table_ref != nullptr && table_ref->uses_materialization())
+    close_tmp_table(current_thd, table_ref->table);
 }
 
 void QEP_shared_owner::qs_cleanup() {
@@ -3583,7 +3845,7 @@ void count_field_types(SELECT_LEX *select_lex, Temp_table_param *param,
             param->allow_group_via_temp_table = false;  // UDF SUM function
           param->sum_func_count++;
 
-          for (uint i = 0; i < sum_item->get_arg_count();
+          for (uint i = 0; i < sum_item->argument_count();
                i++) {  // Add one column per argument
             if (sum_item->get_arg(i)->real_item()->type() == Item::FIELD_ITEM)
               param->field_count++;
@@ -3614,7 +3876,7 @@ void count_field_types(SELECT_LEX *select_lex, Temp_table_param *param,
       param->func_count++;
 
       Item_sum *window_item = down_cast<Item_sum *>(real);
-      for (uint i = 0; i < window_item->get_arg_count(); i++) {
+      for (uint i = 0; i < window_item->argument_count(); i++) {
         if (window_item->get_arg(i)->real_item()->type() == Item::FIELD_ITEM)
           param->field_count++;
         else
@@ -4046,7 +4308,7 @@ bool JOIN::make_tmp_tables_info() {
       return true;
     exec_tmp_table = qep_tab[curr_tmp_table].table();
 
-    if (exec_tmp_table->is_distinct) optimize_distinct();
+    if (exec_tmp_table->s->is_distinct) optimize_distinct();
 
     /*
       If there is no sorting or grouping, 'use_order'
@@ -4092,8 +4354,9 @@ bool JOIN::make_tmp_tables_info() {
       If having is not handled here, it will be checked before the row is sent
       to the client.
     */
-    if (having_cond && (streaming_aggregation ||
-                        (exec_tmp_table->is_distinct && group_list.empty()))) {
+    if (having_cond &&
+        (streaming_aggregation ||
+         (exec_tmp_table->s->is_distinct && group_list.empty()))) {
       /*
         If there is no select distinct or rollup, then move the having to table
         conds of tmp table.
@@ -4162,7 +4425,7 @@ bool JOIN::make_tmp_tables_info() {
           tmp_all_fields[REF_SLICE_TMP1].elements -
           tmp_fields_list[REF_SLICE_TMP1].elements;
       streaming_aggregation = false;
-      if (!exec_tmp_table->group && !exec_tmp_table->is_distinct) {
+      if (!exec_tmp_table->group && !exec_tmp_table->s->is_distinct) {
         // 1st tmp table were materializing join result
         materialize_join = true;
         explain_flags.set(ESC_BUFFER_RESULT, ESP_USING_TMPTABLE);
@@ -4233,7 +4496,7 @@ bool JOIN::make_tmp_tables_info() {
       setup_tmptable_write_func(&qep_tab[curr_tmp_table], &trace_this_tbl);
       last_slice_before_windowing = REF_SLICE_TMP2;
     }
-    if (qep_tab[curr_tmp_table].table()->is_distinct)
+    if (qep_tab[curr_tmp_table].table()->s->is_distinct)
       select_distinct = false; /* Each row is unique */
 
     if (select_distinct && group_list.empty() && !m_windowing_steps) {

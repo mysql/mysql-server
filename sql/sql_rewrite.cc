@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1219,18 +1219,10 @@ bool Rewriter_grant::rewrite(String &rlb) const {
     user_name = get_current_user(m_thd, tmp_user_name);
     if (user_name) append_auth_id(m_thd, user_name, comma, &rlb);
   } else if (first_table) {
-    if (first_table->is_view()) {
-      append_identifier(m_thd, &rlb, first_table->view_db.str,
-                        first_table->view_db.length);
-      rlb.append(STRING_WITH_LEN("."));
-      append_identifier(m_thd, &rlb, first_table->view_name.str,
-                        first_table->view_name.length);
-    } else {
-      append_identifier(m_thd, &rlb, first_table->db, strlen(first_table->db));
-      rlb.append(STRING_WITH_LEN("."));
-      append_identifier(m_thd, &rlb, first_table->table_name,
-                        strlen(first_table->table_name));
-    }
+    append_identifier(m_thd, &rlb, first_table->db, strlen(first_table->db));
+    rlb.append(STRING_WITH_LEN("."));
+    append_identifier(m_thd, &rlb, first_table->table_name,
+                      strlen(first_table->table_name));
   } else {
     if (lex->current_select()->db)
       append_identifier(m_thd, &rlb, lex->current_select()->db,

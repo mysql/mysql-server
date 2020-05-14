@@ -1933,14 +1933,16 @@ CREATE TABLE t1 (pk INT PRIMARY KEY, fk INT,
 FOREIGN KEY (fk) REFERENCES t1 (pk));
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
-WHERE table_schema='test' AND table_name='t1';
+WHERE table_schema='test' AND table_name='t1'
+  ORDER BY constraint_name;
 CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 PRIMARY	t1	pk	NULL
 t1_ibfk_1	t1	fk	pk
 ALTER TABLE t1 CHANGE pk id INT;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
-WHERE table_schema='test' AND table_name='t1';
+WHERE table_schema='test' AND table_name='t1'
+  ORDER BY constraint_name;
 CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 PRIMARY	t1	id	NULL
 t1_ibfk_1	t1	fk	id
@@ -1949,21 +1951,24 @@ ALTER TABLE t1 CHANGE id pk INT, ALGORITHM=COPY;
 ERROR 0A000: ALGORITHM=COPY is not supported. Reason: Columns participating in a foreign key are renamed. Try ALGORITHM=INPLACE.
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
-WHERE table_schema='test' AND table_name='t1';
+WHERE table_schema='test' AND table_name='t1'
+  ORDER BY constraint_name;
 CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 PRIMARY	t1	id	NULL
 t1_ibfk_1	t1	fk	id
 ALTER TABLE t1 CHANGE id pk INT, ALGORITHM=INPLACE;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
-WHERE table_schema='test' AND table_name='t1';
+WHERE table_schema='test' AND table_name='t1'
+  ORDER BY constraint_name;
 CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 PRIMARY	t1	pk	NULL
 t1_ibfk_1	t1	fk	pk
 ALTER TABLE t1 RENAME COLUMN pk TO id;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
-WHERE table_schema='test' AND table_name='t1';
+WHERE table_schema='test' AND table_name='t1'
+  ORDER BY constraint_name;
 CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 PRIMARY	t1	id	NULL
 t1_ibfk_1	t1	fk	id
@@ -1972,14 +1977,16 @@ ALTER TABLE t1 RENAME COLUMN id TO pk, ALGORITHM=COPY;
 ERROR 0A000: ALGORITHM=COPY is not supported. Reason: Columns participating in a foreign key are renamed. Try ALGORITHM=INPLACE.
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
-WHERE table_schema='test' AND table_name='t1';
+WHERE table_schema='test' AND table_name='t1'
+  ORDER BY constraint_name;
 CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 PRIMARY	t1	id	NULL
 t1_ibfk_1	t1	fk	id
 ALTER TABLE t1 RENAME COLUMN id TO pk, ALGORITHM=INPLACE;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
-WHERE table_schema='test' AND table_name='t1';
+WHERE table_schema='test' AND table_name='t1'
+  ORDER BY constraint_name;
 CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 PRIMARY	t1	pk	NULL
 t1_ibfk_1	t1	fk	pk
@@ -1988,13 +1995,15 @@ CREATE TABLE t1 (pk INT PRIMARY KEY);
 CREATE TABLE t2 (fk INT, FOREIGN KEY (fk) REFERENCES t1 (pk));
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
-WHERE table_schema='test' AND table_name='t2';
+WHERE table_schema='test' AND table_name='t2'
+  ORDER BY constraint_name;
 CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 t2_ibfk_1	t2	fk	pk
 ALTER TABLE t1 CHANGE pk id INT;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
-WHERE table_schema='test' AND table_name='t2';
+WHERE table_schema='test' AND table_name='t2'
+  ORDER BY constraint_name;
 CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 t2_ibfk_1	t2	fk	id
 # Renaming of parent columns using COPY algorithm is not supported.
@@ -2002,19 +2011,22 @@ ALTER TABLE t1 CHANGE id pk INT, ALGORITHM=COPY;
 ERROR 0A000: ALGORITHM=COPY is not supported. Reason: Columns participating in a foreign key are renamed. Try ALGORITHM=INPLACE.
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
-WHERE table_schema='test' AND table_name='t2';
+WHERE table_schema='test' AND table_name='t2'
+  ORDER BY constraint_name;
 CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 t2_ibfk_1	t2	fk	id
 ALTER TABLE t1 CHANGE id pk INT, ALGORITHM=INPLACE;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
-WHERE table_schema='test' AND table_name='t2';
+WHERE table_schema='test' AND table_name='t2'
+  ORDER BY constraint_name;
 CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 t2_ibfk_1	t2	fk	pk
 ALTER TABLE t1 RENAME COLUMN pk TO id;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
-WHERE table_schema='test' AND table_name='t2';
+WHERE table_schema='test' AND table_name='t2'
+  ORDER BY constraint_name;
 CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 t2_ibfk_1	t2	fk	id
 # Renaming of parent columns using COPY algorithm is not supported.
@@ -2022,13 +2034,15 @@ ALTER TABLE t1 RENAME COLUMN id TO pk, ALGORITHM=COPY;
 ERROR 0A000: ALGORITHM=COPY is not supported. Reason: Columns participating in a foreign key are renamed. Try ALGORITHM=INPLACE.
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
-WHERE table_schema='test' AND table_name='t2';
+WHERE table_schema='test' AND table_name='t2'
+  ORDER BY constraint_name;
 CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 t2_ibfk_1	t2	fk	id
 ALTER TABLE t1 RENAME COLUMN id TO pk, ALGORITHM=INPLACE;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
-WHERE table_schema='test' AND table_name='t2';
+WHERE table_schema='test' AND table_name='t2'
+  ORDER BY constraint_name;
 CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 t2_ibfk_1	t2	fk	pk
 DROP TABLES t2, t1;
@@ -2039,33 +2053,36 @@ FOREIGN KEY (fk1) REFERENCES t1 (u1),
 FOREIGN KEY (fk2) REFERENCES t1 (u2));
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
-WHERE table_schema='test' AND table_name='t1';
+WHERE table_schema='test' AND table_name='t1'
+  ORDER BY constraint_name;
 CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 PRIMARY	t1	pk	NULL
-u1	t1	u1	NULL
-u2	t1	u2	NULL
 t1_ibfk_1	t1	fk1	u1
 t1_ibfk_2	t1	fk2	u2
+u1	t1	u1	NULL
+u2	t1	u2	NULL
 ALTER TABLE t1 RENAME COLUMN u1 TO u3;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
-WHERE table_schema='test' AND table_name='t1';
+WHERE table_schema='test' AND table_name='t1'
+  ORDER BY constraint_name;
 CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 PRIMARY	t1	pk	NULL
-u1	t1	u3	NULL
-u2	t1	u2	NULL
 t1_ibfk_1	t1	fk1	u3
 t1_ibfk_2	t1	fk2	u2
+u1	t1	u3	NULL
+u2	t1	u2	NULL
 ALTER TABLE t1 RENAME COLUMN u3 TO u4, RENAME COLUMN u2 TO u5;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
-WHERE table_schema='test' AND table_name='t1';
+WHERE table_schema='test' AND table_name='t1'
+  ORDER BY constraint_name;
 CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 PRIMARY	t1	pk	NULL
-u1	t1	u4	NULL
-u2	t1	u5	NULL
 t1_ibfk_1	t1	fk1	u4
 t1_ibfk_2	t1	fk2	u5
+u1	t1	u4	NULL
+u2	t1	u5	NULL
 DROP TABLE t1;
 CREATE TABLE t1 (pk INT PRIMARY KEY, u1 INT, u2 INT, UNIQUE (u1), UNIQUE (u2));
 CREATE TABLE t2 (fk1 INT, fk2 INT,
@@ -2073,21 +2090,24 @@ FOREIGN KEY (fk1) REFERENCES t1 (u1),
 FOREIGN KEY (fk2) REFERENCES t1 (u2));
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
-WHERE table_schema='test' AND table_name='t2';
+WHERE table_schema='test' AND table_name='t2'
+  ORDER BY constraint_name;
 CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 t2_ibfk_1	t2	fk1	u1
 t2_ibfk_2	t2	fk2	u2
 ALTER TABLE t1 RENAME COLUMN u1 TO u3;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
-WHERE table_schema='test' AND table_name='t2';
+WHERE table_schema='test' AND table_name='t2'
+  ORDER BY constraint_name;
 CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 t2_ibfk_1	t2	fk1	u3
 t2_ibfk_2	t2	fk2	u2
 ALTER TABLE t1 RENAME COLUMN u3 TO u4, RENAME COLUMN u2 TO u5;
 SELECT constraint_name, table_name, column_name, referenced_column_name
 FROM information_schema.key_column_usage
-WHERE table_schema='test' AND table_name='t2';
+WHERE table_schema='test' AND table_name='t2'
+  ORDER BY constraint_name;
 CONSTRAINT_NAME	TABLE_NAME	COLUMN_NAME	REFERENCED_COLUMN_NAME
 t2_ibfk_1	t2	fk1	u4
 t2_ibfk_2	t2	fk2	u5

@@ -29,9 +29,7 @@ CREATE TABLE t1 (
   PRIMARY KEY  (a)
 ) ENGINE=MyISAM;
 
---disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO t1 ( a ) SELECT 0 ON DUPLICATE KEY UPDATE a = a + VALUES (a) ;
---enable_ps_protocol
 
 DROP TABLE t1;
 

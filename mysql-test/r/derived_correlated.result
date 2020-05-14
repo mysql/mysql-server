@@ -800,7 +800,7 @@ trace
           },
           {
             "derived": {
-              "table": "``.`` `dt`",
+              "table": "`` `dt`",
               "select#": 2,
               "merged": true
             }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -287,9 +287,6 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
 
   if (!is_view_or_derived() || is_merged() || is_table_function()) return false;
 
-  // This early return can be deleted after WL#6570.
-  if (derived->is_prepared()) return false;
-
   // Dummy derived tables for recursive references disappear before this stage
   DBUG_ASSERT(this != select_lex->recursive_reference);
 
@@ -297,9 +294,6 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
     select_lex->end_lateral_table = this;
 
   Context_handler ctx_handler(thd);
-
-  if (derived->prepare_limit(thd, derived->global_parameters()))
-    return true; /* purecov: inspected */
 
 #ifndef DBUG_OFF  // CTEs, derived tables can have outer references
   if (is_view())  // but views cannot.
@@ -310,8 +304,7 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
 #endif
 
   if (m_common_table_expr && m_common_table_expr->recursive &&
-      !derived->is_recursive())  // in first resolution @todo delete in WL#6570
-  {
+      !derived->is_recursive()) {
     // Ensure it's UNION.
     if (!derived->is_union()) {
       my_error(ER_CTE_RECURSIVE_REQUIRES_UNION, MYF(0), alias);
@@ -413,44 +406,9 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
   /*
     Prepare the underlying query expression of the derived table.
   */
-  if (derived->prepare(thd, derived_result,
+  if (derived->prepare(thd, derived_result, nullptr,
                        !apply_semijoin ? SELECT_NO_SEMI_JOIN : 0, 0))
     return true;
-
-  if (m_was_table_subquery) {
-    /*
-      When we converted the quantified subquery to a derived table, we gave
-      names to the SELECT list items. But if those were from a view, then
-      rollback_item_tree_changes restored original items, losing the names.
-      We have to re-establish our names. Likewise, if we replaced items with 1
-      (case of EXISTS), they may have been lost.
-      todo remove after WL#6570.
-    */
-    SELECT_LEX *subs_select = derived->first_select();
-    DBUG_ASSERT(!subs_select->first_execution);
-    char buff[NAME_LEN];
-    int i = -1;
-    Item *inner;
-    List_iterator<Item> it_fields_list(subs_select->fields_list);
-    List_iterator<Item> it_all_fields(subs_select->all_fields);
-    while ((i++, it_all_fields++, inner = it_fields_list++)) {
-      if (i < m_first_sj_inner_expr_of_subquery && !inner->basic_const_item()) {
-        // replace with 1; we do it before derived->prepare(), so this will
-        // propagate to all_fields and base_ref_items.
-        auto constant = new (thd->mem_root) Item_int(
-            NAME_STRING("Not_used"), (longlong)1, MY_INT64_NUM_DECIMAL_DIGITS);
-        if (constant == nullptr) return true;
-        it_fields_list.replace(constant);
-        it_all_fields.replace(constant);
-        subs_select->base_ref_items[i] = constant;
-        inner = constant;
-      }
-      uint name_len =
-          snprintf(buff, sizeof(buff), SYNTHETIC_FIELD_NAME "%d", i + 1);
-      inner->orig_name = inner->item_name;
-      inner->item_name.copy(buff, name_len);
-    }
-  }
 
   if (check_duplicate_names(m_derived_column_names, derived->types, false))
     return true;
@@ -595,9 +553,6 @@ bool TABLE_LIST::setup_materialized_derived_tmp_table(THD *thd)
       return true; /* purecov: inspected */
   }
 
-  // Make table's name same as the underlying materialized table
-  set_name_temporary();
-
   table->s->tmp_table = NON_TRANSACTIONAL_TMP_TABLE;
 
   // Table is "nullable" if inner table of an outer_join
@@ -696,10 +651,8 @@ bool TABLE_LIST::setup_table_function(THD *thd) {
   thd->where = "a table function argument";
   enum_mark_columns saved_mark = thd->mark_used_columns;
   thd->mark_used_columns = MARK_COLUMNS_READ;
-  if (table_function->init_args()) {
-    thd->mark_used_columns = saved_mark;
-    return true;
-  }
+  if (table_function->init_args()) return true;
+
   thd->mark_used_columns = saved_mark;
   set_privileges(SELECT_ACL);
   /*
@@ -735,6 +688,18 @@ bool TABLE_LIST::optimize_derived(THD *thd) {
   SELECT_LEX_UNIT *const unit = derived_unit();
 
   DBUG_ASSERT(unit && !unit->is_optimized());
+
+  if (!table->has_storage_handler()) {
+    Derived_refs_iterator ref_it(this);
+    TABLE *t;
+    while ((t = ref_it.get_next())) {
+      if (setup_tmp_table_handler(
+              thd, t,
+              unit->first_select()->active_options() | TMP_TABLE_ALL_COLUMNS))
+        return true; /* purecov: inspected */
+      t->set_not_started();
+    }
+  }
 
   if (unit->optimize(thd, table) || thd->is_error()) return true;
 
@@ -876,7 +841,7 @@ bool TABLE_LIST::materialize_derived(THD *thd) {
    Clean up the query expression for a materialized derived table
 */
 
-bool TABLE_LIST::cleanup_derived(THD *thd) {
+void TABLE_LIST::cleanup_derived(THD *thd) {
   DBUG_ASSERT(is_view_or_derived() && uses_materialization());
-  return derived_unit()->cleanup(thd, false);
+  derived_unit()->cleanup(thd, false);
 }

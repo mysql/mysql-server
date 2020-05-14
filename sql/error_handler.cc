@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -133,15 +133,14 @@ bool View_error_handler::handle_condition(THD *thd, uint sql_errno,
     // ER_TABLE_NOT_LOCKED cannot happen here.
     case ER_NO_SUCH_TABLE: {
       TABLE_LIST *top = m_top_view->top_table();
-      my_error(ER_VIEW_INVALID, MYF(0), top->view_db.str, top->view_name.str);
+      my_error(ER_VIEW_INVALID, MYF(0), top->db, top->table_name);
       return true;
     }
 
     case ER_NO_DEFAULT_FOR_FIELD: {
       TABLE_LIST *top = m_top_view->top_table();
       // TODO: make correct error message
-      my_error(ER_NO_DEFAULT_FOR_VIEW_FIELD, MYF(0), top->view_db.str,
-               top->view_name.str);
+      my_error(ER_NO_DEFAULT_FOR_VIEW_FIELD, MYF(0), top->db, top->table_name);
       return true;
     }
   }

@@ -1982,14 +1982,7 @@ bool check_single_table_access(THD *thd, ulong privilege,
   if (all_tables->security_ctx)
     thd->set_security_context(all_tables->security_ctx);
 
-  const char *db_name;
-  if ((all_tables->is_view() || all_tables->field_translation) &&
-      !all_tables->schema_table)
-    db_name = all_tables->view_db.str;
-  else
-    db_name = all_tables->db;
-
-  if (check_access(thd, privilege, db_name, &all_tables->grant.privilege,
+  if (check_access(thd, privilege, all_tables->db, &all_tables->grant.privilege,
                    &all_tables->grant.m_internal, false, no_errors))
     goto deny;
 
@@ -2639,7 +2632,9 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 
       if (open_tables_for_query(thd, table_list, 0)) return true;
 
-      if (table_list->is_view()) {
+      if (table_list->is_view() && !table_list->derived_unit()->is_prepared()) {
+        Prepared_stmt_arena_holder ps_arena_holder(thd);
+
         if (table_list->resolve_derived(thd, false))
           return true; /* purecov: inspected */
 
@@ -2648,7 +2643,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
           return true; /* purecov: inspected */
       }
       while ((column = column_iter++)) {
-        uint unused_field_idx = NO_CACHED_FIELD_INDEX;
+        uint unused_field_idx = NO_FIELD_INDEX;
         TABLE_LIST *dummy;
         Field *f = find_field_in_table_ref(
             thd, table_list, column->column.ptr(), column->column.length(),
@@ -3912,7 +3907,8 @@ bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST *table_ref,
 
   DBUG_ASSERT(want_privilege);
 
-  if (is_temporary_table(table_ref) || table_ref->is_internal()) {
+  if (is_temporary_table(table_ref) || table_ref->is_internal() ||
+      table_ref->schema_table) {
     // Temporary table or optimizer internal table: no need to evaluate
     // privileges
     return false;
@@ -3920,8 +3916,8 @@ bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST *table_ref,
     /* View or derived information schema table. */
     ulong view_privs;
     grant = &(table_ref->grant);
-    db_name = table_ref->view_db.str;
-    table_name = table_ref->view_name.str;
+    db_name = table_ref->db;
+    table_name = table_ref->table_name;
     if (table_ref->belong_to_view &&
         thd->lex->sql_command == SQLCOM_SHOW_FIELDS) {
       if (sctx->get_active_roles()->size() > 0) {

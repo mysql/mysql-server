@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -136,6 +136,10 @@ const int
 
 const char *index_hint_type_name[] = {"IGNORE INDEX", "USE INDEX",
                                       "FORCE INDEX"};
+
+Prepare_error_tracker::~Prepare_error_tracker() {
+  if (unlikely(thd->is_error())) thd->lex->mark_broken();
+}
 
 /**
   @note The order of the elements of this array must correspond to
@@ -534,6 +538,38 @@ void lex_end(LEX *lex) {
   lex->sphead = nullptr;
 }
 
+/**
+  Clear execution state for a statement after it has been prepared or executed,
+  and before it is (re-)executed.
+*/
+void LEX::clear_execution() {
+  // Clear execution state for all query expressions:
+  for (SELECT_LEX *sl = all_selects_list; sl; sl = sl->next_select_in_list())
+    sl->master_unit()->clear_execution();
+
+  set_current_select(select_lex);
+
+  reset_exec_started();
+
+  /*
+    m_view_ctx_list contains all the view tables view_ctx objects and must
+    be emptied now since it's going to be re-populated below as we reiterate
+    over all query_tables and call TABLE_LIST::prepare_security().
+  */
+  thd->m_view_ctx_list.empty();
+
+  // Reset all table references so that they can be bound with new TABLEs
+  /*
+    NOTE: We should reset whole table list here including all tables added
+    by prelocking algorithm (it is not a problem for substatements since
+    they have their own table list).
+    Another note: this loop uses query_tables so does not see TABLE_LISTs
+    which represent join nests.
+  */
+  for (TABLE_LIST *tr = query_tables; tr != nullptr; tr = tr->next_global)
+    tr->reset();
+}
+
 SELECT_LEX *LEX::new_empty_query_block() {
   SELECT_LEX *select =
       new (thd->mem_root) SELECT_LEX(thd->mem_root, nullptr, nullptr);
@@ -752,6 +788,24 @@ void LEX::new_static_query(SELECT_LEX_UNIT *sel_unit, SELECT_LEX *select)
   set_current_select(select);
 
   select->context.resolve_in_select_list = true;
+}
+
+/**
+  Check whether preparation state for prepared statement is invalid.
+  Preparation state amy become invalid if a repreparation is forced,
+  e.g because of invalid metadata, and that repreparation fails.
+
+  @returns true if preparation state is invalid, false otherwise.
+*/
+bool LEX::check_preparation_invalid(THD *thd_arg) {
+  DBUG_ENTER("LEX::check_preparation_invalid");
+
+  if (unlikely(is_broken())) {
+    // Force a Reprepare, to get a fresh LEX
+    if (ask_to_reprepare(thd_arg)) DBUG_RETURN(true);
+  }
+
+  DBUG_RETURN(false);
 }
 
 Yacc_state::~Yacc_state() {
@@ -2190,10 +2244,11 @@ void SELECT_LEX_UNIT::exclude_tree(THD *thd) {
     }
 
     /*
-      Reference to this query block is lost after it's excluded. Cleanup must
-      be done at this point to free memory.
+      Reference to this query block is lost after it's excluded.
+      Destroy internal objects to free memory.
     */
     sl->cleanup(thd, true);
+    sl->destroy();
     sl->invalidate();
     sl = next_select;
   }
@@ -2477,21 +2532,14 @@ bool SELECT_LEX::setup_base_ref_items(THD *thd) {
               n_scalar_subqueries));
   if (!base_ref_items.is_null()) {
     /*
-      We need to take 'n_sum_items' into account when allocating the array,
-      and this may actually increase during the optimization phase due to
-      MIN/MAX rewrite in Item_in_subselect::single_value_transformer.
-      In the usual case we can reuse the array from the prepare phase.
-      If we need a bigger array, we must allocate a new one.
-      It looks like this branch is used for a MIN/MAX transformed subquery
-      when we prepare it for the 2nd time (prepared statement), and could go
-      away after WL#6570.
+      This should not happen, as it's the sign of preparing an already-prepared
+      SELECT_LEX. It does happen (in test main.sp-error, section for bug13037):
+      a table-less substatement fails due to wrong identifier, and
+      LEX::mark_broken() doesn't mark it as broken as it uses no tables; so it
+      will be reused by the next CALL. WL#6570.
      */
     if (base_ref_items.size() >= n_elems) return false;
   }
-  /*
-    base_ref_items could become bigger when a subquery gets transformed
-    into a MIN/MAX subquery. Reallocate array in this case.
-  */
   Item **array = static_cast<Item **>(arena->alloc(sizeof(Item *) * n_elems));
   if (array == nullptr) return true;
 
@@ -2746,20 +2794,10 @@ void TABLE_LIST::print(const THD *thd, String *str,
     str->append(')');
   } else {
     const char *cmp_name;  // Name to compare with alias
-    if (view_name.length) {
-      // A view or CTE
-      if (view_db.length && !(query_type & QT_NO_DB) &&
-          !((query_type & QT_NO_DEFAULT_DB) &&
-            db_is_default_db(view_db.str, view_db.length, thd))) {
-        append_identifier(thd, str, view_db.str, view_db.length);
-        str->append('.');
-      }
-      append_identifier(thd, str, view_name.str, view_name.length);
-      cmp_name = view_name.str;
-    } else if (is_table_function()) {
+    if (is_table_function()) {
       table_function->print(str, query_type);
       cmp_name = table_name;
-    } else if (is_derived() && !is_merged()) {
+    } else if (is_derived() && !is_merged() && !common_table_expr()) {
       // A derived table that is materialized or without specified algorithm
       if (!(query_type & QT_DERIVED_TABLE_ONLY_ALIAS)) {
         if (derived_unit()->m_lateral_deps)
@@ -2770,21 +2808,16 @@ void TABLE_LIST::print(const THD *thd, String *str,
       }
       cmp_name = "";  // Force printing of alias
     } else {
-      // A normal table
+      // A normal table, or a view, or a CTE
 
-      if (!(query_type & QT_NO_DB) && !((query_type & QT_NO_DEFAULT_DB) &&
-                                        db_is_default_db(db, db_length, thd))) {
+      if (db_length && !(query_type & QT_NO_DB) &&
+          !((query_type & QT_NO_DEFAULT_DB) &&
+            db_is_default_db(db, db_length, thd))) {
         append_identifier(thd, str, db, db_length);
         str->append('.');
       }
-      if (schema_table) {
-        append_identifier(thd, str, schema_table_name,
-                          strlen(schema_table_name));
-        cmp_name = schema_table_name;
-      } else {
-        append_identifier(thd, str, table_name, table_name_length);
-        cmp_name = table_name;
-      }
+      append_identifier(thd, str, table_name, table_name_length);
+      cmp_name = table_name;
       if (partition_names && partition_names->elements) {
         int i, num_parts = partition_names->elements;
         List_iterator<String> name_it(*(partition_names));
@@ -2819,7 +2852,7 @@ void TABLE_LIST::print(const THD *thd, String *str,
       CTE, the definition is in WITH, and here we only have a
       reference. For a Derived Table, the definition is here.
     */
-    if (!view_name.length)
+    if (is_derived() && !common_table_expr())
       print_derived_column_names(thd, str, m_derived_column_names);
 
     if (index_hints) {
@@ -3183,9 +3216,10 @@ void SELECT_LEX::print_update_list(const THD *thd, String *str,
 
 void SELECT_LEX::print_insert_fields(const THD *thd, String *str,
                                      enum_query_type query_type) {
-  List<Item> fields = static_cast<Sql_cmd_insert_base *>(parent_lex->m_sql_cmd)
-                          ->insert_field_list;
-  if (fields.elements > 0) {
+  Sql_cmd_insert_base *const cmd =
+      down_cast<Sql_cmd_insert_base *>(parent_lex->m_sql_cmd);
+  List<Item> fields = cmd->insert_field_list;
+  if (cmd->column_count > 0) {
     str->append(STRING_WITH_LEN(" ("));
     List_iterator<Item> it_field(fields);
     bool first = true;
@@ -3499,7 +3533,11 @@ void Query_tables_list::destroy_query_tables_list() { sroutines.reset(); }
 */
 
 LEX::LEX()
-    : result(nullptr),
+    : unit(nullptr),
+      select_lex(nullptr),
+      all_selects_list(nullptr),
+      m_current_select(nullptr),
+      result(nullptr),
       thd(nullptr),
       opt_hints_global(nullptr),
       // Quite unlikely to overflow initial allocation, so no instrumentation.
@@ -3653,26 +3691,6 @@ bool LEX::copy_db_to(char const **p_db, size_t *p_db_length) const {
 }
 
 /**
-  Prepare sources for offset and limit counters.
-
-  @param thd      thread handler
-  @param provider SELECT_LEX to get offset and limit from.
-
-  @returns false if success, true if error
-*/
-bool SELECT_LEX_UNIT::prepare_limit(THD *thd, SELECT_LEX *provider) {
-  if (provider->offset_limit &&
-      provider->offset_limit->fix_fields(thd, nullptr))
-    return true; /* purecov: inspected */
-
-  if (provider->select_limit &&
-      provider->select_limit->fix_fields(thd, nullptr))
-    return true; /* purecov: inspected */
-
-  return false;
-}
-
-/**
   Set limit and offset for query expression object
 
   @param thd      thread handler
@@ -3798,6 +3816,34 @@ void SELECT_LEX_UNIT::renumber_selects(LEX *lex) {
        select = select->next_select())
     select->renumber(lex);
   if (fake_select_lex) fake_select_lex->renumber(lex);
+}
+
+/**
+  Save prepared statement properties for a query expression and underlying
+  query blocks. Required for repeated optimizations of the command.
+
+  @param thd     thread handler
+
+  @returns false if success, true if error (out of memory)
+*/
+bool SELECT_LEX_UNIT::save_cmd_properties(THD *thd) {
+  DBUG_ASSERT(is_prepared());
+  for (SELECT_LEX *sl = first_select(); sl; sl = sl->next_select())
+    if (sl->save_cmd_properties(thd)) return true;
+
+  if (fake_select_lex) return fake_select_lex->save_cmd_properties(thd);
+  return false;
+}
+
+/**
+  Loop over all query blocks and restore information needed for optimization,
+  including binding data for all associated tables.
+*/
+void SELECT_LEX_UNIT::restore_cmd_properties() {
+  for (SELECT_LEX *sl = first_select(); sl; sl = sl->next_select())
+    sl->restore_cmd_properties();
+
+  if (fake_select_lex) fake_select_lex->restore_cmd_properties();
 }
 
 /**
@@ -4159,33 +4205,51 @@ bool LEX::locate_var_assignment(const Name_string &name) {
   return false;
 }
 
-void SELECT_LEX::fix_prepare_information_for_order(
-    THD *thd, SQL_I_List<ORDER> *list, Group_list_ptrs **list_ptrs) {
-  Group_list_ptrs *p = *list_ptrs;
-  if (!p) {
-    void *mem = thd->stmt_arena->alloc(sizeof(Group_list_ptrs));
-    *list_ptrs = p = new (mem) Group_list_ptrs(thd->stmt_arena->mem_root);
-  }
-  p->reserve(list->elements);
+/**
+  Save properties for ORDER clauses so that they can be reconstructed
+  for a new optimization of the query block.
+
+  @param      thd       thread handler
+  @param      list      list of ORDER elements to be saved
+  @param[out] list_ptrs Saved list of ORDER elements
+
+  @returns false if success, true if error (out of memory)
+*/
+bool SELECT_LEX::save_order_properties(THD *thd, SQL_I_List<ORDER> *list,
+                                       Group_list_ptrs **list_ptrs) {
+  DBUG_ASSERT(*list_ptrs == nullptr);
+  void *mem = thd->stmt_arena->alloc(sizeof(Group_list_ptrs));
+  if (mem == nullptr) return true;
+  Group_list_ptrs *p = new (mem) Group_list_ptrs(thd->stmt_arena->mem_root);
+  if (p == nullptr) return true;
+  *list_ptrs = p;
+  if (p->reserve(list->elements)) return true;
   for (ORDER *order = list->first; order; order = order->next)
-    p->push_back(order);
+    if (p->push_back(order)) return true;
+  return false;
 }
 
-/*
+/**
+  Save properties of a prepared statement needed for repeated optimization.
   Saves the chain of ORDER::next in group_list and order_list, in
   case the list is modified by remove_const().
 
   @param thd          thread handler
-*/
 
-void SELECT_LEX::fix_prepare_information(THD *thd) {
-  if (!first_execution) return;
+  @returns false if success, true if error (out of memory)
+*/
+bool SELECT_LEX::save_properties(THD *thd) {
+  DBUG_ASSERT(first_execution);
   first_execution = false;
-  if (thd->stmt_arena->is_regular()) return;
-  if (group_list.first)
-    fix_prepare_information_for_order(thd, &group_list, &group_list_ptrs);
-  if (order_list.first)
-    fix_prepare_information_for_order(thd, &order_list, &order_list_ptrs);
+  DBUG_ASSERT(!thd->stmt_arena->is_regular());
+  if (thd->stmt_arena->is_regular()) return false;
+  if (group_list.first &&
+      save_order_properties(thd, &group_list, &group_list_ptrs))
+    return true;
+  if (order_list.first &&
+      save_order_properties(thd, &order_list, &order_list_ptrs))
+    return true;
+  return false;
 }
 
 /*
@@ -4195,8 +4259,7 @@ void SELECT_LEX::fix_prepare_information(THD *thd) {
   SELECT_LEX::print is in sql_select.cc
 
   SELECT_LEX_UNIT::prepare, SELECT_LEX_UNIT::exec,
-  SELECT_LEX_UNIT::cleanup, SELECT_LEX_UNIT::reinit_exec_mechanism,
-  SELECT_LEX_UNIT::change_query_result
+  SELECT_LEX_UNIT::cleanup, SELECT_LEX_UNIT::change_query_result
   are in sql_union.cc
 */
 
@@ -4561,7 +4624,6 @@ void SELECT_LEX_UNIT::accumulate_used_tables(table_map map) {
 enum_parsing_context SELECT_LEX_UNIT::place() const {
   DBUG_ASSERT(outer_select());
   if (item != nullptr) return item->place();
-  if (m_place_before_transform != CTX_NONE) return m_place_before_transform;
   return CTX_DERIVED;
 }
 
@@ -4648,6 +4710,66 @@ TABLE_LIST *SELECT_LEX::find_table_by_name(const Table_ident *ident) {
       return table;
   }
   return nullptr;
+}
+
+/**
+  Save prepared statement properties for a query block and underlying
+  query expressions. Required for repeated optimizations of the command.
+
+  @param thd     thread handler
+
+  @returns false if success, true if error (out of memory)
+*/
+bool SELECT_LEX::save_cmd_properties(THD *thd) {
+  for (SELECT_LEX_UNIT *u = first_inner_unit(); u; u = u->next_unit())
+    if (u->save_cmd_properties(thd)) return true;
+
+  if (save_properties(thd)) return true;
+
+  for (TABLE_LIST *tbl = leaf_tables; tbl; tbl = tbl->next_leaf) {
+    if (!tbl->is_base_table()) continue;
+    if (tbl->save_properties()) return true;
+  }
+  return false;
+}
+
+/**
+  Restore prepared statement properties for this query block and all
+  underlying query expressions so they are ready for optimization.
+  Restores properties saved in TABLE_LIST objects into corresponding TABLEs.
+  Restores ORDER BY and GROUP by clauses, and window definitions, so they
+  are ready for optimization.
+*/
+void SELECT_LEX::restore_cmd_properties() {
+  for (SELECT_LEX_UNIT *u = first_inner_unit(); u; u = u->next_unit())
+    u->restore_cmd_properties();
+
+  for (TABLE_LIST *tbl = leaf_tables; tbl; tbl = tbl->next_leaf) {
+    if (!tbl->is_base_table()) continue;
+    tbl->restore_properties();
+    tbl->table->m_record_buffer = Record_buffer{0, 0, nullptr};
+  }
+  DBUG_ASSERT(join == nullptr);
+
+  // Restore GROUP BY list
+  if (group_list_ptrs && group_list_ptrs->size() > 0) {
+    for (uint ix = 0; ix < group_list_ptrs->size() - 1; ++ix) {
+      ORDER *order = group_list_ptrs->at(ix);
+      order->next = group_list_ptrs->at(ix + 1);
+    }
+  }
+  // Restore ORDER BY list
+  if (order_list_ptrs && order_list_ptrs->size() > 0) {
+    for (uint ix = 0; ix < order_list_ptrs->size() - 1; ++ix) {
+      ORDER *order = order_list_ptrs->at(ix);
+      order->next = order_list_ptrs->at(ix + 1);
+    }
+  }
+  if (m_windows.elements > 0) {
+    List_iterator<Window> li(m_windows);
+    Window *w;
+    while ((w = li++)) w->reset_round();
+  }
 }
 
 bool Query_options::merge(const Query_options &a, const Query_options &b) {
@@ -4879,7 +5001,7 @@ void binlog_unsafe_map_init() {
 void LEX::set_secondary_engine_execution_context(
     Secondary_engine_execution_context *context) {
   DBUG_ASSERT(m_secondary_engine_context == nullptr || context == nullptr);
-  destroy(m_secondary_engine_context);
+  ::destroy(m_secondary_engine_context);
   m_secondary_engine_context = context;
 }
 

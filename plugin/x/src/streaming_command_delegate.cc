@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -290,8 +290,13 @@ int Streaming_command_delegate::field_metadata(struct st_send_field *field,
       column_info.set_type(Mysqlx::Resultset::ColumnMetaData::BIT);
       break;
 
+    case MYSQL_TYPE_BOOL:
+    case MYSQL_TYPE_INVALID:
+      DBUG_ASSERT(false);
+      break;
+
     default:
-      DBUG_ASSERT(0);  // Shouldn't happen
+      DBUG_ASSERT(false);  // Shouldn't happen
   }
 
   DBUG_ASSERT(column_info.get()->m_type !=

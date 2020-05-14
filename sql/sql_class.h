@@ -231,6 +231,8 @@ class Query_arena {
 
  public:
   MEM_ROOT *mem_root;  // Pointer to current memroot
+  /// To check whether a reprepare operation is active
+  bool is_repreparing{false};
   /*
     The states reflects three different life cycles for three
     different types of statements:
@@ -1808,12 +1810,28 @@ class THD : public MDL_context_owner,
   /* Active network vio for clone remote connection. */
   Vio *clone_vio = {nullptr};
 
-  /*
-    This is to track items changed during execution of a prepared
-    statement/stored procedure. It's created by
-    register_item_tree_change() in memory root of THD, and freed in
-    rollback_item_tree_changes(). For conventional execution it's always
-    empty.
+  /**
+    This is used to track transient changes to items during optimization of a
+    prepared statement/stored procedure. Change objects are created by
+    change_item_tree() in memory root of THD, and freed by
+    rollback_item_tree_changes(). Changes recorded here are rolled back at
+    the end of execution.
+
+    Transient changes require the following conditions:
+    - The statement is not regular (ie. it is prepared or part of SP).
+    - The change is performed outside preparation code (ie. it is
+      performed during the optimization phase).
+    - The change is applied to non-transient items (ie. items that have
+      been created before or during preparation, not items that have been
+      created in the optimization phase. Notice that the tree of AND/OR
+      conditions is always as transient objects during optimization.
+      Doing this should be quite harmless, though.)
+    change_item_tree() only records changes to non-regular statements.
+    It is also ensured that no changes are applied in preparation phase by
+    asserting that the list of items is empty (see Sql_cmd_dml::prepare()).
+    Other constraints are not enforced, in particular care must be taken
+    so that all changes made during optimization to non-transient Items in
+    non-regular statements must be recorded.
   */
   Item_change_list change_list;
 
@@ -2535,29 +2553,6 @@ class THD : public MDL_context_owner,
   // We don't want to load/unload plugins for unit tests.
   bool m_enable_plugins;
 
-  /**
-     Used by some transformations that need Item:transform to make a permanent
-     transform. Will be voided by WL#6570.
-  */
-  bool m_permanent_transform{false};
-
-  /**
-     RAII class to push m_permanent_transform in a scope
-  */
-  class Permanent_transform {
-   private:
-    bool m_old_value;
-    THD *m_thd;
-
-   public:
-    Permanent_transform(THD *thd) {
-      m_thd = thd;
-      m_old_value = thd->m_permanent_transform;
-      thd->m_permanent_transform = true;
-    }
-    ~Permanent_transform() { m_thd->m_permanent_transform = m_old_value; }
-  };
-
   /*
     Audit API events are generated, when this flag is true. The flag
     is initially true, but it can be set false in some cases, e.g.
@@ -2991,18 +2986,17 @@ class THD : public MDL_context_owner,
   void update_charset();
 
   /**
-    Update the place with new_value.
-    If THD::m_permanent_transform is false:
-      - Use a plain assignment (iff THD::stmt_area->is_regular())
-        or assign and register place for rollback.
-    If THD::m_permanent_transform is true:
-      - we a) remove any rollback requests for this location and b) do the
-        assignment without registering any rollback request.
-
-    @param place     The location at which we want set a new value
-    @param new_value The new value
+    Record a transient change to a pointer to an Item within another Item.
   */
-  void change_item_tree(Item **place, Item *new_value);
+  void change_item_tree(Item **place, Item *new_value) {
+    /* TODO: check for OOM condition here */
+    if (!stmt_arena->is_regular()) {
+      DBUG_PRINT("info", ("change_item_tree place %p old_value %p new_value %p",
+                          place, *place, new_value));
+      nocheck_register_item_tree_change(place, new_value);
+    }
+    *place = new_value;
+  }
 
   /**
     Remember that place was updated with new_value so it can be restored
@@ -3010,48 +3004,12 @@ class THD : public MDL_context_owner,
 
     @param[in] place the location that will change, and whose old value
                we need to remember for restoration
-    @param[in] new_value new value about to be inserted into *place, remember
-               for associative lookup, see replace_rollback_place()
+    @param[in] new_value new value about to be inserted into *place
   */
   void nocheck_register_item_tree_change(Item **place, Item *new_value);
 
   /**
-    Find and update change record of an underlying item based on the new
-    value for a place.
-
-    If we have already saved a position to rollback for new_value,
-    forget that rollback position and register the new place instead,
-    typically because a transformation has made the old place irrelevant.
-    If not, a no-op.
-
-    @param new_place  The new location in which we have presumably saved
-                      the new value, but which need to be rolled back to
-                      the old value.
-                      This location must also contain the new value.
-    @returns old_value if one was found, else nullptr
-  */
-  Item *replace_rollback_place(Item **new_place);
-
-  /**
-    Place has an alias of a new value which should possibly be rolled back.
-    If so, this location should be rolled back as well.
-    The value will already be registered with a rollback value in another
-    place. Find that rollback value, and register a rollback record for this
-    place as well, using the same rollback value.
-
-    @param place the location of the alias
-  */
-  void alias_rollback(Item **place);
-
-  void update_ident_context(SELECT_LEX *orig_block, SELECT_LEX *new_block);
-  void cancel_rollback(Item *new_item);
-  void cancel_rollback_at(Item **place);
-  /**
-    Restore locations set by calls to nocheck_register_item_tree_change().  The
-    value to be restored depends on whether replace_rollback_place()
-    has been called. If not, we restore the original value. If it has been
-    called, we restore the one supplied by the latest call to
-    replace_rollback_place()
+    Restore locations set by calls to nocheck_register_item_tree_change().
   */
   void rollback_item_tree_changes();
 

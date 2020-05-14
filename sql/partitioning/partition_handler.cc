@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -881,6 +881,7 @@ uint32 Partition_helper::ph_calculate_key_hash_value(Field **field_array) {
 
         /* These types should not be allowed for partitioning! */
         case MYSQL_TYPE_NULL:
+        case MYSQL_TYPE_BOOL:
         case MYSQL_TYPE_DECIMAL:
         case MYSQL_TYPE_DATE:
         case MYSQL_TYPE_TINY_BLOB:
@@ -889,6 +890,7 @@ uint32 Partition_helper::ph_calculate_key_hash_value(Field **field_array) {
         case MYSQL_TYPE_BLOB:
         case MYSQL_TYPE_VAR_STRING:
         case MYSQL_TYPE_GEOMETRY:
+        case MYSQL_TYPE_INVALID:
           /* fall through. */
         default:
           DBUG_ASSERT(0);  // New type?

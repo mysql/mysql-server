@@ -1,7 +1,7 @@
 #ifndef FIELD_INCLUDED
 #define FIELD_INCLUDED
 
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -325,6 +325,7 @@ inline bool is_integer_type(enum_field_types type) {
     case MYSQL_TYPE_INT24:
     case MYSQL_TYPE_LONG:
     case MYSQL_TYPE_LONGLONG:
+    case MYSQL_TYPE_YEAR:
       return true;
     default:
       return false;
@@ -345,6 +346,7 @@ inline bool is_numeric_type(enum_field_types type) {
     case MYSQL_TYPE_INT24:
     case MYSQL_TYPE_LONG:
     case MYSQL_TYPE_LONGLONG:
+    case MYSQL_TYPE_YEAR:
     case MYSQL_TYPE_FLOAT:
     case MYSQL_TYPE_DOUBLE:
     case MYSQL_TYPE_DECIMAL:
@@ -354,6 +356,32 @@ inline bool is_numeric_type(enum_field_types type) {
       return false;
   }
 }
+
+/**
+  Tests if field type is a string type
+
+  @param type Field type, as returned by field->type()
+
+  @returns true if string type, false otherwise
+*/
+inline bool is_string_type(enum_field_types type) {
+  switch (type) {
+    case MYSQL_TYPE_VARCHAR:
+    case MYSQL_TYPE_VAR_STRING:
+    case MYSQL_TYPE_STRING:
+    case MYSQL_TYPE_TINY_BLOB:
+    case MYSQL_TYPE_MEDIUM_BLOB:
+    case MYSQL_TYPE_LONG_BLOB:
+    case MYSQL_TYPE_BLOB:
+    case MYSQL_TYPE_ENUM:
+    case MYSQL_TYPE_SET:
+    case MYSQL_TYPE_JSON:
+      return true;
+    default:
+      return false;
+  }
+}
+
 /**
   Tests if field type is temporal, i.e. represents
   DATE, TIME, DATETIME or TIMESTAMP types in SQL.
@@ -786,8 +814,11 @@ class Field {
     Note that you can use table->in_use as replacement for current_thd member
     only inside of val_*() and store() members (e.g. you can't use it in cons)
   */
-  TABLE *table;             // Pointer for table
-  const TABLE *orig_table;  // Pointer to original table
+  TABLE *table;  // Pointer for table
+  /// Pointer to original database name, only non-NULL for a temporary table
+  const char *orig_db_name{nullptr};
+  /// Pointer to original table name, only non-NULL for a temporary table
+  const char *orig_table_name{nullptr};
   const char **table_name, *field_name;
   LEX_CSTRING comment;
   /* Field is part of the following keys */

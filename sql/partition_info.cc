@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -419,11 +419,11 @@ bool partition_info::can_prune_insert(THD *thd, enum_duplicates duplic,
       2) only copy those fields from the default record.
   */
   *prune_needs_default_values = false;
-  if (fields.elements) {
+  if (empty_values) {
+    *prune_needs_default_values = true;  // like 'INSERT INTO t () VALUES ()'
+  } else if (fields.elements) {
     if (!is_full_part_expr_in_fields(fields))
       *prune_needs_default_values = true;
-  } else if (empty_values) {
-    *prune_needs_default_values = true;  // like 'INSERT INTO t () VALUES ()'
   } else {
     /*
       In case of INSERT INTO t VALUES (...) we must get values for

@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1822,7 +1822,6 @@ bool Item_func_geomfromgeojson::is_member_valid(const Json_dom *member,
 */
 bool Item_func_geomfromgeojson::check_argument_valid_integer(Item *argument) {
   bool is_binary_charset = (argument->collation.collation == &my_charset_bin);
-  bool is_parameter_marker = (argument->type() == PARAM_ITEM);
 
   switch (argument->data_type()) {
     case MYSQL_TYPE_NULL:
@@ -1830,7 +1829,7 @@ bool Item_func_geomfromgeojson::check_argument_valid_integer(Item *argument) {
     case MYSQL_TYPE_STRING:
     case MYSQL_TYPE_VARCHAR:
     case MYSQL_TYPE_VAR_STRING:
-      return (!is_binary_charset || is_parameter_marker);
+      return !is_binary_charset;
     case MYSQL_TYPE_INT24:
     case MYSQL_TYPE_LONG:
     case MYSQL_TYPE_LONGLONG:
@@ -1849,6 +1848,7 @@ bool Item_func_geomfromgeojson::fix_fields(THD *thd, Item **ref) {
   switch (arg_count) {
     case 3: {
       // Validate SRID argument
+      args[2]->propagate_type(MYSQL_TYPE_LONGLONG);
       if (!check_argument_valid_integer(args[2])) {
         my_error(ER_INCORRECT_TYPE, MYF(0), "SRID", func_name());
         return true;
@@ -1857,6 +1857,7 @@ bool Item_func_geomfromgeojson::fix_fields(THD *thd, Item **ref) {
       // Fall through.
     case 2: {
       // Validate options argument
+      args[1]->propagate_type(MYSQL_TYPE_LONGLONG);
       if (!check_argument_valid_integer(args[1])) {
         my_error(ER_INCORRECT_TYPE, MYF(0), "options", func_name());
         return true;
@@ -1868,9 +1869,9 @@ bool Item_func_geomfromgeojson::fix_fields(THD *thd, Item **ref) {
         Validate GeoJSON argument type. We do not allow binary data as GeoJSON
         argument.
       */
+      args[0]->propagate_type(MYSQL_TYPE_JSON);
       bool is_binary_charset =
           (args[0]->collation.collation == &my_charset_bin);
-      bool is_parameter_marker = (args[0]->type() == PARAM_ITEM);
       switch (args[0]->data_type()) {
         case MYSQL_TYPE_NULL:
           break;
@@ -1881,7 +1882,7 @@ bool Item_func_geomfromgeojson::fix_fields(THD *thd, Item **ref) {
         case MYSQL_TYPE_TINY_BLOB:
         case MYSQL_TYPE_MEDIUM_BLOB:
         case MYSQL_TYPE_LONG_BLOB:
-          if (is_binary_charset && !is_parameter_marker) {
+          if (is_binary_charset) {
             my_error(ER_INCORRECT_TYPE, MYF(0), "geojson", func_name());
             return true;
           }
@@ -2473,12 +2474,15 @@ bool Item_func_as_geojson::fix_fields(THD *thd, Item **ref) {
   maybe_null = true;
 
   // Check if the geometry argument is considered as a geometry type.
+  param_type_is_default(0, 1, MYSQL_TYPE_GEOMETRY);
+
   if (!is_item_geometry_type(args[0])) {
     my_error(ER_INCORRECT_TYPE, MYF(0), "geometry", func_name());
     return true;
   }
 
   if (arg_count > 1) {
+    param_type_is_default(1, 2, MYSQL_TYPE_LONGLONG);
     if (!Item_func_geomfromgeojson::check_argument_valid_integer(args[1])) {
       my_error(ER_INCORRECT_TYPE, MYF(0), "max decimal digits", func_name());
       return true;
@@ -2486,6 +2490,7 @@ bool Item_func_as_geojson::fix_fields(THD *thd, Item **ref) {
   }
 
   if (arg_count > 2) {
+    param_type_is_default(2, 3, MYSQL_TYPE_LONGLONG);
     if (!Item_func_geomfromgeojson::check_argument_valid_integer(args[2])) {
       my_error(ER_INCORRECT_TYPE, MYF(0), "options", func_name());
       return true;
@@ -2535,20 +2540,7 @@ bool Item_func_geohash::check_valid_latlong_type(Item *arg) {
       break;
   }
 
-  /*
-    Parameters and parameter markers always have
-    data_type() == MYSQL_TYPE_VARCHAR. type() is dependent on if it's a
-    parameter marker or parameter (PREPARE or EXECUTE, respectively).
-  */
-  bool is_parameter =
-      (arg->type() == INT_ITEM || arg->type() == DECIMAL_ITEM ||
-       arg->type() == REAL_ITEM || arg->type() == STRING_ITEM) &&
-      (arg->data_type() == MYSQL_TYPE_VARCHAR);
-  bool is_parameter_marker =
-      (arg->type() == PARAM_ITEM && arg->data_type() == MYSQL_TYPE_VARCHAR);
-
-  if (is_field_type_valid || is_parameter_marker || is_parameter) return true;
-  return false;
+  return is_field_type_valid;
 }
 
 /**
@@ -2729,10 +2721,14 @@ bool Item_func_geohash::fix_fields(THD *thd, Item **ref) {
 
   int geohash_length_arg_index;
   if (arg_count == 2) {
+    param_type_is_default(0, 1, MYSQL_TYPE_GEOMETRY);
+    param_type_is_default(1, 2, MYSQL_TYPE_LONGLONG);
+
     /*
       First argument expected to be a point and second argument is expected
       to be geohash output length.
     */
+
     geohash_length_arg_index = 1;
     maybe_null = (args[0]->maybe_null || args[1]->maybe_null);
     if (!is_item_geometry_type(args[0])) {
@@ -2740,6 +2736,7 @@ bool Item_func_geohash::fix_fields(THD *thd, Item **ref) {
       return true;
     }
   } else if (arg_count == 3) {
+    param_type_is_default(0, 3, MYSQL_TYPE_LONGLONG);
     /*
       First argument is expected to be longitude, second argument is expected
       to be latitude and third argument is expected to be geohash
@@ -2861,9 +2858,9 @@ char Item_func_geohash::char_to_base32(char char_input) {
 }
 
 bool Item_func_latlongfromgeohash::resolve_type(THD *thd) {
-  if (Item_real_func::resolve_type(thd)) return true;
+  param_type_is_default(0, -1);
   unsigned_flag = false;
-  return false;
+  return Item_real_func::resolve_type(thd);
 }
 
 bool Item_func_latlongfromgeohash::fix_fields(THD *thd, Item **ref) {
@@ -2899,7 +2896,6 @@ bool Item_func_latlongfromgeohash::check_geohash_argument_valid_type(
     we have a TEXT column (which is allowed).
   */
   bool is_binary_charset = (item->collation.collation == &my_charset_bin);
-  bool is_parameter_marker = (item->type() == PARAM_ITEM);
 
   switch (item->data_type()) {
     case MYSQL_TYPE_VARCHAR:
@@ -2909,7 +2905,7 @@ bool Item_func_latlongfromgeohash::check_geohash_argument_valid_type(
     case MYSQL_TYPE_TINY_BLOB:
     case MYSQL_TYPE_MEDIUM_BLOB:
     case MYSQL_TYPE_LONG_BLOB:
-      return (!is_binary_charset || is_parameter_marker);
+      return (!is_binary_charset);
     default:
       return false;
   }
@@ -3230,6 +3226,8 @@ String *Item_func_as_wkt::val_str_ascii(String *str) {
 }
 
 bool Item_func_as_wkt::resolve_type(THD *) {
+  param_type_is_default(0, 1, MYSQL_TYPE_GEOMETRY);
+  param_type_is_default(1, 2);
   collation.set(default_charset(), DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
   set_data_type_string(uint32(MAX_BLOB_WIDTH));
   maybe_null = true;
@@ -4274,6 +4272,12 @@ bool Item_func_pointfromgeohash::fix_fields(THD *thd, Item **ref) {
       return true;
   }
   return false;
+}
+
+bool Item_func_pointfromgeohash::resolve_type(THD *thd) {
+  param_type_is_default(0, 1);
+  param_type_is_default(1, 2, MYSQL_TYPE_LONGLONG);
+  return Item_geometry_func::resolve_type(thd);
 }
 
 String *Item_func_pointfromgeohash::val_str(String *str) {

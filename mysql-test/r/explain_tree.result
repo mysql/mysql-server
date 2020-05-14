@@ -231,7 +231,7 @@ EXPLAIN
 -> Filter: (0 = (select #2))  (cost=0.35 rows=1)
     -> Table scan on t1  (cost=0.35 rows=1)
     -> Select #2 (subquery in condition; dependent)
-        -> Group aggregate: group_concat(t.b separator ',')
+        -> Group aggregate: group_concat(t1.b separator ',')
             -> Sort row IDs: t1.a
                 -> Table scan on <temporary>
                     -> Temporary table
@@ -361,17 +361,15 @@ test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT ( SELECT ( SELECT ( SELECT MIN(f1) FROM t1 i WHERE i.f1 > t1.f1 ) + 1 ) + 1 ) FROM t1;
 EXPLAIN
 -> Index scan on t1 using PRIMARY  (cost=0.55 rows=3)
--> Select #2 (subquery in projection; dependent)
-    -> Rows fetched before execution
-    -> Select #3 (subquery in projection; dependent)
-        -> Rows fetched before execution
-        -> Select #4 (subquery in projection; dependent)
-            -> Aggregate: min(i.f1)
-                -> Filter: (i.f1 > t1.f1)  (cost=0.35 rows=1)
-                    -> Index range scan on i (re-planned for each iteration)  (cost=0.35 rows=3)
+-> Select #4 (subquery in projection; dependent)
+    -> Aggregate: min(i.f1)
+        -> Filter: (i.f1 > t1.f1)  (cost=0.35 rows=1)
+            -> Index range scan on i (re-planned for each iteration)  (cost=0.35 rows=3)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #4 was resolved in SELECT #1
+Note	1249	Select 3 was reduced during optimization
+Note	1249	Select 2 was reduced during optimization
 DROP TABLE t1;
 CREATE TABLE t1 ( f1 INT PRIMARY KEY );
 INSERT INTO t1 VALUES ( 1 );
@@ -382,7 +380,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT ( SELECT f1 FROM t1 AS inner_t1 WHERE inner_t1.f1 > t1.f1 LIMIT 1 ) AS tmp1 FROM t1 ORDER BY tmp1;
 EXPLAIN
--> Sort: `<temporary>`.tmp1
+-> Sort: tmp1
     -> Stream results
         -> Index scan on t1 using PRIMARY  (cost=0.55 rows=3)
 -> Select #2 (subquery in projection; dependent)
@@ -695,8 +693,8 @@ JOIN t1 ON 1 WHERE (CAST("1" AS JSON) MEMBER OF( t1.col_json->'$[*]'));
 EXPLAIN
 -> Nested loop inner join  (cost=0.70 rows=1)
     -> Table scan on t2  (cost=0.35 rows=1)
-    -> Filter: json'"1"' member of (cast(json_extract(t1.col_json,_utf8mb4'$[*]') as char(40) array))  (cost=0.35 rows=1)
-        -> Index lookup on t1 using mv_idx (cast(json_extract(t1.col_json,_utf8mb4'$[*]') as char(40) array)=json'"1"')  (cost=0.35 rows=1)
+    -> Filter: json'"1"' member of (cast(json_extract(col_json,_utf8mb4'$[*]') as char(40) array))  (cost=0.35 rows=1)
+        -> Index lookup on t1 using mv_idx (cast(json_extract(col_json,_utf8mb4'$[*]') as char(40) array)=json'"1"')  (cost=0.35 rows=1)
 
 DROP TABLE t1, t2;
 CREATE TABLE t1 (a INTEGER, b INTEGER, PRIMARY KEY ( a ));
@@ -707,7 +705,7 @@ test.t1	analyze	status	OK
 EXPLAIN ANALYZE SELECT * FROM t1 AS a JOIN t1 AS b ON a.a=b.b ORDER BY a.b+b.a LIMIT 3;
 EXPLAIN
 -> Limit: 3 row(s)  (actual time=N.NNN..N.NNN rows=1 loops=1)
-    -> Sort: `<temporary>`.`(a.b + b.a)`, limit input to 3 row(s) per chunk  (actual time=N.NNN..N.NNN rows=1 loops=1)
+    -> Sort: `(a.b + b.a)`, limit input to 3 row(s) per chunk  (actual time=N.NNN..N.NNN rows=1 loops=1)
         -> Stream results  (actual time=N.NNN..N.NNN rows=1 loops=1)
             -> Nested loop inner join  (cost=1.60 rows=3) (actual time=N.NNN..N.NNN rows=1 loops=1)
                 -> Filter: (b.b is not null)  (cost=0.55 rows=3) (actual time=N.NNN..N.NNN rows=3 loops=1)

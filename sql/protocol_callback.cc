@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -507,7 +507,7 @@ bool Protocol_callback::set_variables_from_parameters(
       to THDs free_list.
     */
     Item_func_set_user_var *suv =
-        new Item_func_set_user_var(*user_var_name, item_param, false);
+        new Item_func_set_user_var(*user_var_name, item_param);
     /*
       Item_func_set_user_var is not fixed after construction,
       call fix_fields().

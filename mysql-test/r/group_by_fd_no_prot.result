@@ -122,7 +122,7 @@ SELECT MIN( alias2.col_int_key ),
 alias2.col_int_key
 FROM t1 AS alias1, view_b AS alias2
 WHERE alias1.col_int_key IS NULL;
-ERROR 42000: In aggregated query without GROUP BY, expression #2 of SELECT list contains nonaggregated column 'alias2.col_int_key'; this is incompatible with sql_mode=only_full_group_by
+ERROR 42000: In aggregated query without GROUP BY, expression #2 of SELECT list contains nonaggregated column 'test.alias2.col_int_key'; this is incompatible with sql_mode=only_full_group_by
 DROP TABLE t1, t2;
 DROP VIEW view_b;
 #
@@ -373,9 +373,9 @@ show create view v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=MERGE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select (`t1`.`a` * 2) AS `a`,`t1`.`b` AS `b`,`t1`.`c` AS `c`,`t1`.`d` AS `d`,`t1`.`a` AS `e` from `t1`	utf8mb4	utf8mb4_0900_ai_ci
 select sin(a) as z from v1 group by b;
-ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'v1.a' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.v1.a' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 select sin(a) as z from v1 group by d,b;
-ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'v1.a' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.v1.a' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 select sin(a) as z from v1 group by c,b;
 z
 0.9092974268256817
@@ -383,7 +383,7 @@ z
 -0.7568024953079282
 -0.7568024953079282
 select (select sin(a)) as z from v1 group by d,b;
-ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'v1.a' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.v1.a' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 select (select sin(a)) as z from v1 group by c,b;
 z
 0.9092974268256817
@@ -406,8 +406,8 @@ show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
                 0
               ] /* all_columns_of_table_map_bits */,
               "columns": [
-                "v1.c",
-                "v1.b"
+                "test.v1.c",
+                "test.v1.b"
               ] /* columns */
             } 
 select sin(a) as z from v1 where b=2 group by c;
@@ -428,9 +428,9 @@ show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
                 0
               ] /* all_columns_of_table_map_bits */,
               "columns": [
-                "v1.b",
-                "v1.c",
-                "t2.a"
+                "test.v1.b",
+                "test.v1.c",
+                "test.t2.a"
               ] /* columns */
             } 
 select sin(t2.a) as z from v1, v1 as t2
@@ -457,12 +457,12 @@ show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
                 2
               ] /* all_columns_of_table_map_bits */,
               "columns": [
-                "v1.b",
-                "v1.c",
-                "t3.c",
-                "t2.b",
-                "t2.c",
-                "t3.b"
+                "test.v1.b",
+                "test.v1.c",
+                "test.t3.c",
+                "test.t2.b",
+                "test.t2.c",
+                "test.t3.b"
               ] /* columns */
             } 
 # If we simply went to real_item(), we would have WHERE 2*a=b, or
@@ -475,8 +475,8 @@ FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
 "functional_dependencies_of_GROUP_columns": {
               "columns": [
-                "v1.b",
-                "v1.a"
+                "test.v1.b",
+                "test.v1.a"
               ] /* columns */
             } 
 select b from v1 where a=b group by a;
@@ -486,8 +486,8 @@ FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
 "functional_dependencies_of_GROUP_columns": {
               "columns": [
-                "v1.a",
-                "v1.b"
+                "test.v1.a",
+                "test.v1.b"
               ] /* columns */
             } 
 select v1.c from v1 where v1.c=v1.a group by v1.a;
@@ -497,8 +497,8 @@ FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
 "functional_dependencies_of_GROUP_columns": {
               "columns": [
-                "v1.a",
-                "v1.c"
+                "test.v1.a",
+                "test.v1.c"
               ] /* columns */
             } 
 select v1.a from v1 group by v1.e;
@@ -510,8 +510,8 @@ FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
 "functional_dependencies_of_GROUP_columns": {
               "columns": [
-                "v1.e",
-                "v1.a"
+                "test.v1.e",
+                "test.v1.a"
               ] /* columns */
             } 
 select v1.c from v1 where v1.c=v1.a group by v1.e;
@@ -521,9 +521,9 @@ FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
 "functional_dependencies_of_GROUP_columns": {
               "columns": [
-                "v1.e",
-                "v1.a",
-                "v1.c"
+                "test.v1.e",
+                "test.v1.a",
+                "test.v1.c"
               ] /* columns */
             } 
 # View appears only in WHERE
@@ -535,8 +535,8 @@ show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
 "functional_dependencies_of_GROUP_columns": {
               "columns": [
                 "test.t2.a",
-                "v1.e",
-                "v1.a",
+                "test.v1.e",
+                "test.v1.a",
                 "test.t2.d"
               ] /* columns */
             } 
@@ -544,7 +544,7 @@ drop view if exists v1;
 # FD due to view's WHERE:
 create algorithm=merge view v1 as select t1.a*2 as a, t1.b as b from t1;
 select a from v1 group by b;
-ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'v1.a' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.v1.a' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 drop view if exists v1;
 # Merged view
 create algorithm=merge view v1 as select t1.a*2 as a, t1.b as b from t1 where t1.a=t1.b;
@@ -555,9 +555,9 @@ FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
 "functional_dependencies_of_GROUP_columns": {
               "columns": [
-                "v1.b",
+                "test.v1.b",
                 "test.t1.a",
-                "v1.a"
+                "test.v1.a"
               ] /* columns */
             } 
 drop view if exists v1;
@@ -580,9 +580,9 @@ show create view v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select (`t1`.`a` * 2) AS `a`,`t1`.`b` AS `b`,`t1`.`c` AS `c`,`t1`.`d` AS `d`,`t1`.`a` AS `e` from `t1`	utf8mb4	utf8mb4_0900_ai_ci
 select sin(a) as z from v1 group by b;
-ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'v1.a' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.v1.a' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 select sin(a) as z from v1 group by d,b;
-ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'v1.a' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.v1.a' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 select sin(a) as z from v1 group by c,b;
 z
 0.9092974268256817
@@ -590,7 +590,7 @@ z
 -0.7568024953079282
 -0.7568024953079282
 select (select sin(a)) as z from v1 group by d,b;
-ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'v1.a' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.v1.a' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 select (select sin(a)) as z from v1 group by c,b;
 z
 0.9092974268256817
@@ -610,9 +610,9 @@ FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
 "functional_dependencies_of_GROUP_columns": {
               "columns": [
-                "v1.c",
-                "v1.b",
-                "v1.a"
+                "test.v1.c",
+                "test.v1.b",
+                "test.v1.a"
               ] /* columns */,
               "searched_in_materialized_tables": [
                 {
@@ -642,10 +642,10 @@ FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
 "functional_dependencies_of_GROUP_columns": {
               "columns": [
-                "v1.b",
-                "v1.c",
-                "v1.a",
-                "t2.a"
+                "test.v1.b",
+                "test.v1.c",
+                "test.v1.a",
+                "test.t2.a"
               ] /* columns */,
               "searched_in_materialized_tables": [
                 {
@@ -682,14 +682,14 @@ FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
 "functional_dependencies_of_GROUP_columns": {
               "columns": [
-                "v1.b",
-                "v1.c",
-                "t2.b",
-                "t2.c",
-                "t3.b",
-                "v1.d",
-                "t3.c",
-                "t3.a"
+                "test.v1.b",
+                "test.v1.c",
+                "test.t2.b",
+                "test.t2.c",
+                "test.t3.b",
+                "test.v1.d",
+                "test.t3.c",
+                "test.t3.a"
               ] /* columns */,
               "searched_in_materialized_tables": [
                 {
@@ -731,8 +731,8 @@ FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
 "functional_dependencies_of_GROUP_columns": {
               "columns": [
-                "v1.b",
-                "v1.a"
+                "test.v1.b",
+                "test.v1.a"
               ] /* columns */,
               "searched_in_materialized_tables": [
                 {
@@ -750,8 +750,8 @@ FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
 "functional_dependencies_of_GROUP_columns": {
               "columns": [
-                "v1.a",
-                "v1.b"
+                "test.v1.a",
+                "test.v1.b"
               ] /* columns */,
               "searched_in_materialized_tables": [
                 {
@@ -769,8 +769,8 @@ FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
 "functional_dependencies_of_GROUP_columns": {
               "columns": [
-                "v1.a",
-                "v1.c"
+                "test.v1.a",
+                "test.v1.c"
               ] /* columns */,
               "searched_in_materialized_tables": [
                 {
@@ -790,8 +790,8 @@ FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
 "functional_dependencies_of_GROUP_columns": {
               "columns": [
-                "v1.e",
-                "v1.a"
+                "test.v1.e",
+                "test.v1.a"
               ] /* columns */,
               "searched_in_materialized_tables": [
                 {
@@ -809,9 +809,9 @@ FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
 "functional_dependencies_of_GROUP_columns": {
               "columns": [
-                "v1.e",
-                "v1.a",
-                "v1.c"
+                "test.v1.e",
+                "test.v1.a",
+                "test.v1.c"
               ] /* columns */,
               "searched_in_materialized_tables": [
                 {
@@ -832,8 +832,8 @@ show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
 "functional_dependencies_of_GROUP_columns": {
               "columns": [
                 "test.t2.a",
-                "v1.e",
-                "v1.a",
+                "test.v1.e",
+                "test.v1.a",
                 "test.t2.d"
               ] /* columns */,
               "searched_in_materialized_tables": [
@@ -849,7 +849,7 @@ drop view if exists v1;
 # FD due to view's WHERE:
 create algorithm=temptable view v1 as select t1.a*2 as a, t1.b as b from t1;
 select a from v1 group by b;
-ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'v1.a' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.v1.a' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 drop view if exists v1;
 # Materialized view
 create algorithm=temptable view v1 as select t1.a*2 as a, t1.b as b from t1 where t1.a=t1.b;
@@ -860,8 +860,8 @@ FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
 "functional_dependencies_of_GROUP_columns": {
               "columns": [
-                "v1.b",
-                "v1.a"
+                "test.v1.b",
+                "test.v1.a"
               ] /* columns */,
               "searched_in_materialized_tables": [
                 {
@@ -888,7 +888,7 @@ show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
                 0
               ] /* all_columns_of_table_map_bits */,
               "columns": [
-                "v1.b"
+                "test.v1.b"
               ] /* columns */,
               "searched_in_materialized_tables": [
                 {
@@ -902,13 +902,13 @@ drop view if exists v1;
 # Materialized view
 create algorithm=temptable view v1 as select a, b*5 as b, sum(t1.c) as c, sum(t1.d) as d from t1 group by a,b*5;
 select a from v1 group by b;
-ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'v1.a' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.v1.a' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 select c from v1 group by b;
-ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'v1.c' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.v1.c' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 select c from v1 group by b,d;
-ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'v1.c' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.v1.c' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 select a,c from v1 group by a;
-ERROR 42000: Expression #2 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'v1.c' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+ERROR 42000: Expression #2 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.v1.c' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 select d,c from v1 group by b,a;
 d	c
 NULL	0
@@ -923,8 +923,8 @@ show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
                 0
               ] /* all_columns_of_table_map_bits */,
               "columns": [
-                "v1.b",
-                "v1.a"
+                "test.v1.b",
+                "test.v1.a"
               ] /* columns */,
               "searched_in_materialized_tables": [
                 {
@@ -1320,9 +1320,9 @@ FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
 "functional_dependencies_of_GROUP_columns": {
               "columns": [
-                "v1.a",
-                "v2.b",
-                "v1.b"
+                "test.v1.a",
+                "test.v2.b",
+                "test.v1.b"
               ] /* columns */,
               "searched_in_materialized_tables": [
                 {
@@ -1340,9 +1340,9 @@ FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
 "functional_dependencies_of_GROUP_columns": {
               "columns": [
-                "v1.a",
-                "v2.b",
-                "v1.b",
+                "test.v1.a",
+                "test.v2.b",
+                "test.v1.b",
                 "test.t2.a"
               ] /* columns */,
               "searched_in_materialized_tables": [
@@ -1361,12 +1361,12 @@ drop view v1;
 create algorithm=merge view v1
 as select v2.a as a, rand()*v2.b as b from v2;
 select v1.b from v1 group by v1.a;
-ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'v1.b' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.v1.b' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 drop view v1;
 create algorithm=temptable view v1
 as select v2.a as a, rand()*v2.b as b from v2;
 select v1.b from v1 group by v1.a;
-ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'v1.b' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.v1.b' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 drop view v1,v2;
 # Item_direct_view_ref pointing to Item_direct_view_ref pointing to
 # Item_field (a rare case!)
@@ -1429,7 +1429,7 @@ show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
                 1
               ] /* all_columns_of_table_map_bits */,
               "columns": [
-                "customer.pk",
+                "test.customer.pk",
                 "test.customer2.pk"
               ] /* columns */
             } 
@@ -1445,8 +1445,8 @@ FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 show_json_object('"functional_dependencies_of_GROUP_columns": {', TRACE)
 "functional_dependencies_of_GROUP_columns": {
               "columns": [
-                "customer.pk",
-                "customer.b"
+                "test.customer.pk",
+                "test.customer.b"
               ] /* columns */,
               "searched_in_materialized_tables": [
                 {
@@ -1742,7 +1742,7 @@ c
 3
 # If v1.a is NULL then v1.c may not be NULL: a->c is not NULL-friendly
 select v1.c from t1 left join v1 on 1 group by v1.a;
-ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'v1.c' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.v1.c' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 drop view v1;
 # Constant view item
 create view v1 as select a as a, 2 as b from t1;
@@ -1791,7 +1791,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	emp	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	DERIVED	dept	NULL	eq_ref	PRIMARY	PRIMARY	4	test.emp.deptno	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `empdept`.`dname` AS `dname`,count(0) AS `COUNT(*)` from `test`.`empdept` group by `empdept`.`deptno`
+Note	1003	/* select#1 */ select `test`.`empdept`.`dname` AS `dname`,count(0) AS `COUNT(*)` from `test`.`empdept` group by `test`.`empdept`.`deptno`
 # There is pk-based FD dept.Depno->dept.dname in dept
 # and it propagates in the materialized view because it is
 # NULL-friendly, and then in the top query because the view is not in
@@ -1816,7 +1816,7 @@ CREATE VIEW empdept AS
 SELECT emp.empno, emp.ename, dept.deptno, concat("",dept.dname) as dname
 FROM emp LEFT JOIN dept ON (emp.deptno = dept.deptno);
 SELECT ename, COUNT(*) FROM empdept WHERE empno=dname and empno=deptno GROUP BY empno;
-ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'empdept.ename' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.empdept.ename' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 drop table emp,dept;
 drop view empdept;
 #

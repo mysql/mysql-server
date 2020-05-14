@@ -914,7 +914,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` bigint NOT NULL DEFAULT '0',
   `b` int NOT NULL DEFAULT '0',
-  `c` longtext CHARACTER SET latin1,
+  `c` longtext CHARACTER SET latin1 NOT NULL,
   `d` varchar(1) CHARACTER SET latin1 DEFAULT NULL,
   `e` varchar(512) CHARACTER SET latin1 DEFAULT NULL,
   `f` text CHARACTER SET latin1

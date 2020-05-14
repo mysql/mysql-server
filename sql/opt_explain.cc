@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2216,7 +2216,6 @@ bool explain_query(THD *explain_thd, const THD *query_thd,
       if (secondary_engine) {
         my_error(ER_NOT_SUPPORTED_YET, MYF(0),
                  "EXPLAIN ANALYZE with secondary engine");
-        unit->set_executed();
         return true;
       }
       if (unit->root_iterator() == nullptr) {

@@ -9,7 +9,7 @@ Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select unix_timestamp(@a);
 unix_timestamp(@a)
-1
+1.000000
 CREATE TABLE t1 (ts int);
 INSERT INTO t1 (ts) VALUES (Unix_timestamp('2002-10-27 01:00'));
 INSERT INTO t1 (ts) VALUES (Unix_timestamp('2002-10-27 02:00'));

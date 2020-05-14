@@ -1864,10 +1864,7 @@ CREATE TABLE t1 (
  PRIMARY KEY (c,a), KEY (a),KEY (a)
 ) ENGINE=INNODB PARTITION BY KEY () PARTITIONS 2;
 INSERT INTO t1 VALUES (1,5,1),(2,4,1),(3,3,1),(4,2,1),(5,1,1);
-# Disabled by WL#5094
---disable_warnings
 UPDATE t1 SET b = 0, c=1 WHERE a <=>0;
---enable_warnings
 SELECT * FROM t1;
 DROP TABLE t1;
 

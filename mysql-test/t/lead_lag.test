@@ -55,6 +55,7 @@ PREPARE p FROM "SELECT id, sex, LEAD(id, ?) OVER () FROM t1";
 SET @p1= 3;
 EXECUTE p USING @p1;
 SET @p1= -3;
+--error ER_WRONG_ARGUMENTS
 EXECUTE p USING @p1;
 SET @p1= 'a';
 --error ER_WRONG_ARGUMENTS

@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -7017,24 +7017,24 @@ static void test_explain_bug() {
                        mysql_get_server_version(mysql) <= 50000
                            ? MYSQL_TYPE_STRING
                            : MYSQL_TYPE_VAR_STRING,
-                       0, 0, "", 64, 0);
+                       0, 0, "information_schema", 64, 0);
 
   verify_prepare_field(result, 1, "Type", "Type", MYSQL_TYPE_BLOB, 0, 0,
-                       "mysql", 0, 0);
+                       "information_schema", 0, 0);
 
   verify_prepare_field(result, 2, "Null", "Null",
                        mysql_get_server_version(mysql) <= 50000
                            ? MYSQL_TYPE_STRING
                            : MYSQL_TYPE_VAR_STRING,
-                       0, 0, "", 3, 0);
+                       0, 0, "information_schema", 3, 0);
 
   verify_prepare_field(result, 3, "Key", "Key", MYSQL_TYPE_STRING, 0, 0,
-                       "mysql", 3, 0);
+                       "information_schema", 3, 0);
 
   if (mysql_get_server_version(mysql) >= 50027) {
     /*  The patch for bug#23037 changes column type of DEAULT to blob */
     verify_prepare_field(result, 4, "Default", "Default", MYSQL_TYPE_BLOB, 0, 0,
-                         "mysql", 0, 0);
+                         "information_schema", 0, 0);
   } else {
     verify_prepare_field(
         result, 4, "Default", "Default",
@@ -7045,11 +7045,12 @@ static void test_explain_bug() {
         0, 0, "mysql", mysql_get_server_version(mysql) >= 50027 ? 0 : 64, 0);
   }
 
-  verify_prepare_field(
-      result, 5, "Extra", "Extra",
-      mysql_get_server_version(mysql) <= 50000 ? MYSQL_TYPE_STRING
-                                               : MYSQL_TYPE_VAR_STRING,
-      0, 0, "", mysql_get_server_version(mysql) <= 50602 ? 27 : 256, 0);
+  verify_prepare_field(result, 5, "Extra", "Extra",
+                       mysql_get_server_version(mysql) <= 50000
+                           ? MYSQL_TYPE_STRING
+                           : MYSQL_TYPE_VAR_STRING,
+                       0, 0, "information_schema",
+                       mysql_get_server_version(mysql) <= 50602 ? 27 : 256, 0);
 
   mysql_free_result(result);
   mysql_stmt_close(stmt);
@@ -20692,6 +20693,311 @@ static void test_wl12475() {
   mysql_close(mysql_local);
 }
 
+static void test_limit_syntax() {
+  MYSQL_STMT *stmt;
+  int rc;
+  const char *stmt_text;
+  MYSQL_BIND bind_array[1];
+
+  const char *str_one = "1";
+  int int_params[1] = {1};
+  int buf1[1];
+  ulong buf1_len;
+
+  myheader("test_limit_syntax");
+
+  // Create a simple table and populate it with some data
+
+  stmt_text = "CREATE TABLE t1(i4 INTEGER PRIMARY KEY)";
+
+  rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
+  myquery(rc);
+
+  stmt_text = "INSERT INTO t1 VALUES(1), (2), (3)";
+
+  rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
+  myquery(rc);
+
+  // Create the prepared statement
+
+  stmt = mysql_stmt_init(mysql);
+  check_stmt(stmt);
+
+  stmt_text = "SELECT i4 FROM t1 LIMIT ?";
+
+  rc = mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
+  check_execute(stmt, rc);
+
+  // Set up client buffers for passing an integer parameter
+
+  memset(bind_array, 0, sizeof(bind_array));
+
+  bind_array[0].buffer_type = MYSQL_TYPE_LONG;
+  bind_array[0].buffer = (char *)&int_params[0];
+  bind_array[0].length = nullptr;
+  bind_array[0].is_null = nullptr;
+
+  mysql_stmt_bind_param(stmt, bind_array);
+
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  bind_array[0].buffer_type = MYSQL_TYPE_LONG;
+  bind_array[0].buffer = buf1;
+  bind_array[0].buffer_length = (ulong)sizeof(buf1);
+  bind_array[0].length = &buf1_len;
+
+  mysql_stmt_bind_result(stmt, bind_array);
+
+  rc = mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+
+  DIE_UNLESS(buf1_len == sizeof(int));
+  DIE_UNLESS(buf1[0] == 1);
+
+  rc = mysql_stmt_fetch(stmt);
+  DIE_UNLESS(rc == MYSQL_NO_DATA);
+
+  // Set up client buffers for passing a character string parameter
+
+  memset(bind_array, 0, sizeof(bind_array));
+
+  bind_array[0].buffer_type = MYSQL_TYPE_STRING;
+  bind_array[0].buffer = const_cast<char *>(str_one);
+  bind_array[0].buffer_length = (ulong)strlen(str_one);
+
+  mysql_stmt_bind_param(stmt, bind_array);
+
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  bind_array[0].buffer_type = MYSQL_TYPE_LONG;
+  bind_array[0].buffer = buf1;
+  bind_array[0].buffer_length = (ulong)sizeof(buf1);
+  bind_array[0].length = &buf1_len;
+
+  mysql_stmt_bind_result(stmt, bind_array);
+
+  rc = mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+
+  DIE_UNLESS(buf1_len == sizeof(int));
+  DIE_UNLESS(buf1[0] == 1);
+
+  rc = mysql_stmt_fetch(stmt);
+  DIE_UNLESS(rc == MYSQL_NO_DATA);
+
+  mysql_stmt_close(stmt);
+
+  stmt_text = "DROP TABLE t1";
+  rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
+  myquery(rc);
+}
+
+static void test_param_integer() {
+  MYSQL_STMT *stmt;
+  int rc;
+  const char *stmt_text;
+  MYSQL_BIND bind_array[1];
+  MYSQL_TIME dt;
+
+  const char *str_integer = "1";
+  const char *str_decimal = "1.23";
+  const char *str_float = "1.23e0";
+  longlong int_params[1] = {1};
+  longlong buf1[1];
+  ulong buf1_len;
+
+  dt.year = 2001;
+  dt.month = 10;
+  dt.day = 20;
+  dt.hour = 10;
+  dt.minute = 10;
+  dt.second = 59;
+  dt.second_part = 500000;
+  dt.neg = false;
+  dt.time_type = MYSQL_TIMESTAMP_DATETIME;
+
+  myheader("test_param_integer");
+
+  // Create a simple table and populate it with some data
+
+  stmt_text = "CREATE TABLE t1(i8 BIGINT, i8u BIGINT UNSIGNED)";
+
+  rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
+  myquery(rc);
+
+  stmt_text =
+      "INSERT INTO t1 VALUES"
+      "(-9223372036854775808, 0), "
+      "(9223372036854775807, 18446744073709551615)";
+
+  rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
+  myquery(rc);
+
+  // Create the prepared statement
+
+  stmt = mysql_stmt_init(mysql);
+  check_stmt(stmt);
+
+  stmt_text = "SELECT i8 FROM t1 WHERE i8 > ?";
+
+  rc = mysql_stmt_prepare(stmt, stmt_text, (ulong)strlen(stmt_text));
+  check_execute(stmt, rc);
+
+  // Set up client buffers for passing an integer parameter
+
+  memset(bind_array, 0, sizeof(bind_array));
+
+  bind_array[0].buffer_type = MYSQL_TYPE_LONGLONG;
+  bind_array[0].buffer = (char *)&int_params[0];
+  bind_array[0].length = nullptr;
+  bind_array[0].is_null = nullptr;
+
+  mysql_stmt_bind_param(stmt, bind_array);
+
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  bind_array[0].buffer_type = MYSQL_TYPE_LONGLONG;
+  bind_array[0].buffer = buf1;
+  bind_array[0].buffer_length = (ulong)sizeof(buf1);
+  bind_array[0].length = &buf1_len;
+
+  mysql_stmt_bind_result(stmt, bind_array);
+
+  rc = mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+
+  DIE_UNLESS(buf1_len == sizeof(longlong));
+  DIE_UNLESS(buf1[0] == 9223372036854775807);
+
+  rc = mysql_stmt_fetch(stmt);
+  DIE_UNLESS(rc == MYSQL_NO_DATA);
+
+  // Set up client buffers for passing a character string parameter
+
+  memset(bind_array, 0, sizeof(bind_array));
+
+  bind_array[0].buffer_type = MYSQL_TYPE_STRING;
+  bind_array[0].buffer = const_cast<char *>(str_integer);
+  bind_array[0].buffer_length = (ulong)strlen(str_integer);
+
+  mysql_stmt_bind_param(stmt, bind_array);
+
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  bind_array[0].buffer_type = MYSQL_TYPE_LONGLONG;
+  bind_array[0].buffer = buf1;
+  bind_array[0].buffer_length = (ulong)sizeof(buf1);
+  bind_array[0].length = &buf1_len;
+
+  mysql_stmt_bind_result(stmt, bind_array);
+
+  rc = mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+
+  DIE_UNLESS(buf1_len == sizeof(longlong));
+  DIE_UNLESS(buf1[0] == 9223372036854775807);
+
+  rc = mysql_stmt_fetch(stmt);
+  DIE_UNLESS(rc == MYSQL_NO_DATA);
+
+  // Set up client buffers for passing a character string parameter
+
+  memset(bind_array, 0, sizeof(bind_array));
+
+  bind_array[0].buffer_type = MYSQL_TYPE_STRING;
+  bind_array[0].buffer = const_cast<char *>(str_decimal);
+  bind_array[0].buffer_length = (ulong)strlen(str_decimal);
+
+  mysql_stmt_bind_param(stmt, bind_array);
+
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  bind_array[0].buffer_type = MYSQL_TYPE_LONGLONG;
+  bind_array[0].buffer = buf1;
+  bind_array[0].buffer_length = (ulong)sizeof(buf1);
+  bind_array[0].length = &buf1_len;
+
+  mysql_stmt_bind_result(stmt, bind_array);
+
+  rc = mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+
+  DIE_UNLESS(buf1_len == sizeof(longlong));
+  DIE_UNLESS(buf1[0] == 9223372036854775807);
+
+  rc = mysql_stmt_fetch(stmt);
+  DIE_UNLESS(rc == MYSQL_NO_DATA);
+
+  // Set up client buffers for passing a character string parameter
+
+  memset(bind_array, 0, sizeof(bind_array));
+
+  bind_array[0].buffer_type = MYSQL_TYPE_STRING;
+  bind_array[0].buffer = const_cast<char *>(str_float);
+  bind_array[0].buffer_length = (ulong)strlen(str_float);
+
+  mysql_stmt_bind_param(stmt, bind_array);
+
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  bind_array[0].buffer_type = MYSQL_TYPE_LONGLONG;
+  bind_array[0].buffer = buf1;
+  bind_array[0].buffer_length = (ulong)sizeof(buf1);
+  bind_array[0].length = &buf1_len;
+
+  mysql_stmt_bind_result(stmt, bind_array);
+
+  rc = mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+
+  DIE_UNLESS(buf1_len == sizeof(longlong));
+  DIE_UNLESS(buf1[0] == 9223372036854775807);
+
+  rc = mysql_stmt_fetch(stmt);
+  DIE_UNLESS(rc == MYSQL_NO_DATA);
+
+  // Set up client buffers for passing a datetime parameter
+
+  memset(bind_array, 0, sizeof(bind_array));
+
+  bind_array[0].buffer_type = MYSQL_TYPE_DATETIME;
+  bind_array[0].buffer = pointer_cast<char *>(&dt);
+  bind_array[0].buffer_length = 30;
+
+  mysql_stmt_bind_param(stmt, bind_array);
+
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  bind_array[0].buffer_type = MYSQL_TYPE_LONGLONG;
+  bind_array[0].buffer = buf1;
+  bind_array[0].buffer_length = (ulong)sizeof(buf1);
+  bind_array[0].length = &buf1_len;
+
+  mysql_stmt_bind_result(stmt, bind_array);
+
+  rc = mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+
+  DIE_UNLESS(buf1_len == sizeof(longlong));
+  DIE_UNLESS(buf1[0] == 9223372036854775807);
+
+  rc = mysql_stmt_fetch(stmt);
+  DIE_UNLESS(rc == MYSQL_NO_DATA);
+
+  mysql_stmt_close(stmt);
+
+  stmt_text = "DROP TABLE t1";
+  rc = mysql_real_query(mysql, stmt_text, (ulong)strlen(stmt_text));
+  myquery(rc);
+}
+
 static void test_bug30032302() {
   MYSQL_RES *res;
 
@@ -21094,6 +21400,7 @@ static void test_bug31104389() {
 }
 
 static struct my_tests_st my_tests[] = {
+    {"test_bug5194", test_bug5194},
     {"disable_query_logs", disable_query_logs},
     {"test_view_sp_list_fields", test_view_sp_list_fields},
     {"client_query", client_query},
@@ -21378,6 +21685,8 @@ static struct my_tests_st my_tests[] = {
     {"test_wl11381_qa", test_wl11381_qa},
     {"test_wl11772", test_wl11772},
     {"test_wl12475", test_wl12475},
+    {"test_limit_syntax", test_limit_syntax},
+    {"test_param_integer", test_param_integer},
     {"test_bug30032302", test_bug30032302},
     {"test_wl13168", test_wl13168},
     {"test_wl13510", test_wl13510},

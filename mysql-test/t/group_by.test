@@ -734,7 +734,6 @@ insert into t2 values ('aaa', 'bb1'), ('aaa', 'bb2');
 # query with ambiguous column reference 'c2'
 select t1.c1 as c2 from t1, t2 where t1.c2 = t2.c4
 group by c2;
-show warnings;
 
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
@@ -742,7 +741,6 @@ show warnings;
 select t1.c1 as c2 from t1, t2 where t1.c2 = t2.c4
 group by t1.c1;
 
-show warnings;
 drop table t1, t2;
 
 #

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -529,11 +529,10 @@ vector<string> AggregateIterator::DebugString() const {
 void AggregateIterator::SetRollupLevel(int level) {
   if (m_rollup && m_current_rollup_position != level) {
     m_current_rollup_position = level;
-    for (Item_rollup_group_item *item :
-         m_join->select_lex->rollup_group_items) {
+    for (Item_rollup_group_item *item : m_join->rollup_group_items) {
       item->set_current_rollup_level(level);
     }
-    for (Item_rollup_sum_switcher *item : m_join->select_lex->rollup_sums) {
+    for (Item_rollup_sum_switcher *item : m_join->rollup_sums) {
       item->set_current_rollup_level(level);
     }
   }

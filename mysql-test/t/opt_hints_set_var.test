@@ -34,7 +34,10 @@ explain SELECT /*+ SET_VAR(max_allowed_packet = 1M) */ * FROM t1;
 # Testing warning messages for the variables with incorrect values
 explain SELECT /*+ SET_VAR(optimizer_switch = 'batched_key_acces=off') SET_VAR(range_alloc_block_size=amba)*/ * FROM t1;
 # Testing warning message for the variables with truncated value
+--disable_warnings
 SELECT /*+ SET_VAR(range_alloc_block_size=7000) */ 1;
+SHOW WARNINGS LIMIT 1;
+--enable_warnings
 
 DROP TABLE t1;
 

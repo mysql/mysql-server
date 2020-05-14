@@ -261,18 +261,24 @@ drop table t1;
 create table t1(a int);
 insert into t1 values (1),(2);
 prepare s1 from 'insert into t1 select a from t1 limit ?';
-set @x='1.1';
+First, execute query using a signed integer
+set @x=CAST(1 AS SIGNED);
+execute s1 using @x;
+Next, execute query using an unsigned integer
+set @x=CAST(1 AS UNSIGNED);
 execute s1 using @x;
 select * from t1;
 a
 1
 2
 1
+1
 include/sync_slave_sql_with_master.inc
 select * from t1;
 a
 1
 2
+1
 1
 drop table t1;
 End of 5.0 tests.

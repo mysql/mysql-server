@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2172,6 +2172,8 @@ static size_t log_event_print_value(IO_CACHE *file, const uchar *ptr, uint type,
       }
       return length + meta;
     }
+    case MYSQL_TYPE_BOOL:
+    case MYSQL_TYPE_INVALID:
     default: {
       char tmp[5];
       snprintf(tmp, sizeof(tmp), "%04x", meta);
@@ -6809,7 +6811,7 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli) {
     }
   }
   Item_func_set_user_var *e =
-      new Item_func_set_user_var(Name_string(name, name_len, false), it, false);
+      new Item_func_set_user_var(Name_string(name, name_len, false), it);
   /*
     Item_func_set_user_var can't substitute something else on its place =>
     0 can be passed as last argument (reference on item)
@@ -6819,6 +6821,8 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli) {
     error.
   */
   if (e->fix_fields(thd, nullptr)) return 1;
+
+  if (e->set_entry(thd, true)) return 1;
 
   /*
     A variable can just be considered as a table with
@@ -11245,6 +11249,9 @@ static void get_type_name(uint type, unsigned char **meta_ptr,
     case MYSQL_TYPE_LONG:
       snprintf(typestr, typestr_length, "%s", "INT");
       break;
+    case MYSQL_TYPE_BOOL:
+      snprintf(typestr, typestr_length, "BOOLEAN");
+      break;
     case MYSQL_TYPE_TINY:
       snprintf(typestr, typestr_length, "TINYINT");
       break;
@@ -11365,6 +11372,7 @@ static void get_type_name(uint type, unsigned char **meta_ptr,
                  geometry_type);
       (*meta_ptr)++;
     } break;
+    case MYSQL_TYPE_INVALID:
     default:
       *typestr = 0;
       break;

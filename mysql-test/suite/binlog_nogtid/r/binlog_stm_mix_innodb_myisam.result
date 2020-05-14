@@ -966,10 +966,8 @@ include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	BEGIN
 binlog.000001	#	Intvar	#	#	INSERT_ID=10
-binlog.000001	#	User var	#	#	@`b`=_utf8mb4 0x3135 COLLATE utf8mb4_0900_ai_ci
 binlog.000001	#	Begin_load_query	#	#	;file_id=#;block_len=#
 binlog.000001	#	Intvar	#	#	INSERT_ID=10
-binlog.000001	#	User var	#	#	@`b`=_utf8mb4 0x3135 COLLATE utf8mb4_0900_ai_ci
 binlog.000001	#	Execute_load_query	#	#	use `test`; LOAD DATA INFILE '../../std_data/rpl_loaddata.dat' INTO TABLE `t4` FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' (`a`, @`b`) SET `b`= @b + bug27417(2) ;file_id=#
 binlog.000001	#	Query	#	#	ROLLBACK
 drop trigger trg_del_t2;

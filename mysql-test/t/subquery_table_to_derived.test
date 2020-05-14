@@ -204,7 +204,7 @@ CREATE TABLE C (col_varchar_key VARCHAR(1));
 CREATE TABLE insert_select_140
 SELECT 1 FROM C WHERE
 col_varchar_key IN ( SELECT  1 FROM C
-                     WHERE ( 'p' , 'f' ) IN ( SELECT 1 , COUNT(  1 ) FROM C ));
+                     WHERE ( 'f' , 'f' ) IN ( SELECT 1 , COUNT(  1 ) FROM C ));
 DROP TABLE C;
 
 --echo # Bug#30709889 ASSERT: &SUBS_SELECT->FIELDS_LIST == &SUBS_SELECT->ITEM_LIST && SUBS_SELECT->IT

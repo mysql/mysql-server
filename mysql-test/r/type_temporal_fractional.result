@@ -14629,8 +14629,6 @@ a
 2001-01-01 11:22:33.123456
 EXECUTE stmt USING @c;
 a
-Warnings:
-Warning	1292	Incorrect datetime value: '0.123456' for column 'a' at row 1
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 #
@@ -14657,6 +14655,7 @@ SELECT @a;
 20010101000000.1
 SELECT * FROM t1 WHERE a=@a;
 a
+2001-01-01 00:00:00.100000
 SET @a=NULL;
 SELECT a INTO @a FROM t1 LIMIT 1;
 SELECT @a;
@@ -16877,7 +16876,6 @@ WHERE CONVERT_TZ(GREATEST('2005-11-05 18:16:50.055749', STR_TO_DATE(CURRENT_TIME
 '+00:00', CONCAT('+', CONCAT_WS(':', 7, 5)));
 col_timestamp_2_not_null_key
 Warnings:
-Warning	1292	Truncated incorrect date value: '17:28:30'
 Warning	1292	Truncated incorrect date value: '17:28:30'
 Warning	1292	Incorrect datetime value: '2017-00-00'
 DROP TABLE t1;

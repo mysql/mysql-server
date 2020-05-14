@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -309,7 +309,6 @@ const QEP_TAB *Item_subselect::get_qep_tab() const {
 }
 
 void Item_subselect::cleanup() {
-  DBUG_TRACE;
   Item_result_field::cleanup();
   if (indexsubquery_engine) {
     indexsubquery_engine->cleanup(current_thd);
@@ -325,8 +324,6 @@ void Item_subselect::cleanup() {
 
 void Item_singlerow_subselect::cleanup() {
   DBUG_TRACE;
-  value = nullptr;
-  row = nullptr;
   Item_subselect::cleanup();
 }
 
@@ -374,9 +371,6 @@ bool Item_in_subselect::finalize_exists_transform(THD *thd,
     working optimally (Bug#14215895).
   */
   if (!(unit->global_parameters()->select_limit = new Item_int(1))) return true;
-
-  if (unit->prepare_limit(thd, unit->global_parameters()))
-    return true; /* purecov: inspected */
 
   if (unit->set_limit(thd, unit->global_parameters()))
     return true; /* purecov: inspected */
@@ -1055,25 +1049,8 @@ Item_subselect::trans_res Item_singlerow_subselect::select_transformer(
   if (!unit->is_union() && !select->table_list.elements &&
       select->fields_list.elements == 1 &&
       !select->fields_list.head()->has_aggregation() &&
-      !select->fields_list.head()->has_wf() &&
-      /*
-        We cant change name of Item_field or Item_ref, because it will
-        prevent it's correct resolving, but we should save name of
-        removed item => we do not make optimization if top item of
-        list is field or reference.
-        TODO: Fix this when WL#6570 is implemented.
-      */
-      (select->fields_list.head()->const_item() ||
-       select->fields_list.head()->type() == SUBSELECT_ITEM) &&
-      !select->where_cond() && !select->having_cond() &&
-      /*
-        For prepared statement, a subquery (SELECT 1) in the GROUP BY
-        list might be transformed into a constant integer, which is
-        re-interpreted as a select expression number of later resolving.
-        because we do not rollback this changes
-        TODO: Fix this when WL#6570 is implemented.
-      */
-      !thd->stmt_arena->is_stmt_prepare_or_first_sp_execute()) {
+      !select->fields_list.head()->has_wf() && !select->where_cond() &&
+      !select->having_cond()) {
     have_to_be_excluded = true;
     if (thd->lex->is_explain()) {
       char warn_buff[MYSQL_ERRMSG_SIZE];
@@ -1717,13 +1694,6 @@ Item_subselect::trans_res Item_in_subselect::single_value_transformer(
         List_iterator<Item> it(select->fields_list);
         it++;
         it.replace(item);
-
-        /*
-          If the item in the SELECT list has gone through a temporary
-          transformation (like Item_field to Item_ref), make sure we
-          are rolling it back based on location inside Item_sum arg list.
-        */
-        thd->replace_rollback_place(item->get_arg_ptr(0));
       }
 
       DBUG_EXECUTE("where", print_where(thd, item, "rewrite with MIN/MAX",
@@ -1750,36 +1720,9 @@ Item_subselect::trans_res Item_in_subselect::single_value_transformer(
       if (upper_item) upper_item->set_sub_test(item);
     }
     if (upper_item) upper_item->set_subselect(this);
-    /*
-      fix fields is already called for  left expression.
-      Note that real_item() should be used for all the runtime
-      created Ref items instead of original left expression
-      because these items would be deleted at the end
-      of the statement. Thus one of 'substitution' arguments
-      can be broken in case of PS.
 
-      @todo
-      Why do we use real_item()/substitutional_item() instead of the plain
-      left_expr?
-      Because left_expr might be a rollbackable item, and we fail to properly
-      rollback all copies of left_expr at end of execution, so we want to
-      avoid creating copies of left_expr as much as possible, so we use
-      real_item() instead.
-      Doing a proper rollback is difficult: the change was registered for the
-      original item which was the left argument of IN. Then this item was
-      copied to left_expr, which is copied below to substitution->args[0]. To
-      do a proper rollback, we would have to restore the content
-      of both copies as well as the original item. There might be more copies,
-      if AND items have been constructed.
-      The same applies to the right expression.
-      However, using real_item()/substitutional_item() brings its own
-      problems: for example, we lose information that the item is an outer
-      reference; the item can thus wrongly be considered for a Keyuse (causing
-      bug#17766653).
-      When WL#6570 removes the "rolling back" system, all
-      real_item()/substitutional_item() in this file should be removed.
-    */
-    substitution = func->create(left_expr->substitutional_item(), subs);
+    substitution = func->create(left_expr, subs);
+
     return RES_OK;
   }
 
@@ -1795,16 +1738,12 @@ Item_subselect::trans_res Item_in_subselect::single_value_transformer(
     }
     thd->lex->set_current_select(select);
 
-    /* We will refer to upper level cache array => we have to save it for SP */
-    optimizer->keep_top_level_cache();
-
     /*
       As far as  Item_ref_in_optimizer do not substitute itself on fix_fields
       we can use same item for all selects.
     */
-    Item_ref *const left =
-        new Item_ref(&select->context, (Item **)optimizer->get_cache(),
-                     "<no matter>", in_left_expr_name);
+    Item_ref *const left = new Item_ref(
+        &select->context, (Item **)optimizer->get_cache(), in_left_expr_name);
     if (left == nullptr) return RES_ERROR;
 
     if (mark_as_outer(left_expr, 0))
@@ -1898,8 +1837,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(THD *thd,
       select->group_list.elements || select->m_windows.elements > 0) {
     bool tmp;
     Item_ref_null_helper *ref_null = new Item_ref_null_helper(
-        &select->context, this, &select->base_ref_items[0], "<ref>",
-        this->full_name());
+        &select->context, this, &select->base_ref_items[0]);
     Item_bool_func *item = func->create(m_injected_left_expr, ref_null);
     item->set_created_by_in2exists();
 
@@ -1963,10 +1901,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(THD *thd,
     select->having_fix_field = false;
     if (tmp) return RES_ERROR;
   } else {
-    /*
-      Grep for "WL#6570" to see the relevant comment about real_item.
-    */
-    Item *orig_item = select->fields_list.head()->real_item();
+    Item *orig_item = select->fields_list.head();
 
     if (!select->source_table_is_one_row() || select->where_cond()) {
       bool tmp;
@@ -2048,8 +1983,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(THD *thd,
         Item_bool_func *new_having =
             func->create(m_injected_left_expr,
                          new Item_ref_null_helper(&select->context, this,
-                                                  &select->base_ref_items[0],
-                                                  "<no matter>", "<result>"));
+                                                  &select->base_ref_items[0]));
         new_having->set_created_by_in2exists();
         if (!abort_on_null && left_expr->maybe_null) {
           if (!(new_having = new Item_func_trig_cond(
@@ -2083,17 +2017,8 @@ Item_in_subselect::single_value_in_to_exists_transformer(THD *thd,
         outer->merge_contexts(select);
         orig_item->fix_after_pullout(outer, select);
 
-        /*
-          fix_field of substitution item will be done in time of
-          substituting.
-          Note that real_item() should be used for all the runtime
-          created Ref items instead of original left expression
-          because these items would be deleted at the end
-          of the statement. Thus one of 'substitution' arguments
-          can be broken in case of PS.
-         */
-        substitution =
-            func->create(left_expr->substitutional_item(), orig_item);
+        // Resolving of substitution item will be done in time of substituting
+        substitution = func->create(left_expr, orig_item);
         have_to_be_excluded = true;
         if (thd->lex->is_explain()) {
           char warn_buff[MYSQL_ERRMSG_SIZE];
@@ -2136,9 +2061,6 @@ Item_subselect::trans_res Item_in_subselect::row_value_transformer(
       thd->lex->set_current_select(select); /* purecov: inspected */
       return RES_ERROR;                     /* purecov: inspected */
     }
-
-    // we will refer to upper level cache array => we have to save it in PS
-    optimizer->keep_top_level_cache();
 
     thd->lex->set_current_select(select);
     DBUG_ASSERT(in2exists_info == nullptr);
@@ -2226,18 +2148,17 @@ Item_subselect::trans_res Item_in_subselect::row_value_in_to_exists_transformer(
         return RES_ERROR;
       Item_ref *const left =
           new Item_ref(&select->context, (*optimizer->get_cache())->addr(i),
-                       "<no matter>", in_left_expr_name);
+                       in_left_expr_name);
       if (left == nullptr) return RES_ERROR; /* purecov: inspected */
 
       if (mark_as_outer(left_expr, i))
         left->depended_from = select->outer_select();
 
       Item_bool_func *item_eq = new Item_func_eq(
-          left,
-          new Item_ref(&select->context, pitem_i, "<no matter>", "<list ref>"));
+          left, new Item_ref(&select->context, pitem_i, "<list ref>"));
       item_eq->set_created_by_in2exists();
       Item_bool_func *item_isnull = new Item_func_isnull(
-          new Item_ref(&select->context, pitem_i, "<no matter>", "<list ref>"));
+          new Item_ref(&select->context, pitem_i, "<list ref>"));
       item_isnull->set_created_by_in2exists();
       Item_bool_func *col_item = new Item_cond_or(item_eq, item_isnull);
       col_item->set_created_by_in2exists();
@@ -2252,8 +2173,7 @@ Item_subselect::trans_res Item_in_subselect::row_value_in_to_exists_transformer(
       having_item = and_items(having_item, col_item);
       having_item->set_created_by_in2exists();
       Item_bool_func *item_nnull_test = new Item_is_not_null_test(
-          this,
-          new Item_ref(&select->context, pitem_i, "<no matter>", "<list ref>"));
+          this, new Item_ref(&select->context, pitem_i, "<list ref>"));
       item_nnull_test->set_created_by_in2exists();
       if (!abort_on_null && left_expr->element_index(i)->maybe_null) {
         if (!(item_nnull_test = new Item_func_trig_cond(
@@ -2297,24 +2217,22 @@ Item_subselect::trans_res Item_in_subselect::row_value_in_to_exists_transformer(
         return RES_ERROR;
       Item_ref *const left =
           new Item_ref(&select->context, (*optimizer->get_cache())->addr(i),
-                       "<no matter>", in_left_expr_name);
+                       in_left_expr_name);
       if (left == nullptr) return RES_ERROR;
 
       if (mark_as_outer(left_expr, i))
         left->depended_from = select->outer_select();
 
       Item_bool_func *item = new Item_func_eq(
-          left,
-          new Item_ref(&select->context, pitem_i, "<no matter>", "<list ref>"));
+          left, new Item_ref(&select->context, pitem_i, "<list ref>"));
       item->set_created_by_in2exists();
       if (!abort_on_null) {
         Item_bool_func *having_col_item = new Item_is_not_null_test(
-            this, new Item_ref(&select->context, pitem_i, "<no matter>",
-                               "<list ref>"));
+            this, new Item_ref(&select->context, pitem_i, "<list ref>"));
 
         having_col_item->set_created_by_in2exists();
-        Item_bool_func *item_isnull = new Item_func_isnull(new Item_ref(
-            &select->context, pitem_i, "<no matter>", "<list ref>"));
+        Item_bool_func *item_isnull = new Item_func_isnull(
+            new Item_ref(&select->context, pitem_i, "<list ref>"));
         item_isnull->set_created_by_in2exists();
         item = new Item_cond_or(item, item_isnull);
         item->set_created_by_in2exists();
@@ -2660,6 +2578,7 @@ bool Item_subselect::clean_up_after_removal(uchar *arg) {
   if (sl == root) {
     unit->exclude_tree(current_thd);
     unit->cleanup(current_thd, true);
+    unit->destroy();
   }
   return false;
 }
@@ -2750,8 +2669,8 @@ Item *Item_singlerow_subselect::replace_scalar_subquery(uchar *arg) {
 
   if (unit->place() == CTX_HAVING) {
     result = new (current_thd->mem_root)
-        Item_ref(&info->m_outer_select->context, ref, scalar_item->table_name,
-                 scalar_item->field_name);
+        Item_ref(&info->m_outer_select->context, ref, scalar_item->db_name,
+                 scalar_item->table_name, scalar_item->field_name);
     // nullptr is error, but no separate return needed here
   } else {
     result = scalar_item;
@@ -2829,7 +2748,6 @@ Item *Item_subselect::replace_item_view_ref(uchar *arg) {
 
 void SubqueryWithResult::cleanup(THD *thd) {
   DBUG_TRACE;
-  item->unit->reset_executed();
   result->cleanup(thd);
 }
 
@@ -2859,7 +2777,7 @@ SubqueryWithResult::SubqueryWithResult(SELECT_LEX_UNIT *u,
 
 bool SubqueryWithResult::prepare(THD *thd) {
   if (!unit->is_prepared())
-    return unit->prepare(thd, result, SELECT_NO_UNLOCK, 0);
+    return unit->prepare(thd, result, nullptr, SELECT_NO_UNLOCK, 0);
 
   DBUG_ASSERT(result == unit->query_result());
 
@@ -2886,6 +2804,7 @@ void SubqueryWithResult::set_row(List<Item> &item_list, Item_cache **row,
   List_iterator_fast<Item> li(item_list);
   res_type = STRING_RESULT;
   res_field_type = MYSQL_TYPE_VARCHAR;
+  Prepared_stmt_arena_holder ps_arena_holder(current_thd);
   for (uint i = 0; (sel_item = li++); i++) {
     item->max_length = sel_item->max_length;
     res_type = sel_item->result_type();
@@ -3220,12 +3139,9 @@ bool subselect_hash_sj_engine::setup(THD *thd, List<Item> *tmp_columns) {
       new (thd->mem_root) TABLE_LIST(tmp_table, "<materialized_subquery>");
   if (tmp_table_ref == nullptr) return true;
 
-  /* Name resolution context for all tmp_table columns created below. */
-  Name_resolution_context *context =
-      new (thd->mem_root) Name_resolution_context;
-  context->init();
-  context->first_name_resolution_table = context->last_name_resolution_table =
-      tmp_table_ref;
+  // Assign TABLE_LIST pointer temporarily, while creatung fields:
+  tmp_table->pos_in_table_list = tmp_table_ref;
+  tmp_table_ref->select_lex = unit->first_select();
 
   KEY_PART_INFO *key_parts = tmp_key->key_part;
   for (uint part_no = 0; part_no < tmp_key_parts; part_no++) {
@@ -3237,7 +3153,9 @@ bool subselect_hash_sj_engine::setup(THD *thd, List<Item> *tmp_columns) {
     const bool nullable = field->is_nullable();
     tab->ref().items[part_no] = item->left_expr->element_index(part_no);
 
-    if (!(right_col_item = new Item_field(thd, context, field)) ||
+    if (!(right_col_item =
+              new Item_field(thd, &tmp_table_ref->select_lex->context,
+                             tmp_table_ref, field)) ||
         !(eq_cond =
               new Item_func_eq(tab->ref().items[part_no], right_col_item)) ||
         ((Item_cond_and *)cond)->add(eq_cond)) {
@@ -3280,21 +3198,14 @@ bool subselect_hash_sj_engine::setup(THD *thd, List<Item> *tmp_columns) {
     else
       cur_ref_buff += key_parts[part_no].store_length;
   }
+  tmp_table->pos_in_table_list = nullptr;
   tab->ref().key_err = true;
   tab->ref().key_parts = tmp_key_parts;
   tab->table_ref = tmp_table_ref;
 
   if (cond->fix_fields(thd, &cond)) return true;
 
-  /*
-    Create and optimize the JOIN that will be used to materialize
-    the subquery if not yet created.
-  */
-  if (!unit->is_prepared()) {
-    if (unit->prepare(thd, result, SELECT_NO_UNLOCK, 0)) {
-      return true;
-    }
-  }
+  assert(unit->is_prepared());
 
   return false;
 }
@@ -3335,7 +3246,15 @@ void subselect_hash_sj_engine::create_iterators(THD *thd) {
         NewIterator<FilterIterator>(thd, move(tab->iterator), having);
   }
 
+  /*
+    This impersonates the materialized table as a derived table. However, there
+    are certain aspects of a derived table that are NOT set, such as
+    effective_algorithm, so this assignment is incomplete.
+    However, it works for the time being (partially because TABLE object's
+    pos_in_table_list is nullptr).
+  */
   tab->table_ref->set_derived_unit(unit);
+
   unique_ptr_destroy_only<RowIterator> iterator;
   if (tab->table_ref->is_table_function()) {
     iterator = NewIterator<MaterializedTableFunctionIterator>(
@@ -3355,11 +3274,7 @@ subselect_hash_sj_engine::~subselect_hash_sj_engine() {
 }
 
 /**
-  Cleanup performed after each PS execution.
-
-  @details
-  Called in the end of SELECT_LEX::prepare for PS from
-  Item_subselect::cleanup.
+  Cleanup performed after each execution.
 */
 
 void subselect_hash_sj_engine::cleanup(THD *thd) {
@@ -3373,11 +3288,12 @@ void subselect_hash_sj_engine::cleanup(THD *thd) {
     TABLE *const table = tab->table();
     if (table->file->inited)
       table->file->ha_index_end();  // Close the scan over the index
-    free_tmp_table(thd, table);
+    close_tmp_table(thd, table);
+    free_tmp_table(table);
     // Note that tab->qep_cleanup() is not called
     tab = nullptr;
   }
-  unit->reset_executed();
+  if (unit->is_executed()) unit->reset_executed();
 }
 
 /**

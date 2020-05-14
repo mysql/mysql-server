@@ -15,7 +15,7 @@ select @secret
 123
 select @secret
 -----------------------------------------------------------------
-@secret LONG_BLOB(251)	
+@secret VARCHAR(15)	
 [NULL]
 Has session ID changed: 0
 =======================================================================
@@ -35,7 +35,7 @@ select @secret
 123
 select @secret
 -----------------------------------------------------------------
-@secret LONG_BLOB(251)	
+@secret VARCHAR(15)	
 [NULL]
 Has session ID changed: 0
 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<

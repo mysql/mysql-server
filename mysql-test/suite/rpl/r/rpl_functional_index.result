@@ -25,7 +25,7 @@ EXPLAIN SELECT col1 FROM t1 WHERE ABS(col1) = 12;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	functional_index	functional_index	5	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` where (abs(`test`.`t1`.`col1`) = 12)
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` where (abs(`col1`) = 12)
 SET SESSION debug="+d,show_hidden_columns";
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -52,7 +52,7 @@ EXPLAIN SELECT col1 FROM t1 WHERE ABS(col1) = 12;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	functional_index	functional_index	5	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` where (abs(`test`.`t1`.`col1`) = 12)
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` where (abs(`col1`) = 12)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -76,7 +76,7 @@ EXPLAIN SELECT col1 FROM t1 WHERE ABS(col1) = 12;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	functional_index	functional_index	5	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` where (abs(`test`.`t1`.`col1`) = 12)
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` where (abs(`col1`) = 12)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

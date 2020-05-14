@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2707,10 +2707,16 @@ bool Protocol_classic::parse_packet(union COM_DATA *data,
           continue;
         }
         enum enum_field_types type =
-            has_new_types ? params[i].type : stmt->param_array[i]->data_type();
-        if (stmt->param_array[i]->state == Item_param::LONG_DATA_VALUE) {
+            has_new_types ? params[i].type
+                          : stmt->param_array[i]->data_type_actual();
+        if (type == MYSQL_TYPE_BOOL)
+          goto malformed;  // unsupported in this version of the Server
+        if (stmt->param_array[i]->param_state() ==
+            Item_param::LONG_DATA_VALUE) {
           DBUG_PRINT("info", ("long data"));
-          if (!((type >= MYSQL_TYPE_TINY_BLOB) && (type <= MYSQL_TYPE_STRING)))
+          if (!(type >= MYSQL_TYPE_TINY_BLOB && type <= MYSQL_TYPE_STRING))
+            goto malformed;
+          if (type == MYSQL_TYPE_BOOL || type == MYSQL_TYPE_INVALID)
             goto malformed;
           data->com_stmt_execute.parameter_count++;
 
@@ -3097,6 +3103,8 @@ bool Protocol_classic::send_field_metadata(Send_field *field,
   char *pos;
   const CHARSET_INFO *cs = system_charset_info;
   const CHARSET_INFO *thd_charset = m_thd->variables.character_set_results;
+
+  DBUG_ASSERT(field->type != MYSQL_TYPE_BOOL);
 
   /* Keep things compatible for old clients */
   if (field->type == MYSQL_TYPE_VARCHAR) field->type = MYSQL_TYPE_VAR_STRING;
@@ -3560,7 +3568,7 @@ bool Protocol_text::send_parameters(List<Item_param> *parameters, bool) {
     if (!item_param->get_out_param_info()) continue;
 
     Item_func_set_user_var *suv =
-        new Item_func_set_user_var(*user_var_name, item_param, false);
+        new Item_func_set_user_var(*user_var_name, item_param);
     /*
       Item_func_set_user_var is not fixed after construction,
       call fix_fields().
@@ -3893,6 +3901,7 @@ static ulong get_ps_param_len(enum enum_field_types type, uchar *packet,
   *header_len = 0;
 
   switch (type) {
+    case MYSQL_TYPE_BOOL:
     case MYSQL_TYPE_TINY:
       *err = (packet_left_len < 1);
       return 1;

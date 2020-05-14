@@ -527,10 +527,8 @@ ERROR HY000: Incorrect datetime value: '32.10.2004 15.30' for function str_to_da
 INSERT IGNORE INTO t1 VALUES(STR_TO_DATE('32.10.2004 15.30','%D.%D.%Y %H.%I'));
 Warnings:
 Warning	1411	Incorrect datetime value: '32.10.2004 15.30' for function str_to_date
-Warning	1411	Incorrect datetime value: '32.10.2004 15.30' for function str_to_date
 UPDATE IGNORE t1 SET col1=STR_TO_DATE('32.10.2004 15.30','%D.%D.%Y %H.%I') WHERE col1='1000-01-01 00:00:00';
 Warnings:
-Warning	1411	Incorrect datetime value: '32.10.2004 15.30' for function str_to_date
 Warning	1411	Incorrect datetime value: '32.10.2004 15.30' for function str_to_date
 DROP TABLE t1;
 #

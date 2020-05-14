@@ -1,7 +1,7 @@
 #ifndef ITEM_XMLFUNC_INCLUDED
 #define ITEM_XMLFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,7 +54,9 @@ using ParsedXML = std::vector<MY_XML_NODE>;
 class Item_xml_str_func : public Item_str_func {
  protected:
   ParsedXML pxml;
-  Item *nodeset_func;
+  Item *nodeset_func{nullptr};
+  /// True if nodeset_func assigned during resolving
+  bool nodeset_func_permanent{false};
   String xpath_tmp_value;
 
  public:
@@ -67,6 +69,10 @@ class Item_xml_str_func : public Item_str_func {
     maybe_null = true;
   }
   bool resolve_type(THD *thd) override;
+  void cleanup() override {
+    Item_str_func::cleanup();
+    if (!nodeset_func_permanent) nodeset_func = nullptr;
+  }
   bool check_function_as_value_generator(uchar *) override { return false; }
 
  protected:

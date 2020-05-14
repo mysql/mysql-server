@@ -1095,9 +1095,8 @@ PREPARE s FROM
 SET optimizer_switch='subquery_to_derived=off';
 EXECUTE s;
 
---echo Try the other way too, should work. Transform will still happen
---echo even if not performed on PREPARE, but this will change after
---echo WL#6570.
+--echo Try the other way too. Transform will not happen on EXECUTE
+--echo as it can be performed only on PREPARE.
 PREPARE s FROM
   'SELECT a FROM t1 WHERE a=(SELECT MAX(a) FROM t1) AND (a="20060606155555")';
 SET optimizer_switch='subquery_to_derived=on';

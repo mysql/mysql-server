@@ -1,6 +1,6 @@
 #ifndef SQL_DATA_CHANGE_INCLUDED
 #define SQL_DATA_CHANGE_INCLUDED
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -309,6 +309,19 @@ class COPY_INFO {
     DBUG_ASSERT(m_function_default_columns != nullptr);
     return bitmap_is_overlapping(m_function_default_columns, map);
   }
+
+  /// Reset counters before the next execution
+  void reset_counters() {
+    stats.records = 0;
+    stats.deleted = 0;
+    stats.updated = 0;
+    stats.copied = 0;
+    stats.error_count = 0;
+    stats.touched = 0;
+  }
+
+  /// Cleanup memory allocated by this object.
+  void cleanup() { m_function_default_columns = nullptr; }
 
   /**
      Tells the object to not manage function defaults for the last 'count'

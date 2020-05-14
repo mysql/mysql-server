@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2862,8 +2862,8 @@ bool PT_option_value_no_option_type_user_var::contextualize(Parse_context *pc) {
   if (super::contextualize(pc) || expr->itemize(pc, &expr)) return true;
 
   THD *thd = pc->thd;
-  Item_func_set_user_var *item;
-  item = new (pc->mem_root) Item_func_set_user_var(name, expr, false);
+  Item_func_set_user_var *item =
+      new (pc->mem_root) Item_func_set_user_var(name, expr);
   if (item == nullptr) return true;
   set_var_user *var = new (thd->mem_root) set_var_user(item);
   if (var == nullptr) return true;

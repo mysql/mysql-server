@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,6 +68,7 @@ bool parse_sql(THD *thd, Parser_state *parser_state,
 
 void free_items(Item *item);
 void cleanup_items(Item *item);
+void bind_fields(Item *first);
 
 Comp_creator *comp_eq_creator(bool invert);
 Comp_creator *comp_equal_creator(bool invert);

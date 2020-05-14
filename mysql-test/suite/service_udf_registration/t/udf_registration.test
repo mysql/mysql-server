@@ -34,7 +34,7 @@ connect(c1,localhost,root,,mysql);
 connection default;
 
 --echo # Activating the sync point at udf reference count decrease
-SET DEBUG_SYNC='udf_handler_cleanup_sync SIGNAL pre_cleanup WAIT_FOR continue TIMEOUT 20';
+SET DEBUG_SYNC='udf_handler_destroy_sync SIGNAL pre_cleanup WAIT_FOR continue TIMEOUT 20';
 
 --echo # now emit a call to lock the UDF
 send SELECT dynamic_udf();

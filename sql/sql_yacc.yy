@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3865,6 +3865,7 @@ sp_decl:
               MYSQL_YYABORT;
             }
 
+            cursor_lex->m_sql_cmd->set_as_part_of_sp();
             cursor_lex->sp_lex_in_use= true;
 
             if (sp->restore_lex(thd))
@@ -4448,6 +4449,11 @@ sp_proc_stmt_statement:
               my_error(ER_SP_BADSTATEMENT, MYF(0), "USE");
               MYSQL_YYABORT;
             }
+
+            // Mark statement as belonging to a stored procedure:
+            if (lex->m_sql_cmd != NULL)
+              lex->m_sql_cmd->set_as_part_of_sp();
+
             /*
               Don't add an instruction for SET statements, since all
               instructions for them were already added during processing

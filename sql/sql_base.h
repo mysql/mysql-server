@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -211,7 +211,8 @@ bool insert_fields(THD *thd, SELECT_LEX *select_lex, const char *db_name,
                    bool any_privileges);
 bool setup_fields(THD *thd, Ref_item_array ref_item_array, List<Item> &item,
                   ulong privilege, List<Item> *sum_func_list,
-                  bool allow_sum_func, bool column_update);
+                  bool allow_sum_func, bool column_update,
+                  List<Item> *typed_items = nullptr);
 bool fill_record(THD *thd, TABLE *table, List<Item> &fields, List<Item> &values,
                  MY_BITMAP *bitmap, MY_BITMAP *insert_into_fields_bitmap,
                  bool raise_autoinc_has_expl_non_null_val);

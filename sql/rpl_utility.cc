@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -346,12 +346,14 @@ static bool can_convert_field_to(Field *field, enum_field_types source_type,
       The length comparison check will do the correct job of comparing
       the field lengths (in bytes) of two integer types.
     */
+    case MYSQL_TYPE_BOOL:
     case MYSQL_TYPE_TINY:
     case MYSQL_TYPE_SHORT:
     case MYSQL_TYPE_INT24:
     case MYSQL_TYPE_LONG:
     case MYSQL_TYPE_LONGLONG:
       switch (field->real_type()) {
+        case MYSQL_TYPE_BOOL:
         case MYSQL_TYPE_TINY:
         case MYSQL_TYPE_SHORT:
         case MYSQL_TYPE_INT24:
@@ -417,13 +419,14 @@ static bool can_convert_field_to(Field *field, enum_field_types source_type,
     case MYSQL_TYPE_DATETIME:
     case MYSQL_TYPE_YEAR:
     case MYSQL_TYPE_NEWDATE:
-    case MYSQL_TYPE_NULL:
     case MYSQL_TYPE_ENUM:
     case MYSQL_TYPE_SET:
     case MYSQL_TYPE_TIMESTAMP2:
     case MYSQL_TYPE_DATETIME2:
     case MYSQL_TYPE_TIME2:
     case MYSQL_TYPE_TYPED_ARRAY:
+    case MYSQL_TYPE_NULL:
+    case MYSQL_TYPE_INVALID:
       return false;
   }
   return false;  // To keep GCC happy

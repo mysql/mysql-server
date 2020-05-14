@@ -1134,7 +1134,6 @@ count(*)
 7
 Warnings:
 Warning	1411	Incorrect datetime value: '2004.12.12 10:22:61' for function str_to_date
-Warning	1411	Incorrect datetime value: '2004.12.12 10:22:61' for function str_to_date
 drop table t1;
 create table t1 (col1 char(3), col2 integer);
 insert into t1 (col1) values (cast(1000 as char(3)));

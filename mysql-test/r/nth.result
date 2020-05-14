@@ -54,9 +54,11 @@ SELECT id, sex, NTH_VALUE(id, 'a') OVER () FROM t1;
 ERROR HY000: Incorrect arguments to nth_value
 SELECT id, sex, NTH_VALUE(id, -3) OVER () le1 FROM t1;
 ERROR HY000: Incorrect arguments to nth_value
-NULL argument is OK
+NULL literal is not OK (but NULL value is)
 SELECT id, sex, NTH_VALUE(id, NULL) OVER () FROM t1;
-id	sex	NTH_VALUE(id, NULL) OVER ()
+ERROR HY000: Incorrect arguments to nth_value
+SELECT id, sex, NTH_VALUE(id, @oijlkjlkjxozijqlj) OVER () FROM t1;
+id	sex	NTH_VALUE(id, @oijlkjlkjxozijqlj) OVER ()
 1	M	NULL
 2	F	NULL
 3	F	NULL
@@ -93,10 +95,10 @@ NULL	M	NULL
 11	NULL	NULL
 SET @p1= '1';
 EXECUTE p USING @p1;
-ERROR HY000: Incorrect arguments to nth_value
+ERROR HY000: Incorrect arguments to EXECUTE
 SET @p1= 1.2;
 EXECUTE p USING @p1;
-ERROR HY000: Incorrect arguments to nth_value
+ERROR HY000: Incorrect arguments to EXECUTE
 DROP PREPARE p;
 Ok, default semantics:
 SELECT id, sex, NTH_VALUE(id, 1) RESPECT NULLS OVER () FROM t1;

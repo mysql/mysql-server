@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -706,7 +706,6 @@ bool PTI_limit_option_param_marker::itemize(Parse_context *pc, Item **res) {
   */
   DBUG_ASSERT(tmp_param == param_marker);
 
-  param_marker->limit_clause_param = true;
   *res = param_marker;
   return false;
 }

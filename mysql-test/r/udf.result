@@ -55,6 +55,12 @@ lookup("localhost")
 127.0.0.1
 select reverse_lookup();
 ERROR HY000: Can't initialize function 'reverse_lookup'; Wrong number of arguments to reverse_lookup;  Use the source
+prepare s from "select myfunc_double(?)";
+set @one = 1;
+execute s using @one;
+myfunc_double(?)
+49.00
+deallocate prepare s;
 select reverse_lookup("127.0.0.1");
 select reverse_lookup(127,0,0,1);
 select reverse_lookup("localhost");

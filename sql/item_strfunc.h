@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,61 +75,38 @@ class Item_str_func : public Item_func {
   typedef Item_func super;
 
  public:
-  Item_str_func() : Item_func() { set_data_type_string_init(); }
+  Item_str_func() : Item_func() {}
 
-  explicit Item_str_func(const POS &pos) : super(pos) {
-    set_data_type_string_init();
-  }
+  explicit Item_str_func(const POS &pos) : super(pos) {}
 
-  Item_str_func(Item *a) : Item_func(a) { set_data_type_string_init(); }
+  Item_str_func(Item *a) : Item_func(a) {}
 
-  Item_str_func(const POS &pos, Item *a) : Item_func(pos, a) {
-    set_data_type_string_init();
-  }
+  Item_str_func(const POS &pos, Item *a) : Item_func(pos, a) {}
 
-  Item_str_func(Item *a, Item *b) : Item_func(a, b) {
-    set_data_type_string_init();
-  }
+  Item_str_func(Item *a, Item *b) : Item_func(a, b) {}
 
-  Item_str_func(const POS &pos, Item *a, Item *b) : Item_func(pos, a, b) {
-    set_data_type_string_init();
-  }
+  Item_str_func(const POS &pos, Item *a, Item *b) : Item_func(pos, a, b) {}
 
-  Item_str_func(Item *a, Item *b, Item *c) : Item_func(a, b, c) {
-    set_data_type_string_init();
-  }
+  Item_str_func(Item *a, Item *b, Item *c) : Item_func(a, b, c) {}
+
   Item_str_func(const POS &pos, Item *a, Item *b, Item *c)
-      : Item_func(pos, a, b, c) {
-    set_data_type_string_init();
-  }
+      : Item_func(pos, a, b, c) {}
 
-  Item_str_func(Item *a, Item *b, Item *c, Item *d) : Item_func(a, b, c, d) {
-    set_data_type_string_init();
-  }
+  Item_str_func(Item *a, Item *b, Item *c, Item *d) : Item_func(a, b, c, d) {}
 
   Item_str_func(const POS &pos, Item *a, Item *b, Item *c, Item *d)
-      : Item_func(pos, a, b, c, d) {
-    set_data_type_string_init();
-  }
+      : Item_func(pos, a, b, c, d) {}
 
   Item_str_func(Item *a, Item *b, Item *c, Item *d, Item *e)
-      : Item_func(a, b, c, d, e) {
-    set_data_type_string_init();
-  }
+      : Item_func(a, b, c, d, e) {}
 
   Item_str_func(const POS &pos, Item *a, Item *b, Item *c, Item *d, Item *e)
-      : Item_func(pos, a, b, c, d, e) {
-    set_data_type_string_init();
-  }
+      : Item_func(pos, a, b, c, d, e) {}
 
-  Item_str_func(List<Item> &list) : Item_func(list) {
-    set_data_type_string_init();
-  }
+  Item_str_func(List<Item> &list) : Item_func(list) {}
 
   Item_str_func(const POS &pos, PT_item_list *opt_list)
-      : Item_func(pos, opt_list) {
-    set_data_type_string_init();
-  }
+      : Item_func(pos, opt_list) {}
 
   longlong val_int() override { return val_int_from_string(); }
   double val_real() override { return val_real_from_string(); }
@@ -143,6 +120,10 @@ class Item_str_func : public Item_func {
   enum Item_result result_type() const override { return STRING_RESULT; }
   void left_right_max_length();
   bool fix_fields(THD *thd, Item **ref) override;
+  bool resolve_type(THD *) override {
+    param_type_is_default(0, -1);
+    return false;
+  }
   String *val_str_from_val_str_ascii(String *str, String *str2);
 
  protected:
@@ -609,7 +590,7 @@ class Item_func_database : public Item_func_sysconst {
 
   String *val_str(String *) override;
   bool resolve_type(THD *) override {
-    set_data_type_string(uint32(MAX_FIELD_NAME));
+    set_data_type_string(uint32{MAX_FIELD_NAME});
     maybe_null = true;
     return false;
   }
@@ -623,10 +604,12 @@ class Item_func_user : public Item_func_sysconst {
   typedef Item_func_sysconst super;
 
  protected:
-  bool init(const char *user, const char *host);
-  type_conversion_status save_in_field_inner(Field *field, bool) override {
-    return save_str_value_in_field(field, &str_value);
-  }
+  /// True when function value is evaluated, set to false after each execution
+  bool m_evaluated = false;
+
+  /// Evaluate user name, must be called once per execution
+  bool evaluate(const char *user, const char *host);
+  type_conversion_status save_in_field_inner(Field *field, bool) override;
 
  public:
   Item_func_user() { str_value.set("", 0, system_charset_info); }
@@ -634,13 +617,12 @@ class Item_func_user : public Item_func_sysconst {
     str_value.set("", 0, system_charset_info);
   }
 
+  table_map get_initial_pseudo_tables() const override {
+    return INNER_TABLE_BIT;
+  }
+
   bool itemize(Parse_context *pc, Item **res) override;
 
-  String *val_str(String *) override {
-    DBUG_ASSERT(fixed == 1);
-    return (null_value ? nullptr : &str_value);
-  }
-  bool fix_fields(THD *thd, Item **ref) override;
   bool check_function_as_value_generator(uchar *checker_args) override {
     Check_function_as_value_generator_parameters *func_arg =
         pointer_cast<Check_function_as_value_generator_parameters *>(
@@ -649,13 +631,20 @@ class Item_func_user : public Item_func_sysconst {
     return true;
   }
   bool resolve_type(THD *) override {
-    set_data_type_string(uint32(USERNAME_CHAR_LENGTH + HOSTNAME_LENGTH + 1U));
+    set_data_type_string(uint32{USERNAME_CHAR_LENGTH + HOSTNAME_LENGTH + 1U});
     return false;
+  }
+  void cleanup() override {
+    m_evaluated = false;
+    str_value.mem_free();
+    super::cleanup();
   }
   const char *func_name() const override { return "user"; }
   const Name_string fully_qualified_func_name() const override {
     return NAME_STRING("user()");
   }
+
+  String *val_str(String *) override;
 };
 
 class Item_func_current_user : public Item_func_user {
@@ -663,16 +652,19 @@ class Item_func_current_user : public Item_func_user {
 
   Name_resolution_context *context;
 
+ protected:
+  type_conversion_status save_in_field_inner(Field *field, bool) override;
+
  public:
   explicit Item_func_current_user(const POS &pos) : super(pos) {}
 
   bool itemize(Parse_context *pc, Item **res) override;
-
-  bool fix_fields(THD *thd, Item **ref) override;
   const char *func_name() const override { return "current_user"; }
   const Name_string fully_qualified_func_name() const override {
     return NAME_STRING("current_user()");
   }
+
+  String *val_str(String *) override;
 };
 
 class Item_func_soundex : public Item_str_func {
@@ -766,6 +758,7 @@ class Item_func_char final : public Item_str_func {
   }
   String *val_str(String *) override;
   bool resolve_type(THD *) override {
+    param_type_is_default(0, -1, MYSQL_TYPE_LONGLONG);
     set_data_type_string(arg_count * 4U);
     return false;
   }
@@ -874,6 +867,7 @@ class Item_func_hex : public Item_str_ascii_func {
   const char *func_name() const override { return "hex"; }
   String *val_str_ascii(String *) override;
   bool resolve_type(THD *) override {
+    param_type_is_default(0, -1);
     set_data_type_string(args[0]->max_length * 2U, default_charset());
     return false;
   }
@@ -890,6 +884,7 @@ class Item_func_unhex final : public Item_str_func {
   const char *func_name() const override { return "unhex"; }
   String *val_str(String *) override;
   bool resolve_type(THD *) override {
+    param_type_is_default(0, -1);
     set_data_type_string((1U + args[0]->max_length) / 2U, &my_charset_bin);
     return false;
   }
@@ -909,7 +904,9 @@ class Item_func_like_range : public Item_str_func {
   }
   String *val_str(String *) override;
   bool resolve_type(THD *) override {
-    set_data_type_string(uint32(MAX_BLOB_WIDTH), args[0]->collation);
+    param_type_is_default(0, 1);
+    param_type_is_default(1, 2, MYSQL_TYPE_LONGLONG);
+    set_data_type_string(uint32{MAX_BLOB_WIDTH}, args[0]->collation);
     return false;
   }
 };
@@ -962,6 +959,7 @@ class Item_load_file final : public Item_str_func {
   String *val_str(String *) override;
   const char *func_name() const override { return "load_file"; }
   bool resolve_type(THD *) override {
+    param_type_is_default(0, 1);
     collation.set(&my_charset_bin, DERIVATION_COERCIBLE);
     set_data_type_blob(MAX_BLOB_WIDTH);
     maybe_null = true;
@@ -1082,10 +1080,10 @@ class Item_func_charset final : public Item_str_func {
   }
   String *val_str(String *) override;
   const char *func_name() const override { return "charset"; }
-  bool resolve_type(THD *) override {
+  bool resolve_type(THD *thd) override {
     set_data_type_string(64U, system_charset_info);
     maybe_null = false;
-    return false;
+    return Item_str_func::resolve_type(thd);
   }
 };
 
@@ -1096,7 +1094,8 @@ class Item_func_collation : public Item_str_func {
   }
   String *val_str(String *) override;
   const char *func_name() const override { return "collation"; }
-  bool resolve_type(THD *) override {
+  bool resolve_type(THD *thd) override {
+    if (Item_str_func::resolve_type(thd)) return true;
     set_data_type_string(64U, system_charset_info);
     maybe_null = false;
     return false;
@@ -1143,6 +1142,7 @@ class Item_func_crc32 final : public Item_int_func {
   }
   const char *func_name() const override { return "crc32"; }
   bool resolve_type(THD *) override {
+    param_type_is_default(0, 1);
     max_length = 10;
     return false;
   }
@@ -1157,6 +1157,7 @@ class Item_func_uncompressed_length final : public Item_int_func {
       : Item_int_func(pos, a) {}
   const char *func_name() const override { return "uncompressed_length"; }
   bool resolve_type(THD *) override {
+    param_type_is_default(0, 1);
     max_length = 10;
     return false;
   }
@@ -1168,7 +1169,8 @@ class Item_func_compress final : public Item_str_func {
 
  public:
   Item_func_compress(const POS &pos, Item *a) : Item_str_func(pos, a) {}
-  bool resolve_type(THD *) override {
+  bool resolve_type(THD *thd) override {
+    if (Item_str_func::resolve_type(thd)) return true;
     set_data_type_string((args[0]->max_length * 120U) / 100U + 12U);
     return false;
   }
@@ -1181,9 +1183,10 @@ class Item_func_uncompress final : public Item_str_func {
 
  public:
   Item_func_uncompress(const POS &pos, Item *a) : Item_str_func(pos, a) {}
-  bool resolve_type(THD *) override {
+  bool resolve_type(THD *thd) override {
+    if (Item_str_func::resolve_type(thd)) return true;
     maybe_null = true;
-    set_data_type_string(uint32(MAX_BLOB_WIDTH));
+    set_data_type_string(uint32{MAX_BLOB_WIDTH});
     return false;
   }
   const char *func_name() const override { return "uncompress"; }
@@ -1305,7 +1308,7 @@ class Item_func_get_dd_column_privileges final : public Item_str_func {
       per privileges is 11 chars.
       So, setting max approximate to 200.
     */
-    set_data_type_string(14 * 11, system_charset_info);
+    set_data_type_string(14U * 11U, system_charset_info);
     maybe_null = true;
     null_on_null = false;
 
@@ -1326,7 +1329,7 @@ class Item_func_get_dd_create_options final : public Item_str_func {
   bool resolve_type(THD *) override {
     // maximum string length of all options is expected
     // to be less than 256 characters.
-    set_data_type_string(256, system_charset_info);
+    set_data_type_string(256U, system_charset_info);
     maybe_null = false;
     null_on_null = false;
 
@@ -1371,7 +1374,7 @@ class Item_func_internal_get_comment_or_error final : public Item_str_func {
       which is same as size of column holding comments in dictionary,
       i.e., the mysql.tables.comment DD column.
     */
-    set_data_type_string(2048, system_charset_info);
+    set_data_type_string(2048U, system_charset_info);
     maybe_null = true;
     null_on_null = false;
 
@@ -1394,7 +1397,7 @@ class Item_func_get_dd_tablespace_private_data final : public Item_str_func {
   bool resolve_type(THD *) override {
     /* maximum string length of the property value is expected
     to be less than 256 characters. */
-    max_length = 256;
+    set_data_type_string(256U);
     maybe_null = false;
     null_on_null = false;
 
@@ -1417,7 +1420,7 @@ class Item_func_get_dd_index_private_data final : public Item_str_func {
   bool resolve_type(THD *) override {
     /* maximum string length of the property value is expected
     to be less than 256 characters. */
-    max_length = 256;
+    set_data_type_string(256U);
     maybe_null = false;
     null_on_null = false;
 
@@ -1438,7 +1441,7 @@ class Item_func_get_partition_nodegroup final : public Item_str_func {
   bool resolve_type(THD *) override {
     // maximum string length of all options is expected
     // to be less than 256 characters.
-    set_data_type_string(256, system_charset_info);
+    set_data_type_string(256U, system_charset_info);
     maybe_null = true;
     null_on_null = false;
 
@@ -1462,7 +1465,7 @@ class Item_func_internal_tablespace_type : public Item_str_func {
   bool resolve_type(THD *) override {
     // maximum string length of all options is expected
     // to be less than 256 characters.
-    set_data_type_string(256, system_charset_info);
+    set_data_type_string(256U, system_charset_info);
     maybe_null = true;
     null_on_null = false;
 
@@ -1484,7 +1487,7 @@ class Item_func_internal_tablespace_logfile_group_name : public Item_str_func {
   bool resolve_type(THD *) override {
     // maximum string length of all options is expected
     // to be less than 256 characters.
-    set_data_type_string(256, system_charset_info);
+    set_data_type_string(256U, system_charset_info);
     maybe_null = true;
     null_on_null = false;
 
@@ -1508,7 +1511,7 @@ class Item_func_internal_tablespace_status : public Item_str_func {
   bool resolve_type(THD *) override {
     // maximum string length of all options is expected
     // to be less than 256 characters.
-    set_data_type_string(256, system_charset_info);
+    set_data_type_string(256U, system_charset_info);
     maybe_null = true;
     null_on_null = false;
 
@@ -1531,7 +1534,7 @@ class Item_func_internal_tablespace_row_format : public Item_str_func {
   bool resolve_type(THD *) override {
     // maximum string length of all options is expected
     // to be less than 256 characters.
-    set_data_type_string(256, system_charset_info);
+    set_data_type_string(256U, system_charset_info);
     maybe_null = true;
     null_on_null = false;
 
@@ -1555,7 +1558,7 @@ class Item_func_internal_tablespace_extra : public Item_str_func {
   bool resolve_type(THD *) override {
     // maximum string length of all options is expected
     // to be less than 256 characters.
-    set_data_type_string(256, system_charset_info);
+    set_data_type_string(256U, system_charset_info);
     maybe_null = true;
     null_on_null = false;
 
@@ -1573,9 +1576,8 @@ class Item_func_convert_cpu_id_mask final : public Item_str_func {
       : Item_str_func(pos, list) {}
 
   bool resolve_type(THD *) override {
-    max_length = 1024;
     maybe_null = false;
-    set_data_type_string(1024, &my_charset_bin);
+    set_data_type_string(1024U, &my_charset_bin);
     return false;
   }
 
@@ -1631,7 +1633,7 @@ class Item_func_convert_interval_to_user_interval final : public Item_str_func {
   bool resolve_type(THD *) override {
     // maximum string length of all options is expected
     // to be less than 256 characters.
-    set_data_type_string(256, system_charset_info);
+    set_data_type_string(256U, system_charset_info);
     maybe_null = true;
     null_on_null = false;
 
@@ -1734,7 +1736,7 @@ class Item_func_internal_get_dd_column_extra final : public Item_str_func {
   bool resolve_type(THD *) override {
     // maximum string length of all options is expected
     // to be less than 256 characters.
-    set_data_type_string(256, system_charset_info);
+    set_data_type_string(256U, system_charset_info);
     maybe_null = false;
     null_on_null = false;
 

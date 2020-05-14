@@ -629,6 +629,12 @@ SET @p1= -1;
 EXECUTE p USING @p1;
 ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
 DROP PREPARE p;
+Negative floating-point bounds not ok
+PREPARE p FROM "SELECT sex, COUNT(id) OVER (ORDER BY id RANGE ? PRECEDING) FROM t1";
+SET @p1= -0.1;
+EXECUTE p USING @p1;
+ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
+DROP PREPARE p;
 PREPARE p FROM "SELECT sex, COUNT(id) OVER (ORDER BY id ROWS BETWEEN CURRENT ROW AND ? FOLLOWING) FROM t1";
 SET @p1= -1;
 EXECUTE p USING @p1;
@@ -2539,7 +2545,21 @@ DROP TABLE td;
 SELECT id, NTILE(0) OVER w FROM t1 WINDOW w AS ();
 ERROR HY000: Incorrect arguments to ntile
 SELECT id, NTILE(NULL) OVER w FROM t1 WINDOW w AS (ORDER BY id);
-id	NTILE(NULL) OVER w
+ERROR HY000: Incorrect arguments to ntile
+PREPARE s FROM
+'SELECT id, NTILE(?) OVER w FROM t1 WINDOW w AS (ORDER BY id)';
+SET @a=NULL;
+EXECUTE s USING @a;
+id	NTILE(?) OVER w
+1	NULL
+2	NULL
+3	NULL
+4	NULL
+5	NULL
+10	NULL
+11	NULL
+SELECT id, NTILE(@s) OVER w FROM t1 WINDOW w AS (ORDER BY id);
+id	NTILE(@s) OVER w
 1	NULL
 2	NULL
 3	NULL
@@ -2636,7 +2656,7 @@ id	NTILE(?) OVER w
 11	3
 SET @p1= '1';
 EXECUTE p USING @p1;
-ERROR HY000: Incorrect arguments to ntile
+ERROR HY000: Incorrect arguments to EXECUTE
 SET @p1= NULL;
 EXECUTE p USING @p1;
 id	NTILE(?) OVER w
@@ -9018,6 +9038,7 @@ ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or 
 SELECT w, SUM(w) OVER (ROWS BETWEEN CURRENT ROW AND 3.4 FOLLOWING) FROM t;
 ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
 PREPARE stmt FROM "SELECT w, SUM(w) OVER (ROWS 3.14 PRECEDING) FROM t";
+EXECUTE stmt;
 ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
 PREPARE stmt FROM "SELECT w, SUM(w) OVER (ROWS ? PRECEDING) FROM t";
 SET @p1= 2;
@@ -9034,7 +9055,7 @@ w	SUM(w) OVER (ROWS ? PRECEDING)
 9	24
 SET @p1= 2.3;
 EXECUTE stmt USING @p1;
-ERROR HY000: Window '<unnamed window>': frame start or end is negative, NULL or of non-integral type
+ERROR HY000: Incorrect arguments to EXECUTE
 DROP PREPARE stmt;
 DROP TABLE t;
 # End of test for Bug#26411055

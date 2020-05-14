@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -381,7 +381,7 @@ class PTI_variable_aux_set_var final : public Item_func_set_user_var {
 
  public:
   PTI_variable_aux_set_var(const POS &pos, const LEX_STRING &var, Item *expr)
-      : super(pos, var, expr, false) {}
+      : super(pos, var, expr) {}
 
   bool itemize(Parse_context *pc, Item **res) override;
 };

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -265,7 +265,6 @@ bool JOIN::optimize() {
   DBUG_TRACE;
 
   uint no_jbuf_after = UINT_MAX;
-  const bool has_windows = m_windows.elements != 0;
 
   DBUG_ASSERT(select_lex->leaf_table_count == 0 ||
               thd->lex->is_query_tables_locked() ||
@@ -276,25 +275,9 @@ bool JOIN::optimize() {
   // to prevent double initialization on EXPLAIN
   if (optimized) return false;
 
-  Prepare_error_tracker tracker(thd);
-
   DEBUG_SYNC(thd, "before_join_optimize");
 
   THD_STAGE_INFO(thd, stage_optimizing);
-
-  if (select_lex->first_execution) {
-    /**
-      @todo
-      This query block didn't transform itself in SELECT_LEX::prepare(), so
-      belongs to a parent query block. That parent, or its parents, had to
-      transform us - it has not; maybe it is itself in prepare() and
-      evaluating the present query block as an Item_subselect. Such evaluation
-      in prepare() is expected to be a rare case to be eliminated in the
-      future ("SET x=(subq)" is one such case; because it locks tables before
-      prepare()).
-    */
-    if (select_lex->apply_local_transforms(thd, false)) return (error = 1);
-  }
 
   Opt_trace_context *const trace = &thd->opt_trace;
   Opt_trace_object trace_wrapper(trace);
@@ -307,6 +290,11 @@ bool JOIN::optimize() {
   DBUG_ASSERT(tmp_table_param.sum_func_count == 0 || !group_list.empty() ||
               implicit_grouping);
 
+  const bool has_windows = m_windows.elements != 0;
+
+  if (has_windows && Window::setup_windows2(thd, select_lex, m_windows))
+    return true; /* purecov: inspected */
+
   if (select_lex->olap == ROLLUP_TYPE && optimize_rollup())
     return true; /* purecov: inspected */
 
@@ -314,6 +302,13 @@ bool JOIN::optimize() {
 
   if (select_lex->get_optimizable_conditions(thd, &where_cond, &having_cond))
     return true;
+
+  for (Item_rollup_group_item *item : select_lex->rollup_group_items) {
+    rollup_group_items.push_back(item);
+  }
+  for (Item_rollup_sum_switcher *item : select_lex->rollup_sums) {
+    rollup_sums.push_back(item);
+  }
 
   set_optimized();
 
@@ -329,9 +324,22 @@ bool JOIN::optimize() {
     Run optimize phase for all derived tables/views used in this SELECT,
     including those in semi-joins.
   */
-  if (select_lex->materialized_derived_table_count) {
+  // if (select_lex->materialized_derived_table_count) {
+  {  // WL#6570
     for (TABLE_LIST *tl = select_lex->leaf_tables; tl; tl = tl->next_leaf) {
-      if (tl->is_view_or_derived() && tl->optimize_derived(thd)) return true;
+      if (tl->is_view_or_derived()) {
+        if (tl->optimize_derived(thd)) return true;
+      } else if (tl->is_table_function()) {
+        TABLE *const table = tl->table;
+        if (!table->has_storage_handler()) {
+          if (setup_tmp_table_handler(
+                  thd, table,
+                  select_lex->active_options() | TMP_TABLE_ALL_COLUMNS))
+            return true; /* purecov: inspected */
+        }
+
+        table->file->stats.records = 2;
+      }
     }
   }
 
@@ -596,11 +604,6 @@ bool JOIN::optimize() {
     goto setup_subq_exit;
   }
 
-  if (select_lex->query_result()->optimize()) {
-    DBUG_PRINT("error", ("Error: Query_result::optimize() failed"));
-    return true;  // error == -1
-  }
-
   // Inject cast nodes into the WHERE conditions
   if (where_cond)
     where_cond->walk(&Item::cast_incompatible_args, enum_walk::POSTFIX,
@@ -819,6 +822,11 @@ bool JOIN::optimize() {
     if (finalize_table_conditions()) return true;
   }
 
+  if (select_lex->query_result()->optimize()) {
+    DBUG_PRINT("error", ("Error: Query_result::optimize() failed"));
+    return true;  // error == -1
+  }
+
   if (make_join_readinfo(this, no_jbuf_after))
     return true; /* purecov: inspected */
 
@@ -867,6 +875,12 @@ setup_subq_exit:
     sense.
   */
   child_subquery_can_materialize = true;
+
+  if (select_lex->query_result()->optimize()) {
+    DBUG_PRINT("error", ("Error: Query_result::optimize() failed"));
+    return true;
+  }
+
   trace_steps.end();  // because all steps are done
   Opt_trace_object(trace, "empty_result").add_alnum("cause", zero_result_cause);
 
@@ -1019,12 +1033,14 @@ bool substitute_gc(THD *thd, SELECT_LEX *select_lex, Item *where_cond,
     li.rewind();
     if (!(*ord->item)->can_be_substituted_for_gc()) continue;
     while ((gc = li++)) {
-      Item_func *tmp = pointer_cast<Item_func *>(*ord->item);
-      Item_field *field;
-      if ((field = get_gc_for_expr(&tmp, gc, gc->result_type()))) {
+      Item_func *tmp = down_cast<Item_func *>(*ord->item);
+      Item_field *const field = get_gc_for_expr(&tmp, gc, gc->result_type());
+      if (field != nullptr) {
         changed = true;
         /* Add new field to field list. */
-        ord->item = select_lex->add_hidden_item(field);
+        Item **new_field = select_lex->add_hidden_item(field);
+        thd->change_item_tree(ord->item, *new_field);
+        select_lex->hidden_items_from_optimization++;
         break;
       }
     }
@@ -4445,7 +4461,10 @@ Item *substitute_for_best_equal_field(THD *thd, Item *cond,
       cond_equal = cond_equal->upper_levels;
     return eliminate_item_equal(thd, nullptr, cond_equal, item_equal);
   } else {
-    cond->transform(&Item::replace_equal_field, nullptr);
+    uchar *dummy = nullptr;
+    if (cond->compile(&Item::visit_all_analyzer, &dummy,
+                      &Item::replace_equal_field, nullptr) == nullptr)
+      return nullptr;
   }
   return cond;
 }
@@ -4588,13 +4607,17 @@ static bool propagate_cond_constants(THD *thd, I_List<COND_CMP> *save_list,
       if (!(left_const && right_const) &&
           args[0]->result_type() == args[1]->result_type()) {
         if (right_const) {
-          if (resolve_const_item(thd, &args[1], args[0])) return true;
+          Item *item = args[1];
+          if (resolve_const_item(thd, &item, args[0])) return true;
+          thd->change_item_tree(&args[1], item);
           func->update_used_tables();
           if (change_cond_ref_to_const(thd, save_list, and_father, and_father,
                                        args[0], args[1]))
             return true;
         } else if (left_const) {
-          if (resolve_const_item(thd, &args[0], args[1])) return true;
+          Item *item = args[0];
+          if (resolve_const_item(thd, &item, args[1])) return true;
+          thd->change_item_tree(&args[0], item);
           func->update_used_tables();
           if (change_cond_ref_to_const(thd, save_list, and_father, and_father,
                                        args[1], args[0]))
@@ -5022,9 +5045,7 @@ bool JOIN::make_join_plan() {
   if (get_best_combination()) return true;
 
   // Cleanup after update_ref_and_keys has added keys for derived tables.
-  if (select_lex->materialized_derived_table_count ||
-      select_lex->table_func_count)
-    finalize_derived_keys();
+  if (select_lex->materialized_derived_table_count) finalize_derived_keys();
 
   // No need for this struct after new JOIN_TAB array is set up.
   best_positions = nullptr;
@@ -5110,6 +5131,11 @@ bool JOIN::init_planner_arrays() {
     }
     all_table_map |= tl->map();
     tab->set_join(this);
+
+    if (tl->is_updated() || tl->is_deleted()) {
+      // As we update or delete rows, we can't read the index
+      table->no_keyread = true;
+    }
 
     tab->dependent = tl->dep_tables;  // Initialize table dependencies
     if (select_lex->is_recursive()) {
@@ -5275,7 +5301,7 @@ bool JOIN::extract_const_tables() {
              all_partitions_pruned_away) &&
             !tab->dependent &&                                              // 1
             (table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) &&  // 2
-            !table->fulltext_searched)                                      // 3
+            !tl->is_fulltext_searched())                                    // 3
           mark_const_table(tab, nullptr);
         break;
     }
@@ -5429,7 +5455,7 @@ bool JOIN::extract_func_dependent_tables() {
                 (see SELECT_LEX_UNIT::can_materialize_directly_into_result()).
           */
           if (eq_part.is_prefix(table->key_info[key].user_defined_key_parts) &&
-              !table->fulltext_searched &&                                // 1
+              !tl->is_fulltext_searched() &&                              // 1
               !tl->outer_join_nest() &&                                   // 2
               !(tl->embedding && tl->embedding->is_sj_or_aj_nest()) &&    // 3
               !(tab->join_cond() && tab->join_cond()->is_expensive()) &&  // 4
@@ -6072,7 +6098,7 @@ bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
   if (item->has_stored_program() || item->has_subquery()) return false;
 
   // No table fields in const items
-  if (item->const_item()) return true;
+  if (item->const_for_execution()) return true;
 
   const Item::Type item_type = item->type();
 
@@ -7537,6 +7563,7 @@ static bool add_ft_keys(Key_use_array *keyuse_array, JOIN_TAB *stat, Item *cond,
                        false,        // null_rejecting
                        nullptr,      // cond_guard
                        UINT_MAX);    // sj_pred_no
+
   return keyuse_array->push_back(keyuse);
 }
 
@@ -7707,13 +7734,13 @@ bool is_indexed_agg_distinct(JOIN *join, List<Item_field> *out_args) {
         break;
       case Item_sum::AVG_DISTINCT_FUNC:
       case Item_sum::SUM_DISTINCT_FUNC:
-        if (sum_item->get_arg_count() == 1) break;
+        if (sum_item->argument_count() == 1) break;
       /* fall through */
       default:
         return false;
     }
 
-    for (uint i = 0; i < sum_item->get_arg_count(); i++) {
+    for (uint i = 0; i < sum_item->argument_count(); i++) {
       expr = sum_item->get_arg(i);
       /* The AGGFN(DISTINCT) arg is not an attribute? */
       if (expr->real_item()->type() != Item::FIELD_ITEM) return false;
@@ -7996,8 +8023,7 @@ static bool update_ref_and_keys(THD *thd, Key_use_array *keyuse,
   }
 
   /* Generate keys descriptions for derived tables */
-  if (select_lex->materialized_derived_table_count ||
-      select_lex->table_func_count) {
+  if (select_lex->materialized_derived_table_count) {
     if (join->generate_derived_keys()) return true;
   }
   /* fill keyuse with found key parts */
@@ -8812,8 +8838,7 @@ bool JOIN::finalize_table_conditions() {
 */
 
 bool JOIN::generate_derived_keys() {
-  DBUG_ASSERT(select_lex->materialized_derived_table_count ||
-              select_lex->table_func_count);
+  DBUG_ASSERT(select_lex->materialized_derived_table_count);
 
   for (TABLE_LIST *table = select_lex->leaf_tables; table;
        table = table->next_leaf) {
@@ -8833,8 +8858,7 @@ bool JOIN::generate_derived_keys() {
 */
 
 void JOIN::finalize_derived_keys() {
-  DBUG_ASSERT(select_lex->materialized_derived_table_count ||
-              select_lex->table_func_count);
+  DBUG_ASSERT(select_lex->materialized_derived_table_count);
   ASSERT_BEST_REF_IN_JOIN_ORDER(this);
 
   bool adjust_key_count = false;
@@ -10272,6 +10296,7 @@ ORDER *create_order_from_distinct(THD *thd, Ref_item_array ref_item_array,
         */
         Item_field *new_item = new Item_field(thd, (Item_field *)item);
         ord->item = thd->lex->current_select()->add_hidden_item(new_item);
+        thd->lex->current_select()->hidden_items_from_optimization++;
       } else {
         /*
           We have here only field_list (not all_field_list), so we can use
@@ -10339,8 +10364,7 @@ void JOIN::optimize_keyuse() {
     */
     keyuse->ref_table_rows = ~(ha_rows)0;  // If no ref
     if (keyuse->used_tables &
-        (map =
-             (keyuse->used_tables & ~(const_table_map | PSEUDO_TABLE_BITS)))) {
+        (map = keyuse->used_tables & ~(const_table_map | PSEUDO_TABLE_BITS))) {
       uint tableno;
       for (tableno = 0; !(map & 1); map >>= 1, tableno++) {
       }
@@ -10954,8 +10978,4 @@ bool evaluate_during_optimization(const Item *item, const SELECT_LEX *select) {
 
   return !item->has_subquery() || (select->active_options() &
                                    OPTION_NO_SUBQUERY_DURING_OPTIMIZATION) == 0;
-}
-
-Prepare_error_tracker::~Prepare_error_tracker() {
-  if (m_thd->is_error()) m_thd->lex->mark_broken();
 }

@@ -38,7 +38,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	X	100.00	NULL
 2	DERIVED	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	X	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `v2`.`d` AS `d`,`v2`.`e` AS `e` from `test`.`v2`
+Note	1003	/* select#1 */ select `test`.`v2`.`d` AS `d`,`test`.`v2`.`e` AS `e` from `test`.`v2`
 create view v3 (d,e) as select d*2, e*2 from v1;
 select * from v3;
 d	e
@@ -69,7 +69,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	X	100.00	NULL
 2	DERIVED	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	X	100.00	Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `v1`.`b` AS `b` from `test`.`v1`
+Note	1003	/* select#1 */ select `test`.`v1`.`b` AS `b` from `test`.`v1`
 select * from t1;
 a	b	c
 1	-1	-1
@@ -90,7 +90,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	X	100.00	NULL
 2	DERIVED	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	X	100.00	Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `v1`.`c` AS `c` from `test`.`v1`
+Note	1003	/* select#1 */ select `test`.`v1`.`c` AS `c` from `test`.`v1`
 select * from t1;
 a	b	c
 1	-1	-1
@@ -115,7 +115,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	X	100.00	NULL
 2	DERIVED	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	X	100.00	Using filesort
 Warnings:
-Note	1003	/* select#1 */ select `v1`.`b+1` AS `b+1` from `test`.`v1`
+Note	1003	/* select#1 */ select `test`.`v1`.`b+1` AS `b+1` from `test`.`v1`
 drop view v1;
 create view v1 as select c+1 from t1 order by 1 desc limit 2;
 select * from v1;
@@ -127,7 +127,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	X	100.00	NULL
 2	DERIVED	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	X	100.00	Using filesort
 Warnings:
-Note	1003	/* select#1 */ select `v1`.`c+1` AS `c+1` from `test`.`v1`
+Note	1003	/* select#1 */ select `test`.`v1`.`c+1` AS `c+1` from `test`.`v1`
 drop view v1;
 drop table t1;
 create table t1 (a int,

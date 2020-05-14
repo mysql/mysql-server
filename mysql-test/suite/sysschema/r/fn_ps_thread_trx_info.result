@@ -81,7 +81,7 @@ JSON_CONTAINS(@json_doc, '"COMMIT"', '$[0].statements_executed[1].sql_text')
 SET @sys.ps_thread_trx_info.max_length = 100;
 SELECT sys.ps_thread_trx_info(@ps_thread_id);
 sys.ps_thread_trx_info(@ps_thread_id)
-{ "error": "Trx info truncated: Row 1X was cut by GROUP_CONCAT()" }
+{ "error": "Trx info truncated: Row 4 was cut by GROUP_CONCAT()" }
 SET @sys.ps_thread_trx_info.max_length = NULL;
 SELECT JSON_VALID(sys.ps_thread_trx_info(@ps_thread_id));
 JSON_VALID(sys.ps_thread_trx_info(@ps_thread_id))

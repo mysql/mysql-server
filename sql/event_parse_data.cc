@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -165,7 +165,9 @@ int Event_parse_data::init_execute_at(THD *thd) {
 
   if (!item_execute_at) return 0;
 
-  if (item_execute_at->fix_fields(thd, &item_execute_at)) goto wrong_value;
+  if (!item_execute_at->fixed &&
+      item_execute_at->fix_fields(thd, &item_execute_at))
+    goto wrong_value;
 
   /* no starts and/or ends in case of execute_at */
   DBUG_PRINT("info", ("starts_null && ends_null should be 1 is %d",
@@ -224,7 +226,9 @@ int Event_parse_data::init_interval(THD *thd) {
       break;
   }
 
-  if (item_expression->fix_fields(thd, &item_expression)) goto wrong_value;
+  if (!item_expression->fixed &&
+      item_expression->fix_fields(thd, &item_expression))
+    goto wrong_value;
 
   value.alloc(MAX_DATETIME_FULL_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
   if (get_interval_value(item_expression, interval, &value, &interval_tmp))
@@ -322,7 +326,8 @@ int Event_parse_data::init_starts(THD *thd) {
   DBUG_TRACE;
   if (!item_starts) return 0;
 
-  if (item_starts->fix_fields(thd, &item_starts)) goto wrong_value;
+  if (!item_starts->fixed && item_starts->fix_fields(thd, &item_starts))
+    goto wrong_value;
 
   if ((not_used = item_starts->get_date(&ltime, TIME_NO_ZERO_DATE)))
     goto wrong_value;
@@ -370,7 +375,8 @@ int Event_parse_data::init_ends(THD *thd) {
   DBUG_TRACE;
   if (!item_ends) return 0;
 
-  if (item_ends->fix_fields(thd, &item_ends)) goto error_bad_params;
+  if (!item_ends->fixed && item_ends->fix_fields(thd, &item_ends))
+    goto error_bad_params;
 
   DBUG_PRINT("info", ("convert to TIME"));
   if ((not_used = item_ends->get_date(&ltime, TIME_NO_ZERO_DATE)))

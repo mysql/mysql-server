@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -6253,6 +6253,9 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(RANGE_OPT_PARAM *param,
                                                     bool is_negated) {
   if (param->has_errors()) return nullptr;
 
+  // Populate array as we need to examine its values here
+  if (op->array && !op->populated) op->populate_bisection(param->thd);
+
   if (is_negated) {
     // We don't support row constructors (multiple columns on lhs) here.
     if (predicand->type() != Item::FIELD_ITEM) return nullptr;
@@ -6632,7 +6635,7 @@ static SEL_TREE *get_func_mm_tree(RANGE_OPT_PARAM *param, Item *predicand,
       }
       break;
     case Item_func::IN_FUNC: {
-      Item_func_in *in_pred = static_cast<Item_func_in *>(cond_func);
+      Item_func_in *in_pred = down_cast<Item_func_in *>(cond_func);
       tree = get_func_mm_tree_from_in_predicate(param, predicand, in_pred, inv);
     } break;
     case Item_func::JSON_CONTAINS:

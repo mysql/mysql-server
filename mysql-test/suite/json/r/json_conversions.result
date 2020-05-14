@@ -987,50 +987,48 @@ ERROR 22018: Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from co
 insert into at(c,_tim) select concat('_tim: ',c),j from t where c='opaque_mysql_type_string';
 insert into at(c,_tim) select concat('_tim: ',c),j from t where c='opaque_mysql_type_var_string';
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='null';
-ERROR HY000: Incorrect integer value: 'null' for column '_yea' at row 1
+ERROR 22018: Invalid JSON value for CAST to INTEGER from column j at row 1
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='bool';
-ERROR HY000: Incorrect integer value: 'true' for column '_yea' at row 1
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='uint';
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='int';
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='double';
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='stringany';
-ERROR HY000: Incorrect integer value: '"a"' for column '_yea' at row 1
+ERROR 22018: Invalid JSON value for CAST to INTEGER from column j at row 1
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='stringint';
-ERROR HY000: Incorrect integer value: '"1"' for column '_yea' at row 1
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='stringdecimal';
-ERROR HY000: Incorrect integer value: '"3.14"' for column '_yea' at row 1
+ERROR 22018: Invalid JSON value for CAST to INTEGER from column j at row 1
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='object';
-ERROR HY000: Incorrect integer value: '{"a": 3}' for column '_yea' at row 1
+ERROR 22018: Invalid JSON value for CAST to INTEGER from column j at row 1
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='array';
-ERROR HY000: Incorrect integer value: '[1, 2]' for column '_yea' at row 1
+ERROR 22018: Invalid JSON value for CAST to INTEGER from column j at row 1
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_decimal';
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_set';
-ERROR HY000: Incorrect integer value: '"b,c"' for column '_yea' at row 1
+ERROR 22018: Invalid JSON value for CAST to INTEGER from column j at row 1
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_enum';
-ERROR HY000: Incorrect integer value: '"b"' for column '_yea' at row 1
+ERROR 22018: Invalid JSON value for CAST to INTEGER from column j at row 1
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_date';
-ERROR HY000: Incorrect integer value: '"2015-01-15"' for column '_yea' at row 1
+ERROR 22018: Invalid JSON value for CAST to INTEGER from column j at row 1
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_time';
-ERROR HY000: Incorrect integer value: '"23:24:25.000000"' for column '_yea' at row 1
+ERROR 22018: Invalid JSON value for CAST to INTEGER from column j at row 1
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_datetime';
-ERROR HY000: Incorrect integer value: '"2015-01-15 23:24:25.000000"' for column '_yea' at row 1
+ERROR 22018: Invalid JSON value for CAST to INTEGER from column j at row 1
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_geom';
-ERROR HY000: Incorrect integer value: '{"type": "Point", "coordinates": [1.0, 1.0]}' for column '_yea' at row 1
+ERROR 22018: Invalid JSON value for CAST to INTEGER from column j at row 1
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_bit';
-ERROR HY000: Incorrect integer value: '"base64:type15:yv4="' for column '_yea' at row 1
+ERROR 22018: Invalid JSON value for CAST to INTEGER from column j at row 1
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_year';
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_blob';
-ERROR HY000: Incorrect integer value: '"base64:type252:yv66vg=="' for column '_yea' at row 1
+ERROR 22018: Invalid JSON value for CAST to INTEGER from column j at row 1
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_longblob';
-ERROR HY000: Incorrect integer value: '"base64:type251:yv66vg=="' for column '_yea' at row 1
+ERROR 22018: Invalid JSON value for CAST to INTEGER from column j at row 1
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_mediumblob';
-ERROR HY000: Incorrect integer value: '"base64:type250:yv66vg=="' for column '_yea' at row 1
+ERROR 22018: Invalid JSON value for CAST to INTEGER from column j at row 1
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_tinyblob';
-ERROR HY000: Incorrect integer value: '"base64:type249:yv66vg=="' for column '_yea' at row 1
+ERROR 22018: Invalid JSON value for CAST to INTEGER from column j at row 1
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_varbinary';
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_binary';
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_varchar';
-ERROR HY000: Incorrect integer value: '"base64:type15:Zm9v"' for column '_yea' at row 1
+ERROR 22018: Invalid JSON value for CAST to INTEGER from column j at row 1
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_string';
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_var_string';
 insert into at(c,_jsn) select concat('_jsn: ',c),j from t;
@@ -5325,9 +5323,11 @@ _tim: opaque_mysql_type_var_string	NULL
 select c, _yea from at
 where c like '_yea%';
 c	_yea
+_yea: bool	2001
 _yea: uint	2012
 _yea: int	2012
 _yea: double	2003
+_yea: stringint	2001
 _yea: opaque_mysql_type_decimal	2003
 _yea: opaque_mysql_type_year	1992
 _yea: opaque_mysql_type_varbinary	NULL
@@ -8666,12 +8666,14 @@ side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weig
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	1	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	1	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	3	INTEGER	INTEGER	2	2	0	1
 2nd Level	1	3.14	INTEGER	DECIMAL	2	2	0	1
 2nd Level	12	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	3	INTEGER	INTEGER	2	2	0	1
@@ -8679,6 +8681,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	3	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	3	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	3	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	3.14	INTEGER	DECIMAL	2	2	0	1
@@ -8686,12 +8689,14 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	1	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	1	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	3	INTEGER	INTEGER	2	2	0	1
 2nd Level	1	3.14	INTEGER	DECIMAL	2	2	0	1
 2nd Level	12	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	3	INTEGER	INTEGER	2	2	0	1
@@ -8699,6 +8704,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	3	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	3	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	3	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	3.14	INTEGER	DECIMAL	2	2	0	1
@@ -8706,18 +8712,21 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	1	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	1	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	3	INTEGER	INTEGER	2	2	0	1
 2nd Level	1	3.14	INTEGER	DECIMAL	2	2	0	1
 2nd Level	12	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	3	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	3.14	INTEGER	DECIMAL	2	2	0	1
 2nd Level	1992	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	12	INTEGER	INTEGER	2	2	0	1
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	3	INTEGER	INTEGER	2	2	0	1
@@ -8725,6 +8734,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	3	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	3	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	3	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	3.14	INTEGER	DECIMAL	2	2	0	1
@@ -8732,18 +8742,21 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	1	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	1	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	3	INTEGER	INTEGER	2	2	0	1
 2nd Level	1	3.14	INTEGER	DECIMAL	2	2	0	1
 2nd Level	12	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	3	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	3.14	INTEGER	DECIMAL	2	2	0	1
 2nd Level	1992	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	12	INTEGER	INTEGER	2	2	0	1
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	3	INTEGER	INTEGER	2	2	0	1
@@ -8751,6 +8764,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	3	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	3	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	3	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	3.14	INTEGER	DECIMAL	2	2	0	1
@@ -8758,18 +8772,21 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	1	1992	UNSIGNED INTEGER	INTEGER	2	2	0	1
+2nd Level	1	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	3	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	1	3.14	UNSIGNED INTEGER	DECIMAL	2	2	0	1
 2nd Level	12	1	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	12	1992	UNSIGNED INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	3	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	12	3.14	UNSIGNED INTEGER	DECIMAL	2	2	0	1
 2nd Level	1992	1	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	12	UNSIGNED INTEGER	INTEGER	2	2	0	1
+2nd Level	1992	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	3	UNSIGNED INTEGER	INTEGER	2	2	0	1
@@ -8777,6 +8794,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3	1	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	3	12	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	3	1992	UNSIGNED INTEGER	INTEGER	2	2	0	1
+2nd Level	3	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	3.14	UNSIGNED INTEGER	DECIMAL	2	2	0	1
@@ -8784,18 +8802,21 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	1	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	1	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	3	INTEGER	INTEGER	2	2	0	1
 2nd Level	1	3.14	INTEGER	DECIMAL	2	2	0	1
 2nd Level	12	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	3	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	3.14	INTEGER	DECIMAL	2	2	0	1
 2nd Level	1992	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	12	INTEGER	INTEGER	2	2	0	1
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	3	INTEGER	INTEGER	2	2	0	1
@@ -8803,6 +8824,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	3	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	3	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	3	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	3.14	INTEGER	DECIMAL	2	2	0	1
@@ -8810,18 +8832,21 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	1	1992	UNSIGNED INTEGER	INTEGER	2	2	0	1
+2nd Level	1	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	3	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	1	3.14	UNSIGNED INTEGER	DECIMAL	2	2	0	1
 2nd Level	12	1	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	12	1992	UNSIGNED INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	3	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	12	3.14	UNSIGNED INTEGER	DECIMAL	2	2	0	1
 2nd Level	1992	1	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	12	UNSIGNED INTEGER	INTEGER	2	2	0	1
+2nd Level	1992	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	3	UNSIGNED INTEGER	INTEGER	2	2	0	1
@@ -8829,6 +8854,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3	1	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	3	12	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	3	1992	UNSIGNED INTEGER	INTEGER	2	2	0	1
+2nd Level	3	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	3.14	UNSIGNED INTEGER	DECIMAL	2	2	0	1
@@ -8836,18 +8862,21 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	1	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	1	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	3	INTEGER	INTEGER	2	2	0	1
 2nd Level	1	3.14	INTEGER	DECIMAL	2	2	0	1
 2nd Level	12	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	3	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	3.14	INTEGER	DECIMAL	2	2	0	1
 2nd Level	1992	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	12	INTEGER	INTEGER	2	2	0	1
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	3	INTEGER	INTEGER	2	2	0	1
@@ -8855,6 +8884,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	3	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	3	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	3	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	3.14	INTEGER	DECIMAL	2	2	0	1
@@ -8862,18 +8892,21 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	1	1992	UNSIGNED INTEGER	INTEGER	2	2	0	1
+2nd Level	1	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	3	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	1	3.14	UNSIGNED INTEGER	DECIMAL	2	2	0	1
 2nd Level	12	1	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	12	1992	UNSIGNED INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	3	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	12	3.14	UNSIGNED INTEGER	DECIMAL	2	2	0	1
 2nd Level	1992	1	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	12	UNSIGNED INTEGER	INTEGER	2	2	0	1
+2nd Level	1992	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	3	UNSIGNED INTEGER	INTEGER	2	2	0	1
@@ -8881,6 +8914,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3	1	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	3	12	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	3	1992	UNSIGNED INTEGER	INTEGER	2	2	0	1
+2nd Level	3	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	3.14	UNSIGNED INTEGER	DECIMAL	2	2	0	1
@@ -8888,12 +8922,14 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1.00	12	DECIMAL	INTEGER	2	2	0	1
 2nd Level	1.00	1992	DECIMAL	INTEGER	2	2	0	1
+2nd Level	1.00	2001	DECIMAL	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1.00	2003	DECIMAL	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1.00	2012	DECIMAL	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1.00	3	DECIMAL	INTEGER	2	2	0	1
 2nd Level	1.00	3.14	DECIMAL	DECIMAL	2	2	0	1
 2nd Level	12.00	1	DECIMAL	INTEGER	2	2	0	1
 2nd Level	12.00	1992	DECIMAL	INTEGER	2	2	0	1
+2nd Level	12.00	2001	DECIMAL	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12.00	2003	DECIMAL	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12.00	2012	DECIMAL	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12.00	3	DECIMAL	INTEGER	2	2	0	1
@@ -8901,6 +8937,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3.14	1	DECIMAL	INTEGER	2	2	0	1
 2nd Level	3.14	12	DECIMAL	INTEGER	2	2	0	1
 2nd Level	3.14	1992	DECIMAL	INTEGER	2	2	0	1
+2nd Level	3.14	2001	DECIMAL	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2003	DECIMAL	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2012	DECIMAL	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	3	DECIMAL	INTEGER	2	2	0	1
@@ -8908,18 +8945,21 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	DOUBLE	INTEGER	2	2	0	1
 2nd Level	1	1992	DOUBLE	INTEGER	2	2	0	1
+2nd Level	1	2001	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2003	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2012	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	3	DOUBLE	INTEGER	2	2	0	1
 2nd Level	1	3.14	DOUBLE	DECIMAL	2	2	0	1
 2nd Level	12	1	DOUBLE	INTEGER	2	2	0	1
 2nd Level	12	1992	DOUBLE	INTEGER	2	2	0	1
+2nd Level	12	2001	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	3	DOUBLE	INTEGER	2	2	0	1
 2nd Level	12	3.14	DOUBLE	DECIMAL	2	2	0	1
 2nd Level	1992	1	DOUBLE	INTEGER	2	2	0	1
 2nd Level	1992	12	DOUBLE	INTEGER	2	2	0	1
+2nd Level	1992	2001	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2003	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2012	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	3	DOUBLE	INTEGER	2	2	0	1
@@ -8927,6 +8967,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3.14	1	DOUBLE	INTEGER	2	2	0	1
 2nd Level	3.14	12	DOUBLE	INTEGER	2	2	0	1
 2nd Level	3.14	1992	DOUBLE	INTEGER	2	2	0	1
+2nd Level	3.14	2001	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2003	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2012	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	3	DOUBLE	INTEGER	2	2	0	1
@@ -9132,6 +9173,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	12	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	3	INTEGER	INTEGER	2	2	0	1
@@ -9139,6 +9181,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	1992	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	3	INTEGER	INTEGER	2	2	0	1
@@ -9146,6 +9189,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3.14	1	DOUBLE	INTEGER	2	2	0	1
 2nd Level	3.14	12	DOUBLE	INTEGER	2	2	0	1
 2nd Level	3.14	1992	DOUBLE	INTEGER	2	2	0	1
+2nd Level	3.14	2001	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2003	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2012	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	3	DOUBLE	INTEGER	2	2	0	1
@@ -9359,6 +9403,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	12	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	3	INTEGER	INTEGER	2	2	0	1
@@ -9366,6 +9411,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	1992	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	3	INTEGER	INTEGER	2	2	0	1
@@ -9373,6 +9419,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3.14	1	DOUBLE	INTEGER	2	2	0	1
 2nd Level	3.14	12	DOUBLE	INTEGER	2	2	0	1
 2nd Level	3.14	1992	DOUBLE	INTEGER	2	2	0	1
+2nd Level	3.14	2001	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2003	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2012	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	3	DOUBLE	INTEGER	2	2	0	1
@@ -9592,6 +9639,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	12	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	3	INTEGER	INTEGER	2	2	0	1
@@ -9599,6 +9647,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	1992	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	3	INTEGER	INTEGER	2	2	0	1
@@ -9606,6 +9655,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3.14	1	DOUBLE	INTEGER	2	2	0	1
 2nd Level	3.14	12	DOUBLE	INTEGER	2	2	0	1
 2nd Level	3.14	1992	DOUBLE	INTEGER	2	2	0	1
+2nd Level	3.14	2001	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2003	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2012	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	3	DOUBLE	INTEGER	2	2	0	1
@@ -9821,6 +9871,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	12	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	3	INTEGER	INTEGER	2	2	0	1
@@ -9828,6 +9879,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	1992	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	3	INTEGER	INTEGER	2	2	0	1
@@ -9835,6 +9887,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3.14	1	DOUBLE	INTEGER	2	2	0	1
 2nd Level	3.14	12	DOUBLE	INTEGER	2	2	0	1
 2nd Level	3.14	1992	DOUBLE	INTEGER	2	2	0	1
+2nd Level	3.14	2001	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2003	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2012	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	3	DOUBLE	INTEGER	2	2	0	1
@@ -10050,6 +10103,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	12	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	3	INTEGER	INTEGER	2	2	0	1
@@ -10057,6 +10111,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	1992	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	3	INTEGER	INTEGER	2	2	0	1
@@ -10064,6 +10119,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3.14	1	DOUBLE	INTEGER	2	2	0	1
 2nd Level	3.14	12	DOUBLE	INTEGER	2	2	0	1
 2nd Level	3.14	1992	DOUBLE	INTEGER	2	2	0	1
+2nd Level	3.14	2001	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2003	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2012	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	3	DOUBLE	INTEGER	2	2	0	1
@@ -10279,6 +10335,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	12	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	3	INTEGER	INTEGER	2	2	0	1
@@ -10286,6 +10343,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	1992	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	3	INTEGER	INTEGER	2	2	0	1
@@ -10293,6 +10351,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3.14	1	DOUBLE	INTEGER	2	2	0	1
 2nd Level	3.14	12	DOUBLE	INTEGER	2	2	0	1
 2nd Level	3.14	1992	DOUBLE	INTEGER	2	2	0	1
+2nd Level	3.14	2001	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2003	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2012	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	3	DOUBLE	INTEGER	2	2	0	1
@@ -10315,15 +10374,18 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	1	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	1	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	3	INTEGER	INTEGER	2	2	1	0
 2nd Level	1	3.14	INTEGER	DECIMAL	2	2	1	0
 2nd Level	12	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	3	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	3	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	3.14	INTEGER	DECIMAL	2	2	1	0
@@ -10331,15 +10393,18 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	1	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	1	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	3	INTEGER	INTEGER	2	2	1	0
 2nd Level	1	3.14	INTEGER	DECIMAL	2	2	1	0
 2nd Level	12	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	3	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	3	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	3.14	INTEGER	DECIMAL	2	2	1	0
@@ -10347,17 +10412,21 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	1	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	1	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	3	INTEGER	INTEGER	2	2	1	0
 2nd Level	1	3.14	INTEGER	DECIMAL	2	2	1	0
 2nd Level	12	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	3	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	3	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	3.14	INTEGER	DECIMAL	2	2	1	0
@@ -10365,17 +10434,21 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	1	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	1	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	3	INTEGER	INTEGER	2	2	1	0
 2nd Level	1	3.14	INTEGER	DECIMAL	2	2	1	0
 2nd Level	12	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	3	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	3	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	3.14	INTEGER	DECIMAL	2	2	1	0
@@ -10383,17 +10456,21 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	UNSIGNED INTEGER	INTEGER	2	2	1	0
 2nd Level	1	1992	UNSIGNED INTEGER	INTEGER	2	2	1	0
+2nd Level	1	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	3	UNSIGNED INTEGER	INTEGER	2	2	1	0
 2nd Level	1	3.14	UNSIGNED INTEGER	DECIMAL	2	2	1	0
 2nd Level	12	1992	UNSIGNED INTEGER	INTEGER	2	2	1	0
+2nd Level	12	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
+2nd Level	1992	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	12	UNSIGNED INTEGER	INTEGER	2	2	1	0
 2nd Level	3	1992	UNSIGNED INTEGER	INTEGER	2	2	1	0
+2nd Level	3	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	3.14	UNSIGNED INTEGER	DECIMAL	2	2	1	0
@@ -10401,17 +10478,21 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	1	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	1	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	3	INTEGER	INTEGER	2	2	1	0
 2nd Level	1	3.14	INTEGER	DECIMAL	2	2	1	0
 2nd Level	12	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	3	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	3	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	3.14	INTEGER	DECIMAL	2	2	1	0
@@ -10419,17 +10500,21 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	UNSIGNED INTEGER	INTEGER	2	2	1	0
 2nd Level	1	1992	UNSIGNED INTEGER	INTEGER	2	2	1	0
+2nd Level	1	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	3	UNSIGNED INTEGER	INTEGER	2	2	1	0
 2nd Level	1	3.14	UNSIGNED INTEGER	DECIMAL	2	2	1	0
 2nd Level	12	1992	UNSIGNED INTEGER	INTEGER	2	2	1	0
+2nd Level	12	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
+2nd Level	1992	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	12	UNSIGNED INTEGER	INTEGER	2	2	1	0
 2nd Level	3	1992	UNSIGNED INTEGER	INTEGER	2	2	1	0
+2nd Level	3	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	3.14	UNSIGNED INTEGER	DECIMAL	2	2	1	0
@@ -10437,17 +10522,21 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	1	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	1	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	3	INTEGER	INTEGER	2	2	1	0
 2nd Level	1	3.14	INTEGER	DECIMAL	2	2	1	0
 2nd Level	12	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	3	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	3	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	3.14	INTEGER	DECIMAL	2	2	1	0
@@ -10455,17 +10544,21 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	UNSIGNED INTEGER	INTEGER	2	2	1	0
 2nd Level	1	1992	UNSIGNED INTEGER	INTEGER	2	2	1	0
+2nd Level	1	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	3	UNSIGNED INTEGER	INTEGER	2	2	1	0
 2nd Level	1	3.14	UNSIGNED INTEGER	DECIMAL	2	2	1	0
 2nd Level	12	1992	UNSIGNED INTEGER	INTEGER	2	2	1	0
+2nd Level	12	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
+2nd Level	1992	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	12	UNSIGNED INTEGER	INTEGER	2	2	1	0
 2nd Level	3	1992	UNSIGNED INTEGER	INTEGER	2	2	1	0
+2nd Level	3	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	3.14	UNSIGNED INTEGER	DECIMAL	2	2	1	0
@@ -10473,32 +10566,39 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1.00	12	DECIMAL	INTEGER	2	2	1	0
 2nd Level	1.00	1992	DECIMAL	INTEGER	2	2	1	0
+2nd Level	1.00	2001	DECIMAL	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1.00	2003	DECIMAL	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1.00	2012	DECIMAL	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1.00	3	DECIMAL	INTEGER	2	2	1	0
 2nd Level	1.00	3.14	DECIMAL	DECIMAL	2	2	1	0
 2nd Level	12.00	1992	DECIMAL	INTEGER	2	2	1	0
+2nd Level	12.00	2001	DECIMAL	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12.00	2003	DECIMAL	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12.00	2012	DECIMAL	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	12	DECIMAL	INTEGER	2	2	1	0
 2nd Level	3.14	1992	DECIMAL	INTEGER	2	2	1	0
+2nd Level	3.14	2001	DECIMAL	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	2003	DECIMAL	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	2012	DECIMAL	UNSIGNED INTEGER	2	2	1	0
 "Testcase for Double"
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	DOUBLE	INTEGER	2	2	1	0
 2nd Level	1	1992	DOUBLE	INTEGER	2	2	1	0
+2nd Level	1	2001	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	2003	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	2012	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	3	DOUBLE	INTEGER	2	2	1	0
 2nd Level	1	3.14	DOUBLE	DECIMAL	2	2	1	0
 2nd Level	12	1992	DOUBLE	INTEGER	2	2	1	0
+2nd Level	12	2001	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2003	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2012	DOUBLE	UNSIGNED INTEGER	2	2	1	0
+2nd Level	1992	2001	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2003	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2012	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	12	DOUBLE	INTEGER	2	2	1	0
 2nd Level	3.14	1992	DOUBLE	INTEGER	2	2	1	0
+2nd Level	3.14	2001	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	2003	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	2012	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 "Testcase for CHAR"
@@ -10538,6 +10638,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	null	1	NULL	INTEGER	1	2	0	1
 1st Level	null	12	NULL	INTEGER	1	2	0	1
 1st Level	null	1992	NULL	INTEGER	1	2	0	1
+1st Level	null	2001	NULL	UNSIGNED INTEGER	1	2	0	1
 1st Level	null	2003	NULL	UNSIGNED INTEGER	1	2	0	1
 1st Level	null	2012	NULL	UNSIGNED INTEGER	1	2	0	1
 1st Level	null	3	NULL	INTEGER	1	2	0	1
@@ -10784,6 +10885,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	null	1	NULL	INTEGER	1	2	0	1
 1st Level	null	12	NULL	INTEGER	1	2	0	1
 1st Level	null	1992	NULL	INTEGER	1	2	0	1
+1st Level	null	2001	NULL	UNSIGNED INTEGER	1	2	0	1
 1st Level	null	2003	NULL	UNSIGNED INTEGER	1	2	0	1
 1st Level	null	2012	NULL	UNSIGNED INTEGER	1	2	0	1
 1st Level	null	3	NULL	INTEGER	1	2	0	1
@@ -11036,6 +11138,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	null	1	NULL	INTEGER	1	2	0	1
 1st Level	null	12	NULL	INTEGER	1	2	0	1
 1st Level	null	1992	NULL	INTEGER	1	2	0	1
+1st Level	null	2001	NULL	UNSIGNED INTEGER	1	2	0	1
 1st Level	null	2003	NULL	UNSIGNED INTEGER	1	2	0	1
 1st Level	null	2012	NULL	UNSIGNED INTEGER	1	2	0	1
 1st Level	null	3	NULL	INTEGER	1	2	0	1
@@ -11284,6 +11387,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	null	1	NULL	INTEGER	1	2	0	1
 1st Level	null	12	NULL	INTEGER	1	2	0	1
 1st Level	null	1992	NULL	INTEGER	1	2	0	1
+1st Level	null	2001	NULL	UNSIGNED INTEGER	1	2	0	1
 1st Level	null	2003	NULL	UNSIGNED INTEGER	1	2	0	1
 1st Level	null	2012	NULL	UNSIGNED INTEGER	1	2	0	1
 1st Level	null	3	NULL	INTEGER	1	2	0	1
@@ -11532,6 +11636,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	null	1	NULL	INTEGER	1	2	0	1
 1st Level	null	12	NULL	INTEGER	1	2	0	1
 1st Level	null	1992	NULL	INTEGER	1	2	0	1
+1st Level	null	2001	NULL	UNSIGNED INTEGER	1	2	0	1
 1st Level	null	2003	NULL	UNSIGNED INTEGER	1	2	0	1
 1st Level	null	2012	NULL	UNSIGNED INTEGER	1	2	0	1
 1st Level	null	3	NULL	INTEGER	1	2	0	1
@@ -11780,6 +11885,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	null	1	NULL	INTEGER	1	2	0	1
 1st Level	null	12	NULL	INTEGER	1	2	0	1
 1st Level	null	1992	NULL	INTEGER	1	2	0	1
+1st Level	null	2001	NULL	UNSIGNED INTEGER	1	2	0	1
 1st Level	null	2003	NULL	UNSIGNED INTEGER	1	2	0	1
 1st Level	null	2012	NULL	UNSIGNED INTEGER	1	2	0	1
 1st Level	null	3	NULL	INTEGER	1	2	0	1
@@ -12132,6 +12238,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	null	1	NULL	INTEGER	1	2	1	0
 1st Level	null	12	NULL	INTEGER	1	2	1	0
 1st Level	null	1992	NULL	INTEGER	1	2	1	0
+1st Level	null	2001	NULL	UNSIGNED INTEGER	1	2	1	0
 1st Level	null	2003	NULL	UNSIGNED INTEGER	1	2	1	0
 1st Level	null	2012	NULL	UNSIGNED INTEGER	1	2	1	0
 1st Level	null	3	NULL	INTEGER	1	2	1	0
@@ -12142,6 +12249,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	12	1	INTEGER	INTEGER	2	2	1	0
 2nd Level	12	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	12	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	3	INTEGER	INTEGER	2	2	1	0
@@ -12149,6 +12257,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	1992	1	INTEGER	INTEGER	2	2	1	0
 2nd Level	1992	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	1992	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	3	INTEGER	INTEGER	2	2	1	0
@@ -12156,6 +12265,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3.14	1	DOUBLE	INTEGER	2	2	1	0
 2nd Level	3.14	12	DOUBLE	INTEGER	2	2	1	0
 2nd Level	3.14	1992	DOUBLE	INTEGER	2	2	1	0
+2nd Level	3.14	2001	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	2003	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	2012	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	3	DOUBLE	INTEGER	2	2	1	0
@@ -12197,6 +12307,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	null	1	NULL	INTEGER	1	2	1	0
 1st Level	null	12	NULL	INTEGER	1	2	1	0
 1st Level	null	1992	NULL	INTEGER	1	2	1	0
+1st Level	null	2001	NULL	UNSIGNED INTEGER	1	2	1	0
 1st Level	null	2003	NULL	UNSIGNED INTEGER	1	2	1	0
 1st Level	null	2012	NULL	UNSIGNED INTEGER	1	2	1	0
 1st Level	null	3	NULL	INTEGER	1	2	1	0
@@ -12207,6 +12318,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	12	1	INTEGER	INTEGER	2	2	1	0
 2nd Level	12	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	12	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	3	INTEGER	INTEGER	2	2	1	0
@@ -12214,6 +12326,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	1992	1	INTEGER	INTEGER	2	2	1	0
 2nd Level	1992	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	1992	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	3	INTEGER	INTEGER	2	2	1	0
@@ -12221,6 +12334,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3.14	1	DOUBLE	INTEGER	2	2	1	0
 2nd Level	3.14	12	DOUBLE	INTEGER	2	2	1	0
 2nd Level	3.14	1992	DOUBLE	INTEGER	2	2	1	0
+2nd Level	3.14	2001	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	2003	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	2012	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	3	DOUBLE	INTEGER	2	2	1	0
@@ -12268,6 +12382,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	null	1	NULL	INTEGER	1	2	1	0
 1st Level	null	12	NULL	INTEGER	1	2	1	0
 1st Level	null	1992	NULL	INTEGER	1	2	1	0
+1st Level	null	2001	NULL	UNSIGNED INTEGER	1	2	1	0
 1st Level	null	2003	NULL	UNSIGNED INTEGER	1	2	1	0
 1st Level	null	2012	NULL	UNSIGNED INTEGER	1	2	1	0
 1st Level	null	3	NULL	INTEGER	1	2	1	0
@@ -12278,6 +12393,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	12	1	INTEGER	INTEGER	2	2	1	0
 2nd Level	12	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	12	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	3	INTEGER	INTEGER	2	2	1	0
@@ -12285,6 +12401,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	1992	1	INTEGER	INTEGER	2	2	1	0
 2nd Level	1992	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	1992	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	3	INTEGER	INTEGER	2	2	1	0
@@ -12292,6 +12409,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3.14	1	DOUBLE	INTEGER	2	2	1	0
 2nd Level	3.14	12	DOUBLE	INTEGER	2	2	1	0
 2nd Level	3.14	1992	DOUBLE	INTEGER	2	2	1	0
+2nd Level	3.14	2001	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	2003	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	2012	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	3	DOUBLE	INTEGER	2	2	1	0
@@ -12335,6 +12453,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	null	1	NULL	INTEGER	1	2	1	0
 1st Level	null	12	NULL	INTEGER	1	2	1	0
 1st Level	null	1992	NULL	INTEGER	1	2	1	0
+1st Level	null	2001	NULL	UNSIGNED INTEGER	1	2	1	0
 1st Level	null	2003	NULL	UNSIGNED INTEGER	1	2	1	0
 1st Level	null	2012	NULL	UNSIGNED INTEGER	1	2	1	0
 1st Level	null	3	NULL	INTEGER	1	2	1	0
@@ -12345,6 +12464,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	12	1	INTEGER	INTEGER	2	2	1	0
 2nd Level	12	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	12	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	3	INTEGER	INTEGER	2	2	1	0
@@ -12352,6 +12472,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	1992	1	INTEGER	INTEGER	2	2	1	0
 2nd Level	1992	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	1992	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	3	INTEGER	INTEGER	2	2	1	0
@@ -12359,6 +12480,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3.14	1	DOUBLE	INTEGER	2	2	1	0
 2nd Level	3.14	12	DOUBLE	INTEGER	2	2	1	0
 2nd Level	3.14	1992	DOUBLE	INTEGER	2	2	1	0
+2nd Level	3.14	2001	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	2003	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	2012	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	3	DOUBLE	INTEGER	2	2	1	0
@@ -12402,6 +12524,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	null	1	NULL	INTEGER	1	2	1	0
 1st Level	null	12	NULL	INTEGER	1	2	1	0
 1st Level	null	1992	NULL	INTEGER	1	2	1	0
+1st Level	null	2001	NULL	UNSIGNED INTEGER	1	2	1	0
 1st Level	null	2003	NULL	UNSIGNED INTEGER	1	2	1	0
 1st Level	null	2012	NULL	UNSIGNED INTEGER	1	2	1	0
 1st Level	null	3	NULL	INTEGER	1	2	1	0
@@ -12412,6 +12535,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	12	1	INTEGER	INTEGER	2	2	1	0
 2nd Level	12	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	12	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	3	INTEGER	INTEGER	2	2	1	0
@@ -12419,6 +12543,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	1992	1	INTEGER	INTEGER	2	2	1	0
 2nd Level	1992	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	1992	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	3	INTEGER	INTEGER	2	2	1	0
@@ -12426,6 +12551,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3.14	1	DOUBLE	INTEGER	2	2	1	0
 2nd Level	3.14	12	DOUBLE	INTEGER	2	2	1	0
 2nd Level	3.14	1992	DOUBLE	INTEGER	2	2	1	0
+2nd Level	3.14	2001	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	2003	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	2012	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	3	DOUBLE	INTEGER	2	2	1	0
@@ -12469,6 +12595,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	null	1	NULL	INTEGER	1	2	1	0
 1st Level	null	12	NULL	INTEGER	1	2	1	0
 1st Level	null	1992	NULL	INTEGER	1	2	1	0
+1st Level	null	2001	NULL	UNSIGNED INTEGER	1	2	1	0
 1st Level	null	2003	NULL	UNSIGNED INTEGER	1	2	1	0
 1st Level	null	2012	NULL	UNSIGNED INTEGER	1	2	1	0
 1st Level	null	3	NULL	INTEGER	1	2	1	0
@@ -12479,6 +12606,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	12	1	INTEGER	INTEGER	2	2	1	0
 2nd Level	12	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	12	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	3	INTEGER	INTEGER	2	2	1	0
@@ -12486,6 +12614,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	1992	1	INTEGER	INTEGER	2	2	1	0
 2nd Level	1992	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	1992	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	3	INTEGER	INTEGER	2	2	1	0
@@ -12493,6 +12622,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3.14	1	DOUBLE	INTEGER	2	2	1	0
 2nd Level	3.14	12	DOUBLE	INTEGER	2	2	1	0
 2nd Level	3.14	1992	DOUBLE	INTEGER	2	2	1	0
+2nd Level	3.14	2001	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	2003	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	2012	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	3	DOUBLE	INTEGER	2	2	1	0
@@ -12641,6 +12771,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	null	1	NULL	INTEGER	1	2	0	1
 1st Level	null	12	NULL	INTEGER	1	2	0	1
 1st Level	null	1992	NULL	INTEGER	1	2	0	1
+1st Level	null	2001	NULL	UNSIGNED INTEGER	1	2	0	1
 1st Level	null	2003	NULL	UNSIGNED INTEGER	1	2	0	1
 1st Level	null	2012	NULL	UNSIGNED INTEGER	1	2	0	1
 1st Level	null	3	NULL	INTEGER	1	2	0	1
@@ -12651,6 +12782,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	12	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	3	INTEGER	INTEGER	2	2	0	1
@@ -12658,6 +12790,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	1992	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	3	INTEGER	INTEGER	2	2	0	1
@@ -12665,6 +12798,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3.14	1	DOUBLE	INTEGER	2	2	0	1
 2nd Level	3.14	12	DOUBLE	INTEGER	2	2	0	1
 2nd Level	3.14	1992	DOUBLE	INTEGER	2	2	0	1
+2nd Level	3.14	2001	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2003	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2012	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	3	DOUBLE	INTEGER	2	2	0	1
@@ -12706,6 +12840,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	null	1	NULL	INTEGER	1	2	0	1
 1st Level	null	12	NULL	INTEGER	1	2	0	1
 1st Level	null	1992	NULL	INTEGER	1	2	0	1
+1st Level	null	2001	NULL	UNSIGNED INTEGER	1	2	0	1
 1st Level	null	2003	NULL	UNSIGNED INTEGER	1	2	0	1
 1st Level	null	2012	NULL	UNSIGNED INTEGER	1	2	0	1
 1st Level	null	3	NULL	INTEGER	1	2	0	1
@@ -12716,6 +12851,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	12	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	3	INTEGER	INTEGER	2	2	0	1
@@ -12723,6 +12859,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	1992	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	3	INTEGER	INTEGER	2	2	0	1
@@ -12730,6 +12867,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3.14	1	DOUBLE	INTEGER	2	2	0	1
 2nd Level	3.14	12	DOUBLE	INTEGER	2	2	0	1
 2nd Level	3.14	1992	DOUBLE	INTEGER	2	2	0	1
+2nd Level	3.14	2001	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2003	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2012	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	3	DOUBLE	INTEGER	2	2	0	1
@@ -12777,6 +12915,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	null	1	NULL	INTEGER	1	2	0	1
 1st Level	null	12	NULL	INTEGER	1	2	0	1
 1st Level	null	1992	NULL	INTEGER	1	2	0	1
+1st Level	null	2001	NULL	UNSIGNED INTEGER	1	2	0	1
 1st Level	null	2003	NULL	UNSIGNED INTEGER	1	2	0	1
 1st Level	null	2012	NULL	UNSIGNED INTEGER	1	2	0	1
 1st Level	null	3	NULL	INTEGER	1	2	0	1
@@ -12787,6 +12926,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	12	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	3	INTEGER	INTEGER	2	2	0	1
@@ -12794,6 +12934,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	1992	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	3	INTEGER	INTEGER	2	2	0	1
@@ -12801,6 +12942,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3.14	1	DOUBLE	INTEGER	2	2	0	1
 2nd Level	3.14	12	DOUBLE	INTEGER	2	2	0	1
 2nd Level	3.14	1992	DOUBLE	INTEGER	2	2	0	1
+2nd Level	3.14	2001	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2003	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2012	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	3	DOUBLE	INTEGER	2	2	0	1
@@ -12844,6 +12986,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	null	1	NULL	INTEGER	1	2	0	1
 1st Level	null	12	NULL	INTEGER	1	2	0	1
 1st Level	null	1992	NULL	INTEGER	1	2	0	1
+1st Level	null	2001	NULL	UNSIGNED INTEGER	1	2	0	1
 1st Level	null	2003	NULL	UNSIGNED INTEGER	1	2	0	1
 1st Level	null	2012	NULL	UNSIGNED INTEGER	1	2	0	1
 1st Level	null	3	NULL	INTEGER	1	2	0	1
@@ -12854,6 +12997,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	12	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	3	INTEGER	INTEGER	2	2	0	1
@@ -12861,6 +13005,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	1992	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	3	INTEGER	INTEGER	2	2	0	1
@@ -12868,6 +13013,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3.14	1	DOUBLE	INTEGER	2	2	0	1
 2nd Level	3.14	12	DOUBLE	INTEGER	2	2	0	1
 2nd Level	3.14	1992	DOUBLE	INTEGER	2	2	0	1
+2nd Level	3.14	2001	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2003	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2012	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	3	DOUBLE	INTEGER	2	2	0	1
@@ -12911,6 +13057,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	null	1	NULL	INTEGER	1	2	0	1
 1st Level	null	12	NULL	INTEGER	1	2	0	1
 1st Level	null	1992	NULL	INTEGER	1	2	0	1
+1st Level	null	2001	NULL	UNSIGNED INTEGER	1	2	0	1
 1st Level	null	2003	NULL	UNSIGNED INTEGER	1	2	0	1
 1st Level	null	2012	NULL	UNSIGNED INTEGER	1	2	0	1
 1st Level	null	3	NULL	INTEGER	1	2	0	1
@@ -12921,6 +13068,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	12	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	3	INTEGER	INTEGER	2	2	0	1
@@ -12928,6 +13076,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	1992	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	3	INTEGER	INTEGER	2	2	0	1
@@ -12935,6 +13084,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3.14	1	DOUBLE	INTEGER	2	2	0	1
 2nd Level	3.14	12	DOUBLE	INTEGER	2	2	0	1
 2nd Level	3.14	1992	DOUBLE	INTEGER	2	2	0	1
+2nd Level	3.14	2001	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2003	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2012	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	3	DOUBLE	INTEGER	2	2	0	1
@@ -12978,6 +13128,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	null	1	NULL	INTEGER	1	2	0	1
 1st Level	null	12	NULL	INTEGER	1	2	0	1
 1st Level	null	1992	NULL	INTEGER	1	2	0	1
+1st Level	null	2001	NULL	UNSIGNED INTEGER	1	2	0	1
 1st Level	null	2003	NULL	UNSIGNED INTEGER	1	2	0	1
 1st Level	null	2012	NULL	UNSIGNED INTEGER	1	2	0	1
 1st Level	null	3	NULL	INTEGER	1	2	0	1
@@ -12988,6 +13139,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	12	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	3	INTEGER	INTEGER	2	2	0	1
@@ -12995,6 +13147,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	1992	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	3	INTEGER	INTEGER	2	2	0	1
@@ -13002,6 +13155,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3.14	1	DOUBLE	INTEGER	2	2	0	1
 2nd Level	3.14	12	DOUBLE	INTEGER	2	2	0	1
 2nd Level	3.14	1992	DOUBLE	INTEGER	2	2	0	1
+2nd Level	3.14	2001	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2003	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2012	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	3	DOUBLE	INTEGER	2	2	0	1
@@ -13018,15 +13172,18 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	1	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	1	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	3	INTEGER	INTEGER	2	2	0	1
 2nd Level	1	3.14	INTEGER	DECIMAL	2	2	0	1
 2nd Level	12	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	3	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	3	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	3.14	INTEGER	DECIMAL	2	2	0	1
@@ -13034,15 +13191,18 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	1	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	1	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	3	INTEGER	INTEGER	2	2	0	1
 2nd Level	1	3.14	INTEGER	DECIMAL	2	2	0	1
 2nd Level	12	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	3	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	3	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	3.14	INTEGER	DECIMAL	2	2	0	1
@@ -13050,17 +13210,21 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	1	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	1	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	3	INTEGER	INTEGER	2	2	0	1
 2nd Level	1	3.14	INTEGER	DECIMAL	2	2	0	1
 2nd Level	12	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	3	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	3	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	3.14	INTEGER	DECIMAL	2	2	0	1
@@ -13068,17 +13232,21 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	1	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	1	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	3	INTEGER	INTEGER	2	2	0	1
 2nd Level	1	3.14	INTEGER	DECIMAL	2	2	0	1
 2nd Level	12	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	3	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	3	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	3.14	INTEGER	DECIMAL	2	2	0	1
@@ -13086,17 +13254,21 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	1	1992	UNSIGNED INTEGER	INTEGER	2	2	0	1
+2nd Level	1	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	3	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	1	3.14	UNSIGNED INTEGER	DECIMAL	2	2	0	1
 2nd Level	12	1992	UNSIGNED INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
+2nd Level	1992	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	12	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	3	1992	UNSIGNED INTEGER	INTEGER	2	2	0	1
+2nd Level	3	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	3.14	UNSIGNED INTEGER	DECIMAL	2	2	0	1
@@ -13104,17 +13276,21 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	1	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	1	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	3	INTEGER	INTEGER	2	2	0	1
 2nd Level	1	3.14	INTEGER	DECIMAL	2	2	0	1
 2nd Level	12	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	3	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	3	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	3.14	INTEGER	DECIMAL	2	2	0	1
@@ -13122,17 +13298,21 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	1	1992	UNSIGNED INTEGER	INTEGER	2	2	0	1
+2nd Level	1	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	3	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	1	3.14	UNSIGNED INTEGER	DECIMAL	2	2	0	1
 2nd Level	12	1992	UNSIGNED INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
+2nd Level	1992	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	12	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	3	1992	UNSIGNED INTEGER	INTEGER	2	2	0	1
+2nd Level	3	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	3.14	UNSIGNED INTEGER	DECIMAL	2	2	0	1
@@ -13140,17 +13320,21 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	1	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	1	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	3	INTEGER	INTEGER	2	2	0	1
 2nd Level	1	3.14	INTEGER	DECIMAL	2	2	0	1
 2nd Level	12	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	3	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	3	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	3.14	INTEGER	DECIMAL	2	2	0	1
@@ -13158,17 +13342,21 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	1	1992	UNSIGNED INTEGER	INTEGER	2	2	0	1
+2nd Level	1	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	3	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	1	3.14	UNSIGNED INTEGER	DECIMAL	2	2	0	1
 2nd Level	12	1992	UNSIGNED INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
+2nd Level	1992	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	12	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	3	1992	UNSIGNED INTEGER	INTEGER	2	2	0	1
+2nd Level	3	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	3.14	UNSIGNED INTEGER	DECIMAL	2	2	0	1
@@ -13176,32 +13364,39 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1.00	12	DECIMAL	INTEGER	2	2	0	1
 2nd Level	1.00	1992	DECIMAL	INTEGER	2	2	0	1
+2nd Level	1.00	2001	DECIMAL	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1.00	2003	DECIMAL	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1.00	2012	DECIMAL	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1.00	3	DECIMAL	INTEGER	2	2	0	1
 2nd Level	1.00	3.14	DECIMAL	DECIMAL	2	2	0	1
 2nd Level	12.00	1992	DECIMAL	INTEGER	2	2	0	1
+2nd Level	12.00	2001	DECIMAL	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12.00	2003	DECIMAL	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12.00	2012	DECIMAL	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	12	DECIMAL	INTEGER	2	2	0	1
 2nd Level	3.14	1992	DECIMAL	INTEGER	2	2	0	1
+2nd Level	3.14	2001	DECIMAL	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2003	DECIMAL	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2012	DECIMAL	UNSIGNED INTEGER	2	2	0	1
 "Testcase for Double"
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	DOUBLE	INTEGER	2	2	0	1
 2nd Level	1	1992	DOUBLE	INTEGER	2	2	0	1
+2nd Level	1	2001	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2003	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2012	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	3	DOUBLE	INTEGER	2	2	0	1
 2nd Level	1	3.14	DOUBLE	DECIMAL	2	2	0	1
 2nd Level	12	1992	DOUBLE	INTEGER	2	2	0	1
+2nd Level	12	2001	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	DOUBLE	UNSIGNED INTEGER	2	2	0	1
+2nd Level	1992	2001	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2003	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2012	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	12	DOUBLE	INTEGER	2	2	0	1
 2nd Level	3.14	1992	DOUBLE	INTEGER	2	2	0	1
+2nd Level	3.14	2001	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2003	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2012	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 "Testcase for CHAR"
@@ -13241,6 +13436,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	null	1	NULL	INTEGER	1	2	1	0
 1st Level	null	12	NULL	INTEGER	1	2	1	0
 1st Level	null	1992	NULL	INTEGER	1	2	1	0
+1st Level	null	2001	NULL	UNSIGNED INTEGER	1	2	1	0
 1st Level	null	2003	NULL	UNSIGNED INTEGER	1	2	1	0
 1st Level	null	2012	NULL	UNSIGNED INTEGER	1	2	1	0
 1st Level	null	3	NULL	INTEGER	1	2	1	0
@@ -13487,6 +13683,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	null	1	NULL	INTEGER	1	2	1	0
 1st Level	null	12	NULL	INTEGER	1	2	1	0
 1st Level	null	1992	NULL	INTEGER	1	2	1	0
+1st Level	null	2001	NULL	UNSIGNED INTEGER	1	2	1	0
 1st Level	null	2003	NULL	UNSIGNED INTEGER	1	2	1	0
 1st Level	null	2012	NULL	UNSIGNED INTEGER	1	2	1	0
 1st Level	null	3	NULL	INTEGER	1	2	1	0
@@ -13739,6 +13936,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	null	1	NULL	INTEGER	1	2	1	0
 1st Level	null	12	NULL	INTEGER	1	2	1	0
 1st Level	null	1992	NULL	INTEGER	1	2	1	0
+1st Level	null	2001	NULL	UNSIGNED INTEGER	1	2	1	0
 1st Level	null	2003	NULL	UNSIGNED INTEGER	1	2	1	0
 1st Level	null	2012	NULL	UNSIGNED INTEGER	1	2	1	0
 1st Level	null	3	NULL	INTEGER	1	2	1	0
@@ -13987,6 +14185,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	null	1	NULL	INTEGER	1	2	1	0
 1st Level	null	12	NULL	INTEGER	1	2	1	0
 1st Level	null	1992	NULL	INTEGER	1	2	1	0
+1st Level	null	2001	NULL	UNSIGNED INTEGER	1	2	1	0
 1st Level	null	2003	NULL	UNSIGNED INTEGER	1	2	1	0
 1st Level	null	2012	NULL	UNSIGNED INTEGER	1	2	1	0
 1st Level	null	3	NULL	INTEGER	1	2	1	0
@@ -14235,6 +14434,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	null	1	NULL	INTEGER	1	2	1	0
 1st Level	null	12	NULL	INTEGER	1	2	1	0
 1st Level	null	1992	NULL	INTEGER	1	2	1	0
+1st Level	null	2001	NULL	UNSIGNED INTEGER	1	2	1	0
 1st Level	null	2003	NULL	UNSIGNED INTEGER	1	2	1	0
 1st Level	null	2012	NULL	UNSIGNED INTEGER	1	2	1	0
 1st Level	null	3	NULL	INTEGER	1	2	1	0
@@ -14483,6 +14683,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	null	1	NULL	INTEGER	1	2	1	0
 1st Level	null	12	NULL	INTEGER	1	2	1	0
 1st Level	null	1992	NULL	INTEGER	1	2	1	0
+1st Level	null	2001	NULL	UNSIGNED INTEGER	1	2	1	0
 1st Level	null	2003	NULL	UNSIGNED INTEGER	1	2	1	0
 1st Level	null	2012	NULL	UNSIGNED INTEGER	1	2	1	0
 1st Level	null	3	NULL	INTEGER	1	2	1	0
@@ -14703,12 +14904,14 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	1	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	1	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	3	INTEGER	INTEGER	2	2	1	0
 2nd Level	1	3.14	INTEGER	DECIMAL	2	2	1	0
 2nd Level	12	1	INTEGER	INTEGER	2	2	1	0
 2nd Level	12	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	3	INTEGER	INTEGER	2	2	1	0
@@ -14716,6 +14919,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3	1	INTEGER	INTEGER	2	2	1	0
 2nd Level	3	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	3	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	3	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	3.14	INTEGER	DECIMAL	2	2	1	0
@@ -14723,12 +14927,14 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	1	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	1	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	3	INTEGER	INTEGER	2	2	1	0
 2nd Level	1	3.14	INTEGER	DECIMAL	2	2	1	0
 2nd Level	12	1	INTEGER	INTEGER	2	2	1	0
 2nd Level	12	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	3	INTEGER	INTEGER	2	2	1	0
@@ -14736,6 +14942,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3	1	INTEGER	INTEGER	2	2	1	0
 2nd Level	3	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	3	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	3	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	3.14	INTEGER	DECIMAL	2	2	1	0
@@ -14743,18 +14950,21 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	1	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	1	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	3	INTEGER	INTEGER	2	2	1	0
 2nd Level	1	3.14	INTEGER	DECIMAL	2	2	1	0
 2nd Level	12	1	INTEGER	INTEGER	2	2	1	0
 2nd Level	12	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	3	INTEGER	INTEGER	2	2	1	0
 2nd Level	12	3.14	INTEGER	DECIMAL	2	2	1	0
 2nd Level	1992	1	INTEGER	INTEGER	2	2	1	0
 2nd Level	1992	12	INTEGER	INTEGER	2	2	1	0
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	3	INTEGER	INTEGER	2	2	1	0
@@ -14762,6 +14972,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3	1	INTEGER	INTEGER	2	2	1	0
 2nd Level	3	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	3	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	3	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	3.14	INTEGER	DECIMAL	2	2	1	0
@@ -14769,18 +14980,21 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	1	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	1	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	3	INTEGER	INTEGER	2	2	1	0
 2nd Level	1	3.14	INTEGER	DECIMAL	2	2	1	0
 2nd Level	12	1	INTEGER	INTEGER	2	2	1	0
 2nd Level	12	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	3	INTEGER	INTEGER	2	2	1	0
 2nd Level	12	3.14	INTEGER	DECIMAL	2	2	1	0
 2nd Level	1992	1	INTEGER	INTEGER	2	2	1	0
 2nd Level	1992	12	INTEGER	INTEGER	2	2	1	0
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	3	INTEGER	INTEGER	2	2	1	0
@@ -14788,6 +15002,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3	1	INTEGER	INTEGER	2	2	1	0
 2nd Level	3	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	3	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	3	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	3.14	INTEGER	DECIMAL	2	2	1	0
@@ -14795,18 +15010,21 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	UNSIGNED INTEGER	INTEGER	2	2	1	0
 2nd Level	1	1992	UNSIGNED INTEGER	INTEGER	2	2	1	0
+2nd Level	1	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	3	UNSIGNED INTEGER	INTEGER	2	2	1	0
 2nd Level	1	3.14	UNSIGNED INTEGER	DECIMAL	2	2	1	0
 2nd Level	12	1	UNSIGNED INTEGER	INTEGER	2	2	1	0
 2nd Level	12	1992	UNSIGNED INTEGER	INTEGER	2	2	1	0
+2nd Level	12	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	3	UNSIGNED INTEGER	INTEGER	2	2	1	0
 2nd Level	12	3.14	UNSIGNED INTEGER	DECIMAL	2	2	1	0
 2nd Level	1992	1	UNSIGNED INTEGER	INTEGER	2	2	1	0
 2nd Level	1992	12	UNSIGNED INTEGER	INTEGER	2	2	1	0
+2nd Level	1992	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	3	UNSIGNED INTEGER	INTEGER	2	2	1	0
@@ -14814,6 +15032,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3	1	UNSIGNED INTEGER	INTEGER	2	2	1	0
 2nd Level	3	12	UNSIGNED INTEGER	INTEGER	2	2	1	0
 2nd Level	3	1992	UNSIGNED INTEGER	INTEGER	2	2	1	0
+2nd Level	3	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	3.14	UNSIGNED INTEGER	DECIMAL	2	2	1	0
@@ -14821,18 +15040,21 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	1	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	1	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	3	INTEGER	INTEGER	2	2	1	0
 2nd Level	1	3.14	INTEGER	DECIMAL	2	2	1	0
 2nd Level	12	1	INTEGER	INTEGER	2	2	1	0
 2nd Level	12	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	3	INTEGER	INTEGER	2	2	1	0
 2nd Level	12	3.14	INTEGER	DECIMAL	2	2	1	0
 2nd Level	1992	1	INTEGER	INTEGER	2	2	1	0
 2nd Level	1992	12	INTEGER	INTEGER	2	2	1	0
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	3	INTEGER	INTEGER	2	2	1	0
@@ -14840,6 +15062,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3	1	INTEGER	INTEGER	2	2	1	0
 2nd Level	3	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	3	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	3	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	3.14	INTEGER	DECIMAL	2	2	1	0
@@ -14847,18 +15070,21 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	UNSIGNED INTEGER	INTEGER	2	2	1	0
 2nd Level	1	1992	UNSIGNED INTEGER	INTEGER	2	2	1	0
+2nd Level	1	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	3	UNSIGNED INTEGER	INTEGER	2	2	1	0
 2nd Level	1	3.14	UNSIGNED INTEGER	DECIMAL	2	2	1	0
 2nd Level	12	1	UNSIGNED INTEGER	INTEGER	2	2	1	0
 2nd Level	12	1992	UNSIGNED INTEGER	INTEGER	2	2	1	0
+2nd Level	12	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	3	UNSIGNED INTEGER	INTEGER	2	2	1	0
 2nd Level	12	3.14	UNSIGNED INTEGER	DECIMAL	2	2	1	0
 2nd Level	1992	1	UNSIGNED INTEGER	INTEGER	2	2	1	0
 2nd Level	1992	12	UNSIGNED INTEGER	INTEGER	2	2	1	0
+2nd Level	1992	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	3	UNSIGNED INTEGER	INTEGER	2	2	1	0
@@ -14866,6 +15092,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3	1	UNSIGNED INTEGER	INTEGER	2	2	1	0
 2nd Level	3	12	UNSIGNED INTEGER	INTEGER	2	2	1	0
 2nd Level	3	1992	UNSIGNED INTEGER	INTEGER	2	2	1	0
+2nd Level	3	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	3.14	UNSIGNED INTEGER	DECIMAL	2	2	1	0
@@ -14873,18 +15100,21 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	1	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	1	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	3	INTEGER	INTEGER	2	2	1	0
 2nd Level	1	3.14	INTEGER	DECIMAL	2	2	1	0
 2nd Level	12	1	INTEGER	INTEGER	2	2	1	0
 2nd Level	12	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	3	INTEGER	INTEGER	2	2	1	0
 2nd Level	12	3.14	INTEGER	DECIMAL	2	2	1	0
 2nd Level	1992	1	INTEGER	INTEGER	2	2	1	0
 2nd Level	1992	12	INTEGER	INTEGER	2	2	1	0
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	3	INTEGER	INTEGER	2	2	1	0
@@ -14892,6 +15122,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3	1	INTEGER	INTEGER	2	2	1	0
 2nd Level	3	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	3	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	3	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	3.14	INTEGER	DECIMAL	2	2	1	0
@@ -14899,18 +15130,21 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	UNSIGNED INTEGER	INTEGER	2	2	1	0
 2nd Level	1	1992	UNSIGNED INTEGER	INTEGER	2	2	1	0
+2nd Level	1	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	3	UNSIGNED INTEGER	INTEGER	2	2	1	0
 2nd Level	1	3.14	UNSIGNED INTEGER	DECIMAL	2	2	1	0
 2nd Level	12	1	UNSIGNED INTEGER	INTEGER	2	2	1	0
 2nd Level	12	1992	UNSIGNED INTEGER	INTEGER	2	2	1	0
+2nd Level	12	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	3	UNSIGNED INTEGER	INTEGER	2	2	1	0
 2nd Level	12	3.14	UNSIGNED INTEGER	DECIMAL	2	2	1	0
 2nd Level	1992	1	UNSIGNED INTEGER	INTEGER	2	2	1	0
 2nd Level	1992	12	UNSIGNED INTEGER	INTEGER	2	2	1	0
+2nd Level	1992	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	3	UNSIGNED INTEGER	INTEGER	2	2	1	0
@@ -14918,6 +15152,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3	1	UNSIGNED INTEGER	INTEGER	2	2	1	0
 2nd Level	3	12	UNSIGNED INTEGER	INTEGER	2	2	1	0
 2nd Level	3	1992	UNSIGNED INTEGER	INTEGER	2	2	1	0
+2nd Level	3	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3	3.14	UNSIGNED INTEGER	DECIMAL	2	2	1	0
@@ -14925,12 +15160,14 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1.00	12	DECIMAL	INTEGER	2	2	1	0
 2nd Level	1.00	1992	DECIMAL	INTEGER	2	2	1	0
+2nd Level	1.00	2001	DECIMAL	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1.00	2003	DECIMAL	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1.00	2012	DECIMAL	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1.00	3	DECIMAL	INTEGER	2	2	1	0
 2nd Level	1.00	3.14	DECIMAL	DECIMAL	2	2	1	0
 2nd Level	12.00	1	DECIMAL	INTEGER	2	2	1	0
 2nd Level	12.00	1992	DECIMAL	INTEGER	2	2	1	0
+2nd Level	12.00	2001	DECIMAL	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12.00	2003	DECIMAL	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12.00	2012	DECIMAL	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12.00	3	DECIMAL	INTEGER	2	2	1	0
@@ -14938,6 +15175,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3.14	1	DECIMAL	INTEGER	2	2	1	0
 2nd Level	3.14	12	DECIMAL	INTEGER	2	2	1	0
 2nd Level	3.14	1992	DECIMAL	INTEGER	2	2	1	0
+2nd Level	3.14	2001	DECIMAL	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	2003	DECIMAL	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	2012	DECIMAL	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	3	DECIMAL	INTEGER	2	2	1	0
@@ -14945,18 +15183,21 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	DOUBLE	INTEGER	2	2	1	0
 2nd Level	1	1992	DOUBLE	INTEGER	2	2	1	0
+2nd Level	1	2001	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	2003	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	2012	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1	3	DOUBLE	INTEGER	2	2	1	0
 2nd Level	1	3.14	DOUBLE	DECIMAL	2	2	1	0
 2nd Level	12	1	DOUBLE	INTEGER	2	2	1	0
 2nd Level	12	1992	DOUBLE	INTEGER	2	2	1	0
+2nd Level	12	2001	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2003	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2012	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	3	DOUBLE	INTEGER	2	2	1	0
 2nd Level	12	3.14	DOUBLE	DECIMAL	2	2	1	0
 2nd Level	1992	1	DOUBLE	INTEGER	2	2	1	0
 2nd Level	1992	12	DOUBLE	INTEGER	2	2	1	0
+2nd Level	1992	2001	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2003	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2012	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	3	DOUBLE	INTEGER	2	2	1	0
@@ -14964,6 +15205,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3.14	1	DOUBLE	INTEGER	2	2	1	0
 2nd Level	3.14	12	DOUBLE	INTEGER	2	2	1	0
 2nd Level	3.14	1992	DOUBLE	INTEGER	2	2	1	0
+2nd Level	3.14	2001	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	2003	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	2012	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	3	DOUBLE	INTEGER	2	2	1	0
@@ -15169,6 +15411,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	12	1	INTEGER	INTEGER	2	2	1	0
 2nd Level	12	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	12	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	3	INTEGER	INTEGER	2	2	1	0
@@ -15176,6 +15419,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	1992	1	INTEGER	INTEGER	2	2	1	0
 2nd Level	1992	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	1992	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	3	INTEGER	INTEGER	2	2	1	0
@@ -15183,6 +15427,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3.14	1	DOUBLE	INTEGER	2	2	1	0
 2nd Level	3.14	12	DOUBLE	INTEGER	2	2	1	0
 2nd Level	3.14	1992	DOUBLE	INTEGER	2	2	1	0
+2nd Level	3.14	2001	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	2003	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	2012	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	3	DOUBLE	INTEGER	2	2	1	0
@@ -15396,6 +15641,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	12	1	INTEGER	INTEGER	2	2	1	0
 2nd Level	12	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	12	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	3	INTEGER	INTEGER	2	2	1	0
@@ -15403,6 +15649,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	1992	1	INTEGER	INTEGER	2	2	1	0
 2nd Level	1992	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	1992	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	3	INTEGER	INTEGER	2	2	1	0
@@ -15410,6 +15657,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3.14	1	DOUBLE	INTEGER	2	2	1	0
 2nd Level	3.14	12	DOUBLE	INTEGER	2	2	1	0
 2nd Level	3.14	1992	DOUBLE	INTEGER	2	2	1	0
+2nd Level	3.14	2001	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	2003	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	2012	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	3	DOUBLE	INTEGER	2	2	1	0
@@ -15629,6 +15877,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	12	1	INTEGER	INTEGER	2	2	1	0
 2nd Level	12	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	12	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	3	INTEGER	INTEGER	2	2	1	0
@@ -15636,6 +15885,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	1992	1	INTEGER	INTEGER	2	2	1	0
 2nd Level	1992	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	1992	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	3	INTEGER	INTEGER	2	2	1	0
@@ -15643,6 +15893,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3.14	1	DOUBLE	INTEGER	2	2	1	0
 2nd Level	3.14	12	DOUBLE	INTEGER	2	2	1	0
 2nd Level	3.14	1992	DOUBLE	INTEGER	2	2	1	0
+2nd Level	3.14	2001	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	2003	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	2012	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	3	DOUBLE	INTEGER	2	2	1	0
@@ -15858,6 +16109,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	12	1	INTEGER	INTEGER	2	2	1	0
 2nd Level	12	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	12	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	3	INTEGER	INTEGER	2	2	1	0
@@ -15865,6 +16117,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	1992	1	INTEGER	INTEGER	2	2	1	0
 2nd Level	1992	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	1992	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	3	INTEGER	INTEGER	2	2	1	0
@@ -15872,6 +16125,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3.14	1	DOUBLE	INTEGER	2	2	1	0
 2nd Level	3.14	12	DOUBLE	INTEGER	2	2	1	0
 2nd Level	3.14	1992	DOUBLE	INTEGER	2	2	1	0
+2nd Level	3.14	2001	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	2003	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	2012	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	3	DOUBLE	INTEGER	2	2	1	0
@@ -16087,6 +16341,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	12	1	INTEGER	INTEGER	2	2	1	0
 2nd Level	12	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	12	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	3	INTEGER	INTEGER	2	2	1	0
@@ -16094,6 +16349,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	1992	1	INTEGER	INTEGER	2	2	1	0
 2nd Level	1992	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	1992	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	3	INTEGER	INTEGER	2	2	1	0
@@ -16101,6 +16357,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3.14	1	DOUBLE	INTEGER	2	2	1	0
 2nd Level	3.14	12	DOUBLE	INTEGER	2	2	1	0
 2nd Level	3.14	1992	DOUBLE	INTEGER	2	2	1	0
+2nd Level	3.14	2001	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	2003	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	2012	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	3	DOUBLE	INTEGER	2	2	1	0
@@ -16316,6 +16573,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	12	1	INTEGER	INTEGER	2	2	1	0
 2nd Level	12	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	12	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	12	3	INTEGER	INTEGER	2	2	1	0
@@ -16323,6 +16581,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	1992	1	INTEGER	INTEGER	2	2	1	0
 2nd Level	1992	12	INTEGER	INTEGER	2	2	1	0
 2nd Level	1992	1992	INTEGER	INTEGER	2	2	1	0
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	1	0
 2nd Level	1992	3	INTEGER	INTEGER	2	2	1	0
@@ -16330,6 +16589,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3.14	1	DOUBLE	INTEGER	2	2	1	0
 2nd Level	3.14	12	DOUBLE	INTEGER	2	2	1	0
 2nd Level	3.14	1992	DOUBLE	INTEGER	2	2	1	0
+2nd Level	3.14	2001	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	2003	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	2012	DOUBLE	UNSIGNED INTEGER	2	2	1	0
 2nd Level	3.14	3	DOUBLE	INTEGER	2	2	1	0
@@ -16352,12 +16612,14 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	1	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	1	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	3	INTEGER	INTEGER	2	2	0	1
 2nd Level	1	3.14	INTEGER	DECIMAL	2	2	0	1
 2nd Level	12	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	3	INTEGER	INTEGER	2	2	0	1
@@ -16365,6 +16627,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	3	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	3	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	3	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	3.14	INTEGER	DECIMAL	2	2	0	1
@@ -16372,12 +16635,14 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	1	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	1	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	3	INTEGER	INTEGER	2	2	0	1
 2nd Level	1	3.14	INTEGER	DECIMAL	2	2	0	1
 2nd Level	12	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	3	INTEGER	INTEGER	2	2	0	1
@@ -16385,6 +16650,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	3	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	3	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	3	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	3.14	INTEGER	DECIMAL	2	2	0	1
@@ -16392,18 +16658,21 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	1	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	1	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	3	INTEGER	INTEGER	2	2	0	1
 2nd Level	1	3.14	INTEGER	DECIMAL	2	2	0	1
 2nd Level	12	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	3	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	3.14	INTEGER	DECIMAL	2	2	0	1
 2nd Level	1992	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	12	INTEGER	INTEGER	2	2	0	1
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	3	INTEGER	INTEGER	2	2	0	1
@@ -16411,6 +16680,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	3	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	3	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	3	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	3.14	INTEGER	DECIMAL	2	2	0	1
@@ -16418,18 +16688,21 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	1	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	1	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	3	INTEGER	INTEGER	2	2	0	1
 2nd Level	1	3.14	INTEGER	DECIMAL	2	2	0	1
 2nd Level	12	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	3	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	3.14	INTEGER	DECIMAL	2	2	0	1
 2nd Level	1992	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	12	INTEGER	INTEGER	2	2	0	1
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	3	INTEGER	INTEGER	2	2	0	1
@@ -16437,6 +16710,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	3	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	3	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	3	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	3.14	INTEGER	DECIMAL	2	2	0	1
@@ -16444,18 +16718,21 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	1	1992	UNSIGNED INTEGER	INTEGER	2	2	0	1
+2nd Level	1	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	3	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	1	3.14	UNSIGNED INTEGER	DECIMAL	2	2	0	1
 2nd Level	12	1	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	12	1992	UNSIGNED INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	3	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	12	3.14	UNSIGNED INTEGER	DECIMAL	2	2	0	1
 2nd Level	1992	1	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	12	UNSIGNED INTEGER	INTEGER	2	2	0	1
+2nd Level	1992	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	3	UNSIGNED INTEGER	INTEGER	2	2	0	1
@@ -16463,6 +16740,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3	1	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	3	12	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	3	1992	UNSIGNED INTEGER	INTEGER	2	2	0	1
+2nd Level	3	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	3.14	UNSIGNED INTEGER	DECIMAL	2	2	0	1
@@ -16470,18 +16748,21 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	1	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	1	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	3	INTEGER	INTEGER	2	2	0	1
 2nd Level	1	3.14	INTEGER	DECIMAL	2	2	0	1
 2nd Level	12	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	3	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	3.14	INTEGER	DECIMAL	2	2	0	1
 2nd Level	1992	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	12	INTEGER	INTEGER	2	2	0	1
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	3	INTEGER	INTEGER	2	2	0	1
@@ -16489,6 +16770,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	3	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	3	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	3	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	3.14	INTEGER	DECIMAL	2	2	0	1
@@ -16496,18 +16778,21 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	1	1992	UNSIGNED INTEGER	INTEGER	2	2	0	1
+2nd Level	1	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	3	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	1	3.14	UNSIGNED INTEGER	DECIMAL	2	2	0	1
 2nd Level	12	1	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	12	1992	UNSIGNED INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	3	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	12	3.14	UNSIGNED INTEGER	DECIMAL	2	2	0	1
 2nd Level	1992	1	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	12	UNSIGNED INTEGER	INTEGER	2	2	0	1
+2nd Level	1992	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	3	UNSIGNED INTEGER	INTEGER	2	2	0	1
@@ -16515,6 +16800,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3	1	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	3	12	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	3	1992	UNSIGNED INTEGER	INTEGER	2	2	0	1
+2nd Level	3	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	3.14	UNSIGNED INTEGER	DECIMAL	2	2	0	1
@@ -16522,18 +16808,21 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	1	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	1	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	3	INTEGER	INTEGER	2	2	0	1
 2nd Level	1	3.14	INTEGER	DECIMAL	2	2	0	1
 2nd Level	12	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	3	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	3.14	INTEGER	DECIMAL	2	2	0	1
 2nd Level	1992	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	12	INTEGER	INTEGER	2	2	0	1
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	3	INTEGER	INTEGER	2	2	0	1
@@ -16541,6 +16830,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	3	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	3	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	3	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	3.14	INTEGER	DECIMAL	2	2	0	1
@@ -16548,18 +16838,21 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	1	1992	UNSIGNED INTEGER	INTEGER	2	2	0	1
+2nd Level	1	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	3	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	1	3.14	UNSIGNED INTEGER	DECIMAL	2	2	0	1
 2nd Level	12	1	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	12	1992	UNSIGNED INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	3	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	12	3.14	UNSIGNED INTEGER	DECIMAL	2	2	0	1
 2nd Level	1992	1	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	12	UNSIGNED INTEGER	INTEGER	2	2	0	1
+2nd Level	1992	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	3	UNSIGNED INTEGER	INTEGER	2	2	0	1
@@ -16567,6 +16860,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3	1	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	3	12	UNSIGNED INTEGER	INTEGER	2	2	0	1
 2nd Level	3	1992	UNSIGNED INTEGER	INTEGER	2	2	0	1
+2nd Level	3	2001	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2003	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	2012	UNSIGNED INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3	3.14	UNSIGNED INTEGER	DECIMAL	2	2	0	1
@@ -16574,12 +16868,14 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1.00	12	DECIMAL	INTEGER	2	2	0	1
 2nd Level	1.00	1992	DECIMAL	INTEGER	2	2	0	1
+2nd Level	1.00	2001	DECIMAL	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1.00	2003	DECIMAL	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1.00	2012	DECIMAL	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1.00	3	DECIMAL	INTEGER	2	2	0	1
 2nd Level	1.00	3.14	DECIMAL	DECIMAL	2	2	0	1
 2nd Level	12.00	1	DECIMAL	INTEGER	2	2	0	1
 2nd Level	12.00	1992	DECIMAL	INTEGER	2	2	0	1
+2nd Level	12.00	2001	DECIMAL	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12.00	2003	DECIMAL	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12.00	2012	DECIMAL	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12.00	3	DECIMAL	INTEGER	2	2	0	1
@@ -16587,6 +16883,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3.14	1	DECIMAL	INTEGER	2	2	0	1
 2nd Level	3.14	12	DECIMAL	INTEGER	2	2	0	1
 2nd Level	3.14	1992	DECIMAL	INTEGER	2	2	0	1
+2nd Level	3.14	2001	DECIMAL	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2003	DECIMAL	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2012	DECIMAL	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	3	DECIMAL	INTEGER	2	2	0	1
@@ -16594,18 +16891,21 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightage	side2_json_weightage	json_compare	first_level_validation
 2nd Level	1	12	DOUBLE	INTEGER	2	2	0	1
 2nd Level	1	1992	DOUBLE	INTEGER	2	2	0	1
+2nd Level	1	2001	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2003	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	2012	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1	3	DOUBLE	INTEGER	2	2	0	1
 2nd Level	1	3.14	DOUBLE	DECIMAL	2	2	0	1
 2nd Level	12	1	DOUBLE	INTEGER	2	2	0	1
 2nd Level	12	1992	DOUBLE	INTEGER	2	2	0	1
+2nd Level	12	2001	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	3	DOUBLE	INTEGER	2	2	0	1
 2nd Level	12	3.14	DOUBLE	DECIMAL	2	2	0	1
 2nd Level	1992	1	DOUBLE	INTEGER	2	2	0	1
 2nd Level	1992	12	DOUBLE	INTEGER	2	2	0	1
+2nd Level	1992	2001	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2003	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2012	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	3	DOUBLE	INTEGER	2	2	0	1
@@ -16613,6 +16913,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3.14	1	DOUBLE	INTEGER	2	2	0	1
 2nd Level	3.14	12	DOUBLE	INTEGER	2	2	0	1
 2nd Level	3.14	1992	DOUBLE	INTEGER	2	2	0	1
+2nd Level	3.14	2001	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2003	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2012	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	3	DOUBLE	INTEGER	2	2	0	1
@@ -16818,6 +17119,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	12	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	3	INTEGER	INTEGER	2	2	0	1
@@ -16825,6 +17127,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	1992	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	3	INTEGER	INTEGER	2	2	0	1
@@ -16832,6 +17135,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3.14	1	DOUBLE	INTEGER	2	2	0	1
 2nd Level	3.14	12	DOUBLE	INTEGER	2	2	0	1
 2nd Level	3.14	1992	DOUBLE	INTEGER	2	2	0	1
+2nd Level	3.14	2001	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2003	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2012	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	3	DOUBLE	INTEGER	2	2	0	1
@@ -17045,6 +17349,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	12	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	3	INTEGER	INTEGER	2	2	0	1
@@ -17052,6 +17357,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	1992	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	3	INTEGER	INTEGER	2	2	0	1
@@ -17059,6 +17365,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3.14	1	DOUBLE	INTEGER	2	2	0	1
 2nd Level	3.14	12	DOUBLE	INTEGER	2	2	0	1
 2nd Level	3.14	1992	DOUBLE	INTEGER	2	2	0	1
+2nd Level	3.14	2001	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2003	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2012	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	3	DOUBLE	INTEGER	2	2	0	1
@@ -17278,6 +17585,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	12	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	3	INTEGER	INTEGER	2	2	0	1
@@ -17285,6 +17593,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	1992	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	3	INTEGER	INTEGER	2	2	0	1
@@ -17292,6 +17601,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3.14	1	DOUBLE	INTEGER	2	2	0	1
 2nd Level	3.14	12	DOUBLE	INTEGER	2	2	0	1
 2nd Level	3.14	1992	DOUBLE	INTEGER	2	2	0	1
+2nd Level	3.14	2001	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2003	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2012	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	3	DOUBLE	INTEGER	2	2	0	1
@@ -17507,6 +17817,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	12	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	3	INTEGER	INTEGER	2	2	0	1
@@ -17514,6 +17825,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	1992	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	3	INTEGER	INTEGER	2	2	0	1
@@ -17521,6 +17833,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3.14	1	DOUBLE	INTEGER	2	2	0	1
 2nd Level	3.14	12	DOUBLE	INTEGER	2	2	0	1
 2nd Level	3.14	1992	DOUBLE	INTEGER	2	2	0	1
+2nd Level	3.14	2001	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2003	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2012	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	3	DOUBLE	INTEGER	2	2	0	1
@@ -17736,6 +18049,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	12	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	3	INTEGER	INTEGER	2	2	0	1
@@ -17743,6 +18057,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	1992	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	3	INTEGER	INTEGER	2	2	0	1
@@ -17750,6 +18065,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3.14	1	DOUBLE	INTEGER	2	2	0	1
 2nd Level	3.14	12	DOUBLE	INTEGER	2	2	0	1
 2nd Level	3.14	1992	DOUBLE	INTEGER	2	2	0	1
+2nd Level	3.14	2001	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2003	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2012	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	3	DOUBLE	INTEGER	2	2	0	1
@@ -17965,6 +18281,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	12	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	12	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	12	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	12	3	INTEGER	INTEGER	2	2	0	1
@@ -17972,6 +18289,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	1992	1	INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	12	INTEGER	INTEGER	2	2	0	1
 2nd Level	1992	1992	INTEGER	INTEGER	2	2	0	1
+2nd Level	1992	2001	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2003	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	2012	INTEGER	UNSIGNED INTEGER	2	2	0	1
 2nd Level	1992	3	INTEGER	INTEGER	2	2	0	1
@@ -17979,6 +18297,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	3.14	1	DOUBLE	INTEGER	2	2	0	1
 2nd Level	3.14	12	DOUBLE	INTEGER	2	2	0	1
 2nd Level	3.14	1992	DOUBLE	INTEGER	2	2	0	1
+2nd Level	3.14	2001	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2003	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	2012	DOUBLE	UNSIGNED INTEGER	2	2	0	1
 2nd Level	3.14	3	DOUBLE	INTEGER	2	2	0	1

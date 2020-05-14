@@ -338,7 +338,13 @@ connection master;
 create table t1(a int);
 insert into t1 values (1),(2);
 prepare s1 from 'insert into t1 select a from t1 limit ?';
-set @x='1.1';
+--echo First, execute query using a signed integer
+set @x=CAST(1 AS SIGNED);
+--disable_warnings
+execute s1 using @x;
+--enable_warnings
+--echo Next, execute query using an unsigned integer
+set @x=CAST(1 AS UNSIGNED);
 --disable_warnings
 execute s1 using @x;
 --enable_warnings

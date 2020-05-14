@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2200,6 +2200,6 @@ bool Sql_cmd_show::prepare(THD *thd) {
 
   if (Sql_cmd::prepare(thd)) return true;
 
-  bool rc = mysql_test_show(get_owner(), thd->lex->query_tables);
+  bool rc = mysql_test_show(owner(), thd->lex->query_tables);
   return rc;
 }

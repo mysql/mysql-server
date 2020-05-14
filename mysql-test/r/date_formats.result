@@ -8,7 +8,6 @@ STR_TO_DATE('2004.12.12 22.30.61','%Y.%m.%d %T')
 NULL
 Warnings:
 Warning	1411	Incorrect time value: '22.30.61' for function str_to_date
-Warning	1411	Incorrect datetime value: '2004.12.12 22.30.61' for function str_to_date
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1 (date char(30), format char(30) not null);
 insert into t1 values
@@ -371,7 +370,6 @@ str_to_date('15-01-2001 12:59:59', GET_FORMAT(DATE,'USA'))
 NULL
 Warnings:
 Warning	1411	Incorrect datetime value: '15-01-2001 12:59:59' for function str_to_date
-Warning	1411	Incorrect datetime value: '15-01-2001 12:59:59' for function str_to_date
 explain select makedate(1997,1), addtime("31.12.97 11.59.59.999999 PM", "1 1.1.1.000002"),subtime("31.12.97 11.59.59.999999 PM", "1 1.1.1.000002"),timediff("01.01.97 11:59:59.000001 PM","31.12.95 11:59:59.000002 PM"),cast(str_to_date("15-01-2001 12:59:59", "%d-%m-%Y %H:%i:%S") as TIME), maketime(23,11,12),microsecond("1997-12-31 23:59:59.000001");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
@@ -466,16 +464,12 @@ drop table t1;
 select str_to_date( 1, NULL );
 str_to_date( 1, NULL )
 NULL
-Warnings:
-Warning	1411	Incorrect datetime value: '1' for function str_to_date
 select str_to_date( NULL, 1 );
 str_to_date( NULL, 1 )
 NULL
 select str_to_date( 1, IF(1=1,NULL,NULL) );
 str_to_date( 1, IF(1=1,NULL,NULL) )
 NULL
-Warnings:
-Warning	1411	Incorrect datetime value: '1' for function str_to_date
 SELECT TIME_FORMAT("24:00:00", '%r');
 TIME_FORMAT("24:00:00", '%r')
 12:00:00 AM

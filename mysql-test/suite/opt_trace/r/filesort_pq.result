@@ -1681,7 +1681,7 @@ SELECT * from t1 ORDER BY rand(2) LIMIT 2	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "expression": "`<temporary>`.`rand(2)`"
+                "expression": "`rand(2)`"
               }
             ],
             "filesort_priority_queue_optimization": {

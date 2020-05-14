@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -399,18 +399,8 @@ static void fill_dd_view_tables(View *view_obj, const TABLE_LIST *view,
         is_temporary_table(const_cast<TABLE_LIST *>(table)))
       continue;
 
-    LEX_CSTRING db_name;
-    LEX_CSTRING table_name;
-    if (table->schema_table_name) {
-      db_name = {table->db, table->db_length};
-      table_name = {table->schema_table_name, strlen(table->schema_table_name)};
-    } else if (table->is_view()) {
-      db_name = table->view_db;
-      table_name = table->view_name;
-    } else {
-      db_name = {table->db, table->db_length};
-      table_name = {table->table_name, table->table_name_length};
-    }
+    LEX_CSTRING db_name = {table->db, table->db_length};
+    LEX_CSTRING table_name = {table->table_name, table->table_name_length};
 
     // Avoid duplicate entries.
     {

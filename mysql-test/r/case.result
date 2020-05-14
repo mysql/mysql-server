@@ -456,3 +456,15 @@ col1
 2019-03-11 00:00:00.567
 SET TIMESTAMP=DEFAULT;
 DROP TABLE t1;
+#
+# Test for a memory leak in WL#6570
+#
+CREATE TABLE t1 (a VARCHAR(110));
+INSERT INTO t1 VALUES (REPEAT("a",100));
+SELECT (t1.a,t1.a) IN (('a','c'),('a','b')) END FROM t1;
+END
+0
+SELECT CASE t1.a WHEN 'a' THEN 'c' ELSE 'd' END FROM t1;
+CASE t1.a WHEN 'a' THEN 'c' ELSE 'd' END
+d
+DROP TABLE t1;

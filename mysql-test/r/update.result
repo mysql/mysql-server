@@ -3,6 +3,12 @@ create table t1 (a int auto_increment , primary key (a));
 insert into t1 values (NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL);
 update t1 set a=a+10 where a > 34;
 update t1 set a=a+100 where a > 0;
+update t1 set a=a+100 limit 0;
+explain update t1 set a=a+100 limit 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	LIMIT is zero
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = (`test`.`t1`.`a` + 100) limit 0
 update t1 set a=a+100 where a=1 and a=2;
 update t1 set a=b+100 where a=1 and a=2;
 ERROR 42S22: Unknown column 'b' in 'field list'

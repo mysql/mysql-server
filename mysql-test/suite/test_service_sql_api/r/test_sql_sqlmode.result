@@ -111,7 +111,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@global.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 69
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -143,7 +143,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@global.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 69
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -177,7 +177,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 69
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -209,7 +209,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 69
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -264,7 +264,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@global.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 69
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -296,7 +296,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@global.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 69
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -330,7 +330,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 69
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -362,7 +362,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 69
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -504,7 +504,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@global.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 36
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -536,7 +536,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@global.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 36
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -570,7 +570,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 36
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -602,7 +602,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 36
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -678,7 +678,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@global.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 351
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -710,7 +710,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@global.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 351
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -744,7 +744,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 351
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -776,7 +776,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 351
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -921,7 +921,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 234
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -953,7 +953,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 234
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -1054,7 +1054,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 57
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -1086,7 +1086,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 57
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -1280,7 +1280,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 384
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -1312,7 +1312,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 384
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -1597,7 +1597,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@global.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 69
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -1629,7 +1629,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@global.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 69
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -1663,7 +1663,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 69
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -1695,7 +1695,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 69
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -1750,7 +1750,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@global.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 69
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -1782,7 +1782,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@global.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 69
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -1816,7 +1816,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 69
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -1848,7 +1848,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 69
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -1990,7 +1990,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@global.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 36
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -2022,7 +2022,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@global.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 36
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -2056,7 +2056,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 36
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -2088,7 +2088,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 36
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -2164,7 +2164,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@global.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 351
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -2196,7 +2196,7 @@ EXECUTING:[24][SELECT @@global.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@global.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 351
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -2230,7 +2230,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 351
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -2262,7 +2262,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 351
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -2407,7 +2407,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 234
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -2439,7 +2439,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 234
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -2540,7 +2540,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 57
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -2572,7 +2572,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 57
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -2766,7 +2766,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 384
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31
@@ -2798,7 +2798,7 @@ EXECUTING:[25][SELECT @@session.sql_mode]
 			[meta][field] org table name: 
 			[meta][field] col name: @@session.sql_mode
 			[meta][field] org col name: 
-			[meta][field] length: 384
+			[meta][field] length: 65535
 			[meta][field] charsetnr: 33
 			[meta][field] flags: 0
 			[meta][field] decimals: 31

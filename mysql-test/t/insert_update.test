@@ -22,9 +22,7 @@ INSERT t1 VALUES (5,6,30), (7,4,40), (8,9,60) ON DUPLICATE KEY UPDATE c=c+100;
 SELECT * FROM t1;
 INSERT t1 SET a=5 ON DUPLICATE KEY UPDATE b=0;
 SELECT * FROM t1;
---disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT t1 VALUES (2,1,11), (7,4,40) ON DUPLICATE KEY UPDATE c=c+VALUES(a);
---enable_ps_protocol
 SELECT *, VALUES(a) FROM t1;
 analyze table t1;
 --replace_regex /[56]/#/
@@ -83,9 +81,7 @@ INSERT t1 SET a=5 ON DUPLICATE KEY UPDATE b=0;
 SELECT * FROM t1;
 --error ER_NON_UNIQ_ERROR
 INSERT t1 SELECT a,b,c FROM t2 WHERE d=2 ON DUPLICATE KEY UPDATE c=c+VALUES(a);
---disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT t1 SELECT a,b,c FROM t2 WHERE d=2 ON DUPLICATE KEY UPDATE c=t1.c+VALUES(t1.a);
---enable_ps_protocol
 SELECT *, VALUES(a) FROM t1;
 DROP TABLE t1;
 DROP TABLE t2;
@@ -103,7 +99,6 @@ CREATE TABLE t1
   PRIMARY KEY (a)
 );
 
---disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO t1 VALUES (45, 1) ON DUPLICATE KEY UPDATE b =
   IF(VALUES(b) > t1.b, VALUES(b), t1.b);
 SELECT * FROM t1;
@@ -113,7 +108,6 @@ SELECT * FROM t1;
 INSERT INTO t1 VALUES (45, 1) ON DUPLICATE KEY UPDATE b = 
   IF(VALUES(b) > t1.b, VALUES(b), t1.b);
 SELECT * FROM t1;
---enable_ps_protocol
 
 DROP TABLE t1;
 
@@ -795,10 +789,8 @@ DROP VIEW v;
 CREATE TABLE insert_2_keys (a INT UNIQUE KEY, b INT UNIQUE KEY);
 INSERT INTO insert_2_keys values (1, 1);
 
---disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO insert_2_keys VALUES (1, 2)
 ON DUPLICATE KEY UPDATE a= VALUES(a) + 10, b= VALUES(b) + 10;
---enable_ps_protocol
 
 SELECT * FROM insert_2_keys;
 
@@ -818,7 +810,6 @@ DROP TABLE insert_2_keys;
 --echo # json_functions.inc. JSON should work with INSERT .. ON DUPLICATE KEY UPDATE.
 --echo # Old syntax.
 CREATE TABLE t(id INT PRIMARY KEY, j JSON);
---disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO t VALUES (1, '[1]')
 ON DUPLICATE KEY UPDATE j = JSON_OBJECT("a", VALUES(j));
 SELECT * FROM t;
@@ -828,7 +819,6 @@ SELECT * FROM t;
 INSERT INTO t VALUES (1, '[1,2,3]')
 ON DUPLICATE KEY UPDATE j = JSON_OBJECT("abc", VALUES(j));
 SELECT * FROM t;
---enable_ps_protocol
 DROP TABLE t;
 
 --echo # New syntax.
@@ -852,10 +842,8 @@ CREATE TABLE t2(a INT PRIMARY KEY, b INT);
 INSERT INTO t1 VALUES (10);
 
 INSERT INTO t2(a, b) VALUES (1, 0);
---disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO t2(a, b) VALUES (1, 0)
 ON DUPLICATE KEY UPDATE b= (SELECT VALUES(a) + 2 FROM t1);
---enable_ps_protocol
 
 SELECT * FROM t2;
 
@@ -882,10 +870,8 @@ DROP TABLE t2;
 CREATE TABLE t1(a INT PRIMARY KEY, b INT);
 
 INSERT INTO t1 VALUES (1, 2);
---disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO t1 VALUES (1, 3)
 ON DUPLICATE KEY UPDATE b= GREATEST(b, VALUES(b));
---enable_ps_protocol
 
 SELECT * FROM t1;
 
@@ -906,13 +892,11 @@ DROP TABLE t1;
 --echo # Old syntax.
 CREATE TABLE t1 (a INT, b BLOB, UNIQUE KEY(a));
 
---disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO t1 SET b='11', a=0
 ON DUPLICATE KEY UPDATE b= VALUES(a), a= values(b);
 
 INSERT INTO t1 SET b='11', a=0
 ON DUPLICATE KEY UPDATE b= VALUES(a), a= values(b);
---enable_ps_protocol
 
 SELECT * FROM t1;
 
@@ -936,10 +920,8 @@ DROP TABLE t1;
 CREATE TABLE t1(id INT NOT NULL, text1 TEXT, text2 TEXT, PRIMARY KEY (id));
 INSERT INTO t1 VALUES (0, "x",  "x"), (1, "y",  "y");
 
---disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO t1 (id, text1, text2) VALUES (0, "x", "y")
 ON DUPLICATE KEY UPDATE text1 = VALUES(text1), text2 = VALUES(text2);
---enable_ps_protocol
 
 SELECT * FROM t1;
 

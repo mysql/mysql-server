@@ -240,7 +240,7 @@ View	Create View	character_set_client	collation_connection
 view_2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `aview`.`view_2` AS select `aview`.`t1`.`a` AS `column1`,`aview`.`t1`.`b` AS `column2`,`aview`.`t1`.`c` AS `column3`,`aview`.`t2`.`a` AS `column4` from (`aview`.`t1` join `aview`.`t2`)	utf8	utf8_general_ci
 SHOW CREATE VIEW aview.second_view;
 View	Create View	character_set_client	collation_connection
-second_view	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `aview`.`second_view` AS select `view_2`.`column1` AS `column1`,`view_2`.`column2` AS `column2`,`view_2`.`column3` AS `column3`,`view_2`.`column4` AS `column4` from `aview`.`view_2`	utf8	utf8_general_ci
+second_view	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `aview`.`second_view` AS select `aview`.`view_2`.`column1` AS `column1`,`aview`.`view_2`.`column2` AS `column2`,`aview`.`view_2`.`column3` AS `column3`,`aview`.`view_2`.`column4` AS `column4` from `aview`.`view_2`	utf8	utf8_general_ci
 SELECT * FROM aview.view_2;
 column1	column2	column3	column4
 50	ABCD	EFGH	100
@@ -249,10 +249,10 @@ column1	column2	column3	column4
 50	ABCD	EFGH	100
 SHOW CREATE VIEW aview.mixed_view;
 View	Create View	character_set_client	collation_connection
-mixed_view	CREATE ALGORITHM=MERGE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `aview`.`mixed_view` AS select `second_view`.`column3` AS `column3`,`second_view`.`column4` AS `column4`,`hello`('FUNC') AS `hello('FUNC')` from `aview`.`second_view` WITH CASCADED CHECK OPTION	utf8	utf8_general_ci
+mixed_view	CREATE ALGORITHM=MERGE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `aview`.`mixed_view` AS select `aview`.`second_view`.`column3` AS `column3`,`aview`.`second_view`.`column4` AS `column4`,`hello`('FUNC') AS `hello('FUNC')` from `aview`.`second_view` WITH CASCADED CHECK OPTION	utf8	utf8_general_ci
 SHOW CREATE VIEW aview.mixed_view2;
 View	Create View	character_set_client	collation_connection
-mixed_view2	CREATE ALGORITHM=MERGE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `aview`.`mixed_view2` AS select `second_view`.`column3` AS `column3`,`second_view`.`column4` AS `column4`,`hello`('FUNC') AS `hello('FUNC')` from `aview`.`second_view` WITH LOCAL CHECK OPTION	utf8	utf8_general_ci
+mixed_view2	CREATE ALGORITHM=MERGE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `aview`.`mixed_view2` AS select `aview`.`second_view`.`column3` AS `column3`,`aview`.`second_view`.`column4` AS `column4`,`hello`('FUNC') AS `hello('FUNC')` from `aview`.`second_view` WITH LOCAL CHECK OPTION	utf8	utf8_general_ci
 SELECT * FROM aview.mixed_view2;
 column3	column4	hello('FUNC')
 EFGH	100	Hello, FUNC!

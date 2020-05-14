@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -345,8 +345,8 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
           that corresponding Item_func_get_user_var items are resolved as
           non-const items.
         */
-        Item_func_set_user_var *user_var = new (thd->mem_root)
-            Item_func_set_user_var(item->item_name, item, false);
+        Item_func_set_user_var *user_var =
+            new (thd->mem_root) Item_func_set_user_var(item->item_name, item);
         if (user_var == nullptr) return true;
         thd->lex->set_var_list.push_back(user_var);
       }

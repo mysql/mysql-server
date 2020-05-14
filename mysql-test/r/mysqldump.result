@@ -4048,7 +4048,7 @@ Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW CREATE VIEW mysqldump_test_db.v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqldump_test_db`.`v1` AS select `v2`.`колонка1` AS `колонка1` from `mysqldump_test_db`.`v2`	koi8r	koi8r_general_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqldump_test_db`.`v1` AS select `mysqldump_test_db`.`v2`.`колонка1` AS `колонка1` from `mysqldump_test_db`.`v2`	koi8r	koi8r_general_ci
 SHOW CREATE VIEW mysqldump_test_db.v2;
 View	Create View	character_set_client	collation_connection
 v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqldump_test_db`.`v2` AS select 1 AS `колонка1`	koi8r	koi8r_general_ci

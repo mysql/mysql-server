@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -176,9 +176,9 @@ Item_func_buffer_strategy::Item_func_buffer_strategy(const POS &pos,
 }
 
 bool Item_func_buffer_strategy::resolve_type(THD *) {
-  collation.set(&my_charset_bin);
-  decimals = 0;
-  max_length = 16;
+  param_type_is_default(0, 1);
+  param_type_is_default(1, 2, MYSQL_TYPE_DOUBLE);
+  set_data_type_string(16, &my_charset_bin);
   maybe_null = true;
   return false;
 }

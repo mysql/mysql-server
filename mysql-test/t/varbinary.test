@@ -184,7 +184,6 @@ EXECUTE s2;
 --echo # views with warnings
 --echo #
 
---disable_ps_protocol
 CREATE VIEW v1 AS
 SELECT
 HEX(b & c), HEX(b & 0x31393838), b & NULL, HEX(b & 0b00000000000000000000000000001011),
@@ -195,21 +194,16 @@ HEX(b ^ c), HEX(b ^ 0x31393838), b ^ NULL, HEX(b ^ 0b000000000000000000000000000
 HEX(0x31393838 ^ b), NULL ^ b, HEX(0b00000000000000000000000000001011 ^ b),
 BIT_COUNT(b), HEX(~b), HEX(b << 1), HEX(b >> 1)
 FROM t1;
---enable_ps_protocol
 SELECT * from v1;
 SELECT * from v1;
 
---disable_ps_protocol
 CREATE VIEW v2 AS
 SELECT HEX(BIT_AND(b)), HEX(BIT_OR(b)), HEX(BIT_XOR(b)) FROM t1 GROUP BY a;
---enable_ps_protocol
 SELECT * from v2;
 SELECT * from v2;
 
---disable_ps_protocol
 CREATE VIEW v3 AS
 SELECT HEX(BIT_AND(b)), HEX(BIT_OR(b)), HEX(BIT_XOR(b)) FROM t1;
---enable_ps_protocol
 SELECT * from v3;
 SELECT * from v3;
 

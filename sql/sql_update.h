@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -139,10 +139,7 @@ class Query_result_update final : public Query_result_interceptor {
   bool need_explain_interceptor() const override { return true; }
   bool prepare(THD *thd, List<Item> &list, SELECT_LEX_UNIT *u) override;
   bool optimize() override;
-  bool start_execution(THD *) override {
-    update_completed = false;
-    return false;
-  }
+  bool start_execution(THD *thd) override;
   bool send_data(THD *thd, List<Item> &items) override;
   void send_error(THD *thd, uint errcode, const char *err) override;
   bool do_updates(THD *thd);
@@ -166,6 +163,7 @@ class Sql_cmd_update final : public Sql_cmd_dml {
 
  protected:
   bool precheck(THD *thd) override;
+  bool check_privileges(THD *thd) override;
 
   bool prepare_inner(THD *thd) override;
 
@@ -176,9 +174,18 @@ class Sql_cmd_update final : public Sql_cmd_dml {
 
   bool multitable;
 
+  /// Bitmap of all tables which are to be updated
+  table_map tables_for_update{0};
+
   bool accept(THD *thd, Select_lex_visitor *visitor) override;
 
+  /// Convert list of fields to update to base table fields
+  bool make_base_table_fields(THD *thd, List<Item> &items);
+
  public:
+  /// The original list of fields to update, used for privilege checking
+  List<Item> original_fields;
+  /// The values used to update fields
   List<Item> *update_value_list;
 };
 

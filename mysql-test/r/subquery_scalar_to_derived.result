@@ -874,7 +874,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DERIVED	events_statements_summary_by_digest	NULL	ALL	NULL	NULL	NULL	NULL	200	100.00	NULL
 2	DERIVED	events_statements_summary_by_digest	NULL	ALL	NULL	NULL	NULL	NULL	200	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `s2`.`avg_us` AS `avg_us`,ifnull((sum(`s1`.`cnt`) / nullif(`derived_1_2`.`COUNT(*)`,0)),0) AS `percentile` from `sys`.`x$ps_digest_avg_latency_distribution` `s1` join `sys`.`x$ps_digest_avg_latency_distribution` `s2` left join (/* select#2 */ select count(0) AS `COUNT(*)` from `performance_schema`.`events_statements_summary_by_digest`) `derived_1_2` on(true) left join (/* select#3 */ select count(0) AS `COUNT(*)` from `performance_schema`.`events_statements_summary_by_digest`) `derived_1_3` on(true) where (`s1`.`avg_us` <= `s2`.`avg_us`) group by `s2`.`avg_us` having (ifnull((sum(`s1`.`cnt`) / nullif(`derived_1_3`.`COUNT(*)`,0)),0) > 0.95) order by `percentile` limit 1
+Note	1003	/* select#1 */ select `sys`.`s2`.`avg_us` AS `avg_us`,ifnull((sum(`sys`.`s1`.`cnt`) / nullif(`derived_1_2`.`COUNT(*)`,0)),0) AS `percentile` from `sys`.`x$ps_digest_avg_latency_distribution` `s1` join `sys`.`x$ps_digest_avg_latency_distribution` `s2` left join (/* select#2 */ select count(0) AS `COUNT(*)` from `performance_schema`.`events_statements_summary_by_digest`) `derived_1_2` on(true) left join (/* select#3 */ select count(0) AS `COUNT(*)` from `performance_schema`.`events_statements_summary_by_digest`) `derived_1_3` on(true) where (`sys`.`s1`.`avg_us` <= `sys`.`s2`.`avg_us`) group by `sys`.`s2`.`avg_us` having (ifnull((sum(`sys`.`s1`.`cnt`) / nullif(`derived_1_3`.`COUNT(*)`,0)),0) > 0.95) order by `percentile` limit 1
 # Manually translated, equivalent query (except we need to
 # include the derived_1_1.`COUNT(*)` in the select list for it
 # to be resolvable in the HAVING clause), and we need to
@@ -907,7 +907,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DERIVED	events_statements_summary_by_digest	NULL	ALL	NULL	NULL	NULL	NULL	200	100.00	NULL
 2	DERIVED	events_statements_summary_by_digest	NULL	ALL	NULL	NULL	NULL	NULL	200	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `s2`.`avg_us` AS `avg_us`,ifnull((sum(`s1`.`cnt`) / nullif(`derived_1_0`.`COUNT(*)`,0)),0) AS `percentile`,`derived_1_1`.`COUNT(*)` AS `COUNT(*)` from `sys`.`x$ps_digest_avg_latency_distribution` `s1` join `sys`.`x$ps_digest_avg_latency_distribution` `s2` left join (/* select#2 */ select count(0) AS `COUNT(*)` from `performance_schema`.`events_statements_summary_by_digest`) `derived_1_0` on(true) left join (/* select#3 */ select count(0) AS `COUNT(*)` from `performance_schema`.`events_statements_summary_by_digest`) `derived_1_1` on(true) where (`s1`.`avg_us` <= `s2`.`avg_us`) group by `s2`.`avg_us` having (ifnull((sum(`s1`.`cnt`) / nullif(`derived_1_1`.`COUNT(*)`,0)),0) > 0.95) order by `percentile` limit 1
+Note	1003	/* select#1 */ select `sys`.`s2`.`avg_us` AS `avg_us`,ifnull((sum(`sys`.`s1`.`cnt`) / nullif(`derived_1_0`.`COUNT(*)`,0)),0) AS `percentile`,`derived_1_1`.`COUNT(*)` AS `COUNT(*)` from `sys`.`x$ps_digest_avg_latency_distribution` `s1` join `sys`.`x$ps_digest_avg_latency_distribution` `s2` left join (/* select#2 */ select count(0) AS `COUNT(*)` from `performance_schema`.`events_statements_summary_by_digest`) `derived_1_0` on(true) left join (/* select#3 */ select count(0) AS `COUNT(*)` from `performance_schema`.`events_statements_summary_by_digest`) `derived_1_1` on(true) where (`sys`.`s1`.`avg_us` <= `sys`.`s2`.`avg_us`) group by `sys`.`s2`.`avg_us` having (ifnull((sum(`sys`.`s1`.`cnt`) / nullif(`derived_1_1`.`COUNT(*)`,0)),0) > 0.95) order by `percentile` limit 1
 SET sql_mode=default;
 # outer query has window: verify it is retained on outer level
 SELECT AVG(s2.avg_us) OVER () + 3 AS avgsum,
@@ -2688,9 +2688,8 @@ SET optimizer_switch='subquery_to_derived=off';
 EXECUTE s;
 a
 2006-06-06 15:55:55
-Try the other way too, should work. Transform will still happen
-even if not performed on PREPARE, but this will change after
-WL#6570.
+Try the other way too. Transform will not happen on EXECUTE
+as it can be performed only on PREPARE.
 PREPARE s FROM
 'SELECT a FROM t1 WHERE a=(SELECT MAX(a) FROM t1) AND (a="20060606155555")';
 SET optimizer_switch='subquery_to_derived=on';
@@ -4008,7 +4007,9 @@ a
 4
 EXPLAIN SELECT a FROM v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+3	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` left join (/* select#3 */ select count(0) AS `count(0)` from `test`.`t2`) `derived_2_3` on(true) where true
 set sql_mode='';

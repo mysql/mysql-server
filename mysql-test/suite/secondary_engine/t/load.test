@@ -1,3 +1,4 @@
+--source include/no_ps_protocol.inc 
 --disable_query_log
 eval INSTALL PLUGIN mock SONAME '$MOCK_PLUGIN';
 --enable_query_log

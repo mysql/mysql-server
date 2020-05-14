@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -725,18 +725,16 @@ bool Query_dumpvar::send_data(THD *thd, List<Item> &items) {
       if (thd->sp_runtime_ctx->set_variable(thd, mv->get_offset(), &item))
         return true;
     } else {
-      /*
-        Create Item_func_set_user_vars with delayed non-constness. We
-        do this so that Item_get_user_var::const_item() will return
-        the same result during
-        Item_func_set_user_var::save_item_result() as they did during
-        optimization and execution.
-       */
-      Item_func_set_user_var *suv =
-          new Item_func_set_user_var(mv->name, item, true);
+      Item_func_set_user_var *suv = new Item_func_set_user_var(mv->name, item);
       if (suv->fix_fields(thd, nullptr)) return true;
       suv->save_item_result(item);
       if (suv->update()) return true;
+      /*
+        Note that this variable isn't added to LEX::set_var_list, as it's not
+        an _in-query_ assignment but rather a post-query one. It thus doesn't
+        affect constness of this variable when read by the query, for example
+        in   SELECT @a / * <- this is const * / INTO @a FROM ... ;
+      */
     }
   }
   return thd->is_error();

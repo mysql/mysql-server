@@ -2109,7 +2109,7 @@ EXPLAIN INSERT INTO v1 VALUES (10);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 Warnings:
-Note	1003	insert into `test`.`t1` (`test`.`t1`.`a`) values (10)
+Note	1003	insert into `test`.`t1` values (10)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -2138,7 +2138,7 @@ EXPLAIN INSERT INTO v1 SELECT * FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	insert into `test`.`t2` (`test`.`t2`.`b`) /* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
+Note	1003	insert into `test`.`t2` /* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value

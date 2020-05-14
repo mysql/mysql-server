@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1714,6 +1714,8 @@ class PT_select_stmt : public Parse_tree_root {
         m_qe{qe},
         m_into{into},
         m_has_trailing_locking_clauses{has_trailing_locking_clauses} {}
+
+  PT_select_stmt(PT_query_expression *qe) : PT_select_stmt(qe, nullptr) {}
 
   Sql_cmd *make_cmd(THD *thd) override;
 

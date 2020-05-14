@@ -1,7 +1,7 @@
 #ifndef SQL_UDF_INCLUDED
 #define SQL_UDF_INCLUDED
 
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -82,12 +82,14 @@ struct Udf_return_value_extension {
 class udf_handler {
  protected:
   udf_func *u_d;
-  String *buffers;
+  String *buffers{nullptr};
   UDF_ARGS f_args;
   UDF_INIT initid;
-  char *num_buffer;
-  uchar error, is_null;
-  bool initialized;
+  char *num_buffer{nullptr};
+  uchar error{0};
+  uchar is_null{0};
+  /// True when handler has been initialized and use count incremented
+  bool m_initialized{false};
   Item **args;
   Udf_args_extension m_args_extension; /**< A struct that holds the extension
                                           arguments for each UDF argument */
@@ -95,15 +97,19 @@ class udf_handler {
       m_return_value_extension; /**< A struct that holds the extension arguments
                                    for return value */
  public:
-  table_map used_tables_cache;
-  bool not_original;
+  table_map used_tables_cache{0};
+  bool m_original{true};
 
   udf_handler(udf_func *udf_arg);
-  ~udf_handler();
   udf_handler(const udf_handler &) = default;
   udf_handler(udf_handler &&) = default;
   udf_handler &operator=(const udf_handler &) = default;
   udf_handler &operator=(udf_handler &&) = default;
+  // Clean up string buffers
+  void clean_buffers();
+  void free_handler();
+
+  bool is_initialized() const { return m_initialized; }
 
   const char *name() const { return u_d ? u_d->name.str : "?"; }
   Item_result result_type() const {
@@ -112,10 +118,11 @@ class udf_handler {
   bool fix_fields(THD *thd, Item_result_field *item, uint arg_count,
                   Item **args);
   void cleanup();
+  bool call_init_func();
   double val_real(bool *null_value);
   longlong val_int(bool *null_value);
-  String *val_str(String *str, String *save_str);
   my_decimal *val_decimal(bool *null_value, my_decimal *dec_buf);
+  String *val_str(String *str, String *save_str);
   void clear();
   void add(bool *null_value);
 

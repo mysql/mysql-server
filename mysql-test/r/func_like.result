@@ -270,8 +270,9 @@ x	y
 DROP TABLE t1, t2;
 # Bug#20035071: Out of range error in subselect lead to assertion failed
 CREATE TABLE t1(a INTEGER) engine=innodb;
+INSERT INTO t1 VALUES(1);
 SELECT 1 FROM t1 HAVING (SELECT 1 FROM t1) LIKE EXP(NOW());
-1
+ERROR 22003: DOUBLE value is out of range in 'exp(now())'
 DROP TABLE t1;
 #
 # Bug #25140629: WRONG RESULT WHEN USING LIKE FUNCTION WITH UCA
@@ -417,3 +418,15 @@ SELECT * FROM t WHERE col1 LIKE '2019-06-1%';
 col1
 2019-06-13
 DROP TABLE t;
+#
+# Bug#31249687 WL9384: RESULTSET MISMATCH WITH LIKE KEYWORD USING PREPARE STATEMENT
+#
+create table t1(a int);
+insert into t1 values(0);
+set @pattern="%1%";
+select 1 from t1 where a like @pattern;
+1
+prepare s from 'select 1 from t1 where a like ?';
+execute s using @pattern;
+1
+drop table t1;

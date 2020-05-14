@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -440,7 +440,7 @@ bool Sql_cmd_handler_read::execute(THD *thd) {
   */
 
   /* Get limit counters from SELECT_LEX. */
-  unit->prepare_limit(thd, select_lex);
+  select_lex->resolve_limits(thd);
   unit->set_limit(thd, select_lex);
   select_limit_cnt = unit->select_limit_cnt;
   offset_limit_cnt = unit->offset_limit_cnt;
@@ -571,6 +571,7 @@ retry:
   // Always read all columns
   hash_tables->table->read_set = &hash_tables->table->s->all_set;
   tables->table = hash_tables->table;
+  tables->table->pos_in_table_list = tables;
 
   if (cond) {
     /*
@@ -626,7 +627,7 @@ retry:
     the MEM_ROOT of the current HANDLER ... READ statement, which will be
     cleared when the statement has completed.
   */
-  if (table->refix_value_generator_items(thd)) goto err;
+  table->refix_value_generator_items(thd);
 
   for (num_rows = 0; num_rows < select_limit_cnt;) {
     switch (mode) {
@@ -776,6 +777,7 @@ ok:
     so that the engine doesn't have to count locks.
   */
   trans_commit_stmt(thd);
+  hash_tables->table->pos_in_table_list = hash_tables;
   mysql_unlock_tables(thd, lock);
   thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
   table->cleanup_value_generator_items();
@@ -790,6 +792,8 @@ err:
 err1:
   thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
 err0:
+  if (hash_tables != nullptr && hash_tables->table != nullptr)
+    hash_tables->table->pos_in_table_list = hash_tables;
   DBUG_PRINT("exit", ("ERROR"));
   return true;
 }

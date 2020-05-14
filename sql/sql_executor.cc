@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -241,7 +241,7 @@ bool JOIN::create_intermediate_table(QEP_TAB *const tab,
   if (!tab->tmp_table_param->m_window) {
     if (table->group)
       explain_flags.set(tmp_table_group.src, ESP_USING_TMPTABLE);
-    else if (table->is_distinct || select_distinct)
+    else if (table->s->is_distinct || select_distinct)
       explain_flags.set(ESC_DISTINCT, ESP_USING_TMPTABLE);
     else {
       /*
@@ -282,7 +282,7 @@ bool JOIN::create_intermediate_table(QEP_TAB *const tab,
     if (prepare_sum_aggregators(sum_funcs, need_distinct)) goto err;
     if (setup_sum_funcs(thd, sum_funcs)) goto err;
 
-    if (group_list.empty() && !table->is_distinct && !order.empty() &&
+    if (group_list.empty() && !table->s->is_distinct && !order.empty() &&
         simple_order && !m_windows_sort) {
       DBUG_PRINT("info", ("Sorting for order"));
 
@@ -298,7 +298,8 @@ bool JOIN::create_intermediate_table(QEP_TAB *const tab,
 
 err:
   if (table != nullptr) {
-    free_tmp_table(thd, table);
+    close_tmp_table(thd, table);
+    free_tmp_table(table);
     tab->set_table(nullptr);
   }
   return true;
@@ -1507,13 +1508,13 @@ unique_ptr_destroy_only<RowIterator> GetIteratorForDerivedTable(
   // disturb the materialization going on inside our own query block.
   if (unit->is_simple()) {
     subjoin = unit->first_select()->join;
-    tmp_table_param = &unit->first_select()->join->tmp_table_param;
-    select_number = subjoin->select_lex->select_number;
+    select_number = unit->first_select()->select_number;
+    tmp_table_param = &subjoin->tmp_table_param;
   } else if (unit->fake_select_lex != nullptr) {
     // NOTE: subjoin here is never used, as ConvertItemsToCopy only uses it
     // for ROLLUP, and fake_select_lex can't have ROLLUP.
     subjoin = unit->fake_select_lex->join;
-    tmp_table_param = &unit->fake_select_lex->join->tmp_table_param;
+    tmp_table_param = &subjoin->tmp_table_param;
     select_number = unit->fake_select_lex->select_number;
   } else {
     tmp_table_param = new (thd->mem_root) Temp_table_param;
@@ -6402,7 +6403,6 @@ static bool replace_embedded_rollup_references_with_tmp_fields(
         Field *field = other_item.get_tmp_table_field();
         Item *item_field = new (thd->mem_root) Item_field(field);
         if (item_field == nullptr) return {ReplaceResult::ERROR, nullptr};
-        field->orig_table = nullptr;
         item_field->item_name = item->item_name;
         return {ReplaceResult::REPLACE, item_field};
       }
@@ -6444,12 +6444,15 @@ bool change_to_use_tmp_fields(List<Item> *all_fields,
   size_t border = all_fields->size() - num_select_elements;
   Item *item;
   for (size_t i = 0; (item = li++); i++) {
-    Item *item_field;
+    Item_field *orig_field = item->real_item()->type() == Item::FIELD_ITEM
+                                 ? down_cast<Item_field *>(item->real_item())
+                                 : nullptr;
+    Item *new_item = nullptr;
     Field *field;
     if (item->has_aggregation() && item->type() != Item::SUM_FUNC_ITEM)
-      item_field = item;
+      new_item = item;
     else if (item->type() == Item::FIELD_ITEM)
-      item_field = item->get_tmp_table_item(thd);
+      new_item = item->get_tmp_table_item(thd);
     else if (item->type() == Item::FUNC_ITEM &&
              ((Item_func *)item)->functype() == Item_func::SUSERVAR_FUNC) {
       field = item->get_tmp_table_field();
@@ -6461,53 +6464,55 @@ bool change_to_use_tmp_fields(List<Item> *all_fields,
         */
         Item_func_set_user_var *suv =
             new Item_func_set_user_var(thd, (Item_func_set_user_var *)item);
-        Item_field *new_field = new Item_field(field);
-        if (!suv || !new_field) return true;  // Fatal error
+        if (suv == nullptr) return true;
+        Item_field *suv_item = new Item_field(field);
+        if (suv_item == nullptr) return true;
         List<Item> list;
-        list.push_back(new_field);
+        list.push_back(suv_item);
         suv->set_arguments(list, true);
-        item_field = suv;
+        new_item = suv;
       } else
-        item_field = item;
+        new_item = item;
     } else if ((field = item->get_tmp_table_field())) {
       if (item->type() == Item::SUM_FUNC_ITEM && field->table->group) {
-        item_field = down_cast<Item_sum *>(item)->result_item(field);
-        DBUG_ASSERT(item_field != nullptr);
+        new_item = down_cast<Item_sum *>(item)->result_item(field);
+        DBUG_ASSERT(new_item != nullptr);
       } else {
-        item_field = new (thd->mem_root) Item_field(field);
-        if (item_field == nullptr) return true;
+        new_item = new (thd->mem_root) Item_field(field);
+        if (new_item == nullptr) return true;
       }
-      if (item->real_item()->type() != Item::FIELD_ITEM)
-        field->orig_table = nullptr;
-      item_field->item_name = item->item_name;
+      new_item->item_name = item->item_name;
       if (item->type() == Item::REF_ITEM) {
-        Item_field *ifield = (Item_field *)item_field;
-        Item_ref *iref = (Item_ref *)item;
+        Item_field *ifield = down_cast<Item_field *>(new_item);
+        Item_ref *iref = down_cast<Item_ref *>(item);
         ifield->table_name = iref->table_name;
+        ifield->set_orig_db_name(iref->orig_db_name());
         ifield->db_name = iref->db_name;
       }
+      if (orig_field != nullptr && item != new_item) {
+        down_cast<Item_field *>(new_item)->set_orig_table_name(
+            orig_field->orig_table_name());
+      }
 #ifndef DBUG_OFF
-      if (!item_field->item_name.is_set()) {
+      if (!new_item->item_name.is_set()) {
         char buff[256];
         String str(buff, sizeof(buff), &my_charset_bin);
         str.length(0);
         item->print(thd, &str, QT_ORDINARY);
-        item_field->item_name.copy(str.ptr(), str.length());
+        new_item->item_name.copy(str.ptr(), str.length());
       }
 #endif
     } else {
-      item_field = item;
+      new_item = item;
       replace_embedded_rollup_references_with_tmp_fields(thd, item, all_fields);
     }
-
-    res_all_fields->push_back(item_field);
+    res_all_fields->push_back(new_item);
     /*
       Cf. comment explaining the reordering going on below in
       similar section of change_to_use_tmp_fields_except_sums
     */
     ref_item_array[((i < border) ? all_fields->size() - i - 1 : i - border)] =
-        item_field;
-    item_field->set_orig_field(item->get_orig_field());
+        new_item;
   }
 
   List_iterator_fast<Item> itr(*res_all_fields);
@@ -6546,7 +6551,7 @@ static bool replace_contents_of_rollup_wrappers_with_tmp_fields(
             rollup_item->min_rollup_level(),
             order->rollup_item->inner_item()->get_tmp_table_item(thd));
         if (new_item == nullptr ||
-            select->rollup_group_items.push_back(new_item)) {
+            select->join->rollup_group_items.push_back(new_item)) {
           return {ReplaceResult::ERROR, nullptr};
         }
         new_item->quick_fix_field();
@@ -6649,7 +6654,7 @@ bool change_to_use_tmp_fields_except_sums(List<Item> *all_fields,
         new_item = new Item_rollup_group_item(rollup_item->min_rollup_level(),
                                               new_item);
         if (new_item == nullptr ||
-            select->rollup_group_items.push_back(
+            select->join->rollup_group_items.push_back(
                 down_cast<Item_rollup_group_item *>(new_item))) {
           return true;
         }

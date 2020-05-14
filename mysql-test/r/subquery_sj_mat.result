@@ -11245,8 +11245,8 @@ WHERE (alias1.col_varchar_key, alias1.col_varchar_nokey) IN
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived7>	NULL	ALL	<auto_distinct_key>	NULL	NULL	NULL	2	100.00	Using where
 1	PRIMARY	alias2	NULL	ALL	NULL	NULL	NULL	NULL	11	10.00	Using where; Using join buffer (hash join)
-1	PRIMARY	<subquery3>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	8	test.alias2.col_varchar_nokey,view_inline_2.p	1	100.00	NULL
-1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	8	view_inline_2.p,view_inline_2.Name_exp_p	2	100.00	NULL
+1	PRIMARY	<subquery3>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	8	test.alias2.col_varchar_nokey,test.view_inline_2.p	1	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	8	test.view_inline_2.p,test.view_inline_2.Name_exp_p	2	100.00	NULL
 3	MATERIALIZED	<derived6>	NULL	ALL	NULL	NULL	NULL	NULL	30	100.00	NULL
 7	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 8	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
@@ -11256,7 +11256,7 @@ NULL	UNION RESULT	<union7,8>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using tempor
 2	DERIVED	<derived5>	NULL	ALL	NULL	NULL	NULL	NULL	15	100.00	NULL
 5	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select sum(`alias1`.`col_varchar_nokey`) AS `field2` from `test`.`view_inline_2` join `test`.`t2` `alias2` join (/* select#2 */ select `view_inline_0`.`pk` AS `pk`,`view_inline_0`.`col_varchar_key` AS `col_varchar_key`,`view_inline_0`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`view_inline_0`) `alias1` semi join (`test`.`view_inline_1`) where ((`<subquery3>`.`sq2_field1` = `test`.`alias2`.`col_varchar_nokey`) and (`alias1`.`col_varchar_nokey` = `view_inline_2`.`Name_exp_p`) and (`test`.`alias2`.`col_varchar_key` = `view_inline_2`.`p`) and (`<subquery3>`.`sq2_field2` = `view_inline_2`.`p`) and (`alias1`.`col_varchar_key` = `view_inline_2`.`p`))
+Note	1003	/* select#1 */ select sum(`alias1`.`col_varchar_nokey`) AS `field2` from `test`.`view_inline_2` join `test`.`t2` `alias2` join (/* select#2 */ select `test`.`view_inline_0`.`pk` AS `pk`,`test`.`view_inline_0`.`col_varchar_key` AS `col_varchar_key`,`test`.`view_inline_0`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`view_inline_0`) `alias1` semi join (`test`.`view_inline_1`) where ((`<subquery3>`.`sq2_field1` = `test`.`alias2`.`col_varchar_nokey`) and (`alias1`.`col_varchar_nokey` = `test`.`view_inline_2`.`Name_exp_p`) and (`test`.`alias2`.`col_varchar_key` = `test`.`view_inline_2`.`p`) and (`<subquery3>`.`sq2_field2` = `test`.`view_inline_2`.`p`) and (`alias1`.`col_varchar_key` = `test`.`view_inline_2`.`p`))
 SELECT SUM(alias1.col_varchar_nokey) AS field2
 FROM t2 AS alias2
 LEFT JOIN (SELECT * FROM view_inline_0) AS alias1

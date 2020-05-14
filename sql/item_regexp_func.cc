@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -90,14 +90,13 @@ static bool ParseRegexpOptions(const std::string &options_string,
 }
 
 bool Item_func_regexp::resolve_type(THD *) {
+  param_type_is_default(0, 2);
   return agg_arg_charsets_for_comparison(collation, args, 2);
 }
 
 bool Item_func_regexp::fix_fields(THD *thd, Item **arguments) {
   if (Item_func::fix_fields(thd, arguments)) return true;
 
-  // Make sure that cleanup() deleted the facade in case of re-resolution.
-  DBUG_ASSERT(m_facade.get() == nullptr);
   m_facade = make_unique_destroy_only<regexp::Regexp_facade>(thd->mem_root);
 
   fixed = true;
@@ -107,7 +106,7 @@ bool Item_func_regexp::fix_fields(THD *thd, Item **arguments) {
 }
 
 void Item_func_regexp::cleanup() {
-  m_facade.reset();
+  if (m_facade != nullptr) m_facade->cleanup();
   Item_func::cleanup();
 }
 
@@ -138,6 +137,14 @@ bool Item_func_regexp_instr::fix_fields(THD *thd, Item **arguments) {
     return true;
   }
 
+  return false;
+}
+
+bool Item_func_regexp_instr::resolve_type(THD *thd) {
+  if (Item_func_regexp::resolve_type(thd)) return true;
+  param_type_is_default(2, 4, MYSQL_TYPE_LONGLONG);
+  if (param_type_is_rejected(4, 6))  // as we evaluate it in fix_fields
+    return true;
   return false;
 }
 
@@ -182,8 +189,19 @@ longlong Item_func_regexp_like::val_int() {
   return result.value();
 }
 
+bool Item_func_regexp_like::resolve_type(THD *thd) {
+  if (Item_func_regexp::resolve_type(thd)) return true;
+  if (param_type_is_rejected(2, 3))  // as we evaluate it in fix_fields
+    return true;
+  return false;
+}
+
 bool Item_func_regexp_replace::resolve_type(THD *thd) {
   if (Item_func_regexp::resolve_type(thd)) return true;
+  param_type_is_default(2, 3);
+  param_type_is_default(3, 5, MYSQL_TYPE_LONGLONG);
+  if (param_type_is_rejected(5, 6))  // as we evaluate it in fix_fields
+    return true;
   set_data_type_string(ulonglong{MAX_BLOB_WIDTH});
   return false;
 }
@@ -214,6 +232,9 @@ String *Item_func_regexp_replace::val_str(String *buf) {
 
 bool Item_func_regexp_substr::resolve_type(THD *thd) {
   if (Item_func_regexp::resolve_type(thd)) return true;
+  param_type_is_default(2, 4, MYSQL_TYPE_LONGLONG);
+  if (param_type_is_rejected(4, 5))  // as we evaluate it in fix_fields
+    return true;
   set_data_type_string(subject()->max_char_length());
   maybe_null = true;
   return false;

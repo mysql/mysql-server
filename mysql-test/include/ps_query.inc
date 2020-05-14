@@ -292,13 +292,11 @@ execute stmt1 using @arg00 ;
 #  after order by? column number or constant
 set @arg00=2 ;
 select a,b from t1 order by 2 ;
-prepare stmt1 from ' select a,b from t1
-order by ? ';
+prepare stmt1 from ' select a,b from t1 order by ? ';
 execute stmt1 using @arg00;
 set @arg00=1 ;
 execute stmt1 using @arg00;
 set @arg00=0 ;
---error 1054
 execute stmt1 using @arg00;
 
 ##### parameter used in limit clause

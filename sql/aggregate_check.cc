@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1199,8 +1199,10 @@ bool Group_check::do_ident_check(Item_ident *i, table_map tm,
   switch (type) {
     case CHECK_GROUP:
       if (i->type() == Item::FIELD_ITEM &&
-          down_cast<Item_field *>(i)->table_ref->m_was_scalar_subquery)
+          down_cast<Item_field *>(i)->table_ref->m_was_scalar_subquery) {
+        // The table has exactly one row, thus this column is FD
         return false;
+      }
       if (!is_fd_on_source(i)) {
         // It is not FD on source columns:
         if (!is_child()) failed_ident = i;

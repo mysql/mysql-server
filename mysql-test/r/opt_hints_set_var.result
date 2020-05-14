@@ -101,7 +101,8 @@ Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1`
 SELECT /*+ SET_VAR(range_alloc_block_size=7000) */ 1;
 1
 1
-Warnings:
+SHOW WARNINGS LIMIT 1;
+Level	Code	Message
 Warning	1292	Truncated incorrect range_alloc_block_size value: '7000'
 DROP TABLE t1;
 PREPARE stmt FROM "SELECT /*+ SET_VAR(big_tables=on) */ VARIABLE_VALUE FROM performance_schema.session_variables where VARIABLE_NAME = 'big_tables'";

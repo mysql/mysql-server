@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -183,7 +183,7 @@ class Item_nodeset_func : public Item_str_func {
   }
   enum Item_result result_type() const override { return STRING_RESULT; }
   bool resolve_type(THD *) override {
-    max_length = MAX_BLOB_WIDTH;
+    set_data_type_string(uint32{MAX_BLOB_WIDTH});
     // To avoid premature evaluation, mark all nodeset functions as non-const.
     used_tables_cache = RAND_TABLE_BIT;
     return false;
@@ -405,10 +405,6 @@ class Item_nodeset_context_cache : public Item_nodeset_func {
     if (!m_is_empty)
       nodeset->push_back({m_num, m_pos, static_cast<uint>(m_size)});
   }
-  bool resolve_type(THD *) override {
-    max_length = MAX_BLOB_WIDTH;
-    return false;
-  }
   void set_element(uint32 num, uint32 pos, size_t size) {
     m_num = num;
     m_pos = pos;
@@ -422,7 +418,7 @@ class Item_func_xpath_position : public Item_int_func {
   explicit Item_func_xpath_position(Item *a) : Item_int_func(a) {}
   const char *func_name() const override { return "xpath_position"; }
   bool resolve_type(THD *) override {
-    max_length = 10;
+    set_data_type_string(10U);
     return false;
   }
   longlong val_int() override {
@@ -439,7 +435,7 @@ class Item_func_xpath_count : public Item_int_func {
   explicit Item_func_xpath_count(Item *a) : Item_int_func(a) {}
   const char *func_name() const override { return "xpath_count"; }
   bool resolve_type(THD *) override {
-    max_length = 10;
+    set_data_type_string(10U);
     return false;
   }
   longlong val_int() override {
@@ -2284,7 +2280,7 @@ static int my_xpath_parse(MY_XPATH *xpath, const char *str,
 }
 
 bool Item_xml_str_func::resolve_type(THD *) {
-  nodeset_func = nullptr;
+  param_type_is_default(0, -1);
 
   if (agg_arg_charsets_for_comparison(collation, args, arg_count)) return true;
 
@@ -2305,6 +2301,8 @@ bool Item_xml_str_func::resolve_type(THD *) {
   }
 
   if (args[1]->const_item() && parse_xpath(args[1])) return true;
+
+  if (nodeset_func != nullptr) nodeset_func_permanent = true;
 
   return false;
 }
@@ -2331,6 +2329,7 @@ bool Item_xml_str_func::parse_xpath(Item *xpath_expr) {
     return true;
   }
 
+  DBUG_ASSERT(nodeset_func == nullptr);
   nodeset_func = xpath.item;
   if (nodeset_func && nodeset_func->fix_fields(current_thd, &nodeset_func))
     return true;

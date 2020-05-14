@@ -56,5 +56,5 @@ INSERT INTO t1 (b) VALUES (DEFAULT);
 include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Table_map # Write_rows # Xid]
 include/save_binlog_position.inc
 INSERT INTO t1 (b) VALUES (1);
-include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # RAND # Query # Xid]
+include/assert_binlog_events.inc [!Gtid_or_anon # !Begin # Query # Xid]
 DROP TABLE t1, t2, t3;

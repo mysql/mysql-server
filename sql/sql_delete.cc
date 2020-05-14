@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -113,6 +113,16 @@ bool Sql_cmd_delete::precheck(THD *thd) {
   return false;
 }
 
+bool Sql_cmd_delete::check_privileges(THD *thd) {
+  DBUG_TRACE;
+
+  if (check_all_table_privileges(thd)) return true;
+
+  if (lex->select_lex->check_column_privileges(thd)) return true;
+
+  return false;
+}
+
 /**
   Delete a set of rows from a single table.
 
@@ -169,26 +179,27 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
       table->triggers->has_triggers(TRG_EVENT_DELETE, TRG_ACTION_AFTER);
   unit->set_limit(thd, select_lex);
 
-  ha_rows limit = unit->select_limit_cnt;
-  const bool using_limit = limit != HA_POS_ERROR;
-
-  // Used to track whether there are no rows that need to be read
-  bool no_rows = limit == 0;
-
   QEP_TAB_standalone qep_tab_st;
   QEP_TAB &qep_tab = qep_tab_st.as_QEP_TAB();
 
+  ha_rows limit = unit->select_limit_cnt;
+  const bool using_limit = limit != HA_POS_ERROR;
+
+  if (limit == 0 && thd->lex->is_explain()) {
+    Modification_plan plan(thd, MT_DELETE, table, "LIMIT is zero", true, 0);
+    bool err = explain_single_table_modification(thd, thd, &plan, select_lex);
+    return err;
+  }
+
   assert(!(table->all_partitions_pruned_away || m_empty_query));
+
+  // Used to track whether there are no rows that need to be read
+  bool no_rows =
+      limit == 0 || is_empty_query() || table->all_partitions_pruned_away;
 
   Item *conds = nullptr;
   if (!no_rows && select_lex->get_optimizable_conditions(thd, &conds, nullptr))
     return true; /* purecov: inspected */
-
-  /*
-    Reset the field list to remove any hidden fields added by substitute_gc() in
-    the previous execution.
-  */
-  select_lex->all_fields = select_lex->fields_list;
 
   /*
     See if we can substitute expressions with equivalent generated
@@ -211,6 +222,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     removed in the future, use of HA_EXTRA_IGNORE_DUP_KEY and
     HA_EXTRA_NO_IGNORE_DUP_KEY flag should be removed from
     delete_from_single_table(), Query_result_delete::optimize() and
+    Query_result_delete::cleanup().
   */
   if (lex->is_ignore()) table->file->ha_extra(HA_EXTRA_IGNORE_DUP_KEY);
 
@@ -298,32 +310,31 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     }
   }
 
+  /* Prune a second time to be able to prune on subqueries in WHERE clause. */
+  if (table->part_info && !no_rows) {
+    if (prune_partitions(thd, table, conds)) return true;
+    if (table->all_partitions_pruned_away) {
+      no_rows = true;
+      if (lex->is_explain()) {
+        Modification_plan plan(thd, MT_DELETE, table,
+                               "No matching rows after partition pruning", true,
+                               0);
+        bool err =
+            explain_single_table_modification(thd, thd, &plan, select_lex);
+        return err;
+      }
+      my_ok(thd, 0);
+      return false;
+    }
+  }
+
   // Initialize the cost model that will be used for this table
   table->init_cost_model(thd->cost_model());
 
   /* Update the table->file->stats.records number */
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
 
-  // These have been cleared when binding the TABLE object.
-  DBUG_ASSERT(table->quick_keys.is_clear_all() &&
-              table->possible_quick_keys.is_clear_all());
-
   table->covering_keys.clear_all();
-
-  /* Prune a second time to be able to prune on subqueries in WHERE clause. */
-  if (prune_partitions(thd, table, conds)) return true;
-  if (table->all_partitions_pruned_away) {
-    /* No matching records */
-    if (lex->is_explain()) {
-      Modification_plan plan(thd, MT_DELETE, table,
-                             "No matching rows after partition pruning", true,
-                             0);
-      bool err = explain_single_table_modification(thd, thd, &plan, select_lex);
-      return err;
-    }
-    my_ok(thd, 0);
-    return false;
-  }
 
   qep_tab.set_table(table);
   qep_tab.set_condition(conds);
@@ -616,8 +627,6 @@ cleanup:
 bool Sql_cmd_delete::prepare_inner(THD *thd) {
   DBUG_TRACE;
 
-  Prepare_error_tracker tracker(thd);
-
   SELECT_LEX *const select = lex->select_lex;
   TABLE_LIST *const table_list = select->get_table_list();
 
@@ -674,8 +683,8 @@ bool Sql_cmd_delete::prepare_inner(THD *thd) {
 
     // DELETE does not allow deleting from multi-table views
     if (table_ref->is_multiple_tables()) {
-      my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0), table_ref->view_db.str,
-               table_ref->view_name.str);
+      my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0), table_ref->db,
+               table_ref->table_name);
       return true;
     }
 
@@ -698,6 +707,8 @@ bool Sql_cmd_delete::prepare_inner(THD *thd) {
          tr = tr->referencing_view) {
       tr->updating = true;
     }
+    // Table is deleted from, used for privilege checking during execution
+    table_ref->updatable_base_table()->set_deleted();
   }
 
   if (!multitable && select->first_inner_unit() != nullptr &&
@@ -742,22 +753,20 @@ bool Sql_cmd_delete::prepare_inner(THD *thd) {
               select->group_list.elements == 0 &&
               select->offset_limit == nullptr);
 
-  if (select->master_unit()->prepare_limit(thd, select))
-    return true; /* purecov: inspected */
+  if (select->resolve_limits(thd)) return true; /* purecov: inspected */
 
   // check ORDER BY even if it can be ignored
   if (select->order_list.first) {
     TABLE_LIST tables;
     List<Item> fields;
-    List<Item> all_fields;
 
     tables.table = table_list->table;
     tables.alias = table_list->alias;
 
     DBUG_ASSERT(!select->group_list.elements);
     if (select->setup_base_ref_items(thd)) return true; /* purecov: inspected */
-    if (setup_order(thd, select->base_ref_items, &tables, fields, all_fields,
-                    select->order_list.first))
+    if (setup_order(thd, select->base_ref_items, &tables, fields,
+                    select->all_fields, select->order_list.first))
       return true;
   }
 
@@ -806,6 +815,8 @@ bool Sql_cmd_delete::prepare_inner(THD *thd) {
 
   if (select->is_empty_query()) set_empty_query();
 
+  select->master_unit()->set_prepared();
+
   return false;
 }
 
@@ -847,9 +858,6 @@ bool Query_result_delete::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
     if (tr->updating) {
       // Count number of tables deleted from
       delete_table_count++;
-
-      // Don't use KEYREAD optimization on this table
-      tr->table->no_keyread = true;
     }
   }
 

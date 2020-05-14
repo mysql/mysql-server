@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 Copyright (c) 2012, Facebook Inc.
@@ -7455,6 +7455,7 @@ ulint get_innobase_type_from_mysql_type(ulint *unsigned_flag, const void *f) {
     case MYSQL_TYPE_DATE:
     case MYSQL_TYPE_YEAR:
     case MYSQL_TYPE_NEWDATE:
+    case MYSQL_TYPE_BOOL:
       return (DATA_INT);
     case MYSQL_TYPE_TIME:
     case MYSQL_TYPE_DATETIME:
@@ -10924,9 +10925,9 @@ inline MY_ATTRIBUTE((warn_unused_result)) int create_table_info_t::
     (probably 5.7.4+). */
     char field_name[MAX_FULL_NAME_LEN + 2 + 10];
 
-    if (table->is_intrinsic() && field->orig_table) {
+    if (table->is_intrinsic() && field->table) {
       snprintf(field_name, sizeof(field_name), "%s_%s_" ULINTPF,
-               field->orig_table->alias, field->field_name, i);
+               field->table->alias, field->field_name, i);
 
     } else {
       snprintf(field_name, sizeof(field_name), "%s", field->field_name);

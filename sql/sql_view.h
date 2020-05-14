@@ -1,7 +1,7 @@
 #ifndef SQL_VIEW_INCLUDED
 #define SQL_VIEW_INCLUDED
 
-/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@
 
 class Item;
 class THD;
+struct LEX;
 struct TABLE_LIST;
 struct TABLE_SHARE;
 template <class T>
@@ -53,6 +54,7 @@ bool insert_view_fields(List<Item> *list, TABLE_LIST *view);
 typedef Mem_root_array_YY<LEX_CSTRING> Create_col_name_list;
 bool check_duplicate_names(const Create_col_name_list *column_names,
                            List<Item> &item_list, bool gen_unique_view_names);
+void make_valid_column_names(LEX *lex);
 
 bool open_and_read_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *view_ref);
 

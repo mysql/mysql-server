@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -640,40 +640,45 @@ bool mysqld_help(THD *thd, const char *mask) {
   SELECT_LEX *const select_lex = thd->lex->select_lex;
   DBUG_TRACE;
 
-  TABLE_LIST tables[4] = {TABLE_LIST("mysql", "help_topic", TL_READ),
-                          TABLE_LIST("mysql", "help_category", TL_READ),
-                          TABLE_LIST("mysql", "help_relation", TL_READ),
-                          TABLE_LIST("mysql", "help_keyword", TL_READ)};
+  TABLE_LIST *tables[4];
+  tables[0] = new (thd->mem_root) TABLE_LIST("mysql", "help_topic", TL_READ);
+  if (tables[0] == nullptr) return true;
+  tables[1] = new (thd->mem_root) TABLE_LIST("mysql", "help_category", TL_READ);
+  if (tables[1] == nullptr) return true;
+  tables[2] = new (thd->mem_root) TABLE_LIST("mysql", "help_relation", TL_READ);
+  if (tables[2] == nullptr) return true;
+  tables[3] = new (thd->mem_root) TABLE_LIST("mysql", "help_keyword", TL_READ);
+  if (tables[3] == nullptr) return true;
 
-  tables[0].next_global = tables[0].next_local =
-      tables[0].next_name_resolution_table = &tables[1];
-  tables[1].next_global = tables[1].next_local =
-      tables[1].next_name_resolution_table = &tables[2];
-  tables[2].next_global = tables[2].next_local =
-      tables[2].next_name_resolution_table = &tables[3];
+  tables[0]->next_global = tables[0]->next_local =
+      tables[0]->next_name_resolution_table = tables[1];
+  tables[1]->next_global = tables[1]->next_local =
+      tables[1]->next_name_resolution_table = tables[2];
+  tables[2]->next_global = tables[2]->next_local =
+      tables[2]->next_name_resolution_table = tables[3];
 
   /*
     HELP must be available under LOCK TABLES.
   */
-  if (open_trans_system_tables_for_read(thd, tables)) goto error2;
+  if (open_trans_system_tables_for_read(thd, tables[0])) goto error2;
 
   /*
     Init tables and fields to be usable from items
     tables do not contain VIEWs => we can pass 0 as conds
   */
   select_lex->context.table_list =
-      select_lex->context.first_name_resolution_table = &tables[0];
-  if (select_lex->setup_tables(thd, tables, false)) goto error;
+      select_lex->context.first_name_resolution_table = tables[0];
+  if (select_lex->setup_tables(thd, tables[0], false)) goto error;
   memcpy((char *)used_fields, (char *)init_used_fields, sizeof(used_fields));
-  if (init_fields(thd, tables, used_fields, array_elements(used_fields)))
+  if (init_fields(thd, tables[0], used_fields, array_elements(used_fields)))
     goto error;
   for (i = 0; i < array_elements(tables); i++)
-    tables[i].table->file->init_table_handle_for_HANDLER();
+    tables[i]->table->file->init_table_handle_for_HANDLER();
 
   {
     QEP_TAB_standalone qep_tab_st;
     QEP_TAB &tab = qep_tab_st.as_QEP_TAB();
-    if (prepare_select_for_name(thd, mask, mlen, tables[0].table,
+    if (prepare_select_for_name(thd, mask, mlen, tables[0]->table,
                                 used_fields[help_topic_name].field, &tab))
       goto error;
 
@@ -686,7 +691,7 @@ bool mysqld_help(THD *thd, const char *mask) {
     QEP_TAB_standalone qep_tab_st;
     QEP_TAB &tab = qep_tab_st.as_QEP_TAB();
 
-    if (prepare_select_for_name(thd, mask, mlen, tables[3].table,
+    if (prepare_select_for_name(thd, mask, mlen, tables[3]->table,
                                 used_fields[help_keyword_name].field, &tab))
       goto error;
 
@@ -694,7 +699,7 @@ bool mysqld_help(THD *thd, const char *mask) {
     count_topics =
         (count_topics != 1)
             ? 0
-            : get_topics_for_keyword(thd, tables[0].table, tables[2].table,
+            : get_topics_for_keyword(thd, tables[0]->table, tables[2]->table,
                                      used_fields, key_id, &topics_list, &name,
                                      &description, &example);
   }
@@ -706,7 +711,7 @@ bool mysqld_help(THD *thd, const char *mask) {
       QEP_TAB_standalone qep_tab_st;
       QEP_TAB &tab = qep_tab_st.as_QEP_TAB();
 
-      if (prepare_select_for_name(thd, mask, mlen, tables[1].table,
+      if (prepare_select_for_name(thd, mask, mlen, tables[1]->table,
                                   used_fields[help_category_name].field, &tab))
         goto error;
 
@@ -733,7 +738,7 @@ bool mysqld_help(THD *thd, const char *mask) {
         QEP_TAB_standalone qep_tab_st;
         QEP_TAB &tab = qep_tab_st.as_QEP_TAB();
 
-        if (prepare_simple_select(thd, cond_topic_by_cat, tables[0].table,
+        if (prepare_simple_select(thd, cond_topic_by_cat, tables[0]->table,
                                   &tab))
           goto error;
         get_all_items_for_category(
@@ -743,7 +748,7 @@ bool mysqld_help(THD *thd, const char *mask) {
         QEP_TAB_standalone qep_tab_st;
         QEP_TAB &tab = qep_tab_st.as_QEP_TAB();
 
-        if (prepare_simple_select(thd, cond_cat_by_cat, tables[1].table, &tab))
+        if (prepare_simple_select(thd, cond_cat_by_cat, tables[1]->table, &tab))
           goto error;
         get_all_items_for_category(thd, &tab,
                                    used_fields[help_category_name].field,
@@ -767,7 +772,7 @@ bool mysqld_help(THD *thd, const char *mask) {
     QEP_TAB_standalone qep_tab_st;
     QEP_TAB &tab = qep_tab_st.as_QEP_TAB();
 
-    if (prepare_select_for_name(thd, mask, mlen, tables[1].table,
+    if (prepare_select_for_name(thd, mask, mlen, tables[1]->table,
                                 used_fields[help_category_name].field, &tab))
       goto error;
     search_categories(thd, &tab, used_fields, &categories_list, nullptr);

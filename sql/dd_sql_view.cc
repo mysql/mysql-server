@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -106,7 +106,8 @@ class View_metadata_updater_context {
     m_thd->set_open_tables_state(&m_open_tables_state_backup);
 
     // Restore lex.
-    m_thd->lex->unit->cleanup(m_thd, true);
+    m_thd->lex->cleanup(m_thd, true);
+    m_thd->lex->destroy();
     lex_end(m_thd->lex);
     delete static_cast<st_lex_local *>(m_thd->lex);
     m_thd->lex = m_saved_lex;
@@ -500,7 +501,7 @@ static bool open_views_and_update_metadata(
     LEX *org_lex = thd->lex;
     thd->lex = view_lex;
     view_lex->context_analysis_only |= CONTEXT_ANALYSIS_ONLY_VIEW;
-    if (view_lex->unit->prepare(thd, nullptr, 0, 0)) {
+    if (view_lex->unit->prepare(thd, nullptr, nullptr, 0, 0)) {
       thd->lex = org_lex;
       thd->pop_internal_handler();
       // Please refer comments in the view open error handling block above.
@@ -563,16 +564,12 @@ static bool open_views_and_update_metadata(
         res = trans_commit_stmt(thd) || trans_commit(thd);
     }
     if (res) {
-      view_lex->unit->cleanup(thd, true);
-      lex_end(view_lex);
       thd->lex = org_lex;
       return true;
     }
     tdc_remove_table(thd, TDC_RT_REMOVE_ALL, view->get_db_name(),
                      view->get_table_name(), false);
 
-    view_lex->unit->cleanup(thd, true);
-    lex_end(view_lex);
     thd->lex = org_lex;
   }
   DEBUG_SYNC(thd, "after_updating_view_metadata");

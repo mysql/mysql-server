@@ -138,3 +138,18 @@ SELECT * FROM t1
 WHERE firstname = 'john' COLLATE utf8mb4_0900_as_cs AND
       firstname = 'john' COLLATE utf8mb4_0900_ai_ci;
 DROP TABLE t1;
+
+--echo Comparisons with parameters and extreme values
+
+CREATE TABLE t(a DECIMAL(30,0));
+INSERT INTO t VALUES(0);
+SELECT * FROM t;
+set @maxint=18446744073709551615;
+SELECT @maxint;
+
+# was wrong empty
+SELECT * FROM t WHERE a < @maxint;
+SELECT * FROM t WHERE a < 18446744073709551615;
+SELECT * FROM t WHERE 0 < 18446744073709551615;
+SELECT * FROM t WHERE 0 < @maxint;
+DROP TABLE t;

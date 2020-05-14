@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -83,7 +83,7 @@ void Table_function::empty_table() {
 }
 
 bool Table_function::init_args() {
-  if (inited) return false;
+  DBUG_ASSERT(!inited);
   if (do_init_args()) return true;
   table->pos_in_table_list->dep_tables |= used_tables();
   inited = true;
@@ -232,6 +232,12 @@ bool Table_function_json::do_init_args() {
   Item *dummy = source;
   if (source->fix_fields(thd, &dummy)) return true;
 
+  /*
+    For the default type of '?', two choices make sense: VARCHAR and JSON. The
+    latter would lead to a call to Item_param::val_json() which isn't
+    implemented. So we use the former.
+  */
+  source->propagate_type();
   DBUG_ASSERT(source->data_type() != MYSQL_TYPE_VAR_STRING);
   if (source->has_aggregation() || source->has_subquery() || source != dummy) {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), "JSON_TABLE");
@@ -473,7 +479,7 @@ bool Json_table_column::fill_column(Table_function_json *table_function,
   return false;
 }
 
-void Json_table_column::cleanup() {
+Json_table_column::~Json_table_column() {
   // Reset paths and wrappers to free allocated memory.
   m_path_json = Json_path();
   if (m_on_empty == Json_on_response_type::DEFAULT)
@@ -538,6 +544,7 @@ void Json_table_column::cleanup() {
 bool Table_function_json::fill_json_table() {
   // 'Stack' of nested NESTED PATH clauses
   Prealloced_array<uint, MAX_NESTED_PATH> nested(PSI_NOT_INSTRUMENTED);
+
   // The column being processed
   uint col_idx = 0;
   jt_skip_reason skip_subtree;
@@ -737,13 +744,9 @@ void Table_function_json::do_cleanup() {
   is_source_parsed = false;
   for (uint i = 0; i < MAX_NESTED_PATH; i++) m_jds[i].cleanup();
   for (uint i = 0; i < m_all_columns.size(); i++) m_all_columns[i]->cleanup();
-  m_all_columns.clear();
-  m_vt_list.empty();
 }
 
 void JT_data_source::cleanup() {
-  jdata = Json_wrapper();
   v.clear();
-  v.shrink_to_fit();
   producing_records = false;
 }

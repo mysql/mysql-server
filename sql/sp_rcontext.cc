@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -71,7 +71,7 @@ sp_rcontext::~sp_rcontext() {
 
   delete_container_pointers(m_activated_handlers);
   delete_container_pointers(m_visible_handlers);
-  pop_all_cursors();
+  DBUG_ASSERT(m_ccount == 0);
 
   // Leave m_var_items and m_case_expr_holders untouched.
   // They are allocated in mem roots and will be freed accordingly.
@@ -174,7 +174,11 @@ bool sp_rcontext::push_cursor(sp_instr_cpush *i) {
 void sp_rcontext::pop_cursors(uint count) {
   DBUG_ASSERT(m_ccount >= count);
 
-  while (count--) delete m_cstack[--m_ccount];
+  while (count--) {
+    m_ccount--;
+    if (m_cstack[m_ccount]->is_open()) m_cstack[m_ccount]->close();
+    delete m_cstack[m_ccount];
+  }
 }
 
 bool sp_rcontext::push_handler(sp_handler *handler, uint first_ip) {
@@ -449,7 +453,7 @@ bool sp_rcontext::set_case_expr(THD *thd, int case_expr_id,
 */
 
 bool sp_cursor::open(THD *thd) {
-  if (m_server_side_cursor) {
+  if (m_server_side_cursor != nullptr) {
     my_error(ER_SP_CURSOR_ALREADY_OPEN, MYF(0));
     return true;
   }
@@ -458,22 +462,20 @@ bool sp_cursor::open(THD *thd) {
 }
 
 bool sp_cursor::close() {
-  if (!m_server_side_cursor) {
+  if (m_server_side_cursor == nullptr) {
     my_error(ER_SP_CURSOR_NOT_OPEN, MYF(0));
     return true;
   }
 
-  destroy();
+  m_server_side_cursor->close();
+  m_server_side_cursor = nullptr;
   return false;
 }
 
-void sp_cursor::destroy() {
-  delete m_server_side_cursor;
-  m_server_side_cursor = nullptr;
-}
+void sp_cursor::destroy() { DBUG_ASSERT(m_server_side_cursor == nullptr); }
 
 bool sp_cursor::fetch(List<sp_variable> *vars) {
-  if (!m_server_side_cursor) {
+  if (m_server_side_cursor == nullptr) {
     my_error(ER_SP_CURSOR_NOT_OPEN, MYF(0));
     return true;
   }

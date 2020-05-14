@@ -8198,7 +8198,7 @@ delimiter |;
 CREATE PROCEDURE p1(a CHAR)
 BEGIN
   SELECT 1;
-  SELECT CAST('10 ' as UNSIGNED INTEGER);
+  SELECT CAST('10x' as UNSIGNED INTEGER);
 END|
 delimiter ;|
 
@@ -8227,7 +8227,7 @@ CREATE PROCEDURE p3()
 CREATE PROCEDURE p4()
 BEGIN
   SELECT 1;
-  SELECT CAST('10 ' as UNSIGNED INTEGER);
+  SELECT CAST('10x' as UNSIGNED INTEGER);
 END|
 delimiter ;|
 
@@ -9780,6 +9780,67 @@ DELIMITER ;$$
 CALL v1(3,2);
 DROP PROCEDURE v1;
 DROP TABLE t1;
+
+--echo # Cursor over union of two tables
+
+CREATE TABLE t1(a INTEGER, b INTEGER);
+INSERT INTO t1 VALUES(1, 10);
+
+CREATE TABLE t2(c INTEGER, d INTEGER);
+INSERT INTO t2 VALUES(2, 20);
+
+DELIMITER //;
+CREATE PROCEDURE cursor_over_union(OUT sum_a INTEGER, OUT sum_b INTEGER)
+BEGIN
+  DECLARE a INTEGER;
+  DECLARE b INTEGER;
+  DECLARE done INTEGER DEFAULT 0;
+  DECLARE c1 CURSOR FOR
+      SELECT t1.a, t1.b FROM t1
+      UNION DISTINCT
+      SELECT t2.c, t2.d FROM t2;
+  DECLARE c2 CURSOR FOR
+      SELECT t1.a, t1.b FROM t1
+      UNION ALL
+      SELECT t2.c, t2.d FROM t2;
+  DECLARE CONTINUE HANDLER FOR SQLSTATE '02000' SET done = 1;
+
+  SET sum_a = 0;
+  SET sum_b = 0;
+
+  OPEN c1;
+  REPEAT
+    FETCH c1 INTO a, b;
+    if NOT done THEN
+       SET sum_a = sum_a + a;
+       SET sum_b = sum_b + b;
+    END IF;
+  UNTIL done END REPEAT;
+  CLOSE c1;
+
+  SET done = 0;
+
+  OPEN c2;
+  REPEAT
+    FETCH c2 INTO a, b;
+    if NOT done THEN
+       SET sum_a = sum_a + a;
+       SET sum_b = sum_b + b;
+    END IF;
+  UNTIL done END REPEAT;
+  CLOSE c2;
+
+end //
+
+DELIMITER ;//
+
+SET @sa = 0;
+SET @sb = 0;
+
+CALL cursor_over_union(@sa, @sb);
+SELECT @sa, @sb;
+DROP PROCEDURE cursor_over_union;
+DROP TABLE t1, t2;
 
 --echo #
 --echo # Bug#30520714 - MYSQL SERVER RETURNS UNEXPECTED ROWS WHEN USING STORED

@@ -362,7 +362,7 @@ LEFT JOIN t1 ON (TRUE);
 ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "Invalid value." at position 1.
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
-Secondary_engine_execution_count	1
+Secondary_engine_execution_count	0
 FLUSH STATUS;
 PREPARE ps FROM "SELECT JSON_EXTRACT(j, '$') FROM
 (SELECT '[]' AS j FROM DUAL UNION ALL SELECT 'not-json' FROM DUAL) AS dt
@@ -374,7 +374,7 @@ ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "Invalid 
 DROP PREPARE ps;
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
-Secondary_engine_execution_count	2
+Secondary_engine_execution_count	0
 FLUSH STATUS;
 CREATE PROCEDURE p1() SELECT COUNT(*) FROM t1;
 CALL p1();
@@ -536,7 +536,7 @@ Secondary_engine_execution_count	2
 ALTER TABLE t1 SECONDARY_UNLOAD;
 SET @@use_secondary_engine = FORCED;
 SELECT * FROM t1;
-ERROR HY000: Secondary engine operation failed. use_secondary_engine is FORCED but query could not be executed in secondary engine.
+Got one of the listed errors
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	2
@@ -647,9 +647,9 @@ SET @@use_secondary_engine = FORCED;
 CREATE TABLE t1 (a INT) SECONDARY_ENGINE MOCK;
 FLUSH STATUS;
 PREPARE ps FROM "SELECT * FROM t1";
-EXECUTE ps;
-ERROR HY000: Secondary engine operation failed. use_secondary_engine is FORCED but query could not be executed in secondary engine.
+ERROR HY000: Table has not been loaded
 SET @@use_secondary_engine = OFF;
+PREPARE ps FROM "SELECT * FROM t1";
 EXECUTE ps;
 a
 # Load table into secondary engine.
@@ -703,7 +703,7 @@ SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	0
 SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ * FROM t1;
-ERROR HY000: Secondary engine operation failed. use_secondary_engine is FORCED but query could not be executed in secondary engine.
+Got one of the listed errors
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	0

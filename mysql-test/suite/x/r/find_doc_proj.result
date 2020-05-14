@@ -59,7 +59,7 @@ Mysqlx.Resultset.ColumnMetaData {
   schema: ""
   catalog: "def"
   collation: 46
-  length: 16777216
+  length: 4294967295
   content_type: 2
 }
 
@@ -126,7 +126,7 @@ Mysqlx.Resultset.ColumnMetaData {
   schema: ""
   catalog: "def"
   collation: 46
-  length: 16777216
+  length: 4294967295
   content_type: 2
 }
 
@@ -197,7 +197,7 @@ Mysqlx.Resultset.ColumnMetaData {
   schema: ""
   catalog: "def"
   collation: 46
-  length: 16777216
+  length: 4294967295
   content_type: 2
 }
 
@@ -252,7 +252,7 @@ Mysqlx.Resultset.ColumnMetaData {
   schema: ""
   catalog: "def"
   collation: 46
-  length: 16777216
+  length: 4294967295
   content_type: 2
 }
 

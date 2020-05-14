@@ -2427,70 +2427,84 @@ CREATE TABLE t1 (pk INT PRIMARY KEY, fk INT,
                  FOREIGN KEY (fk) REFERENCES t1 (pk));
 SELECT constraint_name, table_name, column_name, referenced_column_name
   FROM information_schema.key_column_usage
-  WHERE table_schema='test' AND table_name='t1';
+  WHERE table_schema='test' AND table_name='t1'
+  ORDER BY constraint_name;
 ALTER TABLE t1 CHANGE pk id INT;
 SELECT constraint_name, table_name, column_name, referenced_column_name
   FROM information_schema.key_column_usage
-  WHERE table_schema='test' AND table_name='t1';
+  WHERE table_schema='test' AND table_name='t1'
+  ORDER BY constraint_name;
 --echo # Renaming of parent columns using COPY algorithm is not supported.
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t1 CHANGE id pk INT, ALGORITHM=COPY;
 SELECT constraint_name, table_name, column_name, referenced_column_name
   FROM information_schema.key_column_usage
-  WHERE table_schema='test' AND table_name='t1';
+  WHERE table_schema='test' AND table_name='t1'
+  ORDER BY constraint_name;
 ALTER TABLE t1 CHANGE id pk INT, ALGORITHM=INPLACE;
 SELECT constraint_name, table_name, column_name, referenced_column_name
   FROM information_schema.key_column_usage
-  WHERE table_schema='test' AND table_name='t1';
+  WHERE table_schema='test' AND table_name='t1'
+  ORDER BY constraint_name;
 ALTER TABLE t1 RENAME COLUMN pk TO id;
 SELECT constraint_name, table_name, column_name, referenced_column_name
   FROM information_schema.key_column_usage
-  WHERE table_schema='test' AND table_name='t1';
+  WHERE table_schema='test' AND table_name='t1'
+  ORDER BY constraint_name;
 --echo # Renaming of parent columns using COPY algorithm is not supported.
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t1 RENAME COLUMN id TO pk, ALGORITHM=COPY;
 SELECT constraint_name, table_name, column_name, referenced_column_name
   FROM information_schema.key_column_usage
-  WHERE table_schema='test' AND table_name='t1';
+  WHERE table_schema='test' AND table_name='t1'
+  ORDER BY constraint_name;
 ALTER TABLE t1 RENAME COLUMN id TO pk, ALGORITHM=INPLACE;
 SELECT constraint_name, table_name, column_name, referenced_column_name
   FROM information_schema.key_column_usage
-  WHERE table_schema='test' AND table_name='t1';
+  WHERE table_schema='test' AND table_name='t1'
+  ORDER BY constraint_name;
 DROP TABLE t1;
 
 CREATE TABLE t1 (pk INT PRIMARY KEY);
 CREATE TABLE t2 (fk INT, FOREIGN KEY (fk) REFERENCES t1 (pk));
 SELECT constraint_name, table_name, column_name, referenced_column_name
   FROM information_schema.key_column_usage
-  WHERE table_schema='test' AND table_name='t2';
+  WHERE table_schema='test' AND table_name='t2'
+  ORDER BY constraint_name;
 ALTER TABLE t1 CHANGE pk id INT;
 SELECT constraint_name, table_name, column_name, referenced_column_name
   FROM information_schema.key_column_usage
-  WHERE table_schema='test' AND table_name='t2';
+  WHERE table_schema='test' AND table_name='t2'
+  ORDER BY constraint_name;
 --echo # Renaming of parent columns using COPY algorithm is not supported.
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t1 CHANGE id pk INT, ALGORITHM=COPY;
 SELECT constraint_name, table_name, column_name, referenced_column_name
   FROM information_schema.key_column_usage
-  WHERE table_schema='test' AND table_name='t2';
+  WHERE table_schema='test' AND table_name='t2'
+  ORDER BY constraint_name;
 ALTER TABLE t1 CHANGE id pk INT, ALGORITHM=INPLACE;
 SELECT constraint_name, table_name, column_name, referenced_column_name
   FROM information_schema.key_column_usage
-  WHERE table_schema='test' AND table_name='t2';
+  WHERE table_schema='test' AND table_name='t2'
+  ORDER BY constraint_name;
 ALTER TABLE t1 RENAME COLUMN pk TO id;
 SELECT constraint_name, table_name, column_name, referenced_column_name
   FROM information_schema.key_column_usage
-  WHERE table_schema='test' AND table_name='t2';
+  WHERE table_schema='test' AND table_name='t2'
+  ORDER BY constraint_name;
 --echo # Renaming of parent columns using COPY algorithm is not supported.
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t1 RENAME COLUMN id TO pk, ALGORITHM=COPY;
 SELECT constraint_name, table_name, column_name, referenced_column_name
   FROM information_schema.key_column_usage
-  WHERE table_schema='test' AND table_name='t2';
+  WHERE table_schema='test' AND table_name='t2'
+  ORDER BY constraint_name;
 ALTER TABLE t1 RENAME COLUMN id TO pk, ALGORITHM=INPLACE;
 SELECT constraint_name, table_name, column_name, referenced_column_name
   FROM information_schema.key_column_usage
-  WHERE table_schema='test' AND table_name='t2';
+  WHERE table_schema='test' AND table_name='t2'
+  ORDER BY constraint_name;
 DROP TABLES t2, t1;
 
 --echo # Coverage for cases with multiple foreign keys.
@@ -2500,15 +2514,18 @@ CREATE TABLE t1 (pk INT PRIMARY KEY, u1 INT, u2 INT, fk1 INT, fk2 INT,
                  FOREIGN KEY (fk2) REFERENCES t1 (u2));
 SELECT constraint_name, table_name, column_name, referenced_column_name
   FROM information_schema.key_column_usage
-  WHERE table_schema='test' AND table_name='t1';
+  WHERE table_schema='test' AND table_name='t1'
+  ORDER BY constraint_name;
 ALTER TABLE t1 RENAME COLUMN u1 TO u3;
 SELECT constraint_name, table_name, column_name, referenced_column_name
   FROM information_schema.key_column_usage
-  WHERE table_schema='test' AND table_name='t1';
+  WHERE table_schema='test' AND table_name='t1'
+  ORDER BY constraint_name;
 ALTER TABLE t1 RENAME COLUMN u3 TO u4, RENAME COLUMN u2 TO u5;
 SELECT constraint_name, table_name, column_name, referenced_column_name
   FROM information_schema.key_column_usage
-  WHERE table_schema='test' AND table_name='t1';
+  WHERE table_schema='test' AND table_name='t1'
+  ORDER BY constraint_name;
 DROP TABLE t1;
 CREATE TABLE t1 (pk INT PRIMARY KEY, u1 INT, u2 INT, UNIQUE (u1), UNIQUE (u2));
 CREATE TABLE t2 (fk1 INT, fk2 INT,
@@ -2516,15 +2533,18 @@ CREATE TABLE t2 (fk1 INT, fk2 INT,
                 FOREIGN KEY (fk2) REFERENCES t1 (u2));
 SELECT constraint_name, table_name, column_name, referenced_column_name
   FROM information_schema.key_column_usage
-  WHERE table_schema='test' AND table_name='t2';
+  WHERE table_schema='test' AND table_name='t2'
+  ORDER BY constraint_name;
 ALTER TABLE t1 RENAME COLUMN u1 TO u3;
 SELECT constraint_name, table_name, column_name, referenced_column_name
   FROM information_schema.key_column_usage
-  WHERE table_schema='test' AND table_name='t2';
+  WHERE table_schema='test' AND table_name='t2'
+  ORDER BY constraint_name;
 ALTER TABLE t1 RENAME COLUMN u3 TO u4, RENAME COLUMN u2 TO u5;
 SELECT constraint_name, table_name, column_name, referenced_column_name
   FROM information_schema.key_column_usage
-  WHERE table_schema='test' AND table_name='t2';
+  WHERE table_schema='test' AND table_name='t2'
+  ORDER BY constraint_name;
 DROP TABLES t2, t1;
 
 

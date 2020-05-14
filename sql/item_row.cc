@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,6 +41,7 @@ Item_row::Item_row(const POS &pos, Item *head, List<Item> &tail)
       used_tables_cache(0),
       not_null_tables_cache(0),
       with_null(false) {
+  set_data_type(MYSQL_TYPE_INVALID);
   // TODO: think placing 2-3 component items in item (as it done for function)
   arg_count = 1 + tail.elements;
   items = (Item **)(*THR_MALLOC)->Alloc(sizeof(Item *) * arg_count);
@@ -60,6 +61,7 @@ Item_row::Item_row(const POS &pos, Item *head, List<Item> &tail)
 
 Item_row::Item_row(Item *head, List<Item> &tail)
     : used_tables_cache(0), not_null_tables_cache(0), with_null(false) {
+  set_data_type(MYSQL_TYPE_INVALID);
   // TODO: think placing 2-3 component items in item (as it done for function)
   arg_count = 1 + tail.elements;
   items = (Item **)(*THR_MALLOC)->Alloc(sizeof(Item *) * arg_count);
@@ -98,14 +100,16 @@ bool Item_row::fix_fields(THD *thd, Item **) {
   DBUG_ASSERT(fixed == 0);
   null_value = false;
   maybe_null = false;
+  bool types_assigned = true;
   Item **arg, **arg_end;
   for (arg = items, arg_end = items + arg_count; arg != arg_end; arg++) {
     if ((!(*arg)->fixed && (*arg)->fix_fields(thd, arg))) return true;
     // we can't assign 'item' before, because fix_fields() can change arg
     Item *item = *arg;
     used_tables_cache |= item->used_tables();
-
     not_null_tables_cache |= item->not_null_tables();
+
+    types_assigned &= item->data_type() != MYSQL_TYPE_INVALID;
 
     if (const_item()) {
       if (item->cols() > 1)
@@ -120,6 +124,7 @@ bool Item_row::fix_fields(THD *thd, Item **) {
     maybe_null |= item->maybe_null;
     add_accum_properties(item);
   }
+  if (types_assigned) set_data_type(MYSQL_TYPE_NULL);
   fixed = true;
   return false;
 }
@@ -128,9 +133,6 @@ void Item_row::cleanup() {
   DBUG_TRACE;
 
   Item::cleanup();
-  /* Reset to the original values */
-  used_tables_cache = 0;
-  with_null = false;
 }
 
 void Item_row::split_sum_func(THD *thd, Ref_item_array ref_item_array,
@@ -163,6 +165,15 @@ void Item_row::fix_after_pullout(SELECT_LEX *parent_select,
   }
 }
 
+void Item_row::propagate_type(const Type_properties &type) {
+  DBUG_ASSERT(data_type() == MYSQL_TYPE_INVALID);
+  for (uint i = 0; i < arg_count; i++) {
+    if (items[i]->data_type() == MYSQL_TYPE_INVALID)
+      items[i]->propagate_type(type);
+  }
+  set_data_type(MYSQL_TYPE_NULL);
+}
+
 bool Item_row::check_cols(uint c) {
   if (c != arg_count) {
     my_error(ER_OPERAND_COLUMNS, MYF(0), c);
@@ -192,17 +203,8 @@ bool Item_row::walk(Item_processor processor, enum_walk walk, uchar *arg) {
 
 Item *Item_row::transform(Item_transformer transformer, uchar *arg) {
   for (uint i = 0; i < arg_count; i++) {
-    Item *new_item = items[i]->transform(transformer, arg);
-    if (new_item == nullptr) return nullptr; /* purecov: inspected */
-
-    /*
-      THD::change_item_tree() should be called only if the tree was
-      really transformed, i.e. when a new item has been created.
-      Otherwise we'll be allocating a lot of unnecessary memory for
-      change records at each execution.
-    */
-    if (items[i] != new_item)
-      current_thd->change_item_tree(&items[i], new_item);
+    items[i] = items[i]->transform(transformer, arg);
+    if (items[i] == nullptr) return nullptr; /* purecov: inspected */
   }
   return (this->*transformer)(arg);
 }

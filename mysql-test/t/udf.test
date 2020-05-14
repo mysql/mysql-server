@@ -63,6 +63,11 @@ select lookup("localhost");
 --error ER_CANT_INITIALIZE_UDF
 select reverse_lookup();
 
+prepare s from "select myfunc_double(?)";
+set @one = 1;
+execute s using @one;
+deallocate prepare s;
+
 # These two function calls should return "localhost", but it's
 # depending on configuration, so just call them and don't log the result
 --disable_result_log
@@ -805,5 +810,6 @@ let $query =
 
 DROP TABLE t1;
 DROP FUNCTION avgcost;
+
 
 --echo # End of the 8.0 tests

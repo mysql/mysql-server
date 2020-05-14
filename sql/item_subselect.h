@@ -1,7 +1,7 @@
 #ifndef ITEM_SUBSELECT_INCLUDED
 #define ITEM_SUBSELECT_INCLUDED
 
-/* Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -281,8 +281,6 @@ class Item_singlerow_subselect : public Item_subselect {
   Item_cache *value, **row;
   bool no_rows;  ///< @c no_rows_in_result
  public:
-  TABLE_LIST *m_derived_replacement{nullptr};  ///< when subquery is transformed
-
   Item_singlerow_subselect(SELECT_LEX *select_lex);
   Item_singlerow_subselect()
       : Item_subselect(), value(nullptr), row(nullptr), no_rows(false) {}
@@ -868,6 +866,9 @@ class subselect_hash_sj_engine final : public subselect_indexsubquery_engine {
   unique_ptr_destroy_only<RowIterator> m_iterator;
   /* Temp table context of the outer select's JOIN. */
   Temp_table_param *tmp_param;
+
+  /// Saved result object, must be restored after use
+  Query_result_interceptor *saved_result{nullptr};
 
  public:
   subselect_hash_sj_engine(Item_in_subselect *in_predicate,

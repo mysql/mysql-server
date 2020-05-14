@@ -137,15 +137,21 @@ select * from t9 order by c1 ;
 --disable_query_log
 select '------ select @parameter:= column ------' as test_sequence ;
 --enable_query_log
-# PS query to retrieve the content of the @variables
-prepare full_info from "select @arg01, @arg02, @arg03, @arg04,
+# query to retrieve the content of the @variables
+let $full_info=
+select @arg01, @arg02, @arg03, @arg04,
        @arg05, @arg06, @arg07, @arg08,
        @arg09, @arg10, @arg11, @arg12,
        @arg13, @arg14, @arg15, @arg16,
        @arg17, @arg18, @arg19, @arg20,
        @arg21, @arg22, @arg23, @arg24,
        @arg25, @arg26, @arg27, @arg28,
-       @arg29, @arg30, @arg31, @arg32" ;
+       @arg29, @arg30, @arg31, @arg32 ;
+
+# get as much informations about the parameters as possible
+--enable_metadata
+eval $full_info;
+--disable_metadata
 
 # non PS statement for comparison purposes
 select @arg01:=  c1, @arg02:=  c2, @arg03:=  c3, @arg04:=  c4,
@@ -157,23 +163,9 @@ select @arg01:=  c1, @arg02:=  c2, @arg03:=  c3, @arg04:=  c4,
        @arg25:= c25, @arg26:= c26, @arg27:= c27, @arg28:= c28,
        @arg29:= c29, @arg30:= c30, @arg31:= c31, @arg32:= c32
 from t9 where c1= 1 ;
-# get as much informations about the parameters as possible
+
 --enable_metadata
-execute full_info ;
---disable_metadata
-# now the same procedure with the record containing so many NULLs
-select @arg01:=  c1, @arg02:=  c2, @arg03:=  c3, @arg04:=  c4,
-       @arg05:=  c5, @arg06:=  c6, @arg07:=  c7, @arg08:=  c8,
-       @arg09:=  c9, @arg10:= c10, @arg11:= c11, @arg12:= c12,
-       @arg13:= c13, @arg14:= c14, @arg15:= c15, @arg16:= c16,
-       @arg17:= c17, @arg18:= c18, @arg19:= c19, @arg20:= c20,
-       @arg21:= c21, @arg22:= c22, @arg23:= c23, @arg24:= c24,
-       @arg25:= c25, @arg26:= c26, @arg27:= c27, @arg28:= c28,
-       @arg29:= c29, @arg30:= c30, @arg31:= c31, @arg32:= c32
-from t9 where c1= 0 ;
-# get as much informations about the parameters as possible
---enable_metadata
-execute full_info ;
+eval $full_info;
 --disable_metadata
 
 prepare stmt1 from "select 
@@ -190,14 +182,23 @@ set @my_key= 1 ;
 execute stmt1 using @my_key ;
 # get as much informations about the parameters as possible
 --enable_metadata
-execute full_info ;
+eval $full_info;
 --disable_metadata
 # now the same procedure with the record containing so many NULLs
+select @arg01:=  c1, @arg02:=  c2, @arg03:=  c3, @arg04:=  c4,
+       @arg05:=  c5, @arg06:=  c6, @arg07:=  c7, @arg08:=  c8,
+       @arg09:=  c9, @arg10:= c10, @arg11:= c11, @arg12:= c12,
+       @arg13:= c13, @arg14:= c14, @arg15:= c15, @arg16:= c16,
+       @arg17:= c17, @arg18:= c18, @arg19:= c19, @arg20:= c20,
+       @arg21:= c21, @arg22:= c22, @arg23:= c23, @arg24:= c24,
+       @arg25:= c25, @arg26:= c26, @arg27:= c27, @arg28:= c28,
+       @arg29:= c29, @arg30:= c30, @arg31:= c31, @arg32:= c32
+from t9 where c1= 0 ;
 set @my_key= 0 ;
 execute stmt1 using @my_key ;
 # get as much informations about the parameters as possible
 --enable_metadata
-execute full_info ;
+eval $full_info;
 --disable_metadata
 
 # the next statement must fail
@@ -217,7 +218,7 @@ into @arg01, @arg02, @arg03, @arg04, @arg05, @arg06, @arg07, @arg08,
 from t9 where c1= 1 ;
 # get as much informations about the parameters as possible
 --enable_metadata
-execute full_info ;
+eval $full_info;
 --disable_metadata
 # now the same procedure with the record containing so many NULLs
 select c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12,
@@ -230,7 +231,7 @@ into @arg01, @arg02, @arg03, @arg04, @arg05, @arg06, @arg07, @arg08,
 from t9 where c1= 0 ;
 # get as much informations about the parameters as possible
 --enable_metadata
-execute full_info ;
+eval $full_info;
 --disable_metadata
 
 prepare stmt1 from "select c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12,
@@ -245,7 +246,7 @@ set @my_key= 1 ;
 execute stmt1 using @my_key ;
 # get as much informations about the parameters as possible
 --enable_metadata
-execute full_info ;
+eval $full_info;
 --disable_metadata
 # now the same procedure with the record containing so many NULLs
 # Bug#5034: prepared "select 1 into @arg15", second execute crashes server
@@ -253,7 +254,7 @@ set @my_key= 0 ;
 execute stmt1 using @my_key ;
 # get as much informations about the parameters as possible
 --enable_metadata
-execute full_info ;
+eval $full_info;
 --disable_metadata
 
 # the next statement must fail
@@ -1158,9 +1159,13 @@ select 'true' as found from t9
 where c1= 20 and c13= CAST('1991-01-01 01:01:01' AS DATE) and c14= '1991-01-01 01:01:01' and
   c15= '1991-01-01 01:01:01' and c16= '1991-01-01 01:01:01' and
   c17= '1991-01-01 01:01:01' ;
+# Because a user var isn't constant for all executions, and c16 is
+# TIME, c16=@arg00 compares as DOUBLE, unlike
+# c16=literal_string which compares as TIME; hence the CAST.
+# The same happens when the right member is a non-constant expression
+# like a table column of varchar type. Bug#90076 should fix all this.
 select 'true' as found from t9 
-where c1= 20 and c13= CAST(@arg00 AS DATE) and c14= @arg00 and c15= @arg00 and c16= @arg00
-  and c17= @arg00 ;
+where c1= 20 and c13= CAST(@arg00 AS DATE) and c14= @arg00 and c15= @arg00 and c16= CAST(@arg00 AS TIME) and c17= @arg00 ;
 prepare stmt1 from "select 'true' as found from t9 
 where c1= 20 and c13= CAST('1991-01-01 01:01:01' AS DATE) and c14= '1991-01-01 01:01:01' and
   c15= '1991-01-01 01:01:01' and c16= '1991-01-01 01:01:01' and
@@ -1180,8 +1185,7 @@ where c1= 20 and c13= CAST('1991-01-01 00:00:00' as datetime) and
   c16= CAST('1991-01-01 01:01:01' as datetime) and
   c17= CAST('1991-01-01 01:01:01' as datetime) ;
 select 'true' as found from t9 
-where c1= 20 and c13= CAST(@arg00 AS DATE) and c14= @arg00 and c15= @arg00 and c16= @arg00
-  and c17= @arg00 ;
+where c1= 20 and c13= CAST(@arg00 AS DATE) and c14= @arg00 and c15= @arg00 and c16= CAST(@arg00 AS TIME) and c17= @arg00 ;
 prepare stmt1 from "select 'true' as found from t9 
 where c1= 20 and c13= CAST('1991-01-01 00:00:00' as datetime) and
   c14= CAST('1991-01-01 01:01:01' as datetime) and

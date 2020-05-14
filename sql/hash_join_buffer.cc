@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -136,6 +136,7 @@ static size_t CalculateColumnStorageSize(const Column &column) {
   bool is_blob_column = false;
   switch (column.field_type) {
     case MYSQL_TYPE_DECIMAL:
+    case MYSQL_TYPE_BOOL:
     case MYSQL_TYPE_TINY:
     case MYSQL_TYPE_SHORT:
     case MYSQL_TYPE_LONG:
@@ -174,8 +175,9 @@ static size_t CalculateColumnStorageSize(const Column &column) {
       is_blob_column = true;
       break;
     }
-    case MYSQL_TYPE_TYPED_ARRAY: {
-      // This type is only used for replication, so it should not occur here.
+    case MYSQL_TYPE_INVALID:      // Should not occur
+    case MYSQL_TYPE_TYPED_ARRAY:  // Type only used for replication
+    {
       DBUG_ASSERT(false);
       return 0;
     }

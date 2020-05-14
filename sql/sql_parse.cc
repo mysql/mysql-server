@@ -1,4 +1,4 @@
-/* Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 1999, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1156,6 +1156,15 @@ void cleanup_items(Item *item) {
 }
 
 /**
+  Bind Item fields to Field objects.
+
+  @param first   Pointer to first item, follow "next" chain to visit all items
+*/
+void bind_fields(Item *first) {
+  for (Item *item = first; item; item = item->next_free) item->bind_fields();
+}
+
+/**
   Read one command from connection and execute it (query or simple command).
   This function is called in loop from thread function.
 
@@ -1400,7 +1409,7 @@ static void check_secondary_engine_statement(THD *thd,
 
   // The query cannot be restarted if it had started executing, since
   // it may have started sending results to the client.
-  if (thd->lex->unit->is_executed()) return;
+  if (thd->lex->is_exec_completed()) return;
 
   // Decide which storage engine to use when retrying.
   switch (thd->secondary_engine_optimization()) {
@@ -1959,7 +1968,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
 
       mysqld_list_fields(thd, &table_list, fields);
 
-      thd->lex->unit->cleanup(thd, true);
+      thd->lex->cleanup(thd, true);
       /* No need to rollback statement transaction, it's not started. */
       DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT));
       close_thread_tables(thd);
@@ -2811,13 +2820,13 @@ int mysql_execute_command(THD *thd, bool first_level) {
     /*
       For fix of BUG#37051, the master stores the table map for update
       in the Query_log_event, and the value is assigned to
-      thd->variables.table_map_for_update before executing the update
+      thd->table_map_for_update before executing the update
       query.
 
-      If thd->variables.table_map_for_update is set, then we are
+      If thd->table_map_for_update is set, then we are
       replicating from a new master, we can use this value to apply
       filter rules without opening all the tables. However If
-      thd->variables.table_map_for_update is not set, then we are
+      thd->table_map_for_update is not set, then we are
       replicating from an old master, so we just skip this and
       continue with the old method. And of course, the bug would still
       exist for old masters.
@@ -2903,6 +2912,9 @@ int mysql_execute_command(THD *thd, bool first_level) {
 
   Opt_trace_object trace_command(&thd->opt_trace);
   Opt_trace_array trace_command_steps(&thd->opt_trace, "steps");
+
+  if (lex->m_sql_cmd && lex->m_sql_cmd->owner())
+    lex->m_sql_cmd->owner()->trace_parameter_types();
 
   DBUG_ASSERT(thd->get_transaction()->cannot_safely_rollback(
                   Transaction_ctx::STMT) == false);
@@ -3577,7 +3589,16 @@ int mysql_execute_command(THD *thd, bool first_level) {
       if (check_table_access(thd, SELECT_ACL, all_tables, false, UINT_MAX,
                              false))
         goto error;
+
       if (open_tables_for_query(thd, all_tables, false)) goto error;
+      if (!thd->stmt_arena->is_regular()) {
+        lex->restore_cmd_properties();
+        bind_fields(thd->stmt_arena->item_list());
+        if (all_tables != nullptr &&
+            !thd->stmt_arena->is_stmt_prepare_or_first_stmt_execute() &&
+            select_lex->check_privileges_for_subqueries(thd))
+          return true;
+      }
       if (!(res = sql_set_variables(thd, lex_var_list, true)))
         my_ok(thd);
       else {
@@ -3798,7 +3819,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
         sp_head::destroy(lex->sphead);
         lex->sphead = nullptr;
       }
-      /* lex->unit->cleanup() is called outside, no need to call it here */
+      /* lex->cleanup() is called outside, no need to call it here */
       break;
     case SQLCOM_SHOW_CREATE_EVENT: {
       res = Events::show_create_event(thd, lex->spname->m_db,
@@ -4719,10 +4740,13 @@ finish:
     }
   }
 
-  lex->unit->cleanup(thd, true);
+  lex->cleanup(thd, true);
   /* Free tables */
   THD_STAGE_INFO(thd, stage_closing_tables);
   close_thread_tables(thd);
+
+  // Rollback any item transformations made during optimization and execution
+  thd->rollback_item_tree_changes();
 
 #ifndef DBUG_OFF
   if (lex->sql_command != SQLCOM_SET_OPTION && !thd->in_sub_stmt)
@@ -5027,24 +5051,19 @@ bool execute_show(THD *thd, TABLE_LIST *all_tables) {
     statement_timer_armed = set_statement_timer(thd);
 
   if (!(res = open_tables_for_query(thd, all_tables, false))) {
-    if (lex->is_explain()) {
-      /*
-        We always use Query_result_send for EXPLAIN, even if it's an EXPLAIN
-        for SELECT ... INTO OUTFILE: a user application should be able
-        to prepend EXPLAIN to any query and receive output for it,
-        even if the query itself redirects the output.
-      */
-      Query_result *const result = new (thd->mem_root) Query_result_send();
-      if (!result) return true; /* purecov: inspected */
-      res = handle_query(thd, lex, result, 0, 0);
-    } else {
-      Query_result *result = lex->result;
-      if (!result && !(result = new (thd->mem_root) Query_result_send()))
-        return true; /* purecov: inspected */
-      Query_result *save_result = result;
-      res = handle_query(thd, lex, result, 0, 0);
-      if (save_result != lex->result) destroy(save_result);
+    /*
+      We always use Query_result_send for EXPLAIN, even if it's an EXPLAIN
+      for SELECT ... INTO OUTFILE: a user application should be able
+      to prepend EXPLAIN to any query and receive output for it,
+      even if the query itself redirects the output.
+    */
+    Query_result *result = lex->is_explain() ? nullptr : lex->result;
+    if (result == nullptr) {
+      Prepared_stmt_arena_holder ps_arena_holder(thd);
+      result = new (thd->mem_root) Query_result_send();
+      if (result == nullptr) return true; /* purecov: inspected */
     }
+    res = handle_query(thd, lex, result, 0, 0);
   }
 
   if (statement_timer_armed && thd->timer) reset_statement_timer(thd);
@@ -5166,7 +5185,6 @@ void THD::reset_for_next_command() {
   thd->commit_error = THD::CE_NONE;
   thd->durability_property = HA_REGULAR_DURABILITY;
   thd->set_trans_pos(nullptr, 0);
-
   thd->derived_tables_processing = false;
   thd->parsing_system_view = false;
 
@@ -5405,6 +5423,7 @@ void mysql_parse(THD *thd, Parser_state *parser_state) {
   THD_STAGE_INFO(thd, stage_freeing_items);
   sp_cache_enforce_limit(thd->sp_proc_cache, stored_program_cache_size);
   sp_cache_enforce_limit(thd->sp_func_cache, stored_program_cache_size);
+  thd->lex->destroy();
   thd->end_statement();
   thd->cleanup_after_query();
   DBUG_ASSERT(thd->change_list.is_empty());
@@ -5751,6 +5770,12 @@ bool SELECT_LEX::find_common_table_expr(THD *thd, Table_ident *table_name,
   const auto save_reparse_cte = thd->lex->reparse_common_table_expr_at;
   PT_subquery *node;
   if (tl->is_recursive_reference()) {
+    /*
+      To pass the first steps of resolution, a recursive reference is here
+      made to be a dummy derived table; after the temporary table is created
+      based on the non-recursive members' types, the recursive reference is
+      made to be a reference to the tmp table.
+    */
     LEX_CSTRING dummy_subq = {STRING_WITH_LEN("(select 0)")};
     if (reparse_common_table_expr(thd, dummy_subq.str, dummy_subq.length, 0,
                                   &node))
@@ -5789,11 +5814,9 @@ bool SELECT_LEX::find_common_table_expr(THD *thd, Table_ident *table_name,
   tl->is_alias = true;
   SELECT_LEX_UNIT *node_unit = node->value()->master_unit();
   *table_name = Table_ident(node_unit);
-  if (tl->is_recursive_reference()) recursive_dummy_unit = node_unit;
   DBUG_ASSERT(table_name->is_derived_table());
   tl->db = table_name->db.str;
   tl->db_length = table_name->db.length;
-  tl->save_name_temporary();
   return false;
 }
 
@@ -6002,10 +6025,8 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(
 
   ptr->set_tableno(0);
   ptr->set_lock({lock_type, THR_DEFAULT});
-  ptr->updating = (table_options & TL_OPTION_UPDATING);
-  /* TODO: remove TL_OPTION_FORCE_INDEX as it looks like it's not used */
-  ptr->force_index = (table_options & TL_OPTION_FORCE_INDEX);
-  ptr->ignore_leaves = (table_options & TL_OPTION_IGNORE_LEAVES);
+  ptr->updating = table_options & TL_OPTION_UPDATING;
+  ptr->ignore_leaves = table_options & TL_OPTION_IGNORE_LEAVES;
   ptr->set_derived_unit(table_name->sel);
   if (!ptr->is_derived() && !ptr->is_table_function() &&
       is_infoschema_db(ptr->db, ptr->db_length)) {
@@ -6071,7 +6092,6 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(
       }
 
       if (schema_table) {
-        ptr->schema_table_name = ptr->table_name;
         ptr->schema_table = schema_table;
       }
     }
@@ -6134,7 +6154,6 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(
   if (table_name->is_derived_table()) {
     ptr->derived_key_list.empty();
     derived_table_count++;
-    ptr->save_name_temporary();
   }
 
   // Check access to DD tables. We must allow CHECK and ALTER TABLE

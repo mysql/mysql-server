@@ -1,4 +1,4 @@
-// Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -8365,11 +8365,6 @@ static void run_query_stmt(MYSQL *mysql, struct st_command *command,
 
         // Free normal result set with meta data
         mysql_free_result_wrapper(res);
-
-        // Clear prepare warnings if there are execute warnings,
-        // since they are probably duplicated.
-        if (ds_execute_warnings.length || mysql->warning_count)
-          dynstr_set(&ds_prepare_warnings, nullptr);
       } else {
         // This is a query without resultset
       }

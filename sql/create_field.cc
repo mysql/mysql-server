@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -354,6 +354,8 @@ bool Create_field::init(
       allowed_type_modifier = AUTO_INCREMENT_FLAG;
       break;
     case MYSQL_TYPE_NULL:
+    case MYSQL_TYPE_INVALID:
+    case MYSQL_TYPE_BOOL:
       break;
     case MYSQL_TYPE_NEWDECIMAL: {
       ulong precision = static_cast<ulong>(m_max_display_width_in_codepoints);

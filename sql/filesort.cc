@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -185,8 +185,9 @@ void Sort_param::decide_addon_fields(Filesort *file_sort, TABLE *table,
   // non-temporary) MEMORY tables, which doesn't seem reasonable to add
   // complexity for.
 
-  if (table->fulltext_searched) {
-    // MATCH() (except in “boolean mode”) doesn't use the actual value, it just
+  if (table->pos_in_table_list &&
+      table->pos_in_table_list->is_fulltext_searched()) {
+    // MATCH() (except in "boolean mode") doesn't use the actual value, it just
     // goes and asks the handler directly for the current row. Thus, we need row
     // IDs, so that the row is positioned correctly.
     //

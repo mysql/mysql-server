@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1001,5 +1001,6 @@ bool Unique_on_insert::init() {
 
 void Unique_on_insert::cleanup() {
   reset(false);
-  free_tmp_table(m_table->in_use, m_table);
+  close_tmp_table(m_table->in_use, m_table);
+  free_tmp_table(m_table);
 }

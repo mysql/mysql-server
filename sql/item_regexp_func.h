@@ -1,7 +1,7 @@
 #ifndef SQL_ITEM_REGEXP_FUNC_H_
 #define SQL_ITEM_REGEXP_FUNC_H_
 
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -268,6 +268,9 @@ class Item_func_regexp_instr : public Item_func_regexp {
   /// The position in the argument list of `occurrence`.
   int retopt_arg_pos() const { return 4; }
   int match_arg_pos() const override { return 5; }
+
+ private:
+  bool resolve_type(THD *) final;
 };
 
 class Item_func_regexp_like : public Item_func_regexp {
@@ -307,14 +310,15 @@ class Item_func_regexp_like : public Item_func_regexp {
   int pos_arg_pos() const override { return -1; }
   int occ_arg_pos() const override { return -1; }
   int match_arg_pos() const override { return 2; }
+
+ private:
+  bool resolve_type(THD *) final;
 };
 
 class Item_func_regexp_replace : public Item_func_regexp {
  public:
-  Item_func_regexp_replace(const POS &pos, PT_item_list *opt_list)
-      : Item_func_regexp(pos, opt_list) {
-    set_data_type_string_init();
-  }
+  Item_func_regexp_replace(const POS &pos, PT_item_list *item_list)
+      : Item_func_regexp(pos, item_list) {}
 
   Item_result result_type() const override { return STRING_RESULT; }
 
@@ -352,10 +356,8 @@ class Item_func_regexp_replace : public Item_func_regexp {
 
 class Item_func_regexp_substr : public Item_func_regexp {
  public:
-  Item_func_regexp_substr(const POS &pos, PT_item_list *opt_list)
-      : Item_func_regexp(pos, opt_list) {
-    set_data_type_string_init();
-  }
+  Item_func_regexp_substr(const POS &pos, PT_item_list *item_list)
+      : Item_func_regexp(pos, item_list) {}
 
   Item_result result_type() const override { return STRING_RESULT; }
 

@@ -1668,23 +1668,23 @@ DROP PROCEDURE IF EXISTS p6;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE PROCEDURE p1()
 BEGIN
-SELECT CAST('10 ' as unsigned integer);
+SELECT CAST('10x' as unsigned integer);
 SELECT 1;
 CALL p2();
 END|
 CREATE PROCEDURE p2()
 BEGIN
-SELECT CAST('10 ' as unsigned integer);
+SELECT CAST('10x' as unsigned integer);
 END|
 CALL p1();
-CAST('10 ' as unsigned integer)
+CAST('10x' as unsigned integer)
 10
 1
 1
-CAST('10 ' as unsigned integer)
+CAST('10x' as unsigned integer)
 10
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '10 '
+Warning	1292	Truncated incorrect INTEGER value: '10x'
 DROP PROCEDURE p1;
 DROP PROCEDURE p2;
 
@@ -1709,26 +1709,26 @@ SHOW WARNINGS;
 END|
 CREATE PROCEDURE p2()
 BEGIN
-SELECT CAST('2 ' as unsigned integer);
+SELECT CAST('2x' as unsigned integer);
 END|
 CREATE PROCEDURE p3()
 BEGIN
-SELECT CAST('3 ' as unsigned integer);
+SELECT CAST('3x' as unsigned integer);
 GET DIAGNOSTICS @n = NUMBER; # does not clear the warning
 END|
 CREATE PROCEDURE p4()
 BEGIN
-SELECT CAST('4 ' as unsigned integer);
+SELECT CAST('4x' as unsigned integer);
 INSERT INTO t1 VALUES(1); # Clears the warning
 END|
 CREATE PROCEDURE p5()
 BEGIN
-SELECT CAST('5 ' as unsigned integer);
+SELECT CAST('5x' as unsigned integer);
 CALL p2();
 END|
 CREATE PROCEDURE p6()
 BEGIN
-SELECT CAST('6 ' as unsigned integer);
+SELECT CAST('6x' as unsigned integer);
 SHOW WARNINGS;
 END|
 CREATE PROCEDURE p7()
@@ -1744,19 +1744,19 @@ SELECT c;
 END|
 
 CALL p1();
-CAST('2 ' as unsigned integer)
+CAST('2x' as unsigned integer)
 2
 Msg
 Warning caught!
-CAST('3 ' as unsigned integer)
+CAST('3x' as unsigned integer)
 3
 Msg
 Warning caught!
-CAST('4 ' as unsigned integer)
+CAST('4x' as unsigned integer)
 4
-CAST('5 ' as unsigned integer)
+CAST('5x' as unsigned integer)
 5
-CAST('2 ' as unsigned integer)
+CAST('2x' as unsigned integer)
 2
 Msg
 Warning caught!
@@ -1767,10 +1767,10 @@ c
 Level	Code	Message
 
 CALL p7();
-CAST('6 ' as unsigned integer)
+CAST('6x' as unsigned integer)
 6
 Level	Code	Message
-Warning	1292	Truncated incorrect INTEGER value: '6 '
+Warning	1292	Truncated incorrect INTEGER value: '6x'
 Msg
 Warning caught!
 c
@@ -1923,8 +1923,8 @@ CREATE TABLE t2(a SMALLINT, b SMALLINT, c SMALLINT NOT NULL);
 CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
 BEGIN
 INSERT INTO t2 VALUES(
-CAST('111111 ' AS SIGNED),
-CAST('222222 ' AS SIGNED),
+CAST('111111X' AS SIGNED),
+CAST('222222X' AS SIGNED),
 NULL);
 END|
 CREATE PROCEDURE p1()
@@ -1938,9 +1938,9 @@ Level	Code	Message
 Warning	1264	Out of range value for column 'x' at row 1
 Warning	1264	Out of range value for column 'y' at row 1
 Warning	1264	Out of range value for column 'z' at row 1
-Warning	1292	Truncated incorrect INTEGER value: '111111 '
+Warning	1292	Truncated incorrect INTEGER value: '111111X'
 Warning	1264	Out of range value for column 'a' at row 1
-Warning	1292	Truncated incorrect INTEGER value: '222222 '
+Warning	1292	Truncated incorrect INTEGER value: '222222X'
 Warning	1264	Out of range value for column 'b' at row 1
 Error	1048	Column 'c' cannot be null
 
@@ -2598,9 +2598,9 @@ SELECT 'Warning 1292 caught' AS msg;
 # the Diagnostics Area.
 INSERT INTO t2
 SELECT
-CAST(CONCAT(CAST('1 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER),
-CAST(CONCAT(CAST('2 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER),
-CAST(CONCAT(CAST('3 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER);
+CAST(CONCAT(CAST('1X' AS UNSIGNED INTEGER), '999999XX') AS SIGNED INTEGER),
+CAST(CONCAT(CAST('2X' AS UNSIGNED INTEGER), '999999XX') AS SIGNED INTEGER),
+CAST(CONCAT(CAST('3X' AS UNSIGNED INTEGER), '999999XX') AS SIGNED INTEGER);
 END|
 
 CALL p2()|
@@ -2622,9 +2622,9 @@ SELECT 'Warning 1264 caught' AS msg;
 # should be invoked.
 INSERT INTO t2
 SELECT
-CAST(CONCAT(CAST('1 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER),
-CAST(CONCAT(CAST('2 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER),
-CAST(CONCAT(CAST('3 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER);
+CAST(CONCAT(CAST('1X' AS UNSIGNED INTEGER), '999999XX') AS SIGNED INTEGER),
+CAST(CONCAT(CAST('2X' AS UNSIGNED INTEGER), '999999XX') AS SIGNED INTEGER),
+CAST(CONCAT(CAST('3X' AS UNSIGNED INTEGER), '999999XX') AS SIGNED INTEGER);
 END|
 
 CALL p3()|
@@ -2646,8 +2646,8 @@ SELECT 'Warning 1264 caught' AS msg;
 INSERT INTO t2
 SELECT
 CAST(999999 AS SIGNED INTEGER),
-CAST(CONCAT(CAST('2 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER),
-CAST(CONCAT(CAST('3 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER);
+CAST(CONCAT(CAST('2X' AS UNSIGNED INTEGER), '999999XX') AS SIGNED INTEGER),
+CAST(CONCAT(CAST('3X' AS UNSIGNED INTEGER), '999999XX') AS SIGNED INTEGER);
 END|
 
 CALL p4()|
@@ -2668,8 +2668,8 @@ END;
 INSERT INTO t2
 SELECT
 CAST(999999 AS SIGNED INTEGER),
-CAST(CONCAT(CAST('2 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER),
-CAST(CONCAT(CAST('3 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER);
+CAST(CONCAT(CAST('2X' AS UNSIGNED INTEGER), '999999XX') AS SIGNED INTEGER),
+CAST(CONCAT(CAST('3X' AS UNSIGNED INTEGER), '999999XX') AS SIGNED INTEGER);
 END|
 
 CALL p5()|
@@ -2692,21 +2692,21 @@ SELECT 'Handler for 1292' Msg;
 END;
 INSERT INTO t2
 SELECT
-CAST(CONCAT(CAST('1 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER),
-CAST(CONCAT(CAST('2 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER),
-CAST(CONCAT(CAST('3 ' AS UNSIGNED INTEGER), '999999  ') AS SIGNED INTEGER);
+CAST(CONCAT(CAST('1X' AS UNSIGNED INTEGER), '999999XX') AS SIGNED INTEGER),
+CAST(CONCAT(CAST('2X' AS UNSIGNED INTEGER), '999999XX') AS SIGNED INTEGER),
+CAST(CONCAT(CAST('3X' AS UNSIGNED INTEGER), '999999XX') AS SIGNED INTEGER);
 END|
 
 CALL p6()|
 Level	Code	Message
-Warning	1292	Truncated incorrect INTEGER value: '1 '
-Warning	1292	Truncated incorrect INTEGER value: '1999999  '
+Warning	1292	Truncated incorrect INTEGER value: '1X'
+Warning	1292	Truncated incorrect INTEGER value: '1999999XX'
 Warning	1264	Out of range value for column 'a' at row 1
-Warning	1292	Truncated incorrect INTEGER value: '2 '
-Warning	1292	Truncated incorrect INTEGER value: '2999999  '
+Warning	1292	Truncated incorrect INTEGER value: '2X'
+Warning	1292	Truncated incorrect INTEGER value: '2999999XX'
 Warning	1264	Out of range value for column 'b' at row 1
-Warning	1292	Truncated incorrect INTEGER value: '3 '
-Warning	1292	Truncated incorrect INTEGER value: '3999999  '
+Warning	1292	Truncated incorrect INTEGER value: '3X'
+Warning	1292	Truncated incorrect INTEGER value: '3999999XX'
 Warning	1264	Out of range value for column 'c' at row 1
 Msg
 Handler for 1292

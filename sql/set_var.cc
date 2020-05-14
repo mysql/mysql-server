@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,12 +59,13 @@
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
-#include "sql/sql_parse.h"        // is_supported_parser_charset
-#include "sql/sql_select.h"       // free_underlaid_joins
-#include "sql/sql_show.h"         // append_identifier
-#include "sql/sys_vars_shared.h"  // PolyLock_mutex
-#include "sql/system_variables.h"
-#include "sql/table.h"
+#include "sql/sql_parse.h"         // is_supported_parser_charset
+#include "sql/sql_select.h"        // free_underlaid_joins
+#include "sql/sql_show.h"          // append_identifier
+#include "sql/sys_vars_shared.h"   // PolyLock_mutex
+#include "sql/system_variables.h"  // system_variables
+#include "sql/table.h"             // table
+#include "sql/thd_raii.h"          // Prepared_stmt_arena_holder
 #include "sql_string.h"
 
 using std::min;
@@ -813,15 +814,18 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list, bool opened) {
 
   LEX *lex = thd->lex;
   set_var_base *var;
-  while ((var = it++)) {
-    if ((error = var->resolve(thd))) goto err;
+  {
+    Prepared_stmt_arena_holder ps_arena_holder(thd);
+    while ((var = it++)) {
+      if ((error = var->resolve(thd))) goto err;
+    }
+    if ((error = thd->is_error())) goto err;
   }
-  if ((error = thd->is_error())) goto err;
-
   if (opened && lock_tables(thd, lex->query_tables, lex->table_count, 0)) {
     error = 1;
     goto err;
   }
+  thd->lex->set_exec_started();
   it.rewind();
   while ((var = it++)) {
     if ((error = var->check(thd))) goto err;
@@ -1182,9 +1186,10 @@ void set_var::print(const THD *thd, String *str) {
 int set_var_user::resolve(THD *thd) {
   /*
     Item_func_set_user_var can't substitute something else on its place =>
-    0 can be passed as last argument (reference on item)
+    NULL can be passed as last argument (reference on item)
   */
-  return user_var_item->fix_fields(thd, nullptr) ? -1 : 0;
+  return !user_var_item->fixed && user_var_item->fix_fields(thd, nullptr) ? -1
+                                                                          : 0;
 }
 
 int set_var_user::check(THD *) {

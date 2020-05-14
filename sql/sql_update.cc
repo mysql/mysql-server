@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -112,6 +112,9 @@
 
 class COND_EQUAL;
 
+static bool prepare_partial_update(Opt_trace_context *trace, List<Item> *fields,
+                                   List<Item> *values);
+
 bool Sql_cmd_update::precheck(THD *thd) {
   DBUG_TRACE;
 
@@ -140,6 +143,44 @@ bool Sql_cmd_update::precheck(THD *thd) {
         return true;
     }
   }
+  return false;
+}
+
+bool Sql_cmd_update::check_privileges(THD *thd) {
+  DBUG_TRACE;
+
+  SELECT_LEX *const select = lex->select_lex;
+
+  if (check_all_table_privileges(thd)) return true;
+
+  // @todo: replace individual calls for privilege checking with
+  // SELECT_LEX::check_column_privileges(), but only when fields_list
+  // is no longer reused for an UPDATE statement.
+
+  if (select->join_list && check_privileges_for_join(thd, select->join_list))
+    return true;
+
+  thd->want_privilege = SELECT_ACL;
+  if (select->where_cond() != nullptr &&
+      select->where_cond()->walk(&Item::check_column_privileges,
+                                 enum_walk::PREFIX, pointer_cast<uchar *>(thd)))
+    return true;
+
+  if (check_privileges_for_list(thd, &original_fields, UPDATE_ACL)) return true;
+
+  if (check_privileges_for_list(thd, update_value_list, SELECT_ACL))
+    return true;
+
+  for (ORDER *order = select->order_list.first; order; order = order->next) {
+    if ((*order->item)
+            ->walk(&Item::check_column_privileges, enum_walk::PREFIX,
+                   pointer_cast<uchar *>(thd)))
+      return true;
+  }
+
+  thd->want_privilege = SELECT_ACL;
+  if (select->check_privileges_for_subqueries(thd)) return true;
+
   return false;
 }
 
@@ -218,25 +259,30 @@ bool compare_records(const TABLE *table) {
   @param      thd              thread handler
   @param      items            Items for check
 
-  @return false if success, true if error (Items not updatable columns or OOM)
+  @return false if success, true if error (OOM)
 */
 
-static bool check_fields(THD *thd, List<Item> &items) {
+bool Sql_cmd_update::make_base_table_fields(THD *thd, List<Item> &items) {
   List_iterator<Item> it(items);
   Item *item;
 
   while ((item = it++)) {
+    // Save original item for privilege checking
+    if (original_fields.push_back(item)) return true; /* purecov: inspected */
+
     /*
-      we make temporary copy of Item_field, to avoid influence of changing
+      Make temporary copy of Item_field, to avoid influence of changing
       result_field on Item_ref which refer on this field
     */
     Item_field *const base_table_field = item->field_for_view_update();
     DBUG_ASSERT(base_table_field != nullptr);
 
     Item_field *const cloned_field = new Item_field(thd, base_table_field);
-    if (!cloned_field) return true; /* purecov: inspected */
+    if (cloned_field == nullptr) return true; /* purecov: inspected */
 
-    thd->change_item_tree(it.ref(), cloned_field);
+    *it.ref() = cloned_field;
+    // WL#6570 remove-after-qa
+    DBUG_ASSERT(thd->stmt_arena->is_regular() || !thd->lex->is_exec_started());
   }
   return false;
 }
@@ -304,11 +350,19 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
 
   List<Item> *update_field_list = &select_lex->fields_list;
 
+  Opt_trace_context *const trace = &thd->opt_trace;
+
   if (unit->set_limit(thd, unit->global_parameters()))
     return true; /* purecov: inspected */
 
   ha_rows limit = unit->select_limit_cnt;
   const bool using_limit = limit != HA_POS_ERROR;
+
+  if (limit == 0 && thd->lex->is_explain()) {
+    Modification_plan plan(thd, MT_UPDATE, table, "LIMIT is zero", true, 0);
+    bool err = explain_single_table_modification(thd, thd, &plan, select_lex);
+    return err;
+  }
 
   // Used to track whether there are no rows that need to be read
   bool no_rows = limit == 0;
@@ -320,21 +374,12 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
 
   const bool safe_update = thd->variables.option_bits & OPTION_SAFE_UPDATES;
 
-  QEP_TAB_standalone qep_tab_st;
-  QEP_TAB &qep_tab = qep_tab_st.as_QEP_TAB();
-
   assert(!(table->all_partitions_pruned_away || m_empty_query));
 
   Item *conds = nullptr;
   ORDER *order = select_lex->order_list.first;
   if (!no_rows && select_lex->get_optimizable_conditions(thd, &conds, nullptr))
     return true; /* purecov: inspected */
-
-  /*
-    Reset the field list to remove any hidden fields added by substitute_gc() in
-    the previous execution.
-  */
-  select_lex->all_fields = select_lex->fields_list;
 
   /*
     See if we can substitute expressions with equivalent generated
@@ -381,7 +426,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
     Also try a second time after locking, to prune when subqueries and
     stored programs can be evaluated.
   */
-  if (table->part_info) {
+  if (table->part_info && !no_rows) {
     if (prune_partitions(thd, table, conds))
       return true; /* purecov: inspected */
     if (table->all_partitions_pruned_away) {
@@ -407,6 +452,9 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
 
   table->mark_columns_needed_for_update(thd,
                                         false /*mark_binlog_columns=false*/);
+
+  QEP_TAB_standalone qep_tab_st;
+  QEP_TAB &qep_tab = qep_tab_st.as_QEP_TAB();
 
   qep_tab.set_table(table);
   qep_tab.set_condition(conds);
@@ -505,6 +553,9 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
   const bool using_filesort = order && need_sort;
 
   table->mark_columns_per_binlog_row_image(thd);
+
+  if (prepare_partial_update(trace, update_field_list, update_value_list))
+    return true; /* purecov: inspected */
 
   if (table->setup_partial_update()) return true; /* purecov: inspected */
 
@@ -1319,15 +1370,12 @@ bool should_switch_to_multi_table_if_subqueries(const THD *thd,
 bool Sql_cmd_update::prepare_inner(THD *thd) {
   DBUG_TRACE;
 
-  Prepare_error_tracker tracker(thd);
-
   SELECT_LEX *const select = lex->select_lex;
   TABLE_LIST *const table_list = select->get_table_list();
 
   TABLE_LIST *single_table_updated = nullptr;
 
   List<Item> *update_fields = &select->fields_list;
-  table_map tables_for_update;
   const bool using_lock_tables = thd->locked_tables_mode != LTM_NONE;
 
   DBUG_ASSERT(update_fields->elements == update_value_list->elements);
@@ -1438,7 +1486,8 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
                    false, true))
     return true;
 
-  if (check_fields(thd, *update_fields)) return true; /* purecov: inspected */
+  if (make_base_table_fields(thd, *update_fields))
+    return true; /* purecov: inspected */
 
   /*
     Calculate map of tables that are updated based on resolved columns
@@ -1450,16 +1499,17 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
 
   DBUG_ASSERT(update_table_count_local > 0);
 
+  for (TABLE_LIST *tr = select->leaf_tables; tr; tr = tr->next_leaf) {
+    if (tr->map() & tables_for_update) tr->set_updated();
+  }
+
   if (setup_fields(thd, Ref_item_array(), *update_value_list, SELECT_ACL,
-                   nullptr, false, false))
+                   nullptr, false, false, update_fields))
     return true; /* purecov: inspected */
 
   thd->mark_used_columns = mark_used_columns_saved;
 
-  if (select->master_unit()->prepare_limit(thd, select)) return true;
-
-  if (prepare_partial_update(trace, update_fields, update_value_list))
-    return true; /* purecov: inspected */
+  if (select->resolve_limits(thd)) return true;
 
   if (!multitable) {
     // Add default values provided by a function, required for part. pruning
@@ -1573,8 +1623,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
       DBUG_ASSERT(tl->is_view_or_derived());
       TABLE_LIST *for_update = nullptr;
       if (tl->check_single_table(&for_update, tables_for_update)) {
-        my_error(ER_VIEW_MULTIUPDATE, MYF(0), tl->view_db.str,
-                 tl->view_name.str);
+        my_error(ER_VIEW_MULTIUPDATE, MYF(0), tl->db, tl->table_name);
         return true;
       }
     }
@@ -1595,9 +1644,8 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
     return true;
   }
   if (select->order_list.first) {
-    List<Item> all_fields;  // @todo check this
-    if (setup_order(thd, select->base_ref_items, table_list, all_fields,
-                    all_fields, select->order_list.first))
+    if (setup_order(thd, select->base_ref_items, table_list, select->all_fields,
+                    select->all_fields, select->order_list.first))
       return true;
   }
 
@@ -1624,10 +1672,15 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
 
   if (select->is_empty_query()) set_empty_query();
 
+  select->master_unit()->set_prepared();
+
   return false;
 }
 
 bool Sql_cmd_update::execute_inner(THD *thd) {
+  // Binary logging happens at execution, and needs this information:
+  thd->table_map_for_update = tables_for_update;
+
   if (is_empty_query()) {
     if (lex->is_explain()) {
       Modification_plan plan(thd, MT_UPDATE, /*table_arg=*/nullptr,
@@ -1658,10 +1711,6 @@ bool Query_result_update::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
   SELECT_LEX *const select = unit->first_select();
   TABLE_LIST *const leaves = select->leaf_tables;
 
-  thd->check_for_truncated_fields = CHECK_FIELD_WARN;
-  thd->num_truncated_fields = 0L;
-  THD_STAGE_INFO(thd, stage_updating_main_table);
-
   const table_map tables_to_update = get_table_map(fields);
 
   for (TABLE_LIST *tr = leaves; tr; tr = tr->next_leaf) {
@@ -1691,7 +1740,6 @@ bool Query_result_update::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
   /*
     Save tables beeing updated in update_tables
     update_table->shared is position for table
-    Don't use key read on tables that are updated
   */
 
   update_list.empty();
@@ -1701,22 +1749,17 @@ bool Query_result_update::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
       auto dup = new (thd->mem_root) TABLE_LIST(*tr);
       if (dup == nullptr) return true;
 
-      TABLE *const table = tr->table;
-
       update_list.link_in_list(dup, &dup->next_local);
       tr->shared = dup->shared = update_table_count++;
+
+      // Avoid checking for duplicates for MyISAM merge tables
+      dup->next_global = nullptr;
+
+      // Set properties for table to be updated
+      TABLE *const table = tr->table;
       table->no_keyread = true;
       table->covering_keys.clear_all();
       table->pos_in_table_list = dup;
-      if (table->triggers &&
-          table->triggers->has_triggers(TRG_EVENT_UPDATE, TRG_ACTION_AFTER)) {
-        /*
-           The table has AFTER UPDATE triggers that might access to subject
-           table and therefore might need update to be done immediately.
-           So we turn-off the batching.
-        */
-        (void)table->file->ha_extra(HA_EXTRA_UPDATE_CANNOT_BATCH);
-      }
     }
   }
 
@@ -1890,9 +1933,36 @@ bool Query_result_update::optimize() {
   JOIN *const join = select->join;
   THD *thd = join->thd;
 
-  ASSERT_BEST_REF_IN_JOIN_ORDER(join);
-
   TABLE_LIST *leaves = select->leaf_tables;
+
+  // Ensure table pointers are synced in repeated executions
+
+  TABLE_LIST *update_table = update_tables;
+  for (TABLE_LIST *tr = leaves; tr; tr = tr->next_leaf) {
+    if (tr->updating) {
+      TABLE *const table = tr->table;
+
+      update_table->table = table;
+      table->pos_in_table_list = update_table;
+
+      table->covering_keys.clear_all();
+      if (table->triggers &&
+          table->triggers->has_triggers(TRG_EVENT_UPDATE, TRG_ACTION_AFTER)) {
+        /*
+          The table has AFTER UPDATE triggers that might access to subject
+          table and therefore might need update to be done immediately.
+          So we turn-off the batching.
+        */
+        (void)table->file->ha_extra(HA_EXTRA_UPDATE_CANNOT_BATCH);
+      }
+      update_table = update_table->next_local;
+    }
+  }
+
+  // Skip remaining optimization if no plan is generated
+  if (select->join->zero_result_cause) return false;
+
+  ASSERT_BEST_REF_IN_JOIN_ORDER(join);
 
   if ((thd->variables.option_bits & OPTION_SAFE_UPDATES) &&
       error_if_full_join(join))
@@ -1900,8 +1970,15 @@ bool Query_result_update::optimize() {
   main_table = join->best_ref[0]->table();
   table_to_update = nullptr;
 
+  if (prepare_partial_update(&thd->opt_trace, fields, values))
+    return true; /* purecov: inspected */
+
   /* Any update has at least one pair (field, value) */
   DBUG_ASSERT(fields->elements);
+
+  // Allocate temporary table structs per execution (they use the mem_root)
+  tmp_table_param = new (thd->mem_root) Temp_table_param[update_table_count];
+  if (tmp_table_param == nullptr) return true;
   /*
    Only one table may be modified by UPDATE of an updatable view.
    For an updatable view first_table_for_update indicates this
@@ -1940,6 +2017,7 @@ bool Query_result_update::optimize() {
         DBUG_ASSERT(bitmap_is_clear_all(&main_table->tmp_set));
         for (uint i = 1; i < join->tables; ++i) {
           JOIN_TAB *tab = join->best_ref[i];
+          if (!tab->position()) continue;
           if (tab->condition())
             tab->condition()->walk(&Item::add_field_to_set_processor,
                                    enum_walk::SUBQUERY_POSTFIX,
@@ -1964,7 +2042,7 @@ bool Query_result_update::optimize() {
             table's ref buffer. So the lookup is not influenced by the just-done
             update of main_table.
           */
-          if (join->join_tab != nullptr && tab > join->join_tab + 1) {
+          if (i > 1) {
             for (uint key_part_idx = 0; key_part_idx < tab->ref().key_parts;
                  key_part_idx++) {
               Item *ref_item = tab->ref().items[key_part_idx];
@@ -2110,12 +2188,17 @@ bool Query_result_update::optimize() {
   return false;
 }
 
-void Query_result_update::cleanup(THD *thd) {
-  TABLE_LIST *table;
-  for (table = update_tables; table; table = table->next_local) {
-    table->table->no_cache = false;
-  }
+bool Query_result_update::start_execution(THD *thd) {
+  thd->check_for_truncated_fields = CHECK_FIELD_WARN;
+  thd->num_truncated_fields = 0L;
+  update_completed = false;
+  return false;
+}
 
+void Query_result_update::cleanup(THD *thd) {
+  for (TABLE_LIST *tr = update_tables; tr != nullptr; tr = tr->next_local) {
+    tr->table = nullptr;
+  }
   if (tmp_tables) {
     for (uint cnt = 0; cnt < update_table_count; cnt++) {
       if (tmp_tables[cnt]) {
@@ -2124,12 +2207,14 @@ void Query_result_update::cleanup(THD *thd) {
           the index if open.
         */
         tmp_tables[cnt]->file->ha_index_or_rnd_end();
-        free_tmp_table(thd, tmp_tables[cnt]);
+        close_tmp_table(thd, tmp_tables[cnt]);
+        free_tmp_table(tmp_tables[cnt]);
+        tmp_tables[cnt] = nullptr;
         tmp_table_param[cnt].cleanup();
       }
     }
   }
-  destroy_array(copy_field, max_fields);
+  tmp_table_param = nullptr;
   thd->check_for_truncated_fields = CHECK_FIELD_IGNORE;  // Restore this setting
   DBUG_ASSERT(
       trans_safe || updated_rows == 0 ||
@@ -2139,6 +2224,7 @@ void Query_result_update::cleanup(THD *thd) {
     for (uint i = 0; i < update_table_count; i++) destroy(update_operations[i]);
 
   if (main_table) main_table->file->try_semi_consistent_read(false);
+  main_table = nullptr;
 }
 
 bool Query_result_update::send_data(THD *thd, List<Item> &) {

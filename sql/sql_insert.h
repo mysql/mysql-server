@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -81,7 +81,6 @@ class Query_result_insert : public Query_result_interceptor {
      table.
 
      @param table_list_par   The table reference for the destination table.
-     @param table_par        The destination table. May be NULL.
      @param target_columns   See details.
      @param target_or_source_columns See details.
      @param update_fields    The columns to be updated in case of duplicate
@@ -122,14 +121,13 @@ are found inside the COPY_INFO.
      target_columns is columns1, if not empty then 'info' must manage defaults
      of other columns than columns1.
   */
-  Query_result_insert(TABLE_LIST *table_list_par, TABLE *table_par,
-                      List<Item> *target_columns,
+  Query_result_insert(TABLE_LIST *table_list_par, List<Item> *target_columns,
                       List<Item> *target_or_source_columns,
                       List<Item> *update_fields, List<Item> *update_values,
                       enum_duplicates duplic)
       : Query_result_interceptor(),
         table_list(table_list_par),
-        table(table_par),
+        table(nullptr),
         fields(target_or_source_columns),
         bulk_insert_started(false),
         autoinc_value_of_last_inserted_row(0),
@@ -169,14 +167,20 @@ are found inside the COPY_INFO.
    up.
 */
 class Query_result_create final : public Query_result_insert {
+  /// Handle for table to be created
   TABLE_LIST *create_table;
+  /// Contains further information for table creation
   HA_CREATE_INFO *create_info;
-  TABLE_LIST *select_tables;
+  /// Contains further information for table creation
   Alter_info *alter_info;
   Field **field;
-  /* lock data for tmp table */
+  /// List of tables that are select from
+  TABLE_LIST *select_tables;
+  /// Pointer to first field in table generated from query expression
+  Field **table_fields;
+  /// lock data for tmp table
   MYSQL_LOCK *m_lock;
-  /* m_lock or thd->extra_lock */
+  /// m_lock or thd->extra_lock
   MYSQL_LOCK **m_plock;
   /**
     If table being created has SE supporting atomic DDL, pointer to SE's
@@ -186,8 +190,7 @@ class Query_result_create final : public Query_result_insert {
   handlerton *m_post_ddl_ht;
 
  public:
-  Query_result_create(TABLE_LIST *table_arg, HA_CREATE_INFO *create_info_par,
-                      Alter_info *alter_info_arg, List<Item> &select_fields,
+  Query_result_create(TABLE_LIST *table_arg, List<Item> &select_fields,
                       enum_duplicates duplic, TABLE_LIST *select_tables_arg);
 
   bool prepare(THD *thd, List<Item> &list, SELECT_LEX_UNIT *u) override;
@@ -196,6 +199,11 @@ class Query_result_create final : public Query_result_insert {
   bool send_eof(THD *thd) override;
   void abort_result_set(THD *thd) override;
   bool start_execution(THD *thd) override;
+  void set_two_fields(HA_CREATE_INFO *create_info_arg,
+                      Alter_info *alter_info_arg) {
+    create_info = create_info_arg;
+    alter_info = alter_info_arg;
+  }
 
  private:
   bool stmt_binlog_is_trans() const override;
@@ -210,23 +218,18 @@ class Query_result_create final : public Query_result_insert {
 
 class Sql_cmd_insert_base : public Sql_cmd_dml {
  protected:
-  virtual bool precheck(THD *thd) override;
-
-  virtual bool prepare_inner(THD *thd) override;
+  bool precheck(THD *thd) override;
+  bool check_privileges(THD *thd) override;
+  bool prepare_inner(THD *thd) override;
+  bool restore_cmd_properties(THD *thd) override;
 
  private:
   bool resolve_update_expressions(THD *thd);
   bool prepare_values_table(THD *thd);
   bool resolve_values_table_columns(THD *thd);
 
- public:
-  /*
-    field_list was created for view and should be removed before PS/SP
-    rexecuton
-  */
-  bool empty_field_list_on_rset;
-
  protected:
+  /// true when REPLACE statement, false when INSERT statement
   const bool is_replace;
 
  public:
@@ -252,6 +255,13 @@ class Sql_cmd_insert_base : public Sql_cmd_dml {
          INSERT/REPLACE ... (col1, ... colM) VALUE (x1, ..., xM);
   */
   List<List_item> insert_many_values;
+
+  /// True if VALUES clause contain column references that need privilege check
+  bool values_need_privilege_check{false};
+
+  /// Number of columns in original insert column list
+  uint column_count;
+
   /// Number of values per row in insert_many_values, available after resolving
   uint value_count;
 
@@ -278,19 +288,14 @@ class Sql_cmd_insert_base : public Sql_cmd_dml {
 
   explicit Sql_cmd_insert_base(bool is_replace_arg,
                                enum_duplicates duplicates_arg)
-      : empty_field_list_on_rset(false),
-        is_replace(is_replace_arg),
+      : is_replace(is_replace_arg),
+        column_count(0),
         value_count(0),
         duplicates(duplicates_arg) {}
 
-  virtual void cleanup(THD *) override {
-    if (empty_field_list_on_rset) {
-      empty_field_list_on_rset = false;
-      insert_field_list.empty();
-    }
-  }
+  void cleanup(THD *) override {}
 
-  virtual bool accept(THD *thd, Select_lex_visitor *visitor) override;
+  bool accept(THD *thd, Select_lex_visitor *visitor) override;
 };
 
 /**
@@ -303,14 +308,14 @@ class Sql_cmd_insert_values : public Sql_cmd_insert_base {
                                  enum_duplicates duplicates_arg)
       : Sql_cmd_insert_base(is_replace_arg, duplicates_arg) {}
 
-  virtual enum_sql_command sql_command_code() const {
+  enum_sql_command sql_command_code() const override {
     return is_replace ? SQLCOM_REPLACE : SQLCOM_INSERT;
   }
 
-  virtual bool is_single_table_plan() const { return true; }
+  bool is_single_table_plan() const override { return true; }
 
  protected:
-  virtual bool execute_inner(THD *thd);
+  bool execute_inner(THD *thd) override;
 };
 
 /**
@@ -323,7 +328,7 @@ class Sql_cmd_insert_select : public Sql_cmd_insert_base {
                                  enum_duplicates duplicates_arg)
       : Sql_cmd_insert_base(is_replace_arg, duplicates_arg) {}
 
-  virtual enum_sql_command sql_command_code() const {
+  enum_sql_command sql_command_code() const override {
     return is_replace ? SQLCOM_REPLACE_SELECT : SQLCOM_INSERT_SELECT;
   }
 };

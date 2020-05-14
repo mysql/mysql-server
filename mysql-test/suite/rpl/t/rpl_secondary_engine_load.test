@@ -178,7 +178,7 @@ SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 SET use_secondary_engine = FORCED;
 
 FLUSH STATUS;
---error ER_SECONDARY_ENGINE
+--error ER_SECONDARY_ENGINE,ER_SECONDARY_ENGINE_PLUGIN
 SELECT * FROM t1;
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 
@@ -186,7 +186,7 @@ SET use_secondary_engine = @save_use_secondary_engine;
 
 # Should execute throw an error.
 FLUSH STATUS;
---error ER_SECONDARY_ENGINE
+--error ER_SECONDARY_ENGINE,ER_SECONDARY_ENGINE_PLUGIN
 SELECT /*+SET_VAR(use_secondary_engine=FORCED)*/ * FROM t1;
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 

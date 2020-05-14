@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -166,6 +166,22 @@ bool parse_json(const String &res, uint arg_idx, const char *func_name,
 }
 
 /**
+  Get correct blob type of given Field.
+  A helper function for get_normalized_field_type().
+
+  @param arg  the field to get blob type of
+
+  @returns
+    correct blob type
+*/
+
+static enum_field_types get_real_blob_type(const Field *arg) {
+  DBUG_ASSERT(arg);
+  return blob_type_from_pack_length(arg->pack_length() -
+                                    portable_sizeof_char_ptr);
+}
+
+/**
   Get correct blob type of given Item.
   A helper function for get_normalized_field_type().
 
@@ -182,40 +198,11 @@ static enum_field_types get_real_blob_type(const Item *arg) {
     MYSQL_TYPE_BLOB. We want to treat them like strings. We check
     the collation to see if the blob is really a string.
   */
-  if (arg->collation.collation != &my_charset_bin) return MYSQL_TYPE_STRING;
+  if (arg->collation.collation != &my_charset_bin) return MYSQL_TYPE_VARCHAR;
 
-  if (arg->type() == Item::FIELD_ITEM) {
-    Field *field = (down_cast<const Item_field *>(arg))->field;
-    return blob_type_from_pack_length(field->pack_length() -
-                                      portable_sizeof_char_ptr);
-  }
+  if (arg->type() == Item::FIELD_ITEM)
+    return get_real_blob_type((down_cast<const Item_field *>(arg))->field);
 
-  return arg->data_type();
-}
-
-/**
-  Get correct data type of given Item.
-  A helper function for get_normalized_field_type().
-
-  @param arg  the item to get data type of
-
-  @returns
-    correct blob type
-*/
-
-static enum_field_types get_real_data_type(const Item *arg) {
-  switch (arg->type()) {
-    case Item::NULL_ITEM:
-      return MYSQL_TYPE_NULL;
-    case Item::INT_ITEM:
-      return MYSQL_TYPE_LONGLONG;
-    case Item::REAL_ITEM:
-      return MYSQL_TYPE_DOUBLE;
-    case Item::DECIMAL_ITEM:
-      return MYSQL_TYPE_NEWDECIMAL;
-    default:
-      break;
-  }
   return arg->data_type();
 }
 
@@ -234,14 +221,6 @@ static enum_field_types get_normalized_field_type(const Item *arg) {
     case MYSQL_TYPE_LONG_BLOB:
       return get_real_blob_type(arg);
 
-    case MYSQL_TYPE_VARCHAR:
-      /*
-        If arg represents a parameter to a prepared statement, its field
-        type will be MYSQL_TYPE_VARCHAR instead of the actual type of
-        the parameter. The item type will have the info, so adjust
-        field_type to match.
-      */
-      return get_real_data_type(arg);
     default:
       break;
   }
@@ -335,7 +314,9 @@ static bool json_is_valid(Item **args, uint arg_idx, String *value,
                           const char *func_name, Json_dom_ptr *dom,
                           bool require_str_or_json, bool *valid) {
   Item *const arg_item = args[arg_idx];
-  const enum_field_types field_type = get_normalized_field_type(arg_item);
+
+  enum_field_types field_type = get_normalized_field_type(arg_item);
+
   if (!is_convertible_to_json(arg_item)) {
     if (require_str_or_json) {
       *valid = false;
@@ -570,9 +551,8 @@ static bool evaluate_constant_json_schema(
     String *schema_string = json_schema->val_str(&schema_buffer);
     if (thd->is_error()) return true;
     if (json_schema->null_value) {
-      Item *null_item = new (thd->mem_root) Item_null((*ref)->item_name);
-      if (null_item == nullptr) return true;
-      thd->change_item_tree(ref, null_item);
+      *ref = new (thd->mem_root) Item_null((*ref)->item_name);
+      if (*ref == nullptr) return true;
     } else {
       *cached_schema_validator =
           create_json_schema_validator(thd->mem_root, schema_string->ptr(),
@@ -597,10 +577,7 @@ bool Item_func_json_schema_valid::fix_fields(THD *thd, Item **ref) {
                                        ref);
 }
 
-void Item_func_json_schema_valid::cleanup() {
-  Item_bool_func::cleanup();
-  m_cached_schema_validator = nullptr;
-}
+void Item_func_json_schema_valid::cleanup() { Item_bool_func::cleanup(); }
 
 Item_func_json_schema_valid::Item_func_json_schema_valid(const POS &pos,
                                                          Item *a, Item *b)
@@ -700,7 +677,6 @@ bool Item_func_json_schema_validation_report::fix_fields(THD *thd, Item **ref) {
 
 void Item_func_json_schema_validation_report::cleanup() {
   Item_json_func::cleanup();
-  m_cached_schema_validator = nullptr;
 }
 
 Item_func_json_schema_validation_report::
@@ -1074,39 +1050,36 @@ longlong Item_func_json_contains_path::val_int() {
   return result;
 }
 
-bool json_value(Item **args, uint arg_idx, Json_wrapper *result) {
-  Item *arg = args[arg_idx];
-
+bool json_value(Item *arg, Json_wrapper *result, bool *has_value) {
   if (arg->data_type() == MYSQL_TYPE_NULL) {
     if (arg->update_null_value()) return true;
     DBUG_ASSERT(arg->null_value);
+    *has_value = true;
     return false;
   }
 
+  // Give up if this is not a JSON value (including typed arrays)
   if (arg->data_type() != MYSQL_TYPE_JSON && !arg->returns_array()) {
-    // This is nor a JSON value, neither typed array. Give up.
-    return true;
+    *has_value = false;
+    return false;
   }
 
+  *has_value = true;
   return arg->val_json(result);
 }
 
 bool get_json_wrapper(Item **args, uint arg_idx, String *str,
                       const char *func_name, Json_wrapper *wrapper) {
-  if (!json_value(args, arg_idx, wrapper)) {
-    // Found a JSON value, return successfully.
-    return false;
-  }
+  Item *const arg = args[arg_idx];
 
-  if (args[arg_idx]->data_type() == MYSQL_TYPE_JSON) {
-    /*
-      If the type of the argument is JSON and json_value() returned
-      false, it means the argument didn't contain valid JSON data.
-      Give up.
-    */
+  bool has_value;
+  if (json_value(arg, wrapper, &has_value)) {
     return true;
   }
-
+  // If the value was handled, return with success
+  if (has_value) {
+    return false;
+  }
   /*
     Otherwise, it's a non-JSON type, so we need to see if we can
     convert it to JSON.
@@ -1124,7 +1097,7 @@ bool get_json_wrapper(Item **args, uint arg_idx, String *str,
     return true;
   }
 
-  if (args[arg_idx]->null_value) {
+  if (arg->null_value) {
     return false;
   }
 
@@ -1196,6 +1169,7 @@ static constexpr uint32 typelit_max_length =
     1;
 
 bool Item_func_json_type::resolve_type(THD *) {
+  param_type_is_default(0, 1, MYSQL_TYPE_JSON);
   maybe_null = true;
   m_value.set_charset(&my_charset_utf8mb4_bin);
   set_data_type_string(typelit_max_length, &my_charset_utf8mb4_bin);
@@ -1390,7 +1364,7 @@ static bool create_scalar(Json_scalar_holder *scalar, Json_dom_ptr *dom,
 }
 
 /**
-  Get a JSON value from a function, field or subselect scalar.
+  Get a JSON value from an SQL scalar value.
 
   @param[in]     arg         the function argument
   @param[in]     calling_function the name of the calling function
@@ -1403,16 +1377,27 @@ static bool create_scalar(Json_scalar_holder *scalar, Json_dom_ptr *dom,
                              borrowed by the result wrapper to hold the scalar
                              result. If the pointer is NULL, memory will be
                              allocated on the heap.
-  @param[in]     accept_string
-                             if true, accept SQL strings as scalars
-                             (false implies we need a valid
-                              JSON parsable string)
+  @param[in]     scalar_string
+                             if true, interpret SQL strings as scalar JSON
+                             strings.
+                             if false, interpret SQL strings as JSON objects.
+                             If conversion fails, return the string as a
+                             scalar JSON string instead.
+
   @return false if we could get a value or NULL, otherwise true
 */
-static bool val_json_func_field_subselect(
-    Item *arg, const char *calling_function, String *value, String *tmp,
-    Json_wrapper *wr, Json_scalar_holder *scalar, bool accept_string) {
+template <typename T>
+static bool sql_scalar_to_json(T *arg, const char *calling_function,
+                               String *value, String *tmp, Json_wrapper *wr,
+                               Json_scalar_holder *scalar, bool scalar_string) {
   enum_field_types field_type = get_normalized_field_type(arg);
+  /*
+    Most items and fields have same actual and resolved types, however e.g
+    a dynamic parameter will usually have a different type (integer, string...)
+  */
+  if (field_type == MYSQL_TYPE_JSON) {
+    field_type = arg->actual_data_type();
+  }
   Json_dom_ptr dom;
 
   switch (field_type) {
@@ -1539,7 +1524,7 @@ static bool val_json_func_field_subselect(
           return true; /* purecov: inspected */
 
         break;
-      } else if (accept_string) {
+      } else {
         const char *s = res->ptr();
         size_t ss = res->length();
 
@@ -1547,12 +1532,22 @@ static bool val_json_func_field_subselect(
           return true;
         }
 
-        if (create_scalar<Json_string>(scalar, &dom, s, ss))
-          return true; /* purecov: inspected */
+        if (scalar_string) {
+          if (create_scalar<Json_string>(scalar, &dom, s, ss))
+            return true; /* purecov: inspected */
+        } else {
+          const char *parse_err;
+          size_t err_offset;
+          dom = Json_dom::parse(s, ss, &parse_err, &err_offset);
+          if (dom == nullptr) {
+            if (parse_err == nullptr) return true;  // Error is generated
 
-      } else {
-        my_error(ER_INVALID_CAST_TO_JSON, MYF(0));
-        return true;
+            // Failed to parse as a JSON object, create a scalar instead
+            if (create_scalar<Json_string>(scalar, &dom, s, ss))
+              return true; /* purecov: inspected */
+            DBUG_ASSERT(scalar != nullptr || dom != nullptr);
+          }
+        }
       }
       break;
     }
@@ -1584,7 +1579,7 @@ static bool val_json_func_field_subselect(
   DBUG_ASSERT((scalar == nullptr) != (dom == nullptr));
   DBUG_ASSERT(scalar == nullptr || scalar->get() != nullptr);
 
-  if (scalar) {
+  if (scalar != nullptr) {
     /*
       The DOM object lives in memory owned by the caller. Tell the
       wrapper that it's not the owner.
@@ -1641,6 +1636,12 @@ static bool extract_boolean(Item *arg, bool *result) {
   return false;
 }
 
+bool convert_scalar_to_json(Item *arg, String *value, String *tmp,
+                            Json_wrapper *wr) {
+  return sql_scalar_to_json(arg, "cast_as_json", value, tmp, wr, nullptr,
+                            false);
+}
+
 // see the contract for this function in item_json_func.h
 bool get_json_atom_wrapper(Item **args, uint arg_idx,
                            const char *calling_function, String *value,
@@ -1650,20 +1651,16 @@ bool get_json_atom_wrapper(Item **args, uint arg_idx,
 
   Item *const arg = args[arg_idx];
 
+  // First, try to handle simple cases: NULL value and JSON type
+  bool has_value = false;
+  if (json_value(arg, wr, &has_value)) {
+    return true;
+  }
+  if (has_value) {
+    return false;
+  }
+
   try {
-    if (!json_value(args, arg_idx, wr)) {
-      return false;
-    }
-
-    if (arg->data_type() == MYSQL_TYPE_JSON) {
-      /*
-        If the type of the argument is JSON and json_value() returned
-        false, it means the argument didn't contain valid JSON data.
-        Give up.
-      */
-      return true;
-    }
-
     // boolean operators should produce boolean values
     bool boolean_value;
     if (extract_boolean(arg, &boolean_value)) {
@@ -1671,7 +1668,7 @@ bool get_json_atom_wrapper(Item **args, uint arg_idx,
       if (create_scalar<Json_boolean>(scalar, &boolean_dom, boolean_value))
         return true; /* purecov: inspected */
 
-      if (scalar) {
+      if (scalar != nullptr) {
         /*
           The DOM object lives in memory owned by the caller. Tell the
           wrapper that it's not the owner.
@@ -1689,8 +1686,8 @@ bool get_json_atom_wrapper(Item **args, uint arg_idx,
       Allow other types as first-class or opaque JSON values.
       But how to determine what the type is? We do a best effort...
     */
-    result = val_json_func_field_subselect(arg, calling_function, value, tmp,
-                                           wr, scalar, accept_string);
+    result = sql_scalar_to_json(arg, calling_function, value, tmp, wr, scalar,
+                                accept_string);
 
   } catch (...) {
     /* purecov: begin inspected */
@@ -1727,8 +1724,10 @@ bool Item_typecast_json::val_json(Json_wrapper *wr) {
   }
 
   if (args[0]->data_type() == MYSQL_TYPE_JSON) {
-    if (json_value(args, 0, wr)) return error_json();
+    bool has_value;
+    if (json_value(args[0], wr, &has_value)) return error_json();
 
+    DBUG_ASSERT(has_value);
     null_value = args[0]->null_value;
     return false;
   }
@@ -1757,6 +1756,7 @@ bool Item_typecast_json::val_json(Json_wrapper *wr) {
     return error_json();
 
   null_value = args[0]->null_value;
+
   return false;
 }
 
@@ -3779,6 +3779,8 @@ type_conversion_status Item_func_array_cast::save_in_field_inner(Field *field,
       &wr, m_result_array.get());
 }
 
+void Item_func_array_cast::cleanup() { Item_func::cleanup(); }
+
 /// Converts the "data type" used by Item to a "real type" used by Field.
 static enum_field_types data_type_to_real_type(enum_field_types data_type) {
   // Only temporal types have different "data type" and "real type".
@@ -3820,11 +3822,11 @@ bool Field_typed_array::coerce_json_value(const Json_wrapper *wr, bool no_error,
     the value is coercible at all. In such case don't throw an error, just
     return 'true' when value isn't coercible.
   */
-  if (save_json_to_field(thd, m_conv_item->field, wr, no_error) ||
-      // The calling_function arg below isn't needed as it's used only for
-      // geometry and geometry arrays aren't supported
-      val_json_func_field_subselect(m_conv_item, "<typed array>", &value, &tmp,
-                                    &saved, nullptr, true))
+  if (save_json_to_field(thd, m_conv_item->field, wr, no_error)) return true;
+  // The calling_function arg below isn't needed as it's used only for
+  // geometry and geometry arrays aren't supported
+  if (sql_scalar_to_json(m_conv_item, "<typed array>", &value, &tmp, &saved,
+                         nullptr, true))
     return true;
   if (!coerced) return false;
   *coerced = std::move(saved);

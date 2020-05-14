@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1833,10 +1833,11 @@ bool sp_head::setup_trigger_fields(THD *thd, Table_trigger_field_support *tfs,
          f = f->next_trg_field) {
       f->setup_field(tfs, subject_table_grant);
 
-      if (need_fix_fields && !f->fixed &&
-          f->fix_fields(thd, (Item **)nullptr)) {
-        return true;
-      }
+      if (!need_fix_fields || f->fixed) continue;
+
+      Prepared_stmt_arena_holder ps_arena_holder(thd);
+
+      if (f->fix_fields(thd, nullptr)) return true;
     }
   }
 
@@ -2117,7 +2118,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
   */
   old_lex = thd->lex;
   /*
-    We should also save Item tree change list to avoid rollback something
+    Save Item tree change list to avoid rollback something
     too early in the calling query.
   */
   thd->change_list.move_elements_to(&old_change_list);
@@ -2238,9 +2239,10 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
       thd->user_var_events_alloc = nullptr;  // DEBUG
     }
 
-    /* we should cleanup free_list and memroot, used by instruction */
-
+    // Free items created when executing the instruction, etc.
     thd->cleanup_after_query();
+
+    // Release memory allocated during execution of the instruction
     free_root(&execute_mem_root, MYF(0));
 
     /*
@@ -2270,16 +2272,14 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
   thd->profiling->start_new_query("tail end of routine");
 #endif
 
-  /* Restore query context. */
-
+  // Restore query context.
   m_creation_ctx->restore_env(thd, saved_creation_ctx);
 
-  /* Restore arena. */
-
+  // Restore arena.
   thd->swap_query_arena(backup_arena, &execute_arena);
 
-  thd->sp_runtime_ctx
-      ->pop_all_cursors();  // To avoid memory leaks after an error
+  // Delete all cursors allocated during execution
+  thd->sp_runtime_ctx->pop_all_cursors();
 
   if (thd->is_classic_protocol()) /* Restore all saved */
     old_packet.swap(*thd->get_protocol_classic()->get_output_packet());
@@ -2829,7 +2829,7 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args) {
       arguments evaluation. If arguments evaluation required prelocking mode,
       we'll leave it here.
     */
-    thd->lex->unit->cleanup(thd, true);
+    thd->lex->cleanup(thd, true);
 
     if (!thd->in_sub_stmt) {
       thd->get_stmt_da()->set_overwrite_status(true);

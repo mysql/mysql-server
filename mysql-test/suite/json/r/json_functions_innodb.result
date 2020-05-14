@@ -9707,24 +9707,13 @@ UPDATE t SET j1 = JSON_SET(j1, '$.a', 'x'),
 j2 = JSON_SET(j2, '$.a', 'y'),
 j1 = JSON_SET(j1, '$.b', 'z');
 SET optimizer_trace="enabled=off";
-SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
-trace
-{
-  "steps": [
-    {
-      "update_preparation": {
-        "select#": 1,
-        "json_partial_update": {
-          "rejected_columns": [
-          ]
-        },
-        "steps": [
-          "update `t` set `t`.`j1` = json_set(`t`.`j1`,'$.a','x'),`t`.`j2` = json_set(`t`.`j2`,'$.a','y'),`t`.`j1` = json_set(`t`.`j1`,'$.b','z')"
-        ]
-      }
+SELECT REGEXP_SUBSTR(TRACE, '"table".*', 1, 1, 'n') FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+REGEXP_SUBSTR(TRACE, '"table".*', 1, 1, 'n')
+"table": "`t`"
     },
     {
-      "table": "`t`"
+      "rejected_columns": [
+      ]
     },
     {
       "json_partial_update": {
@@ -9777,24 +9766,13 @@ UPDATE t SET j1 = JSON_SET(j1, '$.a', 's'),
 j2 = JSON_SET(j2, '$.a', 'abcdefghi'),
 j1 = JSON_SET(j1, '$.b', 't');
 SET optimizer_trace="enabled=off";
-SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
-trace
-{
-  "steps": [
-    {
-      "update_preparation": {
-        "select#": 1,
-        "json_partial_update": {
-          "rejected_columns": [
-          ]
-        },
-        "steps": [
-          "update `t` set `t`.`j1` = json_set(`t`.`j1`,'$.a','s'),`t`.`j2` = json_set(`t`.`j2`,'$.a','abcdefghi'),`t`.`j1` = json_set(`t`.`j1`,'$.b','t')"
-        ]
-      }
+SELECT REGEXP_SUBSTR(TRACE, '"table".*', 1, 1, 'n') FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+REGEXP_SUBSTR(TRACE, '"table".*', 1, 1, 'n')
+"table": "`t`"
     },
     {
-      "table": "`t`"
+      "rejected_columns": [
+      ]
     },
     {
       "json_partial_update": {
@@ -9842,24 +9820,13 @@ Note	1003	update `test`.`t` set `test`.`t`.`j1` = json_set(`test`.`t`.`j1`,'$.x.
 SET optimizer_trace="enabled=on";
 UPDATE t SET j1 = JSON_SET(j1, '$.x.y.z', 'abc', '$.b', 'X');
 SET optimizer_trace="enabled=off";
-SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
-trace
-{
-  "steps": [
-    {
-      "update_preparation": {
-        "select#": 1,
-        "json_partial_update": {
-          "rejected_columns": [
-          ]
-        },
-        "steps": [
-          "update `t` set `t`.`j1` = json_set(`t`.`j1`,'$.x.y.z','abc','$.b','X')"
-        ]
-      }
+SELECT REGEXP_SUBSTR(TRACE, '"table".*', 1, 1, 'n') FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+REGEXP_SUBSTR(TRACE, '"table".*', 1, 1, 'n')
+"table": "`t`"
     },
     {
-      "table": "`t`"
+      "rejected_columns": [
+      ]
     },
     {
       "json_partial_update": {
@@ -9906,24 +9873,13 @@ Note	1003	update `test`.`t` set `test`.`t`.`j1` = json_replace(`test`.`t`.`j1`,'
 SET optimizer_trace="enabled=on";
 UPDATE t SET j1 = JSON_REPLACE(j1, '$.x', 'abc', '$.b', 'Y');
 SET optimizer_trace="enabled=off";
-SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
-trace
-{
-  "steps": [
-    {
-      "update_preparation": {
-        "select#": 1,
-        "json_partial_update": {
-          "rejected_columns": [
-          ]
-        },
-        "steps": [
-          "update `t` set `t`.`j1` = json_replace(`t`.`j1`,'$.x','abc','$.b','Y')"
-        ]
-      }
+SELECT REGEXP_SUBSTR(TRACE, '"table".*', 1, 1, 'n') FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+REGEXP_SUBSTR(TRACE, '"table".*', 1, 1, 'n')
+"table": "`t`"
     },
     {
-      "table": "`t`"
+      "rejected_columns": [
+      ]
     },
     {
       "json_partial_update": {
@@ -9970,24 +9926,13 @@ Note	1003	update `test`.`t` set `test`.`t`.`j1` = json_set(`test`.`t`.`j1`,'$.x'
 SET optimizer_trace="enabled=on";
 UPDATE t SET j1 = JSON_SET(j1, '$.x', 'abc', '$.b', 'Z');
 SET optimizer_trace="enabled=off";
-SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
-trace
-{
-  "steps": [
-    {
-      "update_preparation": {
-        "select#": 1,
-        "json_partial_update": {
-          "rejected_columns": [
-          ]
-        },
-        "steps": [
-          "update `t` set `t`.`j1` = json_set(`t`.`j1`,'$.x','abc','$.b','Z')"
-        ]
-      }
+SELECT REGEXP_SUBSTR(TRACE, '"table".*', 1, 1, 'n') FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+REGEXP_SUBSTR(TRACE, '"table".*', 1, 1, 'n')
+"table": "`t`"
     },
     {
-      "table": "`t`"
+      "rejected_columns": [
+      ]
     },
     {
       "json_partial_update": {
@@ -10031,29 +9976,18 @@ Note	1003	update `test`.`t` set `test`.`t`.`j1` = json_set(`test`.`t`.`j2`,'$.a'
 SET optimizer_trace="enabled=on";
 UPDATE t SET j1 = JSON_SET(j2, '$.a', 'ABC');
 SET optimizer_trace="enabled=off";
-SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
-trace
-{
-  "steps": [
-    {
-      "update_preparation": {
-        "select#": 1,
-        "json_partial_update": {
-          "rejected_columns": [
-            {
-              "table": "`t`",
-              "column": "j1",
-              "cause": "Updated using a function that does not support partial update, or source and target column differ"
-            }
-          ]
-        },
-        "steps": [
-          "update `t` set `t`.`j1` = json_set(`t`.`j2`,'$.a','ABC')"
-        ]
-      }
+SELECT REGEXP_SUBSTR(TRACE, '"table".*', 1, 1, 'n') FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+REGEXP_SUBSTR(TRACE, '"table".*', 1, 1, 'n')
+"table": "`t`"
     },
     {
-      "table": "`t`"
+      "rejected_columns": [
+        {
+          "table": "`t`",
+          "column": "j1",
+          "cause": "Updated using a function that does not support partial update, or source and target column differ"
+        }
+      ]
     }
   ]
 }
@@ -10089,29 +10023,18 @@ Note	1003	update `test`.`t` set `test`.`t`.`j1` = json_array(`test`.`t`.`j1`,`te
 SET optimizer_trace="enabled=on";
 UPDATE t SET j1 = JSON_ARRAY(j1, j1);
 SET optimizer_trace="enabled=off";
-SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
-trace
-{
-  "steps": [
-    {
-      "update_preparation": {
-        "select#": 1,
-        "json_partial_update": {
-          "rejected_columns": [
-            {
-              "table": "`t`",
-              "column": "j1",
-              "cause": "Updated using a function that does not support partial update, or source and target column differ"
-            }
-          ]
-        },
-        "steps": [
-          "update `t` set `t`.`j1` = json_array(`t`.`j1`,`t`.`j1`)"
-        ]
-      }
+SELECT REGEXP_SUBSTR(TRACE, '"table".*', 1, 1, 'n') FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+REGEXP_SUBSTR(TRACE, '"table".*', 1, 1, 'n')
+"table": "`t`"
     },
     {
-      "table": "`t`"
+      "rejected_columns": [
+        {
+          "table": "`t`",
+          "column": "j1",
+          "cause": "Updated using a function that does not support partial update, or source and target column differ"
+        }
+      ]
     }
   ]
 }
@@ -10152,29 +10075,18 @@ SET optimizer_trace="enabled=on";
 UPDATE t SET j1 = JSON_SET(j2, '$.a', 1),
 j2 = JSON_SET(j2, '$.a', 1);
 SET optimizer_trace="enabled=off";
-SELECT trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
-trace
-{
-  "steps": [
-    {
-      "update_preparation": {
-        "select#": 1,
-        "json_partial_update": {
-          "rejected_columns": [
-            {
-              "table": "`t`",
-              "column": "j1",
-              "cause": "Updated using a function that does not support partial update, or source and target column differ"
-            }
-          ]
-        },
-        "steps": [
-          "update `t` set `t`.`j1` = json_set(`t`.`j2`,'$.a',1),`t`.`j2` = json_set(`t`.`j2`,'$.a',1)"
-        ]
-      }
+SELECT REGEXP_SUBSTR(TRACE, '"table".*', 1, 1, 'n') FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+REGEXP_SUBSTR(TRACE, '"table".*', 1, 1, 'n')
+"table": "`t`"
     },
     {
-      "table": "`t`"
+      "rejected_columns": [
+        {
+          "table": "`t`",
+          "column": "j1",
+          "cause": "Updated using a function that does not support partial update, or source and target column differ"
+        }
+      ]
     },
     {
       "json_partial_update": {
@@ -10578,7 +10490,7 @@ SET optimizer_trace="enabled=off";
 SELECT trace->'$**.json_partial_update'
        FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 trace->'$**.json_partial_update'
-[{"rejected_columns": []}, {"table": "`t1`", "eligible_columns": ["j"]}]
+[{"table": "`t1`", "eligible_columns": ["j"]}]
 SELECT *, JSON_STORAGE_SIZE(j) ss,
 JSON_STORAGE_FREE(j) sf FROM t1 ORDER BY id;
 id	j	x	ss	sf
@@ -10673,7 +10585,7 @@ SET optimizer_trace="enabled=off";
 SELECT trace->'$**.json_partial_update'
        FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 trace->'$**.json_partial_update'
-[{"rejected_columns": []}, {"table": "`t1`", "eligible_columns": ["j"]}, {"rejected_table": {"cause": "Table cannot be updated on the fly", "table": "`t2`"}}]
+[{"table": "`t1`", "eligible_columns": ["j"]}, {"rejected_table": {"cause": "Table cannot be updated on the fly", "table": "`t2`"}}]
 SELECT *, JSON_STORAGE_SIZE(j) ss,
 JSON_STORAGE_FREE(j) sf FROM t1 ORDER BY id;
 id	j	x	ss	sf
@@ -10739,7 +10651,7 @@ SET optimizer_trace="enabled=off";
 SELECT trace->'$**.json_partial_update'
        FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 trace->'$**.json_partial_update'
-[{"rejected_columns": [{"cause": "Updated using a function that does not support partial update, or source and target column differ", "table": "`t1`", "column": "j"}]}, {"rejected_table": {"cause": "Table cannot be updated on the fly", "table": "`t2`"}}]
+[{"rejected_table": {"cause": "Table cannot be updated on the fly", "table": "`t2`"}}]
 SELECT *, JSON_STORAGE_SIZE(j) ss,
 JSON_STORAGE_FREE(j) sf FROM t1 ORDER BY id;
 id	j	x	ss	sf
@@ -10763,7 +10675,7 @@ SET optimizer_trace="enabled=off";
 SELECT trace->'$**.json_partial_update'
        FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 trace->'$**.json_partial_update'
-[{"rejected_columns": [{"cause": "Storage engine does not support partial update", "table": "`t`", "column": "j"}]}]
+NULL
 SELECT j, JSON_STORAGE_SIZE(j), JSON_STORAGE_FREE(j) FROM t;
 j	JSON_STORAGE_SIZE(j)	JSON_STORAGE_FREE(j)
 [1]	8	0

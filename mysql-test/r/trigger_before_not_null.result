@@ -1860,7 +1860,7 @@ DROP VIEW v2;
 CREATE TABLE t1(a1 INT NOT NULL);
 CREATE TRIGGER t1_bi BEFORE INSERT ON t1
 FOR EACH ROW
-UPDATE t1 SET NEW.a1 = 1 WHERE a1 IS NULL;
+UPDATE t1 SET a1 = 1 WHERE a1 IS NULL;
 INSERT INTO t1 VALUES (NULL);
 ERROR HY000: Can't update table 't1' in stored function/trigger because it is already used by statement which invoked this stored function/trigger.
 DROP TRIGGER t1_bi;
@@ -1869,7 +1869,7 @@ DROP TABLE t1;
 CREATE TABLE t1(a1 INT NOT NULL);
 CREATE TRIGGER t1_bi BEFORE INSERT ON t1
 FOR EACH ROW
-UPDATE t1 SET NEW.a1 = 1;
+UPDATE t1 SET a1 = 1;
 INSERT INTO t1 VALUES (NULL);
 ERROR HY000: Can't update table 't1' in stored function/trigger because it is already used by statement which invoked this stored function/trigger.
 DROP TRIGGER t1_bi;

@@ -486,20 +486,16 @@ primary key (id),
 unique key (c)
 ) engine=innodb;
 
---disable_ps_protocol # Different number of warnings until WL#6570.
 insert into t1 (id, c) values
 (NULL, 'a'),
 (NULL, 'a')
 on duplicate key update id = values(id), counter = counter + 1;
---enable_ps_protocol
 
 select * from t1;
 
---disable_ps_protocol # Different number of warnings until WL#6570.
 insert into t1 (id, c) values
 (NULL, 'b')
 on duplicate key update id = values(id), counter = counter + 1;
---enable_ps_protocol
 
 select * from t1;
 
@@ -509,17 +505,13 @@ insert into t1 (id, c) values (NULL, 'a');
 
 select * from t1;
 
---disable_ps_protocol # Different number of warnings until WL#6570.
 insert into t1 (id, c) values (NULL, 'b'), (NULL, 'b')
 on duplicate key update id = values(id), c = values(c), counter = counter + 1;
---enable_ps_protocol
 
 select * from t1;
 
---disable_ps_protocol # Different number of warnings until WL#6570.
 insert into t1 (id, c) values (NULL, 'a')
 on duplicate key update id = values(id), c = values(c), counter = counter + 1;
---enable_ps_protocol
 
 select * from t1;
 

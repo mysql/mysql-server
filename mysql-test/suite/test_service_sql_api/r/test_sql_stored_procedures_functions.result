@@ -470,7 +470,7 @@ EXECUTING:[112][SELECT SPECIFIC_NAME FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUT
 		[meta] server status: AUTOCOMMIT 
 		[meta] warning count: 0
 
-			[meta][field] db name: mysql
+			[meta][field] db name: information_schema
 			[meta][field] table name: ROUTINES
 			[meta][field] org table name: ROUTINES
 			[meta][field] col name: SPECIFIC_NAME
@@ -502,7 +502,7 @@ EXECUTING:[112][SELECT SPECIFIC_NAME FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUT
 		[meta] server status: AUTOCOMMIT 
 		[meta] warning count: 0
 
-			[meta][field] db name: mysql
+			[meta][field] db name: information_schema
 			[meta][field] table name: ROUTINES
 			[meta][field] org table name: ROUTINES
 			[meta][field] col name: SPECIFIC_NAME
@@ -604,7 +604,7 @@ EXECUTING:[115][SELECT SPECIFIC_NAME FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUT
 		[meta] server status: AUTOCOMMIT 
 		[meta] warning count: 0
 
-			[meta][field] db name: mysql
+			[meta][field] db name: information_schema
 			[meta][field] table name: ROUTINES
 			[meta][field] org table name: ROUTINES
 			[meta][field] col name: SPECIFIC_NAME
@@ -636,7 +636,7 @@ EXECUTING:[115][SELECT SPECIFIC_NAME FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUT
 		[meta] server status: AUTOCOMMIT 
 		[meta] warning count: 0
 
-			[meta][field] db name: mysql
+			[meta][field] db name: information_schema
 			[meta][field] table name: ROUTINES
 			[meta][field] org table name: ROUTINES
 			[meta][field] col name: SPECIFIC_NAME
@@ -1069,7 +1069,7 @@ EXECUTING:[112][SELECT SPECIFIC_NAME FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUT
 		[meta] server status: AUTOCOMMIT 
 		[meta] warning count: 0
 
-			[meta][field] db name: mysql
+			[meta][field] db name: information_schema
 			[meta][field] table name: ROUTINES
 			[meta][field] org table name: ROUTINES
 			[meta][field] col name: SPECIFIC_NAME
@@ -1101,7 +1101,7 @@ EXECUTING:[112][SELECT SPECIFIC_NAME FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUT
 		[meta] server status: AUTOCOMMIT 
 		[meta] warning count: 0
 
-			[meta][field] db name: mysql
+			[meta][field] db name: information_schema
 			[meta][field] table name: ROUTINES
 			[meta][field] org table name: ROUTINES
 			[meta][field] col name: SPECIFIC_NAME
@@ -1203,7 +1203,7 @@ EXECUTING:[115][SELECT SPECIFIC_NAME FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUT
 		[meta] server status: AUTOCOMMIT 
 		[meta] warning count: 0
 
-			[meta][field] db name: mysql
+			[meta][field] db name: information_schema
 			[meta][field] table name: ROUTINES
 			[meta][field] org table name: ROUTINES
 			[meta][field] col name: SPECIFIC_NAME
@@ -1235,7 +1235,7 @@ EXECUTING:[115][SELECT SPECIFIC_NAME FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUT
 		[meta] server status: AUTOCOMMIT 
 		[meta] warning count: 0
 
-			[meta][field] db name: mysql
+			[meta][field] db name: information_schema
 			[meta][field] table name: ROUTINES
 			[meta][field] org table name: ROUTINES
 			[meta][field] col name: SPECIFIC_NAME

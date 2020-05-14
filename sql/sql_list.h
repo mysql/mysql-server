@@ -1,6 +1,6 @@
 #ifndef INCLUDES_MYSQL_SQL_LIST_H
 #define INCLUDES_MYSQL_SQL_LIST_H
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -264,13 +264,6 @@ class base_list {
   inline void **head_ref() {
     return first != &end_of_list ? &first->info : nullptr;
   }
-  // Can be removed after WL#6570
-  inline void **tail_ref() {
-    if (first == &end_of_list) return nullptr;
-    list_node *n = first;
-    while (n->next != &end_of_list) n = n->next;
-    return &n->info;
-  }
   inline bool is_empty() const { return first == &end_of_list; }
   inline list_node *last_ref() { return &end_of_list; }
   inline uint size() const { return elements; }
@@ -466,7 +459,6 @@ class List : public base_list {
     return static_cast<const T *>(base_list::head());
   }
   inline T **head_ref() { return (T **)base_list::head_ref(); }
-  inline T **tail_ref() { return (T **)base_list::tail_ref(); }
   inline T *pop() { return (T *)base_list::pop(); }
   inline void concat(List<T> *list) { base_list::concat(list); }
   inline void disjoin(List<T> *list) { base_list::disjoin(list); }

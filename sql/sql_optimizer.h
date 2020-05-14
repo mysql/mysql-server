@@ -1,7 +1,7 @@
 #ifndef SQL_OPTIMIZER_INCLUDED
 #define SQL_OPTIMIZER_INCLUDED
 
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -126,6 +126,8 @@ class JOIN {
   JOIN(THD *thd_arg, SELECT_LEX *select);
   JOIN(const JOIN &rhs) = delete;
   JOIN &operator=(const JOIN &rhs) = delete;
+
+  ~JOIN() {}
 
   /// Query block that is optimized and executed using this JOIN
   SELECT_LEX *const select_lex;
@@ -390,6 +392,13 @@ class JOIN {
   */
   ORDER_with_src order, group_list;
 
+  // Used so that AggregateIterator knows which items to signal when the rollup
+  // level changes. Obviously only used in the presence of rollup.
+  Prealloced_array<Item_rollup_group_item *, 4> rollup_group_items{
+      PSI_NOT_INSTRUMENTED};
+  Prealloced_array<Item_rollup_sum_switcher *, 4> rollup_sums{
+      PSI_NOT_INSTRUMENTED};
+
   /**
     Any window definitions
   */
@@ -572,7 +581,7 @@ class JOIN {
   bool optimize();
   void reset();
   bool prepare_result();
-  bool destroy();
+  void destroy();
   bool alloc_func_list();
   bool make_sum_func_list(List<Item> &all_fields, bool before_group_by,
                           bool recompute = false);
@@ -613,8 +622,8 @@ class JOIN {
     DBUG_ASSERT((int)sliceno >= 1);
     if (current_ref_item_slice != sliceno) {
       copy_ref_item_slice(REF_SLICE_ACTIVE, sliceno);
-      DBUG_PRINT("info",
-                 ("ref slice %u -> %u", current_ref_item_slice, sliceno));
+      DBUG_PRINT("info", ("JOIN %p ref slice %u -> %u", this,
+                          current_ref_item_slice, sliceno));
       current_ref_item_slice = sliceno;
     }
   }
@@ -985,19 +994,6 @@ class Switch_ref_item_slice {
     if (!join->ref_items[new_v].is_null()) join->set_ref_item_slice(new_v);
   }
   ~Switch_ref_item_slice() { join->set_ref_item_slice(saved); }
-};
-
-/**
-  RAII class to ease the call of LEX::mark_broken() if error.
-  Used during preparation and optimization of DML queries.
-*/
-class Prepare_error_tracker {
- public:
-  explicit Prepare_error_tracker(THD *thd) : m_thd(thd) {}
-  ~Prepare_error_tracker();
-
- private:
-  THD *const m_thd;
 };
 
 bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,

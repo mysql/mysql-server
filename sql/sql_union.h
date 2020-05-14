@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,7 @@ template <class T>
 class List;
 
 class Query_result_union : public Query_result_interceptor {
+ protected:
   Temp_table_param tmp_table_param;
   /// Count of rows successfully stored in tmp table
   ha_rows m_rows_in_table;
@@ -69,6 +70,7 @@ class Query_result_union : public Query_result_interceptor {
                            ulonglong options, const char *alias,
                            bool bit_fields_as_long, bool create_table);
   friend bool TABLE_LIST::create_materialized_table(THD *thd);
+  friend bool TABLE_LIST::optimize_derived(THD *thd);
   virtual const ha_rows *row_count() const override { return &m_rows_in_table; }
 };
 
