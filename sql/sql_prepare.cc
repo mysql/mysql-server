@@ -2941,7 +2941,7 @@ bool Prepared_statement::execute_loop(String *expanded_query,
   const int MAX_REPREPARE_ATTEMPTS = 3;
   Reprepare_observer reprepare_observer;
   bool error;
-  bool reprepared_for_types = false;
+  bool reprepared_for_types MY_ATTRIBUTE((unused)) = false;
   int reprepare_attempt = 0;
 
   /* Check if we got an error when sending long data */
