@@ -45,7 +45,7 @@
 #include "sql/replication.h"         // Trans_context_info
 #include "sql/rpl_channel_credentials.h"
 #include "sql/rpl_channel_service_interface.h"
-#include "sql/rpl_gtid.h"   // gtid_mode_lock
+#include "sql/rpl_gtid.h"   // Gtid_mode::lock
 #include "sql/rpl_slave.h"  // report_host
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_lex.h"
@@ -119,7 +119,6 @@ bool is_group_replication_plugin_loaded() {
 int group_replication_start(char **error_message, THD *thd) {
   LEX *lex = thd->lex;
   int result = 1;
-  bool gtid_locked = false;
   plugin_ref plugin = nullptr;
 
   if (start_stop_executing.test_and_set()) {
@@ -137,20 +136,26 @@ int group_replication_start(char **error_message, THD *thd) {
                                   MYSQL_GROUP_REPLICATION_PLUGIN);
   if (plugin != nullptr) {
     /*
-      We need to take global_sid_lock because
+      We need to take Gtid_mode::lock because
       group_replication_handler->start function will (among other
       things) do the following:
 
-       1. Call get_server_startup_prerequirements, which calls get_gtid_mode.
+       1. Call global_gtid_mode.get (the call stack is: this function
+          calls plugin_handle->start, which is equal to
+          plugin_group_replication_init (as declared at the end of
+          plugin/group_replication/src/plugin.cc), which calls
+          plugin_group_replication_start, which calls
+          check_if_server_properly_configured, which calls
+          get_server_startup_prerequirements, which calls
+          global_gtid_mode.get).
        2. Set plugin-internal state that ensures that
           is_group_replication_running() returns true.
 
       In order to prevent a concurrent client from executing SET
       GTID_MODE=ON_PERMISSIVE between 1 and 2, we must hold
-      gtid_mode_lock.
+      Gtid_mode::lock.
     */
-    gtid_mode_lock->rdlock();
-    gtid_locked = true;
+    Checkable_rwlock::Guard g(Gtid_mode::lock, Checkable_rwlock::READ_LOCK);
     st_mysql_group_replication *plugin_handle =
         (st_mysql_group_replication *)plugin_decl(plugin)->info;
     /*
@@ -194,7 +199,6 @@ int group_replication_start(char **error_message, THD *thd) {
     LogErr(ERROR_LEVEL, ER_GROUP_REPLICATION_PLUGIN_NOT_INSTALLED);
   }
 err:
-  if (gtid_locked) gtid_mode_lock->unlock();
   if (plugin != nullptr) plugin_unlock(nullptr, plugin);
   start_stop_executing.clear();
   return result;
@@ -472,13 +476,11 @@ void set_auto_increment_offset(ulong auto_increment_offset) {
   global_system_variables.auto_increment_offset = auto_increment_offset;
 }
 
-void get_server_startup_prerequirements(Trans_context_info &requirements,
-                                        bool has_lock) {
+void get_server_startup_prerequirements(Trans_context_info &requirements) {
   requirements.binlog_enabled = opt_bin_log;
   requirements.binlog_format = global_system_variables.binlog_format;
   requirements.binlog_checksum_options = binlog_checksum_options;
-  requirements.gtid_mode =
-      get_gtid_mode(has_lock ? GTID_MODE_LOCK_GTID_MODE : GTID_MODE_LOCK_NONE);
+  requirements.gtid_mode = global_gtid_mode.get();
   requirements.log_slave_updates = opt_log_slave_updates;
   requirements.transaction_write_set_extraction =
       global_system_variables.transaction_write_set_extraction;
@@ -495,21 +497,17 @@ void get_server_startup_prerequirements(Trans_context_info &requirements,
 
 bool get_server_encoded_gtid_executed(uchar **encoded_gtid_executed,
                                       size_t *length) {
-  global_sid_lock->wrlock();
+  Checkable_rwlock::Guard g(*global_sid_lock, Checkable_rwlock::WRITE_LOCK);
 
-  DBUG_ASSERT(get_gtid_mode(GTID_MODE_LOCK_SID) > 0);
+  DBUG_ASSERT(global_gtid_mode.get() != Gtid_mode::OFF);
 
   const Gtid_set *executed_gtids = gtid_state->get_executed_gtids();
   *length = executed_gtids->get_encoded_length();
   *encoded_gtid_executed =
       (uchar *)my_malloc(key_memory_Gtid_set_to_string, *length, MYF(MY_WME));
-  if (*encoded_gtid_executed == nullptr) {
-    global_sid_lock->unlock();
-    return true;
-  }
+  if (*encoded_gtid_executed == nullptr) return true;
 
   executed_gtids->encode(*encoded_gtid_executed);
-  global_sid_lock->unlock();
   return false;
 }
 
@@ -537,15 +535,11 @@ void global_thd_manager_remove_thd(THD *thd) {
 }
 
 bool is_gtid_committed(const Gtid &gtid) {
-  bool result = false;
-  global_sid_lock->rdlock();
+  Checkable_rwlock::Guard g(*global_sid_lock, Checkable_rwlock::READ_LOCK);
 
-  DBUG_ASSERT(get_gtid_mode(GTID_MODE_LOCK_SID) > 0);
+  DBUG_ASSERT(global_gtid_mode.get() != Gtid_mode::OFF);
 
-  result = gtid_state->is_executed(gtid);
-
-  global_sid_lock->unlock();
-  return result;
+  return gtid_state->is_executed(gtid);
 }
 
 unsigned long get_slave_max_allowed_packet() {

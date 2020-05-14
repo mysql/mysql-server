@@ -375,19 +375,7 @@ START SLAVE IO_THREAD;
 include/wait_for_slave_io_error.inc [errno=13117]
 Last_IO_Error = 'The slave IO thread stops because the master has an unknown @@GLOBAL.GTID_MODE 'Krakel Spektakel'.'
 SET @@GLOBAL.DEBUG= @debug_saved;
-#
-# Warning generated if master has unknown gtid_mode that begins
-# with ON or OFF.
-#
 SET @@GLOBAL.GTID_MODE = OFF_PERMISSIVE;
-SET @@GLOBAL.DEBUG = 'd,simulate_master_has_gtid_mode_on_something';
-include/start_slave.inc
-include/assert_grep.inc [Receiver thread should report that on_something is unknown]
-include/stop_slave.inc
-SET @@GLOBAL.DEBUG = 'd,simulate_master_has_gtid_mode_off_something';
-include/start_slave.inc
-include/assert_grep.inc [Receiver thread should report that off_something is unknown]
-include/stop_slave.inc
 RESET SLAVE;
 #
 # ER_CANT_SET_GTID_MODE generated because AUTO_POSITION = 1.

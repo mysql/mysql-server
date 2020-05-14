@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -79,7 +79,7 @@ bool set_gtid_next(THD *thd, const Gtid_specification &spec) {
   if (spec.type == AUTOMATIC_GTID) {
     thd->variables.gtid_next.set_automatic();
   } else if (spec.type == ANONYMOUS_GTID) {
-    if (get_gtid_mode(GTID_MODE_LOCK_SID) == GTID_MODE_ON) {
+    if (global_gtid_mode.get() == Gtid_mode::ON) {
       my_error(ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON, MYF(0));
       goto err;
     }
@@ -102,7 +102,7 @@ bool set_gtid_next(THD *thd, const Gtid_specification &spec) {
       DBUG_ASSERT(lock_count == 1);
       global_sid_lock->assert_some_lock();
 
-      if (get_gtid_mode(GTID_MODE_LOCK_SID) == GTID_MODE_OFF) {
+      if (global_gtid_mode.get() == Gtid_mode::OFF) {
         my_error(ER_CANT_SET_GTID_NEXT_TO_GTID_WHEN_GTID_MODE_IS_OFF, MYF(0));
         goto err;
       }
@@ -353,7 +353,7 @@ bool gtid_reacquire_ownership_if_anonymous(THD *thd) {
     Gtid_log_event, gtid_next will be converted to ANONYMOUS.
   */
   DBUG_PRINT("info", ("gtid_next->type=%d gtid_mode=%s", gtid_next->type,
-                      get_gtid_mode_string(GTID_MODE_LOCK_NONE)));
+                      global_gtid_mode.get_string()));
   if (gtid_next->type == NOT_YET_DETERMINED_GTID ||
       (gtid_next->type == ANONYMOUS_GTID && thd->owned_gtid.sidno == 0)) {
     Gtid_specification spec;

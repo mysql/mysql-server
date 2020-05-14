@@ -586,7 +586,7 @@ int validate_plugin_server_requirements(Trans_param *param) {
   get_server_parameters(&hostname, &port, &uuid, &server_version, &admin_port);
 
   Trans_context_info startup_pre_reqs;
-  get_server_startup_prerequirements(startup_pre_reqs, false);
+  get_server_startup_prerequirements(startup_pre_reqs);
 
   // check the server is initialized by checking if the default channel exists
   bool server_engine_ready = channel_is_active("", CHANNEL_NO_THD);

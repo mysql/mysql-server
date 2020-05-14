@@ -120,12 +120,8 @@ void set_auto_increment_offset(ulong auto_increment_offset);
   if one has conditions to proceed executing master-master replication.
 
   @param[out] requirements requirements
-
-  @param[in] has_lock Caller should set this to true if the calling
-  thread holds gtid_mode_lock; otherwise set it to false.
 */
-void get_server_startup_prerequirements(Trans_context_info &requirements,
-                                        bool has_lock);
+void get_server_startup_prerequirements(Trans_context_info &requirements);
 
 /**
   Returns the server GTID_EXECUTED encoded as a binary string.

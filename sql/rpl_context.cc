@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -98,7 +98,7 @@ bool Session_consistency_gtids_ctx::notify_after_gtid_executed_update(
   if (!shall_collect(thd)) return res;
 
   if (m_curr_session_track_gtids == OWN_GTID) {
-    DBUG_ASSERT(get_gtid_mode(GTID_MODE_LOCK_SID) != GTID_MODE_OFF);
+    DBUG_ASSERT(global_gtid_mode.get() != Gtid_mode::OFF);
     DBUG_ASSERT(thd->owned_gtid.sidno > 0);
     const Gtid &gtid = thd->owned_gtid;
     if (gtid.sidno == -1)  // we need to add thd->owned_gtid_set

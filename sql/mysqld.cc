@@ -1156,7 +1156,7 @@ static PSI_mutex_key key_BINLOG_LOCK_sync;
 static PSI_mutex_key key_BINLOG_LOCK_sync_queue;
 static PSI_mutex_key key_BINLOG_LOCK_xids;
 static PSI_rwlock_key key_rwlock_global_sid_lock;
-static PSI_rwlock_key key_rwlock_gtid_mode_lock;
+PSI_rwlock_key key_rwlock_gtid_mode_lock;
 static PSI_rwlock_key key_rwlock_LOCK_sys_init_connect;
 static PSI_rwlock_key key_rwlock_LOCK_sys_init_slave;
 static PSI_cond_key key_BINLOG_COND_done;
@@ -2492,10 +2492,6 @@ void gtid_server_cleanup() {
     delete gtid_table_persistor;
     gtid_table_persistor = nullptr;
   }
-  if (gtid_mode_lock) {
-    delete gtid_mode_lock;
-    gtid_mode_lock = nullptr;
-  }
 }
 
 /**
@@ -2505,21 +2501,16 @@ void gtid_server_cleanup() {
            false if OK
 */
 bool gtid_server_init() {
+  global_gtid_mode.set(
+      static_cast<Gtid_mode::value_type>(Gtid_mode::sysvar_mode));
   bool res = (!(global_sid_lock = new Checkable_rwlock(
 #ifdef HAVE_PSI_INTERFACE
                     key_rwlock_global_sid_lock
 #endif
                     )) ||
-              !(gtid_mode_lock = new Checkable_rwlock(
-#ifdef HAVE_PSI_INTERFACE
-                    key_rwlock_gtid_mode_lock
-#endif
-                    )) ||
               !(global_sid_map = new Sid_map(global_sid_lock)) ||
               !(gtid_state = new Gtid_state(global_sid_lock, global_sid_map)) ||
               !(gtid_table_persistor = new Gtid_table_persistor()));
-
-  gtid_mode_counter = 1;
 
   if (res) {
     gtid_server_cleanup();
@@ -5816,8 +5807,7 @@ static int init_server_components() {
   }
 
   if (opt_log_slave_updates && replicate_same_server_id) {
-    enum_gtid_mode gtid_mode = get_gtid_mode(GTID_MODE_LOCK_NONE);
-    if (opt_bin_log && gtid_mode != GTID_MODE_ON) {
+    if (opt_bin_log && global_gtid_mode.get() != Gtid_mode::ON) {
       LogErr(ERROR_LEVEL, ER_RPL_INFINITY_DENIED);
       unireg_abort(MYSQLD_ABORT_EXIT);
     } else
@@ -6227,10 +6217,7 @@ static int init_server_components() {
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
-  /// @todo: this looks suspicious, revisit this /sven
-  enum_gtid_mode gtid_mode = get_gtid_mode(GTID_MODE_LOCK_NONE);
-
-  if (gtid_mode == GTID_MODE_ON &&
+  if (global_gtid_mode.get() == Gtid_mode::ON &&
       _gtid_consistency_mode != GTID_CONSISTENCY_MODE_ON) {
     LogErr(ERROR_LEVEL, ER_RPL_GTID_MODE_REQUIRES_ENFORCE_GTID_CONSISTENCY_ON);
     unireg_abort(MYSQLD_ABORT_EXIT);

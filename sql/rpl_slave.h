@@ -212,7 +212,7 @@ extern bool server_id_supplied;
 
   ## Gtid_mode (gtid_mode) ##
 
-  ### gtid_mode_lock ###
+  ### Gtid_mode::lock ###
 
   Used to arbitrate changes on server Gtid_mode.
 
@@ -227,7 +227,7 @@ extern bool server_id_supplied;
   then we write F2's name in parentheses in the list of locks for F1.
 
     Sys_var_gtid_mode::global_update:
-      gtid_mode_lock->wrlock, channel_map->wrlock, binlog.LOCK_log,
+      Gtid_mode::lock.wrlock, channel_map->wrlock, binlog.LOCK_log,
   global_sid_lock->wrlock
 
     change_master_cmd:
@@ -319,7 +319,7 @@ extern bool server_id_supplied;
   So the DAG of lock acquisition order (not counting the buggy
   purge_logs) is, empirically:
 
-    gtid_mode_lock, channel_map lock, mi.run_lock, rli.run_lock,
+    Gtid_mode::lock, channel_map lock, mi.run_lock, rli.run_lock,
       ( rli.data_lock,
         ( LOCK_thd_list,
           (

@@ -83,7 +83,7 @@ struct MYSQL;
 
 *****************************************************************************/
 
-class Master_info : public Rpl_info, public Gtid_mode_copy {
+class Master_info : public Rpl_info {
   friend class Rpl_info_factory;
 
  public:

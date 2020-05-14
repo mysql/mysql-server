@@ -4765,7 +4765,7 @@ longlong Item_wait_for_executed_gtid_set::val_int() {
   Gtid_set wait_for_gtid_set(global_sid_map, nullptr);
 
   global_sid_lock->rdlock();
-  if (get_gtid_mode(GTID_MODE_LOCK_SID) == GTID_MODE_OFF) {
+  if (global_gtid_mode.get() == Gtid_mode::OFF) {
     global_sid_lock->unlock();
     my_error(ER_GTID_MODE_OFF, MYF(0), "use WAIT_FOR_EXECUTED_GTID_SET");
     null_value = true;
@@ -4791,7 +4791,7 @@ longlong Item_wait_for_executed_gtid_set::val_int() {
     return 0;
   }
 
-  gtid_state->begin_gtid_wait(GTID_MODE_LOCK_SID);
+  gtid_state->begin_gtid_wait();
 
   double timeout = (arg_count == 2) ? args[1]->val_real() : 0;
   if (timeout < 0) {
@@ -4893,12 +4893,12 @@ longlong Item_master_gtid_set_wait::val_int() {
       mi = channel_map.get_default_channel_mi();
   }
 
-  if (get_gtid_mode(GTID_MODE_LOCK_CHANNEL_MAP) == GTID_MODE_OFF) {
+  if (global_gtid_mode.get() == Gtid_mode::OFF) {
     null_value = true;
     channel_map.unlock();
     return 0;
   }
-  gtid_state->begin_gtid_wait(GTID_MODE_LOCK_CHANNEL_MAP);
+  gtid_state->begin_gtid_wait();
 
   if (mi) mi->inc_reference();
 
