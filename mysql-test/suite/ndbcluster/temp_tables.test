@@ -36,3 +36,11 @@ CREATE TEMPORARY TABLE tt1 LIKE t1;
 
 SET default_tmp_storage_engine=default;
 DROP TABLE t1;
+
+#
+# alter temporary table to engine=ndb should give an error
+#
+CREATE TEMPORARY TABLE t1 (a int KEY) ENGINE=MYISAM;
+--error ER_PARTITION_NO_TEMPORARY
+ALTER TABLE t1 ENGINE=NDB;
+DROP TABLE t1;
