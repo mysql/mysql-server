@@ -4196,6 +4196,59 @@ runCheckStaleNodeTakeoverDuringSR(NDBT_Context* ctx, NDBT_Step* step)
 
   return NDBT_OK;
 }
+
+int
+runCheckLaggardShutdown(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+
+  /**
+   * Perform system restart, but with error
+   * insert which causes 1 node to be slow to shutdown.
+   * Check that the others wait for it, to ensure a clean
+   * shutdown
+   *  Error     Subcase
+   *   1022     Slow node
+   *   1023     Slow node which fails
+   *   1024     Slow node, and master fails
+   */
+  if (restarter.getNumDbNodes() < 2)
+  {
+    return NDBT_OK;
+  }
+
+  int errorCodes[] = {1022, 1023, 1024};
+
+  for (Uint32 e=0; e < 3; e++)
+  {
+    const Uint32 laggard = restarter.getRandomNotMasterNodeId(rand());
+
+    ndbout_c("Configuring all nodes to restart -n on CRASH_INSERTION");
+    int dumpCodes[2] = {DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1};
+    CHK((restarter.dumpStateAllNodes(&dumpCodes[0], 2) == 0),
+        "Failed to set crash restarttype");
+
+    ndbout_c("Inserting error %u in node %u", errorCodes[e], laggard);
+
+    CHK((restarter.insertErrorInNode(laggard, errorCodes[e]) == 0),
+        "Failed to insert error");
+
+    ndbout_c("Performing system restart");
+
+    CHK((restarter.restartNodes(NULL,
+                                0,
+                                0) == 0),
+        "System restart failed.");
+
+    CHK((restarter.waitClusterStarted() == 0),
+        "Failed waiting for cluster to start again");
+  }
+
+  /* System restart will have cleared error insert state */
+
+  return NDBT_OK;
+}
+
 /**************************************************************************/
 
 NDBT_TESTSUITE(testSystemRestart);
@@ -4725,6 +4778,11 @@ TESTCASE("StaleNodeTakeoverDuringSR",
 {
   STEP(runCheckStaleNodeTakeoverDuringSR);
   STEP(runLoad);
+}
+TESTCASE("LaggardShutdown",
+         "One node is slow during a shutdown")
+{
+  STEP(runCheckLaggardShutdown);
 }
 NDBT_TESTSUITE_END(testSystemRestart)
 

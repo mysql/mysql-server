@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4660,6 +4660,15 @@ Ndbcntr::execSTOP_REQ(Signal* signal)
   c_stopRec.stopReq = * req;
   c_stopRec.stopInitiatedTime = NdbTick_getCurrentTicks();
   
+  if (ERROR_INSERTED(1022) ||
+      ERROR_INSERTED(1023) ||
+      ERROR_INSERTED(1024))
+  {
+    jam();
+    ndbout_c("Extending TcTimeout by 5000 millis");
+    c_stopRec.stopReq.transactionTimeout += 5000;
+  }
+
   if (stopnodes)
   {
     jam();
@@ -4894,11 +4903,31 @@ Ndbcntr::StopRecord::checkTcTimeout(Signal* signal){
       } 
       else
       {
-        DEB_NODE_STOP(("WAIT_GCP_REQ CompleteForceStart"));
+        DEB_NODE_STOP(("WAIT_GCP_REQ ShutdownSync"));
+#ifdef ERROR_INSERT
+        if (cntr.ERROR_INSERT_VALUE == 1023)
+        {
+          /* Test failure of laggard */
+          jamNoBlock();
+          cntr.progError(__LINE__, NDBD_EXIT_ERROR_INSERT, __FILE__);
+          return;
+        }
+        if (cntr.ERROR_INSERT_VALUE == 1024)
+        {
+          jamNoBlock();
+          /* Test failure of Master during WAIT_GCP_REQ */
+          signal->theData[0] = 9999;
+          cntr.sendSignal(numberToRef(CMVMI, cntr.cmasterNodeId),
+                          GSN_TAMPER_ORD,
+                          signal,
+                          1,
+                          JBB);
+        }
+#endif
 	WaitGCPReq * req = (WaitGCPReq*)&signal->theData[0];
 	req->senderRef = cntr.reference();
 	req->senderData = StopRecord::SR_CLUSTER_SHUTDOWN;
-	req->requestType = WaitGCPReq::CompleteForceStart;
+	req->requestType = WaitGCPReq::ShutdownSync;
 	cntr.sendSignal(DBDIH_REF, GSN_WAIT_GCP_REQ, signal, 
 			WaitGCPReq::SignalLength, JBB);
       }
@@ -5092,7 +5121,7 @@ void Ndbcntr::execWAIT_GCP_REF(Signal* signal)
   WaitGCPReq * req = (WaitGCPReq*)&signal->theData[0];
   req->senderRef = reference();
   req->senderData = StopRecord::SR_CLUSTER_SHUTDOWN;
-  req->requestType = WaitGCPReq::CompleteForceStart;
+  req->requestType = WaitGCPReq::ShutdownSync;
   sendSignal(DBDIH_REF, GSN_WAIT_GCP_REQ, signal, 
 	     WaitGCPReq::SignalLength, JBB);
 }
