@@ -3077,6 +3077,13 @@ bool Item_func_weight_string::resolve_type(THD *) {
     len = cs->coll->strnxfrmlen(
         cs, cs->mbmaxlen * max(args[0]->max_char_length(), num_codepoints));
   }
+
+  // Due to the filesort logic in val_str(), we could return an int;
+  // make sure we have room to do so. This will result in too large lengths
+  // in some cases, but this is a debug function not meant for end users,
+  // so we do not have strict demands.
+  len = max<uint>(len, sizeof(longlong));
+
   set_data_type_string(len);
   maybe_null = true;
   return false;
