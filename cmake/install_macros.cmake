@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2020, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -334,6 +334,12 @@ ENDMACRO()
 MACRO(MYSQL_CHECK_PROTOBUF_DLLS)
   IF(APPLE AND WITH_PROTOBUF STREQUAL "bundled")
     ADD_CUSTOM_TARGET(symlink_protobuf_dlls)
+
+    # We can use generator "$<TARGET_FILE_NAME:libprotobuf>" in COMMAND below,
+    # but some cmake versions will reject generators in BYPRODUCTS.
+    SET(TARGET_FILE_NAME_libprotobuf      "libprotobuf.3.11.4.dylib")
+    SET(TARGET_FILE_NAME_libprotobuf_lite "libprotobuf-lite.3.11.4.dylib")
+
     ADD_CUSTOM_TARGET(link_protobuf_dlls_bin ALL
       COMMAND ${CMAKE_COMMAND} -E create_symlink
       "../lib/$<TARGET_FILE_NAME:libprotobuf>" "$<TARGET_FILE_NAME:libprotobuf>"
@@ -341,9 +347,11 @@ MACRO(MYSQL_CHECK_PROTOBUF_DLLS)
       "../lib/$<TARGET_FILE_NAME:libprotobuf-lite>" "$<TARGET_FILE_NAME:libprotobuf-lite>"
       WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/runtime_output_directory"
 
+      COMMENT "Creating libprotobuf symlinks in runtime_output_directory"
+
       BYPRODUCTS
-      "${CMAKE_BINARY_DIR}/runtime_output_directory/$<TARGET_FILE_NAME:libprotobuf>"
-      "${CMAKE_BINARY_DIR}/runtime_output_directory/$<TARGET_FILE_NAME:libprotobuf-lite>"
+      "${CMAKE_BINARY_DIR}/runtime_output_directory/${TARGET_FILE_NAME_libprotobuf}"
+      "${CMAKE_BINARY_DIR}/runtime_output_directory/${TARGET_FILE_NAME_libprotobuf_lite}"
       )
     ADD_DEPENDENCIES(symlink_protobuf_dlls link_protobuf_dlls_bin)
     ADD_CUSTOM_TARGET(link_protobuf_dlls_plugin ALL
@@ -353,9 +361,11 @@ MACRO(MYSQL_CHECK_PROTOBUF_DLLS)
       "../lib/$<TARGET_FILE_NAME:libprotobuf-lite>" "$<TARGET_FILE_NAME:libprotobuf-lite>"
       WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/plugin_output_directory"
 
+      COMMENT "Creating libprotobuf symlinks in plugin_output_directory"
+
       BYPRODUCTS
-      "${CMAKE_BINARY_DIR}/plugin_output_directory/$<TARGET_FILE_NAME:libprotobuf>"
-      "${CMAKE_BINARY_DIR}/plugin_output_directory/$<TARGET_FILE_NAME:libprotobuf-lite>"
+      "${CMAKE_BINARY_DIR}/plugin_output_directory/${TARGET_FILE_NAME_libprotobuf}"
+      "${CMAKE_BINARY_DIR}/plugin_output_directory/${TARGET_FILE_NAME_libprotobuf_lite}"
       )
     ADD_DEPENDENCIES(symlink_protobuf_dlls link_protobuf_dlls_plugin)
     # INSTALL the symlinks
