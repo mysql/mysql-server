@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -70,7 +70,7 @@ class User_verification_test : public Test {
       &mock_session, iface::Account_verification::Account_type::k_native,
       mock_account_verification};
 
-  void SetUp() {
+  void SetUp() override {
     EXPECT_CALL(mock_session, data_context())
         .WillRepeatedly(ReturnRef(mock_sql_data_context));
     EXPECT_CALL(mock_session, client()).WillRepeatedly(ReturnRef(mock_client));

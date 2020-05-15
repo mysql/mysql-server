@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,7 +59,7 @@ class System_view_definition_impl : public System_view_definition {
     return "";
   }
 
-  virtual String_type build_ddl_create_view() const = 0;
+  String_type build_ddl_create_view() const override = 0;
 
  private:
   // Name of I_S system view;
@@ -204,7 +204,7 @@ class System_view_select_definition_impl : public System_view_definition_impl {
     return ss.str();
   }
 
-  virtual String_type build_ddl_create_view() const {
+  String_type build_ddl_create_view() const override {
     Stringstream_type ss;
     ss << "CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW "
        << "information_schema." << view_name() << " AS " + build_select_query();
@@ -248,7 +248,7 @@ class System_view_union_definition_impl : public System_view_definition_impl {
     return *(m_selects.back().get());
   }
 
-  virtual String_type build_ddl_create_view() const {
+  String_type build_ddl_create_view() const override {
     Stringstream_type ss;
     bool first_select = true;
     // Union definition must have minimum two SELECTs.

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -298,8 +298,8 @@ public:
 #endif
   
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
-  virtual NdbBlob* getBlobHandle(const char* anAttrName);
-  virtual NdbBlob* getBlobHandle(Uint32 anAttrId);
+  NdbBlob* getBlobHandle(const char* anAttrName) override;
+  NdbBlob* getBlobHandle(Uint32 anAttrId) override;
 
   /** 
    * setInterpretedCode
@@ -511,7 +511,7 @@ public:
   /**
    * Get NdbTransaction object for this scan operation
    */
-  NdbTransaction* getNdbTransaction() const;
+  NdbTransaction* getNdbTransaction() const override;
 
 
   /**
@@ -524,9 +524,9 @@ public:
 protected:
   NdbScanOperation(Ndb* aNdb,
                    NdbOperation::Type aType = NdbOperation::TableScan);
-  virtual ~NdbScanOperation();
+  ~NdbScanOperation() override;
 
-  virtual NdbRecAttr* getValue_impl(const NdbColumnImpl*, char* aValue = 0);
+  NdbRecAttr* getValue_impl(const NdbColumnImpl*, char* aValue = 0) override;
   NdbRecAttr* getValue_NdbRecord_scan(const NdbColumnImpl*, char* aValue);
   NdbRecAttr* getValue_NdbRecAttr_scan(const NdbColumnImpl*, char* aValue);
 
@@ -554,7 +554,7 @@ protected:
 
   int nextResultNdbRecord(const char * & out_row,
                           bool fetchAllowed, bool forceSend);
-  virtual void release();
+  void release() override;
   
   int close_impl(bool forceSend,
                  PollGuard *poll_guard);
@@ -573,12 +573,12 @@ protected:
   // Overloaded private methods from NdbOperation
   int init(const NdbTableImpl* tab, NdbTransaction*);
   int prepareSend(Uint32  TC_ConnectPtr, Uint64  TransactionId,
-                  NdbOperation::AbortOption);
+                  NdbOperation::AbortOption) override;
   int doSend(int ProcessorId);
-  virtual void setReadLockMode(LockMode lockMode);
+  void setReadLockMode(LockMode lockMode) override;
 
-  virtual void setErrorCode(int aErrorCode) const;
-  virtual void setErrorCodeAbort(int aErrorCode) const;
+  void setErrorCode(int aErrorCode) const override;
+  void setErrorCodeAbort(int aErrorCode) const override;
   
   /* This is the transaction which defined this scan
    *   The transaction(connection) used for the scan is
@@ -742,8 +742,8 @@ private:
    * I'm not sure...but these doesn't seem to be an users of this...
    * so I make them private...
    */
-  virtual NdbBlob* getBlobHandle(const char* anAttrName) const;
-  virtual NdbBlob* getBlobHandle(Uint32 anAttrId) const;
+  NdbBlob* getBlobHandle(const char* anAttrName) const override;
+  NdbBlob* getBlobHandle(Uint32 anAttrId) const override;
 };
 
 inline

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,7 @@ class GroupTest : public ::testing::Test {
   rpl_sid sids[16];
   unsigned int seed;
 
-  void SetUp() {
+  void SetUp() override {
     seed = (unsigned int)time(nullptr);
     printf("# seed = %u\n", seed);
     srand(seed);

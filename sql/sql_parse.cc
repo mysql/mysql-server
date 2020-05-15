@@ -6619,7 +6619,7 @@ class Kill_non_super_conn : public Do_THD_Impl {
             .first);
   }
 
-  virtual void operator()(THD *thd_to_kill) {
+  void operator()(THD *thd_to_kill) override {
     mysql_mutex_lock(&thd_to_kill->LOCK_thd_data);
 
     Security_context *sctx = thd_to_kill->security_context();
@@ -7063,9 +7063,9 @@ bool check_host_name(const LEX_CSTRING &str) {
 class Parser_oom_handler : public Internal_error_handler {
  public:
   Parser_oom_handler() : m_has_errors(false), m_is_mem_error(false) {}
-  virtual bool handle_condition(THD *thd, uint sql_errno, const char *,
+  bool handle_condition(THD *thd, uint sql_errno, const char *,
                                 Sql_condition::enum_severity_level *level,
-                                const char *) {
+                                const char *) override {
     if (*level == Sql_condition::SL_ERROR) {
       m_has_errors = true;
       /* Out of memory error is reported only once. Return as handled */

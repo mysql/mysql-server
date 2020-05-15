@@ -2,7 +2,7 @@
 #define PLUGIN_CONNECTION_HANDLER_INCLUDED
 
 /*
-   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,14 +50,14 @@ class Plugin_connection_handler : public Connection_handler {
   Plugin_connection_handler(Connection_handler_functions *functions)
       : m_functions(functions) {}
 
-  virtual ~Plugin_connection_handler() { m_functions->end(); }
+  ~Plugin_connection_handler() override { m_functions->end(); }
 
  protected:
-  virtual bool add_connection(Channel_info *channel_info) {
+  bool add_connection(Channel_info *channel_info) override {
     return m_functions->add_connection(channel_info);
   }
 
-  virtual uint get_max_threads() const { return m_functions->max_threads; }
+  uint get_max_threads() const override { return m_functions->max_threads; }
 };
 
 #endif  // PLUGIN_CONNECTION_HANDLER_INCLUDED

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,7 +49,7 @@ public:
    */
 
   /** insert is not allowed */
-  int insertTuple();
+  int insertTuple() override;
 
   /**
    * Define the NdbIndexOperation to be a standard operation of type readTuple.
@@ -58,7 +58,7 @@ public:
    *
    * @return 0 if successful otherwise -1.
    */
-  int readTuple(LockMode);
+  int readTuple(LockMode) override;
 
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   /**
@@ -68,7 +68,7 @@ public:
    *
    * @return 0 if successful otherwise -1.
    */
-  int readTuple();
+  int readTuple() override;
 
   /**
    * Define the NdbIndexOperation to be a standard operation of type
@@ -78,7 +78,7 @@ public:
    *
    * @return 0 if successful otherwise -1.
    */
-  int readTupleExclusive();
+  int readTupleExclusive() override;
 
   /**
    * Define the NdbIndexOperation to be a standard operation of type simpleRead.
@@ -97,7 +97,7 @@ public:
    *
    * @return 0 if successful otherwise -1.
    */
-  int simpleRead();
+  int simpleRead() override;
 
   /**
    * Define the NdbOperation to be a standard operation of type committedRead.
@@ -111,9 +111,9 @@ public:
    *
    * @return 0 if successful otherwise -1.
    */
-  int dirtyRead();
+  int dirtyRead() override;
 
-  int committedRead();
+  int committedRead() override;
 #endif
 
   /**
@@ -125,7 +125,7 @@ public:
    *
    * @return 0 if successful otherwise -1.
    */
-  int updateTuple();
+  int updateTuple() override;
 
   /**
    * Define the NdbIndexOperation to be a standard operation of type 
@@ -136,7 +136,7 @@ public:
    *
    * @return 0 if successful otherwise -1.
    */
-  int deleteTuple();
+  int deleteTuple() override;
 
   /**
    * Get index object for this operation
@@ -153,7 +153,7 @@ public:
    *
    * @return 0 if successful otherwise -1.
    */
-  int dirtyUpdate();
+  int dirtyUpdate() override;
 #endif
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
@@ -168,21 +168,21 @@ public:
    *
    * @return 0 if successful otherwise -1.
    */
-  int interpretedUpdateTuple();
+  int interpretedUpdateTuple() override;
 
   /**
    * Delete a tuple using an interpreted program.
    *
    * @return 0 if successful otherwise -1.
    */
-  int interpretedDeleteTuple();
+  int interpretedDeleteTuple() override;
 #endif
   
   /** @} *********************************************************************/
 
 private:
   NdbIndexOperation(Ndb* aNdb);
-  ~NdbIndexOperation();
+  ~NdbIndexOperation() override;
 
   int receiveTCINDXREF(const NdbApiSignal* aSignal);
 

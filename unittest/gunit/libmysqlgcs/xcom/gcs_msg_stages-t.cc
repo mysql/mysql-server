@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -529,9 +529,9 @@ class Gcs_new_stage_2 : public Gcs_new_stage_1 {
  public:
   explicit Gcs_new_stage_2() {}
 
-  virtual ~Gcs_new_stage_2() {}
+  ~Gcs_new_stage_2() override {}
 
-  virtual Stage_code get_stage_code() const { return my_stage_code(); }
+  Stage_code get_stage_code() const override { return my_stage_code(); }
 
   static Stage_code my_stage_code() { return static_cast<Stage_code>(11); }
 };
@@ -540,9 +540,9 @@ class Gcs_new_stage_3 : public Gcs_new_stage_1 {
  public:
   explicit Gcs_new_stage_3() {}
 
-  virtual ~Gcs_new_stage_3() {}
+  ~Gcs_new_stage_3() override {}
 
-  virtual Stage_code get_stage_code() const { return my_stage_code(); }
+  Stage_code get_stage_code() const override { return my_stage_code(); }
 
   static Stage_code my_stage_code() { return static_cast<Stage_code>(12); }
 };
@@ -552,9 +552,9 @@ class Gcs_new_stage_split_4 : public Gcs_message_stage_split_v2 {
   explicit Gcs_new_stage_split_4(bool enabled, unsigned long long threshold)
       : Gcs_message_stage_split_v2(enabled, threshold) {}
 
-  virtual ~Gcs_new_stage_split_4() {}
+  ~Gcs_new_stage_split_4() override {}
 
-  virtual Stage_code get_stage_code() const { return my_stage_code(); }
+  virtual Stage_code get_stage_code() const override { return my_stage_code(); }
 
   static Stage_code my_stage_code() { return static_cast<Stage_code>(13); }
 };
@@ -564,9 +564,9 @@ class Gcs_new_stage_lz4_5 : public Gcs_message_stage_lz4 {
   explicit Gcs_new_stage_lz4_5(bool enable, unsigned long long threshold)
       : Gcs_message_stage_lz4(enable, threshold) {}
 
-  virtual ~Gcs_new_stage_lz4_5() {}
+  ~Gcs_new_stage_lz4_5() override {}
 
-  virtual Stage_code get_stage_code() const { return my_stage_code(); }
+  virtual Stage_code get_stage_code() const override { return my_stage_code(); }
 
   static Stage_code my_stage_code() { return static_cast<Stage_code>(14); }
 };
@@ -575,9 +575,9 @@ class XcomMultipleStagesTest : public GcsBaseTest {
  protected:
   XcomMultipleStagesTest() {}
 
-  virtual void SetUp() {}
+  void SetUp() override {}
 
-  virtual void TearDown() {}
+  void TearDown() override {}
 
  public:
   Gcs_message_pipeline pipeline{};

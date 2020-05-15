@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,7 +48,7 @@ class Abstract_connection_program : public Abstract_program,
     Provides new connection to MySQL database server based on option values.
     Implementation of I_connection_factory interface.
    */
-  virtual MYSQL *create_connection();
+  MYSQL *create_connection() override;
 
   /**
     Retrieves charset that will be used in new MySQL connections. Can be NULL

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,8 +47,8 @@ using ::testing::StrictMock;
 */
 class CopyInfoTest : public ::testing::Test {
  protected:
-  virtual void SetUp() { initializer.SetUp(); }
-  virtual void TearDown() { initializer.TearDown(); }
+  void SetUp() override { initializer.SetUp(); }
+  void TearDown() override { initializer.TearDown(); }
 
   Server_initializer initializer;
 };

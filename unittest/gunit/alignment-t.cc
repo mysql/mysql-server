@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -63,7 +63,7 @@ class AlignmentTest : public ::testing::Test {
     delete[] unaligned_data;
   }
 
-  virtual void SetUp() {
+  void SetUp() override {
     aligned_keys = new uchar *[num_records];
     unaligned_keys = new uchar *[num_records];
     for (int ix = 0; ix < num_records; ++ix) {
@@ -73,7 +73,7 @@ class AlignmentTest : public ::testing::Test {
     }
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     delete[] aligned_keys;
     delete[] unaligned_keys;
   }

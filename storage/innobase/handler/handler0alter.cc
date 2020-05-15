@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -289,7 +289,7 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx {
     thr = pars_complete_graph_for_exec(nullptr, prebuilt->trx, heap, prebuilt);
   }
 
-  ~ha_innobase_inplace_ctx() {
+  ~ha_innobase_inplace_ctx() override {
     if (fts_drop_aux_vec != nullptr) {
       fts_free_aux_names(fts_drop_aux_vec);
       delete fts_drop_aux_vec;
@@ -305,7 +305,7 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx {
   /** Set shared data between the passed in handler context
   and current context.
   @param[in] ctx        handler context */
-  void set_shared_data(const inplace_alter_handler_ctx *ctx) {
+  void set_shared_data(const inplace_alter_handler_ctx *ctx) override {
     ut_ad(ctx != nullptr);
     if (this->add_autoinc == ULINT_UNDEFINED) {
       return;
@@ -7783,7 +7783,7 @@ class ha_innopart_inplace_ctx : public inplace_alter_handler_ctx {
         prebuilt_array(),
         m_old_info() {}
 
-  ~ha_innopart_inplace_ctx() {
+  ~ha_innopart_inplace_ctx() override {
     if (ctx_array) {
       for (uint i = 0; i < m_tot_parts; i++) {
         destroy(ctx_array[i]);
@@ -8377,7 +8377,7 @@ class alter_parts : public inplace_alter_handler_ctx {
         m_to_drop() {}
 
   /** Destructor */
-  ~alter_parts();
+  ~alter_parts() override;
 
   /** Create the to be created partitions and update internal
   structures with concurrent writes blocked, while preparing
@@ -8517,7 +8517,7 @@ class alter_part_normal : public alter_part {
         alter_part(nullptr, part_id, state, (*old)->name.m_name, old) {}
 
   /** Destructor */
-  ~alter_part_normal() {}
+  ~alter_part_normal() override {}
 
   /** Prepare
   @param[in,out]	altered_table	Table definition after the ALTER
@@ -8527,7 +8527,7 @@ class alter_part_normal : public alter_part {
                                   if no corresponding one exists
   @return 0 or error number */
   int prepare(TABLE *altered_table, const dd::Partition *old_part,
-              dd::Partition *new_part) {
+              dd::Partition *new_part) override {
     ut_ad(old_part->name() == new_part->name());
 
     dd_copy_private<dd::Partition>(*new_part, *old_part);
@@ -8544,7 +8544,7 @@ class alter_part_normal : public alter_part {
                                   if no corresponding one exists
   @return 0 or error number */
   int try_commit(const TABLE *table, TABLE *altered_table,
-                 const dd::Partition *old_part, dd::Partition *new_part) {
+                 const dd::Partition *old_part, dd::Partition *new_part) override {
     ut_ad(m_old != nullptr);
 
     btr_drop_ahi_for_table(*m_old);
@@ -8601,7 +8601,7 @@ class alter_part_add : public alter_part {
   }
 
   /** Destructor */
-  ~alter_part_add() {}
+  ~alter_part_add() override {}
 
   /** Prepare
   @param[in,out]	altered_table	Table definition after the ALTER
@@ -8611,7 +8611,7 @@ class alter_part_add : public alter_part {
                                   if no corresponding one exists
   @return 0 or error number */
   int prepare(TABLE *altered_table, const dd::Partition *old_part,
-              dd::Partition *new_part) {
+              dd::Partition *new_part) override {
     ut_ad(old_part != nullptr);
     ut_ad(new_part != nullptr);
     char part_name[FN_REFLEN];
@@ -8652,7 +8652,7 @@ class alter_part_add : public alter_part {
                                   if no corresponding one exists
   @return 0 or error number */
   int try_commit(const TABLE *table, TABLE *altered_table,
-                 const dd::Partition *old_part, dd::Partition *new_part) {
+                 const dd::Partition *old_part, dd::Partition *new_part) override {
     int error = 0;
 
     if (need_rename()) {
@@ -8678,7 +8678,7 @@ class alter_part_add : public alter_part {
   }
 
   /** Rollback */
-  void rollback() {
+  void rollback() override {
     /* Release the new table so that in post DDL, this table can be
     rolled back. */
     if (m_new != nullptr) {
@@ -8741,7 +8741,7 @@ class alter_part_drop : public alter_part {
         m_conflict(conflict) {}
 
   /** Destructor */
-  ~alter_part_drop() {}
+  ~alter_part_drop() override {}
 
   /** Try to commit
   @param[in]	table		Table definition before the ALTER
@@ -8752,7 +8752,7 @@ class alter_part_drop : public alter_part {
                                   if no corresponding one exists
   @return 0 or error number */
   int try_commit(const TABLE *table, TABLE *altered_table,
-                 const dd::Partition *old_part, dd::Partition *new_part) {
+                 const dd::Partition *old_part, dd::Partition *new_part) override {
     ut_ad(new_part == nullptr);
 
     mutex_enter(&dict_sys->mutex);
@@ -8859,7 +8859,7 @@ class alter_part_change : public alter_part {
   }
 
   /** Destructor */
-  ~alter_part_change() {}
+  ~alter_part_change() override {}
 
   /** Prepare
   @param[in,out]	altered_table	Table definition after the ALTER
@@ -8869,7 +8869,7 @@ class alter_part_change : public alter_part {
                                   if no corresponding one exists
   @return 0 or error number */
   int prepare(TABLE *altered_table, const dd::Partition *old_part,
-              dd::Partition *new_part);
+              dd::Partition *new_part) override;
 
   /** Try to commit
   @param[in]	table		Table definition before the ALTER
@@ -8880,10 +8880,10 @@ class alter_part_change : public alter_part {
                                   if no corresponding one exists
   @return 0 or error number */
   int try_commit(const TABLE *table, TABLE *altered_table,
-                 const dd::Partition *old_part, dd::Partition *new_part);
+                 const dd::Partition *old_part, dd::Partition *new_part) override;
 
   /** Rollback */
-  void rollback() {
+  void rollback() override {
     /* Release the new table so that in post DDL, this table can be
     rolled back. */
     if (m_new != nullptr) {

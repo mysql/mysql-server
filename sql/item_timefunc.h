@@ -672,7 +672,7 @@ class Item_date_func : public Item_temporal_func {
   // All date functions must implement get_date()
   // to avoid use of generic Item::get_date()
   // which converts to string and then parses the string as DATE.
-  virtual bool get_date(MYSQL_TIME *res,
+  bool get_date(MYSQL_TIME *res,
                         my_time_flags_t fuzzy_date) override = 0;
 };
 
@@ -734,7 +734,7 @@ class Item_datetime_func : public Item_temporal_func {
   // All datetime functions must implement get_date()
   // to avoid use of generic Item::get_date()
   // which converts to string and then parses the string as DATETIME.
-  virtual bool get_date(MYSQL_TIME *res,
+  bool get_date(MYSQL_TIME *res,
                         my_time_flags_t fuzzy_date) override = 0;
 };
 
@@ -780,7 +780,7 @@ class Item_time_func : public Item_temporal_func {
   // All time functions must implement get_time()
   // to avoid use of generic Item::get_time()
   // which converts to string and then parses the string as TIME.
-  virtual bool get_time(MYSQL_TIME *res) override = 0;
+  bool get_time(MYSQL_TIME *res) override = 0;
 };
 
 /**

@@ -64,19 +64,19 @@ class Mysql_crawler : public Abstract_crawler,
     Enumerates all objects it can access, gets chains from all registered
     chain_maker for each object and then execute each chain.
    */
-  virtual void enumerate_objects();
+  void enumerate_objects() override;
 
   // Fix "inherits ... via dominance" warnings
-  void register_progress_watcher(I_progress_watcher *new_progress_watcher) {
+  void register_progress_watcher(I_progress_watcher *new_progress_watcher) override {
     Abstract_crawler::register_progress_watcher(new_progress_watcher);
   }
 
   // Fix "inherits ... via dominance" warnings
-  uint64 get_id() const { return Abstract_crawler::get_id(); }
+  uint64 get_id() const override { return Abstract_crawler::get_id(); }
 
  protected:
   // Fix "inherits ... via dominance" warnings
-  void item_completion_in_child_callback(Item_processing_data *item_processed) {
+  void item_completion_in_child_callback(Item_processing_data *item_processed) override {
     Abstract_crawler::item_completion_in_child_callback(item_processed);
   }
 

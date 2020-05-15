@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -40,11 +40,11 @@ class Abstract_simple_dump_task : public I_dump_task {
  public:
   Abstract_simple_dump_task();
 
-  virtual ~Abstract_simple_dump_task();
+  ~Abstract_simple_dump_task() override;
 
-  bool is_completed() const;
+  bool is_completed() const override;
 
-  virtual void set_completed();
+  void set_completed() override;
 
  private:
   std::atomic<bool> m_is_completed;

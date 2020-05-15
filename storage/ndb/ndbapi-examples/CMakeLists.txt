@@ -1,4 +1,4 @@
-# Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,8 @@ FOREACH(warning
     "unused-parameter"
     # Downgrade -Werror to warning for "may be used uninitialized"
     "error=maybe-uninitialized"
+    # Downgrade -Werror=suggest-override to warning
+    "error=suggest-override"
     )
   MY_CHECK_CXX_COMPILER_WARNING("${warning}" HAS_WARN_FLAG)
   IF(HAS_WARN_FLAG)

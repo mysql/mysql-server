@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,7 +62,7 @@ class Tables_base
 
   Tables_base();
 
-  virtual const String_type &name() const = 0;
+  const String_type &name() const override = 0;
 };
 
 /*
@@ -79,7 +79,7 @@ class Tables : public Tables_base {
     return s_view_name;
   }
 
-  virtual const String_type &name() const { return Tables::view_name(); }
+  const String_type &name() const override { return Tables::view_name(); }
 };
 
 }  // namespace system_views

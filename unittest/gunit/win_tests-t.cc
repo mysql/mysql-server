@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -112,7 +112,7 @@ class NamedPipeTest : public ::testing::Test {
     error_handler_hook = m_old_error_handler_hook;
   }
 
-  virtual void SetUp() {
+  void SetUp() override {
     m_initializer.SetUp();
 
     char pipe_rand_name[256];
@@ -133,7 +133,7 @@ class NamedPipeTest : public ::testing::Test {
     m_name.append(test_info->name());
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     if (m_pipe_handle != INVALID_HANDLE_VALUE) {
       EXPECT_TRUE(CloseHandle(m_pipe_handle));
     }

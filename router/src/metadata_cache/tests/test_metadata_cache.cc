@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -93,7 +93,7 @@ TEST_F(MetadataCacheTest, InvalidReplicasetTest) {
 class MetadataCacheTest2 : public ::testing::Test {
  public:
   // per-test setup
-  virtual void SetUp() override {
+  void SetUp() override {
     session.reset(new MySQLSessionReplayer(true));
     mysql_harness::DIM::instance().set_MySQLSession(
         [this]() { return session.get(); },  // provide pointer to session

@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,21 +40,21 @@ class None_comp : public Compressor {
   /**
     No op member function.
    */
-  virtual void set_compression_level(unsigned int compression_level) override;
+  void set_compression_level(unsigned int compression_level) override;
 
   /**
     Shall get the compressor type code.
 
     @return the compressor type code.
    */
-  virtual type compression_type_code() override;
+  type compression_type_code() override;
 
   /**
     No op member function.
 
     @return false on success, true otherwise.
    */
-  virtual bool open() override;
+  bool open() override;
 
   /**
     This member function shall simply copy the input buffer to the
@@ -65,7 +65,7 @@ class None_comp : public Compressor {
 
     @return false on success, true otherwise.
    */
-  virtual std::tuple<std::size_t, bool> compress(const unsigned char *data,
+  std::tuple<std::size_t, bool> compress(const unsigned char *data,
                                                  size_t length) override;
 
   /**
@@ -73,7 +73,7 @@ class None_comp : public Compressor {
 
     @return false on success, true otherwise.
    */
-  virtual bool close() override;
+  bool close() override;
 };
 
 /**
@@ -93,14 +93,14 @@ class None_dec : public Decompressor {
 
     @return the compression type code.
    */
-  virtual type compression_type_code() override;
+  type compression_type_code() override;
 
   /**
     No op member function.
 
     @return false on success, true otherwise.
    */
-  virtual bool open() override;
+  bool open() override;
 
   /**
     This member function shall simply copy the input buffer to the
@@ -111,7 +111,7 @@ class None_dec : public Decompressor {
 
     @return false on success, true otherwise.
    */
-  virtual std::tuple<std::size_t, bool> decompress(const unsigned char *data,
+  std::tuple<std::size_t, bool> decompress(const unsigned char *data,
                                                    size_t length) override;
 
   /**
@@ -119,7 +119,7 @@ class None_dec : public Decompressor {
 
     @return false on success, true otherwise.
    */
-  virtual bool close() override;
+  bool close() override;
 };
 
 }  // namespace compression

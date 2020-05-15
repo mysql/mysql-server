@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@ namespace filesort_buffer_unittest {
 
 class FileSortBufferTest : public ::testing::Test {
  protected:
-  virtual void TearDown() {
+  void TearDown() override {
     fs_info.free_sort_buffer();
     EXPECT_TRUE(nullptr == fs_info.get_sort_keys());
   }

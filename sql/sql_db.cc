@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -659,9 +659,9 @@ class Rmdir_error_handler : public Internal_error_handler {
  public:
   Rmdir_error_handler() : m_is_active(false) {}
 
-  virtual bool handle_condition(THD *thd, uint, const char *,
+  bool handle_condition(THD *thd, uint, const char *,
                                 Sql_condition::enum_severity_level *,
-                                const char *msg) {
+                                const char *msg) override {
     if (!m_is_active) {
       /* Disable the handler to avoid infinite recursion. */
       m_is_active = true;

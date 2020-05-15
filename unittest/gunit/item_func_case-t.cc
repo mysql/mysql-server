@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,9 +32,9 @@ using my_testing::Server_initializer;
 
 class ItemFuncCaseTest : public ::testing::Test {
  protected:
-  virtual void SetUp() { initializer.SetUp(); }
+  void SetUp() override { initializer.SetUp(); }
 
-  virtual void TearDown() { initializer.TearDown(); }
+  void TearDown() override { initializer.TearDown(); }
 
   THD *thd() { return initializer.thd(); }
 

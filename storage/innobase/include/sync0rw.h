@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -656,8 +656,8 @@ struct rw_lock_t
     magic_n = 0;
   }
 
-  virtual std::string to_string() const;
-  virtual std::string locked_from() const;
+  virtual std::string to_string() const override;
+  virtual std::string locked_from() const override;
 
   /** For checking memory corruption. */
   static const uint32_t MAGIC_N = 22643;

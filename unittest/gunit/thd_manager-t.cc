@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,13 +45,13 @@ class ThreadManagerTest : public ::testing::Test {
  protected:
   ThreadManagerTest() {}
 
-  void SetUp() {
+  void SetUp() override {
     Global_THD_manager::create_instance();
     thd_manager = Global_THD_manager::get_instance();
     thd_manager->set_unit_test();
   }
 
-  void TearDown() {}
+  void TearDown() override {}
 
   Global_THD_manager *thd_manager;
 
@@ -108,7 +108,7 @@ class TestFunc1 : public Do_THD_Impl {
   TestFunc1() : cnt(0) {}
   int get_count() { return cnt; }
   void reset_count() { cnt = 0; }
-  void operator()(THD *) { cnt = cnt + 1; }
+  void operator()(THD *) override { cnt = cnt + 1; }
 };
 
 TEST_F(ThreadManagerTest, TestTHDCopyDoFunc) {
@@ -143,7 +143,7 @@ TEST_F(ThreadManagerTest, TestTHDCopyDoFunc) {
 class TestFunc2 : public Find_THD_Impl {
  public:
   TestFunc2() : search_value(0) {}
-  bool operator()(THD *thd) {
+  bool operator()(THD *thd) override {
     if (thd->server_id == search_value) {
       return true;
     }
@@ -162,7 +162,7 @@ class TestFunc2 : public Find_THD_Impl {
 class TestFunc3 : public Do_THD_Impl {
  public:
   TestFunc3() : count(0) {}
-  void operator()(THD *thd) {
+  void operator()(THD *thd) override {
     if (thd->server_id <= 2) {
       count++;
     }

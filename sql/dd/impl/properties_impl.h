@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -88,29 +88,29 @@ class Properties_impl : public Properties {
 
   virtual const Properties_impl *impl() const { return this; }
 
-  virtual iterator begin() { return m_map.begin(); }
+  iterator begin() override { return m_map.begin(); }
 
-  virtual const_iterator begin() const { return m_map.begin(); }
+  const_iterator begin() const override { return m_map.begin(); }
 
-  virtual iterator end() { return m_map.end(); }
+  iterator end() override { return m_map.end(); }
 
-  virtual const_iterator end() const { return m_map.end(); }
+  const_iterator end() const override { return m_map.end(); }
 
-  virtual size_type size() const { return m_map.size(); }
+  size_type size() const override { return m_map.size(); }
 
-  virtual bool empty() const { return m_map.empty(); }
+  bool empty() const override { return m_map.empty(); }
 
-  virtual void clear() { return m_map.clear(); }
+  void clear() override { return m_map.clear(); }
 
-  virtual bool valid_key(const String_type &key) const {
+  bool valid_key(const String_type &key) const override {
     return (m_keys.empty() || m_keys.find(key) != m_keys.end());
   }
 
-  virtual bool exists(const String_type &key) const {
+  bool exists(const String_type &key) const override {
     return m_map.find(key) != m_map.end();
   }
 
-  virtual bool remove(const String_type &key) {
+  bool remove(const String_type &key) override {
     iterator it = m_map.find(key);
 
     if (it == m_map.end()) return true;
@@ -131,7 +131,7 @@ class Properties_impl : public Properties {
 
     @return string containing all escaped key value pairs
   */
-  virtual const String_type raw_string() const;
+  const String_type raw_string() const override;
 
   /**
     Get the string value for a given key.
@@ -143,7 +143,7 @@ class Properties_impl : public Properties {
     @param[out] value string value
     @return           Operation outcome, false if success, otherwise true
   */
-  virtual bool get(const String_type &key, String_type *value) const;
+  bool get(const String_type &key, String_type *value) const override;
 
   /**
     Set the key/value. If the key is invalid, a warning is written
@@ -153,7 +153,7 @@ class Properties_impl : public Properties {
     @param  value  Value to set.
     @return        Operation outcome, false if success, otherwise true
   */
-  virtual bool set(const String_type &key, const String_type &value);
+  bool set(const String_type &key, const String_type &value) override;
 
   /**
     Insert key/value pairs from a different property object.
@@ -166,7 +166,7 @@ class Properties_impl : public Properties {
 
     @retval  Operation outcome, false if no error, otherwise true.
   */
-  virtual bool insert_values(const Properties &properties);
+  bool insert_values(const Properties &properties) override;
 
   /**
     Insert key/value pairs from a string.
@@ -179,7 +179,7 @@ class Properties_impl : public Properties {
 
     @retval  Operation outcome, false if no error, otherwise true.
   */
-  virtual bool insert_values(const String_type &raw_string);
+  bool insert_values(const String_type &raw_string) override;
 
 #ifdef EXTRA_CODE_FOR_UNIT_TESTING
   /**

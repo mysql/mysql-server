@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,14 +36,14 @@ namespace strings_utf8_unittest {
 
 class StringsUTF8Test : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     // Save global settings.
     m_charset = system_charset_info;
 
     system_charset_info = &my_charset_utf8_bin;
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     // Restore global settings.
     system_charset_info = m_charset;
   }
@@ -402,14 +402,14 @@ TEST_F(StringsUTF8Test, Casedn) {
 
 class StringsUTF8mb4Test : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     // Save global settings.
     m_charset = system_charset_info;
 
     system_charset_info = &my_charset_utf8mb4_bin;
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     // Restore global settings.
     system_charset_info = m_charset;
   }
@@ -563,7 +563,7 @@ TEST_F(StringsUTF8mb4Test, MyIsmbcharUtf8mb4) {
 
 class StringsUTF8mb4_900Test : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     MY_CHARSET_LOADER loader;
     my_charset_loader_init_mysys(&loader);
     m_charset = my_collation_get_by_name(&loader, "utf8mb4_0900_ai_ci", MYF(0));
@@ -605,7 +605,7 @@ TEST_F(StringsUTF8mb4_900Test, MyUCA900Collate) {
 
 class StringsUTF8mb4_900_AS_CS_NoPad_Test : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     MY_CHARSET_LOADER loader;
     my_charset_loader_init_mysys(&loader);
     m_charset = my_collation_get_by_name(&loader, "utf8mb4_0900_as_cs", MYF(0));

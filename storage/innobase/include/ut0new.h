@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1233,7 +1233,7 @@ class aligned_memory {
 template <typename T_Type, size_t T_Align_to = ut::INNODB_CACHE_LINE_SIZE>
 class aligned_pointer : public aligned_memory<T_Type, T_Align_to> {
  public:
-  ~aligned_pointer() {
+  ~aligned_pointer() override {
     if (!this->is_object_empty()) {
       this->destroy();
     }
@@ -1247,7 +1247,7 @@ class aligned_pointer : public aligned_memory<T_Type, T_Align_to> {
   }
 
   /** Destroys the managed object and releases its memory. */
-  void destroy() {
+  void destroy() override {
     (*this)->~T_Type();
     this->free_memory();
   }
@@ -1274,7 +1274,7 @@ class aligned_array_pointer : public aligned_memory<T_Type, T_Align_to> {
   }
 
   /** Deallocates memory of array created earlier. */
-  void destroy() {
+  void destroy() override {
     static_assert(std::is_trivially_destructible<T_Type>::value,
                   "Aligned array element type must be "
                   "trivially destructible");

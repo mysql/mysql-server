@@ -799,7 +799,7 @@ class StateFileSchemaTest
     : public StateFileTest,
       public ::testing::WithParamInterface<StateFileSchemaTestParams> {
  protected:
-  virtual void SetUp() { StateFileTest::SetUp(); }
+  void SetUp() override { StateFileTest::SetUp(); }
 };
 
 /**
@@ -1087,7 +1087,7 @@ class StateFileAccessRightsTest
     : public StateFileTest,
       public ::testing::WithParamInterface<StateFileAccessRightsTestParams> {
  protected:
-  virtual void SetUp() { StateFileTest::SetUp(); }
+  void SetUp() override { StateFileTest::SetUp(); }
 };
 
 /**
@@ -1150,7 +1150,7 @@ INSTANTIATE_TEST_SUITE_P(
 ////////////////////////////////////////////
 
 class StateFileDirectoryBootstrapTest : public StateFileTest {
-  virtual void SetUp() { StateFileTest::SetUp(); }
+  void SetUp() override { StateFileTest::SetUp(); }
 };
 
 /**
@@ -1213,14 +1213,14 @@ TEST_F(StateFileDirectoryBootstrapTest, DirectoryBootstrapTest) {
 
 class StateFileSystemBootstrapTest : public StateFileTest,
                                      public RouterSystemLayout {
-  virtual void SetUp() {
+  void SetUp() override {
     StateFileTest::SetUp();
     RouterSystemLayout::init_system_layout_dir(get_mysqlrouter_exec(),
                                                ProcessManager::get_origin());
     set_mysqlrouter_exec(Path(exec_file_));
   }
 
-  virtual void TearDown() { RouterSystemLayout::cleanup_system_layout(); }
+  void TearDown() override { RouterSystemLayout::cleanup_system_layout(); }
 };
 
 /**

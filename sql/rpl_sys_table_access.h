@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,7 +48,7 @@ class Rpl_sys_table_access : public System_table_access {
     Destruction. All opened tables with the open_tables are closed during
     destruction if not already done in deinit().
   */
-  virtual ~Rpl_sys_table_access();
+  ~Rpl_sys_table_access() override;
 
   /**
     Creates new thread/session context (THD) and open's table on class object
@@ -99,7 +99,7 @@ class Rpl_sys_table_access : public System_table_access {
 
     @param[in]  thd  Thread requesting to open the table
   */
-  void before_open(THD *thd);
+  void before_open(THD *thd) override;
 
  protected:
   /* THD created for TableAccess object purpose. */

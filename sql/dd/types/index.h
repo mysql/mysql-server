@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -69,7 +69,7 @@ class Index : virtual public Entity_object {
     IA_FULLTEXT };
 
  public:
-  virtual ~Index() {}
+  ~Index() override {}
 
   /**
     Dummy method to be able to use Partition_index and Index interchangeably

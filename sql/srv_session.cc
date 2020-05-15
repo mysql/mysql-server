@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1159,7 +1159,7 @@ class Find_thd_by_id_with_callback_set : public Find_THD_Impl {
     When a thread is found the callback function passed to the constructor
     is invoked under THD::Lock_thd_data
   */
-  virtual bool operator()(THD *thd) {
+  bool operator()(THD *thd) override {
     if (thd->thread_id() == thread_id) {
       MUTEX_LOCK(lock, &thd->LOCK_thd_data);
       callback(thd, &input);

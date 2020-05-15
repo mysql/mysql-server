@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,7 @@ namespace Base {
  */
 class Abstract_program : public Options::Composite_options_provider {
  public:
-  virtual ~Abstract_program();
+  ~Abstract_program() override;
 
   /**
     Returns null-terminated string with name of current program.

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,12 +51,12 @@ class Composite_options_provider : public Abstract_options_provider {
   /**
     This callback is to be called after all options were parsed.
    */
-  virtual void options_parsed();
+  void options_parsed() override;
 
   /**
     Aggregates all options from itsself and all contained providers.
    */
-  virtual std::vector<my_option> generate_options();
+  std::vector<my_option> generate_options() override;
 
  private:
   std::vector<I_options_provider *> m_options_providers;

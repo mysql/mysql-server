@@ -103,7 +103,7 @@ class RelopsTest : public ::testing::Test {
     }
   }
 
-  ~RelopsTest() { delete m_srs; }
+  ~RelopsTest() override { delete m_srs; }
 };
 
 typedef ::testing::Types<Cartesian_types, Geographic_types> Types;

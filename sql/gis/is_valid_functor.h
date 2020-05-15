@@ -1,7 +1,7 @@
 #ifndef SQL_GIS_IS_VALID_FUNCTOR_H_INCLUDED
 #define SQL_GIS_IS_VALID_FUNCTOR_H_INCLUDED
 
-// Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@ class Is_valid : public Unary_functor<bool> {
 
  public:
   Is_valid(double semi_major, double semi_minor);
-  virtual bool operator()(const Geometry &g) const;
+  bool operator()(const Geometry &g) const override;
 
   bool eval(const Cartesian_point &g) const;
   bool eval(const Cartesian_linestring &g) const;

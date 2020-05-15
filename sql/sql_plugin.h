@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -99,7 +99,7 @@ class Sql_cmd_install_plugin : public Sql_cmd {
   Sql_cmd_install_plugin(const LEX_CSTRING &comment, const LEX_STRING &ident)
       : m_comment(comment), m_ident(ident) {}
 
-  virtual enum_sql_command sql_command_code() const {
+  enum_sql_command sql_command_code() const override {
     return SQLCOM_INSTALL_PLUGIN;
   }
 
@@ -112,7 +112,7 @@ class Sql_cmd_install_plugin : public Sql_cmd {
 
     @returns false if success, true otherwise
   */
-  virtual bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
  private:
   LEX_CSTRING m_comment;
@@ -128,7 +128,7 @@ class Sql_cmd_uninstall_plugin : public Sql_cmd {
   explicit Sql_cmd_uninstall_plugin(const LEX_CSTRING &comment)
       : m_comment(comment) {}
 
-  virtual enum_sql_command sql_command_code() const {
+  enum_sql_command sql_command_code() const override {
     return SQLCOM_UNINSTALL_PLUGIN;
   }
 
@@ -141,7 +141,7 @@ class Sql_cmd_uninstall_plugin : public Sql_cmd {
 
     @returns false if success, true otherwise
   */
-  virtual bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
  private:
   LEX_CSTRING m_comment;

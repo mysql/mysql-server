@@ -1822,7 +1822,7 @@ class Item_func_distance : public Item_real_func {
     maybe_null = true;
   }
 
-  virtual bool resolve_type(THD *) override {
+  bool resolve_type(THD *) override {
     param_type_is_default(0, -1, MYSQL_TYPE_GEOMETRY);
     maybe_null = true;
     return false;
@@ -1838,7 +1838,7 @@ class Item_func_st_distance_sphere : public Item_real_func {
       : Item_real_func(pos, ilist) {}
   double val_real() override;
   const char *func_name() const override { return "st_distance_sphere"; }
-  virtual bool resolve_type(THD *thd) override {
+  bool resolve_type(THD *thd) override {
     param_type_is_default(0, 2, MYSQL_TYPE_GEOMETRY);
     param_type_is_default(2, 3, MYSQL_TYPE_DOUBLE);
     return Item_real_func::resolve_type(thd);

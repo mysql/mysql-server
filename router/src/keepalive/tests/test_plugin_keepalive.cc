@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,7 @@ Path g_here;
 
 class KeepalivePluginTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     Path here = Path(g_here);
     orig_cout_ = std::cout.rdbuf();
     std::cout.rdbuf(ssout.rdbuf());
@@ -70,7 +70,7 @@ class KeepalivePluginTest : public ::testing::Test {
     loader = new Loader("harness", *config_);
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     std::cout.rdbuf(orig_cout_);
     delete loader;
     loader = nullptr;

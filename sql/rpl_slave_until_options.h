@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -129,7 +129,7 @@ class Until_option {
 */
 class Until_position : public Until_option {
  public:
-  virtual ~Until_position() {}
+  ~Until_position() override {}
 
   /**
      Initialize the until position when starting the slave.
@@ -214,9 +214,9 @@ class Until_master_position : public Until_position {
   char m_current_log_name[FN_REFLEN];
   my_off_t m_current_log_pos;
 
-  bool check_at_start_slave();
-  bool check_before_dispatching_event(const Log_event *ev);
-  bool check_after_dispatching_event();
+  bool check_at_start_slave() override;
+  bool check_before_dispatching_event(const Log_event *ev) override;
+  bool check_after_dispatching_event() override;
 };
 
 /**
@@ -229,9 +229,9 @@ class Until_relay_position : public Until_position {
   Until_relay_position(Relay_log_info *rli) : Until_position(rli) {}
 
  private:
-  bool check_at_start_slave();
-  bool check_before_dispatching_event(const Log_event *ev);
-  bool check_after_dispatching_event();
+  bool check_at_start_slave() override;
+  bool check_before_dispatching_event(const Log_event *ev) override;
+  bool check_after_dispatching_event() override;
 };
 
 /**
@@ -242,7 +242,7 @@ class Until_relay_position : public Until_position {
  */
 class Until_gtids : public Until_option {
  public:
-  virtual ~Until_gtids() {}
+  ~Until_gtids() override {}
 
   /**
      Initialize the until gtids when starting the slave.
@@ -278,9 +278,9 @@ class Until_before_gtids : public Until_gtids {
   Until_before_gtids(Relay_log_info *rli) : Until_gtids(rli) {}
 
  private:
-  bool check_at_start_slave();
-  bool check_before_dispatching_event(const Log_event *ev);
-  bool check_after_dispatching_event();
+  bool check_at_start_slave() override;
+  bool check_before_dispatching_event(const Log_event *ev) override;
+  bool check_after_dispatching_event() override;
 };
 
 /**
@@ -293,9 +293,9 @@ class Until_after_gtids : public Until_gtids {
   Until_after_gtids(Relay_log_info *rli) : Until_gtids(rli) {}
 
  private:
-  bool check_at_start_slave();
-  bool check_before_dispatching_event(const Log_event *ev);
-  bool check_after_dispatching_event();
+  bool check_at_start_slave() override;
+  bool check_before_dispatching_event(const Log_event *ev) override;
+  bool check_after_dispatching_event() override;
 };
 
 /**
@@ -338,9 +338,9 @@ class Until_view_id : public Until_option {
   */
   bool until_view_id_commit_found;
 
-  bool check_at_start_slave();
-  bool check_before_dispatching_event(const Log_event *ev);
-  bool check_after_dispatching_event();
+  bool check_at_start_slave() override;
+  bool check_before_dispatching_event(const Log_event *ev) override;
+  bool check_after_dispatching_event() override;
 };
 
 /**
@@ -358,9 +358,9 @@ class Until_mts_gap : public Until_option {
   void init();
 
  private:
-  bool check_at_start_slave();
-  bool check_before_dispatching_event(const Log_event *ev);
-  bool check_after_dispatching_event();
+  bool check_at_start_slave() override;
+  bool check_before_dispatching_event(const Log_event *ev) override;
+  bool check_after_dispatching_event() override;
 };
 
 #endif  // DEFINED_RPL_SLAVE_UNTIL_OPTIONS_H

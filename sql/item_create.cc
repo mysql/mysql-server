@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1089,8 +1089,8 @@ Internal_function_factory<Instantiator_fn>
 */
 class Create_sp_func : public Create_qfunc {
  public:
-  virtual Item *create(THD *thd, LEX_STRING db, LEX_STRING name,
-                       bool use_explicit_name, PT_item_list *item_list);
+  Item *create(THD *thd, LEX_STRING db, LEX_STRING name,
+                       bool use_explicit_name, PT_item_list *item_list) override;
 
   static Create_sp_func s_singleton;
 
@@ -1098,7 +1098,7 @@ class Create_sp_func : public Create_qfunc {
   /** Constructor. */
   Create_sp_func() {}
   /** Destructor. */
-  virtual ~Create_sp_func() {}
+  ~Create_sp_func() override {}
 };
 
 Item *Create_qfunc::create_func(THD *thd, LEX_STRING name,

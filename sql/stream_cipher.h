@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -193,7 +193,7 @@ class Aes_ctr_cipher : public Stream_cipher {
   static const int AES_BLOCK_SIZE = Aes_ctr::AES_BLOCK_SIZE;
   static const int FILE_KEY_LENGTH = Aes_ctr::FILE_KEY_LENGTH;
 
-  virtual ~Aes_ctr_cipher() override;
+  ~Aes_ctr_cipher() override;
 
   bool open(const Key_string &password, int header_size) override;
   void close() override;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,18 +36,18 @@ class Gcs_xcom_group_management : public Gcs_group_management_interface {
  public:
   explicit Gcs_xcom_group_management(
       Gcs_xcom_proxy *xcom_proxy, const Gcs_group_identifier &group_identifier);
-  virtual ~Gcs_xcom_group_management();
+  ~Gcs_xcom_group_management() override;
 
   enum_gcs_error modify_configuration(
-      const Gcs_interface_parameters &reconfigured_group);
+      const Gcs_interface_parameters &reconfigured_group) override;
 
-  enum_gcs_error get_write_concurrency(uint32_t &event_horizon) const;
+  enum_gcs_error get_write_concurrency(uint32_t &event_horizon) const override;
 
-  enum_gcs_error set_write_concurrency(uint32_t event_horizon);
+  enum_gcs_error set_write_concurrency(uint32_t event_horizon) override;
 
-  uint32_t get_minimum_write_concurrency() const;
+  uint32_t get_minimum_write_concurrency() const override;
 
-  uint32_t get_maximum_write_concurrency() const;
+  uint32_t get_maximum_write_concurrency() const override;
 
   /**
     Save information on the latest nodes seen by this node so that it

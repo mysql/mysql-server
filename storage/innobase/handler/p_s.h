@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -40,13 +40,13 @@ This class is used by the performance schema to extract lock data.
 class Innodb_data_lock_inspector : public PSI_engine_data_lock_inspector {
  public:
   Innodb_data_lock_inspector();
-  ~Innodb_data_lock_inspector();
+  ~Innodb_data_lock_inspector() override;
 
-  virtual PSI_engine_data_lock_iterator *create_data_lock_iterator();
-  virtual PSI_engine_data_lock_wait_iterator *create_data_lock_wait_iterator();
-  virtual void destroy_data_lock_iterator(PSI_engine_data_lock_iterator *it);
-  virtual void destroy_data_lock_wait_iterator(
-      PSI_engine_data_lock_wait_iterator *it);
+  PSI_engine_data_lock_iterator *create_data_lock_iterator() override;
+  PSI_engine_data_lock_wait_iterator *create_data_lock_wait_iterator() override;
+  void destroy_data_lock_iterator(PSI_engine_data_lock_iterator *it) override;
+  void destroy_data_lock_wait_iterator(
+      PSI_engine_data_lock_wait_iterator *it) override;
 };
 
 #endif /* p_s_h */

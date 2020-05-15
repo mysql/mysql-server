@@ -690,7 +690,7 @@ class Batch_segment : public Segment {
   }
 
   /** Destructor. */
-  virtual ~Batch_segment() noexcept {
+  ~Batch_segment() noexcept override {
     ut_a(m_written.load(std::memory_order_relaxed) == 0);
     ut_a(m_batch_size.load(std::memory_order_relaxed) == 0);
   }

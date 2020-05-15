@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,11 +59,11 @@ ssize_t mockfs_write(int fd, const void *buf, size_t count) {
 }
 
 class MysysMyWriteTest : public ::testing::Test {
-  virtual void SetUp() {
+  void SetUp() override {
     mock_write = mockfs_write;
     mockfs = new MockWrite;
   }
-  virtual void TearDown() {
+  void TearDown() override {
     mock_write = nullptr;
     delete mockfs;
     mockfs = nullptr;

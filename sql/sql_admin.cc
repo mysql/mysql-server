@@ -1654,7 +1654,7 @@ class Alter_instance_reload_tls : public Alter_instance {
                                      bool force = false)
       : Alter_instance(thd), channel_name_(channel_name), force_(force) {}
 
-  bool execute() {
+  bool execute() override {
     if (match_channel_name() == false) {
       my_error(ER_SYNTAX_ERROR, MYF(0));
       return true;
@@ -1699,7 +1699,7 @@ class Alter_instance_reload_tls : public Alter_instance {
     if (!res) my_ok(m_thd);
     return res;
   }
-  ~Alter_instance_reload_tls() {}
+  ~Alter_instance_reload_tls() override {}
 
  protected:
   bool match_channel_name() {

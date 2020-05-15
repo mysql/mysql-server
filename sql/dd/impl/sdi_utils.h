@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -103,7 +103,7 @@ class Closure_error_handler : public Internal_error_handler {
   CONDITION_HANDLER_CLOS m_ch;
   bool handle_condition(THD *, uint sql_errno, const char *sqlstate,
                         Sql_condition::enum_severity_level *level,
-                        const char *msg) {
+                        const char *msg) override {
     return m_ch(sql_errno, sqlstate, level, msg);
   }
 

@@ -87,20 +87,20 @@ const size_t num_iterations = 1ULL;
 
 class MyAllocTest : public ::testing::TestWithParam<size_t> {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     init_alloc_root(PSI_NOT_INSTRUMENTED, &m_root, 1024, 0);
   }
-  virtual void TearDown() { free_root(&m_root, MYF(0)); }
+  void TearDown() override { free_root(&m_root, MYF(0)); }
   size_t m_num_objects;
   MEM_ROOT m_root;
 };
 
 class MyPreAllocTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     init_alloc_root(PSI_NOT_INSTRUMENTED, &m_prealloc_root, 1024, 2048);
   }
-  virtual void TearDown() { free_root(&m_prealloc_root, MYF(0)); }
+  void TearDown() override { free_root(&m_prealloc_root, MYF(0)); }
   size_t m_num_objects;
   MEM_ROOT m_prealloc_root;
 };

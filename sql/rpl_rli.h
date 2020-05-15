@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1594,7 +1594,7 @@ class Relay_log_info : public Rpl_info {
                  PSI_mutex_key *param_key_info_sleep_cond,
 #endif
                  uint param_id, const char *param_channel, bool is_rli_fake);
-  virtual ~Relay_log_info();
+  ~Relay_log_info() override;
 
   /*
     Determines if a warning message on unsafe execution was
@@ -1695,7 +1695,7 @@ class Relay_log_info : public Rpl_info {
     mysql_mutex_unlock(&data_lock);
   }
 
-  bool set_info_search_keys(Rpl_info_handler *to);
+  bool set_info_search_keys(Rpl_info_handler *to) override;
 
   /**
     Get coordinator's RLI. Especially used get the rli from
@@ -1704,7 +1704,7 @@ class Relay_log_info : public Rpl_info {
   */
   virtual Relay_log_info *get_c_rli() { return this; }
 
-  virtual const char *get_for_channel_str(bool upper_case = false) const;
+  const char *get_for_channel_str(bool upper_case = false) const override;
 
   /**
     Set replication filter for the channel.
@@ -1818,8 +1818,8 @@ class Relay_log_info : public Rpl_info {
   static const int MAXIMUM_LINES_IN_RELAY_LOG_INFO_FILE =
       LINES_IN_RELAY_LOG_INFO_WITH_REQUIRE_TABLE_PRIMARY_KEY_CHECK;
 
-  bool read_info(Rpl_info_handler *from);
-  bool write_info(Rpl_info_handler *to);
+  bool read_info(Rpl_info_handler *from) override;
+  bool write_info(Rpl_info_handler *to) override;
 
   Relay_log_info(const Relay_log_info &info);
   Relay_log_info &operator=(const Relay_log_info &info);

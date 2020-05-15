@@ -787,7 +787,7 @@ class Query_result_scalar_subquery : public Query_result_subquery {
  public:
   explicit Query_result_scalar_subquery(Item_subselect *item_arg)
       : Query_result_subquery(item_arg) {}
-  bool send_data(THD *thd, List<Item> &items);
+  bool send_data(THD *thd, List<Item> &items) override;
 };
 
 bool Query_result_scalar_subquery::send_data(THD *thd, List<Item> &items) {
@@ -1223,7 +1223,7 @@ class Query_result_exists_subquery : public Query_result_subquery {
  public:
   explicit Query_result_exists_subquery(Item_subselect *item_arg)
       : Query_result_subquery(item_arg) {}
-  bool send_data(THD *thd, List<Item> &items);
+  bool send_data(THD *thd, List<Item> &items) override;
 };
 
 bool Query_result_exists_subquery::send_data(THD *, List<Item> &) {

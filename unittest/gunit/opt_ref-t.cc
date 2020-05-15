@@ -61,7 +61,7 @@ class OptRefTest : public ::testing::Test {
  public:
   OptRefTest() : t1_key_fields(&t1_key_field_arr[0]) {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     // We do some pointer arithmetic on these
     static_assert(sizeof(Fake_key_field) == sizeof(Key_field), "");
     initializer.SetUp();
@@ -89,7 +89,7 @@ class OptRefTest : public ::testing::Test {
     item_field_t2_b = new Item_field(field_t2_b);
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     delete field_t1_a;
     delete field_t1_b;
     delete field_t2_a;

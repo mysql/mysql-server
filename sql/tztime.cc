@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1072,10 +1072,10 @@ bool adjust_time_zone_displacement(const Time_zone *tz, MYSQL_TIME *mt) {
 */
 class Time_zone_system : public Time_zone {
  public:
-  virtual my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t,
-                                    bool *in_dst_time_gap) const;
-  virtual void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const;
-  virtual const String *get_name() const;
+  my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t,
+                                    bool *in_dst_time_gap) const override;
+  void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const override;
+  const String *get_name() const override;
 };
 
 /*
@@ -1158,10 +1158,10 @@ const String *Time_zone_system::get_name() const { return &tz_SYSTEM_name; }
 */
 class Time_zone_utc : public Time_zone {
  public:
-  virtual my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t,
-                                    bool *in_dst_time_gap) const;
-  virtual void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const;
-  virtual const String *get_name() const;
+  my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t,
+                                    bool *in_dst_time_gap) const override;
+  void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const override;
+  const String *get_name() const override;
 };
 
 /*
@@ -1232,10 +1232,10 @@ const String *Time_zone_utc::get_name() const {
 class Time_zone_db : public Time_zone {
  public:
   Time_zone_db(TIME_ZONE_INFO *tz_info_arg, const String *tz_name_arg);
-  virtual my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t,
-                                    bool *in_dst_time_gap) const;
-  virtual void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const;
-  virtual const String *get_name() const;
+  my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t,
+                                    bool *in_dst_time_gap) const override;
+  void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const override;
+  const String *get_name() const override;
 
  private:
   TIME_ZONE_INFO *tz_info;
@@ -1315,10 +1315,10 @@ const String *Time_zone_db::get_name() const { return tz_name; }
 class Time_zone_offset : public Time_zone {
  public:
   Time_zone_offset(long tz_offset_arg);
-  virtual my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t,
-                                    bool *in_dst_time_gap) const;
-  virtual void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const;
-  virtual const String *get_name() const;
+  my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t,
+                                    bool *in_dst_time_gap) const override;
+  void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const override;
+  const String *get_name() const override;
 
  private:
   /* Extra reserve because of snprintf */

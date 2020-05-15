@@ -2,7 +2,7 @@
 #define PARTITION_HANDLER_INCLUDED
 
 /*
-   Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -102,7 +102,7 @@ void partitioning_init();
 class Partition_share : public Handler_share {
  public:
   Partition_share();
-  ~Partition_share();
+  ~Partition_share() override;
 
   /** Set if auto increment is used an initialized. */
   bool auto_inc_initialized;

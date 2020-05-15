@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,7 +59,7 @@ class Index_stats : virtual public Entity_object_table_impl {
 
   enum enum_foreign_keys {};
 
-  virtual Index_stat *create_entity_object(const Raw_record &) const {
+  Index_stat *create_entity_object(const Raw_record &) const override {
     return new (std::nothrow) Index_stat_impl();
   }
 

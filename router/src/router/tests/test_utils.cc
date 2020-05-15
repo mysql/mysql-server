@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -54,7 +54,7 @@ using ::testing::Pair;
 
 class SplitAddrPortTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {}
+  void SetUp() override {}
 };
 
 TEST_F(SplitAddrPortTest, SplitAddrPort) {
@@ -94,7 +94,7 @@ TEST_F(SplitAddrPortTest, SplitAddrPortFail) {
 
 class GetTCPPortTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {}
+  void SetUp() override {}
 };
 
 TEST_F(GetTCPPortTest, GetTCPPort) {
@@ -152,7 +152,7 @@ TEST_F(HexDumpTest, MultiLine) {
 
 class UtilsTests : public ::testing::Test {
  protected:
-  virtual void SetUp() {}
+  void SetUp() override {}
 };
 
 static bool files_equal(const std::string &f1, const std::string &f2) {

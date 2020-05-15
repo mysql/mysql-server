@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -1965,7 +1965,7 @@ class Proc_table_share_derived_flags
  public:
   Proc_table_share_derived_flags(PFS_thread *thread) : m_thread(thread) {}
 
-  virtual void operator()(PFS_table_share *pfs) {
+  void operator()(PFS_table_share *pfs) override {
     pfs->refresh_setup_object_flags(m_thread);
   }
 
@@ -1983,7 +1983,7 @@ class Proc_program_share_derived_flags
  public:
   Proc_program_share_derived_flags(PFS_thread *thread) : m_thread(thread) {}
 
-  virtual void operator()(PFS_program *pfs) {
+  void operator()(PFS_program *pfs) override {
     pfs->refresh_setup_object_flags(m_thread);
   }
 

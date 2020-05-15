@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -114,15 +114,15 @@ class My_xp_cond {
 class My_xp_cond_server : public My_xp_cond {
  public:
   explicit My_xp_cond_server();
-  virtual ~My_xp_cond_server();
+  ~My_xp_cond_server() override;
 
-  int init(PSI_cond_key key);
-  int destroy();
-  int timed_wait(mysql_mutex_t *mutex, const struct timespec *abstime);
-  int wait(mysql_mutex_t *mutex);
-  int signal();
-  int broadcast();
-  mysql_cond_t *get_native_cond();
+  int init(PSI_cond_key key) override;
+  int destroy() override;
+  int timed_wait(mysql_mutex_t *mutex, const struct timespec *abstime) override;
+  int wait(mysql_mutex_t *mutex) override;
+  int signal() override;
+  int broadcast() override;
+  mysql_cond_t *get_native_cond() override;
 
  protected:
   mysql_cond_t *m_cond;
@@ -135,7 +135,7 @@ class My_xp_cond_impl : public My_xp_cond_server
 {
  public:
   explicit My_xp_cond_impl() {}
-  ~My_xp_cond_impl() {}
+  ~My_xp_cond_impl() override {}
 };
 
 #endif  // MY_XP_COND_INCLUDED

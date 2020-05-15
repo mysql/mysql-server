@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -632,7 +632,7 @@ class Kill_binlog_dump : public Do_THD_Impl {
  public:
   Kill_binlog_dump() {}
 
-  virtual void operator()(THD *thd_to_kill) {
+  void operator()(THD *thd_to_kill) override {
     if (thd_to_kill->get_command() == COM_BINLOG_DUMP ||
         thd_to_kill->get_command() == COM_BINLOG_DUMP_GTID) {
       DBUG_ASSERT(thd_to_kill != current_thd);

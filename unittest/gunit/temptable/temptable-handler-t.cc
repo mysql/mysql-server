@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,12 +54,12 @@ as my_error generated. */
 // To use a test fixture, derive a class from testing::Test.
 class Handler_test : public testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     m_server_initializer.SetUp();
     init_handlerton();
   }
 
-  virtual void TearDown() { m_server_initializer.TearDown(); }
+  void TearDown() override { m_server_initializer.TearDown(); }
 
   THD *thd() { return m_server_initializer.thd(); }
 

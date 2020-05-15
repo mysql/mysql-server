@@ -687,10 +687,10 @@ class Json_array final : public Json_container {
 class Json_scalar : public Json_dom {
  public:
 #ifdef MYSQL_SERVER
-  uint32 depth() const final override { return 1; }
+  uint32 depth() const final { return 1; }
 #endif
 
-  bool is_scalar() const final override { return true; }
+  bool is_scalar() const final { return true; }
 };
 
 /**
@@ -733,7 +733,7 @@ class Json_string final : public Json_scalar {
 */
 class Json_number : public Json_scalar {
  public:
-  bool is_number() const final override { return true; }
+  bool is_number() const final { return true; }
 };
 
 /**

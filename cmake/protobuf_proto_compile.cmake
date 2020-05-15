@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -222,6 +222,12 @@ FUNCTION(MYSQL_PROTOBUF_GENERATE_CPP_LIBRARY TARGET_NAME)
     MY_CHECK_CXX_COMPILER_WARNING("-Wextra-semi" HAS_WARN_FLAG)
     IF(HAS_WARN_FLAG)
       STRING_APPEND(MY_PUBLIC_PROTOBUF_FLAGS " ${HAS_WARN_FLAG}")
+    ENDIF()
+
+    MY_CHECK_CXX_COMPILER_WARNING("-Wsuggest-override" HAS_WARN_FLAG)
+    IF(HAS_WARN_FLAG)
+      STRING_APPEND(MY_PUBLIC_PROTOBUF_FLAGS " -Wno-suggest-override")
+      STRING_APPEND(MY_PROTOBUF_FLAGS " -Wno-suggest-override")
     ENDIF()
   ENDIF()
 

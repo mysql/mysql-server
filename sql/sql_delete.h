@@ -120,7 +120,7 @@ class Sql_cmd_delete final : public Sql_cmd_dml {
 
   bool is_single_table_plan() const override { return !multitable; }
 
-  virtual bool accept(THD *thd, Select_lex_visitor *visitor) override;
+  bool accept(THD *thd, Select_lex_visitor *visitor) override;
 
  protected:
   bool precheck(THD *thd) override;

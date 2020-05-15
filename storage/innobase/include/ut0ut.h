@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -647,7 +647,7 @@ class info : public logger {
       : logger(INFORMATION_LEVEL, err, std::forward<Args>(args)...) {}
 #else
   /** Destructor */
-  ~info();
+  ~info() override;
 #endif /* !UNIV_NO_ERR_MSGS */
 };
 
@@ -668,7 +668,7 @@ class warn : public logger {
 
 #else
   /** Destructor */
-  ~warn();
+  ~warn() override;
 #endif /* !UNIV_NO_ERR_MSGS */
 };
 
@@ -689,7 +689,7 @@ class error : public logger {
 
 #else
   /** Destructor */
-  ~error();
+  ~error() override;
 #endif /* !UNIV_NO_ERR_MSGS */
 };
 
@@ -710,10 +710,10 @@ class fatal : public logger {
       : logger(ERROR_LEVEL, err, std::forward<Args>(args)...) {}
 
   /** Destructor. */
-  virtual ~fatal();
+  ~fatal() override;
 #else
   /** Destructor. */
-  ~fatal();
+  ~fatal() override;
 #endif /* !UNIV_NO_ERR_MSGS */
 };
 
@@ -757,7 +757,7 @@ class fatal_or_error : public logger {
       : logger(ERROR_LEVEL, err, std::forward<Args>(args)...), m_fatal(fatal) {}
 
   /** Destructor */
-  virtual ~fatal_or_error();
+  ~fatal_or_error() override;
 #else
   /** Constructor */
   fatal_or_error(bool fatal) : m_fatal(fatal) {}

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,13 +56,13 @@ class ItemFilterTest : public ::testing::Test {
  protected:
   ItemFilterTest() : rows_in_table(200) {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     initializer.SetUp();
     init_sql_alloc(PSI_NOT_INSTRUMENTED, &m_alloc,
                    thd()->variables.range_alloc_block_size, 0);
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     delete m_table;
 
     initializer.TearDown();

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,14 +44,14 @@ class Explain_format_JSON : public Explain_format {
  public:
   Explain_format_JSON() : current_context(nullptr) {}
 
-  virtual bool is_hierarchical() const { return true; }
-  virtual bool send_headers(Query_result *result);
-  virtual bool begin_context(enum_parsing_context context,
+  bool is_hierarchical() const override { return true; }
+  bool send_headers(Query_result *result) override;
+  bool begin_context(enum_parsing_context context,
                              SELECT_LEX_UNIT *subquery,
-                             const Explain_format_flags *flags);
-  virtual bool end_context(enum_parsing_context context);
-  virtual bool flush_entry() { return false; }
-  virtual qep_row *entry();
+                             const Explain_format_flags *flags) override;
+  bool end_context(enum_parsing_context context) override;
+  bool flush_entry() override { return false; }
+  qep_row *entry() override;
 };
 
 #endif  // OPT_EXPLAIN_FORMAT_JSON_INCLUDED

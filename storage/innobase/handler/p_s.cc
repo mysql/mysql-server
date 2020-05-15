@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -259,14 +259,14 @@ class Innodb_trx_scan_state {
 class Innodb_data_lock_iterator : public PSI_engine_data_lock_iterator {
  public:
   Innodb_data_lock_iterator();
-  ~Innodb_data_lock_iterator();
+  ~Innodb_data_lock_iterator() override;
 
-  virtual bool scan(PSI_server_data_lock_container *container,
-                    bool with_lock_data);
+  bool scan(PSI_server_data_lock_container *container,
+                    bool with_lock_data) override;
 
-  virtual bool fetch(PSI_server_data_lock_container *container,
+  bool fetch(PSI_server_data_lock_container *container,
                      const char *engine_lock_id, size_t engine_lock_id_length,
-                     bool with_lock_data);
+                     bool with_lock_data) override;
 
  private:
   /** Scan a trx list.
@@ -309,15 +309,15 @@ class Innodb_data_lock_wait_iterator
     : public PSI_engine_data_lock_wait_iterator {
  public:
   Innodb_data_lock_wait_iterator();
-  ~Innodb_data_lock_wait_iterator();
+  ~Innodb_data_lock_wait_iterator() override;
 
-  virtual bool scan(PSI_server_data_lock_wait_container *container);
+  bool scan(PSI_server_data_lock_wait_container *container) override;
 
-  virtual bool fetch(PSI_server_data_lock_wait_container *container,
+  bool fetch(PSI_server_data_lock_wait_container *container,
                      const char *requesting_engine_lock_id,
                      size_t requesting_engine_lock_id_length,
                      const char *blocking_engine_lock_id,
-                     size_t blocking_engine_lock_id_length);
+                     size_t blocking_engine_lock_id_length) override;
 
  private:
   /** Scan a given transaction list.

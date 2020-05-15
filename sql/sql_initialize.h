@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,10 +31,10 @@ class Compiled_in_command_iterator : public bootstrap::Command_iterator {
  public:
   Compiled_in_command_iterator() {}
   virtual ~Compiled_in_command_iterator() {}
-  virtual bool begin(void) override;
+  bool begin(void) override;
   int next(std::string &query) override;
   void report_error_details(log_function_t log) override;
-  virtual void end(void) override;
+  void end(void) override;
 
  private:
   int m_cmds_ofs{0};

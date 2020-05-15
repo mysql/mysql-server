@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,12 @@ FOREACH(warning
     "error=deprecated-copy"
     # Downgrade -Werror=stringop-truncation to warning for gcc 8/9
     "error=stringop-truncation"
+    # Downgrade -Werror=stringop-overflow to warning
+    "error=stringop-overflow"
+    # Downgrade -Werror=format-truncation to warning
+    "error=format-truncation"
+    # Downgrade -Werror=suggest-override to warning
+    "error=suggest-override"
     )
   MY_CHECK_CXX_COMPILER_WARNING("${warning}" HAS_WARN_FLAG)
   IF(HAS_WARN_FLAG)

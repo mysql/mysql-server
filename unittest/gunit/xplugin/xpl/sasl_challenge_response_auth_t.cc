@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -71,7 +71,7 @@ struct Auth_selector {
 class Sasl_challenge_response_auth_test
     : public ::testing::TestWithParam<Auth_selector> {
  public:
-  void SetUp() {
+  void SetUp() override {
     if (GetParam().m_name == "SHA256_MEMORY")
       auth = std::unique_ptr<Sasl_sha256_memory_auth>(
           new Sasl_sha256_memory_auth(mock_handler));

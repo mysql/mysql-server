@@ -28,6 +28,9 @@ INCLUDE_DIRECTORIES(
   ../../../tests/helpers
 )
 
+# TODO(sgunders): Remove when all GMock tests use MOCK_METHOD().
+STRING(REPLACE "-Wsuggest-override" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+
 MY_INCLUDE_SYSTEM_DIRECTORIES(PROTOBUF)
 INCLUDE_DIRECTORIES(SYSTEM
   ${MYSQLX_GENERATE_DIR}/protobuf_lite

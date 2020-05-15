@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -102,7 +102,7 @@ class Column : virtual public Entity_object {
     HT_HIDDEN_SQL = 3
   };
 
-  virtual ~Column() {}
+  ~Column() override {}
 
   /////////////////////////////////////////////////////////////////////////
   // Table.

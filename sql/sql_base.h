@@ -398,13 +398,13 @@ class Prelocking_strategy {
 
 class DML_prelocking_strategy : public Prelocking_strategy {
  public:
-  virtual bool handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
+  bool handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
                               Sroutine_hash_entry *rt, sp_head *sp,
-                              bool *need_prelocking);
-  virtual bool handle_table(THD *thd, Query_tables_list *prelocking_ctx,
-                            TABLE_LIST *table_list, bool *need_prelocking);
-  virtual bool handle_view(THD *thd, Query_tables_list *prelocking_ctx,
-                           TABLE_LIST *table_list, bool *need_prelocking);
+                              bool *need_prelocking) override;
+  bool handle_table(THD *thd, Query_tables_list *prelocking_ctx,
+                            TABLE_LIST *table_list, bool *need_prelocking) override;
+  bool handle_view(THD *thd, Query_tables_list *prelocking_ctx,
+                           TABLE_LIST *table_list, bool *need_prelocking) override;
 };
 
 /**
@@ -413,8 +413,8 @@ class DML_prelocking_strategy : public Prelocking_strategy {
 */
 
 class Lock_tables_prelocking_strategy : public DML_prelocking_strategy {
-  virtual bool handle_table(THD *thd, Query_tables_list *prelocking_ctx,
-                            TABLE_LIST *table_list, bool *need_prelocking);
+  bool handle_table(THD *thd, Query_tables_list *prelocking_ctx,
+                            TABLE_LIST *table_list, bool *need_prelocking) override;
 };
 
 /**
@@ -427,13 +427,13 @@ class Lock_tables_prelocking_strategy : public DML_prelocking_strategy {
 
 class Alter_table_prelocking_strategy : public Prelocking_strategy {
  public:
-  virtual bool handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
+  bool handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
                               Sroutine_hash_entry *rt, sp_head *sp,
-                              bool *need_prelocking);
-  virtual bool handle_table(THD *thd, Query_tables_list *prelocking_ctx,
-                            TABLE_LIST *table_list, bool *need_prelocking);
-  virtual bool handle_view(THD *thd, Query_tables_list *prelocking_ctx,
-                           TABLE_LIST *table_list, bool *need_prelocking);
+                              bool *need_prelocking) override;
+  bool handle_table(THD *thd, Query_tables_list *prelocking_ctx,
+                            TABLE_LIST *table_list, bool *need_prelocking) override;
+  bool handle_view(THD *thd, Query_tables_list *prelocking_ctx,
+                           TABLE_LIST *table_list, bool *need_prelocking) override;
 };
 
 inline bool open_tables(THD *thd, TABLE_LIST **tables, uint *counter,

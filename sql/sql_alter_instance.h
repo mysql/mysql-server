@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -42,8 +42,8 @@ class Rotate_innodb_master_key : public Alter_instance {
  public:
   explicit Rotate_innodb_master_key(THD *thd) : Alter_instance(thd) {}
 
-  bool execute();
-  ~Rotate_innodb_master_key() {}
+  bool execute() override;
+  ~Rotate_innodb_master_key() override {}
 };
 
 class Rotate_binlog_master_key : public Alter_instance {
@@ -56,8 +56,8 @@ class Rotate_binlog_master_key : public Alter_instance {
     @retval False on success
     @retval True on error
   */
-  bool execute();
-  virtual ~Rotate_binlog_master_key() = default;
+  bool execute() override;
+  ~Rotate_binlog_master_key() override = default;
 };
 
 /** Alter Innodb redo log properties. */

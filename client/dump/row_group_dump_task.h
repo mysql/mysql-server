@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -45,11 +45,11 @@ class Row_group_dump_task : public Abstract_simple_dump_task {
                       const std::vector<Mysql_field> &fields,
                       const bool has_generated_column);
 
-  virtual I_data_object *get_related_db_object() const;
+  I_data_object *get_related_db_object() const override;
 
-  bool can_be_executed() const;
+  bool can_be_executed() const override;
 
-  void set_completed();
+  void set_completed() override;
 
   /**
     Returns a table the rows are contained in.

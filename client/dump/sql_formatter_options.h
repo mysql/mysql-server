@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -48,7 +48,7 @@ class Sql_formatter_options
   Sql_formatter_options(
       const Mysql_chain_element_options *mysql_chain_element_options);
 
-  void create_options();
+  void create_options() override;
 
   bool m_add_locks;
   bool m_charsets_consistent;

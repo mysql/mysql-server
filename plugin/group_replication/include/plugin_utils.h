@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -180,9 +180,9 @@ class Synchronized_queue : public Synchronized_queue_interface<T> {
     mysql_cond_init(key_GR_COND_synchronized_queue, &cond);
   }
 
-  virtual ~Synchronized_queue() { mysql_mutex_destroy(&lock); }
+  ~Synchronized_queue() override { mysql_mutex_destroy(&lock); }
 
-  bool empty() {
+  bool empty() override {
     bool res = true;
     mysql_mutex_lock(&lock);
     res = queue.empty();
@@ -191,7 +191,7 @@ class Synchronized_queue : public Synchronized_queue_interface<T> {
     return res;
   }
 
-  virtual bool push(const T &value) {
+  bool push(const T &value) override {
     mysql_mutex_lock(&lock);
     queue.push(value);
     mysql_cond_broadcast(&cond);
@@ -200,7 +200,7 @@ class Synchronized_queue : public Synchronized_queue_interface<T> {
     return false;
   }
 
-  virtual bool pop(T *out) {
+  bool pop(T *out) override {
     *out = NULL;
     mysql_mutex_lock(&lock);
     while (queue.empty())
@@ -212,7 +212,7 @@ class Synchronized_queue : public Synchronized_queue_interface<T> {
     return false;
   }
 
-  virtual bool pop() {
+  bool pop() override {
     mysql_mutex_lock(&lock);
     while (queue.empty())
       mysql_cond_wait(&cond, &lock); /* purecov: inspected */
@@ -222,7 +222,7 @@ class Synchronized_queue : public Synchronized_queue_interface<T> {
     return false;
   }
 
-  virtual bool front(T *out) {
+  bool front(T *out) override {
     *out = NULL;
     mysql_mutex_lock(&lock);
     while (queue.empty()) mysql_cond_wait(&cond, &lock);
@@ -232,7 +232,7 @@ class Synchronized_queue : public Synchronized_queue_interface<T> {
     return false;
   }
 
-  size_t size() {
+  size_t size() override {
     size_t qsize = 0;
     mysql_mutex_lock(&lock);
     qsize = queue.size();
@@ -257,7 +257,7 @@ class Abortable_synchronized_queue : public Synchronized_queue<T> {
  public:
   Abortable_synchronized_queue() : Synchronized_queue<T>(), m_abort(false) {}
 
-  ~Abortable_synchronized_queue() {}
+  ~Abortable_synchronized_queue() override {}
 
   /**
     Inserts an element in the queue.
@@ -269,7 +269,7 @@ class Abortable_synchronized_queue : public Synchronized_queue<T> {
     @return  false, operation always succeeded
    */
 
-  bool push(const T &value) {
+  bool push(const T &value) override {
     bool res = false;
     mysql_mutex_lock(&this->lock);
     if (m_abort) {
@@ -292,7 +292,7 @@ class Abortable_synchronized_queue : public Synchronized_queue<T> {
 
     @return  true if method was aborted, false otherwise
   */
-  bool pop(T *out) {
+  bool pop(T *out) override {
     *out = nullptr;
     mysql_mutex_lock(&this->lock);
     while (this->queue.empty() && !m_abort)
@@ -315,7 +315,7 @@ class Abortable_synchronized_queue : public Synchronized_queue<T> {
 
     @return  false, operation always succeeded
   */
-  bool pop() {
+  bool pop() override {
     mysql_mutex_lock(&this->lock);
     while (this->queue.empty() && !m_abort)
       mysql_cond_wait(&this->cond, &this->lock);
@@ -338,7 +338,7 @@ class Abortable_synchronized_queue : public Synchronized_queue<T> {
 
     @return  true if method was aborted, false otherwise
   */
-  bool front(T *out) {
+  bool front(T *out) override {
     *out = nullptr;
     mysql_mutex_lock(&this->lock);
     while (this->queue.empty() && !m_abort)

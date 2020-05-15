@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2167,7 +2167,7 @@ class Gis_polygon_ring : public Gis_wkb_vector<Gis_point> {
   typedef Gis_wkb_vector<Gis_point> base;
   typedef Gis_polygon_ring self;
 
-  virtual ~Gis_polygon_ring() {}
+  ~Gis_polygon_ring() override {}
   Gis_polygon_ring(const void *wkb, size_t nbytes, const Flags_t &flags,
                    gis::srid_t srid)
       : base(wkb, nbytes, flags, srid, true) {

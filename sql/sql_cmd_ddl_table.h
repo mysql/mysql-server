@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,7 +50,7 @@ class Sql_cmd_ddl_table : public Sql_cmd {
  public:
   explicit Sql_cmd_ddl_table(Alter_info *alter_info);
 
-  virtual ~Sql_cmd_ddl_table() = 0;  // force abstract class
+  ~Sql_cmd_ddl_table() override = 0;  // force abstract class
 
  protected:
   Alter_info *const m_alter_info;

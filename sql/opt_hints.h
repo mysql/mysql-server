@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -578,7 +578,7 @@ class Opt_hints_table : public Opt_hints {
     @param table      Pointer to TABLE_LIST object
   */
   void adjust_key_hints(TABLE_LIST *table);
-  virtual PT_hint *get_complex_hints(opt_hints_enum type) override;
+  PT_hint *get_complex_hints(opt_hints_enum type) override;
 
   void set_resolved() override {
     Opt_hints::set_resolved();

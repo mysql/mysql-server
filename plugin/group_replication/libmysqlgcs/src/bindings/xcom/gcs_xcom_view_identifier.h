@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,14 +42,14 @@ class Gcs_xcom_view_identifier : public Gcs_view_identifier {
 
   void increment_by_one();
 
-  virtual const std::string &get_representation() const;
+  const std::string &get_representation() const override;
 
-  Gcs_view_identifier *clone() const;
+  Gcs_view_identifier *clone() const override;
 
  private:
   void init(uint64_t fixed_part_arg, uint32_t monotonic_part_arg);
-  virtual bool equals(const Gcs_view_identifier &other) const;
-  virtual bool lessThan(const Gcs_view_identifier &other) const;
+  bool equals(const Gcs_view_identifier &other) const override;
+  bool lessThan(const Gcs_view_identifier &other) const override;
 
   uint64_t m_fixed_part;
   uint32_t m_monotonic_part;

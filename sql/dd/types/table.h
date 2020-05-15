@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -65,7 +65,7 @@ class Table : virtual public Abstract_table {
 
   // We need a set of functions to update a preallocated se private id key,
   // which requires special handling for table objects.
-  virtual bool update_aux_key(Aux_key *key) const {
+  bool update_aux_key(Aux_key *key) const override {
     return update_aux_key(key, engine(), se_private_id());
   }
 
@@ -73,7 +73,7 @@ class Table : virtual public Abstract_table {
                              Object_id se_private_id);
 
  public:
-  virtual ~Table() {}
+  ~Table() override {}
 
  public:
   enum enum_row_format {
@@ -417,7 +417,7 @@ class Table : virtual public Abstract_table {
 
     @return pointer to dynamically allocated copy
   */
-  virtual Table *clone() const = 0;
+  Table *clone() const override = 0;
 
   /**
     Converts *this into json.

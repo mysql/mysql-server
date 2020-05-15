@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -747,7 +747,7 @@ end:
 class Is_worker : public Do_THD_Impl {
  public:
   Is_worker() : m_count(0) {}
-  virtual void operator()(THD *thd) {
+  void operator()(THD *thd) override {
     if (thd->system_thread == SYSTEM_THREAD_EVENT_WORKER) m_count++;
     return;
   }

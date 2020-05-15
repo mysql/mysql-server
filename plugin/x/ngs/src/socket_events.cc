@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -54,7 +54,7 @@ class Connection_acceptor_socket : public xpl::iface::Connection_acceptor {
                              xpl::iface::System &system_interface)
       : m_socket_listener(listener), m_system_interface(system_interface) {}
 
-  Vio *accept() {
+  Vio *accept() override {
     Vio *vio;
     sockaddr_storage accept_address;
     MYSQL_SOCKET sock = MYSQL_INVALID_SOCKET;

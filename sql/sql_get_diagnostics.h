@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,11 +52,11 @@ class Sql_cmd_get_diagnostics : public Sql_cmd {
   */
   Sql_cmd_get_diagnostics(Diagnostics_information *info) : m_info(info) {}
 
-  virtual enum_sql_command sql_command_code() const {
+  enum_sql_command sql_command_code() const override {
     return SQLCOM_GET_DIAGNOSTICS;
   }
 
-  virtual bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
  private:
   /** The information to be obtained. */
@@ -209,7 +209,7 @@ class Statement_information : public Diagnostics_information {
       : m_items(items) {}
 
   /** Obtain statement information in the context of a Diagnostics Area. */
-  bool aggregate(THD *thd, const Diagnostics_area *da);
+  bool aggregate(THD *thd, const Diagnostics_area *da) override;
 
  private:
   /* List of statement information items. */
@@ -280,7 +280,7 @@ class Condition_information : public Diagnostics_information {
       : m_cond_number_expr(cond_number_expr), m_items(items) {}
 
   /** Obtain condition information in the context of a Diagnostics Area. */
-  bool aggregate(THD *thd, const Diagnostics_area *da);
+  bool aggregate(THD *thd, const Diagnostics_area *da) override;
 
  private:
   /**

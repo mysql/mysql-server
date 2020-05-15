@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -81,7 +81,7 @@ class Ha_innopart_share : public Partition_share {
  public:
   Ha_innopart_share(TABLE_SHARE *table_share);
 
-  ~Ha_innopart_share();
+  ~Ha_innopart_share() override;
 
   /** Set innodb table for given partition.
   @param[in]	part_id	Partition number.

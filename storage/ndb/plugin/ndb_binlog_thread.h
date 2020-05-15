@@ -44,7 +44,7 @@ class Ndb_binlog_thread : public Ndb_component {
 
  public:
   Ndb_binlog_thread();
-  virtual ~Ndb_binlog_thread();
+  ~Ndb_binlog_thread() override;
 
   /*
     @brief Check if purge of the specified binlog file can be handled
@@ -155,11 +155,11 @@ class Ndb_binlog_thread : public Ndb_component {
   unsigned int get_sync_pending_objects_count();
 
  private:
-  virtual int do_init();
-  virtual void do_run();
-  virtual int do_deinit();
+  int do_init() override;
+  void do_run() override;
+  int do_deinit() override;
   // Wake up for stop
-  virtual void do_wakeup();
+  void do_wakeup() override;
 
   /*
      The Ndb_binlog_thread is supposed to make a continuous recording

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -69,7 +69,7 @@ MATCHER_P(EqCastToCStr, expected, "") {
 
 class Listener_unix_socket_testsuite : public Test {
  public:
-  void SetUp() {
+  void SetUp() override {
     m_mock_factory = std::make_shared<StrictMock<Mock_factory>>();
     m_mock_socket = std::make_shared<StrictMock<Mock_socket>>();
     m_mock_system = std::make_shared<StrictMock<Mock_system>>();

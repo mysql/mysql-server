@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,7 @@ using namespace ::testing;  // NOLINT(build/namespaces)
 template <typename Auth_type>
 class AuthenticationTestSuite : public Test {
  public:
-  void SetUp() {
+  void SetUp() override {
     sut = Auth_type::create(&mock_session, nullptr);
 
     ON_CALL(mock_data_context, authenticate(_, _, _, _, _, _, _))

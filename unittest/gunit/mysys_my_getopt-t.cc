@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,13 +38,13 @@ void no_error_report(loglevel, uint, ...) {}
 void no_message_hook(loglevel, uint, va_list) {}
 
 class MysysMyGetopTest : public ::testing::Test {
-  virtual void SetUp() {
+  void SetUp() override {
     m_foo = my_getopt_error_reporter;
     my_getopt_error_reporter = &no_error_report;
     m_bar = local_message_hook;
     local_message_hook = &no_message_hook;
   }
-  virtual void TearDown() {
+  void TearDown() override {
     my_getopt_error_reporter = m_foo;
     local_message_hook = m_bar;
   }

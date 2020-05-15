@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -407,7 +407,7 @@ fatal::~fatal() {
 /* TODO: Improve Object creation & destruction on DBUG_OFF */
 class dbug : public logger {
  public:
-  ~dbug() { DBUG_PRINT("ibd2sdi", ("%s", m_oss.str().c_str())); }
+  ~dbug() override { DBUG_PRINT("ibd2sdi", ("%s", m_oss.str().c_str())); }
 };
 }  // namespace ib
 

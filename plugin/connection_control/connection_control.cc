@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,7 @@ SERVICE_TYPE(log_builtins_string) *log_bs = nullptr;
 namespace connection_control {
 class Connection_control_error_handler : public Error_handler {
  public:
-  void handle_error(longlong errcode, ...) {
+  void handle_error(longlong errcode, ...) override {
     va_list vl;
     va_start(vl, errcode);
     LogPluginErrV(ERROR_LEVEL, errcode, vl);

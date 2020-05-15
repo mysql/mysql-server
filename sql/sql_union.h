@@ -71,7 +71,7 @@ class Query_result_union : public Query_result_interceptor {
                            bool bit_fields_as_long, bool create_table);
   friend bool TABLE_LIST::create_materialized_table(THD *thd);
   friend bool TABLE_LIST::optimize_derived(THD *thd);
-  virtual const ha_rows *row_count() const override { return &m_rows_in_table; }
+  const ha_rows *row_count() const override { return &m_rows_in_table; }
 };
 
 #endif /* SQL_UNION_INCLUDED */

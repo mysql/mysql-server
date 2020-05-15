@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,7 +62,7 @@ class Replication_transaction_boundary_parser
     @param error the error number
     @param message the error message
   */
-  virtual void log_server_warning(int error, const char *message);
+  void log_server_warning(int error, const char *message) override;
 };
 
 /**

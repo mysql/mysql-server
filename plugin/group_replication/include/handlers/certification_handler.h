@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,13 +31,13 @@
 class Certification_handler : public Event_handler {
  public:
   Certification_handler();
-  virtual ~Certification_handler();
-  int handle_event(Pipeline_event *ev, Continuation *cont);
-  int handle_action(Pipeline_action *action);
-  int initialize();
-  int terminate();
-  bool is_unique();
-  int get_role();
+  ~Certification_handler() override;
+  int handle_event(Pipeline_event *ev, Continuation *cont) override;
+  int handle_action(Pipeline_action *action) override;
+  int initialize() override;
+  int terminate() override;
+  bool is_unique() override;
+  int get_role() override;
 
   Certifier_interface *get_certifier();
 

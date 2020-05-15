@@ -403,7 +403,7 @@ class Item_func_truth final : public Item_bool_func {
   const char *func_name() const override {
     return super::bool_transform_names[truth_test];
   }
-  virtual enum Functype functype() const override { return ISTRUTH_FUNC; }
+  enum Functype functype() const override { return ISTRUTH_FUNC; }
 
   Item_func_truth(const POS &pos, Item *a, Bool_test truth_test)
       : super(pos, a), truth_test(truth_test) {
@@ -522,9 +522,9 @@ class Comp_creator {
 /// Abstract base class for the comparison operators =, <> and <=>.
 class Linear_comp_creator : public Comp_creator {
  public:
-  virtual Item_bool_func *create(Item *a, Item *b) const;
-  virtual bool eqne_op() const { return true; }
-  virtual bool l_op() const { return false; }
+  Item_bool_func *create(Item *a, Item *b) const override;
+  bool eqne_op() const override { return true; }
+  bool l_op() const override { return false; }
 
  protected:
   /**
@@ -540,65 +540,65 @@ class Linear_comp_creator : public Comp_creator {
 
 class Eq_creator : public Linear_comp_creator {
  public:
-  virtual const char *symbol(bool invert) const { return invert ? "<>" : "="; }
+  const char *symbol(bool invert) const override { return invert ? "<>" : "="; }
 
  protected:
-  virtual Item_bool_func *create_scalar_predicate(Item *a, Item *b) const;
-  virtual Item_bool_func *combine(List<Item> list) const;
+  Item_bool_func *create_scalar_predicate(Item *a, Item *b) const override;
+  Item_bool_func *combine(List<Item> list) const override;
 };
 
 class Equal_creator : public Linear_comp_creator {
  public:
-  virtual const char *symbol(bool invert MY_ATTRIBUTE((unused))) const {
+  const char *symbol(bool invert MY_ATTRIBUTE((unused))) const override {
     // This will never be called with true.
     DBUG_ASSERT(!invert);
     return "<=>";
   }
 
  protected:
-  virtual Item_bool_func *create_scalar_predicate(Item *a, Item *b) const;
-  virtual Item_bool_func *combine(List<Item> list) const;
+  Item_bool_func *create_scalar_predicate(Item *a, Item *b) const override;
+  Item_bool_func *combine(List<Item> list) const override;
 };
 
 class Ne_creator : public Linear_comp_creator {
  public:
-  virtual const char *symbol(bool invert) const { return invert ? "=" : "<>"; }
+  const char *symbol(bool invert) const override { return invert ? "=" : "<>"; }
 
  protected:
-  virtual Item_bool_func *create_scalar_predicate(Item *a, Item *b) const;
-  virtual Item_bool_func *combine(List<Item> list) const;
+  Item_bool_func *create_scalar_predicate(Item *a, Item *b) const override;
+  Item_bool_func *combine(List<Item> list) const override;
 };
 
 class Gt_creator : public Comp_creator {
  public:
-  virtual Item_bool_func *create(Item *a, Item *b) const;
-  virtual const char *symbol(bool invert) const { return invert ? "<=" : ">"; }
-  virtual bool eqne_op() const { return false; }
-  virtual bool l_op() const { return false; }
+  Item_bool_func *create(Item *a, Item *b) const override;
+  const char *symbol(bool invert) const override { return invert ? "<=" : ">"; }
+  bool eqne_op() const override { return false; }
+  bool l_op() const override { return false; }
 };
 
 class Lt_creator : public Comp_creator {
  public:
-  virtual Item_bool_func *create(Item *a, Item *b) const;
-  virtual const char *symbol(bool invert) const { return invert ? ">=" : "<"; }
-  virtual bool eqne_op() const { return false; }
-  virtual bool l_op() const { return true; }
+  Item_bool_func *create(Item *a, Item *b) const override;
+  const char *symbol(bool invert) const override { return invert ? ">=" : "<"; }
+  bool eqne_op() const override { return false; }
+  bool l_op() const override { return true; }
 };
 
 class Ge_creator : public Comp_creator {
  public:
-  virtual Item_bool_func *create(Item *a, Item *b) const;
-  virtual const char *symbol(bool invert) const { return invert ? "<" : ">="; }
-  virtual bool eqne_op() const { return false; }
-  virtual bool l_op() const { return false; }
+  Item_bool_func *create(Item *a, Item *b) const override;
+  const char *symbol(bool invert) const override { return invert ? "<" : ">="; }
+  bool eqne_op() const override { return false; }
+  bool l_op() const override { return false; }
 };
 
 class Le_creator : public Comp_creator {
  public:
-  virtual Item_bool_func *create(Item *a, Item *b) const;
-  virtual const char *symbol(bool invert) const { return invert ? ">" : "<="; }
-  virtual bool eqne_op() const { return false; }
-  virtual bool l_op() const { return true; }
+  Item_bool_func *create(Item *a, Item *b) const override;
+  const char *symbol(bool invert) const override { return invert ? ">" : "<="; }
+  bool eqne_op() const override { return false; }
+  bool l_op() const override { return true; }
 };
 
 class Item_bool_func2 : public Item_bool_func { /* Bool with 2 string args */
@@ -1733,12 +1733,12 @@ class cmp_item_string final : public cmp_item_scalar {
  public:
   cmp_item_string(const CHARSET_INFO *cs) : value(cs), cmp_charset(cs) {}
 
-  virtual int compare(const cmp_item *ci) const {
+  int compare(const cmp_item *ci) const override {
     const cmp_item_string *l_cmp = down_cast<const cmp_item_string *>(ci);
     return sortcmp(value_res, l_cmp->value_res, cmp_charset);
   }
 
-  virtual void store_value(Item *item) {
+  void store_value(Item *item) override {
     String *res = item->val_str(&value);
     if (res && (res != &value || !res->is_alloced())) {
       // 'res' may point in item's transient internal data, so make a copy
@@ -1748,7 +1748,7 @@ class cmp_item_string final : public cmp_item_scalar {
     set_null_value(item->null_value);
   }
 
-  virtual int cmp(Item *arg) {
+  int cmp(Item *arg) override {
     StringBuffer<STRING_BUFFER_USUAL_SIZE> tmp(cmp_charset);
     String *res = arg->val_str(&tmp);
     if (m_null_value || arg->null_value) return UNKNOWN;
@@ -1759,7 +1759,7 @@ class cmp_item_string final : public cmp_item_scalar {
     else
       return true;
   }
-  virtual cmp_item *make_same();
+  cmp_item *make_same() override;
 };
 
 class cmp_item_json final : public cmp_item_scalar {
@@ -1851,10 +1851,10 @@ class cmp_item_decimal : public cmp_item_scalar {
   my_decimal value;
 
  public:
-  void store_value(Item *item);
-  int cmp(Item *arg);
-  int compare(const cmp_item *c) const;
-  cmp_item *make_same();
+  void store_value(Item *item) override;
+  int cmp(Item *arg) override;
+  int compare(const cmp_item *c) const override;
+  cmp_item *make_same() override;
 };
 
 /**
@@ -2075,7 +2075,7 @@ class cmp_item_row : public cmp_item {
   cmp_item_row(THD *thd, Item *item) : comparators(nullptr), n(item->cols()) {
     alloc_comparators(thd, item);
   }
-  ~cmp_item_row();
+  ~cmp_item_row() override;
 
   cmp_item_row(cmp_item_row &&other)
       : comparators(other.comparators), n(other.n) {
@@ -2083,11 +2083,11 @@ class cmp_item_row : public cmp_item {
     other.n = 0;
   }
 
-  void store_value(Item *item);
-  int cmp(Item *arg);
-  int compare(const cmp_item *arg) const;
-  cmp_item *make_same();
-  void store_value_by_template(cmp_item *tmpl, Item *);
+  void store_value(Item *item) override;
+  int cmp(Item *arg) override;
+  int compare(const cmp_item *arg) const override;
+  cmp_item *make_same() override;
+  void store_value_by_template(cmp_item *tmpl, Item *) override;
   void set_comparator(uint col, cmp_item *comparator) {
     comparators[col] = comparator;
   }
@@ -2466,7 +2466,7 @@ class Item_equal final : public Item_bool_func {
   longlong val_int() override;
   const char *func_name() const override { return "multiple equal"; }
   optimize_type select_optimize(const THD *) override { return OPTIMIZE_EQUAL; }
-  virtual bool cast_incompatible_args(uchar *) override {
+  bool cast_incompatible_args(uchar *) override {
     // Multiple equality nodes (Item_equal) should have been
     // converted back to simple equalities (Item_func_eq) by
     // substitute_for_best_equal_field before cast nodes are injected.

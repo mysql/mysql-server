@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,11 +46,11 @@ class Sql_cmd_handler_open : public Sql_cmd {
  public:
   Sql_cmd_handler_open() {}
 
-  virtual ~Sql_cmd_handler_open() {}
+  ~Sql_cmd_handler_open() override {}
 
-  virtual enum_sql_command sql_command_code() const { return SQLCOM_HA_OPEN; }
+  enum_sql_command sql_command_code() const override { return SQLCOM_HA_OPEN; }
 
-  virtual bool execute(THD *thd);
+  bool execute(THD *thd) override;
 };
 
 /**
@@ -70,11 +70,11 @@ class Sql_cmd_handler_read : public Sql_cmd {
         m_key_expr(key_expr),
         m_rkey_mode(rkey_mode) {}
 
-  virtual ~Sql_cmd_handler_read() {}
+  ~Sql_cmd_handler_read() override {}
 
-  virtual enum_sql_command sql_command_code() const { return SQLCOM_HA_READ; }
+  enum_sql_command sql_command_code() const override { return SQLCOM_HA_READ; }
 
-  virtual bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
  private:
   /** Read mode for HANDLER READ: FIRST, NEXT, LAST, ... */
@@ -104,11 +104,11 @@ class Sql_cmd_handler_close : public Sql_cmd {
  public:
   Sql_cmd_handler_close() {}
 
-  virtual ~Sql_cmd_handler_close() {}
+  ~Sql_cmd_handler_close() override {}
 
-  virtual enum_sql_command sql_command_code() const { return SQLCOM_HA_CLOSE; }
+  enum_sql_command sql_command_code() const override { return SQLCOM_HA_CLOSE; }
 
-  virtual bool execute(THD *thd);
+  bool execute(THD *thd) override;
 };
 
 void mysql_ha_flush(THD *thd);

@@ -118,13 +118,13 @@ class Event_creation_ctx : public Stored_program_creation_ctx {
                                         Stored_program_creation_ctx **ctx);
 
  public:
-  virtual Stored_program_creation_ctx *clone(MEM_ROOT *mem_root) {
+  Stored_program_creation_ctx *clone(MEM_ROOT *mem_root) override {
     return new (mem_root)
         Event_creation_ctx(m_client_cs, m_connection_cl, m_db_cl);
   }
 
  protected:
-  virtual Object_creation_ctx *create_backup_ctx(THD *) const {
+  Object_creation_ctx *create_backup_ctx(THD *) const override {
     /*
       We can avoid usual backup/restore employed in stored programs since we
       know that this is a top level statement and the worker thread is
@@ -134,7 +134,7 @@ class Event_creation_ctx : public Stored_program_creation_ctx {
     return nullptr;
   }
 
-  virtual void delete_backup_ctx() { destroy(this); }
+  void delete_backup_ctx() override { destroy(this); }
 
  private:
   Event_creation_ctx(const CHARSET_INFO *client_cs,

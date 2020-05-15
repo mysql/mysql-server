@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,9 +48,9 @@ class my_rcu_lock_test : public ::testing::Test {
  protected:
   my_rcu_lock_test() {}
 
-  virtual void SetUp() {}
+  void SetUp() override {}
 
-  virtual void TearDown() {}
+  void TearDown() override {}
 
   static void SetUpTestCase() {
     lock = new MyRcuLockTest(new payload_s("a", "b", "c"));

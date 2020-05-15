@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -102,7 +102,7 @@ class mock_gcs_xcom_proxy : public Gcs_xcom_proxy_base {
   /* Mocking fails compilation on Windows. It attempts to copy the std::future
    * which is non-copyable. */
   Gcs_xcom_input_queue::future_reply xcom_input_try_push_and_get_reply(
-      app_data_ptr) {
+      app_data_ptr) override {
     return std::future<std::unique_ptr<Gcs_xcom_input_queue::Reply>>();
   }
   MOCK_METHOD0(xcom_input_try_pop, xcom_input_request_ptr());
@@ -112,12 +112,12 @@ class XcomGroupManagementTest : public GcsBaseTest {
  protected:
   XcomGroupManagementTest() {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     group_id = new Gcs_group_identifier("only_group");
     xcom_group_mgmt_if = new Gcs_xcom_group_management(&proxy, *group_id);
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     delete xcom_group_mgmt_if;
     delete group_id;
   }

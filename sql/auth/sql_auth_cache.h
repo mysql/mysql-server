@@ -364,8 +364,8 @@ class GRANT_TABLE : public GRANT_NAME {
               ulong p, ulong c);
   explicit GRANT_TABLE(TABLE *form);
   bool init(TABLE *col_privs);
-  ~GRANT_TABLE();
-  bool ok() { return privs != 0 || cols != 0; }
+  ~GRANT_TABLE() override;
+  bool ok() override { return privs != 0 || cols != 0; }
 };
 
 /*

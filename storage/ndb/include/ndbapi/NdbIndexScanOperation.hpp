@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,10 +51,10 @@ public:
    * @param scan_flags see @ref ScanFlag
    * @param parallel No of fragments to scan in parallel (0=max)
    */ 
-  virtual int readTuples(LockMode lock_mode = LM_Read, 
+  int readTuples(LockMode lock_mode = LM_Read, 
                          Uint32 scan_flags = 0, 
 			 Uint32 parallel = 0,
-			 Uint32 batch = 0);
+			 Uint32 batch = 0) override;
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /**
@@ -261,7 +261,7 @@ public:
 
 private:
   NdbIndexScanOperation(Ndb* aNdb);
-  virtual ~NdbIndexScanOperation();
+  ~NdbIndexScanOperation() override;
   
   int processIndexScanDefs(LockMode lm,
                            Uint32 scan_flags,
@@ -332,8 +332,8 @@ private:
   int insert_open_bound(const NdbRecord* key_record,
                         Uint32*& firstWordOfBound);
 
-  virtual int equal_impl(const NdbColumnImpl*, const char*);
-  virtual NdbRecAttr* getValue_impl(const NdbColumnImpl*, char*);
+  int equal_impl(const NdbColumnImpl*, const char*) override;
+  NdbRecAttr* getValue_impl(const NdbColumnImpl*, char*) override;
 
   int getDistKeyFromRange(const NdbRecord* key_record,
                           const NdbRecord* result_record,

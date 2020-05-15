@@ -3581,7 +3581,7 @@ class PT_attribute : public BASE {
 
  public:
   PT_attribute(ATTRIBUTE a, CFP cfp) : m_attr{a}, m_cfp{cfp} {}
-  bool contextualize(typename BASE::context_t *pc) {
+  bool contextualize(typename BASE::context_t *pc) override {
     return BASE::contextualize(pc) || m_cfp(m_attr, pc);
   }
 };

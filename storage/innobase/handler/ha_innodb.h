@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -324,17 +324,16 @@ class ha_innobase : public handler {
 
   void init_table_handle_for_HANDLER() override;
 
-  virtual void get_auto_increment(ulonglong offset, ulonglong increment,
-                                  ulonglong nb_desired_values,
-                                  ulonglong *first_value,
-                                  ulonglong *nb_reserved_values) override;
+  void get_auto_increment(ulonglong offset, ulonglong increment,
+                          ulonglong nb_desired_values, ulonglong *first_value,
+                          ulonglong *nb_reserved_values) override;
 
   /** Do cleanup for auto increment calculation. */
-  virtual void release_auto_increment() override;
+  void release_auto_increment() override;
 
-  virtual bool get_error_message(int error, String *buf) override;
+  bool get_error_message(int error, String *buf) override;
 
-  virtual bool get_foreign_dup_key(char *, uint, char *, uint) override;
+  bool get_foreign_dup_key(char *, uint, char *, uint) override;
 
   bool primary_key_is_clustered() const override;
 

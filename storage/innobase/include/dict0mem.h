@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -2365,12 +2365,12 @@ class CorruptedIndexPersister : public Persister {
                                   at least get_write_size()
   @return the length of bytes written */
   ulint write(const PersistentTableMetadata &metadata, byte *buffer,
-              ulint size) const;
+              ulint size) const override;
 
   /** Pre-calculate the size of metadata to be written
   @param[in]	metadata	metadata to be written
   @return the size of metadata */
-  ulint get_write_size(const PersistentTableMetadata &metadata) const;
+  ulint get_write_size(const PersistentTableMetadata &metadata) const override;
 
   /** Read the corrupted indexes from buffer, and store them to
   metadata object
@@ -2383,7 +2383,7 @@ class CorruptedIndexPersister : public Persister {
   @return the bytes we read from the buffer if the buffer data
   is complete and we get everything, 0 if the buffer is incomplete */
   ulint read(PersistentTableMetadata &metadata, const byte *buffer, ulint size,
-             bool *corrupt) const;
+             bool *corrupt) const override;
 
  private:
   /** The length of index_id_t we will write */
@@ -2401,12 +2401,12 @@ class AutoIncPersister : public Persister {
                                   at least get_write_size()
   @return the length of bytes written */
   ulint write(const PersistentTableMetadata &metadata, byte *buffer,
-              ulint size) const;
+              ulint size) const override;
 
   /** Pre-calculate the size of metadata to be written
   @param[in]	metadata	metadata to be written
   @return the size of metadata */
-  inline ulint get_write_size(const PersistentTableMetadata &metadata) const {
+  inline ulint get_write_size(const PersistentTableMetadata &metadata) const override {
     /* We just return the max possible size that would be used
     if the counter exists, so we don't calculate every time.
     Here we need 1 byte for dynamic metadata type and 11 bytes
@@ -2425,7 +2425,7 @@ class AutoIncPersister : public Persister {
   @return the bytes we read from the buffer if the buffer data
   is complete and we get everything, 0 if the buffer is incomplete */
   ulint read(PersistentTableMetadata &metadata, const byte *buffer, ulint size,
-             bool *corrupt) const;
+             bool *corrupt) const override;
 };
 
 /** Container of persisters used in the system. Currently we don't need

@@ -5131,9 +5131,9 @@ class Silence_routine_definer_errors : public Internal_error_handler {
  public:
   Silence_routine_definer_errors() : is_grave(false) {}
 
-  virtual bool handle_condition(THD *, uint sql_errno, const char *,
+  bool handle_condition(THD *, uint sql_errno, const char *,
                                 Sql_condition::enum_severity_level *level,
-                                const char *) {
+                                const char *) override {
     if (*level == Sql_condition::SL_ERROR) {
       if (sql_errno == ER_NONEXISTING_PROC_GRANT) {
         /* Convert the error into a warning. */

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,7 +75,7 @@ class PFS_index_rpl_async_conn_failover : public PFS_engine_index {
         m_key_3("PORT"),
         m_key_4("NETWORK_NAMESPACE") {}
 
-  ~PFS_index_rpl_async_conn_failover() {}
+  ~PFS_index_rpl_async_conn_failover() override {}
 
   /**
     Match fetched row with searched values.
@@ -128,13 +128,13 @@ class table_replication_asynchronous_connection_failover
     @param fields           Table fields
     @param read_all         true if all columns are read.
   */
-  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                              bool read_all);
+  int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
+                              bool read_all) override;
 
   table_replication_asynchronous_connection_failover();
 
  public:
-  ~table_replication_asynchronous_connection_failover();
+  ~table_replication_asynchronous_connection_failover() override;
 
   /** Table share. */
   static PFS_engine_table_share m_share;
@@ -154,7 +154,7 @@ class table_replication_asynchronous_connection_failover
   static ha_rows get_row_count();
 
   /** Reset the cursor position to the beginning of the table. */
-  virtual void reset_position(void);
+  void reset_position(void) override;
 
   /**
     Initialize table for random read or scan.
@@ -166,7 +166,7 @@ class table_replication_asynchronous_connection_failover
       @retval 0     Success
       @retval != 0  Error (error code returned)
   */
-  virtual int rnd_init(bool scan);
+  int rnd_init(bool scan) override;
 
   /**
     Read next row via random scan.
@@ -175,7 +175,7 @@ class table_replication_asynchronous_connection_failover
       @retval 0     Success
       @retval != 0  Error (error code returned)
   */
-  virtual int rnd_next();
+  int rnd_next() override;
 
   /**
     Read row via random scan from position.
@@ -186,7 +186,7 @@ class table_replication_asynchronous_connection_failover
       @retval 0     Success
       @retval != 0  Error (error code returned)
   */
-  virtual int rnd_pos(const void *pos);
+  int rnd_pos(const void *pos) override;
 
   /**
     Initialize use of index.
@@ -198,7 +198,7 @@ class table_replication_asynchronous_connection_failover
       @retval 0     Success
       @retval != 0  Error (error code returned)
   */
-  virtual int index_init(uint idx, bool sorted);
+  int index_init(uint idx, bool sorted) override;
 
   /**
     Read next row via random scan.
@@ -207,7 +207,7 @@ class table_replication_asynchronous_connection_failover
       @retval 0     Success
       @retval != 0  Error (error code returned)
   */
-  virtual int index_next();
+  int index_next() override;
 
  private:
   /* Index object to get match searched values */

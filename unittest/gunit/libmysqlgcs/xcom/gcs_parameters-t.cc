@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@ class GcsParametersTest : public GcsBaseTest {
  protected:
   GcsParametersTest() : m_gcs(nullptr) {}
 
-  virtual void SetUp() {
+  void SetUp() override {
     m_gcs = Gcs_xcom_interface::get_interface();
 
     // convenience alias to specialized version of Gcs_interface.
@@ -60,7 +60,7 @@ class GcsParametersTest : public GcsBaseTest {
     m_params.add_parameter("fragmentation_threshold", "1024");
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     // fake factory cleanup member function
     static_cast<Gcs_xcom_interface *>(m_gcs)->cleanup();
   }

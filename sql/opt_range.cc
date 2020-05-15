@@ -224,9 +224,9 @@ class Range_optimizer_error_handler : public Internal_error_handler {
   Range_optimizer_error_handler()
       : m_has_errors(false), m_is_mem_error(false) {}
 
-  virtual bool handle_condition(THD *thd, uint sql_errno, const char *,
+  bool handle_condition(THD *thd, uint sql_errno, const char *,
                                 Sql_condition::enum_severity_level *level,
-                                const char *) {
+                                const char *) override {
     if (*level == Sql_condition::SL_ERROR) {
       m_has_errors = true;
       /* Out of memory error is reported only once. Return as handled */
@@ -2609,7 +2609,7 @@ class TRP_RANGE : public TABLE_READ_PLAN {
   TRP_RANGE(SEL_ROOT *key_arg, uint idx_arg, uint mrr_flags_arg)
       : key(key_arg), key_idx(idx_arg), mrr_flags(mrr_flags_arg) {}
 
-  QUICK_SELECT_I *make_quick(PARAM *param, bool, MEM_ROOT *parent_alloc) {
+  QUICK_SELECT_I *make_quick(PARAM *param, bool, MEM_ROOT *parent_alloc) override {
     DBUG_TRACE;
     QUICK_RANGE_SELECT *quick;
     if ((quick = get_quick_select(param, key_idx, key, mrr_flags, mrr_buf_size,
@@ -2621,7 +2621,7 @@ class TRP_RANGE : public TABLE_READ_PLAN {
   }
 
   void trace_basic_info(const PARAM *param,
-                        Opt_trace_object *trace_object) const;
+                        Opt_trace_object *trace_object) const override;
 };
 
 void TRP_RANGE::trace_basic_info(const PARAM *param,
@@ -2684,7 +2684,7 @@ class TRP_ROR_INTERSECT : public TABLE_READ_PLAN {
       : forced_by_hint(forced_by_hint_arg) {}
 
   QUICK_SELECT_I *make_quick(PARAM *param, bool retrieve_full_rows,
-                             MEM_ROOT *parent_alloc);
+                             MEM_ROOT *parent_alloc) override;
 
   /* Array of pointers to ROR range scans used in this intersection */
   ROR_SCAN_INFO **first_scan;
@@ -2694,7 +2694,7 @@ class TRP_ROR_INTERSECT : public TABLE_READ_PLAN {
   Cost_estimate index_scan_cost; /* SUM(cost(index_scan)) */
 
   void trace_basic_info(const PARAM *param,
-                        Opt_trace_object *trace_object) const;
+                        Opt_trace_object *trace_object) const override;
 };
 
 void TRP_ROR_INTERSECT::trace_basic_info(const PARAM *param,
@@ -2746,12 +2746,12 @@ class TRP_ROR_UNION : public TABLE_READ_PLAN {
   explicit TRP_ROR_UNION(bool forced_by_hint_arg)
       : forced_by_hint(forced_by_hint_arg) {}
   QUICK_SELECT_I *make_quick(PARAM *param, bool retrieve_full_rows,
-                             MEM_ROOT *parent_alloc);
+                             MEM_ROOT *parent_alloc) override;
   TABLE_READ_PLAN **first_ror; /* array of ptrs to plans for merged scans */
   TABLE_READ_PLAN **last_ror;  /* end of the above array */
 
   void trace_basic_info(const PARAM *param,
-                        Opt_trace_object *trace_object) const;
+                        Opt_trace_object *trace_object) const override;
 };
 
 void TRP_ROR_UNION::trace_basic_info(const PARAM *param,
@@ -2778,12 +2778,12 @@ class TRP_INDEX_MERGE : public TABLE_READ_PLAN {
   explicit TRP_INDEX_MERGE(bool forced_by_hint_arg)
       : forced_by_hint(forced_by_hint_arg) {}
   QUICK_SELECT_I *make_quick(PARAM *param, bool retrieve_full_rows,
-                             MEM_ROOT *parent_alloc);
+                             MEM_ROOT *parent_alloc) override;
   TRP_RANGE **range_scans;     /* array of ptrs to plans of merged scans */
   TRP_RANGE **range_scans_end; /* end of the array */
 
   void trace_basic_info(const PARAM *param,
-                        Opt_trace_object *trace_object) const;
+                        Opt_trace_object *trace_object) const override;
 };
 
 void TRP_INDEX_MERGE::trace_basic_info(const PARAM *param,
@@ -2834,7 +2834,7 @@ class TRP_GROUP_MIN_MAX : public TABLE_READ_PLAN {
 
  public:
   void trace_basic_info(const PARAM *param,
-                        Opt_trace_object *trace_object) const;
+                        Opt_trace_object *trace_object) const override;
 
   TRP_GROUP_MIN_MAX(bool have_min_arg, bool have_max_arg,
                     bool have_agg_distinct_arg,
@@ -2861,7 +2861,7 @@ class TRP_GROUP_MIN_MAX : public TABLE_READ_PLAN {
         quick_prefix_records(quick_prefix_records_arg) {}
 
   QUICK_SELECT_I *make_quick(PARAM *param, bool retrieve_full_rows,
-                             MEM_ROOT *parent_alloc);
+                             MEM_ROOT *parent_alloc) override;
   void use_index_scan() { is_index_scan = true; }
 };
 
@@ -2925,7 +2925,7 @@ class TRP_SKIP_SCAN : public TABLE_READ_PLAN {
 
  public:
   void trace_basic_info(const PARAM *param,
-                        Opt_trace_object *trace_object) const;
+                        Opt_trace_object *trace_object) const override;
 
   TRP_SKIP_SCAN(KEY *index_info, uint index, SEL_ROOT *index_range_tree,
                 uint eq_prefix_len, uint eq_prefix_parts,
@@ -2945,11 +2945,11 @@ class TRP_SKIP_SCAN : public TABLE_READ_PLAN {
     records = read_records;
   }
 
-  virtual ~TRP_SKIP_SCAN() {}
+  ~TRP_SKIP_SCAN() override {}
 
   QUICK_SELECT_I *make_quick(PARAM *param, bool retrieve_full_rows,
-                             MEM_ROOT *parent_alloc);
-  virtual bool is_forced_by_hint() { return forced_by_hint; }
+                             MEM_ROOT *parent_alloc) override;
+  bool is_forced_by_hint() override { return forced_by_hint; }
 };
 
 void TRP_SKIP_SCAN::trace_basic_info(const PARAM *param,

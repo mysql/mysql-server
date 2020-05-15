@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -115,8 +115,8 @@ class Acl_table_user_writer : public Acl_table {
                         bool revoke_grant, bool can_create_user,
                         Pod_user_what_to_update what_to_update,
                         Restrictions *restrictions);
-  virtual ~Acl_table_user_writer();
-  virtual Acl_table_op_status finish_operation(Table_op_error_code &error);
+  ~Acl_table_user_writer() override;
+  Acl_table_op_status finish_operation(Table_op_error_code &error) override;
   Acl_table_user_writer_status driver();
 
   bool setup_table(int &error, bool &builtin_password);
@@ -160,11 +160,11 @@ class Acl_table_user_writer : public Acl_table {
 class Acl_table_user_reader : public Acl_table {
  public:
   Acl_table_user_reader(THD *thd, TABLE *table);
-  ~Acl_table_user_reader();
+  ~Acl_table_user_reader() override;
   bool driver();
   bool setup_table(bool &is_old_db_layout);
   bool read_row(bool &is_old_db_layout, bool &super_users_with_empty_plugin);
-  virtual Acl_table_op_status finish_operation(Table_op_error_code &error);
+  Acl_table_op_status finish_operation(Table_op_error_code &error) override;
 
   /* Set of function to read user table data */
   void reset_acl_user(ACL_USER &user);

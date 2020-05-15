@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -101,7 +101,7 @@ class TraceContentTest : public ::testing::Test {
   static void SetUpTestCase() {
     system_charset_info = &my_charset_utf8_general_ci;
   }
-  virtual void SetUp() {
+  void SetUp() override {
     /* Save original and install our custom error hook. */
     m_old_error_handler_hook = error_handler_hook;
     error_handler_hook = my_error_handler;
@@ -109,7 +109,7 @@ class TraceContentTest : public ::testing::Test {
     // Setting debug flags triggers enter/exit trace, so redirect to /dev/null
     DBUG_SET("o," IF_WIN("NUL", "/dev/null"));
   }
-  virtual void TearDown() { error_handler_hook = m_old_error_handler_hook; }
+  void TearDown() override { error_handler_hook = m_old_error_handler_hook; }
 
   static void (*m_old_error_handler_hook)(uint, const char *, myf);
 };

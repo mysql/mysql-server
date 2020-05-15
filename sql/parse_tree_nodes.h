@@ -170,7 +170,7 @@ class PT_table_ddl_stmt_base : public Parse_tree_root {
   explicit PT_table_ddl_stmt_base(MEM_ROOT *mem_root)
       : m_alter_info(mem_root) {}
 
-  virtual ~PT_table_ddl_stmt_base() = 0;  // force abstract class
+  ~PT_table_ddl_stmt_base() override = 0;  // force abstract class
 
  protected:
   Alter_info m_alter_info;
@@ -647,7 +647,7 @@ class PT_locking_clause : public Parse_tree_node {
   PT_locking_clause(Lock_strength strength, Locked_row_action action)
       : m_lock_strength(strength), m_locked_row_action(action) {}
 
-  bool contextualize(Parse_context *pc) override final;
+  bool contextualize(Parse_context *pc) final;
 
   virtual bool set_lock_for_tables(Parse_context *pc) = 0;
 
@@ -3491,7 +3491,7 @@ class PT_alter_table_add_partition : public PT_alter_table_standalone_action {
 
   bool contextualize(Table_ddl_parse_context *pc) override;
 
-  Sql_cmd *make_cmd(Table_ddl_parse_context *pc) override final {
+  Sql_cmd *make_cmd(Table_ddl_parse_context *pc) final {
     return new (pc->mem_root) Sql_cmd_alter_table(pc->alter_info);
   }
 
@@ -3549,7 +3549,7 @@ class PT_alter_table_drop_partition final
 
   bool contextualize(Table_ddl_parse_context *pc) override;
 
-  Sql_cmd *make_cmd(Table_ddl_parse_context *pc) override final {
+  Sql_cmd *make_cmd(Table_ddl_parse_context *pc) final {
     return new (pc->mem_root) Sql_cmd_alter_table(pc->alter_info);
   }
 

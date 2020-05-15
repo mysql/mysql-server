@@ -1777,7 +1777,7 @@ class THD : public MDL_context_owner,
 
   class Attachable_trx_rw : public Attachable_trx {
    public:
-    bool is_read_only() const { return false; }
+    bool is_read_only() const override { return false; }
     explicit Attachable_trx_rw(THD *thd);
 
    private:
@@ -2574,7 +2574,7 @@ class THD : public MDL_context_owner,
     Global_THD_manager::get_instance()->remove_thd();
     delete thd;
    */
-  ~THD();
+  ~THD() override;
 
   void release_resources();
   bool release_resources_done() const { return m_release_resources_done; }
@@ -2674,7 +2674,7 @@ class THD : public MDL_context_owner,
   void enter_cond(mysql_cond_t *cond, mysql_mutex_t *mutex,
                   const PSI_stage_info *stage, PSI_stage_info *old_stage,
                   const char *src_function, const char *src_file,
-                  int src_line) {
+                  int src_line) override {
     DBUG_TRACE;
     mysql_mutex_assert_owner(mutex);
     /*
@@ -2689,7 +2689,7 @@ class THD : public MDL_context_owner,
   }
 
   void exit_cond(const PSI_stage_info *stage, const char *src_function,
-                 const char *src_file, int src_line) {
+                 const char *src_file, int src_line) override {
     DBUG_TRACE;
     /*
       current_mutex must be unlocked _before_ LOCK_current_cond is
@@ -2705,8 +2705,8 @@ class THD : public MDL_context_owner,
     return;
   }
 
-  virtual int is_killed() const final { return killed; }
-  virtual THD *get_thd() { return this; }
+  int is_killed() const final { return killed; }
+  THD *get_thd() override { return this; }
 
   /**
     A callback to the server internals that is used to address
@@ -2725,13 +2725,13 @@ class THD : public MDL_context_owner,
                                 this call needs to abort its waiting
                                 on table-level lock.
    */
-  virtual void notify_shared_lock(MDL_context_owner *ctx_in_use,
-                                  bool needs_thr_lock_abort);
+  void notify_shared_lock(MDL_context_owner *ctx_in_use,
+                                  bool needs_thr_lock_abort) override;
 
-  virtual bool notify_hton_pre_acquire_exclusive(const MDL_key *mdl_key,
-                                                 bool *victimized);
+  bool notify_hton_pre_acquire_exclusive(const MDL_key *mdl_key,
+                                                 bool *victimized) override;
 
-  virtual void notify_hton_post_release_exclusive(const MDL_key *mdl_key);
+  void notify_hton_post_release_exclusive(const MDL_key *mdl_key) override;
 
   /**
     Provide thread specific random seed for MDL_context's PRNG.
@@ -2744,7 +2744,7 @@ class THD : public MDL_context_owner,
     gives more randomness and thus better coverage in tests as opposed to
     using thread_id for the same purpose.
   */
-  virtual uint get_rand_seed() const { return (uint)start_utime; }
+  uint get_rand_seed() const override { return (uint)start_utime; }
 
   // End implementation of MDL_context_owner interface.
 

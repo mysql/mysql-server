@@ -42,8 +42,8 @@ using namespace json_binary;
 
 class JsonBinaryTest : public ::testing::Test {
  protected:
-  virtual void SetUp() { initializer.SetUp(); }
-  virtual void TearDown() { initializer.TearDown(); }
+  void SetUp() override { initializer.SetUp(); }
+  void TearDown() override { initializer.TearDown(); }
   my_testing::Server_initializer initializer;
   THD *thd() const { return initializer.thd(); }
 };

@@ -142,7 +142,7 @@ class View_metadata_updater_context {
 class View_metadata_updater_error_handler final
     : public Internal_error_handler {
  public:
-  virtual bool handle_condition(THD *, uint sql_errno, const char *,
+  bool handle_condition(THD *, uint sql_errno, const char *,
                                 Sql_condition::enum_severity_level *,
                                 const char *msg) override {
     switch (sql_errno) {

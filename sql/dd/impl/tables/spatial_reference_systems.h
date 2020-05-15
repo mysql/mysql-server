@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -70,8 +70,8 @@ class Spatial_reference_systems : public Entity_object_table_impl {
 
   Spatial_reference_systems();
 
-  virtual Spatial_reference_system *create_entity_object(
-      const Raw_record &) const;
+  Spatial_reference_system *create_entity_object(
+      const Raw_record &) const override;
 
   static bool update_object_key(Item_name_key *key, Object_id catalog_id,
                                 const String_type &name);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@ class Rpl_async_conn_failover_add_primary : public Udf_service_impl {
 
  public:
   Rpl_async_conn_failover_add_primary() {}
-  ~Rpl_async_conn_failover_add_primary() {}
+  ~Rpl_async_conn_failover_add_primary() override {}
 
   /**
     Initialize variables, acquires the mysql_service_mysql_udf_metadata from the
@@ -45,7 +45,7 @@ class Rpl_async_conn_failover_add_primary : public Udf_service_impl {
     @retval true if there was an error
     @retval false if all UDFs were registered
    */
-  bool init();
+  bool init() override;
 
   /**
     Release the udf_metadata service.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -962,7 +962,7 @@ class binlog_trx_cache_data : public binlog_cache_data {
         m_cannot_rollback(false),
         before_stmt_pos(MY_OFF_T_UNDEF) {}
 
-  void reset() {
+  void reset() override {
     DBUG_TRACE;
     DBUG_PRINT("enter", ("before_stmt_pos: %llu", (ulonglong)before_stmt_pos));
     m_cannot_rollback = false;
@@ -1280,7 +1280,7 @@ class Binlog_event_writer : public Basic_ostream {
     if (have_checksum) checksum = my_checksum(checksum, header, header_len);
   }
 
-  bool write(const unsigned char *buffer, my_off_t length) {
+  bool write(const unsigned char *buffer, my_off_t length) override {
     DBUG_TRACE;
 
     while (length > 0) {
@@ -2889,7 +2889,7 @@ static bool binlog_savepoint_rollback_can_release_mdl(handlerton *, THD *thd) {
 class Adjust_offset : public Do_THD_Impl {
  public:
   Adjust_offset(my_off_t value) : m_purge_offset(value) {}
-  virtual void operator()(THD *thd) {
+  void operator()(THD *thd) override {
     LOG_INFO *linfo;
     mysql_mutex_lock(&thd->LOCK_thd_data);
     if ((linfo = thd->current_linfo)) {
@@ -2946,7 +2946,7 @@ class Log_in_use : public Do_THD_Impl {
   Log_in_use(const char *value) : m_log_name(value), m_count(0) {
     m_log_name_len = strlen(m_log_name) + 1;
   }
-  virtual void operator()(THD *thd) {
+  void operator()(THD *thd) override {
     LOG_INFO *linfo;
     mysql_mutex_lock(&thd->LOCK_thd_data);
     if ((linfo = thd->current_linfo)) {

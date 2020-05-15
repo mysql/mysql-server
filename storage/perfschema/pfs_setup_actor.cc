@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -214,7 +214,7 @@ class Proc_reset_setup_actor : public PFS_buffer_processor<PFS_setup_actor> {
  public:
   Proc_reset_setup_actor(LF_PINS *pins) : m_pins(pins) {}
 
-  virtual void operator()(PFS_setup_actor *pfs) {
+  void operator()(PFS_setup_actor *pfs) override {
     lf_hash_delete(&setup_actor_hash, m_pins, pfs->m_key.m_hash_key,
                    pfs->m_key.m_key_length);
 

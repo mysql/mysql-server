@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -173,38 +173,38 @@ class Gcs_xcom_interface : public Gcs_interface {
 
   static void cleanup_thread_ssl_resources();
 
-  virtual ~Gcs_xcom_interface();
+  ~Gcs_xcom_interface() override;
 
   /**
     This block implements the virtual methods defined in Gcs_interface.
   */
 
-  enum_gcs_error initialize(const Gcs_interface_parameters &interface_params);
+  enum_gcs_error initialize(const Gcs_interface_parameters &interface_params) override;
 
-  enum_gcs_error configure(const Gcs_interface_parameters &interface_params);
+  enum_gcs_error configure(const Gcs_interface_parameters &interface_params) override;
 
-  bool is_initialized();
+  bool is_initialized() override;
 
-  enum_gcs_error finalize();
+  enum_gcs_error finalize() override;
 
   Gcs_control_interface *get_control_session(
-      const Gcs_group_identifier &group_identifier);
+      const Gcs_group_identifier &group_identifier) override;
 
   Gcs_communication_interface *get_communication_session(
-      const Gcs_group_identifier &group_identifier);
+      const Gcs_group_identifier &group_identifier) override;
 
   Gcs_statistics_interface *get_statistics(
-      const Gcs_group_identifier &group_identifier);
+      const Gcs_group_identifier &group_identifier) override;
 
   Gcs_group_management_interface *get_management_session(
-      const Gcs_group_identifier &group_identifier);
+      const Gcs_group_identifier &group_identifier) override;
 
   enum_gcs_error configure_message_stages(const Gcs_group_identifier &gid);
 
   enum_gcs_error configure_suspicions_mgr(Gcs_interface_parameters &p,
                                           Gcs_suspicions_manager *mgr);
 
-  enum_gcs_error set_logger(Logger_interface *logger);
+  enum_gcs_error set_logger(Logger_interface *logger) override;
 
   void set_xcom_group_information(const std::string &group_id);
 

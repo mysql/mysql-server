@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -523,7 +523,7 @@ class Rpl_filter {
 class Rpl_global_filter : public Rpl_filter {
  public:
   Rpl_global_filter() {}
-  ~Rpl_global_filter() {}
+  ~Rpl_global_filter() override {}
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   /**
@@ -579,12 +579,12 @@ class Sql_cmd_change_repl_filter : public Sql_cmd {
         wild_ignore_table_list(nullptr),
         rewrite_db_pair_list(nullptr) {}
 
-  ~Sql_cmd_change_repl_filter() {}
+  ~Sql_cmd_change_repl_filter() override {}
 
-  virtual enum_sql_command sql_command_code() const {
+  enum_sql_command sql_command_code() const override {
     return SQLCOM_CHANGE_REPLICATION_FILTER;
   }
-  bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
   void set_filter_value(List<Item> *item_list, options_mysqld filter_type);
   bool change_rpl_filter(THD *thd);

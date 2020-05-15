@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,20 +66,20 @@ class Partition_value_impl : public Weak_object_impl, public Partition_value {
 
   Partition_value_impl(const Partition_value_impl &src, Partition_impl *parent);
 
-  virtual ~Partition_value_impl() {}
+  ~Partition_value_impl() override {}
 
  public:
-  virtual const Object_table &object_table() const;
+  const Object_table &object_table() const override;
 
-  virtual bool validate() const;
+  bool validate() const override;
 
-  virtual bool store_attributes(Raw_record *r);
+  bool store_attributes(Raw_record *r) override;
 
-  virtual bool restore_attributes(const Raw_record &r);
+  bool restore_attributes(const Raw_record &r) override;
 
-  void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const;
+  void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const override;
 
-  bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val);
+  bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val) override;
 
   void set_ordinal_position(uint) {}
 
@@ -92,33 +92,33 @@ class Partition_value_impl : public Weak_object_impl, public Partition_value {
   // index.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const Partition &partition() const;
+  const Partition &partition() const override;
 
-  virtual Partition &partition();
+  Partition &partition() override;
 
   /////////////////////////////////////////////////////////////////////////
   // list_num.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual uint list_num() const { return m_list_num; }
+  uint list_num() const override { return m_list_num; }
 
-  virtual void set_list_num(uint list_num) { m_list_num = list_num; }
+  void set_list_num(uint list_num) override { m_list_num = list_num; }
 
   /////////////////////////////////////////////////////////////////////////
   // column_num.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual uint column_num() const { return m_column_num; }
+  uint column_num() const override { return m_column_num; }
 
-  virtual void set_column_num(uint column_num) { m_column_num = column_num; }
+  void set_column_num(uint column_num) override { m_column_num = column_num; }
 
   /////////////////////////////////////////////////////////////////////////
   // value.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &value_utf8() const { return m_value_utf8; }
+  const String_type &value_utf8() const override { return m_value_utf8; }
 
-  virtual void set_value_utf8(const String_type &value) {
+  void set_value_utf8(const String_type &value) override {
     m_value_utf8 = value;
   }
 
@@ -126,17 +126,17 @@ class Partition_value_impl : public Weak_object_impl, public Partition_value {
   // max_value.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool max_value() const { return m_max_value; }
+  bool max_value() const override { return m_max_value; }
 
-  virtual void set_max_value(bool max_value) { m_max_value = max_value; }
+  void set_max_value(bool max_value) override { m_max_value = max_value; }
 
   ////////////////////////////////////////////////////////////////
   // null_value.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool is_value_null() const { return m_null_value; }
+  bool is_value_null() const override { return m_null_value; }
 
-  virtual void set_value_null(bool is_null) { m_null_value = is_null; }
+  void set_value_null(bool is_null) override { m_null_value = is_null; }
 
   /////////////////////////////////////////////////////////////////////////
 
@@ -151,11 +151,11 @@ class Partition_value_impl : public Weak_object_impl, public Partition_value {
   }
 
  public:
-  virtual void debug_print(String_type &outb) const;
+  void debug_print(String_type &outb) const override;
 
  public:
-  virtual Object_key *create_primary_key() const;
-  virtual bool has_new_primary_key() const;
+  Object_key *create_primary_key() const override;
+  bool has_new_primary_key() const override;
 
  private:
   // Fields

@@ -3632,8 +3632,8 @@ class Point_accumulator : public WKB_scanner_event_handler {
   explicit Point_accumulator(Gis_multi_point *mpts)
       : m_mpts(mpts), pt_start(nullptr) {}
 
-  virtual void on_wkb_start(Geometry::wkbByteOrder, Geometry::wkbType geotype,
-                            const void *wkb, uint32 len, bool) {
+  void on_wkb_start(Geometry::wkbByteOrder, Geometry::wkbType geotype,
+                            const void *wkb, uint32 len, bool) override {
     if (geotype == Geometry::wkb_point) {
       Gis_point pt(wkb, POINT_DATA_SIZE,
                    Geometry::Flags_t(Geometry::wkb_point, len),
@@ -3643,7 +3643,7 @@ class Point_accumulator : public WKB_scanner_event_handler {
     }
   }
 
-  virtual void on_wkb_end(const void *wkb MY_ATTRIBUTE((unused))) {
+  void on_wkb_end(const void *wkb MY_ATTRIBUTE((unused))) override {
     if (pt_start)
       DBUG_ASSERT(static_cast<const char *>(pt_start) + POINT_DATA_SIZE == wkb);
 
@@ -3697,8 +3697,8 @@ class Geometry_grouper : public WKB_scanner_event_handler {
     DBUG_ASSERT(out != nullptr && gcbuf != nullptr);
   }
 
-  virtual void on_wkb_start(Geometry::wkbByteOrder, Geometry::wkbType geotype,
-                            const void *wkb, uint32, bool) {
+  void on_wkb_start(Geometry::wkbByteOrder, Geometry::wkbType geotype,
+                            const void *wkb, uint32, bool) override {
     m_types.push_back(geotype);
     m_ptrs.push_back(wkb);
 
@@ -3706,7 +3706,7 @@ class Geometry_grouper : public WKB_scanner_event_handler {
       DBUG_ASSERT(geotype == Geometry::wkb_geometrycollection);
   }
 
-  virtual void on_wkb_end(const void *wkb_end) {
+  void on_wkb_end(const void *wkb_end) override {
     Geometry::wkbType geotype = m_types.back();
     m_types.pop_back();
 

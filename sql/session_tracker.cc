@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -159,7 +159,7 @@ class Session_sysvars_tracker : public State_tracker {
   }
 
   /** Destructor */
-  ~Session_sysvars_tracker() {
+  ~Session_sysvars_tracker() override {
     if (orig_list) delete orig_list;
     if (tool_list) delete tool_list;
   }
@@ -178,15 +178,15 @@ class Session_sysvars_tracker : public State_tracker {
   }
 
   void reset();
-  bool enable(THD *thd);
-  bool check(THD *thd, set_var *var);
-  bool update(THD *thd);
-  bool store(THD *thd, String &buf);
-  void mark_as_changed(THD *thd, LEX_CSTRING *tracked_item_name);
+  bool enable(THD *thd) override;
+  bool check(THD *thd, set_var *var) override;
+  bool update(THD *thd) override;
+  bool store(THD *thd, String &buf) override;
+  void mark_as_changed(THD *thd, LEX_CSTRING *tracked_item_name) override;
   /* callback */
   static const uchar *sysvars_get_key(const uchar *entry, size_t *length);
 
-  virtual void claim_memory_ownership() {
+  void claim_memory_ownership() override {
     if (orig_list != nullptr) orig_list->claim_memory_ownership();
     if (tool_list != nullptr) tool_list->claim_memory_ownership();
   }
@@ -208,11 +208,11 @@ class Current_schema_tracker : public State_tracker {
   /** Constructor */
   Current_schema_tracker() { schema_track_inited = false; }
 
-  bool enable(THD *thd) { return update(thd); }
-  bool check(THD *, set_var *) { return false; }
-  bool update(THD *thd);
-  bool store(THD *thd, String &buf);
-  void mark_as_changed(THD *thd, LEX_CSTRING *tracked_item_name);
+  bool enable(THD *thd) override { return update(thd); }
+  bool check(THD *, set_var *) override { return false; }
+  bool update(THD *thd) override;
+  bool store(THD *thd, String &buf) override;
+  void mark_as_changed(THD *thd, LEX_CSTRING *tracked_item_name) override;
 };
 
 /* To be used in expanding the buffer. */
@@ -265,11 +265,11 @@ class Session_gtids_ctx_encoder {
 class Session_gtids_ctx_encoder_string : public Session_gtids_ctx_encoder {
  public:
   Session_gtids_ctx_encoder_string() {}
-  ~Session_gtids_ctx_encoder_string() {}
+  ~Session_gtids_ctx_encoder_string() override {}
 
-  ulonglong encoding_specification() { return 0; }
+  ulonglong encoding_specification() override { return 0; }
 
-  bool encode(THD *thd, String &buf) {
+  bool encode(THD *thd, String &buf) override {
     const Gtid_set *state = thd->rpl_thd_ctx.session_gtids_ctx().state();
 
     if (!state->is_empty()) {
@@ -347,7 +347,7 @@ class Session_gtids_tracker
       : Session_consistency_gtids_ctx::Ctx_change_listener(),
         m_encoder(nullptr) {}
 
-  ~Session_gtids_tracker() {
+  ~Session_gtids_tracker() override {
     /*
      Unregister the listener if the tracker is being freed. This is needed
      since this may happen after a change user command.
@@ -358,14 +358,14 @@ class Session_gtids_tracker
     if (m_encoder) delete m_encoder;
   }
 
-  bool enable(THD *thd) { return update(thd); }
-  bool check(THD *, set_var *) { return false; }
-  bool update(THD *thd);
-  bool store(THD *thd, String &buf);
-  void mark_as_changed(THD *thd, LEX_CSTRING *tracked_item_name);
+  bool enable(THD *thd) override { return update(thd); }
+  bool check(THD *, set_var *) override { return false; }
+  bool update(THD *thd) override;
+  bool store(THD *thd, String &buf) override;
+  void mark_as_changed(THD *thd, LEX_CSTRING *tracked_item_name) override;
 
   // implementation of the Session_gtids_ctx::Ctx_change_listener
-  void notify_session_gtids_ctx_change() { mark_as_changed(nullptr, nullptr); }
+  void notify_session_gtids_ctx_change() override { mark_as_changed(nullptr, nullptr); }
 };
 
 void Session_sysvars_tracker::vars_list::reset() {

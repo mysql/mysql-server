@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -77,7 +77,7 @@ class Parse_error_recorder : public services::Condition_handler {
 
     @retval false We don't handle the error.
   */
-  bool handle(int sql_errno, const char *, const char *message) {
+  bool handle(int sql_errno, const char *, const char *message) override {
     DBUG_ASSERT(message != nullptr);
     if (m_message.empty()) m_message.assign(message);
     switch (sql_errno) {
@@ -102,7 +102,7 @@ class Literal_collector : public services::Literal_visitor {
   vector<string> m_literals;
 
  public:
-  bool visit(MYSQL_ITEM item) {
+  bool visit(MYSQL_ITEM item) override {
     m_literals.push_back(services::print_item(item));
     return false;
   }

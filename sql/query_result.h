@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -197,7 +197,7 @@ class Query_result_interceptor : public Query_result {
   bool send_result_set_metadata(THD *, List<Item> &, uint) override {
     return false;
   }
-  bool is_interceptor() const override final { return true; }
+  bool is_interceptor() const final { return true; }
 };
 
 class Query_result_send : public Query_result {

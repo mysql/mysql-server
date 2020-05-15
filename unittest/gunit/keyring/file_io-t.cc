@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,7 @@ using ::testing::StrEq;
 
 class File_io_test : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     keyring::keyring_file_data_key = PSI_NOT_INSTRUMENTED;
     keyring::keyring_backup_file_data_key = PSI_NOT_INSTRUMENTED;
     logger = new Mock_logger();
@@ -58,7 +58,7 @@ class File_io_test : public ::testing::Test {
     sec_ctx->set_master_access(sec_ctx->master_access() | SUPER_ACL);
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     delete logger;
     initializer.TearDown();
   }

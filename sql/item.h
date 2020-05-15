@@ -1022,7 +1022,7 @@ class Item : public Parse_tree_node {
   */
   explicit Item(const POS &);
 
-  virtual ~Item() override {
+  ~Item() override {
 #ifdef EXTRA_DEBUG
     item_name.set(0);
 #endif
@@ -3715,7 +3715,7 @@ class Item_ident : public Item {
      @param tn new table_name (should be pointer to const char)
      @return true - to signal that walk should continue to sub items.
    */
-  bool set_table_name(uchar *tn) override final {
+  bool set_table_name(uchar *tn) final {
     table_name = pointer_cast<const char *>(tn);
     return true;
   }
@@ -3806,7 +3806,7 @@ class Item_ident_for_show final : public Item {
       : field(par_field), db_name(db_arg), table_name(table_name_arg) {}
 
   enum Type type() const override { return FIELD_ITEM; }
-  virtual bool fix_fields(THD *thd, Item **ref) override;
+  bool fix_fields(THD *thd, Item **ref) override;
   double val_real() override { return field->val_real(); }
   longlong val_int() override { return field->val_int(); }
   String *val_str(String *str) override { return field->val_str(str); }
@@ -5832,7 +5832,7 @@ class Item_copy : public Item {
     collation.set(item->collation);
   }
 
-  virtual type_conversion_status save_in_field_inner(
+  type_conversion_status save_in_field_inner(
       Field *field, bool no_conversions) override = 0;
 
  public:
@@ -5877,13 +5877,13 @@ class Item_copy : public Item {
     sub-classes implement them.
   */
 
-  virtual String *val_str(String *) override = 0;
-  virtual my_decimal *val_decimal(my_decimal *) override = 0;
-  virtual double val_real() override = 0;
-  virtual longlong val_int() override = 0;
-  virtual bool get_date(MYSQL_TIME *ltime,
+  String *val_str(String *) override = 0;
+  my_decimal *val_decimal(my_decimal *) override = 0;
+  double val_real() override = 0;
+  longlong val_int() override = 0;
+  bool get_date(MYSQL_TIME *ltime,
                         my_time_flags_t fuzzydate) override = 0;
-  virtual bool get_time(MYSQL_TIME *ltime) override = 0;
+  bool get_time(MYSQL_TIME *ltime) override = 0;
   /* purecov: begin deadcode */
   bool val_json(Json_wrapper *) override {
     DBUG_ASSERT(false);
@@ -5930,7 +5930,7 @@ class Item_copy_json final : public Item_copy {
 
  public:
   explicit Item_copy_json(Item *item);
-  virtual ~Item_copy_json() override;
+  ~Item_copy_json() override;
   bool copy(const THD *thd) override;
   bool val_json(Json_wrapper *) override;
   String *val_str(String *) override;

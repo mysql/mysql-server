@@ -42,7 +42,7 @@ class Sql_cmd_dml : public Sql_cmd {
 
     @returns false on success, true on error
   */
-  virtual bool prepare(THD *thd);
+  bool prepare(THD *thd) override;
 
   /**
     Execute a DML statement.
@@ -75,13 +75,13 @@ class Sql_cmd_dml : public Sql_cmd {
 
     @todo make this function also handle SET.
    */
-  virtual bool execute(THD *thd);
+  bool execute(THD *thd) override;
 
-  virtual bool is_dml() const { return true; }
+  bool is_dml() const override { return true; }
 
   virtual bool may_use_cursor() const { return false; }
 
-  virtual bool is_single_table_plan() const { return false; }
+  bool is_single_table_plan() const override { return false; }
 
   /// @return the query result associated with a prepared query
   Query_result *query_result() const;

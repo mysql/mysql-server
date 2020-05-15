@@ -423,9 +423,9 @@ class Repair_mrg_table_error_handler : public Internal_error_handler {
   Repair_mrg_table_error_handler()
       : m_handled_errors(false), m_unhandled_errors(false) {}
 
-  virtual bool handle_condition(THD *, uint sql_errno, const char *,
+  bool handle_condition(THD *, uint sql_errno, const char *,
                                 Sql_condition::enum_severity_level *,
-                                const char *) {
+                                const char *) override {
     if (sql_errno == ER_NO_SUCH_TABLE || sql_errno == ER_WRONG_MRG_TABLE) {
       m_handled_errors = true;
       return true;

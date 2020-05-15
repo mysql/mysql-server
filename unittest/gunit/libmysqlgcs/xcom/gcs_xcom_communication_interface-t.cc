@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -151,7 +151,7 @@ class mock_gcs_xcom_proxy : public Gcs_xcom_proxy_base {
 
 class XComCommunicationTest : public GcsBaseTest {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     engine = new Gcs_xcom_engine();
     engine->initialize(nullptr);
 
@@ -181,7 +181,7 @@ class XComCommunicationTest : public GcsBaseTest {
     // clang-format on
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     delete mock_stats;
     delete mock_vce;
     delete mock_proxy;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -2181,7 +2181,7 @@ class Set_kill_conn : public Do_THD_Impl {
 
   int get_dump_thread_count() const { return m_dump_thread_count; }
 
-  virtual void operator()(THD *killing_thd) {
+  void operator()(THD *killing_thd) override {
     DBUG_PRINT("quit", ("Informing thread %u that it's time to die",
                         killing_thd->thread_id()));
     if (!m_kill_dump_threads_flag) {
@@ -2238,7 +2238,7 @@ class Call_close_conn : public Do_THD_Impl {
  public:
   Call_close_conn(bool server_shutdown) : is_server_shutdown(server_shutdown) {}
 
-  virtual void operator()(THD *closing_thd) {
+  void operator()(THD *closing_thd) override {
     if (closing_thd->get_protocol()->connection_alive()) {
       LEX_CSTRING main_sctx_user = closing_thd->m_main_security_ctx.user();
       LogErr(WARNING_LEVEL, ER_FORCE_CLOSE_THREAD, my_progname,
@@ -10867,7 +10867,7 @@ enum_server_operational_state get_server_state() {
 class Reset_thd_status : public Do_THD_Impl {
  public:
   Reset_thd_status() {}
-  virtual void operator()(THD *thd) {
+  void operator()(THD *thd) override {
     /* Update the global status if not done so already. */
     if (!thd->status_var_aggregated) {
       add_to_status(&global_status_var, &thd->status_var);

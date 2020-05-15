@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,7 @@ using ::testing::StrictMock;
 
 class Cursor_test_suite : public ::testing::Test {
  public:
-  void SetUp() {
+  void SetUp() override {
     EXPECT_CALL(m_mock_session, proto())
         .WillRepeatedly(ReturnRef(m_mock_encoder));
     EXPECT_CALL(m_mock_session, get_notice_output_queue())

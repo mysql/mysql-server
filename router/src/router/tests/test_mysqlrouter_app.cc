@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -107,7 +107,7 @@ Path g_origin;
 
 class AppTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     init_test_logger();
 #ifndef _WIN32
     mock_sys_user_operations.reset(new MockSysUserOperations());
@@ -116,7 +116,7 @@ class AppTest : public ::testing::Test {
     config_dir = Path(mysql_harness::get_tests_data_dir(g_origin.str()));
   }
 
-  virtual void TearDown() {}
+  void TearDown() override {}
 
 #ifndef _WIN32
   std::unique_ptr<MockSysUserOperations> mock_sys_user_operations;

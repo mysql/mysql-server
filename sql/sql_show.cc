@@ -463,9 +463,9 @@ class Show_create_error_handler : public Internal_error_handler {
   }
 
  public:
-  virtual bool handle_condition(THD *thd, uint sql_errno, const char *,
+  bool handle_condition(THD *thd, uint sql_errno, const char *,
                                 Sql_condition::enum_severity_level *,
-                                const char *msg) {
+                                const char *msg) override {
     /*
        The handler does not handle the errors raised by itself.
        At this point we know if top_view is really a view.
@@ -2065,7 +2065,7 @@ class List_process_list : public Do_THD_Impl {
         m_client_thd(thd_value),
         m_max_query_length(max_query_length) {}
 
-  virtual void operator()(THD *inspect_thd) {
+  void operator()(THD *inspect_thd) override {
     Security_context *inspect_sctx = inspect_thd->security_context();
     LEX_CSTRING inspect_sctx_user = inspect_sctx->user();
     LEX_CSTRING inspect_sctx_host = inspect_sctx->host();
@@ -2255,7 +2255,7 @@ class Fill_process_list : public Do_THD_Impl {
   Fill_process_list(THD *thd_value, TABLE_LIST *tables_value)
       : m_client_thd(thd_value), m_tables(tables_value) {}
 
-  virtual void operator()(THD *inspect_thd) {
+  void operator()(THD *inspect_thd) override {
     Security_context *inspect_sctx = inspect_thd->security_context();
     LEX_CSTRING inspect_sctx_user = inspect_sctx->user();
     LEX_CSTRING inspect_sctx_host = inspect_sctx->host();
@@ -2820,7 +2820,7 @@ const char *get_one_variable_ext(THD *running_thd, THD *target_thd,
 class Add_status : public Do_THD_Impl {
  public:
   Add_status(System_status_var *value) : m_stat_var(value) {}
-  virtual void operator()(THD *thd) {
+  void operator()(THD *thd) override {
     if (!thd->status_var_aggregated)
       add_to_status(m_stat_var, &thd->status_var);
   }

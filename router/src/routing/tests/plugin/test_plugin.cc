@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -76,7 +76,7 @@ class RoutingPluginTests : public ConsoleOutputTest {
   TcpPortPool tcp_port_pool_;
 
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     set_origin(g_origin);
     ConsoleOutputTest::SetUp();
     config_path.reset(new Path(g_cwd));
@@ -140,7 +140,7 @@ class RoutingPluginTests : public ConsoleOutputTest {
     }
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     if (unlink(config_path->c_str()) == -1) {
       if (errno != ENOENT) {
         // File missing is OK.

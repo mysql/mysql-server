@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -555,15 +555,15 @@ class Is_empty_geometry : public WKB_scanner_event_handler {
 
   Is_empty_geometry() : is_empty(true) {}
 
-  virtual void on_wkb_start(Geometry::wkbByteOrder, Geometry::wkbType geotype,
-                            const void *, uint32, bool) {
+  void on_wkb_start(Geometry::wkbByteOrder, Geometry::wkbType geotype,
+                            const void *, uint32, bool) override {
     if (is_empty && geotype != Geometry::wkb_geometrycollection)
       is_empty = false;
   }
 
-  virtual void on_wkb_end(const void *) {}
+  void on_wkb_end(const void *) override {}
 
-  virtual bool continue_scan() const { return is_empty; }
+  bool continue_scan() const override { return is_empty; }
 };
 
 bool is_empty_geocollection(const Geometry *g) {

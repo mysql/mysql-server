@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -81,7 +81,7 @@ class Handler_start_action : public Pipeline_action {
  public:
   Handler_start_action() : Pipeline_action(HANDLER_START_ACTION) {}
 
-  ~Handler_start_action() {}
+  ~Handler_start_action() override {}
 };
 
 /**
@@ -93,7 +93,7 @@ class Handler_stop_action : public Pipeline_action {
  public:
   Handler_stop_action() : Pipeline_action(HANDLER_STOP_ACTION) {}
 
-  ~Handler_stop_action() {}
+  ~Handler_stop_action() override {}
 };
 
 /**
@@ -136,7 +136,7 @@ class Handler_applier_configuration_action : public Pipeline_action {
         group_sidno(0),
         initialization_conf(false) {}
 
-  ~Handler_applier_configuration_action() {}
+  ~Handler_applier_configuration_action() override {}
 
   /**
     @return the applier's name

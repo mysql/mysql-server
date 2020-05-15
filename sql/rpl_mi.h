@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -422,7 +422,7 @@ class Master_info : public Rpl_info {
     if (need_lock) mysql_mutex_unlock(&data_lock);
   }
 
-  virtual ~Master_info();
+  ~Master_info() override;
 
   /**
     Sets the flag that indicates that a relay log rotation has been requested.
@@ -573,9 +573,9 @@ class Master_info : public Rpl_info {
     mi_description_event = fdle;
   }
 
-  bool set_info_search_keys(Rpl_info_handler *to);
+  bool set_info_search_keys(Rpl_info_handler *to) override;
 
-  virtual const char *get_for_channel_str(bool upper_case = false) const {
+  const char *get_for_channel_str(bool upper_case = false) const override {
     return reinterpret_cast<const char *>(upper_case ? for_channel_uppercase_str
                                                      : for_channel_str);
   }
@@ -583,8 +583,8 @@ class Master_info : public Rpl_info {
   void init_master_log_pos();
 
  private:
-  bool read_info(Rpl_info_handler *from);
-  bool write_info(Rpl_info_handler *to);
+  bool read_info(Rpl_info_handler *from) override;
+  bool write_info(Rpl_info_handler *to) override;
 
   bool auto_position{false};
   bool m_managed{false};

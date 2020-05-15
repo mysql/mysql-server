@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,15 +44,15 @@ class Explain_format_traditional : public Explain_format {
  public:
   Explain_format_traditional() : nil(nullptr) {}
 
-  virtual bool is_hierarchical() const { return false; }
-  virtual bool send_headers(Query_result *result);
-  virtual bool begin_context(enum_parsing_context, SELECT_LEX_UNIT *,
-                             const Explain_format_flags *) {
+  bool is_hierarchical() const override { return false; }
+  bool send_headers(Query_result *result) override;
+  bool begin_context(enum_parsing_context, SELECT_LEX_UNIT *,
+                             const Explain_format_flags *) override {
     return false;
   }
-  virtual bool end_context(enum_parsing_context) { return false; }
-  virtual bool flush_entry();
-  virtual qep_row *entry() { return &column_buffer; }
+  bool end_context(enum_parsing_context) override { return false; }
+  bool flush_entry() override;
+  qep_row *entry() override { return &column_buffer; }
 
  private:
   bool push_select_type(List<Item> *items);

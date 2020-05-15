@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -65,7 +65,7 @@ class SysTablespace : public Tablespace {
     /* No op */
   }
 
-  ~SysTablespace() { shutdown(); }
+  ~SysTablespace() override { shutdown(); }
 
   /** Set tablespace full status
   @param[in]	is_full		true if full */

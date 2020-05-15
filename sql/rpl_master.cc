@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1043,7 +1043,7 @@ String *get_slave_uuid(THD *thd, String *value) {
 class Find_zombie_dump_thread : public Find_THD_Impl {
  public:
   Find_zombie_dump_thread(String value) : m_slave_uuid(value) {}
-  virtual bool operator()(THD *thd) {
+  bool operator()(THD *thd) override {
     THD *cur_thd = current_thd;
     if (thd != cur_thd && (thd->get_command() == COM_BINLOG_DUMP ||
                            thd->get_command() == COM_BINLOG_DUMP_GTID)) {

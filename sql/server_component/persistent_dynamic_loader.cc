@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -99,7 +99,7 @@ static const TABLE_FIELD_DEF component_table_def = {CT_FIELD_COUNT,
 class Component_db_intact : public Table_check_intact {
  protected:
   void report_error(uint ecode, const char *fmt, ...)
-      MY_ATTRIBUTE((format(printf, 3, 4))) {
+      override MY_ATTRIBUTE((format(printf, 3, 4))) {
     longlong log_ecode = 0;
     switch (ecode) {
       case 0:

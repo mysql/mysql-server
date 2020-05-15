@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,7 +49,7 @@ class Parameter : virtual public Entity_object {
   typedef tables::Parameters DD_table;
 
  public:
-  virtual ~Parameter() {}
+  ~Parameter() override {}
 
  public:
   enum enum_parameter_mode { PM_IN = 1, PM_OUT, PM_INOUT };

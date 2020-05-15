@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,9 +42,9 @@ class TransactionPayloadIteratorTest : public ::testing::Test {
  protected:
   TransactionPayloadIteratorTest() {}
 
-  virtual void SetUp() {}
+  void SetUp() override {}
 
-  virtual void TearDown() {}
+  void TearDown() override {}
 
   static unsigned char *mock_event(unsigned char *buffer, Log_event_type type) {
     std::time_t timestamp =

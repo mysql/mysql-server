@@ -171,7 +171,7 @@ class Item_str_ascii_func : public Item_str_func {
   String *val_str(String *str) override {
     return val_str_from_val_str_ascii(str, &ascii_buf);
   }
-  virtual String *val_str_ascii(String *) override = 0;
+  String *val_str_ascii(String *) override = 0;
 };
 
 class Item_func_md5 final : public Item_str_ascii_func {

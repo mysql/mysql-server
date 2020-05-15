@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -499,10 +499,10 @@ class Multi_value_entry_builder_normal : public Multi_value_entry_builder {
   /** Find the multi-value field from the passed in entry or row.
   m_mv_field_no should be set once the multi-value field found.
   @return the multi-value field pointer, or nullptr if not found */
-  dfield_t *find_multi_value_field();
+  dfield_t *find_multi_value_field() override;
 
   /** Prepare the entry when the entry is not passed in */
-  virtual void prepare_entry_if_necessary() {
+  void prepare_entry_if_necessary() override {
     if (m_check) {
       m_entry = row_build_index_entry(m_row, m_ext, m_index, m_heap);
     } else {
@@ -516,7 +516,7 @@ class Multi_value_entry_builder_normal : public Multi_value_entry_builder {
   /** Skip the not selected values and stop m_pos at the next selected one
   @return the next valid value position, or size of m_mv_data to indicate
   there is no more valid value */
-  uint32_t skip() {
+  uint32_t skip() override {
     ut_ad(m_selected);
 
     if (m_mv_data->bitset == nullptr) {
@@ -559,7 +559,7 @@ class Multi_value_entry_builder_insert : public Multi_value_entry_builder {
   /** Find the multi-value field from the passed entry in or row.
   m_mv_field_no should be set once the multi-value field found.
   @return the multi-value field pointer, or nullptr if not found */
-  dfield_t *find_multi_value_field() {
+  dfield_t *find_multi_value_field() override {
     uint16_t i = 0;
     dfield_t *field = nullptr;
 

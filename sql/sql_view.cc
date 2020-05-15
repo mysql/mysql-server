@@ -1160,9 +1160,9 @@ class DD_table_access_error_handler : public Internal_error_handler {
  public:
   DD_table_access_error_handler() {}
 
-  virtual bool handle_condition(THD *, uint sql_errno, const char *,
+  bool handle_condition(THD *, uint sql_errno, const char *,
                                 Sql_condition::enum_severity_level *,
-                                const char *) {
+                                const char *) override {
     return (sql_errno == ER_NO_SYSTEM_TABLE_ACCESS);
   }
 };

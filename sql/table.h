@@ -229,10 +229,10 @@ class Default_object_creation_ctx : public Object_creation_ctx {
                               const CHARSET_INFO *connection_cl);
 
  protected:
-  virtual Object_creation_ctx *create_backup_ctx(THD *thd) const;
-  virtual void delete_backup_ctx();
+  Object_creation_ctx *create_backup_ctx(THD *thd) const override;
+  void delete_backup_ctx() override;
 
-  virtual void change_env(THD *thd) const;
+  void change_env(THD *thd) const override;
 
  protected:
   /**
@@ -617,9 +617,9 @@ class Wait_for_flush : public MDL_wait_for_subgraph {
 
   MDL_context *get_ctx() const { return m_ctx; }
 
-  virtual bool accept_visitor(MDL_wait_for_graph_visitor *dvisitor);
+  bool accept_visitor(MDL_wait_for_graph_visitor *dvisitor) override;
 
-  virtual uint get_deadlock_weight() const;
+  uint get_deadlock_weight() const override;
 
   /**
     Pointers for participating in the list of waiters for table share.
@@ -3694,13 +3694,13 @@ class Field_iterator_table : public Field_iterator {
 
  public:
   Field_iterator_table() : ptr(nullptr) {}
-  void set(TABLE_LIST *table) { ptr = table->table->field; }
+  void set(TABLE_LIST *table) override { ptr = table->table->field; }
   void set_table(TABLE *table) { ptr = table->field; }
-  void next() { ptr++; }
-  bool end_of_fields() { return *ptr == nullptr; }
-  const char *name();
-  Item *create_item(THD *thd);
-  Field *field() { return *ptr; }
+  void next() override { ptr++; }
+  bool end_of_fields() override { return *ptr == nullptr; }
+  const char *name() override;
+  Item *create_item(THD *thd) override;
+  Field *field() override { return *ptr; }
 };
 
 /**
@@ -3713,13 +3713,13 @@ class Field_iterator_view : public Field_iterator {
 
  public:
   Field_iterator_view() : ptr(nullptr), array_end(nullptr) {}
-  void set(TABLE_LIST *table);
-  void next() { ptr++; }
-  bool end_of_fields() { return ptr == array_end; }
-  const char *name();
-  Item *create_item(THD *thd);
+  void set(TABLE_LIST *table) override;
+  void next() override { ptr++; }
+  bool end_of_fields() override { return ptr == array_end; }
+  const char *name() override;
+  Item *create_item(THD *thd) override;
   Item **item_ptr() { return &ptr->item; }
-  Field *field() { return nullptr; }
+  Field *field() override { return nullptr; }
   inline Item *item() { return ptr->item; }
   Field_translator *field_translator() { return ptr; }
 };
@@ -3735,13 +3735,13 @@ class Field_iterator_natural_join : public Field_iterator {
 
  public:
   Field_iterator_natural_join() : cur_column_ref(nullptr) {}
-  ~Field_iterator_natural_join() {}
-  void set(TABLE_LIST *table);
-  void next();
-  bool end_of_fields() { return !cur_column_ref; }
-  const char *name() { return cur_column_ref->name(); }
-  Item *create_item(THD *thd) { return cur_column_ref->create_item(thd); }
-  Field *field() { return cur_column_ref->field(); }
+  ~Field_iterator_natural_join() override {}
+  void set(TABLE_LIST *table) override;
+  void next() override;
+  bool end_of_fields() override { return !cur_column_ref; }
+  const char *name() override { return cur_column_ref->name(); }
+  Item *create_item(THD *thd) override { return cur_column_ref->create_item(thd); }
+  Field *field() override { return cur_column_ref->field(); }
   Natural_join_column *column_ref() { return cur_column_ref; }
 };
 
@@ -3769,17 +3769,17 @@ class Field_iterator_table_ref : public Field_iterator {
 
  public:
   Field_iterator_table_ref() : field_it(nullptr) {}
-  void set(TABLE_LIST *table);
-  void next();
-  bool end_of_fields() {
+  void set(TABLE_LIST *table) override;
+  void next() override;
+  bool end_of_fields() override {
     return (table_ref == last_leaf && field_it->end_of_fields());
   }
-  const char *name() { return field_it->name(); }
+  const char *name() override { return field_it->name(); }
   const char *get_table_name();
   const char *get_db_name();
   GRANT_INFO *grant();
-  Item *create_item(THD *thd) { return field_it->create_item(thd); }
-  Field *field() { return field_it->field(); }
+  Item *create_item(THD *thd) override { return field_it->create_item(thd); }
+  Field *field() override { return field_it->field(); }
   Natural_join_column *get_or_create_column_ref(THD *thd,
                                                 TABLE_LIST *parent_table_ref);
   Natural_join_column *get_natural_column_ref();

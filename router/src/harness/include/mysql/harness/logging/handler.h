@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -194,7 +194,7 @@ class HARNESS_EXPORT FileHandler : public StreamHandler {
                            LogTimestampPrecision::kNotSet);
   ~FileHandler() override;
 
-  virtual void reopen(const std::string dst = "") override;
+  void reopen(const std::string dst = "") override;
 
  private:
   void do_log(const Record &record) override;

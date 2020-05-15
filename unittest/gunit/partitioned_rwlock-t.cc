@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -65,7 +65,7 @@ class Reader_thread : public Thread {
     m_rwlock = rwlock;
     m_shared_counter = shared_counter;
   }
-  virtual void run() {
+  void run() override {
     for (uint i = 0; i < 1000; ++i) {
       Partitioned_rwlock_read_guard lock(m_rwlock, m_thread_id);
       /*
@@ -86,7 +86,7 @@ class Writer_thread : public Thread {
  public:
   Writer_thread(Partitioned_rwlock *rwlock, volatile uint *shared_counter)
       : m_rwlock(rwlock), m_shared_counter(shared_counter) {}
-  virtual void run() {
+  void run() override {
     for (uint i = 0; i < 1000; ++i) {
       Partitioned_rwlock_write_guard lock(m_rwlock);
       /*

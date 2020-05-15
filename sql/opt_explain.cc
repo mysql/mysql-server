@@ -152,7 +152,7 @@ class Explain {
 
    public:
     Lazy_condition(Item *condition_arg) : condition(condition_arg) {}
-    virtual bool eval(String *ret) {
+    bool eval(String *ret) override {
       ret->length(0);
       if (condition) condition->print(current_thd, ret, cond_print_flags);
       return false;
@@ -326,14 +326,14 @@ class Explain_no_table : public Explain {
   }
 
  protected:
-  virtual bool shallow_explain();
+  bool shallow_explain() override;
 
-  virtual bool explain_rows_and_filtered();
-  virtual bool explain_extra();
-  virtual bool explain_modify_flags();
+  bool explain_rows_and_filtered() override;
+  bool explain_extra() override;
+  bool explain_modify_flags() override;
 
  private:
-  enum_parsing_context get_subquery_context(SELECT_LEX_UNIT *unit) const;
+  enum_parsing_context get_subquery_context(SELECT_LEX_UNIT *unit) const override;
 };
 
 /**
@@ -356,12 +356,12 @@ class Explain_union_result : public Explain {
   }
 
  protected:
-  virtual bool explain_id();
-  virtual bool explain_table_name();
-  virtual bool explain_join_type();
-  virtual bool explain_extra();
+  bool explain_id() override;
+  bool explain_table_name() override;
+  bool explain_join_type() override;
+  bool explain_extra() override;
   /* purecov: begin deadcode */
-  virtual bool can_walk_clauses() {
+  bool can_walk_clauses() override {
     DBUG_ASSERT(0);  // UNION result can't have conditions
     return true;     // Because we know that we have a plan
   }
@@ -394,8 +394,8 @@ class Explain_table_base : public Explain {
         table(table_arg),
         tab(nullptr) {}
 
-  virtual bool explain_partitions();
-  virtual bool explain_possible_keys();
+  bool explain_partitions() override;
+  bool explain_possible_keys() override;
 
   bool explain_key_parts(int key, uint key_parts);
   bool explain_key_and_len_quick(QUICK_SELECT_I *quick);
@@ -446,18 +446,18 @@ class Explain_join : public Explain_table_base {
   bool explain_qep_tab(size_t tab_num);
 
  protected:
-  virtual bool shallow_explain();
+  bool shallow_explain() override;
 
-  virtual bool explain_table_name();
-  virtual bool explain_join_type();
-  virtual bool explain_key_and_len();
-  virtual bool explain_ref();
-  virtual bool explain_rows_and_filtered();
-  virtual bool explain_extra();
-  virtual bool explain_select_type();
-  virtual bool explain_id();
-  virtual bool explain_modify_flags();
-  virtual bool can_walk_clauses() {
+  bool explain_table_name() override;
+  bool explain_join_type() override;
+  bool explain_key_and_len() override;
+  bool explain_ref() override;
+  bool explain_rows_and_filtered() override;
+  bool explain_extra() override;
+  bool explain_select_type() override;
+  bool explain_id() override;
+  bool explain_modify_flags() override;
+  bool can_walk_clauses() override {
     return true;  // Because we know that we have a plan
   }
 };
@@ -502,21 +502,21 @@ class Explain_table : public Explain_table_base {
       order_list = (select_lex_arg->order_list.elements != 0);
   }
 
-  virtual bool explain_modify_flags();
+  bool explain_modify_flags() override;
 
  private:
   virtual bool explain_tmptable_and_filesort(bool need_tmp_table_arg,
                                              bool need_sort_arg);
-  virtual bool shallow_explain();
+  bool shallow_explain() override;
 
-  virtual bool explain_ref();
-  virtual bool explain_table_name();
-  virtual bool explain_join_type();
-  virtual bool explain_key_and_len();
-  virtual bool explain_rows_and_filtered();
-  virtual bool explain_extra();
+  bool explain_ref() override;
+  bool explain_table_name() override;
+  bool explain_join_type() override;
+  bool explain_key_and_len() override;
+  bool explain_rows_and_filtered() override;
+  bool explain_extra() override;
 
-  virtual bool can_walk_clauses() {
+  bool can_walk_clauses() override {
     return true;  // Because we know that we have a plan
   }
 };
@@ -2356,10 +2356,10 @@ class Find_thd_query_lock : public Find_THD_Impl {
  public:
   explicit Find_thd_query_lock(my_thread_id value)
       : m_id(value), m_thd(nullptr) {}
-  ~Find_thd_query_lock() {
+  ~Find_thd_query_lock() override {
     if (m_thd) m_thd->unlock_query_plan();
   }
-  virtual bool operator()(THD *thd) {
+  bool operator()(THD *thd) override {
     if (thd->thread_id() == m_id) {
       mysql_mutex_lock(&thd->LOCK_thd_data);
       thd->lock_query_plan();

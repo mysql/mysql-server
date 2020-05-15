@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -33,19 +33,19 @@ namespace xpl {
 class Worker_scheduler_monitor
     : public ngs::Scheduler_dynamic::Monitor_interface {
  public:
-  virtual void on_worker_thread_create() {
+  void on_worker_thread_create() override {
     ++xpl::Global_status_variables::instance().m_worker_thread_count;
   }
 
-  virtual void on_worker_thread_destroy() {
+  void on_worker_thread_destroy() override {
     --xpl::Global_status_variables::instance().m_worker_thread_count;
   }
 
-  virtual void on_task_start() {
+  void on_task_start() override {
     ++xpl::Global_status_variables::instance().m_active_worker_thread_count;
   }
 
-  virtual void on_task_end() {
+  void on_task_end() override {
     --xpl::Global_status_variables::instance().m_active_worker_thread_count;
   }
 };

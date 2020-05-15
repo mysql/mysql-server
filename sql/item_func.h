@@ -679,7 +679,7 @@ class Item_func : public Item_result_field, public Func_args_handle {
     @return true if the function item can have named parameters
   */
   virtual bool may_have_named_parameters() const { return false; }
-  virtual bool is_non_const_over_literals(uchar *) override { return false; }
+  bool is_non_const_over_literals(uchar *) override { return false; }
 
   bool check_function_as_value_generator(uchar *checker_args) override {
     if (is_deprecated()) {
@@ -1835,7 +1835,7 @@ class Item_func_bit : public Item_func {
 
 class Item_func_bit_two_param : public Item_func_bit {
  protected:
-  bool binary_result_requires_binary_second_arg() const { return true; }
+  bool binary_result_requires_binary_second_arg() const override { return true; }
   template <class Char_func, class Int_func>
   String *eval_str_op(String *, Char_func char_func, Int_func int_func);
   template <class Int_func>
@@ -1902,7 +1902,7 @@ class Item_func_bit_count final : public Item_int_func {
 
 class Item_func_shift : public Item_func_bit {
  protected:
-  bool binary_result_requires_binary_second_arg() const { return false; }
+  bool binary_result_requires_binary_second_arg() const override { return false; }
   template <bool to_left>
   longlong eval_int_op();
   template <bool to_left>
@@ -2459,9 +2459,9 @@ class Item_func_can_access_trigger : public Item_int_func {
  public:
   Item_func_can_access_trigger(const POS &pos, Item *a, Item *b)
       : Item_int_func(pos, a, b) {}
-  longlong val_int();
-  const char *func_name() const { return "can_access_trigger"; }
-  bool resolve_type(THD *) {
+  longlong val_int() override;
+  const char *func_name() const override { return "can_access_trigger"; }
+  bool resolve_type(THD *) override {
     max_length = 4;
     maybe_null = true;
     return false;
@@ -2472,9 +2472,9 @@ class Item_func_can_access_routine : public Item_int_func {
  public:
   Item_func_can_access_routine(const POS &pos, PT_item_list *list)
       : Item_int_func(pos, list) {}
-  longlong val_int();
-  const char *func_name() const { return "can_access_routine"; }
-  bool resolve_type(THD *) {
+  longlong val_int() override;
+  const char *func_name() const override { return "can_access_routine"; }
+  bool resolve_type(THD *) override {
     max_length = 4;
     maybe_null = true;
     return false;
@@ -2484,9 +2484,9 @@ class Item_func_can_access_routine : public Item_int_func {
 class Item_func_can_access_event : public Item_int_func {
  public:
   Item_func_can_access_event(const POS &pos, Item *a) : Item_int_func(pos, a) {}
-  longlong val_int();
-  const char *func_name() const { return "can_access_event"; }
-  bool resolve_type(THD *) {
+  longlong val_int() override;
+  const char *func_name() const override { return "can_access_event"; }
+  bool resolve_type(THD *) override {
     maybe_null = true;
     return false;
   }
@@ -2496,9 +2496,9 @@ class Item_func_can_access_resource_group : public Item_int_func {
  public:
   Item_func_can_access_resource_group(const POS &pos, Item *a)
       : Item_int_func(pos, a) {}
-  longlong val_int();
-  const char *func_name() const { return "can_access_resource_group"; }
-  bool resolve_type(THD *) {
+  longlong val_int() override;
+  const char *func_name() const override { return "can_access_resource_group"; }
+  bool resolve_type(THD *) override {
     max_length = 1;  // Function can return 0 or 1.
     maybe_null = true;
     return false;
@@ -2535,9 +2535,9 @@ class Item_func_is_visible_dd_object : public Item_int_func {
       : Item_int_func(pos, a) {}
   Item_func_is_visible_dd_object(const POS &pos, Item *a, Item *b)
       : Item_int_func(pos, a, b) {}
-  longlong val_int();
-  const char *func_name() const { return "is_visible_dd_object"; }
-  bool resolve_type(THD *) {
+  longlong val_int() override;
+  const char *func_name() const override { return "is_visible_dd_object"; }
+  bool resolve_type(THD *) override {
     max_length = 1;
     maybe_null = true;
     return false;

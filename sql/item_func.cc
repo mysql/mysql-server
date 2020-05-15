@@ -5101,9 +5101,9 @@ class User_level_lock_wait_error_handler : public Internal_error_handler {
 
   bool got_timeout() const { return m_lock_wait_timeout; }
 
-  virtual bool handle_condition(THD *, uint sql_errno, const char *,
+  bool handle_condition(THD *, uint sql_errno, const char *,
                                 Sql_condition::enum_severity_level *,
-                                const char *) {
+                                const char *) override {
     if (sql_errno == ER_LOCK_WAIT_TIMEOUT) {
       m_lock_wait_timeout = true;
       return true;
@@ -5123,7 +5123,7 @@ class MDL_lock_get_owner_thread_id_visitor : public MDL_context_visitor {
  public:
   MDL_lock_get_owner_thread_id_visitor() : m_owner_id(0) {}
 
-  void visit_context(const MDL_context *ctx) {
+  void visit_context(const MDL_context *ctx) override {
     m_owner_id = ctx->get_owner()->get_thd()->thread_id();
   }
 

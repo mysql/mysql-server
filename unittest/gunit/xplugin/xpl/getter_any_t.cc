@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -57,19 +57,19 @@ class Mock_type_handler : public Type_handler {
   MOCK_METHOD1(put_void, bool(const std::string &));
   MOCK_METHOD0(put_void, bool());
 
-  void put(const ::google::protobuf::int64 &arg) { put_void(arg); }
+  void put(const ::google::protobuf::int64 &arg) override { put_void(arg); }
 
-  void put(const ::google::protobuf::uint64 &arg) { put_void(arg); }
+  void put(const ::google::protobuf::uint64 &arg) override { put_void(arg); }
 
-  void put(const double &arg) { put_void(arg); }
+  void put(const double &arg) override { put_void(arg); }
 
-  void put(const float &arg) { put_void(arg); }
+  void put(const float &arg) override { put_void(arg); }
 
-  void put(const bool &arg) { put_void(arg); }
+  void put(const bool &arg) override { put_void(arg); }
 
-  void put(const std::string &arg) { put_void(arg); }
+  void put(const std::string &arg) override { put_void(arg); }
 
-  void put() { put_void(); }
+  void put() override { put_void(); }
 };
 
 class Getter_any_testsuite : public ::testing::Test {

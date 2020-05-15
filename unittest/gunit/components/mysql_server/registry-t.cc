@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,9 +31,9 @@ using service_type_t = SERVICE_TYPE_NO_CONST(registry);
 
 class registry : public ::testing::Test {
  protected:
-  virtual void SetUp() { ASSERT_FALSE(minimal_chassis_init(&reg, NULL)); }
+  void SetUp() override { ASSERT_FALSE(minimal_chassis_init(&reg, NULL)); }
 
-  virtual void TearDown() {
+  void TearDown() override {
     ASSERT_FALSE(reg->release(
         reinterpret_cast<my_h_service>(const_cast<service_type_t *>(reg))));
     ASSERT_FALSE(minimal_chassis_deinit(reg, NULL));

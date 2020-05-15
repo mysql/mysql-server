@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -58,7 +58,7 @@ Path g_origin;
 
 class TestBlockClients : public ConsoleOutputTest {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     set_origin(g_origin);
     ConsoleOutputTest::SetUp();
   }

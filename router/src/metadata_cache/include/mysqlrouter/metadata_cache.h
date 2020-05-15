@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -381,8 +381,8 @@ class METADATA_API MetadataCacheAPIBase
    * @param listener Observer object that is notified when replicaset nodes
    * state is changed.
    */
-  virtual void add_listener(const std::string &replicaset_name,
-                            ReplicasetStateListenerInterface *listener) = 0;
+  void add_listener(const std::string &replicaset_name,
+                            ReplicasetStateListenerInterface *listener) override = 0;
 
   /**
    * @brief Unregister observer previously registered with add_listener()
@@ -390,8 +390,8 @@ class METADATA_API MetadataCacheAPIBase
    * @param replicaset_name name of the replicaset
    * @param listener Observer object that should be unregistered.
    */
-  virtual void remove_listener(const std::string &replicaset_name,
-                               ReplicasetStateListenerInterface *listener) = 0;
+  void remove_listener(const std::string &replicaset_name,
+                               ReplicasetStateListenerInterface *listener) override = 0;
 
   /** @brief Get authentication data (password hash and privileges) for the
    *  given user.
@@ -432,7 +432,7 @@ class METADATA_API MetadataCacheAPIBase
   // must be explicitly defined though.
   explicit MetadataCacheAPIBase(const MetadataCacheAPIBase &) = delete;
   MetadataCacheAPIBase &operator=(const MetadataCacheAPIBase &) = delete;
-  virtual ~MetadataCacheAPIBase() {}
+  ~MetadataCacheAPIBase() override {}
 
   struct RefreshStatus {
     uint64_t refresh_failed;

@@ -35,3 +35,4 @@ GENERATE_EXPORT_HEADER(router_protobuf
   ${CMAKE_CURRENT_BINARY_DIR}/../include/mysqlrouter/router_protobuf_export.h
   )
 
+STRING(REPLACE "-Wsuggest-override" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")

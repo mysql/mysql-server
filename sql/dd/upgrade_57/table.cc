@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -271,8 +271,8 @@ class Handle_old_incorrect_sql_modes_hook : public Unknown_key_hook {
 
  public:
   Handle_old_incorrect_sql_modes_hook(char *file_path) : m_path(file_path) {}
-  virtual bool process_unknown_string(const char *&unknown_key, uchar *base,
-                                      MEM_ROOT *mem_root, const char *end);
+  bool process_unknown_string(const char *&unknown_key, uchar *base,
+                                      MEM_ROOT *mem_root, const char *end) override;
 };
 
 /**

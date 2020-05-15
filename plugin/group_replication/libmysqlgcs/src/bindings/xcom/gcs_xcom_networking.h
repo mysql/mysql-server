@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,15 +68,15 @@ class Gcs_sock_probe_interface {
 class Gcs_sock_probe_interface_impl : public Gcs_sock_probe_interface {
  public:
   Gcs_sock_probe_interface_impl() : Gcs_sock_probe_interface() {}
-  virtual ~Gcs_sock_probe_interface_impl() {}
+  ~Gcs_sock_probe_interface_impl() override {}
 
-  int init_sock_probe(sock_probe *s);
-  int number_of_interfaces(sock_probe *s);
-  void get_sockaddr_address(sock_probe *s, int count, struct sockaddr **out);
-  void get_sockaddr_netmask(sock_probe *s, int count, struct sockaddr **out);
-  char *get_if_name(sock_probe *s, int count);
-  bool_t is_if_running(sock_probe *s, int count);
-  void close_sock_probe(sock_probe *s);
+  int init_sock_probe(sock_probe *s) override;
+  int number_of_interfaces(sock_probe *s) override;
+  void get_sockaddr_address(sock_probe *s, int count, struct sockaddr **out) override;
+  void get_sockaddr_netmask(sock_probe *s, int count, struct sockaddr **out) override;
+  char *get_if_name(sock_probe *s, int count) override;
+  bool_t is_if_running(sock_probe *s, int count) override;
+  void close_sock_probe(sock_probe *s) override;
 
   Gcs_sock_probe_interface_impl(Gcs_sock_probe_interface_impl &) = default;
   Gcs_sock_probe_interface_impl(Gcs_sock_probe_interface_impl &&) =
@@ -225,9 +225,9 @@ class Gcs_ip_whitelist_entry_ip : public Gcs_ip_whitelist_entry {
   Gcs_ip_whitelist_entry_ip(std::string addr, std::string mask);
 
  public:
-  bool init_value();
+  bool init_value() override;
   std::vector<std::pair<std::vector<unsigned char>, std::vector<unsigned char>>>
-      *get_value();
+      *get_value() override;
 
  private:
   std::pair<std::vector<unsigned char>, std::vector<unsigned char>> m_value;
@@ -244,9 +244,9 @@ class Gcs_ip_whitelist_entry_hostname : public Gcs_ip_whitelist_entry {
   Gcs_ip_whitelist_entry_hostname(std::string addr);
 
  public:
-  bool init_value();
+  bool init_value() override;
   std::vector<std::pair<std::vector<unsigned char>, std::vector<unsigned char>>>
-      *get_value();
+      *get_value() override;
 };
 
 class Gcs_ip_whitelist {

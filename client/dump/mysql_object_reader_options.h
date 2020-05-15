@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,7 @@ class Mysql_object_reader_options
   Mysql_object_reader_options(
       const Mysql_chain_element_options *mysql_chain_element_options);
 
-  void create_options();
+  void create_options() override;
 
   uint64 m_row_group_size;
   const Mysql_chain_element_options *m_mysql_chain_element_options;

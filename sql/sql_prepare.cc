@@ -197,7 +197,7 @@ namespace {
 class Execute_sql_statement : public Server_runnable {
  public:
   Execute_sql_statement(LEX_STRING sql_text);
-  virtual bool execute_server_code(THD *thd);
+  bool execute_server_code(THD *thd) override;
 
  private:
   LEX_STRING m_sql_text;

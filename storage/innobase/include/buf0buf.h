@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1605,13 +1605,13 @@ class FlushHp : public HazardPointer {
       : HazardPointer(buf_pool, mutex) {}
 
   /** Destructor */
-  virtual ~FlushHp() {}
+  ~FlushHp() override {}
 
   /** Adjust the value of hp. This happens when some
   other thread working on the same list attempts to
   remove the hp from the list.
   @param bpage	buffer block to be compared */
-  void adjust(const buf_page_t *bpage);
+  void adjust(const buf_page_t *bpage) override;
 };
 
 /** Class implementing buf_pool->LRU hazard pointer */
@@ -1624,13 +1624,13 @@ class LRUHp : public HazardPointer {
       : HazardPointer(buf_pool, mutex) {}
 
   /** Destructor */
-  virtual ~LRUHp() {}
+  ~LRUHp() override {}
 
   /** Adjust the value of hp. This happens when some
   other thread working on the same list attempts to
   remove the hp from the list.
   @param bpage	buffer block to be compared */
-  void adjust(const buf_page_t *bpage);
+  void adjust(const buf_page_t *bpage) override;
 };
 
 /** Special purpose iterators to be used when scanning the LRU list.
@@ -1646,7 +1646,7 @@ class LRUItr : public LRUHp {
       : LRUHp(buf_pool, mutex) {}
 
   /** Destructor */
-  virtual ~LRUItr() {}
+  ~LRUItr() override {}
 
   /** Selects from where to start a scan. If we have scanned
   too deep into the LRU list it resets the value to the tail

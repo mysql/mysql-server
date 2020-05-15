@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,18 +58,18 @@ class Column_type_element_impl : public Weak_object_impl,
   Column_type_element_impl(const Column_type_element_impl &src,
                            Column_impl *parent);
 
-  virtual ~Column_type_element_impl() {}
+  ~Column_type_element_impl() override {}
 
  public:
-  virtual const Object_table &object_table() const;
+  const Object_table &object_table() const override;
 
   static void register_tables(Open_dictionary_tables_ctx *otx);
 
-  virtual bool validate() const;
+  bool validate() const override;
 
-  virtual bool store_attributes(Raw_record *r);
+  bool store_attributes(Raw_record *r) override;
 
-  virtual bool restore_attributes(const Raw_record &r);
+  bool restore_attributes(const Raw_record &r) override;
 
   void set_ordinal_position(uint ordinal_position) {
     m_index = ordinal_position;
@@ -77,9 +77,9 @@ class Column_type_element_impl : public Weak_object_impl,
 
   virtual uint ordinal_position() const { return index(); }
 
-  void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const;
+  void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const override;
 
-  bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val);
+  bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val) override;
 
  public:
   static Column_type_element_impl *restore_item(Column_impl *column) {
@@ -96,28 +96,28 @@ class Column_type_element_impl : public Weak_object_impl,
   // Name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &name() const { return m_name; }
+  const String_type &name() const override { return m_name; }
 
-  virtual void set_name(const String_type &name) { m_name = name; }
+  void set_name(const String_type &name) override { m_name = name; }
 
   /////////////////////////////////////////////////////////////////////////
   // Column
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const Column &column() const;
+  const Column &column() const override;
 
   /////////////////////////////////////////////////////////////////////////
   // index.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual uint index() const { return m_index; }
+  uint index() const override { return m_index; }
 
  public:
-  virtual void debug_print(String_type &outb) const;
+  void debug_print(String_type &outb) const override;
 
  protected:
-  virtual Object_key *create_primary_key() const;
-  virtual bool has_new_primary_key() const;
+  Object_key *create_primary_key() const override;
+  bool has_new_primary_key() const override;
 
  protected:
   // Fields

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,7 @@ class Innodb_tablespaces_brief
     return s_view_name;
   }
 
-  virtual const String_type &name() const {
+  const String_type &name() const override {
     return Innodb_tablespaces_brief::view_name();
   }
 };

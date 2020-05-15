@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -151,7 +151,7 @@ class HARNESS_EXPORT ProcessLauncher : public SpawnedProcess {
     rhs.is_alive = false;
   }
 
-  ~ProcessLauncher();
+  ~ProcessLauncher() override;
 
   /** Launches the child process, and makes pipes available for read/write. */
   void start();

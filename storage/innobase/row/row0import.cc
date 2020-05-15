@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -380,14 +380,14 @@ class AbstractCallback : public PageCallback {
         m_table_flags(UINT32_UNDEFINED) UNIV_NOTHROW {}
 
   /** Free any extent descriptor instance */
-  virtual ~AbstractCallback() { UT_DELETE_ARRAY(m_xdes); }
+  ~AbstractCallback() override { UT_DELETE_ARRAY(m_xdes); }
 
   /** Determine the page size to use for traversing the tablespace
   @param file_size size of the tablespace file in bytes
   @param block contents of the first page in the tablespace file.
   @retval DB_SUCCESS or error code. */
-  virtual dberr_t init(os_offset_t file_size,
-                       const buf_block_t *block) UNIV_NOTHROW;
+  dberr_t init(os_offset_t file_size,
+                       const buf_block_t *block) override UNIV_NOTHROW;
 
   /** @return true if compressed table. */
   bool is_compressed_table() const UNIV_NOTHROW {
@@ -589,15 +589,15 @@ struct FetchIndexRootPages : public AbstractCallback {
       : AbstractCallback(trx), m_table(table) UNIV_NOTHROW {}
 
   /** Destructor */
-  virtual ~FetchIndexRootPages() UNIV_NOTHROW {}
+  ~FetchIndexRootPages() UNIV_NOTHROW override {}
 
   /**
   @retval the space id of the tablespace being iterated over */
-  virtual space_id_t get_space_id() const UNIV_NOTHROW { return (m_space); }
+  space_id_t get_space_id() const UNIV_NOTHROW override { return (m_space); }
 
   /**
   @retval the space flags of the tablespace being iterated over */
-  virtual ulint get_space_flags() const UNIV_NOTHROW { return (m_space_flags); }
+  ulint get_space_flags() const UNIV_NOTHROW override { return (m_space_flags); }
 
   /** Check if the .ibd file row format is the same as the table's.
   @param ibd_table_flags determined from space and page.
@@ -636,8 +636,8 @@ struct FetchIndexRootPages : public AbstractCallback {
   @param offset physical offset in the file
   @param block block to convert, it is not from the buffer pool.
   @retval DB_SUCCESS or error code. */
-  virtual dberr_t operator()(os_offset_t offset,
-                             buf_block_t *block) UNIV_NOTHROW;
+  dberr_t operator()(os_offset_t offset,
+                             buf_block_t *block) override UNIV_NOTHROW;
 
   /** Update the import configuration that will be used to import
   the tablespace. */
@@ -793,7 +793,7 @@ class PageConverter : public AbstractCallback {
   @param trx transaction covering the import */
   PageConverter(row_import *cfg, trx_t *trx) UNIV_NOTHROW;
 
-  virtual ~PageConverter() UNIV_NOTHROW {
+  ~PageConverter() UNIV_NOTHROW override {
     if (m_heap != nullptr) {
       mem_heap_free(m_heap);
     }
@@ -801,20 +801,20 @@ class PageConverter : public AbstractCallback {
 
   /**
   @retval the server space id of the tablespace being iterated over */
-  virtual space_id_t get_space_id() const UNIV_NOTHROW {
+  space_id_t get_space_id() const UNIV_NOTHROW override {
     return (m_cfg->m_table->space);
   }
 
   /**
   @retval the space flags of the tablespace being iterated over */
-  virtual ulint get_space_flags() const UNIV_NOTHROW { return (m_space_flags); }
+  ulint get_space_flags() const UNIV_NOTHROW override { return (m_space_flags); }
 
   /** Called for each block as it is read from the file.
   @param offset physical offset in the file
   @param block block to convert, it is not from the buffer pool.
   @retval DB_SUCCESS or error code. */
-  virtual dberr_t operator()(os_offset_t offset,
-                             buf_block_t *block) UNIV_NOTHROW;
+  dberr_t operator()(os_offset_t offset,
+                             buf_block_t *block) override UNIV_NOTHROW;
 
  private:
   /** Status returned by PageConverter::validate() */

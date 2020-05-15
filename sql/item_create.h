@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -123,7 +123,7 @@ class Create_qfunc : public Create_func {
     @param item_list The list of arguments to the function, can be NULL
     @return An item representing the parsed function call
   */
-  virtual Item *create_func(THD *thd, LEX_STRING name, PT_item_list *item_list);
+  Item *create_func(THD *thd, LEX_STRING name, PT_item_list *item_list) override;
 
   /**
     The builder create method, for qualified functions.
@@ -141,7 +141,7 @@ class Create_qfunc : public Create_func {
   /** Constructor. */
   Create_qfunc() {}
   /** Destructor. */
-  virtual ~Create_qfunc() {}
+  ~Create_qfunc() override {}
 };
 
 /**
@@ -165,7 +165,7 @@ extern Create_qfunc *find_qualified_function_builder(THD *thd);
 
 class Create_udf_func : public Create_func {
  public:
-  virtual Item *create_func(THD *thd, LEX_STRING name, PT_item_list *item_list);
+  Item *create_func(THD *thd, LEX_STRING name, PT_item_list *item_list) override;
 
   /**
     The builder create method, for User Defined Functions.
@@ -183,7 +183,7 @@ class Create_udf_func : public Create_func {
   /** Constructor. */
   Create_udf_func() {}
   /** Destructor. */
-  virtual ~Create_udf_func() {}
+  ~Create_udf_func() override {}
 };
 
 /**

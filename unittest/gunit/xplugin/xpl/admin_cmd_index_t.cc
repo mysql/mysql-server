@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -54,7 +54,7 @@ class Admin_command_index_test : public ::testing::Test {
  public:
   using Sql = ngs::PFS_string;
 
-  void SetUp() {
+  void SetUp() override {
     command.reset(new Admin_command_index_stub(&session));
 
     EXPECT_CALL(session, data_context())

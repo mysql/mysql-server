@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,7 @@ class Hash_to_buffer_serializer : public ISerializer {
   ISerialized_object *serialize(
       const collation_unordered_map<std::string, std::unique_ptr<IKey>>
           &keys_hash,
-      IKey *key, const Key_operation operation);
+      IKey *key, const Key_operation operation) override;
 
   void set_memory_needed_for_buffer(size_t memory_needed_for_buffer) {
     this->memory_needed_for_buffer = memory_needed_for_buffer;

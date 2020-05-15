@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,7 @@ class THD;
 
 class Rpl_info : public Slave_reporting_capability {
  public:
-  virtual ~Rpl_info();
+  ~Rpl_info() override;
 
   /*
     standard lock acquisition order to avoid deadlocks:

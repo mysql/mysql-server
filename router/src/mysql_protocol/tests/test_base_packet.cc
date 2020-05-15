@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,7 @@ class MySQLProtocolPacketTest : public ::testing::Test {
   Packet::vector_t case1 = {0x04, 0x0, 0x0, 0x01, 't', 'e', 's', 't'};
 
  protected:
-  virtual void SetUp() {}
+  void SetUp() override {}
 };
 
 TEST_F(MySQLProtocolPacketTest, Constructors) {

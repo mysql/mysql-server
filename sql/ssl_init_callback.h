@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -80,13 +80,13 @@ class Ssl_init_callback_server_main final : public Ssl_init_callback {
                        OptionalString *version, OptionalString *cert,
                        OptionalString *cipher, OptionalString *ciphersuites,
                        OptionalString *key, OptionalString *crl,
-                       OptionalString *crl_path);
+                       OptionalString *crl_path) override;
 
-  bool provision_certs();
+  bool provision_certs() override;
 
-  bool warn_self_signed_ca();
+  bool warn_self_signed_ca() override;
 
-  virtual ~Ssl_init_callback_server_main() {}
+  ~Ssl_init_callback_server_main() override {}
 
  private:
   ssl_artifacts_status auto_detect_ssl();
@@ -102,9 +102,9 @@ class Ssl_init_callback_server_admin final : public Ssl_init_callback {
                        OptionalString *version, OptionalString *cert,
                        OptionalString *cipher, OptionalString *ciphersuites,
                        OptionalString *key, OptionalString *crl,
-                       OptionalString *crl_path);
+                       OptionalString *crl_path) override;
 
-  bool provision_certs() {
+  bool provision_certs() override {
     /*
       No automatic provisioning. Always return
       success to fallback to system variables.
@@ -112,9 +112,9 @@ class Ssl_init_callback_server_admin final : public Ssl_init_callback {
     return false;
   }
 
-  bool warn_self_signed_ca();
+  bool warn_self_signed_ca() override;
 
-  virtual ~Ssl_init_callback_server_admin() {}
+  ~Ssl_init_callback_server_admin() override {}
 };
 
 extern Ssl_init_callback_server_main server_main_callback;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -91,7 +91,7 @@ class MutexDebug {
 
     /** Print information about the latch
     @return the string representation */
-    virtual std::string to_string() const UNIV_NOTHROW {
+    std::string to_string() const override UNIV_NOTHROW {
       std::ostringstream msg;
 
       msg << m_mutex->policy().to_string();
@@ -108,7 +108,7 @@ class MutexDebug {
 
     /** @return the name of the file and line number in the file
     from where the mutex was acquired "filename:line" */
-    virtual std::string locked_from() const {
+    virtual std::string locked_from() const override {
       std::ostringstream msg;
 
       msg << sync_basename(m_filename) << ":" << m_line;
