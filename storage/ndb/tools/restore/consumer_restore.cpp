@@ -4723,10 +4723,13 @@ retry:
 
 #ifndef DBUG_OFF
   /* Test retry path */
-  if (tup.m_frag_id == 3)
+  if ((m_logCount % 100000) == 3)
   {
     if (retries < 3)
+    {
+      restoreLogger.log_info("Testing log retry path");
       goto retry;
+    }
   }
 #endif
 
