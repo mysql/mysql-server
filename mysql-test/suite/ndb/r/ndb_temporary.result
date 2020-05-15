@@ -2,7 +2,9 @@ create temporary table t1 (a int key) engine=ndb;
 ERROR HY000: Table storage engine 'ndbcluster' does not support the create option 'TEMPORARY'
 create temporary table t1 (a int key) engine=myisam;
 alter table t1 engine=ndb;
-ERROR HY000: Table storage engine 'ndbcluster' does not support the create option 'TEMPORARY'
+ERROR HY000: Cannot create temporary table with partitions
+alter table t1 algorithm=copy, engine=ndb;
+ERROR HY000: Cannot create temporary table with partitions
 drop table t1;
 CREATE TABLE bar ( id TINYINT NOT NULL AUTO_INCREMENT PRIMARY KEY ) ENGINE=NDBCluster ;
 Warnings:

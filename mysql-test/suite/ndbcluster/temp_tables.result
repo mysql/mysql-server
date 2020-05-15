@@ -30,3 +30,7 @@ CREATE TEMPORARY TABLE tt1 LIKE t1;
 ERROR HY000: Table storage engine 'ndbcluster' does not support the create option 'TEMPORARY'
 SET default_tmp_storage_engine=default;
 DROP TABLE t1;
+CREATE TEMPORARY TABLE t1 (a int KEY) ENGINE=MYISAM;
+ALTER TABLE t1 ENGINE=NDB;
+ERROR HY000: Cannot create temporary table with partitions
+DROP TABLE t1;

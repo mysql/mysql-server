@@ -11,8 +11,10 @@ create temporary table t1 (a int key) engine=ndb;
 # alter temporary table to engine=ndb should give an error
 #
 create temporary table t1 (a int key) engine=myisam;
---error ER_ILLEGAL_HA_CREATE_OPTION
+--error ER_PARTITION_NO_TEMPORARY
 alter table t1 engine=ndb;
+--error ER_PARTITION_NO_TEMPORARY
+alter table t1 algorithm=copy, engine=ndb;
 drop table t1;
 
 
