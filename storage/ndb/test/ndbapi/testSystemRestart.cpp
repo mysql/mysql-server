@@ -3053,6 +3053,28 @@ runTO(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
+int createCopy(NDBT_Context* ctx,
+               NDBT_Step* step,
+               NdbDictionary::Object::PartitionBalance bal)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary * pDict = pNdb->getDictionary();
+
+  NdbDictionary::Table copy(* NDBT_Tables::getTable(ctx->getTableName(0)));
+
+  // Create table with disk storage and a particular balance
+  copy.setName("BUG_45154");
+  copy.setDefaultNoPartitionsFlag(true);
+  copy.setFragmentType(NdbDictionary::Object::HashMapPartition);
+  copy.setPartitionBalance(bal);
+  if (pDict->createTable(copy) != 0)
+  {
+    ndbout << pDict->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
 int runBug45154(NDBT_Context* ctx, NDBT_Step* step)
 {
   Ndb* pNdb = GETNDB(step);
@@ -3066,6 +3088,26 @@ int runBug45154(NDBT_Context* ctx, NDBT_Step* step)
     ndb_mgm_create_logevent_handle(restarter.handle, filter);
   struct ndb_logevent event;
 
+  /**
+   * Start by creating and dropping both table types so
+   * that all necessary hashmaps are created before
+   * testing further, and tableids are stable
+   */
+  if (createCopy(ctx,
+                 step,
+                 NdbDictionary::Object::PartitionBalance_ForRAByLDMx4) != NDBT_OK)
+  {
+    return NDBT_FAILED;
+  }
+  pDict->dropTable("BUG_45154");
+
+  if (createCopy(ctx,
+                 step,
+                 NdbDictionary::Object::PartitionBalance_ForRAByLDM) != NDBT_OK)
+  {
+    return NDBT_FAILED;
+  }
+
   for(int i = 0; i < ctx->getNumLoops(); i++)
   {
     /* Create a table with disk storage and a fairly large number of fragments.
@@ -3075,22 +3117,19 @@ int runBug45154(NDBT_Context* ctx, NDBT_Step* step)
     */
     ndbout_c("loop %u", i);
     pDict->dropTable("BUG_45154");
-    NdbDictionary::Table copy1(* NDBT_Tables::getTable(ctx->getTableName(0)));
-    NdbDictionary::Table copy2(* NDBT_Tables::getTable(ctx->getTableName(0)));
+
+    // Create table with disk storage and a fairly large number of fragments
+    if (createCopy(ctx,
+                   step,
+                   NdbDictionary::Object::PartitionBalance_ForRAByLDMx4) != NDBT_OK)
+    {
+      return NDBT_FAILED;
+    }
+
     const NdbDictionary::Table* actualTable;
     int tableId;
     unsigned int nFragments;
 
-    // Create table with disk storage and a fairly large number of fragments
-    copy1.setName("BUG_45154");
-    copy1.setDefaultNoPartitionsFlag(true);
-    copy1.setFragmentType(NdbDictionary::Object::HashMapPartition);
-    copy1.setPartitionBalance(NdbDictionary::Object::PartitionBalance_ForRAByLDMx4);
-    if (pDict->createTable(copy1) != 0)
-    {
-      ndbout << pDict->getNdbError() << endl;
-      return NDBT_FAILED;
-    }
     actualTable= pDict->getTable("BUG_45154");
     tableId = actualTable->getTableId();
     nFragments = actualTable->getPartitionCount();
@@ -3121,16 +3160,14 @@ int runBug45154(NDBT_Context* ctx, NDBT_Step* step)
     // Drop the table
     pDict->dropTable("BUG_45154");
 
-   // Recreate the table with the same id, but fewer fragments.
-    copy2.setName("BUG_45154");
-    copy2.setDefaultNoPartitionsFlag(true);
-    copy2.setFragmentType(NdbDictionary::Object::HashMapPartition);
-    copy2.setPartitionBalance(NdbDictionary::Object::PartitionBalance_ForRAByLDM);
-    if (pDict->createTable(copy2) != 0)
+    // Recreate the table with the same id, but fewer fragments.
+    if (createCopy(ctx,
+                   step,
+                   NdbDictionary::Object::PartitionBalance_ForRAByLDM) != NDBT_OK)
     {
-      ndbout << pDict->getNdbError() << endl;
       return NDBT_FAILED;
     }
+
     actualTable= pDict->getTable("BUG_45154");
 
     ndbout_c("[2nd table] Id: %u  Fragments: %u (%s)",
