@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1321,7 +1321,7 @@ int
 runCheckAllNodesStarted(NDBT_Context* ctx, NDBT_Step* step){
   NdbRestarter restarter;
 
-  CHK2(restarter.waitClusterStarted(1) == 0,
+  CHK2(restarter.waitClusterStarted() == 0,
        "All nodes were not started");
   return NDBT_OK;
 }
