@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2020 Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -633,7 +633,7 @@ const PasswdFrontendTestParam password_frontend_param[]{
 
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Spec, PasswdFrontendTest, ::testing::ValuesIn(password_frontend_param),
     [](testing::TestParamInfo<PasswdFrontendTestParam> param_info) {
       return sanitise(param_info.param.test_name +

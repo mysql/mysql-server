@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -59,7 +59,7 @@ const char kMcfSha512_myName_test[]{
     "78jHABgKm2DHr1LHc7Kg9kCVs9/uCOR7/"  // password: test
     "\n"};
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Spec, HttpPasswdAuthBackendTest,
     ::testing::Values(
         HttpAuthBackendParam{

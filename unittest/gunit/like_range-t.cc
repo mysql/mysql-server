@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -88,7 +88,8 @@ class LikeRangeTest : public ::testing::TestWithParam<const char *> {
   CHARSET_INFO *m_charset;
 };
 
-INSTANTIATE_TEST_CASE_P(Foo1, LikeRangeTest, ::testing::ValuesIn(charset_list));
+INSTANTIATE_TEST_SUITE_P(Foo1, LikeRangeTest,
+                         ::testing::ValuesIn(charset_list));
 
 TEST_P(LikeRangeTest, TestLikeRange) {
   test_like_range_for_charset(m_charset, "abc%", 4);

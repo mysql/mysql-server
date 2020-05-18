@@ -374,7 +374,7 @@ protocol=x)";
       << config_file_expected2;
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     BootstrapOkTest, RouterBootstrapOkTest,
     ::testing::Values(
         BootstrapTestParam{ClusterType::GR_V2, "gr", "bootstrap_gr.js", "", ""},
@@ -428,7 +428,7 @@ TEST_P(RouterBootstrapUserIsCurrentUser, BootstrapUserIsCurrentUser) {
   }
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     BootstrapUserIsCurrentUser, RouterBootstrapUserIsCurrentUser,
     ::testing::Values(
         BootstrapTestParam{ClusterType::GR_V2, "gr", "bootstrap_gr.js", "", ""},
@@ -469,7 +469,7 @@ TEST_P(RouterBootstrapailoverClusterIdDiffers,
   }
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     BootstrapFailoverClusterIdDiffers, RouterBootstrapailoverClusterIdDiffers,
     ::testing::Values(
         BootstrapTestParam{ClusterType::GR_V2, "gr",
@@ -529,7 +529,7 @@ TEST_P(RouterBootstrapOnlySockets, BootstrapOnlySockets) {
   );
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     BootstrapOnlySockets, RouterBootstrapOnlySockets,
     ::testing::Values(
         BootstrapTestParam{ClusterType::GR_V2, "gr", "bootstrap_gr.js", "", ""},
@@ -570,7 +570,7 @@ TEST_P(BootstrapUnsupportedSchemaVersionTest,
   }
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     BootstrapUnsupportedSchemaVersion, BootstrapUnsupportedSchemaVersionTest,
     ::testing::Values(mysqlrouter::MetadataSchemaVersion{3, 0, 0},
                       mysqlrouter::MetadataSchemaVersion{0, 0, 1},
@@ -778,7 +778,7 @@ TEST_P(RouterBootstrapFailoverSuperReadonly, BootstrapFailoverSuperReadonly) {
   bootstrap_failover(config, param.cluster_type);
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     BootstrapFailoverSuperReadonly, RouterBootstrapFailoverSuperReadonly,
     ::testing::Values(
         BootstrapTestParam{ClusterType::GR_V2, "gr",
@@ -845,7 +845,7 @@ TEST_P(RouterBootstrapFailoverSuperReadonly2ndNodeDead,
                      });
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     BootstrapFailoverSuperReadonly2ndNodeDead,
     RouterBootstrapFailoverSuperReadonly2ndNodeDead,
     ::testing::Values(
@@ -900,7 +900,7 @@ TEST_P(RouterBootstrapFailoverPrimaryUnreachable,
                       "Error: no more nodes to fail-over too, giving up."});
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     BootstrapFailoverPrimaryUnreachable,
     RouterBootstrapFailoverPrimaryUnreachable,
     ::testing::Values(
@@ -953,7 +953,7 @@ TEST_P(RouterBootstrapFailoverSuperReadonlyCreateAccountFails,
   bootstrap_failover(config, param.cluster_type);
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     BootstrapFailoverSuperReadonlyCreateAccountFails,
     RouterBootstrapFailoverSuperReadonlyCreateAccountFails,
     ::testing::Values(
@@ -1010,7 +1010,7 @@ TEST_P(RouterBootstrapFailoverSuperReadonlyCreateAccountGrantFails,
        "the --super-read-only option so it cannot execute this statement"});
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     BootstrapFailoverSuperReadonlyCreateAccountGrantFails,
     RouterBootstrapFailoverSuperReadonlyCreateAccountGrantFails,
     ::testing::Values(
@@ -1095,7 +1095,7 @@ TEST_P(RouterBootstrapFailoverSuperReadonlyNewPrimaryCrash,
   bootstrap_failover(mock_servers, GetParam().cluster_type);
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     BootstrapFailoverSuperReadonlyNewPrimaryCrash,
     RouterBootstrapFailoverSuperReadonlyNewPrimaryCrash,
     ::testing::Values(
@@ -1259,7 +1259,7 @@ TEST_P(RouterBootstrapBootstrapNoGroupReplicationSetup,
                      {"to have Group Replication running"});
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     BootstrapNoGroupReplicationSetup,
     RouterBootstrapBootstrapNoGroupReplicationSetup,
     ::testing::Values(BootstrapTestParam{ClusterType::GR_V2, "gr",
@@ -3078,7 +3078,7 @@ class AccountReuseCreateComboTestP
     };
   }
 };
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     foo, AccountReuseCreateComboTestP,
     ::testing::ValuesIn(AccountReuseCreateComboTestP::gen_testcases()),
     [](auto p) -> std::string { return p.param.test_name; });
@@ -4781,7 +4781,7 @@ class UndoCreateUserTestP
     : public AccountReuseTestBase,
       public ::testing::WithParamInterface<UndoCreateUserTestParams> {};
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     foo, UndoCreateUserTestP,
     ::testing::Values(
 

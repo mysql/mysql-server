@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,7 +64,7 @@ struct wrapper {
 template <class T>
 constexpr T wrapper<T>::INIT_VAL;
 
-TYPED_TEST_CASE_P(ut0new_t);
+TYPED_TEST_SUITE_P(ut0new_t);
 
 TYPED_TEST_P(ut0new_t, ut_new_fundamental_types) {
   start();
@@ -190,13 +190,13 @@ TYPED_TEST_P(ut0new_t, ut_vector) {
   delete v2;
 }
 
-REGISTER_TYPED_TEST_CASE_P(ut0new_t, ut_new_fundamental_types, ut_new_structs,
-                           ut_malloc, ut_vector);
+REGISTER_TYPED_TEST_SUITE_P(ut0new_t, ut_new_fundamental_types, ut_new_structs,
+                            ut_malloc, ut_vector);
 
-INSTANTIATE_TYPED_TEST_CASE_P(int_types, ut0new_t, int_types);
-INSTANTIATE_TYPED_TEST_CASE_P(float_types, ut0new_t, floating_point_types);
-INSTANTIATE_TYPED_TEST_CASE_P(char_types, ut0new_t, char_types);
-INSTANTIATE_TYPED_TEST_CASE_P(bool, ut0new_t, bool);
+INSTANTIATE_TYPED_TEST_SUITE_P(int_types, ut0new_t, int_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(float_types, ut0new_t, floating_point_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(char_types, ut0new_t, char_types);
+INSTANTIATE_TYPED_TEST_SUITE_P(bool, ut0new_t, bool);
 
 static int n_construct = 0;
 

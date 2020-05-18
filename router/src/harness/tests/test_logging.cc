@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -64,11 +64,7 @@ using mysql_harness::logging::LogTimestampPrecision;
 using mysql_harness::logging::Record;
 using mysql_harness::logging::StreamHandler;
 
-#if GTEST_HAS_COMBINE
-// only available if the system has <tr1/tuple> [if not gtest's own, minimal
-// tr1/tuple is used.
 using testing::Combine;
-#endif
 using testing::ContainsRegex;
 using testing::EndsWith;
 using testing::Eq;
@@ -728,7 +724,6 @@ TEST_F(LoggingTest, TimestampPrecision) {
   g_registry->remove_handler("TestStreamHandler");
 }
 
-#if GTEST_HAS_COMBINE
 class LogLevelTest : public LoggingTest,
                      public WithParamInterface<std::tuple<LogLevel, LogLevel>> {
 };
@@ -787,9 +782,9 @@ const LogLevel all_levels[]{
     LogLevel::kFatal, LogLevel::kSystem, LogLevel::kError, LogLevel::kWarning,
     LogLevel::kInfo,  LogLevel::kNote,   LogLevel::kDebug};
 
-INSTANTIATE_TEST_CASE_P(CheckLogLevel, LogLevelTest,
-                        Combine(ValuesIn(all_levels), ValuesIn(all_levels)));
-#endif
+INSTANTIATE_TEST_SUITE_P(CheckLogLevel, LogLevelTest,
+                         Combine(ValuesIn(all_levels), ValuesIn(all_levels)));
+
 ////////////////////////////////////////////////////////////////
 // Tests of the functional interface to the logger.
 ////////////////////////////////////////////////////////////////

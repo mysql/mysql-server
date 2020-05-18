@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -61,8 +61,8 @@ const MySQLNativePasswordParam mysql_native_password_params[] = {
     {"01234567890123456789", "", {}},
 };
 
-INSTANTIATE_TEST_CASE_P(Spec, MySQLNativePasswordTest,
-                        ::testing::ValuesIn(mysql_native_password_params));
+INSTANTIATE_TEST_SUITE_P(Spec, MySQLNativePasswordTest,
+                         ::testing::ValuesIn(mysql_native_password_params));
 
 // clear_text_password
 
@@ -99,8 +99,8 @@ const ClearTextPasswordParam clear_text_password_params[] = {
     {"01234567890123456789", "", {'\0'}},
 };
 
-INSTANTIATE_TEST_CASE_P(Spec, ClearTextPasswordTest,
-                        ::testing::ValuesIn(clear_text_password_params));
+INSTANTIATE_TEST_SUITE_P(Spec, ClearTextPasswordTest,
+                         ::testing::ValuesIn(clear_text_password_params));
 
 // caching_sha2_password
 
@@ -142,8 +142,8 @@ const CachingSha2PasswordParam caching_sha2_password_params[] = {
     {"01234567890123456789", "", {}},
 };
 
-INSTANTIATE_TEST_CASE_P(Spec, CachingSha2PasswordTest,
-                        ::testing::ValuesIn(caching_sha2_password_params));
+INSTANTIATE_TEST_SUITE_P(Spec, CachingSha2PasswordTest,
+                         ::testing::ValuesIn(caching_sha2_password_params));
 
 int main(int argc, char *argv[]) {
   ::testing::InitGoogleTest(&argc, argv);

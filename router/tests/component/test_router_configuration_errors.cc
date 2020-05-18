@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -336,7 +336,7 @@ static const BrokenConfigParams broken_config_params[]{
      ""},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Spec, RouterTestBrokenConfig, ::testing::ValuesIn(broken_config_params),
     [](const ::testing::TestParamInfo<BrokenConfigParams> &info) {
       return info.param.test_name;
@@ -360,7 +360,7 @@ static const BrokenConfigParams broken_config_params_unix[]{
      ""},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     SpecUnix, RouterTestBrokenConfig,
     ::testing::ValuesIn(broken_config_params_unix),
     [](const ::testing::TestParamInfo<BrokenConfigParams> &info) {

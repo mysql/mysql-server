@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -273,8 +273,8 @@ TEST_P(TestConfigThreadStackSize, ParseThreadStackSize) {
   ASSERT_THROW_LIKE(r.start(), std::invalid_argument, input.message);
 }
 
-INSTANTIATE_TEST_CASE_P(ConfigThreadStackSizeTests, TestConfigThreadStackSize,
-                        ::testing::ValuesIn(test_data));
+INSTANTIATE_TEST_SUITE_P(ConfigThreadStackSizeTests, TestConfigThreadStackSize,
+                         ::testing::ValuesIn(test_data));
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -318,8 +318,8 @@ const Plugin_data router_plugins[]{
     Plugin_data{"keepalive", "Keepalive Plugin", "0.0.1", "", ""},
 };
 
-INSTANTIATE_TEST_CASE_P(CheckReadInfo, PluginInfoAppTestReadInfo,
-                        ValuesIn(router_plugins));
+INSTANTIATE_TEST_SUITE_P(CheckReadInfo, PluginInfoAppTestReadInfo,
+                         ValuesIn(router_plugins));
 
 int main(int argc, char *argv[]) {
   g_origin_path = Path(argv[0]).dirname();

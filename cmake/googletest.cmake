@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,13 +20,13 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-# We want release-1.8.1.zip in order to build these unit tests.
+# We want release-1.10.0.zip in order to build these unit tests.
 # If you have already downloaded it,
-# invoke cmake with -DWITH_GMOCK=/path/to/release-1.8.1.zip
+# invoke cmake with -DWITH_GMOCK=/path/to/release-1.10.0.zip
 #                or -DWITH_GMOCK=/path/to
 #
 # Alternatively, set an environment variable
-# export WITH_GMOCK=/path/to/release-1.8.1.zip
+# export WITH_GMOCK=/path/to/release-1.10.0.zip
 #
 # You can also do cmake -DENABLE_DOWNLOADS=1
 # and we will download it from https://github.com/google/googletest/archive/
@@ -40,8 +40,8 @@ IF(NOT DOWNLOAD_ROOT)
   SET(DOWNLOAD_ROOT ${CMAKE_SOURCE_DIR}/source_downloads)
 ENDIF()
 
-# We want googletest version 1.8, which also contains googlemock.
-SET(GMOCK_PACKAGE_NAME "release-1.8.1")
+# We want googletest version 1.10, which also contains googlemock.
+SET(GMOCK_PACKAGE_NAME "release-1.10.0")
 
 IF (DEFINED ENV{WITH_GMOCK} AND NOT DEFINED WITH_GMOCK)
   FILE(TO_CMAKE_PATH "$ENV{WITH_GMOCK}" WITH_GMOCK)

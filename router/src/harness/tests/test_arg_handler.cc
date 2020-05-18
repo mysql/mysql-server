@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -173,7 +173,7 @@ const ArgHandlerProcessParam arg_handler_process_params[]{
      "unknown option '--not-exists'"},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Spec, ArgHandlerProcessTest,
     ::testing::ValuesIn(arg_handler_process_params),
     [](const testing::TestParamInfo<ArgHandlerProcessParam> &info) {
@@ -243,11 +243,11 @@ const CmdOptionParam cmd_options_params[]{
      false},
 };
 
-INSTANTIATE_TEST_CASE_P(Spec, CmdOptionTest,
-                        ::testing::ValuesIn(cmd_options_params),
-                        [](const testing::TestParamInfo<CmdOptionParam> &info) {
-                          return info.param.test_name + "_works";
-                        });
+INSTANTIATE_TEST_SUITE_P(
+    Spec, CmdOptionTest, ::testing::ValuesIn(cmd_options_params),
+    [](const testing::TestParamInfo<CmdOptionParam> &info) {
+      return info.param.test_name + "_works";
+    });
 
 TEST(CmdArgHandlerConstructorTest, Default) {
   CmdArgHandler c;
@@ -341,7 +341,7 @@ const CmdArgHandlerAddOptionParam cmd_arg_handler_add_options_params[]{
      true},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Spec, CmdArgHandlerAddOptionTest,
     ::testing::ValuesIn(cmd_arg_handler_add_options_params),
     [](const testing::TestParamInfo<CmdArgHandlerAddOptionParam> &info) {
@@ -400,7 +400,7 @@ const ValidOptionNameParam valid_option_name_params[]{
     {"long_opt_space", "--AB ", false},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Spec, ValidOptionNameTest, ::testing::ValuesIn(valid_option_name_params),
     [](const testing::TestParamInfo<ValidOptionNameParam> &info) {
       return info.param.test_name +
@@ -594,7 +594,7 @@ const EntangledOptionsParam post_action_params[]{
     {"both_options", {"--option-a", "--option-b"}, true},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Spec, EntangledOptionsTest, ::testing::ValuesIn(post_action_params),
     [](const testing::TestParamInfo<EntangledOptionsParam> &info) {
       return info.param.test_name +

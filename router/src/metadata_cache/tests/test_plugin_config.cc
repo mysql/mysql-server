@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -114,7 +114,7 @@ TEST_P(MetadataCachePluginConfigGoodTest, GoodConfigs) {
               ContainerEq(test_data.expected.bootstrap_addresses));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     SomethingUseful, MetadataCachePluginConfigGoodTest,
     ::testing::ValuesIn(std::vector<GoodTestData>({
         // minimal config
@@ -280,55 +280,55 @@ TEST_P(MetadataCachePluginConfigBadTest, BadConfigs) {
   }
 }
 
-INSTANTIATE_TEST_CASE_P(SomethingUseful, MetadataCachePluginConfigBadTest,
-                        ::testing::ValuesIn(std::vector<BadTestData>({
-                            // user option is required
-                            {{
-                                 std::map<std::string, std::string>(),
-                             },
+INSTANTIATE_TEST_SUITE_P(SomethingUseful, MetadataCachePluginConfigBadTest,
+                         ::testing::ValuesIn(std::vector<BadTestData>({
+                             // user option is required
+                             {{
+                                  std::map<std::string, std::string>(),
+                              },
 
-                             {
-                                 typeid(mysqlrouter::option_not_present),
-                                 "option user in [metadata_cache] is required",
-                             }},
-                            // ttl is garbage
-                            {{
-                                 std::map<std::string, std::string>({
-                                     {"user", "foo"},  // required
-                                     {"ttl", "garbage"},
-                                 }),
-                             },
-                             {
-                                 typeid(std::invalid_argument),
-                                 "option ttl in [metadata_cache] needs value "
-                                 "between 0 and 3600 inclusive, was 'garbage'",
-                             }},
-                            // ttl is too big
-                            {{
-                                 std::map<std::string, std::string>({
-                                     {"user", "foo"},  // required
-                                     {"ttl", "3600.1"},
-                                 }),
-                             },
+                              {
+                                  typeid(mysqlrouter::option_not_present),
+                                  "option user in [metadata_cache] is required",
+                              }},
+                             // ttl is garbage
+                             {{
+                                  std::map<std::string, std::string>({
+                                      {"user", "foo"},  // required
+                                      {"ttl", "garbage"},
+                                  }),
+                              },
+                              {
+                                  typeid(std::invalid_argument),
+                                  "option ttl in [metadata_cache] needs value "
+                                  "between 0 and 3600 inclusive, was 'garbage'",
+                              }},
+                             // ttl is too big
+                             {{
+                                  std::map<std::string, std::string>({
+                                      {"user", "foo"},  // required
+                                      {"ttl", "3600.1"},
+                                  }),
+                              },
 
-                             {
-                                 typeid(std::invalid_argument),
-                                 "option ttl in [metadata_cache] needs value "
-                                 "between 0 and 3600 inclusive, was '3600.1'",
-                             }},
-                            // ttl is negative
-                            {{
-                                 std::map<std::string, std::string>({
-                                     {"user", "foo"},  // required
-                                     {"ttl", "-0.1"},
-                                 }),
-                             },
-                             {
-                                 typeid(std::invalid_argument),
-                                 "option ttl in [metadata_cache] needs value "
-                                 "between 0 and 3600 inclusive, was '-0.1'",
-                             }},
-                        })));
+                              {
+                                  typeid(std::invalid_argument),
+                                  "option ttl in [metadata_cache] needs value "
+                                  "between 0 and 3600 inclusive, was '3600.1'",
+                              }},
+                             // ttl is negative
+                             {{
+                                  std::map<std::string, std::string>({
+                                      {"user", "foo"},  // required
+                                      {"ttl", "-0.1"},
+                                  }),
+                              },
+                              {
+                                  typeid(std::invalid_argument),
+                                  "option ttl in [metadata_cache] needs value "
+                                  "between 0 and 3600 inclusive, was '-0.1'",
+                              }},
+                         })));
 
 using mysqlrouter::BasePluginConfig;
 
@@ -347,7 +347,7 @@ TEST_P(GetOptionMillisecondsOkTest, StringToMilliseconds) {
             BasePluginConfig::get_option_milliseconds(test_data.first));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     OkData, GetOptionMillisecondsOkTest,
     ::testing::ValuesIn(std::vector<GetOptionMillisecondsOkTestData>({
         {"1.0", std::chrono::milliseconds(1000)},
@@ -390,7 +390,7 @@ TEST_P(GetOptionMillisecondsBadTest, StringToMilliseconds) {
       std::invalid_argument, test_data.second);
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     OkData, GetOptionMillisecondsBadTest,
     ::testing::ValuesIn(std::vector<GetOptionMillisecondsBadTestData>({
         {"-1.0", "needs value between 0 and 3600 inclusive, was '-1.0'"},

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@ class TestProducerConsumerQueue : public ::testing::Test {};
 using ProducerConsumerQueueTypes =
     ::testing::Types<mysql_harness::WaitingMPMCQueue<int>,
                      mysql_harness::WaitingMPSCQueue<int>>;
-TYPED_TEST_CASE(TestProducerConsumerQueue, ProducerConsumerQueueTypes);
+TYPED_TEST_SUITE(TestProducerConsumerQueue, ProducerConsumerQueueTypes);
 
 /**
  * @test
@@ -149,7 +149,7 @@ TEST_P(TestProducerConsumerQueueP, mpmc) {
 }
 
 // ::testing::Combine() would be nice, but doesn't work with sun-cc
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     ManyToMany, TestProducerConsumerQueueP,
     ::testing::Values(
         std::make_tuple(1, 1), std::make_tuple(1, 2), std::make_tuple(1, 4),
@@ -237,7 +237,7 @@ TEST_P(TestProducerConsumerQueueSCP, mpsc) {
 }
 
 // ::testing::Combine() would be nice, but doesn't work with sun-cc
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     ManyToSingle, TestProducerConsumerQueueSCP,
     ::testing::Values(std::make_tuple(1, 1), std::make_tuple(2, 1),
                       std::make_tuple(4, 1), std::make_tuple(8, 1),

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -269,7 +269,7 @@ TEST_P(MetadataChacheTTLTestParam, CheckTTLValid) {
   ASSERT_THAT(router.kill(), testing::Eq(0));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     CheckTTLIsUsedCorrectly, MetadataChacheTTLTestParam,
     ::testing::Values(
         MetadataTTLTestParams("metadata_1_node_repeat_v2_gr.js", "0_gr_v2",
@@ -361,7 +361,7 @@ TEST_P(MetadataChacheTTLTestParamInvalid, CheckTTLInvalid) {
                                 500ms));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     CheckInvalidTTLRefusesStart, MetadataChacheTTLTestParamInvalid,
     ::testing::Values(
         MetadataTTLTestParams("metadata_1_node_repeat_gr_v2.js", "0_all",
@@ -455,7 +455,7 @@ TEST_P(MetadataChacheTTLTestInstanceListUnordered, InstancesListUnordered) {
   EXPECT_EQ(1, count_str_occurences(log_content, needle)) << log_content;
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     InstancesListUnordered, MetadataChacheTTLTestInstanceListUnordered,
     ::testing::Values(
         MetadataTTLTestParams("metadata_dynamic_nodes_v2_gr.js",
@@ -520,7 +520,7 @@ TEST_P(MetadataChacheTTLTestInvalidMysqlXPort, InvalidMysqlXPort) {
       client.connect("127.0.0.1", router_port, "username", "password", "", ""));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     InvalidMysqlXPort, MetadataChacheTTLTestInvalidMysqlXPort,
     ::testing::Values(MetadataTTLTestParams("metadata_dynamic_nodes_v2_gr.js",
                                             "gr_v2", ClusterType::GR_V1, "5"),
@@ -673,7 +673,7 @@ TEST_P(CheckRouterVersionUpdateOnceTest, CheckRouterVersionUpdateOnce) {
   }
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     CheckRouterVersionUpdateOnce, CheckRouterVersionUpdateOnceTest,
     ::testing::Values(
         MetadataTTLTestParams("metadata_dynamic_nodes_version_update.js",
@@ -762,7 +762,7 @@ TEST_P(PermissionErrorOnVersionUpdateTest, PermissionErrorOnVersionUpdate) {
       client.connect("127.0.0.1", router_port, "username", "password", "", ""));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     PermissionErrorOnVersionUpdate, PermissionErrorOnVersionUpdateTest,
     ::testing::Values(
         MetadataTTLTestParams("metadata_dynamic_nodes_version_update.js",
@@ -864,7 +864,7 @@ TEST_P(UpgradeInProgressTest, UpgradeInProgress) {
                                "the metada refresh") != std::string::npos);
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     UpgradeInProgress, UpgradeInProgressTest,
     ::testing::Values(
         MetadataTTLTestParams("metadata_dynamic_nodes_version_update.js",
@@ -976,7 +976,7 @@ TEST_P(NodeRemovedTest, NodeRemoved) {
   }
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     NodeRemoved, NodeRemovedTest,
     ::testing::Values(MetadataTTLTestParams("metadata_dynamic_nodes_v2_gr.js",
                                             "node_removed_gr_v2",
@@ -1132,7 +1132,7 @@ TEST_P(RWNodeHiddenTest, RWNodeHidden) {
   /*auto rw_con_3 =*/make_new_connection_ok(router_rw_port, node_ports[0]);
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     RWNodeHidden, RWNodeHiddenTest,
     ::testing::Values(MetadataTTLTestParams("metadata_dynamic_nodes_v2_gr.js",
                                             "rw_hidden_gr_v2",
@@ -1245,7 +1245,7 @@ TEST_P(RWNodeHiddenDontDisconnectToggleTest, RWNodeHiddenDontDisconnectToggle) {
   }
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     RWNodeHiddenDontDisconnectToggle, RWNodeHiddenDontDisconnectToggleTest,
     ::testing::Values(
         MetadataTTLTestParams("metadata_dynamic_nodes_v2_gr.js",
@@ -1298,7 +1298,7 @@ TEST_P(RWNodeHideThenDisconnectTest, RWNodeHideThenDisconnect) {
   verify_existing_connection_dropped(rw_con_1.get());
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     RWNodeHideThenDisconnect, RWNodeHideThenDisconnectTest,
     ::testing::Values(MetadataTTLTestParams("metadata_dynamic_nodes_v2_gr.js",
                                             "rw_hide_then_disconnect_gr_v2",
@@ -1379,7 +1379,7 @@ TEST_P(RORoundRobinNodeHiddenTest, RORoundRobinNodeHidden) {
   verify_existing_connection_ok(rw_con_1.get(), node_ports[0]);
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     RORoundRobinNodeHidden, RORoundRobinNodeHiddenTest,
     ::testing::Values(MetadataTTLTestParams("metadata_dynamic_nodes_v2_gr.js",
                                             "ro_round_robin_hidden_gr_v2",
@@ -1433,7 +1433,7 @@ TEST_P(OneNodeClusterHiddenTest, OneNodeClusterHidden) {
   make_new_connection_ok(router_rw_port, node_ports[0]);
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     OneNodeClusterHidden, OneNodeClusterHiddenTest,
     ::testing::Values(MetadataTTLTestParams("metadata_dynamic_nodes_v2_gr.js",
                                             "one_node_cluster_hidden_gr_v2",
@@ -1544,7 +1544,7 @@ TEST_P(InvalidAttributesTagsTest, InvalidAttributesTags) {
       2);
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     InvalidAttributesTags, InvalidAttributesTagsTest,
     ::testing::Values(MetadataTTLTestParams("metadata_dynamic_nodes_v2_gr.js",
                                             "invalid_attributes_tags_gr_v2",

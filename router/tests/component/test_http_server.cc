@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -861,7 +861,7 @@ const HttpServerPlainParams http_server_static_files_unusable_params[]{
 
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Spec, HttpServerPlainTest,
     ::testing::ValuesIn(http_server_static_files_params),
     [](const ::testing::TestParamInfo<HttpServerPlainParams> &info) {
@@ -1142,7 +1142,7 @@ static const HttpClientSecureParams http_client_secure_params[]{
      "DES-CBC-SHA", "invalid cipher"},
 #endif
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Spec, HttpClientSecureTest, ::testing::ValuesIn(http_client_secure_params),
     [](const ::testing::TestParamInfo<HttpClientSecureParams> &info) {
       return gtest_sanitize_param_name(
@@ -1466,7 +1466,7 @@ const HttpServerSecureParams http_server_secure_params[] {
        "key size of DH param"},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Spec, HttpServerSecureTest, ::testing::ValuesIn(http_server_secure_params),
     [](const ::testing::TestParamInfo<HttpServerSecureParams> &info) {
       return gtest_sanitize_param_name(
@@ -1509,7 +1509,7 @@ const HttpServerSecureParams http_server_secure_openssl102_plus_params[]{
      "no-error"},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Openssl102_plus, HttpServerSecureTest,
     ::testing::ValuesIn(http_server_secure_openssl102_plus_params),
     [](const ::testing::TestParamInfo<HttpServerSecureParams> &info) {
@@ -1627,7 +1627,7 @@ const HttpServerAuthParams http_server_auth_params[]{
     {"wrong password", "WL12503::TS_2_2", "/", 401, "other", "test"},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Spec, HttpServerAuthTest, ::testing::ValuesIn(http_server_auth_params),
     [](const ::testing::TestParamInfo<HttpServerAuthParams> &info) {
       return gtest_sanitize_param_name(
@@ -1852,7 +1852,7 @@ const HttpServerAuthFailParams http_server_auth_fail_params[]{
      false,
      "unknown backend=doesnotexist in section: http_auth_backend"}};
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Spec, HttpServerAuthFailTest,
     ::testing::ValuesIn(http_server_auth_fail_params),
     [](const ::testing::TestParamInfo<HttpServerAuthFailParams> &info) {

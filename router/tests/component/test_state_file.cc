@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -427,7 +427,7 @@ TEST_P(StateFileMetadataServersChangedInRuntimeTest,
       << get_file_output(state_file);
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     MetadataServersChangedInRuntime,
     StateFileMetadataServersChangedInRuntimeTest,
     ::testing::Values(
@@ -508,7 +508,7 @@ TEST_P(StateFileMetadataServersInaccessibleTest, MetadataServersInaccessible) {
       << get_file_output(state_file);
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     MetadataServersInaccessible, StateFileMetadataServersInaccessibleTest,
     ::testing::Values(StateFileTestParam{"gr", "metadata_dynamic_nodes.js",
                                          ClusterType::GR_V1},
@@ -602,7 +602,7 @@ TEST_P(StateFileGroupReplicationIdDiffersTest, GroupReplicationIdDiffers) {
                                                 /*should_fail=*/true));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     GroupReplicationIdDiffers, StateFileGroupReplicationIdDiffersTest,
     ::testing::Values(StateFileTestParam{"gr", "metadata_dynamic_nodes.js",
                                          ClusterType::GR_V1},
@@ -717,7 +717,7 @@ TEST_P(StateFileSplitBrainScenarioTest, SplitBrainScenario) {
                port_connected.c_str());
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     SplitBrainScenario, StateFileSplitBrainScenarioTest,
     ::testing::Values(StateFileTestParam{"gr", "metadata_dynamic_nodes.js",
                                          ClusterType::GR_V1},
@@ -844,7 +844,7 @@ TEST_P(StateFileSchemaTest, ParametrizedStateFileSchemaTest) {
   }
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     StateFileTests, StateFileSchemaTest,
     ::testing::Values(
         // state file does not exits
@@ -1133,7 +1133,7 @@ TEST_P(StateFileAccessRightsTest, ParametrizedStateFileSchemaTest) {
   EXPECT_TRUE(found);
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     StateFileTests, StateFileAccessRightsTest,
     ::testing::Values(
         // no read, nor write access

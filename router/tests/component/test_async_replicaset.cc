@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -1563,9 +1563,9 @@ TEST_P(NodeUnavailableTest, NodeUnavailable) {
   }
 }
 
-INSTANTIATE_TEST_CASE_P(NodeUnavailable, NodeUnavailableTest,
-                        ::testing::Values("first-available", "round-robin",
-                                          "round-robin-with-fallback"));
+INSTANTIATE_TEST_SUITE_P(NodeUnavailable, NodeUnavailableTest,
+                         ::testing::Values("first-available", "round-robin",
+                                           "round-robin-with-fallback"));
 
 class NodeUnavailableAllNodesDownTest
     : public AsyncReplicasetTest,
@@ -1651,10 +1651,10 @@ TEST_P(NodeUnavailableAllNodesDownTest, NodeUnavailableAllNodesDown) {
   }
 }
 
-INSTANTIATE_TEST_CASE_P(NodeUnavailableAllNodesDown,
-                        NodeUnavailableAllNodesDownTest,
-                        ::testing::Values("first-available", "round-robin",
-                                          "round-robin-with-fallback"));
+INSTANTIATE_TEST_SUITE_P(NodeUnavailableAllNodesDown,
+                         NodeUnavailableAllNodesDownTest,
+                         ::testing::Values("first-available", "round-robin",
+                                           "round-robin-with-fallback"));
 
 struct ClusterTypeMismatchTestParams {
   std::string cluster_type_str;
@@ -1728,14 +1728,15 @@ TEST_P(ClusterTypeMismatchTest, ClusterTypeMismatch) {
       << log_content;
 }
 
-INSTANTIATE_TEST_CASE_P(ClusterTypeMismatch, ClusterTypeMismatchTest,
-                        ::testing::Values(
-                            ClusterTypeMismatchTestParams{
-                                "rs", "metadata_dynamic_nodes_v2_gr.js",
-                                "Invalid cluster type 'gr'. Configured 'rs'"},
-                            ClusterTypeMismatchTestParams{
-                                "gr", "metadata_dynamic_nodes_v2_ar.js",
-                                "Invalid cluster type 'rs'. Configured 'gr'"}));
+INSTANTIATE_TEST_SUITE_P(
+    ClusterTypeMismatch, ClusterTypeMismatchTest,
+    ::testing::Values(
+        ClusterTypeMismatchTestParams{
+            "rs", "metadata_dynamic_nodes_v2_gr.js",
+            "Invalid cluster type 'gr'. Configured 'rs'"},
+        ClusterTypeMismatchTestParams{
+            "gr", "metadata_dynamic_nodes_v2_ar.js",
+            "Invalid cluster type 'rs'. Configured 'gr'"}));
 
 class UnexpectedResultFromMDRefreshTest
     : public AsyncReplicasetTest,
@@ -1828,13 +1829,13 @@ TEST_P(UnexpectedResultFromMDRefreshTest, UnexpectedResultFromMDRefreshQuery) {
   // check that the router did not crash (happens automatically)
 }
 
-INSTANTIATE_TEST_CASE_P(UnexpectedResultFromMDRefreshQuery,
-                        UnexpectedResultFromMDRefreshTest,
-                        ::testing::Values(
-                            ClusterTypeMismatchTestParams{
-                                "gr", "metadata_dynamic_nodes_v2_gr.js", ""},
-                            ClusterTypeMismatchTestParams{
-                                "rs", "metadata_dynamic_nodes_v2_ar.js", ""}));
+INSTANTIATE_TEST_SUITE_P(UnexpectedResultFromMDRefreshQuery,
+                         UnexpectedResultFromMDRefreshTest,
+                         ::testing::Values(
+                             ClusterTypeMismatchTestParams{
+                                 "gr", "metadata_dynamic_nodes_v2_gr.js", ""},
+                             ClusterTypeMismatchTestParams{
+                                 "rs", "metadata_dynamic_nodes_v2_ar.js", ""}));
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();
