@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -80,9 +80,9 @@ class unexpected {
 
   constexpr explicit unexpected(const error_type &e) : error_{e} {}
 
-  constexpr error_type &value() & noexcept { return error_; }
+  constexpr error_type &value() &noexcept { return error_; }
   constexpr const error_type &value() const &noexcept { return error_; }
-  constexpr error_type &&value() && noexcept { return std::move(error_); }
+  constexpr error_type &&value() &&noexcept { return std::move(error_); }
   constexpr const error_type &&value() const &&noexcept {
     return std::move(error_);
   }

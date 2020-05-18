@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,8 +66,8 @@ T &Collection<T>::Collection_iterator::operator*() {
 }
 
 template <typename T>
-const typename Collection<T>::abstract_type *
-    &Collection<T>::Collection_const_iterator::operator*() {
+const typename Collection<T>::abstract_type *&
+Collection<T>::Collection_const_iterator::operator*() {
   // Dereferencing an invalid iterator is prohibited.
   DBUG_ASSERT(m_current != m_array->end());
 
@@ -280,58 +280,58 @@ void Collection<T>::deep_copy(const Collection<T> &src, Parent_item *parent) {
 */
 
 template Column *&Collection<Column *>::Collection_iterator::operator*();
-template Column_type_element *
-    &Collection<Column_type_element *>::Collection_iterator::operator*();
-template Foreign_key *&Collection<Foreign_key *>::Collection_iterator::operator
-    *();
-template Foreign_key_element *
-    &Collection<Foreign_key_element *>::Collection_iterator::operator*();
+template Column_type_element *&
+Collection<Column_type_element *>::Collection_iterator::operator*();
+template Foreign_key *&
+Collection<Foreign_key *>::Collection_iterator::operator*();
+template Foreign_key_element *&
+Collection<Foreign_key_element *>::Collection_iterator::operator*();
 template Index *&Collection<Index *>::Collection_iterator::operator*();
-template Index_element *
-    &Collection<Index_element *>::Collection_iterator::operator*();
-template Parameter_type_element *
-    &Collection<Parameter_type_element *>::Collection_iterator::operator*();
+template Index_element *&
+Collection<Index_element *>::Collection_iterator::operator*();
+template Parameter_type_element *&
+Collection<Parameter_type_element *>::Collection_iterator::operator*();
 template Partition *&Collection<Partition *>::Collection_iterator::operator*();
-template dd::Partition_index *
-    &Collection<dd::Partition_index *>::Collection_iterator::operator*();
-template Tablespace_file *
-    &Collection<Tablespace_file *>::Collection_iterator::operator*();
+template dd::Partition_index *&
+Collection<dd::Partition_index *>::Collection_iterator::operator*();
+template Tablespace_file *&
+Collection<Tablespace_file *>::Collection_iterator::operator*();
 template Trigger *&Collection<Trigger *>::Collection_iterator::operator*();
-template Check_constraint *
-    &Collection<Check_constraint *>::Collection_iterator::operator*();
+template Check_constraint *&
+Collection<Check_constraint *>::Collection_iterator::operator*();
 
-template const Column *
-    &Collection<Column *>::Collection_const_iterator::operator*();
-template const Column_type_element *
-    &Collection<Column_type_element *>::Collection_const_iterator::operator*();
-template const Foreign_key *
-    &Collection<Foreign_key *>::Collection_const_iterator::operator*();
-template const Foreign_key_element *
-    &Collection<Foreign_key_element *>::Collection_const_iterator::operator*();
-template const Index *&Collection<Index *>::Collection_const_iterator::operator
-    *();
-template const Index_element *
-    &Collection<Index_element *>::Collection_const_iterator::operator*();
-template const Parameter *
-    &Collection<Parameter *>::Collection_const_iterator::operator*();
-template const Parameter_type_element *&Collection<
-    Parameter_type_element *>::Collection_const_iterator::operator*();
-template const Partition *
-    &Collection<Partition *>::Collection_const_iterator::operator*();
-template const Partition_index *
-    &Collection<Partition_index *>::Collection_const_iterator::operator*();
-template const Partition_value *
-    &Collection<Partition_value *>::Collection_const_iterator::operator*();
-template const Tablespace_file *
-    &Collection<Tablespace_file *>::Collection_const_iterator::operator*();
-template const View_routine *
-    &Collection<View_routine *>::Collection_const_iterator::operator*();
-template const View_table *
-    &Collection<View_table *>::Collection_const_iterator::operator*();
-template const Trigger *
-    &Collection<Trigger *>::Collection_const_iterator::operator*();
-template const Check_constraint *
-    &Collection<Check_constraint *>::Collection_const_iterator::operator*();
+template const Column *&
+Collection<Column *>::Collection_const_iterator::operator*();
+template const Column_type_element *&
+Collection<Column_type_element *>::Collection_const_iterator::operator*();
+template const Foreign_key *&
+Collection<Foreign_key *>::Collection_const_iterator::operator*();
+template const Foreign_key_element *&
+Collection<Foreign_key_element *>::Collection_const_iterator::operator*();
+template const Index *&
+Collection<Index *>::Collection_const_iterator::operator*();
+template const Index_element *&
+Collection<Index_element *>::Collection_const_iterator::operator*();
+template const Parameter *&
+Collection<Parameter *>::Collection_const_iterator::operator*();
+template const Parameter_type_element *&
+Collection<Parameter_type_element *>::Collection_const_iterator::operator*();
+template const Partition *&
+Collection<Partition *>::Collection_const_iterator::operator*();
+template const Partition_index *&
+Collection<Partition_index *>::Collection_const_iterator::operator*();
+template const Partition_value *&
+Collection<Partition_value *>::Collection_const_iterator::operator*();
+template const Tablespace_file *&
+Collection<Tablespace_file *>::Collection_const_iterator::operator*();
+template const View_routine *&
+Collection<View_routine *>::Collection_const_iterator::operator*();
+template const View_table *&
+Collection<View_table *>::Collection_const_iterator::operator*();
+template const Trigger *&
+Collection<Trigger *>::Collection_const_iterator::operator*();
+template const Check_constraint *&
+Collection<Check_constraint *>::Collection_const_iterator::operator*();
 
 template bool Collection<Column *>::restore_items<Abstract_table_impl>(
     Abstract_table_impl *, Open_dictionary_tables_ctx *, Raw_table *,

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -31,8 +31,7 @@
 namespace xpl {
 
 Cursor_command_delegate::Cursor_command_delegate(
-    iface::Session *session,
-    const bool ignore_fetch_suspended_at_cursor_open)
+    iface::Session *session, const bool ignore_fetch_suspended_at_cursor_open)
     : Streaming_command_delegate(session),
       m_ignore_fetch_suspended(ignore_fetch_suspended_at_cursor_open) {}
 
@@ -145,8 +144,7 @@ int Stmt_command_delegate::end_result_metadata(uint32_t server_status,
                                                          warn_count);
 }
 
-Prepare_command_delegate::Prepare_command_delegate(
-    iface::Session *session)
+Prepare_command_delegate::Prepare_command_delegate(iface::Session *session)
     : Streaming_command_delegate(session) {}
 
 Prepare_command_delegate::~Prepare_command_delegate() { on_destruction(); }

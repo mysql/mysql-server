@@ -1,6 +1,6 @@
 #ifndef MDL_H
 #define MDL_H
-/* Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -813,7 +813,7 @@ class MDL_request {
   }
 
   static void operator delete(void *, MEM_ROOT *,
-                              const std::nothrow_t &)noexcept {}
+                              const std::nothrow_t &) noexcept {}
 
   void init_with_source(MDL_key::enum_mdl_namespace namespace_arg,
                         const char *db_arg, const char *name_arg,

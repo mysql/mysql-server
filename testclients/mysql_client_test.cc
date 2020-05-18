@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1146,8 +1146,8 @@ static void test_wl4435_3() {
       !strcmp(pspv, "123.456789"));
 
   WL4435_TEST(
-      "CHAR(32)", "REPEAT('C', 16)", MYSQL_TYPE_STRING, MYSQL_TYPE_STRING, char,
-      [255],
+      "CHAR(32)", "REPEAT('C', 16)", MYSQL_TYPE_STRING, MYSQL_TYPE_STRING,
+      char, [255],
       ("  - CHAR(32) / char[] / MYSQL_TYPE_STRING:\t\t '%s'", (char *)pspv),
       !strcmp(pspv, "CCCCCCCCCCCCCCCC"));
 
@@ -1163,8 +1163,8 @@ static void test_wl4435_3() {
       ("  - TINYTEXT / char[] / MYSQL_TYPE_TINY_BLOB:\t\t '%s'", (char *)pspv),
       !strcmp(pspv, "tttttttttttttttt"));
 
-  WL4435_TEST("TEXT", "REPEAT('t', 16)", MYSQL_TYPE_BLOB, MYSQL_TYPE_BLOB, char,
-              [255],
+  WL4435_TEST("TEXT", "REPEAT('t', 16)", MYSQL_TYPE_BLOB, MYSQL_TYPE_BLOB,
+              char, [255],
               ("  - TEXT / char[] / MYSQL_TYPE_BLOB:\t\t\t '%s'", (char *)pspv),
               !strcmp(pspv, "tttttttttttttttt"));
 
