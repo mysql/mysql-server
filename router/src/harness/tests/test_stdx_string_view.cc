@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -218,7 +218,7 @@ using StringViewTestTypes =
     ::testing::Types<stdx::string_view, stdx::wstring_view,
                      stdx::u16string_view, stdx::u32string_view>;
 
-TYPED_TEST_CASE(StringViewTest, StringViewTestTypes);
+TYPED_TEST_SUITE(StringViewTest, StringViewTestTypes);
 
 TYPED_TEST(StringViewTest, construct_default) {
   TypeParam sv;

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,7 @@ using byte_swap_test_types =
                      unsigned char, unsigned int, unsigned long,
                      unsigned long long, uintmax_t>;
 
-TYPED_TEST_CASE(ByteSwapTest, byte_swap_test_types);
+TYPED_TEST_SUITE(ByteSwapTest, byte_swap_test_types);
 
 TYPED_TEST(ByteSwapTest, bswap) {
   EXPECT_EQ(
@@ -58,7 +58,7 @@ using stdx_bit_test_types =
                      unsigned int, unsigned long, unsigned long long,
                      uintmax_t>;
 
-TYPED_TEST_CASE(StdxBitTest, stdx_bit_test_types);
+TYPED_TEST_SUITE(StdxBitTest, stdx_bit_test_types);
 
 TYPED_TEST(StdxBitTest, popcount) {
   const TypeParam max_value = std::numeric_limits<TypeParam>::max();

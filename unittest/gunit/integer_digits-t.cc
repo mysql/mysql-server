@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -85,19 +85,16 @@ TEST_P(IntegerDigits, WriteDigits) {
   EXPECT_STREQ(expected, buffer);
 }
 
-// testing::Combine() is not available on Solaris.
-#ifdef GTEST_HAS_COMBINE
-
 // Test write_digits() with all input values from 0 to 1024, with a sufficiently
 // large number of digits to hold all (4).
-INSTANTIATE_TEST_CASE_P(SmallValues, IntegerDigits,
-                        testing::Combine(testing::Range(uint64_t{0},
-                                                        uint64_t{1024}),
-                                         testing::Values(4)));
+INSTANTIATE_TEST_SUITE_P(SmallValues, IntegerDigits,
+                         testing::Combine(testing::Range(uint64_t{0},
+                                                         uint64_t{1024}),
+                                          testing::Values(4)));
 
 // Test write_digits() with the largest three values, with and without
 // zero-padding.
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     LargeValues, IntegerDigits,
     testing::Combine(testing::Values(std::numeric_limits<uint64_t>::max() - 2,
                                      std::numeric_limits<uint64_t>::max() - 1,
@@ -106,11 +103,9 @@ INSTANTIATE_TEST_CASE_P(
 
 // Test write_digits() with all single-digit numbers, with and without
 // zero-padding.
-INSTANTIATE_TEST_CASE_P(SingleDigits, IntegerDigits,
-                        testing::Combine(testing::Range(uint64_t{0},
-                                                        uint64_t{10}),
-                                         testing::Values(1, 2, 3)));
-
-#endif  // GTEST_HAS_COMBINE
+INSTANTIATE_TEST_SUITE_P(SingleDigits, IntegerDigits,
+                         testing::Combine(testing::Range(uint64_t{0},
+                                                         uint64_t{10}),
+                                          testing::Values(1, 2, 3)));
 
 }  // namespace integer_digits_unittest

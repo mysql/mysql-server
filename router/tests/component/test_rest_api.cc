@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -187,7 +187,7 @@ static const RestApiTestParams rest_api_valid_methods[]{
      {}},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     ValidMethods, RestOpenApiTest, ::testing::ValuesIn(rest_api_valid_methods),
     [](const ::testing::TestParamInfo<RestApiTestParams> &info) {
       return info.param.test_name;
@@ -232,7 +232,7 @@ static const RestApiTestParams rest_api_valid_methods_no_auth_params[]{
      {}},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     ValidMethodsNoAuth, RestOpenApiTest,
     ::testing::ValuesIn(rest_api_valid_methods_no_auth_params),
     [](const ::testing::TestParamInfo<RestApiTestParams> &info) {
@@ -270,7 +270,7 @@ static const RestApiTestParams rest_api_valid_methods_invalid_auth_params[]{
      {}},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     ValidMethodsInvalidAuth, RestOpenApiTest,
     ::testing::ValuesIn(rest_api_valid_methods_invalid_auth_params),
     [](const ::testing::TestParamInfo<RestApiTestParams> &info) {
@@ -297,7 +297,7 @@ static const RestApiTestParams rest_api_invalid_methods_params[]{
      {}},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     InvalidMethods, RestOpenApiTest,
     ::testing::ValuesIn(rest_api_invalid_methods_params),
     [](const ::testing::TestParamInfo<RestApiTestParams> &info) {
@@ -324,7 +324,7 @@ static const RestApiTestParams rest_api_invalid_methods_no_auth_params[]{
      {}},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     InvalidMethodsNoAuth, RestOpenApiTest,
     ::testing::ValuesIn(rest_api_invalid_methods_no_auth_params),
     [](const ::testing::TestParamInfo<RestApiTestParams> &info) {

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -277,7 +277,7 @@ static const RestApiTestParams rest_api_params_without_cluster[]{
      kMetadataSwaggerPaths},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Spec, RestMetadataCacheApiWithoutClusterTest,
     ::testing::ValuesIn(rest_api_params_without_cluster),
     [](const ::testing::TestParamInfo<RestApiTestParams> &info) {
@@ -593,7 +593,7 @@ static const RestApiTestParams rest_api_valid_methods[]{
      kMetadataSwaggerPaths},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     ValidMethods, RestMetadataCacheApiTest,
     ::testing::ValuesIn(rest_api_valid_methods),
     [](const ::testing::TestParamInfo<RestApiTestParams> &info) {
@@ -667,7 +667,7 @@ static const RestApiTestParams rest_api_non_existig_resouces[]{
      kMetadataSwaggerPaths},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     NoNexistingResources, RestMetadataCacheApiTest,
     ::testing::ValuesIn(rest_api_non_existig_resouces),
     [](const ::testing::TestParamInfo<RestApiTestParams> &info) {
@@ -738,7 +738,7 @@ static const RestApiTestParams rest_api_valid_methods_invalid_auth_params[]{
      kMetadataSwaggerPaths},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     ValidMethodsInvalidAuth, RestMetadataCacheApiTest,
     ::testing::ValuesIn(rest_api_valid_methods_invalid_auth_params),
     [](const ::testing::TestParamInfo<RestApiTestParams> &info) {
@@ -825,7 +825,7 @@ static const RestApiTestParams rest_api_invalid_methods_params[]{
      RestApiComponentTest::kProblemJsonMethodNotAllowed, kMetadataSwaggerPaths},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     InvalidMethods, RestMetadataCacheApiTest,
     ::testing::ValuesIn(rest_api_invalid_methods_params),
     [](const ::testing::TestParamInfo<RestApiTestParams> &info) {

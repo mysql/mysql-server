@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2020, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -408,7 +408,7 @@ TEST_P(BasicMetadataHttpAuthTest, BasicMetadataHttpAuth) {
                                        GetParam().http_response.type));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     BasicMetadataHttpAuth, BasicMetadataHttpAuthTest,
     ::testing::Values(
         // matching user and password
@@ -517,7 +517,7 @@ TEST_P(InvalidMetadataHttpAuthTimersTest, InvalidMetadataHttpAuthTimers) {
   EXPECT_THAT(router.exit_code(), testing::Ne(0));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     InvalidMetadataHttpAuthTimers, InvalidMetadataHttpAuthTimersTest,
     ::testing::Values(
         std::string{"auth_cache_ttl=2.5\nauth_cache_refresh_interval=2.51\n"},
@@ -546,7 +546,7 @@ TEST_P(ValidMetadataHttpAuthTimersTest, ValidMetadataHttpAuthTimers) {
   ASSERT_NO_FATAL_FAILURE(wait_for_port_ready(router_port));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     ValidMetadataHttpAuthTimers, ValidMetadataHttpAuthTimersTest,
     ::testing::Values(
         std::string{
@@ -582,7 +582,7 @@ TEST_P(MetadataHttpAuthTestCustomTimers, MetadataHttpAuthCustomTimers) {
                                        kContentTypeJson));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     MetadataHttpAuthCustomTimers, MetadataHttpAuthTestCustomTimers,
     ::testing::Values(
         std::string{"auth_cache_ttl=3600\nauth_cache_refresh_interval=2\n"},
@@ -677,7 +677,7 @@ TEST_P(MetadataAuthCacheUpdate, AuthCacheUpdate) {
       json_doc, GetParam().second_http_response.type));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     AuthCacheUpdate, MetadataAuthCacheUpdate,
     ::testing::Values(
         // add user

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -196,7 +196,7 @@ typedef ::testing::Types<dd::Charset_impl, dd::Collation_impl,
                          dd::Table_impl, dd::Tablespace_impl, dd::View_impl,
                          dd::Event_impl, dd::Procedure_impl>
     DDTypes;
-TYPED_TEST_CASE(CacheTest, DDTypes);
+TYPED_TEST_SUITE(CacheTest, DDTypes);
 
 // Helper class to create objects and wrap them in elements.
 class CacheTestHelper {

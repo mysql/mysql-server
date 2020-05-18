@@ -29,7 +29,6 @@
 #include <string>
 #include <vector>
 
-#include "gmock/gmock-generated-nice-strict.h"
 #include "gtest/gtest.h"
 #include "lex_string.h"
 #include "my_alloc.h"

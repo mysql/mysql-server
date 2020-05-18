@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -107,7 +107,8 @@ class MyPreAllocTest : public ::testing::Test {
 
 size_t test_values[] = {100, 1000, 10000, 100000};
 
-INSTANTIATE_TEST_CASE_P(MyAlloc, MyAllocTest, ::testing::ValuesIn(test_values));
+INSTANTIATE_TEST_SUITE_P(MyAlloc, MyAllocTest,
+                         ::testing::ValuesIn(test_values));
 
 TEST_P(MyAllocTest, NoMemoryLimit) {
   m_num_objects = GetParam();

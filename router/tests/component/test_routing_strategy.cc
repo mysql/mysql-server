@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -394,7 +394,7 @@ TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
   ASSERT_THAT(router.kill(), testing::Eq(0));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     MetadataCacheRoutingStrategy, RouterRoutingStrategyMetadataCache,
     // node_id=0 is PRIARY, node_id=1..3 are SECONDARY
     ::testing::Values(
@@ -538,7 +538,7 @@ TEST_P(RouterRoutingStrategyTestRoundRobin, StaticRoutingStrategyRoundRobin) {
 
 // We expect round robin for routing-strategy=round-robin and as default for
 // read-only
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     StaticRoutingStrategyRoundRobin, RouterRoutingStrategyTestRoundRobin,
     ::testing::Values(
         std::make_pair(std::string("round-robin"), std::string("")),
@@ -618,7 +618,7 @@ TEST_P(RouterRoutingStrategyTestFirstAvailable,
 
 // We expect first-available for routing-strategy=first-available and as default
 // for read-write
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     StaticRoutingStrategyFirstAvailable,
     RouterRoutingStrategyTestFirstAvailable,
     ::testing::Values(

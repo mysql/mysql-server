@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -162,8 +162,8 @@ class StrnxfrmTest : public ::testing::TestWithParam<size_t> {
 
 size_t test_values[] = {1, 10, 100, 1000};
 
-INSTANTIATE_TEST_CASE_P(Strnxfrm, StrnxfrmTest,
-                        ::testing::ValuesIn(test_values));
+INSTANTIATE_TEST_SUITE_P(Strnxfrm, StrnxfrmTest,
+                         ::testing::ValuesIn(test_values));
 
 TEST_P(StrnxfrmTest, OriginalSrcDst) {
   CHARSET_INFO *cs = init_collation("latin1_swedish_ci");

@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -63,21 +63,27 @@ IF(MY_COMPILER_IS_CLANG)
 ENDIF()
 
 SET(TEST_MODULE "routing")
-FOREACH(test_file
-    test_block_clients.cc
-    test_classic_protocol.cc
-    test_config.cc
-    test_connection.cc
-    test_connection_container.cc
-    test_first_available.cc
-    test_metadata_cache_group.cc
-    test_next_available.cc
-    test_round_robin.cc
-    test_routing.cc
-    test_setup_named_socket_service.cc
-    test_setup_tcp_service.cc
-    test_x_protocol.cc
-    )
+SET(test_files
+  test_block_clients.cc
+  test_classic_protocol.cc
+  test_config.cc
+  test_connection.cc
+  test_connection_container.cc
+  test_first_available.cc
+  test_metadata_cache_group.cc
+  test_next_available.cc
+  test_round_robin.cc
+  test_routing.cc
+  test_setup_named_socket_service.cc
+  test_setup_tcp_service.cc
+  test_x_protocol.cc
+  )
+# This compiler fails to handle some of the mock functions involved.
+IF(MY_COMPILER_IS_SUNPRO)
+  LIST(REMOVE_ITEM test_files test_connection.cc)
+ENDIF()
+
+FOREACH(test_file ${test_files})
   add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   MODULE ${TEST_MODULE}
   LIB_DEPENDS routing_tests test-helpers

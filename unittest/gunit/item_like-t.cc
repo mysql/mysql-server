@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -191,8 +191,8 @@ static const char *needles[] = {"%CAAAACCACTATGAGATATCATCTCACACCAGTTA%",
                                 "%ACAGGTGCTGGAGAGGATGCGGAGAAATAGGAACA%",
                                 "%CAGGTGCTGGAGAGGATGCGGAGAAATAGGAACAC%"};
 
-INSTANTIATE_TEST_CASE_P(MoreNeedles, ItemLikeTestP,
-                        ::testing::ValuesIn(needles));
+INSTANTIATE_TEST_SUITE_P(MoreNeedles, ItemLikeTestP,
+                         ::testing::ValuesIn(needles));
 
 TEST_P(ItemLikeTestP, MoreNeedlesTest) {
   Item_string *it_haystack =
@@ -278,8 +278,8 @@ static const char *falseNeedles[] = {
     "%ACAAGGATAAAGAGGCGTAGGAGAGGTCGTGGACA%",
     "%CACAAGGATAAAGAGGCGTAGGAGAGGTCGTGGAC%"};
 
-INSTANTIATE_TEST_CASE_P(FalseNeedlesTest, ItemFalseLikeTestP,
-                        ::testing::ValuesIn(falseNeedles));
+INSTANTIATE_TEST_SUITE_P(FalseNeedlesTest, ItemFalseLikeTestP,
+                         ::testing::ValuesIn(falseNeedles));
 
 TEST_P(ItemFalseLikeTestP, FalseNeedlesTest) {
   Item_string *it_haystack =

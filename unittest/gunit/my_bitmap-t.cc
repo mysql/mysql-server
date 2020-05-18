@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -462,7 +462,7 @@ const uint test_values[] = {
     2 * 32U - 1, 2 * 32U,     2 * 32U + 1, 3 * 32U - 1, 3 * 32U,
     3 * 32U + 1, 4 * 32U - 1, 4 * 32U,     4 * 32U + 1, MAX_TESTED_BITMAP_SIZE};
 
-INSTANTIATE_TEST_CASE_P(Foo, BitMapTest, ::testing::ValuesIn(test_values));
+INSTANTIATE_TEST_SUITE_P(Foo, BitMapTest, ::testing::ValuesIn(test_values));
 
 TEST_P(BitMapTest, TestSetGetClearBit) {
   EXPECT_FALSE(test_set_get_clear_bit(&map, bitsize)) << "bitsize=" << bitsize;

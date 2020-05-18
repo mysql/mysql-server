@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -312,8 +312,8 @@ const char *good_examples[] = {("[one]\n"
                                 "[one:my_key]\n"
                                 "foo = {one}a{two}\n")};
 
-INSTANTIATE_TEST_CASE_P(TestParsing, GoodParseTestAllowKey,
-                        ::testing::ValuesIn(good_examples));
+INSTANTIATE_TEST_SUITE_P(TestParsing, GoodParseTestAllowKey,
+                         ::testing::ValuesIn(good_examples));
 
 // Test fixture to compare option value with the result of
 // interpolating the value.
@@ -359,8 +359,8 @@ const Sample interpolate_examples[] = {
      R"(c:\foo\bar\{425432-5425432-5423534253-542342})"},
 };
 
-INSTANTIATE_TEST_CASE_P(TestParsing, TestInterpolate,
-                        ValuesIn(interpolate_examples));
+INSTANTIATE_TEST_SUITE_P(TestParsing, TestInterpolate,
+                         ValuesIn(interpolate_examples));
 
 TEST(TestConfig, RecursiveInterpolate) {
   const char *const config_text{
@@ -454,8 +454,8 @@ static const char *syntax_problems[] = {
      "foo = baz\n"),
 };
 
-INSTANTIATE_TEST_CASE_P(TestParsingSyntaxError, BadParseTestForbidKey,
-                        ::testing::ValuesIn(syntax_problems));
+INSTANTIATE_TEST_SUITE_P(TestParsingSyntaxError, BadParseTestForbidKey,
+                         ::testing::ValuesIn(syntax_problems));
 
 class BadParseTestAllowKeys : public ::testing::TestWithParam<const char *> {
  protected:
@@ -497,8 +497,8 @@ static const char *semantic_problems[] = {
      "foo = {one}a{two}\n"),
 };
 
-INSTANTIATE_TEST_CASE_P(TestParseErrorAllowKeys, BadParseTestAllowKeys,
-                        ::testing::ValuesIn(semantic_problems));
+INSTANTIATE_TEST_SUITE_P(TestParseErrorAllowKeys, BadParseTestAllowKeys,
+                         ::testing::ValuesIn(semantic_problems));
 
 TEST(TestConfig, ConfigUpdate) {
   const char *const configs[]{
@@ -724,11 +724,11 @@ static const std::array<InvalidConfigParam, 4> invalid_config_params = {{
      "characters and _ are valid."},
 }};
 
-INSTANTIATE_TEST_CASE_P(Spec, InvalidConfigTest,
-                        ::testing::ValuesIn(invalid_config_params),
-                        [](auto const &test_params) {
-                          return test_params.param.test_name;
-                        });
+INSTANTIATE_TEST_SUITE_P(Spec, InvalidConfigTest,
+                         ::testing::ValuesIn(invalid_config_params),
+                         [](auto const &test_params) {
+                           return test_params.param.test_name;
+                         });
 
 int main(int argc, char *argv[]) {
   g_here = Path(argv[0]).dirname();

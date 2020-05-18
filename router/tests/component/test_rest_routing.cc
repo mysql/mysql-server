@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -744,7 +744,7 @@ static const RestApiTestParams rest_api_valid_methods[]{
      kRoutingSwaggerPaths},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     ValidMethods, RestRoutingApiTest,
     ::testing::ValuesIn(rest_api_valid_methods),
     [](const ::testing::TestParamInfo<RestApiTestParams> &info) {
@@ -836,7 +836,7 @@ static const RestApiTestParams rest_api_valid_methods_invalid_auth_params[]{
      kRoutingSwaggerPaths},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     ValidMethodsInvalidAuth, RestRoutingApiTest,
     ::testing::ValuesIn(rest_api_valid_methods_invalid_auth_params),
     [](const ::testing::TestParamInfo<RestApiTestParams> &info) {
@@ -919,7 +919,7 @@ static const RestApiTestParams rest_api_invalid_methods_params[]{
      RestApiComponentTest::kProblemJsonMethodNotAllowed, kRoutingSwaggerPaths},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     InvalidMethods, RestRoutingApiTest,
     ::testing::ValuesIn(rest_api_invalid_methods_params),
     [](const ::testing::TestParamInfo<RestApiTestParams> &info) {
@@ -1296,7 +1296,7 @@ static const RestApiTestParams rest_api_valid_methods_params_cluster[]{
      kRoutingSwaggerPaths},
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     ValidMethodsCluster, RestRoutingApiTestCluster,
     ::testing::ValuesIn(rest_api_valid_methods_params_cluster),
     [](const ::testing::TestParamInfo<RestApiTestParams> &info) {

@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -401,7 +401,7 @@ TEST_P(GrNotificationsParamTest, GrNotification) {
   ASSERT_EQ(expected_md_queries_count, md_queries_count);
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     CheckNoticesHandlingIsOk, GrNotificationsParamTest,
     ::testing::Values(
         // 0) single notification received from single (first) node
@@ -679,9 +679,9 @@ TEST_P(GrNotificationNoXPortTest, GrNotificationNoXPort) {
   check_exit_code(router, EXIT_SUCCESS, 22000ms);
 }
 
-INSTANTIATE_TEST_CASE_P(GrNotificationNoXPort, GrNotificationNoXPortTest,
-                        ::testing::Values("metadata_dynamic_nodes_v2_gr.js",
-                                          "metadata_dynamic_nodes.js"));
+INSTANTIATE_TEST_SUITE_P(GrNotificationNoXPort, GrNotificationNoXPortTest,
+                         ::testing::Values("metadata_dynamic_nodes_v2_gr.js",
+                                           "metadata_dynamic_nodes.js"));
 
 class GrNotificationMysqlxWaitTimeoutUnsupportedTest
     : public GrNotificationsTest,
@@ -829,10 +829,10 @@ TEST_P(GrNotificationNoticesUnsupportedTest, GrNotificationNoticesUnsupported) {
   EXPECT_TRUE(found);
 }
 
-INSTANTIATE_TEST_CASE_P(GrNotificationNoticesUnsupported,
-                        GrNotificationNoticesUnsupportedTest,
-                        ::testing::Values("metadata_dynamic_nodes_v2_gr.js",
-                                          "metadata_dynamic_nodes.js"));
+INSTANTIATE_TEST_SUITE_P(GrNotificationNoticesUnsupported,
+                         GrNotificationNoticesUnsupportedTest,
+                         ::testing::Values("metadata_dynamic_nodes_v2_gr.js",
+                                           "metadata_dynamic_nodes.js"));
 
 class GrNotificationXPortConnectionFailureTest
     : public GrNotificationsTest,
@@ -905,10 +905,10 @@ TEST_P(GrNotificationXPortConnectionFailureTest,
   ASSERT_EQ(2, md_queries_count);
 }
 
-INSTANTIATE_TEST_CASE_P(GrNotificationXPortConnectionFailure,
-                        GrNotificationXPortConnectionFailureTest,
-                        ::testing::Values("metadata_dynamic_nodes_v2_gr.js",
-                                          "metadata_dynamic_nodes.js"));
+INSTANTIATE_TEST_SUITE_P(GrNotificationXPortConnectionFailure,
+                         GrNotificationXPortConnectionFailureTest,
+                         ::testing::Values("metadata_dynamic_nodes_v2_gr.js",
+                                           "metadata_dynamic_nodes.js"));
 
 struct ConfErrorTestParams {
   std::string use_gr_notifications_option_value;
@@ -962,7 +962,7 @@ TEST_P(GrNotificationsConfErrorTest, GrNotificationConfError) {
       << log_content;
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     CheckNoticesConfError, GrNotificationsConfErrorTest,
     ::testing::Values(
         ConfErrorTestParams{"2",

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -565,7 +565,7 @@ TEST_P(RouterLoggingTestConfig, LoggingTestConfig) {
   }
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     LoggingConfigTest, RouterLoggingTestConfig,
     ::testing::Values(
         // no logger section, no sinks sections
@@ -829,7 +829,7 @@ INSTANTIATE_TEST_CASE_P(
             /* filelog_expected_level =  */ LogLevel::kSystem)));
 
 #ifndef WIN32
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     LoggingConfigTestUnix, RouterLoggingTestConfig,
     ::testing::Values(
         // We can't reliably check if the syslog logging is working with a
@@ -879,7 +879,7 @@ INSTANTIATE_TEST_CASE_P(
             /* consolelog_expected_level =  */ LogLevel::kNotSet,
             /* filelog_expected_level =  */ LogLevel::kNote)));
 #else
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     LoggingConfigTestWindows, RouterLoggingTestConfig,
     ::testing::Values(
         // We can't reliably check if the eventlog logging is working with a
@@ -989,7 +989,7 @@ TEST_P(RouterLoggingConfigError, LoggingConfigError) {
       << console_log_txt;
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     LoggingConfigError, RouterLoggingConfigError,
     ::testing::Values(
         // Unknown sink name in the [logger] section
@@ -1104,7 +1104,7 @@ INSTANTIATE_TEST_CASE_P(
             "logging_folder is empty")));
 
 #ifndef _WIN32
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     LoggingConfigErrorUnix, RouterLoggingConfigError,
     ::testing::Values(
         // We can't reliably check if the syslog logging is working with a
@@ -1131,7 +1131,7 @@ INSTANTIATE_TEST_CASE_P(
             /* expected_error =  */
             "Loading plugin for config-section '[eventlog]' failed")));
 #else
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     LoggingConfigErrorWindows, RouterLoggingConfigError,
     ::testing::Values(
         // We can't reliably check if the eventlog logging is working with a
@@ -1316,7 +1316,7 @@ TEST_P(RouterLoggingTestTimestampPrecisionConfig,
 
 #define TS_FR1_3_STR(x) TS_FR1_1_STR(x)
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     LoggingConfigTimestampPrecisionTest,
     RouterLoggingTestTimestampPrecisionConfig,
     ::testing::Values(
@@ -1606,7 +1606,7 @@ INSTANTIATE_TEST_CASE_P(
             /* filelog_expected_timestamp_precision = */
             LogTimestampPrecision::kSec)));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     LoggingConfigTimestampPrecisionError, RouterLoggingConfigError,
     ::testing::Values(
         // Unknown timestamp_precision value in a sink
@@ -1641,7 +1641,7 @@ INSTANTIATE_TEST_CASE_P(
                                  "Configuration error: Option "
                                  "'timestamp_precision' already defined.")));
 #ifndef _WIN32
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     LoggingConfigTimestampPrecisionErrorUnix, RouterLoggingConfigError,
     ::testing::Values(
         /*0*/ /* TS_HLD_1 */
@@ -1654,7 +1654,7 @@ INSTANTIATE_TEST_CASE_P(
                                  "Configuration error: timestamp_precision not "
                                  "valid for 'syslog'")));
 #else
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     LoggingConfigTimestampPrecisionErrorWindows, RouterLoggingConfigError,
     ::testing::Values(
         /*0*/ /* TS_HLD_3 */
@@ -2324,7 +2324,7 @@ TEST_P(RouterLoggingTestConfigFilename, LoggingTestConfigFilename) {
       << file_log_txt;
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     LoggingTestConfigFilename, RouterLoggingTestConfigFilename,
     ::testing::Values(
         // default filename in logger section
@@ -2482,7 +2482,7 @@ TEST_P(RouterLoggingTestConfigFilenameDevices,
 #endif
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     LoggingTestConsoleDestinationDevices,
     RouterLoggingTestConfigFilenameDevices,
     ::testing::Values(
@@ -2494,7 +2494,7 @@ INSTANTIATE_TEST_CASE_P(
         LoggingConfigFilenameOkParams(NOT_USED, STDOUT_DEVICE_NAME, false)));
 
 #ifndef WIN32
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     LoggingTestConsoleDestinationDevicesUnix,
     RouterLoggingTestConfigFilenameDevices,
     ::testing::Values(
@@ -2601,7 +2601,7 @@ TEST_P(RouterLoggingConfigFilenameError, LoggingConfigAbsRelFilenameError) {
   }
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     LoggingConfigAbsRelFilenameError, RouterLoggingConfigFilenameError,
     ::testing::Values(
         // TS_FR02_01 filename with relative path in logger
@@ -2926,7 +2926,7 @@ TEST_P(RouterLoggingTestConfigFilenameLoggingFolder,
   }
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     LoggingTestConsoleDestinationDevices,
     RouterLoggingTestConfigFilenameLoggingFolder,
     ::testing::Values(
