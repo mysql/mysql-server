@@ -1127,7 +1127,15 @@ class Item : public Parse_tree_node {
   */
   void propagate_type(enum_field_types def = MYSQL_TYPE_VARCHAR,
                       bool pin = false, bool inherit = false) {
-    if (data_type() != MYSQL_TYPE_INVALID) return;
+    /*
+      Propagate supplied type if types have not yet been assigned to expression,
+      or type is pinned, in which case the supplied type overrides the
+      actual type of parameters. Note we do not support "pinning" of
+      expressions containing parameters, only standalone parameters,
+      but this is a very minor problem.
+   */
+    if (data_type() != MYSQL_TYPE_INVALID && !(pin && type() == PARAM_ITEM))
+      return;
     propagate_type((def == MYSQL_TYPE_VARCHAR)
                        ? Type_properties(def, Item::default_charset())
                        : (def == MYSQL_TYPE_JSON)
