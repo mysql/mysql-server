@@ -3754,6 +3754,13 @@ static bool check_binlog_transaction_dependency_tracking(sys_var *, THD *,
 static bool update_binlog_transaction_dependency_tracking(sys_var *, THD *,
                                                           enum_var_type) {
   /*
+    m_opt_tracking_mode is read and written in an atomic way based
+    on the value of m_opt_tracking_mode_value that is associated
+    with the sys_var variable.
+  */
+  set_mysqld_opt_tracking_mode();
+
+  /*
     the writeset_history_start needs to be set to 0 whenever there is a
     change in the transaction dependency source so that WS and COMMIT
     transition smoothly.
@@ -3772,7 +3779,7 @@ static Sys_var_enum Binlog_transaction_dependency_tracking(
     "assess which transactions can be executed in parallel by the "
     "slave's multi-threaded applier. "
     "Possible values are COMMIT_ORDER, WRITESET and WRITESET_SESSION.",
-    GLOBAL_VAR(mysql_bin_log.m_dependency_tracker.m_opt_tracking_mode),
+    GLOBAL_VAR(mysql_bin_log.m_dependency_tracker.m_opt_tracking_mode_value),
     CMD_LINE(REQUIRED_ARG), opt_binlog_transaction_dependency_tracking_names,
     DEFAULT(DEPENDENCY_TRACKING_COMMIT_ORDER), &PLock_slave_trans_dep_tracker,
     NOT_IN_BINLOG, ON_CHECK(check_binlog_transaction_dependency_tracking),

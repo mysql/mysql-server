@@ -4937,6 +4937,7 @@ int init_common_variables() {
     return 1;
   }
 
+  set_mysqld_opt_tracking_mode();
   if (global_system_variables.transaction_write_set_extraction ==
           HASH_ALGORITHM_OFF &&
       mysql_bin_log.m_dependency_tracker.m_opt_tracking_mode !=
@@ -11600,4 +11601,13 @@ bool mysqld_partial_revokes() {
 */
 void set_mysqld_partial_revokes(bool value) {
   partial_revokes.store(value, std::memory_order_relaxed);
+}
+
+/**
+  Set m_opt_tracking_mode with a user given value associated with sysvar.
+*/
+void set_mysqld_opt_tracking_mode() {
+  mysql_bin_log.m_dependency_tracker.m_opt_tracking_mode.store(
+      mysql_bin_log.m_dependency_tracker.m_opt_tracking_mode_value,
+      std::memory_order_relaxed);
 }
