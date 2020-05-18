@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -269,9 +269,9 @@ class Double_write {
   @param[in] buf_pool_index     Buffer pool instance number.
   @param[in] flush_type         LRU or Flush list write.
   @return instance that will handle the flush to disk. */
-  static Double_write *instance(
-      buf_flush_t flush_type,
-      uint32_t buf_pool_index) noexcept MY_ATTRIBUTE((warn_unused_result)) {
+  static Double_write *instance(buf_flush_t flush_type,
+                                uint32_t buf_pool_index) noexcept
+      MY_ATTRIBUTE((warn_unused_result)) {
     ut_a(buf_pool_index < srv_buf_pool_instances);
 
     auto midpoint = s_instances->size() / 2;
@@ -398,14 +398,14 @@ class Double_write {
   /** Create the batch write segments.
   @param[in] segments_per_file  Number of configured segments per file.
   @return DB_SUCCESS or error code. */
-  static dberr_t create_batch_segments(
-      uint32_t segments_per_file) noexcept MY_ATTRIBUTE((warn_unused_result));
+  static dberr_t create_batch_segments(uint32_t segments_per_file) noexcept
+      MY_ATTRIBUTE((warn_unused_result));
 
   /** Create the single page flush segments.
   @param[in] segments_per_file  Number of configured segments per file.
   @return DB_SUCCESS or error code. */
-  static dberr_t create_single_segments(
-      uint32_t segments_per_file) noexcept MY_ATTRIBUTE((warn_unused_result));
+  static dberr_t create_single_segments(uint32_t segments_per_file) noexcept
+      MY_ATTRIBUTE((warn_unused_result));
 
   // clang-format off
   /** @return the double write instance to use for flushing.

@@ -158,7 +158,7 @@ class Ed_result_set final {
   }
 
   static void operator delete(
-      void *, MEM_ROOT *, const std::nothrow_t &)noexcept { /* never called */
+      void *, MEM_ROOT *, const std::nothrow_t &) noexcept { /* never called */
   }
 
  private:

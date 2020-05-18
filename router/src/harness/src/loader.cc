@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -301,7 +301,7 @@ bool PluginFuncEnv::is_running() const noexcept {
 }
 
 bool PluginFuncEnv::wait_for_stop(uint32_t milliseconds) const noexcept {
-  auto pred = [this]() noexcept->bool { return !running_; };
+  auto pred = [this]() noexcept -> bool { return !running_; };
 
   std::unique_lock<std::mutex> lock(mutex_);
   if (milliseconds)  // 0 = wait forever
@@ -858,10 +858,10 @@ static void call_plugin_function(PluginFuncEnv *env, std::exception_ptr &eptr,
                                  void (*fptr)(PluginFuncEnv *),
                                  const char *fnc_name, const char *plugin_name,
                                  const char *plugin_key = nullptr) noexcept {
-  auto handle_plugin_exception =
-      [](std::exception_ptr & first_eptr, const std::string &func_name,
-         const char *plug_name, const char *plug_key,
-         const std::exception *e) noexcept->void {
+  auto handle_plugin_exception = [](std::exception_ptr &first_eptr,
+                                    const std::string &func_name,
+                                    const char *plug_name, const char *plug_key,
+                                    const std::exception *e) noexcept -> void {
     // Plugins are not allowed to throw, so let's alert the devs. But in
     // production, we want to be robust and try to handle this gracefully
     assert(0);

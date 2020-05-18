@@ -75,7 +75,7 @@ class Server_side_cursor {
   virtual ~Server_side_cursor() { free_root(&mem_root, MYF(0)); }
   static void operator delete(void *ptr, size_t size);
   static void operator delete(
-      void *, MEM_ROOT *, const std::nothrow_t &)noexcept { /* never called */
+      void *, MEM_ROOT *, const std::nothrow_t &) noexcept { /* never called */
   }
 };
 

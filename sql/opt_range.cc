@@ -2573,7 +2573,7 @@ class TABLE_READ_PLAN {
     TRASH(ptr, size);
   }
   static void operator delete(
-      void *, MEM_ROOT *, const std::nothrow_t &)noexcept { /* Never called */
+      void *, MEM_ROOT *, const std::nothrow_t &) noexcept { /* Never called */
   }
   virtual ~TABLE_READ_PLAN() = default;
 

@@ -1828,7 +1828,8 @@ static int merge_buffers(THD *thd, Sort_param *param, IO_CACHE *from_file,
   Priority_queue<Merge_chunk *,
                  std::vector<Merge_chunk *, Malloc_allocator<Merge_chunk *>>,
                  Merge_chunk_greater>
-  queue(mcl, Malloc_allocator<Merge_chunk *>(key_memory_Filesort_info_merge));
+      queue(mcl,
+            Malloc_allocator<Merge_chunk *>(key_memory_Filesort_info_merge));
 
   if (queue.reserve(chunk_array.size())) return 1;
 

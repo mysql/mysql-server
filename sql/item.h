@@ -806,7 +806,7 @@ class Item : public Parse_tree_node {
     TRASH(ptr, size);
   }
   static void operator delete(void *, MEM_ROOT *,
-                              const std::nothrow_t &)noexcept {}
+                              const std::nothrow_t &) noexcept {}
 
   enum Type {
     INVALID_ITEM = 0,

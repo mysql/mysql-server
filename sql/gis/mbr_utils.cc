@@ -1,4 +1,4 @@
-// Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -189,7 +189,7 @@ static void geographic_envelope(const Geometry *g, double semi_major,
                                 double semi_minor, Geographic_box *mbr) {
   bg::strategy::envelope::geographic<bg::strategy::andoyer,
                                      bg::srs::spheroid<double>>
-  strategy(bg::srs::spheroid<double>(semi_major, semi_minor));
+      strategy(bg::srs::spheroid<double>(semi_major, semi_minor));
   switch (g->type()) {
     case Geometry_type::kPoint:
       bg::envelope(*down_cast<const Geographic_point *>(g), *mbr);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -41,8 +41,7 @@ class Admin_command_index {
   using Command_arguments = iface::Admin_command_arguments;
   using Argument_appearance = Command_arguments::Appearance_type;
 
-  explicit Admin_command_index(iface::Session *session)
-      : m_session(session) {}
+  explicit Admin_command_index(iface::Session *session) : m_session(session) {}
   ngs::Error_code create(Command_arguments *args);
   ngs::Error_code drop(Command_arguments *args);
 
