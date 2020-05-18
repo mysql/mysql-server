@@ -359,7 +359,7 @@ void init_client_errs(void);
 void finish_client_errs(void);
 extern const char *client_errors[];
 static inline const char *ER_CLIENT(int client_errno) {
-  if (client_errno >= 2000 && client_errno <= 2069)
+  if (client_errno >= 2000 && client_errno <= 2070)
     return client_errors[client_errno - 2000];
   return client_errors[2000];
 }
@@ -805,3 +805,8 @@ int mysql_next_result(MYSQL *mysql);
 int mysql_stmt_next_result(MYSQL_STMT *stmt);
 void mysql_close(MYSQL *sock);
 void mysql_reset_server_public_key(void);
+MYSQL * mysql_real_connect_dns_srv(MYSQL *mysql,
+                                          const char *dns_srv_name,
+                                          const char *user, const char *passwd,
+                                          const char *db,
+                                          unsigned long client_flag);

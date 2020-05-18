@@ -176,6 +176,7 @@ SET(TESTS
   collation_loader
   my_rcu_lock
   unhex
+  dns_srv_data
   )
 
 SET(ALL_SMALL_TESTS)

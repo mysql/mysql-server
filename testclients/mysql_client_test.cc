@@ -14197,6 +14197,42 @@ static void test_bug12744() {
   DIE_UNLESS(rc == 0);
 }
 
+static void test_wl13905() {
+  MYSQL_STMT *prep_stmt = nullptr;
+  MYSQL *lmysql;
+  int rc = 0;
+  bool connected = false;
+  myheader("test_wl13905: This test needs a DNS with valid entries for mysql");
+
+  lmysql = mysql_client_init(nullptr);
+  DIE_UNLESS(lmysql);
+
+  if (!mysql_real_connect_dns_srv(lmysql, "_mysql1._tcp.localhost", "root",
+                                  "mypass", current_db, 0)) {
+    fprintf(stdout, "Failed to connect with DNS to the database\n");
+    fprintf(stdout,
+            "DNS is a literal until permanent test DNS will be available!\n");
+    fprintf(stdout, "Error: %s\n", mysql_error(lmysql));
+    connected = false;
+    mysql_close(lmysql);
+  } else {
+    connected = true;
+  }
+
+  if (connected) {
+    prep_stmt = mysql_stmt_init(lmysql);
+    rc = mysql_stmt_prepare(
+        prep_stmt, "SELECT host,ip FROM performance_schema.host_cach", 48);
+    mysql_close(lmysql);
+    rc = mysql_stmt_execute(prep_stmt);
+    DIE_UNLESS(rc);
+    rc = mysql_stmt_reset(prep_stmt);
+    DIE_UNLESS(rc);
+    rc = mysql_stmt_close(prep_stmt);
+    DIE_UNLESS(rc);
+  }
+}
+
 /* Bug #16143: mysql_stmt_sqlstate returns an empty string instead of '00000' */
 
 static void test_bug16143() {
@@ -21694,6 +21730,7 @@ static struct my_tests_st my_tests[] = {
     {"test_bug31048553", test_bug31048553},
     {"test_bug31082201", test_bug31082201},
     {"test_bug31104389", test_bug31104389},
+    {"test_wl13905", test_wl13905},
     {nullptr, nullptr}};
 
 static struct my_tests_st *get_my_tests() { return my_tests; }

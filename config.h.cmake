@@ -339,4 +339,9 @@
 
 #define SO_EXT "@CMAKE_SHARED_MODULE_SUFFIX@"
 
+
+/* From libmysql/CMakeLists.txt */
+#cmakedefine HAVE_UNIX_DNS_SRV @HAVE_UNIX_DNS_SRV@
+#cmakedefine HAVE_WIN32_DNS_SRV @HAVE_WIN32_DNS_SRV@
+
 #endif
