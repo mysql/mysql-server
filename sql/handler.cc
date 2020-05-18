@@ -385,12 +385,13 @@ plugin_ref ha_resolve_by_name_raw(THD *thd, const LEX_CSTRING &name) {
 static const CHARSET_INFO &hton_charset() { return *system_charset_info; }
 
 /**
-  Return the storage engine handlerton for the supplied name
+  Return the storage engine handlerton for the supplied name.
 
-  @param thd   current thread. May be nullptr, (e.g. during initialize).
-  @param name  name of storage engine
+  @param thd           Current thread. May be nullptr, (e.g. during initialize).
+  @param name          Name of storage engine.
+  @param is_temp_table true if table is a temporary table.
 
-  @return pointer to storage engine plugin handle
+  @return Pointer to storage engine plugin handle.
 */
 plugin_ref ha_resolve_by_name(THD *thd, const LEX_CSTRING *name,
                               bool is_temp_table) {
