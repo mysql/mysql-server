@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -209,11 +209,9 @@ void CmdArgHandler::process(const vector<string> &arguments) {
   }
 }
 
-vector<string> CmdArgHandler::usage_lines_if(const string &prefix,
-                                             const string &rest_metavar,
-                                             size_t width,
-                                             UsagePredicate predicate) const
-    noexcept {
+vector<string> CmdArgHandler::usage_lines_if(
+    const string &prefix, const string &rest_metavar, size_t width,
+    UsagePredicate predicate) const noexcept {
   std::stringstream ss;
   vector<string> usage;
 
@@ -299,9 +297,8 @@ vector<string> CmdArgHandler::usage_lines_if(const string &prefix,
   return result;
 }
 
-vector<string> CmdArgHandler::option_descriptions(size_t width,
-                                                  size_t indent) const
-    noexcept {
+vector<string> CmdArgHandler::option_descriptions(
+    size_t width, size_t indent) const noexcept {
   std::stringstream ss;
   vector<string> desc_lines;
 

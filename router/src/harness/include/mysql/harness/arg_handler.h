@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -288,8 +288,8 @@ class HARNESS_EXPORT CmdArgHandler {
    * @param name name of the option as string
    * @returns iterator object
    */
-  OptionContainer::const_iterator find_option(const std::string &name) const
-      noexcept;
+  OptionContainer::const_iterator find_option(
+      const std::string &name) const noexcept;
 
   using UsagePredicate =
       std::function<std::pair<bool, CmdOption>(const CmdOption &)>;
@@ -329,11 +329,9 @@ class HARNESS_EXPORT CmdArgHandler {
         });
   }
 
-  std::vector<std::string> usage_lines_if(const std::string &prefix,
-                                          const std::string &rest_metavar,
-                                          size_t width,
-                                          UsagePredicate predicate) const
-      noexcept;
+  std::vector<std::string> usage_lines_if(
+      const std::string &prefix, const std::string &rest_metavar, size_t width,
+      UsagePredicate predicate) const noexcept;
 
   /** @brief Produces description of all options
    *
@@ -360,9 +358,8 @@ class HARNESS_EXPORT CmdArgHandler {
    * @param indent how much the description should be indented.
    * @return vector of strings
    */
-  std::vector<std::string> option_descriptions(const size_t width,
-                                               const size_t indent) const
-      noexcept;
+  std::vector<std::string> option_descriptions(
+      const size_t width, const size_t indent) const noexcept;
 
   /** @brief Returns an iterator to first option
    *

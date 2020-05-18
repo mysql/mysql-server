@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -148,40 +148,39 @@ class Encryption {
   /** Check if page is encrypted page or not
   @param[in]  page  page which need to check
   @return true if it is an encrypted page */
-  static bool is_encrypted_page(const byte *page) noexcept MY_ATTRIBUTE(
-      (warn_unused_result));
+  static bool is_encrypted_page(const byte *page) noexcept
+      MY_ATTRIBUTE((warn_unused_result));
 
   /** Check if a log block is encrypted or not
   @param[in]  block block which need to check
   @return true if it is an encrypted block */
-  static bool is_encrypted_log(const byte *block) noexcept MY_ATTRIBUTE(
-      (warn_unused_result));
+  static bool is_encrypted_log(const byte *block) noexcept
+      MY_ATTRIBUTE((warn_unused_result));
 
   /** Check the encryption option and set it
   @param[in]      option      encryption option
   @param[in,out]  type        The encryption type
   @return DB_SUCCESS or DB_UNSUPPORTED */
-  dberr_t set_algorithm(
-      const char *option,
-      Encryption *type) noexcept MY_ATTRIBUTE((warn_unused_result));
+  dberr_t set_algorithm(const char *option, Encryption *type) noexcept
+      MY_ATTRIBUTE((warn_unused_result));
 
   /** Validate the algorithm string.
   @param[in]  option  Encryption option
   @return DB_SUCCESS or error code */
-  static dberr_t validate(const char *option) noexcept MY_ATTRIBUTE(
-      (warn_unused_result));
+  static dberr_t validate(const char *option) noexcept
+      MY_ATTRIBUTE((warn_unused_result));
 
   /** Convert to a "string".
   @param[in]  type  The encryption type
   @return the string representation */
-  static const char *to_string(Type type) noexcept MY_ATTRIBUTE(
-      (warn_unused_result));
+  static const char *to_string(Type type) noexcept
+      MY_ATTRIBUTE((warn_unused_result));
 
   /** Check if the string is "empty" or "none".
   @param[in]  algorithm  Encryption algorithm to check
   @return true if no algorithm requested */
-  static bool is_none(const char *algorithm) noexcept MY_ATTRIBUTE(
-      (warn_unused_result));
+  static bool is_none(const char *algorithm) noexcept
+      MY_ATTRIBUTE((warn_unused_result));
 
   /** Generate random encryption value for key and iv.
   @param[in,out]  value Encryption value */
