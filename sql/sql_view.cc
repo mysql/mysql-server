@@ -1293,8 +1293,9 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref) {
     ER_NO_ACCESS_TO_NATIVE_FCT is reported otherwise.
   */
   bool parsing_system_view_saved = thd->parsing_system_view;
-  thd->parsing_system_view = dd::get_dictionary()->is_system_view_name(
+  bool parsing_system_view = dd::get_dictionary()->is_system_view_name(
       view_ref->db, view_ref->table_name);
+  thd->parsing_system_view = parsing_system_view;
 
   if (thd->parsing_system_view) thd->push_internal_handler(&dd_access_handler);
 
@@ -1329,9 +1330,10 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref) {
   /*
     Check rights to run commands (EXPLAIN SELECT & SHOW CREATE) which show
     underlying tables.
-    Skip this step if we are opening view for prelocking only.
+    Skip this step if we are opening view for prelocking only or if this is
+    a DD table used under INFORMATION_SCHEMA system view.
   */
-  if (!view_ref->prelocking_placeholder) {
+  if (!view_ref->prelocking_placeholder && !parsing_system_view) {
     // If executing prepared statement: see "Optimizer trace" note above.
     opt_trace_disable_if_no_view_access(thd, view_ref, view_tables);
 
