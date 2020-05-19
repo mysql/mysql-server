@@ -255,6 +255,33 @@ IF(MY_COMPILER_IS_SUNPRO)
 
 ENDIF()
 
+# Workaround for bug in gtest-death-test.cc
+# Fixed in the googletest sources, but not part of 1.10.0
+IF(LINUX AND HAVE_ASAN)
+  IF(NOT EXISTS ${CMAKE_BINARY_DIR}/hack/src/)
+    EXECUTE_PROCESS(
+      COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/hack/src
+      )
+  ENDIF()
+  ADD_CUSTOM_COMMAND(
+    OUTPUT ${CMAKE_BINARY_DIR}/hack/src/gtest-death-test.cc
+    COMMAND sed -e "s/getpagesize()/getpagesize() * 2/"
+         < ${GTEST_SOURCE_DIR}/src/gtest-death-test.cc
+         > ${CMAKE_BINARY_DIR}/hack/src/gtest-death-test.cc
+    DEPENDS ${GTEST_SOURCE_DIR}/src/gtest-death-test.cc
+    COMMENT "Fixing pagesize for ASAN tests"
+    VERBATIM
+    )
+  ADD_CUSTOM_TARGET(generate_gtest_deathtest_hack
+    DEPENDS ${CMAKE_BINARY_DIR}/hack/src/gtest-death-test.cc)
+
+  FOREACH(target gtest gmock gtest_main gmock_main)
+    ADD_DEPENDENCIES(${target} generate_gtest_deathtest_hack)
+    TARGET_INCLUDE_DIRECTORIES(${target} SYSTEM PUBLIC ${CMAKE_BINARY_DIR}/hack)
+  ENDFOREACH()
+
+ENDIF()
+
 FOREACH(googletest_library
     gmock
     gtest

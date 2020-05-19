@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,13 +49,7 @@ class FatalSignalDeathTest : public ::testing::Test {
 TEST_F(FatalSignalDeathTest, Abort) {
 #if defined(_WIN32)
   EXPECT_DEATH_IF_SUPPORTED(abort(), ".* UTC - mysqld got exception.*");
-#elif defined(HAVE_ASAN)
-  // We may get AddressSanitizer:DEADLYSIGNAL because of a bug in gogletest.
-  // We *could* patch googletest/src/gtest-death-test.cc :
-  //    - const size_t stack_size = getpagesize();
-  //    + const size_t stack_size = getpagesize() * 2;
-  // EXPECT_DEATH_IF_SUPPORTED(abort(), ".* UTC - mysqld got signal 6.*");
-#elif defined(HANDLE_FATAL_SIGNALS)
+#else
   EXPECT_DEATH_IF_SUPPORTED(abort(), ".* UTC - mysqld got signal 6.*");
 #endif
 }
