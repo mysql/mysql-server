@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -82,10 +82,6 @@ extern Uint32 g_random_start_page_id;
 #define BPP_2LOG (BMW_2LOG + 5)
 #define PAGE_REGION_MASK ((1 << BPP_2LOG) - 1)
 #define SPACE_PER_BMP_2LOG ((2 + BMW_2LOG) + BPP_2LOG)
-
-#define MAX_ALLOC_PAGES ((1 << BPP_2LOG) - 2)
-
-//#define BITMAP_WORDS GLOBAL_PAGE_SIZE_WORDS
 
 #ifdef VM_TRACE
 #ifndef NDBD_RANDOM_START_PAGE
@@ -257,6 +253,7 @@ public:
   void set_max_page(Uint32 page);
   void set_allocated(Uint32 cnt);
   void set_free_reserved(Uint32 cnt);
+  void update_low_prio_shared_limit();
 
   Uint32 post_alloc_resource_pages(Uint32 id, Uint32 cnt);
   void post_release_resource_pages(Uint32 id, Uint32 cnt);
@@ -295,7 +292,7 @@ public:
   void init_resource_spare(Uint32 id, Uint32 pct);
   void* get_memroot() const;
   
-  void dump() const ;
+  void dump(bool locked) const ;
   void dump_on_alloc_fail(bool on);
 
   enum AllocZone
@@ -584,7 +581,11 @@ Uint32 Resource_limits::get_reserved() const
 inline
 Uint32 Resource_limits::get_shared() const
 {
-  return get_allocated() - get_reserved();
+  const Uint32 reserved = get_reserved();
+  const Uint32 allocated = get_allocated();
+  if (allocated < reserved)
+    return 0;
+  return allocated - reserved;
 }
 
 inline
@@ -812,16 +813,19 @@ inline
 void Resource_limits::set_allocated(Uint32 cnt)
 {
   m_allocated = cnt;
-  // Leave the last percentage of shared memory for high prio resource groups.
-  m_prio_free_limit = (m_allocated - m_free_reserved) * HIGH_PRIO_FREE_PCT / 100;
+}
+
+inline
+void Resource_limits::update_low_prio_shared_limit()
+{
+  Uint32 shared = get_shared();
+  m_prio_free_limit = shared * HIGH_PRIO_FREE_PCT / 100 + 1;
 }
 
 inline
 void Resource_limits::set_free_reserved(Uint32 cnt)
 {
   m_free_reserved = cnt;
-  // Leave the last percentage of shared memory for high prio resource groups.
-  m_prio_free_limit = (m_allocated - m_free_reserved) * HIGH_PRIO_FREE_PCT / 100;
 }
 
 inline

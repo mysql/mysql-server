@@ -29,6 +29,7 @@
 #else
 #include <stdlib.h> // aligned_alloc or posix_memalign
 #include <sys/mman.h>
+#include <unistd.h> // sysconf
 #endif
 
 #include <NdbMem.h>
@@ -103,7 +104,7 @@ int NdbMem_ReserveSpace(void** ptr, size_t len)
 #ifdef _WIN32
   p = VirtualAlloc(*ptr, len, MEM_RESERVE, PAGE_NOACCESS);
   *ptr = p;
-  return (p == NULL) ? 0 : -1;
+  return (p == NULL) ? -1 : 0;
 #elif defined(MAP_NORESERVE)
   /*
    * MAP_NORESERVE is essential to not reserve swap space on Solaris.
@@ -178,7 +179,7 @@ int NdbMem_PopulateSpace(void* ptr, size_t len)
 {
 #ifdef _WIN32
   void* p = VirtualAlloc(ptr, len, MEM_COMMIT, PAGE_READWRITE);
-  return (p == NULL) ? 0 : -1;
+  return (p == NULL) ? -1 : 0;
 #elif defined(MAP_GUARD) /* FreeBSD */
   void* p = mmap(ptr,
                  len,
@@ -278,5 +279,16 @@ void NdbMem_AlignedFree(void* p)
   void** qp = (void**)p;
   p = qp[-1];
   free(p);
+#endif
+}
+
+size_t NdbMem_GetSystemPageSize()
+{
+#ifndef _WIN32
+  return (size_t) sysconf(_SC_PAGESIZE);
+#else
+  SYSTEM_INFO si;
+  GetSystemInfo(&si);
+  return si.dwPageSize;
 #endif
 }
