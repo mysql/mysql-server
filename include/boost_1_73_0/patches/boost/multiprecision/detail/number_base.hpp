@@ -49,11 +49,6 @@
 #define BOOST_MP_THREAD_LOCAL
 #endif
 
-// Workaround for Win/Mac VERSION
-#if !defined(_WIN32) && !defined(__APPLE__)
-// We may end up including our own VERSION file,
-// because the file system ignores case.
-// TODO: rename VERSION to something else.
 #ifdef __has_include
 # if __has_include(<version>)
 #  include <version>
@@ -63,7 +58,6 @@
 #  endif
 # endif
 #endif
-#endif // Workaround for Win/Mac VERSION
 
 #ifdef __has_builtin
 #if __has_builtin(__builtin_is_constant_evaluated) && !defined(BOOST_NO_CXX14_CONSTEXPR) && !defined(BOOST_NO_CXX11_UNIFIED_INITIALIZATION_SYNTAX)

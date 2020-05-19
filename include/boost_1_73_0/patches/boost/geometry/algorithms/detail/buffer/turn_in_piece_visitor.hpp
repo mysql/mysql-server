@@ -943,12 +943,8 @@ public:
         switch(analyse_code)
         {
             case analyse_disjoint :
-                return true;
             case analyse_on_offsetted :
-                mutable_turn.count_on_offsetted++; // value is not used anymore
-                return true;
             case analyse_on_original_boundary :
-                mutable_turn.count_on_original_boundary++;
                 return true;
             case analyse_within :
                 mutable_turn.count_within++;
