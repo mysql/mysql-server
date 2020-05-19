@@ -39,6 +39,7 @@ TARGET_SOURCES(harness_net_ts
   INTERFACE
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/buffer.h
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/impl/file.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/impl/netif.h
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/impl/poll.h
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/impl/resolver.h
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/impl/socket.h

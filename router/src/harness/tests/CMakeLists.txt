@@ -137,3 +137,7 @@ SET(TEST_FILES
   tests-bad-3.cfg
   )
 COPY_TEST_FILES(${CMAKE_CURRENT_SOURCE_DIR}/data "${TEST_FILES}")
+
+MYSQL_ADD_EXECUTABLE(net_ts_netifs net_ts_netifs.cc SKIP_INSTALL)
+TARGET_LINK_LIBRARIES(net_ts_netifs harness_net_ts)
+ADD_DEPENDENCIES(mysqlrouter_all net_ts_netifs)
