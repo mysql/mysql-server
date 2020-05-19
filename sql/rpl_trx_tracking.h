@@ -223,7 +223,10 @@ public:
 
 public:
   /* option opt_binlog_transaction_dependency_tracking */
-  long m_opt_tracking_mode;
+  int64 m_opt_tracking_mode;
+
+  /* option opt_binlog_transaction_dependency_tracking associated with sysvar */
+  long m_opt_tracking_mode_value;
 
   Writeset_trx_dependency_tracker *get_writeset()
   {
