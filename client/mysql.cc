@@ -1741,7 +1741,7 @@ static struct my_option my_long_options[] = {
      nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"host", 'h', "Connect to host.", &current_host, &current_host, nullptr,
      GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
-    {"dns_srv_host", -1, "Connect to a DNS SRV resource", &dns_srv_host,
+    {"dns_srv_host", 0, "Connect to a DNS SRV resource", &dns_srv_host,
      &dns_srv_host, nullptr, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
     {"html", 'H', "Produce HTML output.", &opt_html, &opt_html, nullptr,
