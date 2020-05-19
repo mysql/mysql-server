@@ -715,3 +715,8 @@ PREPARE s FROM 'SELECT concat(?,"")';
 # was wrong -1
 EXECUTE s USING @maxint;
 DEALLOCATE PREPARE s;
+
+--echo # Bug#31358565: Assertion `false' failed. In Item_func_get_user_var::propagate_type'
+
+do null not between 1 and @undefined_var;
+do null not between @undefined_var and 1;

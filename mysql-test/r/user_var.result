@@ -1058,3 +1058,6 @@ EXECUTE s USING @maxint;
 concat(?,"")
 18446744073709551615
 DEALLOCATE PREPARE s;
+# Bug#31358565: Assertion `false' failed. In Item_func_get_user_var::propagate_type'
+do null not between 1 and @undefined_var;
+do null not between @undefined_var and 1;

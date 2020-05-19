@@ -6661,6 +6661,7 @@ void Item_func_get_user_var::propagate_type(const Type_properties &type) {
     case MYSQL_TYPE_STRING:
     case MYSQL_TYPE_ENUM:
     case MYSQL_TYPE_SET:
+    case MYSQL_TYPE_NULL:
       // Parameter type is VARCHAR of largest possible size
       set_data_type_string(65535U / type.m_collation.collation->mbmaxlen,
                            type.m_collation);
@@ -6692,7 +6693,6 @@ void Item_func_get_user_var::propagate_type(const Type_properties &type) {
     case MYSQL_TYPE_TIME2:
       set_data_type_string(15, type.m_collation);
       break;
-    case MYSQL_TYPE_NULL:
     default:
       DBUG_ASSERT(false);
   }
