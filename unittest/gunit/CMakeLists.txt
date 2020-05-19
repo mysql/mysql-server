@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -63,7 +63,6 @@ ADD_LIBRARY(gunit_small STATIC
   gunit_test_main.cc
   skip_trailing.cc
   strnxfrm.cc
-  tap_event_listener.cc
   thread_utils.cc
   fake_table.cc
 )
@@ -83,7 +82,6 @@ SET_TARGET_PROPERTIES(libmysql_errmsg
 ADD_LIBRARY(gunit_large STATIC
   benchmark.cc
   gunit_test_main_server.cc
-  tap_event_listener.cc
   test_utils.cc
   thread_utils.cc
 )
