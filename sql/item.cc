@@ -2513,10 +2513,6 @@ bool Item_field::itemize(Parse_context *pc, Item **res) {
   if (super::itemize(pc, res)) return true;
   SELECT_LEX *const select = pc->select;
   if (select->parsing_place != CTX_HAVING) select->select_n_where_fields++;
-
-  if (select->parsing_place == CTX_SELECT_LIST && field_name &&
-      field_name[0] == '*' && field_name[1] == 0)
-    select->with_wild++;
   return false;
 }
 
@@ -10332,4 +10328,17 @@ Item_field *FindEqualField(Item_field *item_field, table_map reachable_tables) {
   }
 
   return item_field;
+}
+
+bool Item_asterisk::itemize(Parse_context *pc, Item **res) {
+  DBUG_ASSERT(pc->select->parsing_place == CTX_SELECT_LIST);
+
+  if (skip_itemize(res)) {
+    return false;
+  }
+  if (super::itemize(pc, res)) {
+    return true;
+  }
+  pc->select->with_wild++;
+  return false;
 }

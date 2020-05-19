@@ -4080,6 +4080,48 @@ class Item_field : public Item_ident {
 
   bool replace_field_processor(uchar *arg) override;
   bool strip_db_table_name_processor(uchar *) override;
+
+  /**
+    Checks if the current object represents an asterisk select list item
+
+    @returns false if a regular column reference, true if an asterisk
+             select list item.
+  */
+  virtual bool is_asterisk() const { return false; }
+};
+
+/**
+  Represents [schema.][table.]* in a select list
+
+  Item_asterisk is used to insert placeholder objects for the special
+  select list item * (asterisk) into AST.
+  Those placeholder objects are to be substituted later with e.g. a list of real
+  table columns by a resolver (@see setup_wild).
+
+  @todo The parent class Item_field is redundant. Refactor setup_wild() to
+        replace Item_field with a simpler one.
+*/
+class Item_asterisk : public Item_field {
+  typedef Item_field super;
+
+ public:
+  /**
+    Constructor
+
+    @param pos                  Location of the * (asterisk) lexeme.
+    @param opt_schema_name      Schema name or nullptr.
+    @param opt_table_name       Table name or nullptr.
+  */
+  Item_asterisk(const POS &pos, const char *opt_schema_name,
+                const char *opt_table_name)
+      : super(pos, opt_schema_name, opt_table_name, "*") {}
+
+  bool itemize(Parse_context *pc, Item **res) override;
+  bool fix_fields(THD *, Item **) override {
+    DBUG_ASSERT(false);  // should never happen: see setup_wild()
+    return true;
+  }
+  bool is_asterisk() const override { return true; }
 };
 
 // See if the provided item points to a reachable field (one that belongs to a

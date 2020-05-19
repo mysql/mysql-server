@@ -101,8 +101,6 @@ static SELECT_LEX *build_query(const POS &pos, THD *thd,
   static const LEX_CSTRING as_value = {STRING_WITH_LEN("Value")};
   static const LEX_CSTRING pfs = {STRING_WITH_LEN("performance_schema")};
 
-  static const LEX_CSTRING star = {STRING_WITH_LEN("*")};
-
   static const Query_options options = {
       0 /* query_spec_options */
   };
@@ -198,8 +196,8 @@ static SELECT_LEX *build_query(const POS &pos, THD *thd,
   if (table_reference_list1.push_back(derived_table)) return nullptr;
 
   /* SELECT * ... */
-  PTI_simple_ident_ident *ident_star;
-  ident_star = new (thd->mem_root) PTI_simple_ident_ident(pos, star);
+  Item_asterisk *ident_star;
+  ident_star = new (thd->mem_root) Item_asterisk(pos, nullptr, nullptr);
   if (ident_star == nullptr) return nullptr;
 
   PT_select_item_list *item_list1;

@@ -42,20 +42,6 @@ class PT_subquery;
 class PT_window;
 struct udf_func;
 
-class PTI_table_wild : public Parse_tree_item {
-  typedef Parse_tree_item super;
-
-  const char *schema;
-  const char *table;
-
- public:
-  explicit PTI_table_wild(const POS &pos, const char *schema_arg,
-                          const char *table_arg)
-      : super(pos), schema(schema_arg), table(table_arg) {}
-
-  bool itemize(Parse_context *pc, Item **item) override;
-};
-
 class PTI_truth_transform : public Parse_tree_item {
   typedef Parse_tree_item super;
 

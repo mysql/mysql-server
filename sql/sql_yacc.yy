@@ -37,6 +37,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #define YYPS (& YYTHD->m_parser_state->m_yacc)
 #define YYCSCL (YYLIP->query_charset)
 #define YYMEM_ROOT (YYTHD->mem_root)
+#define YYCLIENT_NO_SCHEMA (YYTHD->get_protocol()->has_client_capability(CLIENT_NO_SCHEMA))
 
 #define YYINITDEPTH 100
 #define YYMAXDEPTH 3200                        /* Because of 64K stack */
@@ -9458,9 +9459,9 @@ query_primary:
         | explicit_table
           {
             auto item_list= NEW_PTN PT_select_item_list;
-            if (item_list == nullptr ||
-                item_list->push_back(
-                  NEW_PTN Item_field(@$, nullptr, nullptr, "*")))
+            auto asterisk= NEW_PTN Item_asterisk(@$, nullptr, nullptr);
+            if (item_list == nullptr || asterisk == nullptr ||
+                item_list->push_back(asterisk))
               MYSQL_YYABORT;
             $$= NEW_PTN PT_explicit_table({}, item_list, $1);
           }
@@ -9653,9 +9654,9 @@ select_item_list:
           }
         | '*'
           {
-            Item *item= NEW_PTN Item_field(@$, NULL, NULL, "*");
-            $$= NEW_PTN PT_select_item_list;
-            if ($$ == NULL || $$->push_back(item))
+            Item *item = NEW_PTN Item_asterisk(@$, nullptr, nullptr);
+            $$ = NEW_PTN PT_select_item_list;
+            if ($$ == nullptr || item == nullptr || $$->push_back(item))
               MYSQL_YYABORT;
           }
         ;
@@ -14206,13 +14207,14 @@ insert_ident:
 table_wild:
           ident '.' '*'
           {
-            $$= NEW_PTN PTI_table_wild(@$, NULL, $1.str);
+            $$ = NEW_PTN Item_asterisk(@$, nullptr, $1.str);
           }
         | ident '.' ident '.' '*'
           {
             if (check_and_convert_db_name(&$1, false) != Ident_name_check::OK)
               MYSQL_YYABORT;
-            $$= NEW_PTN PTI_table_wild(@$, $1.str, $3.str);
+            auto schema_name = YYCLIENT_NO_SCHEMA ? nullptr : $1.str;
+            $$ = NEW_PTN Item_asterisk(@$, schema_name, $3.str);
           }
         ;
 
@@ -14268,11 +14270,9 @@ table_ident:
           }
         | ident '.' ident
           {
-            if (YYTHD->get_protocol()->has_client_capability(CLIENT_NO_SCHEMA))
-              $$= NEW_PTN Table_ident(to_lex_cstring($3));
-            else {
-              $$= NEW_PTN Table_ident(to_lex_cstring($1), to_lex_cstring($3));
-            }
+            auto schema_name = YYCLIENT_NO_SCHEMA ? LEX_CSTRING{}
+                                                  : to_lex_cstring($1.str);
+            $$= NEW_PTN Table_ident(schema_name, to_lex_cstring($3));
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -15998,12 +15998,9 @@ grant_ident:
           }
         | schema '.' ident
           {
-            Table_ident *tmp;
-            if (YYTHD->get_protocol()->has_client_capability(CLIENT_NO_SCHEMA))
-              tmp = NEW_PTN Table_ident(to_lex_cstring($3));
-            else {
-              tmp = NEW_PTN Table_ident(to_lex_cstring($1), to_lex_cstring($3));
-            }
+            auto schema_name = YYCLIENT_NO_SCHEMA ? LEX_CSTRING{}
+                                                  : to_lex_cstring($1.str);
+            auto tmp = NEW_PTN Table_ident(schema_name, to_lex_cstring($3));
             if (tmp == NULL)
               MYSQL_YYABORT;
             LEX *lex=Lex;
