@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -400,11 +400,6 @@ static inline int my_thread_set_THR_THD(THD *thd)
   DBUG_ASSERT(THR_THD_initialized);
   return my_set_thread_local(THR_THD, thd);
 }
-
-/**
-  Set m_opt_tracking_mode with a user given value associated with sysvar.
-*/
-void set_mysqld_opt_tracking_mode();
 
 #ifdef HAVE_PSI_INTERFACE
 

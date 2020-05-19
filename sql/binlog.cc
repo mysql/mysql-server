@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -5249,10 +5249,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
     At every rotate memorize the last transaction counter state to use it as
     offset at logging the transaction logical timestamps.
   */
-  mysql_mutex_lock(&LOCK_slave_trans_dep_tracker);
   m_dependency_tracker.rotate();
-  mysql_mutex_unlock(&LOCK_slave_trans_dep_tracker);
-
 #ifdef HAVE_REPLICATION
   close_purge_index_file();
 #endif
