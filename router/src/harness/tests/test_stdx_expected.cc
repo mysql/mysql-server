@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,8 @@
 */
 
 #include "mysql/harness/stdx/expected.h"
+
+#include <type_traits>  // is_move_constructible
 
 #include <gmock/gmock.h>
 
@@ -593,7 +595,8 @@ TEST(Expected, T_string_E_std_error_code) {
   auto res3 = std::move(res);
   ASSERT_TRUE(res3);
   EXPECT_EQ(res3.value(), "from_func");
-  EXPECT_EQ(res.value(), "");
+  // don't inspect 'res' after it has been moved from.
+  // EXPECT_EQ(res.value(), "");
 
   // prepare copy assignement
   res3 = test_func(true);
@@ -690,6 +693,10 @@ static_assert(
         std::ostream,
         stdx::expected<non_copyable_no_default, std::error_code>>::value,
     "");
+
+static_assert(std::is_move_constructible<
+                  stdx::expected<std::unique_ptr<int>, void>>::value,
+              "");
 
 TEST(ExpectedOstream, some_int) {
   std::ostringstream oss;
