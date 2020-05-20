@@ -121,7 +121,7 @@ touch_mem(void* arg)
     num_pages_per_thread = tot_pages - first_page;
   }
 
-  unsigned char * ptr = (unsigned char*)(p + (first_page * 4096));
+  unsigned char * ptr = (unsigned char*)(p + (first_page * TOUCH_PAGE_SIZE));
   const unsigned char* end = p + sz;
 
   for (Uint32 i = 0;
