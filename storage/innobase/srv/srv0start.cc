@@ -774,7 +774,7 @@ static dberr_t srv_undo_tablespace_fixup_num(space_id_t space_num) {
   space_id_t space_id = SPACE_UNKNOWN;
   std::string scanned_name;
   for (size_t ndx = 0;
-       ndx < dict_sys_t::undo_space_id_range && scanned_name.length() == 0;
+       ndx < dict_sys_t::s_undo_space_id_range && scanned_name.length() == 0;
        ndx++) {
     space_id = undo::num2id(space_num, ndx);
 
@@ -1012,7 +1012,7 @@ static dberr_t srv_undo_tablespace_open_by_num(space_id_t space_num) {
   undo number. The directory scan assured that there are no duplicate files
   with the same space_id or with the same undo space number. */
   for (ndx = 0;
-       ndx < dict_sys_t::undo_space_id_range && scanned_name.length() == 0;
+       ndx < dict_sys_t::s_undo_space_id_range && scanned_name.length() == 0;
        ndx++) {
     space_id = undo::num2id(space_num, ndx);
 

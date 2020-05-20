@@ -1133,11 +1133,11 @@ struct dict_sys_t {
   static constexpr space_id_t s_temp_space_id = 0xFFFFFFFD;
 
   /** The number of space IDs dedicated to each undo tablespace */
-  static constexpr space_id_t undo_space_id_range = 512;
+  static constexpr space_id_t s_undo_space_id_range = 400000;
 
   /** The lowest undo tablespace ID. */
   static constexpr space_id_t s_min_undo_space_id =
-      s_log_space_first_id - (FSP_MAX_UNDO_TABLESPACES * undo_space_id_range);
+      s_log_space_first_id - (FSP_MAX_UNDO_TABLESPACES * s_undo_space_id_range);
 
   /** The highest undo tablespace ID. */
   static constexpr space_id_t s_max_undo_space_id = s_log_space_first_id - 1;
@@ -1147,11 +1147,14 @@ struct dict_sys_t {
 
   /** Leave 1K space_ids and start space_ids for temporary
   general tablespaces (total 400K space_ids)*/
-  static constexpr space_id_t s_max_temp_space_id = s_reserved_space_id - 1000;
+  static constexpr space_id_t s_max_temp_space_id = s_reserved_space_id;
+
+  /** The number of space IDs dedicated to temporary tablespaces */
+  static constexpr space_id_t s_temp_space_id_range = 400000;
 
   /** Lowest temporary general space id */
   static constexpr space_id_t s_min_temp_space_id =
-      s_reserved_space_id - 1000 - 400000;
+      s_reserved_space_id - s_temp_space_id_range;
 
   /** The dd::Tablespace::id of the dictionary tablespace. */
   static constexpr dd::Object_id s_dd_space_id = 1;

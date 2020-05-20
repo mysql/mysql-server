@@ -650,7 +650,7 @@ space_id_t next_space_id(space_id_t space_id, space_id_t space_num) {
 
   space_id_t first_id = dict_sys_t::s_max_undo_space_id + 1 - space_num;
   space_id_t last_id = first_id - (FSP_MAX_UNDO_TABLESPACES *
-                                   (dict_sys_t::undo_space_id_range - 1));
+                                   (dict_sys_t::s_undo_space_id_range - 1));
   return (space_id == SPACE_UNKNOWN || space_id == last_id
               ? first_id
               : space_id - FSP_MAX_UNDO_TABLESPACES);
