@@ -961,23 +961,30 @@ bool Sql_cmd_dml::execute_inner(THD *thd) {
 static bool check_locking_clause_access(THD *thd, Global_tables_list tables) {
   for (TABLE_LIST *table_ref : tables)
     if (table_ref->lock_descriptor().action != THR_DEFAULT) {
+      bool access_is_granted = false;
       /*
         If either of these privileges is present along with SELECT, access is
         granted.
       */
       for (uint allowed_priv : {UPDATE_ACL, DELETE_ACL, LOCK_TABLES_ACL}) {
         ulong priv = SELECT_ACL | allowed_priv;
-        if (!check_table_access(thd, priv, table_ref, false, 1, true))
-          return false;
+        if (!check_table_access(thd, priv, table_ref, false, 1, true)) {
+          access_is_granted = true;
+          // No need to check for other privileges for this table.
+          // However, we still need to check privileges for other tables.
+          break;
+        }
       }
 
-      const Security_context *sctx = thd->security_context();
+      if (!access_is_granted) {
+        const Security_context *sctx = thd->security_context();
 
-      my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0),
-               "SELECT with locking clause", sctx->priv_user().str,
-               sctx->host_or_ip().str, table_ref->get_table_name());
+        my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0),
+                 "SELECT with locking clause", sctx->priv_user().str,
+                 sctx->host_or_ip().str, table_ref->get_table_name());
 
-      return true;
+        return true;
+      }
     }
 
   return false;
