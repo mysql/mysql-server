@@ -147,6 +147,7 @@ class READ_INFO {
   /* load xml */
   List<XML_TAG> taglist;
   int read_value(int delim, String *val);
+  int read_cdata(String *val, bool *have_cdata);
   bool read_xml();
   void clear_level(int level);
 
@@ -1797,6 +1798,63 @@ int READ_INFO::read_value(int delim, String *val) {
 }
 
 /*
+  Read CDATA value if any.
+  Ignore multibyte and XML escape.
+  Note: the last character read must be '<' before calling this function.
+
+  @param[out] val           Resulting CDATA string.
+  @param[out] have_cdata    Set if really read CDATA.
+
+  @returns    Last character read or
+              my_b_EOF in case of unexpected EOF.
+*/
+int READ_INFO::read_cdata(String *val, bool *have_cdata) {
+  const char cdata_head[] = "![CDATA[";
+  const char *head_ptr = cdata_head;
+
+  /* Check for CDATA head "![CDATA[" */
+  for (size_t i = 0; i < strlen(cdata_head); i++) {
+    int chr = GET;
+
+    if (chr != *head_ptr++) {
+      /*
+        Didn't find "![CDATA[" head,
+        push back the last (unmatched) character
+      */
+      PUSH(chr);
+      /* and all matched from the head. */
+      while (i--) PUSH(*--head_ptr);
+
+      *have_cdata = false;
+      return '<';
+    }
+  }
+
+  int tail[3]{0};
+  for (tail[2] = GET; tail[2] != my_b_EOF; tail[2] = GET) {
+    /* Check for CDATA tail "]]>" */
+    if (tail[0] == ']' && tail[1] == ']' && tail[2] == '>') {
+      /* Cut last two characters ("]]") which were appended to val. */
+      DBUG_ASSERT(val->length() >= 2);
+      val->length(val->length() - 2);
+
+      *have_cdata = true;
+      return '>';
+    }
+    /* Shift the tail */
+    tail[0] = tail[1];
+    tail[1] = tail[2];
+
+    val->append(tail[2]);
+  }
+
+  /* Didn't find CDATA tail "]]>", the last character read must be my_b_EOF. */
+  DBUG_ASSERT(tail[2] == my_b_EOF);
+  *have_cdata = false;
+  return my_b_EOF;
+}
+
+/*
   Read a record in xml format
   tags and attributes are stored in taglist
   when tag set in ROWS IDENTIFIED BY is closed, we are ready and return
@@ -1890,8 +1948,16 @@ bool READ_INFO::read_xml() {
           read in the upcoming call to read_value()
          */
         PUSH(chr);
-        chr = read_value('<', &value);
-        if (chr == my_b_EOF) goto found_eof;
+
+        /* Read <![CDATA[ ... ]]> and tag's value. */
+        bool have_cdata;
+        do {
+          chr = read_value('<', &value);
+          if (chr == my_b_EOF) goto found_eof;
+
+          chr = read_cdata(&value, &have_cdata);
+          if (chr == my_b_EOF) goto found_eof;
+        } while (have_cdata);
 
         /* save value to list */
         if (tag.length() > 0 && value.length() > 0) {
