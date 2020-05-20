@@ -83,8 +83,8 @@ enum TableChangesMask
 class ColumnTransform
 {
 public:
-  ColumnTransform() {};
-  virtual ~ColumnTransform() {};
+  ColumnTransform() {}
+  virtual ~ColumnTransform() {}
 
 
   /**

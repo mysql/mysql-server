@@ -190,7 +190,7 @@ public:
   {
   }
 
-  ~ExtraTableInfo() {};
+  ~ExtraTableInfo() {}
 
   const BaseString m_dbName;
   const BaseString m_tableName;
@@ -209,7 +209,7 @@ class ExtraRestoreInfo
 {
 public:
   ExtraRestoreInfo()
-  {};
+  {}
   ~ExtraRestoreInfo()
   {
     for (Uint32 i=0; i<m_tables.size(); i++)
@@ -217,7 +217,7 @@ public:
       delete m_tables[i];
       m_tables[i] = NULL;
     }
-  };
+  }
 
   /**
    * findTable
@@ -666,7 +666,7 @@ static bool parse_remap_option(const BaseString option,
   }
 
   return true;
-};
+}
 
 
 static bool parse_remap_column(const char* argument)
@@ -1629,7 +1629,7 @@ public:
                                min_sval,
                                max_sval,
                                max_uval);
-  };
+  }
 
 private:
   Int64 m_offset_val;
@@ -1672,9 +1672,9 @@ private:
         m_unsig_bound = (0 - offset_val);
       }
     }
-  };
+  }
 
-  ~OffsetTransform() {};
+  ~OffsetTransform() {}
 
   static Uint64 readIntoU64(const void* src, Uint32 bits)
   {
