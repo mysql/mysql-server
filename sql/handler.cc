@@ -437,33 +437,30 @@ plugin_ref ha_resolve_by_name(THD *thd, const LEX_CSTRING *name,
 */
 void set_externally_disabled_storage_engine_names(const char *disabled_list) {
   DBUG_ASSERT(disabled_list != nullptr);
-  const char *dse_begin = disabled_list;
 
-  const char *dse_end = dse_begin + strlen(dse_begin);
-  while (true) {
-    const char *comma_or_end = std::find(dse_begin, dse_end, ',');
-    if (comma_or_end > dse_begin) {
-      const LEX_CSTRING dse{dse_begin,
-                            static_cast<size_t>(comma_or_end - dse_begin)};
-      auto match = std::find_if(
-          std::begin(se_names), se_names_end,
-          [&](const Storage_engine_identifier &seid) {
-            return (
-                (0 == strnncmp_nopads(hton_charset(), dse, seid.canonical)) ||
-                (0 == strnncmp_nopads(hton_charset(), dse, seid.legacy)));
-          });
-      if (match != se_names_end) {
+  myu::Split(
+      disabled_list, disabled_list + strlen(disabled_list), myu::IsComma,
+      [](const char *f, const char *l) {
+        auto tr = myu::FindTrimmedRange(f, l, myu::IsSpace);
+        if (tr.first == tr.second) return;
+
+        const LEX_CSTRING dse{tr.first,
+                              static_cast<size_t>(tr.second - tr.first)};
+        auto match = std::find_if(
+            std::begin(se_names), se_names_end,
+            [&](const Storage_engine_identifier &seid) {
+              return (
+                  (0 == strnncmp_nopads(hton_charset(), dse, seid.canonical)) ||
+                  (0 == strnncmp_nopads(hton_charset(), dse, seid.legacy)));
+            });
+        if (match == se_names_end) {
+          disabled_se_names.emplace_back(dse.str, dse.length);
+          return;
+        }
         disabled_se_names.emplace_back(match->canonical.str,
                                        match->canonical.length);
         disabled_se_names.emplace_back(match->legacy.str, match->legacy.length);
-      } else {
-        disabled_se_names.emplace_back(dse.str, dse.length);
-      }
-    }
-
-    if (comma_or_end == dse_end) break;
-    dse_begin = comma_or_end + 1;
-  }  // while (true)
+      });
 }
 
 static bool is_storage_engine_name_externally_disabled(const char *name) {

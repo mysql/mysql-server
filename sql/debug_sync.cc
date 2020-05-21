@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -356,16 +356,9 @@
 #include <time.h>
 #include <algorithm>
 #include <atomic>
-#include <boost/algorithm/string/classification.hpp>
-#include <boost/algorithm/string/split.hpp>
-#include <boost/algorithm/string/trim.hpp>
-#include <boost/concept/usage.hpp>
-#include <boost/iterator/iterator_facade.hpp>
-#include <boost/type_index/type_index_facade.hpp>
 #include <memory>
 #include <vector>
 
-#include "boost/algorithm/string/detail/classification.hpp"
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -390,6 +383,7 @@
 #include "sql/sql_error.h"
 #include "sql/thr_malloc.h"
 #include "sql_string.h"
+#include "template_utils.h"
 #include "thr_mutex.h"
 
 #if defined(ENABLED_DEBUG_SYNC)
@@ -1797,15 +1791,16 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action) {
 
     if (action->signal.length()) {
       std::string signal = action->signal.ptr();
-      std::vector<std::string> signals;
-      boost::split(signals, signal, boost::is_any_of(","));
-      for (std::vector<std::string>::const_iterator it = signals.begin();
-           it != signals.end(); ++it) {
-        /* Copy the signal to the global set. */
-        std::string s = *it;
-        boost::trim(s);
-        if (!s.empty()) add_signal_event(&s);
-      }
+      myu::Split(
+          signal.begin(), signal.end(), myu::IsComma,
+          [](std::string::const_iterator f, std::string::const_iterator l) {
+            auto tr = myu::FindTrimmedRange(f, l, myu::IsSpace);
+            if (tr.first != tr.second) {
+              std::string s{tr.first, tr.second};
+              add_signal_event(&s);
+            }
+          });
+
       /* Wake threads waiting in a sync point. */
       mysql_cond_broadcast(&debug_sync_global.ds_cond);
       DBUG_PRINT("debug_sync_exec",
