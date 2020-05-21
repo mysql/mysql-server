@@ -694,3 +694,33 @@ id	j
 # Clean up.
 DROP TABLE t1;
 SET sql_mode=@old_sql_mode;
+#
+# Bug#31024266 LOAD DATA INFILE FAILS IF THERE IS A FUNCTIONAL INDEX.
+#
+CREATE TABLE t1 (
+json_col JSON , KEY json_col ((CAST(json_col -> '$' AS UNSIGNED ARRAY)))
+);
+INSERT INTO t1 VALUES('[]');
+# LOAD DATA from file with separators.
+SELECT * INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' from t1;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' INTO TABLE t1;
+SELECT * FROM t1;
+json_col
+[]
+[]
+# LOAD DATA from file in fixed row format.
+SELECT * FROM t1 INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' FIELDS TERMINATED BY '' ENCLOSED BY '';;
+DELETE FROM t1;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' INTO TABLE t1 FIELDS TERMINATED BY '' ENCLOSED BY '';;
+SELECT * FROM t1;
+json_col
+[]
+[]
+# LOAD DATA from XML file.
+DELETE FROM t1;
+LOAD XML INFILE "MYSQLTEST_VARDIR/tmp/t1.xml" INTO TABLE t1;;
+SELECT * FROM t1;
+json_col
+[]
+[]
+DROP TABLE t1;

@@ -701,8 +701,36 @@ bool Sql_cmd_load_table::write_execute_load_query_log_event(
   return mysql_bin_log.write_event(&e);
 }
 
+namespace {
+/**
+  Checks if an item is a hidden generated column.
+
+  @param table       Pointer to TABLE object
+  @param item        Item to check
+
+  @returns true if checked item is a hidden generated column.
+*/
+inline bool is_hidden_generated_column(TABLE *table, Item *item) {
+  Item *real_item = item->real_item();
+  if (table->has_gcol() && real_item->type() == Item::FIELD_ITEM) {
+    const Field *field = down_cast<Item_field *>(real_item)->field;
+    if (bitmap_is_set(&table->fields_for_functional_indexes,
+                      field->field_index))
+      return true;
+  }
+  return false;
+}
+}  // namespace
+
 /**
   Read of rows of fixed size + optional garbage + optional newline
+
+  @param thd         Pointer to THD object
+  @param info        Pointer to COPY_INFO object
+  @param table_list  Pointer to TABLE_LIST object
+  @param read_info   Pointer to READ_INFO object
+  @param skip_lines  Number of ignored lines
+                     at the start of the file.
 
   @returns true if error
 */
@@ -747,6 +775,8 @@ bool Sql_cmd_load_table::read_fixed_length(THD *thd, COPY_INFO &info,
 
     Item *item;
     while ((item = it++)) {
+      // Skip hidden generated columns.
+      if (is_hidden_generated_column(table, item)) continue;
       /*
         There is no variables in fields_vars list in this format so
         this conversion is safe (no need to check for STRING_ITEM).
@@ -858,6 +888,16 @@ class Field_tmp_nullability_guard {
 };
 
 /**
+  Read rows in delimiter-separated formats.
+
+  @param thd         Pointer to THD object
+  @param info        Pointer to COPY_INFO object
+  @param table_list  Pointer to TABLE_LIST object
+  @param read_info   Pointer to READ_INFO object
+  @param enclosed    ENCLOSED BY character
+  @param skip_lines  Number of ignored lines
+                     at the start of the file.
+
   @returns true if error
 */
 bool Sql_cmd_load_table::read_sep_field(THD *thd, COPY_INFO &info,
@@ -896,6 +936,9 @@ bool Sql_cmd_load_table::read_sep_field(THD *thd, COPY_INFO &info,
       uint length;
       uchar *pos;
       Item *real_item;
+
+      // Skip hidden generated columns.
+      if (is_hidden_generated_column(table, item)) continue;
 
       if (read_info.read_field()) break;
 
@@ -1068,6 +1111,13 @@ bool Sql_cmd_load_table::read_sep_field(THD *thd, COPY_INFO &info,
 /**
   Read rows in xml format
 
+  @param thd         Pointer to THD object
+  @param info        Pointer to COPY_INFO object
+  @param table_list  Pointer to TABLE_LIST object
+  @param read_info   Pointer to READ_INFO object
+  @param skip_lines  Number of ignored lines
+                     at the start of the file.
+
   @returns true if error
 */
 bool Sql_cmd_load_table::read_xml_field(THD *thd, COPY_INFO &info,
@@ -1116,6 +1166,9 @@ bool Sql_cmd_load_table::read_xml_field(THD *thd, COPY_INFO &info,
     while ((item = it++)) {
       /* If this line is to be skipped we don't want to fill field or var */
       if (skip_lines) continue;
+
+      // Skip hidden generated columns.
+      if (is_hidden_generated_column(table, item)) continue;
 
       /* find field in tag list */
       xmlit.rewind();
