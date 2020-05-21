@@ -14,7 +14,7 @@
 # Added below inc file due to Bug#22740362
 --source include/have_64bit.inc
 # Increased server restart time
---let $wait_counter= 3000
+--let $wait_counter= 4000
 
 let $MYSQLD_OLD_DATADIR = `select @@datadir`;
 
@@ -67,7 +67,7 @@ SHOW CREATE TABLE purchase;
 
 # server was crashing here with ha_innodb.cc != nullptr
 --replace_column 1 #
-SELECT TABLESPACE_NAME,FILE_TYPE,TABLE_NAME,ENGINE FROM INFORMATION_SCHEMA.FILES;
+SELECT TABLESPACE_NAME,FILE_TYPE,TABLE_NAME,ENGINE FROM INFORMATION_SCHEMA.FILES ORDER BY TABLESPACE_NAME,FILE_TYPE,TABLE_NAME,ENGINE;
 
 --echo ## Stop DB server
 --source include/shutdown_mysqld.inc
