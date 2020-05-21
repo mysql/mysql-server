@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -5553,6 +5553,10 @@ int ndbcluster_binlog_wait_synch_drop_table(THD *thd, NDB_SHARE *share) {
 
 void ndbcluster_binlog_validate_sync_blacklist(THD *thd) {
   ndb_binlog_thread.validate_sync_blacklist(thd);
+}
+
+void ndbcluster_binlog_validate_sync_retry_list(THD *thd) {
+  ndb_binlog_thread.validate_sync_retry_list(thd);
 }
 
 bool ndbcluster_binlog_check_table_async(const std::string &db_name,

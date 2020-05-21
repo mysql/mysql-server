@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -63,6 +63,7 @@ class Ndb_metadata_sync {
                            // contain fewer than 256 characters. Constraint due
                            // to the size of the corresponding column in the PFS
                            // table
+    int m_retries{1};
 
     Detected_object(std::string schema_name, std::string name,
                     object_detected_type type, std::string reason = "")
@@ -77,6 +78,8 @@ class Ndb_metadata_sync {
   std::list<Detected_object> m_objects;
   mutable std::mutex m_blacklist_mutex;  // protects m_blacklist
   std::vector<Detected_object> m_blacklist;
+  std::mutex m_retry_objects_mutex;  // protects m_retry_objects
+  std::vector<Detected_object> m_retry_objects;
 
   /*
     @brief Construct a string comprising of the object type and name. This is
@@ -100,13 +103,26 @@ class Ndb_metadata_sync {
 
   /*
     @brief Check if an object is present in the current blacklist of objects.
-           Objects present in the blacklist will be ignored
 
     @param object  Details of object to be checked
 
     @return true if object is in the blacklist, false if not
   */
   bool object_blacklisted(const Detected_object &object) const;
+
+  /*
+    @brief Check if an object is present in the current blacklist of objects.
+           Objects present in the blacklist will be ignored
+
+    @param schema_name  Name of the schema
+    @param name         Name of the object
+    @param type         Type of the object
+
+    @return true if object is in the blacklist, false if not
+  */
+  bool object_blacklisted(const std::string &schema_name,
+                          const std::string &name,
+                          object_detected_type type) const;
 
   /*
     @brief Drop NDB_SHARE
@@ -133,18 +149,18 @@ class Ndb_metadata_sync {
                                            object_detected_type &type);
 
   /*
-    @brief Check if a mismatch still exists for the retrieved blacklist object
+    @brief Check if a mismatch still exists for an object
 
-    @param thd      Thread handle
+    @param thd          Thread handle
     @param schema_name  Name of the schema
     @param name         Name of the object
     @param type         Type of the object
 
     @return true if mismatch still exists, false if not
   */
-  bool check_blacklist_object_mismatch(THD *thd, const std::string &schema_name,
-                                       const std::string &name,
-                                       object_detected_type type) const;
+  bool check_object_mismatch(THD *thd, const std::string &schema_name,
+                             const std::string &name,
+                             object_detected_type type) const;
 
   /*
     @brief Validate object in the blacklist. The object being validated is
@@ -165,6 +181,38 @@ class Ndb_metadata_sync {
     @return void
   */
   void reset_blacklist_state();
+
+  /*
+    @brief Get details of an object pending validation from the current
+           list of objects whose sync is being retried
+
+    @param schema_name [out]  Name of the schema
+    @param name        [out]  Name of the object
+    @param type        [out]  Type of the object
+
+    @return true if an object pending validation was found, false if not
+  */
+  bool get_retry_object_for_validation(std::string &schema_name,
+                                       std::string &name,
+                                       object_detected_type &type);
+
+  /*
+    @brief Validate object in the retry list. The object is removed if the
+           mismatch no longer exists or if the object has been blacklisted
+
+    @param remove_retry_object  Denotes whether the object should be removed
+
+    @return void
+  */
+  void validate_retry_object(bool remove_retry_object);
+
+  /*
+    @brief Reset the state of all retry objects to pending validation at the
+           end of a validation cycle
+
+    @return void
+  */
+  void reset_retry_objects_state();
 
  public:
   Ndb_metadata_sync() {}
@@ -285,6 +333,29 @@ class Ndb_metadata_sync {
     @return number of blacklisted objects
   */
   unsigned int get_blacklist_count();
+
+  /*
+    @brief Checks if the number of times the synchronization of an object has
+           been retried has exceeded the retry limit
+
+    @param schema_name  Name of the schema
+    @param name         Name of the object
+    @param type         Type of the object
+
+    @return true if the limit has been exceeded, false if not
+  */
+  bool retry_limit_exceeded(const std::string &schema_name,
+                            const std::string &name, object_detected_type type);
+
+  /*
+    @brief Iterate through the retry list of objects and check if the objects
+           are still being retried due to temporary errors or not
+
+    @param thd  Thread handle
+
+    @return void
+  */
+  void validate_retry_list(THD *thd);
 
   /*
     @brief Synchronize a logfile group object between NDB Dictionary and DD

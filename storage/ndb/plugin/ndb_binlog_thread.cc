@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -74,6 +74,10 @@ int Ndb_binlog_thread::do_after_reset_master(void *) {
 
 void Ndb_binlog_thread::validate_sync_blacklist(THD *thd) {
   metadata_sync.validate_blacklist(thd);
+}
+
+void Ndb_binlog_thread::validate_sync_retry_list(THD *thd) {
+  metadata_sync.validate_retry_list(thd);
 }
 
 bool Ndb_binlog_thread::add_logfile_group_to_check(
@@ -160,10 +164,16 @@ void Ndb_binlog_thread::synchronize_detected_object(THD *thd) {
                  object_name.c_str());
         increment_metadata_synced_count();
       } else if (temp_error) {
-        log_info(
-            "Failed to synchronize logfile group '%s' due to a temporary "
-            "error",
-            object_name.c_str());
+        if (metadata_sync.retry_limit_exceeded(schema_name, object_name,
+                                               object_type)) {
+          metadata_sync.add_object_to_blacklist(schema_name, object_name,
+                                                object_type, error_msg);
+        } else {
+          log_info(
+              "Failed to synchronize logfile group '%s' due to a temporary "
+              "error",
+              object_name.c_str());
+        }
       } else {
         log_error("Failed to synchronize logfile group '%s'",
                   object_name.c_str());
@@ -182,10 +192,15 @@ void Ndb_binlog_thread::synchronize_detected_object(THD *thd) {
                  object_name.c_str());
         increment_metadata_synced_count();
       } else if (temp_error) {
-        log_info(
-            "Failed to synchronize tablespace '%s' due to a temporary "
-            "error",
-            object_name.c_str());
+        if (metadata_sync.retry_limit_exceeded(schema_name, object_name,
+                                               object_type)) {
+          metadata_sync.add_object_to_blacklist(schema_name, object_name,
+                                                object_type, error_msg);
+        } else {
+          log_info(
+              "Failed to synchronize tablespace '%s' due to a temporary error",
+              object_name.c_str());
+        }
       } else {
         log_error("Failed to synchronize tablespace '%s'", object_name.c_str());
         metadata_sync.add_object_to_blacklist(schema_name, object_name,
@@ -201,8 +216,14 @@ void Ndb_binlog_thread::synchronize_detected_object(THD *thd) {
         log_info("Schema '%s' successfully synchronized", schema_name.c_str());
         increment_metadata_synced_count();
       } else if (temp_error) {
-        log_info("Failed to synchronize schema '%s' due to a temporary error",
-                 schema_name.c_str());
+        if (metadata_sync.retry_limit_exceeded(schema_name, object_name,
+                                               object_type)) {
+          metadata_sync.add_object_to_blacklist(schema_name, object_name,
+                                                object_type, error_msg);
+        } else {
+          log_info("Failed to synchronize schema '%s' due to a temporary error",
+                   schema_name.c_str());
+        }
       } else {
         log_error("Failed to synchronize schema '%s'", schema_name.c_str());
         metadata_sync.add_object_to_blacklist(schema_name, object_name,
@@ -220,8 +241,15 @@ void Ndb_binlog_thread::synchronize_detected_object(THD *thd) {
                  object_name.c_str());
         increment_metadata_synced_count();
       } else if (temp_error) {
-        log_info("Failed to synchronize table '%s.%s' due to a temporary error",
-                 schema_name.c_str(), object_name.c_str());
+        if (metadata_sync.retry_limit_exceeded(schema_name, object_name,
+                                               object_type)) {
+          metadata_sync.add_object_to_blacklist(schema_name, object_name,
+                                                object_type, error_msg);
+        } else {
+          log_info(
+              "Failed to synchronize table '%s.%s' due to a temporary error",
+              schema_name.c_str(), object_name.c_str());
+        }
       } else {
         log_error("Failed to synchronize table '%s.%s'", schema_name.c_str(),
                   object_name.c_str());
