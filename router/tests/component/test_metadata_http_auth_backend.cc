@@ -618,13 +618,6 @@ TEST_F(MetadataHttpAuthTest, ExpiredAuthCacheTTL) {
   set_mock_metadata({{kTestUser1, ""}}, cluster_http_port, cluster_id,
                     cluster_node_port, fail_on_md_query, 0, view_id);
 
-  // auth_cache_ttl is not yet expired
-  EXPECT_GT(wait_for_rest_auth_query(2, cluster_http_port), 0);
-
-  ASSERT_NO_FATAL_FAILURE(request_json(rest_client, uri, HttpMethod::Get,
-                                       HttpStatusCode::Ok, json_doc,
-                                       kContentTypeJson));
-
   // wait long enough for the auth cache to expire
   std::this_thread::sleep_for(cache_ttl);
 
