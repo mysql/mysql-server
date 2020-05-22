@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -141,7 +141,7 @@ class Gcs_message_stage {
 
    @param[in] packet The packet upon which the transformation should be reverted
    @retval {ERROR, _} If there was an error reverting the transformation
-   @retval {OK_NO_PACKET, _} If the transformation was reverted, but produced
+   @retval {OK_NO_PACKET, NP} If the transformation was reverted, but produced
            no packet
    @retval {OK_PACKET, P} If the transformation was reverted, and produced the
            packet P
@@ -179,7 +179,7 @@ class Gcs_message_stage {
 
    @param[in] packet The packet upon which the transformation should be reverted
    @retval {ERROR, _} If there was an error reverting the transformation
-   @retval {OK_NO_PACKET, _} If the transformation was reverted, but produced
+   @retval {OK_NO_PACKET, NP} If the transformation was reverted, but produced
            no packet
    @retval {OK_PACKET, P} If the transformation was reverted, and produced the
            packet P
@@ -421,7 +421,7 @@ class Gcs_message_pipeline {
 
    @param packet The packet to process.
    @retval {ERROR, _} If there was an error in the pipeline
-   @retval {OK_NO_PACKET, _} If the pipeline was successful, but produced no
+   @retval {OK_NO_PACKET, NP} If the pipeline was successful, but produced no
            packet
    @retval {OK_PACKET, P} If the pipeline was successful, and produced the
            packet P
@@ -629,7 +629,7 @@ class Gcs_message_pipeline {
    @param packet The packet to transform
    @param stage_code The stage to revert
    @retval {ERROR, _} If there was an error in the stage
-   @retval {OK_NO_PACKET, _} If the stage was successfully reverted, but
+   @retval {OK_NO_PACKET, NP} If the stage was successfully reverted, but
            produced no packet
    @retval {OK_PACKET, P} If the stage was successfully reverted, and produced
            the packet P
