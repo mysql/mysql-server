@@ -277,6 +277,7 @@ our $opt_fast                      = 0;
 our $opt_gcov_err                  = "mysql-test-gcov.err";
 our $opt_gcov_exe                  = "gcov";
 our $opt_gcov_msg                  = "mysql-test-gcov.msg";
+our $opt_hypergraph                = 0;
 our $opt_mem                       = $ENV{'MTR_MEM'} ? 1 : 0;
 our $opt_only_big_test             = 0;
 our $opt_parallel                  = $ENV{MTR_PARALLEL};
@@ -1466,6 +1467,7 @@ sub print_global_resfile {
   resfile_global("gcov",             $opt_gcov             ? 1 : 0);
   resfile_global("gprof",            $opt_gprof            ? 1 : 0);
   resfile_global("helgrind",         $opt_helgrind         ? 1 : 0);
+  resfile_global("hypergraph",       $opt_hypergraph       ? 1 : 0);
   resfile_global("initialize",       \@opt_extra_bootstrap_opt);
   resfile_global("max-connections",  $opt_max_connections);
   resfile_global("mem",              $opt_mem              ? 1 : 0);
@@ -1522,6 +1524,7 @@ sub command_line_setup {
     'async-client'          => \$opt_async_client,
     'cursor-protocol'       => \$opt_cursor_protocol,
     'explain-protocol'      => \$opt_explain_protocol,
+    'hypergraph'            => \$opt_hypergraph,
     'json-explain-protocol' => \$opt_json_explain_protocol,
     'opt-trace-protocol'    => \$opt_trace_protocol,
     'ps-protocol'           => \$opt_ps_protocol,
@@ -3107,6 +3110,10 @@ sub environment_setup {
   my $exe_zlib_decompress =
     mtr_exe_maybe_exists("$path_client_bindir/zlib_decompress");
   $ENV{'ZLIB_DECOMPRESS'} = native_path($exe_zlib_decompress);
+
+  # Create an environment variable to make it possible
+  # to detect that the hypergraph optimizer is being used from test cases
+  $ENV{'HYPERGRAPH_TEST'} = $opt_hypergraph;
 
   # Create an environment variable to make it possible
   # to detect that valgrind is being used from test cases
@@ -6948,6 +6955,10 @@ sub start_mysqltest ($) {
 
   if ($opt_colored_diff) {
     mtr_add_arg($args, "--colored-diff", $opt_colored_diff);
+  }
+
+  if ($opt_hypergraph) {
+    mtr_add_arg($args, "--hypergraph");
   }
 
   foreach my $arg (@opt_extra_mysqltest_opt) {

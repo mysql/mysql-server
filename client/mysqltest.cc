@@ -162,6 +162,7 @@ enum {
   OPT_COLORED_DIFF = OPT_MAX_CLIENT_OPTION,
   OPT_CURSOR_PROTOCOL,
   OPT_EXPLAIN_PROTOCOL,
+  OPT_HYPERGRAPH,
   OPT_JSON_EXPLAIN_PROTOCOL,
   OPT_LOG_DIR,
   OPT_MARK_PROGRESS,
@@ -224,6 +225,7 @@ static MEM_ROOT argv_alloc{PSI_NOT_INSTRUMENTED, 512};
 static const char *load_default_groups[] = {"mysqltest", "client", nullptr};
 static char line_buffer[MAX_DELIMITER_LENGTH], *line_buffer_pos = line_buffer;
 static bool can_handle_expired_passwords = true;
+static bool opt_hypergraph = false;
 
 /*
   These variables control the behavior of the asynchronous operations for
@@ -1263,6 +1265,15 @@ void handle_error(struct st_command *command, std::uint32_t err_errno,
                   DYNAMIC_STRING *ds) {
   DBUG_TRACE;
 
+  if (opt_hypergraph && err_errno == ER_HYPERGRAPH_NOT_SUPPORTED_YET) {
+    const char errstr[] = "<ignored hypergraph optimizer error: ";
+    dynstr_append_mem(ds, errstr, sizeof(errstr) - 1);
+    replace_dynstr_append(ds, err_error);
+    dynstr_append_mem(ds, ">\n", 2);
+    revert_properties();
+    return;
+  }
+
   if (command->abort_on_error)
     die("Query '%s' failed.\nERROR %d (%s): %s", command->query, err_errno,
         err_sqlstate, err_error);
@@ -1817,6 +1828,102 @@ static int diff_check(const char *diff_name) {
 
 #endif
 
+/**
+  See if the diff consists _solely_ of hunks that are due to output lines being
+  replaced with the special hypergraph error text. If so, return true.
+  An example hunk:
+
+  @@ -315,45 +211,25 @@
+   SELECT * FROM articles WHERE MATCH(title, body) AGAINST('a' IN BOOLEAN MODE);
+  -id     title   body
+  -3      foo     bar
+  -2      bar     baz
+  +<ignored hypergraph optimizer error: The hypergraph optimizer does not yet
+  support 'fulltext search'> SELECT ...
+ */
+static bool is_diff_clean_except_hypergraph(DYNAMIC_STRING *ds) {
+  constexpr char error_signature[] = "+<ignored hypergraph optimizer error: ";
+
+  enum STATE {
+    LOOKING_FOR_FIRST_HUNK,
+    IN_HUNK,
+    FOUND_NEGATIVE_LINE
+  } state = LOOKING_FOR_FIRST_HUNK;
+
+  const char *end = ds->str + ds->length;
+  const char *line_end;
+  for (const char *ptr = ds->str; ptr < end; ptr = line_end + 1) {
+    line_end = pointer_cast<const char *>(memchr(ptr, '\n', end - ptr));
+    if (line_end == nullptr) {
+      line_end = end;
+    }
+
+    size_t line_length = line_end - ptr;
+    if (state == LOOKING_FOR_FIRST_HUNK) {
+      if (line_length < 2) {
+        // Malformed diff, give up.
+        return false;
+      }
+      if (ptr[0] == '@' && ptr[1] == '@') {
+        // Beginning of hunk.
+        state = IN_HUNK;
+      } else {
+        // Still waiting for the first hunk.
+      }
+    } else {
+      assert(state == IN_HUNK || state == FOUND_NEGATIVE_LINE);
+
+      if (line_length < 1) {
+        // Malformed diff, give up.
+        return false;
+      }
+      if (ptr[0] == '-') {
+        // A group of negative diff lines (either the beginning, or more
+        // of them). Hopefully, this group will be ended with an instance of
+        // "+<ignored hypergraph optimizer ...", which means we can ignore it.
+        state = FOUND_NEGATIVE_LINE;
+      } else if (ptr[0] == ' ') {
+        if (state == IN_HUNK) {
+          // Waiting for the next (or first) diff. Continue.
+        } else {
+          // Negative lines that were not followed by an ignored error.
+          // These are not acceptable.
+          return false;
+        }
+      } else if (line_length >= 2 && ptr[0] == '@' && ptr[1] == '@') {
+        // Beginning of a new hunk.
+        if (state == FOUND_NEGATIVE_LINE) {
+          // Negative lines that were not followed by an ignored error.
+          // These are not acceptable.
+          return false;
+        }
+      } else if (ptr[0] == '+') {
+        if (line_length >= strlen(error_signature) &&
+            memcmp(ptr, error_signature, strlen(error_signature)) == 0) {
+          // An ignored error. Whether there were previous negative lines
+          // or not, that's fine; we can end and ignore this group.
+          state = IN_HUNK;
+        } else {
+          // A non-ignored error.
+          return false;
+        }
+      } else {
+        // Malformed diff, give up.
+        return false;
+      }
+    }
+  }
+
+  if (state == FOUND_NEGATIVE_LINE) {
+    // Negative lines that were not followed by an ignored error.
+    // These are not acceptable.
+    return false;
+  }
+
+  // Found nothing else, so success!
+  return true;
+}
+
 /// Show the diff of two files using the systems builtin diff
 /// command. If no such diff command exist, just dump the content
 /// of the two files and inform about how to get "diff"
@@ -1825,7 +1932,8 @@ static int diff_check(const char *diff_name) {
 ///                  diff. If NULL, print the diff to stderr.
 /// @param filename1 Name of the first file
 /// @param filename2 Name of the second file
-static void show_diff(DYNAMIC_STRING *ds, const char *filename1,
+/// @return          true if the diff should be ignored
+static bool show_diff(DYNAMIC_STRING *ds, const char *filename1,
                       const char *filename2) {
   DYNAMIC_STRING ds_diff;
   if (init_dynamic_string(&ds_diff, "", 256)) die("Out of memory");
@@ -1881,6 +1989,9 @@ static void show_diff(DYNAMIC_STRING *ds, const char *filename1,
               run_tool(diff_name, &ds_diff, filename1, filename2, "2>&1", NULL);
           if (exit_code > 1) diff_name = nullptr;
         }
+      } else if (exit_code == 1 && opt_hypergraph &&
+                 is_diff_clean_except_hypergraph(&ds_diff)) {
+        return true;
       }
     }
   }
@@ -1923,6 +2034,7 @@ static void show_diff(DYNAMIC_STRING *ds, const char *filename1,
     fprintf(stderr, "%s\n", ds_diff.str);
 
   dynstr_free(&ds_diff);
+  return false;
 }
 
 enum compare_files_result_enum {
@@ -2061,7 +2173,11 @@ static void check_result() {
         die("Failed to copy '%s' to '%s', errno: %d", log_file.file_name(),
             reject_file, errno);
 
-      show_diff(nullptr, result_file_name, reject_file);
+      bool ignored_diff = show_diff(nullptr, result_file_name, reject_file);
+      if (ignored_diff) {
+        abort_not_supported_test(
+            "Hypergraph optimizer did not support all queries.");
+      }
       die("%s", mess);
       break;
     }
@@ -7312,6 +7428,10 @@ static struct my_option my_long_options[] = {
      GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"host", 'h', "Connect to host.", &opt_host, &opt_host, nullptr, GET_STR,
      REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"hypergraph", OPT_HYPERGRAPH,
+     "Force all queries to be run under the hypergraph optimizer.",
+     &opt_hypergraph, &opt_hypergraph, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
     {"include", 'i', "Include SQL before each test case.", &opt_include,
      &opt_include, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
@@ -9198,6 +9318,16 @@ int main(int argc, char **argv) {
   var_set_errno(-1);
 
   set_current_connection(con);
+
+  if (opt_hypergraph) {
+    int error = mysql_query_wrapper(
+        &con->mysql, "SET optimizer_switch='hypergraph_optimizer=on';");
+    if (error != 0) {
+      die("--hypergraph was given, but the server does not support the "
+          "hypergraph optimizer. (errno=%d)",
+          my_errno());
+    }
+  }
 
   if (opt_include) {
     open_file(opt_include);

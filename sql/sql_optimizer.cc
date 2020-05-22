@@ -509,6 +509,15 @@ bool JOIN::optimize() {
   // Ensure there are no errors prior making query plan
   if (thd->is_error()) return true;
 
+  if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER) &&
+      strcasestr(thd->query().str, "set ") == nullptr &&
+      strstr(thd->query().str, "@") == nullptr &&
+      thd->lex->sql_command == SQLCOM_SELECT) {
+    // There is no hypergraph optimizer yet.
+    my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0), "anything");
+    return true;
+  }
+
   // Set up join order and initial access paths
   THD_STAGE_INFO(thd, stage_statistics);
   if (make_join_plan()) {

@@ -9402,6 +9402,12 @@ ER_CHARACTER_SET_MISMATCH
 ER_WARN_VAR_VALUE_CHANGE_NOT_SUPPORTED
   eng "Changing %s not supported on this platform. Falling back to the default."
 
+ER_HYPERGRAPH_NOT_SUPPORTED_YET 42000
+  eng "The hypergraph optimizer does not yet support '%s'"
+
+ER_WARN_HYPERGRAPH_EXPERIMENTAL
+  eng "The hypergraph optimizer is highly experimental and is meant for testing only. Do not enable it unless you are a MySQL developer."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

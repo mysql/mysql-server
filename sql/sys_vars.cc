@@ -3111,6 +3111,36 @@ export void update_parser_max_mem_size() {
   global_system_variables.parser_max_mem_size = new_val;
 }
 
+static bool check_optimizer_switch(sys_var *, THD *thd MY_ATTRIBUTE((unused)),
+                                   set_var *var) {
+  const bool current_hypergraph_optimizer =
+      thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER);
+  const bool want_hypergraph_optimizer =
+      var->save_result.ulonglong_value & OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER;
+
+  if (current_hypergraph_optimizer && !want_hypergraph_optimizer) {
+    // Don't turn off the hypergraph optimizer on set optimizer_switch=DEFAULT.
+    // This is so that mtr --hypergraph should not be easily cancelled in the
+    // middle of a test, unless the test explicitly meant it.
+    if (var->value == nullptr) {
+      var->save_result.ulonglong_value |= OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER;
+    }
+  } else if (!current_hypergraph_optimizer && want_hypergraph_optimizer) {
+#ifndef DBUG_OFF
+    // Allow, with a warning.
+    push_warning(thd, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_SYNTAX,
+                 ER_THD(thd, ER_WARN_HYPERGRAPH_EXPERIMENTAL));
+    return false;
+#else
+    // Disallow; the hypergraph optimizer is not ready for production yet.
+    my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0),
+             "use in non-debug builds");
+    return true;
+#endif
+  }
+  return false;
+}
+
 /**
   @note
   @b BEWARE! These must have the same order as the \#defines in sql_const.h!
@@ -3140,6 +3170,7 @@ static const char *optimizer_switch_names[] = {
     "hash_join",
     "subquery_to_derived",
     "prefer_ordering_index",
+    "hypergraph_optimizer",  // Deliberately not documented below.
     "default",
     NullS};
 static Sys_var_flagset Sys_optimizer_switch(
@@ -3156,7 +3187,7 @@ static Sys_var_flagset Sys_optimizer_switch(
     "{on, off, default}",
     HINT_UPDATEABLE SESSION_VAR(optimizer_switch), CMD_LINE(REQUIRED_ARG),
     optimizer_switch_names, DEFAULT(OPTIMIZER_SWITCH_DEFAULT), NO_MUTEX_GUARD,
-    NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr));
+    NOT_IN_BINLOG, ON_CHECK(check_optimizer_switch), ON_UPDATE(nullptr));
 
 static Sys_var_bool Sys_var_end_markers_in_json(
     "end_markers_in_json",
