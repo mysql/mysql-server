@@ -1,0 +1,2 @@
+--innodb-buffer-pool-size=40M
+
