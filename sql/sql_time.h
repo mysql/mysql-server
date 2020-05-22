@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -118,7 +118,7 @@ void propagate_datetime_overflow_helper(THD *thd, int *warnings);
    @param thd Thread context
    @param warnings bitset used mysys function
    @param t value mysys function which is passed on
-   @retval t
+   @returns t
  */
 template <class T>
 inline T propagate_datetime_overflow(THD *thd, int *warnings, T t) {

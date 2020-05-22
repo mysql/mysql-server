@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -103,7 +103,7 @@ static struct my_err_head *my_errmsgs_list = &my_errmsgs_globerrs;
   @param  len  the size of the aforementioned buffer
   @param  nr   the error number
 
-  @retval buf  always buf. for signature compatibility with strerror(3).
+  @returns buf always buf. for signature compatibility with strerror(3).
 */
 
 char *my_strerror(char *buf, size_t len, int nr) {

@@ -421,8 +421,8 @@ bool is_valid_log_name(const char *name, size_t len) {
   @param          opened_file_name      Name of the open fd.
   @param [out]    real_file_name        Buffer for actual name of the fd.
 
-  @retval file descriptor to open file with 'real_file_name', or '-1'
-          in case of errors.
+  @returns file descriptor to open file with 'real_file_name', or '-1'
+           in case of errors.
 */
 
 static File mysql_file_real_name_reopen(File file,
