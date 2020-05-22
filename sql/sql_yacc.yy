@@ -8594,7 +8594,6 @@ group_replication_start_option:
           group_replication_user
         | group_replication_password
         | group_replication_plugin_auth
-        | group_replication_plugin_dir
         ;
 
 group_replication_user:
@@ -8626,13 +8625,6 @@ group_replication_plugin_auth:
           DEFAULT_AUTH_SYM EQ TEXT_STRING_sys_nonewline
           {
             Lex->slave_connection.plugin_auth= $3.str;
-          }
-        ;
-
-group_replication_plugin_dir:
-          PLUGIN_DIR_SYM EQ TEXT_STRING_sys
-          {
-            Lex->slave_connection.plugin_dir= $3.str;
           }
         ;
 

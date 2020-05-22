@@ -401,7 +401,7 @@ int channel_start(const char *channel, Channel_connection_info *connection_info,
   ulong thread_start_id = 0;
   bool thd_created = false;
   THD *thd = current_thd;
-  String_set user, pass, auth, dir;
+  String_set user, pass, auth;
 
   /* Service channels are not supposed to use sql_slave_skip_counter */
   mysql_mutex_lock(&LOCK_sql_slave_skip_counter);
@@ -432,16 +432,14 @@ int channel_start(const char *channel, Channel_connection_info *connection_info,
   LEX_SLAVE_CONNECTION lex_connection;
   lex_connection.reset();
 
-  if (!Rpl_channel_credentials::get_instance().get_credentials(
-          channel, user, pass, auth, dir)) {
+  if (!Rpl_channel_credentials::get_instance().get_credentials(channel, user,
+                                                               pass, auth)) {
     lex_connection.user =
         (user.first ? const_cast<char *>(user.second.c_str()) : nullptr);
     lex_connection.password =
         (pass.first ? const_cast<char *>(pass.second.c_str()) : nullptr);
     lex_connection.plugin_auth =
         (auth.first ? const_cast<char *>(auth.second.c_str()) : nullptr);
-    lex_connection.plugin_dir =
-        (dir.first ? const_cast<char *>(dir.second.c_str()) : nullptr);
   }
 
   if (connection_info->until_condition != CHANNEL_NO_UNTIL_CONDITION) {
@@ -1048,10 +1046,10 @@ int channel_get_retrieved_gtid_set(const char *channel, char **retrieved_set) {
 int channel_get_credentials(const char *channel, std::string &username,
                             std::string &password) {
   DBUG_TRACE;
-  String_set user_store, pass_store, auth_store, dir_store;
+  String_set user_store, pass_store, auth_store;
 
   if (!Rpl_channel_credentials::get_instance().get_credentials(
-          channel, user_store, pass_store, auth_store, dir_store)) {
+          channel, user_store, pass_store, auth_store)) {
     if (user_store.first) username = user_store.second;
     if (pass_store.first) password = pass_store.second;
     return 0;

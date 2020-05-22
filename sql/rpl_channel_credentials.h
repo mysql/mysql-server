@@ -33,18 +33,15 @@ class Rpl_channel_credentials {
     String_set username;
     String_set password;
     String_set plugin_auth;
-    String_set plugin_dir;
 
     Channel_cred_param(char *username_arg, char *password_arg,
-                       char *plugin_auth_arg, char *plugin_dir_arg) {
+                       char *plugin_auth_arg) {
       if ((username.first = (username_arg != nullptr)))
         username.second.assign(username_arg);
       if ((password.first = (password_arg != nullptr)))
         password.second.assign(password_arg);
       if ((plugin_auth.first = (plugin_auth_arg != nullptr)))
         plugin_auth.second.assign(plugin_auth_arg);
-      if ((plugin_dir.first = (plugin_dir_arg != nullptr)))
-        plugin_dir.second.assign(plugin_dir_arg);
     }
   };
 
@@ -90,14 +87,13 @@ class Rpl_channel_credentials {
     @param[out]  user          Username of channel.
     @param[out]  pass          Password of channel.
     @param[out]  auth          Authentication plugin.
-    @param[out]  dir           Authentication plugin directory.
 
     @return the operation status
       @retval 0   OK
       @retval 1   Credentials do not exist.
   */
   int get_credentials(const char *channel_name, String_set &user,
-                      String_set &pass, String_set &auth, String_set &dir);
+                      String_set &pass, String_set &auth);
 
   /**
     Method to store credentials in map.
@@ -106,14 +102,13 @@ class Rpl_channel_credentials {
     @param[in]  username      Username for channel.
     @param[in]  password      Password for channel.
     @param[in]  plugin_auth   Authentication plugin.
-    @param[in]  plugin_dir    Authentication plugin directory.
 
     @return the operation status
       @retval 0   OK
       @retval 1   Error, credentials already exists
   */
   int store_credentials(const char *channel_name, char *username,
-                        char *password, char *plugin_auth, char *plugin_dir);
+                        char *password, char *plugin_auth);
 
   /**
    Method to delete channel credentials.

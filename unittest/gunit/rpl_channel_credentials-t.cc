@@ -38,24 +38,20 @@ class CredentialStructTesting : public ::testing::Test {
     user[0] = 0;
     pass[0] = 0;
     auth[0] = 0;
-    dir[0] = 0;
     strcpy(user, "username");
     strcpy(pass, "password");
     strcpy(auth, "authentication");
-    strcpy(dir, "directory");
   }
 
   virtual void TearDown() {
     user[0] = 0;
     pass[0] = 0;
     auth[0] = 0;
-    dir[0] = 0;
   }
 
   char user[1024];
   char pass[1024];
   char auth[1024];
-  char dir[1024];
 };
 
 TEST_F(CredentialStructTesting, AssertAddition) {
@@ -64,7 +60,7 @@ TEST_F(CredentialStructTesting, AssertAddition) {
 
   /* Create channel channel_1 */
   ASSERT_EQ(Rpl_channel_credentials::get_instance().store_credentials(
-                "channel_1", this->user, this->pass, this->auth, this->dir),
+                "channel_1", this->user, this->pass, this->auth),
             0);
   /* Assert credentials of channel are added. */
   ASSERT_EQ(1,
@@ -72,7 +68,7 @@ TEST_F(CredentialStructTesting, AssertAddition) {
 
   /* Create channel channel_2 */
   ASSERT_EQ(Rpl_channel_credentials::get_instance().store_credentials(
-                "channel_2", this->user, this->pass, this->auth, this->dir),
+                "channel_2", this->user, this->pass, this->auth),
             0);
   /* Assert credentials of channel are added. */
   ASSERT_EQ(2,
@@ -80,7 +76,7 @@ TEST_F(CredentialStructTesting, AssertAddition) {
 
   /* channel_2 already exist so it should fail, re-use store pointer. */
   ASSERT_EQ(Rpl_channel_credentials::get_instance().store_credentials(
-                "channel_2", this->user, this->pass, this->auth, this->dir),
+                "channel_2", this->user, this->pass, this->auth),
             1);
   /* Assert credentials of channel are not added. */
   ASSERT_EQ(2,
@@ -90,9 +86,8 @@ TEST_F(CredentialStructTesting, AssertAddition) {
   this->user[0] = 0;
   this->pass[0] = 0;
   this->auth[0] = 0;
-  this->dir[0] = 0;
   ASSERT_EQ(Rpl_channel_credentials::get_instance().store_credentials(
-                "channel_3", this->user, this->pass, this->auth, this->dir),
+                "channel_3", this->user, this->pass, this->auth),
             0);
   /* Assert credentials of channel are not added. */
   ASSERT_EQ(3,
@@ -100,7 +95,7 @@ TEST_F(CredentialStructTesting, AssertAddition) {
 
   /* Create channel channel_4. */
   ASSERT_EQ(Rpl_channel_credentials::get_instance().store_credentials(
-                "channel_4", this->user, this->pass, this->auth, this->dir),
+                "channel_4", this->user, this->pass, this->auth),
             0);
 
   ASSERT_EQ(4,
@@ -118,13 +113,13 @@ TEST_F(CredentialStructTesting, AssertDeletion) {
 
   /* Store 3 channels. */
   ASSERT_EQ(Rpl_channel_credentials::get_instance().store_credentials(
-                "channel_1", this->user, this->pass, this->auth, this->dir),
+                "channel_1", this->user, this->pass, this->auth),
             0);
   ASSERT_EQ(Rpl_channel_credentials::get_instance().store_credentials(
-                "channel_2", this->user, this->pass, this->auth, this->dir),
+                "channel_2", this->user, this->pass, this->auth),
             0);
   ASSERT_EQ(Rpl_channel_credentials::get_instance().store_credentials(
-                "channel_3", this->user, this->pass, this->auth, this->dir),
+                "channel_3", this->user, this->pass, this->auth),
             0);
 
   /* Assert 3 channels are present. */
@@ -186,13 +181,13 @@ TEST_F(CredentialStructTesting, AssertCleanup) {
 
   /* Store 3 channels. */
   ASSERT_EQ(Rpl_channel_credentials::get_instance().store_credentials(
-                "channel_1", this->user, this->pass, this->auth, this->dir),
+                "channel_1", this->user, this->pass, this->auth),
             0);
   ASSERT_EQ(Rpl_channel_credentials::get_instance().store_credentials(
-                "channel_2", this->user, this->pass, this->auth, this->dir),
+                "channel_2", this->user, this->pass, this->auth),
             0);
   ASSERT_EQ(Rpl_channel_credentials::get_instance().store_credentials(
-                "channel_3", this->user, this->pass, this->auth, this->dir),
+                "channel_3", this->user, this->pass, this->auth),
             0);
   ASSERT_EQ(3,
             (int)Rpl_channel_credentials::get_instance().number_of_channels());
@@ -204,120 +199,107 @@ TEST_F(CredentialStructTesting, AssertCleanup) {
 }
 
 TEST_F(CredentialStructTesting, AssertGet) {
-  String_set user, pass, auth, dir;
+  String_set user, pass, auth;
 
   /* Assert credential set is empty. */
   ASSERT_EQ(Rpl_channel_credentials::get_instance().number_of_channels(), 0);
   ASSERT_EQ(Rpl_channel_credentials::get_instance().get_credentials(
-                "channel_does_not_exist", user, pass, auth, dir),
+                "channel_does_not_exist", user, pass, auth),
             1);
 
   /* Store 3 channels. */
-  /* Channel_1 credentials are username, password, authentication, directory. */
+  /* Channel_1 credentials are username, password, authentication. */
   ASSERT_EQ(Rpl_channel_credentials::get_instance().store_credentials(
-                "channel_1", this->user, this->pass, this->auth, this->dir),
+                "channel_1", this->user, this->pass, this->auth),
             0);
   /* Channel_2 credentials are username, password, NULL, NULL. */
   ASSERT_EQ(Rpl_channel_credentials::get_instance().store_credentials(
-                "channel_2", this->user, this->pass, nullptr, nullptr),
+                "channel_2", this->user, this->pass, nullptr),
             0);
   /* Channel_3 credentials are username, NULL, NULL, NULL. */
   ASSERT_EQ(Rpl_channel_credentials::get_instance().store_credentials(
-                "channel_3", this->user, nullptr, nullptr, nullptr),
+                "channel_3", this->user, nullptr, nullptr),
             0);
   /* Channel_4 credentials are "", "", "", "". */
   this->user[0] = 0;
   this->pass[0] = 0;
   this->auth[0] = 0;
-  this->dir[0] = 0;
   ASSERT_EQ(Rpl_channel_credentials::get_instance().store_credentials(
-                "channel_4", this->user, this->pass, this->auth, this->dir),
+                "channel_4", this->user, this->pass, this->auth),
             0);
   /* Channel_5 credentials are NULL, NULL, NULL, NULL. */
   ASSERT_EQ(Rpl_channel_credentials::get_instance().store_credentials(
-                "channel_5", nullptr, nullptr, nullptr, nullptr),
+                "channel_5", nullptr, nullptr, nullptr),
             0);
 
   ASSERT_EQ(5,
             (int)Rpl_channel_credentials::get_instance().number_of_channels());
 
   /* Assert credentials are correct for channel_1. */
-  /* Channel_1 credentials are username, password, authentication, directory. */
+  /* Channel_1 credentials are username, password, authentication. */
   Rpl_channel_credentials::get_instance().get_credentials("channel_1", user,
-                                                          pass, auth, dir);
+                                                          pass, auth);
   ASSERT_EQ(std::string("username"), user.second);
   ASSERT_EQ(std::string("password"), pass.second);
   ASSERT_EQ(std::string("authentication"), auth.second);
-  ASSERT_EQ(std::string("directory"), dir.second);
   ASSERT_EQ(user.first, true);
   ASSERT_EQ(pass.first, true);
   ASSERT_EQ(auth.first, true);
-  ASSERT_EQ(dir.first, true);
 
   /* Assert credentials are correct for channel_2. */
   /* Channel_2 credentials are username, password, NULL, NULL. */
   Rpl_channel_credentials::get_instance().get_credentials("channel_2", user,
-                                                          pass, auth, dir);
+                                                          pass, auth);
   ASSERT_EQ(std::string("username"), user.second);
   ASSERT_EQ(std::string("password"), pass.second);
   ASSERT_EQ(std::string(""), auth.second);
-  ASSERT_EQ(std::string(""), dir.second);
   ASSERT_EQ(user.first, true);
   ASSERT_EQ(pass.first, true);
   ASSERT_EQ(auth.first, false);
-  ASSERT_EQ(dir.first, false);
 
   /* Assert credentials are correct for channel_3. */
   /* Channel_3 credentials are username, NULL, NULL, NULL. */
   Rpl_channel_credentials::get_instance().get_credentials("channel_3", user,
-                                                          pass, auth, dir);
+                                                          pass, auth);
   ASSERT_EQ(std::string("username"), user.second);
   ASSERT_EQ(std::string(""), pass.second);
   ASSERT_EQ(std::string(""), auth.second);
-  ASSERT_EQ(std::string(""), dir.second);
   ASSERT_EQ(user.first, true);
   ASSERT_EQ(pass.first, false);
   ASSERT_EQ(auth.first, false);
-  ASSERT_EQ(dir.first, false);
 
   /* Assert credentials are correct for channel_4. */
   /* Channel_4 credentials are "", "", "", "". */
   Rpl_channel_credentials::get_instance().get_credentials("channel_4", user,
-                                                          pass, auth, dir);
+                                                          pass, auth);
   ASSERT_EQ(std::string(""), user.second);
   ASSERT_EQ(std::string(""), pass.second);
   ASSERT_EQ(std::string(""), auth.second);
-  ASSERT_EQ(std::string(""), dir.second);
   ASSERT_EQ(user.first, true);
   ASSERT_EQ(pass.first, true);
   ASSERT_EQ(auth.first, true);
-  ASSERT_EQ(dir.first, true);
 
   /* Assert credentials are correct for channel_5. */
   /* Channel_5 credentials are NULL, NULL, NULL, NULL. */
   Rpl_channel_credentials::get_instance().get_credentials("channel_5", user,
-                                                          pass, auth, dir);
+                                                          pass, auth);
   ASSERT_EQ(user.second.empty(), true);
   ASSERT_EQ(pass.second.empty(), true);
   ASSERT_EQ(auth.second.empty(), true);
-  ASSERT_EQ(dir.second.empty(), true);
   ASSERT_EQ(user.first, false);
   ASSERT_EQ(pass.first, false);
   ASSERT_EQ(auth.first, false);
-  ASSERT_EQ(dir.first, false);
 
   /* get returns error when channel does not exist. */
   ASSERT_EQ(Rpl_channel_credentials::get_instance().get_credentials(
-                "channel_does_not_exist", user, pass, auth, dir),
+                "channel_does_not_exist", user, pass, auth),
             1);
   ASSERT_EQ(user.second.empty(), true);
   ASSERT_EQ(pass.second.empty(), true);
   ASSERT_EQ(auth.second.empty(), true);
-  ASSERT_EQ(dir.second.empty(), true);
   ASSERT_EQ(user.first, false);
   ASSERT_EQ(pass.first, false);
   ASSERT_EQ(auth.first, false);
-  ASSERT_EQ(dir.first, false);
 
   /* Delete all channels. */
   Rpl_channel_credentials::get_instance().reset();

@@ -1629,9 +1629,5 @@ bool Rewriter_start_group_replication::rewrite(String &rlb) const {
                        " DEFAULT_AUTH =", lex->slave_connection.plugin_auth);
   }
 
-  if (lex->slave_connection.plugin_dir) {
-    comma = append_str(&rlb, comma,
-                       " PLUGIN_DIR =", lex->slave_connection.plugin_dir);
-  }
   return true;
 }
