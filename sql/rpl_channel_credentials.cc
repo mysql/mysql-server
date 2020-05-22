@@ -42,21 +42,18 @@ int Rpl_channel_credentials::number_of_channels() {
 
 int Rpl_channel_credentials::get_credentials(const char *channel_name,
                                              String_set &user, String_set &pass,
-                                             String_set &auth,
-                                             String_set &dir) {
+                                             String_set &auth) {
   DBUG_TRACE;
-  user.first = pass.first = auth.first = dir.first = false;
+  user.first = pass.first = auth.first = false;
   user.second.clear();
   pass.second.clear();
   auth.second.clear();
-  dir.second.clear();
   auto it = m_credential_set.find(channel_name);
   if (it != m_credential_set.end()) {
     Channel_cred_param cred(m_credential_set.find(channel_name)->second);
     user = cred.username;
     pass = cred.password;
     auth = cred.plugin_auth;
-    dir = cred.plugin_dir;
     return 0;
   }
   return 1;
@@ -64,14 +61,13 @@ int Rpl_channel_credentials::get_credentials(const char *channel_name,
 
 int Rpl_channel_credentials::store_credentials(const char *channel_name,
                                                char *username, char *password,
-                                               char *plugin_auth,
-                                               char *plugin_dir) {
+                                               char *plugin_auth) {
   DBUG_TRACE;
   auto it = m_credential_set.find(channel_name);
   if (it != m_credential_set.end()) {
     return 1;
   } else {
-    Channel_cred_param cred(username, password, plugin_auth, plugin_dir);
+    Channel_cred_param cred(username, password, plugin_auth);
     m_credential_set.insert(channel_credential_pair(channel_name, cred));
   }
   return 0;
