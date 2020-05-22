@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -42,7 +42,7 @@ using LocalProtocolTypes =
     ::testing::Types<local::stream_protocol, local::datagram_protocol,
                      local::seqpacket_protocol>;
 
-TYPED_TEST_CASE(LocalProtocolTest, LocalProtocolTypes);
+TYPED_TEST_SUITE(LocalProtocolTest, LocalProtocolTypes);
 
 template <class T>
 class LocalTwoWayProtocolTest : public ::testing::Test {
@@ -52,7 +52,7 @@ class LocalTwoWayProtocolTest : public ::testing::Test {
 using LocalTwoWayProtocolTypes =
     ::testing::Types<local::stream_protocol, local::seqpacket_protocol>;
 
-TYPED_TEST_CASE(LocalTwoWayProtocolTest, LocalTwoWayProtocolTypes);
+TYPED_TEST_SUITE(LocalTwoWayProtocolTest, LocalTwoWayProtocolTypes);
 
 TYPED_TEST(LocalProtocolTest, endpoint_construct_default) {
   using protocol_type = TypeParam;
