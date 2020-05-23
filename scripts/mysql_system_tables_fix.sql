@@ -781,6 +781,13 @@ FROM mysql.user WHERE super_priv = 'Y' AND @hadTableEncryptionAdminPriv = 0 AND 
 DELETE FROM global_grants WHERE user = 'mysql.session' AND host = 'localhost' AND priv = 'TABLE_ENCRYPTION_ADMIN';
 COMMIT;
 
+-- Add the privilege REPLICATION_APPLIER for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilige REPLICATION_APPLIER.
+SET @hadReplicationApplierPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'REPLICATION_APPLIER');
+INSERT INTO global_grants SELECT user, host, 'REPLICATION_APPLIER', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE super_priv = 'Y' AND @hadReplicationApplierPriv = 0;
+COMMIT;
+
 -- Add the privilege SHOW_ROUTINE for every user who has global SELECT privilege
 -- provided that there isn't a user who already has the privilege SHOW_ROUTINE
 SET @hadShowRoutinePriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'SHOW_ROUTINE');
