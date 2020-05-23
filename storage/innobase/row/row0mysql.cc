@@ -4429,9 +4429,9 @@ dberr_t row_mysql_parallel_select_count_star(
 
     success =
       reader.add_scan(trx, config, [&](const Parallel_reader::Ctx *ctx) {
-      Counter::inc(n_recs, ctx->m_thread_id);
+      Counter::inc(n_recs, ctx->thread_id());
 
-      auto &check = checker[ctx->m_thread_id];
+      auto &check = checker[ctx->thread_id()];
 
       if (ctx->m_block != check.m_prev_block) {
         check.m_prev_block = ctx->m_block;
@@ -4520,7 +4520,7 @@ static dberr_t parallel_check_table(trx_t *trx, dict_index_t *index,
 
     const auto rec = ctx->m_rec;
     const auto block = ctx->m_block;
-    const auto id = ctx->m_thread_id;
+    const auto id = ctx->thread_id();
 
     Counter::inc(n_recs, id);
 

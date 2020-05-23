@@ -43,6 +43,9 @@ class Parallel_reader_adapter {
   /** Size of the buffer used to store InnoDB records and sent to the adapter*/
   static constexpr size_t ADAPTER_SEND_BUFFER_SIZE = 2 * 1024 * 1024;
 
+  /** Forward declaration. */
+  struct Thread_ctx;
+
  public:
   using Load_fn = handler::Load_cbk;
 
@@ -56,7 +59,7 @@ class Parallel_reader_adapter {
   Parallel_reader_adapter(size_t max_threads, ulint rowlen);
 
   /** Destructor. */
-  ~Parallel_reader_adapter();
+  ~Parallel_reader_adapter() = default;
 
   /** Add scan context.
   @param[in]  trx               Transaction used for parallel read.
@@ -79,9 +82,9 @@ class Parallel_reader_adapter {
               End_fn end_fn) MY_ATTRIBUTE((warn_unused_result));
 
   /** Convert the record in InnoDB format to MySQL format and send them.
-  @param[in]  ctx               Parallel read context.
+  @param[in]  reader_ctx  Parallel read context.
   @return error code */
-  dberr_t process_rows(const Parallel_reader::Ctx *ctx)
+  dberr_t process_rows(const Parallel_reader::Ctx *reader_ctx)
       MY_ATTRIBUTE((warn_unused_result));
 
   /** Set up the query processing state cache.
@@ -89,53 +92,46 @@ class Parallel_reader_adapter {
   void set(row_prebuilt_t *prebuilt);
 
  private:
-  /** The callers init function.
-  @param[in]  thread_id         ID of the thread.
+  /** Each parallel reader thread's init function.
+  @param[in]  reader_thread_ctx  context info related to the current thread
   @return DB_SUCCESS or error code. */
-  dberr_t init(size_t thread_id) MY_ATTRIBUTE((warn_unused_result));
+  dberr_t init(Parallel_reader::Thread_ctx *reader_thread_ctx)
+      MY_ATTRIBUTE((warn_unused_result));
 
-  /** For pushing any left over rows to the caller.
-  @param[in]  ctx       Parallel read context.
-  @param[in]  thread_id ID of the thread.
+  /** Each parallel reader thread's end function.
+  @param[in]  reader_thread_ctx  context info related to the current thread
   @return DB_SUCCESS or error code. */
-  dberr_t end(Parallel_reader::Ctx *ctx, size_t thread_id)
+  dberr_t end(Parallel_reader::Thread_ctx *reader_thread_ctx)
       MY_ATTRIBUTE((warn_unused_result));
 
   /** Send a batch of records.
-  @param[in]  ctx       Parallel read context.
-  @param[in]  n_recs    Number of records to send.
+  @param[in]  reader_thread_ctx reader threads related thread context info
+  @param[in]  partition_id      partition ID of the index the record belongs to
+  @param[in]  n_recs            Number of records to send.
   @return DB_SUCCESS or error code. */
-  dberr_t send_batch(const Parallel_reader::Ctx *ctx, uint64_t n_recs)
+  dberr_t send_batch(Parallel_reader::Thread_ctx *reader_thread_ctx,
+                     size_t partition_id, uint64_t n_recs)
       MY_ATTRIBUTE((warn_unused_result));
 
   /** Get the number of rows buffered but not sent.
-  @param[in]  thread_id         ID of the thread.
+  @param[in]  ctx  adapter related thread context information.
   @return number of buffered items. */
-  Counter::Type pending(size_t thread_id) const
-      MY_ATTRIBUTE((warn_unused_result)) {
-    return (Counter::get(m_n_read, thread_id) -
-            Counter::get(m_n_sent, thread_id));
+  size_t pending(Thread_ctx *ctx) const MY_ATTRIBUTE((warn_unused_result)) {
+    return (ctx->m_n_read - ctx->m_n_sent);
   }
 
   /** Check if the buffer is full.
-  @param[in]  thread_id         ID of the thread.
+  @param[in]  ctx  adapter related thread context information.
   @return true if the buffer is full. */
-  bool is_buffer_full(size_t thread_id) const
+  bool is_buffer_full(Thread_ctx *ctx) const
       MY_ATTRIBUTE((warn_unused_result)) {
-    return (!(Counter::get(m_n_read, thread_id) % m_batch_size));
+    return ctx->m_n_read > 0 && ctx->m_n_read % m_batch_size == 0;
   }
 
  private:
-  using Shards = Counter::Shards<Parallel_reader::MAX_THREADS>;
-
-  /** Counter to track number of records sent to the caller. */
-  Shards m_n_sent{};
-
-  /** Counter to track number of records processed. */
-  Shards m_n_read{};
-
-  /** Adapter context for each of the spawned threads. */
-  void **m_thread_contexts{nullptr};
+  /** Adapter context for each of the spawned threads. We don't know the
+  type of the context it's passed to us as a void *.  */
+  void **m_thread_ctxs{};
 
   /** Callback called by each parallel load thread at the
   beginning of the parallel load for the scan. */
@@ -151,12 +147,6 @@ class Parallel_reader_adapter {
 
   /** Number of records to be sent across to the caller in a batch. */
   uint64_t m_batch_size{};
-
-  /** The row buffer. */
-  using Buffer = std::vector<byte>;
-
-  /** Buffer to store records to be sent to the caller. */
-  std::vector<Buffer> m_buffers{};
 
   /** MySQL row meta data. This is common across partitions. */
   struct MySQL_row {
@@ -178,6 +168,24 @@ class Parallel_reader_adapter {
   /** Row meta data per scan context. */
   MySQL_row m_mysql_row{};
 
+  /** Callback thread context for each of the spawned threads. */
+  struct Thread_ctx {
+    /** Constructor. */
+    Thread_ctx();
+
+    /** Destructor. */
+    ~Thread_ctx() = default;
+
+    /** Number of records read. */
+    size_t m_n_read{};
+
+    /** Number of records sent to the adapter. */
+    size_t m_n_sent{};
+
+    /** Buffer to store records to be sent to the adapter. */
+    std::vector<byte, ut_allocator<byte>> m_buffer;
+  };
+
   /** Prebuilt to use for conversion to MySQL row format.
   NOTE: We are sharing this because we don't convert BLOBs yet. There are
   data members in row_prebuilt_t that cannot be accessed in multi-threaded
@@ -190,9 +198,6 @@ class Parallel_reader_adapter {
   To solve the blob heap issue in prebuilt we use per thread m_blob_heaps.
   Pass the blob heap to the InnoDB to MySQL row format conversion function. */
   row_prebuilt_t *m_prebuilt{};
-
-  /** BLOB heap per thread. */
-  std::vector<mem_heap_t *, ut_allocator<mem_heap_t *>> m_blob_heaps{};
 
   /** Parallel reader to use. */
   Parallel_reader m_parallel_reader;
