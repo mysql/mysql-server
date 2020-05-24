@@ -144,8 +144,8 @@ execute ps1 using @json_ucs2;
 execute ps2 using @json_ucs2;
 
 # and read:
-select hex(j->>"$.label") from pt1;
-select hex(j->>"$.label") from pt2;
+select hex(j->>"$.label") from pt1 order by (j->>"$.label");
+select hex(j->>"$.label") from pt2 order by (j->>"$.label");
 
 drop prepare ps1;
 drop prepare ps2;

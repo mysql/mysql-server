@@ -186,12 +186,12 @@ collation(@json_ucs2)
 ucs2_general_ci
 execute ps1 using @json_ucs2;
 execute ps2 using @json_ucs2;
-select hex(j->>"$.label") from pt1;
+select hex(j->>"$.label") from pt1 order by (j->>"$.label");
 hex(j->>"$.label")
+616263C3A6C3B8C3A578797A
+616263C3A6C3B8C3A578797A
 D8A7D98AD8B1D8A7D986D990
-616263C3A6C3B8C3A578797A
-616263C3A6C3B8C3A578797A
-select hex(j->>"$.label") from pt2;
+select hex(j->>"$.label") from pt2 order by (j->>"$.label");
 hex(j->>"$.label")
 616263C3A6C3B8C3A578797A
 616263C3A6C3B8C3A578797A
