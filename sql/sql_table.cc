@@ -13825,6 +13825,17 @@ static bool alter_column_name_or_default(
                                  Field::GENERATED_FROM_EXPRESSION)) == 0);
         def->auto_flags &= ~Field::DEFAULT_NOW;
       }
+      /*
+        Columns can't have AUTO_INCREMENT and DEFAULT/ON UPDATE
+        CURRENT_TIMESTAMP/ default from expression the same time.
+      */
+      if ((def->auto_flags & Field::NEXT_NUMBER) != 0 &&
+          ((def->auto_flags & (Field::DEFAULT_NOW | Field::ON_UPDATE_NOW)) !=
+               0 ||
+           def->m_default_val_expr != nullptr)) {
+        my_error(ER_INVALID_DEFAULT, MYF(0), def->field_name);
+        return true;
+      }
     } break;
 
     case Alter_column::Type::DROP_DEFAULT: {
