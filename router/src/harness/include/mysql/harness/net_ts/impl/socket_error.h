@@ -37,6 +37,7 @@
 namespace net {
 enum class socket_errc {
   already_open = 1,
+  not_found = 2,
 };
 }  // namespace net
 
@@ -47,20 +48,23 @@ struct is_error_code_enum<net::socket_errc> : public true_type {};
 
 namespace net {
 inline const std::error_category &socket_category() noexcept {
-  class socket_category_impl : public std::error_category {
+  class category_impl : public std::error_category {
    public:
     const char *name() const noexcept override { return "socket"; }
     std::string message(int ev) const override {
       switch (static_cast<socket_errc>(ev)) {
         case socket_errc::already_open:
           return "already_open";
-        default:
-          return "unknown";
+        case socket_errc::not_found:
+          return "not found";
       }
+
+      // don't use switch-default to trigger a warning for unhandled enum-value
+      return "unknown";
     }
   };
 
-  static socket_category_impl instance;
+  static category_impl instance;
   return instance;
 }
 

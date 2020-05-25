@@ -175,6 +175,36 @@ template <typename Protocol>
 }
 
 template <class Protocol>
+stdx::expected<void, std::error_code> connect_pair(
+    net::io_context *io_ctx, net::basic_socket<Protocol> &sock1,
+    net::basic_socket<Protocol> &sock2) {
+  Protocol proto;
+  const auto res = io_ctx->socket_service()->socketpair(
+      proto.family(), proto.type(), proto.protocol());
+  if (!res) return stdx::make_unexpected(res.error());
+
+  const auto fds = std::move(*res);
+
+  const auto assign1_res = sock1.assign(proto, fds.first);
+  if (!assign1_res) {
+    io_ctx->socket_service()->close(fds.first);
+    io_ctx->socket_service()->close(fds.second);
+
+    return assign1_res;
+  }
+
+  const auto assign2_res = sock2.assign(proto, fds.second);
+  if (!assign2_res) {
+    sock1.close();
+    io_ctx->socket_service()->close(fds.second);
+
+    return assign2_res;
+  }
+
+  return {};
+}
+
+template <class Protocol>
 bool operator==(const basic_endpoint<Protocol> &a,
                 const basic_endpoint<Protocol> &b) {
   return a.path() == b.path();
@@ -271,6 +301,8 @@ class cred {
 class stream_protocol {
  public:
   using endpoint = local::basic_endpoint<stream_protocol>;
+  using socket = net::basic_stream_socket<stream_protocol>;
+  using acceptor = net::basic_socket_acceptor<stream_protocol>;
 
   // note: to add: socket-control-message to pass credentials
   //
@@ -308,6 +340,7 @@ class stream_protocol {
 class datagram_protocol {
  public:
   using endpoint = local::basic_endpoint<datagram_protocol>;
+  using socket = net::basic_datagram_socket<datagram_protocol>;
 
   // no peer_creds on datagram_protocol as it doens't call "connect()" nor
   // "listen()". It needs SCM_CREDS instead
@@ -335,6 +368,8 @@ class datagram_protocol {
 class seqpacket_protocol {
  public:
   using endpoint = local::basic_endpoint<seqpacket_protocol>;
+  using socket = net::basic_datagram_socket<seqpacket_protocol>;
+  using acceptor = net::basic_socket_acceptor<seqpacket_protocol>;
 
 #if defined(__linux__) || defined(__OpenBSD__) || defined(__FreeBSD__) || \
     defined(__APPLE__) || defined(__NetBSD__)

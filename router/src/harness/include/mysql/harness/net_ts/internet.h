@@ -27,7 +27,10 @@
 
 #include <algorithm>
 #include <array>
+#include <bitset>
 #include <cstddef>  // ptrdiff_t
+#include <cstring>  // memset
+#include <forward_list>
 #include <sstream>
 #include <stdexcept>  // length_error
 #include <system_error>
@@ -38,12 +41,15 @@
 #include <Windows.h>
 #else
 #include <arpa/inet.h>    // inet_ntop
+#include <netdb.h>        // getaddrinfo
 #include <netinet/in.h>   // in_addr_t
 #include <netinet/ip6.h>  // in6_addr_t
 #include <netinet/tcp.h>  // TCP_NODELAY
 #include <sys/ioctl.h>    // ioctl
 #endif
 
+#include "mysql/harness/net_ts/impl/resolver.h"
+#include "mysql/harness/net_ts/io_context.h"
 #include "mysql/harness/net_ts/socket.h"
 #include "mysql/harness/stdx/bit.h"  // byteswap
 #include "mysql/harness/stdx/expected.h"
@@ -502,6 +508,171 @@ constexpr bool operator<(const address &a, const address &b) noexcept {
  *
  *
  */
+template <typename InternetProtocol>
+class basic_resolver_entry {
+ public:
+  using protocol_type = InternetProtocol;
+  using endpoint_type = typename protocol_type::endpoint;
+
+  basic_resolver_entry() = default;
+
+  basic_resolver_entry(const endpoint_type &ep, std::string host_name,
+                       std::string service_name)
+      : ep_{ep},
+        host_name_{std::move(host_name)},
+        service_name_{std::move(service_name)} {}
+
+  endpoint_type endpoint() const { return ep_; }
+
+  std::string host_name() const { return host_name_; }
+  std::string service_name() const { return service_name_; }
+
+ private:
+  endpoint_type ep_;
+  std::string host_name_;
+  std::string service_name_;
+};
+
+// forward-decl for the the friendship
+template <typename InternetProtocol>
+class basic_resolver;
+
+template <typename InternetProtocol>
+class basic_resolver_results {
+ public:
+  using protocol_type = InternetProtocol;
+  using endpoint_type = typename protocol_type::endpoint;
+  using value_type = basic_resolver_entry<protocol_type>;
+  using const_reference = const value_type &;
+  using reference = value_type &;
+  using const_iterator = typename std::forward_list<value_type>::const_iterator;
+  using iterator = const_iterator;
+  using difference_type = ptrdiff_t;
+  using size_type = size_t;
+
+  basic_resolver_results() = default;
+
+  size_type size() const noexcept { return size_; }
+  size_type max_size() const noexcept { return results_.max_size(); }
+  bool empty() const noexcept { return results_.empty(); }
+
+  const_iterator begin() const { return results_.begin(); }
+  const_iterator end() const { return results_.end(); }
+  const_iterator cbegin() const { return results_.cbegin(); }
+  const_iterator cend() const { return results_.cend(); }
+
+ private:
+  friend class basic_resolver<protocol_type>;
+
+  basic_resolver_results(std::unique_ptr<addrinfo, void (*)(addrinfo *)> ainfo,
+                         const std::string &host_name,
+                         const std::string &service_name) {
+    endpoint_type ep;
+
+    auto tail = results_.before_begin();
+    for (const auto *cur = ainfo.get(); cur != nullptr; cur = cur->ai_next) {
+      std::memcpy(ep.data(), cur->ai_addr, cur->ai_addrlen);
+
+      tail = results_.emplace_after(tail, ep, host_name, service_name);
+      ++size_;
+    }
+  }
+
+  basic_resolver_results(const endpoint_type &ep, const std::string &host_name,
+                         const std::string &service_name) {
+    auto tail = results_.before_begin();
+
+    tail = results_.emplace_after(tail, ep, host_name, service_name);
+    ++size_;
+  }
+
+  std::forward_list<value_type> results_;
+  size_t size_{0};
+};
+
+class resolver_base {
+ public:
+  using flags = std::bitset<32>;
+
+  static constexpr flags passive = AI_PASSIVE;
+  static constexpr flags canonical_name = AI_CANONNAME;
+  static constexpr flags numeric_host = AI_NUMERICHOST;
+  static constexpr flags numeric_service = AI_NUMERICSERV;
+  static constexpr flags v4_mapped = AI_V4MAPPED;
+  static constexpr flags all_matching = AI_ALL;
+  static constexpr flags address_configured = AI_ADDRCONFIG;
+};
+
+template <typename InternetProtocol>
+class basic_resolver : public resolver_base {
+ public:
+  using executor_type = io_context::executor_type;
+  using protocol_type = InternetProtocol;
+  using endpoint_type = typename InternetProtocol::endpoint;
+  using results_type = basic_resolver_results<InternetProtocol>;
+  using error_type = impl::socket::error_type;
+
+  explicit basic_resolver(io_context &io_ctx) : io_ctx_{io_ctx} {}
+
+  stdx::expected<results_type, error_type> resolve(
+      const std::string &host_name, const std::string &service_name, flags f) {
+    const auto proto = endpoint_type{}.protocol();
+
+    ::addrinfo hints{};
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = proto.type();
+    hints.ai_protocol = proto.protocol();
+
+    // posix ulong, windows int
+    hints.ai_flags = static_cast<decltype(hints.ai_flags)>(f.to_ulong());
+
+    auto res = io_ctx_.socket_service()->getaddrinfo(
+        host_name.empty() ? nullptr : host_name.c_str(),
+        service_name.empty() ? nullptr : service_name.c_str(), &hints);
+
+    if (!res) return stdx::make_unexpected(res.error());
+
+    return results_type{std::move(res.value()), host_name, service_name};
+  }
+  stdx::expected<results_type, error_type> resolve(
+      const std::string &host_name, const std::string &service_name) {
+    return resolve(host_name, service_name, flags{});
+  }
+
+  stdx::expected<results_type, error_type> resolve(const endpoint_type &ep) {
+    std::array<char, NI_MAXHOST> host_name;
+    std::array<char, NI_MAXSERV> service_name;
+
+    int flags{0};
+
+    if (endpoint_type().protocol().type() == SOCK_DGRAM) {
+      flags |= NI_DGRAM;
+    }
+
+    const auto nameinfo_res = net::impl::resolver::getnameinfo(
+        static_cast<const struct sockaddr *>(ep.data()), ep.size(),
+        host_name.data(), host_name.size(), service_name.data(),
+        service_name.size(), flags);
+    if (!nameinfo_res) {
+      return stdx::make_unexpected(nameinfo_res.error());
+    }
+
+    // find \0 char in array. If \0 isn't found, end of array.
+    const auto name_end = std::find(host_name.begin(), host_name.end(), '\0');
+    const auto serv_end =
+        std::find(service_name.begin(), service_name.end(), '\0');
+
+    return results_type{
+        ep,
+        std::string{host_name.begin(), name_end},
+        std::string{service_name.begin(), serv_end},
+    };
+  }
+
+ private:
+  io_context &io_ctx_;
+};
+
 template <typename InternetProtocol>
 class basic_endpoint {
  public:
@@ -983,6 +1154,9 @@ std::basic_ostream<CharT, Traits> &operator<<(
 class tcp {
  public:
   using endpoint = basic_endpoint<tcp>;
+  using resolver = basic_resolver<tcp>;
+  using socket = basic_stream_socket<tcp>;
+  using acceptor = basic_socket_acceptor<tcp>;
 
 #ifdef TCP_CONGESTION
   // linux, freebsd, solaris
@@ -1149,6 +1323,8 @@ constexpr bool operator!=(const tcp &a, const tcp &b) noexcept {
 class udp {
  public:
   using endpoint = basic_endpoint<udp>;
+  using resolver = basic_resolver<udp>;
+  using socket = basic_datagram_socket<udp>;
 
   static constexpr udp v4() noexcept { return udp{AF_INET}; }
   static constexpr udp v6() noexcept { return udp{AF_INET6}; }

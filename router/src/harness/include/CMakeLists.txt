@@ -31,6 +31,7 @@ TARGET_SOURCES(harness_stdx
   )
 
 ADD_LIBRARY(harness_net_ts STATIC
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/internet.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/socket.cpp
   )
 TARGET_INCLUDE_DIRECTORIES(harness_net_ts
@@ -38,15 +39,20 @@ TARGET_INCLUDE_DIRECTORIES(harness_net_ts
 TARGET_SOURCES(harness_net_ts
   INTERFACE
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/buffer.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/executor.h
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/impl/file.h
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/impl/netif.h
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/impl/poll.h
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/impl/resolver.h
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/impl/socket.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/impl/socket_service.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/impl/socket_service_base.h
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/impl/socket_error.h
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/impl/socket_constants.h
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/internet.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/io_context.h
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/local.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/netfwd.h
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/socket.h
   )
 TARGET_LINK_LIBRARIES(harness_net_ts INTERFACE harness_stdx)

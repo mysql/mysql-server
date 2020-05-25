@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,22 +24,6 @@
 
 #include "mysql_protocol_decoder.h"
 
-#ifndef _WIN32
-#include <fcntl.h>
-#include <netdb.h>
-#include <netinet/in.h>
-#include <sys/select.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <sys/un.h>
-#include <unistd.h>
-#else
-#include <windows.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#endif
-
-#include <iostream>
 #include <stdexcept>
 
 namespace server_mock {
@@ -47,16 +31,11 @@ namespace server_mock {
 // TODO use of this class should probably be replaced by mysql_protocol::Packet*
 // classes
 
-MySQLProtocolDecoder::MySQLProtocolDecoder(const ReadCallback &read_clb)
-    : read_callback_(read_clb) {}
+stdx::expected<size_t, std::error_code> MySQLProtocolDecoder::read_header(
+    const net::const_buffer &buf) {
+  const auto *header_buf = static_cast<const uint8_t *>(buf.data());
 
-void MySQLProtocolDecoder::read_message(socket_t client_socket, int flags) {
-  ProtocolPacketType result;
-  uint8_t header_buf[4];
   uint32_t header{0};
-
-  read_callback_(client_socket, &header_buf[0], sizeof(header_buf), flags);
-
   for (size_t i = 1; i <= 4; ++i) {
     header <<= 8;
     header |= header_buf[4 - i];
@@ -72,10 +51,12 @@ void MySQLProtocolDecoder::read_message(socket_t client_socket, int flags) {
 
   packet_.packet_seq = static_cast<uint8_t>(header >> 24);
 
-  if (pkt_len > 0) {
-    packet_.packet_buffer.resize(pkt_len);
-    read_callback_(client_socket, &packet_.packet_buffer[0], pkt_len, flags);
-  }
+  return {pkt_len};
+}
+
+void MySQLProtocolDecoder::read_message(const net::const_buffer &buf) {
+  packet_.packet_buffer.resize(buf.size());
+  net::buffer_copy(net::buffer(packet_.packet_buffer), buf);
 }
 
 mysql_protocol::Command MySQLProtocolDecoder::get_command_type() const {

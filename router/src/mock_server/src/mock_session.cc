@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,37 +24,100 @@
 
 #include "mock_session.h"
 
+#include <array>
+#include <chrono>
+#include <iostream>  // cout
+#include <memory>    // unique_ptr
+#include <system_error>
+#include <thread>  // sleep_for
+
 #include "classic_mock_session.h"
+#include "mysql/harness/logging/logging.h"  // log_
+#include "mysql/harness/net_ts/internet.h"  // net::ip::tcp
+#include "mysql/harness/net_ts/socket.h"
+#include "mysql/harness/stdx/expected.h"
 #include "x_mock_session.h"
 
-#include <thread>
-
-#ifndef _WIN32
-#include <fcntl.h>
-#include <netdb.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <signal.h>
-#include <sys/select.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <sys/un.h>
-#include <unistd.h>
-#else
-#include <windows.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#endif
-
-#include "mysql/harness/logging/logging.h"
 IMPORT_LOG_FUNCTIONS()
+
+using namespace std::chrono_literals;
 
 namespace server_mock {
 
+ProtocolBase::ProtocolBase(net::ip::tcp::socket &&client_sock,
+                           net::impl::socket::native_handle_type wakeup_fd)
+    : client_socket_{std::move(client_sock)}, wakeup_fd_{wakeup_fd} {
+  // if it doesn't work, no problem.
+  //
+  client_socket_.set_option(net::ip::tcp::no_delay{true});
+  client_socket_.native_non_blocking(true);
+}
+
+// check if the current socket is readable/open
+stdx::expected<bool, std::error_code> ProtocolBase::socket_has_data(
+    std::chrono::milliseconds timeout) {
+  std::array<pollfd, 2> fds = {{
+      {client_socket_.native_handle(), POLLIN, 0},
+      {wakeup_fd_, POLLIN, 0},
+  }};
+
+  const auto poll_res = net::impl::poll::poll(fds.data(), fds.size(), timeout);
+  if (!poll_res) {
+    if (poll_res.error() == std::errc::timed_out) {
+      return false;
+    }
+
+    return stdx::make_unexpected(poll_res.error());
+  }
+
+  if (fds[0].revents != 0) {
+    return true;
+  }
+
+  // looks like the wakeup_fd fired
+  return stdx::make_unexpected(make_error_code(std::errc::operation_canceled));
+}
+
+void ProtocolBase::send_buffer(net::const_buffer buf) {
+  while (buf.size() > 0) {
+    auto send_res = client_socket_.send(buf);
+    if (!send_res) {
+      if (send_res.error() == std::errc::operation_would_block) {
+        auto writable_res = socket_has_data(-1ms);
+
+        if (writable_res) continue;
+
+        throw std::system_error(writable_res.error(), "send_buffer()");
+      }
+      throw std::system_error(send_res.error(), "send_buffer()");
+    }
+
+    buf += send_res.value();
+  }
+}
+
+void ProtocolBase::read_buffer(net::mutable_buffer &buf) {
+  while (buf.size() > 0) {
+    auto recv_res = client_socket_.receive(buf);
+    if (!recv_res) {
+      if (recv_res.error() == std::errc::operation_would_block) {
+        auto readable_res = socket_has_data(std::chrono::milliseconds{-1});
+        if (readable_res) continue;
+
+        throw std::system_error(readable_res.error(), "read_buffer()");
+      }
+
+      throw std::system_error(recv_res.error(), "read_buffer()");
+    }
+
+    buf += recv_res.value();
+  }
+}
+
 static void debug_trace_result(const ResultsetResponse *resultset) {
   std::cout << "QUERY RESULT:\n";
-  for (size_t i = 0; i < resultset->rows.size(); ++i) {
-    for (const auto &cell : resultset->rows[i])
+  for (auto const &row : resultset->rows) {
+    for (const auto &cell : row)
       std::cout << "  |  " << (cell.first ? cell.second : "NULL");
     std::cout << "  |\n";
   }
@@ -62,33 +125,24 @@ static void debug_trace_result(const ResultsetResponse *resultset) {
 }
 
 MySQLServerMockSession::MySQLServerMockSession(
-    socket_t client_sock,
+    ProtocolBase *protocol,
     std::unique_ptr<StatementReaderBase> statement_processor, bool debug_mode)
-    : client_socket_{client_sock},
-      json_reader_{std::move(statement_processor)},
-      debug_mode_{debug_mode} {
-  // if it doesn't work, no problem.
-  int one = 1;
-  setsockopt(client_socket_, IPPROTO_TCP, TCP_NODELAY,
-             reinterpret_cast<const char *>(&one), sizeof(one));
-
-  non_blocking(client_socket_, false);
-}
-
-MySQLServerMockSession::~MySQLServerMockSession() {}
+    : json_reader_{std::move(statement_processor)},
+      protocol_{protocol},
+      debug_mode_{debug_mode} {}
 
 void MySQLServerMockSession::run() {
   try {
     bool res = process_handshake();
     if (!res) {
-      std::cout << "Error processing handshake with client: " << client_socket_
-                << std::endl;
+      std::cout << "Error processing handshake with client: "
+                << protocol_->client_socket().native_handle() << std::endl;
     }
 
     res = process_statements();
     if (!res) {
-      std::cout << "Error processing statements with client: " << client_socket_
-                << std::endl;
+      std::cout << "Error processing statements with client: "
+                << protocol_->client_socket().native_handle() << std::endl;
     }
   } catch (const std::exception &e) {
     log_warning("Exception caught in connection loop: %s", e.what());
@@ -102,52 +156,33 @@ void MySQLServerMockSession::handle_statement(
   switch (statement.response_type) {
     case ResponseType::OK: {
       if (debug_mode_) std::cout << std::endl;  // visual separator
-      OkResponse *response =
-          dynamic_cast<OkResponse *>(statement.response.get());
+      auto *response = dynamic_cast<OkResponse *>(statement.response.get());
 
       harness_assert(response);
       std::this_thread::sleep_for(statement.exec_time);
-      send_ok(0, response->last_insert_id, 0, response->warning_count);
+      protocol_->send_ok(0, response->last_insert_id, 0,
+                         response->warning_count);
     } break;
     case ResponseType::RESULT: {
-      ResultsetResponse *response =
+      auto *response =
           dynamic_cast<ResultsetResponse *>(statement.response.get());
       harness_assert(response);
       if (debug_mode_) {
         debug_trace_result(response);
       }
 
-      send_resultset(*response, statement.exec_time);
+      protocol_->send_resultset(*response, statement.exec_time);
     } break;
     case ResponseType::ERROR: {
       if (debug_mode_) std::cout << std::endl;  // visual separator
-      ErrorResponse *response =
-          dynamic_cast<ErrorResponse *>(statement.response.get());
+      auto *response = dynamic_cast<ErrorResponse *>(statement.response.get());
       harness_assert(response);
-      send_error(response->code, response->msg);
+      protocol_->send_error(response->code, response->msg);
     } break;
     default:;
       throw std::runtime_error("Unsupported command in handle_statement(): " +
                                std::to_string((int)statement.response_type));
   }
-}
-
-/*static*/ std::unique_ptr<MySQLServerMockSession>
-MySQLServerMockSession::create_session(
-    const std::string &protocol, socket_t client_socket,
-    std::unique_ptr<StatementReaderBase> statement_processor, bool debug_mode) {
-  std::unique_ptr<MySQLServerMockSession> result;
-  if (protocol == "classic") {
-    result.reset(new MySQLServerMockSessionClassic(
-        client_socket, std::move(statement_processor), debug_mode));
-  } else if (protocol == "x") {
-    result.reset(new MySQLServerMockSessionX(
-        client_socket, std::move(statement_processor), debug_mode));
-  } else {
-    throw std::runtime_error("Unknown protocol: '" + protocol + "'");
-  }
-
-  return result;
 }
 
 }  // namespace server_mock

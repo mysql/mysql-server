@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,27 +22,22 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef MYSQLD_MOCK_MYSQL_PROTOCOL_UTILS_INCLUDED
-#define MYSQLD_MOCK_MYSQL_PROTOCOL_UTILS_INCLUDED
+#ifndef MYSQL_HARNESS_NET_TS_NETFWD_H_
+#define MYSQL_HARNESS_NET_TS_NETFWD_H_
 
-#include <system_error>
+namespace net {
+class execution_context;
 
-#include "mysql_protocol_decoder.h"
-#include "mysql_protocol_encoder.h"
-#include "socket_operations.h"
+class executor;
 
-using mysql_harness::socket_t;
+template <class Protocol>
+class basic_socket;
 
-void send_packet(socket_t client_socket, const uint8_t *data, size_t size,
-                 int flags = 0);
-void send_packet(socket_t client_socket,
-                 const server_mock::MySQLProtocolEncoder::MsgBuffer &buffer,
-                 int flags = 0);
-void read_packet(socket_t client_socket, uint8_t *data, size_t size,
-                 int flags = 0);
-int close_socket(socket_t sock);
-bool socket_has_data(socket_t sock, int timeout_ms);
+template <class Protocol>
+class basic_socket_acceptor;
 
-std::error_code get_last_socket_error_code();
+template <class Protocol>
+class basic_stream_socket;
 
-#endif  // MYSQLD_MOCK_MYSQL_PROTOCOL_UTILS_INCLUDED
+}  // namespace net
+#endif

@@ -54,6 +54,12 @@ using LocalTwoWayProtocolTypes =
 
 TYPED_TEST_SUITE(LocalTwoWayProtocolTest, LocalTwoWayProtocolTypes);
 
+TYPED_TEST(LocalProtocolTest, socket_default_construct) {
+  net::io_context io_ctx;
+
+  typename TypeParam::socket sock(io_ctx);
+}
+
 TYPED_TEST(LocalProtocolTest, endpoint_construct_default) {
   using protocol_type = TypeParam;
   using endpoint_type = typename protocol_type::endpoint;
@@ -138,6 +144,356 @@ TYPED_TEST(LocalProtocolTest, endpoint_construct_abstract) {
   EXPECT_EQ(endpoint.path(), S("\0/foo/bar"));
 #undef S
 }
+
+namespace net {
+template <class Protocol>
+std::ostream &operator<<(std::ostream &os,
+                         const net::basic_socket<Protocol> &sock) {
+  os << sock.native_handle();
+
+  return os;
+}
+}  // namespace net
+
+TEST(NetTS_local, stream_socket_bind_accept_connect) {
+  TmpDir tmpdir;
+
+  std::string socket_path = tmpdir.file("stream-protocol.test.socket");
+
+  net::io_context io_ctx;
+
+  local::stream_protocol::endpoint endp(socket_path);
+
+  local::stream_protocol::acceptor acceptor(io_ctx);
+  EXPECT_THAT(acceptor.open(endp.protocol()),
+              ::testing::Truly([](const auto &t) { return bool(t); }));
+  ASSERT_THAT(acceptor.bind(endp),
+              ::testing::Truly([](const auto &t) { return bool(t); }));
+  EXPECT_THAT(acceptor.listen(128),
+              ::testing::Truly([](const auto &t) { return bool(t); }));
+
+  //
+  EXPECT_THAT(acceptor.native_non_blocking(true),
+              ::testing::Truly([](const auto &t) { return bool(t); }));
+
+  // should fail with EWOULDBLOCK
+  EXPECT_EQ(
+      acceptor.accept(),
+      stdx::make_unexpected(make_error_code(std::errc::operation_would_block)));
+  auto local_endp_res = acceptor.local_endpoint();
+
+  ASSERT_TRUE(local_endp_res);
+
+  auto local_endp = std::move(*local_endp_res);
+
+  local::stream_protocol::socket client_sock(io_ctx);
+  EXPECT_TRUE(client_sock.open(local_endp.protocol()));
+
+  // ensure the connect() doesn't block
+  EXPECT_THAT(client_sock.native_non_blocking(true),
+              ::testing::Truly([](const auto &t) { return bool(t); }));
+
+  // even though non-blocking, this is unix-domain-sockets
+  ASSERT_THAT(client_sock.connect(local_endp),
+              ::testing::Truly([](const auto &t) { return bool(t); }));
+
+  auto server_sock_res = acceptor.accept();
+  ASSERT_TRUE(server_sock_res);
+  auto server_sock = std::move(*server_sock_res);
+
+  ASSERT_TRUE(server_sock.is_open());
+
+  // finish the non-blocking connect
+  net::socket_base::error so_error;
+  ASSERT_TRUE(client_sock.get_option(so_error));
+  ASSERT_EQ(so_error.value(), 0);
+
+  std::array<char, 5> source{{0x01, 0x02, 0x03, 0x04, 0x05}};
+  std::array<char, 16> sink;
+  EXPECT_EQ(
+      net::read(client_sock, net::buffer(sink)),
+      stdx::make_unexpected(make_error_code(std::errc::operation_would_block)));
+
+  auto write_res = net::write(server_sock, net::buffer(source));
+  ASSERT_TRUE(write_res) << write_res.error();
+  EXPECT_EQ(*write_res, source.size());
+
+  auto read_res = net::read(client_sock, net::buffer(sink),
+                            net::transfer_at_least(source.size()));
+  ASSERT_TRUE(read_res);
+  EXPECT_EQ(*read_res, source.size());
+
+  EXPECT_TRUE(server_sock.shutdown(net::socket_base::shutdown_send));
+  EXPECT_TRUE(client_sock.shutdown(net::socket_base::shutdown_send));
+}
+
+TEST(NetTS_local, datagram_socket_bind_sendmsg_recvmsg) {
+  TmpDir tmpdir;
+
+  net::io_context io_ctx;
+
+  std::string server_socket_path = tmpdir.file("datagram-test.socket");
+  std::string client_socket_path = tmpdir.file("datagram-test.client.socket");
+
+  local::datagram_protocol::socket server_sock(io_ctx);
+  EXPECT_THAT(server_sock.open(),
+              ::testing::Truly([](const auto &t) { return bool(t); }));
+
+  local::datagram_protocol::endpoint server_endp(server_socket_path);
+  ASSERT_THAT(server_sock.bind(server_endp),
+              ::testing::Truly([](const auto &t) { return bool(t); }));
+  EXPECT_THAT(server_sock.native_non_blocking(true),
+              ::testing::Truly([](const auto &t) { return bool(t); }));
+
+  local::datagram_protocol::socket client_sock(io_ctx);
+  EXPECT_TRUE(client_sock.open());
+
+  // ensure the connect() doesn't block
+  EXPECT_THAT(client_sock.native_non_blocking(true),
+              ::testing::Truly([](const auto &t) { return bool(t); }));
+
+  // UDP over AF_UNIX requires explicit paths as with the abstract namespace
+  // we get ENOTCONN on sendmsg()
+  local::datagram_protocol::endpoint client_any_endp(client_socket_path);
+  ASSERT_THAT(client_sock.bind(client_any_endp),
+              ::testing::Truly([](const auto &t) { return bool(t); }));
+
+  auto client_endp_res = client_sock.local_endpoint();
+  ASSERT_THAT(client_endp_res,
+              ::testing::Truly([](const auto &t) { return bool(t); }));
+
+  auto client_endp = std::move(*client_endp_res);
+
+  SCOPED_TRACE("// up to now, there is no data");
+  std::array<char, 16> sink;
+  local::datagram_protocol::endpoint recvfrom_endp;
+  EXPECT_EQ(
+      client_sock.receive_from(net::buffer(sink), recvfrom_endp),
+      stdx::make_unexpected(make_error_code(std::errc::operation_would_block)));
+
+  SCOPED_TRACE("// send something");
+  std::array<char, 5> source{{0x01, 0x02, 0x03, 0x04, 0x05}};
+  auto write_res = server_sock.send_to(net::buffer(source), client_endp);
+  ASSERT_THAT(write_res,
+              ::testing::Truly([](const auto &t) { return bool(t); }));
+  EXPECT_EQ(*write_res, source.size());
+
+  SCOPED_TRACE("// and we should receive something");
+  auto read_res = client_sock.receive_from(net::buffer(sink), recvfrom_endp);
+  ASSERT_THAT(read_res,
+              ::testing::Truly([](const auto &t) { return bool(t); }));
+  EXPECT_EQ(*read_res, source.size());
+
+  SCOPED_TRACE("// check the sender address matches");
+  EXPECT_EQ(recvfrom_endp, server_endp) << recvfrom_endp.size();
+}
+
+// check endpoint after recvfrom a socketpair()
+TEST(NetTS_local, datagram_socketpair_recvfrom) {
+  net::io_context io_ctx;
+
+  using protocol_type = local::datagram_protocol;
+  using socket_type = protocol_type::socket;
+  using endpoint_type = protocol_type::endpoint;
+
+  socket_type server_sock(io_ctx);
+  socket_type client_sock(io_ctx);
+
+  EXPECT_THAT(
+      local::connect_pair<protocol_type>(&io_ctx, server_sock, client_sock),
+      ::testing::Truly([](const auto &t) { return bool(t); }));
+
+  EXPECT_THAT(server_sock.native_non_blocking(true),
+              ::testing::Truly([](const auto &t) { return bool(t); }));
+
+  EXPECT_THAT(client_sock.native_non_blocking(true),
+              ::testing::Truly([](const auto &t) { return bool(t); }));
+
+  SCOPED_TRACE("// up to now, there is no data");
+  std::array<char, 16> sink;
+  endpoint_type recvfrom_endp;
+  EXPECT_EQ(
+      client_sock.receive_from(net::buffer(sink), recvfrom_endp),
+      stdx::make_unexpected(make_error_code(std::errc::operation_would_block)));
+
+  SCOPED_TRACE("// send something");
+  std::array<char, 5> source{{0x01, 0x02, 0x03, 0x04, 0x05}};
+  auto write_res = server_sock.send(net::buffer(source));
+  ASSERT_THAT(write_res,
+              ::testing::Truly([](const auto &t) { return bool(t); }));
+  EXPECT_EQ(*write_res, source.size());
+
+  SCOPED_TRACE("// and we should receive something");
+  auto read_res = client_sock.receive_from(net::buffer(sink), recvfrom_endp);
+  ASSERT_THAT(read_res,
+              ::testing::Truly([](const auto &t) { return bool(t); }));
+  EXPECT_EQ(*read_res, source.size());
+
+  // linux: unnamed socket, .size() == 2 (just the AF_UNIX)
+  //   see: man 7 unix
+  // freebsd: 16
+  // macosx: 16
+
+  EXPECT_GT(recvfrom_endp.size(), 0);
+}
+
+TYPED_TEST(LocalProtocolTest, socketpair) {
+  net::io_context io_ctx;
+
+  using protocol_type = TypeParam;
+  using socket_type = typename protocol_type::socket;
+
+  socket_type server_sock(io_ctx);
+  socket_type client_sock(io_ctx);
+
+  auto connect_res =
+      local::connect_pair<protocol_type>(&io_ctx, server_sock, client_sock);
+
+  // macosx may not support socketpair() with SEQPACKET
+  if (!connect_res &&
+      connect_res.error() ==
+          make_error_condition(std::errc::protocol_not_supported))
+    return;
+
+  ASSERT_THAT(connect_res,
+              ::testing::Truly([](const auto &t) { return bool(t); }));
+
+  EXPECT_THAT(server_sock.native_non_blocking(true),
+              ::testing::Truly([](const auto &t) { return bool(t); }));
+
+  EXPECT_THAT(client_sock.native_non_blocking(true),
+              ::testing::Truly([](const auto &t) { return bool(t); }));
+
+  SCOPED_TRACE("// up to now, there is no data");
+  std::array<char, 16> sink;
+  EXPECT_EQ(
+      client_sock.receive(net::buffer(sink)),
+      stdx::make_unexpected(make_error_code(std::errc::operation_would_block)));
+
+  SCOPED_TRACE("// send something");
+  std::array<char, 5> source{{0x01, 0x02, 0x03, 0x04, 0x05}};
+  auto write_res = server_sock.send(net::buffer(source));
+  ASSERT_THAT(write_res,
+              ::testing::Truly([](const auto &t) { return bool(t); }));
+  EXPECT_EQ(*write_res, source.size());
+
+  SCOPED_TRACE("// and we should receive something");
+  auto read_res = client_sock.receive(net::buffer(sink));
+  ASSERT_THAT(read_res,
+              ::testing::Truly([](const auto &t) { return bool(t); }));
+  EXPECT_EQ(*read_res, source.size());
+}
+
+#if defined(__linux__) || defined(__OpenBSD__) || defined(__FreeBSD__) || \
+    defined(__APPLE__) || defined(__NetBSD__)
+/**
+ * test if peer_creds socket opt work.
+ */
+TYPED_TEST(LocalTwoWayProtocolTest, twoway_peercreds) {
+  net::io_context io_ctx;
+
+  using protocol_type = TypeParam;
+  using socket_type = typename protocol_type::socket;
+
+  socket_type server_sock(io_ctx);
+  socket_type client_sock(io_ctx);
+
+  auto connect_res =
+      local::connect_pair<protocol_type>(&io_ctx, server_sock, client_sock);
+
+  // macosx may not support socketpair() with SEQPACKET
+  if (!connect_res &&
+      connect_res.error() ==
+          make_error_condition(std::errc::protocol_not_supported))
+    return;
+
+  ASSERT_THAT(connect_res,
+              ::testing::Truly([](const auto &t) { return bool(t); }));
+
+  SCOPED_TRACE("// get creds of the remote side of the socket");
+  typename protocol_type::peer_creds peer_creds;
+
+  try {
+    ASSERT_THAT(client_sock.get_option(peer_creds),
+                ::testing::Truly([](const auto &t) { return bool(t); }));
+  } catch (const std::exception &e) {
+    // resize() currently throws on macsox and freebsd
+    FAIL() << e.what();
+  }
+
+  SCOPED_TRACE("// expected creds to match ours as it is the same process");
+#if defined(__linux__) || defined(__OpenBSD__)
+  EXPECT_EQ(peer_creds.value().uid, getuid());
+  EXPECT_EQ(peer_creds.value().gid, getgid());
+  EXPECT_EQ(peer_creds.value().pid, getpid());
+#elif defined(__FreeBSD__) || defined(__APPLE__)
+  ASSERT_GE(peer_creds.size(protocol_type()), sizeof(u_int));
+  ASSERT_EQ(peer_creds.value().cr_version, XUCRED_VERSION);
+
+  // after get_option() the value may be too small to have those values.
+  if (peer_creds.size(protocol_type()) ==
+      sizeof(typename protocol_type::peer_creds::value_type)) {
+    EXPECT_EQ(peer_creds.value().cr_uid, getuid());
+
+    // no cr.gid, but .cr_ngroups and .cr_groups instead
+    // EXPECT_EQ(peer_creds.value().cr_gid, getgid());
+
+    // PID added in r348847 (freebsd13) ...
+    // EXPECT_EQ(peer_creds.value().cr_pid, getpid());
+  }
+#elif defined(__NetBSD__)
+  EXPECT_EQ(peer_creds.value().unp_euid, geteuid());
+  EXPECT_EQ(peer_creds.value().unp_egid, getegid());
+  EXPECT_EQ(peer_creds.value().unp_pid, getpid());
+#endif
+}
+
+TEST(NetTS_local, socketpair_unsupported_protocol) {
+  class UnsupportedProtocol {
+   public:
+    using socket = net::basic_datagram_socket<UnsupportedProtocol>;
+    class endpoint {
+     public:
+      using protocol_type = UnsupportedProtocol;
+
+      constexpr protocol_type protocol() const noexcept { return {}; }
+    };
+
+    constexpr int family() const noexcept { return PF_UNSPEC; }
+    constexpr int type() const noexcept { return SOCK_DGRAM; }
+    constexpr int protocol() const noexcept { return 0; }
+  };
+  net::io_context io_ctx;
+
+  using protocol_type = UnsupportedProtocol;
+  using socket_type = protocol_type::socket;
+
+  socket_type server_sock(io_ctx);
+  socket_type client_sock(io_ctx);
+
+  // other OSes may return other error-codes
+  EXPECT_EQ(
+      local::connect_pair<protocol_type>(&io_ctx, server_sock, client_sock),
+      stdx::make_unexpected(
+          make_error_code(std::errc::address_family_not_supported)));
+}
+
+#endif
+
+// instances of basic_socket are
+// - destructible
+// - move-constructible
+// - move-assignable
+
+static_assert(std::is_destructible<local::stream_protocol::socket>::value, "");
+static_assert(
+    !std::is_copy_constructible<local::stream_protocol::socket>::value, "");
+static_assert(std::is_move_constructible<local::stream_protocol::socket>::value,
+              "");
+static_assert(!std::is_copy_assignable<local::stream_protocol::socket>::value,
+              "");
+static_assert(std::is_move_assignable<local::stream_protocol::socket>::value,
+              "");
 
 // check constexpr
 static_assert(local::stream_protocol().family() != AF_UNSPEC, "");

@@ -30,6 +30,7 @@
 
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/net_ts/impl/socket.h"
+#include "mysql/harness/net_ts/io_context.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql_routing.h"
 #include "protocol/classic_protocol.h"
@@ -55,6 +56,7 @@ class ClassicProtocolTest : public ::testing::Test {
   }
 
   MockSocketOperations mock_socket_operations_;
+  net::io_context io_ctx_;
 
   // the tested object:
   std::unique_ptr<BaseProtocol> sut_protocol_;
@@ -269,7 +271,7 @@ MATCHER_P(BufferEq, buf1,
 // destination server
 TEST_F(ClassicProtocolRoutingTest, NoValidDestinations) {
   MySQLRouting routing(
-      routing::RoutingStrategy::kRoundRobin, 7001,
+      io_ctx_, routing::RoutingStrategy::kRoundRobin, 7001,
       Protocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
       "127.0.0.1", mysql_harness::Path(), "routing:test",
       routing::kDefaultMaxConnections,

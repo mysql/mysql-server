@@ -99,10 +99,13 @@ SET(TESTS
   test_stdx_expected.cc
   test_stdx_string_view.cc
   test_net_ts_buffer.cc
+  test_net_ts_executor.cc
   test_net_ts_impl_file.cc
   test_net_ts_impl_resolver.cc
   test_net_ts_impl_socket.cc
   test_net_ts_internet.cc
+  test_net_ts_io_context.cc
+  test_net_ts_socket.cc
 )
 
 FOREACH(TEST ${TESTS})

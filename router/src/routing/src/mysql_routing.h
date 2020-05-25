@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -58,6 +58,9 @@
 #include "context.h"
 #include "destination.h"
 #include "mysql/harness/filesystem.h"
+#include "mysql/harness/net_ts/internet.h"
+#include "mysql/harness/net_ts/io_context.h"
+#include "mysql/harness/net_ts/local.h"
 #include "mysql/harness/plugin.h"
 #include "mysql_router_thread.h"
 #include "mysqlrouter/mysql_protocol.h"
@@ -112,6 +115,7 @@ class MySQLRouting {
  public:
   /** @brief Default constructor
    *
+   * @param io_ctx IO context
    * @param routing_strategy routing strategy
    * @param port TCP port for listening for incoming connections
    * @param protocol protocol for the routing
@@ -129,8 +133,8 @@ class MySQLRouting {
    * @param thread_stack_size memory in kilobytes allocated for thread's stack
    */
   MySQLRouting(
-      routing::RoutingStrategy routing_strategy, uint16_t port,
-      const Protocol::Type protocol,
+      net::io_context &io_ctx, routing::RoutingStrategy routing_strategy,
+      uint16_t port, const Protocol::Type protocol,
       const routing::AccessMode access_mode = routing::AccessMode::kUndefined,
       const string &bind_address = string{"0.0.0.0"},
       const mysql_harness::Path &named_socket = mysql_harness::Path(),
@@ -145,8 +149,6 @@ class MySQLRouting {
       mysql_harness::SocketOperationsBase *sock_ops =
           mysql_harness::SocketOperations::instance(),
       size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes);
-
-  ~MySQLRouting();
 
   /** @brief Starts the service and accept incoming connections
    *
@@ -236,17 +238,17 @@ class MySQLRouting {
    *
    * Sets up the TCP service binding to IP addresses and TCP port.
    *
-   * @throw std::runtime_error on errors.
+   * @returns std::error_code on errors.
    */
-  void setup_tcp_service();
+  stdx::expected<void, std::error_code> setup_tcp_service();
 
   /** @brief Sets up the named socket service
    *
    * Sets up the named socket service creating a socket file on UNIX systems.
    *
-   * @throw std::runtime_error on errors.
+   * @returns std::error_code on errors.
    */
-  void setup_named_socket_service();
+  stdx::expected<void, std::error_code> setup_named_socket_service();
 
   /** @brief Sets unix socket permissions so that the socket is accessible
    *         to all users (no-op on Windows)
@@ -268,6 +270,8 @@ class MySQLRouting {
   /** @brief object handling the operations on network sockets */
   mysql_harness::SocketOperationsBase *sock_ops_;
 
+  net::io_context &io_ctx_;
+
   /** @brief Destination object to use when getting next connection */
   std::unique_ptr<RouteDestination> destination_;
 
@@ -286,9 +290,12 @@ class MySQLRouting {
   int max_connections_;
 
   /** @brief Socket descriptor of the TCP service */
-  routing::native_handle_type service_tcp_;
+  net::ip::tcp::acceptor service_tcp_;
+
+#if !defined(_WIN32)
   /** @brief Socket descriptor of the named socket service */
-  routing::native_handle_type service_named_socket_;
+  local::stream_protocol::acceptor service_named_socket_;
+#endif
 
   /** @brief used to unregister from subscription on allowed nodes changes */
   AllowedNodesChangeCallbacksListIterator allowed_nodes_list_iterator_;

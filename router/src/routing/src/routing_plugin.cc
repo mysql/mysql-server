@@ -32,6 +32,7 @@
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/loader_config.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/net_ts/io_context.h"
 #include "mysql_routing.h"
 #include "mysqlrouter/routing_component.h"
 #include "mysqlrouter/routing_export.h"  // ROUTING_EXPORT
@@ -225,12 +226,13 @@ static void start(mysql_harness::PluginFuncEnv *env) {
     std::chrono::milliseconds client_connect_timeout(
         config.client_connect_timeout * 1000);
 
+    net::io_context io_ctx;
     auto r = std::make_shared<MySQLRouting>(
-        config.routing_strategy, config.bind_address.port, config.protocol,
-        config.mode, config.bind_address.addr, config.named_socket, name,
-        config.max_connections, destination_connect_timeout,
-        config.max_connect_errors, client_connect_timeout,
-        routing::kDefaultNetBufferLength,
+        io_ctx, config.routing_strategy, config.bind_address.port,
+        config.protocol, config.mode, config.bind_address.addr,
+        config.named_socket, name, config.max_connections,
+        destination_connect_timeout, config.max_connect_errors,
+        client_connect_timeout, routing::kDefaultNetBufferLength,
         mysql_harness::SocketOperations::instance(), config.thread_stack_size);
 
     try {

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,11 +25,12 @@
 #ifndef MYSQLD_MOCK_MYSQL_PROTOCOL_DECODER_INCLUDED
 #define MYSQLD_MOCK_MYSQL_PROTOCOL_DECODER_INCLUDED
 
-#include <stdint.h>
+#include <cstdint>
 #include <functional>
 #include <string>
 #include <vector>
 
+#include "mysql/harness/net_ts/internet.h"
 #include "mysql_protocol_common.h"
 
 namespace server_mock {
@@ -43,20 +44,12 @@ using byte = uint8_t;
  **/
 class MySQLProtocolDecoder {
  public:
-  /** @brief Callback used to read more data from the socket
-   **/
-  using ReadCallback =
-      std::function<void(int, uint8_t *data, size_t size, int)>;
-
-  /** @brief Constructor
-   *
-   * @param read_clb Callback to use to read more data from the socket
-   **/
-  MySQLProtocolDecoder(const ReadCallback &read_clb);
+  stdx::expected<size_t, std::error_code> read_header(
+      const net::const_buffer &buf);
 
   /** @brief Reads single packet from the network socket.
    **/
-  void read_message(socket_t client_socket, int flags = 0);
+  void read_message(const net::const_buffer &buf);
 
   /** @brief Retrieves sequence number of the packet
    *
@@ -83,7 +76,7 @@ class MySQLProtocolDecoder {
    *
    * @pre read_message() returned successfully
    */
-  std::vector<byte> get_payload() const { return packet_.packet_buffer; }
+  std::vector<uint8_t> get_payload() const { return packet_.packet_buffer; }
 
  private:
   /** @brief Single protocol packet data.
@@ -92,10 +85,9 @@ class MySQLProtocolDecoder {
     // packet sequence number
     uint8_t packet_seq{0};
     // raw packet data
-    std::vector<byte> packet_buffer;
+    std::vector<uint8_t> packet_buffer;
   };
 
-  const ReadCallback read_callback_;
   ProtocolPacketType packet_;
   mysql_protocol::Capabilities::Flags capabilities_;
 };

@@ -28,6 +28,7 @@
 #include <memory>
 #include <string>
 #include <thread>
+#include "mysql/harness/net_ts/io_context.h"
 #ifndef _WIN32
 #include <netinet/in.h>
 #else
@@ -62,6 +63,8 @@ class TestBlockClients : public ConsoleOutputTest {
     set_origin(g_origin);
     ConsoleOutputTest::SetUp();
   }
+
+  net::io_context io_ctx_;
 };
 
 TEST_F(TestBlockClients, BlockClientHost) {
@@ -78,18 +81,16 @@ TEST_F(TestBlockClients, BlockClientHost) {
   client_addr1.sin6_family = client_addr2.sin6_family = AF_INET6;
   memset(&client_addr1.sin6_addr, 0x0, sizeof(client_addr1.sin6_addr));
   memset(&client_addr2.sin6_addr, 0x0, sizeof(client_addr2.sin6_addr));
-  unsigned char *p1 =
-      reinterpret_cast<unsigned char *>(&client_addr1.sin6_addr);
+  auto *p1 = reinterpret_cast<unsigned char *>(&client_addr1.sin6_addr);
   p1[15] = 1;
-  unsigned char *p2 =
-      reinterpret_cast<unsigned char *>(&client_addr2.sin6_addr);
+  auto *p2 = reinterpret_cast<unsigned char *>(&client_addr2.sin6_addr);
   p2[15] = 2;
 
   auto client_ip_array1 = in_addr_to_array(client_addr1_storage);
   auto client_ip_array2 = in_addr_to_array(client_addr2_storage);
 
   MySQLRouting r(
-      routing::RoutingStrategy::kNextAvailable, 7001,
+      io_ctx_, routing::RoutingStrategy::kNextAvailable, 7001,
       Protocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
       "127.0.0.1", mysql_harness::Path(), "routing:connect_erros", 1,
       std::chrono::seconds(1), max_connect_errors, client_connect_timeout);
@@ -126,12 +127,12 @@ TEST_F(TestBlockClients, BlockClientHostWithFakeResponse) {
   };
   client_addr1.sin6_family = AF_INET6;
   memset(&client_addr1.sin6_addr, 0x0, sizeof(client_addr1.sin6_addr));
-  unsigned char *p = reinterpret_cast<unsigned char *>(&client_addr1.sin6_addr);
+  auto *p = reinterpret_cast<unsigned char *>(&client_addr1.sin6_addr);
   p[15] = 1;
   auto client_ip_array1 = in_addr_to_array(client_addr1_storage);
 
   MySQLRouting r(
-      routing::RoutingStrategy::kNextAvailable, 7001,
+      io_ctx_, routing::RoutingStrategy::kNextAvailable, 7001,
       Protocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
       "127.0.0.1", mysql_harness::Path(), "routing:connect_erros", 1,
       std::chrono::seconds(1), max_connect_errors, client_connect_timeout);

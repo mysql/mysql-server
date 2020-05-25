@@ -41,9 +41,12 @@
 
 #include "common.h"
 #include "mysql/harness/loader.h"
+#include "mysql/harness/net_ts/impl/poll.h"
 #include "mysql/harness/net_ts/impl/resolver.h"
 #include "mysql/harness/net_ts/impl/socket.h"
+#include "mysql/harness/net_ts/impl/socket_constants.h"
 #include "mysql/harness/net_ts/internet.h"
+#include "mysql/harness/net_ts/io_context.h"
 #include "mysql/harness/net_ts/local.h"
 #include "mysql/harness/net_ts/socket.h"
 #include "mysql/harness/stdx/expected.h"
@@ -68,6 +71,7 @@ using ::testing::StrEq;
 class RoutingTests : public ::testing::Test {
  protected:
   MockSocketOperations sock_ops;
+  net::io_context io_ctx_;
 };
 
 TEST_F(RoutingTests, AccessModes) {
@@ -201,30 +205,23 @@ class MockServer {
       const net::ip::tcp::endpoint &ep) {
     const auto protocol = ep.protocol();
 
-    const auto socket_res = net::impl::socket::socket(
-        protocol.family(), protocol.type(), protocol.protocol());
+    const auto socket_res = service_tcp_.open(protocol);
     if (!socket_res) {
       return stdx::make_unexpected(socket_res.error());
     }
 
-    service_tcp_ = socket_res.value();
-
     net::socket_base::reuse_address reuse_opt{true};
-    const auto sockopt_res = net::impl::socket::setsockopt(
-        service_tcp_, reuse_opt.level(protocol), reuse_opt.name(protocol),
-        reuse_opt.data(protocol), reuse_opt.size(protocol));
+    const auto sockopt_res = service_tcp_.set_option(reuse_opt);
     if (!sockopt_res) {
       return stdx::make_unexpected(sockopt_res.error());
     }
 
-    const auto bind_res = net::impl::socket::bind(
-        service_tcp_, reinterpret_cast<const struct sockaddr *>(ep.data()),
-        ep.size());
+    const auto bind_res = service_tcp_.bind(ep);
     if (!bind_res) {
       return stdx::make_unexpected(bind_res.error());
     }
 
-    const auto listen_res = net::impl::socket::listen(service_tcp_, 20);
+    const auto listen_res = service_tcp_.listen(20);
     if (!listen_res) {
       return stdx::make_unexpected(listen_res.error());
     }
@@ -236,13 +233,6 @@ class MockServer {
   }
 
   void stop() {
-    if (service_tcp_ != mysql_harness::kInvalidSocket) {
-      net::impl::socket::shutdown(
-          service_tcp_, static_cast<int>(net::socket_base::shutdown_send));
-      net::impl::socket::close(service_tcp_);
-      service_tcp_ = mysql_harness::kInvalidSocket;
-    }
-
     if (thread_.joinable()) {
       // signal acceptor thread to exit.
       stop_ = true;
@@ -258,41 +248,69 @@ class MockServer {
 
     while (!stop_ && (max_expected_accepts_ == 0 ||
                       num_accepts_ < max_expected_accepts_)) {
-      const auto sock_client_res =
-          net::impl::socket::accept(service_tcp_, nullptr, nullptr);
+      std::array<struct pollfd, 1> fds = {{
+          {service_tcp_.native_handle(), POLLIN, 0},
+      }};
+
+      const auto poll_res = net::impl::poll::poll(fds.data(), fds.size(), 10ms);
+      if (!poll_res) {
+        if (poll_res.error() == make_error_condition(std::errc::interrupted) ||
+            poll_res.error() ==
+                make_error_condition(std::errc::operation_would_block) ||
+            poll_res.error() == make_error_condition(std::errc::timed_out)) {
+          // no event yet, restart.
+          continue;
+        }
+
+        std::cout << "mock-server: poll(): " << poll_res.error() << std::endl;
+
+        return;
+      }
+
+      auto sock_client_res = service_tcp_.accept();
       if (!sock_client_res) {
         std::cout << "mock-server: accept() "
                   << sock_client_res.error().message() << "\n";
         continue;
       }
-      const auto sock_client = sock_client_res.value();
-
       num_accepts_++;
+
+      class Scope {
+       public:
+        Scope(MockServer *self, net::ip::tcp::socket &&sock_client)
+            : self_{self}, sock_client_{std::move(sock_client)} {}
+
+        void operator()() {
+          mysql_harness::rename_thread("new_client()");
+          self_->num_connections_++;
+
+          // block until we receive the bye msg
+
+          std::array<char, kByeMessage.size()> buf;
+          auto read_res = net::impl::socket::read(sock_client_.native_handle(),
+                                                  buf.data(), buf.size());
+          if (!read_res) {
+            FAIL() << "Unexpected results from read(): "
+                   << read_res.error().message();
+          }
+
+          self_->num_connections_--;
+        }
+
+       private:
+        MockServer *self_;
+
+        net::ip::tcp::socket sock_client_;
+      };
+
       client_threads.emplace_back(
-          std::thread([this, sock_client]() { new_client(sock_client); }));
+          Scope(this, std::move(sock_client_res.value())));
     }
 
     // wait for all threads to shut down again
     for (auto &thr : client_threads) {
       thr.join();
     }
-  }
-
-  void new_client(int sock) {
-    mysql_harness::rename_thread("new_client()");
-    num_connections_++;
-
-    // block until we receive the bye msg
-
-    std::array<char, kByeMessage.size()> buf;
-    auto read_res = net::impl::socket::read(sock, buf.data(), buf.size());
-    if (!read_res) {
-      FAIL() << "Unexpected results from read(): "
-             << read_res.error().message();
-    }
-
-    net::impl::socket::close(sock);
-    num_connections_--;
   }
 
  public:
@@ -302,7 +320,8 @@ class MockServer {
 
  private:
   std::thread thread_;
-  mysql_harness::socket_t service_tcp_{mysql_harness::kInvalidSocket};
+  net::io_context io_ctx_;
+  net::ip::tcp::acceptor service_tcp_{io_ctx_};
   std::atomic_bool stop_;
 };
 
@@ -460,7 +479,7 @@ TEST_F(RoutingTests, bug_24841281) {
 
   // check that connecting to a TCP socket or a UNIX socket works
   MySQLRouting routing(
-      routing::RoutingStrategy::kNextAvailable, router_port,
+      io_ctx_, routing::RoutingStrategy::kNextAvailable, router_port,
       Protocol::Type::kXProtocol, routing::AccessMode::kReadWrite, "0.0.0.0",
       sock_path, "routing:testroute", routing::kDefaultMaxConnections,
       routing::kDefaultDestinationConnectionTimeout,
@@ -592,7 +611,7 @@ TEST_F(RoutingTests, bug_24841281) {
 #endif  // #ifndef _WIN32 [_HERE_]
 
 TEST_F(RoutingTests, set_destinations_from_uri) {
-  MySQLRouting routing(routing::RoutingStrategy::kFirstAvailable, 7001,
+  MySQLRouting routing(io_ctx_, routing::RoutingStrategy::kFirstAvailable, 7001,
                        Protocol::Type::kXProtocol);
 
   // valid metadata-cache uri
@@ -633,7 +652,7 @@ TEST_F(RoutingTests, set_destinations_from_uri) {
 }
 
 TEST_F(RoutingTests, set_destinations_from_cvs) {
-  MySQLRouting routing(routing::RoutingStrategy::kNextAvailable, 7001,
+  MySQLRouting routing(io_ctx_, routing::RoutingStrategy::kNextAvailable, 7001,
                        Protocol::Type::kXProtocol);
 
   // valid address list
@@ -644,8 +663,8 @@ TEST_F(RoutingTests, set_destinations_from_cvs) {
 
   // no routing strategy, should go with default
   {
-    MySQLRouting routing_inv(routing::RoutingStrategy::kUndefined, 7001,
-                             Protocol::Type::kXProtocol);
+    MySQLRouting routing_inv(io_ctx_, routing::RoutingStrategy::kUndefined,
+                             7001, Protocol::Type::kXProtocol);
     const std::string csv = "127.0.0.1:2002,127.0.0.1:2004";
     EXPECT_NO_THROW(routing_inv.set_destinations_from_csv(csv));
   }
@@ -669,7 +688,8 @@ TEST_F(RoutingTests, set_destinations_from_cvs) {
   // an exception if these are the same
   {
     const std::string address = "127.0.0.1";
-    MySQLRouting routing_classic(routing::RoutingStrategy::kNextAvailable, 3306,
+    MySQLRouting routing_classic(io_ctx_,
+                                 routing::RoutingStrategy::kNextAvailable, 3306,
                                  Protocol::Type::kClassicProtocol,
                                  routing::AccessMode::kReadWrite, address);
     EXPECT_THROW(routing_classic.set_destinations_from_csv("127.0.0.1"),
@@ -679,8 +699,8 @@ TEST_F(RoutingTests, set_destinations_from_cvs) {
     EXPECT_NO_THROW(
         routing_classic.set_destinations_from_csv("127.0.0.1:33060"));
 
-    MySQLRouting routing_x(routing::RoutingStrategy::kNextAvailable, 33060,
-                           Protocol::Type::kXProtocol,
+    MySQLRouting routing_x(io_ctx_, routing::RoutingStrategy::kNextAvailable,
+                           33060, Protocol::Type::kXProtocol,
                            routing::AccessMode::kReadWrite, address);
     EXPECT_THROW(routing_x.set_destinations_from_csv("127.0.0.1"),
                  std::runtime_error);

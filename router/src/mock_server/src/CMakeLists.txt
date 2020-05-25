@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -129,7 +129,6 @@ add_harness_plugin(mock_server
   mysql_protocol_encoder.cc
   x_protocol_decoder.cc
   x_protocol_encoder.cc
-  mysql_protocol_utils.cc
   mysql_server_mock.cc
   mock_session.cc
   classic_mock_session.cc
@@ -177,6 +176,7 @@ MYSQL_ADD_EXECUTABLE(mysql_server_mock
   mysqlxmessages_lite
   ${PROTOBUF_LITE_LIBRARY}
   harness_stdx_filesystem
+  harness_net_ts
   SKIP_INSTALL
   )
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -103,8 +103,6 @@ struct column_info_type {
 using RowValueType = std::vector<std::pair<bool, std::string>>;
 
 MySQLColumnType column_type_from_string(const std::string &type);
-
-void non_blocking(socket_t handle_, bool mode) noexcept;
 
 }  // namespace server_mock
 
