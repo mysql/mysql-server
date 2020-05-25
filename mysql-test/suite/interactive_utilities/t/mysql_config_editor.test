@@ -1,0 +1,252 @@
+###############################################################################
+#                                                                             #
+# Create automated tests for mysql_config_editor --password                   #
+# Author : Pavan Naik	                                                      #
+#                                                                             #
+###############################################################################
+
+# Checking if perl Expect module is installed on the system.
+# If not, the test will be skipped.
+--source include/have_expect.inc
+--source include/not_windows.inc
+
+--echo #############################
+--echo #      Creating 3 users     #
+--echo #############################
+CREATE USER 'user_1'@'localhost' identified by 'pass_1';
+CREATE USER 'user_2'@'localhost' identified by 'pass_2';
+CREATE USER 'user_3'@'localhost' identified by 'pass_3';
+
+
+# The execution of mysql_config_editor using perl which uses the
+# Expect module as mysql_config_editor is user interactive.
+--perl
+
+# Checking if perl Expect module is installed on the system.
+# If not, the test will be skipped.
+die "Please install the Expect module ." unless(eval{require Expect});
+
+use strict;
+require Expect;
+
+# Declaring variables for Expect
+my @texp;
+my $i;
+my $n;
+
+# Defining a new Expect object for 3 users and invoking mysql_config_editor for each user 
+sub initial_commands
+{
+   $texp[$i] = new Expect();
+   $texp[$i]->raw_pty(1);
+   my $user = "user_$_[0]";
+   my $login_path = "login_path_$_[0]";
+   my $host = "localhost";
+   $texp[$i]->spawn("$ENV{MYSQL_CONFIG_EDITOR} set --login-path=$login_path --user=$user --host=$host --password");
+}
+
+$i=1;
+print "\n";
+system("echo Invoking mysql_config_editor for user1 with correct password");
+$n = 1;
+initial_commands($n);
+$texp[$i]->expect(1,' -re ',[ 'Enter password:' => sub {
+$texp[$i]->send("pass_1\n");}]);
+$texp[$i]->expect(1,' -re ',[ 'any other key for No' => sub {
+$texp[$i]->send("y\n");}]);
+$texp[$i]->soft_close();
+print "\n";
+system("$ENV{MYSQL} --login-path='login_path_1' -S $ENV{MASTER_MYSOCK} -e \"SELECT USER(), CURRENT_USER()\"");
+print "\n";
+$i++;
+
+system("echo Invoking mysql_config_editor for user2 with correct password");
+$n = 2;
+initial_commands($n);
+$texp[$i]->expect(1,' -re ',[ 'Enter password:' => sub {
+$texp[$i]->send("pass_2\n");}]);
+$texp[$i]->expect(1,' -re ',[ 'any other key for No' => sub {
+$texp[$i]->send("y\n");}]);
+$texp[$i]->soft_close();
+print "\n";
+system("$ENV{MYSQL} --login-path='login_path_2' -S $ENV{MASTER_MYSOCK} -e \"SELECT USER(), CURRENT_USER()\"");
+print "\n";
+$i++;
+
+system("echo Invoking mysql_config_editor for user3 with correct password");
+$n = 3;
+initial_commands($n);
+$texp[$i]->expect(1,' -re ',[ 'Enter password:' => sub {
+$texp[$i]->send("pass_3\n");}]);
+$texp[$i]->expect(1,' -re ',[ 'any other key for No' => sub {
+$texp[$i]->send("y\n");}]);
+$texp[$i]->soft_close();
+print "\n";
+system("$ENV{MYSQL} --login-path='login_path_3' -S $ENV{MASTER_MYSOCK} -e \"SELECT USER(), CURRENT_USER()\"");
+print "\n";
+$i++;
+
+system("echo Invoking mysql_config_editor for user3 with wrong password");
+$n = 3;
+initial_commands($n);
+$texp[$i]->expect(1,' -re ',[ 'Enter password:' => sub {
+$texp[$i]->send("pass_4\n");}]);
+$texp[$i]->soft_close();
+print "\n";
+system("$ENV{MYSQL} --login-path='login_path_3' -S $ENV{MASTER_MYSOCK} -e \"SELECT USER(), CURRENT_USER()\"");
+print "\n";
+$i++;
+
+system("echo Invoking mysql_config_editor for user2 and not changing the password");
+$n = 2;
+initial_commands($n);
+$texp[$i]->expect(1,' -re ',[ 'Enter password:' => sub {
+$texp[$i]->send("pass_5\n");}]);
+$texp[$i]->expect(1,' -re ',[ 'any other key for No' => sub {
+$texp[$i]->send("N\n");}]);
+$texp[$i]->soft_close();
+print "\n";
+system("$ENV{MYSQL} --login-path='login_path_2' -S $ENV{MASTER_MYSOCK} -e \"SELECT USER(), CURRENT_USER()\"");
+print "\n";
+$i++;
+
+system("echo invoking mysql_config_editor for user2 and changing the password to wrong value");
+$n = 2;
+initial_commands($n);
+$texp[$i]->expect(1,' -re ',[ 'Enter password:' => sub {
+$texp[$i]->send("pass_5\n");}]);
+$texp[$i]->expect(1,' -re ',[ 'any other key for No' => sub {
+$texp[$i]->send("y\n");}]);
+$texp[$i]->soft_close();
+print "\n";
+system("$ENV{MYSQL} --login-path='login_path_2' -S $ENV{MASTER_MYSOCK} -e \"SELECT USER(), CURRENT_USER()\"");
+print "\n";
+$i++;
+
+system("echo Invoking mysql_config_editor for user2 and changing the password to wrong value");
+$n = 2;
+initial_commands($n);
+$texp[$i]->expect(1,' -re ',[ 'Enter password:' => sub {
+$texp[$i]->send("\n");}]);
+$texp[$i]->expect(1,' -re ',[ 'any other key for No' => sub {
+$texp[$i]->send("y\n");}]);
+$texp[$i]->soft_close();
+print "\n";
+system("$ENV{MYSQL} --login-path='login_path_2' -S $ENV{MASTER_MYSOCK} -e \"SELECT USER(), CURRENT_USER()\"");
+print "\n";
+$i++;
+
+system("echo Invoking mysql_config_editor for user2 and changing the password to wrong value");
+$n = 2;
+initial_commands($n);
+$texp[$i]->expect(1,' -re ',[ 'Enter password:' => sub {
+$texp[$i]->send(" \n");}]);
+$texp[$i]->expect(1,' -re ',[ 'any other key for No' => sub {
+$texp[$i]->send("y\n");}]);
+$texp[$i]->soft_close();
+print "\n";
+system("$ENV{MYSQL} --login-path='login_path_2' -S $ENV{MASTER_MYSOCK} -e \"SELECT USER(), CURRENT_USER()\"");
+print "\n";
+$i++;
+
+system("echo Invoking mysql_config_editor for user2 and changing the password to wrong value");
+$n = 2;
+initial_commands($n);
+$texp[$i]->expect(1,' -re ',[ 'Enter password:' => sub {
+$texp[$i]->send("1234\n");}]);
+$texp[$i]->expect(1,' -re ',[ 'any other key for No' => sub {
+$texp[$i]->send("y\n");}]);
+$texp[$i]->soft_close();
+print "\n";
+system("$ENV{MYSQL} --login-path='login_path_2' -S $ENV{MASTER_MYSOCK} -e \"SELECT USER(), CURRENT_USER()\"");
+print "\n";
+$i++;
+
+system("echo Invoking mysql_config_editor for user2 and changing the password to wrong value");
+$n = 2;
+initial_commands($n);
+$texp[$i]->expect(1,' -re ',[ 'Enter password:' => sub {
+$texp[$i]->send("abc123def456\n");}]);
+$texp[$i]->expect(1,' -re ',[ 'any other key for No' => sub {
+$texp[$i]->send("y\n");}]);
+$texp[$i]->soft_close();
+print "\n";
+system("$ENV{MYSQL} --login-path='login_path_2' -S $ENV{MASTER_MYSOCK} -e \"SELECT USER(), CURRENT_USER()\"");
+print "\n";
+$i++;
+
+system("echo invoking mysql_config_editor for user2 and changing the password to wrong value");
+$n = 2;
+initial_commands($n);
+$texp[$i]->expect(1,' -re ',[ 'Enter password:' => sub {
+$texp[$i]->send("asdasdasjiouuwqjeqwejkklqwelkqwjeqwkjelkqwjeqwkljeqwkljdklas\n");}]);
+$texp[$i]->expect(1,' -re ',[ 'any other key for No' => sub {
+$texp[$i]->send("y\n");}]);
+$texp[$i]->soft_close();
+print "\n";
+system("$ENV{MYSQL} --login-path='login_path_2' -S $ENV{MASTER_MYSOCK} -e \"SELECT USER(), CURRENT_USER()\"");
+print "\n";
+$i++;
+
+system("echo Invoking mysql_config_editor for user2 and changing the password to wrong value");
+$n = 2;
+initial_commands($n);
+$texp[$i]->expect(1,' -re ',[ 'Enter password:' => sub {
+$texp[$i]->send("NULL\n");}]);
+$texp[$i]->expect(1,' -re ',[ 'any other key for No' => sub {
+$texp[$i]->send("y\n");}]);
+$texp[$i]->soft_close();
+print "\n";
+system("$ENV{MYSQL} --login-path='login_path_2' -S $ENV{MASTER_MYSOCK} -e \"SELECT USER(), CURRENT_USER()\"");
+print "\n";
+$i++;
+
+system("echo Invoking mysql_config_editor for user2 and changing the password to wrong value");
+$n = 2;
+initial_commands($n);
+$texp[$i]->expect(1,' -re ',[ 'Enter password:' => sub {
+$texp[$i]->send("ABCud134*1##sfdsf!\n");}]);
+$texp[$i]->expect(1,' -re ',[ 'any other key for No' => sub {
+$texp[$i]->send("y\n");}]);
+$texp[$i]->soft_close();
+print "\n";
+system("$ENV{MYSQL} --login-path='login_path_2' -S $ENV{MASTER_MYSOCK} -e \"SELECT USER(), CURRENT_USER()\"");
+print "\n";
+$i++;
+
+system("echo Invoking mysql_config_editor for user2 and changing the password to correct value");
+$n = 2;
+initial_commands($n);
+$texp[$i]->expect(1,' -re ',[ 'Enter password:' => sub {
+$texp[$i]->send("pass_2\n");}]);
+$texp[$i]->expect(1,' -re ',[ 'any other key for No' => sub {
+$texp[$i]->send("y\n");}]);
+$texp[$i]->soft_close();
+print "\n";
+system("$ENV{MYSQL} --login-path='login_path_2' -S $ENV{MASTER_MYSOCK} -e \"SELECT USER(), CURRENT_USER()\"");
+print "\n";
+$i++;
+
+EOF
+
+--echo ############################################
+--echo #    .mylogin.cnf file before cleanup      #
+--echo ############################################
+--exec $MYSQL_CONFIG_EDITOR print --all
+
+# Cleanup
+--exec $MYSQL_CONFIG_EDITOR reset
+--echo
+--echo #################################################
+--echo #     empty .mylogin.cnf file after cleanup     #
+--echo #################################################
+--exec $MYSQL_CONFIG_EDITOR print --all
+
+--echo 
+--echo ################################################
+--echo #     Dropping users user1, user2 and user3    #
+--echo ################################################
+DROP USER 'user_1'@'localhost';
+DROP USER 'user_2'@'localhost';
+DROP USER 'user_3'@'localhost';
+--remove_file $MYSQL_TMP_DIR/.mylogin.cnf

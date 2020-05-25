@@ -226,8 +226,47 @@ our $opt_xml_report;
 #
 # Suites run by default (i.e. when invoking ./mtr without parameters)
 #
-our $DEFAULT_SUITES =
-"auth_sec,binlog_gtid,binlog_nogtid,clone,collations,connection_control,encryption,federated,funcs_2,gcol,sysschema,gis,information_schema,innodb,innodb_fts,innodb_gis,innodb_undo,innodb_zip,json,main,opt_trace,parts,perfschema,query_rewrite_plugins,rpl,rpl_gtid,rpl_nogtid,secondary_engine,service_status_var_registration,service_sys_var_registration,service_udf_registration,sys_vars,binlog,test_service_sql_api,test_services,x";
+our @DEFAULT_SUITES = qw(
+  auth_sec
+  binlog
+  binlog_gtid
+  binlog_nogtid
+  clone
+  collations
+  connection_control
+  encryption
+  federated
+  funcs_2
+  gcol
+  gis
+  information_schema
+  innodb
+  innodb_fts
+  innodb_gis
+  innodb_undo
+  innodb_zip
+  interactive_utilities
+  json
+  main
+  opt_trace
+  parts
+  perfschema
+  query_rewrite_plugins
+  rpl
+  rpl_gtid
+  rpl_nogtid
+  secondary_engine
+  service_status_var_registration
+  service_sys_var_registration
+  service_udf_registration
+  sys_vars
+  sysschema
+  test_service_sql_api
+  test_services
+  x
+  );
+
+our $DEFAULT_SUITES = join ',', @DEFAULT_SUITES;
 
 # End of list of default suites
 

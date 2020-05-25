@@ -18,12 +18,12 @@ perl mysql-test-run.pl --debug-server --force --timer --testcase-timeout=60 --su
 
 #################SECTION2: RUN SUITES THAT ARE NOT PART OF DEFAULT##########
 # Run the suites that are not part of the default - funcs_2, stress, jp, nist
-# interactive_utilities,engines, memcached
+# engines, memcached
 perl mysql-test-run.pl --debug-server --force --timer  --testcase-timeout=60    --comment=funcs2-big  --vardir=var-funcs2-big --suite=funcs_2 --no-skip
 perl mysql-test-run.pl --debug-server --force --timer    --comment=stress --vardir=var-stress  --suite=stress --no-skip
 perl mysql-test-run.pl --debug-server --force --timer    --comment=jp --vardir=var-jp --suite=jp --no-skip
 perl mysql-test-run.pl --debug-server --force --timer    --comment=nist  --vardir=var-nist --suite=nist --no-skip
-perl mysql-test-run.pl --debug-server --force --timer   --testcase-timeout=60  --comment=interactive_tests  --vardir=var-interactive  --suite=interactive_utilities --no-skip
+
 # Engine independent tests
 perl mysql-test-run.pl --debug-server --timer --force     --comment=eits-tests-myisam-engine --vardir=var-stmt-eits-tests-myisam-engine --suite=engines/iuds,engines/funcs --mysqld=--default-storage-engine=myisam --mysqld=--default-tmp-storage-engine=myisam  --no-skip
 perl mysql-test-run.pl --debug-server --timer --force   --comment=eits-tests-innodb-engine --vardir=var-stmt-eits-tests-innodb-engine --suite=engines/iuds,engines/funcs  --mysqld=--default-storage-engine=innodb  --no-skip
