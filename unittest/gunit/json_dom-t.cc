@@ -59,6 +59,7 @@ class JsonDomTest : public ::testing::Test {
   }
   void TearDown() override {
     m_table->cleanup_partial_update();
+    delete m_table;
     initializer.TearDown();
   }
   my_testing::Server_initializer initializer;
