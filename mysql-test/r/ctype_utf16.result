@@ -881,16 +881,16 @@ insert into t1 values (0xD800DC00),(0xD800DCFF),(0xDB7FDC00),(0xDB7FDCFF);
 insert into t1 values (0x00C0), (0x00FF),(0xE000), (0xFFFF);
 select hex(a), hex(@a:=convert(a using utf8mb4)), hex(convert(@a using utf16)) from t1;
 hex(a)	hex(@a:=convert(a using utf8mb4))	hex(convert(@a using utf16))
+00C0	C380	00C0
+00FF	C3BF	00FF
 D800DC00	F0908080	D800DC00
 D800DCFF	F09083BF	D800DCFF
 DB7FDC00	F3AFB080	DB7FDC00
 DB7FDCFF	F3AFB3BF	DB7FDCFF
-00C0	C380	00C0
-00FF	C3BF	00FF
 E000	EE8080	E000
 FFFF	EFBFBF	FFFF
-Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warnings:
 drop table t1;
 set collation_connection=utf16_general_ci;
 drop table if exists t1;

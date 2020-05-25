@@ -109,14 +109,18 @@ cache index t2 in keycache2;
 insert into t2 values (2000, 3, 'yyyy');
 cache index t2 in keycache1;
 update t2 set p=3000 where a='zzzz';
+--sorted_result
 select * from t2;
 explain select p from t2;
+--sorted_result
 select p from t2;
 explain select i from t2;
+--sorted_result
 select i from t2;
 # Ignore possible changes in key_len for different character sets
 --replace_column 8 11
 explain select a from t2;
+--sorted_result
 select a from t2;
 
 # Test some error conditions
@@ -136,16 +140,22 @@ update t2 set p=4000 where a='zzzz';
 update t1 set p=p+1;
 
 set global keycache1.key_buffer_size=0;
+--sorted_result
 select * from t2;
+--sorted_result
 select p from t2;
 explain select i from t2;
+--sorted_result
 select i from t2;
 # Ignore possible changes in key_len for different character sets
 --replace_column 8 11
 explain select a from t2;
+--sorted_result
 select a from t2;
 
+--sorted_result
 select * from t1;
+--sorted_result
 select p from t1;
 
 # Use the 'small' key cache

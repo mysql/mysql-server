@@ -101,6 +101,7 @@ CHECK TABLES t1;
 LOCK TABLES t1 WRITE;
 ALTER TABLE t1 RENAME t2;
 UNLOCK TABLES;
+--sorted_result
 select * from t2;
 DROP TABLE t2;
 

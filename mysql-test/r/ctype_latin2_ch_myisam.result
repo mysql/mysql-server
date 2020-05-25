@@ -3,12 +3,12 @@ CREATE TABLE t1 ENGINE=MYISAM AS SELECT repeat('a', 5) AS s1 LIMIT 0;
 INSERT INTO t1 VALUES ('x'),('y'),('z'),('X'),('Y'),('Z');
 SELECT * FROM t1 GROUP BY s1;
 s1
-x
-y
-z
 X
 Y
 Z
+x
+y
+z
 SELECT * FROM t1 ORDER BY s1;
 s1
 x
@@ -20,12 +20,12 @@ Z
 CREATE INDEX i1 ON t1 (s1);
 SELECT * FROM t1 GROUP BY s1;
 s1
-x
 X
-y
 Y
-z
 Z
+x
+y
+z
 SELECT * FROM t1 ORDER BY s1;
 s1
 x

@@ -58,6 +58,7 @@ select hex(a) a, hex(@u:=convert(a using utf8)) b,
 hex(convert(@u using big5)) c from t1 order by a;
 # Check that there is no "illegal mix of collations" error with Unicode.
 alter table t1 convert to character set utf8;
+--sorted_result
 select hex(a) from t1 where a = _big5 0xF9DC;
 drop table t1;
 
@@ -85,6 +86,7 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
 --eval select hex(load_file('$MYSQLD_DATADIR/test/t1.txt'));
 load data infile 't1.txt' into table t1;
+--sorted_result
 select hex(a) from t1;
 --remove_file $MYSQLD_DATADIR/test/t1.txt
 

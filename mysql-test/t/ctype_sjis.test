@@ -35,6 +35,7 @@ select hex(CONVERT(@utf84 USING sjis));
 #
 create table t1 (a char(10) character set sjis);
 insert into t1 values (0x878A);
+--sorted_result
 select hex(a) from t1;
 drop table t1;
 

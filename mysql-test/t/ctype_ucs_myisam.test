@@ -122,6 +122,7 @@ CREATE TABLE t1 (
 ) ENGINE=MyISAM DEFAULT CHARSET=ucs2 COLLATE ucs2_general_ci;
 insert into t1 values (0x803d);
 insert into t1 values (0x005b);
+--sorted_result
 select hex(a) from t1;
 drop table t1;
 

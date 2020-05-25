@@ -441,6 +441,7 @@ insert into t1 values (_utf32 0x00110101);
 insert into t1 values (_utf32 0x01000101);
 --error ER_INVALID_CHARACTER_STRING
 insert into t1 values (_utf32 0x11000101);
+--sorted_result
 select hex(a) from t1;
 drop table t1;
 
@@ -481,6 +482,7 @@ drop table t1;
 #
 create table t1 (a char(10)) character set utf32;
 insert into t1 values ('a   ');
+--sorted_result
 select hex(a) from t1;
 drop table t1;
 

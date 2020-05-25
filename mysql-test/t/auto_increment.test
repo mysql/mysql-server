@@ -17,6 +17,7 @@ create table t1 (a int not null auto_increment,b int, primary key (a)) engine=my
 insert into t1 values (1,1),(NULL,3),(NULL,4);
 delete from t1 where a=4;
 insert into t1 values (NULL,5),(NULL,6);
+--sorted_result
 select * from t1;
 delete from t1 where a=6;
 #show table status like "t1";
@@ -26,6 +27,7 @@ replace t1 values (3,3,3);
 insert into t1 values (NULL,7,7);
 update t1 set a=8,b=b+1,c=c+1 where a=7;
 insert into t1 values (NULL,9,9);
+--sorted_result
 select * from t1;
 drop table t1;
 
@@ -35,7 +37,9 @@ create table t1 (
 );
 insert into t1 values (NULL, "hello");
 insert into t1 values (NULL, "hey");
+--sorted_result
 select * from t1;
+--sorted_result
 select _rowid,t1._rowid,skey,sval from t1;
 drop table t1;
 
@@ -49,16 +53,19 @@ insert into t1 (a) values ("a"),("b"),("c"),("d");
 insert into t1 (a) values ('k'),('d');
 insert into t1 (a) values ("a");
 insert into t1 values ("d",last_insert_id());
+--sorted_result
 select * from t1;
 drop table t1;
 
 create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null, primary key (ordid), index(ord,ordid)); 
 insert into t1 (ordid,ord) values (NULL,'sdj'),(NULL,'sdj');
+--sorted_result
 select * from t1;
 drop table t1;
 
 create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null, primary key (ord,ordid));
 insert into t1 values (NULL,'sdj'),(NULL,'sdj'),(NULL,"abc"),(NULL,'abc'),(NULL,'zzz'),(NULL,'sdj'),(NULL,'abc');
+--sorted_result
 select * from t1;
 drop table t1;
 
@@ -66,6 +73,7 @@ create table t1 (sid char(5), id int(2) NOT NULL auto_increment, key(sid,  id));
 create table t2 (sid char(20), id int(2));
 insert into t2 values ('skr',NULL),('skr',NULL),('test',NULL);
 insert into t1 select * from t2;
+--sorted_result
 select * from t1;
 drop table t1,t2;
 
@@ -76,6 +84,7 @@ drop table t1,t2;
 create table t1 (a int not null primary key auto_increment);
 insert into t1 values (0);
 update t1 set a=0;
+--sorted_result
 select * from t1;
 check table t1;
 drop table t1;
@@ -89,6 +98,7 @@ insert into t1 values (NULL);
 insert into t1 values (-1);
 select last_insert_id();
 insert into t1 values (NULL);
+--sorted_result
 select * from t1;
 drop table t1;
 
@@ -97,6 +107,7 @@ insert into t1 values (NULL);
 insert into t1 values (-1);
 select last_insert_id();
 insert into t1 values (NULL);
+--sorted_result
 select * from t1;
 drop table t1;
 #
@@ -151,6 +162,7 @@ select * from t1 order by b;
 create table t2 (a int);
 insert t2 values (1),(2);
 alter table t2 add b int auto_increment primary key;
+--sorted_result
 select * from t2;
 drop table t2;
 delete from t1 where a=0;
@@ -379,6 +391,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (pk INT AUTO_INCREMENT, PRIMARY KEY (pk));
 # This triggered the assert
 INSERT INTO t1 VALUES (NULL), (-1), (NULL);
+--sorted_result
 SELECT * FROM t1;
 DROP TABLE t1;
 
@@ -386,6 +399,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (pk BIGINT UNSIGNED AUTO_INCREMENT, PRIMARY KEY (pk));
 --error ER_AUTOINC_READ_FAILED
 INSERT INTO t1 VALUES (NULL), (18446744073709551615-1), (NULL);
+--sorted_result
 SELECT * FROM t1;
 DROP TABLE t1;
 
