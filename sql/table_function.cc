@@ -384,7 +384,10 @@ bool Json_table_column::fill_column(Table_function_json *table_function,
           Ignore_warnings_error_handler ignore_warnings;
           const bool no_error = m_on_error != Json_on_response_type::ERROR;
           if (no_error) thd->push_internal_handler(&ignore_warnings);
-          is_error = save_json_to_field(thd, fld, &buf, no_error);
+          if (buf.type() == enum_json_type::J_NULL)  // see JSON_VALUE
+            fld->set_null();
+          else
+            is_error = save_json_to_field(thd, fld, &buf, no_error);
           if (no_error) thd->pop_internal_handler();
         }
         if (is_error) {

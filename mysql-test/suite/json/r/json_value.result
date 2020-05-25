@@ -1132,8 +1132,8 @@ SELECT JSON_VALUE('{}', '$.x' DEFAULT '1' ON EMPTY DEFAULT '2' ON ERROR) c1,
 JSON_VALUE('{}', '$.x' ERROR ON EMPTY ERROR ON ERROR) c2;
 DESCRIBE v;
 Field	Type	Null	Key	Default	Extra
-c1	varchar(512)	NO			
-c2	varchar(512)	NO			
+c1	varchar(512)	YES		NULL	
+c2	varchar(512)	YES		NULL	
 DROP VIEW v;
 # Test index creation/usage
 CREATE TABLE t1(j JSON, KEY i1((JSON_VALUE(j, '$' RETURNING SIGNED))));
@@ -1582,3 +1582,151 @@ SELECT JSON_VALUE('[12345.67]', '$[0]' RETURNING DECIMAL(5, 2) ERROR ON ERROR);
 ERROR 22003: DECIMAL value is out of range in 'json_value'
 SELECT JSON_VALUE('{}', '$.x' RETURNING DECIMAL(5, 2) DEFAULT 12345.67 ON EMPTY);
 ERROR 22003: DECIMAL DEFAULT value is out of range in 'json_value'
+#
+# Bug#31168181 FILTERING USING JSON FIELD, IS TRUE DOES NOT WORK
+#
+CREATE TABLE test (id INT, j JSON);
+INSERT INTO test VALUES (1, '{"some_key": true}');
+INSERT INTO test VALUES (2, '{"some_key": false}');
+INSERT INTO test VALUES (3, '{"some_key": null}');
+INSERT INTO test VALUES (4, '{"some_key": "true"}');
+SELECT j, (j->'$.some_key' IS TRUE) AS ist,
+(j->'$.some_key' IS FALSE) AS isf,
+(j->'$.some_key' IS NULL) AS isn
+FROM test;
+j	ist	isf	isn
+{"some_key": true}	1	0	0
+{"some_key": false}	1	0	0
+{"some_key": null}	1	0	0
+{"some_key": "true"}	1	0	0
+Warnings:
+Warning	3994	Evaluating a JSON value in SQL boolean context does an implicit comparison against JSON integer 0; if this is not what you want, consider converting JSON to a SQL numeric type with JSON_VALUE RETURNING
+Warning	3994	Evaluating a JSON value in SQL boolean context does an implicit comparison against JSON integer 0; if this is not what you want, consider converting JSON to a SQL numeric type with JSON_VALUE RETURNING
+SELECT j FROM test
+WHERE j->'$.some_key';
+j
+{"some_key": true}
+{"some_key": false}
+{"some_key": null}
+{"some_key": "true"}
+Warnings:
+Warning	3994	Evaluating a JSON value in SQL boolean context does an implicit comparison against JSON integer 0; if this is not what you want, consider converting JSON to a SQL numeric type with JSON_VALUE RETURNING
+SELECT j FROM test
+WHERE NOT j->'$.some_key';
+j
+Warnings:
+Warning	3994	Evaluating a JSON value in SQL boolean context does an implicit comparison against JSON integer 0; if this is not what you want, consider converting JSON to a SQL numeric type with JSON_VALUE RETURNING
+SELECT j, (json_value(j, '$.some_key' RETURNING SIGNED) IS TRUE) AS ist,
+(json_value(j, '$.some_key' RETURNING SIGNED) IS FALSE) AS isf,
+(json_value(j, '$.some_key' RETURNING SIGNED) IS NULL) AS isn
+FROM test;
+j	ist	isf	isn
+{"some_key": true}	1	0	0
+{"some_key": false}	0	1	0
+{"some_key": null}	0	0	1
+{"some_key": "true"}	0	0	1
+SELECT j FROM test
+WHERE json_value(j, '$.some_key' RETURNING SIGNED);
+j
+{"some_key": true}
+SELECT j FROM test
+WHERE NOT json_value(j, '$.some_key' RETURNING SIGNED);
+j
+{"some_key": false}
+SELECT json_extract(json_object( "a",FALSE),'$.a') IS TRUE;
+json_extract(json_object( "a",FALSE),'$.a') IS TRUE
+1
+Warnings:
+Warning	3994	Evaluating a JSON value in SQL boolean context does an implicit comparison against JSON integer 0; if this is not what you want, consider converting JSON to a SQL numeric type with JSON_VALUE RETURNING
+SELECT CAST(TRUE AS JSON) IS TRUE AS ist,
+CAST(TRUE AS JSON) IS FALSE AS isf;
+ist	isf
+1	0
+Warnings:
+Warning	3994	Evaluating a JSON value in SQL boolean context does an implicit comparison against JSON integer 0; if this is not what you want, consider converting JSON to a SQL numeric type with JSON_VALUE RETURNING
+Warning	3994	Evaluating a JSON value in SQL boolean context does an implicit comparison against JSON integer 0; if this is not what you want, consider converting JSON to a SQL numeric type with JSON_VALUE RETURNING
+SELECT CAST(FALSE AS JSON) IS TRUE AS ist,
+CAST(FALSE AS JSON) IS FALSE AS isf;
+ist	isf
+1	0
+Warnings:
+Warning	3994	Evaluating a JSON value in SQL boolean context does an implicit comparison against JSON integer 0; if this is not what you want, consider converting JSON to a SQL numeric type with JSON_VALUE RETURNING
+Warning	3994	Evaluating a JSON value in SQL boolean context does an implicit comparison against JSON integer 0; if this is not what you want, consider converting JSON to a SQL numeric type with JSON_VALUE RETURNING
+SELECT CAST(NULL AS JSON) IS TRUE AS ist,
+CAST(NULL AS JSON) IS FALSE AS isf;
+ist	isf
+0	0
+Warnings:
+Warning	3994	Evaluating a JSON value in SQL boolean context does an implicit comparison against JSON integer 0; if this is not what you want, consider converting JSON to a SQL numeric type with JSON_VALUE RETURNING
+Warning	3994	Evaluating a JSON value in SQL boolean context does an implicit comparison against JSON integer 0; if this is not what you want, consider converting JSON to a SQL numeric type with JSON_VALUE RETURNING
+SELECT CAST(123 AS JSON) IS TRUE AS ist,
+CAST(123 AS JSON) IS FALSE AS isf;
+ist	isf
+1	0
+Warnings:
+Warning	3994	Evaluating a JSON value in SQL boolean context does an implicit comparison against JSON integer 0; if this is not what you want, consider converting JSON to a SQL numeric type with JSON_VALUE RETURNING
+Warning	3994	Evaluating a JSON value in SQL boolean context does an implicit comparison against JSON integer 0; if this is not what you want, consider converting JSON to a SQL numeric type with JSON_VALUE RETURNING
+SELECT CAST('"ab"' AS JSON) IS TRUE AS ist,
+CAST('"ab"' AS JSON) IS FALSE AS isf;
+ist	isf
+1	0
+Warnings:
+Warning	3994	Evaluating a JSON value in SQL boolean context does an implicit comparison against JSON integer 0; if this is not what you want, consider converting JSON to a SQL numeric type with JSON_VALUE RETURNING
+Warning	3994	Evaluating a JSON value in SQL boolean context does an implicit comparison against JSON integer 0; if this is not what you want, consider converting JSON to a SQL numeric type with JSON_VALUE RETURNING
+DROP TABLE test;
+#
+# Bug#31336625 JSON_VALUE(EXPRESSION PATH RETURNING TYPE) SHOULD RETURN SQL NULL FOR JSON NULL
+#
+SELECT JSON_VALUE('null', '$' RETURNING DATE ERROR ON ERROR),
+JSON_VALUE('null', '$' RETURNING DATE),
+JSON_VALUE('null', '$' RETURNING DATE) IS NULL;
+JSON_VALUE('null', '$' RETURNING DATE ERROR ON ERROR)	JSON_VALUE('null', '$' RETURNING DATE)	JSON_VALUE('null', '$' RETURNING DATE) IS NULL
+NULL	NULL	1
+SELECT JSON_VALUE('null', '$' RETURNING SIGNED ERROR ON ERROR),
+JSON_VALUE('null', '$' RETURNING SIGNED),
+JSON_VALUE('null', '$' RETURNING SIGNED) IS NULL;
+JSON_VALUE('null', '$' RETURNING SIGNED ERROR ON ERROR)	JSON_VALUE('null', '$' RETURNING SIGNED)	JSON_VALUE('null', '$' RETURNING SIGNED) IS NULL
+NULL	NULL	1
+SELECT JSON_VALUE('null', '$' RETURNING CHAR ERROR ON ERROR),
+JSON_VALUE('null', '$' RETURNING CHAR),
+JSON_VALUE('null', '$' RETURNING CHAR) IS NULL;
+JSON_VALUE('null', '$' RETURNING CHAR ERROR ON ERROR)	JSON_VALUE('null', '$' RETURNING CHAR)	JSON_VALUE('null', '$' RETURNING CHAR) IS NULL
+NULL	NULL	1
+SELECT JSON_VALUE(CAST('null' AS JSON), '$' RETURNING CHAR ERROR ON ERROR);
+JSON_VALUE(CAST('null' AS JSON), '$' RETURNING CHAR ERROR ON ERROR)
+NULL
+SELECT JSON_VALUE(CAST('null' AS JSON), '$' RETURNING SIGNED ERROR ON ERROR);
+JSON_VALUE(CAST('null' AS JSON), '$' RETURNING SIGNED ERROR ON ERROR)
+NULL
+CREATE TABLE t(a JSON);
+INSERT INTO t VALUES('[1,2,3,null]');
+SELECT JSON_VALUE(a, '$[2]' RETURNING SIGNED),
+JSON_VALUE(a, '$[3]' RETURNING SIGNED ERROR ON ERROR),
+JSON_VALUE(a, '$[3]' RETURNING SIGNED) FROM t;
+JSON_VALUE(a, '$[2]' RETURNING SIGNED)	JSON_VALUE(a, '$[3]' RETURNING SIGNED ERROR ON ERROR)	JSON_VALUE(a, '$[3]' RETURNING SIGNED)
+3	NULL	NULL
+DELETE FROM t;
+INSERT INTO t VALUES('{"k1":"xy", "k2":null}');
+SELECT JSON_VALUE(a, '$.k1' RETURNING CHAR),
+JSON_VALUE(a, '$.k2' RETURNING CHAR ERROR ON ERROR),
+JSON_VALUE(a, '$.k2' RETURNING CHAR) FROM t;
+JSON_VALUE(a, '$.k1' RETURNING CHAR)	JSON_VALUE(a, '$.k2' RETURNING CHAR ERROR ON ERROR)	JSON_VALUE(a, '$.k2' RETURNING CHAR)
+xy	NULL	NULL
+DELETE FROM t;
+INSERT INTO t VALUES('{"k1":"2020-05-12", "k2":null}');
+SELECT JSON_VALUE(a, '$.k1' RETURNING DATE),
+JSON_VALUE(a, '$.k2' RETURNING DATE ERROR ON ERROR),
+JSON_VALUE(a, '$.k2' RETURNING DATE) FROM t;
+JSON_VALUE(a, '$.k1' RETURNING DATE)	JSON_VALUE(a, '$.k2' RETURNING DATE ERROR ON ERROR)	JSON_VALUE(a, '$.k2' RETURNING DATE)
+2020-05-12	NULL	NULL
+DROP TABLE t;
+SELECT JSON_VALUE(JSON_OBJECT('a', FALSE), '$.a' RETURNING SIGNED),
+JSON_VALUE(JSON_OBJECT('a', TRUE), '$.a' RETURNING SIGNED),
+JSON_VALUE(JSON_OBJECT('a', NULL), '$.a' RETURNING SIGNED ERROR ON ERROR),
+JSON_VALUE(JSON_OBJECT('a', NULL), '$.a' RETURNING SIGNED);
+JSON_VALUE(JSON_OBJECT('a', FALSE), '$.a' RETURNING SIGNED)	JSON_VALUE(JSON_OBJECT('a', TRUE), '$.a' RETURNING SIGNED)	JSON_VALUE(JSON_OBJECT('a', NULL), '$.a' RETURNING SIGNED ERROR ON ERROR)	JSON_VALUE(JSON_OBJECT('a', NULL), '$.a' RETURNING SIGNED)
+0	1	NULL	NULL
+SELECT JSON_VALUE(JSON_OBJECT('a', 'value'), '$.a'),
+JSON_VALUE(JSON_OBJECT('a', NULL), '$.a');
+JSON_VALUE(JSON_OBJECT('a', 'value'), '$.a')	JSON_VALUE(JSON_OBJECT('a', NULL), '$.a')
+value	NULL

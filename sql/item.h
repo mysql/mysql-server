@@ -3091,23 +3091,27 @@ class Item : public Parse_tree_node {
   uint32 max_length;  ///< Maximum length, in bytes
   enum item_marker    ///< Values for member 'marker'
   { MARKER_NONE = 0,
-    MARKER_CONST_PROPAG = 1,
+    /// When contextualization or itemization adds an implicit comparison '0<>'
+    /// (see make_condition()), to record that this Item_func_ne was created for
+    /// this purpose; this value is tested during resolution.
+    MARKER_IMPLICIT_NE_ZERO = 1,
+    /// When doing constant propagation (e.g. change_cond_ref_to_const(), to
+    /// remember that we have already processed the item.
+    MARKER_CONST_PROPAG = 2,
+    /// When creating an internal temporary table: says how to store BIT fields.
     MARKER_BIT = 4,
+    /// When analyzing functional dependencies for only_full_group_by (says
+    /// whether a nullable column can be treated at not nullable).
     MARKER_FUNC_DEP_NOT_NULL = 5,
+    /// When we change DISTINCT to GROUP BY: used for book-keeping of
+    /// fields.
     MARKER_DISTINCT_GROUP = 6,
+    /// When pushing index conditions: it says whether a condition uses only
+    /// indexed columns.
     MARKER_ICP_COND_USES_INDEX_ONLY = 10 };
   /**
     This member has several successive meanings, depending on the phase we're
-    in:
-    - when doing constant propagation (e.g. change_cond_ref_to_const(), to
-      remember that we have already processed the item).
-    - when creating an internal temporary table: says how to store BIT fields
-    - when analyzing functional dependencies for only_full_group_by (says
-      whether a nullable column can be treated at not nullable)
-    - when we change DISTINCT to GROUP BY: used for book-keeping of
-      fields.
-    - when pushing index conditions: it says whether a condition uses only
-      indexed columns.
+    in (@see item_marker).
     The important property is that a phase must have a value (or few values)
     which is reserved for this phase. If it wants to set "marked", it assigns
     the value; it it wants to test if it is marked, it tests marker !=

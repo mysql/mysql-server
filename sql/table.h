@@ -4031,6 +4031,8 @@ class Common_table_expr {
       : references(mem_root), recursive(false), tmp_tables(mem_root) {}
   TABLE *clone_tmp_table(THD *thd, TABLE_LIST *tl);
   bool substitute_recursive_reference(THD *thd, SELECT_LEX *sl);
+  /// Empties the materialized CTE and informs all of its clones.
+  bool clear_all_references();
   /**
      All references to this CTE in the statement, except those inside the
      query expression defining this CTE.

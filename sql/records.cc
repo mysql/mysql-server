@@ -501,10 +501,10 @@ bool FollowTailIterator::Init() {
   const bool first_init = !table()->file->inited;
 
   if (first_init) {
-    // The first Init() call at the start of a new WITH RECURSIVE
-    // execution. MaterializeIterator calls ha_index_or_rnd_end()
-    // before each iteration, which sets file->inited = false,
-    // so we can use that as a signal.
+    // Before starting a new WITH RECURSIVE execution,
+    // MaterializeIterator::Init() does ha_index_or_rnd_end() on all read
+    // cursors of recursive members, which sets file->inited = false, so we can
+    // use that as a signal.
     if (!table()->is_created()) {
       // Recursive references always refer to a temporary table,
       // which do not exist at resolution time; thus, we need to

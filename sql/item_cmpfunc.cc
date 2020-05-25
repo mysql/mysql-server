@@ -661,6 +661,15 @@ bool Item_bool_func2::resolve_type(THD *thd) {
       return true;
     if (cvt1 || cvt2) return false;
   }
+
+  if (marker == MARKER_IMPLICIT_NE_ZERO) {  // Results may surprise
+    if (args[1]->result_type() == STRING_RESULT &&
+        args[1]->data_type() == MYSQL_TYPE_JSON)
+      push_warning(thd, Sql_condition::SL_WARNING,
+                   ER_IMPLICIT_COMPARISON_FOR_JSON,
+                   ER_THD(thd, ER_IMPLICIT_COMPARISON_FOR_JSON));
+  }
+
   return (thd->lex->sql_command != SQLCOM_SHOW_CREATE) ? set_cmp_func() : false;
 }
 
@@ -5211,6 +5220,7 @@ Item *make_condition(Parse_context *pc, Item *item) {
     Item *const item_zero = new (pc->mem_root) Item_int(0);
     if (item_zero == nullptr) return nullptr;
     predicate = new (pc->mem_root) Item_func_ne(item_zero, item);
+    predicate->marker = Item::MARKER_IMPLICIT_NE_ZERO;
   } else {
     predicate = new (pc->mem_root) Item_func_match_predicate(item);
   }
@@ -6420,12 +6430,16 @@ Item *Item_func_not_all::truth_transformer(THD *, Bool_test test) {
 
 Item *Item_func_eq::negated_item() /* a = b  ->  a != b */
 {
-  return new Item_func_ne(args[0], args[1]);
+  auto *i = new Item_func_ne(args[0], args[1]);
+  if (i != nullptr) i->marker = marker;  // forward MARKER_IMPLICIT_NE_ZERO
+  return i;
 }
 
 Item *Item_func_ne::negated_item() /* a != b  ->  a = b */
 {
-  return new Item_func_eq(args[0], args[1]);
+  auto *i = new Item_func_eq(args[0], args[1]);
+  if (i != nullptr) i->marker = marker;  // forward MARKER_IMPLICIT_NE_ZERO
+  return i;
 }
 
 Item *Item_func_lt::negated_item() /* a < b  ->  a >= b */

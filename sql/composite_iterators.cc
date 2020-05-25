@@ -700,8 +700,8 @@ vector<string> CacheInvalidatorIterator::DebugString() const {
 MaterializeIterator::MaterializeIterator(
     THD *thd, Mem_root_array<QueryBlock> query_blocks_to_materialize,
     TABLE *table, unique_ptr_destroy_only<RowIterator> table_iterator,
-    const Common_table_expr *cte, SELECT_LEX_UNIT *unit, JOIN *join,
-    int ref_slice, bool rematerialize, ha_rows limit_rows)
+    Common_table_expr *cte, SELECT_LEX_UNIT *unit, JOIN *join, int ref_slice,
+    bool rematerialize, ha_rows limit_rows)
     : TableRowIterator(thd, table),
       m_query_blocks_to_materialize(std::move(query_blocks_to_materialize)),
       m_table_iterator(move(table_iterator)),
@@ -724,10 +724,9 @@ MaterializeIterator::MaterializeIterator(
 MaterializeIterator::MaterializeIterator(
     THD *thd, unique_ptr_destroy_only<RowIterator> subquery_iterator,
     Temp_table_param *temp_table_param, TABLE *table,
-    unique_ptr_destroy_only<RowIterator> table_iterator,
-    const Common_table_expr *cte, int select_number, SELECT_LEX_UNIT *unit,
-    JOIN *join, int ref_slice, bool copy_fields_and_items, bool rematerialize,
-    ha_rows limit_rows)
+    unique_ptr_destroy_only<RowIterator> table_iterator, Common_table_expr *cte,
+    int select_number, SELECT_LEX_UNIT *unit, JOIN *join, int ref_slice,
+    bool copy_fields_and_items, bool rematerialize, ha_rows limit_rows)
     : TableRowIterator(thd, table),
       m_query_blocks_to_materialize(thd->mem_root, 1),
       m_table_iterator(move(table_iterator)),
@@ -808,20 +807,27 @@ bool MaterializeIterator::Init() {
     }
     empty_record(table());
   } else {
-    if (table()->file->inited) {
-      // If we're being called several times (in particular, as part of a
-      // LATERAL join), the table iterator may have started a scan, so end it
-      // before we start our own.
-      //
-      // If we're in a recursive CTE, this also provides a signal to
-      // FollowTailIterator that we're starting a new recursive materialization.
-      table()->file->ha_index_or_rnd_end();
-    }
+    table()->file->ha_index_or_rnd_end();  // @todo likely unneeded => remove
     table()->file->ha_delete_all_rows();
   }
 
-  if (m_unit != nullptr) {
-    m_unit->clear_correlated_query_blocks();
+  if (m_unit != nullptr)
+    if (m_unit->clear_correlated_query_blocks()) return true;
+
+  if (m_cte != nullptr) {
+    // This is needed in a special case. Consider:
+    // SELECT FROM ot WHERE EXISTS(WITH RECURSIVE cte (...)
+    //                             SELECT * FROM cte)
+    // and assume that the CTE is outer-correlated. When EXISTS is
+    // evaluated, SELECT_LEX_UNIT::ClearForExecution() calls
+    // clear_correlated_query_blocks(), which scans the WITH clause and clears
+    // the CTE, including its references to itself in its recursive definition.
+    // But, if the query expression owning WITH is merged up, e.g. like this:
+    // FROM ot SEMIJOIN cte ON TRUE,
+    // then there is no SELECT_LEX_UNIT anymore, so its WITH clause is
+    // not reached. But this "lateral CTE" still needs comprehensive resetting.
+    // That's done here.
+    if (m_cte->clear_all_references()) return true;
   }
 
   // If we are removing duplicates by way of a hash field
