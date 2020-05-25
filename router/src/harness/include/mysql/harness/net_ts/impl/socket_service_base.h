@@ -26,6 +26,7 @@
 #define MYSQL_HARNESS_NET_TS_IMPL_SOCKET_SERVICE_BASE_H_
 
 #include <array>
+#include <memory>
 #include <system_error>
 
 #ifdef _WIN32

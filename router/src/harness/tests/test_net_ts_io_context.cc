@@ -22,11 +22,18 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include "mysql/harness/net_ts/executor.h"
 #include "mysql/harness/net_ts/io_context.h"
 
 #include <gmock/gmock.h>
 
+#include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/stdx/expected_ostream.h"
+
+#include "mock_io_service.h"
+#include "mock_socket_service.h"
+
+using ::testing::Return;
 
 TEST(NetTS_io_context, construct) {
   net::io_context io_ctx;
@@ -40,6 +47,113 @@ TEST(NetTS_io_context, stop) {
   EXPECT_TRUE(io_ctx.stopped());
   io_ctx.restart();
   EXPECT_FALSE(io_ctx.stopped());
+}
+
+TEST(NetTS_io_context, poll_empty) {
+  net::io_context io_ctx;
+  EXPECT_FALSE(io_ctx.stopped());
+  EXPECT_EQ(io_ctx.poll(), 0);
+}
+
+TEST(NetTS_io_context, poll_one_empty) {
+  net::io_context io_ctx;
+  EXPECT_FALSE(io_ctx.stopped());
+  EXPECT_EQ(io_ctx.poll_one(), 0);
+}
+
+TEST(NetTS_io_context, run_empty) {
+  net::io_context io_ctx;
+  EXPECT_FALSE(io_ctx.stopped());
+  EXPECT_EQ(io_ctx.run(), 0);
+}
+
+TEST(NetTS_io_context, run_one_empty) {
+  net::io_context io_ctx;
+  EXPECT_FALSE(io_ctx.stopped());
+  EXPECT_EQ(io_ctx.run_one(), 0);
+}
+
+TEST(NetTS_io_context, poll_io_service_remove_invalid_socket) {
+  net::poll_io_service io_service;
+
+  EXPECT_EQ(
+      io_service.remove_fd(net::impl::socket::kInvalidSocket),
+      stdx::make_unexpected(make_error_code(std::errc::invalid_argument)));
+}
+
+TEST(NetTS_io_context, poll_io_service_add_invalid_socket) {
+  net::poll_io_service io_service;
+
+  EXPECT_EQ(
+      io_service.add_fd_interest(net::impl::socket::kInvalidSocket,
+                                 net::impl::socket::wait_type::wait_read),
+      stdx::make_unexpected(make_error_code(std::errc::invalid_argument)));
+}
+
+namespace net {
+std::ostream &operator<<(std::ostream &os, net::fd_event fdev) {
+  os << "fd=" << fdev.fd << ", event=" << fdev.event;
+
+  return os;
+}
+}  // namespace net
+
+TEST(NetTS_io_context, poll_io_service_poll_one_empty) {
+  net::poll_io_service io_service;
+
+  ASSERT_TRUE(io_service.open());
+  using namespace std::chrono_literals;
+
+  EXPECT_EQ(io_service.poll_one(1ms),
+            stdx::make_unexpected(make_error_code(std::errc::timed_out)));
+}
+
+TEST(NetTS_io_context, work_guard_blocks_run) {
+  // prepare the io-service
+  auto io_service = std::make_unique<MockIoService>();
+
+  // succeed the open
+  EXPECT_CALL(*io_service, open);
+
+  // should result in a poll(-1) as a signal that we wanted block forever
+  EXPECT_CALL(*io_service, poll_one(std::chrono::milliseconds(-1)))
+      .WillRepeatedly(
+          Return(stdx::make_unexpected(make_error_code(std::errc::timed_out))));
+
+  net::io_context io_ctx(std::make_unique<MockSocketService>(),
+                         std::move(io_service));
+
+  // work guard is need to trigger the poll_one() as otherwise the run() would
+  // just leave as there is no work to do without blocking
+  auto work_guard = net::make_work_guard(io_ctx);
+
+  // run should fail
+  EXPECT_EQ(io_ctx.run(), 0);
+}
+
+TEST(NetTS_io_context, io_service_open_fails) {
+  // prepare the io-service
+  auto io_service = std::make_unique<MockIoService>();
+
+  EXPECT_CALL(*io_service, open)
+      .WillOnce(Return(stdx::make_unexpected(
+          make_error_code(std::errc::too_many_files_open))));
+
+  // no call to poll_one
+
+  net::io_context io_ctx(std::make_unique<MockSocketService>(),
+                         std::move(io_service));
+
+  EXPECT_EQ(
+      io_ctx.open_res(),
+      stdx::make_unexpected(make_error_code(std::errc::too_many_files_open)));
+
+  // work guard is need to trigger the poll_one() as otherwise the run() would
+  // just leave as there is no work to do without blocking
+  auto work_guard = net::make_work_guard(io_ctx);
+
+  // run should fail
+  EXPECT_EQ(io_ctx.run(), 0);
 }
 
 // net::is_executor_v<> chokes with solaris-ld on

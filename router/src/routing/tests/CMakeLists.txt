@@ -25,6 +25,7 @@ INCLUDE_DIRECTORIES(
   ../src
   ${PROJECT_SOURCE_DIR}/src/metadata_cache/include
   ${PROJECT_SOURCE_DIR}/src/mysql_protocol/include
+  ${PROJECT_SOURCE_DIR}/src/harness/tests
   ../../../tests/helpers
 )
 

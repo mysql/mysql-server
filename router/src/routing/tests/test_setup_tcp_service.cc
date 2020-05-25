@@ -29,6 +29,7 @@
 #include <gmock/gmock.h>
 
 #include "../../routing/src/mysql_routing.h"
+#include "mock_io_service.h"
 #include "mock_socket_service.h"
 #include "mysql/harness/net_ts/impl/resolver.h"
 #include "mysql/harness/net_ts/io_context.h"
@@ -85,7 +86,8 @@ class TestSetupTcpService : public ::testing::Test {
 
  protected:
   MockSocketOperations sock_ops_;
-  net::io_context io_ctx_{std::make_unique<MockSocketService>()};
+  net::io_context io_ctx_{std::make_unique<MockSocketService>(),
+                          std::make_unique<MockIoService>()};
 };
 
 TEST_F(TestSetupTcpService, single_addr_ok) {

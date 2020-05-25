@@ -26,6 +26,9 @@
 
 #include <gtest/gtest.h>
 
+static_assert(net::is_executor<net::system_executor>::value,
+              "net::system_executor MUST be an executor");
+
 // a service MUST inherit from execution_context::service
 class MockService : public net::execution_context::service {
  public:

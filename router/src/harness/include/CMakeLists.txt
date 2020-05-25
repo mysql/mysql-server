@@ -31,14 +31,20 @@ TARGET_SOURCES(harness_net_ts
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/buffer.h
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/executor.h
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/impl/file.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/impl/io_service_base.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/impl/kqueue.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/impl/kqueue_io_service.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/impl/linux_epoll.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/impl/linux_epoll_io_service.h
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/impl/netif.h
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/impl/poll.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/impl/poll_io_service.h
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/impl/resolver.h
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/impl/socket.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/impl/socket_constants.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/impl/socket_error.h
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/impl/socket_service.h
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/impl/socket_service_base.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/impl/socket_error.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/impl/socket_constants.h
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/internet.h
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/io_context.h
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql/harness/net_ts/local.h

@@ -22,31 +22,24 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef MYSQL_HARNESS_NET_TS_NETFWD_H_
-#define MYSQL_HARNESS_NET_TS_NETFWD_H_
+#ifndef MYSQLROUTER_MOCK_IO_SERVICE_H
+#define MYSQLROUTER_MOCK_IO_SERVICE_H
 
-namespace net {
-class execution_context;
+#include <gmock/gmock.h>
 
-template <class T, class Executor>
-class executor_binder;
-template <class Executor>
-class executor_work_guard;
+#include "mysql/harness/net_ts/io_context.h"
 
-class system_executor;
-class executor;
+class MockIoService : public net::IoServiceBase {
+ public:
+  using void_ret = stdx::expected<void, std::error_code>;
+  MOCK_METHOD0(open, void_ret());
+  MOCK_METHOD2(add_fd_interest,
+               void_ret(native_handle_type, net::impl::socket::wait_type));
+  MOCK_METHOD1(remove_fd, void_ret(native_handle_type));
+  MOCK_METHOD0(notify, void());
 
-template <class Executor>
-class strand;
+  using fdevent_ret = stdx::expected<net::fd_event, std::error_code>;
+  MOCK_METHOD1(poll_one, fdevent_ret(std::chrono::milliseconds));
+};
 
-template <class Protocol>
-class basic_socket;
-
-template <class Protocol>
-class basic_socket_acceptor;
-
-template <class Protocol>
-class basic_stream_socket;
-
-}  // namespace net
 #endif
