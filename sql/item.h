@@ -671,7 +671,7 @@ class Settable_routine_parameter {
                       MODE_OUT   - UPDATE_ACL
                       MODE_INOUT - SELECT_ACL | UPDATE_ACL
   */
-  virtual void set_required_privilege(ulong) {}
+  virtual void set_required_privilege(ulong privilege MY_ATTRIBUTE((unused))) {}
 
   /*
     Set parameter value.

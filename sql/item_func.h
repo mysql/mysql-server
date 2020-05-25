@@ -3074,12 +3074,12 @@ class user_var_entry {
     Set to the id of the most recent query that has used the variable.
     Used in binlogging: When set, there is no need to add a reference to this
     variable to the binlog. Imagine it is this:
-        @verbatim
+
         INSERT INTO t SELECT @a:=10, @a:=@a+1.
-        @endverbatim
-    Then we have a Item_func_get_user_var (because of the @a+1) so we
-    think we have to write the value of @a to the binlog. But before that,
-    we have a Item_func_set_user_var to create @a (@a:=10), in this we mark
+
+    Then we have a Item_func_get_user_var (because of the `@a+1`) so we
+    think we have to write the value of `@a` to the binlog. But before that,
+    we have a Item_func_set_user_var to create `@a` (`@a:=10`), in this we mark
     the variable as "already logged" so that it won't be logged
     by Item_func_get_user_var (because that's not necessary).
   */
