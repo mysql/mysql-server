@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -459,6 +459,7 @@ void lf_hash_destroy(LF_HASH *hash) {
   LF_SLIST *el, **head = (LF_SLIST **)lf_dynarray_value(&hash->array, 0);
 
   if (unlikely(!head)) {
+    lf_alloc_destroy(&hash->alloc);
     return;
   }
   el = *head;
