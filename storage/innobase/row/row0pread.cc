@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1223,7 +1223,7 @@ dberr_t Parallel_reader::add_scan(trx_t *trx,
   // clang-format on
 
   if (scan_ctx.get() == nullptr) {
-    ib::error() << "Out of memory";
+    ib::error(ER_IB_ERR_PARALLEL_READ_OOM) << "Out of memory";
     return (DB_OUT_OF_MEMORY);
   }
 

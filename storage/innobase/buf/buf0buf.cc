@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -1212,7 +1212,8 @@ static void buf_pool_create(buf_pool_t *buf_pool, ulint buf_pool_size,
   buf_pool->stat.reset();
 
   if (pthread_setaffinity_np(thread_id, sizeof(cpuset), &cpuset) == -1) {
-    ib::error() << "sched_setaffinity() failed!";
+    ib::error(ER_IB_ERR_SCHED_SETAFFNINITY_FAILED)
+        << "sched_setaffinity() failed!";
   }
   /* Linux might be able to set different setting for each thread
   worth to try to set high priority for this thread. */
@@ -4177,7 +4178,8 @@ buf_block_t *buf_page_get_gen(const page_id_t &page_id,
     case Page_fetch::POSSIBLY_FREED:
       break;
     default:
-      ib::fatal() << "Unknown fetch mode: " << (int)mode;
+      ib::fatal(ER_IB_ERR_UNKNOWN_PAGE_FETCH_MODE)
+          << "Unknown fetch mode: " << (int)mode;
       ut_error;
   }
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2020, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -412,9 +412,10 @@ static bool recv_sys_resize_buf() {
 #else  /* !UNIV_HOTBACKUP */
   if ((recv_sys->buf_len >= srv_log_buffer_size) ||
       (recv_sys->len >= srv_log_buffer_size)) {
-    ib::fatal() << "Log parsing buffer overflow. Log parse failed. "
-                << "Please increase --limit-memory above "
-                << srv_log_buffer_size / 1024 / 1024 << " (MB)";
+    ib::fatal(ER_IB_ERR_LOG_PARSING_BUFFER_OVERFLOW)
+        << "Log parsing buffer overflow. Log parse failed. "
+        << "Please increase --limit-memory above "
+        << srv_log_buffer_size / 1024 / 1024 << " (MB)";
   }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -3358,8 +3359,9 @@ bool meb_scan_log_recs(
             return (true);
           }
 #else  /* !UNIV_HOTBACKUP */
-          ib::fatal() << "Insufficient memory for InnoDB parse buffer; want "
-                      << recv_sys->buf_len;
+          ib::fatal(ER_IB_ERR_NOT_ENOUGH_MEMORY_FOR_PARSE_BUFFER)
+              << "Insufficient memory for InnoDB parse buffer; want "
+              << recv_sys->buf_len;
 #endif /* !UNIV_HOTBACKUP */
         }
       }

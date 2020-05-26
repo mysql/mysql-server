@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2020, Oracle and/or its affiliates.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -202,7 +202,11 @@ struct LatchDebug {
         latch_level_t back_latch_level = latches->back().m_latch->get_level();
         latch_level_t back_level = latches->back().m_latch->get_level();
 
+#ifdef UNIV_NO_ERR_MSGS
         ib::error()
+#else
+        ib::error(ER_IB_LOCK_VALIDATE_LATCH_ORDER_VIOLATION)
+#endif
             << "LatchDebug::lock_validate() latch order violation. level="
             << level << ", back_latch_level=" << back_latch_level
             << ", back_level=" << back_level << ".";
@@ -251,9 +255,14 @@ struct LatchDebug {
         latch_level_t back_latch_level = latches->back().m_latch->get_level();
         latch_level_t back_level = latches->back().m_latch->get_level();
 
-        ib::error() << "LatchDebug::relock() latch order violation. level="
-                    << level << ", back_latch_level=" << back_latch_level
-                    << ", back_level=" << back_level << ".";
+#ifdef UNIV_NO_ERR_MSGS
+        ib::error()
+#else
+        ib::error(ER_IB_RELOCK_LATCH_ORDER_VIOLATION)
+#endif
+            << "LatchDebug::relock() latch order violation. level=" << level
+            << ", back_latch_level=" << back_latch_level
+            << ", back_level=" << back_level << ".";
         ut_error;
       }
 

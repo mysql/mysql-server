@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 Copyright (c) 2012, Facebook Inc.
@@ -4328,32 +4328,32 @@ static int innodb_init_params() {
     bool exists;
     os_file_status(ibt::srv_temp_dir, &exists, &type);
     if (!exists || type != OS_FILE_TYPE_DIR) {
-      ib::error() << "Invalid innodb_temp_tablespaces_dir: "
-                  << ibt::srv_temp_dir;
-      ib::error() << "Directory doesn't exist or not valid";
+      ib::error(ER_IB_ERR_TEMP_TABLESPACE_DIR_DOESNT_EXIST)
+          << "Invalid innodb_temp_tablespaces_dir: " << ibt::srv_temp_dir
+          << ". Directory doesn't exist or not valid";
       return HA_ERR_INITIALIZATION;
     }
 
     Fil_path temp_dir(ibt::srv_temp_dir);
     if (temp_dir.path().empty()) {
-      ib::error() << "Invalid innodb_temp_tablespaces dir: "
-                  << ibt::srv_temp_dir;
-      ib::error() << "Path cannot be empty";
+      ib::error(ER_IB_ERR_TEMP_TABLESPACE_DIR_EMPTY)
+          << "Invalid innodb_temp_tablespaces dir: " << ibt::srv_temp_dir
+          << ". Path cannot be empty";
       return HA_ERR_INITIALIZATION;
     }
 
     if (strchr(ibt::srv_temp_dir, ';')) {
-      ib::error() << "Invalid innodb_temp_tablespaces dir: "
-                  << ibt::srv_temp_dir;
-      ib::error() << " Path cannot contain ;";
+      ib::error(ER_IB_ERR_TEMP_TABLESPACE_DIR_CONTAINS_SEMICOLON)
+          << "Invalid innodb_temp_tablespaces dir: " << ibt::srv_temp_dir
+          << ". Path cannot contain ;";
       return HA_ERR_INITIALIZATION;
     }
 
     if (MySQL_datadir_path.is_ancestor(
             Fil_path::get_real_path(temp_dir.path()))) {
-      ib::error() << "Invalid innodb_temp_tablespaces_dir="
-                  << ibt::srv_temp_dir;
-      ib::error() << " This path should not be a subdirectory of the datadir.";
+      ib::error(ER_IB_ERR_TEMP_TABLESPACE_DIR_SUBDIR_OF_DATADIR)
+          << "Invalid innodb_temp_tablespaces_dir=" << ibt::srv_temp_dir
+          << ". This path should not be a subdirectory of the datadir.";
       return HA_ERR_INITIALIZATION;
     }
   }

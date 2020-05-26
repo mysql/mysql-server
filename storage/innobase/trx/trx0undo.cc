@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1968,7 +1968,7 @@ bool trx_undo_truncate_tablespace(undo::Tablespace *marked_space) {
   static int truncate_fail_count;
   DBUG_EXECUTE_IF(
       "ib_undo_trunc_fail_truncate", if (++truncate_fail_count == 1) {
-        ib::info() << "ib_undo_trunc_fail_truncate";
+        ib::info(ER_IB_MSG_1356) << "ib_undo_trunc_fail_truncate";
         return (false);
       });
 #endif /* UNIV_DEBUG */

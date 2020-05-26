@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -4570,18 +4570,20 @@ static dberr_t parallel_check_table(trx_t *trx, dict_index_t *index,
       if (cmp > 0) {
         Counter::inc(n_corrupt, id);
 
-        ib::error() << "Index records in a wrong order in " << index->name
-                    << " of table " << index->table->name << ": " << *prev_tuple
-                    << ", " << rec_offsets_print(rec, offsets);
+        ib::error(ER_IB_ERR_INDEX_RECORDS_WRONG_ORDER)
+          << "Index records in a wrong order in " << index->name
+          << " of table " << index->table->name << ": " << *prev_tuple
+          << ", " << rec_offsets_print(rec, offsets);
         /* Continue reading */
       } else if (dict_index_is_unique(index) && !contains_null &&
                  matched_fields >=
                      dict_index_get_n_ordering_defined_by_user(index)) {
         Counter::inc(n_dups, id);
 
-        ib::error() << "Duplicate key in " << index->name << " of table "
-                    << index->table->name << ": " << *prev_tuple << ", "
-                    << rec_offsets_print(rec, offsets);
+        ib::error(ER_IB_ERR_INDEX_DUPLICATE_KEY)
+          << "Duplicate key in " << index->name << " of table "
+          << index->table->name << ": " << *prev_tuple << ", "
+          << rec_offsets_print(rec, offsets);
       }
     }
 
@@ -4620,14 +4622,15 @@ static dberr_t parallel_check_table(trx_t *trx, dict_index_t *index,
   }
 
   if (Counter::total(n_dups) > 0) {
-    ib::error() << "Found " << Counter::total(n_dups) << " duplicate rows in "
-                << index->name;
+    ib::error(ER_IB_ERR_FOUND_N_DUPLICATE_KEYS)
+      << "Found " << Counter::total(n_dups) << " duplicate rows in "
+      << index->name;
 
     err = DB_DUPLICATE_KEY;
   }
 
   if (Counter::total(n_corrupt) > 0) {
-    ib::error() << "Found " << Counter::total(n_corrupt)
+    ib::error(ER_IB_ERR_FOUND_N_RECORDS_WRONG_ORDER) << "Found " << Counter::total(n_corrupt)
                 << " rows in the wrong order in " << index->name;
 
     err = DB_INDEX_CORRUPT;
