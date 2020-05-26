@@ -179,7 +179,7 @@ const page_no_t SRV_UNDO_TABLESPACE_SIZE_IN_PAGES =
 /** Maximum number of recently truncated undo tablespace IDs for
 the same undo number. */
 const size_t CONCURRENT_UNDO_TRUNCATE_LIMIT =
-    dict_sys_t::undo_space_id_range / 8;
+    dict_sys_t::s_undo_space_id_range / 8;
 
 /** Set if InnoDB must operate in read-only mode. We don't do any
 recovery and open all tables in RO mode instead of RW mode. We don't

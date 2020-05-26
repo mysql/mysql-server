@@ -170,7 +170,7 @@ undo number.
 inline space_id_t num2id(space_id_t space_num, size_t ndx) {
   ut_ad(space_num > 0);
   ut_ad(space_num <= FSP_MAX_UNDO_TABLESPACES);
-  ut_ad(ndx < dict_sys_t::undo_space_id_range);
+  ut_ad(ndx < dict_sys_t::s_undo_space_id_range);
 
   space_id_t space_id = dict_sys_t::s_max_undo_space_id + 1 - space_num -
                         static_cast<space_id_t>(ndx * FSP_MAX_UNDO_TABLESPACES);
@@ -207,7 +207,7 @@ In addition, the first space IDs for each undo number occur sequentionally
 and descending before the second space_id.
 
 Since s_max_undo_space_id = 0xFFFFFFEF, FSP_MAX_UNDO_TABLESPACES = 127
-and undo_space_id_range = 512:
+and s_undo_space_id_range = 400,000:
   Space ID   Space Num    Space ID   Space Num   ...  Space ID   Space Num
   0xFFFFFFEF      1       0xFFFFFFEe       2     ...  0xFFFFFF71    127
   0xFFFFFF70      1       0xFFFFFF6F       2     ...  0xFFFFFEF2    127
@@ -237,7 +237,7 @@ inline space_id_t id2next_id(space_id_t space_id) {
   space_id_t space_num = id2num(space_id);
   space_id_t first_id = dict_sys_t::s_max_undo_space_id + 1 - space_num;
   space_id_t last_id = first_id - (FSP_MAX_UNDO_TABLESPACES *
-                                   (dict_sys_t::undo_space_id_range - 1));
+                                   (dict_sys_t::s_undo_space_id_range - 1));
 
   return (space_id == SPACE_UNKNOWN || space_id == last_id
               ? first_id

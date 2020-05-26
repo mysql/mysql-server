@@ -1327,12 +1327,21 @@ fil_space_t *fil_space_acquire_silent(space_id_t space_id)
 @param[in,out]	space		Tablespace to release  */
 void fil_space_release(fil_space_t *space);
 
-/** Fetch the file name opened for a space_id during recovery
-from the file map.
-@param[in]	space_id	Undo tablespace ID
-@return file name that was opened, empty string if space ID not found. */
-std::string fil_system_open_fetch(space_id_t space_id)
-    MY_ATTRIBUTE((warn_unused_result));
+/** Fetch the file name opened for a space_id from the file map.
+@param[in]   space_id  tablespace ID
+@param[out]  name      the scanned filename
+@return true if the space_id is found. The name is set to an
+empty string if the space_id is not found. */
+bool fil_system_get_file_by_space_id(space_id_t space_id, std::string &name);
+
+/** Fetch the file name opened for an undo space number from the file map.
+@param[in]   space_num  Undo tablespace Number
+@param[out]  space_id   Undo tablespace ID
+@param[out]  name       the scanned filename
+@return true if the space_num was found. The name is set to an
+empty string if the space_num is not found. */
+bool fil_system_get_file_by_space_num(space_id_t space_num,
+                                      space_id_t &space_id, std::string &name);
 
 /** Truncate the tablespace to needed size.
 @param[in]	space_id	Id of tablespace to truncate
