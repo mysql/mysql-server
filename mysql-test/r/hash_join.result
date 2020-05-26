@@ -3386,13 +3386,14 @@ test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 AS alias1 LEFT JOIN t1 AS alias2 ON NOT EXISTS (
 SELECT * FROM t1 WHERE alias1.pk NOT IN ( 20 ) );
 EXPLAIN
--> Nested loop left join  (cost=802.50 rows=8000)
+-> Nested loop left join
     -> Index scan on alias1 using PRIMARY  (cost=2.25 rows=20)
-    -> Hash antijoin (no condition)  (cost=40.37 rows=400)
+    -> Hash antijoin (no condition)
         -> Index scan on alias2 using PRIMARY  (cost=0.11 rows=20)
         -> Hash
-            -> Filter: (alias1.pk <> 20)  (cost=0.11 rows=20)
-                -> Index scan on t1 using PRIMARY  (cost=0.11 rows=20)
+            -> Limit: 1 row(s)
+                -> Filter: (alias1.pk <> 20)  (cost=0.11 rows=20)
+                    -> Index scan on t1 using PRIMARY  (cost=0.11 rows=20)
 
 Warnings:
 Note	1276	Field or reference 'test.alias1.pk' of SELECT #2 was resolved in SELECT #1
@@ -3447,14 +3448,15 @@ INSERT INTO t1 VALUES ( 100 ), ( 200 );
 EXPLAIN FORMAT=tree SELECT * FROM t1 AS alias1 LEFT JOIN t1 AS alias2 ON alias2.f1 = alias1.f1
 AND NOT EXISTS ( SELECT * FROM t1 AS alias3 WHERE alias1.f1 <= 1 );
 EXPLAIN
--> Nested loop left join  (cost=1.50 rows=8)
+-> Nested loop left join
     -> Table scan on alias1  (cost=0.45 rows=2)
-    -> Filter: (alias2.f1 = alias1.f1)  (cost=0.88 rows=4)
-        -> Hash antijoin (no condition)  (cost=0.88 rows=4)
+    -> Filter: (alias2.f1 = alias1.f1)
+        -> Hash antijoin (no condition)
             -> Table scan on alias2  (cost=0.23 rows=2)
             -> Hash
-                -> Filter: (alias1.f1 <= 1)  (cost=0.23 rows=2)
-                    -> Table scan on alias3  (cost=0.23 rows=2)
+                -> Limit: 1 row(s)
+                    -> Filter: (alias1.f1 <= 1)  (cost=0.23 rows=2)
+                        -> Table scan on alias3  (cost=0.23 rows=2)
 
 Warnings:
 Note	1276	Field or reference 'test.alias1.f1' of SELECT #2 was resolved in SELECT #1
@@ -3790,3 +3792,21 @@ SELECT * FROM t0, t2 WHERE t0.c0 = t2.c0;
 c0	c0
 0	0
 DROP TABLE t0, t1, t2;
+#
+# Bug #31376809: PERFORMANCE REGRESSION FROM 5.7->8.0, DUE TO ANTIJOIN OF NOT EXISTS SUBQUERY
+#
+CREATE TABLE t1 (a INTEGER NOT NULL, b INTEGER);
+INSERT INTO t1 VALUES (1,1),(2,2),(3,3),(4,4),(5,5);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN ANALYZE SELECT t1.a FROM t1 LEFT JOIN t1 AS t2 ON TRUE WHERE t2.a IS NULL;
+EXPLAIN
+-> Filter: (t2.a is null)  (actual time=N.NNN..N.NNN rows=0 loops=1)
+    -> Hash antijoin (no condition)  (actual time=N.NNN..N.NNN rows=0 loops=1)
+        -> Table scan on t1  (cost=0.75 rows=5) (never executed)
+        -> Hash
+            -> Limit: 1 row(s)  (actual time=N.NNN..N.NNN rows=1 loops=1)
+                -> Table scan on t2  (cost=0.15 rows=5) (actual time=N.NNN..N.NNN rows=1 loops=1)
+
+DROP TABLE t1;
