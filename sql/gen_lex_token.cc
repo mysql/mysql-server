@@ -53,13 +53,13 @@
 
   As of now (8.0.0), the mapping looks like this:
   - PART 1: [0 .. 255] tokens of single-character lexemes
-  - PART 2: [256 .. ...] tokens < NOT_A_TOKEN_SYM from sql_yacc.yy
-  - PART 3: [... .. 999] reserved for sql_yacc.yy new tokens < NOT_A_TOKEN_SYM
+  - PART 2: [256 .. ...] tokens < YYUNDEF from sql_yacc.yy
+  - PART 3: [... .. 999] reserved for sql_yacc.yy new tokens < YYUNDEF
   - PART 4: [1000 .. ...] tokens from sql_hints.yy
   - PART 5: [... .. 1099] reserved for sql_hints.yy new tokens
   - PART 6: [1100 .. ...] digest special fake tokens
   - PART 7: [... .. 1149] reserved for new digest special fake tokens
-  - PART 8: [1150 .. ...] tokens > NOT_A_TOKEN_SYM from sql_yacc.yy
+  - PART 8: [1150 .. ...] tokens > YYUNDEF from sql_yacc.yy
 
   Should gen_lex_token fail when tokens are exhausted
   (maybe you are reading this comment because of a fprintf(stderr) below),
@@ -237,10 +237,11 @@ struct range {
   int max_seen;
 };
 
-static_assert(NOT_A_TOKEN_SYM == 1150,
-              "NOT_A_TOKEN_SYM should be equal to 1150");
-range range_for_sql_yacc2{"sql/sql_yacc.yy (before NOT_A_TOKEN_SYM)",
-                          NOT_A_TOKEN_SYM, MY_MAX_TOKEN};
+static_assert(YYUNDEF == 1150,
+              "YYUNDEF must be stable, because raw token numbers are used in "
+              "PFS digest calculations");
+range range_for_sql_yacc2{"sql/sql_yacc.yy (before YYUNDEF)", YYUNDEF,
+                          MY_MAX_TOKEN};
 
 range range_for_digests{"digest specials", 1100, range_for_sql_yacc2.start - 1};
 
@@ -249,7 +250,7 @@ static_assert(MAX_EXECUTION_TIME_HINT == 1000,
 range range_for_sql_hints{"sql/sql_hints.yy", MAX_EXECUTION_TIME_HINT,
                           range_for_digests.start - 1};
 
-range range_for_sql_yacc1{"sql/sql_yacc.yy (after NOT_A_TOKEN_SYM)", 256,
+range range_for_sql_yacc1{"sql/sql_yacc.yy (after YYUNDEF)", 256,
                           range_for_sql_hints.start - 1};
 
 int tok_generic_value = 0;
@@ -319,7 +320,7 @@ static void compute_tokens() {
   */
   for (const SYMBOL &sym : symbols) {
     if ((sym.group & SG_MAIN_PARSER) != 0) {
-      if (sym.tok < NOT_A_TOKEN_SYM)
+      if (sym.tok < YYUNDEF)
         range_for_sql_yacc1.set_token(sym.tok, sym.name, __LINE__);
       else
         range_for_sql_yacc2.set_token(sym.tok, sym.name, __LINE__);

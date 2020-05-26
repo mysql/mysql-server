@@ -128,6 +128,12 @@ static bool parse_int(longlong *to, const char *from, size_t from_length)
 %token NO_ORDER_INDEX_HINT 1046
 
 /*
+  YYUNDEF in internal to Bison. Please don't change its number, or change
+  it in sync with YYUNDEF in sql_yacc.yy.
+*/
+%token YYUNDEF 1150
+
+/*
   Please add new tokens right above this line.
 
   To make DIGESTS stable, it is desirable to avoid changing token number values.
