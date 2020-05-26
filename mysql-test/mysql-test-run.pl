@@ -1516,7 +1516,7 @@ sub command_line_setup {
 
   # Read the command line options
   # Note: Keep list in sync with usage at end of this file
-  Getopt::Long::Configure("pass_through");
+  Getopt::Long::Configure("pass_through", "no_auto_abbrev");
   my %options = (
     # Control what engine/variation to run
     'compress'              => \$opt_compress,
