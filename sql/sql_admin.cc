@@ -2112,24 +2112,20 @@ bool Sql_cmd_set_role::execute(THD *thd) {
 
 bool Sql_cmd_grant_roles::execute(THD *thd) {
   DBUG_TRACE;
-  for (const LEX_USER &role : *roles) {
-    if (!has_grant_role_privilege(thd, role.user, role.host)) {
-      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
-               "WITH ADMIN, ROLE_ADMIN, SUPER");
-      return true;
-    }
+  if (!has_grant_role_privilege(thd, roles)) {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+             "WITH ADMIN, ROLE_ADMIN, SUPER");
+    return true;
   }
   return mysql_grant_role(thd, users, roles, this->with_admin_option);
 }
 
 bool Sql_cmd_revoke_roles::execute(THD *thd) {
   DBUG_TRACE;
-  for (const LEX_USER &role : *roles) {
-    if (!has_grant_role_privilege(thd, role.user, role.host)) {
-      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
-               "WITH ADMIN, ROLE_ADMIN, SUPER");
-      return true;
-    }
+  if (!has_grant_role_privilege(thd, roles)) {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+             "WITH ADMIN, ROLE_ADMIN, SUPER");
+    return true;
   }
   return mysql_revoke_role(thd, users, roles);
 }
