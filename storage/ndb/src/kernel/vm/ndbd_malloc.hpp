@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,13 +27,16 @@
 
 #include <stddef.h>
 
-#define JAM_FILE_ID 234
+#include "ndb_types.h"
 
+#define JAM_FILE_ID 234
 
 /**
  * common memory allocation function for ndbd kernel
  */
 void *ndbd_malloc(size_t size);
+bool ndbd_malloc_need_watchdog(size_t size);
+void *ndbd_malloc_watched(size_t size, volatile Uint32* watch_dog);
 void ndbd_free(void *p, size_t size);
 
 

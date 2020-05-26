@@ -29,6 +29,7 @@
 #include <NdbThread.h>
 #include <NdbOut.hpp>
 #include "portlib/NdbMem.h"
+#include "debugger/EventLogger.hpp"
 
 //#define TRACE_MALLOC
 #ifdef TRACE_MALLOC
@@ -39,8 +40,7 @@
 
 #define JAM_FILE_ID 287
 
-
-extern void do_refresh_watch_dog(Uint32 place);
+extern EventLogger * g_eventLogger;
 
 #define TOUCH_PARALLELISM 8
 #define MIN_START_THREAD_SIZE (128 * 1024 * 1024)
@@ -62,11 +62,20 @@ const bool debugUinitMemUse = true;
 const bool debugUinitMemUse = false;
 #endif
 
-extern "C"
+static
 void*
 touch_mem(void* arg)
 {
   struct AllocTouchMem* touch_mem_ptr = (struct AllocTouchMem*)arg;
+
+#if defined(VM_TRACE_MEM) || defined(VM_TRACE) || defined(ERROR_INSERT)
+  g_eventLogger->info("Touching memory: %zu bytes at %p, thread index %u, "
+                      "watch dog %p",
+                      touch_mem_ptr->sz,
+                      touch_mem_ptr->p,
+                      touch_mem_ptr->index,
+                      touch_mem_ptr->watchCounter);
+#endif
 
   size_t sz = touch_mem_ptr->sz;
   Uint32 index = touch_mem_ptr->index;
@@ -78,31 +87,10 @@ touch_mem(void* arg)
   size_t tot_pages = (sz + (TOUCH_PAGE_SIZE - 1)) / TOUCH_PAGE_SIZE;
 
   volatile Uint32* watchCounter = touch_mem_ptr->watchCounter;
-  Uint32 dummy_watch_counter = 0;
-  const bool do_populate = (watchCounter != nullptr);
-  if (watchCounter == nullptr)
-  {
-    /*
-     * Touching without watchdog is used by ndbd_malloc.
-     *
-     * We check that the amount of memory to be touched would not trigger
-     * watchdog kick anyway.
-     *
-     */
-    require(sz < NUM_PAGES_BETWEEN_WATCHDOG_SETS *
-                 TOUCH_PAGE_SIZE *
-                 TOUCH_PARALLELISM);
-    watchCounter = &dummy_watch_counter;
-  }
-  else
-  {
-    /*
-     * Verify that memory to be touched is aligned to system page boundary and
-     * is whole multiple of system page size.
-     */
-    require(sz % TOUCH_PAGE_SIZE == 0);
-    require((uintptr_t)p % TOUCH_PAGE_SIZE == 0);
-  }
+  require(watchCounter != nullptr);
+
+  const bool whole_pages = ((uintptr_t)p % TOUCH_PAGE_SIZE == 0) &&
+                           (sz % TOUCH_PAGE_SIZE == 0);
 
   if (tot_pages > TOUCH_PARALLELISM)
   {
@@ -132,7 +120,7 @@ touch_mem(void* arg)
     const size_t size = std::min(end - ptr,
         ptrdiff_t(NUM_PAGES_BETWEEN_WATCHDOG_SETS * TOUCH_PAGE_SIZE));
 
-    if (do_populate)
+    if (whole_pages)
     {
       // Populate address space earlier Reserved.
       require(NdbMem_PopulateSpace(ptr, size) == 0);
@@ -171,6 +159,26 @@ ndbd_alloc_touch_mem(void *p, size_t sz, volatile Uint32 * watchCounter)
 {
   struct NdbThread *thread_ptr[TOUCH_PARALLELISM];
   struct AllocTouchMem touch_mem_struct[TOUCH_PARALLELISM];
+
+  Uint32 dummy_watch_counter = 0;
+  if (watchCounter == nullptr)
+  {
+    /*
+     * Touching without watchdog is used by ndbd_malloc.
+     *
+     * We check that the amount of memory to be touched would not trigger
+     * watchdog kick anyway.
+     *
+     */
+    if (ndbd_malloc_need_watchdog(sz))
+    {
+      g_eventLogger->warning("Touching much memory, %zu bytes, without watchdog.", sz);
+#if defined(VM_TRACE_MEM)
+      assert(!ndbd_malloc_need_watchdog(sz));
+#endif
+    }
+    watchCounter = &dummy_watch_counter;
+  }
 
   for (Uint32 i = 0; i < TOUCH_PARALLELISM; i++)
   {
@@ -215,14 +223,14 @@ static void xxx(size_t size, size_t *s_m, size_t *s_k, size_t *s_b)
 #endif
 
 static Uint64 g_allocated_memory;
-void *ndbd_malloc(size_t size)
+void *ndbd_malloc_watched(size_t size, volatile Uint32* watch_dog)
 {
   void *p = malloc(size);
   if (p)
   {
     g_allocated_memory += size;
 
-    ndbd_alloc_touch_mem(p, size, 0);
+    ndbd_alloc_touch_mem(p, size, watch_dog);
 
 #ifdef TRACE_MALLOC
     {
@@ -235,6 +243,19 @@ void *ndbd_malloc(size_t size)
 #endif
   }
   return p;
+}
+
+bool ndbd_malloc_need_watchdog(size_t size)
+{
+  const size_t TOUCH_PAGE_SIZE = NdbMem_GetSystemPageSize();
+  return (size >= NUM_PAGES_BETWEEN_WATCHDOG_SETS *
+                  TOUCH_PAGE_SIZE *
+                  TOUCH_PARALLELISM);
+}
+
+void *ndbd_malloc(size_t size)
+{
+  return ndbd_malloc_watched(size, nullptr);
 }
 
 void ndbd_free(void *p, size_t size)

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2049,16 +2049,16 @@ SimulatedBlock::allocRecordAligned(const char * type, size_t s, size_t n, void *
   Uint64 real_size = (Uint64)((Uint64)n)*((Uint64)s) + over_alloc;
   refresh_watch_dog(9);
   if (real_size > 0){
-#ifdef VM_TRACE_MEM
-    ndbout_c("%s::allocRecord(%s, %u, %u) = %llu bytes", 
-	     getBlockName(number()), 
-	     type,
-	     s,
-	     n,
-	     real_size);
+#if defined(VM_TRACE_MEM) || defined(VM_TRACE) || defined(ERROR_INSERT)
+    g_eventLogger->info("%s::allocRecord(%s, %zu, %zu) = %llu bytes",
+	                getBlockName(number()),
+	                type,
+	                s,
+	                n,
+	                real_size);
 #endif
     if( real_size == (Uint64)size )
-      p = ndbd_malloc(size);
+      p = ndbd_malloc_watched(size, get_watch_dog());
     if (p == NULL){
       char buf1[255];
       char buf2[255];
@@ -2179,6 +2179,16 @@ SimulatedBlock::refresh_watch_dog(Uint32 place)
   (*m_watchDogCounter) = place;
 #else
   globalData.incrementWatchDogCounter(place);
+#endif
+}
+
+volatile Uint32*
+SimulatedBlock::get_watch_dog()
+{
+#ifdef NDBD_MULTITHREADED
+  return m_watchDogCounter;
+#else
+  return globalData.getWatchDogPtr();
 #endif
 }
 
