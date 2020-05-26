@@ -18725,6 +18725,20 @@ dberr_t ha_innobase::innobase_get_autoinc(
   return (m_prebuilt->autoinc_error);
 }
 
+void ha_innobase::release_auto_increment() {
+  trx_t *trx = m_prebuilt->trx;
+  TrxInInnoDB trx_in_innodb(trx);
+
+  /* Clear the trx's autoinc_rows as the operation requiring auto increment
+  values has been completed.
+
+  We usually end up in this scenario when we do not know the correct estimation
+  of rows in the table in the case of bulk inserts. */
+  if (trx->n_autoinc_rows > 0) {
+    trx->n_autoinc_rows = 0;
+  }
+}
+
 /** Returns the value of the auto-inc counter in *first_value and ~0 on failure.
  */
 

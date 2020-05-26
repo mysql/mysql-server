@@ -329,6 +329,9 @@ class ha_innobase : public handler {
                                   ulonglong *first_value,
                                   ulonglong *nb_reserved_values) override;
 
+  /** Do cleanup for auto increment calculation. */
+  virtual void release_auto_increment() override;
+
   virtual bool get_error_message(int error, String *buf) override;
 
   virtual bool get_foreign_dup_key(char *, uint, char *, uint) override;
