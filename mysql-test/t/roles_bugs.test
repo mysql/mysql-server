@@ -118,6 +118,43 @@ DROP USER my_user;
 DROP USER foo@localhost, baz@localhost;
 DROP ROLE my_role;
 
+--echo #
+--echo # Bug#31237368: WITH ADMIN OPTION DOES NOT WORK AS EXPECTED
+--echo #
+CREATE USER u1, u2;
+CREATE ROLE r1, r2;
+GRANT r2 TO r1 WITH ADMIN OPTION;
+GRANT r1 TO u1 WITH ADMIN OPTION;
+connect(conn_u1,localhost, u1,,,,);
+GRANT r1 TO u2;
+REVOKE r1 FROM u2;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+GRANT r2 TO u2;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+REVOKE r2 FROM u2;
+SET ROLE r1;
+GRANT r1 TO u2;
+REVOKE r1 FROM u2;
+GRANT r2 TO u2;
+REVOKE r2 FROM u2;
+connection default;
+disconnect conn_u1;
+DROP ROLE r1, r2;
+DROP USER u1, u2;
+
+CREATE USER u1;
+CREATE ROLE r1, r2;
+GRANT CREATE USER ON *.* TO u1;
+GRANT r1 TO u1 WITH ADMIN OPTION;
+connect(conn_u1, localhost, u1,,,,);
+CREATE USER u2 DEFAULT ROLE r1;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+CREATE USER u3 DEFAULT ROLE r2;
+connection default;
+disconnect conn_u1;
+DROP ROLE r1, r2;
+DROP USER u1, u2;
+
 --echo
 --echo # End of 8.0 tests
 --echo

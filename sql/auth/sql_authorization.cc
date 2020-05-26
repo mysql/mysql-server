@@ -2564,37 +2564,56 @@ bool is_granted_table_access(THD *thd, ulong required_acl, TABLE_LIST *table) {
   Handle GRANT commands
 ****************************************************************************/
 
-bool has_grant_role_privilege(THD *thd, const LEX_CSTRING &role_name,
-                              const LEX_CSTRING &role_host) {
+bool has_grant_role_privilege(THD *thd, const List<LEX_USER> *roles) {
   DBUG_TRACE;
   Security_context *sctx = thd->security_context();
+
+  /* 1. user has global ROLE_ADMIN or SUPER_ACL privileges */
   if (sctx->check_access(SUPER_ACL) ||
       sctx->has_global_grant(STRING_WITH_LEN("ROLE_ADMIN")).first) {
-    DBUG_PRINT("info", ("`%s`@`%s` has with admin privileges for `%s`@`%s` "
-                        "through super privileges or ROLE_ADMIN",
-                        sctx->priv_user().str, sctx->priv_host().str,
-                        role_name.str, role_host.str));
-    return true;
-  }
-  /*
-    1. user has global ROLE_ADMIN or SUPER_ACL privileges
-    2. user has inherited the GRANT r TO CURRENT_USER WITH ADMIN OPTION
-       privileges, where r is a node in some active role graph R granted to
-       CURRENT_USER.
-  */
-
-  if (sctx->has_with_admin_acl(role_name, role_host)) {
-    DBUG_PRINT("info", ("`%s`@`%s` has with admin privileges for `%s`@`%s` by "
-                        " WITH ADMIN from granted roles",
-                        sctx->priv_user().str, sctx->priv_host().str,
-                        role_name.str, role_host.str));
     return true;
   }
 
-  DBUG_PRINT("info", ("`%s`@`%s` doesn't have admin privileges for `%s`@`%s`",
-                      sctx->priv_user().str, sctx->priv_host().str,
-                      role_name.str, role_host.str));
-  return false;
+  LEX_USER *role, *tmp_role_name;
+  List_iterator<LEX_USER> role_list(const_cast<List<LEX_USER> &>(*roles));
+  std::vector<LEX_USER *> remaining_roles;
+
+  while ((tmp_role_name = role_list++)) {
+    if (!(role = get_current_user(thd, tmp_role_name))) {
+      remaining_roles.push_back(tmp_role_name);
+      continue;
+    }
+    /*
+      2. user has inherited the GRANT r TO CURRENT_USER WITH ADMIN OPTION
+         privileges, where r is a node in some active role graph R granted
+         to CURRENT_USER.
+    */
+
+    if (!sctx->has_with_admin_acl(role->user, role->host)) {
+      remaining_roles.push_back(tmp_role_name);
+    }
+  }
+
+  if (remaining_roles.size() == 0) return true;
+
+  /* Check if role was granted with WITH ADMIN option */
+  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
+  if (!acl_cache_lock.lock(false)) return false;
+  List_of_granted_roles granted_roles;
+  LEX_USER user;
+  user.user = sctx->priv_user();
+  user.host = sctx->priv_host();
+  get_granted_roles(&user, &granted_roles);
+
+  for (auto tmp_role : remaining_roles) {
+    if (!(role = get_current_user(thd, tmp_role))) return false;
+    std::string role_id(create_authid_str_from(role));
+    auto it = find(granted_roles.begin(), granted_roles.end(), role_id);
+    if (it == granted_roles.end()) return false;
+    if (it->second != true) return false;
+  }
+
+  return true;
 }
 
 /*
