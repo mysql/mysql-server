@@ -2828,7 +2828,7 @@ net_async_status cli_read_rows_nonblocking(MYSQL *mysql,
         cur->data[field] = nullptr;
       } else {
         cur->data[field] = to;
-        if (len > (ulong)(end_to - to)) {
+        if (to > end_to || len > (ulong)(end_to - to)) {
           free_rows(result);
           async_context->rows_result_buffer = nullptr;
           set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
@@ -2946,7 +2946,11 @@ MYSQL_DATA *cli_read_rows(MYSQL *mysql, MYSQL_FIELD *mysql_fields,
         cur->data[field] = nullptr;
       } else {
         cur->data[field] = to;
-        if (len > (ulong)(end_to - to)) {
+        DBUG_EXECUTE_IF("simulate_invalid_packet_data", {
+          to = end_to + 1;
+          len = 4294967295;
+        });
+        if (to > end_to || len > (ulong)(end_to - to)) {
           free_rows(result);
           set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
           return nullptr;
