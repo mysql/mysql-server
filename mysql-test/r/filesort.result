@@ -73,3 +73,38 @@ f1
 Warnings:
 Warning	1292	Incorrect datetime value: '1'
 DROP TABLE t1;
+#
+# Bug #31397840: Wrong result of SELECT DISTINCT JSON_ARRAYAGG
+#
+SET sql_mode='';
+CREATE TABLE t1
+(
+id            INT PRIMARY KEY,
+char_field    CHAR(10)
+);
+INSERT INTO t1 VALUES (580801, '580801');
+INSERT INTO t1 VALUES (580901, '580901');
+INSERT INTO t1 VALUES (581001, '581001');
+INSERT INTO t1 VALUES (581101, '581101');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT DISTINCT JSON_ARRAYAGG(char_field), JSON_ARRAYAGG(2) FROM t1 GROUP BY id ORDER BY id;
+JSON_ARRAYAGG(char_field)	JSON_ARRAYAGG(2)
+["580801"]	[2]
+["580901"]	[2]
+["581001"]	[2]
+["581101"]	[2]
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+EXPLAIN FORMAT=tree SELECT DISTINCT JSON_ARRAYAGG(char_field), JSON_ARRAYAGG(2) FROM t1 GROUP BY id ORDER BY id;
+EXPLAIN
+-> Sort: t1.id
+    -> Sort with duplicate removal: `JSON_ARRAYAGG(char_field)`, `JSON_ARRAYAGG(2)`
+        -> Stream results
+            -> Group aggregate: json_arrayagg(t1.char_field), json_arrayagg(2)
+                -> Sort: t1.id  (cost=0.65 rows=4)
+                    -> Table scan on t1
+
+DROP TABLE t1;
+SET sql_mode=DEFAULT;
