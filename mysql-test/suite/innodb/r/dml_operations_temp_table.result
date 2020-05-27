@@ -21,15 +21,15 @@ select * from t;
 i	f
 10	2.2
 20	3.3
-60	4.4
 50	5.5
+60	4.4
 delete from t where i = 10;
 delete from t where f < 3.4;
 rollback;
 select * from t;
 i	f
-60	4.4
 50	5.5
+60	4.4
 delete from t where i = 10;
 delete from t;
 select * from t;
@@ -100,8 +100,8 @@ select * from t;
 i	f
 10	2.2
 20	3.3
-60	4.4
 50	5.5
+60	4.4
 rollback;
 select * from t;
 i	f
@@ -159,8 +159,8 @@ update t set i = 60 where i = 30;
 select * from t;
 i	f
 20	3.3
-60	4.4
 50	5.5
+60	4.4
 rollback to first;
 select * from t;
 i	f

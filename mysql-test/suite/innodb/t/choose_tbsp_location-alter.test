@@ -49,6 +49,7 @@ CREATE TABLE sys_foreign SELECT i.*
 FROM INFORMATION_SCHEMA.INNODB_FOREIGN i
 WHERE FOR_NAME LIKE 'test/t%';
 
+--sorted_result
 SELECT i.FOR_COL_NAME, i.REF_COL_NAME, i.POS FROM INFORMATION_SCHEMA.INNODB_FOREIGN_COLS i
 INNER JOIN sys_foreign sf ON i.ID = sf.ID;
 
@@ -113,6 +114,7 @@ ALTER TABLE t1 CHANGE C Cöŀumň_TWO INT;
 --replace_regex $regexp
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
+--sorted_result
 SELECT i.FOR_COL_NAME, i.REF_COL_NAME, i.POS FROM INFORMATION_SCHEMA.INNODB_FOREIGN_COLS i
 INNER JOIN sys_foreign sf ON i.ID = sf.ID;
 

@@ -1168,7 +1168,7 @@ CREATE DEFINER = `usr_definer`@`localhost` FUNCTION testdb.func_definer() RETURN
 --echo
 --echo # Should not return any rows.
 --echo
-SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb";
+SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb" ORDER BY ROUTINE_DEFINITION;
 
 --echo
 --echo # Should pretend that routine does not exist.
@@ -1200,7 +1200,7 @@ SHOW FUNCTION STATUS WHERE db="testdb";
 --echo
 --echo # Should show the routine_definition of all 4 routines.
 --echo
-SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb";
+SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb" ORDER BY ROUTINE_DEFINITION;
 
 --echo
 --echo # Should show the Create Procedure string.
@@ -1239,7 +1239,7 @@ SHOW FUNCTION STATUS WHERE db="testdb";
 --echo
 --echo # Should not return any rows.
 --echo
-SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb";
+SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb" ORDER BY ROUTINE_DEFINITION;
 
 --echo
 --echo # Should pretend that routine does not exist.
@@ -1269,7 +1269,7 @@ SET ROLE role_show_routine;
 --echo
 --echo # Should show the routine_definition of all 4 routines.
 --echo
-SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb";
+SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb" ORDER BY ROUTINE_DEFINITION;
 
 --echo
 --echo # Should show the Create Procedure string.
@@ -1335,7 +1335,7 @@ SHOW FUNCTION STATUS WHERE db="testdb";
 --echo
 --echo # Should show the routine_definition of only proc_definer and func_definer.
 --echo
-SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb";
+SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb" ORDER BY ROUTINE_DEFINITION;
 
 --echo
 --echo # Should pretend that proc_root and func_root do not exist.
@@ -1374,7 +1374,7 @@ SHOW FUNCTION STATUS WHERE db="testdb";
 --echo
 --echo # Should show NULL routine_definition for all 4 routines.
 --echo
-SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb";
+SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb" ORDER BY ROUTINE_DEFINITION;
 
 --echo
 --echo # Should show NULL Create Procedure string.
@@ -1409,7 +1409,7 @@ SHOW FUNCTION STATUS WHERE db="testdb";
 --echo
 --echo # Should show NULL routine_definition for all 4 routines.
 --echo
-SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb";
+SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb" ORDER BY ROUTINE_DEFINITION;
 
 --echo
 --echo # Should show NULL Create Procedure string.
@@ -1444,7 +1444,7 @@ SHOW FUNCTION STATUS WHERE db="testdb";
 --echo
 --echo # Should show NULL routine_definition for all 4 routines.
 --echo
-SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb";
+SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb" ORDER BY ROUTINE_DEFINITION;
 
 --echo
 --echo # Should show NULL Create Procedure string.
@@ -1488,7 +1488,7 @@ REVOKE SELECT ON testdb.* FROM usr_global_select@localhost;
 --echo
 --echo # Should not return any rows.
 --echo
-SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb";
+SELECT ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA="testdb" ORDER BY ROUTINE_DEFINITION;
 
 --echo
 --echo # Should pretend that routine does not exist.

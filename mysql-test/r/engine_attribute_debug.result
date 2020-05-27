@@ -100,8 +100,8 @@ Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_par
 t1	1	j	1	j	A	0	NULL	NULL	YES	BTREE			YES	NULL
 SELECT * FROM information_schema.table_constraints_extensions WHERE table_name = 't1';
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_NAME	ENGINE_ATTRIBUTE	SECONDARY_ENGINE_ATTRIBUTE
-def	test	j	t1	{"index attr": "for engine"}	{"index attr": "for secondary engine"}
 def	test	PRIMARY	t1	NULL	NULL
+def	test	j	t1	{"index attr": "for engine"}	{"index attr": "for secondary engine"}
 DROP TABLE t1;
 ### Testing ENGINE_ATTRIBUTE with CREATE INDEX
 CREATE TABLE t1(i INT, j INT);
@@ -122,8 +122,8 @@ Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_par
 t1	1	ix	1	i	A	0	NULL	NULL	YES	BTREE			YES	NULL
 SELECT * FROM information_schema.table_constraints_extensions WHERE table_name = 't1';
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_NAME	ENGINE_ATTRIBUTE	SECONDARY_ENGINE_ATTRIBUTE
-def	test	ix	t1	{"index attr": "for engine"}	{"index attr": "for secondary engine"}
 def	test	PRIMARY	t1	NULL	NULL
+def	test	ix	t1	{"index attr": "for engine"}	{"index attr": "for secondary engine"}
 DROP TABLE t1;
 ### Creating table with all possible engine attributes.
 CREATE TABLE t1(i INT
@@ -157,8 +157,8 @@ def	test	t1	i	{"column attr": "i"}	{"secondary column attr": "i"}
 def	test	t1	j	{"column attr": "j"}	{"secondary column attr": "j"}
 SELECT * FROM information_schema.table_constraints_extensions WHERE table_name = 't1' ORDER BY constraint_name;
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_NAME	ENGINE_ATTRIBUTE	SECONDARY_ENGINE_ATTRIBUTE
-def	test	j	t1	{"index attr": "index on j"}	{"secondary index attr": "index on j"}
 def	test	PRIMARY	t1	NULL	NULL
+def	test	j	t1	{"index attr": "index on j"}	{"secondary index attr": "index on j"}
 # Verify that SHOW CREATE TABLE output can be used to create
 # an identical table
 DROP TABLE t1;
@@ -204,8 +204,8 @@ def	test	t1	i	{"column attr": "i"}	{"secondary column attr": "i"}
 def	test	t1	j	{"column attr": "j"}	{"secondary column attr": "j"}
 SELECT * FROM information_schema.table_constraints_extensions WHERE table_name = 't1' ORDER BY constraint_name;
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_NAME	ENGINE_ATTRIBUTE	SECONDARY_ENGINE_ATTRIBUTE
-def	test	j	t1	{"index attr": "index on j"}	{"secondary index attr": "index on j"}
 def	test	PRIMARY	t1	NULL	NULL
+def	test	j	t1	{"index attr": "index on j"}	{"secondary index attr": "index on j"}
 CREATE TABLE t2 LIKE t1;
 # Expect all engine attributes from t1 to be present also in t2
 SHOW CREATE TABLE t2;
@@ -299,8 +299,8 @@ def	test	t1	i	{"column attr": "override"}	{"secondary column attr": "override"}
 def	test	t1	j	{"column attr": "override"}	{"secondary column attr": "override"}
 SELECT * FROM information_schema.table_constraints_extensions WHERE table_name = 't1' ORDER BY constraint_name;
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_NAME	ENGINE_ATTRIBUTE	SECONDARY_ENGINE_ATTRIBUTE
-def	test	j	t1	{"index attr": "index on j override"}	{"secondary index attr": "index on j override"}
 def	test	PRIMARY	t1	NULL	NULL
+def	test	j	t1	{"index attr": "index on j override"}	{"secondary index attr": "index on j override"}
 DROP TABLE t1;
 #
 # Testing altering engine attribute on tables,
@@ -466,8 +466,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80021 ENGINE_ATTRIBUTE='{"table algo": "inplace"}' */
 SELECT * FROM information_schema.table_constraints_extensions WHERE table_name = 't1';
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_NAME	ENGINE_ATTRIBUTE	SECONDARY_ENGINE_ATTRIBUTE
-def	test	i	t1	{"index algo": "none"}	NULL
 def	test	PRIMARY	t1	NULL	NULL
+def	test	i	t1	{"index algo": "none"}	NULL
 ALTER TABLE t1 ADD INDEX (m) ENGINE_ATTRIBUTE='{"index algo":"inplace"}', ALGORITHM=INPLACE;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -483,9 +483,9 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80021 ENGINE_ATTRIBUTE='{"table algo": "inplace"}' */
 SELECT * FROM information_schema.table_constraints_extensions WHERE table_name = 't1';
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_NAME	ENGINE_ATTRIBUTE	SECONDARY_ENGINE_ATTRIBUTE
+def	test	PRIMARY	t1	NULL	NULL
 def	test	i	t1	{"index algo": "none"}	NULL
 def	test	m	t1	{"index algo": "inplace"}	NULL
-def	test	PRIMARY	t1	NULL	NULL
 ALTER TABLE t1 ADD INDEX (n) ENGINE_ATTRIBUTE='{"index algo":"instant"}', ALGORITHM=INSTANT;
 ERROR 0A000: ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=COPY/INPLACE.
 DROP TABLE t1;
@@ -716,8 +716,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80021 SECONDARY_ENGINE_ATTRIBUTE='{"table algo": "inplace"}' */
 SELECT * FROM information_schema.table_constraints_extensions WHERE table_name = 't1';
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_NAME	ENGINE_ATTRIBUTE	SECONDARY_ENGINE_ATTRIBUTE
-def	test	i	t1	NULL	{"index algo": "none"}
 def	test	PRIMARY	t1	NULL	NULL
+def	test	i	t1	NULL	{"index algo": "none"}
 ALTER TABLE t1 ADD INDEX (m) SECONDARY_ENGINE_ATTRIBUTE='{"index algo":"inplace"}', ALGORITHM=INPLACE;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -733,9 +733,9 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80021 SECONDARY_ENGINE_ATTRIBUTE='{"table algo": "inplace"}' */
 SELECT * FROM information_schema.table_constraints_extensions WHERE table_name = 't1';
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_NAME	ENGINE_ATTRIBUTE	SECONDARY_ENGINE_ATTRIBUTE
+def	test	PRIMARY	t1	NULL	NULL
 def	test	i	t1	NULL	{"index algo": "none"}
 def	test	m	t1	NULL	{"index algo": "inplace"}
-def	test	PRIMARY	t1	NULL	NULL
 ALTER TABLE t1 ADD INDEX (n) SECONDARY_ENGINE_ATTRIBUTE='{"index algo":"instant"}', ALGORITHM=INSTANT;
 ERROR 0A000: ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=COPY/INPLACE.
 DROP TABLE t1;
@@ -768,8 +768,8 @@ def	test	t1	i	{"column attr": "i"}	{"secondary column attr": "i"}
 def	test	t1	j	{"column attr": "j"}	{"secondary column attr": "j"}
 SELECT * FROM information_schema.table_constraints_extensions WHERE table_name = 't1' ORDER BY constraint_name;
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_NAME	ENGINE_ATTRIBUTE	SECONDARY_ENGINE_ATTRIBUTE
-def	test	jix	t1	{"index attr": "index on j"}	{"secondary index attr": "index on j"}
 def	test	PRIMARY	t1	NULL	NULL
+def	test	jix	t1	{"index attr": "index on j"}	{"secondary index attr": "index on j"}
 DROP TABLE t1;
 # Verfy that handler::check_if_supported_inplace_alter
 # (default if not overridden by SE) behaves the same way for

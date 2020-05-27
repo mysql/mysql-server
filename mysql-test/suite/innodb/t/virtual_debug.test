@@ -46,6 +46,7 @@ SET DEBUG_SYNC = 'now SIGNAL go_ahead';
 connection default;
 reap;
 
+--sorted_result
 SELECT c FROM t;
 SHOW CREATE TABLE t;
 SELECT * FROM t;
@@ -64,6 +65,7 @@ SET DEBUG_SYNC = 'now SIGNAL go_ahead';
 connection default;
 reap;
 
+--sorted_result
 SELECT c FROM t;
 
 SET DEBUG_SYNC = 'innodb_inplace_alter_table_enter SIGNAL start_create WAIT_FOR go_ahead';
@@ -81,6 +83,7 @@ SET DEBUG_SYNC = 'now SIGNAL go_ahead';
 connection default;
 reap;
 
+--sorted_result
 SELECT c FROM t;
 
 disconnect con1;
@@ -114,6 +117,7 @@ SET SESSION debug="-d,create_index_fail";
 
 SHOW CREATE TABLE t;
 
+--sorted_result
 SELECT c FROM t;
 
 DROP TABLE t;
@@ -147,6 +151,7 @@ SET DEBUG_SYNC = 'now SIGNAL go_ahead';
 connection default;
 --echo /* connection default */ optimize table t;
 reap;
+--sorted_result
 SELECT c FROM t;
 SHOW CREATE TABLE t;
 SELECT * FROM t;
@@ -176,6 +181,7 @@ connection default;
 --echo /* connection default */ optimize table t;
 reap;
 
+--sorted_result
 SELECT c FROM t;
 
 disconnect con1;
@@ -243,9 +249,11 @@ select * from ibstd_14;
 
 # This will use the newly added "kn3" index, to check materialized vbcol
 # after log reapply
+--sorted_result
 select d,c,vbcol,b from  ibstd_14;
 
 # check the value is inserted into the index
+--sorted_result
 select vbcol from ibstd_14;
 
 drop table ibstd_14;

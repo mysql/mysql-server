@@ -62,8 +62,8 @@ sum(a)
 select sum(a) + sum(b) from t1 group by b;
 sum(a) + sum(b)
 2048
-NULL
 4608
+NULL
 select max(x) from (select sum(a) as x from t1 group by b) as teeone;
 max(x)
 2560

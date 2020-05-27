@@ -72,134 +72,172 @@ flush status;
 insert into t2 (a) values (1001);
 --error ER_DUP_ENTRY
 insert into t1 (a) values (f2(1));
+--sorted_result
 select * from t2;
 rollback;
+--sorted_result
 select * from t2;
 
 insert into t2 (a) values (1002);
 --error ER_DUP_ENTRY
 insert into t3 (a) select f2(2) from t1;
+--sorted_result
 select * from t2;
 rollback;
+--sorted_result
 select * from t2;
 
 insert into t2 (a) values (1003);
 --error ER_DUP_ENTRY
 update t1 set a= a + f2(3);
+--sorted_result
 select * from t2;
 rollback;
+--sorted_result
 select * from t2;
 
 insert into t2 (a) values (1004);
 --error ER_DUP_ENTRY
 update t1, t3 set t1.a = 0, t3.a = 0 where (f2(4) = 4) and (t1.a = t3.a);
+--sorted_result
 select * from t2;
 rollback;
+--sorted_result
 select * from t2;
 
 insert into t2 (a) values (1005);
 --error ER_DUP_ENTRY
 delete from t1 where (a = f2(5));
+--sorted_result
 select * from t2;
 rollback;
+--sorted_result
 select * from t2;
 
 insert into t2 (a) values (1006);
 --error ER_DUP_ENTRY
 delete from t1, t3 using t1, t3 where (f2(6) = 6) ;
+--sorted_result
 select * from t2;
 rollback;
+--sorted_result
 select * from t2;
 
 insert into t2 (a) values (1007);
 --error ER_DUP_ENTRY
 replace t1 values (f2(7));
+--sorted_result
 select * from t2;
 rollback;
+--sorted_result
 select * from t2;
 
 insert into t2 (a) values (1008);
 --error ER_DUP_ENTRY
 replace into t3 (a) select f2(8) from t1;
+--sorted_result
 select * from t2;
 rollback;
+--sorted_result
 select * from t2;
 
 insert into t2 (a) values (1009);
 --error ER_DUP_ENTRY
 select f2(9) from t1 ;
+--sorted_result
 select * from t2;
 rollback;
+--sorted_result
 select * from t2;
 
 insert into t2 (a) values (1010);
 --error ER_DUP_ENTRY
 show databases where (f2(10) = 10);
+--sorted_result
 select * from t2;
 rollback;
+--sorted_result
 select * from t2;
 
 insert into t2 (a) values (1011);
 --error ER_DUP_ENTRY
 show tables where (f2(11) = 11);
+--sorted_result
 select * from t2;
 rollback;
+--sorted_result
 select * from t2;
 
 insert into t2 (a) values (1012);
 --error ER_DUP_ENTRY
 show triggers where (f2(12) = 12);
+--sorted_result
 select * from t2;
 rollback;
+--sorted_result
 select * from t2;
 
 insert into t2 (a) values (1013);
 --error ER_DUP_ENTRY
 show table status where (f2(13) = 13);
+--sorted_result
 select * from t2;
 rollback;
+--sorted_result
 select * from t2;
 
 insert into t2 (a) values (1014);
 --error ER_DUP_ENTRY
 show open tables where (f2(14) = 14);
+--sorted_result
 select * from t2;
 rollback;
+--sorted_result
 select * from t2;
 
 insert into t2 (a) values (1015);
 --error ER_DUP_ENTRY
 show columns in information_schema.routines where (f2(15) = 15);
+--sorted_result
 select * from t2;
 rollback;
+--sorted_result
 select * from t2;
 
 insert into t2 (a) values (1016);
 --error ER_DUP_ENTRY
 show status where (f2(16) = 16);
+--sorted_result
 select * from t2;
 rollback;
+--sorted_result
 select * from t2;
 
 insert into t2 (a) values (1017);
 --error ER_DUP_ENTRY
 show variables where (f2(17) = 17);
+--sorted_result
 select * from t2;
 rollback;
+--sorted_result
 select * from t2;
 
 insert into t2 (a) values (1018);
 --error ER_DUP_ENTRY
 show charset where (f2(18) = 18);
+--sorted_result
 select * from t2;
 rollback;
+--sorted_result
 select * from t2;
 
 insert into t2 (a) values (1019);
 --error ER_DUP_ENTRY
 show collation where (f2(19) = 19);
+--sorted_result
 select * from t2;
 rollback;
+--sorted_result
 select * from t2;
 
 --echo # We need at least one procedure to make sure the WHERE clause is
@@ -208,31 +246,39 @@ create procedure dummy() begin end;
 insert into t2 (a) values (1020);
 --error ER_DUP_ENTRY
 show procedure status where (f2(20) = 20);
+--sorted_result
 select * from t2;
 rollback;
+--sorted_result
 select * from t2;
 drop procedure dummy;
 
 insert into t2 (a) values (1021);
 --error ER_DUP_ENTRY
 show function status where (f2(21) = 21);
+--sorted_result
 select * from t2;
 rollback;
+--sorted_result
 select * from t2;
 
 insert into t2 (a) values (1022);
 prepare stmt from "insert into t1 (a) values (f2(22))";
 --error ER_DUP_ENTRY
 execute stmt;
+--sorted_result
 select * from t2;
 rollback;
+--sorted_result
 select * from t2;
 
 insert into t2 (a) values (1023);
 --error ER_DUP_ENTRY
 do (f2(23));
+--sorted_result
 select * from t2;
 rollback;
+--sorted_result
 select * from t2;
 
 ## Please note :
@@ -254,8 +300,10 @@ delimiter ;|
 insert into t2 (a) values (1024);
 --error ER_DUP_ENTRY
 call bug12713_call();
+--sorted_result
 select * from t2;
 rollback;
+--sorted_result
 select * from t2;
 
 --echo =======================================================================
@@ -267,8 +315,10 @@ insert into t2 (a) values (1025);
 --replace_result $MYSQLTEST_VARDIR ..
 --error ER_DUP_ENTRY
 eval select f2(25) into outfile "$MYSQLTEST_VARDIR/tmp/dml.out" from t1;
+--sorted_result
 select * from t2;
 rollback;
+--sorted_result
 select * from t2;
 --remove_file $MYSQLTEST_VARDIR/tmp/dml.out
 
@@ -277,8 +327,10 @@ insert into t2 (a) values (1026);
 --error ER_DUP_ENTRY
 eval load data infile "../../std_data/words.dat" ignore into table t1 (a) set a:=f2(26);
 
+--sorted_result
 select * from t2;
 rollback;
+--sorted_result
 select * from t2;
 
 --echo =======================================================================
@@ -288,8 +340,10 @@ select * from t2;
 insert into t2 (a) values (1027);
 --error ER_DUP_ENTRY
 select f2(27) into @foo;
+--sorted_result
 select * from t2;
 rollback;
+--sorted_result
 select * from t2;
 
 --echo =======================================================================
@@ -314,8 +368,10 @@ end|
 delimiter ;|
 
 insert into t2 (a) values (1028);
+--sorted_result
 call bug12713_dump_spvars ();
 rollback;
+--sorted_result
 select * from t2;
 
 --echo =======================================================================

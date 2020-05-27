@@ -92,6 +92,7 @@ connection con1;
 connection default;
     SET DEBUG_SYNC='now WAIT_FOR s1';
     SET DEBUG_SYNC='now SIGNAL s2 WAIT_FOR s1';
+    --sorted_result
     SELECT vj FROM t WHERE c LIKE 'aaaa1234%';
     SET DEBUG_SYNC='now SIGNAL s2';
 

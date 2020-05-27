@@ -10,14 +10,17 @@ INSERT INTO bug38999_2 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9
 
 # Full join, without key
 update bug38999_1,bug38999_2 set bug38999_1.a=bug38999_1.a+100;
+--sorted_result
 select * from bug38999_1;
 
 # unique key
 update bug38999_1,bug38999_2 set bug38999_1.a=bug38999_1.a+100 where bug38999_1.a=101;
+--sorted_result
 select * from bug38999_1;
 
 # ref key
 update bug38999_1,bug38999_2 set bug38999_1.b=bug38999_1.b+10 where bug38999_1.b=2;
+--sorted_result
 select * from bug38999_1;
 
 # Run ANALYZE in order to increase the likelihood of getting the same
@@ -40,7 +43,9 @@ update bug38999_1 force index (b) straight_join bug38999_2
 set bug38999_1.b=bug38999_1.b+2,
     bug38999_2.b=bug38999_1.b+10
 where bug38999_1.b between 3 and 5 and bug38999_1.a=bug38999_2.a+100;
+--sorted_result
 select * from bug38999_1;
+--sorted_result
 select * from bug38999_2;
 
 drop table bug38999_1,bug38999_2;

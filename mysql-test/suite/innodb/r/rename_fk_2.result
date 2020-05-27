@@ -58,12 +58,12 @@ DELETE FROM country WHERE country_id =1;
 ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`city`, CONSTRAINT `fk_city_country` FOREIGN KEY (`country_id`) REFERENCES `country` (`country_id`) ON UPDATE CASCADE)
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
-test/fk_city_country	test/city	test/country	1	20
 test/fk_address_city	test/address	test/city	1	20
+test/fk_city_country	test/city	test/country	1	20
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN_COLS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
-test/fk_city_country	country_id	country_id	1
 test/fk_address_city	city_id	city_id	1
+test/fk_city_country	country_id	country_id	1
 CREATE TABLE tmp_country LIKE country;
 INSERT INTO tmp_country SELECT * FROM country;
 SET foreign_key_checks=0;
@@ -74,12 +74,12 @@ DELETE FROM country WHERE country_id =1;
 ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`city`, CONSTRAINT `fk_city_country` FOREIGN KEY (`country_id`) REFERENCES `country` (`country_id`) ON UPDATE CASCADE)
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
-test/fk_city_country	test/city	test/country	1	20
 test/fk_address_city	test/address	test/city	1	20
+test/fk_city_country	test/city	test/country	1	20
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN_COLS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
-test/fk_city_country	country_id	country_id	1
 test/fk_address_city	city_id	city_id	1
+test/fk_city_country	country_id	country_id	1
 DROP TABLE address;
 DROP TABLE city;
 DROP TABLE country;

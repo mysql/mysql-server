@@ -292,18 +292,18 @@ col1	col2	col3	col4	col5	col6	col7	col8	col9
 5	400	20	900	-500	-495	80	0	hqal
 SELECT col5 FROM t1;
 col5
-3229
 -250
 -500
+3229
 SELECT col6 FROM t1;
 col6
--495
 -240
+-495
 3329
 SELECT col7 FROM t1;
 col7
-5
 32
+5
 80
 ALTER TABLE t1 ADD INDEX idx3 (col7 DESC);
 CHECK TABLE t1;
@@ -311,22 +311,22 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 SELECT col7 FROM t1;
 col7
-80
 32
 5
+80
 SELECT col7 FROM t1;
 col7
-80
 32
 5
+80
 ALTER TABLE t1 DROP INDEX idx3, ADD INDEX idx3 (col7 ASC);
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 SELECT col7 FROM t1;
 col7
-5
 32
+5
 80
 DROP TABLE t1;
 #

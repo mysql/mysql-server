@@ -132,8 +132,8 @@ FOREIGN KEY (fk) REFERENCES parent(j));
 SELECT name FROM mysql.indexes
 WHERE table_id = (SELECT id from mysql.tables WHERE name LIKE 'child');
 name
-fk
 PRIMARY
+fk
 SELECT unique_constraint_name FROM mysql.foreign_keys
 WHERE referenced_table_name LIKE 'parent';
 unique_constraint_name
@@ -163,13 +163,13 @@ CREATE TABLE child_copy LIKE child;
 SELECT name FROM mysql.indexes
 WHERE table_id = (SELECT id from mysql.tables WHERE name LIKE 'child');
 name
-fk
 PRIMARY
+fk
 SELECT name FROM mysql.indexes
 WHERE table_id = (SELECT id from mysql.tables WHERE name LIKE 'child_copy');
 name
-fk
 PRIMARY
+fk
 ## ... but not the constraint.
 SELECT unique_constraint_name FROM mysql.foreign_keys
 WHERE referenced_table_name LIKE 'parent';
@@ -219,8 +219,8 @@ pk	fk
 SELECT name FROM mysql.indexes
 WHERE table_id = (SELECT id from mysql.tables WHERE name LIKE 'child');
 name
-fk
 PRIMARY
+fk
 SELECT unique_constraint_name FROM mysql.foreign_keys
 WHERE referenced_table_name LIKE 'parent';
 unique_constraint_name
@@ -238,8 +238,8 @@ FOREIGN KEY (fk) REFERENCES parent(j));
 SELECT name FROM mysql.indexes
 WHERE table_id = (SELECT id from mysql.tables WHERE name LIKE 'child');
 name
-fk
 PRIMARY
+fk
 SELECT unique_constraint_name FROM mysql.foreign_keys
 WHERE referenced_table_name LIKE 'parent';
 unique_constraint_name
@@ -293,9 +293,9 @@ SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_n
 FROM mysql.foreign_keys
 WHERE referenced_table_schema LIKE 'test';
 name	unique_constraint_name	referenced_table_schema	referenced_table_name
-siebling_ibfk_1	parent_key	test	parent
 grandchild_ibfk_1	child_key	test	siebling
 orphan_grandchild_ibfk_1	child_key	test	siebling
+siebling_ibfk_1	parent_key	test	parent
 # Constraint is still enforced.
 INSERT INTO siebling VALUES (1, 2, 3);
 ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`siebling`, CONSTRAINT `siebling_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `parent` (`j`))

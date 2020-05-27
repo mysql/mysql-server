@@ -31,17 +31,21 @@ create temporary table t (
 insert into t values (10, 2.2), (20, 3.3), (30, 4.4), (40, 5.5);
 #
 rollback;
+--sorted_result
 select * from t;
 update t set i = 50 where i = 40;
 update t set i = 60 where i = 30;
 rollback;
+--sorted_result
 select * from t;
 delete from t where i = 10;
 delete from t where f < 3.4;
 rollback;
+--sorted_result
 select * from t;
 delete from t where i = 10;
 delete from t;
+--sorted_result
 select * from t;
 drop table if exists t;
 
@@ -58,10 +62,13 @@ create temporary table t (
 	) engine = innodb;
 begin;
 insert into t values (10, 2.2), (20, 3.3), (30, 4.4), (40, 5.5);
+--sorted_result
 select * from t;
 commit;
+--sorted_result
 select * from t;
 rollback;
+--sorted_result
 select * from t;
 drop table if exists t;
 
@@ -79,20 +86,26 @@ create temporary table t (
 	) engine = innodb;
 begin;
 insert into t values (10, 2.2), (20, 3.3), (30, 4.4), (40, 5.5);
+--sorted_result
 select * from t;
 rollback;
+--sorted_result
 select * from t;
 insert into t values (10, 2.2), (20, 3.3), (30, 4.4), (40, 5.5);
 begin;
 delete from t;
+--sorted_result
 select * from t;
 rollback;
+--sorted_result
 select * from t;
 begin;
 update t set i = 50 where i = 40;
 update t set i = 60 where i = 30;
+--sorted_result
 select * from t;
 rollback;
+--sorted_result
 select * from t;
 drop table if exists t;
 
@@ -110,26 +123,34 @@ create temporary table t (
 start transaction;
 savepoint first;
 insert into t values (10, 2.2), (20, 3.3), (30, 4.4), (40, 5.5);
+--sorted_result
 select * from t;
 rollback to first;
+--sorted_result
 select * from t;
 insert into t values (10, 2.2), (20, 3.3), (30, 4.4), (40, 5.5);
 begin;
 delete from t where i = 10;
+--sorted_result
 select * from t;
 savepoint first;
 delete from t;
+--sorted_result
 select * from t;
 rollback to first;
+--sorted_result
 select * from t;
 commit;
+--sorted_result
 select * from t;
 begin;
 update t set i = 50 where i = 40;
 savepoint first;
 update t set i = 60 where i = 30;
+--sorted_result
 select * from t;
 rollback to first;
+--sorted_result
 select * from t;
 commit;
 drop table if exists t;
@@ -144,20 +165,25 @@ create temporary table t1 (i int, f float,
 	unique index fk(f)
 	) engine = innodb;
 insert into t1 values (1, 1.2), (2, 2.3), (3, 3.4);
+--sorted_result
 select * from t1;
 --error ER_DUP_ENTRY
 insert into t1 values (4, 4.5), (1, 5.6);
+--sorted_result
 select * from t1;
 insert into t1 values (4, 4.5), (5, 5.6);
+--sorted_result
 select * from t1;
 #
 --error ER_DUP_ENTRY
 update t1 set i = 1 where i = 4;
 truncate table t1;
 insert into t1 values (1, 1.2), (3, 2.3), (5, 3.4), (6, 7.4);
+--sorted_result
 select * from t1;
 --error ER_DUP_ENTRY
 update t1 set i = i + 1;
+--sorted_result
 select * from t1;
 drop table t1;
 

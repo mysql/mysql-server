@@ -29,10 +29,10 @@ mysql.schemata.name = 'test' AND
 mysql.indexes.table_id = mysql.tables.id AND
 mysql.schemata.id = mysql.tables.schema_id;
 name	name	name	options
+test	users	PRIMARY	flags=0;
 test	users	id_str	flags=32;
 test	users	id_str_UNIQUE	flags=32;
 test	users	ix_screen_name	flags=32;
-test	users	PRIMARY	flags=0;
 # The following statement must go through and not fall back to
 # COPY-algorithm
 ALTER TABLE users ADD COLUMN active integer DEFAULT 1 NOT NULL, ALGORITHM =INSTANT;
@@ -46,10 +46,10 @@ mysql.schemata.name = 'test' AND
 mysql.indexes.table_id = mysql.tables.id AND
 mysql.schemata.id = mysql.tables.schema_id;
 name	name	name	options
+test	users	PRIMARY	flags=0;
 test	users	id_str	flags=32;
 test	users	id_str_UNIQUE	flags=32;
 test	users	ix_screen_name	flags=32;
-test	users	PRIMARY	flags=0;
 # Rebuild table
 ALTER TABLE users ENGINE = INNODB;
 # Index options should now be 0
@@ -61,10 +61,10 @@ mysql.schemata.name = 'test' AND
 mysql.indexes.table_id = mysql.tables.id AND
 mysql.schemata.id = mysql.tables.schema_id;
 name	name	name	options
+test	users	PRIMARY	flags=0;
 test	users	id_str	flags=0;
 test	users	id_str_UNIQUE	flags=0;
 test	users	ix_screen_name	flags=0;
-test	users	PRIMARY	flags=0;
 ########################################################################
 # Remove copied files and stop the server.
 ########################################################################

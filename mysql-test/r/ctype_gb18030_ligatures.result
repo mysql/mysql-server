@@ -29,32 +29,32 @@ INSERT INTO t1 VALUES(CONVERT(_ucs2 0xFB17 USING gb18030));
 INSERT INTO t1 VALUES(CONVERT(_ucs2 0x00DF USING gb18030));
 SELECT * FROM t1;
 C
-ẚ
-ﬀ
-ﬃ
-ﬄ
-ﬁ
-ﬂ
-ẖ
-ǰ
 ß
-ﬅ
+ŉ
+ǰ
+ΐ
+ΰ
+և
+ẖ
 ẗ
 ẘ
 ẙ
-ŉ
+ẚ
 ᾲ
 ῂ
-ΐ
 ῤ
-ΰ
 ῲ
-և
+ﬀ
+ﬁ
+ﬂ
+ﬃ
+ﬄ
+ﬅ
+ﬓ
 ﬔ
 ﬕ
-ﬗ
-ﬓ
 ﬖ
+ﬗ
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 26

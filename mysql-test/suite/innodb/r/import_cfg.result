@@ -54,8 +54,8 @@ INSERT INTO t1 VALUES (1, 1);
 INSERT INTO t1 VALUES (2, 2);
 SELECT * FROM t1;
 a	b
-2	2
 1	1
+2	2
 SELECT * FROM t1 order by a;
 a	b
 1	1
@@ -275,8 +275,8 @@ ALTER TABLE t1 IMPORT TABLESPACE;
 # Show that column b is sorted inconsistently.
 SELECT * FROM t1;
 a	b
-2	2
 1	1
+2	2
 SELECT * FROM t1 order by a;
 a	b
 1	1
@@ -289,8 +289,8 @@ INSERT INTO t1 VALUES (3, 3);
 INSERT INTO t1 VALUES (4, 4);
 SELECT * FROM t1;
 a	b
-2	2
 1	1
+2	2
 3	3
 4	4
 SELECT * FROM t1 order by a;
@@ -371,8 +371,8 @@ ALTER TABLE t1 IMPORT TABLESPACE;
 # Show that column b is descending.
 SELECT * FROM t1;
 a	b
-2	2
 1	1
+2	2
 SELECT * FROM t1 order by a;
 a	b
 1	1
@@ -385,10 +385,10 @@ INSERT INTO t1 VALUES (3, 3);
 INSERT INTO t1 VALUES (4, 4);
 SELECT * FROM t1;
 a	b
-4	4
-3	3
-2	2
 1	1
+2	2
+3	3
+4	4
 SELECT * FROM t1 order by a;
 a	b
 1	1
