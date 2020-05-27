@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020 Oracle and/or its affiliates.
+  Copyright (c) 2015, 2020 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,6 @@
 #include "table.h"
 #include "dump_end_dump_task.h"
 #include "mysql_chain_element_options.h"
-#include "mysqldump_tool_chain_maker_options.h"
 #include "database_start_dump_task.h"
 #include "database_end_dump_task.h"
 #include "tables_definition_ready_dump_task.h"
@@ -59,7 +58,6 @@ public:
     Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
       message_handler, Simple_id_generator* object_id_generator,
       Mysql_chain_element_options* options,
-      Mysqldump_tool_chain_maker_options* m_mysqldump_tool_cmaker_options,
       Mysql::Tools::Base::Abstract_program* program);
   /**
     Enumerates all objects it can access, gets chains from all registered
@@ -83,8 +81,6 @@ private:
   void enumerate_event_scheduler_events(const Database& db);
 
   void enumerate_users();
-
-  Mysqldump_tool_chain_maker_options* m_mysqldump_tool_cmaker_options;
 
   /**
     Rewrite statement, enclosing it with version specific comment and with
