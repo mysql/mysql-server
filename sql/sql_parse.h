@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -282,6 +282,11 @@ bool set_default_collation(HA_CREATE_INFO *create_info,
   --skip-grant-tables server option.
 */
 #define CF_REQUIRE_ACL_CACHE (1U << 20)
+
+/**
+  Identifies statements as SHOW commands using INFORMATION_SCHEMA system views.
+*/
+#define CF_SHOW_USES_SYSTEM_VIEW (1U << 21)
 
 /* Bits in server_command_flags */
 
