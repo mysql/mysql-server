@@ -1894,7 +1894,16 @@ NdbImportImpl::CsvInputWorker::state_parse()
   log_debug(2, "state_parse");
   m_csvinput->do_parse();
   log_debug(2, "lines parsed:" << m_csvinput->m_line_list.cnt());
-  m_inputstate = InputState::State_movetail;
+  if(m_csvinput->has_error())
+  {
+    /* Cannot recover from parser error */
+    m_util.copy_error(m_error, m_csvinput->m_error);
+    m_team.m_job.m_fatal = true;
+  }
+  else
+  {
+    m_inputstate = InputState::State_movetail;
+  }
 }
 
 void
