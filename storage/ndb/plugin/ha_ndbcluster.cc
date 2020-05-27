@@ -15661,10 +15661,10 @@ enum_alter_inplace_result ha_ndbcluster::check_if_supported_inplace_alter(
   return result;
 }
 
-bool ha_ndbcluster::parse_comment_changes(NdbDictionary::Table *new_tab,
-                                          const NdbDictionary::Table *old_tab,
-                                          HA_CREATE_INFO *create_info, THD *thd,
-                                          bool &max_rows_changed) const {
+bool ha_ndbcluster::parse_comment_changes(
+    NdbDictionary::Table *new_tab, const NdbDictionary::Table *old_tab,
+    HA_CREATE_INFO *create_info, THD *thd, bool &max_rows_changed,
+    bool *partition_balance_in_comment) const {
   DBUG_TRACE;
   NDB_Modifiers table_modifiers(ndb_table_modifier_prefix, ndb_table_modifiers);
   if (table_modifiers.loadComment(create_info->comment.str,
@@ -15755,6 +15755,9 @@ bool ha_ndbcluster::parse_comment_changes(NdbDictionary::Table *new_tab,
     new_tab->setFragmentCount(0);
     new_tab->setFragmentData(0, 0);
     new_tab->setPartitionBalance(part_bal);
+    if (partition_balance_in_comment != nullptr) {
+      *partition_balance_in_comment = true;
+    }
     DBUG_PRINT("info", ("parse_comment_changes: PartitionBalance: %s",
                         new_tab->getPartitionBalanceString()));
   } else {
@@ -15851,6 +15854,7 @@ bool ha_ndbcluster::prepare_inplace_alter_table(
                       altered_table->s->table_name.str, alter_flags));
 
   bool max_rows_changed = false;
+  bool partition_balance_in_comment = false;
   bool comment_changed = false;
   if (alter_flags & Alter_inplace_info::CHANGE_CREATE_OPTION) {
     if (create_info->used_fields & HA_CREATE_USED_MAX_ROWS)
@@ -15959,9 +15963,15 @@ bool ha_ndbcluster::prepare_inplace_alter_table(
     }
   }
 
+  if (comment_changed &&
+      parse_comment_changes(new_tab, old_tab, create_info, thd,
+                            max_rows_changed, &partition_balance_in_comment)) {
+    goto abort;
+  }
+
   if (alter_flags & Alter_inplace_info::ALTER_TABLE_REORG ||
       alter_flags & Alter_inplace_info::ADD_PARTITION || max_rows_changed ||
-      comment_changed) {
+      partition_balance_in_comment) {
     if (alter_flags & Alter_inplace_info::ALTER_TABLE_REORG) {
       new_tab->setFragmentCount(0);
       new_tab->setFragmentData(0, 0);
@@ -15971,10 +15981,6 @@ bool ha_ndbcluster::prepare_inplace_alter_table(
       new_tab->setFragmentCount(part_info->num_parts);
       new_tab->setPartitionBalance(
           NdbDictionary::Object::PartitionBalance_Specific);
-    } else if (comment_changed &&
-               parse_comment_changes(new_tab, old_tab, create_info, thd,
-                                     max_rows_changed)) {
-      goto abort;
     } else if (max_rows_changed) {
       ulonglong rows = create_info->max_rows;
       uint no_fragments = get_no_fragments(rows);
