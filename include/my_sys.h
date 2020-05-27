@@ -544,8 +544,6 @@ inline size_t my_b_bytes_in_cache(const IO_CACHE *info) {
   return *info->current_end - *info->current_pos;
 }
 
-typedef uint32 ha_checksum;
-
 /*
   How much overhead does malloc have. The code often allocates
   something like 1024-MALLOC_OVERHEAD bytes
@@ -818,7 +816,6 @@ extern bool my_uncompress(mysql_compress_context *, uchar *, size_t, size_t *);
 extern uchar *my_compress_alloc(mysql_compress_context *comp_ctx,
                                 const uchar *packet, size_t *len,
                                 size_t *complen);
-extern ha_checksum my_checksum(ha_checksum crc, const uchar *mem, size_t count);
 
 extern uint my_set_max_open_files(uint files);
 
