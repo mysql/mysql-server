@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,7 @@
 #define STORAGE_MYISAM_MYISAMDEF_INCLUDED 1
 
 #include "my_alloc.h"
+#include "my_checksum.h"  // ha_checksum
 #include "my_icp.h"
 #include "my_pointer_arithmetic.h"
 #include "myisam.h"     /* Structs & some defines */

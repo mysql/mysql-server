@@ -35,7 +35,6 @@ SET(MYSYS_SOURCES
   base64.cc
   charset.cc
   charset-def.cc
-  checksum.cc
   dbug.cc
   errors.cc
   lf_alloc-pin.cc

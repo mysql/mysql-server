@@ -48,8 +48,9 @@
 #include "libbinlogevents/include/rows_event.h"
 #include "libbinlogevents/include/statement_events.h"
 #include "libbinlogevents/include/uuid.h"
-#include "m_string.h"   // native_strncasecmp
-#include "my_bitmap.h"  // MY_BITMAP
+#include "m_string.h"     // native_strncasecmp
+#include "my_bitmap.h"    // MY_BITMAP
+#include "my_checksum.h"  // ha_checksum
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"

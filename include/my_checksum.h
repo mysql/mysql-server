@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -11,11 +12,6 @@
    permission to link the program and your derivative works with the
    separately licensed software that they have included with MySQL.
 
-   Without limiting anything contained in the foregoing, this file,
-   which is part of C Driver for MySQL (Connector/C), is also subject to the
-   Universal FOSS Exception, version 1.0, a copy of which can be found at
-   http://oss.oracle.com/licenses/universal-foss-exception.
-
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -25,27 +21,40 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#ifndef MY_CHECKSUM_INCLUDED
+#define MY_CHECKSUM_INCLUDED
+
 /**
-  @file mysys/checksum.cc
+  @file include/my_checksum.h
+  Abstraction functions over zlib/intrinsics.
 */
 
-#include <stddef.h>
-#include <sys/types.h>
-#include <zlib.h>
+#include <zlib.h>  // crc32
+#include <cassert>
+#include <cstdint>      // std::uint32_t
+#include <limits>       // std::numeric_limits
+#include <type_traits>  // std::is_convertible
 
-#include "my_inttypes.h"
-#include "my_sys.h"
+#include "my_config.h"
 
-/*
-  Calculate a long checksum for a memoryblock.
+using ha_checksum = std::uint32_t;
 
-  SYNOPSIS
-    my_checksum()
-      crc       start value for crc
-      pos       pointer to memory block
-      length    length of the block
+/**
+   Calculate a CRC32 checksum for a memoryblock.
+
+   @param crc       Start value for crc.
+   @param pos       Pointer to memory block.
+   @param length    Length of the block.
+
+   @returns Updated checksum.
 */
 
-ha_checksum my_checksum(ha_checksum crc, const uchar *pos, size_t length) {
-  return (ha_checksum)crc32((uint)crc, pos, (uint)length);
+inline ha_checksum my_checksum(ha_checksum crc, const unsigned char *pos,
+                               size_t length) {
+  static_assert(std::is_convertible<uLong, ha_checksum>::value,
+                "uLong cannot be converted to ha_checksum");
+  assert(crc32_z(static_cast<ha_checksum>(crc), pos, length) <
+         std::numeric_limits<ha_checksum>::max());
+  return crc32_z(static_cast<ha_checksum>(crc), pos, length);
 }
+#endif  // MY_CHECKSUM_INCLUDED
