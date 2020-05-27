@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -897,7 +897,7 @@ dberr_t start_logging(Tablespace *undo_space) {
   static int fail_start_logging_count;
   DBUG_EXECUTE_IF(
       "ib_undo_trunc_fail_start_logging", if (++fail_start_logging_count == 1) {
-        ib::info() << "ib_undo_trunc_fail_start_logging";
+        ib::info(ER_IB_MSG_1352) << "ib_undo_trunc_fail_start_logging";
         return (DB_OUT_OF_MEMORY);
       });
 #endif /* UNIV_DEBUG */
@@ -1371,7 +1371,7 @@ static bool trx_purge_truncate_marked_undo_low(space_id_t space_num,
   static int fail_marked_space_count;
   DBUG_EXECUTE_IF(
       "ib_undo_trunc_fail_marked_space", if (++fail_marked_space_count == 1) {
-        ib::info() << "ib_undo_trunc_fail_marked_space";
+        ib::info(ER_IB_MSG_1353) << "ib_undo_trunc_fail_marked_space";
         marked_space = nullptr;
       });
 #endif /* UNIV_DEBUG */
@@ -1406,7 +1406,7 @@ static bool trx_purge_truncate_marked_undo_low(space_id_t space_num,
   static int fast_shutdown_fail_count;
   DBUG_EXECUTE_IF(
       "ib_undo_trunc_fail_fast_shutdown", if (++fast_shutdown_fail_count == 1) {
-        ib::info() << "ib_undo_trunc_fail_fast_shutdown";
+        ib::info(ER_IB_MSG_1354) << "ib_undo_trunc_fail_fast_shutdown";
         in_fast_shutdown = true;
       });
 #endif /* UNIV_DEBUG */
@@ -1520,7 +1520,7 @@ static bool trx_purge_truncate_marked_undo() {
   DBUG_EXECUTE_IF(
       "ib_undo_trunc_fail_get_mdl", if (++fail_get_mdl_count == 1) {
         dd_release_mdl(mdl_ticket);
-        ib::info() << "ib_undo_trunc_fail_get_mdl";
+        ib::info(ER_IB_MSG_1355) << "ib_undo_trunc_fail_get_mdl";
         dd_result = DD_FAILURE;
       });
 #endif /* UNIV_DEBUG */

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -508,8 +508,12 @@ struct OSMutex {
     ret = pthread_mutex_destroy(&m_mutex);
 
     if (ret != 0) {
-      ib::error() << "Return value " << ret
-                  << " when calling pthread_mutex_destroy().";
+#ifdef UNIV_NO_ERR_MSGS
+      ib::error()
+#else
+      ib::error(ER_IB_MSG_1372)
+#endif
+          << "Return value " << ret << " when calling pthread_mutex_destroy().";
     }
 #endif /* _WIN32 */
     ut_d(m_freed = true);
@@ -1090,9 +1094,14 @@ struct btrsea_sync_check : public sync_check_functor_t {
          level != SYNC_DICT_OPERATION && level != SYNC_TRX_I_S_LAST_READ &&
          level != SYNC_TRX_I_S_RWLOCK)) {
       m_result = true;
-      ib::error() << "Debug: Calling thread does not hold search "
-                     "latch but does hold latch level "
-                  << level << ".";
+#ifdef UNIV_NO_ERR_MSGS
+      ib::error()
+#else
+      ib::error(ER_IB_MSG_1373)
+#endif
+          << "Debug: Calling thread does not hold search "
+             "latch but does hold latch level "
+          << level << ".";
 
       return (m_result);
     }
@@ -1131,8 +1140,13 @@ struct dict_sync_check : public sync_check_functor_t {
          /* This only happens in recv_apply_hashed_log_recs. */
          level != SYNC_RECV_WRITER && level != SYNC_NO_ORDER_CHECK)) {
       m_result = true;
-      ib::error() << "Debug: Dictionary latch order violation for level "
-                  << level << ".";
+#ifdef UNIV_NO_ERR_MSGS
+      ib::error()
+#else
+      ib::error(ER_IB_MSG_1374)
+#endif
+          << "Debug: Dictionary latch order violation for level " << level
+          << ".";
 
       return (true);
     }
@@ -1177,7 +1191,12 @@ struct sync_allowed_latches : public sync_check_functor_t {
       }
     }
 
-    ib::error() << "Debug: sync_allowed_latches violation for level=" << level;
+#ifdef UNIV_NO_ERR_MSGS
+    ib::error()
+#else
+    ib::error(ER_IB_MSG_1375)
+#endif
+        << "Debug: sync_allowed_latches violation for level=" << level;
     m_result = true;
     return (m_result);
   }

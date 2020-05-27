@@ -10929,6 +10929,117 @@ ER_AUTHCACHE_DEFAULT_ROLES_UNKNOWN_AUTHORIZATION_ID
 ER_IB_ERR_DDL_LOG_INSERT_FAILURE
   eng "Couldn't insert entry in ddl log for ddl."
 
+ER_IB_LOCK_VALIDATE_LATCH_ORDER_VIOLATION
+  eng "%s"
+
+ER_IB_RELOCK_LATCH_ORDER_VIOLATION
+  eng "%s"
+
+ER_IB_MSG_1352
+  eng "%s"
+
+ER_IB_MSG_1353
+  eng "%s"
+
+ER_IB_MSG_1354
+  eng "%s"
+
+ER_IB_MSG_1355
+  eng "%s"
+
+ER_IB_MSG_1356
+  eng "%s"
+
+ER_IB_MSG_1357
+  eng "%s"
+
+ER_IB_MSG_1358
+  eng "%s"
+
+ER_IB_MSG_1359
+  eng "%s"
+
+ER_IB_FAILED_TO_DELETE_TABLESPACE_FILE
+  eng "%s"
+
+ER_IB_UNABLE_TO_EXPAND_TEMPORARY_TABLESPACE_POOL
+  eng "%s"
+
+ER_IB_TMP_TABLESPACE_CANNOT_CREATE_DIRECTORY
+  eng "%s"
+
+ER_IB_MSG_SCANNING_TEMP_TABLESPACE_DIR
+  eng "%s"
+
+ER_IB_ERR_TEMP_TABLESPACE_DIR_DOESNT_EXIST
+  eng "%s"
+
+ER_IB_ERR_TEMP_TABLESPACE_DIR_EMPTY
+  eng "%s"
+
+ER_IB_ERR_TEMP_TABLESPACE_DIR_CONTAINS_SEMICOLON
+  eng "%s"
+
+ER_IB_ERR_TEMP_TABLESPACE_DIR_SUBDIR_OF_DATADIR
+  eng "%s"
+
+ER_IB_ERR_SCHED_SETAFFNINITY_FAILED
+  eng "%s"
+
+ER_IB_ERR_UNKNOWN_PAGE_FETCH_MODE
+  eng "%s"
+
+ER_IB_ERR_LOG_PARSING_BUFFER_OVERFLOW
+  eng "%s"
+
+ER_IB_ERR_NOT_ENOUGH_MEMORY_FOR_PARSE_BUFFER
+  eng "%s"
+
+ER_IB_MSG_1372
+  eng "%s"
+
+ER_IB_MSG_1373
+  eng "%s"
+
+ER_IB_MSG_1374
+  eng "%s"
+
+ER_IB_MSG_1375
+  eng "%s"
+
+ER_IB_ERR_ZLIB_UNCOMPRESS_FAILED
+  eng "%s"
+
+ER_IB_ERR_ZLIB_BUF_ERROR
+  eng "%s"
+
+ER_IB_ERR_ZLIB_MEM_ERROR
+  eng "%s"
+
+ER_IB_ERR_ZLIB_DATA_ERROR
+  eng "%s"
+
+ER_IB_ERR_ZLIB_UNKNOWN_ERROR
+  eng "%s"
+
+ER_IB_MSG_1381
+  eng "%s"
+
+ER_IB_ERR_INDEX_RECORDS_WRONG_ORDER
+  eng "%s"
+
+ER_IB_ERR_INDEX_DUPLICATE_KEY
+  eng "%s"
+
+ER_IB_ERR_FOUND_N_DUPLICATE_KEYS
+  eng "%s"
+
+ER_IB_ERR_FOUND_N_RECORDS_WRONG_ORDER
+  eng "%s"
+
+ER_IB_ERR_PARALLEL_READ_OOM
+  eng "%s"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

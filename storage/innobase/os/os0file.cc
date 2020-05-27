@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -435,7 +435,7 @@ class AIO {
   /** Non const version */
   Slot *at(ulint i) MY_ATTRIBUTE((warn_unused_result)) {
     if (i >= m_slots.size()) {
-      ib::fatal() << "i: " << i << " slots: " << m_slots.size();
+      ib::fatal(ER_IB_MSG_1357) << "i: " << i << " slots: " << m_slots.size();
     }
 
     return (&m_slots[i]);
@@ -2849,7 +2849,7 @@ static int os_file_fsync_posix(os_file_t file) {
 
       case EIO:
 
-        ib::fatal() << "fsync() returned EIO, aborting.";
+        ib::fatal(ER_IB_MSG_1358) << "fsync() returned EIO, aborting.";
         break;
 
       case EINTR:
@@ -5468,8 +5468,8 @@ bool os_file_set_size_fast(const char *name, pfs_os_file_t pfs_file,
 
   /* Print the failure message only once for all the redo log files. */
   if (print_message) {
-    ib::info() << "fallocate() failed with errno " << errno
-               << " - falling back to writing NULLs.";
+    ib::info(ER_IB_MSG_1359) << "fallocate() failed with errno " << errno
+                             << " - falling back to writing NULLs.";
     print_message = false;
   }
 #endif /* !NO_FALLOCATE && UNIV_LINUX && HAVE_FALLOC_FL_ZERO_RANGE */
