@@ -2982,6 +2982,12 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
         if (all_order_fields_used) {
           // The ordering for DISTINCT already gave us the right sort order,
           // so no need to sort again.
+          //
+          // TODO(sgunders): If there are elements in desired_order that are not
+          // in fields_list, consider whether it would be cheaper to add them on
+          // the end to avoid the second lsort, even though it would make the
+          // first one more expensive. See e.g. main.distinct for a case.
+          desired_order = nullptr;
           filesort = nullptr;
         } else if (filesort != nullptr && !filesort->using_addon_fields()) {
           // We have the rather unusual situation here that we have two sorts
@@ -3009,6 +3015,17 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
                      HA_POS_ERROR, /*force_stable_sort=*/false,
                      /*remove_duplicates=*/true, force_sort_positions,
                      /*unwrap_rollup=*/false);
+
+        if (desired_order != nullptr && filesort == nullptr) {
+          // We picked up the desired order from the first table, but we cannot
+          // reuse its Filesort object, as it would get the wrong slice and
+          // potentially addon fields. Create a new one.
+          filesort = new (thd->mem_root)
+              Filesort(thd, qep_tab->table(), /*keep_buffers=*/false,
+                       desired_order, HA_POS_ERROR, /*force_stable_sort=*/false,
+                       /*remove_duplicates=*/false, force_sort_positions,
+                       /*unwrap_rollup=*/false);
+        }
       }
     }
 
