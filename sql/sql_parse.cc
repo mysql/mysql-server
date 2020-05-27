@@ -1029,6 +1029,22 @@ void init_sql_command_flags(void) {
   sql_command_flags[SQLCOM_DROP_SRS] |=
       CF_NEEDS_AUTOCOMMIT_OFF | CF_POTENTIAL_ATOMIC_DDL;
 
+  /*
+    Mark these statements as SHOW commands using INFORMATION_SCHEMA system
+    views.
+  */
+  sql_command_flags[SQLCOM_SHOW_CHARSETS] |= CF_SHOW_USES_SYSTEM_VIEW;
+  sql_command_flags[SQLCOM_SHOW_COLLATIONS] |= CF_SHOW_USES_SYSTEM_VIEW;
+  sql_command_flags[SQLCOM_SHOW_DATABASES] |= CF_SHOW_USES_SYSTEM_VIEW;
+  sql_command_flags[SQLCOM_SHOW_TABLES] |= CF_SHOW_USES_SYSTEM_VIEW;
+  sql_command_flags[SQLCOM_SHOW_TABLE_STATUS] |= CF_SHOW_USES_SYSTEM_VIEW;
+  sql_command_flags[SQLCOM_SHOW_FIELDS] |= CF_SHOW_USES_SYSTEM_VIEW;
+  sql_command_flags[SQLCOM_SHOW_KEYS] |= CF_SHOW_USES_SYSTEM_VIEW;
+  sql_command_flags[SQLCOM_SHOW_EVENTS] |= CF_SHOW_USES_SYSTEM_VIEW;
+  sql_command_flags[SQLCOM_SHOW_TRIGGERS] |= CF_SHOW_USES_SYSTEM_VIEW;
+  sql_command_flags[SQLCOM_SHOW_STATUS_PROC] |= CF_SHOW_USES_SYSTEM_VIEW;
+  sql_command_flags[SQLCOM_SHOW_STATUS_FUNC] |= CF_SHOW_USES_SYSTEM_VIEW;
+
   /**
     Some statements doesn't if the ACL CACHE is disabled using the
     --skip-grant-tables server option.
@@ -1359,6 +1375,20 @@ static bool deny_updates_if_read_only_option(THD *thd, TABLE_LIST *all_tables) {
 
   /* Assuming that only temporary tables are modified. */
   return false;
+}
+
+/**
+  Check whether the statement is a SHOW command using INFORMATION_SCHEMA system
+  views.
+
+  @param  thd   Thread (session) context.
+
+  @return true  if command uses INFORMATION_SCHEMA system view.
+  @return false otherwise.
+
+*/
+inline bool is_show_cmd_using_system_view(THD *thd) {
+  return sql_command_flags[thd->lex->sql_command] & CF_SHOW_USES_SYSTEM_VIEW;
 }
 
 /**
@@ -3113,6 +3143,9 @@ int mysql_execute_command(THD *thd, bool first_level) {
 
       thd->clear_current_query_costs();
 
+      Enable_derived_merge_guard derived_merge_guard(
+          thd, is_show_cmd_using_system_view(thd));
+
       res = show_precheck(thd, lex, true);
 
       if (!res) res = execute_show(thd, all_tables);
@@ -4560,11 +4593,16 @@ int mysql_execute_command(THD *thd, bool first_level) {
     case SQLCOM_EXPLAIN_OTHER:
     case SQLCOM_RESTART_SERVER:
     case SQLCOM_CREATE_SRS:
-    case SQLCOM_DROP_SRS:
+    case SQLCOM_DROP_SRS: {
       DBUG_ASSERT(lex->m_sql_cmd != nullptr);
-      res = lex->m_sql_cmd->execute(thd);
-      break;
 
+      Enable_derived_merge_guard derived_merge_guard(
+          thd, is_show_cmd_using_system_view(thd));
+
+      res = lex->m_sql_cmd->execute(thd);
+
+      break;
+    }
     case SQLCOM_ALTER_USER: {
       LEX_USER *user, *tmp_user;
       bool changing_own_password = false;

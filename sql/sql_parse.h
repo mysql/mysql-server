@@ -280,6 +280,11 @@ bool set_default_collation(HA_CREATE_INFO *create_info,
 */
 #define CF_REQUIRE_ACL_CACHE (1U << 20)
 
+/**
+  Identifies statements as SHOW commands using INFORMATION_SCHEMA system views.
+*/
+#define CF_SHOW_USES_SYSTEM_VIEW (1U << 21)
+
 /* Bits in server_command_flags */
 
 /**
