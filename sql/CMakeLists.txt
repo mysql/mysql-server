@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -1034,6 +1034,21 @@ SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE)
 TARGET_LINK_LIBRARIES(mysqld
   sql_main sql_gis binlog rpl master slave sql_dd mysys
   minchassis binlogevents_static ${ICU_LIBRARIES})
+
+# Add dependency on ldap library, to ensure it is not unloaded
+# when we shutdown the authentication plugin.
+# For Valgrind, we need it to enable our suppressions.
+# For OpenSSL in the 1.0.x series, we need it for clean shutdown.
+IF(WITH_VALGRIND)
+  SET(LINK_MYSQLD_LDAP_LIBRARY 1)
+ENDIF()
+IF(WITH_SSL STREQUAL "system" AND
+    "${OPENSSL_MAJOR_VERSION}.${OPENSSL_MINOR_VERSION}" VERSION_LESS "1.1")
+  SET(LINK_MYSQLD_LDAP_LIBRARY 1)
+ENDIF()
+IF(WITH_AUTHENTICATION_LDAP AND LINK_MYSQLD_LDAP_LIBRARY)
+  TARGET_LINK_LIBRARIES(mysqld ${LDAP_LIBRARY})
+ENDIF()
 
 # Remove transitive link dependencies when linking plugins
 SET_TARGET_PROPERTIES(mysqld PROPERTIES INTERFACE_LINK_LIBRARIES "")
