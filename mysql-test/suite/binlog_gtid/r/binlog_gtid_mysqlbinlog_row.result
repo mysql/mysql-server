@@ -2190,6 +2190,7 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=#/*!*/;
+SET @@session.time_zone='SYSTEM'/*!*/;
 BEGIN
 /*!*/;
 # at #
@@ -2265,7 +2266,6 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=#/*!*/;
-SET @@session.time_zone='SYSTEM'/*!*/;
 BEGIN
 /*!*/;
 # at #
@@ -6437,6 +6437,7 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=#/*!*/;
+SET @@session.time_zone='+00:00'/*!*/;
 BEGIN
 /*!*/;
 # at #
@@ -6466,7 +6467,6 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=#/*!*/;
-SET @@session.time_zone='+00:00'/*!*/;
 BEGIN
 /*!*/;
 # at #

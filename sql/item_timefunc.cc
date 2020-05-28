@@ -1651,7 +1651,9 @@ void MYSQL_TIME_cache::set_datetime(MYSQL_TIME *ltime, uint8 dec_arg,
   DBUG_ASSERT(ltime->time_type == MYSQL_TIMESTAMP_DATETIME ||
               ltime->time_type == MYSQL_TIMESTAMP_DATETIME_TZ);
   time = *ltime;
-  adjust_time_zone_displacement(tz, &time);
+  if (adjust_time_zone_displacement(tz, &time)) {
+    DBUG_ASSERT(false);
+  }
   time_packed = TIME_to_longlong_datetime_packed(time);
 
   dec = dec_arg;

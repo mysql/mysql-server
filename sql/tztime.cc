@@ -781,6 +781,31 @@ static void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t sec_in_utc,
   tmp->second += hit;
 }
 
+/**
+  Converts time from a MYSQL_TIME struct to a unix timestamp-like 64 bit
+  integer. The function is guaranteed to use 64 bits on any platform.
+
+  @todo Make sec_since_epoch() call this function instead of duplicating the
+  code.
+
+  @param mt The time to convert.
+  @return A value compatible with a 64 bit Unix timestamp.
+*/
+static int64_t sec_since_epoch64(const MYSQL_TIME &mt) {
+  DBUG_ASSERT(mt.month > 0 && mt.month < 13);
+  // The year can be negative wrt to the epoch, hence the cast to signed.
+  auto year = static_cast<int64_t>(mt.year);
+  int64_t days = year * DAYS_PER_NYEAR - EPOCH_YEAR * DAYS_PER_NYEAR +
+                 LEAPS_THRU_END_OF(year - 1) -
+                 LEAPS_THRU_END_OF(EPOCH_YEAR - 1);
+  days += mon_starts[isleap(year)][mt.month - 1];
+  days += mt.day - 1;
+
+  return ((days * HOURS_PER_DAY + mt.hour) * MINS_PER_HOUR + mt.minute) *
+             SECS_PER_MIN +
+         mt.second;
+}
+
 /*
   Converts local time in broken down representation to local
   time zone analog of my_time_t represenation.
@@ -1002,20 +1027,37 @@ Time_zone *my_tz_find(const int64 displacement);
   This function is intended only for the types with time zone, and is a no-op
   for all other types.
 
+  If the adjusted value falls outside the range of the `DATETIME` type, an error
+  is raised and `true` returned.
+
   @param tz The time zone to adjust according to.
   @param[in,out] mt Date/Time value to be adjusted.
-*/
-void adjust_time_zone_displacement(const Time_zone *tz, MYSQL_TIME *mt) {
-  if (mt->time_type != MYSQL_TIMESTAMP_DATETIME_TZ) return;
 
-  my_time_t epoch_secs_in_utc =
-      sec_since_epoch(*mt) - mt->time_zone_displacement;
+  @return false on success. true if an error was raised.
+*/
+bool adjust_time_zone_displacement(const Time_zone *tz, MYSQL_TIME *mt) {
+  if (mt->time_type != MYSQL_TIMESTAMP_DATETIME_TZ) return false;
+
+  MYSQL_TIME out;
+  std::int64_t epoch_secs_in_utc =
+      sec_since_epoch64(*mt) - mt->time_zone_displacement;
+
   ulong microseconds = mt->second_part;
 
-  tz->gmt_sec_to_TIME(mt, epoch_secs_in_utc);
-  mt->second_part = microseconds;
+  tz->gmt_sec_to_TIME(&out, epoch_secs_in_utc);
+  out.second_part = microseconds;
 
+  if (check_datetime_range(out)) {
+    char str[MAX_DATE_STRING_REP_LENGTH];
+    // to do: Get the correct number of decimal places into the error message.
+    my_datetime_to_str(out, str, 0);
+    my_error(ER_TRUNCATED_WRONG_VALUE, myf(0), "temporal", str);
+    return true;
+  }
+
+  *mt = out;
   DBUG_ASSERT(mt->time_type == MYSQL_TIMESTAMP_DATETIME);
+  return false;
 }
 
 /*
