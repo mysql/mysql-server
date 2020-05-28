@@ -9029,37 +9029,37 @@ ER_IB_MSG_1164
 ER_IB_MSG_1165
   eng "%s"
 
-ER_IB_MSG_1166
+ER_IB_MSG_UNDO_TRUNCATE_FAIL_TO_READ_LOG_FILE
+  eng "Unable to read the existing undo truncate log file '%s'. The error is %s"
+
+ER_IB_MSG_UNDO_MARKED_FOR_TRUNCATE
+  eng "Undo tablespace %s is marked for truncate"
+
+OBSOLETE_ER_IB_MSG_UNDO_INJECT_BEFORE_MDL
   eng "%s"
 
-ER_IB_MSG_1167
+ER_IB_MSG_UNDO_TRUNCATE_START
+  eng "Truncating UNDO tablespace %s"
+
+OBSOLETE_ER_IB_MSG_UNDO_INJECT_BEFORE_DDL_LOG_START
   eng "%s"
 
-ER_IB_MSG_1168
-  eng "%s"
-
-ER_IB_MSG_1169
-  eng "%s"
-
-ER_IB_MSG_1170
-  eng "%s"
-
-ER_IB_MSG_1171
+ER_IB_MSG_UNDO_TRUNCATE_DELAY_BY_LOG_CREATE
   eng "Cannot create truncate log for undo tablespace '%s'."
 
-ER_IB_MSG_1172
+OBSOLETE_ER_IB_MSG_UNDO_INJECT_BEFORE_TRUNCATE
   eng "%s"
 
-ER_IB_MSG_1173
+ER_IB_MSG_UNDO_TRUNCATE_DELAY_BY_FAILURE
   eng "Failed to truncate undo tablespace '%s'."
 
-ER_IB_MSG_1174
+OBSOLETE_ER_IB_MSG_UNDO_INJECT_BEFORE_STATE_UPDATE
   eng "%s"
 
-ER_IB_MSG_1175
-  eng "%s"
+ER_IB_MSG_UNDO_TRUNCATE_COMPLETE
+  eng "Completed truncate of undo tablespace %s."
 
-ER_IB_MSG_1176
+OBSOLETE_ER_IB_MSG_UNDO_INJECT_TRUNCATE_DONE
   eng "%s"
 
 ER_IB_MSG_1177
@@ -9849,16 +9849,16 @@ ER_IB_MSG_FOUND_WRONG_UNDO_SPACE
 ER_IB_MSG_NOT_END_WITH_IBU
   eng "Cannot use %s as an undo tablespace because it does not end with '.ibu'."
 
-ER_IB_MSG_UNDO_TRUNC_EMPTY_FILE
+OBSOLETE_ER_IB_MSG_UNDO_TRUNCATE_EMPTY_FILE
   eng "ib_undo_trunc_empty_file"
 
-ER_IB_MSG_UNDO_TRUNC_BEFOR_DD_UPDATE
+OBSOLETE_ER_IB_MSG_UNDO_INJECT_BEFORE_DD_UPDATE
   eng "ib_undo_trunc_before_dd_update"
 
-ER_IB_MSG_UNDO_TRUNC_BEFORE_UNDO_LOGGING
+OBSOLETE_ER_IB_MSG_UNDO_INJECT_BEFORE_UNDO_LOGGING
   eng "ib_undo_trunc_before_done_logging"
 
-ER_IB_MSG_UNDO_TRUNK_BEFORE_RSEG
+OBSOLETE_ER_IB_MSG_UNDO_INJECT_BEFORE_RSEG
   eng "ib_undo_trunc_before_rsegs"
 
 ER_IB_MSG_FAILED_TO_FINISH_TRUNCATE
@@ -10827,7 +10827,7 @@ ER_IB_ERR_PAGE_ARCH_RECOVERY_FAILED
 ER_IB_ERR_PAGE_ARCH_INVALID_FORMAT
   eng "Invalid archived file name format. The archived file is supposed to have the format %s + [0-9]*."
 
-ER_IB_MSG_UNDO_TRUNCATION_TOO_OFTEN
+ER_IB_MSG_UNDO_TRUNCATE_TOO_OFTEN
   eng "Undo Truncation is occurring too often. Consider increasing --innodb-max-undo-log-size."
 
 ER_INVALID_XPLUGIN_SOCKET_SAME_AS_SERVER
@@ -10935,19 +10935,19 @@ ER_IB_LOCK_VALIDATE_LATCH_ORDER_VIOLATION
 ER_IB_RELOCK_LATCH_ORDER_VIOLATION
   eng "%s"
 
-ER_IB_MSG_1352
+OBSOLETE_ER_IB_MSG_1352
   eng "%s"
 
-ER_IB_MSG_1353
+OBSOLETE_ER_IB_MSG_1353
   eng "%s"
 
-ER_IB_MSG_1354
+OBSOLETE_ER_IB_MSG_1354
   eng "%s"
 
-ER_IB_MSG_1355
+OBSOLETE_ER_IB_MSG_1355
   eng "%s"
 
-ER_IB_MSG_1356
+OBSOLETE_ER_IB_MSG_1356
   eng "%s"
 
 ER_IB_MSG_1357
@@ -11039,6 +11039,30 @@ ER_IB_ERR_FOUND_N_RECORDS_WRONG_ORDER
 
 ER_IB_ERR_PARALLEL_READ_OOM
   eng "%s"
+
+ER_IB_MSG_UNDO_MARKED_ACTIVE
+  eng "The state of undo tablespace %s is set to active implicitly."
+
+ER_IB_MSG_UNDO_ALTERED_ACTIVE
+  eng "The state of undo tablespace %s is set to 'active' by ALTER TABLESPACE."
+
+ER_IB_MSG_UNDO_ALTERED_INACTIVE
+  eng "The state of undo tablespace %s is set to 'inactive' by ALTER TABLESPACE."
+
+ER_IB_MSG_UNDO_MARKED_EMPTY
+  eng "The state of undo tablespace %s is set to 'empty'."
+
+ER_IB_MSG_UNDO_TRUNCATE_DELAY_BY_CLONE
+  eng "Delaying truncate of undo tablespace %s due to clone activity."
+
+ER_IB_MSG_UNDO_TRUNCATE_DELAY_BY_MDL
+  eng "Delaying truncate of undo tablespace %s due to a metadata lock."
+
+ER_IB_MSG_UNDO_INJECT_CRASH
+  eng "Injected debug crash point: %s"
+
+ER_IB_MSG_UNDO_INJECT_FAILURE
+  eng "Injected debug failure point: %s"
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt

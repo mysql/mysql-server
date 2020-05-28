@@ -748,6 +748,32 @@ extern ib_mutex_t ddl_mutex;
 /** A global object that contains a vector of undo::Tablespace structs. */
 extern Tablespaces *spaces;
 
+#ifdef UNIV_DEBUG
+/**  Inject a crash if a certain SET GLOBAL DEBUG has been set.
+Before DBUG_SUICIDE(), write an entry about this crash to the error log
+and flush the redo log. */
+void inject_crash(const char *injection_point_name);
+
+/** Inject a failure in the undo truncation debug compiled code at various
+places so that it fails the first time it hits and succeeds after that. */
+class Inject_failure_once {
+  bool m_already_failed;
+  const char *m_inject_name;
+
+ public:
+  Inject_failure_once(const char *inject_name)
+      : m_already_failed{false}, m_inject_name{inject_name} {}
+
+  /**  If a certain SET GLOBAL DEBUG has been set and this is the first time
+  this has been called for that injection point, write an entry to the
+  error log and return true so that the caller can cause the failure.
+  @return true iff compiled with debug and the debug point has been set
+          and this it the first call for this debug point. */
+  bool should_fail();
+};
+
+#endif /* UNIV_DEBUG */
+
 /** Create the truncate log file. Needed to track the state of truncate during
 a crash. An auxiliary redo log file undo_<space_id>_trunc.log will be created
 while the truncate of the UNDO is in progress. This file is required during

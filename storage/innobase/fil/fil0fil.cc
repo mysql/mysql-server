@@ -758,8 +758,8 @@ class Fil_shard {
   /** Close all open files. */
   void close_all_files();
 
-  /** Detach a space object from the tablespace memory cache.
-  Closes the tablespace files but does not delete them.
+  /** Detach a space object from the tablespace memory cache and
+  closes the tablespace files but does not delete them.
   There must not be any pending I/O's or flushes on the files.
   @param[in,out]	space		tablespace */
   void space_detach(fil_space_t *space);
@@ -1207,11 +1207,13 @@ class Fil_shard {
       MY_ATTRIBUTE((warn_unused_result));
 
   /** Get the file name for IO and the local offset within that file.
-  @param[in]	req_type	IO context
-  @param[in,out]	space		Tablespace for IO
-  @param[in,out]	page_no		The relative page number in the file
-  @param[out]	file		File node
-  @return DB_SUCCESS or error code */
+  @param[in]      req_type  IO context
+  @param[in,out]  space     Tablespace for IO
+  @param[in,out]  page_no   The relative page number in the file
+  @param[out]     file      File node if DB_SUCCESS, NULL if not
+  @retval DB_SUCCESS if the file is found with the page_no
+  @retval DB_ERROR if the file is not found or does not contain the page.
+                   in this case file == nullptr */
   static dberr_t get_file_for_io(const IORequest &req_type, fil_space_t *space,
                                  page_no_t *page_no, fil_node_t *&file)
       MY_ATTRIBUTE((warn_unused_result));
@@ -7415,12 +7417,6 @@ AIO_mode Fil_shard::get_AIO_mode(const IORequest &req_type, bool sync) {
 #endif /* !UNIV_HOTBACKUP */
 }
 
-/** Get the file name for IO and the local offset within that file.
-@param[in]	req_type	IO context
-@param[in,out]	space		Tablespace for IO
-@param[in,out]	page_no		The relative page number in the file
-@param[out]	file		File node
-@return DB_SUCCESS or error code */
 dberr_t Fil_shard::get_file_for_io(const IORequest &req_type,
                                    fil_space_t *space, page_no_t *page_no,
                                    fil_node_t *&file) {
@@ -7448,22 +7444,12 @@ dberr_t Fil_shard::get_file_for_io(const IORequest &req_type,
       file = &f;
 
       return (DB_SUCCESS);
-
-    } else {
-#ifndef UNIV_HOTBACKUP
-      if (space->id != TRX_SYS_SPACE && req_type.is_read() &&
-          !undo::is_active(space->id)) {
-        file = nullptr;
-
-        /* Page access request for a page that is
-        outside the truncated UNDO tablespace bounds. */
-
-        return (DB_TABLE_NOT_FOUND);
-      }
-#else  /* !UNIV_HOTBACKUP */
-      /* In backup, is_under_construction() is always false */
-#endif /* !UNIV_HOTBACKUP */
     }
+
+    /* The page is outside the current bounds of the file.
+    Return DB_ERROR.  This should not occur for undo tablespaces
+    since each truncation assigns a new space ID. */
+    ut_ad(space->m_deleted_lsn == 0);
   }
 
   file = nullptr;
@@ -7659,12 +7645,7 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
   auto page_no = page_id.page_no();
   auto err = get_file_for_io(req_type, space, &page_no, file);
 
-  if (err == DB_TABLE_NOT_FOUND) {
-    mutex_release();
-
-    return (err);
-
-  } else if (file == nullptr) {
+  if (file == nullptr) {
     ut_ad(err == DB_ERROR);
 
     if (req_type.ignore_missing()) {
