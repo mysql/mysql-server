@@ -1132,7 +1132,6 @@ bool PT_query_expression::contextualize_order_and_limit(Parse_context *pc) {
     if (contextualize_safe(pc, m_order, m_limit)) return true;
   } else {
     auto lex = pc->thd->lex;
-    DBUG_ASSERT(lex->sql_command != SQLCOM_ALTER_TABLE);
     auto unit = pc->select->master_unit();
     if (unit->fake_select_lex == nullptr) {
       if (unit->add_fake_select_lex(lex->thd)) {

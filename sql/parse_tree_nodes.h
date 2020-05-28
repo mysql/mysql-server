@@ -1475,7 +1475,7 @@ class PT_table_value_constructor : public PT_query_primary {
 
   bool is_union() const override { return false; }
 
-  bool can_absorb_order_and_limit(bool, bool) const override { return false; }
+  bool can_absorb_order_and_limit(bool, bool) const override { return true; }
 
   bool is_table_value_constructor() const override { return true; }
 
