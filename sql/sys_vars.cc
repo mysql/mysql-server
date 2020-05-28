@@ -2466,9 +2466,9 @@ static Sys_var_charptr Sys_log_error_suppression_list(
     "or Error severity will always be included. Requires the filter "
     "\'log_filter_internal\' to be set in @@global.log_error_services, which "
     "is the default.",
-    GLOBAL_VAR(opt_log_error_suppression_list), CMD_LINE(REQUIRED_ARG),
-    IN_SYSTEM_CHARSET, DEFAULT(""), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-    ON_CHECK(check_log_error_suppression_list),
+    PERSIST_AS_READONLY GLOBAL_VAR(opt_log_error_suppression_list),
+    CMD_LINE(REQUIRED_ARG), IN_SYSTEM_CHARSET, DEFAULT(""), NO_MUTEX_GUARD,
+    NOT_IN_BINLOG, ON_CHECK(check_log_error_suppression_list),
     ON_UPDATE(fix_log_error_suppression_list));
 
 static Sys_var_bool Sys_log_queries_not_using_indexes(
@@ -2523,9 +2523,9 @@ static Sys_var_ulong Sys_log_error_verbosity(
     "2, log errors and warnings. "
     "3, log errors, warnings, and notes. "
     "Messages sent to the client are unaffected by this setting.",
-    GLOBAL_VAR(log_error_verbosity), CMD_LINE(REQUIRED_ARG), VALID_RANGE(1, 3),
-    DEFAULT(2), BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
-    ON_UPDATE(update_log_error_verbosity));
+    PERSIST_AS_READONLY GLOBAL_VAR(log_error_verbosity), CMD_LINE(REQUIRED_ARG),
+    VALID_RANGE(1, 3), DEFAULT(2), BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(nullptr), ON_UPDATE(update_log_error_verbosity));
 
 static Sys_var_enum Sys_log_timestamps(
     "log_timestamps",
