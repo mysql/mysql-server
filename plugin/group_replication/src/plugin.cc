@@ -2379,7 +2379,9 @@ static int check_group_name_string(const char *str, bool is_var_update) {
     if (!is_var_update)
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GRP_NAME_OPTION_MANDATORY);
     else
-      my_message(ER_WRONG_VALUE_FOR_VAR, "The group name option is mandatory",
+      my_message(ER_WRONG_VALUE_FOR_VAR,
+                 "The group_replication_group_name "
+                 "option is mandatory",
                  MYF(0)); /* purecov: inspected */
     return 1;
   }
@@ -2390,7 +2392,8 @@ static int check_group_name_string(const char *str, bool is_var_update) {
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GRP_NAME_IS_TOO_LONG, str);
     else
       my_message(ER_WRONG_VALUE_FOR_VAR,
-                 "The group name is not a valid UUID, its length is too big",
+                 "The group_replication_group_name is not a valid UUID, its "
+                 "length is too big",
                  MYF(0));
     return 1;
   }
@@ -2399,7 +2402,9 @@ static int check_group_name_string(const char *str, bool is_var_update) {
     if (!is_var_update) {
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GRP_NAME_IS_NOT_VALID_UUID, str);
     } else
-      my_message(ER_WRONG_VALUE_FOR_VAR, "The group name is not a valid UUID",
+      my_message(ER_WRONG_VALUE_FOR_VAR,
+                 "The group_replication_group_name is "
+                 "not a valid UUID",
                  MYF(0));
     return 1;
   }
@@ -2418,10 +2423,10 @@ static int check_group_name(MYSQL_THD thd, SYS_VAR *, void *save,
 
   if (plugin_is_group_replication_running()) {
     mysql_mutex_unlock(&lv.plugin_running_mutex);
-    my_message(
-        ER_GROUP_REPLICATION_RUNNING,
-        "The group name cannot be changed when Group Replication is running",
-        MYF(0));
+    my_message(ER_GROUP_REPLICATION_RUNNING,
+               "The group_replication_group_name cannot be changed when Group "
+               "Replication is running",
+               MYF(0));
     return 1;
   }
 
@@ -2879,8 +2884,8 @@ static int check_auto_increment_increment(MYSQL_THD, SYS_VAR *, void *save,
   if (plugin_is_group_replication_running()) {
     mysql_mutex_unlock(&lv.plugin_running_mutex);
     my_message(ER_GROUP_REPLICATION_RUNNING,
-               "The group auto_increment_increment cannot be changed"
-               " when Group Replication is running",
+               "The group group_replication_auto_increment_increment cannot be"
+               " changed when Group Replication is running",
                MYF(0));
     return 1;
   }
@@ -2921,8 +2926,8 @@ static int check_ip_whitelist_preconditions(MYSQL_THD thd, SYS_VAR *,
   if (plugin_is_group_replication_running()) {
     mysql_mutex_unlock(&lv.plugin_running_mutex);
     my_message(ER_GROUP_REPLICATION_RUNNING,
-               "The IP whitelist cannot be set while Group Replication "
-               "is running",
+               "The group_replication_ip_whitelist cannot be set while Group "
+               "Replication is running",
                MYF(0));
     return 1;
   }
@@ -2944,9 +2949,9 @@ static int check_ip_whitelist_preconditions(MYSQL_THD thd, SYS_VAR *,
   if (v.find("automatic") != std::string::npos && v.size() != 9) {
     mysql_mutex_unlock(&lv.plugin_running_mutex);
     my_message(ER_GROUP_REPLICATION_CONFIGURATION,
-               "The IP whitelist is invalid. Make sure that AUTOMATIC "
-               "when specifying \"AUTOMATIC\" the list contains no "
-               "other values.",
+               "The group_replication_ip_whitelist is invalid. Make sure that "
+               "when specifying \"AUTOMATIC\" the list contains no other "
+               "values.",
                MYF(0));
     return 1;
   }
@@ -2968,10 +2973,11 @@ static int check_compression_threshold(MYSQL_THD, SYS_VAR *, void *save,
 
   if (plugin_is_group_replication_running()) {
     mysql_mutex_unlock(&lv.plugin_running_mutex);
-    my_message(ER_GROUP_REPLICATION_RUNNING,
-               "The compression threshold cannot be set while "
-               "Group Replication is running",
-               MYF(0));
+    my_message(
+        ER_GROUP_REPLICATION_RUNNING,
+        "The group_replication_compression_threshold cannot be set while "
+        "Group Replication is running",
+        MYF(0));
     return 1;
   }
 
@@ -2980,7 +2986,8 @@ static int check_compression_threshold(MYSQL_THD, SYS_VAR *, void *save,
     std::stringstream ss;
     ss << "The value " << in_val
        << " is not within the range of "
-          "accepted values for the option compression_threshold!";
+          "accepted values for the option "
+          "group_replication_compression_threshold!";
     my_message(ER_WRONG_VALUE_FOR_VAR, ss.str().c_str(), MYF(0));
     return 1;
   }
@@ -3005,8 +3012,8 @@ static int check_communication_max_message_size(MYSQL_THD, SYS_VAR *,
     mysql_mutex_unlock(&lv.plugin_running_mutex);
     my_message(
         ER_GROUP_REPLICATION_RUNNING,
-        "The communication_max_message_size option cannot be set while Group "
-        "Replication is running",
+        "The group_replication_communication_max_message_size option cannot be "
+        "set while Group Replication is running",
         MYF(0));
     return 1;
   }
@@ -3017,8 +3024,8 @@ static int check_communication_max_message_size(MYSQL_THD, SYS_VAR *,
     std::stringstream ss;
     ss << "The value " << in_val
        << " is not within the range of accepted values for the "
-          "communication_max_message_size option. Use 0 to disable message "
-          "fragmentation, or specify a value up to "
+          "group_replication_communication_max_message_size option. Use 0 to "
+          "disable message fragmentation, or specify a value up to "
        << MAX_COMMUNICATION_MAX_MESSAGE_SIZE << ".";
     my_message(ER_WRONG_VALUE_FOR_VAR, ss.str().c_str(), MYF(0));
     return 1;
@@ -3098,10 +3105,11 @@ static int check_gtid_assignment_block_size(MYSQL_THD, SYS_VAR *, void *save,
   value->val_int(value, &in_val);
 
   if (plugin_is_group_replication_running()) {
-    my_message(ER_GROUP_REPLICATION_RUNNING,
-               "The GTID assignment block size cannot be set while "
-               "Group Replication is running",
-               MYF(0));
+    my_message(
+        ER_GROUP_REPLICATION_RUNNING,
+        "The group_replication_gtid_assignment_block size cannot be set while "
+        "Group Replication is running",
+        MYF(0));
     return 1;
   }
 
@@ -3109,9 +3117,9 @@ static int check_gtid_assignment_block_size(MYSQL_THD, SYS_VAR *, void *save,
       in_val < MIN_GTID_ASSIGNMENT_BLOCK_SIZE) {
     std::stringstream ss;
     ss << "The value " << in_val
-       << " is not within the range of "
-          "accepted values for the option gtid_assignment_block_size. "
-          "The value must be between "
+       << " is not within the range of accepted values for the option "
+          "group_replication_gtid_assignment_block_size.The value must be "
+          "between "
        << MIN_GTID_ASSIGNMENT_BLOCK_SIZE << " and "
        << MAX_GTID_ASSIGNMENT_BLOCK_SIZE << " inclusive.";
     my_message(ER_WRONG_VALUE_FOR_VAR, ss.str().c_str(), MYF(0));
@@ -3186,8 +3194,8 @@ static int check_single_primary_mode(MYSQL_THD, SYS_VAR *, void *save,
     mysql_mutex_unlock(&lv.plugin_running_mutex);
     my_message(
         ER_GROUP_REPLICATION_RUNNING,
-        "Cannot modify group replication mode by changing system variable. "
-        "Please use the "
+        "Cannot modify group replication mode by changing "
+        "group_replication_single_primary_mode system variable. Please use the "
         "group_replication_switch_to_single_primary_mode([member_uuid]) OR "
         "group_replication_switch_to_multi_primary_mode() UDF.",
         MYF(0));
@@ -3197,8 +3205,9 @@ static int check_single_primary_mode(MYSQL_THD, SYS_VAR *, void *save,
   if (single_primary_mode_val && ov.enforce_update_everywhere_checks_var) {
     mysql_mutex_unlock(&lv.plugin_running_mutex);
     my_message(ER_WRONG_VALUE_FOR_VAR,
-               "Cannot turn ON single_primary_mode while "
-               "enforce_update_everywhere_checks is enabled.",
+               "Cannot turn ON group_replication_single_primary_mode while "
+               "group_replication_enforce_update_everywhere_checks is "
+               "enabled.",
                MYF(0));
     return 1;
   }
@@ -3223,7 +3232,8 @@ static int check_enforce_update_everywhere_checks(
   if (plugin_is_group_replication_running()) {
     mysql_mutex_unlock(&lv.plugin_running_mutex);
     my_message(ER_GROUP_REPLICATION_RUNNING,
-               "Cannot turn ON/OFF update everywhere checks mode while "
+               "Cannot turn ON/OFF "
+               "group_replication_enforce_update_everywhere_checks mode while "
                "Group Replication is running.",
                MYF(0));
     return 1;
@@ -3232,8 +3242,9 @@ static int check_enforce_update_everywhere_checks(
   if (ov.single_primary_mode_var && enforce_update_everywhere_checks_val) {
     mysql_mutex_unlock(&lv.plugin_running_mutex);
     my_message(ER_WRONG_VALUE_FOR_VAR,
-               "Cannot enable enforce_update_everywhere_checks while "
-               "single_primary_mode is enabled.",
+               "Cannot enable "
+               "group_replication_enforce_update_everywhere_checks while "
+               "group_replication_single_primary_mode is enabled.",
                MYF(0));
     return 1;
   }
@@ -3984,8 +3995,8 @@ static MYSQL_SYSVAR_ULONG(
     ov.auto_increment_increment_var, /* var */
     PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NODEFAULT |
         PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var | no set default */
-    "The group replication auto_increment_increment determines interval "
-    "between successive column values",
+    "The group replication group_replication_auto_increment_increment "
+    "determines interval between successive column values",
     check_auto_increment_increment,   /* check func. */
     nullptr,                          /* update by update_func_long func. */
     DEFAULT_AUTO_INCREMENT_INCREMENT, /* default */

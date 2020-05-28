@@ -23,7 +23,7 @@ SET GLOBAL group_replication_ip_whitelist="8.9.10.0/20,192.168.1.1,192.168.2.0/4
 START GROUP_REPLICATION;
 ERROR HY000: The START GROUP_REPLICATION command failed as there was an error when initializing the group communication layer.
 SET GLOBAL group_replication_ip_whitelist="8.9.10.0/20,192.168.1.1,AUTOMATIC";
-ERROR HY000: The IP whitelist is invalid. Make sure that AUTOMATIC when specifying "AUTOMATIC" the list contains no other values.
+ERROR HY000: The group_replication_ip_whitelist is invalid. Make sure that when specifying "AUTOMATIC" the list contains no other values.
 SET GLOBAL group_replication_ip_whitelist="192.168.1.1";
 include/start_and_bootstrap_group_replication.inc
 include/assert.inc [Assert value changed to 192.168.1.1]
@@ -59,7 +59,7 @@ SET GLOBAL group_replication_ip_whitelist=AUTOMATIC;
 include/start_and_bootstrap_group_replication.inc
 include/assert.inc [Assert value changed to "AUTOMATIC"]
 SET GLOBAL group_replication_ip_whitelist="192.168.1.1";
-ERROR HY000: The IP whitelist cannot be set while Group Replication is running
+ERROR HY000: The group_replication_ip_whitelist cannot be set while Group Replication is running
 include/assert.inc [Assert that value remains unchanged]
 include/stop_group_replication.inc
 [connection server1]
