@@ -3012,7 +3012,7 @@ int ha_ndbcluster::drop_indexes(Ndb *ndb, TABLE *tab)
       // Renumber the indexes by shifting out the dropped index
       renumber_indexes(i);
       // clear the dropped index at last now
-      ndb_clear_index(dict, m_index[tab->s->keys]);
+      ndb_clear_index(dict, m_index[tab->s->keys - 1]);
     }
   }
   
