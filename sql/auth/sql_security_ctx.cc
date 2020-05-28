@@ -521,7 +521,9 @@ ulong Security_context::procedure_acl(LEX_CSTRING db,
     String q_name;
     append_identifier(&q_name, db.str, db.length);
     q_name.append(".");
-    append_identifier(&q_name, procedure_name.str, procedure_name.length);
+    std::string name(procedure_name.str, procedure_name.length);
+    my_casedn_str(files_charset_info, &name[0]);
+    append_identifier(&q_name, name.c_str(), name.length());
     it = m_acl_map->sp_acls()->find(q_name.c_ptr());
     if (it == m_acl_map->sp_acls()->end()) return 0;
     return filter_access(it->second, q_name.c_ptr());
@@ -535,7 +537,9 @@ ulong Security_context::function_acl(LEX_CSTRING db, LEX_CSTRING func_name) {
     String q_name;
     append_identifier(&q_name, db.str, db.length);
     q_name.append(".");
-    append_identifier(&q_name, func_name.str, func_name.length);
+    std::string name(func_name.str, func_name.length);
+    my_casedn_str(files_charset_info, &name[0]);
+    append_identifier(&q_name, name.c_str(), name.length());
     SP_access_map::iterator it;
     it = m_acl_map->func_acls()->find(q_name.c_ptr());
     if (it == m_acl_map->func_acls()->end()) return 0;
