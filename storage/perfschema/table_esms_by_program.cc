@@ -246,8 +246,8 @@ int table_esms_by_program::read_row_values(TABLE *table, unsigned char *buf,
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* OBJECT_TYPE */
           if (m_row.m_object_type != 0) {
             set_field_enum(f, m_row.m_object_type);
@@ -276,10 +276,10 @@ int table_esms_by_program::read_row_values(TABLE *table, unsigned char *buf,
         case 5: /* MIN_TIMER_WAIT */
         case 6: /* AVG_TIMER_WAIT */
         case 7: /* MAX_TIMER_WAIT */
-          m_row.m_sp_stat.set_field(f->field_index - 3, f);
+          m_row.m_sp_stat.set_field(f->field_index() - 3, f);
           break;
         default: /* 8, ... COUNT/SUM/MIN/AVG/MAX */
-          m_row.m_stmt_stat.set_field(f->field_index - 8, f);
+          m_row.m_stmt_stat.set_field(f->field_index() - 8, f);
           break;
       }
     }

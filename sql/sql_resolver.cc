@@ -4789,7 +4789,7 @@ bool validate_gc_assignment(List<Item> *fields, List<Item> *values,
     }
 
     /* skip non marked fields */
-    if (!bitmap_is_set(bitmap, rfield->field_index)) continue;
+    if (!bitmap_is_set(bitmap, rfield->field_index())) continue;
     if (rfield->gcol_info && value->type() != Item::DEFAULT_VALUE_ITEM) {
       my_error(ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN, MYF(0),
                rfield->field_name, rfield->table->s->table_name.str);

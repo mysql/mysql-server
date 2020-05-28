@@ -3378,7 +3378,7 @@ static std::ostream &print_binary_diff(std::ostream &out, upd_field_t *uf,
                                        const Field *field) {
   ulint field_no = 0;
   if (table != nullptr) {
-    dict_col_t *col = table->get_col(field->field_index);
+    dict_col_t *col = table->get_col(field->field_index());
     field_no = dict_col_get_clust_pos(col, table->first_index());
   }
 
@@ -3387,7 +3387,7 @@ static std::ostream &print_binary_diff(std::ostream &out, upd_field_t *uf,
 
   const char *from = bdiff->old_data(const_cast<Field *>(field));
 
-  out << "[Binary_diff: field_index=" << field->field_index
+  out << "[Binary_diff: field_index=" << field->field_index()
       << ", field_no=" << field_no << ", offset=" << bdiff->offset()
       << ", length=" << len << ", new_data=" << PrintBuffer(to, len)
       << ", old_data=" << PrintBuffer(from, len) << "]";
@@ -3405,14 +3405,14 @@ std::ostream &print_binary_diff(std::ostream &out, const Binary_diff *bdiff,
                                 const dict_table_t *table, const Field *field) {
   ulint field_no = 0;
   if (table != nullptr) {
-    dict_col_t *col = table->get_col(field->field_index);
+    dict_col_t *col = table->get_col(field->field_index());
     field_no = dict_col_get_clust_pos(col, table->first_index());
   }
 
   const char *to = bdiff->new_data(const_cast<Field *>(field));
   size_t len = bdiff->length();
 
-  out << "[Binary_diff: field_index=" << field->field_index
+  out << "[Binary_diff: field_index=" << field->field_index()
       << ", field_no=" << field_no << ", offset=" << bdiff->offset()
       << ", length=" << len << ", new_data=" << PrintBuffer(to, len) << "]";
 
@@ -3424,7 +3424,7 @@ std::ostream &print_binary_diff(std::ostream &out, const Binary_diff *bdiff,
   const char *to = bdiff->new_data(fld);
   size_t len = bdiff->length();
 
-  out << "[Binary_diff: field_index=" << fld->field_index
+  out << "[Binary_diff: field_index=" << fld->field_index()
       << ", offset=" << bdiff->offset() << ", length=" << bdiff->length()
       << ", new_data=" << PrintBuffer(to, len) << "]";
   return (out);

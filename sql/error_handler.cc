@@ -246,7 +246,7 @@ Functional_index_error_handler::Functional_index_error_handler(
 
       for (uint j = 0; j < index.actual_key_parts; ++j) {
         const KEY_PART_INFO &key_part = index.key_part[j];
-        if (key_part.field->field_index == field->field_index) {
+        if (key_part.field->field_index() == field->field_index()) {
           m_functional_index_name.assign(index.name);
           return;
         }

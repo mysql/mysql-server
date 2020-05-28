@@ -702,7 +702,7 @@ inline int ha_innopart::initialize_auto_increment(
     for (uint part = 0; part < m_tot_parts; part++) {
       ib_table = m_part_share->get_table_part(part);
 
-      dict_table_autoinc_set_col_pos(ib_table, field->field_index);
+      dict_table_autoinc_set_col_pos(ib_table, field->field_index());
 
       dict_table_autoinc_lock(ib_table);
       read_auto_inc = dict_table_autoinc_read(ib_table);

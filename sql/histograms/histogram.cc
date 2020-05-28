@@ -701,7 +701,7 @@ static bool prepare_value_maps(
     // Overhead for each element
     *row_size_bytes += value_map->element_overhead();
 
-    value_maps.emplace(field->field_index,
+    value_maps.emplace(field->field_index(),
                        std::unique_ptr<histograms::Value_map_base>(value_map));
   }
 
@@ -757,7 +757,7 @@ static bool fill_value_maps(
   while (res == 0) {
     for (Field *field : fields) {
       histograms::Value_map_base *value_map =
-          value_maps.at(field->field_index).get();
+          value_maps.at(field->field_index()).get();
 
       switch (histograms::field_type_to_value_map_type(field)) {
         case histograms::Value_map_type::STRING: {
@@ -955,9 +955,9 @@ bool update_histogram(THD *thd, TABLE_LIST *table, const columns_set &columns,
     }
     resolved_fields.push_back(field);
 
-    bitmap_set_bit(tbl->read_set, field->field_index);
+    bitmap_set_bit(tbl->read_set, field->field_index());
     if (field->is_gcol()) {
-      bitmap_set_bit(tbl->write_set, field->field_index);
+      bitmap_set_bit(tbl->write_set, field->field_index());
       /*
         The base columns needs to be in the write set in case of nested
         generated columns:
@@ -1027,7 +1027,7 @@ bool update_histogram(THD *thd, TABLE_LIST *table, const columns_set &columns,
 
     std::string col_name(field->field_name);
     histograms::Histogram *histogram =
-        value_maps.at(field->field_index)
+        value_maps.at(field->field_index())
             ->build_histogram(
                 &local_mem_root, num_buckets,
                 std::string(table->db, table->db_length),

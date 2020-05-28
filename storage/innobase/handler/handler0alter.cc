@@ -6406,7 +6406,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool commit_get_autoinc(
       dict_index_t *index;
 
       index = dict_table_get_index_on_first_col(ctx->old_table,
-                                                autoinc_field->field_index);
+                                                autoinc_field->field_index());
 
       err = row_search_max_autoinc(index, autoinc_field->field_name,
                                    &max_value_table);
@@ -7605,7 +7605,7 @@ rollback_trx:
       dict_table_autoinc_lock(t);
       dict_table_autoinc_initialize(t, ctx->max_autoinc);
       t->autoinc_persisted = ctx->max_autoinc - 1;
-      dict_table_autoinc_set_col_pos(t, field->field_index);
+      dict_table_autoinc_set_col_pos(t, field->field_index());
       dict_table_autoinc_unlock(t);
     }
 

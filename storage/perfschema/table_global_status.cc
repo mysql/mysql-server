@@ -221,8 +221,8 @@ int table_global_status::read_row_values(TABLE *table, unsigned char *buf,
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* VARIABLE_NAME */
           set_field_varchar_utf8(f, m_row.m_variable_name.m_str,
                                  m_row.m_variable_name.m_length);

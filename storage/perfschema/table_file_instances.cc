@@ -209,8 +209,8 @@ int table_file_instances::read_row_values(TABLE *table, unsigned char *,
   DBUG_ASSERT(table->s->null_bytes == 0);
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* FILENAME */
           set_field_varchar_utf8(f, m_row.m_filename, m_row.m_filename_length);
           break;

@@ -252,11 +252,11 @@ int table_ets_by_account_by_event_name::read_row_values(TABLE *table,
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* USER */
         case 1: /* HOST */
-          m_row.m_account.set_field(f->field_index, f);
+          m_row.m_account.set_field(f->field_index(), f);
           break;
         case 2: /* EVENT_NAME */
           m_row.m_event_name.set_field(f);
@@ -267,7 +267,7 @@ int table_ets_by_account_by_event_name::read_row_values(TABLE *table,
             COUNT_READ_WRITE, SUM/MIN/AVG/MAX_TIMER_READ_WRITE,
             COUNT_READ_ONLY, SUM/MIN/AVG/MAX_TIMER_READ_ONLY
           */
-          m_row.m_stat.set_field(f->field_index - 3, f);
+          m_row.m_stat.set_field(f->field_index() - 3, f);
           break;
       }
     }

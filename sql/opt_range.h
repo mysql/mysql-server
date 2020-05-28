@@ -540,7 +540,7 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
 
   virtual void get_fields_used(MY_BITMAP *used_fields) {
     for (uint i = 0; i < used_key_parts; i++)
-      bitmap_set_bit(used_fields, key_parts[i].field->field_index);
+      bitmap_set_bit(used_fields, key_parts[i].field->field_index());
   }
 
  private:
@@ -976,7 +976,7 @@ class QUICK_GROUP_MIN_MAX_SELECT : public QUICK_SELECT_I {
 
   virtual void get_fields_used(MY_BITMAP *used_fields) {
     for (uint i = 0; i < used_key_parts; i++)
-      bitmap_set_bit(used_fields, index_info->key_part[i].field->field_index);
+      bitmap_set_bit(used_fields, index_info->key_part[i].field->field_index());
   }
   void add_info_string(String *str);
 };
@@ -1119,7 +1119,7 @@ class QUICK_SKIP_SCAN_SELECT : public QUICK_SELECT_I {
 #endif
   virtual void get_fields_used(MY_BITMAP *used_fields) {
     for (uint i = 0; i < used_key_parts; i++)
-      bitmap_set_bit(used_fields, index_info->key_part[i].field->field_index);
+      bitmap_set_bit(used_fields, index_info->key_part[i].field->field_index());
   }
   void add_info_string(String *str);
 };

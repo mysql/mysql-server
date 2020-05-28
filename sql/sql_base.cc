@@ -9201,11 +9201,11 @@ bool fill_record(THD *thd, TABLE *table, List<Item> &fields, List<Item> &values,
     Item *const value = v++;
 
     /* If bitmap over wanted fields are set, skip non marked fields. */
-    if (bitmap && !bitmap_is_set(bitmap, rfield->field_index)) continue;
+    if (bitmap && !bitmap_is_set(bitmap, rfield->field_index())) continue;
 
-    bitmap_set_bit(table->fields_set_during_insert, rfield->field_index);
+    bitmap_set_bit(table->fields_set_during_insert, rfield->field_index());
     if (insert_into_fields_bitmap)
-      bitmap_set_bit(insert_into_fields_bitmap, rfield->field_index);
+      bitmap_set_bit(insert_into_fields_bitmap, rfield->field_index());
 
     /* Generated columns will be filled after all base columns are done. */
     if (rfield->is_gcol()) continue;
@@ -9301,7 +9301,7 @@ static bool check_inserting_record(THD *thd, Field **ptr) {
 
   while ((field = *ptr++) && !thd->is_error()) {
     if (bitmap_is_set(field->table->fields_set_during_insert,
-                      field->field_index) &&
+                      field->field_index()) &&
         field->check_constraints(ER_BAD_NULL_ERROR) != TYPE_OK)
       return true;
   }
@@ -9409,7 +9409,7 @@ inline bool call_before_insert_triggers(THD *thd, TABLE *table,
                                         MY_BITMAP *insert_into_fields_bitmap) {
   for (Field **f = table->field; *f; ++f) {
     if ((*f)->is_flag_set(NO_DEFAULT_VALUE_FLAG) &&
-        !bitmap_is_set(insert_into_fields_bitmap, (*f)->field_index)) {
+        !bitmap_is_set(insert_into_fields_bitmap, (*f)->field_index())) {
       (*f)->set_tmp_null();
     }
   }
@@ -9607,16 +9607,16 @@ bool fill_record(THD *thd, TABLE *table, Field **ptr, List<Item> &values,
     DBUG_ASSERT(field->table == table);
 
     /* If bitmap over wanted fields are set, skip non marked fields. */
-    if (bitmap && !bitmap_is_set(bitmap, field->field_index)) continue;
+    if (bitmap && !bitmap_is_set(bitmap, field->field_index())) continue;
 
     /*
       fill_record could be called as part of multi update and therefore
       table->fields_set_during_insert could be NULL.
     */
     if (table->fields_set_during_insert)
-      bitmap_set_bit(table->fields_set_during_insert, field->field_index);
+      bitmap_set_bit(table->fields_set_during_insert, field->field_index());
     if (insert_into_fields_bitmap)
-      bitmap_set_bit(insert_into_fields_bitmap, field->field_index);
+      bitmap_set_bit(insert_into_fields_bitmap, field->field_index());
 
     /* Generated columns will be filled after all base columns are done. */
     if (field->is_gcol()) continue;

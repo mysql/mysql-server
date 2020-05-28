@@ -5662,7 +5662,7 @@ static void ndb_unpack_record(TABLE *table, NdbValue *value, MY_BITMAP *defined,
          */
         Field_blob *field_blob = (Field_blob *)field;
         DBUG_PRINT("info", ("[%u] is virtual blob, setting length 0",
-                            field->field_index));
+                            field->field_index()));
         Uint32 zerolen = 0;
         field_blob->set_ptr((uchar *)&zerolen, NULL);
       }
@@ -5676,11 +5676,11 @@ static void ndb_unpack_record(TABLE *table, NdbValue *value, MY_BITMAP *defined,
         int is_null = (*value).rec->isNULL();
         if (is_null) {
           if (is_null > 0) {
-            DBUG_PRINT("info", ("[%u] NULL", field->field_index));
+            DBUG_PRINT("info", ("[%u] NULL", field->field_index()));
             field->set_null(row_offset);
           } else {
-            DBUG_PRINT("info", ("[%u] UNDEFINED", field->field_index));
-            bitmap_clear_bit(defined, field->field_index);
+            DBUG_PRINT("info", ("[%u] UNDEFINED", field->field_index()));
+            bitmap_clear_bit(defined, field->field_index());
           }
         } else if (field->type() == MYSQL_TYPE_BIT) {
           Field_bit *field_bit = static_cast<Field_bit *>(field);
@@ -5729,7 +5729,7 @@ static void ndb_unpack_record(TABLE *table, NdbValue *value, MY_BITMAP *defined,
         }
       } else {
         NdbBlob *ndb_blob = (*value).blob;
-        const uint field_no = field->field_index;
+        const uint field_no = field->field_index();
         int isNull;
         ndb_blob->getDefined(isNull);
         if (isNull == 1) {

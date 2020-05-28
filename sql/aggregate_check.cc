@@ -626,7 +626,7 @@ void Group_check::add_to_source_of_mat_table(Item_field *item_field,
   }
   // Find underlying expression of item_field, in SELECT list of mat_select
   Item *const expr_under =
-      mat_gc->select_expression(item_field->field->field_index);
+      mat_gc->select_expression(item_field->field->field_index());
 
   // non-nullability of tl's column in tl, is equal to that of expr_under.
   if (expr_under && !expr_under->maybe_null) mat_gc->non_null_in_source = true;
@@ -820,7 +820,7 @@ bool Group_check::is_in_fd_of_underlying(Item_ident *item) {
           Search if the expression inside 'item' is FD on them.
         */
         Item *const expr_under =
-            mat_gc->select_expression(item_field->field->field_index);
+            mat_gc->select_expression(item_field->field->field_index());
         /*
           expr_under is the expression underlying 'item'.
           (1) and (4) it is a deterministic expression of mat_gc source

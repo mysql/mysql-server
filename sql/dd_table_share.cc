@@ -1010,7 +1010,7 @@ static bool fill_column_from_dd(THD *thd, TABLE_SHARE *share,
   //
   reg_field =
       make_field(*col_obj, charset, share, rec_pos, null_pos, null_bit_pos);
-  reg_field->field_index = field_nr;
+  reg_field->set_field_index(field_nr);
   reg_field->stored_in_db = true;
 
   // Handle generated columns

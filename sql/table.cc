@@ -679,7 +679,7 @@ void KEY_PART_INFO::init_flags() {
 
 void KEY_PART_INFO::init_from_field(Field *fld) {
   field = fld;
-  fieldnr = field->field_index + 1;
+  fieldnr = field->field_index() + 1;
   null_bit = field->null_bit;
   null_offset = field->null_offset();
   offset = field->offset(field->table->record[0]);
@@ -1316,7 +1316,7 @@ static int make_field_from_frm(THD *thd, TABLE_SHARE *share,
     return 4;
   }
 
-  reg_field->field_index = field_idx;
+  reg_field->set_field_index(field_idx);
   reg_field->comment = comment;
   reg_field->gcol_info = gcol_info;
   reg_field->stored_in_db = fld_stored_in_db;
@@ -2477,7 +2477,7 @@ static bool fix_value_generators_fields(THD *thd, TABLE *table,
     Checking if all items are valid to be part of the expression.
   */
   if (validate_value_generator_expr(func_expr, source, source_name,
-                                    field ? field->field_index : 0))
+                                    field ? field->field_index() : 0))
     goto end;
 
   result = false;
@@ -2517,7 +2517,7 @@ bool Value_generator::register_base_columns(TABLE *table) {
   /* Calculate the number of non-virtual base columns */
   for (uint i = 0; i < table->s->fields; i++) {
     Field *field = table->field[i];
-    if (bitmap_is_set(&base_columns_map, field->field_index) &&
+    if (bitmap_is_set(&base_columns_map, field->field_index()) &&
         field->stored_in_db)
       num_non_virtual_base_cols++;
   }
@@ -3082,7 +3082,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
         // Mark hidden generated columns for functional indexes.
         if ((*field_ptr)->is_field_for_functional_index()) {
           bitmap_set_bit(&outparam->fields_for_functional_indexes,
-                         (*field_ptr)->field_index);
+                         (*field_ptr)->field_index());
         }
         *(vfield_ptr++) = *field_ptr;
       }
@@ -5456,7 +5456,7 @@ void TABLE::mark_column_used(Field *field, enum enum_mark_columns mark) {
 
     case MARK_COLUMNS_READ: {
       Key_map part_of_key = field->part_of_key;
-      bitmap_set_bit(read_set, field->field_index);
+      bitmap_set_bit(read_set, field->field_index());
 
       part_of_key.merge(field->part_of_prefixkey);
       covering_keys.intersect(part_of_key);
@@ -5466,14 +5466,14 @@ void TABLE::mark_column_used(Field *field, enum enum_mark_columns mark) {
       break;
     }
     case MARK_COLUMNS_WRITE:
-      bitmap_set_bit(write_set, field->field_index);
+      bitmap_set_bit(write_set, field->field_index());
       DBUG_ASSERT(!get_fields_in_item_tree);
 
       if (field->is_gcol()) mark_gcol_in_maps(field);
       break;
 
     case MARK_COLUMNS_TEMP:
-      bitmap_set_bit(read_set, field->field_index);
+      bitmap_set_bit(read_set, field->field_index());
       if (field->is_virtual_gcol()) mark_gcol_in_maps(field);
       break;
   }
@@ -5554,8 +5554,8 @@ void TABLE::mark_auto_increment_column() {
     We must set bit in read set as update_auto_increment() is using the
     store() to check overflow of auto_increment values
   */
-  bitmap_set_bit(read_set, found_next_number_field->field_index);
-  bitmap_set_bit(write_set, found_next_number_field->field_index);
+  bitmap_set_bit(read_set, found_next_number_field->field_index());
+  bitmap_set_bit(write_set, found_next_number_field->field_index());
   if (s->next_number_keypart)
     mark_columns_used_by_index_no_reset(s->next_number_index, read_set);
   file->column_bitmaps_signal();
@@ -5588,7 +5588,7 @@ void TABLE::mark_columns_needed_for_delete(THD *thd) {
     Field **reg_field;
     for (reg_field = field; *reg_field; reg_field++) {
       if ((*reg_field)->is_flag_set(PART_KEY_FLAG))
-        bitmap_set_bit(read_set, (*reg_field)->field_index);
+        bitmap_set_bit(read_set, (*reg_field)->field_index());
     }
     file->column_bitmaps_signal();
   }
@@ -5665,7 +5665,7 @@ void TABLE::mark_columns_needed_for_update(THD *thd, bool mark_binlog_columns) {
     for (reg_field = field; *reg_field; reg_field++) {
       /* Merge keys is all keys that had a column refered to in the query */
       if (merge_keys.is_overlapping((*reg_field)->part_of_key))
-        bitmap_set_bit(read_set, (*reg_field)->field_index);
+        bitmap_set_bit(read_set, (*reg_field)->field_index());
     }
     file->column_bitmaps_signal();
   }
@@ -5763,10 +5763,10 @@ void TABLE::mark_columns_per_binlog_row_image(THD *thd) {
           if ((s->primary_key < MAX_KEY) &&
               (my_field->is_flag_set(PRI_KEY_FLAG) ||
                (my_field->type() != MYSQL_TYPE_BLOB)))
-            bitmap_set_bit(read_set, my_field->field_index);
+            bitmap_set_bit(read_set, my_field->field_index());
 
           if (my_field->type() != MYSQL_TYPE_BLOB)
-            bitmap_set_bit(write_set, my_field->field_index);
+            bitmap_set_bit(write_set, my_field->field_index());
         }
         break;
       case BINLOG_ROW_IMAGE_MINIMAL:
@@ -6804,7 +6804,7 @@ static bool add_derived_key(List<Derived_key> &derived_key_list, Field *field,
   if (entry->used_fields.bits_set() < MAX_REF_PARTS) {
     field->part_of_key.set_bit(key - 1);
     field->set_flag(PART_KEY_FLAG);
-    entry->used_fields.set_bit(field->field_index);
+    entry->used_fields.set_bit(field->field_index());
     entry->key_part_count++;
   }
   return false;
@@ -7117,7 +7117,7 @@ bool update_generated_read_fields(uchar *buf, TABLE *table, uint active_index) {
       read_set bitmap.
     */
     if (vfield->is_virtual_gcol() &&
-        bitmap_is_set(table->read_set, vfield->field_index)) {
+        bitmap_is_set(table->read_set, vfield->field_index())) {
       if (vfield->handle_old_value()) {
         (down_cast<Field_blob *>(vfield))->keep_old_value();
         (down_cast<Field_blob *>(vfield))->set_keep_old_value(true);
@@ -7182,7 +7182,7 @@ bool update_generated_write_fields(const MY_BITMAP *bitmap, TABLE *table) {
       DBUG_ASSERT(vfield->gcol_info && vfield->gcol_info->expr_item);
 
       /* Only update those fields that are marked in the bitmap */
-      if (bitmap_is_set(bitmap, vfield->field_index)) {
+      if (bitmap_is_set(bitmap, vfield->field_index())) {
         /*
           For a virtual generated column of blob type, we have to keep
           the current blob value since this might be needed by the
@@ -7200,7 +7200,8 @@ bool update_generated_write_fields(const MY_BITMAP *bitmap, TABLE *table) {
         DBUG_PRINT("info", ("field '%s' - updated", vfield->field_name));
         if (error && !table->in_use->is_error()) error = 0;
         if (table->fields_set_during_insert)
-          bitmap_set_bit(table->fields_set_during_insert, vfield->field_index);
+          bitmap_set_bit(table->fields_set_during_insert,
+                         vfield->field_index());
       } else {
         DBUG_PRINT("info", ("field '%s' - skipped", vfield->field_name));
       }
@@ -7226,13 +7227,13 @@ bool update_generated_write_fields(const MY_BITMAP *bitmap, TABLE *table) {
   covering index on it.
 */
 void TABLE::mark_gcol_in_maps(const Field *field) {
-  bitmap_set_bit(write_set, field->field_index);
+  bitmap_set_bit(write_set, field->field_index());
 
   /*
     Typed array fields internally are using a conversion field, it needs to
     marked as readable in order to do conversions.
   */
-  if (field->is_array()) bitmap_set_bit(read_set, field->field_index);
+  if (field->is_array()) bitmap_set_bit(read_set, field->field_index());
 
   /*
     Note that underlying base columns are here added to read_set but not added
@@ -7428,7 +7429,7 @@ bool TABLE::mark_column_for_partial_update(const Field *field) {
     m_partial_update_columns = map;
   }
 
-  bitmap_set_bit(m_partial_update_columns, field->field_index);
+  bitmap_set_bit(m_partial_update_columns, field->field_index());
   return false;
 }
 
@@ -7437,17 +7438,17 @@ void TABLE::disable_binary_diffs_for_current_row(const Field *field) {
   DBUG_ASSERT(is_binary_diff_enabled(field));
 
   // Remove the diffs collected for the column.
-  m_partial_update_info->m_binary_diff_vectors[field->field_index]->clear();
+  m_partial_update_info->m_binary_diff_vectors[field->field_index()]->clear();
 
   // Mark the column as disabled.
   bitmap_clear_bit(&m_partial_update_info->m_enabled_binary_diff_columns,
-                   field->field_index);
+                   field->field_index());
 }
 
 bool TABLE::is_marked_for_partial_update(const Field *field) const {
   DBUG_ASSERT(field->table == this);
   return m_partial_update_columns != nullptr &&
-         bitmap_is_set(m_partial_update_columns, field->field_index);
+         bitmap_is_set(m_partial_update_columns, field->field_index());
 }
 
 bool TABLE::has_binary_diff_columns() const {
@@ -7541,14 +7542,14 @@ void TABLE::clear_partial_update_diffs() {
 
 const Binary_diff_vector *TABLE::get_binary_diffs(const Field *field) const {
   if (!is_binary_diff_enabled(field)) return nullptr;
-  return m_partial_update_info->m_binary_diff_vectors[field->field_index];
+  return m_partial_update_info->m_binary_diff_vectors[field->field_index()];
 }
 
 bool TABLE::add_binary_diff(const Field *field, size_t offset, size_t length) {
   DBUG_ASSERT(is_binary_diff_enabled(field));
 
   Binary_diff_vector *diffs =
-      m_partial_update_info->m_binary_diff_vectors[field->field_index];
+      m_partial_update_info->m_binary_diff_vectors[field->field_index()];
 
   /*
     Find the first diff that does not end before the diff we want to insert.
@@ -7625,7 +7626,7 @@ void TABLE::add_logical_diff(const Field_json *field,
                              const Json_wrapper *new_value) {
   DBUG_ASSERT(is_logical_diff_enabled(field));
   Json_diff_vector *diffs =
-      m_partial_update_info->m_logical_diff_vectors[field->field_index];
+      m_partial_update_info->m_logical_diff_vectors[field->field_index()];
   if (new_value == nullptr)
     diffs->add_diff(path, operation);
   else {
@@ -7652,13 +7653,13 @@ void TABLE::add_logical_diff(const Field_json *field,
 const Json_diff_vector *TABLE::get_logical_diffs(
     const Field_json *field) const {
   if (!is_logical_diff_enabled(field)) return nullptr;
-  return m_partial_update_info->m_logical_diff_vectors[field->field_index];
+  return m_partial_update_info->m_logical_diff_vectors[field->field_index()];
 }
 
 bool TABLE::is_binary_diff_enabled(const Field *field) const {
   return m_partial_update_info != nullptr &&
          bitmap_is_set(&m_partial_update_info->m_enabled_binary_diff_columns,
-                       field->field_index);
+                       field->field_index());
 }
 
 bool TABLE::is_logical_diff_enabled(const Field *field) const {
@@ -7666,7 +7667,7 @@ bool TABLE::is_logical_diff_enabled(const Field *field) const {
   bool ret =
       m_partial_update_info != nullptr &&
       bitmap_is_set(&m_partial_update_info->m_enabled_logical_diff_columns,
-                    field->field_index);
+                    field->field_index());
   DBUG_PRINT("info",
              ("field=%s "
               "is_logical_diff_enabled returns=%d "
@@ -7676,7 +7677,7 @@ bool TABLE::is_logical_diff_enabled(const Field *field) const {
               m_partial_update_info != nullptr
                   ? (bitmap_is_set(
                          &m_partial_update_info->m_enabled_logical_diff_columns,
-                         field->field_index)
+                         field->field_index())
                          ? "1"
                          : "0")
                   : "unknown"));
@@ -7688,11 +7689,11 @@ void TABLE::disable_logical_diffs_for_current_row(const Field *field) const {
   DBUG_ASSERT(is_logical_diff_enabled(field));
 
   // Remove the diffs collected for the column.
-  m_partial_update_info->m_logical_diff_vectors[field->field_index]->clear();
+  m_partial_update_info->m_logical_diff_vectors[field->field_index()]->clear();
 
   // Mark the column as disabled.
   bitmap_clear_bit(&m_partial_update_info->m_enabled_logical_diff_columns,
-                   field->field_index);
+                   field->field_index());
 }
 
 //////////////////////////////////////////////////////////////////////////

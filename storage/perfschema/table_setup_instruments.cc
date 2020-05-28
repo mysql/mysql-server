@@ -375,8 +375,8 @@ int table_setup_instruments::read_row_values(TABLE *table, unsigned char *buf,
   */
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* NAME */
           set_field_varchar_utf8(f, m_row.m_instr_class->m_name,
                                  m_row.m_instr_class->m_name_length);
@@ -440,8 +440,8 @@ int table_setup_instruments::update_row_values(TABLE *table,
   enum_yes_no value;
 
   for (; (f = *fields); fields++) {
-    if (bitmap_is_set(table->write_set, f->field_index)) {
-      switch (f->field_index) {
+    if (bitmap_is_set(table->write_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* NAME */
           return HA_ERR_WRONG_COMMAND;
         case 1: /* ENABLED */

@@ -152,8 +152,8 @@ int table_setup_objects::write_row(PFS_engine_table *, TABLE *table,
   bool timed = true;
 
   for (; (f = *fields); fields++) {
-    if (bitmap_is_set(table->write_set, f->field_index)) {
-      switch (f->field_index) {
+    if (bitmap_is_set(table->write_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* OBJECT_TYPE */
           object_type = (enum_object_type)get_field_enum(f);
           break;
@@ -307,8 +307,8 @@ int table_setup_objects::read_row_values(TABLE *table, unsigned char *buf,
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* OBJECT_TYPE */
           set_field_enum(f, m_row.m_object_type);
           break;
@@ -350,8 +350,8 @@ int table_setup_objects::update_row_values(TABLE *table, const unsigned char *,
   enum_yes_no value;
 
   for (; (f = *fields); fields++) {
-    if (bitmap_is_set(table->write_set, f->field_index)) {
-      switch (f->field_index) {
+    if (bitmap_is_set(table->write_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* OBJECT_TYPE */
         case 1: /* OBJECT_SCHEMA */
         case 2: /* OBJECT_NAME */

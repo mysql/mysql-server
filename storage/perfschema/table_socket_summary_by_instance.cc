@@ -243,8 +243,8 @@ int table_socket_summary_by_instance::read_row_values(TABLE *table,
   DBUG_ASSERT(table->s->null_bytes == 0);
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* EVENT_NAME */
           m_row.m_event_name.set_field(f);
           break;

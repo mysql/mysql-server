@@ -303,12 +303,12 @@ int table_esms_by_digest::read_row_values(TABLE *table, unsigned char *buf,
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* SCHEMA_NAME */
         case 1: /* DIGEST */
         case 2: /* DIGEST_TEXT */
-          m_row.m_digest.set_field(f->field_index, f);
+          m_row.m_digest.set_field(f->field_index(), f);
           break;
         case 27: /* FIRST_SEEN */
           set_field_timestamp(f, m_row.m_first_seen);
@@ -341,7 +341,7 @@ int table_esms_by_digest::read_row_values(TABLE *table, unsigned char *buf,
           set_field_ulonglong(f, m_row.m_query_sample_timer_wait);
           break;
         default: /* 3, ... COUNT/SUM/MIN/AVG/MAX */
-          m_row.m_stat.set_field(f->field_index - 3, f);
+          m_row.m_stat.set_field(f->field_index() - 3, f);
           break;
       }
     }

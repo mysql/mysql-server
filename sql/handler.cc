@@ -7995,7 +7995,7 @@ static void extract_blob_space_and_length_from_record_buff(
   int num = 0;
   for (Field **vfield = table->vfield; *vfield; vfield++) {
     // Check if this field should be included
-    if (bitmap_is_set(fields, (*vfield)->field_index) &&
+    if (bitmap_is_set(fields, (*vfield)->field_index()) &&
         (*vfield)->is_virtual_gcol() && (*vfield)->type() == MYSQL_TYPE_BLOB) {
       auto field = down_cast<Field_blob *>(*vfield);
       blob_len_ptr_array[num].length = field->data_length();
@@ -8034,7 +8034,7 @@ static void copy_blob_data(const TABLE *table, const MY_BITMAP *const fields,
   uint num = 0;
   for (Field **vfield = table->vfield; *vfield; vfield++) {
     // Check if this field should be included
-    if (bitmap_is_set(fields, (*vfield)->field_index) &&
+    if (bitmap_is_set(fields, (*vfield)->field_index()) &&
         (*vfield)->is_virtual_gcol() && (*vfield)->type() == MYSQL_TYPE_BLOB) {
       DBUG_ASSERT(blob_len_ptr_array[num].length > 0);
       DBUG_ASSERT(blob_len_ptr_array[num].ptr != nullptr);
@@ -8115,9 +8115,9 @@ static bool my_eval_gcolumn_expr_helper(THD *thd, TABLE *table,
   for (Field **vfield_ptr = table->vfield; *vfield_ptr; vfield_ptr++) {
     Field *field = *vfield_ptr;
     // Validate that the field number is less than the bit map size
-    DBUG_ASSERT(field->field_index < fields->n_bits);
+    DBUG_ASSERT(field->field_index() < fields->n_bits);
 
-    if (bitmap_is_set(fields, field->field_index)) {
+    if (bitmap_is_set(fields, field->field_index())) {
       bitmap_union(&fields_to_evaluate, &field->gcol_info->base_columns_map);
       if (field->is_array()) {
         mv_field = field;
@@ -8147,7 +8147,7 @@ static bool my_eval_gcolumn_expr_helper(THD *thd, TABLE *table,
     Field *field = *vfield_ptr;
 
     // Check if we should evaluate this field
-    if (bitmap_is_set(&fields_to_evaluate, field->field_index) &&
+    if (bitmap_is_set(&fields_to_evaluate, field->field_index()) &&
         field->is_virtual_gcol()) {
       DBUG_ASSERT(field->gcol_info && field->gcol_info->expr_item->fixed);
 

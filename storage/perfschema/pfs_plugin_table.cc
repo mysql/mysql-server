@@ -251,9 +251,9 @@ static int write_row(PFS_engine_table *pfs_table, TABLE *table,
   table_plugin_table *temp = (table_plugin_table *)pfs_table;
 
   for (; (f = *fields); fields++) {
-    if (bitmap_is_set(table->write_set, f->field_index)) {
+    if (bitmap_is_set(table->write_set, f->field_index())) {
       result = temp->m_st_table->write_column_value(
-          temp->plugin_table_handle, (PSI_field *)f, f->field_index);
+          temp->plugin_table_handle, (PSI_field *)f, f->field_index());
       if (result) {
         return result;
       }

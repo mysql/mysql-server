@@ -591,7 +591,7 @@ int key_rec_cmp(KEY **key, uchar *first_rec, uchar *second_rec) {
 
   /* Assert that at least the first key part is read. */
   DBUG_ASSERT(bitmap_is_set(key_info->table->read_set,
-                            key_info->key_part->field->field_index));
+                            key_info->key_part->field->field_index()));
   /* loop over all given keys */
   do {
     key_parts = key_info->user_defined_key_parts;
@@ -606,7 +606,8 @@ int key_rec_cmp(KEY **key, uchar *first_rec, uchar *second_rec) {
       field = key_part->field;
 
       /* If not read, compare is done and equal! */
-      if (!bitmap_is_set(field->table->read_set, field->field_index)) return 0;
+      if (!bitmap_is_set(field->table->read_set, field->field_index()))
+        return 0;
 
       if (key_part->null_bit) {
         /* The key_part can contain NULL values */

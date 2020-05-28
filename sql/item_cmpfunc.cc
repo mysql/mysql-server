@@ -228,7 +228,7 @@ static bool get_histogram_selectivity(THD *thd, const Field *field, Item **args,
                                       const TABLE_SHARE *table_share,
                                       double *selectivity) {
   const histograms::Histogram *histogram =
-      table_share->find_histogram(field->field_index);
+      table_share->find_histogram(field->field_index());
   if (histogram != nullptr) {
     if (!histogram->get_selectivity(args, arg_count, op, selectivity)) {
       if (unlikely(thd->opt_trace.is_started()))
@@ -4600,7 +4600,7 @@ float Item_func_in::get_single_col_filtering_effect(
   if ((fieldref->used_tables() != filter_for_table) ||  // 1)
       bitmap_is_set(fields_to_ignore,
                     static_cast<Item_field *>(fieldref->real_item())
-                        ->field->field_index))  // 2)
+                        ->field->field_index()))  // 2)
     return COND_FILTER_ALLPASS;
 
   const Item_field *fld = (Item_field *)fieldref->real_item();
@@ -6709,7 +6709,7 @@ float Item_equal::get_filtering_effect(THD *thd, table_map filter_for_table,
       // cur_field is a field in a table earlier in the join sequence.
       found_comparable = true;
     } else if (cur_field->used_tables() == filter_for_table) {
-      if (bitmap_is_set(fields_to_ignore, cur_field->field->field_index)) {
+      if (bitmap_is_set(fields_to_ignore, cur_field->field->field_index())) {
         /*
           cur_field is a field in 'filter_for_table', but it is a
           field which already contributes to the filtering effect.
@@ -6753,7 +6753,7 @@ float Item_equal::get_filtering_effect(THD *thd, table_map filter_for_table,
           */
           const histograms::Histogram *histogram =
               cur_field->field->table->s->find_histogram(
-                  cur_field->field->field_index);
+                  cur_field->field->field_index());
           if (histogram != nullptr) {
             std::array<Item *, 2> items{{cur_field, const_item}};
             double selectivity;

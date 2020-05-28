@@ -11009,7 +11009,7 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
   for (Field **field = table_list->table->field; *field != nullptr; ++field) {
     // Skip hidden generated columns.
     if (bitmap_is_set(&table_list->table->fields_for_functional_indexes,
-                      (*field)->field_index))
+                      (*field)->field_index()))
       continue;
 
     // Skip columns marked as NOT SECONDARY.
@@ -11265,7 +11265,7 @@ static bool has_index_def_changed(Alter_inplace_info *ha_alter_info,
       indexes instead of simply comparing pointers to Field objects.
     */
     if (!new_field->field ||
-        new_field->field->field_index != key_part->fieldnr - 1)
+        new_field->field->field_index() != key_part->fieldnr - 1)
       return true;
 
     /*
@@ -11560,7 +11560,7 @@ static bool fill_alter_inplace_info(THD *thd, TABLE *table,
           ha_alter_info->handler_flags |=
               Alter_inplace_info::ALTER_STORED_COLUMN_ORDER;
       } else {
-        if (field->field_index != new_field_index)
+        if (field->field_index() != new_field_index)
           ha_alter_info->handler_flags |=
               Alter_inplace_info::ALTER_VIRTUAL_COLUMN_ORDER;
       }
@@ -11668,7 +11668,7 @@ static bool fill_alter_inplace_info(THD *thd, TABLE *table,
                                          enum_walk::PREFIX,
                                          reinterpret_cast<uchar *>(&mark_fld));
       for (const Field *dr_field : dropped_or_renamed_cols) {
-        if (bitmap_is_set(table->read_set, dr_field->field_index)) {
+        if (bitmap_is_set(table->read_set, dr_field->field_index())) {
           gcol_needs_reeval = true;
           break;
         }
@@ -13728,7 +13728,7 @@ static bool check_if_field_used_by_partitioning_func(
   if (!part_info) return false;
 
   // Check if column is not used by (sub)partitioning function.
-  if (!bitmap_is_set(&part_info->full_part_field_set, field->field_index))
+  if (!bitmap_is_set(&part_info->full_part_field_set, field->field_index()))
     return false;
 
   /*
@@ -13963,7 +13963,7 @@ static bool check_if_field_used_by_generated_column_or_default(
                                      : vfield->m_default_val_expr->expr_item;
       expr->walk(&Item::mark_field_in_map, enum_walk::PREFIX,
                  reinterpret_cast<uchar *>(&mark_fld));
-      if (bitmap_is_set(table->read_set, field->field_index)) {
+      if (bitmap_is_set(table->read_set, field->field_index())) {
         if (vfield->is_gcol()) {
           if (vfield->is_field_for_functional_index())
             my_error(ER_DEPENDENT_BY_FUNCTIONAL_INDEX, MYF(0),
@@ -15542,7 +15542,7 @@ static bool handle_rename_functional_index(THD *thd, Alter_info *alter_info,
             // not have the generated column expression.
             for (uint l = 0; l < table_list->table->s->fields; ++l) {
               Field *field = table_list->table->field[l];
-              if (field->field_index == key_part.field->field_index) {
+              if (field->field_index() == key_part.field->field_index()) {
                 Create_field *new_create_field =
                     new (thd->mem_root) Create_field(field, nullptr);
                 if (new_create_field == nullptr) {

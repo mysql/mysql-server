@@ -141,9 +141,9 @@ int table_plugin_table::read_row_values(TABLE *table, unsigned char *buf,
   }
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
       result = m_st_table->read_column_value(this->plugin_table_handle,
-                                             (PSI_field *)f, f->field_index);
+                                             (PSI_field *)f, f->field_index());
       if (result) {
         return result;
       }
@@ -171,9 +171,9 @@ int table_plugin_table::update_row_values(TABLE *table, const unsigned char *,
   }
 
   for (; (f = *fields); fields++) {
-    if (bitmap_is_set(table->write_set, f->field_index)) {
-      result = m_st_table->update_column_value(plugin_table_handle,
-                                               (PSI_field *)f, f->field_index);
+    if (bitmap_is_set(table->write_set, f->field_index())) {
+      result = m_st_table->update_column_value(
+          plugin_table_handle, (PSI_field *)f, f->field_index());
       if (result) {
         return result;
       }

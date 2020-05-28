@@ -344,7 +344,7 @@ bool partition_info::can_prune_insert(THD *thd, enum_duplicates duplic,
   if (table->vfield) {
     Field **fld;
     for (fld = table->vfield; *fld; fld++) {
-      if (bitmap_is_set(&full_part_field_set, (*fld)->field_index))
+      if (bitmap_is_set(&full_part_field_set, (*fld)->field_index()))
         return false;
     }
   }
@@ -356,7 +356,7 @@ bool partition_info::can_prune_insert(THD *thd, enum_duplicates duplic,
   if (table->gen_def_fields_ptr) {
     Field **fld;
     for (fld = table->gen_def_fields_ptr; *fld; fld++) {
-      if (bitmap_is_set(&full_part_field_set, (*fld)->field_index))
+      if (bitmap_is_set(&full_part_field_set, (*fld)->field_index()))
         return false;
     }
   }
@@ -368,7 +368,7 @@ bool partition_info::can_prune_insert(THD *thd, enum_duplicates duplic,
       is not 0 (with NO_AUTO_VALUE_ON_ZERO sql_mode), then pruning is possible!
     */
     if (bitmap_is_set(&full_part_field_set,
-                      table->found_next_number_field->field_index))
+                      table->found_next_number_field->field_index()))
       return false;
   }
 
@@ -1913,7 +1913,7 @@ bool partition_info::is_fields_in_part_expr(List<Item> &fields) {
   while ((item = it++)) {
     field = item->field_for_view_update();
     DBUG_ASSERT(field->field->table == table);
-    if (bitmap_is_set(&full_part_field_set, field->field->field_index))
+    if (bitmap_is_set(&full_part_field_set, field->field->field_index()))
       return true;
   }
   return false;

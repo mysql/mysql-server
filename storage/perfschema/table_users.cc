@@ -155,14 +155,14 @@ int table_users::read_row_values(TABLE *table, unsigned char *buf,
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* USER */
           m_row.m_user.set_field(f);
           break;
         case 1: /* CURRENT_CONNECTIONS */
         case 2: /* TOTAL_CONNECTIONS */
-          m_row.m_connection_stat.set_field(f->field_index - 1, f);
+          m_row.m_connection_stat.set_field(f->field_index() - 1, f);
           break;
         default:
           DBUG_ASSERT(false);

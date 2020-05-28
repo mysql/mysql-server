@@ -636,7 +636,7 @@ int Partition_helper::ph_update_row(const uchar *old_data, uchar *new_data) {
   if (m_table->found_next_number_field && new_data == m_table->record[0] &&
       !m_table->s->next_number_keypart &&
       bitmap_is_set(m_table->write_set,
-                    m_table->found_next_number_field->field_index)) {
+                    m_table->found_next_number_field->field_index())) {
     set_auto_increment_if_higher();
   }
   return error;
@@ -1395,8 +1395,8 @@ inline void Partition_helper::set_partition_read_set() {
     // with the one in update_generated_read_fields().
     for (Field **vf = m_table->vfield; vf && *vf; vf++) {
       if ((*vf)->is_virtual_gcol() &&
-          bitmap_is_set(m_table->read_set, (*vf)->field_index))
-        bitmap_set_bit(m_table->write_set, (*vf)->field_index);
+          bitmap_is_set(m_table->read_set, (*vf)->field_index()))
+        bitmap_set_bit(m_table->write_set, (*vf)->field_index());
     }
   }
 }

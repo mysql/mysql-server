@@ -7748,7 +7748,7 @@ bool is_indexed_agg_distinct(JOIN *join, List<Item_field> *out_args) {
       Item_field *item = static_cast<Item_field *>(expr->real_item());
       if (out_args) out_args->push_back(item);
 
-      cur_aggdistinct_fields.set_bit(item->field->field_index);
+      cur_aggdistinct_fields.set_bit(item->field->field_index());
       result = true;
     }
     /*

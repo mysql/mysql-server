@@ -837,20 +837,20 @@ bool Item_field::add_field_to_set_processor(uchar *arg) {
   DBUG_PRINT("info", ("%s", field->field_name ? field->field_name : "noname"));
   TABLE *table = (TABLE *)arg;
   if (table_ref->table == table)
-    bitmap_set_bit(&table->tmp_set, field->field_index);
+    bitmap_set_bit(&table->tmp_set, field->field_index());
   return false;
 }
 
 bool Item_field::add_field_to_cond_set_processor(uchar *) {
   DBUG_TRACE;
   DBUG_PRINT("info", ("%s", field->field_name ? field->field_name : "noname"));
-  bitmap_set_bit(&field->table->cond_set, field->field_index);
+  bitmap_set_bit(&field->table->cond_set, field->field_index());
   return false;
 }
 
 bool Item_field::remove_column_from_bitmap(uchar *argument) {
   MY_BITMAP *bitmap = reinterpret_cast<MY_BITMAP *>(argument);
-  bitmap_clear_bit(bitmap, field->field_index);
+  bitmap_clear_bit(bitmap, field->field_index());
   return false;
 }
 
@@ -903,7 +903,7 @@ bool Item_field::check_function_as_value_generator(uchar *checker_args) {
   if ((func_args->source != VGS_CHECK_CONSTRAINT) &&
       (field->is_gcol() ||
        field->has_insert_default_general_value_expression()) &&
-      field->field_index >= fld_idx) {
+      field->field_index() >= fld_idx) {
     func_args->err_code = (func_args->source == VGS_GENERATED_COLUMN)
                               ? ER_GENERATED_COLUMN_NON_PRIOR
                               : ER_DEFAULT_VAL_GENERATED_NON_PRIOR;
@@ -2619,8 +2619,8 @@ inline static uint32 adjust_max_effective_column_length(Field *field_par,
 void Item_field::set_field(Field *field_par) {
   table_ref = field_par->table->pos_in_table_list;
   DBUG_ASSERT(table_ref == nullptr || table_ref->table == field_par->table);
-  DBUG_ASSERT(field_par->field_index != NO_FIELD_INDEX);
-  field_index = field_par->field_index;
+  DBUG_ASSERT(field_par->field_index() != NO_FIELD_INDEX);
+  field_index = field_par->field_index();
 
   field = result_field = field_par;  // for easy coding with fields
   maybe_null = field->is_nullable() || field->is_tmp_nullable() ||
@@ -5556,8 +5556,8 @@ bool Item_field::fix_fields(THD *thd, Item **reference) {
       current_bitmap = table->write_set;
       other_bitmap = table->read_set;
     }
-    if (!bitmap_test_and_set(current_bitmap, field->field_index))
-      DBUG_ASSERT(bitmap_is_set(other_bitmap, field->field_index));
+    if (!bitmap_test_and_set(current_bitmap, field->field_index()))
+      DBUG_ASSERT(bitmap_is_set(other_bitmap, field->field_index()));
   }
   if (any_privileges) {
     const char *db, *tab;
@@ -7487,7 +7487,7 @@ float Item_field::get_filtering_effect(THD *, table_map filter_for_table,
                                        const MY_BITMAP *fields_to_ignore,
                                        double rows_in_table) {
   if (used_tables() != filter_for_table ||
-      bitmap_is_set(fields_to_ignore, field->field_index))
+      bitmap_is_set(fields_to_ignore, field->field_index()))
     return COND_FILTER_ALLPASS;
 
   return 1.0f - get_cond_filter_default_probability(rows_in_table,

@@ -1713,7 +1713,7 @@ Field::Field(uchar *ptr_arg, uint32 length_arg, uchar *null_ptr_arg,
   if (!is_nullable()) set_flag(NOT_NULL_FLAG);
   comment.str = "";
   comment.length = 0;
-  field_index = 0;
+  m_field_index = 0;
 }
 
 /**
@@ -7345,7 +7345,7 @@ const uchar *Field_blob::unpack(uchar *, const uchar *from, uint param_data) {
       param_data > 0 ? param_data & 0xFF : packlength;
   uint32 const length = get_length(from, master_packlength);
   DBUG_DUMP("packed", from, length + master_packlength);
-  bitmap_set_bit(table->write_set, field_index);
+  bitmap_set_bit(table->write_set, field_index());
   Field_blob::store(pointer_cast<const char *>(from) + master_packlength,
                     length, field_charset);
   DBUG_DUMP("field", ptr, pack_length() /* len bytes + ptr bytes */);
@@ -8959,7 +8959,7 @@ const uchar *Field_bit::unpack(uchar *to, const uchar *from, uint param_data) {
   */
   if ((from_bit_len > 0) && (from_len > 0))
     value[new_len - len] = value[new_len - len] & ((1U << from_bit_len) - 1);
-  bitmap_set_bit(table->write_set, field_index);
+  bitmap_set_bit(table->write_set, field_index());
   store(value, new_len, system_charset_info);
   return from + len;
 }
@@ -9886,10 +9886,17 @@ void Field_typed_array::init(TABLE *table_arg) {
       return;
   }
 
+  // Set mem_root for conversion field allocation.
+  MEM_ROOT *actual_mem_root =
+      (table_arg->s->table_category == TABLE_CATEGORY_TEMPORARY)
+          ? &table_arg->s->mem_root
+          : &table_arg->mem_root;
   // Create field for data conversion
   Field *conv_field = ::make_field(
-      // Allocate conversion field in table's mem_root
-      &table_arg->mem_root,
+      // Allocate conversion field in table's mem_root for non-temp
+      // tables. Allocate conversion field in TABLE_SHARE's mem_root
+      // for internal temporary tables.
+      actual_mem_root,
       nullptr,       // TABLE_SHARE, not needed
       nullptr,       // data buffer, isn't allocated yet
       field_length,  // field_length
@@ -9909,21 +9916,20 @@ void Field_typed_array::init(TABLE *table_arg) {
   );
   if (conv_field == nullptr) return;
   uchar *buf =
-      table_arg->mem_root.ArrayAlloc<uchar>(conv_field->pack_length() + 1);
+      actual_mem_root->ArrayAlloc<uchar>(conv_field->pack_length() + 1);
   if (buf == nullptr) return;
   if (type() == MYSQL_TYPE_NEWDECIMAL)
     (down_cast<Field_new_decimal *>(conv_field))->set_keep_precision(true);
   conv_field->move_field(buf + 1, buf, 0);
   // Allow conv_field to use table->in_use
   conv_field->table = table;
-  conv_field->field_index = field_index;
   conv_field->table_name = table_name;
+  conv_field->set_field_index(field_index());
 
-  // Swap arena so that the Item_field is allocated on TABLE::mem_root
-  // and so it does not end up in THD's item list which will have a different
-  // lifetime than TABLE::mem_root
-  Query_arena tmp_arena(&table_arg->mem_root,
-                        Query_arena::STMT_REGULAR_EXECUTION);
+  // Swap arena so that the Item_field is allocated on TABLE::mem_root for
+  // non-temp tables and so it does not end up in THD's item list which will
+  // have a different lifetime than TABLE::mem_root
+  Query_arena tmp_arena(actual_mem_root, Query_arena::STMT_REGULAR_EXECUTION);
   Query_arena backup_arena;
   current_thd->swap_query_arena(tmp_arena, &backup_arena);
   m_conv_item = new Item_field(conv_field);
@@ -10009,6 +10015,11 @@ void Field_typed_array::make_send_field(Send_field *field) const {
   // show_hidden_columns), it should be sent as a JSON array. Set the type to
   // JSON instead of the array element type.
   field->type = MYSQL_TYPE_JSON;
+}
+
+void Field_typed_array::set_field_index(uint16 field_index) {
+  Field::set_field_index(field_index);
+  if (m_conv_item) m_conv_item->field->set_field_index(field_index);
 }
 
 Key_map Field::get_covering_prefix_keys() const {
@@ -10190,7 +10201,7 @@ const uchar *Field::unpack_int64(uchar *to, const uchar *from) const {
 
 bool Field_longstr::is_updatable() const {
   DBUG_ASSERT(table && table->write_set);
-  return bitmap_is_set(table->write_set, field_index);
+  return bitmap_is_set(table->write_set, field_index());
 }
 
 Field_varstring::Field_varstring(uchar *ptr_arg, uint32 len_arg,
