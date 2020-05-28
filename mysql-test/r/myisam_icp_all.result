@@ -713,14 +713,14 @@ AND 6=7
 )
 ;;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1a	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	PRIMARY	t1b	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Not exists
-3	DEPENDENT SUBQUERY	t2	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	t1b	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
 Note	1276	Field or reference 'test.t1b.t1_time' of SELECT #3 was resolved in SELECT #2
 Note	1276	Field or reference 'test.t1b.t1_int' of SELECT #3 was resolved in SELECT #2
 Note	1276	Field or reference 'test.t1b.t1_time' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select NULL AS `t1_int`,NULL AS `t1_time` from <constant table> anti join (`test`.`t1` `t1b`) on((<in_optimizer>(`test`.`t1b`.`t1_int`,<exists>(/* select#3 */ select '0' from dual where ((`test`.`t1b`.`t1_time` like `test`.`t1b`.`t1_int`) and <if>(outer_field_is_not_null, (<cache>(`test`.`t1b`.`t1_int`) = '0'), true))) is false))) where true
+Note	1003	/* select#1 */ select `test`.`t1a`.`t1_int` AS `t1_int`,`test`.`t1a`.`t1_time` AS `t1_time` from `test`.`t1` `t1a` where false
 
 DROP TABLE t1,t2;
 #

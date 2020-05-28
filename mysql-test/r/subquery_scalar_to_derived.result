@@ -3239,12 +3239,13 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 6	DERIVED	table3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
 6	DERIVED	<derived8>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 6	DERIVED	<derived9>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
-6	DERIVED	n1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Not exists; Using join buffer (hash join)
-6	DERIVED	n2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+6	DERIVED	<derived7>	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Not exists; Using join buffer (hash join)
 9	DERIVED	n	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 8	DERIVED	n	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+7	DERIVED	n1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
+7	DERIVED	n2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select `derived_1_10`.`AVG(n.i)` AS `feild1`,`derived_1_6`.`SUM(table1.i)` AS `SUM(table1.i)` from (/* select#6 */ select sum(`test`.`table1`.`i`) AS `SUM(table1.i)` from `test`.`n` `table1` join (/* select#9 */ select max(`test`.`n`.`i`) AS `MAX(``n``.``i``)` from `test`.`n`) `derived_6_9` join `test`.`n` `table2` join (/* select#8 */ select max(`test`.`n`.`i`) AS `MAX(``n``.``i``)` from `test`.`n`) `derived_6_8` join `test`.`n` `table3` anti join (`test`.`n` `n1` join `test`.`n` `n2`) on(((`test`.`n1`.`i` > `test`.`n2`.`i`))) where ((`test`.`table1`.`i` <= `derived_6_8`.`MAX(``n``.``i``)`) and (`test`.`table2`.`i` <= `derived_6_9`.`MAX(``n``.``i``)`))) `derived_1_6` left join (/* select#10 */ select avg(`test`.`n`.`i`) AS `AVG(n.i)` from `test`.`n`) `derived_1_10` on(true) where true
+Note	1003	/* select#1 */ select `derived_1_10`.`AVG(n.i)` AS `feild1`,`derived_1_6`.`SUM(table1.i)` AS `SUM(table1.i)` from (/* select#6 */ select sum(`test`.`table1`.`i`) AS `SUM(table1.i)` from `test`.`n` `table1` join (/* select#9 */ select max(`test`.`n`.`i`) AS `MAX(``n``.``i``)` from `test`.`n`) `derived_6_9` join `test`.`n` `table2` join (/* select#8 */ select max(`test`.`n`.`i`) AS `MAX(``n``.``i``)` from `test`.`n`) `derived_6_8` join `test`.`n` `table3` left join (/* select#7 */ select distinct 1 AS `Name_exp_1` from `test`.`n` `n1` join `test`.`n` `n2` where (`test`.`n1`.`i` > `test`.`n2`.`i`)) `derived_6_7` on(true) where ((`derived_6_7`.`Name_exp_1` is null) and (`test`.`table1`.`i` <= `derived_6_8`.`MAX(``n``.``i``)`) and (`test`.`table2`.`i` <= `derived_6_9`.`MAX(``n``.``i``)`))) `derived_1_6` left join (/* select#10 */ select avg(`test`.`n`.`i`) AS `AVG(n.i)` from `test`.`n`) `derived_1_10` on(true) where true
 SELECT (SELECT AVG(n.i)
 FROM n) AS feild1,
 SUM(table1.i)
@@ -3330,12 +3331,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 10	DERIVED	n	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(n); Using join buffer (hash join)
 10	DERIVED	<derived16>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 10	DERIVED	<derived17>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
-10	DERIVED	n	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Not exists; Using join buffer (hash join)
-10	DERIVED	n	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Not exists; Using join buffer (hash join)
+10	DERIVED	<derived14>	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Not exists; Using join buffer (hash join)
+10	DERIVED	<derived11>	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Not exists; Using join buffer (hash join)
 17	DERIVED	n	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 16	DERIVED	n	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+14	DERIVED	n	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using temporary
+11	DERIVED	n	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `derived_1_18`.`AVG(n.i)` AS `feild1`,`derived_1_10`.`SUM(table1.i)` AS `SUM(table1.i)` from (/* select#10 */ select sum(`test`.`table1`.`i`) AS `SUM(table1.i)` from `test`.`n` `table1` join (/* select#17 */ select max(`test`.`n`.`i`) AS `MAX(``n``.``i``)` from `test`.`n`) `derived_10_17` join `test`.`n` `table2` join (/* select#16 */ select max(`test`.`n`.`i`) AS `MAX(``n``.``i``)` from `test`.`n`) `derived_10_16` join `test`.`n` `table3` semi join (`test`.`n`) anti join (`test`.`n`) on(((`test`.`n`.`i` = 4))) semi join (`test`.`n`) semi join (`test`.`n`) anti join (`test`.`n`) on(((`test`.`n`.`i` = 3))) where ((`test`.`n`.`i` = 7) and (`test`.`n`.`i` = 5) and (`test`.`table1`.`i` <= `derived_10_16`.`MAX(``n``.``i``)`) and (`test`.`table2`.`i` <= `derived_10_17`.`MAX(``n``.``i``)`))) `derived_1_10` left join (/* select#18 */ select avg(`test`.`n`.`i`) AS `AVG(n.i)` from `test`.`n`) `derived_1_18` on(true) where true
+Note	1003	/* select#1 */ select `derived_1_18`.`AVG(n.i)` AS `feild1`,`derived_1_10`.`SUM(table1.i)` AS `SUM(table1.i)` from (/* select#10 */ select sum(`test`.`table1`.`i`) AS `SUM(table1.i)` from `test`.`n` `table1` join (/* select#17 */ select max(`test`.`n`.`i`) AS `MAX(``n``.``i``)` from `test`.`n`) `derived_10_17` join `test`.`n` `table2` join (/* select#16 */ select max(`test`.`n`.`i`) AS `MAX(``n``.``i``)` from `test`.`n`) `derived_10_16` join `test`.`n` `table3` left join (/* select#14 */ select distinct 1 AS `Name_exp_1` from `test`.`n` where (`test`.`n`.`i` = 4)) `derived_10_14` on(true) left join (/* select#11 */ select distinct 1 AS `Name_exp_1` from `test`.`n` where (`test`.`n`.`i` = 3)) `derived_10_11` on(true) semi join (`test`.`n`) semi join (`test`.`n`) semi join (`test`.`n`) where ((`test`.`n`.`i` = 7) and (`test`.`n`.`i` = 5) and (`derived_10_14`.`Name_exp_1` is null) and (`derived_10_11`.`Name_exp_1` is null) and (`test`.`table1`.`i` <= `derived_10_16`.`MAX(``n``.``i``)`) and (`test`.`table2`.`i` <= `derived_10_17`.`MAX(``n``.``i``)`))) `derived_1_10` left join (/* select#18 */ select avg(`test`.`n`.`i`) AS `AVG(n.i)` from `test`.`n`) `derived_1_18` on(true) where true
 DROP TABLE n;
 #
 # Bug#30736475 WL#12885 SIG 6 IN ITEM_FIELD::FIX_FIELDS() AT SQL/ITEM.CC

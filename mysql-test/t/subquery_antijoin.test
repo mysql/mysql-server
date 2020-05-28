@@ -462,3 +462,20 @@ INSERT INTO t2 VALUES(2),(3);
 explain SELECT MAX(t1.a) FROM t1 WHERE a NOT IN (SELECT a FROM t2);
 SELECT MAX(t1.a) FROM t1 WHERE a NOT IN (SELECT a FROM t2);
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#31376809 PERFORMANCE REGRESSION FROM 5.7->8.0, DUE TO ANTIJOIN OF NOT EXISTS SUBQUERY
+--echo #
+
+create table t(a int, b int);
+insert into t values(1,1),(2,2),(3,3),(4,4),(5,5);
+
+# Should not transform subquery to antijoin and should evaluate it at
+# optimization time
+explain format=tree select a from t where (not exists (select b from t));
+select a from t where (not exists (select b from t));
+
+explain format=tree select a from t where 1 not in (select 1 from t);
+select a from t where 1 not in (select 1 from t);
+
+drop table t;
