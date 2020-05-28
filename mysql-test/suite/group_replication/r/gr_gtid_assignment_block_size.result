@@ -21,11 +21,11 @@ ERROR 42000: Incorrect argument type to variable 'group_replication_gtid_assignm
 SET GLOBAL group_replication_gtid_assignment_block_size= 1.0;
 ERROR 42000: Incorrect argument type to variable 'group_replication_gtid_assignment_block_size'
 SET GLOBAL group_replication_gtid_assignment_block_size= 0;
-ERROR 42000: The value 0 is not within the range of accepted values for the option gtid_assignment_block_size. The value must be between 1 and 9223372036854775807 inclusive.
+ERROR 42000: The value 0 is not within the range of accepted values for the option group_replication_gtid_assignment_block_size.The value must be between 1 and 9223372036854775807 inclusive.
 SET GLOBAL group_replication_gtid_assignment_block_size= -1;
-ERROR 42000: The value -1 is not within the range of accepted values for the option gtid_assignment_block_size. The value must be between 1 and 9223372036854775807 inclusive.
+ERROR 42000: The value -1 is not within the range of accepted values for the option group_replication_gtid_assignment_block_size.The value must be between 1 and 9223372036854775807 inclusive.
 SET GLOBAL group_replication_gtid_assignment_block_size= 9223372036854775808;
-ERROR 42000: The value -9223372036854775808 is not within the range of accepted values for the option gtid_assignment_block_size. The value must be between 1 and 9223372036854775807 inclusive.
+ERROR 42000: The value -9223372036854775808 is not within the range of accepted values for the option group_replication_gtid_assignment_block_size.The value must be between 1 and 9223372036854775807 inclusive.
 
 ############################################################
 # 2. Set valid values to group_replication_gtid_assignment_block_size.
@@ -46,7 +46,7 @@ SET GLOBAL group_replication_gtid_assignment_block_size= 1;
 include/assert.inc [group_replication_gtid_assignment_block_size is correct]
 include/start_and_bootstrap_group_replication.inc
 SET GLOBAL group_replication_gtid_assignment_block_size= 1000;
-ERROR HY000: The GTID assignment block size cannot be set while Group Replication is running
+ERROR HY000: The group_replication_gtid_assignment_block size cannot be set while Group Replication is running
 include/assert.inc [group_replication_gtid_assignment_block_size is 1]
 
 ############################################################

@@ -4431,7 +4431,7 @@ ER_GRP_RPL_BROADCAST_COMMIT_TRANS_MSSG_FAILED
   eng "Broadcast of committed transactions message failed."
 
 ER_GRP_RPL_GROUP_NAME_PARSE_ERROR
-  eng "Unable to parse the group name during the Certification module initialization."
+  eng "Unable to parse the group_replication_group_name during the Certification module initialization."
 
 ER_GRP_RPL_ADD_GRPSID_TO_GRPGTIDSID_MAP_ERROR
   eng "Unable to add the group_sid in the group_gtid_sid_map during the Certification module initialization."
@@ -4599,7 +4599,7 @@ ER_GRP_RPL_SUPER_READ_ONLY_ACTIVATE_ERROR
   eng "Error when activating super_read_only mode on start. The member will now exit the group."
 
 ER_GRP_RPL_EXCEEDS_AUTO_INC_VALUE
-  eng "Group contains %lu members which is greater than auto_increment_increment value of %lu. This can lead to a higher transactional abort rate."
+  eng "Group contains %lu members which is greater than group_replication_auto_increment_increment value of %lu. This can lead to a higher transactional abort rate."
 
 ER_GRP_RPL_DATA_NOT_PROVIDED_BY_MEM
   eng "Member with address '%s:%u' didn't provide any data during the last group change. Group information can be outdated and lead to errors on recovery."
@@ -4644,7 +4644,7 @@ ER_GRP_RPL_TRANS_WRITE_SET_EXTRACT_DIFF_FROM_GRP
   eng "The member is configured with a transaction-write-set-extraction option value '%s' different from the group '%s'. The member will now exit the group."
 
 ER_GRP_RPL_MEMBER_CFG_INCOMPATIBLE_WITH_GRP_CFG
-  eng "The member configuration is not compatible with the group configuration. Variables such as single_primary_mode or enforce_update_everywhere_checks must have the same value on every server in the group. (member configuration option: [%s], group configuration option: [%s])."
+  eng "The member configuration is not compatible with the group configuration. Variables such as group_replication_single_primary_mode or group_replication_enforce_update_everywhere_checks must have the same value on every server in the group. (member configuration option: [%s], group configuration option: [%s])."
 
 ER_GRP_RPL_MEMBER_STOP_RPL_CHANNELS_ERROR
   eng "Error stopping all replication channels while server was leaving the group. %s"
@@ -4689,13 +4689,13 @@ ER_GRP_RPL_FK_WITH_CASCADE_UNSUPPORTED
   eng "Table %s has a foreign key with 'CASCADE', 'SET NULL' or 'SET DEFAULT' clause. This is not compatible with Group Replication."
 
 ER_GRP_RPL_AUTO_INC_RESET
-  eng "auto_increment_increment is reset to %lu"
+  eng "group_replication_auto_increment_increment is reset to %lu"
 
 ER_GRP_RPL_AUTO_INC_OFFSET_RESET
   eng "auto_increment_offset is reset to %lu"
 
 ER_GRP_RPL_AUTO_INC_SET
-  eng "auto_increment_increment is set to %lu"
+  eng "group_replication_auto_increment_increment is set to %lu"
 
 ER_GRP_RPL_AUTO_INC_OFFSET_SET
   eng "auto_increment_offset is set to %lu"
@@ -4983,7 +4983,7 @@ ER_GRP_RPL_FAILED_TO_CALL_GRP_COMMUNICATION_INTERFACE
   eng "Error calling group communication interfaces"
 
 ER_GRP_RPL_MEMBER_SERVER_UUID_IS_INCOMPATIBLE_WITH_GRP
-  eng "Member server_uuid is incompatible with the group. Server_uuid %s matches group_name %s."
+  eng "Member server_uuid is incompatible with the group. Server_uuid %s matches group_replication_group_name %s."
 
 ER_GRP_RPL_MEMBER_CONF_INFO
   eng "Member configuration: member_id: %lu; member_uuid: \"%s\"; single-primary mode: \"%s\"; group_replication_auto_increment_increment: %lu; "
@@ -5055,10 +5055,10 @@ ER_GRP_RPL_ALL_OBSERVERS_UNREGISTERED
   eng "All Group Replication server observers have been successfully unregistered"
 
 ER_GRP_RPL_FAILED_TO_PARSE_THE_GRP_NAME
-  eng "Unable to parse the group name."
+  eng "Unable to parse the group_replication_group_name."
 
 ER_GRP_RPL_FAILED_TO_GENERATE_SIDNO_FOR_GRP
-  eng "Unable to parse the group name."
+  eng "Unable to parse the group_replication_group_name."
 
 ER_GRP_RPL_APPLIER_NOT_STARTED_DUE_TO_RUNNING_PREV_SHUTDOWN
   eng "Cannot start the Group Replication applier as a previous shutdown is still running: The thread will stop once its task is complete."
@@ -5106,19 +5106,19 @@ ER_GRP_RPL_SLAVE_PRESERVE_COMMIT_ORDER_NOT_SET
   eng "Group Replication requires slave-preserve-commit-order to be set to ON when using more than 1 applier threads."
 
 ER_GRP_RPL_SINGLE_PRIM_MODE_NOT_ALLOWED_WITH_UPDATE_EVERYWHERE
-  eng "It is not allowed to run single primary mode with 'enforce_update_everywhere_checks' enabled."
+  eng "It is not allowed to run single primary mode with 'group_replication_enforce_update_everywhere_checks' enabled."
 
 ER_GRP_RPL_MODULE_TERMINATE_ERROR
   eng "error_message: %s"
 
 ER_GRP_RPL_GRP_NAME_OPTION_MANDATORY
-  eng "The group name option is mandatory"
+  eng "The group_replication_group_name option is mandatory"
 
 ER_GRP_RPL_GRP_NAME_IS_TOO_LONG
-  eng "The group name '%s' is not a valid UUID, its length is too big"
+  eng "The group_replication_group_name '%s' is not a valid UUID, its length is too big"
 
 ER_GRP_RPL_GRP_NAME_IS_NOT_VALID_UUID
-  eng "The group name '%s' is not a valid UUID"
+  eng "The group_replication_group_name '%s' is not a valid UUID"
 
 ER_GRP_RPL_FLOW_CTRL_MIN_QUOTA_GREATER_THAN_MAX_QUOTA
   eng "group_replication_flow_control_min_quota cannot be larger than group_replication_flow_control_max_quota"
@@ -5130,7 +5130,7 @@ ER_GRP_RPL_FLOW_CTRL_MAX_QUOTA_SMALLER_THAN_MIN_QUOTAS
   eng "group_replication_flow_control_max_quota cannot be smaller than group_replication_flow_control_min_quota or group_replication_flow_control_min_recovery_quota"
 
 ER_GRP_RPL_INVALID_SSL_RECOVERY_STRING
-  eng "The given value for recovery ssl option '%s' is invalid as its length is beyond the limit"
+  eng "The given value for recovery ssl option 'group_replication_%s' is invalid as its length is beyond the limit"
 
 ER_GRP_RPL_SUPPORTS_ONLY_ONE_FORCE_MEMBERS_SET
   eng "There is one group_replication_force_members operation already ongoing"

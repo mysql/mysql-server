@@ -7,7 +7,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 # restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_bootstrap_group=1 --group_replication_start_on_boot=1
 include/rpl_reconnect.inc
 SET SESSION SQL_LOG_BIN=0;
-call mtr.add_suppression("The group name option is mandatory");
+call mtr.add_suppression("The group_replication_group_name option is mandatory");
 call mtr.add_suppression("Unable to start Group Replication on boot");
 SET SESSION SQL_LOG_BIN=1;
 include/uninstall_group_replication_plugin.inc
