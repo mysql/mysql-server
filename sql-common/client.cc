@@ -3349,18 +3349,11 @@ static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
      have OpenSSL. The X509_check_* functions return 1 on success.
   */
 #if OPENSSL_VERSION_NUMBER >= 0x10002000L
-  if ((X509_check_host(server_cert, server_hostname, strlen(server_hostname), 0,
-                       nullptr) != 1) &&
-      (X509_check_ip_asc(server_cert, server_hostname, 0) != 1)) {
-    *errptr =
-        "Failed to verify the server certificate via X509 certificate "
-        "matching functions";
-    goto error;
-
-  } else {
-    /* Success */
-    ret_validation = 0;
-  }
+  /*
+    For OpenSSL 1.0.2 and up we already set certificate verification
+    parameters in the new_VioSSLFd() to perform automatic checks.
+  */
+  ret_validation = 0;
 #else  /* OPENSSL_VERSION_NUMBER < 0x10002000L */
   /*
      OpenSSL prior to 1.0.2 do not support X509_check_host() function.
@@ -3403,7 +3396,7 @@ static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
   }
 #endif /* OPENSSL_VERSION_NUMBER >= 0x10002000L */
 
-  *errptr = "SSL certificate validation failure";
+  *errptr = "SSL certificate validation success";
 
 error:
   if (server_cert != nullptr) X509_free(server_cert);
@@ -4130,6 +4123,8 @@ static int cli_establish_ssl(MYSQL *mysql) {
     const char *cert_error;
     unsigned long ssl_error;
     char buff[33], *end;
+    const bool verify_identity =
+        mysql->client_flag & CLIENT_SSL_VERIFY_SERVER_CERT;
 
     /* check if server supports compression else turn off client capability */
     if (!(mysql->server_capabilities & CLIENT_ZSTD_COMPRESSION_ALGORITHM))
@@ -4165,7 +4160,8 @@ static int cli_establish_ssl(MYSQL *mysql) {
               &ssl_init_error,
               options->extension ? options->extension->ssl_crl : nullptr,
               options->extension ? options->extension->ssl_crlpath : nullptr,
-              options->extension ? options->extension->ssl_ctx_flags : 0))) {
+              options->extension ? options->extension->ssl_ctx_flags : 0,
+              verify_identity ? mysql->host : nullptr))) {
       set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate,
                                ER_CLIENT(CR_SSL_CONNECTION_ERROR),
                                sslGetErrString(ssl_init_error));
@@ -4188,7 +4184,7 @@ static int cli_establish_ssl(MYSQL *mysql) {
     DBUG_PRINT("info", ("IO layer change done!"));
 
     /* Verify server cert */
-    if ((mysql->client_flag & CLIENT_SSL_VERIFY_SERVER_CERT) &&
+    if (verify_identity &&
         ssl_verify_server_cert(net->vio, mysql->host, &cert_error)) {
       set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate,
                                ER_CLIENT(CR_SSL_CONNECTION_ERROR), cert_error);
@@ -4307,6 +4303,8 @@ static net_async_status cli_establish_ssl_nonblocking(MYSQL *mysql, int *res) {
     const char *cert_error;
     unsigned long ssl_error;
     size_t ret;
+    const bool verify_identity =
+        mysql->client_flag & CLIENT_SSL_VERIFY_SERVER_CERT;
 
     MYSQL_TRACE_STAGE(mysql, SSL_NEGOTIATION);
 
@@ -4320,7 +4318,8 @@ static net_async_status cli_establish_ssl_nonblocking(MYSQL *mysql, int *res) {
                 &ssl_init_error,
                 options->extension ? options->extension->ssl_crl : nullptr,
                 options->extension ? options->extension->ssl_crlpath : nullptr,
-                options->extension ? options->extension->ssl_ctx_flags : 0))) {
+                options->extension ? options->extension->ssl_ctx_flags : 0,
+                verify_identity ? mysql->host : nullptr))) {
         set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR,
                                  unknown_sqlstate,
                                  ER_CLIENT(CR_SSL_CONNECTION_ERROR),
@@ -4363,7 +4362,7 @@ static net_async_status cli_establish_ssl_nonblocking(MYSQL *mysql, int *res) {
     vio_set_blocking_flag(net->vio, !ctx->non_blocking);
 
     /* Verify server cert */
-    if ((mysql->client_flag & CLIENT_SSL_VERIFY_SERVER_CERT) &&
+    if (verify_identity &&
         ssl_verify_server_cert(net->vio, mysql->host, &cert_error)) {
       set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate,
                                ER_CLIENT(CR_SSL_CONNECTION_ERROR), cert_error);

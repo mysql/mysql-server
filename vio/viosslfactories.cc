@@ -231,7 +231,8 @@ static const char *ssl_error_string[] = {
     "SSL context is not usable without certificate and private key",
     "SSL_CTX_set_tmp_dh failed",
     "TLS version is invalid",
-    "Failed to set ecdh information"};
+    "Failed to set ecdh information",
+    "Failed to set X509 verification parameter"};
 
 const char *sslGetErrString(enum enum_ssl_init_error e) {
   DBUG_ASSERT(SSL_INITERR_NOERROR < e && e < SSL_INITERR_LASTERR);
@@ -580,7 +581,7 @@ static struct st_VioSSLFd *new_VioSSLFd(
     const char *ca_path, const char *cipher,
     const char *ciphersuites MY_ATTRIBUTE((unused)), bool is_client,
     enum enum_ssl_init_error *error, const char *crl_file, const char *crl_path,
-    const long ssl_ctx_flags) {
+    const long ssl_ctx_flags, const char *server_host MY_ATTRIBUTE((unused))) {
   DH *dh;
   struct st_VioSSLFd *ssl_fd;
   long ssl_ctx_options = SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;
@@ -749,6 +750,29 @@ static struct st_VioSSLFd *new_VioSSLFd(
   }
 #endif /* OPENSSL_VERSION_NUMBER < 0x10002000L */
 
+#if OPENSSL_VERSION_NUMBER >= 0x10002000L
+  /*
+    OpenSSL 1.0.2 and up provides support for hostname validation.
+    If server_host parameter is set it contains either IP address or
+    server's hostname. Pass it to the lib to perform automatic checks.
+  */
+  if (server_host) {
+    X509_VERIFY_PARAM *param = SSL_CTX_get0_param(ssl_fd->ssl_context);
+    DBUG_ASSERT(is_client);
+    /*
+      As we don't know if the server_host contains IP addr or hostname
+      call X509_VERIFY_PARAM_set1_ip_asc() first and if it returns an error
+      (not valid IP address), call X509_VERIFY_PARAM_set1_host().
+    */
+    if (1 != X509_VERIFY_PARAM_set1_ip_asc(param, server_host)) {
+      if (1 != X509_VERIFY_PARAM_set1_host(param, server_host, 0)) {
+        *error = SSL_INITERR_X509_VERIFY_PARAM;
+        goto error;
+      }
+    }
+  }
+#endif
+
   SSL_CTX_set_options(ssl_fd->ssl_context, ssl_ctx_options);
 
   DBUG_PRINT("exit", ("OK 1"));
@@ -769,7 +793,7 @@ struct st_VioSSLFd *new_VioSSLConnectorFd(
     const char *key_file, const char *cert_file, const char *ca_file,
     const char *ca_path, const char *cipher, const char *ciphersuites,
     enum enum_ssl_init_error *error, const char *crl_file, const char *crl_path,
-    const long ssl_ctx_flags) {
+    const long ssl_ctx_flags, const char *server_host) {
   struct st_VioSSLFd *ssl_fd;
   int verify = SSL_VERIFY_PEER;
 
@@ -781,7 +805,7 @@ struct st_VioSSLFd *new_VioSSLConnectorFd(
 
   if (!(ssl_fd = new_VioSSLFd(key_file, cert_file, ca_file, ca_path, cipher,
                               ciphersuites, true, error, crl_file, crl_path,
-                              ssl_ctx_flags))) {
+                              ssl_ctx_flags, server_host))) {
     return nullptr;
   }
 
@@ -802,7 +826,7 @@ struct st_VioSSLFd *new_VioSSLAcceptorFd(
   int verify = SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE;
   if (!(ssl_fd = new_VioSSLFd(key_file, cert_file, ca_file, ca_path, cipher,
                               ciphersuites, false, error, crl_file, crl_path,
-                              ssl_ctx_flags))) {
+                              ssl_ctx_flags, nullptr))) {
     return nullptr;
   }
   /* Init the the VioSSLFd as a "acceptor" ie. the server side */
