@@ -5947,6 +5947,10 @@
             </li>
 
             <li>
+              <tt>SSL</tt>:Use SSL network protocol to have encrypted connection.
+            </li>
+
+            <li>
               <tt>TCP</tt>: Use the TCP/IP connection protocol.
             </li>
 
@@ -5979,13 +5983,6 @@
           to be applied when zstd compression algorithm is used. It is passed to
           the <b>mysql_options()</b> C API function using the
           <b>MYSQL_OPT_COMPRESSION_ALGORITHMS</b> option.
-        </li>
-
-        <li>
-          <b><em>compression algorithm</em></b> is the name of compression
-          algorithm to be used to comrpess data transferred between client
-          server. It is passed to the <b>mysql_options()</b> C API function
-          using the <b>MYSQL_OPT_COMPRESSION_ALGORITHMS</b> option.
         </li>
 
         <li>
