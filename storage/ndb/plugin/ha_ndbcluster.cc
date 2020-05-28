@@ -2538,7 +2538,7 @@ int ha_ndbcluster::inplace__drop_indexes(Ndb *ndb, TABLE *tab) {
       // Renumber the indexes by shifting out the dropped index
       inplace__renumber_indexes(i);
       // clear the dropped index at last now
-      ndb_clear_index(dict, m_index[tab->s->keys]);
+      ndb_clear_index(dict, m_index[tab->s->keys - 1]);
     }
   }
 
@@ -12056,7 +12056,7 @@ static bool upgrade_migrate_privilege_tables() {
   if (!ndb_get_table_names_in_schema(dict, "mysql", &ndb_tables)) return true;
 
   Ndb_privilege_upgrade_connection conn(temp_thd.get());
-  for (const auto table_name : ndb_tables)
+  for (const auto &table_name : ndb_tables)
     if (Ndb_dist_priv_util::is_privilege_table("mysql", table_name.c_str()))
       if (conn.migrate_privilege_table(table_name.c_str())) return true;
 

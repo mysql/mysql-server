@@ -1292,7 +1292,6 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child_scan(
     // (We support semi-join only if firstMatch strategy is used)
     DBUG_ASSERT(m_tables[tab_no].m_sj_nest.contain(table->get_access_no()));
 
-    const ndb_table_access_map sj_nest(m_tables[tab_no].m_sj_nest);
     if (!is_pushable_within_nest(table, m_tables[tab_no].m_sj_nest, "semi")) {
       return false;
     }

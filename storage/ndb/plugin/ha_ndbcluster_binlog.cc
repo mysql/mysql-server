@@ -6529,7 +6529,7 @@ void Ndb_binlog_thread::recall_pending_purges(THD *thd) {
 
   // Iterate list of pending purges and delete corresponding
   // rows from ndb_binlog_index table
-  for (const std::string filename : m_pending_purges) {
+  for (const std::string &filename : m_pending_purges) {
     log_verbose(1, "Purging binlog file: '%s'", filename.c_str());
 
     if (Ndb_binlog_index_table_util::remove_rows_for_file(thd,
