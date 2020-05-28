@@ -4410,8 +4410,6 @@ class handler {
   int ha_create(const char *name, TABLE *form, HA_CREATE_INFO *info,
                 dd::Table *table_def);
 
-  int ha_prepare_load_table(const TABLE &table);
-
   int ha_load_table(const TABLE &table);
 
   int ha_unload_table(const char *db_name, const char *table_name,
@@ -6193,19 +6191,6 @@ class handler {
   @param[in] scan_ctx  Scan context of the sampling
   @return 0 for success, else failure. */
   virtual int sample_end(void *scan_ctx);
-
-  /**
-   * Prepares secondary engine for loading a table.
-   *
-   * @param table Table opened in primary storage engine. Its read_set tells
-   * which columns to load.
-   *
-   * @return 0 if success, error code otherwise.
-   */
-  virtual int prepare_load_table(const TABLE &table MY_ATTRIBUTE((unused))) {
-    DBUG_ASSERT(false);
-    return HA_ERR_WRONG_COMMAND;
-  }
 
   /**
    * Loads a table into its defined secondary storage engine.

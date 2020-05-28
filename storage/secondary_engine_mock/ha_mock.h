@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -88,8 +88,6 @@ class ha_mock : public handler {
   Table_flags table_flags() const override;
 
   const char *table_type() const override { return "MOCK"; }
-
-  int prepare_load_table(const TABLE &table) override;
 
   int load_table(const TABLE &table) override;
 
