@@ -233,6 +233,18 @@ bool HashJoinIterator::Init() {
     // NULL-complemented rows from the probe input).
     return false;
   }
+
+  if (m_join_type == JoinType::ANTI && m_join_conditions.empty() &&
+      m_extra_condition == nullptr && !m_row_buffer.empty()) {
+    // For degenerate antijoins, we know we will never output anything
+    // if there's anything in the hash table, so we can end right away.
+    // (We also don't need to read more than one row, but
+    // CreateHashJoinAccessPath() has already added a LIMIT 1 for us
+    // in this case.)
+    m_state = State::END_OF_ROWS;
+    return false;
+  }
+
   return InitProbeIterator();
 }
 

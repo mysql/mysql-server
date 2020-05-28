@@ -2283,3 +2283,19 @@ SELECT * FROM t1, t2 WHERE t1.c0 = t2.c0;
 SELECT * FROM t0, t2 WHERE t0.c0 = t2.c0;
 
 DROP TABLE t0, t1, t2;
+
+--echo #
+--echo # Bug #31376809: PERFORMANCE REGRESSION FROM 5.7->8.0, DUE TO ANTIJOIN OF NOT EXISTS SUBQUERY
+--echo #
+
+CREATE TABLE t1 (a INTEGER NOT NULL, b INTEGER);
+INSERT INTO t1 VALUES (1,1),(2,2),(3,3),(4,4),(5,5);
+ANALYZE TABLE t1;
+
+# Verify that:
+#  a) There's a LIMIT 1 being put on the hash.
+#  b) The outer side of the hash join is never executed.
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE SELECT t1.a FROM t1 LEFT JOIN t1 AS t2 ON TRUE WHERE t2.a IS NULL;
+
+DROP TABLE t1;

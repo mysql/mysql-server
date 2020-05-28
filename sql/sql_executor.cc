@@ -1935,6 +1935,17 @@ static unique_ptr_destroy_only<RowIterator> CreateHashJoinIterator(
                                      thd, conditions_depend_on_outer_tables);
   }
 
+  // If we have a degenerate semijoin or antijoin (ie., no join conditions),
+  // we only need a single row from the inner side.
+  if ((join_type == JoinType::SEMI || join_type == JoinType::ANTI) &&
+      hash_join_conditions.empty() && hash_join_extra_conditions.empty()) {
+    build_iterator =
+        NewIterator<LimitOffsetIterator>(thd, move(build_iterator),
+                                         /*limit=*/1, /*offset=*/0,
+                                         /*count_all_rows=*/false,
+                                         /*send_records_override=*/nullptr);
+  }
+
   const JOIN *join = qep_tab->join();
   const bool has_grouping = join->implicit_grouping || join->grouped;
 
