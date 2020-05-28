@@ -51,5 +51,7 @@ SET GLOBAL protocol_compression_algorithms= "xyz";
 ERROR 42000: Variable 'protocol_compression_algorithms' can't be set to the value of 'xyz'
 SET GLOBAL protocol_compression_algorithms= "uncompressed,xyz";
 ERROR 42000: Variable 'protocol_compression_algorithms' can't be set to the value of 'uncompressed,xyz'
+SET GLOBAL protocol_compression_algorithms= "";
+ERROR 42000: Variable 'protocol_compression_algorithms' can't be set to the value of ''
 RESET PERSIST;
 # End of tests.
