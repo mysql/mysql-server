@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -31,19 +31,19 @@ namespace test {
 
 Identifier::Identifier(const std::string &name,
                        const std::string &schema_name) {
-  if (name.empty() == false) m_base.set_name(name);
+  if (!name.empty()) m_base.set_name(name);
 
-  if (schema_name.empty() == false) m_base.set_schema_name(schema_name);
+  if (!schema_name.empty()) m_base.set_schema_name(schema_name);
 }
 
 Column_identifier::Column_identifier(const std::string &name,
                                      const std::string &table_name,
                                      const std::string &schema_name) {
-  if (name.empty() == false) m_base.set_name(name);
+  if (!name.empty()) m_base.set_name(name);
 
-  if (table_name.empty() == false) m_base.set_table_name(table_name);
+  if (!table_name.empty()) m_base.set_table_name(table_name);
 
-  if (schema_name.empty() == false) m_base.set_schema_name(schema_name);
+  if (!schema_name.empty()) m_base.set_schema_name(schema_name);
 }
 
 Column_identifier::Column_identifier(const Document_path &path,
