@@ -1088,14 +1088,14 @@ uint Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols) {
     DBUG_PRINT("debug", ("make_hash_entry: hash after null_flags: %u", crc));
   }
 
-  for (Field **ptr = table->field; *ptr && ((*ptr)->field_index < cols->n_bits);
-       ptr++) {
+  for (Field **ptr = table->field;
+       *ptr && ((*ptr)->field_index() < cols->n_bits); ptr++) {
     Field *f = (*ptr);
 
     /*
       Field is set in the read_set and is isn't NULL.
      */
-    if (bitmap_is_set(cols, f->field_index) &&
+    if (bitmap_is_set(cols, f->field_index()) &&
         !f->is_virtual_gcol() &&  // Avoid virtual generated columns on hashes
         !f->is_null()) {
       /*

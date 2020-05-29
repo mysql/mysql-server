@@ -68,8 +68,8 @@ class Mock_field_long : public Field_long {
     initialize(name);
   }
 
-  void make_writable() { bitmap_set_bit(table->write_set, field_index); }
-  void make_readable() { bitmap_set_bit(table->read_set, field_index); }
+  void make_writable() { bitmap_set_bit(table->write_set, field_index()); }
+  void make_readable() { bitmap_set_bit(table->read_set, field_index()); }
 
  private:
   char m_name[1024];

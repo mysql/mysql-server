@@ -346,8 +346,8 @@ int table_ews_by_host_by_event_name::read_row_values(TABLE *table,
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* HOST */
           m_row.m_host.set_field(f);
           break;
@@ -355,7 +355,7 @@ int table_ews_by_host_by_event_name::read_row_values(TABLE *table,
           m_row.m_event_name.set_field(f);
           break;
         default: /* 2, ... COUNT/SUM/MIN/AVG/MAX */
-          m_row.m_stat.set_field(f->field_index - 2, f);
+          m_row.m_stat.set_field(f->field_index() - 2, f);
           break;
       }
     }

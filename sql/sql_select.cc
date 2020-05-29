@@ -1843,7 +1843,7 @@ void calc_used_field_length(TABLE *table, bool needs_rowid, uint *p_used_fields,
 
   uneven_bit_fields = null_fields = blobs = fields = rec_length = 0;
   for (f_ptr = table->field; (field = *f_ptr); f_ptr++) {
-    if (bitmap_is_set(read_set, field->field_index)) {
+    if (bitmap_is_set(read_set, field->field_index())) {
       fields++;
       rec_length += field->pack_length();
       if (field->is_flag_set(BLOB_FLAG) || field->is_array()) blobs++;

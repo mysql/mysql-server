@@ -618,7 +618,8 @@ static void register_hidden_field(TABLE *table, Field **default_field,
   Field **tmp_field = table->field;
 
   /* Increase all of registed fields index */
-  for (i = 0; i < table->s->fields; i++) tmp_field[i]->field_index++;
+  for (i = 0; i < table->s->fields; i++)
+    tmp_field[i]->set_field_index(tmp_field[i]->field_index() + 1);
 
   // Increase the field_index of visible blob field
   for (i = 0; i < table->s->blob_fields; i++) blob_field[i]++;
@@ -628,7 +629,7 @@ static void register_hidden_field(TABLE *table, Field **default_field,
   from_field[-1] = nullptr;
   field->table = table;
   field->orig_table = table;
-  field->field_index = 0;
+  field->set_field_index(0);
 
   // Keep the field from being expanded by SELECT *.
   field->set_hidden(dd::Column::enum_hidden_type::HT_HIDDEN_SQL);
@@ -1012,11 +1013,11 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
               &from_field[fieldnr], &default_field[fieldnr], group != nullptr,
               not_all_columns, false, false, false);
           if (new_field == nullptr) return nullptr;  // Should be OOM
-          new_field->field_index = fieldnr;
+          new_field->set_field_index(fieldnr);
           reg_field[fieldnr++] = new_field;
           share->reclength += new_field->pack_length();
           if (new_field->is_flag_set(BLOB_FLAG)) {
-            *blob_field++ = new_field->field_index;
+            *blob_field++ = new_field->field_index();
             share->blob_fields++;
           }
           if (new_field->type() == MYSQL_TYPE_BIT)
@@ -1115,7 +1116,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
         group_null_items++;
         new_field->set_flag(GROUP_FLAG);
       }
-      new_field->field_index = fieldnr;
+      new_field->set_field_index(fieldnr);
       reg_field[fieldnr++] = new_field;
       /* InnoDB temp table doesn't allow field with empty_name */
       if (!new_field->field_name) {
@@ -1420,7 +1421,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
         we are creating a tmp table to materialize the query's result.
       */
       ptrdiff_t diff = orig_field->table->default_values_offset();
-      Field *f_in_record0 = orig_field->table->field[orig_field->field_index];
+      Field *f_in_record0 = orig_field->table->field[orig_field->field_index()];
       if (f_in_record0->is_real_null(diff))
         field->set_null();
       else {
@@ -1663,7 +1664,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
     field_ll->table = table;
     field_ll->orig_table = table;
     share->fields++;
-    field_ll->field_index = 0;
+    field_ll->set_field_index(0);
     reclength = field_ll->pack_length();
     table->hidden_field_count++;
   }
@@ -1686,7 +1687,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
     *blob_field = 0;
     *reg_field = nullptr;
 
-    field->field_index = share->fields;
+    field->set_field_index(share->fields);
     share->fields++;
     share->blob_fields = 0;
     reclength += field->pack_length();
@@ -1868,7 +1869,7 @@ TABLE *create_tmp_table_from_fields(THD *thd, List<Create_field> &field_list,
     (*reg_field)->init(table);
     record_length += (*reg_field)->pack_length();
     if (!(*reg_field)->is_flag_set(NOT_NULL_FLAG)) null_count++;
-    (*reg_field)->field_index = idx++;
+    (*reg_field)->set_field_index(idx++);
     if ((*reg_field)->type() == MYSQL_TYPE_BIT)
       total_uneven_bit_length += (*reg_field)->field_length & 7;
 

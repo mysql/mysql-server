@@ -1324,7 +1324,7 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
         over the next 'actual_key_parts' works.
       */
       for (uint i = 0; i < key->actual_key_parts; i++)
-        bitmap_set_bit(&table->tmp_set, key->key_part[i].field->field_index);
+        bitmap_set_bit(&table->tmp_set, key->key_part[i].field->field_index());
     } else {
       const Key_use *curr_ku = keyuse;
 
@@ -1361,7 +1361,7 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
              curr_ku->keypart_map & keyuse->bound_keyparts)  // 2)
       {
         bitmap_set_bit(&table->tmp_set,
-                       key->key_part[curr_ku->keypart].field->field_index);
+                       key->key_part[curr_ku->keypart].field->field_index());
         curr_ku++;
       }
     }
@@ -1398,7 +1398,7 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
         const KEY *key = table->key_info + keyno;
         for (uint i = 0; i < table->quick_key_parts[keyno]; i++)
           bitmap_set_bit(&fields_current_quick,
-                         key->key_part[i].field->field_index);
+                         key->key_part[i].field->field_index());
 
         /*
           If any of the fields used to get the rows estimate for this

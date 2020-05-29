@@ -7068,8 +7068,8 @@ int ha_innobase::open(const char *name, int, uint open_flags,
       innobase_initialize_autoinc();
     }
 
-    dict_table_autoinc_set_col_pos(ib_table,
-                                   table->found_next_number_field->field_index);
+    dict_table_autoinc_set_col_pos(
+        ib_table, table->found_next_number_field->field_index());
     ut_ad(dict_table_has_autoinc_col(ib_table));
 
     dict_table_autoinc_unlock(ib_table);
@@ -9941,7 +9941,7 @@ int ha_innobase::change_active_index(
   be able to retrieve FTS_DOC_ID column value if necessary. */
   if ((m_prebuilt->index->type & DICT_FTS)) {
     if (table->fts_doc_id_field &&
-        bitmap_is_set(table->read_set, table->fts_doc_id_field->field_index &&
+        bitmap_is_set(table->read_set, table->fts_doc_id_field->field_index() &&
                                            m_prebuilt->read_just_key)) {
       m_prebuilt->fts_doc_id_in_read_set = true;
     }
@@ -11393,14 +11393,14 @@ inline int create_index(
     "fake" field forged in open_table_from_share() with length
     equal to the length of the prefix); so we have to go to
     form->fied. */
-    Field *field = form->field[key_part->field->field_index];
+    Field *field = form->field[key_part->field->field_index()];
     if (field == nullptr) ut_error;
 
     const char *field_name = key_part->field->field_name;
     if (handler != nullptr && handler->is_intrinsic()) {
       ut_ad(!innobase_is_v_fld(key_part->field));
       ulint col_no =
-          dict_col_get_no(handler->get_col(key_part->field->field_index));
+          dict_col_get_no(handler->get_col(key_part->field->field_index()));
       field_name = handler->get_col_name(col_no);
     }
 
@@ -12891,7 +12891,7 @@ void create_table_info_t::initialize_autoinc() {
 
   if (persist) {
     dict_table_autoinc_set_col_pos(
-        innobase_table, m_form->found_next_number_field->field_index);
+        innobase_table, m_form->found_next_number_field->field_index());
     ut_ad(dict_table_has_autoinc_col(innobase_table));
   }
 

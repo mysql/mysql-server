@@ -277,12 +277,12 @@ int table_tlws_by_table::read_row_values(TABLE *table, unsigned char *buf,
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* OBJECT_TYPE */
         case 1: /* SCHEMA_NAME */
         case 2: /* OBJECT_NAME */
-          m_row.m_object.set_field(f->field_index, f);
+          m_row.m_object.set_field(f->field_index(), f);
           break;
         case 3: /* COUNT_STAR */
           set_field_ulonglong(f, m_row.m_stat.m_all.m_count);

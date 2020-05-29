@@ -601,7 +601,7 @@ static bool create_full_part_field_array(THD *thd, TABLE *table,
   */
   if ((ptr = part_info->full_part_field_array))
     for (; *ptr; ptr++)
-      bitmap_set_bit(&part_info->full_part_field_set, (*ptr)->field_index);
+      bitmap_set_bit(&part_info->full_part_field_set, (*ptr)->field_index());
 
 end:
   return result;
@@ -2492,7 +2492,7 @@ bool partition_key_modified(TABLE *table, const MY_BITMAP *fields) {
       (table->s->db_type()->partition_flags() & HA_CAN_UPDATE_PARTITION_KEY))
     return false;
   for (fld = part_info->full_part_field_array; *fld; fld++)
-    if (bitmap_is_set(fields, (*fld)->field_index)) return true;
+    if (bitmap_is_set(fields, (*fld)->field_index())) return true;
   return false;
 }
 
@@ -5240,7 +5240,7 @@ void append_row_to_str(String &str, const uchar *row, TABLE *table) {
   if (!fields) return;
   fields[num_fields] = nullptr;
   for (field_ptr = table->field; *field_ptr; field_ptr++) {
-    if (!bitmap_is_set(table->read_set, (*field_ptr)->field_index)) continue;
+    if (!bitmap_is_set(table->read_set, (*field_ptr)->field_index())) continue;
     fields[curr_field_index++] = *field_ptr;
   }
 

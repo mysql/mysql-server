@@ -304,7 +304,7 @@ bool validate_default_values_of_unset_fields(THD *thd, TABLE *table) {
   DBUG_TRACE;
 
   for (Field **field = table->field; *field; field++) {
-    if (!bitmap_is_set(write_set, (*field)->field_index) &&
+    if (!bitmap_is_set(write_set, (*field)->field_index()) &&
         !(*field)->is_flag_set(NO_DEFAULT_VALUE_FLAG)) {
       if ((*field)->validate_stored_val(thd) && thd->is_error()) return true;
     }
@@ -858,7 +858,7 @@ static bool check_view_insertability(THD *thd, TABLE_LIST *view,
     Item_field *field = down_cast<Item_field *>(trans->item);
     /* check fields belong to table in which we are inserting */
     if (field->field->table == table &&
-        bitmap_test_and_set(&used_fields, field->field->field_index))
+        bitmap_test_and_set(&used_fields, field->field->field_index()))
       return true;
   }
 
@@ -941,7 +941,7 @@ bool get_default_columns(TABLE *table, MY_BITMAP **m_function_default_columns) {
     Field *f = table->field[i];
     // if it's a default expression
     if (f->has_insert_default_general_value_expression()) {
-      bitmap_set_bit(*m_function_default_columns, f->field_index);
+      bitmap_set_bit(*m_function_default_columns, f->field_index());
     }
   }
 
@@ -2171,7 +2171,7 @@ bool check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
   MY_BITMAP *write_set = entry->fields_set_during_insert;
 
   for (Field **field = entry->field; *field; field++) {
-    if (!bitmap_is_set(write_set, (*field)->field_index) &&
+    if (!bitmap_is_set(write_set, (*field)->field_index()) &&
         ((*field)->is_flag_set(NO_DEFAULT_VALUE_FLAG) &&
          ((*field)->m_default_val_expr == nullptr)) &&
         ((*field)->real_type() != MYSQL_TYPE_ENUM)) {
@@ -2836,8 +2836,8 @@ bool Query_result_create::start_execution(THD *thd) {
   }
   /* Mark all fields that are given values */
   for (Field **f = field; *f; f++) {
-    bitmap_set_bit(table->write_set, (*f)->field_index);
-    bitmap_set_bit(table->fields_set_during_insert, (*f)->field_index);
+    bitmap_set_bit(table->write_set, (*f)->field_index());
+    bitmap_set_bit(table->fields_set_during_insert, (*f)->field_index());
   }
 
   // Set up an empty bitmap of function defaults

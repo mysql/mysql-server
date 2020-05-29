@@ -357,8 +357,8 @@ int table_threads::read_row_values(TABLE *table, unsigned char *buf,
   buf[1] = 0;
 
   for (; (f = *fields); fields++) {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
-      switch (f->field_index) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0: /* THREAD_ID */
           set_field_ulonglong(f, m_row.m_thread_internal_id);
           break;
@@ -489,8 +489,8 @@ int table_threads::update_row_values(TABLE *table, const unsigned char *,
   enum_yes_no value;
 
   for (; (f = *fields); fields++) {
-    if (bitmap_is_set(table->write_set, f->field_index)) {
-      switch (f->field_index) {
+    if (bitmap_is_set(table->write_set, f->field_index())) {
+      switch (f->field_index()) {
         case 0:  /* THREAD_ID */
         case 1:  /* NAME */
         case 2:  /* TYPE */

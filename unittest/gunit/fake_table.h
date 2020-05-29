@@ -278,7 +278,7 @@ class Fake_TABLE : public TABLE {
     new_field->orig_table = this;
     static const char *table_name = "Fake";
     new_field->table_name = &table_name;
-    new_field->field_index = pos;
+    new_field->set_field_index(pos);
     bitmap_set_bit(read_set, pos);
     const ptrdiff_t field_offset = pos * MAX_FIELD_WIDTH;
     new_field->set_field_ptr(record[0] + field_offset + 1);

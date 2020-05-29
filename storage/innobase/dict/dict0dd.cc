@@ -2267,7 +2267,7 @@ static MY_ATTRIBUTE((warn_unused_result)) int dd_fill_one_dict_index(
     unsigned prefix_len = 0;
     const Field *field = key_part->field;
     ut_ad(field == form->field[key_part->fieldnr - 1]);
-    ut_ad(field == form->field[field->field_index]);
+    ut_ad(field == form->field[field->field_index()]);
 
     if (field->is_virtual_gcol()) {
       index->type |= DICT_VIRTUAL;
@@ -2317,17 +2317,17 @@ static MY_ATTRIBUTE((warn_unused_result)) int dd_fill_one_dict_index(
 
     if (innobase_is_v_fld(field)) {
       dict_v_col_t *v_col =
-          dict_table_get_nth_v_col_mysql(table, field->field_index);
+          dict_table_get_nth_v_col_mysql(table, field->field_index());
       col = reinterpret_cast<dict_col_t *>(v_col);
     } else {
       ulint t_num_v = 0;
-      for (ulint z = 0; z < field->field_index; z++) {
+      for (ulint z = 0; z < field->field_index(); z++) {
         if (innobase_is_v_fld(form->field[z])) {
           t_num_v++;
         }
       }
 
-      col = &table->cols[field->field_index - t_num_v];
+      col = &table->cols[field->field_index() - t_num_v];
     }
 
     col->is_visible = !field->is_hidden_from_user();
@@ -4062,7 +4062,7 @@ dict_table_t *dd_open_table_one(dd::cache::Dictionary_client *client,
 
   if (Field **autoinc_col = table->s->found_next_number_field) {
     const dd::Properties &p = dd_table->table().se_private_data();
-    dict_table_autoinc_set_col_pos(m_table, (*autoinc_col)->field_index);
+    dict_table_autoinc_set_col_pos(m_table, (*autoinc_col)->field_index());
     uint64 version, autoinc = 0;
     if (p.get(dd_table_key_strings[DD_TABLE_VERSION], &version) ||
         p.get(dd_table_key_strings[DD_TABLE_AUTOINC], &autoinc)) {

@@ -8039,9 +8039,9 @@ int Rows_log_event::do_add_row_data(uchar *row_data, size_t length) {
 static bool is_any_column_signaled_for_table(TABLE *table, MY_BITMAP *cols) {
   DBUG_TRACE;
 
-  for (Field **ptr = table->field; *ptr && ((*ptr)->field_index < cols->n_bits);
-       ptr++) {
-    if (bitmap_is_set(cols, (*ptr)->field_index)) return true;
+  for (Field **ptr = table->field;
+       *ptr && ((*ptr)->field_index() < cols->n_bits); ptr++) {
+    if (bitmap_is_set(cols, (*ptr)->field_index())) return true;
   }
 
   return false;
@@ -8392,7 +8392,7 @@ bool Rows_log_event::is_auto_inc_in_extra_columns() {
   DBUG_ASSERT(m_table);
   return (m_table->next_number_field &&
           this->m_fields.translate_position(
-              m_table->next_number_field->field_index) >= m_width);
+              m_table->next_number_field->field_index()) >= m_width);
 }
 
 /*
@@ -8472,9 +8472,9 @@ static bool record_compare(TABLE *table, MY_BITMAP *cols) {
    */
   else {
     for (Field **ptr = table->field;
-         *ptr && ((*ptr)->field_index < cols->n_bits) && !result; ptr++) {
+         *ptr && ((*ptr)->field_index() < cols->n_bits) && !result; ptr++) {
       Field *field = *ptr;
-      if (bitmap_is_set(cols, field->field_index) &&
+      if (bitmap_is_set(cols, field->field_index()) &&
           !field->is_virtual_gcol()) {
         /* compare null bit */
         if (field->is_null() != field->is_null_in_record(table->record[1]))
@@ -11761,9 +11761,9 @@ int Write_rows_log_event::do_after_row_operations(
    */
   if (is_auto_inc_in_extra_columns()) {
     bitmap_clear_bit(m_table->write_set,
-                     m_table->next_number_field->field_index);
+                     m_table->next_number_field->field_index());
     bitmap_clear_bit(m_table->read_set,
-                     m_table->next_number_field->field_index);
+                     m_table->next_number_field->field_index());
 
     if (get_flags(STMT_END_F)) m_table->file->ha_release_auto_increment();
   }

@@ -1811,7 +1811,8 @@ bool ha_ndbcluster::uses_blob_value(const MY_BITMAP *bitmap) const {
   blob_index_end = blob_index + table_share->blob_fields;
   do {
     Field *field = table->field[*blob_index];
-    if (bitmap_is_set(bitmap, field->field_index) && !field->is_virtual_gcol())
+    if (bitmap_is_set(bitmap, field->field_index()) &&
+        !field->is_virtual_gcol())
       return true;
   } while (++blob_index != blob_index_end);
   return false;
@@ -1866,7 +1867,7 @@ int ha_ndbcluster::check_default_values(const NDBTAB *ndbtab) {
       if (!field->stored_in_db) continue;
 
       const NdbDictionary::Column *ndbCol =
-          m_table_map->getColumn(field->field_index);
+          m_table_map->getColumn(field->field_index());
 
       if ((!(field->is_flag_set(PRI_KEY_FLAG) ||
              field->is_flag_set(NO_DEFAULT_VALUE_FLAG))) &&
@@ -1910,7 +1911,7 @@ int ha_ndbcluster::check_default_values(const NDBTAB *ndbtab) {
           ndb_log_error(
               "Internal error, Default values differ "
               "for column %u, ndb_default: %d",
-              field->field_index, ndb_default != NULL);
+              field->field_index(), ndb_default != NULL);
         }
       } else {
         /* We don't expect Ndb to have a native default for this column */
@@ -1919,7 +1920,7 @@ int ha_ndbcluster::check_default_values(const NDBTAB *ndbtab) {
           ndb_log_error(
               "Internal error, Column %u has native "
               "default, but shouldn't. Flags=%u, type=%u",
-              field->field_index, field->all_flags(), field->real_type());
+              field->field_index(), field->all_flags(), field->real_type());
           defaults_aligned = false;
         }
       }
@@ -2701,7 +2702,7 @@ bool ha_ndbcluster::check_index_fields_in_write_set(uint keyno) {
 
   for (i = 0; key_part != end; key_part++, i++) {
     Field *field = key_part->field;
-    if (!bitmap_is_set(table->write_set, field->field_index)) {
+    if (!bitmap_is_set(table->write_set, field->field_index())) {
       return false;
     }
   }
@@ -2813,7 +2814,7 @@ int ha_ndbcluster::ndb_pk_update_row(THD *thd, const uchar *old_data,
   */
   if (table->found_next_number_field &&
       bitmap_is_set(table->write_set,
-                    table->found_next_number_field->field_index) &&
+                    table->found_next_number_field->field_index()) &&
       (error = set_auto_inc(thd, table->found_next_number_field))) {
     return error;
   }
@@ -3908,10 +3909,10 @@ int ha_ndbcluster::full_table_scan(const KEY *key_info,
 
 int ha_ndbcluster::set_auto_inc(THD *thd, Field *field) {
   DBUG_TRACE;
-  bool read_bit = bitmap_is_set(table->read_set, field->field_index);
-  bitmap_set_bit(table->read_set, field->field_index);
+  bool read_bit = bitmap_is_set(table->read_set, field->field_index());
+  bitmap_set_bit(table->read_set, field->field_index());
   Uint64 next_val = (Uint64)field->val_int() + 1;
-  if (!read_bit) bitmap_clear_bit(table->read_set, field->field_index);
+  if (!read_bit) bitmap_clear_bit(table->read_set, field->field_index());
   return set_auto_inc_val(thd, next_val);
 }
 
@@ -4965,13 +4966,13 @@ int ha_ndbcluster::ndb_write_row(uchar *record, bool primary_key_update,
         Field *field = table->field[i];
         DBUG_PRINT("info", ("Field#%u, (%u), Type : %u "
                             "NO_DEFAULT_VALUE_FLAG : %u PRI_KEY_FLAG : %u",
-                            i, field->field_index, field->real_type(),
+                            i, field->field_index(), field->real_type(),
                             field->is_flag_set(NO_DEFAULT_VALUE_FLAG),
                             field->is_flag_set(PRI_KEY_FLAG)));
         if (field->is_flag_set(NO_DEFAULT_VALUE_FLAG) ||  // bug 41616
             field->is_flag_set(PRI_KEY_FLAG) ||           // bug 42238
             !type_supports_default_value(field->real_type())) {
-          bitmap_set_bit(user_cols_written_bitmap, field->field_index);
+          bitmap_set_bit(user_cols_written_bitmap, field->field_index());
         }
       }
       /* Finally, translate the whole bitmap from MySQL field numbers
@@ -5528,7 +5529,7 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
    */
   if (table->found_next_number_field &&
       bitmap_is_set(table->write_set,
-                    table->found_next_number_field->field_index) &&
+                    table->found_next_number_field->field_index()) &&
       (error = set_auto_inc(thd, table->found_next_number_field))) {
     return error;
   }
@@ -6099,7 +6100,7 @@ static void get_default_value(void *def_val, Field *field) {
   ptrdiff_t src_offset = field->table->default_values_offset();
 
   {
-    if (bitmap_is_set(field->table->read_set, field->field_index)) {
+    if (bitmap_is_set(field->table->read_set, field->field_index())) {
       if (field->type() == MYSQL_TYPE_BIT) {
         Field_bit *field_bit = static_cast<Field_bit *>(field);
         if (!field->is_real_null(src_offset)) {
@@ -14596,7 +14597,7 @@ static int create_table_set_up_partition_info(partition_info *part_info,
 
     for (uint i = 0; i < part_info->part_field_list.elements; i++) {
       DBUG_ASSERT(fields[i]->stored_in_db);
-      NDBCOL *col = colIdMap.getColumn(ndbtab, fields[i]->field_index);
+      NDBCOL *col = colIdMap.getColumn(ndbtab, fields[i]->field_index());
       DBUG_PRINT("info", ("setting dist key on %s", col->getName()));
       col->setPartitionKey(true);
     }
@@ -14813,7 +14814,7 @@ bool ha_ndbcluster::column_has_index(TABLE *tab, uint field_idx,
     KEY_PART_INFO *key_part = key_info->key_part;
     KEY_PART_INFO *end = key_part + key_info->user_defined_key_parts;
     for (; key_part != end; key_part++) {
-      if (key_part->field->field_index == field_idx) {
+      if (key_part->field->field_index() == field_idx) {
         return true;
       }
     }
@@ -15277,7 +15278,7 @@ enum_alter_inplace_result ha_ndbcluster::check_inplace_alter_supported(
       Field *new_field = altered_table->field[i];
       if (strcmp(field->field_name, new_field->field_name) != 0 &&
           !field->is_virtual_gcol()) {
-        NDBCOL *ndbCol = new_tab.getColumn(new_field->field_index);
+        NDBCOL *ndbCol = new_tab.getColumn(new_field->field_index());
         ndbCol->setName(new_field->field_name);
       }
     }
@@ -15798,7 +15799,7 @@ bool ha_ndbcluster::prepare_inplace_alter_table(
         DBUG_PRINT("info", ("Found field %s renamed to %s",
                             old_field->field_name, new_field->field_name));
         NdbDictionary::Column *ndbCol =
-            new_tab->getColumn(new_field->field_index);
+            new_tab->getColumn(new_field->field_index());
         ndbCol->setName(new_field->field_name);
       }
     }

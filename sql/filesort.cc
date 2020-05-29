@@ -2145,7 +2145,7 @@ Addon_fields *Filesort::get_addon_fields(
 
   for (Field **pfield = table->field; *pfield != nullptr; ++pfield) {
     Field *field = *pfield;
-    if (!bitmap_is_set(table->read_set, field->field_index)) continue;
+    if (!bitmap_is_set(table->read_set, field->field_index())) continue;
 
     // Having large blobs in addon fields could be very inefficient,
     // but small blobs are OK (where “small” is a bit fuzzy, and relative
@@ -2215,7 +2215,7 @@ Addon_fields *Filesort::get_addon_fields(
   Addon_fields_array::iterator addonf = m_sort_param.addon_fields->begin();
   for (Field **pfield = table->field; *pfield != nullptr; ++pfield) {
     Field *field = *pfield;
-    if (!bitmap_is_set(table->read_set, field->field_index)) continue;
+    if (!bitmap_is_set(table->read_set, field->field_index())) continue;
     DBUG_ASSERT(addonf != m_sort_param.addon_fields->end());
 
     addonf->field = field;

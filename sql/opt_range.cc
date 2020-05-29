@@ -11857,7 +11857,7 @@ static TRP_GROUP_MIN_MAX *get_best_group_min_max(
           If the field is used in the current query ensure that it's
           part of 'cur_index'
         */
-        if (bitmap_is_set(table->read_set, cur_field->field_index) &&
+        if (bitmap_is_set(table->read_set, cur_field->field_index()) &&
             !cur_field->is_part_of_actual_key(thd, cur_index, cur_index_info)) {
           cause = "not_covering";
           goto next_index;  // Field was not part of key
@@ -12054,7 +12054,7 @@ static TRP_GROUP_MIN_MAX *get_best_group_min_max(
       cur_part = first_non_infix_part +
                  (cur_min_max_arg_part && (cur_min_max_arg_part < last_part));
       for (; cur_part != last_part; cur_part++) {
-        if (bitmap_is_set(table->read_set, cur_part->field->field_index)) {
+        if (bitmap_is_set(table->read_set, cur_part->field->field_index())) {
           cause = "keypart_after_infix_in_query";
           goto next_index;
         }
@@ -14642,7 +14642,7 @@ void cost_skip_scan(TABLE *table, uint key, uint distinct_key_parts,
     bitmap_set_all(&ignored_fields);
     bitmap_clear_bit(
         &ignored_fields,
-        index_info->key_part[distinct_key_parts].field->field_index);
+        index_info->key_part[distinct_key_parts].field->field_index());
 
     /* Compute the number of records per group for the range. */
     if (index_info->has_records_per_key(distinct_key_parts))
@@ -14761,7 +14761,7 @@ QUICK_SKIP_SCAN_SELECT::QUICK_SKIP_SCAN_SELECT(
     */
     if (i + 1 < used_key_parts) {
       distinct_prefix_len += p->store_length;
-      bitmap_set_bit(&column_bitmap, p->field->field_index);
+      bitmap_set_bit(&column_bitmap, p->field->field_index());
     }
   }
   distinct_prefix_key_parts = used_key_parts - 1;

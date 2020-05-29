@@ -507,7 +507,7 @@ static bool dd_upgrade_match_index(TABLE *srv_table, dict_index_t *index) {
   for (ulint i = 0; i < key->user_defined_key_parts; i++) {
     KEY_PART_INFO *key_part = key->key_part + i;
 
-    Field *field = srv_table->field[key_part->field->field_index];
+    Field *field = srv_table->field[key_part->field->field_index()];
     if (field == nullptr) ut_error;
 
     const char *field_name = key_part->field->field_name;

@@ -126,7 +126,7 @@ inline void Table_helper::add_field(const Field &field) {
   EXPECT_FALSE(m_finalized);
 
   auto new_field = field.clone(m_thd->mem_root);
-  new_field->field_index = static_cast<uint16>(m_fields.size());
+  new_field->set_field_index(static_cast<uint16>(m_fields.size()));
 
   m_fields.push_back(new_field);
 }
@@ -247,7 +247,7 @@ inline void Table_helper::finalize_fields() {
     Field *field = m_table_share.field[i];
 
     field->init(&m_table);
-    field->field_index = i;
+    field->set_field_index(i);
 
     bitmap_set_bit(m_table.read_set, i);
     bitmap_set_bit(m_table.write_set, i);

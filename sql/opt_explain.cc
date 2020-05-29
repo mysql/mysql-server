@@ -1594,8 +1594,8 @@ bool Explain_join::explain_extra() {
                                  !bitmap_is_clear_all(table->write_set))) {
     Field **fld;
     for (fld = table->field; *fld; fld++) {
-      if (!bitmap_is_set(table->read_set, (*fld)->field_index) &&
-          !bitmap_is_set(table->write_set, (*fld)->field_index))
+      if (!bitmap_is_set(table->read_set, (*fld)->field_index()) &&
+          !bitmap_is_set(table->write_set, (*fld)->field_index()))
         continue;
 
       const char *field_description =

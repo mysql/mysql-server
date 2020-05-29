@@ -769,7 +769,7 @@ int ha_tina::find_current_row(uchar *buf) {
       }
     }
 
-    if (read_all || bitmap_is_set(table->read_set, (*field)->field_index)) {
+    if (read_all || bitmap_is_set(table->read_set, (*field)->field_index())) {
       bool is_enum = ((*field)->real_type() == MYSQL_TYPE_ENUM);
       /*
         Here CHECK_FIELD_WARN checks that all values in the csv file are valid

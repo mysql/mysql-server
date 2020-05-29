@@ -692,8 +692,8 @@ const Item_field *Item_func::contributes_to_filter(
         2) a usable field has already been found (meaning that
         this is "filter_for_table.colX OP filter_for_table.colY").
       */
-      if (bitmap_is_set(fields_to_ignore, fld->field->field_index) ||  // 1)
-          usable_field)                                                // 2)
+      if (bitmap_is_set(fields_to_ignore, fld->field->field_index()) ||  // 1)
+          usable_field)                                                  // 2)
       {
         found_comparable = true;
         continue;
@@ -7138,7 +7138,7 @@ float Item_func_match::get_filtering_effect(THD *, table_map filter_for_table,
 static void update_table_read_set(const Field *field) {
   TABLE *table = field->table;
 
-  if (!bitmap_test_and_set(table->read_set, field->field_index))
+  if (!bitmap_test_and_set(table->read_set, field->field_index()))
     table->covering_keys.intersect(field->part_of_key);
 }
 

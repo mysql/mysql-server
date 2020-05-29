@@ -674,7 +674,7 @@ static size_t record_prefix_size(const QEP_TAB *qep_tab) {
   const uchar *prefix_end = table->record[0];  // beginning of record
   for (auto f = table->field, end = table->field + table->s->fields; f < end;
        ++f) {
-    if (bitmap_is_set(table->read_set, (*f)->field_index))
+    if (bitmap_is_set(table->read_set, (*f)->field_index()))
       prefix_end = std::max<const uchar *>(
           prefix_end, (*f)->field_ptr() + (*f)->pack_length());
   }
@@ -3403,7 +3403,7 @@ int join_read_const_table(JOIN_TAB *tab, POSITION *pos) {
       /* Virtual generated columns must be writable */
       for (Field **vfield_ptr = table->vfield; vfield_ptr && *vfield_ptr;
            vfield_ptr++)
-        bitmap_set_bit(table->write_set, (*vfield_ptr)->field_index);
+        bitmap_set_bit(table->write_set, (*vfield_ptr)->field_index());
       table->file->column_bitmaps_signal();
     }
   }

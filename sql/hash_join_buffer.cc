@@ -257,7 +257,7 @@ bool StoreFromTableBuffers(const TableCollection &tables, String *buffer) {
 
     for (const Column &column : tbl.columns) {
       DBUG_ASSERT(bitmap_is_set(column.field->table->read_set,
-                                column.field->field_index));
+                                column.field->field_index()));
       if (!column.field->is_null()) {
         // Store the data in packed format. The packed format will also
         // include the length of the data if needed.

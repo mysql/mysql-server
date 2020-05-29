@@ -385,7 +385,7 @@ bool Json_table_column::fill_column(Table_function_json *table_function,
                          ? nullptr
                          : table_function->get_field(m_field_idx);
   DBUG_ASSERT(m_jtc_type == enum_jt_column::JTC_NESTED_PATH ||
-              (fld != nullptr && fld->field_index == m_field_idx));
+              (fld != nullptr && fld->field_index() == m_field_idx));
 
   switch (m_jtc_type) {
     case enum_jt_column::JTC_ORDINALITY: {

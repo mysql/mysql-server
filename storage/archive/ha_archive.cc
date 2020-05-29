@@ -1066,7 +1066,7 @@ int ha_archive::get_row_version2(azio_stream *file_to_read, uchar *buf) {
   for (ptr = table->s->blob_field, end = ptr + table->s->blob_fields;
        ptr != end; ptr++) {
     if (bitmap_is_set(read_set,
-                      (((Field_blob *)table->field[*ptr])->field_index)))
+                      (((Field_blob *)table->field[*ptr])->field_index())))
       total_blob_length += ((Field_blob *)table->field[*ptr])->get_length();
   }
 
@@ -1080,7 +1080,7 @@ int ha_archive::get_row_version2(azio_stream *file_to_read, uchar *buf) {
     size_t size = ((Field_blob *)table->field[*ptr])->get_length();
     if (size) {
       if (bitmap_is_set(read_set,
-                        ((Field_blob *)table->field[*ptr])->field_index)) {
+                        ((Field_blob *)table->field[*ptr])->field_index())) {
         read = azread(file_to_read, const_cast<char *>(last), size, &error);
 
         if (error) return HA_ERR_CRASHED_ON_USAGE;

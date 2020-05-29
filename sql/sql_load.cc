@@ -715,7 +715,7 @@ inline bool is_hidden_generated_column(TABLE *table, Item *item) {
   if (table->has_gcol() && real_item->type() == Item::FIELD_ITEM) {
     const Field *field = down_cast<Item_field *>(real_item)->field;
     if (bitmap_is_set(&table->fields_for_functional_indexes,
-                      field->field_index))
+                      field->field_index()))
       return true;
   }
   return false;

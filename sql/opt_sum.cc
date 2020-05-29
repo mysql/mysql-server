@@ -518,7 +518,7 @@ bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
             table->mark_columns_used_by_index_no_reset(ref.key, table->read_set,
                                                        ref.key_parts);
             // The aggregated column may or not be included in ref.key_parts.
-            bitmap_set_bit(table->read_set, item_field->field->field_index);
+            bitmap_set_bit(table->read_set, item_field->field->field_index());
             error = is_max ? get_index_max_value(table, &ref, range_fl)
                            : get_index_min_value(table, &ref, item_field,
                                                  range_fl, prefix_len);

@@ -174,7 +174,7 @@ bool compare_records(const TABLE *table) {
     */
     for (Field **ptr = table->field; *ptr != nullptr; ptr++) {
       Field *field = *ptr;
-      if (bitmap_is_set(table->write_set, field->field_index)) {
+      if (bitmap_is_set(table->write_set, field->field_index())) {
         if (field->is_nullable()) {
           uchar null_byte_index = field->null_offset();
 
@@ -202,7 +202,7 @@ bool compare_records(const TABLE *table) {
     return true;  // Diff in NULL value
   /* Compare updated fields */
   for (Field **ptr = table->field; *ptr; ptr++) {
-    if (bitmap_is_set(table->write_set, (*ptr)->field_index) &&
+    if (bitmap_is_set(table->write_set, (*ptr)->field_index()) &&
         (*ptr)->cmp_binary_offset(table->s->rec_buff_length))
       return true;
   }

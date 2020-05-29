@@ -11187,7 +11187,7 @@ void binlog_prepare_row_images(const THD *thd, TABLE *table) {
           Field *field = (*ptr);
           if ((field->type() == MYSQL_TYPE_BLOB) &&
               !field->is_flag_set(PRI_KEY_FLAG))
-            bitmap_clear_bit(&table->tmp_set, field->field_index);
+            bitmap_clear_bit(&table->tmp_set, field->field_index());
         }
         break;
       default:
