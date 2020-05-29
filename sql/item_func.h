@@ -352,11 +352,6 @@ class Item_func : public Item_result_field, public Func_args_handle {
       args[1] = b;
       args[2] = c;
       args[3] = d;
-      m_accum_properties = 0;
-      add_accum_properties(a);
-      add_accum_properties(b);
-      add_accum_properties(c);
-      add_accum_properties(d);
     } else
       arg_count = 0;  // OOM
   }
