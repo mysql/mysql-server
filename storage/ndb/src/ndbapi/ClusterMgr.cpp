@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -83,6 +83,7 @@ ClusterMgr::ClusterMgr(TransporterFacade & _facade):
   noOfConnectedNodes(0),
   noOfConnectedDBNodes(0),
   minDbVersion(0),
+  minApiVersion(0),
   theClusterMgrThread(NULL),
   m_process_info(NULL),
   m_cluster_state(CS_waiting_for_clean_cache),
@@ -686,6 +687,52 @@ ClusterMgr::recalcMinDbVersion()
   minDbVersion = newMinDbVersion;
 }
 
+/**
+ * recalcMinApiVersion
+ *
+ * This method is called whenever the 'minimum API node
+ * version' data for the connected DB nodes changes
+ * It calculates the minimum version of all the connected
+ * API nodes.
+ * This information is cached by Ndb object instances.
+ * This information is useful when implementing API compatibility
+ * with older API nodes
+ */
+void
+ClusterMgr::recalcMinApiVersion()
+{
+  Uint32 newMinApiVersion = ~ (Uint32) 0;
+
+  for (Uint32 i = 0; i < MAX_NODES; i++)
+  {
+    trp_node& node = theNodes[i];
+
+    if (node.is_connected() &&
+        node.is_confirmed() &&
+        node.m_info.getType() == NodeInfo::DB)
+    {
+      /* Include this node in the set of nodes used to
+       * compute the lowest current API node version
+       */
+      assert(node.m_info.m_version);
+
+      if (node.minApiVersion < newMinApiVersion)
+      {
+        newMinApiVersion = node.minApiVersion;
+      }
+    }
+  }
+
+  /* Now update global min Api version if we have one.
+   * Otherwise set it to 0
+   */
+  newMinApiVersion = (newMinApiVersion == ~ (Uint32) 0) ?
+                     0 :
+                     newMinApiVersion;
+
+  minApiVersion = newMinApiVersion;
+}
+
 /******************************************************************************
  * Send PROCESSINFO_REP
  ******************************************************************************/
@@ -783,6 +830,7 @@ ClusterMgr::execAPI_REGREQ(const Uint32 * theData){
   conf->apiHeartbeatFrequency = m_hbFrequency/10;
 
   conf->minDbVersion= 0;
+  conf->minApiVersion= 0;
   conf->nodeState= node.m_state;
 
   DEBUG_FPRINTF((stderr, "set_confirmed on node: %u\n", nodeId));
@@ -833,6 +881,13 @@ ClusterMgr::execAPI_REGCONF(const NdbApiSignal * signal,
   {
     node.minDbVersion = apiRegConf->minDbVersion;
     recalcMinDbVersion();
+  }
+
+  if (ndbd_send_min_api_version(apiRegConf->mysql_version) &&
+      node.minApiVersion != apiRegConf->minApiVersion)
+  {
+    node.minApiVersion = apiRegConf->minApiVersion;
+    recalcMinApiVersion();
   }
 
   node.m_state = apiRegConf->nodeState;
@@ -1183,6 +1238,7 @@ ClusterMgr::reportConnected(NodeId nodeId)
   theNode.m_node_fail_rep = false;
   theNode.m_state.startLevel = NodeState::SL_NOTHING;
   theNode.minDbVersion = 0;
+  theNode.minApiVersion = 0;
 
   /**
    * End of protected ClusterMgr updates of shared global data.
@@ -1361,6 +1417,7 @@ ClusterMgr::execNODE_FAILREP(const NdbApiSignal* sig,
   }
 
   recalcMinDbVersion();
+  recalcMinApiVersion();
   if (copy->noOfNodes)
   {
     LinearSectionPtr lsptr[3];

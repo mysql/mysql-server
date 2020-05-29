@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -93,7 +93,7 @@ class ApiRegConf {
   friend class ClusterMgr;
 
 public:
-  STATIC_CONST( SignalLength = 5 + NodeState::DataLength );
+  STATIC_CONST( SignalLength = 6 + NodeState::DataLength );
 private:
   
   Uint32 qmgrRef;
@@ -102,6 +102,7 @@ private:
   Uint32 mysql_version;
   Uint32 minDbVersion;
   NodeStatePOD nodeState;
+  Uint32 minApiVersion;
 };
 
 

@@ -12513,6 +12513,10 @@ void ha_ndbcluster::print_error(int error, myf errflag) {
   }
 
   if (error == HA_ERR_NO_CONNECTION) {
+    if (current_thd->get_stmt_da()->is_error()) {
+      // Error has been printed already
+      return;
+    }
     handler::print_error(4009, errflag);
     return;
   }

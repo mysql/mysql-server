@@ -71,6 +71,7 @@
 #include "storage/ndb/plugin/ndb_table_guard.h"
 #include "storage/ndb/plugin/ndb_tdc.h"
 #include "storage/ndb/plugin/ndb_thd.h"
+#include "storage/ndb/plugin/ndb_upgrade_util.h"
 
 typedef NdbDictionary::Event NDBEVENT;
 typedef NdbDictionary::Column NDBCOL;
@@ -89,7 +90,6 @@ extern bool log_bin_use_v1_row_events;
 extern bool opt_ndb_log_empty_update;
 extern bool opt_ndb_clear_apply_status;
 extern bool opt_ndb_log_fail_terminate;
-extern bool opt_ndb_schema_dist_upgrade_allowed;
 extern int opt_ndb_schema_dist_timeout;
 extern ulong opt_ndb_schema_dist_lock_wait_timeout;
 
@@ -909,9 +909,10 @@ class Ndb_binlog_setup {
       }
     }
 
+    const bool ndb_schema_dist_upgrade_allowed = ndb_allow_ndb_schema_upgrade();
     Ndb_schema_dist_table schema_dist_table(thd_ndb);
-    if (!schema_dist_table.create_or_upgrade(
-            m_thd, opt_ndb_schema_dist_upgrade_allowed))
+    if (!schema_dist_table.create_or_upgrade(m_thd,
+                                             ndb_schema_dist_upgrade_allowed))
       return false;
 
     if (!Ndb_schema_dist::is_ready(m_thd)) {
@@ -941,8 +942,8 @@ class Ndb_binlog_setup {
     }
 
     Ndb_schema_result_table schema_result_table(thd_ndb);
-    if (!schema_result_table.create_or_upgrade(
-            m_thd, opt_ndb_schema_dist_upgrade_allowed))
+    if (!schema_result_table.create_or_upgrade(m_thd,
+                                               ndb_schema_dist_upgrade_allowed))
       return false;
 
     Ndb_apply_status_table apply_status_table(thd_ndb);
@@ -963,6 +964,10 @@ class Ndb_binlog_setup {
 
     Mutex_guard injector_mutex_g(injector_data_mutex);
     ndb_binlog_tables_inited = true;
+
+    // During upgrade from a non DD version, the DDLs are blocked until all
+    // nodes run a version that has support for the Data Dictionary.
+    Ndb_schema_dist_client::block_ddl(!ndb_all_nodes_support_mysql_dd());
 
     return true;  // Setup completed OK
   }

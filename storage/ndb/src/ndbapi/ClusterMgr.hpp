@@ -157,6 +157,7 @@ private:
   Uint32        noOfConnectedNodes;
   Uint32        noOfConnectedDBNodes;
   Uint32        minDbVersion;
+  Uint32        minApiVersion;
   Node          theNodes[MAX_NODES];
   NdbThread*    theClusterMgrThread;
 
@@ -223,6 +224,7 @@ private:
 
   void print_nodes(const char* where, NdbOut& out = ndbout);
   void recalcMinDbVersion();
+  void recalcMinApiVersion();
   void sendProcessInfoReport(NodeId nodeId);
 
 public:

@@ -4595,6 +4595,7 @@ Qmgr::sendApiRegConf(Signal *signal, Uint32 node)
   }
   NodeVersionInfo info = getNodeVersionInfo();
   apiRegConf->minDbVersion = info.m_type[NodeInfo::DB].m_min_version;
+  apiRegConf->minApiVersion = info.m_type[NodeInfo::API].m_min_version;
   apiRegConf->nodeState.m_connected_nodes.assign(c_connectedNodes);
   sendSignal(ref, GSN_API_REGCONF, signal, ApiRegConf::SignalLength, JBB);
 }

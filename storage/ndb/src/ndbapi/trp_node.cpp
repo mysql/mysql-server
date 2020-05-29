@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,7 @@ trp_node::trp_node()
   m_state.init();
   m_state.startLevel = NodeState::SL_NOTHING;
   minDbVersion = 0;
+  minApiVersion = 0;
 }
 
 bool
@@ -46,6 +47,7 @@ trp_node::operator==(const trp_node& other) const
           m_api_reg_conf == other.m_api_reg_conf &&
           m_node_fail_rep == other.m_node_fail_rep &&
           minDbVersion == other.minDbVersion &&
+          minApiVersion == other.minApiVersion &&
           memcmp(&m_state, &other.m_state, sizeof(m_state)) == 0);
 }
 
@@ -61,6 +63,7 @@ operator<<(NdbOut& out, const trp_node& n)
       << ", nodefailrep: " << n.m_node_fail_rep
       << ", nfCompleteRep: " << n.nfCompleteRep
       << ", minDbVersion: " << n.minDbVersion
+      << ", minApiVersion: " << n.minApiVersion
       << ", state: " << n.m_state
       << ", connected: "
       << BaseString::getPrettyTextShort(n.m_state.m_connected_nodes).c_str()
