@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -67,6 +67,17 @@ class Ndb_binlog_thread : public Ndb_component {
     @return void
   */
   void validate_sync_blacklist(THD *thd);
+
+  /*
+    @brief Iterate through the retry list of objects and check the present
+           status of the objects. The object is removed if the mismatch no
+           longer exists or if the object has been blacklisted
+
+    @param thd  Thread handle
+
+    @return void
+  */
+  void validate_sync_retry_list(THD *thd);
 
   /*
     @brief Pass the logfile group object detected to the internal implementation

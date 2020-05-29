@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -74,6 +74,12 @@ int show_ndb_status_injector(THD *, SHOW_VAR *var, char *);
  @param thd  Thread handle
 */
 void ndbcluster_binlog_validate_sync_blacklist(THD *thd);
+
+/**
+ @brief Validate the list of objects whose synchronization have been retried
+ @param thd  Thread handle
+*/
+void ndbcluster_binlog_validate_sync_retry_list(THD *thd);
 
 /**
  @brief Queue up tables which the ndb binlog thread needs to check for changes
