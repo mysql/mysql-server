@@ -101,8 +101,9 @@ ngs::Error_code Crud_command_handler::execute_crud_insert(
   ngs::Error_code error = id_agg.configue(&m_session->data_context());
   if (error) return error;
 
+  const auto is_relational = is_table_data_model(msg);
   Expression_generator gen(&m_qb, msg.args(), msg.collection().schema(),
-                           is_table_data_model(msg));
+                           is_relational);
   Empty_resultset rset;
   return execute(Insert_statement_builder(gen, &id_agg), msg, rset,
                  &ngs::Common_status_variables::m_crud_insert,
@@ -155,8 +156,9 @@ void Crud_command_handler::notice_handling(
 // -- Update
 ngs::Error_code Crud_command_handler::execute_crud_update(
     const Mysqlx::Crud::Update &msg) {
+  const auto is_relational = is_table_data_model(msg);
   Expression_generator gen(&m_qb, msg.args(), msg.collection().schema(),
-                           is_table_data_model(msg));
+                           is_relational);
   Empty_resultset rset;
   return execute(Update_statement_builder(gen), msg, rset,
                  &ngs::Common_status_variables::m_crud_update,
@@ -196,8 +198,9 @@ void Crud_command_handler::notice_handling(
 // -- Delete
 ngs::Error_code Crud_command_handler::execute_crud_delete(
     const Mysqlx::Crud::Delete &msg) {
+  const auto is_relational = is_table_data_model(msg);
   Expression_generator gen(&m_qb, msg.args(), msg.collection().schema(),
-                           is_table_data_model(msg));
+                           is_relational);
   Empty_resultset rset;
   return execute(Delete_statement_builder(gen), msg, rset,
                  &ngs::Common_status_variables::m_crud_delete,
@@ -216,8 +219,9 @@ void Crud_command_handler::notice_handling(
 // -- Find
 ngs::Error_code Crud_command_handler::execute_crud_find(
     const Mysqlx::Crud::Find &msg) {
+  const auto is_relational = is_table_data_model(msg);
   Expression_generator gen(&m_qb, msg.args(), msg.collection().schema(),
-                           is_table_data_model(msg));
+                           is_relational);
   Streaming_resultset<Crud_command_delegate> rset(m_session, false);
   return execute(Find_statement_builder(gen), msg, rset,
                  &ngs::Common_status_variables::m_crud_find, nullptr);
