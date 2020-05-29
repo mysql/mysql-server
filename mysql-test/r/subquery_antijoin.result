@@ -41,10 +41,10 @@ a
 EXPLAIN SELECT 1 as a FROM t2 as ot
 WHERE NOT EXISTS (SELECT * FROM t1 AS it);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	ot	NULL	index	NULL	PRIMARY	4	NULL	80	100.00	Using index
-1	SIMPLE	it	NULL	index	NULL	ukn	4	NULL	3	100.00	Using where; Not exists; Using index; Using join buffer (hash join)
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	it	NULL	index	NULL	ukn	4	NULL	3	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `a` from `test`.`t2` `ot` anti join (`test`.`t1` `it`) on((1 = 1)) where true
+Note	1003	/* select#1 */ select 1 AS `a` from `test`.`t2` `ot` where false
 SELECT 1 as a FROM t2 as ot
 WHERE NOT EXISTS (SELECT * FROM t1 AS it);
 a
@@ -177,11 +177,10 @@ a
 EXPLAIN SELECT 1 as a FROM t2 as ot
 WHERE NOT EXISTS (SELECT * FROM t1 AS it);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	ot	NULL	index	NULL	PRIMARY	4	NULL	80	100.00	Using index
-1	SIMPLE	<subquery2>	NULL	const	<auto_distinct_key>	<auto_distinct_key>	8	const	1	100.00	Using where; Not exists
-2	MATERIALIZED	it	NULL	index	NULL	ukn	4	NULL	3	100.00	Using where; Using index
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	it	NULL	index	NULL	ukn	4	NULL	3	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `a` from `test`.`t2` `ot` anti join (`test`.`t1` `it`) on((1 = 1)) where true
+Note	1003	/* select#1 */ select 1 AS `a` from `test`.`t2` `ot` where false
 SELECT 1 as a FROM t2 as ot
 WHERE NOT EXISTS (SELECT * FROM t1 AS it);
 a
@@ -469,11 +468,10 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t1` `t3`) where true
 EXPLAIN SELECT * FROM t1 WHERE NOT EXISTS(SELECT * FROM t1 t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	<subquery2>	NULL	const	<auto_distinct_key>	<auto_distinct_key>	8	const	1	100.00	Using where; Not exists
-2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` anti join (`test`.`t1` `t3`) on((1 = 1)) where true
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where false
 EXPLAIN SELECT * FROM t1 WHERE EXISTS(SELECT * FROM t1 t3) IS TRUE;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	<subquery2>	NULL	const	<auto_distinct_key>	<auto_distinct_key>	8	const	1	100.00	NULL
@@ -483,11 +481,10 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t1` `t3`) where true
 EXPLAIN SELECT * FROM t1 WHERE EXISTS(SELECT * FROM t1 t3) IS FALSE;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	<subquery2>	NULL	const	<auto_distinct_key>	<auto_distinct_key>	8	const	1	100.00	Using where; Not exists
-2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` anti join (`test`.`t1` `t3`) on((1 = 1)) where true
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where false
 EXPLAIN SELECT * FROM t1 WHERE EXISTS(SELECT * FROM t1 t3) IS UNKNOWN;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
@@ -496,11 +493,10 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where false
 EXPLAIN SELECT * FROM t1 WHERE EXISTS(SELECT * FROM t1 t3) IS NOT TRUE;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	<subquery2>	NULL	const	<auto_distinct_key>	<auto_distinct_key>	8	const	1	100.00	Using where; Not exists
-2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` anti join (`test`.`t1` `t3`) on((1 = 1)) where true
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where false
 EXPLAIN SELECT * FROM t1 WHERE EXISTS(SELECT * FROM t1 t3) IS NOT FALSE;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	<subquery2>	NULL	const	<auto_distinct_key>	<auto_distinct_key>	8	const	1	100.00	NULL
@@ -656,13 +652,12 @@ subquery2_t1.col_varchar_key >= '2'
    ) AND
 t1.pk IN (2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
-1	SIMPLE	<subquery2>	NULL	const	<auto_distinct_key>	<auto_distinct_key>	8	const	1	100.00	Using where; Not exists
-2	MATERIALIZED	subquery2_t1	NULL	index	idx_cc_col_varchar_key	idx_cc_col_varchar_key	7	NULL	1	100.00	Using index
-2	MATERIALIZED	subquery2_t2	NULL	index	NULL	idx_cc_col_varchar_key	7	NULL	1	100.00	Using where; Using index; Using join buffer (hash join)
-2	MATERIALIZED	subquery2_t3	NULL	index	NULL	idx_cc_col_varchar_key	7	NULL	1	100.00	Using index; Using join buffer (hash join)
+1	PRIMARY	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+2	SUBQUERY	subquery2_t1	NULL	index	idx_cc_col_varchar_key	idx_cc_col_varchar_key	7	NULL	1	100.00	Using index
+2	SUBQUERY	subquery2_t2	NULL	index	NULL	idx_cc_col_varchar_key	7	NULL	1	100.00	Using where; Using index; Using join buffer (hash join)
+2	SUBQUERY	subquery2_t3	NULL	index	NULL	idx_cc_col_varchar_key	7	NULL	1	100.00	Using index; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`select#2` FIRSTMATCH) */ 'a' AS `col_varchar_key` from `test`.`t1` anti join (`test`.`t2` `subquery2_t1` left join (`test`.`t1` `subquery2_t2` join `test`.`t1` `subquery2_t3`) on((true))) on((((`test`.`subquery2_t2`.`col_varchar_key` <> `test`.`subquery2_t1`.`col_varchar_key`) or (`test`.`subquery2_t1`.`col_varchar_key` >= '2')))) where true
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`select#2` FIRSTMATCH) */ 'a' AS `col_varchar_key` from `test`.`t1` where true
 SELECT col_varchar_key FROM t1
 WHERE NOT EXISTS
 (SELECT /*+ NO_SEMIJOIN(FIRSTMATCH) */
@@ -723,14 +718,14 @@ WHERE NOT EXISTS (SELECT pk FROM t1 AS sj1)
 ON alias3.pk = alias1.col_int AND
 NOT EXISTS (SELECT * FROM t1 AS sj2 WHERE (SELECT 1) IS NULL);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	alias1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	t1	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index
-1	SIMPLE	alias2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.alias1.col_int	1	100.00	Using index
-1	SIMPLE	<subquery3>	NULL	const	<auto_distinct_key>	<auto_distinct_key>	8	const	1	100.00	Using where; Not exists
-3	MATERIALIZED	sj1	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using where; Using index
+1	PRIMARY	alias1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	t1	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using where; Using index
+1	PRIMARY	alias2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.alias1.col_int	1	100.00	Using index
+4	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+3	SUBQUERY	sj1	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index
 Warnings:
 Note	1249	Select 5 was reduced during optimization
-Note	1003	/* select#1 */ select `test`.`alias1`.`pk` AS `pk` from `test`.`t1` `alias1` left join (`test`.`t1` join `test`.`t1` `alias2` anti join (`test`.`t1` `sj1`) on(true)) on(((`test`.`alias2`.`pk` = `test`.`alias1`.`col_int`))) where true
+Note	1003	/* select#1 */ select `test`.`alias1`.`pk` AS `pk` from `test`.`t1` `alias1` left join (`test`.`t1` join `test`.`t1` `alias2`) on(((`test`.`alias2`.`pk` = `test`.`alias1`.`col_int`) and exists(/* select#4 */ select 1 from `test`.`t1` `sj2` where false) is false and exists(/* select#3 */ select `test`.`sj1`.`pk` from `test`.`t1` `sj1`) is false)) where true
 SELECT alias1.pk
 FROM t1 AS alias1 LEFT JOIN
 (SELECT alias2.*
@@ -905,25 +900,26 @@ NOT EXISTS ( SELECT * FROM t1 as t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
-1	PRIMARY	<subquery3>	NULL	const	<auto_distinct_key>	<auto_distinct_key>	8	const	1	100.00	Using where; Not exists
-3	MATERIALIZED	t4	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using where; Using index
+3	SUBQUERY	t4	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index
 2	UNCACHEABLE SUBQUERY	t3	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`col_int` AS `col_int`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`col_int` AS `col_int` from `test`.`t1` left join (`test`.`t1` `t2` anti join (`test`.`t1` `t4`) on((1 = 1))) on(((`test`.`t1`.`col_int` > (/* select#2 */ select (@`var`) from `test`.`t1` `t3`)) and true)) where true
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`col_int` AS `col_int`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`col_int` AS `col_int` from `test`.`t1` left join `test`.`t1` `t2` on(((`test`.`t1`.`col_int` > (/* select#2 */ select (@`var`) from `test`.`t1` `t3`)) and exists(/* select#3 */ select 1 from `test`.`t1` `t4`) is false)) where true
 EXPLAIN FORMAT=TREE SELECT * FROM t1 LEFT JOIN t1 AS t2
 ON 1 AND t1.col_int > ( SELECT @var FROM t1 as t3 ) AND
 NOT EXISTS ( SELECT * FROM t1 as t4);
 EXPLAIN
--> Nested loop left join
+-> Nested loop left join  (cost=0.70 rows=1)
     -> Table scan on t1  (cost=0.35 rows=1)
-    -> Filter: (t1.col_int > (select #2))
-        -> Nested loop antijoin
-            -> Table scan on t2  (cost=0.35 rows=1)
-            -> Constant row from <subquery3>
-                -> Materialize with deduplication
-                    -> Index scan on t4 using PRIMARY  (cost=0.35 rows=1)
+    -> Filter: (exists(select #3) is false and ((t1.col_int > (select #2)) and exists(select #3) is false))  (cost=0.35 rows=1)
+        -> Table scan on t2  (cost=0.35 rows=1)
+        -> Select #3 (subquery in condition; run only once)
+            -> Limit: 1 row(s)
+                -> Index scan on t4 using PRIMARY  (cost=0.35 rows=1)
         -> Select #2 (subquery in condition; uncacheable)
             -> Index scan on t3 using PRIMARY  (cost=0.35 rows=1)
+        -> Select #3 (subquery in condition; run only once)
+            -> Limit: 1 row(s)
+                -> Index scan on t4 using PRIMARY  (cost=0.35 rows=1)
 
 SELECT * FROM t1 LEFT JOIN t1 AS t2
 ON 1 AND t1.col_int > ( SELECT @var FROM t1 as t3 ) AND
@@ -1010,11 +1006,12 @@ alias1.col_datetime_key AS field3
 FROM t1 AS alias1 LEFT JOIN t1 AS alias2
 ON NOT EXISTS ( SELECT * FROM t1 AS alias3 WHERE ( SELECT 1 FROM DUAL ) IS NULL );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	alias1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	alias2	NULL	index	NULL	idx_C_col_varchar_key	6	NULL	2	100.00	Using where; Using index; Using join buffer (hash join)
+1	PRIMARY	alias1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	alias2	NULL	index	NULL	idx_C_col_varchar_key	6	NULL	2	100.00	Using where; Using index; Using join buffer (hash join)
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
 Note	1249	Select 3 was reduced during optimization
-Note	1003	/* select#1 */ select `test`.`alias1`.`col_int` AS `field1`,`test`.`alias2`.`col_varchar_key` AS `field2`,`test`.`alias1`.`col_datetime_key` AS `field3` from `test`.`t1` `alias1` left join `test`.`t1` `alias2` on(true) where true
+Note	1003	/* select#1 */ select `test`.`alias1`.`col_int` AS `field1`,`test`.`alias2`.`col_varchar_key` AS `field2`,`test`.`alias1`.`col_datetime_key` AS `field3` from `test`.`t1` `alias1` left join `test`.`t1` `alias2` on(exists(/* select#2 */ select 1 from `test`.`t1` `alias3` where false) is false) where true
 SELECT alias1.col_int AS field1 , alias2.col_varchar_key AS field2 ,
 alias1.col_datetime_key AS field3
 FROM t1 AS alias1 LEFT JOIN t1 AS alias2
@@ -1081,3 +1078,21 @@ SELECT MAX(t1.a) FROM t1 WHERE a NOT IN (SELECT a FROM t2);
 MAX(t1.a)
 1
 DROP TABLE t1, t2;
+#
+# Bug#31376809 PERFORMANCE REGRESSION FROM 5.7->8.0, DUE TO ANTIJOIN OF NOT EXISTS SUBQUERY
+#
+create table t(a int, b int);
+insert into t values(1,1),(2,2),(3,3),(4,4),(5,5);
+explain format=tree select a from t where (not exists (select b from t));
+EXPLAIN
+-> Zero rows (Impossible WHERE)
+
+select a from t where (not exists (select b from t));
+a
+explain format=tree select a from t where 1 not in (select 1 from t);
+EXPLAIN
+-> Zero rows (Impossible WHERE)
+
+select a from t where 1 not in (select 1 from t);
+a
+drop table t;

@@ -1276,11 +1276,23 @@ bool SELECT_LEX::resolve_subquery(THD *thd) {
       deterministic = false;
   }
 
+  // (a) A certain secondary engine doesn't support antijoin transforms
+  // (b) For NOT EXISTS (non-correlated subquery), or
+  // <constant> NOT IN (non-correlated subquery): it is more efficient to
+  // evaluate it once for all during optimization:
+  // - if it is false, we may be able to skip reading the outer table,
+  // - if it is true, we'll avoid reading the inner table many times.
+  // So we leave it as a subquery.
+  // todo: revisit this when (a) becomes false, or when the cost optimizer
+  // is made to prefer hash antijoin over nested loop antijoin for the cases of
+  // (b) (hash antijoin has efficient handling of them).
   const bool cannot_do_antijoin =
-      // a certain secondary engine doesn't support antijoin transforms
-      thd->lex->m_sql_cmd != nullptr &&
-      thd->secondary_engine_optimization() ==
-          Secondary_engine_optimization::SECONDARY;
+      (thd->lex->m_sql_cmd != nullptr &&  // (a)
+       thd->secondary_engine_optimization() ==
+           Secondary_engine_optimization::SECONDARY) ||
+      ((in_predicate == nullptr ||
+        in_predicate->left_expr->const_item()) &&  // (b)
+       (master_unit()->uncacheable & UNCACHEABLE_DEPENDENT) == 0);
   const bool try_convert_to_derived =
       (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_SUBQUERY_TO_DERIVED) ||
        // a certain secondary engine doesn't support subqueries
