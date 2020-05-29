@@ -9298,12 +9298,6 @@ ER_WARN_DEPRECATED_INNER_INTO
 ER_WARN_DEPRECATED_VALUES_FUNCTION_ALWAYS_NULL
   eng "The VALUES function is deprecated and will be removed in a future release. It always returns NULL in this context. If you meant to access a value from the VALUES clause of the INSERT statement, consider using an alias (INSERT INTO ... VALUES (...) AS alias) and reference alias.col instead of VALUES(col) in the ON DUPLICATE KEY UPDATE clause."
 
-ER_MISSING_JSON_VALUE 22035
-  eng "No value was found by '%.192s' on the specified path."
-
-ER_MULTIPLE_JSON_VALUES 22034
-  eng "More than one value was found by '%.192s' on the specified path."
-
 # When using this error message, use the ER_WARN_DEPRECATED_SYNTAX error
 # code.
 ER_WARN_DEPRECATED_SQL_CALC_FOUND_ROWS
@@ -9313,6 +9307,12 @@ ER_WARN_DEPRECATED_SQL_CALC_FOUND_ROWS
 # code.
 ER_WARN_DEPRECATED_FOUND_ROWS
   eng "FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead."
+
+ER_MISSING_JSON_VALUE 22035
+  eng "No value was found by '%.192s' on the specified path."
+
+ER_MULTIPLE_JSON_VALUES 22034
+  eng "More than one value was found by '%.192s' on the specified path."
 
 ER_HOSTNAME_TOO_LONG
   eng "Hostname cannot be longer than %d characters."
@@ -9369,6 +9369,9 @@ ER_INNODB_REDO_ARCHIVING_ENABLED
 ER_MDL_OUT_OF_RESOURCES
   eng "Not enough resources to complete lock request."
 
+ER_IMPLICIT_COMPARISON_FOR_JSON
+  eng "Evaluating a JSON value in SQL boolean context does an implicit comparison against JSON integer 0; if this is not what you want, consider converting JSON to a SQL numeric type with JSON_VALUE RETURNING"
+
 ER_SCHEMA_READ_ONLY
   eng "Schema '%s' is in read only mode."
 
@@ -9392,9 +9395,6 @@ ER_INVALID_PARAMETER_USE
 
 ER_IMPOSSIBLE_STRING_CONVERSION
   eng "Conversion from collation %s into %s impossible for %s"
-
-ER_IMPLICIT_COMPARISON_FOR_JSON
-  eng "Evaluating a JSON value in SQL boolean context does an implicit comparison against JSON integer 0; if this is not what you want, consider converting JSON to a SQL numeric type with JSON_VALUE RETURNING"
 
 #
 #  End of 8.0 error messages (server-to-client).

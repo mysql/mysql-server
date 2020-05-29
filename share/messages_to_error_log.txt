@@ -10806,12 +10806,6 @@ ER_IB_MSG_INNODB_START_INITIALIZE
 ER_IB_MSG_INNODB_END_INITIALIZE
   eng "InnoDB initialization has ended."
 
-ER_WARN_LOG_DEPRECATED_PARTITION_PREFIX_KEY
-  eng "Column '%.64s.%.64s.%.64s' having prefix key part '%.64s(%u)' is ignored by the partitioning function. Use of prefixed columns in the PARTITION BY KEY() clause is deprecated and will be removed in a future release."
-
-ER_INNODB_UNABLE_TO_ACQUIRE_DD_OBJECT
-  eng "%s"
-
 ER_IB_MSG_PAGE_ARCH_NO_RESET_POINTS
   eng "Could not find appropriate reset points."
 
@@ -10827,11 +10821,17 @@ ER_IB_ERR_PAGE_ARCH_RECOVERY_FAILED
 ER_IB_ERR_PAGE_ARCH_INVALID_FORMAT
   eng "Invalid archived file name format. The archived file is supposed to have the format %s + [0-9]*."
 
-ER_IB_MSG_UNDO_TRUNCATE_TOO_OFTEN
-  eng "Undo Truncation is occurring too often. Consider increasing --innodb-max-undo-log-size."
-
 ER_INVALID_XPLUGIN_SOCKET_SAME_AS_SERVER
   eng "X Plugins UNIX socket must use different file than MySQL server. X Plugin won't be accessible through UNIX socket"
+
+ER_INNODB_UNABLE_TO_ACQUIRE_DD_OBJECT
+  eng "%s"
+
+ER_WARN_LOG_DEPRECATED_PARTITION_PREFIX_KEY
+  eng "Column '%.64s.%.64s.%.64s' having prefix key part '%.64s(%u)' is ignored by the partitioning function. Use of prefixed columns in the PARTITION BY KEY() clause is deprecated and will be removed in a future release."
+
+ER_IB_MSG_UNDO_TRUNCATE_TOO_OFTEN
+  eng "Undo Truncation is occurring too often. Consider increasing --innodb-max-undo-log-size."
 
 ER_GRP_RPL_IS_STARTING
   eng "Plugin 'group_replication' is starting."
@@ -10895,21 +10895,6 @@ ER_USERNAME_TRUNKATED
 
 ER_HOSTNAME_TRUNKATED
   eng "The host name '%s' exceeds the maximum number of allowed characters %d and is trunkated."
-
-ER_RPL_ASYNC_RECONNECT_FAIL_NO_PRIMARIES
-  eng "Failed to automatically re-connect to a different primary, for channel '%s', because %s. To fix this %s."
-
-ER_UDF_REGISTER_SERVICE_ERROR
-  eng "Could not execute the installation of UDF functions. Check for other errors in the log"
-
-ER_UDF_REGISTER_ERROR
-  eng "Could not execute the installation of UDF function: %s. Check if the function is already present, if so, try to remove it."
-
-ER_UDF_UNREGISTER_ERROR
-  eng "Could not uninstall UDF functions. Try to remove them manually if present."
-
-ER_EMPTY_PRIVILEGE_NAME_IGNORED
-  eng "An empty or illegal privilege identifier was ignored when global privileges were read from disk."
 
 ER_IB_MSG_TRX_RECOVERY_ROLLBACK_NOT_COMPLETED
   eng "Rollback of non-prepared transactions not completed, due to fast shutdown"
@@ -11063,6 +11048,21 @@ ER_IB_MSG_UNDO_INJECT_CRASH
 
 ER_IB_MSG_UNDO_INJECT_FAILURE
   eng "Injected debug failure point: %s"
+
+ER_RPL_ASYNC_RECONNECT_FAIL_NO_PRIMARIES
+  eng "Failed to automatically re-connect to a different primary, for channel '%s', because %s. To fix this %s."
+
+ER_UDF_REGISTER_SERVICE_ERROR
+  eng "Could not execute the installation of UDF functions. Check for other errors in the log"
+
+ER_UDF_REGISTER_ERROR
+  eng "Could not execute the installation of UDF function: %s. Check if the function is already present, if so, try to remove it."
+
+ER_UDF_UNREGISTER_ERROR
+  eng "Could not uninstall UDF functions. Try to remove them manually if present."
+
+ER_EMPTY_PRIVILEGE_NAME_IGNORED
+  eng "An empty or illegal privilege identifier was ignored when global privileges were read from disk."
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
