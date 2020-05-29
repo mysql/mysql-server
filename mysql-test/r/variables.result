@@ -2037,3 +2037,11 @@ SET SESSION use_secondary_engine = @@session.use_secondary_engine;
 SET SESSION warning_count = @@session.warning_count;
 SET @@sql_big_selects=@sql_big_selects_save;
 DROP TABLE all_vars;
+# Bug#31372388: bool Item::evaluate(): assertion `false' failed
+SET character_set_client = @undefined_var;
+ERROR 42000: Variable 'character_set_client' can't be set to the value of 'NULL'
+PREPARE s FROM "set character_set_client = ?";
+SET @x = NULL;
+EXECUTE s USING @x;
+ERROR 42000: Variable 'character_set_client' can't be set to the value of 'NULL'
+DEALLOCATE PREPARE s;

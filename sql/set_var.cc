@@ -1023,11 +1023,22 @@ int set_var::resolve(THD *thd) {
   }
 
   /* value is a NULL pointer if we are using SET ... = DEFAULT */
-  if (!value) return 0;
+  if (value == nullptr || value->fixed) return 0;
 
-  if ((!value->fixed && value->fix_fields(thd, &value)) || value->check_cols(1))
+  if (value->fix_fields(thd, &value)) {
     return -1;
+  }
+  /*
+    If expression has no data type (e.g because it contains a parameter),
+    assign type character string.
+  */
+  if (value->data_type() == MYSQL_TYPE_INVALID) {
+    value->propagate_type(MYSQL_TYPE_VARCHAR);
+  }
 
+  if (value->check_cols(1)) {
+    return -1;
+  }
   return 0;
 }
 
@@ -1094,9 +1105,22 @@ int set_var::light_check(THD *thd) {
             .first))
     return 1;
 
-  if (value && ((!value->fixed && value->fix_fields(thd, &value)) ||
-                value->check_cols(1)))
+  if (value == nullptr || value->fixed) return 0;
+
+  if (value->fix_fields(thd, &value)) {
     return -1;
+  }
+  /*
+    If expression has no data type (e.g because it contains a parameter),
+    assign type character string.
+  */
+  if (value->data_type() == MYSQL_TYPE_INVALID) {
+    value->propagate_type(MYSQL_TYPE_VARCHAR);
+  }
+
+  if (value->check_cols(1)) {
+    return -1;
+  }
   return 0;
 }
 

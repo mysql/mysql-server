@@ -1849,3 +1849,14 @@ while($var_id <= $count_vars)
 #Cleanup
 SET @@sql_big_selects=@sql_big_selects_save;
 DROP TABLE all_vars;
+
+--echo # Bug#31372388: bool Item::evaluate(): assertion `false' failed
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET character_set_client = @undefined_var;
+
+PREPARE s FROM "set character_set_client = ?";
+SET @x = NULL;
+--error ER_WRONG_VALUE_FOR_VAR
+EXECUTE s USING @x;
+DEALLOCATE PREPARE s;
