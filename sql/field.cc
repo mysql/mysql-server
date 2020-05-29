@@ -4607,8 +4607,10 @@ type_conversion_status Field_temporal::store(const char *str, size_t len,
     else
       error = TYPE_ERR_BAD_VALUE;
   } else {
-    if (adjust_time_zone_displacement(current_thd->time_zone(), &ltime))
-      return TYPE_ERR_BAD_VALUE;
+    if (ltime.time_type == MYSQL_TIMESTAMP_DATETIME_TZ) {
+      if (adjust_time_zone_displacement(current_thd->time_zone(), &ltime))
+        return TYPE_ERR_BAD_VALUE;
+    }
     error = time_warning_to_type_conversion_status(status.warnings);
     const type_conversion_status tmp_error =
         store_internal_adjust_frac(&ltime, &status.warnings);
