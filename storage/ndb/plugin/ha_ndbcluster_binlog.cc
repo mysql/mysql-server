@@ -330,11 +330,6 @@ static void ndbcluster_binlog_wait(THD *thd) {
     return;
   }
 
-  // Assumption is that only these commands will wait
-  DBUG_ASSERT(thd_sql_command(thd) == SQLCOM_SHOW_BINLOG_EVENTS ||
-              thd_sql_command(thd) == SQLCOM_FLUSH ||
-              thd_sql_command(thd) == SQLCOM_RESET);
-
   if (thd->system_thread == SYSTEM_THREAD_NDBCLUSTER_BINLOG) {
     // Binlog Injector thread should not wait for itself
     DBUG_PRINT("exit", ("binlog injector should not wait for itself"));
