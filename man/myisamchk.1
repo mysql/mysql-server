@@ -2,12 +2,12 @@
 .\"     Title: \fBmyisamchk\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/06/2020
+.\"      Date: 06/01/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYISAMCHK\FR" "1" "03/06/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYISAMCHK\FR" "1" "06/01/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -265,7 +265,6 @@ The options described in this section can be used for any type of table maintena
 .\}
 \fB\-\-help\fR,
 \fB\-?\fR
-.sp
 Display a help message and exit\&. Options are grouped by type of operation\&.
 .RE
 .sp
@@ -279,7 +278,6 @@ Display a help message and exit\&. Options are grouped by type of operation\&.
 .\}
 \fB\-\-HELP\fR,
 \fB\-H\fR
-.sp
 Display a help message and exit\&. Options are presented in a single list\&.
 .RE
 .sp
@@ -293,7 +291,6 @@ Display a help message and exit\&. Options are presented in a single list\&.
 .\}
 \fB\-\-debug=\fR\fB\fIdebug_options\fR\fR,
 \fB\-# \fR\fB\fIdebug_options\fR\fR
-.sp
 Write a debugging log\&. A typical
 \fIdebug_options\fR
 string is
@@ -315,7 +312,6 @@ built using this option\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-extra\-file=\fR\fB\fIfile_name\fR\fR
-.sp
 Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
 \fIfile_name\fR
 is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
@@ -333,7 +329,6 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-file=\fR\fB\fIfile_name\fR\fR
-.sp
 Use only the given option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
 \fIfile_name\fR
 is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
@@ -351,7 +346,6 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-group\-suffix=\fR\fB\fIstr\fR\fR
-.sp
 Read not only the usual option groups, but also groups with the usual names and a suffix of
 \fIstr\fR\&. For example,
 \fBmyisamchk\fR
@@ -378,7 +372,6 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-no\-defaults\fR
-.sp
 Do not read any option files\&. If program startup fails due to reading unknown options from an option file,
 \fB\-\-no\-defaults\fR
 can be used to prevent them from being read\&.
@@ -406,7 +399,6 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-print\-defaults\fR
-.sp
 Print the program name and all options that it gets from option files\&.
 .sp
 For additional information about this and other option\-file options, see
@@ -423,7 +415,6 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .\}
 \fB\-\-silent\fR,
 \fB\-s\fR
-.sp
 Silent mode\&. Write output only when errors occur\&. You can use
 \fB\-s\fR
 twice (\fB\-ss\fR) to make
@@ -441,7 +432,6 @@ very silent\&.
 .\}
 \fB\-\-verbose\fR,
 \fB\-v\fR
-.sp
 Verbose mode\&. Print more information about what the program does\&. This can be used with
 \fB\-d\fR
 and
@@ -461,7 +451,6 @@ multiple times (\fB\-vv\fR,
 .\}
 \fB\-\-version\fR,
 \fB\-V\fR
-.sp
 Display version information and exit\&.
 .RE
 .sp
@@ -475,7 +464,6 @@ Display version information and exit\&.
 .\}
 \fB\-\-wait\fR,
 \fB\-w\fR
-.sp
 Instead of terminating with an error if the table is locked, wait until the table is unlocked before continuing\&. If you are running
 \fBmysqld\fR
 with external locking disabled, the table can be locked only by another
@@ -725,7 +713,6 @@ supports the following options for table checking operations:
 .\}
 \fB\-\-check\fR,
 \fB\-c\fR
-.sp
 Check the table for errors\&. This is the default operation if you specify no option that selects an operation type explicitly\&.
 .RE
 .sp
@@ -739,7 +726,6 @@ Check the table for errors\&. This is the default operation if you specify no op
 .\}
 \fB\-\-check\-only\-changed\fR,
 \fB\-C\fR
-.sp
 Check only tables that have changed since the last check\&.
 .RE
 .sp
@@ -753,7 +739,6 @@ Check only tables that have changed since the last check\&.
 .\}
 \fB\-\-extend\-check\fR,
 \fB\-e\fR
-.sp
 Check the table very thoroughly\&. This is quite slow if the table has many indexes\&. This option should only be used in extreme cases\&. Normally,
 \fBmyisamchk\fR
 or
@@ -782,7 +767,6 @@ the section called \(lqOBTAINING TABLE INFORMATION WITH MYISAMCHK\(rq\&.
 .\}
 \fB\-\-fast\fR,
 \fB\-F\fR
-.sp
 Check only tables that haven\*(Aqt been closed properly\&.
 .RE
 .sp
@@ -796,7 +780,6 @@ Check only tables that haven\*(Aqt been closed properly\&.
 .\}
 \fB\-\-force\fR,
 \fB\-f\fR
-.sp
 Do a repair operation automatically if
 \fBmyisamchk\fR
 finds any errors in the table\&. The repair type is the same as that specified with the
@@ -816,7 +799,6 @@ option\&.
 .\}
 \fB\-\-information\fR,
 \fB\-i\fR
-.sp
 Print informational statistics about the table that is checked\&.
 .RE
 .sp
@@ -830,7 +812,6 @@ Print informational statistics about the table that is checked\&.
 .\}
 \fB\-\-medium\-check\fR,
 \fB\-m\fR
-.sp
 Do a check that is faster than an
 \fB\-\-extend\-check\fR
 operation\&. This finds only 99\&.99% of all errors, which should be good enough in most cases\&.
@@ -846,7 +827,6 @@ operation\&. This finds only 99\&.99% of all errors, which should be good enough
 .\}
 \fB\-\-read\-only\fR,
 \fB\-T\fR
-.sp
 Do not mark the table as checked\&. This is useful if you use
 \fBmyisamchk\fR
 to check a table that is in use by some other application that does not use locking, such as
@@ -864,7 +844,6 @@ when run with external locking disabled\&.
 .\}
 \fB\-\-update\-state\fR,
 \fB\-U\fR
-.sp
 Store information in the
 \&.MYI
 file to indicate when the table was checked and whether the table crashed\&. This should be used to get full benefit of the
@@ -892,7 +871,6 @@ is given):
 .\}
 \fB\-\-backup\fR,
 \fB\-B\fR
-.sp
 Make a backup of the
 \&.MYD
 file as
@@ -908,7 +886,6 @@ file as
 .IP \(bu 2.3
 .\}
 \fB\-\-character\-sets\-dir=\fR\fB\fIdir_name\fR\fR
-.sp
 The directory where character sets are installed\&. See
 Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
 .RE
@@ -922,7 +899,6 @@ Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-correct\-checksum\fR
-.sp
 Correct the checksum information for the table\&.
 .RE
 .sp
@@ -936,7 +912,6 @@ Correct the checksum information for the table\&.
 .\}
 \fB\-\-data\-file\-length=\fR\fB\fIlen\fR\fR,
 \fB\-D \fR\fB\fIlen\fR\fR
-.sp
 The maximum length of the data file (when re\-creating data file when it is
 \(lqfull\(rq)\&.
 .RE
@@ -985,7 +960,6 @@ Overwrite old intermediate files (files with names like
 .\}
 \fB\-\-keys\-used=\fR\fB\fIval\fR\fR,
 \fB\-k \fR\fB\fIval\fR\fR
-.sp
 For
 \fBmyisamchk\fR, the option value is a bit value that indicates which indexes to update\&. Each binary bit of the option value corresponds to a table index, where the first index is bit 0\&. An option value of 0 disables updates to all indexes, which can be used to get faster inserts\&. Deactivated indexes can be reactivated by using
 \fBmyisamchk \-r\fR\&.
@@ -1001,7 +975,6 @@ For
 .\}
 \fB\-\-no\-symlinks\fR,
 \fB\-l\fR
-.sp
 Do not follow symbolic links\&. Normally
 \fBmyisamchk\fR
 repairs the table that a symlink points to\&. This option does not exist as of MySQL 4\&.0 because versions from 4\&.0 on do not remove symlinks during repair operations\&.
@@ -1016,7 +989,6 @@ repairs the table that a symlink points to\&. This option does not exist as of M
 .IP \(bu 2.3
 .\}
 \fB\-\-max\-record\-length=\fR\fB\fIlen\fR\fR
-.sp
 Skip rows larger than the given length if
 \fBmyisamchk\fR
 cannot allocate memory to hold them\&.
@@ -1032,7 +1004,6 @@ cannot allocate memory to hold them\&.
 .\}
 \fB\-\-parallel\-recover\fR,
 \fB\-p\fR
-.sp
 Use the same technique as
 \fB\-r\fR
 and
@@ -1050,7 +1021,6 @@ and
 .\}
 \fB\-\-quick\fR,
 \fB\-q\fR
-.sp
 Achieve a faster repair by modifying only the index file, not the data file\&. You can specify this option twice to force
 \fBmyisamchk\fR
 to modify the original data file in case of duplicate keys\&.
@@ -1066,7 +1036,6 @@ to modify the original data file in case of duplicate keys\&.
 .\}
 \fB\-\-recover\fR,
 \fB\-r\fR
-.sp
 Do a repair that can fix almost any problem except unique keys that are not unique (which is an extremely unlikely error with
 MyISAM
 tables)\&. If you want to recover a table, this is the option to try first\&. You should try
@@ -1092,7 +1061,6 @@ myisam_sort_buffer_size\&.
 .\}
 \fB\-\-safe\-recover\fR,
 \fB\-o\fR
-.sp
 Do a repair using an old recovery method that reads through all rows in order and updates all index trees based on the rows found\&. This is an order of magnitude slower than
 \fB\-\-recover\fR, but can handle a couple of very unlikely cases that
 \fB\-\-recover\fR
@@ -1117,7 +1085,6 @@ key_buffer_size\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-set\-collation=\fR\fB\fIname\fR\fR
-.sp
 Specify the collation to use for sorting table indexes\&. The character set name is implied by the first part of the collation name\&.
 .RE
 .sp
@@ -1131,7 +1098,6 @@ Specify the collation to use for sorting table indexes\&. The character set name
 .\}
 \fB\-\-sort\-recover\fR,
 \fB\-n\fR
-.sp
 Force
 \fBmyisamchk\fR
 to use sorting to resolve the keys even if the temporary files would be very large\&.
@@ -1147,7 +1113,6 @@ to use sorting to resolve the keys even if the temporary files would be very lar
 .\}
 \fB\-\-tmpdir=\fR\fB\fIdir_name\fR\fR,
 \fB\-t \fR\fB\fIdir_name\fR\fR
-.sp
 The path of the directory to be used for storing temporary files\&. If this is not set,
 \fBmyisamchk\fR
 uses the value of the
@@ -1167,7 +1132,6 @@ can be set to a list of directory paths that are used successively in round\-rob
 .\}
 \fB\-\-unpack\fR,
 \fB\-u\fR
-.sp
 Unpack a table that was packed with
 \fBmyisampack\fR\&.
 .RE
@@ -1186,7 +1150,6 @@ supports the following options for actions other than table checks and repairs:
 .\}
 \fB\-\-analyze\fR,
 \fB\-a\fR
-.sp
 Analyze the distribution of key values\&. This improves join performance by enabling the join optimizer to better choose the order in which to join the tables and which indexes it should use\&. To obtain information about the key distribution, use a
 \fBmyisamchk \-\-description \-\-verbose \fR\fB\fItbl_name\fR\fR
 command or the
@@ -1204,7 +1167,6 @@ statement\&.
 .\}
 \fB\-\-block\-search=\fR\fB\fIoffset\fR\fR,
 \fB\-b \fR\fB\fIoffset\fR\fR
-.sp
 Find the record that a block at the given offset belongs to\&.
 .RE
 .sp
@@ -1218,7 +1180,6 @@ Find the record that a block at the given offset belongs to\&.
 .\}
 \fB\-\-description\fR,
 \fB\-d\fR
-.sp
 Print some descriptive information about the table\&. Specifying the
 \fB\-\-verbose\fR
 option once or twice produces additional information\&. See
@@ -1235,7 +1196,6 @@ the section called \(lqOBTAINING TABLE INFORMATION WITH MYISAMCHK\(rq\&.
 .\}
 \fB\-\-set\-auto\-increment[=\fR\fB\fIvalue\fR\fR\fB]\fR,
 \fB\-A[\fR\fB\fIvalue\fR\fR\fB]\fR
-.sp
 Force
 AUTO_INCREMENT
 numbering for new records to start at the given value (or higher, if there are existing records with
@@ -1257,7 +1217,6 @@ numbers for new records begin with the largest value currently in the table, plu
 .\}
 \fB\-\-sort\-index\fR,
 \fB\-S\fR
-.sp
 Sort the index tree blocks in high\-low order\&. This optimizes seeks and makes table scans that use indexes faster\&.
 .RE
 .sp
@@ -1271,7 +1230,6 @@ Sort the index tree blocks in high\-low order\&. This optimizes seeks and makes 
 .\}
 \fB\-\-sort\-records=\fR\fB\fIN\fR\fR,
 \fB\-R \fR\fB\fIN\fR\fR
-.sp
 Sort records according to a particular index\&. This makes your data much more localized and may speed up range\-based
 SELECT
 and
@@ -2473,7 +2431,7 @@ instead of
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

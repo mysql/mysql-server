@@ -2,12 +2,12 @@
 .\"     Title: \fBibd2sdi\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/06/2020
+.\"      Date: 06/01/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBIBD2SDI\FR" "1" "03/06/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBIBD2SDI\FR" "1" "06/01/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -117,7 +117,6 @@ supports the following options:
 .\}
 \fB\-\-help\fR,
 \fB\-h\fR
-.sp
 Displays command\-line help\&.
 .sp
 .if n \{\
@@ -173,7 +172,6 @@ pretty                            TRUE
 .\}
 \fB\-\-version\fR,
 \fB\-v\fR
-.sp
 Displays MySQL version information\&.
 .sp
 .if n \{\
@@ -198,7 +196,6 @@ ibd2sdi  Ver 8\&.0\&.3\-dmr for Linux on x86_64 (Source distribution)
 .\}
 \fB\-\-debug[=\fR\fB\fIdebug_options\fR\fR\fB]\fR,
 \fB\-# [\fR\fB\fIdebug_options\fR\fR\fB]\fR
-.sp
 Prints a debug log\&. For debug options, refer to
 Section\ \&29.5.4, \(lqThe DBUG Package\(rq\&.
 .sp
@@ -228,7 +225,6 @@ built using this option\&.
 .\}
 \fB\-\-dump\-file=\fR,
 \fB\-d\fR
-.sp
 Dumps serialized dictionary information (SDI) into the specified dump file\&. If a dump file is not specified, the tablespace SDI is dumped to
 stdout\&.
 .sp
@@ -253,7 +249,6 @@ shell> \fBibd2sdi \-\-dump\-file=\fR\fB\fIfile_name\fR\fR\fB \&.\&./data/test/t1
 .\}
 \fB\-\-skip\-data\fR,
 \fB\-s\fR
-.sp
 Skips retrieval of
 data
 field values from the serialized dictionary information (SDI) and only retrieves the
@@ -295,7 +290,6 @@ shell> \fBibd2sdi \-\-skip\-data \&.\&./data/test/t1\&.ibd\fR
 .\}
 \fB\-\-id=\fR\fB\fI#\fR\fR,
 \fB\-i \fR\fB\fI#\fR\fR
-.sp
 Retrieves serialized dictionary information (SDI) matching the specified table or tablespace object id\&. An object id is unique to the object type\&. Table and tablespace object IDs are also found in the
 id
 column of the
@@ -354,7 +348,6 @@ shell> \fBibd2sdi \-\-id=7 \&.\&./data/test/t1\&.ibd\fR
 .\}
 \fB\-\-type=\fR\fB\fI#\fR\fR,
 \fB\-t \fR\fB\fI#\fR\fR
-.sp
 Retrieves serialized dictionary information (SDI) matching the specified object type\&. SDI is provided for table (type=1) and tablespace (type=2) objects\&.
 .sp
 .if n \{\
@@ -406,7 +399,6 @@ shell> \fBibd2sdi \-\-type=2 \&.\&./data/test/t1\&.ibd\fR
 .\}
 \fB\-\-strict\-check\fR,
 \fB\-c\fR
-.sp
 Specifies a strict checksum algorithm for validating the checksum of pages that are read\&. Options include
 innodb,
 crc32, and
@@ -460,7 +452,6 @@ checksums\&.
 .\}
 \fB\-\-no\-check\fR,
 \fB\-n\fR
-.sp
 Skips checksum validation for pages that are read\&.
 .sp
 .if n \{\
@@ -484,7 +475,6 @@ shell> \fBibd2sdi \-\-no\-check \&.\&./data/test/t1\&.ibd\fR
 .\}
 \fB\-\-pretty\fR,
 \fB\-p\fR
-.sp
 Outputs SDI data in JSON pretty print format\&. Enabled by default\&. If disabled, SDI is not human readable but is smaller in size\&. Use
 \-\-skip\-pretty
 to disable\&.
@@ -502,7 +492,7 @@ shell> \fBibd2sdi \-\-skip\-pretty \&.\&./data/test/t1\&.ibd\fR
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
