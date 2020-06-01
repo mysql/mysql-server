@@ -201,7 +201,8 @@ static void common_pass_metadata_supported(MySQLSessionReplayer *m) {
 static void common_pass_group_replication_online(MySQLSessionReplayer *m) {
   m->expect_query_one(
       "SELECT member_state FROM performance_schema.replication_group_members "
-      "WHERE member_id = @@server_uuid");
+      "WHERE CAST(member_id AS char ascii) = CAST(@@server_uuid AS char "
+      "ascii)");
   m->then_return(1, {// member_state
                      {m->string_or_null("ONLINE")}});
 }
@@ -358,7 +359,8 @@ TEST_F(ConfigGeneratorTest, metadata_checks_invalid_data) {
 
     mock_mysql->expect_query_one(
         "SELECT member_state FROM performance_schema.replication_group_members "
-        "WHERE member_id = @@server_uuid");
+        "WHERE CAST(member_id AS char ascii) = CAST(@@server_uuid AS char "
+        "ascii)");
     mock_mysql->then_return(0, {
                                    // [state field missing]
                                });
