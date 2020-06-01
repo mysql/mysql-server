@@ -2,12 +2,12 @@
 .\"     Title: \fBinnochecksum\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/06/2020
+.\"      Date: 06/01/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBINNOCHECKSUM\FR" "1" "03/06/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBINNOCHECKSUM\FR" "1" "06/01/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -85,7 +85,6 @@ supports the following options\&. For options that refer to page numbers, the nu
 .\}
 \fB\-\-help\fR,
 \fB\-?\fR
-.sp
 Displays command line help\&. Example usage:
 .sp
 .if n \{\
@@ -109,7 +108,6 @@ shell> \fBinnochecksum \-\-help\fR
 .\}
 \fB\-\-info\fR,
 \fB\-I\fR
-.sp
 Synonym for
 \fB\-\-help\fR\&. Displays command line help\&. Example usage:
 .sp
@@ -134,7 +132,6 @@ shell> \fBinnochecksum \-\-info\fR
 .\}
 \fB\-\-version\fR,
 \fB\-V\fR
-.sp
 Displays version information\&. Example usage:
 .sp
 .if n \{\
@@ -158,7 +155,6 @@ shell> \fBinnochecksum \-\-version\fR
 .\}
 \fB\-\-verbose\fR,
 \fB\-v\fR
-.sp
 Verbose mode; prints a progress indicator to the log file every five seconds\&. In order for the progress indicator to be printed, the log file must be specified using the
 \-\-log option\&. To turn on
 verbose
@@ -248,7 +244,6 @@ page 54463 okay: 93\&.722% done
 .\}
 \fB\-\-count\fR,
 \fB\-c\fR
-.sp
 Print a count of the number of pages in the file and exit\&. Example usage:
 .sp
 .if n \{\
@@ -272,7 +267,6 @@ shell> \fBinnochecksum \-\-count \&.\&./data/test/tab1\&.ibd\fR
 .\}
 \fB\-\-start\-page=\fR\fB\fInum\fR\fR,
 \fB\-s \fR\fB\fInum\fR\fR
-.sp
 Start at this page number\&. Example usage:
 .sp
 .if n \{\
@@ -308,7 +302,6 @@ shell> \fBinnochecksum \-s 600 \&.\&./data/test/tab1\&.ibd\fR
 .\}
 \fB\-\-end\-page=\fR\fB\fInum\fR\fR,
 \fB\-e \fR\fB\fInum\fR\fR
-.sp
 End at this page number\&. Example usage:
 .sp
 .if n \{\
@@ -344,7 +337,6 @@ shell> \fBinnochecksum \-\-p 700 \&.\&./data/test/tab1\&.ibd\fR
 .\}
 \fB\-\-page=\fR\fB\fInum\fR\fR,
 \fB\-p \fR\fB\fInum\fR\fR
-.sp
 Check only this page number\&. Example usage:
 .sp
 .if n \{\
@@ -368,7 +360,6 @@ shell> \fBinnochecksum \-\-page=701 \&.\&./data/test/tab1\&.ibd\fR
 .\}
 \fB\-\-strict\-check\fR,
 \fB\-C\fR
-.sp
 Specify a strict checksum algorithm\&. Options include
 innodb,
 crc32, and
@@ -479,7 +470,6 @@ are allowed\&.
 .\}
 \fB\-\-no\-check\fR,
 \fB\-n\fR
-.sp
 Ignore the checksum verification when rewriting a checksum\&. This option may only be used with the
 \fBinnochecksum\fR
 \fB\-\-write\fR
@@ -514,7 +504,6 @@ shell> \fBinnochecksum \-\-no\-check \-\-write innodb \&.\&./data/test/tab1\&.ib
 .\}
 \fB\-\-allow\-mismatches\fR,
 \fB\-a\fR
-.sp
 The maximum number of checksum mismatches allowed before
 \fBinnochecksum\fR
 terminates\&. The default setting is 0\&. If
@@ -563,7 +552,6 @@ is set to 1, the checksum tolerates the first mismatch and terminates on the sec
 .\}
 \fB\-\-write=\fR\fB\fIname\fR\fR,
 \fB\-w \fR\fB\fInum\fR\fR
-.sp
 Rewrite a checksum\&. When rewriting an invalid checksum, the
 \fB\-\-no\-check\fR
 option must be used together with the
@@ -669,7 +657,6 @@ shell> \fBinnochecksum \-\-no\-check \-\-write crc32 \&.\&./data/test/tab1\&.ibd
 .\}
 \fB\-\-page\-type\-summary\fR,
 \fB\-S\fR
-.sp
 Display a count of each page type in a tablespace\&. Example usage:
 .sp
 .if n \{\
@@ -726,7 +713,6 @@ Undo page state: 0 active, 0 cached, 0 to_free, 0 to_purge, 0 prepared, 0 other
 .\}
 \fB\-\-page\-type\-dump\fR,
 \fB\-D\fR
-.sp
 Dump the page type information for each page in a tablespace to
 stderr
 or
@@ -753,7 +739,6 @@ shell> \fBinnochecksum \-\-page\-type\-dump=/tmp/a\&.txt \&.\&./data/test/tab1\&
 .\}
 \fB\-\-log\fR,
 \fB\-l\fR
-.sp
 Log output for the
 \fBinnochecksum\fR
 tool\&. A log file name must be provided\&. Log output contains checksum values for each tablespace page\&. For uncompressed tables, LSN values are also provided\&. The
@@ -795,7 +780,6 @@ shell> \fBinnochecksum \-l /tmp/log\&.txt \&.\&./data/test/tab1\&.ibd\fR
 .\}
 \-
 option\&.
-.sp
 Specify the
 \-
 option to read from standard input\&. If the
@@ -1017,7 +1001,7 @@ cmd> innochecksum\&.exe ibdata3
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

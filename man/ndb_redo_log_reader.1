@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_redo_log_reader\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/06/2020
+.\"      Date: 06/01/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_REDO_LOG_READER\FR" "1" "03/06/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDB_REDO_LOG_READER\FR" "1" "06/01/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -54,7 +54,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.265.\ \&Command\-line options for the ndb_redo_log_reader program
+.B Table\ \&22.267.\ \&Command\-line options for the ndb_redo_log_reader program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -213,7 +213,7 @@ S
 varies according to the value of the
 NoOfFragmentLogFiles
 configuration parameter, whose default value is 16; thus, the default range of the number in the file name is 0\-15 inclusive\&. For more information, see
-\m[blue]\fBNDB Cluster Data Node File System Directory Files\fR\m[]\&\s-2\u[1]\d\s+2\&.
+\m[blue]\fBNDB Cluster Data Node File System Directory\fR\m[]\&\s-2\u[1]\d\s+2\&.
 .PP
 The name of the file to be read may be followed by one or more of the options listed here:
 .sp
@@ -235,21 +235,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 -dump
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -275,21 +275,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 -filedescriptors
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -315,9 +315,9 @@ T}:T{
 Value
 T}
 .T&
-l l.
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --help
 T}
@@ -344,21 +344,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 -lap
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -384,33 +384,33 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l
-l l
-l l.
+lB l
+lB l
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 -mbyte #
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Numeric
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 0
 T}
 T{
-\fBMinimum Value\fR
+Minimum Value
 T}:T{
 0
 T}
 T{
-\fBMaximum Value\fR
+Maximum Value
 T}:T{
 15
 T}
@@ -439,21 +439,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 -mbyteheaders
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -479,21 +479,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 -noprint
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -519,21 +519,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 -nocheck
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -559,33 +559,33 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l
-l l
-l l.
+lB l
+lB l
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 -page #
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Integer
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 0
 T}
 T{
-\fBMinimum Value\fR
+Minimum Value
 T}:T{
 0
 T}
 T{
-\fBMaximum Value\fR
+Maximum Value
 T}:T{
 31
 T}
@@ -614,21 +614,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 -pageheaders
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -654,33 +654,33 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l
-l l
-l l.
+lB l
+lB l
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 -pageindex #
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Integer
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 12
 T}
 T{
-\fBMinimum Value\fR
+Minimum Value
 T}:T{
 12
 T}
 T{
-\fBMaximum Value\fR
+Maximum Value
 T}:T{
 8191
 T}
@@ -710,21 +710,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 -twiddle
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Boolean
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 FALSE
 T}
@@ -745,7 +745,7 @@ must be run on a cluster data node, since it accesses the data node file system 
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
@@ -755,7 +755,7 @@ You should have received a copy of the GNU General Public License along with the
 .sp
 .SH "NOTES"
 .IP " 1." 4
-NDB Cluster Data Node File System Directory Files
+NDB Cluster Data Node File System Directory
 .RS 4
 \%https://dev.mysql.com/doc/ndb-internals/en/ndb-internals-ndbd-filesystemdir-files.html
 .RE

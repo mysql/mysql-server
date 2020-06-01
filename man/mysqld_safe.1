@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqld_safe\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/06/2020
+.\"      Date: 06/01/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLD_SAFE\FR" "1" "03/06/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQLD_SAFE\FR" "1" "06/01/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -132,7 +132,6 @@ Section\ \&4.2.2.2, \(lqUsing Option Files\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-help\fR
-.sp
 Display a help message and exit\&.
 .RE
 .sp
@@ -145,7 +144,6 @@ Display a help message and exit\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-basedir=\fR\fB\fIdir_name\fR\fR
-.sp
 The path to the MySQL installation directory\&.
 .RE
 .sp
@@ -158,7 +156,6 @@ The path to the MySQL installation directory\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-core\-file\-size=\fR\fB\fIsize\fR\fR
-.sp
 The size of the core file that
 \fBmysqld\fR
 should be able to create\&. The option value is passed to
@@ -192,7 +189,6 @@ Section\ \&15.8.3.7, \(lqExcluding Buffer Pool Pages from Core Files\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-datadir=\fR\fB\fIdir_name\fR\fR
-.sp
 The path to the data directory\&.
 .RE
 .sp
@@ -205,7 +201,6 @@ The path to the data directory\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-extra\-file=\fR\fB\fIfile_name\fR\fR
-.sp
 Read this option file in addition to the usual option files\&. If the file does not exist or is otherwise inaccessible, the server will exit with an error\&.
 \fIfile_name\fR
 is interpreted relative to the current directory if given as a relative path name rather than a full path name\&. This must be the first option on the command line if it is used\&.
@@ -223,7 +218,6 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-file=\fR\fB\fIfile_name\fR\fR
-.sp
 Use only the given option file\&. If the file does not exist or is otherwise inaccessible, the server will exit with an error\&.
 \fIfile_name\fR
 is interpreted relative to the current directory if given as a relative path name rather than a full path name\&. This must be the first option on the command line if it is used\&.
@@ -241,7 +235,6 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-ledir=\fR\fB\fIdir_name\fR\fR
-.sp
 If
 \fBmysqld_safe\fR
 cannot find the server, use this option to indicate the path name to the directory where the server is located\&.
@@ -260,7 +253,6 @@ Section\ \&2.5.9, \(lqManaging MySQL Server with systemd\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-log\-error=\fR\fB\fIfile_name\fR\fR
-.sp
 Write the error log to the given file\&. See
 Section\ \&5.4.2, \(lqThe Error Log\(rq\&.
 .RE
@@ -274,7 +266,6 @@ Section\ \&5.4.2, \(lqThe Error Log\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-mysqld\-safe\-log\-timestamps\fR
-.sp
 This option controls the format for timestamps in log output produced by
 \fBmysqld_safe\fR\&. The following list describes the permitted values\&. For any other value,
 \fBmysqld_safe\fR
@@ -396,7 +387,7 @@ tcmalloc\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-If the option is given as
+Prior to MySQL 8\&.0\&.21, if the option is given as
 \fB\-\-malloc\-lib=tcmalloc\fR,
 \fBmysqld_safe\fR
 looks for a
@@ -412,6 +403,12 @@ tcmalloc
 is not found,
 \fBmysqld_safe\fR
 aborts with an error\&.
+.sp
+As of MySQL 8\&.0\&.21,
+tcmalloc
+is not a permitted value for the
+\fB\-\-malloc\-lib\fR
+option\&.
 .RE
 .sp
 .RS 4
@@ -510,7 +507,6 @@ malloc\-lib=/opt/lib/libtcmalloc_minimal\&.so
 .IP \(bu 2.3
 .\}
 \fB\-\-mysqld=\fR\fB\fIprog_name\fR\fR
-.sp
 The name of the server program (in the
 ledir
 directory) that you want to start\&. This option is needed if you use the MySQL binary distribution but have the data directory outside of the binary distribution\&. If
@@ -533,7 +529,6 @@ Section\ \&2.5.9, \(lqManaging MySQL Server with systemd\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-mysqld\-version=\fR\fB\fIsuffix\fR\fR
-.sp
 This option is similar to the
 \fB\-\-mysqld\fR
 option, but you specify only the suffix for the server program name\&. The base name is assumed to be
@@ -568,7 +563,6 @@ Section\ \&2.5.9, \(lqManaging MySQL Server with systemd\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-nice=\fR\fB\fIpriority\fR\fR
-.sp
 Use the
 nice
 program to set the server\*(Aqs scheduling priority to the given value\&.
@@ -583,7 +577,6 @@ program to set the server\*(Aqs scheduling priority to the given value\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-no\-defaults\fR
-.sp
 Do not read any option files\&. If program startup fails due to reading unknown options from an option file,
 \fB\-\-no\-defaults\fR
 can be used to prevent them from being read\&. This must be the first option on the command line if it is used\&.
@@ -601,7 +594,6 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-open\-files\-limit=\fR\fB\fIcount\fR\fR
-.sp
 The number of files that
 \fBmysqld\fR
 should be able to open\&. The option value is passed to
@@ -636,7 +628,6 @@ for this to function properly\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-pid\-file=\fR\fB\fIfile_name\fR\fR
-.sp
 The path name that
 \fBmysqld\fR
 should use for its process ID file\&.
@@ -651,7 +642,6 @@ should use for its process ID file\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-plugin\-dir=\fR\fB\fIdir_name\fR\fR
-.sp
 The path name of the plugin directory\&.
 .RE
 .sp
@@ -664,7 +654,6 @@ The path name of the plugin directory\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-port=\fR\fB\fIport_num\fR\fR
-.sp
 The port number that the server should use when listening for TCP/IP connections\&. The port number must be 1024 or higher unless the server is started by the
 root
 operating system user\&.
@@ -679,7 +668,6 @@ operating system user\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-skip\-kill\-mysqld\fR
-.sp
 Do not try to kill stray
 \fBmysqld\fR
 processes at startup\&. This option works only on Linux\&.
@@ -694,7 +682,6 @@ processes at startup\&. This option works only on Linux\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-socket=\fR\fB\fIpath\fR\fR
-.sp
 The Unix socket file that the server should use when listening for local connections\&.
 .RE
 .sp
@@ -708,7 +695,6 @@ The Unix socket file that the server should use when listening for local connect
 .\}
 \fB\-\-syslog\fR,
 \fB\-\-skip\-syslog\fR
-.sp
 \fB\-\-syslog\fR
 causes error messages to be sent to
 syslog
@@ -742,7 +728,6 @@ system variable\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-syslog\-tag=\fR\fB\fItag\fR\fR
-.sp
 For logging to
 syslog, messages from
 \fBmysqld_safe\fR
@@ -774,7 +759,6 @@ Section\ \&5.4.2.7, \(lqError Logging to the System Log\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-timezone=\fR\fB\fItimezone\fR\fR
-.sp
 Set the
 TZ
 time zone environment variable to the given option value\&. Consult your operating system documentation for legal time zone specification formats\&.
@@ -789,7 +773,6 @@ time zone environment variable to the given option value\&. Consult your operati
 .IP \(bu 2.3
 .\}
 \fB\-\-user={\fR\fB\fIuser_name\fR\fR\fB|\fR\fB\fIuser_id\fR\fR\fB}\fR
-.sp
 Run the
 \fBmysqld\fR
 server as the user having the name
@@ -1002,7 +985,7 @@ Section\ \&5.4.2.7, \(lqError Logging to the System Log\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

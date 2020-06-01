@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlrouter\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/05/2020
+.\"      Date: 05/30/2020
 .\"    Manual: MySQL Router
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLROUTER\FR" "1" "03/05/2020" "MySQL 8\&.0" "MySQL Router"
+.TH "\FBMYSQLROUTER\FR" "1" "05/30/2020" "MySQL 8\&.0" "MySQL Router"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -88,9 +88,9 @@ T}:T{
 Value
 T}
 .T&
-l l.
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --version , -V
 T}
@@ -129,9 +129,9 @@ T}:T{
 Value
 T}
 .T&
-l l.
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --help , -?
 T}
@@ -195,15 +195,15 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l.
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --bootstrap URI, -B URI
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
@@ -288,13 +288,11 @@ are:
 .\}
 .nf
 GRANT CREATE USER ON *\&.* TO \*(Aq\fIbootstrapuser\fR\*(Aq@\*(Aq%\*(Aq WITH GRANT OPTION;
-GRANT SELECT, INSERT, UPDATE, DELETE ON mysql_innodb_cluster_metadata\&.* TO
-\*(Aq\fIbootstrapuser\fR\*(Aq@\*(Aq%\*(Aq;
+GRANT SELECT, INSERT, UPDATE, DELETE, EXECUTE ON mysql_innodb_cluster_metadata\&.* TO \*(Aq\fIbootstrapuser\fR\*(Aq@\*(Aq%\*(Aq;
 GRANT SELECT ON mysql\&.user TO \*(Aq\fIbootstrapuser\fR\*(Aq@\*(Aq%\*(Aq;
-GRANT SELECT ON performance_schema\&.replication_group_members TO
-\*(Aq\fIbootstrapuser\fR\*(Aq@\*(Aq%\*(Aq;
-GRANT SELECT ON performance_schema\&.replication_group_member_stats TO
-\*(Aq\fIbootstrapuser\fR\*(Aq@\*(Aq%\*(Aq;
+GRANT SELECT ON performance_schema\&.replication_group_members TO \*(Aq\fIbootstrapuser\fR\*(Aq@\*(Aq%\*(Aq;
+GRANT SELECT ON performance_schema\&.replication_group_member_stats TO \*(Aq\fIbootstrapuser\fR\*(Aq@\*(Aq%\*(Aq;
+GRANT SELECT ON performance_schema\&.global_variables TO \*(Aq\fIbootstrapuser\fR\*(Aq@\*(Aq%\*(Aq;
 .fi
 .if n \{\
 .RE
@@ -381,15 +379,15 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l.
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --bootstrap-socket socket_name
 T}
 T{
-\fBPlatform Specific\fR
+Platform Specific
 T}:T{
 Linux
 T}
@@ -432,15 +430,15 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l.
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --directory dir_path, -d dir_path
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
@@ -496,21 +494,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --master-key-writer file_path
 T}
 T{
-\fBIntroduced\fR
+Introduced
 T}:T{
 8.0.12
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
@@ -601,21 +599,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --master-key-reader file_path
 T}
 T{
-\fBIntroduced\fR
+Introduced
 T}:T{
 8.0.12
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
@@ -709,21 +707,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --strict
 T}
 T{
-\fBIntroduced\fR
+Introduced
 T}:T{
 8.0.19
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
@@ -752,21 +750,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --account username
 T}
 T{
-\fBIntroduced\fR
+Introduced
 T}:T{
 8.0.19
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
@@ -825,33 +823,33 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l
-l l
-l l.
+lB l
+lB l
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --account-create behavior
 T}
 T{
-\fBIntroduced\fR
+Introduced
 T}:T{
 8.0.19
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 if-not-exists
 T}
 T{
-\fBValid Values\fR
+Valid Values
 T}:T{
 .PP
 if-not-exists
@@ -923,27 +921,27 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l
-l l.
+lB l
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --account-host host_pattern
 T}
 T{
-\fBIntroduced\fR
+Introduced
 T}:T{
 8.0.12
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 %
 T}
@@ -1016,15 +1014,15 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l.
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --conf-use-sockets
 T}
 T{
-\fBPlatform Specific\fR
+Platform Specific
 T}:T{
 Linux
 T}
@@ -1071,15 +1069,15 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l.
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --conf-use-gr-notifications
 T}
 T{
-\fBIntroduced\fR
+Introduced
 T}:T{
 8.0.17
 T}
@@ -1087,7 +1085,9 @@ T}
 .sp 1
 Enables the
 \fBuse_gr_notifications\fR
-[metadata_cache] option during bootstrap\&.
+[metadata_cache] option during bootstrap\&. When enabled, Router is asynchronously notified about most cluster changes\&. See
+\fBuse_gr_notifications\fR
+for more information\&.
 .RE
 .sp
 .RS 4
@@ -1108,21 +1108,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --pid-file path
 T}
 T{
-\fBIntroduced\fR
+Introduced
 T}:T{
 8.0.20
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
@@ -1163,21 +1163,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --report-host hostname
 T}
 T{
-\fBIntroduced\fR
+Introduced
 T}:T{
 8.0.12
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
@@ -1208,15 +1208,15 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l.
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --conf-skip-tcp
 T}
 T{
-\fBPlatform Specific\fR
+Platform Specific
 T}:T{
 Linux
 T}
@@ -1246,15 +1246,15 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l.
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --conf-base-port port_num
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Integer
 T}
@@ -1314,21 +1314,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --conf-bind-address address
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 0.0.0.0
 T}
@@ -1382,27 +1382,27 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l
-l l.
+lB l
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --read-timeout num_seconds
 T}
 T{
-\fBIntroduced\fR
+Introduced
 T}:T{
 8.0.4
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Integer
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 30
 T}
@@ -1438,27 +1438,27 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l
-l l.
+lB l
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --connect-timeout num_seconds
 T}
 T{
-\fBIntroduced\fR
+Introduced
 T}:T{
 8.0.4
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Integer
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 30
 T}
@@ -1499,21 +1499,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --user {user_name|user_id}, -u {user_name|user_id}
 T}
 T{
-\fBPlatform Specific\fR
+Platform Specific
 T}:T{
 Linux
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
@@ -1567,21 +1567,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --name router_name
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 system
 T}
@@ -1610,15 +1610,15 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l.
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --force-password-validation
 T}
 T{
-\fBPlatform Specific\fR
+Platform Specific
 T}:T{
 Linux
 T}
@@ -1647,33 +1647,33 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l
-l l
-l l.
+lB l
+lB l
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --password-retries num_retries
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 Integer
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 20
 T}
 T{
-\fBMinimum Value\fR
+Minimum Value
 T}:T{
 1
 T}
 T{
-\fBMaximum Value\fR
+Maximum Value
 T}:T{
 10000
 T}
@@ -1706,9 +1706,9 @@ T}:T{
 Value
 T}
 .T&
-l l.
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --force
 T}
@@ -1735,27 +1735,27 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l
-l l.
+lB l
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --ssl-mode mode
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 PREFERRED
 T}
 T{
-\fBValid Values\fR
+Valid Values
 T}:T{
 .PP
 PREFERRED
@@ -1812,21 +1812,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --ssl-key file_path
 T}
 T{
-\fBIntroduced\fR
+Introduced
 T}:T{
 8.0.4
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
@@ -1858,21 +1858,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --ssl-key file_path
 T}
 T{
-\fBIntroduced\fR
+Introduced
 T}:T{
 8.0.4
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
@@ -1904,21 +1904,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --ssl-cipher ciphers
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 T}
 .TE
@@ -1944,21 +1944,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --tls-version versions
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 T}
 .TE
@@ -1984,21 +1984,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --ssl-ca file_path
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 T}
 .TE
@@ -2024,21 +2024,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --ssl-capath dir_path
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 T}
 .TE
@@ -2064,21 +2064,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --ssl-crl file_path
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 T}
 .TE
@@ -2104,21 +2104,21 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l
-l l.
+lB l
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --ssl-crlpath dir_path
 T}
 T{
-\fBType\fR
+Type
 T}:T{
 String
 T}
 T{
-\fBDefault Value\fR
+Default Value
 T}:T{
 T}
 .TE
@@ -2145,9 +2145,9 @@ T}:T{
 Value
 T}
 .T&
-l l.
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --config file_path, -c file_path
 T}
@@ -2182,9 +2182,9 @@ T}:T{
 Value
 T}
 .T&
-l l.
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --extra-config file_path, -a file_path
 T}
@@ -2213,15 +2213,15 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l.
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --install-service
 T}
 T{
-\fBPlatform Specific\fR
+Platform Specific
 T}:T{
 Windows
 T}
@@ -2254,15 +2254,15 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l.
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --install-service-manual
 T}
 T{
-\fBPlatform Specific\fR
+Platform Specific
 T}:T{
 Windows
 T}
@@ -2292,15 +2292,15 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l.
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --remove-service
 T}
 T{
-\fBPlatform Specific\fR
+Platform Specific
 T}:T{
 Windows
 T}
@@ -2329,15 +2329,15 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l.
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --service
 T}
 T{
-\fBPlatform Specific\fR
+Platform Specific
 T}:T{
 Windows
 T}
@@ -2366,15 +2366,15 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l.
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --update-credentials-section section_name
 T}
 T{
-\fBPlatform Specific\fR
+Platform Specific
 T}:T{
 Windows
 T}
@@ -2401,15 +2401,15 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l.
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --remove-credentials-section section_name
 T}
 T{
-\fBPlatform Specific\fR
+Platform Specific
 T}:T{
 Windows
 T}
@@ -2438,15 +2438,15 @@ T}:T{
 Value
 T}
 .T&
-l l
-l l.
+lB l
+lB l.
 T{
-\fBCommand-Line Format\fR
+Command-Line Format
 T}:T{
 --clear-all-credentials
 T}
 T{
-\fBPlatform Specific\fR
+Platform Specific
 T}:T{
 Windows
 T}
@@ -2459,7 +2459,7 @@ This option is only available on Windows, and refers to its password vault\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 2006, 2020, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 2006, 2020, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

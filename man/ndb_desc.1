@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_desc\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/06/2020
+.\"      Date: 06/01/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_DESC\FR" "1" "03/06/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDB_DESC\FR" "1" "06/01/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -327,7 +327,7 @@ NDBT_ProgramExit: 0 \- OK
 .\}
 .PP
 For more information about these table properties, see
-Section\ \&13.1.20.11, \(lqSetting NDB_TABLE Options\(rq\&.
+Section\ \&13.1.20.10, \(lqSetting NDB_TABLE Options\(rq\&.
 .PP
 The
 Extent_space
@@ -480,7 +480,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.257.\ \&Command\-line options for the ndb_desc program
+.B Table\ \&22.259.\ \&Command\-line options for the ndb_desc program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -498,7 +498,20 @@ l l l
 l l l
 l l l
 l l l
+l l l
+l l l
 l l l.
+T{
+.PP
+\fB--auto-inc\fR,
+.PP
+\fB \fR\fB-a\fR\fB \fR
+T}:T{
+Show next value for AUTO_INCREMENT oolumn if table has one
+T}:T{
+.PP
+ADDED: NDB 8.0.21
+T}
 T{
 .PP
 \fB--blob-info\fR,
@@ -510,6 +523,18 @@ Include partition information for BLOB tables in output. Requires that
 T}:T{
 .PP
 (Supported in all MySQL 8.0 based releases)
+T}
+T{
+.PP
+\fB--context\fR,
+.PP
+\fB \fR\fB-x\fR\fB \fR
+T}:T{
+Show extra information for table such as database, schema, name,
+              internal ID
+T}:T{
+.PP
+ADDED: NDB 8.0.21
 T}
 T{
 .PP
@@ -590,6 +615,22 @@ T}
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-auto\-inc\fR,
+\fB\-a\fR
+.sp
+Show the next value for a table\*(Aqs
+AUTO_INCREMENT
+column, if it has one\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-blob\-info\fR,
 \fB\-b\fR
 .sp
@@ -602,6 +643,20 @@ columns\&.
 Use of this option also requires the use of the
 \fB\-\-extra\-partition\-info\fR
 (\fB\-p\fR) option\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-context\fR,
+\fB\-x\fR
+.sp
+Show additional contextual information for the table such as schema, database name, table name, and the table\*(Aqs internal ID\&.
 .RE
 .sp
 .RS 4
@@ -696,7 +751,7 @@ In NDB 7\&.5\&.3 and later, table indexes listed in the output are ordered by ID
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
