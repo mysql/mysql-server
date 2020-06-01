@@ -30,6 +30,8 @@
   NDB Cluster
 */
 
+#include <array>
+
 #include "sql/partitioning/partition_handler.h"
 #include "sql/sql_base.h"
 #include "sql/table.h"
@@ -68,21 +70,36 @@ enum NDB_INDEX_TYPE {
 };
 
 struct NDB_INDEX_DATA {
-  NDB_INDEX_TYPE type;
-  enum { UNDEFINED = 0, ACTIVE = 1, TO_BE_DROPPED = 2 } status;
-  const NdbDictionary::Index *index;
-  const NdbDictionary::Index *unique_index;
-  unsigned char *unique_index_attrid_map;
-  bool null_in_unique_index;
-  /*
-    In mysqld, keys and rows are stored differently (using KEY_PART_INFO for
-    keys and Field for rows).
-    So we need to use different NdbRecord for an index for passing values
-    from a key and from a row.
-  */
-  NdbRecord *ndb_record_key;
-  NdbRecord *ndb_unique_record_key;
-  NdbRecord *ndb_unique_record_row;
+  NDB_INDEX_TYPE type{UNDEFINED_INDEX};
+  const NdbDictionary::Index *index{nullptr};
+  const NdbDictionary::Index *unique_index{nullptr};
+
+  // Map from MySQL key to NDB index column order. The order of
+  // the keys used by MySQL may not always match the index column order in NDB.
+  class Attrid_map {
+    std::vector<unsigned char> m_ids;
+    // Verify that vector's type is large enough to store "index of column in
+    // the NDB index" (currently 32 columns although MySQL only support 16)
+    static_assert(std::numeric_limits<decltype(m_ids)::value_type>::max() >
+                      NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY,
+                  "");
+    Attrid_map(const KEY *key_info, const NdbDictionary::Index *index);
+
+   public:
+    static const Attrid_map *create(const KEY *key_info,
+                                    const NdbDictionary::Index *index);
+    static void destroy(const Attrid_map *map);
+    void fill_column_map(uint column_map[]) const;
+  };
+  const Attrid_map *unique_index_attrid_map{nullptr};
+
+  bool null_in_unique_index{false};
+  // The keys and rows passed from MySQL Server are in different formats
+  // depending on whether it's a key (using KEY_PART_INFO) or row (using Field),
+  // thus different NdbRecord's need to be setup for each format.
+  NdbRecord *ndb_record_key{nullptr};
+  NdbRecord *ndb_unique_record_key{nullptr};
+  NdbRecord *ndb_unique_record_row{nullptr};
 };
 
 #include "storage/ndb/plugin/ndb_ndbapi_util.h"
@@ -412,8 +429,7 @@ class ha_ndbcluster : public handler, public Partition_handler {
   void release_key_fields();
   void release_ndb_share();
   NDB_SHARE *open_table_before_schema_sync(THD *, const char *);
-  void prepare_inplace__drop_index(uint key_num);
-  int inplace__final_drop_index(TABLE *table_arg);
+  void prepare_inplace__drop_index(uint index_num);
 
   enum_alter_inplace_result supported_inplace_field_change(Alter_inplace_info *,
                                                            Field *, Field *,
@@ -454,15 +470,14 @@ class ha_ndbcluster : public handler, public Partition_handler {
   // Index list management
   int create_indexes(THD *thd, TABLE *tab,
                      const NdbDictionary::Table *ndbtab) const;
-  int open_indexes(Ndb *ndb, TABLE *tab);
-  void release_indexes(NdbDictionary::Dictionary *dict, int invalidate);
-  void inplace__renumber_indexes(uint dropped_index_num);
-  int inplace__drop_indexes(Ndb *ndb, TABLE *tab);
-  int add_index_handle(NdbDictionary::Dictionary *dict, KEY *key_info,
+  int open_indexes(NdbDictionary::Dictionary *dict);
+  void release_indexes(NdbDictionary::Dictionary *dict, bool invalidate);
+  int inplace__drop_index(NdbDictionary::Dictionary *dict, uint index_num);
+  int add_index_handle(NdbDictionary::Dictionary *dict, const KEY *key_info,
                        const char *key_name, uint index_no);
   int add_table_ndb_record(NdbDictionary::Dictionary *dict);
   int add_hidden_pk_ndb_record(NdbDictionary::Dictionary *dict);
-  int add_index_ndb_record(NdbDictionary::Dictionary *dict, KEY *key_info,
+  int add_index_ndb_record(NdbDictionary::Dictionary *dict, const KEY *key_info,
                            uint index_no);
   int create_fks(THD *thd, Ndb *ndb);
   int copy_fk_for_offline_alter(THD *thd, Ndb *, const char *tabname);
@@ -475,11 +490,10 @@ class ha_ndbcluster : public handler, public Partition_handler {
   int get_metadata(THD *thd, const dd::Table *table_def);
   void release_metadata(THD *thd);
   NDB_INDEX_TYPE get_index_type(uint idx_no) const;
-  NDB_INDEX_TYPE get_index_type_from_table(uint index_no) const;
-  NDB_INDEX_TYPE get_index_type_from_key(uint index_no, KEY *key_info,
+  NDB_INDEX_TYPE get_index_type_from_table(uint index_num) const;
+  NDB_INDEX_TYPE get_index_type_from_key(uint index_num, KEY *key_info,
                                          bool primary) const;
   bool has_null_in_unique_index(uint idx_no) const;
-  bool check_index_fields_not_null(KEY *key_info) const;
 
   bool check_if_pushable(int type,  // NdbQueryOperationDef::Type,
                          uint idx = MAX_KEY) const;
@@ -600,7 +614,7 @@ class ha_ndbcluster : public handler, public Partition_handler {
 
   NdbTransaction *start_transaction_row(const NdbRecord *ndb_record,
                                         const uchar *record, int &error);
-  NdbTransaction *start_transaction_key(uint index, const uchar *key_data,
+  NdbTransaction *start_transaction_key(uint index_num, const uchar *key_data,
                                         int &error);
 
   friend int check_completed_operations_pre_commit(Thd_ndb *, NdbTransaction *,
@@ -656,7 +670,11 @@ class ha_ndbcluster : public handler, public Partition_handler {
   THR_LOCK_DATA m_lock;
   bool m_lock_tuple;
   NDB_SHARE *m_share;
-  NDB_INDEX_DATA m_index[MAX_KEY];
+
+  std::array<NDB_INDEX_DATA, MAX_INDEXES> m_index;
+  // Cached metadata variable, indicating if the open table have any unique
+  // indexes. Used as a quick optimization to avoid looping the list of indexes.
+  bool m_has_unique_index{false};
 
   /*
     Pointer to row returned from scan nextResult().
@@ -680,7 +698,6 @@ class ha_ndbcluster : public handler, public Partition_handler {
   bool m_sorted;
   bool m_use_write;
   bool m_ignore_dup_key;
-  bool m_has_unique_index;
   bool m_ignore_no_key;
   bool m_read_before_write_removal_possible;
   bool m_read_before_write_removal_used;

@@ -74,7 +74,7 @@ class Ndb_index_stat_thread : public Ndb_component {
 };
 
 /* free entries from share or at end */
-void ndb_index_stat_free(NDB_SHARE *, int iudex_id, int index_version);
+void ndb_index_stat_free(NDB_SHARE *, int index_id, int index_version);
 void ndb_index_stat_free(NDB_SHARE *);
 void ndb_index_stat_end();
 

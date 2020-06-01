@@ -1,0 +1,93 @@
+--source connect.inc
+
+--echo #
+--echo # Bug#24444899 MYSQLD CRASHED WHILE DROPPING UNIQUE KEY ...
+--echo # - test adding and using unique index of varying length
+--echo # - test drop and using unique index of varying length
+--echo #
+CREATE TABLE t1 (
+  c1 int PRIMARY KEY, c2 int, c3 int, c4 int, c5 int,
+  c6 int, c7 int, c8 int, c9 int, c10 int, c11 int,
+  c12 int, c13 int, c14 int, c15 int, c16 int, c17 int,
+  c18 int, c19 int, c20 int, c21 int, c22 int, c23 int,
+  c24 int, c25 int, c26 int, c27 int, c28 int, c29 int,
+  c30 int, c31 int, c32 int, c33 int, c34 int, c35 int
+) engine = NDB;
+INSERT INTO t1 VALUES
+  (1,2,3,4,5,6,7,8,9,10,
+   11,12,13,14,15,16,17,18,19,20,
+   21,22,23,24,25,26,27,28,29,30,
+   31,32,33,34,35);
+
+--echo # Create and use unique indexes
+let $indexes = 34;
+let $i = 1;
+while ($i <= $indexes) {
+
+  # Calculate first and last column
+  let $j = $i;
+  let $last = `select $j + 15`;
+  if ($last > $indexes) {
+    let $last = $indexes;
+  }
+  #echo j: $j, last: $last;
+
+  # Build column and where string
+  let $cols =;
+  let $cols_separator =;
+  let $where =;
+  let $where_separator =;
+  while ($j <= $last) {
+    let $cols = $cols$cols_separator c$j;
+    let $cols_separator =,;
+    let $where = $where $where_separator c$j=$j;
+    let $where_separator = AND;
+    inc $j;
+  }
+  #echo cols: $cols;
+  #echo where: $where;
+  eval ALTER TABLE t1 ALGORITHM=inplace, ADD UNIQUE INDEX unique$i ($cols);
+  eval SELECT c$i FROM t1 WHERE $where;
+  inc $i;
+}
+
+--echo # Some handcrafted use of unique indexes, also where row does not exist
+SELECT c35 FROM t1 WHERE c2=2 AND c3=3 AND c4=4 /* not full index */;
+SELECT c35 FROM t1
+  WHERE c19=19 AND c20=20 AND c21=21 AND c22=22 AND c23=23 AND c24=24 AND
+        c25=25 AND c26=26 AND c27=27 AND c28=28 AND c29=29 AND c30=30 AND
+        c31=31 AND c32=32 /* full unique index */;
+SELECT c35 FROM t1
+  WHERE c19=19 AND c20=20 AND c21=21 AND c22=22 AND c23=23 AND c24=24 AND
+        c25=25 AND c26=26 AND c27=27 AND c28=28 AND c29=29 AND c30=30 AND
+        c31=31 AND c32=37 /* row does not exist */;
+SELECT c35 FROM t1 WHERE c35=35 /* no index on this column */;
+
+--echo # Drop and use unique indexes
+let $i = 1;
+while ($i <= $indexes)
+{
+  # Calculate first and last column
+  let $j = $i;
+  let $last = `select $j + 15`;
+  if ($last > $indexes) {
+    let $last = $indexes;
+  }
+  #echo j: $j, last: $last;
+
+  # Build where string
+  let $where =;
+  let $where_separator =;
+  while ($j <= $last) {
+    let $where = $where $where_separator c$j=$j;
+    let $where_separator = AND;
+    inc $j;
+  }
+  #echo where: $where;
+  eval SELECT c$i FROM t1 WHERE $where /* read before drop */;
+  eval ALTER TABLE t1 ALGORITHM=inplace, DROP INDEX unique$i;
+  eval SELECT c$i FROM t1 WHERE $where;
+  inc $i;
+}
+
+DROP TABLE t1;

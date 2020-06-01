@@ -2469,9 +2469,7 @@ void ndbcluster_build_key_map(const NDBTAB *table, const NDB_INDEX_DATA &index,
 
   if (index.unique_index_attrid_map)  // UNIQUE_ORDERED_INDEX or UNIQUE_INDEX
   {
-    for (ix = 0; ix < key_def->user_defined_key_parts; ix++) {
-      ix_map[ix] = index.unique_index_attrid_map[ix];
-    }
+    index.unique_index_attrid_map->fill_column_map(ix_map);
   } else  // Primary key does not have a 'unique_index_attrid_map'
   {
     KEY_PART_INFO *key_part;
