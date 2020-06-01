@@ -10,7 +10,7 @@ Introduction
    third-party software which may be included in this distribution of
    MySQL 5.7.28 (and later).
 
-   Last updated: March 2020
+   Last updated: May 2020
 
 Licensing Information
 
@@ -35,8 +35,7 @@ Licensing Information
    reproduced below and can also be found along with its FAQ at
    http://oss.oracle.com/licenses/universal-foss-exception.
 
-   Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights
-   reserved.
+   Copyright (c) 1997, 2020, Oracle and/or its affiliates.
 
 Election of GPLv2
 
@@ -4551,33 +4550,38 @@ zlib
    Oracle gratefully acknowledges the contributions of Jean-loup Gailly
    and Mark Adler in creating the zlib general purpose compression library
    which is used in this product.
-zlib.h -- interface of the 'zlib' general purpose compression library
-Copyright (C) 1995-2004 Jean-loup Gailly and Mark Adler
+(C) 1995-2017 Jean-loup Gailly and Mark Adler
 
-zlib.h -- interface of the 'zlib' general purpose compression library
-version 1.2.3, July 18th, 2005
-Copyright (C) 1995-2005 Jean-loup Gailly and Mark Adler
+  This software is provided 'as-is', without any express or implied
+  warranty.  In no event will the authors be held liable for any damages
+  arising from the use of this software.
 
-zlib.h -- interface of the 'zlib' general purpose compression library
-version 1.2.5, April 19th, 2010
-Copyright (C) 1995-2010 Jean-loup Gailly and Mark Adler
+  Permission is granted to anyone to use this software for any purpose,
+  including commercial applications, and to alter it and redistribute it
+  freely, subject to the following restrictions:
 
-This software is provided 'as-is', without any express or implied warranty.
-In no event will the authors be held liable for any damages arising from the
-use of this software. Permission is granted to anyone to use this software
-for any purpose,including commercial applications, and to alter it and
-redistribute it freely, subject to the following restrictions:
 
-1. The origin of this software must not be misrepresented; you must not
-   claim that you wrote the original software. If you use this software
-   in a product, an acknowledgment in the product documentation would
-   be appreciated but is not required.
-2. Altered source versions must be plainly marked as such, and must not
-   be misrepresented as being the original software.
-3. This notice may not be removed or altered from any source distribution.
+  1. The origin of this software must not be misrepresented; you must not
+     claim that you wrote the original software. If you use this software
+     in a product, an acknowledgment in the product documentation would be
+     appreciated but is not required.
 
-Jean-loup Gailly jloup@gzip.org
-Mark Adler madler@alumni.caltech.edu
+  2. Altered source versions must be plainly marked as such, and must not be
+     misrepresented as being the original software.
+
+  3. This notice may not be removed or altered from any source distribution.
+
+  Jean-loup Gailly        Mark Adler
+  jloup@gzip.org          madler@alumni.caltech.edu
+
+If you use the zlib library in a product, we would appreciate *not* receiving
+lengthy legal documents to sign.  The sources are provided for free but without
+warranty of any kind.  The library has been entirely written by Jean-loup
+Gailly and Mark Adler; it does not include third-party code.
+
+If you redistribute modified sources, we would appreciate that you include in
+the file ChangeLog history information documenting your changes.  Please read
+the FAQ for more information on the distribution of modified source versions.
 
 Commonly Used Licenses
 
