@@ -169,6 +169,7 @@ INSTALL COMPONENT "file://component_log_sink_json";
 --shutdown_server
 
 # The second instance should automatically be up and running now
+--let $wait_counter=3000
 --source include/wait_until_connected_again.inc
 SELECT @@log_error_services;
 --disable_reconnect
@@ -211,7 +212,7 @@ SELECT @@log_error_services;
    if($success)
    {
      print "[ PASS ] Error log successfully parsed as a json document\n";
-     for my $item( @$parsed_json ){
+     for my $item( sort { $a->{time} cmp $b->{time} } @$parsed_json ){
         my $errcode_formatted= sprintf("%06d", $item->{'err_code'});
 
         # Verify that the --log-error-suppression-list works for
