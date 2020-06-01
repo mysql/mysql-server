@@ -309,7 +309,7 @@ exports.get = function get(stmt_key, options) {
     },
 
     router_select_view_id_v2_ar: {
-        stmt: "select view_id from mysql_innodb_cluster_metadata.v2_ar_members where member_id = @@server_uuid"
+        stmt: "select view_id from mysql_innodb_cluster_metadata.v2_ar_members where CAST(member_id AS char ascii) = CAST(@@server_uuid AS char ascii)"
             + (options.cluster_id === undefined || options.cluster_id === "" ? "" : (" and cluster_id = '" + options.cluster_id + "'")),
         result : {
           columns : [,
@@ -327,7 +327,7 @@ exports.get = function get(stmt_key, options) {
       },
 
     router_select_view_id_bootstrap_ar: {
-      stmt: "select view_id from mysql_innodb_cluster_metadata.v2_ar_members where member_id = @@server_uuid",
+      stmt: "select view_id from mysql_innodb_cluster_metadata.v2_ar_members where CAST(member_id AS char ascii) = CAST(@@server_uuid AS char ascii)",
       result : {
         columns : [,
           {
@@ -345,7 +345,7 @@ exports.get = function get(stmt_key, options) {
 
     router_check_member_state:
     {
-      stmt: "SELECT member_state FROM performance_schema.replication_group_members WHERE member_id = @@server_uuid",
+      stmt: "SELECT member_state FROM performance_schema.replication_group_members WHERE CAST(member_id AS char ascii) = CAST(@@server_uuid AS char ascii)",
       result: {
         columns: [
           {
@@ -755,7 +755,7 @@ exports.get = function get(stmt_key, options) {
             "mysql_innodb_cluster_metadata.instances AS I, " +
             "mysql_innodb_cluster_metadata.replicasets AS R " +
             "WHERE R.replicaset_id = (SELECT replicaset_id FROM mysql_innodb_cluster_metadata.instances " +
-            "WHERE mysql_server_uuid = @@server_uuid) AND I.replicaset_id = R.replicaset_id " +
+            "WHERE CAST(mysql_server_uuid AS char ascii) = CAST(@@server_uuid AS char ascii)) AND I.replicaset_id = R.replicaset_id " +
             "AND R.cluster_id = F.cluster_id",
       result: {
         columns: [

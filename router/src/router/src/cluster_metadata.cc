@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -435,7 +435,8 @@ static bool check_group_replication_online(MySQLSession *mysql) {
   std::string q =
       "SELECT member_state"
       " FROM performance_schema.replication_group_members"
-      " WHERE member_id = @@server_uuid";
+      " WHERE CAST(member_id AS char ascii) = CAST(@@server_uuid AS char "
+      "ascii)";
   std::unique_ptr<MySQLSession::ResultRow> result(
       mysql->query_one(q));  // throws MySQLSession::Error
   if (result && (*result)[0]) {
@@ -637,7 +638,8 @@ static ClusterInfo query_metadata_servers(MySQLSession *mysql,
         "R.replicaset_id = "
         "(SELECT replicaset_id FROM mysql_innodb_cluster_metadata.instances "
         "WHERE "
-        "mysql_server_uuid = @@server_uuid) "
+        "CAST(mysql_server_uuid AS char ascii) = CAST(@@server_uuid AS char "
+        "ascii)) "
         "AND "
         "I.replicaset_id = R.replicaset_id "
         "AND "
@@ -883,7 +885,7 @@ std::unique_ptr<ClusterMetadata> create_metadata(
 unsigned ClusterMetadataAR::get_view_id() {
   std::string query =
       "select view_id from mysql_innodb_cluster_metadata.v2_ar_members where "
-      "member_id = @@server_uuid";
+      "CAST(member_id AS char ascii) = CAST(@@server_uuid AS char ascii)";
 
   std::unique_ptr<MySQLSession::ResultRow> result(mysql_->query_one(query));
   if (result) {
