@@ -61,6 +61,8 @@ select_into_disk_sync_delay
 select_into_disk_sync_delay
 sql_require_primary_key
 sql_require_primary_key
+temptable_max_mmap
+temptable_max_mmap
 temptable_use_mmap
 temptable_use_mmap
 tls_ciphersuites

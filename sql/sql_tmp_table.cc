@@ -2486,12 +2486,10 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
   }
 
   if (wtable->s->db_type() != heap_hton) {
-    if (wtable->s->db_type() != temptable_hton || temptable_use_mmap) {
+    if (wtable->s->db_type() != temptable_hton) {
       /* Do not convert in-memory temporary tables to on-disk
       temporary tables if the storage engine is anything other
-      than the temptable engine or if the user has set the variable
-      temptable_use_mmap to true to use mmap'ed files for temporary
-      tables. */
+      than the temptable engine. */
       wtable->file->print_error(error, MYF(ME_FATALERROR));
       return true;
     }
@@ -2677,10 +2675,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
 
       // Close the in-memory table
       if (table->s->db_type() == temptable_hton) {
-        /* Drop the in-memory temptable.
-        This code can execute only if mmap'ed temporary
-        files were disabled using temptable_use_mmap variable */
-        DBUG_ASSERT(temptable_use_mmap == false);
+        /* Drop the in-memory temptable. */
         table->file->ha_drop_table(table->s->table_name.str);
       } else {
         // Closing the MEMORY table drops it if its ref count is down to zero

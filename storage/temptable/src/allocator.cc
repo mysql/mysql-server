@@ -32,5 +32,6 @@ namespace temptable {
 
 /* Initialization of MemoryMonitor static variables. */
 std::atomic<size_t> MemoryMonitor::ram(0);
+std::atomic<size_t> MemoryMonitor::mmap(0);
 
 } /* namespace temptable */

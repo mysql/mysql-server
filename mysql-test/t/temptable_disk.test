@@ -104,3 +104,51 @@ FROM performance_schema.memory_summary_global_by_event_name
 WHERE event_name = 'memory/temptable/physical_disk';
 
 DROP TABLE t;
+
+#
+# Test TempTable by using a query which will exhaust both RAM and MMAP limits.
+#
+
+CREATE TABLE t (c LONGBLOB);  # Forces use of temporary table in filesort.
+
+INSERT INTO t VALUES
+(REPEAT('a', 128)),
+(REPEAT('b', 128)),
+(REPEAT('c', 128)),
+(REPEAT('d', 128));
+
+ANALYZE TABLE t;
+
+SET GLOBAL temptable_max_ram = 2*1024*1024;
+SET GLOBAL temptable_max_mmap = 4*1024*1024;
+
+-- disable_result_log
+SELECT * FROM
+t AS t1,
+t AS t2,
+t AS t3,
+t AS t4,
+t AS t5,
+t AS t6
+ORDER BY 1
+LIMIT 2;
+-- enable_result_log
+
+# We need to make sure we have exhausted the RAM limit
+# Greater-or-equal must be used as memory for shared-block is not accounted for. After fixing
+# Bug #29890126 TEMPTABLE ALLOCATOR DOESN'T TRACK RAM-CONSUMPTION FOR SHARED-BLOCK we can
+# switch to using equal-operator (as we do for MMAP-ed allocations down below)
+SELECT sum_number_of_bytes_alloc >= 2*1024*1024
+FROM performance_schema.memory_summary_global_by_event_name
+WHERE event_name = 'memory/temptable/physical_ram';
+
+# We need to make sure we have exhausted the MMAP limit
+SELECT sum_number_of_bytes_alloc = 4*1024*1024
+FROM performance_schema.memory_summary_global_by_event_name
+WHERE event_name = 'memory/temptable/physical_disk';
+
+DROP TABLE t;
+
+SET GLOBAL temptable_max_ram = default;
+SET GLOBAL temptable_max_mmap = default;
+SET GLOBAL temptable_use_mmap = default;

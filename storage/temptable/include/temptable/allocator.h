@@ -35,7 +35,7 @@ TempTable custom allocator. */
 
 #include "my_dbug.h"
 #include "my_sys.h"
-#include "sql/mysqld.h"  // temptable_max_ram
+#include "sql/mysqld.h"  // temptable_max_ram, temptable_max_mmap
 #include "storage/temptable/include/temptable/block.h"
 #include "storage/temptable/include/temptable/chunk.h"
 #include "storage/temptable/include/temptable/constants.h"
@@ -52,34 +52,71 @@ namespace temptable {
  **/
 struct MemoryMonitor {
  protected:
-  /** Log increments of heap-memory consumption.
-   *
-   * [in] Number of bytes.
-   * @return Heap-memory consumption after increase. */
-  static size_t ram_increase(size_t bytes) {
-    DBUG_ASSERT(ram <= std::numeric_limits<decltype(bytes)>::max() - bytes);
-    return ram.fetch_add(bytes) + bytes;
-  }
-  /** Log decrements of heap-memory consumption.
-   *
-   * [in] Number of bytes.
-   * @return Heap-memory consumption after decrease. */
-  static size_t ram_decrease(size_t bytes) {
-    DBUG_ASSERT(ram >= bytes);
-    return ram.fetch_sub(bytes) - bytes;
-  }
-  /** Get heap-memory threshold level. Level is defined by this Allocator.
-   *
-   * @return Heap-memory threshold. */
-  static size_t ram_threshold() { return temptable_max_ram; }
-  /** Get current level of heap-memory consumption.
-   *
-   * @return Current level of heap-memory consumption (in bytes). */
-  static size_t ram_consumption() { return ram; }
+  struct RAM {
+    /** Log increments of heap-memory consumption.
+     *
+     * [in] Number of bytes.
+     * @return Heap-memory consumption after increase. */
+    static size_t increase(size_t bytes) {
+      DBUG_ASSERT(ram <= std::numeric_limits<decltype(bytes)>::max() - bytes);
+      return ram.fetch_add(bytes) + bytes;
+    }
+    /** Log decrements of heap-memory consumption.
+     *
+     * [in] Number of bytes.
+     * @return Heap-memory consumption after decrease. */
+    static size_t decrease(size_t bytes) {
+      DBUG_ASSERT(ram >= bytes);
+      return ram.fetch_sub(bytes) - bytes;
+    }
+    /** Get heap-memory threshold level. Level is defined by this Allocator.
+     *
+     * @return Heap-memory threshold. */
+    static size_t threshold() { return temptable_max_ram; }
+    /** Get current level of heap-memory consumption.
+     *
+     * @return Current level of heap-memory consumption (in bytes). */
+    static size_t consumption() { return ram; }
+  };
+
+  struct MMAP {
+    /** Log increments of MMAP-backed memory consumption.
+     *
+     * [in] Number of bytes.
+     * @return MMAP-memory consumption after increase. */
+    static size_t increase(size_t bytes) {
+      DBUG_ASSERT(mmap <= std::numeric_limits<decltype(bytes)>::max() - bytes);
+      return mmap.fetch_add(bytes) + bytes;
+    }
+    /** Log decrements of MMAP-backed memory consumption.
+     *
+     * [in] Number of bytes.
+     * @return MMAP-memory consumption after decrease. */
+    static size_t decrease(size_t bytes) {
+      DBUG_ASSERT(mmap >= bytes);
+      return mmap.fetch_sub(bytes) - bytes;
+    }
+    /** Get MMAP-backed memory threshold level. Level is defined by this
+     * Allocator.
+     *
+     * @return MMAP-memory threshold. */
+    static size_t threshold() {
+      if (temptable_use_mmap) {
+        return temptable_max_mmap;
+      } else {
+        return 0;
+      }
+    }
+    /** Get current level of MMAP-backed memory consumption.
+     *
+     * @return Current level of MMAP-backed memory consumption (in bytes). */
+    static size_t consumption() { return mmap; }
+  };
 
  private:
-  /** Total bytes allocated so far by all threads in RAM. */
+  /** Total bytes allocated so far by all threads in RAM/MMAP. */
   static std::atomic<size_t> ram;
+  static std::atomic<size_t> mmap;
 };
 
 namespace AllocationScheme {
@@ -362,17 +399,24 @@ inline T *Allocator<T, AllocationScheme>::allocate(size_t n_elements) {
         m_state->number_of_blocks, n_bytes_requested);
     const Source block_source = [block_size]() {
       // Decide whether to switch between RAM and MMAP-backed allocations.
-      if (MemoryMonitor::ram_consumption() >= MemoryMonitor::ram_threshold()) {
-        return Source::MMAP_FILE;
-      } else {
-        if (MemoryMonitor::ram_increase(block_size) <=
-            MemoryMonitor::ram_threshold()) {
+      if (MemoryMonitor::RAM::consumption() < MemoryMonitor::RAM::threshold()) {
+        if (MemoryMonitor::RAM::increase(block_size) <=
+            MemoryMonitor::RAM::threshold()) {
           return Source::RAM;
         } else {
-          MemoryMonitor::ram_decrease(block_size);
-          return Source::MMAP_FILE;
+          MemoryMonitor::RAM::decrease(block_size);
         }
       }
+      if (MemoryMonitor::MMAP::consumption() <
+          MemoryMonitor::MMAP::threshold()) {
+        if (MemoryMonitor::MMAP::increase(block_size) <=
+            MemoryMonitor::MMAP::threshold()) {
+          return Source::MMAP_FILE;
+        } else {
+          MemoryMonitor::MMAP::decrease(block_size);
+        }
+      }
+      throw Result::RECORD_FILE_FULL;
     }();
     m_state->current_block = Block(block_size, block_source);
     block = &m_state->current_block;
@@ -407,7 +451,9 @@ inline void Allocator<T, AllocationScheme>::deallocate(T *chunk_data,
     } else {
       DBUG_ASSERT(m_state->number_of_blocks > 0);
       if (block.type() == Source::RAM) {
-        MemoryMonitor::ram_decrease(block.size());
+        MemoryMonitor::RAM::decrease(block.size());
+      } else {
+        MemoryMonitor::MMAP::decrease(block.size());
       }
       if (block == m_state->current_block) {
         m_state->current_block.destroy();
