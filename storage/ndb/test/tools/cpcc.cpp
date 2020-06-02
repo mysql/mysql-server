@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,8 +55,8 @@ int start_stop(const char * cmd, Vector<SimpleCpcClient*>& list,
 
 class True : public Expression {
 public:
-  virtual ~True() {}
-  virtual bool evaluate(SimpleCpcClient*, const SimpleCpcClient::Process & p){
+  ~True() override {}
+  bool evaluate(SimpleCpcClient*, const SimpleCpcClient::Process & p) override {
     return true;
   }
 };
@@ -69,9 +69,9 @@ public:
     m_field = field;
     m_value = value;
   }
-  virtual ~FieldEQ(){}
+  ~FieldEQ() override {}
 
-  virtual bool evaluate(SimpleCpcClient*, const SimpleCpcClient::Process & p){
+  bool evaluate(SimpleCpcClient*, const SimpleCpcClient::Process & p) override{
     BaseString v;
     if(m_field == "name") v = p.m_name;
   
@@ -99,9 +99,9 @@ public:
   Match(Expression& condition, Expression & rule)
     : m_cond(condition), m_apply(rule) {
   }
-  virtual ~Match(){}
+  ~Match() override {}
 
-  virtual bool evaluate(SimpleCpcClient* c,const SimpleCpcClient::Process & p){
+  bool evaluate(SimpleCpcClient* c,const SimpleCpcClient::Process & p) override{
     if(m_cond.evaluate(c, p))
       return m_apply.evaluate(c, p);
     return false;
@@ -117,9 +117,9 @@ public:
     cmd = c;
     host = 0;
   }
-  virtual ~Operate() {}
+  ~Operate() override {}
   
-  virtual bool evaluate(SimpleCpcClient*, const SimpleCpcClient::Process & p);
+  bool evaluate(SimpleCpcClient*, const SimpleCpcClient::Process & p) override;
 };
 
 class ProcEQ : public Expression {
@@ -129,8 +129,8 @@ public:
   ProcEQ(SimpleCpcClient* h, Uint32 i){
     host = h; id = i;
   }
-  virtual ~ProcEQ() {}
-  virtual bool evaluate(SimpleCpcClient* c,const SimpleCpcClient::Process & p){
+  ~ProcEQ() override {}
+  bool evaluate(SimpleCpcClient* c,const SimpleCpcClient::Process & p) override{
     return p.m_id == (int)id && c == host;
   }
 };
@@ -145,9 +145,9 @@ public:
     on_empty = onEmp;
   }
 
-  virtual ~OrExpr(){}
+  ~OrExpr() override {}
 
-  virtual bool evaluate(SimpleCpcClient* c, const SimpleCpcClient::Process & p){
+  bool evaluate(SimpleCpcClient* c, const SimpleCpcClient::Process & p) override{
     bool run = on_empty;
     for(unsigned i = 0; i<m_cond.size(); i++){
       if(m_cond[i]->evaluate(c, p)){

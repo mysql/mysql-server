@@ -292,7 +292,7 @@ public:
   Vector<const NdbDictionary::ForeignKey*> m_fks;
 #ifdef ERROR_INSERT
   uint m_error_insert;
-  virtual void error_insert(unsigned int code) { m_error_insert = code; }
+  void error_insert(unsigned int code) override { m_error_insert = code; }
 #endif
   static const PromotionRules m_allowed_promotion_attrs[];
 };

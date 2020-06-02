@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -5097,10 +5097,10 @@ struct ST_Trg : public ST_Obj {
   struct ST_Ind* ind;
   TriggerEvent::Value event;
   mutable char realname_buf[ST_MAX_NAME_SIZE];
-  virtual bool is_trigger() const {
+  bool is_trigger() const override {
     return true;
   }
-  virtual const char* realname() const;
+  const char* realname() const override;
   ST_Trg(const char* a_db, const char* a_name) :
     ST_Obj(a_db, a_name) {
     ind = 0;
@@ -5118,7 +5118,7 @@ struct ST_Ind : public ST_Obj {
   BaseString colnames;
   ST_Trglist* trglist;
   int trgcount;
-  virtual bool is_index() const {
+  bool is_index() const override {
     return true;
   }
   bool is_unique() const {
@@ -5170,7 +5170,7 @@ struct ST_Tab : public ST_Obj {
   int indcount;
   int induniquecount;
   int indorderedcount;
-  virtual bool is_table() const {
+  bool is_table() const override {
     return true;
   }
   const ST_Ind& ind(int j) const {
