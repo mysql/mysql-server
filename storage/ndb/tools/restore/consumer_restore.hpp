@@ -67,7 +67,11 @@ public:
                 const char *instance_name,
                 Uint32 parallelism) :
     m_ndb(NULL),
-    m_cluster_connection(conn)
+    m_cluster_connection(conn),
+    m_fatal_error(false)
+#ifdef ERROR_INSERT
+    ,m_error_insert(0)
+#endif
   {
     m_nodegroup_map = ng_map;
     m_nodegroup_map_len = ng_map_len;
@@ -107,15 +111,14 @@ public:
   virtual bool fk(Uint32 type, const void* ptr);
   virtual bool endOfTables();
   virtual bool endOfTablesFK();
-  virtual void tuple(const TupleS &, Uint32 fragId);
+  virtual bool tuple(const TupleS &, Uint32 fragId);
   virtual void tuple_free();
   virtual void tuple_a(restore_callback_t *cb);
   virtual void tuple_SYSTAB_0(restore_callback_t *cb, const TableS &);
   virtual void cback(int result, restore_callback_t *cb);
   virtual bool errorHandler(restore_callback_t *cb);
-  virtual void exitHandler();
   virtual void endOfTuples();
-  virtual void logEntry(const LogEntry &);
+  virtual bool logEntry(const LogEntry &);
   virtual void endOfLogEntrys();
   virtual bool prepare_staging(const TableS &);
   virtual bool finalize_staging(const TableS &);
@@ -218,7 +221,8 @@ public:
 
   void update_next_auto_val(Uint32 orig_table_id,
                             Uint64 next_val);
-
+  bool get_fatal_error();
+  void set_fatal_error(bool);
 
   Ndb * m_ndb;
   Ndb_cluster_connection * m_cluster_connection;
@@ -265,6 +269,7 @@ public:
   restore_callback_t *m_free_callback;
   bool m_temp_error;
   Uint64 m_pk_update_warning_count;
+  bool m_fatal_error;
 
   /**
    * m_new_table_ids[X] = Y;
@@ -285,7 +290,10 @@ public:
   Vector<NdbDictionary::LogfileGroup*> m_logfilegroups;// Index by id
   Vector<NdbDictionary::HashMap*> m_hashmaps;
   Vector<const NdbDictionary::ForeignKey*> m_fks;
-
+#ifdef ERROR_INSERT
+  uint m_error_insert;
+  virtual void error_insert(unsigned int code) { m_error_insert = code; }
+#endif
   static const PromotionRules m_allowed_promotion_attrs[];
 };
 

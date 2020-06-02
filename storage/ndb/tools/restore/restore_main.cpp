@@ -2192,6 +2192,10 @@ int do_restore(RestoreThreadData *thrdata)
   {
     metaData.error_insert(_error_insert);
   }
+  for (Uint32 i = 0; i < g_consumers.size(); i++)
+  {
+    g_consumers[i]->error_insert(_error_insert);
+  }
 #endif 
   Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
   restoreLogger.log_info("%s [restore_metadata] Read meta data file header", timestamp);
@@ -2664,7 +2668,17 @@ int do_restore(RestoreThreadData *thrdata)
           OutputStream *tmp = ndbout.m_out;
           ndbout.m_out = output;
           for(Uint32 j= 0; j < g_consumers.size(); j++) 
-            g_consumers[j]->tuple(* tuple, fragmentId);
+          {
+            if (!g_consumers[j]->tuple(* tuple, fragmentId))
+            {
+              restoreLogger.log_error(
+                "Restore: error occurred while restoring data. Exiting...");
+              // wait for async transactions to complete
+              for (i= 0; i < g_consumers.size(); i++)
+                g_consumers[i]->endOfTuples();
+              return NdbToolsProgramExitCode::FAILED;
+            }
+          }
           ndbout.m_out =  tmp;
           if (check_progress())
             report_progress("Data file progress: ", dataIter);
@@ -2673,7 +2687,7 @@ int do_restore(RestoreThreadData *thrdata)
         if (res < 0)
         {
           restoreLogger.log_error(
-            "Restore: An error occurred while restoring data. Exiting...");
+            "Restore: An error occurred while reading data. Exiting...");
           return NdbToolsProgramExitCode::FAILED;
         }
         if (!dataIter.validateFragmentFooter())
@@ -2733,7 +2747,14 @@ int do_restore(RestoreThreadData *thrdata)
         if (check_slice_skip_fragment(table, logEntry->m_frag_id))
           continue;
         for(Uint32 j= 0; j < g_consumers.size(); j++)
-          g_consumers[j]->logEntry(* logEntry);
+        {
+          if (!g_consumers[j]->logEntry(* logEntry))
+          {
+            restoreLogger.log_error(
+              "Restore: Error restoring the data log. Exiting...");
+            return NdbToolsProgramExitCode::FAILED;
+          }
+        }
 
         if (check_progress())
           report_progress("Log file progress: ", logIter);
@@ -2741,7 +2762,7 @@ int do_restore(RestoreThreadData *thrdata)
       if (res < 0)
       {
         restoreLogger.log_error(
-          "Restore: An restoring the data log. Exiting... res = %u",
+          "Restore: Error reading the data log. Exiting... res = %d",
           res);
         return NdbToolsProgramExitCode::FAILED;
       }
