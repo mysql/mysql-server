@@ -460,7 +460,8 @@ Parallel_reader::Scan_ctx::create_persistent_cursor(
 }
 
 bool Parallel_reader::Ctx::move_to_next_node(PCursor *pcursor, mtr_t *mtr) {
-  page_cur_t *cur = m_range.first->m_pcur->get_page_cur();
+  page_cur_t *cur MY_ATTRIBUTE((unused)) =
+      m_range.first->m_pcur->get_page_cur();
 
   auto err = pcursor->move_to_next_block(const_cast<dict_index_t *>(index()));
 
