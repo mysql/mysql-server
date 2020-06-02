@@ -2443,6 +2443,16 @@
    fun:dlopen@@GLIBC_2.2.5
 }
 
+{
+   LDAP_28
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   ...
+   fun:tls_init
+   fun:ldap_int_tls_start
+}
+
 # Suppress all issues related to libcrypto library
 {
    Conditional jump or move in BN_bin2bn
