@@ -1754,8 +1754,11 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
            */
           idx--;
         } else if (user_to) {
+          auto restrictions = acl_restrictions->find_restrictions(acl_user);
+          acl_restrictions->remove_restrictions(acl_user);
           acl_user->set_user(&global_acl_memory, user_to->user.str);
           acl_user->set_host(&global_acl_memory, user_to->host.str);
+          acl_restrictions->upsert_restrictions(acl_user, restrictions);
 
           rebuild_cached_acl_users_for_name();
         } else {

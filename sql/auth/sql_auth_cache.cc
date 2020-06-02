@@ -2672,6 +2672,11 @@ void acl_update_user(const char *user, const char *host, enum SSL_type ssl_type,
                    ("Updates global privilege for %s@%s to %lu", acl_user->user,
                     acl_user->host.get_host(), privileges));
         acl_user->access = privileges;
+        if (what_to_update.m_what & USER_ATTRIBUTES &&
+            (what_to_update.m_user_attributes &
+             acl_table::USER_ATTRIBUTE_RESTRICTIONS))
+          acl_restrictions->upsert_restrictions(acl_user, restrictions);
+
         if (mqh->specified_limits & USER_RESOURCES::QUERIES_PER_HOUR)
           acl_user->user_resource.questions = mqh->questions;
         if (mqh->specified_limits & USER_RESOURCES::UPDATES_PER_HOUR)
@@ -2752,7 +2757,6 @@ void acl_update_user(const char *user, const char *host, enum SSL_type ssl_type,
           acl_user->password_require_current =
               password_life.update_password_require_current;
         }
-        acl_restrictions->upsert_restrictions(acl_user, restrictions);
 
         /* search complete: */
         break;
