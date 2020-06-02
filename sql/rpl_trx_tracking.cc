@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #include "mysqld.h"
 #include "binlog.h"
 
+#include "debug_sync.h"
 
 Logical_clock::Logical_clock()
   : state(SEQ_UNINIT), offset(0)
@@ -217,6 +218,7 @@ Writeset_trx_dependency_tracker::get_dependency(THD *thd,
     !write_set_ctx->get_has_related_foreign_keys();
   bool exceeds_capacity= false;
 
+  mysql_mutex_lock(&LOCK_slave_trans_dep_tracker);
   if (can_use_writesets)
   {
     /*
@@ -231,6 +233,7 @@ Writeset_trx_dependency_tracker::get_dependency(THD *thd,
      Compute the greatest sequence_number among all conflicts and add the
      transaction's row hashes to the history.
     */
+    DEBUG_SYNC(thd, "wait_in_get_dependency");
     int64 last_parent= m_writeset_history_start;
     for (std::set<uint64>::iterator it= writeset->begin();
          it != writeset->end(); ++it)
@@ -271,6 +274,7 @@ Writeset_trx_dependency_tracker::get_dependency(THD *thd,
     m_writeset_history_start= sequence_number;
     m_writeset_history.clear();
   }
+  mysql_mutex_unlock(&LOCK_slave_trans_dep_tracker);
 }
 
 void
@@ -316,7 +320,7 @@ Transaction_dependency_tracker::get_dependency(THD *thd,
 {
   sequence_number= commit_parent= 0;
 
-  switch(m_opt_tracking_mode)
+  switch(my_atomic_load64(&m_opt_tracking_mode))
   {
     case DEPENDENCY_TRACKING_COMMIT_ORDER:
       m_commit_order.get_dependency(thd, sequence_number, commit_parent);

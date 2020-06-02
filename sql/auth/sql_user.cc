@@ -122,7 +122,7 @@ void append_user(THD *thd, String *str, LEX_USER *user, bool comma= true,
           /*
             With old_passwords == 2 the scrambled password will be binary.
           */
-          DBUG_ASSERT(thd->variables.old_passwords = 2);
+          DBUG_ASSERT(thd->variables.old_passwords == 2);
           str->append("<secret>");
         }
         str->append("'");

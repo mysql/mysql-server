@@ -32,6 +32,11 @@
 # The test cases verify above statements can binlog 'DELETE' statement
 # correctly. A few extra test cases were added to verify some special
 # situations that updating or modifying a memory table.
+#
+# The test cases in this file will verify only when gtid mode is on.
+#
+# See rpl_no_gtid_delete_memory_table_after_start_server.test for the tests with
+# gtid_mode=off.
 ################################################################################
 --source include/not_group_replication_plugin.inc
 --source include/mysql_have_debug.inc

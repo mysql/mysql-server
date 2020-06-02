@@ -114,3 +114,49 @@ eval $query;
 
 SET sql_buffer_result=@old_buf_result;
 DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#28716103 - MULTI-TABLE UPDATE OF PRIMARY KEY RESULTS IN ERROR 1032
+--echo # "CAN'T FIND RECORD"
+--echo #
+
+# Make sure the size of primary key(accounting for bytes per code point)
+# is bigger than 512 bytes. This will force the use of a hash field
+# and a unique constraint on the hash field in the temporary table.
+
+CREATE TABLE t1 (c1 CHAR(255) NOT NULL);
+CREATE TABLE t2 (c1 CHAR(255) NOT NULL, c2 CHAR(255) NOT NULL,
+                 c3 CHAR(255) NOT NULL,  PRIMARY KEY (c1, c2, c3));
+INSERT INTO t1 VALUES ('x'), ('x');
+INSERT INTO t2 VALUES ('x', '', '');
+UPDATE t1, t2 SET t2.c2 = 'y', t2.c3 = 'y' WHERE t2.c1 = t1.c1;
+SELECT * FROM t2;
+DROP TABLE t1, t2;
+
+# Make sure the size of the primary key is greater than 1024 bytes.
+CREATE TABLE t1(c1 VARCHAR(350), c2 VARCHAR(350),
+                c3 INT, PRIMARY KEY(c1,c2)) charset=utf8mb3;
+
+# If the tmp storage engine is heap, irrespective of the setting of
+# global.tmp_table_size, memory to store 10 rows is always allocated.
+# Inserting 11 rows to force a migration to disk.
+
+INSERT INTO t1 VALUES ('a','a',1);
+INSERT INTO t1 VALUES ('a','b',2);
+INSERT INTO t1 VALUES ('a','c',3);
+INSERT INTO t1 VALUES ('a','d',4);
+INSERT INTO t1 VALUES ('a','e',5);
+INSERT INTO t1 VALUES ('a','f',6);
+INSERT INTO t1 VALUES ('a','g',7);
+INSERT INTO t1 VALUES ('a','h',8);
+INSERT INTO t1 VALUES ('a','i',9);
+INSERT INTO t1 VALUES ('a','j',10);
+INSERT INTO t1 VALUES ('a','k',11);
+
+# Set the size of the temp table to min value, to force migration to InnoDB
+SET @@SESSION.tmp_table_size=1024;
+UPDATE t1 a, t1 b SET a.c3=22 WHERE a.c1 = b.c1;
+SELECT COUNT(*) FROM t1 WHERE c3=22;
+# Reset to default values
+SET @@SESSION.tmp_table_size=DEFAULT;
+DROP TABLE t1;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,6 +39,7 @@ unsigned int plugin_version= 0;
 //The plugin running flag and lock
 static mysql_mutex_t plugin_running_mutex;
 bool group_replication_running= false;
+bool group_replication_stopping= false;
 bool wait_on_engine_initialization= false;
 bool server_shutdown_status= false;
 bool plugin_is_auto_starting= false;
@@ -271,6 +272,11 @@ mysql_mutex_t* get_plugin_running_lock()
 bool plugin_is_group_replication_running()
 {
   return group_replication_running;
+}
+
+bool get_plugin_is_stopping()
+{
+  return group_replication_stopping;
 }
 
 int plugin_group_replication_set_retrieved_certification_info(void* info)
@@ -605,6 +611,7 @@ int initialize_plugin_and_join(enum_plugin_con_isolation sql_api_isolation,
     goto err;
   }
   group_replication_running= true;
+  group_replication_stopping= false;
   log_primary_member_details();
 
 err:
@@ -833,6 +840,7 @@ int plugin_group_replication_stop()
   DBUG_ENTER("plugin_group_replication_stop");
 
   Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
+  group_replication_stopping= true;
 
   DBUG_EXECUTE_IF("group_replication_wait_on_stop",
                  {
@@ -989,6 +997,7 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info)
 {
   // Reset plugin local variables.
   group_replication_running= false;
+  group_replication_stopping= false;
   plugin_is_being_uninstalled= false;
   plugin_is_waiting_to_set_server_read_mode= false;
 

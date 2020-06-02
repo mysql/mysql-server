@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2823,12 +2823,10 @@ C_MODE_END
   if not.
 */
 
-#if defined(USE_NEW_EDITLINE_INTERFACE)
-static int fake_magic_space(int, int);
+#if defined(EDITLINE_HAVE_COMPLETION_CHAR)
 char *no_completion(const char *, int)
-#elif defined(USE_LIBEDIT_INTERFACE)
-static int fake_magic_space(int, int);
-char *no_completion(const char *, int)
+#elif defined(EDITLINE_HAVE_COMPLETION_INT)
+int no_completion(const char *, int)
 #else
 char *no_completion()
 #endif
@@ -2855,7 +2853,7 @@ static int not_in_history(const char *line)
 #if defined(USE_NEW_EDITLINE_INTERFACE)
 static int fake_magic_space(int, int)
 #else
-static int fake_magic_space(int, int)
+static int fake_magic_space(const char *, int)
 #endif
 {
   rl_insert(1, ' ');
@@ -2869,12 +2867,12 @@ static void initialize_readline (char *name)
   rl_readline_name = name;
 
   /* Tell the completer that we want a crack first. */
-#if defined(USE_NEW_EDITLINE_INTERFACE)
+#if defined(EDITLINE_HAVE_COMPLETION_CHAR)
   rl_attempted_completion_function= &new_mysql_completion;
   rl_completion_entry_function= &no_completion;
 
   rl_add_defun("magic-space", &fake_magic_space, -1);
-#elif defined(USE_LIBEDIT_INTERFACE)
+#elif defined(EDITLINE_HAVE_COMPLETION_INT)
   setlocale(LC_ALL,""); /* so as libedit use isprint */
   rl_attempted_completion_function= &new_mysql_completion;
   rl_completion_entry_function= &no_completion;

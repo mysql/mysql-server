@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2301,7 +2301,11 @@ MYSQL_DATA *cli_read_rows(MYSQL *mysql, MYSQL_FIELD *mysql_fields,
         cur->data[field] = 0;
       } else {
         cur->data[field] = to;
-        if (len > (ulong)(end_to - to)) {
+        DBUG_EXECUTE_IF("simulate_invalid_packet_data", {
+          to = end_to + 1;
+          len = ULONG_MAX - 1;
+        });
+        if (to > end_to || len > (ulong)(end_to - to)) {
           free_rows(result);
           set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
           DBUG_RETURN(0);

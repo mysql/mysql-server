@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020 Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -90,7 +90,7 @@ build_query(const POS &pos,
 
 
   /* * */
-  Item *star= new (thd->mem_root) Item_field(pos, NULL, NULL, "*");
+  Item *star= new (thd->mem_root) Item_asterisk(pos, NULL, NULL);
 
   PT_select_item_list *item_list2;
   item_list2= new (thd->mem_root) PT_select_item_list();

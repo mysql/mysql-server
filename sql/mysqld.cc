@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -723,7 +723,6 @@ char *opt_general_logname, *opt_slow_logname, *opt_bin_logname;
 /* Static variables */
 
 static volatile sig_atomic_t kill_in_progress;
-
 
 static my_bool opt_myisam_log;
 static int cleanup_done;
@@ -3092,6 +3091,11 @@ int init_common_variables()
     return 1;
   }
 
+  /* We set the atomic field m_opt_tracking_mode to the value of the sysvar
+     variable m_opt_tracking_mode_value here, as it now has the user given
+     value
+  */
+  set_mysqld_opt_tracking_mode();
   if (global_system_variables.transaction_write_set_extraction == HASH_ALGORITHM_OFF
       && mysql_bin_log.m_dependency_tracker.m_opt_tracking_mode != DEPENDENCY_TRACKING_COMMIT_ORDER)
   {
@@ -9588,3 +9592,8 @@ bool update_named_pipe_full_access_group(const char *new_group_name)
 #endif  /* _WIN32 && !EMBEDDED_LIBRARY */
 
 
+void set_mysqld_opt_tracking_mode()
+{
+  my_atomic_store64(&mysql_bin_log.m_dependency_tracker.m_opt_tracking_mode,
+          static_cast<int64>(mysql_bin_log.m_dependency_tracker.m_opt_tracking_mode_value));
+}

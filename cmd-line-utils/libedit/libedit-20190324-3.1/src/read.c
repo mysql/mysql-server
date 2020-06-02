@@ -294,6 +294,9 @@ read_char(EditLine *el, wchar_t *cp)
 		case SIGWINCH:
 			sig_set(el);
 			goto again;
+		/* Abort input of current line. */
+		case SIGINT:
+			return (int) num_read;
 		default:
 			break;
 		}

@@ -1239,3 +1239,18 @@ Bug #27714748: @@PARSER_MAX_MEM_SIZE DOES NOT WORK FOR ROUTINES
 SET parser_max_mem_size = 10000000;
 ERROR HY000: Memory capacity of 10000000 bytes for 'parser_max_mem_size' exceeded. Parser bailed out for this query.
 SET parser_max_mem_size = default;
+#
+# Bug#30528450: SPECIAL SYMBOL NAMED COLUMN NOT HONORED IN A SELECT
+#
+CREATE TABLE t1 (c1 INT, `*` INT, c3 INT);
+INSERT INTO t1 VALUES (1, 2, 3);
+SELECT `*` FROM t1;
+*
+2
+SELECT t1.`*`, t1.* FROM t1;
+*	c1	*	c3
+2	1	2	3
+SELECT test.t1.`*`, test.t1.* FROM t1;
+*	c1	*	c3
+2	1	2	3
+DROP TABLE t1;
