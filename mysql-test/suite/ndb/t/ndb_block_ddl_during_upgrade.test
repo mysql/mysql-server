@@ -28,13 +28,9 @@ let $mysqld_name=mysqld.1.1;
 --error ER_DISALLOWED_OPERATION
 create table t2 (a int) engine ndb;
 
---disable_testcase BUG#31419144
-
 --echo # Inplace alter
 --error ER_DISALLOWED_OPERATION
 alter table t1 add index idx(a), algorithm = inplace;
-
---enable_testcase
 
 --echo # Copy alter
 --error ER_DISALLOWED_OPERATION
