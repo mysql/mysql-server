@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1365,7 +1365,7 @@ public:
   void sendINFORM_BACKUP_DROP_TAB_CONF(Signal*, BackupRecordPtr);
 
   void sync_log_lcp_lsn(Signal*, DeleteLcpFilePtr, Uint32 ptrI);
-  void sync_log_lcp_lsn_callback(Signal*, Uint32 ptrI, Uint32 res);
+  void sync_log_lcp_lsn_callback(Signal*, Uint32 ptrI, Uint32 unused);
   void lcp_open_ctl_file_for_rewrite(Signal*,
                                      DeleteLcpFilePtr,
                                      BackupRecordPtr);

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2404,6 +2404,7 @@ SimulatedBlock::execCALLBACK_CONF(Signal* signal)
   Uint32 callbackData = conf->callbackData;
   Uint32 callbackInfo = conf->callbackInfo;
   Uint32 returnCode = conf->returnCode;
+  ndbrequire(returnCode == 0);
 
   ndbrequire(m_callbackTableAddr != 0);
   const CallbackEntry& ce = getCallbackEntry(callbackIndex);
@@ -2412,7 +2413,13 @@ SimulatedBlock::execCALLBACK_CONF(Signal* signal)
   Callback callback;
   callback.m_callbackFunction = function;
   callback.m_callbackData = callbackData;
-  execute(signal, callback, returnCode);
+
+  /**
+   * For both PROCESS_LOG_SYNC_WAITERS and PROCESS_LOG_BUFFER_WAITERS,
+   * sendCallbackConf() places logfile_group_id in senderData.
+   * drop_table_log_buffer_callback() needs logfile_group_id.
+  */
+  execute(signal, callback, senderData);
 
   if (ce.m_flags & CALLBACK_ACK) {
     jam();
