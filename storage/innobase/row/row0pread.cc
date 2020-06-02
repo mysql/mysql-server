@@ -42,21 +42,12 @@ Created 2018-01-27 by Sunny Bains */
 
 #ifdef UNIV_PFS_THREAD
 mysql_pfs_key_t parallel_read_thread_key;
-mysql_pfs_key_t parallel_read_ahead_thread_key;
 #endif /* UNIV_PFS_THREAD */
 
 std::atomic_size_t Parallel_reader::s_active_threads{};
 
 /** Tree depth at which we decide to split blocks further. */
 static constexpr size_t SPLIT_THRESHOLD{3};
-
-/** Size of the read ahead request queue. */
-static constexpr size_t MAX_READ_AHEAD_REQUESTS{128};
-
-/** Maximum number of read ahead threads to spawn. Partitioned tables
-can have 1000s of partitions. We don't want to spawn dedicated threads
-per scan context. */
-constexpr static size_t MAX_READ_AHEAD_THREADS{2};
 
 std::string Parallel_reader::Scan_range::to_string() const {
   std::ostringstream os;
@@ -178,10 +169,7 @@ dberr_t Parallel_reader::Ctx::split() {
 }
 
 Parallel_reader::Parallel_reader(size_t max_threads, bool sync)
-    : m_max_threads(max_threads),
-      m_ctxs(),
-      m_read_aheadq(ut_2_power_up(MAX_READ_AHEAD_REQUESTS)),
-      m_sync(sync) {
+    : m_max_threads(max_threads), m_ctxs(), m_sync(sync) {
   m_n_completed = 0;
 
   mutex_create(LATCH_ID_PARALLEL_READ, &m_mutex);
@@ -473,18 +461,6 @@ Parallel_reader::Scan_ctx::create_persistent_cursor(
 
 bool Parallel_reader::Ctx::move_to_next_node(PCursor *pcursor, mtr_t *mtr) {
   page_cur_t *cur = m_range.first->m_pcur->get_page_cur();
-
-  if (m_scan_ctx->m_config.m_read_ahead) {
-    page_no_t next_page_no = btr_page_get_next(page_cur_get_page(cur), mtr);
-
-    if (next_page_no != FIL_NULL && !(next_page_no % FSP_EXTENT_SIZE)) {
-      m_scan_ctx->submit_read_ahead(next_page_no);
-    }
-
-    if (next_page_no == FIL_NULL) {
-      return (false);
-    }
-  }
 
   auto err = pcursor->move_to_next_block(const_cast<dict_index_t *>(index()));
 
@@ -1055,77 +1031,6 @@ dberr_t Parallel_reader::Scan_ctx::create_contexts(const Ranges &ranges) {
   return (DB_SUCCESS);
 }
 
-void Parallel_reader::read_ahead_worker(page_no_t n_pages) {
-  while (is_active() && !is_error_set()) {
-    uint64_t dequeue_count{};
-
-    Read_ahead_request read_ahead_request;
-
-    while (m_read_aheadq.dequeue(read_ahead_request)) {
-      auto scan_ctx = read_ahead_request.m_scan_ctx;
-
-      if (trx_is_interrupted(scan_ctx->m_trx)) {
-        set_error_state(DB_INTERRUPTED);
-      }
-
-      ut_a(scan_ctx->m_config.m_read_ahead);
-      ut_a(read_ahead_request.m_page_no != FIL_NULL);
-
-      page_id_t page_id(scan_ctx->m_config.m_index->space,
-                        read_ahead_request.m_page_no);
-
-      buf_phy_read_ahead(page_id, scan_ctx->m_config.m_page_size, n_pages);
-
-      ++dequeue_count;
-    }
-
-    m_consumed.fetch_add(dequeue_count, std::memory_order_relaxed);
-
-    while (read_ahead_queue_empty() && is_active() && !is_error_set()) {
-      os_thread_sleep(20);
-    }
-  }
-
-  /* Wake up any sleeping threads. */
-  if (is_error_set()) {
-    os_event_set(m_event);
-  }
-}
-
-dberr_t Parallel_reader::read_ahead() {
-  ut_a(!m_scan_ctxs.empty());
-
-  size_t n_read_ahead_threads{};
-
-  for (auto &scan_ctx : m_scan_ctxs) {
-    if (scan_ctx->m_config.m_read_ahead) {
-      ++n_read_ahead_threads;
-    }
-  }
-
-  n_read_ahead_threads = std::min(n_read_ahead_threads, MAX_READ_AHEAD_THREADS);
-
-  dberr_t err{DB_SUCCESS};
-
-  for (size_t i = 0; i < n_read_ahead_threads; ++i) {
-    try {
-      m_read_ahead_threads.emplace_back(os_thread_create(
-          parallel_read_ahead_thread_key, &Parallel_reader::read_ahead_worker,
-          this, FSP_EXTENT_SIZE));
-      m_read_ahead_threads.back().start();
-    } catch (...) {
-      err = DB_OUT_OF_RESOURCES;
-      break;
-    }
-  }
-
-  if (n_read_ahead_threads > 0 && m_sync && err == DB_SUCCESS) {
-    read_ahead_worker(FSP_EXTENT_SIZE);
-  }
-
-  return err;
-}
-
 void Parallel_reader::parallel_read() {
   ut_a(m_max_threads > 0);
 
@@ -1172,11 +1077,6 @@ void Parallel_reader::parallel_read() {
                   set_error_state(err););
 
   os_event_set(m_event);
-
-  if (err == DB_SUCCESS) {
-    /* Start the read ahead threads. */
-    read_ahead();
-  }
 
   DBUG_EXECUTE_IF("bug28079850", set_error_state(DB_INTERRUPTED););
 
