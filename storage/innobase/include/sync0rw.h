@@ -651,7 +651,7 @@ struct rw_lock_t
 
 #ifdef UNIV_DEBUG
   /** Destructor */
-  virtual ~rw_lock_t() {
+  ~rw_lock_t() override {
     ut_ad(magic_n == MAGIC_N);
     magic_n = 0;
   }
