@@ -47,7 +47,9 @@ class Innodb_fields
     return s_view_name;
   }
 
-  const String_type &name() const override { return Innodb_fields::view_name(); }
+  const String_type &name() const override {
+    return Innodb_fields::view_name();
+  }
 };
 
 }  // namespace system_views

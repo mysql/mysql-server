@@ -120,9 +120,7 @@ class Trigger_impl : virtual public Entity_object_impl, virtual public Trigger {
   // action timing
   /////////////////////////////////////////////////////////////////////////
 
-  enum_action_timing action_timing() const override {
-    return m_action_timing;
-  }
+  enum_action_timing action_timing() const override { return m_action_timing; }
 
   void set_action_timing(enum_action_timing action_timing) override {
     m_action_timing = action_timing;
@@ -146,8 +144,7 @@ class Trigger_impl : virtual public Entity_object_impl, virtual public Trigger {
     return m_action_statement;
   }
 
-  void set_action_statement(
-      const String_type &action_statement) override {
+  void set_action_statement(const String_type &action_statement) override {
     m_action_statement = action_statement;
   }
 
@@ -184,24 +181,18 @@ class Trigger_impl : virtual public Entity_object_impl, virtual public Trigger {
 
   ulonglong sql_mode() const override { return m_sql_mode; }
 
-  void set_sql_mode(ulonglong sql_mode) override {
-    m_sql_mode = sql_mode;
-  }
+  void set_sql_mode(ulonglong sql_mode) override { m_sql_mode = sql_mode; }
 
   /////////////////////////////////////////////////////////////////////////
   // definer.
   /////////////////////////////////////////////////////////////////////////
 
-  const String_type &definer_user() const override {
-    return m_definer_user;
-  }
+  const String_type &definer_user() const override { return m_definer_user; }
 
-  const String_type &definer_host() const override {
-    return m_definer_host;
-  }
+  const String_type &definer_host() const override { return m_definer_host; }
 
   void set_definer(const String_type &username,
-                           const String_type &hostname) override {
+                   const String_type &hostname) override {
     m_definer_user = username;
     m_definer_host = hostname;
   }
@@ -222,8 +213,7 @@ class Trigger_impl : virtual public Entity_object_impl, virtual public Trigger {
     return m_connection_collation_id;
   }
 
-  void set_connection_collation_id(
-      Object_id connection_collation_id) override {
+  void set_connection_collation_id(Object_id connection_collation_id) override {
     m_connection_collation_id = connection_collation_id;
   }
 
@@ -236,9 +226,7 @@ class Trigger_impl : virtual public Entity_object_impl, virtual public Trigger {
   }
 
   // Fix "inherits ... via dominance" warnings
-  Entity_object_impl *impl() override {
-    return Entity_object_impl::impl();
-  }
+  Entity_object_impl *impl() override { return Entity_object_impl::impl(); }
 
   const Entity_object_impl *impl() const override {
     return Entity_object_impl::impl();

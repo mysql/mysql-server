@@ -173,7 +173,8 @@ class Group_action_message : public Plugin_gcs_message {
     @param[in] buffer the received data
     @param[in] end    the end of the buffer.
   */
-  void decode_payload(const unsigned char *buffer, const unsigned char *end) override;
+  void decode_payload(const unsigned char *buffer,
+                      const unsigned char *end) override;
 
  private:
   /** The action type for this message */

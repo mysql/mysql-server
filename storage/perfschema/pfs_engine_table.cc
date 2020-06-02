@@ -975,7 +975,8 @@ class PFS_internal_schema_access : public ACL_internal_schema_access {
 
   ~PFS_internal_schema_access() override {}
 
-  ACL_internal_access_result check(ulong want_access, ulong *save_priv) const override;
+  ACL_internal_access_result check(ulong want_access,
+                                   ulong *save_priv) const override;
 
   const ACL_internal_table_access *lookup(const char *name) const override;
 };

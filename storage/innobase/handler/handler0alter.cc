@@ -8544,7 +8544,8 @@ class alter_part_normal : public alter_part {
                                   if no corresponding one exists
   @return 0 or error number */
   int try_commit(const TABLE *table, TABLE *altered_table,
-                 const dd::Partition *old_part, dd::Partition *new_part) override {
+                 const dd::Partition *old_part,
+                 dd::Partition *new_part) override {
     ut_ad(m_old != nullptr);
 
     btr_drop_ahi_for_table(*m_old);
@@ -8652,7 +8653,8 @@ class alter_part_add : public alter_part {
                                   if no corresponding one exists
   @return 0 or error number */
   int try_commit(const TABLE *table, TABLE *altered_table,
-                 const dd::Partition *old_part, dd::Partition *new_part) override {
+                 const dd::Partition *old_part,
+                 dd::Partition *new_part) override {
     int error = 0;
 
     if (need_rename()) {
@@ -8752,7 +8754,8 @@ class alter_part_drop : public alter_part {
                                   if no corresponding one exists
   @return 0 or error number */
   int try_commit(const TABLE *table, TABLE *altered_table,
-                 const dd::Partition *old_part, dd::Partition *new_part) override {
+                 const dd::Partition *old_part,
+                 dd::Partition *new_part) override {
     ut_ad(new_part == nullptr);
 
     mutex_enter(&dict_sys->mutex);
@@ -8880,7 +8883,8 @@ class alter_part_change : public alter_part {
                                   if no corresponding one exists
   @return 0 or error number */
   int try_commit(const TABLE *table, TABLE *altered_table,
-                 const dd::Partition *old_part, dd::Partition *new_part) override;
+                 const dd::Partition *old_part,
+                 dd::Partition *new_part) override;
 
   /** Rollback */
   void rollback() override {

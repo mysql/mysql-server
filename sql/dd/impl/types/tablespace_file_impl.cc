@@ -82,8 +82,8 @@ class Tablespace_filename_error_handler : public Internal_error_handler {
   Tablespace_filename_error_handler(const char *name_arg) : name(name_arg) {}
 
   bool handle_condition(THD *, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *,
-                                const char *) override {
+                        Sql_condition::enum_severity_level *,
+                        const char *) override {
     if (sql_errno == ER_DUP_ENTRY) {
       my_error(ER_TABLESPACE_DUP_FILENAME, MYF(0), name);
       return true;

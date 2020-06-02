@@ -257,8 +257,9 @@ class Gcs_xcom_communication : public Gcs_xcom_communication_interface {
 
   Gcs_message_pipeline &get_msg_pipeline() override { return m_msg_pipeline; }
 
-  void buffer_incoming_packet(Gcs_packet &&packet,
-                              std::unique_ptr<Gcs_xcom_nodes> &&xcom_nodes) override;
+  void buffer_incoming_packet(
+      Gcs_packet &&packet,
+      std::unique_ptr<Gcs_xcom_nodes> &&xcom_nodes) override;
 
   void deliver_buffered_packets() override;
 
@@ -272,10 +273,12 @@ class Gcs_xcom_communication : public Gcs_xcom_communication_interface {
   bool recover_packets(Gcs_xcom_synode_set const &synodes) override;
 
   Gcs_message *convert_packet_to_message(
-      Gcs_packet &&packet, std::unique_ptr<Gcs_xcom_nodes> &&xcom_nodes) override;
+      Gcs_packet &&packet,
+      std::unique_ptr<Gcs_xcom_nodes> &&xcom_nodes) override;
 
-  void process_user_data_packet(Gcs_packet &&packet,
-                                std::unique_ptr<Gcs_xcom_nodes> &&xcom_nodes) override;
+  void process_user_data_packet(
+      Gcs_packet &&packet,
+      std::unique_ptr<Gcs_xcom_nodes> &&xcom_nodes) override;
 
   Gcs_protocol_version get_protocol_version() const override;
 

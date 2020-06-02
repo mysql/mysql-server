@@ -120,7 +120,7 @@ class Callback_command_delegate : public ngs::Command_delegate {
   int get_datetime(const MYSQL_TIME *value, uint32_t decimals) override;
 
   int get_string(const char *const value, size_t length,
-                         const CHARSET_INFO *const valuecs) override;
+                 const CHARSET_INFO *const valuecs) override;
 };
 }  // namespace xpl
 

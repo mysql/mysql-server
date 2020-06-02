@@ -398,9 +398,9 @@ class InnocheckReporter : public BlockReporter {
   @param[in]	checksum_field1	Checksum in page header
   @param[in]	checksum_field2	Checksum in page trailer
   @param[in]	crc32		Calculated crc32 checksum */
-  inline void print_strict_crc32(ulint checksum_field1,
-                                         ulint checksum_field2, uint32_t crc32,
-                                         srv_checksum_algorithm_t algo) const override {
+  inline void print_strict_crc32(ulint checksum_field1, ulint checksum_field2,
+                                 uint32_t crc32,
+                                 srv_checksum_algorithm_t algo) const override {
     if (algo != SRV_CHECKSUM_ALGORITHM_STRICT_CRC32 || !m_is_log_enabled) {
       return;
     }
@@ -418,7 +418,7 @@ class InnocheckReporter : public BlockReporter {
   @param[in]	checksum_field1	Checksum in page header
   @param[in]	checksum_field2	Checksum in page trailer */
   inline void print_strict_innodb(ulint checksum_field1,
-                                          ulint checksum_field2) const override {
+                                  ulint checksum_field2) const override {
     if (!m_is_log_enabled) {
       return;
     }
@@ -440,9 +440,8 @@ class InnocheckReporter : public BlockReporter {
   /** Print none checksum and the checksum fields in page.
   @param[in]	checksum_field1	Checksum in page header
   @param[in]	checksum_field2	Checksum in page trailer */
-  inline void print_strict_none(ulint checksum_field1,
-                                        ulint checksum_field2,
-                                        srv_checksum_algorithm_t algo) const override {
+  inline void print_strict_none(ulint checksum_field1, ulint checksum_field2,
+                                srv_checksum_algorithm_t algo) const override {
     if (!m_is_log_enabled || algo != SRV_CHECKSUM_ALGORITHM_STRICT_NONE) {
       return;
     }
@@ -532,7 +531,7 @@ class InnocheckReporter : public BlockReporter {
   @param[in]	checksum_field1	Checksum in page header
   @param[in]	checksum_field2	Checksum in page trailer */
   inline void print_crc32_checksum(ulint checksum_field1,
-                                           ulint checksum_field2) const override {
+                                   ulint checksum_field2) const override {
     if (m_is_log_enabled) {
       fprintf(m_log_file,
               "page::%" PRIuMAX "; old style: calculated = " ULINTPF
@@ -563,7 +562,7 @@ class InnocheckReporter : public BlockReporter {
   @param[in]	calc	the calculated checksum value
   @param[in]	stored	the stored checksum in header. */
   inline void print_compressed_checksum(ib_uint32_t calc,
-                                                ib_uint32_t stored) const override {
+                                        ib_uint32_t stored) const override {
     if (!m_is_log_enabled) {
       return;
     }

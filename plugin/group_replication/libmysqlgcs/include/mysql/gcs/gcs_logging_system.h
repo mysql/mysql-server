@@ -486,7 +486,8 @@ class Gcs_default_logger : public Logger_interface {
     @param message rendered string of the logging message
   */
 
-  void log_event(const gcs_log_level_t level, const std::string &message) override;
+  void log_event(const gcs_log_level_t level,
+                 const std::string &message) override;
 
  private:
   /**

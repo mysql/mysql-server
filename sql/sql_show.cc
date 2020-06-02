@@ -464,8 +464,8 @@ class Show_create_error_handler : public Internal_error_handler {
 
  public:
   bool handle_condition(THD *thd, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *,
-                                const char *msg) override {
+                        Sql_condition::enum_severity_level *,
+                        const char *msg) override {
     /*
        The handler does not handle the errors raised by itself.
        At this point we know if top_view is really a view.

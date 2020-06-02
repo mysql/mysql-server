@@ -237,8 +237,9 @@ class Certifier : public Certifier_interface {
       @retval 0      OK
       @retval !=0    Error on queue
   */
-  int handle_certifier_data(const uchar *data, ulong len,
-                                    const Gcs_member_identifier &gcs_member_id) override;
+  int handle_certifier_data(
+      const uchar *data, ulong len,
+      const Gcs_member_identifier &gcs_member_id) override;
 
   /**
     This member function SHALL certify the set of items against transactions
@@ -280,7 +281,8 @@ class Certifier : public Certifier_interface {
       @retval 0         OK
       @retval !=0       Out of memory error
    */
-  int get_group_stable_transactions_set_string(char **buffer, size_t *length) override;
+  int get_group_stable_transactions_set_string(char **buffer,
+                                               size_t *length) override;
 
   /**
     Retrieves the current certification info.
@@ -760,7 +762,8 @@ class Gtid_Executed_Message : public Plugin_gcs_message {
    Implementation of the template methods of Gcs_plugin_message
    */
   void encode_payload(std::vector<unsigned char> *buffer) const override;
-  void decode_payload(const unsigned char *buffer, const unsigned char *) override;
+  void decode_payload(const unsigned char *buffer,
+                      const unsigned char *) override;
 
  private:
   std::vector<uchar> data;

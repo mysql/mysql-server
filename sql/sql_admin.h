@@ -279,7 +279,9 @@ class Sql_cmd_drop_role : public Sql_cmd {
       : ignore_errors(ignore_errors_arg), roles(roles_arg) {}
 
   bool execute(THD *thd) override;
-  enum_sql_command sql_command_code() const override { return SQLCOM_DROP_ROLE; }
+  enum_sql_command sql_command_code() const override {
+    return SQLCOM_DROP_ROLE;
+  }
 };
 
 /**

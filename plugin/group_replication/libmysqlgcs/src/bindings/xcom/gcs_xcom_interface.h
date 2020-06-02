@@ -179,9 +179,11 @@ class Gcs_xcom_interface : public Gcs_interface {
     This block implements the virtual methods defined in Gcs_interface.
   */
 
-  enum_gcs_error initialize(const Gcs_interface_parameters &interface_params) override;
+  enum_gcs_error initialize(
+      const Gcs_interface_parameters &interface_params) override;
 
-  enum_gcs_error configure(const Gcs_interface_parameters &interface_params) override;
+  enum_gcs_error configure(
+      const Gcs_interface_parameters &interface_params) override;
 
   bool is_initialized() override;
 

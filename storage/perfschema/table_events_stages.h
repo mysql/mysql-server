@@ -120,7 +120,7 @@ struct pos_events_stages_history : public PFS_double_index {
 class table_events_stages_common : public PFS_engine_table {
  protected:
   int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                              bool read_all) override;
+                      bool read_all) override;
 
   table_events_stages_common(const PFS_engine_table_share *share, void *pos);
 

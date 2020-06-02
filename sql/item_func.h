@@ -1835,7 +1835,9 @@ class Item_func_bit : public Item_func {
 
 class Item_func_bit_two_param : public Item_func_bit {
  protected:
-  bool binary_result_requires_binary_second_arg() const override { return true; }
+  bool binary_result_requires_binary_second_arg() const override {
+    return true;
+  }
   template <class Char_func, class Int_func>
   String *eval_str_op(String *, Char_func char_func, Int_func int_func);
   template <class Int_func>
@@ -1902,7 +1904,9 @@ class Item_func_bit_count final : public Item_int_func {
 
 class Item_func_shift : public Item_func_bit {
  protected:
-  bool binary_result_requires_binary_second_arg() const override { return false; }
+  bool binary_result_requires_binary_second_arg() const override {
+    return false;
+  }
   template <bool to_left>
   longlong eval_int_op();
   template <bool to_left>

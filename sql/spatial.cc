@@ -618,9 +618,8 @@ class Geometry_well_formed_checker : public WKB_scanner_event_handler {
     this->type.push_back(type);
   }
 
-  void on_wkb_start(Geometry::wkbByteOrder bo,
-                            Geometry::wkbType geotype, const void *, uint32,
-                            bool has_hdr) override {
+  void on_wkb_start(Geometry::wkbByteOrder bo, Geometry::wkbType geotype,
+                    const void *, uint32, bool has_hdr) override {
     if (!is_ok) return;
 
     // The byte order must be the specified one (R1).
@@ -990,7 +989,7 @@ class GeomColl_component_counter : public WKB_scanner_event_handler {
   GeomColl_component_counter() : num(0) {}
 
   void on_wkb_start(Geometry::wkbByteOrder, Geometry::wkbType geotype,
-                            const void *, uint32, bool) override {
+                    const void *, uint32, bool) override {
     if (geotype != Geometry::wkb_geometrycollection) num++;
   }
 

@@ -5832,8 +5832,8 @@ class Item_copy : public Item {
     collation.set(item->collation);
   }
 
-  type_conversion_status save_in_field_inner(
-      Field *field, bool no_conversions) override = 0;
+  type_conversion_status save_in_field_inner(Field *field,
+                                             bool no_conversions) override = 0;
 
  public:
   /**
@@ -5881,8 +5881,7 @@ class Item_copy : public Item {
   my_decimal *val_decimal(my_decimal *) override = 0;
   double val_real() override = 0;
   longlong val_int() override = 0;
-  bool get_date(MYSQL_TIME *ltime,
-                        my_time_flags_t fuzzydate) override = 0;
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override = 0;
   bool get_time(MYSQL_TIME *ltime) override = 0;
   /* purecov: begin deadcode */
   bool val_json(Json_wrapper *) override {

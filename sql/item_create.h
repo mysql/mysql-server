@@ -123,7 +123,8 @@ class Create_qfunc : public Create_func {
     @param item_list The list of arguments to the function, can be NULL
     @return An item representing the parsed function call
   */
-  Item *create_func(THD *thd, LEX_STRING name, PT_item_list *item_list) override;
+  Item *create_func(THD *thd, LEX_STRING name,
+                    PT_item_list *item_list) override;
 
   /**
     The builder create method, for qualified functions.
@@ -165,7 +166,8 @@ extern Create_qfunc *find_qualified_function_builder(THD *thd);
 
 class Create_udf_func : public Create_func {
  public:
-  Item *create_func(THD *thd, LEX_STRING name, PT_item_list *item_list) override;
+  Item *create_func(THD *thd, LEX_STRING name,
+                    PT_item_list *item_list) override;
 
   /**
     The builder create method, for User Defined Functions.

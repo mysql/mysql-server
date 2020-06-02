@@ -79,8 +79,8 @@ class System_table_close_guard {
 */
 class Check_table_intact : public Table_check_intact {
  protected:
-  void report_error(uint, const char *fmt, ...)
-      override MY_ATTRIBUTE((format(printf, 3, 4)));
+  void report_error(uint, const char *fmt, ...) override
+      MY_ATTRIBUTE((format(printf, 3, 4)));
 };
 
 }  // namespace upgrade_57

@@ -2332,8 +2332,8 @@ bool open_table_def(THD *thd, TABLE_SHARE *share, const dd::Table &table_def) {
 class Open_table_error_handler : public Internal_error_handler {
  public:
   bool handle_condition(THD *, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *,
-                                const char *) override {
+                        Sql_condition::enum_severity_level *,
+                        const char *) override {
     return (sql_errno == ER_UNKNOWN_COLLATION ||
             sql_errno == ER_PLUGIN_IS_NOT_LOADED);
   }

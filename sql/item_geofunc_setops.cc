@@ -2549,7 +2549,7 @@ class Singleton_extractor : public WKB_scanner_event_handler {
   }
 
   void on_wkb_start(Geometry::wkbByteOrder, Geometry::wkbType geotype,
-                            const void *wkb, uint32 len, bool) override {
+                    const void *wkb, uint32 len, bool) override {
     if (geotype != Geometry::wkb_geometrycollection) {
       if (gc_depth == 0) {
         gc_depth = depth;

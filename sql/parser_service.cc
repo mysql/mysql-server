@@ -120,8 +120,8 @@ class Plugin_error_handler : public Internal_error_handler {
   }
 
   bool handle_condition(THD *, uint sql_errno_u, const char *sqlstate,
-                                Sql_condition::enum_severity_level *,
-                                const char *msg) override {
+                        Sql_condition::enum_severity_level *,
+                        const char *msg) override {
     int sql_errno = static_cast<int>(sql_errno_u);
     if (m_handle_error != nullptr)
       return m_handle_error(sql_errno, sqlstate, msg, m_state) != 0;

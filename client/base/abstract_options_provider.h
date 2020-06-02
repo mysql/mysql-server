@@ -188,7 +188,8 @@ class Abstract_options_provider : public I_options_provider {
     provider is attached to another.
     Part of I_options_provider interface implementation.
    */
-  void set_option_changed_listener(I_option_changed_listener *listener) override;
+  void set_option_changed_listener(
+      I_option_changed_listener *listener) override;
 
  private:
   /**
@@ -216,7 +217,7 @@ class Abstract_options_provider : public I_options_provider {
     Part of I_option_changed_listener interface implementation.
    */
   void notify_option_name_changed(I_option *source,
-                                          std::string old_name) override;
+                                  std::string old_name) override;
   /**
     Called after specified option has option ID changed.
     It is also called when new option is added, old_optid is 0 in that case.

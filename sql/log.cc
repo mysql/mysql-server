@@ -195,8 +195,8 @@ static const TABLE_FIELD_DEF general_log_table_def = {GLT_FIELD_COUNT,
 
 class Query_log_table_intact : public Table_check_intact {
  protected:
-  void report_error(uint ecode, const char *fmt, ...)
-      override MY_ATTRIBUTE((format(printf, 3, 4))) {
+  void report_error(uint ecode, const char *fmt, ...) override
+      MY_ATTRIBUTE((format(printf, 3, 4))) {
     longlong log_ecode = 0;
     switch (ecode) {
       case 0:
@@ -245,8 +245,8 @@ class Silence_log_table_errors : public Internal_error_handler {
   Silence_log_table_errors() { m_message[0] = '\0'; }
 
   bool handle_condition(THD *, uint, const char *,
-                                Sql_condition::enum_severity_level *,
-                                const char *msg) override {
+                        Sql_condition::enum_severity_level *,
+                        const char *msg) override {
     strmake(m_message, msg, sizeof(m_message) - 1);
     return true;
   }
@@ -1201,22 +1201,21 @@ class Log_to_file_event_handler : public Log_event_handler {
      Wrapper around File_query_log::write_slow() for slow log.
      @see Log_event_handler::log_slow().
   */
-  bool log_slow(THD *thd, ulonglong current_utime,
-                        ulonglong query_start_arg, const char *user_host,
-                        size_t user_host_len, ulonglong query_utime,
-                        ulonglong lock_utime, bool is_command,
-                        const char *sql_text, size_t sql_text_len,
-                        struct System_status_var *query_start_status) override;
+  bool log_slow(THD *thd, ulonglong current_utime, ulonglong query_start_arg,
+                const char *user_host, size_t user_host_len,
+                ulonglong query_utime, ulonglong lock_utime, bool is_command,
+                const char *sql_text, size_t sql_text_len,
+                struct System_status_var *query_start_status) override;
 
   /**
      Wrapper around File_query_log::write_general() for general log.
      @see Log_event_handler::log_general().
   */
-  bool log_general(THD *thd, ulonglong event_utime,
-                           const char *user_host, size_t user_host_len,
-                           my_thread_id thread_id, const char *command_type,
-                           size_t command_type_len, const char *sql_text,
-                           size_t sql_text_len, const CHARSET_INFO *client_cs) override;
+  bool log_general(THD *thd, ulonglong event_utime, const char *user_host,
+                   size_t user_host_len, my_thread_id thread_id,
+                   const char *command_type, size_t command_type_len,
+                   const char *sql_text, size_t sql_text_len,
+                   const CHARSET_INFO *client_cs) override;
 
  private:
   Log_to_file_event_handler()

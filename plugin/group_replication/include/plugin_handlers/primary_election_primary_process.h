@@ -100,19 +100,18 @@ class Primary_election_primary_process : public Group_event_observer {
  private:
   // The listeners for group events
 
-  int after_view_change(
-      const std::vector<Gcs_member_identifier> &joining,
-      const std::vector<Gcs_member_identifier> &leaving,
-      const std::vector<Gcs_member_identifier> &group, bool is_leaving,
-      bool *skip_election, enum_primary_election_mode *election_mode,
-      std::string &suggested_primary) override;
-  int after_primary_election(std::string primary_uuid,
-                                     bool primary_changed,
-                                     enum_primary_election_mode election_mode,
-                                     int error) override;
+  int after_view_change(const std::vector<Gcs_member_identifier> &joining,
+                        const std::vector<Gcs_member_identifier> &leaving,
+                        const std::vector<Gcs_member_identifier> &group,
+                        bool is_leaving, bool *skip_election,
+                        enum_primary_election_mode *election_mode,
+                        std::string &suggested_primary) override;
+  int after_primary_election(std::string primary_uuid, bool primary_changed,
+                             enum_primary_election_mode election_mode,
+                             int error) override;
   int before_message_handling(const Plugin_gcs_message &message,
-                                      const std::string &message_origin,
-                                      bool *skip_message) override;
+                              const std::string &message_origin,
+                              bool *skip_message) override;
 
   /**
      Signal that the read mode is ready on this member

@@ -296,8 +296,8 @@ void Storage_adapter::core_store(THD *thd, T *object) {
 class Open_dictionary_tables_error_handler : public Internal_error_handler {
  public:
   bool handle_condition(THD *, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *,
-                                const char *) override {
+                        Sql_condition::enum_severity_level *,
+                        const char *) override {
     if (sql_errno == ER_OPEN_AS_READONLY) {
       my_error(ER_READ_ONLY_MODE, MYF(0));
       return true;

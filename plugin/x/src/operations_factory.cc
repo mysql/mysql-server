@@ -64,7 +64,7 @@ class Socket : public iface::Socket {
   }
 
   MYSQL_SOCKET accept(PSI_socket_key key MY_ATTRIBUTE((unused)),
-                              struct sockaddr *addr, socklen_t *addr_len) override {
+                      struct sockaddr *addr, socklen_t *addr_len) override {
     return mysql_socket_accept(key, m_mysql_socket, addr, addr_len);
   }
 
@@ -79,7 +79,7 @@ class Socket : public iface::Socket {
   MYSQL_SOCKET get_socket_mysql() override { return m_mysql_socket; }
 
   int set_socket_opt(int level, int optname, const SOCKBUF_T *optval,
-                             socklen_t optlen) override {
+                     socklen_t optlen) override {
     return mysql_socket_setsockopt(m_mysql_socket, level, optname, optval,
                                    optlen);
   }

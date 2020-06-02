@@ -106,7 +106,7 @@ class table_replication_group_member_stats : public PFS_engine_table {
   */
 
   int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                              bool read_all) override;
+                      bool read_all) override;
 
   table_replication_group_member_stats();
 

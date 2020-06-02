@@ -225,8 +225,8 @@ class Range_optimizer_error_handler : public Internal_error_handler {
       : m_has_errors(false), m_is_mem_error(false) {}
 
   bool handle_condition(THD *thd, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *level,
-                                const char *) override {
+                        Sql_condition::enum_severity_level *level,
+                        const char *) override {
     if (*level == Sql_condition::SL_ERROR) {
       m_has_errors = true;
       /* Out of memory error is reported only once. Return as handled */
@@ -2609,7 +2609,8 @@ class TRP_RANGE : public TABLE_READ_PLAN {
   TRP_RANGE(SEL_ROOT *key_arg, uint idx_arg, uint mrr_flags_arg)
       : key(key_arg), key_idx(idx_arg), mrr_flags(mrr_flags_arg) {}
 
-  QUICK_SELECT_I *make_quick(PARAM *param, bool, MEM_ROOT *parent_alloc) override {
+  QUICK_SELECT_I *make_quick(PARAM *param, bool,
+                             MEM_ROOT *parent_alloc) override {
     DBUG_TRACE;
     QUICK_RANGE_SELECT *quick;
     if ((quick = get_quick_select(param, key_idx, key, mrr_flags, mrr_buf_size,

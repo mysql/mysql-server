@@ -72,7 +72,8 @@ class Transaction_message : public Transaction_message_interface {
    Implementation of the template methods
    */
   void encode_payload(std::vector<unsigned char> *buffer) const override;
-  void decode_payload(const unsigned char *buffer, const unsigned char *) override;
+  void decode_payload(const unsigned char *buffer,
+                      const unsigned char *) override;
 
  private:
   std::vector<uchar> m_data;

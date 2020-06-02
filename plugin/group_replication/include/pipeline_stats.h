@@ -242,7 +242,8 @@ class Pipeline_stats_member_message : public Plugin_gcs_message {
     @param[in] buffer the received data
     @param[in] end    the end of the buffer
   */
-  void decode_payload(const unsigned char *buffer, const unsigned char *end) override;
+  void decode_payload(const unsigned char *buffer,
+                      const unsigned char *end) override;
 
  private:
   int32 m_transactions_waiting_certification;

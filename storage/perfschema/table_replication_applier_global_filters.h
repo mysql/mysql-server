@@ -109,7 +109,7 @@ class table_replication_applier_global_filters : public PFS_engine_table {
     @retval 0 if HAVE_REPLICATION is defined, else HA_ERR_RECORD_DELETED.
   */
   int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                              bool read_all) override;
+                      bool read_all) override;
 
   table_replication_applier_global_filters();
 

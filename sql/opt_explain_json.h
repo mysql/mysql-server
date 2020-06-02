@@ -46,9 +46,8 @@ class Explain_format_JSON : public Explain_format {
 
   bool is_hierarchical() const override { return true; }
   bool send_headers(Query_result *result) override;
-  bool begin_context(enum_parsing_context context,
-                             SELECT_LEX_UNIT *subquery,
-                             const Explain_format_flags *flags) override;
+  bool begin_context(enum_parsing_context context, SELECT_LEX_UNIT *subquery,
+                     const Explain_format_flags *flags) override;
   bool end_context(enum_parsing_context context) override;
   bool flush_entry() override { return false; }
   qep_row *entry() override;

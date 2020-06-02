@@ -129,7 +129,7 @@ class table_mutex_instances : public PFS_engine_table {
 
  private:
   int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                              bool read_all) override;
+                      bool read_all) override;
   table_mutex_instances();
 
  public:
@@ -238,7 +238,7 @@ class table_rwlock_instances : public PFS_engine_table {
 
  private:
   int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                              bool read_all) override;
+                      bool read_all) override;
   table_rwlock_instances();
 
  public:
@@ -325,7 +325,7 @@ class table_cond_instances : public PFS_engine_table {
 
  private:
   int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                              bool read_all) override;
+                      bool read_all) override;
   table_cond_instances();
 
  public:

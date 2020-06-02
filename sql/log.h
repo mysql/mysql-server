@@ -226,19 +226,18 @@ class Log_event_handler {
 class Log_to_csv_event_handler : public Log_event_handler {
  public:
   /** @see Log_event_handler::log_slow(). */
-  bool log_slow(THD *thd, ulonglong current_utime,
-                        ulonglong query_start_arg, const char *user_host,
-                        size_t user_host_len, ulonglong query_utime,
-                        ulonglong lock_utime, bool is_command,
-                        const char *sql_text, size_t sql_text_len,
-                        struct System_status_var *query_start_status) override;
+  bool log_slow(THD *thd, ulonglong current_utime, ulonglong query_start_arg,
+                const char *user_host, size_t user_host_len,
+                ulonglong query_utime, ulonglong lock_utime, bool is_command,
+                const char *sql_text, size_t sql_text_len,
+                struct System_status_var *query_start_status) override;
 
   /** @see Log_event_handler::log_general(). */
-  bool log_general(THD *thd, ulonglong event_utime,
-                           const char *user_host, size_t user_host_len,
-                           my_thread_id thread_id, const char *command_type,
-                           size_t command_type_len, const char *sql_text,
-                           size_t sql_text_len, const CHARSET_INFO *client_cs) override;
+  bool log_general(THD *thd, ulonglong event_utime, const char *user_host,
+                   size_t user_host_len, my_thread_id thread_id,
+                   const char *command_type, size_t command_type_len,
+                   const char *sql_text, size_t sql_text_len,
+                   const CHARSET_INFO *client_cs) override;
 
  private:
   /**

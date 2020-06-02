@@ -1446,8 +1446,7 @@ class Query_log_event : public virtual binary_log::Query_event,
 
      @return     number of databases in the array or OVER_MAX_DBS_IN_EVENT_MTS.
   */
-  uint8 get_mts_dbs(Mts_db_names *arg,
-                            Rpl_filter *rpl_filter) override {
+  uint8 get_mts_dbs(Mts_db_names *arg, Rpl_filter *rpl_filter) override {
     if (mts_accessed_dbs == OVER_MAX_DBS_IN_EVENT_MTS) {
       // the empty string db name is special to indicate sequential applying
       mts_accessed_db_names[0][0] = 0;
@@ -2463,8 +2462,7 @@ class Table_map_log_event : public binary_log::Table_map_event,
                 OVER_MAX_DBS_IN_EVENT_MTS, when the Table map event reports
                 foreign keys constraint.
   */
-  uint8 get_mts_dbs(Mts_db_names *arg,
-                            Rpl_filter *rpl_filter) override {
+  uint8 get_mts_dbs(Mts_db_names *arg, Rpl_filter *rpl_filter) override {
     const char *db_name = get_db();
 
     if (!rpl_filter->is_rewrite_empty() && !get_flags(TM_REFERRED_FK_DB_F)) {
@@ -2486,8 +2484,7 @@ class Table_map_log_event : public binary_log::Table_map_event,
 #endif
 
 #ifndef MYSQL_SERVER
-  void print(FILE *file,
-                     PRINT_EVENT_INFO *print_event_info) const override;
+  void print(FILE *file, PRINT_EVENT_INFO *print_event_info) const override;
 
   /**
     Print column metadata. Its format looks like:
@@ -3243,7 +3240,7 @@ class Write_rows_log_event : public Rows_log_event,
   int do_before_row_operations(
       const Slave_reporting_capability *const) override;
   int do_after_row_operations(const Slave_reporting_capability *const,
-                                      int) override;
+                              int) override;
   int do_exec_row(const Relay_log_info *const) override;
 #endif
 };
@@ -3338,11 +3335,11 @@ class Update_rows_log_event : public Rows_log_event,
   int do_before_row_operations(
       const Slave_reporting_capability *const) override;
   int do_after_row_operations(const Slave_reporting_capability *const,
-                                      int) override;
+                              int) override;
   int do_exec_row(const Relay_log_info *const) override;
 
-  int skip_after_image_for_update_event(
-      const Relay_log_info *rli, const uchar *curr_bi_start) override;
+  int skip_after_image_for_update_event(const Relay_log_info *rli,
+                                        const uchar *curr_bi_start) override;
 
  private:
   /**
@@ -3442,7 +3439,7 @@ class Delete_rows_log_event : public Rows_log_event,
   int do_before_row_operations(
       const Slave_reporting_capability *const) override;
   int do_after_row_operations(const Slave_reporting_capability *const,
-                                      int) override;
+                              int) override;
   int do_exec_row(const Relay_log_info *const) override;
 #endif
 };
@@ -3523,8 +3520,7 @@ class Incident_log_event : public binary_log::Incident_event, public Log_event {
   ~Incident_log_event() override;
 
 #ifndef MYSQL_SERVER
-  void print(FILE *file,
-                     PRINT_EVENT_INFO *print_event_info) const override;
+  void print(FILE *file, PRINT_EVENT_INFO *print_event_info) const override;
 #endif
 
 #if defined(MYSQL_SERVER)
@@ -3590,8 +3586,7 @@ class Ignorable_log_event : public virtual binary_log::Ignorable_event,
 #endif
 
 #ifndef MYSQL_SERVER
-  void print(FILE *file,
-                     PRINT_EVENT_INFO *print_event_info) const override;
+  void print(FILE *file, PRINT_EVENT_INFO *print_event_info) const override;
 #endif
 
   size_t get_data_size() override {
@@ -3664,8 +3659,7 @@ class Rows_query_log_event : public Ignorable_log_event,
     m_rows_query = nullptr;
   }
 #ifndef MYSQL_SERVER
-  void print(FILE *file,
-                     PRINT_EVENT_INFO *print_event_info) const override;
+  void print(FILE *file, PRINT_EVENT_INFO *print_event_info) const override;
 #endif
   size_t get_data_size() override {
     return Binary_log_event::IGNORABLE_HEADER_LEN + 1 + strlen(m_rows_query);

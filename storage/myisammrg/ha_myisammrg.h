@@ -142,7 +142,8 @@ class ha_myisammrg : public handler {
   int rnd_next(uchar *buf) override;
   int rnd_pos(uchar *buf, uchar *pos) override;
   void position(const uchar *record) override;
-  ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key) override;
+  ha_rows records_in_range(uint inx, key_range *min_key,
+                           key_range *max_key) override;
   int truncate(dd::Table *table_def) override;
   int info(uint) override;
   int reset(void) override;
@@ -158,7 +159,8 @@ class ha_myisammrg : public handler {
   void append_create_info(String *packet) override;
   MYRG_INFO *myrg_info() { return file; }
   TABLE *table_ptr() { return table; }
-  bool check_if_incompatible_data(HA_CREATE_INFO *info, uint table_changes) override;
+  bool check_if_incompatible_data(HA_CREATE_INFO *info,
+                                  uint table_changes) override;
   int check(THD *thd, HA_CHECK_OPT *check_opt) override;
   int records(ha_rows *num_rows) override;
 };

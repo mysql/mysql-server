@@ -479,8 +479,8 @@ class Bad_db_error_handler : public Internal_error_handler {
   Bad_db_error_handler() : m_error_caught(false) {}
 
   bool handle_condition(THD *, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *,
-                                const char *) override {
+                        Sql_condition::enum_severity_level *,
+                        const char *) override {
     if (sql_errno == ER_BAD_DB_ERROR) {
       m_error_caught = true;
       return true;

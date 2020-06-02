@@ -155,29 +155,33 @@ class ha_myisam : public handler {
   int indexes_are_disabled(void) override;
   void start_bulk_insert(ha_rows rows) override;
   int end_bulk_insert() override;
-  ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key) override;
+  ha_rows records_in_range(uint inx, key_range *min_key,
+                           key_range *max_key) override;
   void update_create_info(HA_CREATE_INFO *create_info) override;
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info,
              dd::Table *table_def) override;
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type) override;
   void get_auto_increment(ulonglong offset, ulonglong increment,
-                                  ulonglong nb_desired_values,
-                                  ulonglong *first_value,
-                                  ulonglong *nb_reserved_values) override;
+                          ulonglong nb_desired_values, ulonglong *first_value,
+                          ulonglong *nb_reserved_values) override;
   int rename_table(const char *from, const char *to,
-                   const dd::Table *from_table_def, dd::Table *to_table_def) override;
+                   const dd::Table *from_table_def,
+                   dd::Table *to_table_def) override;
   int delete_table(const char *name, const dd::Table *table_def) override;
   int check(THD *thd, HA_CHECK_OPT *check_opt) override;
   int analyze(THD *thd, HA_CHECK_OPT *check_opt) override;
   int repair(THD *thd, HA_CHECK_OPT *check_opt) override;
   bool check_and_repair(THD *thd) override;
   bool is_crashed() const override;
-  bool auto_repair() const override { return myisam_recover_options != HA_RECOVER_OFF; }
+  bool auto_repair() const override {
+    return myisam_recover_options != HA_RECOVER_OFF;
+  }
   int optimize(THD *thd, HA_CHECK_OPT *check_opt) override;
   int assign_to_keycache(THD *thd, HA_CHECK_OPT *check_opt) override;
   int preload_keys(THD *thd, HA_CHECK_OPT *check_opt) override;
-  bool check_if_incompatible_data(HA_CREATE_INFO *info, uint table_changes) override;
+  bool check_if_incompatible_data(HA_CREATE_INFO *info,
+                                  uint table_changes) override;
   MI_INFO *file_ptr(void) { return file; }
 
  public:
@@ -185,14 +189,16 @@ class ha_myisam : public handler {
    * Multi Range Read interface
    */
   int multi_range_read_init(RANGE_SEQ_IF *seq, void *seq_init_param,
-                            uint n_ranges, uint mode, HANDLER_BUFFER *buf) override;
+                            uint n_ranges, uint mode,
+                            HANDLER_BUFFER *buf) override;
   int multi_range_read_next(char **range_info) override;
   ha_rows multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
                                       void *seq_init_param, uint n_ranges,
                                       uint *bufsz, uint *flags,
                                       Cost_estimate *cost) override;
   ha_rows multi_range_read_info(uint keyno, uint n_ranges, uint keys,
-                                uint *bufsz, uint *flags, Cost_estimate *cost) override;
+                                uint *bufsz, uint *flags,
+                                Cost_estimate *cost) override;
 
   /* Index condition pushdown implementation */
   Item *idx_cond_push(uint keyno, Item *idx_cond) override;

@@ -580,7 +580,7 @@ class unit_ctx : virtual public context {
   }
 
   bool add_subquery(subquery_list_enum subquery_type,
-                            subquery_ctx *ctx) override {
+                    subquery_ctx *ctx) override {
     return subquery_lists[subquery_type].push_back(ctx);
   }
 };
@@ -735,7 +735,7 @@ class union_result_ctx : public table_base_ctx, public unit_ctx {
   void push_down_query_specs(List<context> *specs) { query_specs = specs; }
 
   bool add_subquery(subquery_list_enum subquery_type,
-                            subquery_ctx *ctx) override {
+                    subquery_ctx *ctx) override {
     switch (subquery_type) {
       case SQ_ORDER_BY:
         return order_by_subqueries.push_back(ctx);
@@ -914,7 +914,8 @@ class join_tab_ctx : public joinable_ctx, public table_with_where_and_derived {
     where_subquery_units.push_back(subquery);
   }
 
-  int add_where_subquery(subquery_ctx *ctx, SELECT_LEX_UNIT *subquery) override {
+  int add_where_subquery(subquery_ctx *ctx,
+                         SELECT_LEX_UNIT *subquery) override {
     List_iterator<SELECT_LEX_UNIT> it(where_subquery_units);
     SELECT_LEX_UNIT *u;
     while ((u = it++)) {
@@ -966,7 +967,8 @@ class simple_sort_ctx : public joinable_ctx {
     return false;
   }
 
-  int add_where_subquery(subquery_ctx *ctx, SELECT_LEX_UNIT *subquery) override {
+  int add_where_subquery(subquery_ctx *ctx,
+                         SELECT_LEX_UNIT *subquery) override {
     return join_tab->add_where_subquery(ctx, subquery);
   }
 
@@ -1009,7 +1011,7 @@ class simple_sort_with_subqueries_ctx : public simple_sort_ctx {
         subquery_type(subquery_type_arg) {}
 
   bool add_subquery(subquery_list_enum subquery_type_arg,
-                            subquery_ctx *ctx) override {
+                    subquery_ctx *ctx) override {
     if (subquery_type != subquery_type_arg)
       return simple_sort_ctx::add_subquery(subquery_type_arg, ctx);
     else
@@ -1065,7 +1067,7 @@ class join_ctx : public unit_ctx, virtual public qep_row {
   bool find_and_set_derived(context *subquery) override;
 
   bool add_subquery(subquery_list_enum subquery_type,
-                            subquery_ctx *ctx) override;
+                    subquery_ctx *ctx) override;
 
  protected:
   bool format_body(Opt_trace_context *json, Opt_trace_object *obj) override;
@@ -1160,7 +1162,7 @@ class sort_with_subqueries_ctx : public sort_ctx {
         subquery_type(subquery_type_arg) {}
 
   bool add_subquery(subquery_list_enum subquery_type_arg,
-                            subquery_ctx *ctx) override {
+                    subquery_ctx *ctx) override {
     if (subquery_type_arg != subquery_type)
       return sort_ctx::add_subquery(subquery_type_arg, ctx);
     else
@@ -1480,13 +1482,14 @@ class materialize_ctx : public joinable_ctx,
   // Remove warnings: 'inherits ... from ... via dominance'
   qep_row *entry() override { return table_base_ctx::entry(); }
   bool add_subquery(subquery_list_enum subquery_type,
-                            subquery_ctx *ctx) override {
+                    subquery_ctx *ctx) override {
     return join_ctx::add_subquery(subquery_type, ctx);
   }
   bool add_join_tab(joinable_ctx *ctx) override {
     return join_ctx::add_join_tab(ctx);
   }
-  int add_where_subquery(subquery_ctx *ctx, SELECT_LEX_UNIT *subquery) override {
+  int add_where_subquery(subquery_ctx *ctx,
+                         SELECT_LEX_UNIT *subquery) override {
     return join_ctx::add_where_subquery(ctx, subquery);
   }
   bool find_and_set_derived(context *subquery) override {
@@ -1499,7 +1502,9 @@ class materialize_ctx : public joinable_ctx,
     return join_ctx::format_nested_loop(json);
   }
   void set_sort(sort_ctx *ctx) override { return join_ctx::set_sort(ctx); }
-  void set_window(window_ctx *ctx) override { return join_ctx::set_window(ctx); }
+  void set_window(window_ctx *ctx) override {
+    return join_ctx::set_window(ctx);
+  }
 
  private:
   bool format_body(Opt_trace_context *json, Opt_trace_object *obj) override {
@@ -1558,10 +1563,11 @@ class duplication_weedout_ctx : public joinable_ctx, public join_ctx {
     return join_ctx::add_join_tab(ctx);
   }
   bool add_subquery(subquery_list_enum subquery_type,
-                            subquery_ctx *ctx) override {
+                    subquery_ctx *ctx) override {
     return join_ctx::add_subquery(subquery_type, ctx);
   }
-  int add_where_subquery(subquery_ctx *ctx, SELECT_LEX_UNIT *subquery) override {
+  int add_where_subquery(subquery_ctx *ctx,
+                         SELECT_LEX_UNIT *subquery) override {
     return join_ctx::add_where_subquery(ctx, subquery);
   }
   bool find_and_set_derived(context *subquery) override {
@@ -1574,7 +1580,9 @@ class duplication_weedout_ctx : public joinable_ctx, public join_ctx {
     return unit_ctx::format_unit(json);
   }
   void set_sort(sort_ctx *ctx) override { return join_ctx::set_sort(ctx); }
-  void set_window(window_ctx *ctx) override { return join_ctx::set_window(ctx); }
+  void set_window(window_ctx *ctx) override {
+    return join_ctx::set_window(ctx);
+  }
   qep_row *entry() override { return join_ctx::entry(); }
 
  private:

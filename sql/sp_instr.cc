@@ -283,8 +283,8 @@ static bool subst_spvars(THD *thd, sp_instr *instr, LEX_CSTRING query_str) {
 class SP_instr_error_handler : public Internal_error_handler {
  public:
   bool handle_condition(THD *thd, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *,
-                                const char *) override {
+                        Sql_condition::enum_severity_level *,
+                        const char *) override {
     /*
       Check if the "table exists" error or warning reported for the
       CREATE TABLE ... SELECT statement.

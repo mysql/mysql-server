@@ -78,7 +78,7 @@ class table_accounts : public cursor_by_account {
 
  protected:
   int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                              bool read_all) override;
+                      bool read_all) override;
 
  protected:
   table_accounts();

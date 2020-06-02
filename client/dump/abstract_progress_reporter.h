@@ -39,7 +39,8 @@ class Abstract_progress_reporter : public virtual I_progress_reporter {
   /**
     Add new Progress Watcher to report to.
   */
-  void register_progress_watcher(I_progress_watcher *new_progress_watcher) override;
+  void register_progress_watcher(
+      I_progress_watcher *new_progress_watcher) override;
 
  protected:
   /**

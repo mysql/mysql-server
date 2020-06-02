@@ -202,7 +202,9 @@ class Foreign_key_impl : public Entity_object_impl, public Foreign_key {
   bool is_persistent() const override {
     return Entity_object_impl::is_persistent();
   }
-  const String_type &name() const override { return Entity_object_impl::name(); }
+  const String_type &name() const override {
+    return Entity_object_impl::name();
+  }
   void set_name(const String_type &name) override {
     Entity_object_impl::set_name(name);
   }

@@ -2726,10 +2726,10 @@ class THD : public MDL_context_owner,
                                 on table-level lock.
    */
   void notify_shared_lock(MDL_context_owner *ctx_in_use,
-                                  bool needs_thr_lock_abort) override;
+                          bool needs_thr_lock_abort) override;
 
   bool notify_hton_pre_acquire_exclusive(const MDL_key *mdl_key,
-                                                 bool *victimized) override;
+                                         bool *victimized) override;
 
   void notify_hton_post_release_exclusive(const MDL_key *mdl_key) override;
 

@@ -114,7 +114,7 @@ class Event_queue_element : public Event_basic {
   Event_queue_element();
   ~Event_queue_element() override;
   bool fill_event_info(THD *thd, const dd::Event &event,
-                               const char *dbname) override;
+                       const char *dbname) override;
 
   bool compute_next_execution_time(THD *thd);
 
@@ -143,7 +143,7 @@ class Event_timed : public Event_queue_element {
   void init();
 
   bool fill_event_info(THD *thd, const dd::Event &event,
-                               const char *schema_name) override;
+                       const char *schema_name) override;
 
   int get_create_event(const THD *thd, String *buf);
 
@@ -170,7 +170,7 @@ class Event_job_data : public Event_basic {
 
  private:
   bool fill_event_info(THD *thd, const dd::Event &event,
-                               const char *schema_name) override;
+                       const char *schema_name) override;
   bool construct_sp_sql(THD *thd, String *sp_sql);
 };
 

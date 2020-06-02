@@ -120,7 +120,7 @@ class table_esgs_by_user_by_event_name : public PFS_engine_table {
 
  protected:
   int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                              bool read_all) override;
+                      bool read_all) override;
 
   table_esgs_by_user_by_event_name();
 

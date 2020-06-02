@@ -179,7 +179,9 @@ class Sql_cmd_create_server : public Sql_cmd_common_server {
   Sql_cmd_create_server(Server_options *server_options)
       : Sql_cmd_common_server(), m_server_options(server_options) {}
 
-  enum_sql_command sql_command_code() const override { return SQLCOM_CREATE_SERVER; }
+  enum_sql_command sql_command_code() const override {
+    return SQLCOM_CREATE_SERVER;
+  }
 
   /**
      Create a new server by inserting a row into the
@@ -209,7 +211,9 @@ class Sql_cmd_alter_server : public Sql_cmd_common_server {
   Sql_cmd_alter_server(Server_options *server_options)
       : Sql_cmd_common_server(), m_server_options(server_options) {}
 
-  enum_sql_command sql_command_code() const override { return SQLCOM_ALTER_SERVER; }
+  enum_sql_command sql_command_code() const override {
+    return SQLCOM_ALTER_SERVER;
+  }
 
   /**
      Alter an existing server by updating the matching row in the
@@ -239,7 +243,9 @@ class Sql_cmd_drop_server : public Sql_cmd_common_server {
         m_server_name(server_name),
         m_if_exists(if_exists) {}
 
-  enum_sql_command sql_command_code() const override { return SQLCOM_DROP_SERVER; }
+  enum_sql_command sql_command_code() const override {
+    return SQLCOM_DROP_SERVER;
+  }
 
   /**
      Drop an existing server by deleting the matching row from the

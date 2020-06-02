@@ -72,8 +72,10 @@ class Gcs_sock_probe_interface_impl : public Gcs_sock_probe_interface {
 
   int init_sock_probe(sock_probe *s) override;
   int number_of_interfaces(sock_probe *s) override;
-  void get_sockaddr_address(sock_probe *s, int count, struct sockaddr **out) override;
-  void get_sockaddr_netmask(sock_probe *s, int count, struct sockaddr **out) override;
+  void get_sockaddr_address(sock_probe *s, int count,
+                            struct sockaddr **out) override;
+  void get_sockaddr_netmask(sock_probe *s, int count,
+                            struct sockaddr **out) override;
   char *get_if_name(sock_probe *s, int count) override;
   bool_t is_if_running(sock_probe *s, int count) override;
   void close_sock_probe(sock_probe *s) override;

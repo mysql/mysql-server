@@ -1161,8 +1161,8 @@ class DD_table_access_error_handler : public Internal_error_handler {
   DD_table_access_error_handler() {}
 
   bool handle_condition(THD *, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *,
-                                const char *) override {
+                        Sql_condition::enum_severity_level *,
+                        const char *) override {
     return (sql_errno == ER_NO_SYSTEM_TABLE_ACCESS);
   }
 };

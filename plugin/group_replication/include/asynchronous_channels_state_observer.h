@@ -43,7 +43,8 @@ class Asynchronous_channels_state_observer : public Channel_state_observer {
   int applier_stop(Binlog_relay_IO_param *param, bool aborted) override;
 
   /**  Observer for when a new transmission from a another server is requested*/
-  int before_request_transmit(Binlog_relay_IO_param *param, uint32 flags) override;
+  int before_request_transmit(Binlog_relay_IO_param *param,
+                              uint32 flags) override;
 
   /** Observer for whenever a event is read by the receiver thread*/
   int after_read_event(Binlog_relay_IO_param *param, const char *packet,

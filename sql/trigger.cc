@@ -74,8 +74,8 @@ class Deprecated_trigger_syntax_handler : public Internal_error_handler {
   Deprecated_trigger_syntax_handler() : m_trigger_name(nullptr) {}
 
   bool handle_condition(THD *thd, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *,
-                                const char *message) override {
+                        Sql_condition::enum_severity_level *,
+                        const char *message) override {
     if (sql_errno != EE_OUTOFMEMORY && sql_errno != ER_OUT_OF_RESOURCES) {
       if (thd->lex->spname) m_trigger_name = &thd->lex->spname->m_name;
       if (m_trigger_name)

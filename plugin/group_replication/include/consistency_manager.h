@@ -294,7 +294,7 @@ class Transaction_consistency_manager : public Group_transaction_listener {
       @retval !=0    error
   */
   int after_commit(my_thread_id thread_id, rpl_sidno sidno,
-                           rpl_gno gno) override;
+                   rpl_gno gno) override;
 
   /**
     Call action before a transaction starts.
@@ -315,9 +315,8 @@ class Transaction_consistency_manager : public Group_transaction_listener {
       @retval !=0    error
   */
   int before_transaction_begin(my_thread_id thread_id,
-                                       ulong gr_consistency_level,
-                                       ulong timeout,
-                                       enum_rpl_channel_type rpl_channel_type) override;
+                               ulong gr_consistency_level, ulong timeout,
+                               enum_rpl_channel_type rpl_channel_type) override;
 
   /**
     Call action once a Sync_before_execution_message is received,

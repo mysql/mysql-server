@@ -434,7 +434,8 @@ class Gcs_xcom_control : public Gcs_control_interface {
 
   const Gcs_member_identifier get_local_member_identifier() const override;
 
-  int add_event_listener(const Gcs_control_event_listener &event_listener) override;
+  int add_event_listener(
+      const Gcs_control_event_listener &event_listener) override;
 
   void remove_event_listener(int event_listener_handle) override;
 

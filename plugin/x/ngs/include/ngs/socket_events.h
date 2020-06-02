@@ -47,10 +47,12 @@ class Socket_events : public xpl::iface::Socket_events {
   Socket_events();
   ~Socket_events() override;
 
-  bool listen(std::shared_ptr<xpl::iface::Socket> s,
-              std::function<void(xpl::iface::Connection_acceptor &)> callback) override;
+  bool listen(
+      std::shared_ptr<xpl::iface::Socket> s,
+      std::function<void(xpl::iface::Connection_acceptor &)> callback) override;
 
-  void add_timer(const std::size_t delay_ms, std::function<bool()> callback) override;
+  void add_timer(const std::size_t delay_ms,
+                 std::function<bool()> callback) override;
   void loop() override;
   void break_loop() override;
 

@@ -128,7 +128,9 @@ class Column_impl : public Entity_object_impl, public Column {
     m_is_explicit_collation = is_explicit_collation;
   }
 
-  bool is_explicit_collation() const override { return m_is_explicit_collation; }
+  bool is_explicit_collation() const override {
+    return m_is_explicit_collation;
+  }
 
   /////////////////////////////////////////////////////////////////////////
   // nullable.
@@ -324,7 +326,9 @@ class Column_impl : public Entity_object_impl, public Column {
   // default_option.
   /////////////////////////////////////////////////////////////////////////
 
-  const String_type &default_option() const override { return m_default_option; }
+  const String_type &default_option() const override {
+    return m_default_option;
+  }
 
   void set_default_option(const String_type &default_option) override {
     m_default_option = default_option;
@@ -454,7 +458,9 @@ class Column_impl : public Entity_object_impl, public Column {
   bool is_persistent() const override {
     return Entity_object_impl::is_persistent();
   }
-  const String_type &name() const override { return Entity_object_impl::name(); }
+  const String_type &name() const override {
+    return Entity_object_impl::name();
+  }
   void set_name(const String_type &name) override {
     Entity_object_impl::set_name(name);
   }

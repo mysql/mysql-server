@@ -3740,7 +3740,9 @@ class Field_iterator_natural_join : public Field_iterator {
   void next() override;
   bool end_of_fields() override { return !cur_column_ref; }
   const char *name() override { return cur_column_ref->name(); }
-  Item *create_item(THD *thd) override { return cur_column_ref->create_item(thd); }
+  Item *create_item(THD *thd) override {
+    return cur_column_ref->create_item(thd);
+  }
   Field *field() override { return cur_column_ref->field(); }
   Natural_join_column *column_ref() { return cur_column_ref; }
 };

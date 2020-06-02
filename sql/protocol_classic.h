@@ -95,7 +95,7 @@ class Protocol_classic : public Protocol {
     init(thd);
   }
   void init(THD *thd_arg);
-  bool store_field(const Field *field) final ;
+  bool store_field(const Field *field) final;
   bool store_string(const char *from, size_t length,
                     const CHARSET_INFO *cs) final;
   int read_packet() override;

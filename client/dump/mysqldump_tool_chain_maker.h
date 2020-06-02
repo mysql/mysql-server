@@ -64,12 +64,14 @@ class Mysqldump_tool_chain_maker
 
   ~Mysqldump_tool_chain_maker() override;
 
-  I_object_reader *create_chain(Chain_data *chain_data, I_dump_task *dump_task) override;
+  I_object_reader *create_chain(Chain_data *chain_data,
+                                I_dump_task *dump_task) override;
 
   void delete_chain(uint64 chain_id, I_object_reader *chain) override;
 
   // Fix "inherits ... via dominance" warnings
-  void register_progress_watcher(I_progress_watcher *new_progress_watcher) override {
+  void register_progress_watcher(
+      I_progress_watcher *new_progress_watcher) override {
     Abstract_chain_element::register_progress_watcher(new_progress_watcher);
   }
 
@@ -78,7 +80,8 @@ class Mysqldump_tool_chain_maker
 
  protected:
   // Fix "inherits ... via dominance" warnings
-  void item_completion_in_child_callback(Item_processing_data *item_processed) override {
+  void item_completion_in_child_callback(
+      Item_processing_data *item_processed) override {
     Abstract_chain_element::item_completion_in_child_callback(item_processed);
   }
 

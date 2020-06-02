@@ -255,9 +255,10 @@ class Value_map final : public Value_map_base {
   bool insert(typename value_map_type::const_iterator begin,
               typename value_map_type::const_iterator end);
 
-  Histogram *build_histogram(
-      MEM_ROOT *mem_root, size_t num_buckets, const std::string &db_name,
-      const std::string &tbl_name, const std::string &col_name) const override;
+  Histogram *build_histogram(MEM_ROOT *mem_root, size_t num_buckets,
+                             const std::string &db_name,
+                             const std::string &tbl_name,
+                             const std::string &col_name) const override;
 
   /// @return the overhead in bytes for each distinct value stored in the
   ///         Value_map. The value 32 is obtained from both GCC 8.2 and

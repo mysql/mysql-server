@@ -496,7 +496,8 @@ class Applier_module : public Applier_module_interface {
 
     @param[in]  packet              The packet to be queued
   */
-  void add_single_primary_action_packet(Single_primary_action_packet *packet) override {
+  void add_single_primary_action_packet(
+      Single_primary_action_packet *packet) override {
     incoming->push(packet);
   }
 
@@ -658,8 +659,8 @@ class Applier_module : public Applier_module_interface {
       @retval -2     An error occurred
   */
   int wait_for_applier_event_execution(std::string &retrieved_set,
-                                               double timeout,
-                                               bool update_THD_status = true) override;
+                                       double timeout,
+                                       bool update_THD_status = true) override;
 
   /**
     Returns the handler instance in the applier module responsible for
@@ -689,7 +690,8 @@ class Applier_module : public Applier_module_interface {
       return APPLIER_ERROR; /* purecov: inspected */
   }
 
-  Pipeline_stats_member_collector *get_pipeline_stats_member_collector() override {
+  Pipeline_stats_member_collector *get_pipeline_stats_member_collector()
+      override {
     return &pipeline_stats_member_collector;
   }
 

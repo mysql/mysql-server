@@ -173,7 +173,7 @@ class Channel_info_local_socket : public Channel_info {
   }
 
   void send_error_and_close_channel(uint errorcode, int error,
-                                            bool senderror) override {
+                                    bool senderror) override {
     Channel_info::send_error_and_close_channel(errorcode, error, senderror);
 
     mysql_socket_shutdown(m_connect_sock, SHUT_RDWR);
@@ -245,7 +245,7 @@ class Channel_info_tcpip_socket : public Channel_info {
   }
 
   void send_error_and_close_channel(uint errorcode, int error,
-                                            bool senderror) override {
+                                    bool senderror) override {
     Channel_info::send_error_and_close_channel(errorcode, error, senderror);
 
     mysql_socket_shutdown(m_connect_sock, SHUT_RDWR);

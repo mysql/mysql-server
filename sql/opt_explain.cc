@@ -333,7 +333,8 @@ class Explain_no_table : public Explain {
   bool explain_modify_flags() override;
 
  private:
-  enum_parsing_context get_subquery_context(SELECT_LEX_UNIT *unit) const override;
+  enum_parsing_context get_subquery_context(
+      SELECT_LEX_UNIT *unit) const override;
 };
 
 /**

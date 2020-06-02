@@ -44,11 +44,11 @@ class Base_codec : public binary_log::codecs::Codec {
 
  public:
   std::pair<std::size_t, bool> decode(const unsigned char *from,
-                                              std::size_t size,
-                                              Binary_log_event &to) const override = 0;
+                                      std::size_t size,
+                                      Binary_log_event &to) const override = 0;
   std::pair<std::size_t, bool> encode(const Binary_log_event &from,
-                                              unsigned char *to,
-                                              std::size_t size) const override = 0;
+                                      unsigned char *to,
+                                      std::size_t size) const override = 0;
 
   ~Base_codec() override {}
 };
@@ -72,8 +72,8 @@ class Transaction_payload : public Base_codec {
              an error or not. False if no error, true otherwise.
    */
   std::pair<std::size_t, bool> decode(const unsigned char *from,
-                                              std::size_t size,
-                                              Binary_log_event &to) const override;
+                                      std::size_t size,
+                                      Binary_log_event &to) const override;
 
   /**
      This member function shall encode the contents of the event referenced and
@@ -88,8 +88,8 @@ class Transaction_payload : public Base_codec {
              an error or not.
   */
   std::pair<std::size_t, bool> encode(const Binary_log_event &from,
-                                              unsigned char *to,
-                                              std::size_t size) const override;
+                                      unsigned char *to,
+                                      std::size_t size) const override;
 };
 
 }  // namespace binary

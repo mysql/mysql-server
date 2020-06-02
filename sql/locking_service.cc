@@ -50,8 +50,8 @@
 class Locking_service_deadlock_error_handler : public Internal_error_handler {
  public:
   bool handle_condition(THD *, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *,
-                                const char *) override {
+                        Sql_condition::enum_severity_level *,
+                        const char *) override {
     if (sql_errno == ER_LOCK_DEADLOCK) {
       my_error(ER_LOCKING_SERVICE_DEADLOCK, MYF(0));
       return true;

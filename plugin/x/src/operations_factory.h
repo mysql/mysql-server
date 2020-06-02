@@ -35,7 +35,8 @@ class Operations_factory : public iface::Operations_factory {
  public:
   std::shared_ptr<iface::Socket> create_socket(PSI_socket_key key, int domain,
                                                int type, int protocol) override;
-  std::shared_ptr<iface::Socket> create_socket(MYSQL_SOCKET mysql_socket) override;
+  std::shared_ptr<iface::Socket> create_socket(
+      MYSQL_SOCKET mysql_socket) override;
 
   std::shared_ptr<iface::File> open_file(const char *name, int access,
                                          int permission) override;

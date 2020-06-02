@@ -54,7 +54,8 @@ class Abstract_chain_element : public virtual I_chain_element,
   Abstract_chain_element &operator=(Abstract_chain_element &&other) = delete;
 
   // Fix "inherits ... via dominance" warnings
-  void register_progress_watcher(I_progress_watcher *new_progress_watcher) override {
+  void register_progress_watcher(
+      I_progress_watcher *new_progress_watcher) override {
     Abstract_progress_reporter::register_progress_watcher(new_progress_watcher);
   }
 
@@ -126,7 +127,8 @@ class Abstract_chain_element : public virtual I_chain_element,
   virtual bool need_callbacks_in_child();
 
   // Must be protected to allow subclasses to call explicitly.
-  void item_completion_in_child_callback(Item_processing_data *item_processed) override;
+  void item_completion_in_child_callback(
+      Item_processing_data *item_processed) override;
 
  private:
   /**

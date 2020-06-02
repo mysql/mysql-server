@@ -121,8 +121,8 @@ class Audit_error_handler : public Internal_error_handler {
     @returns True on error rejection, otherwise false.
   */
   bool handle_condition(THD *, uint sql_errno, const char *sqlstate,
-                                Sql_condition::enum_severity_level *,
-                                const char *msg) override {
+                        Sql_condition::enum_severity_level *,
+                        const char *msg) override {
     if (m_active && handle()) {
       /* Error has been rejected. Write warning message. */
       print_warning(m_warning_message, sql_errno, sqlstate, msg);
@@ -347,8 +347,8 @@ class Ignore_event_error_handler : public Audit_error_handler {
     @param msg       The text of the underlying error. NULL if none
   */
   void print_warning(const char *warn_msg MY_ATTRIBUTE((unused)),
-                             uint sql_errno, const char *sqlstate,
-                             const char *msg) override {
+                     uint sql_errno, const char *sqlstate,
+                     const char *msg) override {
     LogErr(WARNING_LEVEL, ER_AUDIT_CANT_ABORT_EVENT, m_event_name, sql_errno,
            sqlstate ? sqlstate : "<NO_STATE>", msg ? msg : "<NO_MESSAGE>");
   }
@@ -811,8 +811,8 @@ class Ignore_command_start_error_handler : public Audit_error_handler {
     @param msg       The text of the underlying error. NULL if none
   */
   void print_warning(const char *warn_msg MY_ATTRIBUTE((unused)),
-                             uint sql_errno, const char *sqlstate,
-                             const char *msg) override {
+                     uint sql_errno, const char *sqlstate,
+                     const char *msg) override {
     LogErr(WARNING_LEVEL, ER_AUDIT_CANT_ABORT_COMMAND, m_command_text,
            sql_errno, sqlstate ? sqlstate : "<NO_STATE>",
            msg ? msg : "<NO_MESSAGE>");

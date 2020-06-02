@@ -28,12 +28,11 @@
 class Test_MDL_context_owner : public MDL_context_owner {
  public:
   Test_MDL_context_owner() {}
-  void enter_cond(mysql_cond_t *, mysql_mutex_t *,
-                          const PSI_stage_info *, PSI_stage_info *,
-                          const char *, const char *, int) override {}
+  void enter_cond(mysql_cond_t *, mysql_mutex_t *, const PSI_stage_info *,
+                  PSI_stage_info *, const char *, const char *, int) override {}
 
   void exit_cond(const PSI_stage_info *, const char *, const char *,
-                         int) override {}
+                 int) override {}
 
   int is_killed() const final { return 0; }
   bool is_connected() override { return true; }

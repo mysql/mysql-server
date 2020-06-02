@@ -168,10 +168,14 @@ class ha_federated : public handler {
   ulong index_flags(uint, uint, bool) const override {
     return (HA_READ_NEXT | HA_READ_RANGE | HA_READ_AFTER_KEY);
   }
-  uint max_supported_record_length() const override { return HA_MAX_REC_LENGTH; }
+  uint max_supported_record_length() const override {
+    return HA_MAX_REC_LENGTH;
+  }
   uint max_supported_keys() const override { return MAX_KEY; }
   uint max_supported_key_parts() const override { return MAX_REF_PARTS; }
-  uint max_supported_key_length() const override { return FEDERATED_MAX_KEY_LENGTH; }
+  uint max_supported_key_length() const override {
+    return FEDERATED_MAX_KEY_LENGTH;
+  }
   uint max_supported_key_part_length(
       HA_CREATE_INFO *create_info MY_ATTRIBUTE((unused))) const override {
     return FEDERATED_MAX_KEY_LENGTH;
@@ -256,10 +260,12 @@ class ha_federated : public handler {
   int truncate(dd::Table *table_def) override;
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info,
              dd::Table *table_def) override;  // required
-  ha_rows records_in_range(uint inx, key_range *start_key, key_range *end_key) override;
+  ha_rows records_in_range(uint inx, key_range *start_key,
+                           key_range *end_key) override;
 
-  THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
-                             enum thr_lock_type lock_type) override;  // required
+  THR_LOCK_DATA **store_lock(
+      THD *thd, THR_LOCK_DATA **to,
+      enum thr_lock_type lock_type) override;  // required
   bool get_error_message(int error, String *buf) override;
 
   MYSQL_RES *store_result(MYSQL *mysql);

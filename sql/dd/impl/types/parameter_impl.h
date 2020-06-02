@@ -125,7 +125,9 @@ class Parameter_impl : public Entity_object_impl, public Parameter {
   // display type
   /////////////////////////////////////////////////////////////////////////
 
-  const String_type &data_type_utf8() const override { return m_data_type_utf8; }
+  const String_type &data_type_utf8() const override {
+    return m_data_type_utf8;
+  }
 
   void set_data_type_utf8(const String_type &data_type_utf8) override {
     m_data_type_utf8 = data_type_utf8;
@@ -267,7 +269,9 @@ class Parameter_impl : public Entity_object_impl, public Parameter {
   bool is_persistent() const override {
     return Entity_object_impl::is_persistent();
   }
-  const String_type &name() const override { return Entity_object_impl::name(); }
+  const String_type &name() const override {
+    return Entity_object_impl::name();
+  }
   void set_name(const String_type &name) override {
     Entity_object_impl::set_name(name);
   }

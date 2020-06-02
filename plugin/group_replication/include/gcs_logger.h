@@ -68,7 +68,8 @@ class Gcs_gr_logger_impl : public Logger_interface {
     @param[in] level    logging level of message
     @param[in] message  the message to log
   */
-  void log_event(const gcs_log_level_t level, const std::string &message) override;
+  void log_event(const gcs_log_level_t level,
+                 const std::string &message) override;
 
   /*
     Disabling copy constructor and assignment operator.

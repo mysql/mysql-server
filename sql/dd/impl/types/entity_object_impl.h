@@ -53,9 +53,7 @@ class Entity_object_impl : virtual public Entity_object,
   }
 
   /* purecov: begin deadcode */
-  bool is_persistent() const override {
-    return (m_id != INVALID_OBJECT_ID);
-  }
+  bool is_persistent() const override { return (m_id != INVALID_OBJECT_ID); }
   /* purecov: end */
 
   const String_type &name() const override { return m_name; }
@@ -64,9 +62,7 @@ class Entity_object_impl : virtual public Entity_object,
 
   Object_key *create_primary_key() const override;
 
-  bool has_new_primary_key() const override {
-    return m_has_new_primary_key;
-  }
+  bool has_new_primary_key() const override { return m_has_new_primary_key; }
 
   Entity_object_impl *impl() override { return this; }
   const Entity_object_impl *impl() const override { return this; }

@@ -156,24 +156,16 @@ class Nop_visitor : public Geometry_visitor {
   }
 
   bool visit(Geometry *) override { return false; }
-  bool visit(Point *pt) override {
-    return visit(static_cast<Geometry *>(pt));
-  }
-  bool visit(Curve *c) override {
-    return visit(static_cast<Geometry *>(c));
-  }
+  bool visit(Point *pt) override { return visit(static_cast<Geometry *>(pt)); }
+  bool visit(Curve *c) override { return visit(static_cast<Geometry *>(c)); }
   bool visit(Linestring *ls) override {
     return visit(static_cast<Curve *>(ls));
   }
   bool visit(Linearring *lr) override {
     return visit(static_cast<Linestring *>(lr));
   }
-  bool visit(Surface *s) override {
-    return visit(static_cast<Geometry *>(s));
-  }
-  bool visit(Polygon *py) override {
-    return visit(static_cast<Surface *>(py));
-  }
+  bool visit(Surface *s) override { return visit(static_cast<Geometry *>(s)); }
+  bool visit(Polygon *py) override { return visit(static_cast<Surface *>(py)); }
   bool visit(Geometrycollection *gc) override {
     return visit(static_cast<Geometry *>(gc));
   }

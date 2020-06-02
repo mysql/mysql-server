@@ -660,8 +660,8 @@ class Rmdir_error_handler : public Internal_error_handler {
   Rmdir_error_handler() : m_is_active(false) {}
 
   bool handle_condition(THD *thd, uint, const char *,
-                                Sql_condition::enum_severity_level *,
-                                const char *msg) override {
+                        Sql_condition::enum_severity_level *,
+                        const char *msg) override {
     if (!m_is_active) {
       /* Disable the handler to avoid infinite recursion. */
       m_is_active = true;

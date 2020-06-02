@@ -102,8 +102,8 @@ class Syntax_error_handler : public Internal_error_handler {
   Syntax_error_handler(Upgrade_error_counter *counter)
       : m_global_counter(counter) {}
   bool handle_condition(THD *, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *,
-                                const char *msg) override;
+                        Sql_condition::enum_severity_level *,
+                        const char *msg) override;
 
   static bool has_too_many_errors();
   static bool has_errors();

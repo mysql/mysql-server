@@ -7064,8 +7064,8 @@ class Parser_oom_handler : public Internal_error_handler {
  public:
   Parser_oom_handler() : m_has_errors(false), m_is_mem_error(false) {}
   bool handle_condition(THD *thd, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *level,
-                                const char *) override {
+                        Sql_condition::enum_severity_level *level,
+                        const char *) override {
     if (*level == Sql_condition::SL_ERROR) {
       m_has_errors = true;
       /* Out of memory error is reported only once. Return as handled */

@@ -105,7 +105,9 @@ class ha_perfschema : public handler {
     return HA_KEY_ALG_HASH;
   }
 
-  uint max_supported_record_length(void) const override { return HA_MAX_REC_LENGTH; }
+  uint max_supported_record_length(void) const override {
+    return HA_MAX_REC_LENGTH;
+  }
 
   uint max_supported_keys(void) const override { return MAX_KEY; }
 
@@ -208,7 +210,8 @@ class ha_perfschema : public handler {
   int delete_table(const char *from, const dd::Table *table_def) override;
 
   int rename_table(const char *from, const char *to,
-                   const dd::Table *from_table_def, dd::Table *to_table_def) override;
+                   const dd::Table *from_table_def,
+                   dd::Table *to_table_def) override;
 
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info,
              dd::Table *table_def) override;

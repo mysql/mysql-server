@@ -64,7 +64,7 @@ class table_keyring_keys : public PFS_engine_table {
  private:
   table_keyring_keys();
   int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                              bool read_all) override;
+                      bool read_all) override;
   bool copy_keys_from_keyring();
 
  private:

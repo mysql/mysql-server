@@ -50,12 +50,14 @@ class Abstract_progress_watcher : public virtual I_progress_watcher,
 
   void object_processing_started(Item_processing_data *process_data) override;
 
-  void object_processing_ended(Item_processing_data *finished_process_data) override;
+  void object_processing_ended(
+      Item_processing_data *finished_process_data) override;
 
   void crawler_completed(I_crawler *crawler) override;
 
   // Fix "inherits ... via dominance" warnings
-  void register_progress_watcher(I_progress_watcher *new_progress_watcher) override {
+  void register_progress_watcher(
+      I_progress_watcher *new_progress_watcher) override {
     Abstract_chain_element::register_progress_watcher(new_progress_watcher);
   }
 
@@ -86,7 +88,8 @@ class Abstract_progress_watcher : public virtual I_progress_watcher,
   Progress_data m_last_progress;
 
   // Fix "inherits ... via dominance" warnings
-  void item_completion_in_child_callback(Item_processing_data *item_processed) override {
+  void item_completion_in_child_callback(
+      Item_processing_data *item_processed) override {
     Abstract_chain_element::item_completion_in_child_callback(item_processed);
   }
 

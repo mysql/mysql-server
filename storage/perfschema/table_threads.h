@@ -199,10 +199,10 @@ class table_threads : public cursor_by_thread {
 
  protected:
   int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                              bool read_all) override;
+                      bool read_all) override;
 
   int update_row_values(TABLE *table, const unsigned char *old_buf,
-                                unsigned char *new_buf, Field **fields) override;
+                        unsigned char *new_buf, Field **fields) override;
 
  protected:
   table_threads();

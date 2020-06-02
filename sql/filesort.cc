@@ -824,8 +824,8 @@ class Filesort_error_handler : public Internal_error_handler {
     only once per sort.
   */
   bool handle_condition(THD *, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *level,
-                                const char *) override {
+                        Sql_condition::enum_severity_level *level,
+                        const char *) override {
     if (*level == Sql_condition::SL_WARNING &&
         sql_errno == ER_NOT_SUPPORTED_YET) {
       if (m_seen_not_supported) return true;

@@ -115,7 +115,7 @@ class table_mems_by_thread_by_event_name : public PFS_engine_table {
 
  private:
   int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                              bool read_all) override;
+                      bool read_all) override;
 
   table_mems_by_thread_by_event_name();
 

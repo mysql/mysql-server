@@ -98,8 +98,8 @@ static const TABLE_FIELD_DEF component_table_def = {CT_FIELD_COUNT,
 
 class Component_db_intact : public Table_check_intact {
  protected:
-  void report_error(uint ecode, const char *fmt, ...)
-      override MY_ATTRIBUTE((format(printf, 3, 4))) {
+  void report_error(uint ecode, const char *fmt, ...) override
+      MY_ATTRIBUTE((format(printf, 3, 4))) {
     longlong log_ecode = 0;
     switch (ecode) {
       case 0:

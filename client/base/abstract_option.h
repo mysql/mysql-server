@@ -88,7 +88,8 @@ class Abstract_option : public I_option {
     Method to set listener on option changed events.
     For use from Abstract_options_provider class only.
    */
-  void set_option_changed_listener(I_option_changed_listener *listener) override;
+  void set_option_changed_listener(
+      I_option_changed_listener *listener) override;
 
   my_option m_option_structure;
 

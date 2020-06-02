@@ -123,7 +123,9 @@ class ha_example : public handler {
     send. Return *real* limits of your storage engine here; MySQL will do
     min(your_limits, MySQL_limits) automatically.
    */
-  uint max_supported_record_length() const override { return HA_MAX_REC_LENGTH; }
+  uint max_supported_record_length() const override {
+    return HA_MAX_REC_LENGTH;
+  }
 
   /** @brief
     unireg.cc will call this to make sure that the storage engine can handle
@@ -255,13 +257,16 @@ class ha_example : public handler {
   int extra(enum ha_extra_function operation) override;
   int external_lock(THD *thd, int lock_type) override;  ///< required
   int delete_all_rows(void) override;
-  ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key) override;
+  ha_rows records_in_range(uint inx, key_range *min_key,
+                           key_range *max_key) override;
   int delete_table(const char *from, const dd::Table *table_def) override;
   int rename_table(const char *from, const char *to,
-                   const dd::Table *from_table_def, dd::Table *to_table_def) override;
+                   const dd::Table *from_table_def,
+                   dd::Table *to_table_def) override;
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info,
              dd::Table *table_def) override;  ///< required
 
-  THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
-                             enum thr_lock_type lock_type) override;  ///< required
+  THR_LOCK_DATA **store_lock(
+      THD *thd, THR_LOCK_DATA **to,
+      enum thr_lock_type lock_type) override;  ///< required
 };

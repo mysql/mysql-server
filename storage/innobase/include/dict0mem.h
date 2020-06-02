@@ -2406,7 +2406,8 @@ class AutoIncPersister : public Persister {
   /** Pre-calculate the size of metadata to be written
   @param[in]	metadata	metadata to be written
   @return the size of metadata */
-  inline ulint get_write_size(const PersistentTableMetadata &metadata) const override {
+  inline ulint get_write_size(
+      const PersistentTableMetadata &metadata) const override {
     /* We just return the max possible size that would be used
     if the counter exists, so we don't calculate every time.
     Here we need 1 byte for dynamic metadata type and 11 bytes

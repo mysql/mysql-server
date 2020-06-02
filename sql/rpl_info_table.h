@@ -139,7 +139,8 @@ class Rpl_info_table : public Rpl_info_handler {
   int do_prepare_info_for_write() override;
 
   bool do_set_info(const int pos, const char *value) override;
-  bool do_set_info(const int pos, const uchar *value, const size_t size) override;
+  bool do_set_info(const int pos, const uchar *value,
+                   const size_t size) override;
   bool do_set_info(const int pos, const int value) override;
   bool do_set_info(const int pos, const ulong value) override;
   bool do_set_info(const int pos, const float value) override;
@@ -165,18 +166,20 @@ class Rpl_info_table : public Rpl_info_handler {
   bool do_set_info(const int pos, const std::nullptr_t value,
                    const size_t size) override;
   Rpl_info_handler::enum_field_get_status do_get_info(
-      const int pos, char *value, const size_t size, const char *default_value) override;
+      const int pos, char *value, const size_t size,
+      const char *default_value) override;
   Rpl_info_handler::enum_field_get_status do_get_info(
       const int pos, uchar *value, const size_t size,
       const uchar *default_value) override;
-  Rpl_info_handler::enum_field_get_status do_get_info(const int pos, int *value,
-                                                      const int default_value) override;
+  Rpl_info_handler::enum_field_get_status do_get_info(
+      const int pos, int *value, const int default_value) override;
   Rpl_info_handler::enum_field_get_status do_get_info(
       const int pos, ulong *value, const ulong default_value) override;
   Rpl_info_handler::enum_field_get_status do_get_info(
       const int pos, float *value, const float default_value) override;
   Rpl_info_handler::enum_field_get_status do_get_info(
-      const int pos, Server_ids *value, const Server_ids *default_value) override;
+      const int pos, Server_ids *value,
+      const Server_ids *default_value) override;
   char *do_get_description_info() override;
 
   bool do_is_transactional() override;

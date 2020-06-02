@@ -129,7 +129,7 @@ class table_replication_asynchronous_connection_failover
     @param read_all         true if all columns are read.
   */
   int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                              bool read_all) override;
+                      bool read_all) override;
 
   table_replication_asynchronous_connection_failover();
 

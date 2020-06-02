@@ -807,8 +807,10 @@ class Gcs_xcom_proxy_base : public Gcs_xcom_proxy {
   explicit Gcs_xcom_proxy_base() {}
   ~Gcs_xcom_proxy_base() override {}
 
-  bool xcom_boot_node(Gcs_xcom_node_information &node, uint32_t group_id_hash) override;
-  bool xcom_remove_nodes(Gcs_xcom_nodes &nodes, uint32_t group_id_hash) override;
+  bool xcom_boot_node(Gcs_xcom_node_information &node,
+                      uint32_t group_id_hash) override;
+  bool xcom_remove_nodes(Gcs_xcom_nodes &nodes,
+                         uint32_t group_id_hash) override;
   bool xcom_remove_nodes(connection_descriptor &con, Gcs_xcom_nodes &nodes,
                          uint32_t group_id_hash) override;
   bool xcom_remove_node(const Gcs_xcom_node_information &node,
@@ -861,8 +863,8 @@ class Gcs_xcom_proxy_impl : public Gcs_xcom_proxy_base {
   bool xcom_client_remove_node(node_list *nl, uint32_t group_id) override;
   bool xcom_client_remove_node(connection_descriptor *fd, node_list *nl,
                                uint32_t group_id) override;
-  bool xcom_client_get_event_horizon(uint32_t group_id,
-                                     xcom_event_horizon &event_horizon) override;
+  bool xcom_client_get_event_horizon(
+      uint32_t group_id, xcom_event_horizon &event_horizon) override;
   bool xcom_client_set_event_horizon(uint32_t group_id,
                                      xcom_event_horizon event_horizon) override;
   bool xcom_client_get_synode_app_data(connection_descriptor *con,

@@ -82,7 +82,7 @@ class Event_impl : public Entity_object_impl, public Event {
   const String_type &definer_host() const override { return m_definer_host; }
 
   void set_definer(const String_type &username,
-                           const String_type &hostname) override {
+                   const String_type &hostname) override {
     m_definer_user = username;
     m_definer_host = hostname;
   }
@@ -265,7 +265,9 @@ class Event_impl : public Entity_object_impl, public Event {
     m_is_last_executed_null = is_null;
   }
 
-  bool is_last_executed_null() const override { return m_is_last_executed_null; }
+  bool is_last_executed_null() const override {
+    return m_is_last_executed_null;
+  }
 
   /////////////////////////////////////////////////////////////////////////
   // comment.
@@ -322,7 +324,9 @@ class Event_impl : public Entity_object_impl, public Event {
   bool is_persistent() const override {
     return Entity_object_impl::is_persistent();
   }
-  const String_type &name() const override { return Entity_object_impl::name(); }
+  const String_type &name() const override {
+    return Entity_object_impl::name();
+  }
   void set_name(const String_type &name) override {
     Entity_object_impl::set_name(name);
   }

@@ -545,7 +545,8 @@ class Group_member_info : public Plugin_gcs_message {
 
  protected:
   void encode_payload(std::vector<unsigned char> *buffer) const override;
-  void decode_payload(const unsigned char *buffer, const unsigned char *) override;
+  void decode_payload(const unsigned char *buffer,
+                      const unsigned char *) override;
 
  private:
   /**
@@ -895,7 +896,8 @@ class Group_member_info_manager : public Group_member_info_manager_interface {
                             Notification_context &ctx) override;
 
   void update_gtid_sets(const std::string &uuid, std::string &gtid_executed,
-                        std::string &purged_gtids, std::string &gtid_retrieved) override;
+                        std::string &purged_gtids,
+                        std::string &gtid_retrieved) override;
 
   void update_member_role(const std::string &uuid,
                           Group_member_info::Group_member_role new_role,
@@ -904,7 +906,8 @@ class Group_member_info_manager : public Group_member_info_manager_interface {
   void update_group_primary_roles(const std::string &uuid,
                                   Notification_context &ctx) override;
 
-  void update_member_weight(const std::string &uuid, uint member_weight) override;
+  void update_member_weight(const std::string &uuid,
+                            uint member_weight) override;
 
   void update_primary_member_flag(bool in_primary_mode) override;
 
@@ -1016,7 +1019,8 @@ class Group_member_info_manager_message : public Plugin_gcs_message {
 
  protected:
   void encode_payload(std::vector<unsigned char> *buffer) const override;
-  void decode_payload(const unsigned char *buffer, const unsigned char *end) override;
+  void decode_payload(const unsigned char *buffer,
+                      const unsigned char *end) override;
 
  private:
   /**

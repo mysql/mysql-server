@@ -84,7 +84,9 @@ class Assign_visitor : public Default_visitor {
   void visit_float(const float value) override {
     store_and_mark(&m_destination, &value);
   }
-  void visit_bool(const bool value) override { store_and_mark(&m_destination, &value); }
+  void visit_bool(const bool value) override {
+    store_and_mark(&m_destination, &value);
+  }
   void visit_object(const Argument_object &value) override {
     store_and_mark(&m_destination, &value);
   }

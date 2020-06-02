@@ -399,12 +399,12 @@ class Prelocking_strategy {
 class DML_prelocking_strategy : public Prelocking_strategy {
  public:
   bool handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
-                              Sroutine_hash_entry *rt, sp_head *sp,
-                              bool *need_prelocking) override;
+                      Sroutine_hash_entry *rt, sp_head *sp,
+                      bool *need_prelocking) override;
   bool handle_table(THD *thd, Query_tables_list *prelocking_ctx,
-                            TABLE_LIST *table_list, bool *need_prelocking) override;
+                    TABLE_LIST *table_list, bool *need_prelocking) override;
   bool handle_view(THD *thd, Query_tables_list *prelocking_ctx,
-                           TABLE_LIST *table_list, bool *need_prelocking) override;
+                   TABLE_LIST *table_list, bool *need_prelocking) override;
 };
 
 /**
@@ -414,7 +414,7 @@ class DML_prelocking_strategy : public Prelocking_strategy {
 
 class Lock_tables_prelocking_strategy : public DML_prelocking_strategy {
   bool handle_table(THD *thd, Query_tables_list *prelocking_ctx,
-                            TABLE_LIST *table_list, bool *need_prelocking) override;
+                    TABLE_LIST *table_list, bool *need_prelocking) override;
 };
 
 /**
@@ -428,12 +428,12 @@ class Lock_tables_prelocking_strategy : public DML_prelocking_strategy {
 class Alter_table_prelocking_strategy : public Prelocking_strategy {
  public:
   bool handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
-                              Sroutine_hash_entry *rt, sp_head *sp,
-                              bool *need_prelocking) override;
+                      Sroutine_hash_entry *rt, sp_head *sp,
+                      bool *need_prelocking) override;
   bool handle_table(THD *thd, Query_tables_list *prelocking_ctx,
-                            TABLE_LIST *table_list, bool *need_prelocking) override;
+                    TABLE_LIST *table_list, bool *need_prelocking) override;
   bool handle_view(THD *thd, Query_tables_list *prelocking_ctx,
-                           TABLE_LIST *table_list, bool *need_prelocking) override;
+                   TABLE_LIST *table_list, bool *need_prelocking) override;
 };
 
 inline bool open_tables(THD *thd, TABLE_LIST **tables, uint *counter,

@@ -365,7 +365,9 @@ class Session_gtids_tracker
   void mark_as_changed(THD *thd, LEX_CSTRING *tracked_item_name) override;
 
   // implementation of the Session_gtids_ctx::Ctx_change_listener
-  void notify_session_gtids_ctx_change() override { mark_as_changed(nullptr, nullptr); }
+  void notify_session_gtids_ctx_change() override {
+    mark_as_changed(nullptr, nullptr);
+  }
 };
 
 void Session_sysvars_tracker::vars_list::reset() {

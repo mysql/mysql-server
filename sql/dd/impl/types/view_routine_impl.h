@@ -88,7 +88,9 @@ class View_routine_impl : public Weak_object_impl, public View_routine {
   // routine schema.
   /////////////////////////////////////////////////////////////////////////
 
-  const String_type &routine_schema() const override { return m_routine_schema; }
+  const String_type &routine_schema() const override {
+    return m_routine_schema;
+  }
 
   void set_routine_schema(const String_type &sf_schema) override {
     m_routine_schema = sf_schema;

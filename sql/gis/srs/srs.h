@@ -1505,9 +1505,7 @@ class Krovak_srs : public Projected_srs {
         m_false_easting(NAN),
         m_false_northing(NAN) {}
 
-  Spatial_reference_system *clone() override {
-    return new Krovak_srs(*this);
-  }
+  Spatial_reference_system *clone() override { return new Krovak_srs(*this); }
 
   bool init(srid_t srid, wkt_parser::Projected_cs *p) override;
 

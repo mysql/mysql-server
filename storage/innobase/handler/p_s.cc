@@ -262,11 +262,11 @@ class Innodb_data_lock_iterator : public PSI_engine_data_lock_iterator {
   ~Innodb_data_lock_iterator() override;
 
   bool scan(PSI_server_data_lock_container *container,
-                    bool with_lock_data) override;
+            bool with_lock_data) override;
 
   bool fetch(PSI_server_data_lock_container *container,
-                     const char *engine_lock_id, size_t engine_lock_id_length,
-                     bool with_lock_data) override;
+             const char *engine_lock_id, size_t engine_lock_id_length,
+             bool with_lock_data) override;
 
  private:
   /** Scan a trx list.
@@ -314,10 +314,10 @@ class Innodb_data_lock_wait_iterator
   bool scan(PSI_server_data_lock_wait_container *container) override;
 
   bool fetch(PSI_server_data_lock_wait_container *container,
-                     const char *requesting_engine_lock_id,
-                     size_t requesting_engine_lock_id_length,
-                     const char *blocking_engine_lock_id,
-                     size_t blocking_engine_lock_id_length) override;
+             const char *requesting_engine_lock_id,
+             size_t requesting_engine_lock_id_length,
+             const char *blocking_engine_lock_id,
+             size_t blocking_engine_lock_id_length) override;
 
  private:
   /** Scan a given transaction list.

@@ -106,7 +106,8 @@ class Rpl_info_file : public Rpl_info_handler {
   int do_prepare_info_for_read() override;
   int do_prepare_info_for_write() override;
   bool do_set_info(const int pos, const char *value) override;
-  bool do_set_info(const int pos, const uchar *value, const size_t size) override;
+  bool do_set_info(const int pos, const uchar *value,
+                   const size_t size) override;
   bool do_set_info(const int pos, const int value) override;
   bool do_set_info(const int pos, const ulong value) override;
   bool do_set_info(const int pos, const float value) override;
@@ -147,18 +148,20 @@ class Rpl_info_file : public Rpl_info_handler {
   Rpl_info_handler::enum_field_get_status check_for_error(int pos,
                                                           long n_read_bytes);
   Rpl_info_handler::enum_field_get_status do_get_info(
-      const int pos, char *value, const size_t size, const char *default_value) override;
+      const int pos, char *value, const size_t size,
+      const char *default_value) override;
   Rpl_info_handler::enum_field_get_status do_get_info(
       const int pos, uchar *value, const size_t size,
       const uchar *default_value) override;
-  Rpl_info_handler::enum_field_get_status do_get_info(const int pos, int *value,
-                                                      const int default_value) override;
+  Rpl_info_handler::enum_field_get_status do_get_info(
+      const int pos, int *value, const int default_value) override;
   Rpl_info_handler::enum_field_get_status do_get_info(
       const int pos, ulong *value, const ulong default_value) override;
   Rpl_info_handler::enum_field_get_status do_get_info(
       const int pos, float *value, const float default_value) override;
   Rpl_info_handler::enum_field_get_status do_get_info(
-      const int pos, Server_ids *value, const Server_ids *default_value) override;
+      const int pos, Server_ids *value,
+      const Server_ids *default_value) override;
   char *do_get_description_info() override;
   uint do_get_rpl_info_type() override;
 

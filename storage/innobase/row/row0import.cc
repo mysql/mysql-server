@@ -387,7 +387,7 @@ class AbstractCallback : public PageCallback {
   @param block contents of the first page in the tablespace file.
   @retval DB_SUCCESS or error code. */
   dberr_t init(os_offset_t file_size,
-                       const buf_block_t *block) override UNIV_NOTHROW;
+               const buf_block_t *block) override UNIV_NOTHROW;
 
   /** @return true if compressed table. */
   bool is_compressed_table() const UNIV_NOTHROW {
@@ -597,7 +597,9 @@ struct FetchIndexRootPages : public AbstractCallback {
 
   /**
   @retval the space flags of the tablespace being iterated over */
-  ulint get_space_flags() const UNIV_NOTHROW override { return (m_space_flags); }
+  ulint get_space_flags() const UNIV_NOTHROW override {
+    return (m_space_flags);
+  }
 
   /** Check if the .ibd file row format is the same as the table's.
   @param ibd_table_flags determined from space and page.
@@ -637,7 +639,7 @@ struct FetchIndexRootPages : public AbstractCallback {
   @param block block to convert, it is not from the buffer pool.
   @retval DB_SUCCESS or error code. */
   dberr_t operator()(os_offset_t offset,
-                             buf_block_t *block) override UNIV_NOTHROW;
+                     buf_block_t *block) override UNIV_NOTHROW;
 
   /** Update the import configuration that will be used to import
   the tablespace. */
@@ -807,14 +809,16 @@ class PageConverter : public AbstractCallback {
 
   /**
   @retval the space flags of the tablespace being iterated over */
-  ulint get_space_flags() const UNIV_NOTHROW override { return (m_space_flags); }
+  ulint get_space_flags() const UNIV_NOTHROW override {
+    return (m_space_flags);
+  }
 
   /** Called for each block as it is read from the file.
   @param offset physical offset in the file
   @param block block to convert, it is not from the buffer pool.
   @retval DB_SUCCESS or error code. */
   dberr_t operator()(os_offset_t offset,
-                             buf_block_t *block) override UNIV_NOTHROW;
+                     buf_block_t *block) override UNIV_NOTHROW;
 
  private:
   /** Status returned by PageConverter::validate() */

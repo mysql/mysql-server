@@ -272,7 +272,7 @@ class Handle_old_incorrect_sql_modes_hook : public Unknown_key_hook {
  public:
   Handle_old_incorrect_sql_modes_hook(char *file_path) : m_path(file_path) {}
   bool process_unknown_string(const char *&unknown_key, uchar *base,
-                                      MEM_ROOT *mem_root, const char *end) override;
+                              MEM_ROOT *mem_root, const char *end) override;
 };
 
 /**

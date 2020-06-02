@@ -1924,8 +1924,8 @@ bool check_engine_type_for_acl_table(THD *thd, bool mdl_locked) {
 class Acl_ignore_error_handler : public Internal_error_handler {
  public:
   bool handle_condition(THD *, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *level,
-                                const char *) override {
+                        Sql_condition::enum_severity_level *level,
+                        const char *) override {
     switch (sql_errno) {
       case ER_CANNOT_LOAD_FROM_TABLE_V2:
       case ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2:
@@ -3358,10 +3358,10 @@ class Acl_cache_error_handler : public Internal_error_handler {
   */
 
   bool handle_condition(THD *thd MY_ATTRIBUTE((unused)), uint sql_errno,
-                                const char *sqlstate MY_ATTRIBUTE((unused)),
-                                Sql_condition::enum_severity_level *level
-                                    MY_ATTRIBUTE((unused)),
-                                const char *msg MY_ATTRIBUTE((unused))) override {
+                        const char *sqlstate MY_ATTRIBUTE((unused)),
+                        Sql_condition::enum_severity_level *level
+                            MY_ATTRIBUTE((unused)),
+                        const char *msg MY_ATTRIBUTE((unused))) override {
     return (sql_errno == ER_LOCK_DEADLOCK ||
             sql_errno == ER_LOCK_WAIT_TIMEOUT ||
             sql_errno == ER_QUERY_INTERRUPTED || sql_errno == ER_QUERY_TIMEOUT);

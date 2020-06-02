@@ -1089,8 +1089,8 @@ Internal_function_factory<Instantiator_fn>
 */
 class Create_sp_func : public Create_qfunc {
  public:
-  Item *create(THD *thd, LEX_STRING db, LEX_STRING name,
-                       bool use_explicit_name, PT_item_list *item_list) override;
+  Item *create(THD *thd, LEX_STRING db, LEX_STRING name, bool use_explicit_name,
+               PT_item_list *item_list) override;
 
   static Create_sp_func s_singleton;
 

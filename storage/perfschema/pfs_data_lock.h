@@ -201,7 +201,7 @@ class PFS_index_data_locks_by_lock_id : public PFS_index_data_locks {
   ~PFS_index_data_locks_by_lock_id() override {}
 
   bool match_lock_id(const char *engine_lock_id,
-                             size_t engine_lock_id_length) override {
+                     size_t engine_lock_id_length) override {
     if (m_fields >= 1) {
       if (!m_key_1.match(engine_lock_id, engine_lock_id_length)) {
         return false;
@@ -270,7 +270,7 @@ class PFS_index_data_locks_by_thread_id : public PFS_index_data_locks {
   ~PFS_index_data_locks_by_thread_id() override {}
 
   bool match_thread_id_event_id(ulonglong thread_id,
-                                        ulonglong event_id) override {
+                                ulonglong event_id) override {
     if (m_fields >= 1) {
       if (!m_key_1.match(thread_id)) {
         return false;
@@ -302,13 +302,11 @@ class PFS_index_data_locks_by_object : public PFS_index_data_locks {
 
   ~PFS_index_data_locks_by_object() override {}
 
-  bool match_object(const char *table_schema,
-                            size_t table_schema_length, const char *table_name,
-                            size_t table_name_length,
-                            const char *partition_name,
-                            size_t partition_name_length,
-                            const char *sub_partition_name,
-                            size_t sub_partition_name_length) override {
+  bool match_object(const char *table_schema, size_t table_schema_length,
+                    const char *table_name, size_t table_name_length,
+                    const char *partition_name, size_t partition_name_length,
+                    const char *sub_partition_name,
+                    size_t sub_partition_name_length) override {
     if (m_fields >= 1) {
       if (!m_key_1.match(table_schema, table_schema_length)) {
         return false;
@@ -401,7 +399,7 @@ class PFS_index_data_lock_waits_by_requesting_lock_id
   ~PFS_index_data_lock_waits_by_requesting_lock_id() override {}
 
   bool match_requesting_lock_id(const char *engine_lock_id,
-                                        size_t engine_lock_id_length) override {
+                                size_t engine_lock_id_length) override {
     if (m_fields >= 1) {
       if (!m_key_1.match(engine_lock_id, engine_lock_id_length)) {
         return false;
@@ -437,7 +435,7 @@ class PFS_index_data_lock_waits_by_blocking_lock_id
   ~PFS_index_data_lock_waits_by_blocking_lock_id() override {}
 
   bool match_blocking_lock_id(const char *engine_lock_id,
-                                      size_t engine_lock_id_length) override {
+                              size_t engine_lock_id_length) override {
     if (m_fields >= 1) {
       if (!m_key_1.match(engine_lock_id, engine_lock_id_length)) {
         return false;
@@ -544,7 +542,7 @@ class PFS_index_data_lock_waits_by_requesting_thread_id
   ~PFS_index_data_lock_waits_by_requesting_thread_id() override {}
 
   bool match_requesting_thread_id_event_id(ulonglong thread_id,
-                                                   ulonglong event_id) override {
+                                           ulonglong event_id) override {
     if (m_fields >= 1) {
       if (!m_key_1.match(thread_id)) {
         return false;
@@ -576,7 +574,7 @@ class PFS_index_data_lock_waits_by_blocking_thread_id
   ~PFS_index_data_lock_waits_by_blocking_thread_id() override {}
 
   bool match_blocking_thread_id_event_id(ulonglong thread_id,
-                                                 ulonglong event_id) override {
+                                         ulonglong event_id) override {
     if (m_fields >= 1) {
       if (!m_key_1.match(thread_id)) {
         return false;
@@ -620,28 +618,28 @@ class PFS_data_lock_container : public PSI_server_data_lock_container {
 
   bool accept_engine(const char *engine, size_t engine_length) override;
   bool accept_lock_id(const char *engine_lock_id,
-                              size_t engine_lock_id_length) override;
+                      size_t engine_lock_id_length) override;
   bool accept_transaction_id(ulonglong transaction_id) override;
   bool accept_thread_id_event_id(ulonglong thread_id,
-                                         ulonglong event_id) override;
-  bool accept_object(const char *table_schema,
-                             size_t table_schema_length, const char *table_name,
-                             size_t table_name_length,
-                             const char *partition_name,
-                             size_t partition_name_length,
-                             const char *sub_partition_name,
-                             size_t sub_partition_name_length) override;
+                                 ulonglong event_id) override;
+  bool accept_object(const char *table_schema, size_t table_schema_length,
+                     const char *table_name, size_t table_name_length,
+                     const char *partition_name, size_t partition_name_length,
+                     const char *sub_partition_name,
+                     size_t sub_partition_name_length) override;
 
-  void add_lock_row(
-      const char *engine, size_t engine_length, const char *engine_lock_id,
-      size_t engine_lock_id_length, ulonglong transaction_id,
-      ulonglong thread_id, ulonglong event_id, const char *table_schema,
-      size_t table_schema_length, const char *table_name,
-      size_t table_name_length, const char *partition_name,
-      size_t partition_name_length, const char *sub_partition_name,
-      size_t sub_partition_name_length, const char *index_name,
-      size_t index_name_length, const void *identity, const char *lock_mode,
-      const char *lock_type, const char *lock_status, const char *lock_data) override;
+  void add_lock_row(const char *engine, size_t engine_length,
+                    const char *engine_lock_id, size_t engine_lock_id_length,
+                    ulonglong transaction_id, ulonglong thread_id,
+                    ulonglong event_id, const char *table_schema,
+                    size_t table_schema_length, const char *table_name,
+                    size_t table_name_length, const char *partition_name,
+                    size_t partition_name_length,
+                    const char *sub_partition_name,
+                    size_t sub_partition_name_length, const char *index_name,
+                    size_t index_name_length, const void *identity,
+                    const char *lock_mode, const char *lock_type,
+                    const char *lock_status, const char *lock_data) override;
 
   /**
     Clear the container.
@@ -675,15 +673,15 @@ class PFS_data_lock_wait_container
 
   bool accept_engine(const char *engine, size_t engine_length) override;
   bool accept_requesting_lock_id(const char *engine_lock_id,
-                                         size_t engine_lock_id_length) override;
+                                 size_t engine_lock_id_length) override;
   bool accept_blocking_lock_id(const char *engine_lock_id,
-                                       size_t engine_lock_id_length) override;
+                               size_t engine_lock_id_length) override;
   bool accept_requesting_transaction_id(ulonglong transaction_id) override;
   bool accept_blocking_transaction_id(ulonglong transaction_id) override;
   bool accept_requesting_thread_id_event_id(ulonglong thread_id,
-                                                    ulonglong event_id) override;
+                                            ulonglong event_id) override;
   bool accept_blocking_thread_id_event_id(ulonglong thread_id,
-                                                  ulonglong event_id) override;
+                                          ulonglong event_id) override;
 
   void add_lock_wait_row(
       const char *engine, size_t engine_length,

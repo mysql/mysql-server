@@ -40,7 +40,8 @@ class Standard_progress_watcher : public Abstract_progress_watcher {
           *message_handler,
       Simple_id_generator *object_id_generator);
 
-  void process_progress_step(Abstract_progress_watcher::Progress_data &change) override;
+  void process_progress_step(
+      Abstract_progress_watcher::Progress_data &change) override;
 };
 
 }  // namespace Dump

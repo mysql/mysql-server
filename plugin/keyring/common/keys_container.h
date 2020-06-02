@@ -52,7 +52,9 @@ class Keys_container : public IKeys_container {
   bool remove_key(IKey *key) override;
   std::string get_keyring_storage_url() override;
   void set_keyring_io(IKeyring_io *keyring_io) override;
-  std::vector<Key_metadata> get_keys_metadata() override { return keys_metadata; }
+  std::vector<Key_metadata> get_keys_metadata() override {
+    return keys_metadata;
+  }
 
   ~Keys_container() override;
 

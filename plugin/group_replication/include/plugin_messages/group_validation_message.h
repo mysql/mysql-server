@@ -88,7 +88,8 @@ class Group_validation_message : public Plugin_gcs_message {
 
     @param[in] buffer the received data
   */
-  void decode_payload(const unsigned char *buffer, const unsigned char *) override;
+  void decode_payload(const unsigned char *buffer,
+                      const unsigned char *) override;
 
  private:
   /**The message type*/

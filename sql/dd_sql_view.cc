@@ -143,8 +143,8 @@ class View_metadata_updater_error_handler final
     : public Internal_error_handler {
  public:
   bool handle_condition(THD *, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *,
-                                const char *msg) override {
+                        Sql_condition::enum_severity_level *,
+                        const char *msg) override {
     switch (sql_errno) {
       case ER_LOCK_WAIT_TIMEOUT:
       case ER_LOCK_DEADLOCK:

@@ -3633,7 +3633,7 @@ class Point_accumulator : public WKB_scanner_event_handler {
       : m_mpts(mpts), pt_start(nullptr) {}
 
   void on_wkb_start(Geometry::wkbByteOrder, Geometry::wkbType geotype,
-                            const void *wkb, uint32 len, bool) override {
+                    const void *wkb, uint32 len, bool) override {
     if (geotype == Geometry::wkb_point) {
       Gis_point pt(wkb, POINT_DATA_SIZE,
                    Geometry::Flags_t(Geometry::wkb_point, len),
@@ -3698,7 +3698,7 @@ class Geometry_grouper : public WKB_scanner_event_handler {
   }
 
   void on_wkb_start(Geometry::wkbByteOrder, Geometry::wkbType geotype,
-                            const void *wkb, uint32, bool) override {
+                    const void *wkb, uint32, bool) override {
     m_types.push_back(geotype);
     m_ptrs.push_back(wkb);
 

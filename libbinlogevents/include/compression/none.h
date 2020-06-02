@@ -66,7 +66,7 @@ class None_comp : public Compressor {
     @return false on success, true otherwise.
    */
   std::tuple<std::size_t, bool> compress(const unsigned char *data,
-                                                 size_t length) override;
+                                         size_t length) override;
 
   /**
     No op member function.
@@ -112,7 +112,7 @@ class None_dec : public Decompressor {
     @return false on success, true otherwise.
    */
   std::tuple<std::size_t, bool> decompress(const unsigned char *data,
-                                                   size_t length) override;
+                                           size_t length) override;
 
   /**
     No op member function.

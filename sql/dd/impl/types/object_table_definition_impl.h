@@ -219,7 +219,7 @@ class Object_table_definition_impl : public Object_table_definition {
   void add_sql_mode_field(int field_number, const String_type &field_name);
 
   void add_index(int index_number, const String_type &index_name,
-                         const String_type &index_definition) override {
+                 const String_type &index_definition) override {
     add_element(index_number, index_name, index_definition, &m_index_numbers,
                 &m_index_definitions);
   }

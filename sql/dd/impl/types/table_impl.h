@@ -291,7 +291,8 @@ class Table_impl : public Abstract_table_impl, virtual public Table {
     return m_subpartition_type;
   }
 
-  void set_subpartition_type(enum_subpartition_type subpartition_type) override {
+  void set_subpartition_type(
+      enum_subpartition_type subpartition_type) override {
     m_subpartition_type = subpartition_type;
   }
 
@@ -420,7 +421,9 @@ class Table_impl : public Abstract_table_impl, virtual public Table {
   bool is_persistent() const override {
     return Entity_object_impl::is_persistent();
   }
-  const String_type &name() const override { return Entity_object_impl::name(); }
+  const String_type &name() const override {
+    return Entity_object_impl::name();
+  }
   void set_name(const String_type &name) override {
     Entity_object_impl::set_name(name);
   }
@@ -497,17 +500,17 @@ class Table_impl : public Abstract_table_impl, virtual public Table {
   void copy_triggers(const Table *tab_obj) override;
 
   Trigger *add_trigger(Trigger::enum_action_timing at,
-                               Trigger::enum_event_type et) override;
+                       Trigger::enum_event_type et) override;
 
   const Trigger *get_trigger(const char *name) const override;
 
   Trigger *add_trigger_following(const Trigger *trigger,
-                                         Trigger::enum_action_timing at,
-                                         Trigger::enum_event_type et) override;
+                                 Trigger::enum_action_timing at,
+                                 Trigger::enum_event_type et) override;
 
   Trigger *add_trigger_preceding(const Trigger *trigger,
-                                         Trigger::enum_action_timing at,
-                                         Trigger::enum_event_type et) override;
+                                 Trigger::enum_action_timing at,
+                                 Trigger::enum_event_type et) override;
 
   void drop_trigger(const Trigger *trigger) override;
 

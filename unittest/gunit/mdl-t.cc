@@ -142,7 +142,7 @@ class MDLTest : public ::testing::Test, public Test_MDL_context_owner {
   }
 
   void notify_shared_lock(MDL_context_owner *in_use,
-                                  bool needs_thr_lock_abort) override {
+                          bool needs_thr_lock_abort) override {
     in_use->notify_shared_lock(nullptr, needs_thr_lock_abort);
   }
 
@@ -191,7 +191,7 @@ class MDL_thread : public Thread, public Test_MDL_context_owner {
   void enable_release_on_notify() { m_enable_release_on_notify = true; }
 
   void notify_shared_lock(MDL_context_owner *in_use,
-                                  bool needs_thr_lock_abort) override {
+                          bool needs_thr_lock_abort) override {
     if (in_use)
       in_use->notify_shared_lock(nullptr, needs_thr_lock_abort);
     else if (m_enable_release_on_notify && m_release_locks)
@@ -199,9 +199,9 @@ class MDL_thread : public Thread, public Test_MDL_context_owner {
   }
 
   void enter_cond(mysql_cond_t *cond, mysql_mutex_t *mutex,
-                          const PSI_stage_info *stage,
-                          PSI_stage_info *old_stage, const char *src_function,
-                          const char *src_file, int src_line) override {
+                  const PSI_stage_info *stage, PSI_stage_info *old_stage,
+                  const char *src_function, const char *src_file,
+                  int src_line) override {
     Test_MDL_context_owner::enter_cond(cond, mutex, stage, old_stage,
                                        src_function, src_file, src_line);
 
@@ -3613,9 +3613,9 @@ class MDL_weight_thread : public Thread, public Test_MDL_context_owner {
   void notify_shared_lock(MDL_context_owner *, bool) override {}
 
   void enter_cond(mysql_cond_t *cond, mysql_mutex_t *mutex,
-                          const PSI_stage_info *stage,
-                          PSI_stage_info *old_stage, const char *src_function,
-                          const char *src_file, int src_line) override {
+                  const PSI_stage_info *stage, PSI_stage_info *old_stage,
+                  const char *src_function, const char *src_file,
+                  int src_line) override {
     Test_MDL_context_owner::enter_cond(cond, mutex, stage, old_stage,
                                        src_function, src_file, src_line);
 
@@ -3803,7 +3803,7 @@ class MDLHtonNotifyTest : public MDLTest {
   void TearDown() override { MDLTest::TearDown(); }
 
   bool notify_hton_pre_acquire_exclusive(const MDL_key *mdl_key,
-                                                 bool *victimized) override {
+                                         bool *victimized) override {
     *victimized = false;
     m_pre_acquire_count++;
     m_pre_acquire_key.mdl_key_init(mdl_key);

@@ -67,7 +67,8 @@ class Mysql_crawler : public Abstract_crawler,
   void enumerate_objects() override;
 
   // Fix "inherits ... via dominance" warnings
-  void register_progress_watcher(I_progress_watcher *new_progress_watcher) override {
+  void register_progress_watcher(
+      I_progress_watcher *new_progress_watcher) override {
     Abstract_crawler::register_progress_watcher(new_progress_watcher);
   }
 
@@ -76,7 +77,8 @@ class Mysql_crawler : public Abstract_crawler,
 
  protected:
   // Fix "inherits ... via dominance" warnings
-  void item_completion_in_child_callback(Item_processing_data *item_processed) override {
+  void item_completion_in_child_callback(
+      Item_processing_data *item_processed) override {
     Abstract_crawler::item_completion_in_child_callback(item_processed);
   }
 

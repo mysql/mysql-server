@@ -47,7 +47,7 @@ class Explain_format_traditional : public Explain_format {
   bool is_hierarchical() const override { return false; }
   bool send_headers(Query_result *result) override;
   bool begin_context(enum_parsing_context, SELECT_LEX_UNIT *,
-                             const Explain_format_flags *) override {
+                     const Explain_format_flags *) override {
     return false;
   }
   bool end_context(enum_parsing_context) override { return false; }

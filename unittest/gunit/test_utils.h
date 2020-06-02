@@ -92,8 +92,8 @@ class Mock_error_handler : public Internal_error_handler {
   ~Mock_error_handler() override;
 
   bool handle_condition(THD *thd, uint sql_errno, const char *sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char *msg) override;
+                        Sql_condition::enum_severity_level *level,
+                        const char *msg) override;
 
   int handle_called() const { return m_handle_called; }
 

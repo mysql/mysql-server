@@ -5102,8 +5102,8 @@ class User_level_lock_wait_error_handler : public Internal_error_handler {
   bool got_timeout() const { return m_lock_wait_timeout; }
 
   bool handle_condition(THD *, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *,
-                                const char *) override {
+                        Sql_condition::enum_severity_level *,
+                        const char *) override {
     if (sql_errno == ER_LOCK_WAIT_TIMEOUT) {
       m_lock_wait_timeout = true;
       return true;

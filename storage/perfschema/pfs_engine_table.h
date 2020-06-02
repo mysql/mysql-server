@@ -352,7 +352,7 @@ class PFS_engine_index : public PFS_engine_index_abstract {
   ~PFS_engine_index() override {}
 
   void read_key(const uchar *key, uint key_len,
-                        enum ha_rkey_function find_flag) override;
+                enum ha_rkey_function find_flag) override;
 
   PFS_engine_key *m_key_ptr_1;
   PFS_engine_key *m_key_ptr_2;
@@ -447,7 +447,7 @@ class PFS_readonly_acl : public ACL_internal_table_access {
   ~PFS_readonly_acl() override {}
 
   ACL_internal_access_result check(ulong want_access,
-                                           ulong *save_priv) const override;
+                                   ulong *save_priv) const override;
 };
 
 /** Singleton instance of PFS_readonly_acl. */
@@ -463,7 +463,8 @@ class PFS_truncatable_acl : public ACL_internal_table_access {
 
   ~PFS_truncatable_acl() override {}
 
-  ACL_internal_access_result check(ulong want_access, ulong *save_priv) const override;
+  ACL_internal_access_result check(ulong want_access,
+                                   ulong *save_priv) const override;
 };
 
 /** Singleton instance of PFS_truncatable_acl. */
@@ -479,7 +480,8 @@ class PFS_updatable_acl : public ACL_internal_table_access {
 
   ~PFS_updatable_acl() override {}
 
-  ACL_internal_access_result check(ulong want_access, ulong *save_priv) const override;
+  ACL_internal_access_result check(ulong want_access,
+                                   ulong *save_priv) const override;
 };
 
 /** Singleton instance of PFS_updatable_acl. */
@@ -495,7 +497,8 @@ class PFS_editable_acl : public ACL_internal_table_access {
 
   ~PFS_editable_acl() override {}
 
-  ACL_internal_access_result check(ulong want_access, ulong *save_priv) const override;
+  ACL_internal_access_result check(ulong want_access,
+                                   ulong *save_priv) const override;
 };
 
 /** Singleton instance of PFS_editable_acl. */
@@ -510,7 +513,8 @@ class PFS_unknown_acl : public ACL_internal_table_access {
 
   ~PFS_unknown_acl() override {}
 
-  ACL_internal_access_result check(ulong want_access, ulong *save_priv) const override;
+  ACL_internal_access_result check(ulong want_access,
+                                   ulong *save_priv) const override;
 };
 
 /** Singleton instance of PFS_unknown_acl. */
@@ -525,7 +529,7 @@ class PFS_readonly_world_acl : public PFS_readonly_acl {
 
   ~PFS_readonly_world_acl() override {}
   ACL_internal_access_result check(ulong want_access,
-                                           ulong *save_priv) const override;
+                                   ulong *save_priv) const override;
 };
 
 /** Singleton instance of PFS_readonly_world_acl */
@@ -540,7 +544,7 @@ class PFS_truncatable_world_acl : public PFS_truncatable_acl {
 
   ~PFS_truncatable_world_acl() override {}
   ACL_internal_access_result check(ulong want_access,
-                                           ulong *save_priv) const override;
+                                   ulong *save_priv) const override;
 };
 
 /** Singleton instance of PFS_readonly_world_acl */

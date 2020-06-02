@@ -103,7 +103,7 @@ class Zstd_comp : public Compressor {
     @return false on success, true otherwise.
    */
   std::tuple<std::size_t, bool> compress(const unsigned char *data,
-                                                 size_t length) override;
+                                         size_t length) override;
 
   /**
     This member function shall close the compressor. It must be called
@@ -156,7 +156,7 @@ class Zstd_dec : public Decompressor {
     @return false on success, true otherwise.
    */
   std::tuple<std::size_t, bool> decompress(const unsigned char *data,
-                                                   size_t length) override;
+                                           size_t length) override;
 
   /**
     This member function shall close the decompressor. It must be called

@@ -201,7 +201,9 @@ class Index_impl : public Entity_object_impl, public Index {
     m_algorithm = algorithm;
   }
 
-  bool is_algorithm_explicit() const override { return m_is_algorithm_explicit; }
+  bool is_algorithm_explicit() const override {
+    return m_is_algorithm_explicit;
+  }
 
   void set_algorithm_explicit(bool alg_expl) override {
     m_is_algorithm_explicit = alg_expl;
@@ -243,7 +245,9 @@ class Index_impl : public Entity_object_impl, public Index {
   bool is_persistent() const override {
     return Entity_object_impl::is_persistent();
   }
-  const String_type &name() const override { return Entity_object_impl::name(); }
+  const String_type &name() const override {
+    return Entity_object_impl::name();
+  }
   void set_name(const String_type &name) override {
     Entity_object_impl::set_name(name);
   }

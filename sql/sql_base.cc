@@ -166,8 +166,8 @@ class Repair_mrg_table_error_handler : public Internal_error_handler {
       : m_handled_errors(false), m_unhandled_errors(false) {}
 
   bool handle_condition(THD *, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *,
-                                const char *) override {
+                        Sql_condition::enum_severity_level *,
+                        const char *) override {
     if (sql_errno == ER_NO_SUCH_TABLE || sql_errno == ER_WRONG_MRG_TABLE) {
       m_handled_errors = true;
       return true;
@@ -2511,8 +2511,8 @@ class MDL_deadlock_handler : public Internal_error_handler {
       : m_ot_ctx(ot_ctx_arg), m_is_active(false) {}
 
   bool handle_condition(THD *, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *,
-                                const char *) override {
+                        Sql_condition::enum_severity_level *,
+                        const char *) override {
     if (!m_is_active && sql_errno == ER_LOCK_DEADLOCK) {
       /* Disable the handler to avoid infinite recursion. */
       m_is_active = true;
@@ -3883,8 +3883,8 @@ end_unlock:
 class Fix_row_type_error_handler : public Internal_error_handler {
  public:
   bool handle_condition(THD *, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *,
-                                const char *) override {
+                        Sql_condition::enum_severity_level *,
+                        const char *) override {
     return sql_errno == ER_GET_ERRNO && my_errno() == HA_ERR_ROW_FORMAT_CHANGED;
   }
 };
@@ -4116,8 +4116,8 @@ bool Open_table_context::request_backoff_action(
 class MDL_deadlock_discovery_repair_handler : public Internal_error_handler {
  public:
   bool handle_condition(THD *thd, uint sql_errno, const char *,
-                                Sql_condition::enum_severity_level *,
-                                const char *) override {
+                        Sql_condition::enum_severity_level *,
+                        const char *) override {
     if (sql_errno == ER_LOCK_DEADLOCK) {
       thd->mark_transaction_to_rollback(true);
     }

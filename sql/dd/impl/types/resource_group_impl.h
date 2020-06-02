@@ -88,9 +88,7 @@ class Resource_group_impl : public Entity_object_impl, public Resource_group {
   }
 
   // Fix "inherits ... via dominance" warnings
-  Entity_object_impl *impl() override {
-    return Entity_object_impl::impl();
-  }
+  Entity_object_impl *impl() override { return Entity_object_impl::impl(); }
   const Entity_object_impl *impl() const override {
     return Entity_object_impl::impl();
   }

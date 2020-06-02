@@ -2498,8 +2498,8 @@ const char *get_canonical_filename(handler *file, const char *path,
 class Ha_delete_table_error_handler : public Internal_error_handler {
  public:
   bool handle_condition(THD *, uint, const char *,
-                                Sql_condition::enum_severity_level *level,
-                                const char *) override {
+                        Sql_condition::enum_severity_level *level,
+                        const char *) override {
     /* Downgrade errors to warnings. */
     if (*level == Sql_condition::SL_ERROR) *level = Sql_condition::SL_WARNING;
     return false;

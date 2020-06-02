@@ -105,8 +105,9 @@ class Dictionary_impl : public Dictionary {
 
   uint set_ndbinfo_schema_version(THD *thd, uint version);
 
-  const Object_table *get_dd_table(const String_type &schema_name,
-                                           const String_type &table_name) const override;
+  const Object_table *get_dd_table(
+      const String_type &schema_name,
+      const String_type &table_name) const override;
 
  public:
   bool is_dd_schema_name(const String_type &schema_name) const override {
@@ -114,25 +115,24 @@ class Dictionary_impl : public Dictionary {
   }
 
   bool is_dd_table_name(const String_type &schema_name,
-                                const String_type &table_name) const override;
+                        const String_type &table_name) const override;
 
   bool is_system_table_name(const String_type &schema_name,
-                                    const String_type &table_name) const override;
+                            const String_type &table_name) const override;
 
   int table_type_error_code(const String_type &schema_name,
-                                    const String_type &table_name) const override;
+                            const String_type &table_name) const override;
 
   bool is_dd_table_access_allowed(bool is_dd_internal_thread,
-                                          bool is_ddl_statement,
-                                          const char *schema_name,
-                                          size_t schema_length,
-                                          const char *table_name) const override;
+                                  bool is_ddl_statement,
+                                  const char *schema_name, size_t schema_length,
+                                  const char *table_name) const override;
+
+  bool is_system_view_name(const char *schema_name, const char *table_name,
+                           bool *hidden) const override;
 
   bool is_system_view_name(const char *schema_name,
-                                   const char *table_name, bool *hidden) const override;
-
-  bool is_system_view_name(const char *schema_name,
-                                   const char *table_name) const override {
+                           const char *table_name) const override {
     bool hidden;
     return is_system_view_name(schema_name, table_name, &hidden);
   }

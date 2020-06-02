@@ -70,7 +70,8 @@ class Sql_formatter : public Abstract_output_writer_wrapper,
   void format_object(Item_processing_data *item_to_process) override;
 
   // Fix "inherits ... via dominance" warnings
-  void register_progress_watcher(I_progress_watcher *new_progress_watcher) override {
+  void register_progress_watcher(
+      I_progress_watcher *new_progress_watcher) override {
     Abstract_chain_element::register_progress_watcher(new_progress_watcher);
   }
 
@@ -79,7 +80,8 @@ class Sql_formatter : public Abstract_output_writer_wrapper,
 
  protected:
   // Fix "inherits ... via dominance" warnings
-  void item_completion_in_child_callback(Item_processing_data *item_processed) override {
+  void item_completion_in_child_callback(
+      Item_processing_data *item_processed) override {
     Abstract_chain_element::item_completion_in_child_callback(item_processed);
   }
 

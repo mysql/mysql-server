@@ -47,8 +47,8 @@ class Entity_object_table_impl : public Object_table_impl,
   ~Entity_object_table_impl() override {}
 
   bool restore_object_from_record(Open_dictionary_tables_ctx *otx,
-                                          const Raw_record &record,
-                                          Entity_object **o) const override;
+                                  const Raw_record &record,
+                                  Entity_object **o) const override;
 
   // Fix "inherits ... via dominance" warnings
 
@@ -80,7 +80,7 @@ class Entity_object_table_impl : public Object_table_impl,
   }
 
   int field_number(int target_field_number,
-                           const String_type &field_label) const override {
+                   const String_type &field_label) const override {
     return Object_table_impl::field_number(target_field_number, field_label);
   }
 

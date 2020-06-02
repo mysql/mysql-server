@@ -556,7 +556,7 @@ class Is_empty_geometry : public WKB_scanner_event_handler {
   Is_empty_geometry() : is_empty(true) {}
 
   void on_wkb_start(Geometry::wkbByteOrder, Geometry::wkbType geotype,
-                            const void *, uint32, bool) override {
+                    const void *, uint32, bool) override {
     if (is_empty && geotype != Geometry::wkb_geometrycollection)
       is_empty = false;
   }

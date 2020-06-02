@@ -97,7 +97,7 @@ class table_session_connect : public cursor_by_thread_connect_attr {
   int make_row(PFS_thread *pfs, uint ordinal) override;
   virtual bool thread_fits(PFS_thread *thread);
   int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                              bool read_all) override;
+                      bool read_all) override;
 
  protected:
   /** Current row. */

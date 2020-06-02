@@ -605,15 +605,15 @@ class Gcs_empty_stage_metadata final : public Gcs_stage_metadata {
  public:
   Gcs_empty_stage_metadata() = default;
 
-  std::unique_ptr<Gcs_stage_metadata> clone() final ;
+  std::unique_ptr<Gcs_stage_metadata> clone() final;
 
-  unsigned long long calculate_encode_length() const final ;
+  unsigned long long calculate_encode_length() const final;
 
-  unsigned long long encode(unsigned char *) const final ;
+  unsigned long long encode(unsigned char *) const final;
 
-  unsigned long long decode(unsigned char const *) final ;
+  unsigned long long decode(unsigned char const *) final;
 
-  void dump(std::ostringstream &) const final ;
+  void dump(std::ostringstream &) const final;
 
   Gcs_empty_stage_metadata(Gcs_empty_stage_metadata &&) = default;
   Gcs_empty_stage_metadata &operator=(Gcs_empty_stage_metadata &&) = default;

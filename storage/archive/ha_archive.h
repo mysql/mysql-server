@@ -114,11 +114,12 @@ class ha_archive : public handler {
             HA_CAN_GEOMETRY | HA_UPDATE_NOT_SUPPORTED |
             HA_DELETE_NOT_SUPPORTED);
   }
-  ulong index_flags(uint, uint, bool) const override { return HA_ONLY_WHOLE_INDEX; }
+  ulong index_flags(uint, uint, bool) const override {
+    return HA_ONLY_WHOLE_INDEX;
+  }
   void get_auto_increment(ulonglong offset, ulonglong increment,
-                                  ulonglong nb_desired_values,
-                                  ulonglong *first_value,
-                                  ulonglong *nb_reserved_values) override;
+                          ulonglong nb_desired_values, ulonglong *first_value,
+                          ulonglong *nb_reserved_values) override;
   uint max_supported_keys() const override { return 1; }
   uint max_supported_key_length() const override { return sizeof(ulonglong); }
   uint max_supported_key_part_length(
@@ -131,7 +132,7 @@ class ha_archive : public handler {
   }
   int index_init(uint keynr, bool sorted) override;
   int index_read(uchar *buf, const uchar *key, uint key_len,
-                         enum ha_rkey_function find_flag) override;
+                 enum ha_rkey_function find_flag) override;
   virtual int index_read_idx(uchar *buf, uint index, const uchar *key,
                              uint key_len, enum ha_rkey_function find_flag);
   int index_next(uchar *buf) override;
@@ -149,7 +150,9 @@ class ha_archive : public handler {
   int get_row_version3(azio_stream *file_to_read, uchar *buf);
   Archive_share *get_share(const char *table_name, int *rc);
   int init_archive_reader();
-  bool auto_repair() const override { return true; }  // For the moment we just do this
+  bool auto_repair() const override {
+    return true;
+  }  // For the moment we just do this
   int read_data_header(azio_stream *file_to_read);
   void position(const uchar *record) override;
   int info(uint) override;
@@ -174,5 +177,6 @@ class ha_archive : public handler {
   bool fix_rec_buff(unsigned int length);
   int unpack_row(azio_stream *file_to_read, uchar *record);
   unsigned int pack_row(uchar *record, azio_stream *writer);
-  bool check_if_incompatible_data(HA_CREATE_INFO *info, uint table_changes) override;
+  bool check_if_incompatible_data(HA_CREATE_INFO *info,
+                                  uint table_changes) override;
 };

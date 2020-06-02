@@ -172,7 +172,7 @@ class Table_trigger_dispatcher : public Table_trigger_field_support {
   TABLE *get_subject_table() override { return m_subject_table; }
 
   Field *get_trigger_variable_field(enum_trigger_variable_type v,
-                                            int field_index) override {
+                                    int field_index) override {
     return (v == TRG_OLD_ROW) ? m_old_field[field_index]
                               : m_new_field[field_index];
   }

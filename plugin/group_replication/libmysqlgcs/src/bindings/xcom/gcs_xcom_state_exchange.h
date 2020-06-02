@@ -543,19 +543,25 @@ class Gcs_xcom_state_exchange : public Gcs_xcom_state_exchange_interface {
       Gcs_protocol_version maximum_supported_protocol_version,
       Gcs_protocol_version used_protocol_version) override;
 
-  std::vector<Gcs_xcom_node_information> compute_incompatible_members() override;
+  std::vector<Gcs_xcom_node_information> compute_incompatible_members()
+      override;
 
   bool process_recovery_state() override;
 
   Gcs_xcom_view_identifier *get_new_view_id() override;
 
-  std::set<Gcs_member_identifier *> *get_joined() override { return &m_ms_joined; }
+  std::set<Gcs_member_identifier *> *get_joined() override {
+    return &m_ms_joined;
+  }
 
   std::set<Gcs_member_identifier *> *get_left() override { return &m_ms_left; }
 
-  std::set<Gcs_member_identifier *> *get_total() override { return &m_ms_total; }
+  std::set<Gcs_member_identifier *> *get_total() override {
+    return &m_ms_total;
+  }
 
-  std::map<Gcs_member_identifier, Xcom_member_state *> *get_member_states() override {
+  std::map<Gcs_member_identifier, Xcom_member_state *> *get_member_states()
+      override {
     return &m_member_states;
   }
 

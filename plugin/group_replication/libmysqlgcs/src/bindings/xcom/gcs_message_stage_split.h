@@ -338,7 +338,7 @@ class Gcs_message_stage_split_v2 : public Gcs_message_stage {
    @return If there is an error, true is returned. Otherwise, false is returned.
    */
   bool update_members_information(const Gcs_member_identifier &me,
-                                          const Gcs_xcom_nodes &xcom_nodes) override;
+                                  const Gcs_xcom_nodes &xcom_nodes) override;
 
   /**
     Sets the threshold in bytes after which messages are split.

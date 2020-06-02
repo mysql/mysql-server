@@ -70,13 +70,13 @@ class table_plugin_table : public PFS_engine_table {
 
  protected:
   int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                              bool read_all) override;
+                      bool read_all) override;
 
-  int update_row_values(TABLE *table, const unsigned char *,
-                                unsigned char *, Field **fields) override;
+  int update_row_values(TABLE *table, const unsigned char *, unsigned char *,
+                        Field **fields) override;
 
   int delete_row_values(TABLE *table, const unsigned char *buf,
-                                Field **fields) override;
+                        Field **fields) override;
 
  public:
   ~table_plugin_table() override {
@@ -111,7 +111,7 @@ class PFS_plugin_table_index : public PFS_engine_index_abstract {
   int index_next(PSI_table_handle *table);
 
   void read_key(const uchar *key, uint key_len,
-                        enum ha_rkey_function find_flag) override;
+                enum ha_rkey_function find_flag) override;
 
  private:
   PFS_engine_table_proxy *m_st_table;

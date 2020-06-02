@@ -73,7 +73,9 @@ class ha_heap : public handler {
   double scan_time() override {
     return (double)(stats.records + stats.deleted) / 20.0 + 10;
   }
-  double read_time(uint, uint, ha_rows rows) override { return (double)rows / 20.0 + 1; }
+  double read_time(uint, uint, ha_rows rows) override {
+    return (double)rows / 20.0 + 1;
+  }
 
   int open(const char *name, int mode, uint test_if_locked,
            const dd::Table *table_def) override;
@@ -83,9 +85,8 @@ class ha_heap : public handler {
   int update_row(const uchar *old_data, uchar *new_data) override;
   int delete_row(const uchar *buf) override;
   void get_auto_increment(ulonglong offset, ulonglong increment,
-                                  ulonglong nb_desired_values,
-                                  ulonglong *first_value,
-                                  ulonglong *nb_reserved_values) override;
+                          ulonglong nb_desired_values, ulonglong *first_value,
+                          ulonglong *nb_reserved_values) override;
   int index_read_map(uchar *buf, const uchar *key, key_part_map keypart_map,
                      enum ha_rkey_function find_flag) override;
   int index_read_last_map(uchar *buf, const uchar *key,
@@ -109,11 +110,13 @@ class ha_heap : public handler {
   int disable_indexes(uint mode) override;
   int enable_indexes(uint mode) override;
   int indexes_are_disabled(void) override;
-  ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key) override;
+  ha_rows records_in_range(uint inx, key_range *min_key,
+                           key_range *max_key) override;
   int delete_table(const char *from, const dd::Table *table_def) override;
   void drop_table(const char *name) override;
   int rename_table(const char *from, const char *to,
-                   const dd::Table *from_table_def, dd::Table *to_table_def) override;
+                   const dd::Table *from_table_def,
+                   dd::Table *to_table_def) override;
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info,
              dd::Table *table_def) override;
   void update_create_info(HA_CREATE_INFO *create_info) override;
@@ -123,7 +126,8 @@ class ha_heap : public handler {
   int cmp_ref(const uchar *ref1, const uchar *ref2) const override {
     return memcmp(ref1, ref2, sizeof(HEAP_PTR));
   }
-  bool check_if_incompatible_data(HA_CREATE_INFO *info, uint table_changes) override;
+  bool check_if_incompatible_data(HA_CREATE_INFO *info,
+                                  uint table_changes) override;
 
  private:
   void update_key_stats();

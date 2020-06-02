@@ -122,7 +122,7 @@ class table_events_waits_summary_by_instance : public table_all_instr {
   int make_socket_row(PFS_socket *pfs) override;
 
   int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                              bool read_all) override;
+                      bool read_all) override;
 
   table_events_waits_summary_by_instance();
 

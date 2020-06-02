@@ -382,7 +382,7 @@ class METADATA_API MetadataCacheAPIBase
    * state is changed.
    */
   void add_listener(const std::string &replicaset_name,
-                            ReplicasetStateListenerInterface *listener) override = 0;
+                    ReplicasetStateListenerInterface *listener) override = 0;
 
   /**
    * @brief Unregister observer previously registered with add_listener()
@@ -391,7 +391,7 @@ class METADATA_API MetadataCacheAPIBase
    * @param listener Observer object that should be unregistered.
    */
   void remove_listener(const std::string &replicaset_name,
-                               ReplicasetStateListenerInterface *listener) override = 0;
+                       ReplicasetStateListenerInterface *listener) override = 0;
 
   /** @brief Get authentication data (password hash and privileges) for the
    *  given user.

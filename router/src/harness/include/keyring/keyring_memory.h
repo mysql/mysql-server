@@ -75,15 +75,15 @@ class HARNESS_EXPORT KeyringMemory : public Keyring {
 
   // Keyring interface.
   void store(const std::string &uid, const std::string &attribute,
-                     const std::string &value) override;
+             const std::string &value) override;
 
   std::string fetch(const std::string &uid,
-                            const std::string &attribute) const override;
+                    const std::string &attribute) const override;
 
   bool remove(const std::string &uid) override;
 
   bool remove_attribute(const std::string &uid,
-                                const std::string &attribute) override;
+                        const std::string &attribute) override;
 
   const std::map<std::string, std::map<std::string, std::string>> &entries()
       const {

@@ -93,11 +93,11 @@ class RealOfstream : public Ofstream {
  public:
   // using Ofstream::Ofstream;
   void open(const char *filename,
-                    std::ios_base::openmode mode = std::ios_base::out) override {
+            std::ios_base::openmode mode = std::ios_base::out) override {
     return std::ofstream::open(filename, mode);
   }
   void open(const std::string &filename,
-                    std::ios_base::openmode mode = std::ios_base::out) override {
+            std::ios_base::openmode mode = std::ios_base::out) override {
     return open(filename.c_str(), mode);
   }
 };

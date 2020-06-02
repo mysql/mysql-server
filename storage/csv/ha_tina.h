@@ -162,7 +162,8 @@ class ha_tina : public handler {
   int delete_all_rows(void) override;
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info,
              dd::Table *table_def) override;
-  bool check_if_incompatible_data(HA_CREATE_INFO *info, uint table_changes) override;
+  bool check_if_incompatible_data(HA_CREATE_INFO *info,
+                                  uint table_changes) override;
 
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type) override;

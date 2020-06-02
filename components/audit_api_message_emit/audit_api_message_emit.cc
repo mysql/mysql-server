@@ -396,8 +396,8 @@ class String_error_handler : public IError_handler {
 
     @param message Message to be copied.
   */
-  void error(const char *message, ...)
-      override MY_ATTRIBUTE((format(printf, 2, 3))) {
+  void error(const char *message, ...) override
+      MY_ATTRIBUTE((format(printf, 2, 3))) {
     va_list va;
     va_start(va, message);
     int copied = vsnprintf(m_buffer, m_size - 1, message, va);

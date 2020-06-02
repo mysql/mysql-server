@@ -53,9 +53,9 @@ class Streaming_command_delegate : public ngs::Command_delegate {
 
  protected:
   int start_result_metadata(uint32_t num_cols, uint32_t flags,
-                                    const CHARSET_INFO *resultcs) override;
+                            const CHARSET_INFO *resultcs) override;
   int field_metadata(struct st_send_field *field,
-                             const CHARSET_INFO *charset) override;
+                     const CHARSET_INFO *charset) override;
   int end_result_metadata(uint32_t server_status, uint32_t warn_count) override;
 
   int start_row() override;
@@ -71,10 +71,10 @@ class Streaming_command_delegate : public ngs::Command_delegate {
   int get_time(const MYSQL_TIME *value, uint32_t decimals) override;
   int get_datetime(const MYSQL_TIME *value, uint32_t decimals) override;
   int get_string(const char *const value, size_t length,
-                         const CHARSET_INFO *const valuecs) override;
+                 const CHARSET_INFO *const valuecs) override;
   void handle_ok(uint32_t server_status, uint32_t statement_warn_count,
-                         uint64_t affected_rows, uint64_t last_insert_id,
-                         const char *const message) override;
+                 uint64_t affected_rows, uint64_t last_insert_id,
+                 const char *const message) override;
   virtual bool try_send_notices(const uint32_t server_status,
                                 const uint32_t statement_warn_count,
                                 const uint64_t affected_rows,

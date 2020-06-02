@@ -55,7 +55,7 @@ class Function_impl : public Routine_impl, public Function {
   ~Function_impl() override {}
 
   bool update_routine_name_key(Name_key *key, Object_id schema_id,
-                                       const String_type &name) const override;
+                               const String_type &name) const override;
 
  public:
   bool validate() const override;
@@ -212,7 +212,9 @@ class Function_impl : public Routine_impl, public Function {
   bool is_persistent() const override {
     return Entity_object_impl::is_persistent();
   }
-  const String_type &name() const override { return Entity_object_impl::name(); }
+  const String_type &name() const override {
+    return Entity_object_impl::name();
+  }
   void set_name(const String_type &name) override {
     Entity_object_impl::set_name(name);
   }
@@ -269,7 +271,7 @@ class Function_impl : public Routine_impl, public Function {
     return Routine_impl::definer_host();
   }
   void set_definer(const String_type &username,
-                           const String_type &hostname) override {
+                   const String_type &hostname) override {
     Routine_impl::set_definer(username, hostname);
   }
   Object_id client_collation_id() const override {
@@ -302,7 +304,9 @@ class Function_impl : public Routine_impl, public Function {
   void set_last_altered(ulonglong last_altered) override {
     Routine_impl::set_last_altered(last_altered);
   }
-  const String_type &comment() const override { return Routine_impl::comment(); }
+  const String_type &comment() const override {
+    return Routine_impl::comment();
+  }
   void set_comment(const String_type &comment) override {
     Routine_impl::set_comment(comment);
   }

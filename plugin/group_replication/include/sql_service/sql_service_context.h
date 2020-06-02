@@ -59,7 +59,8 @@ class Sql_service_context : public Sql_service_context_base {
     @retval 1  Error
     @retval 0  OK
   */
-  int field_metadata(struct st_send_field *field, const CHARSET_INFO *charset) override;
+  int field_metadata(struct st_send_field *field,
+                     const CHARSET_INFO *charset) override;
 
   /**
     Indicates end of metadata for the result set

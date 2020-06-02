@@ -108,7 +108,7 @@ class table_user_defined_functions : public PFS_engine_table {
 
  protected:
   int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
-                              bool read_all) override;
+                      bool read_all) override;
   table_user_defined_functions();
 
  public:

@@ -165,9 +165,7 @@ class Spatial_reference_system_impl : public Entity_object_impl,
   // definition
   /////////////////////////////////////////////////////////////////////////
 
-  const String_type &definition() const override {
-    return m_definition;
-  }
+  const String_type &definition() const override { return m_definition; }
 
   void set_definition(const String_type &definition) override {
     m_definition = definition;
@@ -330,9 +328,7 @@ class Spatial_reference_system_impl : public Entity_object_impl,
   }
 
   // Fix "inherits ... via dominance" warnings
-  Entity_object_impl *impl() override {
-    return Entity_object_impl::impl();
-  }
+  Entity_object_impl *impl() override { return Entity_object_impl::impl(); }
   const Entity_object_impl *impl() const override {
     return Entity_object_impl::impl();
   }

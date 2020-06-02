@@ -155,7 +155,9 @@ class Sql_cmd_xa_commit : public Sql_cmd {
   Sql_cmd_xa_commit(xid_t *xid_arg, enum xa_option_words xa_option)
       : m_xid(xid_arg), m_xa_opt(xa_option) {}
 
-  enum_sql_command sql_command_code() const override { return SQLCOM_XA_COMMIT; }
+  enum_sql_command sql_command_code() const override {
+    return SQLCOM_XA_COMMIT;
+  }
 
   bool execute(THD *thd) override;
 
