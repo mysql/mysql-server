@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -227,15 +227,6 @@
 # Hack to work around bug in RHEL5 __os_install_post macro, wrong inverted
 # test for __debug_package
 %define __strip         /bin/true
-
-# ----------------------------------------------------------------------------
-# Support optional "tcmalloc" library (experimental)
-# ----------------------------------------------------------------------------
-%if %{defined malloc_lib_target}
-%define WITH_TCMALLOC 1
-%else
-%define WITH_TCMALLOC 0
-%endif
 
 ##############################################################################
 # Configuration based upon above user input, not to be set directly
@@ -600,14 +591,6 @@ touch $RBR%{_sysconfdir}/my.cnf
 # Install SELinux files in datadir
 install -m 600 $MBD/%{src_dir}/support-files/RHEL4-SElinux/mysql.{fc,te} \
   $RBR%{_datadir}/mysql/SELinux/RHEL4
-
-%if %{WITH_TCMALLOC}
-# Even though this is a shared library, put it under /usr/lib*/mysql, so it
-# doesn't conflict with possible shared lib by the same name in /usr/lib*.  See
-# `mysql_config --variable=pkglibdir` and mysqld_safe for how this is used.
-install -m 644 "%{malloc_lib_source}" \
-  "$RBR%{_libdir}/mysql/%{malloc_lib_target}"
-%endif
 
 # Remove man pages we explicitly do not want to package, avoids 'unpackaged
 # files' warning.
@@ -1193,10 +1176,6 @@ echo "====="                                                       >> $STATUS_HI
 
 %attr(755, root, root) %{_libdir}/mysql/plugin/daemon_example.ini
 
-%if %{WITH_TCMALLOC}
-%attr(755, root, root) %{_libdir}/mysql/%{malloc_lib_target}
-%endif
-
 %attr(755, root, root) %{_libdir}/libndbclient.so
 %attr(755, root, root) %{_libdir}/libndbclient.so.6.0.0
 %if %(test "@MEMCACHED_ROOT_DIR@" '!=' "MEMCACHED_ROOT_DIR-NOTFOUND" && echo 1 || echo 0)
@@ -1568,8 +1547,7 @@ echo "====="                                                       >> $STATUS_HI
 
 * Mon Nov 16 2009 Joerg Bruehe <joerg.bruehe@sun.com>
 
-- Fix some problems with the directives around "tcmalloc" (experimental),
-  remove erroneous traces of the InnoDB plugin (that is 5.1 only).
+- remove erroneous traces of the InnoDB plugin (that is 5.1 only).
 
 * Tue Oct 06 2009 Magnus Blaudd <mvensson@mysql.com>
 
