@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3972,6 +3972,19 @@ st_select_lex::type_enum st_select_lex::type(const THD *thd)
   }
   else
     return SLT_UNION;
+}
+
+bool st_select_lex::is_in_select_list(Item *cand) {
+  List_iterator<Item> li(item_list);
+  Item *item;
+  while ((item = li++)) {
+    // Use a walker to detect if cand is present in this select item
+
+    if (item->walk(&Item::find_item_processor, Item::POSTFIX,
+                   reinterpret_cast<uchar *>(cand)))
+      return true;
+  }
+  return false;
 }
 
 
