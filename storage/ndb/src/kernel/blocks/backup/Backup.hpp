@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,7 +59,7 @@ class Backup : public SimulatedBlock
 
 public:
   Backup(Block_context& ctx, Uint32 instanceNumber = 0);
-  virtual ~Backup();
+  ~Backup() override;
   BLOCK_DEFINES(Backup);
  
   class Dblqh* c_lqh;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -212,7 +212,7 @@ class ConfigManager : public MgmtThread {
                   const char* bind_address,
                   NodeId nodeid);
     bool init();
-    virtual void run();
+    void run() override;
   };
   bool init_checkers(const Config* config);
   void start_checkers();
@@ -242,10 +242,10 @@ class ConfigManager : public MgmtThread {
 public:
   ConfigManager(const MgmtSrvr::MgmtOpts&,
                 const char* configdir);
-  virtual ~ConfigManager();
+  ~ConfigManager() override;
   bool init();
   void set_facade(TransporterFacade* facade);
-  virtual void run();
+  void run() override;
 
 
   /*

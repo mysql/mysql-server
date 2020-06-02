@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -128,7 +128,7 @@ void ndbout_c(const char * fmt, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 class FilteredNdbOut : public NdbOut {
 public:
   FilteredNdbOut(OutputStream &, int threshold = 0, int level = 0);
-  virtual ~FilteredNdbOut();
+  ~FilteredNdbOut() override;
 
   void setLevel(int i);
   void setThreshold(int i);

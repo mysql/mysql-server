@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -120,7 +120,7 @@ public:
   MgmtSrvr(const MgmtSrvr&); // Not implemented
   MgmtSrvr(const MgmtOpts&);
 
-  ~MgmtSrvr();
+  ~MgmtSrvr() override;
 
 private:
   /* Function used from 'init' */
@@ -320,7 +320,7 @@ public:
   const char* getErrorText(int errorCode, char *buf, int buf_sz);
 
 private:
-  void config_changed(NodeId, const Config*);
+  void config_changed(NodeId, const Config*) override;
   void setClusterLog(const Config* conf);
   void configure_eventlogger(const BaseString& logdestination) const;
   /**
@@ -458,8 +458,8 @@ private:
   /**
    * trp_client interface
    */
-  virtual void trp_deliver_signal(const NdbApiSignal* signal,
-                                  const struct LinearSectionPtr ptr[3]);
+  void trp_deliver_signal(const NdbApiSignal* signal,
+                          const struct LinearSectionPtr ptr[3]) override;
   virtual void trp_node_status(Uint32 nodeId, Uint32 event);
   
   /**

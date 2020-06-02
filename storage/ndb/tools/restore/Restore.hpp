@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -516,7 +516,7 @@ class RestoreMetaData : public BackupFile {
 public:
   RestoreMetaData(const char * path, Uint32 nodeId, Uint32 bNo,
                   Uint32 partId, Uint32 partCount);
-  virtual ~RestoreMetaData();
+  ~RestoreMetaData() override;
   
   int loadContent();
 		  
@@ -547,7 +547,7 @@ public:
   // Constructor
   RestoreDataIterator(const RestoreMetaData &,
                       void (* free_data_callback)(void*), void*);
-  virtual ~RestoreDataIterator();
+  ~RestoreDataIterator() override;
   
   // Read data file fragment header
   bool readFragmentHeader(int & res, Uint32 *fragmentId);
@@ -579,7 +579,7 @@ private:
   bool m_current_table_has_transforms;
 
 protected:
-  virtual void reset_buffers() { reset_extra_storage();}
+  void reset_buffers() override { reset_extra_storage();}
 
   int readTupleData_old(Uint32 *buf_ptr, Uint32 dataLength);
   int readTupleData_packed(Uint32 *buf_ptr, Uint32 dataLength);
@@ -652,7 +652,7 @@ private:
   Uint32 m_rowBuffIndex;
 public:
   RestoreLogIterator(const RestoreMetaData &);
-  virtual ~RestoreLogIterator() {}
+  ~RestoreLogIterator() override {}
 
   bool isSnapshotstartBackup()
   {

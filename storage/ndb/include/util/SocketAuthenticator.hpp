@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,9 +42,9 @@ class SocketAuthSimple : public SocketAuthenticator
   char *m_username;
 public:
   SocketAuthSimple(const char *username, const char *passwd);
-  virtual ~SocketAuthSimple();
-  virtual bool client_authenticate(NDB_SOCKET_TYPE sockfd);
-  virtual bool server_authenticate(NDB_SOCKET_TYPE sockfd);
+  ~SocketAuthSimple() override;
+  bool client_authenticate(NDB_SOCKET_TYPE sockfd) override;
+  bool server_authenticate(NDB_SOCKET_TYPE sockfd) override;
 };
 
 #endif // SOCKET_AUTHENTICATOR_HPP

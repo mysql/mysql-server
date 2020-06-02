@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,7 +62,7 @@
 class LocalProxy : public SimulatedBlock {
 public:
   LocalProxy(BlockNumber blockNumber, Block_context& ctx);
-  virtual ~LocalProxy();
+  ~LocalProxy() override;
   BLOCK_DEFINES(LocalProxy);
 
 protected:
@@ -74,7 +74,7 @@ protected:
   Uint32 c_anyWorkerCounter;
 
   virtual SimulatedBlock* newWorker(Uint32 instanceNo) = 0;
-  virtual void loadWorkers();
+  void loadWorkers() override;
 
   // get worker block by index (not by instance)
 

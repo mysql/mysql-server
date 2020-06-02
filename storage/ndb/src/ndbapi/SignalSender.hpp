@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -84,7 +84,7 @@ public:
    */
   SignalSender(TransporterFacade *facade, int blockNo = -1, bool deliverAll = false);
   SignalSender(Ndb_cluster_connection* connection, bool deliverAll = false);
-  virtual ~SignalSender();
+  ~SignalSender() override;
   
   int lock();
   int unlock();
@@ -119,8 +119,8 @@ public:
   /**
    * trp_client interface
    */
-  virtual void trp_deliver_signal(const NdbApiSignal* signal,
-                                  const struct LinearSectionPtr ptr[3]);
+  void trp_deliver_signal(const NdbApiSignal* signal,
+                          const struct LinearSectionPtr ptr[3]) override;
   
   Vector<SimpleSignal *> m_jobBuffer;
   Vector<SimpleSignal *> m_usedBuffer;

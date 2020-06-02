@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4574,17 +4574,17 @@ public:
 class PrettyPrinter : public ConfigPrinter {
 public:
   PrettyPrinter(FILE* out = stdout) : ConfigPrinter(out) {}
-  virtual ~PrettyPrinter() {}
+  ~PrettyPrinter() override {}
 
-  virtual void section_start(const char* name, const char* alias,
-                             const char* primarykeys = NULL) {
+  void section_start(const char* name, const char* alias,
+                     const char* primarykeys = NULL) override {
     fprintf(m_out, "****** %s ******\n\n", name);
   }
 
-  virtual void parameter(const char* section_name,
+  void parameter(const char* section_name,
                          const Properties* section,
                          const char* param_name,
-                         const ConfigInfo& info)
+                         const ConfigInfo& info) override
   {
     // Don't print deprecated parameters
     const Uint32 status = info.getStatus(section, param_name);
@@ -4698,11 +4698,11 @@ class XMLPrinter : public ConfigPrinter {
 
 public:
   XMLPrinter(FILE* out = stdout) : ConfigPrinter(out), m_indent(0) {}
-  virtual ~XMLPrinter() {
+  ~XMLPrinter() override {
     assert(m_indent == 0);
   }
 
-  virtual void start() {
+  void start() override {
     BaseString buf;
     Properties pairs;
     pairs.put("protocolversion", "1");
@@ -4720,14 +4720,14 @@ public:
     print_xml("configvariables", pairs, false);
     m_indent++;
   }
-  virtual void end() {
+  void end() override {
     m_indent--;
     Properties pairs;
     print_xml("/configvariables", pairs, false);
   }
 
-  virtual void section_start(const char* name, const char* alias,
-                             const char* primarykeys = NULL) {
+  void section_start(const char* name, const char* alias,
+                     const char* primarykeys = NULL) override {
     Properties pairs;
     pairs.put("name", alias ? alias : name);
     if (primarykeys)
@@ -4735,16 +4735,16 @@ public:
     print_xml("section", pairs, false);
     m_indent++;
   }
-  virtual void section_end(const char* name) {
+  void section_end(const char* name) override {
     m_indent--;
     Properties pairs;
     print_xml("/section", pairs, false);
   }
 
-  virtual void parameter(const char* section_name,
-                         const Properties* section,
-                         const char* param_name,
-                         const ConfigInfo& info){
+  void parameter(const char* section_name,
+                 const Properties* section,
+                 const char* param_name,
+                 const ConfigInfo& info) override{
     BaseString buf;
     Properties pairs;
     pairs.put("name", param_name);

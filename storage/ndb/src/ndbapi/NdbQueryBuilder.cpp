@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -107,16 +107,16 @@ public:
     m_value(value) {}
 
 private:
-  int convertInt8();
-  int convertUint8();
-  int convertInt16();
-  int convertUint16();
-  int convertInt24();
-  int convertUint24();
-  int convertInt32();
-  int convertUint32();
-  int convertInt64();
-  int convertUint64();
+  int convertInt8() override;
+  int convertUint8() override;
+  int convertInt16() override;
+  int convertUint16() override;
+  int convertInt24() override;
+  int convertUint24() override;
+  int convertInt32() override;
+  int convertUint32() override;
+  int convertInt64() override;
+  int convertUint64() override;
 
   const Int64 m_value;
 };
@@ -129,8 +129,8 @@ public:
     m_value(value) {}
 
 private:
-  int convertDouble();
-  int convertFloat();
+  int convertDouble() override;
+  int convertFloat() override;
 private:
   const double m_value;
 };
@@ -142,8 +142,8 @@ public:
     NdbConstOperandImpl(), m_value(value) {}
 
 private:
-  int convertChar();
-  int convertVChar();
+  int convertChar() override;
+  int convertVChar() override;
 //int convertLVChar();
 private:
   const char* const m_value;
@@ -160,7 +160,7 @@ public:
   {}
 
 private:
-  int convert2ColumnType();
+  int convert2ColumnType() override;
 
   const void* const m_value;
   const Uint32 m_len;
@@ -178,7 +178,7 @@ class NdbQueryLookupOperationDefImpl : public NdbQueryOperationDefImpl
   friend class NdbQueryBuilder;  // Allow privat access from builder interface
 
 public:
-  virtual const NdbQueryOperandImpl* const* getKeyOperands() const
+  const NdbQueryOperandImpl* const* getKeyOperands() const override
   { return m_keys; }
  
 protected:
@@ -192,13 +192,13 @@ protected:
                            Uint32      internalOpNo,
                            int& error);
 
-  virtual const NdbQueryLookupOperationDef& getInterface() const
+  const NdbQueryLookupOperationDef& getInterface() const override
   { return m_interface; }
 
   // Append pattern for creating lookup key to serialized code 
   Uint32 appendKeyPattern(Uint32Buffer& serializedDef) const;
 
-  virtual bool isScanOperation() const
+  bool isScanOperation() const override
   { return false; }
 
 protected:
@@ -212,8 +212,8 @@ class NdbQueryPKLookupOperationDefImpl : public NdbQueryLookupOperationDefImpl
   friend class NdbQueryBuilder;  // Allow privat access from builder interface
 
 public:
-  virtual int serializeOperation(const Ndb *ndb,
-                                 Uint32Buffer& serializedDef);
+  int serializeOperation(const Ndb *ndb,
+                         Uint32Buffer& serializedDef) override;
 
 private:
 
@@ -229,7 +229,7 @@ private:
                                      internalOpNo, error)
   {}
 
-  virtual NdbQueryOperationDef::Type getType() const
+  NdbQueryOperationDef::Type getType() const override
   { return NdbQueryOperationDef::PrimaryKeyAccess; }
 
 }; // class NdbQueryPKLookupOperationDefImpl
@@ -240,11 +240,11 @@ class NdbQueryIndexOperationDefImpl : public NdbQueryLookupOperationDefImpl
   friend class NdbQueryBuilder;  // Allow privat access from builder interface
 
 public:
-  virtual const NdbIndexImpl* getIndex() const
+  const NdbIndexImpl* getIndex() const override
   { return &m_index; }
 
-  virtual int serializeOperation(const Ndb *ndb,
-                                 Uint32Buffer& serializedDef);
+  int serializeOperation(const Ndb *ndb,
+                         Uint32Buffer& serializedDef) override;
 
 private:
 
@@ -263,7 +263,7 @@ private:
     m_index(index)
   {}
 
-  virtual NdbQueryOperationDef::Type getType() const
+  NdbQueryOperationDef::Type getType() const override
   { return NdbQueryOperationDef::UniqueIndexAccess; }
 
 private:
@@ -277,13 +277,13 @@ class NdbQueryTableScanOperationDefImpl : public NdbQueryScanOperationDefImpl
   friend class NdbQueryBuilder;  // Allow privat access from builder interface
 
 public:
-  virtual int serializeOperation(const Ndb *ndb,
-                                 Uint32Buffer& serializedDef);
+  int serializeOperation(const Ndb *ndb,
+                         Uint32Buffer& serializedDef) override;
 
-  virtual const NdbQueryTableScanOperationDef& getInterface() const
+  const NdbQueryTableScanOperationDef& getInterface() const override
   { return m_interface; }
 
-  virtual NdbQueryOperationDef::Type getType() const
+  NdbQueryOperationDef::Type getType() const override
   { return NdbQueryOperationDef::TableScan; }
 
 private:

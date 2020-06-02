@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,11 +35,11 @@
 */
 class NdbInfoScanNodes : public NdbInfoScanOperation {
 public:
-  virtual int readTuples();
-  virtual const class NdbInfoRecAttr* getValue(const char * anAttrName);
-  virtual const class NdbInfoRecAttr* getValue(Uint32 anAttrId);
-  virtual int execute();
-  virtual int nextResult();
+  int readTuples() override;
+  const class NdbInfoRecAttr* getValue(const char * anAttrName) override;
+  const class NdbInfoRecAttr* getValue(Uint32 anAttrId) override;
+  int execute() override;
+  int nextResult() override;
 
   NdbInfoScanNodes(const NdbInfo&,
                    class Ndb_cluster_connection*,
@@ -48,7 +48,7 @@ public:
                    Uint32 max_nodes);
   int init(Uint32 id);
 
-  virtual ~NdbInfoScanNodes();
+  ~NdbInfoScanNodes() override;
 private:
   bool execDBINFO_TRANSID_AI(const struct SimpleSignal * signal);
   bool execDBINFO_SCANCONF(const struct SimpleSignal * signal);

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -185,7 +185,7 @@ struct Match
 struct HostMatch : public Match
 {
   HostMatch() {}
-  virtual int eval(const Iter&);
+  int eval(const Iter&) override;
 };
 
 struct Apply
@@ -202,19 +202,19 @@ struct ParamApply : public Apply
 {
   ParamApply(int val,const char *s) :Apply(s), m_key(val) {}
   int m_key;
-  virtual int apply(const Iter&);
+  int apply(const Iter&) override;
 };
 
 struct NodeTypeApply : public Apply
 {
   NodeTypeApply(const char *s) :Apply(s) {}
-  virtual int apply(const Iter&);
+  int apply(const Iter&) override;
 };
 
 struct ConnectionTypeApply : public Apply
 {
   ConnectionTypeApply(const char *s) :Apply(s) {}
-  virtual int apply(const Iter&);
+  int apply(const Iter&) override;
 };
 
 static int parse_query(Vector<Apply*>&, int &argc, char**& argv);

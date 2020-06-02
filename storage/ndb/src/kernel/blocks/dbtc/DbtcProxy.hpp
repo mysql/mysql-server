@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,14 +43,14 @@
 class DbtcProxy : public DbgdmProxy {
 public:
   DbtcProxy(Block_context& ctx);
-  virtual ~DbtcProxy();
+  ~DbtcProxy() override;
   BLOCK_DEFINES(DbtcProxy);
 
 protected:
-  virtual SimulatedBlock* newWorker(Uint32 instanceNo);
+  SimulatedBlock* newWorker(Uint32 instanceNo) override;
 
   // GSN_NDB_STTOR
-  virtual void callNDB_STTOR(Signal*);
+  void callNDB_STTOR(Signal*) override;
 
   /**
    * TCSEIZEREQ

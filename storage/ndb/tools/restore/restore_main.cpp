@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1670,7 +1670,7 @@ private:
     }
   }
 
-  ~OffsetTransform() {}
+  ~OffsetTransform() override {}
 
   static Uint64 readIntoU64(const void* src, Uint32 bits)
   {
@@ -1748,9 +1748,9 @@ private:
     }
   }
       
-  virtual bool apply(const NdbDictionary::Column* col,
+  bool apply(const NdbDictionary::Column* col,
                      const void* src_data,
-                     void** dst_data)
+                     void** dst_data) override
   {
     if (m_sig)
     {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -310,10 +310,10 @@ public:
 
   // default memory allocator
   struct MemDefault : public Mem {
-    virtual void* mem_alloc(UintPtr bytes);
-    virtual void mem_free(void* ptr);
+    void* mem_alloc(UintPtr bytes) override;
+    void mem_free(void* ptr) override;
     MemDefault();
-    virtual ~MemDefault();
+    ~MemDefault() override;
   };
   MemDefault c_mem_default_handler;
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1529,20 +1529,20 @@ struct mt_send_handle  : public TransporterSendBufferHandle
 {
   struct thr_data * m_selfptr;
   mt_send_handle(thr_data* ptr) : m_selfptr(ptr) {}
-  virtual ~mt_send_handle() {}
+  ~mt_send_handle() override {}
 
-  virtual Uint32 *getWritePtr(NodeId nodeId,
-                              TrpId trp_id,
-                              Uint32 len,
-                              Uint32 prio,
-                              Uint32 max,
-                              SendStatus *error);
-  virtual Uint32 updateWritePtr(NodeId nodeId,
-                                TrpId trp_id,
-                                Uint32 lenBytes,
-                                Uint32 prio);
-  virtual void getSendBufferLevel(NodeId node_id, SB_LevelType &level);
-  virtual bool forceSend(NodeId, TrpId);
+  Uint32 *getWritePtr(NodeId nodeId,
+                      TrpId trp_id,
+                      Uint32 len,
+                      Uint32 prio,
+                      Uint32 max,
+                      SendStatus *error) override;
+  Uint32 updateWritePtr(NodeId nodeId,
+                        TrpId trp_id,
+                        Uint32 lenBytes,
+                        Uint32 prio) override;
+  void getSendBufferLevel(NodeId node_id, SB_LevelType &level) override;
+  bool forceSend(NodeId, TrpId) override;
 };
 
 struct trp_callback : public TransporterCallback
@@ -1550,19 +1550,19 @@ struct trp_callback : public TransporterCallback
   trp_callback() {}
 
   /* Callback interface. */
-  void enable_send_buffer(NodeId, TrpId);
-  void disable_send_buffer(NodeId, TrpId);
+  void enable_send_buffer(NodeId, TrpId) override;
+  void disable_send_buffer(NodeId, TrpId) override;
 
-  void reportSendLen(NodeId nodeId, Uint32 count, Uint64 bytes);
-  void lock_transporter(NodeId, TrpId);
-  void unlock_transporter(NodeId, TrpId);
-  void lock_send_transporter(NodeId, TrpId);
-  void unlock_send_transporter(NodeId, TrpId);
+  void reportSendLen(NodeId nodeId, Uint32 count, Uint64 bytes) override;
+  void lock_transporter(NodeId, TrpId) override;
+  void unlock_transporter(NodeId, TrpId) override;
+  void lock_send_transporter(NodeId, TrpId) override;
+  void unlock_send_transporter(NodeId, TrpId) override;
   Uint32 get_bytes_to_send_iovec(NodeId nodeId,
                                  TrpId trp_id,
                                  struct iovec *dst,
-                                 Uint32 max);
-  Uint32 bytes_sent(NodeId, TrpId, Uint32 bytes);
+                                 Uint32 max) override;
+  Uint32 bytes_sent(NodeId, TrpId, Uint32 bytes) override;
 };
 
 static char *g_thr_repository_mem = NULL;

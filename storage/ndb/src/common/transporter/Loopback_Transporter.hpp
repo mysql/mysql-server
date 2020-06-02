@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,23 +41,23 @@ private:
                        const TransporterConfiguration* conf);
 
   // Disconnect, delete send buffers and receive buffer
-  virtual ~Loopback_Transporter();
+  ~Loopback_Transporter() override;
 
   /**
    * overloads TCP_Transporter::doSend
    */
-  virtual bool doSend(bool need_wakeup = true);
+  bool doSend(bool need_wakeup = true) override;
 
   /**
    * setup socket pair
    * @overload Transporter::connect_client()
    */
-  virtual bool connect_client();
+  bool connect_client() override;
 
   /**
    * @overload TCP_Transporter::disconnectImpl
    */
-  virtual void disconnectImpl();
+  void disconnectImpl() override;
 protected:
 
 private:
@@ -70,7 +70,7 @@ private:
   /**
    * overloads TCP_Transporter::send_is_possible
    */
-  virtual bool send_is_possible(int timeout_millisec) const;
+  bool send_is_possible(int timeout_millisec) const override;
 };
 
 #endif // Define of TCP_Transporter_H

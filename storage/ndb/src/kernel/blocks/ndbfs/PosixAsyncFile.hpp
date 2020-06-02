@@ -1,5 +1,5 @@
 /* 
-   Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,26 +40,26 @@ class PosixAsyncFile : public AsyncFile
   friend class Ndbfs;
 public:
   PosixAsyncFile(SimulatedBlock& fs);
-  virtual ~PosixAsyncFile();
+  ~PosixAsyncFile() override;
 
-  virtual int init();
-  virtual bool isOpen();
+  int init() override;
+  bool isOpen() override;
 
-  virtual void openReq(Request *request);
-  virtual void readvReq(Request *request);
+  void openReq(Request *request) override;
+  void readvReq(Request *request) override;
 
-  virtual void closeReq(Request *request);
-  virtual void syncReq(Request *request);
-  virtual void removeReq(Request *request);
-  virtual void appendReq(Request *request);
-  virtual void rmrfReq(Request *request, const char * path, bool removePath);
+  void closeReq(Request *request) override;
+  void syncReq(Request *request) override;
+  void removeReq(Request *request) override;
+  void appendReq(Request *request) override;
+  void rmrfReq(Request *request, const char * path, bool removePath) override;
 
-  virtual int readBuffer(Request*, char * buf, size_t size, off_t offset);
-  virtual int writeBuffer(const char * buf, size_t size, off_t offset);
+  int readBuffer(Request*, char * buf, size_t size, off_t offset) override;
+  int writeBuffer(const char * buf, size_t size, off_t offset) override;
 
-  virtual void createDirectories();
+  void createDirectories() override;
 
-  virtual Uint32 get_fileinfo() const {
+  Uint32 get_fileinfo() const override {
     Uint32 ft = (Uint32)m_filetype;
     Uint32 fd = (Uint32)theFd;
     return (ft << 16) | (fd & 0xFFFF);

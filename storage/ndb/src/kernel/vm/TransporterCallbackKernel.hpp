@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,15 +57,15 @@ public:
   bool deliver_signal(SignalHeader * const header,
                       Uint8 prio,
                       Uint32 * const signalData,
-                      LinearSectionPtr ptr[3]);
-  void reportReceiveLen(NodeId nodeId, Uint32 count, Uint64 bytes);
-  void reportConnect(NodeId nodeId);
-  void reportDisconnect(NodeId nodeId, Uint32 errNo);
+                      LinearSectionPtr ptr[3]) override;
+  void reportReceiveLen(NodeId nodeId, Uint32 count, Uint64 bytes) override;
+  void reportConnect(NodeId nodeId) override;
+  void reportDisconnect(NodeId nodeId, Uint32 errNo) override;
   void reportError(NodeId nodeId, TransporterError errorCode,
-                   const char *info = 0);
-  void transporter_recv_from(NodeId node);
-  int checkJobBuffer();
-  virtual ~TransporterReceiveHandleKernel() { }
+                   const char *info = 0) override;
+  void transporter_recv_from(NodeId node) override;
+  int checkJobBuffer() override;
+  ~TransporterReceiveHandleKernel() override { }
 };
 
 

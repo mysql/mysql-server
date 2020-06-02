@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -242,7 +242,7 @@ class Dbacc: public SimulatedBlock {
   friend class DbaccProxy;
 
 public:
-  void prepare_scan_ctx(Uint32 scanPtrI);
+  void prepare_scan_ctx(Uint32 scanPtrI) override;
 
 // State values
 enum State {
@@ -857,7 +857,7 @@ struct Tabrec {
 
 public:
   Dbacc(Block_context&, Uint32 instanceNumber = 0);
-  virtual ~Dbacc();
+  ~Dbacc() override;
 
   // pointer to TUP instance in this thread
   class Dbtup* c_tup;

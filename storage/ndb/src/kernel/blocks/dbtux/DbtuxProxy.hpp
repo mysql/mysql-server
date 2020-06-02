@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,11 +34,11 @@
 class DbtuxProxy : public LocalProxy {
 public:
   DbtuxProxy(Block_context& ctx);
-  virtual ~DbtuxProxy();
+  ~DbtuxProxy() override;
   BLOCK_DEFINES(DbtuxProxy);
 
 protected:
-  virtual SimulatedBlock* newWorker(Uint32 instanceNo);
+  SimulatedBlock* newWorker(Uint32 instanceNo) override;
 
   // GSN_ALTER_INDX_IMPL_REQ
   struct Ss_ALTER_INDX_IMPL_REQ : SsParallel {
