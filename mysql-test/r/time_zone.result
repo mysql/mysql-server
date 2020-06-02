@@ -523,7 +523,7 @@ SET time_zone = CET;
 CREATE TABLE t1 ( a TIMESTAMP );
 CREATE TABLE t2 ( a TIMESTAMP(6) );
 INSERT INTO t1 VALUES ( TIMESTAMP'2038-01-19 03:14:08+00:00' );
-ERROR 22007: Incorrect datetime value: '2038-01-19 04:14:08' for column 'a' at row 1
+ERROR 22007: Incorrect datetime value: 'X' for column 'a' at row 1
 INSERT INTO t1 VALUES ( TIMESTAMP'2038-01-19 03:14:07+00:00' );
 INSERT INTO t1 VALUES ( TIMESTAMP'2038-01-19 03:14:07.000001+00:00' );
 INSERT INTO t1 VALUES ( TIMESTAMP'2038-01-19 03:14:07.999999+00:00' );
@@ -538,11 +538,11 @@ INSERT INTO t1 VALUES ( TIMESTAMP'1970-01-01 00:00:00.999999+00:00' );
 INSERT INTO t1 VALUES ( '2038-01-19 03:14:08+00:00' );
 ERROR 22007: Incorrect datetime value: '2038-01-19 03:14:08+00:00' for column 'a' at row 1
 INSERT INTO t1 VALUES ( TIMESTAMP'9999-12-31 23:59:59.999999+00:00' );
-ERROR 22007: Truncated incorrect temporal value: '0000-01-01 00:59:59'
+Got one of the listed errors
 INSERT INTO t1 VALUES ( '9999-12-31 23:59:59.999999+00:00' );
-ERROR 22007: Truncated incorrect temporal value: '0000-01-01 00:59:59'
+Got one of the listed errors
 INSERT INTO t2 VALUES ( TIMESTAMP'2038-01-19 03:14:08+00:00' );
-ERROR 22007: Incorrect datetime value: '2038-01-19 04:14:08.000000' for column 'a' at row 1
+ERROR 22007: Incorrect datetime value: 'X' for column 'a' at row 1
 INSERT INTO t2 VALUES ( TIMESTAMP'2038-01-19 03:14:07+00:00' );
 INSERT INTO t2 VALUES ( TIMESTAMP'2038-01-19 03:14:07.000001+00:00' );
 INSERT INTO t2 VALUES ( TIMESTAMP'2038-01-19 03:14:07.999999+00:00' );
@@ -557,9 +557,9 @@ ERROR 22007: Incorrect datetime value: '1970-01-01 01:00:00.999999' for column '
 INSERT INTO t2 VALUES ( '2038-01-19 03:14:08+00:00' );
 ERROR 22007: Incorrect datetime value: '2038-01-19 03:14:08+00:00' for column 'a' at row 1
 INSERT INTO t2 VALUES ( TIMESTAMP'9999-12-31 23:59:59.999999+00:00' );
-ERROR 22007: Truncated incorrect temporal value: '0000-01-01 00:59:59'
+Got one of the listed errors
 INSERT INTO t2 VALUES ( '9999-12-31 23:59:59.999999+00:00' );
-ERROR 22007: Truncated incorrect temporal value: '0000-01-01 00:59:59'
+Got one of the listed errors
 SET time_zone = UTC;
 INSERT INTO t1 VALUES ( '2038-01-19 03:14:08+00:00' );
 ERROR 22007: Incorrect datetime value: '2038-01-19 03:14:08+00:00' for column 'a' at row 1
