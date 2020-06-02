@@ -62,7 +62,7 @@ class MDLSyncTest : public ::testing::Test {
     table_def_init();
   }
 
-  void TearDown() {
+  void TearDown() override {
     m_initializer.TearDown();
     mdl_destroy();
     debug_sync_end();
