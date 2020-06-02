@@ -7260,7 +7260,7 @@ runDelayedNodeFail(NDBT_Context *ctx, NDBT_Step *step)
       ctx->stopTest();
       return NDBT_FAILED;
     }
-    g_err << "Waitting for node " << victim << "to die" << endl;
+    g_err << "Waiting for node " << victim << " to die" << endl;
     restarter.waitNodesNoStart(&victim, 1);
     ndbout_c("  start node");
     if (restarter.startNodes(&victim, 1) != 0)
