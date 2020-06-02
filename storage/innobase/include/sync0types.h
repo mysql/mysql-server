@@ -1066,7 +1066,7 @@ struct btrsea_sync_check : public sync_check_functor_t {
       : m_result(), m_has_search_latch(has_search_latch) {}
 
   /** Destructor */
-  virtual ~btrsea_sync_check() {}
+  ~btrsea_sync_check() override {}
 
   /** Called for every latch owned by the calling thread.
   @param[in]	level		Level of the existing latch
@@ -1129,7 +1129,7 @@ struct dict_sync_check : public sync_check_functor_t {
       : m_result(), m_dict_mutex_allowed(dict_mutex_allowed) {}
 
   /** Destructor */
-  virtual ~dict_sync_check() {}
+  ~dict_sync_check() override {}
 
   /** Check the latching constraints
   @param[in]	level		The level held by the thread */
