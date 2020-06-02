@@ -37,7 +37,7 @@ using namespace keyring;
 class Keyring_api_test : public ::testing::Test {
  public:
   Keyring_api_test() {}
-  ~Keyring_api_test() {
+  ~Keyring_api_test() override {
     delete[] plugin_name;
     delete[] keyring_filename;
   }

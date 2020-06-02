@@ -75,7 +75,7 @@ class Remembering_visitor : public Select_lex_visitor {
   bool saw_select_lex() { return m_saw_select_lex; }
   bool saw_select_lex_unit() { return m_saw_select_lex_unit; }
 
-  ~Remembering_visitor() {}
+  ~Remembering_visitor() override {}
 
  private:
   bool m_saw_select_lex, m_saw_select_lex_unit;

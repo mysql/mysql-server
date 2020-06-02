@@ -59,7 +59,7 @@ class Timers_test_suite : public ::testing::Test {
                                               &mock_protocol_monitor));
   }
 
-  void TearDown() { EXPECT_CALL(*mock_vio, shutdown()); }
+  void TearDown() override { EXPECT_CALL(*mock_vio, shutdown()); }
 
   using Strict_mock_vio = StrictMock<Mock_vio>;
   std::shared_ptr<Strict_mock_vio> mock_vio{new Strict_mock_vio()};

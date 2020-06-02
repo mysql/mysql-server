@@ -78,7 +78,7 @@ class Mock_field_timestamp : public Field_timestamp {
     store_timestamp_called = true;
   }
 
-  ~Mock_field_timestamp() { delete static_cast<Fake_TABLE *>(table); }
+  ~Mock_field_timestamp() override { delete static_cast<Fake_TABLE *>(table); }
 };
 
 #endif  // MOCK_FIELD_TIMESTAMP_H

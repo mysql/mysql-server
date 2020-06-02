@@ -166,8 +166,8 @@ class CacheStorageTest : public ::testing::Test, public Test_MDL_context_owner {
     m_init.TearDown();
   }
 
-  virtual void notify_shared_lock(MDL_context_owner *in_use,
-                                  bool needs_thr_lock_abort) {
+  void notify_shared_lock(MDL_context_owner *in_use,
+                          bool needs_thr_lock_abort) override {
     in_use->notify_shared_lock(nullptr, needs_thr_lock_abort);
   }
 
