@@ -1964,13 +1964,13 @@ BackupFile::validateFooter(){
 #ifdef ERROR_INSERT
 void BackupFile::error_insert(unsigned int code)
 {
+  m_error_insert = code;
   if(code == NDB_RESTORE_ERROR_INSERT_SMALL_BUFFER)
   {
     // Reduce size of buffer to test buffer overflow
     // handling. The buffer must still be large enough to
     // accommodate the file header.
     m_buffer_sz = 256;
-    m_error_insert = NDB_RESTORE_ERROR_INSERT_SMALL_BUFFER;
   }
 }
 #endif
