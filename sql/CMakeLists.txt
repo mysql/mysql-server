@@ -1017,9 +1017,13 @@ IF(MSVC)
     "${mysqld_link_flags} /DEF:${CMAKE_CURRENT_BINARY_DIR}/mysqld.def")
 
   SET(_PLATFORM  x64)
-  ADD_CUSTOM_COMMAND(TARGET mysqld PRE_LINK
-    COMMAND echo ${_PLATFORM} && cscript ARGS //nologo ${PROJECT_SOURCE_DIR}/win/create_def_file.js
-    ${_PLATFORM}
+
+  MYSQL_ADD_EXECUTABLE(create_def create_def.cc SKIP_INSTALL)
+
+  # Build mysql_fix_privilege_tables.h
+  ADD_CUSTOM_COMMAND(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/mysqld.def
+    COMMAND create_def
     "$<TARGET_FILE:binlog>"
     "$<TARGET_FILE:binlogevents_static>"
     "$<TARGET_FILE:mysys>"
@@ -1030,8 +1034,14 @@ IF(MSVC)
     "$<TARGET_FILE:strings>"
     "$<TARGET_FILE:vio>"
     > mysqld.def
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    DEPENDS create_def binlog binlogevents_static mysys mytime rpl slave sql_main strings vio
+  )
+  ADD_CUSTOM_TARGET(GenMysqldDef ALL
+    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/mysqld.def)
+
   ADD_DEPENDENCIES(sql_main GenError)
+  ADD_DEPENDENCIES(mysqld GenMysqldDef)
 ENDIF()
 
 SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE) 
