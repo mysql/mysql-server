@@ -385,6 +385,7 @@ class Tablespace_files {
  public:
   using Names = std::vector<std::string, ut_allocator<std::string>>;
   using Paths = std::unordered_map<space_id_t, Names>;
+  using Undo_num2id = std::unordered_map<space_id_t, space_id_t>;
 
   /** Default constructor
   @param[in]	dir		Directory that the files are under */
@@ -400,7 +401,7 @@ class Tablespace_files {
   /** Get the file names that map to a space ID
   @param[in]	space_id	Tablespace ID
   @return the filenames that map to space id */
-  Names *find(space_id_t space_id) MY_ATTRIBUTE((warn_unused_result)) {
+  Names *find_by_id(space_id_t space_id) MY_ATTRIBUTE((warn_unused_result)) {
     ut_ad(space_id != TRX_SYS_SPACE);
 
     if (dict_sys_t::is_reserved(space_id) &&
@@ -422,6 +423,25 @@ class Tablespace_files {
     return (nullptr);
   }
 
+  /** Get the file name that maps to an undo space number
+  @param[in]   space_num  undo tablespace number
+  @param[out]  space_id   undo tablespace ID
+  @return the file name that maps to the space number */
+  Names *find_by_num(space_id_t space_num, space_id_t &space_id)
+      MY_ATTRIBUTE((warn_unused_result)) {
+    ut_ad(space_num > 0 && space_num <= FSP_MAX_UNDO_TABLESPACES);
+    auto it_nums = m_undo_nums.find(space_num);
+    if (it_nums == m_undo_nums.end()) {
+      return (nullptr);
+    }
+    space_id = it_nums->second;
+
+    auto it = m_undo_paths.find(space_id);
+    ut_ad(it != m_undo_paths.end());
+
+    return (&it->second);
+  }
+
   /** Remove the entry for the space ID.
   @param[in]	space_id	Tablespace ID mapping to remove
   @return true if erase successful */
@@ -430,7 +450,10 @@ class Tablespace_files {
 
     if (dict_sys_t::is_reserved(space_id) &&
         space_id != dict_sys_t::s_space_id) {
-      auto n_erased = m_undo_paths.erase(space_id);
+      auto n_erased = m_undo_nums.erase(undo::id2num(space_id));
+      ut_ad(n_erased == 1);
+
+      n_erased = m_undo_paths.erase(space_id);
 
       return (n_erased == 1);
     } else {
@@ -446,6 +469,7 @@ class Tablespace_files {
   void clear() {
     m_ibd_paths.clear();
     m_undo_paths.clear();
+    m_undo_nums.clear();
   }
 
   /** @return m_dir */
@@ -463,6 +487,9 @@ class Tablespace_files {
 
   /** Mapping from tablespace ID to Undo files */
   Paths m_undo_paths;
+
+  /** Mapping from undo space number to space ID */
+  Undo_num2id m_undo_nums;
 
   /** Top level directory where the above files were found. */
   Fil_path m_dir;
@@ -528,9 +555,27 @@ class Tablespace_dirs {
   @param[in]	space_id	Tablespace ID
   @return directory searched and pointer to names that map to the
           tablespace ID */
-  Result find(space_id_t space_id) MY_ATTRIBUTE((warn_unused_result)) {
+  Result find_by_id(space_id_t space_id) MY_ATTRIBUTE((warn_unused_result)) {
     for (auto &dir : m_dirs) {
-      const auto names = dir.find(space_id);
+      const auto names = dir.find_by_id(space_id);
+
+      if (names != nullptr) {
+        return (Result{dir.path(), names});
+      }
+    }
+
+    return (Result{"", nullptr});
+  }
+
+  /* Find the matching space number ->space ID -> name mapping.
+  @param[in]   space_num  undo tablespace number
+  @param[out]  space_id   undo tablespace ID
+  @return directory searched and pointer to name that maps to the
+          tablespace number */
+  Result find_by_num(space_id_t space_num, space_id_t &space_id)
+      MY_ATTRIBUTE((warn_unused_result)) {
+    for (auto &dir : m_dirs) {
+      const auto names = dir.find_by_num(space_num, space_id);
 
       if (names != nullptr) {
         return (Result{dir.path(), names});
@@ -1293,25 +1338,63 @@ class Fil_system {
   /** Fetch the file names opened for a space_id during recovery.
   @param[in]	space_id	Tablespace ID to lookup
   @return pair of top level directory scanned and names that map
-          to space_id or nullptr if not found for names */
-  Tablespace_dirs::Result get_scanned_files(space_id_t space_id)
+          to space_id or nullptr if not found. */
+  Tablespace_dirs::Result get_scanned_filename_by_space_id(space_id_t space_id)
       MY_ATTRIBUTE((warn_unused_result)) {
-    return (m_dirs.find(space_id));
+    return (m_dirs.find_by_id(space_id));
   }
 
-  /** Fetch the file name opened for a space_id during recovery
-  from the file map.
-  @param[in]	space_id	Undo tablespace ID
-  @return Full path to the file name that was opened, empty string
-          if space ID not found. */
-  std::string find(space_id_t space_id) MY_ATTRIBUTE((warn_unused_result)) {
-    auto result = get_scanned_files(space_id);
+  /** Fetch the file name opened for an undo space number.
+  @param[in]   space_num  undo tablespace numb er to lookup
+  @param[out]  space_id   Tablespace ID found
+  @return pair of top level directory scanned and name that maps
+          to the space_num or nullptr if not found. */
+  Tablespace_dirs::Result get_scanned_filename_by_space_num(
+      space_id_t space_num, space_id_t &space_id)
+      MY_ATTRIBUTE((warn_unused_result)) {
+    return (m_dirs.find_by_num(space_num, space_id));
+  }
+
+  /** Fetch the file name opened for a space_id from the file map.
+  @param[in]   space_id  tablespace ID
+  @param[out]  name      the scanned filename
+  @return true if the space_id is found. The name is set to an
+  empty string if the space_id is not found. */
+  bool get_file_by_space_id(space_id_t space_id, std::string &name)
+      MY_ATTRIBUTE((warn_unused_result)) {
+    auto result = get_scanned_filename_by_space_id(space_id);
 
     if (result.second != nullptr) {
-      return (result.first + result.second->front());
+      /* Duplicates should have been sorted out by now. */
+      ut_a(result.second->size() == 1);
+      name = result.first + result.second->front();
+      return true;
     }
 
-    return ("");
+    name = "";
+    return false;
+  }
+
+  /** Fetch the file name opened for an undo space number.
+  @param[in]   space_num  undo tablespace number
+  @param[out]  space_id   tablespace ID
+  @param[out]  name       the scanned filename
+  @return true if the space_id is found. The name is set to an
+  empty string if the space_id is not found. */
+  bool get_file_by_space_num(space_id_t space_num, space_id_t &space_id,
+                             std::string &name)
+      MY_ATTRIBUTE((warn_unused_result)) {
+    auto result = get_scanned_filename_by_space_num(space_num, space_id);
+
+    if (result.second != nullptr) {
+      /* Duplicates should have been sorted out by now. */
+      ut_a(result.second->size() == 1);
+      name = result.first + result.second->front();
+      return true;
+    }
+
+    name = "";
+    return false;
   }
 
   /** Erase a tablespace ID and its mapping from the scanned files.
@@ -2124,6 +2207,9 @@ size_t Tablespace_files::add(space_id_t space_id, const std::string &name) {
                               << " but its ID " << space_id << " is not"
                               << " in the undo tablespace range";
     }
+
+    space_id_t space_num = undo::id2num(space_id);
+    m_undo_nums[space_num] = space_id;
 
     names = &m_undo_paths[space_id];
 
@@ -4283,14 +4369,15 @@ static void fil_op_write_log(mlog_id_t type, space_id_t space_id,
   }
 }
 
-/** Fetch the file name opened for a space_id during recovery
-from the file map.
-@param[in]	space_id	Undo tablespace ID
-@return file name that was opened, empty string if space ID not found. */
-std::string fil_system_open_fetch(space_id_t space_id) {
+bool fil_system_get_file_by_space_id(space_id_t space_id, std::string &name) {
   ut_a(dict_sys_t::is_reserved(space_id) || srv_is_upgrade_mode);
 
-  return (fil_system->find(space_id));
+  return (fil_system->get_file_by_space_id(space_id, name));
+}
+
+bool fil_system_get_file_by_space_num(space_id_t space_num,
+                                      space_id_t &space_id, std::string &name) {
+  return (fil_system->get_file_by_space_num(space_num, space_id, name));
 }
 
 #endif /* !UNIV_HOTBACKUP */
@@ -9757,7 +9844,7 @@ bool Fil_system::lookup_for_recovery(space_id_t space_id) {
   ut_ad(recv_recovery_is_on() || Log_DDL::is_in_recovery());
 
   /* Single threaded code, no need to acquire mutex. */
-  const auto result = get_scanned_files(space_id);
+  const auto result = get_scanned_filename_by_space_id(space_id);
 
   if (recv_recovery_is_on()) {
     const auto &end = recv_sys->deleted.end();
@@ -9799,7 +9886,7 @@ bool Fil_system::open_for_recovery(space_id_t space_id) {
     return (false);
   }
 
-  const auto result = get_scanned_files(space_id);
+  const auto result = get_scanned_filename_by_space_id(space_id);
 
   /* Duplicates should have been sorted out before start of recovery. */
   ut_a(result.second->size() == 1);
@@ -9869,7 +9956,7 @@ Fil_state fil_tablespace_path_equals(dd::Object_id dd_object_id,
   /* Single threaded code, no need to acquire mutex. */
   const auto &end = recv_sys->deleted.end();
   const auto &it = recv_sys->deleted.find(space_id);
-  const auto result = fil_system->get_scanned_files(space_id);
+  const auto result = fil_system->get_scanned_filename_by_space_id(space_id);
 
   if (result.second == nullptr) {
     /* The file was not scanned but the DD has the tablespace. Either;
@@ -10046,7 +10133,7 @@ bool Fil_system::check_missing_tablespaces() {
       continue;
     }
 
-    const auto result = get_scanned_files(space_id);
+    const auto result = get_scanned_filename_by_space_id(space_id);
 
     if (result.second == nullptr) {
       if (fsp_is_undo_tablespace(space_id)) {
@@ -10152,7 +10239,8 @@ byte *fil_tablespace_redo_create(byte *ptr, const byte *end,
 
 #else  /* !UNIV_HOTBACKUP */
 
-  const auto result = fil_system->get_scanned_files(page_id.space());
+  const auto result =
+      fil_system->get_scanned_filename_by_space_id(page_id.space());
 
   if (result.second == nullptr) {
     /* No file maps to this tablespace ID. It's possible that
@@ -10370,7 +10458,8 @@ byte *fil_tablespace_redo_delete(byte *ptr, const byte *end,
 
 #else  /* !UNIV_HOTBACKUP */
 
-  const auto result = fil_system->get_scanned_files(page_id.space());
+  const auto result =
+      fil_system->get_scanned_filename_by_space_id(page_id.space());
 
   recv_sys->deleted.insert(page_id.space());
   recv_sys->missing_ids.erase(page_id.space());
@@ -10974,7 +11063,7 @@ void Tablespace_dirs::print_duplicates(const Space_id_set &duplicates) {
     Dirs files;
 
     for (auto &dir : m_dirs) {
-      const auto names = dir.find(space_id);
+      const auto names = dir.find_by_id(space_id);
 
       if (names == nullptr) {
         continue;

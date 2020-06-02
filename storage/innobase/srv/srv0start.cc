@@ -773,13 +773,7 @@ static dberr_t srv_undo_tablespace_fixup_num(space_id_t space_num) {
    */
   space_id_t space_id = SPACE_UNKNOWN;
   std::string scanned_name;
-  for (size_t ndx = 0;
-       ndx < dict_sys_t::undo_space_id_range && scanned_name.length() == 0;
-       ndx++) {
-    space_id = undo::num2id(space_num, ndx);
-
-    scanned_name = fil_system_open_fetch(space_id);
-  }
+  fil_system_get_file_by_space_num(space_num, space_id, scanned_name);
 
   /* If the previous file still exists, delete it. */
   if (scanned_name.length() > 0) {
@@ -987,10 +981,12 @@ static dberr_t srv_undo_tablespace_open_by_id(space_id_t space_id) {
   no duplicates.  The filename found must match the standard name
   if this is an implicit undo tablespace. In other words, implicit
   undo tablespaces must be found in srv_undo_dir. */
-  std::string scanned_name = fil_system_open_fetch(space_id);
 
-  if (scanned_name.length() != 0 &&
-      !Fil_path::is_same_as(undo_space.file_name(), scanned_name.c_str())) {
+  std::string scanned_name;
+  bool found = fil_system_get_file_by_space_id(space_id, scanned_name);
+  ut_a(found);
+
+  if (!Fil_path::is_same_as(undo_space.file_name(), scanned_name.c_str())) {
     ib::error(ER_IB_MSG_FOUND_WRONG_UNDO_SPACE, undo_space.file_name(),
               ulong{space_id}, scanned_name.c_str());
 
@@ -1005,20 +1001,12 @@ static dberr_t srv_undo_tablespace_open_by_id(space_id_t space_id) {
 @return DB_SUCCESS or error code */
 static dberr_t srv_undo_tablespace_open_by_num(space_id_t space_num) {
   space_id_t space_id = SPACE_UNKNOWN;
-  size_t ndx;
   std::string scanned_name;
 
   /* Search for a file that is using any of the space IDs assigned to this
   undo number. The directory scan assured that there are no duplicate files
   with the same space_id or with the same undo space number. */
-  for (ndx = 0;
-       ndx < dict_sys_t::undo_space_id_range && scanned_name.length() == 0;
-       ndx++) {
-    space_id = undo::num2id(space_num, ndx);
-
-    scanned_name = fil_system_open_fetch(space_id);
-  }
-  if (scanned_name.length() == 0) {
+  if (!fil_system_get_file_by_space_num(space_num, space_id, scanned_name)) {
     return (DB_CANNOT_OPEN_FILE);
   }
 
