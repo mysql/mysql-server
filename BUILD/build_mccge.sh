@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -227,7 +227,6 @@ Usage: $0 [options]
   --valgrind              Build with valgrind
   --fast                  Optimise for CPU architecture built on
   --static-linking        Statically link system libraries into binaries
-  --use-tcmalloc          Link with tcmalloc instead of standard malloc (Linux only)
   --with-flags *          Pass extra --with-xxx options to configure
 EOF
   if test "x$1" != "x" ; then
@@ -780,9 +779,6 @@ parse_options()
       ;;
     --with-mso)
       with_mso="yes"
-      ;;
-    --use-tcmalloc)
-      use_tcmalloc="yes"
       ;;
     --with-debug)
       with_debug_flag="yes"
@@ -1550,9 +1546,6 @@ set_linux_configs()
     usage "Only x86 and Itanium CPUs supported for Linux"
     exit 1
   fi
-  if test "x$use_tcmalloc" = "xyes" ; then
-    base_configs="$base_configs --with-mysqld-libs=-ltcmalloc_minimal"
-  fi
   if test "x$cpu_base_type" = "xx86" ; then
     base_configs="$base_configs --enable-assembler"
   fi
@@ -1850,7 +1843,6 @@ commands=
 engine_configs=
 ASFLAGS=
 LDFLAGS=
-use_tcmalloc=
 without_comment="yes"
 with_fast_mutexes=
 with_perfschema="yes"
