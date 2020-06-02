@@ -109,3 +109,37 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 UPDATE t1,t2 SET t2.b=0;
 SET sql_buffer_result=@old_buf_result;
 DROP TABLE t1,t2;
+#
+# Bug#28716103 - MULTI-TABLE UPDATE OF PRIMARY KEY RESULTS IN ERROR 1032
+# "CAN'T FIND RECORD"
+#
+CREATE TABLE t1 (c1 CHAR(255) NOT NULL);
+CREATE TABLE t2 (c1 CHAR(255) NOT NULL, c2 CHAR(255) NOT NULL,
+c3 CHAR(255) NOT NULL,  PRIMARY KEY (c1, c2, c3));
+INSERT INTO t1 VALUES ('x'), ('x');
+INSERT INTO t2 VALUES ('x', '', '');
+UPDATE t1, t2 SET t2.c2 = 'y', t2.c3 = 'y' WHERE t2.c1 = t1.c1;
+SELECT * FROM t2;
+c1	c2	c3
+x	y	y
+DROP TABLE t1, t2;
+CREATE TABLE t1(c1 VARCHAR(350), c2 VARCHAR(350),
+c3 INT, PRIMARY KEY(c1,c2)) charset=utf8mb3;
+INSERT INTO t1 VALUES ('a','a',1);
+INSERT INTO t1 VALUES ('a','b',2);
+INSERT INTO t1 VALUES ('a','c',3);
+INSERT INTO t1 VALUES ('a','d',4);
+INSERT INTO t1 VALUES ('a','e',5);
+INSERT INTO t1 VALUES ('a','f',6);
+INSERT INTO t1 VALUES ('a','g',7);
+INSERT INTO t1 VALUES ('a','h',8);
+INSERT INTO t1 VALUES ('a','i',9);
+INSERT INTO t1 VALUES ('a','j',10);
+INSERT INTO t1 VALUES ('a','k',11);
+SET @@SESSION.tmp_table_size=1024;
+UPDATE t1 a, t1 b SET a.c3=22 WHERE a.c1 = b.c1;
+SELECT COUNT(*) FROM t1 WHERE c3=22;
+COUNT(*)
+11
+SET @@SESSION.tmp_table_size=DEFAULT;
+DROP TABLE t1;

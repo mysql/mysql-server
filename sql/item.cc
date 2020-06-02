@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2119,7 +2119,8 @@ bool Item_name_const::fix_fields(THD *thd, Item **ref)
   {
     item_name.copy(tmp->ptr(), (uint) tmp->length(), system_charset_info);
   }
-  collation.set(value_item->collation.collation, DERIVATION_IMPLICIT,
+  collation.set(value_item->collation.collation,
+                value_item->collation.derivation,
                 value_item->collation.repertoire);
   max_length= value_item->max_length;
   decimals= value_item->decimals;
@@ -2747,9 +2748,6 @@ bool Item_field::itemize(Parse_context *pc, Item **res)
   if (select->parsing_place != CTX_HAVING)
     select->select_n_where_fields++;
 
-  if (select->parsing_place == CTX_SELECT_LIST &&
-      field_name && field_name[0] == '*' && field_name[1] == 0)
-    select->with_wild++;
   return false;
 }
 
@@ -11016,5 +11014,28 @@ bool Item_field::repoint_const_outer_ref(uchar *arg)
   if (*is_outer_ref)
     result_field= field;
   *is_outer_ref= false;
+  return false;
+}
+
+
+Item_asterisk::Item_asterisk(Name_resolution_context *context_arg,
+                             const char *opt_schema_name,
+                             const char *opt_table_name)
+    : super(context_arg, opt_schema_name, opt_table_name, "*")
+{
+  context_arg->select_lex->with_wild++;
+}
+
+
+bool Item_asterisk::itemize(Parse_context *pc, Item **res)
+{
+  DBUG_ASSERT(pc->select->parsing_place == CTX_SELECT_LIST);
+
+  if (skip_itemize(res))
+    return false;
+  if (super::itemize(pc, res))
+    return true;
+
+  pc->select->with_wild++;
   return false;
 }

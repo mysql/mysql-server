@@ -1,0 +1,103 @@
+################################################################################
+# === Purpose ===
+#
+# This test verifies that parallel execution of STOP GROUP REPLICATION and
+# performance_schema queries are handled properly by the server.
+#
+# === Implementation ===
+#
+# 1. The test requires two servers: M1, M2
+# 2. Start 2 servers and add them to group replication group
+# 3. Send STOP GR command on M1 an halt the execution at a sync point using
+#    debug_sync utility.
+# 4. Send performance_schema query on M1 from a parallel client.
+# 5. Verify that concurrent queries are properly handled by server.
+# 6. Verify the consistency of the P_S queries post STOP GR.
+# 7. Cleanup
+################################################################################
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source ../inc/have_group_replication_plugin.inc
+--source ../inc/group_replication.inc
+
+--echo #
+--echo # Set the necessary debug points required for the simulation.
+--echo #
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG='+d,group_replication_wait_on_stop';
+
+--echo #
+--echo # Send STOP GR command. The query shall wait before
+--echo # "leave_group_and_terminate_plugin_modules()" function until it is signaled.
+--echo #
+--send STOP GROUP_REPLICATION
+
+--echo #
+--echo # Wait for STOP GR to reach the debug sync point.
+--echo #
+--let $rpl_connection_name= server_1_1
+--source include/rpl_connection.inc
+SET DEBUG_SYNC= "now WAIT_FOR signal.stop_waiting";
+
+--echo #
+--echo # Send PS query from different session. The query shall halt in
+--echo # "get_group_member_stats()" function.
+--echo #
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '+d,group_replication_get_group_member_stats';
+--send SELECT * FROM performance_schema.replication_group_member_stats
+
+--echo #
+--echo # Block the PS query and allow STOP GR command to continue by
+--echo # signalling it.
+--echo #
+--let $rpl_connection_name= server_1_1
+--source include/rpl_connection.inc
+SET DEBUG_SYNC= "now WAIT_FOR signal.reached_get_group_member_stats";
+SET DEBUG_SYNC= "now SIGNAL signal.stop_continue";
+
+# Reap the STOP GR query.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--reap
+
+--echo #
+--echo # Allow the PS query to continue.
+--echo #
+SET DEBUG_SYNC= "now SIGNAL signal.resume_get_group_member_stats";
+
+# Reap the PS query.
+--disable_result_log
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--reap
+--enable_result_log
+
+--echo #
+--echo # Verify that MEMBER_STATE is OFFLINE on server_1.
+--echo #
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--let $assert_text= Verified that MEMBER_STATE is OFFLINE on server_1
+--let $assert_cond= "[SELECT MEMBER_STATE FROM performance_schema.replication_group_members, MEMBER_STATE, 1]" = "OFFLINE"
+--source include/assert.inc
+
+--echo #
+--echo # Verify that MEMBER_STATE is ONLINE on server_2.
+--echo #
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+--let $assert_text= Verified that MEMBER_STATE is ONLINE on server_2
+--let $assert_cond= "[SELECT MEMBER_STATE FROM performance_schema.replication_group_members, MEMBER_STATE, 1]" = "ONLINE"
+--source include/assert.inc
+
+# Cleanup
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET GLOBAL DEBUG= @debug_save;
+SET DEBUG_SYNC= 'RESET';
+--source ../inc/group_replication_end.inc

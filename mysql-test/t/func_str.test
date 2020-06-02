@@ -1868,3 +1868,19 @@ WHERE trim(leading  'A' FROM COUNTRY) = 'ustralia'
   AND trim(trailing 'a' FROM COUNTRY) = 'Australi';
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug 31320716 - SETTING VARIABLE TO CONCAT('') SETS IT TO NULL INSTEAD OF ''
+--echo #
+# expect empty string and not NULL
+SELECT @var:=CONCAT('');
+SELECT @var:=CONCAT_WS('','');
+
+# shouldn't cause an assertion to fail
+SET NAMES utf8;
+CREATE TABLE t(a INT) engine=innodb;
+INSERT INTO t VALUES(1);
+SELECT 1 FROM t WHERE WEIGHT_STRING(CONCAT_WS('1',''));
+SELECT 1 FROM t WHERE WEIGHT_STRING(CONCAT('',''));
+SET NAMES DEFAULT;
+DROP TABLE t;
