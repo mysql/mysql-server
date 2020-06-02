@@ -1397,7 +1397,7 @@ public:
   void sendINFORM_BACKUP_DROP_TAB_CONF(Signal*, BackupRecordPtr);
 
   void sync_log_lcp_lsn(Signal*, DeleteLcpFilePtr, Uint32 ptrI);
-  void sync_log_lcp_lsn_callback(Signal*, Uint32 ptrI, Uint32 res);
+  void sync_log_lcp_lsn_callback(Signal*, Uint32 ptrI, Uint32 unused);
   void lcp_open_ctl_file_for_rewrite(Signal*,
                                      DeleteLcpFilePtr,
                                      BackupRecordPtr);
