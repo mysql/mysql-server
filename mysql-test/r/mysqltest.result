@@ -1037,3 +1037,9 @@ mysqltest: At line 1: Missing required argument 'precision' to command 'replace_
 mysqltest: At line 1: A number between 0 and 16 is required for the precision in replace_numeric_round
 # The minimum value which can be passed is 0
 mysqltest: At line 1: A number between 0 and 16 is required for the precision in replace_numeric_round
+#
+# BUG#26630826: MTR: REPLACE_RESULT IS NOT ABLE TO REPLACE LONG
+#               STRINGS IN PATH NAME
+#
+REPLACE_STRING
+mysqltest: At line 1: query 'SELECT REPLACE_STRING FROM t1' failed: 1146: Table 'test.t1' doesn't exist

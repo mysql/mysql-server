@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2047,7 +2047,7 @@ bool Query_result_update::initialize_tables(JOIN *join)
     TABLE *table=table_ref->table;
     uint cnt= table_ref->shared;
     List<Item> temp_fields;
-    ORDER     group;
+    ORDER *group = NULL;
     Temp_table_param *tmp_param;
     if (table->vfield &&
         validate_gc_assignment(thd, fields, values, table))
@@ -2180,9 +2180,14 @@ loop_end:
         that we need a position to be read first.
       */
       tbl->prepare_for_position();
+      /*
+        A tmp table is moved to InnoDB if it doesn't fit in memory,
+        and InnoDB does not support fixed length string fields bigger
+        than 1024 bytes, so use a variable length string field.
+      */
+      Field_varstring *field = new Field_varstring(
+          tbl->file->ref_length, false, tbl->alias, tbl->s, &my_charset_bin);
 
-      Field_string *field= new Field_string(tbl->file->ref_length, 0,
-                                            tbl->alias, &my_charset_bin);
       if (!field)
         DBUG_RETURN(1);
       field->init(tbl);
@@ -2190,7 +2195,6 @@ loop_end:
         The field will be converted to varstring when creating tmp table if
         table to be updated was created by mysql 4.1. Deny this.
       */
-      field->can_alter_field_type= 0;
       Item_field *ifield= new Item_field((Field *) field);
       if (!ifield)
          DBUG_RETURN(1);
@@ -2202,19 +2206,20 @@ loop_end:
     temp_fields.concat(fields_for_table[cnt]);
 
     /* Make an unique key over the first field to avoid duplicated updates */
-    memset(&group, 0, sizeof(group));
-    group.direction= ORDER::ORDER_ASC;
-    group.item= temp_fields.head_ref();
+    group = new ORDER;
+    memset(group, 0, sizeof(*group));
+    group->direction = ORDER::ORDER_ASC;
+    group->item = temp_fields.head_ref();
 
     tmp_param->quick_group=1;
     tmp_param->field_count=temp_fields.elements;
     tmp_param->group_parts=1;
     tmp_param->group_length= table->file->ref_length;
     /* small table, ignore SQL_BIG_TABLES */
-    my_bool save_big_tables= thd->variables.big_tables; 
+    my_bool save_big_tables= thd->variables.big_tables;
     thd->variables.big_tables= FALSE;
     tmp_tables[cnt]=create_tmp_table(thd, tmp_param, temp_fields,
-                                     &group, 0, 0,
+                                     group, 0, 0,
                                      TMP_TABLE_ALL_COLUMNS, HA_POS_ERROR, "");
     thd->variables.big_tables= save_big_tables;
     if (!tmp_tables[cnt])
@@ -2229,6 +2234,7 @@ loop_end:
     */
     tmp_tables[cnt]->triggers= table->triggers;
     tmp_tables[cnt]->file->extra(HA_EXTRA_WRITE_CACHE);
+    tmp_tables[cnt]->file->ha_index_init(0, false /*sorted*/);
   }
   DBUG_RETURN(0);
 }
@@ -2250,6 +2256,8 @@ Query_result_update::~Query_result_update()
     {
       if (tmp_tables[cnt])
       {
+        tmp_tables[cnt]->file->ha_index_or_rnd_end();
+        delete tmp_tables[cnt]->group;
 	free_tmp_table(thd, tmp_tables[cnt]);
 	tmp_table_param[cnt].cleanup();
       }
@@ -2385,8 +2393,9 @@ bool Query_result_update::send_data(List<Item> &not_used_values)
       do
       {
         tbl->file->position(tbl->record[0]);
-        memcpy((char*) tmp_table->visible_field_ptr()[field_num]->ptr,
-               (char*) tbl->file->ref, tbl->file->ref_length);
+        tmp_table->visible_field_ptr()[field_num]->store(
+            reinterpret_cast<const char *>(tbl->file->ref),
+            tbl->file->ref_length, &my_charset_bin);
         /*
          For outer joins a rowid field may have no NOT_NULL_FLAG,
          so we have to reset NULL bit for this field.
@@ -2416,19 +2425,24 @@ bool Query_result_update::send_data(List<Item> &not_used_values)
                   1 + unupdated_check_opt_tables.elements,
                   *values_for_table[offset], NULL, NULL);
 
+      // check if a record exists with the same hash value
+      if (!check_unique_constraint(tmp_table))
+        DBUG_RETURN(0); // skip adding duplicate record to the temp table
+
       /* Write row, ignoring duplicated updates to a row */
       error= tmp_table->file->ha_write_row(tmp_table->record[0]);
       if (error != HA_ERR_FOUND_DUPP_KEY && error != HA_ERR_FOUND_DUPP_UNIQUE)
       {
         if (error &&
-            create_ondisk_from_heap(thd, tmp_table,
-                                         tmp_table_param[offset].start_recinfo,
-                                         &tmp_table_param[offset].recinfo,
-                                         error, TRUE, NULL))
-        {
-          do_update= 0;
-	  DBUG_RETURN(1);			// Not a table_is_full error
-	}
+            (create_ondisk_from_heap(thd, tmp_table,
+                                     tmp_table_param[offset].start_recinfo,
+                                     &tmp_table_param[offset].recinfo,
+                                     error, TRUE, NULL) ||
+             tmp_table->file->ha_index_init(0, false /*sorted*/)))
+         {
+           do_update= 0;
+           DBUG_RETURN(1);			// Not a table_is_full error
+         }
         found++;
       }
     }
@@ -2568,6 +2582,7 @@ int Query_result_update::do_updates()
       continue;                                        // Already updated
     org_updated= updated;
     tmp_table= tmp_tables[cur_table->shared];
+    tmp_table->file->ha_index_or_rnd_end();
     tmp_table->file->extra(HA_EXTRA_CACHE);	// Change to read cache
     if ((local_error= table->file->ha_rnd_init(0)))
     {
@@ -2636,10 +2651,16 @@ int Query_result_update::do_updates()
       uint field_num= 0;
       do
       {
-        if((local_error=
-              tbl->file->ha_rnd_pos(tbl->record[0],
-                                    (uchar *) tmp_table->visible_field_ptr()[field_num]->ptr)))
-        {
+        /*
+          The row-id is after the "length bytes", and the storage
+          engine knows its length. Pass the pointer to the data after
+          the "length bytes" to ha_rnd_pos().
+        */
+        uchar *data_ptr = NULL;
+        tmp_table->visible_field_ptr()[field_num]->get_ptr(&data_ptr);
+        if ((local_error = tbl->file->ha_rnd_pos(
+                 tbl->record[0],
+                 const_cast<uchar *>(data_ptr)))) {
           if (table->file->is_fatal_error(local_error))
             error_flags|= ME_FATALERROR;
 

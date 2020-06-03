@@ -30,6 +30,9 @@
 #   INSERT INTO myisam_t1 SELECT * FROM memory_table
 #
 # The test cases verify some cases that cannot be run when gtid mode is on.
+#
+# See rpl_gtid_delete_memory_table_after_start_server.test for the tests with
+# gtid_mode=on.
 ################################################################################
 
 --source include/not_gtid_enabled.inc

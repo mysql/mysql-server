@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -191,7 +191,7 @@ int mi_rkey(MI_INFO *info, uchar *buf, int inx, const uchar *key,
     info->last_rkey_length= pack_key_length;
 
   /* Next call to mi_rnext_same should set rnext_same_key. */
-    info->set_rnext_same_key= TRUE;
+  info->set_rnext_same_key= TRUE;
 
   /* Check if we don't want to have record back, only error message */
   if (!buf)

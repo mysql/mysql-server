@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
 
 #include <string>
 
+#include "plugin.h"
 #include "ps_information.h"
 
 using std::string;
@@ -138,44 +139,48 @@ bool get_group_member_stats(const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS
     delete view;
   }
 
-  Certification_handler *cert= NULL;
-  //Check if the group replication has started and a valid certifier exists
-  if(applier_module != NULL &&
-     (cert = applier_module->get_certification_handler()) != NULL)
+  DBUG_EXECUTE_IF("group_replication_get_group_member_stats",
   {
-    Certifier_interface *cert_module= cert->get_certifier();
+    const char act[] =
+        "now signal signal.reached_get_group_member_stats "
+        "wait_for signal.resume_get_group_member_stats";
+    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+  });
 
-    callbacks.set_transactions_conflicts_detected(
-        callbacks.context, cert_module->get_negative_certified());
-    callbacks.set_transactions_certified(
-        callbacks.context,
-        cert_module->get_positive_certified() + cert_module->get_negative_certified());
-    callbacks.set_transactions_rows_in_validation(
-        callbacks.context, cert_module->get_certification_info_size());
-    callbacks.set_transactions_in_queue(
-        callbacks.context, applier_module->get_message_queue_size());
-
-    char *committed_transactions_buf= NULL;
-    size_t committed_transactions_buf_length= 0;
-    int get_group_stable_transactions_set_string_outcome=
-        cert_module->get_group_stable_transactions_set_string(&committed_transactions_buf,
-                                                              &committed_transactions_buf_length);
-    if (!get_group_stable_transactions_set_string_outcome &&
-        committed_transactions_buf_length > 0)
+  //Check if the group replication has started and a valid certifier exists
+  if(!get_plugin_is_stopping() && applier_module != NULL)
+  {
+    Pipeline_member_stats *pipeline_stats= applier_module->get_local_pipeline_stats();
+    if (pipeline_stats != NULL)
     {
-      callbacks.set_transactions_committed(callbacks.context,
-                                           *committed_transactions_buf,
-                                           committed_transactions_buf_length);
-    }
-    my_free(committed_transactions_buf);
+      std::string last_conflict_free_transaction;
+      pipeline_stats->get_transaction_last_conflict_free(
+         last_conflict_free_transaction);
+      callbacks.set_last_conflict_free_transaction(
+         callbacks.context, *last_conflict_free_transaction.c_str(),
+         last_conflict_free_transaction.length());
 
-    std::string last_conflict_free_transaction;
-    cert_module->get_last_conflict_free_transaction(&last_conflict_free_transaction);
-    if (!last_conflict_free_transaction.empty())
-    {
-      callbacks.set_last_conflict_free_transaction(callbacks.context,
-                                                   *last_conflict_free_transaction.c_str(),
-                                                   last_conflict_free_transaction.length());
+      std::string transaction_committed_all_members;
+      pipeline_stats->get_transaction_committed_all_members(
+         transaction_committed_all_members);
+      callbacks.set_transactions_committed(
+         callbacks.context, *transaction_committed_all_members.c_str(),
+         transaction_committed_all_members.length());
+
+      /* certification related data */
+      callbacks.set_transactions_conflicts_detected(
+         callbacks.context,
+         pipeline_stats->get_transactions_negative_certified());
+      callbacks.set_transactions_certified(
+         callbacks.context, pipeline_stats->get_transactions_certified());
+      callbacks.set_transactions_rows_in_validation(
+         callbacks.context, pipeline_stats->get_transactions_rows_validating());
+      callbacks.set_transactions_in_queue(
+         callbacks.context,
+         pipeline_stats->get_transactions_waiting_certification());
+
+      /* clean-up */
+      delete pipeline_stats;
     }
   }
 

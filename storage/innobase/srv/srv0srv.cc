@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -2157,6 +2157,10 @@ srv_master_do_active_tasks(void)
 		return;
 	}
 
+	if (trx_sys->rseg_history_len > 0) {
+		srv_wake_purge_thread_if_not_active();
+	}
+
 	if (cur_time % SRV_MASTER_DICT_LRU_INTERVAL == 0) {
 		srv_main_thread_op_info = "enforcing dict cache limit";
 		ulint	n_evicted = srv_master_evict_from_table_cache(50);
@@ -2231,6 +2235,10 @@ srv_master_do_idle_tasks(void)
 
 	if (srv_shutdown_state > 0) {
 		return;
+	}
+
+	if (trx_sys->rseg_history_len > 0) {
+		srv_wake_purge_thread_if_not_active();
 	}
 
 	srv_main_thread_op_info = "enforcing dict cache limit";
