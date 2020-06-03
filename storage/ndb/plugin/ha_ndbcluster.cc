@@ -8883,11 +8883,7 @@ static bool adjusted_frag_count(Ndb *ndb, uint requested_frags,
     /**
      * Use SYSTAB_0 to get #replicas, and to guess #threads
      */
-    char dbname[FN_HEADLEN + 1];
-    dbname[FN_HEADLEN] = 0;
-    my_stpnmov(dbname, ndb->getDatabaseName(), sizeof(dbname) - 1);
-    ndb->setDatabaseName("sys");
-    Ndb_table_guard ndbtab_g(ndb->getDictionary(), "SYSTAB_0");
+    Ndb_table_guard ndbtab_g(ndb, "sys", "SYSTAB_0");
     const NdbDictionary::Table *tab = ndbtab_g.get_table();
     if (tab) {
       no_replicas = ndbtab_g.get_table()->getReplicaCount();
@@ -8911,7 +8907,6 @@ static bool adjusted_frag_count(Ndb *ndb, uint requested_frags,
         no_threads = cnt;  // No of primary replica on 1-node
       }
     }
-    ndb->setDatabaseName(dbname);
   }
 
   const unsigned usable_nodes = no_replicas * no_nodegroups;
