@@ -336,7 +336,8 @@ class Ndb_metadata_sync {
 
   /*
     @brief Checks if the number of times the synchronization of an object has
-           been retried has exceeded the retry limit
+           been retried has exceeded the retry limit. This is applicable only
+           when ndb_metadata_sync is used
 
     @param schema_name  Name of the schema
     @param name         Name of the object

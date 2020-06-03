@@ -486,9 +486,25 @@ unsigned int Ndb_metadata_sync::get_blacklist_count() {
   return m_blacklist.size();
 }
 
+extern bool opt_ndb_metadata_sync;
+
 bool Ndb_metadata_sync::retry_limit_exceeded(const std::string &schema_name,
                                              const std::string &name,
                                              object_detected_type type) {
+  if (!opt_ndb_metadata_sync) {
+    /*
+      The ndb_metadata_sync variable hasn't been set. This is then the default
+      automatic sync mechanism where it's better to retry indefinitely under the
+      assumption that the temporary error will have disappeared by the time the
+      next discovery + sync attempt occurs.
+    */
+    return false;
+  }
+  /*
+     The ndb_metadata_sync variable has been set. Check if the retry limit (10)
+     has been hit in which case the object is added to the blacklist by the
+     caller.
+  */
   std::lock_guard<std::mutex> guard(m_retry_objects_mutex);
   for (Detected_object &object : m_retry_objects) {
     if (object.m_type == type && object.m_schema_name == schema_name &&
