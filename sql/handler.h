@@ -4421,14 +4421,20 @@ class handler {
     Initializes a parallel scan. It creates a parallel_scan_ctx that has to
     be used across all parallel_scan methods. Also, gets the number of
     threads that would be spawned for parallel scan.
-    @param[out] scan_ctx   The parallel scan context.
-    @param[out] num_threads Number of threads used for the scan.
+    @param[out] scan_ctx              The parallel scan context.
+    @param[out] num_threads           Number of threads used for the scan.
+    @param[in]  use_reserved_threads  true if reserved threads are to be used
+                                      if we exhaust the max cap of number of
+                                      parallel read threads that can be
+                                      spawned at a time
     @return error code
     @retval 0 on success
   */
   virtual int parallel_scan_init(void *&scan_ctx MY_ATTRIBUTE((unused)),
-                                 size_t &num_threads MY_ATTRIBUTE((unused))) {
-    return (0);
+                                 size_t *num_threads MY_ATTRIBUTE((unused)),
+                                 bool use_reserved_threads
+                                     MY_ATTRIBUTE((unused))) {
+    return 0;
   }
 
   /**
@@ -4494,7 +4500,7 @@ class handler {
                             Load_init_cbk init_fn MY_ATTRIBUTE((unused)),
                             Load_cbk load_fn MY_ATTRIBUTE((unused)),
                             Load_end_cbk end_fn MY_ATTRIBUTE((unused))) {
-    return (0);
+    return 0;
   }
 
   /**

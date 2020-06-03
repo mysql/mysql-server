@@ -553,12 +553,18 @@ class ha_innopart : public ha_innobase,
   /** @} */
 
   /** Get number of threads that would be spawned for parallel read.
-  @param[out]   scan_ctx        a scan context created by this method that is
-                                used in parallel_scan
-  @param[out]   num_threads     number of threads to be spawned
+  @param[out]   scan_ctx              A scan context created by this method
+                                      that has to be used in
+                                      parallel_scan
+  @param[out]   num_threads           Number of threads to be spawned
+  @param[in]    use_reserved_threads  true if reserved threads are to be used
+                                      if we exhaust the max cap of number of
+                                      parallel read threads that can be
+                                      spawned at a time
   @return error code
   @return 0 on success */
-  int parallel_scan_init(void *&scan_ctx, size_t &num_threads) override;
+  int parallel_scan_init(void *&scan_ctx, size_t *num_threads,
+                         bool use_reserved_threads) override;
 
   using Reader = Parallel_reader_adapter;
 

@@ -101,6 +101,14 @@ class Parallel_reader {
   /** Maximum value for innodb-parallel-read-threads. */
   constexpr static size_t MAX_THREADS{256};
 
+  /** Maximum value for reserved parallel read threads for data load so that
+  at least this many threads are always available for data load. */
+  constexpr static size_t MAX_RESERVED_THREADS{16};
+
+  /** Maximum value for at most number of parallel read threads that can be
+  spawned. */
+  constexpr static size_t MAX_TOTAL_THREADS{MAX_THREADS + MAX_RESERVED_THREADS};
+
   using Links = std::vector<page_no_t, ut_allocator<page_no_t>>;
 
   // Forward declaration.
@@ -256,9 +264,11 @@ class Parallel_reader {
   ~Parallel_reader();
 
   /** Check how many threads are available for parallel reads.
-  @param[in] n_required         Number of threads required.
+  @param[in] n_required   Number of threads required.
+  @param[in] use_reserved true if reserved threads needs to be considered
+  while checking for availability of threads
   @return number of threads available. */
-  static size_t available_threads(size_t n_required)
+  static size_t available_threads(size_t n_required, bool use_reserved = false)
       MY_ATTRIBUTE((warn_unused_result));
 
   /** Release the parallel read threads. */
