@@ -1,5 +1,5 @@
-# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
-# 
+# Copyright (c) 2006, 2020, Oracle and/or its affiliates.
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
 # as published by the Free Software Foundation.
@@ -62,3 +62,17 @@ INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/mysql-log-rotate
   OWNER_READ OWNER_WRITE
   GROUP_READ WORLD_READ
   )
+
+IF(WITH_ROUTER)
+  CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysqlrouter-log-rotate.in
+    ${CMAKE_CURRENT_BINARY_DIR}/mysqlrouter-log-rotate @ONLY)
+
+  INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/mysqlrouter-log-rotate
+    COMPONENT Router
+    DESTINATION ${ROUTER_INSTALL_LOGROTATEDIR}
+    RENAME ${ROUTER_INSTALL_LOGROTATEFILE}
+    PERMISSIONS
+    OWNER_READ OWNER_WRITE
+    GROUP_READ WORLD_READ
+    )
+ENDIF()

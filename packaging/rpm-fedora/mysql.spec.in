@@ -1129,6 +1129,7 @@ rm -r $(readlink var) var
 %doc %{src_dir}/router/README.router  %{src_dir}/router/LICENSE.router
 %dir %{_sysconfdir}/mysqlrouter
 %config(noreplace) %{_sysconfdir}/mysqlrouter/mysqlrouter.conf
+%attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysqlrouter
 %{_bindir}/mysqlrouter
 %{_bindir}/mysqlrouter_keyring
 %{_bindir}/mysqlrouter_passwd
