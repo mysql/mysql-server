@@ -1414,8 +1414,14 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref) {
       For LOCK TABLES we need to acquire "strong" metadata lock to ensure
       that we properly protect underlying tables for storage engines which
       don't use THR_LOCK locks.
+      Note that we should not acquire strong locks on underlying tables of
+      INFORMATION_SCHEMA views, which are data-dictionary tables, as this
+      will stall most of concurrent DDL in the system.
+      It is safe to do so since these tables and views are handled in a
+      special way when opened under LOCK TABLES. You can access them even
+      without mentioning them in LOCK TABLES statement.
     */
-    if (old_lex->sql_command == SQLCOM_LOCK_TABLES)
+    if (old_lex->sql_command == SQLCOM_LOCK_TABLES && !parsing_system_view)
       tbl->mdl_request.set_type(MDL_SHARED_READ_ONLY);
 
     /*
@@ -1485,13 +1491,25 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref) {
          tbl = tbl->next_local) {
       enum_mdl_type mdl_lock_type;
 
-      tbl->set_lock(view_ref->lock_descriptor());
+      if (!parsing_system_view) {
+        /*
+          Play safe. Do not even try to propagate possibly write locks
+          to underlying tables of INFORMATION_SCHEMA views. Marking them
+          for write might cause part of prelocking algorithm responsible
+          for foreign key handling to consider such tables as to be updated
+          (even though INFORMATION_SCHEMA views are not updatable) and
+          force LOCK TABLES to acquire strong metadata locks on some
+          data-dictionary tables blocking concurrent DDL.
+        */
+        tbl->set_lock(view_ref->lock_descriptor());
+      }
 
-      if (old_lex->sql_command == SQLCOM_LOCK_TABLES) {
+      if (old_lex->sql_command == SQLCOM_LOCK_TABLES && !parsing_system_view) {
         /*
           For LOCK TABLES we need to acquire "strong" metadata lock to
           ensure that we properly protect underlying tables for storage
-          engines which don't use THR_LOCK locks.
+          engines which don't use THR_LOCK locks (but see the above
+          comment about INFORMATION_SCHEMA views/data-dictionary tables).
           OTOH for mergeable views we want to respect LOCAL clause in
           LOCK TABLES ... READ LOCAL.
         */
@@ -1616,7 +1634,57 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref) {
 
   DBUG_ASSERT(view_lex == thd->lex);
   thd->lex = old_lex;  // Needed for prepare_security
-  result = !view_ref->prelocking_placeholder && view_ref->prepare_security(thd);
+
+  result = view_ref->prepare_security(thd);
+
+  if (!result && old_lex->sql_command == SQLCOM_LOCK_TABLES && view_tables) {
+    /*
+      For LOCK TABLES we need to check if user which security context is used
+      for view execution has necessary privileges for acquiring strong locks
+      on its underlying tables. These are LOCK TABLES and SELECT privileges.
+      Note that we only require SELECT and not LOCK TABLES on underlying
+      tables at view creation time. And these privileges might have been
+      revoked from user since then in any case.
+    */
+    DBUG_ASSERT(view_tables_tail);
+    for (TABLE_LIST *tbl = view_tables; tbl != view_tables_tail->next_global;
+         tbl = tbl->next_global) {
+      bool fake_lock_tables_acl;
+      if (check_lock_view_underlying_table_access(thd, tbl,
+                                                  &fake_lock_tables_acl)) {
+        result = true;
+        break;
+      }
+
+      if (fake_lock_tables_acl) {
+        /*
+          Do not acquire strong metadata locks for I_S and read-only/
+          truncatable-only P_S tables (i.e. for cases when we override
+          refused LOCK_TABLES_ACL). It is safe to do this since:
+          1) For I_S tables which are views on top of data-dictionary
+             tables and read-only/truncatable-only P_S tables under
+             LOCK TABLES we do not look at locked tables, and open
+             them separately.
+          2) I_S tables which are implemented as temporary tables
+             populated by special hook, we do not acquire metadata
+             locks or do normal open at all.
+        */
+        DBUG_ASSERT(tbl->is_system_view || belongs_to_p_s(tbl) ||
+                    tbl->schema_table);
+        tbl->mdl_request.set_type(MDL_SHARED_READ);
+        /*
+          We must override thr_lock_type (which can be a write type) as
+          well. This is necessary to keep consistency with MDL, to avoid
+          confusing part of prelocking algorithm which handles FKs and
+          to allow concurrent access to read-only and truncatable-only
+          P_S tables. Overriding TL_READ used by LOCK TABLES READ LOCAL
+          also helps to avoid upgrading metadata lock to SRO on both I_S
+          view and its underlying data-dictionary tables.
+        */
+        tbl->set_lock({TL_READ_DEFAULT, THR_DEFAULT});
+      }
+    }
+  }
 
   lex_end(view_lex);
 

@@ -765,6 +765,8 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
                            TABLE_LIST *create_table);
 bool check_fk_parent_table_access(THD *thd, HA_CREATE_INFO *create_info,
                                   Alter_info *alter_info);
+bool check_lock_view_underlying_table_access(THD *thd, TABLE_LIST *tbl,
+                                             bool *fake_lock_tables_acl);
 bool check_readonly(THD *thd, bool err_if_readonly);
 void err_readonly(THD *thd);
 
