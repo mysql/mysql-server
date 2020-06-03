@@ -3919,11 +3919,7 @@ int ha_ndbcluster::set_auto_inc(THD *thd, Field *field) {
 inline int ha_ndbcluster::set_auto_inc_val(THD *thd, Uint64 value) {
   Ndb *ndb = get_ndb(thd);
   DBUG_TRACE;
-#ifndef DBUG_OFF
-  char buff[22];
-  DBUG_PRINT("info", ("Trying to set next auto increment value to %s",
-                      llstr(value, buff)));
-#endif
+  DBUG_PRINT("info", ("Trying to set auto increment value to %llu", value));
   {
     NDB_SHARE::Tuple_id_range_guard g(m_share);
 
