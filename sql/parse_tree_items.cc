@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -98,21 +98,6 @@ static Item* handle_sql2003_note184_exception(Parse_context *pc, Item* left,
     result= new (pc->mem_root) Item_func_ne(left, expr);
 
   DBUG_RETURN(result);
-}
-
-
-bool PTI_table_wild::itemize(Parse_context *pc, Item **item)
-{
-  if (super::itemize(pc, item))
-    return true;
-
-  schema=
-    pc->thd->get_protocol()->has_client_capability(CLIENT_NO_SCHEMA) ? NullS : schema;
-  *item= new (pc->mem_root) Item_field(POS(), schema, table, "*");
-  if (*item == NULL || (*item)->itemize(pc, item))
-    return true;
-  pc->select->with_wild++;
-  return false;
 }
 
 

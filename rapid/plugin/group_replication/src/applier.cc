@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -988,4 +988,44 @@ int Applier_module::check_single_primary_queue_status()
   }
 
   return 0;
+}
+
+Pipeline_member_stats *Applier_module::get_local_pipeline_stats()
+{
+  // We need run_lock to get protection against STOP GR command.
+
+  Mutex_autolock auto_lock_mutex(&run_lock);
+  Pipeline_member_stats *stats= NULL;
+  Certification_handler *cert= this->get_certification_handler();
+  Certifier_interface *cert_module= (cert ? cert->get_certifier() : NULL);
+  if (cert_module)
+  {
+    stats= new Pipeline_member_stats(
+        get_pipeline_stats_member_collector(), get_message_queue_size(),
+        cert_module->get_negative_certified(),
+        cert_module->get_certification_info_size());
+    {
+      char *committed_transactions_buf= NULL;
+      size_t committed_transactions_buf_length= 0;
+      int outcome= cert_module->get_group_stable_transactions_set_string(
+          &committed_transactions_buf, &committed_transactions_buf_length);
+
+      if (!outcome && committed_transactions_buf_length > 0)
+        stats->set_transaction_committed_all_members(committed_transactions_buf,
+                committed_transactions_buf_length);
+      my_free(committed_transactions_buf);
+    }
+    {
+      std::string last_conflict_free_transaction;
+      cert_module->get_last_conflict_free_transaction(
+          &last_conflict_free_transaction);
+      stats->set_transaction_last_conflict_free(last_conflict_free_transaction);
+    }
+  }
+  else
+  {
+    stats= new Pipeline_member_stats(get_pipeline_stats_member_collector(),
+                                     get_message_queue_size(), 0, 0);
+  }
+  return stats;
 }

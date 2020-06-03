@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -119,6 +119,7 @@ int plugin_group_replication_deinit(void *p);
 int plugin_group_replication_start();
 int plugin_group_replication_stop();
 bool plugin_is_group_replication_running();
+bool get_plugin_is_stopping();
 bool plugin_get_connection_status(
     const GROUP_REPLICATION_CONNECTION_STATUS_CALLBACKS& callbacks);
 bool plugin_get_group_members(

@@ -2568,3 +2568,20 @@ ALTER TABLE t ADD COLUMN r INT UNSIGNED NOT NULL AUTO_INCREMENT, ADD UNIQUE
 KEY (r,b), ALGORITHM=INPLACE, LOCK=SHARED;
 SELECT * FROM t;
 DROP TABLE t;
+
+--echo #
+--echo # Bug #25207522: INCORRECT ORDER-BY BEHAVIOR ON A PARTITIONED TABLE
+--echo # WITH A COMPOSITE PREFIX INDEX
+--echo #
+CREATE TABLE t(  id int unsigned NOT NULL,
+        data varchar(2) DEFAULT NULL,
+        KEY data_idx (data(1),id)
+        ) DEFAULT CHARSET=utf8
+        /*!50100 PARTITION BY RANGE (id)
+        (PARTITION p10 VALUES LESS THAN (10) ,
+         PARTITION p20 VALUES LESS THAN (20) ) */;
+
+INSERT INTO t VALUES (6, 'ab'), (4, 'ab'), (5, 'ab'), (16, 'ab'), (14, 'ab'), (15, 'ab'), (5, 'ac'), (15, 'aa') ;
+SELECT id FROM t WHERE data = 'ab' ORDER BY id ASC;
+DROP TABLE t;
+

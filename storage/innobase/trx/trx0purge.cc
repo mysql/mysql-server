@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -382,7 +382,10 @@ trx_purge_add_update_undo_to_history(
 	if (update_rseg_history_len) {
 		os_atomic_increment_ulint(
 			&trx_sys->rseg_history_len, n_added_logs);
-		srv_wake_purge_thread_if_not_active();
+		if (trx_sys->rseg_history_len
+		    > srv_n_purge_threads * srv_purge_batch_size) {
+			srv_wake_purge_thread_if_not_active();
+		}
 	}
 
 	/* Write the trx number to the undo log header */
@@ -1746,7 +1749,9 @@ trx_purge_dml_delay(void)
 	Note: we do a dirty read of the trx_sys_t data structure here,
 	without holding trx_sys->mutex. */
 
-	if (srv_max_purge_lag > 0) {
+	if (srv_max_purge_lag > 0
+	    && trx_sys->rseg_history_len
+	       > srv_n_purge_threads * srv_purge_batch_size) {
 		float	ratio;
 
 		ratio = float(trx_sys->rseg_history_len) / srv_max_purge_lag;

@@ -1376,3 +1376,16 @@ SET parser_max_mem_size = 10000000; # minimum allowed value
 --eval CREATE PROCEDURE p() SELECT 1 FROM (SELECT '$s') a
 --enable_query_log
 SET parser_max_mem_size = default;
+
+--echo #
+--echo # Bug#30528450: SPECIAL SYMBOL NAMED COLUMN NOT HONORED IN A SELECT
+--echo #
+
+CREATE TABLE t1 (c1 INT, `*` INT, c3 INT);
+INSERT INTO t1 VALUES (1, 2, 3);
+
+SELECT `*` FROM t1;
+SELECT t1.`*`, t1.* FROM t1;
+SELECT test.t1.`*`, test.t1.* FROM t1;
+
+DROP TABLE t1;

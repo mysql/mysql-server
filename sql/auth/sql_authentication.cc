@@ -1889,7 +1889,7 @@ static int server_mpvio_read_packet(MYSQL_PLUGIN_VIO *param, uchar **buf)
     protocol->read_packet();
     pkt_len= protocol->get_packet_length();
   }
-
+  DBUG_EXECUTE_IF("simulate_packet_error", pkt_len = packet_error;);
   if (pkt_len == packet_error)
     goto err;
 
@@ -2197,7 +2197,7 @@ acl_authenticate(THD *thd, enum_server_command command)
   /* acl_authenticate() takes the data from net->read_pos */
   thd->get_protocol_classic()->get_net()->read_pos=
     thd->get_protocol_classic()->get_raw_packet();
-  DBUG_PRINT("info", ("com_change_user_pkt_len=%u",
+  DBUG_PRINT("info", ("com_change_user_pkt_len=%lu",
     mpvio.protocol->get_packet_length()));
 
   if (command == COM_CHANGE_USER)

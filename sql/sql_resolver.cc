@@ -1111,11 +1111,10 @@ bool SELECT_LEX::setup_wild(THD *thd)
   {
     Item_field *item_field;
     if (item->type() == Item::FIELD_ITEM &&
-        (item_field= (Item_field *) item) &&
-        item_field->field_name &&
-        item_field->field_name[0] == '*' &&
-        !item_field->field)
+        (item_field= down_cast<Item_field *>(item)) &&
+        item_field->is_asterisk())
     {
+      DBUG_ASSERT(item_field->field == NULL);
       const uint elem= fields_list.elements;
       const bool any_privileges= item_field->any_privileges;
       Item_subselect *subsel= master_unit()->item;

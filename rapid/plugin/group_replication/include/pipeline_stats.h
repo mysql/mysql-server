@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -215,6 +215,26 @@ public:
   void increment_transactions_local();
 
   /**
+    @returns transactions waiting to be applied.
+  */
+  int32 get_transactions_waiting_apply();
+
+  /**
+    @returns transactions certified.
+  */
+  int64 get_transactions_certified();
+
+  /**
+    @returns transactions applied of local member.
+  */
+  int64 get_transactions_applied();
+
+  /**
+    @returns local transactions proposed by member.
+  */
+  int64 get_transactions_local();
+
+  /**
     Send member statistics to group.
   */
   void send_stats_member_message();
@@ -247,6 +267,13 @@ public:
   Pipeline_member_stats(Pipeline_stats_member_message &msg);
 
   /**
+    Constructor.
+  */
+  Pipeline_member_stats(Pipeline_stats_member_collector *pipeline_stats,
+                        ulonglong applier_queue, ulonglong negative_certified,
+                        ulonglong certification_size);
+
+  /**
     Destructor.
   */
   virtual ~Pipeline_member_stats();
@@ -275,6 +302,47 @@ public:
     @return the counter value
   */
   int32 get_transactions_waiting_apply();
+
+  /**
+    Get transactions certified counter value.
+
+    @return the counter value
+  */
+  int64 get_transactions_certified();
+
+  /**
+    Get transactions negatively certified.
+
+    @return the counter value
+  */
+  int64 get_transactions_negative_certified();
+
+  /**
+    Get certification database counter value.
+
+    @return the counter value
+  */
+  int64 get_transactions_rows_validating();
+
+  /**
+    Get the stable group transactions.
+  */
+  void get_transaction_committed_all_members(std::string &value);
+
+  /**
+    Set the stable group transactions.
+  */
+  void set_transaction_committed_all_members(char *str, size_t len);
+
+  /**
+    Get the last positive certified transaction.
+  */
+  void get_transaction_last_conflict_free(std::string &value);
+
+  /**
+    Set the last positive certified transaction.
+  */
+  void set_transaction_last_conflict_free(std::string &value);
 
   /**
     Get transactions certified since last stats message.
@@ -318,6 +386,10 @@ private:
   int64 m_delta_transactions_applied;
   int64 m_transactions_local;
   int64 m_delta_transactions_local;
+  int64 m_transactions_negative_certified;
+  int64 m_transactions_rows_validating;
+  std::string m_transactions_committed_all_members;
+  std::string m_transaction_last_conflict_free;
   uint64 m_stamp;
 };
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1017,7 +1017,7 @@ bool do_command(THD *thd)
                      command_name[command].str));
 
   DBUG_PRINT("info", ("packet: '%*.s'; command: %d",
-             thd->get_protocol_classic()->get_packet_length(),
+             (int)thd->get_protocol_classic()->get_packet_length(),
              thd->get_protocol_classic()->get_raw_packet(), command));
   if (thd->get_protocol_classic()->bad_packet)
     DBUG_ASSERT(0);                // Should be caught earlier

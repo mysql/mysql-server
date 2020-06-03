@@ -868,6 +868,16 @@ DROP TABLE t2;
 select inet_aton("0.255.255.255.255");
 select inet_aton("255.255.255.2551");
 
+--echo #
+--echo # Bug #26319675:"ILLEGAL MIX OF COLLATIONS" HAPPENS IN CONCAT WITH
+--echo # NAME_CONST
+--echo #
+--let $query = SELECT CONCAT(NAME_CONST('char_col',_cp932'test' COLLATE 'cp932_japanese_ci'), NAME_CONST('num_col',0)) AS a
+--eval $query
+--eval CREATE TABLE t1 AS $query
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
 --echo
 --echo # -- Done.
 --echo
