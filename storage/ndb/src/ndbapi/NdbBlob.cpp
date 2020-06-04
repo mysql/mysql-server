@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1456,6 +1456,14 @@ NdbBlob::readDataPrivate(char* buf, Uint32& bytes)
     DBUG_RETURN(-1);
   }
   if (len > 0) {
+    // execute any previously defined ops before starting blob part reads
+    // so that we can localise error handling
+    if(theNdbCon && theNdbCon->theFirstOpInList &&
+       theNdbCon->executeNoBlobs(NdbTransaction::NoCommit) == -1)
+    {
+      DBUG_RETURN(-1);
+    }
+
     assert(pos >= theInlineSize);
     Uint32 off = (pos - theInlineSize) % thePartSize;
     // partial first block
@@ -1465,9 +1473,12 @@ NdbBlob::readDataPrivate(char* buf, Uint32& bytes)
       Uint16 sz = 0;
       if (readPart(thePartBuf.data, part, sz) == -1)
         DBUG_RETURN(-1);
-      // need result now
       if (executePendingBlobReads() == -1)
+      {
+        if (theNdbCon->getNdbError().code == 626)
+          theNdbCon->theError.code = NdbBlobImpl::ErrCorrupt;
         DBUG_RETURN(-1);
+      }
       assert(sz >= off);
       Uint32 n = sz - off;
       if (n > len)
@@ -1507,11 +1518,18 @@ NdbBlob::readDataPrivate(char* buf, Uint32& bytes)
         len -= n;
         part += partsThisTrip;
         count -= partsThisTrip;
-        if (count != 0)
+        // skip last op batch execute if partial last block remains
+        if (!(count == 0 && len > 0))
         {
           /* Execute this batch before defining next */
           if (executePendingBlobReads() == -1)
+          {
+            /* If any part read failed with "Not found" error, blob is
+             * corrupted.*/
+            if (theNdbCon->getNdbError().code == 626)
+              theNdbCon->theError.code = NdbBlobImpl::ErrCorrupt;
             DBUG_RETURN(-1);
+          }
         }
       } while (count != 0);
     }
@@ -1526,7 +1544,11 @@ NdbBlob::readDataPrivate(char* buf, Uint32& bytes)
       DBUG_RETURN(-1);
     // need result now
     if (executePendingBlobReads() == -1)
+    {
+      if (theNdbCon->getNdbError().code == 626)
+        theNdbCon->theError.code = NdbBlobImpl::ErrCorrupt;
       DBUG_RETURN(-1);
+    }
     assert(len <= sz);
     memcpy(buf, thePartBuf.data, len);
     Uint32 n = len;

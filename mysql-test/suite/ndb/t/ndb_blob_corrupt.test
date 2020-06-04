@@ -56,6 +56,33 @@ truncate table t1;
 
 select count(1) into @count_parent_rows_before from t1;
 
+--echo Observe "blob corruption error" failures on queries
+
+--echo Fully ordered OI scan
+--error 1296
+select * from test.t1 order by a;
+show warnings limit 1;
+
+--echo Fully ordered OI scan, different first tuple
+--error 1296
+select * from test.t1 order by a desc;
+show warnings limit 1;
+
+--echo OI scan
+--error 1296
+select * from test.t1 where a > 0;
+show warnings limit 1;
+
+--echo OI scan, different first tuple
+--error 1296
+select * from test.t1 where a < 6;
+show warnings limit 1;
+
+--echo Table scan
+--error 1296
+select * from test.t1;
+show warnings limit 1;
+
 --echo ndb_blob_tool errors out on finding missing blob parts
 --error 1
 --exec $NDB_BLOB_TOOL --check-missing -dtest t1 >> $NDB_TOOLS_OUTPUT 2>&1

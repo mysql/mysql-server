@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -5154,6 +5154,209 @@ bugtest_28116()
   return 0;
 }
 
+static int
+bugtest_28590428_init(uint inline_size, uint part_size)
+{
+  g_bh1 = g_bh2 = 0;
+  g_dic = g_ndb->getDictionary();
+  NdbDictionary::Table tab(g_opt.m_tname);
+  if (g_dic->getTable(tab.getName()) != 0)
+    CHK(g_dic->dropTable(tab.getName()) == 0);
+  // col A - pk
+  { NdbDictionary::Column col("A");
+    col.setType(NdbDictionary::Column::Unsigned);
+    col.setPrimaryKey(true);
+    tab.addColumn(col);
+  }
+  // col C - text
+  { NdbDictionary::Column col("C");
+    col.setType(NdbDictionary::Column::Text);
+    col.setBlobVersion(2);
+    col.setInlineSize(inline_size);
+    col.setPartSize(part_size);
+    col.setStripeSize(0);
+    col.setNullable(true);
+    tab.addColumn(col);
+  }
+  // create
+  CHK(g_dic->createTable(tab) == 0);
+  Uint32 cA = 0, cC = 1;
+  {
+    unsigned n = 0;
+    char c[500];
+    memset(c, 'c', 500);
+    CHK((g_con = g_ndb->startTransaction()) != 0);
+    for (Uint32 k = 0; k < 10; k++) {
+      CHK((g_opr = g_con->getNdbOperation(tab.getName())) != 0);
+      CHK(g_opr->insertTuple() == 0);
+      CHK(g_opr->equal(cA, (char*)&k) == 0);
+      CHK((g_bh1 = g_opr->getBlobHandle(cC)) != 0);
+      int blob_size = inline_size + ((k*part_size)/2);
+      require(blob_size <= 500);
+      CHK((g_bh1->setValue(c, blob_size) == 0));
+      if (++n == g_opt.m_batch) {
+        CHK(g_con->execute(Commit) == 0);
+        g_ndb->closeTransaction(g_con);
+        CHK((g_con = g_ndb->startTransaction()) != 0);
+        n = 0;
+      }
+    }
+    if (n != 0) {
+      CHK(g_con->execute(Commit) == 0);
+      n = 0;
+    }
+    g_ndb->closeTransaction(g_con); g_con = 0;
+    g_bh1 = 0;
+    g_opr = 0;
+  }
+  return 0;
+}
+
+static int
+corrupt_blobs()
+{
+  char blob_table_name[200];
+  Uint32 part_id = 0;
+  CHK(NdbBlob::getBlobTableName(blob_table_name, g_ndb, g_opt.m_tname, "C") == 0);
+  // corrupt all blobs by deleting a part, skipping row 0 which is inline only
+  for (Uint32 k = 1; k < 10; k++)
+  {
+    CHK((g_con = g_ndb->startTransaction()) != 0);
+    CHK((g_opr = g_con->getNdbOperation(blob_table_name)) != 0);
+    CHK(g_opr->deleteTuple() == 0);
+    CHK(g_opr->equal("A", (char*)&k) == 0);
+    part_id = urandom(k/2);
+    CHK(g_opr->equal("NDB$PART", (char*)&part_id) == 0);
+    CHK(g_con->execute(Commit) == 0);
+    g_ndb->closeTransaction(g_con);
+    g_con = 0;
+    g_opr = 0;
+  }
+  return 0;
+}
+
+static int
+read_blob_rows(int style, uint inline_size, uint part_size, bool corrupted=false)
+{
+  Uint32 a;
+  char c[500];
+  Uint32 cA = 0, cC = 1;
+  Uint32 startidx = 0;
+  if (corrupted == true)
+    startidx = 1; // for corrupted reads, skip row 0 which has no parts
+  for (Uint32 k = startidx; k < 10; k++)
+  {
+    Uint32 before = g_ndb->getClientStat(Ndb::WaitExecCompleteCount);
+    CHK((g_con = g_ndb->startTransaction()) != 0);
+    // force blob reads to perform one round-trip per blob part
+    g_con->setMaxPendingBlobReadBytes(part_size);
+    NdbDictionary::Table tab(g_opt.m_tname);
+    CHK((g_opr = g_con->getNdbOperation(tab.getName())) != 0);
+    CHK(g_opr->readTuple() == 0);
+    CHK(g_opr->equal(cA, (char*)&k) == 0);
+    CHK(g_opr->getValue(cA, (char*)&a) != 0);
+    CHK((g_bh1 = g_opr->getBlobHandle(cC)) != 0);
+    a = (Uint32)-1;
+    c[0] = 0;
+    Uint32 m = 1000;
+    Uint64 len = ~0;
+    uint blob_size = inline_size + ((k*part_size)/2);
+    require(blob_size <= 500);
+    switch (style)
+    {
+      case 0: CHK(g_bh1->getValue(c, len) == 0);
+              if (corrupted)
+              {
+                CHK(g_con->execute(Commit) != 0);
+                CHK((g_con->getNdbError().code == 4267));
+                g_ndb->closeTransaction(g_con); g_opr = 0;
+                continue;
+              }
+              CHK(g_con->execute(Commit) == 0);
+              CHK(g_bh1->getLength(len) == 0);
+              m = len;
+              break;
+      case 2: CHK(g_con->execute(NoCommit) == 0);
+              if (corrupted)
+              {
+                CHK (g_bh1->readData(c, m) != 0);
+                CHK (g_con->getNdbError().code == 4267);
+                g_ndb->closeTransaction(g_con); g_opr = 0;
+                continue;
+              }
+              CHK (g_bh1->readData(c, m) == 0);
+              CHK(g_con->execute(Commit) == 0);
+              break;
+    };
+    g_ndb->closeTransaction(g_con); g_opr = 0;
+    g_con = 0;
+    Uint32 after = g_ndb->getClientStat(Ndb::WaitExecCompleteCount);
+    const Uint32 round_trips = after - before;
+    const Uint32 total_part_len = blob_size - inline_size;
+    const Uint32 parts_read = (total_part_len + part_size - 1) / part_size;
+    const Uint32 full_parts_read = total_part_len / part_size;
+    Uint32 expected_round_trips = 1 + // Get head
+                                  parts_read + // read full parts
+                                  1;  // Commit/unlock
+
+    // blob reads have an optimisation to reduce one round-trip in case
+    // read contains at least one full part + partial last part
+    if ((total_part_len > (full_parts_read * part_size)) && (parts_read > 1))
+    {
+      expected_round_trips--;
+    }
+    CHK(round_trips == expected_round_trips);
+  }
+  return 0;
+}
+
+static int
+bugtest_28590428_cleanup()
+{
+  NdbDictionary::Table tab(g_opt.m_tname);
+  CHK(g_dic->dropTable(tab.getName()) == 0);
+  return 0;
+}
+
+static int
+bugtest_28590428()
+{
+  DBG("bugtest 28590428");
+  uint inline_size = 20, part_size = 100;
+  int result = 0;
+  do
+  {
+    result = bugtest_28590428_init(inline_size, part_size);
+    if (result == -1) break;
+
+    DBG("count round-trips for blob reads of various sizes");
+    int style = 0;
+    DBG("-- blob reads with " << stylename[style] << " --");
+    result = read_blob_rows(style, inline_size, part_size);
+    if (result == -1) break;
+    style = 2;
+    DBG("-- blob reads with " << stylename[style] << " --");
+    result = read_blob_rows(style, inline_size, part_size);
+    if (result == -1) break;
+
+    DBG("read corrupted blobs and check error code");
+    result = corrupt_blobs();
+    if (result == -1) break;
+
+    style = 0;
+    DBG("-- corrupted blob reads with " << stylename[style] << " --");
+    result = read_blob_rows(style, inline_size, part_size, true);
+    if (result == -1) break;
+
+    style = 2;
+    DBG("-- corrupted blob reads with " << stylename[style] << " --");
+    result = read_blob_rows(style, inline_size, part_size, true);
+    if (result == -1) break;
+  } while(0);
+  bugtest_28590428_cleanup();
+  return result;
+}
+
 static struct {
   int m_bug;
   int (*m_test)();
@@ -5166,7 +5369,8 @@ static struct {
   { 48040, bugtest_48040 },
   { 28116, bugtest_28116 },
   { 62321, bugtest_62321 },
-  { 28746560, bugtest_28746560 }
+  { 28746560, bugtest_28746560 },
+  { 28590428, bugtest_28590428 }
 };
 
 int main(int argc, char** argv)
