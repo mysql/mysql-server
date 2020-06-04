@@ -24062,6 +24062,7 @@ Dblqh::write_local_sysfile(Signal *signal, Uint32 type, Uint32 gci)
 void
 Dblqh::execWRITE_LOCAL_SYSFILE_CONF(Signal *signal)
 {
+  jam();
   WriteLocalSysfileConf *conf = (WriteLocalSysfileConf*)signal->getDataPtr();
   ndbrequire(is_first_instance());
   c_outstanding_write_local_sysfile = false;
@@ -24079,6 +24080,7 @@ Dblqh::execWRITE_LOCAL_SYSFILE_CONF(Signal *signal)
       if (c_start_phase_9_waiting)
       {
         jam();
+        GcpRecordPtr localGcpPtr;
         /**
          * We have reached phase 9 during writing of the local sysfile.
          * We proceed immediately to update the local sysfile with the
@@ -24086,6 +24088,35 @@ Dblqh::execWRITE_LOCAL_SYSFILE_CONF(Signal *signal)
          * the GCP and report GCP_SAVECONF.
          */
         c_send_gcp_saveref_needed = false;
+
+        if (ccurrentGcprec == RNIL)
+        {
+          jam();
+          /**
+           * Setup GCP record values from local record as we will
+           * send a GCP_SAVECONF later
+           */
+          localGcpPtr.i = 0;
+          ptrCheckGuard(localGcpPtr, cgcprecFileSize, gcpRecord);
+
+          localGcpPtr.p->gcpBlockref = c_local_sysfile.m_dihRef;
+          localGcpPtr.p->gcpUserptr = c_local_sysfile.m_dihPtr;
+          localGcpPtr.p->gcpId = c_local_sysfile.m_save_gci;
+          ndbrequire(refToMain(localGcpPtr.p->gcpBlockref) == DBDIH ||
+                     refToMain(localGcpPtr.p->gcpBlockref) == DBLQH);
+        }
+        else
+        {
+          jam();
+          /**
+           * Check that the GCP record is sane
+           */
+          localGcpPtr.i = ccurrentGcprec;
+          ptrCheckGuard(localGcpPtr, cgcprecFileSize, gcpRecord);
+          ndbrequire(refToMain(localGcpPtr.p->gcpBlockref) == DBDIH ||
+                     refToMain(localGcpPtr.p->gcpBlockref) == DBLQH);
+        }
+
         write_local_sysfile_restart_complete(signal);
       }
       else
