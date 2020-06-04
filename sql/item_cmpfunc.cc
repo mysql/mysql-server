@@ -7061,7 +7061,9 @@ static bool append_string_value(Item *comparand,
   if (buffer_size > 0) {
     // Reserve space in the buffer so we can insert the transformed string
     // directly into the buffer.
-    join_key_buffer->reserve(buffer_size);
+    if (join_key_buffer->reserve(buffer_size)) {
+      return true;
+    }
 
     uchar *dptr = pointer_cast<uchar *>(join_key_buffer->ptr()) +
                   join_key_buffer->length();
