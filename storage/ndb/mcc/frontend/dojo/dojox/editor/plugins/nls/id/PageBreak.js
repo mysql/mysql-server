@@ -1,6 +1,0 @@
-define(
-({
-	"pageBreak": "Pemisah Halaman"
-})
-);
-

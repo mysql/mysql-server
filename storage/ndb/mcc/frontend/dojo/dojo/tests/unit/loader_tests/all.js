@@ -1,4 +1,0 @@
-define([
-	'./undefPlugin'
-], function () {
-});

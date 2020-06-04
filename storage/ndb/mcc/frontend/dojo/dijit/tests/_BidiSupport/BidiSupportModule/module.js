@@ -1,3 +1,0 @@
-define([
-	"./BidiSupportTest"
-], 1);
