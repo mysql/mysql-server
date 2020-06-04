@@ -1,0 +1,5 @@
+
+.claro .dijitTreeRtl .dijitTreeExpandoLoading {
+  background-image: url("../../icons/images/loadingAnimation_rtl.gif");
+  background-position: 100% 0;
+}
