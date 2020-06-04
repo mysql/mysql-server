@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -63,6 +63,9 @@
 #include "sql_string.h"  // to_lex_cstring
 
 namespace resourcegroups {
+const char *SYS_DEFAULT_RESOURCE_GROUP_NAME = "SYS_default";
+const char *USR_DEFAULT_RESOURCE_GROUP_NAME = "USR_default";
+
 Resource_group_mgr *Resource_group_mgr::m_instance = nullptr;
 
 void thread_create_callback(const PSI_thread_attrs *thread_attrs) {
@@ -71,11 +74,11 @@ void thread_create_callback(const PSI_thread_attrs *thread_attrs) {
   if (!res_grp_mgr->resource_group_support()) return;
 
   if (thread_attrs != nullptr) {
-    auto res_grp = thread_attrs->m_system_thread
-                       ? res_grp_mgr->sys_default_resource_group()
-                       : res_grp_mgr->usr_default_resource_group();
-    res_grp_mgr->set_res_grp_in_pfs(res_grp->name().c_str(),
-                                    res_grp->name().length(),
+    const char *res_grp_name =
+        thread_attrs->m_system_thread
+            ? res_grp_mgr->sys_default_resource_group_name()
+            : res_grp_mgr->usr_default_resource_group_name();
+    res_grp_mgr->set_res_grp_in_pfs(res_grp_name, strlen(res_grp_name),
                                     thread_attrs->m_thread_internal_id);
   }
 }
@@ -158,10 +161,12 @@ static bool deserialize_resource_groups(THD *thd) {
   auto res_grp_mgr = Resource_group_mgr::instance();
   for (const auto &resource_group : resource_group_vec) {
     if (my_strcasecmp(&my_charset_utf8_general_ci,
-                      resource_group->name().c_str(), "USR_default") == 0)
+                      resource_group->name().c_str(),
+                      USR_DEFAULT_RESOURCE_GROUP_NAME) == 0)
       usr_default_in_dd = true;
     else if (my_strcasecmp(&my_charset_utf8_general_ci,
-                           resource_group->name().c_str(), "SYS_default") == 0)
+                           resource_group->name().c_str(),
+                           SYS_DEFAULT_RESOURCE_GROUP_NAME) == 0)
       sys_default_in_dd = true;
     else {
       auto resource_group_ptr =
@@ -376,8 +381,9 @@ bool Resource_group_mgr::init() {
     return true;
   }
 
-  m_usr_default_resource_group = new (std::nothrow) Resource_group(
-      "USR_default", resourcegroups::Type::USER_RESOURCE_GROUP, true);
+  m_usr_default_resource_group = new (std::nothrow)
+      Resource_group(USR_DEFAULT_RESOURCE_GROUP_NAME,
+                     resourcegroups::Type::USER_RESOURCE_GROUP, true);
 
   if (m_usr_default_resource_group == nullptr) {
     LogErr(ERROR_LEVEL, ER_FAILED_TO_ALLOCATE_MEMORY_FOR_RESOURCE_GROUP,
@@ -387,8 +393,9 @@ bool Resource_group_mgr::init() {
     return true;
   }
 
-  m_sys_default_resource_group = new (std::nothrow) Resource_group(
-      "SYS_default", resourcegroups::Type::SYSTEM_RESOURCE_GROUP, true);
+  m_sys_default_resource_group = new (std::nothrow)
+      Resource_group(SYS_DEFAULT_RESOURCE_GROUP_NAME,
+                     resourcegroups::Type::SYSTEM_RESOURCE_GROUP, true);
 
   if (m_sys_default_resource_group == nullptr) {
     LogErr(ERROR_LEVEL, ER_FAILED_TO_ALLOCATE_MEMORY_FOR_RESOURCE_GROUP,
