@@ -97,12 +97,19 @@ Parallel_reader::~Parallel_reader() {
   }
 }
 
-size_t Parallel_reader::available_threads(size_t n_required) {
+size_t Parallel_reader::available_threads(size_t n_required,
+                                          bool use_reserved) {
   const auto RELAXED = std::memory_order_relaxed;
   auto active = s_active_threads.fetch_add(n_required, RELAXED);
 
-  if (active < MAX_THREADS) {
-    const auto available = MAX_THREADS - active;
+  size_t max_threads = MAX_THREADS;
+
+  if (use_reserved) {
+    max_threads += MAX_RESERVED_THREADS;
+  }
+
+  if (active < max_threads) {
+    const auto available = max_threads - active;
 
     if (n_required <= available) {
       return (n_required);
@@ -1007,7 +1014,8 @@ dberr_t Parallel_reader::Scan_ctx::create_context(const Range &range,
 dberr_t Parallel_reader::Scan_ctx::create_contexts(const Ranges &ranges) {
   size_t split_point{};
 
-  ut_a(max_threads() > 0 && max_threads() <= Parallel_reader::MAX_THREADS);
+  ut_a(max_threads() > 0 &&
+       max_threads() <= Parallel_reader::MAX_TOTAL_THREADS);
 
   if (ranges.size() > max_threads()) {
     split_point = (ranges.size() / max_threads()) * max_threads();

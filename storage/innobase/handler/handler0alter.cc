@@ -1156,7 +1156,8 @@ bool ha_innobase::prepare_inplace_alter_table(TABLE *altered_table,
       altered_table, ha_alter_info, old_dd_tab, new_dd_tab);
 }
 
-int ha_innobase::parallel_scan_init(void *&scan_ctx, size_t &num_threads) {
+int ha_innobase::parallel_scan_init(void *&scan_ctx, size_t *num_threads,
+                                    bool use_reserved_threads) {
   if (dict_table_is_discarded(m_prebuilt->table)) {
     ib_senderrf(ha_thd(), IB_LOG_LEVEL_ERROR, ER_TABLESPACE_DISCARDED,
                 m_prebuilt->table->name.m_name);
@@ -1178,7 +1179,8 @@ int ha_innobase::parallel_scan_init(void *&scan_ctx, size_t &num_threads) {
 
   size_t n_threads = thd_parallel_read_threads(m_prebuilt->trx->mysql_thd);
 
-  n_threads = Parallel_reader::available_threads(n_threads);
+  n_threads =
+      Parallel_reader::available_threads(n_threads, use_reserved_threads);
 
   if (n_threads == 0) {
     return (HA_ERR_GENERIC);
@@ -1208,7 +1210,7 @@ int ha_innobase::parallel_scan_init(void *&scan_ctx, size_t &num_threads) {
   }
 
   scan_ctx = adapter;
-  num_threads = n_threads;
+  *num_threads = n_threads;
 
   build_template(true);
 
@@ -9741,11 +9743,13 @@ static inline Instant_Type innopart_support_instant(
   return (type);
 }
 
-int ha_innopart::parallel_scan_init(void *&scan_ctx, size_t &num_threads) {
+int ha_innopart::parallel_scan_init(void *&scan_ctx, size_t *num_threads,
+                                    bool use_reserved_threads) {
   auto n_threads = thd_parallel_read_threads(m_prebuilt->trx->mysql_thd);
   ut_a(n_threads <= Parallel_reader::MAX_THREADS);
 
-  n_threads = static_cast<ulong>(Parallel_reader::available_threads(n_threads));
+  n_threads = static_cast<ulong>(
+      Parallel_reader::available_threads(n_threads, use_reserved_threads));
 
   if (n_threads == 0) {
     return (HA_ERR_GENERIC);
@@ -9816,7 +9820,7 @@ int ha_innopart::parallel_scan_init(void *&scan_ctx, size_t &num_threads) {
   }
 
   scan_ctx = adapter;
-  num_threads = n_threads;
+  *num_threads = n_threads;
 
   adapter->set(m_prebuilt);
 
