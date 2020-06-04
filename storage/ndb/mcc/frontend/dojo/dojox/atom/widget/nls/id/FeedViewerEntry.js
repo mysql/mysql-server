@@ -1,6 +1,0 @@
-define(
-({
-	deleteButton: "[Hapus]"
-})
-);
-

@@ -1,3 +1,0 @@
-define([
-	'./hash/basehref'
-], function () { });
