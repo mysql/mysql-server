@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2019 Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2020 Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -85,4 +85,8 @@ max-time: 2500
 cmd: testNodeRestart
 args: -n SumaHandover3rpl T1
 max-time: 180
+
+cmd: testBlobs
+args: -bug 28590428 -skip p -loop 10
+max-time: 900
 
