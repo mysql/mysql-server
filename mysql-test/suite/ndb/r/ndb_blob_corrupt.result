@@ -38,6 +38,37 @@ insert into t1 select a+20, utf_t, tb, b, mb, lb, tt, t, mt, lt from t1;
 truncate table t1;
 # run broken restore of data
 select count(1) into @count_parent_rows_before from t1;
+Observe "blob corruption error" failures on queries
+Fully ordered OI scan
+select * from test.t1 order by a;
+ERROR HY000: Got error 4267 'Corrupted blob value' from NDBCLUSTER
+show warnings limit 1;
+Level	Code	Message
+Warning	1296	Got error 4267 'Corrupted blob value' from NDB
+Fully ordered OI scan, different first tuple
+select * from test.t1 order by a desc;
+ERROR HY000: Got error 4267 'Corrupted blob value' from NDBCLUSTER
+show warnings limit 1;
+Level	Code	Message
+Warning	1296	Got error 4267 'Corrupted blob value' from NDB
+OI scan
+select * from test.t1 where a > 0;
+ERROR HY000: Got error 4267 'Corrupted blob value' from NDBCLUSTER
+show warnings limit 1;
+Level	Code	Message
+Warning	1296	Got error 4267 'Corrupted blob value' from NDB
+OI scan, different first tuple
+select * from test.t1 where a < 6;
+ERROR HY000: Got error 4267 'Corrupted blob value' from NDBCLUSTER
+show warnings limit 1;
+Level	Code	Message
+Warning	1296	Got error 4267 'Corrupted blob value' from NDB
+Table scan
+select * from test.t1;
+ERROR HY000: Got error 4267 'Corrupted blob value' from NDBCLUSTER
+show warnings limit 1;
+Level	Code	Message
+Warning	1296	Got error 4267 'Corrupted blob value' from NDB
 ndb_blob_tool errors out on finding missing blob parts
 Add in missing parts
 Verify that there are no missing parts or orphan rows
