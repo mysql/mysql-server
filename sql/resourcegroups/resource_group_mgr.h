@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,6 +56,9 @@ template <class Key, class Value>
 class collation_unordered_map;
 
 namespace resourcegroups {
+
+extern const char *SYS_DEFAULT_RESOURCE_GROUP_NAME;
+extern const char *USR_DEFAULT_RESOURCE_GROUP_NAME;
 
 /**
   This is a singleton class that provides various functionalities related to
@@ -250,6 +253,17 @@ class Resource_group_mgr {
 
   Resource_group *usr_default_resource_group() {
     return m_usr_default_resource_group;
+  }
+
+  /**
+     Get names of SYS_default and USR_default resource groups.
+     Called by thread_create_callback only.
+  */
+  const char *sys_default_resource_group_name() {
+    return SYS_DEFAULT_RESOURCE_GROUP_NAME;
+  }
+  const char *usr_default_resource_group_name() {
+    return USR_DEFAULT_RESOURCE_GROUP_NAME;
   }
 
   /**
