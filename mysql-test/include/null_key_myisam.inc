@@ -14,6 +14,7 @@ explain select * from t1 where a is null and b = 7;
 explain select * from t1 where a=2 and b = 2;
 explain select * from t1 where a<=>b limit 2;
 explain select * from t1 where (a is null or a > 0 and a < 3) and b < 5 limit 3;
+--skip_if_hypergraph  # Depends on the query plan.
 explain format=tree select * from t1 where (a is null or a = 7) and b=7;
 explain select * from t1 where (a is null or a = 7) and b=7;
 explain select * from t1 where (a is null or a = 7) and b=7 order by a;
@@ -170,5 +171,6 @@ SET sql_mode = default;
 #
 create table t1 (a int, b int not null,unique key (b,a),index(b));
 insert ignore into t1 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(null,7),(9,9),(8,8),(7,7),(null,9),(null,9),(6,6);
+--skip_if_hypergraph  # Depends on the query plan.
 explain format=tree select * from t1 where (a is null or a = 7) and b=7;
 drop table t1;

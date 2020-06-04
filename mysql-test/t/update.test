@@ -171,25 +171,30 @@ insert into t1 (a) values (0),(0),(0),(0),(0),(0),(0),(0);
 
 flush status;
 select a from t1 order by a limit 1;
+--skip_if_hypergraph  # Depends on the query plan.
 show status like 'handler_read%';
 
 flush status;
 update t1 set a=9999 order by a limit 1;
 update t1 set b=9999 order by a limit 1;
+--skip_if_hypergraph  # Depends on the query plan.
 show status like 'handler_read%';
 
 flush status;
 delete from t1 order by a, b desc limit 1;
+--skip_if_hypergraph  # Depends on the query plan.
 show status like 'handler_read%';
 
 flush status;
 delete from t1 order by a desc, b desc limit 1;
+--skip_if_hypergraph  # Depends on the query plan.
 show status like 'handler_read%';
 
 alter table t1 disable keys;
 
 flush status;
 delete from t1 order by a limit 1;
+--skip_if_hypergraph  # Depends on the query plan.
 show status like 'handler_read%';
 
 select * from t1;
@@ -225,6 +230,7 @@ create table t2 (a int, filler1 char(200), filler2 char(200), key(a));
 insert into t2 select A.a + 10*B.a, 'filler','filler' from t1 A, t1 B;
 flush status;
 update t2 set a=3 where a=2;
+--skip_if_hypergraph  # Depends on the query plan.
 show status like 'handler_read%';
 drop table t1, t2;
 
@@ -270,12 +276,16 @@ INSERT INTO t1(user_id) SELECT user_id FROM t1;
 
 flush status;
 SELECT user_id FROM t1 WHERE request_id=9999999999999; 
+--skip_if_hypergraph  # Depends on the query plan.
 show status like '%Handler_read%';
 SELECT user_id FROM t1 WHERE request_id=999999999999999999999999999999; 
+--skip_if_hypergraph  # Depends on the query plan.
 show status like '%Handler_read%';
 UPDATE t1 SET user_id=null WHERE request_id=9999999999999;
+--skip_if_hypergraph  # Depends on the query plan.
 show status like '%Handler_read%';
 UPDATE t1 SET user_id=null WHERE request_id=999999999999999999999999999999;
+--skip_if_hypergraph  # Depends on the query plan.
 show status like '%Handler_read%';
 
 DROP TABLE t1;

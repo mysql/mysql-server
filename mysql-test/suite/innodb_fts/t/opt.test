@@ -266,6 +266,7 @@ SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score
 FROM wp
 ORDER BY score DESC LIMIT 2;
 
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
 SHOW SESSION STATUS LIKE 'Sort%';
 
@@ -283,6 +284,7 @@ eval EXPLAIN $query;
 FLUSH STATUS;
 eval $query;
 --echo Verify that there was no table access
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
 
 let $query =
@@ -365,6 +367,7 @@ SELECT FTS_DOC_ID docid,
        MATCH(title, text) AGAINST ('database' WITH QUERY EXPANSION) AS score
 FROM wp
 ORDER BY score DESC LIMIT 2;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
 SHOW SESSION STATUS LIKE 'Sort%';
 
@@ -376,6 +379,7 @@ WHERE MATCH(title,text) AGAINST ('database' WITH QUERY EXPANSION);
 eval EXPLAIN $query;
 FLUSH STATUS;
 eval $query;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
 
 #
@@ -413,6 +417,7 @@ SELECT FTS_DOC_ID docid,
        MATCH(title, text) AGAINST ('+MySQL -database' IN BOOLEAN MODE) AS score 
 FROM wp 
 ORDER BY score DESC LIMIT 2;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
 SHOW SESSION STATUS LIKE 'Sort%';
 
@@ -424,6 +429,7 @@ WHERE MATCH(title,text) AGAINST ('+MySQL -database' IN BOOLEAN MODE);
 eval EXPLAIN $query;
 FLUSH STATUS;
 eval $query;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
 
 
@@ -463,6 +469,7 @@ SELECT FTS_DOC_ID docid,
        MATCH(title, text) AGAINST ('"MySQL database"@5' IN BOOLEAN MODE) AS score
 FROM wp
 ORDER BY score DESC LIMIT 1;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
 SHOW SESSION STATUS LIKE 'Sort%';
 
@@ -474,6 +481,7 @@ WHERE MATCH(title,text) AGAINST ('"MySQL database"@5' IN BOOLEAN MODE);
 eval EXPLAIN $query;
 FLUSH STATUS;
 eval $query;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
 
 #
@@ -530,6 +538,7 @@ FLUSH STATUS;
 SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score 
 FROM wp 
 ORDER BY score DESC LIMIT 2;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
 SHOW SESSION STATUS LIKE 'Sort%';
 
@@ -541,6 +550,7 @@ WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
 eval EXPLAIN $query;
 FLUSH STATUS;
 eval $query;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
 
 

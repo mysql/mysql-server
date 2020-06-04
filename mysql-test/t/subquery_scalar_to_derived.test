@@ -1586,6 +1586,7 @@ ANALYZE TABLE a, bb, cc;
 --echo Without the patch this plan would use an index scan on cc, but this
 --echo is not covering.
 
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=tree
 SELECT
   AVG(cc.col_varchar_key),
@@ -1683,6 +1684,7 @@ ORDER BY table1.col_varchar ASC, field2, field1
 LIMIT 1000 OFFSET 2;
 
 eval $query;
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 
 DROP VIEW view_cc;

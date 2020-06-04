@@ -3297,6 +3297,7 @@ create table t3 (a int);
 insert into t3 values (NULL), (NULL);
 flush status;
 select a in (select max(ie) from t1 where oref=4 group by grp) from t3;
+--skip_if_hypergraph  # Depends on the query plan.
 show status like 'Handler_read_rnd_next';
 select ' ^ This must show 11' Z;
 
@@ -3329,6 +3330,7 @@ select oref, a, a in (select a from t1 where oref=t2.oref) z from t2;
 flush status;
 select oref, a from t2 where a in (select a from t1 where oref=t2.oref);
 # This will only show access to t2:
+--skip_if_hypergraph  # Depends on the query plan.
 show status like '%Handler_read_rnd_next';
 
 # Check that repeated NULL-scans are not cached (subq. is not correlated):
@@ -3337,6 +3339,7 @@ insert into t2 values (NULL, 0),(NULL, 0), (NULL, 0), (NULL, 0);
 
 flush status;
 select oref, a, a in (select a from t1 where oref=t2.oref) Z from t2;
+--skip_if_hypergraph  # Depends on the query plan.
 show status like '%Handler_read%';
 select 'No key lookups, seq reads: 29= 5 reads from t2 + 4 * 6 reads from t1.' Z;
 
@@ -4812,6 +4815,7 @@ WHERE (i1, i2)
 --echo # Check that the subquery only has to be evaluated once 
 --echo # for all-NULL values even though there are two (NULL,NULL) records
 --echo # Baseline:
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE '%Handler_read_rnd_next';
 
 --echo 
@@ -4827,6 +4831,7 @@ WHERE (i1, i2)
 --echo 
 --echo # Handler_read_rnd_next should be one more than baseline 
 --echo # (read record from t1, but do not read from t2)
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE '%Handler_read_rnd_next';
 
 
@@ -5009,6 +5014,7 @@ WHERE (i1, i2)
 --echo # Check that the subquery only has to be evaluated once 
 --echo # for all-NULL values even though there are two (NULL,NULL) records
 --echo # Baseline:
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE '%Handler_read_rnd_next';
 
 --echo 
@@ -5024,6 +5030,7 @@ WHERE (i1, i2)
 --echo 
 --echo # Handler_read_rnd_next should be one more than baseline 
 --echo # (read record from t1, but do not read from t2)
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE '%Handler_read_rnd_next';
 DROP TABLE t1,t2;
 
@@ -5895,6 +5902,7 @@ let $query=select * from t1 where a in (select a from t2 where b=3);
 eval explain $query;
 flush status;
 eval $query;
+--skip_if_hypergraph  # Depends on the query plan.
 show status like "handler_read%";
 drop table t1,t2;
 

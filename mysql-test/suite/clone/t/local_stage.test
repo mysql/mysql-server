@@ -22,12 +22,16 @@ call execute_dml(0, 0, 100, 100, 10, 0);
 SHOW CREATE TABLE t1;
 
 SELECT count(*) from t1;
+--skip_if_hypergraph  # Runs out of memory due to different query plan.
 SELECT col1, col2, col3, SUBSTRING(col4, 1000, 32) FROM t1 ORDER BY col1 LIMIT 10;
+--skip_if_hypergraph  # Runs out of memory due to different query plan.
 SELECT col1, col2, col3, SUBSTRING(col4, 1000, 32) FROM t1 ORDER BY col1 DESC LIMIT 10;
 
 SHOW CREATE TABLE t2;
 SELECT count(*) from t2;
+--skip_if_hypergraph  # Runs out of memory due to different query plan.
 SELECT col1, col2, col3, SUBSTRING(col4, 1000, 32) FROM t2 ORDER BY col1 LIMIT 10;
+--skip_if_hypergraph  # Runs out of memory due to different query plan.
 SELECT col1, col2, col3, SUBSTRING(col4, 1000, 32) FROM t2 ORDER BY col1 DESC LIMIT 10;
 
 --echo # In connection default - Cloning database

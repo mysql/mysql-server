@@ -1,3 +1,4 @@
+--source include/not_hypergraph.inc  # Logs extra text to stderr for now.
 #
 --echo #
 --echo # WL#9343:  log TNG: log writers

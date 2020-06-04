@@ -1490,6 +1490,7 @@ select fld3,period from t2,t1 where companynr*10 = 37*10;
 
 analyze table t2, t3;
 
+--skip_if_hypergraph  # Depends on query plan.
 EXPLAIN FORMAT=tree select fld3,period,price,price2 from t2,t3 where t2.fld1=t3.t2nr and period >= 1001 and period <= 1002 and t2.companynr = 37 order by fld3,period, price;  # Tests how to print out BKA iterators.
 
 select fld3,period,price,price2 from t2,t3 where t2.fld1=t3.t2nr and period >= 1001 and period <= 1002 and t2.companynr = 37 order by fld3,period, price;
@@ -1778,7 +1779,9 @@ select max(fld1) from t2 where fld1>= 098024;
 select count(*) from t3 where price2=76234234;
 select count(*) from t3 where companynr=512 and price2=76234234;
 explain select min(fld1),max(fld1),count(*) from t2;
+--skip_if_hypergraph  # Depends on query plan.
 explain format=tree select min(fld1),max(fld1),count(*) from t2;  # Should be computed at optimize time.
+--skip_if_hypergraph  # Depends on query plan.
 explain format=tree select min(fld1),max(fld1),count(*) from t2 where rand() > 0.5;  # Should _not_ be computed at optimize time.
 # PS does correct pre-zero here. MySQL can't do it as it returns a number.
 --disable_ps_protocol
@@ -3825,6 +3828,7 @@ INSERT INTO t2 VALUES (1, 1), (1, 2), (1, 3), (1, 4), (1, 5),
 
 FLUSH STATUS;
 SELECT DISTINCT b FROM t1 LEFT JOIN t2 USING(a) WHERE c <= 3;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
 DROP TABLE t1, t2;
 
@@ -4506,6 +4510,7 @@ let $query =
     FROM t1 AS alias1 LEFT JOIN t1 AS alias2 ON alias1.f1 = alias2.f2
     WHERE alias2.f1 NOT BETWEEN 4 AND 12;
 
+--skip_if_hypergraph  # Depends on query plan.
 eval EXPLAIN FORMAT=tree $query;  # Verify that we get BKA, and no NULL rejection in WHERE on alias1.
 eval $query;
 

@@ -540,9 +540,11 @@ SELECT * FROM (SELECT * FROM t1 JOIN t2 ON f1=f2) tt;
 FLUSH STATUS;
 EXPLAIN 
   SELECT * FROM (SELECT * FROM t1 WHERE f1 IN (2,3)) tt WHERE f11=2;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
 FLUSH STATUS;
 SELECT * FROM (SELECT * FROM t1 WHERE f1 IN (2,3)) tt WHERE f11=2;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
 
 --echo join of derived
@@ -575,9 +577,11 @@ SELECT * FROM v3 JOIN v4 ON f1=f2;
 
 FLUSH STATUS;
 EXPLAIN SELECT * FROM v4 WHERE f2 IN (1,3);
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
 FLUSH STATUS;
 SELECT * FROM v4 WHERE f2 IN (1,3);
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
 
 # Lots of "SELECT * GROUP BY non-unique-field" below, so:
@@ -591,9 +595,11 @@ SELECT * FROM (SELECT * FROM t1 HAVING f1=f1) tt;
 FLUSH STATUS;
 EXPLAIN
   SELECT * FROM t1 JOIN (SELECT * FROM t2 GROUP BY f2) tt ON f1=f2;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
 FLUSH STATUS;
 SELECT * FROM t1 JOIN (SELECT * FROM t2 GROUP BY f2) tt ON f1=f2;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
 
 --echo for materialized views
@@ -615,15 +621,18 @@ SELECT * FROM v1;
 --echo  explain showing created indexes and late materialization for views
 FLUSH STATUS;
 EXPLAIN SELECT * FROM t1 JOIN v2 ON f1=f2;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
 FLUSH STATUS;
 SELECT * FROM t1 JOIN v2 ON f1=f2;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
 
 EXPLAIN
   SELECT * FROM t1,v3 AS v31,v3 WHERE t1.f1=v31.f1 and t1.f1=v3.f1;
 FLUSH STATUS;
 SELECT * FROM t1,v3 AS v31,v3 WHERE t1.f1=v31.f1 and t1.f1=v3.f1;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
 --echo  explain showing late materialization for views
 EXPLAIN SELECT * FROM v1 JOIN v4 ON f1=f2;
@@ -666,6 +675,7 @@ SELECT * FROM
 JOIN 
  (SELECT * FROM (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2) z
  ON x.f1 = z.f1;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read%';
 FLUSH STATUS;
 

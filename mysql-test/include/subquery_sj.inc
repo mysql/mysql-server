@@ -460,6 +460,7 @@ explain select * from t3 where a in
 
 # In subquery_sj_loosescan_bka_nobnl (ie., with loose scan), demonstrates
 # how NestedLoopSemiJoinWithDuplicateRemovalIterator is used.
+--skip_if_hypergraph  # Depends on query plan.
 explain format=tree select * from t3 where a in
           (select t1.kp1 from t1,t4 where kp1<20 and t4.pk=t1.c);
 --sorted_result
@@ -1420,6 +1421,7 @@ FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a+0 AND
 # In subquery_sj_{all,firstmatch}_*, demonstrates how partially overlapping
 # outer joins and first matches are rejected by the join optimizer and cannot
 # exist (DBUG_ASSERTs in FindSubstructure verify it).
+--skip_if_hypergraph  # Depends on query plan.
 EXPLAIN FORMAT=tree SELECT *
 FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it3)
          LEFT JOIN ot3 ON ot2.a=ot3.a AND ot3.a IN (SELECT a FROM it3);
@@ -7000,6 +7002,7 @@ eval explain $query;
 # In subquery_sj_loosescan_bka_nobnl (ie., with loose scan), shows a case
 # where we can't use NestedLoopSemiJoinWithDuplicateRemovalIterator since we
 # have a table that is both firstmatch (semijoin) _and_ outer join.
+--skip_if_hypergraph  # Depends on query plan.
 eval explain format=tree $query;
 
 eval $query;
@@ -7107,6 +7110,7 @@ SELECT name FROM t2, t1
 WHERE t1.uid IN (SELECT t4.uid FROM t4, t3 WHERE t3.uid=1 AND t4.uid=t3.fid)
 AND t2.uid=t1.fid;
 
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE '%handler_read%';
 
 DROP TABLE t1,t2,t3,t4;
@@ -7261,6 +7265,7 @@ INSERT INTO t1 VALUES ('08:35:24', 'X'), ('14:51:13', 'S'), ('11:22:33', 'Q');
 CREATE TABLE t2 ( pk INTEGER );
 INSERT INTO t2 VALUES (1), (2);
 ANALYZE TABLE t1, t2;
+--skip_if_hypergraph  # Depends on query plan.
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE EXISTS ( SELECT alias1.f2 FROM t2 LEFT JOIN t1 ON 1 LEFT JOIN t1 AS alias1 ON 1 );
 --sorted_result
 SELECT * FROM t1 WHERE EXISTS ( SELECT alias1.f2 FROM t2 LEFT JOIN t1 ON 1 LEFT JOIN t1 AS alias1 ON 1 );

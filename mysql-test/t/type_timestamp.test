@@ -402,6 +402,7 @@ INSERT INTO t2 VALUES( '2010-02-01 09:31:11' );
 --echo # performed.
 FLUSH STATUS;
 SELECT * FROM t2 WHERE a < '2010-02-01 09:31:02.0';
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read_next';
 
 DROP TABLE t1, t2;

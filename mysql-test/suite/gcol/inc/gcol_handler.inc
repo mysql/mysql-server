@@ -51,12 +51,15 @@ handler t1 read c <= (-2) where b=-3;
 handler t1 read c first;
 
 --echo # HANDLER tbl_name READ gcol_index_name NEXT
+--skip_if_hypergraph
 handler t1 read c next;
 
 --echo # HANDLER tbl_name READ gcol_index_name PREV
+--skip_if_hypergraph
 handler t1 read c prev;
 
 --echo # HANDLER tbl_name READ gcol_index_name LAST
+--skip_if_hypergraph
 handler t1 read c last;
 
 --echo # HANDLER tbl_name READ FIRST where non-gcol=expr

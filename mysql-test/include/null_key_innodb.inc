@@ -79,6 +79,7 @@ FLUSH STATUS ;
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 LEFT JOIN t2 ON t1.a=t2.a
                                      LEFT JOIN t3 ON t2.b=t3.b;
 SELECT FOUND_ROWS();
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE "handler_read%";
 
 DROP TABLE t1,t2,t3,t4;

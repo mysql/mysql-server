@@ -279,11 +279,13 @@ set optimizer_switch='mrr=on,mrr_cost_based=off';
 --echo # Check statistics without hint
 FLUSH STATUS;
 SELECT * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
+--skip_if_hypergraph  # Does not support hints yet.
 SHOW STATUS LIKE 'handler_read%';
 
 --echo # Check statistics with hint
 FLUSH STATUS;
 SELECT /*+ SET_VAR(optimizer_switch='mrr=off') */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
+--skip_if_hypergraph  # Does not support hints yet.
 SHOW STATUS LIKE 'handler_read%';
 
 set optimizer_switch=default;
@@ -324,11 +326,13 @@ FLUSH STATUS;
 --disable_result_log
 SELECT /*+ SET_VAR(sort_buffer_size=32768) */f1 FROM t1 ORDER BY f1;
 --enable_result_log
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Sort_merge_passes';
 FLUSH STATUS;
 --disable_result_log
 SELECT f1 FROM t1 ORDER BY f1;
 --enable_result_log
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Sort_merge_passes';
 DROP TABLE t1;
 CALL test_hint("SET_VAR(sort_buffer_size=32768)", "sort_buffer_size");

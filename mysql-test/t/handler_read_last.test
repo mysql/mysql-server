@@ -7,18 +7,22 @@ INSERT INTO t1 VALUES (),(),(),(),(),(),(),(),(),();
 
 FLUSH STATUS;
 SELECT a FROM t1 ORDER BY a LIMIT 1;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'HANDLER_READ%';
 
 FLUSH STATUS;
 SELECT a FROM t1 ORDER BY a DESC LIMIT 1;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'HANDLER_READ%';
 
 FLUSH STATUS;
 SELECT a FROM t1 ORDER BY a LIMIT 3;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'HANDLER_READ%';
 
 FLUSH STATUS;
 SELECT a FROM t1 ORDER BY a DESC LIMIT 3;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'HANDLER_READ%';
 
 DROP TABLE t1;

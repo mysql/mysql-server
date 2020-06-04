@@ -1204,6 +1204,7 @@ eval $query;
 --echo There will be one look-up in the temporary table for each row
 --echo of t1 (12), plus one additional look-up to check whether table
 --echo contains a NULL value.
+--skip_if_hypergraph  # Depends on the query plan.
 show status like "handler_read_key";
 
 drop table t1,t2;
@@ -1301,6 +1302,7 @@ let $query=select * from t1 where a in (select a from t2);
 eval explain $query;
 flush status;
 eval $query;
+--skip_if_hypergraph  # Depends on the query plan.
 show status like "handler_read%";
 drop table t1,t2;
 
@@ -1360,6 +1362,7 @@ WHERE
 eval EXPLAIN $query;
 FLUSH STATUS;
 eval $query;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE "HANDLER_READ%";
 
 DROP TABLE t1,t2,t3,t4;

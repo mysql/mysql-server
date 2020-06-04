@@ -213,6 +213,7 @@ static bool testcase_disabled = false;
 static bool display_result_vertically = false, display_result_lower = false,
             display_metadata = false, display_result_sorted = false,
             display_session_track_info = false;
+static bool skip_if_hypergraph = false;
 static int start_sort_column = 0;
 static bool disable_query_log = false, disable_result_log = false;
 static bool disable_connect_log = true;
@@ -481,6 +482,7 @@ enum enum_commands {
   Q_SORTED_RESULT,
   Q_PARTIALLY_SORTED_RESULT,
   Q_LOWERCASE,
+  Q_SKIP_IF_HYPERGRAPH,
   Q_START_TIMER,
   Q_END_TIMER,
   Q_CHARACTER_SET,
@@ -545,11 +547,12 @@ const char *command_names[] = {
     "disable_async_client", "exec", "execw", "exec_in_background", "delimiter",
     "disable_abort_on_error", "enable_abort_on_error", "vertical_results",
     "horizontal_results", "query_vertical", "query_horizontal", "sorted_result",
-    "partially_sorted_result", "lowercase_result", "start_timer", "end_timer",
-    "character_set", "disable_ps_protocol", "enable_ps_protocol",
-    "disable_reconnect", "enable_reconnect", "if", "disable_testcase",
-    "enable_testcase", "replace_regex", "replace_numeric_round", "remove_file",
-    "file_exists", "write_file", "copy_file", "perl", "die",
+    "partially_sorted_result", "lowercase_result", "skip_if_hypergraph",
+    "start_timer", "end_timer", "character_set", "disable_ps_protocol",
+    "enable_ps_protocol", "disable_reconnect", "enable_reconnect", "if",
+    "disable_testcase", "enable_testcase", "replace_regex",
+    "replace_numeric_round", "remove_file", "file_exists", "write_file",
+    "copy_file", "perl", "die",
 
     /* Don't execute any more commands, compare result */
     "exit", "skip", "chmod", "append_file", "cat_file", "diff_files",
@@ -1991,6 +1994,7 @@ static bool show_diff(DYNAMIC_STRING *ds, const char *filename1,
         }
       } else if (exit_code == 1 && opt_hypergraph &&
                  is_diff_clean_except_hypergraph(&ds_diff)) {
+        dynstr_free(&ds_diff);
         return true;
       }
     }
@@ -8623,9 +8627,6 @@ static void run_query(struct st_connection *cn, struct st_command *command,
   if (!(flags & QUERY_SEND_FLAG) && !cn->pending)
     die("Cannot reap on a connection without pending send");
 
-  init_dynamic_string(&ds_warnings, nullptr, 0);
-  ds_warn = &ds_warnings;
-
   /*
     Evaluate query if this is an eval command
   */
@@ -8656,6 +8657,19 @@ static void run_query(struct st_connection *cn, struct st_command *command,
     dynstr_append_mem(ds, delimiter, delimiter_length);
     dynstr_append_mem(ds, "\n", 1);
   }
+
+  if (skip_if_hypergraph && opt_hypergraph) {
+    constexpr char message[] =
+        "<ignored hypergraph optimizer error: statement skipped by "
+        "test>\n";
+    dynstr_append_mem(&ds_res, message, strlen(message));
+    if (command->type == Q_EVAL || command->type == Q_SEND_EVAL)
+      dynstr_free(&eval_query);
+    return;
+  }
+
+  init_dynamic_string(&ds_warnings, nullptr, 0);
+  ds_warn = &ds_warnings;
 
   if (view_protocol_enabled && complete_query &&
       search_protocol_re(&view_re, query)) {
@@ -9569,6 +9583,13 @@ int main(int argc, char **argv) {
           */
           display_result_lower = true;
           break;
+        case Q_SKIP_IF_HYPERGRAPH:
+          /*
+            Skip the next query if running with --hypergraph; will be reset
+            after next command.
+           */
+          skip_if_hypergraph = true;
+          break;
         case Q_LET:
           do_let(command);
           break;
@@ -9877,9 +9898,10 @@ int main(int argc, char **argv) {
       */
       free_all_replace();
 
-      /* Also reset "sorted_result" and "lowercase"*/
+      /* Also reset "sorted_result", "lowercase" and "skip_if_hypergraph"*/
       display_result_sorted = false;
       display_result_lower = false;
+      skip_if_hypergraph = false;
     }
     last_command_executed = command_executed;
 

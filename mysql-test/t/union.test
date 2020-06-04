@@ -2195,12 +2195,15 @@ INSERT INTO t1 SELECT a+1 FROM t1;
 SELECT COUNT(*) FROM t1;
 FLUSH STATUS;
 SELECT * FROM t1 LIMIT 1;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE "HANDLER_READ%";
 FLUSH STATUS;
 SELECT * FROM t1 UNION ALL SELECT * FROM t1 LIMIT 1;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE "HANDLER_READ%";
 FLUSH STATUS;
 SELECT * FROM t1 UNION DISTINCT SELECT * FROM t1 LIMIT 1;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE "HANDLER_READ%";
 
 let $query=
@@ -2209,6 +2212,7 @@ let $query=
 eval EXPLAIN FORMAT=TREE $query;
 FLUSH STATUS;
 eval $query;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE "HANDLER_READ%";
 
 DROP TABLE t1;

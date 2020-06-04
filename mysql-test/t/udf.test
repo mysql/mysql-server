@@ -437,7 +437,9 @@ CREATE TABLE t2 (a INT PRIMARY KEY);
 INSERT INTO t1 VALUES (4),(3),(2),(1);
 INSERT INTO t2 SELECT * FROM t1;
 
+--skip_if_hypergraph  # Does not make any guarantees not to re-evaluate items.
 SELECT sequence() AS seq, a FROM t1 ORDER BY seq ASC;
+--skip_if_hypergraph  # Does not make any guarantees not to re-evaluate items.
 SELECT sequence() AS seq, a FROM t1 ORDER BY seq DESC;
 
 SELECT * FROM t1 WHERE a = sequence();
