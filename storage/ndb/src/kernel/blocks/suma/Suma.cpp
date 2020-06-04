@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -466,7 +466,7 @@ Suma::execDICT_LOCK_CONF(Signal* signal)
   switch(state){
   case DictLockReq::SumaStartMe:
     jam();
-    c_startup.m_restart_server_node_id = 0;
+    ndbrequire(c_startup.m_restart_server_node_id == RNIL);
     CRASH_INSERTION(13039);
     send_start_me_req(signal);
     return;
@@ -815,7 +815,6 @@ Suma::execCHECKNODEGROUPSCONF(Signal *signal)
   }
 #endif
 
-  c_startup.m_restart_server_node_id = 0;    
   if (m_typeOfStart == NodeState::ST_NODE_RESTART ||
       m_typeOfStart == NodeState::ST_INITIAL_NODE_RESTART)
   {
