@@ -1,0 +1,13 @@
+
+.mblHeading {
+  background-image: url(compat/heading-bg.png);
+}
+.mblHeadingSpanTitle {
+  white-space: normal;
+}
+.dj_gecko .mblHeading {
+  background-image: none;
+}
+.mblHeading {
+  background-image: none;
+}
