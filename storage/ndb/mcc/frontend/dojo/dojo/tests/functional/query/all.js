@@ -1,4 +1,0 @@
-define([
-    './query',
-    './xml'
-], function () { });
