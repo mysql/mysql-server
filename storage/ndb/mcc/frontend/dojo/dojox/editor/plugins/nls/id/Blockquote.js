@@ -1,6 +1,0 @@
-define(
-({
-	"blockquote": "Blockquote"
-})
-);
-

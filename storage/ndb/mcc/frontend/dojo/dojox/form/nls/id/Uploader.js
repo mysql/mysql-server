@@ -1,6 +1,0 @@
-define(
-({
-	label: "Pilih File..."
-})
-);
-

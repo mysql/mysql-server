@@ -1,8 +1,0 @@
-{
-	items: [
-		{src:"../images/dish1.jpg", value:"dish", headerText:"Hello world!"},
-		{src:"../images/glass1.jpg", value:"glass", headerText:"&#1513;&#1500;&#1493;&#1501; &#1506;&#1493;&#1500;&#1501;!"},
-		{src:"../images/stone1.jpg", value:"stone", headerText:"Hello &#1506;&#1493;&#1500;&#1501;!"},
-		{src:"../images/shell1.jpg", value:"shell", headerText:"&#1513;&#1500;&#1493;&#1501; World!"}
-	]
-}
