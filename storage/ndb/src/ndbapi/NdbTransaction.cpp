@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -475,7 +475,9 @@ NdbTransaction::execute(ExecType aTypeOfExec,
           theCompletedLastOp = tCompletedLastOp;
       }
 
-      /* executeNoBlobs will have set transaction error */
+      /* Capture any trans error left by the execute() in case it gets trampled */
+      if (firstTransError.code != 0)
+        theError = firstTransError;
       DBUG_RETURN(-1);
     }
 
