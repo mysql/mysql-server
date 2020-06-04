@@ -7034,7 +7034,7 @@ static bool append_string_value(Item *comparand,
   StringBuffer<STRING_BUFFER_USUAL_SIZE> str_buffer;
   String *str = comparand->val_str(&str_buffer);
 
-  if (comparand->null_value) {
+  if (comparand->null_value || str == nullptr) {
     return true;
   }
 
