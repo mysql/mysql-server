@@ -444,7 +444,7 @@ Suma::execDICT_LOCK_CONF(Signal* signal)
   switch(state){
   case DictLockReq::SumaStartMe:
     jam();
-    c_startup.m_restart_server_node_id = 0;
+    ndbrequire(c_startup.m_restart_server_node_id == RNIL);
     CRASH_INSERTION(13039);
     send_start_me_req(signal);
     return;
@@ -822,7 +822,6 @@ Suma::execCHECKNODEGROUPSCONF(Signal *signal)
   }
 #endif
 
-  c_startup.m_restart_server_node_id = 0;    
   if (m_typeOfStart == NodeState::ST_NODE_RESTART ||
       m_typeOfStart == NodeState::ST_INITIAL_NODE_RESTART)
   {
