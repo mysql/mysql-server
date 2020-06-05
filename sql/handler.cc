@@ -4992,18 +4992,6 @@ int handler::ha_create(const char *name, TABLE *form, HA_CREATE_INFO *info,
 }
 
 /**
- * Prepares the secondary engine for table load.
- *
- * @param table The table to load into the secondary engine. Its read_set tells
- * which columns to load.
- *
- * @sa handler::prepare_load_table()
- */
-int handler::ha_prepare_load_table(const TABLE &table) {
-  return prepare_load_table(table);
-}
-
-/**
  * Loads a table into its defined secondary storage engine: public interface.
  *
  * @param table The table to load into the secondary engine. Its read_set tells

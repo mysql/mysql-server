@@ -2626,12 +2626,8 @@ static bool secondary_engine_load_table(THD *thd, const TABLE &table) {
   unique_ptr_destroy_only<handler> handler(
       get_new_handler(table.s, is_partitioned, thd->mem_root, hton));
 
-  // Prepare the secondary engine for table load. The secondary engine can in
-  // this phase perform any necessary setup that is only possible while the
-  // server holds an MDL_EXCLUSIVE lock on the table.
-  if (handler->ha_prepare_load_table(table)) return true;
-
-  // Load table from primary into secondary engine.
+  // Load table from primary into secondary engine and add to change
+  // propagation if that is enabled.
   return handler->ha_load_table(table);
 }
 
