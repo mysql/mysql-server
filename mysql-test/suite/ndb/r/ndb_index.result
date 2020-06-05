@@ -755,3 +755,43 @@ ALTER TABLE t1 ADD UNIQUE KEY (col25);
 ALTER TABLE t1 DROP INDEX col24;
 ALTER TABLE t1 DROP INDEX col25;
 DROP TABLE t1;
+#
+# Bug#31452597 BUILD ATTRID MAP FOR PRIMARY KEY
+#  - test read using primary key where keys are specified in
+#    different order than in the NDB table, thus testing
+#    the NDB_INDEX_DATA::Attrid_map mapping
+CREATE TABLE t1 (
+a int, b int, c int, d int, e int, f int, g int, h int,
+PRIMARY KEY(d,b,c),
+UNIQUE KEY(a)
+) engine = ndb;
+CREATE TABLE t1hash (
+a int, b int, c int, d int, e int, f int, g int, h int,
+PRIMARY KEY(b,d,c) USING HASH,
+UNIQUE KEY(a)
+) engine = ndb;
+CREATE TABLE t2 (
+a int, b int,
+PRIMARY KEY(a)
+) engine = ndb;
+INSERT INTO t1 VALUES
+(1,2,3,4,5,6,7,8),
+(2,2,4,4,5,6,7,9),
+(3,2,5,4,5,6,7,10);
+INSERT INTO t1hash VALUES
+(1,2,3,4,5,6,7,8),
+(2,2,4,4,5,6,7,9),
+(3,2,5,4,5,6,7,10);
+INSERT INTO t2 VALUES
+(1,2);
+SELECT t1.a, t1.h FROM t1, t2
+WHERE t2.a = t1.a /* join with t2 to trigger pushed join */ AND
+t1.b = 2 AND t1.c = 3 AND t1.d = 4 /* use primary key on t1 */;
+a	h
+1	8
+SELECT t1hash.a, t1hash.h FROM t1hash, t2
+WHERE t2.a = t1hash.a /* join with t2 to trigger pushed join */ AND
+t1hash.b = 2 AND t1hash.c = 3 AND t1hash.d = 4 /* use primary key on t1 */;
+a	h
+1	8
+DROP TABLE t1,t1hash,t2;

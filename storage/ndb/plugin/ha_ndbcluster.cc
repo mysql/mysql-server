@@ -2082,8 +2082,11 @@ err:
   return error;
 }
 
-
-
+/**
+   @brief Create Attrid_map for mapping the columns of KEY to a NDB index.
+   @param key_info key to create mapping for
+   @param index NDB index definition
+ */
 NDB_INDEX_DATA::Attrid_map::Attrid_map(const KEY *key_info,
                                        const NdbDictionary::Index *index) {
   m_ids.reserve(key_info->user_defined_key_parts);
@@ -2104,22 +2107,165 @@ NDB_INDEX_DATA::Attrid_map::Attrid_map(const KEY *key_info,
   }
   // Must have found one NDB column for each key
   ndbcluster::ndbrequire(m_ids.size() == key_info->user_defined_key_parts);
+  // Check that the map is not ordered
+  DBUG_ASSERT(std::is_sorted(m_ids.begin(), m_ids.end()) == false);
 }
 
-const NDB_INDEX_DATA::Attrid_map *NDB_INDEX_DATA::Attrid_map::create(
-    const KEY *key_info, const NdbDictionary::Index *index) {
-  return new Attrid_map(key_info, index);
-}
+/**
+   @brief Create Attrid_map for mapping the columns of KEY to a NDB table.
+   @param key_info key to create mapping for
+   @param index NDB table definition
+ */
+NDB_INDEX_DATA::Attrid_map::Attrid_map(const KEY *key_info,
+                                       const NdbDictionary::Table *table) {
+  m_ids.reserve(key_info->user_defined_key_parts);
 
-void NDB_INDEX_DATA::Attrid_map::destroy(
-    const NDB_INDEX_DATA::Attrid_map *map) {
-  delete map;
+  uint key_pos = 0;
+  int columnnr = 0;
+  const KEY_PART_INFO *key_part = key_info->key_part;
+  const KEY_PART_INFO *end = key_part + key_info->user_defined_key_parts;
+  for (; key_part != end; key_part++) {
+    // As NdbColumnImpl::m_keyInfoPos isn't available through
+    // NDB API it has to be calculated, else it could have been retrived with
+    //   table->getColumn(key_part->fieldnr-1)->m_impl.m_keyInfoPos;
+
+    if (key_part->fieldnr < columnnr) {
+      // PK columns are not in same order as the columns are defined in the
+      // table, Restart PK search from first column:
+      key_pos = 0;
+      columnnr = 0;
+    }
+
+    while (columnnr < key_part->fieldnr - 1) {
+      if (table->getColumn(columnnr++)->getPrimaryKey()) {
+        key_pos++;
+      }
+    }
+
+    assert(table->getColumn(columnnr)->getPrimaryKey());
+    // Save id of NDB column
+    m_ids.push_back(key_pos);
+
+    columnnr++;
+    key_pos++;
+  }
+  // Must have found one NDB column for each key
+  ndbcluster::ndbrequire(m_ids.size() == key_info->user_defined_key_parts);
+  // Check that the map is not ordered
+  DBUG_ASSERT(std::is_sorted(m_ids.begin(), m_ids.end()) == false);
 }
 
 void NDB_INDEX_DATA::Attrid_map::fill_column_map(uint column_map[]) const {
   DBUG_ASSERT(m_ids.size());
   for (size_t i = 0; i < m_ids.size(); i++) {
     column_map[i] = m_ids[i];
+  }
+}
+
+/**
+   @brief Check if columns in KEY is ordered
+   @param key_info key to check
+   @return true if columns are ordered
+   @note the function actually don't check for consecutive numbers. The
+   assumption is that if columns are in same order they will be consecutive. i.e
+   [0,1,2...] and not [0,3,6,...]
+ */
+static bool check_ordered_columns(const KEY *key_info) {
+  int columnnr = 0;
+  const KEY_PART_INFO *key_part = key_info->key_part;
+  const KEY_PART_INFO *end = key_part + key_info->user_defined_key_parts;
+  for (; key_part != end; key_part++) {
+    if (key_part->fieldnr < columnnr) {
+      // PK columns are not in same order as the columns in the table
+      DBUG_PRINT("info", ("Detected different order in table"));
+      return false;
+    }
+
+    while (columnnr < key_part->fieldnr - 1) {
+      columnnr++;
+    }
+    columnnr++;
+  }
+  return true;
+}
+
+void NDB_INDEX_DATA::create_attrid_map(const KEY *key_info,
+                                       const NdbDictionary::Table *table) {
+  DBUG_TRACE;
+  DBUG_ASSERT(!attrid_map);  // Should not already have been created
+
+  if (key_info->user_defined_key_parts == 1) {
+    DBUG_PRINT("info", ("Skip creating map for index with only one column"));
+    return;
+  }
+
+  if (check_ordered_columns(key_info)) {
+    DBUG_PRINT("info", ("Skip creating map for table with same order"));
+    return;
+  }
+
+  attrid_map = new Attrid_map(key_info, table);
+}
+
+/**
+   Check if columns in KEY matches the order of the index
+   @param key_info key to check
+   @param index NDB index to compare with
+   @return true if columns in KEY and index have same order
+ */
+static bool check_same_order_in_index(const KEY *key_info,
+                                      const NdbDictionary::Index *index) {
+  // Check if key and NDB column order is same
+  for (unsigned i = 0; i < key_info->user_defined_key_parts; i++) {
+    const KEY_PART_INFO *key_part = key_info->key_part + i;
+    const char *key_part_name = key_part->field->field_name;
+    for (unsigned j = 0; j < index->getNoOfColumns(); j++) {
+      const NdbDictionary::Column *column = index->getColumn(j);
+      if (strcmp(key_part_name, column->getName()) == 0) {
+        if (i != j) {
+          DBUG_PRINT("info", ("Detected different order in index"));
+          return false;
+        }
+        break;
+      }
+    }
+  }
+  return true;
+}
+
+void NDB_INDEX_DATA::create_attrid_map(const KEY *key_info,
+                                       const NdbDictionary::Index *index) {
+  DBUG_TRACE;
+  DBUG_ASSERT(!attrid_map);  // Should not already have been created
+
+  if (key_info->user_defined_key_parts == 1) {
+    DBUG_PRINT("info", ("Skip creating map for index with only one column"));
+    return;
+  }
+
+  if (check_same_order_in_index(key_info, index)) {
+    DBUG_PRINT("info", ("Skip creating map for index with same order"));
+    return;
+  }
+
+  attrid_map = new Attrid_map(key_info, index);
+}
+
+void NDB_INDEX_DATA::delete_attrid_map() {
+  delete attrid_map;
+  attrid_map = nullptr;
+}
+
+void NDB_INDEX_DATA::fill_column_map(const KEY *key_info,
+                                     uint column_map[]) const {
+  if (attrid_map) {
+    // Use the cached Attrid_map
+    attrid_map->fill_column_map(column_map);
+    return;
+  }
+  // Use the default sequential column order
+  for (uint i = 0; i < key_info->user_defined_key_parts; i++) {
+    column_map[i] = i;
   }
 }
 
@@ -2212,8 +2358,13 @@ int ha_ndbcluster::add_index_handle(NDBDICT *dict, const KEY *key_info,
     DBUG_ASSERT(index->getObjectStatus() == NdbDictionary::Object::Retrieved);
     m_index[index_no].unique_index = index;
 
-    m_index[index_no].unique_index_attrid_map =
-        NDB_INDEX_DATA::Attrid_map::create(key_info, index);
+    // Create attrid map for unique index
+    m_index[index_no].create_attrid_map(key_info, index);
+  }
+
+  if (idx_type == PRIMARY_KEY_ORDERED_INDEX || idx_type == PRIMARY_KEY_INDEX) {
+    // Create attrid map for primary key
+    m_index[index_no].create_attrid_map(key_info, m_table);
   }
 
   if (!error) error = add_index_ndb_record(dict, key_info, index_no);
@@ -2479,8 +2630,7 @@ void ha_ndbcluster::release_indexes(NdbDictionary::Dictionary *dict,
       dict->removeIndexGlobal(*index_data.index, invalidate);
       index_data.index = nullptr;
     }
-    NDB_INDEX_DATA::Attrid_map::destroy(index_data.unique_index_attrid_map);
-    index_data.unique_index_attrid_map = nullptr;
+    index_data.delete_attrid_map();
 
     if (index_data.ndb_record_key) {
       dict->releaseRecord(index_data.ndb_record_key);
@@ -3502,7 +3652,7 @@ int ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx, const uchar *key) {
   DBUG_ASSERT(key_def->user_defined_key_parts <= ndb_pushed_join::MAX_KEY_PART);
 
   uint map[ndb_pushed_join::MAX_KEY_PART];
-  ndbcluster_build_key_map(m_table, m_index[idx], &table->key_info[idx], map);
+  m_index[idx].fill_column_map(key_def, map);
 
   // Bind key values defining root of pushed join
   for (i = 0, key_part = key_def->key_part; i < key_def->user_defined_key_parts;

@@ -2164,8 +2164,8 @@ int ndb_pushed_builder_ctx::build_key(const AQP::Table_access *table,
     if (ndbcluster_is_lookup_operation(table->get_access_type())) {
       const ha_ndbcluster *handler =
           down_cast<ha_ndbcluster *>(table->get_table()->file);
-      ndbcluster_build_key_map(
-          handler->m_table, handler->m_index[table->get_index_no()], key, map);
+      const NDB_INDEX_DATA &index = handler->m_index[table->get_index_no()];
+      index.fill_column_map(key, map);
     } else {
       for (uint ix = 0; ix < key_fields; ix++) {
         map[ix] = ix;
@@ -2458,48 +2458,3 @@ int ndb_pushed_builder_ctx::build_query() {
 
   return 0;
 }  // ndb_pushed_builder_ctx::build_query()
-
-/**
- * Fill in ix_map[] to map from KEY_PART_INFO[] order into
- * primary key / unique key order of key fields.
- */
-void ndbcluster_build_key_map(const NDBTAB *table, const NDB_INDEX_DATA &index,
-                              const KEY *key_def, uint ix_map[]) {
-  uint ix;
-
-  if (index.unique_index_attrid_map)  // UNIQUE_ORDERED_INDEX or UNIQUE_INDEX
-  {
-    index.unique_index_attrid_map->fill_column_map(ix_map);
-  } else  // Primary key does not have a 'unique_index_attrid_map'
-  {
-    KEY_PART_INFO *key_part;
-    uint key_pos = 0;
-    int columnnr = 0;
-    assert(index.type == PRIMARY_KEY_ORDERED_INDEX ||
-           index.type == PRIMARY_KEY_INDEX);
-
-    for (ix = 0, key_part = key_def->key_part;
-         ix < key_def->user_defined_key_parts; ix++, key_part++) {
-      // As NdbColumnImpl::m_keyInfoPos isn't available through
-      // NDB API we have to calculate it ourself, else we could:
-      // ix_map[ix]= table->getColumn(key_part->fieldnr-1)->m_impl.m_keyInfoPos;
-
-      if (key_part->fieldnr < columnnr) {
-        // PK columns are not in same order as the columns are defined in the
-        // table, Restart PK search from first column:
-        key_pos = 0;
-        columnnr = 0;
-      }
-
-      while (columnnr < key_part->fieldnr - 1) {
-        if (table->getColumn(columnnr++)->getPrimaryKey()) key_pos++;
-      }
-
-      assert(table->getColumn(columnnr)->getPrimaryKey());
-      ix_map[ix] = key_pos;
-
-      columnnr++;
-      key_pos++;
-    }
-  }
-}  // ndbcluster_build_key_map

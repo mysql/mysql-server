@@ -74,24 +74,44 @@ struct NDB_INDEX_DATA {
   const NdbDictionary::Index *index{nullptr};
   const NdbDictionary::Index *unique_index{nullptr};
 
-  // Map from MySQL key to NDB index column order. The order of
-  // the keys used by MySQL may not always match the index column order in NDB.
+ private:
+  // Map from MySQL key to NDB column order, this is necessary when the order of
+  // the keys used by MySQL does not match the column order in NDB. The map
+  // is only created if necessary, otherwise the default sequential column order
+  // is used. The below table have both its primary key and unique key
+  // specified in a different order than the table:
+  //   CREATE TABLE t1 (
+  //     a int, b int, c int, d int, e int,
+  //     PRIMARY KEY(d,b,c),
+  //     UNIQUE_KEY(e,d,c)
+  //   ) engine = ndb;
   class Attrid_map {
     std::vector<unsigned char> m_ids;
-    // Verify that vector's type is large enough to store "index of column in
-    // the NDB index" (currently 32 columns although MySQL only support 16)
+    // Verify that vector's type is large enough to store "index of NDB column"
+    // (currently 32 columns supported by NDB and 16 by MySQL)
     static_assert(std::numeric_limits<decltype(m_ids)::value_type>::max() >
                       NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY,
                   "");
-    Attrid_map(const KEY *key_info, const NdbDictionary::Index *index);
 
    public:
-    static const Attrid_map *create(const KEY *key_info,
-                                    const NdbDictionary::Index *index);
-    static void destroy(const Attrid_map *map);
+    Attrid_map(const KEY *key_info, const NdbDictionary::Table *table);
+    Attrid_map(const KEY *key_info, const NdbDictionary::Index *index);
+
     void fill_column_map(uint column_map[]) const;
   };
-  const Attrid_map *unique_index_attrid_map{nullptr};
+  const Attrid_map *attrid_map{nullptr};
+
+ public:
+  // Create Attrid_map for primary key, if required
+  void create_attrid_map(const KEY *key_info,
+                         const NdbDictionary::Table *table);
+  // Create Attrid_map for unique key, if required
+  void create_attrid_map(const KEY *key_info,
+                         const NdbDictionary::Index *index);
+  // Delete the Attrid_map
+  void delete_attrid_map();
+  // Fill column_map for given KEY
+  void fill_column_map(const KEY *key_info, uint column_map[]) const;
 
   bool null_in_unique_index{false};
   // The keys and rows passed from MySQL Server are in different formats

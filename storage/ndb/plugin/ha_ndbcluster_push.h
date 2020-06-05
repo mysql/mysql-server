@@ -40,10 +40,6 @@ class Join_plan;
 class Table_access;
 }  // namespace AQP
 
-void ndbcluster_build_key_map(const NdbDictionary::Table *table,
-                              const NDB_INDEX_DATA &index, const KEY *key_def,
-                              uint ix_map[]);
-
 /**
  * This type is used in conjunction with AQP::Join_plan and represents a set
  * of the table access operations of the join plan.
