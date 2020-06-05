@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -89,6 +89,16 @@ class WaitingQueueAdaptor {
       std::unique_lock<std::mutex> lk(enqueueable_cond_mutex_);
 
       enqueueable_cond_.wait(lk, [this, &item] { return q_.enqueue(item); });
+    }
+    notify_dequeueable();
+  }
+
+  void push(value_type &&item) {
+    {
+      std::unique_lock<std::mutex> lk(enqueueable_cond_mutex_);
+
+      enqueueable_cond_.wait(
+          lk, [this, &item] { return q_.enqueue(std::move(item)); });
     }
     notify_dequeueable();
   }

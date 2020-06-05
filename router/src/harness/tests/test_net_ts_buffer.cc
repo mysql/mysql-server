@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,11 +28,6 @@
 
 #include <gtest/gtest.h>
 
-#if !defined(__SUNPRO_CC)
-// devstudio 12.6 fails on x86_64 (on sparc, it passes) with:
-//
-// >> Assertion:   (../lnk/substitute.cc, line 1610)
-//     while processing .../test_net_ts_buffer.cc at line 31.
 static_assert(net::is_mutable_buffer_sequence<net::mutable_buffer>::value,
               "net::mutable_buffer MUST be a mutable_buffer_sequence");
 
@@ -61,7 +56,6 @@ static_assert(
     net::is_const_buffer_sequence<
         net::prepared_buffers<net::const_buffer>>::value,
     "net::prepared_buffers<net::const_buffer> MUST be a const_buffer_sequence");
-#endif
 
 TEST(dynamic_string_bufffer, size_empty) {
   std::string s;

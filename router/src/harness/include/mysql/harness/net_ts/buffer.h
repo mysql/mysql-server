@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,7 @@
 #include <limits>   // std::numeric_limits
 #include <string>
 #include <system_error>
+#include <type_traits>
 #include <vector>
 
 #include "mysql/harness/stdx/expected.h"
@@ -187,24 +188,27 @@ namespace impl {
 // const_buffer_sequence and mutable_buffer_sequence share the same
 // requirements, just with different expected BufferTypes
 template <class T, class BufferType,
-          class Begin =
-              decltype(net::buffer_sequence_begin(std::declval<T &>())),
-          class End = decltype(net::buffer_sequence_end(std::declval<T &>()))>
-using buffer_sequence_requirements = std::enable_if_t<stdx::conjunction<
-    // check if buffer_sequence_begin(T &) and buffer_sequence_end(T &) exist
-    // and return the same type
-    std::is_same<Begin, End>,
-    // check if ::value_type of the retval of buffer_sequence_begin() can be
-    // converted into a BufferType
-    std::is_convertible<typename std::iterator_traits<Begin>::value_type,
-                        BufferType>>::value>;
+          class Begin = decltype(net::buffer_sequence_begin(
+              std::declval<typename std::add_lvalue_reference<T>::type>())),
+          class End = decltype(net::buffer_sequence_end(
+              std::declval<typename std::add_lvalue_reference<T>::type>()))>
+using buffer_sequence_requirements = std::integral_constant<
+    bool,
+    stdx::conjunction<
+        // check if buffer_sequence_begin(T &) and buffer_sequence_end(T &)
+        // exist and return the same type
+        std::is_same<Begin, End>,
+        // check if ::value_type of the retval of buffer_sequence_begin() can be
+        // converted into a BufferType
+        std::is_convertible<typename std::iterator_traits<Begin>::value_type,
+                            BufferType>>::value>;
 
 template <class T, class BufferType, class = void>
 struct is_buffer_sequence : std::false_type {};
 
 template <class T, class BufferType>
-struct is_buffer_sequence<T, BufferType,
-                          buffer_sequence_requirements<T, BufferType>>
+struct is_buffer_sequence<
+    T, BufferType, stdx::void_t<buffer_sequence_requirements<T, BufferType>>>
     : std::true_type {};
 
 template <class T>
@@ -747,7 +751,7 @@ class consuming_buffers {
 // 17.5 [buffer.read]
 
 template <class SyncReadStream, class MutableBufferSequence>
-std::enable_if_t<is_mutable_buffer_sequence_v<MutableBufferSequence>,
+std::enable_if_t<is_mutable_buffer_sequence<MutableBufferSequence>::value,
                  stdx::expected<size_t, std::error_code>>
 read(SyncReadStream &stream, const MutableBufferSequence &buffers) {
   static_assert(net::is_mutable_buffer_sequence<MutableBufferSequence>::value,
@@ -757,7 +761,7 @@ read(SyncReadStream &stream, const MutableBufferSequence &buffers) {
 
 template <class SyncReadStream, class MutableBufferSequence,
           class CompletionCondition>
-std::enable_if_t<is_mutable_buffer_sequence_v<MutableBufferSequence>,
+std::enable_if_t<is_mutable_buffer_sequence<MutableBufferSequence>::value,
                  stdx::expected<size_t, std::error_code>>
 read(SyncReadStream &stream, const MutableBufferSequence &buffers,
      CompletionCondition cond) {
@@ -783,14 +787,14 @@ read(SyncReadStream &stream, const MutableBufferSequence &buffers,
 }
 
 template <class SyncReadStream, class DynamicBuffer>
-std::enable_if_t<is_dynamic_buffer_v<std::decay_t<DynamicBuffer>>,
+std::enable_if_t<is_dynamic_buffer<std::decay_t<DynamicBuffer>>::value,
                  stdx::expected<size_t, std::error_code>>
 read(SyncReadStream &stream, DynamicBuffer &&b) {
   return read(stream, b, transfer_all());
 }
 
 template <class SyncReadStream, class DynamicBuffer, class CompletionCondition>
-std::enable_if_t<is_dynamic_buffer_v<std::decay_t<DynamicBuffer>>,
+std::enable_if_t<is_dynamic_buffer<std::decay_t<DynamicBuffer>>::value,
                  stdx::expected<size_t, std::error_code>>
 read(SyncReadStream &stream, DynamicBuffer &&b, CompletionCondition cond) {
   std::error_code ec{};
