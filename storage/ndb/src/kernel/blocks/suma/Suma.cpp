@@ -467,6 +467,7 @@ Suma::execDICT_LOCK_CONF(Signal* signal)
   case DictLockReq::SumaStartMe:
     jam();
     ndbrequire(c_startup.m_restart_server_node_id == RNIL);
+    c_startup.m_restart_server_node_id = 0;
     CRASH_INSERTION(13039);
     send_start_me_req(signal);
     return;
