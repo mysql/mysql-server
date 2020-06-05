@@ -366,9 +366,9 @@ class String {
     m_ptr[m_length] = '\0';
   }
 
-  void mem_claim() {
+  void mem_claim(bool claim) {
     if (m_is_alloced) {
-      my_claim(m_ptr);
+      my_claim(m_ptr, claim);
     }
   }
 

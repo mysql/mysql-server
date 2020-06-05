@@ -26,17 +26,30 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/service.h>
 #include <mysql/components/services/psi_memory_bits.h>
 
-BEGIN_SERVICE_DEFINITION(psi_memory_v1)
+/*
+  Version 1.
+  Introduced in MySQL 8.0.3
+  Abandoned in MySQL 8.0.22
+  Status: Removed, use version 2 instead.
+*/
+
+/*
+  Version 2.
+  Introduced in MySQL 8.0.22
+  Status: active
+*/
+
+BEGIN_SERVICE_DEFINITION(psi_memory_v2)
 /** @sa register_memory_v1_t. */
 register_memory_v1_t register_memory;
 /** @sa memory_alloc_v1_t. */
 memory_alloc_v1_t memory_alloc;
 /** @sa memory_realloc_v1_t. */
 memory_realloc_v1_t memory_realloc;
-/** @sa memory_claim_v1_t. */
-memory_claim_v1_t memory_claim;
+/** @sa memory_claim_v2_t. */
+memory_claim_v2_t memory_claim;
 /** @sa memory_free_v1_t. */
 memory_free_v1_t memory_free;
-END_SERVICE_DEFINITION(psi_memory_v1)
+END_SERVICE_DEFINITION(psi_memory_v2)
 
 #endif /* COMPONENTS_SERVICES_PSI_MEMORY_SERVICE_H */

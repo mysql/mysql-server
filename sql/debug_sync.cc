@@ -671,7 +671,7 @@ void debug_sync_init_thread(THD *thd) {
   }
 }
 
-void debug_sync_claim_memory_ownership(THD *thd) {
+void debug_sync_claim_memory_ownership(THD *thd, bool claim) {
   DBUG_TRACE;
   DBUG_ASSERT(thd);
 
@@ -682,14 +682,14 @@ void debug_sync_claim_memory_ownership(THD *thd) {
       st_debug_sync_action *action = ds_control->ds_action;
       st_debug_sync_action *action_end = action + ds_control->ds_allocated;
       for (; action < action_end; action++) {
-        action->signal.mem_claim();
-        action->wait_for.mem_claim();
-        action->sync_point.mem_claim();
+        action->signal.mem_claim(claim);
+        action->wait_for.mem_claim(claim);
+        action->sync_point.mem_claim(claim);
       }
-      my_claim(ds_control->ds_action);
+      my_claim(ds_control->ds_action, claim);
     }
 
-    my_claim(ds_control);
+    my_claim(ds_control, claim);
   }
 }
 

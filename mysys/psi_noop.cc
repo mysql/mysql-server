@@ -896,7 +896,7 @@ static PSI_memory_key memory_realloc_noop(PSI_memory_key, size_t, size_t,
 }
 
 static PSI_memory_key memory_claim_noop(PSI_memory_key, size_t,
-                                        struct PSI_thread **owner) {
+                                        struct PSI_thread **owner, bool) {
   *owner = nullptr;
   return PSI_NOT_INSTRUMENTED;
 }

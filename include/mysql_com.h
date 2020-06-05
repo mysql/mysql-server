@@ -1023,7 +1023,7 @@ bool my_net_init(struct NET *net, MYSQL_VIO vio);
 void my_net_local_init(struct NET *net);
 void net_end(struct NET *net);
 void net_clear(struct NET *net, bool check_buffer);
-void net_claim_memory_ownership(struct NET *net);
+void net_claim_memory_ownership(struct NET *net, bool claim);
 bool net_realloc(struct NET *net, size_t length);
 bool net_flush(struct NET *net);
 bool my_net_write(struct NET *net, const unsigned char *packet, size_t len);

@@ -145,7 +145,7 @@ class Protocol_classic : public Protocol {
   // NET interaction functions
   /* Initialize NET */
   bool init_net(Vio *vio);
-  void claim_memory_ownership();
+  void claim_memory_ownership(bool claim);
   /* Deinitialize NET */
   void end_net();
   /* Write data to NET buffer */

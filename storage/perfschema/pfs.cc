@@ -2031,9 +2031,9 @@ PSI_TLS_CHANNEL_CALL(unregister_tls_channel)(...)
 @endverbatim
 
   Implemented as:
-  - [1] #pfs_memory_alloc_v1(),
-        #pfs_memory_realloc_v1(),
-        #pfs_memory_free_v1().
+  - [1] #pfs_memory_alloc_vc(),
+        #pfs_memory_realloc_vc(),
+        #pfs_memory_free_vc().
   - [1+] are overflows that can happen during [1a],
         implemented with @c carry_memory_stat_delta()
   - [2] #pfs_delete_thread_v1(), #aggregate_thread_memory()
@@ -7443,13 +7443,13 @@ void pfs_get_thread_event_id_vc(PSI_thread *psi, ulonglong *internal_thread_id,
   }
 }
 
-void pfs_register_memory_v1(const char *category, PSI_memory_info_v1 *info,
+void pfs_register_memory_vc(const char *category, PSI_memory_info_v1 *info,
                             int count) {
   REGISTER_BODY_V1(PSI_memory_key, memory_instrument_prefix,
                    register_memory_class);
 }
 
-PSI_memory_key pfs_memory_alloc_v1(PSI_memory_key key, size_t size,
+PSI_memory_key pfs_memory_alloc_vc(PSI_memory_key key, size_t size,
                                    PSI_thread **owner) {
   PFS_thread **owner_thread = reinterpret_cast<PFS_thread **>(owner);
   DBUG_ASSERT(owner_thread != nullptr);
@@ -7514,7 +7514,7 @@ PSI_memory_key pfs_memory_alloc_v1(PSI_memory_key key, size_t size,
   return key;
 }
 
-PSI_memory_key pfs_memory_realloc_v1(PSI_memory_key key, size_t old_size,
+PSI_memory_key pfs_memory_realloc_vc(PSI_memory_key key, size_t old_size,
                                      size_t new_size, PSI_thread **owner) {
   PFS_thread **owner_thread_hdl = reinterpret_cast<PFS_thread **>(owner);
   DBUG_ASSERT(owner != nullptr);
@@ -7537,7 +7537,7 @@ PSI_memory_key pfs_memory_realloc_v1(PSI_memory_key key, size_t old_size,
       if (owner_thread != pfs_thread) {
         owner_thread = sanitize_thread(owner_thread);
         if (owner_thread != nullptr) {
-          report_memory_accounting_error("pfs_memory_realloc_v1", pfs_thread,
+          report_memory_accounting_error("pfs_memory_realloc_vc", pfs_thread,
                                          old_size, klass, owner_thread);
         }
       }
@@ -7584,8 +7584,8 @@ PSI_memory_key pfs_memory_realloc_v1(PSI_memory_key key, size_t old_size,
   return key;
 }
 
-static PSI_memory_key pfs_memory_claim_v1(PSI_memory_key key, size_t size,
-                                          PSI_thread **owner) {
+PSI_memory_key pfs_memory_claim_vc(PSI_memory_key key, size_t size,
+                                   PSI_thread **owner, bool claim) {
   PFS_thread **owner_thread = reinterpret_cast<PFS_thread **>(owner);
   DBUG_ASSERT(owner_thread != nullptr);
 
@@ -7595,55 +7595,109 @@ static PSI_memory_key pfs_memory_claim_v1(PSI_memory_key key, size_t size,
     return PSI_NOT_INSTRUMENTED;
   }
 
+  if (klass->is_global()) {
+    *owner_thread = nullptr;
+    return key;
+  }
+
   /*
     Do not check klass->m_enabled.
     Do not check flag_global_instrumentation.
     If a memory alloc was instrumented,
-    the corresponding free must be instrumented.
+    the corresponding free (or un claim) must be instrumented.
   */
 
   uint index = klass->m_event_name_index;
   PFS_memory_stat_delta delta_buffer;
   PFS_memory_stat_delta *delta;
 
-  if (flag_thread_instrumentation && !klass->is_global()) {
-    PFS_thread *old_thread = sanitize_thread(*owner_thread);
-    PFS_thread *new_thread = my_thread_get_THR_PFS();
-    PFS_memory_safe_stat *event_name_array;
-    PFS_memory_safe_stat *stat;
+  PFS_thread *old_thread = sanitize_thread(*owner_thread);
+  PFS_thread *new_thread = my_thread_get_THR_PFS();
+  PFS_memory_safe_stat *event_name_local_array;
+  PFS_memory_safe_stat *local_stat;
+  PFS_memory_shared_stat *event_name_global_array;
+  PFS_memory_shared_stat *global_stat;
 
-    if (old_thread != new_thread) {
-      if (old_thread != nullptr) {
-        event_name_array = old_thread->write_instr_class_memory_stats();
-        stat = &event_name_array[index];
-        delta = stat->count_free(size, &delta_buffer);
+  /*
+    When thread X transfers some memory to thread Y:
 
-        if (delta != nullptr) {
-          old_thread->carry_memory_stat_delta(delta, index);
-        }
+    - Thread X (the donor) calls un claim
+      - a FREE is counted against X
+      - a MALLOC is counted globally
+      - owner was X, set to null
+
+    - Thread Y (the recipient) calls claim
+      - a FREE is counted globally
+      - a MALLOC is counted against Y
+      - owner was null, set to Y
+  */
+
+  if (!claim) {
+    /*
+      Implementation of UN CLAIM for thread X.
+      Do not check for flags,
+      memory already counted for X is always un claimed.
+    */
+
+    if (old_thread != nullptr) {
+      /* 1: A FREE is counted against X. */
+      event_name_local_array = old_thread->write_instr_class_memory_stats();
+      local_stat = &event_name_local_array[index];
+      delta = local_stat->count_free(size, &delta_buffer);
+
+      if (delta != NULL) {
+        old_thread->carry_memory_stat_delta(delta, index);
       }
 
-      if (new_thread != nullptr) {
-        event_name_array = new_thread->write_instr_class_memory_stats();
-        stat = &event_name_array[index];
-        delta = stat->count_alloc(size, &delta_buffer);
-
-        if (delta != nullptr) {
-          new_thread->carry_memory_stat_delta(delta, index);
-        }
+      /* 2: A MALLOC is counted globally. */
+      event_name_global_array = global_instr_class_memory_array;
+      if (event_name_global_array) {
+        global_stat = &event_name_global_array[index];
+        (void)global_stat->count_alloc(size, &delta_buffer);
       }
 
-      *owner_thread = new_thread;
+      /* 3: verify owner was X. */
+      DBUG_ASSERT(old_thread == new_thread);
     }
 
-    return key;
+    *owner_thread = nullptr;
+  } else {
+    /*
+      Implementation of CLAIM for thread Y.
+      Here we check flags,
+      to assign memory to Y only if instrumentation is enabled.
+    */
+
+    /* verify owner was null. */
+    DBUG_ASSERT(old_thread == nullptr);
+
+    if (flag_global_instrumentation && klass->m_enabled &&
+        flag_thread_instrumentation && (new_thread != nullptr)) {
+      /* 1: A FREE is counted globally. */
+      event_name_global_array = global_instr_class_memory_array;
+      if (event_name_global_array) {
+        global_stat = &event_name_global_array[index];
+        (void)global_stat->count_free(size, &delta_buffer);
+      }
+
+      /* 2: A MALLOC is counted against Y. */
+      event_name_local_array = new_thread->write_instr_class_memory_stats();
+      local_stat = &event_name_local_array[index];
+      delta = local_stat->count_alloc(size, &delta_buffer);
+
+      if (delta != nullptr) {
+        new_thread->carry_memory_stat_delta(delta, index);
+      }
+
+      /* 3: set owner to Y. */
+      *owner_thread = new_thread;
+    }
   }
 
-  *owner_thread = nullptr;
   return key;
 }
 
-void pfs_memory_free_v1(PSI_memory_key key, size_t size,
+void pfs_memory_free_vc(PSI_memory_key key, size_t size,
                         PSI_thread *owner MY_ATTRIBUTE((unused))) {
   PFS_memory_class *klass = find_memory_class(key);
   if (klass == nullptr) {
@@ -7670,7 +7724,7 @@ void pfs_memory_free_v1(PSI_memory_key key, size_t size,
       if (owner_thread != pfs_thread) {
         owner_thread = sanitize_thread(owner_thread);
         if (owner_thread != nullptr) {
-          report_memory_accounting_error("pfs_memory_free_v1", pfs_thread, size,
+          report_memory_accounting_error("pfs_memory_free_vc", pfs_thread, size,
                                          klass, owner_thread);
         }
       }
@@ -8369,16 +8423,16 @@ SERVICE_IMPLEMENTATION(performance_schema, psi_transaction_v1) = {
     pfs_inc_transaction_release_savepoint_v1,
     pfs_end_transaction_v1};
 
-PSI_memory_service_v1 pfs_memory_service_v1 = {
+PSI_memory_service_v2 pfs_memory_service_v2 = {
     /* Old interface, for plugins. */
-    pfs_register_memory_v1, pfs_memory_alloc_v1, pfs_memory_realloc_v1,
-    pfs_memory_claim_v1, pfs_memory_free_v1};
+    pfs_register_memory_vc, pfs_memory_alloc_vc, pfs_memory_realloc_vc,
+    pfs_memory_claim_vc, pfs_memory_free_vc};
 
-SERVICE_TYPE(psi_memory_v1)
-SERVICE_IMPLEMENTATION(performance_schema, psi_memory_v1) = {
+SERVICE_TYPE(psi_memory_v2)
+SERVICE_IMPLEMENTATION(performance_schema, psi_memory_v2) = {
     /* New interface, for components. */
-    pfs_register_memory_v1, pfs_memory_alloc_v1, pfs_memory_realloc_v1,
-    pfs_memory_claim_v1, pfs_memory_free_v1};
+    pfs_register_memory_vc, pfs_memory_alloc_vc, pfs_memory_realloc_vc,
+    pfs_memory_claim_vc, pfs_memory_free_vc};
 
 PSI_error_service_v1 pfs_error_service_v1 = {
     /* Old interface, for plugins. */
@@ -8563,8 +8617,8 @@ static void *get_transaction_interface(int version) {
 
 static void *get_memory_interface(int version) {
   switch (version) {
-    case PSI_MEMORY_VERSION_1:
-      return &pfs_memory_service_v1;
+    case PSI_MEMORY_VERSION_2:
+      return &pfs_memory_service_v2;
     default:
       return nullptr;
   }
@@ -8646,7 +8700,8 @@ PROVIDES_SERVICE(performance_schema, psi_cond_v1),
     PROVIDES_SERVICE(performance_schema, psi_file_v2),
     PROVIDES_SERVICE(performance_schema, psi_idle_v1),
     PROVIDES_SERVICE(performance_schema, psi_mdl_v1),
-    PROVIDES_SERVICE(performance_schema, psi_memory_v1),
+    /* Obsolete: PROVIDES_SERVICE(performance_schema, psi_memory_v1), */
+    PROVIDES_SERVICE(performance_schema, psi_memory_v2),
     PROVIDES_SERVICE(performance_schema, psi_mutex_v1),
     /* Obsolete: PROVIDES_SERVICE(performance_schema, psi_rwlock_v1), */
     PROVIDES_SERVICE(performance_schema, psi_rwlock_v2),

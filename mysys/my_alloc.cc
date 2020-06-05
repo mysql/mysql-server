@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -183,12 +183,12 @@ void MEM_ROOT::FreeBlocks(Block *start) {
   }
 }
 
-void MEM_ROOT::Claim() {
+void MEM_ROOT::Claim(bool claim) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("root: %p", this));
 
   for (Block *block = m_current_block; block != nullptr; block = block->prev) {
-    my_claim(block);
+    my_claim(block, claim);
   }
 }
 

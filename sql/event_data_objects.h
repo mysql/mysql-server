@@ -61,7 +61,7 @@ class Event_queue_element_for_exec {
   bool dropped;
   THD *thd;
 
-  void claim_memory_ownership();
+  void claim_memory_ownership(bool claim);
 
   /* Prevent use of these */
   Event_queue_element_for_exec(const Event_queue_element_for_exec &) = delete;

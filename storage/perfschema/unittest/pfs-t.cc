@@ -262,7 +262,9 @@ static void test_bootstrap() {
   psi = memory_boot->get_interface(0);
   ok(psi == nullptr, "no memory version 0");
   psi = memory_boot->get_interface(PSI_MEMORY_VERSION_1);
-  ok(psi != nullptr, "memory version 1");
+  ok(psi == nullptr, "memory version 1");
+  psi = memory_boot->get_interface(PSI_MEMORY_VERSION_2);
+  ok(psi != nullptr, "memory version 2");
 
   psi = error_boot->get_interface(0);
   ok(psi == nullptr, "no error version 0");
@@ -401,7 +403,7 @@ static void load_perfschema(
       (PSI_transaction_service_t *)transaction_boot->get_interface(
           PSI_TRANSACTION_VERSION_1);
   *memory_service =
-      (PSI_memory_service_t *)memory_boot->get_interface(PSI_MEMORY_VERSION_1);
+      (PSI_memory_service_t *)memory_boot->get_interface(PSI_MEMORY_VERSION_2);
   *error_service =
       (PSI_error_service_t *)error_boot->get_interface(PSI_ERROR_VERSION_1);
   *data_lock_service = (PSI_data_lock_service_t *)data_lock_boot->get_interface(
@@ -1936,7 +1938,7 @@ static void test_event_name_index() {
           PSI_TRANSACTION_VERSION_1);
   ok(transaction_service != nullptr, "transaction_service");
   memory_service =
-      (PSI_memory_service_t *)memory_boot->get_interface(PSI_MEMORY_VERSION_1);
+      (PSI_memory_service_t *)memory_boot->get_interface(PSI_MEMORY_VERSION_2);
   ok(memory_service != nullptr, "memory_service");
   error_service =
       (PSI_error_service_t *)error_boot->get_interface(PSI_MEMORY_VERSION_1);
@@ -2542,7 +2544,7 @@ static void do_all_tests() {
 }
 
 int main(int, char **) {
-  plan(358);
+  plan(359);
 
   MY_INIT("pfs-t");
   do_all_tests();

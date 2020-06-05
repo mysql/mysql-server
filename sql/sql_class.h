@@ -383,7 +383,7 @@ class Prepared_statement_map {
   /** Erase all prepared statements (calls Prepared_statement destructor). */
   void erase(Prepared_statement *statement);
 
-  void claim_memory_ownership();
+  void claim_memory_ownership(bool claim);
 
   void reset();
 
@@ -4150,7 +4150,7 @@ class THD : public MDL_context_owner,
     This method is to keep memory instrumentation statistics
     updated, when an object is transfered across threads.
   */
-  void claim_memory_ownership();
+  void claim_memory_ownership(bool claim);
 
   bool is_a_srv_session() const { return is_a_srv_session_thd; }
   void mark_as_srv_session() { is_a_srv_session_thd = true; }

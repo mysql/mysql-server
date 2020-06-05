@@ -187,7 +187,7 @@ struct MEM_ROOT {
    * schema. Use when transferring responsibility for a MEM_ROOT from one thread
    * to another.
    */
-  void Claim();
+  void Claim(bool claim);
 
   /**
    * Deallocate all the RAM used. The MEM_ROOT itself continues to be valid,

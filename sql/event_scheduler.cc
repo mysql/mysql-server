@@ -260,8 +260,8 @@ static void *event_scheduler_thread(void *arg) {
 
   {
     DBUG_TRACE;
-    my_claim(arg);
-    thd->claim_memory_ownership();
+    my_claim(arg, true);
+    thd->claim_memory_ownership(true);
     my_free(arg);
     if (!res)
       scheduler->run(thd);
@@ -292,11 +292,11 @@ static void *event_worker_thread(void *arg) {
   THD *thd;
   Event_queue_element_for_exec *event = (Event_queue_element_for_exec *)arg;
 
-  event->claim_memory_ownership();
+  event->claim_memory_ownership(true);
 
   thd = event->thd;
 
-  thd->claim_memory_ownership();
+  thd->claim_memory_ownership(true);
 
   mysql_thread_set_psi_id(thd->thread_id());
 
@@ -491,6 +491,13 @@ bool Event_scheduler::start(int *err_no) {
   DBUG_PRINT("info", ("Setting state go RUNNING"));
   state = RUNNING;
   DBUG_PRINT("info", ("Forking new thread for scheduler. THD: %p", new_thd));
+
+  /*
+    Transfer memory ownership to the child scheduler thread.
+  */
+  my_claim(scheduler_param_value, false);
+  new_thd->claim_memory_ownership(false);
+
   if ((*err_no = mysql_thread_create(key_thread_event_scheduler, &th,
                                      &connection_attrib, event_scheduler_thread,
                                      (void *)scheduler_param_value))) {
@@ -615,6 +622,12 @@ bool Event_scheduler::execute_top(Event_queue_element_for_exec *event_name) {
   event_name->thd = new_thd;
   DBUG_PRINT("info", ("Event %s@%s ready for start", event_name->dbname.str,
                       event_name->name.str));
+
+  /*
+    Transfer memory ownership to the child worker thread.
+  */
+  event_name->claim_memory_ownership(false);
+  new_thd->claim_memory_ownership(false);
 
   /*
     TODO: should use thread pool here, preferably with an upper limit
