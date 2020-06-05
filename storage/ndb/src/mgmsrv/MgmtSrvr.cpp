@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1669,6 +1669,8 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
       else
       {
         assert(packed_length <= NdbNodeBitmask48::Size);
+        ssig.header.m_noOfSections = 0;
+        ssig.header.theLength = StopReq::SignalLength_v1;
       }
 
       SendStatus result = ss.sendSignal(nodeId, &ssig);
@@ -1707,6 +1709,8 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
       else
       {
         assert(packed_length <= NdbNodeBitmask48::Size);
+        ssig.header.m_noOfSections = 0;
+        ssig.header.theLength = StopReq::SignalLength_v1;
       }
 
       if (ss.sendSignal(sendNodeId, &ssig) != SEND_OK)
