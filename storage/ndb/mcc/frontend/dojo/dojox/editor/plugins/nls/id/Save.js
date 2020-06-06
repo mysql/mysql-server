@@ -1,6 +1,0 @@
-define(
-({
-	"save": "Simpan"
-})
-);
-
