@@ -689,6 +689,12 @@ bool JOIN::optimize() {
 
   // See if this subquery can be evaluated with subselect_indexsubquery_engine
   if (const int ret = replace_index_subquery()) {
+    if (ret == -1) {
+      // Error (e.g. allocation failed, or some condition was attempted
+      // evaluated statically and failed).
+      return true;
+    }
+
     create_iterators_for_index_subquery();
     set_plan_state(PLAN_READY);
     /*
@@ -696,7 +702,7 @@ bool JOIN::optimize() {
       which those subqueries don't have and about setting up plan which
       we're not going to use due to different execution method.
     */
-    return ret < 0;
+    return false;
   }
 
   {
