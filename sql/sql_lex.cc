@@ -453,6 +453,7 @@ void LEX::reset() {
   select_number = 0;
   allow_sum_func = 0;
   m_deny_window_func = 0;
+  m_subquery_to_derived_is_impossible = false;
   in_sum_func = nullptr;
   create_info = nullptr;
   server_options.reset();

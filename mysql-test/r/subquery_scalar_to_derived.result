@@ -1067,7 +1067,7 @@ Note	1276	Field or reference 'q.i' of SELECT #3 was resolved in SELECT #1
 Note	1003	/* select#1 */ select (/* select#2 */ select group_concat((/* select#3 */ select count(`test`.`t`.`a`) from `test`.`t`) separator ',') from `test`.`t`) AS `i` from `test`.`t`
 DROP TABLE t;
 
-# IN to EXISTS transformation is not allowed with subquery_to_derived.
+# IN to EXISTS transformation makes us skip subquery_to_derived.
 
 CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL);
 CREATE TABLE t2 (c INT NOT NULL, d INT NOT NULL);
@@ -1085,7 +1085,23 @@ WHERE ta.a IN (SELECT c FROM t2 AS tb
 WHERE (SELECT MIN(e) FROM t3 as tc
 WHERE tc.e IS NOT NULL) < SOME(SELECT e FROM t3 as tc
 WHERE ta.b=tc.e));
-ERROR HY000: Statement requires a transform of a subquery to a non-SET operation (like IN2EXISTS, or subquery-to-LATERAL-derived-table). This is not allowed with optimizer switch 'subquery_to_derived' on
+a	b
+2	20
+3	20
+2	30
+EXPLAIN SELECT * FROM t1 AS ta
+WHERE ta.a IN (SELECT c FROM t2 AS tb
+WHERE (SELECT MIN(e) FROM t3 as tc
+WHERE tc.e IS NOT NULL) < SOME(SELECT e FROM t3 as tc
+WHERE ta.b=tc.e));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	tb	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Start temporary
+1	PRIMARY	ta	NULL	ALL	NULL	NULL	NULL	NULL	7	14.29	Using where; End temporary; Using join buffer (hash join)
+4	DEPENDENT SUBQUERY	tc	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
+3	SUBQUERY	tc	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.ta.b' of SELECT #4 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`ta`.`a` AS `a`,`test`.`ta`.`b` AS `b` from `test`.`t1` `ta` semi join (`test`.`t2` `tb`) where ((`test`.`ta`.`a` = `test`.`tb`.`c`) and <nop>(<in_optimizer>((/* select#3 */ select min(`test`.`tc`.`e`) from `test`.`t3` `tc` where true),<exists>(/* select#4 */ select `test`.`tc`.`e` from `test`.`t3` `tc` where ((`test`.`ta`.`b` = `test`.`tc`.`e`) and <if>(outer_field_is_not_null, (<cache>((/* select#3 */ select min(`test`.`tc`.`e`) from `test`.`t3` `tc` where true)) < `test`.`tc`.`e`), true))))))
 #
 # Two parallel scalar subqueries + grouping to derived table
 #
@@ -2787,16 +2803,24 @@ DROP TABLE tab1;
 #
 # Bug#30617216 WL#12885 SIG6 IN JOIN::ADD_HAVING_AS_TMP_TABLE_COND() AT SQL/SQL_SELECT.CC
 #
-# This is an example where the "> SOME" is transformed to a scalar
-# subquery internally (> MIN), and then later transformed to a derived
-# table. Update: ANY/ALL/SOME rejected.
+# ANY/ALL/SOME transformation makes us skip subquery to derived
+# transformation
 #
 CREATE TABLE c2 (col_varchar_key VARCHAR(1));
 SELECT alias1.col_varchar_key
 FROM c2 AS alias1
 HAVING   alias1.col_varchar_key > SOME (SELECT col_varchar_key FROM c2)
 ORDER BY alias1.col_varchar_key;
-ERROR HY000: Statement requires a transform of a subquery to a non-SET operation (like IN2EXISTS, or subquery-to-LATERAL-derived-table). This is not allowed with optimizer switch 'subquery_to_derived' on
+col_varchar_key
+EXPLAIN SELECT alias1.col_varchar_key
+FROM c2 AS alias1
+HAVING   alias1.col_varchar_key > SOME (SELECT col_varchar_key FROM c2)
+ORDER BY alias1.col_varchar_key;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	alias1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using filesort
+2	SUBQUERY	c2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`alias1`.`col_varchar_key` AS `col_varchar_key` from `test`.`c2` `alias1` having <nop>((`test`.`alias1`.`col_varchar_key` > (/* select#2 */ select min(`test`.`c2`.`col_varchar_key`) from `test`.`c2`))) order by `test`.`alias1`.`col_varchar_key`
 DROP TABLE c2;
 #
 # Bug#30622834 WL#12885: ASSERTION `SELECT_LEX->IS_RECURSIVE()' FAILED
@@ -2907,7 +2931,27 @@ ON TRUE
 ) AS alias3
 ON TRUE
 ON TRUE;
-ERROR HY000: Statement requires a transform of a subquery to a non-SET operation (like IN2EXISTS, or subquery-to-LATERAL-derived-table). This is not allowed with optimizer switch 'subquery_to_derived' on
+pk
+EXPLAIN SELECT alias1.pk
+FROM t1 AS alias1 LEFT JOIN
+t1 AS alias2 LEFT JOIN
+(SELECT *
+FROM t1
+WHERE 1 <= ANY (SELECT c_sq1_alias1.pk
+FROM t1 AS c_sq1_alias1 JOIN t1 AS c_sq1_alias2
+ON TRUE
+)
+) AS alias3
+ON TRUE
+ON TRUE;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	alias1	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index
+1	PRIMARY	alias2	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using where; Using index; Using join buffer (hash join)
+1	PRIMARY	t1	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using where; Using index; Using join buffer (hash join)
+3	SUBQUERY	c_sq1_alias1	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index
+3	SUBQUERY	c_sq1_alias2	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index; Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`alias1`.`pk` AS `pk` from `test`.`t1` `alias1` left join (`test`.`t1` `alias2` left join (`test`.`t1`) on((<nop>((1 <= (/* select#3 */ select max(`test`.`c_sq1_alias1`.`pk`) from `test`.`t1` `c_sq1_alias1` join `test`.`t1` `c_sq1_alias2` where true)))))) on(true) where true
 DROP TABLE t1;
 #
 # Bug#30627570 WL#12885 SIG11 IN ITEM_SUBSELECT::PLACE() AT SQL/ITEM_SUBSELECT.H
@@ -3126,7 +3170,24 @@ JOIN
 n AS table2
 ON (table1.i <= ANY (SELECT i FROM n)))
 WHERE (EXISTS ((SELECT i FROM n)));
-ERROR HY000: Statement requires a transform of a subquery to a non-SET operation (like IN2EXISTS, or subquery-to-LATERAL-derived-table). This is not allowed with optimizer switch 'subquery_to_derived' on
+feild1	SUM(table1.i)
+NULL	NULL
+EXPLAIN SELECT (SELECT AVG(n.i)
+FROM n) AS feild1,
+SUM(table1.i)
+FROM (n AS table1
+JOIN
+n AS table2
+ON (table1.i <= ANY (SELECT i FROM n)))
+WHERE (EXISTS ((SELECT i FROM n)));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	table1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	PRIMARY	table2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
+1	PRIMARY	n	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(table2); Using join buffer (hash join)
+3	SUBQUERY	n	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	SUBQUERY	n	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select (/* select#2 */ select avg(`test`.`n`.`i`) from `test`.`n`) AS `feild1`,sum(`test`.`table1`.`i`) AS `SUM(table1.i)` from `test`.`n` `table1` join `test`.`n` `table2` semi join (`test`.`n`) where <nop>((`test`.`table1`.`i` <= (/* select#3 */ select max(`test`.`n`.`i`) from `test`.`n`)))
 These (manually transformed the ANY) trigger the error as
 well. Semi-join complication.
 SELECT (SELECT AVG(n.i)
