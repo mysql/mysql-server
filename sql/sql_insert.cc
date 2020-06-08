@@ -2326,8 +2326,10 @@ bool Query_result_insert::start_execution(THD *thd) {
 void Query_result_insert::cleanup(THD *thd) {
   DBUG_TRACE;
   // table_list and table may be out of synch:
-  if (table_list != nullptr && table_list->table == nullptr) table = nullptr;
-  if (table) {
+  if (thd->lex->insert_table_leaf != nullptr &&
+      thd->lex->insert_table_leaf->table == nullptr)
+    table = nullptr;
+  if (table != nullptr) {
     table->next_number_field = nullptr;
     table->file->ha_reset();
     table = nullptr;
@@ -2540,14 +2542,16 @@ bool Query_result_insert::send_eof(THD *thd) {
 void Query_result_insert::abort_result_set(THD *thd) {
   DBUG_TRACE;
   // table_list and table may be out of synch:
-  if (table_list != nullptr && table_list->table == nullptr) table = nullptr;
+  if (thd->lex->insert_table_leaf != nullptr &&
+      thd->lex->insert_table_leaf->table == nullptr)
+    table = nullptr;
   /*
     If the creation of the table failed (due to a syntax error, for
     example), no table will have been opened and therefore 'table'
     will be NULL. In that case, we still need to execute the rollback
     and the end of the function.
    */
-  if (table) {
+  if (table != nullptr) {
     bool changed MY_ATTRIBUTE((unused));
     bool transactional_table;
     /*

@@ -1040,3 +1040,36 @@ INSERT INTO t VALUES (1, VALUES(x));
 Warnings:
 Warning	1681	'VALUES function' is deprecated and will be removed in a future release.
 DROP TABLE t;
+# Bug#31417951: Assert `!bulk_insert_started' in sql/sql_insert.cc
+#               on reexecuting prepared stmt
+CREATE TABLE t1 (
+pk INTEGER NOT NULL,
+col_varchar VARCHAR(64) DEFAULT NULL,
+col_blob BLOB,
+PRIMARY KEY (pk)
+);
+CREATE VIEW v1 AS
+SELECT col_blob, pk, col_varchar
+FROM t1
+WHERE pk between 4 and 5;
+CREATE TABLE t2 (
+pk INTEGER NOT NULL,
+col_int INTEGER DEFAULT NULL,
+col_blob BLOB,
+PRIMARY KEY (pk)
+);
+INSERT INTO t2 VALUES (7,8, 0xEFBFBDEFBFBDEFBFBDEFBFBD004A);
+PREPARE stmt FROM
+"INSERT INTO v1 (col_blob, pk, col_varchar)
+ SELECT col_blob, col_int, col_blob
+ FROM t2
+ WHERE pk BETWEEN 7 AND 8
+ LIMIT 1";
+EXECUTE stmt;
+EXECUTE stmt;
+ERROR 23000: Duplicate entry '8' for key 't1.PRIMARY'
+EXECUTE stmt;
+ERROR 23000: Duplicate entry '8' for key 't1.PRIMARY'
+DEALLOCATE PREPARE stmt;
+DROP VIEW v1;
+DROP TABLE t1, t2;
