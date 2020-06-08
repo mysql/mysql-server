@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,6 @@ SET(MAN1
   myisamlog.1
   myisampack.1
   mysql.1
-  mysql.server.1
   mysql_config.1
   mysql_config_editor.1
   mysql_secure_installation.1
@@ -42,8 +41,6 @@ SET(MAN1
   mysqladmin.1
   mysqlbinlog.1
   mysqlcheck.1
-  mysqld_multi.1
-  mysqld_safe.1
   mysqldump.1
   mysqldumpslow.1
   mysqlimport.1
@@ -54,6 +51,15 @@ SET(MAN1
   perror.1
   zlib_decompress.1
   )
+
+IF(NOT WITH_SYSTEMD)
+  LIST(APPEND MAN1
+    mysql.server.1
+    mysqld_multi.1
+    mysqld_safe.1
+  )
+ENDIF()
+
 SET(MAN1_NDB
   ndb-common-options.1
   ndb_blob_tool.1
