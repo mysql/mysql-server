@@ -890,7 +890,7 @@ class JOIN {
 
     @retval  1   engine was changed
     @retval  0   engine wasn't changed
-    @retval -1   OOM
+    @retval -1   OOM or other error
   */
   int replace_index_subquery();
 
