@@ -1556,18 +1556,12 @@ static bool sql_scalar_to_json(T *arg, const char *calling_function,
       return true;
 
     case MYSQL_TYPE_NULL:
-      /*
-        This shouldn't happen, since the only caller of this function
-        returns earlier if it sees that the type is MYSQL_TYPE_NULL.
-      */
-      /* purecov: begin inspected */
-      if (arg->update_null_value()) return true;
-      DBUG_ASSERT(arg->null_value);
+      // May occur for a parameter that is NULL
+      assert(arg->null_value);
       return false;
-      /* purecov: end */
 
     case MYSQL_TYPE_JSON:
-      DBUG_ASSERT(false); /* purecov: inspected */
+      assert(false); /* purecov: inspected */
 
       // fall-through
     default:

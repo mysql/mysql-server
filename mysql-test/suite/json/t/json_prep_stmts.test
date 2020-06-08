@@ -170,3 +170,22 @@ DEALLOCATE PREPARE ps_get_dec;
 DEALLOCATE PREPARE ps_get_str;
 
 DROP TABLE t1;
+
+--echo # Bug#31433168: Infinite recursion when evaluating parameter
+
+PREPARE ps FROM 'SELECT CAST(? AS JSON)';
+EXECUTE ps USING @undefined_variable;
+SET @var = '{"a" : 1}';
+EXECUTE ps USING @var;
+EXECUTE ps USING @undefined_variable;
+DEALLOCATE PREPARE ps;
+
+--echo # Bug#31406724: Crash in sql_scalar_to_json after many recursive calls
+
+CREATE TABLE t(a INTEGER);
+INSERT INTO t VALUES (0),(1),(2);
+PREPARE s FROM 'SELECT * FROM t WHERE JSON_LENGTH(?, a BETWEEN ? AND ?)';
+EXECUTE s USING @undefined_variable, @undefined_variable, @undefined_variable;
+DEALLOCATE PREPARE s;
+DROP TABLE t;
+
