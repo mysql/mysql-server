@@ -442,7 +442,7 @@ EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND c > 4 AND d < 3	{
                 "table": "`t`",
                 "field": "a",
                 "equals": "5",
-                "null_rejecting": false
+                "null_rejecting": true
               }
             ]
           },
@@ -724,7 +724,7 @@ EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND d < 3	{
                 "table": "`t`",
                 "field": "a",
                 "equals": "5",
-                "null_rejecting": false
+                "null_rejecting": true
               }
             ]
           },

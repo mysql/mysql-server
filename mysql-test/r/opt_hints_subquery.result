@@ -184,7 +184,7 @@ EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH, LOOSESCAN) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	a	a	4	NULL	4	100.00	Using where; Using index
+1	SIMPLE	t2	NULL	index	a	a	4	NULL	4	100.00	Using index
 1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	4	test.t2.a	1	100.00	NULL
 2	MATERIALIZED	t3	NULL	index	a	a	4	NULL	3	100.00	Using index
 Warnings:
@@ -244,7 +244,7 @@ EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	a	a	4	NULL	4	100.00	Using where; Using index
+1	SIMPLE	t2	NULL	index	a	a	4	NULL	4	100.00	Using index
 1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	4	test.t2.a	1	100.00	NULL
 2	MATERIALIZED	t3	NULL	index	a	a	4	NULL	3	100.00	Using index
 Warnings:
@@ -298,7 +298,7 @@ EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION, DUPSWEEDOUT) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	a	a	4	NULL	4	100.00	Using where; Using index
+1	SIMPLE	t2	NULL	index	a	a	4	NULL	4	100.00	Using index
 1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	4	test.t2.a	1	100.00	NULL
 2	MATERIALIZED	t3	NULL	index	a	a	4	NULL	3	100.00	Using index
 Warnings:
@@ -790,7 +790,7 @@ SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH) NO_SEMIJOIN(@subq2) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
 WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	100.00	Using where
+1	PRIMARY	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	100.00	NULL
 1	PRIMARY	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	4	test.t1.a	1	100.00	NULL
 2	MATERIALIZED	t3	NULL	ALL	a	NULL	NULL	NULL	3	100.00	Using where
 3	DEPENDENT SUBQUERY	t2	NULL	index_subquery	a	a	4	func	1	100.00	Using index
@@ -827,7 +827,7 @@ NO_SEMIJOIN(@subq2) */ * FROM t1
 WHERE t1.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3
 WHERE t3.b IN (SELECT /*+ QB_NAME(subq2) */ a FROM t2));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	100.00	Using where
+1	PRIMARY	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	100.00	NULL
 1	PRIMARY	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	4	test.t1.a	1	100.00	NULL
 2	MATERIALIZED	t3	NULL	ALL	a	NULL	NULL	NULL	3	100.00	Using where
 3	DEPENDENT SUBQUERY	t2	NULL	index_subquery	a	a	4	func	1	100.00	Using index
@@ -1048,7 +1048,7 @@ EXPLAIN
 SELECT /*+ NO_SEMIJOIN(@subq1 FIRSTMATCH) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	a	a	4	NULL	4	100.00	Using where; Using index
+1	SIMPLE	t2	NULL	index	a	a	4	NULL	4	100.00	Using index
 1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	4	test.t2.a	1	100.00	NULL
 2	MATERIALIZED	t3	NULL	index	a	a	4	NULL	3	100.00	Using index
 Warnings:
@@ -1077,7 +1077,7 @@ EXPLAIN
 SELECT /*+ SEMIJOIN(@subq1 MATERIALIZATION) */ * FROM t2
 WHERE t2.a IN (SELECT /*+ QB_NAME(subq1) */ a FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	a	a	4	NULL	4	100.00	Using where; Using index
+1	SIMPLE	t2	NULL	index	a	a	4	NULL	4	100.00	Using index
 1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	4	test.t2.a	1	100.00	NULL
 2	MATERIALIZED	t3	NULL	index	a	a	4	NULL	3	100.00	Using index
 Warnings:

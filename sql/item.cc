@@ -4106,36 +4106,7 @@ Item *Item_param::clone_item() const {
   return nullptr;
 }
 
-bool Item_param::eq(const Item *arg, bool binary_cmp) const {
-  if (!basic_const_item() || !arg->basic_const_item() || arg->type() != type())
-    return false;
-  // basic_const_item() is always false for this class
-  DBUG_ASSERT(false);
-  // WL#6570 remove-after-qa remove the rest of this function.
-  /*
-    We need to cast off const to call val_int(). This should be OK for
-    a basic constant.
-  */
-  Item *item = const_cast<Item *>(arg);
-  String str;
-
-  switch (m_param_state) {
-    case NULL_VALUE:
-      return true;
-    case INT_VALUE:
-      return value.integer == item->val_int() &&
-             unsigned_flag == item->unsigned_flag;
-    case REAL_VALUE:
-      return value.real == item->val_real();
-    case STRING_VALUE:
-    case LONG_DATA_VALUE:
-      if (binary_cmp) return !stringcmp(&str_value, item->val_str(&str));
-      return !sortcmp(&str_value, item->val_str(&str), collation.collation);
-    default:
-      break;
-  }
-  return false;
-}
+bool Item_param::eq(const Item *arg, bool) const { return this == arg; }
 
 /* End of Item_param related */
 

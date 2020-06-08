@@ -1646,13 +1646,13 @@ EXPLAIN SELECT * FROM t2 WHERE key2 = 1 AND (key2_1 = 1 OR key3 = 5)	{
                 "table": "`t2`",
                 "field": "key2",
                 "equals": "1",
-                "null_rejecting": false
+                "null_rejecting": true
               },
               {
                 "table": "`t2`",
                 "field": "key2",
                 "equals": "1",
-                "null_rejecting": false
+                "null_rejecting": true
               }
             ] /* ref_optimizer_key_uses */
           },
@@ -2432,7 +2432,7 @@ EXPLAIN SELECT * FROM t2 WHERE key1a = 5 and key1b < 10	{
                 "table": "`t2`",
                 "field": "key1a",
                 "equals": "5",
-                "null_rejecting": false
+                "null_rejecting": true
               }
             ] /* ref_optimizer_key_uses */
           },
@@ -3470,13 +3470,13 @@ WHERE t1.key1=t2.key1a AND t1.key2 > 1020	{
                 "table": "`t1`",
                 "field": "key1",
                 "equals": "`t2`.`key1a`",
-                "null_rejecting": false
+                "null_rejecting": true
               },
               {
                 "table": "`t2`",
                 "field": "key1a",
                 "equals": "`t1`.`key1`",
-                "null_rejecting": false
+                "null_rejecting": true
               }
             ] /* ref_optimizer_key_uses */
           },
@@ -3786,13 +3786,13 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar'	{
                 "table": "`t1`",
                 "field": "cola",
                 "equals": "'foo'",
-                "null_rejecting": false
+                "null_rejecting": true
               },
               {
                 "table": "`t1`",
                 "field": "colb",
                 "equals": "'bar'",
-                "null_rejecting": false
+                "null_rejecting": true
               }
             ] /* ref_optimizer_key_uses */
           },
@@ -4091,7 +4091,7 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'f\no'	{
                 "table": "`t1`",
                 "field": "cola",
                 "equals": "'f\\no'",
-                "null_rejecting": false
+                "null_rejecting": true
               }
             ] /* ref_optimizer_key_uses */
           },
@@ -5687,19 +5687,19 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3	{
                 "table": "`t1`",
                 "field": "i1",
                 "equals": "1",
-                "null_rejecting": false
+                "null_rejecting": true
               },
               {
                 "table": "`t1`",
                 "field": "v",
                 "equals": "'a'",
-                "null_rejecting": false
+                "null_rejecting": true
               },
               {
                 "table": "`t1`",
                 "field": "i1",
                 "equals": "1",
-                "null_rejecting": false
+                "null_rejecting": true
               }
             ] /* ref_optimizer_key_uses */
           },
@@ -5999,7 +5999,7 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND pk < 3	{
                 "table": "`t1`",
                 "field": "i1",
                 "equals": "1",
-                "null_rejecting": false
+                "null_rejecting": true
               }
             ] /* ref_optimizer_key_uses */
           },
@@ -6319,7 +6319,7 @@ EXPLAIN SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a	{
                 "table": "`t1`",
                 "field": "a",
                 "equals": "1",
-                "null_rejecting": false
+                "null_rejecting": true
               }
             ] /* ref_optimizer_key_uses */
           },
@@ -6624,13 +6624,13 @@ EXPLAIN SELECT * FROM t1 WHERE c1 = '1' ORDER BY i1	{
                 "table": "`t1`",
                 "field": "c1",
                 "equals": "'1'",
-                "null_rejecting": false
+                "null_rejecting": true
               },
               {
                 "table": "`t1`",
                 "field": "c1",
                 "equals": "'1'",
-                "null_rejecting": false
+                "null_rejecting": true
               }
             ] /* ref_optimizer_key_uses */
           },
@@ -7004,7 +7004,7 @@ trace
                 "table": "`t`",
                 "field": "b",
                 "equals": "0xd95b94336a9946a39cf5b58cfe772d8c",
-                "null_rejecting": false
+                "null_rejecting": true
               }
             ] /* ref_optimizer_key_uses */
           },

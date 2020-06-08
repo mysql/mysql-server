@@ -3070,25 +3070,25 @@ TRACE
                 "table": "`q`",
                 "field": "a",
                 "equals": "1",
-                "null_rejecting": false
+                "null_rejecting": true
               },
               {
                 "table": "`q`",
                 "field": "a",
                 "equals": "1",
-                "null_rejecting": false
+                "null_rejecting": true
               },
               {
                 "table": "`q` `q1`",
                 "field": "a",
                 "equals": "2",
-                "null_rejecting": false
+                "null_rejecting": true
               },
               {
                 "table": "`q` `q1`",
                 "field": "a",
                 "equals": "2",
-                "null_rejecting": false
+                "null_rejecting": true
               }
             ] /* ref_optimizer_key_uses */
           },

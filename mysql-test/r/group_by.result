@@ -1801,7 +1801,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` USE INDE
 EXPLAIN SELECT 1 FROM t1 WHERE a IN
 (SELECT a FROM t1 USE INDEX (i2) IGNORE INDEX (i2));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	PRIMARY,i2	PRIMARY	4	NULL	144	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	index	PRIMARY,i2	PRIMARY	4	NULL	144	100.00	Using index
 1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	4	test.t1.a	1	100.00	NULL
 2	MATERIALIZED	t1	NULL	ALL	NULL	NULL	NULL	NULL	144	100.00	NULL
 Warnings:

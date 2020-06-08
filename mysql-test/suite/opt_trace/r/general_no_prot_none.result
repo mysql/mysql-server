@@ -327,7 +327,7 @@ EXPLAIN SELECT (SELECT 1 FROM t6 WHERE d = ifnull(c,null)) AS RESULT FROM t5	{
                 "table": "`t6`",
                 "field": "d",
                 "equals": "ifnull(NULL,NULL)",
-                "null_rejecting": false
+                "null_rejecting": true
               }
             ] /* ref_optimizer_key_uses */
           },
@@ -504,7 +504,7 @@ SELECT /* should be last */ (SELECT 1 FROM t6 WHERE d = ifnull(c,null)) AS RESUL
                 "table": "`t6`",
                 "field": "d",
                 "equals": "ifnull(NULL,NULL)",
-                "null_rejecting": false
+                "null_rejecting": true
               }
             ] /* ref_optimizer_key_uses */
           },
@@ -730,7 +730,7 @@ SELECT (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SELECT 2 FROM t6 WHERE d
                 "table": "`t6`",
                 "field": "d",
                 "equals": "ifnull(NULL,NULL)",
-                "null_rejecting": false
+                "null_rejecting": true
               }
             ] /* ref_optimizer_key_uses */
           },
@@ -822,7 +822,7 @@ SELECT (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SELECT 2 FROM t6 WHERE d
                 "table": "`t6`",
                 "field": "d",
                 "equals": "ifnull(NULL,NULL)",
-                "null_rejecting": false
+                "null_rejecting": true
               }
             ] /* ref_optimizer_key_uses */
           },
@@ -8846,7 +8846,7 @@ select d+1 into res from t6 where d=res+1	{
                 "table": "`t6`",
                 "field": "d",
                 "equals": "(res@1 + 1)",
-                "null_rejecting": false
+                "null_rejecting": true
               }
             ] /* ref_optimizer_key_uses */
           },
@@ -11326,7 +11326,7 @@ explain select * from v1 where id="b"	{
                 "table": "`v1`",
                 "field": "id",
                 "equals": "'b'",
-                "null_rejecting": false
+                "null_rejecting": true
               }
             ] /* ref_optimizer_key_uses */
           },

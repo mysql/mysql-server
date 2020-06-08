@@ -560,7 +560,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b=4)	{
                 "table": "`t1`",
                 "field": "a",
                 "equals": "5",
-                "null_rejecting": false
+                "null_rejecting": true
               }
             ] /* ref_optimizer_key_uses */
           },
@@ -789,7 +789,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b>4)	{
                 "table": "`t1`",
                 "field": "a",
                 "equals": "5",
-                "null_rejecting": false
+                "null_rejecting": true
               }
             ] /* ref_optimizer_key_uses */
           },
@@ -1017,7 +1017,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b IS NULL)	{
                 "table": "`t1`",
                 "field": "a",
                 "equals": "5",
-                "null_rejecting": false
+                "null_rejecting": true
               }
             ] /* ref_optimizer_key_uses */
           },
@@ -1458,7 +1458,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5	{
                 "table": "`t1`",
                 "field": "a",
                 "equals": "5",
-                "null_rejecting": false
+                "null_rejecting": true
               }
             ] /* ref_optimizer_key_uses */
           },

@@ -3587,7 +3587,7 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
                       "table": "`t2`",
                       "field": "ID",
                       "equals": "`t1`.`OBJECTID`",
-                      "null_rejecting": false
+                      "null_rejecting": true
                     },
                     {
                       "table": "`t2`",
@@ -3599,7 +3599,7 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
                       "table": "`t3`",
                       "field": "ID",
                       "equals": "`t1`.`OBJECTID`",
-                      "null_rejecting": false
+                      "null_rejecting": true
                     },
                     {
                       "table": "`t3`",
@@ -4139,13 +4139,13 @@ link_alias_148._field_156	{
                 "table": "`t3`",
                 "field": "t3_id",
                 "equals": "1",
-                "null_rejecting": false
+                "null_rejecting": true
               },
               {
                 "table": "`t4`",
                 "field": "seq_0_id",
                 "equals": "1",
-                "null_rejecting": false
+                "null_rejecting": true
               },
               {
                 "table": "`t7` `link_alias_142`",
@@ -4157,7 +4157,7 @@ link_alias_148._field_156	{
                 "table": "`t6`",
                 "field": "seq_0_id",
                 "equals": "1",
-                "null_rejecting": false
+                "null_rejecting": true
               },
               {
                 "table": "`t1` `link_alias_133`",
@@ -4169,7 +4169,7 @@ link_alias_148._field_156	{
                 "table": "`t2`",
                 "field": "seq_0_id",
                 "equals": "1",
-                "null_rejecting": false
+                "null_rejecting": true
               },
               {
                 "table": "`t5` `link_alias_148`",
@@ -5203,7 +5203,7 @@ select * from t1,t2 where t1.a+t2.c=cos(10) and t2.b=2	{
                 "table": "`t2`",
                 "field": "b",
                 "equals": "2",
-                "null_rejecting": false
+                "null_rejecting": true
               }
             ] /* ref_optimizer_key_uses */
           },

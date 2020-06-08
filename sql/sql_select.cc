@@ -2268,95 +2268,100 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
     j->set_type(JT_FT);
     j->set_ft_func(down_cast<Item_func_match *>(keyuse->val));
     memset(j->ref().key_copy, 0, sizeof(j->ref().key_copy[0]) * keyparts);
-  } else {
-    // Set up TABLE_REF based on chosen Key_use-s.
-    for (uint part_no = 0; part_no < keyparts; part_no++) {
-      keyuse = chosen_keyuses[part_no];
-      bool maybe_null = keyinfo->key_part[part_no].null_bit;
 
-      if (keyuse->val->type() == Item::FIELD_ITEM) {
-        // Look up the most appropriate field to base the ref access on.
-        keyuse->val = get_best_field(static_cast<Item_field *>(keyuse->val),
-                                     join->cond_equal);
-        keyuse->used_tables = keyuse->val->used_tables();
-      }
-      j->ref().items[part_no] = keyuse->val;  // Save for cond removal
-      j->ref().cond_guards[part_no] = keyuse->cond_guard;
-      if (keyuse->null_rejecting)
-        j->ref().null_rejecting |= (key_part_map)1 << part_no;
-      keyuse_uses_no_tables = keyuse_uses_no_tables && !keyuse->used_tables;
+    return false;
+  }
+  // Set up TABLE_REF based on chosen Key_use-s.
+  for (uint part_no = 0; part_no < keyparts; part_no++) {
+    keyuse = chosen_keyuses[part_no];
+    bool nullable = keyinfo->key_part[part_no].null_bit;
 
-      store_key *s_key =
-          get_store_key(thd, keyuse, join->const_table_map,
-                        &keyinfo->key_part[part_no], key_buff, maybe_null);
-      if (unlikely(!s_key || thd->is_fatal_error())) return true;
-
-      if (keyuse->used_tables & ~INNER_TABLE_BIT)
-        /* Comparing against a non-constant. */
-        j->ref().key_copy[part_no] = s_key;
-      else {
-        /**
-           The outer reference is to a const table, so we copy the value
-           straight from that table now (during optimization), instead of from
-           the temporary table created during execution.
-
-           TODO: Synchronize with the temporary table creation code, so that
-           there is no need to create a column for this value.
-        */
-        bool dummy_value = false;
-        keyuse->val->walk(&Item::repoint_const_outer_ref, enum_walk::PREFIX,
-                          pointer_cast<uchar *>(&dummy_value));
-        /*
-          key is const, copy value now and possibly skip it while ::exec().
-
-          Note:
-            Result check of store_key::copy() is unnecessary,
-            it could be an error returned by store_key::copy() method
-            but stored value is not null and default value could be used
-            in this case. Methods which used for storing the value
-            should be responsible for proper null value setting
-            in case of an error. Thus it's enough to check s_key->null_key
-            value only.
-        */
-        (void)s_key->copy();
-        /*
-          It should be reevaluated in ::exec() if
-          constant evaluated to NULL value which we might need to
-          handle as a special case during JOIN::exec()
-          (As in : 'Full scan on NULL key')
-        */
-        if (s_key->null_key)
-          j->ref().key_copy[part_no] = s_key;  // Reevaluate in JOIN::exec()
-        else
-          j->ref().key_copy[part_no] = nullptr;
-      }
-      /*
-        Remember if we are going to use REF_OR_NULL
-        But only if field _really_ can be null i.e. we force JT_REF
-        instead of JT_REF_OR_NULL in case if field can't be null
-      */
-      if ((keyuse->optimize & KEY_OPTIMIZE_REF_OR_NULL) && maybe_null) {
-        DBUG_ASSERT(null_ref_key == nullptr);  // or we would overwrite it below
-        null_ref_key = key_buff;
-      }
-      /*
-        Check if the selected key will reject matches on NULL values.
-      */
-      if (!keyuse->null_rejecting && keyuse->val->maybe_null &&
-          (keyinfo->key_part[part_no].field->is_nullable() ||
-           table->is_nullable())) {
-        null_rejecting_key = false;
-      }
-      key_buff += keyinfo->key_part[part_no].store_length;
+    if (keyuse->val->type() == Item::FIELD_ITEM) {
+      // Look up the most appropriate field to base the ref access on.
+      keyuse->val = get_best_field(down_cast<Item_field *>(keyuse->val),
+                                   join->cond_equal);
+      keyuse->used_tables = keyuse->val->used_tables();
     }
-  } /* not ftkey */
-  if (j->type() == JT_FT) return false;
+    j->ref().items[part_no] = keyuse->val;  // Save for cond removal
+    j->ref().cond_guards[part_no] = keyuse->cond_guard;
+    // Set ref as "null rejecting" only if either side is really nullable:
+    if (keyuse->null_rejecting && (nullable || keyuse->val->maybe_null))
+      j->ref().null_rejecting |= (key_part_map)1 << part_no;
+    keyuse_uses_no_tables = keyuse_uses_no_tables && !keyuse->used_tables;
+
+    store_key *s_key =
+        get_store_key(thd, keyuse, join->const_table_map,
+                      &keyinfo->key_part[part_no], key_buff, nullable);
+    if (unlikely(!s_key || thd->is_error())) return true;
+
+    if (keyuse->used_tables & ~INNER_TABLE_BIT) {
+      /* Comparing against a non-constant. */
+      j->ref().key_copy[part_no] = s_key;
+    } else {
+      /*
+        The outer reference is to a const table, so we copy the value
+        straight from that table now (during optimization), instead of from
+        the temporary table created during execution.
+
+        TODO: Synchronize with the temporary table creation code, so that
+        there is no need to create a column for this value.
+      */
+      bool dummy_value = false;
+      keyuse->val->walk(&Item::repoint_const_outer_ref, enum_walk::PREFIX,
+                        pointer_cast<uchar *>(&dummy_value));
+      /*
+        key is const, copy value now and possibly skip it while ::exec().
+
+        Note:
+          Result check of store_key::copy() is unnecessary,
+          it could be an error returned by store_key::copy() method
+          but stored value is not null and default value could be used
+          in this case. Methods which used for storing the value
+          should be responsible for proper null value setting
+          in case of an error. Thus it's enough to check s_key->null_key
+          value only.
+      */
+      (void)s_key->copy();
+      /*
+        It should be reevaluated in ::exec() if
+        constant evaluated to NULL value which we might need to
+        handle as a special case during JOIN::exec()
+        (As in : 'Full scan on NULL key')
+      */
+      if (s_key->null_key)
+        j->ref().key_copy[part_no] = s_key;  // Reevaluate in JOIN::exec()
+      else
+        j->ref().key_copy[part_no] = nullptr;
+    }
+    /*
+      Remember if we are going to use REF_OR_NULL
+      But only if field _really_ can be null i.e. we force JT_REF
+      instead of JT_REF_OR_NULL in case if field can't be null
+    */
+    if ((keyuse->optimize & KEY_OPTIMIZE_REF_OR_NULL) && nullable) {
+      assert(null_ref_key == nullptr);  // or we would overwrite it below
+      null_ref_key = key_buff;
+    }
+    /*
+      The selected key will reject matches on NULL values if:
+       - the key field is nullable, and
+       - predicate rejects NULL values (keyuse->null_rejecting is true), or
+       - JT_REF_OR_NULL is not effective.
+    */
+    if ((keyinfo->key_part[part_no].field->is_nullable() ||
+         table->is_nullable()) &&
+        (!keyuse->null_rejecting || null_ref_key != nullptr)) {
+      null_rejecting_key = false;
+    }
+    key_buff += keyinfo->key_part[part_no].store_length;
+  }
+  assert(j->type() != JT_FT);
   if (j->type() == JT_CONST)
     j->table()->const_table = true;
   else if (((actual_key_flags(keyinfo) & HA_NOSAME) == 0) ||
            ((actual_key_flags(keyinfo) & HA_NULL_PART_KEY) &&
             !null_rejecting_key) ||
-           keyparts != actual_key_parts(keyinfo) || null_ref_key) {
+           keyparts != actual_key_parts(keyinfo)) {
     /* Must read with repeat */
     j->set_type(null_ref_key ? JT_REF_OR_NULL : JT_REF);
     j->ref().null_ref_key = null_ref_key;

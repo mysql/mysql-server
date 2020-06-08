@@ -995,7 +995,7 @@ ON table2 .col_int_key = table1 .col_int_key
                 "table": "`t1` `table1`",
                 "field": "col_int_key",
                 "equals": "<cache>(`where_subselect_20070`.`field1`)",
-                "null_rejecting": false
+                "null_rejecting": true
               },
               {
                 "table": "`t1` `table1`",
@@ -1007,7 +1007,7 @@ ON table2 .col_int_key = table1 .col_int_key
                 "table": "`t1` `table2`",
                 "field": "col_int_key",
                 "equals": "<cache>(`where_subselect_20070`.`field1`)",
-                "null_rejecting": false
+                "null_rejecting": true
               },
               {
                 "table": "`t1` `table2`",
@@ -1721,13 +1721,13 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                       "table": "`t1`",
                                       "field": "a",
                                       "equals": "1",
-                                      "null_rejecting": false
+                                      "null_rejecting": true
                                     },
                                     {
                                       "table": "`t1`",
                                       "field": "a",
                                       "equals": "1",
-                                      "null_rejecting": false
+                                      "null_rejecting": true
                                     }
                                   ] /* ref_optimizer_key_uses */
                                 },

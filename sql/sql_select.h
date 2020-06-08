@@ -227,7 +227,7 @@ class Key_use {
   ha_rows ref_table_rows;    ///< Estimate of how many rows for a key value
   /**
     If true, the comparison this value was created from will not be
-    satisfied if val has NULL 'value'.
+    satisfied if val has NULL 'value' (unless KEY_OPTIMIZE_REF_OR_NULL is set).
     Not used if the index is fulltext (such index cannot be used for
     equalities).
   */

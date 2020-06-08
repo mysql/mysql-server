@@ -870,8 +870,8 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
     const Item *const key_item = table->get_key_field(key_part_no);
     const KEY_PART_INFO *key_part = table->get_key_part_info(key_part_no);
 
-    if (key_item->const_item())  // REF is a literal or field from const-table
-    {
+    if (key_item->const_for_execution()) {
+      // REF is a literal or field from const-table
       DBUG_PRINT("info", (" Item type:%d is 'const_item'", key_item->type()));
       if (!is_const_item_pushable(key_item, key_part)) {
         return false;
@@ -1849,7 +1849,7 @@ bool ndb_pushed_builder_ctx::is_field_item_pushable(
 bool ndb_pushed_builder_ctx::is_const_item_pushable(
     const Item *key_item, const KEY_PART_INFO *key_part) {
   DBUG_TRACE;
-  DBUG_ASSERT(key_item->const_item());
+  DBUG_ASSERT(key_item->const_for_execution());
 
   /**
    * Propagate Items constant value to Field containing the value of this
@@ -2045,7 +2045,8 @@ void ndb_pushed_builder_ctx::collect_key_refs(const AQP::Table_access *table,
     const Item *const key_item = table->get_key_field(key_part_no);
     key_refs[key_part_no] = key_item;
 
-    DBUG_ASSERT(key_item->const_item() || key_item->type() == Item::FIELD_ITEM);
+    DBUG_ASSERT(key_item->const_for_execution() ||
+                key_item->type() == Item::FIELD_ITEM);
 
     if (key_item->type() == Item::FIELD_ITEM) {
       const Item_field *join_item = static_cast<const Item_field *>(key_item);
@@ -2180,8 +2181,7 @@ int ndb_pushed_builder_ctx::build_key(const AQP::Table_access *table,
       const Item *const item = join_items[i];
       op_key[map[i]] = NULL;
 
-      DBUG_ASSERT(item->const_item() == item->const_for_execution());
-      if (item->const_item()) {
+      if (item->const_for_execution()) {
         /**
          * Propagate Items constant value to Field containing the value of this
          * key_part:

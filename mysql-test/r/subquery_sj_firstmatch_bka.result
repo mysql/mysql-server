@@ -7658,7 +7658,7 @@ explain select * from t0
 where t0.a in ( select t1.a from t1,t2 where t2.a=t0.a and
 t1.b=t2.b);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	5	100.00	Using where
+1	SIMPLE	t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	5	100.00	NULL
 1	SIMPLE	t0	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where; Using join buffer (hash join)
 1	SIMPLE	t1	NULL	ref	a	a	5	test.t2.a	1	20.00	Using where; FirstMatch(t0)
 Warnings:

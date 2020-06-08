@@ -5383,7 +5383,9 @@ bool JOIN::extract_func_dependent_tables() {
         */
         while (keyuse->table_ref == tl) {
           if (!(keyuse->val->used_tables() & ~const_table_map) &&
-              keyuse->val->is_null() && keyuse->null_rejecting) {
+              keyuse->val->is_null() && keyuse->null_rejecting &&
+              (tl->embedding == nullptr ||
+               !tl->embedding->is_sj_or_aj_nest())) {
             table->set_null_row();
             table->const_table = true;
             found_const_table_map |= tl->map();
@@ -5984,50 +5986,52 @@ static void trace_table_dependencies(Opt_trace_context *trace,
       2. create_ref_for_key copies them to TABLE_REF.
       3. add_not_null_conds adds "x IS NOT NULL" to join_tab->m_condition of
          appropiate JOIN_TAB members.
+
+  @returns false on success, true on error
 */
 
-static void add_not_null_conds(JOIN *join) {
+static bool add_not_null_conds(JOIN *join) {
   DBUG_TRACE;
   ASSERT_BEST_REF_IN_JOIN_ORDER(join);
   for (uint i = join->const_tables; i < join->tables; i++) {
     JOIN_TAB *const tab = join->best_ref[i];
-    if ((tab->type() == JT_REF || tab->type() == JT_EQ_REF ||
-         tab->type() == JT_REF_OR_NULL) &&
-        !tab->table()->is_nullable()) {
-      for (uint keypart = 0; keypart < tab->ref().key_parts; keypart++) {
-        if (tab->ref().null_rejecting & ((key_part_map)1 << keypart)) {
-          Item *item = tab->ref().items[keypart];
-          Item *notnull;
-          Item *real = item->real_item();
-          DBUG_ASSERT(real->type() == Item::FIELD_ITEM);
-          Item_field *not_null_item = (Item_field *)real;
-          JOIN_TAB *referred_tab =
-              not_null_item->field->table->reginfo.join_tab;
-          /*
-            For UPDATE queries such as:
-            UPDATE t1 SET t1.f2=(SELECT MAX(t2.f4) FROM t2 WHERE t2.f3=t1.f1);
-            not_null_item is the t1.f1, but it's referred_tab is 0.
-          */
-          if (!referred_tab || referred_tab->join() != join) continue;
-          /* Skip if we already have a 'not null' predicate for 'item' */
-          if (has_not_null_predicate(referred_tab->condition(), not_null_item))
-            continue;
-          if (!(notnull = new Item_func_isnotnull(not_null_item))) return;
-          /*
-            We need to do full fix_fields() call here in order to have correct
-            notnull->const_item(). This is needed e.g. by test_quick_select
-            when it is called from make_join_select after this function is
-            called.
-          */
-          if (notnull->fix_fields(join->thd, &notnull)) return;
-          DBUG_EXECUTE("where",
-                       print_where(join->thd, notnull,
-                                   referred_tab->table()->alias, QT_ORDINARY););
-          referred_tab->and_with_condition(notnull);
-        }
+    if ((tab->type() != JT_REF && tab->type() != JT_EQ_REF &&
+         tab->type() != JT_REF_OR_NULL) ||
+        tab->table()->is_nullable()) {
+      continue;
+    }
+    for (uint keypart = 0; keypart < tab->ref().key_parts; keypart++) {
+      if ((tab->ref().null_rejecting & ((key_part_map)1 << keypart)) == 0) {
+        continue;
       }
+      Item *const item = tab->ref().items[keypart]->real_item();
+      if (item->type() != Item::FIELD_ITEM || !item->maybe_null) continue;
+      Item_field *const not_null_item = down_cast<Item_field *>(item);
+      JOIN_TAB *referred_tab = not_null_item->field->table->reginfo.join_tab;
+      /*
+        For UPDATE queries such as:
+        UPDATE t1 SET t1.f2=(SELECT MAX(t2.f4) FROM t2 WHERE t2.f3=t1.f1);
+        not_null_item is the t1.f1, but it's referred_tab is 0.
+      */
+      if (referred_tab == nullptr || referred_tab->join() != join) continue;
+      /* Skip if we already have a 'not null' predicate for 'item' */
+      if (has_not_null_predicate(referred_tab->condition(), not_null_item))
+        continue;
+      Item *notnull = new Item_func_isnotnull(not_null_item);
+      if (notnull == nullptr) return true;
+      /*
+        We need to do full fix_fields() call here in order to have correct
+        notnull->const_item(). This is needed e.g. by test_quick_select
+        when it is called from make_join_select after this function is called.
+      */
+      if (notnull->fix_fields(join->thd, &notnull)) return true;
+      DBUG_EXECUTE("where",
+                   print_where(join->thd, notnull, referred_tab->table()->alias,
+                               QT_ORDINARY););
+      referred_tab->and_with_condition(notnull);
     }
   }
+  return false;
 }
 
 /**
@@ -6748,8 +6752,32 @@ static bool add_key_field(THD *thd, Key_field **key_fields, uint and_level,
                           Item_func *cond, Item_field *item_field, bool eq_func,
                           Item **value, uint num_values,
                           table_map usable_tables, SARGABLE_PARAM **sargables) {
-  DBUG_ASSERT(cond->is_bool_func());
-  DBUG_ASSERT(eq_func || sargables);
+  assert(cond->is_bool_func());
+  assert(eq_func || sargables);
+  assert(cond->functype() == Item_func::EQ_FUNC ||
+         cond->functype() == Item_func::NE_FUNC ||
+         cond->functype() == Item_func::GT_FUNC ||
+         cond->functype() == Item_func::LT_FUNC ||
+         cond->functype() == Item_func::GE_FUNC ||
+         cond->functype() == Item_func::LE_FUNC ||
+         cond->functype() == Item_func::MULT_EQUAL_FUNC ||
+         cond->functype() == Item_func::EQUAL_FUNC ||
+         cond->functype() == Item_func::LIKE_FUNC ||
+         cond->functype() == Item_func::ISNULL_FUNC ||
+         cond->functype() == Item_func::ISNOTNULL_FUNC ||
+         cond->functype() == Item_func::BETWEEN ||
+         cond->functype() == Item_func::IN_FUNC ||
+         cond->functype() == Item_func::MEMBER_OF_FUNC ||
+         cond->functype() == Item_func::SP_EQUALS_FUNC ||
+         cond->functype() == Item_func::SP_WITHIN_FUNC ||
+         cond->functype() == Item_func::SP_CONTAINS_FUNC ||
+         cond->functype() == Item_func::SP_INTERSECTS_FUNC ||
+         cond->functype() == Item_func::SP_DISJOINT_FUNC ||
+         cond->functype() == Item_func::SP_COVERS_FUNC ||
+         cond->functype() == Item_func::SP_COVEREDBY_FUNC ||
+         cond->functype() == Item_func::SP_OVERLAPS_FUNC ||
+         cond->functype() == Item_func::SP_TOUCHES_FUNC ||
+         cond->functype() == Item_func::SP_CROSSES_FUNC);
 
   Field *const field = item_field->field;
   TABLE_LIST *const tl = item_field->table_ref;
@@ -6909,21 +6937,35 @@ static bool add_key_field(THD *thd, Key_field **key_fields, uint and_level,
   */
   DBUG_ASSERT(eq_func);
   /*
-    If the condition has form "tbl.keypart = othertbl.field" and
-    othertbl.field can be NULL, there will be no matches if othertbl.field
-    has NULL value.
+    Calculate the "null rejecting" property based on the type of predicate.
+    Only the <=> operator and the IS NULL and IS NOT NULL clauses may return
+    true on nullable operands that have the NULL value - assuming that all
+    other predicates are augmented with IS TRUE or IS FALSE truth clause,
+    so that all UNKNOWN results are converted to TRUE or FALSE.
+
+    The "null rejecting" property can be combined with the left and right
+    operands to perform certain optimizations.
+
+    If the condition has form "left.field = right.keypart" and left.field can
+    be NULL, there will be no matches if left.field is NULL.
     We use null_rejecting in add_not_null_conds() to add
-    'othertbl.field IS NOT NULL' to tab->m_condition, if this is not an outer
-    join. We also use it to shortcut reading "tbl" when othertbl.field is
-    found to be a NULL value (in RefIterator and BKA).
+    'left.field IS NOT NULL' to tab->m_condition, if this is not an outer
+    join. We also use it to shortcut reading rows from table "right" when
+    left.field is found to be a NULL value (in RefIterator and BKA).
+
+    It is also possible to apply optimizations to the indexed table.
+    If the operation is null rejecting and there is a unique index over
+    the key field, an eq_ref operation can be performed on the index, since
+    we have no interest in the NULL values.
+
+    Notice however that the null rejecting property may be cancelled out
+    by the KEY_OPTIMIZE_REF_OR_NULL property: this can be set when having:
+
+      left.field = right.keypart OR right.keypart IS NULL.
   */
-  Item *const real = (*value)->real_item();
-  const bool null_rejecting =
-      ((cond->functype() == Item_func::EQ_FUNC) ||
-       (cond->functype() == Item_func::MULT_EQUAL_FUNC)) &&
-      (real->type() == Item::FIELD_ITEM) &&
-      (down_cast<Item_field *>(real)->field->is_nullable() ||
-       down_cast<Item_field *>(real)->field->table->is_nullable());
+  const bool null_rejecting = cond->functype() != Item_func::EQUAL_FUNC &&
+                              cond->functype() != Item_func::ISNULL_FUNC &&
+                              cond->functype() != Item_func::ISNOTNULL_FUNC;
 
   /* Store possible eq field */
   new (*key_fields) Key_field(item_field, *value, and_level, exists_optimize,
@@ -9164,7 +9206,7 @@ static bool make_join_select(JOIN *join, Item *cond) {
   ASSERT_BEST_REF_IN_JOIN_ORDER(join);
 
   // Add IS NOT NULL conditions to table conditions:
-  add_not_null_conds(join);
+  if (add_not_null_conds(join)) return true;
 
   /*
     Extract constant conditions that are part of the WHERE clause.

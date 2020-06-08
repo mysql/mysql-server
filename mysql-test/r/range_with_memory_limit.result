@@ -2276,7 +2276,7 @@ Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exce
 EXPLAIN
 SELECT * FROM t1, t1 as t2 WHERE t2.pk BETWEEN t1.i4 AND t1.i4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	i4_uq	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	i4_uq	NULL	NULL	NULL	3	100.00	Using where
 1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.i4	1	100.00	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i4` AS `i4`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`i4` AS `i4` from `test`.`t1` join `test`.`t1` `t2` where (`test`.`t2`.`pk` between `test`.`t1`.`i4` and `test`.`t1`.`i4`)
@@ -2284,7 +2284,8 @@ EXPLAIN FORMAT=tree
 SELECT * FROM t1, t1 as t2 WHERE t2.pk BETWEEN t1.i4 AND t1.i4;
 EXPLAIN
 -> Nested loop inner join  (cost=1.85 rows=3)
-    -> Table scan on t1  (cost=0.80 rows=3)
+    -> Filter: (t1.i4 is not null)  (cost=0.80 rows=3)
+        -> Table scan on t1  (cost=0.80 rows=3)
     -> Single-row index lookup on t2 using PRIMARY (pk=t1.i4), with index condition: (t2.pk between t1.i4 and t1.i4)  (cost=0.28 rows=1)
 
 SELECT * FROM t1, t1 as t2 WHERE t2.pk BETWEEN t1.i4 AND t1.i4;
@@ -2292,7 +2293,7 @@ pk	i4	pk	i4
 EXPLAIN
 SELECT * FROM t1, t1 as t2 WHERE t1.i4 BETWEEN t2.pk AND t2.pk;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	i4_uq	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	i4_uq	NULL	NULL	NULL	3	100.00	Using where
 1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.i4	1	100.00	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i4` AS `i4`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`i4` AS `i4` from `test`.`t1` join `test`.`t1` `t2` where (`test`.`t1`.`i4` between `test`.`t2`.`pk` and `test`.`t2`.`pk`)
