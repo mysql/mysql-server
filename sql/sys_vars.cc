@@ -2427,10 +2427,10 @@ static bool fix_log_error_services(sys_var *self MY_ATTRIBUTE((unused)),
 static Sys_var_charptr Sys_log_error_services(
     "log_error_services",
     "Services that should be called when an error event is received",
-    GLOBAL_VAR(opt_log_error_services), CMD_LINE(REQUIRED_ARG),
-    IN_SYSTEM_CHARSET, DEFAULT(LOG_ERROR_SERVICES_DEFAULT), NO_MUTEX_GUARD,
-    NOT_IN_BINLOG, ON_CHECK(check_log_error_services),
-    ON_UPDATE(fix_log_error_services));
+    PERSIST_AS_READONLY GLOBAL_VAR(opt_log_error_services),
+    CMD_LINE(REQUIRED_ARG), IN_SYSTEM_CHARSET,
+    DEFAULT(LOG_ERROR_SERVICES_DEFAULT), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(check_log_error_services), ON_UPDATE(fix_log_error_services));
 
 static bool check_log_error_suppression_list(sys_var *self, THD *thd,
                                              set_var *var) {
