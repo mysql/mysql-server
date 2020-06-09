@@ -442,7 +442,8 @@ class basic_socket_impl_base {
   }
 
   bool native_non_blocking() const {
-    if (-1 != native_non_blocking_) return native_non_blocking_;
+    if (static_cast<char>(-1) != native_non_blocking_)
+      return native_non_blocking_;
 
     auto res = io_ctx_->socket_service()->native_non_blocking(native_handle());
     if (res) native_non_blocking_ = *res;

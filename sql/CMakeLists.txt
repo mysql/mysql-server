@@ -741,9 +741,8 @@ IF(WIN32)
     COMPILE_FLAGS "/bigobj")
 ENDIF()
 
-# Downgrade -Werror to warning for gcc <= 8.2.x
-IF(MY_COMPILER_IS_GNU
-    AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8.3)
+# Downgrade -Werror to warning for gcc
+IF(MY_COMPILER_IS_GNU)
   MY_CHECK_CXX_COMPILER_WARNING("error=maybe-uninitialized" HAS_WARN_FLAG)
   IF(HAS_WARN_FLAG)
     ADD_COMPILE_FLAGS(
