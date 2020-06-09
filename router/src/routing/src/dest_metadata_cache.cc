@@ -51,13 +51,15 @@ using std::chrono::duration_cast;
 using std::chrono::seconds;
 using std::chrono::system_clock;
 
+using namespace std::chrono_literals;
+
 using metadata_cache::ManagedInstance;
 IMPORT_LOG_FUNCTIONS()
 
 // if client wants a PRIMARY and there's none, we can wait up to this amount of
 // seconds until giving up and disconnecting the client
 // TODO: possibly this should be made into a configurable option
-static const int kPrimaryFailoverTimeout = 10;
+static const auto kPrimaryFailoverTimeout = 10s;
 
 static const std::set<std::string> supported_params{
     "role", "allow_primary_reads", "disconnect_on_promoted_to_primary",
