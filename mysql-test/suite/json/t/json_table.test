@@ -1491,3 +1491,14 @@ JSON_TABLE(
            c3path INT PATH '$.c3' ERROR ON ERROR
          )
 ) as jt;
+
+--echo #
+--echo # Bug #31327187 UBSAN: JSON_TABLE: NULL POINTER PASSED AS ARGUMENT 2,
+--echo #               WHICH IS DECLARED TO NEVER BE NULL
+--echo #
+
+SELECT HEX(a) FROM JSON_TABLE(
+  '[{"E":{"e":true,"~":1,"S3":"sTa"},"r":3,"":6.7},"",6.5]',
+  '$'
+  COLUMNS(a BINARY(5) PATH '$[1]' NULL ON EMPTY)
+) e;
