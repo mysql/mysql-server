@@ -60,6 +60,7 @@
 #include "my_aes.h"    // MY_AES_IV_SIZE
 #include "my_alloc.h"  // MEM_ROOT
 #include "my_byteorder.h"
+#include "my_checksum.h"  // my_checksum
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_dir.h"  // For my_stat
@@ -3921,7 +3922,8 @@ longlong Item_func_crc32::val_int() {
     return 0; /* purecov: inspected */
   }
   null_value = false;
-  return (longlong)crc32(0L, (uchar *)res->ptr(), res->length());
+  return my_checksum(0, pointer_cast<const unsigned char *>(res->ptr()),
+                     res->length());
 }
 
 String *Item_func_compress::val_str(String *str) {
