@@ -2321,7 +2321,7 @@ bool Optimize_table_order::greedy_search(table_map remaining_tables) {
     */
     DBUG_ASSERT(join->best_read < DBL_MAX);
 
-    if (size_remain <= search_depth) {
+    if (size_remain <= search_depth || use_best_so_far) {
       /*
         'join->best_positions' contains a complete optimal extension of the
         current partial QEP.
@@ -2512,7 +2512,7 @@ bool Optimize_table_order::consider_plan(uint idx,
         secondary_engine->compare_secondary_engine_cost != nullptr) {
       double secondary_engine_cost;
       if (secondary_engine->compare_secondary_engine_cost(
-              thd, *join, Candidate_table_order(join), cost, &cheaper,
+              thd, *join, cost, &use_best_so_far, &cheaper,
               &secondary_engine_cost))
         return true;
       chosen = cheaper;
@@ -2727,7 +2727,7 @@ bool Optimize_table_order::best_extension_by_limited_search(
 
   Deps_of_remaining_lateral_derived_tables deps_lateral(join, ~excluded_tables);
 
-  for (JOIN_TAB **pos = join->best_ref + idx; *pos; pos++) {
+  for (JOIN_TAB **pos = join->best_ref + idx; *pos && !use_best_so_far; pos++) {
     JOIN_TAB *const s = *pos;
     const table_map real_table_bit = s->table_ref->map();
 
