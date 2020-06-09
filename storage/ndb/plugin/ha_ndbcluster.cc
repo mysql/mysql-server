@@ -15709,7 +15709,9 @@ bool ha_ndbcluster::prepare_inplace_alter_table(
     return true;
 
   if (!alter_data->schema_dist_client.prepare(m_dbname, m_tabname)) {
-    return HA_ERR_NO_CONNECTION;
+    destroy(alter_data);
+    print_error(HA_ERR_NO_CONNECTION, MYF(0));
+    return true;
   }
 
   const NDBTAB *const old_tab = alter_data->old_table;
