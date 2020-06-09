@@ -4106,7 +4106,13 @@ bool save_json_to_field(THD *thd, Field *field, const Json_wrapper *w,
         err = err || field->store_time(&ltime);
         break;
       }
-      String str;
+      // Initialize with an explicit empty string pointer,
+      // instead of the default nullptr.
+      // The reason is that we pass str.ptr() to Field::store()
+      // which may end up calling memmove() which may have
+      // __attribute__((nonnull)) on its 'src' argument.
+      String str{"", 0, /* charset= */ nullptr};
+
       if (can_store_json_value_unencoded(field, w)) {
         str.set(w->get_data(), w->get_data_length(), field->charset());
       } else {
