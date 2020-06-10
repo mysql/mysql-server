@@ -5,9 +5,11 @@
 --source include/have_big5.inc
 --source include/have_utf8.inc
 --source include/have_sjis.inc
+--source include/have_64bit.inc
 --source include/not_embedded.inc
 --source suite/ndb/include/have_clusterj.inc
 --source suite/ndb/include/have_connectorj.inc
+--let JAVA_MIN_REQUIRED_VERSION=1.8
 --source suite/ndb/include/have_java.inc
 
 --let JAVA_CLASSPATH=$CLUSTERJ_TEST_JAR
