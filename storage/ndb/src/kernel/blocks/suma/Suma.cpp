@@ -5614,12 +5614,12 @@ Suma::sendSUB_GCP_COMPLETE_REP(Signal* signal)
             break;
           }
         }
-      }
 
-      if (starting_unlock)
-      {
-        jam();
-        send_dict_unlock_ord(signal, DictLockReq::SumaHandOver);
+        if (starting_unlock)
+        {
+          jam();
+          send_dict_unlock_ord(signal, DictLockReq::SumaHandOver);
+        }
       }
     }
   }
@@ -6851,6 +6851,7 @@ Suma::execSUMA_HANDOVER_CONF(Signal* signal) {
     g_eventLogger->info("Suma: handover from node %u gci: %u buckets: %s (%u)",
                         nodeId, gci, buf, c_no_of_buckets);
     m_switchover_buckets.bitOR(tmp);
+    ndbrequire(c_startup.m_handover_nodes.get(nodeId));
     c_startup.m_handover_nodes.clear(nodeId);
     DBUG_VOID_RETURN;
   }
