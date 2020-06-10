@@ -17170,7 +17170,7 @@ static SHOW_VAR ndb_status_vars[] = {
      SHOW_SCOPE_GLOBAL},
     {"Ndb", (char *)&show_ndb_metadata_check, SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {"Ndb", (char *)&show_ndb_metadata_synced, SHOW_FUNC, SHOW_SCOPE_GLOBAL},
-    {"Ndb", (char *)&show_ndb_metadata_blacklist_size, SHOW_FUNC,
+    {"Ndb", (char *)&show_ndb_metadata_excluded_count, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
     {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}};
 

@@ -58,7 +58,7 @@ class Ndb_binlog_thread : public Ndb_component {
   bool handle_purge(const char *filename);
 
   /*
-    @brief Iterate through the blacklist of objects and check if the mismatches
+    @brief Iterate through the excluded objects and check if the mismatches
            are still present or if the user has manually synchronized the
            objects
 
@@ -66,12 +66,12 @@ class Ndb_binlog_thread : public Ndb_component {
 
     @return void
   */
-  void validate_sync_blacklist(THD *thd);
+  void validate_sync_excluded_objects(THD *thd);
 
   /*
     @brief Iterate through the retry list of objects and check the present
            status of the objects. The object is removed if the mismatch no
-           longer exists or if the object has been blacklisted
+           longer exists or if the object has been excluded
 
     @param thd  Thread handle
 
@@ -122,20 +122,21 @@ class Ndb_binlog_thread : public Ndb_component {
                           const std::string &table_name);
 
   /*
-    @brief Retrieve information about objects currently in the sync blacklist
+    @brief Retrieve information about objects currently excluded from sync
 
     @param excluded_table  Pointer to excluded objects table object
 
     @return void
   */
-  void retrieve_sync_blacklist(Ndb_sync_excluded_objects_table *excluded_table);
+  void retrieve_sync_excluded_objects(
+      Ndb_sync_excluded_objects_table *excluded_table);
 
   /*
-    @brief Get the count of objects currently in the sync blacklist
+    @brief Get the count of objects currently excluded from sync
 
-    @return number of blacklisted objects
+    @return number of excluded objects
   */
-  unsigned int get_sync_blacklist_count();
+  unsigned int get_sync_excluded_objects_count();
 
   /*
     @brief Retrieve information about objects currently awaiting sync

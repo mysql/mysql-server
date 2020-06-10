@@ -26,10 +26,10 @@
 #include <cstring>  // std::strlen
 
 #include "my_dbug.h"                                  // DBUG_ASSERT
-#include "storage/ndb/plugin/ha_ndbcluster_binlog.h"  // ndbcluster_binlog_retrieve_sync_blacklist
+#include "storage/ndb/plugin/ha_ndbcluster_binlog.h"  // ndbcluster_binlog_retrieve_sync_excluded_objects
 
 static unsigned long long ndb_excluded_objects_row_count() {
-  return ndbcluster_binlog_get_sync_blacklist_count();
+  return ndbcluster_binlog_get_sync_excluded_objects_count();
 }
 
 static PSI_table_handle *ndb_excluded_objects_open_table(PSI_pos **pos) {
@@ -62,7 +62,7 @@ Ndb_sync_excluded_objects_table_share::Ndb_sync_excluded_objects_table_share()
 
 int Ndb_sync_excluded_objects_table::rnd_init() {
   // Retrieve information and store it in m_excluded_objects
-  ndbcluster_binlog_retrieve_sync_blacklist(this);
+  ndbcluster_binlog_retrieve_sync_excluded_objects(this);
   set_num_rows(m_excluded_objects.size());
   reset_pos();
   return 0;

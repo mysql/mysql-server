@@ -585,7 +585,7 @@ void Ndb_metadata_change_monitor::do_run() {
 
       log_verbose(10, "Metadata check started");
 
-      ndbcluster_binlog_validate_sync_blacklist(thd);
+      ndbcluster_binlog_validate_sync_excluded_objects(thd);
 
       ndbcluster_binlog_validate_sync_retry_list(thd);
 
