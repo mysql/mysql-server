@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1233,7 +1233,8 @@ struct Con {
     ErrNone = 0,
     ErrDeadlock = 1,
     ErrNospace = 2,
-    ErrOther = 4
+    ErrLogspace = 4,
+    ErrOther = 8
   };
   ErrType m_errtype;
   char m_errname[100];
@@ -1467,6 +1468,11 @@ Con::execute(ExecType et, uint& err)
       err = ErrNospace;
       ret = 0;
     }
+    if (m_errtype == ErrLogspace && (errin & ErrLogspace)) {
+      LL3("caught logspace");
+      err = ErrLogspace;
+      ret = 0;
+    }
   }
   CHK(ret == 0);
   return 0;
@@ -1589,6 +1595,8 @@ Con::errname(uint err)
     strcat(m_errname, ",deadlock");
   if (err & ErrNospace)
     strcat(m_errname, ",nospace");
+  if (err & ErrLogspace)
+    strcat(m_errname, ",logspace");
   return m_errname;
 }
 
@@ -1617,6 +1625,9 @@ Con::printerror(NdbOut& out)
           m_errtype = ErrDeadlock;
         if (code == 826 || code == 827 || code == 902)
           m_errtype = ErrNospace;
+        if (code == 1234 || code == 1220 || code == 410 || code == 1221 || // Redo
+            code == 923 || code == 1501) // Undo
+          m_errtype = ErrLogspace;
       }
       if (m_op && m_op->getNdbError().code != 0) {
         LL0(++any << " op : error " << m_op->getNdbError());
@@ -5775,6 +5786,7 @@ runtest(Par par)
   CHK(con.connect() == 0);
   par.m_con = &con;
   par.m_catcherr |= Con::ErrNospace;
+  par.m_catcherr |= Con::ErrLogspace;
   // threads
   g_thrlist = new Thr* [par.m_threads];
   uint n;
