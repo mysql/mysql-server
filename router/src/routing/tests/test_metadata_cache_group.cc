@@ -98,7 +98,8 @@ class MetadataCacheAPIStub : public metadata_cache::MetadataCacheAPIBase {
 
   MOCK_METHOD2(mark_instance_reachability,
                void(const std::string &, InstanceStatus));
-  MOCK_METHOD2(wait_primary_failover, bool(const std::string &, int));
+  MOCK_METHOD2(wait_primary_failover,
+               bool(const std::string &, const std::chrono::seconds &));
 
   // cannot mock it as it has more than 10 parameters
   void cache_init(

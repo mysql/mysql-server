@@ -34,6 +34,7 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysqlrouter/mysql_client_thread_token.h"
 
+using namespace std::chrono_literals;
 using namespace std::string_literals;
 
 IMPORT_LOG_FUNCTIONS()
@@ -104,6 +105,7 @@ void MetadataCache::refresh_thread() {
     bool refresh_ok{false};
     try {
       refresh_ok = refresh();
+      on_refresh_completed();
     } catch (const mysqlrouter::MetadataUpgradeInProgressException &) {
       log_info(
           "Cluster metadata upgrade in progress, aborting the metada refresh");
@@ -159,7 +161,7 @@ void MetadataCache::refresh_thread() {
     // wait for up to TTL until next refresh, unless some replicaset loses an
     // online (primary or secondary) server - in that case, "emergency mode" is
     // enabled and we refresh every 1s until "emergency mode" is called off.
-    while (ttl_left > std::chrono::milliseconds(0)) {
+    while (ttl_left > 0ms) {
       auto sleep_for =
           std::min(ttl_left, kTerminateOrForcedRefreshCheckInterval);
 
@@ -221,10 +223,13 @@ void MetadataCache::start() {
  */
 void MetadataCache::stop() noexcept {
   {
-    std::unique_lock<std::mutex> lk(refresh_wait_mtx_);
+    std::unique_lock<std::mutex> lk(refresh_wait_mtx_, std::defer_lock);
+    std::unique_lock<std::mutex> lk2(refresh_completed_mtx_, std::defer_lock);
+    std::lock(lk, lk2);
     terminated_ = true;
   }
   refresh_wait_.notify_one();
+  refresh_completed_.notify_one();
   refresh_thread_.join();
 }
 
@@ -396,6 +401,8 @@ void MetadataCache::on_refresh_requested() {
   refresh_wait_.notify_one();
 }
 
+void MetadataCache::on_refresh_completed() { refresh_completed_.notify_one(); }
+
 void MetadataCache::mark_instance_reachability(
     const std::string &instance_id, metadata_cache::InstanceStatus status) {
   // If the status is that the primary or secondary instance is physically
@@ -450,20 +457,31 @@ void MetadataCache::mark_instance_reachability(
 }
 
 bool MetadataCache::wait_primary_failover(const std::string &replicaset_name,
-                                          int timeout) {
-  log_debug("Waiting for failover to happen in '%s' for %is",
-            replicaset_name.c_str(), timeout);
-  time_t stime = std::time(nullptr);
-  while (std::time(nullptr) - stime <= timeout) {
-    {
-      std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
-      if (replicasets_with_unreachable_nodes_.count(replicaset_name) == 0) {
-        return true;
-      }
+                                          const std::chrono::seconds &timeout) {
+  log_debug("Waiting for failover to happen in '%s' for %lds",
+            replicaset_name.c_str(), static_cast<long>(timeout.count()));
+
+  const auto start = std::chrono::steady_clock::now();
+  std::chrono::milliseconds timeout_left = timeout;
+  do {
+    if (terminated_) {
+      return false;
     }
-    std::this_thread::sleep_for(metadata_cache::kDefaultMetadataTTL);
-  }
-  return false;
+    if (replicasets_with_unreachable_nodes_.count(replicaset_name) == 0) {
+      return true;
+    }
+    std::unique_lock<std::mutex> lock(refresh_completed_mtx_);
+    const auto wait_res = refresh_completed_.wait_for(lock, timeout_left);
+    if (wait_res == std::cv_status::timeout) {
+      return false;
+    }
+    const auto time_passed =
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            start - std::chrono::steady_clock::now());
+    timeout_left -= time_passed;
+  } while (timeout_left > 0ms);
+
+  return replicasets_with_unreachable_nodes_.count(replicaset_name) == 0;
 }
 
 void MetadataCache::add_listener(
@@ -481,8 +499,7 @@ void MetadataCache::remove_listener(
 }
 
 void MetadataCache::check_auth_metadata_timers() const {
-  if (auth_cache_ttl_ > std::chrono::milliseconds(0) &&
-      auth_cache_ttl_ < ttl_) {
+  if (auth_cache_ttl_ > 0ms && auth_cache_ttl_ < ttl_) {
     throw std::invalid_argument(
         "'auth_cache_ttl' option value '" +
         std::to_string(static_cast<float>(auth_cache_ttl_.count()) / 1000) +
@@ -497,8 +514,7 @@ void MetadataCache::check_auth_metadata_timers() const {
         "' cannot be less than the 'ttl' value which is '" +
         std::to_string(static_cast<float>(ttl_.count()) / 1000) + "'");
   }
-  if (auth_cache_ttl_ > std::chrono::milliseconds(0) &&
-      auth_cache_refresh_interval_ > auth_cache_ttl_) {
+  if (auth_cache_ttl_ > 0ms && auth_cache_refresh_interval_ > auth_cache_ttl_) {
     throw std::invalid_argument(
         "'auth_cache_ttl' option value '" +
         std::to_string(static_cast<float>(auth_cache_ttl_.count()) / 1000) +

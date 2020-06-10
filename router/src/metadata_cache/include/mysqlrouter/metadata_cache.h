@@ -371,7 +371,7 @@ class METADATA_API MetadataCacheAPIBase
    * @return true if a primary member exists
    */
   virtual bool wait_primary_failover(const std::string &replicaset_name,
-                                     int timeout) = 0;
+                                     const std::chrono::seconds &timeout) = 0;
 
   /**
    * @brief Register observer that is notified when there is a change in the
@@ -487,7 +487,7 @@ class METADATA_API MetadataCacheAPI : public MetadataCacheAPIBase {
                                   InstanceStatus status) override;
 
   bool wait_primary_failover(const std::string &replicaset_name,
-                             int timeout) override;
+                             const std::chrono::seconds &timeout) override;
 
   void add_listener(const std::string &replicaset_name,
                     ReplicasetStateListenerInterface *listener) override;

@@ -128,10 +128,11 @@ class METADATA_API MetadataCache
    * we want to wait until one becomes elected.
    *
    * @param replicaset_name name of the replicaset
-   * @param timeout - amount of time to wait for a failover, in seconds
+   * @param timeout - amount of time to wait for a failover
    * @return true if a primary member exists
    */
-  bool wait_primary_failover(const std::string &replicaset_name, int timeout);
+  bool wait_primary_failover(const std::string &replicaset_name,
+                             const std::chrono::seconds &timeout);
 
   /** @brief refresh replicaset information */
   void refresh_thread();
@@ -207,6 +208,9 @@ class METADATA_API MetadataCache
   // Called each time we were requested to refresh the metadata
   void on_refresh_requested();
 
+  // Called each time the metadata refresh completed execution
+  void on_refresh_completed();
+
   // Update rest users authentication data
   bool update_auth_cache();
 
@@ -281,6 +285,9 @@ class METADATA_API MetadataCache
 
   std::condition_variable refresh_wait_;
   std::mutex refresh_wait_mtx_;
+
+  std::condition_variable refresh_completed_;
+  std::mutex refresh_completed_mtx_;
 
   // map of lists (per each replicaset name) of registered callbacks to be
   // called on selected replicaset instances change event
