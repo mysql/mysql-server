@@ -2666,3 +2666,23 @@ SELECT test.t1.`*`, test.t1.* FROM t1;
 *	c1	*	c3
 2	1	2	3
 DROP TABLE t1;
+#
+# Bug#30592703: UNDOCUMENTED SYNTAX
+#               '('<QUERY BLOCK>')' {LIMIT|ORDER [LIMIT]} INTO ...
+#
+(SELECT 1) LIMIT 1 INTO @var;
+SELECT @var;
+@var
+1
+(SELECT 2 AS c) ORDER BY c INTO @var;
+SELECT @var;
+@var
+2
+(SELECT 3 AS c) ORDER BY c LIMIT 1 INTO @var;
+SELECT @var;
+@var
+3
+(SELECT 4) INTO @var;
+SELECT @var;
+@var
+4

@@ -9329,6 +9329,10 @@ select_stmt_with_into:
           {
             $$ = NEW_PTN PT_select_stmt(NEW_PTN PT_locking($1, $2), $3);
           }
+        | query_expression_parens into_clause
+          {
+            $$ = NEW_PTN PT_select_stmt($1, $2);
+          }
         ;
 
 /**
