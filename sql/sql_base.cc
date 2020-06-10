@@ -8117,6 +8117,12 @@ static bool mark_common_columns(THD *thd, TABLE_LIST *table_ref_1,
     /* true if field_name_1 is a member of using_fields */
     bool is_using_column_1;
     if (!(nj_col_1 = it_1.get_or_create_column_ref(thd, leaf_1))) return true;
+    if (it_1.field()->is_hidden_from_user()) {
+      // Hidden columns for functional indexes don't participate in
+      // NATURAL JOIN, so skip it (but we need to go through
+      // get_or_create_column_ref() first).
+      continue;
+    }
     field_name_1 = nj_col_1->name();
     is_using_column_1 =
         using_fields && test_if_string_in_list(field_name_1, using_fields);
@@ -8138,6 +8144,12 @@ static bool mark_common_columns(THD *thd, TABLE_LIST *table_ref_1,
       if (!(cur_nj_col_2 = it_2.get_or_create_column_ref(thd, leaf_2)))
         return true;
       cur_field_name_2 = cur_nj_col_2->name();
+      if (it_2.field()->is_hidden_from_user()) {
+        // Hidden columns for functional indexes don't participate in
+        // NATURAL JOIN, so skip it (but we need to go through
+        // get_or_create_column_ref() first).
+        continue;
+      }
       DBUG_PRINT("info",
                  ("cur_field_name_2=%s.%s",
                   cur_nj_col_2->table_name() ? cur_nj_col_2->table_name() : "",
