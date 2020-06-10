@@ -342,4 +342,28 @@ inline bool unlikely(bool expr) { return expr; }
 #define MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG() \
   MY_COMPILER_CLANG_DIAGNOSTIC_IGNORE("-Wdocumentation")
 
+/**
+ * ignore -Wunused-variable compiler warnings for \@see \@ref
+ *
+ * @code
+ * MY_COMPILER_DIAGNOSTIC_PUSH()
+ * MY_COMPILER_CLANG_WORKAROUND_FALSE_POSITIVE_UNUSED_VARIABLE_WARNING()
+ * ...
+ * MY_COMPILER_DIAGNOSTIC_POP()
+ * @endcode
+ *
+ * @see MY_COMPILER_DIAGNOSTIC_PUSH()
+ * @see MY_COMPILER_DIAGNOSTIC_POP()
+ *
+ * allows to work around false positives -Wunused-variable warnings like:
+ *
+ * - \@sa \@ref
+ * - \@see \@ref
+ * - \@return \@ref
+ *   https://bugs.llvm.org/show_bug.cgi?id=46035
+ *
+ */
+#define MY_COMPILER_CLANG_WORKAROUND_FALSE_POSITIVE_UNUSED_VARIABLE_WARNING() \
+  MY_COMPILER_CLANG_DIAGNOSTIC_IGNORE("-Wunused-variable")
+
 #endif /* MY_COMPILER_INCLUDED */

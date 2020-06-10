@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -45,7 +45,8 @@ namespace temptable {
 
 class Table {
  public:
-  Table(TABLE *mysql_table, bool all_columns_are_fixed_size);
+  Table(TABLE *mysql_table, Block *shared_block,
+        bool all_columns_are_fixed_size);
 
   /* The `m_rows` member is too expensive to copy around. */
   Table(const Table &) = delete;

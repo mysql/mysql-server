@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -20,17 +20,32 @@ You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/** @file storage/temptable/src/allocator.cc
-TempTable custom allocator implementation. */
+/** @file storage/temptable/include/temptable/kv_store_stats.h
+TempTable key-value store stats description. */
 
-#include <atomic>  /* std::atomic */
-#include <cstddef> /* size_t */
+#ifndef TEMPTABLE_KV_STORE_STATS_H
+#define TEMPTABLE_KV_STORE_STATS_H
 
-#include "storage/temptable/include/temptable/allocator.h"
+#include <thread>
 
 namespace temptable {
 
-/* Initialization of MemoryMonitor static variables. */
-std::atomic<size_t> MemoryMonitor::ram(0);
+/** This is a small convenience POD-like type which describes what kind of
+ * details we are interested in when monitoring the behavior of Key_value_store.
+ * Details directly correlate to the properties of the underlying data-structure
+ * that Key_value_store is using.
+ * */
+struct Key_value_store_stats {
+  enum class Event { EMPLACE, ERASE };
+  Event event;
+  size_t size;
+  size_t bucket_count;
+  double load_factor;
+  double max_load_factor;
+  size_t max_bucket_count;
+  std::thread::id thread_id;
+};
 
-} /* namespace temptable */
+}  // namespace temptable
+
+#endif /* TEMPTABLE_KV_STORE_STATS_H */
