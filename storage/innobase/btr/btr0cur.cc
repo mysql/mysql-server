@@ -3941,7 +3941,7 @@ dberr_t btr_cur_pessimistic_update(ulint flags, btr_cur_t *cursor,
   }
 
   /* Check for an update that moved an ext field to inline */
-  lob::mark_not_partially_updatable(trx, index, update, mtr);
+  lob::mark_not_partially_updatable(trx, index, update);
 
   /* UNDO logging is also turned-off during normal operation on intrinsic
   table so condition needs to ensure that table is not intrinsic. */
@@ -4672,7 +4672,6 @@ ibool btr_cur_pessimistic_delete(dberr_t *err, ibool has_reserved_extents,
   bool success;
   ibool ret = FALSE;
   ulint level;
-  mem_heap_t *heap;
   ulint *offsets;
 #ifdef UNIV_DEBUG
   bool parent_latched = false;
@@ -4690,23 +4689,10 @@ ibool btr_cur_pessimistic_delete(dberr_t *err, ibool has_reserved_extents,
         index->table->is_intrinsic());
   ut_ad(mtr_is_block_fix(mtr, block, MTR_MEMO_PAGE_X_FIX, index->table));
 
-  if (!has_reserved_extents) {
-    /* First reserve enough free space for the file segments
-    of the index tree, so that the node pointer updates will
-    not fail because of lack of space */
+  std::unique_ptr<mem_heap_t, decltype(&mem_heap_free)> heap_ptr(
+      mem_heap_create(1024), mem_heap_free);
+  mem_heap_t *heap = heap_ptr.get();
 
-    ulint n_extents = cursor->tree_height / 32 + 1;
-
-    success = fsp_reserve_free_extents(&n_reserved, index->space, n_extents,
-                                       FSP_CLEANING, mtr);
-    if (!success) {
-      *err = DB_OUT_OF_FILE_SPACE;
-
-      return FALSE;
-    }
-  }
-
-  heap = mem_heap_create(1024);
   rec = btr_cur_get_rec(cursor);
 #ifdef UNIV_ZIP_DEBUG
   page_zip_des_t *page_zip = buf_block_get_page_zip(block);
@@ -4745,8 +4731,24 @@ ibool btr_cur_pessimistic_delete(dberr_t *err, ibool has_reserved_extents,
         !rec_get_deleted_flag(rec, rec_offs_comp(offsets))) {
       /* This is the purge thread.  For the purge thread, rec_type will have a
        * valid value. */
-      ret = TRUE;
-      goto return_after_reservations;
+      *err = DB_SUCCESS;
+      return TRUE;
+    }
+  }
+
+  if (!has_reserved_extents) {
+    /* First reserve enough free space for the file segments
+    of the index tree, so that the node pointer updates will
+    not fail because of lack of space */
+
+    ulint n_extents = cursor->tree_height / 32 + 1;
+
+    success = fsp_reserve_free_extents(&n_reserved, index->space, n_extents,
+                                       FSP_CLEANING, mtr);
+    if (!success) {
+      *err = DB_OUT_OF_FILE_SPACE;
+
+      return FALSE;
     }
   }
 
@@ -4808,7 +4810,6 @@ ibool btr_cur_pessimistic_delete(dberr_t *err, ibool has_reserved_extents,
       if (!upd_ret) {
         *err = DB_ERROR;
 
-        mem_heap_free(heap);
         return FALSE;
       }
 
@@ -4843,8 +4844,6 @@ ibool btr_cur_pessimistic_delete(dberr_t *err, ibool has_reserved_extents,
 return_after_reservations:
   *err = DB_SUCCESS;
 
-  mem_heap_free(heap);
-
   if (ret == FALSE) {
     ret = btr_cur_compress_if_useful(cursor, FALSE, mtr);
   }
@@ -4861,6 +4860,8 @@ return_after_reservations:
   if (n_reserved > 0) {
     fil_space_release_free_extents(index->space, n_reserved);
   }
+
+  ut_ad(heap == heap_ptr.get());
 
   return ret;
 }

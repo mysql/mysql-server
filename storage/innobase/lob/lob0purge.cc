@@ -129,6 +129,9 @@ static void rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
     });
 #endif /* UNIV_DEBUG */
 
+    /* Ensure that the parent mtr (btr_mtr) and the child mtr (lob_mtr)
+    do not make conflicting modifications. */
+    ut_ad(!local_mtr.conflicts_with(ctx->get_mtr()));
     mtr_commit(&local_mtr);
 
     DBUG_INJECT_CRASH_WITH_LOG_FLUSH("crash_middle_of_lob_rollback",
@@ -169,6 +172,10 @@ static void rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
   ctx->x_latch_rec_page(&local_mtr);
   ref.set_page_no(FIL_NULL, &local_mtr);
   ut_ad(ref.length() == 0);
+
+  /* Ensure that the parent mtr (btr_mtr) and the child mtr (lob_mtr)
+  do not make conflicting modifications. */
+  ut_ad(!local_mtr.conflicts_with(ctx->get_mtr()));
   mtr_commit(&local_mtr);
 
   DBUG_INJECT_CRASH_WITH_LOG_FLUSH("crash_end_of_lob_rollback", 0);
@@ -232,6 +239,9 @@ static void z_rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
     });
 #endif /* UNIV_DEBUG */
 
+    /* Ensure that the parent mtr (btr_mtr) and the child mtr (lob_mtr)
+    do not make conflicting modifications. */
+    ut_ad(!local_mtr.conflicts_with(ctx->get_mtr()));
     mtr_commit(&local_mtr);
 
     DBUG_INJECT_CRASH_WITH_LOG_FLUSH("crash_middle_of_lob_rollback",
@@ -407,31 +417,6 @@ void purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
     return;
   }
 
-  /* The purpose of the following block is to ensure that the parent mtr does
-  not hold any redo log while creating child mtrs. */
-  if (ctx->m_pcur != nullptr) {
-    /* Below we will restart the btr_mtr.  Between the cursor store and restore,
-    it is possible that the position of the record changes and hence the lob
-    reference could become invalid.  Reset it to correct value. */
-    ctx->restart_mtr();
-    byte *field_ref = ctx->get_field_ref(ctx->m_field_no);
-    ref.set_ref(field_ref);
-  } else {
-    /* Since pcur is not available, take latches to ensure that the record
-    position does not change.  We imitate the purge thread for the latches
-    taken and the order in which they are taken.  Kindly refer to the
-    function row_purge_upd_exist_or_extern_func(). */
-    mtr_start(&lob_mtr);
-    mtr_sx_lock(dict_index_get_lock(index), &lob_mtr);
-    btr_root_get(index, &lob_mtr);
-    ctx->x_latch_rec_page(&lob_mtr);
-    ctx->restart_mtr();
-    mtr_sx_lock(dict_index_get_lock(index), mtr);
-    btr_root_get(index, mtr);
-    ctx->x_latch_rec_page(mtr);
-    mtr_commit(&lob_mtr);
-  }
-
   if (!ctx->is_ref_valid()) {
     /* The LOB reference has changed.  Don't proceed. */
     return;
@@ -511,12 +496,18 @@ void purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
     node_loc = cur_entry.get_next();
     cur_entry.reset(nullptr);
 
+    /* Ensure that the parent mtr (btr_mtr) and the child mtr (lob_mtr)
+    do not make conflicting modifications. */
+    ut_ad(!lob_mtr.conflicts_with(mtr));
     mtr_commit(&lob_mtr);
     mtr_start(&lob_mtr);
     lob_mtr.set_log_mode(log_mode);
     first.load_x(page_id, page_size);
   }
 
+  /* Ensure that the parent mtr (btr_mtr) and the child mtr (lob_mtr)
+  do not make conflicting modifications. */
+  ut_ad(!lob_mtr.conflicts_with(mtr));
   mtr_commit(&lob_mtr);
   first.set_mtr(ctx->get_mtr());
   first.load_x(page_id, page_size);

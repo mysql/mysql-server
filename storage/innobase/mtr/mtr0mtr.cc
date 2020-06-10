@@ -171,6 +171,38 @@ struct Find_page {
   mtr_memo_slot_t *m_slot;
 };
 
+#ifdef UNIV_DEBUG
+struct Mtr_memo_contains {
+  Mtr_memo_contains(const mtr_t *mtr, mtr_memo_type_t type)
+      : m_mtr(mtr), m_type(type) {}
+
+  /** Check if the object in the given slot is of the correct type
+  and then check if it is contained in the mtr.
+  @retval true if the object in the slot is not of required type.
+  @retval true if the object in the slot is of the required type,
+               but is not contained in the mtr.
+  @retval false if the object in the slot is of the required type
+                and it is contained in the mtr. */
+  bool operator()(mtr_memo_slot_t *slot) {
+    if (slot->type != m_type) {
+      return true;
+    }
+    return !mtr_memo_contains(m_mtr, slot->object, m_type);
+  }
+
+ private:
+  const mtr_t *m_mtr;
+  mtr_memo_type_t m_type;
+};
+
+bool mtr_t::conflicts_with(const mtr_t *mtr2) const {
+  Mtr_memo_contains check(mtr2, MTR_MEMO_MODIFY);
+  Iterate<Mtr_memo_contains> iterator(check);
+
+  return (!m_impl.m_memo.for_each_block_in_reverse(iterator));
+}
+#endif /* UNIV_DEBUG */
+
 /** Release latches and decrement the buffer fix count.
 @param[in]	slot	memo slot */
 static void memo_slot_release(mtr_memo_slot_t *slot) {
@@ -908,7 +940,8 @@ int mtr_t::Logging::wait_no_log_mtr(THD *thd) {
 #ifdef UNIV_DEBUG
 /** Check if memo contains the given item.
 @return	true if contains */
-bool mtr_t::memo_contains(mtr_buf_t *memo, const void *object, ulint type) {
+bool mtr_t::memo_contains(const mtr_buf_t *memo, const void *object,
+                          ulint type) {
   Find find(object, type);
   Iterate<Find> iterator(find);
 
