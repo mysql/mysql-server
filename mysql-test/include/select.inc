@@ -1637,8 +1637,11 @@ t3 where companynr = 37 group by companynr,t2nr order by companynr, t2nr limit 1
 select /*! SQL_SMALL_RESULT */
 companynr,t2nr,count(price),sum(price),min(price),max(price),avg(price) from
 t3 where companynr = 37 group by companynr,t2nr order by companynr, t2nr limit 10;
+--sorted_result
 select companynr,count(price),sum(price),min(price),max(price),avg(price) from t3 group by companynr ;
+--sorted_result
 select distinct mod(companynr,10) from t4 group by companynr;
+--sorted_result
 select distinct 1 from t4 group by companynr;
 select count(distinct fld1) from t2;
 --sorted_result
@@ -2781,6 +2784,7 @@ create table t3(x int, primary key(x));
 insert into t1 values (1, 1), (2, 1), (3, 1), (4, 3), (5, 6), (6, 6);
 insert into t2 values (1, 1), (2, 1), (3, 3), (4, 6), (5, 6);
 insert into t3 values (1), (2), (3), (4), (5);
+--sorted_result
 select t1.x, t3.x from t1, t2, t3  where t1.x = t2.x and t3.x >= t1.y and t3.x <= t2.y;
 drop table t1,t2,t3;
 

@@ -121,6 +121,7 @@ let $query =
 WITH cte AS (SELECT a FROM t1 UNION SELECT a+2 FROM t1 LIMIT 10 OFFSET 8)
  SELECT /*+ no_bnl() */ * FROM cte cte1, cte cte2;
 eval EXPLAIN FORMAT=TREE $query;
+--sorted_result
 eval $query;
 
 # Adding a join: verify that LIMIT and OFFSET applies only to CTE.
@@ -131,6 +132,7 @@ SELECT /*+ no_bnl() */ *
 FROM cte cte1,
      (SELECT 100 UNION SELECT 101) dt;
 eval EXPLAIN FORMAT=TREE $query;
+--sorted_result
 eval $query;
 
 # Recursive CTE.

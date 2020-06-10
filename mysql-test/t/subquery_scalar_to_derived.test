@@ -210,6 +210,7 @@ let $query = SELECT a + derived.cnt
              FROM t2
                   LEFT OUTER JOIN (SELECT -SUM(a) AS cnt FROM t1) AS derived
                   ON TRUE;
+--sorted_result
 eval $query;
 eval explain $query;
 
@@ -239,6 +240,7 @@ FROM t2
                 ON TRUE) derived_1_0
      ON TRUE;
 
+--sorted_result
 eval $query;
 eval explain $query;
 
@@ -1979,6 +1981,7 @@ eval EXPLAIN $query;
 set sql_mode='';
 let $query =
 SELECT a,c FROM v1 GROUP BY b HAVING c > 0;
+--sorted_result
 eval $query;
 eval EXPLAIN $query;
 set sql_mode=default;

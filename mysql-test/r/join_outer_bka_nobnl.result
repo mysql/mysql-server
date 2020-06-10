@@ -52,11 +52,11 @@ NULL	NULL	NULL	4	7	D	7
 select t1.*,t2.* from t1 left join t2 using (a);
 grp	a	c	id	a	c	d
 1	1	a	1	1	a	1
+2	2	b	NULL	NULL	NULL	NULL
+2	3	c	NULL	NULL	NULL	NULL
 3	4	E	3	4	A	4
 3	5	C	3	5	B	5
 3	6	D	3	6	C	6
-2	2	b	NULL	NULL	NULL	NULL
-2	3	c	NULL	NULL	NULL	NULL
 NULL	NULL		NULL	NULL	NULL	NULL
 select t1.*,t2.* from t1 left join t2 using (a) where t1.a=t2.a;
 grp	a	c	id	a	c	d
@@ -571,6 +571,21 @@ INSERT INTO t2 VALUES ('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'),('kvw2000'
 SELECT t1.pcode, IF(ISNULL(t2.pcode), 0, COUNT(*)) AS count FROM t1
 LEFT JOIN t2 ON t1.pcode = t2.pcode GROUP BY t1.pcode;
 pcode	count
+kld2000	1
+klw1000	0
+klw1020	0
+klw1500	0
+klw2000	0
+klw2001	0
+klw2002	0
+klw2500	0
+kmw1000	0
+kmw1500	0
+kmw2000	0
+kmw2001	0
+kmw2100	0
+kmw3000	0
+kmw3200	0
 kvw2000	26
 kvw2001	0
 kvw3000	36
@@ -597,21 +612,6 @@ kvw5510	0
 kvw5600	0
 kvw5601	0
 kvw6000	2
-klw1000	0
-klw1020	0
-klw1500	0
-klw2000	0
-klw2001	0
-klw2002	0
-kld2000	1
-klw2500	0
-kmw1000	0
-kmw1500	0
-kmw2000	0
-kmw2001	0
-kmw2100	0
-kmw3000	0
-kmw3200	0
 SELECT SQL_BIG_RESULT t1.pcode, IF(ISNULL(t2.pcode), 0, COUNT(*)) AS count FROM t1 LEFT JOIN t2 ON t1.pcode = t2.pcode GROUP BY t1.pcode;
 pcode	count
 kld2000	1

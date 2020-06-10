@@ -823,9 +823,9 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`cc`.`pk` AS `pk` from `test`.`cc` where (`test`.`cc`.`col_int_key` > 3)
 SELECT pk FROM cc WHERE col_int_key > 3;
 pk
+3
 5
 6
-3
 EXPLAIN SELECT pk FROM cc WHERE col_int_key > 3 ORDER BY 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	cc	NULL	range	col_int_key	col_int_key	5	NULL	#	#	Using where; Using index; Using filesort
@@ -998,13 +998,13 @@ GROUP BY field1;
 field1
 bb
 ee
-jj
-uu
+gg
 hh
 ii
+jj
 mm
 pp
-gg
+uu
 ww
 DROP TABLE IF EXISTS c,cc;
 SET @save_old_sql_mode= @@sql_mode;

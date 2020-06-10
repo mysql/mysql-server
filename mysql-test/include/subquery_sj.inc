@@ -21,10 +21,13 @@ create table t3 (a int not null, b int, primary key (a));
 insert into t1 values (1,10), (2,20), (3,30),  (4,40);
 insert into t2 values (2), (3), (4), (5);
 insert into t3 values (10,3), (20,4), (30,5);
+--sorted_result
 select * from t2 where t2.a in (select a from t1);
 explain select * from t2 where t2.a in (select a from t1);
+--sorted_result
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 explain select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
+--sorted_result
 select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
 explain select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
 drop table t1, t2, t3;
@@ -40,14 +43,19 @@ select rand()*100000+200,rand()*100000 from t0 A, t0 B, t0 C, t0 D;
 
 insert into t2 values (2), (3), (4), (5);
 insert into t3 values (10,3), (20,4), (30,5);
+--sorted_result
 select * from t2 where t2.a in (select a from t1);
 explain select * from t2 where t2.a in (select a from t1);
+--sorted_result
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 explain select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
+--sorted_result
 select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
 explain select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
 insert into t1 values (3,31);
+--sorted_result
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
+--sorted_result
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30 and t1.b <> 31);
 explain select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 drop table t0, t1, t2, t3;

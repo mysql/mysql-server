@@ -96,44 +96,44 @@ ueb	12
 üc	7
 uf	13
 uü	29
-select a from t1 order by a desc;
+select a from t1 order by a desc,b;
 a
 uü
 uf
 üc
 ueb
-Ü
 ue
+Ü
 ud
 uc
 u
 ssc
 ßb
-ßa
 ssa
-ß
+ßa
 ss
+ß
 s
 q
 öo
 Öc
 oeb
 Öa
-oe
 ö
+oe
 od
 oc
 o
 eä
-É
 é
+É
 Äc
 aeb
 ääa
-aeae
 ää
-ae
+aeae
 ä
+ae
 ad
 ac
 a
@@ -143,9 +143,9 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 select * from t1 where a like "ö%";
 a	b
-ö	14
 Öa	16
 Öc	19
+ö	14
 öo	30
 select * from t1 where a like binary "%É%";
 a	b
@@ -158,11 +158,11 @@ ac	2
 ad	4
 ae	3
 aeae	33
-ääa	32
 aeb	6
-Öa	16
 ssa	25
+Öa	16
 ßa	27
+ääa	32
 select * from t1 where a like "%U%";
 a	b
 u	36

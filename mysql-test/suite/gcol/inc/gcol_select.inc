@@ -553,6 +553,7 @@ ANALYZE TABLE cc;
 --enable_query_log
 --replace_column 10 # 11 #
 EXPLAIN SELECT pk FROM cc WHERE col_int_key > 3;
+--sorted_result
 SELECT pk FROM cc WHERE col_int_key > 3;
 --replace_column 10 # 11 #
 EXPLAIN SELECT pk FROM cc WHERE col_int_key > 3 ORDER BY 1;
@@ -701,6 +702,7 @@ GROUP BY SQ1_field1 , SQ1_field2
 GROUP BY field1;
 
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 DROP TABLE IF EXISTS c,cc;

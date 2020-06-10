@@ -19,8 +19,8 @@ insert into t1 (b) values (1);
 replace into t1 (b) values (2), (1), (3);
 select * from t1;
 a	b
-3	1
 2	2
+3	1
 4	3
 truncate table t1;
 insert into t1 (b) values (1);
@@ -29,8 +29,8 @@ replace into t1 (b) values (1);
 replace into t1 (b) values (3);
 select * from t1;
 a	b
-3	1
 2	2
+3	1
 4	3
 drop table t1;
 create table t1 (rowid int not null auto_increment, val int not null,primary

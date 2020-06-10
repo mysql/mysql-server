@@ -413,8 +413,8 @@ FROM t2
 LEFT OUTER JOIN (SELECT -SUM(a) AS cnt FROM t1) AS derived
 ON TRUE;
 a + derived.cnt
--9
 -8
+-9
 explain SELECT a + derived.cnt
 FROM t2
 LEFT OUTER JOIN (SELECT -SUM(a) AS cnt FROM t1) AS derived
