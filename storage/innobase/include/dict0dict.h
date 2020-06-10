@@ -1099,12 +1099,11 @@ struct dict_sys_t {
     mutex_exit(&mutex);
   }
 
-  /** Check if a tablespace id is a reserved one
-  @param[in]	space	tablespace id to check
+  /** Check if a tablespace id is a reserved tablespace ID
+  @param[in]  space  tablespace id to check
   @return true if a reserved tablespace id, otherwise false */
   static bool is_reserved(space_id_t space) {
-    return (space >= dict_sys_t::s_reserved_space_id ||
-            fsp_is_session_temporary(space));
+    return (space >= dict_sys_t::s_reserved_space_id);
   }
 
   /** Set of ids of DD tables */
@@ -1142,19 +1141,18 @@ struct dict_sys_t {
   /** The highest undo tablespace ID. */
   static constexpr space_id_t s_max_undo_space_id = s_log_space_first_id - 1;
 
-  /** The first reserved tablespace ID */
-  static constexpr space_id_t s_reserved_space_id = s_min_undo_space_id;
-
-  /** Leave 1K space_ids and start space_ids for temporary
-  general tablespaces (total 400K space_ids)*/
-  static constexpr space_id_t s_max_temp_space_id = s_reserved_space_id;
+  /** Start space_ids for temporary tablespaces. */
+  static constexpr space_id_t s_max_temp_space_id = s_min_undo_space_id - 1;
 
   /** The number of space IDs dedicated to temporary tablespaces */
   static constexpr space_id_t s_temp_space_id_range = 400000;
 
   /** Lowest temporary general space id */
   static constexpr space_id_t s_min_temp_space_id =
-      s_reserved_space_id - s_temp_space_id_range;
+      s_min_undo_space_id - s_temp_space_id_range;
+
+  /** The first reserved tablespace ID */
+  static constexpr space_id_t s_reserved_space_id = s_min_temp_space_id;
 
   /** The dd::Tablespace::id of the dictionary tablespace. */
   static constexpr dd::Object_id s_dd_space_id = 1;

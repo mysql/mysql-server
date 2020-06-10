@@ -975,21 +975,21 @@ dberr_t srv_undo_tablespace_open(undo::Tablespace &undo_space) {
 @return DB_SUCCESS or error code */
 static dberr_t srv_undo_tablespace_open_by_id(space_id_t space_id) {
   undo::Tablespace undo_space(space_id);
+  std::string scanned_name;
 
-  /* See if the name found in the file map for this undo space_id
+  /* If an undo tablespace with this space_id already exists,
+  check if the name found in the file map for this undo space_id
   is the standard name.  The directory scan assured that there are
   no duplicates.  The filename found must match the standard name
   if this is an implicit undo tablespace. In other words, implicit
   undo tablespaces must be found in srv_undo_dir. */
 
-  std::string scanned_name;
   bool found = fil_system_get_file_by_space_id(space_id, scanned_name);
-  ut_a(found);
 
-  if (!Fil_path::is_same_as(undo_space.file_name(), scanned_name.c_str())) {
+  if (found &&
+      !Fil_path::is_same_as(undo_space.file_name(), scanned_name.c_str())) {
     ib::error(ER_IB_MSG_FOUND_WRONG_UNDO_SPACE, undo_space.file_name(),
               ulong{space_id}, scanned_name.c_str());
-
     return (DB_WRONG_FILE_NAME);
   }
 

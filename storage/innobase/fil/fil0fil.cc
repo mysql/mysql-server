@@ -404,8 +404,7 @@ class Tablespace_files {
   Names *find_by_id(space_id_t space_id) MY_ATTRIBUTE((warn_unused_result)) {
     ut_ad(space_id != TRX_SYS_SPACE);
 
-    if (dict_sys_t::is_reserved(space_id) &&
-        space_id != dict_sys_t::s_space_id) {
+    if (undo::is_reserved(space_id)) {
       auto it = m_undo_paths.find(space_id);
 
       if (it != m_undo_paths.end()) {
@@ -448,8 +447,7 @@ class Tablespace_files {
   bool erase_path(space_id_t space_id) MY_ATTRIBUTE((warn_unused_result)) {
     ut_ad(space_id != TRX_SYS_SPACE);
 
-    if (dict_sys_t::is_reserved(space_id) &&
-        space_id != dict_sys_t::s_space_id) {
+    if (undo::is_reserved(space_id)) {
       auto n_erased = m_undo_nums.erase(undo::id2num(space_id));
       ut_ad(n_erased == 1);
 
@@ -2199,22 +2197,25 @@ size_t Tablespace_files::add(space_id_t space_id, const std::string &name) {
 
   Names *names;
 
-  if (Fil_path::is_undo_tablespace_name(name)) {
-    if (!dict_sys_t::is_reserved(space_id) &&
-        0 == strncmp(name.c_str(), "undo_", 5)) {
-      ib::warn(ER_IB_MSG_267) << "Tablespace '" << name << "' naming"
-                              << " format is like an undo tablespace"
-                              << " but its ID " << space_id << " is not"
-                              << " in the undo tablespace range";
-    }
+  if (undo::is_reserved(space_id)) {
+    ut_ad(!Fil_path::has_suffix(IBD, name.c_str()));
 
+    /* Use m_undo_nums to allow a reserved undo space ID
+    to be found quickly. */
     space_id_t space_num = undo::id2num(space_id);
     m_undo_nums[space_num] = space_id;
 
     names = &m_undo_paths[space_id];
 
   } else {
-    ut_ad(Fil_path::has_suffix(IBD, name.c_str()));
+    ut_ad(!Fil_path::has_suffix(IBU, name.c_str()));
+
+    if (0 == strncmp(name.c_str(), "undo_", 5)) {
+      ib::warn(ER_IB_MSG_267) << "Tablespace '" << name << "' naming"
+                              << " format is like an undo tablespace"
+                              << " but its ID " << space_id << " is not"
+                              << " in the undo tablespace range";
+    }
 
     names = &m_ibd_paths[space_id];
   }
