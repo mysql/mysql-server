@@ -97,9 +97,9 @@ DROP LOGFILE GROUP lg1
 
 #
 # Case 2:
-# Check if the failure to synch objects is handled as expected. This involves
-# the addition of the objects to a blacklist. While these objects are in the
-# blacklist, they shall not be detected.
+# Check if the failure to sync objects is handled as expected. This involves
+# the exclusion of objects from sync. While these objects are excluded, they
+# shall not be detected.
 #
 
 CREATE TABLE t1 (
@@ -203,13 +203,13 @@ SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
 --let $max_wait = 60
 --source wait_metadata_synced.inc
 
-# Verify that the objects have been blacklisted
-SHOW STATUS LIKE 'Ndb_metadata_blacklist_size';
+# Verify that the objects have been excluded
+SHOW STATUS LIKE 'Ndb_metadata_excluded_count';
 --sorted_result
 SELECT * FROM performance_schema.ndb_sync_excluded_objects;
 
 # Sleep for some time to let a couple of cycles of detection
-# occur. Since the objects have been blacklisted, the mismatches
+# occur. Since the objects have been excluded, the mismatches
 # should not be detected and the number of changes detected
 # should remain unchanged
 --let $initial_detected_count = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_detected_count', Value, 1)
@@ -221,16 +221,16 @@ SET GLOBAL ndb_metadata_check = true;
 if ($current_changes_detected != $initial_detected_count)
 {
   --echo $current_changes_detected changes detected when $initial_detected_count changes were expected
-  --die Changes detected even when objects were blacklisted
+  --die Changes detected even when objects were excluded
 }
 
 # Reset values
 SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check;
 SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
 
-# Manually synch the tables through "discovery".
-# This will result in the tables being removed from the
-# blacklist during the next detection cycle
+# Manually sync the tables through "discovery".
+# This will result in the tables being no longer
+# excluded during the next detection cycle
 --sorted_result
 SELECT * FROM t1;
 --sorted_result
@@ -244,13 +244,14 @@ CREATE DATABASE db1;
 --sorted_result
 SELECT * FROM db1.t1;
 
-# Enable metadata check with no interval to clear the blacklist quickly
+# Enable metadata check with no interval to clear the excluded objects
+# list quickly
 SET GLOBAL ndb_metadata_check_interval = 0;
 SET GLOBAL ndb_metadata_check = true;
 
-# Wait until the blacklist is empty
+# Wait until the objects are no longer excluded
 --let $max_wait = 30
---source wait_metadata_sync_blacklist_empty.inc
+--source wait_metadata_sync_zero_excluded.inc
 SELECT COUNT(*) FROM performance_schema.ndb_sync_excluded_objects;
 
 # Reset values

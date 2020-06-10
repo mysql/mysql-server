@@ -174,7 +174,7 @@ SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
 # The above detected tables are never synced. They are instead treated
 # as temporary errors. This scenario can be detected by waiting for them
 # to be detected again which confirms that they've been removed from the
-# queue but not synced and are also not currently blacklisted
+# queue but not synced and are also not currently excluded
 --let $initial_detected_count = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_detected_count', Value, 1)
 
 --disable_query_log

@@ -39,9 +39,9 @@ SHOW WARNINGS;
 
 --exec $NDB_DROP_TABLE --no-defaults -d test t1 >> $NDB_TOOLS_OUTPUT
 
-# Wait until the blacklist is empty
+# Wait until there are no excluded objects
 --let $max_wait = 30
---source wait_metadata_sync_blacklist_empty.inc
+--source wait_metadata_sync_zero_excluded.inc
 
 --disable_query_log
 # Reset metadata check values

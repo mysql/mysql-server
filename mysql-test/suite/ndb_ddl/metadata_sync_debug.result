@@ -107,9 +107,9 @@ SET GLOBAL ndb_metadata_check_interval = 0;
 SET GLOBAL ndb_metadata_check = true;
 SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check;
 SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
-SHOW STATUS LIKE 'Ndb_metadata_blacklist_size';
+SHOW STATUS LIKE 'Ndb_metadata_excluded_count';
 Variable_name	Value
-Ndb_metadata_blacklist_size	6
+Ndb_metadata_excluded_count	6
 SELECT * FROM performance_schema.ndb_sync_excluded_objects;
 SCHEMA_NAME	NAME	TYPE	REASON
 db1	NULL	SCHEMA	Injected failure

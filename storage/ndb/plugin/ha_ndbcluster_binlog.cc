@@ -5556,8 +5556,8 @@ int ndbcluster_binlog_wait_synch_drop_table(THD *thd, NDB_SHARE *share) {
   return 0;
 }
 
-void ndbcluster_binlog_validate_sync_blacklist(THD *thd) {
-  ndb_binlog_thread.validate_sync_blacklist(thd);
+void ndbcluster_binlog_validate_sync_excluded_objects(THD *thd) {
+  ndb_binlog_thread.validate_sync_excluded_objects(thd);
 }
 
 void ndbcluster_binlog_validate_sync_retry_list(THD *thd) {
@@ -5606,13 +5606,13 @@ bool ndbcluster_binlog_check_schema_async(const std::string &schema_name) {
   return ndb_binlog_thread.add_schema_to_check(schema_name);
 }
 
-void ndbcluster_binlog_retrieve_sync_blacklist(
+void ndbcluster_binlog_retrieve_sync_excluded_objects(
     Ndb_sync_excluded_objects_table *excluded_table) {
-  ndb_binlog_thread.retrieve_sync_blacklist(excluded_table);
+  ndb_binlog_thread.retrieve_sync_excluded_objects(excluded_table);
 }
 
-unsigned int ndbcluster_binlog_get_sync_blacklist_count() {
-  return ndb_binlog_thread.get_sync_blacklist_count();
+unsigned int ndbcluster_binlog_get_sync_excluded_objects_count() {
+  return ndb_binlog_thread.get_sync_excluded_objects_count();
 }
 
 void ndbcluster_binlog_retrieve_sync_pending_objects(

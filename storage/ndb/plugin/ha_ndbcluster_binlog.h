@@ -70,10 +70,10 @@ size_t ndbcluster_show_status_binlog(char *buf, size_t buf_size);
 int show_ndb_status_injector(THD *, SHOW_VAR *var, char *);
 
 /**
- @brief Validate the blacklist of objects
+ @brief Validate excluded objects
  @param thd  Thread handle
 */
-void ndbcluster_binlog_validate_sync_blacklist(THD *thd);
+void ndbcluster_binlog_validate_sync_excluded_objects(THD *thd);
 
 /**
  @brief Validate the list of objects whose synchronization have been retried
@@ -116,18 +116,18 @@ bool ndbcluster_binlog_check_tablespace_async(
 bool ndbcluster_binlog_check_schema_async(const std::string &schema_name);
 
 /**
- @brief Retrieve information about objects currently in the sync blacklist
+ @brief Retrieve information about objects currently excluded from sync
  @param excluded_table  Pointer to excluded objects table object
  @return void
 */
-void ndbcluster_binlog_retrieve_sync_blacklist(
+void ndbcluster_binlog_retrieve_sync_excluded_objects(
     Ndb_sync_excluded_objects_table *excluded_table);
 
 /**
- @brief Get the number of objects currently in the sync blacklist
- @return blacklisted objects count
+ @brief Get the number of objects currently excluded from sync
+ @return excluded objects count
 */
-unsigned int ndbcluster_binlog_get_sync_blacklist_count();
+unsigned int ndbcluster_binlog_get_sync_excluded_objects_count();
 
 /**
  @brief Retrieve information about objects currently pending sync
