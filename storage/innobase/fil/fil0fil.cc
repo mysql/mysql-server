@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -9175,6 +9175,12 @@ bool Fil_system::encryption_rotate_in_a_shard(Fil_shard *shard) {
           os_thread_sleep(20);
         }
         ut_ad(mdl_ticket != nullptr);
+
+        /* If this UNDO tablespace is already truncated, skip it */
+        if (space->m_deleted_lsn > 0) {
+          dd_release_mdl(mdl_ticket);
+          continue;
+        }
       }
 
       mtr_t mtr;
