@@ -59,8 +59,8 @@ class Key_value_store
     : public Key_value_store_logger<Key_value_store<Lock, KeyValueImpl>,
                                     DEBUG_BUILD> {
   /** Do not break encapsulation when using CRTP. */
-  friend struct Key_value_store_logger<Key_value_store<Lock, KeyValueImpl>,
-                                       DEBUG_BUILD>;
+  friend class Key_value_store_logger<Key_value_store<Lock, KeyValueImpl>,
+                                      DEBUG_BUILD>;
 
   /** Help ADL to bring debugging/logging symbols into the scope. */
   using Key_value_store_logger<Key_value_store<Lock, KeyValueImpl>,
