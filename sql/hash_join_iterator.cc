@@ -171,7 +171,8 @@ bool HashJoinIterator::InitProbeIterator() {
 bool HashJoinIterator::Init() {
   // Prepare to read the build input into the hash map.
   if (m_build_input->Init()) {
-    DBUG_ASSERT(thd()->is_error());  // my_error should have been called.
+    DBUG_ASSERT(thd()->is_error() ||
+                thd()->killed);  // my_error should have been called.
     return true;
   }
 
@@ -223,7 +224,8 @@ bool HashJoinIterator::Init() {
 
   // Build the hash table
   if (BuildHashTable()) {
-    DBUG_ASSERT(thd()->is_error());  // my_error should have been called.
+    DBUG_ASSERT(thd()->is_error() ||
+                thd()->killed);  // my_error should have been called.
     return true;
   }
 
@@ -327,7 +329,8 @@ static bool WriteRowsToChunks(
   for (;;) {  // Termination condition within loop.
     int res = iterator->Read();
     if (res == 1) {
-      DBUG_ASSERT(thd->is_error());  // my_error should have been called.
+      DBUG_ASSERT(thd->is_error() ||
+                  thd->killed);  // my_error should have been called.
       return true;
     }
 
@@ -445,7 +448,8 @@ bool HashJoinIterator::BuildHashTable() {
   for (;;) {  // Termination condition within loop.
     int res = m_build_input->Read();
     if (res == 1) {
-      DBUG_ASSERT(thd()->is_error());  // my_error should have been called.
+      DBUG_ASSERT(thd()->is_error() ||
+                  thd()->killed);  // my_error should have been called.
       return true;
     }
 
@@ -674,7 +678,8 @@ bool HashJoinIterator::ReadRowFromProbeIterator() {
 
   int result = m_probe_input->Read();
   if (result == 1) {
-    DBUG_ASSERT(thd()->is_error());  // my_error should have been called.
+    DBUG_ASSERT(thd()->is_error() ||
+                thd()->killed);  // my_error should have been called.
     return true;
   }
 
@@ -720,7 +725,8 @@ bool HashJoinIterator::ReadRowFromProbeIterator() {
   }
 
   if (BuildHashTable()) {
-    DBUG_ASSERT(thd()->is_error());  // my_error should have been called.
+    DBUG_ASSERT(thd()->is_error() ||
+                thd()->killed);  // my_error should have been called.
     return true;
   }
 
@@ -815,7 +821,8 @@ bool HashJoinIterator::ReadRowFromProbeRowSavingFile() {
 
     // No more rows in the probe row saving file.
     if (BuildHashTable()) {
-      DBUG_ASSERT(thd()->is_error());  // my_error should have been called.
+      DBUG_ASSERT(thd()->is_error() ||
+                  thd()->killed);  // my_error should have been called.
       return true;
     }
 
@@ -967,7 +974,7 @@ int HashJoinIterator::ReadNextJoinedRowFromHashTable() {
     // we return a row.
     if (res == 0) {
       passes_extra_conditions = JoinedRowPassesExtraConditions();
-      if (thd()->is_error()) {
+      if (thd()->is_error() || thd()->killed) {
         // Evaluation of extra conditions raised an error, so abort the join.
         return 1;
       }
