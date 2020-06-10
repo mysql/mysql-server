@@ -1694,11 +1694,21 @@ Backup::calculate_current_speed_bounds(Uint64& max_speed,
      * disk write speed again when a new LCP starts up again.
      */
     jam();
-    /* Allow maximum to increase to avoid redo exhaustion */
-    if (m_redo_alert_state == RedoStateRep::REDO_ALERT_CRITICAL &&
-        is_redo_control_enabled())
+    if (!m_our_node_started)
     {
       jam();
+      max_speed = c_defaults.m_disk_write_speed_max_own_restart;
+      DEB_REDO_CONTROL(("(%u)Restarting new max_speed: %llu kB/sec",
+                        instance(),
+                        ((max_speed *
+         Uint64(CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS)) / Uint64(1024))
+                        ));
+    }
+    else if (m_redo_alert_state == RedoStateRep::REDO_ALERT_CRITICAL &&
+             is_redo_control_enabled())
+    {
+      jam();
+      /* Allow maximum to increase to avoid redo exhaustion */
       max_speed = c_defaults.m_disk_write_speed_max_own_restart;
       DEB_REDO_CONTROL(("(%u)Critical REDO level, new max_speed: %llu kB/sec",
                         instance(),
@@ -1710,6 +1720,7 @@ Backup::calculate_current_speed_bounds(Uint64& max_speed,
              is_redo_control_enabled())
     {
       jam();
+      /* Allow maximum to increase to avoid redo exhaustion */
       max_speed = c_defaults.m_disk_write_speed_max_other_node_restart;
       DEB_REDO_CONTROL(("(%u)High REDO level, new max_speed: %llu kB/sec",
                         instance(),
