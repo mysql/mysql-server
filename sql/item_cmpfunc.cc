@@ -7208,7 +7208,7 @@ static bool append_string_value(Item *comparand,
   StringBuffer<STRING_BUFFER_USUAL_SIZE> str_buffer;
   String *str = comparand->val_str(&str_buffer);
 
-  if (comparand->null_value) {
+  if (comparand->null_value || str == nullptr) {
     return true;
   }
 
@@ -7235,7 +7235,9 @@ static bool append_string_value(Item *comparand,
   if (buffer_size > 0) {
     // Reserve space in the buffer so we can insert the transformed string
     // directly into the buffer.
-    join_key_buffer->reserve(buffer_size);
+    if (join_key_buffer->reserve(buffer_size)) {
+      return true;
+    }
 
     uchar *dptr = pointer_cast<uchar *>(join_key_buffer->ptr()) +
                   join_key_buffer->length();
@@ -7483,7 +7485,8 @@ HashJoinCondition::HashJoinCondition(Item_func_eq *join_condition,
                                  m_right_extractor->max_char_length())) {
   m_store_full_sort_key = true;
 
-  if (join_condition->compare_type() == STRING_RESULT) {
+  if (join_condition->compare_type() == STRING_RESULT ||
+      join_condition->compare_type() == ROW_RESULT) {
     const CHARSET_INFO *cs = join_condition->compare_collation();
     if (cs->coll->strnxfrmlen(cs, cs->mbmaxlen * m_max_character_length) >
         1024) {
