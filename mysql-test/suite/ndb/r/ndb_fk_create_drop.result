@@ -108,7 +108,6 @@ ref int
 insert into parent values(1), (2), (3);
 insert into child  values(1), (2), (3);
 #Show create table on parent.
-#This will now load the m_fk_data of parent on handler
 show create table parent;
 Table	Create Table
 parent	CREATE TABLE `parent` (
@@ -118,7 +117,6 @@ parent	CREATE TABLE `parent` (
 #Now create a foreign key dependency
 alter table child add constraint fk1 foreign key (ref) references parent(id);
 #Now run a alter engine query.
-#m_fk_data of parent should be reloaded now and the query should fail
 alter table parent engine = innodb;
 ERROR HY000: Cannot change table's storage engine because the table participates in a foreign key constraint.
 show create table parent;
