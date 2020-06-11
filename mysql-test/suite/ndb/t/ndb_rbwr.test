@@ -176,6 +176,37 @@ INSERT INTO rbwr_tests (table_name, query, execute_count) VALUES
   ("t4", "update t4 set d = 37 where pk_a = \"16161616\" and pk_b = 16
             and pk_c = \"2012-10-15 11:11:27\"", 1);
 
+# Using full primary key with constant parameter in value list, one roundtrip
+set @param37 = 37;
+INSERT INTO rbwr_tests (table_name, query, execute_count) VALUES
+  ("t1", "update t1 set c = @param37 where a = 1", 1),
+  ("t2", "update t2 set d = @param37 where pk_a = 1 and pk_b = 2 and
+            pk_c = 3", 1),
+  ("t3", "update t3 set d = @param37 where pk_a = \"11111\"", 1),
+  ("t4", "update t4 set d = @param37 where pk_a = \"16161616\" and pk_b = 16
+            and pk_c = \"2012-10-15 11:11:27\"", 1);
+
+# Using full primary key with constant parameters in value list and where
+# clause, one roundtrip
+set @param1 = 1;
+set @param2 = 2;
+set @param3 = 3;
+set @param11111 = "11111";
+set @param16161616 = "16161616";
+INSERT INTO rbwr_tests (table_name, query, execute_count) VALUES
+  ("t1", "delete from t1 where a = @param1", 1),
+  ("t1", "update t1 set c = @param37 where a = @param1", 1),
+  ("t2", "delete from t2 where pk_a = @param1 and pk_b = @param2 and
+            pk_c = 3", 1),
+  ("t2", "update t2 set d = @param37 where pk_a = @param1 and pk_b = @param2 and
+            pk_c = 3", 1),
+  ("t3", "delete from t3 where pk_a = @param11111", 1),
+  ("t3", "update t3 set d = @param37 where pk_a = @param11111", 1),
+  ("t4", "delete from t4 where pk_a = @param16161616 and pk_b = 16
+            and pk_c = \"2012-10-15 11:11:27\"", 1),
+  ("t4", "update t4 set d = @param37 where pk_a = @param16161616 and pk_b = 16
+            and pk_c = \"2012-10-15 11:11:27\"", 1);
+
 # Using full unique key, one roundtrip
 INSERT INTO rbwr_tests (table_name, query, execute_count) VALUES
   ("t1", "delete from t1 where b = 1", 1),
@@ -292,7 +323,7 @@ INSERT INTO log (bug_text) VALUES ("one row deleted");
 
 let $before= `select VARIABLE_VALUE from performance_schema.session_status
                 where variable_name like 'NDB_EXECUTE_COUNT'`;
-eval DELETE FROM main WHERE id = 1;
+DELETE FROM main WHERE id = 1;
 let $after= `select VARIABLE_VALUE from performance_schema.session_status
                where variable_name like 'NDB_EXECUTE_COUNT'`;
 if (!`select $after-$before >= 4`)
@@ -300,7 +331,7 @@ if (!`select $after-$before >= 4`)
   enable_result_log;
   echo before: $before;
   echo after: $after;
-  die Read removal used even when table has delete triggers, $after, $before - exiting;
+  die Read removal used even when table has delete triggers;
 }
 
 # Check execute count to verify that read removal is not done for
@@ -310,7 +341,7 @@ INSERT INTO log (bug_text) VALUES ("one row updated");
 
 let $before= `select VARIABLE_VALUE from performance_schema.session_status
                 where variable_name like 'NDB_EXECUTE_COUNT'`;
-eval UPDATE main SET val = 111 WHERE id = 1;
+UPDATE main SET val = 111 WHERE id = 1;
 let $after= `select VARIABLE_VALUE from performance_schema.session_status
                where variable_name like 'NDB_EXECUTE_COUNT'`;
 if (!`select $after-$before >= 3`)
@@ -318,7 +349,7 @@ if (!`select $after-$before >= 3`)
   enable_result_log;
   echo before: $before;
   echo after: $after;
-  die Read removal used even when table has update triggers, $after, $before - exiting;
+  die Read removal used even when table has update triggers;
 }
 
 ### Cleanup

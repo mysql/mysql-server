@@ -302,7 +302,7 @@ static bool check_constant_expressions(List<Item> *values) {
   DBUG_TRACE;
 
   while ((value = v++)) {
-    if (!value->const_item()) {
+    if (!value->const_for_execution()) {
       DBUG_PRINT("exit", ("expression is not constant"));
       return false;
     }
