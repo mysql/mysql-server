@@ -336,6 +336,7 @@ our $start_only;
 our $glob_debugger      = 0;
 our $group_replication  = 0;
 our $ndbcluster_enabled = 0;
+our $mysqlbackup_enabled= 0;
 
 our @share_locations;
 
@@ -2214,6 +2215,7 @@ sub command_line_setup {
 
   mtr_report("Checking supported features");
 
+  check_mysqlbackup_support();
   check_debug_support(\%mysqld_variables);
   check_ndbcluster_support(\%mysqld_variables);
 
@@ -2997,8 +2999,6 @@ sub environment_setup {
   $ENV{'MYSQLXTEST'}          = mysqlxtest_arguments();
   $ENV{'PATH_CONFIG_FILE'}    = $path_config_file;
 
-  $ENV{'MYSQLBACKUP'} = mysqlbackup_arguments()
-    unless $ENV{'MYSQLBACKUP'};
   $ENV{'MYSQLBACKUP_PLUGIN_DIR'} = mysqlbackup_plugin_dir()
     unless $ENV{'MYSQLBACKUP_PLUGIN_DIR'};
   $ENV{'MYSQL_CONFIG_EDITOR'} =
@@ -3320,6 +3320,16 @@ sub check_running_as_root () {
 
   chmod(oct("0755"), $test_file);
   unlink($test_file);
+}
+
+sub check_mysqlbackup_support() {
+  $ENV{'MYSQLBACKUP'} = mysqlbackup_arguments()
+    unless $ENV{'MYSQLBACKUP'};
+  if($ENV{'MYSQLBACKUP'}) {
+    $mysqlbackup_enabled = 1;
+  } else {
+    $mysqlbackup_enabled = 0;
+  }
 }
 
 sub check_debug_support ($) {

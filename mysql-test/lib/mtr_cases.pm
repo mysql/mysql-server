@@ -1335,6 +1335,13 @@ sub collect_one_test_case {
     }
   }
 
+  if ($tinfo->{'need_backup'}) {
+    if (!$::mysqlbackup_enabled) {
+      skip_test($tinfo, "Test needs mysqlbackup.");
+      return $tinfo;
+    }
+  }
+
   if ($tinfo->{'ndb_test'}) {
     # This is a NDB test
     if ($::ndbcluster_enabled == 0) {
@@ -1484,6 +1491,7 @@ my @tags = (
 
   [ "include/big_test.inc",       "big_test",   1 ],
   [ "include/asan_have_debug.inc","asan_need_debug", 1 ],
+  [ "include/have_backup.inc",    "need_backup", 1 ],
   [ "include/have_debug.inc",     "need_debug", 1 ],
   [ "include/have_ndb.inc",       "ndb_test",   1 ],
   [ "include/have_multi_ndb.inc", "ndb_test",   1 ],
