@@ -29,6 +29,18 @@
 # Pass --define 'with_cluster 1' to build with cluster support
 %{?with_cluster: %global cluster 1}
 
+%if 0%{?cluster}
+%global with_meb    0
+%global with_router 0
+%else
+%if 0%{?commercial}
+%global with_meb    1
+%else
+%global with_meb    0
+%endif
+%global with_router 1
+%endif
+
 # Pass path to mecab lib
 %{?with_mecab: %global mecab_option -DWITH_MECAB=%{with_mecab}}
 %{?with_mecab: %global mecab 1}
@@ -537,6 +549,7 @@ This package contains the MySQL server as an embedded library with
 compatibility for applications using version %{compatlib} of the library.
 %endif
 
+%if 0%{?with_router}
 %package  -n   mysql-router-%{product_suffix}
 Summary:       MySQL Router
 Group:         Applications/Databases
@@ -576,6 +589,7 @@ Requires:       mysql-router-community = %{version}-%{release}
 %description -n mysql-router-%{product_suffix}-devel
 This package contains the development header files and libraries
 necessary to develop MySQL Router applications.
+%endif # with_router
 
 %if 0%{?cluster}
 %package        management-server
@@ -663,7 +677,7 @@ to provide a persistent MySQL Cluster data store.
 
 %endif # cluster
 
-%if 0%{?commercial}
+%if 0%{?with_meb}
 %package        backup
 Summary:        MySQL Enterprise Backup
 Group:          Applications/Databases
@@ -682,7 +696,7 @@ MySQL Enterprise Backup provides DBAs with a high-performance, online
 "hot" backup solution with data compression technology to ensure your
 data is protected in case of downtime or an outage. MySQL is a
 trademark of %{mysql_vendor}
-%endif
+%endif # with_meb
 
 %prep
 %if 0%{?compatlib}
@@ -779,6 +793,8 @@ mkdir debug
 %if 0%{?systemd}
            -DWITH_SYSTEMD=1 \
 %endif
+           -DWITH_MEB=%{with_meb} \
+           -DWITH_ROUTER=%{with_router} \
 %if 0%{?cluster}
            -DWITH_NDBCLUSTER=1 \
 %endif
@@ -789,7 +805,6 @@ mkdir debug
            -DNDB_NODEJS_EXTRAS_PATH=%{ndb_nodejs_extras_path} \
 %endif
 %if 0%{?commercial}
-           -DWITH_MEB=1 \
            -DWITH_CURL=system \
            %{?aws_sdk_option} \
 %endif
@@ -821,6 +836,8 @@ mkdir release
 %if 0%{?systemd}
            -DWITH_SYSTEMD=1 \
 %endif
+           -DWITH_MEB=%{with_meb} \
+           -DWITH_ROUTER=%{with_router} \
 %if 0%{?cluster}
            -DWITH_NDBCLUSTER=1 \
 %endif
@@ -831,7 +848,6 @@ mkdir release
            -DNDB_NODEJS_EXTRAS_PATH=%{ndb_nodejs_extras_path} \
 %endif
 %if 0%{?commercial}
-           -DWITH_MEB=1 \
            -DWITH_CURL=system \
            %{?aws_sdk_option} \
 %endif
@@ -870,9 +886,11 @@ install -d -m 0755 %{buildroot}/var/run/mysqld
 install -d -m 0750 %{buildroot}/var/lib/mysql-files
 install -d -m 0750 %{buildroot}/var/lib/mysql-keyring
 
+%if 0%{?with_router}
 # Router directories
 install -d -m 0755 %{buildroot}/var/log/mysqlrouter
 install -d -m 0755 %{buildroot}/var/run/mysqlrouter
+%endif
 
 # Install all binaries
 cd $MBD/release
@@ -902,11 +920,13 @@ install -p -m 0755 packaging/rpm-common/mysql_config.sh %{buildroot}/%{_bindir}/
 %{?el8:/usr/bin/pathfix.py -i /usr/bin/python2 -n -p %{buildroot}%{_bindir}/ndb_setup.py}
 %endif # cluster
 
+%if 0%{?with_router}
 %if 0%{?systemd}
 %else
 install -D -p -m 0755 packaging/rpm-common/mysqlrouter.init %{buildroot}%{_sysconfdir}/init.d/mysqlrouter
 %endif # systemd
 install -D -p -m 0644 packaging/rpm-common/mysqlrouter.conf %{buildroot}%{_sysconfdir}/mysqlrouter/mysqlrouter.conf
+%endif # with_router
 
 # Remove files pages we explicitly do not want to package
 rm -rf %{buildroot}%{_infodir}/mysql.info*
@@ -975,6 +995,7 @@ fi
 
 %{?el7:%postun embedded-compat -p /sbin/ldconfig}
 
+%if 0%{?with_router}
 %pre -n mysql-router-%{product_suffix}
 /usr/sbin/groupadd -r mysqlrouter >/dev/null 2>&1 || :
 /usr/sbin/useradd -M -N -g mysqlrouter -r -d /var/lib/mysqlrouter -s /bin/false \
@@ -1007,6 +1028,7 @@ if [ $1 -ge 1 ]; then
     /sbin/service mysqlrouter condrestart >/dev/null 2>&1 || :
 fi
 %endif # systemd
+%endif # with_router
 
 %files server
 %defattr(-, root, root, -)
@@ -1621,14 +1643,15 @@ fi
 %{_datadir}/mysql-*/java/
 %endif # cluster
 
-%if 0%{?commercial}
+%if 0%{?with_meb}
 %files backup
 %defattr(-, root, root, -)
 %doc %{src_dir}/packaging/meb/LICENSE.meb
 %doc %{src_dir}/packaging/meb/README.meb
 %attr(755, root, root) %{_bindir}/mysqlbackup
-%endif
+%endif # with_meb
 
+%if 0%{?with_router}
 %files -n mysql-router-%{product_suffix}
 %defattr(-, root, root, -)
 %doc %{src_dir}/router/README.router  %{src_dir}/router/LICENSE.router
@@ -1659,6 +1682,7 @@ fi
 %{_libdir}/mysqlrouter/*.so
 %dir %attr(755, mysqlrouter, mysqlrouter) /var/log/mysqlrouter
 %dir %attr(755, mysqlrouter, mysqlrouter) /var/run/mysqlrouter
+%endif # with_router
 
 %changelog
 * Tue Feb 04 2020 Bjorn Munch <bjorn.munch@oracle.com> - 8.0.20-1

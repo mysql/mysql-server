@@ -23,6 +23,18 @@
 %global mysql_vendor    Oracle and/or its affiliates
 %global mysqldatadir    /var/lib/mysql
 
+%if 0%{?cluster}
+%global with_meb    0
+%global with_router 0
+%else
+%if 0%{?commercial}
+%global with_meb    1
+%else
+%global with_meb    0
+%endif
+%global with_router 1
+%endif
+
 # Pass --define 'with_cluster 1' to build with cluster support
 %{?with_cluster: %global cluster 1}
 
@@ -489,7 +501,7 @@ to provide a persistent MySQL Cluster data store.
 
 %endif # cluster
 
-%if 0%{?commercial}
+%if 0%{?with_meb}
 %package        backup
 Summary:        MySQL Enterprise Backup
 Group:          Applications/Databases
@@ -508,8 +520,9 @@ MySQL Enterprise Backup provides DBAs with a high-performance, online
 "hot" backup solution with data compression technology to ensure your
 data is protected in case of downtime or an outage. MySQL is a
 trademark of %{mysql_vendor}
-%endif
+%endif # with_meb
 
+%if 0%{?with_router}
 %package  -n   mysql-router-%{product_suffix}
 Summary:       MySQL Router
 Group:         Applications/Databases
@@ -548,6 +561,7 @@ Requires:       mysql-router-community = %{version}-%{release}
 %description -n mysql-router-%{product_suffix}-devel
 This package contains the development header files and libraries
 necessary to develop MySQL Router applications.
+%endif # with_router
 
 %prep
 %setup -q -T -a 0 -a 10 -c -n %{src_dir}
@@ -583,6 +597,8 @@ mkdir debug
            -DWITH_SYSTEMD=1 \
            -DSYSTEMD_SERVICE_NAME="mysql" \
            -DSYSTEMD_PID_DIR="/var/run/mysql" \
+           -DWITH_MEB=%{with_meb} \
+           -DWITH_ROUTER=%{with_router} \
 %if 0%{?cluster}
            -DWITH_NDBCLUSTER=1 \
 %endif
@@ -593,7 +609,6 @@ mkdir debug
            -DNDB_NODEJS_EXTRAS_PATH=%{ndb_nodejs_extras_path} \
 %endif
 %if 0%{?commercial}
-           -DWITH_MEB=1 \
            -DWITH_CURL=system \
            %{?aws_sdk_option} \
 %endif
@@ -626,6 +641,8 @@ mkdir release
            -DWITH_SYSTEMD=1 \
            -DSYSTEMD_SERVICE_NAME="mysql" \
            -DSYSTEMD_PID_DIR="/var/run/mysql" \
+           -DWITH_MEB=%{with_meb} \
+           -DWITH_ROUTER=%{with_router} \
 %if 0%{?cluster}
            -DWITH_NDBCLUSTER=1 \
 %endif
@@ -636,7 +653,6 @@ mkdir release
            -DNDB_NODEJS_EXTRAS_PATH=%{ndb_nodejs_extras_path} \
 %endif
 %if 0%{?commercial}
-           -DWITH_MEB=1 \
            -DWITH_CURL=system \
            %{?aws_sdk_option} \
 %endif
@@ -677,10 +693,12 @@ install -d -m 0755 %{buildroot}%{_sysconfdir}/ld.so.conf.d
 echo "%{_libdir}/mysql" > %{buildroot}%{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
 
 # Router directories
+%if 0%{?with_router}
 install -d -m 0755 %{buildroot}/var/log/mysqlrouter
 install -d -m 0755 %{buildroot}/var/run/mysqlrouter
 
 install -D -p -m 0644 packaging/rpm-common/mysqlrouter.conf %{buildroot}%{_sysconfdir}/mysqlrouter/mysqlrouter.conf
+%endif
 
 # Remove files pages we explicitly do not want to package
 rm -rf %{buildroot}%{_infodir}/mysql.info*
@@ -742,6 +760,7 @@ rm -r $(readlink var) var
 %postun libs-compat -p /sbin/ldconfig
 %endif
 
+%if 0%{?with_router}
 %pre -n mysql-router-%{product_suffix}
 /usr/sbin/groupadd -r mysqlrouter >/dev/null 2>&1 || :
 /usr/sbin/useradd -M -N -g mysqlrouter -r -d /var/lib/mysqlrouter -s /bin/false \
@@ -757,6 +776,7 @@ rm -r $(readlink var) var
 %postun -n mysql-router-%{product_suffix}
 /sbin/ldconfig
 %systemd_postun_with_restart mysqlrouter.service
+%endif # with_router
 
 %files server
 %defattr(-, root, root, -)
@@ -1294,14 +1314,15 @@ rm -r $(readlink var) var
 %{_datadir}/mysql-*/java/
 %endif # cluster
 
-%if 0%{?commercial}
+%if 0%{?with_meb}
 %files backup
 %defattr(-, root, root, -)
 %doc %{src_dir}/packaging/meb/LICENSE.meb
 %doc %{src_dir}/packaging/meb/README.meb
 %attr(755, root, root) %{_bindir}/mysqlbackup
-%endif
+%endif # with_meb
 
+%if 0%{?with_router}
 %files -n mysql-router-%{product_suffix}
 %defattr(-, root, root, -)
 %doc %{src_dir}/router/README.router  %{src_dir}/router/LICENSE.router
@@ -1328,6 +1349,7 @@ rm -r $(readlink var) var
 %{_libdir}/mysqlrouter/*.so
 %dir %attr(755, mysqlrouter, mysqlrouter) /var/log/mysqlrouter
 %dir %attr(755, mysqlrouter, mysqlrouter) /var/run/mysqlrouter
+%endif # with_router
 
 %changelog
 * Mon May 11 2020 Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.15-1

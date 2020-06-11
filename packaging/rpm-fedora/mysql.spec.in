@@ -29,6 +29,14 @@
 # Pass --define 'with_cluster 1' to build with cluster support
 %{?with_cluster: %global cluster 1}
 
+%if 0%{?cluster}
+%global with_meb    0
+%global with_router 0
+%else
+%global with_meb    1
+%global with_router 1
+%endif
+
 # Regression tests may take a long time, override the default to skip them
 %{!?runselftest:%global runselftest 1}
 
@@ -347,6 +355,7 @@ Provides:       mysql-libs%{?_isa} = %{version}-%{release}
 This package contains the shared libraries for MySQL client
 applications.
 
+%if 0%{?with_router}
 %package  -n   mysql-router-%{product_suffix}
 Summary:       MySQL Router
 Requires:      shadow-utils
@@ -386,6 +395,7 @@ Requires:       mysql-router-community = %{version}-%{release}
 %description -n mysql-router-%{product_suffix}-devel
 This package contains the development header files and libraries
 necessary to develop MySQL Router applications.
+%endif # with_router
 
 %if 0%{?cluster}
 %package        management-server
@@ -492,6 +502,8 @@ mkdir debug
            -DCMAKE_CXX_FLAGS="$optflags" \
            -DUSE_LD_LLD=0 \
            -DWITH_SYSTEMD=1 \
+           -DWITH_MEB=%{with_meb} \
+           -DWITH_ROUTER=%{with_router} \
 %if 0%{?cluster:1}
            -DWITH_NDBCLUSTER=1 \
 %endif
@@ -528,6 +540,8 @@ mkdir release
            -DCMAKE_CXX_FLAGS="%{optflags}" \
            -DUSE_LD_LLD=0 \
            -DWITH_SYSTEMD=1 \
+           -DWITH_MEB=%{with_meb} \
+           -DWITH_ROUTER=%{with_router} \
 %if 0%{?cluster:1}
            -DWITH_NDBCLUSTER=1 \
 %endif
@@ -559,8 +573,10 @@ install -d -m 0750 %{buildroot}/var/lib/mysql-files
 install -d -m 0750 %{buildroot}/var/lib/mysql-keyring
 
 # Router directories
+%if 0%{?with_router}
 install -d -m 0755 %{buildroot}/var/log/mysqlrouter
 install -d -m 0755 %{buildroot}/run/mysqlrouter
+%endif
 
 # Install all binaries
 pushd $MBD/release
@@ -576,7 +592,9 @@ install -d -m 0755 %{buildroot}%{_sysconfdir}/ld.so.conf.d
 echo "%{_libdir}/mysql" > %{buildroot}%{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
 
 # Router files
+%if 0%{?with_router}
 install -D -p -m 0644 packaging/rpm-common/mysqlrouter.conf %{buildroot}%{_sysconfdir}/mysqlrouter/mysqlrouter.conf
+%endif
 
 # Back to top level
 popd
@@ -630,6 +648,7 @@ rm -r $(readlink var) var
 %postun server
 %systemd_postun_with_restart mysqld.service
 
+%if 0%{?with_router}
 %pre -n mysql-router-%{product_suffix}
 /usr/sbin/groupadd -r mysqlrouter >/dev/null 2>&1 || :
 /usr/sbin/useradd -M -N -g mysqlrouter -r -d /var/lib/mysqlrouter -s /bin/false \
@@ -643,6 +662,7 @@ rm -r $(readlink var) var
 
 %postun -n mysql-router-%{product_suffix}
 %systemd_postun_with_restart mysqlrouter.service
+%endif # with_router
 
 %files server
 %doc %{?license_files_server}
@@ -1118,6 +1138,7 @@ rm -r $(readlink var) var
 %{_datadir}/mysql-*/java/
 %endif # cluster
 
+%if 0%{?with_router}
 %files -n mysql-router-%{product_suffix}
 %doc %{src_dir}/router/README.router  %{src_dir}/router/LICENSE.router
 %dir %{_sysconfdir}/mysqlrouter
@@ -1143,6 +1164,7 @@ rm -r $(readlink var) var
 %{_libdir}/mysqlrouter/*.so
 %dir %attr(755, mysqlrouter, mysqlrouter) /var/log/mysqlrouter
 %dir %attr(755, mysqlrouter, mysqlrouter) /run/mysqlrouter
+%endif # with_router
 
 %changelog
 * Mon May 11 2020 Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.21-1

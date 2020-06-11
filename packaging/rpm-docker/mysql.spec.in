@@ -26,6 +26,12 @@
 # Pass --define 'with_cluster 1' to build with cluster support
 %{?with_cluster: %global cluster 1}
 
+%if 0%{?cluster}
+%global with_meb    0
+%else
+%global with_meb    1
+%endif
+
 # Pass path to mecab lib
 %{?with_mecab: %global mecab_option -DWITH_MECAB=%{with_mecab}}
 %{?with_mecab: %global mecab 1}
@@ -59,7 +65,7 @@ Summary:        A very fast and reliable SQL database server
 Group:          Applications/Databases
 Version:        @MYSQL_NO_DASH_VERSION@
 Release:        1@MYSQL_VERSION_EXTRA_DOT@%{?commercial:.1}%{?dist}
-License:        Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. All rights reserved. Under %{?license_type} license as shown in the Description field.
+License:        Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. Under %{?license_type} license as shown in the Description field.
 URL:            http://www.mysql.com/
 Packager:       MySQL Release Engineering <mysql-build@oss.oracle.com>
 Vendor:         %{mysql_vendor}
@@ -184,7 +190,7 @@ mkdir release
            -DWITH_NDBCLUSTER=1 \
 %endif
 %if 0%{?commercial}
-           -DWITH_MEB=1 \
+           -DWITH_MEB=%{with_meb} \
            -DWITH_CURL=system \
            %{?aws_sdk_option} \
 %endif
@@ -445,7 +451,9 @@ rm -r $(readlink var) var
 %attr(644, root, root) %{_datadir}/mysql-*/uninstall_rewriter.sql
 
 %if 0%{?commercial}
+%if 0%{?with_meb}
 %attr(755, root, root) %{_bindir}/mysqlbackup
+%endif # with_meb
 %attr(755, root, root) %{_libdir}/mysql/plugin/audit_log.so
 %attr(644, root, root) %{_datadir}/mysql-*/audit_log_filter_linux_install.sql
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl.so
