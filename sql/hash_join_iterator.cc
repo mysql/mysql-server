@@ -535,7 +535,8 @@ bool HashJoinIterator::BuildHashTable() {
                               true /* write_to_build_chunks */,
                               false /* write_rows_with_null_in_join_key */,
                               &m_temporary_row_and_join_key_buffer)) {
-          DBUG_ASSERT(thd()->is_error());  // my_error should have been called.
+          DBUG_ASSERT(thd()->is_error() ||
+                      thd()->killed);  // my_error should have been called.
           return true;
         }
 
@@ -543,8 +544,8 @@ bool HashJoinIterator::BuildHashTable() {
         // beginning.
         for (ChunkPair &chunk_pair : m_chunk_files_on_disk) {
           if (chunk_pair.build_chunk.Rewind()) {
-            DBUG_ASSERT(
-                thd()->is_error());  // my_error should have been called.
+            DBUG_ASSERT(thd()->is_error() ||
+                        thd()->killed);  // my_error should have been called.
             return true;
           }
         }
