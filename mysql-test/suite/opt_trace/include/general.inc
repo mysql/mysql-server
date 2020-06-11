@@ -1,6 +1,7 @@
 # Basic test for optimizer trace
 
 --source include/have_optimizer_trace.inc
+--source include/not_hypergraph.inc  # Optimizer trace is different.
 
 # This test gives different results when ps-protocol is enabled
 # because in ps-protocol, we read OPTIMIZER_TRACE after
@@ -81,6 +82,7 @@ select * from information_schema.OPTIMIZER_TRACE;
 # Test max_mem_size: re-run same query with lower max_mem_size:
 # save non-truncated trace but don't output it again
 select (@query:=QUERY)+NULL, (@trace:=TRACE)+NULL from information_schema.OPTIMIZER_TRACE;
+--skip_if_hypergraph  # Different optimier trace.
 select length(@trace);
 # The concatenation of query and trace above has length:
 # - >@max_mem_size in normal mode
@@ -90,10 +92,12 @@ select length(@trace);
 # whereas in ps-protocol mode they verify non-truncation.
 set @max_mem_size=13307;
 set optimizer_trace_max_mem_size=@max_mem_size;
+--skip_if_hypergraph  # Different optimier trace.
 select length(@query)+length(@trace) > @@optimizer_trace_max_mem_size;
 SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SELECT 2 FROM t6 WHERE d = ifnull(c,null));
 select (@missing_bytes:=missing_bytes_beyond_max_mem_size) from information_schema.OPTIMIZER_TRACE;
 select (@query2:=QUERY)+NULL,(@trace2:=TRACE)+NULL from information_schema.OPTIMIZER_TRACE;
+--skip_if_hypergraph  # Different optimier trace.
 select length(@trace2),
        (length(@trace2) + @missing_bytes) = length(@trace),
        @query2 = @query;
@@ -311,6 +315,7 @@ select * from t1 where (t1.a,t1.b) not in (select c,d from t2 where c>0);
 select * from information_schema.OPTIMIZER_TRACE;
 
 # HAVING
+--sorted_result
 select t1.a,avg(t2.c) as moyenne from t1, t2 where t2.c>-1
   group by t1.a having moyenne<>0;
 --replace_regex /("sort_buffer_size":) [0-9]+/\1 "NNN"/

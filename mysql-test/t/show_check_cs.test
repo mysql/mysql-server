@@ -572,6 +572,7 @@ SHOW INDEX FROM t1;
 --echo ----------------------------------------------------------------
 
 --replace_result 20613 # 20609 # 20485 # 20481 #
+--sorted_result
 SELECT
   TABLE_CATALOG,
   TABLE_SCHEMA,
@@ -588,6 +589,7 @@ WHERE table_name = 't1';
 --echo ----------------------------------------------------------------
 
 --replace_result 20613 # 20609 # 20485 # 20481 #
+--sorted_result
 SELECT
   TABLE_CATALOG,
   TABLE_SCHEMA,
@@ -650,6 +652,7 @@ SHOW CREATE VIEW v1;
 --echo ----------------------------------------------------------------
 
 --replace_result 20613 # 20485 # 20609 # 20481 #
+--sorted_result
 SELECT *
 FROM INFORMATION_SCHEMA.VIEWS
 WHERE table_name = 'v1';
@@ -1315,6 +1318,7 @@ CREATE INDEX c2d ON t1(c2);
 SHOW COLUMNS FROM t1;
 --replace_column 3 # 4 # 5 # 6 # 7 # 8 # 9 #
 SHOW FULL COLUMNS FROM t1;
+--sorted_result
 SELECT table_name, column_name, column_type FROM
        INFORMATION_SCHEMA.COLUMNS WHERE table_name='t1';
 --echo # EXTENDED keyword is introduced to list the hidden columns.
@@ -1326,9 +1330,12 @@ SHOW EXTENDED FULL COLUMNS FROM t1;
 --echo # With fix, following statements should not show the hidden index and
 --echo # index columns.
 SHOW INDEX FROM t1;
+--sorted_result
 SELECT table_schema, table_name, index_name, column_name FROM
        INFORMATION_SCHEMA.STATISTICS WHERE table_name='t1';
+--sorted_result
 SELECT * FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE table_name='t1';
+--sorted_result
 SELECT constraint_schema, constraint_name, table_name, column_name FROM
        INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE table_name='t1';
 

@@ -34,6 +34,7 @@ while ($1)
 
 SELECT count(*) FROM t1;
 EXPLAIN SELECT fid, ST_AsText(g) FROM t1 WHERE ST_Within(g, ST_GeomFromText('Polygon((140 140,160 140,160 160,140 160,140 140))'));
+--sorted_result
 SELECT fid, ST_AsText(g) FROM t1 WHERE ST_Within(g, ST_GeomFromText('Polygon((140 140,160 140,160 160,140 160,140 140))'));
 
 DROP TABLE t1;
@@ -60,6 +61,7 @@ SHOW CREATE TABLE t2;
 SELECT count(*) FROM t2;
 EXPLAIN SELECT fid, ST_AsText(g) FROM t2 WHERE ST_Within(g, 
   ST_GeomFromText('Polygon((40 40,60 40,60 60,40 60,40 40))'));
+--sorted_result
 SELECT fid, ST_AsText(g) FROM t2 WHERE ST_Within(g, 
   ST_GeomFromText('Polygon((40 40,60 40,60 60,40 60,40 40))'));
 

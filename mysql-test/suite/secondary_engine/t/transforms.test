@@ -16,12 +16,15 @@ PREPARE s FROM "EXPLAIN SELECT a FROM t1 WHERE a=(SELECT MAX(a) FROM t1) AND (a=
 PREPARE s2 FROM "EXPLAIN SELECT a FROM t1 WHERE a NOT IN (SELECT a FROM t1 AS t2)";
 SET secondary_engine_cost_threshold = 0;
 EXECUTE s;
+--echo
 EXECUTE s2;
 SET optimizer_switch="subquery_to_derived=on";
 EXECUTE s;
+--echo
 EXECUTE s2;
 SET optimizer_switch="subquery_to_derived=off";
 EXECUTE s;
+--echo
 EXECUTE s2;
 # The previous EXECUTE used MOCK and transformed the subquery to a derived
 # table; the next EXECUTE starts with InnoDB, and chooses InnoDB because
@@ -30,6 +33,7 @@ EXECUTE s2;
 # (subquery_to_derived is off), we have to reprepare:
 SET secondary_engine_cost_threshold = 10000;
 EXECUTE s;
+--echo
 EXECUTE s2;
 # The previous EXECUTE used InnoDB and no transformation. The next EXECUTE
 # starts with InnoDB, and does no transformation, even though one is requested
@@ -37,50 +41,65 @@ EXECUTE s2;
 # problem.
 SET optimizer_switch="subquery_to_derived=on";
 EXECUTE s;
+--echo
 EXECUTE s2;
 SET optimizer_switch="subquery_to_derived=off";
 EXECUTE s;
+--echo
 EXECUTE s2;
 SET secondary_engine_cost_threshold = 0;
 EXECUTE s;
+--echo
 EXECUTE s2;
 SET optimizer_switch="subquery_to_derived=on";
 EXECUTE s;
+--echo
 EXECUTE s2;
 SET optimizer_switch="subquery_to_derived=off";
 EXECUTE s;
+--echo
 EXECUTE s2;
 SET optimizer_switch="subquery_to_derived=on";
 --echo # Let transform be active for InnoDB while we the initial PREPARE
 PREPARE s FROM "EXPLAIN SELECT a FROM t1 WHERE a=(SELECT MAX(a) FROM t1) AND (a=TIMESTAMP'2006-06-06 15:55:55')";
 EXECUTE s;
+--echo
 EXECUTE s2;
 SET secondary_engine_cost_threshold = 0;
 EXECUTE s;
+--echo
 EXECUTE s2;
 SET optimizer_switch="subquery_to_derived=on";
 EXECUTE s;
+--echo
 EXECUTE s2;
 SET optimizer_switch="subquery_to_derived=off";
 EXECUTE s;
+--echo
 EXECUTE s2;
 SET secondary_engine_cost_threshold = 10000;
 EXECUTE s;
+--echo
 EXECUTE s2;
 SET optimizer_switch="subquery_to_derived=on";
 EXECUTE s;
+--echo
 EXECUTE s2;
 SET optimizer_switch="subquery_to_derived=off";
 EXECUTE s;
+--echo
 EXECUTE s2;
 SET secondary_engine_cost_threshold = 0;
 EXECUTE s;
+--echo
 EXECUTE s2;
 SET optimizer_switch="subquery_to_derived=on";
 EXECUTE s;
+--echo
 EXECUTE s2;
 SET optimizer_switch="subquery_to_derived=off";
 EXECUTE s;
+--echo
 EXECUTE s2;
 
 DROP PREPARE s;

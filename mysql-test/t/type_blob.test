@@ -106,7 +106,9 @@ select distinct t from t1;
 select distinct b from t1;
 select distinct t from t1 order by t;
 select distinct b from t1 order by b;
+--sorted_result
 select t from t1 group by t;
+--sorted_result
 select b from t1 group by b;
 set big_tables=1;
 select distinct t from t1;

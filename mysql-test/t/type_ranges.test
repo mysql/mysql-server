@@ -107,10 +107,15 @@ INSERT INTO t2 (string,mediumblob_col,new_field) SELECT string,mediumblob_col,ne
 select * from t2;
 
 # test enums
+--sorted_result
 select distinct flags from t1;
+--sorted_result
 select flags from t1 where find_in_set("two",flags)>0;
+--sorted_result
 select flags from t1 where find_in_set("unknown",flags)>0;
+--sorted_result
 select options,flags from t1 where options="ONE" and flags="ONE";
+--sorted_result
 select options,flags from t1 where options="one" and flags="one";
 
 drop table t2;

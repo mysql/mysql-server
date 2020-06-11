@@ -213,15 +213,15 @@ auto	string	mediumblob_col	new_field
 select distinct flags from t1;
 flags
 
-one,two,tree
 one
 one,two
+one,two,tree
 select flags from t1 where find_in_set("two",flags)>0;
 flags
-one,two,tree
-one,two,tree
 one,two
 one,two
+one,two,tree
+one,two,tree
 select flags from t1 where find_in_set("unknown",flags)>0;
 flags
 select options,flags from t1 where options="ONE" and flags="ONE";

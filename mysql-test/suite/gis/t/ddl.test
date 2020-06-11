@@ -6,6 +6,7 @@ CREATE TABLE t1 (no_srid POINT DEFAULT NULL,
                  srid_0 POINT SRID 0 DEFAULT NULL,
                  srid_4326 POINT SRID 4326 DEFAULT NULL);
 
+--sorted_result
 SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS;
 
 --echo # Insert some data with correct SRID into these columns
@@ -43,6 +44,7 @@ ALTER TABLE t1 CHANGE COLUMN srid_4326 srid_4326 POINT SRID 0 DEFAULT NULL;
 --echo # Removing the SRID specification from a column should work just fine.
 ALTER TABLE t1 CHANGE COLUMN srid_0 no_srid_2 POINT DEFAULT NULL;
 
+--skip_if_hypergraph   # Depends on the query plan.
 SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS;
 
 --echo # Setting the SRID to a non-existing SRID should not work.
@@ -76,6 +78,7 @@ DROP TABLE t1;
 --echo # The SRID property on a generated column should work
 CREATE TABLE t1 (col1 POINT SRID 4326,
                  col2 POINT AS (ST_SRID(col1, 0)) SRID 0);
+--skip_if_hypergraph   # Depends on the query plan.
 SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS;
 INSERT INTO t1 (col1) VALUES (ST_GeomFromText('POINT(1 1)', 4326));
 DROP TABLE t1;

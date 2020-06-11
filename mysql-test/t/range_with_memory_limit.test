@@ -1,3 +1,5 @@
+--source include/not_hypergraph.inc  # Hypergraph optimizer does not call range optimizer.
+
 --echo # Bug#17769777 EXCESSIVE MEMORY CONSUMPTION WITH MANY AND / BETWEEN
 --echo #              ITEMS
 --echo # Bug#17413040 USING MANY WHERE CONDITIONS MAKES RANGE SCAN DISABLED

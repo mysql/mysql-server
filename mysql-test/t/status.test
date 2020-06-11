@@ -230,24 +230,31 @@ INSERT INTO t1 VALUES (1), (2);
 
 analyze table t1;
 SELECT a FROM t1 LIMIT 1;
+--skip_if_hypergraph  # Different costs.
 SHOW SESSION STATUS LIKE 'Last_query_cost';
 
 EXPLAIN SELECT a FROM t1;
+--skip_if_hypergraph  # Different costs.
 SHOW SESSION STATUS LIKE 'Last_query_cost';
 
 SELECT a FROM t1 UNION SELECT a FROM t1 ORDER BY a;
+--skip_if_hypergraph  # Different costs.
 SHOW SESSION STATUS LIKE 'Last_query_cost';
 
 EXPLAIN SELECT a FROM t1 UNION SELECT a FROM t1 ORDER BY a;
+--skip_if_hypergraph  # Different costs.
 SHOW SESSION STATUS LIKE 'Last_query_cost';
 
 SELECT a IN (SELECT a FROM t1) FROM t1 LIMIT 1;
+--skip_if_hypergraph  # Different costs.
 SHOW SESSION STATUS LIKE 'Last_query_cost';
 
 SELECT (SELECT a FROM t1 LIMIT 1) x FROM t1 LIMIT 1;
+--skip_if_hypergraph  # Different costs.
 SHOW SESSION STATUS LIKE 'Last_query_cost';
 
 SELECT * FROM t1 a, t1 b ORDER BY a.a, b.a LIMIT 1;
+--skip_if_hypergraph  # Different costs.
 SHOW SESSION STATUS LIKE 'Last_query_cost';
 
 DROP TABLE t1;
@@ -492,46 +499,57 @@ INSERT INTO t1 VALUES (1, 2), (3, 4), (5, 6);
 ANALYZE TABLE t1;
 
 EXPLAIN SELECT * FROM t1;
+--skip_if_hypergraph  # Different costs.
 SHOW STATUS LIKE 'Last_query_cost';
 
 EXPLAIN SELECT (SELECT MAX(x) FROM t1) FROM t1;
+--skip_if_hypergraph  # Different costs.
 SHOW STATUS LIKE 'Last_query_cost';
 
 EXPLAIN SELECT * FROM t1 WHERE x IN (SELECT MAX(x) FROM t1);
+--skip_if_hypergraph  # Different costs.
 SHOW STATUS LIKE 'Last_query_cost';
 
 EXPLAIN SELECT /*+ NO_MERGE(a) */ * FROM (SELECT * FROM t1) a, t1 b;
+--skip_if_hypergraph  # Different costs.
 SHOW STATUS LIKE 'Last_query_cost';
 
 EXPLAIN SELECT * FROM t1 WHERE x > 0;
+--skip_if_hypergraph  # Different costs.
 SHOW STATUS LIKE 'Last_query_cost';
 
 EXPLAIN SELECT * FROM t1 WHERE y > 0;
+--skip_if_hypergraph  # Different costs.
 SHOW STATUS LIKE 'Last_query_cost';
 
 EXPLAIN SELECT * FROM t1 WHERE x > 0
         UNION ALL
         SELECT * FROM t1 WHERE y > 0;
+--skip_if_hypergraph  # Different costs.
 SHOW STATUS LIKE 'Last_query_cost';
 
 EXPLAIN SELECT * FROM t1 WHERE x > 0
         UNION DISTINCT
         SELECT * FROM t1 WHERE y > 0;
+--skip_if_hypergraph  # Different costs.
 SHOW STATUS LIKE 'Last_query_cost';
 
 EXPLAIN INSERT INTO t1 SELECT * FROM t1;
+--skip_if_hypergraph  # Different costs.
 SHOW STATUS LIKE 'Last_query_cost';
 
 EXPLAIN INSERT INTO t1
         SELECT * FROM t1 WHERE x > 0
         UNION ALL
         SELECT * FROM t1 WHERE y > 0;
+--skip_if_hypergraph  # Different costs.
 SHOW STATUS LIKE 'Last_query_cost';
 
 EXPLAIN INSERT INTO t1
         SELECT * FROM t1 WHERE x > 0
         UNION DISTINCT
         SELECT * FROM t1 WHERE y > 0;
+--skip_if_hypergraph  # Different costs.
 SHOW STATUS LIKE 'Last_query_cost';
 
 DROP TABLE t1;
@@ -566,6 +584,7 @@ ANALYZE TABLE t1, t2;
 
 EXPLAIN SELECT * FROM t1, t2 WHERE t1.i1 = t2.i1 ORDER BY t1.i1 LIMIT 10;
 
+--skip_if_hypergraph  # Different costs.
 SHOW STATUS LIKE 'Last_query_cost';
 
 DROP TABLE t1, t2;

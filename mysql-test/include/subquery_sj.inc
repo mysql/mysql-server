@@ -181,6 +181,7 @@ while ($i)
          eval PREPARE stmt FROM "$query";
          --sorted_result
          EXECUTE stmt;
+	 --echo
          --sorted_result
          EXECUTE stmt;
          DEALLOCATE PREPARE stmt;
@@ -203,6 +204,7 @@ while ($i)
          eval PREPARE stmt FROM "$query";
          --sorted_result
          EXECUTE stmt;
+	 --echo
          --sorted_result
          EXECUTE stmt;
          DEALLOCATE PREPARE stmt;
@@ -2241,6 +2243,7 @@ WHERE t1field IN (SELECT * FROM v2);
 
 --sorted_result
 EXECUTE stmt;
+--echo
 --sorted_result
 EXECUTE stmt;
 
@@ -2254,6 +2257,7 @@ WHERE t1field IN (SELECT * FROM v2)
 ";
 
 EXECUTE stmt;
+--echo
 EXECUTE stmt;
 
 DROP TABLE t1, t2, t3;
@@ -2420,6 +2424,7 @@ WHERE t1field IN (SELECT v1field FROM v1);
 ";
 
 EXECUTE stmt;
+--echo
 EXECUTE stmt;
 
 DROP PROCEDURE p1;
@@ -2735,6 +2740,7 @@ WHERE EMPNUM IN
         FROM t2
         WHERE PTYPE = 'Design'))";
 EXECUTE stmt;
+--echo
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
@@ -2761,6 +2767,7 @@ WHERE EMPNUM IN
         FROM t2
         WHERE PTYPE = 'Design'))";
 EXECUTE stmt;
+--echo
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
@@ -2786,6 +2793,7 @@ WHERE EMPNUM IN
         FROM t2
         WHERE PTYPE = 'Design'))";
 EXECUTE stmt;
+--echo
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
@@ -3822,6 +3830,7 @@ WHERE t1.id IN (
     )
   )';
 EXECUTE stmt;
+--echo
 EXECUTE stmt;
 
 PREPARE stmt FROM
@@ -3836,6 +3845,7 @@ WHERE t1.id IN (
     )
   )';
 EXECUTE stmt;
+--echo
 EXECUTE stmt;
 
 DROP TABLE t1,t2,t3;
@@ -3882,6 +3892,7 @@ WHERE country_id IN (SELECT vf_country_id FROM v1);
 --echo
 --sorted_result
 EXECUTE stmt;
+--echo
 --sorted_result
 EXECUTE stmt;
 
@@ -4023,6 +4034,7 @@ let $query=
 SELECT * FROM t1 WHERE t1.i IN (SELECT t2.i
                                 FROM t2 JOIN t3
                                 WHERE t2.i + t3.i = 5);
+--sorted_result
 eval $query;
 eval explain $query;
 
@@ -5680,6 +5692,7 @@ FROM t2 AS alias1
 ';
 
 EXECUTE stmt;
+--echo
 EXECUTE stmt;
 
 DEALLOCATE prepare stmt;
@@ -6036,6 +6049,7 @@ WHERE EXISTS
 ";
 
 EXECUTE stmt;
+--echo
 EXECUTE stmt;
 
 DEALLOCATE PREPARE stmt;
@@ -6378,6 +6392,7 @@ eval explain $query;
 eval PREPARE stmt FROM "$query";
 --sorted_result
 EXECUTE stmt;
+--echo
 --sorted_result
 EXECUTE stmt;
 
@@ -7106,6 +7121,7 @@ AND t2.uid=t1.fid;
 
 FLUSH STATUS;
 
+--sorted_result
 SELECT name FROM t2, t1
 WHERE t1.uid IN (SELECT t4.uid FROM t4, t3 WHERE t3.uid=1 AND t4.uid=t3.fid)
 AND t2.uid=t1.fid;

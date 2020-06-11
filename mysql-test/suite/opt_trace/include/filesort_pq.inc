@@ -209,6 +209,7 @@ SELECT * FROM information_schema.OPTIMIZER_TRACE;
 
 # Tests printing of MaterializeIterator with multiple iterators
 # on top of the table iterator.
+--skip_if_hypergraph  # Does not support pushing LIMIT into the sorts yet.
 EXPLAIN FORMAT=tree SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30;
 
 CREATE VIEW v2 as SELECT * FROM t1 ORDER BY f2, f0 LIMIT 100;

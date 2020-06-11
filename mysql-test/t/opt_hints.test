@@ -91,6 +91,7 @@ set optimizer_switch='batched_key_access=off,mrr_cost_based=off';
 
 --echo # Check statistics without hint
 FLUSH STATUS;
+--sorted_result
 SELECT t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
 --skip_if_hypergraph  # Does not support hints yet.
@@ -98,6 +99,7 @@ SHOW STATUS LIKE 'handler_read%';
 
 --echo # Check statistics with hint
 FLUSH STATUS;
+--sorted_result
 SELECT /*+ BKA() */ t2.f1, t2.f2, t2.f3 FROM t1,t2
 WHERE t1.f1=t2.f1 AND t2.f2 BETWEEN t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
 --skip_if_hypergraph  # Does not support hints yet.
@@ -311,6 +313,7 @@ INSERT INTO t3 VALUES (1,1),(2,2);
 
 --echo # Check statistics without hint
 FLUSH STATUS;
+--sorted_result
 SELECT t1.* FROM t1,t2,t3;
 --skip_if_hypergraph  # Does not support hints yet.
 SHOW STATUS LIKE 'handler_read%';

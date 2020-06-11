@@ -22,14 +22,23 @@ explain select * from t1 where (a is null and b>a) or a is null and b=7 limit 2;
 explain select * from t1 where a is null and b=9 or a is null and b=7 limit 3;
 explain select * from t1 where a > 1 and a < 3 limit 1;
 explain select * from t1 where a > 8 and a < 9;
+--sorted_result
 select * from t1 where a is null;
+--sorted_result
 select * from t1 where a is null and b = 7;
+--sorted_result
 select * from t1 where a<=>b limit 2;
+--sorted_result
 select * from t1 where (a is null or a > 0 and a < 3) and b < 5 limit 3;
+--sorted_result
 select * from t1 where (a is null or a > 0 and a < 3) and b > 7 limit 3;
+--sorted_result
 select * from t1 where (a is null or a = 7) and b=7;
+--sorted_result
 select * from t1 where a is null and b=9 or a is null and b=7 limit 3;
+--sorted_result
 select * from t1 where a > 1 and a < 3 limit 1;
+--sorted_result
 select * from t1 where a > 8 and a < 9;
 create table t2 like t1;
 insert into t2 select * from t1;
@@ -47,13 +56,21 @@ explain select * from t1 where a > 1 and a < 3 limit 1;
 explain select * from t1 where a is null and b=7 or a > 1 and a < 3 limit 1;
 explain select * from t1 where a > 8 and a < 9;
 explain select * from t1 where b like "6%";
+--sorted_result
 select * from t1 where a is null;
+--sorted_result
 select * from t1 where a is null and b = 7 and c=0;
+--sorted_result
 select * from t1 where a<=>b limit 2;
+--sorted_result
 select * from t1 where (a is null or a > 0 and a < 3) and b < 5 limit 3;
+--sorted_result
 select * from t1 where (a is null or a > 0 and a < 3) and b > 7 limit 3;
+--sorted_result
 select * from t1 where (a is null or a = 7) and b=7 and c=0;
+--sorted_result
 select * from t1 where a is null and b=9 or a is null and b=7 limit 3;
+--sorted_result
 select * from t1 where b like "6%";
 
 #

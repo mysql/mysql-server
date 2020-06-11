@@ -529,6 +529,7 @@ EXPLAIN SELECT c1 FROM t2 WHERE (c1 > 12 AND c1 < 15);
 
 FLUSH STATUS;
 SELECT c1 FROM t2 WHERE (c1 > 12 AND c1 < 15);
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read_%';
 DROP TABLE t1,t2;
 
@@ -1212,6 +1213,7 @@ insert into t1 values (NULL, 1, 1);
 insert into t1 values (0, 1, 1);
 insert into t1 values (12, 1, 1);
 
+--sorted_result
 select partition_name, partition_description, table_rows
 from information_schema.partitions where table_schema ='test';
 SHOW CREATE TABLE t1;
@@ -1250,6 +1252,7 @@ partitions 2
 insert into t1 values (11,1,6);
 insert into t1 values (NULL,1,1);
 
+--sorted_result
 select partition_name, partition_description, table_rows
 from information_schema.partitions where table_schema ='test';
 drop table t1;

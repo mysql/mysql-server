@@ -103,7 +103,9 @@ INSERT INTO t2 (a, b, c) SELECT t1.i, t1.i, t1.i FROM t1, t1 x1, t1 x2;
 
 FLUSH STATUS;
 SELECT * FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 12;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort%';
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Handler_read_%';
 
 let $cnt = `SELECT COUNT(*) FROM t2 WHERE b = 10`;

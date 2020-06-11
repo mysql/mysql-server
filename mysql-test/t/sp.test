@@ -714,6 +714,7 @@ begin
 end|
 
 call create_select("cs", 90)|
+--sorted_result
 select * from t1, t3|
 drop table t3|
 delete from t1|
@@ -893,6 +894,7 @@ begin
 end|
 
 call hndlr4()|
+--sorted_result
 select * from t3|
 drop table t3|
 drop procedure hndlr4|
@@ -1380,6 +1382,7 @@ begin
 end|
 
 call ifac(20)|
+--sorted_result
 select * from t3|
 drop table t3|
 --replace_column 4 'root@localhost' 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'

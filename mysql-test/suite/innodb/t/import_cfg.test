@@ -243,12 +243,14 @@ ALTER TABLE t1 IMPORT TABLESPACE;
 --sorted_result
 SELECT * FROM t1;
 SELECT * FROM t1 order by a;
+--skip_if_hypergraph  # Does not use the index leading to the error.
 SELECT * FROM t1 order by b;
 INSERT INTO t1 VALUES (3, 3);
 INSERT INTO t1 VALUES (4, 4);
 --sorted_result
 SELECT * FROM t1;
 SELECT * FROM t1 order by a;
+--skip_if_hypergraph  # Does not use the index leading to the error.
 SELECT * FROM t1 order by b;
 DROP TABLE t1;
 

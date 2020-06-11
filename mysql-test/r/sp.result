@@ -1188,14 +1188,6 @@ call ifac(20)|
 select * from t3|
 n	f
 1	1
-2	2
-3	6
-4	24
-5	120
-6	720
-7	5040
-8	40320
-9	362880
 10	3628800
 11	39916800
 12	479001600
@@ -1206,7 +1198,15 @@ n	f
 17	355687428096000
 18	6402373705728000
 19	121645100408832000
+2	2
 20	2432902008176640000
+3	6
+4	24
+5	120
+6	720
+7	5040
+8	40320
+9	362880
 drop table t3|
 show function status like '%fac'|
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation

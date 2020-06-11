@@ -353,6 +353,7 @@ INSERT INTO t1 VALUES (1, 'string');
 INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
+--skip_if_hypergraph  # Does not support these hints.
 --error ER_TOO_BIG_SELECT
 SELECT /*+ SET_VAR(sql_big_selects=0) SET_VAR(max_join_size=1) */ * FROM t1 a, t1 b;
 DROP TABLE t1;

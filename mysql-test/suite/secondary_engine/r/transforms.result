@@ -21,6 +21,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using secondary engine MOCK
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select max(`test`.`t1`.`a`) AS `MAX(a)` from `test`.`t1`) `derived_1_2` where ((`test`.`t1`.`a` = TIMESTAMP'2006-06-06 15:55:55') and (`derived_1_2`.`MAX(a)` = TIMESTAMP'2006-06-06 15:55:55'))
+
 EXECUTE s2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using secondary engine MOCK
@@ -36,6 +37,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using secondary engine MOCK
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select max(`test`.`t1`.`a`) AS `MAX(a)` from `test`.`t1`) `derived_1_2` where ((`test`.`t1`.`a` = TIMESTAMP'2006-06-06 15:55:55') and (`derived_1_2`.`MAX(a)` = TIMESTAMP'2006-06-06 15:55:55'))
+
 EXECUTE s2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using secondary engine MOCK
@@ -51,6 +53,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using secondary engine MOCK
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select max(`test`.`t1`.`a`) AS `MAX(a)` from `test`.`t1`) `derived_1_2` where ((`test`.`t1`.`a` = TIMESTAMP'2006-06-06 15:55:55') and (`derived_1_2`.`MAX(a)` = TIMESTAMP'2006-06-06 15:55:55'))
+
 EXECUTE s2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using secondary engine MOCK
@@ -65,6 +68,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = (/* select#2 */ select max(`test`.`t1`.`a`) from `test`.`t1`))
+
 EXECUTE s2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
@@ -78,6 +82,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = (/* select#2 */ select max(`test`.`t1`.`a`) from `test`.`t1`))
+
 EXECUTE s2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
@@ -91,6 +96,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = (/* select#2 */ select max(`test`.`t1`.`a`) from `test`.`t1`))
+
 EXECUTE s2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
@@ -105,6 +111,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using secondary engine MOCK
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select max(`test`.`t1`.`a`) AS `MAX(a)` from `test`.`t1`) `derived_1_2` where ((`test`.`t1`.`a` = TIMESTAMP'2006-06-06 15:55:55') and (`derived_1_2`.`MAX(a)` = TIMESTAMP'2006-06-06 15:55:55'))
+
 EXECUTE s2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using secondary engine MOCK
@@ -120,6 +127,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using secondary engine MOCK
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select max(`test`.`t1`.`a`) AS `MAX(a)` from `test`.`t1`) `derived_1_2` where ((`test`.`t1`.`a` = TIMESTAMP'2006-06-06 15:55:55') and (`derived_1_2`.`MAX(a)` = TIMESTAMP'2006-06-06 15:55:55'))
+
 EXECUTE s2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using secondary engine MOCK
@@ -135,6 +143,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using secondary engine MOCK
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select max(`test`.`t1`.`a`) AS `MAX(a)` from `test`.`t1`) `derived_1_2` where ((`test`.`t1`.`a` = TIMESTAMP'2006-06-06 15:55:55') and (`derived_1_2`.`MAX(a)` = TIMESTAMP'2006-06-06 15:55:55'))
+
 EXECUTE s2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using secondary engine MOCK
@@ -152,6 +161,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using secondary engine MOCK
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select max(`test`.`t1`.`a`) AS `MAX(a)` from `test`.`t1`) `derived_1_2` where ((`test`.`t1`.`a` = TIMESTAMP'2006-06-06 15:55:55') and (`derived_1_2`.`MAX(a)` = TIMESTAMP'2006-06-06 15:55:55'))
+
 EXECUTE s2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using secondary engine MOCK
@@ -167,6 +177,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using secondary engine MOCK
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select max(`test`.`t1`.`a`) AS `MAX(a)` from `test`.`t1`) `derived_1_2` where ((`test`.`t1`.`a` = TIMESTAMP'2006-06-06 15:55:55') and (`derived_1_2`.`MAX(a)` = TIMESTAMP'2006-06-06 15:55:55'))
+
 EXECUTE s2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using secondary engine MOCK
@@ -182,6 +193,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using secondary engine MOCK
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select max(`test`.`t1`.`a`) AS `MAX(a)` from `test`.`t1`) `derived_1_2` where ((`test`.`t1`.`a` = TIMESTAMP'2006-06-06 15:55:55') and (`derived_1_2`.`MAX(a)` = TIMESTAMP'2006-06-06 15:55:55'))
+
 EXECUTE s2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using secondary engine MOCK
@@ -197,6 +209,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using secondary engine MOCK
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select max(`test`.`t1`.`a`) AS `MAX(a)` from `test`.`t1`) `derived_1_2` where ((`test`.`t1`.`a` = TIMESTAMP'2006-06-06 15:55:55') and (`derived_1_2`.`MAX(a)` = TIMESTAMP'2006-06-06 15:55:55'))
+
 EXECUTE s2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using secondary engine MOCK
@@ -211,6 +224,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = (/* select#2 */ select max(`test`.`t1`.`a`) from `test`.`t1`))
+
 EXECUTE s2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
@@ -224,6 +238,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = (/* select#2 */ select max(`test`.`t1`.`a`) from `test`.`t1`))
+
 EXECUTE s2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
@@ -237,6 +252,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = (/* select#2 */ select max(`test`.`t1`.`a`) from `test`.`t1`))
+
 EXECUTE s2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
@@ -251,6 +267,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using secondary engine MOCK
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select max(`test`.`t1`.`a`) AS `MAX(a)` from `test`.`t1`) `derived_1_2` where ((`test`.`t1`.`a` = TIMESTAMP'2006-06-06 15:55:55') and (`derived_1_2`.`MAX(a)` = TIMESTAMP'2006-06-06 15:55:55'))
+
 EXECUTE s2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using secondary engine MOCK
@@ -266,6 +283,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using secondary engine MOCK
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select max(`test`.`t1`.`a`) AS `MAX(a)` from `test`.`t1`) `derived_1_2` where ((`test`.`t1`.`a` = TIMESTAMP'2006-06-06 15:55:55') and (`derived_1_2`.`MAX(a)` = TIMESTAMP'2006-06-06 15:55:55'))
+
 EXECUTE s2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using secondary engine MOCK
@@ -281,6 +299,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using secondary engine MOCK
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select max(`test`.`t1`.`a`) AS `MAX(a)` from `test`.`t1`) `derived_1_2` where ((`test`.`t1`.`a` = TIMESTAMP'2006-06-06 15:55:55') and (`derived_1_2`.`MAX(a)` = TIMESTAMP'2006-06-06 15:55:55'))
+
 EXECUTE s2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using secondary engine MOCK

@@ -16,7 +16,9 @@ UPDATE t1 SET fld1= 2;
 --replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
 EXPLAIN SELECT fld2 FROM t2;
 --enable_warnings
+--sorted_result
 SELECT fld2 FROM t2;
+--sorted_result
 SELECT * FROM t2;
 DROP TABLE t2, t1;
 
@@ -33,6 +35,7 @@ UPDATE t1 SET fld1= 2;
 EXPLAIN SELECT fld2 FROM t2;
 --enable_warnings
 SELECT fld2 FROM t2;
+--sorted_result
 SELECT * FROM t2;
 DROP TABLE t2, t1;
 
@@ -66,7 +69,9 @@ DELETE FROM t1 WHERE fld1= 1;
 --replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
 EXPLAIN SELECT fld2 FROM t2;
 --enable_warnings
+--sorted_result
 SELECT fld2 FROM t2;
+--sorted_result
 SELECT * FROM t2;
 DROP TABLE t2, t1;
 
@@ -95,6 +100,7 @@ CREATE TABLE t2(fld1 INT NOT NULL, fld2 INT AS (fld1) VIRTUAL,
 INSERT INTO t1(fld1) VALUES(1);
 INSERT INTO t2(fld1) VALUES(1);
 UPDATE t1 SET fld1= 2;
+--sorted_result
 SELECT fld2 FROM t2;
 --disable_warnings
 --replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
@@ -114,6 +120,7 @@ CREATE TABLE t2(fld1 INT NOT NULL, fld2 INT AS (fld1) VIRTUAL, KEY vk(fld2),
 INSERT INTO t1(fld1) VALUES(1);
 INSERT INTO t2(fld1) VALUES(1);
 UPDATE t1 SET fld1= 2;
+--sorted_result
 SELECT fld2, fld1 FROM t2;
 --disable_warnings
 --replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
@@ -121,6 +128,7 @@ EXPLAIN SELECT fld2, fld1 FROM t2;
 --enable_warnings
 ALTER TABLE t2 DROP INDEX vk, ALGORITHM= COPY;
 UPDATE t1 SET fld1= 3;
+--sorted_result
 SELECT fld2, fld1 FROM t2;
 --disable_warnings
 --replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
@@ -136,6 +144,7 @@ CREATE TABLE t2(fld1 INT NOT NULL, fld2 INT AS (fld1) VIRTUAL,
 INSERT INTO t1(fld1) VALUES(1);
 INSERT INTO t2(fld1) VALUES(1);
 UPDATE t1 SET fld1= 2;
+--sorted_result
 SELECT fld2, fld1 FROM t2;
 --disable_warnings
 --replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
@@ -143,6 +152,7 @@ EXPLAIN SELECT fld2, fld1 FROM t2;
 --enable_warnings
 ALTER TABLE t2 DROP INDEX vk, ALGORITHM= COPY;
 UPDATE t1 SET fld1= 3;
+--sorted_result
 SELECT fld2, fld1 FROM t2;
 --disable_warnings
 --replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
@@ -158,9 +168,11 @@ CREATE TABLE t2(fld1 INT NOT NULL, fld2 INT AS (fld1) VIRTUAL,
 INSERT INTO t1(fld1) VALUES(1);
 INSERT INTO t2(fld1) VALUES(1);
 UPDATE t1 SET fld1= 2;
+--sorted_result
 SELECT fld2, fld1 FROM t2;
 ALTER TABLE t2 ADD INDEX vk(fld2), ALGORITHM= COPY;
 UPDATE t1 SET fld1= 3;
+--sorted_result
 SELECT fld2, fld1 FROM t2;
 --disable_warnings
 --replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
@@ -176,9 +188,11 @@ CREATE TABLE t2(fld1 INT NOT NULL,fld2 INT AS (fld1) VIRTUAL,
 INSERT INTO t1(fld1) VALUES(1);
 INSERT INTO t2(fld1) VALUES(1);
 UPDATE t1 SET fld1= 2;
+--sorted_result
 SELECT fld2, fld1 FROM t2;
 ALTER TABLE t2 ADD INDEX vk(fld2), ALGORITHM= INPLACE;
 UPDATE t1 SET fld1= 3;
+--sorted_result
 SELECT fld2, fld1 FROM t2;
 --disable_warnings
 --replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
@@ -270,10 +284,12 @@ UPDATE t1 SET fld1= 4 WHERE fld1= 1;
 --disable_warnings
 --replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
 EXPLAIN SELECT fld2, fld1 FROM t2;
+--sorted_result
 SELECT fld2, fld1 FROM t2;
 --replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
 EXPLAIN SELECT fld2, fld1 FROM t3;
 --enable_warnings
+--sorted_result
 SELECT fld2, fld1 FROM t3;
 DROP TABLE t3, t2, t1;
 
@@ -312,10 +328,12 @@ DELETE FROM t1 WHERE fld1= 1;
 --disable_warnings
 --replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
 EXPLAIN SELECT fld2, fld1 FROM t2;
+--sorted_result
 SELECT fld2, fld1 FROM t2;
 --replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
 EXPLAIN SELECT fld2, fld1 FROM t3;
 --enable_warnings
+--sorted_result
 SELECT fld2, fld1 FROM t3;
 DROP TABLE t3, t2, t1;
 
@@ -358,6 +376,7 @@ DELETE FROM t1 WHERE fld1= 1;
 --replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
 EXPLAIN SELECT fld2, fld1 FROM t3;
 --enable_warnings
+--sorted_result
 SELECT fld2, fld1 FROM t3;
 DROP TABLE t3, t1;
 
@@ -373,6 +392,7 @@ SET foreign_key_checks = 0;
 ALTER TABLE t2 ADD INDEX vk(fld2), ALGORITHM=INPLACE;
 SET foreign_key_checks = 1;
 UPDATE t1 SET fld1= 3 WHERE fld1= 2;
+--sorted_result
 SELECT fld2 FROM t2;
 --disable_warnings
 --replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
@@ -395,6 +415,7 @@ UPDATE t1 SET fld1= 0 WHERE fld1= 2;
 --disable_warnings
 --replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
 EXPLAIN SELECT fld2 FROM t2;
+--sorted_result
 SELECT fld2 FROM t2;
 --enable_warnings
 DROP TABLE t2, t1;
@@ -413,6 +434,7 @@ UPDATE t1 SET fld1= 0 WHERE fld1= 2;
 --disable_warnings
 --replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
 EXPLAIN SELECT fld2 FROM t2;
+--sorted_result
 SELECT fld2 FROM t2;
 SELECT * FROM t2;
 --enable_warnings
@@ -433,6 +455,7 @@ UPDATE t1 SET fld1= 2;
 --replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
 EXPLAIN SELECT fld2 FROM t2;
 --enable_warnings
+--sorted_result
 SELECT fld2 FROM t2;
 SELECT * FROM t2;
 DROP TABLE t2, t1;
@@ -453,6 +476,7 @@ UPDATE t1 SET fld1= 2;
 --replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
 EXPLAIN SELECT fld2 FROM t2;
 --enable_warnings
+--sorted_result
 SELECT fld2 FROM t2;
 SELECT * FROM t2;
 DROP TABLE t2, t1;
@@ -471,6 +495,7 @@ UPDATE t1 SET fld1= 2;
 --replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
 EXPLAIN SELECT fld2 FROM t2;
 --enable_warnings
+--sorted_result
 SELECT fld2 FROM t2;
 SELECT * FROM t2;
 DROP TABLE t2, t1;
@@ -491,6 +516,7 @@ UPDATE t1 SET fld1= 2;
 --replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
 EXPLAIN SELECT fld2 FROM t2;
 --enable_warnings
+--sorted_result
 SELECT fld2 FROM t2;
 SELECT * FROM t2;
 DROP TABLE t2, t1;
@@ -508,6 +534,7 @@ UPDATE t1 SET fld1= 2;
 --replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
 EXPLAIN SELECT fld2 FROM t2;
 --enable_warnings
+--sorted_result
 SELECT fld2 FROM t2;
 SELECT * FROM t2;
 DROP TABLE t2, t1;
@@ -527,6 +554,7 @@ UPDATE t1 SET fld1= 2;
 --replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
 EXPLAIN SELECT fld2 FROM t2;
 --enable_warnings
+--sorted_result
 SELECT fld2 FROM t2;
 SELECT * FROM t2;
 DROP TABLE t2, t1;
@@ -545,6 +573,7 @@ UPDATE t1 SET fld1= 2;
 --replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
 EXPLAIN SELECT fld2 FROM t2;
 --enable_warnings
+--sorted_result
 SELECT fld2 FROM t2;
 SELECT * FROM t2;
 DROP TABLE t2, t1;
@@ -565,6 +594,7 @@ UPDATE t1 SET fld1= 2;
 --replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
 EXPLAIN SELECT fld2 FROM t2;
 --enable_warnings
+--sorted_result
 SELECT fld2 FROM t2;
 SELECT * FROM t2;
 DROP TABLE t2, t1;
@@ -583,6 +613,7 @@ UPDATE t1 SET fld1= 2;
 --replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
 EXPLAIN SELECT fld2 FROM t2;
 --enable_warnings
+--sorted_result
 SELECT fld2 FROM t2;
 SELECT * FROM t2;
 DROP TABLE t2, t1;
@@ -603,6 +634,7 @@ UPDATE t1 SET fld1= 2;
 --replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
 EXPLAIN SELECT fld2 FROM t2;
 --enable_warnings
+--sorted_result
 SELECT fld2 FROM t2;
 SELECT * FROM t2;
 DROP TABLE t2, t1;
@@ -622,6 +654,7 @@ UPDATE t1 SET fld1= 2;
 --replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
 EXPLAIN SELECT fld2 FROM t2;
 --enable_warnings
+--sorted_result
 SELECT fld2 FROM t2;
 SELECT * FROM t2;
 DROP TABLE t2, t1;
@@ -643,6 +676,7 @@ UPDATE t1 SET fld1= 2;
 --replace_column 1 x 2 x 4 x 6 x 8 x 9 x 10 x 11 x 12 x
 EXPLAIN SELECT fld2 FROM t2;
 --enable_warnings
+--sorted_result
 SELECT fld2 FROM t2;
 SELECT * FROM t2;
 DROP TABLE t2, t1;

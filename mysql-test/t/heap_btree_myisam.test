@@ -14,11 +14,16 @@ drop table t1;
 
 create table t1 (a int not null) engine=heap;
 insert into t1 values (869751),(736494),(226312),(802616),(728912);
+--sorted_result
 select * from t1 where a > 736494;
 alter table t1 add unique uniq_id using BTREE (a);
+--sorted_result
 select * from t1 where a > 736494;
+--sorted_result
 select * from t1 where a = 736494;
+--sorted_result
 select * from t1 where a=869751 or a=736494;
+--sorted_result
 select * from t1 where a in (869751,736494,226312,802616);
 alter table t1 engine=myisam;
 explain select * from t1 where a in (869751,736494,226312,802616);
