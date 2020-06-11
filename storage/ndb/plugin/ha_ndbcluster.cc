@@ -140,7 +140,7 @@ static bool opt_ndb_fully_replicated;
 static ulong opt_ndb_row_checksum;
 
 // The version where ndbcluster uses DYNAMIC by default when creating columns
-static ulong NDB_VERSION_DYNAMIC_IS_DEFAULT = 50711;
+static const ulong NDB_VERSION_DYNAMIC_IS_DEFAULT = 50711;
 enum ndb_default_colum_format_enum {
   NDB_DEFAULT_COLUMN_FORMAT_FIXED = 0,
   NDB_DEFAULT_COLUMN_FORMAT_DYNAMIC = 1
@@ -14816,22 +14816,21 @@ static inline enum_alter_inplace_result inplace_unsupported(
   return HA_ALTER_INPLACE_NOT_SUPPORTED;
 }
 
-void ha_ndbcluster::check_implicit_column_format_change(
-    TABLE *altered_table, Alter_inplace_info *ha_alter_info) const {
-  /*
-    We need to check if the table was defined when the default COLUMN_FORMAT
-    was FIXED and will now be become DYNAMIC.
-    We need to warn the user if the ALTER TABLE isn't defined to be INPLACE
-    and the column which will change isn't about to be dropped.
-  */
+/*
+  Check if the table was defined when the default COLUMN_FORMAT
+  was FIXED and will now be become DYNAMIC.
+  Warn the user if the ALTER TABLE isn't defined to be INPLACE
+  and the column which will change isn't about to be dropped.
+*/
+static void check_implicit_column_format_change(
+    const TABLE *const table, const TABLE *const altered_table,
+    const Alter_inplace_info *const ha_alter_info) {
   DBUG_TRACE;
-  DBUG_PRINT("info",
-             ("Checking table with version %lu", table->s->mysql_version));
-  Alter_inplace_info::HA_ALTER_FLAGS alter_flags = ha_alter_info->handler_flags;
+  DBUG_PRINT("enter", ("table version: %lu", table->s->mysql_version));
 
   /* Find the old fields */
   for (uint i = 0; i < table->s->fields; i++) {
-    Field *field = table->field[i];
+    const Field *field = table->field[i];
 
     /*
       Find fields that are not part of the primary key
@@ -14844,15 +14843,17 @@ void ha_ndbcluster::check_implicit_column_format_change(
       bool dropped = false;
       /*
         If the field is dropped or
-        modified with and explicit COLUMN_FORMAT (FIXED or DYNAMIC)
+        modified with an explicit COLUMN_FORMAT (FIXED or DYNAMIC)
         we don't need to warn the user about that field.
       */
+      const Alter_inplace_info::HA_ALTER_FLAGS alter_flags =
+          ha_alter_info->handler_flags;
       if (alter_flags & Alter_inplace_info::DROP_COLUMN ||
           alter_flags & Alter_inplace_info::ALTER_COLUMN_COLUMN_FORMAT) {
         if (alter_flags & Alter_inplace_info::DROP_COLUMN) dropped = true;
-        /* Find the fields in modified table*/
+        /* Find the fields in modified table */
         for (uint j = 0; j < altered_table->s->fields; j++) {
-          Field *field2 = altered_table->field[j];
+          const Field *field2 = altered_table->field[j];
           if (!my_strcasecmp(system_charset_info, field->field_name,
                              field2->field_name)) {
             dropped = false;
@@ -14868,7 +14869,7 @@ void ha_ndbcluster::check_implicit_column_format_change(
                      ("Field  %s is modified with explicit COLUMN_FORMAT",
                       field->field_name));
       }
-      if ((!dropped) && (!modified_explicitly)) {
+      if (!dropped && !modified_explicitly) {
         // push a warning of COLUMN_FORMAT change
         push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                             ER_ALTER_INFO,
@@ -15615,9 +15616,8 @@ enum_alter_inplace_result ha_ndbcluster::check_inplace_alter_supported(
 enum_alter_inplace_result ha_ndbcluster::check_if_supported_inplace_alter(
     TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
   DBUG_TRACE;
-  Alter_info *alter_info = ha_alter_info->alter_info;
 
-  enum_alter_inplace_result result =
+  const enum_alter_inplace_result result =
       check_inplace_alter_supported(altered_table, ha_alter_info);
 
   if (result == HA_ALTER_INPLACE_NOT_SUPPORTED) {
@@ -15625,14 +15625,14 @@ enum_alter_inplace_result ha_ndbcluster::check_if_supported_inplace_alter(
       The ALTER TABLE is not supported inplace and will fall back
       to use copying ALTER TABLE. If --ndb-default-column-format is dynamic
       by default, the table was created by an older MySQL version and the
-      algorithm for the alter table is not  inplace then then check for
+      algorithm for the alter table is not inplace -> check for
       implicit changes and print warnings.
     */
     if ((opt_ndb_default_column_format == NDB_DEFAULT_COLUMN_FORMAT_DYNAMIC) &&
         (table->s->mysql_version < NDB_VERSION_DYNAMIC_IS_DEFAULT) &&
-        (alter_info->requested_algorithm !=
+        (ha_alter_info->alter_info->requested_algorithm !=
          Alter_info::ALTER_TABLE_ALGORITHM_INPLACE)) {
-      check_implicit_column_format_change(altered_table, ha_alter_info);
+      check_implicit_column_format_change(table, altered_table, ha_alter_info);
     }
   }
   return result;
