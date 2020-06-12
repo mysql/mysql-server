@@ -1557,10 +1557,7 @@ close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
 
 /* Check if the table belongs to the P_S, excluding setup and threads tables. */
 #define BELONGS_TO_P_S_UNDER_LTM(thd, tl) \
-   (UNDER_LTM(thd) && \
-    (!strcmp("performance_schema", tl->db) && \
-     strcmp(tl->table_name, "threads") && \
-     strstr(tl->table_name, "setup_") == NULL))
+   (UNDER_LTM(thd) && belongs_to_p_s(tl))
 
 /*
   Close all tables used by the current substatement, or all tables
