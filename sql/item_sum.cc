@@ -2988,6 +2988,7 @@ void Item_sum_hybrid::split_sum_func(THD *thd, Ref_item_array ref_item_array,
 void Item_sum_hybrid::cleanup() {
   DBUG_TRACE;
   Item_sum::cleanup();
+  if (cmp != nullptr) cmp->cleanup();
   /*
     by default it is true to avoid true reporting by
     Item_func_not_all/Item_func_nop_all if this item was never called.

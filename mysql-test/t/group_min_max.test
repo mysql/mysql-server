@@ -1823,3 +1823,14 @@ SET end_markers_in_json=DEFAULT;
 DROP TABLE a;
 
 --echo # End of test for Bug#24423143
+
+--echo #
+--echo # Bug #31475700 REGRESSION: MEMORY LEAK AFTER
+--echo #               ITEM_SUM_HYBRID::MIN_MAX_UPDATE_STR_FIELD
+--echo #
+
+CREATE TABLE t(a TEXT);
+INSERT t VALUES('a'),('a');
+
+SELECT a, MAX(TRIM('1' FROM ~1)) FROM t GROUP BY a;
+DROP TABLE t;
