@@ -45,8 +45,6 @@
 #include "storage/ndb/src/ndbapi/NdbQueryBuilder.hpp"
 #include "storage/ndb/src/ndbapi/NdbQueryOperation.hpp"
 
-typedef NdbDictionary::Table NDBTAB;
-
 /**
  * antijoin_null_cond is inserted by the optimizer when it create the
  * special antijoin-NULL-condition. It serves as a token to uniquely

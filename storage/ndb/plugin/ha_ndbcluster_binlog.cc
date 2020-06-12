@@ -74,7 +74,6 @@
 #include "storage/ndb/plugin/ndb_upgrade_util.h"
 
 typedef NdbDictionary::Event NDBEVENT;
-typedef NdbDictionary::Column NDBCOL;
 typedef NdbDictionary::Table NDBTAB;
 
 extern bool opt_ndb_log_orig;

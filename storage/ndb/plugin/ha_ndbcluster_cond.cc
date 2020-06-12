@@ -37,18 +37,14 @@
 #include "storage/ndb/plugin/ndb_log.h"
 #include "storage/ndb/plugin/ndb_thd.h"
 
-// Typedefs for long names
-typedef NdbDictionary::Column NDBCOL;
-typedef NdbDictionary::Table NDBTAB;
-
-typedef enum ndb_item_type {
+enum NDB_ITEM_TYPE {
   NDB_VALUE = 0,     // Qualified more with Item::Type
   NDB_FIELD = 1,     // Qualified from table definition
   NDB_FUNCTION = 2,  // Qualified from Item_func::Functype
   NDB_END_COND = 3   // End marker for condition group
-} NDB_ITEM_TYPE;
+};
 
-typedef enum ndb_func_type {
+enum NDB_FUNC_TYPE {
   NDB_EQ_FUNC = 0,
   NDB_NE_FUNC = 1,
   NDB_LT_FUNC = 2,
@@ -63,9 +59,9 @@ typedef enum ndb_func_type {
   NDB_COND_AND_FUNC = 11,
   NDB_COND_OR_FUNC = 12,
   NDB_UNSUPPORTED_FUNC = 13
-} NDB_FUNC_TYPE;
+};
 
-typedef union ndb_item_value {
+union NDB_ITEM_VALUE {
   const Item *item;  // NDB_VALUE
   struct {           // NDB_FIELD
     Field *field;
@@ -75,7 +71,7 @@ typedef union ndb_item_value {
     NDB_FUNC_TYPE func_type;
     uint arg_count;
   };
-} NDB_ITEM_VALUE;
+};
 
 /*
   Mapping defining the negated and swapped function equivalent
@@ -878,7 +874,7 @@ static void ndb_serialize_cond(const Item *item, void *arg) {
               // Found a Field_item of a supported type. and from 'this' table
               DBUG_ASSERT(context->table == field->table);
 
-              const NDBCOL *col =
+              const NdbDictionary::Column *col =
                   context->ndb_table->getColumn(field->field_name);
               DBUG_ASSERT(col);
               ndb_item = new (*THR_MALLOC) Ndb_item(field, col->getColumnNo());
@@ -1400,11 +1396,9 @@ static int create_or_conditions(Item_cond *cond, List<Item> pushed_list,
   @return a List of Ndb_item objects representing the serialized
           form of the 'pushed_cond'.
  */
-static List<const Ndb_item> cond_push_boolean_term(Item *term, TABLE *table,
-                                                   const NDBTAB *ndb_table,
-                                                   bool other_tbls_ok,
-                                                   Item *&pushed_cond,
-                                                   Item *&remainder_cond)
+static List<const Ndb_item> cond_push_boolean_term(
+    Item *term, TABLE *table, const NdbDictionary::Table *ndb_table,
+    bool other_tbls_ok, Item *&pushed_cond, Item *&remainder_cond)
 
 {
   DBUG_TRACE;
@@ -1641,7 +1635,7 @@ int ha_ndbcluster_cond::build_scan_filter_predicate(
       const Ndb_item *a = cond++;
       if (a == nullptr) break;
 
-      enum ndb_func_type function_type =
+      NDB_FUNC_TYPE function_type =
           (negated) ? Ndb_item::negate(ndb_item->get_func_type())
                     : ndb_item->get_func_type();
 
