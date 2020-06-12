@@ -214,7 +214,7 @@ class SortBufferIndirectIterator final : public RowIterator {
   // "examined_rows", if not nullptr, is incremented for each successful Read().
   SortBufferIndirectIterator(THD *thd, Prealloced_array<TABLE *, 4> tables,
                              Sort_result *sort_result,
-                             bool ignore_not_found_rows,
+                             bool ignore_not_found_rows, bool has_null_flags,
                              ha_rows *examined_rows);
   ~SortBufferIndirectIterator() override;
   bool Init() override;
@@ -229,6 +229,7 @@ class SortBufferIndirectIterator final : public RowIterator {
   ha_rows *const m_examined_rows;
   uchar *m_cache_pos = nullptr, *m_cache_end = nullptr;
   bool m_ignore_not_found_rows;
+  bool m_has_null_flags;
 };
 
 /**
@@ -281,7 +282,7 @@ class SortFileIndirectIterator final : public RowIterator {
   // "examined_rows", if not nullptr, is incremented for each successful Read().
   SortFileIndirectIterator(THD *thd, Prealloced_array<TABLE *, 4> tables,
                            IO_CACHE *tempfile, bool ignore_not_found_rows,
-                           ha_rows *examined_rows);
+                           bool has_null_flags, ha_rows *examined_rows);
   ~SortFileIndirectIterator() override;
 
   bool Init() override;
@@ -295,6 +296,7 @@ class SortFileIndirectIterator final : public RowIterator {
   Prealloced_array<TABLE *, 4> m_tables;
   uchar *m_ref_pos = nullptr;
   bool m_ignore_not_found_rows;
+  bool m_has_null_flags;
 
   uint m_sum_ref_length;
 };

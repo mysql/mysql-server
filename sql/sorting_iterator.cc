@@ -67,12 +67,13 @@ using std::vector;
 
 SortFileIndirectIterator::SortFileIndirectIterator(
     THD *thd, Prealloced_array<TABLE *, 4> tables, IO_CACHE *tempfile,
-    bool ignore_not_found_rows, ha_rows *examined_rows)
+    bool ignore_not_found_rows, bool has_null_flags, ha_rows *examined_rows)
     : RowIterator(thd),
       m_io_cache(tempfile),
       m_examined_rows(examined_rows),
       m_tables(std::move(tables)),
-      m_ignore_not_found_rows(ignore_not_found_rows) {}
+      m_ignore_not_found_rows(ignore_not_found_rows),
+      m_has_null_flags(has_null_flags) {}
 
 SortFileIndirectIterator::~SortFileIndirectIterator() {
   for (TABLE *table : m_tables) {
@@ -107,6 +108,9 @@ bool SortFileIndirectIterator::Init() {
       return true;
     }
 
+    if (m_has_null_flags && table->is_nullable()) {
+      ++m_sum_ref_length;
+    }
     m_sum_ref_length += table->file->ref_length;
   }
   if (m_ref_pos == nullptr) {
@@ -148,6 +152,16 @@ int SortFileIndirectIterator::Read() {
     uchar *ref_pos = m_ref_pos;
     bool skip = false;
     for (TABLE *table : m_tables) {
+      if (m_has_null_flags && table->is_nullable()) {
+        if (*ref_pos++) {
+          table->set_null_row();
+          ref_pos += table->file->ref_length;
+          continue;
+        } else {
+          table->reset_null_row();
+        }
+      }
+
       int tmp = table->file->ha_rnd_pos(table->record[0], ref_pos);
       ref_pos += table->file->ref_length;
       /* The following is extremely unlikely to happen */
@@ -308,12 +322,13 @@ void SortBufferIterator<Packed_addon_fields>::SetNullRowFlag(bool is_null_row) {
 
 SortBufferIndirectIterator::SortBufferIndirectIterator(
     THD *thd, Prealloced_array<TABLE *, 4> tables, Sort_result *sort_result,
-    bool ignore_not_found_rows, ha_rows *examined_rows)
+    bool ignore_not_found_rows, bool has_null_flags, ha_rows *examined_rows)
     : RowIterator(thd),
       m_sort_result(sort_result),
       m_tables(std::move(tables)),
       m_examined_rows(examined_rows),
-      m_ignore_not_found_rows(ignore_not_found_rows) {}
+      m_ignore_not_found_rows(ignore_not_found_rows),
+      m_has_null_flags(has_null_flags) {}
 
 SortBufferIndirectIterator::~SortBufferIndirectIterator() {
   m_sort_result->sorted_result.reset();
@@ -348,6 +363,9 @@ bool SortBufferIndirectIterator::Init() {
       return true;
     }
 
+    if (m_has_null_flags && table->is_nullable()) {
+      ++m_sum_ref_length;
+    }
     m_sum_ref_length += table->file->ref_length;
   }
   m_cache_pos = m_sort_result->sorted_result.get();
@@ -363,6 +381,15 @@ int SortBufferIndirectIterator::Read() {
 
     bool skip = false;
     for (TABLE *table : m_tables) {
+      if (m_has_null_flags && table->is_nullable()) {
+        if (*cache_pos++) {
+          table->set_null_row();
+          cache_pos += table->file->ref_length;
+          continue;
+        } else {
+          table->reset_null_row();
+        }
+      }
       int tmp = table->file->ha_rnd_pos(table->record[0], cache_pos);
       cache_pos += table->file->ref_length;
       /* The following is extremely unlikely to happen */
@@ -462,6 +489,7 @@ bool SortingIterator::Init() {
           new (&m_result_iterator_holder.sort_file_indirect)
               SortFileIndirectIterator(thd(), tables, m_sort_result.io_cache,
                                        /*ignore_not_found_rows=*/false,
+                                       /*has_null_flags=*/true,
                                        m_examined_rows));
     }
     m_sort_result.io_cache =
@@ -487,6 +515,7 @@ bool SortingIterator::Init() {
           new (&m_result_iterator_holder.sort_buffer_indirect)
               SortBufferIndirectIterator(thd(), tables, &m_sort_result,
                                          /*ignore_not_found_rows=*/false,
+                                         /*has_null_flags=*/true,
                                          m_examined_rows));
     }
   }

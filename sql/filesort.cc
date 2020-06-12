@@ -225,6 +225,11 @@ void Sort_param::init_for_filesort(Filesort *file_sort,
   m_remove_duplicates = remove_duplicates;
   sum_ref_length = 0;
   for (TABLE *table : tables) {
+    if (table->is_nullable()) {
+      // TODO(sgunders): Allow variable-length ref, so that we don't
+      // have to store the row ID for NULL rows.
+      ++sum_ref_length;
+    }
     sum_ref_length += table->file->ref_length;
   }
 
@@ -1518,8 +1523,11 @@ uint Sort_param::make_sortkey(Bounds_checked_array<uchar> dst,
       return UINT_MAX;
     }
 
-    /* Save filepos last */
+    /* Save NULL flags and filepos last */
     for (TABLE *table : tables) {
+      if (table->is_nullable()) {
+        *to++ = table->has_null_row();
+      }
       memcpy(to, table->file->ref, table->file->ref_length);
       to += table->file->ref_length;
     }

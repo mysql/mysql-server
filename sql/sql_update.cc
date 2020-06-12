@@ -753,7 +753,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
 
         iterator = NewIterator<SortFileIndirectIterator>(
             thd, Prealloced_array<TABLE *, 4>{table}, tempfile,
-            /*ignore_not_found_rows=*/false,
+            /*ignore_not_found_rows=*/false, /*has_null_flags=*/false,
             /*examined_rows=*/nullptr);
         if (iterator->Init()) return true;
 
