@@ -1223,6 +1223,12 @@ struct trx_t {
   bool api_auto_commit;        /*!< automatic commit */
   bool read_write;             /*!< if read and write operation */
 
+  /** This flag is set for trx_t objects used by the purge sys. We use the flag
+  when validating mysql_trx_list in trx_sys_before_pre_dd_shutdown_validate.
+  Purge threads can have allocated trx_t objects visible in the mysql_trx_list
+  at this point during shutdown, this is acceptable so we need a way to signal
+  this fact. */
+  bool purge_sys_trx;
   /*------------------------------*/
   char *detailed_error;          /*!< detailed error message for last
                                  error, or empty. */

@@ -2913,6 +2913,13 @@ void srv_worker_thread() {
 #else
   THD *thd = create_thd(false, true, true, 0);
 #endif
+
+  rw_lock_x_lock(&purge_sys->latch);
+
+  purge_sys->thds.insert(thd);
+
+  rw_lock_x_unlock(&purge_sys->latch);
+
   slot = srv_reserve_slot(SRV_WORKER);
 
   ut_a(srv_n_purge_threads > 1);
@@ -3147,6 +3154,12 @@ void srv_purge_coordinator_thread() {
 #else
   THD *thd = create_thd(false, true, true, 0);
 #endif
+
+  rw_lock_x_lock(&purge_sys->latch);
+
+  purge_sys->thds.insert(thd);
+
+  rw_lock_x_unlock(&purge_sys->latch);
 
   ulint n_total_purged = ULINT_UNDEFINED;
 

@@ -457,6 +457,8 @@ static trx_t *trx_create_low() {
 
   trx->read_write = true;
 
+  trx->purge_sys_trx = false;
+
   /* Background trx should not be forced to rollback,
   we will unset the flag for user trx. */
   trx->in_innodb |= TRX_FORCE_ROLLBACK_DISABLE;

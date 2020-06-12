@@ -212,6 +212,7 @@ void trx_purge_sys_create(ulint n_purge_threads, purge_pq_t *purge_queue) {
   new (&purge_sys->iter) purge_iter_t;
   new (&purge_sys->limit) purge_iter_t;
   new (&purge_sys->undo_trunc) undo::Truncate;
+  new (&purge_sys->thds) ut::unordered_set<THD *>;
 #ifdef UNIV_DEBUG
   new (&purge_sys->done) purge_iter_t;
 #endif /* UNIV_DEBUG */
@@ -238,6 +239,7 @@ void trx_purge_sys_create(ulint n_purge_threads, purge_pq_t *purge_queue) {
   purge_sys->trx->start_time = ut_time();
   purge_sys->trx->state = TRX_STATE_ACTIVE;
   purge_sys->trx->op_info = "purge trx";
+  purge_sys->trx->purge_sys_trx = true;
 
   purge_sys->query = trx_purge_graph_build(purge_sys->trx, n_purge_threads);
 
@@ -286,6 +288,7 @@ void trx_purge_sys_close() {
 
   UT_DELETE(purge_sys->rseg_iter);
 
+  call_destructor(&purge_sys->thds);
   call_destructor(&purge_sys->undo_trunc);
 
   ut_free(purge_sys);

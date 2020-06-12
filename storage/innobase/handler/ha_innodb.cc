@@ -2504,7 +2504,16 @@ trx_t *innobase_trx_allocate(THD *thd) /*!< in: user thread handle */
   DBUG_ASSERT(thd != nullptr);
   DBUG_ASSERT(EQ_CURRENT_THD(thd));
 
+  MONITOR_ATOMIC_INC(MONITOR_TRX_ALLOCATIONS);
   trx = trx_allocate_for_mysql();
+
+  rw_lock_s_lock(&purge_sys->latch);
+
+  if (purge_sys->thds.find(thd) != purge_sys->thds.end()) {
+    trx->purge_sys_trx = true;
+  }
+
+  rw_lock_s_unlock(&purge_sys->latch);
 
   trx->mysql_thd = thd;
 
