@@ -40,3 +40,4 @@ drop table t1;
 # Cleanup
 #
 drop PROCEDURE populate_t1;
+# restart
