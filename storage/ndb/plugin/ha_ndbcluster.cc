@@ -11496,11 +11496,9 @@ int ha_ndbcluster::ndb_optimize_table(THD *thd, uint delay) const {
   Ndb *ndb = thd_ndb->ndb;
   NDBDICT *dict = ndb->getDictionary();
   int result = 0, error = 0;
-  uint i;
-  NdbDictionary::OptimizeTableHandle th;
-  NdbDictionary::OptimizeIndexHandle ih;
 
   DBUG_TRACE;
+  NdbDictionary::OptimizeTableHandle th;
   if ((error = dict->optimizeTable(*m_table, th))) {
     DBUG_PRINT("info", ("Optimze table %s returned %d", m_tabname, error));
     ERR_RETURN(ndb->getNdbError());
@@ -11512,13 +11510,12 @@ int ha_ndbcluster::ndb_optimize_table(THD *thd, uint delay) const {
   if (result == -1 || th.close() == -1) {
     DBUG_PRINT("info", ("Optimize table %s did not complete", m_tabname));
     ERR_RETURN(ndb->getNdbError());
-  };
-  for (i = 0; i < MAX_KEY; i++) {
+  }
+  for (uint i = 0; i < MAX_KEY; i++) {
     if (thd->killed) return -1;
     if (m_index[i].type != UNDEFINED_INDEX) {
+      NdbDictionary::OptimizeIndexHandle ih;
       const NdbDictionary::Index *index = m_index[i].index;
-      const NdbDictionary::Index *unique_index = m_index[i].unique_index;
-
       if (index) {
         if ((error = dict->optimizeIndex(*index, ih))) {
           DBUG_PRINT("info",
@@ -11535,6 +11532,8 @@ int ha_ndbcluster::ndb_optimize_table(THD *thd, uint delay) const {
           ERR_RETURN(ndb->getNdbError());
         }
       }
+
+      const NdbDictionary::Index *unique_index = m_index[i].unique_index;
       if (unique_index) {
         if ((error = dict->optimizeIndex(*unique_index, ih))) {
           DBUG_PRINT("info", ("Optimze unique index %s returned %d",
@@ -11546,8 +11545,8 @@ int ha_ndbcluster::ndb_optimize_table(THD *thd, uint delay) const {
           ndb_milli_sleep(delay);
         }
         if (result == -1 || ih.close() == -1) {
-          DBUG_PRINT("info",
-                     ("Optimize index %s did not complete", index->getName()));
+          DBUG_PRINT("info", ("Optimize index %s did not complete",
+                              unique_index->getName()));
           ERR_RETURN(ndb->getNdbError());
         }
       }
