@@ -871,6 +871,10 @@ bool JOIN::optimize() {
   // Create the basic table Iterators, and composite Iterators where supported.
   create_iterators();
 
+  // Creating iterators may evaluate a constant hash join condition, which may
+  // fail:
+  if (thd->is_error()) return true;
+
   // Make plan visible for EXPLAIN
   set_plan_state(PLAN_READY);
 
