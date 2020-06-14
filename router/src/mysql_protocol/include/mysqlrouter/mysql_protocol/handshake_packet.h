@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -74,7 +74,7 @@ static constexpr Capabilities::Flags kDefaultClientCapabilities =
  * the MySQL client after receiving the server's handshake packet.
  *
  */
-class MYSQL_PROTOCOL_API HandshakeResponsePacket final : public Packet {
+class MYSQL_PROTOCOL_EXPORT HandshakeResponsePacket final : public Packet {
  public:
   /** @brief Constructor
    *
@@ -227,7 +227,7 @@ class MYSQL_PROTOCOL_API HandshakeResponsePacket final : public Packet {
   /** @brief Parser used to parse this packet */
   std::unique_ptr<Parser> parser_;
 
-  class MYSQL_PROTOCOL_API Parser {
+  class MYSQL_PROTOCOL_EXPORT Parser {
    public:
     Parser() = default;
     // disable copy as it isn't needed right now. Feel free to enable
@@ -244,7 +244,7 @@ class MYSQL_PROTOCOL_API HandshakeResponsePacket final : public Packet {
     virtual void debug_dump() const = 0;
   };
 
-  class MYSQL_PROTOCOL_API Parser41 : public Parser {
+  class MYSQL_PROTOCOL_EXPORT Parser41 : public Parser {
    public:
     Parser41(HandshakeResponsePacket &packet) : packet_(packet) {}
 
@@ -306,7 +306,7 @@ class MYSQL_PROTOCOL_API HandshakeResponsePacket final : public Packet {
 #endif
   };
 
-  class MYSQL_PROTOCOL_API Parser320 : public Parser {
+  class MYSQL_PROTOCOL_EXPORT Parser320 : public Parser {
    public:
     Parser320(HandshakeResponsePacket &packet) : packet_(packet) {}
 

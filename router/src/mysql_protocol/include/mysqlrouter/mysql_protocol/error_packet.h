@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,8 @@
 
 #include "base_packet.h"
 
+#include "mysqlrouter/mysql_protocol_export.h"  // MYSQL_PROTOCOL_EXPORT
+
 namespace mysql_protocol {
 
 /** @class ErrorPacket
@@ -35,7 +37,7 @@ namespace mysql_protocol {
  * This class creates a MySQL error packet which is send to the MySQL Client.
  *
  */
-class MYSQL_PROTOCOL_API ErrorPacket final : public Packet {
+class MYSQL_PROTOCOL_EXPORT ErrorPacket final : public Packet {
  public:
   /** @brief Constructor
    *

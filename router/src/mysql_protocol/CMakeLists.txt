@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,6 +20,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+INCLUDE(GenerateExportHeader)
+
 SET(SOURCE_FILES
   src/handshake_packet.cc
   src/error_packet.cc
@@ -28,6 +30,7 @@ SET(SOURCE_FILES
 
 SET(include_dirs
   include
+  ${CMAKE_CURRENT_BINARY_DIR}/include/
   )
 
 add_harness_plugin(mysql_protocol
@@ -36,22 +39,19 @@ add_harness_plugin(mysql_protocol
   DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
   )
 
-TARGET_INCLUDE_DIRECTORIES(mysql_protocol PRIVATE ${include_dirs})
-
-# don't install headers until a) a final destination is found and b) API is stable
-# FILE(GLOB mysqlv10_headers include/mysqlrouter/*.h)
-# INSTALL(FILES ${mysqlv10_headers}
-#   DESTINATION "include/mysql/${HARNESS_NAME}")
-
-# FILE(GLOB mysqlv10_headers include/mysqlrouter/mysql_protocol/*.h)
-# INSTALL(FILES ${mysqlv10_headers}
-#   DESTINATION "include/${HARNESS_NAME}/mysql_protocol")
+TARGET_INCLUDE_DIRECTORIES(mysql_protocol PUBLIC ${include_dirs})
+GENERATE_EXPORT_HEADER(mysql_protocol
+  EXPORT_FILE_NAME
+  ${CMAKE_CURRENT_BINARY_DIR}/include/mysqlrouter/mysql_protocol_export.h
+  )
 
 IF(WITH_UNIT_TESTS AND GMOCK_FOUND)
   ADD_LIBRARY(mysql_protocol_static STATIC ${SOURCE_FILES})
   TARGET_LINK_LIBRARIES(mysql_protocol_static router_lib)
-  TARGET_COMPILE_DEFINITIONS(mysql_protocol_static PUBLIC -Dmysql_protocol_DEFINE_STATIC=1)
+  TARGET_COMPILE_DEFINITIONS(mysql_protocol_static PUBLIC -DMYSQL_PROTOCOL_STATIC_DEFINE=1)
   TARGET_INCLUDE_DIRECTORIES(mysql_protocol_static PUBLIC ${include_dirs})
+  ## make sure mysql_protocol_export.h is created early enough
+  ADD_DEPENDENCIES(mysql_protocol_static mysql_protocol)
 
   ADD_SUBDIRECTORY(tests/)
 ENDIF()

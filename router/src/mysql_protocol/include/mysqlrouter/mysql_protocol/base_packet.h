@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,7 @@
 
 #include "constants.h"
 #include "harness_assert.h"
+#include "mysqlrouter/mysql_protocol_export.h"  // MYSQL_PROTOCOL_EXPORT
 
 // GCC 4.8.4 requires all classes to be forward-declared before being used with
 // "friend class <friendee>", if they're in a different namespace than the
@@ -66,7 +67,7 @@ namespace mysql_protocol {
  * such as ErrorPacket and HandshakeResponsePacket.
  *
  */
-class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
+class MYSQL_PROTOCOL_EXPORT Packet : public std::vector<uint8_t> {
   /** @note This class exposes several types of methods for data manipulation.
    *
    * Packet buffer operations, they work like standard stream operations:
