@@ -1171,17 +1171,17 @@ TEST_F(RouterBootstrapTest,
   router.register_response("Please enter MySQL password for root: ",
                            kRootPassword + "\n"s);
 
+  EXPECT_NO_THROW(router.wait_for_exit());
   // expect config write error
-  EXPECT_TRUE(
-      router.expect_output("Error: Could not create file "
-                           "'.*/mysqlrouter.conf.bak'",
-                           true));
+  EXPECT_THAT(router.get_full_output(),
+              ::testing::ContainsRegex("Error: Could not create file "
+                                       "'.*/mysqlrouter.conf.bak'"));
 
   // expect that the bootstrap success message (bootstrap report) is not
   // displayed
-  EXPECT_FALSE(
-      router.expect_output("MySQL Router configured for the "
-                           "InnoDB cluster 'mycluster'"));
+  EXPECT_THAT(router.get_full_output(), ::testing::Not(::testing::HasSubstr(
+                                            "MySQL Router configured for the "
+                                            "InnoDB cluster 'mycluster'")));
 
   server_mock.kill();
 }
@@ -1836,13 +1836,11 @@ class AccountReuseTestBase : public CommonBootstrapTest {
     }
 
     for (const std::string &output : exp_output) {
-      EXPECT_TRUE(router.expect_output(output)) << "-------- expected output:\n"
-                                                << output << std::endl;
+      EXPECT_THAT(router.get_full_output(), ::testing::HasSubstr(output));
     }
     for (const std::string &output : unexp_output) {
-      EXPECT_FALSE(router.expect_output(output))
-          << "-------- unexpected output:\n"
-          << output << std::endl;
+      EXPECT_THAT(router.get_full_output(),
+                  ::testing::Not(::testing::HasSubstr(output)));
     }
   }
 
@@ -2275,9 +2273,12 @@ TEST_F(AccountReuseBadCmdlineTest, account_without_bootstrap_switch) {
   auto &router =
       ProcessManager::launch_router({"--account", "account1"}, EXIT_FAILURE);
 
+  EXPECT_NO_THROW(router.wait_for_exit());
   // check if the bootstraping was successful
-  EXPECT_TRUE(router.expect_output(
-      "Option --account can only be used together with -B/--bootstrap"));
+  EXPECT_THAT(
+      router.get_full_output(),
+      ::testing::HasSubstr(
+          "Option --account can only be used together with -B/--bootstrap"));
   check_exit_code(router, EXIT_FAILURE);
 }
 
@@ -2292,10 +2293,11 @@ TEST_F(AccountReuseBadCmdlineTest, account_argument_missing) {
   auto &router =
       ProcessManager::launch_router({"-B=0", "--account"}, EXIT_FAILURE);
 
+  EXPECT_NO_THROW(router.wait_for_exit());
   // check if the bootstraping was successful
-  EXPECT_TRUE(
-      router.expect_output("option '--account' expects a value, got nothing"));
-  check_exit_code(router, EXIT_FAILURE);
+  EXPECT_THAT(
+      router.get_full_output(),
+      ::testing::HasSubstr("option '--account' expects a value, got nothing"));
 }
 
 /**
@@ -2309,9 +2311,11 @@ TEST_F(AccountReuseBadCmdlineTest, account_argument_empty) {
   auto &router =
       ProcessManager::launch_router({"-B=0", "--account", ""}, EXIT_FAILURE);
 
+  EXPECT_NO_THROW(router.wait_for_exit());
   // check if the bootstraping was successful
-  EXPECT_TRUE(router.expect_output(
-      "Error: Value for --account option cannot be empty"));
+  EXPECT_THAT(router.get_full_output(),
+              ::testing::HasSubstr(
+                  "Error: Value for --account option cannot be empty"));
   check_exit_code(router, EXIT_FAILURE);
 }
 
@@ -2324,8 +2328,10 @@ TEST_F(AccountReuseBadCmdlineTest, account_given_twice) {
   auto &router = ProcessManager::launch_router(
       {"-B=0", "--account", "user1", "--account", "user2"}, EXIT_FAILURE);
 
+  EXPECT_NO_THROW(router.wait_for_exit());
   // check if the bootstraping was successful
-  EXPECT_TRUE(router.expect_output(" Option --account can only be given once"));
+  EXPECT_THAT(router.get_full_output(),
+              ::testing::HasSubstr(" Option --account can only be given once"));
   check_exit_code(router, EXIT_FAILURE);
 }
 
@@ -2341,9 +2347,12 @@ TEST_F(AccountReuseBadCmdlineTest, account_create_without_account_switch) {
   auto &router = ProcessManager::launch_router(
       {"-B=0", "--account-create", "never"}, EXIT_FAILURE);
 
+  EXPECT_NO_THROW(router.wait_for_exit());
   // check if the bootstraping was successful
-  EXPECT_TRUE(router.expect_output(
-      "Option --account-create can only be used together with --account"));
+  EXPECT_THAT(
+      router.get_full_output(),
+      ::testing::HasSubstr(
+          "Option --account-create can only be used together with --account"));
   check_exit_code(router, EXIT_FAILURE);
 }
 
@@ -2359,9 +2368,11 @@ TEST_F(AccountReuseBadCmdlineTest, account_create_argument_missing) {
   auto &router =
       ProcessManager::launch_router({"-B=0", "--account-create"}, EXIT_FAILURE);
 
+  EXPECT_NO_THROW(router.wait_for_exit());
   // check if the bootstraping was successful
-  EXPECT_TRUE(router.expect_output(
-      "option '--account-create' expects a value, got nothing"));
+  EXPECT_THAT(router.get_full_output(),
+              ::testing::HasSubstr(
+                  "option '--account-create' expects a value, got nothing"));
   check_exit_code(router, EXIT_FAILURE);
 }
 
@@ -2377,9 +2388,11 @@ TEST_F(AccountReuseBadCmdlineTest, account_create_illegal_value) {
   auto &router = ProcessManager::launch_router(
       {"-B=0", "--account", "user1", "--account-create", "bla"}, EXIT_FAILURE);
 
+  EXPECT_NO_THROW(router.wait_for_exit());
   // check if the bootstraping was successful
-  EXPECT_TRUE(
-      router.expect_output("Invalid value for --account-create option.  Valid "
+  EXPECT_THAT(
+      router.get_full_output(),
+      ::testing::HasSubstr("Invalid value for --account-create option.  Valid "
                            "values: always, if-not-exists, never"));
   check_exit_code(router, EXIT_FAILURE);
 }
@@ -2395,9 +2408,11 @@ TEST_F(AccountReuseBadCmdlineTest, account_create_given_twice) {
        "--account-create", "never"},
       EXIT_FAILURE);
 
+  EXPECT_NO_THROW(router.wait_for_exit());
   // check if the bootstraping was successful
-  EXPECT_TRUE(
-      router.expect_output("Option --account-create can only be given once"));
+  EXPECT_THAT(
+      router.get_full_output(),
+      ::testing::HasSubstr("Option --account-create can only be given once"));
   check_exit_code(router, EXIT_FAILURE);
 }
 
@@ -2417,9 +2432,11 @@ TEST_F(AccountReuseBadCmdlineTest, account_create_never_and_account_host) {
       },
       EXIT_FAILURE);
 
+  EXPECT_NO_THROW(router.wait_for_exit());
   // check if the bootstraping was successful
-  EXPECT_TRUE(
-      router.expect_output("Option '--account-create never' cannot be used "
+  EXPECT_THAT(
+      router.get_full_output(),
+      ::testing::HasSubstr("Option '--account-create never' cannot be used "
                            "together with '--account-host <host>'"));
   check_exit_code(router, EXIT_FAILURE);
 }
@@ -2434,9 +2451,12 @@ TEST_F(AccountReuseBadCmdlineTest, strict_without_bootstrap_switch) {
   // launch the router in bootstrap mode
   auto &router = ProcessManager::launch_router({"--strict"}, EXIT_FAILURE);
 
+  EXPECT_NO_THROW(router.wait_for_exit());
   // check if the bootstraping was successful
-  EXPECT_TRUE(router.expect_output(
-      "Option --strict can only be used together with -B/--bootstrap"));
+  EXPECT_THAT(
+      router.get_full_output(),
+      ::testing::HasSubstr(
+          "Option --strict can only be used together with -B/--bootstrap"));
   check_exit_code(router, EXIT_FAILURE);
 }
 
@@ -5940,9 +5960,11 @@ TEST_F(RouterAccountHostTest, multiple_host_patterns) {
     router.register_response("Please enter MySQL password for root: ",
                              kRootPassword + "\n"s);
 
+    EXPECT_NO_THROW(router.wait_for_exit());
     // check if the bootstraping was successful
-    EXPECT_TRUE(router.expect_output(
-        "MySQL Router configured for the InnoDB Cluster 'test'", false, 5s));
+    EXPECT_THAT(router.get_full_output(),
+                ::testing::HasSubstr(
+                    "MySQL Router configured for the InnoDB Cluster 'test'"));
 
     check_exit_code(router, EXIT_SUCCESS);
 
@@ -5992,9 +6014,11 @@ TEST_F(RouterAccountHostTest, argument_missing) {
                      "--account-host"},
                     EXIT_FAILURE);
 
+  EXPECT_NO_THROW(router.wait_for_exit());
   // check if the bootstraping was successful
-  EXPECT_TRUE(router.expect_output(
-      "option '--account-host' expects a value, got nothing"));
+  EXPECT_THAT(router.get_full_output(),
+              ::testing::HasSubstr(
+                  "option '--account-host' expects a value, got nothing"));
   check_exit_code(router, EXIT_FAILURE);
 }
 
@@ -6007,9 +6031,11 @@ TEST_F(RouterAccountHostTest, without_bootstrap_flag) {
   // launch the router in bootstrap mode
   auto &router = launch_router({"--account-host", "host1"}, EXIT_FAILURE);
 
+  EXPECT_NO_THROW(router.wait_for_exit());
   // check if the bootstraping was successful
-  EXPECT_TRUE(router.expect_output(
-      "Option --account-host can only be used together with -B/--bootstrap"));
+  EXPECT_THAT(router.get_full_output(),
+              ::testing::HasSubstr("Option --account-host can only be used "
+                                   "together with -B/--bootstrap"));
   check_exit_code(router, EXIT_FAILURE);
 }
 
@@ -6039,12 +6065,13 @@ TEST_F(RouterAccountHostTest, illegal_hostname) {
   router.register_response("Please enter MySQL password for root: ",
                            kRootPassword + "\n"s);
 
+  EXPECT_NO_THROW(router.wait_for_exit());
   // check if the bootstraping was successful
-  EXPECT_TRUE(
-      router.expect_output("Error executing MySQL query \".*\": String "
-                           "'veryveryveryveryveryveryveryveryveryveryveryveryve"
-                           "ryveryverylonghost' is too long for host name",
-                           true));
+  EXPECT_THAT(router.get_full_output(),
+              ::testing::ContainsRegex(
+                  "Error executing MySQL query \".*\": String "
+                  "'veryveryveryveryveryveryveryveryveryveryveryveryve"
+                  "ryveryverylonghost' is too long for host name"));
   check_exit_code(router, EXIT_FAILURE);
 }
 
@@ -6073,10 +6100,11 @@ TEST_F(RouterReportHostTest, typical_usage) {
     router.register_response("Please enter MySQL password for root: ",
                              kRootPassword + "\n"s);
 
+    EXPECT_NO_THROW(router.wait_for_exit());
     // check if the bootstraping was successful
-    EXPECT_TRUE(
-        router.expect_output("MySQL Router configured for the "
-                             "InnoDB Cluster 'mycluster'"));
+    EXPECT_THAT(router.get_full_output(),
+                ::testing::HasSubstr("MySQL Router configured for the "
+                                     "InnoDB Cluster 'mycluster'"));
     check_exit_code(router, EXIT_SUCCESS);
 
     server_mock.kill();
@@ -6108,9 +6136,11 @@ TEST_F(RouterReportHostTest, multiple_hostnames) {
                                 "host1", "--report-host", "host2"},
                                1);
 
+  EXPECT_NO_THROW(router.wait_for_exit());
   // check if the bootstraping was successful
-  EXPECT_TRUE(
-      router.expect_output("Option --report-host can only be used once."));
+  EXPECT_THAT(
+      router.get_full_output(),
+      ::testing::HasSubstr("Option --report-host can only be used once."));
   check_exit_code(router, EXIT_FAILURE);
 }
 
@@ -6125,9 +6155,11 @@ TEST_F(RouterReportHostTest, argument_missing) {
   auto &router =
       launch_router({"--bootstrap=1.2.3.4:5678", "--report-host"}, 1);
 
+  EXPECT_NO_THROW(router.wait_for_exit());
   // check if the bootstraping was successful
-  EXPECT_TRUE(router.expect_output(
-      "option '--report-host' expects a value, got nothing"));
+  EXPECT_THAT(router.get_full_output(),
+              ::testing::HasSubstr(
+                  "option '--report-host' expects a value, got nothing"));
   check_exit_code(router, EXIT_FAILURE);
 }
 
@@ -6140,9 +6172,11 @@ TEST_F(RouterReportHostTest, without_bootstrap_flag) {
   // launch the router in bootstrap mode
   auto &router = launch_router({"--report-host", "host1"}, 1);
 
+  EXPECT_NO_THROW(router.wait_for_exit());
   // check if the bootstraping was successful
-  EXPECT_TRUE(router.expect_output(
-      "Option --report-host can only be used together with -B/--bootstrap"));
+  EXPECT_THAT(router.get_full_output(),
+              ::testing::HasSubstr("Option --report-host can only be used "
+                                   "together with -B/--bootstrap"));
   check_exit_code(router, EXIT_FAILURE);
 }
 
@@ -6162,9 +6196,11 @@ TEST_F(RouterReportHostTest, invalid_hostname) {
   auto &router = launch_router(
       {"--bootstrap", "1.2.3.4:5678", "--report-host", "^bad^hostname^"}, 1);
 
+  EXPECT_NO_THROW(router.wait_for_exit());
   // check if the bootstraping was successful
-  EXPECT_TRUE(router.expect_output(
-      "Error: Option --report-host has an invalid value."));
+  EXPECT_THAT(router.get_full_output(),
+              ::testing::HasSubstr(
+                  "Error: Option --report-host has an invalid value."));
   check_exit_code(router, EXIT_FAILURE);
 }
 
@@ -6353,8 +6389,10 @@ TEST_F(RouterBootstrapTest, ConfUseGrNotificationsNo) {
 TEST_F(RouterReportHostTest, ConfUseGrNotificationsNoBootstrap) {
   auto &router = launch_router({"--conf-use-gr-notifications"}, 1);
 
-  EXPECT_TRUE(
-      router.expect_output("Error: Option --conf-use-gr-notifications can only "
+  EXPECT_NO_THROW(router.wait_for_exit());
+  EXPECT_THAT(
+      router.get_full_output(),
+      ::testing::HasSubstr("Error: Option --conf-use-gr-notifications can only "
                            "be used together with -B/--bootstrap"));
   check_exit_code(router, EXIT_FAILURE);
 }
@@ -6368,8 +6406,10 @@ TEST_F(RouterReportHostTest, ConfUseGrNotificationsHasValue) {
   auto &router = launch_router(
       {"-B", "somehost:12345", "--conf-use-gr-notifications=some"}, 1);
 
-  EXPECT_TRUE(
-      router.expect_output("Error: option '--conf-use-gr-notifications' does "
+  EXPECT_NO_THROW(router.wait_for_exit());
+  EXPECT_THAT(
+      router.get_full_output(),
+      ::testing::HasSubstr("Error: option '--conf-use-gr-notifications' does "
                            "not expect a value, but got a value"));
   check_exit_code(router, EXIT_FAILURE);
 }
@@ -6555,8 +6595,10 @@ TEST_F(ErrorReportTest, ConfUseGrNotificationsAsyncReplicaset) {
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
 
-  EXPECT_TRUE(
-      router.expect_output("Error: The parameter 'use-gr-notifications' is "
+  EXPECT_NO_THROW(router.wait_for_exit());
+  EXPECT_THAT(
+      router.get_full_output(),
+      ::testing::HasSubstr("Error: The parameter 'use-gr-notifications' is "
                            "valid only for GR cluster type"));
   check_exit_code(router, EXIT_FAILURE);
 }
