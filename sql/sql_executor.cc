@@ -5431,9 +5431,12 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
   } else {
     DBUG_ASSERT(f->m_unit == WFU_ROWS);
     bool lower_within_limits = true;
-    /* Determine lower border */
+    // Determine lower border, handle wraparound for unsigned value:
     int64 border =
         f->m_from->border() != nullptr ? f->m_from->border()->val_int() : 0;
+    if (border < 0) {
+      border = INT64_MAX;
+    }
     switch (f->m_from->m_border_type) {
       case WBT_CURRENT_ROW:
         lower_limit = current_row;
@@ -5467,8 +5470,11 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
         break;
     }
 
-    /* Determine upper border */
+    // Determine upper border, handle wraparound for unsigned value:
     border = f->m_to->border() != nullptr ? f->m_to->border()->val_int() : 0;
+    if (border < 0) {
+      border = INT64_MAX;
+    }
     {
       switch (f->m_to->m_border_type) {
         case WBT_CURRENT_ROW:
