@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -825,7 +825,7 @@ static statement *build_table_string(void) {
   DBUG_PRINT("info",
              ("num int cols %u num char cols %u", num_int_cols, num_char_cols));
 
-  init_dynamic_string(&table_string, "", 1024, 1024);
+  init_dynamic_string(&table_string, "", 1024);
 
   dynstr_append(&table_string, "CREATE TABLE `t1` (");
 
@@ -928,7 +928,7 @@ static statement *build_update_string(void) {
   DYNAMIC_STRING update_string;
   DBUG_TRACE;
 
-  init_dynamic_string(&update_string, "", 1024, 1024);
+  init_dynamic_string(&update_string, "", 1024);
 
   dynstr_append(&update_string, "UPDATE t1 SET ");
 
@@ -992,7 +992,7 @@ static statement *build_insert_string(void) {
   DYNAMIC_STRING insert_string;
   DBUG_TRACE;
 
-  init_dynamic_string(&insert_string, "", 1024, 1024);
+  init_dynamic_string(&insert_string, "", 1024);
 
   dynstr_append(&insert_string, "INSERT INTO t1 VALUES (");
 
@@ -1071,7 +1071,7 @@ static statement *build_select_string(bool key) {
   static DYNAMIC_STRING query_string;
   DBUG_TRACE;
 
-  init_dynamic_string(&query_string, "", 1024, 1024);
+  init_dynamic_string(&query_string, "", 1024);
 
   dynstr_append_mem(&query_string, "SELECT ", 7);
   for (col_count = 1; col_count <= num_int_cols; col_count++) {

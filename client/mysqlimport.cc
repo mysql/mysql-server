@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -429,7 +429,7 @@ static void lock_table(MYSQL *mysql, int tablecount, char **raw_tablename) {
   char tablename[FN_REFLEN];
 
   if (verbose) fprintf(stdout, "Locking tables for write\n");
-  init_dynamic_string(&query, "LOCK TABLES ", 256, 1024);
+  init_dynamic_string(&query, "LOCK TABLES ", 256);
   for (i = 0; i < tablecount; i++) {
     fn_format(tablename, raw_tablename[i], "", "", 1 | 2);
     dynstr_append(&query, tablename);

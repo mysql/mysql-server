@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -1864,7 +1864,7 @@ void ha_federated::start_bulk_insert(ha_rows rows) {
 
   page_size = (uint)my_getpagesize();
 
-  if (init_dynamic_string(&bulk_insert, nullptr, page_size, page_size)) return;
+  if (init_dynamic_string(&bulk_insert, nullptr, page_size)) return;
 
   bulk_insert.length = 0;
 }

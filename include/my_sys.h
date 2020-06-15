@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -314,7 +314,7 @@ struct MY_TMPDIR {
 
 struct DYNAMIC_STRING {
   char *str;
-  size_t length, max_length, alloc_increment;
+  size_t length, max_length;
 };
 
 struct IO_CACHE;
@@ -790,7 +790,7 @@ extern void *alloc_dynamic(DYNAMIC_ARRAY *array);
 extern void delete_dynamic(DYNAMIC_ARRAY *array);
 
 extern bool init_dynamic_string(DYNAMIC_STRING *str, const char *init_str,
-                                size_t init_alloc, size_t alloc_increment);
+                                size_t init_alloc);
 extern bool dynstr_append(DYNAMIC_STRING *str, const char *append);
 bool dynstr_append_mem(DYNAMIC_STRING *str, const char *append, size_t length);
 extern bool dynstr_append_os_quoted(DYNAMIC_STRING *str, const char *append,

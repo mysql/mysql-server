@@ -1153,11 +1153,11 @@ static void check_command_args(struct st_command *command, char *arguments,
         /* Find end of arg, terminated by "delimiter" */
         while (*ptr && *ptr != delimiter) ptr++;
         if (ptr > start) {
-          init_dynamic_string(arg->ds, nullptr, ptr - start, 32);
+          init_dynamic_string(arg->ds, nullptr, ptr - start);
           do_eval(arg->ds, start, ptr, false);
         } else {
           /* Empty string */
-          init_dynamic_string(arg->ds, "", 0, 0);
+          init_dynamic_string(arg->ds, "", 0);
         }
         /* Find real end of arg, terminated by "delimiter_arg" */
         /* This will do nothing if arg was not closed by quotes */
@@ -1173,7 +1173,7 @@ static void check_command_args(struct st_command *command, char *arguments,
         /* Rest of line */
       case ARG_REST:
         start = ptr;
-        init_dynamic_string(arg->ds, nullptr, command->query_len, 256);
+        init_dynamic_string(arg->ds, nullptr, command->query_len);
         do_eval(arg->ds, start, command->end, false);
         command->last_argument = command->end;
         DBUG_PRINT("info", ("val: %s", arg->ds->str));
@@ -1755,7 +1755,7 @@ static int run_tool(const char *tool_path, DYNAMIC_STRING *ds_res, ...) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("tool_path: %s", tool_path));
 
-  if (init_dynamic_string(&ds_cmdline, IF_WIN("\"", ""), FN_REFLEN, FN_REFLEN))
+  if (init_dynamic_string(&ds_cmdline, IF_WIN("\"", ""), FN_REFLEN))
     die("Out of memory");
 
   dynstr_append_os_quoted(&ds_cmdline, tool_path, NullS);
@@ -1828,7 +1828,7 @@ static int diff_check(const char *diff_name) {
 static void show_diff(DYNAMIC_STRING *ds, const char *filename1,
                       const char *filename2) {
   DYNAMIC_STRING ds_diff;
-  if (init_dynamic_string(&ds_diff, "", 256, 256)) die("Out of memory");
+  if (init_dynamic_string(&ds_diff, "", 256)) die("Out of memory");
 
   const char *diff_name = nullptr;
 
@@ -2425,7 +2425,7 @@ static void var_query_set(VAR *var, const char *query, const char **query_end) {
   ++query;
 
   /* Eval the query, thus replacing all environment variables */
-  init_dynamic_string(&ds_query, nullptr, (end - query) + 32, 256);
+  init_dynamic_string(&ds_query, nullptr, (end - query) + 32);
   do_eval(&ds_query, query, end, false);
 
   if (mysql_real_query_wrapper(mysql, ds_query.str,
@@ -2451,7 +2451,7 @@ static void var_query_set(VAR *var, const char *query, const char **query_end) {
     uint i;
     ulong *lengths;
 
-    init_dynamic_string(&result, "", 512, 512);
+    init_dynamic_string(&result, "", 512);
     lengths = mysql_fetch_lengths(res);
     for (i = 0; i < mysql_num_fields(res); i++) {
       if (row[i]) {
@@ -2469,7 +2469,7 @@ static void var_query_set(VAR *var, const char *query, const char **query_end) {
           }
         }
         DYNAMIC_STRING ds_temp;
-        init_dynamic_string(&ds_temp, "", 512, 512);
+        init_dynamic_string(&ds_temp, "", 512);
 
         /* Store result from replace_result in ds_temp */
         if (glob_replace)
@@ -2486,7 +2486,7 @@ static void var_query_set(VAR *var, const char *query, const char **query_end) {
             char buffer[512];
             strcpy(buffer, ds_temp.str);
             dynstr_free(&ds_temp);
-            init_dynamic_string(&ds_temp, "", 512, 512);
+            init_dynamic_string(&ds_temp, "", 512);
             replace_numeric_round_append(glob_replace_numeric_round, &ds_temp,
                                          buffer, std::strlen(buffer));
           } else
@@ -2984,7 +2984,7 @@ static int replace(DYNAMIC_STRING *ds_str, const char *search_str,
   DYNAMIC_STRING ds_tmp;
   const char *start = strstr(ds_str->str, search_str);
   if (!start) return 1;
-  init_dynamic_string(&ds_tmp, "", ds_str->length + replace_len, 256);
+  init_dynamic_string(&ds_tmp, "", ds_str->length + replace_len);
   dynstr_append_mem(&ds_tmp, ds_str->str, start - ds_str->str);
   dynstr_append_mem(&ds_tmp, replace_str, replace_len);
   dynstr_append(&ds_tmp, start + search_len);
@@ -3048,7 +3048,7 @@ static void do_exec(struct st_command *command, bool run_in_background) {
   command->last_argument = command->end;
 
   DYNAMIC_STRING ds_cmd;
-  init_dynamic_string(&ds_cmd, nullptr, command->query_len + 256, 256);
+  init_dynamic_string(&ds_cmd, nullptr, command->query_len + 256);
 
   // Eval the command, thus replacing all environment variables
   do_eval(&ds_cmd, cmd, command->end, !is_windows);
@@ -3073,10 +3073,10 @@ static void do_exec(struct st_command *command, bool run_in_background) {
     /* Add an invocation of "START /B" on Windows, append " &" on Linux*/
     DYNAMIC_STRING ds_tmp;
 #ifdef WIN32
-    init_dynamic_string(&ds_tmp, "START /B ", ds_cmd.length + 9, 256);
+    init_dynamic_string(&ds_tmp, "START /B ", ds_cmd.length + 9);
     dynstr_append_mem(&ds_tmp, ds_cmd.str, ds_cmd.length);
 #else
-    init_dynamic_string(&ds_tmp, ds_cmd.str, ds_cmd.length + 2, 256);
+    init_dynamic_string(&ds_tmp, ds_cmd.str, ds_cmd.length + 2);
     dynstr_append_mem(&ds_tmp, " &", 2);
 #endif
     dynstr_set(&ds_cmd, ds_tmp.str);
@@ -3350,7 +3350,7 @@ static void do_remove_files_wildcard(struct st_command *command) {
     error = 1;
     goto end;
   }
-  init_dynamic_string(&ds_file_to_remove, dirname, 1024, 1024);
+  init_dynamic_string(&ds_file_to_remove, dirname, 1024);
   dir_separator[0] = FN_LIBCHAR;
   dir_separator[1] = 0;
   dynstr_append(&ds_file_to_remove, dir_separator);
@@ -4153,7 +4153,7 @@ static void do_list_files_write_file_command(struct st_command *command,
   check_command_args(command, command->first_argument, list_files_args,
                      sizeof(list_files_args) / sizeof(struct command_arg), ' ');
 
-  init_dynamic_string(&ds_content, "", 1024, 1024);
+  init_dynamic_string(&ds_content, "", 1024);
   error = get_list_files(&ds_content, &ds_dirname, &ds_wild);
   handle_command_error(command, error);
   str_to_file2(ds_filename.str, ds_content.str, ds_content.length, append);
@@ -4244,7 +4244,7 @@ static void do_write_file_command(struct st_command *command, bool append) {
     /* If no delimiter was provided, use EOF */
     if (ds_delimiter.length == 0) dynstr_set(&ds_delimiter, "EOF");
 
-    init_dynamic_string(&ds_content, "", 1024, 1024);
+    init_dynamic_string(&ds_content, "", 1024);
     read_until_delimiter(&ds_content, &ds_delimiter);
     command->content = ds_content;
   }
@@ -4536,7 +4536,7 @@ static void do_perl(struct st_command *command) {
     /* If no delimiter was provided, use EOF */
     if (ds_delimiter.length == 0) dynstr_set(&ds_delimiter, "EOF");
 
-    init_dynamic_string(&ds_script, "", 1024, 1024);
+    init_dynamic_string(&ds_script, "", 1024);
     read_until_delimiter(&ds_script, &ds_delimiter);
     command->content = ds_script;
   }
@@ -4619,7 +4619,7 @@ static int do_echo(struct st_command *command) {
   DYNAMIC_STRING ds_echo;
   DBUG_TRACE;
 
-  init_dynamic_string(&ds_echo, "", command->query_len, 256);
+  init_dynamic_string(&ds_echo, "", command->query_len);
   do_eval(&ds_echo, command->first_argument, command->end, false);
   dynstr_append_mem(&ds_res, ds_echo.str, ds_echo.length);
   dynstr_append_mem(&ds_res, "\n", 1);
@@ -5145,7 +5145,7 @@ static void do_let(struct st_command *command) {
   DYNAMIC_STRING let_rhs_expr;
   DBUG_TRACE;
 
-  init_dynamic_string(&let_rhs_expr, "", 512, 2048);
+  init_dynamic_string(&let_rhs_expr, "", 512);
 
   /* Find <var_name> */
   if (!*p) die("Missing arguments to let");
@@ -6345,7 +6345,7 @@ static void do_connect(struct st_command *command) {
   }
 
   /* Shared memory */
-  init_dynamic_string(&ds_shm, ds_sock.str, 0, 0);
+  init_dynamic_string(&ds_shm, ds_sock.str, 0);
 
   /* Sock */
   if (ds_sock.length) {
@@ -8121,7 +8121,7 @@ static int append_warnings(DYNAMIC_STRING *ds, MYSQL *mysql) {
     die("Warning count is %u but didn't get any warnings", count);
 
   DYNAMIC_STRING ds_warnings;
-  init_dynamic_string(&ds_warnings, "", 1024, 1024);
+  init_dynamic_string(&ds_warnings, "", 1024);
   append_result(&ds_warnings, warn_res);
   mysql_free_result_wrapper(warn_res);
 
@@ -8281,8 +8281,8 @@ static void run_query_stmt(MYSQL *mysql, struct st_command *command,
   // Init dynamic strings for warnings.
   if (!disable_warnings || disabled_warnings->count() ||
       enabled_warnings->count()) {
-    init_dynamic_string(&ds_prepare_warnings, nullptr, 0, 256);
-    init_dynamic_string(&ds_execute_warnings, nullptr, 0, 256);
+    init_dynamic_string(&ds_prepare_warnings, nullptr, 0);
+    init_dynamic_string(&ds_execute_warnings, nullptr, 0);
   }
 
   // Note that here 'res' is meta data result set
@@ -8503,14 +8503,14 @@ static void run_query(struct st_connection *cn, struct st_command *command,
   if (!(flags & QUERY_SEND_FLAG) && !cn->pending)
     die("Cannot reap on a connection without pending send");
 
-  init_dynamic_string(&ds_warnings, nullptr, 0, 256);
+  init_dynamic_string(&ds_warnings, nullptr, 0);
   ds_warn = &ds_warnings;
 
   /*
     Evaluate query if this is an eval command
   */
   if (command->type == Q_EVAL || command->type == Q_SEND_EVAL) {
-    init_dynamic_string(&eval_query, "", command->query_len + 256, 1024);
+    init_dynamic_string(&eval_query, "", command->query_len + 256);
     do_eval(&eval_query, command->query, command->end, false);
     query = eval_query.str;
     query_len = eval_query.length;
@@ -8546,7 +8546,7 @@ static void run_query(struct st_connection *cn, struct st_command *command,
     DYNAMIC_STRING query_str;
     init_dynamic_string(&query_str,
                         "CREATE OR REPLACE VIEW mysqltest_tmp_v AS ",
-                        query_len + 64, 256);
+                        query_len + 64);
     dynstr_append_mem(&query_str, query, query_len);
     if (util_query(mysql, query_str.str)) {
       /*
@@ -8587,7 +8587,7 @@ static void run_query(struct st_connection *cn, struct st_command *command,
     DYNAMIC_STRING query_str;
     init_dynamic_string(&query_str,
                         "DROP PROCEDURE IF EXISTS mysqltest_tmp_sp;",
-                        query_len + 64, 256);
+                        query_len + 64);
     util_query(mysql, query_str.str);
     dynstr_set(&query_str, "CREATE PROCEDURE mysqltest_tmp_sp()\n");
     dynstr_append_mem(&query_str, query, query_len);
@@ -8619,7 +8619,7 @@ static void run_query(struct st_connection *cn, struct st_command *command,
        that can be sorted before it's added to the
        global result string
     */
-    init_dynamic_string(&ds_sorted, "", 1024, 1024);
+    init_dynamic_string(&ds_sorted, "", 1024);
     save_ds = ds; /* Remember original ds */
     ds = &ds_sorted;
   }
@@ -8681,7 +8681,7 @@ static void display_opt_trace(struct st_connection *cn,
     init_dynamic_string(&query_str,
                         "SELECT trace FROM information_schema.optimizer_trace"
                         " /* injected by --opt-trace-protocol */",
-                        128, 128);
+                        128);
 
     command->query = query_str.str;
     command->query_len = query_str.length;
@@ -8706,9 +8706,9 @@ static void run_explain(struct st_connection *cn, struct st_command *command,
     DYNAMIC_STRING query_str;
     DYNAMIC_STRING ds_warning_messages;
 
-    init_dynamic_string(&ds_warning_messages, "", 0, 2048);
+    init_dynamic_string(&ds_warning_messages, "", 0);
     init_dynamic_string(&query_str, json ? "EXPLAIN FORMAT=JSON " : "EXPLAIN ",
-                        256, 256);
+                        256);
     dynstr_append_mem(&query_str, command->query,
                       command->end - command->query);
 
@@ -9050,8 +9050,8 @@ int main(int argc, char **argv) {
   init_win_path_patterns();
 #endif
 
-  init_dynamic_string(&ds_res, "", 2048, 2048);
-  init_dynamic_string(&ds_result, "", 1024, 1024);
+  init_dynamic_string(&ds_res, "", 2048);
+  init_dynamic_string(&ds_result, "", 1024);
 
   parse_args(argc, argv);
 
@@ -9670,7 +9670,7 @@ int main(int argc, char **argv) {
           break;
         case Q_SKIP: {
           DYNAMIC_STRING ds_skip_msg;
-          init_dynamic_string(&ds_skip_msg, nullptr, command->query_len, 256);
+          init_dynamic_string(&ds_skip_msg, nullptr, command->query_len);
 
           // Evaluate the skip message
           do_eval(&ds_skip_msg, command->first_argument, command->end, false);
@@ -10870,7 +10870,7 @@ void replace_dynstr_append_mem(DYNAMIC_STRING *ds, const char *val,
   }
 
   DYNAMIC_STRING ds_temp;
-  init_dynamic_string(&ds_temp, "", 512, 512);
+  init_dynamic_string(&ds_temp, "", 512);
 
   /* Store result from replace_result in ds_temp */
   if (glob_replace) {
@@ -10889,7 +10889,7 @@ void replace_dynstr_append_mem(DYNAMIC_STRING *ds, const char *val,
       char buffer[512];
       strcpy(buffer, ds_temp.str);
       dynstr_free(&ds_temp);
-      init_dynamic_string(&ds_temp, "", 512, 512);
+      init_dynamic_string(&ds_temp, "", 512);
       replace_numeric_round_append(glob_replace_numeric_round, &ds_temp, buffer,
                                    std::strlen(buffer));
     } else
