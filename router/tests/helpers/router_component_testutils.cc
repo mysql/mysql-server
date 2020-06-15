@@ -32,6 +32,8 @@
 #include <gmock/gmock.h>
 #include <rapidjson/document.h>
 #include <rapidjson/stringbuffer.h>
+
+#include <chrono>
 #include <fstream>
 #include <thread>
 
@@ -89,7 +91,9 @@ bool check_state_file_helper(const std::string &state_file_content,
                              const unsigned expected_view_id /*= 0*/,
                              const std::string node_address /*= "127.0.0.1"*/) {
   JsonDocument json_doc;
-  json_doc.Parse(state_file_content.c_str());
+  if (json_doc.Parse<0>(state_file_content.c_str()).HasParseError())
+    return false;
+
   const std::string kExpectedVersion = "1.0.0";
 
   CHECK_TRUE(json_doc.HasMember("version"));
@@ -134,19 +138,21 @@ void check_state_file(const std::string &state_file,
                       const std::string &expected_group_replication_id,
                       const std::vector<uint16_t> expected_cluster_nodes,
                       const unsigned expected_view_id /*= 0*/,
-                      const std::string node_address /*= "127.0.0.1"*/) {
+                      const std::string node_address /*= "127.0.0.1"*/,
+                      std::chrono::milliseconds max_wait_time /*= 5000*/) {
   bool result = false;
-  size_t steps = 0;
   std::string state_file_content;
+  const auto kRetryStep = 50ms;
   do {
     state_file_content = get_file_output(state_file);
     result = check_state_file_helper(
         state_file_content, expected_group_replication_id,
         expected_cluster_nodes, expected_view_id, node_address);
     if (!result) {
-      std::this_thread::sleep_for(50ms);
+      std::this_thread::sleep_for(kRetryStep);
+      max_wait_time -= kRetryStep;
     }
-  } while ((!result) && (steps++ < 20));
+  } while ((!result) && (max_wait_time > kRetryStep));
 
   if (!result) {
     std::string expected_cluster_nodes_str;
