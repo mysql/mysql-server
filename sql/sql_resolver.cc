@@ -206,11 +206,16 @@ bool SELECT_LEX::prepare(THD *thd, List<Item> *insert_field_list) {
   Opt_trace_array trace_steps(trace, "steps");
 
   /*
-    Setup the expressions in the SELECT list. Wait with privilege checking
-    until all derived tables are resolved, except do privilege checking for
-    subqueries inside a derived table.
-    Need to be done here in order for table function's arguments to be fixed
-    properly.
+    Setup the expressions in the SELECT list.
+    For derived tables/views, wait with privilege checking of columns and
+    marking in read/write sets until we know how they are used (may be used in
+    UPDATE and INSERT). Exceptions:
+     - Always assume columns referenced in subqueries are selected.
+     - Always assume outer references are selected (marking is then done in
+       Item_outer_ref::fix_fields).
+
+    Expressions must be resolved here, before tables are set up, otherwise table
+    function's arguments are not resolved properly.
   */
   const bool check_privs =
       !thd->derived_tables_processing || master_unit()->item != nullptr;

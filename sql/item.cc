@@ -8118,6 +8118,15 @@ bool Item_outer_ref::fix_fields(THD *thd, Item **reference) {
       a new reference taken from ref_item_array.
     */
     item_ref = qualifying->add_hidden_item(item);
+    /*
+      Now the item is in the all_fields list, which elements are used to fill
+      temporary tables created by the optimizer; thus it will be read and must
+      be marked as such. Outer references are never written to.
+    */
+    if (item->fixed) {
+      Mark_field mf(MARK_COLUMNS_READ);
+      item->walk(&Item::mark_field_in_map, enum_walk::POSTFIX, (uchar *)&mf);
+    }
   }
 
   Item_ref *const new_ref =
