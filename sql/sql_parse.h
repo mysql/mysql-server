@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,6 +60,8 @@ bool check_fk_parent_table_access(THD *thd,
                                   const char *child_table_db,
                                   HA_CREATE_INFO *create_info,
                                   Alter_info *alter_info);
+bool check_lock_view_underlying_table_access(THD *thd, TABLE_LIST *tbl,
+                                             bool *fake_lock_tables_acl);
 
 bool parse_sql(THD *thd,
                Parser_state *parser_state,
