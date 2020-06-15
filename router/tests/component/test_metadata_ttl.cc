@@ -166,34 +166,30 @@ class MetadataChacheTTLTest : public RouterComponentTest {
 };
 
 struct MetadataTTLTestParams {
-  // trace file
+  // mock_server trace file
   std::string tracefile;
-  // ttl value we want to set (floating point decimal in seconds)
   // additional info about the testcase that gets printed by the gtest in the
   // results
   std::string description;
+  // the type of the cluster GR or AR
   ClusterType cluster_type;
+  // ttl value we want to set (floating point decimal in seconds)
   std::string ttl;
-  // how long do we run the router and count the metadata queries
-  std::chrono::milliseconds router_uptime;
-  // how many metadata queries we expect over this period
-  int expected_md_queries_count;
-  // if true expected_md_queries_count is only a minimal expected
-  // value, we should not check for maximum
-  bool at_least;
+  // what is the minimal expected period between the updates
+  std::chrono::milliseconds ttl_expected_min;
+  // what is the maximal expected period between the updates
+  std::chrono::milliseconds ttl_expected_max;
 
   MetadataTTLTestParams(std::string tracefile_, std::string description_,
                         ClusterType cluster_type_, std::string ttl_,
-                        std::chrono::milliseconds router_uptime_ = 0ms,
-                        int expected_md_queries_count_ = 0,
-                        bool at_least_ = false)
-      : tracefile(tracefile_),
-        description(description_),
+                        std::chrono::milliseconds ttl_expected_min_ = 0ms,
+                        std::chrono::milliseconds ttl_expected_max_ = 0ms)
+      : tracefile(std::move(tracefile_)),
+        description(std::move(description_)),
         cluster_type(cluster_type_),
-        ttl(ttl_),
-        router_uptime(router_uptime_),
-        expected_md_queries_count(expected_md_queries_count_),
-        at_least(at_least_) {}
+        ttl(std::move(ttl_)),
+        ttl_expected_min(ttl_expected_min_),
+        ttl_expected_max(ttl_expected_max_) {}
 };
 
 auto get_test_description(
@@ -202,8 +198,9 @@ auto get_test_description(
 }
 
 std::ostream &operator<<(std::ostream &os, const MetadataTTLTestParams &param) {
-  return os << "(" << param.ttl << ", " << param.router_uptime.count() << "ms, "
-            << param.expected_md_queries_count << ", " << param.at_least << ")";
+  return os << "(" << param.ttl << "s not in the range ["
+            << param.ttl_expected_min.count() << "ms,"
+            << param.ttl_expected_max.count() << "ms])";
 }
 
 class MetadataChacheTTLTestParam
@@ -214,6 +211,71 @@ MATCHER_P2(IsBetween, a, b,
            std::string(negation ? "isn't" : "is") + " between " +
                PrintToString(a) + " and " + PrintToString(b)) {
   return a <= arg && arg <= b;
+}
+
+// Wait for the nth occurence of the log_regex in the log_file with the timeout
+// If it's found returns the full line containing the log_regex
+// If the timeout has been reached returns unexpected
+static stdx::expected<std::string, void> wait_log_line(
+    const std::string &log_file, const std::string &log_regex,
+    const unsigned n_occurence = 1,
+    const std::chrono::milliseconds timeout = 1s) {
+  const auto start_timestamp = std::chrono::steady_clock::now();
+  const auto kStep = 50ms;
+
+  do {
+    std::istringstream ss{get_file_output(log_file)};
+
+    unsigned current_occurence = 0;
+    for (std::string line; std::getline(ss, line);) {
+      if (pattern_found(line, log_regex)) {
+        current_occurence++;
+        if (current_occurence == n_occurence) return {line};
+      }
+    }
+
+    if (std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - start_timestamp) >= timeout) {
+      return stdx::make_unexpected();
+    }
+    std::this_thread::sleep_for(kStep);
+  } while (true);
+}
+
+// Wait for the nth occurence of the log_regex in the log_file with timeout
+// If it's found returns the timepoint from the matched line prefix
+// If timed out or failed to convert the timestamp returns unexpected
+static stdx::expected<std::chrono::time_point<std::chrono::system_clock>, void>
+get_log_timestamp(const std::string &log_file, const std::string &log_regex,
+                  const unsigned occurence = 1,
+                  const std::chrono::milliseconds timeout = 1s) {
+  // first wait for the nth occurence of the pattern
+  const auto log_line = wait_log_line(log_file, log_regex, occurence, timeout);
+  if (!log_line) {
+    return log_line.get_unexpected();
+  }
+
+  const std::string log_line_str = log_line.value();
+  // make sure the line is prefixed with the expected timestamp
+  // 2020-06-09 03:53:26.027 foo bar
+  if (!pattern_found(log_line_str,
+                     "^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}\\.\\d{3}.*")) {
+    return stdx::make_unexpected();
+  }
+
+  // extract the timestamp prefix and conver to the duration
+  std::string timestamp_str =
+      log_line_str.substr(0, strlen("2020-06-09 03:53:26.027"));
+  std::stringstream timestamp_ss(timestamp_str);
+  std::tm tm{};
+  char dot;
+  unsigned milliseconds;
+  timestamp_ss >> std::get_time(&tm, "%Y-%m-%d %H:%M:%S") >> dot >>
+      milliseconds;
+  auto result = std::chrono::system_clock::from_time_t(std::mktime(&tm));
+  result += std::chrono::milliseconds(milliseconds);
+
+  return result;
 }
 
 TEST_P(MetadataChacheTTLTestParam, CheckTTLValid) {
@@ -246,78 +308,64 @@ TEST_P(MetadataChacheTTLTestParam, CheckTTLValid) {
                     metadata_cache_section, routing_section, EXIT_SUCCESS,
                     /*wait_for_md_refresh_started=*/true);
 
-  // keep the router running to see how many times it queries for metadata
-  std::this_thread::sleep_for(test_params.router_uptime);
-
-  // let's ask the mock how many metadata queries it got after
-  std::string server_globals =
-      MockServerRestClient(md_server_http_port).get_globals_as_json_string();
-  int ttl_count = get_ttl_queries_count(server_globals);
-
-  if (!test_params.at_least) {
-    // it is timing based test so to decrease random failures chances let's
-    // take some error marigin, we kverify that number of metadata queries
-    // falls into <expected_count-1, expected_count+1>
-    EXPECT_THAT(ttl_count,
-                IsBetween(test_params.expected_md_queries_count - 1,
-                          test_params.expected_md_queries_count + 1));
-  } else {
-    // we only check that the TTL was queried at least N times
-    EXPECT_GE(ttl_count, test_params.expected_md_queries_count);
+  SCOPED_TRACE("// Wait for the initial metadata refresh to end");
+  const auto first_refresh_stop_timestamp =
+      get_log_timestamp(router.get_logfile_path(),
+                        ".*Finished refreshing the cluster metadata.*", 1, 2s);
+  if (!first_refresh_stop_timestamp) {
+    FAIL() << "Did not find first metadata refresh end log in the logfile.\n"
+           << router.get_full_logfile();
   }
 
-  ASSERT_THAT(router.kill(), testing::Eq(0));
+  SCOPED_TRACE("// Wait for the second metadata refresh to start");
+  const auto second_refresh_start_timestamp = get_log_timestamp(
+      router.get_logfile_path(), ".*Started refreshing the cluster metadata.*",
+      2, test_params.ttl_expected_max + 1s);
+  if (!second_refresh_start_timestamp) {
+    FAIL() << "Did not find second metadata refresh start log in the logfile.\n"
+           << router.get_full_logfile();
+  }
+
+  SCOPED_TRACE(
+      "// Check if the time passed in between falls into expected range");
+  const auto ttl = second_refresh_start_timestamp.value() -
+                   first_refresh_stop_timestamp.value();
+  EXPECT_THAT(ttl, IsBetween(test_params.ttl_expected_min,
+                             test_params.ttl_expected_max));
 }
 
 INSTANTIATE_TEST_SUITE_P(
     CheckTTLIsUsedCorrectly, MetadataChacheTTLTestParam,
     ::testing::Values(
         MetadataTTLTestParams("metadata_1_node_repeat_v2_gr.js", "0_gr_v2",
-                              ClusterType::GR_V2, "0.4",
-                              std::chrono::milliseconds(600), 2),
+                              ClusterType::GR_V2, "0.2", 150ms, 400ms),
         MetadataTTLTestParams("metadata_1_node_repeat.js", "0_gr",
-                              ClusterType::GR_V1, "0.4",
-                              std::chrono::milliseconds(600), 2),
+                              ClusterType::GR_V1, "0.2", 150ms, 400ms),
         MetadataTTLTestParams("metadata_1_node_repeat_v2_ar.js", "0_ar_v2",
-                              ClusterType::RS_V2, "0.4",
-                              std::chrono::milliseconds(600), 2),
+                              ClusterType::RS_V2, "0.2", 150ms, 400ms),
 
         MetadataTTLTestParams("metadata_1_node_repeat_v2_gr.js", "1_gr_v2",
-                              ClusterType::GR_V2, "1",
-                              std::chrono::milliseconds(2500), 3),
+                              ClusterType::GR_V2, "1", 700ms, 1300ms),
         MetadataTTLTestParams("metadata_1_node_repeat.js", "1_gr",
-                              ClusterType::GR_V1, "1",
-                              std::chrono::milliseconds(2500), 3),
+                              ClusterType::GR_V1, "1", 700ms, 1300ms),
         MetadataTTLTestParams("metadata_1_node_repeat_v2_ar.js", "1_ar_v2",
-                              ClusterType::RS_V2, "1",
-                              std::chrono::milliseconds(2500), 3),
+                              ClusterType::RS_V2, "1", 700ms, 1300ms),
 
         // check that default is 0.5 if not provided:
         MetadataTTLTestParams("metadata_1_node_repeat_v2_gr.js", "2_gr_v2",
-                              ClusterType::GR_V2, "",
-                              std::chrono::milliseconds(1750), 4),
+                              ClusterType::GR_V2, "", 450ms, 700ms),
         MetadataTTLTestParams("metadata_1_node_repeat.js", "2_gr",
-                              ClusterType::GR_V1, "",
-                              std::chrono::milliseconds(1750), 4),
+                              ClusterType::GR_V1, "", 450ms, 700ms),
         MetadataTTLTestParams("metadata_1_node_repeat_v2_ar.js", "2_ar_v2",
-                              ClusterType::RS_V2, "",
-                              std::chrono::milliseconds(1750), 4),
+                              ClusterType::RS_V2, "", 450ms, 700ms),
 
-        // check that for 0 there are multiple ttl queries (we can't really
-        // guess how many there will be, but we should be able to safely assume
-        // that in 1 second it shold be at least 5 queries)
+        // check that for 0 the delay between the refresh is very short
         MetadataTTLTestParams("metadata_1_node_repeat_v2_gr.js", "3_gr_v2",
-                              ClusterType::GR_V2, "0",
-                              std::chrono::milliseconds(1000), 5,
-                              /*at_least=*/true),
+                              ClusterType::GR_V2, "0", 0ms, 200ms),
         MetadataTTLTestParams("metadata_1_node_repeat.js", "3_gr",
-                              ClusterType::GR_V1, "0",
-                              std::chrono::milliseconds(1000), 5,
-                              /*at_least=*/true),
+                              ClusterType::GR_V1, "0", 0ms, 200ms),
         MetadataTTLTestParams("metadata_1_node_repeat_v2_ar.js", "3_ar_v2",
-                              ClusterType::RS_V2, "0",
-                              std::chrono::milliseconds(1000), 5,
-                              /*at_least=*/true)),
+                              ClusterType::RS_V2, "0", 0ms, 200ms)),
     get_test_description);
 
 class MetadataChacheTTLTestParamInvalid
