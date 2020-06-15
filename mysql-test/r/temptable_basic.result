@@ -1,4 +1,4 @@
-SET @@internal_tmp_mem_storage_engine = TempTable;
+SET @@GLOBAL.internal_tmp_mem_storage_engine = TempTable;
 CREATE TABLE t_int (c INT);
 CREATE TABLE t_char (c CHAR(20));
 CREATE TABLE t_varchar (c VARCHAR(20));
@@ -490,4 +490,28 @@ SUM(t3.f3)
 2
 set optimizer_switch=default;
 DROP TABLE t1, t2, t3;
-SET @@internal_tmp_mem_storage_engine = default;
+#
+# Bug #31116036: TEMPTABLE WASTES 1MB FOR EACH CONNECTION IN THREAD CACHE
+#
+truncate performance_schema.memory_summary_global_by_event_name;
+select * from performance_schema.memory_summary_global_by_event_name where event_name like 'memory/temptable%';
+EVENT_NAME	COUNT_ALLOC	COUNT_FREE	SUM_NUMBER_OF_BYTES_ALLOC	SUM_NUMBER_OF_BYTES_FREE	LOW_COUNT_USED	CURRENT_COUNT_USED	HIGH_COUNT_USED	LOW_NUMBER_OF_BYTES_USED	CURRENT_NUMBER_OF_BYTES_USED	HIGH_NUMBER_OF_BYTES_USED
+memory/temptable/physical_disk	0	0	0	0	0	0	0	0	0	0
+memory/temptable/physical_ram	1	0	1048576	0	1	1	1	1048576	1048576	1048576
+# conn1
+show variables like '%tmp_mem_storage%';
+Variable_name	Value
+internal_tmp_mem_storage_engine	TempTable
+select * from performance_schema.memory_summary_global_by_event_name where event_name like 'memory/temptable%';
+EVENT_NAME	COUNT_ALLOC	COUNT_FREE	SUM_NUMBER_OF_BYTES_ALLOC	SUM_NUMBER_OF_BYTES_FREE	LOW_COUNT_USED	CURRENT_COUNT_USED	HIGH_COUNT_USED	LOW_NUMBER_OF_BYTES_USED	CURRENT_NUMBER_OF_BYTES_USED	HIGH_NUMBER_OF_BYTES_USED
+memory/temptable/physical_disk	0	0	0	0	0	0	0	0	0	0
+memory/temptable/physical_ram	2	0	2097152	0	1	2	2	1048576	2097152	2097152
+select * from performance_schema.memory_summary_global_by_event_name where event_name like 'memory/temptable%';
+EVENT_NAME	COUNT_ALLOC	COUNT_FREE	SUM_NUMBER_OF_BYTES_ALLOC	SUM_NUMBER_OF_BYTES_FREE	LOW_COUNT_USED	CURRENT_COUNT_USED	HIGH_COUNT_USED	LOW_NUMBER_OF_BYTES_USED	CURRENT_NUMBER_OF_BYTES_USED	HIGH_NUMBER_OF_BYTES_USED
+memory/temptable/physical_disk	0	0	0	0	0	0	0	0	0	0
+memory/temptable/physical_ram	2	0	2097152	0	1	2	2	1048576	2097152	2097152
+select * from performance_schema.memory_summary_global_by_event_name where event_name like 'memory/temptable%';
+EVENT_NAME	COUNT_ALLOC	COUNT_FREE	SUM_NUMBER_OF_BYTES_ALLOC	SUM_NUMBER_OF_BYTES_FREE	LOW_COUNT_USED	CURRENT_COUNT_USED	HIGH_COUNT_USED	LOW_NUMBER_OF_BYTES_USED	CURRENT_NUMBER_OF_BYTES_USED	HIGH_NUMBER_OF_BYTES_USED
+memory/temptable/physical_disk	0	0	0	0	0	0	0	0	0	0
+memory/temptable/physical_ram	2	1	2097152	1048576	1	1	2	1048576	1048576	2097152
+SET @@GLOBAL.internal_tmp_mem_storage_engine = default;

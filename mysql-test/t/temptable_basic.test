@@ -8,7 +8,7 @@
 # Prepare
 #
 
-SET @@internal_tmp_mem_storage_engine = TempTable;
+SET @@GLOBAL.internal_tmp_mem_storage_engine = TempTable;
 
 CREATE TABLE t_int (c INT);
 CREATE TABLE t_char (c CHAR(20));
@@ -253,4 +253,33 @@ set optimizer_switch=default;
 
 DROP TABLE t1, t2, t3;
 
-SET @@internal_tmp_mem_storage_engine = default;
+--echo #
+--echo # Bug #31116036: TEMPTABLE WASTES 1MB FOR EACH CONNECTION IN THREAD CACHE
+--echo #
+
+# Start fresh, make sure that memory is low
+truncate performance_schema.memory_summary_global_by_event_name;
+select * from performance_schema.memory_summary_global_by_event_name where event_name like 'memory/temptable%';
+
+# Trigger some work from a new session
+--echo # conn1
+connect (conn1, localhost, root,,);
+show variables like '%tmp_mem_storage%';
+
+# Check the memory consumption
+select * from performance_schema.memory_summary_global_by_event_name where event_name like 'memory/temptable%';
+
+# Switch back to default connection. Check consumption again.
+connection default;
+select * from performance_schema.memory_summary_global_by_event_name where event_name like 'memory/temptable%';
+
+# Now, disconnect one session
+disconnect conn1;
+let $count_sessions=1;
+--source include/wait_until_count_sessions.inc
+
+# We expect that memory consumption is again low (as from fresh start)
+connection default;
+select * from performance_schema.memory_summary_global_by_event_name where event_name like 'memory/temptable%';
+
+SET @@GLOBAL.internal_tmp_mem_storage_engine = default;
