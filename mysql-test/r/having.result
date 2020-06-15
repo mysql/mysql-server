@@ -920,3 +920,12 @@ sub_value
 99
 99
 DROP TABLE t, o;
+# Bug#31429865: Assertion `table_share->tmp_table != NO_TMP_TABLE ||
+#                m_lock_type == 1' failed.
+CREATE TABLE t(a INTEGER);
+INSERT INTO t VALUES(1),(2);
+CREATE VIEW v AS SELECT a FROM t HAVING 0<>1;
+DELETE FROM v LIMIT 1;
+ERROR HY000: The target table v of the DELETE is not updatable
+DROP VIEW v;
+DROP TABLE t;

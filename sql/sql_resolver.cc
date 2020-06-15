@@ -312,12 +312,10 @@ bool SELECT_LEX::prepare(THD *thd, List<Item> *insert_field_list) {
 
     assert(m_having_cond->data_type() != MYSQL_TYPE_INVALID);
 
-    // Simplify the having condition if it is a const item
-    if (m_having_cond->const_item() && !thd->lex->is_view_context_analysis() &&
-        !m_having_cond->walk(&Item::is_non_const_over_literals,
-                             enum_walk::POSTFIX, nullptr) &&
-        simplify_const_condition(thd, &m_having_cond))
-      return true;
+    /*
+      Rollup may alter nullability of HAVING condition, so wait with
+      simplification of this condition until after rollup is resolved.
+    */
 
     having_fix_field = false;
     resolve_place = RESOLVE_NONE;
@@ -328,13 +326,24 @@ bool SELECT_LEX::prepare(THD *thd, List<Item> *insert_field_list) {
 
   thd->lex->m_deny_window_func = save_deny_window_func;
 
-  if (m_having_cond != nullptr && olap == ROLLUP_TYPE) {
-    m_having_cond = resolve_rollup_item(thd, m_having_cond);
-    if (m_having_cond == nullptr) {
-      return true;
+  if (m_having_cond != nullptr) {
+    if (olap == ROLLUP_TYPE) {
+      m_having_cond = resolve_rollup_item(thd, m_having_cond);
+      if (m_having_cond == nullptr) {
+        return true;
+      }
     }
+    /*
+      Simplify the having condition if it is a const item.
+      Leave a TRUE condition if HAVING is always true, so that query block
+      is still marked as having a HAVING condition.
+    */
+    if (m_having_cond->const_item() && !thd->lex->is_view_context_analysis() &&
+        !m_having_cond->walk(&Item::is_non_const_over_literals,
+                             enum_walk::POSTFIX, nullptr) &&
+        simplify_const_condition(thd, &m_having_cond, false))
+      return true;
   }
-
   // Set up the ORDER BY clause
   all_fields_count = all_fields.elements;
   if (order_list.elements) {

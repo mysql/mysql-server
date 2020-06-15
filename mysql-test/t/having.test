@@ -906,3 +906,14 @@ FROM o;
 
 DROP TABLE t, o;
 
+--echo # Bug#31429865: Assertion `table_share->tmp_table != NO_TMP_TABLE ||
+--echo #                m_lock_type == 1' failed.
+
+CREATE TABLE t(a INTEGER);
+INSERT INTO t VALUES(1),(2);
+CREATE VIEW v AS SELECT a FROM t HAVING 0<>1;
+--error ER_NON_UPDATABLE_TABLE
+DELETE FROM v LIMIT 1;
+DROP VIEW v;
+DROP TABLE t;
+
