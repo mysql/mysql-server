@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -61,9 +61,9 @@ MYSQL_ADD_PLUGIN(test_session_attach
   )
 
 IF(WIN32)
-  SET_TARGET_PROPERTIES(test_session_attach
-    PROPERTIES LINK_FLAGS
-    "/DEF:${CMAKE_CURRENT_SOURCE_DIR}/test_session_attach.def")
+  MY_TARGET_LINK_OPTIONS(test_session_attach
+    "/DEF:${CMAKE_CURRENT_SOURCE_DIR}/test_session_attach.def"
+    )
 ENDIF()
 
 # Test SQL API

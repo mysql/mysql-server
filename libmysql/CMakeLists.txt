@@ -353,14 +353,13 @@ IF(UNIX)
 
   ADD_INSTALL_RPATH_FOR_OPENSSL(libmysql)
 
-  GET_TARGET_PROPERTY(libmysql_link_flags libmysql LINK_FLAGS)
-  IF(LINK_FLAG_NO_UNDEFINED)
-    STRING_APPEND(libmysql_link_flags
-      " ${LINK_FLAG_NO_UNDEFINED}")
-    STRING_APPEND(libmysql_link_flags
-      " -Wl,--version-script=${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver")
-    SET_TARGET_PROPERTIES(libmysql
-      PROPERTIES LINK_FLAGS "${libmysql_link_flags}")
+  IF(LINK_FLAG_Z_DEFS)
+    MY_TARGET_LINK_OPTIONS(libmysql "LINKER:${LINK_FLAG_Z_DEFS}")
+  ENDIF()
+
+  IF(LINUX)
+    MY_TARGET_LINK_OPTIONS(libmysql
+      "LINKER:--version-script=${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver")
   ENDIF() 
   # clean direct output needs to be set several targets have the same name
   #(mysqlclient in this case)
