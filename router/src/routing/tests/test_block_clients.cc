@@ -160,7 +160,7 @@ TEST_F(TestBlockClients, BlockClientHostWithFakeResponse) {
     written_data.push_back(c);
   }
 
-  EXPECT_EQ(written_data, fake_response);
+  EXPECT_EQ(written_data, fake_response.message());
 
   std::fclose(fd_response);
 #endif

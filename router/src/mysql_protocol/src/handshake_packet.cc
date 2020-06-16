@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,31 +23,32 @@
 */
 
 #include "mysqlrouter/mysql_protocol.h"
-#include "mysqlrouter/utils.h"
 
+#include <algorithm>  // all_of
 #include <cassert>
 #include <cstddef>
-#include <iomanip>
-#include <iostream>
-#include <stdexcept>
+#include <ios>        // std::hex
+#include <sstream>    // ostringstream
+#include <stdexcept>  // runtime_error
 #include <string>
-#include <utility>
+#include <utility>  // move
 #include <vector>
+
+// #include "mysqlrouter/utils.h"
 
 namespace mysql_protocol {
 
 HandshakeResponsePacket::HandshakeResponsePacket(
-    uint8_t sequence_id, const std::vector<unsigned char> &auth_response,
-    const std::string &username, const std::string &password,
-    const std::string &database, unsigned char char_set,
-    const std::string &auth_plugin)
+    uint8_t sequence_id, std::vector<unsigned char> auth_response,
+    std::string username, std::string password, std::string database,
+    unsigned char char_set, std::string auth_plugin)
     : Packet(sequence_id),
-      username_(username),
-      password_(password),
-      database_(database),
+      username_(std::move(username)),
+      password_(std::move(password)),
+      database_(std::move(database)),
       char_set_(char_set),
-      auth_plugin_(auth_plugin),
-      auth_response_(auth_response) {
+      auth_plugin_(std::move(auth_plugin)),
+      auth_response_(std::move(auth_response)) {
   prepare_packet();
 }
 
@@ -63,14 +64,14 @@ void HandshakeResponsePacket::prepare_packet() {
   reset();
   position_ = size();
 
-  reserve(size() + sizeof(uint32_t) +  // capabilities
-          sizeof(uint32_t) +           // max packet size
-          sizeof(uint8_t) +            // character set
-          23 +                         // 23 0-byte filler
-          username_.size() + 1 +       // username + nul-terminator
-          sizeof(uint8_t) + 20 +       // auth-data-len + auth-data
-          database_.size() + 1 +       // username + nul-terminator
-          auth_plugin_.size() + 1      // auth-plugin + nul-terminator
+  msg_.reserve(size() + sizeof(uint32_t) +  // capabilities
+               sizeof(uint32_t) +           // max packet size
+               sizeof(uint8_t) +            // character set
+               23 +                         // 23 0-byte filler
+               username_.size() + 1 +       // username + nul-terminator
+               sizeof(uint8_t) + 20 +       // auth-data-len + auth-data
+               database_.size() + 1 +       // username + nul-terminator
+               auth_plugin_.size() + 1      // auth-plugin + nul-terminator
   );
 
   // capabilities
@@ -185,7 +186,7 @@ void HandshakeResponsePacket::Parser41::part3_reserved() {
    */
 
   constexpr size_t kReservedBytes = 23;
-  vector<uint8_t> reserved = packet_.read_bytes(kReservedBytes);
+  auto reserved = packet_.read_bytes(kReservedBytes);
 
   // proper packet should have all of those set to 0
   if (!std::all_of(reserved.begin(), reserved.end(),
@@ -382,11 +383,12 @@ void HandshakeResponsePacket::Parser41::debug_dump() const noexcept {
 
   // raw bytes
   printf("\n  [RAW]\n");
-  printf("    %s\n", bytes2str(packet_.data(), packet_.size()).c_str());
+  const auto msg = packet_.message();
+  printf("    %s\n", bytes2str(msg.data(), msg.size()).c_str());
 
   // header
   size_t pos = 0;  // add space between size and seq nr --------v
-  printf("\n  [HEADER] %s\n", bytes2str(packet_.data() + pos, 4, 3).c_str());
+  printf("\n  [HEADER] %s\n", bytes2str(msg.data() + pos, 4, 3).c_str());
   pos += 4;
   printf("    size = %u\n", packet_.get_payload_size());
   printf("    seq_nr = %u\n", packet_.get_sequence_id());
@@ -396,7 +398,7 @@ void HandshakeResponsePacket::Parser41::debug_dump() const noexcept {
     printf(
         "\n  [CAPABILITY FLAGS (all sent by client are listed, * = also sent "
         "by server)] %s\n",
-        bytes2str(packet_.data() + pos, 4, 2).c_str());
+        bytes2str(msg.data() + pos, 4, 2).c_str());
     using namespace Capabilities;
 
     auto print_flag = [&](Flags flag, const char *name) {
@@ -442,30 +444,28 @@ void HandshakeResponsePacket::Parser41::debug_dump() const noexcept {
   }
 
   // max packet size
-  printf("\n  [MAX PACKET SIZE] %s\n",
-         bytes2str(packet_.data() + pos, 4).c_str());
+  printf("\n  [MAX PACKET SIZE] %s\n", bytes2str(msg.data() + pos, 4).c_str());
   pos += 4;
   printf("    max_packet_size = %u\n", packet_.get_max_packet_size());
 
   // character set
-  printf("\n  [CHARACTER SET] %s\n",
-         bytes2str(packet_.data() + pos, 1).c_str());
+  printf("\n  [CHARACTER SET] %s\n", bytes2str(msg.data() + pos, 1).c_str());
   pos += 1;
   printf("    character_set = %u\n", packet_.get_character_set());
 
   // skip over 23 reserveed zero bytes
   printf("\n  [23 RESERVED ZERO BYTES] %s\n",
-         bytes2str(packet_.data() + pos, 23).c_str());
+         bytes2str(msg.data() + pos, 23).c_str());
   pos += 23;
 
   // rest of the fields
   printf("\n  [REST] %s\n",
-         bytes2str(packet_.data() + pos, packet_.size() - pos).c_str());
+         bytes2str(msg.data() + pos, packet_.size() - pos).c_str());
   printf("    username = '%s'\n", packet_.get_username().c_str());
   {
     // find end of username (search for zero-terminator)
     size_t i = pos;
-    while (packet_[i] && i < packet_.size()) i++;
+    while (msg[i] && i < packet_.size()) i++;
 
     // advance to next field (which is auth_response)
     pos = i + 1;
@@ -475,11 +475,11 @@ void HandshakeResponsePacket::Parser41::debug_dump() const noexcept {
            effective_capability_flags_.test(
                Capabilities::PLUGIN_AUTH_LENENC_CLIENT_DATA));
 
-    size_t len = packet_[pos];  // assume length is encoded in only 1 byte
-    pos += 1;                   // advance past auth_response length
+    size_t len = msg[pos];  // assume length is encoded in only 1 byte
+    pos += 1;               // advance past auth_response length
     if (len > 0)
       printf("    auth_response = (%zu bytes) %s\n", len,
-             bytes2str(packet_.data() + pos, len).c_str());
+             bytes2str(msg.data() + pos, len).c_str());
     else
       printf("    auth_response is empty\n");
 

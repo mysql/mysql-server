@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include <cstring>  // memcmp
 #include <memory>
 #include <system_error>
 
@@ -64,11 +65,11 @@ class ClassicProtocolTest : public ::testing::Test {
   void serialize_classic_packet_to_buffer(
       RoutingProtocolBuffer &buffer, size_t &buffer_offset,
       const mysql_protocol::Packet &packet) {
-    using diff_t = mysql_protocol::Packet::difference_type;
-    std::copy(packet.begin(),
-              packet.begin() + static_cast<diff_t>(packet.size()),
+    using diff_t = mysql_protocol::Packet::vector_t::difference_type;
+    auto msg = packet.message();
+    std::copy(msg.begin(), msg.begin() + static_cast<diff_t>(msg.size()),
               buffer.begin() + static_cast<diff_t>(buffer_offset));
-    buffer_offset += packet.size();
+    buffer_offset += msg.size();
   }
 
   static constexpr int sender_socket_ = 1;
@@ -296,7 +297,7 @@ TEST_F(ClassicProtocolRoutingTest, NoValidDestinations) {
   const auto error_packet_size = static_cast<ssize_t>(error_packet.size());
 
   EXPECT_CALL(mock_socket_operations_, write(client_socket, _, _))
-      .With(Args<1, 2>(BufferEq(error_packet)))
+      .With(Args<1, 2>(BufferEq(error_packet.message())))
       .WillOnce(Return(error_packet_size));
 
   EXPECT_CALL(mock_socket_operations_, shutdown(client_socket));

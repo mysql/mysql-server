@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -40,8 +40,8 @@ bool ClassicProtocol::on_block_client_host(int server,
   const auto fake_response = mysql_protocol::HandshakeResponsePacket(
       1, {}, "ROUTER", "", "fake_router_login");
 
-  const auto write_res =
-      sock_ops_->write_all(server, fake_response.data(), fake_response.size());
+  const auto &msg = fake_response.message();
+  const auto write_res = sock_ops_->write_all(server, msg.data(), msg.size());
   if (!write_res) {
     log_debug("[%s] fd=%d write error: %s", log_prefix.c_str(), server,
               write_res.error().message().c_str());
@@ -112,8 +112,9 @@ stdx::expected<size_t, std::error_code> ClassicProtocol::copy_packets(
           return stdx::make_unexpected(make_error_code(std::errc::bad_message));
         }
 
-        const auto write_res = sock_ops_->write_all(
-            receiver, server_error.data(), server_error.size());
+        const auto &msg = server_error.message();
+        const auto write_res =
+            sock_ops_->write_all(receiver, msg.data(), msg.size());
         if (!write_res) {
           log_debug("fd=%d write error: %s", receiver,
                     write_res.error().message().c_str());
@@ -164,8 +165,10 @@ bool ClassicProtocol::send_error(int destination, unsigned short code,
                                  const std::string &log_prefix) {
   auto server_error = mysql_protocol::ErrorPacket(0, code, message, sql_state);
 
-  const auto write_res = sock_ops_->write_all(destination, server_error.data(),
-                                              server_error.size());
+  const auto &msg = server_error.message();
+
+  const auto write_res =
+      sock_ops_->write_all(destination, msg.data(), msg.size());
   if (!write_res) {
     log_debug("[%s] fd=%d write error: %s", log_prefix.c_str(), destination,
               write_res.error().message().c_str());

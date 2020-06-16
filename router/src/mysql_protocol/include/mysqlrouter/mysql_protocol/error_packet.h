@@ -55,11 +55,10 @@ class MYSQL_PROTOCOL_EXPORT ErrorPacket final : public Packet {
    * @param buffer bytes of the error packet
    * @throws mysql_protocol::packet_error
    */
-  ErrorPacket(const std::vector<uint8_t> &buffer)
-      : ErrorPacket(buffer, Capabilities::ALL_ZEROS) {}
+  ErrorPacket(std::vector<uint8_t> buffer)
+      : ErrorPacket(std::move(buffer), Capabilities::ALL_ZEROS) {}
 
-  ErrorPacket(const std::vector<uint8_t> &buffer,
-              Capabilities::Flags capabilities);
+  ErrorPacket(std::vector<uint8_t> buffer, Capabilities::Flags capabilities);
 
   /** @overload
    *
@@ -69,8 +68,8 @@ class MYSQL_PROTOCOL_EXPORT ErrorPacket final : public Packet {
    * @param sql_state SQL State used in error message
    * @param capabilities Server/Client capability flags (default 0)
    */
-  ErrorPacket(uint8_t sequence_id, uint16_t err_code,
-              const std::string &err_msg, const std::string &sql_state,
+  ErrorPacket(uint8_t sequence_id, uint16_t err_code, std::string err_msg,
+              std::string sql_state,
               Capabilities::Flags capabilities = Capabilities::ALL_ZEROS);
 
   /** @brief Gets error code

@@ -105,7 +105,7 @@ class MYSQL_PROTOCOL_EXPORT HandshakeResponsePacket final : public Packet {
    * @throws std::runtime_error on unrecognised or invalid packet, when parsing
    */
   HandshakeResponsePacket(
-      const std::vector<uint8_t> &buffer, bool auto_parse_payload = false,
+      std::vector<uint8_t> buffer, bool auto_parse_payload = false,
       Capabilities::Flags server_capabilities = Capabilities::ALL_ZEROS)
       : Packet(buffer) {
     if (auto_parse_payload) parse_payload(server_capabilities);
@@ -124,11 +124,11 @@ class MYSQL_PROTOCOL_EXPORT HandshakeResponsePacket final : public Packet {
    * @param auth_plugin MySQL authentication plugin name (default
    * 'mysql_native_password')
    */
-  HandshakeResponsePacket(
-      uint8_t sequence_id, const std::vector<unsigned char> &auth_response,
-      const std::string &username, const std::string &password,
-      const std::string &database = "", unsigned char char_set = 8,
-      const std::string &auth_plugin = "mysql_native_password");
+  HandshakeResponsePacket(uint8_t sequence_id,
+                          std::vector<unsigned char> auth_response,
+                          std::string username, std::string password,
+                          std::string database = "", unsigned char char_set = 8,
+                          std::string auth_plugin = "mysql_native_password");
 
   /** @brief Parses packet payload, results written to object's field
    *
