@@ -77,6 +77,10 @@
 --source include/rpl_connection_slave.inc
 --eval GRANT REPLICATION_APPLIER,CREATE,DROP ON *.* TO $applier_user
 
+# This test assumes the slave is working using the default: STREAM
+--let $_pk_key_check_value = `SELECT require_table_primary_key_check FROM performance_schema.replication_applier_configuration WHERE channel_name=""`
+CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = STREAM;
+
 --echo
 --echo # 1. While REQUIRE_TABLE_PRIMARY_KEY_CHECK = STREAM.
 --echo #    Create a table on the master
@@ -202,8 +206,9 @@ CALL mtr.add_suppression(".*Access denied; you need .at least one of. the SUPER,
 CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
 CALL mtr.add_suppression(".*Unable to create or change a table without a primary key*");
 
---source include/rpl_end.inc
+--source include/stop_slave_sql.inc
+--replace_result $_pk_key_check_value PRIMARY_KEY_CHECK_VALUE
+--eval CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = $_pk_key_check_value
+--source include/start_slave_sql.inc
 
-# The state is not reverting back to original somehow, restart is needed if this
-# case is to be tested again.
---source include/force_restart.inc
+--source include/rpl_end.inc

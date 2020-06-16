@@ -331,7 +331,7 @@ while ($_rpl_server)
   if (!$rpl_skip_reset_master_and_slave)
   {
     RESET MASTER;
-    RESET SLAVE;
+    RESET SLAVE ALL FOR CHANNEL '';
   }
   # Only way to do this in mtr :-(
   if ($_rpl_server == 1) {

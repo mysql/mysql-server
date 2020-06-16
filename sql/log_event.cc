@@ -7552,6 +7552,7 @@ const String *Load_query_generator::generate(size_t *fn_start, size_t *fn_end) {
 #ifndef DBUG_OFF
 #ifdef MYSQL_SERVER
 static uchar dbug_extra_row_ndb_info_val = 0;
+static int dbug_extra_row_ndb_info_val_limit = 0;
 
 /**
    set_extra_data
@@ -7561,14 +7562,25 @@ static uchar dbug_extra_row_ndb_info_val = 0;
    thread data structures which can be checked
    when reading the binlog.
 
+   @note if you are using this debug point, find the number of times this
+   method is used for your test and then use that value for the reset_limit
+   parameter in order to avoid inter test contamination.
+
    @param arr  Buffer to use
+   @param reset_limit the limit upon which the counters reset
 */
-static const uchar *set_extra_data(uchar *arr) {
+static const uchar *set_extra_data(uchar *arr, int reset_limit) {
   uchar val = (dbug_extra_row_ndb_info_val++) %
               (EXTRA_ROW_INFO_MAX_PAYLOAD + 1); /* 0 .. MAX_PAYLOAD + 1 */
   arr[EXTRA_ROW_INFO_LEN_OFFSET] = val + EXTRA_ROW_INFO_HEADER_LENGTH;
   arr[EXTRA_ROW_INFO_FORMAT_OFFSET] = val;
   for (uchar i = 0; i < val; i++) arr[EXTRA_ROW_INFO_HEADER_LENGTH + i] = val;
+
+  dbug_extra_row_ndb_info_val_limit++;
+  if (dbug_extra_row_ndb_info_val_limit == reset_limit) {
+    dbug_extra_row_ndb_info_val = 0;
+    dbug_extra_row_ndb_info_val_limit = 0;
+  }
 
   return arr;
 }
@@ -7646,9 +7658,12 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg,
     set_flags(RELAXED_UNIQUE_CHECKS_F);
 #ifndef DBUG_OFF
   uchar extra_data[255];
-  DBUG_EXECUTE_IF("extra_row_ndb_info_set",
+  DBUG_EXECUTE_IF("extra_row_ndb_info_set_618",
                   /* Set extra row data to a known value */
-                  extra_row_ndb_info = set_extra_data(extra_data););
+                  extra_row_ndb_info = set_extra_data(extra_data, 618););
+  DBUG_EXECUTE_IF("extra_row_ndb_info_set_3",
+                  /* Set extra row data to a known value */
+                  extra_row_ndb_info = set_extra_data(extra_data, 3););
 #endif
   partition_info *part_info = tbl_arg->part_info;
   auto part_id = get_rpl_part_id(part_info);
