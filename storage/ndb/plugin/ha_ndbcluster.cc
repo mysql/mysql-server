@@ -16279,46 +16279,16 @@ bool ha_ndbcluster::abort_inplace_alter_table(
 void ha_ndbcluster::notify_table_changed(Alter_inplace_info *alter_info) {
   DBUG_TRACE;
 
-  /*
-    all mysqld's will read frms from disk and setup new
-    event operation for the table (new_op)
-  */
-  THD *thd = current_thd;
+  // Tell particpants that alter has completed and it's time to use
+  // the new event operations
   const char *db = table->s->db.str;
   const char *name = table->s->table_name.str;
-  uint32 table_id = 0, table_version = 0;
-
-  /*
-    Get table id/version for new table
-  */
-  {
-    Ndb *ndb = get_ndb(thd);
-    DBUG_ASSERT(ndb != 0);
-    if (ndb) {
-      ndb->setDatabaseName(db);
-      Ndb_table_guard ndbtab(ndb->getDictionary(), name);
-      const NDBTAB *new_tab = ndbtab.get_table();
-      DBUG_ASSERT(new_tab != 0);
-      if (new_tab) {
-        table_id = new_tab->getObjectId();
-        table_version = new_tab->getObjectVersion();
-        // NOTE! There is already table id, version etc. in NDB_ALTER_DATA,
-        // why not take it from there instead of doing an additional
-        // NDB roundtrip to fetch the table definition
-      }
-    }
-  }
-
-  /*
-    all mysqld's will switch to using the new_op, and delete the old
-    event operation
-  */
   NDB_ALTER_DATA *alter_data =
       static_cast<NDB_ALTER_DATA *>(alter_info->handler_ctx);
   Ndb_schema_dist_client &schema_dist_client = alter_data->schema_dist_client;
-  if (!schema_dist_client.alter_table_inplace_commit(db, name, table_id,
-                                                     table_version)) {
-    // Failed to distribute the prepare of this alter table to the
+  if (!schema_dist_client.alter_table_inplace_commit(
+          db, name, alter_data->table_id, alter_data->old_table_version)) {
+    // Failed to distribute the commit of this alter table to the
     // other MySQL Servers, just log error and continue
     ndb_log_error("Failed to distribute inplace alter table commit of '%s'",
                   name);
