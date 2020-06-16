@@ -386,8 +386,9 @@ DROP TABLE td;
 --echo -    Currently suboptimal in that it causes N*N reads of tmp buffer
 --echo ----------------------------------------------------------------------
 
---error ER_WRONG_ARGUMENTS
+--error ER_PARSE_ERROR
 EXPLAIN FORMAT=JSON SELECT id, NTILE(NULL) OVER w FROM t1 WINDOW w AS (ORDER BY id);
+
 EXPLAIN FORMAT=JSON SELECT id, NTILE(1) OVER w FROM t1 WINDOW w AS (ORDER BY id);
 EXPLAIN FORMAT=JSON SELECT id, NTILE(2) OVER w FROM t1 WINDOW w AS (ORDER BY id);
 EXPLAIN FORMAT=JSON SELECT id, NTILE(5) OVER w FROM t1 WINDOW w AS (ORDER BY id);

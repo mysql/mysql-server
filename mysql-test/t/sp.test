@@ -8411,17 +8411,17 @@ create procedure p1(p1 integer, p2 integer)
 --echo #
 --echo # Try to use data types not allowed in LIMIT 
 --echo #
---error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+--error ER_PARSE_ERROR
 create procedure p1(p1 date, p2 date) select * from t1 limit p1, p2;
---error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+--error ER_PARSE_ERROR
 create procedure p1(p1 integer, p2 float) select * from t1 limit p1, p2;
---error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+--error ER_PARSE_ERROR
 create procedure p1(p1 integer, p2 char(1)) select * from t1 limit p1, p2;
---error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+--error ER_PARSE_ERROR
 create procedure p1(p1 varchar(5), p2 char(1)) select * from t1 limit p1, p2;
---error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+--error ER_PARSE_ERROR
 create procedure p1(p1 decimal, p2 decimal) select * from t1 limit p1, p2;
---error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+--error ER_PARSE_ERROR
 create procedure p1(p1 double, p2 double) select * from t1 limit p1, p2;
 
 --echo #
@@ -8470,7 +8470,7 @@ delimiter |;
 --echo #
 --echo # Try to use data types not allowed in LIMIT 
 --echo #
---error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+--error ER_PARSE_ERROR
 create function f1(p1 date, p2 date)
   returns int
 begin
@@ -8479,7 +8479,7 @@ begin
   return a;
 end|
 
---error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+--error ER_PARSE_ERROR
 create function f1(p1 integer, p2 float)
   returns int
 begin
@@ -8488,7 +8488,7 @@ begin
   return a;
 end|
 
---error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+--error ER_PARSE_ERROR
 create function f1(p1 integer, p2 char(1))
   returns int
 begin
@@ -8497,7 +8497,7 @@ begin
   return a;
 end|
 
---error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+--error ER_PARSE_ERROR
 create function f1(p1 varchar(5), p2 char(1))
   returns int
 begin
@@ -8506,7 +8506,7 @@ begin
   return a;
 end|
 
---error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+--error ER_PARSE_ERROR
 create function f1(p1 decimal, p2 decimal)
   returns int
 begin
@@ -8515,7 +8515,7 @@ begin
   return a;
 end|
 
---error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+--error ER_PARSE_ERROR
 create function f1(p1 double, p2 double)
   returns int
 begin

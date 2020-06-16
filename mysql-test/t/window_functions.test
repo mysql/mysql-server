@@ -968,13 +968,17 @@ DROP TABLE td;
 
 --error ER_WRONG_ARGUMENTS
 SELECT id, NTILE(0) OVER w FROM t1 WINDOW w AS ();
-# Per the std, no NULL literal, but NULL value of argument is allowed
---error ER_WRONG_ARGUMENTS
+
+# Neither NULL literal, nor NULL value of argument is allowed
+--error ER_PARSE_ERROR
 SELECT id, NTILE(NULL) OVER w FROM t1 WINDOW w AS (ORDER BY id);
 PREPARE s FROM
   'SELECT id, NTILE(?) OVER w FROM t1 WINDOW w AS (ORDER BY id)';
 SET @a=NULL;
+
+--error ER_WRONG_ARGUMENTS
 EXECUTE s USING @a;
+--error ER_WRONG_ARGUMENTS
 SELECT id, NTILE(@s) OVER w FROM t1 WINDOW w AS (ORDER BY id);
 SELECT id, NTILE(1) OVER w FROM t1 WINDOW w AS ();
 SELECT id, NTILE(5) OVER w FROM t1 WINDOW w AS ();
@@ -997,6 +1001,7 @@ SET @p1= '1';
 --error ER_WRONG_ARGUMENTS
 EXECUTE p USING @p1;
 SET @p1= NULL;
+--error ER_WRONG_ARGUMENTS
 EXECUTE p USING @p1;
 DROP PREPARE p;
 
@@ -4175,3 +4180,104 @@ DROP TABLE t;
 # comment-start: "# "
 # fill-column: 80
 # End:
+
+--echo #
+--echo # Bug#31393719: SIGFPE, ARITHMETIC EXCEPTION IN ITEM_NTILE::VAL_INT
+--echo #
+
+--error ER_PARSE_ERROR
+DO NTILE(MAX(NOT 1)) OVER();
+
+# Positive coverage for unlikely-tested corner cases:
+
+DO LAG(1, 9223372036854775807) OVER();
+DO LEAD(1, 9223372036854775807) OVER();
+DO NTILE(9223372036854775807) OVER();
+
+# Negative coverage tests for 2^64-1 literals:
+
+--error ER_WRONG_ARGUMENTS
+DO LAG(1, 18446744073709551615) OVER();
+--error ER_WRONG_ARGUMENTS
+DO LEAD(1, 18446744073709551615) OVER();
+--error ER_WRONG_ARGUMENTS
+DO NTILE(18446744073709551615) OVER();
+
+# Negative coverage tests for some non-literal arguments:
+
+CREATE PROCEDURE p1(n INT) DO NTILE(n) OVER();
+--error ER_WRONG_ARGUMENTS
+CALL p1(NULL);
+DROP PROCEDURE p1;
+
+SET @v = NULL;
+
+PREPARE stmt FROM 'DO NTILE(?) OVER()';
+--error ER_WRONG_ARGUMENTS
+EXECUTE stmt USING @v;
+--error ER_WRONG_ARGUMENTS
+EXECUTE stmt USING @undefined;
+
+--error ER_WRONG_ARGUMENTS
+DO NTILE(@v) OVER();
+--error ER_WRONG_ARGUMENTS
+DO NTILE(@undefined) OVER();
+
+CREATE PROCEDURE p2(n INT) DO LEAD(1, n) OVER();
+--error ER_WRONG_ARGUMENTS
+CALL p2(NULL);
+DROP PROCEDURE p2;
+
+CREATE PROCEDURE p3(n INT) DO LAG(1, n) OVER();
+--error ER_WRONG_ARGUMENTS
+CALL p3(NULL);
+DROP PROCEDURE p3;
+
+PREPARE stmt FROM 'DO LAG(1, ?) OVER()';
+--error ER_WRONG_ARGUMENTS
+EXECUTE stmt USING @v;
+
+PREPARE stmt FROM 'DO LEAD(1, ?) OVER()';
+--error ER_WRONG_ARGUMENTS
+EXECUTE stmt USING @v;
+
+--error ER_WRONG_ARGUMENTS
+DO LAG(1, @v) OVER();
+--error ER_WRONG_ARGUMENTS
+DO LEAD(1, @v) OVER();
+
+SET @v = '1';
+
+--error ER_WRONG_ARGUMENTS
+DO LAG(1, @v) OVER();
+--error ER_WRONG_ARGUMENTS
+DO LEAD(1, @v) OVER();
+--error ER_WRONG_ARGUMENTS
+DO NTILE(@v) OVER();
+
+SET @v = 1.2;
+
+--error ER_WRONG_ARGUMENTS
+DO LAG(1, @v) OVER();
+--error ER_WRONG_ARGUMENTS
+DO LEAD(1, @v) OVER();
+--error ER_WRONG_ARGUMENTS
+DO NTILE(@v) OVER();
+
+# Negative coverage tests for mutable references to user-defined variables:
+
+SET @v = 10;
+
+DO LAG(1, @v) OVER();
+--error ER_WRONG_ARGUMENTS
+DO LAG(1, @v) OVER(), @v:=20;
+
+DO LEAD(1, @v) OVER();
+--error ER_WRONG_ARGUMENTS
+DO LEAD(1, @v) OVER(), @v:=20;
+
+DO NTILE(@v) OVER();
+--error ER_WRONG_ARGUMENTS
+DO NTILE(@v) OVER(), @v:=20;
+
+--echo # End of test for Bug#31393719

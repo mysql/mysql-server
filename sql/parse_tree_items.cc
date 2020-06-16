@@ -541,7 +541,7 @@ bool PTI_variable_aux_set_var::itemize(Parse_context *pc, Item **res) {
   return lex->set_var_list.push_back(this);
 }
 
-bool PTI_variable_aux_ident_or_text::itemize(Parse_context *pc, Item **res) {
+bool PTI_user_variable::itemize(Parse_context *pc, Item **res) {
   if (super::itemize(pc, res)) return true;
 
   LEX *lex = pc->thd->lex;
@@ -655,27 +655,34 @@ bool PTI_odbc_date::itemize(Parse_context *pc, Item **res) {
   return false;
 }
 
-bool PTI_limit_option_ident::itemize(Parse_context *pc, Item **res) {
-  if (super::itemize(pc, res)) return true;
+bool PTI_int_splocal::itemize(Parse_context *pc, Item **res) {
+  if (super::itemize(pc, res)) return true;  // OOM
 
-  LEX *lex = pc->thd->lex;
-  sp_head *sp = lex->sphead;
+  LEX *const lex = pc->thd->lex;
+  sp_head *const sp = lex->sphead;
   const char *query_start_ptr =
       sp ? sp->m_parser_data.get_current_stmt_start_ptr() : nullptr;
 
-  Item_splocal *v = create_item_for_sp_var(
-      pc->thd, ident, nullptr, query_start_ptr, ident_loc.start, ident_loc.end);
-  if (v == nullptr) return true;
-
-  lex->safe_to_cache_query = false;
-
+  Item_splocal *v =
+      create_item_for_sp_var(pc->thd, m_name, nullptr, query_start_ptr,
+                             m_location.raw.start, m_location.raw.end);
+  if (v == nullptr) {
+    return true;  // undefined variable or OOM
+  }
   if (v->type() != Item::INT_ITEM) {
-    my_error(ER_WRONG_SPVAR_TYPE_IN_LIMIT, MYF(0));
+    pc->thd->syntax_error_at(m_location, ER_SPVAR_NONINTEGER_TYPE, m_name.str);
     return true;
   }
 
-  v->limit_clause_param = true;
+  lex->safe_to_cache_query = false;
   *res = v;
+  return false;
+}
+
+bool PTI_limit_option_ident::itemize(Parse_context *pc, Item **res) {
+  if (super::itemize(pc, res)) return true;
+  auto *v = down_cast<Item_splocal *>(*res);
+  v->limit_clause_param = true;
   return false;
 }
 

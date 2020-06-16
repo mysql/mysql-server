@@ -86,7 +86,7 @@ INSERT INTO t1(d, id, sex) VALUES (1.0, 1, 'M'),
 SELECT id, sex, LEAD(id, -1) RESPECT NULLS OVER () FROM t1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1) RESPECT NULLS OVER () FROM t1' at line 1
 SELECT id, sex, LEAD(id, 1.2) RESPECT NULLS OVER () FROM t1;
-ERROR HY000: Incorrect arguments to lead
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '1.2) RESPECT NULLS OVER () FROM t1' at line 1
 SELECT id, sex, LEAD(id, 'a') RESPECT NULLS OVER () FROM t1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''a') RESPECT NULLS OVER () FROM t1' at line 1
 SELECT id, sex, LEAD(id, NULL) RESPECT NULLS OVER () FROM t1;

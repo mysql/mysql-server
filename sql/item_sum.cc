@@ -4934,11 +4934,11 @@ bool Item_ntile::check_wf_semantics2(Window_evaluation_requirements *) {
   /*
     Semantic check of the argument. Should be a positive constant
     integer larger than zero, cf. SQL 2011 section 6.10 GR 1,a,ii,1-2)
-    NULL literal is not allowed. Dynamic parameter is allowed, and may be
+    NULL literal is not allowed. Dynamic parameter is allowed, and may not be
     NULL.
   */
   if (!arg->const_for_execution() || arg->result_type() != INT_RESULT ||
-      (arg->val_int() <= 0 && !arg->is_null())) {
+      arg->val_int() <= 0 || arg->is_null()) {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
     return true;
   }

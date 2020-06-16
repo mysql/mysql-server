@@ -5596,7 +5596,7 @@ DROP TABLE td;
 -    Currently suboptimal in that it causes N*N reads of tmp buffer
 ----------------------------------------------------------------------
 EXPLAIN FORMAT=JSON SELECT id, NTILE(NULL) OVER w FROM t1 WINDOW w AS (ORDER BY id);
-ERROR HY000: Incorrect arguments to ntile
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'NULL) OVER w FROM t1 WINDOW w AS (ORDER BY id)' at line 1
 EXPLAIN FORMAT=JSON SELECT id, NTILE(1) OVER w FROM t1 WINDOW w AS (ORDER BY id);
 EXPLAIN
 {

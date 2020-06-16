@@ -1498,11 +1498,13 @@ void warn_about_deprecated_binary(THD *thd)
         null_as_literal
         literal_or_null
         signed_literal_or_null
-
+        stable_integer
+        param_or_var
 
 %type <item_string> window_name opt_existing_window_name
 
 %type <item_num> NUM_literal
+        int64_literal
 
 %type <item_list>
         when_list
@@ -10693,7 +10695,7 @@ window_func_call:       // Window functions which do not exist as set functions
           {
             $$= NEW_PTN Item_percent_rank(@$, $4);
           }
-        | NTILE_SYM '(' simple_expr ')' windowing_clause
+        | NTILE_SYM '(' stable_integer ')' windowing_clause
           {
             $$=NEW_PTN Item_ntile(@$, $3, $5);
           }
@@ -10744,16 +10746,26 @@ opt_lead_lag_info:
             $$.offset= NULL;
             $$.default_value= NULL;
           }
-        | ',' NUM_literal opt_ll_default
+        | ',' stable_integer opt_ll_default
           {
             $$.offset= $2;
             $$.default_value= $3;
           }
-        | ',' param_marker opt_ll_default
-          {
-            $$.offset= $2;
-            $$.default_value= $3;
-          }
+        ;
+
+/*
+  The stable_integer nonterminal symbol is not really constant, but constant
+  for the duration of an execution.
+*/
+stable_integer:
+          int64_literal  { $$ = $1; }
+        | param_or_var
+        ;
+
+param_or_var:
+          param_marker { $$ = $1; }
+        | ident        { $$ = NEW_PTN PTI_int_splocal(@$, to_lex_cstring($1)); }
+        | '@' ident_or_text     { $$ = NEW_PTN PTI_user_variable(@$, $2); }
         ;
 
 opt_ll_default:
@@ -11021,7 +11033,7 @@ variable_aux:
           }
         | ident_or_text
           {
-            $$= NEW_PTN PTI_variable_aux_ident_or_text(@$, $1);
+            $$= NEW_PTN PTI_user_variable(@$, $1);
           }
         | '@' opt_var_ident_type ident_or_text opt_component
           {
@@ -12073,7 +12085,7 @@ limit_options:
 limit_option:
           ident
           {
-            $$= NEW_PTN PTI_limit_option_ident(@$, to_lex_cstring($1), @1.raw);
+            $$= NEW_PTN PTI_limit_option_ident(@$, to_lex_cstring($1));
           }
         | param_marker
           {
@@ -14211,18 +14223,7 @@ literal_or_null:
         ;
 
 NUM_literal:
-          NUM
-          {
-            $$= NEW_PTN Item_int(@$, $1);
-          }
-        | LONG_NUM
-          {
-            $$= NEW_PTN Item_int(@$, $1);
-          }
-        | ULONGLONG_NUM
-          {
-            $$= NEW_PTN Item_uint(@$, $1.str, $1.length);
-          }
+          int64_literal
         | DECIMAL_NUM
           {
             $$= NEW_PTN Item_decimal(@$, $1.str, $1.length, YYCSCL);
@@ -14231,6 +14232,16 @@ NUM_literal:
           {
             $$= NEW_PTN Item_float(@$, $1.str, $1.length);
           }
+        ;
+
+/*
+  int64_literal if for unsigned exact integer literals in a range of
+  [0 .. 2^64-1].
+*/
+int64_literal:
+          NUM           { $$ = NEW_PTN Item_int(@$, $1); }
+        | LONG_NUM      { $$ = NEW_PTN Item_int(@$, $1); }
+        | ULONGLONG_NUM { $$ = NEW_PTN Item_uint(@$, $1.str, $1.length); }
         ;
 
 
