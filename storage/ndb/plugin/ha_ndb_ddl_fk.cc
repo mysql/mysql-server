@@ -1925,12 +1925,11 @@ int ha_ndbcluster::recreate_fk_for_truncate(THD *thd, Ndb *ndb,
 }
 
 bool ha_ndbcluster::has_fk_dependency(
-    THD *thd, const NdbDictionary::Column *column) const {
+    NdbDictionary::Dictionary *dict,
+    const NdbDictionary::Column *column) const {
   DBUG_TRACE;
-  Ndb *ndb = get_ndb(thd);
-  NDBDICT *dict = ndb->getDictionary();
+  DBUG_PRINT("enter", ("Searching for column %s", column->getName()));
   NdbDictionary::Dictionary::List obj_list;
-  DBUG_PRINT("info", ("Searching for column %s", column->getName()));
   if (dict->listDependentObjects(obj_list, *m_table) == 0) {
     for (unsigned i = 0; i < obj_list.count; i++) {
       const NDBDICT::List::Element &e = obj_list.elements[i];

@@ -460,7 +460,8 @@ class ha_ndbcluster : public handler, public Partition_handler {
   enum_alter_inplace_result supported_inplace_ndb_column_change(
       uint, TABLE *, Alter_inplace_info *, bool, bool) const;
   enum_alter_inplace_result supported_inplace_column_change(
-      THD *, TABLE *, uint, Field *, Alter_inplace_info *) const;
+      NdbDictionary::Dictionary *dict, TABLE *, uint, Field *,
+      Alter_inplace_info *) const;
   enum_alter_inplace_result check_inplace_alter_supported(
       TABLE *altered_table, Alter_inplace_info *ha_alter_info);
 
@@ -504,7 +505,8 @@ class ha_ndbcluster : public handler, public Partition_handler {
                         const NdbDictionary::Table *);
   static int recreate_fk_for_truncate(THD *, Ndb *, const char *,
                                       std::vector<NdbDictionary::ForeignKey> *);
-  bool has_fk_dependency(THD *, const NdbDictionary::Column *) const;
+  bool has_fk_dependency(NdbDictionary::Dictionary *dict,
+                         const NdbDictionary::Column *) const;
   int check_default_values(const NdbDictionary::Table *ndbtab);
   int get_metadata(THD *thd, const dd::Table *table_def);
   void release_metadata(THD *thd);
@@ -548,8 +550,8 @@ class ha_ndbcluster : public handler, public Partition_handler {
   int scan_handle_lock_tuple(NdbScanOperation *scanOp, NdbTransaction *trans);
   int fetch_next(NdbScanOperation *op);
   int fetch_next_pushed();
-  int set_auto_inc(THD *thd, Field *field);
-  int set_auto_inc_val(THD *thd, Uint64 value);
+  int set_auto_inc(Ndb *ndb, Field *field);
+  int set_auto_inc_val(Ndb *ndb, Uint64 value) const;
   int next_result(uchar *buf);
   int close_scan();
   int unpack_record(uchar *dst_row, const uchar *src_row);
@@ -760,7 +762,6 @@ class ha_ndbcluster : public handler, public Partition_handler {
   bool m_disable_multi_read;
   uchar *m_multi_range_result_ptr;
   NdbIndexScanOperation *m_multi_cursor;
-  Ndb *get_ndb(THD *thd) const;
 
   int update_stats(THD *thd, bool do_read_stat, uint part_id = ~(uint)0);
   int add_handler_to_open_tables(THD *, Thd_ndb *, ha_ndbcluster *handler);
