@@ -16,7 +16,7 @@
 # [--let $rpl_only_running_threads= 1]
 # [--let $rpl_debug= 1]
 # [--let $slave_timeout= NUMBER]
-# --source include/rpl_end.inc
+# --source include/rpl_reset.inc
 #
 # Parameters:
 #   $rpl_only_running_threads

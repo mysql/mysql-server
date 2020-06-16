@@ -153,6 +153,11 @@ END_OF_PROCEDURE
 
 END_OF_PROCEDURE
 
+# Record the number of temp tables present
+
+--source include/rpl_connection_slave.inc
+--let $_number_temp_tables = `SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO`
+
 # Create tables for testing
 
 --source include/rpl_connection_master.inc
@@ -236,7 +241,7 @@ create temporary TABLE temp1 (k INT PRIMARY KEY);
 --echo #
 --echo # 6.1 Check the slave IO thread fails
 
---let $assert_cond= [SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO]
+--let $assert_cond= [SELECT COUNT(*) = $_number_temp_tables FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO]
 --let $assert_message_text = No temporary table was created
 --source $MYSQL_TMP_DIR/check_slave_IO_error.inc
 
@@ -248,7 +253,8 @@ DROP TEMPORARY TABLE IF EXISTS temp1;
 --echo #
 --echo # 7.1 Check the slave IO thread fails
 
---let $assert_cond= [SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO]
+--inc $_number_temp_tables
+--let $assert_cond= [SELECT COUNT(*) = $_number_temp_tables FROM INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO]
 --let $assert_message_text = There is still a temporary table
 --source $MYSQL_TMP_DIR/check_slave_IO_error.inc
 

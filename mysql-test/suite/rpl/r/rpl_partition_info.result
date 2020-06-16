@@ -167,8 +167,6 @@ include/diff_tables.inc [master:sp, slave:sp]
 DROP TABLE t;
 DROP TABLE sp;
 #####10.INSERT in a table which has both partition info and ndb_info #####
-SET debug = "+d,extra_row_ndb_info_check";
-SET debug = "+d,extra_row_ndb_info_set";
 CREATE TABLE t1 (store_id INT NOT NULL) PARTITION BY RANGE (store_id) ( PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20));
 include/save_binlog_position.inc
 INSERT INTO t1 VALUES (1), (11), (15);
@@ -191,8 +189,6 @@ include/mysqlbinlog.inc
 ### SET
 ###   @1=15
 include/sync_slave_sql_with_master.inc
-SET debug = "-d,extra_row_ndb_info_check";
-SET debug = "-d,extra_row_ndb_info_set";
 #####11.Test partial JSON Update #####
 SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS= PARTIAL_JSON;
 Warnings:

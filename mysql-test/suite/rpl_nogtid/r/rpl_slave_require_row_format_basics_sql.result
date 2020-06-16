@@ -9,6 +9,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 #    Create tables for the test
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 call mtr.add_suppression("Slave SQL for channel '': The application of relay events failed for channel '' as an invalid event according to REQUIRE_ROW_FORMAT was found*");
+[connection slave]
 [connection master]
 CREATE TABLE t1 (i INT);
 CREATE TABLE t2 (c1 TEXT);
