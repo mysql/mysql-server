@@ -36,6 +36,7 @@
 #include "plugin/x/src/services/mysqlx_maintenance.h"
 #include "plugin/x/src/services/registrator.h"
 #include "plugin/x/src/sha256_password_cache.h"
+#include "plugin/x/src/temporary_account_locker.h"
 #include "plugin/x/src/udf/mysqlx_error.h"
 #include "plugin/x/src/udf/mysqlx_generate_document_id.h"
 #include "plugin/x/src/udf/mysqlx_get_prepared_statement_id.h"
@@ -68,6 +69,8 @@ xpl::udf::Registry *Module_mysqlx::m_udf_register = nullptr;
 xpl::iface::Server *Module_mysqlx::m_server = nullptr;
 xpl::iface::SHA256_password_cache *Module_mysqlx::m_sha256_password_cache =
     nullptr;
+xpl::iface::Temporary_account_locker
+    *Module_mysqlx::m_temporary_account_locker = nullptr;
 
 void Module_mysqlx::require_services() {
   Module_mysqlx::m_services = new xpl::Services();
@@ -156,6 +159,8 @@ int Module_mysqlx::initialize(MYSQL_PLUGIN plugin_handle) {
 
     m_sha256_password_cache =
         ngs::allocate_object<xpl::SHA256_password_cache>();
+    m_temporary_account_locker =
+        ngs::allocate_object<xpl::Temporary_account_locker>();
     m_input_queue = ngs::allocate_object<xpl::Notice_input_queue>();
     m_server = builder.get_result_server_instance(
         {acceptor_task, m_input_queue->create_broker_task()});
@@ -212,6 +217,8 @@ int Module_mysqlx::deinitialize(MYSQL_PLUGIN) {
 
     ngs::free_object(m_sha256_password_cache);
     m_sha256_password_cache = nullptr;
+    ngs::free_object(m_temporary_account_locker);
+    m_temporary_account_locker = nullptr;
   }
 
   unrequire_services();
@@ -261,6 +268,12 @@ Module_mysqlx::get_instance_notice_queue() {
 Module_mysqlx::Sha245_cache_with_lock
 Module_mysqlx::get_instance_sha256_password_cache() {
   return Sha245_cache_with_lock(m_sha256_password_cache, &m_instance_rwl);
+}
+
+Module_mysqlx::Temporary_account_locker_with_lock
+Module_mysqlx::get_instance_temporary_account_locker() {
+  return Temporary_account_locker_with_lock(m_temporary_account_locker,
+                                            &m_instance_rwl);
 }
 
 }  // namespace modules

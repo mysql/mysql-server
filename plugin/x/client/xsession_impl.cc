@@ -897,6 +897,8 @@ XError Session_impl::authenticate(const char *user, const char *pass,
         details::value_or_empty_string(pass),
         details::value_or_empty_string(schema), auth_method);
 
+    DBUG_PRINT("info", ("Current error code: %i", current_error.error()));
+
     // Authentication successful, otherwise try to use different auth method
     if (!current_error) return {};
 
@@ -905,13 +907,17 @@ XError Session_impl::authenticate(const char *user, const char *pass,
     // In case of connection errors ('broken pipe', 'peer disconnected',
     // timeouts...) we should break the authentication sequence and return
     // an error.
-    if (current_error_code == CR_SERVER_GONE_ERROR ||
-        current_error_code == CR_X_WRITE_TIMEOUT ||
-        current_error_code == CR_X_READ_TIMEOUT ||
-        current_error_code == CR_UNKNOWN_ERROR) {
+    static const std::array<int32_t, 6> k_error_codes = {
+        CR_SERVER_GONE_ERROR,
+        CR_X_WRITE_TIMEOUT,
+        CR_X_READ_TIMEOUT,
+        CR_UNKNOWN_ERROR,
+        ER_ACCESS_DENIED_ERROR_WITH_PASSWORD,
+        ER_USER_ACCESS_DENIED_FOR_USER_ACCOUNT_BLOCKED_BY_PASSWORD_LOCK};
+    if (std::any_of(k_error_codes.begin(), k_error_codes.end(),
+                    [&](const int32_t e) { return e == current_error_code; })) {
       // Expected disconnection
       if (fatal_error_received) return reported_error;
-
       // Unexpected disconnection
       return current_error;
     }
@@ -1199,5 +1205,4 @@ std::unique_ptr<XSession> create_session() {
 
   return result;
 }
-
 }  // namespace xcl

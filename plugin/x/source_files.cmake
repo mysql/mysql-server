@@ -146,6 +146,7 @@ SET(xplugin_SRC
   src/index_array_field.cc
   src/capabilities/capability_compression.cc
   src/meta_schema_validator.cc
+  src/temporary_account_locker.cc
 
   ${ngs_SRC}
 )

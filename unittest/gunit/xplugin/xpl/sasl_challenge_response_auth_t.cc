@@ -83,7 +83,7 @@ class Sasl_challenge_response_auth_test
   }
 
   ::testing::StrictMock<Mock_account_verification_handler> *mock_handler{
-      new ::testing::StrictMock<Mock_account_verification_handler>(nullptr)};
+      new ::testing::StrictMock<Mock_account_verification_handler>()};
   std::unique_ptr<iface::Authentication> auth;
   ::testing::StrictMock<Mock_account_verification> mock_account_verification;
   ::testing::StrictMock<Mock_authentication_interface> mock_authentication;

@@ -48,52 +48,49 @@ class Sha256_cache_test_suite : public ::testing::Test {
 };
 
 TEST_F(Sha256_cache_test_suite, add_entry_cache_enabled) {
-  ASSERT_TRUE(m_cache.size() == 0);
+  ASSERT_EQ(0, m_cache.size());
   m_cache.upsert("user1", "host1", "value1");
   m_cache.upsert("user2", "host2", "value2");
-  ASSERT_TRUE(m_cache.size() == 2);
+  ASSERT_EQ(2, m_cache.size());
 }
 
 TEST_F(Sha256_cache_test_suite, add_entry_cache_disabled) {
-  ASSERT_TRUE(m_cache.size() == 0);
+  ASSERT_EQ(0, m_cache.size());
   m_cache.upsert("user1", "host1", "value1");
-  ASSERT_TRUE(m_cache.size() == 1);
+  ASSERT_EQ(1, m_cache.size());
   m_cache.disable();
-  ASSERT_TRUE(m_cache.size() == 0);
+  ASSERT_EQ(0, m_cache.size());
   m_cache.upsert("user2", "host2", "value2");
   m_cache.upsert("user3", "host3", "value3");
-  ASSERT_TRUE(m_cache.size() == 0);
+  ASSERT_EQ(0, m_cache.size());
 }
 
 TEST_F(Sha256_cache_test_suite, update_entry) {
   m_cache.upsert("user", "host", "value1");
   m_cache.upsert("user", "host", "value2");
-  ASSERT_TRUE(m_cache.size() == 1);
+  ASSERT_EQ(1, m_cache.size());
 }
 
 TEST_F(Sha256_cache_test_suite, get_existing_entry) {
   m_cache.upsert("user1", "host1", "value1");
   auto optional_entry = m_cache.get_entry("user1", "host1");
-  ASSERT_TRUE(optional_entry.first);
-  ASSERT_FALSE(optional_entry.second.empty());
+  ASSERT_TRUE(optional_entry);
+  ASSERT_FALSE(optional_entry->empty());
 }
 
 TEST_F(Sha256_cache_test_suite, get_nonexistent_entry) {
   m_cache.upsert("user1", "host1", "value1");
   auto optional_entry = m_cache.get_entry("bogus_user", "host1");
-  ASSERT_FALSE(optional_entry.first);
-  ASSERT_TRUE(optional_entry.second.empty());
+  ASSERT_FALSE(optional_entry);
   optional_entry = m_cache.get_entry("user1", "bogus host");
-  ASSERT_FALSE(optional_entry.first);
-  ASSERT_TRUE(optional_entry.second.empty());
+  ASSERT_FALSE(optional_entry);
 }
 
 TEST_F(Sha256_cache_test_suite, get_entry_cache_disabled) {
   m_cache.upsert("user1", "host1", "value1");
   m_cache.disable();
   auto optional_entry = m_cache.get_entry("user1", "host1");
-  ASSERT_FALSE(optional_entry.first);
-  ASSERT_TRUE(optional_entry.second.empty());
+  ASSERT_FALSE(optional_entry);
 }
 
 TEST_F(Sha256_cache_test_suite, find_entry) {
@@ -116,24 +113,24 @@ TEST_F(Sha256_cache_test_suite, find_entry_cache_disabled) {
 TEST_F(Sha256_cache_test_suite, check_entry_hashing) {
   m_cache.upsert("user1", "host1", "value1");
   auto optional_entry = m_cache.get_entry("user1", "host1");
-  ASSERT_TRUE(optional_entry.first);
-  ASSERT_NE("value1", optional_entry.second);
+  ASSERT_TRUE(optional_entry);
+  ASSERT_NE("value1", *optional_entry);
 }
 
 TEST_F(Sha256_cache_test_suite, remove_entry) {
   m_cache.upsert("user1", "host1", "value1");
   m_cache.upsert("user2", "host2", "value2");
-  ASSERT_TRUE(m_cache.size() == 2);
+  ASSERT_EQ(2, m_cache.size());
   m_cache.remove("user1", "host1");
-  ASSERT_TRUE(m_cache.size() == 1);
+  ASSERT_EQ(1, m_cache.size());
 }
 
 TEST_F(Sha256_cache_test_suite, clear_cache) {
   m_cache.upsert("user1", "host1", "value1");
   m_cache.upsert("user2", "host2", "value2");
-  ASSERT_TRUE(m_cache.size() == 2);
+  ASSERT_EQ(2, m_cache.size());
   m_cache.clear();
-  ASSERT_TRUE(m_cache.size() == 0);
+  ASSERT_EQ(0, m_cache.size());
 }
 
 }  // namespace test

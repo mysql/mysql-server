@@ -122,6 +122,7 @@ SET(XPL_TEST_SRC
   xpl/xmessage_buffer_t.cc
   xpl/xrow_buffer_t.cc
   xpl/xpl_regex_t.cc
+  xpl/temporary_account_locker_t.cc
 )
 # This compiler fails to handle some of the mock functions involved.
 IF(MY_COMPILER_IS_SUNPRO)
@@ -188,6 +189,7 @@ TARGET_LINK_LIBRARIES(${XPL_UNIT_TESTS}
   mysqlclient
   gtest
   gmock
+  mysys
 )
 
 

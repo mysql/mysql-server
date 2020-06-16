@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,38 +22,30 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef PLUGIN_X_SRC_HELPER_CHRONO_H_
-#define PLUGIN_X_SRC_HELPER_CHRONO_H_
+#ifndef PLUGIN_X_SRC_INTERFACE_TEMPORARY_ACCOUNT_LOCKER_H_
+#define PLUGIN_X_SRC_INTERFACE_TEMPORARY_ACCOUNT_LOCKER_H_
 
-#include <chrono>  // NOLINT(build/c++11)
+#include <string>
+
+#include "plugin/x/ngs/include/ngs/error_code.h"
 
 namespace xpl {
-namespace chrono {
+namespace iface {
 
-using Milliseconds = std::chrono::milliseconds;
-using Seconds = std::chrono::seconds;
-using Hours = std::chrono::hours;
-using System_clock = std::chrono::system_clock;
-using Date_time = System_clock::time_point;
-using Clock = std::chrono::steady_clock;
-using Time_point = Clock::time_point;
-using Duration = Clock::duration;
+class Temporary_account_locker {
+ public:
+  virtual ~Temporary_account_locker() = default;
+  virtual ngs::Error_code check(const std::string &user,
+                                const std::string &host,
+                                const int64_t max_failed_login_attempts,
+                                const int64_t password_lock_days,
+                                const bool is_password_pass) = 0;
 
-inline Time_point now() { return Clock::now(); }
+  virtual void clear(const std::string &user, const std::string &host) = 0;
+  virtual void clear() = 0;
+};
 
-inline Milliseconds::rep to_milliseconds(const Duration &d) {
-  return std::chrono::duration_cast<Milliseconds>(d).count();
-}
-
-inline Seconds::rep to_seconds(const Duration &d) {
-  return std::chrono::duration_cast<Seconds>(d).count();
-}
-
-inline bool is_valid(const Time_point &p) {
-  return p.time_since_epoch().count() > 0;
-}
-
-}  // namespace chrono
+}  // namespace iface
 }  // namespace xpl
 
-#endif  // PLUGIN_X_SRC_HELPER_CHRONO_H_
+#endif  // PLUGIN_X_SRC_INTERFACE_TEMPORARY_ACCOUNT_LOCKER_H_

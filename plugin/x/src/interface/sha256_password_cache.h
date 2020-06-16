@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -36,8 +36,8 @@ class SHA256_password_cache {
   virtual bool upsert(const std::string &user, const std::string &host,
                       const std::string &value) = 0;
   virtual bool remove(const std::string &user, const std::string &host) = 0;
-  virtual std::pair<bool, std::string> get_entry(
-      const std::string &user, const std::string &host) const = 0;
+  virtual const std::string *get_entry(const std::string &user,
+                                       const std::string &host) const = 0;
   virtual bool contains(const std::string &user, const std::string &host,
                         const std::string &value) const = 0;
   virtual std::size_t size() const = 0;

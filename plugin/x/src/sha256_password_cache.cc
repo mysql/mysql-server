@@ -23,24 +23,16 @@
  */
 
 #include "plugin/x/src/sha256_password_cache.h"
-
-#include "plugin/x/src/helper/multithread/rw_lock.h"
-#include "plugin/x/src/xpl_log.h"
+#include "sql/auth/i_sha2_password_common.h"
 
 namespace xpl {
-
-SHA256_password_cache::SHA256_password_cache()
-    : m_cache_lock(KEY_rwlock_x_sha256_password_cache) {}
 
 /**
   Start caching.
 
   "Upsert" operation is going to cache all account informations passed to it.
 */
-void SHA256_password_cache::enable() {
-  RWLock_writelock guard(&m_cache_lock);
-  m_accepting_input = true;
-}
+void SHA256_password_cache::enable() { m_password_cache.enable(); }
 
 /**
   Stop caching.
@@ -48,12 +40,7 @@ void SHA256_password_cache::enable() {
   Remove all already cached accounts and prevent the "Upsert" operation from
   caching account informations.
 */
-void SHA256_password_cache::disable() {
-  RWLock_writelock guard(&m_cache_lock);
-  m_accepting_input = false;
-
-  m_password_cache.clear();
-}
+void SHA256_password_cache::disable() { m_password_cache.disable(); }
 
 /**
   Update a cache entry or add a new entry if there is no entry with the given
@@ -70,16 +57,9 @@ void SHA256_password_cache::disable() {
 bool SHA256_password_cache::upsert(const std::string &user,
                                    const std::string &host,
                                    const std::string &value) {
-  auto key = create_key(user, host);
   auto optional_hash = create_hash(value);
-  RWLock_writelock guard(&m_cache_lock);
-
-  if (!m_accepting_input) return false;
-
   if (!optional_hash.first) return false;
-
-  m_password_cache[key] = optional_hash.second;
-  return true;
+  return m_password_cache.upsert(user, host, optional_hash.second);
 }
 
 /**
@@ -94,8 +74,7 @@ bool SHA256_password_cache::upsert(const std::string &user,
 */
 bool SHA256_password_cache::remove(const std::string &user,
                                    const std::string &host) {
-  RWLock_writelock guard(&m_cache_lock);
-  return m_password_cache.erase(create_key(user, host));
+  return m_password_cache.remove(user, host);
 }
 
 /**
@@ -108,17 +87,9 @@ bool SHA256_password_cache::remove(const std::string &user,
   returns true and cache entry value. Otherwise returns false and an empty
   string
 */
-std::pair<bool, std::string> SHA256_password_cache::get_entry(
+const SHA256_password_cache::Cache_entry *SHA256_password_cache::get_entry(
     const std::string &user, const std::string &host) const {
-  RWLock_readlock guard(&m_cache_lock);
-
-  if (!m_accepting_input) return {false, ""};
-
-  const auto it = m_password_cache.find(create_key(user, host));
-
-  if (it == m_password_cache.end()) return {false, ""};
-
-  return {true, it->second};
+  return m_password_cache.get_entry(user, host);
 }
 
 /**
@@ -134,37 +105,20 @@ std::pair<bool, std::string> SHA256_password_cache::get_entry(
 bool SHA256_password_cache::contains(const std::string &user,
                                      const std::string &host,
                                      const std::string &value) const {
-  const auto search_result = get_entry(user, host);
+  const auto search_result = m_password_cache.get_entry(user, host);
 
-  if (!search_result.first) return false;
+  if (!search_result) return false;
 
   const auto optional_hash = create_hash(value);
 
   return !optional_hash.first ? false
-                              : search_result.second == optional_hash.second;
+                              : (*search_result) == optional_hash.second;
 }
 
 /**
   Remove all cache entries.
 */
-void SHA256_password_cache::clear() {
-  RWLock_writelock guard(&m_cache_lock);
-
-  m_password_cache.clear();
-}
-
-/**
-  Create a key which will be used in the cache.
-
-  @param [in] user Username which will be used as a part of the cache entry key
-  @param [in] host Hostname which will be used as a part of the cache entry key
-
-  @returns Key string.
-*/
-std::string SHA256_password_cache::create_key(const std::string &user,
-                                              const std::string &host) const {
-  return user + '\0' + host + '\0';
-}
+void SHA256_password_cache::clear() { m_password_cache.clear(); }
 
 /**
   Create SHA256(SHA256(value)) hash from the given value. It will be used as
@@ -176,7 +130,7 @@ std::string SHA256_password_cache::create_key(const std::string &user,
   case when hash could not be generated we will not insert empty string into
   the password cache
 */
-std::pair<bool, SHA256_password_cache::sha2_cache_entry_t>
+std::pair<bool, SHA256_password_cache::Cache_entry>
 SHA256_password_cache::create_hash(const std::string &value) const {
   // Locking not needed since SHA256_digest does not contain any shared state
   sha2_password::SHA256_digest sha256_digest;

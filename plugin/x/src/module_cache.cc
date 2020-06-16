@@ -24,9 +24,12 @@
 
 #include "plugin/x/src/module_cache.h"
 
+#include "my_inttypes.h"  // NOLINT(build/include_subdir)
+
 #include "plugin/x/src/interface/sha256_password_cache.h"
 #include "plugin/x/src/module_mysqlx.h"
 #include "plugin/x/src/sha256_password_cache.h"
+#include "plugin/x/src/xpl_regex.h"
 
 namespace modules {
 
@@ -45,54 +48,105 @@ volatile bool Module_cache::m_is_sha256_password_cache_enabled = false;
 static int audit_cache_clean_event_notify(MYSQL_THD thd,
                                           mysql_event_class_t event_class,
                                           const void *event) {
-  if (event_class == MYSQL_AUDIT_SERVER_STARTUP_CLASS) {
-    auto server_obj_with_lock = modules::Module_mysqlx::get_instance_server();
-    if (server_obj_with_lock.container()) server_obj_with_lock->start_tasks();
-    return 0;
-  }
+  DBUG_TRACE;
 
-  if (event_class == MYSQL_AUDIT_SERVER_SHUTDOWN_CLASS) {
-    auto server_obj_with_lock = modules::Module_mysqlx::get_instance_server();
-
-    if (server_obj_with_lock.container()) server_obj_with_lock->stop(false);
-    return 0;
-  }
-
-  if (event_class == MYSQL_AUDIT_AUTHENTICATION_CLASS) {
-    auto *authentication_event =
-        reinterpret_cast<const struct mysql_event_authentication *>(event);
-
-    mysql_event_authentication_subclass_t subclass =
-        authentication_event->event_subclass;
-
-    /*
-      If status is set to true, it indicates an error.
-      In which case, don't touch the cache.
-    */
-    if (authentication_event->status) return 0;
-
-    auto sha256_password_cache =
-        modules::Module_mysqlx::get_instance_sha256_password_cache();
-
-    // Check if X Plugin was installed
-    if (nullptr == sha256_password_cache.container()) return 0;
-
-    if (subclass == MYSQL_AUDIT_AUTHENTICATION_FLUSH) {
-      sha256_password_cache->clear();
+  switch (event_class) {
+    case MYSQL_AUDIT_SERVER_STARTUP_CLASS: {
+      auto server_obj_with_lock = modules::Module_mysqlx::get_instance_server();
+      if (server_obj_with_lock.container()) server_obj_with_lock->start_tasks();
       return 0;
     }
 
-    if (subclass == MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE ||
-        subclass == MYSQL_AUDIT_AUTHENTICATION_AUTHID_RENAME ||
-        subclass == MYSQL_AUDIT_AUTHENTICATION_AUTHID_DROP) {
+    case MYSQL_AUDIT_SERVER_SHUTDOWN_CLASS: {
+      auto server_obj_with_lock = modules::Module_mysqlx::get_instance_server();
+
+      if (server_obj_with_lock.container()) server_obj_with_lock->stop(false);
+      return 0;
+    }
+
+    case MYSQL_AUDIT_QUERY_CLASS: {
+      auto *query_event =
+          reinterpret_cast<const struct mysql_event_query *>(event);
+      if (query_event->status) return 0;
+
+      if (query_event->event_subclass == MYSQL_AUDIT_QUERY_STATUS_END &&
+          query_event->sql_command_id == SQLCOM_ALTER_USER) {
+        DBUG_PRINT("info", ("Query: %s", query_event->query.str));
+        static const xpl::Regex re{
+            "ALTER USER '(\\w+)'@'(\\w*)'.+"
+            "(FAILED_LOGIN_ATTEMPTS|PASSWORD_LOCK_TIME|ACCOUNT UNLOCK).*"};
+        xpl::Regex::Group_list groups;
+        if (re.match_groups(query_event->query.str, &groups, false) &&
+            groups.size() == 4) {
+          auto locker =
+              modules::Module_mysqlx::get_instance_temporary_account_locker();
+          if (nullptr == locker.container()) return 0;
+          locker->clear(groups[1], groups[2]);
+        }
+      }
+      return 0;
+    }
+
+    case MYSQL_AUDIT_AUTHENTICATION_CLASS: {
+      auto *authentication_event =
+          reinterpret_cast<const struct mysql_event_authentication *>(event);
+
+      mysql_event_authentication_subclass_t subclass =
+          authentication_event->event_subclass;
+
+      /*
+        If status is set to true, it indicates an error.
+        In which case, don't touch the cache.
+      */
+      if (authentication_event->status) return 0;
+
+      auto sha256_password_cache =
+          modules::Module_mysqlx::get_instance_sha256_password_cache();
+
+      // Check if X Plugin was installed
+      if (nullptr == sha256_password_cache.container()) return 0;
+
+      auto locker =
+          modules::Module_mysqlx::get_instance_temporary_account_locker();
+      if (nullptr == locker.container()) return 0;
+
 #ifndef DBUG_OFF
       // "user" variable is going to be unused when the DBUG_OFF is defined
       auto user = authentication_event->user;
       DBUG_ASSERT(user.str[user.length] == '\0');
 #endif  // DBUG_OFF
-      sha256_password_cache->remove(authentication_event->user.str,
-                                    authentication_event->host.str);
+
+      switch (subclass) {
+        case MYSQL_AUDIT_AUTHENTICATION_FLUSH: {
+          sha256_password_cache->clear();
+          locker->clear();
+          return 0;
+        }
+
+        case MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE: {
+          sha256_password_cache->remove(authentication_event->user.str,
+                                        authentication_event->host.str);
+          return 0;
+        }
+
+        case MYSQL_AUDIT_AUTHENTICATION_AUTHID_RENAME:
+        case MYSQL_AUDIT_AUTHENTICATION_AUTHID_DROP: {
+          sha256_password_cache->remove(authentication_event->user.str,
+                                        authentication_event->host.str);
+          locker->clear(authentication_event->user.str,
+                        authentication_event->host.str);
+          return 0;
+        }
+
+        default:
+          return 0;
+      }
+
+      return 0;
     }
+
+    default:
+      return 0;
   }
   return 0;
 }
@@ -108,15 +162,12 @@ static struct st_mysql_audit sha2_cache_cleaner_plugin_descriptor = {
      0,                              // MYSQL_AUDIT_AUTHORIZATION_CLASS
      0,                              // MYSQL_AUDIT_TABLE_ACCESS_CLASS
      0,                              // MYSQL_AUDIT_GLOBAL_VARIABLE_CLASS
-     // NOLINTNEXTLINE(runtime/int)
-     static_cast<unsigned long>(MYSQL_AUDIT_SERVER_STARTUP_STARTUP),
-     // NOLINTNEXTLINE(runtime/int)
-     static_cast<unsigned long>(MYSQL_AUDIT_SERVER_SHUTDOWN_SHUTDOWN),
+     static_cast<ulong>(MYSQL_AUDIT_SERVER_STARTUP_STARTUP),
+     static_cast<ulong>(MYSQL_AUDIT_SERVER_SHUTDOWN_SHUTDOWN),
      0,  // MYSQL_AUDIT_COMMAND_CLASS
-     0,  // MYSQL_AUDIT_QUERY_CLASS
+     static_cast<ulong>(MYSQL_AUDIT_QUERY_STATUS_END),
      0,  // MYSQL_AUDIT_STORED_PROGRAM_CLASS
-     // NOLINTNEXTLINE(runtime/int)
-     static_cast<unsigned long>(MYSQL_AUDIT_AUTHENTICATION_ALL)}};
+     static_cast<ulong>(MYSQL_AUDIT_AUTHENTICATION_ALL)}};
 
 int Module_cache::initialize(MYSQL_PLUGIN p) {
   // If cache cleaner plugin is initialized before the X plugin we set this

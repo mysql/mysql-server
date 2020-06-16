@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,38 +22,37 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef PLUGIN_X_SRC_HELPER_CHRONO_H_
-#define PLUGIN_X_SRC_HELPER_CHRONO_H_
+#ifndef PLUGIN_X_SRC_INTERFACE_ACCOUNT_VERIFICATION_HANDLER_H_
+#define PLUGIN_X_SRC_INTERFACE_ACCOUNT_VERIFICATION_HANDLER_H_
 
-#include <chrono>  // NOLINT(build/c++11)
+#include <string>
+#include "plugin/x/ngs/include/ngs/error_code.h"
+
+#include "plugin/x/src/interface/account_verification.h"
+#include "plugin/x/src/interface/authentication.h"
 
 namespace xpl {
-namespace chrono {
+namespace iface {
 
-using Milliseconds = std::chrono::milliseconds;
-using Seconds = std::chrono::seconds;
-using Hours = std::chrono::hours;
-using System_clock = std::chrono::system_clock;
-using Date_time = System_clock::time_point;
-using Clock = std::chrono::steady_clock;
-using Time_point = Clock::time_point;
-using Duration = Clock::duration;
+class Account_verification_handler {
+ public:
+  virtual ~Account_verification_handler() = default;
 
-inline Time_point now() { return Clock::now(); }
+  virtual ngs::Error_code authenticate(
+      const Authentication &account_verificator,
+      Authentication_info *authenication_info,
+      const std::string &sasl_message) const = 0;
 
-inline Milliseconds::rep to_milliseconds(const Duration &d) {
-  return std::chrono::duration_cast<Milliseconds>(d).count();
-}
+  virtual const Account_verification *get_account_verificator(
+      const Account_verification::Account_type account_type) const = 0;
 
-inline Seconds::rep to_seconds(const Duration &d) {
-  return std::chrono::duration_cast<Seconds>(d).count();
-}
+  virtual ngs::Error_code verify_account(
+      const std::string &user, const std::string &host,
+      const std::string &passwd,
+      const iface::Authentication_info *authenication_info) const = 0;
+};
 
-inline bool is_valid(const Time_point &p) {
-  return p.time_since_epoch().count() > 0;
-}
-
-}  // namespace chrono
+}  // namespace iface
 }  // namespace xpl
 
-#endif  // PLUGIN_X_SRC_HELPER_CHRONO_H_
+#endif  // PLUGIN_X_SRC_INTERFACE_ACCOUNT_VERIFICATION_HANDLER_H_
