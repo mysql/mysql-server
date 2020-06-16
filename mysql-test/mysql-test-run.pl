@@ -213,7 +213,6 @@ our $opt_manual_debug;
 our $opt_manual_gdb;
 our $opt_manual_lldb;
 our $opt_no_skip;
-our $opt_non_parallel_test;
 our $opt_record;
 our $opt_report_unstable_tests;
 our $opt_skip_combinations;
@@ -1532,9 +1531,6 @@ sub command_line_setup {
 
     # Max number of parallel threads to use
     'parallel=s' => \$opt_parallel,
-
-    # Option to run the tests sourcing 'not_parallel.inc' file
-    'non-parallel-test' => \$opt_non_parallel_test,
 
     # Config file to use as template for all tests
     'defaults-file=s' => \&collect_option,
@@ -7724,8 +7720,6 @@ Misc options
                         by inc files are not satisfied. The option mandatorily
                         requires an excluded list at include/excludenoskip.list
                         which contains inc files which should continue to skip.
-  non-parallel-test     Also run tests marked as 'non-parallel'. Tests sourcing
-                        'not_parallel.inc' are marked as 'non-parallel' tests.
   nounit-tests          Do not run unit tests. Normally run if configured
                         and if not running named tests/suites.
   parallel=N            Run tests in N parallel threads. The default value is 1.
