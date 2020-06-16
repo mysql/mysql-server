@@ -646,6 +646,7 @@ Copy_field::Copy_func *Copy_field::get_copy_func(bool save) {
     else
       return do_save_blob;
   }
+  if (m_to_field->is_array() && m_from_field->is_array()) return do_save_blob;
 
   bool compatible_db_low_byte_first =
       (m_to_field->table->s->db_low_byte_first ==

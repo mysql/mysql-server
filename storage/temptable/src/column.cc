@@ -52,7 +52,7 @@ Column::Column(const unsigned char *mysql_row,
 
   size_t data_offset;
 
-  m_is_blob = mysql_field.is_flag_set(BLOB_FLAG);
+  m_is_blob = (mysql_field.is_flag_set(BLOB_FLAG) || mysql_field.is_array());
 
   if (m_is_blob) {
     auto &blob_field = static_cast<const Field_blob &>(mysql_field);
