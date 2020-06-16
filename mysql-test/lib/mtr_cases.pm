@@ -1294,12 +1294,6 @@ sub collect_one_test_case {
       if ($default_storage_engine =~ /^mysiam/i);
   }
 
-  # Skip non-parallel tests if 'non-parallel-test' option is disabled
-  if ($tinfo->{'not_parallel'} and !$::opt_non_parallel_test) {
-    skip_test($tinfo, "Test needs 'non-parallel-test' option");
-    return $tinfo;
-  }
-
   # Except the tests which need big-test or only-big-test option to run
   # in valgrind environment(i.e tests having no_valgrind_without_big.inc
   # include file), other normal/non-big tests shouldn't run with
