@@ -51,11 +51,11 @@ include/sync_slave_sql.inc
 include/gtid_step_reset.inc
 include/save_binlog_position.inc
 include/gtid_step_assert.inc [count=3, only_count=0]
-include/assert_binlog_events.inc [Gtid # Query/.*BEGIN # Query/.*DELETE.* # Query/.*COMMIT # Gtid # Query/.*BEGIN # Query/.*DELETE.* # Query/.*COMMIT]
+include/assert_binlog_events.inc [#Gtid # !Q(TRUNCATE.*) #Gtid # !Q(TRUNCATE.*)]
 include/sync_slave_sql_with_master.inc
 include/rpl_diff.inc
 #
-# Test case 2: verify COM_FIELD_LIST can binlog DELETE FROM mem_xx
+# Test case 2: verify COM_FIELD_LIST can binlog TRUNCATE FROM mem_xx
 #              correctly
 #
 [connection master]
@@ -67,55 +67,56 @@ c1
 SELECT * FROM mem_t2;
 c1
 #
-# Test case 3: verify DELETE FROM mem_xx can be binlogged correctly
+# Test case 3: verify TRUNCATE FROM mem_xx can be binlogged correctly
 #              in CREATE TABLE ... LIKE
 [connection master]
 include/gtid_step_reset.inc
 include/save_binlog_position.inc
 CREATE TABLE t3 LIKE db2.mem_t1;
 include/gtid_step_assert.inc [count=2, only_count=0]
-include/assert_binlog_events.inc [Gtid # Query/.*BEGIN # Query/.*DELETE.* # Query/.*COMMIT]
+include/assert_binlog_events.inc [#Gtid # !Q(TRUNCATE.*) #Gtid # !Q(CREATE.*)]
 include/sync_slave_sql_with_master.inc
 SELECT * FROM db2.mem_t1;
 c1
 #
-# Test case 4: verify DELETE FROM mem_xx can be binlogged correctly
+# Test case 4: verify TRUNCATE FROM mem_xx can be binlogged correctly
 #              in DML
 [connection master]
 include/gtid_step_reset.inc
 include/save_binlog_position.inc
 INSERT INTO t3 SELECT * FROM db2.mem_t2 UNION SELECT 10;
 include/gtid_step_assert.inc [count=2, only_count=0]
-include/assert_binlog_events.inc [Gtid # Query/.*BEGIN # Query/.*DELETE.* # Query/.*COMMIT]
+include/assert_binlog_events.inc [#Gtid # !Q(TRUNCATE.*) #Gtid # !Begin # !Insert # !Commit]
+include/save_binlog_position.inc
 include/sync_slave_sql_with_master.inc
 SELECT * FROM db2.mem_t2;
 c1
 #
-# Test case 5: verify DELETE FROM mem_xx can be binlogged correctly
+# Test case 5: verify TRUNCATE FROM mem_xx can be binlogged correctly
 #              in a trigger
 [connection master]
 include/gtid_step_reset.inc
 include/save_binlog_position.inc
 INSERT INTO t2 VALUES(11);
 include/gtid_step_assert.inc [count=2, only_count=0]
-include/assert_binlog_events.inc [Gtid # Query/.*BEGIN # Query/.*DELETE.* # Query/.*COMMIT]
+include/assert_binlog_events.inc [#Gtid # !Q(TRUNCATE.*) #Gtid # !Begin]
 include/sync_slave_sql_with_master.inc
 SELECT * FROM db2.mem_t3;
 c1
 #
-# Test case 6: Verify DELETE FROM mem_xx can be binlog correctly
+# Test case 6: Verify TRUNCATE FROM mem_xx can be binlog correctly
 #              when ALTER the memory table.
 [connection master]
 include/gtid_step_reset.inc
 include/save_binlog_position.inc
 ALTER TABLE db2.mem_t4 ADD COLUMN c2 INT;
 include/gtid_step_assert.inc [count=2, only_count=0]
-include/assert_binlog_events.inc [Gtid # Query/.*BEGIN # Query/.*DELETE.* # Query/.*COMMIT]
+include/assert_binlog_events.inc [#Gtid # !Q(TRUNCATE.*) #Gtid # !Q(ALTER.*) ]
 include/sync_slave_sql_with_master.inc
 SELECT * FROM db2.mem_t4;
 c1	c2
 #
-# Test case 7: Verify DELETE FROM mem_xx can be binlog correctly
+# Test case 7: Verify TRUNCATE FROM mem_xx can be binlog correctly
 #              when DROP the memory table.
 [connection master]
 include/gtid_step_reset.inc

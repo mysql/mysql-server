@@ -786,7 +786,7 @@ public:
      Gtid_log_event and BEGIN, COMMIT automatically.
 
      It is aimed to handle cases of "background" logging where a statement is
-     logged indirectly, like "DELETE FROM a_memory_table". So don't use it on any
+     logged indirectly, like "TRUNCATE TABLE a_memory_table". So don't use it on any
      normal statement.
 
      @param[IN] thd  the THD object of current thread.
@@ -796,7 +796,7 @@ public:
 
      @return Returns false if succeeds, otherwise true is returned.
   */
-  bool write_dml_directly(THD* thd, const char *stmt, size_t stmt_len,
+  bool write_stmt_directly(THD* thd, const char *stmt, size_t stmt_len,
                           enum enum_sql_command sql_command);
 
   void set_write_error(THD *thd, bool is_transactional);
