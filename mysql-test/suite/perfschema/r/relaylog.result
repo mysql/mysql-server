@@ -84,23 +84,29 @@ wait/io/file/sql/relaylog	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
 wait/io/file/sql/relaylog_cache	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
 wait/io/file/sql/relaylog_index	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
 wait/io/file/sql/relaylog_index_cache	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
-select * from performance_schema.events_waits_summary_global_by_event_name
+select EVENT_NAME,
+if (count_star > 0, "MANY", "NONE") as COUNT_STAR,
+if (sum_timer_wait > 0, "MANY", "NONE") as SUM_TIMER_WAIT,
+if (min_timer_wait > 0, "MANY", "NONE") as MIN_TIMER_WAIT,
+if (avg_timer_wait > 0, "MANY", "NONE") as AVG_TIMER_WAIT,
+if (max_timer_wait > 0, "MANY", "NONE") as MAX_TIMER_WAIT
+from performance_schema.events_waits_summary_global_by_event_name
 where event_name like "%MYSQL_RELAY_LOG%"
   and event_name not like "%MYSQL_RELAY_LOG::update_cond"
   order by event_name;
 EVENT_NAME	COUNT_STAR	SUM_TIMER_WAIT	MIN_TIMER_WAIT	AVG_TIMER_WAIT	MAX_TIMER_WAIT
-wait/synch/cond/sql/MYSQL_RELAY_LOG::COND_done	0	0	0	0	0
-wait/synch/cond/sql/MYSQL_RELAY_LOG::prep_xids_cond	0	0	0	0	0
-wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_commit	0	0	0	0	0
-wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_commit_queue	0	0	0	0	0
-wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_done	0	0	0	0	0
-wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_flush_queue	0	0	0	0	0
-wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_index	0	0	0	0	0
-wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_log	0	0	0	0	0
-wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_log_end_pos	0	0	0	0	0
-wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_sync	0	0	0	0	0
-wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_sync_queue	0	0	0	0	0
-wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_xids	0	0	0	0	0
+wait/synch/cond/sql/MYSQL_RELAY_LOG::COND_done	NONE	NONE	NONE	NONE	NONE
+wait/synch/cond/sql/MYSQL_RELAY_LOG::prep_xids_cond	NONE	NONE	NONE	NONE	NONE
+wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_commit	NONE	NONE	NONE	NONE	NONE
+wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_commit_queue	NONE	NONE	NONE	NONE	NONE
+wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_done	NONE	NONE	NONE	NONE	NONE
+wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_flush_queue	NONE	NONE	NONE	NONE	NONE
+wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_index	MANY	MANY	MANY	MANY	MANY
+wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_log	MANY	MANY	MANY	MANY	MANY
+wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_log_end_pos	NONE	NONE	NONE	NONE	NONE
+wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_sync	NONE	NONE	NONE	NONE	NONE
+wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_sync_queue	NONE	NONE	NONE	NONE	NONE
+wait/synch/mutex/sql/MYSQL_RELAY_LOG::LOCK_xids	NONE	NONE	NONE	NONE	NONE
 "============ Performance schema on slave ============"
 select * from performance_schema.file_summary_by_instance
 where file_name like "%master-%" order by file_name;
