@@ -81,7 +81,13 @@ select * from performance_schema.file_summary_by_instance
 select * from performance_schema.file_summary_by_event_name
   where event_name like "%relaylog%" order by event_name;
 
-select * from performance_schema.events_waits_summary_global_by_event_name
+select EVENT_NAME,
+  if (count_star > 0, "MANY", "NONE") as COUNT_STAR,
+  if (sum_timer_wait > 0, "MANY", "NONE") as SUM_TIMER_WAIT,
+  if (min_timer_wait > 0, "MANY", "NONE") as MIN_TIMER_WAIT,
+  if (avg_timer_wait > 0, "MANY", "NONE") as AVG_TIMER_WAIT,
+  if (max_timer_wait > 0, "MANY", "NONE") as MAX_TIMER_WAIT
+  from performance_schema.events_waits_summary_global_by_event_name
   where event_name like "%MYSQL_RELAY_LOG%"
   and event_name not like "%MYSQL_RELAY_LOG::update_cond"
   order by event_name;
