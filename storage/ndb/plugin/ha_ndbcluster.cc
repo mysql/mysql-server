@@ -1160,7 +1160,6 @@ Thd_ndb::Thd_ndb(THD *thd)
   lock_count = 0;
   start_stmt_count = 0;
   save_point_count = 0;
-  count = 0;
   trans = NULL;
   m_handler = NULL;
   m_error = false;
@@ -7364,14 +7363,9 @@ int ha_ndbcluster::add_handler_to_open_tables(THD *thd, Thd_ndb *thd_ndb,
       return 1;
     }
     thd_ndb_share->key = key;
-    thd_ndb_share->stat.last_count = thd_ndb->count;
     thd_ndb_share->stat.no_uncommitted_rows_count = 0;
     thd_ndb_share->stat.records = ~(ha_rows)0;
     thd_ndb->open_tables.emplace(thd_ndb_share->key, thd_ndb_share);
-  } else if (thd_ndb_share->stat.last_count != thd_ndb->count) {
-    thd_ndb_share->stat.last_count = thd_ndb->count;
-    thd_ndb_share->stat.no_uncommitted_rows_count = 0;
-    thd_ndb_share->stat.records = ~(ha_rows)0;
   }
 
   handler->m_table_info = &thd_ndb_share->stat;
@@ -7411,7 +7405,6 @@ int ha_ndbcluster::init_handler_for_statement(THD *thd) {
     ret = add_handler_to_open_tables(thd, thd_ndb, this);
   } else {
     struct Ndb_local_table_statistics &stat = m_table_info_instance;
-    stat.last_count = thd_ndb->count;
     stat.no_uncommitted_rows_count = 0;
     stat.records = ~(ha_rows)0;
     m_table_info = &stat;
@@ -12917,7 +12910,6 @@ int ha_ndbcluster::update_stats(THD *thd, bool do_read_stat, uint part_id) {
   int no_uncommitted_rows_count = 0;
   if (m_table_info && !thd_ndb->m_error) {
     m_table_info->records = stat.row_count;
-    m_table_info->last_count = thd_ndb->count;
     no_uncommitted_rows_count = m_table_info->no_uncommitted_rows_count;
   }
   stats.mean_rec_length = stat.row_size;
