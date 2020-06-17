@@ -4759,6 +4759,49 @@ static void fil_name_write_rename(space_id_t space_id, const char *old_name,
   have physically renamed the file. */
 }
 
+/* Write a redo log record for adding pages to a tablespace
+@param[in]	space_id	space ID
+@param[in]	offset		offset from where the file
+                                is extended
+@param[in]	size		number of bytes by which the file
+                                is extended starting from the offset
+@param[in,out]	mtr		mini transaction */
+static void fil_op_write_space_extend(space_id_t space_id, os_offset_t offset,
+                                      os_offset_t size, mtr_t *mtr) {
+  ut_ad(space_id != TRX_SYS_SPACE);
+
+  byte *log_ptr;
+
+  if (!mlog_open(mtr, 7 + 8 + 8, log_ptr)) {
+    /* Logging in mtr is switched off during crash recovery:
+    in that case mlog_open returns nullptr */
+    return;
+  }
+
+#ifdef UNIV_DEBUG
+  byte *start_log = log_ptr;
+#endif /*  UNIV_DEBUG */
+
+  log_ptr = mlog_write_initial_log_record_low(MLOG_FILE_EXTEND, space_id, 0,
+                                              log_ptr, mtr);
+
+  ut_ad(size > 0);
+
+  /* Write the starting offset in the file */
+  mach_write_to_8(log_ptr, offset);
+  log_ptr += 8;
+
+  /* Write the size by which file needs to be extended from
+  the given offset */
+  mach_write_to_8(log_ptr, size);
+  log_ptr += 8;
+
+#ifdef UNIV_DEBUG
+  ut_ad(log_ptr <= start_log + 23);
+#endif /*  UNIV_DEBUG */
+
+  mlog_close(mtr, log_ptr);
+}
 #endif /* !UNIV_HOTBACKUP */
 
 /** Allocate and build a file name from a path, a table or tablespace name
@@ -5395,7 +5438,7 @@ static dberr_t fil_create_tablespace(space_id_t space_id, const char *name,
   bool atomic_write;
 
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
-  if (fil_fusionio_enable_atomic_write(file)) {
+  if (type == FIL_TYPE_TEMPORARY || fil_fusionio_enable_atomic_write(file)) {
     int ret = posix_fallocate(file.m_file, 0, size * page_size.physical());
 
     if (ret != 0) {
@@ -6377,12 +6420,12 @@ space_id_t fil_space_get_id_by_name(const char *name) {
                         if true, then read only mode checks are enforced.
 @return DB_SUCCESS or error code */
 static dberr_t fil_write_zeros(const fil_node_t *file, ulint page_size,
-                               os_offset_t start, ulint len,
+                               os_offset_t start, os_offset_t len,
                                bool read_only_mode) {
   ut_a(len > 0);
 
   /* Extend at most 1M at a time */
-  ulint n_bytes = ut_min(static_cast<ulint>(1024 * 1024), len);
+  os_offset_t n_bytes = ut_min(static_cast<os_offset_t>(1024 * 1024), len);
 
   byte *ptr = reinterpret_cast<byte *>(ut_zalloc_nokey(n_bytes + page_size));
 
@@ -6408,7 +6451,7 @@ static dberr_t fil_write_zeros(const fil_node_t *file, ulint page_size,
 
     offset += n_bytes;
 
-    n_bytes = ut_min(n_bytes, static_cast<ulint>(end - offset));
+    n_bytes = ut_min(n_bytes, end - offset);
 
     DBUG_EXECUTE_IF("ib_crash_during_tablespace_extension", DBUG_SUICIDE(););
   }
@@ -6456,7 +6499,7 @@ bool Fil_shard::space_extend(fil_space_t *space, page_no_t size) {
         release_open_slot(m_id);
       }
 
-      return (true);
+      return true;
     }
 
     file = &space->files.back();
@@ -6495,7 +6538,11 @@ bool Fil_shard::space_extend(fil_space_t *space, page_no_t size) {
 
     mutex_release();
 
-    os_thread_sleep(100000);
+    if (!tbsp_extend_and_initialize) {
+      os_thread_sleep(20);
+    } else {
+      os_thread_sleep(100000);
+    }
   }
 
   bool opened = prepare_file_for_io(file, true);
@@ -6511,7 +6558,7 @@ bool Fil_shard::space_extend(fil_space_t *space, page_no_t size) {
 
     mutex_release();
 
-    return (false);
+    return false;
   }
 
   ut_a(file->is_open);
@@ -6524,7 +6571,7 @@ bool Fil_shard::space_extend(fil_space_t *space, page_no_t size) {
 
     mutex_release();
 
-    return (true);
+    return true;
   }
 
   /* At this point it is safe to release the shard mutex. No
@@ -6561,6 +6608,54 @@ bool Fil_shard::space_extend(fil_space_t *space, page_no_t size) {
     len = ((file->size + n_node_extend) * phy_page_size) - node_start;
 
     ut_ad(len > 0);
+
+#if !defined(UNIV_HOTBACKUP) && defined(UNIV_LINUX)
+    /* Do not write redo log record for temporary tablespace
+    and the system tablespace as they don't need to be recreated.
+    Temporary tablespaces are reinitialized during startup and
+    hence need not be recovered during recovery. The system
+    tablespace is neither recreated nor resized and hence we do
+    not need to redo log any operations on it. */
+    if (!recv_recovery_is_on() && space->purpose != FIL_TYPE_TEMPORARY &&
+        space->id != TRX_SYS_SPACE) {
+      /* Write the redo log record for extending the space */
+      mtr_t mtr;
+      mtr_start(&mtr);
+
+      ut_ad(node_start > 0);
+      ut_ad(len > 0);
+
+      /* The posix_fallocate() reserves the desired space and updates
+      the file metadata in the filesystem. On successful execution, any
+      subsequent attempt to access this newly allocated space will see
+      it as initialized because of the updated filesystem metadata.
+
+      However, the posix_fallocate() call used to allocate space seems
+      to have an atomicity issue where it can fail after reserving the
+      space, but before updating the file metadata in the filesystem.
+
+      Offset is required to be written in the redo log record to find
+      out the position in the file where it was extended during space
+      extend operation. The offset value written in the redo log can
+      be directly used to find the starting point for initializing
+      the file during recovery. In case posix_fallocate() crashes as
+      described above, it will be difficult to find out the old size
+      of the file and hence it will be difficult to find out the exact
+      region which needs to be initialized by writing 0's. */
+
+      fil_op_write_space_extend(space->id, node_start, len, &mtr);
+
+      mtr_commit(&mtr);
+
+      DBUG_INJECT_CRASH_WITH_LOG_FLUSH("ib_crash_after_writing_redo_extend", 1);
+
+      /* Even if we got killed shortly after extending the
+      tablespace file, the record must have already been
+      written to the redo log, because we didn't possibly
+      zeroed the extended region yet. */
+      log_write_up_to(*log_sys, mtr.commit_lsn(), true);
+    }
+#endif /* !UNIV_HOTBACKUP && UNIV_LINUX */
 
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
     /* This is required by FusionIO HW/Firmware */
@@ -6601,14 +6696,15 @@ bool Fil_shard::space_extend(fil_space_t *space, page_no_t size) {
     }
 #endif /* NO_FALLOCATE || !UNIV_LINUX */
 
-    if (!file->atomic_write || err == DB_IO_ERROR) {
+    if ((tbsp_extend_and_initialize && !file->atomic_write) ||
+        err == DB_IO_ERROR) {
       bool read_only_mode;
 
       read_only_mode =
           (space->purpose != FIL_TYPE_TEMPORARY ? false : srv_read_only_mode);
 
-      err = fil_write_zeros(file, phy_page_size, node_start,
-                            static_cast<ulint>(len), read_only_mode);
+      err =
+          fil_write_zeros(file, phy_page_size, node_start, len, read_only_mode);
 
       if (err != DB_SUCCESS) {
         ib::warn(ER_IB_MSG_320)
@@ -6667,7 +6763,8 @@ bool Fil_shard::space_extend(fil_space_t *space, page_no_t size) {
 
   mutex_release();
 
-  return (success);
+  DBUG_EXECUTE_IF("fil_crash_after_extend", DBUG_SUICIDE(););
+  return success;
 }
 
 /** Try to extend a tablespace if it is smaller than the specified size.
@@ -10398,6 +10495,155 @@ byte *fil_tablespace_redo_rename(byte *ptr, const byte *end,
 #endif /* UNIV_HOTBACKUP */
 
   return (ptr);
+}
+
+byte *fil_tablespace_redo_extend(byte *ptr, const byte *end,
+                                 const page_id_t &page_id, ulint parsed_bytes,
+                                 bool parse_only) {
+  ut_a(page_id.page_no() == 0);
+
+  /* We never recreate the system tablespace. */
+  ut_a(page_id.space() != TRX_SYS_SPACE);
+
+  ut_a(parsed_bytes != ULINT_UNDEFINED);
+
+  /* Check for valid offset and size values */
+  if (end < ptr + 16) {
+    return nullptr;
+  }
+
+  /* Offset within the file to start writing zeros */
+  os_offset_t offset = mach_read_from_8(ptr);
+  ptr += 8;
+
+  /* Size of the space which needs to be initialized by
+  writing zeros */
+  os_offset_t size = mach_read_from_8(ptr);
+  ptr += 8;
+
+  if (size == 0) {
+    ib::error(ER_IB_MSG_INCORRECT_SIZE)
+        << "MLOG_FILE_EXTEND: Incorrect value for size encountered."
+        << "Redo log corruption found.";
+    recv_sys->found_corrupt_log = true;
+    return nullptr;
+  }
+
+  if (parse_only) {
+    return ptr;
+  }
+
+#ifndef UNIV_HOTBACKUP
+  const auto result =
+      fil_system->get_scanned_filename_by_space_id(page_id.space());
+
+  if (result.second == nullptr) {
+    /* No files found for this tablespace ID. It's possible that the
+    files were deleted later. */
+    return ptr;
+  }
+
+  bool success = fil_tablespace_open_for_recovery(page_id.space());
+
+  if (!success) {
+    return nullptr;
+  }
+
+  /* Open the space */
+  success = fil_space_open(page_id.space());
+
+  if (!success) {
+    return nullptr;
+  }
+
+  fil_space_t *space = fil_space_get(page_id.space());
+
+  ut_a(space != nullptr);
+  ut_a(!space->files.empty());
+
+  /* Space extension operations on temporary tablespaces
+  are not redo logged as they are always recreated on
+  server startup. */
+  ut_a(space->purpose != FIL_TYPE_TEMPORARY);
+
+  fil_node_t *file = &space->files.back();
+
+  ut_a(file != nullptr);
+
+  page_size_t page_size(space->flags);
+
+  size_t phy_page_size = page_size.physical();
+
+  /* No one should be using this file. */
+  ut_a(file->in_use == 0);
+
+  ut_a(offset > 0);
+  os_offset_t initial_fsize = os_file_get_size(file->handle);
+  ut_a(offset <= initial_fsize);
+  ut_a(initial_fsize == (file->size * phy_page_size));
+
+  /* Tablespace is extended by adding pages. Hence, offset
+  should be aligned to the page boundary */
+  ut_a((offset % phy_page_size) == 0);
+
+  /* If the physical size of the file is greater than or equal to the
+  expected size (offset + size), it means that posix_fallocate was
+  successfully executed.
+  However, if the redo log record requests an expected size (offset + size)
+  which is more than the physical size of the file, it means that
+  posix_fallocate() either allocated partially (in case of emulated
+  posix_fallocate) or did not allocate at all. In case posix_fallocate()
+  fails, the server calls fil_write_zeros to extend the space, which
+  can also fail after allocating space partially because of reasons like
+  lack of disk space. The real indicator of how much file was actually
+  allocated is the physical file size itself.
+  Write out the 0's in the extended space only if the physical size of
+  the file is less than the expected size (offset + size). */
+
+  /* If the file is already equal or larger than the expected size,
+  nothing more to do here. */
+  if ((offset + size) <= initial_fsize) {
+    return ptr;
+  }
+
+#if defined(UNIV_DEBUG)
+  /* Validate that there are no pages in the buffer pool. */
+  buf_must_be_all_freed();
+#endif /* UNIV_DEBUG */
+
+  /* Adjust the actual allocation size to take care of the allocation
+  problems described above.
+  Find out the size by which the file should be extended to have
+  a file of expected size while ensuring that the already allocated
+  pages are not overwritten with zeros. */
+  os_offset_t new_ext_size = size - (initial_fsize - offset);
+
+  /* Initialize the region starting from current end of file with zeros. */
+  dberr_t err =
+      fil_write_zeros(file, phy_page_size, initial_fsize, new_ext_size, false);
+
+  if (err != DB_SUCCESS) {
+    /* Error writing zeros to the file. */
+    ib::warn(ER_IB_MSG_320) << "Error while writing " << size << " zeroes to "
+                            << file->name << " starting at offset " << offset;
+    fil_space_close(space->id);
+    return nullptr;
+  }
+
+  /* Get the final size of the file and adjust file->size accordingly. */
+  os_offset_t end_fsize = os_file_get_size(file->handle);
+
+  page_no_t pages_added = (end_fsize - initial_fsize) / phy_page_size;
+
+  file->size += pages_added;
+  space->size = file->size;
+
+  fil_flush(space->id);
+
+  fil_space_close(space->id);
+#endif /* !UNIV_HOTBACKUP */
+
+  return ptr;
 }
 
 /** Redo a tablespace delete.

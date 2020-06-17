@@ -323,6 +323,12 @@ extern bool srv_buffer_pool_load_at_startup;
 /* Whether to disable file system cache if it is defined */
 extern bool srv_disable_sort_file_cache;
 
+/** Enable or disable writing of NULLs while extending a tablespace.
+If this is FALSE, then the server will just allocate the space without
+actually initializing it with NULLs. If the variable is true, the
+server will allocate and initialize the space by writing NULLs in it. */
+extern bool tbsp_extend_and_initialize;
+
 /* If the last data file is auto-extended, we add this many pages to it
 at a time */
 #define SRV_AUTO_EXTEND_INCREMENT (srv_sys_space.get_autoextend_increment())

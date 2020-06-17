@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -892,8 +892,7 @@ dberr_t Datafile::restore_from_doublewrite(page_no_t restore_page_no) {
     return (DB_CORRUPTION);
   }
 
-  const uint32_t flags =
-      mach_read_from_4(FSP_HEADER_OFFSET + FSP_SPACE_FLAGS + page);
+  const uint32_t flags = fsp_header_get_field(page, FSP_SPACE_FLAGS);
 
   const page_size_t page_size(flags);
 

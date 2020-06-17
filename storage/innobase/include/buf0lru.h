@@ -159,6 +159,10 @@ void buf_unzip_LRU_add_block(buf_block_t *block, ibool old);
 @param[in]	bpage	control block */
 void buf_LRU_make_block_young(buf_page_t *bpage);
 
+/** Moves a block to the end of the LRU list.
+@param[in]	bpage	control block */
+void buf_LRU_make_block_old(buf_page_t *bpage);
+
 /** Updates buf_pool->LRU_old_ratio.
  @return updated old_pct */
 uint buf_LRU_old_ratio_update(

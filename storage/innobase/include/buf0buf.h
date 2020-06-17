@@ -491,6 +491,11 @@ the buffer pool.
 @param[in,out]	bpage	buffer block of a file page */
 void buf_page_make_young(buf_page_t *bpage);
 
+/** Moved a page to the end of the buffer pool LRU list so that it can be
+flushed out at the earliest.
+@param[in]	bpage	buffer block of a file page */
+void buf_page_make_old(buf_page_t *bpage);
+
 /** Returns TRUE if the page can be found in the buffer pool hash table.
 NOTE that it is possible that the page is not yet read from disk,
 though.

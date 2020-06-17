@@ -241,8 +241,11 @@ enum mlog_id_t {
   /** create a SDI compact page */
   MLOG_COMP_PAGE_CREATE_SDI = 64,
 
+  /** Extend the space */
+  MLOG_FILE_EXTEND = 65,
+
   /** Used in tests of redo log. It must never be used outside unit tests. */
-  MLOG_TEST = 65,
+  MLOG_TEST = 66,
 
   /** biggest value (used in assertions) */
   MLOG_BIGGEST_TYPE = MLOG_TEST

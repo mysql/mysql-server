@@ -19481,6 +19481,31 @@ debug_set:
   return true;
 }
 
+/** Set the variable tbsp_extend_and_initialize. This function is registered
+as a callback to MySQL.
+On Linux, the variable tbsp_extend_and_initialize will be set to the value
+passed by the user. A warning will be printed that the user is not
+allowed to change the value if the server is running on Windows
+or other posix implementations.
+@param[in]	thd	thread handle
+@param[in]	var	pointer to system variable
+@param[out]	var_ptr value to be set after the validation
+@param[in]	save	value set by the user */
+static void innodb_extend_and_initialize_update(THD *thd, SYS_VAR *var,
+                                                void *var_ptr,
+                                                const void *save) {
+  bool extend_and_initialize = *static_cast<const bool *>(save);
+#if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
+  *static_cast<bool *>(var_ptr) = extend_and_initialize;
+#else  /* !NO_FALLOCATE && UNIV_LINUX */
+  push_warning_printf(thd, Sql_condition::SL_WARNING,
+                      ER_WARN_VAR_VALUE_CHANGE_NOT_SUPPORTED,
+                      ER_THD(thd, ER_WARN_VAR_VALUE_CHANGE_NOT_SUPPORTED),
+                      "innodb_extend_and_initialize");
+  *static_cast<bool *>(var_ptr) = true;
+#endif /* !NO_FALLOCATE && UNIV_LINUX */
+}
+
 /** Update the system variable innodb_buffer_pool_size using the "saved"
 value. This function is registered as a callback with MySQL.
 @param[in]	thd	thread handle
@@ -21313,6 +21338,11 @@ static MYSQL_SYSVAR_BOOL(
     " Disable with --skip-innodb-doublewrite.",
     nullptr, nullptr, TRUE);
 
+static MYSQL_SYSVAR_BOOL(
+    extend_and_initialize, tbsp_extend_and_initialize, PLUGIN_VAR_NOCMDARG,
+    "Initialize the allocated space by writing zeros (enabled by default).",
+    nullptr, innodb_extend_and_initialize_update, TRUE);
+
 static MYSQL_SYSVAR_STR(
     doublewrite_dir, innobase_doublewrite_dir, PLUGIN_VAR_READONLY,
     "Use a separate directory for the doublewrite buffer files, ", NULL, NULL,
@@ -22160,6 +22190,7 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(data_file_path),
     MYSQL_SYSVAR(temp_data_file_path),
     MYSQL_SYSVAR(data_home_dir),
+    MYSQL_SYSVAR(extend_and_initialize),
     MYSQL_SYSVAR(doublewrite),
     MYSQL_SYSVAR(doublewrite_dir),
     MYSQL_SYSVAR(doublewrite_batch_size),

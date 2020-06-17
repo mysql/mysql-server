@@ -186,27 +186,32 @@ inline ib_id_t xdes_get_segment_id(const xdes_t *descr, mtr_t *mtr) {
 }
 
 #ifndef UNIV_HOTBACKUP
-/** Gets a pointer to the space header and x-locks its page.
-@param[in]	id		space id
-@param[in]	page_size	page size
-@param[in,out]	mtr		mini-transaction
-@return pointer to the space header, page x-locked */
-fsp_header_t *fsp_get_space_header(space_id_t id, const page_size_t &page_size,
-                                   mtr_t *mtr) {
-  buf_block_t *block;
+fsp_header_t *fsp_get_space_header_block(space_id_t id,
+                                         const page_size_t &page_size,
+                                         mtr_t *mtr, buf_block_t **block) {
+  buf_block_t *blk;
   fsp_header_t *header;
 
   ut_ad(id != 0 || !page_size.is_compressed());
 
-  block = buf_page_get(page_id_t(id, 0), page_size, RW_SX_LATCH, mtr);
-  header = FSP_HEADER_OFFSET + buf_block_get_frame(block);
-  buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
+  blk = buf_page_get(page_id_t(id, 0), page_size, RW_SX_LATCH, mtr);
+  header = FSP_HEADER_OFFSET + buf_block_get_frame(blk);
+  buf_block_dbg_add_level(blk, SYNC_FSP_PAGE);
 
   ut_ad(id == mach_read_from_4(FSP_SPACE_ID + header));
 #ifdef UNIV_DEBUG
   const uint32_t flags = mach_read_from_4(FSP_SPACE_FLAGS + header);
   ut_ad(page_size_t(flags).equals_to(page_size));
 #endif /* UNIV_DEBUG */
+  *block = blk;
+  return (header);
+}
+
+fsp_header_t *fsp_get_space_header(space_id_t id, const page_size_t &page_size,
+                                   mtr_t *mtr) {
+  buf_block_t *block;
+  fsp_header_t *header;
+  header = fsp_get_space_header_block(id, page_size, mtr, &block);
   return (header);
 }
 
@@ -799,8 +804,8 @@ void fsp_header_init_fields(
 {
   ut_a(fsp_flags_is_valid(flags));
 
-  mach_write_to_4(FSP_HEADER_OFFSET + FSP_SPACE_ID + page, space_id);
-  mach_write_to_4(FSP_HEADER_OFFSET + FSP_SPACE_FLAGS + page, flags);
+  fsp_header_set_field(page, FSP_SPACE_ID, space_id);
+  fsp_header_set_field(page, FSP_SPACE_FLAGS, flags);
 }
 
 /** Get the offset of encrytion information in page 0.
@@ -1117,7 +1122,7 @@ space_id_t fsp_header_get_space_id(
   space_id_t fsp_id;
   space_id_t id;
 
-  fsp_id = mach_read_from_4(FSP_HEADER_OFFSET + page + FSP_SPACE_ID);
+  fsp_id = fsp_header_get_field(page, FSP_SPACE_ID);
 
   id = mach_read_from_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 
@@ -1239,6 +1244,7 @@ MY_ATTRIBUTE((warn_unused_result)) bool fsp_try_extend_data_file_with_pages(
 
   /* The size may be less than we wanted if we ran out of disk space. */
   fsp_header_size_update(header, space->size, mtr);
+
   space->size_in_header = space->size;
 
   return success;
@@ -3102,7 +3108,10 @@ bool fsp_reserve_free_extents(ulint *n_reserved, space_id_t space_id,
 
   const page_size_t page_size(space->flags);
 
-  space_header = fsp_get_space_header(space_id, page_size, mtr);
+  buf_block_t *block = nullptr;
+  space_header = fsp_get_space_header_block(space_id, page_size, mtr, &block);
+
+  ut_ad(block != nullptr);
 try_again:
   size = mach_read_from_4(space_header + FSP_SIZE);
   ut_ad(size == space->size_in_header);
@@ -3110,7 +3119,15 @@ try_again:
   if (size < FSP_EXTENT_SIZE && n_pages < FSP_EXTENT_SIZE / 2) {
     /* Use different rules for small single-table tablespaces */
     *n_reserved = 0;
-    return fsp_reserve_free_pages(space, space_header, size, mtr, n_pages);
+    bool success =
+        fsp_reserve_free_pages(space, space_header, size, mtr, n_pages);
+    if (success) {
+      buf_page_t *page = &block->page;
+      /* Move the header page to the end of the LRU so that
+      it get's flushed at the earliest. */
+      buf_page_make_old(page);
+    }
+    return success;
   }
 
   n_free_list_ext = flst_get_len(space_header + FSP_FREE);
@@ -3170,6 +3187,10 @@ try_again:
   }
 try_to_extend:
   if (fsp_try_extend_data_file(space, space_header, mtr)) {
+    buf_page_t *page = &block->page;
+    /* Move the header page to the end of the LRU so that
+    it get's flushed at the earliest. */
+    buf_page_make_old(page);
     goto try_again;
   }
 

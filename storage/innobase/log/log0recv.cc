@@ -1640,6 +1640,12 @@ static byte *recv_parse_or_apply_log_rec_body(
       return (fil_tablespace_redo_rename(
           ptr, end_ptr, page_id_t(space_id, page_no), parsed_bytes,
           recv_sys->bytes_to_ignore_before_checkpoint != 0));
+
+    case MLOG_FILE_EXTEND:
+
+      return (fil_tablespace_redo_extend(
+          ptr, end_ptr, page_id_t(space_id, page_no), parsed_bytes,
+          recv_sys->bytes_to_ignore_before_checkpoint != 0));
 #else  /* !UNIV_HOTBACKUP */
       // Mysqlbackup does not execute file operations. It cares for all
       // files to be at their final places when it applies the redo log.
@@ -1660,6 +1666,12 @@ static byte *recv_parse_or_apply_log_rec_body(
     case MLOG_FILE_RENAME:
 
       return (fil_tablespace_redo_rename(
+          ptr, end_ptr, page_id_t(space_id, page_no), parsed_bytes,
+          !recv_sys->apply_file_operations));
+
+    case MLOG_FILE_EXTEND:
+
+      return (fil_tablespace_redo_extend(
           ptr, end_ptr, page_id_t(space_id, page_no), parsed_bytes,
           !recv_sys->apply_file_operations));
 #endif /* !UNIV_HOTBACKUP */
@@ -2279,6 +2291,7 @@ static void recv_add_to_hash_table(mlog_id_t type, space_id_t space_id,
   ut_ad(type != MLOG_FILE_DELETE);
   ut_ad(type != MLOG_FILE_CREATE);
   ut_ad(type != MLOG_FILE_RENAME);
+  ut_ad(type != MLOG_FILE_EXTEND);
   ut_ad(type != MLOG_DUMMY_RECORD);
   ut_ad(type != MLOG_INDEX_LOAD);
 
@@ -2887,6 +2900,7 @@ static bool recv_single_rec(byte *ptr, byte *end_ptr) {
     case MLOG_FILE_DELETE:
     case MLOG_FILE_RENAME:
     case MLOG_FILE_CREATE:
+    case MLOG_FILE_EXTEND:
     case MLOG_TABLE_DYNAMIC_META:
 
       /* These were already handled by
@@ -3028,6 +3042,7 @@ static bool recv_multi_rec(byte *ptr, byte *end_ptr) {
       case MLOG_FILE_DELETE:
       case MLOG_FILE_CREATE:
       case MLOG_FILE_RENAME:
+      case MLOG_FILE_EXTEND:
       case MLOG_TABLE_DYNAMIC_META:
         /* case MLOG_TRUNCATE: Disabled for WL6378 */
         /* These were already handled by
@@ -4167,6 +4182,9 @@ const char *get_mlog_string(mlog_id_t type) {
 
     case MLOG_FILE_RENAME:
       return ("MLOG_FILE_RENAME");
+
+    case MLOG_FILE_EXTEND:
+      return ("MLOG_FILE_EXTEND");
 
     case MLOG_PAGE_CREATE_RTREE:
       return ("MLOG_PAGE_CREATE_RTREE");

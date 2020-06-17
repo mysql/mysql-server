@@ -2977,6 +2977,18 @@ void buf_page_make_young(buf_page_t *bpage) {
   mutex_exit(&buf_pool->LRU_list_mutex);
 }
 
+void buf_page_make_old(buf_page_t *bpage) {
+  buf_pool_t *buf_pool = buf_pool_from_bpage(bpage);
+
+  mutex_enter(&buf_pool->LRU_list_mutex);
+
+  ut_a(buf_page_in_file(bpage));
+
+  buf_LRU_make_block_old(bpage);
+
+  mutex_exit(&buf_pool->LRU_list_mutex);
+}
+
 /** Moves a page to the start of the buffer pool LRU list if it is too old.
 This high-level function can be used to prevent an important page from
 slipping out of the buffer pool. The page must be fixed to the buffer pool.

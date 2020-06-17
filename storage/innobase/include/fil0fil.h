@@ -1902,6 +1902,19 @@ byte *fil_tablespace_redo_rename(byte *ptr, const byte *end,
                                  bool parse_only)
     MY_ATTRIBUTE((warn_unused_result));
 
+/** Redo a tablespace extend
+@param[in]	ptr		redo log record
+@param[in]	end		end of the redo log buffer
+@param[in]	page_id		Tablespace Id and first page in file
+@param[in]	parsed_bytes	Number of bytes parsed so far
+@param[in]	parse_only	Don't apply the log if true
+@return pointer to next redo log record
+@retval nullptr if this log record was truncated */
+byte *fil_tablespace_redo_extend(byte *ptr, const byte *end,
+                                 const page_id_t &page_id, ulint parsed_bytes,
+                                 bool parse_only)
+    MY_ATTRIBUTE((warn_unused_result));
+
 /** Parse and process an encryption redo record.
 @param[in]	ptr		redo log record
 @param[in]	end		end of the redo log buffer

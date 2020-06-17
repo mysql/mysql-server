@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -384,8 +384,16 @@ bool fsp_header_dict_get_server_version(uint *version);
 @param[in]	page	first page of a tablespace
 @param[in]	field	the header field
 @return the contents of the header field */
-inline uint32_t fsp_header_get_field(const page_t *page, ulint field) {
+inline uint32_t fsp_header_get_field(const page_t *page, uint32_t field) {
   return (mach_read_from_4(FSP_HEADER_OFFSET + field + page));
+}
+
+/** Update a tablespace header field.
+@param[in]	page	first page of a tablespace
+@param[in]	field	the header field
+@param[in]	val	field value */
+inline void fsp_header_set_field(page_t *page, uint32_t field, uint32_t val) {
+  mach_write_to_4(page + FSP_HEADER_OFFSET + field, val);
 }
 
 /** Read the flags from the tablespace header page.
@@ -780,7 +788,19 @@ UNIV_INLINE
 page_no_t xdes_calc_descriptor_page(const page_size_t &page_size,
                                     page_no_t offset);
 
-/** Gets a pointer to the space header and x-locks its page.
+/** Gets a pointer to the space header and acquires a
+SX lock on the page.
+@param[in]	id		space id
+@param[in]	page_size	page size
+@param[in,out]	mtr		mini-transaction
+@param[out]	block		block
+@return pointer to the space header, page x-locked */
+fsp_header_t *fsp_get_space_header_block(space_id_t id,
+                                         const page_size_t &page_size,
+                                         mtr_t *mtr, buf_block_t **block);
+
+/** Gets a pointer to the space header and acquires a
+SX lock on the page.
 @param[in]	id		space id
 @param[in]	page_size	page size
 @param[in,out]	mtr		mini-transaction

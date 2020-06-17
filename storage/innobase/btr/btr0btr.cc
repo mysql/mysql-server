@@ -4729,8 +4729,7 @@ dberr_t btr_sdi_create_index(space_id_t space_id, bool dict_locked) {
   /* Space flags from memory */
   uint32_t fsp_flags = space->flags;
 
-  ut_ad(mach_read_from_4(page + FSP_HEADER_OFFSET + FSP_SPACE_FLAGS) ==
-        fsp_flags);
+  ut_ad(fsp_header_get_field(page, FSP_SPACE_FLAGS) == fsp_flags);
 
   fsp_flags_set_sdi(fsp_flags);
   mlog_write_ulint(FSP_HEADER_OFFSET + FSP_SPACE_FLAGS + page, fsp_flags,

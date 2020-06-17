@@ -9399,6 +9399,9 @@ ER_IMPOSSIBLE_STRING_CONVERSION
 ER_CHARACTER_SET_MISMATCH
   eng "Character set '%s' cannot be used in conjunction with '%s' in call to %s."
 
+ER_WARN_VAR_VALUE_CHANGE_NOT_SUPPORTED
+  eng "Changing %s not supported on this platform. Falling back to the default."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

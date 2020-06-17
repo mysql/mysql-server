@@ -1636,6 +1636,17 @@ void buf_LRU_make_block_young(buf_page_t *bpage) {
   buf_LRU_add_block_low(bpage, FALSE);
 }
 
+/** Moves a block to the end of the LRU list.
+@param[in]	bpage	control block */
+void buf_LRU_make_block_old(buf_page_t *bpage) {
+  ut_d(buf_pool_t *buf_pool =) buf_pool_from_bpage(bpage);
+
+  ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
+
+  buf_LRU_remove_block(bpage);
+  buf_LRU_add_block_low(bpage, TRUE);
+}
+
 /** Try to free a block.  If bpage is a descriptor of a compressed-only
 page, the descriptor object will be freed as well.
 NOTE: this function may temporarily release and relock the

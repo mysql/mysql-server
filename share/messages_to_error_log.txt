@@ -11064,6 +11064,9 @@ ER_UDF_UNREGISTER_ERROR
 ER_EMPTY_PRIVILEGE_NAME_IGNORED
   eng "An empty or illegal privilege identifier was ignored when global privileges were read from disk."
 
+ER_IB_MSG_INCORRECT_SIZE
+  eng "%s"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

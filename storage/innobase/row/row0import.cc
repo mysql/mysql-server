@@ -562,7 +562,7 @@ dberr_t AbstractCallback::init(os_offset_t file_size,
 
   m_size = mach_read_from_4(page + FSP_SIZE);
   m_free_limit = mach_read_from_4(page + FSP_FREE_LIMIT);
-  m_space = mach_read_from_4(page + FSP_HEADER_OFFSET + FSP_SPACE_ID);
+  m_space = fsp_header_get_field(page, FSP_SPACE_ID);
   dberr_t err = set_current_xdes(0, page);
 
   return (err);
@@ -2004,8 +2004,7 @@ dberr_t PageConverter::update_header(buf_block_t *block) UNIV_NOTHROW {
   }
 
   /* Write space_id to the tablespace header, page 0. */
-  mach_write_to_4(get_frame(block) + FSP_HEADER_OFFSET + FSP_SPACE_ID,
-                  get_space_id());
+  fsp_header_set_field(get_frame(block), FSP_SPACE_ID, get_space_id());
 
   /* This is on every page in the tablespace. */
   mach_write_to_4(get_frame(block) + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
@@ -3929,8 +3928,7 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
 
   page_t *page = buf_block_get_frame(block);
 
-  ulint space_flags_from_disk =
-      mach_read_from_4(page + FSP_HEADER_OFFSET + FSP_SPACE_FLAGS);
+  ulint space_flags_from_disk = fsp_header_get_field(page, FSP_SPACE_FLAGS);
   mtr.commit();
 
   if (!FSP_FLAGS_HAS_SDI(space_flags_from_disk)) {

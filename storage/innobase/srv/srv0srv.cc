@@ -484,6 +484,8 @@ NULL value when collecting statistics. By default, it is set to
 SRV_STATS_NULLS_EQUAL(0), ie. all NULL value are treated equal */
 ulong srv_innodb_stats_method = SRV_STATS_NULLS_EQUAL;
 
+bool tbsp_extend_and_initialize = true;
+
 #ifndef UNIV_HOTBACKUP
 srv_stats_t srv_stats;
 #endif /* !UNIV_HOTBACKUP */
