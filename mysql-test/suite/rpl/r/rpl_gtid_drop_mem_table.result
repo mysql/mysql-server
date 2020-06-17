@@ -29,17 +29,17 @@ include/save_binlog_position.inc
 INSERT INTO mem_t1 VALUES (1), (2), (3), (4);
 include/sync_slave_sql_with_master.inc
 [connection master]
-include/assert_binlog_events.inc [#Gtid # !Begin # !Delete # !Commit #Gtid # !Begin # !Insert # !Commit]
+include/assert_binlog_events.inc [#Gtid # !Q(TRUNCATE.*) #Gtid # !Begin # !Insert # !Commit]
 include/save_binlog_position.inc
 ALTER TABLE mem_t2 ADD COLUMN (c2 INT);
 include/sync_slave_sql_with_master.inc
 [connection master]
-include/assert_binlog_events.inc [#Gtid # !Begin # !Delete # !Commit #Gtid # !Q(ALTER.*)]
+include/assert_binlog_events.inc [#Gtid # !Q(TRUNCATE.*) #Gtid # !Q(ALTER.*)]
 include/save_binlog_position.inc
 CREATE TABLE mem_t9 LIKE mem_t3;
 include/sync_slave_sql_with_master.inc
 [connection master]
-include/assert_binlog_events.inc [#Gtid # !Begin # !Delete # !Commit #Gtid # !Q(CREATE.*)]
+include/assert_binlog_events.inc [#Gtid # !Q(TRUNCATE.*) #Gtid # !Q(CREATE.*)]
 include/save_binlog_position.inc
 BEGIN;
 INSERT INTO mem_t4 VALUES (1), (2), (3), (4);
@@ -47,19 +47,19 @@ INSERT INTO mem_t5 VALUES (1), (2), (3), (4);
 COMMIT;
 include/sync_slave_sql_with_master.inc
 [connection master]
-include/assert_binlog_events.inc [#Gtid # !Begin # !Delete # !Commit #Gtid # !Begin # !Insert # !Commit #Gtid # !Begin # !Delete # !Commit #Gtid # !Begin # !Insert # !Commit]
+include/assert_binlog_events.inc [#Gtid # !Q(TRUNCATE.*) #Gtid # !Begin # !Insert # !Commit #Gtid # !Q(TRUNCATE.*) #Gtid # !Begin # !Insert # !Commit]
 include/save_binlog_position.inc
 UPDATE mem_t6, mem_t7 SET mem_t6.c1 = mem_t6.c1 + 1, mem_t7.c1 = mem_t7.c1 + 1;
 include/sync_slave_sql_with_master.inc
 [connection master]
-include/assert_binlog_events.inc [#Gtid # !Begin # !Delete # !Commit #Gtid # !Begin # !Delete # !Commit]
+include/assert_binlog_events.inc [#Gtid # !Q(TRUNCATE.*) #Gtid # !Q(TRUNCATE.*)]
 include/save_binlog_position.inc
 SET @@session.gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
 INSERT INTO mem_t8 VALUES (1), (2), (3), (4);
 SET @@session.gtid_next = 'AUTOMATIC';
 include/sync_slave_sql_with_master.inc
 [connection master]
-include/assert_binlog_events.inc [#Gtid # !Begin # !Delete # !Commit #Gtid/(.*'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1')# !Begin # !Insert # !Commit]
+include/assert_binlog_events.inc [#Gtid # !Q(TRUNCATE.*) #Gtid/(.*'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1')# !Begin # !Insert # !Commit]
 DROP TABLE mem_t1, mem_t2, mem_t3, mem_t4, mem_t5, mem_t6, mem_t7, mem_t8, mem_t9;
 include/rpl_reset.inc
 [connection master]
