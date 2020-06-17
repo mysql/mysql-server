@@ -3976,6 +3976,19 @@ inline bool is_perfschema_db(const char *name) {
 }
 
 /**
+  Check if the table belongs to the P_S, excluding setup and threads tables.
+
+  @note Performance Schema tables must be accessible independently of the
+        LOCK TABLE mode. This function is needed to handle the special case
+        of P_S tables being used under LOCK TABLE mode.
+*/
+inline bool belongs_to_p_s(TABLE_LIST *tl) {
+  return (!strcmp("performance_schema", tl->db) &&
+          strcmp(tl->table_name, "threads") &&
+          strstr(tl->table_name, "setup_") == nullptr);
+}
+
+/**
   return true if the table was created explicitly.
 */
 inline bool is_user_table(TABLE *table) {
