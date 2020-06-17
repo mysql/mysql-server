@@ -4097,6 +4097,14 @@ static int hton_fill_schema_table(THD *thd, TABLE_LIST *tables, Item *cond) {
   args.tables = tables;
   args.cond = cond;
 
+  /* INFORMATION_SCHEMA.TABLESPACES is deprecated in 8.0 by WL#14064.
+   * This should be removed in 9.0 (or next GA) by WL#14065 */
+  if (!my_strcasecmp(system_charset_info, tables->table_name, "TABLESPACES"))
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
+                        ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
+                        "INFORMATION_SCHEMA.TABLESPACES");
+
   plugin_foreach(thd, run_hton_fill_schema_table, MYSQL_STORAGE_ENGINE_PLUGIN,
                  &args);
 
