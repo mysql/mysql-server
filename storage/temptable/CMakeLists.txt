@@ -21,7 +21,6 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 include_directories(
-  ${BOOST_INCLUDE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
