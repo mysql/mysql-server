@@ -871,6 +871,26 @@ ELSE()
 ENDIF()
 
 IF(LINUX)
+  # ON by default in pushbuild.
+  # Developers can set default in environment.
+  # Compressing debug sections will shink binaries significantly, esp
+  # for RelWithDebInfo builds, at the cost of some extra link time.
+  IF(DEFINED ENV{PB2WORKDIR} OR
+      (DEFINED ENV{COMPRESS_DEBUG_SECTIONS} AND "$ENV{COMPRESS_DEBUG_SECTIONS}"
+        AND NOT DEFINED(COMPRESS_DEBUG_SECTIONS)))
+    SET(COMPRESS_DEBUG_SECTIONS_DEFAULT ON)
+  ELSE()
+    SET(COMPRESS_DEBUG_SECTIONS_DEFAULT OFF)
+  ENDIF()
+
+  OPTION(COMPRESS_DEBUG_SECTIONS
+    "Compress debug sections of mysqld and test executables"
+    ${COMPRESS_DEBUG_SECTIONS_DEFAULT})
+ELSE()
+  SET(COMPRESS_DEBUG_SECTIONS OFF)
+ENDIF()
+
+IF(LINUX)
   OPTION(LINK_RANDOMIZE "Randomize the order of all symbols in the binary" OFF)
   SET(LINK_RANDOMIZE_SEED "mysql"
     CACHE STRING "Seed to use for link randomization")

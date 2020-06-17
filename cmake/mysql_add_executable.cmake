@@ -117,6 +117,11 @@ FUNCTION(MYSQL_ADD_EXECUTABLE target_arg)
     SET(ARG_SKIP_INSTALL TRUE)
   ENDIF()
 
+  IF(COMPRESS_DEBUG_SECTIONS)
+    MY_TARGET_LINK_OPTIONS(${target}
+      "LINKER:--compress-debug-sections=zlib")
+  ENDIF()
+
   # tell CPack where to install
   IF(NOT ARG_SKIP_INSTALL)
     IF(NOT ARG_DESTINATION)
