@@ -2062,9 +2062,6 @@ static bool fill_dd_table_from_create_info(
 
   table_options->set("avg_row_length", create_info->avg_row_length);
 
-  if (create_info->row_type != ROW_TYPE_DEFAULT)
-    table_options->set("row_type", create_info->row_type);
-
   // ROW_FORMAT which was explicitly specified by user (if any).
   if (create_info->row_type != ROW_TYPE_DEFAULT)
     table_options->set("row_type",
