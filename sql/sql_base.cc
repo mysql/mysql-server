@@ -3759,7 +3759,7 @@ static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share,
     Ignore handling implicit_emptied property (which is only for heap
     tables) when I_S query is opening this table to read table statistics.
     The reason for avoiding this is that the
-    mysql_bin_log.write_dml_directly() invokes a commit(). And this commit
+    mysql_bin_log.write_stmt_directly() invokes a commit(). And this commit
     is not expected to be invoked when fetching I_S table statistics.
   */
   if (unlikely(entry->file->implicit_emptied) &&
@@ -3768,7 +3768,7 @@ static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share,
     if (mysql_bin_log.is_open()) {
       bool result = false;
       String temp_buf;
-      result = temp_buf.append("DELETE FROM ");
+      result = temp_buf.append("TRUNCATE TABLE ");
       append_identifier(thd, &temp_buf, share->db.str, strlen(share->db.str));
       result = temp_buf.append(".");
       append_identifier(thd, &temp_buf, share->table_name.str,
@@ -3797,8 +3797,8 @@ static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share,
       new_thd.store_globals();
       new_thd.set_db(thd->db());
       new_thd.variables.gtid_next.set_automatic();
-      result = mysql_bin_log.write_dml_directly(
-          &new_thd, temp_buf.c_ptr_safe(), temp_buf.length(), SQLCOM_DELETE);
+      result = mysql_bin_log.write_stmt_directly(
+          &new_thd, temp_buf.c_ptr_safe(), temp_buf.length(), SQLCOM_TRUNCATE);
       new_thd.restore_globals();
       thd->store_globals();
       return result;

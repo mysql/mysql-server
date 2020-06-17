@@ -69,7 +69,7 @@ perfschema.idx_compare_events_waits_current : BUG#27865960
 perfschema.idx_compare_ews_by_thread_by_event_name : BUG#31041671
 
 # rpl_gtid suite tests
-rpl_gtid.rpl_gtid_delete_memory_table_after_start_server : BUG#24351040
+rpl_gtid.rpl_gtid_truncate_memory_table_after_start_server : BUG#24351040
 rpl_gtid.rpl_gtid_perfschema_applier_xa_status           : BUG#27914287 Disabled until the WL#9075 (Performance Schema, XA Transactions) be implemented
 rpl_gtid.rpl_xa_prepare : BUG#31006095 Disabled due to crash during shutdown.
 rpl_gtid.rpl_xa_with_filters_error_msg : BUG#31006095 Disabled due to crash during shutdown.
