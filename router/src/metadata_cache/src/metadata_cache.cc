@@ -104,7 +104,13 @@ void MetadataCache::refresh_thread() {
   while (!terminated_) {
     bool refresh_ok{false};
     try {
+      // Component tests are using this log message as a indicator of metadata
+      // refresh start
+      log_debug("Started refreshing the cluster metadata");
       refresh_ok = refresh();
+      // Component tests are using this log message as a indicator of metadata
+      // refresh finish
+      log_debug("Finished refreshing the cluster metadata");
       on_refresh_completed();
     } catch (const mysqlrouter::MetadataUpgradeInProgressException &) {
       log_info(
