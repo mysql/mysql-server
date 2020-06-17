@@ -141,6 +141,10 @@ MACRO(MYSQL_ADD_PLUGIN plugin_arg)
       PROPERTIES COMPILE_DEFINITIONS "MYSQL_SERVER")
 
     ADD_DEPENDENCIES(${target} GenError ${ARG_DEPENDENCIES})
+    IF(COMPRESS_DEBUG_SECTIONS)
+      MY_TARGET_LINK_OPTIONS(${target}
+        "LINKER:--compress-debug-sections=zlib")
+    ENDIF()
     
     # Update mysqld dependencies
     SET (MYSQLD_STATIC_PLUGIN_LIBS ${MYSQLD_STATIC_PLUGIN_LIBS} 
@@ -179,6 +183,10 @@ MACRO(MYSQL_ADD_PLUGIN plugin_arg)
 
     ADD_VERSION_INFO(${target} MODULE SOURCES)
     ADD_LIBRARY(${target} MODULE ${SOURCES}) 
+    IF(COMPRESS_DEBUG_SECTIONS)
+      MY_TARGET_LINK_OPTIONS(${target}
+        "LINKER:--compress-debug-sections=zlib")
+    ENDIF()
     SET_TARGET_PROPERTIES (${target} PROPERTIES PREFIX ""
       COMPILE_DEFINITIONS "MYSQL_DYNAMIC_PLUGIN")
     IF(WIN32_CLANG AND WITH_ASAN)

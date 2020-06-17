@@ -801,6 +801,11 @@ ADD_DEPENDENCIES(sql_gis GenError)
 TARGET_LINK_LIBRARIES(sql_gis sql_dd sql_main)
 SET_TARGET_PROPERTIES(sql_gis PROPERTIES LINK_INTERFACE_MULTIPLICITY 3)
 
+# This typically saves a few hundred megabytes of disk space.
+IF(COMPRESS_DEBUG_SECTIONS)
+  TARGET_COMPILE_OPTIONS(sql_gis PRIVATE -gz)
+ENDIF()
+
 # A class with a reference member lacks a user-defined constructor,
 # which can lead to errors.
 # Constexpr function return type is not a literal type.
