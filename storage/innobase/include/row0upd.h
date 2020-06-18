@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -590,6 +590,11 @@ struct upd_t {
   /** Determine if the given field_no is modified.
   @return true if modified, false otherwise.  */
   bool is_modified(const ulint field_no) const {
+    if (table == nullptr) {
+      ut_ad(false);
+      return false;
+    }
+
     return (get_field_by_field_no(field_no, table->first_index()) != nullptr);
   }
 

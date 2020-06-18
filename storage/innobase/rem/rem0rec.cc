@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -325,7 +325,7 @@ UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ulint
                  : index->n_nullable;
   }
 
-  if (index->has_instant_cols() && status != nullptr) {
+  if (index->is_tuple_instant_format(n_fields) && status != nullptr) {
     switch (UNIV_EXPECT(*status, REC_STATUS_ORDINARY)) {
       case REC_STATUS_ORDINARY:
         ut_ad(!temp && n_fields > 0);
@@ -738,7 +738,7 @@ bool rec_convert_dtuple_to_rec_comp(rec_t *rec, const dict_index_t *index,
         ut_ad(n_fields <= dict_index_get_n_fields(index));
         n_node_ptr_field = ULINT_UNDEFINED;
 
-        if (index->has_instant_cols()) {
+        if (index->is_tuple_instant_format(n_fields)) {
           uint32_t n_fields_len;
           n_fields_len = rec_set_n_fields(rec, n_fields);
           nulls -= n_fields_len;

@@ -1769,6 +1769,8 @@ byte *trx_undo_update_rec_get_update(
 
   update = upd_create(n_fields + 2, heap);
 
+  update->table = index->table;
+
   update->info_bits = info_bits;
 
   /* Store first trx id and roll ptr to update vector */

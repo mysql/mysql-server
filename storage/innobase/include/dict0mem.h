@@ -1113,6 +1113,11 @@ struct dict_index_t {
   @return true if this is instant affected, otherwise false */
   bool has_instant_cols() const { return (instant_cols); }
 
+  /** Check if tuple is having instant format.
+  @param[in]	n_fields_in_tuple	number of fields in tuple
+  @return true if yes, false otherwise. */
+  bool is_tuple_instant_format(const uint16_t n_fields_in_tuple) const;
+
   /** Returns the number of nullable fields before specified
   nth field
   @param[in]	nth	nth field to check */
