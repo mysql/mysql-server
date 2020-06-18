@@ -8821,7 +8821,7 @@ bool setup_fields(THD *thd, ulong want_privilege, bool allow_sum_func,
     if (old_size != fields->size()) {
       // Items have been added (either by fix_fields or by split_sum_func), so
       // our iterator is invalidated. Reconstruct it.
-      it = find(fields->begin(), fields->end(), item);
+      it = std::find(fields->begin(), fields->end(), item);
     }
   }
   select->is_item_list_lookup = save_is_item_list_lookup;

@@ -130,6 +130,7 @@ SET(TESTS
   like_range
   m_string
   mdl
+  mem_root_deque
   my_bitmap
   my_error
   my_fileutils

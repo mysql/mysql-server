@@ -1133,7 +1133,7 @@ class Item : public Parse_tree_node {
       actual type of parameters. Note we do not support "pinning" of
       expressions containing parameters, only standalone parameters,
       but this is a very minor problem.
-   */
+     */
     if (data_type() != MYSQL_TYPE_INVALID && !(pin && type() == PARAM_ITEM))
       return;
     propagate_type((def == MYSQL_TYPE_VARCHAR)
@@ -6867,13 +6867,13 @@ void convert_and_print(const String *from_str, String *to_str,
 std::string ItemToString(const Item *item);
 
 inline size_t CountVisibleFields(const mem_root_deque<Item *> &fields) {
-  return count_if(fields.begin(), fields.end(),
-                  [](Item *item) { return !item->hidden; });
+  return std::count_if(fields.begin(), fields.end(),
+                       [](Item *item) { return !item->hidden; });
 }
 
 inline size_t CountHiddenFields(const mem_root_deque<Item *> &fields) {
-  return count_if(fields.begin(), fields.end(),
-                  [](Item *item) { return item->hidden; });
+  return std::count_if(fields.begin(), fields.end(),
+                       [](Item *item) { return item->hidden; });
 }
 
 inline Item *GetNthVisibleField(const mem_root_deque<Item *> &fields,

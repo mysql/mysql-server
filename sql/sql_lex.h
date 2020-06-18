@@ -4472,7 +4472,7 @@ inline void assert_consistent_hidden_flags(
     const mem_root_deque<Item *> &fields MY_ATTRIBUTE((unused)),
     Item *item MY_ATTRIBUTE((unused)), bool hidden MY_ATTRIBUTE((unused))) {
 #ifndef DBUG_OFF
-  if (find(fields.begin(), fields.end(), item) != fields.end()) {
+  if (std::find(fields.begin(), fields.end(), item) != fields.end()) {
     // The item is already in the list, so we can't add it
     // with a different value for hidden.
     assert(item->hidden == hidden);

@@ -2050,11 +2050,11 @@ void Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
       // Was not there from before, so add ourselves as a hidden item.
       ref_item_array[el] = this;
       // Should also be absent from 'fields', for consistency.
-      assert(find(fields->begin(), fields->end(), this) == fields->end());
+      assert(std::find(fields->begin(), fields->end(), this) == fields->end());
       fields->push_front(this);
       hidden = true;
     } else {
-      assert(find(fields->begin(), fields->end(), this) != fields->end());
+      assert(std::find(fields->begin(), fields->end(), this) != fields->end());
     }
 
     SELECT_LEX *base_select;
