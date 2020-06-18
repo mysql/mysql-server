@@ -816,12 +816,10 @@ regexp_like( left('', ''), 'abc' )
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: ''
 Warning	1292	Truncated incorrect INTEGER value: ''
-Warning	1292	Truncated incorrect INTEGER value: ''
 SELECT regexp_like( repeat(@v1, 'abc'), 'abc' );
 regexp_like( repeat(@v1, 'abc'), 'abc' )
 NULL
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: 'abc'
 Warning	1292	Truncated incorrect INTEGER value: 'abc'
 Warning	1292	Truncated incorrect INTEGER value: 'abc'
 #
@@ -866,7 +864,6 @@ select regexp_instr(char('313:50:35.199734'using utf16le),uuid());
 regexp_instr(char('313:50:35.199734'using utf16le),uuid())
 0
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '313:50:35.199734'
 Warning	1292	Truncated incorrect INTEGER value: '313:50:35.199734'
 #
 # Bug#27992118: REGEXP_REPLACE ACCUMULATING RESULT

@@ -92,7 +92,8 @@ static bool ParseRegexpOptions(const std::string &options_string,
 static bool is_binary_string(Item *item) {
   return item->data_type() == MYSQL_TYPE_VARCHAR &&
          item->type() != Item::PARAM_ITEM &&
-         !item->is_null() &&  // NULLs appear to have the binary charset.
+         item->type() != Item::NULL_ITEM &&  // NULL literals appear to have the
+                                             // binary charset.
          item->charset_for_protocol() == &my_charset_bin;
 }
 
