@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -202,6 +202,15 @@ ELSE()
   IF(WITH_VALGRIND)
     MESSAGE(STATUS "Building NDB test programs for improved valgrind coverage")
     SET(WITH_NDB_TEST ON)
+  ENDIF()
+  # Turn on NDB tests automatically for "-devbld" debug builds
+  # to increase test coverage
+  IF(PACKAGE_SUFFIX STREQUAL "-devbld" AND
+     CMAKE_BUILD_TYPE MATCHES "Debug")
+    MESSAGE(STATUS "Building NDB test programs for \"-devbld\" debug build")
+    SET(WITH_NDB_TEST ON)
+    MESSAGE(STATUS "Building NdbApi examples for \"-devbld\" debug build")
+    SET(WITH_NDBAPI_EXAMPLES ON)
   ENDIF()
 ENDIF()
 
