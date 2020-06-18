@@ -421,6 +421,10 @@ TEST_P(RouterLoggingTestConfig, LoggingTestConfig) {
       throw;
   }
 
+  SCOPED_TRACE("// stop router to ensure all logs are written");
+  router.send_clean_shutdown_event();
+  EXPECT_NO_THROW(router.wait_for_exit());
+
   const std::string console_log_txt = router.get_full_output();
 
   // check the console log if it contains what's expected
@@ -1228,6 +1232,10 @@ TEST_P(RouterLoggingTestTimestampPrecisionConfig,
     } else
       throw;
   }
+
+  SCOPED_TRACE("// stop router to ensure all logs are written");
+  router.send_clean_shutdown_event();
+  EXPECT_NO_THROW(router.wait_for_exit());
 
   // check the console log if it contains what's expected
   std::string console_log_txt = router.get_full_output();
