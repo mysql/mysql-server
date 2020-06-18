@@ -1345,7 +1345,8 @@ bool rec_check_lobref_space_id(dict_index_t *index, const rec_t *rec,
 #endif /* UNIV_DEBUG */
 
 dberr_t mark_not_partially_updatable(trx_t *trx, dict_index_t *index,
-                                     const upd_t *update) {
+                                     const upd_t *update,
+                                     const mtr_t *btr_mtr) {
   if (!index->is_clustered()) {
     /* Only clustered index can have LOBs. */
     return (DB_SUCCESS);
@@ -1373,13 +1374,13 @@ dberr_t mark_not_partially_updatable(trx_t *trx, dict_index_t *index,
 
       if (!ref.is_null_relaxed()) {
         mtr_t local_mtr;
-        mtr_t *mtr = &local_mtr;
         ut_ad(ref.space_id() == index->space_id());
 
-        mtr_start(mtr);
-        ref.mark_not_partially_updatable(trx, mtr, index,
+        mtr_start(&local_mtr);
+        local_mtr.set_log_mode(btr_mtr->get_log_mode());
+        ref.mark_not_partially_updatable(trx, &local_mtr, index,
                                          index->get_page_size());
-        mtr_commit(mtr);
+        mtr_commit(&local_mtr);
       }
     }
   }
