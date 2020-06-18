@@ -1013,7 +1013,7 @@ IF(MSVC)
   # Set module definition file.
   SET_TARGET_PROPERTIES(mysqld
     PROPERTIES LINK_FLAGS
-    "${mysqld_link_flags} /DEF:${CMAKE_CURRENT_BINARY_DIR}/mysqld.def")
+    "${mysqld_link_flags} /DEF:${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/mysqld.def")
 
   SET(_PLATFORM  x64)
 
@@ -1021,7 +1021,7 @@ IF(MSVC)
 
   # Build mysql_fix_privilege_tables.h
   ADD_CUSTOM_COMMAND(
-    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/mysqld.def
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/mysqld.def
     COMMAND create_def
     "$<TARGET_FILE:binlog>"
     "$<TARGET_FILE:binlogevents_static>"
@@ -1033,11 +1033,11 @@ IF(MSVC)
     "$<TARGET_FILE:strings>"
     "$<TARGET_FILE:vio>"
     > mysqld.def
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}"
     DEPENDS create_def binlog binlogevents_static mysys mytime rpl slave sql_main strings vio
   )
   ADD_CUSTOM_TARGET(GenMysqldDef ALL
-    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/mysqld.def)
+    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/mysqld.def)
 
   ADD_DEPENDENCIES(sql_main GenError)
   ADD_DEPENDENCIES(mysqld GenMysqldDef)
