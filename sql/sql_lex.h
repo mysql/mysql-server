@@ -211,11 +211,24 @@ enum enum_sp_data_access {
   @note the following macros were used previously for the same purpose. Now they
   are used for ACL only.
 */
-enum class enum_sp_type { FUNCTION = 1, PROCEDURE, TRIGGER, EVENT };
+enum class enum_sp_type {
+  FUNCTION = 1,
+  PROCEDURE,
+  TRIGGER,
+  EVENT,
+  /*
+    Must always be the last one.
+    Denotes an error condition.
+  */
+  INVALID_SP_TYPE
+};
 
 inline enum_sp_type to_sp_type(longlong val) {
-  DBUG_ASSERT(val >= 1 && val <= 4);
-  return static_cast<enum_sp_type>(val);
+  if (val >= static_cast<longlong>(enum_sp_type::FUNCTION) &&
+      val < static_cast<longlong>(enum_sp_type::INVALID_SP_TYPE))
+    return static_cast<enum_sp_type>(val);
+  else
+    return enum_sp_type::INVALID_SP_TYPE;
 }
 
 inline longlong to_longlong(enum_sp_type val) {

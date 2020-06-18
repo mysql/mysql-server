@@ -2334,7 +2334,7 @@ static bool grant_load_procs_priv(TABLE *p_table) {
         LogErr(WARNING_LEVEL,
                ER_AUTHCACHE_PROCS_PRIV_ENTRY_IGNORED_BAD_ROUTINE_TYPE,
                mem_check->tname);
-        continue;
+        goto next_record;
       }
 
       mem_check->privs = fix_rights_for_procedure(mem_check->privs);
@@ -2344,6 +2344,7 @@ static bool grant_load_procs_priv(TABLE *p_table) {
         hash->emplace(mem_check->hash_key,
                       unique_ptr_destroy_only<GRANT_NAME>(mem_check));
       }
+    next_record:
       error = p_table->file->ha_index_next(p_table->record[0]);
       DBUG_ASSERT(p_table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
                   error != HA_ERR_LOCK_DEADLOCK);
