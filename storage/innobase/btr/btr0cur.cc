@@ -3941,7 +3941,7 @@ dberr_t btr_cur_pessimistic_update(ulint flags, btr_cur_t *cursor,
   }
 
   /* Check for an update that moved an ext field to inline */
-  lob::mark_not_partially_updatable(trx, index, update);
+  lob::mark_not_partially_updatable(trx, index, update, mtr);
 
   /* UNDO logging is also turned-off during normal operation on intrinsic
   table so condition needs to ensure that table is not intrinsic. */

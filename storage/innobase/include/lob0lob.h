@@ -1617,9 +1617,12 @@ bool rec_check_lobref_space_id(dict_index_t *index, const rec_t *rec,
 @param[in]  trx  the current transaction.
 @param[in]  index  the clustered index to which the LOB belongs.
 @param[in]  update  the update vector.
+@param[in]  btr_mtr the mini transaction context holding latches on the B-tree.
+This function does not generate redo log using this btr_mtr.  It only obtains
+the log mode.
 @return DB_SUCCESS on success, error code on failure. */
 dberr_t mark_not_partially_updatable(trx_t *trx, dict_index_t *index,
-                                     const upd_t *update);
+                                     const upd_t *update, const mtr_t *btr_mtr);
 
 }  // namespace lob
 
