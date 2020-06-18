@@ -32,12 +32,12 @@ insert into t1 values (1);
 --connection con1
 --source include/ndb_not_readonly.inc
 # wait for server1 stats thread to re-initialize
---source include/ndb_index_stat_wait.inc
+--source suite/ndb/include/ndb_index_stat_wait.inc
 
 --connection con2
 --source include/ndb_not_readonly.inc
 # wait for server2 stats thread to re-initialize
---source include/ndb_index_stat_wait.inc
+--source suite/ndb/include/ndb_index_stat_wait.inc
 
 --connection server1
 --error 1297
@@ -68,12 +68,12 @@ select * from t2 order by a limit 3;
 --connection con1
 --source include/ndb_not_readonly.inc
 # wait for server1 stats thread to re-initialize
---source include/ndb_index_stat_wait.inc
+--source suite/ndb/include/ndb_index_stat_wait.inc
 
 --connection con2
 --source include/ndb_not_readonly.inc
 # wait for server2 stats thread to re-initialize
---source include/ndb_index_stat_wait.inc
+--source suite/ndb/include/ndb_index_stat_wait.inc
 
 --connection server2
 --error ER_NO_SUCH_TABLE
@@ -102,12 +102,12 @@ reset master;
 --connection con1
 --source include/ndb_not_readonly.inc
 # wait for server1 stats thread to re-initialize
---source include/ndb_index_stat_wait.inc
+--source suite/ndb/include/ndb_index_stat_wait.inc
 
 --connection con2
 --source include/ndb_not_readonly.inc
 # wait for server2 stats thread to re-initialize
---source include/ndb_index_stat_wait.inc
+--source suite/ndb/include/ndb_index_stat_wait.inc
 
 --connection server1
 --error ER_NO_SUCH_TABLE

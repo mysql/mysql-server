@@ -306,7 +306,7 @@ while (`select count(*) from rbwr_tests`)
   let $test_table = `select @test_table`;
   let $test_execute_count = `select @test_execute_count`;
 
-  --source ndb_rbwr.inc
+  --source rbwr.inc
 
   # Delete testcase
   delete from rbwr_tests where test_id = @test_id;

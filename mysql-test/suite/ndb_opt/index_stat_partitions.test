@@ -3,7 +3,7 @@
 set @is_enable_default = @@global.ndb_index_stat_enable;
 
 set @is_enable = 1;
-source ndb_index_stat_enable.inc;
+source index_stat_enable.inc;
 
 create table record_in_range(no int primary key auto_increment,
 query varchar(256), part_count int, 
@@ -119,4 +119,4 @@ DROP TABLE t1, record_in_range;
 --echo End of 5.1 tests
 
 set @is_enable = @is_enable_default;
-source ndb_index_stat_enable.inc;
+source index_stat_enable.inc;

@@ -4,4 +4,4 @@
 #
 
 --source include/have_ndb.inc
---source ndb_join_pushdown.inc 
+--source join_pushdown.inc

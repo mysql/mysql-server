@@ -1,9 +1,5 @@
 --source include/have_ndb.inc
 
---disable_warnings
-drop table if exists t1;
---enable_warnings
-
 #
 # Minimal NDB charset test.
 #

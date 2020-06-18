@@ -39,4 +39,4 @@ show global variables like 'ndb_index_stat_enable';
 show local variables like 'ndb_index_stat_enable';
 
 # wait for stats thread to notice any change
-source include/ndb_index_stat_wait.inc;
+source suite/ndb/include/ndb_index_stat_wait.inc;

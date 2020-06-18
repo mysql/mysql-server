@@ -20,6 +20,9 @@ perl mysql-test-run.pl --timer --debug-server --force  --comment=ndb_memcache --
 # json NDB tests only. Common include files are sourced for different SEs
 perl mysql-test-run.pl --timer --debug-server --force  --comment=json_ndb --vardir=var-json-ndb --do-test=json.*ndb --no-skip
 
+# ndb_opt suite only
+perl mysql-test-run.pl --timer --debug-server --force  --comment=ndb_opt --vardir=var-ndb-opt --suite=ndb_opt --no-skip
+
 # Other standard suites as listed in other default.push file(s)
 # Neither of these suites should be affected by compiling MySQL Cluster
 

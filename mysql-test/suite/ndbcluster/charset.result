@@ -1,4 +1,3 @@
-drop table if exists t1;
 create table t1 (
 a char(3) character set latin1 collate latin1_bin primary key
 ) engine=ndb;

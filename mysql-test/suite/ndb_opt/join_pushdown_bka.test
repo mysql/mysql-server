@@ -15,6 +15,6 @@ if (!`select locate('batched_key_access', @@global.optimizer_switch) > 0`)
 
 set @@global.optimizer_switch='batched_key_access=on';
 
---source ndb_join_pushdown.inc 
+--source join_pushdown.inc
 
 set @@global.optimizer_switch=default;

@@ -33,6 +33,6 @@ if (`select locate('mrr', @@global.optimizer_switch) > 0`)
 --enable_query_log
 
 
---source ndb_join_pushdown.inc 
+--source join_pushdown.inc
 
 set @@global.optimizer_switch=default;

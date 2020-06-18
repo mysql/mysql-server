@@ -7,6 +7,6 @@
 
 set @@global.optimizer_switch='block_nested_loop=off';
 
---source ndb_join_pushdown.inc 
+--source join_pushdown.inc
 
 set @@global.optimizer_switch=default;

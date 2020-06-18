@@ -1,4 +1,3 @@
-DROP TABLE IF EXISTS t1;
 set @is_enable_default = @@global.ndb_index_stat_enable;
 set @is_enable = 1;
 set @is_enable = NULL;

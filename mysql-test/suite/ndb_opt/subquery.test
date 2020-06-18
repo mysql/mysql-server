@@ -1,9 +1,5 @@
 -- source include/have_ndb.inc
 
---disable_warnings
-drop table if exists t1, t2, t3, t4;
---enable_warnings
-
 ##########
 # bug#5367
 create table t1 (p int not null primary key, u int not null, o int not null,

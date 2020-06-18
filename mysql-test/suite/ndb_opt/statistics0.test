@@ -1,0 +1,11 @@
+# index stats OFF
+
+set @is_enable_default = @@global.ndb_index_stat_enable;
+
+set @is_enable = 0;
+source index_stat_enable.inc;
+
+--source statistics.inc
+
+set @is_enable = @is_enable_default;
+source index_stat_enable.inc;
