@@ -19494,7 +19494,8 @@ or other posix implementations.
 static void innodb_extend_and_initialize_update(THD *thd, SYS_VAR *var,
                                                 void *var_ptr,
                                                 const void *save) {
-  bool extend_and_initialize = *static_cast<const bool *>(save);
+  bool extend_and_initialize MY_ATTRIBUTE((unused)) =
+      *static_cast<const bool *>(save);
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
   *static_cast<bool *>(var_ptr) = extend_and_initialize;
 #else  /* !NO_FALLOCATE && UNIV_LINUX */
