@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -328,11 +328,6 @@ class Certifier : public Certifier_interface {
     @param[out] value The last conflict free transaction
     */
   void get_last_conflict_free_transaction(std::string *value);
-
-  /**
-    Get method to retrieve the size of the members.
-  */
-  size_t get_members_size();
 
   /**
     Generate group GNO for a view change log event.
