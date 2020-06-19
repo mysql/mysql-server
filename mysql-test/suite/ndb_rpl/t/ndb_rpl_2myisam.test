@@ -8,7 +8,7 @@
 # test and to have control over the tests.
 ##############################################################
 -- source include/have_ndb.inc
--- source include/master-slave.inc
+-- source suite/ndb_rpl/ndb_master-slave.inc
 
 # workaround for Bug #34006 binlog race for temporary ndb table
 # - disable using temporary ndb tables
