@@ -2918,15 +2918,15 @@ dberr_t trx_prepare_for_mysql(trx_t *trx) {
 static bool get_table_name_info(st_handler_tablename *table,
                                 const dict_table_t *dd_table,
                                 MEM_ROOT *mem_root) {
-  const char *ptr;
+  std::string db_str;
+  std::string table_str;
+  dict_name::get_table(dd_table->name.m_name, db_str, table_str);
 
-  size_t len = dict_get_db_name_len(dd_table->name.m_name);
-  table->db = strmake_root(mem_root, dd_table->name.m_name, len);
+  table->db = strmake_root(mem_root, db_str.c_str(), db_str.size());
   if (table->db == nullptr) return true;
 
-  ptr = dict_remove_db_name(dd_table->name.m_name);
-  len = ut_strlen(ptr);
-  table->tablename = strmake_root(mem_root, ptr, len);
+  table->tablename =
+      strmake_root(mem_root, table_str.c_str(), table_str.size());
   if (table->tablename == nullptr) return true;
 
   return false;
