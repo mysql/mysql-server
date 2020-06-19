@@ -1,0 +1,22 @@
+# Test needs 1G min buffer pool size
+--source include/big_test.inc
+
+--echo #
+--echo # BUG#99935 : innodb_doublewrite_files is not correct when innodb_buffer_pool_size > 1G
+--echo #
+
+--let $MYSQLD_DATADIR=`SELECT @@datadir`
+--let $PAGE_SIZE=`SELECT @@innodb_page_size`
+
+--let $max = `SELECT @@innodb_buffer_pool_instances * 2`
+--let $i = 0
+
+while ($i < $max) {
+--let $part1=$MYSQLD_DATADIR/#ib_$PAGE_SIZE
+--let $part2=_$i.dblwr
+--let $file= $part1$part2
+
+--file_exists $file
+
+--inc $i
+}

@@ -1,0 +1,3 @@
+#
+# BUG#99935 : innodb_doublewrite_files is not correct when innodb_buffer_pool_size > 1G
+#
