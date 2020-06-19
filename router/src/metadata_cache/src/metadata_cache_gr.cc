@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -60,9 +60,9 @@
  *
  * MDC = MD Cache, this plugin (the code that you're reading now).
  *
- * MM = multi-master, a replication mode in which all GR members are RW.
+ * MM = multi-primary, a replication mode in which all GR members are RW.
  *
- * SM = single-master, a replication mode in which only one GR member is RW,
+ * SM = single-primary, a replication mode in which only one GR member is RW,
  *      rest are RO.
  *
  * ATTOW = contraction for "at the time of writing".
@@ -566,10 +566,10 @@ bool GRMetadataCache::fetch_metadata_from_connected_instance(
         log_info("Metadata for cluster '%s' has %zu replicasets:",
                  cluster_name_.c_str(), replicaset_data_.size());
         for (const auto &rs : replicaset_data_) {
-          log_info(
-              "'%s' (%zu members, %s)", rs.first.c_str(),
-              rs.second.members.size(),
-              rs.second.single_primary_mode ? "single-master" : "multi-master");
+          log_info("'%s' (%zu members, %s)", rs.first.c_str(),
+                   rs.second.members.size(),
+                   rs.second.single_primary_mode ? "single-primary"
+                                                 : "multi-primary");
           for (const auto &mi : rs.second.members) {
             log_info("    %s:%i / %i - mode=%s %s", mi.host.c_str(), mi.port,
                      mi.xport, to_string(mi.mode).c_str(),
