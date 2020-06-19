@@ -25,6 +25,7 @@
 #ifndef ROUTING_DEST_ROUND_ROBIN_INCLUDED
 #define ROUTING_DEST_ROUND_ROBIN_INCLUDED
 
+#include <algorithm>
 #include <future>
 
 #include "destination.h"
