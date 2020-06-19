@@ -10493,7 +10493,25 @@ static bool check_secure_file_priv_path() {
 #endif
   return true;
 }
-
+#ifdef WIN32
+// check_tmpdir_path_lengths returns true if all paths are valid,
+// false if any path is too long.
+static bool check_tmpdir_path_lengths(const MY_TMPDIR &tmpdir_list) {
+  const size_t max_tmpdir_len = MAX_PATH - MY_MAX_TEMP_FILENAME_LEN;
+  bool result = true;
+  for (uint i = 0; i <= tmpdir_list.max; i++) {
+    std::string tmpdir_entry(tmpdir_list.list[i]);
+    const int path_separator_reqd =
+        is_directory_separator(tmpdir_entry.back()) ? 0 : 1;
+    if ((tmpdir_entry.length() + path_separator_reqd) > max_tmpdir_len) {
+      LogErr(ERROR_LEVEL, ER_TMPDIR_PATH_TOO_LONG, tmpdir_list.list[i],
+             max_tmpdir_len, MY_MAX_TEMP_FILENAME_LEN);
+      result = false;
+    }
+  }
+  return result;
+}
+#endif
 static int fix_paths(void) {
   char buff[FN_REFLEN];
   bool secure_file_priv_nonempty = false;
@@ -10544,6 +10562,9 @@ static int fix_paths(void) {
   charsets_dir = mysql_charsets_dir;
 
   if (init_tmpdir(&mysql_tmpdir_list, opt_mysql_tmpdir)) return 1;
+#ifdef WIN32
+  if (!check_tmpdir_path_lengths(mysql_tmpdir_list)) return 1;
+#endif
   if (!opt_mysql_tmpdir) opt_mysql_tmpdir = mysql_tmpdir;
   if (!slave_load_tmpdir) slave_load_tmpdir = mysql_tmpdir;
 

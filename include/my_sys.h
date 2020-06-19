@@ -772,6 +772,11 @@ extern bool real_open_cached_file(IO_CACHE *cache);
 extern void close_cached_file(IO_CACHE *cache);
 
 enum UnlinkOrKeepFile { UNLINK_FILE, KEEP_FILE };
+#ifdef WIN32
+// Maximum temporary filename length is 3 chars for prefix + 16 chars for base
+// 32 encoded UUID (excluding MAC address)
+const size_t MY_MAX_TEMP_FILENAME_LEN = 19;
+#endif
 File create_temp_file(char *to, const char *dir, const char *pfx, int mode,
                       UnlinkOrKeepFile unlink_or_keep, myf MyFlags);
 
