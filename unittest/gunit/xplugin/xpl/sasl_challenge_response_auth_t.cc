@@ -71,7 +71,7 @@ struct Auth_selector {
 class Sasl_challenge_response_auth_test
     : public ::testing::TestWithParam<Auth_selector> {
  public:
-  void SetUp() override {
+  void SetUp() {
     if (GetParam().m_name == "SHA256_MEMORY")
       auth = std::unique_ptr<Sasl_sha256_memory_auth>(
           new Sasl_sha256_memory_auth(mock_handler));
@@ -82,9 +82,8 @@ class Sasl_challenge_response_auth_test
       throw std::logic_error("Invalid test case auth method");
   }
 
-  Mock_account_verification_handler *mock_handler =
-      new ::testing::StrictMock<Mock_account_verification_handler>();
-
+  ::testing::StrictMock<Mock_account_verification_handler> *mock_handler{
+      new ::testing::StrictMock<Mock_account_verification_handler>(nullptr)};
   std::unique_ptr<iface::Authentication> auth;
   ::testing::StrictMock<Mock_account_verification> mock_account_verification;
   ::testing::StrictMock<Mock_authentication_interface> mock_authentication;
@@ -95,7 +94,7 @@ class Sasl_challenge_response_auth_test
 TEST_P(Sasl_challenge_response_auth_test, handle_start_get_salt) {
   EXPECT_CALL(*mock_handler,
               get_account_verificator(GetParam().m_verificator_type))
-      .WillOnce(Return(&mock_account_verification));
+      .WillOnce(::testing::Return(&mock_account_verification));
 
   EXPECT_CALL(mock_account_verification, get_salt())
       .WillOnce(::testing::ReturnRefOfCopy(std::string(SALT)));
@@ -108,7 +107,7 @@ TEST_P(Sasl_challenge_response_auth_test, handle_start_get_salt) {
 TEST_P(Sasl_challenge_response_auth_test, handle_start_call_twice) {
   EXPECT_CALL(*mock_handler,
               get_account_verificator(GetParam().m_verificator_type))
-      .WillOnce(Return(&mock_account_verification));
+      .WillOnce(::testing::Return(&mock_account_verification));
 
   EXPECT_CALL(mock_account_verification, get_salt())
       .WillOnce(::testing::ReturnRefOfCopy(std::string(SALT)));
@@ -131,7 +130,7 @@ TEST_P(Sasl_challenge_response_auth_test,
 TEST_P(Sasl_challenge_response_auth_test, handle_continue_succeeded) {
   EXPECT_CALL(*mock_handler,
               get_account_verificator(GetParam().m_verificator_type))
-      .WillOnce(Return(&mock_account_verification));
+      .WillOnce(::testing::Return(&mock_account_verification));
 
   EXPECT_CALL(mock_account_verification, get_salt())
       .WillOnce(::testing::ReturnRefOfCopy(std::string(SALT)));

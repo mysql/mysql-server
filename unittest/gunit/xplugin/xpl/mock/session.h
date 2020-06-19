@@ -31,15 +31,14 @@
 
 #include "plugin/x/ngs/include/ngs/client.h"
 #include "plugin/x/ngs/include/ngs/scheduler.h"
+#include "plugin/x/src/account_verification_handler.h"
 #include "plugin/x/src/interface/account_verification.h"
-#include "plugin/x/src/interface/account_verification_handler.h"
 #include "plugin/x/src/interface/client.h"
 #include "plugin/x/src/interface/document_id_aggregator.h"
 #include "plugin/x/src/interface/protocol_encoder.h"
 #include "plugin/x/src/interface/server.h"
 #include "plugin/x/src/interface/sql_session.h"
 #include "plugin/x/src/interface/ssl_context.h"
-#include "plugin/x/src/interface/temporary_account_locker.h"
 #include "plugin/x/src/interface/vio.h"
 #include "plugin/x/src/sql_data_context.h"
 #include "plugin/x/src/xpl_resultset.h"
@@ -140,8 +139,6 @@ class Mock_server : public iface::Server {
   MOCK_METHOD0(reset_globals, bool());
   MOCK_CONST_METHOD0(get_document_id_generator,
                      iface::Document_id_generator &());
-  MOCK_METHOD0(get_temporary_account_locker,
-               iface::Temporary_account_locker &());
 };
 
 class Mock_authentication_interface : public iface::Authentication {
@@ -165,16 +162,6 @@ class Mock_account_verification : public iface::Account_verification {
   MOCK_CONST_METHOD4(verify_authentication_string,
                      bool(const std::string &, const std::string &,
                           const std::string &, const std::string &));
-};
-
-class Mock_temporary_account_locker : public iface::Temporary_account_locker {
- public:
-  MOCK_METHOD5(check,
-               ngs::Error_code(const std::string &, const std::string &,
-                               const int64_t, const int64_t, const bool));
-
-  MOCK_METHOD2(clear, void(const std::string &, const std::string &));
-  MOCK_METHOD0(clear, void());
 };
 
 class Mock_sql_data_context : public iface::Sql_session {
@@ -476,9 +463,11 @@ class Mock_client : public iface::Client {
   void reset_accept_time() override { reset_accept_time_void(); }
 };
 
-class Mock_account_verification_handler
-    : public iface::Account_verification_handler {
+class Mock_account_verification_handler : public Account_verification_handler {
  public:
+  explicit Mock_account_verification_handler(Session *session)
+      : Account_verification_handler(session) {}
+
   MOCK_CONST_METHOD3(authenticate,
                      ngs::Error_code(const iface::Authentication &,
                                      iface::Authentication_info *,
@@ -486,10 +475,6 @@ class Mock_account_verification_handler
   MOCK_CONST_METHOD1(get_account_verificator,
                      const iface::Account_verification *(
                          const iface::Account_verification::Account_type));
-  MOCK_CONST_METHOD4(verify_account,
-                     ngs::Error_code(const std::string &, const std::string &,
-                                     const std::string &,
-                                     const iface::Authentication_info *));
 };
 
 }  // namespace test

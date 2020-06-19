@@ -29,7 +29,6 @@
 #include "plugin/x/src/helper/multithread/rw_lock.h"
 #include "plugin/x/src/interface/server.h"
 #include "plugin/x/src/interface/sha256_password_cache.h"
-#include "plugin/x/src/interface/temporary_account_locker.h"
 #include "plugin/x/src/mq/notice_input_queue.h"
 #include "plugin/x/src/services/services.h"
 #include "plugin/x/src/udf/registry.h"
@@ -40,8 +39,6 @@ class Module_mysqlx {
   using Server_interface = xpl::iface::Server;
   using Notice_input_queue = xpl::Notice_input_queue;
   using SHA256_password_cache_interface = xpl::iface::SHA256_password_cache;
-  using Temporary_account_locker_interface =
-      xpl::iface::Temporary_account_locker;
 
   using Server_with_lock =
       xpl::Locked_container<Server_interface, xpl::RWLock_readlock,
@@ -52,10 +49,6 @@ class Module_mysqlx {
   using Sha245_cache_with_lock =
       xpl::Locked_container<SHA256_password_cache_interface,
                             xpl::RWLock_readlock, xpl::RWLock>;
-  using Temporary_account_locker_with_lock =
-      xpl::Locked_container<Temporary_account_locker_interface,
-                            xpl::RWLock_readlock, xpl::RWLock>;
-
   using Services_with_lock =
       xpl::Locked_container<xpl::Services, xpl::RWLock_readlock, xpl::RWLock>;
 
@@ -71,8 +64,6 @@ class Module_mysqlx {
   static Server_with_lock get_instance_server();
   static Notice_queue_with_lock get_instance_notice_queue();
   static Sha245_cache_with_lock get_instance_sha256_password_cache();
-  static Temporary_account_locker_with_lock
-  get_instance_temporary_account_locker();
   static Services_with_lock get_instance_services();
 
  private:
@@ -92,7 +83,6 @@ class Module_mysqlx {
   static MYSQL_PLUGIN plugin_ref;
   static xpl::Services *m_services;
   static xpl::udf::Registry *m_udf_register;
-  static Temporary_account_locker_interface *m_temporary_account_locker;
 };
 
 }  // namespace modules

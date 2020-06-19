@@ -29,7 +29,6 @@
 
 #include "plugin/x/src/auth_challenge_response.h"
 #include "plugin/x/src/auth_plain.h"
-#include "plugin/x/src/interface/temporary_account_locker.h"
 #include "plugin/x/src/module_mysqlx.h"
 
 namespace xpl {
@@ -64,9 +63,7 @@ Authentication_container::get_auth_handler(const std::string &name,
 
   return auth_handler->m_create(
       session,
-      modules::Module_mysqlx::get_instance_sha256_password_cache().container(),
-      modules::Module_mysqlx::get_instance_temporary_account_locker()
-          .container());
+      modules::Module_mysqlx::get_instance_sha256_password_cache().container());
 }
 
 std::vector<std::string>

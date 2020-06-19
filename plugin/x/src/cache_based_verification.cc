@@ -26,7 +26,6 @@
 
 #include "plugin/x/src/cache_based_verification.h"
 #include "plugin/x/src/sha256_password_cache.h"
-#include "sql/auth/i_sha2_password_common.h"
 
 namespace xpl {
 
@@ -75,15 +74,15 @@ bool Cache_based_verification::verify_authentication_string(
 
   if (!m_sha256_password_cache) return false;
 
-  const auto stored_hash = m_sha256_password_cache->get_entry(user, host);
-  if (!stored_hash) return false;
+  auto stored_hash = m_sha256_password_cache->get_entry(user, host);
+  if (!stored_hash.first) return false;
 
   uint8_t client_string[SHA256_DIGEST_LENGTH];
   hex2octet(client_string, client_string_hex.c_str(), SHA256_DIGEST_LENGTH * 2);
 
   sha2_password::Validate_scramble validate_scramble(
       client_string,
-      reinterpret_cast<const unsigned char *>(stored_hash->c_str()),
+      reinterpret_cast<const unsigned char *>(stored_hash.second.c_str()),
       reinterpret_cast<const unsigned char *>(get_salt().c_str()),
       get_salt().length());
 

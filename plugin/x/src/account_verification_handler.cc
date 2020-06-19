@@ -26,7 +26,6 @@
 
 #include "my_sys.h"  // NOLINT(build/include_subdir)
 
-#include "plugin/x/src/helper/to_string.h"
 #include "plugin/x/src/interface/sql_session.h"
 #include "plugin/x/src/query_string_builder.h"
 #include "plugin/x/src/sql_data_result.h"
@@ -45,9 +44,9 @@ ngs::Error_code Account_verification_handler::authenticate(
   std::string account = "";
   std::string passwd = "";
   if (sasl_message.empty() ||
-      !extract_sub_message(sasl_message, &message_position, &schema) ||
-      !extract_sub_message(sasl_message, &message_position, &account) ||
-      !extract_last_sub_message(sasl_message, &message_position, &passwd))
+      !extract_sub_message(sasl_message, message_position, schema) ||
+      !extract_sub_message(sasl_message, message_position, account) ||
+      !extract_last_sub_message(sasl_message, message_position, passwd))
     return ngs::SQLError_access_denied();
 
   authenication_info->m_tried_account_name = account;
@@ -70,33 +69,33 @@ ngs::Error_code Account_verification_handler::authenticate(
 }
 
 bool Account_verification_handler::extract_last_sub_message(
-    const std::string &message, std::size_t *element_position,
-    std::string *sub_message) const {
-  if (*element_position >= message.size()) return true;
+    const std::string &message, std::size_t &element_position,
+    std::string &sub_message) const {
+  if (element_position >= message.size()) return true;
 
-  *sub_message = message.substr(*element_position);
-  *element_position = std::string::npos;
+  sub_message = message.substr(element_position);
+  element_position = std::string::npos;
 
   return true;
 }
 
 bool Account_verification_handler::extract_sub_message(
-    const std::string &message, std::size_t *element_position,
-    std::string *sub_message) const {
-  if (*element_position >= message.size()) return true;
+    const std::string &message, std::size_t &element_position,
+    std::string &sub_message) const {
+  if (element_position >= message.size()) return true;
 
-  if (message[*element_position] == '\0') {
-    ++(*element_position);
-    sub_message->clear();
+  if (message[element_position] == '\0') {
+    ++element_position;
+    sub_message.clear();
     return true;
   }
 
   std::string::size_type last_character_of_element =
-      message.find('\0', *element_position);
-  *sub_message = message.substr(*element_position, last_character_of_element);
-  *element_position = last_character_of_element;
-  if (*element_position != std::string::npos)
-    ++(*element_position);
+      message.find('\0', element_position);
+  sub_message = message.substr(element_position, last_character_of_element);
+  element_position = last_character_of_element;
+  if (element_position != std::string::npos)
+    ++element_position;
   else
     return false;
   return true;
@@ -125,35 +124,27 @@ Account_verification_handler::get_account_verificator_id(
 ngs::Error_code Account_verification_handler::verify_account(
     const std::string &user, const std::string &host, const std::string &passwd,
     const iface::Authentication_info *authenication_info) const {
-  DBUG_TRACE;
   Account_record record;
-  if (ngs::Error_code error = get_account_record(user, host, &record))
+  if (ngs::Error_code error = get_account_record(user, host, record))
     return error;
 
+  iface::Account_verification::Account_type account_verificator_id;
   // If SHA256_MEMORY is used then no matter what auth_plugin is used we
   // will be using cache-based verification
-  const auto account_verificator_id =
-      m_account_type ==
-              iface::Account_verification::Account_type::k_sha256_memory
-          ? m_account_type
-          : get_account_verificator_id(record.auth_plugin_name);
-
+  if (m_account_type ==
+      iface::Account_verification::Account_type::k_sha256_memory) {
+    account_verificator_id =
+        iface::Account_verification::Account_type::k_sha256_memory;
+  } else {
+    account_verificator_id =
+        get_account_verificator_id(record.auth_plugin_name);
+  }
   auto *p = get_account_verificator(account_verificator_id);
-  if (!p) return ngs::SQLError_access_denied();
 
   // password check
-  const bool is_password_pass = p->verify_authentication_string(
-      user, host, passwd, record.db_password_hash);
-
-  DBUG_PRINT("info", ("Account verificator ID: %i, password: %s",
-                      static_cast<int32_t>(account_verificator_id),
-                      is_password_pass ? "pass" : "fail"));
-
-  DBUG_ASSERT(m_temporary_account_locker && "Object required");
-  const auto error = m_temporary_account_locker->check(
-      user, host, record.failed_login_attempts, record.password_lock_days,
-      is_password_pass);
-  if (error) return error;
+  if (!p || !p->verify_authentication_string(user, host, passwd,
+                                             record.db_password_hash))
+    return ngs::SQLError_access_denied();
 
   // password check succeeded but...
   if (record.is_account_locked) {
@@ -171,10 +162,10 @@ ngs::Error_code Account_verification_handler::verify_account(
   // succeeded
   if (record.is_password_expired) {
     // if the password is expired, it's only a fatal error if
-    // disconnect_on_expired_password is enabled AND the client doesn't
-    // support expired passwords (this check is done by the caller of this) if
-    // it's NOT enabled, then the user will be allowed to login in sandbox
-    // mode, even if the client doesn't support expired passwords
+    // disconnect_on_expired_password is enabled AND the client doesn't support
+    // expired passwords (this check is done by the caller of this)
+    // if it's NOT enabled, then the user will be allowed to login in
+    // sandbox mode, even if the client doesn't support expired passwords
     auto result = ngs::SQLError(ER_MUST_CHANGE_PASSWORD_LOGIN);
     return record.disconnect_on_expired_password ? ngs::Fatal(result) : result;
   }
@@ -190,53 +181,23 @@ ngs::Error_code Account_verification_handler::verify_account(
 
 ngs::Error_code Account_verification_handler::get_account_record(
     const std::string &user, const std::string &host,
-    Account_record *record) const try {
-  DBUG_TRACE;
+    Account_record &record) const try {
   Sql_data_result result(&m_session->data_context());
   result.query(get_sql(user, host));
   // The query asks for primary key, thus here we should get only one row
   if (result.size() != 1)
     return ngs::Error_code(ER_NO_SUCH_USER, "Invalid user or password");
-  result.get(&record->require_secure_transport, &record->db_password_hash,
-             &record->auth_plugin_name, &record->is_account_locked,
-             &record->is_password_expired,
-             &record->disconnect_on_expired_password,
-             &record->is_offline_mode_and_not_super_user,
-             &record->user_required.ssl_type, &record->user_required.ssl_cipher,
-             &record->user_required.ssl_x509_issuer,
-             &record->user_required.ssl_x509_subject,
-             &record->failed_login_attempts, &record->password_lock_days);
+  result.get(&record.require_secure_transport, &record.db_password_hash,
+             &record.auth_plugin_name, &record.is_account_locked,
+             &record.is_password_expired,
+             &record.disconnect_on_expired_password,
+             &record.is_offline_mode_and_not_super_user,
+             &record.user_required.ssl_type, &record.user_required.ssl_cipher,
+             &record.user_required.ssl_x509_issuer,
+             &record.user_required.ssl_x509_subject);
 
   if (result.is_server_status_set(SERVER_STATUS_IN_TRANS))
     result.query("COMMIT");
-
-  DBUG_PRINT(
-      "info",
-      ("\nrequire_secure_transport: %s\n"
-       "db_password_hash: %s\n"
-       "auth_plugin_name: %s\n"
-       "is_account_locked: %s\n"
-       "is_password_expired: %s\n"
-       "disconnect_on_expired_password: %s\n"
-       "is_offline_mode_and_not_super_user: %s\n"
-       "ssl_type: %s\n"
-       "ssl_cipher: %s\n"
-       "ssl_x509_issuer: %s\n"
-       "ssl_x509_subject: %s\n"
-       "failed_login_attempts: %s\n"
-       "password_lock_days: %s",
-       to_string(record->require_secure_transport).c_str(),
-       record->db_password_hash.c_str(), record->auth_plugin_name.c_str(),
-       to_string(record->is_account_locked).c_str(),
-       to_string(record->is_password_expired).c_str(),
-       to_string(record->disconnect_on_expired_password).c_str(),
-       to_string(record->is_offline_mode_and_not_super_user).c_str(),
-       record->user_required.ssl_type.c_str(),
-       record->user_required.ssl_cipher.c_str(),
-       record->user_required.ssl_x509_issuer.c_str(),
-       record->user_required.ssl_x509_subject.c_str(),
-       to_string(record->failed_login_attempts).c_str(),
-       to_string(record->password_lock_days).c_str()));
 
   return ngs::Success();
 } catch (const ngs::Error_code &e) {
@@ -267,13 +228,7 @@ ngs::PFS_string Account_verification_handler::get_sql(
         "`disconnect_on_expired_password`, "
         "@@offline_mode and (`Super_priv`='N') as "
         "`is_offline_mode_and_not_super_user`, "
-        "`ssl_type`, `ssl_cipher`, `x509_issuer`, `x509_subject`, "
-        "IFNULL(CAST(JSON_EXTRACT(user_attributes, "
-        "'$.Password_locking.failed_login_attempts') AS SIGNED), 0)"
-        " as failed_login_attempts, "
-        "IFNULL(CAST(JSON_EXTRACT(user_attributes, "
-        "'$.Password_locking.password_lock_time_days') AS SIGNED), 0)"
-        " as password_lock_time_days "
+        "`ssl_type`, `ssl_cipher`, `x509_issuer`, `x509_subject` "
         "FROM mysql.user WHERE ")
       .quote_string(user)
       .put(" = `user` AND ")

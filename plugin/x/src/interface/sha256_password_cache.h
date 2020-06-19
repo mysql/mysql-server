@@ -36,8 +36,8 @@ class SHA256_password_cache {
   virtual bool upsert(const std::string &user, const std::string &host,
                       const std::string &value) = 0;
   virtual bool remove(const std::string &user, const std::string &host) = 0;
-  virtual const std::string *get_entry(const std::string &user,
-                                       const std::string &host) const = 0;
+  virtual std::pair<bool, std::string> get_entry(
+      const std::string &user, const std::string &host) const = 0;
   virtual bool contains(const std::string &user, const std::string &host,
                         const std::string &value) const = 0;
   virtual std::size_t size() const = 0;

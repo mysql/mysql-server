@@ -148,7 +148,7 @@ TEST_F(User_password_verification, sha256_memory_verification_get_salt) {
 
 TEST_F(User_password_verification, sha256_memory_verification_pass) {
   EXPECT_CALL(*m_cache_mock.get(), get_entry("user", "host"))
-      .WillOnce(Return(&m_cached_value));
+      .WillOnce(Return(std::pair<bool, std::string>{true, m_cached_value}));
   Mock_cache_based_verification verificator{m_cache_mock.get()};
   EXPECT_CALL(verificator, get_salt()).WillRepeatedly(ReturnRef(MADE_UP_SALT));
   ASSERT_TRUE(verificator.verify_authentication_string(
@@ -157,7 +157,7 @@ TEST_F(User_password_verification, sha256_memory_verification_pass) {
 
 TEST_F(User_password_verification, sha256_memory_verification_no_entry) {
   EXPECT_CALL(*m_cache_mock.get(), get_entry("user", "host"))
-      .WillOnce(Return(nullptr));
+      .WillOnce(Return(std::pair<bool, std::string>{false, ""}));
   Mock_cache_based_verification verificator{m_cache_mock.get()};
   EXPECT_CALL(verificator, get_salt()).Times(0);
   ASSERT_FALSE(verificator.verify_authentication_string(
@@ -167,7 +167,7 @@ TEST_F(User_password_verification, sha256_memory_verification_no_entry) {
 TEST_F(User_password_verification, sha256_memory_verification_fail) {
   const std::string bogus_entry(32, 'z');
   EXPECT_CALL(*m_cache_mock.get(), get_entry("user", "host"))
-      .WillOnce(Return(&bogus_entry));
+      .WillOnce(Return(std::pair<bool, std::string>{true, bogus_entry}));
   Mock_cache_based_verification verificator{m_cache_mock.get()};
   EXPECT_CALL(verificator, get_salt()).WillRepeatedly(ReturnRef(MADE_UP_SALT));
   ASSERT_FALSE(verificator.verify_authentication_string(

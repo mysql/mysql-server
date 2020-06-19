@@ -41,8 +41,9 @@ class Mock_sha256_password_cache : public iface::SHA256_password_cache {
   MOCK_METHOD3(upsert, bool(const std::string &, const std::string &,
                             const std::string &));
   MOCK_METHOD2(remove, bool(const std::string &, const std::string &));
-  MOCK_CONST_METHOD2(get_entry, const std::string *(const std::string &,
-                                                    const std::string &));
+  MOCK_CONST_METHOD2(get_entry,
+                     std::pair<bool, std::string>(const std::string &,
+                                                  const std::string &));
   MOCK_CONST_METHOD3(contains, bool(const std::string &, const std::string &,
                                     const std::string &));
   MOCK_CONST_METHOD0(size, std::size_t());

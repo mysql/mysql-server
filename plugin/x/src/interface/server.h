@@ -35,7 +35,6 @@
 #include "plugin/x/src/interface/authentication_container.h"
 #include "plugin/x/src/interface/document_id_generator.h"
 #include "plugin/x/src/interface/session.h"
-#include "plugin/x/src/interface/temporary_account_locker.h"
 
 namespace ngs {
 class Scheduler_dynamic;

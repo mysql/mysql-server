@@ -26,7 +26,6 @@
 
 #include "plugin/x/src/auth_plain.h"
 
-#include "plugin/x/src/account_verification_handler.h"
 #include "plugin/x/src/native_plain_verification.h"
 #include "plugin/x/src/sha256_plain_verification.h"
 #include "plugin/x/src/sha2_plain_verification.h"
@@ -35,10 +34,8 @@ namespace xpl {
 
 std::unique_ptr<iface::Authentication> Sasl_plain_auth::create(
     iface::Session *session,
-    iface::SHA256_password_cache *sha256_password_cache,
-    iface::Temporary_account_locker *temporary_account_locker) {
-  auto handler =
-      new Account_verification_handler(session, temporary_account_locker);
+    iface::SHA256_password_cache *sha256_password_cache) {
+  auto handler = new Account_verification_handler(session);
 
   handler->add_account_verificator(
       iface::Account_verification::Account_type::k_native,
