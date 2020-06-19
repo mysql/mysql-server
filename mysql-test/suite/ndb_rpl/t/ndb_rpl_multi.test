@@ -3,7 +3,7 @@
 
 # We need server 3 later on in this test.
 --let $rpl_server_count= 3
---source include/master-slave.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
 
 --connection master
 

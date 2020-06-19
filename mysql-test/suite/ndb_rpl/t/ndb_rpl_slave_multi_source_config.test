@@ -4,6 +4,7 @@
 
 --let $rpl_topology= 1->2,3->2
 --let $rpl_multi_source= 1
+--let $rpl_shallow_reset_slave= 1
 --source include/rpl_init.inc
 
 disable_query_log;

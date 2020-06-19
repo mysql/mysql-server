@@ -1,6 +1,6 @@
 -- source include/have_binlog_format_row.inc
 -- source include/have_ndb.inc
--- source include/master-slave.inc
+-- source suite/ndb_rpl/ndb_master-slave.inc
 
 let $engine = 'NDB';
 -- source extra/rpl_tests/rpl_not_null.test
