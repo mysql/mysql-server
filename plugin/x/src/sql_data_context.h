@@ -27,7 +27,6 @@
 
 #include <stdio.h>
 
-#include <memory>
 #include <string>
 
 #include "mysql/service_command.h"
@@ -44,10 +43,11 @@
 
 namespace xpl {
 
-using On_user_password_hash =
-    std::function<bool(const std::string &password_hash)>;
-using Field_value = Buffering_command_delegate::Field_value;
-using Row_data = Buffering_command_delegate::Row_data;
+typedef std::function<bool(const std::string &password_hash)>
+    On_user_password_hash;
+typedef Buffering_command_delegate::Field_value Field_value;
+typedef Buffering_command_delegate::Row_data Row_data;
+class Account_verification_handler;
 
 class Sql_data_context : public iface::Sql_session {
  public:

@@ -29,8 +29,6 @@
 #include <sstream>
 #include <string>
 
-#include "my_dbug.h"  // NOLINT(build/include_subdir)
-
 #include "mysql/components/my_service.h"
 #include "mysql/components/services/mysql_admin_session.h"
 #include "mysql/plugin.h"
@@ -258,12 +256,8 @@ ngs::Error_code Sql_data_context::authenticate_internal(
     const std::string &passwd,
     const iface::Authentication &account_verification,
     bool allow_expired_passwords) {
-  DBUG_TRACE;
   std::string authenticated_user_name = get_authenticated_user_name();
   std::string authenticated_user_host = get_authenticated_user_host();
-  DBUG_PRINT("info",
-             ("authenticated user %s@%s", authenticated_user_name.c_str(),
-              authenticated_user_host.c_str()));
 
   ngs::Error_code error =
       switch_to_user(MYSQL_SESSION_USER, MYSQLXSYS_HOST, nullptr, nullptr);

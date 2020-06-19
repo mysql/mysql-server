@@ -28,52 +28,48 @@
 #include <map>
 #include <memory>
 #include <string>
-
-#include "plugin/x/src/interface/account_verification_handler.h"
+#include "plugin/x/ngs/include/ngs/error_code.h"
+#include "plugin/x/src/interface/account_verification.h"
+#include "plugin/x/src/interface/authentication.h"
 #include "plugin/x/src/interface/session.h"
-#include "plugin/x/src/interface/temporary_account_locker.h"
 #include "plugin/x/src/sql_user_require.h"
 
 namespace xpl {
 
-class Account_verification_handler
-    : public iface::Account_verification_handler {
+class Account_verification_handler {
  public:
-  Account_verification_handler(
-      iface::Session *session,
-      iface::Temporary_account_locker *temporary_account_locker)
-      : m_session(session),
-        m_temporary_account_locker(temporary_account_locker) {}
+  using Unique_ptr = std::unique_ptr<Account_verification_handler>;
 
+  explicit Account_verification_handler(iface::Session *session)
+      : m_session(session) {}
   Account_verification_handler(
       iface::Session *session,
       const iface::Account_verification::Account_type account_type,
-      iface::Account_verification *verificator,
-      iface::Temporary_account_locker *temporary_account_locker)
-      : m_session(session),
-        m_temporary_account_locker(temporary_account_locker),
-        m_account_type(account_type) {
+      iface::Account_verification *verificator)
+      : m_session(session), m_account_type(account_type) {
     add_account_verificator(account_type, verificator);
   }
 
-  ngs::Error_code authenticate(const iface::Authentication &account_verificator,
-                               iface::Authentication_info *authenication_info,
-                               const std::string &sasl_message) const override;
+  virtual ~Account_verification_handler() {}
 
-  const iface::Account_verification *get_account_verificator(
-      const iface::Account_verification::Account_type account_type)
-      const override;
+  virtual ngs::Error_code authenticate(
+      const iface::Authentication &account_verificator,
+      iface::Authentication_info *authenication_info,
+      const std::string &sasl_message) const;
 
   ngs::Error_code verify_account(
       const std::string &user, const std::string &host,
       const std::string &passwd,
-      const iface::Authentication_info *authenication_info) const override;
+      const iface::Authentication_info *authenication_info) const;
 
   void add_account_verificator(
       const iface::Account_verification::Account_type account_type,
       iface::Account_verification *verificator) {
     m_verificators[account_type].reset(verificator);
   }
+
+  virtual const iface::Account_verification *get_account_verificator(
+      const iface::Account_verification::Account_type account_type) const;
 
  private:
   using Account_verificator_list =
@@ -89,30 +85,27 @@ class Account_verification_handler
     bool disconnect_on_expired_password{true};
     bool is_offline_mode_and_not_super_user{true};
     Sql_user_require user_required;
-    int64_t failed_login_attempts{0};
-    int64_t password_lock_days{0};
   };
 
   bool extract_sub_message(const std::string &message,
-                           std::size_t *element_position,
-                           std::string *sub_message) const;
+                           std::size_t &element_position,
+                           std::string &sub_message) const;
 
   bool extract_last_sub_message(const std::string &message,
-                                std::size_t *element_position,
-                                std::string *sub_message) const;
+                                std::size_t &element_position,
+                                std::string &sub_message) const;
 
   iface::Account_verification::Account_type get_account_verificator_id(
       const std::string &plugin_name) const;
 
   ngs::Error_code get_account_record(const std::string &user,
                                      const std::string &host,
-                                     Account_record *record) const;
+                                     Account_record &record) const;
 
   ngs::PFS_string get_sql(const std::string &user,
                           const std::string &host) const;
 
-  iface::Session *m_session{nullptr};
-  iface::Temporary_account_locker *m_temporary_account_locker{nullptr};
+  iface::Session *m_session;
   Account_verificator_list m_verificators;
   iface::Account_verification::Account_type m_account_type =
       iface::Account_verification::Account_type::k_unsupported;

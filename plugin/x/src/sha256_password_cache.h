@@ -26,10 +26,14 @@
 #define PLUGIN_X_SRC_SHA256_PASSWORD_CACHE_H_
 
 #include <string>
+#include <unordered_map>
 #include <utility>
 
-#include "plugin/x/src/account_credential_storage.h"
+#include "plugin/x/ngs/include/ngs/thread.h"
+#include "plugin/x/src/helper/multithread/rw_lock.h"
 #include "plugin/x/src/interface/sha256_password_cache.h"
+#include "plugin/x/src/xpl_performance_schema.h"
+#include "sql/auth/i_sha2_password_common.h"
 
 namespace xpl {
 
@@ -39,9 +43,10 @@ namespace xpl {
 */
 class SHA256_password_cache final : public iface::SHA256_password_cache {
  public:
-  using Cache_entry = std::string;
+  using sha2_cache_entry_t = std::string;
+  using password_cache_t = std::unordered_map<std::string, sha2_cache_entry_t>;
 
-  SHA256_password_cache() = default;
+  SHA256_password_cache();
   SHA256_password_cache(SHA256_password_cache &) = delete;
   SHA256_password_cache &operator=(const SHA256_password_cache &) = delete;
   SHA256_password_cache(SHA256_password_cache &&) = delete;
@@ -53,17 +58,22 @@ class SHA256_password_cache final : public iface::SHA256_password_cache {
   bool upsert(const std::string &user, const std::string &host,
               const std::string &value) override;
   bool remove(const std::string &user, const std::string &host) override;
-  const Cache_entry *get_entry(const std::string &user,
-                               const std::string &host) const override;
+  std::pair<bool, std::string> get_entry(
+      const std::string &user, const std::string &host) const override;
   bool contains(const std::string &user, const std::string &host,
                 const std::string &value) const override;
   std::size_t size() const override { return m_password_cache.size(); }
   void clear() override;
 
  private:
-  std::pair<bool, Cache_entry> create_hash(const std::string &value) const;
+  std::string create_key(const std::string &user,
+                         const std::string &host) const;
+  std::pair<bool, sha2_cache_entry_t> create_hash(
+      const std::string &value) const;
 
-  Account_credential_storage<Cache_entry> m_password_cache{false};
+  mutable RWLock m_cache_lock;
+  password_cache_t m_password_cache;
+  bool m_accepting_input = false;
 };
 
 }  // namespace xpl

@@ -28,45 +28,22 @@
 #include <sstream>
 #include <stdexcept>
 
-#include "errmsg.h"  // NOLINT(build/include_subdir)
+#include "errmsg.h"
 #include "plugin/x/client/mysqlxclient/mysqlxclient_error.h"
 #include "plugin/x/src/helper/to_string.h"
 
 namespace mysqlxtest {
 
-#define ER_NO_ERROR -1
-#define ER_SUCCESS 0
-#define ERROR_ENTRY(entry) \
-  { #entry, entry, "", nullptr, nullptr, 0 }
-
-Error_entry *global_error_names() {
-  static Error_entry error_names[] = {
-      ERROR_ENTRY(ER_NO_ERROR),
-      ERROR_ENTRY(ER_SUCCESS),
-      ERROR_ENTRY(CR_X_READ_TIMEOUT),
-      ERROR_ENTRY(CR_X_WRITE_TIMEOUT),
-      ERROR_ENTRY(CR_X_INTERNAL_ABORTED),
-      ERROR_ENTRY(CR_X_TLS_WRONG_CONFIGURATION),
-      ERROR_ENTRY(CR_X_INVALID_AUTH_METHOD),
-      ERROR_ENTRY(CR_X_UNSUPPORTED_OPTION_VALUE),
-      ERROR_ENTRY(CR_X_UNSUPPORTED_CAPABILITY_VALUE),
-      ERROR_ENTRY(CR_X_UNSUPPORTED_OPTION),
-      ERROR_ENTRY(CR_X_LAST_COMMAND_UNFINISHED),
-      ERROR_ENTRY(CR_X_RECEIVE_BUFFER_TO_SMALL),
-      ERROR_ENTRY(CR_X_AUTH_PLUGIN_ERROR),
-      ERROR_ENTRY(CR_X_SESSION_CONNECT_TIMEOUT),
-      ERROR_ENTRY(CR_X_COMPRESSION_NOT_CONFIGURED),
-      ERROR_ENTRY(CR_X_REQUIRED_COMPRESSION_NOT_SUPPORTED),
+static Error_entry global_error_names[] = {
+    {"<No error>", static_cast<int>(-1), "", nullptr, nullptr, 0},
+    {"ER_SUCCESS", static_cast<int>(0), "Success", nullptr, nullptr, 0},
 #ifndef IN_DOXYGEN
-#include <mysqlclient_ername.h>  // NOLINT(build/include_subdir)
-#include <mysqld_ername.h>       // NOLINT(build/include_subdir)
+#include <mysqlclient_ername.h>
+#include <mysqld_ername.h>
+
 #include "plugin/x/generated/mysqlx_ername.h"
 #endif /* IN_DOXYGEN */
-      {nullptr, 0, nullptr, nullptr, nullptr, 0}};
-  static_assert(CR_X_REQUIRED_COMPRESSION_NOT_SUPPORTED == CR_X_ERROR_LAST,
-                "Add new CR_X_ error codes to the list");
-  return error_names;
-}
+    {nullptr, 0, nullptr, nullptr, nullptr, 0}};
 
 namespace {
 
@@ -129,7 +106,7 @@ int get_error_code_by_text(const std::string &error_name_or_code) {
 }
 
 const Error_entry *get_error_entry_by_id(const int error_code) {
-  Error_entry *error = global_error_names();
+  Error_entry *error = global_error_names;
 
   while (error->name) {
     if (error_code == error->error_code) return error;
@@ -141,7 +118,7 @@ const Error_entry *get_error_entry_by_id(const int error_code) {
 }
 
 const Error_entry *get_error_entry_by_name(const std::string &name) {
-  Error_entry *error = global_error_names();
+  Error_entry *error = global_error_names;
 
   while (error->name) {
     if (name == error->name) return error;

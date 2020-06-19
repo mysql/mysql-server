@@ -32,9 +32,7 @@ namespace chrono {
 
 using Milliseconds = std::chrono::milliseconds;
 using Seconds = std::chrono::seconds;
-using Hours = std::chrono::hours;
 using System_clock = std::chrono::system_clock;
-using Date_time = System_clock::time_point;
 using Clock = std::chrono::steady_clock;
 using Time_point = Clock::time_point;
 using Duration = Clock::duration;

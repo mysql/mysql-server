@@ -59,9 +59,10 @@ AssertionResult assert_responce(const char *e1_expr, const char *e2_expr,
 
 class Sasl_plain_auth_test : public Test {
  public:
-  Mock_account_verification_handler *mock_handler =
-      new StrictMock<Mock_account_verification_handler>();
+  StrictMock<Mock_account_verification_handler> *mock_handler{
+      new StrictMock<Mock_account_verification_handler>(nullptr)};
   Sasl_plain_auth auth{mock_handler};
+  StrictMock<Mock_account_verification> mock_account_verification;
 
   typedef iface::Authentication::Response Response;
 };
