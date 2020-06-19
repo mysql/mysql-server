@@ -363,8 +363,8 @@ class METADATA_API MetadataCacheAPIBase
 
   /** @brief Wait until there's a primary member in the replicaset
    *
-   * To be called when the master of a single-master replicaset is down and
-   * we want to wait until one becomes elected.
+   * To be called when the primary member of a single-primary replicaset is down
+   * and we want to wait until one becomes elected.
    *
    * @param replicaset_name - the name of the replicaset
    * @param timeout - amount of time to wait for a failover, in seconds

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -124,8 +124,8 @@ class METADATA_API MetadataCache
 
   /** @brief Wait until there's a primary member in the replicaset
    *
-   * To be called when the master of a single-master replicaset is down and
-   * we want to wait until one becomes elected.
+   * To be called when the primary member of a single-primary replicaset is down
+   * and we want to wait until one becomes elected.
    *
    * @param replicaset_name name of the replicaset
    * @param timeout - amount of time to wait for a failover
