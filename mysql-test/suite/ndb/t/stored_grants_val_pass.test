@@ -1,0 +1,29 @@
+# BUG #99859 NDB_STORED_USER + validate_password component
+
+--source include/have_ndb.inc
+--source include/have_validate_password_component.inc
+
+connect(mysqld2,127.0.0.1,root,,test,$MASTER_MYPORT1);
+connection mysqld2;
+INSTALL COMPONENT "file://component_validate_password";
+
+connection default;
+INSTALL COMPONENT "file://component_validate_password";
+
+# Create user ndb_u1 on mysql1
+CREATE USER 'ndb_u1'@'localhost' IDENTIFIED by '123_Strong_Password_321';
+GRANT NDB_STORED_USER ON *.* to 'ndb_u1'@'localhost';
+
+# Connect to mysql2 as user ndb_u1
+connect (test_u1,127.0.0.1,ndb_u1,123_Strong_Password_321,,$MASTER_MYPORT1);
+
+# Cleanup
+#
+connection default;
+DROP USER 'ndb_u1'@'localhost';
+UNINSTALL COMPONENT "file://component_validate_password";
+
+connection mysqld2;
+UNINSTALL COMPONENT "file://component_validate_password";
+
+
