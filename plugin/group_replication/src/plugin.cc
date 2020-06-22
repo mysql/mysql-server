@@ -1459,7 +1459,7 @@ bool attempt_rejoin() {
   if ((state == Gcs_operations::NOW_LEAVING ||
        state == Gcs_operations::ALREADY_LEAVING) &&
       vc_notifier.wait_for_view_modification())
-    LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_TIMEOUT_RECEIVED_VC_ON_REJOIN);
+    LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_TIMEOUT_RECEIVED_VC_LEAVE_ON_REJOIN);
 
   gcs_module->remove_view_notifer(&vc_notifier);
   gcs_module->finalize();
@@ -1549,6 +1549,21 @@ bool attempt_rejoin() {
   }
 
 end:
+  if (ret) {
+    /*
+      Even when we do not belong to the group we invoke leave()
+      to prevent the following situation:
+      1) Server joins group;
+      2) Server leaves group before receiving the view on which
+      it joined the group.
+      If we do not leave preemptively, the server will only leave
+      the group when the communication layer failure detector
+      detects that it left.
+    */
+    gcs_module->leave(nullptr);
+    gcs_module->finalize();
+  }
+
   gcs_module->remove_view_notifer(view_change_notifier);
   return ret;
 }

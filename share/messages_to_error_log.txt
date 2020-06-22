@@ -11049,6 +11049,9 @@ ER_IB_MSG_UNDO_INJECT_CRASH
 ER_IB_MSG_UNDO_INJECT_FAILURE
   eng "Injected debug failure point: %s"
 
+ER_GRP_RPL_TIMEOUT_RECEIVED_VC_LEAVE_ON_REJOIN
+  eng "Timeout while waiting for a view change event during the leave step before a auto-rejoin attempt."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

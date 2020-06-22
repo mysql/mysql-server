@@ -283,9 +283,6 @@ Gcs_operations::enum_leave_state Gcs_operations::leave(
       goto end;
       /* purecov: end */
     }
-  } else {
-    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_EXIT_GRP_GCS_ERROR);
-    goto end;
   }
 
 end:
