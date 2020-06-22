@@ -510,7 +510,8 @@ bool JOIN::optimize() {
   if (thd->is_error()) return true;
 
   if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER) &&
-      strcasestr(thd->query().str, "set ") == nullptr &&
+      strstr(thd->query().str, "set ") == nullptr &&
+      strstr(thd->query().str, "SET ") == nullptr &&
       strstr(thd->query().str, "@") == nullptr &&
       thd->lex->sql_command == SQLCOM_SELECT) {
     // There is no hypergraph optimizer yet.
