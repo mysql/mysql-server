@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -25,24 +25,28 @@ syntax = "proto2";
 
 // ifdef PROTOBUF_LITE: option optimize_for = LITE_RUNTIME;
 
+/**
+@namespace Mysqlx::Datatypes
+@brief Data types
+*/
 package Mysqlx.Datatypes;
 option java_package = "com.mysql.cj.x.protobuf";
 
 
 // a scalar
 message Scalar {
-  // a string with a charset/collation
+  /** a string with a charset/collation */
   message String {
     required bytes value = 1;
     optional uint64 collation = 2 /* ifdef PROTOBUF3 [jstype = JS_STRING] */;
-  };
+  }
 
-  // an opaque octet sequence, with an optional content_type
-  // See ``Mysqlx.Resultset.ContentType_BYTES`` for list of known values.
+  /** an opaque octet sequence, with an optional content_type
+      See @ref Mysqlx::Resultset::ContentType_BYTES for list of known values. */
   message Octets {
     required bytes value = 1;
     optional uint32 content_type = 2;
-  };
+  }
 
   enum Type {
     V_SINT = 1;
@@ -53,7 +57,7 @@ message Scalar {
     V_FLOAT = 6;
     V_BOOL  = 7;
     V_STRING  = 8;
-  };
+  }
 
   required Type type = 1;
 
@@ -67,7 +71,9 @@ message Scalar {
   optional String v_string = 9;
 }
 
-// a object
+/**
+An object
+*/
 message Object {
   message ObjectField {
     required string key = 1;
@@ -77,18 +83,22 @@ message Object {
   repeated ObjectField fld = 1;
 }
 
-// a Array
+/**
+An Array
+*/
 message Array {
   repeated Any value = 1;
 }
 
-// a helper to allow all field types
+/**
+A helper to allow all field types
+*/
 message Any {
   enum Type {
     SCALAR = 1;
     OBJECT = 2;
     ARRAY  = 3;
-  };
+  }
 
   required Type type = 1;
 

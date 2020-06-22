@@ -310,7 +310,8 @@ ngs::Error_code Admin_command_handler::kill_client(Command_arguments *args) {
  *                     if not exists
  *   - validation: object, optional - validation schema options
  *     - schema: object|string, optional - json validation document
- *     - level: string - level of validation {"STRICT"|"OFF"}
+ *     - level: string, optional - level of validation {"STRICT"|"OFF"};
+ *       default "STRICT"
  */
 ngs::Error_code Admin_command_handler::create_collection(
     Command_arguments *args) {
@@ -643,7 +644,7 @@ ngs::Error_code Admin_command_handler::modify_collection_options(
  * Required arguments:
  * - name: string - name of collection
  * - schema: string - name of collection's schema
- * - options: object - collection options to fetch
+ * - options: string, list - collection options to fetch
  */
 ngs::Error_code Admin_command_handler::get_collection_options(
     Command_arguments *args) {

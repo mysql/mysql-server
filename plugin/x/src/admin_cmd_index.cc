@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -124,6 +124,7 @@ std::string Admin_command_index::get_default_field_type(
  * - unique: bool - whether the index should be a unique index
  * - type: string, optional - name of index's type
  *   {"INDEX"|"SPATIAL"|"FULLTEXT"}
+ * - with_parser: string, optional - name of parser for fulltext index
  * - fields|constraint: object, list - detailed information for the generated
  *   column
  *   - field|member: string - path to document member for which the index
