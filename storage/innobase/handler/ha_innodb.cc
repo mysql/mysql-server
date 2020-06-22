@@ -15334,7 +15334,12 @@ ha_innobase::extra(
 	enum ha_extra_function operation)
 			   /*!< in: HA_EXTRA_FLUSH or some other flag */
 {
-	check_trx_exists(ha_thd());
+	if (m_prebuilt->table) {
+#ifdef UNIV_DEBUG
+		if (m_prebuilt->table->n_ref_count > 0)
+#endif
+			update_thd();
+	}
 
 	/* Warning: since it is not sure that MySQL calls external_lock
 	before calling this function, the trx field in m_prebuilt can be
@@ -15409,15 +15414,14 @@ ha_innobase::end_stmt()
 
 	/* This transaction had called ha_innobase::start_stmt() */
 	trx_t*	trx = m_prebuilt->trx;
-	trx_mutex_enter(trx);
+	if (!dict_table_is_temporary(m_prebuilt->table) &&
+		trx != thd_to_trx(ha_thd())) {
+		ut_ad(false);
+		return(0);
+	}
 	if (trx->lock.start_stmt) {
 		trx->lock.start_stmt = false;
-		trx_mutex_exit(trx);
-
 		TrxInInnoDB::end_stmt(trx);
-	}
-	else {
-		trx_mutex_exit(trx);
 	}
 
 	return(0);
@@ -15544,16 +15548,10 @@ ha_innobase::start_stmt(
 		++trx->will_lock;
 	}
 
-	trx_mutex_enter(trx);
 	/* Only do it once per transaction. */
 	if (!trx->lock.start_stmt && lock_type != TL_UNLOCK) {
 		trx->lock.start_stmt = true;
-		trx_mutex_exit(trx);
-
 		TrxInInnoDB::begin_stmt(trx);
-	}
-	else {
-		trx_mutex_exit(trx);
 	}
 
 	DBUG_RETURN(0);

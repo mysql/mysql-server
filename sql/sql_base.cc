@@ -3368,7 +3368,7 @@ retry_share:
       /* Call rebind_psi outside of the critical section. */
       DBUG_ASSERT(table->file != NULL);
       table->file->rebind_psi();
-
+      table->file->extra(HA_EXTRA_RESET_STATE);
       thd->status_var.table_open_cache_hits++;
       goto table_found;
     }
