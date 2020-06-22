@@ -146,6 +146,9 @@ class file_handle {
 
   stdx::expected<void, std::error_code> close() noexcept;
 
+  stdx::expected<size_t, std::error_code> write(const char *data,
+                                                const size_t len);
+
   native_handle_type release() noexcept {
     return std::exchange(handle_, invalid_handle);
   }

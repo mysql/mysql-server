@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -415,6 +415,16 @@ class MySQLRouter {
    * @throw std::runtime_error if called in bootstrap mode.
    */
   void assert_not_bootstrap_mode(const std::string &option_name) const;
+
+  /**
+   * @brief verify that option given by user is an integer value in the given
+   * range.
+   *
+   * @throw std::out_of_range - option not in [min, max] range
+   * @throw std::invalid_argument - not a valid integer
+   */
+  void assert_option_value_in_range(const std::string &option_value,
+                                    const int min, const int max) const;
 
   /** @brief Shows command line usage and option description
    *

@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -42,6 +42,7 @@ FOREACH(test_file
     test_mock_server.cc
     test_pidfile.cc
     test_rest_api.cc
+    test_rest_api_enable.cc
     test_rest_metadata_cache.cc
     test_rest_mock_server.cc
     test_rest_router.cc

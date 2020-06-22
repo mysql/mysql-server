@@ -1148,6 +1148,126 @@ TEST_F(AppTest, EmptyConfigPath) {
   EXPECT_THROW({ MySQLRouter r(g_origin, argv); }, std::runtime_error);
 }
 
+/**
+ * @test
+ * Verify that --https-port could not be used outside of the bootstrap.
+ */
+TEST_F(AppTest, https_port_not_in_bootstrap) {
+  vector<string> argv = {"--https-port", "8080"};
+  ASSERT_THROW_LIKE(MySQLRouter(g_origin, argv), std::runtime_error,
+                    "Option --https-port can only be used together with "
+                    "-B/--bootstrap");
+}
+
+/**
+ * @test
+ * Verify that --disable-rest could not be used outside of the bootstrap.
+ */
+TEST_F(AppTest, disable_rest_not_in_bootstrap) {
+  vector<string> argv = {"--disable-rest"};
+  ASSERT_THROW_LIKE(MySQLRouter(g_origin, argv), std::runtime_error,
+                    "Option --disable-rest can only be used together with "
+                    "-B/--bootstrap");
+}
+
+/**
+ * @test
+ * Verify that --disable-rest does not take any arguments.
+ */
+TEST_F(AppTest, disable_rest_with_value) {
+  vector<string> argv = {"--bootstrap", "127.0.0.1:5000", "--disable-rest",
+                         "not_allowed"};
+  ASSERT_THROW_LIKE(MySQLRouter(g_origin, argv), std::runtime_error,
+                    "invalid argument 'not_allowed'.");
+}
+
+/**
+ * @test
+ * Verify that --disable-rest and --https-port are mututally exclusive.
+ */
+TEST_F(AppTest, https_port_with_disable_rest) {
+  vector<string> argv = {"--bootstrap", "127.0.0.1:5000", "--https-port",
+                         "8080", "--disable-rest"};
+  ASSERT_THROW_LIKE(
+      MySQLRouter(g_origin, argv), std::runtime_error,
+      "Option --disable-rest is not allowed when using --https-port option");
+}
+
+/**
+ * @test
+ * Verify that --https-port does not accept values lower than 1.
+ *
+ * WL13906:TS_FailReq02_01
+ */
+TEST_F(AppTest, https_port_out_of_range_low) {
+  vector<string> argv = {"--bootstrap", "127.0.0.1:5000", "--https-port", "0"};
+  ASSERT_THROW_LIKE(MySQLRouter(g_origin, argv), std::runtime_error,
+                    "processing --https-port option failed, not in allowed "
+                    "range [1, 65535]");
+}
+
+/**
+ * @test
+ * Verify that --https-port does not accept values greater than 65535.
+ *
+ * WL13906:TS_FailReq02_03
+ */
+TEST_F(AppTest, https_port_out_of_range_high) {
+  vector<string> argv = {"--bootstrap", "127.0.0.1:5000", "--https-port",
+                         "65599"};
+  ASSERT_THROW_LIKE(MySQLRouter(g_origin, argv), std::runtime_error,
+                    "processing --https-port option failed, not in allowed "
+                    "range [1, 65535]");
+}
+
+/**
+ * @test
+ * Verify that --https-port does not accept negative values.
+ *
+ * WL13906:TS_FailReq02_02
+ */
+TEST_F(AppTest, https_port_out_of_range_negative) {
+  vector<string> argv = {"--bootstrap", "127.0.0.1:5000", "--https-port", "-1"};
+  ASSERT_THROW_LIKE(MySQLRouter(g_origin, argv), std::runtime_error,
+                    "option '--https-port' expects a value, got nothing");
+}
+
+/**
+ * @test
+ * Verify that --https-port does not accept floating point values.
+ *
+ * WL13906:TS_FailReq02_04
+ */
+TEST_F(AppTest, https_port_float) {
+  vector<string> argv = {"--bootstrap", "127.0.0.1:5000", "--https-port",
+                         "1.2"};
+  ASSERT_THROW_LIKE(
+      MySQLRouter(g_origin, argv), std::runtime_error,
+      "processing --https-port option failed, invalid value: 1.2");
+}
+
+/**
+ * @test
+ * Verify that --https-port does not accept string values.
+ */
+TEST_F(AppTest, https_port_nan) {
+  vector<string> argv = {"--bootstrap", "127.0.0.1:5000", "--https-port",
+                         "not-a-number"};
+  ASSERT_THROW_LIKE(
+      MySQLRouter(g_origin, argv), std::runtime_error,
+      "processing --https-port option failed, invalid value: not-a-number");
+}
+
+/**
+ * @test
+ * Verify that --https-port has to be called with an argument.
+ */
+TEST_F(AppTest, https_port_without_value) {
+  vector<string> argv = {"--bootstrap", "127.0.0.1:5000", "--https-port"};
+  ASSERT_THROW_LIKE(MySQLRouter(g_origin, argv), std::runtime_error,
+                    "option '--https-port' expects a value, got nothing");
+}
+
 int main(int argc, char *argv[]) {
   g_origin = Path(argv[0]).dirname();
 

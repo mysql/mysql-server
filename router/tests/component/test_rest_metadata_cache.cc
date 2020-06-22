@@ -105,11 +105,11 @@ TEST_P(RestMetadataCacheApiWithoutClusterTest, DISABLED_ensure_openapi) {
 
   auto config_sections = get_restapi_config("rest_routing", userfile,
                                             GetParam().request_authentication);
-  config_sections.push_back(ConfigBuilder::build_section(
+  config_sections.push_back(mysql_harness::ConfigBuilder::build_section(
       "rest_metadata_cache", {
                                  {"require_realm", http_auth_realm_name},
                              }));
-  config_sections.push_back(ConfigBuilder::build_section(
+  config_sections.push_back(mysql_harness::ConfigBuilder::build_section(
       "metadata_cache:" + metadata_cache_section_name,
       {
           {"user", keyring_username},
@@ -364,12 +364,12 @@ TEST_P(RestMetadataCacheApiTest, ensure_openapi) {
   auto config_sections = get_restapi_config("rest_routing", userfile,
                                             GetParam().request_authentication);
 
-  config_sections.push_back(ConfigBuilder::build_section(
+  config_sections.push_back(mysql_harness::ConfigBuilder::build_section(
       "rest_metadata_cache", {
                                  {"require_realm", http_auth_realm_name},
                              }));
 
-  config_sections.push_back(ConfigBuilder::build_section(
+  config_sections.push_back(mysql_harness::ConfigBuilder::build_section(
       "metadata_cache:" + metadata_cache_section_name,
       {
           {"user", keyring_username},
@@ -951,7 +951,7 @@ TEST_F(RestMetadataCacheApiTest, rest_metadata_cache_section_twice) {
 
   // force [rest_metadata_cache] twice in the config
   config_sections.push_back(
-      ConfigBuilder::build_section("rest_metadata_cache", {}));
+      mysql_harness::ConfigBuilder::build_section("rest_metadata_cache", {}));
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};

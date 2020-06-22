@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,9 @@ SET(MY_AES_IMPL ${CMAKE_SOURCE_DIR}/mysys/my_aes_openssl.cc)
 
 
 SET(lib_source_files
+  auto_cleaner.cc
+  certificate_generator.cc
+  certificate_handler.cc
   config_files.cc
   config_generator.cc
   cluster_metadata.cc
@@ -70,7 +73,8 @@ ELSE()
   ADD_LIBRARY(router_lib STATIC ${lib_source_files})
 ENDIF()
 TARGET_LINK_LIBRARIES(router_lib
-  ${CMAKE_DL_LIBS} harness-library mysqlclient ${SSL_LIBRARIES}
+  ${CMAKE_DL_LIBS} harness-library harness_stdx_io harness_stdx_filesystem
+  mysqlclient ${SSL_LIBRARIES}
   )
 TARGET_INCLUDE_DIRECTORIES(router_lib PUBLIC ../include)
 

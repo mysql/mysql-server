@@ -244,7 +244,8 @@ TEST_F(RestRouterApiTest, rest_router_section_twice) {
                                             /*request_authentication=*/true);
 
   // force [rest_router] twice in the config
-  config_sections.push_back(ConfigBuilder::build_section("rest_router", {}));
+  config_sections.push_back(
+      mysql_harness::ConfigBuilder::build_section("rest_router", {}));
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};

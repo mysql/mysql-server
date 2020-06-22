@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -49,9 +49,8 @@ static const std::string rest_api_openapi_json =
     std::string(rest_api_basepath) + "/swagger.json";
 
 // wait for the endpoint to return 404
-static bool wait_endpoint_404(
-    RestClient &rest_client, const std::string &uri,
-    std::chrono::milliseconds max_wait_time) noexcept {
+bool wait_endpoint_404(RestClient &rest_client, const std::string &uri,
+                       std::chrono::milliseconds max_wait_time) noexcept {
   while (max_wait_time.count() > 0) {
     auto req = rest_client.request_sync(HttpMethod::Get, uri);
 
@@ -236,27 +235,30 @@ std::string RestApiComponentTest::create_password_file() {
 std::vector<std::string> RestApiComponentTest::get_restapi_config(
     const std::string &component, const std::string &userfile,
     const bool request_authentication, const std::string &realm_name) {
-  std::vector<ConfigBuilder::kv_type> authentication;
+  std::vector<mysql_harness::ConfigBuilder::kv_type> authentication;
   if (request_authentication) {
     authentication.push_back({"require_realm", realm_name});
   }
   const std::vector<std::string> config_sections{
-      ConfigBuilder::build_section("http_server",
-                                   {
-                                       {"port", std::to_string(http_port_)},
-                                   }),
-      ConfigBuilder::build_section(component, authentication),
-      ConfigBuilder::build_section("http_auth_realm:somerealm",
-                                   {
-                                       {"backend", "somebackend"},
-                                       {"method", "basic"},
-                                       {"name", "Some Realm"},
-                                   }),
-      ConfigBuilder::build_section("http_auth_backend:somebackend",
-                                   {
-                                       {"backend", "file"},
-                                       {"filename", userfile},
-                                   }),
+      mysql_harness::ConfigBuilder::build_section(
+          "http_server",
+          {
+              {"port", std::to_string(http_port_)},
+          }),
+      mysql_harness::ConfigBuilder::build_section(component, authentication),
+      mysql_harness::ConfigBuilder::build_section(
+          "http_auth_realm:somerealm",
+          {
+              {"backend", "somebackend"},
+              {"method", "basic"},
+              {"name", "Some Realm"},
+          }),
+      mysql_harness::ConfigBuilder::build_section(
+          "http_auth_backend:somebackend",
+          {
+              {"backend", "file"},
+              {"filename", userfile},
+          }),
   };
   return config_sections;
 }

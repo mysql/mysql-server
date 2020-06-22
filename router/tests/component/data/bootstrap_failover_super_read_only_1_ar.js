@@ -5,12 +5,12 @@ var gr_memberships = require("gr_memberships");
 var gr_members =
   gr_memberships.members(mysqld.global.gr_members);
 
-if (mysqld.global.cluster_specific_id === undefined) {
-  mysqld.global.cluster_specific_id = "CLUSTER-ID";
+if (mysqld.global.gr_id === undefined) {
+  mysqld.global.gr_id = "CLUSTER-ID";
 }
 
 var options = {
-    cluster_id: mysqld.global.cluster_specific_id,
+    cluster_id: mysqld.global.gr_id,
     cluster_type: "ar",
     innodb_cluster_name: mysqld.global.cluster_name,
     innodb_cluster_instances: gr_members,

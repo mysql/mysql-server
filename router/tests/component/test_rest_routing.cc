@@ -137,7 +137,7 @@ TEST_P(RestRoutingApiTest, ensure_openapi) {
     const std::string destinations =
         (route_name == "_") ? "metadata-cache://test/default?role=PRIMARY"
                             : "127.0.0.1:" + std::to_string(mock_port_);
-    config_sections.push_back(ConfigBuilder::build_section(
+    config_sections.push_back(mysql_harness::ConfigBuilder::build_section(
         std::string("routing") + (route_name.empty() ? "" : ":") + route_name,
         {
             {"bind_port", std::to_string(routing_ports_[i])},
@@ -155,7 +155,7 @@ TEST_P(RestRoutingApiTest, ensure_openapi) {
   // create a "dead" metadata-cache referenced by the routing "_" to check
   // route/health isActive == 0
   const std::string keyring_username = "mysql_router1_user";
-  config_sections.push_back(ConfigBuilder::build_section(
+  config_sections.push_back(mysql_harness::ConfigBuilder::build_section(
       "metadata_cache:test",
       {
           {"router_id", "3"},
@@ -1014,7 +1014,8 @@ TEST_F(RestRoutingApiTest, rest_routing_section_twice) {
                                             /*request_authentication=*/true);
 
   // force [rest_routing] twice in the config
-  config_sections.push_back(ConfigBuilder::build_section("rest_routing", {}));
+  config_sections.push_back(
+      mysql_harness::ConfigBuilder::build_section("rest_routing", {}));
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
@@ -1121,7 +1122,7 @@ TEST_P(RestRoutingApiTestCluster, ensure_openapi_cluster) {
     const std::string role = (i == 0) ? "PRIMARY" : "SECONDARY";
     const std::string destinations =
         "metadata-cache://test/default?role=" + role;
-    config_sections.push_back(ConfigBuilder::build_section(
+    config_sections.push_back(mysql_harness::ConfigBuilder::build_section(
         "routing:"s + route_name,
         {
             {"bind_port", std::to_string(routing_ports_[i])},
@@ -1137,7 +1138,7 @@ TEST_P(RestRoutingApiTestCluster, ensure_openapi_cluster) {
   }
 
   const std::string keyring_username = "mysql_router1_user";
-  config_sections.push_back(ConfigBuilder::build_section(
+  config_sections.push_back(mysql_harness::ConfigBuilder::build_section(
       "metadata_cache:test", {
                                  {"router_id", "3"},
                                  {"user", keyring_username},

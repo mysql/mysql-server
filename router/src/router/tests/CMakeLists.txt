@@ -22,6 +22,8 @@
 INCLUDE_DIRECTORIES(../include ../src ../../../tests/helpers)
 
 SET(TESTS
+  test_certificate_generator.cc
+  test_certificate_handler.cc
   test_cluster_metadata.cc
   test_config_files.cc
   test_config_generator.cc

@@ -257,9 +257,10 @@ TEST_P(HttpServerPlainTest, ensure) {
   // Add a DEBUG level to trigger the 'Running' message.
   std::string conf_file{create_config_file(
       conf_dir_.name(),
-      mysql_harness::join(std::vector<std::string>{ConfigBuilder::build_section(
-                              "http_server", http_section)},
-                          "\n"))};
+      mysql_harness::join(
+          std::vector<std::string>{mysql_harness::ConfigBuilder::build_section(
+              "http_server", http_section)},
+          "\n"))};
   ProcessWrapper &http_server{launch_router(
       {"-c", conf_file}, GetParam().expected_success ? 0 : EXIT_FAILURE)};
 
@@ -929,7 +930,7 @@ class HttpClientSecureTest
         ssl_cert_data_dir_{SSL_TEST_DATA_DIR},
         conf_file_{create_config_file(
             conf_dir_.name(),
-            ConfigBuilder::build_section(
+            mysql_harness::ConfigBuilder::build_section(
                 "http_server",
                 {
                     {"port", std::to_string(http_port_)},  // port to listen on
@@ -1230,8 +1231,8 @@ TEST_P(HttpServerSecureTest, ensure) {
 
   std::string conf_file{create_config_file(
       conf_dir_.name(),
-      ConfigBuilder::build_section("http_server", http_section), nullptr,
-      "mysqlrouter.conf", "", false)};
+      mysql_harness::ConfigBuilder::build_section("http_server", http_section),
+      nullptr, "mysqlrouter.conf", "", false)};
   ProcessWrapper &http_server{
       launch_router({"-c", conf_file},
                     GetParam().expected_success ? EXIT_SUCCESS : EXIT_FAILURE)};
@@ -1558,20 +1559,20 @@ class HttpServerAuthTest
             conf_dir_.name(),
             mysql_harness::join(
                 std::vector<std::string>{
-                    ConfigBuilder::build_section(
+                    mysql_harness::ConfigBuilder::build_section(
                         "http_server", {{"port", std::to_string(http_port_)},
                                         {"require_realm", "secure"}}),
-                    ConfigBuilder::build_section(
+                    mysql_harness::ConfigBuilder::build_section(
                         "http_auth_backend:local",
                         {{"backend", "file"},
                          {"filename", mysql_harness::Path(conf_dir_.name())
                                           .join(passwd_filename_)
                                           .str()}}),
-                    ConfigBuilder::build_section("http_auth_realm:secure",
-                                                 {{"backend", "local"},
-                                                  {"method", "basic"},
-                                                  {"name", "API"},
-                                                  {"require", "valid-user"}})},
+                    mysql_harness::ConfigBuilder::build_section(
+                        "http_auth_realm:secure", {{"backend", "local"},
+                                                   {"method", "basic"},
+                                                   {"name", "API"},
+                                                   {"require", "valid-user"}})},
                 "\n"))},
         http_server_{launch_router({"-c", conf_file_})} {
     std::string pwf_name(
@@ -1681,11 +1682,12 @@ class HttpServerAuthFailTest
  */
 TEST_P(HttpServerAuthFailTest, ensure) {
   std::vector<std::string> config_sections{
-      ConfigBuilder::build_section("http_server",
-                                   {
-                                       {"port", std::to_string(http_port_)},
-                                       {"require_realm", "secure"},
-                                   }),
+      mysql_harness::ConfigBuilder::build_section(
+          "http_server",
+          {
+              {"port", std::to_string(http_port_)},
+              {"require_realm", "secure"},
+          }),
   };
   std::string passwd_filename =
       Path(conf_dir_.name()).join(passwd_filename_).str();
@@ -1743,7 +1745,7 @@ const HttpServerAuthFailParams http_server_auth_fail_params[]{
     {"backend_no_section",
      "",
      {
-         ConfigBuilder::build_section(
+         mysql_harness::ConfigBuilder::build_section(
              "http_auth_backend",
              {{"backend", "file"}, {"filename", "does-not-exists"}}),
      },
@@ -1752,37 +1754,38 @@ const HttpServerAuthFailParams http_server_auth_fail_params[]{
      "[http_auth_backend:example]"},
     {"backend_file_filename_not_exists",
      "WL12503::TS_FR6_1",
-     {ConfigBuilder::build_section("http_auth_backend:local",
-                                   {
-                                       {"backend", "file"},
-                                       {"filename", "does-not-exists"},
-                                   }),
-      ConfigBuilder::build_section("http_auth_realm:secure",
-                                   {{"backend", "doesnotexist"},
-                                    {"method", "basic"},
-                                    {"name", "API"},
-                                    {"require", "valid-user"}})},
+     {mysql_harness::ConfigBuilder::build_section(
+          "http_auth_backend:local",
+          {
+              {"backend", "file"},
+              {"filename", "does-not-exists"},
+          }),
+      mysql_harness::ConfigBuilder::build_section("http_auth_realm:secure",
+                                                  {{"backend", "doesnotexist"},
+                                                   {"method", "basic"},
+                                                   {"name", "API"},
+                                                   {"require", "valid-user"}})},
      false,
      "parsing does-not-exists "},
     {"backend_method_unknown",
      "WL12503::TS_FR6_2",
      {
-         ConfigBuilder::build_section("http_auth_realm:secure",
-                                      {{"backend", "doesnotexist"},
-                                       {"method", "unknown"},
-                                       {"name", "API"},
-                                       {"require", "valid-user"}}),
+         mysql_harness::ConfigBuilder::build_section(
+             "http_auth_realm:secure", {{"backend", "doesnotexist"},
+                                        {"method", "unknown"},
+                                        {"name", "API"},
+                                        {"require", "valid-user"}}),
      },
      false,
      "unsupported authentication method for "},
     {"backend_does_not_exist",
      "WL12503::TS_FR6_1",
      {
-         ConfigBuilder::build_section("http_auth_realm:secure",
-                                      {{"backend", "doesnotexist"},
-                                       {"method", "basic"},
-                                       {"name", "API"},
-                                       {"require", "valid-user"}}),
+         mysql_harness::ConfigBuilder::build_section(
+             "http_auth_realm:secure", {{"backend", "doesnotexist"},
+                                        {"method", "basic"},
+                                        {"name", "API"},
+                                        {"require", "valid-user"}}),
      },
      false,
      "The option 'backend=doesnotexist' in [http_auth_realm:secure] does not "
@@ -1791,11 +1794,11 @@ const HttpServerAuthFailParams http_server_auth_fail_params[]{
     {"realm_no_section",
      "WL12503::TS_FR6_1",
      {
-         ConfigBuilder::build_section("http_auth_realm",
-                                      {{"backend", "doesnotexist"},
-                                       {"method", "basic"},
-                                       {"name", "API"},
-                                       {"require", "valid-user"}}),
+         mysql_harness::ConfigBuilder::build_section(
+             "http_auth_realm", {{"backend", "doesnotexist"},
+                                 {"method", "basic"},
+                                 {"name", "API"},
+                                 {"require", "valid-user"}}),
      },
      false,
      "The config section [http_auth_realm] requires a name, like "
@@ -1803,42 +1806,45 @@ const HttpServerAuthFailParams http_server_auth_fail_params[]{
     {"multiple_backends",
      "WL12503::TS_2_7",
      {
-         ConfigBuilder::build_section("http_auth_realm:secure",
-                                      {{"backend", "local"},
-                                       {"method", "basic"},
-                                       {"name", "API"},
-                                       {"require", "valid-user"}}),
-         ConfigBuilder::build_section("http_auth_backend:local",
-                                      {
-                                          {"backend", "file"},
-                                          {"filename", "@placeholder@"},
-                                      }),
-         ConfigBuilder::build_section("http_auth_backend:someother",
-                                      {
-                                          {"backend", "file"},
-                                          {"filename", "@placeholder@"},
-                                      }),
+         mysql_harness::ConfigBuilder::build_section(
+             "http_auth_realm:secure", {{"backend", "local"},
+                                        {"method", "basic"},
+                                        {"name", "API"},
+                                        {"require", "valid-user"}}),
+         mysql_harness::ConfigBuilder::build_section(
+             "http_auth_backend:local",
+             {
+                 {"backend", "file"},
+                 {"filename", "@placeholder@"},
+             }),
+         mysql_harness::ConfigBuilder::build_section(
+             "http_auth_backend:someother",
+             {
+                 {"backend", "file"},
+                 {"filename", "@placeholder@"},
+             }),
      },
      true,
      ""},
     {"multiple_realms",
      "",
      {
-         ConfigBuilder::build_section("http_auth_realm:secure",
-                                      {{"backend", "local"},
-                                       {"method", "basic"},
-                                       {"name", "API"},
-                                       {"require", "valid-user"}}),
-         ConfigBuilder::build_section("http_auth_realm:someother",
-                                      {{"backend", "local"},
-                                       {"method", "basic"},
-                                       {"name", "SomeOtherApi"},
-                                       {"require", "valid-user"}}),
-         ConfigBuilder::build_section("http_auth_backend:local",
-                                      {
-                                          {"backend", "file"},
-                                          {"filename", "@placeholder@"},
-                                      }),
+         mysql_harness::ConfigBuilder::build_section(
+             "http_auth_realm:secure", {{"backend", "local"},
+                                        {"method", "basic"},
+                                        {"name", "API"},
+                                        {"require", "valid-user"}}),
+         mysql_harness::ConfigBuilder::build_section(
+             "http_auth_realm:someother", {{"backend", "local"},
+                                           {"method", "basic"},
+                                           {"name", "SomeOtherApi"},
+                                           {"require", "valid-user"}}),
+         mysql_harness::ConfigBuilder::build_section(
+             "http_auth_backend:local",
+             {
+                 {"backend", "file"},
+                 {"filename", "@placeholder@"},
+             }),
      },
      true,
      ""},
@@ -1846,8 +1852,8 @@ const HttpServerAuthFailParams http_server_auth_fail_params[]{
     {"wrong_backend_type_doesnot_exist",
      "",
      {
-         ConfigBuilder::build_section("http_auth_backend:local",
-                                      {{"backend", "doesnotexist"}}),
+         mysql_harness::ConfigBuilder::build_section(
+             "http_auth_backend:local", {{"backend", "doesnotexist"}}),
      },
      false,
      "unknown backend=doesnotexist in section: http_auth_backend"}};

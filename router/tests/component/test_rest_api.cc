@@ -369,7 +369,8 @@ TEST_F(RestOpenApiTest, duplicated_rest_api_section) {
       get_restapi_config("rest_api", userfile, /*request_authentication=*/true);
 
   // force [rest_api] twice in the config
-  config_sections.push_back(ConfigBuilder::build_section("rest_api", {}));
+  config_sections.push_back(
+      mysql_harness::ConfigBuilder::build_section("rest_api", {}));
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
