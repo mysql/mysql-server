@@ -11067,6 +11067,9 @@ ER_EMPTY_PRIVILEGE_NAME_IGNORED
 ER_IB_MSG_INCORRECT_SIZE
   eng "%s"
 
+ER_GRP_RPL_TIMEOUT_RECEIVED_VC_LEAVE_ON_REJOIN
+  eng "Timeout while waiting for a view change event during the leave step before a auto-rejoin attempt."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
