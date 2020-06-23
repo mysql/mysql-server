@@ -1,4 +1,4 @@
-# Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -86,6 +86,7 @@ SET(harness_source
   logging/logging.cc
   logging/registry.cc
   random_generator.cc
+  sd_notify.cc
   socket_operations.cc
   tcp_address.cc
   tty.cc

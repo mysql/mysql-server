@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -143,6 +143,11 @@ class HARNESS_EXPORT SocketOperationsBase {
 
   /** @brief return hostname of local host */
   virtual std::string get_local_hostname() = 0;
+
+  /** @brief return true if there is data to read from the socket passed as a
+   * parameter */
+  virtual result<bool> has_data(socket_t sock,
+                                std::chrono::milliseconds timeout) = 0;
 };
 
 /** @class SocketOperations
@@ -239,6 +244,11 @@ class HARNESS_EXPORT SocketOperations : public SocketOperationsBase {
    * @throws `LocalHostnameResolutionError` (std::runtime_error) on failure
    */
   std::string get_local_hostname() override;
+
+  /** @brief return true if there is data to read from the socket passed as a
+   * parameter */
+  result<bool> has_data(socket_t sock,
+                        std::chrono::milliseconds timeout) override;
 
  private:
   SocketOperations() = default;

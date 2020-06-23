@@ -207,12 +207,14 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
                                        const std::string &routing_section,
                                        bool expect_error = false) {
     auto def_section = get_DEFAULT_defaults();
+
     // launch the router with the static routing configuration
     const std::string conf_file =
         create_config_file(conf_dir, routing_section, &def_section);
     const int expected_exit_code = expect_error ? EXIT_FAILURE : EXIT_SUCCESS;
     auto &router =
-        ProcessManager::launch_router({"-c", conf_file}, expected_exit_code);
+        ProcessManager::launch_router({"-c", conf_file}, expected_exit_code,
+                                      true, false, expect_error ? -1s : 5s);
 
     return router;
   }

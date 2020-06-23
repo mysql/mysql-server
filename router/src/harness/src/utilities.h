@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -194,6 +194,8 @@ bool matches_glob(const std::string &word, const std::string &pattern);
  * Checks wheter given string matches the pattern using extended posix regex.
  */
 bool regex_pattern_matches(const std::string &s, const std::string &pattern);
+
+bool notify(const std::string &msg);
 
 }  // namespace utility
 

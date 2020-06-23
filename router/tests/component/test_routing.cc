@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2019, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -76,7 +76,7 @@ TEST_F(RouterRoutingTest, RoutingOk) {
   TempDirectory bootstrap_dir;
 
   // launch the server mock for bootstrapping
-  auto &server_mock = launch_mysql_server_mock(
+  launch_mysql_server_mock(
       json_stmts, server_port,
       false /*expecting huge data, can't print on the console*/);
 
@@ -93,21 +93,19 @@ TEST_F(RouterRoutingTest, RoutingOk) {
   std::string conf_file = create_config_file(conf_dir.name(), routing_section);
 
   // launch the router with simple static routing configuration
-  auto &router_static = launch_router({"-c", conf_file});
-
-  // wait for both to begin accepting the connections
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router_static, router_port));
+  /*auto &router_static =*/launch_router({"-c", conf_file});
 
   // launch another router to do the bootstrap connecting to the mock server
   // via first router instance
-  auto &router_bootstrapping = launch_router({
-      "--bootstrap=localhost:" + std::to_string(router_port),
-      "--report-host",
-      "dont.query.dns",
-      "-d",
-      bootstrap_dir.name(),
-  });
+  auto &router_bootstrapping = launch_router(
+      {
+          "--bootstrap=localhost:" + std::to_string(router_port),
+          "--report-host",
+          "dont.query.dns",
+          "-d",
+          bootstrap_dir.name(),
+      },
+      EXIT_SUCCESS, true, false, -1s);
 
   router_bootstrapping.register_response(
       "Please enter MySQL password for root: ", "fake-pass\n");
@@ -127,7 +125,7 @@ TEST_F(RouterRoutingTest, RoutingTooManyConnections) {
   const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
 
   // launch the server mock
-  auto &server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
+  launch_mysql_server_mock(json_stmts, server_port, false);
 
   // create a config with routing that has max_connections == 2
   const std::string routing_section =
@@ -144,11 +142,7 @@ TEST_F(RouterRoutingTest, RoutingTooManyConnections) {
   std::string conf_file = create_config_file(conf_dir.name(), routing_section);
 
   // launch the router with the created configuration
-  auto &router = launch_router({"-c", conf_file});
-
-  // wait for server and router to begin accepting the connections
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port));
+  launch_router({"-c", conf_file});
 
   // try to create 3 connections, the third should fail
   // because of the max_connections limit being exceeded
@@ -282,7 +276,7 @@ TEST_F(RouterRoutingTest, RoutingPluginCantSpawnMoreThreads) {
 
   SCOPED_TRACE("// stopping router and wait for shutdown.");
   EXPECT_EQ(router_static.send_clean_shutdown_event(), std::error_code{});
-  EXPECT_NO_THROW(EXPECT_EQ(router_static.wait_for_exit(), 0));
+  EXPECT_NO_THROW(EXPECT_EQ(router_static.wait_for_exit(), EXIT_SUCCESS));
 
   SCOPED_TRACE("// check for expected content.");
   EXPECT_THAT(router_static.get_full_logfile(),
@@ -352,7 +346,7 @@ TEST_F(RouterRoutingTest, RoutingMaxConnectErrors) {
   TempDirectory bootstrap_dir;
 
   // launch the server mock for bootstrapping
-  auto &server_mock = launch_mysql_server_mock(
+  launch_mysql_server_mock(
       json_stmts, server_port,
       false /*expecting huge data, can't print on the console*/);
 
@@ -372,9 +366,6 @@ TEST_F(RouterRoutingTest, RoutingMaxConnectErrors) {
 
   // launch the router
   auto &router = launch_router({"-c", conf_file});
-
-  // wait for mock server to begin accepting the connections
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
 
   // wait for router to begin accepting the connections
   // NOTE: this should cause connection/disconnection which
@@ -475,7 +466,7 @@ TEST_F(RouterRoutingTest, test1) {
   const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
 
   // launch the server mock
-  auto &server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
+  launch_mysql_server_mock(json_stmts, server_port, false);
 
   // create a config with max_connect_errors == 3
   const std::string routing_section =
@@ -491,11 +482,7 @@ TEST_F(RouterRoutingTest, test1) {
   std::string conf_file = create_config_file(conf_dir.name(), routing_section);
 
   // launch the router with the created configuration
-  auto &router = launch_router({"-c", conf_file});
-
-  // wait for server and router to begin accepting the connections
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port));
+  launch_router({"-c", conf_file});
 
   // we loop just for good measure, to additionally test that this behaviour is
   // repeatable

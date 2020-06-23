@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,4 +20,26 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-d @ROUTER_RUNTIMEDIR@ 0755 mysqlrouter mysqlrouter  -
+[Unit]
+Description=MySQL Router
+After=network.target
+After=syslog.target
+
+
+[Service]
+Type=notify
+User=@MYSQLROUTER_USER@
+Group=@MYSQLROUTER_USER@
+
+# Start main service
+ExecStart=/usr/bin/mysqlrouter
+
+# Sets open_files_limit
+LimitNOFILE = 10000
+
+Restart=on-failure
+
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

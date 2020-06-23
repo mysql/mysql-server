@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -262,13 +262,15 @@ static void init(mysql_harness::PluginFuncEnv *env) {
   }
 }
 
-static void start(mysql_harness::PluginFuncEnv *) {
+static void start(mysql_harness::PluginFuncEnv *env) {
   auto &srv = HttpServerComponent::get_instance();
 
   srv.add_route(kRestGlobalsUri, std::unique_ptr<BaseRequestHandler>(
                                      new RestApiV1MockServerGlobals()));
   srv.add_route(kRestConnectionsUri, std::unique_ptr<BaseRequestHandler>(
                                          new RestApiV1MockServerConnections()));
+
+  mysql_harness::on_service_ready(env);
 }
 
 static void stop(mysql_harness::PluginFuncEnv *) {
@@ -305,5 +307,6 @@ mysql_harness::Plugin DLLEXPORT harness_plugin_rest_mock_server = {
     nullptr,  // deinit
     start,    // start
     stop,     // stop
+    true,     // declares_readiness
 };
 }

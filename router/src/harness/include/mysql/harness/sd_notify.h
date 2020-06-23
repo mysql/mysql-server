@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,26 +22,15 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef MYSQLROUTER_TEMP_DIRECTORY_INCLUDED
-#define MYSQLROUTER_TEMP_DIRECTORY_INCLUDED
+#ifndef MYSQL_HARNESS_SD_NOTIFY_INCLUDED
+#define MYSQL_HARNESS_SD_NOTIFY_INCLUDED
 
-#include <string>
+#include "harness_export.h"
 
-class TempDirectory {
- public:
-  explicit TempDirectory(const std::string &prefix = "router")
-      : name_{mysql_harness::get_tmp_dir(prefix)} {}
+namespace mysql_harness {
 
-  ~TempDirectory() { mysql_harness::delete_dir_recursive(name_); }
+bool HARNESS_EXPORT notify_ready();
+bool HARNESS_EXPORT notify_stopping();
 
-  void reset(const std::string &name) {
-    mysql_harness::delete_dir_recursive(name_);
-    name_ = name;
-  }
-  std::string name() const { return name_; }
-
- private:
-  std::string name_;
-};
-
-#endif
+}  // namespace mysql_harness
+#endif /* MYSQL_HARNESS_SD_NOTIFY_INCLUDED */

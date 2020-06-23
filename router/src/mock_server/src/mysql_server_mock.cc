@@ -89,6 +89,7 @@ void MySQLServerMock::run(mysql_harness::PluginFuncEnv *env) {
   mysql_harness::rename_thread("SM Main");
 
   setup_service();
+  mysql_harness::on_service_ready(env);
   handle_connections(env);
 }
 

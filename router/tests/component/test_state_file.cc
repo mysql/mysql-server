@@ -126,7 +126,8 @@ class StateFileTest : public RouterComponentTest {
                       const std::string &metadata_cache_section,
                       const std::string &routing_section,
                       const std::string &state_file_path,
-                      const int expected_errorcode = EXIT_SUCCESS) {
+                      const int expected_errorcode = EXIT_SUCCESS,
+                      std::chrono::milliseconds wait_for_notify = 5s) {
     const std::string masterkey_file =
         Path(temp_test_dir).join("master.key").str();
     const std::string keyring_file = Path(temp_test_dir).join("keyring").str();
@@ -146,7 +147,8 @@ class StateFileTest : public RouterComponentTest {
         &default_section);
     auto &router = ProcessManager::launch_router(
         {"-c", conf_file}, expected_errorcode, /*catch_stderr=*/true,
-        /*with_sudo=*/false);
+        /*with_sudo=*/false,
+        /*wait_for_notify_ready=*/wait_for_notify);
     return router;
   }
 
@@ -470,11 +472,8 @@ TEST_P(StateFileGroupReplicationIdDiffersTest, GroupReplicationIdDiffers) {
 
   SCOPED_TRACE("// Launch  server mock that will act as our metadata server");
   const auto trace_file = get_data_dir().join(param.trace_file).str();
-  auto &cluster_node = ProcessManager::launch_mysql_server_mock(
+  /*auto &cluster_node =*/ProcessManager::launch_mysql_server_mock(
       trace_file, cluster_node_port, EXIT_SUCCESS, false, cluster_http_port);
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(cluster_node, cluster_node_port));
-  ASSERT_TRUE(
-      MockServerRestClient(cluster_http_port).wait_for_rest_endpoint_ready());
 
   SCOPED_TRACE(
       "// Make our metadata server to return single node as a replicaset "
@@ -503,7 +502,7 @@ TEST_P(StateFileGroupReplicationIdDiffersTest, GroupReplicationIdDiffers) {
 
   SCOPED_TRACE("// Launch ther router with the initial state file");
   auto &router = launch_router(temp_test_dir.name(), metadata_cache_section,
-                               routing_section, state_file);
+                               routing_section, state_file, EXIT_SUCCESS, -1s);
 
   SCOPED_TRACE(
       "// Check our state file content, it should not change. "
@@ -669,7 +668,7 @@ TEST_F(StateFileDynamicChangesTest, EmptyMetadataServersList) {
 
   SCOPED_TRACE("// Launch ther router with the initial state file");
   auto &router = launch_router(temp_test_dir.name(), metadata_cache_section,
-                               routing_section, state_file, EXIT_FAILURE);
+                               routing_section, state_file, EXIT_FAILURE, -1s);
 
   wait_for_port_ready(router_port);
 
@@ -746,7 +745,7 @@ TEST_P(StateFileSchemaTest, ParametrizedStateFileSchemaTest) {
           : test_params.state_file_path;
 
   auto &router = launch_router(temp_test_dir.name(), metadata_cache_section,
-                               routing_section, state_file, EXIT_FAILURE);
+                               routing_section, state_file, EXIT_FAILURE, -1s);
 
   // the router should close with non-0 return value
   check_exit_code(router, EXIT_FAILURE);
@@ -1032,7 +1031,7 @@ TEST_P(StateFileAccessRightsTest, ParametrizedStateFileSchemaTest) {
   chmod(state_file.c_str(), file_mode);
 
   auto &router = launch_router(temp_test_dir.name(), metadata_cache_section,
-                               routing_section, state_file, EXIT_FAILURE);
+                               routing_section, state_file, EXIT_FAILURE, -1s);
 
   // the router should close with non-0 return value
   check_exit_code(router, EXIT_FAILURE);
@@ -1089,7 +1088,8 @@ TEST_F(StateFileDirectoryBootstrapTest, DirectoryBootstrapTest) {
   std::vector<std::string> router_cmdline{
       "--bootstrap=localhost:" + std::to_string(metadata_server_port), "-d",
       temp_test_dir.name()};
-  auto &router = ProcessManager::launch_router(router_cmdline);
+  auto &router = ProcessManager::launch_router(router_cmdline, EXIT_SUCCESS,
+                                               true, false, -1s);
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
 
@@ -1153,7 +1153,8 @@ TEST_F(StateFileSystemBootstrapTest, SystemBootstrapTest) {
   SCOPED_TRACE("// Bootstrap against our metadata server");
   std::vector<std::string> router_cmdline{"--bootstrap=localhost:" +
                                           std::to_string(metadata_server_port)};
-  auto &router = ProcessManager::launch_router(router_cmdline);
+  auto &router = ProcessManager::launch_router(router_cmdline, EXIT_SUCCESS,
+                                               true, false, -1s);
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
 

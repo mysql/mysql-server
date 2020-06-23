@@ -165,6 +165,7 @@ mysql_harness::Plugin MOCK_SERVER_EXPORT harness_plugin_mock_server = {
     init,     // init
     nullptr,  // deinit
     start,    // start
-    nullptr   // stop
+    nullptr,  // stop
+    true,     // declares_readiness
 };
 }

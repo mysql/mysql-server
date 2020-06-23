@@ -29,6 +29,8 @@
 #include "router_component_test.h"
 #include "temp_dir.h"
 
+using namespace std::chrono_literals;
+
 struct BrokenConfigParams {
   std::string test_name;
 
@@ -53,7 +55,8 @@ TEST_P(RouterTestBrokenConfig, ensure) {
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(GetParam().sections, "\n"),
       &default_section)};
-  auto &router{launch_router({"-c", conf_file}, EXIT_FAILURE)};
+  auto &router{
+      launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s)};
 
   check_exit_code(router, EXIT_FAILURE);
 
@@ -389,7 +392,8 @@ class RouterCmdlineTest : public RouterComponentTest {
 };
 
 TEST_F(RouterCmdlineTest, help_output_is_sane) {
-  auto &router{launch_router(std::vector<std::string>{"--help"})};
+  auto &router{launch_router(std::vector<std::string>{"--help"}, EXIT_SUCCESS,
+                             true, false, -1s)};
 
   check_exit_code(router, EXIT_SUCCESS);
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -638,6 +638,7 @@ static void start(mysql_harness::PluginFuncEnv *env) {
     // add routes
 
     srv->start(8);
+    mysql_harness::on_service_ready(env);
 
     // wait until we got asked to shutdown.
     //
@@ -673,5 +674,6 @@ mysql_harness::Plugin HTTP_SERVER_EXPORT harness_plugin_http_server = {
     nullptr,  // deinit
     start,    // start
     nullptr,  // stop
+    true,     // declares_readiness
 };
 }

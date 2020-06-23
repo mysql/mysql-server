@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,7 @@
 
 #include "common.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/plugin.h"
 #include "mysqlrouter/mysql_client_thread_token.h"
 
 using namespace std::chrono_literals;
@@ -121,6 +122,12 @@ void MetadataCache::refresh_thread() {
     }
 
     if (refresh_ok) {
+      if (!ready_announced_) {
+        ready_announced_ = true;
+        mysql_harness::on_service_ready(
+            "metadata_cache:" +
+            metadata_cache::MetadataCacheAPI::instance()->instance_name());
+      }
       // we want to update the router version in the routers table once
       // when we start
       if (!version_updated_) {

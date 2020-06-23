@@ -177,10 +177,18 @@ class ProcessWrapper {
     return logging_dir_ + "/" + logging_file_;
   }
 
+  void set_logging_path(const std::string &logging_dir,
+                        const std::string &logging_file) {
+    logging_dir_ = logging_dir;
+    logging_file_ = logging_file;
+  }
+
  private:
-  ProcessWrapper(const std::string &app_cmd,
-                 const std::vector<std::string> &args, bool include_stderr)
-      : launcher_(app_cmd.c_str(), args, include_stderr) {
+  ProcessWrapper(
+      const std::string &app_cmd, const std::vector<std::string> &args,
+      const std::vector<std::pair<std::string, std::string>> &env_vars,
+      bool include_stderr)
+      : launcher_(app_cmd.c_str(), args, env_vars, include_stderr) {
     launcher_.start();
   }
 

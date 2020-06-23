@@ -291,6 +291,8 @@ void MySQLRouting::start_acceptor(mysql_harness::PluginFuncEnv *env) {
   fds[kAcceptUnixSocketNdx].fd = service_named_socket_.native_handle();
 #endif
 
+  mysql_harness::on_service_ready(env);
+
   while (is_running(env)) {
     // wait for the accept() sockets to become readable (POLLIN)
     const auto poll_res =

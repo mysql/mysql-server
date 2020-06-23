@@ -53,6 +53,8 @@
 #include "tcp_port_pool.h"
 #include "utils.h"
 
+using namespace std::chrono_literals;
+
 class TestRestApiEnable : public RouterComponentTest {
  public:
   void SetUp() override {
@@ -64,12 +66,8 @@ class TestRestApiEnable : public RouterComponentTest {
     SCOPED_TRACE("// Launch a server mock that will act as our cluster member");
     const auto trace_file = get_data_dir().join("rest_api_enable.js").str();
 
-    cluster_node = &ProcessManager::launch_mysql_server_mock(
+    ProcessManager::launch_mysql_server_mock(
         trace_file, cluster_node_port, EXIT_SUCCESS, false, cluster_http_port);
-    ASSERT_NO_FATAL_FAILURE(check_port_ready(*cluster_node, cluster_node_port));
-    ASSERT_TRUE(
-        MockServerRestClient(cluster_http_port).wait_for_rest_endpoint_ready())
-        << cluster_node->get_full_output();
 
     set_globals();
 
@@ -300,6 +298,14 @@ class TestRestApiEnable : public RouterComponentTest {
     result.resize(length);
     BIO_read(output_bio.get(), &result[0], length);
     return result;
+  }
+
+  ProcessWrapper &launch_router(
+      const std::vector<std::string> &params, int expected_exit_code /*= 0*/,
+      std::chrono::milliseconds wait_for_notify_ready = -1s) {
+    return ProcessManager::launch_router(
+        params, expected_exit_code,
+        /*catch_stderr*/ true, /*with_sudo*/ false, wait_for_notify_ready);
   }
 
   TlsLibraryContext m_tls_lib_ctx;

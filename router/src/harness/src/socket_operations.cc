@@ -45,6 +45,7 @@ SocketOperations::result<size_t> SocketOperations::poll(
     struct pollfd *fds, size_t nfds, std::chrono::milliseconds timeout_ms) {
   return net::impl::poll::poll(fds, nfds, timeout_ms);
 }
+
 SocketOperations::result<void> SocketOperations::connect_non_blocking_wait(
     socket_t sock, std::chrono::milliseconds timeout_ms) {
   std::array<struct pollfd, 1> fds = {
@@ -253,6 +254,35 @@ std::string SocketOperations::get_local_hostname() {
 SocketOperations::result<void> SocketOperations::set_socket_blocking(
     socket_t sock, bool blocking) {
   return net::impl::socket::native_non_blocking(sock, !blocking);
+}
+
+SocketOperations::result<bool> SocketOperations::has_data(
+    socket_t sock, std::chrono::milliseconds timeout) {
+#ifdef _WIN32
+  constexpr const auto kEvents = POLLRDNORM;
+#else
+  constexpr const auto kEvents = POLLIN | POLLHUP;
+#endif
+
+  std::array<struct pollfd, 1> fds = {
+      {{sock, kEvents, 0}},
+  };
+
+  const auto poll_res = poll(fds.data(), fds.size(), timeout);
+
+  if (!poll_res) {
+    if (poll_res.error() == make_error_code(std::errc::timed_out)) return false;
+
+    return stdx::make_unexpected(poll_res.error());
+  }
+
+  if (poll_res.value() > 0) return true;
+
+  if (fds[0].revents & POLLNVAL) {
+    return stdx::make_unexpected(make_error_code(std::errc::invalid_argument));
+  }
+
+  return false;
 }
 
 }  // namespace mysql_harness

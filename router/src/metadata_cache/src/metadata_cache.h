@@ -308,6 +308,8 @@ class METADATA_API MetadataCache
 
   bool version_updated_{false};
   unsigned last_check_in_updated_{0};
+
+  bool ready_announced_{false};
 };
 
 bool operator==(const MetaData::ReplicaSetsByName &map_a,

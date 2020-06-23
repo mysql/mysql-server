@@ -251,7 +251,8 @@ TEST_F(RouterPidfileOptionTest, PidFileOptionTwiceWithoutValue) {
   router_cmdline.emplace_back("--pid-file");
   router_cmdline.emplace_back("--pid-file");
 
-  auto &router = ProcessManager::launch_router(router_cmdline, EXIT_FAILURE);
+  auto &router = ProcessManager::launch_router(router_cmdline, EXIT_FAILURE,
+                                               true, false, -1s);
 
   check_exit_code(router, EXIT_FAILURE, 1s);
 
@@ -270,7 +271,8 @@ TEST_F(RouterPidfileOptionTest, PidFileOptionTwice) {
   router_cmdline.emplace_back("--pid-file=" + pidfile_tmp.str());
   router_cmdline.emplace_back("--pid-file=" + pidfile.str());
 
-  auto &router = ProcessManager::launch_router(router_cmdline, EXIT_FAILURE);
+  auto &router = ProcessManager::launch_router(router_cmdline, EXIT_FAILURE,
+                                               true, false, -1s);
 
   check_exit_code(router, EXIT_FAILURE, 1s);
 
@@ -295,7 +297,8 @@ TEST_F(RouterPidfileOptionTest, PidFileOptionCfgTwice) {
                                  "mysqlrouter.conf", extra_params);
   router_cmdline = {"-c", conf_file};
 
-  auto &router = ProcessManager::launch_router(router_cmdline, EXIT_FAILURE);
+  auto &router = ProcessManager::launch_router(router_cmdline, EXIT_FAILURE,
+                                               true, false, -1s);
 
   check_exit_code(router, EXIT_FAILURE, 1s);
 
@@ -460,7 +463,8 @@ TEST_P(RouterPidfileOptionValueTestError, PidFileOptionValueTestError) {
   // start router with parameterized value for --pid-file, and expect error
   router_cmdline.emplace_back("--pid-file=" + test_params.filename);
 
-  auto &router = ProcessManager::launch_router(router_cmdline, EXIT_FAILURE);
+  auto &router = ProcessManager::launch_router(router_cmdline, EXIT_FAILURE,
+                                               true, false, -1s);
 
   check_exit_code(router, EXIT_FAILURE, 1s);
 
@@ -577,7 +581,8 @@ TEST_P(RouterPidfileOptionCfgValueTestError, PidFileOptionCfgValueTestError) {
   router_cmdline = {"-c", conf_file};
 
   // start router with config file, and expect error
-  auto &router = ProcessManager::launch_router(router_cmdline, EXIT_FAILURE);
+  auto &router = ProcessManager::launch_router(router_cmdline, EXIT_FAILURE,
+                                               true, false, -1s);
 
   check_exit_code(router, EXIT_FAILURE, 1s);
 
@@ -618,7 +623,8 @@ TEST_P(RouterPidfileOptionEnvValueTestError, PidFileOptionEnvValueTestError) {
   SetEnvRouterPid(test_params.filename.c_str());
 
   // start router with default config file, and expect error
-  auto &router = ProcessManager::launch_router(router_cmdline, EXIT_FAILURE);
+  auto &router = ProcessManager::launch_router(router_cmdline, EXIT_FAILURE,
+                                               true, false, -1s);
 
   check_exit_code(router, EXIT_FAILURE, 1s);
 
@@ -760,7 +766,8 @@ TEST_P(RouterPidfileOptionSupremacyCornerCaseTest,
 
   router_cmdline = {"-c", conf_file};
 
-  auto &router = ProcessManager::launch_router(router_cmdline, EXIT_FAILURE);
+  auto &router = ProcessManager::launch_router(router_cmdline, EXIT_FAILURE,
+                                               true, false, -1s);
 
   check_exit_code(router, EXIT_FAILURE, 1s);
 
@@ -817,7 +824,8 @@ TEST_P(RouterPidfileOptionExistsTest, PidFileOptionExistsTest) {
     router_cmdline.emplace_back("--pid-file=" + pidfile.str());
   }
 
-  auto &router = ProcessManager::launch_router(router_cmdline, EXIT_FAILURE);
+  auto &router = ProcessManager::launch_router(router_cmdline, EXIT_FAILURE,
+                                               true, false, -1s);
 
   check_exit_code(router, EXIT_FAILURE, 1s);
 

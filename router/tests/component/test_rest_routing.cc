@@ -175,18 +175,16 @@ TEST_P(RestRoutingApiTest, ensure_openapi) {
       &default_section, "mysqlrouter.conf", "connect_timeout=1")};
 
   SCOPED_TRACE("// starting router");
-  ProcessWrapper &http_server = launch_router({"-c", conf_file});
+  ProcessWrapper &http_server =
+      launch_router({"-c", conf_file}, EXIT_SUCCESS, true, false, -1s);
 
   // doesn't really matter which file we use here, we are not going to do any
   // queries
   const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
 
   SCOPED_TRACE("// launch the server mock");
-  auto &server_mock =
-      launch_mysql_server_mock(json_stmts, mock_port_, EXIT_SUCCESS, false);
+  launch_mysql_server_mock(json_stmts, mock_port_, EXIT_SUCCESS, false);
 
-  SCOPED_TRACE("// checking port is ready");
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, mock_port_, 5000ms));
   // wait for route being available if we expect it to be and plan to do some
   // connections to it (which are routes: "ro" and "Aaz")
   for (size_t i = 3; i < kRoutesQty; ++i) {
@@ -942,11 +940,10 @@ TEST_F(RestRoutingApiTest, routing_api_no_auth) {
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
+  auto &router =
+      launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s);
 
-  // wait until process failed by itself and check the error-msg
-  const auto wait_for_process_exit_timeout{10000ms};
-  check_exit_code(router, EXIT_FAILURE, wait_for_process_exit_timeout);
+  check_exit_code(router, EXIT_FAILURE, 10000ms);
 
   const std::string router_output = router.get_full_logfile();
   EXPECT_THAT(router_output, ::testing::HasSubstr(
@@ -967,11 +964,10 @@ TEST_F(RestRoutingApiTest, invalid_realm) {
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
+  auto &router =
+      launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s);
 
-  // wait until process failed by itself and check the error-msg
-  const auto wait_for_process_exit_timeout{10000ms};
-  check_exit_code(router, EXIT_FAILURE, wait_for_process_exit_timeout);
+  check_exit_code(router, EXIT_FAILURE, 10000ms);
 
   const std::string router_output = router.get_full_logfile();
   EXPECT_THAT(
@@ -994,13 +990,6 @@ TEST_F(RestRoutingApiTest, routing_api_no_rest_api_works) {
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
   launch_router({"-c", conf_file}, EXIT_SUCCESS);
-
-  // wait until signal handler is up before we let the teardown of the test
-  // terminate the router and check its exit-code
-  //
-  // should be removed once we have another way to know that the process is
-  // ready to receive a shutdown signal.
-  std::this_thread::sleep_for(100ms);
 }
 
 /**
@@ -1019,11 +1008,10 @@ TEST_F(RestRoutingApiTest, rest_routing_section_twice) {
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
+  auto &router =
+      launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s);
 
-  // wait until process failed by itself and check the error-msg
-  const auto wait_for_process_exit_timeout{10000ms};
-  check_exit_code(router, EXIT_FAILURE, wait_for_process_exit_timeout);
+  check_exit_code(router, EXIT_FAILURE, 10000ms);
 
   const std::string router_output = router.get_full_output();
   EXPECT_THAT(router_output,
@@ -1044,11 +1032,10 @@ TEST_F(RestRoutingApiTest, rest_routing_section_has_key) {
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  auto &router = launch_router({"-c", conf_file}, EXIT_FAILURE);
+  auto &router =
+      launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s);
 
-  // wait until process failed by itself and check the error-msg
-  const auto wait_for_process_exit_timeout{10000ms};
-  check_exit_code(router, EXIT_FAILURE, wait_for_process_exit_timeout);
+  check_exit_code(router, EXIT_FAILURE, 10000ms);
 
   const std::string router_output = router.get_full_logfile();
   EXPECT_THAT(
@@ -1100,11 +1087,11 @@ TEST_P(RestRoutingApiTestCluster, ensure_openapi_cluster) {
     nodes.push_back(&launch_mysql_server_mock(
         json_metadata, node_classic_ports[i], EXIT_SUCCESS, false,
         i == 0 ? first_node_http_port : 0));
-    ASSERT_NO_FATAL_FAILURE(check_port_ready(*nodes[i], node_classic_ports[i]));
   }
 
   ASSERT_TRUE(MockServerRestClient(first_node_http_port)
                   .wait_for_rest_endpoint_ready());
+
   set_mock_metadata(first_node_http_port, "", node_classic_ports);
 
   SCOPED_TRACE("// start the router with rest_routing enabled");
@@ -1154,7 +1141,8 @@ TEST_P(RestRoutingApiTestCluster, ensure_openapi_cluster) {
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"),
       &default_section)};
 
-  ProcessWrapper &http_server = launch_router({"-c", conf_file});
+  ProcessWrapper &http_server =
+      launch_router({"-c", conf_file}, EXIT_SUCCESS, true, false, -1s);
 
   // wait for both (rw and ro) routes being available
   for (size_t i = 0; i < 2; ++i) {

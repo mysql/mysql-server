@@ -85,7 +85,6 @@ std::unique_ptr<xcl::XProtocol::Message> MySQLXProtocol::recv_single_message(
   std::vector<std::uint8_t> payload;
   if (payload_size > 0) {
     payload.resize(payload_size);
-
     auto b = net::buffer(payload);
     read_buffer(b);
   }

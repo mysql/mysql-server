@@ -1,4 +1,6 @@
-# Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+#!/bin/bash
+
+# Copyright (c) 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,21 +22,21 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-[Unit]
-Description=MySQL Router
-After=syslog.target
-After=network.target
+# Scripts to run by MySQL Router systemd service
+#
+# Needed argument: pre
+#
+# pre mode  :  try to perform sanity check for configuration, log, data
 
-[Service]
-Type=simple
-User=mysqlrouter
-Group=mysqlrouter
+sanity () {
+  @DEB_INIT_ROUTER_APPARMOR@
 
-PIDFile=@ROUTER_RUNTIMEDIR@/mysqlrouter.pid
+  if [ ! -r /etc/mysqlrouter/mysqlrouter.conf ]; then
+    echo "MySQL configuration not found at /etc/mysqlrouter/mysqlrouter.conf."
+    exit 1
+  fi
+}
 
-ExecStart=/usr/bin/mysqlrouter -c /etc/mysqlrouter/mysqlrouter.conf
-
-PrivateTmp=true
-
-[Install]
-WantedBy=multi-user.target
+case $1 in
+  "pre")  sanity $2 ;;
+esac

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -1111,6 +1111,8 @@ static void start(mysql_harness::PluginFuncEnv *env) {
        std::make_unique<RestRoutingConnections>(require_realm_routing)},
   }};
 
+  mysql_harness::on_service_ready(env);
+
   wait_for_stop(env, 0);
 
   // in case rest_api never initialized, ensure the rest_api_component doesn't
@@ -1138,5 +1140,6 @@ mysql_harness::Plugin REST_ROUTING_EXPORT harness_plugin_rest_routing = {
     nullptr,  // deinit
     start,    // start
     nullptr,  // stop
+    true,     // declares_readiness
 };
 }

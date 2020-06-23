@@ -2,7 +2,12 @@
 
 #include <tunables/global>
 
-/usr/bin/mysqlrouter {
+# flags=(attach_disconnected) is needed, otherwise when trying
+# to write to NOTIFY_SOCKET Router hits:
+# Failed name lookup - disconnected path" error=-13
+# profile="/usr/bin/mysqlrouter" name="run/systemd/notify"
+
+/usr/bin/mysqlrouter flags=(attach_disconnected) {
   #include <abstractions/base>
   #include <abstractions/nameservice>
   #include <abstractions/user-tmp>
@@ -26,6 +31,9 @@
 # Allow runtime files such as PID-file
   /var/run/mysqlrouter/** rw,
   /run/mysqlrouter/** rw,
+
+# Allow systemd notify messages
+  /{,var/}run/systemd/notify w,
 
 # Allow read/ write to /tmp
   /tmp/ r,

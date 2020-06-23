@@ -141,8 +141,10 @@ class MetadataHttpAuthTest : public RouterComponentTest {
     return result;
   }
 
-  auto &launch_router(const std::string &metadata_cache_section,
-                      const int expected_errorcode = EXIT_SUCCESS) {
+  auto &launch_router(
+      const std::string &metadata_cache_section,
+      const int expected_errorcode = EXIT_SUCCESS,
+      const std::chrono::milliseconds wait_for_notify_ready = 5s) {
     const std::string &temp_test_dir_str = temp_test_dir.name();
 
     const auto &routing_section =
@@ -175,7 +177,9 @@ class MetadataHttpAuthTest : public RouterComponentTest {
         metadata_cache_section + routing_section + rest_section,
         &default_section);
 
-    return ProcessManager::launch_router({"-c", conf_file}, expected_errorcode);
+    return ProcessManager::launch_router(
+        {"-c", conf_file}, expected_errorcode, /*catch_stderr=*/true,
+        /*with_sudo=*/false, wait_for_notify_ready);
   }
 
   void set_mock_metadata(
@@ -262,10 +266,6 @@ class MetadataHttpAuthTest : public RouterComponentTest {
 
     cluster_node = &ProcessManager::launch_mysql_server_mock(
         trace_file, cluster_node_port, EXIT_SUCCESS, false, cluster_http_port);
-    ASSERT_NO_FATAL_FAILURE(check_port_ready(*cluster_node, cluster_node_port));
-    ASSERT_TRUE(
-        MockServerRestClient(cluster_http_port).wait_for_rest_endpoint_ready())
-        << cluster_node->get_full_output();
 
     router_port = port_pool_.get_next_available();
 
@@ -349,7 +349,6 @@ TEST_F(BasicMetadataHttpAuthTest, MetadataHttpAuthDefaultConfig) {
   SCOPED_TRACE("// Launch the router with the initial state file");
   ASSERT_NO_FATAL_FAILURE(launch_router(kMetadataCacheSectionBase));
 
-  wait_for_port_ready(router_port);
   ASSERT_TRUE(wait_for_rest_endpoint_ready(uri, http_server_port));
   EXPECT_GT(wait_for_rest_auth_query(2, cluster_http_port), 0);
 
@@ -370,7 +369,6 @@ TEST_F(BasicMetadataHttpAuthTest, UnsupportedMetadataSchemaVersion) {
   SCOPED_TRACE("// Launch the router with the initial state file");
   launch_router(kMetadataCacheSectionBase);
 
-  wait_for_port_ready(router_port);
   ASSERT_TRUE(wait_for_rest_endpoint_ready(uri, http_server_port));
 
   IOContext io_ctx;
@@ -394,7 +392,6 @@ TEST_P(BasicMetadataHttpAuthTest, BasicMetadataHttpAuth) {
       get_metadata_cache_section(kTTL, kAuthCacheTTL, kAuthCacheRefreshRate);
   launch_router(metadata_cache_section);
 
-  wait_for_port_ready(router_port);
   ASSERT_TRUE(wait_for_rest_endpoint_ready(uri, http_server_port));
   EXPECT_GT(wait_for_rest_auth_query(2, cluster_http_port), 0);
 
@@ -512,7 +509,7 @@ TEST_P(InvalidMetadataHttpAuthTimersTest, InvalidMetadataHttpAuthTimers) {
 
   SCOPED_TRACE("// Launch the router with the initial state file");
   auto &router =
-      launch_router(kMetadataCacheSectionBase + GetParam(), EXIT_FAILURE);
+      launch_router(kMetadataCacheSectionBase + GetParam(), EXIT_FAILURE, -1s);
   check_exit_code(router, EXIT_FAILURE);
   EXPECT_THAT(router.exit_code(), testing::Ne(0));
 }

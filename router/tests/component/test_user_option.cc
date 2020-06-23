@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,12 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "gmock/gmock.h"
+#include <chrono>
+
+#include <gmock/gmock.h>
 #include "router_component_test.h"
+
+using namespace std::chrono_literals;
 
 class RouterUserOptionTest : public RouterComponentTest {};
 
@@ -32,8 +36,9 @@ class RouterUserOptionTest : public RouterComponentTest {};
 
 // check that using --user with no sudo gives a proper error
 TEST_F(RouterUserOptionTest, UserOptionNoSudo) {
-  auto &router = launch_router(
-      {"--bootstrap=127.0.0.1:5000", "--user=mysqlrouter"}, EXIT_FAILURE);
+  auto &router =
+      launch_router({"--bootstrap=127.0.0.1:5000", "--user=mysqlrouter"},
+                    EXIT_FAILURE, true, false, -1s);
 
   check_exit_code(router, EXIT_FAILURE);
   EXPECT_TRUE(router.expect_output(
@@ -48,8 +53,9 @@ TEST_F(RouterUserOptionTest, UserOptionNoSudo) {
 
 // check that using --user parameter before --bootstrap gives a proper error
 TEST_F(RouterUserOptionTest, UserOptionBeforeBootstrap) {
-  auto &router = launch_router(
-      {"--user=mysqlrouter", "--bootstrap=127.0.0.1:5000"}, EXIT_FAILURE);
+  auto &router =
+      launch_router({"--user=mysqlrouter", "--bootstrap=127.0.0.1:5000"},
+                    EXIT_FAILURE, true, false, -1s);
 
   check_exit_code(router, EXIT_FAILURE);
   EXPECT_TRUE(router.expect_output(
@@ -61,8 +67,9 @@ TEST_F(RouterUserOptionTest, UserOptionBeforeBootstrap) {
 #else
 // check that it really is not supported on Windows
 TEST_F(RouterUserOptionTest, UserOptionOnWindows) {
-  auto &router = launch_router(
-      {"--bootstrap=127.0.0.1:5000", "--user=mysqlrouter"}, EXIT_FAILURE);
+  auto &router =
+      launch_router({"--bootstrap=127.0.0.1:5000", "--user=mysqlrouter"},
+                    EXIT_FAILURE, true, false, -1s);
 
   ASSERT_TRUE(router.expect_output("Error: unknown option '--user'."));
   check_exit_code(router, EXIT_FAILURE);

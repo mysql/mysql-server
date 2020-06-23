@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -212,7 +212,8 @@ SET (DEB_CONTROL_BDEPS "")
 SET (DEB_RULES_INSTALL_APPARMOR "")
 SET (DEB_RULES_APPARMOR_LOAD "")
 SET (DEB_INSTALL_SERVER_APPARMOR "")
-SET (DEB_INIT_APPARMOR "")
+SET (DEB_INIT_SERVER_APPARMOR "")
+SET (DEB_INIT_ROUTER_APPARMOR "")
 # Only used on Ubuntu 16.04 for manually created debug symbol packages
 SET (DEB_CONTROL_DBGSYM "")
 SET (DEB_RULES_STRIP "")
@@ -237,8 +238,9 @@ IF(DEB_ID STREQUAL "ubuntu")
   ")
   SET (DEB_INSTALL_SERVER_APPARMOR "etc/apparmor.d/usr.sbin.mysqld")
   SET (DEB_INSTALL_ROUTER_APPARMOR "etc/apparmor.d/usr.bin.mysqlrouter")
-  SET (DEB_INIT_APPARMOR "/lib/apparmor/profile-load usr.sbin.mysqld")
-  
+  SET (DEB_INIT_SERVER_APPARMOR "/lib/apparmor/profile-load usr.sbin.mysqld")
+  SET (DEB_INIT_ROUTER_APPARMOR "/lib/apparmor/profile-load usr.bin.mysqlrouter")
+
   # Ubuntu 16.04 doesn't automatically create debug symbol packages
   IF(DEB_CODENAME STREQUAL "xenial")
     SET (DEB_CONTROL_DBGSYM ${DEB_CONTROL_DBGSYM_DEFAULT})

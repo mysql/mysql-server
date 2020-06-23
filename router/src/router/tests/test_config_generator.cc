@@ -3952,6 +3952,8 @@ class MockSocketOperations : public mysql_harness::SocketOperationsBase {
                result<void>(mysql_harness::socket_t sock));
   MOCK_METHOD2(set_socket_blocking,
                result<void>(mysql_harness::socket_t, bool));
+  MOCK_METHOD2(has_data, result<bool>(mysql_harness::socket_t,
+                                      std::chrono::milliseconds));
 };
 
 /**

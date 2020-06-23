@@ -51,6 +51,7 @@ FOREACH(test_file
     test_routing.cc
     test_routing_connection.cc
     test_routing_strategy.cc
+    test_sd_notify.cc
     test_shutdown.cc
     test_state_file.cc
     test_user_option.cc

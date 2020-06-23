@@ -118,7 +118,8 @@ class GrNotificationsTest : public RouterComponentTest {
                       const std::string &metadata_cache_section,
                       const std::string &routing_section,
                       const std::string &state_file_path,
-                      const int expected_exit_code = 0) {
+                      const int expected_exit_code = 0,
+                      std::chrono::milliseconds wait_for_ready = 5s) {
     const std::string masterkey_file =
         Path(temp_test_dir).join("master.key").str();
     const std::string keyring_file = Path(temp_test_dir).join("keyring").str();
@@ -138,7 +139,7 @@ class GrNotificationsTest : public RouterComponentTest {
         &default_section);
     auto &router = ProcessManager::launch_router(
         {"-c", conf_file}, expected_exit_code, /*catch_stderr=*/true,
-        /*with_sudo=*/false);
+        /*with_sudo=*/false, wait_for_ready);
     return router;
   }
 
@@ -352,13 +353,6 @@ TEST_P(GrNotificationsParamTest, GrNotification) {
     cluster_nodes.push_back(&ProcessManager::launch_mysql_server_mock(
         trace_file, cluster_nodes_ports[i], EXIT_SUCCESS, false,
         cluster_http_ports[i], cluster_nodes_xports[i]));
-    ASSERT_NO_FATAL_FAILURE(
-        check_port_ready(*cluster_nodes[i], cluster_nodes_ports[i], 5000ms));
-    ASSERT_NO_FATAL_FAILURE(
-        check_port_ready(*cluster_nodes[i], cluster_nodes_xports[i], 5000ms));
-    ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
-                    .wait_for_rest_endpoint_ready())
-        << cluster_nodes[i]->get_full_output();
 
     SCOPED_TRACE("// Make our metadata server return 2 metadata servers");
     classic_ports = {cluster_nodes_ports[0], cluster_nodes_ports[1]};
@@ -617,11 +611,6 @@ TEST_P(GrNotificationNoXPortTest, GrNotificationNoXPort) {
     cluster_nodes.push_back(&ProcessManager::launch_mysql_server_mock(
         trace_file, cluster_nodes_ports[i], EXIT_SUCCESS, false,
         cluster_http_ports[i]));
-    ASSERT_NO_FATAL_FAILURE(
-        check_port_ready(*cluster_nodes[i], cluster_nodes_ports[i], 5000ms));
-    ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
-                    .wait_for_rest_endpoint_ready())
-        << cluster_nodes[i]->get_full_output();
 
     SCOPED_TRACE("// Make our metadata server return 2 metadata servers");
     classic_ports = {cluster_nodes_ports[0], cluster_nodes_ports[1]};
@@ -659,7 +648,7 @@ TEST_P(GrNotificationNoXPortTest, GrNotificationNoXPort) {
   std::this_thread::sleep_for(500ms);
 
   // we only expect initial ttl read (hence 1), because x-port is not valid
-  // there are not metadata refresh triggered by the notifications
+  // there are no metadata refresh triggered by the notifications
   int md_queries_count = wait_for_md_queries(1, cluster_http_ports[0]);
   ASSERT_EQ(1, md_queries_count);
 
@@ -699,14 +688,9 @@ TEST_P(GrNotificationMysqlxWaitTimeoutUnsupportedTest,
   SCOPED_TRACE("// Launch 1 server mock that will act as our cluster node");
   const auto trace_file = get_data_dir().join(tracefile).str();
   std::vector<uint16_t> classic_ports, x_ports;
-  auto &cluster_node = ProcessManager::launch_mysql_server_mock(
-      trace_file, cluster_classic_port, EXIT_SUCCESS, false, cluster_http_port,
-      cluster_x_port);
-  ASSERT_NO_FATAL_FAILURE(
-      check_port_ready(cluster_node, cluster_classic_port, 5000ms));
-  ASSERT_TRUE(
-      MockServerRestClient(cluster_http_port).wait_for_rest_endpoint_ready())
-      << cluster_node.get_full_output();
+  ProcessManager::launch_mysql_server_mock(trace_file, cluster_classic_port,
+                                           EXIT_SUCCESS, false,
+                                           cluster_http_port, cluster_x_port);
 
   SCOPED_TRACE("// Make our metadata server return 1 cluster node");
   set_mock_metadata(cluster_http_port, kGroupId, {cluster_classic_port},
@@ -775,14 +759,9 @@ TEST_P(GrNotificationNoticesUnsupportedTest, GrNotificationNoticesUnsupported) {
   SCOPED_TRACE("// Launch 1 server mock that will act as our cluster node");
   const auto trace_file = get_data_dir().join(tracefile).str();
   std::vector<uint16_t> classic_ports, x_ports;
-  auto &cluster_node = ProcessManager::launch_mysql_server_mock(
-      trace_file, cluster_classic_port, EXIT_SUCCESS, false, cluster_http_port,
-      cluster_x_port);
-  ASSERT_NO_FATAL_FAILURE(
-      check_port_ready(cluster_node, cluster_classic_port, 5000ms));
-  ASSERT_TRUE(
-      MockServerRestClient(cluster_http_port).wait_for_rest_endpoint_ready())
-      << cluster_node.get_full_output();
+  ProcessManager::launch_mysql_server_mock(trace_file, cluster_classic_port,
+                                           EXIT_SUCCESS, false,
+                                           cluster_http_port, cluster_x_port);
 
   SCOPED_TRACE("// Make our metadata server return 1 metadata server");
   // instrumentate the mock to treat the GR notifications as unsupported
@@ -860,11 +839,6 @@ TEST_P(GrNotificationXPortConnectionFailureTest,
     cluster_nodes.push_back(&ProcessManager::launch_mysql_server_mock(
         trace_file, cluster_nodes_ports[i], EXIT_SUCCESS, false,
         cluster_http_ports[i], cluster_nodes_xports[i]));
-    ASSERT_NO_FATAL_FAILURE(
-        check_port_ready(*cluster_nodes[i], cluster_nodes_ports[i], 5000ms));
-    ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
-                    .wait_for_rest_endpoint_ready())
-        << cluster_nodes[i]->get_full_output();
 
     SCOPED_TRACE("// Make our metadata server return 2 metadata servers");
     classic_ports = {cluster_nodes_ports[0], cluster_nodes_ports[1]};
@@ -893,7 +867,7 @@ TEST_P(GrNotificationXPortConnectionFailureTest,
       << cluster_nodes[1]->get_full_output();
   std::this_thread::sleep_for(1s);
 
-  // we only xpect initial ttl read plus the one caused by the x-protocol
+  // we only expect initial ttl read plus the one caused by the x-protocol
   // notifier connection to the node we killed
   int md_queries_count = wait_for_md_queries(2, cluster_http_ports[0]);
   ASSERT_EQ(2, md_queries_count);
@@ -916,7 +890,7 @@ class GrNotificationsConfErrorTest
 /**
  * @test
  *      Verify that Router returns with a proper error message when
- *      invalid GR notification options is configured.
+ *      invalid GR notification option is configured.
  */
 TEST_P(GrNotificationsConfErrorTest, GrNotificationConfError) {
   const auto test_params = GetParam();
@@ -945,7 +919,7 @@ TEST_P(GrNotificationsConfErrorTest, GrNotificationConfError) {
                                 "}");
   // clang-format on
   auto &router = launch_router(temp_test_dir.name(), metadata_cache_section,
-                               routing_section, state_file, EXIT_FAILURE);
+                               routing_section, state_file, EXIT_FAILURE, -1s);
 
   const auto wait_for_process_exit_timeout{10000ms};
   check_exit_code(router, EXIT_FAILURE, wait_for_process_exit_timeout);
@@ -1000,15 +974,6 @@ TEST_F(GrNotificationsTest, GrNotificationInconsistentMetadata) {
     cluster_nodes.push_back(&ProcessManager::launch_mysql_server_mock(
         trace_file, nodes_ports[i], EXIT_SUCCESS, false, http_ports[i],
         nodes_xports[i]));
-    ASSERT_NO_FATAL_FAILURE(
-        check_port_ready(*cluster_nodes[i], nodes_ports[i], 5000ms));
-    if (i == 0) {
-      ASSERT_NO_FATAL_FAILURE(
-          check_port_ready(*cluster_nodes[i], nodes_xports[i], 5000ms));
-    }
-    ASSERT_TRUE(
-        MockServerRestClient(http_ports[i]).wait_for_rest_endpoint_ready())
-        << cluster_nodes[i]->get_full_output();
 
     set_mock_metadata(http_ports[i], "00-000", nodes_ports, nodes_xports,
                       /*sent=*/false, nodes_ports);

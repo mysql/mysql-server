@@ -44,7 +44,8 @@ usr/lib/mysqlrouter/private/libmysqlrouter_http.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_http_auth_backend.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_http_auth_realm.so.1
 
-usr/share/mysql-@MYSQL_BASE_VERSION@/docs/sample_mysqlrouter.conf
+usr/share/mysqlrouter/docs/sample_mysqlrouter.conf
+usr/share/mysqlrouter/mysqlrouter-systemd-start
 usr/share/man/man1/mysqlrouter.1
 usr/share/man/man1/mysqlrouter_passwd.1
 usr/share/man/man1/mysqlrouter_plugin_info.1

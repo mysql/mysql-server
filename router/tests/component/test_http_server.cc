@@ -262,7 +262,8 @@ TEST_P(HttpServerPlainTest, ensure) {
               "http_server", http_section)},
           "\n"))};
   ProcessWrapper &http_server{launch_router(
-      {"-c", conf_file}, GetParam().expected_success ? 0 : EXIT_FAILURE)};
+      {"-c", conf_file}, GetParam().expected_success ? 0 : EXIT_FAILURE, true,
+      false, GetParam().expected_success ? 5s : -1s)};
 
   if (GetParam().expected_success) {
     std::string rel_uri = GetParam().raw_uri_path;
@@ -1235,7 +1236,8 @@ TEST_P(HttpServerSecureTest, ensure) {
       nullptr, "mysqlrouter.conf", "", false)};
   ProcessWrapper &http_server{
       launch_router({"-c", conf_file},
-                    GetParam().expected_success ? EXIT_SUCCESS : EXIT_FAILURE)};
+                    GetParam().expected_success ? EXIT_SUCCESS : EXIT_FAILURE,
+                    true, false, GetParam().expected_success ? 5s : -1s)};
 
   if (GetParam().expected_success) {
     HttpUri u;
@@ -1574,7 +1576,9 @@ class HttpServerAuthTest
                                                    {"name", "API"},
                                                    {"require", "valid-user"}})},
                 "\n"))},
-        http_server_{launch_router({"-c", conf_file_})} {
+        http_server_{launch_router({"-c", conf_file_}, EXIT_SUCCESS,
+                                   /*catch_stderr*/ true, /*with_sudo*/ false,
+                                   /*wait_for_notify_ready*/ -1s)} {
     std::string pwf_name(
         mysql_harness::Path(conf_dir_.name()).join(passwd_filename_).str());
     std::fstream pwf{pwf_name, pwf.out};
@@ -1707,7 +1711,8 @@ TEST_P(HttpServerAuthFailTest, ensure) {
 
   ProcessWrapper &http_server{
       launch_router({"-c", conf_file},
-                    GetParam().check_at_runtime ? EXIT_SUCCESS : EXIT_FAILURE)};
+                    GetParam().check_at_runtime ? EXIT_SUCCESS : EXIT_FAILURE,
+                    true, false, -1s)};
 
   std::fstream pwf{passwd_filename, std::ios::out};
 

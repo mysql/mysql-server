@@ -486,7 +486,8 @@ TEST_F(RoutingTests, bug_24841281) {
       routing::kDefaultMaxConnectErrors, routing::kDefaultClientConnectTimeout,
       routing::kDefaultNetBufferLength);
   routing.set_destinations_from_csv("127.0.0.1:" + std::to_string(server_port));
-  mysql_harness::PluginFuncEnv env(nullptr, nullptr, true);
+  mysql_harness::ConfigSection cs{"routing", "testroute", nullptr};
+  mysql_harness::PluginFuncEnv env(nullptr, &cs, true);
   std::thread thd(&MySQLRouting::start, &routing, &env);
 
   // set the number of accepts that the server should expect for before
