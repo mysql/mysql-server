@@ -1128,8 +1128,8 @@ bool PT_query_expression::contextualize_order_and_limit(Parse_context *pc) {
               e.g. equivalent derived tables to support any level of nesting.
       */
       my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-               "parenthesized query block with more than one external level "
-               "of ORDER/LIMIT operations");
+               "parenthesized query expression with more than one external "
+               "level of ORDER/LIMIT operations");
       return true;
     }
 
