@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,8 @@
 #include <system_error>
 #include <type_traits>
 
+#include "mysql/harness/stdx_export.h"
+
 // std::filesystem from C++17 on top of C++14
 
 namespace stdx {
@@ -53,9 +55,9 @@ class path {
   string_type native_path_;
 };
 
-path current_path(std::error_code &ec) noexcept;
+HARNESS_STDX_EXPORT path current_path(std::error_code &ec) noexcept;
 
-bool remove(const path &p, std::error_code &ec) noexcept;
+HARNESS_STDX_EXPORT bool remove(const path &p, std::error_code &ec) noexcept;
 
 }  // namespace filesystem
 }  // namespace stdx

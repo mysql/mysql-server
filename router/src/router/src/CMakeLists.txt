@@ -73,8 +73,11 @@ ELSE()
   ADD_LIBRARY(router_lib STATIC ${lib_source_files})
 ENDIF()
 TARGET_LINK_LIBRARIES(router_lib
-  ${CMAKE_DL_LIBS} harness-library harness_stdx_io harness_stdx_filesystem
-  mysqlclient ${SSL_LIBRARIES}
+  ${CMAKE_DL_LIBS}
+  harness-library
+  harness_stdx
+  mysqlclient
+  ${SSL_LIBRARIES}
   )
 TARGET_INCLUDE_DIRECTORIES(router_lib PUBLIC ../include)
 

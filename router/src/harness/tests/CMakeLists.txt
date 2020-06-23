@@ -80,7 +80,7 @@ FOREACH(TEST ${TESTS})
     INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/src/harness/src/
     INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/src/harness/tests/include/
     INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/tests/
-    LIB_DEPENDS test-helpers;harness_stdx_filesystem)
+    LIB_DEPENDS test-helpers;harness_stdx)
 ENDFOREACH()
 
 SET(TESTS
@@ -126,7 +126,7 @@ SET(TESTS
 
 FOREACH(TEST ${TESTS})
   ADD_TEST_FILE(${TEST} MODULE ${TEST_MODULE}
-    LIB_DEPENDS harness_stdx_io)
+    LIB_DEPENDS harness_stdx)
 ENDFOREACH()
 
 # Use configuration file templates to generate configuration files

@@ -210,16 +210,32 @@ ELSE()
     COMPONENT Router)
 ENDIF()
 
-ADD_LIBRARY(harness_stdx_filesystem STATIC
+ADD_LIBRARY(harness_stdx SHARED
   stdx/filesystem.cc
-)
-TARGET_INCLUDE_DIRECTORIES(harness_stdx_filesystem
-  PUBLIC
-  ../include)
-
-ADD_LIBRARY(harness_stdx_io STATIC
   stdx/io/file_handle.cc
 )
-TARGET_INCLUDE_DIRECTORIES(harness_stdx_io
+TARGET_SOURCES(harness_stdx
+  INTERFACE
+  ${CMAKE_CURRENT_SOURCE_DIR}/../include/mysql/harness/stdx/bit.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/../include/mysql/harness/stdx/expected.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/../include/mysql/harness/stdx/type_traits.h
+  )
+TARGET_INCLUDE_DIRECTORIES(harness_stdx
   PUBLIC
-  ../include)
+  ${CMAKE_CURRENT_SOURCE_DIR}/../include/
+  ${CMAKE_CURRENT_BINARY_DIR}/../include/
+  )
+GENERATE_EXPORT_HEADER(harness_stdx
+  EXPORT_FILE_NAME ${CMAKE_CURRENT_BINARY_DIR}/../include/mysql/harness/stdx_export.h)
+
+SET_TARGET_PROPERTIES(harness_stdx PROPERTIES
+  OUTPUT_NAME "mysqlharness_stdx"
+  SOVERSION 1
+  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/runtime_output_directory
+  LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory)
+INSTALL(TARGETS harness_stdx
+  RUNTIME DESTINATION ${ROUTER_INSTALL_BINDIR} COMPONENT Router
+  ARCHIVE DESTINATION ${ROUTER_INSTALL_LIBDIR} COMPONENT Router
+  LIBRARY DESTINATION ${ROUTER_INSTALL_LIBDIR} COMPONENT Router
+  NAMELINK_SKIP
+  )

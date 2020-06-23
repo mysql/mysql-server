@@ -140,7 +140,7 @@ add_harness_plugin(mock_server
   mock_server_component.cc
   authentication.cc
   REQUIRES mysql_protocol;duktape;${PROTOBUF_LITE_LIBRARY};mysqlxmessages_lite;
-  harness_stdx_filesystem;harness-library)
+  harness_stdx;harness-library)
 
 TARGET_INCLUDE_DIRECTORIES(mock_server SYSTEM PUBLIC
   ${DUKTAPE_SOURCE_DIR}/src/
@@ -175,7 +175,7 @@ MYSQL_ADD_EXECUTABLE(mysql_server_mock
   harness-library
   mysqlxmessages_lite
   ${PROTOBUF_LITE_LIBRARY}
-  harness_stdx_filesystem
+  harness_stdx
   harness_net_ts
   SKIP_INSTALL
   )
