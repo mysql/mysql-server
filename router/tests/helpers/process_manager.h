@@ -124,7 +124,7 @@ class ProcessManager {
    * stream should be included in the output caught from the process
    * @param   with_sudo    bool flag indicating if the process' should be
    * execute with sudo priviledges
-   * @param wait_notified_ready
+   * @param wait_for_notify_ready
    *        if >=0 the method should use the notification socket and the value
    * is the time in milliseconds - how long the it should wait for the process
    * to notify it is ready. if < 0 is should not use (open) the notification
@@ -153,7 +153,7 @@ class ProcessManager {
    *                  connections
    * @param module_prefix base-path for javascript modules used by the tests
    * @param bind_address listen address for the mock server to bind to
-   * @param wait_notified_ready if >=0 time in milliseconds - how long the
+   * @param wait_for_notify_ready if >=0 time in milliseconds - how long the
    * launching command should wait for the process to notify it is ready.
    * Otherwise the caller does not want to wait for the notification.
    *
