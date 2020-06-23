@@ -202,7 +202,7 @@ TEST_F(NotifyTest, NotifyReadyNoPlugin) {
   EXPECT_EQ(EXIT_FAILURE, router.wait_for_exit());
 
   const auto error_found = router.get_full_output().find(
-      "Error: MySQL Router not configured to load or start any plugin.");
+      "Error: The service is not configured to load or start any plugin.");
 
   EXPECT_NE(std::string::npos, error_found);
 }

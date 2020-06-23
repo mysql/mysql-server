@@ -257,8 +257,8 @@ static const BrokenConfigParams broken_config_params[]{
     {"no_plugin",
      {},
      "",
-     "Error: MySQL Router not configured to load or start "
-     "any plugin. Exiting."},
+     "Error: The service is not configured to load or start any plugin. "
+     "Exiting."},
 
     {"routing_no_bind_nor_socket",
      {

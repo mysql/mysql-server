@@ -777,9 +777,6 @@ class MasterKeyReaderWriterSystemDeploymentTest
     return server_mock;
   }
 
-  TcpPortPool port_pool_;
-
-  TempDirectory tmp_dir_;
   std::string exec_file_;
   std::string config_file_;
 #ifdef __APPLE__

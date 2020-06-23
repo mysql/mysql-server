@@ -754,7 +754,7 @@ void Loader::start() {
   // away
   if (external_plugins_to_load_count() == 0) {
     throw std::runtime_error(
-        "Error: MySQL Router not configured to load or start any plugin. "
+        "Error: The service is not configured to load or start any plugin. "
         "Exiting.");
   }
 
@@ -991,10 +991,14 @@ void Loader::start_all() {
   for (const ConfigSection *section : config_.sections()) {
     PluginInfo &plugin = plugins_.at(section->name);
     if (plugin.plugin()->declares_readiness) {
+      std::string plugin_service_name{section->name};
+      if (!section->key.empty()) {
+        plugin_service_name += ":" + section->key;
+      }
       log_debug(
-          "Plugin's '%s' service needs to report ready before Router service "
-          "is ready",
-          section->name.c_str());
+          "Plugin's '%s' service needs to report ready before the whole "
+          "service is ready",
+          plugin_service_name.c_str());
       num_of_non_ready_services++;
     }
   }
