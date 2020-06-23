@@ -1752,6 +1752,13 @@ private:
                      const void* src_data,
                      void** dst_data) override
   {
+    if (src_data == NULL)
+    {
+      /* Offset(NULL, *) -> NULL */
+      *dst_data = NULL;
+      return true;
+    }
+
     if (m_sig)
     {
       Int64 src_val = readIntoS64(src_data, m_bits);
