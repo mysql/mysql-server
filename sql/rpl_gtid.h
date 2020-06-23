@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2713,6 +2713,7 @@ class Gtid_state {
   */
   bool is_executed(const Gtid &gtid) const {
     DBUG_TRACE;
+    sid_locks.assert_owner(gtid.sidno);
     bool ret = executed_gtids.contains_gtid(gtid);
     return ret;
   }
