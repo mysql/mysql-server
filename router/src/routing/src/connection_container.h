@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,7 @@
 #include "mysqlrouter/routing_component.h"
 #include "tcp_address.h"
 
-class MySQLRoutingConnection;
+class MySQLRoutingConnectionBase;
 
 /**
  * @brief Basic Concurrent Map
@@ -164,8 +164,8 @@ class concurrent_map {
  * should call remove_connection to remove itself from connection container.
  */
 class ConnectionContainer {
-  concurrent_map<MySQLRoutingConnection *,
-                 std::unique_ptr<MySQLRoutingConnection>>
+  concurrent_map<MySQLRoutingConnectionBase *,
+                 std::unique_ptr<MySQLRoutingConnectionBase>>
       connections_;
 
  public:
@@ -178,7 +178,7 @@ class ConnectionContainer {
         [&connection_datas](const decltype(connections_)::value_type &conn) {
           connection_datas.push_back({
               conn.second->get_client_address(),
-              conn.second->get_server_address().str(),
+              conn.second->get_server_address(),
               conn.second->get_bytes_up(),
               conn.second->get_bytes_down(),
               conn.second->get_started(),
@@ -195,7 +195,7 @@ class ConnectionContainer {
    *
    * @param connection The connection to MySQL server
    */
-  void add_connection(std::unique_ptr<MySQLRoutingConnection> connection);
+  void add_connection(std::unique_ptr<MySQLRoutingConnectionBase> connection);
 
   /**
    * @brief Disconnects all connections to servers that are not allowed any
@@ -220,7 +220,7 @@ class ConnectionContainer {
    *
    * @param connection The connection to remove from container
    */
-  void remove_connection(MySQLRoutingConnection *connection);
+  void remove_connection(MySQLRoutingConnectionBase *connection);
 
   /** number of active client threads. */
   std::condition_variable connection_removed_cond_;

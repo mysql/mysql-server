@@ -304,7 +304,8 @@ const Plugin_data router_plugins[]{
                 "and servers",
                 "0.0.1", R"(
         "logger",
-        "router_protobuf"
+        "router_protobuf",
+        "io"
     )",
                 ""},
     Plugin_data{

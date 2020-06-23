@@ -27,6 +27,7 @@
 #include <thread>
 
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
 // if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
@@ -664,7 +665,7 @@ TEST_P(IsConnectionsClosedWhenSecondaryRemovedFromClusterTest,
                 config_generator_->build_config_file(temp_test_dir_.name(),
                                                      GetParam().cluster_type));
 
-  // connect clients
+  SCOPED_TRACE("// connect clients");
   std::vector<std::pair<MySQLSession, uint16_t>> clients(6);
 
   for (auto &client_and_port : clients) {
@@ -677,25 +678,37 @@ TEST_P(IsConnectionsClosedWhenSecondaryRemovedFromClusterTest,
         static_cast<uint16_t>(std::stoul(std::string((*result)[0])));
   }
 
+  SCOPED_TRACE("// removed secondary from mock-server on port " +
+               std::to_string(cluster_nodes_http_ports_[0]));
   set_additional_globals(cluster_nodes_http_ports_[0],
                          server_globals().set_secondary_removed());
 
+  // wait for metadata refresh
   RestMetadataClient rest_metadata_client(mock_http_hostname_, monitoring_port_,
                                           kRestApiUsername, kRestApiPassword);
   RestMetadataClient::MetadataStatus metadata_status;
+
   ASSERT_NO_ERROR(rest_metadata_client.wait_for_cache_updated(
       wait_for_cache_update_timeout, metadata_status));
 
-  // verify that connections to SECONDARY_1 are broken
+  SCOPED_TRACE("// verify that connections to SECONDARY_1 are broken");
   for (auto &client_and_port : clients) {
     auto &client = client_and_port.first;
     uint16_t port = client_and_port.second;
 
-    if (port == cluster_nodes_ports_[1])
+    if (port == cluster_nodes_ports_[1]) {
+      SCOPED_TRACE("// connections to aborted server fails");
       EXPECT_TRUE(wait_connection_dropped(client));
-    else
-      ASSERT_NO_THROW(std::unique_ptr<MySQLSession::ResultRow> result{
-          client.query_one("select @@port")});
+    } else {
+      SCOPED_TRACE("// connection to server on port " + std::to_string(port) +
+                   " still succeeds");
+      try {
+        std::unique_ptr<MySQLSession::ResultRow> result{
+            client.query_one("select @@port")};
+      } catch (const std::exception &e) {
+        FAIL() << e.what();
+      }
+    }
   }
 }
 

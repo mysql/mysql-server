@@ -38,6 +38,7 @@
 #include <iostream>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <stdexcept>
 
 #ifndef _WIN32
@@ -76,6 +77,102 @@
 namespace mysql_harness {
 class PluginFuncEnv;
 }
+
+/**
+ * container of sockets.
+ *
+ * allows to disconnect all of them.
+ *
+ * thread-safe.
+ */
+template <class Protocol>
+class SocketContainer {
+  using protocol_type = Protocol;
+  using socket_type = typename protocol_type::socket;
+
+  // as a ref is returned, we a list to store the sockets
+  using container_type = std::list<socket_type>;
+
+ public:
+  /**
+   * move ownership of socket_type to the container.
+   *
+   * @return a ref to the stored socket.
+   */
+  socket_type &push_back(socket_type &&sock) {
+    std::lock_guard<std::mutex> lk(mtx_);
+
+    sockets_.push_back(std::move(sock));
+
+    return sockets_.back();
+  }
+
+  /**
+   * release socket from container.
+   *
+   * moves ownership of the socket to the caller.
+   *
+   * @return socket
+   */
+  socket_type release(socket_type &client_sock) {
+    std::lock_guard<std::mutex> lk(mtx_);
+
+    return release_unlocked(client_sock);
+  }
+
+  socket_type release_unlocked(socket_type &client_sock) {
+    for (auto cur = sockets_.begin(); cur != sockets_.end(); ++cur) {
+      if (cur->native_handle() == client_sock.native_handle()) {
+        auto sock = std::move(*cur);
+        sockets_.erase(cur);
+        return sock;
+      }
+    }
+
+    // not found.
+    return socket_type{client_sock.get_executor().context()};
+  }
+
+  template <class F>
+  auto run(F &&f) {
+    std::lock_guard<std::mutex> lk(mtx_);
+
+    return f();
+  }
+
+  /**
+   * disconnect all sockets.
+   */
+
+  void disconnect_all() {
+    std::lock_guard<std::mutex> lk(mtx_);
+
+    for (auto &sock : sockets_) {
+      sock.cancel();
+    }
+  }
+
+  /**
+   * check if the container is empty.
+   */
+  bool empty() const {
+    std::lock_guard<std::mutex> lk(mtx_);
+    return sockets_.empty();
+  }
+
+  /**
+   * get size of container.
+   */
+  size_t size() const {
+    std::lock_guard<std::mutex> lk(mtx_);
+    return sockets_.size();
+  }
+
+ private:
+  container_type sockets_;
+
+  mutable std::mutex mtx_;
+};
 
 using mysqlrouter::URI;
 using std::string;
@@ -215,15 +312,20 @@ class MySQLRouting {
   int get_max_connections() const noexcept { return max_connections_; }
 
   /**
-   * @brief create new connection to MySQL Server than can handle client's
-   * traffic and adds it to connection container. Every connection runs in it's
-   * own thread of execution.
+   * create new connection to MySQL Server than can handle client's
+   * traffic and adds it to connection container.
    *
-   * @param client_socket socket used to send/receive data to/from client
-   * @param client_addr address of client
+   * @param client_socket socket used to transfer data to/from client
+   * @param client_endpoint endpoint of client
+   * @param server_socket socket used to transfer data to/from server
+   * @param server_endpoint endpoint of server
    */
-  void create_connection(int client_socket,
-                         const sockaddr_storage &client_addr);
+  template <class ClientProtocol, class ServerProtocol>
+  void create_connection(
+      typename ClientProtocol::socket client_socket,
+      const typename ClientProtocol::endpoint &client_endpoint,
+      typename ServerProtocol::socket server_socket,
+      const typename ServerProtocol::endpoint &server_endpoint);
 
   routing::RoutingStrategy get_routing_strategy() const;
 
@@ -232,6 +334,12 @@ class MySQLRouting {
   std::vector<mysql_harness::TCPAddress> get_destinations() const;
 
   std::vector<MySQLRoutingAPI::ConnData> get_connections();
+
+  RouteDestination *destinations() { return destination_.get(); }
+
+  net::ip::tcp::acceptor &tcp_socket() { return service_tcp_; }
+
+  void disconnect_all();
 
  private:
   /** @brief Sets up the TCP service
@@ -291,10 +399,14 @@ class MySQLRouting {
 
   /** @brief Socket descriptor of the TCP service */
   net::ip::tcp::acceptor service_tcp_;
+  net::ip::tcp::endpoint service_tcp_endpoint_;
+  SocketContainer<net::ip::tcp> tcp_connector_container_;
 
 #if !defined(_WIN32)
   /** @brief Socket descriptor of the named socket service */
   local::stream_protocol::acceptor service_named_socket_;
+  local::stream_protocol::endpoint service_named_endpoint_;
+  SocketContainer<local::stream_protocol> unix_socket_connector_container_;
 #endif
 
   /** @brief used to unregister from subscription on allowed nodes changes */

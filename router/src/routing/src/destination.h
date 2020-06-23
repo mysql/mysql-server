@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,7 @@ namespace mysql_harness {
 class PluginFuncEnv;
 }
 
-using AllowedNodes = std::vector<mysql_harness::TCPAddress>;
+using AllowedNodes = std::vector<std::string>;
 // first argument is the new set of the allowed nodes
 // second argument is the description of the condition that triggered the change
 // (like ' metadata change' etc.) can be used for logging purposes by the caller

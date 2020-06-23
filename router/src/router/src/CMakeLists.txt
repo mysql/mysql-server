@@ -78,6 +78,7 @@ TARGET_LINK_LIBRARIES(router_lib
   harness_stdx
   mysqlclient
   ${SSL_LIBRARIES}
+  io_component
   )
 TARGET_INCLUDE_DIRECTORIES(router_lib PUBLIC ../include)
 

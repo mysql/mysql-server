@@ -593,9 +593,9 @@ void DestMetadataCacheGroup::on_instances_change(
 
   const auto &available_nodes =
       get_available(instances, /*for_new_connections=*/false).first;
-  AddrVector addresses;
+  AllowedNodes addresses;
   for (const auto &dest : available_nodes) {
-    addresses.emplace_back(dest.address);
+    addresses.emplace_back(dest.address.str());
   }
 
   std::lock_guard<std::mutex> lock(allowed_nodes_change_callbacks_mtx_);

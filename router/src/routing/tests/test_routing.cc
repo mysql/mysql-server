@@ -53,6 +53,8 @@
 #include "mysql/harness/stdx/expected_ostream.h"
 #include "mysql_routing.h"  // AccessMode
 #include "mysql_routing_common.h"
+#include "mysqlrouter/io_backend.h"
+#include "mysqlrouter/io_component.h"
 #include "mysqlrouter/routing.h"
 #include "protocol/classic_protocol.h"
 #include "routing_mocks.h"
@@ -243,7 +245,7 @@ class MockServer {
   void stop_after_n_accepts(int c) { max_expected_accepts_ = c; }
 
   void runloop() {
-    mysql_harness::rename_thread("runloop()");
+    mysql_harness::rename_thread("Mock::runloop");
     std::vector<std::thread> client_threads;
 
     while (!stop_ && (max_expected_accepts_ == 0 ||
@@ -262,7 +264,8 @@ class MockServer {
           continue;
         }
 
-        std::cout << "mock-server: poll(): " << poll_res.error() << std::endl;
+        std::cout << __LINE__ << ": mock-server: poll(): " << poll_res.error()
+                  << std::endl;
 
         return;
       }
@@ -284,15 +287,35 @@ class MockServer {
           mysql_harness::rename_thread("new_client()");
           self_->num_connections_++;
 
-          // block until we receive the bye msg
+          do {
+            // block until we receive the bye msg
+            std::array<struct pollfd, 1> fds = {{
+                {sock_client_.native_handle(), POLLIN, 0},
+            }};
 
-          std::array<char, kByeMessage.size()> buf;
-          auto read_res = net::impl::socket::read(sock_client_.native_handle(),
-                                                  buf.data(), buf.size());
-          if (!read_res) {
-            FAIL() << "Unexpected results from read(): "
-                   << read_res.error().message();
-          }
+            const auto poll_res =
+                net::impl::poll::poll(fds.data(), fds.size(), 1000ms);
+            if (!poll_res) {
+              if (poll_res.error() ==
+                  make_error_condition(std::errc::interrupted)) {
+                continue;
+              }
+
+              FAIL() << ": mock-server: poll(): " << poll_res.error() << " "
+                     << poll_res.error().message() << std::endl;
+
+              break;
+            } else {
+              std::array<char, kByeMessage.size()> buf;
+              auto read_res = net::impl::socket::read(
+                  sock_client_.native_handle(), buf.data(), buf.size());
+              if (!read_res) {
+                FAIL() << "Unexpected results from read(): "
+                       << read_res.error().message();
+              }
+              break;
+            }
+          } while (true);
 
           self_->num_connections_--;
         }
@@ -438,7 +461,7 @@ static bool call_until(std::function<bool()> f, int timeout = 2) {
     if (f()) return true;
 
     // wait a bit and let other threads run
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    std::this_thread::sleep_for(10ms);
   }
   return false;
 }
@@ -477,9 +500,44 @@ TEST_F(RoutingTests, bug_24841281) {
 #endif
   };
 
+  class Ctx {
+   public:
+    Ctx() : io_comp_{IoComponent::get_instance()} {
+      // init the IoComponent
+      io_comp_.init(1, IoBackend::preferred());
+      guards_.emplace_back(io_comp_);
+      io_thd_ = std::thread([&]() {
+        io_comp_.run();
+        std::cerr << "test: io-context finished" << std::endl;
+      });
+    }
+
+    net::io_context &io_context() { return io_comp_.io_context(); }
+
+    ~Ctx() {
+      // release the Workguard to allow the io_comp_.run() to stop.
+      guards_.clear();
+      io_thd_.join();
+
+      io_comp_.reset();
+    }
+
+   private:
+    IoComponent &io_comp_;
+    // create some workguards to be able to start the iocontext (and keep it
+    // running) in one thread while the routing thread starts.
+    std::list<IoComponent::Workguard> guards_;
+
+    std::thread io_thd_;
+  };
+
+  Ctx ctx;
+
+  net::io_context &io_ctx = ctx.io_context();
+
   // check that connecting to a TCP socket or a UNIX socket works
   MySQLRouting routing(
-      io_ctx_, routing::RoutingStrategy::kNextAvailable, router_port,
+      io_ctx, routing::RoutingStrategy::kNextAvailable, router_port,
       Protocol::Type::kXProtocol, routing::AccessMode::kReadWrite, "0.0.0.0",
       sock_path, "routing:testroute", routing::kDefaultMaxConnections,
       routing::kDefaultDestinationConnectionTimeout,
@@ -789,6 +847,9 @@ TEST_F(RoutingTests, DISABLED_ConnectToServerWrongPort) {
 
 int main(int argc, char *argv[]) {
   net::impl::socket::init();
+#ifndef _WIN32
+  signal(SIGPIPE, SIG_IGN);
+#endif
 
   init_test_logger();
   ::testing::InitGoogleTest(&argc, argv);

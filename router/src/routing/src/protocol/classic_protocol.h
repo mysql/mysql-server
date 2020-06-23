@@ -73,7 +73,7 @@ class ClassicProtocol : public BaseProtocol {
    */
   stdx::expected<size_t, std::error_code> copy_packets(
       int sender, int receiver, bool sender_is_readable,
-      RoutingProtocolBuffer &buffer, int *curr_pktnr, bool &handshake_done,
+      std::vector<uint8_t> &buffer, int *curr_pktnr, bool &handshake_done,
       bool from_server) override;
 
   /** @brief Sends error message to the provided receiver.

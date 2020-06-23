@@ -24,11 +24,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "classic_protocol.h"
 
-#include <cstring>
-
-#include "../utils.h"
-#include "common.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/net_ts/buffer.h"  // net::stream_errc
 #include "mysql/harness/stdx/expected.h"
 #include "mysqlrouter/mysql_protocol.h"
 #include "mysqlrouter/routing.h"
@@ -52,8 +49,8 @@ bool ClassicProtocol::on_block_client_host(int server,
 
 stdx::expected<size_t, std::error_code> ClassicProtocol::copy_packets(
     int sender, int receiver, bool sender_is_readable,
-    RoutingProtocolBuffer &buffer, int *curr_pktnr, bool &handshake_done,
-    bool /*from_server*/) {
+    std::vector<uint8_t> &buffer, int *curr_pktnr, bool &handshake_done,
+    bool from_server) {
   assert(curr_pktnr);
 
   int pktnr = 0;
@@ -74,7 +71,7 @@ stdx::expected<size_t, std::error_code> ClassicProtocol::copy_packets(
       return stdx::make_unexpected(read_res.error());
     } else if (read_res.value() == 0) {
       // the caller assumes that errno == 0 on plain connection closes.
-      return stdx::make_unexpected(std::error_code{});
+      return stdx::make_unexpected(make_error_code(net::stream_errc::eof));
     }
 
     bytes_read += read_res.value();
@@ -93,7 +90,7 @@ stdx::expected<size_t, std::error_code> ClassicProtocol::copy_packets(
         return stdx::make_unexpected(make_error_code(std::errc::bad_message));
       }
 
-      if (buffer[4] == 0xff) {
+      if (from_server && pktnr == 0 && buffer[4] == 0xff) {
         // We got error from MySQL Server while handshaking
         // We do not consider this a failed handshake
 
@@ -128,7 +125,7 @@ stdx::expected<size_t, std::error_code> ClassicProtocol::copy_packets(
       }
 
       // We are dealing with the handshake response from client
-      if (pktnr == 1) {
+      if (!from_server && pktnr == 1) {
         // if client is switching to SSL, we are not continuing any checks
         mysql_protocol::Capabilities::Flags capabilities;
         try {

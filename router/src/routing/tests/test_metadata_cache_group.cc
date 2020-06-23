@@ -25,6 +25,9 @@
 #include "dest_metadata_cache.h"
 
 #include <stdexcept>
+#include <string>
+
+#include <gmock/gmock.h>
 
 #include "mysqlrouter/destination.h"
 #include "router_test_helpers.h"  // ASSERT_THROW_LIKE
@@ -1092,30 +1095,31 @@ TEST_F(DestMetadataCacheTest, AllowedNodes2Primaries) {
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
       &metadata_cache_api_, &sock_ops_);
 
-  fill_instance_vector({
+  InstanceVector instances{
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
        3306, 33060},
       {kReplicasetName, "uuid2", metadata_cache::ServerMode::ReadOnly, "3307",
        3307, 33070},
-  });
+  };
+
+  fill_instance_vector(instances);
 
   dest_mc_group.start(nullptr);
 
-  // new metadata - no primary
-  fill_instance_vector({
-      {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
-       3306, 33060},
-      {kReplicasetName, "uuid2", metadata_cache::ServerMode::ReadWrite, "3307",
-       3307, 33070},
-  });
+  // new metadata - 2 primaries
+  instances[1].mode = metadata_cache::ServerMode::ReadWrite;
+  fill_instance_vector(instances);
 
   bool callback_called{false};
   auto check_nodes = [&](const AllowedNodes &nodes,
                          const std::string &reason) -> void {
     // 2 primaries and we are role=PRIMARY
-    ASSERT_EQ(2u, nodes.size());
-    ASSERT_EQ(3306u, nodes[0].port);
-    ASSERT_EQ(3307u, nodes[1].port);
+    ASSERT_THAT(
+        nodes,
+        ::testing::ElementsAre(
+            instances[0].host + ":" + std::to_string(instances[0].port),
+            instances[1].host + ":" + std::to_string(instances[1].port)));
+
     ASSERT_STREQ("metadata change", reason.c_str());
     callback_called = true;
   };
@@ -1139,29 +1143,30 @@ TEST_F(DestMetadataCacheTest, AllowedNodesNoSecondaries) {
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadOnly,
       &metadata_cache_api_, &sock_ops_);
 
-  fill_instance_vector({
+  InstanceVector instances{
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
        3306, 33060},
       {kReplicasetName, "uuid2", metadata_cache::ServerMode::ReadOnly, "3307",
        3307, 33070},
-  });
+  };
+
+  fill_instance_vector(instances);
 
   dest_mc_group.start(nullptr);
 
-  // new metadata - no primary
-  fill_instance_vector({
-      {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
-       3306, 33060},
-  });
+  // remove last node, leaving only the one primary
+  instances.pop_back();
+  fill_instance_vector(instances);
 
   bool callback_called{false};
   auto check_nodes = [&](const AllowedNodes &nodes,
                          const std::string &reason) -> void {
     // no secondaries and we are role=SECONDARY
-    // by default tho we allow existing connections to the primary so it should
+    // by default we allow existing connections to the primary so it should
     // be in the allowed nodes
-    ASSERT_EQ(1u, nodes.size());
-    ASSERT_EQ(3306u, nodes[0].port);
+    ASSERT_THAT(nodes,
+                ::testing::ElementsAre(instances[0].host + ":" +
+                                       std::to_string(instances[0].port)));
     ASSERT_STREQ("metadata change", reason.c_str());
     callback_called = true;
   };
@@ -1173,7 +1178,7 @@ TEST_F(DestMetadataCacheTest, AllowedNodesNoSecondaries) {
 
 /**
  * @test verifies that for the read-only destination r/w node is not among
- * allowed_nodes if  disconnect_on_promoted_to_primary=yes is configured
+ * allowed_nodes if disconnect_on_promoted_to_primary=yes is configured
  *
  */
 TEST_F(DestMetadataCacheTest, AllowedNodesSecondaryDisconnectToPromoted) {
@@ -1186,12 +1191,14 @@ TEST_F(DestMetadataCacheTest, AllowedNodesSecondaryDisconnectToPromoted) {
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadOnly,
       &metadata_cache_api_, &sock_ops_);
 
-  fill_instance_vector({
+  InstanceVector instances{
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
        3306, 33060},
       {kReplicasetName, "uuid2", metadata_cache::ServerMode::ReadOnly, "3307",
        3307, 33070},
-  });
+  };
+
+  fill_instance_vector(instances);
 
   dest_mc_group.start(nullptr);
 
@@ -1203,8 +1210,9 @@ TEST_F(DestMetadataCacheTest, AllowedNodesSecondaryDisconnectToPromoted) {
     // one secondary and we are role=SECONDARY
     // we have disconnect_on_promoted_to_primary=yes configured so primary is
     // not allowed
-    ASSERT_EQ(1u, nodes.size());
-    ASSERT_EQ(3307u, nodes[0].port);
+    ASSERT_THAT(nodes,
+                ::testing::ElementsAre(instances[1].host + ":" +
+                                       std::to_string(instances[1].port)));
     ASSERT_STREQ("metadata change", reason.c_str());
     callback_called = true;
   };
@@ -1236,12 +1244,14 @@ TEST_F(DestMetadataCacheTest, AllowedNodesSecondaryDisconnectToPromotedTwice) {
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadOnly,
       &metadata_cache_api_, &sock_ops_);
 
-  fill_instance_vector({
+  InstanceVector instances{
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
        3306, 33060},
       {kReplicasetName, "uuid2", metadata_cache::ServerMode::ReadOnly, "3307",
        3307, 33070},
-  });
+  };
+
+  fill_instance_vector(instances);
 
   dest_mc_group.start(nullptr);
 
@@ -1252,8 +1262,9 @@ TEST_F(DestMetadataCacheTest, AllowedNodesSecondaryDisconnectToPromotedTwice) {
     // one secondary and we are role=SECONDARY
     // disconnect_on_promoted_to_primary=yes overrides previous value in
     // configuration so primary is not allowed
-    ASSERT_EQ(1u, nodes.size());
-    ASSERT_EQ(3307u, nodes[0].port);
+    ASSERT_THAT(nodes,
+                ::testing::ElementsAre(instances[1].host + ":" +
+                                       std::to_string(instances[1].port)));
     ASSERT_STREQ("metadata change", reason.c_str());
     callback_called = true;
   };

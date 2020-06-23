@@ -30,13 +30,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <system_error>
 #include <vector>
 
-#ifndef _WIN32
-#include <unistd.h>
-#else
-#include <winsock2.h>
-#undef ERROR
-#endif
-
 #include "mysql/harness/stdx/expected.h"
 #include "mysqlrouter/mysql_protocol.h"
 #include "socket_operations.h"
@@ -87,7 +80,7 @@ class BaseProtocol {
    */
   virtual stdx::expected<size_t, std::error_code> copy_packets(
       int sender, int receiver, bool sender_is_readable,
-      RoutingProtocolBuffer &buffer, int *curr_pktnr, bool &handshake_done,
+      std::vector<uint8_t> &buffer, int *curr_pktnr, bool &handshake_done,
       bool from_server) = 0;
 
   /** @brief Sends error message to the provided receiver.

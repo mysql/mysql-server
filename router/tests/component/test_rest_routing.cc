@@ -332,15 +332,15 @@ get_expected_destinations_fields(int expected_destinations_num) {
       };
 
   for (int i = 0; i < expected_destinations_num; ++i) {
-    result.push_back({"/items/0/address", [](const JsonValue *value) {
-                        ASSERT_TRUE(value != nullptr);
-                        ASSERT_TRUE(value->IsString());
-                        ASSERT_STREQ(value->GetString(), "127.0.0.1");
-                      }});
-    result.push_back({"/items/0/port", [](const JsonValue *value) {
-                        ASSERT_NE(value, nullptr);
-                        ASSERT_GT(value->GetInt(), 0);
-                      }});
+    result.emplace_back("/items/0/address", [](const JsonValue *value) {
+      ASSERT_TRUE(value != nullptr);
+      ASSERT_TRUE(value->IsString());
+      ASSERT_STREQ(value->GetString(), "127.0.0.1");
+    });
+    result.emplace_back("/items/0/port", [](const JsonValue *value) {
+      ASSERT_NE(value, nullptr);
+      ASSERT_GT(value->GetInt(), 0);
+    });
   }
 
   return result;
@@ -357,11 +357,11 @@ get_expected_blocked_hosts_fields(const int expected_blocked_hosts) {
               }}};
 
   for (int i = 0; i < expected_blocked_hosts; ++i) {
-    result.push_back(
-        {"/items/" + std::to_string(i), [](const JsonValue *value) {
-           ASSERT_NE(value, nullptr);
-           ASSERT_THAT(value->GetString(), ::testing::StartsWith("127.0.0.1"));
-         }});
+    result.emplace_back(
+        "/items/" + std::to_string(i), [](const JsonValue *value) {
+          ASSERT_NE(value, nullptr);
+          ASSERT_THAT(value->GetString(), ::testing::StartsWith("127.0.0.1"));
+        });
   }
 
   return result;
@@ -383,37 +383,37 @@ get_expected_connections_fields_fields(const int expected_connection_qty) {
               }}};
 
   for (int i = 0; i < expected_connection_qty; ++i) {
-    result.push_back({"/items/" + std::to_string(i) + "/bytesToServer",
-                      [](const JsonValue *value) {
-                        ASSERT_NE(value, nullptr);
-                        ASSERT_GT(value->GetUint64(), 0);
-                      }});
+    result.emplace_back("/items/" + std::to_string(i) + "/bytesToServer",
+                        [](const JsonValue *value) {
+                          ASSERT_NE(value, nullptr);
+                          ASSERT_GT(value->GetUint64(), 0);
+                        });
 
-    result.push_back({"/items/" + std::to_string(i) + "/sourceAddress",
-                      [](const JsonValue *value) {
-                        ASSERT_NE(value, nullptr);
-                        ASSERT_TRUE(value->IsString());
-                        ASSERT_THAT(value->GetString(),
-                                    ::testing::StartsWith("127.0.0.1"));
-                      }});
+    result.emplace_back("/items/" + std::to_string(i) + "/sourceAddress",
+                        [](const JsonValue *value) {
+                          ASSERT_NE(value, nullptr);
+                          ASSERT_TRUE(value->IsString());
+                          ASSERT_THAT(value->GetString(),
+                                      ::testing::StartsWith("127.0.0.1"));
+                        });
 
-    result.push_back({"/items/" + std::to_string(i) + "/destinationAddress",
-                      [](const JsonValue *value) {
-                        ASSERT_NE(value, nullptr);
-                        ASSERT_TRUE(value->IsString());
-                        ASSERT_THAT(value->GetString(),
-                                    ::testing::StartsWith("127.0.0.1"));
-                      }});
+    result.emplace_back("/items/" + std::to_string(i) + "/destinationAddress",
+                        [](const JsonValue *value) {
+                          ASSERT_NE(value, nullptr);
+                          ASSERT_TRUE(value->IsString());
+                          ASSERT_THAT(value->GetString(),
+                                      ::testing::StartsWith("127.0.0.1"));
+                        });
 
-    result.push_back(
-        {"/items/" + std::to_string(i) + "/timeConnectedToServer",
-         [](const JsonValue *value) {
-           ASSERT_NE(value, nullptr);
-           ASSERT_TRUE(value->IsString());
+    result.emplace_back(
+        "/items/" + std::to_string(i) + "/timeConnectedToServer",
+        [](const JsonValue *value) {
+          ASSERT_NE(value, nullptr);
+          ASSERT_TRUE(value->IsString());
 
-           ASSERT_TRUE(pattern_found(value->GetString(), kTimestampPattern))
-               << value->GetString();
-         }});
+          ASSERT_TRUE(pattern_found(value->GetString(), kTimestampPattern))
+              << value->GetString();
+        });
   }
 
   return result;
