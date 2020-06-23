@@ -25,7 +25,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
   This is a "modern" log writer, i.e. it doesn't care what type a
   log_item on an error log event is; as long as it's one of the
-  wellknown types (string, float, int), it can and will write it.
+  wellknown classes (string, float, int), it can and will write it.
 
   By default, each line will contain one log event, in a format
   somewhat similar to that emitted by "journalctl -o json" on
@@ -58,16 +58,15 @@ error log and as JSON\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0,
 #include "rapidjson/document.h"
 #endif
 
-#include "sql/server_component/log_builtins_internal.h"
-#include "sql/server_component/log_sink_perfschema.h"
-
 REQUIRES_SERVICE_PLACEHOLDER(log_builtins);
 REQUIRES_SERVICE_PLACEHOLDER(log_builtins_string);
 REQUIRES_SERVICE_PLACEHOLDER(log_sink_perfschema);
 
 SERVICE_TYPE(log_builtins) *log_bi = nullptr;
 SERVICE_TYPE(log_builtins_string) *log_bs = nullptr;
+#ifdef WITH_LOG_PARSER
 SERVICE_TYPE(log_sink_perfschema) *log_ps = nullptr;
+#endif
 
 /// Log-file extension
 #define LOG_EXT ".json"
@@ -634,7 +633,9 @@ mysql_service_status_t log_service_init() {
 
   log_bi = mysql_service_log_builtins;
   log_bs = mysql_service_log_builtins_string;
+#ifdef WITH_LOG_PARSER
   log_ps = mysql_service_log_sink_perfschema;
+#endif
 
   return false;
 }

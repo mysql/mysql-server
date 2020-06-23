@@ -1162,6 +1162,7 @@ enum loglevel log_prio_from_label(const char *label) {
 */
 int log_line_submit(log_line *ll) {
   log_item_iter iter_save;
+  static ulonglong previous_microtime = 0;
 
   DBUG_TRACE;
 
@@ -1194,7 +1195,29 @@ int log_line_submit(log_line *ll) {
       log_item_data *d;
       ulonglong now = my_micro_time();
 
-      DBUG_EXECUTE_IF("log_error_normalize", { now = 0; });
+      DBUG_EXECUTE_IF("log_error_normalize", {
+        /*
+          If previous value is significantly larger than the epoch,
+          normalization has just been turned on, and we've remembered
+          a contemporary timestamp, rather than a normalized one, so
+          we reset it here.
+        */
+        if (previous_microtime >= 1000000) previous_microtime = 0;
+        /*
+          Now, we reset the current timestamp. This will result in it
+          being forced to the value of ( previous + 1), generating a
+          sequence of 1, 2, 3, ... for normalized timestamps.
+          This sequence restarts any time log_error_normalize is toggled
+          on (i.e. changed to on from having been off).
+        */
+        now = 0;
+      });
+
+      // enforce uniqueness of timestamps
+      if (now <= previous_microtime)
+        now = ++previous_microtime;
+      else
+        previous_microtime = now;
 
       make_iso8601_timestamp(local_time_buff, now,
                              iso8601_sysvar_logtimestamps);
@@ -1258,6 +1281,7 @@ int log_line_submit(log_line *ll) {
         d->data_string.length = strlen(d->data_string.str);
       }
     }
+
     /* auto-add a numeric MySQL error code item item if needed */
     else if (!(ll->seen & LOG_ITEM_SQL_ERRCODE) && !log_line_full(ll) &&
              (ll->seen & LOG_ITEM_SQL_ERRSYMBOL)) {

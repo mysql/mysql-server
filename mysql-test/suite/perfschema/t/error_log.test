@@ -1,6 +1,8 @@
 --echo # WL#13681: Make error-log available for queries from a connection
 --echo
 
+--source include/not_parallel.inc
+
 SET @@global.log_error_verbosity=3;
 
 # This test does not rely on debug features. If you need to add a case that

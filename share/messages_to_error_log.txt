@@ -11106,6 +11106,9 @@ ER_INNODB_IO_WRITE_ERROR_RETRYING
 ER_INNODB_IO_WRITE_FAILED
   eng "Failed to write data to file: %s"
 
+ER_LOG_COMPONENT_CANNOT_INIT
+  eng "Log component %s failed to initialize."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
