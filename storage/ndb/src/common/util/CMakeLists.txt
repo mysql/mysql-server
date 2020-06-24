@@ -54,6 +54,8 @@ ADD_CONVENIENCE_LIBRARY(ndbgeneral
   ndb_ndbxfrm1.cpp
   ndb_openssl_evp.cpp
   ndb_zlib.cpp
+  ndbxfrm_readfile.cpp
+  ndbxfrm_writefile.cpp
   OutputStream.cpp
   OwnProcessInfo.cpp
   Parser.cpp
