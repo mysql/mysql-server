@@ -840,6 +840,15 @@ ELSE()
   OPTION(USE_LD_GOLD "Use GNU gold linker" OFF)
 ENDIF()
 
+#for aarch64 - allow dynamic use of LSE atomics
+IF(CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
+  MY_CHECK_CXX_COMPILER_FLAG( "-moutline-atomics" HAVE_OUTLINE_ATOMICS)
+  IF(HAVE_OUTLINE_ATOMICS)
+     STRING_APPEND(CMAKE_C_FLAGS   " -moutline-atomics")
+     STRING_APPEND(CMAKE_CXX_FLAGS " -moutline-atomics")
+  ENDIF()
+ENDIF()
+
 IF(LINUX)
   OPTION(LINK_RANDOMIZE "Randomize the order of all symbols in the binary" OFF)
   SET(LINK_RANDOMIZE_SEED "mysql"
