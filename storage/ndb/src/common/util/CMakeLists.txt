@@ -50,6 +50,8 @@ ADD_CONVENIENCE_LIBRARY(ndbgeneral
   NdbOut.cpp
   NdbPack.cpp
   NdbSqlUtil.cpp
+  ndb_az31.cpp
+  ndb_ndbxfrm1.cpp
   OutputStream.cpp
   OwnProcessInfo.cpp
   Parser.cpp
