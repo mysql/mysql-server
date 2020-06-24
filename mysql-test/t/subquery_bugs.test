@@ -816,22 +816,6 @@ eval $query;
 
 DROP TABLE t1;
 
---echo #
---echo # Bug#16926177 CRASH WITH PREPARED STATEMENT AND SEMIJOIN
---echo #
-
-CREATE TABLE t1 (a INT);
-INSERT INTO t1 VALUES (1),(2);
-
-PREPARE s FROM
- 'SELECT (SELECT * FROM t1 AS t2
-          WHERE t2.a IN (SELECT t1.a
-                         FROM t1 AS t3))
-  FROM t1 GROUP BY t1.a';
-EXECUTE s;
-EXECUTE s;
-DROP TABLE t1;
-
 --echo # Bug#28910365 Segfault at Item_cache::walk() on 2nd execution
 
 CREATE TABLE t1 (

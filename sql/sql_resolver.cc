@@ -2863,32 +2863,13 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
       outer_tbl->join_list = &wrap_nest->nested_join->join_list;
 
       /*
-        An important note, if this 'PREPARE stmt'.
-        The FROM clause of the outer query now looks like
-        CONCAT(original FROM clause of outer query, sj-nest).
-        Given that the original FROM clause is reversed, this list is
-        interpreted as "sj-nest is first".
-        Thus, at a next execution, setup_natural_join_types() will decide that
-        the name resolution context of the FROM clause should start at the
-        first inner table in sj-nest.
-        However, note that in the present function we do not change
-        first_name_resolution_table (and friends) of sj-inner tables.
-        So, at the next execution, name resolution for columns of
-        outer-table columns is bound to fail (the first inner table does
-        not have outer tables in its chain of resolution).
-        Fortunately, Item_field::cached_table, which is set during resolution
-        of 'PREPARE stmt', gives us the answer and avoids a failing search.
-      */
-
-      /*
         wrap_nest will take place of outer_tbl, so move the outer join flag
         and join condition.
       */
       wrap_nest->outer_join = outer_tbl->outer_join;
       outer_tbl->outer_join = false;
 
-      // There are item-rollback problems in this function: see bug#16926177
-      wrap_nest->set_join_cond(outer_tbl->join_cond()->real_item());
+      wrap_nest->set_join_cond(outer_tbl->join_cond());
       outer_tbl->set_join_cond(nullptr);
 
       for (auto li = wrap_nest->join_list->begin();
