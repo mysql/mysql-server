@@ -634,7 +634,7 @@ FROM (SELECT a AS i FROM t) q;
 DROP TABLE t;
 
 --echo
---echo # IN to EXISTS transformation is not allowed with subquery_to_derived.
+--echo # IN to EXISTS transformation makes us skip subquery_to_derived.
 --echo
 CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL);
 CREATE TABLE t2 (c INT NOT NULL, d INT NOT NULL);
@@ -645,12 +645,15 @@ INSERT INTO t2 VALUES (2,10), (2,20), (4,10), (5,10), (3,20), (2,40);
 INSERT INTO t3 VALUES (10), (30), (10), (20);
 ANALYZE TABLE t1, t2, t3;
 
---error ER_SUBQUERY_TRANSFORM_REJECTED
+let $query =
 SELECT * FROM t1 AS ta
 WHERE ta.a IN (SELECT c FROM t2 AS tb
                WHERE (SELECT MIN(e) FROM t3 as tc
                       WHERE tc.e IS NOT NULL) < SOME(SELECT e FROM t3 as tc
                                                      WHERE ta.b=tc.e));
+eval $query;
+eval EXPLAIN $query;
+
 --echo #
 --echo # Two parallel scalar subqueries + grouping to derived table
 --echo #
@@ -1157,9 +1160,8 @@ DROP TABLE tab1;
 --echo #
 --echo # Bug#30617216 WL#12885 SIG6 IN JOIN::ADD_HAVING_AS_TMP_TABLE_COND() AT SQL/SQL_SELECT.CC
 --echo #
---echo # This is an example where the "> SOME" is transformed to a scalar
---echo # subquery internally (> MIN), and then later transformed to a derived
---echo # table. Update: ANY/ALL/SOME rejected.
+--echo # ANY/ALL/SOME transformation makes us skip subquery to derived
+--echo # transformation
 --echo #
 CREATE TABLE c2 (col_varchar_key VARCHAR(1));
 
@@ -1169,8 +1171,8 @@ FROM c2 AS alias1
 HAVING   alias1.col_varchar_key > SOME (SELECT col_varchar_key FROM c2)
 ORDER BY alias1.col_varchar_key;
 
---error ER_SUBQUERY_TRANSFORM_REJECTED
 eval $query;
+eval EXPLAIN $query;
 
 DROP TABLE c2;
 
@@ -1251,8 +1253,8 @@ FROM t1 AS alias1 LEFT JOIN
        ON TRUE
      ON TRUE;
 
---error ER_SUBQUERY_TRANSFORM_REJECTED
 eval $query;
+eval EXPLAIN $query;
 
 
 
@@ -1397,8 +1399,8 @@ FROM (n AS table1
       ON (table1.i <= ANY (SELECT i FROM n)))
 WHERE (EXISTS ((SELECT i FROM n)));
 
---error ER_SUBQUERY_TRANSFORM_REJECTED
 eval $query;
+eval EXPLAIN $query;
 
 --echo These (manually transformed the ANY) trigger the error as
 --echo well. Semi-join complication.

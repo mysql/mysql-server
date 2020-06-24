@@ -1663,16 +1663,8 @@ Item_subselect::trans_res Item_in_subselect::single_value_transformer(
         !(substype() == ALL_SUBS && subquery_maybe_null)) {
       OPT_TRACE_TRANSFORM(&thd->opt_trace, oto0, oto1, select->select_number,
                           "> ALL/ANY (SELECT)", "SELECT(MIN)");
-      if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_SUBQUERY_TO_DERIVED)) {
-        // We are transforming ALL/ANY to scalar subquery with an aggregate
-        // which could be picked up for transformation of a scalar subquery to
-        // a derived table. This is not safe (at least not for secondary
-        // engines may have the scalar to derived transformation always
-        // enabled), so reject.
-        my_error(ER_SUBQUERY_TRANSFORM_REJECTED, MYF(0));
-        return RES_ERROR;
-      }
       oto1.add("chosen", true);
+      thd->lex->m_subquery_to_derived_is_impossible = true;
       Item_sum_hybrid *item;
       nesting_map save_allow_sum_func;
       if (func->l_op()) {
@@ -1816,11 +1808,6 @@ Item_in_subselect::single_value_in_to_exists_transformer(THD *thd,
                                                          SELECT_LEX *select,
                                                          Comp_creator *func) {
   DBUG_TRACE;
-
-  if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_SUBQUERY_TO_DERIVED)) {
-    my_error(ER_SUBQUERY_TRANSFORM_REJECTED, MYF(0));
-    return RES_ERROR;
-  }
 
   SELECT_LEX *outer = select->outer_select();
 
@@ -2032,6 +2019,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(THD *thd,
     }
   }
 
+  thd->lex->m_subquery_to_derived_is_impossible = true;
   return RES_OK;
 }
 
@@ -2104,10 +2092,7 @@ Item_subselect::trans_res Item_in_subselect::row_value_transformer(
 
 Item_subselect::trans_res Item_in_subselect::row_value_in_to_exists_transformer(
     THD *thd, SELECT_LEX *select) {
-  if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_SUBQUERY_TO_DERIVED)) {
-    my_error(ER_SUBQUERY_TRANSFORM_REJECTED, MYF(0));
-    return RES_ERROR;
-  }
+  thd->lex->m_subquery_to_derived_is_impossible = true;
   Item_bool_func *having_item = nullptr;
   uint cols_num = left_expr->cols();
   bool is_having_used = select->having_cond() || select->with_sum_func ||

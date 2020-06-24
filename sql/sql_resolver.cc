@@ -1403,6 +1403,8 @@ bool SELECT_LEX::resolve_subquery(THD *thd) {
       16. The left argument isn't a row (multi-column) subquery; it would lead
       to creating conditions like WHERE (outer_subq) =
       ROW(derived.col1,derived.col2), which would complicate code.
+      17. Certain other subquery transformations, incompatible with this one,
+      have not been done.
   */
 
   if (!choice_made && try_convert_to_derived && predicate != nullptr &&  // 1
@@ -1419,7 +1421,8 @@ bool SELECT_LEX::resolve_subquery(THD *thd) {
       predicate->choose_semijoin_or_antijoin() &&                        // 14
       !(in_predicate != nullptr &&                                       // 16
         in_predicate->left_expr->type() == Item::SUBSELECT_ITEM &&
-        in_predicate->left_expr->cols() > 1)) {
+        in_predicate->left_expr->cols() > 1) &&
+      !thd->lex->m_subquery_to_derived_is_impossible) {  // 17
     DBUG_ASSERT(outer->resolve_nest == nullptr);
     /* Register the subquery for further processing in flatten_subqueries() */
     outer->sj_candidates->push_back(predicate);
@@ -6412,6 +6415,8 @@ bool SELECT_LEX::transform_subquery_to_derived(THD *thd, TABLE_LIST **out_tl,
 }
 
 bool SELECT_LEX::transform_scalar_subqueries_to_join_with_derived(THD *thd) {
+  if (thd->lex->m_subquery_to_derived_is_impossible) return false;
+
   // Need at least one FROM table. Also, we do not want to perform this
   // transformation if we have an assignment of a user variable in the query.
   if (leaf_table_count == 0 || thd->lex->set_var_list.elements > 0)

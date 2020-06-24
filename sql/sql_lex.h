@@ -3698,6 +3698,11 @@ struct LEX : public Query_tables_list {
   */
   nesting_map m_deny_window_func;
 
+  /// If true: during prepare, we did a subquery transformation (IN-to-EXISTS,
+  /// SOME/ANY) that doesn't currently work for subquery to a derived table
+  /// transformation.
+  bool m_subquery_to_derived_is_impossible;
+
   Sql_cmd *m_sql_cmd;
 
   /*
