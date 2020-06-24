@@ -26,6 +26,7 @@
 
 #include <fstream>
 
+#include <openssl/crypto.h>  // OPENSSL_free
 #include <openssl/evp.h>
 
 #include "mysql/harness/filesystem.h"
@@ -69,7 +70,11 @@ TEST_F(CertificateGeneratorTest, test_EVP_PKEY_generation) {
   ASSERT_TRUE(rsa);
 
   const auto bn_modulus = RSA_get0_n(rsa);
-  ASSERT_STRNE(BN_bn2dec(bn_modulus), nullptr);
+  const auto openssl_free = [](char *c) { OPENSSL_free(c); };
+  const std::unique_ptr<char, decltype(openssl_free)> bn{BN_bn2dec(bn_modulus),
+                                                         openssl_free};
+  ASSERT_TRUE(bn);
+  ASSERT_STRNE(bn.get(), nullptr);
 }
 
 TEST_F(CertificateGeneratorTest, test_write_PKEY_to_string) {
