@@ -587,6 +587,7 @@ public:
       , triggers(trp), files(bp)
       , ctlFilePtr(RNIL), logFilePtr(RNIL)
       , masterData(b), backup(b)
+      , m_encrypted_file(false)
       {
         m_wait_end_lcp = false;
         m_wait_empty_queue = false;
@@ -908,6 +909,7 @@ public:
       backup.progError(line, cause, extra, check);
     }
 
+    bool m_encrypted_file;
     EncryptionPasswordData m_encryption_password_data;
   };
   friend struct BackupRecord;
@@ -948,7 +950,7 @@ public:
     Uint32 m_o_direct;
     Uint32 m_compressed_backup;
     Uint32 m_compressed_lcp;
-    bool   m_encryption_required;
+    Uint32 m_encryption_required;
   };
   
   /**

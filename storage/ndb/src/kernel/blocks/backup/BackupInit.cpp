@@ -260,7 +260,8 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
 			    &c_defaults.m_compressed_backup);
   ndb_mgm_get_int_parameter(p, CFG_DB_COMPRESSED_LCP,
 			    &c_defaults.m_compressed_lcp);
-  c_defaults.m_encryption_required = false;
+  ndb_mgm_get_int_parameter(p, CFG_DB_ENCRYPTED_BACKUP,
+			    &c_defaults.m_encryption_required);
 
   m_enable_partial_lcp = 1; /* Default to enabled */
   ndb_mgm_get_int_parameter(p, CFG_DB_ENABLE_PARTIAL_LCP,

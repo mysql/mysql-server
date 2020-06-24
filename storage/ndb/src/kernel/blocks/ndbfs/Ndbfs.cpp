@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -576,6 +576,20 @@ Ndbfs::execFSOPENREQ(Signal* signal)
     handle.getSection(ptr, FsOpenReq::FILENAME);
   }
   file->theFileName.set(this, userRef, fsOpenReq->fileNumber, false, ptr);
+  if (handle.m_cnt > FsOpenReq::PASSWORD)
+  {
+    jam();
+    SegmentedSectionPtr ptr;
+    handle.getSection(ptr, FsOpenReq::PASSWORD);
+    ndbrequire(ptr.sz * sizeof(Uint32) <= sizeof(file->m_password));
+    copy((Uint32*)&file->m_password, ptr);
+    ndbrequire(4 + file->m_password.password_length <= ptr.sz * sizeof(Uint32));
+    file->m_password.encryption_password[file->m_password.password_length] = 0;
+  }
+  else
+  {
+    file->m_password.password_length = 0;
+  }
   releaseSections(handle);
   
   if (fsOpenReq->fileFlags & FsOpenReq::OM_INIT)
@@ -593,7 +607,6 @@ Ndbfs::execFSOPENREQ(Signal* signal)
       fsRef->userPointer  = userPointer; 
       fsRef->setErrorCode(fsRef->errorCode, FsRef::fsErrOutOfMemory);
       fsRef->osErrorCode  = ~0; // Indicate local error
-ndbabort();
       sendSignal(userRef, GSN_FSOPENREF, signal, 3, JBB);
       return;
     }

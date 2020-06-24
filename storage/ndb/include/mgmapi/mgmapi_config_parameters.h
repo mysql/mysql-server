@@ -131,6 +131,7 @@
 
 #define CFG_DB_COMPRESSED_BACKUP      172
 #define CFG_DB_COMPRESSED_LCP         173
+#define CFG_DB_ENCRYPTED_BACKUP       673
 
 #define CFG_DB_SCHED_EXEC_TIME        174
 #define CFG_DB_SCHED_SPIN_TIME        175

@@ -1008,6 +1008,9 @@ Dblqh::define_backup(Signal* signal)
   req->backupKey[0] = 0;
   req->backupKey[1] = 0;
   req->backupDataLen = ~0;
+  req->nodes.clear(); // Use nodes in section
+  req->flags = 0;
+  req->senderData = 0;
 
   NdbNodeBitmask nodes;
   nodes.set(getOwnNodeId());

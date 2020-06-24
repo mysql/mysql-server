@@ -1811,6 +1811,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "true"},
 
   {
+    CFG_DB_ENCRYPTED_BACKUP,
+    "EncryptedBackup",
+    DB_TOKEN,
+    "Use openssl to encrypt BACKUPs as they are written",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_INT,
+    "0",
+    "0",
+    "1"},
+
+  {
     CFG_EXTRA_SEND_BUFFER_MEMORY,
     "ExtraSendBufferMemory",
     DB_TOKEN,

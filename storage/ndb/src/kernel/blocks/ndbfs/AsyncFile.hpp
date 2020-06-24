@@ -75,6 +75,7 @@ public:
   bool isOpen() const;
 
   Filename theFileName;
+  EncryptionPasswordData m_password;
   Request *m_current_request, *m_last_request;
 
   void set_buffer(Uint32 rg, Ptr<GlobalPage> ptr, Uint32 cnt);

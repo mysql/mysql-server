@@ -66,8 +66,8 @@ private:
 struct EncryptionPasswordData
 {
   Uint32 password_length;
-  // one byte extra for trailing null
-  char encryption_password[MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH + 1];
+  // one byte extra for trailing null, but for keep alignment make it four extra
+  alignas(Uint32) char encryption_password[MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH + 4];
 
   EncryptionPasswordData()
   {
