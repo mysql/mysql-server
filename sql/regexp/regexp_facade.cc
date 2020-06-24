@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,14 +32,6 @@
 #include "template_utils.h"
 
 namespace regexp {
-
-/**
-  When dealing with the binary character set, we tell ICU that we're using
-  CP-1252. This way, comparisons will happen as the user expects; each octet
-  value is equal to itself, and only to itself. And of course, CP-1252 is
-  known as "latin1" in MySQL.
-*/
-static const CHARSET_INFO *faux_binary_charset = &my_charset_latin1;
 
 /**
   Evaluates an expression to an output buffer, performing character set
@@ -92,10 +84,8 @@ static bool EvalExprToCharset(Item *expr, std::u16string *out, int skip = 0) {
     size_t to_size = out->size() * sizeof(UChar);
     const char *start = s->ptr() + bytes_to_skip;
     uint errors;
-    const CHARSET_INFO *source_charset =
-        s->charset() == &my_charset_bin ? faux_binary_charset : s->charset();
     size_t converted_size = my_convert(to, to_size, regexp_lib_charset, start,
-                                       length, source_charset, &errors);
+                                       length, s->charset(), &errors);
 
     if (errors > 0) return true;
     DBUG_ASSERT(converted_size % sizeof(UChar) == 0);
@@ -184,7 +174,7 @@ Mysql::Nullable<int> Regexp_facade::Find(Item *subject_expr, int start,
 }
 
 String *Regexp_facade::Replace(Item *subject_expr, Item *replacement_expr,
-                               int start, int occurrence, String *result) {
+                               int64_t start, int occurrence, String *result) {
   DBUG_TRACE;
   String replacement_buf;
   std::u16string replacement(MAX_FIELD_WIDTH, '\0');
@@ -196,31 +186,18 @@ String *Regexp_facade::Replace(Item *subject_expr, Item *replacement_expr,
   const std::u16string &result_buffer = m_engine->Replace(
       replacement, ConvertCodePointToLibPosition(start), occurrence);
 
-  return AssignResult(pointer_cast<const char *>(result_buffer.data()),
-                      result_buffer.size() * sizeof(UChar), result);
-}
-
-String *Regexp_facade::AssignResult(const char *str, size_t length,
-                                    String *result) {
-  size_t number_unaligned_characters;
   uint conversion_error;
-
-  // We still pretend that binary charset is cp1252. Here it's necessary since
-  // String::copy doesn't convert anything if the result charset is Binary, for
-  // good reason.
-  if (result->charset() == &my_charset_bin) {
-    if (result->copy(str, length, regexp_lib_charset, faux_binary_charset,
-                     &conversion_error))
-      return nullptr;
-  }
-
-  if (result->needs_conversion(length, regexp_lib_charset, result->charset(),
+  size_t number_unaligned_characters;
+  if (result->needs_conversion(result->length(), regexp_lib_charset,
+                               result->charset(),
                                &number_unaligned_characters)) {
-    if (result->copy(str, length, regexp_lib_charset, result->charset(),
-                     &conversion_error))
+    if (result->copy(pointer_cast<const char *>(result_buffer.data()),
+                     result_buffer.size() * sizeof(UChar), regexp_lib_charset,
+                     result->charset(), &conversion_error))
       return nullptr;
   } else
-    result->set(str, length, regexp_lib_charset);
+    result->set(pointer_cast<const char *>(result_buffer.data()),
+                result_buffer.size() * sizeof(UChar), regexp_lib_charset);
   return result;
 }
 
@@ -233,13 +210,22 @@ String *Regexp_facade::Substr(Item *subject_expr, int start, int occurrence,
   }
   int substart, sublength;
   std::tie(substart, sublength) = m_engine->MatchedSubstring();
-
   if (m_engine->CheckError()) return nullptr;
+
+  uint conversion_error;
 
   auto substartptr =
       pointer_cast<const char *>(m_current_subject.c_str()) + substart;
 
-  return AssignResult(substartptr, sublength, result);
+  size_t number_unaligned_characters;
+  if (result->needs_conversion(sublength, regexp_lib_charset, result->charset(),
+                               &number_unaligned_characters)) {
+    if (result->copy(substartptr, sublength, regexp_lib_charset,
+                     result->charset(), &conversion_error))
+      return nullptr;
+  } else
+    result->set(substartptr, sublength, regexp_lib_charset);
+  return result;
 }
 
 bool Regexp_facade::SetupEngine(Item *pattern_expr, uint flags) {
