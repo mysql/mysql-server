@@ -37,6 +37,9 @@
 #include <cstddef>
 #include <cstring>
 
+#define MYSQL_ROUTER_LOG_DOMAIN \
+  ::mysql_harness::logging::kMainLogger  // must precede #include "logging.h"
+
 #include "common.h"
 #include "mysql/harness/logging/logging.h"
 #include "socket_operations.h"
