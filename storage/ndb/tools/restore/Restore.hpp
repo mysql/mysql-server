@@ -32,7 +32,11 @@
 #include <NdbOut.hpp>
 #include "../src/kernel/blocks/backup/BackupFormat.hpp"
 #include <NdbApi.hpp>
-#include <util/ndbzio.h>
+//#include "util/ndbxfrm_az31.h"
+//#include "util/ndbxfrm_openssl_evp.h"
+//#include "util/ndbxfrm_zlib.h"
+#include "util/ndbxfrm_readfile.h"
+#include "portlib/ndb_file.h"
 #include <util/UtilBuffer.hpp>
 
 #include <ndb_version.h>
@@ -397,7 +401,15 @@ class RestoreLogIterator;
 
 class BackupFile {
 protected:
-  ndbzio_stream m_file;
+  ndb_file m_file;
+//  Ndbxfrm_az31 m_xfrm;
+//  Ndbxfrm_openssl_evp m_xfrm_encr;
+//  Ndbxfrm_zlib m_xfrm_comp;
+//  Ndbxfrm_file m_xfile;
+  ndbxfrm_readfile m_xfile;
+//  Ndbxfrm::byte* m_buf;
+//  size_t m_buf_size;
+
   char m_path[PATH_MAX];
   char m_fileName[PATH_MAX];
   bool m_hostByteOrder;
@@ -445,10 +457,10 @@ protected:
   void setDataFile(const BackupFile & bf, Uint32 no);
   void setLogFile(const BackupFile & bf, Uint32 no);
   
-  Uint32 buffer_get_ptr(void **p_buf_ptr, Uint32 size, Uint32 nmemb);
-  Uint32 buffer_read(void *ptr, Uint32 size, Uint32 nmemb);
-  Uint32 buffer_get_ptr_ahead(void **p_buf_ptr, Uint32 size, Uint32 nmemb);
-  Uint32 buffer_read_ahead(void *ptr, Uint32 size, Uint32 nmemb);
+  int buffer_get_ptr(void **p_buf_ptr, Uint32 size, Uint32 nmemb);
+  int buffer_read(void *ptr, Uint32 size, Uint32 nmemb);
+  int buffer_get_ptr_ahead(void **p_buf_ptr, Uint32 size, Uint32 nmemb);
+  int buffer_read_ahead(void *ptr, Uint32 size, Uint32 nmemb);
 
   void setName(const char * path, const char * name);
 
@@ -478,7 +490,7 @@ public:
    * parameter is used to get current position in compressed state.This
    * parameter also works when compressed backup is disabled.
    */
-  Uint64 get_file_pos() const { return m_file.in; }
+  Uint64 get_file_pos() const { return 0; } // { return m_xfrm.get_backing_pos(); }
 #ifdef ERROR_INSERT
   void error_insert(unsigned int code); 
 #endif

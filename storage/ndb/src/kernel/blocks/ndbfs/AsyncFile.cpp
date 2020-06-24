@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,11 @@
 
 #include "my_thread_local.h" // my_errno
 #include "util/ndbzio.h"
+#include "util/ndb_math.h"
+#include "util/ndb_az31.h"
+#include "util/ndb_ndbxfrm1.h"
+#include "util/ndb_openssl_evp.h"
+#include "util/ndb_zlib.h"
 
 #include "AsyncFile.hpp"
 #include "Ndbfs.hpp"
@@ -41,10 +46,15 @@
 
 #define JAM_FILE_ID 387
 
+//#define DUMMY_PASSWORD
+
 AsyncFile::AsyncFile(SimulatedBlock& fs) :
   theFileName(),
   m_thread_bound(false),
   use_gz(0),
+  use_enc(0),
+  openssl_evp_op(&openssl_evp),
+  m_file_format(FF_UNKNOWN),
   m_fs(fs)
 {
   m_thread = 0;
@@ -72,6 +82,7 @@ AsyncFile::~AsyncFile()
   if(nz_mempool.mem)
     ndbd_free(nz_mempool.mem, nz_mempool.size);
   nz_mempool.mem = NULL;
+  // TODO Unset memory for zlib
 }
 
 int AsyncFile::init()
@@ -98,6 +109,10 @@ int AsyncFile::init()
   if (deflate_size == SIZE_T_MAX)
     return -1;
   nz_mempool.size = nz_mempool.mfree = inflate_size + deflate_size;
+  if (nz_mempool.size < zlib.MEMORY_NEED)
+  {
+    nz_mempool.size = nz_mempool.mfree = zlib.MEMORY_NEED;
+  }
 
   ndbout_c("NDBFS/AsyncFile: Allocating %u for In/Deflate buffer",
            (unsigned int)nz_mempool.size);
@@ -105,6 +120,7 @@ int AsyncFile::init()
 
   nzf.stream.opaque= &nz_mempool;
 
+  zlib.set_memory(nz_mempool.mem, nz_mempool.size);
   return 0;
 }
 
@@ -134,6 +150,10 @@ AsyncFile::detach(AsyncIoThread* thr)
 void
 AsyncFile::openReq(Request * request)
 {
+  m_compress_buffer.init();
+  m_encrypt_buffer.init();
+  openssl_evp.reset();
+
   // For open.flags, see signal FSOPENREQ
   m_open_flags = request->par.open.flags;
   Uint32 flags = m_open_flags;
@@ -228,6 +248,8 @@ require(request->error==0);
 
   if (flags & FsOpenReq::OM_INIT)
   {
+    require(m_file_format == FF_UNKNOWN);
+    m_file_format = FF_RAW; // TODO also allow NDBXFRM1 for encrypted
     m_file.set_autosync(1024 * 1024);
 
     // Extend file size
@@ -339,21 +361,48 @@ require(!"m_file.sync() != -1");
     {
       request->error = get_last_os_error();
       m_file.close();
-require(!"m_file.rewind() != -1");
       goto remove_if_created;
     }
 
     m_file.set_autosync(0);
   }
 
+#if defined(_WIN32)
+  /*
+   * Make sure compression is ignored on Windows as before for LCP until
+   * supported.
+   */
+  if ((flags & FsOpenReq::OM_GZ) &&
+      theFileName.get_base_path_spec() == FsOpenReq::BP_FS)
+  {
+    flags &= ~FsOpenReq::OM_GZ;
+  }
+#endif 
+
+  // Set flags for compression (OM_GZ) and encryption (OM_ENCRYPT)
+  use_gz = (flags & FsOpenReq::OM_GZ);
+  use_enc = (flags & FsOpenReq::OM_ENCRYPT);
+#if defined(DUMMY_PASSWORD)
+  use_enc = (theFileName.get_base_path_spec() == FsOpenReq::BP_BACKUP);
+#endif
+
+  // Turn off O_DIRECT for raw backup, empty data file may have bad size
+  if (!use_gz && !use_enc &&
+      (flags & FsOpenReq::OM_DIRECT) &&
+      (theFileName.get_base_path_spec() == FsOpenReq::BP_BACKUP))
+  {
+    flags &= ~FsOpenReq::OM_DIRECT;
+  }
+
   // Turn on direct io (OM_DIRECT, OM_DIRECT_SYNC)
   if (flags & FsOpenReq::OM_DIRECT)
   {
-    /* TODO YYY
+    /* TODO:
      * Size and alignment should be passed in request.
      * And also checked in ndb_file append/write/read/set_pos/truncate/extend.
      */
-    m_file.set_block_size_and_alignment(32768, 4096);
+    m_file.set_block_size_and_alignment(NDB_O_DIRECT_WRITE_BLOCKSIZE,
+                                        NDB_O_DIRECT_WRITE_ALIGNMENT);
     const bool direct_sync = flags & FsOpenReq::OM_DIRECT_SYNC;
     if (m_file.set_direct_io(direct_sync) == -1)
     {
@@ -380,7 +429,6 @@ require(!"m_file.rewind() != -1");
        */
       request->error = get_last_os_error();
       m_file.close();
-require(!"(m_file.reopen_with_sync(theFileName.c_str()) == -1)");
       goto remove_if_created;
     }
   }
@@ -388,12 +436,14 @@ require(!"(m_file.reopen_with_sync(theFileName.c_str()) == -1)");
   // Read file size
   if (flags & FsOpenReq::OM_READ_SIZE)
   {
+    // TODO yyy Typically fixed size files, not gzipped. And not init:ed?
+    require(m_file_format == FF_UNKNOWN);
+    m_file_format = FF_RAW; // TODO allow NDBXFRM1 for encypted
     ndb_file::off_t file_size = m_file.get_size();
     if (file_size == -1)
     {
       request->error = get_last_os_error();
       m_file.close();
-require(file_size != -1);
       goto remove_if_created;
     }
     request->m_file_size_hi = Uint32(file_size >> 32);
@@ -405,16 +455,10 @@ require(file_size != -1);
     request->m_file_size_lo = Uint32(~0);
   }
 
-  // Turn on compression (OM_GZ)
-#ifndef _WIN32
-  use_gz = (flags & FsOpenReq::OM_GZ);
-#else
-  // Ignore OM_GZ on Windows.
-  use_gz = false;
-#endif
-  if (use_gz)
+  // Turn on compression (OM_GZ) and encryption (OM_ENCRYPT)
+  if (use_gz || use_enc)
   {
-#ifndef _WIN32
+    require(m_file_format == FF_UNKNOWN);
     int err;
     int ndbz_flags = 0;
     if (flags & (FsOpenReq::OM_CREATE | FsOpenReq::OM_CREATE_IF_NONE))
@@ -443,16 +487,45 @@ require(file_size != -1);
     default:
       request->error = FsRef::fsErrInvalidParameters;
       m_file.close();
-require(!"bad OM_READ_WRITE_MASK");
       goto remove_if_created;
     }
-    if ((err= ndbzdopen(&nzf, m_file.get_os_handle(), ndbz_flags)) < 1)
-    {
-      ndbout_c("Stewart's brain broke: %d %d %s",
-               err, my_errno(), theFileName.c_str());
-      require(!"ndbzdopen");
+    m_crc32 = crc32(0L, nullptr, 0);
+    m_data_size = 0;
+    if (flags & FsOpenReq::OM_APPEND)
+    { // WRITE compressed (BACKUP, LCP)
+      m_file_format = (use_enc ? FF_NDBXFRM1 : FF_AZ31);
+      int rv = 0;
+      if (use_gz)
+      {
+        rv = zlib.deflate_init();
+      }
+      if (rv == -1)
+      {
+        request->error = FsRef::fsErrInvalidParameters; // TODO better error!
+        m_file.close();
+      }
     }
+    else if ((flags & FsOpenReq::OM_READ_WRITE_MASK) == FsOpenReq::OM_READONLY)
+    { // READ compressed (LCP)
+#if !defined(_WIN32)
+      require(!use_enc);
+      m_file_format = FF_RAW;
+      if ((err= ndbzdopen(&nzf, m_file.get_os_handle(), ndbz_flags)) < 1)
+      {
+        ndbout_c("Stewart's brain broke: %d %d %s",
+                 err, my_errno(), theFileName.c_str());
+        require(!"ndbzdopen");
+      }
+#else
+      // Compressed LCP files are not yet supported on Windows.
+      abort();
 #endif
+    }
+    else
+    {
+      // Compression and encryption only for appendable files
+      abort();
+    }
   }
 
   // Turn on autosync mode (OM_AUTOSYNC auto_sync_size)
@@ -461,10 +534,64 @@ require(!"bad OM_READ_WRITE_MASK");
     m_file.set_autosync(request->par.open.auto_sync_size);
   }
 
-require(request->error == 0);
+  if (m_file_format == FF_UNKNOWN)
+    m_file_format = FF_RAW;
+
+  if (m_file_format == FF_AZ31)
+  {
+    require(!use_enc);
+    require(use_gz);
+    require(flags & (FsOpenReq::OM_CREATE | FsOpenReq::OM_CREATE_IF_NONE));
+    ndbxfrm_output_iterator out = m_compress_buffer.get_output_iterator();
+    require(ndb_az31::write_header(&out) == 0);
+    m_compress_buffer.update_write(out);
+  }
+  else if (m_file_format == FF_NDBXFRM1)
+  {
+    require(flags & (FsOpenReq::OM_CREATE | FsOpenReq::OM_CREATE_IF_NONE));
+    ndbxfrm_buffer* file_buffer = (use_enc ? &m_encrypt_buffer : &m_compress_buffer);
+    ndbxfrm_output_iterator out = file_buffer->get_output_iterator();
+    ndb_ndbxfrm1::header ndbxfrm1;
+    ndbxfrm1.set_file_block_size(NDB_O_DIRECT_WRITE_ALIGNMENT);
+    if (use_gz)
+    {
+      ndbxfrm1.set_compression_method(1 /* deflate */);
+    }
+    if (use_enc)
+    {
+      openssl_evp.set_aes_256_cbc(true, 0);
+      ndbxfrm1.set_encryption_cipher(1 /* CBC-STREAM */);
+      ndbxfrm1.set_encryption_padding(1 /* ON PKCS */);
+
+      byte salt[ndb_openssl_evp::SALT_LEN];
+      openssl_evp.generate_salt256(salt);
+      ndbxfrm1.set_encryption_salts(salt, ndb_openssl_evp::SALT_LEN, 1);
+      Uint32 kdf_iter_count = 100000;
+#if !defined(DUMMY_PASSWORD)
+      int pwd_len = m_password.password_length;
+      ndb_openssl_evp::byte* pwd =
+        reinterpret_cast<ndb_openssl_evp::byte*>(m_password.encryption_password);
+#else
+      ndb_openssl_evp::byte pwd[6]="DUMMY";
+      int pwd_len = 5;
+#endif
+      openssl_evp.derive_and_add_key_iv_pair(pwd, pwd_len, kdf_iter_count, salt);
+      ndbxfrm1.set_encryption_kdf(1 /* pbkdf2_sha256 */);
+      ndbxfrm1.set_encryption_kdf_iter_count(kdf_iter_count);
+      int rv = openssl_evp_op.encrypt_init(0, 0);
+      require(rv == 0);
+    }
+    require(ndbxfrm1.prepare_for_write() == 0);
+    require(ndbxfrm1.get_size() <= out.size());
+    require(ndbxfrm1.write_header(&out) == 0);
+    file_buffer->update_write(out);
+  }
+
+  require(request->error == 0);
   return;
 
 remove_if_created:
+  m_file_format = FF_UNKNOWN;
   if (created && m_file.remove(theFileName.c_str()) == -1)
   {
     ndbout_c("Could not remove '%s' (err %u) after open failure (err %u).\n",
@@ -472,37 +599,191 @@ remove_if_created:
              get_last_os_error(),
              request->error);
   }
-//abort();
 }
 
 void
 AsyncFile::closeReq(Request *request)
 {
+  // If closeRemove no final write or sync is needed!
+  bool no_write = (request->action & Request::closeRemove);
   if (m_open_flags & (
       FsOpenReq::OM_WRITEONLY |
       FsOpenReq::OM_READWRITE |
       FsOpenReq::OM_APPEND )) {
-    syncReq(request);
+    if (!no_write) syncReq(request);
   }
-  int r;
+  int r = 0;
 #ifndef DBUG_OFF
   if (!m_file.is_open())
   {
     DEBUG(ndbout_c("close on already closed file"));
-require(!"!m_file.is_open()");
     abort();
   }
 #endif
-  if(use_gz)
+  if(use_gz || use_enc)
   {
-    r= ndbzclose(&nzf);
-    m_file.invalidate();
+    if (m_open_flags & (
+      FsOpenReq::OM_WRITEONLY |
+      FsOpenReq::OM_READWRITE |
+      FsOpenReq::OM_APPEND ))
+    { // APPEND backup
+      require(m_open_flags & FsOpenReq::OM_APPEND);
+      if (!no_write)
+      {
+        require((m_file_format == FF_AZ31) ||
+                (m_file_format == FF_NDBXFRM1));
+
+        int n;
+        ndbxfrm_input_iterator in(nullptr, nullptr, true);
+
+        const byte* in_begin = in.cbegin();
+        /*
+         * In some cases flushing zlib::deflate() did not flush out and even
+         * returned without outputting anything, and needed a second call
+         * requesting flush.
+         */
+        for (int Guard = 5; Guard > 0; Guard--)
+        {
+          int r = ndbxfrm_append(request, &in);
+          if (r == -1)
+          {
+            request->error = get_last_os_error();
+            if (request->error == 0)
+            {
+              request->error = FsRef::fsErrUnknown;
+            }
+          }
+          if (r == 0) break;
+        }
+        if (r != 0 || !m_compress_buffer.last())
+        {
+          request->error = get_last_os_error();
+          if (request->error == 0)
+          {
+            request->error = FsRef::fsErrUnknown;
+          }
+        }
+
+        n = in.cbegin() - in_begin;
+        require(in.empty());
+      }
+      if (use_gz)
+      {
+        int r = zlib.deflate_end();
+        if (!no_write) require(r == 0);
+      }
+      if (use_enc)
+      {
+        int r = openssl_evp_op.encrypt_end();
+        if (!no_write) require(r == 0);
+      }
+    }
+    else
+    { // READ lcp
+      r= ndbzclose(&nzf);
+      m_file.invalidate();
+    }
   }
-  else
+  if (m_open_flags & (FsOpenReq::OM_APPEND ) && !no_write)
+  {
+    if (m_file_format == FF_NDBXFRM1)
+    {
+      require(m_open_flags & FsOpenReq::OM_APPEND);
+      require(m_file.is_open());
+
+      if (use_enc)
+      {
+        ndbxfrm_input_iterator wr_in = m_compress_buffer.get_input_iterator();
+        require(wr_in.empty());
+        require(wr_in.last());
+      }
+      ndbxfrm_buffer* file_buffer = (use_enc ? &m_encrypt_buffer : &m_compress_buffer);
+      file_buffer->clear_last();
+      off_t file_pos = m_file.get_pos();
+      {
+        ndbxfrm_input_iterator wr_in = file_buffer->get_input_iterator();
+        file_pos += wr_in.size();
+      }
+      ndb_ndbxfrm1::trailer ndbxfrm1;
+      require(ndbxfrm1.set_data_size(m_data_size) == 0);
+      require(ndbxfrm1.set_data_crc32(m_crc32) == 0);
+      require(ndbxfrm1.set_file_pos(file_pos) == 0);
+      require(ndbxfrm1.set_file_block_size(NDB_O_DIRECT_WRITE_ALIGNMENT) == 0);
+      require(ndbxfrm1.prepare_for_write() == 0);
+  
+      ndbxfrm_output_iterator out = file_buffer->get_output_iterator();
+      if (out.size() < ndbxfrm1.get_size())
+      {
+        file_buffer->rebase(NDB_O_DIRECT_WRITE_BLOCKSIZE);
+        out = file_buffer->get_output_iterator();
+      }
+      require(out.size() >= ndbxfrm1.get_size());
+      require(ndbxfrm1.write_trailer(&out) == 0);
+      file_buffer->update_write(out);
+
+      ndbxfrm_input_iterator wr_in = file_buffer->get_input_iterator();
+      size_t write_len = wr_in.size();
+      require(write_len % NDB_O_DIRECT_WRITE_ALIGNMENT == 0);
+
+      int n = m_file.append(wr_in.cbegin(), write_len);
+      if (n > 0) wr_in.advance(n);
+      if (n == -1 || size_t(n) != write_len)
+      {
+        request->error = get_last_os_error();
+      }
+      if (wr_in.empty()) wr_in.set_last();
+      require(wr_in.last());
+      file_buffer->update_read(wr_in);
+      syncReq(request);
+    }
+    if (m_file_format == FF_AZ31)
+    {
+      require(m_open_flags & FsOpenReq::OM_APPEND);
+      require(m_file.is_open());
+      require(m_compress_buffer.last());
+      m_compress_buffer.clear_last();
+      ndbxfrm_output_iterator out = m_compress_buffer.get_output_iterator();
+      if (out.size() < 12)
+      {
+        m_compress_buffer.rebase(NDB_O_DIRECT_WRITE_BLOCKSIZE);
+        out = m_compress_buffer.get_output_iterator();
+      }
+      require(out.size() >= 12);
+      /*
+       * Since m_compress_buffer size is multiple of 512, and buffer only
+       * "wrap" when completely full we can use out.size() to determine amount
+       * of padding needed
+       */
+      ndb_az31 az31;
+      require(az31.set_data_size(m_data_size) == 0);
+      require(az31.set_data_crc32(m_crc32) == 0);
+      size_t pad_len = (out.size() - 12) % NDB_O_DIRECT_WRITE_ALIGNMENT;
+      require(az31.write_trailer(&out, pad_len) == 0);
+      m_compress_buffer.update_write(out);
+
+      ndbxfrm_input_iterator wr_in = m_compress_buffer.get_input_iterator();
+      size_t write_len = wr_in.size();
+      require(write_len % NDB_O_DIRECT_WRITE_ALIGNMENT == 0);
+
+      int n = m_file.append(wr_in.cbegin(), write_len);
+      if (n > 0) wr_in.advance(n);
+      if (n == -1 || size_t(n) != write_len)
+      {
+        request->error = get_last_os_error();
+      }
+      if (wr_in.empty()) wr_in.set_last();
+      require(wr_in.last());
+      m_compress_buffer.update_read(wr_in);
+      syncReq(request);
+    }
+  }
+  if (m_file.is_open())
   {
     r= m_file.close();
   }
+  m_file_format = FF_UNKNOWN;
   use_gz= 0;
+  use_enc = 0;
   Byte *a,*b;
   a= nzf.inbuf;
   b= nzf.outbuf;
@@ -628,6 +909,7 @@ void AsyncFile::syncReq(Request *request)
 int AsyncFile::readBuffer(Request *req, char *buf,
                           size_t size, off_t offset)
 {
+  require(!use_enc);
   // TODO ensure OM_THREAD_POOL is respected!
   int return_value;
   req->par.readWrite.pages[0].size = 0;
@@ -728,6 +1010,12 @@ int AsyncFile::readBuffer(Request *req, char *buf,
 
 int AsyncFile::writeBuffer(const char *buf, size_t size, off_t offset)
 {
+  /*
+   * Compression is only supported by appended files which uses appendReq().
+   */
+  require(!use_gz);
+  require(!use_enc);
+
   size_t chunk_size = 256*1024;
   size_t bytes_to_write = chunk_size;
   int return_value;
@@ -740,34 +1028,8 @@ int AsyncFile::writeBuffer(const char *buf, size_t size, off_t offset)
       bytes_to_write = size;
     }
     size_t bytes_written = 0;
+    return_value = m_file.write_pos(buf, bytes_to_write, offset);
 
-    if (use_gz)
-    {
-      // append only
-require(!use_gz); // Why is not appendReq() called instead!?
-      return_value= ndbzwrite(&nzf, buf, bytes_to_write);
-      if (return_value == 0)
-      {
-        set_last_os_error(my_errno());
-        return_value = -1;
-      }
-    }
-    else
-    {
-#if defined(VM_TRACE) || defined(ERROR_INSERT)
-#if 0
-      if (m_append_only)
-      {
-        ndb_file::off_t off;
-        require(file.get_pos(&off) == 0);
-        require(offset == off);
-        require(file.get_size(&off) == 0);
-        require(offset == off);
-      }
-#endif
-#endif
-      return_value = m_file.write_pos(buf, bytes_to_write, offset);
-    }
     if (return_value == -1)
     {
       ndbout_c("ERROR IN PosixAsyncFile::writeBuffer %d %d",
@@ -798,39 +1060,155 @@ require(!use_gz); // Why is not appendReq() called instead!?
   return 0;
 }
 
-void AsyncFile::appendReq(Request *request)
+int AsyncFile::ndbxfrm_append(Request *request, ndbxfrm_input_iterator* in)
 {
-  const char * buf = request->par.append.buf;
-  Uint32 size = request->par.append.size;
+  bool transform_failed = false;
+  const byte* in_cbegin = in->cbegin();
+  ndbxfrm_buffer* file_bufp = nullptr;
+  ndbxfrm_input_iterator file_in = *in;
 
-//  require(m_append_only);
-
-  while(size > 0)
+  if (use_gz)
   {
-    int n;
-    if (use_gz)
+    ndbxfrm_output_iterator out = m_compress_buffer.get_output_iterator();
+    if (out.size() < NDB_O_DIRECT_WRITE_BLOCKSIZE)
     {
-      n= ndbzwrite(&nzf,buf,size);
-      if (n == 0)
-      {
-        set_last_os_error(my_errno());
-        n = -1;
-      }
+      m_compress_buffer.rebase(NDB_O_DIRECT_WRITE_BLOCKSIZE);
+      out = m_compress_buffer.get_output_iterator();
+    }
+    int rv = zlib.deflate(&out, in);
+    if (rv == -1)
+    {
+      transform_failed = true;
+    require(false);
     }
     else
     {
-      n= m_file.append(buf, size);
+      if (!in->last()) require(!out.last());
+      m_compress_buffer.update_write(out);
+      file_bufp = &m_compress_buffer;
+      file_in = file_bufp->get_input_iterator();
     }
-    if (n == -1)
+  }
+  else if (use_enc)
+  { // copy app data into m_compress_buffer
+    ndbxfrm_output_iterator out = m_compress_buffer.get_output_iterator();
+    if (out.size() < NDB_O_DIRECT_WRITE_BLOCKSIZE)
+    {
+      m_compress_buffer.rebase(NDB_O_DIRECT_WRITE_BLOCKSIZE);
+      out = m_compress_buffer.get_output_iterator();
+    }
+    size_t copy_len = std::min(in->size(), out.size());
+    memcpy(out.begin(), in->cbegin(), copy_len);
+    out.advance(copy_len);
+    in->advance(copy_len);
+    require(!out.last());
+    if (in->last() && in->empty()) out.set_last();
+
+    m_compress_buffer.update_write(out);
+  }
+
+  if (use_enc)
+  { // encrypt data from m_compress_buffer into m_encrypt_buffer
+    ndbxfrm_input_iterator c_in = m_compress_buffer.get_input_iterator();
+    ndbxfrm_output_iterator out = m_encrypt_buffer.get_output_iterator();
+    if (out.size() < NDB_O_DIRECT_WRITE_BLOCKSIZE)
+    {
+      m_encrypt_buffer.rebase(NDB_O_DIRECT_WRITE_BLOCKSIZE);
+      out = m_encrypt_buffer.get_output_iterator();
+    }
+    int rv = openssl_evp_op.encrypt(&out, &c_in);
+    if (rv == -1)
+    {
+      transform_failed = true;
+    require(false);
+    }
+    else
+    {
+      m_compress_buffer.update_read(c_in);
+      m_compress_buffer.rebase(NDB_O_DIRECT_WRITE_BLOCKSIZE);
+      m_encrypt_buffer.update_write(out);
+      file_bufp = &m_encrypt_buffer;
+      file_in = file_bufp->get_input_iterator();
+    }
+  }
+
+  require(!transform_failed);
+  if (!transform_failed)
+  {
+    size_t write_len = file_in.size();
+    if (file_bufp != nullptr)
+      write_len -= write_len % NDB_O_DIRECT_WRITE_BLOCKSIZE;
+    int n;
+    if (write_len > 0)
+      n = m_file.append(file_in.cbegin(), write_len);
+    else
+      n = 0;
+    if (n > 0) file_in.advance(n);
+    // Fail if not all written and no buffer is used.
+    if (n == -1 || (file_bufp == nullptr && !file_in.empty()))
     {
       request->error = get_last_os_error();
+    require(false);
+      return -1;
+    }
+    if (file_bufp != nullptr)
+    {
+      file_bufp->update_read(file_in);
+      file_bufp->rebase(NDB_O_DIRECT_WRITE_BLOCKSIZE);
+    }
+    else
+      in->advance(n);
+  }
+  else
+  {
+    request->error = get_last_os_error();
+    require(false);
+    return -1;
+  }
+#if 0
+  if (n == 0)
+  {
+    DEBUG(ndbout_c("append with n=0"));
+    require(n != 0);
+  }
+#endif
+
+  int n = in->cbegin() - in_cbegin;
+  if (n > 0) m_crc32 = crc32(m_crc32, in_cbegin, n);
+  m_data_size += n;
+
+  return file_in.last() ? 0 : 1;
+}
+
+void AsyncFile::appendReq(Request *request)
+{
+  const byte * buf = reinterpret_cast<const byte*>(request->par.append.buf);
+  Uint32 size = request->par.append.size;
+
+  int Guard = 80;
+  while (size > 0)
+  {
+    require(Guard--);
+
+    int n;
+    ndbxfrm_input_iterator in(buf, buf + size, false);
+
+    const byte* in_begin = in.cbegin();
+    int r;
+    if ((r = ndbxfrm_append(request, &in)) == -1)
+    {
+      request->error = get_last_os_error();
+      if (request->error == 0)
+      {
+        request->error = FsRef::fsErrUnknown;
+      }
       return;
     }
-    if (n == 0)
+    if (r == 0)
     {
-      DEBUG(ndbout_c("append with n=0"));
-      require(n != 0);
+      require(in.empty());
     }
+    n = in.cbegin() - in_begin;
     size -= n;
     buf += n;
   }
@@ -838,7 +1216,13 @@ void AsyncFile::appendReq(Request *request)
   if (m_file.sync_on_write() == -1)
   {
     request->error = get_last_os_error();
+    if (request->error == 0)
+    {
+      request->error = FsRef::fsErrSync;
+    }
+    return;
   }
+  require(request->error == 0);
 }
 
 #ifdef DEBUG_ASYNCFILE

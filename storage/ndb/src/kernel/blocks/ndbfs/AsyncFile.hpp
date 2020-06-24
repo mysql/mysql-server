@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,8 +25,12 @@
 #ifndef AsyncFile_H
 #define AsyncFile_H
 
+#include "kernel/signaldata/BackupSignalData.hpp"
 #include "portlib/ndb_file.h"
 #include "util/ndbzio.h"
+#include "util/ndb_openssl_evp.h"
+#include "util/ndb_zlib.h"
+#include "util/ndbxfrm_buffer.h"
 
 #include <kernel_types.h>
 #include "AsyncIoThread.hpp"
@@ -123,6 +127,7 @@ protected:
   void readReq(Request *request);
   void writeReq(Request *request);
 
+  int ndbxfrm_append(Request* request, ndbxfrm_input_iterator* in);
 private:
   void attach(AsyncIoThread* thr);
   void detach(AsyncIoThread* thr);
@@ -132,6 +137,7 @@ private:
   bool m_thread_bound;
 
 protected:
+  using byte = unsigned char;
   ndb_file m_file;
 
   Uint32 m_open_flags;
@@ -140,6 +146,17 @@ protected:
   ndbzio_stream nzf;
   struct ndbz_alloc_rec nz_mempool;
   void* nzfBufferUnaligned;
+
+  ndb_zlib zlib;
+  int use_enc;
+  ndb_openssl_evp openssl_evp;
+  ndb_openssl_evp::operation openssl_evp_op;
+
+  enum { FF_UNKNOWN, FF_RAW, FF_AZ31, FF_NDBXFRM1 } m_file_format;
+  unsigned long m_crc32;
+  unsigned long m_data_size;
+  ndbxfrm_buffer m_compress_buffer;
+  ndbxfrm_buffer m_encrypt_buffer;
 
   /**
    * file buffers

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,6 +62,8 @@ Filename::set(Ndbfs* fs,
               const Uint32 filenumber[4], bool dir,
               SegmentedSectionPtr ptr)
 {
+  m_base_path_spec = FsOpenReq::BP_MAX;
+
   char buf[PATH_MAX];
 
   const Uint32 type = FsOpenReq::getSuffix(filenumber);
@@ -70,12 +72,14 @@ Filename::set(Ndbfs* fs,
   size_t sz;
   if (version == 2)
   {
+    m_base_path_spec = FsOpenReq::BP_BACKUP;
     sz = BaseString::snprintf(theName, sizeof(theName), "%s", 
                               fs->get_base_path(FsOpenReq::BP_BACKUP).c_str());
     m_base_name = theName + fs->get_base_path(FsOpenReq::BP_BACKUP).length();
   }
   else
   {
+    m_base_path_spec = FsOpenReq::BP_FS;
     sz = BaseString::snprintf(theName, sizeof(theName), "%s", 
                               fs->get_base_path(FsOpenReq::BP_FS).c_str());
     m_base_name = theName + fs->get_base_path(FsOpenReq::BP_FS).length();
@@ -182,6 +186,7 @@ Filename::set(Ndbfs* fs,
       }
 #endif
       Uint32 bp = FsOpenReq::v4_getBasePath(filenumber);
+      m_base_path_spec = bp;
       BaseString::snprintf(theName, sizeof(theName), "%s%s",
                fs->get_base_path(bp).c_str(), buf);
       m_base_name = theName + fs->get_base_path(bp).length();
@@ -200,6 +205,7 @@ Filename::set(Ndbfs* fs,
   case 6:
   {
     Uint32 bp = FsOpenReq::v5_getLcpNo(filenumber);
+    m_base_path_spec = bp;
     sz = BaseString::snprintf(theName, sizeof(theName), "%s",
                               fs->get_base_path(bp).c_str());
     break;

@@ -80,6 +80,11 @@ static unsigned opt_nodegroup_map_len= 0;
 static NODE_GROUP_MAP opt_nodegroup_map[MAX_NODE_GROUP_MAPS];
 #define OPT_NDB_NODEGROUP_MAP 'z'
 
+static int opt_decrypt = 0;
+
+// g_password global, directly accessed in Restore.cpp. TODO pass down nicely.
+char* g_password = nullptr;
+
 const char *opt_ndb_database= NULL;
 const char *opt_ndb_table= NULL;
 unsigned int opt_verbose;
@@ -275,6 +280,12 @@ static struct my_option my_long_options[] =
   { "backupid", 'b', "Backup id",
     (uchar**) &ga_backupId, (uchar**) &ga_backupId, 0,
     GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "decrypt", NDB_OPT_NOSHORT, "Decrypt file",
+    (uchar**) &opt_decrypt, (uchar**) &opt_decrypt, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "password", NDB_OPT_NOSHORT, "Encryption password for file",
+    (uchar**) &g_password, (uchar**) &g_password, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "restore_data", 'r', 
     "Restore table data/logs into NDB Cluster using NDBAPI", 
     (uchar**) &_restore_data, (uchar**) &_restore_data,  0,
@@ -849,6 +860,30 @@ readArguments(Ndb_opts & opts, char*** pargv)
   {
     exitHandler(NdbToolsProgramExitCode::WRONG_ARGS);
   }
+  if (opt_decrypt == 0)
+  {
+    if (g_password != nullptr)
+    {
+      err <<
+        "Password (--password) for decryption given, require also --decrypt."
+        << endl;
+      exitHandler(NdbToolsProgramExitCode::WRONG_ARGS);
+    }
+  }
+  else if (opt_decrypt == 1)
+  {
+    if (g_password == nullptr)
+    {
+      err << "Decrypting backup (--decrypt) requires password (--password)." << endl;
+      exitHandler(NdbToolsProgramExitCode::WRONG_ARGS);
+    }
+  }
+  else
+  {
+    // Should be impossible for boolean option.
+    abort();
+  }
+
   if (ga_nodeId == 0)
   {
     err << "Backup file node ID not specified, please provide --nodeid" << endl;
@@ -3201,7 +3236,7 @@ main(int argc, char** argv)
     for (int part_id=1; part_id<=ga_part_count; part_id++)
     {
       NDB_THREAD_PRIO prio = NDB_THREAD_PRIO_MEAN;
-      uint stack_size = 128*1024;
+      uint stack_size = 128*1024*32; // TODO shrink stack again
       char name[20];
       snprintf (name, sizeof(name), "restore%d", part_id);
       RestoreThreadData *data = new RestoreThreadData(part_id, &barrier);
