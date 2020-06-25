@@ -2181,11 +2181,13 @@ bool SELECT_LEX::record_join_nest_info(mem_root_deque<TABLE_LIST *> *tables) {
   @param table_adjust   Number of positions that a derived table nest is
                         adjusted, used to fix up semi-join related fields.
                         Tables are adjusted from position N to N+table_adjust
+  @param lateral_deps   Lateral dependencies of the unit owning removed_select
 */
 
 static void fix_tables_after_pullout(SELECT_LEX *parent_select,
                                      SELECT_LEX *removed_select, TABLE_LIST *tr,
-                                     uint table_adjust) {
+                                     uint table_adjust,
+                                     table_map lateral_deps) {
   if (tr->is_merged()) {
     // Update select list of merged derived tables:
     for (Field_translator *transl = tr->field_translation;
@@ -2216,9 +2218,19 @@ static void fix_tables_after_pullout(SELECT_LEX *parent_select,
     tr->nested_join->sj_corr_tables <<= table_adjust;
     tr->nested_join->sj_depends_on <<= table_adjust;
 
+    // If the removed query block is from a LATERAL derived table, and
+    // contains a semi-join nest, this nest may depend on the lateral
+    // dependencies, and if then, these should now be recorded as
+    // local dependencies of the nest. But it's impossible to know if this is
+    // the case, as the members below don't mention outer references. Be
+    // conservative and add dependencies unconditionally. At least this will
+    // prevent materialization.
+    tr->nested_join->sj_corr_tables |= lateral_deps;
+    tr->nested_join->sj_depends_on |= lateral_deps;
+
     for (TABLE_LIST *child : tr->nested_join->join_list) {
       fix_tables_after_pullout(parent_select, removed_select, child,
-                               table_adjust);
+                               table_adjust, lateral_deps);
     }
   }
   if (tr->is_derived() && tr->table &&
@@ -2279,11 +2291,12 @@ void SELECT_LEX::fix_after_pullout(SELECT_LEX *parent_select,
     have an outer reference. So we have to call fix_after_pullout() on join
     conditions. The reference may also be located in a derived table used by
     this subquery. fix_tables_after_pullout() will handle the two cases.
-    table_adjust is 0 because we're not merging these tables up.
+    table_adjust and lateral_deps are 0 because we're not merging these tables
+    up.
   */
   for (TABLE_LIST *tr : top_join_list) {
     fix_tables_after_pullout(parent_select, removed_select, tr,
-                             /*table_adjust=*/0);
+                             /*table_adjust=*/0, /*lateral_deps=*/0);
   }
 
   if (having_cond())
@@ -2412,8 +2425,17 @@ bool SELECT_LEX::build_sj_cond(THD *thd, NESTED_JOIN *nested_join,
     (*sj_cond) = and_items(*sj_cond, predicate);
     if (*sj_cond == nullptr) return true; /* purecov: inspected */
     /*
-      If the selected expression has an outer reference, add it as a
-      non-trivially correlated reference (to avoid materialization).
+      If the selected expression has a reference to our query block, add it as
+      a non-trivially correlated reference (to avoid materialization).
+      The case of yet-more-outer references is handled like this:
+      - if this nest is part of a LATERAL derived table, which is later
+        merged, fix_tables_after_pullout will update sj_corr_tables (with its
+        lateral_deps argument).
+      - if this nest is part of a subquery which later becomes a
+        semi/anti-join nest, it will be dissolved into the new parent nest, so
+        the inner nest's sj_corr_tables will be unused, while the parent's
+        will be correct as it will be computed from the concatenated new WHERE
+        condition.
     */
     nested_join->sj_corr_tables |= inner->used_tables() & outer_tables_map;
 
@@ -3157,7 +3179,7 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
   repoint_contexts_of_join_nests(subq_select->top_join_list);
 
   // Update table map for semi-join nest's WHERE condition and join conditions
-  fix_tables_after_pullout(this, subq_select, sj_nest, 0);
+  fix_tables_after_pullout(this, subq_select, sj_nest, 0, 0);
 
   Item *sj_cond = subq_select->where_cond();
   if (sj_cond != nullptr) sj_cond->fix_after_pullout(this, subq_select);
@@ -3224,6 +3246,9 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
   */
   nested_join->sj_depends_on =
       nested_join->sj_corr_tables | (sj_cond->used_tables() & outer_tables_map);
+
+  assert((nested_join->sj_corr_tables & OUTER_REF_TABLE_BIT) == 0);
+  assert((nested_join->sj_depends_on & OUTER_REF_TABLE_BIT) == 0);
 
   // TODO fix QT_
   DBUG_EXECUTE("where", print_where(thd, sj_cond, "SJ-COND", QT_ORDINARY););
@@ -3462,7 +3487,8 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table) {
   remap_tables(thd);
 
   // Update table info of referenced expressions after query block is merged
-  fix_tables_after_pullout(this, derived_select, derived_table, table_adjust);
+  fix_tables_after_pullout(this, derived_select, derived_table, table_adjust,
+                           derived_unit->m_lateral_deps);
 
   if (derived_select->is_ordered()) {
     /*
