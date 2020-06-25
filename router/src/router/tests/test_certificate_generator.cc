@@ -70,7 +70,7 @@ TEST_F(CertificateGeneratorTest, test_EVP_PKEY_generation) {
   ASSERT_TRUE(rsa);
 
   const auto bn_modulus = RSA_get0_n(rsa);
-  const auto openssl_free = [](char *c) { OPENSSL_free(c); };
+  const auto &openssl_free = [](char *c) { OPENSSL_free(c); };
   const std::unique_ptr<char, decltype(openssl_free)> bn{BN_bn2dec(bn_modulus),
                                                          openssl_free};
   ASSERT_TRUE(bn);
