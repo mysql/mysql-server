@@ -4768,6 +4768,7 @@ row_search_mvcc(
 		prebuilt->n_rows_fetched = 0;
 		prebuilt->n_fetch_cached = 0;
 		prebuilt->fetch_cache_first = 0;
+		prebuilt->m_end_range = false;
 
 		if (prebuilt->sel_graph == NULL) {
 			/* Build a dummy select query graph */
