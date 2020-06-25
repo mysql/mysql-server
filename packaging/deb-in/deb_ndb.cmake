@@ -168,6 +168,7 @@ Description: nodejs
 /usr/bin/ndb_top
 /usr/bin/ndb_waiter
 /usr/bin/ndbinfo_select_all
+/usr/bin/ndbxfrm
 
 /usr/share/man/man1/ndb-common-options.1*
 /usr/share/man/man1/ndb_blob_tool.1*

@@ -192,6 +192,13 @@ MYSQL_ADD_EXECUTABLE(ndb_move_data
   LINK_LIBRARIES ndbclient_static ndbNDBT
   )
 
+MYSQL_ADD_EXECUTABLE(ndbxfrm
+  ndbxfrm.cpp
+  COMPONENT ClusterTools
+  ENABLE_EXPORTS
+  LINK_LIBRARIES ndbclient_static
+  )
+
 IF(NOT WIN32 AND NOT SOLARIS)
   IF (HAVE_NCURSESW_1 OR
       HAVE_NCURSESW_2 OR
