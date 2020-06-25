@@ -755,7 +755,7 @@ Warning	1329	No data - zero rows fetched, selected, or processed
 (SELECT 1 FROM t1 LIMIT 1) LIMIT 1;
 1
 ((SELECT 1 FROM t1 ORDER BY 1) ORDER BY 1) ORDER BY 1;
-ERROR 42000: This version of MySQL doesn't yet support 'parenthesized query block with more than one external level of ORDER/LIMIT operations'
+ERROR 42000: This version of MySQL doesn't yet support 'parenthesized query expression with more than one external level of ORDER/LIMIT operations'
 ((SELECT 1 FROM t1 LIMIT 1) LIMIT 1) LIMIT 1;
 1
 (SELECT 1 FROM t1 ORDER BY 1) LIMIT 1;
@@ -2552,7 +2552,7 @@ Note	1003	(/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`
 EXPLAIN ((SELECT * FROM t3 ORDER BY a LIMIT 3)
 ORDER BY b DESC LIMIT 2)
 ORDER BY c LIMIT 1;
-ERROR 42000: This version of MySQL doesn't yet support 'parenthesized query block with more than one external level of ORDER/LIMIT operations'
+ERROR 42000: This version of MySQL doesn't yet support 'parenthesized query expression with more than one external level of ORDER/LIMIT operations'
 DROP VIEW v1;
 DROP VIEW v2;
 DROP TABLE t1, t2, t3;
