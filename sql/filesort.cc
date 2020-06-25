@@ -277,11 +277,6 @@ void Sort_param::try_to_pack_addons() {
     return;
   }
 
-  Addon_fields_array::iterator addonf = addon_fields->begin();
-  for (; addonf != addon_fields->end(); ++addonf) {
-    addonf->offset += sz;
-    addonf->null_offset += sz;
-  }
   addon_fields->set_using_packed_addons(true);
   m_using_packed_addons = true;
 
@@ -1473,16 +1468,40 @@ uint Sort_param::make_sortkey(Bounds_checked_array<uchar> dst,
       Save field values appended to sorted fields.
       First null bit indicators are appended then field values follow.
     */
-    uchar *nulls = to;
+    uchar *nulls = to + addon_fields->skip_bytes();
     uchar *p_len = to;
 
-    Addon_fields_array::const_iterator addonf = addon_fields->begin();
-    if (clear_overflows(addonf->offset, to_end, &to)) return UINT_MAX;
+    // Clear out length field (if any) and NULL bits.
+    if (addon_fields->num_field_descriptors() == 0) {
+      const int num_nullable_tables = std::count_if(
+          tables.begin(), tables.end(),
+          [](const TABLE *table) { return table->is_nullable(); });
+      const int null_bytes = (num_nullable_tables + 7) / 8;
+      if (clear_overflows(addon_fields->skip_bytes() + null_bytes, to_end, &to))
+        return UINT_MAX;
+    } else {
+      if (clear_overflows(addon_fields->first_addon_offset(), to_end, &to))
+        return UINT_MAX;
+    }
+
+    // Set NULL flags for nullable tables, as appropriate.
+    int table_idx = 0;
+    for (TABLE *table : tables) {
+      if (table->is_nullable()) {
+        if (table->has_null_row()) {
+          nulls[table_idx / 8] |= 1 << (table_idx & 7);
+        }
+        ++table_idx;
+      }
+    }
+
+    // Actually store the addons.
     if (addon_fields->using_packed_addons()) {
-      for (; addonf != addon_fields->end(); ++addonf) {
-        Field *field = addonf->field;
-        if (addonf->null_bit && field->is_null()) {
-          nulls[addonf->null_offset] |= addonf->null_bit;
+      for (const Sort_addon_field &addonf : *addon_fields) {
+        Field *field = addonf.field;
+        if (field->table->has_null_row()) continue;
+        if (addonf.null_bit && field->is_null()) {
+          nulls[addonf.null_offset] |= addonf.null_bit;
         } else {
           to = field->pack(to, field->field_ptr(), to_end - to);
           if (to >= to_end) return UINT_MAX;
@@ -1490,19 +1509,19 @@ uint Sort_param::make_sortkey(Bounds_checked_array<uchar> dst,
       }
       Addon_fields::store_addon_length(p_len, to - p_len);
     } else {
-      for (; addonf != addon_fields->end(); ++addonf) {
-        Field *field = addonf->field;
-        if (static_cast<size_t>(to_end - to) < addonf->max_length) {
+      for (const Sort_addon_field &addonf : *addon_fields) {
+        Field *field = addonf.field;
+        if (static_cast<size_t>(to_end - to) < addonf.max_length) {
           return UINT_MAX;
         }
-        if (addonf->null_bit && field->is_null()) {
-          nulls[addonf->null_offset] |= addonf->null_bit;
+        if (addonf.null_bit && field->is_null()) {
+          nulls[addonf.null_offset] |= addonf.null_bit;
         } else {
           uchar *ptr MY_ATTRIBUTE((unused)) =
               field->pack(to, field->field_ptr(), to_end - to);
-          DBUG_ASSERT(ptr <= to + addonf->max_length);
+          DBUG_ASSERT(ptr <= to + addonf.max_length);
         }
-        to += addonf->max_length;
+        to += addonf.max_length;
       }
     }
     *longest_addon_so_far = max<size_t>(*longest_addon_so_far, to - p_len);
@@ -2122,6 +2141,9 @@ Addon_fields *Filesort::get_addon_fields(
   *addon_fields_status = Addon_fields_status::unknown_status;
 
   for (TABLE *table : tables) {
+    if (table->is_nullable()) {
+      null_fields++;
+    }
     for (Field **pfield = table->field; *pfield != nullptr; ++pfield) {
       Field *field = *pfield;
       if (!bitmap_is_set(table->read_set, field->field_index())) continue;
@@ -2165,7 +2187,7 @@ Addon_fields *Filesort::get_addon_fields(
       num_fields++;
     }
   }
-  if (0 == num_fields) return nullptr;
+  if (num_fields == 0 && null_fields == 0) return nullptr;
 
   AddWithSaturate((null_fields + 7) / 8, &total_length);
 
@@ -2193,6 +2215,16 @@ Addon_fields *Filesort::get_addon_fields(
 
   uint length = (null_fields + 7) / 8;
   null_fields = 0;
+
+  // Put all the table NULL bits first, so we don't need to store their index
+  // (it is implicit from the ordering).
+  for (TABLE *table : tables) {
+    if (table->is_nullable()) {
+      null_fields++;
+    }
+  }
+
+  m_sort_param.addon_fields->set_first_addon_relative_offset(length);
   Addon_fields_array::iterator addonf = m_sort_param.addon_fields->begin();
   for (TABLE *table : tables) {
     for (Field **pfield = table->field; *pfield != nullptr; ++pfield) {
@@ -2201,7 +2233,6 @@ Addon_fields *Filesort::get_addon_fields(
       DBUG_ASSERT(addonf != m_sort_param.addon_fields->end());
 
       addonf->field = field;
-      addonf->offset = length;
       if (field->is_nullable()) {
         addonf->null_offset = null_fields / 8;
         addonf->null_bit = 1 << (null_fields & 7);

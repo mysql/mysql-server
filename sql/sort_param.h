@@ -109,7 +109,6 @@ struct st_sort_field {
 
 struct Sort_addon_field { /* Sort addon packed field */
   Field *field;           /* Original field */
-  uint offset;            /* Offset from the last sorted field */
   uint null_offset;       /* Offset to to null bit from the last sorted field */
   uint max_length;        /* Maximum length in the sort buffer */
   uint8 null_bit;         /* Null bit mask for the field */
@@ -155,7 +154,26 @@ class Addon_fields {
 
   void set_using_packed_addons(bool val) { m_using_packed_addons = val; }
 
+  void set_first_addon_relative_offset(int offset) {
+    m_first_addon_relative_offset = offset;
+  }
+  int first_addon_offset() const {
+    return skip_bytes() + m_first_addon_relative_offset;
+  }
+
   bool using_packed_addons() const { return m_using_packed_addons; }
+
+  /**
+    How many bytes to skip to get to the actual data; first NULL flags
+    (for tables and addon fields) and then the actual addons.
+   */
+  size_t skip_bytes() const {
+    if (m_using_packed_addons) {
+      return Addon_fields::size_of_length_field;
+    } else {
+      return 0;
+    }
+  }
 
   /**
     @returns Total number of bytes used for packed addon fields.
@@ -181,37 +199,44 @@ class Addon_fields {
   uchar *m_addon_buf;          ///< Buffer for unpacking addon fields.
   uint m_addon_buf_length;     ///< Length of the buffer.
   bool m_using_packed_addons;  ///< Are we packing the addon fields?
+
+  /// Number of bytes from after skip_bytes() to the beginning of the first
+  /// addon field.
+  int m_first_addon_relative_offset = 0;
 };
 
+/* clang-format off */
 /**
   There are several record formats for sorting:
 @verbatim
-    |<key a><key b>...    | <rowid> |
-    / m_fixed_sort_length / ref_len /
+    |<key a><key b>...    | ( <null row flag> | <rowid> | ) * num_tables
+    / m_fixed_sort_length / (  0 or 1 bytes   | ref_len / )
 @endverbatim
 
   or with "addon fields"
 @verbatim
     |<key a><key b>...    |<null bits>|<field a><field b>...|
-    / m_fixed_sort_length /         addon_length            /
+    / m_fixed_sort_length /        addon_length             /
 @endverbatim
 
   The packed format for "addon fields"
 @verbatim
     |<key a><key b>...    |<length>|<null bits>|<field a><field b>...|
-    / m_fixed_sort_length /         addon_length                     /
+    / m_fixed_sort_length /             addon_length                 /
 @endverbatim
 
-  All the formats above have fixed-size keys, with appropriate padding.
-  Fixed-size keys can be compared/sorted using memcmp().
+  For packed addon fields, fields are not stored if the table is nullable and
+  has its NULL bit set.
+
+  All the figures above are depicted for the case of fixed-size keys, with
+  appropriate padding. Fixed-size keys can be compared/sorted using memcmp().
 
   The packed (variable length) format for keys:
 @verbatim
-    |<keylen>|<varkey a><key b>...<hash>|<rowid>  or <addons>     |
-    / 4 bytes/   keylen bytes           / ref_len or addon_length /
+    |<keylen>|<varkey a><key b>...<hash>|<(null_row,rowid) * num_tables>  or <addons>   |
+    / 4 bytes/   keylen bytes           / (0/1 + ref_len) * num_tables or addon_length /
 @endverbatim
 
-  This format is currently only used if we are sorting JSON data.
   Variable-size keys must be compared piece-by-piece, using type information
   about each individual key part, @see cmp_varlen_keys.
 
@@ -219,9 +244,6 @@ class Addon_fields {
   followed by a (possibly composite) payload.
   The key is used for sorting data. Once sorting is done, the payload is
   stored in some buffer, and read by some RowIterator.
-
-  For fixed-size keys, with @<rowid@> payload, the @<rowid@> is also
-  considered to be part of the key.
 
 <dl>
 <dt>@<key@>
@@ -234,8 +256,11 @@ class Addon_fields {
                 which should cover most use cases: addon data <= 65535 bytes.
                 This is the same as max record size in MySQL.
 <dt>@<null bits@>
-          <dd>  One bit for each nullable field, indicating whether the field
-                is null or not. May have size zero if no fields are nullable.
+          <dd>  One bit for each nullable table and field, indicating whether
+                the table/field is NULL or not. May have size zero if no fields
+                or rows are nullable. NULL bits for rows (on nullable tables),
+                if any, always come before NULL bits for fields.
+
 <dt>@<field xx@>
           <dd>  Are stored with field->pack(), and retrieved with
                 field->unpack().
@@ -261,6 +286,7 @@ class Addon_fields {
                 key length. Does not exist if the field is NULL.
 </dl>
  */
+/* clang-format on */
 class Sort_param {
   uint m_fixed_rec_length{0};   ///< Maximum length of a record, see above.
   uint m_fixed_sort_length{0};  ///< Maximum number of bytes used for sorting.

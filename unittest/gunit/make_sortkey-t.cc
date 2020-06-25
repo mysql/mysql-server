@@ -161,19 +161,21 @@ TEST_F(MakeSortKeyTest, AddonFields) {
   table.s->db_low_byte_first = false;
   field.set_field_ptr(reinterpret_cast<unsigned char *>(&val));
   addon_field.field = &field;
-  addon_field.offset = 4;  // Need room for the length bytes.
   addon_field.max_length = field.max_packed_col_length();
   Addon_fields addon_fields(make_array(&addon_field, 1));
+  addon_fields.set_first_addon_relative_offset(0);
   addon_fields.set_using_packed_addons(true);
   m_sort_param.addon_fields = &addon_fields;
 
   // Test regular packing.
   size_t longest_addon_so_far = 0;  // Unused.
   size_t len = m_sort_param.make_sortkey(m_to, {}, &longest_addon_so_far);
-  EXPECT_EQ(total_length + sizeof(float) + addon_field.offset, len);
+  EXPECT_EQ(total_length + sizeof(float) + addon_fields.first_addon_offset(),
+            len);
   float unpacked_val;
   field.unpack(reinterpret_cast<uchar *>(&unpacked_val),
-               m_to.array() + m_sort_fields[0].length + addon_field.offset,
+               m_to.array() + m_sort_fields[0].length +
+                   addon_fields.first_addon_offset(),
                /*param_data=*/0);
   EXPECT_EQ(unpacked_val, val);
 

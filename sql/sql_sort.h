@@ -30,6 +30,7 @@
 #include "sql/filesort_utils.h"  // Filesort_buffer
 
 class Addon_fields;
+struct TABLE;
 
 /* Defines used by filesort and uniques */
 
@@ -202,7 +203,8 @@ class Filesort_info {
     @param buff            Buffer which to unpack the value from
   */
   template <bool Packed_addon_fields>
-  inline void unpack_addon_fields(uchar *buff);
+  inline void unpack_addon_fields(const Prealloced_array<TABLE *, 4> &tables,
+                                  uchar *buff);
 
   /**
     Reads 'count' number of chunk descriptors into the merge_chunks array.

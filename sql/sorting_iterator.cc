@@ -235,7 +235,7 @@ int SortFileIterator<Packed_addon_fields>::Read() {
     if (my_b_read(m_io_cache, destination, m_buf_length)) return -1;
   }
 
-  m_sort->unpack_addon_fields<Packed_addon_fields>(destination);
+  m_sort->unpack_addon_fields<Packed_addon_fields>(m_tables, destination);
 
   if (m_examined_rows != nullptr) {
     ++*m_examined_rows;
@@ -302,7 +302,7 @@ int SortBufferIterator<Packed_addon_fields>::Read() {
 
   uchar *record = m_sort->get_sorted_record(m_unpack_counter++);
   uchar *payload = get_start_of_payload(m_sort, record);
-  m_sort->unpack_addon_fields<Packed_addon_fields>(payload);
+  m_sort->unpack_addon_fields<Packed_addon_fields>(m_tables, payload);
   if (m_examined_rows != nullptr) {
     ++*m_examined_rows;
   }
@@ -551,21 +551,43 @@ int SortingIterator::DoSort() {
 }
 
 template <bool Packed_addon_fields>
-inline void Filesort_info::unpack_addon_fields(uchar *buff) {
-  Sort_addon_field *addonf = addon_fields->begin();
+inline void Filesort_info::unpack_addon_fields(
+    const Prealloced_array<TABLE *, 4> &tables, uchar *buff) {
+  const uchar *nulls = buff + addon_fields->skip_bytes();
 
-  const uchar *start_of_record = buff + addonf->offset;
-
-  for (; addonf != addon_fields->end(); ++addonf) {
-    Field *field = addonf->field;
-    if (addonf->null_bit && (addonf->null_bit & buff[addonf->null_offset])) {
-      field->set_null();
-      continue;
+  // Unpack table NULL flags.
+  int table_idx = 0;
+  for (TABLE *table : tables) {
+    if (table->is_nullable()) {
+      if (nulls[table_idx / 8] & (1 << (table_idx & 7))) {
+        table->set_null_row();
+      } else {
+        table->reset_null_row();
+      }
+      ++table_idx;
     }
-    field->set_notnull();
-    if (Packed_addon_fields)
-      start_of_record = field->unpack(start_of_record);
-    else
-      field->unpack(buff + addonf->offset);
+  }
+
+  // Unpack the actual addon fields (if any).
+  const uchar *start_of_record = buff + addon_fields->first_addon_offset();
+  for (const Sort_addon_field &addonf : *addon_fields) {
+    Field *field = addonf.field;
+    const bool is_null =
+        addonf.null_bit && (addonf.null_bit & nulls[addonf.null_offset]);
+    if (is_null) {
+      field->set_null();
+    }
+    if (Packed_addon_fields) {
+      if (!is_null && !field->table->has_null_row()) {
+        field->set_notnull();
+        start_of_record = field->unpack(start_of_record);
+      }
+    } else {
+      if (!is_null) {
+        field->set_notnull();
+        field->unpack(start_of_record);
+      }
+      start_of_record += addonf.max_length;
+    }
   }
 }
