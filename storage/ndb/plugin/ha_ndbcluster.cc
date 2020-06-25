@@ -7443,20 +7443,24 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type) {
 
     if (!--thd_ndb->lock_count) {
       DBUG_PRINT("trans", ("Last external_lock"));
+      const bool autocommit_enabled =
+          !thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN);
+      // Only the 'CREATE TABLE ... SELECT' variant of the
+      // SQLCOM_CREATE_TABLE DDL calls external_lock
+      const bool is_create_table_select =
+          (thd_sql_command(thd) == SQLCOM_CREATE_TABLE);
 
-      if ((!thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) &&
-          thd_ndb->trans) {
-        if (thd_ndb->trans) {
-          /*
-            Unlock is done without a transaction commit / rollback.
-            This happens if the thread didn't update any rows
-            We must in this case close the transaction to release resources
-          */
-          DBUG_PRINT("trans", ("ending non-updating transaction"));
-          thd_ndb->ndb->closeTransaction(thd_ndb->trans);
-          thd_ndb->trans = NULL;
-          thd_ndb->m_handler = NULL;
-        }
+      if (thd_ndb->trans && (autocommit_enabled || is_create_table_select)) {
+        /*
+          Unlock is done without a transaction commit / rollback.
+          This happens if the thread didn't update any rows as a part of normal
+          DMLs or `CREATE TABLE ... SELECT` DDL .
+          We must in this case close the transaction to release resources
+        */
+        DBUG_PRINT("trans", ("ending non-updating transaction"));
+        thd_ndb->ndb->closeTransaction(thd_ndb->trans);
+        thd_ndb->trans = nullptr;
+        thd_ndb->m_handler = nullptr;
       }
     }
     m_table_info = NULL;
