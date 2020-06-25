@@ -93,7 +93,7 @@ class NotifyTest : public RestApiComponentTest {
 
     std::vector<std::pair<std::string, std::string>> env_vars;
 
-    auto notify_socket{ProcessManager::kNotifySocketInvalid};
+    auto notify_socket{kNotifySocketInvalid};
     std::shared_ptr<void> notify_socket_close_guard(
         nullptr, [&](void *) { close_notify_socket(notify_socket); });
 
@@ -106,7 +106,7 @@ class NotifyTest : public RestApiComponentTest {
     if (do_create_notify_socket) {
       notify_socket = create_notify_socket(socket_node);
     }
-    env_vars.push_back({"NOTIFY_SOCKET", socket_node});
+    env_vars.emplace_back("NOTIFY_SOCKET", socket_node);
 
     auto &router =
         launch_router({"-c", conf_file}, env_vars, expected_exit_code);

@@ -51,6 +51,18 @@
 
 using mysql_harness::Path;
 
+#ifdef _WIN32
+using notify_socket_t = HANDLE;
+static /* constexpr */ const notify_socket_t kNotifySocketInvalid{
+    INVALID_HANDLE_VALUE};
+#else
+using notify_socket_t = mysql_harness::socket_t;
+static constexpr const notify_socket_t kNotifySocketInvalid{
+    mysql_harness::kInvalidSocket};
+notify_socket_t create_notify_socket(const std::string &name,
+                                     int type = SOCK_DGRAM);
+#endif
+
 /** @class ProcessManager
  *
  * Manages collecion of the processes
@@ -269,14 +281,8 @@ class ProcessManager {
       const std::map<std::string, std::string> *params) const;
 
 #ifdef _WIN32
-  using notify_socket_t = HANDLE;
-  static constexpr const notify_socket_t kNotifySocketInvalid{
-      INVALID_HANDLE_VALUE};
   notify_socket_t create_notify_socket(const std::string &name);
 #else
-  using notify_socket_t = mysql_harness::socket_t;
-  static constexpr const notify_socket_t kNotifySocketInvalid{
-      mysql_harness::kInvalidSocket};
   notify_socket_t create_notify_socket(const std::string &name,
                                        int type = SOCK_DGRAM);
 #endif

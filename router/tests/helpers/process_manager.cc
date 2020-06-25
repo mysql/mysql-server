@@ -81,8 +81,7 @@ using namespace std::chrono_literals;
 
 #ifdef _WIN32
 
-ProcessManager::notify_socket_t ProcessManager::create_notify_socket(
-    const std::string &name) {
+notify_socket_t ProcessManager::create_notify_socket(const std::string &name) {
   return CreateNamedPipe(TEXT(name.c_str()), PIPE_ACCESS_DUPLEX,
                          PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_NOWAIT,
                          PIPE_UNLIMITED_INSTANCES, 1024 * 16, 1024 * 16,
@@ -93,7 +92,7 @@ void ProcessManager::close_notify_socket(notify_socket_t socket) {
   if (socket != INVALID_HANDLE_VALUE) CloseHandle(socket);
 }
 
-bool ProcessManager::wait_for_notified(ProcessManager::notify_socket_t sock,
+bool ProcessManager::wait_for_notified(notify_socket_t sock,
                                        const std::string &expected_notification,
                                        std::chrono::milliseconds timeout) {
   DWORD len{0};
@@ -135,7 +134,7 @@ bool ProcessManager::wait_for_notified(ProcessManager::notify_socket_t sock,
 }
 
 #else
-ProcessManager::notify_socket_t ProcessManager::create_notify_socket(
+notify_socket_t ProcessManager::create_notify_socket(
     const std::string &name, int type /*= SOCK_DGRAM */) {
   struct sockaddr_un sock_unix;
 
@@ -191,12 +190,12 @@ bool ProcessManager::wait_for_notified(notify_socket_t sock,
 #endif
 
 bool ProcessManager::wait_for_notified_ready(
-    ProcessManager::notify_socket_t sock, std::chrono::milliseconds timeout) {
+    notify_socket_t sock, std::chrono::milliseconds timeout) {
   return wait_for_notified(sock, "READY=1", timeout);
 }
 
 bool ProcessManager::wait_for_notified_stopping(
-    ProcessManager::notify_socket_t sock, std::chrono::milliseconds timeout) {
+    notify_socket_t sock, std::chrono::milliseconds timeout) {
   return wait_for_notified(
       sock, "STOPPING=1\nSTATUS=Router shutdown in progress\n", timeout);
 }
