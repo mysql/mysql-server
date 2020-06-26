@@ -3481,6 +3481,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL)
   },
 
+  {
+     CFG_CONNECTION_UNRES_HOSTS,
+     "AllowUnresolvedHostnames",
+     "TCP",
+     "Allow startup to continue with unresolved hostnames in configuration",
+     ConfigInfo::CI_USED,
+     false,
+     ConfigInfo::CI_BOOL,
+     "false",
+     "false", "true"
+   },
+
   /****************************************************************************
    * SHM
    ***************************************************************************/
