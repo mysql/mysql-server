@@ -33,9 +33,6 @@
 #include <Bitmask.hpp>
 #include <ndb_opts.h>
 #include <ndb_version.h>
-#include <ConfigObject.hpp>
-#include <unordered_map>
-#include <string>
 #include "../src/kernel/vm/mt-asm.h"
 
 #include <portlib/ndb_localtime.h>
@@ -99,7 +96,6 @@ static bool fixPortNumber(InitConfigFileParser::Context & ctx, const char *);
 static bool fixShmKey(InitConfigFileParser::Context & ctx, const char *);
 static bool checkDbConstraints(InitConfigFileParser::Context & ctx, const char *);
 static bool checkConnectionConstraints(InitConfigFileParser::Context &, const char *);
-static bool checkTCPConstraints(InitConfigFileParser::Context &, const char *);
 static bool fixNodeHostname(InitConfigFileParser::Context & ctx, const char * data);
 static bool fixHostname(InitConfigFileParser::Context & ctx, const char * data);
 static bool fixNodeId(InitConfigFileParser::Context & ctx, const char * data);
@@ -172,11 +168,6 @@ ConfigInfo::m_SectionRules[] = {
   { "TCP",  checkConnectionConstraints, 0 },
   { "SHM",  checkConnectionConstraints, 0 },
 
-  { "TCP",  checkTCPConstraints, "HostName1" },
-  { "TCP",  checkTCPConstraints, "HostName2" },
-  { "SHM",  checkTCPConstraints, "HostName1" },
-  { "SHM",  checkTCPConstraints, "HostName2" },
-  
   { "*",    checkMandatory, 0 }
 };
 const int ConfigInfo::m_NoOfRules = sizeof(m_SectionRules)/sizeof(SectionRule);
@@ -5878,45 +5869,6 @@ uniqueConnection(InitConfigFileParser::Context & ctx, const char * data)
   ctx.m_userProperties.put(key.c_str(), defn.c_str());
   
   return true;
-}
-
-static bool
-checkTCPConstraints(InitConfigFileParser::Context & ctx, const char * data){
-  
-  const char * host;
-  struct in6_addr addr;
-  static std::unordered_map<std::string, bool> host_map;
-  bool ret = true;
-
-  if (ctx.m_currentSection->get(data, &host) && (strlen(host) > 0))
-  {
-    /**
-     * First an attempt is made to look into the hash table for a hostname and
-     * only if it's not found, we call Ndb_getInAddr().
-     */
-    auto ent = host_map.find(host);
-    if (ent != host_map.end())
-    {
-      const bool valid_host = ent->second;
-      ret = valid_host;
-    }
-    else if (Ndb_getInAddr6(&addr, host) == 0)
-    {
-      host_map[host] = true;
-    }
-    else
-    {
-      host_map[host] = false;
-      ret = false;
-    }
-  }
-  if (!ret)
-  {
-    ctx.reportError("Unable to lookup/illegal hostname %s"
-              " - [%s] starting at line: %d",
-              host, ctx.fname, ctx.m_sectionLineno);
-  }
-  return ret;
 }
 
 static
