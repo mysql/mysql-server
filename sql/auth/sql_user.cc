@@ -230,7 +230,10 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name,
   }
 
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
-  if (!acl_cache_lock.lock()) return true;
+  if (!acl_cache_lock.lock()) {
+    commit_and_close_mysql_tables(thd);
+    return true;
+  }
 
   if (!(acl_user =
             find_acl_user(user_name->host.str, user_name->user.str, true))) {
@@ -238,6 +241,7 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name,
     log_user(thd, &wrong_users, user_name, wrong_users.length() > 0);
     my_error(ER_CANNOT_USER, MYF(0), "SHOW CREATE USER",
              wrong_users.c_ptr_safe());
+    commit_and_close_mysql_tables(thd);
     return true;
   }
   /* fill in plugin, auth_str from acl_user */
@@ -1601,6 +1605,12 @@ bool change_password(THD *thd, LEX_USER *lex_user, const char *new_password,
       goto end;
     }
 
+    DBUG_EXECUTE_IF("wl14084_simulate_set_password_failure", {
+      my_error(ER_PASSWORD_NO_MATCH, MYF(0));
+      result = true;
+      goto end;
+    });
+
     result = false;
     users.insert(combo);
 
@@ -2557,6 +2567,7 @@ bool mysql_drop_user(THD *thd, List<LEX_USER> &list, bool if_exists,
         std::string out;
         authid.auth_str(&out);
         my_error(ER_MANDATORY_ROLE, MYF(0), out.c_str());
+        commit_and_close_mysql_tables(thd);
         return true;
       }
     }

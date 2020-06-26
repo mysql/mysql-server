@@ -1910,9 +1910,9 @@ bool check_engine_type_for_acl_table(THD *thd, bool mdl_locked) {
     with other code.
   */
 
-  grant_tables_setup_for_open(tables, TL_READ, MDL_SHARED_READ_ONLY);
-
+  acl_tables_setup_for_read(tables);
   bool result = open_and_lock_tables(thd, tables, flags);
+
   if (!result) {
     check_engine_type_for_acl_table(tables, false);
     if (!mdl_locked)
@@ -2000,8 +2000,7 @@ bool check_acl_tables_intact(THD *thd, bool mdl_locked) {
                          MYSQL_OPEN_IGNORE_FLUSH
                    : MYSQL_LOCK_IGNORE_TIMEOUT;
 
-  grant_tables_setup_for_open(tables, TL_READ, MDL_SHARED_READ_ONLY);
-
+  acl_tables_setup_for_read(tables);
   bool result_acl = open_and_lock_tables(thd, tables, flags);
 
   thd->push_internal_handler(&acl_ignore_handler);
@@ -3533,6 +3532,10 @@ uint32 global_password_reuse_interval = 0;
 /**
   Reload all ACL caches
 
+  We call this in two cases:
+  1. FLUSH PRIVILEGES
+  2. ACL DDL rollback
+
   @param [in] thd              THD handle
   @param [in] mdl_locked       MDL locks are taken
   @returns Status of reloading ACL caches
@@ -3541,8 +3544,46 @@ uint32 global_password_reuse_interval = 0;
 */
 
 bool reload_acl_caches(THD *thd, bool mdl_locked) {
-  bool retval = true;
   DBUG_TRACE;
+  bool retval = true;
+  bool save_mdl_locked = mdl_locked;
+  uint flags = MYSQL_LOCK_IGNORE_TIMEOUT;
+
+  DBUG_EXECUTE_IF("wl14084_simulate_flush_privileges_timeout", flags = 0;);
+  DEBUG_SYNC(thd, "wl14084_flush_privileges_before_table_locks");
+  /*
+    If mdl_locked is false, it implies we are here as a part
+    of FLUSH PRIVILEGES. In such situation, it is useful to
+    acquire and keep MDLs till the end of the function so that
+    a concurrent ACL DDL does not interfere with cache reload
+    operation.
+
+    If mdl_locked is true, it would mean we are in process of
+    reverting ACL DDL. This means we already have required
+    MDLs and thus, no need to acquire MDLs.
+  */
+  if (!mdl_locked) {
+    TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
+    acl_tables_setup_for_read(tables);
+    /*
+      Ideally, we can just call lock_table_names() here because all we want
+      is to obtain MDL on ACL tables. However, if FLUSH PRIVILEGES is called
+      under LOCK TABLES, we will hit an assertion that checks that
+      lock_table_names() is not called under LOCK TABLES. The only exception
+      to this rule RENAME TABLE. Hence, we call open_and_lock_tables()
+      instead and make sure that proper cleanup is done in case we encounter
+      an error.
+    */
+    bool result = open_and_lock_tables(thd, tables, flags);
+    if (!result)
+      close_thread_tables(thd);
+    else {
+      commit_and_close_mysql_tables(thd);
+      return result;
+    }
+    mdl_locked = true;
+    DEBUG_SYNC(thd, "wl14084_flush_privileges_after_table_locks");
+  }
 
   if (check_engine_type_for_acl_table(thd, mdl_locked) ||
       check_acl_tables_intact(thd, mdl_locked) || acl_reload(thd, mdl_locked) ||
@@ -3550,8 +3591,28 @@ bool reload_acl_caches(THD *thd, bool mdl_locked) {
     goto end;
   }
   retval = false;
+  DBUG_EXECUTE_IF("wl14084_trigger_acl_ddl_timeout", sleep(2););
 
 end:
+  /*
+    When reload_acl_caches() is called with mdl_locked = true,
+    it implies that caller has all required MDLs in place and
+    thus, reload_acl_caches() need not go through process of
+    obtained any MDLs.
+
+    If mdl_locked = false when function is called, it means
+    we would have acquired required MDLs to make sure that
+    reload operations do not have compete for this resources
+    with other threads. In such situation, release MDLs before
+    returning to caller.
+
+    In addition, since we pass mdl_locked = true to functions that
+    reload caches, we would also have to commit the transaction.
+  */
+  if (!save_mdl_locked) {
+    close_thread_tables(thd);
+    commit_and_close_mysql_tables(thd);
+  }
   return retval;
 }
 
