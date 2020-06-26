@@ -899,7 +899,7 @@ void Tablespace::alter_active() {
 #ifdef UNIV_DEBUG
 void inject_crash(const char *injection_point_name) {
   DBUG_EXECUTE_IF(injection_point_name,
-                  ib::info(ER_IB_MSG_UNDO_INJECT_CRASH, injection_point_name);
+                  ib::info(ER_IB_MSG_INJECT_CRASH, injection_point_name);
                   log_buffer_flush_to_disk(); DBUG_SUICIDE(););
 }
 
@@ -907,7 +907,7 @@ bool Inject_failure_once::should_fail() {
   DBUG_EXECUTE_IF(m_inject_name, {
     if (!m_already_failed) {
       m_already_failed = true;
-      ib::info(ER_IB_MSG_UNDO_INJECT_FAILURE, m_inject_name);
+      ib::info(ER_IB_MSG_INJECT_FAILURE, m_inject_name);
       return true;
     }
   });
@@ -2123,7 +2123,7 @@ static ulint trx_purge_attach_undo_recs(const ulint n_purge_threads,
       lb->second->push_back(rec);
 
     } else {
-      using value_type = GroupBy::value_type;
+      using Value = GroupBy::value_type;
 
       void *ptr;
       purge_node_t::Recs *recs;
@@ -2136,7 +2136,7 @@ static ulint trx_purge_attach_undo_recs(const ulint n_purge_threads,
 
       recs->push_back(rec);
 
-      group_by.insert(lb, value_type(table_id, recs));
+      group_by.insert(lb, Value{table_id, recs});
     }
   }
 

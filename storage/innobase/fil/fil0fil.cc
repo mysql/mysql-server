@@ -714,13 +714,16 @@ class Fil_shard {
   bool mutex_owned() const { return (mutex_own(&m_mutex)); }
 #endif /* UNIV_DEBUG */
 
-  /** Mutex protecting this shard. */
+  /** Acquire a tablespace to prevent it from being dropped concurrently.
+  The thread must call Fil_shard::fil_space_release() when the operation
+  is done.
+  @param[in]  space  tablespace  to acquire
+  @return true if not space->stop_new_ops */
+  bool space_acquire(fil_space_t *space);
 
-#ifndef UNIV_HOTBACKUP
-  mutable ib_mutex_t m_mutex;
-#else
-  mutable meb::Mutex m_mutex;
-#endif /* !UNIV_HOTBACKUP */
+  /** Release a tablespace acquired with Fil_shard::space_acquire().
+  @param[in,out]  space  tablespace to release */
+  void space_release(fil_space_t *space);
 
   /** Fetch the fil_space_t instance that maps to space_id.
   @param[in]	space_id	Tablespace ID to lookup
@@ -800,6 +803,18 @@ class Fil_shard {
 
   /** Close all open files. */
   void close_all_files();
+
+  /** Determine if the tablespace needs encryption rotation.
+  @param[in]  space  tablespace to rotate
+  @return true if the tablespace needs to be rotated, false if not. */
+  bool needs_encryption_rotate(fil_space_t *space);
+
+  /** Rotate the tablespace keys by new master key.
+  @param[in,out]  rotate_count  A cumulative count of all tablespaces rotated
+  in the Fil_system.
+  @return the number of tablespaces that failed to rotate. */
+  size_t encryption_rotate(size_t *rotate_count)
+      MY_ATTRIBUTE((warn_unused_result));
 
   /** Detach a space object from the tablespace memory cache and
   closes the tablespace files but does not delete them.
@@ -993,13 +1008,13 @@ class Fil_shard {
   fil_space_t *space_load(space_id_t space_id)
       MY_ATTRIBUTE((warn_unused_result));
 
-  /** Check pending operations on a tablespace.
-  @param[in]	space_id	Tablespace ID
-  @param[out]	space		tablespace instance in memory
-  @param[out]	path		tablespace path
+  /** Wait for pending operations on a tablespace to stop.
+  @param[in]   space_id  Tablespace ID
+  @param[out]  space     tablespace instance in memory
+  @param[out]  path      tablespace path
   @return DB_SUCCESS or DB_TABLESPACE_NOT_FOUND. */
-  dberr_t space_check_pending_operations(space_id_t space_id,
-                                         fil_space_t *&space, char **path) const
+  dberr_t wait_for_pending_operations(space_id_t space_id, fil_space_t *&space,
+                                      char **path) const
       MY_ATTRIBUTE((warn_unused_result));
 
   /** Rename a single-table tablespace.
@@ -1198,9 +1213,9 @@ class Fil_shard {
       MY_ATTRIBUTE((warn_unused_result));
 
   /** Prepare for truncating a single-table tablespace.
-  1) Check pending operations on a tablespace;
+  1) Wait for pending operations on the tablespace to stop;
   2) Remove all insert buffer entries for the tablespace;
-  @param[in]	space_id	Tablespace ID
+  @param[in]  space_id  Tablespace ID
   @return DB_SUCCESS or error */
   dberr_t space_prepare_for_truncate(space_id_t space_id)
       MY_ATTRIBUTE((warn_unused_result));
@@ -1310,6 +1325,13 @@ class Fil_shard {
 
   static std::atomic_size_t s_open_slot;
 
+  /** Mutex protecting this shard. */
+#ifndef UNIV_HOTBACKUP
+  mutable ib_mutex_t m_mutex;
+#else
+  mutable meb::Mutex m_mutex;
+#endif /* !UNIV_HOTBACKUP */
+
   // Disable copying
   Fil_shard(Fil_shard &&) = delete;
   Fil_shard(const Fil_shard &) = delete;
@@ -1332,6 +1354,14 @@ class Fil_system {
 
   /** Destructor */
   ~Fil_system();
+
+  /** Acquire a tablespace when it could be dropped concurrently.
+  Used by background threads that do not necessarily hold proper locks
+  for concurrency control.
+  @param[in]  space_id  Tablespace ID
+  @param[in]  silent    Whether to silently ignore missing tablespaces
+  @return the tablespace, or nullptr if missing or being deleted */
+  fil_space_t *space_acquire(space_id_t space_id, bool silent);
 
   /** Fetch the file names opened for a space_id during recovery.
   @param[in]	space_id	Tablespace ID to lookup
@@ -1573,13 +1603,8 @@ class Fil_system {
       MY_ATTRIBUTE((warn_unused_result));
 
   /** Rotate the tablespace keys by new master key.
-  @param[in,out]	shard		Rotate the keys in this shard
-  @return true if the re-encrypt succeeds */
-  bool encryption_rotate_in_a_shard(Fil_shard *shard);
-
-  /** Rotate the tablespace keys by new master key.
-  @return true if the re-encrypt succeeds */
-  bool encryption_rotate_all() MY_ATTRIBUTE((warn_unused_result));
+  @return the number of tablespaces that failed to rotate. */
+  size_t encryption_rotate() MY_ATTRIBUTE((warn_unused_result));
 
   /** Detach a space object from the tablespace memory cache.
   Closes the tablespace files but does not delete them.
@@ -1850,8 +1875,9 @@ static ulint srv_data_written;
 @param[in]	page_id		Space ID and first page number in the file
 @param[in]	old_name	old file name
 @param[in]	new_name	new file name
-@return	whether the operation was successfully applied (the name did not exist,
-or new_name did not exist and name was successfully renamed to new_name)  */
+@return	whether the operation was successfully applied (the name did not
+exist, or new_name did not exist and name was successfully renamed to
+new_name)  */
 static bool fil_op_replay_rename(const page_id_t &page_id,
                                  const std::string &old_name,
                                  const std::string &new_name)
@@ -3906,7 +3932,7 @@ for concurrency control.
 @param[in]	space_id	Tablespace ID
 @param[in]	silent		Whether to silently ignore missing tablespaces
 @return the tablespace, or nullptr if missing or being deleted */
-inline fil_space_t *fil_space_acquire_low(space_id_t space_id, bool silent) {
+fil_space_t *Fil_system::space_acquire(space_id_t space_id, bool silent) {
   auto shard = fil_system->shard_by_id(space_id);
 
   shard->mutex_acquire();
@@ -3917,15 +3943,26 @@ inline fil_space_t *fil_space_acquire_low(space_id_t space_id, bool silent) {
     if (!silent) {
       ib::warn(ER_IB_MSG_286, ulong{space_id});
     }
-  } else if (space->stop_new_ops) {
+  } else if (!shard->space_acquire(space)) {
     space = nullptr;
-  } else {
-    ++space->n_pending_ops;
   }
 
   shard->mutex_release();
 
   return (space);
+}
+
+inline bool Fil_shard::space_acquire(fil_space_t *space) {
+  ut_ad(mutex_owned());
+  ut_ad(space != nullptr);
+
+  if (space->stop_new_ops) {
+    return false;
+  }
+
+  ++space->n_pending_ops;
+
+  return true;
 }
 
 /** Acquire a tablespace when it could be dropped concurrently.
@@ -3934,7 +3971,7 @@ for concurrency control.
 @param[in]	space_id	Tablespace ID
 @return the tablespace, or nullptr if missing or being deleted */
 fil_space_t *fil_space_acquire(space_id_t space_id) {
-  return (fil_space_acquire_low(space_id, false));
+  return (fil_system->space_acquire(space_id, false));
 }
 
 /** Acquire a tablespace that may not exist.
@@ -3943,22 +3980,26 @@ for concurrency control.
 @param[in]	space_id	Tablespace ID
 @return the tablespace, or nullptr if missing or being deleted */
 fil_space_t *fil_space_acquire_silent(space_id_t space_id) {
-  return (fil_space_acquire_low(space_id, true));
+  return (fil_system->space_acquire(space_id, true));
 }
 
 /** Release a tablespace acquired with fil_space_acquire().
-@param[in,out]	space	tablespace to release  */
+@param[in,out]  space  tablespace to release  */
 void fil_space_release(fil_space_t *space) {
   auto shard = fil_system->shard_by_id(space->id);
 
   shard->mutex_acquire();
+  shard->space_release(space);
+  shard->mutex_release();
+}
 
+/** Release a tablespace acquired with Fil_shard::space_acquire().
+@param[in,out]  space  tablespace to release */
+void Fil_shard::space_release(fil_space_t *space) {
   ut_ad(space->magic_n == FIL_SPACE_MAGIC_N);
   ut_ad(space->n_pending_ops > 0);
 
   --space->n_pending_ops;
-
-  shard->mutex_release();
 }
 
 /** Check for pending operations.
@@ -4006,14 +4047,9 @@ ulint Fil_shard::check_pending_io(const fil_space_t *space,
   return (0);
 }
 
-/** Check pending operations on a tablespace.
-@param[in]	space_id	Tablespace ID
-@param[out]	space		tablespace instance in memory
-@param[out]	path		tablespace path
-@return DB_SUCCESS or DB_TABLESPACE_NOT_FOUND. */
-dberr_t Fil_shard::space_check_pending_operations(space_id_t space_id,
-                                                  fil_space_t *&space,
-                                                  char **path) const {
+dberr_t Fil_shard::wait_for_pending_operations(space_id_t space_id,
+                                               fil_space_t *&space,
+                                               char **path) const {
   ut_ad(!fsp_is_system_tablespace(space_id));
   ut_ad(!fsp_is_global_temporary(space_id));
 
@@ -4249,7 +4285,7 @@ dberr_t fil_close_tablespace(trx_t *trx, space_id_t space_id) {
 
   dberr_t err;
 
-  err = shard->space_check_pending_operations(space_id, space, &path);
+  err = shard->wait_for_pending_operations(space_id, space, &path);
 
   if (err != DB_SUCCESS) {
     return (err);
@@ -4390,7 +4426,7 @@ dberr_t Fil_shard::space_delete(space_id_t space_id, buf_remove_t buf_remove) {
   ut_ad(!fsp_is_system_tablespace(space_id));
   ut_ad(!fsp_is_global_temporary(space_id));
 
-  dberr_t err = space_check_pending_operations(space_id, space, &path);
+  dberr_t err = wait_for_pending_operations(space_id, space, &path);
 
   if (err != DB_SUCCESS) {
     ut_a(err == DB_TABLESPACE_NOT_FOUND);
@@ -4558,11 +4594,6 @@ dberr_t fil_delete_tablespace(space_id_t space_id, buf_remove_t buf_remove) {
   return (shard->space_delete(space_id, buf_remove));
 }
 
-/** Prepare for truncating a single-table tablespace.
-1) Check pending operations on a tablespace;
-2) Remove all insert buffer entries for the tablespace;
-@param[in]	space_id	Tablespace ID
-@return DB_SUCCESS or error */
 dberr_t Fil_shard::space_prepare_for_truncate(space_id_t space_id) {
   char *path = nullptr;
   fil_space_t *space = nullptr;
@@ -4572,7 +4603,7 @@ dberr_t Fil_shard::space_prepare_for_truncate(space_id_t space_id) {
   ut_ad(!fsp_is_global_temporary(space_id));
   ut_ad(fsp_is_undo_tablespace(space_id) || fsp_is_session_temporary(space_id));
 
-  dberr_t err = space_check_pending_operations(space_id, space, &path);
+  dberr_t err = wait_for_pending_operations(space_id, space, &path);
 
   ut_free(path);
 
@@ -9245,98 +9276,112 @@ dberr_t fil_reset_encryption(space_id_t space_id) {
 }
 
 #ifndef UNIV_HOTBACKUP
-/** Rotate the tablespace keys by new master key.
-@param[in,out]	shard		Rotate the keys in this shard
-@return true if the re-encrypt succeeds */
-bool Fil_system::encryption_rotate_in_a_shard(Fil_shard *shard) {
-  byte encrypt_info[Encryption::INFO_SIZE];
+bool Fil_shard::needs_encryption_rotate(fil_space_t *space) {
+  /* We only rotate if encryption is already set. */
+  if (space->encryption_type == Encryption::NONE) {
+    return false;
+  }
 
-  for (auto &elem : shard->m_spaces) {
+  /* Deleted spaces do not need rotation.  Their pages are being
+  deleted from the buffer pool. */
+  if (space->is_deleted()) {
+    return false;
+  }
+
+  /* Skip unencypted tablespaces. Encrypted redo log
+  tablespaces is handled in function log_rotate_encryption. */
+  if (fsp_is_system_or_temp_tablespace(space->id) ||
+      space->purpose == FIL_TYPE_LOG) {
+    return false;
+  }
+
+  /* Skip the tablespace when it's in default key status,
+  since it's the first server startup after bootstrap,
+  and the server uuid is not ready yet. */
+  if (Encryption::get_master_key_id() == Encryption::DEFAULT_MASTER_KEY_ID) {
+    return false;
+  }
+
+  DBUG_EXECUTE_IF(
+      "ib_encryption_rotate_skip",
+      ib::info(ER_IB_MSG_INJECT_FAILURE, "ib_encryption_rotate_skip");
+      return false;);
+
+  return true;
+}
+
+size_t Fil_shard::encryption_rotate(size_t *rotate_count) {
+  /* If there are no tablespaces to rotate, return true. */
+  size_t fail_count = 0;
+  byte encrypt_info[Encryption::INFO_SIZE];
+  using Spaces_to_rotate = std::vector<fil_space_t *>;
+  Spaces_to_rotate spaces2rotate;
+
+  /* Use the shard mutex to collect a list of the spaces to rotate. */
+  mutex_acquire();
+
+  for (auto &elem : m_spaces) {
     auto space = elem.second;
 
-    /* Skip unencypted tablespaces. Encrypted redo log
-    tablespaces is handled in function log_rotate_encryption. */
-
-    if (fsp_is_system_or_temp_tablespace(space->id) ||
-        space->purpose == FIL_TYPE_LOG) {
+    if (!needs_encryption_rotate(space)) {
       continue;
     }
 
-    /* Skip the undo tablespace when it's in default key status,
-    since it's the first server startup after bootstrap, and the
-    server uuid is not ready yet. */
-
-    if (fsp_is_undo_tablespace(space->id) &&
-        Encryption::get_master_key_id() == Encryption::DEFAULT_MASTER_KEY_ID) {
-      continue;
-    }
-
-    /* Rotate the encrypted tablespaces. */
-    if (space->encryption_type != Encryption::NONE) {
-      memset(encrypt_info, 0, Encryption::INFO_SIZE);
-
-      /* Take MDL on UNDO tablespace to make it mutually exclusive with
-      UNDO tablespace truncation. For other tablespaces MDL is not required
-      here. */
-      MDL_ticket *mdl_ticket = nullptr;
-      if (fsp_is_undo_tablespace(space->id)) {
-        THD *thd = current_thd;
-        while (
-            acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout)) {
-          os_thread_sleep(20);
-        }
-
-        while (dd::acquire_exclusive_tablespace_mdl(thd, space->name, false,
-                                                    &mdl_ticket, false)) {
-          os_thread_sleep(20);
-        }
-        ut_ad(mdl_ticket != nullptr);
-
-        /* If this UNDO tablespace is already truncated, skip it */
-        if (space->m_deleted_lsn > 0) {
-          dd_release_mdl(mdl_ticket);
-          continue;
-        }
-      }
-
-      mtr_t mtr;
-      mtr_start(&mtr);
-      bool ret = fsp_header_rotate_encryption(space, encrypt_info, &mtr);
-      mtr_commit(&mtr);
-
-      if (mdl_ticket != nullptr) {
-        dd_release_mdl(mdl_ticket);
-      }
-      if (!ret) {
-        return (false);
-      }
-    }
-
-    DBUG_EXECUTE_IF("ib_crash_during_rotation_for_encryption", DBUG_SUICIDE(););
+    spaces2rotate.push_back(space);
   }
 
-  return (true);
+  mutex_release();
+
+  /* We can now be assured that each fil_space_t collected above will not be
+  deleted below (outside the shard mutex protection) because:
+  1. The caller, Rotate_innodb_master_key::execute(), holds an exclusive
+     backup lock which blocks any other concurrent DDL or MDL on this space.
+  2. Only a thread with an MDL on the space name can mark a fil_space_t as
+     deleted or actually delete it. This includes background threads like
+     the purge thread doing undo truncation as well as any client DDL.
+  3. We assured above using the shard mutex that the space is not deleted. */
+
+  for (auto &space : spaces2rotate) {
+    /* Rotate this encrypted tablespace. */
+    mtr_t mtr;
+    mtr_start(&mtr);
+    memset(encrypt_info, 0, Encryption::INFO_SIZE);
+    bool rotate_ok = fsp_header_rotate_encryption(space, encrypt_info, &mtr);
+    ut_ad(rotate_ok);
+    mtr_commit(&mtr);
+
+    if (rotate_ok) {
+      ++(*rotate_count);
+    } else {
+      ++fail_count;
+    }
+  }
+
+  /* This crash forces encryption rotate to complete at startup. */
+  DBUG_EXECUTE_IF(
+      "ib_encryption_rotate_crash",
+      ib::info(ER_IB_MSG_INJECT_FAILURE, "ib_encryption_rotate_crash");
+      DBUG_SUICIDE(););
+
+  return fail_count;
 }
 
-/** Rotate the tablespace keys by new master key.
-@return true if the re-encrypt succeeds */
-bool Fil_system::encryption_rotate_all() {
+size_t Fil_system::encryption_rotate() {
+  size_t fail_count = 0;
+  size_t rotate_count = 0;
+
   for (auto shard : m_shards) {
-    // FIXME: We don't acquire the fil_sys::mutex here. Why?
-
-    bool success = encryption_rotate_in_a_shard(shard);
-
-    if (!success) {
-      return (false);
-    }
+    fail_count += shard->encryption_rotate(&rotate_count);
   }
 
-  return (true);
+  if (rotate_count > 0) {
+    ib::info(ER_IB_MSG_MASTER_KEY_ROTATED, static_cast<int>(rotate_count));
+  }
+
+  return fail_count;
 }
 
-/** Rotate the tablespace keys by new master key.
-@return true if the re-encrypt succeeds */
-bool fil_encryption_rotate() { return (fil_system->encryption_rotate_all()); }
+size_t fil_encryption_rotate() { return (fil_system->encryption_rotate()); }
 
 #endif /* !UNIV_HOTBACKUP */
 
@@ -11553,13 +11598,13 @@ dberr_t Tablespace_dirs::scan() {
         return;
       }
 
-      using value = Scanned_files::value_type;
+      using Value = Scanned_files::value_type;
 
       if (Fil_path::has_suffix(IBD, file.c_str())) {
-        ibd_files.push_back(value{count, file});
+        ibd_files.push_back(Value{count, file});
 
       } else if (Fil_path::is_undo_tablespace_name(file)) {
-        undo_files.push_back(value{count, file});
+        undo_files.push_back(Value{count, file});
       }
 
       if (ut_time_monotonic() - start_time >= PRINT_INTERVAL_SECS) {
