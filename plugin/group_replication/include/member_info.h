@@ -604,7 +604,20 @@ class Group_member_info_manager_interface {
  public:
   virtual ~Group_member_info_manager_interface() {}
 
+  /**
+    Number of members in the group.
+
+    @return number of members
+  */
   virtual size_t get_number_of_members() = 0;
+
+  /**
+    Number of ONLINE members in the group.
+    UNREACHABLE members are included.
+
+    @return number of ONLINE members
+  */
+  virtual size_t get_number_of_members_online() = 0;
 
   /**
     Is the member present in the group info
@@ -642,14 +655,23 @@ class Group_member_info_manager_interface {
   virtual Member_version get_group_lowest_online_version() = 0;
 
   /**
-    Retrieves a registered Group member by its backbone GCS identifier
+    Pointer to a registered Group member by its backbone GCS identifier.
 
-    @param[in] idx the GCS identifier
-    @return reference to a copy of Group_member_info. NULL if not managed.
-            The return value must deallocated by the caller.
+    @param[in] id the GCS identifier
+    @return pointer to a Group_member_info entry. NULL if not managed.
    */
   virtual Group_member_info *get_group_member_info_by_member_id(
-      Gcs_member_identifier idx) = 0;
+      const Gcs_member_identifier &id) = 0;
+
+  /**
+    Return the status of the member with the given GCS identifier.
+
+    @param[in] id the GCS identifier
+    @return status of the member, Group_member_info::MEMBER_END if
+            the member does not exist.
+   */
+  virtual Group_member_info::Group_member_status
+  get_group_member_status_by_member_id(const Gcs_member_identifier &id) = 0;
 
   /**
     Retrieves all Group members managed by this site
@@ -869,6 +891,8 @@ class Group_member_info_manager : public Group_member_info_manager_interface {
 
   size_t get_number_of_members() override;
 
+  size_t get_number_of_members_online() override;
+
   bool is_member_info_present(const std::string &uuid) override;
 
   Group_member_info *get_group_member_info(const std::string &uuid) override;
@@ -878,7 +902,10 @@ class Group_member_info_manager : public Group_member_info_manager_interface {
   Member_version get_group_lowest_online_version() override;
 
   Group_member_info *get_group_member_info_by_member_id(
-      Gcs_member_identifier idx) override;
+      const Gcs_member_identifier &id) override;
+
+  Group_member_info::Group_member_status get_group_member_status_by_member_id(
+      const Gcs_member_identifier &id) override;
 
   std::vector<Group_member_info *> *get_all_members() override;
 
@@ -936,6 +963,9 @@ class Group_member_info_manager : public Group_member_info_manager_interface {
 
  private:
   void clear_members();
+
+  Group_member_info *get_group_member_info_by_member_id_internal(
+      const Gcs_member_identifier &id);
 
   std::map<std::string, Group_member_info *> *members;
   Group_member_info *local_member_info;

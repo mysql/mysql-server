@@ -332,11 +332,6 @@ class Certifier : public Certifier_interface {
   void get_last_conflict_free_transaction(std::string *value) override;
 
   /**
-    Get method to retrieve the size of the members.
-  */
-  size_t get_members_size();
-
-  /**
     Generate group GNO for a view change log event.
 
     @retval  >0         view change GNO
