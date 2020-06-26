@@ -2617,6 +2617,16 @@ int ha_ndbcluster::add_index_handle(NDBDICT *dict, KEY *key_info,
                         index->getObjectVersion() & 0xFFFFFF,
                         index->getObjectVersion() >> 24,
                         index->getObjectStatus()));
+    if (index->getObjectStatus() !=
+                NdbDictionary::Object::Retrieved)
+    {
+      DBUG_PRINT("error", ("add_index_handle: index: 0x%lx  id: %d  version: %d.%d  status: %d",
+                           (long) index,
+                           index->getObjectId(),
+                           index->getObjectVersion() & 0xFFFFFF,
+                           index->getObjectVersion() >> 24,
+                           index->getObjectStatus()));
+    }
     DBUG_ASSERT(index->getObjectStatus() ==
                 NdbDictionary::Object::Retrieved);
     m_index[index_no].unique_index= index;
