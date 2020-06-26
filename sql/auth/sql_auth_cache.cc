@@ -2334,6 +2334,7 @@ static bool grant_load_procs_priv(TABLE *p_table) {
         LogErr(WARNING_LEVEL,
                ER_AUTHCACHE_PROCS_PRIV_ENTRY_IGNORED_BAD_ROUTINE_TYPE,
                mem_check->tname);
+        destroy(mem_check);
         goto next_record;
       }
 
