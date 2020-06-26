@@ -121,17 +121,14 @@ SELECT 1 REGEXP NULL;
 1 REGEXP NULL
 NULL
 SELECT '' REGEXP BINARY NULL;
-'' REGEXP BINARY NULL
-NULL
+ERROR HY000: Character set 'latin1_swedish_ci' cannot be used in conjunction with 'binary' in call to regexp_like.
 SELECT NULL REGEXP BINARY NULL;
 NULL REGEXP BINARY NULL
 NULL
 SELECT 'A' REGEXP BINARY NULL;
-'A' REGEXP BINARY NULL
-NULL
+ERROR HY000: Character set 'latin1_swedish_ci' cannot be used in conjunction with 'binary' in call to regexp_like.
 SELECT "ABC" REGEXP BINARY NULL;
-"ABC" REGEXP BINARY NULL
-NULL
+ERROR HY000: Character set 'latin1_swedish_ci' cannot be used in conjunction with 'binary' in call to regexp_like.
 End of 5.0 tests
 CREATE TABLE t1(a INT, b CHAR(4));
 INSERT INTO t1 VALUES (1, '6.1'), (1, '7.0'), (1, '8.0');

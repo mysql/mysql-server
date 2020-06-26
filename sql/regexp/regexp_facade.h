@@ -30,6 +30,7 @@
 */
 
 #include <stdint.h>
+
 #include <string>
 
 #include "nullable.h"
@@ -116,7 +117,7 @@ class Regexp_facade {
     @param occurrence Which occurrence of the pattern should be searched for.
     @param[in,out] result Holds the buffer for writing the result.
   */
-  String *Replace(Item *subject_expr, Item *replacement_expr, int64_t start,
+  String *Replace(Item *subject_expr, Item *replacement_expr, int start,
                   int occurrence, String *result);
 
   String *Substr(Item *subject_expr, int start, int occurrence, String *result);
@@ -157,6 +158,21 @@ class Regexp_facade {
   int ConvertLibPositionToCodePoint(int position) const;
 
   /**
+    Helper function for setting the result from SQL regular expression
+    functions that return a string value. Depending on character sets used by
+    arguments and result, this function may copy, convert or just set the
+    result. In particular, it handles the special case of the BINARY character
+    set being interpreted as CP-1252.
+
+     @param str The result string from the regexp function.
+     @param length Length in bytes.
+     @param[out] result The result string.
+     @return A pointer to the same string as the argument, or nullptr in case of
+    failure.
+   */
+  String *AssignResult(const char *str, size_t length, String *result);
+
+  /**
     Used for all the actual regular expression matching, search-and-replace,
     and positional and string information. If either the regular expression
     pattern or the subject is `NULL`, this pointer is empty.
@@ -170,16 +186,6 @@ class Regexp_facade {
     @see Regexp_engine::reset()
   */
   std::u16string m_current_subject;
-
-  /**
-    `NULL` handling. In case the reset() function is called with a `NULL`
-    value, or some expression that evaluates to it, all matching functions
-    will return `NULL`. This avoids having to handle the case in all the
-    val_xxx() function in the Item_func_regexp subclasses.
-  */
-  bool m_is_reset_with_null_string;
-
-  Item *m_pattern{nullptr};
 };
 
 }  // namespace regexp

@@ -9372,12 +9372,6 @@ ER_MDL_OUT_OF_RESOURCES
 ER_IMPLICIT_COMPARISON_FOR_JSON
   eng "Evaluating a JSON value in SQL boolean context does an implicit comparison against JSON integer 0; if this is not what you want, consider converting JSON to a SQL numeric type with JSON_VALUE RETURNING"
 
-ER_FUNCTION_DOES_NOT_SUPPORT_CHARACTER_SET
-  eng "The function %s does not support the character set '%s'."
-
-ER_IMPOSSIBLE_STRING_CONVERSION
-  eng "Conversion from collation %s into %s impossible for %s"
-
 ER_SCHEMA_READ_ONLY
   eng "Schema '%s' is in read only mode."
 
@@ -9393,8 +9387,17 @@ ER_DISABLE_GTID_MODE_REQUIRES_ASYNC_RECONNECT_OFF
 ER_DISABLE_AUTO_POSITION_REQUIRES_ASYNC_RECONNECT_OFF
   eng "CHANGE MASTER TO MASTER_AUTO_POSITION = 0 cannot be executed because Asynchronous Replication Connection Failover is enabled i.e. CHANGE MASTER TO MANAGED = 1."
 
+ER_FUNCTION_DOES_NOT_SUPPORT_CHARACTER_SET
+  eng "The function %s does not support the character set '%s'."
+
 ER_INVALID_PARAMETER_USE
   eng "Invalid use of parameters in '%s'"
+
+ER_IMPOSSIBLE_STRING_CONVERSION
+  eng "Conversion from collation %s into %s impossible for %s"
+
+ER_CHARACTER_SET_MISMATCH
+  eng "Character set '%s' cannot be used in conjunction with '%s' in call to %s."
 
 ER_WARN_VAR_VALUE_CHANGE_NOT_SUPPORTED
   eng "Changing %s not supported on this platform. Falling back to the default."
