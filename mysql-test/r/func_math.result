@@ -1958,3 +1958,14 @@ Field	Type	Null	Key	Default	Extra
 a	int	YES		NULL	
 c	bigint	YES		NULL	
 DROP TABLE t1, t2;
+# Bug#29602947: The behavior between INSERT stmt and "PREPARE stmt and
+#               EXECUTE stmt" different
+CREATE TABLE t (a INTEGER);
+INSERT INTO t VALUES (1.0E+01+'a');
+ERROR 22007: Truncated incorrect DOUBLE value: 'a'
+PREPARE st1 FROM "INSERT INTO t VALUES (? + ?)";
+SET @a=1.0E+01;
+SET @b='a';
+EXECUTE st1 USING @a,@b;
+ERROR 22007: Truncated incorrect DOUBLE value: 'a'
+DROP TABLE t;

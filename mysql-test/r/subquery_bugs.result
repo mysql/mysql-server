@@ -1751,3 +1751,30 @@ pk	a	pk	a
 6	7	5	7
 6	7	6	7
 DROP TABLE t1;
+# Bug#20794575: Assertion failed: bit < map->n_bits
+SET optimizer_switch="semijoin=off";
+CREATE TABLE t1(a INTEGER, b INTEGER);
+CREATE TABLE t2(c INTEGER);
+SELECT b FROM t1 HAVING 1 IN
+(SELECT b FROM t2 WHERE c = 1);
+b
+SET optimizer_switch=DEFAULT;
+DROP TABLE t1, t2;
+# Bug#30753397: Assertion `!tr->derived_where_cond || tr->derived_where_cond->fixed' failed
+CREATE TABLE t(a INTEGER);
+INSERT INTO t VALUES(1),(2),(3);
+SELECT 1 = (SELECT 1
+FROM (SELECT 1
+FROM t LEFT JOIN
+(SELECT 1
+FROM t
+WHERE NOT EXISTS (SELECT 1
+FROM t
+WINDOW w1 AS(PARTITION BY a)
+)
+) AS x
+ON 1 > 2
+) AS z
+);
+ERROR 21000: Subquery returns more than 1 row
+DROP TABLE t;

@@ -1418,3 +1418,40 @@ SELECT * FROM t1 AS table1, t1 AS table2
   HAVING table1.a IN (SELECT a FROM t1);
 
 DROP TABLE t1;
+
+--echo # Bug#20794575: Assertion failed: bit < map->n_bits
+
+SET optimizer_switch="semijoin=off";
+
+CREATE TABLE t1(a INTEGER, b INTEGER);
+CREATE TABLE t2(c INTEGER);
+
+SELECT b FROM t1 HAVING 1 IN
+  (SELECT b FROM t2 WHERE c = 1);
+
+SET optimizer_switch=DEFAULT;
+
+DROP TABLE t1, t2;
+
+--echo # Bug#30753397: Assertion `!tr->derived_where_cond || tr->derived_where_cond->fixed' failed
+
+CREATE TABLE t(a INTEGER);
+
+INSERT INTO t VALUES(1),(2),(3);
+
+--error ER_SUBQUERY_NO_1_ROW
+SELECT 1 = (SELECT 1
+            FROM (SELECT 1
+                  FROM t LEFT JOIN
+                         (SELECT 1
+                          FROM t
+                          WHERE NOT EXISTS (SELECT 1
+                                            FROM t
+                                            WINDOW w1 AS(PARTITION BY a)
+                                           )
+                         ) AS x
+                         ON 1 > 2
+                  ) AS z
+           );
+
+DROP TABLE t;

@@ -720,3 +720,12 @@ DEALLOCATE PREPARE s;
 
 do null not between 1 and @undefined_var;
 do null not between @undefined_var and 1;
+
+--echo # Bug#28013997: Assertion failed: (slen % 4) == 0
+
+SET @f = _utf32 'a';
+CREATE TABLE t1 (a TIMESTAMP);
+INSERT INTO t1 VALUES ('2018-05-12 07:43:04'), ('2018-05-12 07:43:04');
+SELECT 1 FROM t1 WHERE @f<>'3761-03-28' XOR (@f:='5570-12-30') > a;
+DROP TABLE t1;
+
