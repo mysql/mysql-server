@@ -414,6 +414,38 @@ TEST_F(RoutingPluginTests, ListeningHostIsInvalid) {
 }
 #endif
 
+TEST_F(RoutingPluginTests, Ipv6LinkLocal) {
+  mysql_harness::Config cfg;
+  mysql_harness::ConfigSection &section = cfg.add("routing", "test_route");
+  section.add("destinations", "[fe80::3617:ebff:fecb:587e%3]:3306");
+  section.add("mode", "read-only");
+  section.add("bind_port", "6446");
+
+  try {
+    RoutingPluginConfig config(&section);
+    validate_socket_info_test_proxy("", &section, config);
+  } catch (const std::exception &e) {
+    FAIL() << "no exception, got: " << e.what();
+  }
+}
+
+TEST_F(RoutingPluginTests, InvalidIpv6) {
+  mysql_harness::Config cfg;
+  mysql_harness::ConfigSection &section = cfg.add("routing", "test_route");
+  section.add("destinations", "[fe80::3617:ebff:fecb:587e@3]:3306");
+  section.add("mode", "read-only");
+  section.add("bind_port", "6446");
+
+  try {
+    RoutingPluginConfig config(&section);
+    validate_socket_info_test_proxy("", &section, config);
+    FAIL() << "expected to throw, but succeeded";
+  } catch (const std::exception &e) {
+    EXPECT_THAT(e.what(), ::testing::HasSubstr(
+                              "invalid IPv6 address: illegal character(s)"));
+  }
+}
+
 int main(int argc, char *argv[]) {
   init_test_logger();
   init_windows_sockets();
