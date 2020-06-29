@@ -932,6 +932,14 @@ bool MaterializeIterator::MaterializeQueryBlock(const QueryBlock &query_block,
   JOIN *join = query_block.join;
   if (join != nullptr) {
     join->set_executed();  // The dynamic range optimizer expects this.
+
+    // TODO(sgunders): Consider doing this in some iterator instead.
+    if (join->m_windows.elements > 0 && !join->m_windowing_steps) {
+      // Initialize state of window functions as end_write_wf() will be shortcut
+      for (Window &w : join->m_windows) {
+        w.reset_all_wf_state();
+      }
+    }
   }
 
   if (query_block.subquery_iterator->Init()) {
