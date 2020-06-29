@@ -4116,6 +4116,8 @@ dict_table_t *dd_open_table_one(dd::cache::Dictionary_client *client,
     if (first_index) {
       ut_ad(m_table->space == 0);
       m_table->space = sid;
+      ut_ad(dd_table->tablespace_id() == dd::INVALID_OBJECT_ID ||
+            dd_table->tablespace_id() == index_space_id);
       m_table->dd_space_id = index_space_id;
 
       uint32 dd_fsp_flags;
@@ -5214,14 +5216,15 @@ bool dd_process_dd_tablespaces_rec(mem_heap_t *heap, const rec_t *rec,
 @param[in]	table		fts table
 @param[in,out]	dd_space_id	dd table space id
 @return true on success, false on failure. */
-bool dd_get_fts_tablespace_id(const dict_table_t *parent_table,
-                              const dict_table_t *table,
-                              dd::Object_id &dd_space_id) {
+static bool dd_get_or_assign_fts_tablespace_id(const dict_table_t *parent_table,
+                                               const dict_table_t *table,
+                                               dd::Object_id &dd_space_id) {
   THD *thd = current_thd;
   dd::cache::Dictionary_client *client = dd::get_dd_client(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(client);
 
   dd::Object_id space_id = parent_table->dd_space_id;
+  ut_ad(space_id != dd::INVALID_OBJECT_ID);
 
   dd_space_id = dd::INVALID_OBJECT_ID;
 
@@ -5242,6 +5245,7 @@ bool dd_get_fts_tablespace_id(const dict_table_t *parent_table,
   } else if (table->space != TRX_SYS_SPACE &&
              table->space != srv_tmp_space.space_id()) {
     /* This is a user table that resides in shared tablespace */
+    ut_ad(!dict_table_is_file_per_table(parent_table));
     ut_ad(!dict_table_is_file_per_table(table));
     ut_ad(DICT_TF_HAS_SHARED_SPACE(table->flags));
 
@@ -5449,7 +5453,7 @@ bool dd_create_fts_index_table(const dict_table_t *parent_table,
 
   /* Fill table space info, etc */
   dd::Object_id dd_space_id;
-  if (!dd_get_fts_tablespace_id(parent_table, table, dd_space_id)) {
+  if (!dd_get_or_assign_fts_tablespace_id(parent_table, table, dd_space_id)) {
     return (false);
   }
 
@@ -5589,7 +5593,7 @@ bool dd_create_fts_common_table(const dict_table_t *parent_table,
 
   /* Fill table space info, etc */
   dd::Object_id dd_space_id;
-  if (!dd_get_fts_tablespace_id(parent_table, table, dd_space_id)) {
+  if (!dd_get_or_assign_fts_tablespace_id(parent_table, table, dd_space_id)) {
     ut_ad(0);
     return (false);
   }
