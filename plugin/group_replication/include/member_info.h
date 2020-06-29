@@ -655,10 +655,11 @@ class Group_member_info_manager_interface {
   virtual Member_version get_group_lowest_online_version() = 0;
 
   /**
-    Pointer to a registered Group member by its backbone GCS identifier.
+    Retrieves a registered Group member by its backbone GCS identifier.
 
     @param[in] id the GCS identifier
-    @return pointer to a Group_member_info entry. NULL if not managed.
+    @return reference to a copy of Group_member_info. NULL if not managed.
+            The return value must be deallocated by the caller.
    */
   virtual Group_member_info *get_group_member_info_by_member_id(
       const Gcs_member_identifier &id) = 0;
@@ -727,6 +728,20 @@ class Group_member_info_manager_interface {
       const std::string &uuid,
       Group_member_info::Group_member_status new_status,
       Notification_context &ctx) = 0;
+
+  /**
+    Sets the identified member as unreachable.
+
+    @param[in] uuid        member uuid
+   */
+  virtual void set_member_unreachable(const std::string &uuid) = 0;
+
+  /**
+    Sets the identified member as reachable.
+
+    @param[in] uuid        member uuid
+   */
+  virtual void set_member_reachable(const std::string &uuid) = 0;
 
   /**
     Updates the GTID sets on a single member
@@ -921,6 +936,10 @@ class Group_member_info_manager : public Group_member_info_manager_interface {
   void update_member_status(const std::string &uuid,
                             Group_member_info::Group_member_status new_status,
                             Notification_context &ctx) override;
+
+  void set_member_unreachable(const std::string &uuid) override;
+
+  void set_member_reachable(const std::string &uuid) override;
 
   void update_gtid_sets(const std::string &uuid, std::string &gtid_executed,
                         std::string &purged_gtids,

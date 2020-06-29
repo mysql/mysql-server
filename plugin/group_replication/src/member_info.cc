@@ -888,13 +888,16 @@ Group_member_info_manager::get_group_member_info_by_member_id_internal(
 Group_member_info *
 Group_member_info_manager::get_group_member_info_by_member_id(
     const Gcs_member_identifier &id) {
-  Group_member_info *member = nullptr;
+  Group_member_info *member_copy = nullptr;
   mysql_mutex_lock(&update_lock);
 
-  member = get_group_member_info_by_member_id_internal(id);
+  Group_member_info *member = get_group_member_info_by_member_id_internal(id);
+  if (member != nullptr) {
+    member_copy = new Group_member_info(*member);
+  }
 
   mysql_mutex_unlock(&update_lock);
-  return member;
+  return member_copy;
 }
 
 Group_member_info::Group_member_status
@@ -1020,6 +1023,25 @@ void Group_member_info_manager::update_member_status(
   }
 
   mysql_mutex_unlock(&update_lock);
+}
+
+void Group_member_info_manager::set_member_unreachable(
+    const std::string &uuid) {
+  MUTEX_LOCK(lock, &update_lock);
+
+  auto it = members->find(uuid);
+  if (it != members->end()) {
+    (*it).second->set_unreachable();
+  }
+}
+
+void Group_member_info_manager::set_member_reachable(const std::string &uuid) {
+  MUTEX_LOCK(lock, &update_lock);
+
+  auto it = members->find(uuid);
+  if (it != members->end()) {
+    (*it).second->set_reachable();
+  }
 }
 
 void Group_member_info_manager::update_gtid_sets(const string &uuid,
