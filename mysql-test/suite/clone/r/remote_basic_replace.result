@@ -175,7 +175,7 @@ CLONE INSTANCE FROM USER@HOST:PORT IDENTIFIED BY '' ;
 ERROR HY000: Schema 'schema_read_only' is in read only mode.
 select ID, STATE, ERROR_NO from performance_schema.clone_status;
 ID	STATE	ERROR_NO
-1	Failed	3987
+1	Failed	3989
 select ID, STAGE, STATE from performance_schema.clone_progress;
 ID	STAGE	STATE
 1	DROP DATA	Failed

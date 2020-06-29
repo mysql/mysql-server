@@ -7,13 +7,13 @@ select @@global.innodb_extend_and_initialize;
 1
 SET @@GLOBAL.INNODB_EXTEND_AND_INITIALIZE = FALSE;
 Warnings:
-Warning	3995	Changing innodb_extend_and_initialize not supported on this platform. Falling back to the default.
+Warning	3996	Changing innodb_extend_and_initialize not supported on this platform. Falling back to the default.
 select @@global.innodb_extend_and_initialize;
 @@global.innodb_extend_and_initialize
 1
 SET PERSIST INNODB_EXTEND_AND_INITIALIZE = FALSE;
 Warnings:
-Warning	3995	Changing innodb_extend_and_initialize not supported on this platform. Falling back to the default.
+Warning	3996	Changing innodb_extend_and_initialize not supported on this platform. Falling back to the default.
 select @@global.innodb_extend_and_initialize;
 @@global.innodb_extend_and_initialize
 1
