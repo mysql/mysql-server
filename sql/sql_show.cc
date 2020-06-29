@@ -2283,6 +2283,12 @@ class Fill_process_list : public Do_THD_Impl {
                   strcmp(inspect_sctx_user.str, user))))
       return;
 
+    DBUG_EXECUTE_IF(
+        "test_fill_proc_with_x_root",
+        if (0 == strcmp(inspect_sctx_user.str, "x_root")) {
+          DEBUG_SYNC(m_client_thd, "fill_proc_list_with_x_root");
+        });
+
     TABLE *table = m_tables->table;
     restore_record(table, s->default_values);
 

@@ -60,6 +60,7 @@
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/conn_handler/connection_handler_manager.h"
 #include "sql/current_thd.h"
+#include "sql/debug_sync.h"          // DEBUG_SYNC
 #include "sql/derror.h"              // ER_DEFAULT
 #include "sql/log.h"                 // Query log
 #include "sql/mysqld.h"              // current_thd
@@ -1017,6 +1018,13 @@ bool Srv_session::close() {
 
   thd.get_stmt_da()->reset_diagnostics_area();
 
+  // DEBUG_SYNC control block is released under call to
+  // `thd.release_resource`, thus we can't put this sync
+  // point directly before `pop_protocol`.
+  // Second constrain is that `THD::disconnect` marks
+  // this connection as killed, which disables DEBUG_SYNC.
+  DEBUG_SYNC(&thd, "srv_session_close");
+
   thd.disconnect();
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
@@ -1025,11 +1033,11 @@ bool Srv_session::close() {
 
   thd.release_resources();
 
+  Global_THD_manager::get_instance()->remove_thd(&thd);
+
   mysql_mutex_lock(&thd.LOCK_thd_protocol);
   thd.pop_protocol();
   mysql_mutex_unlock(&thd.LOCK_thd_protocol);
-
-  Global_THD_manager::get_instance()->remove_thd(&thd);
 
   Connection_handler_manager::dec_connection_count();
 
