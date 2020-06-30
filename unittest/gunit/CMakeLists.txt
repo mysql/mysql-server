@@ -118,6 +118,7 @@ SET(TESTS
   dynarray
   filesort_buffer
   filesort_compare
+  filesort_mergechunk
   float_compare
   inplace_vector
   integer_digits

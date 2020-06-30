@@ -272,16 +272,6 @@ void Sort_param::try_to_pack_addons() {
   AddWithSaturate(sz, &m_fixed_rec_length);
 }
 
-int Sort_param::count_varlen_keys() const {
-  int retval = 0;
-  for (const auto &sf : local_sortorder) {
-    if (sf.is_varlen) {
-      ++retval;
-    }
-  }
-  return retval;
-}
-
 int Sort_param::count_json_keys() const {
   int retval = 0;
   for (const auto &sf : local_sortorder) {
@@ -1759,42 +1749,6 @@ static uint read_to_buffer(IO_CACHE *fromfile, Merge_chunk *merge_chunk,
 
   return 0;
 } /* read_to_buffer */
-
-namespace {
-
-/**
-  This struct is used for merging chunks for filesort()
-  For filesort() with fixed-size keys we use memcmp to compare rows.
-  For variable length keys, we use cmp_varlen_keys to compare rows.
- */
-struct Merge_chunk_greater {
-  size_t m_len;
-  Sort_param *m_param;
-
-  // CTOR for filesort() with fixed-size keys
-  explicit Merge_chunk_greater(size_t len) : m_len(len), m_param(nullptr) {}
-
-  // CTOR for filesort() with varlen keys
-  explicit Merge_chunk_greater(Sort_param *param) : m_len(0), m_param(param) {}
-
-  bool operator()(Merge_chunk *a, Merge_chunk *b) const {
-    return key_is_greater_than(a->current_key(), b->current_key());
-  }
-
-  bool key_is_greater_than(uchar *key1, uchar *key2) const {
-    // Fixed len keys
-    if (m_len) return memcmp(key1, key2, m_len) > 0;
-
-    if (m_param)
-      return !cmp_varlen_keys(m_param->local_sortorder, m_param->use_hash, key1,
-                              key2);
-
-    // We can actually have zero-length sort key for filesort().
-    return false;
-  }
-};
-
-}  // namespace
 
 /**
   Merge buffers to one buffer.

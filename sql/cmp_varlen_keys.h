@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,6 +39,8 @@
   @param  s1 pointer to record 1
   @param  s2 pointer to record 2
   @return true/false according to sorting order
+          true  : s1 < s2
+          false : s1 >= s2
  */
 inline bool cmp_varlen_keys(
     Bounds_checked_array<st_sort_field> sort_field_array, bool use_hash,
@@ -96,5 +98,37 @@ inline bool cmp_varlen_keys(
     return false;
   }
 }
+
+/**
+  This struct is used for merging chunks for filesort()
+  For filesort() with fixed-size keys we use memcmp to compare rows.
+  For variable length keys, we use cmp_varlen_keys to compare rows.
+ */
+struct Merge_chunk_greater {
+  size_t m_len;
+  Sort_param *m_param;
+
+  // CTOR for filesort() with fixed-size keys
+  explicit Merge_chunk_greater(size_t len) : m_len(len), m_param(nullptr) {}
+
+  // CTOR for filesort() with varlen keys
+  explicit Merge_chunk_greater(Sort_param *param) : m_len(0), m_param(param) {}
+
+  bool operator()(Merge_chunk *a, Merge_chunk *b) const {
+    return key_is_greater_than(a->current_key(), b->current_key());
+  }
+
+  bool key_is_greater_than(uchar *key1, uchar *key2) const {
+    // Fixed len keys
+    if (m_len) return memcmp(key1, key2, m_len) > 0;
+
+    if (m_param)
+      return cmp_varlen_keys(m_param->local_sortorder, m_param->use_hash, key2,
+                             key1);
+
+    // We can actually have zero-length sort key for filesort().
+    return false;
+  }
+};
 
 #endif  // CMP_VARLEN_KEYS_INCLUDED
