@@ -269,16 +269,23 @@ class mem_root_deque {
 #endif
     }
 
-    /// For iterator: Copy constructor (redundant).
     /// For const_iterator: Implicit conversion from iterator.
+    /// This is written in a somewhat cumbersome fashion to avoid
+    /// declaring an explicit copy constructor for iterator,
+    /// which causes compiler warnings other places for some compilers.
     // NOLINTNEXTLINE(google-explicit-constructor): Intentional.
-    Iterator(const Iterator<std::remove_const_t<Iterator_element_type>> &other)
+    template <
+        class T,
+        typename = std::enable_if_t<
+            std::is_const<Iterator_element_type>::value &&
+            std::is_same<typename T::value_type,
+                         std::remove_const_t<Iterator_element_type>>::value>>
+    Iterator(const T &other)
         : m_deque(other.m_deque), m_physical_idx(other.m_physical_idx) {
 #ifndef NDEBUG
       m_generation = other.m_generation;
 #endif
     }
-    Iterator &operator=(const Iterator &other) = default;
 
     // Iterator (required for InputIterator).
     Iterator_element_type &operator*() const {

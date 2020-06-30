@@ -246,6 +246,13 @@ TEST(MemRootDequeTest, ReverseIteration) {
   }
 }
 
+TEST(MemRootDequeTest, ConvertIterators) {
+  MEM_ROOT mem_root;
+  mem_root_deque<int> d(&mem_root);
+  mem_root_deque<int>::iterator i = d.begin();
+  mem_root_deque<int>::const_iterator j{i};
+}
+
 // Microbenchmarks.
 
 template <class T>
