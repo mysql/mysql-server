@@ -10547,6 +10547,14 @@ byte *fil_tablespace_redo_extend(byte *ptr, const byte *end,
   bool success = fil_tablespace_open_for_recovery(page_id.space());
 
   if (!success) {
+    /* fil_tablespace_open_for_recovery may fail if the tablespace being
+    opened is an undo tablespace which is also marked for truncation.
+    In such a case, skip processing this redo log further and goto the
+    next record without doing anything more here. */
+    if (fsp_is_undo_tablespace(page_id.space()) &&
+        undo::is_active_truncate_log_present(undo::id2num(page_id.space()))) {
+      return ptr;
+    }
     return nullptr;
   }
 
