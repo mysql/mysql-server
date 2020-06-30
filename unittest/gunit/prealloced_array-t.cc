@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -524,6 +524,19 @@ TEST_F(PreallocedArrayTest, ShrinkToFit) {
   // After shrink_to_fit(), the capacity should shrink to the prealloc size.
   array.shrink_to_fit();
   EXPECT_EQ(1U, array.capacity());
+}
+
+// https://docs.microsoft.com/en-us/cpp/overview/cpp-conformance-improvements?view=vs-2019#implicit-conversion-of-integral-constant-expressions-to-null-pointer
+TEST_F(PreallocedArrayTest, CorrectOverloadIsChosen) {
+  Prealloced_array<int *, 4> array{PSI_NOT_INSTRUMENTED};
+  EXPECT_EQ(0, array.size());
+
+  int x = 2;
+  Prealloced_array<int *, 4> array2{&x};
+  EXPECT_EQ(1, array2.size());
+
+  Prealloced_array<int64_t, 4> array3{x};
+  EXPECT_EQ(1, array3.size());
 }
 
 }  // namespace prealloced_array_unittest
