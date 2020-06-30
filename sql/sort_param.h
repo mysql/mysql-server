@@ -23,6 +23,8 @@
 #ifndef SORT_PARAM_INCLUDED
 #define SORT_PARAM_INCLUDED
 
+#include <algorithm>
+
 #include "field_types.h"   // enum_field_types
 #include "my_base.h"       // ha_rows
 #include "my_byteorder.h"  // uint4korr
@@ -317,6 +319,14 @@ class Sort_param {
                          const Prealloced_array<TABLE *, 4> &tables,
                          ha_rows maxrows, bool remove_duplicates);
 
+  /**
+    Initialize this struct for unit testing.
+  */
+  void init_for_unittest(Bounds_checked_array<st_sort_field> sf_array) {
+    local_sortorder = sf_array;
+    m_num_varlen_keys = count_varlen_keys();
+  }
+
   /// Enables the packing of addons if possible.
   void try_to_pack_addons();
 
@@ -416,7 +426,11 @@ class Sort_param {
 
  private:
   /// Counts number of varlen keys
-  int count_varlen_keys() const;
+  int count_varlen_keys() const {
+    return std::count_if(local_sortorder.begin(), local_sortorder.end(),
+                         [](const auto &sf) { return sf.is_varlen; });
+  }
+
   /// Counts number of JSON keys
   int count_json_keys() const;
 
