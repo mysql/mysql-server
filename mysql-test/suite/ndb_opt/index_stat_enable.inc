@@ -2,7 +2,6 @@
 # caller sets @is_enable 0/1
 # based on global variable, local follows global
 # do nothing if value is already correct
-# setting OFF drops stats tables to avoid MTR diff
 
 let is_enable_on = `select @is_enable and not @@global.ndb_index_stat_enable`;
 let is_enable_off = `select not @is_enable and @@global.ndb_index_stat_enable`;
@@ -20,7 +19,7 @@ if ($is_enable_on)
   eval set @@global.ndb_index_stat_enable = 1;
   eval set @@local.ndb_index_stat_enable = 1;
 
-  # stats thread creates stats tables
+  # stats thread creates stats tables in NDB
 }
 
 if ($is_enable_off)
@@ -28,10 +27,6 @@ if ($is_enable_off)
   # first local
   eval set @@local.ndb_index_stat_enable = 0;
   eval set @@global.ndb_index_stat_enable = 0;
-
-  # stats thread does not (and must not) drop stats tables
-  drop table mysql.ndb_index_stat_sample;
-  drop table mysql.ndb_index_stat_head;
 }
 
 --echo # ndb_index_stat_enable - after

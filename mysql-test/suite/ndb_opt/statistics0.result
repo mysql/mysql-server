@@ -11,8 +11,6 @@ Variable_name	Value
 ndb_index_stat_enable	ON
 set @@local.ndb_index_stat_enable = 0;
 set @@global.ndb_index_stat_enable = 0;
-drop table mysql.ndb_index_stat_sample;
-drop table mysql.ndb_index_stat_head;
 # ndb_index_stat_enable - after
 show global variables like 'ndb_index_stat_enable';
 Variable_name	Value

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -79,10 +79,6 @@ bool ndb_name_is_temp(const char *name) {
 
 bool ndb_name_is_blob_prefix(const char *name) {
   return is_prefix(name, "NDB$BLOB");
-}
-
-bool ndb_name_is_index_stat(const char *name) {
-  return is_prefix(name, "ndb_index_stat");
 }
 
 bool ndb_name_is_fk_mock_prefix(const char *name) {

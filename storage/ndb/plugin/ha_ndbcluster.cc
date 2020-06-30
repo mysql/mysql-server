@@ -11743,18 +11743,18 @@ static int ndbcluster_discover(handlerton *, THD *thd, const char *db,
     return 1;
   }
 
-#ifndef BUG27543602
-  // Temporary workaround for Bug 27543602
-  if (strcmp("mysql", db) == 0 &&
-      (strcmp("ndb_index_stat_head", name) == 0 ||
-       strcmp("ndb_index_stat_sample", name) == 0)) {
+  // Don't allow discovery of the index stat tables which aren't synchronized
+  // to the DD by the binlog thread due to a timing issue post initial system
+  // restarts. The table contents are incomprehensible without some kind of
+  // parsing and are thus not exposed to the MySQL Server.
+  if (!strcmp("mysql", db) && (!strcmp("ndb_index_stat_head", name) ||
+                               !strcmp("ndb_index_stat_sample", name))) {
     thd_ndb->push_warning(
-        "The table '%s' exists but cannot be installed into "
-        "DD. The table can still be accessed using NDB tools",
-        name);
+        "NDB index statistics tables are not exposed to the "
+        "MySQL Server. The tables can be accessed using NDB "
+        "tools such as ndb_select_all");
     return 1;
   }
-#endif
 
   if (ndb->setDatabaseName(db)) {
     thd_ndb->push_ndb_error_warning(ndb->getNdbError());

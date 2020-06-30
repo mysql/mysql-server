@@ -174,15 +174,11 @@ bool ndb_get_tablespace_names(
  * @param dict              NDB Dictionary
  * @param schema_name       Schema name
  * @param table_names [out] List of table names
- * @param skip_util_tables  Controls whether the NDB utility tables i.e.
- *                          ndb_schema, ndb_schema_result, and ndb_sql_metadata
- *                          are included in list of table names returned or not
  * @return true on success, false on failure
  */
-bool ndb_get_table_names_in_schema(const NdbDictionary::Dictionary *dict,
-                                   const std::string &schema_name,
-                                   std::unordered_set<std::string> *table_names,
-                                   bool skip_util_tables = true);
+bool ndb_get_table_names_in_schema(
+    const NdbDictionary::Dictionary *dict, const std::string &schema_name,
+    std::unordered_set<std::string> *table_names);
 
 /**
  * @brief Retrieves list of undofile names assigned to a logfile group from NDB

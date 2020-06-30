@@ -6755,6 +6755,8 @@ restart_cluster_failure:
       ndb_milli_sleep(1000);
     }  // while (!ndb_binlog_setup())
 
+    log_and_clear_thd_conditions(thd, condition_logging_level::WARNING);
+
     DBUG_ASSERT(ndbcluster_hton->slot != ~(uint)0);
 
     /*
