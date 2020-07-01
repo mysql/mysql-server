@@ -1118,6 +1118,22 @@ bool Ndb_schema_dist_client::log_schema_op_impl(
   // the nodeid which the coordinator and participants listen to
   const uint32 own_nodeid = g_ndb_cluster_connection->node_id();
 
+  if (DBUG_EVALUATE_IF("ndb_schema_dist_client_killed_before_write", true,
+                       false)) {
+    // simulate query interruption thd->kill
+    m_thd->killed = THD::KILL_QUERY;
+  }
+
+  // Abort the distribution before logging the schema op to the ndb_schema table
+  // if the thd has been killed. Once the schema op is logged to the table,
+  // participants cannot be forced to abort even if the thd gets killed.
+  if (thd_killed(m_thd)) {
+    ndb_schema_object->fail_schema_op(Ndb_schema_dist::CLIENT_KILLED,
+                                      "Client was killed");
+    ndb_log_warning("Distribution of '%s' - aborted!", op_name.c_str());
+    return false;
+  }
+
   // Write schema operation to the table
   if (DBUG_EVALUATE_IF("ndb_schema_write_fail", true, false) ||
       !write_schema_op_to_NDB(ndb, query, query_length, db, table_name,
@@ -1127,6 +1143,13 @@ bool Ndb_schema_dist_client::log_schema_op_impl(
                                       "Failed to write schema operation");
     ndb_log_warning("Failed to write the schema op into the ndb_schema table");
     return false;
+  }
+
+  if (DBUG_EVALUATE_IF("ndb_schema_dist_client_killed_after_write", true,
+                       false)) {
+    // simulate query interruption thd->kill to test that
+    // they are ignored after the schema has been logged already.
+    m_thd->killed = THD::KILL_QUERY;
   }
 
   ndb_log_verbose(19, "Distribution of '%s' - started!", op_name.c_str());
@@ -1158,12 +1181,23 @@ bool Ndb_schema_dist_client::log_schema_op_impl(
       break;
     }
 
-    if (thd_killed(m_thd) ||
-        DBUG_EVALUATE_IF("ndb_schema_dist_client_killed", true, false)) {
-      ndb_schema_object->fail_schema_op(Ndb_schema_dist::CLIENT_KILLED,
-                                        "Client was killed");
-      ndb_log_warning("Distribution of '%s' - killed!", op_name.c_str());
-      break;
+    // Once the schema op has been written to the ndb_schema table, it is really
+    // hard to abort the distribution on the participants. If the schema op is
+    // failed at this point and returned before the participants could reply,
+    // the GSL will be released and thus allowing a subsequent DDL to execute in
+    // the cluster while the participants are still applying the previous
+    // change. If the new DDL is conflicting with the previous one, it can
+    // lead to inconsistencies across the DDs of MySQL Servers connected to the
+    // cluster. To prevent this, the client silently ignores if the thd has been
+    // killed after the ndb_schema table write. Regardless of the type of kill,
+    // the client waits for the coordinator to complete the rest of the protocol
+    // (or) timeout on its own (or) detect a shutdown and fail the schema op.
+    if (thd_killed(m_thd)) {
+      ndb_log_verbose(
+          19,
+          "Distribution of '%s' - client killed but waiting for co-ordinator "
+          "to complete!",
+          op_name.c_str());
     }
   }
 
@@ -2052,6 +2086,11 @@ class Ndb_schema_event_handler {
   */
   bool ack_schema_op_with_result(const Ndb_schema_op *schema) const {
     DBUG_TRACE;
+
+    if (DBUG_EVALUATE_IF("ndb_skip_participant_ack", true, false)) {
+      // Skip replying to the schema operation
+      return true;
+    }
 
     // Should only call this function if ndb_schema has a schema_op_id
     // column which enabled the client to send schema->schema_op_id != 0
@@ -3876,13 +3915,6 @@ class Ndb_schema_event_handler {
 
         // Add active schema operation to coordinator
         m_schema_dist_data.add_active_schema_op(ndb_schema_object.get());
-
-        // Test schema dist client killed
-        if (DBUG_EVALUATE_IF("ndb_schema_dist_client_killed", true, false)) {
-          // Wait until the Client has set "coordinator completed"
-          while (!ndb_schema_object->check_coordinator_completed())
-            ndb_milli_sleep(100);
-        }
       }
 
       // Set the custom lock_wait_timeout for schema distribution
