@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -831,7 +831,8 @@ static bool analyze_timestamp_field_constant(THD *thd, const Item_field *f,
         zeros += ltime.month == 0;
         zeros += ltime.day == 0;
         if (zeros == 0 || zeros == 3) {  // Cf. NO_ZERO_DATE, NO_ZERO_IN_DATE
-          datetime_with_no_zero_in_date_to_timeval(thd, &ltime, &tm, &warnings);
+          datetime_with_no_zero_in_date_to_timeval(&ltime, *thd->time_zone(),
+                                                   &tm, &warnings);
           if ((warnings & MYSQL_TIME_WARN_OUT_OF_RANGE) != 0) {
             /*
               For RP_OUTSIDE_HIGH, this check may not catch case where field

@@ -1,0 +1,57 @@
+--echo #
+--echo # This file contains tests for the AT TIME ZONE operator.
+--echo #
+
+SET time_zone = '+01:00';
+
+SELECT cast(TIMESTAMP'2019-10-10 10:11:12' AT TIME ZONE 'UTC' AS DATETIME);
+SELECT cast(TIMESTAMP'2019-10-10 10:11:12' AT TIME ZONE '+00:00' AS DATETIME);
+SELECT cast(TIMESTAMP'2019-10-10 10:11:12+00:00' AT TIME ZONE '+00:00' AS DATETIME);
+--echo # Casting from invalid types.
+--error ER_INVALID_CAST
+SELECT cast( TIME'10:10' AT TIME ZONE 'UTC' AS DATETIME );
+--error ER_INVALID_CAST
+SELECT cast( '2019-10-10' AT TIME ZONE 'UTC' AS DATETIME );
+--error ER_INVALID_CAST
+SELECT cast( 123 AT TIME ZONE 'UTC' AS DATETIME );
+
+--echo # Table data
+CREATE TABLE t1 ( a TIMESTAMP, b DATETIME );
+
+INSERT INTO t1 VALUES ( '2019-10-10 10:11:12+00:00', '2019-10-10 10:11:12+00:00' );
+
+SELECT * FROM t1;
+
+SELECT cast( a AT TIME ZONE '+00:00' AS DATETIME ) FROM t1;
+
+--error ER_INVALID_CAST
+SELECT cast( b AT TIME ZONE '+00:00' AS DATETIME ) FROM t1;
+
+SET time_zone = '+12:34';
+
+SELECT cast( a AT TIME ZONE '+00:00' AS DATETIME ) FROM t1;
+
+--error ER_INVALID_CAST
+SELECT cast( b AT TIME ZONE '+00:00' AS DATETIME ) FROM t1;
+
+DROP TABLE t1;
+
+--error ER_INVALID_CAST
+SELECT cast( '2019-10-10 10:11' AT TIME ZONE 'UTC' AS DATETIME );
+
+SET time_zone = DEFAULT;
+
+--echo #
+--echo # Bug#31405594: WL12535: BACKTRACE:ITEM_FUNC_AT_TIME_ZONE |
+--echo #               SELECT_LEX_UNIT::EXECUTEITERATORQUER
+--echo #
+
+RENAME TABLE mysql.time_zone TO time_zone_backup;
+
+CREATE TABLE t1 ( a TIMESTAMP );
+#--error ER_UNKNOWN_TIME_ZONE
+#SELECT cast( a AT TIME ZONE 'UTC' AS DATETIME ) FROM t1;
+
+DROP TABLE t1;
+
+RENAME TABLE time_zone_backup TO mysql.time_zone;

@@ -970,6 +970,68 @@ void Item_time_literal::print(const THD *, String *str, enum_query_type) const {
   str->append('\'');
 }
 
+bool Item_func_at_time_zone::resolve_type(THD *thd) {
+  if (check_type()) return true;
+
+  if (strcmp(specifier_string(), "+00:00") != 0 &&
+      (m_is_interval || strcmp(specifier_string(), "UTC") != 0)) {
+    my_error(ER_UNKNOWN_TIME_ZONE, MYF(0), specifier_string());
+    return true;
+  }
+
+  return set_time_zone(thd);
+}
+
+bool Item_func_at_time_zone::set_time_zone(THD *thd) {
+  String s(m_specifier_string, strlen(m_specifier_string),
+           &my_charset_utf8_bin);
+  m_tz = my_tz_find(thd, &s);
+  if (m_tz == nullptr) {
+    my_error(ER_UNKNOWN_TIME_ZONE, MYF(0), m_specifier_string);
+    return true;
+  }
+  return false;
+}
+
+bool Item_func_at_time_zone::get_date(MYSQL_TIME *res, my_time_flags_t flags) {
+  timeval tm;
+  int warnings = 0;
+
+  if (args[0]->data_type() == MYSQL_TYPE_TIMESTAMP) {
+    if (args[0]->get_timeval(&tm, &warnings)) {
+      null_value = true;
+      return true;
+    }
+
+    m_tz->gmt_sec_to_TIME(res, tm.tv_sec);
+    return warnings != 0;
+  }
+
+  bool is_error = args[0]->get_date(res, flags);
+  null_value = args[0]->null_value;
+  if (is_error || null_value) return true;
+  // Datetime value is in local time zone, convert to UTC:
+  if (datetime_to_timeval(res, *current_thd->time_zone(), &tm, &warnings))
+    return true;  // Value is out of the supported range
+  // Finally, convert the temporal value to the desired time zone:
+  m_tz->gmt_sec_to_TIME(res, tm.tv_sec);
+  return warnings != 0;
+}
+
+bool Item_func_at_time_zone::check_type() const {
+  if (args[0]->data_type() == MYSQL_TYPE_TIMESTAMP) return false;
+  // A NULL literal must be allowed, and it has this type.
+  if (args[0]->data_type() == MYSQL_TYPE_NULL) return false;
+
+  if (args[0]->type() == Item::FUNC_ITEM &&
+      down_cast<const Item_func *>(args[0])->functype() ==
+          Item_func::DATETIME_LITERAL)
+    return false;
+
+  my_error(ER_INVALID_CAST, MYF(0), "TIMESTAMP WITH TIME ZONE");
+  return true;
+}
+
 longlong Item_func_period_add::val_int() {
   DBUG_ASSERT(fixed == 1);
   longlong period = args[0]->val_int();

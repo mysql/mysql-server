@@ -2123,7 +2123,7 @@ bool Field::get_timestamp(struct timeval *tm, int *warnings) const {
   MYSQL_TIME ltime;
   DBUG_ASSERT(!is_null());
   return get_date(&ltime, TIME_FUZZY_DATE) ||
-         datetime_to_timeval(current_thd, &ltime, tm, warnings);
+         datetime_to_timeval(&ltime, *current_thd->time_zone(), tm, warnings);
 }
 
 /**
@@ -4892,13 +4892,14 @@ void Field_temporal_with_date_and_time::store_timestamp(
 }
 
 bool Field_temporal_with_date_and_time::convert_TIME_to_timestamp(
-    THD *thd, const MYSQL_TIME *ltime, struct timeval *tm, int *warnings) {
+    const MYSQL_TIME *ltime, const Time_zone &tz, struct timeval *tm,
+    int *warnings) {
   /*
     No need to do check_date(TIME_NO_ZERO_IN_DATE),
     because it has been done earlier in
     store_time(), number_to_datetime() or str_to_datetime().
   */
-  if (datetime_with_no_zero_in_date_to_timeval(thd, ltime, tm, warnings)) {
+  if (datetime_with_no_zero_in_date_to_timeval(ltime, tz, tm, warnings)) {
     tm->tv_sec = tm->tv_usec = 0;
     return true;
   }
@@ -4994,7 +4995,7 @@ type_conversion_status Field_timestamp::store_internal(const MYSQL_TIME *ltime,
                                                        int *warnings) {
   THD *thd = table ? table->in_use : current_thd;
   struct timeval tm;
-  convert_TIME_to_timestamp(thd, ltime, &tm, warnings);
+  convert_TIME_to_timestamp(ltime, *thd->time_zone(), &tm, warnings);
   const type_conversion_status error =
       time_warning_to_type_conversion_status(*warnings);
   store_timestamp_internal(&tm);
@@ -5158,7 +5159,7 @@ type_conversion_status Field_timestampf::store_internal(const MYSQL_TIME *ltime,
                                                         int *warnings) {
   THD *thd = table ? table->in_use : current_thd;
   struct timeval tm;
-  convert_TIME_to_timestamp(thd, ltime, &tm, warnings);
+  convert_TIME_to_timestamp(ltime, *thd->time_zone(), &tm, warnings);
   const type_conversion_status error =
       time_warning_to_type_conversion_status(*warnings);
   store_timestamp_internal(&tm);

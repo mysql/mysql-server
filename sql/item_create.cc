@@ -34,6 +34,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <sys/types.h>
+
 #include <algorithm>
 #include <cctype>
 #include <iterator>
@@ -1960,6 +1961,7 @@ static bool validate_cast_type_and_extract_length(
   /* purecov: end */
 }
 
+/// This function does not store the reference to `type`.
 Item *create_func_cast(THD *thd, const POS &pos, Item *arg,
                        const Cast_type &type, bool as_array) {
   int64_t length = 0;

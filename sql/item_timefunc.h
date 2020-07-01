@@ -1028,6 +1028,58 @@ class Item_datetime_literal final : public Item_datetime_func {
   bool eq(const Item *item, bool binary_cmp) const override;
 };
 
+/**
+  This function implements the `AT TIME ZONE` operator, which casts a temporal
+  value to a temporal with time zone.
+
+  This function is hidden from the user except when used in a cast() operation,
+  the reason being that it adds time zone information to a temporal value, and
+  we don't currently have a type that corresponds to such a value. Hence the
+  only way to evaluate this function is by a concomitant cast to a temporal
+  without time zone designation. However, the value is not converted according
+  to the current time zone as is normally the case. For `TIMESTAMP`, this means
+  that the value is converted to the time zone given as argument to this
+  function rather than the session's time zone. And as we currently only support
+  the UTC time zone or the equivalent `INTERVAL '+00:00'`, so in practice the
+  value is not converted at all. This is a bit similar to the unix_timestamp()
+  function, but that one converts any argument (DATETIME, TIME) to UTC from the
+  session's time zone. This operator only accepts `TIMESTAMP` values.
+*/
+class Item_func_at_time_zone final : public Item_datetime_func {
+ public:
+  Item_func_at_time_zone(const POS &pos, Item *datetime,
+                         const char *specifier_string, bool is_interval)
+      : Item_datetime_func(pos, datetime),
+        m_specifier_string(specifier_string),
+        m_is_interval(is_interval) {}
+
+  bool resolve_type(THD *) override;
+
+  const char *func_name() const override { return "time_zone"; }
+
+  bool set_time_zone(THD *thd);
+
+  bool get_date(MYSQL_TIME *res, my_time_flags_t) override;
+
+  const char *specifier_string() const { return m_specifier_string; }
+
+ protected:
+  bool check_type() const;
+
+ private:
+  /// The time zone that the specifier string argument resolves to.
+  const Time_zone *m_tz{nullptr};
+
+  /// The specifier string argument, not used after resolution.
+  const char *m_specifier_string;
+
+  /**
+    Whether the syntax used the `INTERVAL` construction. We have no interval
+    type.
+  */
+  bool m_is_interval;
+};
+
 /// Abstract CURTIME function. Children should define what time zone is used.
 class Item_func_curtime : public Item_time_func {
   typedef Item_time_func super;

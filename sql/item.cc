@@ -79,6 +79,7 @@
 #include "sql/sql_view.h"  // VIEW_ANY_ACL
 #include "sql/system_variables.h"
 #include "sql/thd_raii.h"
+#include "sql/tztime.h"  // my_tz_UTC
 #include "template_utils.h"
 #include "typelib.h"
 #include "unsafe_string_append.h"
@@ -1415,7 +1416,7 @@ bool Item::get_timeval(struct timeval *tm, int *warnings) {
     if (null_value) return true; /* Value is NULL */
     goto zero;                   /* Could not extract date from the value */
   }
-  if (datetime_to_timeval(current_thd, &ltime, tm, warnings))
+  if (datetime_to_timeval(&ltime, *current_thd->time_zone(), tm, warnings))
     goto zero;  /* Value is out of the supported range */
   return false; /* Value is a good Unix timestamp */
 zero:

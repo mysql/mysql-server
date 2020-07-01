@@ -2686,3 +2686,49 @@ SELECT @var;
 SELECT @var;
 @var
 4
+#
+# <time zone> syntax.
+#
+SET time_zone = '+01:00';
+SELECT cast( DATE'2019-10-10' AT LOCAL AS DATETIME );
+ERROR 42000: This version of MySQL doesn't yet support 'AT LOCAL'
+SELECT cast( DATE'2019-10-10' AT TIME ZONE 'UTC' AS DATETIME );
+ERROR HY000: Cannot cast value to TIMESTAMP WITH TIME ZONE.
+SELECT cast( TIME'10:10' AT LOCAL AS DATETIME );
+ERROR 42000: This version of MySQL doesn't yet support 'AT LOCAL'
+SELECT cast( TIME'10:10' AT TIME ZONE '+01:00' AS DATETIME );
+ERROR HY000: Cannot cast value to TIMESTAMP WITH TIME ZONE.
+SELECT cast( TIME'10:10' AT TIME ZONE INTERVAL 'UTC' AS DATETIME );
+ERROR HY000: Cannot cast value to TIMESTAMP WITH TIME ZONE.
+SELECT cast( TIME'10:10' AT TIME ZONE '' AS DATETIME );
+ERROR HY000: Cannot cast value to TIMESTAMP WITH TIME ZONE.
+SELECT cast( TIME'10:10' AT TIME ZONE INTERVAL '' AS DATETIME );
+ERROR HY000: Cannot cast value to TIMESTAMP WITH TIME ZONE.
+SELECT cast( TIMESTAMP'2019-10-10 10:11:12' AT LOCAL AS DATETIME );
+ERROR 42000: This version of MySQL doesn't yet support 'AT LOCAL'
+SELECT cast( NULL AT TIME ZONE 'UTC' AS DATETIME );
+cast( NULL AT TIME ZONE 'UTC' AS DATETIME )
+NULL
+# Casting to prohibited types
+SELECT cast( TIMESTAMP'2019-10-10 10:40:00' AT TIME ZONE 'UTC' AS BINARY );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'BINARY )' at line 1
+SELECT cast( TIMESTAMP'2019-10-10 10:40:00' AT TIME ZONE 'UTC' AS CHAR );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CHAR )' at line 1
+SELECT cast( TIMESTAMP'2019-10-10 10:40:00' AT TIME ZONE 'UTC' AS DATE );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DATE )' at line 1
+SELECT cast( TIMESTAMP'2019-10-10 10:40:00' AT TIME ZONE 'UTC' AS DECIMAL );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DECIMAL )' at line 1
+SELECT cast( TIMESTAMP'2019-10-10 10:40:00' AT TIME ZONE 'UTC' AS DOUBLE );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DOUBLE )' at line 1
+SELECT cast( TIMESTAMP'2019-10-10 10:40:00' AT TIME ZONE 'UTC' AS FLOAT );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'FLOAT )' at line 1
+SELECT cast( TIMESTAMP'2019-10-10 10:40:00' AT TIME ZONE 'UTC' AS SIGNED INTEGER );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SIGNED INTEGER )' at line 1
+SELECT cast( TIMESTAMP'2019-10-10 10:40:00' AT TIME ZONE 'UTC' AS TIME );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'TIME )' at line 1
+SELECT cast( TIMESTAMP'2019-10-10 10:40:00' AT TIME ZONE 'UTC' AS UNSIGNED INTEGER );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNSIGNED INTEGER )' at line 1
+SELECT cast( TIMESTAMP'2019-10-10 10:40:00' AT TIME ZONE 'UTC' AS JSON );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'JSON )' at line 1
+SELECT cast( TIMESTAMP'2019-10-10 10:40:00' AT TIME ZONE 'UTC' AS REAL );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'REAL )' at line 1

@@ -1,7 +1,7 @@
 #ifndef LEX_INCLUDED
 #define LEX_INCLUDED
 
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -775,6 +775,7 @@ static const SYMBOL symbols[] = {
     {SYM("YEAR", YEAR_SYM)},
     {SYM("YEAR_MONTH", YEAR_MONTH_SYM)},
     {SYM("ZEROFILL", ZEROFILL_SYM)},
+    {SYM("ZONE", ZONE_SYM)},
     {SYM("||", OR_OR_SYM)},
     /*
       Place keywords that accept optimizer hints below this comment.

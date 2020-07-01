@@ -1198,8 +1198,13 @@ class Field {
     return TYPE_OK;
   }
   /**
-    Returns timestamp value in "struct timeval" format.
-    This method is used in "SELECT UNIX_TIMESTAMP(field)"
+    Returns a UTC component in `struct timeval` format. This interface
+    makes any column appear to be `TIMESTAMP`, i.e. stored in UTC, and
+    returns the UTC component in (optionally fractional) seconds. This means
+    converting _to_ UTC from the current session's time zone for types other
+    than `TIMESTAMP`.
+
+    This method was expressly written for `SELECT UNIX_TIMESTAMP(field)`
     to avoid conversion from timestamp to MYSQL_TIME and back.
   */
   virtual bool get_timestamp(struct timeval *tm, int *warnings) const;
@@ -2948,7 +2953,7 @@ class Field_temporal_with_date_and_time : public Field_temporal_with_date {
     to the number of fractional second digits.
   */
   virtual void store_timestamp_internal(const struct timeval *tm) = 0;
-  bool convert_TIME_to_timestamp(THD *thd, const MYSQL_TIME *ltime,
+  bool convert_TIME_to_timestamp(const MYSQL_TIME *ltime, const Time_zone &tz,
                                  struct timeval *tm, int *error);
 
  public:

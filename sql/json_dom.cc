@@ -1360,8 +1360,8 @@ void Json_datetime::from_packed_to_key(const char *from, enum_field_types ft,
       struct timeval tm;
       int warnings = 0;
       TIME_from_longlong_datetime_packed(&ltime, sint8korr(from));
-      datetime_with_no_zero_in_date_to_timeval(current_thd, &ltime, &tm,
-                                               &warnings);
+      datetime_with_no_zero_in_date_to_timeval(
+          &ltime, *current_thd->time_zone(), &tm, &warnings);
       // Assume that since the value was properly stored, there're no warnings
       DBUG_ASSERT(!warnings);
       my_timestamp_to_binary(&tm, to, dec);

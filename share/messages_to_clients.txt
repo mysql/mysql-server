@@ -9402,6 +9402,12 @@ ER_CHARACTER_SET_MISMATCH
 ER_WARN_VAR_VALUE_CHANGE_NOT_SUPPORTED
   eng "Changing %s not supported on this platform. Falling back to the default."
 
+ER_INVALID_TIME_ZONE_INTERVAL
+  eng "Invalid time zone interval: '%s'"
+
+ER_INVALID_CAST
+  eng "Cannot cast value to %s."
+
 ER_HYPERGRAPH_NOT_SUPPORTED_YET 42000
   eng "The hypergraph optimizer does not yet support '%s'"
 

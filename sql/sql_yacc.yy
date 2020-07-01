@@ -1323,6 +1323,8 @@ void warn_about_deprecated_binary(THD *thd)
 
 %token<lexer.keyword> MANAGED_SYM 1156                  /* MYSQL */
 
+%token<lexer.keyword> ZONE_SYM 1157                     /* SQL-2003-N */
+
 /*
   Precedence rules used to resolve the ambiguity when using keywords as idents
   in the case e.g.:
@@ -1342,6 +1344,7 @@ void warn_about_deprecated_binary(THD *thd)
 %left KEYWORD_USED_AS_IDENT
 %nonassoc TEXT_STRING
 %left KEYWORD_USED_AS_KEYWORD
+
 
 /*
   Resolve column attribute ambiguity -- force precedence of "UNIQUE KEY" against
@@ -1621,6 +1624,7 @@ void warn_about_deprecated_binary(THD *thd)
         opt_constraint_enforcement
         constraint_enforcement
         opt_not
+        opt_interval
 
 %type <show_cmd_type> opt_show_cmd_type
 
@@ -10023,6 +10027,18 @@ simple_expr:
           {
             $$= create_func_cast(YYTHD, @3, $3, $5, $6);
           }
+        | CAST_SYM '(' expr AT_SYM LOCAL_SYM AS cast_type opt_array_cast ')'
+          {
+            my_error(ER_NOT_SUPPORTED_YET, MYF(0), "AT LOCAL");
+          }
+        | CAST_SYM '(' expr AT_SYM TIME_SYM ZONE_SYM opt_interval
+          TEXT_STRING_literal AS DATETIME_SYM type_datetime_precision ')'
+          {
+            Cast_type cast_type{ITEM_CAST_DATETIME, nullptr, nullptr, $11};
+            auto datetime_factor =
+                NEW_PTN Item_func_at_time_zone(@3, $3, $8.str, $7);
+            $$ = create_func_cast(YYTHD, @3, datetime_factor, cast_type, false);
+          }
         | CASE_SYM opt_expr when_list opt_else END
           {
             $$= NEW_PTN Item_func_case(@$, $3, $2, $4 );
@@ -14200,7 +14216,10 @@ temporal_literal:
           }
         ;
 
-
+opt_interval:
+          /* empty */   { $$ = false; }
+        | INTERVAL_SYM  { $$ = true; }
+        ;
 
 
 /**********************************************************************
@@ -15041,6 +15060,7 @@ ident_keywords_unambiguous:
         | XID_SYM
         | XML_SYM
         | YEAR_SYM
+        | ZONE_SYM
         ;
 
 /*
