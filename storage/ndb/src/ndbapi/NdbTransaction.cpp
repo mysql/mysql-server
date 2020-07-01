@@ -83,6 +83,7 @@ NdbTransaction::NdbTransaction( Ndb* aNdb ) :
   theScanningOp(NULL),
   theBuddyConPtr(0xFFFFFFFF),
   theBlobFlag(false),
+  m_userDefinedBlobOps(false),
   thePendingBlobOps(0),
   maxPendingBlobReadBytes(~Uint32(0)),
   maxPendingBlobWriteBytes(~Uint32(0)),
@@ -176,6 +177,7 @@ NdbTransaction::init()
   theBuddyConPtr          = 0xFFFFFFFF;
   //
   theBlobFlag = false;
+  m_userDefinedBlobOps = false;
   thePendingBlobOps = 0;
   m_theFirstLockHandle    = NULL;
   m_theLastLockHandle     = NULL;
@@ -311,6 +313,9 @@ NdbTransaction::execute(ExecType aTypeOfExec,
 
   if (! theBlobFlag)
     DBUG_RETURN(executeNoBlobs(aTypeOfExec, abortOption, forceSend));
+
+  /* Blob specific exec path taken */
+  m_userDefinedBlobOps = false;
 
   /*
    * execute prepared ops in batches, as requested by blobs
@@ -575,6 +580,13 @@ NdbTransaction::executeNoBlobs(NdbTransaction::ExecType aTypeOfExec,
   DBUG_ENTER("NdbTransaction::executeNoBlobs");
   DBUG_PRINT("enter", ("aTypeOfExec: %d, abortOption: %d", 
 		       aTypeOfExec, abortOption));
+
+  if (unlikely(m_userDefinedBlobOps))
+  {
+    // "Pending Blob Operations must be executed before this call"
+    theError.code = 4558;
+    DBUG_RETURN(-1);
+  }
 
 //------------------------------------------------------------------------
 // We will start by preparing all operations in the transaction defined
