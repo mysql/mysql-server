@@ -1455,3 +1455,20 @@ SELECT 1 = (SELECT 1
            );
 
 DROP TABLE t;
+
+--echo #
+--echo # Bug #31559978: REGRESSION: HEAP BUFFER OVERFLOW & ASSERTION FAILURE: ROW0SEL.CC:5574:PREBUILT->CAN_PREFETCH_RECORDS() || RECORD_BUFFER == NULLPTR
+--echo #
+CREATE TABLE t1 (
+  a INTEGER,
+  d VARCHAR(255) NOT NULL,
+  PRIMARY KEY (d)
+);
+
+INSERT INTO t1 VALUES (1,'1'), (2,'2');
+# Verify that we get weedout (to provoke row IDs); if we don't,
+# consider deleting the test.
+--skip_if_hypergraph
+EXPLAIN FORMAT=tree SELECT 1 FROM t1 WHERE d IN (SELECT a FROM t1);
+SELECT 1 FROM t1 WHERE d IN (SELECT a FROM t1);
+DROP TABLE t1;

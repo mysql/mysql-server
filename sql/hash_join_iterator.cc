@@ -154,6 +154,8 @@ bool HashJoinIterator::InitProbeIterator() {
 
 bool HashJoinIterator::Init() {
   // Prepare to read the build input into the hash map.
+  PrepareForRequestRowId(m_build_input_tables.tables(),
+                         m_tables_to_get_rowid_for);
   if (m_build_input->Init()) {
     DBUG_ASSERT(thd()->is_error() ||
                 thd()->killed);  // my_error should have been called.
@@ -207,8 +209,6 @@ bool HashJoinIterator::Init() {
   m_current_chunk = -1;
 
   PrepareForRequestRowId(m_probe_input_tables.tables(),
-                         m_tables_to_get_rowid_for);
-  PrepareForRequestRowId(m_build_input_tables.tables(),
                          m_tables_to_get_rowid_for);
 
   // Build the hash table

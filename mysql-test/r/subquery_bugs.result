@@ -1778,3 +1778,28 @@ ON 1 > 2
 );
 ERROR 21000: Subquery returns more than 1 row
 DROP TABLE t;
+#
+# Bug #31559978: REGRESSION: HEAP BUFFER OVERFLOW & ASSERTION FAILURE: ROW0SEL.CC:5574:PREBUILT->CAN_PREFETCH_RECORDS() || RECORD_BUFFER == NULLPTR
+#
+CREATE TABLE t1 (
+a INTEGER,
+d VARCHAR(255) NOT NULL,
+PRIMARY KEY (d)
+);
+INSERT INTO t1 VALUES (1,'1'), (2,'2');
+EXPLAIN FORMAT=tree SELECT 1 FROM t1 WHERE d IN (SELECT a FROM t1);
+EXPLAIN
+-> Remove duplicate t1 rows using temporary table (weedout)  (cost=1.10 rows=2)
+    -> Inner hash join (cast(t1.d as double) = cast(t1.a as double))  (cost=1.10 rows=2)
+        -> Index scan on t1 using PRIMARY  (cost=0.35 rows=2)
+        -> Hash
+            -> Table scan on t1  (cost=0.45 rows=2)
+
+Warnings:
+Warning	1739	Cannot use ref access on index 'PRIMARY' due to type or collation conversion on field 'd'
+Warning	1739	Cannot use range access on index 'PRIMARY' due to type or collation conversion on field 'd'
+SELECT 1 FROM t1 WHERE d IN (SELECT a FROM t1);
+1
+1
+1
+DROP TABLE t1;
