@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -739,6 +739,7 @@ NdbOperation::getBlobHandle(NdbTransaction* aCon, const NdbColumnImpl* tAttrInfo
     tLastBlob->theNext = tBlob;
   tBlob->theNext = NULL;
   theNdbCon->theBlobFlag = true;
+  theNdbCon->m_userDefinedBlobOps = true;
   return tBlob;
 }
 
@@ -816,6 +817,7 @@ NdbOperation::linkInBlobHandle(NdbTransaction *aCon,
   lastPtr= bh;
   bh->theNext= NULL;
   theNdbCon->theBlobFlag= true;
+  theNdbCon->m_userDefinedBlobOps = true;
 
   return bh;
 }
