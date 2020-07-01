@@ -339,6 +339,7 @@ static bool json_is_valid(Item **args, uint arg_idx, String *value,
   } else {
     bool parse_error = false;
     String *const res = arg_item->val_str(value);
+    if (current_thd->is_error()) return true;
 
     if (arg_item->null_value) {
       *valid = true;
@@ -1408,6 +1409,7 @@ static bool sql_scalar_to_json(T *arg, const char *calling_function,
     case MYSQL_TYPE_LONGLONG:
     case MYSQL_TYPE_YEAR: {
       longlong i = arg->val_int();
+      if (current_thd->is_error()) return true;
 
       if (arg->null_value) return false;
 
@@ -1426,7 +1428,6 @@ static bool sql_scalar_to_json(T *arg, const char *calling_function,
     case MYSQL_TYPE_TIMESTAMP:
     case MYSQL_TYPE_TIME: {
       longlong dt = arg->val_temporal_by_field_type();
-
       if (arg->null_value) return false;
 
       MYSQL_TIME t;
@@ -1440,6 +1441,7 @@ static bool sql_scalar_to_json(T *arg, const char *calling_function,
     case MYSQL_TYPE_NEWDECIMAL: {
       my_decimal m;
       my_decimal *r = arg->val_decimal(&m);
+      if (current_thd->is_error()) return true;
 
       if (arg->null_value) return false;
 
@@ -1456,6 +1458,7 @@ static bool sql_scalar_to_json(T *arg, const char *calling_function,
     case MYSQL_TYPE_DOUBLE:
     case MYSQL_TYPE_FLOAT: {
       double d = arg->val_real();
+      if (current_thd->is_error()) return true;
 
       if (arg->null_value) return false;
 
@@ -1467,6 +1470,7 @@ static bool sql_scalar_to_json(T *arg, const char *calling_function,
     case MYSQL_TYPE_GEOMETRY: {
       uint32 geometry_srid;
       String *swkb = arg->val_str(tmp);
+      if (current_thd->is_error()) return true;
       if (arg->null_value) return false;
       bool retval = geometry_to_json(wr, swkb, calling_function, INT_MAX32,
                                      false, false, false, &geometry_srid);
@@ -1483,6 +1487,7 @@ static bool sql_scalar_to_json(T *arg, const char *calling_function,
     case MYSQL_TYPE_MEDIUM_BLOB:
     case MYSQL_TYPE_TINY_BLOB: {
       String *oo = arg->val_str(value);
+      if (current_thd->is_error()) return true;
 
       if (arg->null_value) return false;
 
@@ -1502,6 +1507,7 @@ static bool sql_scalar_to_json(T *arg, const char *calling_function,
         in which case a binary character set is our only hope for success).
       */
       String *res = arg->val_str(value);
+      if (current_thd->is_error()) return true;
 
       if (arg->null_value) return false;
       const CHARSET_INFO *cs = res->charset();
