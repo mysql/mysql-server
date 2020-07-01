@@ -7,7 +7,11 @@
 # for this test in order to get a predictable number
 # of partitions when no partition-spec is part of
 # the create table stmt.
+# Now it depends on number of log parts, but we can set
+# number of partitions per node explicitly which we do
+# here.
 #
+PartitionsPerNode=1
 ThreadConfig=ldm={count=1}
 TimeBetweenGlobalCheckpoints=200
 

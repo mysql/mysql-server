@@ -10,4 +10,5 @@ MaxNoOfOrderedIndexes = 512
 BatchSize = 1
 
 # Node config normally used in RQG testing
+PartitionsPerNode=1
 ThreadConfig=tc={count=1},ldm={count=1}
