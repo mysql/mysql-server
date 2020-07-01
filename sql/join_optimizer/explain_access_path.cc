@@ -900,6 +900,14 @@ string PrintQueryPlan(int level, AccessPath *path, JOIN *join,
     }
   }
   if (is_root_of_join) {
+    // If we know that the join will return zero rows, we don't bother
+    // optimizing any subqueries in the SELECT list, but end optimization
+    // early (see SELECT_LEX::optimize()). If so, don't attempt to print
+    // them either, as they have no query plan.
+    if (path->type == AccessPath::ZERO_ROWS) {
+      return ret;
+    }
+
     for (const auto &child : GetAccessPathsFromSelectList(join)) {
       ret.append(top_level * 4, ' ');
       ret.append("-> ");
