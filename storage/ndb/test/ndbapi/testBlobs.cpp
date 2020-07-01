@@ -5357,6 +5357,192 @@ bugtest_28590428()
   return result;
 }
 
+static int
+bugtest_27772916()
+{
+  DBG("bugtest 27772916 - Check that Api calls are safe wrt Blob operations.");
+  char buff[20000];
+  memset(buff, 'B', sizeof(buff));
+
+  const NdbDictionary::Table* tab = g_dic->getTable(g_opt.m_tname);
+  const unsigned blob1InlineSize = tab->getColumn("BL1")->getInlineSize();
+  const unsigned blob2InlineSize = g_opt.m_oneblob ? 0 : tab->getColumn("BL2")->getInlineSize();
+  const unsigned blobWriteSize = MAX(blob1InlineSize, blob2InlineSize) + 20;
+  assert(blobWriteSize <= sizeof(buff));
+
+  /* Variants :
+   * - Scan, nextResult() with getValue() and defined operation
+   * - readData() with defined op
+   * - writeData() with defined op
+   */
+  calcTups(true);
+
+  /* Insert rows */
+  {
+    CHK((g_con = g_ndb->startTransaction()) != 0);
+
+    for (unsigned k=0; k < 10; k++)
+    {
+      Tup& tup = g_tups[k];
+      CHK((g_opr =  g_con->getNdbOperation(g_opt.m_tname)) != 0);
+      CHK(g_opr->insertTuple() == 0);
+      CHK(g_opr->equal("PK1", tup.m_pk1) == 0);
+      if (g_opt.m_pk2chr.m_len != 0)
+      {
+        CHK(g_opr->equal("PK2", tup.m_pk2) == 0);
+        CHK(g_opr->equal("PK3", tup.m_pk3) == 0);
+      }
+      setUDpartId(tup, g_opr);
+      CHK(getBlobHandles(g_opr) == 0);
+
+      CHK(g_bh1->setValue(buff, blobWriteSize) == 0);
+      if (! g_opt.m_oneblob)
+        CHK(g_bh2->setValue(buff, blobWriteSize) == 0);
+    }
+
+    CHK(g_con->execute(Commit) == 0);
+    g_ndb->closeTransaction(g_con);
+    g_con = 0;
+    g_bh1 = 0;
+    g_bh2 = 0;
+    g_opr = 0;
+  }
+
+  Tup& tup = g_tups[0];
+  const char *out_row= NULL;
+
+  /**
+   * Variants to check the behaviour on
+   * 0 : Scan nextResult(), Define Blob reading op, scan nextResult() - ERR
+   * 1 : Scan nextResult(), Define Blob reading op, scan readData() - ERR
+   * 2 : PK update with Blob, Define Blob reading op, PK writeData() - ERR
+   * 3 : PK update with Blob, Define Blob reading op, executePendingBlobOps() - OK
+   */
+
+  for (unsigned v = 0; v < 4; v++)
+  {
+    /* Prepare */
+    switch(v)
+    {
+    case 0:
+      /* Fall through */
+    case 1:
+    {
+      /* Define a scan, reading blobs */
+      CHK((g_con = g_ndb->startTransaction()) != 0);
+      CHK((g_ops= g_con->scanTable(g_full_record,
+                                   NdbOperation::LM_CommittedRead)) != 0);
+      CHK((g_bh1= g_ops->getBlobHandle("BL1")) != 0);
+      CHK(g_bh1->getValue(buff, sizeof(buff)) == 0);
+      CHK(g_con->execute(NoCommit, AbortOnError, 1) == 0);
+      CHK(g_ops->nextResult(&out_row, true, false) == 0);
+      break;
+    }
+    case 2:
+      /* Fall through */
+    case 3:
+    {
+      /* Define an update operation */
+      Tup& tup = g_tups[1];
+
+      CHK((g_con = g_ndb->startTransaction()) != 0);
+      CHK((g_opr =  g_con->getNdbOperation(g_opt.m_tname)) != 0);
+      CHK(g_opr->updateTuple() == 0);
+      CHK(g_opr->equal("PK1", tup.m_pk1) == 0);
+      if (g_opt.m_pk2chr.m_len != 0)
+      {
+        CHK(g_opr->equal("PK2", tup.m_pk2) == 0);
+        CHK(g_opr->equal("PK3", tup.m_pk3) == 0);
+      }
+      setUDpartId(tup, g_opr);
+      CHK(getBlobHandles(g_opr) == 0);
+      CHK(g_con->execute(NoCommit, AbortOnError, 1) == 0);
+      break;
+    }
+    default:
+      abort();
+    }
+
+    /* Define a pk operation, requiring Blob processing on execute */
+    NdbOperation* newOp;
+    CHK((newOp = g_con->getNdbOperation(g_opt.m_tname)) != NULL);
+    CHK(newOp->readTuple() == 0);
+    CHK(newOp->equal("PK1", tup.m_pk1) == 0);
+    if (g_opt.m_pk2chr.m_len != 0)
+    {
+      CHK(newOp->equal("PK2", tup.m_pk2) == 0);
+      CHK(newOp->equal("PK3", tup.m_pk3) == 0);
+    }
+    setUDpartId(tup, newOp);
+    CHK(newOp->getBlobHandle("BL1") != 0);
+
+    /**
+     * Check behaviour of calls on first scan/operation in presence
+     * of defined operation
+     */
+    switch(v)
+    {
+    case 0:
+    {
+      /**
+       * Cannot iterate first scan, as getValue may try
+       * to execute part reads, executing defined op
+       */
+      CHK(g_ops->nextResult(&out_row, true, false) != 0);
+      CHK(g_con->getNdbError().code == 4558);
+      break;
+    }
+    case 1:
+    {
+      /**
+       * Cannot perform readData(), as it may issue part
+       * reads, executing defined op
+       */
+      Uint32 sz = sizeof(buff);
+      CHK(g_bh1->setPos(0) == 0);
+      Uint64 length;
+      CHK(g_bh1->getLength(length) == 0);
+      ndbout_c("Blob length is %llu", length);
+      CHK(g_bh1->readData(buff, sz) != 0);
+      CHK(g_con->getNdbError().code == 4558);
+      break;
+    }
+    case 2:
+    {
+      /**
+       * Cannot call writeData(), as it may issue part
+       * reads, executing defined op
+       * writeData() writing a *subset* of existing
+       * bytes must execute inlint
+       */
+      CHK(g_bh1->writeData(buff, blobWriteSize - 1) != 0);
+      CHK(g_con->getNdbError().code == 4558);
+      break;
+    }
+    case 3:
+    {
+      /**
+       * Call writeData() with same size - currently
+       * defines but does not exec ops. Following
+       * execPendingBlobOps() will succeed as it
+       * executes everything.
+       */
+      CHK(g_bh1->writeData(buff, blobWriteSize) == 0);
+      CHK(g_con->executePendingBlobOps(0xff) == 0);
+      CHK(g_con->getNdbError().code == 0);
+      break;
+    }
+    default:
+      abort();
+    }
+
+    g_ndb->closeTransaction(g_con);
+    g_con = NULL;
+  }
+
+  return 0;
+}
+
 static struct {
   int m_bug;
   int (*m_test)();
@@ -5370,7 +5556,8 @@ static struct {
   { 28116, bugtest_28116 },
   { 62321, bugtest_62321 },
   { 28746560, bugtest_28746560 },
-  { 28590428, bugtest_28590428 }
+  { 28590428, bugtest_28590428 },
+  { 27772916, bugtest_27772916 }
 };
 
 int main(int argc, char** argv)
