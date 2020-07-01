@@ -192,7 +192,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery,
       row_stmt_start_timestamp(0),
       long_find_row_note_printed(false),
       thd_tx_priority(0),
-      is_engine_ha_data_detached(false),
+      m_is_engine_ha_data_detached(false),
       current_event(nullptr),
       ddl_not_atomic(false) {
   DBUG_TRACE;
@@ -1325,7 +1325,7 @@ void Relay_log_info::cleanup_context(THD *thd, bool error) {
       xa_trans_force_rollback(thd);
       xid_state->reset();
       cleanup_trans_state(thd);
-      this->reattach_engine_ha_data(thd);
+      if (thd->is_engine_ha_data_detached()) thd->rpl_reattach_engine_ha_data();
     }
     thd->mdl_context.release_transactional_locks();
   }
@@ -2752,7 +2752,7 @@ int Relay_log_info::init_until_option(THD *thd,
 }
 
 void Relay_log_info::detach_engine_ha_data(THD *thd) {
-  is_engine_ha_data_detached = true;
+  m_is_engine_ha_data_detached = true;
   /*
     In case of slave thread applier or processing binlog by client,
     detach the engine ha_data ("native" engine transaction)
@@ -2762,7 +2762,7 @@ void Relay_log_info::detach_engine_ha_data(THD *thd) {
 }
 
 void Relay_log_info::reattach_engine_ha_data(THD *thd) {
-  is_engine_ha_data_detached = false;
+  m_is_engine_ha_data_detached = false;
   /*
     In case of slave thread applier or processing binlog by client,
     reattach the engine ha_data ("native" engine transaction)
