@@ -175,9 +175,9 @@ Item_func_buffer_strategy::Item_func_buffer_strategy(const POS &pos,
   tmp_value.set(pbuf, 0, nullptr);
 }
 
-bool Item_func_buffer_strategy::resolve_type(THD *) {
-  param_type_is_default(0, 1);
-  param_type_is_default(1, 2, MYSQL_TYPE_DOUBLE);
+bool Item_func_buffer_strategy::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 1)) return true;
+  if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_DOUBLE)) return true;
   set_data_type_string(16, &my_charset_bin);
   maybe_null = true;
   return false;

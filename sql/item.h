@@ -1116,16 +1116,23 @@ class Item : public Parse_tree_node {
     Propagate data type specifications into parameters and user variables.
     If item has descendants, propagate type recursively into these.
 
-    param type Data type properties that are propagated
+    @param thd    thread handler
+    @param type   Data type properties that are propagated
+
+    @returns false if success, true if error
   */
-  virtual void propagate_type(const Type_properties &) {}
+  virtual bool propagate_type(THD *, const Type_properties &) { return false; }
+
   /**
     Wrapper for easier calling of propagate_type(const Type_properties &).
+    @param thd     thread handler
     @param def     type to make Type_properties object
     @param pin     if true: also mark the type as pinned
     @param inherit if true: also mark the type as inherited
+
+    @returns false if success, true if error
   */
-  void propagate_type(enum_field_types def = MYSQL_TYPE_VARCHAR,
+  bool propagate_type(THD *thd, enum_field_types def = MYSQL_TYPE_VARCHAR,
                       bool pin = false, bool inherit = false) {
     /*
       Propagate supplied type if types have not yet been assigned to expression,
@@ -1135,14 +1142,18 @@ class Item : public Parse_tree_node {
       but this is a very minor problem.
      */
     if (data_type() != MYSQL_TYPE_INVALID && !(pin && type() == PARAM_ITEM))
-      return;
-    propagate_type((def == MYSQL_TYPE_VARCHAR)
-                       ? Type_properties(def, Item::default_charset())
-                       : (def == MYSQL_TYPE_JSON)
-                             ? Type_properties(def, &my_charset_utf8mb4_bin)
-                             : Type_properties(def));
+      return false;
+    if (propagate_type(thd,
+                       (def == MYSQL_TYPE_VARCHAR)
+                           ? Type_properties(def, Item::default_charset())
+                           : (def == MYSQL_TYPE_JSON)
+                                 ? Type_properties(def, &my_charset_utf8mb4_bin)
+                                 : Type_properties(def)))
+      return true;
     if (pin) pin_data_type();
     if (inherit) set_data_type_inherited();
+
+    return false;
   }
 
  protected:
@@ -4379,7 +4390,7 @@ class Item_param final : public Item, private Settable_routine_parameter {
   }
   bool fix_fields(THD *thd, Item **ref) override;
 
-  void propagate_type(const Type_properties &type) override;
+  bool propagate_type(THD *thd, const Type_properties &type) override;
 
   double val_real() override;
   longlong val_int() override;

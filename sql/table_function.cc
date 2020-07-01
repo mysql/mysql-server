@@ -237,7 +237,7 @@ bool Table_function_json::do_init_args() {
     latter would lead to a call to Item_param::val_json() which isn't
     implemented. So we use the former.
   */
-  source->propagate_type();
+  if (source->propagate_type(current_thd)) return true;
   DBUG_ASSERT(source->data_type() != MYSQL_TYPE_VAR_STRING);
   if (source->has_aggregation() || source->has_subquery() || source != dummy) {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), "JSON_TABLE");

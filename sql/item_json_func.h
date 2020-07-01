@@ -329,8 +329,8 @@ class Item_func_json_valid final : public Item_int_func {
 
   longlong val_int() override;
 
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, 1, MYSQL_TYPE_JSON);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
     maybe_null = true;
     return false;
   }
@@ -377,8 +377,8 @@ class Item_func_json_schema_validation_report final : public Item_json_func {
 
   bool val_json(Json_wrapper *wr) override;
 
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, 1, MYSQL_TYPE_JSON);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
     maybe_null = true;
     return false;
   }
@@ -414,9 +414,9 @@ class Item_func_json_contains final : public Item_int_func {
 
   longlong val_int() override;
 
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, 1, MYSQL_TYPE_JSON);
-    param_type_is_default(1, 3);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
+    if (param_type_is_default(thd, 1, 3)) return true;
     maybe_null = true;
     return false;
   }
@@ -451,9 +451,9 @@ class Item_func_json_contains_path final : public Item_int_func {
 
   longlong val_int() override;
 
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, 1, MYSQL_TYPE_JSON);
-    param_type_is_default(1, -1);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
+    if (param_type_is_default(thd, 1, -1)) return true;
     maybe_null = true;
     return false;
   }
@@ -494,8 +494,7 @@ class Item_typecast_json final : public Item_json_func {
 
   bool resolve_type(THD *thd) override {
     if (Item_json_func::resolve_type(thd)) return true;
-    args[0]->propagate_type(MYSQL_TYPE_JSON, false, true);
-    return false;
+    return args[0]->propagate_type(thd, MYSQL_TYPE_JSON, false, true);
   }
 
   void print(const THD *thd, String *str,
@@ -521,9 +520,9 @@ class Item_func_json_length final : public Item_int_func {
   Item_func_json_length(THD *thd, const POS &pos, Item *a, Item *b)
       : Item_int_func(pos, a, b), m_path_cache(thd, 2) {}
 
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, 1, MYSQL_TYPE_JSON);
-    param_type_is_default(1, 2);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
+    if (param_type_is_default(thd, 1, 2)) return true;
     maybe_null = true;
     return false;
   }
@@ -546,8 +545,8 @@ class Item_func_json_depth final : public Item_int_func {
 
   const char *func_name() const override { return "json_depth"; }
 
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, 1, MYSQL_TYPE_JSON);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
     maybe_null = true;
     return false;
   }
@@ -572,8 +571,8 @@ class Item_func_json_keys : public Item_json_func {
 
   bool resolve_type(THD *thd) override {
     if (Item_json_func::resolve_type(thd)) return true;
-    param_type_is_default(0, 1, MYSQL_TYPE_JSON);
-    param_type_is_default(1, 2);
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
+    if (param_type_is_default(thd, 1, 2)) return true;
     return false;
   }
 
@@ -597,8 +596,8 @@ class Item_func_json_extract final : public Item_json_func {
 
   bool resolve_type(THD *thd) override {
     if (Item_json_func::resolve_type(thd)) return true;
-    param_type_is_default(0, 1, MYSQL_TYPE_JSON);
-    param_type_is_default(1, -1);
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
+    if (param_type_is_default(thd, 1, -1)) return true;
     return false;
   }
 
@@ -621,9 +620,9 @@ class Item_func_json_array_append : public Item_json_func {
 
   bool resolve_type(THD *thd) override {
     if (Item_json_func::resolve_type(thd)) return true;
-    param_type_is_default(0, 1, MYSQL_TYPE_JSON);
-    param_type_is_default(1, -1, 2, MYSQL_TYPE_VARCHAR);
-    param_type_is_default(2, -1, 2, MYSQL_TYPE_JSON);
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
+    if (param_type_is_default(thd, 1, -1, 2, MYSQL_TYPE_VARCHAR)) return true;
+    if (param_type_is_default(thd, 2, -1, 2, MYSQL_TYPE_JSON)) return true;
     return false;
   }
 
@@ -644,9 +643,9 @@ class Item_func_json_insert : public Item_json_func {
 
   bool resolve_type(THD *thd) override {
     if (Item_json_func::resolve_type(thd)) return true;
-    param_type_is_default(0, 1, MYSQL_TYPE_JSON);
-    param_type_is_default(1, -1, 2, MYSQL_TYPE_VARCHAR);
-    param_type_is_default(2, -1, 2, MYSQL_TYPE_JSON);
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
+    if (param_type_is_default(thd, 1, -1, 2, MYSQL_TYPE_VARCHAR)) return true;
+    if (param_type_is_default(thd, 2, -1, 2, MYSQL_TYPE_JSON)) return true;
     return false;
   }
 
@@ -667,9 +666,9 @@ class Item_func_json_array_insert : public Item_json_func {
 
   bool resolve_type(THD *thd) override {
     if (Item_json_func::resolve_type(thd)) return true;
-    param_type_is_default(0, 1, MYSQL_TYPE_JSON);
-    param_type_is_default(1, -1, 2, MYSQL_TYPE_VARCHAR);
-    param_type_is_default(2, -1, 2, MYSQL_TYPE_JSON);
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
+    if (param_type_is_default(thd, 1, -1, 2, MYSQL_TYPE_VARCHAR)) return true;
+    if (param_type_is_default(thd, 2, -1, 2, MYSQL_TYPE_JSON)) return true;
     return false;
   }
 
@@ -695,9 +694,9 @@ class Item_func_json_set_replace : public Item_json_func {
  public:
   bool resolve_type(THD *thd) override {
     if (Item_json_func::resolve_type(thd)) return true;
-    param_type_is_default(0, 1, MYSQL_TYPE_JSON);
-    param_type_is_default(1, -1, 2, MYSQL_TYPE_VARCHAR);
-    param_type_is_default(2, -1, 2, MYSQL_TYPE_JSON);
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
+    if (param_type_is_default(thd, 1, -1, 2, MYSQL_TYPE_VARCHAR)) return true;
+    if (param_type_is_default(thd, 2, -1, 2, MYSQL_TYPE_JSON)) return true;
     return false;
   }
 
@@ -741,7 +740,7 @@ class Item_func_json_array : public Item_json_func {
 
   bool resolve_type(THD *thd) override {
     if (Item_json_func::resolve_type(thd)) return true;
-    param_type_is_default(0, -1);
+    if (param_type_is_default(thd, 0, -1)) return true;
     return false;
   }
 
@@ -762,7 +761,7 @@ class Item_func_json_row_object : public Item_json_func {
 
   bool resolve_type(THD *thd) override {
     if (Item_json_func::resolve_type(thd)) return true;
-    param_type_is_default(0, -1);
+    if (param_type_is_default(thd, 0, -1)) return true;
     return false;
   }
 
@@ -802,8 +801,8 @@ class Item_func_json_search : public Item_json_func {
 
   bool resolve_type(THD *thd) override {
     if (Item_json_func::resolve_type(thd)) return true;
-    param_type_is_default(0, 1, MYSQL_TYPE_JSON);
-    param_type_is_default(1, -1);
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
+    if (param_type_is_default(thd, 1, -1)) return true;
     return false;
   }
 
@@ -826,8 +825,8 @@ class Item_func_json_remove : public Item_json_func {
 
   bool resolve_type(THD *thd) override {
     if (Item_json_func::resolve_type(thd)) return true;
-    param_type_is_default(0, 1, MYSQL_TYPE_JSON);
-    param_type_is_default(1, -1);
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
+    if (param_type_is_default(thd, 1, -1)) return true;
     return false;
   }
 
@@ -846,7 +845,7 @@ class Item_func_json_merge_preserve : public Item_json_func {
 
   bool resolve_type(THD *thd) override {
     if (Item_json_func::resolve_type(thd)) return true;
-    param_type_is_default(0, -1, MYSQL_TYPE_JSON);
+    if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_JSON)) return true;
     return false;
   }
 
@@ -876,7 +875,7 @@ class Item_func_json_merge_patch : public Item_json_func {
 
   bool resolve_type(THD *thd) override {
     if (Item_json_func::resolve_type(thd)) return true;
-    param_type_is_default(0, -1, MYSQL_TYPE_JSON);
+    if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_JSON)) return true;
     return false;
   }
 
@@ -895,8 +894,8 @@ class Item_func_json_quote : public Item_str_func {
 
   const char *func_name() const override { return "json_quote"; }
 
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, -1);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, -1)) return true;
     maybe_null = true;
 
     /*
@@ -925,8 +924,8 @@ class Item_func_json_unquote : public Item_str_func {
 
   const char *func_name() const override { return "json_unquote"; }
 
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, -1);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, -1)) return true;
     maybe_null = true;
     set_data_type_string(args[0]->max_char_length(), &my_charset_utf8mb4_bin);
     return false;
@@ -944,8 +943,8 @@ class Item_func_json_pretty final : public Item_str_func {
 
   const char *func_name() const override { return "json_pretty"; }
 
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, -1, MYSQL_TYPE_JSON);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_JSON)) return true;
     set_data_type_string(MAX_BLOB_WIDTH, &my_charset_utf8mb4_bin);
     return false;
   }
@@ -962,8 +961,8 @@ class Item_func_json_storage_size final : public Item_int_func {
       : Item_int_func(pos, a) {}
   const char *func_name() const override { return "json_storage_size"; }
 
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, -1, MYSQL_TYPE_JSON);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_JSON)) return true;
     return false;
   }
 
@@ -979,8 +978,8 @@ class Item_func_json_storage_free final : public Item_int_func {
       : Item_int_func(pos, a) {}
   const char *func_name() const override { return "json_storage_free"; }
 
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, -1, MYSQL_TYPE_JSON);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_JSON)) return true;
     return false;
   }
 

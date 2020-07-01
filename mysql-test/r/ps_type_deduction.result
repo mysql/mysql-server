@@ -3259,3 +3259,7 @@ EXECUTE s USING @ic;
 NULL + ?
 NULL
 DEALLOCATE PREPARE s;
+# Bug#31360283: Assertion `data_type() != MYSQL_TYPE_INVALID' failed.
+#               in item_func::propagate_type
+PREPARE s FROM 'DO ST_ENVELOPE(CEILING(?))';
+ERROR HY000: Incorrect arguments to ceiling

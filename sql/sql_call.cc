@@ -156,12 +156,15 @@ bool Sql_cmd_call::prepare_inner(THD *thd) {
         case INT_RESULT:
         case REAL_RESULT:
         case DECIMAL_RESULT:
-          arg->propagate_type(
-              Type_properties(spvar->type, spvar->field_def.is_unsigned));
+          if (arg->propagate_type(
+                  thd,
+                  Type_properties(spvar->type, spvar->field_def.is_unsigned)))
+            return true;
           break;
         case STRING_RESULT:
-          arg->propagate_type(
-              Type_properties(spvar->type, spvar->field_def.charset));
+          if (arg->propagate_type(
+                  thd, Type_properties(spvar->type, spvar->field_def.charset)))
+            return true;
           break;
         default:
           DBUG_ASSERT(false);

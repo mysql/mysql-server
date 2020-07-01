@@ -1032,8 +1032,9 @@ int set_var::resolve(THD *thd) {
     If expression has no data type (e.g because it contains a parameter),
     assign type character string.
   */
-  if (value->data_type() == MYSQL_TYPE_INVALID) {
-    value->propagate_type(MYSQL_TYPE_VARCHAR);
+  if (value->data_type() == MYSQL_TYPE_INVALID &&
+      value->propagate_type(thd, MYSQL_TYPE_VARCHAR)) {
+    return -1;
   }
 
   if (value->check_cols(1)) {
@@ -1114,8 +1115,9 @@ int set_var::light_check(THD *thd) {
     If expression has no data type (e.g because it contains a parameter),
     assign type character string.
   */
-  if (value->data_type() == MYSQL_TYPE_INVALID) {
-    value->propagate_type(MYSQL_TYPE_VARCHAR);
+  if (value->data_type() == MYSQL_TYPE_INVALID &&
+      value->propagate_type(thd, MYSQL_TYPE_VARCHAR)) {
+    return -1;
   }
 
   if (value->check_cols(1)) {

@@ -1347,8 +1347,8 @@ class Item_func_coalesce : public Item_func_numhybrid {
   bool date_op(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
   bool time_op(MYSQL_TIME *ltime) override;
   my_decimal *decimal_op(my_decimal *) override;
-  bool resolve_type(THD *) override;
-  bool resolve_type_inner() override;
+  bool resolve_type(THD *thd) override;
+  bool resolve_type_inner(THD *thd) override;
   void set_numeric_type() override {}
   enum Item_result result_type() const override { return hybrid_type; }
   const char *func_name() const override { return "coalesce"; }
@@ -1412,8 +1412,8 @@ class Item_func_if final : public Item_func {
   enum_field_types default_data_type() const override {
     return MYSQL_TYPE_VARCHAR;
   }
-  bool resolve_type(THD *) override;
-  bool resolve_type_inner() override;
+  bool resolve_type(THD *thd) override;
+  bool resolve_type_inner(THD *thd) override;
   void fix_after_pullout(SELECT_LEX *parent_select,
                          SELECT_LEX *removed_select) override;
   uint decimal_precision() const override;
@@ -1446,7 +1446,7 @@ class Item_func_nullif final : public Item_bool_func2 {
     return MYSQL_TYPE_VARCHAR;
   }
   bool resolve_type(THD *thd) override;
-  bool resolve_type_inner() override;
+  bool resolve_type_inner(THD *thd) override;
   uint decimal_precision() const override {
     return args[0]->decimal_precision();
   }
@@ -1922,8 +1922,8 @@ class Item_func_case final : public Item_func {
   enum_field_types default_data_type() const override {
     return MYSQL_TYPE_VARCHAR;
   }
-  bool resolve_type(THD *) override;
-  bool resolve_type_inner() override;
+  bool resolve_type(THD *thd) override;
+  bool resolve_type_inner(THD *thd) override;
   uint decimal_precision() const override;
   enum Item_result result_type() const override { return cached_result_type; }
   const char *func_name() const override { return "case"; }

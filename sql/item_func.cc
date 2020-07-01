@@ -366,32 +366,37 @@ void Item_func::fix_after_pullout(SELECT_LEX *parent_select,
   to dynamic parameters of G and finishes the job of G::resolve_type() by
   calling G::resolve_type_inner().
 */
-void Item_func::propagate_type(const Type_properties &type) {
-  DBUG_ASSERT(data_type() == MYSQL_TYPE_INVALID);
+bool Item_func::propagate_type(THD *thd, const Type_properties &type) {
+  assert(data_type() == MYSQL_TYPE_INVALID);
   for (uint i = 0; i < arg_count; i++) {
     if (args[i]->data_type() == MYSQL_TYPE_INVALID)
-      args[i]->propagate_type(type);
+      if (args[i]->propagate_type(thd, type)) return true;
   }
-  // Cannot currently return error when called from propagate_type()
-  (void)resolve_type_inner();
-  DBUG_ASSERT(data_type() != MYSQL_TYPE_INVALID);
+  if (resolve_type_inner(thd)) return true;
+  assert(data_type() != MYSQL_TYPE_INVALID);
+
+  return false;
 }
 
 /**
    For arguments of this Func_args_handle ("args" array), in range
    [start, start+step, start+2*step,...,end[ : if they're a PS
    parameter with invalid (not known) type, give them default type "def".
+   @param thd   thread handler
    @param start range's start (included)
    @param end   range's end (excluded)
    @param step  range's step
    @param def   default type
+
+   @returns false if success, true if error
 */
-void Func_args_handle::param_type_is_default(uint start, uint end, uint step,
-                                             enum_field_types def) {
+bool Func_args_handle::param_type_is_default(THD *thd, uint start, uint end,
+                                             uint step, enum_field_types def) {
   for (uint i = start; i < end; i += step) {
     if (i >= arg_count) break;
-    args[i]->propagate_type(def);
+    if (args[i]->propagate_type(thd, def)) return true;
   }
+  return false;
 }
 
 /**
@@ -417,12 +422,15 @@ bool Func_args_handle::param_type_is_rejected(uint start, uint end) {
   argument that is not a dynamic parameter; if found, all dynamic parameters
   without a valid type get the type of this; if not found, they get type "def".
 
+  @param thd       thread handler
   @param arg_count number of arguments to check
   @param args      array of arguments, size 'arg_count'
   @param def       default type
+
+  @returns false if success, true if error
 */
-inline void param_type_uses_non_param_inner(uint arg_count, Item **args,
-                                            enum_field_types def) {
+inline bool param_type_uses_non_param_inner(THD *thd, uint arg_count,
+                                            Item **args, enum_field_types def) {
   // Use first non-parameter type as base item
   // @todo If there are multiple non-parameter items, we could use a
   // consolidated type instead of the first one (consider CASE, COALESCE,
@@ -437,19 +445,20 @@ inline void param_type_uses_non_param_inner(uint arg_count, Item **args,
     for (uint i = 0; i < col_cnt; i++) {
       for (uint j = 0; j < arg_count; j++) {
         if (args[j]->cols() != col_cnt)  // Column count not checked yet
-          return;
+          return false;
         if (args[j]->type() == Item::ROW_ITEM)
           arguments[j] = down_cast<Item_row *>(args[j])->element_index(i);
         else if (args[j]->type() == Item::SUBSELECT_ITEM)
           arguments[j] = (*down_cast<Item_subselect *>(args[j])
                                ->unit->get_unit_column_types())[i];
       }
-      param_type_uses_non_param_inner(arg_count, arguments, def);
+      if (param_type_uses_non_param_inner(thd, arg_count, arguments, def))
+        return true;
     }
     // Resolving for row done, set data type to MYSQL_TYPE_NULL as final action.
     for (uint j = 0; j < arg_count; j++)
       args[j]->set_data_type(MYSQL_TYPE_NULL);
-    return;
+    return false;
   }
   Item *base_item = nullptr;
   for (uint i = 0; i < arg_count; i++) {
@@ -459,18 +468,20 @@ inline void param_type_uses_non_param_inner(uint arg_count, Item **args,
     }
   }
   if (base_item == nullptr) {
-    args[0]->propagate_type(def);
+    if (args[0]->propagate_type(thd, def)) return true;
     base_item = args[0];
   }
   for (uint i = 0; i < arg_count; i++) {
     if (args[i]->data_type() != MYSQL_TYPE_INVALID) continue;
-    args[i]->propagate_type(Type_properties(*base_item));
+    if (args[i]->propagate_type(thd, Type_properties(*base_item))) return true;
   }
+  return false;
 }
 
-void Func_args_handle::param_type_uses_non_param(enum_field_types def) {
-  if (arg_count == 0) return;
-  param_type_uses_non_param_inner(arg_count, args, def);
+bool Func_args_handle::param_type_uses_non_param(THD *thd,
+                                                 enum_field_types def) {
+  if (arg_count == 0) return false;
+  return param_type_uses_non_param_inner(thd, arg_count, args, def);
 }
 
 bool Item_func::walk(Item_processor processor, enum_walk walk,
@@ -1415,7 +1426,7 @@ void unsupported_json_comparison(size_t arg_count, Item **args,
   }
 }
 
-bool Item_func_numhybrid::resolve_type(THD *) {
+bool Item_func_numhybrid::resolve_type(THD *thd) {
   DBUG_ASSERT(arg_count == 1 || arg_count == 2);
   /*
     If no arguments have type information, return and trust
@@ -1431,16 +1442,16 @@ bool Item_func_numhybrid::resolve_type(THD *) {
       return false;
 
     if (args[0]->data_type() == MYSQL_TYPE_INVALID) {
-      args[0]->propagate_type(Type_properties(*args[1]));
+      if (args[0]->propagate_type(thd, Type_properties(*args[1]))) return true;
     } else if (args[1]->data_type() == MYSQL_TYPE_INVALID) {
-      args[1]->propagate_type(Type_properties(*args[0]));
+      if (args[1]->propagate_type(thd, Type_properties(*args[0]))) return true;
     }
   }
-  if (resolve_type_inner()) return true;
+  if (resolve_type_inner(thd)) return true;
   return reject_geometry_args(arg_count, args, this);
 }
 
-bool Item_func_numhybrid::resolve_type_inner() {
+bool Item_func_numhybrid::resolve_type_inner(THD *) {
   DBUG_ASSERT(args[0]->data_type() != MYSQL_TYPE_INVALID);
   DBUG_ASSERT(arg_count == 1 || args[1]->data_type() != MYSQL_TYPE_INVALID);
   fix_num_length_and_dec();
@@ -1649,8 +1660,9 @@ void Item_typecast_signed::print(const THD *thd, String *str,
   str->append(STRING_WITH_LEN(" as signed)"));
 }
 
-bool Item_typecast_signed::resolve_type(THD *) {
-  args[0]->propagate_type(MYSQL_TYPE_LONGLONG, false, true);
+bool Item_typecast_signed::resolve_type(THD *thd) {
+  if (args[0]->propagate_type(thd, MYSQL_TYPE_LONGLONG, false, true))
+    return true;
   fix_char_length(std::min<uint32>(args[0]->max_char_length(),
                                    MY_INT64_NUM_DECIMAL_DIGITS));
   return reject_geometry_args(arg_count, args, this);
@@ -2300,8 +2312,8 @@ longlong Item_func_int_div::val_int() {
   return check_integer_overflow(res, !res_negative);
 }
 
-bool Item_func_int_div::resolve_type(THD *) {
-  param_type_uses_non_param(MYSQL_TYPE_LONGLONG);
+bool Item_func_int_div::resolve_type(THD *thd) {
+  if (param_type_uses_non_param(thd, MYSQL_TYPE_LONGLONG)) return true;
   Item_result argtype = args[0]->result_type();
   /* use precision ony for the data type it is applicable for and valid */
   uint32 char_length =
@@ -2492,8 +2504,8 @@ bool Item_func_abs::resolve_type(THD *thd) {
   return false;
 }
 
-bool Item_dec_func::resolve_type(THD *) {
-  param_type_is_default(0, -1, MYSQL_TYPE_DOUBLE);
+bool Item_dec_func::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_DOUBLE)) return true;
   decimals = DECIMAL_NOT_SPECIFIED;
   max_length = float_length(decimals);
   maybe_null = true;
@@ -2660,11 +2672,11 @@ bool Item_func_bit::resolve_type(THD *thd) {
   */
   const CHARSET_INFO *save_cs = thd->variables.collation_connection;
   thd->variables.collation_connection = &my_charset_bin;
-  if (second_arg)
-    param_type_uses_non_param();
-  else {
-    param_type_is_default(0, 1);
-    param_type_is_default(1, 2, MYSQL_TYPE_LONGLONG);
+  if (second_arg) {
+    if (param_type_uses_non_param(thd)) return true;
+  } else {
+    if (param_type_is_default(thd, 0, 1)) return true;
+    if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_LONGLONG)) return true;
   }
   thd->variables.collation_connection = save_cs;
   if (bit_func_returns_binary(args[0], second_arg ? args[1] : nullptr)) {
@@ -2976,7 +2988,7 @@ bool Item::bit_func_returns_binary(const Item *a, const Item *b) {
 
 // Conversion functions
 
-bool Item_func_int_val::resolve_type_inner() {
+bool Item_func_int_val::resolve_type_inner(THD *) {
   DBUG_TRACE;
   DBUG_PRINT("info", ("name %s", func_name()));
   DBUG_ASSERT(args[0]->data_type() != MYSQL_TYPE_INVALID);
@@ -3110,9 +3122,9 @@ my_decimal *Item_func_floor::decimal_op(my_decimal *decimal_value) {
   return nullptr;
 }
 
-bool Item_func_round::resolve_type(THD *) {
-  param_type_is_default(0, 1, MYSQL_TYPE_NEWDECIMAL);
-  param_type_is_default(1, 2, MYSQL_TYPE_LONGLONG);
+bool Item_func_round::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_NEWDECIMAL)) return true;
+  if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_LONGLONG)) return true;
 
   if (reject_geometry_args(arg_count, args, this)) return true;
 
@@ -3334,7 +3346,7 @@ void Item_func_rand::seed_random(Item *arg) {
 }
 
 bool Item_func_rand::resolve_type(THD *thd) {
-  param_type_is_default(0, -1, MYSQL_TYPE_DOUBLE);
+  if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_DOUBLE)) return true;
   if (Item_real_func::resolve_type(thd)) return true;
   return reject_geometry_args(arg_count, args, this);
 }
@@ -3401,7 +3413,7 @@ double Item_func_rand::val_real() {
 }
 
 bool Item_func_sign::resolve_type(THD *thd) {
-  param_type_is_default(0, 1, MYSQL_TYPE_DOUBLE);
+  if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DOUBLE)) return true;
   if (Item_int_func::resolve_type(thd)) return true;
   return reject_geometry_args(arg_count, args, this);
 }
@@ -3413,8 +3425,8 @@ longlong Item_func_sign::val_int() {
   return value < 0.0 ? -1 : (value > 0 ? 1 : 0);
 }
 
-bool Item_func_units::resolve_type(THD *) {
-  param_type_is_default(0, 1, MYSQL_TYPE_DOUBLE);
+bool Item_func_units::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DOUBLE)) return true;
   decimals = DECIMAL_NOT_SPECIFIED;
   max_length = float_length(decimals);
   return reject_geometry_args(arg_count, args, this);
@@ -3427,18 +3439,18 @@ double Item_func_units::val_real() {
   return check_float_overflow(value * mul + add);
 }
 
-bool Item_func_min_max::resolve_type(THD *) {
+bool Item_func_min_max::resolve_type(THD *thd) {
   // If no arguments have type, type of this operator cannot be determined yet
   if (args[0]->data_type() == MYSQL_TYPE_INVALID &&
       args[1]->data_type() == MYSQL_TYPE_INVALID)
     return false;
 
-  if (resolve_type_inner()) return true;
+  if (resolve_type_inner(thd)) return true;
   return reject_geometry_args(arg_count, args, this);
 }
 
-bool Item_func_min_max::resolve_type_inner() {
-  param_type_uses_non_param();
+bool Item_func_min_max::resolve_type_inner(THD *thd) {
+  if (param_type_uses_non_param(thd)) return true;
   aggregate_type(make_array(args, arg_count));
   hybrid_type = Field::result_merge_type(data_type());
   if (hybrid_type == STRING_RESULT) {
@@ -3809,9 +3821,9 @@ longlong Item_func_coercibility::val_int() {
   return (longlong)args[0]->collation.derivation;
 }
 
-bool Item_func_locate::resolve_type(THD *) {
-  param_type_is_default(0, 2);
-  param_type_is_default(2, 3, MYSQL_TYPE_LONGLONG);
+bool Item_func_locate::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 2)) return true;
+  if (param_type_is_default(thd, 2, 3, MYSQL_TYPE_LONGLONG)) return true;
   max_length = MY_INT32_NUM_DECIMAL_DIGITS;
   return agg_arg_charsets_for_comparison(cmp_collation, args, 2);
 }
@@ -3958,8 +3970,8 @@ longlong Item_func_ord::val_int() {
 /* Returns number of found type >= 1 or 0 if not found */
 /* This optimizes searching in enums to bit testing! */
 
-bool Item_func_find_in_set::resolve_type(THD *) {
-  param_type_is_default(0, -1);
+bool Item_func_find_in_set::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, -1)) return true;
   max_length = 3;  // 1-999
 
   if (args[0]->const_item() && args[1]->type() == FIELD_ITEM) {
@@ -6626,7 +6638,8 @@ bool Item_func_get_user_var::resolve_type(THD *thd) {
   return false;
 }
 
-void Item_func_get_user_var::propagate_type(const Type_properties &type) {
+bool Item_func_get_user_var::propagate_type(THD *,
+                                            const Type_properties &type) {
   /*
     If the type is temporal: user variables don't support that type; so, we
     use a VARCHAR instead. Same for JSON and GEOMETRY.
@@ -6701,6 +6714,8 @@ void Item_func_get_user_var::propagate_type(const Type_properties &type) {
 
   // @todo - when result_type is refactored, this may not be necessary
   m_cached_result_type = type_to_result(data_type());
+
+  return false;
 }
 
 void Item_func_get_user_var::cleanup() {
@@ -7390,7 +7405,7 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref) {
   }
   thd->mark_used_columns = save_mark_used_columns;
 
-  against->propagate_type();
+  if (against->propagate_type(thd)) return true;
 
   bool allows_multi_table_search = true;
   for (uint i = 0; i < arg_count; i++) {
@@ -8100,12 +8115,14 @@ bool Item_func_sp::fix_fields(THD *thd, Item **ref) {
   for (uint i = 0; i < arg_count; i++) {
     if (args[0]->data_type() == MYSQL_TYPE_INVALID) {
       sp_variable *var = m_sp->get_root_parsing_context()->find_variable(i);
-      args[0]->propagate_type(
-          is_numeric_type(var->type)
-              ? Type_properties(var->type, var->field_def.is_unsigned)
-              : is_string_type(var->type)
-                    ? Type_properties(var->type, var->field_def.charset)
-                    : Type_properties(var->type));
+      if (args[0]->propagate_type(
+              thd,
+              is_numeric_type(var->type)
+                  ? Type_properties(var->type, var->field_def.is_unsigned)
+                  : is_string_type(var->type)
+                        ? Type_properties(var->type, var->field_def.charset)
+                        : Type_properties(var->type)))
+        return true;
     }
   }
 

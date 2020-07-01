@@ -67,8 +67,8 @@ class Item_func_period_add final : public Item_int_func {
       : Item_int_func(pos, a, b) {}
   longlong val_int() override;
   const char *func_name() const override { return "period_add"; }
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, -1, MYSQL_TYPE_LONGLONG);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_LONGLONG)) return true;
     fix_char_length(6); /* YYYYMM */
     return false;
   }
@@ -80,8 +80,8 @@ class Item_func_period_diff final : public Item_int_func {
       : Item_int_func(pos, a, b) {}
   longlong val_int() override;
   const char *func_name() const override { return "period_diff"; }
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, -1, MYSQL_TYPE_LONGLONG);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_LONGLONG)) return true;
     fix_char_length(6); /* YYYYMM */
     return false;
   }
@@ -93,8 +93,8 @@ class Item_func_to_days final : public Item_int_func {
   longlong val_int() override;
   const char *func_name() const override { return "to_days"; }
   enum Functype functype() const override { return TO_DAYS_FUNC; }
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, 1, MYSQL_TYPE_DATETIME);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
     fix_char_length(6);
     maybe_null = true;
     return false;
@@ -112,8 +112,8 @@ class Item_func_to_seconds final : public Item_int_func {
   Item_func_to_seconds(const POS &pos, Item *a) : Item_int_func(pos, a) {}
   longlong val_int() override;
   const char *func_name() const override { return "to_seconds"; }
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, 1, MYSQL_TYPE_DATETIME);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
     fix_char_length(MY_INT64_NUM_DECIMAL_DIGITS);
     maybe_null = true;
     return false;
@@ -144,8 +144,8 @@ class Item_func_dayofmonth final : public Item_int_func {
   longlong val_int() override;
   const char *func_name() const override { return "dayofmonth"; }
   enum Functype functype() const override { return DAY_FUNC; }
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, 1, MYSQL_TYPE_DATETIME);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
     fix_char_length(2); /* 1..31 */
     maybe_null = true;
     return false;
@@ -183,8 +183,8 @@ class Item_func_month final : public Item_func {
   const char *func_name() const override { return "month"; }
   enum Functype functype() const override { return MONTH_FUNC; }
   enum Item_result result_type() const override { return INT_RESULT; }
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, -1, MYSQL_TYPE_DATETIME);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_DATETIME)) return true;
     fix_char_length(2);
     maybe_null = true;
     return false;
@@ -216,8 +216,8 @@ class Item_func_dayofyear final : public Item_int_func {
   longlong val_int() override;
   const char *func_name() const override { return "dayofyear"; }
   enum Functype functype() const override { return DAYOFYEAR_FUNC; }
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, 1, MYSQL_TYPE_DATETIME);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
     fix_char_length(3);
     maybe_null = true;
     return false;
@@ -234,8 +234,8 @@ class Item_func_hour final : public Item_int_func {
   longlong val_int() override;
   const char *func_name() const override { return "hour"; }
   enum Functype functype() const override { return HOUR_FUNC; }
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, 1, MYSQL_TYPE_DATETIME);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
     fix_char_length(2); /* 0..23 */
     maybe_null = true;
     return false;
@@ -252,8 +252,8 @@ class Item_func_minute final : public Item_int_func {
   longlong val_int() override;
   const char *func_name() const override { return "minute"; }
   enum Functype functype() const override { return MINUTE_FUNC; }
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, -1, MYSQL_TYPE_DATETIME);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_DATETIME)) return true;
     fix_char_length(2); /* 0..59 */
     maybe_null = true;
     return false;
@@ -270,8 +270,8 @@ class Item_func_quarter final : public Item_int_func {
   longlong val_int() override;
   const char *func_name() const override { return "quarter"; }
   enum Functype functype() const override { return QUARTER_FUNC; }
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, -1, MYSQL_TYPE_DATETIME);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_DATETIME)) return true;
     fix_char_length(1); /* 1..4 */
     maybe_null = true;
     return false;
@@ -288,8 +288,8 @@ class Item_func_second final : public Item_int_func {
   longlong val_int() override;
   const char *func_name() const override { return "second"; }
   enum Functype functype() const override { return SECOND_FUNC; }
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, 1, MYSQL_TYPE_DATETIME);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
     fix_char_length(2); /* 0..59 */
     maybe_null = true;
     return false;
@@ -312,9 +312,9 @@ class Item_func_week final : public Item_int_func {
   longlong val_int() override;
   const char *func_name() const override { return "week"; }
   enum Functype functype() const override { return WEEK_FUNC; }
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, 1, MYSQL_TYPE_DATETIME);
-    param_type_is_default(1, 2, MYSQL_TYPE_LONGLONG);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
+    if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_LONGLONG)) return true;
     fix_char_length(2); /* 0..54 */
     maybe_null = true;
     return false;
@@ -327,9 +327,9 @@ class Item_func_yearweek final : public Item_int_func {
       : Item_int_func(pos, a, b) {}
   longlong val_int() override;
   const char *func_name() const override { return "yearweek"; }
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, 1, MYSQL_TYPE_DATETIME);
-    param_type_is_default(1, 2, MYSQL_TYPE_LONGLONG);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
+    if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_LONGLONG)) return true;
     fix_char_length(6); /* YYYYWW */
     maybe_null = true;
     return false;
@@ -348,8 +348,8 @@ class Item_func_year final : public Item_int_func {
   enum Functype functype() const override { return YEAR_FUNC; }
   enum_monotonicity_info get_monotonicity_info() const override;
   longlong val_int_endpoint(bool left_endp, bool *incl_endp) override;
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, 1, MYSQL_TYPE_DATETIME);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
     fix_char_length(5); /* 9999 plus sign */
     maybe_null = true;
     return false;
@@ -407,8 +407,8 @@ class Item_func_weekday : public Item_func {
   }
   enum Functype functype() const override { return WEEKDAY_FUNC; }
   enum Item_result result_type() const override { return INT_RESULT; }
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, 1, MYSQL_TYPE_DATETIME);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
     fix_char_length(1);
     maybe_null = true;
     return false;
@@ -500,8 +500,8 @@ class Item_func_unix_timestamp final : public Item_timeval_func {
   bool check_valid_arguments_processor(uchar *) override {
     return !has_timestamp_args();
   }
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, 1, MYSQL_TYPE_DATETIME);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
     collation.set_numeric();
     const uint8 dec = arg_count == 0 ? 0 : args[0]->datetime_precision();
     if (dec > 0) {
@@ -532,8 +532,8 @@ class Item_func_time_to_sec final : public Item_int_func {
       : Item_int_func(pos, item) {}
   longlong val_int() override;
   const char *func_name() const override { return "time_to_sec"; }
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, 1, MYSQL_TYPE_TIME);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_TIME)) return true;
     fix_char_length(10);
     maybe_null = true;
     return false;
@@ -1301,7 +1301,7 @@ class Item_func_from_days final : public Item_date_func {
     return has_date_args() || has_time_args();
   }
   bool resolve_type(THD *thd) override {
-    param_type_is_default(0, 1, MYSQL_TYPE_LONGLONG);
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_LONGLONG)) return true;
     return Item_date_func::resolve_type(thd);
   }
 };
@@ -1366,8 +1366,8 @@ class Item_func_sec_to_time final : public Item_time_func {
  public:
   Item_func_sec_to_time(const POS &pos, Item *item)
       : Item_time_func(pos, item) {}
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, 1, MYSQL_TYPE_NEWDECIMAL);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_NEWDECIMAL)) return true;
     set_data_type_time(
         std::min(args[0]->decimals, uint8{DATETIME_MAX_DECIMALS}));
     maybe_null = true;
@@ -1476,7 +1476,7 @@ class Item_typecast_date final : public Item_date_func {
   }
 
   bool resolve_type(THD *thd) override {
-    args[0]->propagate_type(MYSQL_TYPE_DATE, false, true);
+    if (args[0]->propagate_type(thd, MYSQL_TYPE_DATE, false, true)) return true;
     return Item_date_func::resolve_type(thd);
   }
   void print(const THD *thd, String *str,
@@ -1513,8 +1513,9 @@ class Item_typecast_time final : public Item_time_func {
   enum Functype functype() const override { return TYPECAST_FUNC; }
   bool get_time(MYSQL_TIME *ltime) override;
   const char *cast_type() const { return "time"; }
-  bool resolve_type(THD *) override {
-    args[0]->propagate_type(MYSQL_TYPE_DATETIME, false, true);
+  bool resolve_type(THD *thd) override {
+    if (args[0]->propagate_type(thd, MYSQL_TYPE_DATETIME, false, true))
+      return true;
     set_data_type_time(detect_precision_from_arg ? args[0]->time_precision()
                                                  : decimals);
     maybe_null = true;
@@ -1548,8 +1549,9 @@ class Item_typecast_datetime final : public Item_datetime_func {
   const char *func_name() const override { return "cast_as_datetime"; }
   enum Functype functype() const override { return TYPECAST_FUNC; }
   const char *cast_type() const { return "datetime"; }
-  bool resolve_type(THD *) override {
-    args[0]->propagate_type(MYSQL_TYPE_DATETIME, false, true);
+  bool resolve_type(THD *thd) override {
+    if (args[0]->propagate_type(thd, MYSQL_TYPE_DATETIME, false, true))
+      return true;
     set_data_type_datetime(
         detect_precision_from_arg ? args[0]->datetime_precision() : decimals);
     maybe_null = true;
@@ -1567,7 +1569,7 @@ class Item_func_makedate final : public Item_date_func {
   const char *func_name() const override { return "makedate"; }
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzy_date) override;
   bool resolve_type(THD *thd) override {
-    param_type_is_default(0, -1, MYSQL_TYPE_LONGLONG);
+    if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_LONGLONG)) return true;
     return Item_date_func::resolve_type(thd);
   }
 };
@@ -1602,7 +1604,7 @@ class Item_func_timediff final : public Item_time_func {
   Item_func_timediff(const POS &pos, Item *a, Item *b)
       : Item_time_func(pos, a, b) {}
   const char *func_name() const override { return "timediff"; }
-  bool resolve_type(THD *) override {
+  bool resolve_type(THD *thd) override {
     /*
       This function can operate on two TIME, or on two DATETIME (no mix).
       We infer the type from the other argument. If both arguments are '?', we
@@ -1610,7 +1612,7 @@ class Item_func_timediff final : public Item_time_func {
       cutting the date part, and if we chose DATETIME and get TIME, we risk
       interpreting "01:01:01" as "2001:01:01 00:00:00".
      */
-    param_type_uses_non_param();
+    if (param_type_uses_non_param(thd)) return true;
     set_data_type_time(
         std::max(args[0]->time_precision(), args[1]->time_precision()));
     maybe_null = true;
@@ -1625,9 +1627,9 @@ class Item_func_maketime final : public Item_time_func {
       : Item_time_func(pos, a, b, c) {
     maybe_null = true;
   }
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, 2, MYSQL_TYPE_LONGLONG);
-    param_type_is_default(2, 3, MYSQL_TYPE_NEWDECIMAL);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 2, MYSQL_TYPE_LONGLONG)) return true;
+    if (param_type_is_default(thd, 2, 3, MYSQL_TYPE_NEWDECIMAL)) return true;
     set_data_type_time(
         std::min(args[2]->decimals, uint8{DATETIME_MAX_DECIMALS}));
     return false;
@@ -1642,8 +1644,8 @@ class Item_func_microsecond final : public Item_int_func {
   longlong val_int() override;
   const char *func_name() const override { return "microsecond"; }
   enum Functype functype() const override { return MICROSECOND_FUNC; }
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, -1, MYSQL_TYPE_DATETIME);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_DATETIME)) return true;
     maybe_null = true;
     return false;
   }
@@ -1664,8 +1666,8 @@ class Item_func_timestamp_diff final : public Item_int_func {
   enum Functype functype() const override { return TIMESTAMPDIFF_FUNC; }
   interval_type intervaltype() const { return int_type; }
   longlong val_int() override;
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, -1, MYSQL_TYPE_DATETIME);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_DATETIME)) return true;
     maybe_null = true;
     return false;
   }
@@ -1720,7 +1722,7 @@ class Item_func_last_day final : public Item_date_func {
   const char *func_name() const override { return "last_day"; }
   bool get_date(MYSQL_TIME *res, my_time_flags_t fuzzy_date) override;
   bool resolve_type(THD *thd) override {
-    param_type_is_default(0, 1, MYSQL_TYPE_DATETIME);
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
     return Item_date_func::resolve_type(thd);
   }
 };

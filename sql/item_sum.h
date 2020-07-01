@@ -1095,8 +1095,8 @@ class Item_sum_count : public Item_sum_int {
   enum Sumfunctype sum_func() const override {
     return has_with_distinct() ? COUNT_DISTINCT_FUNC : COUNT_FUNC;
   }
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, -1);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, -1)) return true;
     maybe_null = false;
     null_value = false;
     return false;
@@ -2425,8 +2425,8 @@ class Item_ntile : public Item_non_framing_wf {
   const char *func_name() const override { return "ntile"; }
   enum Sumfunctype sum_func() const override { return NTILE_FUNC; }
 
-  bool resolve_type(THD *) override {
-    args[0]->propagate_type(MYSQL_TYPE_LONGLONG, true);
+  bool resolve_type(THD *thd) override {
+    if (args[0]->propagate_type(thd, MYSQL_TYPE_LONGLONG, true)) return true;
     set_data_type_longlong();
     return false;
   }

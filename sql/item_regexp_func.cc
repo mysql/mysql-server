@@ -106,8 +106,8 @@ static bool is_binary_compatible(Item *item) {
   return true;
 }
 
-bool Item_func_regexp::resolve_type(THD *) {
-  param_type_is_default(0, 2);
+bool Item_func_regexp::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 2)) return true;
 
   const CHARSET_INFO *subject_charset = subject()->charset_for_protocol();
   const CHARSET_INFO *pattern_charset = pattern()->charset_for_protocol();
@@ -170,7 +170,7 @@ bool Item_func_regexp_instr::fix_fields(THD *thd, Item **arguments) {
 
 bool Item_func_regexp_instr::resolve_type(THD *thd) {
   if (Item_func_regexp::resolve_type(thd)) return true;
-  param_type_is_default(2, 4, MYSQL_TYPE_LONGLONG);
+  if (param_type_is_default(thd, 2, 4, MYSQL_TYPE_LONGLONG)) return true;
   if (param_type_is_rejected(4, 6))  // as we evaluate it in fix_fields
     return true;
   return false;
@@ -226,8 +226,8 @@ bool Item_func_regexp_like::resolve_type(THD *thd) {
 
 bool Item_func_regexp_replace::resolve_type(THD *thd) {
   if (Item_func_regexp::resolve_type(thd)) return true;
-  param_type_is_default(2, 3);
-  param_type_is_default(3, 5, MYSQL_TYPE_LONGLONG);
+  if (param_type_is_default(thd, 2, 3)) return true;
+  if (param_type_is_default(thd, 3, 5, MYSQL_TYPE_LONGLONG)) return true;
   if (param_type_is_rejected(5, 6))  // as we evaluate it in fix_fields
     return true;
 
@@ -277,7 +277,7 @@ String *Item_func_regexp_replace::val_str(String *buf) {
 
 bool Item_func_regexp_substr::resolve_type(THD *thd) {
   if (Item_func_regexp::resolve_type(thd)) return true;
-  param_type_is_default(2, 4, MYSQL_TYPE_LONGLONG);
+  if (param_type_is_default(thd, 2, 4, MYSQL_TYPE_LONGLONG)) return true;
   if (param_type_is_rejected(4, 5))  // as we evaluate it in fix_fields
     return true;
   set_data_type_string(subject()->max_char_length());

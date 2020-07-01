@@ -677,7 +677,8 @@ bool Item_func_like::resolve_type(THD *thd) {
   // Function returns 0 or 1
   max_length = 1;
 
-  param_type_is_default(0, -1);  // treat arguments as strings
+  // treat arguments as strings
+  if (param_type_is_default(thd, 0, -1)) return true;
 
   if (Item_bool_func::resolve_type(thd)) return true;
 
@@ -2073,7 +2074,7 @@ bool Item_in_optimizer::fix_left(THD *thd, Item **) {
     we must decide of its type now. We cannot wait until we know the type of
     the subquery's SELECT list.
   */
-  param_type_is_default(0, 1);
+  if (param_type_is_default(thd, 0, 1)) return true;
 
   if (!cache && !(cache = Item_cache::get_cache(args[0]))) return true;
 
@@ -2636,13 +2637,14 @@ Item_row *Item_func_interval::alloc_row(const POS &pos, MEM_ROOT *mem_root,
   return tmprow;
 }
 
-bool Item_func_interval::resolve_type(THD *) {
+bool Item_func_interval::resolve_type(THD *thd) {
   uint rows = row->cols();
 
   // The number of columns in one argument is limited to one
   for (uint i = 0; i < rows; i++) {
     if (row->element_index(i)->check_cols(1)) return true;
-    row->element_index(i)->propagate_type(MYSQL_TYPE_LONGLONG);
+    if (row->element_index(i)->propagate_type(thd, MYSQL_TYPE_LONGLONG))
+      return true;
   }
 
   use_decimal_comparison =
@@ -3284,9 +3286,9 @@ void Item_func_if::update_used_tables() {
   update_not_null_tables();
 }
 
-bool Item_func_if::resolve_type(THD *) {
+bool Item_func_if::resolve_type(THD *thd) {
   // Assign type to the condition argument, if necessary
-  param_type_is_default(0, 1, MYSQL_TYPE_LONGLONG);
+  if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_LONGLONG)) return true;
   /*
    If none of the return arguments have type, type of this operator cannot
    be determined yet
@@ -3295,13 +3297,13 @@ bool Item_func_if::resolve_type(THD *) {
       args[2]->data_type() == MYSQL_TYPE_INVALID)
     return false;
 
-  return resolve_type_inner();
+  return resolve_type_inner(thd);
 }
 
-bool Item_func_if::resolve_type_inner() {
+bool Item_func_if::resolve_type_inner(THD *thd) {
   args++;
   arg_count--;
-  param_type_uses_non_param();
+  if (param_type_uses_non_param(thd)) return true;
   args--;
   arg_count++;
 
@@ -3395,7 +3397,7 @@ bool Item_func_if::get_time(MYSQL_TIME *ltime) {
   return (null_value = arg->get_time(ltime));
 }
 
-bool Item_func_nullif::resolve_type(THD *) {
+bool Item_func_nullif::resolve_type(THD *thd) {
   // If 1. argument has no type, type of this operator cannot be determined yet
   if (args[0]->data_type() == MYSQL_TYPE_INVALID) {
     /*
@@ -3405,11 +3407,11 @@ bool Item_func_nullif::resolve_type(THD *) {
     set_data_type(MYSQL_TYPE_INVALID);
     return false;
   }
-  return resolve_type_inner();
+  return resolve_type_inner(thd);
 }
 
-bool Item_func_nullif::resolve_type_inner() {
-  if (Item_bool_func2::resolve_type(current_thd)) return true;
+bool Item_func_nullif::resolve_type_inner(THD *thd) {
+  if (Item_bool_func2::resolve_type(thd)) return true;
 
   maybe_null = true;
   set_data_type_from_item(args[0]);
@@ -3695,8 +3697,8 @@ static void change_item_tree_if_needed(Item **place, Item *new_value) {
               !current_thd->lex->is_exec_started());
 }
 
-bool Item_func_case::resolve_type(THD *) {
-  Item **agg = (Item **)(*THR_MALLOC)->Alloc(sizeof(Item *) * (ncases + 1));
+bool Item_func_case::resolve_type(THD *thd) {
+  Item **agg = (Item **)thd->mem_root->Alloc(sizeof(Item *) * (ncases + 1));
   if (agg == nullptr) return true;
 
   /*
@@ -3718,7 +3720,7 @@ bool Item_func_case::resolve_type(THD *) {
   if (first_expr_num != -1) agg[nagg++] = args[first_expr_num];
   std::swap(args, agg);
   std::swap(arg_count, nagg);
-  param_type_uses_non_param();
+  if (param_type_uses_non_param(thd)) return true;
   std::swap(args, agg);
   std::swap(arg_count, nagg);
 
@@ -3740,21 +3742,21 @@ bool Item_func_case::resolve_type(THD *) {
   if (else_expr_num != -1) agg[nagg++] = args[else_expr_num];
   std::swap(args, agg);
   std::swap(arg_count, nagg);
-  param_type_uses_non_param();
+  if (param_type_uses_non_param(thd)) return true;
   std::swap(args, agg);
   std::swap(arg_count, nagg);
 
-  return resolve_type_inner();
+  return resolve_type_inner(thd);
 }
 
-bool Item_func_case::resolve_type_inner() {
+bool Item_func_case::resolve_type_inner(THD *thd) {
   /*
     @todo notice that both resolve_type() and resolve_type_inner() allocate
     an "agg" vector. One of the allocations is redundant and should be
     eliminated. This might be done when refactoring all CASE-derived operators
     to have a common base class.
   */
-  Item **agg = (Item **)(*THR_MALLOC)->Alloc(sizeof(Item *) * (ncases + 1));
+  Item **agg = (Item **)thd->mem_root->Alloc(sizeof(Item *) * (ncases + 1));
   if (agg == nullptr) return true;
   // Determine nullability based on THEN and ELSE expressions:
 
@@ -3993,17 +3995,17 @@ bool Item_func_coalesce::time_op(MYSQL_TIME *ltime) {
   return (null_value = true);
 }
 
-bool Item_func_coalesce::resolve_type(THD *) {
+bool Item_func_coalesce::resolve_type(THD *thd) {
   // If no arguments have type, type of this operator cannot be determined yet
   bool all_types_invalid = true;
   for (uint i = 0; i < arg_count; i++)
     if (args[i]->data_type() != MYSQL_TYPE_INVALID) all_types_invalid = false;
   if (all_types_invalid) return false;
-  return resolve_type_inner();
+  return resolve_type_inner(thd);
 }
 
-bool Item_func_coalesce::resolve_type_inner() {
-  param_type_uses_non_param();
+bool Item_func_coalesce::resolve_type_inner(THD *thd) {
+  if (param_type_uses_non_param(thd)) return true;
   aggregate_type(make_array(args, arg_count));
   hybrid_type = Field::result_merge_type(data_type());
   if (hybrid_type == STRING_RESULT) {
@@ -5377,7 +5379,8 @@ bool Item_cond::fix_fields(THD *thd, Item **ref) {
       li.remove();
       continue;
     }
-    item->propagate_type(MYSQL_TYPE_LONGLONG);  // AND/OR take booleans
+    // AND/OR take booleans
+    if (item->propagate_type(thd, MYSQL_TYPE_LONGLONG)) return true;
 
     used_tables_cache |= item->used_tables();
 
@@ -6155,8 +6158,8 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref) {
   if (null_on_null) not_null_tables_cache |= escape_item->not_null_tables();
   add_accum_properties(escape_item);
 
-  param_type_is_default(0, 1);
-  escape_item->propagate_type();
+  if (param_type_is_default(thd, 0, 1)) return true;
+  if (escape_item->propagate_type(thd)) return true;
 
   // ESCAPE clauses that vary per row are not valid:
   if (!escape_item->const_for_execution()) {

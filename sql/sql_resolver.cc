@@ -782,7 +782,9 @@ bool SELECT_LEX::resolve_limits(THD *thd) {
     if (offset_limit->fix_fields(thd, nullptr))
       return true; /* purecov: inspected */
     if (offset_limit->data_type() == MYSQL_TYPE_INVALID) {
-      offset_limit->propagate_type(Type_properties(MYSQL_TYPE_LONGLONG, true));
+      if (offset_limit->propagate_type(
+              thd, Type_properties(MYSQL_TYPE_LONGLONG, true)))
+        return true;
       offset_limit->pin_data_type();
     }
   }
@@ -791,7 +793,9 @@ bool SELECT_LEX::resolve_limits(THD *thd) {
     if (select_limit->fix_fields(thd, nullptr))
       return true; /* purecov: inspected */
     if (select_limit->data_type() == MYSQL_TYPE_INVALID) {
-      select_limit->propagate_type(Type_properties(MYSQL_TYPE_LONGLONG, true));
+      if (select_limit->propagate_type(
+              thd, Type_properties(MYSQL_TYPE_LONGLONG, true)))
+        return true;
       select_limit->pin_data_type();
     }
   }
@@ -4294,8 +4298,9 @@ bool setup_order(THD *thd, Ref_item_array ref_item_array, TABLE_LIST *tables,
       my_error(ER_AGGREGATE_ORDER_FOR_UNION, MYF(0), number);
       return true;
     }
-    if ((*order->item)->data_type() == MYSQL_TYPE_INVALID)
-      (*order->item)->propagate_type(MYSQL_TYPE_VARCHAR);
+    if ((*order->item)->data_type() == MYSQL_TYPE_INVALID &&
+        (*order->item)->propagate_type(thd, MYSQL_TYPE_VARCHAR))
+      return true;
   }
   return false;
 }
@@ -4408,8 +4413,9 @@ bool SELECT_LEX::setup_group(THD *thd) {
       my_error(ER_WRONG_GROUP_FIELD, MYF(0), "GROUPING function");
       return true;
     }
-    if (item->data_type() == MYSQL_TYPE_INVALID)
-      item->propagate_type(MYSQL_TYPE_VARCHAR);
+    if (item->data_type() == MYSQL_TYPE_INVALID &&
+        item->propagate_type(thd, MYSQL_TYPE_VARCHAR))
+      return true;
   }
 
   return false;

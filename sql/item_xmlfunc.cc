@@ -2279,8 +2279,8 @@ static int my_xpath_parse(MY_XPATH *xpath, const char *str,
          my_xpath_parse_term(xpath, MY_XPATH_LEX_EOF);
 }
 
-bool Item_xml_str_func::resolve_type(THD *) {
-  param_type_is_default(0, -1);
+bool Item_xml_str_func::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, -1)) return true;
 
   if (agg_arg_charsets_for_comparison(collation, args, arg_count)) return true;
 

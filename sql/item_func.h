@@ -117,12 +117,13 @@ class Func_args_handle {
     These decide of types of arguments which are prepared-statement
     parameters.
   */
-  void param_type_uses_non_param(enum_field_types def = MYSQL_TYPE_VARCHAR);
-  void param_type_is_default(uint start, uint end, uint step,
+  bool param_type_uses_non_param(THD *thd,
+                                 enum_field_types def = MYSQL_TYPE_VARCHAR);
+  bool param_type_is_default(THD *thd, uint start, uint end, uint step,
                              enum_field_types def);
-  void param_type_is_default(uint start, uint end,
+  bool param_type_is_default(THD *thd, uint start, uint end,
                              enum_field_types def = MYSQL_TYPE_VARCHAR) {
-    param_type_is_default(start, end, 1, def);
+    return param_type_is_default(thd, start, end, 1, def);
   }
   bool param_type_is_rejected(uint start, uint end);
 };
@@ -409,11 +410,11 @@ class Item_func : public Item_result_field, public Func_args_handle {
     resolved. Called from resolve_type() when no dynamic parameters
     are used and from propagate_type() otherwise.
   */
-  virtual bool resolve_type_inner() {
+  virtual bool resolve_type_inner(THD *) {
     DBUG_ASSERT(false);
     return false;
   }
-  void propagate_type(const Type_properties &type) override;
+  bool propagate_type(THD *thd, const Type_properties &type) override;
   /**
      Returns the pseudo tables depended upon in order to evaluate this
      function expression. The default implementation returns the empty
@@ -582,10 +583,9 @@ class Item_func : public Item_result_field, public Func_args_handle {
 
   Item *gc_subst_transformer(uchar *arg) override;
 
-  bool resolve_type(THD *) override {
+  bool resolve_type(THD *thd) override {
     // By default, pick PS-param's type from other arguments, or VARCHAR
-    param_type_uses_non_param();
-    return false;
+    return param_type_uses_non_param(thd);
   }
 
   /**
@@ -774,7 +774,7 @@ class Item_func_numhybrid : public Item_func {
     return MYSQL_TYPE_DOUBLE;
   }
   bool resolve_type(THD *thd) override;
-  bool resolve_type_inner() override;
+  bool resolve_type_inner(THD *thd) override;
   void fix_num_length_and_dec() override;
   virtual void set_numeric_type() = 0;  // To be called from resolve_type()
 
@@ -1025,8 +1025,9 @@ class Item_typecast_decimal final : public Item_func {
   }
   my_decimal *val_decimal(my_decimal *) override;
   enum Item_result result_type() const override { return DECIMAL_RESULT; }
-  bool resolve_type(THD *) override {
-    args[0]->propagate_type(MYSQL_TYPE_NEWDECIMAL, false, true);
+  bool resolve_type(THD *thd) override {
+    if (args[0]->propagate_type(thd, MYSQL_TYPE_NEWDECIMAL, false, true))
+      return true;
     return false;
   }
   const char *func_name() const override { return "cast_as_decimal"; }
@@ -1330,7 +1331,7 @@ class Item_func_int_val : public Item_func_num1 {
  public:
   Item_func_int_val(Item *a) : Item_func_num1(a) {}
   Item_func_int_val(const POS &pos, Item *a) : Item_func_num1(pos, a) {}
-  bool resolve_type_inner() override;
+  bool resolve_type_inner(THD *thd) override;
 };
 
 class Item_func_ceiling final : public Item_func_int_val {
@@ -1478,8 +1479,8 @@ class Item_func_min_max : public Item_func_numhybrid {
   enum_field_types default_data_type() const override {
     return MYSQL_TYPE_VARCHAR;
   }
-  bool resolve_type(THD *) override;
-  bool resolve_type_inner() override;
+  bool resolve_type(THD *thd) override;
+  bool resolve_type_inner(THD *thd) override;
   void set_numeric_type() override {}
   enum Item_result result_type() const override { return hybrid_type; }
 
@@ -1639,8 +1640,8 @@ class Item_func_length : public Item_int_func {
   Item_func_length(const POS &pos, Item *a) : Item_int_func(pos, a) {}
   longlong val_int() override;
   const char *func_name() const override { return "length"; }
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, 1);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1)) return true;
     max_length = 10;
     return false;
   }
@@ -1900,11 +1901,12 @@ class Item_func_bit_count final : public Item_int_func {
   Item_func_bit_count(const POS &pos, Item *a) : Item_int_func(pos, a) {}
   longlong val_int() override;
   const char *func_name() const override { return "bit_count"; }
-  bool resolve_type(THD *) override {
-    if (args[0]->data_type() == MYSQL_TYPE_INVALID)
-      // Default: binary string; reprepare if integer
-      args[0]->propagate_type(
-          Type_properties(MYSQL_TYPE_VARCHAR, &my_charset_bin));
+  bool resolve_type(THD *thd) override {
+    // Default: binary string; reprepare if integer
+    if (args[0]->data_type() == MYSQL_TYPE_INVALID &&
+        args[0]->propagate_type(
+            thd, Type_properties(MYSQL_TYPE_VARCHAR, &my_charset_bin)))
+      return true;
     max_length = MAX_BIGINT_WIDTH + 1;
     return false;
   }
@@ -1977,8 +1979,8 @@ class Item_func_last_insert_id final : public Item_int_func {
   bool itemize(Parse_context *pc, Item **res) override;
   longlong val_int() override;
   const char *func_name() const override { return "last_insert_id"; }
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, 1, MYSQL_TYPE_LONGLONG);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_LONGLONG)) return true;
     unsigned_flag = true;
     if (arg_count) max_length = args[0]->max_length;
     return false;
@@ -2007,9 +2009,9 @@ class Item_func_benchmark final : public Item_int_func {
   bool itemize(Parse_context *pc, Item **res) override;
   longlong val_int() override;
   const char *func_name() const override { return "benchmark"; }
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, 1, MYSQL_TYPE_LONGLONG);
-    param_type_is_default(1, 2);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_LONGLONG)) return true;
+    if (param_type_is_default(thd, 1, 2)) return true;
     max_length = 1;
     maybe_null = true;
     return false;
@@ -2053,7 +2055,7 @@ class Item_func_sleep final : public Item_int_func {
     return true;
   }
   bool resolve_type(THD *thd) override {
-    param_type_is_default(0, 1, MYSQL_TYPE_DOUBLE);
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DOUBLE)) return true;
     return Item_int_func::resolve_type(thd);
   }
   longlong val_int() override;
@@ -2265,9 +2267,9 @@ class Item_func_get_lock final : public Item_int_func {
   bool itemize(Parse_context *pc, Item **res) override;
   longlong val_int() override;
   const char *func_name() const override { return "get_lock"; }
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, 1);
-    param_type_is_default(1, 2, MYSQL_TYPE_LONGLONG);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1)) return true;
+    if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_LONGLONG)) return true;
     max_length = 1;
     maybe_null = true;
     return false;
@@ -2294,8 +2296,8 @@ class Item_func_release_lock final : public Item_int_func {
 
   longlong val_int() override;
   const char *func_name() const override { return "release_lock"; }
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, 1);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1)) return true;
     max_length = 1;
     maybe_null = true;
     return false;
@@ -2351,10 +2353,10 @@ class Item_master_pos_wait final : public Item_int_func {
   bool itemize(Parse_context *pc, Item **res) override;
   longlong val_int() override;
   const char *func_name() const override { return "master_pos_wait"; }
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, 1);
-    param_type_is_default(1, 3, MYSQL_TYPE_LONGLONG);
-    param_type_is_default(3, 4);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1)) return true;
+    if (param_type_is_default(thd, 1, 3, MYSQL_TYPE_LONGLONG)) return true;
+    if (param_type_is_default(thd, 3, 4)) return true;
     max_length = 21;
     maybe_null = true;
     return false;
@@ -2389,9 +2391,9 @@ class Item_wait_for_executed_gtid_set final : public Item_int_func {
   const char *func_name() const override {
     return "wait_for_executed_gtid_set";
   }
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, 1);
-    param_type_is_default(1, 2, MYSQL_TYPE_DOUBLE);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1)) return true;
+    if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_DOUBLE)) return true;
     maybe_null = true;
     return false;
   }
@@ -2412,10 +2414,10 @@ class Item_master_gtid_set_wait final : public Item_int_func {
   const char *func_name() const override {
     return "wait_until_sql_thread_after_gtids";
   }
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, 1);
-    param_type_is_default(1, 2, MYSQL_TYPE_DOUBLE);
-    param_type_is_default(2, 3);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1)) return true;
+    if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_DOUBLE)) return true;
+    if (param_type_is_default(thd, 2, 3)) return true;
     maybe_null = true;
     return false;
   }
@@ -2430,8 +2432,8 @@ class Item_func_gtid_subset final : public Item_int_func {
       : Item_int_func(pos, a, b) {}
   longlong val_int() override;
   const char *func_name() const override { return "gtid_subset"; }
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, -1);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, -1)) return true;
     maybe_null = false;
     return false;
   }
@@ -3279,7 +3281,7 @@ class Item_func_get_user_var : public Item_var_func,
   String *val_str(String *str) override;
   const CHARSET_INFO *charset_for_protocol() override;
   bool resolve_type(THD *) override;
-  void propagate_type(const Type_properties &type) override;
+  bool propagate_type(THD *thd, const Type_properties &type) override;
   void cleanup() override;
   void update_used_tables() override {}  // Keep existing used tables
   void print(const THD *thd, String *str,
@@ -3712,8 +3714,8 @@ class Item_func_is_free_lock final : public Item_int_func {
   bool itemize(Parse_context *pc, Item **res) override;
   longlong val_int() override;
   const char *func_name() const override { return "is_free_lock"; }
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, 1);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1)) return true;
     max_length = 1;
     maybe_null = true;
     return false;
@@ -3739,8 +3741,8 @@ class Item_func_is_used_lock final : public Item_int_func {
   bool itemize(Parse_context *pc, Item **res) override;
   longlong val_int() override;
   const char *func_name() const override { return "is_used_lock"; }
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, 1);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1)) return true;
     unsigned_flag = true;
     maybe_null = true;
     return false;

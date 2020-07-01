@@ -737,7 +737,7 @@ bool Window::resolve_window_ordering(THD *thd, Ref_item_array ref_item_array,
       return true;
     }
 
-    oi->propagate_type(MYSQL_TYPE_VARCHAR);
+    if (oi->propagate_type(thd, MYSQL_TYPE_VARCHAR)) return true;
 
     /*
       Call split_sum_func if an aggregate function is part of order by
@@ -878,8 +878,9 @@ bool Window::check_border_sanity1(THD *thd) {
             numeric (int, decimal, int in the definition an interval): we
             try integer, if wrong we will reprepare.
           */
-          border->m_value->propagate_type(MYSQL_TYPE_LONGLONG,
-                                          fr.m_unit == WFU_ROWS);
+          if (border->m_value->propagate_type(thd, MYSQL_TYPE_LONGLONG,
+                                              fr.m_unit == WFU_ROWS))
+            return true;
         }
         break;
       case WFU_GROUPS:

@@ -131,7 +131,7 @@ class Item_row : public Item {
   bool fix_fields(THD *thd, Item **ref) override;
   void fix_after_pullout(SELECT_LEX *parent_select,
                          SELECT_LEX *removed_select) override;
-  void propagate_type(const Type_properties &type) override;
+  bool propagate_type(THD *thd, const Type_properties &type) override;
   void cleanup() override;
   void split_sum_func(THD *thd, Ref_item_array ref_item_array,
                       mem_root_deque<Item *> *fields) override;

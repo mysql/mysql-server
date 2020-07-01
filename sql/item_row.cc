@@ -160,13 +160,15 @@ void Item_row::fix_after_pullout(SELECT_LEX *parent_select,
   }
 }
 
-void Item_row::propagate_type(const Type_properties &type) {
+bool Item_row::propagate_type(THD *thd, const Type_properties &type) {
   DBUG_ASSERT(data_type() == MYSQL_TYPE_INVALID);
   for (uint i = 0; i < arg_count; i++) {
-    if (items[i]->data_type() == MYSQL_TYPE_INVALID)
-      items[i]->propagate_type(type);
+    if (items[i]->data_type() == MYSQL_TYPE_INVALID &&
+        items[i]->propagate_type(thd, type))
+      return true;
   }
   set_data_type(MYSQL_TYPE_NULL);
+  return false;
 }
 
 bool Item_row::check_cols(uint c) {

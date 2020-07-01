@@ -3380,3 +3380,9 @@ EXECUTE s USING @ic;
 
 DEALLOCATE PREPARE s;
 
+--echo # Bug#31360283: Assertion `data_type() != MYSQL_TYPE_INVALID' failed.
+--echo #               in item_func::propagate_type
+
+--error ER_WRONG_ARGUMENTS
+PREPARE s FROM 'DO ST_ENVELOPE(CEILING(?))';
+

@@ -483,8 +483,8 @@ void Item_sum::fix_num_length_and_dec() {
   max_length = float_length(decimals);
 }
 
-bool Item_sum::resolve_type(THD *) {
-  param_type_is_default(0, -1);
+bool Item_sum::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, -1)) return true;
 
   maybe_null = true;
   null_value = true;
@@ -1451,8 +1451,9 @@ bool Item_sum_bit::fix_fields(THD *thd, Item **ref) {
 bool Item_sum_bit::resolve_type(THD *thd) {
   // Assume varbinary; if integer is provided then re-prepare.
   if (args[0]->data_type() == MYSQL_TYPE_INVALID) {
-    args[0]->propagate_type(
-        Type_properties(MYSQL_TYPE_VARCHAR, &my_charset_bin));
+    if (args[0]->propagate_type(
+            thd, Type_properties(MYSQL_TYPE_VARCHAR, &my_charset_bin)))
+      return true;
     // avoid length-too-big error further down
     args[0]->max_length = (CONVERT_IF_BIGGER_TO_BLOB - 1);
   }
@@ -1854,9 +1855,9 @@ void Item_sum_sum::clear() {
   m_frame_null_count = 0;
 }
 
-bool Item_sum_sum::resolve_type(THD *) {
+bool Item_sum_sum::resolve_type(THD *thd) {
   DBUG_TRACE;
-  param_type_is_default(0, 1, MYSQL_TYPE_DOUBLE);
+  if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DOUBLE)) return true;
   maybe_null = true;
   null_value = true;
   decimals = args[0]->decimals;
@@ -2570,9 +2571,9 @@ bool Item_sum_variance::check_wf_semantics1(THD *thd, SELECT_LEX *select,
   return result;
 }
 
-bool Item_sum_variance::resolve_type(THD *) {
+bool Item_sum_variance::resolve_type(THD *thd) {
   DBUG_TRACE;
-  param_type_is_default(0, 1, MYSQL_TYPE_NEWDECIMAL);
+  if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_NEWDECIMAL)) return true;
   maybe_null = true;
   null_value = true;
 
@@ -4349,7 +4350,7 @@ bool Item_func_group_concat::fix_fields(THD *thd, Item **ref) {
       return true;
   }
 
-  param_type_is_default(0, -1);
+  if (param_type_is_default(thd, 0, -1)) return true;
   // Aggregate character set for expression columns (not order columns)
   if (agg_item_charsets_for_string_result(collation, func_name(), args,
                                           arg_count_field))
@@ -4956,10 +4957,10 @@ bool Item_first_last_value::check_wf_semantics1(
   return false;
 }
 
-bool Item_first_last_value::resolve_type(THD *thd MY_ATTRIBUTE((unused))) {
+bool Item_first_last_value::resolve_type(THD *thd) {
   maybe_null = true;  // if empty frame, notwithstanding nullability of arg
   null_value = true;
-  param_type_is_default(0, 1);
+  if (param_type_is_default(thd, 0, 1)) return true;
   set_data_type_from_item(args[0]);
   m_hybrid_type = args[0]->result_type();
 
@@ -5094,9 +5095,9 @@ String *Item_first_last_value::val_str(String *str) {
   return m_value->val_str(str);
 }
 
-bool Item_nth_value::resolve_type(THD *thd MY_ATTRIBUTE((unused))) {
-  param_type_is_default(0, 1);
-  args[1]->propagate_type(MYSQL_TYPE_LONGLONG, true);
+bool Item_nth_value::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 1)) return true;
+  if (args[1]->propagate_type(thd, MYSQL_TYPE_LONGLONG, true)) return true;
 
   maybe_null = true;
 
@@ -5286,7 +5287,7 @@ bool Item_nth_value::val_json(Json_wrapper *jw) {
   return m_value->val_json(jw);
 }
 
-bool Item_lead_lag::resolve_type(THD *) {
+bool Item_lead_lag::resolve_type(THD *thd) {
   /*
     If we have default, check type compatibility of default_value to the main
     expression. Modeled on IFNULL, i.e. what's done for
@@ -5308,7 +5309,7 @@ bool Item_lead_lag::resolve_type(THD *) {
     arg_count--;
   }
 
-  param_type_uses_non_param();
+  if (param_type_uses_non_param(thd)) return true;
   aggregate_type(make_array(args, arg_count));
   m_hybrid_type = Field::result_merge_type(data_type());
 
@@ -5334,7 +5335,8 @@ bool Item_lead_lag::resolve_type(THD *) {
     In SQL2015, offset has to be a numeric literal.
     We allow a dynamic parameter too.
   */
-  if (arg_count > 1) args[1]->propagate_type(MYSQL_TYPE_LONGLONG, true);
+  if (arg_count > 1 && args[1]->propagate_type(thd, MYSQL_TYPE_LONGLONG, true))
+    return true;
   return false;
 }
 

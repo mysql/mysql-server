@@ -260,9 +260,9 @@ class Item_func_geometry_from_text : public Item_geometry_func {
   const char *func_name() const override;
   String *val_str(String *) override;
   bool resolve_type(THD *thd) override {
-    param_type_is_default(0, 1);
-    param_type_is_default(1, 2, MYSQL_TYPE_LONGLONG);
-    param_type_is_default(2, 3);
+    if (param_type_is_default(thd, 0, 1)) return true;
+    if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_LONGLONG)) return true;
+    if (param_type_is_default(thd, 2, 3)) return true;
     return Item_geometry_func::resolve_type(thd);
   }
 };
@@ -307,9 +307,9 @@ class Item_func_geometry_from_wkb : public Item_geometry_func {
   */
   bool is_allowed_wkb_type(Geometry::wkbType type) const;
   bool resolve_type(THD *thd) override {
-    param_type_is_default(0, 1);
-    param_type_is_default(1, 2, MYSQL_TYPE_LONGLONG);
-    param_type_is_default(2, 3);
+    if (param_type_is_default(thd, 0, 1)) return true;
+    if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_LONGLONG)) return true;
+    if (param_type_is_default(thd, 2, 3)) return true;
     return Item_geometry_func::resolve_type(thd);
   }
 
@@ -346,8 +346,8 @@ class Item_func_as_wkb : public Item_geometry_func {
   const char *func_name() const override { return "st_aswkb"; }
   String *val_str(String *) override;
   bool resolve_type(THD *thd) override {
-    param_type_is_default(0, 1, MYSQL_TYPE_GEOMETRY);
-    param_type_is_default(1, 2);
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_GEOMETRY)) return true;
+    if (param_type_is_default(thd, 1, 2)) return true;
     if (Item_geometry_func::resolve_type(thd)) return true;
     set_data_type_blob(MAX_LONG_BLOB_WIDTH);
     return false;
@@ -360,8 +360,8 @@ class Item_func_geometry_type : public Item_str_ascii_func {
       : Item_str_ascii_func(pos, a) {}
   String *val_str_ascii(String *) override;
   const char *func_name() const override { return "st_geometrytype"; }
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, 1, MYSQL_TYPE_GEOMETRY);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_GEOMETRY)) return true;
     // "MultiLinestring" is the longest
     set_data_type_string(15, default_charset());
     maybe_null = true;
@@ -715,7 +715,7 @@ class Item_func_centroid : public Item_geometry_func {
   String *val_str(String *) override;
   Field::geometry_type get_geometry_type() const override;
   bool resolve_type(THD *thd) override {
-    param_type_is_default(0, -1, MYSQL_TYPE_GEOMETRY);
+    if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_GEOMETRY)) return true;
     return Item_geometry_func::resolve_type(thd);
   }
 };
@@ -732,7 +732,7 @@ class Item_func_convex_hull : public Item_geometry_func {
   String *val_str(String *) override;
   Field::geometry_type get_geometry_type() const override;
   bool resolve_type(THD *thd) override {
-    param_type_is_default(0, -1, MYSQL_TYPE_GEOMETRY);
+    if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_GEOMETRY)) return true;
     return Item_geometry_func::resolve_type(thd);
   }
 };
@@ -744,7 +744,7 @@ class Item_func_envelope : public Item_geometry_func {
   String *val_str(String *) override;
   Field::geometry_type get_geometry_type() const override;
   bool resolve_type(THD *thd) override {
-    param_type_is_default(0, -1, MYSQL_TYPE_GEOMETRY);
+    if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_GEOMETRY)) return true;
     return Item_geometry_func::resolve_type(thd);
   }
 };
@@ -757,7 +757,7 @@ class Item_func_make_envelope : public Item_geometry_func {
   String *val_str(String *) override;
   Field::geometry_type get_geometry_type() const override;
   bool resolve_type(THD *thd) override {
-    param_type_is_default(0, -1, MYSQL_TYPE_GEOMETRY);
+    if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_GEOMETRY)) return true;
     return Item_geometry_func::resolve_type(thd);
   }
 };
@@ -769,7 +769,7 @@ class Item_func_validate : public Item_geometry_func {
   Item_func_validate(const POS &pos, Item *a) : Item_geometry_func(pos, a) {}
   const char *func_name() const override { return "st_validate"; }
   bool resolve_type(THD *thd) override {
-    param_type_is_default(0, -1, MYSQL_TYPE_GEOMETRY);
+    if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_GEOMETRY)) return true;
     return Item_geometry_func::resolve_type(thd);
   }
   String *val_str(String *) override;
@@ -782,8 +782,8 @@ class Item_func_st_simplify : public Item_geometry_func {
   Item_func_st_simplify(const POS &pos, Item *a, Item *b)
       : Item_geometry_func(pos, a, b) {}
   bool resolve_type(THD *thd) override {
-    param_type_is_default(0, 1, MYSQL_TYPE_GEOMETRY);
-    param_type_is_default(1, 2, MYSQL_TYPE_DOUBLE);
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_GEOMETRY)) return true;
+    if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_DOUBLE)) return true;
     return Item_geometry_func::resolve_type(thd);
   }
   String *val_str(String *) override;
@@ -799,7 +799,7 @@ class Item_func_point : public Item_geometry_func {
   String *val_str(String *) override;
   Field::geometry_type get_geometry_type() const override;
   bool resolve_type(THD *thd) override {
-    param_type_is_default(0, -1, MYSQL_TYPE_DOUBLE);
+    if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_DOUBLE)) return true;
     return Item_geometry_func::resolve_type(thd);
   }
 };
@@ -845,7 +845,7 @@ class Item_func_pointfromgeohash : public Item_geometry_func {
 class Item_func_spatial_decomp : public Item_geometry_func {
   enum Functype decomp_func;
   bool resolve_type(THD *thd) override {
-    param_type_is_default(0, -1, MYSQL_TYPE_GEOMETRY);
+    if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_GEOMETRY)) return true;
     return Item_geometry_func::resolve_type(thd);
   }
 
@@ -873,8 +873,8 @@ class Item_func_spatial_decomp : public Item_geometry_func {
 class Item_func_spatial_decomp_n : public Item_geometry_func {
   enum Functype decomp_func_n;
   bool resolve_type(THD *thd) override {
-    param_type_is_default(0, 1, MYSQL_TYPE_GEOMETRY);
-    param_type_is_default(1, 2, MYSQL_TYPE_LONGLONG);
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_GEOMETRY)) return true;
+    if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_LONGLONG)) return true;
     return Item_geometry_func::resolve_type(thd);
   }
 
@@ -915,7 +915,7 @@ class Item_func_spatial_collection : public Item_geometry_func {
   }
   String *val_str(String *) override;
   bool resolve_type(THD *thd) override {
-    param_type_is_default(0, -1, MYSQL_TYPE_GEOMETRY);
+    if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_GEOMETRY)) return true;
     if (Item_geometry_func::resolve_type(thd)) return true;
     for (unsigned int i = 0; i < arg_count; ++i) {
       if (args[i]->fixed && args[i]->data_type() != MYSQL_TYPE_GEOMETRY) {
@@ -1034,8 +1034,8 @@ class Item_func_spatial_relation : public Item_bool_func2 {
  public:
   Item_func_spatial_relation(const POS &pos, Item *a, Item *b)
       : Item_bool_func2(pos, a, b) {}
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, -1, MYSQL_TYPE_GEOMETRY);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_GEOMETRY)) return true;
     // Spatial relation functions may return NULL if either parameter is NULL or
     // an empty geometry. Since we can't check for empty geometries at resolve
     // time, this item is always nullable.
@@ -1336,7 +1336,7 @@ class Item_func_spatial_operation : public Item_geometry_func {
   BG_result_buf_mgr m_bg_resbuf_mgr;
 
   bool resolve_type(THD *thd) override {
-    param_type_is_default(0, -1, MYSQL_TYPE_GEOMETRY);
+    if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_GEOMETRY)) return true;
     return Item_geometry_func::resolve_type(thd);
   }
 };
@@ -1429,9 +1429,9 @@ class Item_func_buffer : public Item_geometry_func {
   String m_tmp_geombuf;
   void set_strategies();
   bool resolve_type(THD *thd) override {
-    param_type_is_default(0, 1, MYSQL_TYPE_GEOMETRY);
-    param_type_is_default(1, 2, MYSQL_TYPE_DOUBLE);
-    param_type_is_default(2, -1);
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_GEOMETRY)) return true;
+    if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_DOUBLE)) return true;
+    if (param_type_is_default(thd, 2, -1)) return true;
     return Item_geometry_func::resolve_type(thd);
   }
 
@@ -1459,8 +1459,8 @@ class Item_func_isempty : public Item_bool_func {
   longlong val_int() override;
   optimize_type select_optimize(const THD *) override { return OPTIMIZE_NONE; }
   const char *func_name() const override { return "st_isempty"; }
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, 1, MYSQL_TYPE_GEOMETRY);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_GEOMETRY)) return true;
     maybe_null = true;
     return false;
   }
@@ -1472,7 +1472,7 @@ class Item_func_st_issimple : public Item_bool_func {
   longlong val_int() override;
   const char *func_name() const override { return "st_issimple"; }
   bool resolve_type(THD *thd) override {
-    param_type_is_default(0, 1, MYSQL_TYPE_GEOMETRY);
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_GEOMETRY)) return true;
     return Item_bool_func::resolve_type(thd);
   }
 };
@@ -1483,8 +1483,8 @@ class Item_func_isclosed : public Item_bool_func {
   longlong val_int() override;
   optimize_type select_optimize(const THD *) override { return OPTIMIZE_NONE; }
   const char *func_name() const override { return "st_isclosed"; }
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, 1, MYSQL_TYPE_GEOMETRY);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_GEOMETRY)) return true;
     maybe_null = true;
     return false;
   }
@@ -1497,7 +1497,7 @@ class Item_func_isvalid : public Item_bool_func {
   optimize_type select_optimize(const THD *) override { return OPTIMIZE_NONE; }
   const char *func_name() const override { return "st_isvalid"; }
   bool resolve_type(THD *thd) override {
-    param_type_is_default(0, 1, MYSQL_TYPE_GEOMETRY);
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_GEOMETRY)) return true;
     return Item_bool_func::resolve_type(thd);
   }
 };
@@ -1509,8 +1509,8 @@ class Item_func_dimension : public Item_int_func {
   Item_func_dimension(const POS &pos, Item *a) : Item_int_func(pos, a) {}
   longlong val_int() override;
   const char *func_name() const override { return "st_dimension"; }
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, 1, MYSQL_TYPE_GEOMETRY);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_GEOMETRY)) return true;
     max_length = 10;
     maybe_null = true;
     return false;
@@ -1538,8 +1538,8 @@ class Item_func_coordinate_mutator : public Item_geometry_func {
   virtual int coordinate_number(
       const dd::Spatial_reference_system *srs) const = 0;
   bool resolve_type(THD *thd) override {
-    param_type_is_default(0, 1, MYSQL_TYPE_GEOMETRY);
-    param_type_is_default(1, 2, MYSQL_TYPE_DOUBLE);
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_GEOMETRY)) return true;
+    if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_DOUBLE)) return true;
     return Item_geometry_func::resolve_type(thd);
   }
 
@@ -1568,7 +1568,7 @@ class Item_func_coordinate_observer : public Item_real_func {
   virtual int coordinate_number(
       const dd::Spatial_reference_system *srs) const = 0;
   bool resolve_type(THD *thd) override {
-    param_type_is_default(0, 1, MYSQL_TYPE_GEOMETRY);
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_GEOMETRY)) return true;
     return Item_real_func::resolve_type(thd);
   }
 
@@ -1687,7 +1687,7 @@ class Item_func_st_y_observer final : public Item_func_coordinate_observer {
 
 class Item_func_swap_xy : public Item_geometry_func {
   bool resolve_type(THD *thd) override {
-    param_type_is_default(0, -1, MYSQL_TYPE_GEOMETRY);
+    if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_GEOMETRY)) return true;
     return Item_geometry_func::resolve_type(thd);
   }
 
@@ -1704,8 +1704,8 @@ class Item_func_numgeometries : public Item_int_func {
   Item_func_numgeometries(const POS &pos, Item *a) : Item_int_func(pos, a) {}
   longlong val_int() override;
   const char *func_name() const override { return "st_numgeometries"; }
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, -1, MYSQL_TYPE_GEOMETRY);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_GEOMETRY)) return true;
     max_length = 10;
     maybe_null = true;
     return false;
@@ -1719,8 +1719,8 @@ class Item_func_numinteriorring : public Item_int_func {
   Item_func_numinteriorring(const POS &pos, Item *a) : Item_int_func(pos, a) {}
   longlong val_int() override;
   const char *func_name() const override { return "st_numinteriorrings"; }
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, -1, MYSQL_TYPE_GEOMETRY);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_GEOMETRY)) return true;
     max_length = 10;
     maybe_null = true;
     return false;
@@ -1734,8 +1734,8 @@ class Item_func_numpoints : public Item_int_func {
   Item_func_numpoints(const POS &pos, Item *a) : Item_int_func(pos, a) {}
   longlong val_int() override;
   const char *func_name() const override { return "st_numpoints"; }
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, -1, MYSQL_TYPE_GEOMETRY);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_GEOMETRY)) return true;
     max_length = 10;
     maybe_null = true;
     return false;
@@ -1747,8 +1747,8 @@ class Item_func_st_area : public Item_real_func {
   Item_func_st_area(const POS &pos, Item *a) : Item_real_func(pos, a) {}
   double val_real() override;
   const char *func_name() const override { return "st_area"; }
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, -1, MYSQL_TYPE_GEOMETRY);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_GEOMETRY)) return true;
     // ST_Area returns NULL if the geometry is empty.
     maybe_null = true;
     return false;
@@ -1764,8 +1764,8 @@ class Item_func_st_length : public Item_real_func {
   double val_real() override;
   const char *func_name() const override { return "st_length"; }
   bool resolve_type(THD *thd) override {
-    param_type_is_default(0, -1, MYSQL_TYPE_GEOMETRY);
-    param_type_is_default(0, -1, MYSQL_TYPE_GEOMETRY);
+    if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_GEOMETRY)) return true;
+    if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_GEOMETRY)) return true;
     if (Item_real_func::resolve_type(thd)) return true;
     maybe_null = true;
     return false;
@@ -1781,8 +1781,8 @@ class Item_func_st_srid_mutator : public Item_geometry_func {
   String *val_str(String *) override;
   const char *func_name() const override { return "st_srid"; }
   bool resolve_type(THD *thd) override {
-    param_type_is_default(0, 1, MYSQL_TYPE_GEOMETRY);
-    param_type_is_default(1, 2, MYSQL_TYPE_LONGLONG);
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_GEOMETRY)) return true;
+    if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_LONGLONG)) return true;
     return Item_geometry_func::resolve_type(thd);
   }
 };
@@ -1795,7 +1795,7 @@ class Item_func_st_srid_observer : public Item_int_func {
   longlong val_int() override;
   const char *func_name() const override { return "st_srid"; }
   bool resolve_type(THD *thd) override {
-    param_type_is_default(0, 1, MYSQL_TYPE_GEOMETRY);
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_GEOMETRY)) return true;
     bool error = Item_int_func::resolve_type(thd);
     max_length = 10;
     return error;
@@ -1822,8 +1822,8 @@ class Item_func_distance : public Item_real_func {
     maybe_null = true;
   }
 
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, -1, MYSQL_TYPE_GEOMETRY);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_GEOMETRY)) return true;
     maybe_null = true;
     return false;
   }
@@ -1839,8 +1839,8 @@ class Item_func_st_distance_sphere : public Item_real_func {
   double val_real() override;
   const char *func_name() const override { return "st_distance_sphere"; }
   bool resolve_type(THD *thd) override {
-    param_type_is_default(0, 2, MYSQL_TYPE_GEOMETRY);
-    param_type_is_default(2, 3, MYSQL_TYPE_DOUBLE);
+    if (param_type_is_default(thd, 0, 2, MYSQL_TYPE_GEOMETRY)) return true;
+    if (param_type_is_default(thd, 2, 3, MYSQL_TYPE_DOUBLE)) return true;
     return Item_real_func::resolve_type(thd);
   }
 };

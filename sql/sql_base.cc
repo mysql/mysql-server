@@ -8791,10 +8791,12 @@ bool setup_fields(THD *thd, ulong want_privilege, bool allow_sum_func,
       item->walk(&Item::mark_field_in_map, enum_walk::POSTFIX,
                  pointer_cast<uchar *>(&mf));
     } else if (item->data_type() == MYSQL_TYPE_INVALID) {
-      if (typed_item != nullptr)
-        item->propagate_type(Type_properties(*typed_item));
-      else
-        item->propagate_type(item->default_data_type());
+      if (typed_item != nullptr) {
+        if (item->propagate_type(thd, Type_properties(*typed_item)))
+          return true;
+      } else {
+        if (item->propagate_type(thd, item->default_data_type())) return true;
+      }
     }
 
     if (split_sum_funcs) {

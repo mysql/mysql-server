@@ -1206,7 +1206,7 @@ longlong Item_func_month::val_int() {
 }
 
 bool Item_func_monthname::resolve_type(THD *thd) {
-  param_type_is_default(0, -1, MYSQL_TYPE_DATETIME);
+  if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_DATETIME)) return true;
   const CHARSET_INFO *cs = thd->variables.collation_connection;
   uint32 repertoire = my_charset_repertoire(cs);
   locale = thd->variables.lc_time_names;
@@ -1341,7 +1341,7 @@ longlong Item_func_weekday::val_int() {
 }
 
 bool Item_func_dayname::resolve_type(THD *thd) {
-  param_type_is_default(0, 1, MYSQL_TYPE_DATETIME);
+  if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
   const CHARSET_INFO *cs = thd->variables.collation_connection;
   uint32 repertoire = my_charset_repertoire(cs);
   locale = thd->variables.lc_time_names;
@@ -2039,8 +2039,8 @@ bool Item_func_sec_to_time::get_time(MYSQL_TIME *ltime) {
 }
 
 bool Item_func_date_format::resolve_type(THD *thd) {
-  param_type_is_default(0, 1, MYSQL_TYPE_DATETIME);
-  param_type_is_default(1, 2);
+  if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
+  if (param_type_is_default(thd, 1, 2)) return true;
   /*
     Must use this_item() in case it's a local SP variable
     (for ->max_length and ->str_value)
@@ -2196,7 +2196,7 @@ null_date:
 }
 
 bool Item_func_from_unixtime::resolve_type(THD *thd) {
-  param_type_is_default(0, 1, MYSQL_TYPE_NEWDECIMAL);
+  if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_NEWDECIMAL)) return true;
   set_data_type_datetime(min(args[0]->decimals, uint8{DATETIME_MAX_DECIMALS}));
   maybe_null = true;
   thd->time_zone_used = true;
@@ -2245,9 +2245,9 @@ bool Item_func_from_unixtime::get_date(
   return ret;
 }
 
-bool Item_func_convert_tz::resolve_type(THD *) {
-  param_type_is_default(0, 1, MYSQL_TYPE_DATETIME);
-  param_type_is_default(1, -1);
+bool Item_func_convert_tz::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
+  if (param_type_is_default(thd, 1, -1)) return true;
   set_data_type_datetime(args[0]->datetime_precision());
   maybe_null = true;
   return false;
@@ -2296,10 +2296,10 @@ void Item_func_convert_tz::cleanup() {
   Item_datetime_func::cleanup();
 }
 
-bool Item_date_add_interval::resolve_type(THD *) {
+bool Item_date_add_interval::resolve_type(THD *thd) {
   maybe_null = true;
 
-  param_type_is_default(0, 1, MYSQL_TYPE_DATETIME);
+  if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
   /*
     Syntax may be:
     - either date_add(x, ?): then '?' is an integer number of days
@@ -2316,7 +2316,7 @@ bool Item_date_add_interval::resolve_type(THD *) {
     arg1_type = MYSQL_TYPE_LONGLONG;
   else
     arg1_type = MYSQL_TYPE_VARCHAR;  // composite, as in "HOUR:MINUTE"
-  param_type_is_default(1, 2, arg1_type);
+  if (param_type_is_default(thd, 1, 2, arg1_type)) return true;
 
   /*
     The field type for the result of an Item_date function is defined as
@@ -2508,8 +2508,8 @@ void Item_extract::print(const THD *thd, String *str,
   str->append(')');
 }
 
-bool Item_extract::resolve_type(THD *) {
-  param_type_is_default(0, 1, MYSQL_TYPE_DATETIME);
+bool Item_extract::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
   maybe_null = true;  // If wrong date
   switch (int_type) {
     case INTERVAL_YEAR:
@@ -2810,9 +2810,9 @@ err:
   return true;
 }
 
-bool Item_func_add_time::resolve_type(THD *) {
-  param_type_is_default(0, 1, MYSQL_TYPE_DATETIME);
-  param_type_is_default(1, 2, MYSQL_TYPE_TIME);
+bool Item_func_add_time::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
+  if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_TIME)) return true;
 
   /*
     The field type for the result of an Item_func_add_time function is defined
@@ -3333,7 +3333,7 @@ void Item_func_str_to_date::fix_from_format(const char *format, size_t length) {
 }
 
 bool Item_func_str_to_date::resolve_type(THD *thd) {
-  param_type_is_default(0, 2);
+  if (param_type_is_default(thd, 0, 2)) return true;
   maybe_null = true;
   cached_timestamp_type = MYSQL_TIMESTAMP_DATETIME;
   set_data_type_datetime(DATETIME_MAX_DECIMALS);

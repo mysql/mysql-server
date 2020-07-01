@@ -3447,7 +3447,7 @@ bool Item_param::fix_fields(THD *, Item **) {
   return false;
 }
 
-void Item_param::propagate_type(const Type_properties &type) {
+bool Item_param::propagate_type(THD *, const Type_properties &type) {
   DBUG_ASSERT(type.m_type != MYSQL_TYPE_INVALID);
   switch (type.m_type) {
     case MYSQL_TYPE_TINY:
@@ -3517,6 +3517,8 @@ void Item_param::propagate_type(const Type_properties &type) {
   }
 
   m_result_type = type_to_result(data_type());
+
+  return false;
 }
 
 void Item_param::sync_clones() {

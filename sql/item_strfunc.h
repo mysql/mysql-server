@@ -120,8 +120,8 @@ class Item_str_func : public Item_func {
   enum Item_result result_type() const override { return STRING_RESULT; }
   void left_right_max_length();
   bool fix_fields(THD *thd, Item **ref) override;
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, -1);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, -1)) return true;
     return false;
   }
   String *val_str_from_val_str_ascii(String *str, String *str2);
@@ -758,8 +758,8 @@ class Item_func_char final : public Item_str_func {
     collation.set(cs);
   }
   String *val_str(String *) override;
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, -1, MYSQL_TYPE_LONGLONG);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_LONGLONG)) return true;
     set_data_type_string(arg_count * 4U);
     return false;
   }
@@ -867,8 +867,8 @@ class Item_func_hex : public Item_str_ascii_func {
   Item_func_hex(const POS &pos, Item *a) : Item_str_ascii_func(pos, a) {}
   const char *func_name() const override { return "hex"; }
   String *val_str_ascii(String *) override;
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, -1);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, -1)) return true;
     set_data_type_string(args[0]->max_length * 2U, default_charset());
     return false;
   }
@@ -884,8 +884,8 @@ class Item_func_unhex final : public Item_str_func {
   }
   const char *func_name() const override { return "unhex"; }
   String *val_str(String *) override;
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, -1);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, -1)) return true;
     set_data_type_string((1U + args[0]->max_length) / 2U, &my_charset_bin);
     return false;
   }
@@ -904,9 +904,9 @@ class Item_func_like_range : public Item_str_func {
     maybe_null = true;
   }
   String *val_str(String *) override;
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, 1);
-    param_type_is_default(1, 2, MYSQL_TYPE_LONGLONG);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1)) return true;
+    if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_LONGLONG)) return true;
     set_data_type_string(uint32{MAX_BLOB_WIDTH}, args[0]->collation);
     return false;
   }
@@ -959,8 +959,8 @@ class Item_load_file final : public Item_str_func {
   bool itemize(Parse_context *pc, Item **res) override;
   String *val_str(String *) override;
   const char *func_name() const override { return "load_file"; }
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, 1);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1)) return true;
     collation.set(&my_charset_bin, DERIVATION_COERCIBLE);
     set_data_type_blob(MAX_BLOB_WIDTH);
     maybe_null = true;
@@ -1142,8 +1142,8 @@ class Item_func_crc32 final : public Item_int_func {
     unsigned_flag = true;
   }
   const char *func_name() const override { return "crc32"; }
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, 1);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1)) return true;
     max_length = 10;
     return false;
   }
@@ -1157,8 +1157,8 @@ class Item_func_uncompressed_length final : public Item_int_func {
   Item_func_uncompressed_length(const POS &pos, Item *a)
       : Item_int_func(pos, a) {}
   const char *func_name() const override { return "uncompressed_length"; }
-  bool resolve_type(THD *) override {
-    param_type_is_default(0, 1);
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1)) return true;
     max_length = 10;
     return false;
   }
