@@ -152,6 +152,11 @@
   - tls_channel_status (created)
   - replication_connection_configuration, added column
   MANAGED
+
+  80022:
+
+  performance_schema tables changed in MySQL 8.0.22
+  - WL#9090 created processlist
 */
 
 static const uint PFS_DD_VERSION = 80022;

@@ -151,9 +151,10 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "sql/sql_parse.h"                        /* comp_*_creator */
 #include "sql/sql_plugin.h"                      // plugin_is_ready
 #include "sql/sql_profile.h"
-#include "sql/sql_select.h"                        // Sql_cmd_select...
+#include "sql/sql_select.h"                      // Sql_cmd_select...
 #include "sql/sql_servers.h"
 #include "sql/sql_show_status.h"                 // build_show_session_status, ...
+#include "sql/sql_show_processlist.h"            // build_show_processlist
 #include "sql/sql_signal.h"
 #include "sql/sql_table.h"                        /* primary_key_name */
 #include "sql/sql_tablespace.h"                  // Sql_cmd_alter_tablespace
@@ -13257,6 +13258,10 @@ show_param:
           {
             Lex->sql_command= SQLCOM_SHOW_PROCESSLIST;
             Lex->verbose= $1;
+            Lex->m_sql_cmd= NEW_PTN Sql_cmd_show_processlist(@$, YYTHD,
+                                                             Lex->sql_command, $1);
+            if (Lex->m_sql_cmd == NULL)
+              MYSQL_YYABORT;
           }
         | opt_var_type VARIABLES opt_wild_or_where
           {

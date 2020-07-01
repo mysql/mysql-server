@@ -448,8 +448,8 @@ static PSI_cond_info all_semisync_conds[] = {
 PSI_thread_key key_ss_thread_Ack_receiver_thread;
 
 static PSI_thread_info all_semisync_threads[] = {
-    {&key_ss_thread_Ack_receiver_thread, "Ack_receiver", PSI_FLAG_SINGLETON, 0,
-     PSI_DOCUMENT_ME}};
+    {&key_ss_thread_Ack_receiver_thread, "Ack_receiver",
+     PSI_FLAG_SINGLETON | PSI_FLAG_THREAD_SYSTEM, 0, PSI_DOCUMENT_ME}};
 #endif /* HAVE_PSI_INTERFACE */
 
 PSI_stage_info stage_waiting_for_semi_sync_ack_from_slave = {

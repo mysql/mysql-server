@@ -1,0 +1,15 @@
+# Tests for PERFORMANCE_SCHEMA
+
+#setup
+let $select_column = ID;
+let $table = performance_schema.processlist;
+
+select connection_id() into @conid;
+
+# Test index on ID
+
+let $column_count = 1;
+let $col1 = ID;
+let $col1_act = @conid;
+
+--source ../include/idx_explain_test.inc

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -290,9 +290,8 @@ static void *handle_connection(void *arg) {
 #endif /* HAVE_PSI_THREAD_INTERFACE */
     mysql_thread_set_psi_id(thd->thread_id());
     mysql_thread_set_psi_THD(thd);
-    mysql_socket_set_thread_owner(
-        thd->get_protocol_classic()->get_vio()->mysql_socket);
-
+    MYSQL_SOCKET socket = thd->get_protocol_classic()->get_vio()->mysql_socket;
+    mysql_socket_set_thread_owner(socket);
     thd_manager->add_thd(thd);
 
     if (thd_prepare_connection(thd))

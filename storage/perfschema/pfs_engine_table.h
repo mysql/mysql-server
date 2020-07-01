@@ -550,6 +550,21 @@ class PFS_truncatable_world_acl : public PFS_truncatable_acl {
 /** Singleton instance of PFS_readonly_world_acl */
 extern PFS_truncatable_world_acl pfs_truncatable_world_acl;
 
+/**
+  Privileges for readable processlist tables.
+*/
+class PFS_readonly_processlist_acl : public PFS_readonly_acl {
+ public:
+  PFS_readonly_processlist_acl() {}
+
+  ~PFS_readonly_processlist_acl() override {}
+  ACL_internal_access_result check(ulong want_access,
+                                   ulong *save_priv) const override;
+};
+
+/** Singleton instance of PFS_readonly_processlist_acl */
+extern PFS_readonly_processlist_acl pfs_readonly_processlist_acl;
+
 /** Position of a cursor, for simple iterations. */
 struct PFS_simple_index {
   /** Current row index. */

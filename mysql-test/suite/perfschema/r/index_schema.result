@@ -84,6 +84,7 @@ prepared_statements_instances	0	performance_schema	OWNER_THREAD_ID	HASH
 prepared_statements_instances	0	performance_schema	PRIMARY	HASH	
 prepared_statements_instances	1	performance_schema	STATEMENT_ID	HASH	
 prepared_statements_instances	1	performance_schema	STATEMENT_NAME	HASH	
+processlist	0	performance_schema	PRIMARY	HASH	
 replication_applier_configuration	0	performance_schema	PRIMARY	HASH	
 replication_applier_status	0	performance_schema	PRIMARY	HASH	
 replication_applier_status_by_coordinator	0	performance_schema	PRIMARY	HASH	
@@ -286,6 +287,7 @@ prepared_statements_instances	0	performance_schema	OWNER_THREAD_ID	2	OWNER_EVENT
 prepared_statements_instances	0	performance_schema	PRIMARY	1	OBJECT_INSTANCE_BEGIN	NULL	
 prepared_statements_instances	1	performance_schema	STATEMENT_ID	1	STATEMENT_ID	NULL	
 prepared_statements_instances	1	performance_schema	STATEMENT_NAME	1	STATEMENT_NAME	NULL	YES
+processlist	0	performance_schema	PRIMARY	1	ID	NULL	
 replication_applier_configuration	0	performance_schema	PRIMARY	1	CHANNEL_NAME	NULL	
 replication_applier_status	0	performance_schema	PRIMARY	1	CHANNEL_NAME	NULL	
 replication_applier_status_by_coordinator	0	performance_schema	PRIMARY	1	CHANNEL_NAME	NULL	

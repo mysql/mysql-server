@@ -108,6 +108,7 @@
 #include "storage/perfschema/table_performance_timers.h"
 #include "storage/perfschema/table_persisted_variables.h"
 #include "storage/perfschema/table_prepared_stmt_instances.h"
+#include "storage/perfschema/table_processlist.h"
 #include "storage/perfschema/table_replication_applier_configuration.h"
 #include "storage/perfschema/table_replication_applier_filters.h"
 #include "storage/perfschema/table_replication_applier_global_filters.h"
@@ -573,6 +574,7 @@ static PFS_engine_table_share *all_shares[] = {
     &table_mutex_instances::m_share,
     &table_os_global_by_type::m_share,
     &table_performance_timers::m_share,
+    &table_processlist::m_share,
     &table_rwlock_instances::m_share,
     &table_setup_actors::m_share,
     &table_setup_consumers::m_share,
@@ -1125,6 +1127,33 @@ ACL_internal_access_result PFS_readonly_world_acl::check(
   if (res == ACL_INTERNAL_ACCESS_CHECK_GRANT) {
     res = ACL_INTERNAL_ACCESS_GRANTED;
   }
+  return res;
+}
+
+PFS_readonly_processlist_acl pfs_readonly_processlist_acl;
+
+ACL_internal_access_result PFS_readonly_processlist_acl::check(
+    ulong want_access, ulong *save_priv) const {
+  ACL_internal_access_result res =
+      PFS_readonly_acl::check(want_access, save_priv);
+
+  if ((res == ACL_INTERNAL_ACCESS_CHECK_GRANT) && (want_access == SELECT_ACL)) {
+    THD *thd = current_thd;
+    if (thd != nullptr) {
+      if (thd->lex->sql_command == SQLCOM_SHOW_PROCESSLIST ||
+          thd->lex->sql_command == SQLCOM_SELECT) {
+        /*
+          For compatibility with the historical
+          SHOW PROCESSLIST command,
+          SHOW PROCESSLIST does not require a
+          SELECT privilege on table performance_schema.processlist,
+          when rewriting the query using table processlist.
+        */
+        return ACL_INTERNAL_ACCESS_GRANTED;
+      }
+    }
+  }
+
   return res;
 }
 

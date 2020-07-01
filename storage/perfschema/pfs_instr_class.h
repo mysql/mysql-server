@@ -72,6 +72,7 @@ class PFS_opaque_container_page;
 */
 
 extern bool pfs_enabled;
+extern bool pfs_processlist_enabled;
 
 /** Global ref count for plugin and component events. */
 extern std::atomic<uint32> pfs_unload_plugin_ref_count;
@@ -180,6 +181,8 @@ struct PFS_instr_class {
   bool is_transferable() const { return m_flags & PSI_FLAG_TRANSFER; }
 
   bool is_user() const { return m_flags & PSI_FLAG_USER; }
+
+  bool is_system_thread() const { return m_flags & PSI_FLAG_THREAD_SYSTEM; }
 
   bool is_global() const { return m_flags & PSI_FLAG_ONLY_GLOBAL_STAT; }
 

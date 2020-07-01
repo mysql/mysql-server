@@ -173,6 +173,8 @@ PSI_memory_key key_memory_log_event;
 PSI_memory_key key_memory_Incident_log_event_message;
 PSI_memory_key key_memory_Rows_query_log_event_rows_query;
 
+extern bool pfs_processlist_enabled;
+
 using std::max;
 using std::min;
 
@@ -5109,6 +5111,10 @@ end:
 
   /* Mark the statement completed. */
   MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
+
+  /* Maintain compatibility with the legacy processlist. */
+  if (pfs_processlist_enabled) thd->reset_query_for_display();
+
   thd->m_statement_psi = nullptr;
   thd->m_digest = nullptr;
 

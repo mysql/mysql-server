@@ -30,6 +30,7 @@ execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	1	1
 root	1	1
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
@@ -85,6 +86,7 @@ execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	1	1
 root	1	1
 user1	1	1
 execute dump_hosts;
@@ -150,6 +152,7 @@ execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	1	1
 root	1	1
 user1	1	1
 execute dump_hosts;
@@ -228,6 +231,7 @@ execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	1	1
 root	1	1
 user1	1	1
 user2	1	1
@@ -316,6 +320,7 @@ execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	1	1
 root	1	1
 user1	1	1
 user2	1	1
@@ -396,6 +401,7 @@ execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	1	1
 root	1	1
 user1	1	1
 user2	1	1
@@ -497,6 +503,7 @@ execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	1	1
 root	1	1
 user1	1	1
 user2	1	1
@@ -608,6 +615,7 @@ execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	1	1
 root	1	1
 user1	1	1
 user2	1	1
@@ -732,6 +740,7 @@ execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	1	1
 root	1	1
 user1	1	1
 user2	1	1
@@ -875,6 +884,7 @@ execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	1	1
 root	1	1
 user1	1	1
 user2	1	1
@@ -990,6 +1000,7 @@ execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	1	1
 root	1	1
 user1	0	1
 user2	1	1
@@ -1095,6 +1106,7 @@ execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	1	1
 root	1	1
 user1	0	1
 user2	0	1
@@ -1190,6 +1202,7 @@ execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	1	1
 root	1	1
 user1	0	1
 user2	0	1
@@ -1275,6 +1288,7 @@ execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	1	1
 root	1	1
 user1	0	1
 user2	0	1
@@ -1361,6 +1375,7 @@ execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	1	1
 root	1	1
 user1	0	1
 user2	0	1
@@ -1447,6 +1462,7 @@ execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	1	1
 root	1	1
 user1	0	1
 user2	0	1
@@ -1533,6 +1549,7 @@ execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	1	1
 root	1	1
 user1	0	1
 user2	0	1
@@ -1619,6 +1636,7 @@ execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	1	1
 root	1	1
 user1	0	1
 user2	0	1
@@ -1705,6 +1723,7 @@ execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	1	1
 root	1	1
 user1	0	1
 user2	0	1
@@ -1791,6 +1810,7 @@ execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	1	1
 root	1	1
 user1	0	1
 user2	0	1
@@ -1829,6 +1849,7 @@ execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	1	1
 root	1	1
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
@@ -1863,6 +1884,7 @@ execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
 USER	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
+event_scheduler	1	1
 root	1	1
 execute dump_hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS

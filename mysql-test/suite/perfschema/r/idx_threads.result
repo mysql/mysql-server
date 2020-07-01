@@ -219,6 +219,7 @@ select thread_id = @tid, name, processlist_state, processlist_info
 from performance_schema.threads
 where PROCESSLIST_HOST = "localhost";
 thread_id = @tid	name	processlist_state	processlist_info
+0	thread/sql/event_scheduler	Waiting on empty queue	NULL
 1	thread/sql/one_connection	executing	select thread_id = @tid, name, processlist_state, processlist_info
 from performance_schema.threads
 where PROCESSLIST_HOST = "localhost"

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -100,6 +100,8 @@ int pfs_set_thread_resource_group_by_id_vc(PSI_thread *thread,
                                            int group_name_len, void *user_data);
 
 void pfs_set_thread_vc(PSI_thread *thread);
+
+void pfs_set_thread_peer_port_vc(PSI_thread *thread, uint port);
 
 void pfs_aggregate_thread_status_vc(PSI_thread *thread);
 

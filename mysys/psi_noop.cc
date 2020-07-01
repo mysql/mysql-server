@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -133,6 +133,8 @@ static void set_thread_info_noop(const char *, uint) { return; }
 
 static void set_thread_noop(PSI_thread *) { return; }
 
+static void set_thread_peer_port_noop(PSI_thread *, uint) { return; }
+
 static int set_thread_resource_group_noop(const char *, int, void *) {
   return 0;
 }
@@ -208,6 +210,7 @@ static PSI_thread_service_t psi_thread_noop = {
     set_thread_resource_group_noop,
     set_thread_resource_group_by_id_noop,
     set_thread_noop,
+    set_thread_peer_port_noop,
     aggregate_thread_status_noop,
     delete_current_thread_noop,
     delete_thread_noop,

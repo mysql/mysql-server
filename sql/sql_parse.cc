@@ -2242,6 +2242,7 @@ done:
   MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
   thd->m_statement_psi = nullptr;
   thd->m_digest = nullptr;
+  thd->reset_query_for_display();
 
   /* Prevent rewritten query from getting "stuck" in SHOW PROCESSLIST. */
   thd->reset_rewritten_query();
@@ -3592,16 +3593,10 @@ int mysql_execute_command(THD *thd, bool first_level) {
               ->mark_as_changed(thd, nullptr);
       }
     } break;
-    case SQLCOM_SHOW_PROCESSLIST:
-      if (!thd->security_context()->priv_user().str[0] &&
-          check_global_access(thd, PROCESS_ACL))
-        break;
-      mysqld_list_processes(thd,
-                            (thd->security_context()->check_access(PROCESS_ACL)
-                                 ? NullS
-                                 : thd->security_context()->priv_user().str),
-                            lex->verbose);
+    case SQLCOM_SHOW_PROCESSLIST: {
+      res = lex->m_sql_cmd->execute(thd);
       break;
+    }
     case SQLCOM_SHOW_ENGINE_LOGS: {
       if (check_access(thd, FILE_ACL, any_db, nullptr, nullptr, false, false))
         goto error;
@@ -6066,6 +6061,7 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(
   ptr->updating = table_options & TL_OPTION_UPDATING;
   ptr->ignore_leaves = table_options & TL_OPTION_IGNORE_LEAVES;
   ptr->set_derived_unit(table_name->sel);
+
   if (!ptr->is_derived() && !ptr->is_table_function() &&
       is_infoschema_db(ptr->db, ptr->db_length)) {
     dd::info_schema::convert_table_name_case(

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -6597,6 +6597,17 @@ static int lo_set_thread_resource_group_by_id(PSI_thread *thread,
   }
 
   return rc;
+}
+
+static void lo_set_thread_peer_port(PSI_thread *, uint port) {
+  LO_thread *lo = reinterpret_cast<LO_thread *>(thread);
+
+  if (lo != nullptr) {
+    if ((g_thread_chain != nullptr) && (lo->m_chain != nullptr)) {
+      g_thread_chain->set_thread_peer_port(lo->m_chain, port);
+    }
+  }
+  return;
 }
 
 static void lo_set_thread(PSI_thread *thread) {

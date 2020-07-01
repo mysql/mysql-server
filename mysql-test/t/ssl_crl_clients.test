@@ -20,12 +20,14 @@ let $ssl_crlpath = $ssl_base --ssl-crlpath=$MYSQL_TEST_DIR/std_data/crldir;
 --echo # Test mysql connecting to a server with a certificate revoked by -crl
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --error 1
---exec $MYSQL $ssl_crl --ssl-mode=VERIFY_CA test -e "SHOW VARIABLES like '%ssl%';"
+--exec $MYSQL $ssl_crl --ssl-mode=VERIFY_CA test -e "SHOW VARIABLES WHERE variable_name LIKE '%ssl%' AND variable_name NOT LIKE '%processlist%';"
+
 
 --echo # Test mysql connecting to a server with a certificate revoked by -crlpath
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --error 1
---exec $MYSQL $ssl_crlpath --ssl-mode=VERIFY_CA test -e "SHOW VARIABLES like '%ssl%';"
+--exec $MYSQL $ssl_crlpath --ssl-mode=VERIFY_CA test -e "SHOW VARIABLES WHERE variable_name LIKE '%ssl%' AND variable_name NOT LIKE '%processlist%';"
+
 
 
 --echo ############ Test mysqladmin ##############

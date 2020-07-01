@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,7 @@
 #include "my_macros.h"
 #include "my_sys.h"
 #include "mysys_err.h"
+#include "sql/mysqld.h"
 #include "storage/perfschema/pfs.h"
 #include "storage/perfschema/pfs_account.h"
 #include "storage/perfschema/pfs_builtin_memory.h"
@@ -252,7 +253,7 @@ int initialize_performance_schema(
   init_pfs_plugin_table();
 
   /*
-    Initialize TLS channel instrumentation data structures
+     Initialize TLS channel instrumentation data structures
     This must be done:
     - after the memory allocation for rwlock instrumentation,
       so that rwlock LOCK_pfs_tls_channel gets instrumented

@@ -33,6 +33,8 @@
 #include "sql/sql_class.h"
 #include "sql/sql_show.h"
 
+ulong max_connections;
+
 struct System_status_var global_status_var;
 
 struct sql_digest_storage;

@@ -222,6 +222,7 @@ void pre_init_event_thread(THD *thd) {
   thd->get_protocol_classic()->set_client_capabilities(CLIENT_MULTI_RESULTS);
 
   thd->set_new_thread_id();
+
   /*
     Guarantees that we will see the thread in SHOW PROCESSLIST though its
     vio is NULL.
@@ -255,6 +256,16 @@ static void *event_scheduler_thread(void *arg) {
   thd->thread_stack = (char *)&thd;  // remember where our stack is
 
   mysql_thread_set_psi_id(thd->thread_id());
+
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  /* Update the thread instrumentation. */
+  PSI_THREAD_CALL(set_thread_account)
+  (thd->security_context()->user().str, thd->security_context()->user().length,
+   thd->security_context()->host_or_ip().str,
+   thd->security_context()->host_or_ip().length);
+  PSI_THREAD_CALL(set_thread_command)(thd->get_command());
+  PSI_THREAD_CALL(set_thread_start_time)(thd->query_start_in_secs());
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
   res = post_init_event_thread(thd);
 
@@ -299,6 +310,16 @@ static void *event_worker_thread(void *arg) {
   thd->claim_memory_ownership(true);
 
   mysql_thread_set_psi_id(thd->thread_id());
+
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  /* Update the thread instrumentation. */
+  PSI_THREAD_CALL(set_thread_account)
+  (thd->security_context()->user().str, thd->security_context()->user().length,
+   thd->security_context()->host_or_ip().str,
+   thd->security_context()->host_or_ip().length);
+  PSI_THREAD_CALL(set_thread_command)(thd->get_command());
+  PSI_THREAD_CALL(set_thread_start_time)(thd->query_start_in_secs());
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
   Event_worker_thread worker_thread;
   worker_thread.run(thd, event);

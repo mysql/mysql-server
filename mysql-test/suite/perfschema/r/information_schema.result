@@ -69,6 +69,7 @@ performance_schema	objects_summary_global_by_type	def
 performance_schema	performance_timers	def
 performance_schema	persisted_variables	def
 performance_schema	prepared_statements_instances	def
+performance_schema	processlist	def
 performance_schema	replication_applier_configuration	def
 performance_schema	replication_applier_filters	def
 performance_schema	replication_applier_global_filters	def
@@ -179,6 +180,7 @@ objects_summary_global_by_type	BASE TABLE	PERFORMANCE_SCHEMA
 performance_timers	BASE TABLE	PERFORMANCE_SCHEMA
 persisted_variables	BASE TABLE	PERFORMANCE_SCHEMA
 prepared_statements_instances	BASE TABLE	PERFORMANCE_SCHEMA
+processlist	BASE TABLE	PERFORMANCE_SCHEMA
 replication_applier_configuration	BASE TABLE	PERFORMANCE_SCHEMA
 replication_applier_filters	BASE TABLE	PERFORMANCE_SCHEMA
 replication_applier_global_filters	BASE TABLE	PERFORMANCE_SCHEMA
@@ -289,6 +291,7 @@ objects_summary_global_by_type	10	Dynamic
 performance_timers	10	Fixed
 persisted_variables	10	Dynamic
 prepared_statements_instances	10	Dynamic
+processlist	10	Dynamic
 replication_applier_configuration	10	Dynamic
 replication_applier_filters	10	Dynamic
 replication_applier_global_filters	10	Dynamic
@@ -397,6 +400,7 @@ mutex_instances	0
 objects_summary_global_by_type	0
 performance_timers	0
 prepared_statements_instances	0
+processlist	0
 replication_applier_configuration	0
 replication_applier_filters	0
 replication_applier_global_filters	0
@@ -515,6 +519,7 @@ objects_summary_global_by_type	0	0
 performance_timers	0	0
 persisted_variables	0	0
 prepared_statements_instances	0	0
+processlist	0	0
 replication_applier_configuration	0	0
 replication_applier_filters	0	0
 replication_applier_global_filters	0	0
@@ -625,6 +630,7 @@ objects_summary_global_by_type	0	0	NULL
 performance_timers	0	0	NULL
 persisted_variables	0	0	NULL
 prepared_statements_instances	0	0	NULL
+processlist	0	0	NULL
 replication_applier_configuration	0	0	NULL
 replication_applier_filters	0	0	NULL
 replication_applier_global_filters	0	0	NULL
@@ -735,6 +741,7 @@ objects_summary_global_by_type	NULL	NULL	NULL
 performance_timers	NULL	NULL	NULL
 persisted_variables	NULL	NULL	NULL
 prepared_statements_instances	NULL	NULL	NULL
+processlist	NULL	NULL	NULL
 replication_applier_configuration	NULL	NULL	NULL
 replication_applier_filters	NULL	NULL	NULL
 replication_applier_global_filters	NULL	NULL	NULL
@@ -845,6 +852,7 @@ objects_summary_global_by_type	utf8mb4_0900_ai_ci	NULL
 performance_timers	utf8mb4_0900_ai_ci	NULL
 persisted_variables	utf8mb4_0900_ai_ci	NULL
 prepared_statements_instances	utf8mb4_0900_ai_ci	NULL
+processlist	utf8mb4_0900_ai_ci	NULL
 replication_applier_configuration	utf8mb4_0900_ai_ci	NULL
 replication_applier_filters	utf8mb4_0900_ai_ci	NULL
 replication_applier_global_filters	utf8mb4_0900_ai_ci	NULL
@@ -955,6 +963,7 @@ objects_summary_global_by_type
 performance_timers	
 persisted_variables	
 prepared_statements_instances	
+processlist	
 replication_applier_configuration	
 replication_applier_filters	
 replication_applier_global_filters	
@@ -1065,6 +1074,7 @@ objects_summary_global_by_type
 performance_timers	
 persisted_variables	
 prepared_statements_instances	
+processlist	
 replication_applier_configuration	
 replication_applier_filters	
 replication_applier_global_filters	

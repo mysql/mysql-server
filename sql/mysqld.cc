@@ -1767,6 +1767,8 @@ ulong sql_rnd_with_mutex() {
 }
 
 struct System_status_var *get_thd_status_var(THD *thd, bool *aggregated) {
+  DBUG_ASSERT(thd != nullptr);
+  DBUG_ASSERT(aggregated != nullptr);
   *aggregated = thd->status_var_aggregated;
   return &thd->status_var;
 }

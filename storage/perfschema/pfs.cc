@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -3224,23 +3224,16 @@ void pfs_set_thread_info_vc(const char *info, uint info_len) {
   pfs_dirty_state dirty_state;
   PFS_thread *pfs = my_thread_get_THR_PFS();
 
-  DBUG_ASSERT((info != nullptr) || (info_len == 0));
-
   if (likely(pfs != nullptr)) {
-    if ((info != nullptr) && (info_len > 0)) {
-      if (info_len > sizeof(pfs->m_processlist_info)) {
-        info_len = sizeof(pfs->m_processlist_info);
-      }
-
-      pfs->m_stmt_lock.allocated_to_dirty(&dirty_state);
-      memcpy(pfs->m_processlist_info, info, info_len);
-      pfs->m_processlist_info_length = info_len;
-      pfs->m_stmt_lock.dirty_to_allocated(&dirty_state);
-    } else {
-      pfs->m_stmt_lock.allocated_to_dirty(&dirty_state);
-      pfs->m_processlist_info_length = 0;
-      pfs->m_stmt_lock.dirty_to_allocated(&dirty_state);
+    if (info_len > sizeof(pfs->m_processlist_info)) {
+      info_len = sizeof(pfs->m_processlist_info);
     }
+    pfs->m_stmt_lock.allocated_to_dirty(&dirty_state);
+    if (info != nullptr && info_len > 0) {
+      memcpy(pfs->m_processlist_info, info, info_len);
+    }
+    pfs->m_processlist_info_length = info_len;
+    pfs->m_stmt_lock.dirty_to_allocated(&dirty_state);
   }
 }
 
@@ -3451,6 +3444,17 @@ void pfs_notify_session_change_user_vc(
 void pfs_set_thread_vc(PSI_thread *thread) {
   PFS_thread *pfs = reinterpret_cast<PFS_thread *>(thread);
   my_thread_set_THR_PFS(pfs);
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v4::set_thread_peer_port
+*/
+void pfs_set_thread_peer_port_vc(PSI_thread *thread, uint port) {
+  PFS_thread *pfs = reinterpret_cast<PFS_thread *>(thread);
+  if (likely(pfs != nullptr)) {
+    pfs->m_peer_port = port;
+  }
 }
 
 /**
@@ -7155,20 +7159,15 @@ void pfs_set_socket_info_v1(PSI_socket *socket, const my_socket *fd,
   PFS_socket *pfs = reinterpret_cast<PFS_socket *>(socket);
   DBUG_ASSERT(pfs != nullptr);
 
-  /** Set socket descriptor */
   if (fd != nullptr) {
-    pfs->m_fd = (uint)*fd;
+    pfs->m_fd = (my_socket)*fd;
   }
-
-  /** Set raw socket address and length */
   if (likely(addr != nullptr && addr_len > 0)) {
     pfs->m_addr_len = addr_len;
 
-    /** Restrict address length to size of struct */
     if (unlikely(pfs->m_addr_len > sizeof(sockaddr_storage))) {
       pfs->m_addr_len = sizeof(struct sockaddr_storage);
     }
-
     memcpy(&pfs->m_sock_addr, addr, pfs->m_addr_len);
   }
 }
@@ -7183,8 +7182,7 @@ void pfs_set_socket_thread_owner_v1(PSI_socket *socket) {
   PFS_thread *pfs_thread = my_thread_get_THR_PFS();
   pfs_socket->m_thread_owner = pfs_thread;
 
-  if (pfs_thread)  // TODO use set_thread_ip_addr()
-  {
+  if (pfs_thread) {
     pfs_thread->m_sock_addr_len = pfs_socket->m_addr_len;
     if (pfs_thread->m_sock_addr_len > 0) {
       memcpy(&pfs_thread->m_sock_addr, &pfs_socket->m_sock_addr,
@@ -8065,9 +8063,9 @@ SERVICE_IMPLEMENTATION(performance_schema, psi_system_v1) = {
 
 /**
   Implementation of the instrumentation interface.
-  @sa PSI_thread_service_v3
+  @sa PSI_thread_service_v4
 */
-PSI_thread_service_v3 pfs_thread_service_v3 = {
+PSI_thread_service_v4 pfs_thread_service_v4 = {
     /* Old interface, for plugins. */
     pfs_register_thread_vc,
     pfs_spawn_thread_vc,
@@ -8089,6 +8087,7 @@ PSI_thread_service_v3 pfs_thread_service_v3 = {
     pfs_set_thread_resource_group_vc,
     pfs_set_thread_resource_group_by_id_vc,
     pfs_set_thread_vc,
+    pfs_set_thread_peer_port_vc,
     pfs_aggregate_thread_status_vc,
     pfs_delete_current_thread_vc,
     pfs_delete_thread_vc,
@@ -8103,8 +8102,8 @@ PSI_thread_service_v3 pfs_thread_service_v3 = {
     pfs_notify_session_disconnect_vc,
     pfs_notify_session_change_user_vc};
 
-SERVICE_TYPE(psi_thread_v3)
-SERVICE_IMPLEMENTATION(performance_schema, psi_thread_v3) = {
+SERVICE_TYPE(psi_thread_v4)
+SERVICE_IMPLEMENTATION(performance_schema, psi_thread_v4) = {
     /* New interface, for components. */
     pfs_register_thread_vc,
     pfs_spawn_thread_vc,
@@ -8124,6 +8123,7 @@ SERVICE_IMPLEMENTATION(performance_schema, psi_thread_v3) = {
     pfs_set_thread_start_time_vc,
     pfs_set_thread_info_vc,
     pfs_set_thread_vc,
+    pfs_set_thread_peer_port_vc,
     pfs_aggregate_thread_status_vc,
     pfs_delete_current_thread_vc,
     pfs_delete_thread_vc,
@@ -8471,7 +8471,9 @@ static void *get_thread_interface(int version) {
     case PSI_THREAD_VERSION_2:
       return nullptr;
     case PSI_THREAD_VERSION_3:
-      return &pfs_thread_service_v3;
+      return nullptr;
+    case PSI_THREAD_VERSION_4:
+      return &pfs_thread_service_v4;
     default:
       return nullptr;
   }
@@ -8714,7 +8716,7 @@ PROVIDES_SERVICE(performance_schema, psi_cond_v1),
     PROVIDES_SERVICE(performance_schema, psi_table_v1),
     /* Obsolete: PROVIDES_SERVICE(performance_schema, psi_thread_v1), */
     /* Obsolete: PROVIDES_SERVICE(performance_schema, psi_thread_v2), */
-    PROVIDES_SERVICE(performance_schema, psi_thread_v3),
+    PROVIDES_SERVICE(performance_schema, psi_thread_v4),
     PROVIDES_SERVICE(performance_schema, psi_transaction_v1),
     /* Deprecated, use pfs_plugin_table_v1. */
     PROVIDES_SERVICE(performance_schema, pfs_plugin_table),

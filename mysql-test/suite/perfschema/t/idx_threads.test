@@ -1,5 +1,7 @@
 # Tests for PERFORMANCE_SCHEMA
 
+--source include/no_protocol.inc
+
 select connection_id() into @conid;
 
 select thread_id from performance_schema.threads
