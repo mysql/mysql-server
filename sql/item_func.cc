@@ -7790,6 +7790,7 @@ bool Item_func_sp::itemize(Parse_context *pc, Item **res) {
 void Item_func_sp::cleanup() {
   if (sp_result_field != nullptr) {
     sp_result_field->mem_free();
+    sp_result_field->table->in_use = nullptr;
   }
   m_sp = nullptr;
   Item_func::cleanup();
@@ -8163,11 +8164,15 @@ void Item_func_sp::fix_after_pullout(SELECT_LEX *parent_select,
 
 void Item_func_sp::bind_fields() {
   if (!fixed) return;
-  DBUG_ASSERT(m_sp == nullptr);
+  assert(m_sp == nullptr);
   THD *thd = current_thd;
   m_sp = sp_setup_routine(thd, enum_sp_type::FUNCTION, m_name,
                           &thd->sp_func_cache);
-  DBUG_ASSERT(m_sp != nullptr);
+  assert(m_sp != nullptr);
+  if (sp_result_field != nullptr) {
+    assert(sp_result_field->table->in_use == nullptr);
+    sp_result_field->table->in_use = thd;
+  }
 }
 
 /*

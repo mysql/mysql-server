@@ -6247,6 +6247,8 @@ type_conversion_status Item::save_in_field(Field *field, bool no_conversions) {
   // an error handler that catches any errors that tries to print out the
   // name of the hidden column. It will instead print out the functional
   // index name.
+  assert(field->table == nullptr || field->table->in_use == current_thd);
+
   Functional_index_error_handler functional_index_error_handler(
       field, (field->table ? field->table->in_use : current_thd));
 
