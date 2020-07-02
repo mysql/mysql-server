@@ -736,3 +736,9 @@ UPDATE vtr SET b2=b2+1 WHERE a2=1;
 DROP VIEW vtr, vmat2;
 DROP TABLE t1, t2;
 
+--echo # Bug#31360425: Segfault in Query_result_update::optimize()
+
+CREATE TABLE g(c INTEGER, b INTEGER);
+CREATE TABLE t(a INTEGER);
+UPDATE t SET a=1 WHERE EXISTS(SELECT b FROM g WHERE 1 NOT LIKE c FOR UPDATE);
+DROP TABLE g, t;

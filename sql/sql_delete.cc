@@ -649,12 +649,8 @@ bool Sql_cmd_delete::prepare_inner(THD *thd) {
   trace_prepare.add_select_number(select->select_number);
   Opt_trace_array trace_steps(trace, "steps");
 
-  if (multitable) {
-    apply_semijoin = true;
-  } else {
-    table_list->updating = true;
-    apply_semijoin = false;
-  }
+  apply_semijoin = multitable;
+
   if (select->setup_tables(thd, table_list, false))
     return true; /* purecov: inspected */
 
@@ -716,8 +712,9 @@ bool Sql_cmd_delete::prepare_inner(THD *thd) {
          tr = tr->referencing_view) {
       tr->updating = true;
     }
+
     // Table is deleted from, used for privilege checking during execution
-    table_ref->updatable_base_table()->set_deleted();
+    base_table->set_deleted();
   }
 
   if (!multitable && select->first_inner_unit() != nullptr &&
@@ -792,7 +789,7 @@ bool Sql_cmd_delete::prepare_inner(THD *thd) {
 
   for (TABLE_LIST *table_ref = table_list; table_ref;
        table_ref = table_ref->next_local) {
-    if (!table_ref->updating) continue;
+    if (!table_ref->is_deleted()) continue;
     /*
       Check that table from which we delete is not used somewhere
       inside subqueries/view.
@@ -864,7 +861,7 @@ bool Query_result_delete::prepare(THD *thd, const mem_root_deque<Item *> &,
 
   for (TABLE_LIST *tr = u->first_select()->leaf_tables; tr;
        tr = tr->next_leaf) {
-    if (tr->updating) {
+    if (tr->is_deleted()) {
       // Count number of tables deleted from
       delete_table_count++;
     }
@@ -905,7 +902,7 @@ bool Query_result_delete::optimize() {
 
   bool delete_while_scanning = true;
   for (TABLE_LIST *tr = select->leaf_tables; tr; tr = tr->next_leaf) {
-    if (!tr->updating) continue;
+    if (!tr->is_deleted()) continue;
     delete_table_map |= tr->map();
     if (delete_while_scanning && unique_table(tr, join->tables_list, false)) {
       /*

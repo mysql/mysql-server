@@ -3434,11 +3434,16 @@ struct TABLE_LIST {
   size_t table_name_length{0};
 
  private:
-  bool m_updatable{false};          ///< VIEW/TABLE can be updated
-  bool m_insertable{false};         ///< VIEW/TABLE can be inserted into
-  bool m_updated{false};            ///< is target of UPDATE statement
-  bool m_inserted{false};           ///< is target of INSERT statement
-  bool m_deleted{false};            ///< is target of DELETE statement
+  /// True if VIEW/TABLE is updatable, based on analysis of query (SQL rules).
+  bool m_updatable{false};
+  /// True if VIEW/TABLE is insertable, based on analysis of query (SQL rules).
+  bool m_insertable{false};
+  /// True if table is target of UPDATE statement, or updated in IODKU stmt.
+  bool m_updated{false};
+  /// True if table is target of INSERT statement.
+  bool m_inserted{false};
+  /// True if table is target of DELETE statement, or deleted in REPLACE stmt.
+  bool m_deleted{false};
   bool m_fulltext_searched{false};  ///< True if fulltext searched
  public:
   bool straight{false}; /* optimize with prev table */

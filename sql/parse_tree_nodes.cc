@@ -834,7 +834,7 @@ Sql_cmd *PT_update::make_cmd(THD *thd) {
   /*
     In case of multi-update setting write lock for all tables may
     be too pessimistic. We will decrease lock level if possible in
-    mysql_multi_update().
+    Sql_cmd_update::prepare_inner().
   */
   select->set_lock_for_tables(opt_low_priority);
 

@@ -1509,8 +1509,13 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
 
   DBUG_ASSERT(update_table_count_local > 0);
 
+  /*
+    Some tables may be marked for update, even though they have no columns
+    that are updated. Adjust "updating" flag based on actual updated columns.
+  */
   for (TABLE_LIST *tr = select->leaf_tables; tr; tr = tr->next_leaf) {
     if (tr->map() & tables_for_update) tr->set_updated();
+    tr->updating = tr->is_updated();
   }
 
   if (setup_fields(thd, /*want_privilege=*/SELECT_ACL,
@@ -1557,8 +1562,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
   }
 
   for (TABLE_LIST *tl = select->leaf_tables; tl; tl = tl->next_leaf) {
-    tl->updating = tl->map() & tables_for_update;
-    if (tl->updating) {
+    if (tl->is_updated()) {
       // Cannot update a table if the storage engine does not support update.
       if (tl->table->file->ha_table_flags() & HA_UPDATE_NOT_SUPPORTED) {
         my_error(ER_ILLEGAL_HA, MYF(0), tl->table_name);
@@ -1614,7 +1618,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
   select->exclude_from_table_unique_test = true;
 
   for (TABLE_LIST *tr = select->leaf_tables; tr; tr = tr->next_leaf) {
-    if (tr->updating) {
+    if (tr->is_updated()) {
       TABLE_LIST *duplicate = unique_table(tr, select->leaf_tables, false);
       if (duplicate != nullptr) {
         update_non_unique_table_error(select->leaf_tables, "UPDATE", duplicate);
@@ -1728,7 +1732,6 @@ bool Query_result_update::prepare(THD *thd, const mem_root_deque<Item *> &,
   const table_map tables_to_update = get_table_map(*fields);
 
   for (TABLE_LIST *tr = leaves; tr; tr = tr->next_leaf) {
-    DBUG_ASSERT(tr->updating == ((tables_to_update & tr->map()) != 0));
     if (tr->check_option) {
       // Resolving may be needed for subsequent executions
       if (!tr->check_option->fixed &&
@@ -1953,7 +1956,7 @@ bool Query_result_update::optimize() {
 
   TABLE_LIST *update_table = update_tables;
   for (TABLE_LIST *tr = leaves; tr; tr = tr->next_leaf) {
-    if (tr->updating) {
+    if (tr->is_updated()) {
       TABLE *const table = tr->table;
 
       update_table->table = table;

@@ -1110,13 +1110,13 @@ bool Explain_join::explain_modify_flags() {
   switch (query_plan->get_command()) {
     case SQLCOM_UPDATE:
     case SQLCOM_UPDATE_MULTI:
-      if (table->pos_in_table_list->updating &&
+      if (table->pos_in_table_list->is_updated() &&
           table->s->table_category != TABLE_CATEGORY_TEMPORARY)
         fmt->entry()->mod_type = MT_UPDATE;
       break;
     case SQLCOM_DELETE:
     case SQLCOM_DELETE_MULTI:
-      if (table->pos_in_table_list->updating &&
+      if (table->pos_in_table_list->is_deleted() &&
           table->s->table_category != TABLE_CATEGORY_TEMPORARY)
         fmt->entry()->mod_type = MT_DELETE;
       break;
@@ -1998,7 +1998,7 @@ static string FindUpdatedTables(JOIN *join) {
     TABLE_LIST *table_ref = join->qep_tab[idx].table_ref;
     if (table_ref == nullptr) continue;
     TABLE *table = table_ref->table;
-    if (table_ref->updating &&
+    if ((table_ref->is_updated() || table_ref->is_deleted()) &&
         table->s->table_category != TABLE_CATEGORY_TEMPORARY) {
       if (!ret.empty()) {
         ret += ", ";
