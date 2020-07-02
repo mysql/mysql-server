@@ -62,6 +62,9 @@ extern "C" {
     NDB_MGM_ALLOCID_ERROR = 1101,
     /** Non retriable error */
     NDB_MGM_ALLOCID_CONFIG_MISMATCH = 1102,
+    /** Mgmd failed to match hostname, but AllowUnresolvedHostnames=true.
+        Connecting node should retry. */
+    NDB_MGM_ALLOCID_CONFIG_RETRY = 1103,
 
     /* Service errors - Start/Stop Node or System */
     /** Start failed */
