@@ -200,7 +200,8 @@ class Filesort_info {
   /**
     Copies (unpacks) values appended to sorted fields from a buffer back to
     their regular positions specified by the Field::ptr pointers.
-    @param buff            Buffer which to unpack the value from
+    @param tables  Tables in the join; for NULL row flags.
+    @param buff    Buffer which to unpack the value from.
   */
   template <bool Packed_addon_fields>
   inline void unpack_addon_fields(const Prealloced_array<TABLE *, 4> &tables,
