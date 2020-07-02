@@ -1,0 +1,249 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+show variables like 'slave_allow_batching';
+Variable_name	Value
+slave_allow_batching	ON
+set @s_batch_size:=@@ndb_batch_size;
+set @s_blob_write_batch:=@@ndb_blob_write_batch_bytes;
+set @s_blob_read_batch:=@@ndb_blob_read_batch_bytes;
+set @batch_sz = 8 * 1024 * 1024;
+set global ndb_batch_size = @batch_sz;
+set ndb_batch_size = @batch_sz;
+set global ndb_blob_write_batch_bytes = @batch_sz;
+set ndb_blob_write_batch_bytes = @batch_sz;
+set global ndb_blob_read_batch_bytes = @batch_sz;
+set ndb_blob_read_batch_bytes = @batch_sz;
+show variables like 'ndb_log_update_as_write';
+Variable_name	Value
+ndb_log_update_as_write	ON
+
+Bulk insert (20 x ~3kb)
+-----------------------
+Varchar table
+round_trips_slave	1
+pk_ops_slave	22
+
+1 Blob table
+round_trips_slave	3
+pk_ops_slave	122
+
+2 Blob table
+round_trips_slave	3
+pk_ops_slave	222
+
+
+Bulk update (20 x ~3kB)
+---------------------------------
+begin;
+update tv set b=repeat('J', 3000) where a in
+(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20);
+commit;
+Varchar table
+round_trips_slave	1
+pk_ops_slave	22
+
+begin;
+update tb1 set b=repeat('J', 3000) where a in
+(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20);
+commit;
+1 Blob table
+round_trips_slave	2
+pk_ops_slave	102
+
+begin;
+update tb2 set b=repeat('J', 3000), c=repeat('C', 3000) where a in
+(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20);
+commit;
+2 Blob table
+round_trips_slave	2
+pk_ops_slave	182
+
+
+Mixed batch (6 x ~3kB update, 5x ~1kB delete, 5x ~3kB insert all independent)
+-----------------------------------------------------------------------------
+As all are independent, should get maximal batching
+begin;
+update tv set b=repeat('C', 3000) where a in (15,16,17,18,19,20);
+delete from tv where a in (1,2,3,4,5);
+insert into tv values (21, repeat('B', 3000));
+insert into tv values (22, repeat('B', 3000));
+insert into tv values (23, repeat('B', 3000));
+insert into tv values (24, repeat('B', 3000));
+insert into tv values (25, repeat('B', 3000));
+commit;
+Varchar table
+round_trips_slave	1
+pk_ops_slave	18
+
+begin;
+update tb1 set b=repeat('C', 3000) where a in (15,16,17,18,19,20);
+delete from tb1 where a in (1,2,3,4,5);
+insert into tb1 values (21, repeat('B', 3000));
+insert into tb1 values (22, repeat('B', 3000));
+insert into tb1 values (23, repeat('B', 3000));
+insert into tb1 values (24, repeat('B', 3000));
+insert into tb1 values (25, repeat('B', 3000));
+commit;
+1 Blob table
+round_trips_slave	3
+pk_ops_slave	82
+
+begin;
+update tb2 set b=repeat('C', 3000), c=repeat('T', 4000) where a in (15,16,17,18,19,20);
+delete from tb2 where a in (1,2,3,4,5);
+insert into tb2 values (21, repeat('B', 3000), repeat('S', 4000));
+insert into tb2 values (22, repeat('B', 3000), repeat('G', 3000));
+insert into tb2 values (23, repeat('B', 3000), repeat('S', 4000));
+insert into tb2 values (24, repeat('B', 3000), repeat('G', 3000));
+insert into tb2 values (25, repeat('B', 3000), repeat('!', 4000));
+commit;
+2 Blob table
+round_trips_slave	3
+pk_ops_slave	146
+
+
+Mixed batch multiple tables 
+(6 x ~3kB update, 5x ~1kB delete, 5x ~3kB insert all independent)
+-----------------------------------------------------------------------------
+As all are independent, should get maximal batching
+Same keys used in different tables, should not impact batching
+begin;
+update tv set b=repeat('B', 3000) where a in (15,16,17,18,19,20);
+delete from tv where a in (21,22,23,24,25);
+insert into tv values (1, repeat('D', 4000));
+insert into tv values (2, repeat('N', 4000));
+insert into tv values (3, repeat('B', 3000));
+insert into tv values (4, repeat('D', 5000));
+insert into tv values (5, repeat('N', 2999));
+update tb1 set b=repeat('B', 3000) where a in (15,16,17,18,19,20);
+delete from tb1 where a in (21,22,23,24,25);
+insert into tb1 values (1, repeat('D', 4000));
+insert into tb1 values (2, repeat('N', 4000));
+insert into tb1 values (3, repeat('B', 3000));
+insert into tb1 values (4, repeat('D', 5000));
+insert into tb1 values (5, repeat('N', 2999));
+update tb2 set b=repeat('I', 3000), c=repeat('L', 4000) where a in (15,16,17,18,19,20);
+delete from tb2 where a in (21,22,23,24,25);
+insert into tb2 values (1, repeat('F', 4000), repeat('Y', 3000));
+insert into tb2 values (2, repeat('W', 4000), repeat('S', 3500));
+insert into tb2 values (3, repeat('P', 3000), repeat('A', 2999));
+insert into tb2 values (4, repeat('M', 4500), repeat('L', 4000));
+insert into tb2 values (5, repeat('C', 2999), repeat('!', 3200));
+commit;
+Mixed operations
+round_trips_slave	3
+pk_ops_slave	244
+
+
+Bulk delete (20 x ~3kB)
+-----------------------
+begin;
+delete from tv where a in
+(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20);
+commit;
+Varchar table
+round_trips_slave	1
+pk_ops_slave	22
+
+begin;
+delete from tb1 where a in
+(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20);
+commit;
+1 Blob table
+round_trips_slave	2
+pk_ops_slave	83
+
+begin;
+delete from tb2 where a in
+(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20);
+commit;
+2 Blob table
+round_trips_slave	2
+pk_ops_slave	143
+
+drop table tv;
+drop table tb1;
+drop table tb2;
+
+Multiple key dependencies (3 x (I 10kB, D))
+-------------------------------------------
+Dependencies are on PK which is case-insensitive
+and supports trailing spaces
+create table tv (a varchar(20) character set utf8 primary key,
+b varbinary(5000)) engine=innodb;
+create table tb1(a varchar(20) character set utf8 primary key,
+b varbinary(5000)) engine=innodb;
+create table tb2(a varchar(20) character set utf8 primary key,
+b varbinary(5000),
+c varbinary(5000)) engine=innodb;
+drop table tv;
+drop table tb1;
+drop table tb2;
+create table tv (a varchar(20) character set utf8 primary key,
+b varbinary(5000)) engine=ndb;
+create table tb1(a varchar(20) character set utf8 primary key,
+b blob) engine=ndb;
+create table tb2(a varchar(20) character set utf8 primary key,
+b blob,
+c blob) engine=ndb;
+stop slave;
+set global slave_type_conversions="ALL_LOSSY,ALL_NON_LOSSY";
+start slave;
+insert into tsync values (2);
+insert into tv values ("Sync", "Sync");
+insert into tb1 values ("Sync", "Sync");
+insert into tb2 values ("Sync", "Sync", "Sync");
+delete from tv;
+delete from tb1;
+delete from tb2;
+begin;
+insert into tv values ("A", repeat('B', 5000));
+delete from tv where a="a  ";
+insert into tv values ("a", repeat('A', 5000));
+delete from tv where a="A ";
+insert into tv values ("A", repeat('H', 5000));
+delete from tv where a="a  ";
+commit;
+Varchar table
+round_trips_slave	1
+pk_ops_slave	7
+
+begin;
+insert into tb1 values ("a", repeat('B', 5000));
+delete from tb1 where a="A";
+insert into tb1 values ("a  ", repeat('A', 5000));
+delete from tb1 where a="A ";
+insert into tb1 values ("a", repeat('H', 5000));
+delete from tb1 where a="A";
+commit;
+1 Blob table
+round_trips_slave	15
+pk_ops_slave	37
+
+begin;
+insert into tb2 values ("a  ", repeat('B', 5000), repeat('C', 5000));
+delete from tb2 where a="a";
+insert into tb2 values ("A ", repeat('A', 5000), repeat('M', 5000));
+delete from tb2 where a="A";
+insert into tb2 values ("a", repeat('H', 5000), repeat('F', 5000));
+delete from tb2 where a="A";
+commit;
+2 Blob table
+round_trips_slave	15
+pk_ops_slave	67
+
+set global slave_type_conversions="";
+set global ndb_batch_size=@s_batch_size;
+set ndb_batch_size=@s_batch_size;
+set global ndb_blob_write_batch_bytes=@s_blob_write_batch;
+set ndb_blob_write_batch_bytes=@s_blob_write_batch;
+set global ndb_blob_read_batch_bytes=@s_blob_read_batch;
+set ndb_blob_read_batch_bytes=@s_blob_read_batch;
+drop table tv;
+drop table tsync;
+drop table tb1;
+drop table tb2;
+include/rpl_end.inc

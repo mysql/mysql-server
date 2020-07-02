@@ -1040,6 +1040,7 @@ static inline int execute_no_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
   const NdbOperation *last = trans->getLastDefinedOperation();
   thd_ndb->m_execute_count++;
   thd_ndb->m_unsent_bytes = 0;
+  thd_ndb->m_unsent_blob_ops = false;
   DBUG_PRINT("info", ("execute_count: %u", thd_ndb->m_execute_count));
   int rc = 0;
   do {
@@ -1082,6 +1083,7 @@ static inline int execute_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
   const NdbOperation *last = trans->getLastDefinedOperation();
   thd_ndb->m_execute_count++;
   thd_ndb->m_unsent_bytes = 0;
+  thd_ndb->m_unsent_blob_ops = false;
   DBUG_PRINT("info", ("execute_count: %u", thd_ndb->m_execute_count));
   int rc = 0;
   do {
@@ -1131,6 +1133,7 @@ static inline int execute_no_commit_ie(Thd_ndb *thd_ndb,
                            NdbOperation::AO_IgnoreError, thd_ndb->m_force_send);
   thd_ndb->m_unsent_bytes = 0;
   thd_ndb->m_execute_count++;
+  thd_ndb->m_unsent_blob_ops = false;
   DBUG_PRINT("info", ("execute_count: %u", thd_ndb->m_execute_count));
   return res;
 }
@@ -1165,6 +1168,7 @@ Thd_ndb::Thd_ndb(THD *thd)
   m_handler = NULL;
   m_error = false;
   m_unsent_bytes = 0;
+  m_unsent_blob_ops = false;
   m_execute_count = 0;
   m_scan_count = 0;
   m_pruned_scan_count = 0;
@@ -2963,6 +2967,7 @@ int ha_ndbcluster::ndb_pk_update_row(THD *thd, const uchar *old_data,
     if (trans->commitStatus() == NdbConnection::Started) {
       if (thd->slave_thread) g_ndb_slave_state.atTransactionAbort();
       m_thd_ndb->m_unsent_bytes = 0;
+      m_thd_ndb->m_unsent_blob_ops = false;
       m_thd_ndb->m_execute_count++;
       DBUG_PRINT("info", ("execute_count: %u", m_thd_ndb->m_execute_count));
       trans->execute(NdbTransaction::Rollback);
@@ -3269,7 +3274,7 @@ inline int ha_ndbcluster::fetch_next(NdbScanOperation *cursor) {
     /*
       We can only handle one tuple with blobs at a time.
     */
-    if (m_thd_ndb->m_unsent_bytes && m_blobs_pending) {
+    if (m_thd_ndb->m_unsent_blob_ops) {
       if (execute_no_commit(m_thd_ndb, trans, m_ignore_no_key) != 0)
         return ndb_err(trans);
     }
@@ -5116,28 +5121,41 @@ int ha_ndbcluster::ndb_write_row(uchar *record, bool primary_key_update,
   }
   if (!(op)) ERR_RETURN(trans->getNdbError());
 
-  bool do_batch = !need_flush && (batched_update || thd_allow_batch(thd));
+  /**
+   * Batching
+   *
+   * iff :
+   *   Batching allowed (bulk insert, update, thd_allow())
+   *   Don't need to flush batch
+   *   Not doing pk updates
+   */
+  const bool bulk_insert = (m_rows_to_insert > 1);
+  const bool will_batch =
+      !need_flush && (bulk_insert || batched_update || thd_allow_batch(thd)) &&
+      !primary_key_update;
+
   uint blob_count = 0;
   if (table_share->blob_fields > 0) {
     my_bitmap_map *old_map = dbug_tmp_use_all_columns(table, table->read_set);
     /* Set Blob values for all columns updated by the operation */
-    int res = set_blob_values(op, record - table->record[0],
-                              user_cols_written_bitmap, &blob_count, do_batch);
+    int res =
+        set_blob_values(op, record - table->record[0], user_cols_written_bitmap,
+                        &blob_count, will_batch);
     dbug_tmp_restore_column_map(table->read_set, old_map);
     if (res != 0) return res;
   }
 
   /*
-    Execute write operation
-    NOTE When doing inserts with many values in
-    each INSERT statement it should not be necessary
-    to NoCommit the transaction between each row.
-    Find out how this is detected!
+    Execute operation
   */
   m_rows_inserted++;
   no_uncommitted_rows_update(1);
-  if (((m_rows_to_insert == 1 || uses_blobs) && !do_batch) ||
-      primary_key_update || need_flush) {
+  if (will_batch) {
+    if (uses_blobs) {
+      m_thd_ndb->m_unsent_bytes += 12;
+      m_thd_ndb->m_unsent_blob_ops = true;
+    }
+  } else {
     const int res = flush_bulk_insert();
     if (res != 0) {
       m_skip_auto_increment = true;
@@ -5498,7 +5516,7 @@ int ha_ndbcluster::exec_bulk_update(uint *dup_key_found) {
     return 0;
   }
 
-  if (m_thd_ndb->m_handler && !m_blobs_pending) {
+  if (m_thd_ndb->m_handler && !m_thd_ndb->m_unsent_blob_ops) {
     // Execute at commit time(in 'ndbcluster_commit') to save a round trip
     DBUG_PRINT("exit", ("skip execute - simple autocommit"));
     return 0;
@@ -5806,7 +5824,7 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
       return ndb_err(trans);
     }
   } else if (blob_count > 0)
-    m_blobs_pending = true;
+    m_thd_ndb->m_unsent_blob_ops = true;
 
   m_rows_updated++;
 
@@ -7382,7 +7400,6 @@ int ha_ndbcluster::init_handler_for_statement(THD *thd) {
 
   // store thread specific data first to set the right context
   m_autoincrement_prefetch = THDVAR(thd, autoincrement_prefetch_sz);
-  m_blobs_pending = false;
   release_blobs_buffer();
   m_slow_path = m_thd_ndb->m_slow_path;
 
@@ -7483,9 +7500,6 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type) {
 
     if (m_multi_cursor) DBUG_PRINT("warning", ("m_multi_cursor != NULL"));
     m_multi_cursor = NULL;
-
-    if (m_blobs_pending) DBUG_PRINT("warning", ("blobs_pending != 0"));
-    m_blobs_pending = 0;
 
     return 0;
   }
@@ -7902,6 +7916,7 @@ static int ndbcluster_rollback(handlerton *, THD *thd, bool all) {
   thd_ndb->save_point_count = 0;
   if (thd->slave_thread) g_ndb_slave_state.atTransactionAbort();
   thd_ndb->m_unsent_bytes = 0;
+  thd_ndb->m_unsent_blob_ops = false;
   thd_ndb->m_execute_count++;
   DBUG_PRINT("info", ("execute_count: %u", thd_ndb->m_execute_count));
   if (trans->execute(NdbTransaction::Rollback) != 0) {
@@ -11257,7 +11272,6 @@ ha_ndbcluster::ha_ndbcluster(handlerton *hton, TABLE_SHARE *table_arg)
       m_delete_cannot_batch(false),
       m_update_cannot_batch(false),
       m_skip_auto_increment(true),
-      m_blobs_pending(0),
       m_is_bulk_delete(false),
       m_blobs_row_total_size(0),
       m_blobs_buffer(0),

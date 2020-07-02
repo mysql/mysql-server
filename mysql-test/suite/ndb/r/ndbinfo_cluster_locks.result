@@ -867,15 +867,13 @@ Various : Reads, Updates on main, Updates on parts
 Part(s) may have delete + insert rather than update
 select * from ndbinfo.ordered_locks order by detail,op;
 mode	state	detail	op	waiting
-X	H		INSERT	0
-X	H		INSERT	0
 X	H		READ	0
 X	H		UPDATE	0
 X	H		UPDATE	0
 X	H		UPDATE	0
-X	H	*	DELETE	0
-X	H	*	DELETE	0
 X	H	*	READ	0
+X	H	*	UPDATE	0
+X	H	*	UPDATE	0
 X	H	*	UPDATE	0
 rollback;
 Show delete locks

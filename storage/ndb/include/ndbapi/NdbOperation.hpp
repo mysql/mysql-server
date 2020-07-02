@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,6 +61,8 @@ class NdbOperation
   friend class NdbScanFilterImpl;
   friend class NdbReceiver;
   friend class NdbBlob;
+  friend class BlobBatchChecker;
+  friend class OpList;
 #endif
 
 public:
@@ -1488,7 +1490,8 @@ protected:
     OF_QUEUEABLE = 0x4,
     OF_DEFERRED_CONSTRAINTS = 0x8,
     OF_DISABLE_FK = 0x10,
-    OF_NOWAIT = 0x20
+    OF_NOWAIT = 0x20,
+    OF_BLOB_PART_READ = 0x40
   };
   Uint8  m_flags;
 

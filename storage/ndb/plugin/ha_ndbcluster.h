@@ -728,7 +728,6 @@ class ha_ndbcluster : public handler, public Partition_handler {
   bool m_update_cannot_batch;
   uint m_bytes_per_write;
   bool m_skip_auto_increment;
-  bool m_blobs_pending;
   bool m_slow_path;
   bool m_is_bulk_delete;
 

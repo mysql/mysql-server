@@ -1247,9 +1247,9 @@ parent_fq_name	ndbinfo/def/t1
 type	User table
 frag_count	16
 tot_key_reads	0
-tot_key_inserts	200
+tot_key_inserts	100
 tot_key_updates	0
-tot_key_writes	0
+tot_key_writes	100
 tot_key_deletes	0
 tot_key_refs	0
 log_tot_key_attrinfo_bytes	16

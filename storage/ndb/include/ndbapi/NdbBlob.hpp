@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -337,6 +337,60 @@ private:
   friend class NdbReceiver;
   friend class NdbImportImpl;
 #endif
+
+  /**
+   * BlobTask
+   * 
+   * Encapsulated state for some task requested to be performed
+   * on a Blob
+   */
+  class BlobTask
+  {
+  public:
+    enum State
+    {
+      BTS_INIT,
+      BTS_READ_HEAD,
+      BTS_READ_PARTS,
+      BTS_READ_LAST_PART,
+      BTS_WRITE_HEAD,
+      BTS_WRITE_PARTS,
+      BTS_DONE
+    } m_state;
+
+    char* m_readBuffer;
+    Uint64 m_readBufferLen;
+
+    Uint16 m_lastPartLen;
+
+    const char* m_writeBuffer;
+    Uint64 m_writeBufferLen;
+
+    Uint64 m_oldLen;
+    Uint64 m_position;
+
+    NdbOperation* m_lastDeleteOp;
+
+#ifndef BUG_31546136_FIXED
+    bool m_delayedWriteHead;
+#endif
+
+    BlobTask():
+      m_state(BTS_INIT),
+      m_readBuffer(0), // NULL
+      m_readBufferLen(0),
+      m_lastPartLen(0),
+      m_writeBuffer(0),   // NULL
+      m_writeBufferLen(0),
+      m_oldLen(0),
+      m_position(0),
+      m_lastDeleteOp(0)  // NULL
+#ifndef BUG_31546136_FIXED
+      ,m_delayedWriteHead(false)
+#endif
+    {}
+  } m_blobOp;
+
   int theBlobVersion;
   /*
    * Disk data does not yet support Var* attrs.  In both V1 and V2,
@@ -443,6 +497,19 @@ private:
   NdbError theError;
   // for keeping in lists
   NdbBlob* theNext;
+
+  /* For key hashing */
+  bool m_keyHashSet;
+  Uint32 m_keyHash;
+  NdbBlob* m_keyHashNext;
+
+  typedef enum blobAction
+  {
+    BA_ERROR = -1,             /* A fatal error */
+    BA_DONE = 0,               /* All operations defined */
+    BA_EXEC = 1,               /* Execute needed and then more work */
+  } BlobAction;
+
   // initialization
   NdbBlob(Ndb*);
   void init();
@@ -488,6 +555,11 @@ private:
   int setHeadInlineValue(NdbOperation* anOp);
   void setHeadPartitionId(NdbOperation* anOp);
   void setPartPartitionId(NdbOperation* anOp);
+
+  // Blob async tasks
+  int initBlobTask(NdbTransaction::ExecType anExecType);
+  NdbBlob::BlobAction handleBlobTask(NdbTransaction::ExecType anExecType);
+
   // data operations
   int readDataPrivate(char* buf, Uint32& bytes);
   int writeDataPrivate(const char* buf, Uint32 bytes);
@@ -504,6 +576,7 @@ private:
   int deletePartsThrottled(Uint32 part, Uint32 count);
   int deleteParts(Uint32 part, Uint32 count);
   int deletePartsUnknown(Uint32 part);
+  int writePart(const char* buf, Uint32 part, const Uint16& len);
   // pending ops
   int executePendingBlobReads();
   int executePendingBlobWrites();
@@ -523,8 +596,8 @@ private:
                       const NdbColumnImpl* aColumn);
   int atPrepare(NdbEventOperationImpl* anOp, NdbEventOperationImpl* aBlobOp, const NdbColumnImpl* aColumn, int version);
   int prepareColumn();
-  int preExecute(NdbTransaction::ExecType anExecType, bool& batch);
-  int postExecute(NdbTransaction::ExecType anExecType);
+  BlobAction preExecute(NdbTransaction::ExecType anExecType);
+  BlobAction postExecute(NdbTransaction::ExecType anExecType);
   int preCommit();
   int atNextResult();
   int atNextResultNdbRecord(const char *keyinfo, Uint32 keyinfo_bytes);
@@ -537,6 +610,36 @@ private:
   // list stuff
   void next(NdbBlob* obj) { theNext= obj;}
   NdbBlob* next() { return theNext;}
+
+  /**
+   * Batching support
+   *
+   * Use operation types and operation key info to decide
+   * whether operations can execute concurrently in a batch
+   */
+  typedef enum opTypes
+  {
+    OT_READ   = 1 << 0,
+    OT_INSERT = 1 << 1,
+    OT_UPDATE = 1 << 2,
+    OT_WRITE  = 1 << 3,
+    OT_DELETE = 1 << 4
+  } OpTypes;
+  Uint32 getOpType(); // Not const as used methods !const
+  static bool isOpTypeSafeWithBatch(const Uint32 batchOpTypes,
+                                    const Uint32 newOpType);
+
+  // Key compare
+  /* Returns 0 if different, 1 if same, - otherwise */
+  int isBlobOnDifferentKey(const NdbBlob* other);
+
+  Uint32 getBlobKeyHash();
+  int getBlobKeysEqual(NdbBlob* other);
+  void setBlobHashNext(NdbBlob* next);
+  NdbBlob* getBlobHashNext() const;
+
+  friend class BlobBatchChecker;
+
   friend struct Ndb_free_list_t<NdbBlob>;
 
   NdbBlob(const NdbBlob&); // Not impl.

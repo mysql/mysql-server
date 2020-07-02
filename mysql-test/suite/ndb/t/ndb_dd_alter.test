@@ -263,6 +263,7 @@ SELECT a1, a2,a3,hex(a4),a5,a6,a7,a8,a9,a10,a11,a12,a13 FROM test.t1 ORDER BY a1
 # varies per-run
 -- disable_query_log
 call mtr.add_suppression("The table '#.*' is full");
+call mtr.add_suppression("The table 't1' is full");
 -- enable_query_log
 --error 1114,1114
 ALTER TABLE test.t1 TABLESPACE ts2 STORAGE DISK ENGINE NDB;

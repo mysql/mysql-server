@@ -1,0 +1,574 @@
+set @saved_batch_size:=@@ndb_batch_size;
+set @saved_blob_write_batch:=@@ndb_blob_write_batch_bytes;
+set @saved_blob_read_batch:=@@ndb_blob_read_batch_bytes;
+set @batch_sz = 8 * 1024 * 1024;
+set global ndb_batch_size=@batch_sz;
+set ndb_batch_size=@batch_sz;
+set global ndb_blob_write_batch_bytes=@batch_sz;
+set ndb_blob_write_batch_bytes=@batch_sz;
+set global ndb_blob_read_batch_bytes=@batch_sz;
+set ndb_blob_read_batch_bytes=@batch_sz;
+create table t1 (a varchar(10) character set utf8mb4 primary key,
+b text) engine=ndb;
+create table t2 (a varchar(10) character set utf8mb4 primary key, 
+b text,
+c text) engine=ndb;
+create table tv (a varchar(10) character set utf8mb4 primary key,
+b varbinary(5000)) engine=ndb;
+Testing round trips with varying factors
+rows         - Number of rows affected by single statement
+blobs        - Number of blobs per row affected by single statement
+autocommit   - Whether autocommit or separate prepare, commit
+parts        - Whether the operation requires part rows ops or not
+Update
+blind/RMW  - column value updated with no reference to existing
+value
+read-modify-write
+- new column value is a function of existing value
+*********************************************************
+Basic varbinary batching tests showing baseline behaviour
+*********************************************************
+Single row
+----------
+INSERT single row, no parts, autocommit
+Expect 2 RTs
+insert into tv values ("A", repeat("J", 20));;
+round_trips_session
+2
+pk_ops_session
+1
+INSERT Single row, no parts, prepare only
+Expect 1 RT
+begin; insert into tv values ("A", repeat("J", 20));;
+round_trips_session
+1
+pk_ops_session
+1
+UPDATE single row, no parts, autocommit, blind update
+Expect 1 RT
+update tv set b=repeat("Y",20) where a="Short1";;
+round_trips_session
+1
+pk_ops_session
+1
+UPDATE single row, no parts, autocommit, read-modify-write
+Expect 2 RTs
+update tv set b=concat(b, "U") where a="Short1";;
+round_trips_session
+2
+pk_ops_session
+2
+DELETE single row, no parts, autocommit
+Expect 1 Rt
+delete from tv where a="Short1";;
+round_trips_session
+1
+pk_ops_session
+1
+DELETE single row, no parts, prepare only
+Expect 1 Rt
+begin; delete from tv where a="Short1";;
+round_trips_session
+1
+pk_ops_session
+1
+Multi row
+---------
+INSERT multi row, no parts, autocommit
+Expect 1 RT
+insert into tv values ("C", repeat("C", 20)), ("D", repeat("T", 20));;
+round_trips_session
+1
+pk_ops_session
+2
+INSERT multi row, no parts, prepare only
+Expect 1 Rt
+begin; insert into tv values ("E", repeat("S", 20)), ("F", repeat("D", 20));;
+round_trips_session
+1
+pk_ops_session
+2
+UPDATE multi row, no parts, autocommit, blind update
+Expect 1 Rt
+update tv set b=repeat("Y",20) where a in ("Short1", "Short2");;
+round_trips_session
+1
+pk_ops_session
+2
+UPDATE multi row, no parts, autocommit, read-modify-write
+Expect 2 Rts
+update tv set b=concat(b, "M") where a in ("Short1", "Short2");;
+round_trips_session
+2
+pk_ops_session
+4
+DELETE multi row, no parts, autocommit
+Expect 1 Rt
+delete from tv where a in ("Short1", "Short2");;
+round_trips_session
+1
+pk_ops_session
+2
+DELETE multi row, no parts, prepare-only
+Expect 1 Rt
+begin; delete from tv where a in("Short1", "Short2");;
+round_trips_session
+1
+pk_ops_session
+2
+*************************
+Basic blob batching tests
+*************************
+-----------------------------
+Single row, single blob tests
+-----------------------------
+INSERT single row, single blob, no parts, autocommit
+Expect 3 Rts
+insert into t1 values ("A", repeat("B", 20));;
+round_trips_session
+3
+pk_ops_session
+2
+INSERT single row, single blob, parts, autocommit
+Expect 3 Rts
+insert into t1 values ("B", repeat("J", 5000));;
+round_trips_session
+3
+pk_ops_session
+5
+INSERT single row, single blob, no parts, prepare only
+Expect 2 RTs
+begin; insert into t1 values ("C", repeat("C", 20));;
+round_trips_session
+2
+pk_ops_session
+2
+INSERT single row, single blob, parts, prepare only
+Expect 2 RTs
+begin; insert into t1 values ("D", repeat("T", 40000));;
+round_trips_session
+2
+pk_ops_session
+22
+UPDATE single row, single blob, no parts, autocommit, blind update
+Expect 4 Rts
+update t1 set b=repeat("Y",20) where a="Short1";;
+round_trips_session
+4
+pk_ops_session
+4
+UPDATE single row, single blob, no parts, autocommit, read-modify-write
+Expect 4 Rts
+update t1 set b=concat(b, "U") where a="Short1";;
+round_trips_session
+4
+pk_ops_session
+4
+UPDATE single row, single blob, parts, autocommit, blind update
+Expect 4 Rts
+update t1 set b=repeat("Y",40000) where a="Long1";;
+round_trips_session
+4
+pk_ops_session
+24
+UPDATE single row, single blob, parts, autocommit, read-modify-write
+Expect 5 RTs
+update t1 set b=concat(b, "U") where a="Long1";;
+round_trips_session
+5
+pk_ops_session
+10
+DELETE single row, single blob, no parts, autocommit
+Expect 3 Rts
+delete from t1 where a="Short1";;
+round_trips_session
+3
+pk_ops_session
+3
+DELETE single row, single blob, parts, autocommit
+Expect 3 Rts
+delete from t1 where a="Long1";;
+round_trips_session
+3
+pk_ops_session
+6
+----------------------------
+Single row, multi blob tests
+----------------------------
+INSERT single row, multi blob, no parts, autocommit
+Expect 3 Rts
+insert into t2 values ("A", repeat("B", 20), repeat("B", 20));;
+round_trips_session
+3
+pk_ops_session
+3
+INSERT single row, multi blob, parts, autocommit
+Expect 3 Rts
+insert into t2 values ("B", repeat("J", 5000), repeat("J", 5000));;
+round_trips_session
+3
+pk_ops_session
+9
+INSERT single row, multi blob, no parts, prepare only
+Expect 2 Rts
+begin; insert into t2 values("C", repeat("C", 20), repeat("C", 20));;
+round_trips_session
+2
+pk_ops_session
+3
+INSERT single row, multi blob, parts, prepare only
+Expect 2 Rts
+begin; insert into t2 values("D", repeat("T", 40000), repeat("C", 40000));;
+round_trips_session
+2
+pk_ops_session
+43
+UPDATE single row, multi blob, no parts, autocommit, blind update
+Expect 4 Rts
+update t2 set b=repeat("Y",20), c=repeat("Y", 20) where a="Short1";;
+round_trips_session
+4
+pk_ops_session
+6
+UPDATE single row, multi blob, no parts, autocommit, read-modify-write
+Expect 4 Rts
+update t2 set b=concat(b, "U"), c=concat(c, "U") where a="Short1";;
+round_trips_session
+4
+pk_ops_session
+6
+UPDATE single row, multi blob, parts, autocommit, blind update
+Expect 4 Rts
+update t2 set b=repeat("Y",5000), c=repeat("Y", 5000) where a="Long1";;
+round_trips_session
+4
+pk_ops_session
+12
+UPDATE single row, multi blob, parts, autocommit, read-modify-write
+Expect 6 RTs
+update t2 set b=concat(b, "U"), c=concat(c, "U") where a="Long1";;
+round_trips_session
+6
+pk_ops_session
+18
+DELETE single row, multi blob, no parts, autocommit
+Expect 3 Rts
+delete from t2 where a="Short1";;
+round_trips_session
+3
+pk_ops_session
+4
+DELETE single row, multi blob, parts, autocommit
+Expect 4 Rts
+delete from t2 where a="Long1";;
+round_trips_session
+3
+pk_ops_session
+10
+---------------
+Multi row tests
+---------------
+----------------------------
+Multi row, single blob tests
+----------------------------
+INSERT multi row, single blob, no parts, autocommit
+Expect 1 Rt
+insert into t1 values ("A", repeat("B", 20)), ("B", repeat("J", 20));;
+round_trips_session
+1
+pk_ops_session
+4
+INSERT multi row, single blob, parts, autocommit
+Expect 1 Rt
+insert into t1 values ("C", repeat("C", 5000)), ("D", repeat("T", 5000));;
+round_trips_session
+1
+pk_ops_session
+10
+INSERT multi row, single blob, noparts, prepare only
+Expect 2 Rts
+begin; insert into t1 values  ("E", repeat("B", 20)), ("F", repeat("J", 20));;
+round_trips_session
+2
+pk_ops_session
+4
+INSERT multi row, single blob, parts, prepare only
+Expect 2 Rts
+begin; insert into t1 values ("G", repeat("C", 5000)),("H", repeat("T", 5000));;
+round_trips_session
+2
+pk_ops_session
+10
+UPDATE multi row, single blob, no parts, autocommit, blind update
+Expect 4 Rts
+update t1 set b=repeat("Y", 20) where a in ("Short1", "Short2");;
+round_trips_session
+4
+pk_ops_session
+8
+UPDATE multi row, single blob, no parts, autocommit, read-modify-write
+Expect 6 Rts
+update t1 set b=concat(b, "U") where a in ("Short1", "Short2");;
+round_trips_session
+6
+pk_ops_session
+8
+UPDATE multi row, single blob, parts, autocommit, blind update
+Expect 4 Rts
+update t1 set b=repeat("M", 5000) where a in ("Long1", "Long2");;
+round_trips_session
+4
+pk_ops_session
+14
+UPDATE multi row, single blob, parts, autocommit, read-modify-write
+Expect 8 Rts
+update t1 set b=concat(b, "M") where a in ("Long1", "Long2");;
+round_trips_session
+8
+pk_ops_session
+20
+DELETE multi row, single blob, noparts, autocommit
+expect 3 Rts
+delete from t1 where a in ("Short1", "Short2");;
+round_trips_session
+3
+pk_ops_session
+6
+DELETE multi row, single blob, parts, autocommit
+expect 3 Rts
+delete from t1 where a in ("Long1", "Long2");;
+round_trips_session
+3
+pk_ops_session
+12
+---------------------------
+Multi row, multi blob tests
+---------------------------
+INSERT multi row, multi blob, no parts, autocommit
+Expect 1 Rt
+insert into t2 values ("I", repeat("S", 20), repeat("S", 20)),("J", repeat("D", 20), repeat("D", 20));;
+round_trips_session
+1
+pk_ops_session
+6
+INSERT multi row, multi blob, parts, autocommit
+Expect 1 Rt
+insert into t2 values ("K", repeat("G", 5000), repeat("G", 5000)),("L", repeat("!", 5000), repeat("!", 5000));;
+round_trips_session
+1
+pk_ops_session
+18
+INSERT multi row, multi blob, no parts, prepare only
+Expect 2 Rts
+begin;insert into t2 values ("M", repeat("S", 20), repeat("S", 20)),("N", repeat("D", 20), repeat("D", 20));;
+round_trips_session
+2
+pk_ops_session
+6
+INSERT multi row, multi blob, parts, prepare only
+Expect 2 Rts
+begin;insert into t2 values ("O", repeat("G", 5000), repeat("G", 5000)),("P", repeat("!", 5000), repeat("!", 5000));;
+round_trips_session
+2
+pk_ops_session
+18
+UPDATE multi row, multi blob, no parts, autocommit, blind update
+Expect 4 Rts
+update t2 set b=repeat("Y", 20), c= repeat("U", 20) where a in ("Short1", "Short2");;
+round_trips_session
+4
+pk_ops_session
+12
+UPDATE multi row, multi blob, no parts, autocommit, read-modify-write
+Expect 6 Rts
+update t2 set b=concat(b, "M"), c= concat(b, "M") where a in ("Short1", "Short2");;
+round_trips_session
+6
+pk_ops_session
+12
+UPDATE multi row, multi blob, parts, autocommit, blind update
+Expect 4 Rts
+update t2 set b=repeat("Y", 5000), c= repeat("U", 5000) where a in ("Long1", "Long2");;
+round_trips_session
+4
+pk_ops_session
+24
+UPDATE multi row, multi blob, parts, autocommit, read-modify-write
+Expect 8 Rts
+update t2 set b=concat(b, "M"), c= concat(b, "M") where a in ("Long1", "Long2");;
+round_trips_session
+8
+pk_ops_session
+30
+DELETE multi row, multi blob, no parts, autocommit
+Expect 3 Rts
+delete from t2 where a in ("Short1", "Short2");;
+round_trips_session
+3
+pk_ops_session
+8
+DELETE multi row, multi blob, parts, autocommit
+Expect 3 Rts
+delete from t2 where a in ("Long1", "Long2");;
+round_trips_session
+3
+pk_ops_session
+20
+drop table t1;
+drop table t2;
+drop table tv;
+****************************************
+Testing of various bulk insert scenarios
+****************************************
+Create table with blob content on InnoDB, which can be scanned
+without any Ndb round trips
+create table ta (a int primary key, b blob, c blob) engine=innodb;
+*********************
+Test LOAD DATA INFILE
+*********************
+select * into outfile 'MYSQLD_DATADIR/ta_data' from test.ta;;
+Varbinary Load Data Infile
+create table ti (a int primary key, b varbinary(5000), c varbinary(5000)) engine=ndb;
+load data infile 'MYSQLD_DATADIR/ta_data' into table ti;;
+round_trips_session
+1
+pk_ops_session
+40
+drop table ti;
+Blob Load Data Infile
+create table ti (a int primary key, b blob, c blob) engine=ndb;
+load data infile 'MYSQLD_DATADIR/ta_data' into table ti;;
+round_trips_session
+1
+pk_ops_session
+360
+drop table ti;
+***************************
+Test Create Table As Select
+***************************
+Varbinary CTAS
+create table tn (a int primary key, b varbinary(5000), c varbinary(5000)) engine=ndb
+as select * from ta;
+round_trips_session
+7
+pk_ops_session
+45
+drop table tn;
+Blob CTAS
+create table tn (a int primary key, b blob, c blob) engine=ndb
+as select * from ta;
+round_trips_session
+7
+pk_ops_session
+364
+drop table tn;
+*****************************
+Test ALTER engine bulk insert
+*****************************
+create table tb (a int primary key, b varbinary(5000), c varbinary(5000)) engine=innodb
+as select * from ta;
+Varbinary ALTER
+alter table tb engine=ndb;
+round_trips_session
+6
+pk_ops_session
+45
+drop table tb;
+Blob ALTER
+alter table ta engine=ndb;
+round_trips_session
+6
+pk_ops_session
+365
+drop table ta;
+**************
+Test JSON type
+**************
+Single JSON columns in row
+--------------------------
+create table js1 (a int primary key, b json) engine=ndb;
+Single row JSON insert autocommit.  
+Expect 3 RTs
+round_trips_session
+3
+pk_ops_session
+7
+Multi row JSON insert autocommit
+Expect 1 RT
+round_trips_session
+1
+pk_ops_session
+21
+Single row JSON update autocommit
+Expect 4 RTs
+round_trips_session
+4
+pk_ops_session
+9
+Multi row JSON update autocommit
+Expect 4 RTs
+round_trips_session
+4
+pk_ops_session
+27
+Single row JSON delete autocommit
+Expect 3 RTs
+delete from js1 where a=1;
+round_trips_session
+3
+pk_ops_session
+8
+Expect 3RTs
+delete from js1 where a in (2,3,4);
+round_trips_session
+3
+pk_ops_session
+24
+drop table js1;
+Multiple JSON columns in row
+----------------------------
+create table js2 (a int primary key, b json, c json) engine=ndb;
+Single row JSON insert autocommit.  
+Expect 3 RTs
+round_trips_session
+3
+pk_ops_session
+13
+Multi row JSON insert autocommit
+Expect 1 RT
+round_trips_session
+1
+pk_ops_session
+39
+Single row JSON update autocommit
+Expect 4 RTs
+round_trips_session
+4
+pk_ops_session
+16
+Multi row JSON update autocommit
+Expect 4 RTs
+round_trips_session
+4
+pk_ops_session
+48
+Single row JSON delete autocommit
+Expect 3 RTs
+delete from js2 where a=1;
+round_trips_session
+3
+pk_ops_session
+14
+Expect 3RTs
+delete from js2 where a in (2,3,4);
+round_trips_session
+3
+pk_ops_session
+42
+drop table js2;
+set global ndb_batch_size=@saved_batch_size;
+set ndb_batch_size=@saved_batch_size;
+set global ndb_blob_write_batch_bytes=@saved_blob_write_batch;
+set ndb_blob_write_batch_bytes=@saved_blob_write_batch;
+set global ndb_blob_read_batch_bytes=@saved_blob_read_batch;
+set ndb_blob_read_batch_bytes=@saved_blob_read_batch;

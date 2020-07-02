@@ -174,6 +174,7 @@ printusage()
     << "  s           table scans" << endl
     << "  r           ordered index scans" << endl
     << "  p           performance test" << endl
+    << "  f           batching test" << endl
     << "operations for test/skip" << endl
     << "  u           update existing blob value" << endl
     << "  n           normal insert and update" << endl
@@ -3509,22 +3510,38 @@ setupOperation(NdbOperation*& op, OpTypes optype, Tup& tup)
     return -1;
   }
   
+  /**
+   * Use function, returns different case variants
+   * when case-insensitive collation used
+   */
+  const char* pk2ptr = tup.pk2();
+
   if (pkop)
   {
     setUDpartId(tup, op);
     CHK(op->equal("PK1", tup.m_pk1) == 0);
     if (g_opt.m_pk2chr.m_len != 0)
     {
-      CHK(op->equal("PK2", tup.m_pk2) == 0);
+      CHK(op->equal("PK2", pk2ptr) == 0);
       CHK(op->equal("PK3", tup.m_pk3) == 0);
     }
   }
   else
   {
-    CHK(op->equal("PK2", tup.m_pk2) == 0);
+    CHK(op->equal("PK2", pk2ptr) == 0);
     CHK(op->equal("PK3", tup.m_pk3) == 0);
   }
   
+  DBG("SetupOperation : "
+      << operationName(optype)
+      << " pk1=" << hex << tup.m_pk1);
+
+  if (g_opt.m_pk2chr.m_len != 0)
+  {
+    DBG(" pk2=" << hex << pk2ptr);
+    DBG(" pk3=" << hex << tup.m_pk3);
+  }
+
   CHK(getBlobHandles(op) == 0);
   
   switch(optype){
@@ -4176,6 +4193,498 @@ static int bugtest_28746560()
   return 0;
 }
 
+static
+int testOpBatching(OpTypes opType, int ao, int minRts, int maxRts)
+{
+  DISP("  --- testOpBatching " << operationName(opType));
+  /**
+   * Loop over #rows
+   * Increase batch size each time
+   * Define # ops
+   * execute
+   * Check # RTs
+   */
+  unsigned k = 0;
+  unsigned rowsPerBatch=1;
+  Uint32 opTimeoutRetries = g_opt.m_timeout_retries;
+
+  const bool readOp = (opType == PkRead ||
+                       opType == UkRead);
+  const bool deleteOp = (opType == PkDelete ||
+                         opType == UkDelete);
+
+  do
+  {
+    CHK((g_con = g_ndb->startTransaction()) != 0);
+    unsigned r = 0;
+
+    for (;k < g_opt.m_rows;)
+    {
+      Tup& tup = g_tups[k];
+      DBG(operationName(opType) << " pk1=" << hex << tup.m_pk1);
+      CHK(setupOperation(g_opr, opType, tup) == 0);
+
+      if (!readOp)
+      {
+        tup.m_exists = !deleteOp;
+      }
+
+      r++;
+      k++;
+      if (r == rowsPerBatch)
+        break;
+    }
+
+    DBG("commit abortoption " << aoName(ao)
+        << " for " << rowsPerBatch << " ops"
+        << " expects between " << minRts
+        << " and " << maxRts
+        << " waits");
+
+    const Uint64 start_waits = g_ndb->getClientStat(Ndb::WaitExecCompleteCount);
+    if (g_con->execute(Commit, (AbortOption) ao) == 0)
+    {
+      const Uint64 total_waits =
+        g_ndb->getClientStat(Ndb::WaitExecCompleteCount) - start_waits;
+      DBG("Execution of " <<
+          rowsPerBatch << " " << operationName(opType) << " required "
+          << total_waits << " waits.  MinRts " << minRts << " MaxRts "
+          << maxRts);
+
+      CHK((int) total_waits >= minRts);
+      CHK((int) total_waits <= maxRts);
+
+      // Improvement : Check data read is ok
+
+      opTimeoutRetries = g_opt.m_timeout_retries;
+      rowsPerBatch++;
+    }
+    else
+    {
+      CHK(conHasTimeoutError());
+      DISP(operationName(opType) << " failed due to timeout("
+           << conError() << ")  "
+           << " Operations lost : " << rowsPerBatch
+           << " retries left " << opTimeoutRetries - 1);
+      CHK(--opTimeoutRetries);
+      r-= rowsPerBatch;
+      k-= rowsPerBatch;
+      sleep(1);
+    }
+    g_ndb->closeTransaction(g_con);
+  } while (k < g_opt.m_rows);
+
+  return 0;
+}
+
+static
+int testBatchParallelism()
+{
+  DISP(" --- Test parallelism of independent keys");
+
+  /**
+   * Improvement : Create a second table like the first and check
+   * that operations on the same keys in different table do not
+   * cause batch breakup
+   */
+
+  /* Randomise AbortOption */
+  int ao = rand() % 2;
+  calcTups(true);
+
+  /**
+   * Test that we get expected parallelism when no
+   * key interference
+   */
+  {
+    if (ao == 0)
+    {
+      /* Abort On Error - 1 RT */
+      CHK(testOpBatching(PkInsert, ao, 1, 1) == 0);
+    }
+    else
+    {
+      /* IgnoreError - 2 RTs */
+      CHK(testOpBatching(PkInsert, ao, 2, 2) == 0);
+    }
+    CHK(verifyBlob() == 0);
+  }
+
+  calcTups(false);
+  /* 2 RTs */
+  CHK(testOpBatching(PkUpdate, ao, 2, 2) == 0);
+  CHK(verifyBlob() == 0);
+
+  /* 1-3 RTs depending on length */
+  CHK(testOpBatching(PkRead, ao, 1, 3) == 0);
+
+  calcTups(false);
+  /* 2 RTs, as rows already exist */
+  CHK(testOpBatching(PkWrite, ao, 2, 2) == 0);
+  CHK(verifyBlob() == 0);
+
+  /* 2 RTs */
+  CHK(testOpBatching(PkDelete, ao, 2, 2) == 0);
+  CHK(verifyBlob() == 0);
+
+  /* Test insertion by write */
+  DISP(" --- Test insert by write");
+  calcTups(true);
+  /* 3 RTs as rows do not exist */
+  CHK(testOpBatching(PkWrite, ao, 3, 3) == 0);
+  CHK(verifyBlob() == 0);
+
+  DISP(" --- Test UK access");
+  /* UK access */
+  /* 1-3 RTs depending on length */
+  CHK(testOpBatching(UkRead, ao, 1, 3) == 0);
+
+  calcTups(false);
+  /* 2 RTs */
+  CHK(testOpBatching(UkUpdate, ao, 2, 2) == 0);
+  CHK(verifyBlob() == 0);
+
+  calcTups(false);
+  /* 3 RTs+ due to UkWrite doing delete-probing
+   * 100 used as undefined upperbound
+   */
+  CHK(testOpBatching(UkWrite, ao, 3, 100) == 0);
+  CHK(verifyBlob() == 0);
+
+  /* 2 RTs */
+  CHK(testOpBatching(UkDelete, ao, 2, 2) == 0);
+  CHK(verifyBlob() == 0);
+
+  return 0;
+}
+
+static
+int testOpBatchBreaks(OpTypes opType, int numDupOps, int minRts, int maxRts)
+{
+  DISP("  --- testOpBatchBreaks " << operationName(opType));
+
+  int k = 0;
+  int ao = 1; // IgnoreError
+  Tup& tup = g_tups[k];
+  int opTimeoutRetries = g_opt.m_timeout_retries;
+  bool timeout = false;
+  int total_waits = -1;
+
+  do
+  {
+    CHK((g_con = g_ndb->startTransaction()) != 0);
+    for (int i=0; i < numDupOps; i++)
+    {
+      DBG(operationName(opType) << " pk1=" << hex << tup.m_pk1);
+      CHK(setupOperation(g_opr, opType, tup) == 0);
+    }
+
+    const Uint64 start_waits = g_ndb->getClientStat(Ndb::WaitExecCompleteCount);
+    if (g_con->execute(Commit, (AbortOption) ao) == 0)
+    {
+      total_waits = (int)
+        (g_ndb->getClientStat(Ndb::WaitExecCompleteCount) - start_waits);
+      DBG("Execution of " <<
+          numDupOps << " " << operationName(opType)
+          << " duplicate ops required "
+          << total_waits << " waits.  Min " << minRts
+          << " Max " << maxRts);
+
+      // Improvement : Check data read is correct
+
+      if (total_waits < minRts ||
+          total_waits > maxRts)
+      {
+        DISP("Error, execution of " << numDupOps << " "
+             << operationName(opType) << " duplicate ops required "
+             << total_waits << " waits.  Min " << minRts << " Max " << maxRts);
+        CHK(false);
+      }
+
+      opTimeoutRetries = g_opt.m_timeout_retries;
+    }
+    else
+    {
+      CHK((timeout = conHasTimeoutError()) == true);
+      DISP(operationName(opType) << " failed due to timeout("
+           << conError() << ")  "
+           << " Operations lost : " << numDupOps
+           << " retries left " << opTimeoutRetries - 1);
+      CHK(--opTimeoutRetries);
+      sleep(1);
+    }
+    g_ndb->closeTransaction(g_con);
+  } while (timeout);
+
+  return 0;
+}
+
+static int
+testBatchSerialisation()
+{
+  DISP(" --- Test serialisation on same keys");
+
+  calcTups(true);
+
+  /**
+   * Same-key inserts, reads, deletes are fine
+   * by definition, do not need serialisation.
+   *
+   * Same-key updates and deletes are serialised.
+   */
+  const int numOps = 10;
+  /* Inserts with IE always require 2 RTs */
+  CHK(testOpBatchBreaks(PkInsert, numOps, 2, 2) == 0);
+
+  /* Reads require 1, 2 or 3, depending on length */
+  CHK(testOpBatchBreaks(PkRead, numOps, 1, 3) == 0);
+
+  /* Updates require 2 RTs per op */
+  CHK(testOpBatchBreaks(PkUpdate, numOps,
+                        2 * numOps,
+                        2 * numOps) == 0);
+
+  /* Writes require 2 RTs per op */
+  CHK(testOpBatchBreaks(PkWrite, numOps,
+                        2 * numOps,
+                        2 * numOps) == 0);
+
+  /* Delete require 2 RTs */
+  CHK(testOpBatchBreaks(PkDelete, numOps, 2, 2) == 0);
+
+  /* Write with no previous rows, 2 or 3 per op */
+  CHK(testOpBatchBreaks(PkWrite, numOps,
+                        2 * numOps,
+                        3 * numOps) == 0);
+
+  /* Reads require 1,2 or 3, depending on length */
+  CHK(testOpBatchBreaks(UkRead, numOps, 1, 3) == 0);
+
+  /* Updates require 2 RTs per op */
+  CHK(testOpBatchBreaks(UkUpdate, numOps,
+                        2* numOps,
+                        2* numOps) == 0);
+
+  /* Deletes require 2 RTs in total */
+  CHK(testOpBatchBreaks(UkDelete, numOps, 2, 2) == 0);
+
+  // Improvement : Check 2ndary index breaks batching as keys
+  // not comparable
+  // Improvement : Check scan takeover Blob op batching
+  return 0;
+}
+
+static void
+setBval(Bval& v, int sz)
+{
+  delete [] v.m_val;
+  v.m_len = sz;
+  v.m_val = new char[sz + 1];
+  for (unsigned i = 0; i < v.m_len; i++)
+  {
+    v.m_val[i] = 'a' + urandom(26);
+  }
+  v.m_val[v.m_len] = 0;
+  delete [] v.m_buf;
+  v.m_buf = new char [v.m_len];
+  v.m_buflen = v.m_len;
+  v.trash();
+}
+
+static void
+setBvals(Tup& tup, int sz)
+{
+  /* Force Blob values to given length */
+  setBval(tup.m_bval1, sz);
+  if (! g_opt.m_oneblob)
+    setBval(tup.m_bval2, sz);
+}
+
+static int
+calcMaxRts(unsigned numOps, int numBlobs, int blobSize, int batchSize)
+{
+  int rowBlobSize = numBlobs * blobSize;
+  int totalBytes = rowBlobSize * numOps;
+  return 1 + ((totalBytes / batchSize) + 1);
+}
+
+static int
+testOpBatchLimits(OpTypes opType, unsigned numOps, int sz, int minRts, int maxRts)
+{
+  DBG("  --- testOpBatchLimits " << operationName(opType));
+
+  CHK(numOps <= g_opt.m_rows);
+
+  /* Test RTs when executing certain number of ops of given
+   * type, with size given
+   */
+  unsigned k = 0;
+  Uint32 opTimeoutRetries = g_opt.m_timeout_retries;
+
+  do
+  {
+    CHK((g_con = g_ndb->startTransaction()) != 0);
+    unsigned r = 0;
+
+    for (;k < numOps;)
+    {
+      Tup& tup = g_tups[k];
+      setBvals(tup, sz);
+      DBG(operationName(opType) << " pk1=" << hex << tup.m_pk1);
+      CHK(setupOperation(g_opr, opType, tup) == 0);
+
+      r++;
+      k++;
+    }
+
+    DBG("commit "
+        << " for " << numOps << " ops"
+        << " expects between " << minRts
+        << " and " << maxRts
+        << " waits");
+
+    const Uint64 start_waits = g_ndb->getClientStat(Ndb::WaitExecCompleteCount);
+    if (g_con->execute(Commit) == 0)
+    {
+      const Uint64 total_waits =
+        g_ndb->getClientStat(Ndb::WaitExecCompleteCount) - start_waits;
+      DBG("Execution of " <<
+          numOps << " " << operationName(opType) << " required "
+          << total_waits << " waits.  MinRts " << minRts << " MaxRts "
+          << maxRts);
+
+      CHK((int) total_waits >= minRts);
+      CHK((int) total_waits <= maxRts);
+
+      // Improvement : Check data read is ok
+    }
+    else
+    {
+      CHK(conHasTimeoutError());
+      DISP(operationName(opType) << " failed due to timeout("
+           << conError() << ")  "
+           << " Operations lost : " << numOps
+           << " retries left " << opTimeoutRetries - 1);
+      CHK(--opTimeoutRetries);
+      k = 0;
+      sleep(1);
+    }
+    g_ndb->closeTransaction(g_con);
+  } while (k < numOps);
+
+  return 0;
+}
+
+static int
+testBatchLimits()
+{
+  DISP(" --- Test behaviour of batch limit config ");
+  const int batchSize = 10 * 1000;
+  g_opt.m_rbatch = batchSize;
+  g_opt.m_wbatch = batchSize;
+
+  const int blobs_per_row = (g_opt.m_oneblob? 1 : 2);
+  const int maxRows = 10;
+  const int stepSize = 2000;
+  const int steps = 10;
+
+  DISP("     1 - " << maxRows << " rows size "
+       << 1 * stepSize << " to " << steps * stepSize <<
+       " bytes");
+  for (int r = 1; r < 10; r++)
+  {
+    DISP("  --- " << r << " rows");
+    for (int s = 1; s < steps; s++)
+    {
+      int blobSize = s * stepSize;
+      int expectedMaxRts =
+        calcMaxRts(r, blobs_per_row, blobSize, batchSize);
+      DBG("  rows " << r);
+      DBG("    size per blob " << blobSize << " row size "
+          << blobSize * blobs_per_row);
+      DBG("    expected max Rts "
+          << expectedMaxRts);
+      /* Loose bounds for round trips */
+      int minRts = expectedMaxRts/2;
+
+      CHK(testOpBatchLimits(PkInsert,
+                            r,               // ops
+                            blobSize,        // bytes
+                            minRts,          // minRts
+                            expectedMaxRts)  // maxRts
+          == 0);
+
+      /**
+       * Max is +1 for Reads, as a partial last part
+       * may need an extra read
+       */
+      CHK(testOpBatchLimits(PkRead,
+                            r,               // ops
+                            blobSize,        // bytes
+                            minRts,          // minRts
+                            expectedMaxRts + 1)  // maxRts
+          == 0);
+
+      CHK(testOpBatchLimits(PkUpdate,
+                            r,               // ops
+                            blobSize,        // bytes
+                            minRts,          // minRts
+                            expectedMaxRts)  // maxRts
+          == 0);
+
+      CHK(testOpBatchLimits(PkWrite,
+                            r,               // ops
+                            blobSize,        // bytes
+                            minRts,          // minRts
+                            expectedMaxRts)  // maxRts
+          == 0);
+
+      CHK(testOpBatchLimits(PkDelete,
+                            r,               // ops
+                            blobSize,        // bytes
+                            minRts,          // minRts
+                            expectedMaxRts)  // maxRts
+          == 0);
+
+    }
+  }
+
+  return 0;
+}
+
+static int
+testBatching()
+{
+  /**
+   * testBatching
+   * Check properties of batching of multiple blob operations
+   * in a single transaction batch
+   * Currently only testing setValue/getValue APIs.
+   */
+  DISP("--- testBatching");
+
+  /* Disable blob batch limits to get 'pure' batching numbers */
+  int savedRBatch = g_opt.m_rbatch;
+  int savedWBatch = g_opt.m_wbatch;
+  g_opt.m_rbatch = -2;
+  g_opt.m_wbatch = -2;
+
+  /* Check situations with discrete keys */
+  CHK(testBatchParallelism() == 0);
+
+  /* Check situations with same keys */
+  CHK(testBatchSerialisation() == 0);
+
+  /* Check behaviour of batch size limits */
+  CHK(testBatchLimits() == 0);
+
+  dropTable();
+
+  g_opt.m_rbatch = savedRBatch;
+  g_opt.m_wbatch = savedWBatch;
+  return 0;
+}
+
 // main
 
 // from here on print always
@@ -4394,6 +4903,11 @@ testmain()
           }
         }
       } // for (api
+
+      if (testcase('f'))
+      {
+        CHK(testBatching() == 0);
+      }
     } // for (storage
   } // for (loop
   if (g_opt.m_nodrop == false)
@@ -5301,9 +5815,14 @@ read_blob_rows(int style, uint inline_size, uint part_size, bool corrupted=false
 
     // blob reads have an optimisation to reduce one round-trip in case
     // read contains at least one full part + partial last part
-    if ((total_part_len > (full_parts_read * part_size)) && (parts_read > 1))
+    // readData() has this optimisation, GetValue does not
+    if (style != 0)
     {
-      expected_round_trips--;
+      const bool partialLastPart = (total_part_len > (full_parts_read * part_size));
+      if (partialLastPart && (parts_read > 1))
+      {
+        expected_round_trips--;
+      }
     }
     CHK(round_trips == expected_round_trips);
   }

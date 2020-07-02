@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -164,6 +164,7 @@ class Thd_ndb {
     we execute() to flush the rows buffered in m_batch_mem_root.
   */
   uint m_unsent_bytes;
+  bool m_unsent_blob_ops;
   uint m_batch_size;
   bool add_row_check_if_batch_full(uint size);
 
