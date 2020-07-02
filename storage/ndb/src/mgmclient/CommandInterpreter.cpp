@@ -3172,6 +3172,7 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
   //1,snapshot at start time. 0 snapshot at end time
   unsigned int backuppoint = 0;
   BaseString encryption_password = "";
+  bool encryption_password_set = false;
 
   bool b_log = false;
   bool b_nowait = false;
@@ -3292,6 +3293,7 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
             invalid_command(parameters, out);
             return -1;
           }
+          encryption_password_set = true;
           i++;
         }
         else
@@ -3337,8 +3339,12 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
    */
   result = ndb_mgm_start_backup4(m_mgmsrv, flags, &backupId, &reply,
                                  input_backupId, backuppoint,
-                                 encryption_password.c_str(),
-                                 encryption_password.length());
+                                 encryption_password_set
+                                   ? encryption_password.c_str()
+                                   : nullptr,
+                                 encryption_password_set
+                                   ? encryption_password.length()
+                                   : 0);
 
   if (result != 0) {
     ndbout << "Backup failed" << endl;
