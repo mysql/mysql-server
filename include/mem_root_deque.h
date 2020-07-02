@@ -170,51 +170,69 @@ class mem_root_deque {
   /**
     Adds the given element to the end of the deque.
     The element is a copy of the given one.
+
+    @returns true on OOM (no change is done if so)
    */
-  void push_back(const Element_type &element) {
+  bool push_back(const Element_type &element) {
     if (m_end_idx == m_capacity) {
-      add_block_back();
+      if (add_block_back()) {
+        return true;
+      }
     }
     new (&get(m_end_idx++)) Element_type(element);
     invalidate_iterators();
+    return false;
   }
 
   /**
     Adds the given element to the end of the deque.
     The element is moved into place.
+
+    @returns true on OOM (no change is done if so)
    */
-  void push_back(Element_type &&element) {
+  bool push_back(Element_type &&element) {
     if (m_end_idx == m_capacity) {
-      add_block_back();
+      if (add_block_back()) {
+        return true;
+      }
     }
     new (&get(m_end_idx++)) Element_type(std::move(element));
     invalidate_iterators();
+    return false;
   }
 
   /**
     Adds the given element to the beginning of the deque.
     The element is a copy of the given one.
+
+    @returns true on OOM (no change is done if so)
    */
-  void push_front(const Element_type &element) {
+  bool push_front(const Element_type &element) {
     if (m_begin_idx == 0) {
-      add_block_front();
+      if (add_block_front()) {
+        return true;
+      }
       assert(m_begin_idx != 0);
     }
     new (&get(--m_begin_idx)) Element_type(element);
     invalidate_iterators();
+    return false;
   }
 
   /**
     Adds the given element to the end of the deque.
     The element is moved into place.
    */
-  void push_front(Element_type &&element) {
+  bool push_front(Element_type &&element) {
     if (m_begin_idx == 0) {
-      add_block_front();
+      if (add_block_front()) {
+        return true;
+      }
       assert(m_begin_idx != 0);
     }
     new (&get(--m_begin_idx)) Element_type(std::move(element));
     invalidate_iterators();
+    return false;
   }
 
   /// Removes the last element from the deque.
@@ -517,11 +535,12 @@ class mem_root_deque {
   struct Block {
     Element_type *elements;
 
-    void init(MEM_ROOT *mem_root) {
+    bool init(MEM_ROOT *mem_root) {
       // Use Alloc instead of ArrayAlloc, so that no constructors are called.
       elements = static_cast<Element_type *>(mem_root->Alloc(
           block_elements *
           sizeof(Element_type)));  // NOLINT(bugprone-sizeof-expression)
+      return elements == nullptr;
     }
   };
 
@@ -556,16 +575,22 @@ class mem_root_deque {
 #endif
 
   /// Adds the first block of elements.
-  void add_initial_block() {
+  bool add_initial_block() {
     m_blocks = m_root->ArrayAlloc<Block>(1);
-    m_blocks[0].init(m_root);
+    if (m_blocks == nullptr) {
+      return true;
+    }
+    if (m_blocks[0].init(m_root)) {
+      return true;
+    }
     m_begin_idx = m_end_idx = block_elements / 2;
     m_capacity = block_elements;
+    return false;
   }
 
   // Not inlined, to get them off of the hot path.
-  void add_block_back();
-  void add_block_front();
+  bool add_block_back();
+  bool add_block_front();
 
   size_t num_blocks() const { return m_capacity / block_elements; }
 
@@ -586,37 +611,47 @@ class mem_root_deque {
 // exponential growth and get true O(1) allocation.
 
 template <class Element_type>
-void mem_root_deque<Element_type>::add_block_back() {
+bool mem_root_deque<Element_type>::add_block_back() {
   if (m_blocks == nullptr) {
-    add_initial_block();
-    return;
+    return add_initial_block();
   }
   Block *new_blocks = m_root->ArrayAlloc<Block>(num_blocks() + 1);
+  if (new_blocks == nullptr) {
+    return true;
+  }
   memcpy(new_blocks, m_blocks, sizeof(Block) * num_blocks());
-  new_blocks[num_blocks()].init(m_root);
+  if (new_blocks[num_blocks()].init(m_root)) {
+    return true;
+  }
 
   m_blocks = new_blocks;
   m_capacity += block_elements;
+  return false;
 }
 
 template <class Element_type>
-void mem_root_deque<Element_type>::add_block_front() {
+bool mem_root_deque<Element_type>::add_block_front() {
   if (m_blocks == nullptr) {
-    add_initial_block();
+    if (add_initial_block()) {
+      return true;
+    }
     if (m_begin_idx == 0) {
       // Only relevant for very small values of block_elements.
       m_begin_idx = m_end_idx = 1;
     }
-    return;
+    return false;
   }
   Block *new_blocks = m_root->ArrayAlloc<Block>(num_blocks() + 1);
   memcpy(new_blocks + 1, m_blocks, sizeof(Block) * num_blocks());
-  new_blocks[0].init(m_root);
+  if (new_blocks[0].init(m_root)) {
+    return true;
+  }
 
   m_blocks = new_blocks;
   m_begin_idx += block_elements;
   m_end_idx += block_elements;
   m_capacity += block_elements;
+  return false;
 }
 
 #endif  // MEM_ROOT_DEQUE_H
