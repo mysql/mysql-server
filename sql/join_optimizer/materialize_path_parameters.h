@@ -55,6 +55,7 @@ struct MaterializePathParameters {
   int ref_slice;
   bool rematerialize;
   ha_rows limit_rows;
+  bool reject_multiple_rows;
 };
 
 #endif  // !defined(MATERIALIZE_PATH_PARAMETERS_H)

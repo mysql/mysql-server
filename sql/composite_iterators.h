@@ -108,17 +108,20 @@ class LimitOffsetIterator final : public RowIterator {
     @param count_all_rows If true, the query will run to completion to get
       more accurate numbers for skipped_rows, so you will not get any
       performance benefits of early end.
+    @param reject_multiple_rows True if a derived table transformed from a
+      scalar subquery needs a run-time cardinality check
     @param skipped_rows If not nullptr, is incremented for each row skipped by
       offset or limit.
    */
   LimitOffsetIterator(THD *thd, unique_ptr_destroy_only<RowIterator> source,
                       ha_rows limit, ha_rows offset, bool count_all_rows,
-                      ha_rows *skipped_rows)
+                      bool reject_multiple_rows, ha_rows *skipped_rows)
       : RowIterator(thd),
         m_source(move(source)),
         m_limit(limit),
         m_offset(offset),
         m_count_all_rows(count_all_rows),
+        m_reject_multiple_rows(reject_multiple_rows),
         m_skipped_rows(skipped_rows) {
     if (count_all_rows) {
       DBUG_ASSERT(m_skipped_rows != nullptr);
@@ -154,6 +157,7 @@ class LimitOffsetIterator final : public RowIterator {
 
   const ha_rows m_limit, m_offset;
   const bool m_count_all_rows;
+  const bool m_reject_multiple_rows;
   ha_rows *m_skipped_rows;
 };
 
@@ -549,13 +553,17 @@ class MaterializeIterator final : public TableRowIterator {
       MaterializeIterator, as that would count wrong if we have deduplication,
       and would not work at all for recursive CTEs.
       Set to HA_POS_ERROR for no limit.
+    @param reject_multiple_rows true if this is the top level iterator for a
+      materialized derived table transformed from a scalar subquery which needs
+      run-time cardinality check.
    */
   MaterializeIterator(THD *thd,
                       Mem_root_array<QueryBlock> query_blocks_to_materialize,
                       TABLE *table,
                       unique_ptr_destroy_only<RowIterator> table_iterator,
                       Common_table_expr *cte, SELECT_LEX_UNIT *unit, JOIN *join,
-                      int ref_slice, bool rematerialize, ha_rows limit_rows);
+                      int ref_slice, bool rematerialize, ha_rows limit_rows,
+                      bool reject_multiple_rows);
 
   /**
     A convenience form for materializing a single table only.
@@ -587,6 +595,9 @@ class MaterializeIterator final : public TableRowIterator {
       (e.g., because we have a dependency on a value from outside the query
       block).
     @param limit_rows See limit_rows on the other constructor.
+    @param reject_multiple_rows true if this is the top level iterator for a
+      materialized derived table transformed from a scalar subquery which needs
+      run-time cardinality check.
    */
   MaterializeIterator(THD *thd,
                       unique_ptr_destroy_only<RowIterator> subquery_iterator,
@@ -595,7 +606,7 @@ class MaterializeIterator final : public TableRowIterator {
                       Common_table_expr *cte, int select_number,
                       SELECT_LEX_UNIT *unit, JOIN *join, int ref_slice,
                       bool copy_fields_and_items, bool rematerialize,
-                      ha_rows limit_rows);
+                      ha_rows limit_rows, bool reject_multiple_rows);
 
   bool Init() override;
   int Read() override;
@@ -647,6 +658,9 @@ class MaterializeIterator final : public TableRowIterator {
   /// If true, we need to materialize anew for each Init() (because the contents
   /// of the table will depend on some outer non-constant value).
   const bool m_rematerialize;
+
+  /// See constructor.
+  const bool m_reject_multiple_rows;
 
   /// See constructor.
   const ha_rows m_limit_rows;

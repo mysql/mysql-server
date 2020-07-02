@@ -2591,22 +2591,31 @@ class Item : public Parse_tree_node {
     return Bool3::false3();
   }
 
-  /// argument used by walk method collect_scalar_subqueries ("css")
+  /**
+    Context struct used by walk method collect_scalar_subqueries to
+    accumulate information about scalar subqueries found.
+
+    In: m_location of expression walked, m_join_condition_context
+    Out: m_list
+  */
   struct Collect_scalar_subquery_info : public Item_tree_walker {
     enum Location { L_SELECT = 1, L_WHERE = 2, L_HAVING = 4, L_JOIN_COND = 8 };
+    /// Information about one scalar subquery
     struct Css_info {
-      int8 m_location{0};  ///< set of locations
+      int8 m_location;  ///< set of locations
       /// the scalar subquery
-      Item_singlerow_subselect *item{nullptr};
+      Item_singlerow_subselect *item;
       /// Where did we find item above? Used when m_location == L_JOIN_COND,
       /// nullptr for other locations.
-      Item *m_join_condition{nullptr};
+      Item *m_join_condition;
+      /// If true, we can forego cardinality checking of the derived table
+      bool m_implicitly_grouped_and_no_union;
     };
 
     /// accumulated all scalar subqueries found
-    std::vector<Css_info> list;
+    std::vector<Css_info> m_list;
     /// we are currently looking at this kind of clause, cf. enum Location
-    int8 m_location;
+    int8 m_location{0};
     Item *m_join_condition_context{nullptr};
     Collect_scalar_subquery_info() {}
     friend class Item_sum;

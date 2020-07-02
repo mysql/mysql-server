@@ -1247,6 +1247,7 @@ static AccessPath *CreateWeedoutOrLimitAccessPath(THD *thd, AccessPath *path,
     return NewLimitOffsetAccessPath(thd, path,
                                     /*limit=*/1, /*offset=*/0,
                                     /*count_all_rows=*/false,
+                                    /*reject_multiple_rows=*/false,
                                     /*send_records_override=*/nullptr);
   } else {
     AccessPath *weedout_path = NewWeedoutAccessPath(thd, path, weedout_table);
@@ -1535,13 +1536,15 @@ AccessPath *GetAccessPathForDerivedTable(THD *thd, QEP_TAB *qep_tab,
         thd, unit->release_query_blocks_to_materialize(), qep_tab->invalidators,
         qep_tab->table(), table_path, qep_tab->table_ref->common_table_expr(),
         unit,
-        /*ref_slice=*/-1, qep_tab->rematerialize, unit->select_limit_cnt);
+        /*ref_slice=*/-1, qep_tab->rematerialize, unit->select_limit_cnt,
+        unit->offset_limit_cnt == 0 ? unit->m_reject_multiple_rows : false);
     if (unit->offset_limit_cnt != 0) {
       // LIMIT is handled inside MaterializeIterator, but OFFSET is not.
       // SQL_CALC_FOUND_ROWS cannot occur in a derived table's definition.
       path = NewLimitOffsetAccessPath(
           thd, path, unit->select_limit_cnt, unit->offset_limit_cnt,
-          /*count_all_rows=*/false, /*send_records_override=*/nullptr);
+          /*count_all_rows=*/false, unit->m_reject_multiple_rows,
+          /*send_records_override=*/nullptr);
     }
   } else if (qep_tab->table_ref->common_table_expr() == nullptr &&
              qep_tab->rematerialize && IsTableScan(table_path)) {
@@ -1570,7 +1573,7 @@ AccessPath *GetAccessPathForDerivedTable(THD *thd, QEP_TAB *qep_tab,
         qep_tab->invalidators, qep_tab->table(), table_path,
         qep_tab->table_ref->common_table_expr(), unit,
         /*ref_slice=*/-1, qep_tab->rematerialize,
-        tmp_table_param->end_write_records);
+        tmp_table_param->end_write_records, unit->m_reject_multiple_rows);
     CopyCosts(*unit->root_access_path(), path);
   }
 
@@ -1661,7 +1664,8 @@ AccessPath *GetTableAccessPath(THD *thd, QEP_TAB *qep_tab, QEP_TAB *qep_tabs) {
         /*cte=*/nullptr,
         /*unit=*/nullptr,
         /*ref_slice=*/-1, qep_tab->rematerialize,
-        sjm->table_param.end_write_records);
+        sjm->table_param.end_write_records,
+        /*reject_multiple_rows=*/false);
     CopyCosts(*subtree_path, table_path);
 
 #ifndef DBUG_OFF
@@ -1927,6 +1931,7 @@ static AccessPath *CreateHashJoinAccessPath(
     build_path = NewLimitOffsetAccessPath(thd, build_path,
                                           /*limit=*/1, /*offset=*/0,
                                           /*count_all_rows=*/false,
+                                          /*reject_multiple_rows=*/false,
                                           /*send_records_override=*/nullptr);
   }
 
@@ -2431,7 +2436,8 @@ static AccessPath *ConnectJoins(
         subtree_path = NewLimitOffsetAccessPath(
             thd, subtree_path,
             /*limit=*/1, /*offset=*/0,
-            /*count_all_rows=*/false, /*send_records_override=*/nullptr);
+            /*count_all_rows=*/false, /*reject_multiple_rows=*/false,
+            /*send_records_override=*/nullptr);
       }
 
       const bool pfs_batch_mode = qep_tab->pfs_batch_update(qep_tab->join()) &&
@@ -2717,7 +2723,8 @@ static AccessPath *ConnectJoins(
         table_path = NewLimitOffsetAccessPath(
             thd, table_path, /*limit=*/1,
             /*offset=*/0,
-            /*count_all_rows=*/false, /*send_records_override=*/nullptr);
+            /*count_all_rows=*/false, /*reject_multiple_rows=*/false,
+            /*send_records_override=*/nullptr);
       }
 
       // Inner join this table to the existing tree.
@@ -2824,8 +2831,8 @@ AccessPath *JOIN::create_root_access_path_for_join() {
                 /*copy_fields_and_items=*/true, qep_tab->tmp_table_param),
             qep_tab->invalidators, qep_tab->table(), table_path,
             /*cte=*/nullptr, unit, qep_tab->ref_item_slice,
-            /*rematerialize=*/true,
-            qep_tab->tmp_table_param->end_write_records);
+            /*rematerialize=*/true, qep_tab->tmp_table_param->end_write_records,
+            /*reject_multiple_rows=*/false);
         CopyCosts(*old_path, path);
       }
     }
@@ -2997,7 +3004,8 @@ AccessPath *JOIN::create_root_access_path_for_join() {
             qep_tab->invalidators, qep_tab->table(), table_path,
             /*cte=*/nullptr, unit,
             /*ref_slice=*/-1,
-            /*rematerialize=*/true, tmp_table_param.end_write_records);
+            /*rematerialize=*/true, tmp_table_param.end_write_records,
+            /*reject_multiple_rows=*/false);
         CopyCosts(*old_path, path);
       }
     } else if (qep_tab->op_type == QEP_TAB::OT_AGGREGATE_INTO_TMP_TABLE) {
@@ -3043,8 +3051,8 @@ AccessPath *JOIN::create_root_access_path_for_join() {
                                         qep_tab->tmp_table_param),
             qep_tab->invalidators, qep_tab->table(), table_path,
             /*cte=*/nullptr, unit, qep_tab->ref_item_slice,
-            /*rematerialize=*/true,
-            qep_tab->tmp_table_param->end_write_records);
+            /*rematerialize=*/true, qep_tab->tmp_table_param->end_write_records,
+            /*reject_multiple_rows=*/false);
       }
       CopyCosts(*old_path, path);
     }
@@ -3058,6 +3066,7 @@ AccessPath *JOIN::create_root_access_path_for_join() {
       path = NewLimitOffsetAccessPath(thd, path, /*limit=*/1,
                                       /*offset=*/0,
                                       /*count_all_rows=*/false,
+                                      /*reject_multiple_rows=*/false,
                                       /*send_records_override=*/nullptr);
     } else if (dup_filesort != nullptr) {
       path = NewSortAccessPath(thd, path, dup_filesort,
@@ -3121,9 +3130,10 @@ AccessPath *JOIN::attach_access_paths_for_having_and_limit(AccessPath *path) {
   // Note: For select_count, LIMIT 0 is handled in JOIN::optimize() for the
   // common case, but not for CALC_FOUND_ROWS. OFFSET also isn't handled there.
   if (unit->select_limit_cnt != HA_POS_ERROR || unit->offset_limit_cnt != 0) {
-    path = NewLimitOffsetAccessPath(thd, path, unit->select_limit_cnt,
-                                    unit->offset_limit_cnt, calc_found_rows,
-                                    /*send_records_override=*/nullptr);
+    path =
+        NewLimitOffsetAccessPath(thd, path, unit->select_limit_cnt,
+                                 unit->offset_limit_cnt, calc_found_rows, false,
+                                 /*send_records_override=*/nullptr);
   }
 
   return path;

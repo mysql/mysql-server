@@ -807,6 +807,12 @@ class SELECT_LEX_UNIT {
 
   bool m_union_needs_tmp_table;
 
+  /**
+    This query expression represents a scalar subquery and we need a run-time
+    check that the cardinality doesn't exceed 1.
+  */
+  bool m_reject_multiple_rows{false};
+
   /// @return true if query expression can be merged into an outer query
   bool is_mergeable() const;
 
@@ -2003,6 +2009,10 @@ class SELECT_LEX {
   /// replaced by a field during scalar_to_derived transformation
   uint n_scalar_subqueries{0};
 
+  /// To make sure we can release any associated tmp file resources when we can
+  /// no longer reach these via the item tree (they have been replaced).
+  mem_root_deque<Item_singlerow_subselect *> m_scalar_replaced;
+
   /// Number of materialized derived tables and views in this query block.
   uint materialized_derived_table_count{0};
   /// Number of partitioned tables
@@ -2135,6 +2145,7 @@ class SELECT_LEX {
   bool transform_subquery_to_derived(THD *thd, TABLE_LIST **out_tl,
                                      SELECT_LEX_UNIT *subs_unit,
                                      Item_subselect *subq, bool use_inner_join,
+                                     bool reject_multiple_rows,
                                      Item *join_condition);
   bool transform_table_subquery_to_join_with_derived(
       THD *thd, Item_exists_subselect *subq_pred);

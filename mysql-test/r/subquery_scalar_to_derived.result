@@ -167,33 +167,188 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select count(`test`.`t2`.`a`) AS `cnt` from `test`.`t2`) `lj1` join (/* select#3 */ select (max(`test`.`t2`.`a`) * 4) AS `mx` from `test`.`t2`) `lj2` where ((`test`.`t1`.`a` > `lj1`.`cnt`) and (`test`.`t1`.`a` < `lj2`.`mx`))
-# We only transform when we have implicit grouping for now, i.e.
-# we know that cardinality of result set is one.
+# If we have an implicit grouping we we know that cardinality
+# of result set is one, so no need for runtime checking of the
+# cardinality of the derived tables
 SELECT * FROM t1
-WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t3 GROUP BY b);
+WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t3);
 a
 3
 4
 explain SELECT * FROM t1
-WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t3 GROUP BY b);
+WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	33.33	Using where
-2	SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	33.33	Using where; Using join buffer (hash join)
+2	DERIVED	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > (/* select#2 */ select count(`test`.`t3`.`a`) AS `cnt` from `test`.`t3` group by `test`.`t3`.`b`))
-# Don't try transform if we see UNION.
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select count(`test`.`t3`.`a`) AS `cnt` from `test`.`t3`) `derived_1_2` where (`test`.`t1`.`a` > `derived_1_2`.`cnt`)
+# If not, detect if we see more than one row in subquery
+SELECT * FROM t1
+WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t3 GROUP BY a);
+ERROR 21000: Subquery returns more than 1 row
+explain SELECT * FROM t1
+WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t3 GROUP BY a);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	33.33	Using where; Using join buffer (hash join)
+2	DERIVED	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select count(`test`.`t3`.`a`) AS `cnt` from `test`.`t3` group by `test`.`t3`.`a`) `derived_1_2` where (`test`.`t1`.`a` > `derived_1_2`.`cnt`)
 SELECT * FROM t1
 WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 UNION SELECT 1);
 ERROR 21000: Subquery returns more than 1 row
 explain SELECT * FROM t1
 WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 UNION SELECT 1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	33.33	Using where
-2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	33.33	Using where; Using join buffer (hash join)
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > (/* select#2 */ select count(`test`.`t2`.`a`) AS `cnt` from `test`.`t2` union /* select#3 */ select 1))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select count(`test`.`t2`.`a`) AS `cnt` from `test`.`t2` union /* select#3 */ select 1 AS `1`) `derived_1_2` where (`test`.`t1`.`a` > `derived_1_2`.`cnt`)
+# Empty scalar subquery
+SELECT * FROM t1
+WHERE t1.a > (SELECT a from t1 WHERE false);
+a
+explain SELECT * FROM t1
+WHERE t1.a > (SELECT a from t1 WHERE false);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	NULL
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	33.33	Using where; Using join buffer (hash join)
+2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where false) `derived_1_2` where (`test`.`t1`.`a` > `derived_1_2`.`a`)
+SELECT a + (SELECT a from t1 WHERE false) FROM t1;
+a + (SELECT a from t1 WHERE false)
+NULL
+NULL
+NULL
+NULL
+explain SELECT a + (SELECT a from t1 WHERE false) FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; Using join buffer (hash join)
+2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Note	1003	/* select#1 */ select (`test`.`t1`.`a` + `derived_1_2`.`a`) AS `a + (SELECT a from t1 WHERE false)` from `test`.`t1` left join (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where false) `derived_1_2` on(true) where true
+# If we limit the cardinality, it should work:
+SELECT * FROM t1
+WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 UNION SELECT 1 LIMIT 1);
+a
+3
+4
+explain SELECT * FROM t1
+WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 UNION SELECT 1 LIMIT 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	33.33	Using where; Using join buffer (hash join)
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select count(`test`.`t2`.`a`) AS `cnt` from `test`.`t2` union /* select#3 */ select 1 AS `1` limit 1) `derived_1_2` where (`test`.`t1`.`a` > `derived_1_2`.`cnt`)
+# Check that offset/limit doesn't fool us:
+SELECT * FROM t1
+WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 UNION SELECT 1 LIMIT 1 OFFSET 1);
+a
+2
+3
+4
+explain SELECT * FROM t1
+WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 UNION SELECT 1 LIMIT 1 OFFSET 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	33.33	Using where; Using join buffer (hash join)
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select count(`test`.`t2`.`a`) AS `cnt` from `test`.`t2` union /* select#3 */ select 1 AS `1` limit 1,1) `derived_1_2` where (`test`.`t1`.`a` > `derived_1_2`.`cnt`)
+SELECT * FROM t1
+WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 UNION SELECT 1 LIMIT 1 OFFSET 0);
+a
+3
+4
+explain SELECT * FROM t1
+WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 UNION SELECT 1 LIMIT 1 OFFSET 0);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	33.33	Using where; Using join buffer (hash join)
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select count(`test`.`t2`.`a`) AS `cnt` from `test`.`t2` union /* select#3 */ select 1 AS `1` limit 0,1) `derived_1_2` where (`test`.`t1`.`a` > `derived_1_2`.`cnt`)
+SELECT * FROM t1
+WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 UNION SELECT 1 LIMIT 2 OFFSET 0);
+ERROR 21000: Subquery returns more than 1 row
+explain SELECT * FROM t1
+WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 UNION SELECT 1 LIMIT 2 OFFSET 0);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	33.33	Using where; Using join buffer (hash join)
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select count(`test`.`t2`.`a`) AS `cnt` from `test`.`t2` union /* select#3 */ select 1 AS `1` limit 0,2) `derived_1_2` where (`test`.`t1`.`a` > `derived_1_2`.`cnt`)
+SELECT * FROM t1
+WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 UNION SELECT 1 LIMIT 2 OFFSET 1);
+a
+2
+3
+4
+explain SELECT * FROM t1
+WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 UNION SELECT 1 LIMIT 2 OFFSET 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	33.33	Using where; Using join buffer (hash join)
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select count(`test`.`t2`.`a`) AS `cnt` from `test`.`t2` union /* select#3 */ select 1 AS `1` limit 1,2) `derived_1_2` where (`test`.`t1`.`a` > `derived_1_2`.`cnt`)
+SELECT * FROM t1
+WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 UNION (SELECT 1 LIMIT 1));
+ERROR 21000: Subquery returns more than 1 row
+explain SELECT * FROM t1
+WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 UNION (SELECT 1 LIMIT 1));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	33.33	Using where; Using join buffer (hash join)
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select count(`test`.`t2`.`a`) AS `cnt` from `test`.`t2` union (/* select#3 */ select 1 AS `1` limit 1)) `derived_1_2` where (`test`.`t1`.`a` > `derived_1_2`.`cnt`)
+Without aggregation
+SELECT * FROM t1
+WHERE t1.a > (SELECT a FROM t2 LIMIT 1);
+a
+2
+3
+4
+explain SELECT * FROM t1
+WHERE t1.a > (SELECT a FROM t2 LIMIT 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	33.33	Using where; Using join buffer (hash join)
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` limit 1) `derived_1_2` where (`test`.`t1`.`a` > `derived_1_2`.`a`)
+SELECT * FROM t1
+WHERE t1.a > (SELECT a FROM t2);
+ERROR 21000: Subquery returns more than 1 row
+explain SELECT * FROM t1
+WHERE t1.a > (SELECT a FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	33.33	Using where; Using join buffer (hash join)
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select `test`.`t2`.`a` AS `a` from `test`.`t2`) `derived_1_2` where (`test`.`t1`.`a` > `derived_1_2`.`a`)
 In the below, the query block under consideration for transformation is
 the outer subquery. It
 
@@ -613,11 +768,12 @@ FROM t1
 FROM t3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-2	SUBQUERY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DERIVED	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 3	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select (/* select#2 */ select `derived_2_3`.`COUNT(*)` from `test`.`t1` left join (/* select#3 */ select count(0) AS `COUNT(*)` from `test`.`t2`) `derived_2_3` on(true) where true) AS `bignest` from `test`.`t3`
+Note	1003	/* select#1 */ select `derived_1_2`.`aggs` AS `bignest` from `test`.`t3` left join (/* select#2 */ select `derived_2_3`.`COUNT(*)` AS `aggs` from `test`.`t1` left join (/* select#3 */ select count(0) AS `COUNT(*)` from `test`.`t2`) `derived_2_3` on(true) where true) `derived_1_2` on(true) where true
 DROP TABLE t1, t2, t3;
 #
 # 5.  S U B Q U E R Y   I N   S E L E C T   L I S T   +   G R O U P E D
@@ -3851,13 +4007,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 8	DERIVED	subquery1_t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 8	DERIVED	subquery1_t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 5	DERIVED	table2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
-5	DERIVED	table1	NULL	range	PRIMARY,idx_c_col_int_key	idx_c_col_int_key	5	NULL	2	90.00	Using index condition; Using where; Using join buffer (hash join)
+5	DERIVED	<derived7>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (hash join)
+5	DERIVED	table1	NULL	ALL	PRIMARY,idx_c_col_int_key	NULL	NULL	NULL	14	30.00	Range checked for each record (index map: 0x3)
 5	DERIVED	subquery3_t1	NULL	ref	idx_c_col_int_key	idx_c_col_int_key	5	test.table1.pk	1	100.00	FirstMatch(table1)
 5	DERIVED	table3	NULL	index	NULL	idx_c_col_int_key	5	NULL	14	100.00	Using index; Using join buffer (hash join)
-7	SUBQUERY	cc	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index
+7	DERIVED	cc	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index
 Warnings:
 Note	1276	Field or reference 'test.table1.pk' of SELECT #4 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `derived_1_5`.`field1` AS `field1`,`derived_1_5`.`field2` AS `field2`,`derived_1_8`.`subquery1_field1` AS `field3` from (/* select#5 */ select min(`test`.`table2`.`col_int`) AS `field1`,sum(`test`.`table2`.`col_int`) AS `field2` from `test`.`cc` `table2` straight_join `test`.`c` `table3` join `test`.`c` `table1` semi join (`test`.`c` `subquery3_t1`) where ((`test`.`table2`.`col_int` = `test`.`table2`.`pk`) and (`test`.`table2`.`col_varchar` = `test`.`table2`.`col_varchar_key`) and (`test`.`subquery3_t1`.`col_int_key` = `test`.`table1`.`pk`) and (`test`.`table1`.`col_varchar_key` <> `test`.`table2`.`col_varchar`) and (`test`.`table1`.`col_int_key` > (/* select#7 */ select 9 from `test`.`cc`)))) `derived_1_5` left join (/* select#8 */ select max(`test`.`subquery1_t1`.`pk`) AS `subquery1_field1` from `test`.`cc` `subquery1_t1` join `test`.`cc` `subquery1_t2` where (`test`.`subquery1_t2`.`col_varchar_key` = `test`.`subquery1_t1`.`col_varchar_key`)) `derived_1_8` on(true) where true
+Note	1003	/* select#1 */ select `derived_1_5`.`field1` AS `field1`,`derived_1_5`.`field2` AS `field2`,`derived_1_8`.`subquery1_field1` AS `field3` from (/* select#5 */ select min(`test`.`table2`.`col_int`) AS `field1`,sum(`test`.`table2`.`col_int`) AS `field2` from `test`.`cc` `table2` straight_join `test`.`c` `table3` join (/* select#7 */ select 9 AS `9` from `test`.`cc`) `derived_5_7` join `test`.`c` `table1` semi join (`test`.`c` `subquery3_t1`) where ((`test`.`table2`.`col_int` = `test`.`table2`.`pk`) and (`test`.`table2`.`col_varchar` = `test`.`table2`.`col_varchar_key`) and (`test`.`subquery3_t1`.`col_int_key` = `test`.`table1`.`pk`) and (`test`.`table1`.`col_varchar_key` <> `test`.`table2`.`col_varchar`) and (`test`.`table1`.`col_int_key` > `derived_5_7`.`9`))) `derived_1_5` left join (/* select#8 */ select max(`test`.`subquery1_t1`.`pk`) AS `subquery1_field1` from `test`.`cc` `subquery1_t1` join `test`.`cc` `subquery1_t2` where (`test`.`subquery1_t2`.`col_varchar_key` = `test`.`subquery1_t1`.`col_varchar_key`)) `derived_1_8` on(true) where true
 DROP TABLE c, cc;
 #
 # Bug#30818896 WL#12885: ASSERTION FAILURE IN TEMPTABLE::COLUMN::READ_STD_USER_DATA()
@@ -4170,4 +4327,36 @@ Warnings:
 Note	1003	/* select#1 */ select `alias1`.`col_int` AS `col_int` from `test`.`c` `alias1` join (/* select#4 */ select min(`sq1_alias1`.`col_int`) AS `sq1_field1` from `test`.`c` `sq1_alias1` join `test`.`c` `sq1_alias2`) `derived_2_4` join `test`.`c` `alias2` join `test`.`c` `alias3` semi join (`test`.`c` `sq2_alias1` join `test`.`c` `sq2_alias2`) where ((`sq2_alias1`.`pk` = `sq2_alias2`.`col_int`) and (`alias2`.`col_int` >= `derived_2_4`.`sq1_field1`))
 DROP VIEW view_c;
 DROP TABLE c;
+#
+# Bug#31535523 WL#13686: SIG6 HEADER::NUMBER_OF_USED_CHUNKS() == 0 AT TEMPTABLE/BLOCK.H
+# This query used to fail during server shutdown, cf. bug issue for how to run.
+# In a single mtr run, look in var/log/mysqld.1.err for the stack trace before the fix.
+CREATE TABLE t1 (i int);
+CREATE TABLE t2 (i int);
+SELECT t2.i FROM t2
+WHERE ( false ) AND
+( t2.i  IN ( SELECT t1.i FROM t1
+WHERE t1.i <= SOME ( SELECT 8 UNION  SELECT 3 ) ) );
+i
+DROP TABLE t1, t2;
+#
+# WL#13686 Transformation of constant scalar subquery with DUAL causes
+#          assert.
+#
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (1), (2);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT a FROM t1 WHERE (SELECT 1 FROM DUAL WHERE 1=0) IS NULL;
+a
+1
+2
+EXPLAIN SELECT a FROM t1 WHERE (SELECT 1 FROM DUAL WHERE 1=0) IS NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where true
+DROP TABLE t1;
 SET optimizer_switch='subquery_to_derived=default';

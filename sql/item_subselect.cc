@@ -2640,30 +2640,31 @@ bool Item_singlerow_subselect::collect_scalar_subqueries(uchar *arg) {
   }
 
   /*
-    [1] Only allow implicitly grouped queries for now
-    [1.1] Was implicitly grouped before in a transformation on a deeper level
-    [2] Only allow if no set operations are present (union)
-  */
-  if (((i->has_aggregation() &&
+    Check if it has been already added. Can happen after other
+    transformations, eg. when aggregates are repeated in
+    HAVING clause:
+      SELECT SUM(a), (SELECT SUM(b) FROM t3) AS scalar
+      FROM t1 HAVING SUM(a) > scalar
+   */
+  for (auto &e : info->m_list) {
+    if (e.item == this) {
+      e.m_location |= info->m_location;
+      return false;
+    }
+  }
+  info->m_list.emplace_back(Collect_scalar_subquery_info::Css_info{
+      info->m_location, this, info->m_join_condition_context,
+      /*
+        Compute if we can skip run-time cardinality check:
+        [1]   implicitly grouped queries for now, OR
+        [1.1] was implicitly grouped in a transformation on a deeper level, AND
+        [2]   no set operations are present (union)
+      */
+      ((i->has_aggregation() &&
         unit->first_select()->is_implicitly_grouped()) ||    // [1]
        (unit->first_select()->m_was_implicitly_grouped)) &&  // [1.1]
-      unit->first_select()->next_select() == nullptr) {      // [2]
-    /*
-      Check if it has been already added. Can happen after other
-      transformations, eg. IN -> EXISTS and when aggregates are repeated in
-      HAVING clause:
-        SELECT SUM(a), (SELECT SUM(b) FROM t3) AS scalar
-        FROM t1 HAVING SUM(a) > scalar
-    */
-    for (auto &e : info->list) {
-      if (e.item == this) {
-        e.m_location |= info->m_location;
-        return false;
-      }
-    }
-    info->list.emplace_back(Collect_scalar_subquery_info::Css_info{
-        info->m_location, this, info->m_join_condition_context});
-  }
+          !unit->is_union()});                               // [2]
+
   return false;
 }
 
@@ -3278,6 +3279,7 @@ void subselect_hash_sj_engine::create_iterators(THD *thd) {
   if (tab->type() == JT_EQ_REF && (cond != nullptr || having != nullptr)) {
     path = NewLimitOffsetAccessPath(thd, path, /*limit=*/1, /*offset=*/0,
                                     /*count_all_rows=*/false,
+                                    /* reject_multiple_rows=*/false,
                                     /*send_records_override=*/nullptr);
   }
   if (cond != nullptr) {

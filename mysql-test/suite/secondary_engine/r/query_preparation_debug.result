@@ -74,9 +74,10 @@ Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x` from `test`.`t1`
 EXPLAIN SELECT (SELECT y FROM t2 WHERE y = 1) FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using secondary engine MOCK
-2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using secondary engine MOCK
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using secondary engine MOCK
 Warnings:
-Note	1003	/* select#1 */ select (/* select#2 */ select `test`.`t2`.`y` from `test`.`t2` where (`test`.`t2`.`y` = 1)) AS `(SELECT y FROM t2 WHERE y = 1)` from `test`.`t1`
+Note	1003	/* select#1 */ select `derived_1_2`.`y` AS `(SELECT y FROM t2 WHERE y = 1)` from `test`.`t1` left join (/* select#2 */ select `test`.`t2`.`y` AS `y` from `test`.`t2` where (`test`.`t2`.`y` = 1)) `derived_1_2` on(true) where true
 EXPLAIN SELECT * FROM t1 UNION ALL SELECT * FROM t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using secondary engine MOCK

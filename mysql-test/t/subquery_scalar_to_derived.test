@@ -12,7 +12,6 @@ CREATE TABLE t0 AS SELECT * FROM t1;
 CREATE TABLE t3(a INT, b INT);
 INSERT INTO t3 VALUES (1,3), (2,3);
 ANALYZE TABLE t1, t2, t0, t3;
-
 --echo #
 --echo # 1. W H E R E  clause subqueries
 --echo #
@@ -89,17 +88,79 @@ eval $query;
 eval explain $query;
 
 
---echo # We only transform when we have implicit grouping for now, i.e.
---echo # we know that cardinality of result set is one.
-
+--echo # If we have an implicit grouping we we know that cardinality
+--echo # of result set is one, so no need for runtime checking of the
+--echo # cardinality of the derived tables
 let $query = SELECT * FROM t1
-             WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t3 GROUP BY b);
+             WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t3);
 eval $query;
 eval explain $query;
 
---echo # Don't try transform if we see UNION.
+--echo # If not, detect if we see more than one row in subquery
+let $query = SELECT * FROM t1
+             WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t3 GROUP BY a);
+--error ER_SUBQUERY_NO_1_ROW
+eval $query;
+eval explain $query;
+
 let $query = SELECT * FROM t1
              WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 UNION SELECT 1);
+--error ER_SUBQUERY_NO_1_ROW
+eval $query;
+eval explain $query;
+
+--echo # Empty scalar subquery
+let $query = SELECT * FROM t1
+             WHERE t1.a > (SELECT a from t1 WHERE false);
+eval $query;
+eval explain $query;
+
+let $query = SELECT a + (SELECT a from t1 WHERE false) FROM t1;
+eval $query;
+eval explain $query;
+
+--echo # If we limit the cardinality, it should work:
+let $query = SELECT * FROM t1
+             WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 UNION SELECT 1 LIMIT 1);
+eval $query;
+eval explain $query;
+
+--echo # Check that offset/limit doesn't fool us:
+let $query = SELECT * FROM t1
+             WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 UNION SELECT 1 LIMIT 1 OFFSET 1);
+eval $query;
+eval explain $query;
+
+let $query = SELECT * FROM t1
+             WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 UNION SELECT 1 LIMIT 1 OFFSET 0);
+eval $query;
+eval explain $query;
+
+let $query = SELECT * FROM t1
+             WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 UNION SELECT 1 LIMIT 2 OFFSET 0);
+--error ER_SUBQUERY_NO_1_ROW
+eval $query;
+eval explain $query;
+
+let $query = SELECT * FROM t1
+             WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 UNION SELECT 1 LIMIT 2 OFFSET 1);
+eval $query;
+eval explain $query;
+
+let $query = SELECT * FROM t1
+             WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2 UNION (SELECT 1 LIMIT 1));
+--error ER_SUBQUERY_NO_1_ROW
+eval $query;
+eval explain $query;
+
+--echo Without aggregation
+let $query = SELECT * FROM t1
+             WHERE t1.a > (SELECT a FROM t2 LIMIT 1);
+eval $query;
+eval explain $query;
+
+let $query = SELECT * FROM t1
+             WHERE t1.a > (SELECT a FROM t2);
 --error ER_SUBQUERY_NO_1_ROW
 eval $query;
 eval explain $query;
@@ -2047,5 +2108,35 @@ eval EXPLAIN $query;
 
 DROP VIEW view_c;
 DROP TABLE c;
+
+--echo #
+--echo # Bug#31535523 WL#13686: SIG6 HEADER::NUMBER_OF_USED_CHUNKS() == 0 AT TEMPTABLE/BLOCK.H
+--echo # This query used to fail during server shutdown, cf. bug issue for how to run.
+--echo # In a single mtr run, look in var/log/mysqld.1.err for the stack trace before the fix.
+CREATE TABLE t1 (i int);
+CREATE TABLE t2 (i int);
+
+SELECT t2.i FROM t2
+WHERE ( false ) AND
+      ( t2.i  IN ( SELECT t1.i FROM t1
+                  WHERE t1.i <= SOME ( SELECT 8 UNION  SELECT 3 ) ) );
+DROP TABLE t1, t2;
+
+--echo #
+--echo # WL#13686 Transformation of constant scalar subquery with DUAL causes
+--echo #          assert.
+--echo #
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (1), (2);
+ANALYZE TABLE t1;
+let $query =
+SELECT a FROM t1 WHERE (SELECT 1 FROM DUAL WHERE 1=0) IS NULL;
+
+--sorted_result
+eval $query;
+eval EXPLAIN $query;
+
+DROP TABLE t1;
+
 
 SET optimizer_switch='subquery_to_derived=default';

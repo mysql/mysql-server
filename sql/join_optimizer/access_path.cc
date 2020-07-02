@@ -626,7 +626,7 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       iterator = NewIterator<LimitOffsetIterator>(
           thd, move(child), path->limit_offset().limit,
           path->limit_offset().offset, path->limit_offset().count_all_rows,
-          send_records);
+          path->limit_offset().reject_multiple_rows, send_records);
       break;
     }
     case AccessPath::STREAM: {
@@ -682,7 +682,7 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       iterator = NewIterator<MaterializeIterator>(
           thd, std::move(query_blocks), param->table, move(table_iterator),
           param->cte, param->unit, subjoin, param->ref_slice,
-          param->rematerialize, param->limit_rows);
+          param->rematerialize, param->limit_rows, param->reject_multiple_rows);
 
       if (param->invalidators != nullptr) {
         MaterializeIterator *materialize =

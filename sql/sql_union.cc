@@ -950,7 +950,8 @@ void SELECT_LEX_UNIT::create_access_paths(THD *thd) {
         table_path,
         /*cte=*/nullptr, /*unit=*/nullptr,
         /*ref_slice=*/-1,
-        /*rematerialize=*/true, push_limit_down ? limit : HA_POS_ERROR);
+        /*rematerialize=*/true, push_limit_down ? limit : HA_POS_ERROR,
+        /*reject_multiple_rows=*/false);
     param.join = nullptr;
     union_all_sub_paths->push_back(param);
   }
@@ -990,7 +991,8 @@ void SELECT_LEX_UNIT::create_access_paths(THD *thd) {
   // LIMIT/OFFSET, so we don't do it again here.
   if ((limit != HA_POS_ERROR || offset != 0) && fake_select_lex == nullptr) {
     m_root_access_path = NewLimitOffsetAccessPath(
-        thd, m_root_access_path, limit, offset, calc_found_rows, &send_records);
+        thd, m_root_access_path, limit, offset, calc_found_rows,
+        /*reject_multiple_rows=*/false, &send_records);
   }
 }
 

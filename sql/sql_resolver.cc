@@ -5294,6 +5294,7 @@ bool SELECT_LEX::transform_table_subquery_to_join_with_derived(
           /*use_inner_join=*/
           subq->outer_condition_context == enum_condition_context::ANDS &&
               !subq->can_do_aj,
+          /*reject_multiple_rows*/ false,
           /*join_condition=*/nullptr))
     return true;
 
@@ -6426,12 +6427,16 @@ TABLE_LIST *SELECT_LEX::nest_derived(
   @param subs_unit      Unit for the subquery
   @param subq           Item for the subquery
   @param use_inner_join Insert with INNER JOIN, or with LEFT JOIN
+  @param reject_multiple_rows
+                        For scalar subqueries where we need run-time cardinality
+                        check: true, else false
   @param join_condition See join_cond in synthesize_derived()
 */
 bool SELECT_LEX::transform_subquery_to_derived(THD *thd, TABLE_LIST **out_tl,
                                                SELECT_LEX_UNIT *subs_unit,
                                                Item_subselect *subq,
                                                bool use_inner_join,
+                                               bool reject_multiple_rows,
                                                Item *join_condition) {
   TABLE_LIST *tl;
   {
@@ -6462,6 +6467,7 @@ bool SELECT_LEX::transform_subquery_to_derived(THD *thd, TABLE_LIST **out_tl,
 
     if (!(tl->derived_result = new (thd->mem_root) Query_result_union()))
       return true; /* purecov: inspected */
+    subs_unit->m_reject_multiple_rows = reject_multiple_rows;
     subs_unit->set_explain_marker(thd, CTX_DERIVED);
     subs_unit->first_select()->linkage = DERIVED_TABLE_TYPE;
 
@@ -6585,7 +6591,7 @@ bool SELECT_LEX::transform_scalar_subqueries_to_join_with_derived(THD *thd) {
   */
   if (is_implicitly_grouped()) {
     bool need_new_outer = false;
-    for (auto subquery : subqueries.list) {
+    for (auto subquery : subqueries.m_list) {
       auto *subq = subquery.item;
       if (!query_block_contains_subquery(this, subq->unit)) continue;
 
@@ -6620,16 +6626,19 @@ bool SELECT_LEX::transform_scalar_subqueries_to_join_with_derived(THD *thd) {
     and replace occurrences in expression trees with a field of the relevant
     derived table.
   */
-  for (auto subquery : subqueries.list) {
+  for (auto subquery : subqueries.m_list) {
     Item_singlerow_subselect *const subq = subquery.item;
     SELECT_LEX_UNIT *const subs_unit = subq->unit;
 
     /*
-      A reference to a scalar subquery from another query expression can happen.
-      We can't transform it here, but it may be replaced from another query
-      block.
+      [1] A reference to a scalar subquery from another query expression can
+          happen. We can't transform it here, but it may be replaced from
+          another query block.
+      [2] A constant scalar subquery will be evaluated at prepare time
     */
-    if (!query_block_contains_subquery(this, subs_unit)) continue;
+    if (!query_block_contains_subquery(this, subs_unit) ||  // [1]
+        (subq->const_item() && subs_unit->is_optimized()))  // [2]
+      continue;
 
     TABLE_LIST *tl;
 
@@ -6658,9 +6667,11 @@ bool SELECT_LEX::transform_scalar_subqueries_to_join_with_derived(THD *thd) {
     //               t2
     //             ON derived_1_0.cnt = t1.a
     //
-    if (transform_subquery_to_derived(thd, &tl, subs_unit, subq,
-                                      /*use_inner_join=*/false,
-                                      subquery.m_join_condition))
+    if (transform_subquery_to_derived(
+            thd, &tl, subs_unit, subq,
+            /*use_inner_join=*/false,
+            !subquery.m_implicitly_grouped_and_no_union,
+            subquery.m_join_condition))
       return true;
 
     /*
@@ -6729,6 +6740,8 @@ bool SELECT_LEX::transform_scalar_subqueries_to_join_with_derived(THD *thd) {
     for (ORDER *ord = group_list.first; ord != nullptr; ord = ord->next) {
       if (replace_subquery_in_expr(thd, subq, tl, ord->item)) return true;
     }
+
+    m_scalar_replaced.push_back(subq);
 
     OPT_TRACE_TRANSFORM(&thd->opt_trace, trace_wrapper, trace_object,
                         tl->derived_unit()->first_select()->select_number,

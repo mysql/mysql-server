@@ -158,8 +158,21 @@ int LimitOffsetIterator::Read() {
     }
   }
 
+  const int result = m_source->Read();
+  if (m_reject_multiple_rows) {
+    if (result != 0) {
+      ++m_seen_rows;
+      return result;
+    }
+    // We read a row. Check for scalar subquery cardinality violation
+    if (m_seen_rows - m_offset > 0) {
+      my_error(ER_SUBQUERY_NO_1_ROW, MYF(0));
+      return 1;
+    }
+  }
+
   ++m_seen_rows;
-  return m_source->Read();
+  return result;
 }
 
 AggregateIterator::AggregateIterator(
@@ -595,7 +608,7 @@ MaterializeIterator::MaterializeIterator(
     THD *thd, Mem_root_array<QueryBlock> query_blocks_to_materialize,
     TABLE *table, unique_ptr_destroy_only<RowIterator> table_iterator,
     Common_table_expr *cte, SELECT_LEX_UNIT *unit, JOIN *join, int ref_slice,
-    bool rematerialize, ha_rows limit_rows)
+    bool rematerialize, ha_rows limit_rows, bool reject_multiple_rows)
     : TableRowIterator(thd, table),
       m_query_blocks_to_materialize(std::move(query_blocks_to_materialize)),
       m_table_iterator(move(table_iterator)),
@@ -604,6 +617,7 @@ MaterializeIterator::MaterializeIterator(
       m_join(join),
       m_ref_slice(ref_slice),
       m_rematerialize(rematerialize),
+      m_reject_multiple_rows(reject_multiple_rows),
       m_limit_rows(limit_rows),
       m_invalidators(thd->mem_root) {
   if (ref_slice != -1) {
@@ -620,7 +634,8 @@ MaterializeIterator::MaterializeIterator(
     Temp_table_param *temp_table_param, TABLE *table,
     unique_ptr_destroy_only<RowIterator> table_iterator, Common_table_expr *cte,
     int select_number, SELECT_LEX_UNIT *unit, JOIN *join, int ref_slice,
-    bool copy_fields_and_items, bool rematerialize, ha_rows limit_rows)
+    bool copy_fields_and_items, bool rematerialize, ha_rows limit_rows,
+    bool reject_multiple_rows)
     : TableRowIterator(thd, table),
       m_query_blocks_to_materialize(thd->mem_root, 1),
       m_table_iterator(move(table_iterator)),
@@ -629,6 +644,7 @@ MaterializeIterator::MaterializeIterator(
       m_join(join),
       m_ref_slice(ref_slice),
       m_rematerialize(rematerialize),
+      m_reject_multiple_rows(reject_multiple_rows),
       m_limit_rows(limit_rows),
       m_invalidators(thd->mem_root) {
   DBUG_ASSERT(m_table_iterator != nullptr);
@@ -746,7 +762,10 @@ bool MaterializeIterator::Init() {
     ha_rows stored_rows = 0;
     for (const QueryBlock &query_block : m_query_blocks_to_materialize) {
       if (MaterializeQueryBlock(query_block, &stored_rows)) return true;
-      if (stored_rows >= m_limit_rows) {
+      if (m_reject_multiple_rows && stored_rows > 1) {
+        my_error(ER_SUBQUERY_NO_1_ROW, MYF(0));
+        return true;
+      } else if (stored_rows >= m_limit_rows) {
         break;
       }
     }

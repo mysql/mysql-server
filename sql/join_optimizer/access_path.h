@@ -617,6 +617,7 @@ struct AccessPath {
       ha_rows limit;
       ha_rows offset;
       bool count_all_rows;
+      bool reject_multiple_rows;
       // Only used when the LIMIT is on a UNION with SQL_CALC_FOUND_ROWS.
       // See SELECT_LEX_UNIT::send_records.
       ha_rows *send_records_override;
@@ -939,6 +940,7 @@ inline AccessPath *NewTemptableAggregateAccessPath(
 inline AccessPath *NewLimitOffsetAccessPath(THD *thd, AccessPath *child,
                                             ha_rows limit, ha_rows offset,
                                             bool count_all_rows,
+                                            bool reject_multiple_rows,
                                             ha_rows *send_records_override) {
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::LIMIT_OFFSET;
@@ -946,6 +948,7 @@ inline AccessPath *NewLimitOffsetAccessPath(THD *thd, AccessPath *child,
   path->limit_offset().limit = limit;
   path->limit_offset().offset = offset;
   path->limit_offset().count_all_rows = count_all_rows;
+  path->limit_offset().reject_multiple_rows = reject_multiple_rows;
   path->limit_offset().send_records_override = send_records_override;
 
   if (child->num_output_rows >= 0.0) {
@@ -1026,7 +1029,8 @@ inline AccessPath *NewMaterializeAccessPath(
     Mem_root_array<MaterializePathParameters::QueryBlock> query_blocks,
     Mem_root_array<const AccessPath *> *invalidators, TABLE *table,
     AccessPath *table_path, Common_table_expr *cte, SELECT_LEX_UNIT *unit,
-    int ref_slice, bool rematerialize, ha_rows limit_rows) {
+    int ref_slice, bool rematerialize, ha_rows limit_rows,
+    bool reject_multiple_rows) {
   MaterializePathParameters *param =
       new (thd->mem_root) MaterializePathParameters;
   param->query_blocks = std::move(query_blocks);
@@ -1043,6 +1047,7 @@ inline AccessPath *NewMaterializeAccessPath(
   param->ref_slice = ref_slice;
   param->rematerialize = rematerialize;
   param->limit_rows = limit_rows;
+  param->reject_multiple_rows = reject_multiple_rows;
 
 #ifndef NDEBUG
   for (MaterializePathParameters::QueryBlock &query_block :
