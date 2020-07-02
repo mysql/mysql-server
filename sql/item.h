@@ -1121,7 +1121,11 @@ class Item : public Parse_tree_node {
 
     @returns false if success, true if error
   */
-  virtual bool propagate_type(THD *, const Type_properties &) { return false; }
+  virtual bool propagate_type(THD *thd MY_ATTRIBUTE((unused)),
+                              const Type_properties &type
+                                  MY_ATTRIBUTE((unused))) {
+    return false;
+  }
 
   /**
     Wrapper for easier calling of propagate_type(const Type_properties &).
