@@ -28,12 +28,105 @@
 
 #include <new>
 
+#include "openssl/conf.h"
+#include "openssl/err.h"
 #include "openssl/evp.h"
 #include "openssl/rand.h"
-#include "openssl/err.h"
+#include <openssl/ssl.h>
+
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#include "portlib/NdbThread.h"
+#include "portlib/NdbMutex.h"
+#include "openssl/engine.h"
+#endif
 
 #define RETURN(rv) return(rv)
 //#define RETURN(rv) abort()
+
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+static unsigned long ndb_openssl_id()
+{
+  NdbThread* thread = NdbThread_GetNdbThread();
+  if (sizeof(unsigned long) >= sizeof(uintptr_t))
+  {
+    return (uintptr_t)thread;
+  }
+  else
+  {
+    int id = NdbThread_GetTid(thread);
+    require(id != -1);
+    return (unsigned)id;
+  }
+}
+
+static NdbMutex* ndb_openssl_lock_array = nullptr;
+
+static void ndb_openssl_lock(int mode, int n, const char*, int)
+{
+  require(n >= 0);
+  require(n < CRYPTO_num_locks());
+
+  switch (mode)
+  {
+    case CRYPTO_LOCK | CRYPTO_READ:
+    case CRYPTO_LOCK | CRYPTO_WRITE:
+      NdbMutex_Lock(&ndb_openssl_lock_array[n]);
+      break;
+    case CRYPTO_UNLOCK | CRYPTO_READ:
+    case CRYPTO_UNLOCK | CRYPTO_WRITE:
+      NdbMutex_Unlock(&ndb_openssl_lock_array[n]);
+      break;
+    default:
+      abort();
+  }
+}
+#endif
+
+int ndb_openssl_evp::library_init()
+{
+  SSL_library_init();
+  OpenSSL_add_ssl_algorithms();
+  OpenSSL_add_all_algorithms();
+  SSL_load_error_strings();
+  ERR_load_crypto_strings();
+  RAND_set_rand_engine(nullptr);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+
+  int num_locks = CRYPTO_num_locks();
+  ndb_openssl_lock_array =
+    (NdbMutex*)OPENSSL_malloc(num_locks * sizeof(ndb_openssl_lock_array[0]));
+  for (int i = 0; i < num_locks; i++)
+    NdbMutex_Init(&ndb_openssl_lock_array[i]);
+
+  CRYPTO_set_locking_callback(&ndb_openssl_lock);
+  CRYPTO_set_id_callback(&ndb_openssl_id);
+#endif
+  return 0;
+}
+
+int ndb_openssl_evp::library_end()
+{
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  CRYPTO_set_locking_callback(nullptr);
+  CRYPTO_set_id_callback(nullptr);
+
+  int num_locks = CRYPTO_num_locks();
+  for (int i = 0; i < num_locks; i++)
+    NdbMutex_Deinit(&ndb_openssl_lock_array[i]);
+
+  OPENSSL_free(ndb_openssl_lock_array);
+  ndb_openssl_lock_array = nullptr;
+
+  ENGINE_cleanup();
+  ERR_remove_thread_state(nullptr);
+#endif
+  FIPS_mode_set(0);
+  CONF_modules_unload(1);
+  EVP_cleanup();
+  CRYPTO_cleanup_all_ex_data();
+  ERR_free_strings();
+  return 0;
+}
 
 ndb_openssl_evp::ndb_openssl_evp()
 : m_evp_cipher(nullptr),
@@ -171,7 +264,8 @@ int ndb_openssl_evp::derive_and_add_key_iv_pair(const byte pwd[],
   }
 
   // RFC2898 PKCS #5: Password-Based Cryptography Specification Version 2.0
-  int r = PKCS5_PBKDF2_HMAC(reinterpret_cast<const char*>(pwd),
+  const char* pass = reinterpret_cast<const char*>(pwd);
+  int r = PKCS5_PBKDF2_HMAC(pass ? pass : "",
                             pwd_len,
                             salt,
                             SALT_LEN,

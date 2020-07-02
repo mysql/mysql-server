@@ -87,7 +87,7 @@ TARGET_LINK_LIBRARIES(ndbgeneral ${NDBGENERAL_LIBS})
 SET_TARGET_PROPERTIES(ndbgeneral PROPERTIES LINK_INTERFACE_MULTIPLICITY 3)
 
 FOREACH(tests BaseString Bitmask SparseBitmask Parser HashMap2 LinkedStack
-        ndb_openssl_evp ndb_zlib)
+        ndb_zlib)
   NDB_ADD_TEST("${tests}-t" "${tests}.cpp" LIBS ndbgeneral)
 ENDFOREACH(tests)
 
@@ -96,6 +96,7 @@ NDB_ADD_TEST(ndb_version-t version.cpp LIBS ndbgeneral)
 FOREACH(tests
     NdbPack
     mysql_utils_test
+    ndb_openssl_evp
     NdbSqlUtil
     LogBuffer
     testSimpleProperties

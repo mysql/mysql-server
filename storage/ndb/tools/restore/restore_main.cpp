@@ -33,6 +33,7 @@
 #include <ndb_limits.h>
 #include <ndb_opts.h>
 #include <ndb_version.h>
+#include "util/ndb_openssl_evp.h" // ndb_openssl_evp::library_init()
 
 #include "../src/ndbapi/NdbDictionaryImpl.hpp"
 #include "consumer_printer.hpp"
@@ -3067,6 +3068,7 @@ static void* start_restore_worker(void *data)
 int
 main(int argc, char** argv)
 {
+  ndb_openssl_evp::library_init();
   NDB_INIT(argv[0]);
 
   const char *load_default_groups[]= { "mysql_cluster","ndb_restore",0 };

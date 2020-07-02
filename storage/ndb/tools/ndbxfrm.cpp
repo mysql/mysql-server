@@ -32,6 +32,7 @@
 #include "util/ndbxfrm_iterator.h"
 #include "util/ndbxfrm_readfile.h"
 #include "util/ndbxfrm_writefile.h"
+#include "util/ndb_openssl_evp.h"
 
 //#define DUMMY_PASSWORD
 
@@ -90,6 +91,7 @@ static int copy_file(const char src[], const char dst[]);
 
 int main(int argc, char* argv[])
 {
+  ndb_openssl_evp::library_init();
   NDB_INIT(argv[0]);
   Ndb_opts opts(argc, argv, my_long_options);
   if (opts.handle_options())

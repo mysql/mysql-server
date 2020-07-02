@@ -35,6 +35,7 @@
 #include "portlib/ndb_file.h"
 #include "util/ndbxfrm_iterator.h"
 #include "util/ndbxfrm_readfile.h"
+#include "util/ndb_openssl_evp.h"
 
 #define JAM_FILE_ID 476
 
@@ -678,6 +679,7 @@ void usage(FILE* f, const char progname[])
 int
 main(int argc, const char * argv[])
 {
+  ndb_openssl_evp::library_init();
   const char *file_name = argv[1];
   const char *file_input = NULL;
   ndb_init();

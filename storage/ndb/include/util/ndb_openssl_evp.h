@@ -62,6 +62,9 @@ public:
   static_assert(KEY_LEN == CBC_KEY_LEN, "");
   static_assert(CBC_IV_LEN <= IV_LEN, "");
 
+  static int library_init();
+  static int library_end();
+
   ndb_openssl_evp();
   ~ndb_openssl_evp();
   int reset();
