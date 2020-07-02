@@ -3197,7 +3197,7 @@ LEFT JOIN t1 ON tt.t = 'crash2' AND tt.f2 = t1.f2
 WHERE
 tt.t = 'crash1';
 EXPLAIN
--> Left hash join (t1.f2 = t1.f2)  (cost=0.25 rows=0)
+-> Left hash join (no condition)  (cost=0.25 rows=0)
     -> Table scan on t1  (cost=0.45 rows=2)
     -> Hash
         -> Zero rows (Impossible filter)  (cost=0.00 rows=0)
@@ -3802,4 +3802,35 @@ EXPLAIN
             -> Limit: 1 row(s)  (cost=0.15 rows=1) (actual time=N.NNN..N.NNN rows=1 loops=1)
                 -> Table scan on t2  (cost=0.15 rows=5) (actual time=N.NNN..N.NNN rows=1 loops=1)
 
+DROP TABLE t1;
+#
+# Bug #31563414: REGRESSION: ITEM_FUNC_EQ::APPEND_JOIN_KEY_FOR_HASH_JOIN CONST: ASSERTION `FALSE' FAILED.
+#
+CREATE TABLE t1 (a INTEGER NOT NULL);
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT *
+FROM t1 AS a
+LEFT JOIN t1 AS b ON FALSE
+LEFT JOIN t1 AS c ON b.a=c.a;
+EXPLAIN
+-> Left hash join (no condition)  (cost=0.25 rows=0)
+    -> Left hash join (no condition)  (cost=0.25 rows=0)
+        -> Table scan on a  (cost=0.65 rows=4)
+        -> Hash
+            -> Zero rows (Impossible filter)  (cost=0.00 rows=0)
+    -> Hash
+        -> Zero rows (Join condition (c.a = b.a) requires pruned table)  (cost=0.00 rows=0)
+
+SELECT *
+FROM t1 AS a
+LEFT JOIN t1 AS b ON FALSE
+LEFT JOIN t1 AS c ON b.a=c.a;
+a	a	a
+1	NULL	NULL
+2	NULL	NULL
+3	NULL	NULL
+4	NULL	NULL
 DROP TABLE t1;

@@ -1968,6 +1968,38 @@ static AccessPath *CreateHashJoinAccessPath(
     pred->equijoin_conditions.push_back(condition.join_condition());
   }
 
+  // Go through the equijoin conditions and check that all of them still
+  // refer to tables that exist. If some table was pruned away due to
+  // being replaced by ZeroRowsAccessPath, but the equijoin condition still
+  // refers to it, it could become degenerate: The only rows it could ever
+  // see would be NULL-complemented rows, which would never match.
+  // In this case, we can remove the entire build path (ie., propagate the
+  // zero-row property to our own join).
+  //
+  // We also remove the join conditions, to avoid using time on extracting their
+  // hash values. (Also, Item_func_eq::append_join_key_for_hash_join has an
+  // assert that this case should never happen, so it would trigger.)
+  const table_map probe_used_tables = GetUsedTables(probe_path);
+  const table_map build_used_tables = GetUsedTables(build_path);
+  for (const HashJoinCondition &condition : hash_join_conditions) {
+    if ((!condition.left_uses_any_table(probe_used_tables) &&
+         !condition.right_uses_any_table(probe_used_tables)) ||
+        (!condition.left_uses_any_table(build_used_tables) &&
+         !condition.right_uses_any_table(build_used_tables))) {
+      if (build_path->type != AccessPath::ZERO_ROWS) {
+        string cause = "Join condition " +
+                       ItemToString(condition.join_condition()) +
+                       " requires pruned table";
+        build_path = NewZeroRowsAccessPath(
+            thd, build_path, strdup_root(thd->mem_root, cause.c_str()));
+        build_path->cost = 0.0;
+        build_path->num_output_rows = 0;
+      }
+      pred->equijoin_conditions.clear();
+      break;
+    }
+  }
+
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::HASH_JOIN;
   path->hash_join().outer = probe_path;

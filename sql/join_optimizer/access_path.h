@@ -1139,10 +1139,14 @@ inline AccessPath *NewInvalidatorAccessPath(THD *thd, AccessPath *child,
 }
 
 void FindTablesToGetRowidFor(AccessPath *path);
+
 unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
     THD *thd, AccessPath *path, JOIN *join, bool eligible_for_batch_mode);
+
 void SetCostOnTableAccessPath(const Cost_model_server &cost_model,
                               const POSITION *pos, bool is_after_filter,
                               AccessPath *path);
+
+table_map GetUsedTables(const AccessPath *path);
 
 #endif  // SQL_JOIN_OPTIMIZER_ACCESS_PATH_H
