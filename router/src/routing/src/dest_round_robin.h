@@ -26,13 +26,34 @@
 #define ROUTING_DEST_ROUND_ROBIN_INCLUDED
 
 #include <algorithm>
+#include <condition_variable>
 #include <future>
+#include <mutex>
 
 #include "destination.h"
+#include "mysql/harness/stdx/monitor.h"
 #include "mysql_router_thread.h"
 #include "mysqlrouter/routing.h"
 
 class QuanrantinableDestination;
+
+class Quarantine {
+ public:
+  std::vector<size_t> quarantined() const;
+
+  void add(size_t ndx);
+
+  bool has(size_t ndx) const;
+
+  void erase(size_t ndx);
+
+  size_t size() const;
+
+  bool empty() const;
+
+ private:
+  std::vector<size_t> quarantined_;
+};
 
 class DestRoundRobin : public RouteDestination {
  public:
@@ -82,11 +103,11 @@ class DestRoundRobin : public RouteDestination {
    * @return True if destination is quarantined
    */
   virtual bool is_quarantined(const size_t index) {
-    return std::find(quarantined_.begin(), quarantined_.end(), index) !=
-           quarantined_.end();
+    return quarantine_([=](auto &q) { return q.has(index); });
   }
 
-  /** @brief Adds server to quarantine
+  /**
+   * Adds server to quarantine.
    *
    * Adds the given server address to the quarantine list. The index argument
    * is the index of the server in the destination list.
@@ -117,17 +138,7 @@ class DestRoundRobin : public RouteDestination {
    */
   virtual void cleanup_quarantine() noexcept;
 
-  /** @brief List of destinations which are quarantined */
-  std::vector<size_t> quarantined_;
-
-  /** @brief Conditional variable blocking quarantine manager thread */
-  std::condition_variable condvar_quarantine_;
-
-  /** @brief Mutex for quarantine manager thread */
-  std::mutex mutex_quarantine_manager_;
-
-  /** @brief Mutex for updating quarantine */
-  std::mutex mutex_quarantine_;
+  WaitableMonitor<Quarantine> quarantine_{Quarantine{}};
 
   /** @brief refresh thread facade */
   mysql_harness::MySQLRouterThread quarantine_thread_;

@@ -121,6 +121,7 @@ ADD_TEST_FILE(test_net_ts_local.cc
   )
 
 SET(TESTS
+  test_stdx_monitor.cc
   test_stdx_io_file_handle.cc
 )
 

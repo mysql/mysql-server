@@ -42,11 +42,11 @@ using mysql_harness::TCPAddress;
 using namespace std::chrono_literals;
 
 // Timeout for trying to connect with quarantined servers
-static constexpr std::chrono::milliseconds kQuarantinedConnectTimeout(1 * 1000);
+static constexpr auto kQuarantinedConnectTimeout = 1000ms;
 // How long we pause before checking quarantined servers again (seconds)
-static const int kQuarantineCleanupInterval = 3;
+static const auto kQuarantineCleanupInterval = 3s;
 // Make sure Quarantine Manager Thread is run even with nothing in quarantine
-static const int kTimeoutQuarantineConditional = 2;
+static const auto kTimeoutQuarantineConditional = 2s;
 
 void *DestRoundRobin::run_thread(void *context) {
   static_cast<DestRoundRobin *>(context)->quarantine_manager_thread();
@@ -130,7 +130,8 @@ Destinations DestRoundRobin::destinations() {
 
 DestRoundRobin::~DestRoundRobin() {
   stopper_.set_value();
-  condvar_quarantine_.notify_one();
+
+  quarantine_([](auto &q) { q.notify_one(); });
   quarantine_thread_.join();
 }
 
@@ -140,12 +141,16 @@ void DestRoundRobin::add_to_quarantine(const size_t index) noexcept {
     log_debug("Impossible server being quarantined (index %zu)", index);
     return;
   }
-  if (!is_quarantined(index)) {
-    log_debug("Quarantine destination server %s (index %zu)",
-              destinations_.at(index).str().c_str(), index);
-    quarantined_.push_back(index);
-    condvar_quarantine_.notify_one();
-  }
+
+  quarantine_([this, index](auto &q) {
+    if (!q.has(index)) {
+      log_debug("Quarantine destination server %s (index %zu)",
+                destinations_.at(index).str().c_str(), index);
+
+      q.add(index);
+      q.notify_one();
+    }
+  });
 }
 
 static stdx::expected<void, std::error_code> tcp_port_alive(
@@ -208,16 +213,31 @@ static stdx::expected<void, std::error_code> tcp_port_alive(
   return stdx::make_unexpected(last_ec);
 }
 
+std::vector<size_t> Quarantine::quarantined() const { return quarantined_; }
+
+void Quarantine::add(size_t ndx) { quarantined_.push_back(ndx); }
+
+bool Quarantine::has(size_t ndx) const {
+  const auto it = std::find(quarantined_.begin(), quarantined_.end(), ndx);
+
+  return it != quarantined_.end();
+}
+
+size_t Quarantine::size() const { return quarantined_.size(); }
+
+bool Quarantine::empty() const { return quarantined_.empty(); }
+
+void Quarantine::erase(size_t ndx) {
+  quarantined_.erase(std::remove(quarantined_.begin(), quarantined_.end(), ndx),
+                     quarantined_.end());
+}
+
 void DestRoundRobin::cleanup_quarantine() noexcept {
-  mutex_quarantine_.lock();
+  auto cpy_quarantined(
+      quarantine_([](auto const &q) { return q.quarantined(); }));
+
   // Nothing to do when nothing quarantined
-  if (quarantined_.empty()) {
-    mutex_quarantine_.unlock();
-    return;
-  }
-  // We work on a copy; updating the original
-  auto cpy_quarantined(quarantined_);
-  mutex_quarantine_.unlock();
+  if (cpy_quarantined.empty()) return;
 
   for (auto const ndx : cpy_quarantined) {
     if (stopped_.wait_for(0s) == std::future_status::ready) {
@@ -231,9 +251,7 @@ void DestRoundRobin::cleanup_quarantine() noexcept {
     if (sock_res) {
       log_debug("Unquarantine destination server %s (index %zu)",
                 addr.str().c_str(), ndx);
-      std::lock_guard<std::mutex> lock(mutex_quarantine_);
-      quarantined_.erase(
-          std::remove(quarantined_.begin(), quarantined_.end(), ndx));
+      quarantine_([ndx](auto &q) { q.erase(ndx); });
     }
   }
 }
@@ -242,28 +260,21 @@ void DestRoundRobin::quarantine_manager_thread() noexcept {
   mysql_harness::rename_thread(
       "RtQ:<unknown>");  // TODO change <unknown> to instance name
 
-  std::unique_lock<std::mutex> lock(mutex_quarantine_manager_);
-  while (stopped_.wait_for(std::chrono::seconds(0)) !=
-         std::future_status::ready) {
+  while (stopped_.wait_for(0s) != std::future_status::ready) {
     // wait until something got added to quarantie or shutdown
-    condvar_quarantine_.wait_for(
-        lock, std::chrono::seconds(kTimeoutQuarantineConditional), [this] {
-          return !quarantined_.empty() ||
-                 (stopped_.wait_for(std::chrono::seconds(0)) ==
-                  std::future_status::ready);
-        });
+    quarantine_.wait_for(kTimeoutQuarantineConditional, [this](auto &q) {
+      return !q.empty() || stopped_.wait_for(0s) == std::future_status::ready;
+    });
 
     // if we aren't shutting down, cleanup and wait
-    if (stopped_.wait_for(std::chrono::seconds(0)) !=
-        std::future_status::ready) {
+    if (stopped_.wait_for(0s) != std::future_status::ready) {
       cleanup_quarantine();
       // Temporize
-      stopped_.wait_for(std::chrono::seconds(kQuarantineCleanupInterval));
+      stopped_.wait_for(kQuarantineCleanupInterval);
     }
   }
 }
 
 size_t DestRoundRobin::size_quarantine() {
-  std::lock_guard<std::mutex> lock(mutex_quarantine_);
-  return quarantined_.size();
+  return quarantine_([](auto &q) { return q.size(); });
 }
