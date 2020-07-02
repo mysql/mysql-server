@@ -3492,7 +3492,7 @@ bool Item_param::propagate_type(THD *, const Type_properties &type) {
     case MYSQL_TYPE_LONG_BLOB:
     case MYSQL_TYPE_BLOB:
       // Parameter type is BLOB of largest possible size
-      set_data_type_string(MAX_LONG_BLOB_WIDTH, type.m_collation);
+      set_data_type_string(Field::MAX_LONG_BLOB_WIDTH, type.m_collation);
       break;
     case MYSQL_TYPE_DATETIME:
     case MYSQL_TYPE_DATETIME2:

@@ -1333,9 +1333,9 @@ class Item : public Parse_tree_node {
   inline void set_data_type_string(uint32 max_l) {
     max_length = max_l * collation.collation->mbmaxlen;
     decimals = DECIMAL_NOT_SPECIFIED;
-    if (max_length <= MAX_VARCHAR_WIDTH)
+    if (max_length <= Field::MAX_VARCHAR_WIDTH)
       set_data_type(MYSQL_TYPE_VARCHAR);
-    else if (max_length <= MAX_MEDIUM_BLOB_WIDTH)
+    else if (max_length <= Field::MAX_MEDIUM_BLOB_WIDTH)
       set_data_type(MYSQL_TYPE_MEDIUM_BLOB);
     else
       set_data_type(MYSQL_TYPE_LONG_BLOB);
@@ -1478,7 +1478,7 @@ class Item : public Parse_tree_node {
     set_data_type(MYSQL_TYPE_JSON);
     collation.set(&my_charset_utf8mb4_bin, DERIVATION_IMPLICIT);
     decimals = DECIMAL_NOT_SPECIFIED;
-    max_length = MAX_LONG_BLOB_WIDTH;
+    max_length = Field::MAX_LONG_BLOB_WIDTH;
   }
 
   /**
@@ -1549,9 +1549,9 @@ class Item : public Parse_tree_node {
     @param max_bytes Maximum string size, in number of bytes
   */
   static enum_field_types string_field_type(uint32 max_bytes) {
-    if (max_bytes > MAX_MEDIUM_BLOB_WIDTH)
+    if (max_bytes > Field::MAX_MEDIUM_BLOB_WIDTH)
       return MYSQL_TYPE_LONG_BLOB;
-    else if (max_bytes > MAX_VARCHAR_WIDTH)
+    else if (max_bytes > Field::MAX_VARCHAR_WIDTH)
       return MYSQL_TYPE_MEDIUM_BLOB;
     else
       return MYSQL_TYPE_VARCHAR;

@@ -349,7 +349,7 @@ class Item_func_as_wkb : public Item_geometry_func {
     if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_GEOMETRY)) return true;
     if (param_type_is_default(thd, 1, 2)) return true;
     if (Item_geometry_func::resolve_type(thd)) return true;
-    set_data_type_blob(MAX_LONG_BLOB_WIDTH);
+    set_data_type_blob(Field::MAX_LONG_BLOB_WIDTH);
     return false;
   }
 };

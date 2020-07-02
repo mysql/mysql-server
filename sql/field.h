@@ -864,6 +864,15 @@ class Field {
   };
   enum imagetype { itRAW, itMBR };
 
+  // Max width for a VARCHAR column, in number of bytes
+  static constexpr size_t MAX_VARCHAR_WIDTH{65535};
+
+  // Maximum sizes of the four BLOB types, in number of bytes
+  static constexpr size_t MAX_TINY_BLOB_WIDTH{255};
+  static constexpr size_t MAX_SHORT_BLOB_WIDTH{65535};
+  static constexpr size_t MAX_MEDIUM_BLOB_WIDTH{16777215};
+  static constexpr size_t MAX_LONG_BLOB_WIDTH{4294967295};
+
   // Length of field. Never write to this member directly; instead, use
   // set_field_length().
   uint32 field_length;

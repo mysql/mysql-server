@@ -846,18 +846,8 @@ struct Vio;
 #define MAX_INT_WIDTH 10      /**< Max width for a LONG w.o. sign */
 #define MAX_BIGINT_WIDTH 20   /**< Max width for a LONGLONG */
 /// Max width for a CHAR column, in number of characters
-#define MAX_CHAR_WIDTH 255U
-/// Max width for a VARCHAR column, in number of bytes
-#define MAX_VARCHAR_WIDTH 65535U
-/// Max width for a tiny blob, in bytes
-#define MAX_TINY_BLOB_WIDTH 255U
-/// Max width for a short blob (aka BLOB), in bytes
-#define MAX_SHORT_BLOB_WIDTH 65535U
-/// Max width for a medium blob, in bytes
-#define MAX_MEDIUM_BLOB_WIDTH 16777215U
-/// Max width for a long blob, in bytes
-#define MAX_LONG_BLOB_WIDTH 4294967295U
-/// Default width for blob  @todo - replace this with the specific types above?
+#define MAX_CHAR_WIDTH 255
+/// Default width for blob in bytes @todo - align this with sizes from field.h
 #define MAX_BLOB_WIDTH 16777216
 
 typedef struct NET {
