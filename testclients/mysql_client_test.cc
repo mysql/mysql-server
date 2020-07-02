@@ -11422,6 +11422,7 @@ static void test_datetime_ranges() {
   tm[0].second = 30;
   tm[0].second_part = 0;
   tm[0].neg = false;
+  tm[0].time_type = MYSQL_TIMESTAMP_DATETIME;
 
   tm[5] = tm[4] = tm[3] = tm[2] = tm[1] = tm[0];
   tm[0].year = 10000;
