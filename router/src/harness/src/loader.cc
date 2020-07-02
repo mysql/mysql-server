@@ -35,6 +35,7 @@
 #include <cstring>
 #include <exception>
 #include <map>
+#include <mutex>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -109,6 +110,8 @@ static std::string shutdown_fatal_error_message;
 
 std::mutex log_reopen_cond_mutex;
 std::condition_variable log_reopen_cond;
+
+std::mutex g_reopen_thread_mtx;
 mysql_harness::LogReopenThread *g_reopen_thread{nullptr};
 
 // application defined pointer to function called at log rename completion
@@ -139,6 +142,8 @@ void request_application_shutdown(const ShutdownReason reason) {
  * @throws std::system_error same as std::unique_lock::lock does
  */
 void request_log_reopen(const std::string dst) {
+  std::lock_guard<std::mutex> lk(g_reopen_thread_mtx);
+
   if (g_reopen_thread) g_reopen_thread->request_reopen(dst);
 }
 
@@ -146,6 +151,8 @@ void request_log_reopen(const std::string dst) {
  * check reopen completed
  */
 bool log_reopen_completed() {
+  std::lock_guard<std::mutex> lk(g_reopen_thread_mtx);
+
   if (g_reopen_thread) return g_reopen_thread->is_completed();
 
   return true;
@@ -155,6 +162,8 @@ bool log_reopen_completed() {
  * get last log reopen error
  */
 std::string log_reopen_get_error() {
+  std::lock_guard<std::mutex> lk(g_reopen_thread_mtx);
+
   if (g_reopen_thread) return g_reopen_thread->get_last_error();
 
   return std::string("");
@@ -823,15 +832,20 @@ std::exception_ptr Loader::run() {
   // run plugins if initialization didn't fail
   if (!first_eptr) {
     try {
-      std::shared_ptr<void> exit_guard(
-          nullptr, [](void *) { g_reopen_thread = nullptr; });
+      std::shared_ptr<void> exit_guard(nullptr, [](void *) {
+        std::lock_guard<std::mutex> lk(g_reopen_thread_mtx);
+        g_reopen_thread = nullptr;
+      });
 
       start_all();  // if start() throws, exception is forwarded to
                     // main_loop()
 
       // may throw std::system_error
       LogReopenThread log_reopen_thread;
-      g_reopen_thread = &log_reopen_thread;
+      {
+        std::lock_guard<std::mutex> lk(g_reopen_thread_mtx);
+        g_reopen_thread = &log_reopen_thread;
+      }
 
       first_eptr = main_loop();
     } catch (const std::exception &e) {
