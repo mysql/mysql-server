@@ -2106,7 +2106,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_by_HUP_signal) {
       {"-c", init_keyring_and_config_file(conf_dir.name())}, EXIT_SUCCESS);
   ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port, 10000ms));
 
-  std::this_thread::sleep_for(500ms);
+  RouterComponentTest::sleep_for(500ms);
 
   auto log_file = get_logging_dir();
   log_file.append("mysqlrouter.log");
@@ -2127,7 +2127,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_by_HUP_signal) {
   unsigned retries = 10;
   const auto kSleep = 100ms;
   do {
-    std::this_thread::sleep_for(kSleep);
+    RouterComponentTest::sleep_for(kSleep);
   } while ((--retries > 0) && !log_file.exists());
 
   EXPECT_TRUE(log_file.exists()) << router.get_full_logfile();
@@ -2146,7 +2146,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_by_HUP_signal_no_file_move) {
       {"-c", init_keyring_and_config_file(conf_dir.name())}, EXIT_SUCCESS);
   ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port, 10000ms));
 
-  std::this_thread::sleep_for(500ms);
+  RouterComponentTest::sleep_for(500ms);
 
   auto log_file = get_logging_dir();
   log_file.append("mysqlrouter.log");
@@ -2164,7 +2164,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_by_HUP_signal_no_file_move) {
   std::string log_content_2;
   unsigned step = 0;
   do {
-    std::this_thread::sleep_for(100ms);
+    RouterComponentTest::sleep_for(100ms);
     log_content_2 = router.get_full_logfile();
   } while ((log_content_2 == log_content) && (step++ < 20));
 
@@ -2188,7 +2188,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_when_router_restarts) {
       {"-c", init_keyring_and_config_file(conf_dir.name())}, EXIT_SUCCESS);
   ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port, 10000ms));
 
-  std::this_thread::sleep_for(500ms);
+  RouterComponentTest::sleep_for(500ms);
 
   auto log_file = get_logging_dir();
   log_file.append("mysqlrouter.log");
@@ -2211,7 +2211,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_when_router_restarts) {
   auto &router2 = launch_router(
       {"-c", init_keyring_and_config_file(conf_dir.name())}, EXIT_SUCCESS);
   ASSERT_NO_FATAL_FAILURE(check_port_ready(router2, router_port, 10000ms));
-  std::this_thread::sleep_for(500ms);
+  RouterComponentTest::sleep_for(500ms);
   EXPECT_TRUE(log_file.exists());
 }
 
@@ -2225,15 +2225,15 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_read_only) {
   // launch the router with metadata-cache configuration
   auto &router = launch_router(
       {"-c", init_keyring_and_config_file(conf_dir.name())}, EXIT_FAILURE);
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port, 10000ms));
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port, 10s));
 
   auto log_file = get_logging_dir();
   log_file.append("mysqlrouter.log");
 
   unsigned retries = 5;
-  const auto kSleep = 100ms;
+  auto kSleep = 100ms;
   do {
-    std::this_thread::sleep_for(kSleep);
+    RouterComponentTest::sleep_for(kSleep);
   } while ((--retries > 0) && !log_file.exists());
 
   EXPECT_TRUE(log_file.exists());
@@ -2275,12 +2275,13 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_stdout) {
       {"-c",
        init_keyring_and_config_file(conf_dir.name(), /*log_to_console=*/true)},
       EXIT_SUCCESS);
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port, 10000ms));
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port, 10s));
 
-  std::this_thread::sleep_for(200ms);
+  auto sleep_time = 200ms;
+  RouterComponentTest::sleep_for(sleep_time);
   const auto pid = static_cast<pid_t>(router.get_pid());
   ::kill(pid, SIGHUP);
-  std::this_thread::sleep_for(200ms);
+  RouterComponentTest::sleep_for(sleep_time);
 }
 
 #endif

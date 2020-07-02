@@ -142,7 +142,11 @@ void check_state_file(const std::string &state_file,
                       std::chrono::milliseconds max_wait_time /*= 5000*/) {
   bool result = false;
   std::string state_file_content;
-  const auto kRetryStep = 50ms;
+  auto kRetryStep = 50ms;
+  if (getenv("WITH_VALGRIND")) {
+    max_wait_time *= 10;
+    kRetryStep *= 10;
+  }
   do {
     state_file_content = get_file_output(state_file);
     result = check_state_file_helper(
@@ -219,6 +223,9 @@ bool wait_for_transaction_count(const uint16_t http_port,
 bool wait_for_transaction_count_increase(const uint16_t http_port,
                                          const int increment_by,
                                          std::chrono::milliseconds timeout) {
+  if (getenv("WITH_VALGRIND")) {
+    timeout *= 10;
+  }
   std::string server_globals =
       MockServerRestClient(http_port).get_globals_as_json_string();
   int expected_queries_count =

@@ -79,7 +79,7 @@ struct AsyncGRNotice {
   unsigned type;
   std::string view_id;
   // id of the node(s) on which given notice should get sent
-  std::vector<int> nodes;
+  std::vector<unsigned> nodes;
 };
 
 class GrNotificationsTest : public RouterComponentTest {
@@ -180,7 +180,7 @@ class GrNotificationsTest : public RouterComponentTest {
     }
   }
 
-  void set_mock_notices(const int node_id, const uint16_t http_port,
+  void set_mock_notices(const unsigned node_id, const uint16_t http_port,
                         const std::vector<AsyncGRNotice> &async_notices,
                         const bool send = false) {
     JsonAllocator allocator;
@@ -193,6 +193,10 @@ class GrNotificationsTest : public RouterComponentTest {
         continue;
 
       JsonValue json_notice(rapidjson::kObjectType);
+      auto send_offset_ms = async_notice.send_offset_ms;
+      if (getenv("WITH_VALGRIND")) {
+        send_offset_ms *= 10;
+      }
       json_notice.AddMember(
           "send_offset",
           JsonValue((unsigned)async_notice.send_offset_ms.count()), allocator);
@@ -264,22 +268,28 @@ class GrNotificationsTest : public RouterComponentTest {
 
   int wait_for_md_queries(const int expected_md_queries_count,
                           const uint16_t http_port,
-                          std::chrono::milliseconds timeout = 5000ms) {
+                          std::chrono::milliseconds timeout = 5s) {
+    auto kRetrySleep = 100ms;
+    if (getenv("WITH_VALGRIND")) {
+      timeout *= 10;
+      kRetrySleep *= 10;
+    }
+
     int md_queries_count;
     do {
-      std::this_thread::sleep_for(100ms);
+      std::this_thread::sleep_for(kRetrySleep);
       md_queries_count = get_current_queries_count(http_port);
-      timeout -= 100ms;
+      timeout -= kRetrySleep;
     } while (md_queries_count != expected_md_queries_count && timeout > 0ms);
 
     return md_queries_count;
   }
 
   bool wait_for_new_md_query(const uint16_t http_port,
-                             std::chrono::milliseconds timeout = 5000ms) {
+                             std::chrono::milliseconds timeout = 5s) {
     int md_queries_count = get_current_queries_count(http_port);
 
-    return wait_for_md_queries(md_queries_count + 1, http_port, timeout) ==
+    return wait_for_md_queries(md_queries_count + 1, http_port, timeout) >=
            md_queries_count + 1;
   }
 
@@ -328,8 +338,14 @@ class GrNotificationsParamTest
  * cluster and Router configuration.
  */
 TEST_P(GrNotificationsParamTest, GrNotification) {
+  // This test has some loose timing assumptions that don't hold for VALGRIND
+  // build so we skip it
+  if (getenv("WITH_VALGRIND")) {
+    return;
+  }
+
   const auto test_params = GetParam();
-  const auto async_notices = test_params.notices;
+  auto async_notices = test_params.notices;
   const std::string kGroupId = "3a0be5af-0022-11e8-9655-0800279e6a88";
 
   TempDirectory temp_test_dir;
@@ -382,7 +398,7 @@ TEST_P(GrNotificationsParamTest, GrNotification) {
   launch_router(temp_test_dir.name(), metadata_cache_section, routing_section,
                 state_file);
 
-  std::this_thread::sleep_for(test_params.router_uptime);
+  RouterComponentTest::sleep_for(test_params.router_uptime);
 
   // +1 is for expected initial metadata read that the router does at the
   // beginning
@@ -391,8 +407,6 @@ TEST_P(GrNotificationsParamTest, GrNotification) {
   const int expected_md_queries_count_max =
       test_params.expected_md_queries_count.second + 1;
 
-  // we only expect initial ttl read (hence 1), because x-port is not valid
-  // there are not metadata refresh triggered by the notifications
   int md_queries_count =
       wait_for_md_queries(expected_md_queries_count_min, cluster_http_ports[0]);
 
@@ -953,6 +967,10 @@ INSTANTIATE_TEST_SUITE_P(
  * again.
  */
 TEST_F(GrNotificationsTest, GrNotificationInconsistentMetadata) {
+  if (getenv("WITH_VALGRIND")) {
+    return;
+  }
+
   TempDirectory temp_test_dir;
 
   const unsigned kClusterNodesCount = 2;
@@ -1018,7 +1036,7 @@ TEST_F(GrNotificationsTest, GrNotificationInconsistentMetadata) {
                 routing_section_rw + routing_section_ro, state_file);
 
   EXPECT_TRUE(wait_for_md_queries(1, http_ports[0]));
-  wait_for_new_md_query(http_ports[0], 1000ms);
+  wait_for_new_md_query(http_ports[0], 1s);
   EXPECT_TRUE(wait_for_port_ready(router_port_ro));
 
   SCOPED_TRACE("// Prepare a new node before adding it to the cluster");
@@ -1029,7 +1047,7 @@ TEST_F(GrNotificationsTest, GrNotificationInconsistentMetadata) {
       trace_file, nodes_ports[2], EXIT_SUCCESS, false, http_ports[2],
       nodes_xports[2]));
   ASSERT_NO_FATAL_FAILURE(
-      check_port_ready(*cluster_nodes[2], nodes_ports[2], 5000ms));
+      check_port_ready(*cluster_nodes[2], nodes_ports[2], 5s));
   ASSERT_TRUE(
       MockServerRestClient(http_ports[2]).wait_for_rest_endpoint_ready())
       << cluster_nodes[2]->get_full_output();

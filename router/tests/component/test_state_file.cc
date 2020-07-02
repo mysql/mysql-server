@@ -69,7 +69,7 @@ using JsonDocument =
 using JsonStringBuffer =
     rapidjson::GenericStringBuffer<rapidjson::UTF8<>, rapidjson::CrtAllocator>;
 
-constexpr auto kTTL = std::chrono::milliseconds(100);
+constexpr auto kTTL = 100ms;
 }  // namespace
 
 class StateFileTest : public RouterComponentTest {
@@ -155,7 +155,11 @@ class StateFileTest : public RouterComponentTest {
   bool wait_log_file_contains(ProcessWrapper &router,
                               const std::string &expected_entry,
                               std::chrono::milliseconds max_wait_time) {
-    const auto kRetrySleep = 100ms;
+    auto kRetrySleep = 100ms;
+    if (getenv("WITH_VALGRIND")) {
+      max_wait_time *= 50;
+      kRetrySleep *= 10;
+    }
     do {
       const auto log_content = router.get_full_logfile();
       if (log_content.find(expected_entry) != std::string::npos) return true;
@@ -432,7 +436,11 @@ TEST_P(StateFileMetadataServersInaccessibleTest, MetadataServersInaccessible) {
       "server");
 
   check_state_file(state_file, kGroupId, {cluster_node_port}, 0, "127.0.0.1",
-                   10000ms);
+                   10s);
+
+  router.send_shutdown_event();
+
+  EXPECT_EQ(0, router.wait_for_exit());
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -1043,7 +1051,7 @@ TEST_P(StateFileAccessRightsTest, ParametrizedStateFileSchemaTest) {
       [&](const std::string &line) -> bool {
         return pattern_found(line, test_params.expected_error);
       },
-      std::chrono::milliseconds(1));
+      1ms);
 
   EXPECT_TRUE(found);
 }
@@ -1093,7 +1101,7 @@ TEST_F(StateFileDirectoryBootstrapTest, DirectoryBootstrapTest) {
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
 
-  check_exit_code(router, EXIT_SUCCESS, 1s);
+  check_exit_code(router, EXIT_SUCCESS, 5s);
 
   // check the state file that was produced, if it constains
   // what the bootstrap server has reported
@@ -1110,7 +1118,7 @@ TEST_F(StateFileDirectoryBootstrapTest, DirectoryBootstrapTest) {
       [&](const std::string &line) -> bool {
         return pattern_found(line, expected_entry);
       },
-      std::chrono::milliseconds(1));
+      1ms);
 
   EXPECT_TRUE(found) << "Did not found: " << expected_entry << "\n"
                      << get_file_output("mysqlrouter.conf",
@@ -1158,7 +1166,7 @@ TEST_F(StateFileSystemBootstrapTest, SystemBootstrapTest) {
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
 
-  check_exit_code(router, EXIT_SUCCESS, 1s);
+  check_exit_code(router, EXIT_SUCCESS, 5s);
 
   // check the state file that was produced, if it constains
   // what the bootstrap server has reported

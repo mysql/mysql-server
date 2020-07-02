@@ -49,16 +49,22 @@ static const std::string rest_api_openapi_json =
     std::string(rest_api_basepath) + "/swagger.json";
 
 // wait for the endpoint to return 404
+// the max_wait_time is increased 10 times for the run with VALGRIND
 bool wait_endpoint_404(RestClient &rest_client, const std::string &uri,
                        std::chrono::milliseconds max_wait_time) noexcept {
+  auto step_time = kMaxRestEndpointNotAvailableStepTime;
+  if (getenv("WITH_VALGRIND")) {
+    max_wait_time *= 10;
+    step_time *= 10;
+  }
+
   while (max_wait_time.count() > 0) {
     auto req = rest_client.request_sync(HttpMethod::Get, uri);
 
     if (req && req.get_response_code() != 0)
       return (req.get_response_code() == 404);
 
-    auto wait_time =
-        std::min(kMaxRestEndpointNotAvailableStepTime, max_wait_time);
+    const auto wait_time = std::min(step_time, max_wait_time);
     std::this_thread::sleep_for(wait_time);
 
     max_wait_time -= wait_time;
@@ -198,9 +204,14 @@ bool wait_for_rest_endpoint_ready(
     const std::string &uri, const uint16_t http_port,
     const std::string &username, const std::string &password,
     const std::string &http_host, std::chrono::milliseconds max_wait_time,
-    const std::chrono::milliseconds step_time) noexcept {
+    std::chrono::milliseconds step_time) noexcept {
   IOContext io_ctx;
   RestClient rest_client(io_ctx, http_host, http_port, username, password);
+
+  if (getenv("WITH_VALGRIND")) {
+    max_wait_time *= 10;
+    step_time *= 10;
+  }
 
   while (max_wait_time.count() > 0) {
     auto req = rest_client.request_sync(HttpMethod::Get, uri);

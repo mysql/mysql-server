@@ -246,7 +246,7 @@ TEST_F(RestRouterApiTest, rest_router_section_twice) {
   auto &router =
       launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s);
 
-  check_exit_code(router, EXIT_FAILURE, 10000ms);
+  check_exit_code(router, EXIT_FAILURE, 10s);
 
   const std::string router_output = router.get_full_output();
   EXPECT_NE(router_output.find(
@@ -271,7 +271,7 @@ TEST_F(RestRouterApiTest, rest_router_section_has_key) {
   auto &router =
       launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s);
 
-  check_exit_code(router, EXIT_FAILURE, 10000ms);
+  check_exit_code(router, EXIT_FAILURE, 10s);
 
   const std::string router_output = router.get_full_logfile();
   EXPECT_THAT(
@@ -296,7 +296,7 @@ TEST_F(RestRouterApiTest, router_api_no_auth) {
   auto &router =
       launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s);
 
-  check_exit_code(router, EXIT_FAILURE, 10000ms);
+  check_exit_code(router, EXIT_FAILURE, 10s);
 
   const std::string router_output = router.get_full_logfile();
   EXPECT_THAT(router_output, ::testing::HasSubstr(
@@ -319,7 +319,7 @@ TEST_F(RestRouterApiTest, invalid_realm) {
   auto &router =
       launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s);
 
-  check_exit_code(router, EXIT_FAILURE, 10000ms);
+  check_exit_code(router, EXIT_FAILURE, 10s);
 
   const std::string router_output = router.get_full_logfile();
   EXPECT_THAT(

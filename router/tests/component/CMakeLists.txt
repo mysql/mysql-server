@@ -30,6 +30,7 @@ ADD_DEFINITIONS(-DSSL_TEST_DATA_DIR="${CMAKE_SOURCE_DIR}/mysql-test/std_data/")
 FOREACH(test_file
     test_async_replicaset.cc
     test_bootstrap.cc
+    test_bootstrap_account.cc
     test_bootstrap_system_deployment.cc
     test_component_test_framework.cc
     test_config.cc

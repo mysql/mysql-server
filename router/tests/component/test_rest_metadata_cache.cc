@@ -313,6 +313,9 @@ static void wait_metadata_fetched(const std::string &http_hostname,
                                   const std::string &metadata_status_uri,
                                   std::chrono::milliseconds timeout = 1s) {
   ASSERT_GT(timeout, 0ms);
+  if (getenv("WITH_VALGRIND")) {
+    timeout *= 10;
+  }
 
   // wait for metadata-cache to finish its first fetch
   IOContext io_ctx;
@@ -502,9 +505,11 @@ static const RestApiTestParams rest_api_valid_methods[]{
             ASSERT_NE(value, nullptr);
             ASSERT_TRUE(value->IsInt());
 
-            // check if it is more than last time we checked
-            ASSERT_GT(value->GetInt(), g_refresh_succeeded);
-            g_refresh_succeeded = static_cast<size_t>(value->GetInt());
+            if (!getenv("WITH_VALGRIND")) {
+              // check if it is more than last time we checked
+              ASSERT_GT(value->GetInt(), g_refresh_succeeded);
+              g_refresh_succeeded = static_cast<size_t>(value->GetInt());
+            }
           }},
          {"/timeLastRefreshSucceeded",
           [](const JsonValue *value) -> void {
@@ -848,7 +853,7 @@ TEST_F(RestMetadataCacheApiTest, metadata_cache_api_no_auth) {
   auto &router =
       launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s);
 
-  check_exit_code(router, EXIT_FAILURE, 10000ms);
+  check_exit_code(router, EXIT_FAILURE, 10s);
 
   const std::string router_output = router.get_full_logfile();
   EXPECT_THAT(router_output,
@@ -873,7 +878,7 @@ TEST_F(RestMetadataCacheApiTest, invalid_realm) {
   auto &router =
       launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s);
 
-  check_exit_code(router, EXIT_FAILURE, 10000ms);
+  check_exit_code(router, EXIT_FAILURE, 10s);
 
   const std::string router_output = router.get_full_logfile();
   EXPECT_THAT(
@@ -916,8 +921,7 @@ TEST_F(RestMetadataCacheApiTest, DISABLED_metadata_cache_api_no_mdc_section) {
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
   auto &router = launch_router({"-c", conf_file});
 
-  const auto wait_for_process_exit_timeout{10000ms};
-  check_exit_code(router, EXIT_FAILURE, wait_for_process_exit_timeout);
+  check_exit_code(router, EXIT_FAILURE, 10s);
 
   const std::string router_output = router.get_full_output();
   EXPECT_THAT(router_output,
@@ -946,7 +950,7 @@ TEST_F(RestMetadataCacheApiTest, rest_metadata_cache_section_twice) {
   auto &router =
       launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s);
 
-  check_exit_code(router, EXIT_FAILURE, 10000ms);
+  check_exit_code(router, EXIT_FAILURE, 10s);
 
   const std::string router_output = router.get_full_output();
   EXPECT_THAT(
@@ -972,7 +976,7 @@ TEST_F(RestMetadataCacheApiTest, rest_metadata_cache_section_has_key) {
   auto &router =
       launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1s);
 
-  check_exit_code(router, EXIT_FAILURE, 10000ms);
+  check_exit_code(router, EXIT_FAILURE, 10s);
 
   const std::string router_output = router.get_full_logfile();
   EXPECT_THAT(

@@ -171,6 +171,9 @@ bool ProcessManager::wait_for_notified(notify_socket_t sock,
   const size_t BUFF_SIZE = 512;
   std::array<char, BUFF_SIZE> buff;
   auto *sock_ops = mysql_harness::SocketOperations::instance();
+  if (getenv("WITH_VALGRIND")) {
+    timeout *= 10;
+  }
 
   while (true) {
     const auto has_data_result = sock_ops->has_data(sock, timeout);
@@ -270,8 +273,9 @@ static std::vector<std::string> build_exec_args(
   }
 
   if (getenv("WITH_VALGRIND")) {
-    args.emplace_back("valgrind");
-    args.emplace_back("--error-exitcode=1");
+    const auto valgrind_exe = getenv("VALGRIND_EXE");
+    args.emplace_back(valgrind_exe ? valgrind_exe : "valgrind");
+    args.emplace_back("--error-exitcode=77");
     args.emplace_back("--quiet");
   }
 
@@ -397,6 +401,7 @@ std::string ProcessManager::create_state_file(const std::string &dir_name,
   }
 
   ofs_config << content;
+  ofs_config.flush();
   ofs_config.close();
 
   return file_path.str();
@@ -439,6 +444,10 @@ void ProcessManager::ensure_clean_exit() {
 void ProcessManager::check_exit_code(ProcessWrapper &process,
                                      int expected_exit_code,
                                      std::chrono::milliseconds timeout) {
+  if (getenv("WITH_VALGRIND")) {
+    timeout *= 10;
+  }
+
   int result{0};
   try {
     result = process.wait_for_exit(timeout);
@@ -455,6 +464,8 @@ void ProcessManager::check_port(bool should_be_ready, ProcessWrapper &process,
                                 const std::string &hostname) {
   bool ready = wait_for_port_ready(port, timeout, hostname);
 
+// That creates a lot of noise in the logs so gets disabled for now.
+#if 0
   // let's collect some more info
   std::string netstat_info;
   if (ready != should_be_ready) {
@@ -462,11 +473,15 @@ void ProcessManager::check_port(bool should_be_ready, ProcessWrapper &process,
     check_exit_code(netstat);
     netstat_info = netstat.get_full_output();
   }
+#endif
 
   ASSERT_EQ(ready, should_be_ready) << process.get_full_output() << "\n"
                                     << process.get_full_logfile() << "\n"
                                     << "port: " << std::to_string(port) << "\n"
-                                    << "netstat output: " << netstat_info;
+#if 0
+                                    << "netstat output: " << netstat_info
+#endif
+      ;
 }
 
 void ProcessManager::check_port_ready(ProcessWrapper &process, uint16_t port,

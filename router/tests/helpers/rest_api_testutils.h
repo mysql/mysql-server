@@ -178,7 +178,7 @@ bool wait_for_rest_endpoint_ready(
     const std::string &username = "", const std::string &password = "",
     const std::string &http_host = "127.0.0.1",
     std::chrono::milliseconds max_wait_time = std::chrono::milliseconds(5000),
-    const std::chrono::milliseconds step_time =
+    std::chrono::milliseconds step_time =
         std::chrono::milliseconds(50)) noexcept;
 
 // YYY-MM-DDThh:mm:ss.milisecZ

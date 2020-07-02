@@ -291,6 +291,11 @@ TEST_P(MetadataChacheTTLTestParam, CheckTTLValid) {
       launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
                     /*wait_for_notify_ready=*/5s);
 
+  // the remaining is too time-dependent to hope it will pass with VALGRIND
+  if (getenv("WITH_VALGRIND")) {
+    return;
+  }
+
   SCOPED_TRACE("// Wait for the initial metadata refresh to end");
   const auto first_refresh_stop_timestamp =
       get_log_timestamp(router.get_logfile_path(),
