@@ -17750,3 +17750,17 @@ DROP TABLE t1;
 do date_add(utc_time(), interval(oct(-11779)) microsecond);
 Warnings:
 Warning	1441	Datetime function: time field overflow
+#
+# Bug #31054071 UBSAN: SIGNED INTEGER OVERFLOW IN
+#               ITEM_DATE_ADD_INTERVAL::GET_TIME_INTERNAL
+#
+CREATE TABLE t(a TIME(1), b DECIMAL(55,13));
+INSERT INTO t(a,b) VALUES
+('-765:38:03.6',999999999999999999999999999999999999999999.9999999999999);
+SELECT a - INTERVAL(b) MICROSECOND FROM t;
+a - INTERVAL(b) MICROSECOND
+NULL
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: '999999999999999999999999999999999999999999.9999999999999'
+Warning	1441	Datetime function: time field overflow
+DROP TABLE t;
