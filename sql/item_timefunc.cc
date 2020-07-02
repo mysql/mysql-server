@@ -2420,7 +2420,7 @@ bool Item_date_add_interval::get_time_internal(MYSQL_TIME *ltime) {
       (interval.neg ? -1 : 1);
 
   // Possible overflow adding date and interval values below.
-  if (usec1 > 0 && usec2 > 0) {
+  if ((usec1 > 0 && usec2 > 0) || (usec1 < 0 && usec2 < 0)) {
     lldiv_t usec2_as_seconds;
     usec2_as_seconds.quot = usec2 / 1000000;
     usec2_as_seconds.rem = 0;
