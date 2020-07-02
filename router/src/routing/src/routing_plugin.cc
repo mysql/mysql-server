@@ -232,7 +232,7 @@ static void start(mysql_harness::PluginFuncEnv *env) {
         config.protocol, config.mode, config.bind_address.addr,
         config.named_socket, name, config.max_connections,
         destination_connect_timeout, config.max_connect_errors,
-        client_connect_timeout, routing::kDefaultNetBufferLength,
+        client_connect_timeout, config.net_buffer_length,
         mysql_harness::SocketOperations::instance(), config.thread_stack_size);
 
     try {
