@@ -2727,7 +2727,56 @@ class Item : public Parse_tree_node {
       uchar *args MY_ATTRIBUTE((unused))) {
     return false;
   }
+  /**
+    Check if all the columns present in this expression are from the
+    derived table. Used in determining if a condition can be pushed
+    down to derived table.
+  */
+  virtual bool check_column_from_derived_table(
+      uchar *arg MY_ATTRIBUTE((unused))) {
+    // A generic item cannot be pushed down unless constant.
+    return !const_item();
+  }
 
+  /**
+    Check if all the columns present in this expression are present
+    in PARTITION clause of window functions of the derived table.
+    Used in checking if a condition can be pushed down to derived table.
+  */
+  virtual bool check_column_in_window_functions(
+      uchar *arg MY_ATTRIBUTE((unused))) {
+    return false;
+  }
+  /**
+    Check if all the columns present in this expression are present
+    in GROUP BY clause of the derived table. Used in checking if
+    a condition can be pushed down to derived table.
+  */
+  virtual bool check_column_in_group_by(uchar *arg MY_ATTRIBUTE((unused))) {
+    return false;
+  }
+  /**
+    Assuming this expression is part of a condition that would be pushed to the
+    WHERE clause of a materialized derived table, replace, in this expression,
+    each derived table's column with a clone of the expression lying under it
+    in the derived table's definition. We replace with a clone, because the
+    condition can be pushed further down in case of nested derived tables.
+  */
+  virtual Item *replace_with_derived_expr(uchar *arg MY_ATTRIBUTE((unused))) {
+    return this;
+  }
+  /**
+    Assuming this expression is part of a condition that would be pushed to the
+    HAVING clause of a materialized derived table, replace, in this expression,
+    each derived table's column with a reference to the expression lying under
+    it in the derived table's definition. Unlike replace_with_derived_expr, a
+    clone is not used because HAVING condition will not be pushed further
+    down in case of nested derived tables.
+  */
+  virtual Item *replace_with_derived_expr_ref(
+      uchar *arg MY_ATTRIBUTE((unused))) {
+    return this;
+  }
   /*
     For SP local variable returns pointer to Item representing its
     current value and pointer to current Item otherwise.
@@ -3123,6 +3172,9 @@ class Item : public Parse_tree_node {
     /// When we change DISTINCT to GROUP BY: used for book-keeping of
     /// fields.
     MARKER_DISTINCT_GROUP = 6,
+    /// When pushing conditions down to derived table: it says a condition
+    /// contains only derived table's columns.
+    MARKER_COND_DERIVED_TABLE = 7,
     /// When pushing index conditions: it says whether a condition uses only
     /// indexed columns.
     MARKER_ICP_COND_USES_INDEX_ONLY = 10 };
@@ -3370,6 +3422,11 @@ class Item_sp_variable : public Item {
     // Need to override send() in case this_item() is an Item_field with a
     // ZEROFILL attribute.
     return this_item()->send(protocol, str);
+  }
+  bool check_column_from_derived_table(
+      uchar *arg MY_ATTRIBUTE((unused))) override {
+    // It is ok to push down a condition like "column > SP_variable"
+    return false;
   }
 
  protected:
@@ -4018,6 +4075,11 @@ class Item_field : public Item_ident {
   bool check_column_privileges(uchar *arg) override;
   bool check_partition_func_processor(uchar *) override { return false; }
   void bind_fields() override;
+  bool check_column_from_derived_table(uchar *arg) override;
+  bool check_column_in_window_functions(uchar *arg) override;
+  bool check_column_in_group_by(uchar *arg) override;
+  Item *replace_with_derived_expr(uchar *arg) override;
+  Item *replace_with_derived_expr_ref(uchar *arg) override;
   void cleanup() override;
   void reset_field();
   Item_equal *find_item_equal(COND_EQUAL *cond_equal) const;
@@ -4493,6 +4555,11 @@ class Item_param final : public Item, private Settable_routine_parameter {
         pointer_cast<Check_function_as_value_generator_parameters *>(args);
     func_arg->err_code = func_arg->get_unnamed_function_error_code();
     return true;
+  }
+  bool check_column_from_derived_table(
+      uchar *arg MY_ATTRIBUTE((unused))) override {
+    // It is ok to push down a condition like "column > PS_parameter"
+    return false;
   }
 
  private:
@@ -5484,6 +5551,15 @@ class Item_ref : public Item_ident {
   }
   Item_result cast_to_int_type() const override {
     return (*ref)->cast_to_int_type();
+  }
+  bool check_column_from_derived_table(uchar *arg) override {
+    return (*ref)->check_column_from_derived_table(arg);
+  }
+  bool check_column_in_window_functions(uchar *arg) override {
+    return (*ref)->check_column_in_window_functions(arg);
+  }
+  bool check_column_in_group_by(uchar *arg) override {
+    return (*ref)->check_column_in_group_by(arg);
   }
 };
 

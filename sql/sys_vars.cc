@@ -3225,6 +3225,7 @@ static const char *optimizer_switch_names[] = {
     "subquery_to_derived",
     "prefer_ordering_index",
     "hypergraph_optimizer",  // Deliberately not documented below.
+    "derived_condition_pushdown",
     "default",
     NullS};
 static Sys_var_flagset Sys_optimizer_switch(
@@ -3237,7 +3238,8 @@ static Sys_var_flagset Sys_optimizer_switch(
     " subquery_materialization_cost_based, skip_scan,"
     " block_nested_loop, batched_key_access, use_index_extensions,"
     " condition_fanout_filter, derived_merge, hash_join,"
-    " subquery_to_derived, prefer_ordering_index} and val is one of "
+    " subquery_to_derived, prefer_ordering_index,"
+    " derived_condition_pushdown} and val is one of "
     "{on, off, default}",
     HINT_UPDATEABLE SESSION_VAR(optimizer_switch), CMD_LINE(REQUIRED_ARG),
     optimizer_switch_names, DEFAULT(OPTIMIZER_SWITCH_DEFAULT), NO_MUTEX_GUARD,

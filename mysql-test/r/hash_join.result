@@ -1799,15 +1799,8 @@ t1
 WHERE table1.col1 = 1
 LIMIT 50;
 EXPLAIN
--> Limit: 50 row(s)  (cost=0.70 rows=1)
-    -> Inner hash join (no condition)  (cost=0.70 rows=1)
-        -> Table scan on t2  (cost=0.35 rows=1)
-        -> Hash
-            -> Index lookup on table1 using <auto_key0> (col1=1)
-                -> Materialize  (cost=0.35 rows=1)
-                    -> Table scan on <temporary>
-                        -> Temporary table with deduplication  (cost=0.35 rows=1)
-                            -> Table scan on t1  (cost=0.35 rows=1)
+-> Limit: 50 row(s)  (cost=0.35 rows=1)
+    -> Table scan on t2  (cost=0.35 rows=1)
 
 SELECT /*+ JOIN_ORDER(table1, t2) */
 *

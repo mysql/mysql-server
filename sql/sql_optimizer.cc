@@ -9288,8 +9288,7 @@ static bool make_join_select(JOIN *join, Item *cond) {
       if (cond)
         tmp = make_cond_for_table(thd, cond, used_tables, current_map, false);
       /* Add conditions added by add_not_null_conds(). */
-      if (tab->condition() && and_conditions(&tmp, tab->condition()))
-        return true;
+      if (and_conditions(&tmp, tab->condition())) return true;
 
       if (cond && !tmp && tab->quick()) {  // Outer join
         DBUG_ASSERT(tab->type() == JT_RANGE || tab->type() == JT_INDEX_MERGE);

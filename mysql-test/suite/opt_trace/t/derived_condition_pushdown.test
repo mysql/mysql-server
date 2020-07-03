@@ -1,0 +1,39 @@
+
+# Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
+--source include/no_protocol.inc
+
+--source include/have_optimizer_trace.inc
+
+LET $DEFAULT_TRACE_MEM_SIZE=1048576; # 1MB
+EVAL SET optimizer_trace_max_mem_size=$DEFAULT_TRACE_MEM_SIZE;
+SET @@session.optimizer_trace="enabled=on";
+
+# Check optimizer trace information printed while pushing conditions down
+set optimizer_switch="derived_condition_pushdown=on";
+set optimizer_switch="derived_merge=off";
+set sql_mode="";
+
+CREATE TABLE t1 (f1 INTEGER, f2 INTEGER, f3 INTEGER,
+                 KEY(f1), KEY(f1,f2), KEY(f3));
+INSERT INTO t1 VALUES (1,26,1);
+INSERT INTO t1 VALUES (2,32,1);
+INSERT INTO t1 VALUES (3,90,1);
+
+SELECT * FROM (SELECT f1, f2, SUM(f3) OVER(PARTITION BY f1,f2)
+FROM t1 GROUP BY f1) as dt WHERE f1 > 2 and f2 > 30 and (f1+f2) > 40;
+--replace_regex /("peak_memory_used":) [0-9]+/\1 "NNN"/
+SELECT trace FROM information_schema.optimizer_trace;
+
+SELECT * FROM
+(SELECT (i+j) AS g, f1 FROM
+ (SELECT (f1+f2) AS i, (f1-f2) AS j FROM
+  (SELECT f1+10 AS f1, f2+10 AS f2 FROM t1) AS dt0) AS dt1,
+ (SELECT f1, f2 FROM t1) AS dt2) AS dt3
+WHERE g > 26 and g+f1 > 31;
+
+SELECT trace FROM information_schema.optimizer_trace;
+
+set optimizer_switch=default;
+set sql_mode=default;
+
+DROP TABLE t1;

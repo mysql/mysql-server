@@ -635,4 +635,30 @@ avgcost(T.TABLE_ROWS, 0e0)
 NULL
 DROP TABLE t1;
 DROP FUNCTION avgcost;
+#
+# WL#8084: Condition pushdown to materialized derived table
+#
+CREATE AGGREGATE FUNCTION my_median RETURNS INTEGER
+SONAME "UDF_EXAMPLE_LIB";
+CREATE TABLE t1(f1 INTEGER, f2 INTEGER);
+INSERT INTO t1 VALUES (1,100),(1,2),(2,100),(2,3);
+SELECT * FROM (SELECT f1, my_median(f2) as median
+FROM t1 GROUP BY f1) as dt
+WHERE median != 1;
+f1	median
+1	100
+2	100
+EXPLAIN FORMAT=tree SELECT * FROM (SELECT f1, my_median(f2) as median
+FROM t1 GROUP BY f1) as dt
+WHERE median != 1;
+EXPLAIN
+-> Table scan on dt  (cost=2.95 rows=4)
+    -> Materialize
+        -> Filter: (my_median(t1.f2) <> 1)
+            -> Group aggregate: my_median(t1.f2)
+                -> Sort: t1.f1  (cost=0.65 rows=4)
+                    -> Table scan on t1  (cost=0.65 rows=4)
+
+DROP TABLE t1;
+DROP FUNCTION my_median;
 # End of the 8.0 tests

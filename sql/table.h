@@ -3009,6 +3009,15 @@ struct TABLE_LIST {
   /// Materialize derived table
   bool materialize_derived(THD *thd);
 
+  /// Check if we can push outer where condition to this derived table
+  bool can_push_condition_to_derived(THD *thd);
+
+  /// Get derived table expression
+  Item *get_derived_expr(uint expr_index);
+
+  /// Get cloned item for a derived table column. This creates the clone.
+  Item *get_clone_for_derived_expr(THD *thd, Item *item);
+
   /// Clean up the query expression for a materialized derived table
   void cleanup_derived(THD *thd);
 

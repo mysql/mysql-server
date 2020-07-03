@@ -2632,7 +2632,8 @@ enum store_key::store_key_result store_key_item::copy_inner() {
 /**
   Extend e1 by AND'ing e2 to the condition e1 points to. The resulting
   condition is fixed. Requirement: the input Items must already have
-  been fixed.
+  been fixed. This is a variant of and_items(); it is intended for use in
+  the optimizer phase.
 
   @param[in,out]   e1 Pointer to condition that will be extended with e2
   @param           e2 Condition that will extend e1
@@ -2959,7 +2960,7 @@ void QEP_TAB::push_index_cond(const JOIN_TAB *join_tab, uint keyno,
                                         QT_ORDINARY););
 
       if (row_cond) {
-        if (idx_remainder_cond) and_conditions(&row_cond, idx_remainder_cond);
+        and_conditions(&row_cond, idx_remainder_cond);
         idx_remainder_cond = row_cond;
       }
       set_condition(idx_remainder_cond);

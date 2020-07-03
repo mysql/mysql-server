@@ -881,6 +881,123 @@ bool Item_field::find_item_in_field_list_processor(uchar *arg) {
   return false;
 }
 
+bool Item_field::check_column_from_derived_table(uchar *arg) {
+  TABLE_LIST *tl = pointer_cast<TABLE_LIST *>(arg);
+  if (field->table == tl->table) {
+    // If the expression in the derived table for this column has a subquery
+    // or contains parameters or has non-deterministic result, condition is
+    // not pushed down.
+    // Expressions having subqueries need a more complicated replacement
+    // strategy than the one that currently exists when the condition is
+    // moved to derived table.
+    // Expression having parameters when cloned as part of replacement have
+    // problems to locate the original "?" and therefore will not be able to
+    // get the value.  TODO: Lift these two limitations.
+    // Any condition with expressions having non-deterministic result in the
+    // underlying derived table should not be pushed.
+    // For ex:
+    // select * from (select rand() as a from t1) where a >0.5;
+    // Here a > 0.5 if pushed down would result in rand() getting evaluated
+    // twice because the query would then be
+    // select * from (select rand() as a from t1 where rand() > 0.5) which
+    // is not correct. See also Item_func::check_column_from_derived_table
+    Item *item = tl->get_derived_expr(field->field_index());
+    return (item->has_subquery() ||
+            (item->used_tables() & (INNER_TABLE_BIT | RAND_TABLE_BIT)));
+  }
+  return true;
+}
+
+/**
+  Check if this column is found in PARTITION clause of all the window functions.
+  Called when checking to see if a condition can be pushed past window functions
+  while pushing conditions down to materialized derived tables.
+
+  @param arg derived table
+
+  @retval
+  false if this field is part of PARTITION clause of all window functions
+  present in the derived table.
+  @retval
+  true otherwise
+*/
+
+bool Item_field::check_column_in_window_functions(uchar *arg) {
+  TABLE_LIST *tl = pointer_cast<TABLE_LIST *>(arg);
+  // Find the expression corresponding to this column in derived table and use
+  // that to find in window functions of the derived table.
+  SELECT_LEX *select = tl->derived_unit()->first_select();
+  Item *item = tl->get_derived_expr(field->field_index());
+
+  bool ret = true;
+  List_iterator<Window> li(select->m_windows);
+  for (Window *w = li++; w != nullptr; w = li++) {
+    ret = true;
+    for (ORDER *o = w->first_partition_by(); o != nullptr; o = o->next) {
+      Item *expr = *(o->item);
+      if (expr == item || item->eq(expr, false)) {
+        ret = false;
+        break;
+      }
+    }
+    if (ret) return ret;
+  }
+  return ret;
+}
+
+/**
+  Check if this column is found in GROUP BY.
+  Called when checking to see if a condition can be pushed past GROUP BY
+  while pushing conditions down to materialized derived tables.
+
+  @param arg derived table
+
+  @retval
+  false if this field is not part of GROUP BY.
+  @retval
+  true otherwise.
+*/
+bool Item_field::check_column_in_group_by(uchar *arg) {
+  TABLE_LIST *tl = pointer_cast<TABLE_LIST *>(arg);
+  // Find the expression correspondiing to this column in derived table and
+  // use that to find in GROUP BY of the derived table.
+  SELECT_LEX *select = tl->derived_unit()->first_select();
+  Item *item = tl->get_derived_expr(field->field_index());
+
+  for (ORDER *group = select->group_list.first; group; group = group->next) {
+    if (*group->item == item || item->eq(*group->item, false)) return false;
+  }
+  return true;
+}
+
+Item *Item_field::replace_with_derived_expr(uchar *arg) {
+  TABLE_LIST *dt = pointer_cast<TABLE_LIST *>(arg);
+  return dt->get_clone_for_derived_expr(
+      current_thd, dt->get_derived_expr(field->field_index()));
+}
+
+Item *Item_field::replace_with_derived_expr_ref(uchar *arg) {
+  TABLE_LIST *dt = pointer_cast<TABLE_LIST *>(arg);
+  SELECT_LEX *select = dt->derived_unit()->first_select();
+  // Get the expression in the derived table and find the right ref item to
+  // point to.
+  Item *select_item = dt->get_derived_expr(field->field_index());
+  Item *new_ref = nullptr;
+  if (select_item) {
+    uint counter = 0;
+    enum_resolution_type resolution;
+    if (find_item_in_list(current_thd, select_item, select->get_fields_list(),
+                          &counter, REPORT_EXCEPT_NOT_FOUND, &resolution)) {
+      Item **replace_item = &select->base_ref_items[counter];
+      new_ref = new Item_ref(&select->context, replace_item, nullptr, nullptr,
+                             (*replace_item)->item_name.ptr(),
+                             resolution == RESOLVED_AGAINST_ALIAS);
+    }
+  }
+  DBUG_ASSERT(new_ref);
+  return new_ref;
+}
+
 bool Item_field::check_function_as_value_generator(uchar *checker_args) {
   Check_function_as_value_generator_parameters *func_args =
       pointer_cast<Check_function_as_value_generator_parameters *>(
@@ -7918,15 +8035,22 @@ Item *Item_ref::compile(Item_analyzer analyzer, uchar **arg_p,
 
 void Item_ref::print(const THD *thd, String *str,
                      enum_query_type query_type) const {
-  if (ref) {
-    if (m_alias_of_expr && (*ref)->type() != Item::CACHE_ITEM &&
-        ref_type() != VIEW_REF && !table_name && item_name.ptr()) {
-      Simple_cstring str1 = (*ref)->real_item()->item_name;
-      append_identifier(thd, str, str1.ptr(), str1.length());
-    } else
-      (*ref)->print(thd, str, query_type);
+  bool is_view_ref;
+
+  if (  // Unresolved reference: print reference
+      !ref ||
+      // Reference to column of merged derived table, and we want to see the
+      // derived table's name, not that of the underlying table.
+      ((is_view_ref = (ref_type() == VIEW_REF)) &&
+       (query_type & QT_DERIVED_TABLE_ORIG_FIELD_NAMES)))
+    return Item_ident::print(thd, str, query_type);
+
+  if (m_alias_of_expr && (*ref)->type() != Item::CACHE_ITEM && !is_view_ref &&
+      !table_name && item_name.ptr()) {
+    Simple_cstring str1 = (*ref)->real_item()->item_name;
+    append_identifier(thd, str, str1.ptr(), str1.length());
   } else
-    Item_ident::print(thd, str, query_type);
+    (*ref)->print(thd, str, query_type);
 }
 
 bool Item_ref::send(Protocol *prot, String *tmp) {

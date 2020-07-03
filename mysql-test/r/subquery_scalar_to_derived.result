@@ -2793,11 +2793,11 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	table2	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index; Using join buffer (hash join)
 1	PRIMARY	table3	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index; Using join buffer (hash join)
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
-1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
 3	DERIVED	tab1	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index
 2	DERIVED	tab1	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`table1`.`pk` AS `pk`,`test`.`table2`.`pk` AS `pk`,`test`.`table3`.`pk` AS `pk` from `test`.`tab1` `table1` left join (`test`.`tab1` `table2` join (/* select#2 */ select count(`test`.`tab1`.`pk`) AS `COUNT(pk)` from `test`.`tab1`) `derived_1_2` join `test`.`tab1` `table3`) on(((1 <= `derived_1_2`.`COUNT(pk)`))) join (/* select#3 */ select min(`test`.`tab1`.`pk`) AS `MIN(pk)` from `test`.`tab1`) `derived_1_3` where (0 <> `derived_1_3`.`MIN(pk)`)
+Note	1003	/* select#1 */ select `test`.`table1`.`pk` AS `pk`,`test`.`table2`.`pk` AS `pk`,`test`.`table3`.`pk` AS `pk` from `test`.`tab1` `table1` left join (`test`.`tab1` `table2` join (/* select#2 */ select count(`test`.`tab1`.`pk`) AS `COUNT(pk)` from `test`.`tab1`) `derived_1_2` join `test`.`tab1` `table3`) on(((1 <= `derived_1_2`.`COUNT(pk)`))) join (/* select#3 */ select min(`test`.`tab1`.`pk`) AS `MIN(pk)` from `test`.`tab1` having (0 <> min(`test`.`tab1`.`pk`))) `derived_1_3` where true
 DROP TABLE tab1;
 #
 # Bug#30617216 WL#12885 SIG6 IN JOIN::ADD_HAVING_AS_TMP_TABLE_COND() AT SQL/SQL_SELECT.CC
@@ -3105,7 +3105,7 @@ ON 1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	a1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	PRIMARY	a2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
-1	PRIMARY	<derived4>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+1	PRIMARY	<derived4>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
 4	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
@@ -3113,7 +3113,7 @@ Warnings:
 Note	1276	Field or reference 'table1.col_varchar' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select (/* select#2 */ select count(0) from `test`.`t1` where (1 <> `test`.`a2`.`col_varchar`)) AS `(SELECT COUNT(*)
 FROM t1
-WHERE 1 <> table1.col_varchar)` from `test`.`t1` `a1` join (/* select#4 */ select count(0) AS `COUNT(*)` from `test`.`t1`) `derived_3_4` join `test`.`t1` `a2` join `test`.`t1` where (1 <> `derived_3_4`.`COUNT(*)`)
+WHERE 1 <> table1.col_varchar)` from `test`.`t1` `a1` join (/* select#4 */ select count(0) AS `COUNT(*)` from `test`.`t1` having (1 <> count(0))) `derived_3_4` join `test`.`t1` `a2` join `test`.`t1`
 DROP TABLE t1;
 #
 # Bug#30650326 WL#12885 SIG 11 IN ADD_KEY_FIELDS() AT SQL/SQL_OPTIMIZER.CC
@@ -3458,10 +3458,10 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 4	DERIVED	table1	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index
 4	DERIVED	cc1	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index; Using join buffer (hash join)
 4	DERIVED	table3	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index; Using join buffer (hash join)
-4	DERIVED	<derived5>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+4	DERIVED	<derived5>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
 5	DERIVED	cc1	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `derived_1_4`.`COUNT(table1.pk)` AS `COUNT(table1.pk)`,`derived_1_6`.`MIN(col_varchar_key)` AS `(SELECT MIN(col_varchar_key) FROM cc1 )` from (/* select#4 */ select count(`test`.`table1`.`pk`) AS `COUNT(table1.pk)` from `test`.`cc1` `table1` join `test`.`cc1` join `test`.`cc1` `table3` join (/* select#5 */ select count(0) AS `COUNT(*)` from `test`.`cc1`) `derived_4_5` where (1 <> `derived_4_5`.`COUNT(*)`)) `derived_1_4` left join (/* select#6 */ select min(`test`.`cc1`.`col_varchar_key`) AS `MIN(col_varchar_key)` from `test`.`cc1`) `derived_1_6` on(true) where true
+Note	1003	/* select#1 */ select `derived_1_4`.`COUNT(table1.pk)` AS `COUNT(table1.pk)`,`derived_1_6`.`MIN(col_varchar_key)` AS `(SELECT MIN(col_varchar_key) FROM cc1 )` from (/* select#4 */ select count(`test`.`table1`.`pk`) AS `COUNT(table1.pk)` from `test`.`cc1` `table1` join `test`.`cc1` join `test`.`cc1` `table3` join (/* select#5 */ select count(0) AS `COUNT(*)` from `test`.`cc1` having (1 <> count(0))) `derived_4_5`) `derived_1_4` left join (/* select#6 */ select min(`test`.`cc1`.`col_varchar_key`) AS `MIN(col_varchar_key)` from `test`.`cc1`) `derived_1_6` on(true) where true
 INSERT INTO t1 SELECT COUNT(table1.pk),
 (SELECT MIN(col_varchar_key) FROM cc1 )
 FROM (cc1 AS table1
@@ -4110,11 +4110,11 @@ a
 4
 EXPLAIN SELECT a FROM v1 WHERE c > 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	Using join buffer (hash join)
 3	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#3 */ select count(0) AS `count(0)` from `test`.`t2`) `derived_2_3` where (`derived_2_3`.`count(0)` > 0)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#3 */ select count(0) AS `count(0)` from `test`.`t2` having (count(0) > 0)) `derived_2_3`
 DROP VIEW v1;
 DROP TABLE t1, t2;
 #

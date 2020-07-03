@@ -720,6 +720,10 @@ SELECT * FROM (SELECT * FROM v4 GROUP BY 1) tt;
 SELECT * FROM (SELECT * FROM v4 GROUP BY 1) tt;
 
 --echo materialized view in merged derived
+# Condition f1 < 7 gets pushed down to view v1 here. However when the
+# tranformed query is printed in "NOTE", it does not display the pushed
+# condition in the view definition. It just chooses to print the original view
+# definition only.
 EXPLAIN 
 SELECT * FROM ( SELECT * FROM v1 WHERE f1 < 7) tt;
 SELECT * FROM ( SELECT * FROM v1 WHERE f1 < 7) tt;

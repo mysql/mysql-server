@@ -92,6 +92,7 @@
 #include "sql/sql_class.h"
 #include "sql/sql_cmd.h"  // Sql_cmd
 #include "sql/sql_const.h"
+#include "sql/sql_derived.h"  //Condition_pushdown
 #include "sql/sql_error.h"
 #include "sql/sql_executor.h"  // is_rollup_sum_wrapper, is_rollup_group_wrapper
 #include "sql/sql_lex.h"
@@ -515,25 +516,28 @@ bool SELECT_LEX::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
     apply local transformations to this query block and all underlying query
     blocks.
   */
-  if ((outer_select() == nullptr ||
+  if (!thd->lex->is_view_context_analysis() &&
+      (outer_select() == nullptr ||
        ((parent_lex->sql_command == SQLCOM_SET_OPTION ||
          parent_lex->sql_command == SQLCOM_END) &&
         outer_select()->outer_select() == nullptr)) &&
       !skip_local_transforms) {
     /*
       This code is invoked in the following cases:
+      - if this is not a create view statement as transformations are
+      not required when creating a view.
       - if this is an outer-most query block of a SELECT or multi-table
-        UPDATE/DELETE statement. Notice that for a UNION, this applies to
-        all query blocks. It also applies to a fake_select_lex object.
+      UPDATE/DELETE statement. Notice that for a UNION, this applies to
+      all query blocks. It also applies to a fake_select_lex object.
       - if this is one of highest-level subqueries, if the statement is
-        something else; like subq-i in:
-          UPDATE t1 SET col1=(subq-1), col2=(subq-2);
+      something else; like subq-i in:
+      UPDATE t1 SET col1=(subq-1), col2=(subq-2);
       - If this is a subquery in a SET command,
-        or scalar subqueries used in SP expressions like sp_instr_freturn
-        (undicated by SQLCOM_END).
-        @todo: Refactor SET so that this is not needed.
+      or scalar subqueries used in SP expressions like sp_instr_freturn
+      (undicated by SQLCOM_END).
+      @todo: Refactor SET so that this is not needed.
       - INSERT may in some cases alter the sequence of preparation calls, by
-        setting the skip_local_transforms flag before calling prepare().
+      setting the skip_local_transforms flag before calling prepare().
 
       Local transforms are applied after query block merging.
       This means that we avoid unnecessary invocations, as local transforms
@@ -543,8 +547,22 @@ bool SELECT_LEX::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
       is finished with query block merging. That's why
       apply_local_transforms() is initiated only by the top query, and then
       recurses into subqueries.
-    */
+     */
     if (apply_local_transforms(thd, true)) return true;
+    /*
+      Pushing conditions down to derived tables must be done after validity
+      checks of grouped queries done by apply_local_transforms(); indeed, by
+      replacing columns with expressions, inside equalities of WHERE, pushdown
+      makes the checks impossible.
+      The said validity checks must be done after simplify_joins() has been
+      done on all query blocks. While pushdown must be done on the top query
+      block first, then on subqueries.
+      These circular dependencies explain why:
+      - pushdown is not part of apply_local_transforms
+      - a pushed-down condition cannot help to convert LEFT JOIN to inner join
+      inside a derived table's definition.
+    */
+    if (push_conditions_to_derived_tables(thd)) return true;
   }
 
   /*
@@ -554,6 +572,48 @@ bool SELECT_LEX::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
   if (m_windows.elements != 0) Window::remove_unused_windows(thd, m_windows);
 
   DBUG_ASSERT(!thd->is_error());
+  return false;
+}
+
+/*
+  Push conditions if possible to all the materialized derived tables.
+  Keep pushing as far down as possible making the call to this function
+  recursively.
+
+  @param thd      thread handler
+
+  @returns false if success, true if error
+
+  Since this is called at the end after applying local tranformations,
+  call this function while traversing the query block hierarchy top-down.
+*/
+bool SELECT_LEX::push_conditions_to_derived_tables(THD *thd) {
+  if (materialized_derived_table_count > 0)
+    for (TABLE_LIST *tl = leaf_tables; tl; tl = tl->next_leaf) {
+      if (tl->is_view_or_derived() && tl->uses_materialization() &&
+          where_cond() && tl->can_push_condition_to_derived(thd)) {
+        Item **where = where_cond_ref();
+        Opt_trace_context *const trace = &thd->opt_trace;
+        Condition_pushdown cp(*where, tl, thd, trace);
+        // Make condition for the derived table
+        if (cp.make_cond_for_derived()) return true;
+        // The remaining condition that could not be pushed stays in this
+        // WHERE clause.
+        *where = cp.get_remainder_cond();
+      }
+    }
+  /*
+    Push conditions if possible to derived tables which were not merged. By
+    running top-down, the resulting pushed down condition can be pushed down
+    even more, in the case where a derived table contains an inner derived
+    table.
+   */
+  for (SELECT_LEX_UNIT *unit = first_inner_unit(); unit;
+       unit = unit->next_unit()) {
+    for (SELECT_LEX *sl = unit->first_select(); sl; sl = sl->next_select()) {
+      if (sl->push_conditions_to_derived_tables(thd)) return true;
+    }
+  }
   return false;
 }
 
@@ -627,7 +687,8 @@ bool SELECT_LEX::prepare_values(THD *thd) {
 }
 
 /**
-  Apply local transformations, such as query block merging.
+  Apply local transformations, such as join nest simplification. 'Local' means
+  that each transformation happens on one single query block.
   Also perform partition pruning, which is most effective after transformations
   have been done.
 
@@ -644,10 +705,6 @@ bool SELECT_LEX::apply_local_transforms(THD *thd, bool prune) {
   DBUG_TRACE;
 
   DBUG_ASSERT(first_execution);
-
-  // No transformations required when creating a view only
-  if (thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW)
-    return false;
 
   /*
     If query block contains one or more merged derived tables/views,

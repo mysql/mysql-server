@@ -126,6 +126,8 @@ static bool parse_int(longlong *to, const char *from, size_t from_length)
 %token NO_GROUP_INDEX_HINT 1044
 %token ORDER_INDEX_HINT 1045
 %token NO_ORDER_INDEX_HINT 1046
+%token DERIVED_CONDITION_PUSHDOWN_HINT 1047
+%token NO_DERIVED_CONDITION_PUSHDOWN_HINT 1048
 
 /*
   YYUNDEF in internal to Bison. Please don't change its number, or change
@@ -505,6 +507,10 @@ table_level_hint_type_on:
           {
             $$= DERIVED_MERGE_HINT_ENUM;
           }
+        | DERIVED_CONDITION_PUSHDOWN_HINT
+          {
+            $$= DERIVED_CONDITION_PUSHDOWN_HINT_ENUM;
+          }
         ;
 
 table_level_hint_type_off:
@@ -523,6 +529,10 @@ table_level_hint_type_off:
         | NO_DERIVED_MERGE_HINT
           {
             $$= DERIVED_MERGE_HINT_ENUM;
+          }
+        | NO_DERIVED_CONDITION_PUSHDOWN_HINT
+          {
+            $$= DERIVED_CONDITION_PUSHDOWN_HINT_ENUM;
           }
         ;
 

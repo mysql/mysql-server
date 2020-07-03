@@ -2351,6 +2351,10 @@ class Item_cond : public Item_bool_func {
   /// Treat UNKNOWN result like FALSE because callers see no difference
   bool ignore_unknown() const { return abort_on_null; }
   bool equality_substitution_analyzer(uchar **) override { return true; }
+  bool check_column_from_derived_table(
+      uchar *arg MY_ATTRIBUTE((unused))) override {
+    return false;
+  }
 };
 
 /*

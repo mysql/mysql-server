@@ -813,5 +813,23 @@ let $query =
 DROP TABLE t1;
 DROP FUNCTION avgcost;
 
+--echo #
+--echo # WL#8084: Condition pushdown to materialized derived table
+--echo #
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE AGGREGATE FUNCTION my_median RETURNS INTEGER
+     SONAME "$UDF_EXAMPLE_LIB";
+CREATE TABLE t1(f1 INTEGER, f2 INTEGER);
+INSERT INTO t1 VALUES (1,100),(1,2),(2,100),(2,3);
+let $query =
+  SELECT * FROM (SELECT f1, my_median(f2) as median
+                 FROM t1 GROUP BY f1) as dt
+  WHERE median != 1;
+
+--eval $query
+--eval EXPLAIN FORMAT=tree $query
+
+DROP TABLE t1;
+DROP FUNCTION my_median;
 
 --echo # End of the 8.0 tests

@@ -1321,10 +1321,12 @@ void warn_about_deprecated_binary(THD *thd)
 
 %token<lexer.keyword> ENGINE_ATTRIBUTE_SYM 1154         /* MYSQL */
 %token<lexer.keyword> SECONDARY_ENGINE_ATTRIBUTE_SYM 1155 /* MYSQL */
-
 %token<lexer.keyword> MANAGED_SYM 1156                  /* MYSQL */
-
 %token<lexer.keyword> ZONE_SYM 1157                     /* SQL-2003-N */
+%token<lexer.keyword> GRAMMAR_SELECTOR_DERIVED_EXPR 1158  /* synthetic token:
+                                                            starts derived
+                                                            table expressions. */
+
 
 /*
   Precedence rules used to resolve the ambiguity when using keywords as idents
@@ -2102,6 +2104,11 @@ start_entry:
           {
             static_cast<Common_table_expr_parser_state *>(YYP)->result= $2;
           }
+        | GRAMMAR_SELECTOR_DERIVED_EXPR expr END_OF_INPUT
+         {
+           ITEMIZE($2, &$2);
+           static_cast<Derived_expr_parser_state *>(YYP)->result= $2;
+         }
         ;
 
 sql_statement:

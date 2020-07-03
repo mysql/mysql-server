@@ -1753,6 +1753,10 @@ class SELECT_LEX {
   */
   bool apply_local_transforms(THD *thd, bool prune);
 
+  /// Pushes parts of the WHERE condition of this query block to materialized
+  /// derived tables.
+  bool push_conditions_to_derived_tables(THD *thd);
+
   bool get_optimizable_conditions(THD *thd, Item **new_where,
                                   Item **new_having);
 
@@ -4420,6 +4424,16 @@ class Common_table_expr_parser_state : public Parser_state {
   Common_table_expr_parser_state();
 
   PT_subquery *result;
+};
+
+/**
+  Parser state for Derived table select expressions
+*/
+class Derived_expr_parser_state : public Parser_state {
+ public:
+  Derived_expr_parser_state();
+
+  Item *result;
 };
 
 struct st_lex_local : public LEX {
