@@ -8670,7 +8670,9 @@ type_conversion_status Field_bit::store_decimal(const my_decimal *val) {
   return has_overflow ? TYPE_WARN_OUT_OF_RANGE : res;
 }
 
-double Field_bit::val_real() const { return (double)Field_bit::val_int(); }
+double Field_bit::val_real() const {
+  return static_cast<double>(static_cast<ulonglong>(Field_bit::val_int()));
+}
 
 longlong Field_bit::val_int() const {
   ASSERT_COLUMN_MARKED_FOR_READ;
