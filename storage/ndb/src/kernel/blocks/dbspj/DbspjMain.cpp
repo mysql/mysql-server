@@ -3633,11 +3633,44 @@ Dbspj::execTRANSID_AI(Signal* signal)
 
   do  //Dummy loop to allow 'break' into error handling
   {
+    if (unlikely(requestPtr.p->m_state & Request::RS_ABORTING))
+    {
+      jam();
+      break;
+    }
+
+    // Set 'matched' bit in previous scan ancestors
+    if ((requestPtr.p->m_bits & Request::RT_MULTI_SCAN) != 0)
+    {
+      RowPtr scanAncestorRow(row);
+      Uint32 scanAncestorPtrI = treeNodePtr.p->m_scanAncestorPtrI;
+      while (scanAncestorPtrI != RNIL)  // or 'break' below
+      {
+        jam();
+        Ptr<TreeNode> scanAncestorPtr;
+        m_treenode_pool.getPtr(scanAncestorPtr, scanAncestorPtrI);
+        if ((scanAncestorPtr.p->m_bits & TreeNode::T_BUFFER_MATCH) == 0)
+        {
+          jam();
+          break;
+        }
+
+        getBufferedRow(scanAncestorPtr, (scanAncestorRow.m_src_correlation >> 16),
+                       &scanAncestorRow);
+
+        if (scanAncestorRow.m_matched->get(treeNodePtr.p->m_node_no))
+        {
+          jam();
+          break;
+        }
+        scanAncestorRow.m_matched->set(treeNodePtr.p->m_node_no);
+        scanAncestorPtrI = scanAncestorPtr.p->m_scanAncestorPtrI;
+      } //while
+    } //RT_MULTI_SCAN
+
     if (treeNodePtr.p->m_bits & TreeNode::T_BUFFER_ANY)
     {
       jam();
-      Uint32 err;
-
       DEBUG("Need to storeRow"
         << ", node: " << treeNodePtr.p->m_node_no
       );
@@ -3651,14 +3684,18 @@ Dbspj::execTRANSID_AI(Signal* signal)
         abort(signal, requestPtr, DbspjErr::OutOfRowMemory);
         break;
       }
-      else if ((err = storeRow(treeNodePtr, row)) != 0)
+
+      const Uint32 err = storeRow(treeNodePtr, row);
+      if (unlikely(err != 0))
       {
         jam();
         abort(signal, requestPtr, err);
         break;
       }
     }
-    common_execTRANSID_AI(signal, requestPtr, treeNodePtr, row);
+
+    // Submit operations to next-TreeNodes to be executed after 'this'
+    startNextNodes(signal, requestPtr, treeNodePtr, row);
   }
   while(0);
 
@@ -4363,42 +4400,11 @@ row_accepted:
  */
 
 void
-Dbspj::common_execTRANSID_AI(Signal* signal,
-                             Ptr<Request> requestPtr,
-                             Ptr<TreeNode> treeNodePtr,
-                             const RowPtr &rowRef)
+Dbspj::startNextNodes(Signal *signal,
+                      Ptr<Request> requestPtr,
+                      Ptr<TreeNode> treeNodePtr,
+                      const RowPtr &rowRef)
 {
-  if (likely((requestPtr.p->m_state & Request::RS_ABORTING) == 0))
-  {
-    // Set 'matched' bit in previous scan ancestors
-    if ((requestPtr.p->m_bits & Request::RT_MULTI_SCAN) != 0)
-    {
-      RowPtr scanAncestorRow(rowRef);
-      Uint32 scanAncestorPtrI = treeNodePtr.p->m_scanAncestorPtrI;
-      while (scanAncestorPtrI != RNIL)  // or 'break' below
-      {
-        jam();
-        Ptr<TreeNode> scanAncestorPtr;
-        m_treenode_pool.getPtr(scanAncestorPtr, scanAncestorPtrI);
-        if ((scanAncestorPtr.p->m_bits & TreeNode::T_BUFFER_MATCH) == 0)
-        {
-          jam();
-          break;
-        }
-
-        getBufferedRow(scanAncestorPtr, (scanAncestorRow.m_src_correlation >> 16),
-                       &scanAncestorRow);
-
-        if (scanAncestorRow.m_matched->get(treeNodePtr.p->m_node_no))
-        {
-          jam();
-          break;
-        }
-        scanAncestorRow.m_matched->set(treeNodePtr.p->m_node_no);
-        scanAncestorPtrI = scanAncestorPtr.p->m_scanAncestorPtrI;
-      } //while
-    } //RT_MULTI_SCAN
-    
     LocalArenaPool<DataBufferSegment<14> > pool(requestPtr.p->m_arena, m_dependency_map_pool);
     Local_dependency_map nextExec(pool, treeNodePtr.p->m_next_nodes);
     Dependency_map::ConstDataBufferIterator it;
@@ -4449,7 +4455,6 @@ Dbspj::common_execTRANSID_AI(Signal* signal,
         }
       }
     }
-  }
 }
 
 

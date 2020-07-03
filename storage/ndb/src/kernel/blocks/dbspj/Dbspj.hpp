@@ -1461,8 +1461,7 @@ private:
   Uint32 checkTableError(Ptr<TreeNode> treeNodePtr) const;
   Uint32 getNodes(Signal*, BuildKeyReq&, Uint32 tableId);
 
-  void common_execTRANSID_AI(Signal*, Ptr<Request>, Ptr<TreeNode>,
-			     const RowPtr&);
+  void startNextNodes(Signal*, Ptr<Request>, Ptr<TreeNode>, const RowPtr&);
 
   void dumpScanFragHandle(const Ptr<ScanFragHandle> fragPtr) const;
   void dumpNodeCommon(const Ptr<TreeNode>) const;
