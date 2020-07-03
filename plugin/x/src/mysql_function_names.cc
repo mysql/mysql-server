@@ -214,6 +214,7 @@ const char *const native_mysql_functions[] = {
     "ST_GEOMFROMGEOJSON",
     "ST_GEOMFROMTEXT",
     "ST_GEOMFROMWKB",
+    "ST_HAUSDORFFDISTANCE",
     "ST_INTERIORRINGN",
     "ST_INTERSECTION",
     "ST_INTERSECTS",

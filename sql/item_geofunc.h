@@ -1846,6 +1846,20 @@ class Item_func_st_frechet_distance : public Item_real_func {
   }
 };
 
+class Item_func_st_hausdorff_distance : public Item_real_func {
+ public:
+  Item_func_st_hausdorff_distance(const POS &pos, PT_item_list *ilist)
+      : Item_real_func(pos, ilist) {}
+  double val_real() override;
+  const char *func_name() const override { return "st_hausdorffdistance"; }
+  bool resolve_type(THD *thd) override {
+    param_type_is_default(thd, 0, -1, MYSQL_TYPE_GEOMETRY);
+    if (Item_real_func::resolve_type(thd)) return true;
+    maybe_null = true;
+    return false;
+  }
+};
+
 class Item_func_st_distance_sphere : public Item_real_func {
  public:
   Item_func_st_distance_sphere(const POS &pos, PT_item_list *ilist)

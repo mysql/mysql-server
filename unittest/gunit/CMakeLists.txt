@@ -218,6 +218,7 @@ SET(SERVER_TESTS
   gis_distance
   gis_frechet_distance
   gis_geometries
+  gis_hausdorff_distance
   gis_is_simple
   gis_isvalid
   gis_relops
