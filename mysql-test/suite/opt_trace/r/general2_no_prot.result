@@ -5308,7 +5308,7 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
               "memory_available": 262144,
               "key_size": "XXX",
               "row_size": "XXX",
-              "max_rows_per_buffer": 7710,
+              "max_rows_per_buffer": "XXX",
               "num_rows_estimate": 18446744073709551615,
               "num_rows_found": 8,
               "num_initial_chunks_spilled_to_disk": 0,
