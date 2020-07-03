@@ -2004,6 +2004,8 @@ int ha_ndbcluster::get_metadata(THD *thd, const dd::Table *table_def) {
 
   if (DBUG_EVALUATE_IF("ndb_get_metadata_fail", true, false)) {
     fprintf(stderr, "ndb_get_metadata_fail\n");
+    DBUG_SET("-d,ndb_get_metadata_fail");
+    ndbtab_g.invalidate();
     return HA_ERR_TABLE_DEF_CHANGED;
   }
 
@@ -11840,6 +11842,8 @@ static int ndbcluster_discover(handlerton *, THD *thd, const char *db,
       return 1;
     }
 
+    ndb_log_info("Attempting to install table %s.%s in DD", db, name);
+
     Ndb_dd_client dd_client(thd);
     bool table_exists_in_DD;
     // This function is called in two cases. 1) when the table is not present
@@ -11916,6 +11920,8 @@ static int ndbcluster_discover(handlerton *, THD *thd, const char *db,
     dd_client.commit();
     free(unpacked_data);
   }
+
+  ndb_log_info("Successfully installed table %s.%s in DD", db, name);
 
   // Don't return any sdi in order to indicate that table definitions exists
   // and has been installed into DD
