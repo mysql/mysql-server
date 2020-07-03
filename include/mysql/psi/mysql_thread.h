@@ -159,7 +159,7 @@ static inline void inline_mysql_thread_set_psi_THD(THD *thd) {
 /**
   @def mysql_thread_set_peer_port()
   Set the remote (peer) port for the thread instrumentation.
-  @param socket instrumented socket
+  @param port peer port number
 */
 static inline void mysql_thread_set_peer_port(
 #ifdef HAVE_PSI_THREAD_INTERFACE
