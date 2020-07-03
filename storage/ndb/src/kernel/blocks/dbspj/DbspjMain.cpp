@@ -1661,40 +1661,37 @@ Uint32
 Dbspj::initRowBuffers(Ptr<Request> requestPtr)
 {
   /**
-   * Init BUFFERS for those TreeNodes buffering any rows/matches
+   * Init BUFFERS in case TreeNode need to buffer any rows/matches
    */
   Local_TreeNode_list list(m_treenode_pool, requestPtr.p->m_nodes);
   Ptr<TreeNode> treeNodePtr;
   for (list.first(treeNodePtr); !treeNodePtr.isNull(); list.next(treeNodePtr))
   {
     ndbassert(treeNodePtr.p->m_batch_size > 0);
-    if (treeNodePtr.p->m_bits & TreeNode::T_BUFFER_ANY)
-    {
-      /**
-       * Construct the local treeNode RowBuffer allocator.
-       * As the RowBuffers are pr TreeNode, entire buffer area
-       * may be released, instead of releasing row by row.
-       */
-      treeNodePtr.p->m_rowBuffer.init();
+    /**
+     * Construct the local treeNode RowBuffer allocator.
+     * As the RowBuffers are pr TreeNode, entire buffer area
+     * may be released, instead of releasing row by row.
+     */
+    treeNodePtr.p->m_rowBuffer.init();
 
-      /**
-       * Construct a List or Map RowCollection for those TreeNodes
-       * requiring rows to be buffered.
-       */
-      if (treeNodePtr.p->m_bits & TreeNode::T_BUFFER_MAP)
-      {
-        jam();
-        treeNodePtr.p->m_rows.construct (RowCollection::COLLECTION_MAP,
-                                         treeNodePtr.p->m_rowBuffer,
-                                         MaxCorrelationId);
-      }
-      else
-      {
-        jam();
-        treeNodePtr.p->m_rows.construct (RowCollection::COLLECTION_LIST,
-                                         treeNodePtr.p->m_rowBuffer,
-                                         MaxCorrelationId);
-      }
+    /**
+     * Construct a List or Map RowCollection for those TreeNodes
+     * requiring rows to be buffered.
+     */
+    if (treeNodePtr.p->m_bits & TreeNode::T_BUFFER_MAP)
+    {
+      jam();
+      treeNodePtr.p->m_rows.construct (RowCollection::COLLECTION_MAP,
+                                       treeNodePtr.p->m_rowBuffer,
+                                       MaxCorrelationId);
+    }
+    else
+    {
+      jam();
+      treeNodePtr.p->m_rows.construct (RowCollection::COLLECTION_LIST,
+                                       treeNodePtr.p->m_rowBuffer,
+                                       MaxCorrelationId);
     }
   }
 
@@ -2829,12 +2826,9 @@ Dbspj::cleanupBatch(Ptr<Request> requestPtr)
     if (requestPtr.p->m_active_tree_nodes.get(treeNodePtr.p->m_node_no) ||
         requestPtr.p->m_active_tree_nodes.overlaps(treeNodePtr.p->m_predecessors))
     {
-      if (treeNodePtr.p->m_bits & TreeNode::T_BUFFER_ANY)
-      {
-        // Release rowBuffers used by this TreeNode.
-        jam();
-        releasePages(treeNodePtr.p->m_rowBuffer);
-      }
+      // Release rowBuffers used by this TreeNode.
+      jam();
+      releasePages(treeNodePtr.p->m_rowBuffer);
       treeNodePtr.p->m_rows.init();
     }
 
@@ -3187,11 +3181,7 @@ Dbspj::cleanup_common(Ptr<Request> requestPtr, Ptr<TreeNode> treeNodePtr)
     releaseSection(treeNodePtr.p->m_send.m_attrInfoPtrI);
   }
 
-  if (treeNodePtr.p->m_bits & TreeNode::T_BUFFER_ANY)
-  {
-    jam();
-    releasePages(treeNodePtr.p->m_rowBuffer);
-  }
+  releasePages(treeNodePtr.p->m_rowBuffer);
 }
 
 static
