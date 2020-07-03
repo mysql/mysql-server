@@ -69,7 +69,7 @@
 /**
   @def PSI_CURRENT_THREAD_VERSION
   Performance Schema Thread Interface number for the most recent version.
-  The most current version is @c PSI_THREAD_VERSION_3
+  The most current version is @c PSI_THREAD_VERSION_4
 */
 #define PSI_CURRENT_THREAD_VERSION 4
 
