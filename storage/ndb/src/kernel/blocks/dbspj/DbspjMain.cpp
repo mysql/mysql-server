@@ -64,11 +64,37 @@ extern Uint32 ErrorMaxSegmentsToSeize;
  * 12 bits are used to represent the 'parent-row-correlation-id'.
  * Effectively limiting max rows in a batch.
  */
-static const Uint32 MaxCorrelationId = (1 << 12);
+static constexpr Uint32 MaxCorrelationId = (1 << 12);
+
+/**
+ * Limits for job-buffer congestion control, counted in number of
+ * outstanding signal in a SPJ-request:
+ *
+ * If 'HighlyCongestedLimit' is reached, we start to defer LQHKEYREQ signals
+ * by buffering the *parent-row* of the LQHKEYREQ, and storing its
+ * correlation-id. (The LQHKEYREQ is not sent yet)
+ *
+ * When the reach 'MildlyCongestedLimit' we start resuming deferred
+ * LQHKEYREQ signals by iterating the stored correlation-id's, locate the
+ * related buffered row, which is then used to produce LQHKEYREQ's.
+ * (See ::resumeCongestedNode())
+ *
+ * We will resume maximum 'ResumeCongestedQuota' LQHKEYREQ signals at
+ * once. This serves both as a realtime break for the scheduler, and as a
+ * mechanism for keeping the congestion level at ~MildlyCongestedLimit.
+ * Note that we *do not* CONTINUEB when we take a real time break - Instead
+ * we wait for the congestion level to reach 'MildlyCongestedLimit' again, which
+ * will resume more LQHKEYREQ's. The intention of this is to leave some slack
+ * for further incoming parent-rows to immediately create LQHKEYREQ's,
+ * without these also having to be deferred.
+ */
+static constexpr Uint32 HighlyCongestedLimit = 256;
+static constexpr Uint32 MildlyCongestedLimit = (HighlyCongestedLimit/2);
+static constexpr Uint32 ResumeCongestedQuota = 32;
 
 #ifdef VM_TRACE
 /**
- * DEBUG options for different parts of SPJ block
+ * DEBUG options for different parts of SPJ block.
  * Comment out those part you don't want DEBUG'ed.
  */
 //#define DEBUG(x) ndbout << "DBSPJ: "<< x << endl
@@ -1026,6 +1052,7 @@ Dbspj::do_init(Request* requestP, const LqhKeyReq* req, Uint32 senderRef)
   requestP->m_rows = 0;
   requestP->m_active_tree_nodes.clear();
   requestP->m_completed_tree_nodes.set();
+  requestP->m_suspended_tree_nodes.clear();
   requestP->m_outstanding = 0;
   requestP->m_transId[0] = req->transId1;
   requestP->m_transId[1] = req->transId2;
@@ -1217,7 +1244,7 @@ Dbspj::execSCAN_FRAGREQ(Signal* signal)
   const ScanFragReq * req = (ScanFragReq *)&signal->theData[0];
 
 #ifdef DEBUG_SCAN_FRAGREQ
-  ndbout_c("Incomming SCAN_FRAGREQ ");
+  ndbout_c("Incoming SCAN_FRAGREQ ");
   printSCAN_FRAGREQ(stdout, signal->getDataPtrSend(),
                     ScanFragReq::SignalLength + 2,
                     DBLQH);
@@ -1367,6 +1394,7 @@ Dbspj::do_init(Request* requestP, const ScanFragReq* req, Uint32 senderRef)
   requestP->m_rows = 0;
   requestP->m_active_tree_nodes.clear();
   requestP->m_completed_tree_nodes.set();
+  requestP->m_suspended_tree_nodes.clear();
   requestP->m_outstanding = 0;
   requestP->m_senderRef = senderRef;
   requestP->m_senderData = req->senderData;
@@ -2096,6 +2124,24 @@ Dbspj::appendTreeNode(Ptr<Request>  requestPtr,
    * So anything set up below is an exception to this basic rule!
    */
 
+  /**
+   * Job-buffer congestion control:
+   *
+   * A large number of rows may be returned in each scanBatch, each of them
+   * resulting in a LQHKEYREQ being sent to any lookup child-TreeNodes.
+   * The congestion control aims to limit the number of such LQHKEYREQs
+   * to be 'outstanding'. Thus, all scan-TreeNodes having lookup children
+   * should have T_CHK_CONGESTION set in order to activate the congestion
+   * control. As T_CHK_CONGESTION may storeRow() on the scan-TreeNode,
+   * later being looked up from its correlation-id, T_BUFFER_MAP is also
+   * needed for such buffered rows.
+   */
+  if (treeNodePtr.p->isLookup() && prevExecPtr.p->isScan())
+  {
+    prevExecPtr.p->m_bits |= TreeNode::T_CHK_CONGESTION;
+    prevExecPtr.p->m_bits |= TreeNode::T_BUFFER_MAP;
+  }
+
   /**    Example:
    *
    *       scan1
@@ -2146,21 +2192,21 @@ Dbspj::appendTreeNode(Ptr<Request>  requestPtr,
     while (list.next(ancestorPtr) && ancestorPtr.i != treeNodePtr.i)
     {
       if (ancestorPtr.p->isScan() &&
-	  treeNodePtr.p->m_dependencies.get(ancestorPtr.p->m_node_no))
+          treeNodePtr.p->m_dependencies.get(ancestorPtr.p->m_node_no))
       {
-	/**
+        /**
          * 'ancestorPtr' is a scan executed inbetween this scan and its scanAncestor.
          * It is not among the ancestors of the TreeNode to be executed
          */
 
         // Need 'resume-node' scheduling in preparation for 'next' scan-branch:
         treeNodePtr.p->m_resumeEvents |= TreeNode::TN_EXEC_WAIT |
-	                                 TreeNode::TN_RESUME_NODE;
-	
+                                         TreeNode::TN_RESUME_NODE;
+
         scanAncestorPtr.p->m_bits |= TreeNode::T_BUFFER_MAP |
                                      TreeNode::T_BUFFER_MATCH;
 
-	/**
+        /**
          * BUFFER_MATCH all scan ancestors of this treeNode which we
          * depends on (May exclude some outer-joined scan branches.)
          */
@@ -2249,6 +2295,10 @@ Dbspj::dumpExecPlan(Ptr<Request>  requestPtr,
   else if (treeNodePtr.p->m_bits & TreeNode::T_BUFFER_MATCH)
   {
     DEBUG("  BUFFER 'MATCH'");
+  }
+  if (treeNodePtr.p->m_bits & TreeNode::T_CHK_CONGESTION)
+  {
+    DEBUG("  BUFFER 'ROWS' If 'congested'");
   }
 
   for (nextExec.first(it); !it.isNull(); nextExec.next(it))
@@ -2494,8 +2544,10 @@ Dbspj::batchComplete(Signal* signal, Ptr<Request> requestPtr)
 void
 Dbspj::prepareNextBatch(Signal* signal, Ptr<Request> requestPtr)
 {
+  ndbassert(requestPtr.p->m_suspended_tree_nodes.isclear());
   requestPtr.p->m_cursor_nodes.init();
   requestPtr.p->m_active_tree_nodes.clear();
+  requestPtr.p->m_suspended_tree_nodes.clear();
 
   if (requestPtr.p->m_cnt_active == 0)
   {
@@ -2865,9 +2917,8 @@ Dbspj::cleanupBatch(Ptr<Request> requestPtr)
        *  - At the innermost level the release() is more or less a NOOP
        *    as Arena allocated memory cant be released for reuse.
        */
-      // Temp removed, reused in later patch
-      //m_arenaAllocator.release(treeNodePtr.p->m_batchArena);
-      //treeNodePtr.p->m_deferred.init();
+      m_arenaAllocator.release(treeNodePtr.p->m_batchArena);
+      treeNodePtr.p->m_deferred.init();
 
       /**
        * TreeNode-type specific cleanup.
@@ -2899,7 +2950,8 @@ Dbspj::handleTreeNodeComplete(Signal * signal, Ptr<Request> requestPtr,
      * as we might be waiting for this condition to start more
      * operations.
      */
-    if (requestPtr.p->m_completed_tree_nodes.contains(treeNodePtr.p->m_predecessors))
+    if (requestPtr.p->m_completed_tree_nodes.contains(treeNodePtr.p->m_predecessors) &&
+        !requestPtr.p->m_suspended_tree_nodes.overlaps(treeNodePtr.p->m_predecessors))
     {
       jam();
       reportAncestorsComplete(signal, requestPtr, treeNodePtr);
@@ -2917,6 +2969,7 @@ Dbspj::reportAncestorsComplete(Signal * signal, Ptr<Request> requestPtr,
 {
   DEBUG("reportAncestorsComplete: " << treeNodePtr.p->m_node_no);
 
+  if (!requestPtr.p->m_suspended_tree_nodes.get(treeNodePtr.p->m_node_no))
   {
     jam();
     LocalArenaPool<DataBufferSegment<14> > pool(requestPtr.p->m_arena, m_dependency_map_pool);
@@ -2936,6 +2989,7 @@ Dbspj::reportAncestorsComplete(Signal * signal, Ptr<Request> requestPtr,
       {
         if (nextTreeNodePtr.p->m_resumeEvents & TreeNode::TN_RESUME_NODE)
         {
+          jam();
           resumeBufferedNode(signal, requestPtr, nextTreeNodePtr);
         }
 
@@ -3167,7 +3221,7 @@ Dbspj::cleanup_common(Ptr<Request> requestPtr, Ptr<TreeNode> treeNodePtr)
 
   // Correlation ids for deferred operations are allocated in the batch specific
   // arena. It is sufficient to release entire memory arena.
-  //m_arenaAllocator.release(treeNodePtr.p->m_batchArena); -- Temp removed
+  m_arenaAllocator.release(treeNodePtr.p->m_batchArena);
 
   if (treeNodePtr.p->m_send.m_keyInfoPtrI != RNIL)
   {
@@ -3411,7 +3465,7 @@ Dbspj::execSCAN_NEXTREQ(Signal* signal)
   const ScanFragNextReq * req = (ScanFragNextReq*)&signal->theData[0];
 
 #ifdef DEBUG_SCAN_FRAGREQ
-  DEBUG("Incomming SCAN_NEXTREQ");
+  DEBUG("Incoming SCAN_NEXTREQ");
   printSCANFRAGNEXTREQ(stdout, &signal->theData[0],
                        ScanFragNextReq::SignalLength, DBLQH);
 #endif
@@ -3658,7 +3712,15 @@ Dbspj::execTRANSID_AI(Signal* signal)
       } //while
     } //RT_MULTI_SCAN
 
-    if (treeNodePtr.p->m_bits & TreeNode::T_BUFFER_ANY)
+    const bool isCongested =
+        treeNodePtr.p->m_bits & TreeNode::T_CHK_CONGESTION  &&
+        requestPtr.p->m_outstanding >= HighlyCongestedLimit;
+
+    /**
+     * Buffer the row if either decided by execution plan, or needed by
+     * congestion control logic.
+     */
+    if (treeNodePtr.p->m_bits & TreeNode::T_BUFFER_ANY || isCongested)
     {
       jam();
       DEBUG("Need to storeRow"
@@ -3682,6 +3744,39 @@ Dbspj::execTRANSID_AI(Signal* signal)
         abort(signal, requestPtr, err);
         break;
       }
+    }
+
+    if (isCongested)
+    {
+      jam();
+      DEBUG("Congested, store correlation-id for row"
+        << ", node: " << treeNodePtr.p->m_node_no
+      );
+
+      /**
+       * Append correlation values of congested operations being deferred
+       * to a list / fifo. Upon resume, we will then be able to
+       * relocate all BUFFER'ed rows for which to resume operations.
+       */
+      bool appended;
+      {
+        // Need an own scope for correlation_list, as ::lookup_abort() will
+        // also construct such a list. Such nested usage is not allowed.
+        LocalArenaPool<DataBufferSegment<14> >
+            pool(treeNodePtr.p->m_batchArena, m_dependency_map_pool);
+        Local_correlation_list
+            correlations(pool,treeNodePtr.p->m_deferred.m_correlations);
+        appended = correlations.append(&row.m_src_correlation, 1);
+      }
+      if (unlikely(!appended))
+      {
+        jam();
+        abort(signal, requestPtr, DbspjErr::OutOfQueryMemory);
+        break;
+      }
+      // Setting TreeNode as suspended will trigger later resumeCongestedNodes()
+      requestPtr.p->m_suspended_tree_nodes.set(treeNodePtr.p->m_node_no);
+      break;  // -> Don't startNextNodes()
     }
 
     // Submit operations to next-TreeNodes to be executed after 'this'
@@ -3729,7 +3824,7 @@ Dbspj::storeRow(Ptr<TreeNode> treeNodePtr, const RowPtr &row)
   Uint32 headlen;
 
   Uint32 tmpHeader[2];
-  if (treeNodePtr.p->m_bits & TreeNode::T_BUFFER_ROW)
+  if (treeNodePtr.p->m_bits & (TreeNode::T_BUFFER_ROW | TreeNode::T_CHK_CONGESTION))
   {
     headptr = row.m_row_data.m_header;
     headlen = 1 + headptr->m_len;
@@ -3779,7 +3874,7 @@ Dbspj::storeRow(Ptr<TreeNode> treeNodePtr, const RowPtr &row)
   memcpy(dstptr, headptr, 4 * headlen);
   dstptr += headlen;
 
-  if (treeNodePtr.p->m_bits & TreeNode::T_BUFFER_ROW)
+  if (treeNodePtr.p->m_bits & (TreeNode::T_BUFFER_ROW | TreeNode::T_CHK_CONGESTION))
   {
     //Store entire row, include correlationId (last column)
     memcpy(dstptr, row.m_row_data.m_data, 4 * datalen);
@@ -4379,10 +4474,12 @@ Dbspj::resumeBufferedNode(Signal* signal,
 row_accepted:
     ndbassert(treeNodePtr.p->m_info != NULL);
     ndbassert(treeNodePtr.p->m_info->m_parent_row != NULL);
-    (this->*(treeNodePtr.p->m_info->m_parent_row))(signal, requestPtr, treeNodePtr, parentRow);
+    (this->*(treeNodePtr.p->m_info->m_parent_row))(signal, requestPtr,
+        treeNodePtr, parentRow);
   }
 
-  DEBUG("resumeBufferedNode: #buffered rows: " << total << ", skipped: " << skipped);
+  DEBUG("resumeBufferedNode: #buffered rows: "
+      << total << ", skipped: " << skipped);
 }
 
 /**
@@ -4390,12 +4487,108 @@ row_accepted:
  */
 
 void
+Dbspj::resumeCongestedNode(Signal* signal,
+                           Ptr<Request> requestPtr,
+                           Ptr<TreeNode> scanAncestorPtr)
+{
+  DEBUG("resumeCongestedNode, from scanAncestor: "
+      << scanAncestorPtr.p->m_node_no);
+
+  ndbassert(scanAncestorPtr.p->isScan());
+  ndbassert(scanAncestorPtr.p->m_bits & TreeNode::T_CHK_CONGESTION);
+  ndbassert(requestPtr.p->m_suspended_tree_nodes.get(
+      scanAncestorPtr.p->m_node_no));
+
+  if (scanAncestorPtr.p->m_deferred.m_it.isNull())
+  {
+    LocalArenaPool<DataBufferSegment<14> >
+        pool(scanAncestorPtr.p->m_batchArena, m_dependency_map_pool);
+    Local_correlation_list
+        correlations(pool, scanAncestorPtr.p->m_deferred.m_correlations);
+    ndbassert(!correlations.isEmpty());
+    correlations.first(scanAncestorPtr.p->m_deferred.m_it);
+    ndbassert(!scanAncestorPtr.p->m_deferred.m_it.isNull());
+  }
+
+  Uint32 resumed = 0;
+  while (!scanAncestorPtr.p->m_deferred.m_it.isNull())
+  {
+    jam();
+
+    // Break out if congested again
+    if (requestPtr.p->m_outstanding >= HighlyCongestedLimit)
+    {
+      jam();
+      DEBUG("resumeCongestedNode, congested again -> break"
+        << ", node: " << scanAncestorPtr.p->m_node_no
+        << ", resumed: " << resumed
+        << ", outstanding: " << requestPtr.p->m_outstanding
+      );
+      return;  // -> will re-resumeCongestedNodes() later
+    }
+
+    if (resumed > ResumeCongestedQuota)
+    {
+      jam();
+      return;  // -> will re-resume when below MildlyCongestedLimit again
+    }
+
+    const Uint32 corrVal = *scanAncestorPtr.p->m_deferred.m_it.data;
+
+    // Set up RowPtr & RowRef for this parent row
+    RowPtr row;
+    row.m_src_node_ptrI = scanAncestorPtr.i;
+    row.m_src_correlation = corrVal;
+
+    ndbassert(scanAncestorPtr.p->m_rows.m_type ==
+              RowCollection::COLLECTION_MAP);
+    RowRef ref;
+    scanAncestorPtr.p->m_rows.m_map.copyto(ref);
+    const Uint32* const mapptr = get_row_ptr(ref);
+
+    // Relocate parent row from correlation value.
+    const Uint32 rowId = (corrVal & 0xFFFF);
+    scanAncestorPtr.p->m_rows.m_map.load(mapptr, rowId, ref);
+
+    const Uint32* const rowptr = get_row_ptr(ref);
+    setupRowPtr(scanAncestorPtr, row, rowptr);
+
+    startNextNodes(signal, requestPtr, scanAncestorPtr, row);
+    resumed++;
+    {
+      LocalArenaPool<DataBufferSegment<14> >
+          pool(scanAncestorPtr.p->m_batchArena, m_dependency_map_pool);
+      Local_correlation_list
+          correlations(pool, scanAncestorPtr.p->m_deferred.m_correlations);
+      correlations.next(scanAncestorPtr.p->m_deferred.m_it);
+    }
+  }
+  // All deferred operations has been resumed:
+  DEBUG("resumeCongestedNode: #rows: " << resumed);
+
+  // Not congested any more, clear m_suspended state
+  requestPtr.p->m_suspended_tree_nodes.clear(scanAncestorPtr.p->m_node_no);
+
+  // Reset / release the deferred operation containers
+  m_arenaAllocator.release(scanAncestorPtr.p->m_batchArena);
+  scanAncestorPtr.p->m_deferred.init();
+
+  if (requestPtr.p->m_completed_tree_nodes.get(scanAncestorPtr.p->m_node_no))
+  {
+    jam();
+    // All rows from scanAncestorPtr in this batch has been received
+    handleTreeNodeComplete(signal, requestPtr, scanAncestorPtr);
+  }
+}  // ::resumeCongestedNodes
+
+void
 Dbspj::startNextNodes(Signal *signal,
                       Ptr<Request> requestPtr,
                       Ptr<TreeNode> treeNodePtr,
                       const RowPtr &rowRef)
 {
-  LocalArenaPool<DataBufferSegment<14> > pool(requestPtr.p->m_arena, m_dependency_map_pool);
+  LocalArenaPool<DataBufferSegment<14> >
+      pool(requestPtr.p->m_arena, m_dependency_map_pool);
   Local_dependency_map nextExec(pool, treeNodePtr.p->m_next_nodes);
   Dependency_map::ConstDataBufferIterator it;
 
@@ -4434,8 +4627,8 @@ Dbspj::startNextNodes(Signal *signal,
       ndbassert(nextTreeNodePtr.p->m_info != NULL);
       ndbassert(nextTreeNodePtr.p->m_info->m_parent_row != NULL);
 
-      (this->*(nextTreeNodePtr.p->m_info->m_parent_row))(signal,
-                                                  requestPtr, nextTreeNodePtr, parentRow);
+      (this->*(nextTreeNodePtr.p->m_info->m_parent_row))(signal, requestPtr,
+	  nextTreeNodePtr, parentRow);
 
       /* Recheck RS_ABORTING as 'next' operation might have aborted */
       if (unlikely(requestPtr.p->m_state & Request::RS_ABORTING))
@@ -4944,12 +5137,11 @@ Dbspj::lookup_send(Signal* signal,
 } //Dbspj::lookup_send
 
 void
-Dbspj::lookup_countSignal(const Signal* signal,
-                       Ptr<Request> requestPtr,
-                       Ptr<TreeNode> treeNodePtr,
-                       Uint32 cnt)
+Dbspj::lookup_countSignal(Signal* signal,
+                          Ptr<Request> requestPtr,
+                          Ptr<TreeNode> treeNodePtr,
+                          Uint32 cnt)
 {
-  jam();
   const Uint32 Tnode = refToNode(signal->getSendersBlockRef());
 
   ndbassert(requestPtr.p->m_lookup_node_data[Tnode] >= cnt);
@@ -4966,6 +5158,38 @@ Dbspj::lookup_countSignal(const Signal* signal,
     jam();
     // We have received all rows for this treeNode in this batch.
     requestPtr.p->m_completed_tree_nodes.set(treeNodePtr.p->m_node_no);
+  }
+
+  if (!requestPtr.p->m_suspended_tree_nodes.isclear() &&
+      requestPtr.p->m_outstanding <= MildlyCongestedLimit)
+  {
+    // Had congestion: Can we resume some suspended operations?
+    // First try to resume from the scan ancestor of this TreeNode.
+    Ptr<TreeNode> scanAncestorPtr;
+    m_treenode_pool.getPtr(scanAncestorPtr, treeNodePtr.p->m_scanAncestorPtrI);
+    if (likely(requestPtr.p->m_suspended_tree_nodes.get(scanAncestorPtr.p->m_node_no)))
+    {
+      jam();
+      resumeCongestedNode(signal, requestPtr, scanAncestorPtr);
+    }
+    else
+    {
+      Local_TreeNode_list list(m_treenode_pool, requestPtr.p->m_nodes);
+      Ptr<TreeNode> suspendedTreeNodePtr;
+      list.first(suspendedTreeNodePtr);
+
+      while(true)
+      {
+        ndbassert(!suspendedTreeNodePtr.isNull());
+        if (requestPtr.p->m_suspended_tree_nodes.get(suspendedTreeNodePtr.p->m_node_no))
+        {
+          jam();
+          resumeCongestedNode(signal, requestPtr, suspendedTreeNodePtr);
+          break;
+        }
+        list.next(suspendedTreeNodePtr);
+      }
+    }
   }
 }
 
@@ -7433,12 +7657,11 @@ Dbspj::scanFrag_parent_batch_repeat(Signal* signal,
 }
 
 void
-Dbspj::scanFrag_countSignal(const Signal* signal,
-                       Ptr<Request> requestPtr,
-                       Ptr<TreeNode> treeNodePtr,
-                       Uint32 cnt)
+Dbspj::scanFrag_countSignal(Signal* signal,
+                            Ptr<Request> requestPtr,
+                            Ptr<TreeNode> treeNodePtr,
+                            Uint32 cnt)
 {
-  jam();
   ScanFragData& data = treeNodePtr.p->m_scanFrag_data;
   data.m_rows_received += cnt;
 
@@ -7888,6 +8111,10 @@ Dbspj::scanFrag_abort(Signal* signal,
                       Ptr<TreeNode> treeNodePtr)
 {
   jam();
+  // Correlation ids for deferred operations are allocated in the batch specific
+  // arena. It is sufficient to release entire memory arena.
+  m_arenaAllocator.release(treeNodePtr.p->m_batchArena);
+  treeNodePtr.p->m_deferred.init();
 
   switch(treeNodePtr.p->m_state){
   case TreeNode::TN_BUILDING:

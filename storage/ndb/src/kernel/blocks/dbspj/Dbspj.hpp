@@ -516,7 +516,7 @@ public:
      * Sets Request::m_completed_tree_nodes if this completed the
      * wait for this treeNode
      */
-    void (Dbspj::*m_countSignal)(const Signal*, Ptr<Request>, Ptr<TreeNode>, Uint32 cnt);
+    void (Dbspj::*m_countSignal)(Signal*, Ptr<Request>, Ptr<TreeNode>, Uint32 cnt);
 
     /**
      * This function is used when getting a LQHKEYREF
@@ -958,6 +958,12 @@ public:
        */
       T_FIRST_MATCH = 0x200000,
 
+      /**
+       * Need congestion control of this TreeNode. Possible suspend it
+       * and later resume the operations on it.
+       */
+      T_CHK_CONGESTION = 0x400000,
+
       // End marker...
       T_END = 0
     };
@@ -1040,7 +1046,7 @@ public:
     PatternStore::Head m_attrParamPattern;
 
     // Memory Arena with lifetime limited to current result batch / node
-    //ArenaHead m_batchArena; --Temp removed, reused in later patch
+    ArenaHead m_batchArena;
 
     // RowBuffers for this TreeNode only
     RowBuffer m_rowBuffer;
@@ -1051,9 +1057,12 @@ public:
     RowCollection m_rows;
 
     /**
-     * Operation not submitted immediately are queued in the 'DeferredParentOps'
+     * T_CHK_CONGESTION may cause execution of child operations to
+     * be deferred.  These operations are queued in the 'struct DeferredParentOps'
+     * The congestion check will always happen on a Scan TreeNode having
+     * some Lookup childrens, which are the operations which might be deferred.
      */
-    //DeferredParentOps m_deferred; -- temp removed, reused in later patch
+    DeferredParentOps m_deferred;
 
     /**
      * Set of TreeNodeResumeEvents, possibly or'ed.
@@ -1150,6 +1159,8 @@ public:
       m_active_tree_nodes;     // Nodes which will return more data in NEXTREQ
     TreeNodeBitMask
       m_completed_tree_nodes;  // Nodes wo/ any 'outstanding' signals
+    TreeNodeBitMask
+      m_suspended_tree_nodes;  // Nodes suspended by SPJ congestion control
     Uint32 m_rows;             // Rows accumulated in current batch
     Uint32 m_outstanding;      // Outstanding signals, when 0, batch is done
     Uint16 m_lookup_node_data[MAX_NDB_NODES];
@@ -1401,6 +1412,7 @@ private:
                       RowPtr *row);
 
   void resumeBufferedNode(Signal*, Ptr<Request>, Ptr<TreeNode>);
+  void resumeCongestedNode(Signal*, Ptr<Request>, Ptr<TreeNode>);
 
   /**
    * SLFifoRowListIterator
@@ -1474,7 +1486,7 @@ private:
 		      const QueryNode*, const QueryNodeParameters*);
   void lookup_start(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void lookup_send(Signal*, Ptr<Request>, Ptr<TreeNode>);
-  void lookup_countSignal(const Signal*, Ptr<Request>, Ptr<TreeNode>, Uint32 cnt);
+  void lookup_countSignal(Signal*, Ptr<Request>, Ptr<TreeNode>, Uint32 cnt);
   void lookup_execLQHKEYREF(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void lookup_execLQHKEYCONF(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void lookup_stop_branch(Signal*, Ptr<Request>, Ptr<TreeNode>, Uint32 err);
@@ -1510,7 +1522,7 @@ private:
                        DABuffer param, Uint32 paramBits);
   void scanFrag_start(Signal*, Ptr<Request>,Ptr<TreeNode>);
   void scanFrag_prepare(Signal*, Ptr<Request>, Ptr<TreeNode>);
-  void scanFrag_countSignal(const Signal*, Ptr<Request>, Ptr<TreeNode>, Uint32 cnt);
+  void scanFrag_countSignal(Signal*, Ptr<Request>, Ptr<TreeNode>, Uint32 cnt);
   void scanFrag_execSCAN_FRAGREF(Signal*, Ptr<Request>, Ptr<TreeNode>,
                                  Ptr<ScanFragHandle>);
   void scanFrag_execSCAN_FRAGCONF(Signal*, Ptr<Request>, Ptr<TreeNode>,
