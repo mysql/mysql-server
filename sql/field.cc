@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -8600,7 +8600,9 @@ type_conversion_status Field_bit::store_decimal(const my_decimal *val) {
   return has_overflow ? TYPE_WARN_OUT_OF_RANGE : res;
 }
 
-double Field_bit::val_real() const { return (double)Field_bit::val_int(); }
+double Field_bit::val_real() const {
+  return static_cast<double>(static_cast<ulonglong>(Field_bit::val_int()));
+}
 
 longlong Field_bit::val_int() const {
   ASSERT_COLUMN_MARKED_FOR_READ;
