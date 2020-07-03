@@ -826,12 +826,15 @@ static void recv_writer_thread() {
   }
 }
 
+#endif /* !UNIV_HOTBACKUP */
+
 /** Frees the recovery system. */
 void recv_sys_free() {
   mutex_enter(&recv_sys->mutex);
 
   recv_sys_finish();
 
+#ifndef UNIV_HOTBACKUP
   /* wake page cleaner up to progress */
   if (!srv_read_only_mode) {
     ut_ad(!recv_recovery_on);
@@ -841,6 +844,7 @@ void recv_sys_free() {
     }
     os_event_set(recv_sys->flush_start);
   }
+#endif /* !UNIV_HOTBACKUP */
 
   /* Free encryption data structures. */
   if (recv_sys->keys != nullptr) {
@@ -864,6 +868,8 @@ void recv_sys_free() {
 
   mutex_exit(&recv_sys->mutex);
 }
+
+#ifndef UNIV_HOTBACKUP
 
 /** Copy of the LOG_HEADER_CREATOR field. */
 static char log_header_creator[LOG_HEADER_CREATOR_END - LOG_HEADER_CREATOR + 1];

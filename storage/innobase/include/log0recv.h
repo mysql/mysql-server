@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -184,13 +184,13 @@ a freshly read page)
 @param[in,out]	block	buffer block */
 #define recv_recover_page(jri, block) recv_recover_page_func(jri, block)
 
+#endif /* UNIV_HOTBACKUP */
+
 /** Frees the recovery system. */
 void recv_sys_free();
 
 /** Reset the state of the recovery system variables. */
 void recv_sys_var_init();
-
-#endif /* UNIV_HOTBACKUP */
 
 #ifdef UNIV_HOTBACKUP
 /** Get the number of bytes used by all the heaps
