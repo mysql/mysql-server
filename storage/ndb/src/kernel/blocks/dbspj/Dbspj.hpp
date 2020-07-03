@@ -746,21 +746,19 @@ public:
   {
     /**
      * m_correlations contains a list of Correlation Values (Uint32)
-     * which identifies parent rows which has been deferred. 
-     * m_pos are index into this array, identifying the next parent row
+     * which identifies parent rows which has been deferred.
+     * m_it iterates this list, identifying the next parent row
      * for which to resume operation.
      */
     Correlation_list::Head m_correlations;
-    Uint16 m_pos; // Next row operation to resume 
+    Correlation_list::ConstDataBufferIterator m_it;
 
-    DeferredParentOps() : m_correlations(), m_pos(0) {}
-
+    DeferredParentOps() : m_correlations() {
+      m_it.setNull();
+    }
     void init()  {
       m_correlations.init();
-      m_pos = 0;
-    }
-    bool isEmpty() const {
-      return (m_pos == m_correlations.getSize());
+      m_it.setNull();
     }
   };
 
