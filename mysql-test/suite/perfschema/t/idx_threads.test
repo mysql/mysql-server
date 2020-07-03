@@ -1,7 +1,5 @@
 # Tests for PERFORMANCE_SCHEMA
 
---source include/no_protocol.inc
-
 select connection_id() into @conid;
 
 select thread_id from performance_schema.threads
@@ -26,6 +24,7 @@ explain select * from performance_schema.threads
 explain select * from performance_schema.threads
   where thread_id < 1;
 
+--replace_column 3 <Info>
 select processlist_id = @conid, name, processlist_info
   from performance_schema.threads
   where thread_id = @tid;
@@ -44,6 +43,7 @@ explain select * from performance_schema.threads
 explain select * from performance_schema.threads
   where processlist_id < 99999;
 
+--replace_column 3 <Info>
 select thread_id = @tid, name, processlist_info
   from performance_schema.threads
   where processlist_id = @conid;
@@ -62,6 +62,7 @@ explain select * from performance_schema.threads
 explain select * from performance_schema.threads
   where thread_os_id < 99999;
 
+--replace_column 3 <Info>
 select thread_id - @tid, name, processlist_info
   from performance_schema.threads
   where thread_os_id = @osid;
@@ -83,6 +84,7 @@ explain select * from performance_schema.threads
 explain select * from performance_schema.threads
   where NAME like "thread/sql/%";
 
+--replace_column 3 <State> 4 <Info>
 select thread_id, name, processlist_state, processlist_info
   from performance_schema.threads
   where NAME = "thread/sql/main";
@@ -104,6 +106,7 @@ explain select * from performance_schema.threads
 explain select * from performance_schema.threads
   where PROCESSLIST_USER like "ro%";
 
+--replace_column 3 <State> 4 <Info>
 select thread_id = @tid, name, processlist_state, processlist_info
   from performance_schema.threads
   where PROCESSLIST_USER = "root";
@@ -123,6 +126,7 @@ explain select * from performance_schema.threads
 explain select * from performance_schema.threads
   where PROCESSLIST_USER = "foo" and PROCESSLIST_HOST like "bar%";
 
+--replace_column 3 <State> 4 <Info>
 select thread_id = @tid, name, processlist_state, processlist_info
   from performance_schema.threads
   where PROCESSLIST_USER = "root" and PROCESSLIST_HOST = "localhost";
@@ -144,6 +148,7 @@ explain select * from performance_schema.threads
 explain select * from performance_schema.threads
   where PROCESSLIST_HOST like "local%";
 
+--replace_column 3 <State> 4 <Info>
 select thread_id = @tid, name, processlist_state, processlist_info
   from performance_schema.threads
   where PROCESSLIST_HOST = "localhost";
