@@ -777,7 +777,7 @@ public:
     : m_magic(MAGIC), m_state(TN_END),
       m_parentPtrI(RNIL), m_requestPtrI(RNIL),
       m_ancestors(), m_coverage(), m_predecessors(), m_dependencies(),
-      m_resumeEvents(0), m_resumePtrI(RNIL),
+      m_resumeEvents(0),
       m_scanAncestorPtrI(RNIL)
     {
     }
@@ -787,7 +787,7 @@ public:
       m_info(0), m_bits(T_LEAF), m_state(TN_BUILDING),
       m_parentPtrI(RNIL), m_requestPtrI(request),
       m_ancestors(), m_coverage(), m_predecessors(), m_dependencies(),
-      m_resumeEvents(0), m_resumePtrI(RNIL),
+      m_resumeEvents(0),
       m_scanAncestorPtrI(RNIL),
       nextList(RNIL), prevList(RNIL), nextCursor(RNIL)
     {
@@ -965,16 +965,12 @@ public:
     };
 
     /**
-     * Describe whether a LQHKEY-REF and/or CONF whould trigger a 
-     * exec resume of another TreeNode having T_EXEC_SEQUENTIAL.
-     * (Used as a bitmask)
+     * Describe whether a node operation should wait for operations
+     * it depends on to complete, and the resume when all result
+     * rows has been sent. (Used as a bitmask)
      */
     enum TreeNodeResumeEvents
     {
-      TN_ENQUEUE_OP   = 0x01,   // Enqueue and wait for RESUME_REF / _CONF
-      TN_RESUME_REF   = 0x02,
-      TN_RESUME_CONF  = 0x04,
-
       TN_EXEC_WAIT    = 0x08,
       TN_RESUME_NODE  = 0x10
     };
@@ -1046,7 +1042,7 @@ public:
     PatternStore::Head m_attrParamPattern;
 
     // Memory Arena with lifetime limited to current result batch / node
-    ArenaHead m_batchArena;
+    //ArenaHead m_batchArena; --Temp removed, reused in later patch
 
     // RowBuffers for this TreeNode only
     RowBuffer m_rowBuffer;
@@ -1057,20 +1053,14 @@ public:
     RowCollection m_rows;
 
     /**
-     * T_EXEC_SEQUENTIAL cause execution of child operations to
-     * be deferred.  These operations are queued in the 'struct DeferredParentOps'
-     * Currently only Lookup operation might be deferred.
-     * Could later be extended to also cover index scans.
+     * Operation not submitted immediately are queued in the 'DeferredParentOps'
      */
-    DeferredParentOps m_deferred;
+    //DeferredParentOps m_deferred; -- temp removed, reused in later patch
 
     /**
      * Set of TreeNodeResumeEvents, possibly or'ed.
-     * Specify whether a REF or CONF will cause a resume
-     * of the TreeNode referred by 'm_resumePtrI'.
      */
     Uint32 m_resumeEvents;
-    Uint32 m_resumePtrI;
 
     /**
      * The Scan-TreeNode being the head of the inner-joined-branch
@@ -1369,13 +1359,11 @@ private:
 
   Uint32 planSequentialExec(Ptr<Request>  requestPtr,
                             const Ptr<TreeNode> branchPtr,
-                            Ptr<TreeNode> prevExecPtr,
-                            const Ptr<TreeNode> outerBranchPtr);
+                            Ptr<TreeNode> prevExecPtr);
 
   Uint32 appendTreeNode(Ptr<Request>  requestPtr,
                         Ptr<TreeNode> treeNodePtr,
-                        Ptr<TreeNode> prevExecPtr,
-                        const Ptr<TreeNode> outerBranchPtr);
+                        Ptr<TreeNode> prevExecPtr);
 
   void dumpExecPlan(Ptr<Request>, Ptr<TreeNode> node);
 
@@ -1488,14 +1476,12 @@ private:
   Uint32 lookup_build(Build_context&,Ptr<Request>,
 		      const QueryNode*, const QueryNodeParameters*);
   void lookup_start(Signal*, Ptr<Request>, Ptr<TreeNode>);
-  void lookup_resume(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void lookup_send(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void lookup_countSignal(const Signal*, Ptr<Request>, Ptr<TreeNode>, Uint32 cnt);
   void lookup_execLQHKEYREF(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void lookup_execLQHKEYCONF(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void lookup_stop_branch(Signal*, Ptr<Request>, Ptr<TreeNode>, Uint32 err);
   void lookup_parent_row(Signal*, Ptr<Request>, Ptr<TreeNode>, const RowPtr &);
-  void lookup_row(Signal*, Ptr<Request>, Ptr<TreeNode>, const RowPtr &);
   void lookup_abort(Signal*, Ptr<Request>, Ptr<TreeNode>);
   Uint32 lookup_execNODE_FAILREP(Signal*signal, Ptr<Request>, Ptr<TreeNode>,
                                NdbNodeBitmask);
