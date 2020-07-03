@@ -4405,56 +4405,56 @@ Dbspj::startNextNodes(Signal *signal,
                       Ptr<TreeNode> treeNodePtr,
                       const RowPtr &rowRef)
 {
-    LocalArenaPool<DataBufferSegment<14> > pool(requestPtr.p->m_arena, m_dependency_map_pool);
-    Local_dependency_map nextExec(pool, treeNodePtr.p->m_next_nodes);
-    Dependency_map::ConstDataBufferIterator it;
+  LocalArenaPool<DataBufferSegment<14> > pool(requestPtr.p->m_arena, m_dependency_map_pool);
+  Local_dependency_map nextExec(pool, treeNodePtr.p->m_next_nodes);
+  Dependency_map::ConstDataBufferIterator it;
+
+  /**
+   * Activate 'next' operations to be executed, based on 'rowRef'.
+   */
+  for (nextExec.first(it); !it.isNull(); nextExec.next(it))
+  {
+    Ptr<TreeNode> nextTreeNodePtr;
+    m_treenode_pool.getPtr(nextTreeNodePtr, * it.data);
 
     /**
-     * Activate 'next' operations to be executed, based on 'rowRef'.
+     * Execution of 'next' TreeNode may have to be delayed as we
+     * will like to see which INNER-joins which had matches first.
+     * Will be resumed later by resumeBufferedNode()
      */
-    for (nextExec.first(it); !it.isNull(); nextExec.next(it))
+    if ((nextTreeNodePtr.p->m_resumeEvents & TreeNode::TN_EXEC_WAIT) == 0)
     {
-      Ptr<TreeNode> nextTreeNodePtr;
-      m_treenode_pool.getPtr(nextTreeNodePtr, * it.data);
+      jam();
 
       /**
-       * Execution of 'next' TreeNode may have to be delayed as we
-       * will like to see which INNER-joins which had matches first.
-       * Will be resumed later by resumeBufferedNode()
+       * 'rowRef' is the ancestor row from the immediate ancestor in
+       * the execution plan. In case this is different from the parent-treeNode
+       * in the 'query', we have to find the 'real' parentRow from the
+       * parent as defined in the 'query'
        */
-      if ((nextTreeNodePtr.p->m_resumeEvents & TreeNode::TN_EXEC_WAIT) == 0)
+      RowPtr parentRow(rowRef);
+      if (unlikely(nextTreeNodePtr.p->m_parentPtrI != treeNodePtr.i))
+      {
+        Ptr<TreeNode> parentPtr;
+        const Uint32 parentRowId = (parentRow.m_src_correlation >> 16);
+        m_treenode_pool.getPtr(parentPtr, nextTreeNodePtr.p->m_parentPtrI);
+        getBufferedRow(parentPtr, parentRowId, &parentRow);
+      }
+
+      ndbassert(nextTreeNodePtr.p->m_info != NULL);
+      ndbassert(nextTreeNodePtr.p->m_info->m_parent_row != NULL);
+
+      (this->*(nextTreeNodePtr.p->m_info->m_parent_row))(signal,
+                                                  requestPtr, nextTreeNodePtr, parentRow);
+
+      /* Recheck RS_ABORTING as 'next' operation might have aborted */
+      if (unlikely(requestPtr.p->m_state & Request::RS_ABORTING))
       {
         jam();
-
-	/**
-         * 'rowRef' is the ancestor row from the immediate ancestor in
-         * the execution plan. In case this is different from the parent-treeNode
-         * in the 'query', we have to find the 'real' parentRow from the
-         * parent as defined in the 'query'
-         */
-        RowPtr parentRow(rowRef);
-        if (unlikely(nextTreeNodePtr.p->m_parentPtrI != treeNodePtr.i))
-        {
-          Ptr<TreeNode> parentPtr;
-          const Uint32 parentRowId = (parentRow.m_src_correlation >> 16);
-          m_treenode_pool.getPtr(parentPtr, nextTreeNodePtr.p->m_parentPtrI);
-          getBufferedRow(parentPtr, parentRowId, &parentRow);
-        }
-
-        ndbassert(nextTreeNodePtr.p->m_info != NULL);
-        ndbassert(nextTreeNodePtr.p->m_info->m_parent_row != NULL);
-
-        (this->*(nextTreeNodePtr.p->m_info->m_parent_row))(signal,
-                                                    requestPtr, nextTreeNodePtr, parentRow);
-
-        /* Recheck RS_ABORTING as 'next' operation might have aborted */
-        if (unlikely(requestPtr.p->m_state & Request::RS_ABORTING))
-        {
-          jam();
-          return;
-        }
+        return;
       }
     }
+  }
 }
 
 
