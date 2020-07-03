@@ -73,7 +73,7 @@ static const Uint32 MaxCorrelationId = (1 << 12);
  */
 //#define DEBUG(x) ndbout << "DBSPJ: "<< x << endl
 //#define DEBUG_DICT(x) ndbout << "DBSPJ: "<< x << endl
-//#define DEBUG_LQHKEREQ
+//#define DEBUG_LQHKEYREQ
 //#define DEBUG_SCAN_FRAGREQ
 #endif
 
@@ -3599,7 +3599,9 @@ Dbspj::execTRANSID_AI(Signal* signal)
 
 #if defined(DEBUG_LQHKEYREQ) || defined(DEBUG_SCAN_FRAGREQ)
   printf("execTRANSID_AI: ");
-  print(linearPtr, stdout);
+  for (Uint32 i = 0; i<linearPtr.sz; i++)
+    printf("0x%.8x ", linearPtr.p[i]);
+  printf("\n");
 #endif
 
   /**
