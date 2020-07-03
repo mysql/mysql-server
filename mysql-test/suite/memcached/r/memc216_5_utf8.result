@@ -23,6 +23,8 @@ INSERT INTO t1 VALUES ('B', 'Berlin', 'Mitte', '2', 'bbbbbbbbbbbbbb', '2345', '2
 INSERT INTO t1 VALUES ('C', 'Cottbus', 'West', '3', 'cccccccccccccc', '3456', '2012', 0, 0 ,0);
 INSERT INTO t1 VALUES ('M', 'München', 'Süd', '4', 'ÜÖÄßüöä', '4567', '2012', 0, 0, 0);
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -89,6 +91,8 @@ INSERT INTO t1 VALUES ('B', 'Berlin', 'Mitte', '2', 'bbbbbbbbbbbbbb', '2345', '2
 INSERT INTO t1 VALUES ('C', 'Cottbus', 'West', '3', 'cccccccccccccc', '3456', '2012', 0, 0 ,0);
 INSERT INTO t1 VALUES ('M', 'München', 'Süd', '4', 'ÜÖÄßüöä', '4567', '2012', 0, 0, 0);
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

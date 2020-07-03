@@ -15,6 +15,8 @@ INSERT INTO t1 VALUES ('B', 'Berlin', 0, 0, 0);
 INSERT INTO t1 VALUES ('C', 'Cottbus', 0, 0 ,0);
 INSERT INTO t1 VALUES ('H', 'Hamburg', 0, 0, 0);
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
 SELECT c1,c2 FROM t1;
 c1	c2
 B	Berlin
@@ -43,6 +45,8 @@ DELETE FROM cache_policies;
 INSERT INTO cache_policies VALUES("cache_policy", "caching",
 "innodb_only", "innodb_only", "innodb_only");
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
 ----- Test get (caching) -----
 Here are the memcached results with D,B,H,C:
 Darmstadt
@@ -55,6 +59,8 @@ DELETE FROM cache_policies;
 INSERT INTO cache_policies VALUES("cache_policy", "cache_only",
 "cache_only", "innodb_only", "innodb_only");
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
 ----- Test insert (cache_only) -----
 Add E|Essen:
 Ok.
@@ -77,6 +83,8 @@ DELETE FROM cache_policies;
 INSERT INTO cache_policies VALUES("cache_policy", "caching",
 "caching", "innodb_only", "innodb_only");
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
 ----- Test insert (caching) -----
 Add G|Gossen:
 Ok.
@@ -106,6 +114,8 @@ DELETE FROM cache_policies;
 INSERT INTO cache_policies VALUES("cache_policy", "caching",
 "caching", "cache_only", "innodb_only");
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
 ----- Test delete (cache_only) -----
 Delete G|Gossen:
 Error: fail to delete.
@@ -132,6 +142,8 @@ DELETE FROM cache_policies;
 INSERT INTO cache_policies VALUES("cache_policy", "caching",
 "caching", "caching", "innodb_only");
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
 ----- Test delete (caching) -----
 add G|Gossen:
 Ok.
@@ -160,6 +172,8 @@ DELETE FROM cache_policies;
 INSERT INTO cache_policies VALUES("cache_policy", "cache_only",
 "caching", "cache_only", "cache_only");
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
 ----- Test flush (cache_only) -----
 add G|Gossen:
 Ok.
@@ -195,6 +209,8 @@ DELETE FROM cache_policies;
 INSERT INTO cache_policies VALUES("cache_policy", "caching",
 "caching", "caching", "caching");
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
 ----- Test flush (cache_only) -----
 add G|Gossen:
 Error: fail to add.
@@ -225,6 +241,8 @@ DELETE FROM cache_policies;
 INSERT INTO cache_policies VALUES("cache_policy", "caching",
 "disabled", "disabled", "disabled");
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
 use test;
 delete from t1;
 INSERT INTO t1 VALUES ('D', 'Darmstadt', 0, 0, 0);
@@ -264,6 +282,8 @@ INSERT IGNORE INTO cache_policies VALUES("junk", "junk",
 Warnings:
 Warning	1265	Data truncated for column 'get_policy' at row 1
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
 ----- Test with wrong policy name -----
 add G|Gossen:
 Ok.

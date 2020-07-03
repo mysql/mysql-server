@@ -19,6 +19,8 @@ INSERT INTO t1 VALUES ('H', 'Hamburg', 'Norderstedt', 0, 0, 0);
 SHOW VARIABLES LIKE 'daemon_memcached_option';
 Variable_name	Value
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
 SHOW VARIABLES LIKE 'daemon_memcached_option';
 Variable_name	Value
 daemon_memcached_option	-p11233

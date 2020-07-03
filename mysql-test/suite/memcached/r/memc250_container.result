@@ -16,6 +16,8 @@ INSERT INTO t1 VALUES ('B', 'Berlin', 0, 0, 0);
 INSERT INTO t1 VALUES ('C', 'Cottbus', 0, 0 ,0);
 INSERT INTO t1 VALUES ('H', 'Hamburg', 0, 0, 0);
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
 SELECT c1,c2 FROM t1;
 c1	c2
 B	Berlin
@@ -61,6 +63,8 @@ INSERT INTO t2 VALUES ('B', 't2_Berlin', 0, 0, 0);
 INSERT INTO t2 VALUES ('C', 't2_Cottbus', 0, 0 ,0);
 INSERT INTO t2 VALUES ('H', 't2_Hamburg', 0, 0, 0);
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
 SELECT c1,c2 FROM t2;
 c1	c2
 B	t2_Berlin
@@ -103,6 +107,8 @@ DELETE FROM containers;
 INSERT INTO containers VALUES ("desc_t2", "junk", "t2",
 "c1", "c2",  "c3", "c4", "c5", "PRIMARY");
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
 # This will fail, since memcached not initialized
 UNINSTALL PLUGIN daemon_memcached;
 DELETE FROM containers;
@@ -116,6 +122,8 @@ c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
 ENGINE = INNODB;
 INSERT INTO t2 VALUES (3, 't2_Hamburg', 0, 0, 0);
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
 # This will succeed, since memcached supports int as key
 t2_Hamburg
 use test;
@@ -126,6 +134,8 @@ c3 INT, c4 INT,  c5 INT, primary key(c1));
 INSERT INTO t2 VALUES ('H', 't2_Hamburg', 0, 0, 0);
 UNINSTALL PLUGIN daemon_memcached;
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
 # This will fail, since memcached not initialized
 t2_Hamburg
 UNINSTALL PLUGIN daemon_memcached;
@@ -140,6 +150,8 @@ c2 VARCHAR(1024),
 c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
 ENGINE = INNODB;
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
 SELECT c1,c2 FROM t2;
 c1	c2
 # Add E|Essen:
@@ -190,6 +202,8 @@ INSERT INTO t2 VALUES ('B', 't2_Berlin', 0, 0, 0);
 INSERT INTO t2 VALUES ('C', 't2_Cottbus', 0, 0 ,0);
 INSERT INTO t2 VALUES ('H', 't2_Hamburg', 0, 0, 0);
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
 SELECT c1,c2 FROM t2;
 c1	c2
 B	t2_Berlin
@@ -218,6 +232,8 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+Warnings:
+Warning	1681	'InnoDB Memcached Plugin' is deprecated and will be removed in a future release.
 DROP TABLE t2;
 UNINSTALL PLUGIN daemon_memcached;
 DROP DATABASE innodb_memcache;
