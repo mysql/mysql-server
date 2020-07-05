@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -37,8 +37,8 @@
 #include "plugin/x/src/mq/notice_configuration.h"
 #include "plugin/x/src/mq/notice_output_queue.h"
 #include "plugin/x/src/sql_data_context.h"
+#include "plugin/x/src/variables/xpl_global_status_variables.h"
 #include "plugin/x/src/xpl_dispatcher.h"
-#include "plugin/x/src/xpl_global_status_variables.h"
 
 namespace xpl {
 

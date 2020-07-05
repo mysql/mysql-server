@@ -26,6 +26,12 @@
 # As it is enough to test with one binlog format.
 --source include/have_binlog_format_statement.inc
 
+#
+# The test case records the output of mysqlbinlog, thence if compression
+# is enabled, then it fails as the compression event is output.
+#
+--source include/not_binlog_transaction_compression_on.inc
+
 CREATE TABLE t1 (a INT);
 RESET MASTER;
 

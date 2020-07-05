@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -78,9 +78,25 @@ class Mock_ssl_context : public iface::Ssl_context {
   MOCK_METHOD0(reset, void());
 };
 
+class Mock_authentication_container
+    : public xpl::iface::Authentication_container {
+ public:
+  std::unique_ptr<xpl::iface::Authentication> get_auth_handler(
+      const std::string &name, xpl::iface::Session *session) override {
+    return std::unique_ptr<xpl::iface::Authentication>{
+        get_auth_handler_raw(name, session)};
+  }
+
+  MOCK_METHOD2(get_auth_handler_raw,
+               xpl::iface::Authentication *(const std::string &name,
+                                            xpl::iface::Session *session));
+  MOCK_METHOD1(get_authentication_mechanisms,
+               std::vector<std::string>(xpl::iface::Client *client));
+};
+
 class Mock_scheduler_dynamic : public ngs::Scheduler_dynamic {
  public:
-  Mock_scheduler_dynamic() : Scheduler_dynamic("", PSI_NOT_INSTRUMENTED) {}
+  Mock_scheduler_dynamic() : ngs::Scheduler_dynamic("", PSI_NOT_INSTRUMENTED) {}
 
   MOCK_METHOD0(launch, void());
   MOCK_METHOD0(stop, void());
@@ -91,14 +107,15 @@ class Mock_scheduler_dynamic : public ngs::Scheduler_dynamic {
 
 class Mock_server : public iface::Server {
  public:
-  std::unique_ptr<iface::Authentication> get_auth_handler(const std::string &p1,
-                                                          iface::Session *p2) {
-    return std::unique_ptr<iface::Authentication>(get_auth_handler2(p1, p2));
-  }
+  MOCK_METHOD0(get_authentications, xpl::iface::Authentication_container &());
 
-  MOCK_METHOD2(get_auth_handler2,
-               std::unique_ptr<iface::Authentication>::element_type *(
-                   const std::string &, iface::Session *));
+  MOCK_METHOD0(reset, bool());
+  MOCK_METHOD0(start_failed, void());
+  MOCK_METHOD0(prepare, bool());
+  MOCK_METHOD0(start_tasks, void());
+  MOCK_METHOD1(stop, void(const bool));
+  MOCK_METHOD0(delayed_start_tasks, void());
+
   MOCK_CONST_METHOD0(get_config,
                      std::shared_ptr<ngs::Protocol_global_config>());
   MOCK_METHOD0(is_running, bool());
@@ -110,17 +127,15 @@ class Mock_server : public iface::Server {
                std::shared_ptr<iface::Session>(iface::Client *,
                                                iface::Protocol_encoder *,
                                                const int));
+
+  MOCK_METHOD0(get_client_list, ngs::Client_list &());
+  MOCK_METHOD1(get_client, std::shared_ptr<xpl::iface::Client>(const THD *));
+  MOCK_METHOD2(kill_client,
+               ngs::Error_code(const uint64_t, xpl::iface::Session *));
+
   MOCK_METHOD0(get_client_exit_mutex, xpl::Mutex &());
   MOCK_METHOD0(restart_client_supervision_timer, void());
 
-  // Workaround for GMOCK undefined behaviour with ResultHolder
-  MOCK_METHOD2(get_authentication_mechanisms_void,
-               bool(std::vector<std::string> &auth_mech,
-                    const iface::Client &client));
-  void get_authentication_mechanisms(std::vector<std::string> *auth_mech,
-                                     const iface::Client &client) {
-    get_authentication_mechanisms_void(*auth_mech, client);
-  }
   MOCK_METHOD0(reset_globals, bool());
   MOCK_CONST_METHOD0(get_document_id_generator,
                      iface::Document_id_generator &());
@@ -357,6 +372,7 @@ class Mock_ngs_client : public ngs::Client {
   MOCK_METHOD0(resolve_hostname, std::string());
   MOCK_CONST_METHOD0(is_interactive, bool());
   MOCK_METHOD1(set_is_interactive, void(const bool));
+  MOCK_METHOD0(kill, void());
   MOCK_METHOD1(handle_message, void(ngs::Message_request *));
 };
 
@@ -366,6 +382,7 @@ class Mock_client : public iface::Client {
 
   MOCK_CONST_METHOD0(client_id, const char *());
 
+  MOCK_METHOD0(kill, void());
   MOCK_CONST_METHOD0(client_address, const char *());
   MOCK_CONST_METHOD0(client_hostname, const char *());
   MOCK_CONST_METHOD0(client_hostname_or_address, const char *());
@@ -391,11 +408,10 @@ class Mock_client : public iface::Client {
   MOCK_METHOD1(set_read_timeout, void(const unsigned int));
   MOCK_METHOD1(set_write_timeout, void(const unsigned int));
 
-  MOCK_METHOD3(configure_compression_opts,
+  MOCK_METHOD4(configure_compression_opts,
                void(const ngs::Compression_algorithm algo,
-                    const int64_t max_msg, const bool combine));
-  MOCK_METHOD2(configure_compression_opts,
-               void(const int max_msg, const bool combine));
+                    const int64_t max_msg, const bool combine,
+                    const Optional_value<int64_t> &level));
   MOCK_METHOD1(handle_message, void(ngs::Message_request *));
 
   MOCK_METHOD1(get_capabilities,
@@ -417,7 +433,7 @@ class Mock_client : public iface::Client {
   MOCK_METHOD0(activate_tls_void, bool());
   MOCK_METHOD0(on_auth_timeout_void, bool());
   MOCK_METHOD0(on_server_shutdown_void, bool());
-  MOCK_METHOD1(run_void, bool(bool));
+  MOCK_METHOD0(run_void, bool());
   MOCK_METHOD0(reset_accept_time_void, bool());
 
   void on_session_reset(iface::Session *arg) override {
@@ -442,7 +458,7 @@ class Mock_client : public iface::Client {
 
   void on_server_shutdown() override { on_server_shutdown_void(); }
 
-  void run(bool arg) override { run_void(arg); }
+  void run() override { run_void(); }
 
   void reset_accept_time() override { reset_accept_time_void(); }
 };

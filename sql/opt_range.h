@@ -416,7 +416,7 @@ class QUICK_SELECT_I {
   */
   virtual QUICK_SELECT_I *make_reverse(
       uint used_key_parts_arg MY_ATTRIBUTE((unused))) {
-    return NULL;
+    return nullptr;
   }
   virtual void set_handler(handler *file_arg MY_ATTRIBUTE((unused))) {}
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -43,8 +43,6 @@ constexpr const char *kEventSourceName = "MySQL Router";
 constexpr const char *kRegistryPrefix =
     "SYSTEM\\CurrentControlSet\\services\\eventlog\\Application\\";
 
-constexpr const char *kLogLevel = "level";
-
 static WORD logger_to_eventlog_severity(LogLevel level) {
   switch (level) {
     case LogLevel::kFatal:
@@ -53,9 +51,10 @@ static WORD logger_to_eventlog_severity(LogLevel level) {
     case LogLevel::kWarning:
       return EVENTLOG_WARNING_TYPE;
     default:
-      assert(level == LogLevel::kInfo || level == LogLevel::kDebug);
-      // there is no DEBUG counterpart in the eventlog so we go with
-      // Information for DEBUG too!
+      assert(level == LogLevel::kSystem || level == LogLevel::kInfo ||
+             level == LogLevel::kNote || level == LogLevel::kDebug);
+      // there are no DEBUG, NOTE, or SYSTEM counterparts in the eventlog so we
+      // go with Information for DEBUG, NOTE and SYSTEM too!
       return EVENTLOG_INFORMATION_TYPE;
   }
 }

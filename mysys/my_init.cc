@@ -142,9 +142,10 @@ bool my_init() {
   my_umask_dir = 0750; /* Default umask for new directories */
 
   /* Default creation of new files */
-  if ((str = getenv("UMASK")) != 0) my_umask = (int)(atoi_octal(str) | 0600);
+  if ((str = getenv("UMASK")) != nullptr)
+    my_umask = (int)(atoi_octal(str) | 0600);
   /* Default creation of new dir's */
-  if ((str = getenv("UMASK_DIR")) != 0)
+  if ((str = getenv("UMASK_DIR")) != nullptr)
     my_umask_dir = (int)(atoi_octal(str) | 0700);
 
   if (my_thread_global_init()) return true;
@@ -152,7 +153,7 @@ bool my_init() {
   if (my_thread_init()) return true;
 
   /* $HOME is needed early to parse configuration files located in ~/ */
-  if ((home_dir = getenv("HOME")) != 0)
+  if ((home_dir = getenv("HOME")) != nullptr)
     home_dir = intern_filename(home_dir_buff, home_dir);
 
   {

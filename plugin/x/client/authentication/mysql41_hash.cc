@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -44,8 +44,6 @@ int mysql_mysql41_hash_result(SHA_CTX *context,
   @param digest [out]  Computed mysql41_hash digest
   @param buf    [in]   Message to be computed
   @param len    [in]   Length of the message
-
-  @return              void
 */
 void compute_mysql41_hash(uint8_t *digest, const char *buf, unsigned len) {
   SHA_CTX mysql41_hash_context;
@@ -64,8 +62,6 @@ void compute_mysql41_hash(uint8_t *digest, const char *buf, unsigned len) {
   @param len1   [in]   Length of first message
   @param buf2   [in]   Second message
   @param len2   [in]   Length of second message
-
-  @return              void
 */
 void compute_mysql41_hash_multi(uint8_t *digest, const char *buf1,
                                 unsigned len1, const char *buf2,

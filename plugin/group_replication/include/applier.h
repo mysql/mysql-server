@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -162,10 +162,10 @@ class Transaction_prepared_action_packet : public Packet {
   Transaction_prepared_action_packet(const rpl_sid *sid, rpl_gno gno,
                                      const Gcs_member_identifier &gcs_member_id)
       : Packet(TRANSACTION_PREPARED_PACKET_TYPE),
-        m_sid_specified(sid != NULL ? true : false),
+        m_sid_specified(sid != nullptr ? true : false),
         m_gno(gno),
         m_gcs_member_id(gcs_member_id.get_member_id()) {
-    if (sid != NULL) {
+    if (sid != nullptr) {
       m_sid.copy_from(*sid);
     }
   }
@@ -176,7 +176,7 @@ class Transaction_prepared_action_packet : public Packet {
   const rpl_gno m_gno;
   const Gcs_member_identifier m_gcs_member_id;
 
-  const rpl_sid *get_sid() { return m_sid_specified ? &m_sid : NULL; }
+  const rpl_sid *get_sid() { return m_sid_specified ? &m_sid : nullptr; }
 
  private:
   rpl_sid m_sid;
@@ -291,6 +291,11 @@ class Applier_module : public Applier_module_interface {
       @retval !=0    Error
   */
   int initialize_applier_thread();
+
+  /**
+   * Return the local applier stats.
+   */
+  Pipeline_member_stats *get_local_pipeline_stats();
 
   /**
     Terminates the applier thread.
@@ -632,9 +637,8 @@ class Applier_module : public Applier_module_interface {
 
     @param[out] retrieved_set the set in string format.
 
-    @return
-      @retval true there was an error.
-      @retval false the operation has succeeded.
+    @retval true there was an error.
+    @retval false the operation has succeeded.
   */
   virtual bool get_retrieved_gtid_set(std::string &retrieved_set);
 

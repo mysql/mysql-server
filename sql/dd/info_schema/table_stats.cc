@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -142,6 +142,15 @@ bool store_statistics_record(THD *thd, T *object) {
   if (thd->dd_client()->store(object)) {
     trans_rollback_stmt(thd);
     trans_rollback(thd);
+    /**
+      It is ok to ignore ER_DUP_ENTRY, because there is possibility
+      that another thread would have updated statistics in high
+      concurrent environment. See Bug#29948755 for more information.
+    */
+    if (thd->get_stmt_da()->mysql_errno() == ER_DUP_ENTRY) {
+      thd->clear_error();
+      return false;
+    }
     return true;
   }
 
@@ -851,7 +860,7 @@ end:
   lex_end(thd->lex);
 
   // Free items, before restoring backup_arena below.
-  DBUG_ASSERT(i_s_arena.item_list() == NULL);
+  DBUG_ASSERT(i_s_arena.item_list() == nullptr);
   thd->free_items();
 
   /*

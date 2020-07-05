@@ -123,6 +123,7 @@ create table t2 (i int not null);
 insert into t2 values (0),(1),    (3),(4);
 create table t3 (i int not null);
 insert into t3 values (0),(1),(2),    (4);
+--sorted_result
 select * from
  t1 LEFT JOIN
  ( t2 LEFT JOIN

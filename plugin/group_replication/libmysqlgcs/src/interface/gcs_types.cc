@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,7 +57,7 @@ bool Gcs_interface_parameters::check_parameters(
 
 const std::string *Gcs_interface_parameters::get_parameter(
     const std::string &name) const {
-  const std::string *retval = NULL;
+  const std::string *retval = nullptr;
 
   std::map<std::string, std::string>::const_iterator to_find;
 

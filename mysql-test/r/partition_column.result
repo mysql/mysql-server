@@ -323,8 +323,8 @@ partition p2 values in ((3, NULL), (NULL, 1)));
 select partition_method, partition_expression, partition_description
 from information_schema.partitions where table_name = "t1";
 PARTITION_METHOD	PARTITION_EXPRESSION	PARTITION_DESCRIPTION
-LIST COLUMNS	`a`,`b`	(1,NULL),(2,NULL),(NULL,NULL)
 LIST COLUMNS	`a`,`b`	(1,1),(2,2)
+LIST COLUMNS	`a`,`b`	(1,NULL),(2,NULL),(NULL,NULL)
 LIST COLUMNS	`a`,`b`	(3,NULL),(NULL,1)
 show create table t1;
 Table	Create Table

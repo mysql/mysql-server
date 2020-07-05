@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -52,7 +52,7 @@ static void lock_wait_table_print(void) {
 
   const srv_slot_t *slot = lock_sys->waiting_threads;
 
-  for (ulint i = 0; i < srv_max_n_threads; i++, ++slot) {
+  for (uint32_t i = 0; i < srv_max_n_threads; i++, ++slot) {
     fprintf(stderr,
             "Slot %lu: thread type %lu,"
             " in use %lu, susp %lu, timeout %lu, time %lu\n",
@@ -80,21 +80,18 @@ static void lock_wait_table_release_slot(
   See comments in lock_wait_release_thread_if_suspended() for more details. */
 
   ut_ad(slot->in_use);
-  ut_ad(slot->thr != NULL);
-  ut_ad(slot->thr->slot != NULL);
+  ut_ad(slot->thr != nullptr);
+  ut_ad(slot->thr->slot != nullptr);
   ut_ad(slot->thr->slot == slot);
 
   /* Must be within the array boundaries. */
   ut_ad(slot >= lock_sys->waiting_threads);
   ut_ad(slot < upper);
 
-  slot->thr->slot = NULL;
-  slot->thr = NULL;
+  slot->thr->slot = nullptr;
+  slot->thr = nullptr;
   slot->in_use = FALSE;
 
-  /* This operation is guarded by lock_wait_mutex_enter/exit and we don't care
-  about its relative ordering with other operations in this critical section. */
-  lock_sys->n_waiting.fetch_sub(1, std::memory_order_relaxed);
   /* Scan backwards and adjust the last free slot pointer. */
   for (slot = lock_sys->last_slot;
        slot > lock_sys->waiting_threads && !slot->in_use; --slot) {
@@ -138,15 +135,15 @@ static srv_slot_t *lock_wait_table_reserve_slot(
 
   slot = lock_sys->waiting_threads;
 
-  for (ulint i = srv_max_n_threads; i--; ++slot) {
+  for (uint32_t i = srv_max_n_threads; i--; ++slot) {
     if (!slot->in_use) {
       slot->reservation_no = lock_wait_table_reservations++;
       slot->in_use = TRUE;
       slot->thr = thr;
       slot->thr->slot = slot;
 
-      if (slot->event == NULL) {
-        slot->event = os_event_create(0);
+      if (slot->event == nullptr) {
+        slot->event = os_event_create(nullptr);
         ut_a(slot->event);
       }
 
@@ -205,7 +202,7 @@ void lock_wait_suspend_thread(que_thr_t *thr) /*!< in: query thread associated
 
   trx = thr_get_trx(thr);
 
-  if (trx->mysql_thd != 0) {
+  if (trx->mysql_thd != nullptr) {
     DEBUG_SYNC_C("lock_wait_suspend_thread_enter");
   }
 
@@ -249,9 +246,7 @@ void lock_wait_suspend_thread(que_thr_t *thr) /*!< in: query thread associated
 
     start_time = ut_time_monotonic_us();
   }
-  /* This operation is guarded by lock_wait_mutex_enter/exit and we don't care
-  about its relative ordering with other operations in this critical section. */
-  lock_sys->n_waiting.fetch_add(1, std::memory_order_relaxed);
+
   lock_wait_mutex_exit();
 
   /* We hold trx->mutex here, which is required to call
@@ -409,9 +404,9 @@ static void lock_wait_release_thread_if_suspended(que_thr_t *thr) {
   lock_wait_release_thread_if_suspended, so we don't need to do anything in this
   case - trx will simply not go to sleep. */
   ut_ad(thr->state == QUE_THR_RUNNING);
-  ut_ad(trx->lock.wait_lock == NULL);
+  ut_ad(trx->lock.wait_lock == nullptr);
 
-  if (thr->slot != NULL && thr->slot->in_use && thr->slot->thr == thr) {
+  if (thr->slot != nullptr && thr->slot->in_use && thr->slot->thr == thr) {
     if (trx->lock.was_chosen_as_deadlock_victim) {
       trx->error_state = DB_DEADLOCK;
       trx->lock.was_chosen_as_deadlock_victim = false;
@@ -496,10 +491,10 @@ static void lock_wait_check_and_cancel(
 
     trx_mutex_enter(trx);
 
-    if (trx->lock.wait_lock != NULL && !trx_is_high_priority(trx)) {
+    if (trx->lock.wait_lock != nullptr && !trx_is_high_priority(trx)) {
       ut_a(trx->lock.que_state == TRX_QUE_LOCK_WAIT);
 
-      lock_cancel_waiting_and_release(trx->lock.wait_lock, false);
+      lock_cancel_waiting_and_release(trx->lock.wait_lock);
     }
 
     lock_mutex_exit();
@@ -548,8 +543,9 @@ static void lock_wait_check_slots_for_timeouts() {
 
 /** Takes a snapshot of the content of slots which are in use
 @param[out]   infos   Will contain the information about slots which are in use
+@return value of lock_wait_table_reservations before taking the snapshot
 */
-static void lock_wait_snapshot_waiting_threads(
+static uint64_t lock_wait_snapshot_waiting_threads(
     ut::vector<waiting_trx_info_t> &infos) {
   ut_ad(!lock_wait_mutex_own());
   infos.clear();
@@ -571,6 +567,7 @@ static void lock_wait_snapshot_waiting_threads(
   every X iterations and modify the lock_wait_build_wait_for_graph() to handle
   duplicates in a smart way.
   */
+  const auto table_reservations = lock_wait_table_reservations;
   for (auto slot = lock_sys->waiting_threads; slot < lock_sys->last_slot;
        ++slot) {
     if (slot->in_use) {
@@ -582,6 +579,50 @@ static void lock_wait_snapshot_waiting_threads(
     }
   }
   lock_wait_mutex_exit();
+  return table_reservations;
+}
+
+/** Used to initialize schedule weights of nodes in wait-for-graph for the
+computation. Initially all nodes have weight 1, except for nodes which waited
+very long, for which we set the weight to WEIGHT_BOOST
+@param[in]      infos               information about all waiting transactions
+@param[in]      table_reservations  value of lock_wait_table_reservations at
+                                    before taking the `infos` snapshot
+@param[out]     new_weights         place to store initial weights of nodes
+*/
+static void lock_wait_compute_initial_weights(
+    const ut::vector<waiting_trx_info_t> &infos,
+    const uint64_t table_reservations,
+    ut::vector<trx_schedule_weight_t> &new_weights) {
+  const size_t n = infos.size();
+  ut_ad(n <= std::numeric_limits<trx_schedule_weight_t>::max());
+
+  /*
+  We want to boost transactions which waited too long, according to a heuristic,
+  that if 2*n transactions got suspended during our wait, and the current number
+  of waiters is n, then it means that at least n transactions bypassed us, which
+  seems unfair. Also, in a fair world, where suspensions and wake-ups are
+  balanced, 2*n suspensions mean around 2*n wake-ups, and one would expect
+  around n other transactions to wake up, until it is our turn to wake up.
+  A boost increases weight from 1 to WEIGHT_BOOST for the node.
+  We want a boosted transaction to have weight higher than weight of any other
+  transaction which is not boosted and does not cause any boosted trx to wait.
+  For this it would suffice to set WEIGHT_BOOST to n.
+  But, we sum weights of nodes that wait for us, to come up with final value of
+  schedule_weight, so to avoid overflow, we must ensure that WEIGHT_BOOST*n is
+  small enough to fit in signed 32-bit.
+  We thus clamp WEIGHT_BOOST to 1e9 / n just to be safe.
+  */
+  const trx_schedule_weight_t WEIGHT_BOOST =
+      n == 0 ? 1 : std::min<trx_schedule_weight_t>(n, 1e9 / n);
+  new_weights.clear();
+  new_weights.resize(n, 1);
+  const uint64_t MAX_FAIR_WAIT = 2 * n;
+  for (size_t from = 0; from < n; ++from) {
+    if (infos[from].reservation_no + MAX_FAIR_WAIT < table_reservations) {
+      new_weights[from] = WEIGHT_BOOST;
+    }
+  }
 }
 
 /** Analyzes content of the snapshot with information about slots in use, and
@@ -595,8 +636,9 @@ transactions, such that for each waiter we have one outgoing edge.
 static void lock_wait_build_wait_for_graph(
     ut::vector<waiting_trx_info_t> &infos, ut::vector<int> &outgoing) {
   /** We are going to use int and uint to store positions within infos */
-  ut_ad(infos.size() < (1 << 20));
+  ut_ad(infos.size() < std::numeric_limits<uint>::max());
   const auto n = static_cast<uint>(infos.size());
+  ut_ad(n < static_cast<uint>(std::numeric_limits<int>::max()));
   outgoing.clear();
   outgoing.resize(n, -1);
   /* This particular implementation sorts infos by ::trx, and then uses
@@ -639,7 +681,7 @@ static void lock_wait_rollback_deadlock_victim(trx_t *chosen_victim) {
   chosen_victim->lock.was_chosen_as_deadlock_victim = true;
   ut_a(chosen_victim->lock.wait_lock);
   ut_a(chosen_victim->lock.que_state == TRX_QUE_LOCK_WAIT);
-  lock_cancel_waiting_and_release(chosen_victim->lock.wait_lock, true);
+  lock_cancel_waiting_and_release(chosen_victim->lock.wait_lock);
   trx_mutex_exit(chosen_victim);
 }
 
@@ -671,6 +713,7 @@ static size_t lock_wait_find_latest_pos_on_cycle(
 was at position `first_pos` is now the first */
 static ut::vector<uint> lock_wait_rotate_so_pos_is_first(
     size_t first_pos, const ut::vector<uint> &cycle_ids) {
+  ut_ad(first_pos < cycle_ids.size());
   auto rotated_ids = cycle_ids;
   std::rotate(rotated_ids.begin(), rotated_ids.begin() + first_pos,
               rotated_ids.end());
@@ -720,6 +763,132 @@ static ut::vector<trx_t *> lock_wait_order_for_choosing_victim(
   size_t first_pos = (latest_pos + 1) % cycle_ids.size();
   return lock_wait_map_ids_to_trxs<trx_t *>(
       lock_wait_rotate_so_pos_is_first(first_pos, cycle_ids), infos);
+}
+
+/** Performs new_weights[parent_id] += new_weights[child_id] with sanity checks.
+@param[in,out]  new_weights     schedule weights of transactions initialized and
+                                perhaps partially accumulated already.
+                                This function will modify new_weights[parent_id]
+                                by adding new_weights[child_id] to it.
+@param[in]      parent_id       index of the node to update
+@param[in]      child_id        index of the node which weight should be added
+                                to the parent's weight.
+*/
+static void lock_wait_add_subtree_weight(
+    ut::vector<trx_schedule_weight_t> &new_weights, const size_t parent_id,
+    const size_t child_id) {
+  const trx_schedule_weight_t child_weight = new_weights[child_id];
+  trx_schedule_weight_t &old_parent_weight = new_weights[parent_id];
+  /* We expect incoming_weight to be positive
+  @see lock_wait_compute_initial_weights() */
+  ut_ad(0 < child_weight);
+  /* The trx_schedule_weight_t is unsigned type, so overflows are well defined,
+  but we don't expect them as lock_wait_compute_initial_weights() sets the
+  initial weights to small enough that sum of whole subtree should never
+  overflow */
+  static_assert(
+      std::is_unsigned<trx_schedule_weight_t>::value,
+      "The trx_schedule_weight_t should be unsigned to minimize impact "
+      "of overflows");
+  ut_ad(old_parent_weight < old_parent_weight + child_weight);
+  old_parent_weight += child_weight;
+}
+
+/** Given a graph with at most one outgoing edge per node, and initial weight
+for each node, this function will compute for each node a partial sum of initial
+weights of the node and all nodes that can reach it in the graph.
+@param[in,out]   incoming_count   The value of incoming_count[id] should match
+                                  the number of edges incoming to the node id.
+                                  In other words |x : outgoing[x] == id|.
+                                  This function will modify entries in this
+                                  array, so that after the call, nodes on cycles
+                                  will have value 1, and others will have 0.
+@param[in,out]  new_weights       Should contain initial weight for each node.
+                                  This function will modify entries for nodes
+                                  which are not on cycles, so that
+                                  new_weights[id] will be the sum of initial
+                                  weights of the node `id` and all nodes that
+                                  can reach it by one or more outgoing[] edges.
+@param[in]      outgoing          The ids of edge endpoints.
+                                  If outgoing[id] == -1, then there is no edge
+                                  going out of id, otherwise there is an edge
+                                  from id to outgoing[id].
+*/
+static void lock_wait_accumulate_weights(
+    ut::vector<uint> &incoming_count,
+    ut::vector<trx_schedule_weight_t> &new_weights,
+    const ut::vector<int> &outgoing) {
+  ut_a(incoming_count.size() == outgoing.size());
+  ut::vector<size_t> ready;
+  ready.clear();
+  const size_t n = incoming_count.size();
+  for (size_t id = 0; id < n; ++id) {
+    if (!incoming_count[id]) {
+      ready.push_back(id);
+    }
+  }
+
+  while (!ready.empty()) {
+    size_t id = ready.back();
+    ready.pop_back();
+    if (outgoing[id] != -1) {
+      lock_wait_add_subtree_weight(new_weights, outgoing[id], id);
+      if (!--incoming_count[outgoing[id]]) {
+        ready.push_back(outgoing[id]);
+      }
+    }
+  }
+}
+
+/** Checks if info[id].slot is still in use and has not been freed and reserved
+again since we took the info snapshot ("ABA" type of race condition).
+@param[in]  infos         information about all waiting transactions
+@param[in]  id            index to retrieve
+@return info[id].slot if the slot was reserved whole time since taking the info
+        snapshot. Otherwise: nullptr.
+*/
+static const srv_slot_t *lock_wait_get_slot_if_still_reserved(
+    const ut::vector<waiting_trx_info_t> &infos, const size_t id) {
+  ut_ad(lock_wait_mutex_own());
+  const auto slot = infos[id].slot;
+  if (slot->in_use && slot->reservation_no == infos[id].reservation_no) {
+    return slot;
+  }
+  return nullptr;
+}
+
+/** Copies the newly computed schedule weights to the transactions fields.
+Ignores transactions which take part in cycles, because for them we don't have a
+final value of the schedule weight yet.
+@param[in]  is_on_cycle   A positive value is_on_cycle[id] means that `id` is on
+                          a cycle in the graph.
+@param[in]  infos         information about all waiting transactions
+@param[in]  new_weights   schedule weights of transactions computed for all
+                          transactions except those which are on a cycle.
+*/
+static void lock_wait_publish_new_weights(
+    const ut::vector<uint> &is_on_cycle,
+    const ut::vector<waiting_trx_info_t> &infos,
+    const ut::vector<trx_schedule_weight_t> &new_weights) {
+  ut_ad(!lock_wait_mutex_own());
+  ut_a(infos.size() == new_weights.size());
+  ut_a(infos.size() == is_on_cycle.size());
+  const size_t n = infos.size();
+  lock_wait_mutex_enter();
+  for (size_t id = 0; id < n; ++id) {
+    if (is_on_cycle[id]) {
+      continue;
+    }
+    const auto slot = lock_wait_get_slot_if_still_reserved(infos, id);
+    if (!slot) {
+      continue;
+    }
+    ut_ad(thr_get_trx(slot->thr) == infos[id].trx);
+    const auto schedule_weight = new_weights[id];
+    infos[id].trx->lock.schedule_weight.store(schedule_weight,
+                                              std::memory_order_relaxed);
+  }
+  lock_wait_mutex_exit();
 }
 
 /** Given an array with information about all waiting transactions and indexes
@@ -787,8 +956,8 @@ static bool lock_wait_trxs_are_still_in_slots(
     const ut::vector<waiting_trx_info_t> &infos) {
   ut_ad(lock_wait_mutex_own());
   for (auto id : cycle_ids) {
-    const auto slot = infos[id].slot;
-    if (!slot->in_use || slot->reservation_no != infos[id].reservation_no) {
+    const auto slot = lock_wait_get_slot_if_still_reserved(infos, id);
+    if (!slot) {
       return false;
     }
     ut_ad(thr_get_trx(slot->thr) == infos[id].trx);
@@ -849,6 +1018,71 @@ static ut::vector<uint> lock_wait_rotate_cycle_ids_for_notification(
   return lock_wait_rotate_so_pos_is_first(previous_pos, cycle_ids);
 }
 
+/** A helper function which rotates the deadlock cycle, so that the specified
+trx is the first one on the cycle.
+@param[in]    trx         The transaction we wish to be the first after the
+                          rotation. There must exist x, such that
+                          infos[cycle_ids[x]].trx == trx.
+@param[in]    cycle_ids   indexes in `infos` array, of transactions forming the
+                          deadlock cycle
+@param[in]    infos       information about all waiting transactions
+@return Assuming that infos[cycle_ids[x]].trx == trx the result will be a copy
+        of [cycle_ids[x],cycle_ids[x+1 mod N],...,cycle_ids[x-1+N mod N]].
+*/
+static ut::vector<uint> lock_wait_rotate_cycle_ids_to_so_trx_is_first(
+    const trx_t *trx, const ut::vector<uint> &cycle_ids,
+    const ut::vector<waiting_trx_info_t> &infos) {
+  auto first_pos = std::distance(
+      cycle_ids.begin(),
+      std::find_if(cycle_ids.begin(), cycle_ids.end(),
+                   [&](uint id) { return infos[id].trx == trx; }));
+  return lock_wait_rotate_so_pos_is_first(first_pos, cycle_ids);
+}
+
+/** Finalizes the computation of new schedule weights, by providing missing
+information about transactions located on a deadlock cycle. Assuming that we
+know the list of transactions on a cycle, which transaction will be chosen as a
+victim, and what are the weights of trees hanging off the cycle, it computes
+the final schedule weight for each of transactions to be equal to its weight in
+a graph with the victim's node missing
+@param[in]      chosen_victim   The transaction chosen to be rolled back
+@param[in]      cycle_ids       indexes in `infos` array, of transactions
+                                forming the deadlock cycle
+@param[in]      infos           information about all waiting transactions
+@param[in,out]  new_weights     schedule weights of transactions computed for
+                                all transactions except those which are on a
+                                cycle. This function will update the new_weights
+                                entries for transactions involved in deadlock
+                                cycle (as it will unfold to a path, and schedule
+                                weight can be thus computed)
+*/
+static void lock_wait_update_weights_on_cycle(
+    const trx_t *chosen_victim, const ut::vector<uint> &cycle_ids,
+    const ut::vector<waiting_trx_info_t> &infos,
+    ut::vector<trx_schedule_weight_t> &new_weights) {
+  auto rotated_cycle_id = lock_wait_rotate_cycle_ids_to_so_trx_is_first(
+      chosen_victim, cycle_ids, infos);
+  ut_ad(infos[rotated_cycle_id[0]].trx == chosen_victim);
+  /* Recall that chosen_victim is in rotated_cycle_id[0].
+     Imagine that it will become rolled back, which means that it will vanish,
+     and the cycle will unfold into a path. This path will start with the
+     transaction for which chosen_victim was waiting, and for which the computed
+     new_weight is already correct. We need to update the new_weights[] for
+     following transactions, accumulating their weights along the path.
+     We also need to publish the new_weights to trx->cat_weight fields for
+     all transactions on the path.
+  */
+  new_weights[rotated_cycle_id[0]] = 0;
+  for (uint i = 1; i + 1 < rotated_cycle_id.size(); ++i) {
+    lock_wait_add_subtree_weight(new_weights, rotated_cycle_id[i + 1],
+                                 rotated_cycle_id[i]);
+  }
+  for (auto id : rotated_cycle_id) {
+    infos[id].trx->lock.schedule_weight.store(new_weights[id],
+                                              std::memory_order_relaxed);
+  }
+}
+
 /** A helper function which rotates the deadlock cycle, so that the order of
 transactions in it is suitable for notification. From correctness perspective
 this could be a no-op, but we have tests which depend on deterministic output
@@ -864,15 +1098,29 @@ static ut::vector<const trx_t *> lock_wait_trxs_rotated_for_notification(
       lock_wait_rotate_cycle_ids_for_notification(cycle_ids, infos), infos);
 }
 
-/** Handles a deadlock found, by notifying about it, and rolling back the
-chosen victim.
+/** Handles a deadlock found, by notifying about it, rolling back the chosen
+victim and updating schedule weights of transactions on the deadlock cycle.
 @param[in,out]  chosen_victim the transaction to roll back
 @param[in]      cycle_ids     indexes in `infos` array, of transactions forming
                               the deadlock cycle
-@param[in]      infos         information about all waiting transactions */
+@param[in]      infos         information about all waiting transactions
+@param[in,out]  new_weights   schedule weights of transactions computed for all
+                              transactions except those which are on a cycle.
+                              This function will update the new_weights entries
+                              for transactions involved in deadlock cycle (as it
+                              will unfold to a path, and schedule weight can be
+                              thus computed) */
 static void lock_wait_handle_deadlock(
     trx_t *chosen_victim, const ut::vector<uint> &cycle_ids,
-    const ut::vector<waiting_trx_info_t> &infos) {
+    const ut::vector<waiting_trx_info_t> &infos,
+    ut::vector<trx_schedule_weight_t> &new_weights) {
+  /*  We now update the `schedule_weight`s on the cycle taking into account that
+  chosen_victim will be rolled back.
+  This is mostly for "correctness" as the impact on performance is negligible
+  (actually it looks like it is slowing us down). */
+  lock_wait_update_weights_on_cycle(chosen_victim, cycle_ids, infos,
+                                    new_weights);
+
   lock_notify_about_deadlock(
       lock_wait_trxs_rotated_for_notification(cycle_ids, infos), chosen_victim);
 
@@ -883,13 +1131,20 @@ static void lock_wait_handle_deadlock(
 in it which form a deadlock cycle, checks if the transactions allegedly forming
 the deadlock cycle, indeed are still waiting, and if so, chooses a victim and
 handles the deadlock.
-@param[in]    cycle_ids   indexes in `infos` array, of transactions forming the
-                          deadlock cycle
-@param[in]    infos       information about all waiting transactions
+@param[in]      cycle_ids   indexes in `infos` array, of transactions forming
+                            the deadlock cycle
+@param[in]      infos       information about all waiting transactions
+@param[in,out]  new_weights schedule weights of transactions computed for all
+                            transactions except those which are on the cycle.
+                            In case it is a real deadlock cycle, this function
+                            will update the new_weights entries for transactions
+                            involved in this cycle (as it will unfold to a path,
+                            and schedule weight can be thus computed)
 @return true if the cycle found was indeed a deadlock cycle, false if it was a
 false positive */
 static bool lock_wait_check_candidate_cycle(
-    ut::vector<uint> &cycle_ids, const ut::vector<waiting_trx_info_t> &infos) {
+    ut::vector<uint> &cycle_ids, const ut::vector<waiting_trx_info_t> &infos,
+    ut::vector<trx_schedule_weight_t> &new_weights) {
   ut_ad(!lock_wait_mutex_own());
   ut_ad(!lock_mutex_own());
   lock_wait_mutex_enter();
@@ -923,8 +1178,8 @@ static bool lock_wait_check_candidate_cycle(
   upon it (it is the trx being woken up who is responsible for cleaning up the
   `slot` it used).
   So, the slot can be still in use and contain a transaction, which was already
-  decided to be rolledback for example. However, we can recognize this situation
-  by looking at trx->lock.wait_lock, as each call to
+  decided to be rolled back for example. However, we can recognize this
+  situation by looking at trx->lock.wait_lock, as each call to
   lock_wait_release_thread_if_suspended() is performed only after
   lock_reset_lock_and_trx_wait() resets trx->lock.wait_lock to NULL.
   Checking trx->lock.wait_lock must be done under lock_mutex.
@@ -952,7 +1207,7 @@ static bool lock_wait_check_candidate_cycle(
   trx_t *const chosen_victim = lock_wait_choose_victim(cycle_ids, infos);
   ut_a(chosen_victim);
 
-  lock_wait_handle_deadlock(chosen_victim, cycle_ids, infos);
+  lock_wait_handle_deadlock(chosen_victim, cycle_ids, infos, new_weights);
 
   lock_mutex_exit();
   return true;
@@ -974,21 +1229,32 @@ static void lock_wait_extract_cycle_ids(ut::vector<uint> &cycle_ids,
   } while (id != start);
 }
 
-/** Assumming that `infos` contains information about all waiting transactions,
+/** Assuming that `infos` contains information about all waiting transactions,
 and `outgoing[i]` is the endpoint of wait-for edge going out of infos[i].trx,
 or -1 if the transaction is not waiting, it identifies and handles all cycles
 in the wait-for graph
 @param[in]      infos         Information about all waiting transactions
 @param[in]      outgoing      The ids of edge endpoints. If outgoing[id] == -1,
                               then there is no edge going out of id, otherwise
-                              infos[id].trx waits for infos[outgoing[id]].trx */
+                              infos[id].trx waits for infos[outgoing[id]].trx
+@param[in,out]  new_weights   schedule weights of transactions computed for all
+                              transactions except those which are on a cycle.
+                              In case we find a real deadlock cycle, and decide
+                              to rollback one of transactions, this function
+                              will update the new_weights entries for
+                              transactions involved in this cycle (as it will
+                              unfold to a path, and schedule weight can be thus
+                              computed) */
 static void lock_wait_find_and_handle_deadlocks(
     const ut::vector<waiting_trx_info_t> &infos,
-    const ut::vector<int> &outgoing) {
+    const ut::vector<int> &outgoing,
+    ut::vector<trx_schedule_weight_t> &new_weights) {
+  ut_ad(infos.size() == new_weights.size());
   ut_ad(infos.size() == outgoing.size());
   /** We are going to use int and uint to store positions within infos */
-  ut_ad(infos.size() < (1 << 20));
+  ut_ad(infos.size() < std::numeric_limits<uint>::max());
   const auto n = static_cast<uint>(infos.size());
+  ut_ad(n < static_cast<uint>(std::numeric_limits<int>::max()));
   ut::vector<uint> cycle_ids;
   cycle_ids.clear();
   ut::vector<uint> colors;
@@ -1019,7 +1285,7 @@ static void lock_wait_find_and_handle_deadlocks(
       if (colors[id] == current_color) {
         /* found a candidate cycle! */
         lock_wait_extract_cycle_ids(cycle_ids, id, outgoing);
-        if (lock_wait_check_candidate_cycle(cycle_ids, infos)) {
+        if (lock_wait_check_candidate_cycle(cycle_ids, infos, new_weights)) {
           MONITOR_INC(MONITOR_DEADLOCK);
         } else {
           MONITOR_INC(MONITOR_DEADLOCK_FALSE_POSITIVES);
@@ -1032,9 +1298,66 @@ static void lock_wait_find_and_handle_deadlocks(
   MONITOR_SET(MONITOR_LOCK_THREADS_WAITING, n);
 }
 
-/** Takes a snapshot of transactions in waiting currently in slots, searches for
-deadlocks among them and resolves them. */
-static void lock_wait_check_for_deadlocks() {
+/** Computes the number of incoming edges for each node of a given graph, in
+which each node has zero or one outgoing edge.
+@param[in]  outgoing          The ids of edge endpoints. If outgoing[id] == -1,
+                              then there is no edge going out of id, otherwise
+                              there is an edge from id to outgoing[id].
+@param[out] incoming_count    The place to store the results. After the call the
+                              incoming_count[id] will be the number of edges
+                              ending in id.
+*/
+static void lock_wait_compute_incoming_count(const ut::vector<int> &outgoing,
+                                             ut::vector<uint> &incoming_count) {
+  incoming_count.clear();
+  const size_t n = outgoing.size();
+  incoming_count.resize(n, 0);
+  for (size_t id = 0; id < n; ++id) {
+    const auto to = outgoing[id];
+    if (to != -1) {
+      incoming_count[to]++;
+    }
+  }
+}
+
+/** Given the `infos` snapshot about transactions, the value of
+lock_wait_table_reservations before taking the snapshot and the edges of the
+wait-for-graph relation between the transactions in the snapshot, computes the
+schedule weight for each transaction, which is the sum of initial weight of the
+transaction and all transactions that are blocked by it. This definition does
+not apply to transactions on deadlock cycles, thus this function will not
+compute the final schedule weight for transactions on the cycle, but rather
+leave it as the partial sum of the tree rooted at the transaction hanging off
+the cycle.
+@param[in]      infos               Information about all waiting transactions
+@param[in]      table_reservations  value of lock_wait_table_reservations at
+                                    before taking the `infos`snapshot
+@param[in]      outgoing            The ids of edge endpoints.
+                                    If outgoing[id] == -1, then there is no edge
+                                    going out of id, otherwise infos[id].trx
+                                    waits for infos[outgoing[id]].trx
+@param[out]     new_weights         schedule weights of transactions computed
+                                    for all transactions except those which are
+                                    on a cycle. For those on cycle we only
+                                    compute the partial sum of the weights in
+                                    the tree hanging off the cycle.
+*/
+static void lock_wait_compute_and_publish_weights_except_cycles(
+    const ut::vector<waiting_trx_info_t> &infos,
+    const uint64_t table_reservations, const ut::vector<int> &outgoing,
+    ut::vector<trx_schedule_weight_t> &new_weights) {
+  lock_wait_compute_initial_weights(infos, table_reservations, new_weights);
+  ut::vector<uint> incoming_count;
+  lock_wait_compute_incoming_count(outgoing, incoming_count);
+  lock_wait_accumulate_weights(incoming_count, new_weights, outgoing);
+  /* We don't update trx->lock.schedule_weight for trx on a cycle */
+  lock_wait_publish_new_weights(incoming_count, infos, new_weights);
+  MONITOR_INC(MONITOR_SCHEDULE_REFRESHES);
+}
+
+/** Takes a snapshot of transactions in waiting currently in slots, updates
+their schedule weights, searches for deadlocks among them and resolves them. */
+static void lock_wait_update_schedule_and_check_for_deadlocks() {
   /*
   Note: I was tempted to declare `infos` as `static`, or at least
   declare it in lock_wait_timeout_thread() and reuse the same instance
@@ -1069,19 +1392,26 @@ static void lock_wait_check_for_deadlocks() {
   bottleneck, one can check if declaring this vectors as static solves the
   issue.
   */
+  ut::vector<waiting_trx_info_t> infos;
+  ut::vector<int> outgoing;
+  ut::vector<trx_schedule_weight_t> new_weights;
+
+  auto table_reservations = lock_wait_snapshot_waiting_threads(infos);
+  lock_wait_build_wait_for_graph(infos, outgoing);
+
+  /* We don't update trx->lock.schedule_weight for trxs on cycles. */
+  lock_wait_compute_and_publish_weights_except_cycles(infos, table_reservations,
+                                                      outgoing, new_weights);
+
   if (innobase_deadlock_detect) {
-    ut::vector<waiting_trx_info_t> infos;
-    ut::vector<int> outgoing;
-
-    lock_wait_snapshot_waiting_threads(infos);
-    lock_wait_build_wait_for_graph(infos, outgoing);
-
-    lock_wait_find_and_handle_deadlocks(infos, outgoing);
+    /* This will also update trx->lock.schedule_weight for trxs on cycles. */
+    lock_wait_find_and_handle_deadlocks(infos, outgoing, new_weights);
   }
 }
 
 /** A thread which wakes up threads whose lock wait may have lasted too long,
-analyzes wait-for-graph changes, and checks for deadlocks and resolves them */
+analyzes wait-for-graph changes, checks for deadlocks and resolves them, and
+updates schedule weights. */
 void lock_wait_timeout_thread() {
   int64_t sig_count = 0;
   os_event_t event = lock_sys->timeout_event;
@@ -1097,7 +1427,7 @@ void lock_wait_timeout_thread() {
       lock_wait_check_slots_for_timeouts();
     }
 
-    lock_wait_check_for_deadlocks();
+    lock_wait_update_schedule_and_check_for_deadlocks();
 
     /* When someone is waiting for a lock, we wake up every second (at worst)
     and check if a timeout has passed for a lock wait */

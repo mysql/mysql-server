@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -47,6 +47,7 @@ class Capabilities_negotiator {
       const Array_of_strings &server_supported_algorithms);
 
   bool is_negotiation_needed() const;
+  bool is_compression_preferred() const;
   bool update_compression_options(Compression_algorithm *out_algorithm,
                                   XError *out_Error);
 
@@ -88,9 +89,8 @@ class Capabilities_negotiator {
       }
     }
   }
-
-  bool is_compression_required() const;
   bool was_chooses() const;
+  bool is_compression_required() const;
 
   Compression_algorithm m_choosen_algorithm = Compression_algorithm::k_none;
   std::string m_choosen_algorithm_txt;

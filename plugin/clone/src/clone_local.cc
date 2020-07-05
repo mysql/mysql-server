@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -65,6 +65,9 @@ int Local::clone() {
   if (err != 0) {
     return (err);
   }
+
+  /* Move to first stage. */
+  m_clone_client.pfs_change_stage(0);
 
   /* Execute clone */
   err = clone_exec();

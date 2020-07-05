@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -43,6 +43,9 @@ namespace metadata_cache {
 const uint16_t kDefaultMetadataPort = 32275;
 const std::chrono::milliseconds kDefaultMetadataTTL =
     std::chrono::milliseconds(500);
+const std::chrono::milliseconds kDefaultAuthCacheTTL = std::chrono::seconds(-1);
+const std::chrono::milliseconds kDefaultAuthCacheRefreshInterval =
+    std::chrono::milliseconds(2000);
 const std::string kDefaultMetadataAddress{
     "127.0.0.1:" + mysqlrouter::to_string(kDefaultMetadataPort)};
 const std::string kDefaultMetadataUser = "";
@@ -78,6 +81,9 @@ MetadataCacheAPIBase *MetadataCacheAPI::instance() {
  * @param user_credentials The user name and password used to connect to the
  * metadata servers.
  * @param ttl The ttl for the contents of the cache
+ * @param auth_cache_ttl TTL of the rest user authentication data
+ * @param auth_cache_refresh_interval Refresh rate of the rest user
+ *                                    authentication data
  * @param ssl_options SSL related options for connections
  * @param cluster_name The name of the cluster from the metadata schema
  * @param connect_timeout The time in seconds after which trying to connect
@@ -97,10 +103,12 @@ void MetadataCacheAPI::cache_init(
     const std::string &cluster_type_specific_id,
     const std::vector<mysql_harness::TCPAddress> &metadata_servers,
     const mysqlrouter::UserCredentials &user_credentials,
-    std::chrono::milliseconds ttl, const mysqlrouter::SSLOptions &ssl_options,
-    const std::string &cluster_name, int connect_timeout, int read_timeout,
-    size_t thread_stack_size, bool use_cluster_notifications,
-    const unsigned view_id) {
+    const std::chrono::milliseconds ttl,
+    const std::chrono::milliseconds auth_cache_ttl,
+    const std::chrono::milliseconds auth_cache_refresh_interval,
+    const mysqlrouter::SSLOptions &ssl_options, const std::string &cluster_name,
+    int connect_timeout, int read_timeout, size_t thread_stack_size,
+    bool use_cluster_notifications, const unsigned view_id) {
   std::lock_guard<std::mutex> lock(g_metadata_cache_m);
 
   if (cluster_type == mysqlrouter::ClusterType::RS_V2) {
@@ -109,15 +117,16 @@ void MetadataCacheAPI::cache_init(
         get_instance(cluster_type, user_credentials.username,
                      user_credentials.password, connect_timeout, read_timeout,
                      1, ssl_options, use_cluster_notifications, view_id),
-        ttl, ssl_options, cluster_name, thread_stack_size));
+        ttl, auth_cache_ttl, auth_cache_refresh_interval, ssl_options,
+        cluster_name, thread_stack_size));
   } else {
     g_metadata_cache.reset(new GRMetadataCache(
         router_id, cluster_type_specific_id, metadata_servers,
         get_instance(cluster_type, user_credentials.username,
                      user_credentials.password, connect_timeout, read_timeout,
                      1, ssl_options, use_cluster_notifications, view_id),
-        ttl, ssl_options, cluster_name, thread_stack_size,
-        use_cluster_notifications));
+        ttl, auth_cache_ttl, auth_cache_refresh_interval, ssl_options,
+        cluster_name, thread_stack_size, use_cluster_notifications));
   }
 
   is_initialized_ = true;
@@ -210,6 +219,27 @@ MetadataCacheAPI::RefreshStatus MetadataCacheAPI::get_refresh_status() {
   LOCK_METADATA_AND_CHECK_INITIALIZED();
 
   return g_metadata_cache->refresh_status();
+}
+
+std::pair<bool, MetaData::auth_credentials_t::mapped_type>
+MetadataCacheAPI::get_rest_user_auth_data(const std::string &user) const {
+  LOCK_METADATA_AND_CHECK_INITIALIZED();
+  return g_metadata_cache->get_rest_user_auth_data(user);
+}
+
+void MetadataCacheAPI::enable_fetch_auth_metadata() {
+  LOCK_METADATA_AND_CHECK_INITIALIZED();
+  return g_metadata_cache->enable_fetch_auth_metadata();
+}
+
+void MetadataCacheAPI::force_cache_update() {
+  LOCK_METADATA_AND_CHECK_INITIALIZED();
+  return g_metadata_cache->force_cache_update();
+}
+
+void MetadataCacheAPI::check_auth_metadata_timers() const {
+  LOCK_METADATA_AND_CHECK_INITIALIZED();
+  return g_metadata_cache->check_auth_metadata_timers();
 }
 
 }  // namespace metadata_cache

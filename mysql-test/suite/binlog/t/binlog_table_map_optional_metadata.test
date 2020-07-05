@@ -18,6 +18,15 @@
 --source include/have_debug.inc
 --source include/have_binlog_format_row.inc
 
+#
+# This test case makes mysqlbinlog stop on specific event file
+# position. With compression on, compressed events have the same
+# file position of the enclosing event, thence, this is not possible.
+#
+# Skipping the test when compression is on.
+--source include/not_binlog_transaction_compression_on.inc
+
+
 RESET MASTER;
 
 --let $MYSQLD_DATADIR= `select @@datadir`

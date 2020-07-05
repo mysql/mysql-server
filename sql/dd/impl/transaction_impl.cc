@@ -140,7 +140,7 @@ Update_dictionary_tables_ctx::Update_dictionary_tables_ctx(THD *thd)
     : otx(thd, TL_WRITE),
       m_thd(thd),
       m_kill_immunizer(thd),
-      m_lex_saved(NULL),
+      m_lex_saved(nullptr),
       m_saved_in_sub_stmt(thd->in_sub_stmt),
       m_saved_time_zone_used(thd->time_zone_used),
       m_saved_auto_increment_increment(

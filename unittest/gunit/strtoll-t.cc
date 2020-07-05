@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,7 +51,7 @@ TEST(StringToULLTest, OverflowedNumber) {
   unsigned long long number;
   int error;
   const char *str = "18446744073709551915";
-  number = my_strtoll10(str, 0, &error);
+  number = my_strtoll10(str, nullptr, &error);
   EXPECT_EQ(number, ULLONG_MAX);
   EXPECT_EQ(error, MY_ERRNO_ERANGE);
 }

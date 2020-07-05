@@ -62,8 +62,8 @@ bool dtuple_coll_eq(const dtuple_t *tuple1, const dtuple_t *tuple2) {
   ulint i;
   int cmp;
 
-  ut_ad(tuple1 != NULL);
-  ut_ad(tuple2 != NULL);
+  ut_ad(tuple1 != nullptr);
+  ut_ad(tuple2 != nullptr);
   ut_ad(tuple1->magic_n == DATA_TUPLE_MAGIC_N);
   ut_ad(tuple2->magic_n == DATA_TUPLE_MAGIC_N);
   ut_ad(dtuple_check_typed(tuple1));
@@ -419,7 +419,7 @@ void dtuple_print(std::ostream &o, const dtuple_t *tuple) {
 }
 
 big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
-                                  dtuple_t *entry, ulint *n_ext) {
+                                  dtuple_t *entry) {
   DBUG_TRACE;
 
   mem_heap_t *heap;
@@ -432,7 +432,7 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
   ulint local_prefix_len;
 
   if (!index->is_clustered()) {
-    return NULL;
+    return nullptr;
   }
 
   if (!dict_table_has_atomic_blobs(index->table)) {
@@ -445,7 +445,7 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
 
   ut_a(dtuple_check_typed_no_assert(entry));
 
-  size = rec_get_converted_size(index, entry, *n_ext);
+  size = rec_get_converted_size(index, entry);
 
   if (size > 1000000000) {
     ib::warn(ER_IB_MSG_159) << "Tuple size is very big: " << size;
@@ -465,10 +465,9 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
 
   n_fields = 0;
 
-  while (page_zip_rec_needs_ext(rec_get_converted_size(index, entry, *n_ext),
-                                dict_table_is_comp(index->table),
-                                dict_index_get_n_fields(index),
-                                dict_table_page_size(index->table))) {
+  while (page_zip_rec_needs_ext(
+      rec_get_converted_size(index, entry), dict_table_is_comp(index->table),
+      dict_index_get_n_fields(index), dict_table_page_size(index->table))) {
     byte *data;
     ulint longest = 0;
     ulint longest_i = ULINT_MAX;
@@ -523,7 +522,7 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
 
       mem_heap_free(heap);
 
-      return NULL;
+      return nullptr;
     }
 
     /* Move data from field longest_i to big rec vector.
@@ -577,7 +576,6 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
     dfield_set_ext(dfield);
 
     n_fields++;
-    (*n_ext)++;
     ut_ad(n_fields < dtuple_get_n_fields(entry));
 
     if (upd && !upd->is_modified(longest_i)) {
@@ -586,8 +584,8 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
       upd_field_t upd_field;
       upd_field.field_no = longest_i;
       upd_field.orig_len = 0;
-      upd_field.exp = NULL;
-      upd_field.old_v_val = NULL;
+      upd_field.exp = nullptr;
+      upd_field.old_v_val = nullptr;
       upd_field.ext_in_old = dfield_is_ext(dfield);
       dfield_copy(&upd_field.new_val, dfield->clone(upd->heap));
       upd->append(upd_field);
@@ -669,7 +667,7 @@ dfield_t *dfield_t::clone(mem_heap_t *heap) {
     obj->data = obj + 1;
     memcpy(obj->data, data, len);
   } else {
-    obj->data = 0;
+    obj->data = nullptr;
   }
 
   return (obj);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -128,9 +128,6 @@ class Fake_TABLE : public TABLE {
   // Counter for creating unique table id's. See initialize().
   static int highest_table_id;
 
- public:
-  SELECT_LEX select_lex{nullptr, nullptr};
-
  private:
   void initialize() {
     TABLE *as_table = static_cast<TABLE *>(this);
@@ -140,9 +137,10 @@ class Fake_TABLE : public TABLE {
     null_row = '\0';
     read_set = &read_set_struct;
     write_set = &write_set_struct;
-    next_number_field = NULL;  // No autoinc column
+    next_number_field = nullptr;  // No autoinc column
     pos_in_table_list = &table_list;
-    pos_in_table_list->select_lex = &select_lex;
+    pos_in_table_list->select_lex =
+        new (&mem_root) SELECT_LEX(&mem_root, nullptr, nullptr);
     table_list.table = this;
     EXPECT_EQ(0, bitmap_init(write_set, &write_set_buf, s->fields));
     EXPECT_EQ(0, bitmap_init(read_set, &read_set_buf, s->fields));
@@ -173,7 +171,7 @@ class Fake_TABLE : public TABLE {
 
   Fake_TABLE(List<Field> fields)
       : table_share(fields.elements),
-        mock_handler(static_cast<handlerton *>(NULL), &table_share) {
+        mock_handler(static_cast<handlerton *>(nullptr), &table_share) {
     initialize();
     List_iterator<Field> it(fields);
     int nbr_fields = 0;
@@ -183,14 +181,14 @@ class Fake_TABLE : public TABLE {
 
   Fake_TABLE(Field *column)
       : table_share(1),
-        mock_handler(static_cast<handlerton *>(NULL), &table_share) {
+        mock_handler(static_cast<handlerton *>(nullptr), &table_share) {
     initialize();
     add(column, 0);
   }
 
   Fake_TABLE(Field *column1, Field *column2)
       : table_share(2),
-        mock_handler(static_cast<handlerton *>(NULL), &table_share) {
+        mock_handler(static_cast<handlerton *>(nullptr), &table_share) {
     initialize();
     add(column1, 0);
     add(column2, 1);
@@ -198,7 +196,7 @@ class Fake_TABLE : public TABLE {
 
   Fake_TABLE(Field *column1, Field *column2, Field *column3)
       : table_share(3),
-        mock_handler(static_cast<handlerton *>(NULL), &table_share) {
+        mock_handler(static_cast<handlerton *>(nullptr), &table_share) {
     initialize();
     add(column1, 0);
     add(column2, 1);
@@ -228,12 +226,12 @@ class Fake_TABLE : public TABLE {
   /**
     Creates a fake TABLE and stores the values in their corresponding Fields.
 
-    @param column_value The column values to be stored.
+    @param column_values The column values to be stored.
     @param are_nullable Whether the columns are nullable.
   */
   Fake_TABLE(std::initializer_list<int> column_values, bool are_nullable = true)
       : table_share(column_values.size()),
-        mock_handler(static_cast<handlerton *>(NULL), &table_share) {
+        mock_handler(static_cast<handlerton *>(nullptr), &table_share) {
     field = m_field_array;
     initialize();
     for (size_t i = 0; i < column_values.size(); ++i) {

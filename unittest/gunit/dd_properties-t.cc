@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -85,12 +85,12 @@ TEST_F(PropertiesTest, ValidStringParsing) {
   delete p;
 
   p = dd::Properties_impl::parse_properties("");
-  EXPECT_TRUE(p != NULL);
+  EXPECT_TRUE(p != nullptr);
   EXPECT_FALSE(p->exists(""));
   delete p;
 
   p = dd::Properties_impl::parse_properties("a=;");
-  EXPECT_TRUE(p != NULL);
+  EXPECT_TRUE(p != nullptr);
   EXPECT_TRUE(value(*p, "a") == "");
   delete p;
 }
@@ -98,27 +98,27 @@ TEST_F(PropertiesTest, ValidStringParsing) {
 // Tests that option parsing errors are handled
 TEST_F(PropertiesTest, FailingStringParsing) {
   dd::Properties *p = dd::Properties_impl::parse_properties("a");
-  EXPECT_TRUE(p == NULL);
+  EXPECT_TRUE(p == nullptr);
   delete p;
 
   p = dd::Properties_impl::parse_properties("a");
-  EXPECT_TRUE(p == NULL);
+  EXPECT_TRUE(p == nullptr);
   delete p;
 
   p = dd::Properties_impl::parse_properties(";");
-  EXPECT_TRUE(p == NULL);
+  EXPECT_TRUE(p == nullptr);
   delete p;
 
   p = dd::Properties_impl::parse_properties("a\\=b");
-  EXPECT_TRUE(p == NULL);
+  EXPECT_TRUE(p == nullptr);
   delete p;
 
   p = dd::Properties_impl::parse_properties("=");
-  EXPECT_TRUE(p == NULL);
+  EXPECT_TRUE(p == nullptr);
   delete p;
 
   p = dd::Properties_impl::parse_properties("=a");
-  EXPECT_TRUE(p == NULL);
+  EXPECT_TRUE(p == nullptr);
   delete p;
 }
 

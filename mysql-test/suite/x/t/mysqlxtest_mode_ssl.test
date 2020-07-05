@@ -23,5 +23,8 @@ EOF
 --source ../include/mysqlxtest_mode_ssl.inc
 
 ## Cleanup
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
+
 --remove_file $MYSQL_TMP_DIR/mysqlx-connection-info.tmp
 --source include/xplugin_drop_user.inc

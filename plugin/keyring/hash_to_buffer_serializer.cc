@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -65,7 +65,7 @@ ISerialized_object *Hash_to_buffer_serializer::serialize(
   buffer->set_key_operation(operation);
   if (store_keys_in_buffer(keys_hash, buffer)) {
     delete buffer;
-    return NULL;
+    return nullptr;
   }
   return buffer;
 }

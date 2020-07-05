@@ -32,17 +32,26 @@
 #include <set>
 
 #include "plugin/x/client/mysqlxclient/xcompression.h"
-#include "plugin/x/protocol/stream/compression/compression_algorithm_interface.h"
-#include "plugin/x/protocol/stream/compression/decompression_algorithm_interface.h"
 
 namespace xcl {
 
 class Compression_impl : public XCompression {
  public:
   bool reinitialize(const Compression_algorithm algorithm) override;
+  bool reinitialize(const Compression_algorithm algorithm,
+                    const int32_t level) override;
 
   Input_stream_ptr downlink(Input_stream *data_stream) override;
   Output_stream_ptr uplink(Output_stream *data_stream) override;
+
+  protocol::Compression_algorithm_interface *compression_algorithm()
+      const override {
+    return m_uplink_stream.get();
+  }
+  protocol::Decompression_algorithm_interface *decompression_algorithm()
+      const override {
+    return m_downlink_stream.get();
+  }
 
  private:
   std::shared_ptr<protocol::Decompression_algorithm_interface>

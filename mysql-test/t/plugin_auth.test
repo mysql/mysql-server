@@ -800,3 +800,7 @@ DROP USER очень_очень_очень_длинный_юзер__@localhost;
 
 --connection default
 SET NAMES default;
+
+# Restore default settings in opt file
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc

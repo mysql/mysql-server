@@ -10,6 +10,9 @@ YES
 SELECT sys.ps_is_instrument_default_enabled('statement/com/Prepare');
 sys.ps_is_instrument_default_enabled('statement/com/Prepare')
 YES
+SELECT sys.ps_is_instrument_default_enabled('stage/innodb/buffer pool load');
+sys.ps_is_instrument_default_enabled('stage/innodb/buffer pool load')
+YES
 SELECT sys.ps_is_instrument_default_enabled('wait/io/file/sql/binlog');
 sys.ps_is_instrument_default_enabled('wait/io/file/sql/binlog')
 YES
@@ -22,11 +25,20 @@ YES
 SELECT sys.ps_is_instrument_default_enabled('idle');
 sys.ps_is_instrument_default_enabled('idle')
 YES
+SELECT sys.ps_is_instrument_default_enabled('transaction');
+sys.ps_is_instrument_default_enabled('transaction')
+YES
+SELECT sys.ps_is_instrument_default_enabled('wait/lock/metadata/sql/mdl');
+sys.ps_is_instrument_default_enabled('wait/lock/metadata/sql/mdl')
+YES
 SELECT sys.ps_is_instrument_default_enabled('wait/synch/mutex/sql/LOCK_plugin');
 sys.ps_is_instrument_default_enabled('wait/synch/mutex/sql/LOCK_plugin')
 NO
 SELECT sys.ps_is_instrument_default_enabled('wait/synch/rwlock/sql/LOCK_grant');
 sys.ps_is_instrument_default_enabled('wait/synch/rwlock/sql/LOCK_grant')
+NO
+SELECT sys.ps_is_instrument_default_enabled('wait/synch/prlock/sql/MDL_context::LOCK_waiting_for');
+sys.ps_is_instrument_default_enabled('wait/synch/prlock/sql/MDL_context::LOCK_waiting_for')
 NO
 SELECT sys.ps_is_instrument_default_enabled('wait/synch/sxlock/innodb/btr_search_latch');
 sys.ps_is_instrument_default_enabled('wait/synch/sxlock/innodb/btr_search_latch')
@@ -34,15 +46,9 @@ NO
 SELECT sys.ps_is_instrument_default_enabled('wait/synch/cond/sql/MYSQL_BIN_LOG::update_cond');
 sys.ps_is_instrument_default_enabled('wait/synch/cond/sql/MYSQL_BIN_LOG::update_cond')
 NO
-SELECT sys.ps_is_instrument_default_enabled('stage/sql/end');
-sys.ps_is_instrument_default_enabled('stage/sql/end')
-NO
-SELECT sys.ps_is_instrument_default_enabled('transaction');
-sys.ps_is_instrument_default_enabled('transaction')
+SELECT sys.ps_is_instrument_default_enabled('stage/sql/Waiting for disk space');
+sys.ps_is_instrument_default_enabled('stage/sql/Waiting for disk space')
 NO
 SELECT sys.ps_is_instrument_default_enabled('wait/io/socket/sql/server_tcpip_socket');
 sys.ps_is_instrument_default_enabled('wait/io/socket/sql/server_tcpip_socket')
-NO
-SELECT sys.ps_is_instrument_default_enabled('wait/lock/metadata/sql/mdl');
-sys.ps_is_instrument_default_enabled('wait/lock/metadata/sql/mdl')
 NO

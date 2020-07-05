@@ -9,14 +9,10 @@ create schema xtest default charset 'utf8mb4';
 
 --let $xtest_file= $MYSQL_TMP_DIR/admin_collection_metaschema_validation.tmp
 --write_file $xtest_file
+-->import assert_schema.macro
 
 -->macro Assert_invalid_schema %SCHEMA%
-stmtadmin COMMAND	{"schema": "xtest", "name": "test", "options": {
-  "validation": {
-    "schema": %SCHEMA%
-  }
-}};
--->recverror ER_X_INVALID_VALIDATION_SCHEMA
+-->callmacro Assert_schema	%COMMAND%	xtest	test	%SCHEMA%	ER_X_INVALID_VALIDATION_SCHEMA
 -->endmacro
 
 -->echo
@@ -482,14 +478,14 @@ stmtadmin COMMAND	{"schema": "xtest", "name": "test", "options": {
 
 EOF
 
---let $command=create_collection
---exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file -vCOMMAND=$command 2>&1
+exec $MYSQLXTEST -ux_root --password=''
+  --file=$xtest_file -v%COMMAND%=create_collection 2>&1;
 
---let $command=ensure_collection
---exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file -vCOMMAND=$command 2>&1
+exec $MYSQLXTEST -ux_root --password=''
+  --file=$xtest_file -v%COMMAND%=ensure_collection 2>&1;
 
---let $command=modify_collection_options
---exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file -vCOMMAND=$command 2>&1
+exec $MYSQLXTEST -ux_root --password=''
+  --file=$xtest_file -v%COMMAND%=modify_collection_options 2>&1;
 
 ## Cleanup
 --remove_file $xtest_file

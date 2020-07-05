@@ -55,7 +55,7 @@ bool test_charset(const char *charset, const char *text, int buff_len) {
             "-------------------------------------------------------------");
   WRITE_LOG("Charset: %s\n", charset);
   WRITE_LOG("%s\n", text);
-  my_h_string out_string = NULL;
+  my_h_string out_string = nullptr;
   char low_test_text[MAX_BUFFER_LENGTH];
   char upper_test_text[MAX_BUFFER_LENGTH];
   if (mysql_service_mysql_string_factory->create(&out_string)) {
@@ -88,7 +88,7 @@ bool test_charset(const char *charset, const char *text, int buff_len) {
         WRITE_LOG("Number of bytes: %d\n", out_length);
       }
       // Convert to low string
-      my_h_string low_string = NULL;
+      my_h_string low_string = nullptr;
       if (mysql_service_mysql_string_factory->create(&low_string)) {
         WRITE_LOG("%s\n", "Create lower string object failed.");
       } else {
@@ -107,7 +107,7 @@ bool test_charset(const char *charset, const char *text, int buff_len) {
       }
       mysql_service_mysql_string_factory->destroy(low_string);
       // Convert to upper string
-      my_h_string upper_string = NULL;
+      my_h_string upper_string = nullptr;
       if (mysql_service_mysql_string_factory->create(&upper_string)) {
         WRITE_LOG("%s\n", "Create upper string object failed.");
       } else {

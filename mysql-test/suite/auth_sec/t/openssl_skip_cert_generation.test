@@ -53,3 +53,7 @@ let SEARCH_PATTERN= Skipping generation of SSL certificates as certificate files
 --echo # Clean-up
 
 connection default;
+
+# Restore default settings in opt file and clean up
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc

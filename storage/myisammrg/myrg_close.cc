@@ -56,7 +56,7 @@ int myrg_close(MYRG_INFO *info) {
       if ((new_error = mi_close(file->table)))
         error = new_error;
       else
-        file->table = NULL;
+        file->table = nullptr;
       /* purecov: end */
     }
   } else

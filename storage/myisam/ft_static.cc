@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,7 @@ const char *ft_boolean_syntax = DEFAULT_FTB_SYNTAX;
 
 const HA_KEYSEG ft_keysegs[FT_SEGS] = {
     {
-        0,                                /* charset  */
+        nullptr,                          /* charset  */
         HA_FT_WLEN,                       /* start */
         0,                                /* null_pos */
         0,                                /* Bit pos */
@@ -51,7 +51,7 @@ const HA_KEYSEG ft_keysegs[FT_SEGS] = {
          be packed in any way, otherwise w_search() won't be able to
          update key entry 'in vivo'
        */
-     0, 0, 0, 0, HA_NO_SORT, HA_FT_WLEN, 63, HA_FT_WTYPE, 0, 0, 0, 0}};
+     nullptr, 0, 0, 0, HA_NO_SORT, HA_FT_WLEN, 63, HA_FT_WTYPE, 0, 0, 0, 0}};
 
 const struct _ft_vft _ft_vft_nlq = {ft_nlq_read_next, ft_nlq_find_relevance,
                                     ft_nlq_close_search, ft_nlq_get_relevance,
@@ -71,7 +71,7 @@ FT_INFO *ft_init_search(uint flags, void *info, uint keynr, uchar *query,
   return res;
 }
 
-const char *ft_stopword_file = 0;
+const char *ft_stopword_file = nullptr;
 const char *ft_precompiled_stopwords[] = {
 
     /* This particular stopword list was taken from SMART distribution
@@ -622,11 +622,12 @@ const char *ft_precompiled_stopwords[] = {
     "yourself",
     "yourselves",
     "zero",
-    NULL};
+    nullptr};
 
 static int ft_default_parser_parse(MYSQL_FTPARSER_PARAM *param) {
   return param->mysql_parse(param, param->doc, param->length);
 }
 
 struct st_mysql_ftparser ft_default_parser = {MYSQL_FTPARSER_INTERFACE_VERSION,
-                                              ft_default_parser_parse, 0, 0};
+                                              ft_default_parser_parse, nullptr,
+                                              nullptr};

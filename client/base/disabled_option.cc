@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,7 +30,7 @@ using std::string;
 using namespace Mysql::Tools::Base::Options;
 
 Disabled_option::Disabled_option(string name, string description)
-    : Abstract_option<Disabled_option>(NULL, GET_DISABLED, name, description,
+    : Abstract_option<Disabled_option>(nullptr, GET_DISABLED, name, description,
                                        0) {
   this->m_option_structure.arg_type = OPT_ARG;
 }

@@ -1,0 +1,46 @@
+# Variable: mysqlx_lz4_max_client_compression_level
+# Default : 8
+# Scope   : GLOBAL
+# Dynamic : Yes
+
+## Valid cases
+SET GLOBAL mysqlx_lz4_max_client_compression_level=0;
+show variables like 'mysqlx_lz4_max_client_compression_level';
+
+SET GLOBAL mysqlx_lz4_max_client_compression_level=1;
+show variables like 'mysqlx_lz4_max_client_compression_level';
+
+SET @@global.mysqlx_lz4_max_client_compression_level=2;
+show variables like 'mysqlx_lz4_max_client_compression_level';
+
+
+## Invalid cases
+--error ER_GLOBAL_VARIABLE
+SET mysqlx_lz4_max_client_compression_level=4;
+
+--error ER_GLOBAL_VARIABLE
+SET @@local.mysqlx_lz4_max_client_compression_level=4;
+
+--error ER_GLOBAL_VARIABLE
+SET @@mysqlx_lz4_max_client_compression_level=4;
+
+--error ER_GLOBAL_VARIABLE
+SET @@session.mysqlx_lz4_max_client_compression_level=4;
+
+--error ER_GLOBAL_VARIABLE
+SET SESSION mysqlx_lz4_max_client_compression_level=4;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL mysqlx_lz4_max_client_compression_level='5';
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL mysqlx_lz4_max_client_compression_level=128;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL mysqlx_lz4_max_client_compression_level=-1;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL mysqlx_lz4_max_client_compression_level=-128;
+
+
+SET @@global.mysqlx_lz4_max_client_compression_level= DEFAULT;

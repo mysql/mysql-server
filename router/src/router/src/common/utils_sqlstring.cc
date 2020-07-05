@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -262,7 +262,7 @@ static const char *reserved_keywords[] = {"ACCESSIBLE",
                                           "XOR",
                                           "YEAR_MONTH",
                                           "ZEROFILL",
-                                          NULL};
+                                          nullptr};
 
 namespace mysqlrouter {
 //--------------------------------------------------------------------------------------------------
@@ -358,7 +358,7 @@ std::string escape_backticks(const std::string &s) {
 //--------------------------------------------------------------------------------------------------
 
 bool is_reserved_word(const std::string &word) {
-  for (const char **kw = reserved_keywords; *kw != NULL; ++kw) {
+  for (const char **kw = reserved_keywords; *kw != nullptr; ++kw) {
     if (strcasecmp(word.c_str(), *kw) == 0) return true;
   }
   return false;

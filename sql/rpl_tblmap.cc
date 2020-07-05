@@ -104,7 +104,7 @@ int table_mapping::set_table(ulonglong table_id, Mapped_table *table) {
   entry *e;
   auto it = m_table_ids.find(table_id);
   if (it == m_table_ids.end()) {
-    if (m_free == 0 && expand())
+    if (m_free == nullptr && expand())
       return ERR_MEMORY_ALLOCATION;  // Memory allocation failed
     e = m_free;
     m_free = m_free->next;

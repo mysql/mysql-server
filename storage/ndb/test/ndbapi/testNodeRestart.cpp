@@ -2534,6 +2534,90 @@ runBug26450(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 int
+run_test_multi_socket(NDBT_Context* ctx, NDBT_Step* step)
+{
+  static const int errnos[] = { 951, 952, 953, 954, 955,
+                                956, 957, 958, 959, 960, 0 };
+  static const int delay_nos[] = { 970, 971, 972, 973, 974, 975,
+                                   976, 977, 978, 979, 980, 981,
+                                   982, 983, 984, 985, 0 };
+  int nodegroup_nodes[MAX_NDB_NODES];
+  NdbRestarter res;
+  getNodeGroups(res);
+  int node_id = getFirstNodeInNodeGroup(res,
+                                        NO_NODE_GROUP);
+  int first_node_group = res.getNodeGroup(node_id);
+  Uint32 index = 0;
+  nodegroup_nodes[index++] = node_id;
+  ndbout_c("Node group %u used", first_node_group);
+  ndbout_c("Node[%u] = %u", index - 1, node_id);
+  while ((node_id = getNextNodeInNodeGroup(res,
+                                           node_id,
+                                           first_node_group)) != 0)
+  {
+    nodegroup_nodes[index++] = node_id;
+    ndbout_c("Node[%u] = %u", index - 1, node_id);
+  }
+  if (index < 2)
+  {
+    /* Test requires at least 2 replicas */
+    return NDBT_OK;
+  }
+  int pos = 0;
+  int start_index = 1;
+  while (errnos[pos] != 0)
+  {
+    for (Uint32 i = start_index; i < index; i++)
+    {
+      int restart_node = nodegroup_nodes[i];
+      ndbout_c("Restart node %u", restart_node);
+      if (res.restartOneDbNode(restart_node, true, true, true))
+        return NDBT_FAILED;
+      ndbout_c("Wait node %u no start", restart_node);
+      if (res.waitNodesNoStart(&restart_node, 1))
+        return NDBT_FAILED;
+      ndbout_c("Insert error %u into node %u", errnos[pos], restart_node);
+      if (res.insertErrorInNode(restart_node, errnos[pos]))
+        return NDBT_FAILED;
+      if (res.insertErrorInNode(restart_node, 1006))
+        return NDBT_FAILED;
+    }
+    g_err << "Start nodes, expect crash" << endl;
+
+    res.startNodes(&nodegroup_nodes[start_index],
+                   index - 1);
+    if (res.waitClusterStarted())
+      return NDBT_FAILED;
+    pos++;
+  }
+  pos = 0;
+  while (delay_nos[pos] != 0)
+  {
+    for (Uint32 i = start_index; i < index; i++)
+    {
+      int restart_node = nodegroup_nodes[i];
+      ndbout_c("Restart node %u", restart_node);
+      if (res.restartOneDbNode(restart_node, true, true, true))
+        return NDBT_FAILED;
+      ndbout_c("Wait node %u no start", restart_node);
+      if (res.waitNodesNoStart(&restart_node, 1))
+        return NDBT_FAILED;
+      ndbout_c("Insert error %u into node %u", delay_nos[pos], restart_node);
+      if (res.insertErrorInNode(restart_node, delay_nos[pos]))
+        return NDBT_FAILED;
+    }
+    g_err << "Start nodes" << endl;
+
+    res.startNodes(&nodegroup_nodes[start_index],
+                   index - 1); //Expect crash
+    if (res.waitClusterStarted())
+      return NDBT_FAILED;
+    pos++;
+  }
+  return NDBT_OK;
+}
+
+int
 runBug27003(NDBT_Context* ctx, NDBT_Step* step)
 {
   int loops = ctx->getNumLoops();
@@ -4724,6 +4808,12 @@ runBug42422(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbRestarter res;
   
+  if (res.getNumNodeGroups() < 2)
+  {
+    g_err << "[SKIPPED] Need at least 2 node groups to run the test" << endl;
+    return NDBT_OK;
+  }
+
   if (res.getMaxConcurrentNodeFailures() < 2)
   {
     g_err << "[SKIPPED] Configuration cannot handle 2 node failures." << endl;
@@ -4737,8 +4827,14 @@ runBug42422(NDBT_Context* ctx, NDBT_Step* step)
     ndbout_c("master: %u", master);
     int nodeId = res.getRandomNodeSameNodeGroup(master, rand()); 
     ndbout_c("target: %u", nodeId);
-    int node2 = res.getRandomNodePreferOtherNodeGroup(nodeId, rand());
+    int node2 = res.getRandomNodeOtherNodeGroup(nodeId, rand());
     ndbout_c("node 2: %u", node2);
+
+    if (node2 == -1)
+    {
+      g_err << "Could not get node from other node group" << endl;
+      return NDBT_FAILED;
+    }
     
     res.restartOneDbNode(nodeId,
                          /** initial */ false, 
@@ -10203,6 +10299,11 @@ TESTCASE("StartDuringNodeRestart",
          "not completed in time.");
 {
   STEP(runTestStartNode);
+}
+TESTCASE("MultiSocketRestart",
+         "Test failures in setup phase of multi sockets for multi failures");
+{
+  STEP(run_test_multi_socket);
 }
 TESTCASE("NodeFailLcpStall",
          "Check that node failure does not result in LCP stall")

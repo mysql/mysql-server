@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -21,7 +21,6 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 # binaries
-usr/bin/comp_err
 usr/bin/ibd2sdi
 usr/bin/innochecksum
 usr/bin/lz4_decompress
@@ -40,7 +39,6 @@ usr/bin/perror
 usr/bin/zlib_decompress
 usr/sbin/mysqld
 # man pages
-usr/share/man/man1/comp_err.1
 usr/share/man/man1/ibd2sdi.1
 usr/share/man/man1/innochecksum.1
 usr/share/man/man1/lz4_decompress.1

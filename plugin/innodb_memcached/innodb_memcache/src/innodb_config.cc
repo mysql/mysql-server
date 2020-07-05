@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -253,9 +253,7 @@ static bool innodb_read_cache_policy(
 
 func_exit:
 
-  if (crsr) {
-    innodb_cb_cursor_close(crsr);
-  }
+  innodb_cb_cursor_close(crsr);
 
   if (tpl) {
     innodb_cb_tuple_delete(tpl);
@@ -375,9 +373,7 @@ static bool innodb_read_config_option(
 
 func_exit:
 
-  if (crsr) {
-    innodb_cb_cursor_close(crsr);
-  }
+  innodb_cb_cursor_close(crsr);
 
   if (tpl) {
     innodb_cb_tuple_delete(tpl);
@@ -566,9 +562,7 @@ meta_cfg_info_t *innodb_config_meta_hash_init(
 
 func_exit:
 
-  if (crsr) {
-    innodb_cb_cursor_close(crsr);
-  }
+  innodb_cb_cursor_close(crsr);
 
   if (tpl) {
     innodb_cb_tuple_delete(tpl);
@@ -738,9 +732,7 @@ static meta_cfg_info_t *innodb_config_container(
 
 func_exit:
 
-  if (crsr) {
-    innodb_cb_cursor_close(crsr);
-  }
+  innodb_cb_cursor_close(crsr);
 
   if (tpl) {
     innodb_cb_tuple_delete(tpl);
@@ -1153,9 +1145,7 @@ bool innodb_verify(
 
   err = innodb_verify_low(info, crsr, false);
 func_exit:
-  if (crsr) {
-    innodb_cb_cursor_close(crsr);
-  }
+  innodb_cb_cursor_close(crsr);
 
   innodb_cb_trx_commit(ib_trx);
   ib_cb_trx_release(ib_trx);

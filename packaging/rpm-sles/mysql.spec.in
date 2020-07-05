@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -119,6 +119,8 @@ BuildRequires:  perl(JSON)
 BuildRequires:  perl(Sys::Hostname)
 BuildRequires:  libaio-devel
 %if 0%{?commercial}
+BuildRequires:  cyrus-sasl-gssapi
+BuildRequires:  krb5-devel
 BuildRequires:  libcurl-devel
 %endif
 BuildRequires:  libnuma-devel
@@ -134,10 +136,10 @@ BuildRequires:  cyrus-sasl-devel
 BuildRequires:  openldap2-devel
 BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
-%global _privatelibs libprotobuf.*
+%global _privatelibs libprotobuf.*|libmysqlharness.so.*|libmysqlrouter.so.*|libmysqlrouter_http.*\.so\..*
 %global _privateperl perl\\((GD|hostnames|lib::mtr|lib::v1|mtr_|My::)
 %global __requires_exclude ^((%{_privatelibs})|(%{_privateperl}))
-%global __provides_exclude_from ^(/usr/share/(mysql|mysql-test)/.*|%{_libdir}/mysql/plugin/.*\\.so|%{_libdir}/mysql/private/.*|%{_libdir}/mysqlrouter/%{?sles12:libprotobuf-lite}.*)$
+%global __provides_exclude_from ^(/usr/share/(mysql|mysql-test)/.*|%{_libdir}/mysql/plugin/.*\\.so|%{_libdir}/mysql/private/.*|%{_libdir}/mysqlrouter/%{?sles12:libprotobuf-lite}.*|%{_libdir}/mysqlrouter/private/.*)$
 
 %description
 The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
@@ -342,6 +344,7 @@ database server.
 Summary:        Development header files and libraries for MySQL database client applications
 Group:          Applications/Databases
 Requires:       %{name}-libs >= %{min}
+Requires:       openssl-devel
 %if 0%{?commercial}
 Provides:       MySQL-devel-advanced = %{version}-%{release}
 Obsoletes:      MySQL-devel-advanced < %{version}-%{release}
@@ -592,8 +595,6 @@ mkdir debug
            %{?aws_sdk_option} \
 %endif
            -DWITH_INNODB_MEMCACHED=1 \
-           -DROUTER_INSTALL_LIBDIR="%{_lib}" \
-           -DROUTER_INSTALL_PLUGINDIR="%{_lib}/mysqlrouter" \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DMYSQLX_UNIX_ADDR="/var/run/mysql/mysqlx.sock" \
            -DFEATURE_SET="%{feature_set}" \
@@ -637,8 +638,6 @@ mkdir release
            %{?aws_sdk_option} \
 %endif
            -DWITH_INNODB_MEMCACHED=1 \
-           -DROUTER_INSTALL_LIBDIR="%{_lib}" \
-           -DROUTER_INSTALL_PLUGINDIR="%{_lib}/mysqlrouter" \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DMYSQLX_UNIX_ADDR="/var/run/mysql/mysqlx.sock" \
            -DFEATURE_SET="%{feature_set}" \
@@ -695,11 +694,6 @@ rm -f %{buildroot}%{_datadir}/mysql-*/audit_log_filter_win_install.sql
 # rm -f %{buildroot}%{_mandir}/man1/<manpage>.1
 
 # Remove removed manpages here until they are removed from the docs repo
-
-# remove some unwanted router files
-rm -rf %{buildroot}/%{_libdir}/libmysqlharness.{a,so}
-rm -rf %{buildroot}/%{_libdir}/libmysqlrouter.so
-rm -rf %{buildroot}/%{_libdir}/libmysqlrouter_http.so
 
 # rcmysql symlink
 install -d %{buildroot}%{_sbindir}
@@ -795,7 +789,6 @@ rm -r $(readlink var) var
 %config(noreplace) %{_sysconfdir}/my.cnf
 %dir %{_sysconfdir}/my.cnf.d
 
-%attr(755, root, root) %{_bindir}/comp_err
 %attr(755, root, root) %{_bindir}/innochecksum
 %attr(755, root, root) %{_bindir}/ibd2sdi
 %attr(755, root, root) %{_bindir}/my_print_defaults
@@ -1047,7 +1040,6 @@ rm -r $(readlink var) var
 %files devel
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
-%attr(644, root, root) %{_mandir}/man1/comp_err.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_config.1*
 %attr(755, root, root) %{_bindir}/mysql_config
 %{_includedir}/mysql
@@ -1083,11 +1075,13 @@ rm -r $(readlink var) var
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
 %attr(-, root, root) %{_datadir}/mysql-test
+%attr(755, root, root) %{_bindir}/comp_err
 %attr(755, root, root) %{_bindir}/mysql_client_test
 %attr(755, root, root) %{_bindir}/mysqld_safe
 %attr(755, root, root) %{_bindir}/mysqltest
 %attr(755, root, root) %{_bindir}/mysqltest_safe_process
 %attr(755, root, root) %{_bindir}/mysqlxtest
+%attr(644, root, root) %{_mandir}/man1/comp_err.1*
 
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_test_plugin.so
@@ -1324,11 +1318,15 @@ rm -r $(readlink var) var
 %attr(644, root, root) %{_mandir}/man1/mysqlrouter_plugin_info.1*
 %{_unitdir}/mysqlrouter.service
 %{_tmpfilesdir}/mysqlrouter.conf
-%{_libdir}/libmysqlharness.so.*
-%{_libdir}/libmysqlrouter.so.*
-%{_libdir}/libmysqlrouter_http.so.*
+%{_libdir}/mysqlrouter/private/libmysqlharness.so.*
+%{_libdir}/mysqlrouter/private/libmysqlrouter.so.*
+%{_libdir}/mysqlrouter/private/libmysqlrouter_http.so.*
+%{_libdir}/mysqlrouter/private/libmysqlrouter_http_auth_backend.so.*
+%{_libdir}/mysqlrouter/private/libmysqlrouter_http_auth_realm.so.*
+%{_libdir}/mysqlrouter/private/libprotobuf-lite.so.3.6.1
 %dir %{_libdir}/mysqlrouter
-%{_libdir}/mysqlrouter/*.so*
+%dir %{_libdir}/mysqlrouter/private
+%{_libdir}/mysqlrouter/*.so
 %dir %attr(755, mysqlrouter, mysqlrouter) /var/log/mysqlrouter
 %dir %attr(755, mysqlrouter, mysqlrouter) /var/run/mysqlrouter
 

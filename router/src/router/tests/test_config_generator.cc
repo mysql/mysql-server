@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -179,8 +179,8 @@ static void common_pass_cluster_type(MySQLSessionReplayer *m) {
 
 static void common_pass_metadata_supported(MySQLSessionReplayer *m) {
   m->expect_query_one(
-      "select ((select count(*) from "
-      "mysql_innodb_cluster_metadata.v2_gr_clusters)=1) as has_one_gr_cluster");
+      "select count(*) from "
+      "mysql_innodb_cluster_metadata.v2_gr_clusters");
   m->then_return(1, {// has_one_gr_cluster
                      {m->string_or_null("1")}});
 }
@@ -319,11 +319,10 @@ TEST_F(ConfigGeneratorTest, metadata_checks_invalid_data) {
     common_pass_cluster_type(mock_mysql.get());
     // invalid number of values returned from query for metadata support
     mock_mysql->expect_query_one(
-        "select ((select count(*) from "
-        "mysql_innodb_cluster_metadata.v2_gr_clusters)=1) as "
-        "has_one_gr_cluster");
+        "select count(*) from "
+        "mysql_innodb_cluster_metadata.v2_gr_clusters");
     mock_mysql->then_return(0,
-                            {// [has_one_gr_cluster missing]
+                            {// [count(*) missing]
                              {}});
 
     ASSERT_THROW_LIKE(
@@ -1465,6 +1464,8 @@ TEST_F(ConfigGeneratorTest, create_config) {
            "user=cluster_user\n"
            "metadata_cluster=mycluster\n"
            "ttl=0.5\n"
+           "auth_cache_ttl=-1\n"
+           "auth_cache_refresh_interval=2\n"
            "use_gr_notifications=0\n"
            "\n"
            "[routing:mycluster_myreplicaset_rw]\n"
@@ -1536,6 +1537,8 @@ TEST_F(ConfigGeneratorTest, create_config) {
            "user=cluster_user\n"
            "metadata_cluster=mycluster\n"
            "ttl=0.5\n"
+           "auth_cache_ttl=-1\n"
+           "auth_cache_refresh_interval=2\n"
            "use_gr_notifications=0\n"
            "\n"
            "[routing:mycluster_myreplicaset_rw]\n"
@@ -1610,6 +1613,8 @@ TEST_F(ConfigGeneratorTest, create_config) {
            "user=cluster_user\n"
            "metadata_cluster=mycluster\n"
            "ttl=0.5\n"
+           "auth_cache_ttl=-1\n"
+           "auth_cache_refresh_interval=2\n"
            "use_gr_notifications=0\n"
            "\n"
            "[routing:mycluster_myreplicaset_rw]\n"
@@ -1687,6 +1692,8 @@ TEST_F(ConfigGeneratorTest, create_config) {
            "user=cluster_user\n"
            "metadata_cluster=mycluster\n"
            "ttl=0.5\n"
+           "auth_cache_ttl=-1\n"
+           "auth_cache_refresh_interval=2\n"
            "use_gr_notifications=0\n"
            "\n"
            "[routing:mycluster_myreplicaset_rw]\n"
@@ -1766,6 +1773,8 @@ TEST_F(ConfigGeneratorTest, create_config) {
            "user=cluster_user\n"
            "metadata_cluster=mycluster\n"
            "ttl=0.5\n"
+           "auth_cache_ttl=-1\n"
+           "auth_cache_refresh_interval=2\n"
            "use_gr_notifications=0\n"
            "\n"
            "[routing:mycluster_myreplicaset_rw]\n"
@@ -1854,6 +1863,8 @@ TEST_F(ConfigGeneratorTest, create_config) {
            "user=cluster_user\n"
            "metadata_cluster=mycluster\n"
            "ttl=0.5\n"
+           "auth_cache_ttl=-1\n"
+           "auth_cache_refresh_interval=2\n"
            "use_gr_notifications=0\n"
            "\n"
            "[routing:mycluster_myreplicaset_rw]\n"
@@ -2560,7 +2571,6 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
 static void test_key_length(
     MySQLSessionReplayer *mock_mysql, const std::string &key,
     const std::map<std::string, std::string> &default_paths) {
-  using std::placeholders::_1;
   ::testing::InSequence s;
 
   mysqlrouter::set_prompt_password(

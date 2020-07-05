@@ -8,7 +8,13 @@
 #
 
 source include/have_binlog_format_row.inc;
- 
+
+# this test records the output of mysqlbinlog, which
+# will make it output transaction payload events headers
+# if compression is enabled.
+--source include/not_binlog_transaction_compression_on.inc
+
+
 #We will delay the slave start as resetting the debug variable (on the master)
 #while the dump thread is running, may cause sporadic races between user and
 #dump threads. BUG#12765441

@@ -1573,13 +1573,25 @@ public:
   typedef Ptr<TableRecord> TableRecordPtr;
 
   /**
-   * Specify the location of a fragment. The 'blockRef' is either
-   * the specific LQH where the fragId resides, or the SPJ block
-   * responsible for scaning this fragment, if 'viaSPJ'.
+   * Specify the location of a fragment.
+   * The primaryBlockRef is the location of the primary partition.
+   * The preferredBlockRef is the preferred location using READ
+   * BACKUP and/or location domains. The block reference is always
+   * pointing to a LQH where the data resides.
+   *
+   * primaryBlockRef is only used to sort out which SCAN_FRAGREQ to
+   * SPJ the fragment should be sent to. When using MultiFragFlag
+   * (currently only used by DBSPJ) we will divide the query into
+   * a set of SPJ workers, each handling a subset of the root
+   * table. The primaryBlockRef is used to decide which SPJ worker
+   * should handle this fragment. The preferredBlockRef decides
+   * the placement of the SPJ worker still, this means that we can
+   * have multiple SPJ workers on the same node.
    */
   struct ScanFragLocation
   {
-    Uint32 blockRef;
+    Uint32 primaryBlockRef;
+    Uint32 preferredBlockRef;
     Uint32 fragId;
   };
 
@@ -1682,6 +1694,7 @@ public:
     Uint32 m_ops;
     Uint32 m_apiPtr;
     Uint32 m_totalLen;
+    Uint32 m_hasMore;
     Uint32 nextList;
     Uint32 prevList;
     NDB_TICKS m_start_ticks;
@@ -1831,9 +1844,11 @@ public:
     bool m_pass_all_confs;
 
     /**
-     * Send opcount/total len as different words
+     * Use 4 or 5 word extended conf signal, where opcount, total_len & active
+     * are sent as seperate words. 4 or 5 word extended format is decided
+     * based on 'ndbd_send_active_bitmask(<version>)'
      */
-    bool m_4word_conf;
+    bool m_extended_conf;
     bool m_read_committed_base;
 
     /**
@@ -2133,14 +2148,17 @@ private:
   bool sendDihGetNodeReq(Signal*,
                          ScanRecordPtr,
                          ScanFragLocationPtr &fragLocationPtr,
-                         Uint32 scanFragId);
+                         Uint32 scanFragId,
+                         bool is_multi_spj_scan);
   void get_next_frag_location(ScanFragLocationPtr fragLocationPtr,
                               Uint32 & fragId,
-                              Uint32 & blockRef);
+                              Uint32 & primaryBlockRef,
+                              Uint32 & preferredBlockRef);
   void get_and_step_next_frag_location(ScanFragLocationPtr & fragLocationPtr,
                                        ScanRecord *scanPtrP,
                                        Uint32 & fragId,
-                                       Uint32 & blockRef);
+                                       Uint32 & primaryBlockRef,
+                                       Uint32 & preferredBlockRef);
   void sendFragScansLab(Signal*, ScanRecordPtr, ApiConnectRecordPtr);
   bool sendScanFragReq(Signal*,
                        ScanRecordPtr,

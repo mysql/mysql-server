@@ -28,6 +28,8 @@
 #include <string.h>
 #include <sys/types.h>
 
+#include <algorithm>
+
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_compiler.h"
@@ -74,8 +76,8 @@ size_t my_casedn_str_mb(const CHARSET_INFO *cs, char *str) {
 static inline const MY_UNICASE_CHARACTER *get_case_info_for_ch(
     const CHARSET_INFO *cs, uint page, uint offs) {
   const MY_UNICASE_CHARACTER *p;
-  return cs->caseinfo ? ((p = cs->caseinfo->page[page]) ? &p[offs] : NULL)
-                      : NULL;
+  return cs->caseinfo ? ((p = cs->caseinfo->page[page]) ? &p[offs] : nullptr)
+                      : nullptr;
 }
 
 /*
@@ -406,7 +408,7 @@ uint my_instr_mb(const CHARSET_INFO *cs, const char *b, size_t b_length,
 int my_strnncoll_mb_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                         const uchar *s, size_t slen, const uchar *t,
                         size_t tlen, bool t_is_prefix) {
-  size_t len = MY_MIN(slen, tlen);
+  size_t len = std::min(slen, tlen);
   int cmp = len == 0 ? 0 : memcmp(s, t, len);
   return cmp ? cmp : (int)((t_is_prefix ? len : slen) - tlen);
 }
@@ -440,7 +442,7 @@ int my_strnncollsp_mb_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   size_t length;
   int res;
 
-  end = a + (length = MY_MIN(a_length, b_length));
+  end = a + (length = std::min(a_length, b_length));
   while (a < end) {
     if (*a++ != *b++) return ((int)a[-1] - (int)b[-1]);
   }
@@ -1232,43 +1234,58 @@ static const struct {
   int page;
   const char *p;
 } utr11_data[256] = {
-    {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL},
-    {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL},
-    {0, NULL}, {0, NULL}, {0, NULL}, {0, pg11}, {0, NULL}, {0, NULL}, {0, NULL},
-    {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL},
-    {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL},
-    {0, pg23}, {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL},
-    {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL}, {0, pg2E}, {0, pg2F}, {0, pg30},
-    {0, pg31}, {0, pg32}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL},
-    {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL},
-    {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL},
-    {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL},
-    {0, pg4D}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL},
-    {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL},
-    {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL},
-    {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL},
-    {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL},
-    {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL},
-    {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL},
-    {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL},
-    {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL},
-    {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL},
-    {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL},
-    {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {0, pg9F}, {1, NULL},
-    {1, NULL}, {1, NULL}, {1, NULL}, {0, pgA4}, {0, NULL}, {0, NULL}, {0, NULL},
-    {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL}, {1, NULL}, {1, NULL}, {1, NULL},
-    {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL},
-    {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL},
-    {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL},
-    {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL},
-    {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL},
-    {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {1, NULL}, {0, pgD7}, {0, NULL},
-    {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL},
-    {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL},
-    {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL},
-    {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL},
-    {0, NULL}, {0, NULL}, {0, NULL}, {0, NULL}, {1, NULL}, {0, pgFA}, {0, NULL},
-    {0, NULL}, {0, NULL}, {0, pgFE}, {0, pgFF}};
+    {0, nullptr}, {0, nullptr}, {0, nullptr}, {0, nullptr}, {0, nullptr},
+    {0, nullptr}, {0, nullptr}, {0, nullptr}, {0, nullptr}, {0, nullptr},
+    {0, nullptr}, {0, nullptr}, {0, nullptr}, {0, nullptr}, {0, nullptr},
+    {0, nullptr}, {0, nullptr}, {0, pg11},    {0, nullptr}, {0, nullptr},
+    {0, nullptr}, {0, nullptr}, {0, nullptr}, {0, nullptr}, {0, nullptr},
+    {0, nullptr}, {0, nullptr}, {0, nullptr}, {0, nullptr}, {0, nullptr},
+    {0, nullptr}, {0, nullptr}, {0, nullptr}, {0, nullptr}, {0, nullptr},
+    {0, pg23},    {0, nullptr}, {0, nullptr}, {0, nullptr}, {0, nullptr},
+    {0, nullptr}, {0, nullptr}, {0, nullptr}, {0, nullptr}, {0, nullptr},
+    {0, nullptr}, {0, pg2E},    {0, pg2F},    {0, pg30},    {0, pg31},
+    {0, pg32},    {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr},
+    {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr},
+    {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr},
+    {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr},
+    {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr},
+    {1, nullptr}, {1, nullptr}, {0, pg4D},    {1, nullptr}, {1, nullptr},
+    {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr},
+    {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr},
+    {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr},
+    {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr},
+    {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr},
+    {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr},
+    {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr},
+    {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr},
+    {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr},
+    {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr},
+    {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr},
+    {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr},
+    {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr},
+    {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr},
+    {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr},
+    {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr}, {0, pg9F},
+    {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr}, {0, pgA4},
+    {0, nullptr}, {0, nullptr}, {0, nullptr}, {0, nullptr}, {0, nullptr},
+    {0, nullptr}, {0, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr},
+    {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr},
+    {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr},
+    {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr},
+    {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr},
+    {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr},
+    {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr},
+    {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr},
+    {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr}, {1, nullptr},
+    {0, pgD7},    {0, nullptr}, {0, nullptr}, {0, nullptr}, {0, nullptr},
+    {0, nullptr}, {0, nullptr}, {0, nullptr}, {0, nullptr}, {0, nullptr},
+    {0, nullptr}, {0, nullptr}, {0, nullptr}, {0, nullptr}, {0, nullptr},
+    {0, nullptr}, {0, nullptr}, {0, nullptr}, {0, nullptr}, {0, nullptr},
+    {0, nullptr}, {0, nullptr}, {0, nullptr}, {0, nullptr}, {0, nullptr},
+    {0, nullptr}, {0, nullptr}, {0, nullptr}, {0, nullptr}, {0, nullptr},
+    {0, nullptr}, {0, nullptr}, {0, nullptr}, {0, nullptr}, {1, nullptr},
+    {0, pgFA},    {0, nullptr}, {0, nullptr}, {0, nullptr}, {0, pgFE},
+    {0, pgFF}};
 
 size_t my_numcells_mb(const CHARSET_INFO *cs, const char *b, const char *e) {
   my_wc_t wc;

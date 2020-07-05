@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -224,6 +224,23 @@ class Relay_log_info : public Rpl_info {
 
     /** Flag counter.  Should always be last */
     STATE_FLAGS_COUNT
+  };
+
+  /**
+    Identifies what is the slave policy on primary keys in tables.
+  */
+  enum enum_require_table_primary_key {
+    /**No policy, used on PFS*/
+    PK_CHECK_NONE = 0,
+    /**
+      The slave sets the value of sql_require_primary_key according to
+      the source replicated value.
+    */
+    PK_CHECK_STREAM = 1,
+    /** The slave enforces tables to have primary keys for a given channel*/
+    PK_CHECK_ON = 2,
+    /** The slave does not enforce any policy around primary keys*/
+    PK_CHECK_OFF = 3
   };
 
   /*
@@ -562,10 +579,26 @@ class Relay_log_info : public Rpl_info {
     only.
 
     @param require_row the flag value.
-
-     @return a status code describing the state of the data initialization.
    */
   void set_require_row_format(bool require_row);
+
+  /**
+     Returns what is the slave policy concerning primary keys on
+     replicated tables.
+
+     @return STREAM if it replicates the source values, ON if it enforces the
+             need on primary keys, OFF if it does no enforce any restrictions.
+   */
+  enum_require_table_primary_key get_require_table_primary_key_check() const;
+
+  /**
+    Sets the field that tells what is the slave policy concerning primary keys
+    on replicated tables.
+
+    @param require_pk the policy value.
+  */
+  void set_require_table_primary_key_check(
+      enum_require_table_primary_key require_pk);
 
   /*
     This will be used to verify transactions boundaries of events being applied
@@ -692,6 +725,16 @@ class Relay_log_info : public Rpl_info {
      Events: INTVAR_EVENT, RAND_EVENT, USER_VAR_EVENT
   */
   bool m_require_row_format;
+
+  /**
+    Identifies what is the slave policy on primary keys in tables.
+    If set to STREAM it just replicates the value of sql_require_primary_key.
+    If set to ON it fails when the source tries to replicate a table creation
+    or alter operation that does not have a primary key.
+    If set to OFF it does not enforce any policies on the channel for primary
+    keys.
+  */
+  enum_require_table_primary_key m_require_table_primary_key_check;
 
  public:
   bool is_relay_log_truncated() { return m_relay_log_truncated; }
@@ -1762,11 +1805,18 @@ class Relay_log_info : public Rpl_info {
   static const int LINES_IN_RELAY_LOG_INFO_WITH_REQUIRE_ROW_FORMAT = 11;
 
   /*
+    Represents line number in relay_log.info to save
+    REQUIRE_TABLE_PRIMARY_KEY_CHECK
+  */
+  static const int
+      LINES_IN_RELAY_LOG_INFO_WITH_REQUIRE_TABLE_PRIMARY_KEY_CHECK = 12;
+
+  /*
     Total lines in relay_log.info.
     This has to be updated every time a member is added or removed.
   */
   static const int MAXIMUM_LINES_IN_RELAY_LOG_INFO_FILE =
-      LINES_IN_RELAY_LOG_INFO_WITH_REQUIRE_ROW_FORMAT;
+      LINES_IN_RELAY_LOG_INFO_WITH_REQUIRE_TABLE_PRIMARY_KEY_CHECK;
 
   bool read_info(Rpl_info_handler *from);
   bool write_info(Rpl_info_handler *to);
@@ -2201,7 +2251,7 @@ class Applier_security_context_guard {
    */
   virtual ~Applier_security_context_guard();
 
-  //--> Deleted constructors and methods to remove default move/copy semantics
+  // --> Deleted constructors and methods to remove default move/copy semantics
   Applier_security_context_guard(const Applier_security_context_guard &) =
       delete;
   Applier_security_context_guard(Applier_security_context_guard &&) = delete;
@@ -2209,7 +2259,7 @@ class Applier_security_context_guard {
       const Applier_security_context_guard &) = delete;
   Applier_security_context_guard &operator=(Applier_security_context_guard &&) =
       delete;
-  //<--
+  // <--
 
   /**
     Returns whether or not privilege checks may be skipped within the current

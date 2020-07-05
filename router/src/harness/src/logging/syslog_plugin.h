@@ -78,6 +78,9 @@ class SyslogHandler final : public mysql_harness::logging::Handler {
       case LogLevel::kWarning:
         return LOG_WARNING;
       case LogLevel::kInfo:
+      case LogLevel::kNote:
+      case LogLevel::kSystem:
+        // Let loglevels NOTE and SYSTEM map to LOG_INFO
         return LOG_INFO;
       default:  // kDebug
         assert(level == LogLevel::kDebug);

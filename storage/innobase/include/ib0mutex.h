@@ -523,7 +523,7 @@ struct TTASEventMutex {
 
     /* We have to free the event before InnoDB shuts down. */
     os_event_destroy(m_event);
-    m_event = 0;
+    m_event = nullptr;
 
     m_policy.destroy();
   }
@@ -721,7 +721,7 @@ struct PolicyMutex {
 
   PolicyMutex() UNIV_NOTHROW : m_impl() {
 #ifdef UNIV_PFS_MUTEX
-    m_ptr = 0;
+    m_ptr = nullptr;
 #endif /* UNIV_PFS_MUTEX */
   }
 
@@ -846,7 +846,7 @@ struct PolicyMutex {
 
   @param key - Performance Schema key. */
   void pfs_add(mysql_pfs_key_t key) UNIV_NOTHROW {
-    ut_ad(m_ptr == 0);
+    ut_ad(m_ptr == nullptr);
     m_ptr = PSI_MUTEX_CALL(init_mutex)(key.m_value, this);
   }
 
@@ -858,12 +858,12 @@ struct PolicyMutex {
   PSI_mutex_locker *pfs_begin_lock(PSI_mutex_locker_state *state,
                                    const char *name,
                                    uint32_t line) UNIV_NOTHROW {
-    if (m_ptr != 0) {
+    if (m_ptr != nullptr) {
       return (PSI_MUTEX_CALL(start_mutex_wait)(state, m_ptr, PSI_MUTEX_LOCK,
                                                name, (uint)line));
     }
 
-    return (0);
+    return (nullptr);
   }
 
   /** Performance schema monitoring.
@@ -873,35 +873,35 @@ struct PolicyMutex {
   PSI_mutex_locker *pfs_begin_trylock(PSI_mutex_locker_state *state,
                                       const char *name,
                                       uint32_t line) UNIV_NOTHROW {
-    if (m_ptr != 0) {
+    if (m_ptr != nullptr) {
       return (PSI_MUTEX_CALL(start_mutex_wait)(state, m_ptr, PSI_MUTEX_TRYLOCK,
                                                name, (uint)line));
     }
 
-    return (0);
+    return (nullptr);
   }
 
   /** Performance schema monitoring
   @param locker - PFS identifier
   @param ret - 0 for success and 1 for failure */
   void pfs_end(PSI_mutex_locker *locker, int ret) UNIV_NOTHROW {
-    if (locker != 0) {
+    if (locker != nullptr) {
       PSI_MUTEX_CALL(end_mutex_wait)(locker, ret);
     }
   }
 
   /** Performance schema monitoring - register mutex release */
   void pfs_exit() {
-    if (m_ptr != 0) {
+    if (m_ptr != nullptr) {
       PSI_MUTEX_CALL(unlock_mutex)(m_ptr);
     }
   }
 
   /** Performance schema monitoring - deregister */
   void pfs_del() {
-    if (m_ptr != 0) {
+    if (m_ptr != nullptr) {
       PSI_MUTEX_CALL(destroy_mutex)(m_ptr);
-      m_ptr = 0;
+      m_ptr = nullptr;
     }
   }
 #endif /* UNIV_PFS_MUTEX */

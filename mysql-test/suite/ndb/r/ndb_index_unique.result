@@ -937,7 +937,7 @@ SELECT STRAIGHT_JOIN count(*) FROM
 t1 JOIN t2 ON t2.a=t1.a where t2.uq IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	10000	100.00	Using pushed condition (`test`.`t1`.`a` is not null)
-1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix	ix	10	const,test.t1.a	1	100.00	Using pushed condition (`test`.`t2`.`uq` is null)
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix	ix	10	const,test.t1.a	1	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select straight_join count(0) AS `count(*)` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`uq` is null))
 SELECT STRAIGHT_JOIN count(*) FROM 

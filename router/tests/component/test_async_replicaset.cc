@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -157,53 +157,6 @@ class AsyncReplicasetTest : public RouterComponentTest {
     return router;
   }
 
-  int get_int_field_value(const std::string &json_string,
-                          const std::string &field_name) {
-    rapidjson::Document json_doc;
-    json_doc.Parse(json_string.c_str());
-    if (!json_doc.HasMember(field_name.c_str())) {
-      // that can mean this has not been set yet
-      return 0;
-    }
-
-    if (!json_doc[field_name.c_str()].IsInt()) {
-      // that can mean this has not been set yet
-      return 0;
-    }
-
-    return json_doc[field_name.c_str()].GetInt();
-  }
-
-  int get_transaction_count(const std::string &json_string) {
-    return get_int_field_value(json_string, "transaction_count");
-  }
-
-  bool wait_for_transaction_count(const uint16_t http_port,
-                                  const int expected_queries_count,
-                                  std::chrono::milliseconds timeout = 5s) {
-    const std::chrono::milliseconds kStep = 20ms;
-    do {
-      std::string server_globals =
-          MockServerRestClient(http_port).get_globals_as_json_string();
-      if (get_transaction_count(server_globals) >= expected_queries_count)
-        return true;
-      std::this_thread::sleep_for(kStep);
-      timeout -= kStep;
-    } while (timeout > 0ms);
-
-    return false;
-  }
-
-  bool wait_for_transaction_count_increase(
-      const uint16_t http_port, std::chrono::milliseconds timeout = 5s) {
-    std::string server_globals =
-        MockServerRestClient(http_port).get_globals_as_json_string();
-    int expected_queries_count = get_transaction_count(server_globals) + 3;
-
-    return wait_for_transaction_count(http_port, expected_queries_count,
-                                      timeout);
-  }
-
   void set_mock_metadata(uint16_t http_port, const std::string &gr_id,
                          const std::vector<uint16_t> &gr_node_ports,
                          unsigned primary_id = 0, unsigned view_id = 0,
@@ -218,7 +171,7 @@ class AsyncReplicasetTest : public RouterComponentTest {
     json_doc.AddMember("md_query_count", 0, allocator);
 
     if (empty_result_from_cluster_type_query) {
-      json_doc.AddMember("empty_result_from_cluster_type_query", 1, allocator);
+      json_doc.AddMember("cluster_type", "", allocator);
     }
 
     const auto json_str = json_to_string(json_doc);
@@ -268,8 +221,7 @@ TEST_F(AsyncReplicasetTest, NoChange) {
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(*cluster_nodes[i], cluster_nodes_ports[i]));
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
-                    .wait_for_rest_endpoint_ready())
-        << cluster_nodes[i]->get_full_output();
+                    .wait_for_rest_endpoint_ready());
 
     SCOPED_TRACE(
         "// Make our metadata server to return all 3 nodes a s a cluster "
@@ -300,7 +252,7 @@ TEST_F(AsyncReplicasetTest, NoChange) {
                                   routing_section, state_file);
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE(
       "// Check our state file content, it should not change, there is "
@@ -332,8 +284,7 @@ TEST_F(AsyncReplicasetTest, SecondaryAdded) {
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(*cluster_nodes[i], cluster_nodes_ports[i]));
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
-                    .wait_for_rest_endpoint_ready())
-        << cluster_nodes[i]->get_full_output();
+                    .wait_for_rest_endpoint_ready());
 
     SCOPED_TRACE(
         "// Make our metadata server to return all 3 nodes a s a cluster "
@@ -373,7 +324,7 @@ TEST_F(AsyncReplicasetTest, SecondaryAdded) {
                                   routing_section, state_file);
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE(
       "// Check our state file content, it should first contain only 2 "
@@ -395,7 +346,7 @@ TEST_F(AsyncReplicasetTest, SecondaryAdded) {
                     view_id + 1);
 
   SCOPED_TRACE("// Wait untill the router sees this change");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE(
       "// Check our state file content, it should now contain all 3 members "
@@ -437,8 +388,7 @@ TEST_F(AsyncReplicasetTest, SecondaryRemovedStillReachable) {
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(*cluster_nodes[i], cluster_nodes_ports[i]));
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
-                    .wait_for_rest_endpoint_ready())
-        << cluster_nodes[i]->get_full_output();
+                    .wait_for_rest_endpoint_ready());
 
     SCOPED_TRACE(
         "// Make our metadata server to return all 3 nodes as a cluster "
@@ -475,7 +425,7 @@ TEST_F(AsyncReplicasetTest, SecondaryRemovedStillReachable) {
                                   routing_section, state_file);
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE(
       "// Check our state file content, it should first contain all 3 members");
@@ -502,7 +452,7 @@ TEST_F(AsyncReplicasetTest, SecondaryRemovedStillReachable) {
                     view_id + 1);
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[1]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[1], 2));
 
   SCOPED_TRACE(
       "// Check our state file content, it should now contain only 2 members "
@@ -514,9 +464,8 @@ TEST_F(AsyncReplicasetTest, SecondaryRemovedStillReachable) {
   SCOPED_TRACE(
       "// The connection to the first secondary should still be alive, the "
       "connection to the second secondary should be dropped");
-
   ASSERT_NO_THROW(client1.query_one("select @@port"));
-  ASSERT_ANY_THROW(client2.query_one("select @@port"));
+  EXPECT_TRUE(wait_connection_dropped(client2));
 }
 
 /**
@@ -540,8 +489,7 @@ TEST_F(AsyncReplicasetTest, ClusterIdChanged) {
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(*cluster_nodes[i], cluster_nodes_ports[i]));
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
-                    .wait_for_rest_endpoint_ready())
-        << cluster_nodes[i]->get_full_output();
+                    .wait_for_rest_endpoint_ready());
 
     SCOPED_TRACE(
         "// Make our metadata server to return all 3 nodes as a cluster "
@@ -578,7 +526,7 @@ TEST_F(AsyncReplicasetTest, ClusterIdChanged) {
                                   routing_section, state_file);
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE(
       "// Check our state file content, it should first contain all 3 members");
@@ -592,7 +540,7 @@ TEST_F(AsyncReplicasetTest, ClusterIdChanged) {
                     view_id + 1);
 
   SCOPED_TRACE("// Wait untill the router sees this change");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE(
       "// Check our state file content, not change, the PRIMARYs view of the "
@@ -624,8 +572,7 @@ TEST_F(AsyncReplicasetTest, ClusterSecondaryQueryErrors) {
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(*cluster_nodes[i], cluster_nodes_ports[i]));
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
-                    .wait_for_rest_endpoint_ready())
-        << cluster_nodes[i]->get_full_output();
+                    .wait_for_rest_endpoint_ready());
 
     SCOPED_TRACE(
         "// Make our metadata server to return all 3 nodes as a cluster "
@@ -660,7 +607,7 @@ TEST_F(AsyncReplicasetTest, ClusterSecondaryQueryErrors) {
                                routing_section, state_file);
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[2]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[2], 2));
 
   SCOPED_TRACE(
       "// Check our state file content, it should contain all 3 members");
@@ -676,7 +623,7 @@ TEST_F(AsyncReplicasetTest, ClusterSecondaryQueryErrors) {
     const std::string pattern =
         "metadata_cache WARNING .* Failed fetching metadata from instance: " +
         std::to_string(cluster_nodes_ports[i]);
-    ASSERT_TRUE(pattern_found(log_content, pattern));
+    ASSERT_TRUE(pattern_found(log_content, pattern)) << log_content;
   }
 }
 
@@ -700,8 +647,7 @@ TEST_F(AsyncReplicasetTest, MetadataUnavailableDisconnectFromSecondary) {
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(*cluster_nodes[i], cluster_nodes_ports[i]));
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
-                    .wait_for_rest_endpoint_ready())
-        << cluster_nodes[i]->get_full_output();
+                    .wait_for_rest_endpoint_ready());
 
     SCOPED_TRACE(
         "// Make our metadata server to return both nodes as a cluster "
@@ -737,7 +683,7 @@ TEST_F(AsyncReplicasetTest, MetadataUnavailableDisconnectFromSecondary) {
                                   routing_section, state_file);
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE(
       "// Check our state file content, it should contain both members");
@@ -763,12 +709,12 @@ TEST_F(AsyncReplicasetTest, MetadataUnavailableDisconnectFromSecondary) {
   }
 
   SCOPED_TRACE("// Wait untill the router sees this change");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[1]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[1], 2));
 
   SCOPED_TRACE(
       "// RW connection should have survived, RO one should have been closed");
   ASSERT_NO_THROW(client1.query_one("select @@port"));
-  ASSERT_ANY_THROW(client2.query_one("select @@port"));
+  EXPECT_TRUE(wait_connection_dropped(client2));
 
   SCOPED_TRACE(
       "// Make sure the state file did not change, it should still contain "
@@ -796,8 +742,7 @@ TEST_F(AsyncReplicasetTest, MetadataUnavailableDisconnectFromPrimary) {
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(*cluster_nodes[i], cluster_nodes_ports[i]));
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
-                    .wait_for_rest_endpoint_ready())
-        << cluster_nodes[i]->get_full_output();
+                    .wait_for_rest_endpoint_ready());
 
     SCOPED_TRACE(
         "// Make our metadata server to return both nodes as a cluster "
@@ -833,7 +778,7 @@ TEST_F(AsyncReplicasetTest, MetadataUnavailableDisconnectFromPrimary) {
                                   routing_section, state_file);
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE(
       "// Check our state file content, it should contain both members");
@@ -859,11 +804,11 @@ TEST_F(AsyncReplicasetTest, MetadataUnavailableDisconnectFromPrimary) {
   }
 
   SCOPED_TRACE("// Wait untill the router sees this change");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE(
       "// RO connection should have survived, RW one should have been closed");
-  ASSERT_ANY_THROW(client1.query_one("select @@port"));
+  EXPECT_TRUE(wait_connection_dropped(client1));
   ASSERT_NO_THROW(client2.query_one("select @@port"));
 
   /////////////////////////////////////////
@@ -877,7 +822,7 @@ TEST_F(AsyncReplicasetTest, MetadataUnavailableDisconnectFromPrimary) {
   }
 
   SCOPED_TRACE("// Wait untill the router sees this change");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE("// We should be able to connect to the PRIMARY again ");
   MySQLSession client3;
@@ -912,8 +857,7 @@ TEST_F(AsyncReplicasetTest, MultipleChangesInTheCluster) {
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(*cluster_nodes[i], cluster_nodes_ports[i]));
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
-                    .wait_for_rest_endpoint_ready())
-        << cluster_nodes[i]->get_full_output();
+                    .wait_for_rest_endpoint_ready());
 
     SCOPED_TRACE(
         "// Make our metadata server to return first 3 nodes as a cluster "
@@ -946,7 +890,7 @@ TEST_F(AsyncReplicasetTest, MultipleChangesInTheCluster) {
                                   routing_section, state_file);
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE(
       "// Check our state file content, it should contain the initial members");
@@ -963,7 +907,7 @@ TEST_F(AsyncReplicasetTest, MultipleChangesInTheCluster) {
                     /*primary_id=*/1, view_id + 1);
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[2]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[2], 2));
 
   SCOPED_TRACE("// Check that the state file caught up with all those changes");
   check_state_file(state_file, cluster_id, new_cluster_members, view_id + 1);
@@ -989,8 +933,7 @@ TEST_F(AsyncReplicasetTest, SecondaryRemoved) {
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(*cluster_nodes[i], cluster_nodes_ports[i]));
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
-                    .wait_for_rest_endpoint_ready())
-        << cluster_nodes[i]->get_full_output();
+                    .wait_for_rest_endpoint_ready());
 
     SCOPED_TRACE(
         "// Make our metadata server initially return all 3 nodes as a cluster "
@@ -1023,7 +966,7 @@ TEST_F(AsyncReplicasetTest, SecondaryRemoved) {
                                   routing_section, state_file);
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE(
       "// Check our state file content, it should contain the initial members");
@@ -1047,7 +990,7 @@ TEST_F(AsyncReplicasetTest, SecondaryRemoved) {
                     /*primary_id=*/0, view_id + 1);
 
   SCOPED_TRACE("// Wait untill the router sees this change");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE(
       "// Check that the state file does not contain the second SECONDARY "
@@ -1058,7 +1001,7 @@ TEST_F(AsyncReplicasetTest, SecondaryRemoved) {
       "// Check that the existing connection to the second SECONDARY got "
       "dropped");
   ASSERT_NO_THROW(client1.query_one("select @@port"));
-  ASSERT_ANY_THROW(client2.query_one("select @@port"));
+  EXPECT_TRUE(wait_connection_dropped(client2));
 
   SCOPED_TRACE(
       "// Check that new RO connections are made to the first secondary");
@@ -1094,8 +1037,7 @@ TEST_F(AsyncReplicasetTest, NewPrimaryOldGone) {
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(*cluster_nodes[i], cluster_nodes_ports[i]));
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
-                    .wait_for_rest_endpoint_ready())
-        << cluster_nodes[i]->get_full_output();
+                    .wait_for_rest_endpoint_ready());
 
     SCOPED_TRACE("// Let us start with 2 members (PRIMARY and SECONDARY)");
     set_mock_metadata(cluster_http_ports[i], cluster_id,
@@ -1124,7 +1066,7 @@ TEST_F(AsyncReplicasetTest, NewPrimaryOldGone) {
                                   routing_section, state_file);
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE(
       "// Check our state file content, it should contain the initial members");
@@ -1152,14 +1094,14 @@ TEST_F(AsyncReplicasetTest, NewPrimaryOldGone) {
   }
 
   SCOPED_TRACE("// Wait untill the router sees this change");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[1]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[1], 2));
 
   SCOPED_TRACE("// Check that the state file is as expected");
   check_state_file(state_file, cluster_id, new_cluster_members, view_id + 1);
 
   SCOPED_TRACE(
       "// Check that the existing connection to the old PRIMARY got dropped");
-  ASSERT_ANY_THROW(client_rw.query_one("select @@port"));
+  EXPECT_TRUE(wait_connection_dropped(client_rw));
   ASSERT_NO_THROW(client_ro.query_one("select @@port"));
 
   SCOPED_TRACE("// Check that new RW connections is made to the new PRIMARY");
@@ -1191,8 +1133,7 @@ TEST_F(AsyncReplicasetTest, NewPrimaryOldBecomesSecondary) {
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(*cluster_nodes[i], cluster_nodes_ports[i]));
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
-                    .wait_for_rest_endpoint_ready())
-        << cluster_nodes[i]->get_full_output();
+                    .wait_for_rest_endpoint_ready());
 
     SCOPED_TRACE("// Let us start with all 3 members (PRIMARY and SECONDARY)");
     set_mock_metadata(cluster_http_ports[i], cluster_id, cluster_nodes_ports,
@@ -1221,7 +1162,7 @@ TEST_F(AsyncReplicasetTest, NewPrimaryOldBecomesSecondary) {
                                   routing_section, state_file);
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE(
       "// Check our state file content, it should contain the initial members");
@@ -1247,12 +1188,12 @@ TEST_F(AsyncReplicasetTest, NewPrimaryOldBecomesSecondary) {
                     /*primary_id=*/1, view_id + 1);
 
   SCOPED_TRACE("// Wait untill the router sees this change");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[1]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[1], 2));
 
   SCOPED_TRACE(
       "// Check that the existing connection to the old PRIMARY got dropped "
       "and the ro connection to the new PRIMARY is still up");
-  ASSERT_ANY_THROW(client_rw.query_one("select @@port"));
+  EXPECT_TRUE(wait_connection_dropped(client_rw));
   ASSERT_NO_THROW(client_ro.query_one("select @@port"));
 
   SCOPED_TRACE("// Check that new RW connections is made to the new PRIMARY");
@@ -1284,8 +1225,7 @@ TEST_F(AsyncReplicasetTest, NewPrimaryOldBecomesSecondaryDisconnectOnPromoted) {
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(*cluster_nodes[i], cluster_nodes_ports[i]));
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
-                    .wait_for_rest_endpoint_ready())
-        << cluster_nodes[i]->get_full_output();
+                    .wait_for_rest_endpoint_ready());
 
     SCOPED_TRACE("// Let us start with all 3 members");
     set_mock_metadata(cluster_http_ports[i], cluster_id, cluster_nodes_ports,
@@ -1316,7 +1256,7 @@ TEST_F(AsyncReplicasetTest, NewPrimaryOldBecomesSecondaryDisconnectOnPromoted) {
                                   routing_section, state_file);
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE(
       "// Check our state file content, it should contain the initial members");
@@ -1342,14 +1282,14 @@ TEST_F(AsyncReplicasetTest, NewPrimaryOldBecomesSecondaryDisconnectOnPromoted) {
                     /*primary_id=*/1, view_id + 1);
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[1]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[1], 2));
 
   SCOPED_TRACE("// Check that the state file is as expected");
   check_state_file(state_file, cluster_id, cluster_nodes_ports, view_id + 1);
 
   SCOPED_TRACE("// Check that both RW and RO connections are down");
-  ASSERT_ANY_THROW(client_rw.query_one("select @@port"));
-  ASSERT_ANY_THROW(client_ro.query_one("select @@port"));
+  EXPECT_TRUE(wait_connection_dropped(client_rw));
+  EXPECT_TRUE(wait_connection_dropped(client_ro));
 
   SCOPED_TRACE("// Check that new RW connections is made to the new PRIMARY");
   MySQLSession client_rw2;
@@ -1380,8 +1320,7 @@ TEST_F(AsyncReplicasetTest, OnlyPrimaryLeftAcceptsRWAndRO) {
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(*cluster_nodes[i], cluster_nodes_ports[i]));
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
-                    .wait_for_rest_endpoint_ready())
-        << cluster_nodes[i]->get_full_output();
+                    .wait_for_rest_endpoint_ready());
 
     SCOPED_TRACE("// Let us start with 2 members (PRIMARY and SECONDARY)");
     set_mock_metadata(cluster_http_ports[i], cluster_id, cluster_nodes_ports,
@@ -1410,7 +1349,7 @@ TEST_F(AsyncReplicasetTest, OnlyPrimaryLeftAcceptsRWAndRO) {
                                   routing_section, state_file);
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE(
       "// Check our state file content, it should contain the initial members");
@@ -1438,15 +1377,15 @@ TEST_F(AsyncReplicasetTest, OnlyPrimaryLeftAcceptsRWAndRO) {
                     /*primary_id=*/0, view_id + 1);
 
   SCOPED_TRACE("// Wait untill the router sees this change");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[1]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[1], 2));
 
   SCOPED_TRACE("// Check that the state file is as expected");
   check_state_file(state_file, cluster_id, {cluster_nodes_ports[1]},
                    view_id + 1);
 
   SCOPED_TRACE("// Check that both RW and RO connections are down");
-  ASSERT_ANY_THROW(client_rw.query_one("select @@port"));
-  ASSERT_ANY_THROW(client_ro.query_one("select @@port"));
+  EXPECT_TRUE(wait_connection_dropped(client_rw));
+  EXPECT_TRUE(wait_connection_dropped(client_ro));
 
   SCOPED_TRACE(
       "// Check that new RO connection is now made to the new PRIMARY");
@@ -1478,8 +1417,7 @@ TEST_F(AsyncReplicasetTest, OnlyPrimaryLeftAcceptsRW) {
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(*cluster_nodes[i], cluster_nodes_ports[i]));
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
-                    .wait_for_rest_endpoint_ready())
-        << cluster_nodes[i]->get_full_output();
+                    .wait_for_rest_endpoint_ready());
 
     SCOPED_TRACE("// Let us start with 2 members (PRIMARY and SECONDARY)");
     set_mock_metadata(cluster_http_ports[i], cluster_id, cluster_nodes_ports,
@@ -1508,7 +1446,7 @@ TEST_F(AsyncReplicasetTest, OnlyPrimaryLeftAcceptsRW) {
                                   routing_section, state_file);
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE(
       "// Check our state file content, it should contain the initial members");
@@ -1527,14 +1465,14 @@ TEST_F(AsyncReplicasetTest, OnlyPrimaryLeftAcceptsRW) {
                     /*primary_id=*/0, view_id + 1);
 
   SCOPED_TRACE("// Wait untill the router sees this change");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE("// Check that the state file is as expected");
   check_state_file(state_file, cluster_id, {cluster_nodes_ports[0]},
                    view_id + 1);
 
   SCOPED_TRACE("// Check that RO connection is down and no new is accepted");
-  ASSERT_ANY_THROW(client_ro.query_one("select @@port"));
+  EXPECT_TRUE(wait_connection_dropped(client_ro));
   MySQLSession client_ro2;
   ASSERT_ANY_THROW(client_ro.connect("127.0.0.1", router_port_ro, "username",
                                      "password", "", ""));
@@ -1569,8 +1507,7 @@ TEST_P(NodeUnavailableTest, NodeUnavailable) {
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(*cluster_nodes[nodes], cluster_nodes_ports[i]));
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
-                    .wait_for_rest_endpoint_ready())
-        << cluster_nodes[nodes]->get_full_output();
+                    .wait_for_rest_endpoint_ready());
 
     SCOPED_TRACE("// All 4 nodes are in the metadata");
     set_mock_metadata(cluster_http_ports[i], cluster_id, cluster_nodes_ports,
@@ -1600,7 +1537,7 @@ TEST_P(NodeUnavailableTest, NodeUnavailable) {
                                   routing_section, state_file);
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE(
       "// Check our state file content, it should contain the initial members");
@@ -1663,8 +1600,7 @@ TEST_P(NodeUnavailableAllNodesDownTest, NodeUnavailableAllNodesDown) {
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(*cluster_nodes[i], cluster_nodes_ports[i]));
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
-                    .wait_for_rest_endpoint_ready())
-        << cluster_nodes[i]->get_full_output();
+                    .wait_for_rest_endpoint_ready());
 
     SCOPED_TRACE("// All 3 nodes are in the metadata");
     set_mock_metadata(cluster_http_ports[i], cluster_id, cluster_nodes_ports,
@@ -1694,7 +1630,7 @@ TEST_P(NodeUnavailableAllNodesDownTest, NodeUnavailableAllNodesDown) {
                                     state_file);
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE(
       "// Check our state file content, it should contain the initial members");
@@ -1754,8 +1690,7 @@ TEST_P(ClusterTypeMismatchTest, ClusterTypeMismatch) {
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(*cluster_nodes[i], cluster_nodes_ports[i]));
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
-                    .wait_for_rest_endpoint_ready())
-        << cluster_nodes[i]->get_full_output();
+                    .wait_for_rest_endpoint_ready());
 
     SCOPED_TRACE("// Let us start with 2 members (PRIMARY and SECONDARY)");
     set_mock_metadata(cluster_http_ports[i], cluster_id, cluster_nodes_ports,
@@ -1784,7 +1719,7 @@ TEST_P(ClusterTypeMismatchTest, ClusterTypeMismatch) {
                                routing_section, state_file);
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE("// No connection should be possible");
   MySQLSession client_rw;
@@ -1863,17 +1798,16 @@ TEST_P(UnexpectedResultFromMDRefreshTest, UnexpectedResultFromMDRefreshQuery) {
       routing_section_rw + "\n" + routing_section_ro;
 
   SCOPED_TRACE("// Launch the router with the initial state file");
-  auto &router = launch_router(temp_test_dir.name(), metadata_cache_section,
-                               routing_section, state_file);
+  launch_router(temp_test_dir.name(), metadata_cache_section, routing_section,
+                state_file);
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE("// Let's make a connection to the both servers RW and RO");
   MySQLSession client1, client2;
   ASSERT_NO_THROW(client1.connect("127.0.0.1", router_port_rw, "username",
-                                  "password", "", ""))
-      << router.get_full_logfile();
+                                  "password", "", ""));
   auto result{client1.query_one("select @@port")};
   EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result)[0]))),
             cluster_nodes_ports[0]);
@@ -1892,14 +1826,9 @@ TEST_P(UnexpectedResultFromMDRefreshTest, UnexpectedResultFromMDRefreshQuery) {
                       /*empty_result_from_cluster_type_query=*/true);
   }
 
-  SCOPED_TRACE("// Wait untill the router sees this change");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
-
   SCOPED_TRACE("// Both connections should get dropped");
-  ASSERT_ANY_THROW(client1.query_one("select @@port"))
-      << router.get_full_logfile();
-  ASSERT_ANY_THROW(client2.query_one("select @@port"));
-
+  EXPECT_TRUE(wait_connection_dropped(client1));
+  EXPECT_TRUE(wait_connection_dropped(client2));
   // check that the router did not crash (happens automatically)
 }
 

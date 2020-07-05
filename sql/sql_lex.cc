@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,6 +41,7 @@
 #include "sql/current_thd.h"
 #include "sql/derror.h"
 #include "sql/item_func.h"
+#include "sql/item_subselect.h"
 #include "sql/mysqld.h"  // table_alias_charset
 #include "sql/nested_join.h"
 #include "sql/parse_location.h"
@@ -83,7 +84,7 @@ sys_var *trg_new_row_fake_var = (sys_var *)0x01;
 /**
   LEX_STRING constant for null-string to be used in parser and other places.
 */
-const LEX_STRING null_lex_str = {NULL, 0};
+const LEX_STRING null_lex_str = {nullptr, 0};
 /**
   Mapping from enum values in enum_binlog_stmt_unsafe to error codes.
 
@@ -139,7 +140,7 @@ const char *
 
 Table_ident::Table_ident(Protocol *protocol, const LEX_CSTRING &db_arg,
                          const LEX_CSTRING &table_arg, bool force)
-    : table(table_arg), sel(NULL), table_function(NULL) {
+    : table(table_arg), sel(nullptr), table_function(nullptr) {
   if (!force && protocol->has_client_capability(CLIENT_NO_SCHEMA))
     db = NULL_CSTR;
   else
@@ -172,10 +173,10 @@ void st_parsing_options::reset() {
  Cleans slave connection info.
 */
 void struct_slave_connection::reset() {
-  user = 0;
-  password = 0;
-  plugin_auth = 0;
-  plugin_dir = 0;
+  user = nullptr;
+  password = nullptr;
+  plugin_auth = nullptr;
+  plugin_dir = nullptr;
 }
 
 /**
@@ -198,7 +199,7 @@ bool Lex_input_stream::init(THD *thd, const char *buff, size_t length) {
   DBUG_EXECUTE_IF("bug42064_simulate_oom",
                   DBUG_SET("-d,bug42064_simulate_oom"););
 
-  if (m_cpp_buf == NULL) return true;
+  if (m_cpp_buf == nullptr) return true;
 
   m_thd = thd;
   reset(buff, length);
@@ -218,7 +219,7 @@ bool Lex_input_stream::init(THD *thd, const char *buff, size_t length) {
 void Lex_input_stream::reset(const char *buffer, size_t length) {
   yylineno = 1;
   yytoklen = 0;
-  yylval = NULL;
+  yylval = nullptr;
   lookahead_token = grammar_selector_token;
   static Lexer_yystype dummy_yylval;
   lookahead_yylval = &dummy_yylval;
@@ -235,23 +236,23 @@ void Lex_input_stream::reset(const char *buffer, size_t length) {
     master version into account.
   */
   m_ptr = const_cast<char *>(buffer);
-  m_tok_start = NULL;
-  m_tok_end = NULL;
+  m_tok_start = nullptr;
+  m_tok_end = nullptr;
   m_end_of_query = buffer + length;
   m_buf = buffer;
   m_buf_length = length;
   m_echo = true;
-  m_cpp_tok_start = NULL;
-  m_cpp_tok_end = NULL;
-  m_body_utf8 = NULL;
-  m_cpp_utf8_processed_ptr = NULL;
+  m_cpp_tok_start = nullptr;
+  m_cpp_tok_end = nullptr;
+  m_body_utf8 = nullptr;
+  m_cpp_utf8_processed_ptr = nullptr;
   next_state = MY_LEX_START;
-  found_semicolon = NULL;
+  found_semicolon = nullptr;
   ignore_space = m_thd->variables.sql_mode & MODE_IGNORE_SPACE;
   stmt_prepare_mode = false;
   multi_statements = true;
   in_comment = NO_COMMENT;
-  m_underscore_cs = NULL;
+  m_underscore_cs = nullptr;
   m_cpp_ptr = m_cpp_buf;
 }
 
@@ -369,13 +370,13 @@ void Lex_input_stream::body_utf8_append_literal(THD *thd, const LEX_STRING *txt,
 }
 
 void Lex_input_stream::add_digest_token(uint token, Lexer_yystype *yylval) {
-  if (m_digest != NULL) {
+  if (m_digest != nullptr) {
     m_digest = digest_add_token(m_digest, token, yylval);
   }
 }
 
 void Lex_input_stream::reduce_digest_token(uint token_left, uint token_right) {
-  if (m_digest != NULL) {
+  if (m_digest != nullptr) {
     m_digest = digest_reduce_token(m_digest, token_left, token_right);
   }
 }
@@ -389,10 +390,10 @@ void LEX::assert_ok_set_current_select() {
 
 LEX::~LEX() {
   destroy_query_tables_list();
-  plugin_unlock_list(NULL, plugins.begin(), plugins.size());
-  unit = NULL;  // Created in mem_root - no destructor
-  select_lex = NULL;
-  m_current_select = NULL;
+  plugin_unlock_list(nullptr, plugins.begin(), plugins.size());
+  unit = nullptr;  // Created in mem_root - no destructor
+  select_lex = nullptr;
+  m_current_select = nullptr;
 }
 
 /**
@@ -409,10 +410,10 @@ void LEX::reset() {
   create_view_suid = true;
 
   context_stack.empty();
-  unit = NULL;
-  select_lex = NULL;
-  m_current_select = NULL;
-  all_selects_list = NULL;
+  unit = nullptr;
+  select_lex = nullptr;
+  m_current_select = nullptr;
+  all_selects_list = nullptr;
 
   bulk_insert_row_cnt = 0;
 
@@ -426,18 +427,18 @@ void LEX::reset() {
   subqueries = false;
   context_analysis_only = 0;
   safe_to_cache_query = true;
-  insert_table = NULL;
-  insert_table_leaf = NULL;
+  insert_table = nullptr;
+  insert_table_leaf = nullptr;
   parsing_options.reset();
-  alter_info = NULL;
-  part_info = NULL;
+  alter_info = nullptr;
+  part_info = nullptr;
   duplicates = DUP_ERROR;
   ignore = false;
-  spname = NULL;
-  sphead = NULL;
-  set_sp_current_parsing_ctx(NULL);
-  m_sql_cmd = NULL;
-  query_tables = NULL;
+  spname = nullptr;
+  sphead = nullptr;
+  set_sp_current_parsing_ctx(nullptr);
+  m_sql_cmd = nullptr;
+  query_tables = nullptr;
   reset_query_tables_list(false);
   expr_allows_subselect = true;
   use_only_table_context = false;
@@ -446,32 +447,32 @@ void LEX::reset() {
   m_statement_options = 0;
   next_binlog_file_nr = 0;
 
-  name.str = NULL;
+  name.str = nullptr;
   name.length = 0;
-  event_parse_data = NULL;
+  event_parse_data = nullptr;
   profile_options = PROFILE_NONE;
   select_number = 0;
   allow_sum_func = 0;
   m_deny_window_func = 0;
-  in_sum_func = NULL;
-  create_info = NULL;
+  in_sum_func = nullptr;
+  create_info = nullptr;
   server_options.reset();
-  explain_format = NULL;
+  explain_format = nullptr;
   is_explain_analyze = false;
   is_lex_started = true;
   reset_slave_info.all = false;
-  mi.channel = NULL;
+  mi.channel = nullptr;
 
-  wild = NULL;
+  wild = nullptr;
   mark_broken(false);
   reset_exec_started();
   max_execution_time = 0;
   reparse_common_table_expr_at = 0;
-  opt_hints_global = NULL;
+  opt_hints_global = nullptr;
   binlog_need_explicit_defaults_ts = false;
   m_extended_show = false;
   option_type = OPT_DEFAULT;
-  force_iterator_executor = false;
+  check_opt = HA_CHECK_OPT();
 
   clear_privileges();
   grant_as.cleanup();
@@ -497,7 +498,7 @@ bool lex_start(THD *thd) {
   thd->init_cost_model();
 
   const bool status = lex->new_top_level_query();
-  DBUG_ASSERT(lex->current_select() == NULL);
+  DBUG_ASSERT(lex->current_select() == nullptr);
   lex->m_current_select = lex->select_lex;
 
   lex->m_IS_table_stats.invalidate_cache();
@@ -517,21 +518,52 @@ void lex_end(LEX *lex) {
   /* release used plugins */
   if (!lex->plugins.empty()) /* No function call and no mutex if no plugins. */
   {
-    plugin_unlock_list(0, lex->plugins.begin(), lex->plugins.size());
+    plugin_unlock_list(nullptr, lex->plugins.begin(), lex->plugins.size());
   }
   lex->plugins.clear();
 
   sp_head::destroy(lex->sphead);
-  lex->sphead = NULL;
+  lex->sphead = nullptr;
 }
 
 SELECT_LEX *LEX::new_empty_query_block() {
-  SELECT_LEX *select = new (thd->mem_root) SELECT_LEX(nullptr, nullptr);
+  SELECT_LEX *select =
+      new (thd->mem_root) SELECT_LEX(thd->mem_root, nullptr, nullptr);
   if (select == nullptr) return nullptr; /* purecov: inspected */
 
   select->parent_lex = this;
 
   return select;
+}
+
+SELECT_LEX_UNIT *LEX::create_query_expr_and_block(THD *thd,
+                                                  SELECT_LEX *current_select,
+                                                  Item *where, Item *having,
+                                                  enum_parsing_context ctx) {
+  if (current_select != nullptr &&
+      current_select->nest_level >= (int)MAX_SELECT_NESTING) {
+    my_error(ER_TOO_HIGH_LEVEL_OF_NESTING_FOR_SELECT, MYF(0),
+             MAX_SELECT_NESTING);
+    return nullptr;
+  }
+
+  auto *const new_expression = new (thd->mem_root) SELECT_LEX_UNIT(ctx);
+  if (new_expression == nullptr) return nullptr;
+
+  auto *const new_select =
+      new (thd->mem_root) SELECT_LEX(thd->mem_root, where, having);
+  if (new_select == nullptr) return nullptr;
+
+  // Link the new query expression below the current query block, if any
+  if (current_select != nullptr)
+    new_expression->include_down(this, current_select);
+
+  new_select->include_down(this, new_expression);
+
+  new_select->parent_lex = this;
+  new_select->include_in_global(&this->all_selects_list);
+
+  return new_expression;
 }
 
 /**
@@ -548,33 +580,17 @@ SELECT_LEX *LEX::new_empty_query_block() {
 SELECT_LEX *LEX::new_query(SELECT_LEX *curr_select) {
   DBUG_TRACE;
 
-  if (curr_select != NULL &&
-      curr_select->nest_level >= (int)MAX_SELECT_NESTING) {
-    my_error(ER_TOO_HIGH_LEVEL_OF_NESTING_FOR_SELECT, MYF(0),
-             MAX_SELECT_NESTING);
-    return NULL;
-  }
-
   Name_resolution_context *outer_context = current_context();
-
-  SELECT_LEX *const select = new_empty_query_block();
-  if (!select) return NULL; /* purecov: inspected */
 
   enum_parsing_context parsing_place =
       curr_select ? curr_select->parsing_place : CTX_NONE;
 
-  SELECT_LEX_UNIT *const sel_unit =
-      new (thd->mem_root) SELECT_LEX_UNIT(parsing_place);
-  if (!sel_unit) return NULL; /* purecov: inspected */
+  SELECT_LEX_UNIT *const sel_unit = create_query_expr_and_block(
+      thd, curr_select, nullptr, nullptr, parsing_place);
+  if (sel_unit == nullptr) return nullptr;
+  SELECT_LEX *const select = sel_unit->first_select();
 
-  // Link the new "unit" below the current select_lex, if any
-  if (curr_select != NULL) sel_unit->include_down(this, curr_select);
-
-  select->include_down(this, sel_unit);
-
-  select->include_in_global(&all_selects_list);
-
-  if (select->set_context(NULL)) return NULL; /* purecov: inspected */
+  if (select->set_context(nullptr)) return nullptr; /* purecov: inspected */
   /*
     Assume that a subquery has an outer name resolution context
     (even a non-lateral derived table may have outer references).
@@ -593,7 +609,7 @@ SELECT_LEX *LEX::new_query(SELECT_LEX *curr_select) {
       Outer references are not allowed for
       - subqueries in INSERT ... VALUES clauses
     */
-    DBUG_ASSERT(select->context.outer_context == NULL);
+    DBUG_ASSERT(select->context.outer_context == nullptr);
   } else {
     select->context.outer_context = outer_context;
   }
@@ -622,7 +638,7 @@ SELECT_LEX *LEX::new_query(SELECT_LEX *curr_select) {
 SELECT_LEX *LEX::new_union_query(SELECT_LEX *curr_select, bool distinct) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(unit != NULL && select_lex != NULL);
+  DBUG_ASSERT(unit != nullptr && select_lex != nullptr);
 
   // Is this the outer-most query expression?
   bool const outer_most = curr_select->master_unit() == unit;
@@ -637,17 +653,17 @@ SELECT_LEX *LEX::new_union_query(SELECT_LEX *curr_select, bool distinct) {
   }
 
   SELECT_LEX *const select = new_empty_query_block();
-  if (!select) return NULL; /* purecov: inspected */
+  if (!select) return nullptr; /* purecov: inspected */
 
   select->include_neighbour(this, curr_select);
 
   SELECT_LEX_UNIT *const sel_unit = select->master_unit();
 
   if (!sel_unit->fake_select_lex && sel_unit->add_fake_select_lex(thd))
-    return NULL; /* purecov: inspected */
+    return nullptr; /* purecov: inspected */
 
   if (select->set_context(sel_unit->first_select()->context.outer_context))
-    return NULL; /* purecov: inspected */
+    return nullptr; /* purecov: inspected */
 
   select->include_in_global(&all_selects_list);
 
@@ -676,13 +692,13 @@ bool LEX::new_top_level_query() {
   DBUG_TRACE;
 
   // Assure that the LEX does not contain any query expression already
-  DBUG_ASSERT(unit == NULL && select_lex == NULL);
+  DBUG_ASSERT(unit == nullptr && select_lex == nullptr);
 
   // Check for the special situation when using INTO OUTFILE and LOAD DATA.
-  DBUG_ASSERT(result == 0);
+  DBUG_ASSERT(result == nullptr);
 
-  select_lex = new_query(NULL);
-  if (select_lex == NULL) return true; /* purecov: inspected */
+  select_lex = new_query(nullptr);
+  if (select_lex == nullptr) return true; /* purecov: inspected */
 
   unit = select_lex->master_unit();
 
@@ -711,7 +727,8 @@ void LEX::new_static_query(SELECT_LEX_UNIT *sel_unit, SELECT_LEX *select)
 
   reset();
 
-  DBUG_ASSERT(unit == NULL && select_lex == NULL && current_select() == NULL);
+  DBUG_ASSERT(unit == nullptr && select_lex == nullptr &&
+              current_select() == nullptr);
 
   select->parent_lex = this;
 
@@ -719,7 +736,7 @@ void LEX::new_static_query(SELECT_LEX_UNIT *sel_unit, SELECT_LEX *select)
 
   select->include_in_global(&all_selects_list);
 
-  (void)select->set_context(NULL);
+  (void)select->set_context(nullptr);
 
   select_lex = select;
   unit = sel_unit;
@@ -756,7 +773,7 @@ static bool consume_optimizer_hints(Lex_input_stream *lip) {
     Hint_scanner hint_scanner(lip->m_thd, lip->yylineno, lip->get_ptr(),
                               lip->get_end_of_query() - lip->get_ptr(),
                               lip->m_digest);
-    PT_hint_list *hint_list = NULL;
+    PT_hint_list *hint_list = nullptr;
     int rc = HINT_PARSER_parse(lip->m_thd, &hint_scanner, &hint_list);
     if (rc == 2)
       return true;  // Bison's internal OOM error
@@ -801,7 +818,7 @@ static int find_keyword(Lex_input_stream *lip, uint len, bool function) {
       return OR2_SYM;
     }
 
-    lip->yylval->optimizer_hints = NULL;
+    lip->yylval->optimizer_hints = nullptr;
     if (symbol->group & SG_HINTABLE_KEYWORDS) {
       lip->add_digest_token(symbol->tok, lip->yylval);
       if (consume_optimizer_hints(lip)) return ABORT_SYM;
@@ -828,7 +845,7 @@ static int find_keyword(Lex_input_stream *lip, uint len, bool function) {
 
 bool is_keyword(const char *name, size_t len) {
   DBUG_ASSERT(len != 0);
-  return Lex_hash::sql_keywords.get_hash_symbol(name, len) != NULL;
+  return Lex_hash::sql_keywords.get_hash_symbol(name, len) != nullptr;
 }
 
 /**
@@ -842,9 +859,9 @@ bool is_keyword(const char *name, size_t len) {
 */
 
 bool is_lex_native_function(const LEX_STRING *name) {
-  DBUG_ASSERT(name != NULL);
+  DBUG_ASSERT(name != nullptr);
   return Lex_hash::sql_keywords_and_funcs.get_hash_symbol(
-             name->str, (uint)name->length) != NULL;
+             name->str, (uint)name->length) != nullptr;
 }
 
 /* make a copy of token before ptr and set yytoklen */
@@ -919,7 +936,7 @@ static char *get_text(Lex_input_stream *lip, int pre_skip, int post_skip) {
     if (c == '\\' && !(lip->m_thd->variables.sql_mode &
                        MODE_NO_BACKSLASH_ESCAPES)) {  // Escaped character
       found_escape = 1;
-      if (lip->eof()) return 0;
+      if (lip->eof()) return nullptr;
       lip->yySkip();
     } else if (c == sep) {
       if (c == lip->yyGet())  // Check if two separators in a row
@@ -985,7 +1002,7 @@ static char *get_text(Lex_input_stream *lip, int pre_skip, int post_skip) {
               case '_':
               case '%':
                 *to++ = '\\';  // remember prefix for wildcard
-                /* Fall through */
+                               /* Fall through */
               default:
                 *to++ = *str;
                 break;
@@ -1001,7 +1018,7 @@ static char *get_text(Lex_input_stream *lip, int pre_skip, int post_skip) {
       return start;
     }
   }
-  return 0;  // unexpected end of query
+  return nullptr;  // unexpected end of query
 }
 
 uint Lex_input_stream::get_lineno(const char *raw_ptr) const {
@@ -1022,16 +1039,16 @@ uint Lex_input_stream::get_lineno(const char *raw_ptr) const {
 }
 
 Partition_expr_parser_state::Partition_expr_parser_state()
-    : Parser_state(GRAMMAR_SELECTOR_PART), result(NULL) {}
+    : Parser_state(GRAMMAR_SELECTOR_PART), result(nullptr) {}
 
 Gcol_expr_parser_state::Gcol_expr_parser_state()
-    : Parser_state(GRAMMAR_SELECTOR_GCOL), result(NULL) {}
+    : Parser_state(GRAMMAR_SELECTOR_GCOL), result(nullptr) {}
 
 Expression_parser_state::Expression_parser_state()
-    : Parser_state(GRAMMAR_SELECTOR_EXPR), result(NULL) {}
+    : Parser_state(GRAMMAR_SELECTOR_EXPR), result(nullptr) {}
 
 Common_table_expr_parser_state::Common_table_expr_parser_state()
-    : Parser_state(GRAMMAR_SELECTOR_CTE), result(NULL) {}
+    : Parser_state(GRAMMAR_SELECTOR_CTE), result(nullptr) {}
 
 /*
 ** Calc type of integer; long integer, longlong integer or real.
@@ -1124,19 +1141,25 @@ static inline uint int_token(const char *str, uint length) {
 */
 static bool consume_comment(Lex_input_stream *lip,
                             int remaining_recursions_permitted) {
+  // only one level of nested comments are allowed
+  DBUG_ASSERT(remaining_recursions_permitted == 0 ||
+              remaining_recursions_permitted == 1);
   uchar c;
   while (!lip->eof()) {
     c = lip->yyGet();
 
-    if (remaining_recursions_permitted > 0) {
+    if (remaining_recursions_permitted == 1) {
       if ((c == '/') && (lip->yyPeek() == '*')) {
         push_warning(
             lip->m_thd, Sql_condition::SL_WARNING,
             ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
             ER_THD(lip->m_thd, ER_WARN_DEPRECATED_NESTED_COMMENT_SYNTAX));
-
-        lip->yySkip(); /* Eat asterisk */
-        consume_comment(lip, remaining_recursions_permitted - 1);
+        lip->yyUnput('(');  // Replace nested "/*..." with "(*..."
+        lip->yySkip();      // and skip "("
+        lip->yySkip();      /* Eat asterisk */
+        if (consume_comment(lip, 0)) return true;
+        lip->yyUnput(')');  // Replace "...*/" with "...*)"
+        lip->yySkip();      // and skip ")"
         continue;
       }
     }
@@ -1191,7 +1214,7 @@ int MYSQLlex(YYSTYPE *yacc_yylval, YYLTYPE *yylloc, THD *thd) {
     yylloc->cpp.end = lip->get_cpp_ptr();
     yylloc->raw.start = lip->get_tok_start();
     yylloc->raw.end = lip->get_ptr();
-    lip->lookahead_yylval = NULL;
+    lip->lookahead_yylval = nullptr;
     lip->add_digest_token(token, yylval);
     return token;
   }
@@ -1221,7 +1244,7 @@ int MYSQLlex(YYSTYPE *yacc_yylval, YYLTYPE *yylloc, THD *thd) {
             Save the token following 'WITH'
           */
           lip->lookahead_yylval = lip->yylval;
-          lip->yylval = NULL;
+          lip->yylval = nullptr;
           lip->lookahead_token = token;
           yylloc->cpp.end = lip->get_cpp_ptr();
           yylloc->raw.end = lip->get_ptr();
@@ -1672,7 +1695,7 @@ static int lex_one_token(Lexer_yystype *yylval, THD *thd) {
             lip->m_underscore_cs ? lip->m_underscore_cs : cs,
             lip->m_cpp_text_end);
 
-        lip->m_underscore_cs = NULL;
+        lip->m_underscore_cs = nullptr;
 
         return (TEXT_STRING);
 
@@ -1718,7 +1741,7 @@ static int lex_one_token(Lexer_yystype *yylval, THD *thd) {
               my_isdigit(cs, (version_str[4] = lip->yyPeekn(4)))) {
             version_str[5] = 0;
             ulong version;
-            version = strtol(version_str, NULL, 10);
+            version = strtol(version_str, nullptr, 10);
 
             if (version <= MYSQL_VERSION_ID) {
               /* Accept 'M' 'm' 'm' 'd' 'd' */
@@ -1955,31 +1978,31 @@ void print_derived_column_names(const THD *thd, String *str,
 */
 
 SELECT_LEX_UNIT::SELECT_LEX_UNIT(enum_parsing_context parsing_context)
-    : next(NULL),
-      prev(NULL),
-      master(NULL),
-      slave(NULL),
+    : next(nullptr),
+      prev(nullptr),
+      master(nullptr),
+      slave(nullptr),
       explain_marker(CTX_NONE),
       prepared(false),
       optimized(false),
       executed(false),
       result_table_list(),
-      union_result(NULL),
-      table(NULL),
-      m_query_result(NULL),
+      union_result(nullptr),
+      table(nullptr),
+      m_query_result(nullptr),
       uncacheable(0),
       cleaned(UC_DIRTY),
       item_list(),
       types(),
       select_limit_cnt(HA_POS_ERROR),
       offset_limit_cnt(0),
-      item(NULL),
-      fake_select_lex(NULL),
-      saved_fake_select_lex(NULL),
-      union_distinct(NULL),
-      m_with_clause(NULL),
-      derived_table(NULL),
-      first_recursive(NULL),
+      item(nullptr),
+      fake_select_lex(nullptr),
+      saved_fake_select_lex(nullptr),
+      union_distinct(nullptr),
+      m_with_clause(nullptr),
+      derived_table(nullptr),
+      first_recursive(nullptr),
       m_lateral_deps(0),
       got_all_recursive_rows(false) {
   switch (parsing_context) {
@@ -2013,14 +2036,14 @@ SELECT_LEX_UNIT::SELECT_LEX_UNIT(enum_parsing_context parsing_context)
   Construct and initialize SELECT_LEX object.
 */
 
-SELECT_LEX::SELECT_LEX(Item *where, Item *having)
-    : next(NULL),
-      prev(NULL),
-      master(NULL),
-      slave(NULL),
-      link_next(NULL),
-      link_prev(NULL),
-      m_query_result(NULL),
+SELECT_LEX::SELECT_LEX(MEM_ROOT *mem_root, Item *where, Item *having)
+    : next(nullptr),
+      prev(nullptr),
+      master(nullptr),
+      slave(nullptr),
+      link_next(nullptr),
+      link_prev(nullptr),
+      m_query_result(nullptr),
       m_base_options(0),
       m_active_options(0),
       uncacheable(0),
@@ -2030,30 +2053,30 @@ SELECT_LEX::SELECT_LEX(Item *where, Item *having)
       context(),
       first_context(&context),
       resolve_place(RESOLVE_NONE),
-      resolve_nest(NULL),
+      resolve_nest(nullptr),
       semijoin_disallowed(false),
-      db(NULL),
+      db(nullptr),
       m_where_cond(where),
       m_having_cond(having),
       cond_value(Item::COND_UNDEF),
       having_value(Item::COND_UNDEF),
-      parent_lex(NULL),
+      parent_lex(nullptr),
       olap(UNSPECIFIED_OLAP_TYPE),
       table_list(),
       group_list(),
-      group_list_ptrs(NULL),
+      group_list_ptrs(nullptr),
       item_list(),
       is_item_list_lookup(false),
       fields_list(item_list),
       all_fields(),
       ftfunc_list(&ftfunc_list_alloc),
       ftfunc_list_alloc(),
-      join(NULL),
-      top_join_list(),
+      join(nullptr),
+      top_join_list(mem_root),
       join_list(&top_join_list),
-      embedding(NULL),
-      sj_nests(),
-      leaf_tables(NULL),
+      embedding(nullptr),
+      sj_nests(mem_root),
+      leaf_tables(nullptr),
       leaf_table_count(0),
       derived_table_count(0),
       table_func_count(0),
@@ -2062,9 +2085,9 @@ SELECT_LEX::SELECT_LEX(Item *where, Item *having)
       has_aj_nests(false),
       partitioned_table_count(0),
       order_list(),
-      order_list_ptrs(NULL),
-      select_limit(NULL),
-      offset_limit(NULL),
+      order_list_ptrs(nullptr),
+      select_limit(nullptr),
+      offset_limit(nullptr),
       select_n_having_items(0),
       cond_count(0),
       between_count(0),
@@ -2077,7 +2100,7 @@ SELECT_LEX::SELECT_LEX(Item *where, Item *having)
       n_child_sum_items(0),
       select_number(0),
       nest_level(0),
-      inner_sum_func_list(NULL),
+      inner_sum_func_list(nullptr),
       with_wild(0),
       having_fix_field(false),
       group_fix_field(false),
@@ -2087,17 +2110,17 @@ SELECT_LEX::SELECT_LEX(Item *where, Item *having)
       sj_pullout_done(false),
       exclude_from_table_unique_test(false),
       allow_merge_derived(true),
-      recursive_reference(NULL),
-      recursive_dummy_unit(NULL),
+      recursive_reference(nullptr),
+      recursive_dummy_unit(nullptr),
       select_list_tables(0),
       outer_join(0),
-      opt_hints_qb(NULL),
+      opt_hints_qb(nullptr),
       m_agg_func_used(false),
       m_json_agg_func_used(false),
       m_empty_query(false),
-      sj_candidates(NULL),
+      sj_candidates(nullptr),
       hidden_order_field_count(0) {
-  end_lateral_table = NULL;
+  end_lateral_table = nullptr;
 }
 
 /**
@@ -2137,10 +2160,10 @@ bool SELECT_LEX::add_tables(THD *thd,
                             const Mem_root_array<Table_ident *> *tables,
                             ulong table_options, thr_lock_type lock_type,
                             enum_mdl_type mdl_type) {
-  if (tables == NULL) return false;
+  if (tables == nullptr) return false;
 
   for (auto *table : *tables) {
-    if (!add_table_to_list(thd, table, NULL, table_options, lock_type,
+    if (!add_table_to_list(thd, table, nullptr, table_options, lock_type,
                            mdl_type))
       return true;
   }
@@ -2160,7 +2183,7 @@ void SELECT_LEX_UNIT::exclude_level() {
     This change to the unit tree is done only during statement resolution
     so doesn't need LOCK_query_plan
   */
-  SELECT_LEX_UNIT *units = NULL;
+  SELECT_LEX_UNIT *units = nullptr;
   SELECT_LEX_UNIT **units_last = &units;
   SELECT_LEX *sl = first_select();
   while (sl) {
@@ -2176,7 +2199,7 @@ void SELECT_LEX_UNIT::exclude_level() {
       sl->link_next->link_prev = sl->link_prev;
 
     // bring up underlay levels
-    SELECT_LEX_UNIT **last = NULL;
+    SELECT_LEX_UNIT **last = nullptr;
     for (SELECT_LEX_UNIT *u = sl->first_inner_unit(); u; u = u->next_unit()) {
       /*
         We are excluding a SELECT_LEX from the hierarchy of
@@ -2232,9 +2255,9 @@ void SELECT_LEX_UNIT::exclude_tree(THD *thd) {
     if (sl->link_prev && (*sl->link_prev = sl->link_next))
       sl->link_next->link_prev = sl->link_prev;
 
-    // unlink underlay levels
+    // Exclude subtrees of all the inner query expressions of this query block
     for (SELECT_LEX_UNIT *u = sl->first_inner_unit(); u; u = u->next_unit()) {
-      u->exclude_level();
+      u->exclude_tree(thd);
     }
 
     /*
@@ -2257,10 +2280,10 @@ void SELECT_LEX_UNIT::exclude_tree(THD *thd) {
   SELECT_LEXes.
 */
 void SELECT_LEX_UNIT::invalidate() {
-  next = NULL;
-  prev = NULL;
-  master = NULL;
-  slave = NULL;
+  next = nullptr;
+  prev = nullptr;
+  master = nullptr;
+  slave = nullptr;
 }
 
 /**
@@ -2309,7 +2332,7 @@ void SELECT_LEX::make_active_options(ulonglong added_options,
 
 void SELECT_LEX::mark_as_dependent(SELECT_LEX *last, bool aggregate) {
   // The top level query block cannot be dependent, so do not go above this:
-  DBUG_ASSERT(last != NULL);
+  DBUG_ASSERT(last != nullptr);
 
   /*
     Mark all selects from resolved to 1 before select where was
@@ -2343,7 +2366,7 @@ void SELECT_LEX::mark_as_dependent(SELECT_LEX *last, bool aggregate) {
   prohibit using LIMIT clause
 */
 bool SELECT_LEX::test_limit() {
-  if (select_limit != 0) {
+  if (select_limit != nullptr) {
     my_error(ER_NOT_SUPPORTED_YET, MYF(0), "LIMIT & IN/ALL/ANY/SOME subquery");
     return (true);
   }
@@ -2375,7 +2398,7 @@ ha_rows SELECT_LEX::get_offset(THD *thd) {
     // see comment for st_select_lex::get_limit()
     bool fix_fields_successful = true;
     if (!offset_limit->fixed) {
-      fix_fields_successful = !offset_limit->fix_fields(thd, NULL);
+      fix_fields_successful = !offset_limit->fix_fields(thd, nullptr);
       DBUG_ASSERT(fix_fields_successful);
     }
     val = fix_fields_successful ? offset_limit->val_uint() : HA_POS_ERROR;
@@ -2415,7 +2438,7 @@ ha_rows SELECT_LEX::get_limit(THD *thd) {
     */
     bool fix_fields_successful = true;
     if (!select_limit->fixed) {
-      fix_fields_successful = !select_limit->fix_fields(thd, NULL);
+      fix_fields_successful = !select_limit->fix_fields(thd, nullptr);
       DBUG_ASSERT(fix_fields_successful);
     }
     val = fix_fields_successful ? select_limit->val_uint() : HA_POS_ERROR;
@@ -2442,12 +2465,12 @@ bool SELECT_LEX::add_ftfunc_to_list(Item_func_match *func) {
   SELECT_LEXes.
 */
 void SELECT_LEX::invalidate() {
-  next = NULL;
-  prev = NULL;
-  master = NULL;
-  slave = NULL;
-  link_next = NULL;
-  link_prev = NULL;
+  next = nullptr;
+  prev = nullptr;
+  master = nullptr;
+  slave = nullptr;
+  link_next = nullptr;
+  link_prev = nullptr;
 }
 
 bool SELECT_LEX::setup_base_ref_items(THD *thd) {
@@ -2479,14 +2502,15 @@ bool SELECT_LEX::setup_base_ref_items(THD *thd) {
     prepared statement
   */
   Query_arena *arena = thd->stmt_arena;
-  const uint n_elems =
-      (n_sum_items + n_child_sum_items + item_list.elements +
-       select_n_having_items + select_n_where_fields + order_group_num);
+  const uint n_elems = (n_sum_items + n_child_sum_items + item_list.elements +
+                        select_n_having_items + select_n_where_fields +
+                        order_group_num + n_scalar_subqueries);
   DBUG_PRINT("info",
-             ("setup_ref_array this %p %4u : %4u %4u %4u %4u %4u %4u", this,
+             ("setup_ref_array this %p %4u : %4u %4u %4u %4u %4u %4u %4u", this,
               n_elems,  // :
               n_sum_items, n_child_sum_items, item_list.elements,
-              select_n_having_items, select_n_where_fields, order_group_num));
+              select_n_having_items, select_n_where_fields, order_group_num,
+              n_scalar_subqueries));
   if (!base_ref_items.is_null()) {
     /*
       We need to take 'n_sum_items' into account when allocating the array,
@@ -2502,7 +2526,7 @@ bool SELECT_LEX::setup_base_ref_items(THD *thd) {
     into a MIN/MAX subquery. Reallocate array in this case.
   */
   Item **array = static_cast<Item **>(arena->alloc(sizeof(Item *) * n_elems));
-  if (array == NULL) return true;
+  if (array == nullptr) return true;
 
   base_ref_items = Ref_item_array(array, n_elems);
 
@@ -2663,7 +2687,17 @@ static void print_table_array(const THD *thd, String *str,
       str->append(op);
     }
     curr->print(thd, str, query_type);  // Print table
-
+    /*
+      Print table hint info after the table name. Used only
+      for explaining views. There is no functionality, just
+      additional info for user.
+    */
+    if (thd->lex->is_explain() && curr->opt_hints_table &&
+        curr->belong_to_view) {
+      str->append(STRING_WITH_LEN(" /*+ "));
+      curr->opt_hints_table->print(thd, str, query_type);
+      str->append(STRING_WITH_LEN("*/ "));
+    }
     // Print join condition
     if (cond) {
       str->append(STRING_WITH_LEN(" on("));
@@ -2683,10 +2717,10 @@ static void print_table_array(const THD *thd, String *str,
   @param query_type    type of the query is being generated
 */
 
-static void print_join(const THD *thd, String *str, List<TABLE_LIST> *tables,
+static void print_join(const THD *thd, String *str,
+                       mem_root_deque<TABLE_LIST *> *tables,
                        enum_query_type query_type) {
   /* List is reversed => we should reverse it before using */
-  List_iterator_fast<TABLE_LIST> ti(*tables);
 
   /*
     If the QT_NO_DATA_EXPANSION flag is specified, we print the
@@ -2709,9 +2743,10 @@ static void print_join(const THD *thd, String *str, List<TABLE_LIST> *tables,
   const bool print_const_tables = (query_type & QT_NO_DATA_EXPANSION);
   Table_array tables_to_print(PSI_NOT_INSTRUMENTED);
 
-  for (TABLE_LIST *t = ti++; t; t = ti++)
+  for (TABLE_LIST *t : *tables) {
     if (print_const_tables || !t->optimized_away)
       if (tables_to_print.push_back(t)) return; /* purecov: inspected */
+  }
 
   if (tables_to_print.empty()) {
     str->append(STRING_WITH_LEN("dual"));
@@ -2726,8 +2761,8 @@ static void print_join(const THD *thd, String *str, List<TABLE_LIST> *tables,
   @returns whether a database is equal to the connection's default database
 */
 bool db_is_default_db(const char *db, size_t db_len, const THD *thd) {
-  return thd != NULL && thd->db().str != NULL && thd->db().length == db_len &&
-         !memcmp(db, thd->db().str, db_len);
+  return thd != nullptr && thd->db().str != nullptr &&
+         thd->db().length == db_len && !memcmp(db, thd->db().str, db_len);
 }
 
 /*.*
@@ -3016,7 +3051,9 @@ void SELECT_LEX::print_hints(const THD *thd, String *str,
     String hint_str(buff, sizeof(buff), system_charset_info);
     hint_str.length(0);
 
-    if (select_number == 1) {
+    if (select_number == 1 ||
+        // First select number is 2 for SHOW CREATE VIEW
+        (select_number == 2 && parent_lex->sql_command == SQLCOM_SHOW_CREATE)) {
       if (opt_hints_qb && !(query_type & QT_IGNORE_QB_NAME))
         opt_hints_qb->append_qb_hint(thd, &hint_str);
       if (!(query_type & QT_ONLY_QB_NAME))
@@ -3327,7 +3364,7 @@ static enum_walk get_walk_flags(const Select_lex_visitor *visitor) {
 }
 
 bool walk_item(Item *item, Select_lex_visitor *visitor) {
-  if (item == NULL) return false;
+  if (item == nullptr) return false;
   return item->walk(&Item::visitor_processor, get_walk_flags(visitor),
                     pointer_cast<uchar *>(visitor));
 }
@@ -3335,13 +3372,13 @@ bool walk_item(Item *item, Select_lex_visitor *visitor) {
 bool accept_for_order(SQL_I_List<ORDER> orders, Select_lex_visitor *visitor) {
   if (orders.elements == 0) return false;
 
-  for (ORDER *order = orders.first; order != NULL; order = order->next)
+  for (ORDER *order = orders.first; order != nullptr; order = order->next)
     if (walk_item(*order->item, visitor)) return true;
   return false;
 }
 
 bool SELECT_LEX_UNIT::accept(Select_lex_visitor *visitor) {
-  SELECT_LEX *end = NULL;
+  SELECT_LEX *end = nullptr;
   for (SELECT_LEX *sl = first_select(); sl != end; sl = sl->next_select())
     if (sl->accept(visitor)) return true;
 
@@ -3351,10 +3388,9 @@ bool SELECT_LEX_UNIT::accept(Select_lex_visitor *visitor) {
   return visitor->visit(this);
 }
 
-bool accept_for_join(List<TABLE_LIST> *tables, Select_lex_visitor *visitor) {
-  List_iterator<TABLE_LIST> ti(*tables);
-  TABLE_LIST *t;
-  while ((t = ti++)) {
+bool accept_for_join(mem_root_deque<TABLE_LIST *> *tables,
+                     Select_lex_visitor *visitor) {
+  for (TABLE_LIST *t : *tables) {
     if (accept_table(t, visitor)) return true;
   }
   return false;
@@ -3372,7 +3408,7 @@ bool accept_table(TABLE_LIST *t, Select_lex_visitor *visitor) {
 bool SELECT_LEX::accept(Select_lex_visitor *visitor) {
   // Select clause
   List_iterator<Item> it(item_list);
-  Item *end = NULL;
+  Item *end = nullptr;
   for (Item *item = it++; item != end; item = it++)
     if (walk_item(item, visitor)) return true;
 
@@ -3381,8 +3417,8 @@ bool SELECT_LEX::accept(Select_lex_visitor *visitor) {
     return true;
 
   // Where clause
-  Item *where_condition = join != NULL ? join->where_cond : m_where_cond;
-  if (where_condition != NULL && walk_item(where_condition, visitor))
+  Item *where_condition = join != nullptr ? join->where_cond : m_where_cond;
+  if (where_condition != nullptr && walk_item(where_condition, visitor))
     return true;
 
   // Group by and olap clauses
@@ -3390,7 +3426,7 @@ bool SELECT_LEX::accept(Select_lex_visitor *visitor) {
 
   // Having clause
   Item *having_condition =
-      join != NULL ? join->having_for_explain : m_having_cond;
+      join != nullptr ? join->having_for_explain : m_having_cond;
   if (walk_item(having_condition, visitor)) return true;
 
   // Order clause
@@ -3414,7 +3450,7 @@ void LEX::clear_privileges() {
   alter_password.cleanup();
   memset(&mqh, 0, sizeof(mqh));
   dynamic_privileges.empty();
-  default_roles = 0;
+  default_roles = nullptr;
 }
 
 /*
@@ -3446,9 +3482,9 @@ void Query_tables_list::reset_query_tables_list(bool init) {
         break;
     }
   }
-  query_tables = 0;
+  query_tables = nullptr;
   query_tables_last = &query_tables;
-  query_tables_own_last = 0;
+  query_tables_own_last = nullptr;
   if (init) {
     /*
       We delay real initialization of hash (and therefore related
@@ -3495,15 +3531,15 @@ void Query_tables_list::destroy_query_tables_list() { sroutines.reset(); }
 */
 
 LEX::LEX()
-    : result(0),
-      thd(NULL),
-      opt_hints_global(NULL),
+    : result(nullptr),
+      thd(nullptr),
+      opt_hints_global(nullptr),
       // Quite unlikely to overflow initial allocation, so no instrumentation.
       plugins(PSI_NOT_INSTRUMENTED),
-      insert_update_values_map(NULL),
+      insert_update_values_map(nullptr),
       option_type(OPT_DEFAULT),
       drop_temporary(false),
-      sphead(NULL),
+      sphead(nullptr),
       // Initialize here to avoid uninitialized variable warnings.
       contains_plaintext_password(false),
       keep_diagnostics(DA_KEEP_UNSPECIFIED),
@@ -3543,16 +3579,16 @@ bool LEX::can_use_merged() {
     case SQLCOM_LOAD:
 
     /*
-      With WL#6599 following SHOW commands are implemented over the
-      INFORMATION_SCHEMA system views, and we do not create
-      temporary tables anymore now. So these queries should be
-      allowed to be mergeable, which makes the INFORMATION_SCHEMA
-      query execution faster.
+            With WL#6599 following SHOW commands are implemented over the
+            INFORMATION_SCHEMA system views, and we do not create
+            temporary tables anymore now. So these queries should be
+            allowed to be mergeable, which makes the INFORMATION_SCHEMA
+            query execution faster.
 
-      According to optimizer team (Roy), making this decision based on
-      the command type here is a hack. This should probably change when
-      we introduce Sql_cmd_show class, which should treat the following
-      SHOW commands same as SQLCOM_SELECT.
+            According to optimizer team (Roy), making this decision based on
+            the command type here is a hack. This should probably change when
+            we introduce Sql_cmd_show class, which should treat the following
+            SHOW commands same as SQLCOM_SELECT.
     */
     case SQLCOM_SHOW_CHARSETS:
     case SQLCOM_SHOW_COLLATIONS:
@@ -3657,10 +3693,12 @@ bool LEX::copy_db_to(char const **p_db, size_t *p_db_length) const {
   @returns false if success, true if error
 */
 bool SELECT_LEX_UNIT::prepare_limit(THD *thd, SELECT_LEX *provider) {
-  if (provider->offset_limit && provider->offset_limit->fix_fields(thd, NULL))
+  if (provider->offset_limit &&
+      provider->offset_limit->fix_fields(thd, nullptr))
     return true; /* purecov: inspected */
 
-  if (provider->select_limit && provider->select_limit->fix_fields(thd, NULL))
+  if (provider->select_limit &&
+      provider->select_limit->fix_fields(thd, nullptr))
     return true; /* purecov: inspected */
 
   return false;
@@ -3703,7 +3741,7 @@ bool SELECT_LEX_UNIT::set_limit(THD *thd, SELECT_LEX *provider) {
   bug#23022426.
 */
 bool SELECT_LEX_UNIT::union_needs_tmp_table(LEX *lex) {
-  return union_distinct != NULL ||
+  return union_distinct != nullptr ||
          global_parameters()->order_list.elements != 0 ||
          ((lex->sql_command == SQLCOM_INSERT_SELECT ||
            lex->sql_command == SQLCOM_REPLACE_SELECT) &&
@@ -3713,8 +3751,8 @@ bool SELECT_LEX_UNIT::union_needs_tmp_table(LEX *lex) {
 /**
   Include a query expression below a query block.
 
-  @param lex:   Containing LEX object
-  @param outer: The query block that this query expression is included below.
+  @param lex   Containing LEX object
+  @param outer The query block that this query expression is included below.
 */
 void SELECT_LEX_UNIT::include_down(LEX *lex, SELECT_LEX *outer) {
   if ((next = outer->slave)) next->prev = &next;
@@ -3854,31 +3892,31 @@ void LEX::set_trg_event_type_for_tables() {
           static_cast<uint8>(1 << static_cast<int>(TRG_EVENT_DELETE));
       break;
     /*
-      Basic INSERT. If there is an additional ON DUPLIATE KEY UPDATE
-      clause, it will be handled later in this method.
+            Basic INSERT. If there is an additional ON DUPLIATE KEY UPDATE
+            clause, it will be handled later in this method.
     */
     case SQLCOM_INSERT: /* fall through */
     case SQLCOM_INSERT_SELECT:
     /*
-      LOAD DATA ... INFILE is expected to fire BEFORE/AFTER INSERT
-      triggers.
-      If the statement also has REPLACE clause, it will be
-      handled later in this method.
+            LOAD DATA ... INFILE is expected to fire BEFORE/AFTER INSERT
+            triggers.
+            If the statement also has REPLACE clause, it will be
+            handled later in this method.
     */
     case SQLCOM_LOAD: /* fall through */
     /*
-      REPLACE is semantically equivalent to INSERT. In case
-      of a primary or unique key conflict, it deletes the old
-      record and inserts a new one. So we also may need to
-      fire ON DELETE triggers. This functionality is handled
-      later in this method.
+            REPLACE is semantically equivalent to INSERT. In case
+            of a primary or unique key conflict, it deletes the old
+            record and inserts a new one. So we also may need to
+            fire ON DELETE triggers. This functionality is handled
+            later in this method.
     */
     case SQLCOM_REPLACE: /* fall through */
     case SQLCOM_REPLACE_SELECT:
     /*
-      CREATE TABLE ... SELECT defaults to INSERT if the table or
-      view already exists. REPLACE option of CREATE TABLE ...
-      REPLACE SELECT is handled later in this method.
+            CREATE TABLE ... SELECT defaults to INSERT if the table or
+            view already exists. REPLACE option of CREATE TABLE ...
+            REPLACE SELECT is handled later in this method.
     */
     case SQLCOM_CREATE_TABLE:
       new_trg_event_map |=
@@ -3918,7 +3956,7 @@ void LEX::set_trg_event_type_for_tables() {
     Do not iterate over sub-selects, only the tables in the outermost
     SELECT_LEX can be modified, if any.
   */
-  TABLE_LIST *tables = select_lex ? select_lex->get_table_list() : NULL;
+  TABLE_LIST *tables = select_lex ? select_lex->get_table_list() : nullptr;
   while (tables) {
     /*
       This is a fast check to filter out statements that do
@@ -3963,7 +4001,7 @@ TABLE_LIST *LEX::unlink_first_table(bool *link_to_local) {
       query_tables->prev_global = &query_tables;
     else
       query_tables_last = &query_tables;
-    first->next_global = 0;
+    first->next_global = nullptr;
 
     if (query_tables_own_last == &first->next_global)
       query_tables_own_last = &query_tables;
@@ -3976,7 +4014,7 @@ TABLE_LIST *LEX::unlink_first_table(bool *link_to_local) {
           select_lex->context.first_name_resolution_table = first->next_local;
       select_lex->table_list.first = first->next_local;
       select_lex->table_list.elements--;  // safety
-      first->next_local = 0;
+      first->next_local = nullptr;
       /*
         Ensure that the global list has the same first table as the local
         list.
@@ -4005,7 +4043,7 @@ TABLE_LIST *LEX::unlink_first_table(bool *link_to_local) {
 
 void LEX::first_lists_tables_same() {
   TABLE_LIST *first_table = select_lex->get_table_list();
-  if (query_tables != first_table && first_table != 0) {
+  if (query_tables != first_table && first_table != nullptr) {
     TABLE_LIST *next;
     if (query_tables_last == &first_table->next_global)
       query_tables_last = first_table->prev_global;
@@ -4223,7 +4261,7 @@ enum_explain_type SELECT_LEX::type() {
         SELECT_LEX_UNIT::include_down() does.
 */
 void SELECT_LEX::include_down(LEX *lex, SELECT_LEX_UNIT *outer) {
-  DBUG_ASSERT(slave == NULL);
+  DBUG_ASSERT(slave == nullptr);
 
   if ((next = outer->slave)) next->prev = &next;
   prev = &outer->slave;
@@ -4232,7 +4270,7 @@ void SELECT_LEX::include_down(LEX *lex, SELECT_LEX_UNIT *outer) {
 
   select_number = ++lex->select_number;
 
-  nest_level = outer_select() == NULL ? 0 : outer_select()->nest_level + 1;
+  nest_level = outer_select() == nullptr ? 0 : outer_select()->nest_level + 1;
 }
 
 /**
@@ -4263,7 +4301,7 @@ void SELECT_LEX::include_neighbour(LEX *lex, SELECT_LEX *before) {
   @param  ref Handle to the caller's pointer to this node.
 */
 void SELECT_LEX::include_standalone(SELECT_LEX_UNIT *outer, SELECT_LEX **ref) {
-  next = NULL;
+  next = nullptr;
   prev = ref;
   master = outer;
   nest_level = master->first_select()->nest_level;
@@ -4278,7 +4316,7 @@ void SELECT_LEX::include_standalone(SELECT_LEX_UNIT *outer, SELECT_LEX **ref) {
 void SELECT_LEX::renumber(LEX *lex) {
   select_number = ++lex->select_number;
 
-  nest_level = outer_select() == NULL ? 0 : outer_select()->nest_level + 1;
+  nest_level = outer_select() == nullptr ? 0 : outer_select()->nest_level + 1;
 
   for (SELECT_LEX_UNIT *u = first_inner_unit(); u; u = u->next_unit())
     u->renumber_selects(lex);
@@ -4302,7 +4340,7 @@ void SELECT_LEX::include_in_global(SELECT_LEX **plink) {
 */
 void SELECT_LEX::include_chain_in_global(SELECT_LEX **start) {
   SELECT_LEX *last_select;
-  for (last_select = this; last_select->link_next != NULL;
+  for (last_select = this; last_select->link_next != nullptr;
        last_select = last_select->link_next) {
   }
   last_select->link_next = *start;
@@ -4316,11 +4354,9 @@ void SELECT_LEX::include_chain_in_global(SELECT_LEX **start) {
    SELECT_LEX::get_optimizable_conditions().
    @returns true if OOM
 */
-static bool get_optimizable_join_conditions(THD *thd,
-                                            List<TABLE_LIST> &join_list) {
-  TABLE_LIST *table;
-  List_iterator<TABLE_LIST> li(join_list);
-  while ((table = li++)) {
+static bool get_optimizable_join_conditions(
+    THD *thd, mem_root_deque<TABLE_LIST *> &join_list) {
+  for (TABLE_LIST *table : join_list) {
     NESTED_JOIN *const nested_join = table->nested_join;
     if (nested_join &&
         get_optimizable_join_conditions(thd, nested_join->join_list))
@@ -4374,8 +4410,7 @@ bool SELECT_LEX::get_optimizable_conditions(THD *thd, Item **new_where,
   return get_optimizable_join_conditions(thd, top_join_list);
 }
 
-Item_exists_subselect::enum_exec_method SELECT_LEX::subquery_strategy(
-    THD *thd) const {
+SubqueryExecMethod SELECT_LEX::subquery_strategy(THD *thd) const {
   if (m_windows.elements > 0)
     /*
       A window function is in the SELECT list.
@@ -4385,21 +4420,20 @@ Item_exists_subselect::enum_exec_method SELECT_LEX::subquery_strategy(
       rows over which the WF is supposed to be calculated.
       So, subquery materialization is imposed. Grep for (and read) WL#10431.
     */
-    return Item_exists_subselect::EXEC_MATERIALIZATION;
+    return SubqueryExecMethod::EXEC_MATERIALIZATION;
 
   if (opt_hints_qb) {
-    Item_exists_subselect::enum_exec_method strategy =
-        opt_hints_qb->subquery_strategy();
-    if (strategy != Item_exists_subselect::EXEC_UNSPECIFIED) return strategy;
+    SubqueryExecMethod strategy = opt_hints_qb->subquery_strategy();
+    if (strategy != SubqueryExecMethod::EXEC_UNSPECIFIED) return strategy;
   }
 
   // No SUBQUERY hint given, base possible strategies on optimizer_switch
   if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MATERIALIZATION))
     return thd->optimizer_switch_flag(OPTIMIZER_SWITCH_SUBQ_MAT_COST_BASED)
-               ? Item_exists_subselect::EXEC_EXISTS_OR_MAT
-               : Item_exists_subselect::EXEC_MATERIALIZATION;
+               ? SubqueryExecMethod::EXEC_EXISTS_OR_MAT
+               : SubqueryExecMethod::EXEC_MATERIALIZATION;
 
-  return Item_exists_subselect::EXEC_EXISTS;
+  return SubqueryExecMethod::EXEC_EXISTS;
 }
 
 bool SELECT_LEX::semijoin_enabled(THD *thd) const {
@@ -4418,18 +4452,13 @@ void SELECT_LEX::update_semijoin_strategies(THD *thd) {
       parent_lex->m_sql_cmd != nullptr &&
       parent_lex->m_sql_cmd->using_secondary_storage_engine();
 
-  List_iterator<TABLE_LIST> sj_list_it(sj_nests);
-  TABLE_LIST *sj_nest;
-  while ((sj_nest = sj_list_it++)) {
+  for (TABLE_LIST *sj_nest : sj_nests) {
     /*
       After semi-join transformation, original SELECT_LEX with hints is lost.
       Fetch hints from last table in semijoin nest, as join_list has the
       convention to list join operators' arguments in reverse order.
     */
-    List_iterator<TABLE_LIST> table_list(sj_nest->nested_join->join_list);
-    TABLE_LIST *table, *last = nullptr;
-    while ((table = table_list++)) last = table;
-    table = last;
+    TABLE_LIST *table = sj_nest->nested_join->join_list.back();
     /*
       Do not respect opt_hints_qb for secondary engine optimization.
       Secondary storage engines may not support all strategies that are
@@ -4538,22 +4567,34 @@ bool SELECT_LEX::validate_base_options(LEX *lex, ulonglong options_arg) const {
   JOINs may be nested. Walk nested joins recursively to apply the
   processor.
 */
-static bool walk_join_condition(List<TABLE_LIST> *tables,
+static bool walk_join_condition(mem_root_deque<TABLE_LIST *> *tables,
                                 Item_processor processor, enum_walk walk,
                                 uchar *arg) {
-  TABLE_LIST *table;
-  List_iterator<TABLE_LIST> li(*tables);
-
-  while ((table = li++)) {
+  for (const TABLE_LIST *table : *tables) {
     if (table->join_cond() && table->join_cond()->walk(processor, walk, arg))
       return true;
 
-    if (table->nested_join != NULL &&
+    if (table->nested_join != nullptr &&
         walk_join_condition(&table->nested_join->join_list, processor, walk,
                             arg))
       return true;
   }
   return false;
+}
+
+void SELECT_LEX_UNIT::accumulate_used_tables(table_map map) {
+  DBUG_ASSERT(outer_select());
+  if (item)
+    item->accumulate_used_tables(map);
+  else if (m_lateral_deps)
+    m_lateral_deps |= map;
+}
+
+enum_parsing_context SELECT_LEX_UNIT::place() const {
+  DBUG_ASSERT(outer_select());
+  if (item != nullptr) return item->place();
+  if (m_place_before_transform != CTX_NONE) return m_place_before_transform;
+  return CTX_DERIVED;
 }
 
 bool SELECT_LEX::walk(Item_processor processor, enum_walk walk, uchar *arg) {
@@ -4564,7 +4605,8 @@ bool SELECT_LEX::walk(Item_processor processor, enum_walk walk, uchar *arg) {
     if (item->walk(processor, walk, arg)) return true;
   }
 
-  if (join_list != NULL && walk_join_condition(join_list, processor, walk, arg))
+  if (join_list != nullptr &&
+      walk_join_condition(join_list, processor, walk, arg))
     return true;
 
   if ((walk & enum_walk::SUBQUERY)) {
@@ -4637,7 +4679,7 @@ TABLE_LIST *SELECT_LEX::find_table_by_name(const Table_ident *ident) {
         strcmp(table_name.str, table->alias) == 0)
       return table;
   }
-  return NULL;
+  return nullptr;
 }
 
 bool Query_options::merge(const Query_options &a, const Query_options &b) {
@@ -4668,36 +4710,37 @@ bool LEX::set_wild(LEX_STRING w) {
 }
 
 void LEX_MASTER_INFO::initialize() {
-  host = user = password = log_file_name = bind_addr = NULL;
+  host = user = password = log_file_name = bind_addr = nullptr;
   network_namespace = nullptr;
   port = connect_retry = 0;
   heartbeat_period = 0;
   sql_delay = 0;
   pos = 0;
   server_id = retry_count = 0;
-  gtid = NULL;
+  gtid = nullptr;
   gtid_until_condition = UNTIL_SQL_BEFORE_GTIDS;
-  view_id = NULL;
+  view_id = nullptr;
   until_after_gaps = false;
   ssl = ssl_verify_server_cert = heartbeat_opt = repl_ignore_server_ids_opt =
       retry_count_opt = auto_position = port_opt = get_public_key =
           LEX_MI_UNCHANGED;
-  ssl_key = ssl_cert = ssl_ca = ssl_capath = ssl_cipher = NULL;
-  ssl_crl = ssl_crlpath = NULL;
-  public_key_path = NULL;
-  tls_version = NULL;
+  ssl_key = ssl_cert = ssl_ca = ssl_capath = ssl_cipher = nullptr;
+  ssl_crl = ssl_crlpath = nullptr;
+  public_key_path = nullptr;
+  tls_version = nullptr;
   tls_ciphersuites = UNSPECIFIED;
-  tls_ciphersuites_string = NULL;
-  relay_log_name = NULL;
+  tls_ciphersuites_string = nullptr;
+  relay_log_name = nullptr;
   relay_log_pos = 0;
   repl_ignore_server_ids.clear();
-  channel = NULL;
+  channel = nullptr;
   for_channel = false;
   compression_algorithm = nullptr;
   zstd_compression_level = 0;
   privilege_checks_none = false;
-  privilege_checks_username = privilege_checks_hostname = NULL;
+  privilege_checks_username = privilege_checks_hostname = nullptr;
   require_row_format = -1;
+  require_table_primary_key_check = LEX_MI_PK_CHECK_UNCHANGED;
 }
 
 void LEX_MASTER_INFO::set_unspecified() {

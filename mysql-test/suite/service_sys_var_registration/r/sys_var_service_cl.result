@@ -44,3 +44,4 @@ SELECT @@test_component.uint_sys_var;
 @@test_component.uint_sys_var
 5678
 UNINSTALL COMPONENT "file://component_test_sys_var_service";
+# restart:

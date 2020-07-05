@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -56,7 +56,7 @@ connection specific operations */
   }
 
 #define LOCK_CURRENT_CONN_TRYLOCK(conn) \
-  pthread_mutex_trylock(&(conn)->curr_conn_mutex);
+  pthread_mutex_trylock(&(conn)->curr_conn_mutex)
 
 #define UNLOCK_CURRENT_CONN_IF_NOT_LOCKED(has_lock, conn) \
   if (!(has_lock)) {                                      \
@@ -278,10 +278,12 @@ ib_err_t innodb_verify_low(
 /*************************************************************/ /**
  Following are a set of InnoDB callback function wrappers for functions
  that will be used outside innodb_api.c
- @return DB_SUCCESS if successful or error code */
-ib_err_t innodb_cb_cursor_close(
-    /*===================*/
-    ib_crsr_t ib_crsr); /*!< in: cursor to close */
+*/
+
+/** Closes a crsr if it is non-null, and sets it to null.
+@param[in,out]  ib_crsr  a reference to crsr field to close
+*/
+void innodb_cb_cursor_close(ib_crsr_t &ib_crsr);
 
 /*************************************************************/ /**
  Commit the transaction

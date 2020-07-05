@@ -1,0 +1,44 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t1 (id INT, p INT);
+CREATE TABLE t2 (id INT, p INT);
+CREATE INDEX i ON t2 (id);
+ALTER TABLE t2 PARTITION BY KEY (id) PARTITIONS 100;
+include/sync_slave_sql_with_master.inc
+[connection master]
+SET DEBUG = '+d, simulate_null_pending_rows_event';
+INSERT INTO t2 VALUES (1, 1), (2, 2), (3, 3);
+ERROR HY000: Writing one row to the row-based binary log failed
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3);
+ERROR HY000: Writing one row to the row-based binary log failed
+SET DEBUG = '-d, simulate_null_pending_rows_event';
+INSERT INTO t2 VALUES (1, 1), (2, 2), (3, 3);
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3);
+SET DEBUG = '+d, simulate_null_pending_rows_event';
+UPDATE t2 SET p = 4 WHERE id = 2;
+ERROR HY000: Writing one row to the row-based binary log failed
+UPDATE t1 SET p = 4 WHERE id = 2;
+ERROR HY000: Writing one row to the row-based binary log failed
+SET DEBUG = '-d, simulate_null_pending_rows_event';
+UPDATE t2 SET p = 4 WHERE id = 2;
+UPDATE t1 SET p = 4 WHERE id = 2;
+SET DEBUG = '+d, simulate_null_pending_rows_event';
+DELETE FROM t2 WHERE id = 2;
+ERROR HY000: Writing one row to the row-based binary log failed
+DELETE FROM t1 WHERE id = 2;
+ERROR HY000: Writing one row to the row-based binary log failed
+SET DEBUG = '-d, simulate_null_pending_rows_event';
+DELETE FROM t2 WHERE id = 2;
+DELETE FROM t1 WHERE id = 2;
+include/assert.inc [There are 2 records in t1]
+include/assert.inc [There are 2 records in t2]
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t1, slave:t1]
+include/diff_tables.inc [master:t2, slave:t2]
+[connection master]
+DROP TABLE t1;
+DROP TABLE t2;
+include/rpl_end.inc

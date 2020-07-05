@@ -1,5 +1,5 @@
 /* 
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@
 
 #include <mgmapi.h>
 #include <mgmapi_configuration.hpp>
+#include <NdbSpin.h>
 
 
 /* Return true if node with "nodeId" is a MGM node */
@@ -94,7 +95,7 @@ IPCConfig::configureTransporters(Uint32 nodeId,
   for (int i= 1; i < MAX_NODES; i++)
   {
     ndb_mgm_configuration_iterator iter(config, CFG_SECTION_NODE);
-    if (tr.get_transporter(i) && iter.find(CFG_NODE_ID, i))
+    if (tr.get_node_transporter(i) && iter.find(CFG_NODE_ID, i))
     {
       // Transporter exist in TransporterRegistry but not
       // in configuration
@@ -222,6 +223,8 @@ IPCConfig::configureTransporters(Uint32 nodeId,
     case CONNECTION_TYPE_TCP:
       if(iter.get(CFG_TCP_SEND_BUFFER_SIZE, &conf.tcp.sendBufferSize)) break;
       if(iter.get(CFG_TCP_RECEIVE_BUFFER_SIZE, &conf.tcp.maxReceiveSize)) break;
+      iter.get(CFG_TCP_SPINTIME, &spintime);
+      conf.tcp.tcpSpintime= spintime;
       
       const char * proxy;
       if (!iter.get(CFG_TCP_PROXY, &proxy)) {

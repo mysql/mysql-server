@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,6 @@ The tablespace memory cache */
 #include "btr0btr.h"
 #include "buf0buf.h"
 #include "buf0flu.h"
-#include "clone0api.h"
 #include "dict0boot.h"
 #include "dict0dd.h"
 #include "dict0dict.h"
@@ -52,7 +51,8 @@ The tablespace memory cache */
 #include "mem0mem.h"
 #include "mtr0log.h"
 #include "my_dbug.h"
-#include "my_inttypes.h"
+
+#include "clone0api.h"
 #include "os0file.h"
 #include "page0zip.h"
 #include "sql/mysqld.h"  // lower_case_file_system
@@ -280,7 +280,7 @@ Fil_path MySQL_datadir_path;
 Fil_path MySQL_undo_path;
 
 /** Common InnoDB file extentions */
-const char *dot_ext[] = {"", ".ibd", ".cfg", ".cfp", ".ibt", ".ibu"};
+const char *dot_ext[] = {"", ".ibd", ".cfg", ".cfp", ".ibt", ".ibu", ".dblwr"};
 
 /** The number of fsyncs done to the log */
 ulint fil_n_log_flushes = 0;
@@ -3314,8 +3314,6 @@ value returned.
 @return own: A copy of fil_node_t::path, nullptr if space ID is zero
 or not found. */
 char *fil_space_get_first_path(space_id_t space_id) {
-  ut_a(space_id != TRX_SYS_SPACE);
-
   auto shard = fil_system->shard_by_id(space_id);
 
   shard->mutex_acquire();
@@ -3870,7 +3868,7 @@ dberr_t Fil_shard::space_check_pending_operations(space_id_t space_id,
 
   /* Check for pending IO. */
 
-  *path = 0;
+  *path = nullptr;
 
   do {
     mutex_acquire();
@@ -4153,7 +4151,7 @@ dberr_t Fil_shard::space_delete(space_id_t space_id, buf_remove_t buf_remove) {
   To deal with potential read requests, we will check the
   ::stop_new_ops flag in fil_io(). */
 
-  buf_LRU_flush_or_remove_pages(space_id, buf_remove, 0);
+  buf_LRU_flush_or_remove_pages(space_id, buf_remove, nullptr);
 
 #endif /* !UNIV_HOTBACKUP */
 
@@ -4290,7 +4288,7 @@ bool Fil_shard::space_truncate(space_id_t space_id, page_no_t size_in_pages) {
 #ifndef UNIV_HOTBACKUP
   /* Step-2: Invalidate buffer pool pages belonging to the tablespace
   to re-create. Remove all insert buffer entries for the tablespace */
-  buf_LRU_flush_or_remove_pages(space_id, BUF_REMOVE_ALL_NO_WRITE, 0);
+  buf_LRU_flush_or_remove_pages(space_id, BUF_REMOVE_ALL_NO_WRITE, nullptr);
 #endif /* !UNIV_HOTBACKUP */
 
   /* Step-3: Truncate the tablespace and accordingly update
@@ -4391,7 +4389,7 @@ bool fil_replace_tablespace(space_id_t old_space_id, space_id_t new_space_id,
   page_no_t n_pages = SRV_UNDO_TABLESPACE_SIZE_IN_PAGES;
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
   bool atomic_write = false;
-  if (!srv_use_doublewrite_buf) {
+  if (!dblwr::enabled) {
     atomic_write = fil_fusionio_enable_atomic_write(fh);
   }
 #else
@@ -5460,7 +5458,7 @@ dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
 
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
   const bool atomic_write =
-      !srv_use_doublewrite_buf && fil_fusionio_enable_atomic_write(df.handle());
+      !dblwr::enabled && fil_fusionio_enable_atomic_write(df.handle());
 #else
   const bool atomic_write = false;
 #endif /* !NO_FALLOCATE && UNIV_LINUX */
@@ -5477,6 +5475,7 @@ dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
       /* The following call prints an error message.
       For encrypted tablespace we skip print, since it should
       be keyring plugin issues. */
+
       os_file_get_last_error(true);
 
       ib::error(ER_IB_MSG_306, space_name, TROUBLESHOOT_DATADICT_MSG);
@@ -5508,7 +5507,7 @@ dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
   we pass the 0 below */
 
   const fil_node_t *file =
-      shard->create_node(df.filepath(), 0, space, false, true, atomic_write);
+      shard->create_node(df.filepath(), 0, space, false, atomic_write, false);
 
   if (file == nullptr) {
     return (DB_ERROR);
@@ -5542,10 +5541,8 @@ dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
   if ((is_encrypted || space->encryption_op_in_progress == ENCRYPTION) &&
       !for_import) {
     dberr_t err;
-    byte *key = df.m_encryption_key;
     byte *iv = df.m_encryption_iv;
-
-    ut_ad(key && iv);
+    byte *key = df.m_encryption_key;
 
     err = fil_set_encryption(space->id, Encryption::AES, key, iv);
 
@@ -5853,7 +5850,7 @@ fil_load_status Fil_shard::ibd_open_for_recovery(space_id_t space_id,
 
   /* We do not use the size information we have about the file, because
   the rounding formula for extents and pages is somewhat complex; we
-  let fil_node_create() do that task. */
+  let create_node() do that task. */
 
   const fil_node_t *file;
 
@@ -6770,7 +6767,7 @@ static bool meb_has_back_link(const std::string &path) {
 /** Parse a file name retrieved from a MLOG_FILE_* record,
 and return the absolute file path corresponds to backup dir
 as well as in the form of database/tablespace
-@param[in]	file_name	path emitted by the redo log
+@param[in]	name		path emitted by the redo log
 @param[in]	flags		flags emitted by the redo log
 @param[in]	space_id	space_id emmited by the redo log
 @param[out]	absolute_path	absolute path of tablespace
@@ -6857,7 +6854,7 @@ static void meb_tablespace_redo_create(const page_id_t &page_id, uint32_t flags,
   meb_make_abs_file_path(name, flags, page_id.space(), abs_file_path,
                          tablespace_name);
 
-  if (!meb_replay_file_ops || meb_is_intermediate_file(abs_file_path.c_str()) ||
+  if (meb_is_intermediate_file(abs_file_path.c_str()) ||
       fil_space_get(page_id.space()) ||
       fil_space_get_id_by_name(tablespace_name.c_str()) != SPACE_UNKNOWN ||
       meb_fil_space_get_rem_gen_ts_id_by_name(tablespace_name) !=
@@ -6912,7 +6909,7 @@ static void meb_tablespace_redo_rename(const page_id_t &page_id,
 
   char *new_name = nullptr;
 
-  if (!meb_replay_file_ops || meb_is_intermediate_file(from_name) ||
+  if (meb_is_intermediate_file(from_name) ||
       meb_is_intermediate_file(to_name) ||
       fil_space_get_id_by_name(tablespace_name.c_str()) != SPACE_UNKNOWN ||
       meb_fil_space_get_rem_gen_ts_id_by_name(tablespace_name) !=
@@ -6945,14 +6942,12 @@ static void meb_tablespace_redo_rename(const page_id_t &page_id,
   meb_fil_name_process(from_name, page_id.space());
   meb_fil_name_process(new_name, page_id.space());
 
-  if (meb_replay_file_ops) {
-    if (!fil_op_replay_rename(page_id, abs_from_path.c_str(),
-                              abs_to_path.c_str())) {
-      recv_sys->found_corrupt_fs = true;
-    }
-
-    meb_fil_name_process(to_name, page_id.space());
+  if (!fil_op_replay_rename(page_id, abs_from_path.c_str(),
+                            abs_to_path.c_str())) {
+    recv_sys->found_corrupt_fs = true;
   }
+
+  meb_fil_name_process(to_name, page_id.space());
 
   ut_free(new_name);
 }
@@ -6972,7 +6967,7 @@ static void meb_tablespace_redo_delete(const page_id_t &page_id,
 
   fil_system->meb_name_process(file_name, page_id.space(), true);
 
-  if (meb_replay_file_ops && fil_space_get(page_id.space())) {
+  if (fil_space_get(page_id.space())) {
     ib::trace_1() << "Deleting the tablespace : " << abs_file_path
                   << ", space_id : " << page_id.space();
     dberr_t err =
@@ -7209,8 +7204,7 @@ void fil_io_set_encryption(IORequest &req_type, const page_id_t &page_id,
   /* Don't encrypt page 0 of all tablespaces except redo log
   tablespace, all pages from the system tablespace. */
   if (space->encryption_type == Encryption::NONE ||
-      (space->encryption_op_in_progress == UNENCRYPTION &&
-       req_type.is_write()) ||
+      (space->encryption_op_in_progress == DECRYPTION && req_type.is_write()) ||
       (page_id.page_no() == 0 && !req_type.is_log())) {
     req_type.clear_encrypted();
     return;
@@ -7657,7 +7651,7 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
   /* We an try to recover the page from the double write buffer if
   the decompression fails or the page is corrupt. */
 
-  ut_a(req_type.is_dblwr_recover() || err == DB_SUCCESS);
+  ut_a(req_type.is_dblwr() || err == DB_SUCCESS);
 
   if (sync) {
     /* The i/o operation is already completed when we return from
@@ -7708,20 +7702,23 @@ segment it wants to wait for.
 @param[in]	segment		The number of the segment in the AIO array
                                 to wait for */
 void fil_aio_wait(ulint segment) {
-  fil_node_t *file;
+  void *m2;
+  fil_node_t *m1;
   IORequest type;
-  void *message;
 
   ut_ad(fil_validate_skip());
 
-  dberr_t err = os_aio_handler(segment, &file, &message, &type);
-
+  auto err = os_aio_handler(segment, &m1, &m2, &type);
   ut_a(err == DB_SUCCESS);
+
+  auto file = reinterpret_cast<fil_node_t *>(m1);
 
   if (file == nullptr) {
     ut_ad(srv_shutdown_state.load() == SRV_SHUTDOWN_EXIT_THREADS);
     return;
   }
+
+  ut_a(!type.is_dblwr());
 
   srv_set_io_thread_op_info(segment, "complete io for file");
 
@@ -7749,8 +7746,8 @@ void fil_aio_wait(ulint segment) {
 
       /* async single page writes from the dblwr buffer don't have
       access to the page */
-      if (message != nullptr) {
-        buf_page_io_complete(static_cast<buf_page_t *>(message));
+      if (m2 != nullptr) {
+        buf_page_io_complete(static_cast<buf_page_t *>(m2));
       }
       return;
     case FIL_TYPE_LOG:
@@ -8263,7 +8260,8 @@ static dberr_t fil_iterate(const Fil_page_iterator &iter, buf_block_t *block,
       page_zip_set_size(&block->page.zip, iter.m_page_size);
 
       block->page.size.copy_from(
-          page_size_t(iter.m_page_size, univ_page_size.logical(), true));
+          page_size_t(static_cast<uint32_t>(iter.m_page_size),
+                      static_cast<uint32_t>(univ_page_size.logical()), true));
 
       block->page.zip.data = block->frame + UNIV_PAGE_SIZE;
       ut_d(block->page.zip.m_external = true);
@@ -8289,7 +8287,7 @@ static dberr_t fil_iterate(const Fil_page_iterator &iter, buf_block_t *block,
 
     /* For encrypted table, set encryption information. */
     if (iter.m_encryption_key != nullptr && offset != 0) {
-      read_request.encryption_key(iter.m_encryption_key, ENCRYPTION_KEY_LEN,
+      read_request.encryption_key(iter.m_encryption_key, Encryption::KEY_LEN,
                                   iter.m_encryption_iv);
 
       read_request.encryption_algorithm(Encryption::AES);
@@ -8334,7 +8332,7 @@ static dberr_t fil_iterate(const Fil_page_iterator &iter, buf_block_t *block,
 
     /* For encrypted table, set encryption information. */
     if (iter.m_encryption_key != nullptr && offset != 0) {
-      write_request.encryption_key(iter.m_encryption_key, ENCRYPTION_KEY_LEN,
+      write_request.encryption_key(iter.m_encryption_key, Encryption::KEY_LEN,
                                    iter.m_encryption_iv);
 
       write_request.encryption_algorithm(Encryption::AES);
@@ -8850,15 +8848,15 @@ dberr_t fil_set_encryption(space_id_t space_id, Encryption::Type algorithm,
   if (key == nullptr) {
     Encryption::random_value(space->encryption_key);
   } else {
-    memcpy(space->encryption_key, key, ENCRYPTION_KEY_LEN);
+    memcpy(space->encryption_key, key, Encryption::KEY_LEN);
   }
 
-  space->encryption_klen = ENCRYPTION_KEY_LEN;
+  space->encryption_klen = Encryption::KEY_LEN;
 
   if (iv == nullptr) {
     Encryption::random_value(space->encryption_iv);
   } else {
-    memcpy(space->encryption_iv, iv, ENCRYPTION_KEY_LEN);
+    memcpy(space->encryption_iv, iv, Encryption::KEY_LEN);
   }
 
   ut_ad(algorithm != Encryption::NONE);
@@ -8885,15 +8883,15 @@ dberr_t fil_reset_encryption(space_id_t space_id) {
 
   fil_space_t *space = shard->get_space_by_id(space_id);
 
-  if (space == NULL) {
+  if (space == nullptr) {
     shard->mutex_release();
     return (DB_NOT_FOUND);
   }
 
-  memset(space->encryption_key, 0, ENCRYPTION_KEY_LEN);
+  memset(space->encryption_key, 0, Encryption::KEY_LEN);
   space->encryption_klen = 0;
 
-  memset(space->encryption_iv, 0, ENCRYPTION_KEY_LEN);
+  memset(space->encryption_iv, 0, Encryption::KEY_LEN);
 
   space->encryption_type = Encryption::NONE;
 
@@ -8907,7 +8905,7 @@ dberr_t fil_reset_encryption(space_id_t space_id) {
 @param[in,out]	shard		Rotate the keys in this shard
 @return true if the re-encrypt succeeds */
 bool Fil_system::encryption_rotate_in_a_shard(Fil_shard *shard) {
-  byte encrypt_info[ENCRYPTION_INFO_SIZE];
+  byte encrypt_info[Encryption::INFO_SIZE];
 
   for (auto &elem : shard->m_spaces) {
     auto space = elem.second;
@@ -8925,13 +8923,13 @@ bool Fil_system::encryption_rotate_in_a_shard(Fil_shard *shard) {
     server uuid is not ready yet. */
 
     if (fsp_is_undo_tablespace(space->id) &&
-        Encryption::s_master_key_id == ENCRYPTION_DEFAULT_MASTER_KEY_ID) {
+        Encryption::get_master_key_id() == Encryption::DEFAULT_MASTER_KEY_ID) {
       continue;
     }
 
     /* Rotate the encrypted tablespaces. */
     if (space->encryption_type != Encryption::NONE) {
-      memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE);
+      memset(encrypt_info, 0, Encryption::INFO_SIZE);
 
       /* Take MDL on UNDO tablespace to make it mutually exclusive with
       UNDO tablespace truncation. For other tablespaces MDL is not required
@@ -9178,7 +9176,7 @@ bool Fil_path::is_circular() const {
   location and we must allow it. On Windows, it backs up to the directory
   where the symlink starts, which is a circular reference. */
   std::string up_path = m_path.substr(0, back_up);
-  if (my_is_symlink(up_path.c_str(), NULL)) {
+  if (my_is_symlink(up_path.c_str(), nullptr)) {
     return (false);
   }
 #endif /* _WIN32 */
@@ -9642,8 +9640,12 @@ bool Fil_system::open_for_recovery(space_id_t space_id) {
       fil_tablespace_encryption_init(space);
     }
 
-    if (!recv_sys->dblwr.deferred.empty()) {
-      buf_dblwr_recover_pages(space);
+    if (!recv_sys->dblwr->empty()) {
+      recv_sys->dblwr->recover(space);
+
+    } else {
+      ib::info(ER_IB_MSG_DBLWR_1317) << "DBLWR recovery skipped for "
+                                     << space->name << " ID: " << space->id;
     }
 
     return (true);
@@ -9866,45 +9868,11 @@ or MLOG_FILE_RENAME record. These could not be recovered.
         ignore redo log records during the apply phase */
 bool Fil_system::check_missing_tablespaces() {
   bool missing = false;
-  auto &dblwr = recv_sys->dblwr;
   const auto end = recv_sys->deleted.end();
 
   /* Called in single threaded mode, no need to acquire the mutex. */
 
-  /* First check if we were able to restore all the doublewrite
-  buffer pages. If not then print a warning. */
-
-  for (auto &page : dblwr.deferred) {
-    space_id_t space_id;
-
-    space_id = page_get_space_id(page.m_page);
-
-    /* Skip messages for undo tablespaces that are being truncated since
-    they can be deleted during undo truncation without an MLOG_FILE_DELETE. */
-    if (!fsp_is_undo_tablespace(space_id)) {
-      /* If the tablespace was in the missing IDs then we
-      know that the problem is elsewhere. If a file deleted
-      record was not found in the redo log and the tablespace
-      doesn't exist in the SYS_TABLESPACES file then it is
-      an error or data corruption. The special case is an
-      undo truncate in progress. */
-
-      if (recv_sys->deleted.find(space_id) == end &&
-          recv_sys->missing_ids.find(space_id) != recv_sys->missing_ids.end()) {
-        page_no_t page_no = page_get_page_no(page.m_page);
-
-        ib::warn(ER_IB_MSG_1263)
-            << "Doublewrite page " << page.m_no << " for {space: " << space_id
-            << ", page_no:" << page_no << "} could not be restored."
-            << " File name unknown for tablespace ID " << space_id;
-      }
-    }
-
-    /* Free the memory. */
-    page.close();
-  }
-
-  dblwr.deferred.clear();
+  recv_sys->dblwr->check_missing_tablespaces();
 
   for (auto space_id : recv_sys->missing_ids) {
     if (recv_sys->deleted.find(space_id) != end) {
@@ -10320,15 +10288,15 @@ byte *fil_tablespace_redo_encryption(byte *ptr, const byte *end,
     if (key != nullptr) {
       DBUG_EXECUTE_IF(
           "dont_update_key_found_during_REDO_scan", is_allocated = true;
-          key = static_cast<byte *>(ut_malloc_nokey(ENCRYPTION_KEY_LEN));
-          iv = static_cast<byte *>(ut_malloc_nokey(ENCRYPTION_KEY_LEN)););
+          key = static_cast<byte *>(ut_malloc_nokey(Encryption::KEY_LEN));
+          iv = static_cast<byte *>(ut_malloc_nokey(Encryption::KEY_LEN)););
     }
 #endif
 
     if (key == nullptr) {
-      key = static_cast<byte *>(ut_malloc_nokey(ENCRYPTION_KEY_LEN));
+      key = static_cast<byte *>(ut_malloc_nokey(Encryption::KEY_LEN));
 
-      iv = static_cast<byte *>(ut_malloc_nokey(ENCRYPTION_KEY_LEN));
+      iv = static_cast<byte *>(ut_malloc_nokey(Encryption::KEY_LEN));
 
       is_new = true;
     }
@@ -10353,7 +10321,7 @@ byte *fil_tablespace_redo_encryption(byte *ptr, const byte *end,
   }
 
   if (offset >= UNIV_PAGE_SIZE || len + offset > UNIV_PAGE_SIZE ||
-      len != ENCRYPTION_INFO_SIZE) {
+      len != Encryption::INFO_SIZE) {
     recv_sys->found_corrupt_log = true;
     return (nullptr);
   }
@@ -10368,7 +10336,7 @@ byte *fil_tablespace_redo_encryption(byte *ptr, const byte *end,
     return (nullptr);
   }
 
-  ut_ad(len == ENCRYPTION_INFO_SIZE);
+  ut_ad(len == Encryption::INFO_SIZE);
 
   ptr += len;
 
@@ -10386,7 +10354,7 @@ byte *fil_tablespace_redo_encryption(byte *ptr, const byte *end,
     if (FSP_FLAGS_GET_ENCRYPTION(space->flags) ||
         space->encryption_op_in_progress == ENCRYPTION) {
       space->encryption_type = Encryption::AES;
-      space->encryption_klen = ENCRYPTION_KEY_LEN;
+      space->encryption_klen = Encryption::KEY_LEN;
     }
   }
 
@@ -10562,10 +10530,6 @@ or new_name did not exist and name was successfully renamed to new_name) */
 static bool fil_op_replay_rename(const page_id_t &page_id,
                                  const std::string &old_name,
                                  const std::string &new_name) {
-#ifdef UNIV_HOTBACKUP
-  ut_ad(meb_replay_file_ops);
-#endif /* UNIV_HOTBACKUP */
-
   ut_ad(page_id.page_no() == 0);
   ut_ad(old_name.compare(new_name) != 0);
   ut_ad(Fil_path::has_suffix(IBD, new_name));

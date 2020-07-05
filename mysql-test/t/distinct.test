@@ -909,3 +909,26 @@ CREATE TABLE t1 (
 );
 SELECT DISTINCT b FROM t1 GROUP BY a, b;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug 30760534: THE "ORDER BY DESC" OPTION DOES NOT WORK
+--echo #
+
+CREATE TABLE t1 (a INTEGER, b INTEGER);
+INSERT INTO t1 VALUES(1, 1), (2, 2), (3, 3);
+ANALYZE TABLE t1;
+let $query = SELECT DISTINCT SQL_BIG_RESULT a FROM t1 GROUP BY a,b ORDER BY a DESC;
+eval EXPLAIN FORMAT=tree $query;  # Verify that we have a final sort, with DESC.
+eval $query;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#30761372: THE "ORDER BY" OPTION CAUSE WRONG RESULT
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER, f2 VARCHAR(10));
+INSERT INTO t1 VALUES (1,"aaa"), (1,"bbb"),(1,"aaaa"),(1,"bbbb");
+
+SELECT DISTINCT f1, LENGTH(F2) FROM t1 GROUP BY f1,LENGTH(F2) ORDER BY 1,2;
+
+DROP TABLE t1;

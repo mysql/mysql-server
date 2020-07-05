@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2010, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify
@@ -146,6 +146,8 @@ enum monitor_id_t {
   MONITOR_LOCKREC_WAIT,
   MONITOR_TABLELOCK_WAIT,
   MONITOR_NUM_RECLOCK_REQ,
+  MONITOR_RECLOCK_RELEASE_ATTEMPTS,
+  MONITOR_RECLOCK_GRANT_ATTEMPTS,
   MONITOR_RECLOCK_CREATED,
   MONITOR_RECLOCK_REMOVED,
   MONITOR_NUM_RECLOCK,
@@ -157,6 +159,7 @@ enum monitor_id_t {
   MONITOR_OVLD_LOCK_MAX_WAIT_TIME,
   MONITOR_OVLD_ROW_LOCK_WAIT,
   MONITOR_OVLD_LOCK_AVG_WAIT_TIME,
+  MONITOR_SCHEDULE_REFRESHES,
 
   /* Buffer and I/O realted counters. */
   MONITOR_MODULE_BUFFER,
@@ -513,6 +516,12 @@ enum monitor_id_t {
   MONITOR_PAGE_TRACK_PARTIAL_BLOCK_WRITES,
   MONITOR_PAGE_TRACK_FULL_BLOCK_WRITES,
   MONITOR_PAGE_TRACK_CHECKPOINT_PARTIAL_FLUSH_REQUEST,
+
+  MONITOR_MODULE_DBLWR,
+  MONITOR_DBLWR_ASYNC_REQUESTS,
+  MONITOR_DBLWR_SYNC_REQUESTS,
+  MONITOR_DBLWR_FLUSH_REQUESTS,
+  MONITOR_DBLWR_FLUSH_WAIT_EVENTS,
 
   /* This is used only for control system to turn
   on/off and reset all monitor counters */

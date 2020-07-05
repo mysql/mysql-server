@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -51,7 +51,6 @@ REQUIRES_SERVICE_PLACEHOLDER(mysql_audit_api_message);
   @param null_value Unused.
   @param error      Unused.
 
-  @return
   @retval 0 This function always returns 0.
 */
 static long long message_internal(UDF_INIT *init MY_ATTRIBUTE((unused)),
@@ -82,7 +81,6 @@ static long long message_internal(UDF_INIT *init MY_ATTRIBUTE((unused)),
   @param null_value Unused.
   @param error      Unused.
 
-  @return
   @retval 0 This function always returns 0.
 */
 static long long message_user(UDF_INIT *init MY_ATTRIBUTE((unused)),
@@ -106,12 +104,12 @@ static long long message_user(UDF_INIT *init MY_ATTRIBUTE((unused)),
 static mysql_service_status_t init() {
   if (mysql_service_udf_registration->udf_register(
           "test_audit_api_message_internal", INT_RESULT,
-          (Udf_func_any)message_internal, NULL, NULL))
+          (Udf_func_any)message_internal, nullptr, nullptr))
     return true;
 
   if (mysql_service_udf_registration->udf_register(
           "test_audit_api_message_user", INT_RESULT, (Udf_func_any)message_user,
-          NULL, NULL)) {
+          nullptr, nullptr)) {
     int was_present = 0;
 
     mysql_service_udf_registration->udf_unregister(

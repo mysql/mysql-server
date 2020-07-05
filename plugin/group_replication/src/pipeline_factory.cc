@@ -34,10 +34,10 @@ int get_pipeline(Handler_pipeline_type pipeline_type,
                  Event_handler **pipeline) {
   DBUG_TRACE;
 
-  Handler_id *handler_list = NULL;
+  Handler_id *handler_list = nullptr;
   int num_handlers = get_pipeline_configuration(pipeline_type, &handler_list);
   int error = configure_pipeline(pipeline, handler_list, num_handlers);
-  if (handler_list != NULL) {
+  if (handler_list != nullptr) {
     delete[] handler_list;
   }
   // when there are no handlers, the pipeline is not valid
@@ -73,7 +73,7 @@ int configure_pipeline(Event_handler **pipeline, Handler_id handler_list[],
   int error = 0;
 
   for (int i = 0; i < num_handlers; ++i) {
-    Event_handler *handler = NULL;
+    Event_handler *handler = nullptr;
 
     /*
       When a new handler is define the developer shall insert it here
@@ -126,10 +126,10 @@ int configure_pipeline(Event_handler **pipeline, Handler_id handler_list[],
         }
 
         // check to see if no other handler has the same role
-        Event_handler *handler_with_same_role = NULL;
+        Event_handler *handler_with_same_role = nullptr;
         Event_handler::get_handler_by_role(*pipeline, handler->get_role(),
                                            &handler_with_same_role);
-        if (handler_with_same_role != NULL) {
+        if (handler_with_same_role != nullptr) {
           /* purecov: begin inspected */
           LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_APPLIER_HANDLER_ROLE_IS_IN_USE);
           delete handler;

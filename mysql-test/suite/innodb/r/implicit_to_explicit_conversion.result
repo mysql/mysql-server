@@ -66,6 +66,8 @@ SET DEBUG_SYNC = "before_lock_rec_convert_impl_to_expl_for_trx
         WAIT_FOR c2_can_convert";
 SET DEBUG_SYNC = "after_lock_rec_convert_impl_to_expl_for_trx
         SIGNAL c2_done_conversion";
+SET DEBUG_SYNC = "after_lock_clust_rec_read_check_and_lock
+        SIGNAL c2_done_locking";
 SELECT * FROM t1 WHERE id=2 FOR UPDATE;
 SET DEBUG_SYNC = "now WAIT_FOR c2_decided";
 SET DEBUG_SYNC = "before_lock_trx_release_locks
@@ -82,6 +84,7 @@ SELECT * FROM t1 WHERE id=2 FOR UPDATE;
 SET DEBUG_SYNC = "now WAIT_FOR c3_will_lock";
 SET DEBUG_SYNC = "now SIGNAL c2_can_convert";
 SET DEBUG_SYNC = "now WAIT_FOR c2_done_conversion";
+SET DEBUG_SYNC = "now WAIT_FOR c2_done_locking";
 SET DEBUG_SYNC = "now SIGNAL c3_can_lock";
 SET DEBUG_SYNC = "now WAIT_FOR c3_will_wait";
 SET DEBUG_SYNC = "now SIGNAL c1_can_commit";
@@ -103,6 +106,8 @@ SET DEBUG_SYNC = "before_lock_rec_convert_impl_to_expl_for_trx
         WAIT_FOR c2_can_convert";
 SET DEBUG_SYNC = "after_lock_rec_convert_impl_to_expl_for_trx
         SIGNAL c2_done_conversion";
+SET DEBUG_SYNC = "after_lock_clust_rec_read_check_and_lock
+        SIGNAL c2_done_locking";
 SELECT * FROM t1 WHERE id=2 FOR UPDATE;
 SET DEBUG_SYNC = "now WAIT_FOR c2_decided";
 SET DEBUG_SYNC = "before_lock_trx_release_locks
@@ -121,6 +126,7 @@ SELECT * FROM t1 WHERE id=2 FOR UPDATE;
 SET DEBUG_SYNC = "now WAIT_FOR c3_will_lock";
 SET DEBUG_SYNC = "now SIGNAL c2_can_convert";
 SET DEBUG_SYNC = "now WAIT_FOR c2_done_conversion";
+SET DEBUG_SYNC = "now WAIT_FOR c2_done_locking";
 SET DEBUG_SYNC = "now SIGNAL c3_can_lock";
 SET DEBUG_SYNC = "now WAIT_FOR c3_will_wait";
 SET DEBUG_SYNC = "now SIGNAL c1_can_commit";

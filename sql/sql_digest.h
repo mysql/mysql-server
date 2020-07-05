@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -116,7 +116,7 @@ struct sql_digest_storage {
   /* Length of the token array to be considered for DIGEST_TEXT calculation. */
   size_t m_token_array_length;
 
-  sql_digest_storage() { reset(NULL, 0); }
+  sql_digest_storage() { reset(nullptr, 0); }
 
   inline void reset(unsigned char *token_array, size_t length) {
     m_token_array = token_array;

@@ -354,8 +354,22 @@ bool init_compiled_charsets(myf flags MY_ATTRIBUTE((unused))) {
   add_compiled_collation(&my_charset_utf8_unicode_520_ci);
   add_compiled_collation(&my_charset_utf8_vietnamese_ci);
 
-  add_compiled_collation(&my_charset_utf8mb4_general_ci);
+  // utf8mb4 is the only character set with more than two binary collations. For
+  // backward compatibility, we want the deprecated BINARY type attribute to use
+  // utf8mb4_bin, and not the newer utf8mb4_0900_bin collation, for the utf8mb4
+  // character set. That is, the following column definition should result in a
+  // column with utf8mb4_bin collation:
+  //
+  //    col_name VARCHAR(10) CHARSET utf8mb4 BINARY
+  //
+  // Since add_compiled_collation() records the last binary collation added for
+  // a given character set as the binary collation of that character set (stored
+  // in cs_name_bin_num_map), we add utf8mb4_bin after utf8mb4_0900_bin to make
+  // it the preferred binary collation of utf8mb4.
+  add_compiled_collation(&my_charset_utf8mb4_0900_bin);
   add_compiled_collation(&my_charset_utf8mb4_bin);
+
+  add_compiled_collation(&my_charset_utf8mb4_general_ci);
   add_compiled_collation(&my_charset_utf8mb4_unicode_ci);
   add_compiled_collation(&my_charset_utf8mb4_german2_uca_ci);
   add_compiled_collation(&my_charset_utf8mb4_icelandic_uca_ci);
@@ -428,7 +442,6 @@ bool init_compiled_charsets(myf flags MY_ATTRIBUTE((unused))) {
   add_compiled_collation(&my_charset_utf8mb4_0900_as_ci);
   add_compiled_collation(&my_charset_utf8mb4_ru_0900_as_cs);
   add_compiled_collation(&my_charset_utf8mb4_zh_0900_as_cs);
-  add_compiled_collation(&my_charset_utf8mb4_0900_bin);
 
   add_compiled_collation(&my_charset_utf16_general_ci);
   add_compiled_collation(&my_charset_utf16_bin);

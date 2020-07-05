@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,7 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_profile.h"
 
-#ifdef XCOM_HAVE_OPENSSL
+#ifndef XCOM_WITHOUT_OPENSSL
 #ifdef WIN32
 // In OpenSSL before 1.1.0, we need this first.
 #include <winsock2.h>
@@ -899,7 +899,7 @@ static uint64_t receive_count;
 static uint64_t send_bytes;
 static uint64_t receive_bytes;
 
-#ifdef XCOM_HAVE_OPENSSL
+#ifndef XCOM_WITHOUT_OPENSSL
 result con_read(connection_descriptor const *rfd, void *buf, int n) {
   result ret = {0, 0};
 
@@ -966,7 +966,7 @@ int task_read(connection_descriptor const *con, void *buf, int n,
   TASK_END;
 }
 
-#ifdef XCOM_HAVE_OPENSSL
+#ifndef XCOM_WITHOUT_OPENSSL
 result con_write(connection_descriptor const *wfd, void *buf, int n) {
   result ret = {0, 0};
 
@@ -1456,9 +1456,9 @@ static void init_server_addr(struct sockaddr **sock_addr, socklen_t *sock_len,
 }
 
 result announce_tcp(xcom_port port) {
-  result fd;
+  result fd = {0, 0};
   struct sockaddr *sock_addr = NULL;
-  socklen_t sock_addr_len;
+  socklen_t sock_addr_len = 0;
   int server_socket_v6_ok = 0;
 
   // Try and create a V6 server socket. It should succeed if the OS

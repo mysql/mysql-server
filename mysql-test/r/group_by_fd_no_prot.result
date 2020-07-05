@@ -1479,7 +1479,7 @@ where customer2.pk in (7,9)
 group by customer2.b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	customer1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
-1	SIMPLE	customer2	NULL	range	PRIMARY	PRIMARY	4	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	customer2	NULL	range	PRIMARY	PRIMARY	4	NULL	2	50.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`customer1`.`a` AS `a`,count(0) AS `count(*)` from `test`.`customer1` join `test`.`customer2` where ((`test`.`customer2`.`b` = `test`.`customer1`.`a`) and (`test`.`customer2`.`pk` in (7,9))) group by `test`.`customer2`.`b`
 drop table customer1,customer2;
@@ -1725,21 +1725,21 @@ d
 create view v1 as select a as a, 2*a as b, coalesce(a,3) as c from t1;
 select v1.b from t1 left join v1 on 1;
 b
-NULL
-NULL
 20
 20
+NULL
+NULL
 # If v1.a is NULL then v1.b is NULL: a->b is NULL-friendly
 select v1.b from t1 left join v1 on 1 group by v1.a;
 b
-NULL
 20
+NULL
 select v1.c from t1 left join v1 on 1;
 c
-3
-3
 10
 10
+3
+3
 # If v1.a is NULL then v1.c may not be NULL: a->c is not NULL-friendly
 select v1.c from t1 left join v1 on 1 group by v1.a;
 ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'v1.c' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
@@ -2210,7 +2210,7 @@ explain select (select 2 from t2 where exists(select t1.b from t3)) as col from 
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-2	DEPENDENT SUBQUERY	t3	NULL	index	NULL	b	15	NULL	1	100.00	Using index; FirstMatch(t2); Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	t3	NULL	index	NULL	b	15	NULL	1	100.00	Using index; FirstMatch(t2); Using join buffer (hash join)
 Warnings:
 Note	1276	Field or reference 'test.t1.b' of SELECT #3 was resolved in SELECT #1
 Note	1003	/* select#1 */ select (/* select#2 */ select 2 from `test`.`t2` semi join (`test`.`t3`) where true) AS `col` from `test`.`t1` group by `test`.`t1`.`a`
@@ -2218,7 +2218,7 @@ explain select (select 2 from t2 where not exists(select t1.b from t3)) as col f
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-2	DEPENDENT SUBQUERY	t3	NULL	index	NULL	b	15	NULL	1	100.00	Using where; Not exists; Using index; Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	t3	NULL	index	NULL	b	15	NULL	1	100.00	Using where; Not exists; Using index; Using join buffer (hash join)
 Warnings:
 Note	1276	Field or reference 'test.t1.b' of SELECT #3 was resolved in SELECT #1
 Note	1003	/* select#1 */ select (/* select#2 */ select 2 from `test`.`t2` anti join (`test`.`t3`) on((1 = 1)) where true) AS `col` from `test`.`t1` group by `test`.`t1`.`a`
@@ -2260,4 +2260,35 @@ a
 NULL
 1
 2
+DROP TABLE t;
+#
+# Bug#30753524 DBUG_ASSERT((MAP_OF_NEW_FDS & PSEUDO_TABLE_BITS) == 0)
+#
+CREATE TABLE t (a INT,b INT);
+SELECT 1 FROM t AS ot
+WHERE 1 <=
+(
+SELECT it2.a
+FROM
+(
+SELECT ot.b FROM t AS it1
+) AS dt
+JOIN t AS it2 ON dt.b=it2.b
+GROUP BY it2.b
+)
+;
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.it2.a' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+SELECT 1 FROM t AS ot
+WHERE 1 <=
+(
+SELECT dt.b
+FROM
+(
+SELECT ot.b FROM t AS it1
+) AS dt
+JOIN t AS it2 ON dt.b=it2.b
+GROUP BY it2.b
+)
+;
+1
 DROP TABLE t;

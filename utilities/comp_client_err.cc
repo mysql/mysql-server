@@ -42,11 +42,12 @@ static const char *INFILE = "errmsg.h";
 static const char *OUTFILE = "mysqlclient_ername.h";
 
 static struct my_option my_long_options[] = {
-    {"in_file", 'F', "Input file", &INFILE, &INFILE, 0, GET_STR, REQUIRED_ARG,
-     0, 0, 0, 0, 0, 0},
+    {"in_file", 'F', "Input file", &INFILE, &INFILE, nullptr, GET_STR,
+     REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"out_file", 'O', "Output filename (mysqlclient_ername.h)", &OUTFILE,
-     &OUTFILE, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
+     &OUTFILE, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
+     0, nullptr, 0, nullptr}};
 
 static void usage(void) {
   print_version();
@@ -115,8 +116,8 @@ int main(int argc, char *argv[]) {
 
       uint count = 0;
       char *last_token;
-      for (char *err = my_strtok_r(str, " \n\t", &last_token); err != NULL;
-           err = my_strtok_r(NULL, " \n\t", &last_token)) {
+      for (char *err = my_strtok_r(str, " \n\t", &last_token); err != nullptr;
+           err = my_strtok_r(nullptr, " \n\t", &last_token)) {
         if (count == 0)
           fprintf(outfile, "{ \"%s\", ", err);
         else if (count == 1) {

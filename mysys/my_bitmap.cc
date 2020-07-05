@@ -158,7 +158,7 @@ void bitmap_free(MY_BITMAP *map) {
   DBUG_TRACE;
   if (map->bitmap) {
     my_free(map->bitmap);
-    map->bitmap = 0;
+    map->bitmap = nullptr;
   }
 }
 

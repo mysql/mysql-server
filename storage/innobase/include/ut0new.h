@@ -486,7 +486,7 @@ caller.
 constexpr int ut_new_get_key_by_base_file(const char *file, size_t len) {
   for (size_t i = 0; i < n_auto; ++i) {
     if (ut_string_begins_with(auto_event_names[i], file, len)) {
-      return i;
+      return static_cast<int>(i);
     }
   }
   return -1;
@@ -525,8 +525,17 @@ accounting. An object of this type is put in front of each allocated block
 of memory when allocation is done by ut_allocator::allocate(). This is
 because the data is needed even when freeing the memory. Users of
 ut_allocator::allocate_large() are responsible for maintaining this
-themselves. */
-struct ut_new_pfx_t {
+themselves.
+ To maintain proper alignment of the pointers ut_allocator returns to the
+calling code, this struct is declared with alignas(std::max_align_t). This tells
+the compiler to insert enough padding to the struct to satisfy the strictest
+fundamental alignment requirement. The size of this object then becomes a
+multiple of the alignment requirement, this is implied by the fact that arrays
+are contiguous in memory. This means that when we increment a pointer to
+ut_new_pfx_t the resulting pointer must be aligned to the alignment requirement
+of std::max_align_t. Ref. C++ standard: 6.6.5 [basic.align], 11.3.4 [dcl.array]
+*/
+struct alignas(std::max_align_t) ut_new_pfx_t {
 #ifdef UNIV_PFS_MEMORY
 
   /** Performance schema key. Assigned to a name at startup via
@@ -555,11 +564,6 @@ struct ut_new_pfx_t {
   allocated block and its users are responsible for maintaining it
   and passing it later to ut_allocator::deallocate_large(). */
   size_t m_size;
-#if SIZEOF_VOIDP == 4
-  /** Pad the header size to a multiple of 64 bits on 32-bit systems,
-  so that the payload will be aligned to 64 bits. */
-  size_t pad;
-#endif
 };
 
 /** Allocator class for allocating memory from inside std::* containers. */
@@ -574,6 +578,9 @@ class ut_allocator {
   typedef size_t size_type;
   typedef ptrdiff_t difference_type;
 
+  static_assert(alignof(T) <= alignof(std::max_align_t),
+                "ut_allocator does not support over-aligned types. Use "
+                "aligned_memory or another similar allocator for this type.");
   /** Default constructor.
   @param[in] key  performance schema key. */
   explicit ut_allocator(PSI_memory_key key = PSI_NOT_INSTRUMENTED)
@@ -644,18 +651,18 @@ class ut_allocator {
   @param[in]  throw_on_error  if true, then exception is throw on
                               allocation failure
   @return pointer to the allocated memory */
-  pointer allocate(size_type n_elements, const_pointer hint = NULL,
+  pointer allocate(size_type n_elements, const_pointer hint = nullptr,
                    PSI_memory_key key = PSI_NOT_INSTRUMENTED,
                    bool set_to_zero = false, bool throw_on_error = true) {
     if (n_elements == 0) {
-      return (NULL);
+      return (nullptr);
     }
 
     if (n_elements > max_size()) {
       if (throw_on_error) {
         throw(std::bad_alloc());
       } else {
-        return (NULL);
+        return (nullptr);
       }
     }
 
@@ -663,10 +670,6 @@ class ut_allocator {
     size_t total_bytes = n_elements * sizeof(T);
 
 #ifdef UNIV_PFS_MEMORY
-    /* The header size must not ruin the 64-bit alignment
-    on 32-bit systems. Some allocated structures use
-    64-bit fields. */
-    ut_ad((sizeof(ut_new_pfx_t) & 7) == 0);
     total_bytes += sizeof(ut_new_pfx_t);
 #endif /* UNIV_PFS_MEMORY */
 
@@ -677,14 +680,14 @@ class ut_allocator {
         ptr = malloc(total_bytes);
       }
 
-      if (ptr != NULL || retries >= alloc_max_retries) {
+      if (ptr != nullptr || retries >= alloc_max_retries) {
         break;
       }
 
       os_thread_sleep(1000000 /* 1 second */);
     }
 
-    if (ptr == NULL) {
+    if (ptr == nullptr) {
       ib::fatal_or_error(m_oom_fatal)
           << "Cannot allocate " << total_bytes << " bytes of memory after "
           << alloc_max_retries << " retries over " << alloc_max_retries
@@ -693,7 +696,7 @@ class ut_allocator {
       if (throw_on_error) {
         throw(std::bad_alloc());
       } else {
-        return (NULL);
+        return (nullptr);
       }
     }
 
@@ -712,7 +715,7 @@ class ut_allocator {
   @param[in,out]	ptr		pointer to memory to free
   @param[in]	n_elements	number of elements allocated (unused) */
   void deallocate(pointer ptr, size_type n_elements = 0) {
-    if (ptr == NULL) {
+    if (ptr == nullptr) {
       return;
     }
 
@@ -760,15 +763,15 @@ class ut_allocator {
   pointer reallocate(void *ptr, size_type n_elements, PSI_memory_key key) {
     if (n_elements == 0) {
       deallocate(static_cast<pointer>(ptr));
-      return (NULL);
+      return (nullptr);
     }
 
-    if (ptr == NULL) {
-      return (allocate(n_elements, NULL, key, false, false));
+    if (ptr == nullptr) {
+      return (allocate(n_elements, nullptr, key, false, false));
     }
 
     if (n_elements > max_size()) {
-      return (NULL);
+      return (nullptr);
     }
 
     ut_new_pfx_t *pfx_old;
@@ -782,21 +785,21 @@ class ut_allocator {
     for (size_t retries = 1;; retries++) {
       pfx_new = static_cast<ut_new_pfx_t *>(realloc(pfx_old, total_bytes));
 
-      if (pfx_new != NULL || retries >= alloc_max_retries) {
+      if (pfx_new != nullptr || retries >= alloc_max_retries) {
         break;
       }
 
       os_thread_sleep(1000000 /* 1 second */);
     }
 
-    if (pfx_new == NULL) {
+    if (pfx_new == nullptr) {
       ib::fatal_or_error(m_oom_fatal)
           << "Cannot reallocate " << total_bytes << " bytes of memory after "
           << alloc_max_retries << " retries over " << alloc_max_retries
           << " seconds. OS error: " << strerror(errno) << " (" << errno << "). "
           << OUT_OF_MEMORY_MSG;
       /* not reached */
-      return (NULL);
+      return (nullptr);
     }
 
     /* pfx_new still contains the description of the old block
@@ -821,10 +824,10 @@ class ut_allocator {
     static_assert(std::is_default_constructible<T>::value,
                   "Array element type must be default-constructible");
 
-    T *p = allocate(n_elements, NULL, key, false, false);
+    T *p = allocate(n_elements, nullptr, key, false, false);
 
-    if (p == NULL) {
-      return (NULL);
+    if (p == nullptr) {
+      return (nullptr);
     }
 
     T *first = p;
@@ -853,7 +856,7 @@ class ut_allocator {
   by new_array().
   @param[in,out]	ptr	pointer to the first object in the array */
   void delete_array(T *ptr) {
-    if (ptr == NULL) {
+    if (ptr == nullptr) {
       return;
     }
 
@@ -881,7 +884,7 @@ class ut_allocator {
   @return pointer to the allocated memory or NULL */
   pointer allocate_large(size_type n_elements, ut_new_pfx_t *pfx) {
     if (n_elements == 0 || n_elements > max_size()) {
-      return (NULL);
+      return (nullptr);
     }
 
     ulint n_bytes = n_elements * sizeof(T);
@@ -889,7 +892,7 @@ class ut_allocator {
     pointer ptr = reinterpret_cast<pointer>(os_mem_alloc_large(&n_bytes));
 
 #ifdef UNIV_PFS_MEMORY
-    if (ptr != NULL) {
+    if (ptr != nullptr) {
       allocate_trace(n_bytes, PSI_NOT_INSTRUMENTED, pfx);
     }
 #else
@@ -996,8 +999,8 @@ pointer must be passed to UT_DELETE() when no longer needed.
   /* Placement new will return NULL and not attempt to construct an      \
   object if the passed in pointer is NULL, e.g. if allocate() has        \
   failed to allocate memory and has returned NULL. */                    \
-  ::new (ut_allocator<byte>(key).allocate(sizeof expr, NULL, key, false, \
-                                          false)) expr
+  ::new (ut_allocator<decltype(expr)>(key).allocate(1, NULL, key, false, \
+                                                    false)) expr
 
 /** Allocate, trace the allocation and construct an object.
 Use this macro instead of 'new' within InnoDB and instead of UT_NEW()
@@ -1023,7 +1026,7 @@ we redirect this to a template function. */
 @param[in,out]	ptr	pointer to the object */
 template <typename T>
 inline void ut_delete(T *ptr) {
-  if (ptr == NULL) {
+  if (ptr == nullptr) {
     return;
   }
 
@@ -1065,6 +1068,29 @@ template <typename T>
 inline void ut_delete_array(T *ptr) {
   ut_allocator<T>().delete_array(ptr);
 }
+
+/**
+Do not use ut_malloc, ut_zalloc, ut_malloc_nokey, ut_zalloc_nokey,
+ut_zalloc_nokey_nofatal and ut_realloc when allocating memory for
+over-aligned types. We have to use aligned_pointer instead, analogously to how
+we have to use aligned_alloc when working with the standard library to handle
+dynamic allocation for over-aligned types. These macros use ut_allocator to
+allocate raw memory (no type information is passed). This is why ut_allocator
+needs to be instantiated with the byte type. This has implications on the max
+alignment of the objects that are allocated using this API. ut_allocator returns
+memory aligned to alignof(std::max_align_t), similarly to library allocation
+functions. This value is 16 bytes on most x64 machines. A static_assert enforces
+this when using UT_NEW, however, since the ut_allocator template is instantiated
+with byte here the assert will not be hit if using alignment >=
+alignof(std::max_align_t). Not meeting the alignment requirements for a type
+causes undefined behaviour.
+One should avoid using the macros below when writing new code in general,
+and try to remove them when refactoring existing code (in favor of using the
+UT_NEW). The reason behind this lies both in the undefined behaviour problem
+described above, and in the fact that standard C-like malloc use is discouraged
+in c++ (see CppCoreGuidelines - R.10: Avoid malloc() and free()). Using
+ut_malloc has the same problems as the standard library malloc.
+*/
 
 #define ut_malloc(n_bytes, key)                         \
   static_cast<void *>(ut_allocator<byte>(key).allocate( \

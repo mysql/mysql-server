@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,20 +59,28 @@ TEST(IntegerDigits, WriteTwoDigits) {
   }
 }
 
-class IntegerDigits
-    : public testing::TestWithParam<std::tuple<uint64_t, unsigned>> {};
+class IntegerDigits : public testing::TestWithParam<std::tuple<uint64_t, int>> {
+};
 
 TEST_P(IntegerDigits, WriteDigits) {
   const uint64_t value = std::get<0>(GetParam());
-  const unsigned digits = std::get<1>(GetParam());
+  const int digits = std::get<1>(GetParam());
+
+  ASSERT_GT(digits, 0);
+
+  // Without this, GCC 10 warns in release builds that write_digits() might
+  // write outside the buffer, because it doesn't see that digits is always
+  // positive.
+  if (digits <= 0) return;
+
+  char buffer[100];
+  char *end = write_digits(value, digits, buffer);
+  *end = '\0';  // write_digits does not zero-terminate
 
   char expected[100];
   int expected_length =
       snprintf(expected, sizeof(expected), "%0*" PRIu64, digits, value);
 
-  char buffer[100];
-  char *end = write_digits(value, digits, buffer);
-  *end = '\0';  // write_digits does not zero-terminate
   EXPECT_EQ(buffer + expected_length, end);
   EXPECT_STREQ(expected, buffer);
 }
@@ -94,14 +102,14 @@ INSTANTIATE_TEST_CASE_P(
     testing::Combine(testing::Values(std::numeric_limits<uint64_t>::max() - 2,
                                      std::numeric_limits<uint64_t>::max() - 1,
                                      std::numeric_limits<uint64_t>::max()),
-                     testing::Values(20U, 21U, 22U)));
+                     testing::Values(20, 21, 22)));
 
 // Test write_digits() with all single-digit numbers, with and without
 // zero-padding.
 INSTANTIATE_TEST_CASE_P(SingleDigits, IntegerDigits,
                         testing::Combine(testing::Range(uint64_t{0},
                                                         uint64_t{10}),
-                                         testing::Values(1U, 2U, 3U)));
+                                         testing::Values(1, 2, 3)));
 
 #endif  // GTEST_HAS_COMBINE
 

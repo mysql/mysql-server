@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -116,16 +116,14 @@ SET(GCS_SOURCES
   src/bindings/xcom/gcs_xcom_communication_protocol_changer.cc
   ../../../extra/lz4/xxhash.c # required by gcs_message_stage_split
   src/bindings/xcom/gcs_message_stage_split.cc
-  src/bindings/xcom/gcs_xcom_synode.cc)
+  src/bindings/xcom/gcs_xcom_synode.cc
+  src/bindings/xcom/gcs_xcom_expels_in_progress.cc)
 
 MY_CHECK_C_COMPILER_FLAG("-Wcast-function-type" HAVE_CAST_FUNCTION_TYPE)
 IF(HAVE_CAST_FUNCTION_TYPE)
   ADD_COMPILE_FLAGS(src/bindings/xcom/xcom/xcom_transport.c
                     COMPILE_FLAGS "-Wno-cast-function-type")
 ENDIF()
-
-# Add the definition to build XCom with SSL support.
-ADD_DEFINITIONS(-DXCOM_HAVE_OPENSSL)
 
 ### Configuration ###
 
@@ -152,6 +150,13 @@ ELSEIF(MY_COMPILER_IS_GNU_OR_CLANG)
   ADD_COMPILE_FLAGS(${XCOM_SOURCES} ${XCOM_SUN_RPCS} ${XCOM_RPCGEN_SOURCES}
     COMPILE_FLAGS
     "-Wno-unused-variable -Wno-unused-function -Wno-conversion -Wno-switch")
+  IF(SOLARIS)
+    # rpcgen generates 'void bzero();'
+    ADD_COMPILE_FLAGS(${XCOM_RPCGEN_SOURCES}
+      COMPILE_FLAGS
+      "-Wno-builtin-declaration-mismatch"
+      )
+  ENDIF()
 ENDIF()
 
 ADD_COMPILE_DEFINITIONS(

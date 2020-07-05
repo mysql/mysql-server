@@ -53,3 +53,7 @@ if ($run_log_message_test) {
    SELECT replace(concat('[',c2,' [',c3,' [',c4),'\r','') AS msg FROM t1 WHERE c4 LIKE '%test_services %';
    DROP TABLE IF EXISTS t1;
 }
+
+# Restore default settings
+let $restart_parameters = restart:;
+--source include/restart_mysqld.inc

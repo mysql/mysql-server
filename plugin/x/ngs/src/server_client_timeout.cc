@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,8 @@ void Server_client_timeout::validate_client_state(
   const xpl::chrono::Time_point client_accept_time = client->get_accept_time();
   const xpl::iface::Client::Client::State state = client->get_state();
 
-  if (xpl::iface::Client::State::k_accepted == state ||
+  if (xpl::iface::Client::State::k_invalid == state ||
+      xpl::iface::Client::State::k_accepted == state ||
       xpl::iface::Client::State::k_authenticating_first == state) {
     if (client_accept_time <= m_release_all_before_time) {
       log_debug("%s: release triggered by timeout in state:%i",

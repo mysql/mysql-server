@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,8 +20,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "sql/sorting_iterator.h"
+
 #include <stdio.h>
 #include <sys/types.h>
+
 #include <algorithm>
 #include <cstring>
 #include <memory>
@@ -46,7 +49,6 @@
 #include "sql/psi_memory_key.h"
 #include "sql/query_options.h"
 #include "sql/sort_param.h"
-#include "sql/sorting_iterator.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql/sql_executor.h"
@@ -91,6 +93,13 @@ bool SortFileIndirectIterator::Init() {
   // to scan/sort multiple times). Thus, as a small hack, we need
   // to reset it here.
   table()->file->ha_index_or_rnd_end();
+
+  // Item_func_match::val_real() seemingly uses the existence of
+  // table->file->ft_handler as check for whether the match score
+  // is already present (which is the case when scanning the base
+  // table, but not when running this iterator), so we need to
+  // clear it out.
+  table()->file->ft_end();
 
   int error = table()->file->ha_rnd_init(false);
   if (error) {
@@ -414,6 +423,13 @@ bool SortBufferIndirectIterator::Init() {
   // to reset it here.
   table()->file->ha_index_or_rnd_end();
 
+  // Item_func_match::val_real() seemingly uses the existence of
+  // table->file->ft_handler as check for whether the match score
+  // is already present (which is the case when scanning the base
+  // table, but not when running this iterator), so we need to
+  // clear it out.
+  table()->file->ft_end();
+
   int error = table()->file->ha_rnd_init(false);
   if (error) {
     PrintError(error);
@@ -454,11 +470,12 @@ vector<string> SortBufferIndirectIterator::DebugString() const {
           table()->alias};
 }
 
-SortingIterator::SortingIterator(THD *thd, Filesort *filesort,
+SortingIterator::SortingIterator(THD *thd, QEP_TAB *qep_tab, Filesort *filesort,
                                  unique_ptr_destroy_only<RowIterator> source,
                                  ha_rows *examined_rows)
     : RowIterator(thd),
       m_filesort(filesort),
+      m_qep_tab(qep_tab),
       m_source_iterator(move(source)),
       m_examined_rows(examined_rows) {}
 
@@ -470,8 +487,8 @@ SortingIterator::~SortingIterator() {
 void SortingIterator::CleanupAfterQuery() {
   m_fs_info.free_sort_buffer();
   my_free(m_fs_info.merge_chunks.array());
-  m_fs_info.merge_chunks = Merge_chunk_array(NULL, 0);
-  m_fs_info.addon_fields = NULL;
+  m_fs_info.merge_chunks = Merge_chunk_array(nullptr, 0);
+  m_fs_info.addon_fields = nullptr;
 }
 
 void SortingIterator::ReleaseBuffers() {
@@ -489,43 +506,16 @@ void SortingIterator::ReleaseBuffers() {
 }
 
 bool SortingIterator::Init() {
-  QEP_TAB *qep_tab = m_filesort->qep_tab;
   ReleaseBuffers();
 
   // Both empty result and error count as errors. (TODO: Why? This is a legacy
   // choice that doesn't always seem right to me, although it should nearly
   // never happen in practice.)
-  if (DoSort(qep_tab) != 0) return true;
-
-  /*
-    Filesort has filtered rows already (see skip_record() in
-    find_all_keys()): so we can simply scan the cache, so have to set
-    quick=NULL.
-    But if we do this, we still need to delete the quick, now or later. We
-    cannot do it now: the dtor of quick_index_merge would do free_io_cache,
-    but the cache has to remain, because scan will read from it.
-    So we delay deletion: we just let the "quick" continue existing in
-    "quick_optim"; double benefit:
-    - EXPLAIN will show the "quick_optim"
-    - it will be deleted late enough.
-
-    There is an exception to the reasoning above. If the filtering condition
-    contains a condition triggered by Item_func_trig_cond::FOUND_MATCH
-    (i.e. QEP_TAB is inner to an outer join), the trigger variable is still
-    false at this stage, so the condition evaluated to true in skip_record()
-    and did not filter rows. In that case, we leave the condition in place for
-    the next stage (evaluate_join_record()). We can still delete the QUICK as
-    triggered conditions don't use that.
-    If you wonder how we can come here for such inner table: it can happen if
-    the outer table is constant (so the inner one is first-non-const) and a
-    window function requires sorting.
-  */
-  qep_tab->set_quick(NULL);
-  if (!qep_tab->is_inner_table_of_outer_join()) qep_tab->set_condition(NULL);
+  if (DoSort() != 0) return true;
 
   // Prepare the result iterator for actually reading the data. Read()
   // will proxy to it.
-  TABLE *table = qep_tab->table();
+  TABLE *table = m_filesort->table;
   if (m_sort_result.io_cache && my_b_inited(m_sort_result.io_cache)) {
     // Test if ref-records was used
     if (m_fs_info.using_addon_fields()) {
@@ -594,52 +584,29 @@ bool SortingIterator::Init() {
     1		No records
 */
 
-int SortingIterator::DoSort(QEP_TAB *qep_tab) {
-  JOIN *join = qep_tab->join();
-
-  /*
-    One row, no need to sort. make_tmp_tables_info should already handle this.
-    ROLLUP generates one more row. So that is the only exception.
-  */
-  if (join != nullptr) {
-    DBUG_ASSERT(
-        (!join->plan_is_const() || join->rollup.state != ROLLUP::STATE_NONE) &&
-        m_filesort);
-  }
-
-  TABLE *table = qep_tab->table();
+int SortingIterator::DoSort() {
   DBUG_ASSERT(m_sort_result.io_cache == nullptr);
   m_sort_result.io_cache =
       (IO_CACHE *)my_malloc(key_memory_TABLE_sort_io_cache, sizeof(IO_CACHE),
                             MYF(MY_WME | MY_ZEROFILL));
 
-  // If table has a range, move it to select
-  if (qep_tab->quick() && qep_tab->ref().key >= 0) {
-    if (qep_tab->type() != JT_REF_OR_NULL && qep_tab->type() != JT_FT) {
-      DBUG_ASSERT(qep_tab->type() == JT_REF || qep_tab->type() == JT_EQ_REF);
-      // Update ref value
-      if (construct_lookup_ref(thd(), table, &qep_tab->ref()) &&
-          thd()->is_fatal_error())
-        return -1;  // out of memory
+  if (m_qep_tab != nullptr) {
+    JOIN *join = m_qep_tab->join();
+    if (join != nullptr && join->unit->root_iterator() == nullptr) {
+      /* Fill schema tables with data before filesort if it's necessary */
+      if ((join->select_lex->active_options() & OPTION_SCHEMA_TABLE) &&
+          get_schema_tables_result(join, PROCESSED_BY_CREATE_SORT_INDEX))
+        return -1;
     }
-  }
-
-  if (join != nullptr && join->unit->root_iterator() == nullptr) {
-    /* Fill schema tables with data before filesort if it's necessary */
-    if ((join->select_lex->active_options() & OPTION_SCHEMA_TABLE) &&
-        get_schema_tables_result(join, PROCESSED_BY_CREATE_SORT_INDEX))
-      return -1;
   }
 
   ha_rows found_rows;
   bool error = filesort(thd(), m_filesort, m_source_iterator.get(), &m_fs_info,
                         &m_sort_result, &found_rows);
-  qep_tab->set_records(found_rows);  // For SQL_CALC_FOUND_ROWS
-  table->set_keyread(false);         // Restore if we used indexes
-  if (qep_tab->type() == JT_FT)
-    table->file->ft_end();
-  else
-    table->file->ha_index_or_rnd_end();
+  if (m_qep_tab != nullptr) {
+    m_qep_tab->set_records(found_rows);  // For SQL_CALC_FOUND_ROWS
+  }
+  m_filesort->table->set_keyread(false);  // Restore if we used indexes
   return error;
 }
 
@@ -685,13 +652,7 @@ vector<string> SortingIterator::DebugString() const {
     }
 
     const st_sort_field *order = &m_filesort->sortorder[i];
-    if (order->item) {
-      ret += ItemToString(order->item);
-    } else {
-      ret += order->field->table->alias;
-      ret += ".";
-      ret += order->field->field_name;
-    }
+    ret += ItemToString(order->item);
     if (order->reverse) {
       ret += " DESC";
     }

@@ -67,8 +67,6 @@
     SET @@global.innodb_lock_wait_timeout = 100000;
 
 
-  --source suite/innodb/include/force_cats.inc
-
   --connect (C1, localhost, root,,)
   --connect (C2, localhost, root,,)
   --connect (C3, localhost, root,,)
@@ -115,8 +113,6 @@
   --connection C2
     --reap
     ROLLBACK;
-
-  --source suite/innodb/include/discourage_cats.inc
 
   # Clean up connections
 

@@ -79,7 +79,7 @@ static void fill_dd_function_return_type(THD *thd, sp_head *sp, Function *sf) {
   DBUG_TRACE;
 
   Create_field *return_field = &sp->m_return_field_def;
-  DBUG_ASSERT(return_field != NULL);
+  DBUG_ASSERT(return_field != nullptr);
 
   // Set result data type.
   sf->set_result_data_type(get_new_field_type(return_field->sql_type));
@@ -199,7 +199,7 @@ static void fill_parameter_info_from_field(THD *thd, Create_field *field,
                 field->sql_type == MYSQL_TYPE_SET);
 
     const char **pos = field->interval->type_names;
-    for (uint i = 0; *pos != NULL; pos++, i++) {
+    for (uint i = 0; *pos != nullptr; pos++, i++) {
       // Create enum/set object.
       Parameter_type_element *elem_obj = param->add_element();
 
@@ -247,7 +247,7 @@ static bool fill_routine_parameters_info(THD *thd, sp_head *sp,
 
   // Fill parameter information of the stored routine.
   sp_pcontext *sp_root_parsing_ctx = sp->get_root_parsing_context();
-  DBUG_ASSERT(sp_root_parsing_ctx != NULL);
+  DBUG_ASSERT(sp_root_parsing_ctx != nullptr);
   for (uint i = 0; i < sp_root_parsing_ctx->context_var_count(); i++) {
     sp_variable *sp_var = sp_root_parsing_ctx->find_variable(i);
     Create_field *field_def = &sp_var->field_def;
@@ -375,12 +375,12 @@ static bool fill_dd_routine_info(THD *thd, const dd::Schema &schema,
       thd->variables.collation_connection->number);
 
   // Set schema collation id.
-  const CHARSET_INFO *db_cs = NULL;
+  const CHARSET_INFO *db_cs = nullptr;
   if (get_default_db_collation(schema, &db_cs)) {
     DBUG_ASSERT(thd->is_error());
     return true;
   }
-  if (db_cs == NULL) db_cs = thd->collation();
+  if (db_cs == nullptr) db_cs = thd->collation();
 
   routine->set_schema_collation_id(db_cs->number);
 

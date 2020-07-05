@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -48,9 +48,8 @@ const std::string collation("collation");
   @param [in]   expected_arg_count The number of arguments UDf accepts
   @param [in]   type    UDF type if it is collation or charset.
 
-  @returns
-    @retval false UDF is initialized successfully.
-    @retval true  Otherwise.
+  @retval false UDF is initialized successfully.
+  @retval true  Otherwise.
 */
 bool Test_udf_charset::prepare_return_udf(UDF_INIT *initid, UDF_ARGS *args,
                                           const size_t expected_arg_count,
@@ -79,9 +78,8 @@ bool Test_udf_charset::prepare_return_udf(UDF_INIT *initid, UDF_ARGS *args,
   @param [in] expected_arg_count The number of arguments UDf accepts
   @param [in] type  UDF type if it is collation or charset.
 
-  @returns
-    @retval false UDF is initialized successfully.
-    @retval true  Otherwise.
+  @retval false UDF is initialized successfully.
+  @retval true  Otherwise.
 */
 bool Test_udf_charset::prepare_args_udf(UDF_INIT *initid, UDF_ARGS *args,
                                         const size_t expected_arg_count,
@@ -108,9 +106,8 @@ bool Test_udf_charset::prepare_args_udf(UDF_INIT *initid, UDF_ARGS *args,
   @param [out] result The return value that UDF will return
   @param [out] result_len  Length of the return value
 
-  @returns
-    @retval false UDF is initialized successfully.
-    @retval true  Otherwise.
+  @retval false UDF is initialized successfully.
+  @retval true  Otherwise.
 */
 bool Test_udf_charset::run_return_udf(UDF_INIT *initid, UDF_ARGS *args,
                                       char **result,
@@ -130,9 +127,8 @@ bool Test_udf_charset::run_return_udf(UDF_INIT *initid, UDF_ARGS *args,
   @param [out] result The return value the UDF will return
   @param [out] result_len Length of the return value
 
-  @returns
-    @retval false Success
-    @retval true  Otherwise.
+  @retval false Success
+  @retval true  Otherwise.
 */
 bool Test_udf_charset::run_args_udf(UDF_INIT *initid, UDF_ARGS *args,
                                     char **result, unsigned long &result_len) {
@@ -156,9 +152,8 @@ void Test_udf_charset::deinit(UDF_INIT *initd) {
   @param [in] index Index of the UDF argument
   @param [in] name  Charset/collation name
 
-  @returns
-    @retval false Success
-    @retval true  Otherwise.
+  @retval false Success
+  @retval true  Otherwise.
 */
 bool Test_udf_charset::fetch_charset_or_collation_from_arg(UDF_ARGS *args,
                                                            const int index,
@@ -185,9 +180,8 @@ bool Test_udf_charset::fetch_charset_or_collation_from_arg(UDF_ARGS *args,
   @param [in] expected_arg_count The number of arguments UDf accepts
   @param [in] type  UDF type if it is collation or charset.
 
-  @returns
-    @retval false UDF is initialized successfully.
-    @retval true  Otherwise.
+  @retval false UDF is initialized successfully.
+  @retval true  Otherwise.
 */
 bool Test_udf_charset_const_value::prepare_return_udf(
     UDF_INIT *initid, UDF_ARGS *args, const size_t expected_arg_count,
@@ -215,9 +209,8 @@ bool Test_udf_charset_const_value::prepare_return_udf(
   @param [in] expected_arg_count The number of arguments UDf accepts
   @param [in] type  UDF type if it is collation or charset.
 
-  @returns
-    @retval false UDF is initialized successfully.
-    @retval true  Otherwise.
+  @retval false UDF is initialized successfully.
+  @retval true  Otherwise.
 */
 bool Test_udf_charset_const_value::prepare_args_udf(
     UDF_INIT *initid, UDF_ARGS *args, const size_t expected_arg_count,
@@ -244,9 +237,8 @@ bool Test_udf_charset_const_value::prepare_args_udf(
   @param [out] result The return value the UDF will return
   @param [out] result_len  Length of the return value
 
-  @returns
-    @retval false UDF is initialized successfully.
-    @retval true  Otherwise.
+  @retval false UDF is initialized successfully.
+  @retval true  Otherwise.
 */
 bool Test_udf_charset_const_value::run_return_udf(UDF_INIT *initid,
                                                   UDF_ARGS *args, char **result,
@@ -266,9 +258,8 @@ bool Test_udf_charset_const_value::run_return_udf(UDF_INIT *initid,
   @param [out] result The return value the UDF will return
   @param [out] result_len Length of the return value
 
-  @returns
-    @retval false UDF executed successfully.
-    @retval true  Otherwise.
+  @retval false UDF executed successfully.
+  @retval true  Otherwise.
 */
 bool Test_udf_charset_const_value::run_args_udf(UDF_INIT *initid,
                                                 UDF_ARGS *args, char **result,
@@ -320,9 +311,8 @@ std::string Test_udf_charset_base::get_last_error() {
   @param [in] args  A pointer to the UDF_ARGS structure
   @param [in] expected_arg_count The number of arguments UDf accepts
 
-  @returns
-    @retval false Arguments are validated successfully.
-    @retval true  Otherwise.
+  @retval false Arguments are validated successfully.
+  @retval true  Otherwise.
 */
 bool Test_udf_charset_base::validate_inputs(UDF_ARGS *args,
                                             const size_t expected_arg_count) {
@@ -358,9 +348,8 @@ bool Test_udf_charset_base::validate_inputs(UDF_ARGS *args,
   @param [out] result The return value the UDF will return
   @param [out] result_len Length of the return value
 
-  @returns
-    @retval false UDF executed successully.
-    @retval true  Otherwise.
+  @retval false UDF executed successully.
+  @retval true  Otherwise.
 */
 bool Test_udf_charset_base::run_return_udf(UDF_INIT *initid, UDF_ARGS *args,
                                            char **result,
@@ -413,9 +402,8 @@ bool Test_udf_charset_base::run_return_udf(UDF_INIT *initid, UDF_ARGS *args,
   @param [in] initid  A pointer to the UDF_INIT structure
   @param [in] args  A pointer to the UDF_ARGS structure
 
-  @returns
-    @retval false UDF_INIT structure is set for return value
-    @retval true  Otherwise.
+  @retval false UDF_INIT structure is set for return value
+  @retval true  Otherwise.
 */
 bool Test_udf_charset_base::set_udf_init(UDF_INIT *initid, UDF_ARGS *args) {
   /*
@@ -441,9 +429,8 @@ bool Test_udf_charset_base::set_udf_init(UDF_INIT *initid, UDF_ARGS *args) {
   @param [in] args  A pointer to the UDF_ARGS structure
   @param [in] name  Value to be set.
 
-  @returns
-    @retval false Success
-    @retval true  Otherwise
+  @retval false Success
+  @retval true  Otherwise
 */
 bool Test_udf_charset_base::set_args_init(UDF_ARGS *args,
                                           const std::string &name) {
@@ -472,9 +459,8 @@ void Test_udf_charset_base::set_ext_type(Type ext_type) {
   @param [out] result The return value the UDF will return
   @param [out] result_len Length of the return value
 
-  @returns
-    @retval false UDF is initialized successfully.
-    @retval true  Otherwise.
+  @retval false UDF is initialized successfully.
+  @retval true  Otherwise.
 */
 bool Test_udf_charset_base::run_args_udf(UDF_INIT *initid, UDF_ARGS *args,
                                          char **result,
@@ -507,9 +493,8 @@ bool Test_udf_charset_base::run_args_udf(UDF_INIT *initid, UDF_ARGS *args,
   @param [in] out_buffer_length Max size that output buffer can return
   @param [out] out_buffer Output buffer which is converted in the charset
                           specified
-  @returns
-    @retval false Buffer is converted into the charset
-    @retval true  Otherwise
+  @retval false Buffer is converted into the charset
+  @retval true  Otherwise
 */
 bool Test_udf_charset_base::convert(const std::string &out_charset_name,
                                     const std::string &in_charset_name,
@@ -553,9 +538,8 @@ void Test_udf_charset_base::deinit(UDF_INIT *initd) { delete[] initd->ptr; }
   @param [in] initid  A pointer to the UDF_INIT structure
   @param [in] name    Value to be set in the extension argument.
 
-  @returns
-    @retval false Value is set successfully.
-    @retval true  Otherwise.
+  @retval false Value is set successfully.
+  @retval true  Otherwise.
 */
 bool Test_udf_charset_base::set_return_value_charset_or_collation(
     UDF_INIT *initid, const std::string &name) {

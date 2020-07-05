@@ -120,9 +120,9 @@ void partitioning_init() {
 
 Partition_share::Partition_share()
     : auto_inc_initialized(false),
-      auto_inc_mutex(NULL),
+      auto_inc_mutex(nullptr),
       next_auto_inc_val(0),
-      partition_names(NULL) {}
+      partition_names(nullptr) {}
 
 Partition_share::~Partition_share() {
   if (auto_inc_mutex) {
@@ -270,7 +270,7 @@ bool Partition_share::populate_partition_name_hash(partition_info *part_info) {
 err:
   partition_name_hash.reset();
   my_free(partition_names);
-  partition_names = NULL;
+  partition_names = nullptr;
 
   return true;
 }
@@ -321,8 +321,8 @@ bool Partition_share::insert_partition_name_in_hash(const char *name,
 }
 
 const char *Partition_share::get_partition_name(size_t part_id) const {
-  if (partition_names == NULL) {
-    return NULL;
+  if (partition_names == nullptr) {
+    return nullptr;
   }
   return reinterpret_cast<const char *>(partition_names[part_id]);
 }
@@ -366,8 +366,8 @@ Partition_helper::Partition_helper(handler *main_handler)
       m_queue() {}
 
 Partition_helper::~Partition_helper() {
-  DBUG_ASSERT(m_ordered_rec_buffer == NULL);
-  DBUG_ASSERT(m_key_not_found_partitions.bitmap == NULL);
+  DBUG_ASSERT(m_ordered_rec_buffer == nullptr);
+  DBUG_ASSERT(m_key_not_found_partitions.bitmap == nullptr);
 }
 
 /**
@@ -387,7 +387,7 @@ void Partition_helper::set_part_info_low(partition_info *part_info,
     And this call can be earlier than the partition_default_handling(),
     so get_tot_partitions() may return zero.
   */
-  if (m_tot_parts == 0 && (m_part_info == NULL || !early)) {
+  if (m_tot_parts == 0 && (m_part_info == nullptr || !early)) {
     m_tot_parts = part_info->get_tot_partitions();
   }
   m_part_info = part_info;
@@ -408,7 +408,7 @@ bool Partition_helper::open_partitioning(Partition_share *part_share) {
   DBUG_ASSERT(m_part_info == m_table->part_info);
   m_part_share = part_share;
   m_tot_parts = m_part_info->get_tot_partitions();
-  if (bitmap_init(&m_key_not_found_partitions, NULL, m_tot_parts)) {
+  if (bitmap_init(&m_key_not_found_partitions, nullptr, m_tot_parts)) {
     return true;
   }
   bitmap_clear_all(&m_key_not_found_partitions);
@@ -420,13 +420,13 @@ bool Partition_helper::open_partitioning(Partition_share *part_share) {
   m_part_spec.start_part = NOT_A_PARTITION_ID;
   m_part_spec.end_part = NOT_A_PARTITION_ID;
   m_index_scan_type = PARTITION_NO_INDEX_SCAN;
-  m_start_key.key = NULL;
+  m_start_key.key = nullptr;
   m_start_key.length = 0;
   m_scan_value = 3;
   m_reverse_order = false;
-  m_curr_key_info[0] = NULL;
-  m_curr_key_info[1] = NULL;
-  m_curr_key_info[2] = NULL;
+  m_curr_key_info[0] = nullptr;
+  m_curr_key_info[1] = nullptr;
+  m_curr_key_info[2] = nullptr;
   m_top_entry = NO_CURRENT_PART_ID;
   m_ref_usage = REF_NOT_USED;
   m_rec_length = m_table->s->reclength;
@@ -573,7 +573,7 @@ int Partition_helper::ph_update_row(const uchar *old_data, uchar *new_data) {
   int error = 0;
   longlong func_value;
   DBUG_TRACE;
-  m_err_rec = NULL;
+  m_err_rec = nullptr;
 
   // Need to read partition-related columns, to locate the row's partition:
   DBUG_ASSERT(
@@ -626,7 +626,7 @@ int Partition_helper::ph_update_row(const uchar *old_data, uchar *new_data) {
       generate/update the auto_inc value.
       This gives the same behavior for partitioned vs non partitioned tables.
     */
-    m_table->next_number_field = NULL;
+    m_table->next_number_field = nullptr;
     DBUG_PRINT("info", ("Update from partition %d to partition %d", old_part_id,
                         new_part_id));
     error = write_row_in_part(new_part_id, new_data);
@@ -678,7 +678,7 @@ int Partition_helper::ph_delete_row(const uchar *buf) {
   int error;
   uint part_id;
   DBUG_TRACE;
-  m_err_rec = NULL;
+  m_err_rec = nullptr;
 
   DBUG_ASSERT(
       bitmap_is_subset(&m_part_info->full_part_field_set, m_table->read_set));
@@ -960,7 +960,7 @@ bool Partition_helper::print_partition_error(int error) {
   DBUG_PRINT("enter", ("error: %d", error));
 
   if ((error == HA_ERR_NO_PARTITION_FOUND) &&
-      (thd->lex->alter_info == NULL ||
+      (thd->lex->alter_info == nullptr ||
        !(thd->lex->alter_info->flags & Alter_info::ALTER_TRUNCATE_PARTITION))) {
     m_part_info->print_no_partition_found(thd, m_table);
     // print_no_partition_found() reports an error, so we can just return here.
@@ -1011,7 +1011,7 @@ bool Partition_helper::print_partition_error(int error) {
         str.append(STRING_WITH_LEN("..."));
       }
       my_error(ER_ROW_IN_WRONG_PARTITION, MYF(0), str.c_ptr_safe());
-      m_err_rec = NULL;
+      m_err_rec = nullptr;
       return false;
     }
   }
@@ -1034,7 +1034,7 @@ void Partition_helper::prepare_change_partitions() {
   */
   bitmap_clear_all(&m_part_info->read_partitions);
 
-  while ((part_elem = part_it++) != NULL) {
+  while ((part_elem = part_it++) != nullptr) {
     if (part_elem->part_state == PART_CHANGED ||
         part_elem->part_state == PART_REORGED_DROPPED) {
       for (uint sp = 0; sp < num_subparts; sp++) {
@@ -1203,7 +1203,7 @@ int Partition_helper::check_misplaced_rows(uint read_part_id, bool repair) {
 
     if (correct_part_id != read_part_id) {
       num_misplaced_rows++;
-      m_err_rec = NULL;
+      m_err_rec = nullptr;
       if (!repair) {
         /* Check. */
         result = HA_ADMIN_NEEDS_UPGRADE;
@@ -1795,12 +1795,12 @@ void Partition_helper::destroy_record_priority_queue() {
   destroy_record_priority_queue_for_parts();
   if (m_ordered_rec_buffer) {
     my_free(m_ordered_rec_buffer);
-    m_ordered_rec_buffer = NULL;
+    m_ordered_rec_buffer = nullptr;
   }
   if (m_queue) {
     m_queue->clear();
     delete m_queue;
-    m_queue = NULL;
+    m_queue = nullptr;
   }
   m_ref_usage = REF_NOT_USED;
   m_ordered_scan_ongoing = false;
@@ -1832,7 +1832,7 @@ int Partition_helper::ph_index_init_setup(uint inx, bool sorted) {
   m_ordered = sorted;
   m_ref_usage = REF_NOT_USED;
   m_curr_key_info[0] = m_table->key_info + inx;
-  m_curr_key_info[1] = NULL;
+  m_curr_key_info[1] = nullptr;
   /*
     There are two cases where it is not enough to only sort on the key:
     1) For clustered indexes, the optimizer assumes that all keys
@@ -2235,7 +2235,7 @@ int Partition_helper::ph_read_range_first(const key_range *start_key,
                                           const key_range *end_key,
                                           bool eq_range_arg, bool sorted) {
   int error = HA_ERR_END_OF_FILE;
-  bool have_start_key = (start_key != NULL);
+  bool have_start_key = (start_key != nullptr);
   uint part_id = m_part_info->get_first_used_partition();
   DBUG_TRACE;
 
@@ -2252,7 +2252,7 @@ int Partition_helper::ph_read_range_first(const key_range *start_key,
   if (have_start_key)
     m_start_key = *start_key;
   else
-    m_start_key.key = NULL;
+    m_start_key.key = nullptr;
 
   m_index_scan_type = PARTITION_READ_RANGE;
   error = common_index_read(m_table->record[0], have_start_key);
@@ -2387,7 +2387,7 @@ int Partition_helper::handle_unordered_next(uchar *buf, bool is_next_same) {
                                     m_start_key.key, m_start_key.length);
   } else if (m_index_scan_type == PARTITION_READ_RANGE) {
     DBUG_ASSERT(buf == m_table->record[0]);
-    error = read_range_next_in_part(m_part_spec.start_part, NULL);
+    error = read_range_next_in_part(m_part_spec.start_part, nullptr);
   } else {
     error = index_next_in_part(m_part_spec.start_part, buf);
   }
@@ -2668,7 +2668,7 @@ int Partition_helper::handle_ordered_index_scan_key_not_found() {
   uint i;
   size_t old_elements = m_queue->size();
   uchar *part_buf = m_ordered_rec_buffer;
-  uchar *curr_rec_buf = NULL;
+  uchar *curr_rec_buf = nullptr;
   DBUG_TRACE;
   DBUG_ASSERT(m_key_not_found);
   DBUG_ASSERT(part_buf);
@@ -2742,7 +2742,7 @@ int Partition_helper::handle_ordered_index_scan_key_not_found() {
 int Partition_helper::handle_ordered_next(uchar *buf, bool is_next_same) {
   int error;
   uint part_id = m_top_entry;
-  uchar *rec_buf = m_queue->empty() ? NULL : m_queue->top() + m_rec_offset;
+  uchar *rec_buf = m_queue->empty() ? nullptr : m_queue->top() + m_rec_offset;
   uchar *read_buf;
   DBUG_TRACE;
 
@@ -2802,7 +2802,7 @@ int Partition_helper::handle_ordered_next(uchar *buf, bool is_next_same) {
                                     m_start_key.length);
   } else if (m_index_scan_type == PARTITION_READ_RANGE) {
     error = read_range_next_in_part(
-        part_id, read_buf == m_table->record[0] ? NULL : read_buf);
+        part_id, read_buf == m_table->record[0] ? nullptr : read_buf);
   } else {
     error = index_next_in_part(part_id, read_buf);
   }
@@ -2856,7 +2856,7 @@ int Partition_helper::handle_ordered_next(uchar *buf, bool is_next_same) {
 int Partition_helper::handle_ordered_prev(uchar *buf) {
   int error;
   uint part_id = m_top_entry;
-  uchar *rec_buf = m_queue->empty() ? NULL : m_queue->top() + m_rec_offset;
+  uchar *rec_buf = m_queue->empty() ? nullptr : m_queue->top() + m_rec_offset;
   uchar *read_buf;
   DBUG_TRACE;
 

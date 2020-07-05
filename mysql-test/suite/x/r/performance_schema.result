@@ -1,6 +1,6 @@
 
-34 rows affected
-Rows matched: 34  Changed: 0  Warnings: 0
+33 rows affected
+Rows matched: 33  Changed: 0  Warnings: 0
 
 1 rows affected
 Rows matched: 1  Changed: 1  Warnings: 0
@@ -37,7 +37,6 @@ wait/synch/mutex/mysqlx/server_state_sync
 wait/synch/mutex/mysqlx/socket_acceptors_sync
 wait/synch/mutex/mysqlx/socket_events_timers
 wait/synch/mutex/mysqlx/vio_shutdown
-wait/synch/mutex/mysqlx/xpl_server_accepting
 0 rows affected
 name
 wait/synch/cond/mysqlx/broker_context_sync
@@ -57,7 +56,6 @@ wait/synch/mutex/mysqlx/scheduler_dynamic_worker_pending	NO	NO		0	null
 wait/synch/mutex/mysqlx/scheduler_dynamic_thread_exit	YES	NO		0	null
 wait/synch/mutex/mysqlx/document_id_generate	YES	NO		0	null
 wait/synch/mutex/mysqlx/notice_output_queue	YES	NO		0	null
-wait/synch/mutex/mysqlx/xpl_server_accepting	YES	NO		0	null
 wait/synch/mutex/mysqlx/client_session_exit	YES	NO		0	null
 wait/synch/mutex/mysqlx/socket_events_timers	YES	NO		0	null
 wait/synch/mutex/mysqlx/scheduler_post	YES	NO		0	null
@@ -308,7 +306,6 @@ wait/synch/mutex/mysqlx/server_state_sync
 wait/synch/mutex/mysqlx/socket_acceptors_sync
 wait/synch/mutex/mysqlx/socket_events_timers
 wait/synch/mutex/mysqlx/vio_shutdown
-wait/synch/mutex/mysqlx/xpl_server_accepting
 command ok
 name
 wait/synch/cond/mysqlx/broker_context_sync

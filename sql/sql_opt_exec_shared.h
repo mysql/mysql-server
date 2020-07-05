@@ -111,19 +111,26 @@ struct TABLE_REF {
   */
   bool disable_cache;
 
+  /*
+    If non-nullptr, all the fields are hashed together through functions
+    in store_key (with the result being put into this field), as opposed to
+    being matched against individual fields in the associated KEY's key parts.
+   */
+  ulonglong *keypart_hash = nullptr;
+
   TABLE_REF()
       : key_err(true),
         key_parts(0),
         key_length(0),
         key(-1),
-        key_buff(NULL),
-        key_buff2(NULL),
-        key_copy(NULL),
-        items(NULL),
-        cond_guards(NULL),
+        key_buff(nullptr),
+        key_buff2(nullptr),
+        key_copy(nullptr),
+        items(nullptr),
+        cond_guards(nullptr),
         null_rejecting(0),
         depend_map(0),
-        null_ref_key(NULL),
+        null_ref_key(nullptr),
         use_count(0),
         disable_cache(false) {}
 
@@ -149,7 +156,7 @@ struct TABLE_REF {
   */
 
   bool has_guarded_conds() const {
-    DBUG_ASSERT(key_parts == 0 || cond_guards != NULL);
+    DBUG_ASSERT(key_parts == 0 || cond_guards != nullptr);
 
     for (uint i = 0; i < key_parts; i++) {
       if (cond_guards[i]) return true;
@@ -166,66 +173,64 @@ class Semijoin_mat_exec;
 /*
   The structs which holds the join connections and join states
 */
-enum join_type { /*
-                         Initial state. Access type has not yet been decided
-                         for the table
-                       */
-                 JT_UNKNOWN,
-                 /* Table has exactly one row */
-                 JT_SYSTEM,
-                 /*
-                   Table has at most one matching row. Values read
-                   from this row can be treated as constants. Example:
-                   "WHERE table.pk = 3"
-                  */
-                 JT_CONST,
-                 /*
-                   '=' operator is used on unique index. At most one
-                   row is read for each combination of rows from
-                   preceding tables
-                 */
-                 JT_EQ_REF,
-                 /*
-                   '=' operator is used on non-unique index
-                 */
-                 JT_REF,
-                 /*
-                   Full table scan.
-                 */
-                 JT_ALL,
-                 /*
-                   Range scan.
-                 */
-                 JT_RANGE,
-                 /*
-                   Like table scan, but scans index leaves instead of
-                   the table
-                 */
-                 JT_INDEX_SCAN,
-                 /* Fulltext index is used */
-                 JT_FT,
-                 /*
-                   Like ref, but with extra search for NULL values.
-                   E.g. used for "WHERE col = ... OR col IS NULL"
-                  */
-                 JT_REF_OR_NULL,
-                 /*
-                   Do multiple range scans over one table and combine
-                   the results into one. The merge can be used to
-                   produce unions and intersections
-                 */
-                 JT_INDEX_MERGE
+enum join_type {
+  /* Initial state. Access type has not yet been decided for the table */
+  JT_UNKNOWN,
+  /* Table has exactly one row */
+  JT_SYSTEM,
+  /*
+    Table has at most one matching row. Values read
+    from this row can be treated as constants. Example:
+    "WHERE table.pk = 3"
+   */
+  JT_CONST,
+  /*
+    '=' operator is used on unique index. At most one
+    row is read for each combination of rows from
+    preceding tables
+  */
+  JT_EQ_REF,
+  /*
+    '=' operator is used on non-unique index
+  */
+  JT_REF,
+  /*
+    Full table scan.
+  */
+  JT_ALL,
+  /*
+    Range scan.
+  */
+  JT_RANGE,
+  /*
+    Like table scan, but scans index leaves instead of
+    the table
+  */
+  JT_INDEX_SCAN,
+  /* Fulltext index is used */
+  JT_FT,
+  /*
+    Like ref, but with extra search for NULL values.
+    E.g. used for "WHERE col = ... OR col IS NULL"
+   */
+  JT_REF_OR_NULL,
+  /*
+    Do multiple range scans over one table and combine
+    the results into one. The merge can be used to
+    produce unions and intersections
+  */
+  JT_INDEX_MERGE
 };
 
 /// Holds members common to JOIN_TAB and QEP_TAB.
 class QEP_shared {
  public:
   QEP_shared()
-      : m_join(NULL),
+      : m_join(nullptr),
         m_idx(NO_PLAN_IDX),
-        m_table(NULL),
-        m_position(NULL),
-        m_sj_mat_exec(NULL),
+        m_table(nullptr),
+        m_position(nullptr),
+        m_sj_mat_exec(nullptr),
         m_first_sj_inner(NO_PLAN_IDX),
         m_last_sj_inner(NO_PLAN_IDX),
         m_first_inner(NO_PLAN_IDX),
@@ -234,13 +239,13 @@ class QEP_shared {
         m_ref(),
         m_index(0),
         m_type(JT_UNKNOWN),
-        m_condition(NULL),
+        m_condition(nullptr),
         m_keys(),
         m_records(0),
-        m_quick(NULL),
+        m_quick(nullptr),
         prefix_tables_map(0),
         added_tables_map(0),
-        m_ft_func(NULL),
+        m_ft_func(nullptr),
         m_skip_records_in_range(false) {}
 
   /*
@@ -462,7 +467,7 @@ class QEP_shared {
 /// Owner of a QEP_shared; parent of JOIN_TAB and QEP_TAB.
 class QEP_shared_owner {
  public:
-  QEP_shared_owner() : m_qs(NULL) {}
+  QEP_shared_owner() : m_qs(nullptr) {}
 
   /// Instructs to share the QEP_shared with another owner
   void share_qs(QEP_shared_owner *other) { other->set_qs(m_qs); }

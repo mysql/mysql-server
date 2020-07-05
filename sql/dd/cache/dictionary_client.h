@@ -188,7 +188,7 @@ class Dictionary_client {
     template <typename T>
     void auto_release(Cache_element<T> *element) {
       // Catch situations where we do not use a non-default releaser.
-      DBUG_ASSERT(m_prev != NULL);
+      DBUG_ASSERT(m_prev != nullptr);
       m_release_registry.put(element);
     }
 

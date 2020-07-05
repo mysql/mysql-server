@@ -79,6 +79,10 @@ args: -n RestoreEpochRetry T1
 max-time: 900
 
 cmd: testNodeRestart
+args: -n MultiSocketRestart T1
+max-time: 2500
+
+cmd: testNodeRestart
 args: -n SumaHandover3rpl T1
 max-time: 180
 

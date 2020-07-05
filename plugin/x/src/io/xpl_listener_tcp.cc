@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -272,7 +272,7 @@ Listener_tcp::~Listener_tcp() {
 
 Listener_tcp::Sync_variable_state &Listener_tcp::get_state() { return m_state; }
 
-std::string Listener_tcp::get_last_error() { return m_last_error; }
+std::string Listener_tcp::get_last_error() const { return m_last_error; }
 
 std::string Listener_tcp::get_name_and_configuration() const {
   return String_formatter()
@@ -326,6 +326,10 @@ void Listener_tcp::close_listener() {
   m_state.set(iface::Listener::State::k_stopped);
 
   if (m_tcp_socket) m_tcp_socket->close();
+}
+
+void Listener_tcp::pre_loop() {
+  if (m_tcp_socket) m_tcp_socket->set_socket_thread_owner();
 }
 
 void Listener_tcp::loop() {}

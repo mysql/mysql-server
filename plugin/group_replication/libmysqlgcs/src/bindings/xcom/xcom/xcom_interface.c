@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,6 +75,16 @@ void set_xcom_debugger_check(xcom_debugger_check x) { xcom_debug_check = x; }
 
 void deliver_to_app(pax_machine *pma, app_data_ptr app,
                     delivery_status app_status) {
+  if (app_status == delivery_ok) {
+    if (!pma) {
+      g_critical(
+          "A fatal error ocurred that prevents XCom from delivering a message "
+          "that achieved consensus. XCom cannot proceed without compromising "
+          "correctness. XCom will now crash.");
+    }
+    assert(pma && "pma must not be a null pointer");
+  }
+
   site_def const *site = 0;
 
   DBGOUT(FN; PTREXP(pma); PTREXP(app); NDBG(app_status, d);
@@ -87,17 +97,18 @@ void deliver_to_app(pax_machine *pma, app_data_ptr app,
     DBGOUT(FN; STREXP(cargo_type_to_str(app->body.c_t)));
     if (app->body.c_t == app_type) { /* Decode application data */
       if (app_status == delivery_ok) {
+        u_int copy_len = 0;
         char *copy = malloc(app->body.app_u_u.data.data_len);
-        if (copy == NULL && app->body.app_u_u.data.data_len != 0) {
-          app->body.app_u_u.data.data_len = 0;
+        if (copy == NULL) {
           G_ERROR("Unable to allocate memory for the received message.");
-        } else
+        } else {
           memcpy(copy, app->body.app_u_u.data.data_val,
                  app->body.app_u_u.data.data_len);
+          copy_len = app->body.app_u_u.data.data_len;
+        }
         ADD_EVENTS(add_synode_event(pma->synode););
 
-        xcom_receive_data(pma->synode, detector_node_set(site),
-                          app->body.app_u_u.data.data_len,
+        xcom_receive_data(pma->synode, detector_node_set(site), copy_len,
                           cache_get_last_removed(), copy);
       } else {
         G_TRACE("Data message was not delivered.");

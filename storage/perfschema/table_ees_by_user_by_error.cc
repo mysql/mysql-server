@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -67,7 +67,7 @@ Plugin_table table_ees_by_user_by_error::m_table_def(
 PFS_engine_table_share table_ees_by_user_by_error::m_share = {
     &pfs_truncatable_acl,
     table_ees_by_user_by_error::create,
-    NULL, /* write_row */
+    nullptr, /* write_row */
     table_ees_by_user_by_error::delete_all_rows,
     table_ees_by_user_by_error::get_row_count,
     sizeof(pos_ees_by_user_by_error),
@@ -110,7 +110,7 @@ int table_ees_by_user_by_error::delete_all_rows(void) {
 
 ha_rows table_ees_by_user_by_error::get_row_count(void) {
   return global_user_container.get_row_count() * error_class_max *
-         max_server_errors;
+         max_session_server_errors;
 }
 
 table_ees_by_user_by_error::table_ees_by_user_by_error()
@@ -129,7 +129,7 @@ int table_ees_by_user_by_error::rnd_next(void) {
 
   for (m_pos.set_at(&m_next_pos); has_more_user; m_pos.next_user()) {
     user = global_user_container.get(m_pos.m_index_1, &has_more_user);
-    if (user != NULL) {
+    if (user != nullptr) {
       for (; m_pos.has_more_error(); m_pos.next_error()) {
         if (!make_row(user, m_pos.m_index_2)) {
           m_next_pos.set_after(&m_pos);
@@ -148,7 +148,7 @@ int table_ees_by_user_by_error::rnd_pos(const void *pos) {
   set_position(pos);
 
   user = global_user_container.get(m_pos.m_index_1);
-  if (user != NULL) {
+  if (user != nullptr) {
     for (; m_pos.has_more_error(); m_pos.next_error()) {
       if (!make_row(user, m_pos.m_index_2)) {
         return 0;
@@ -161,7 +161,7 @@ int table_ees_by_user_by_error::rnd_pos(const void *pos) {
 
 int table_ees_by_user_by_error::index_init(uint idx MY_ATTRIBUTE((unused)),
                                            bool) {
-  PFS_index_ees_by_user_by_error *result = NULL;
+  PFS_index_ees_by_user_by_error *result = nullptr;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_ees_by_user_by_error);
   m_opened_index = result;
@@ -175,7 +175,7 @@ int table_ees_by_user_by_error::index_next(void) {
 
   for (m_pos.set_at(&m_next_pos); has_more_user; m_pos.next_user()) {
     user = global_user_container.get(m_pos.m_index_1, &has_more_user);
-    if (user != NULL) {
+    if (user != nullptr) {
       if (m_opened_index->match(user)) {
         for (; m_pos.has_more_error(); m_pos.next_error()) {
           if (m_opened_index->match_error_index(m_pos.m_index_2)) {
@@ -221,16 +221,17 @@ int table_ees_by_user_by_error::read_row_values(TABLE *table,
                                                 unsigned char *buf,
                                                 Field **fields, bool read_all) {
   Field *f;
-  server_error *temp_error = NULL;
+  server_error *temp_error = nullptr;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 1);
   buf[0] = 0;
 
   if (m_row.m_stat.m_error_index > 0 &&
-      m_row.m_stat.m_error_index < PFS_MAX_SERVER_ERRORS)
+      m_row.m_stat.m_error_index < PFS_MAX_SESSION_SERVER_ERRORS) {
     temp_error =
         &error_names_array[pfs_to_server_error_map[m_row.m_stat.m_error_index]];
+  }
 
   for (; (f = *fields); fields++) {
     if (read_all || bitmap_is_set(table->read_set, f->field_index)) {

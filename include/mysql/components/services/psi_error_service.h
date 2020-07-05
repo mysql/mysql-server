@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -30,7 +30,5 @@ BEGIN_SERVICE_DEFINITION(psi_error_v1)
 /** @sa log_error_v1_t. */
 log_error_v1_t log_error;
 END_SERVICE_DEFINITION(psi_error_v1)
-
-#define REQUIRES_PSI_ERROR_SERVICE REQUIRES_SERVICE(psi_error_v1)
 
 #endif /* COMPONENTS_SERVICES_PSI_ERROR_SERVICE_H */

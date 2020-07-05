@@ -1,0 +1,54 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection master]
+CALL mtr.add_suppression("Semi-sync master failed on net_flush.*");
+include/install_semisync_master.inc
+[connection slave]
+CALL mtr.add_suppression("Semi-sync slave net_flush.*");
+include/install_semisync_slave.inc
+[connection slave]
+include/stop_slave.inc
+include/start_slave.inc
+[connection master]
+SET SESSION binlog_transaction_compression=ON;
+[connection master]
+CREATE TABLE t1 (c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT);
+include/sync_slave_sql_with_master.inc
+[connection master]
+BEGIN;
+INSERT INTO t1 VALUES (10, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (9, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (8, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (7, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (6, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (5, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (4, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (3, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (2, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (1, REPEAT('a', 1000000));
+COMMIT;
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Assert that master and slave tables have the same content]
+[connection master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+[connection slave]
+include/assert.inc [Assert that semisync is still up and running on the slave]
+[connection master]
+include/assert.inc [Assert that semisync is still up and running on the master]
+[connection master]
+include/assert.inc [Assert that the slave is still there]
+[connection master]
+include/assert.inc [Assert that the expected number of commits were acknowledged]
+[connection slave]
+include/stop_slave.inc
+include/uninstall_semisync_slave.inc
+Warnings:
+Note	3084	Replication thread(s) for channel '' are already stopped.
+include/start_slave.inc
+[connection master]
+include/uninstall_semisync_master.inc
+include/rpl_end.inc

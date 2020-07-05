@@ -240,7 +240,7 @@ int _mi_ck_write_btree(MI_INFO *info, uint keynr, uchar *key, uint key_length) {
     if (!error) error = _mi_ft_convert_to_ft2(info, keynr, key);
     delete_dynamic(info->ft1_to_ft2);
     my_free(info->ft1_to_ft2);
-    info->ft1_to_ft2 = 0;
+    info->ft1_to_ft2 = nullptr;
   }
   return error;
 } /* _mi_ck_write_btree */
@@ -251,8 +251,9 @@ int _mi_ck_real_write_btree(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
   DBUG_TRACE;
   /* key_length parameter is used only if comp_flag is SEARCH_FIND */
   if (*root == HA_OFFSET_ERROR ||
-      (error = w_search(info, keyinfo, comp_flag, key, key_length, *root,
-                        (uchar *)0, (uchar *)0, (my_off_t)0, true)) > 0)
+      (error =
+           w_search(info, keyinfo, comp_flag, key, key_length, *root,
+                    (uchar *)nullptr, (uchar *)nullptr, (my_off_t)0, true)) > 0)
     error = _mi_enlarge_root(info, keyinfo, key, root);
   return error;
 } /* _mi_ck_real_write_btree */
@@ -268,8 +269,9 @@ int _mi_enlarge_root(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
 
   nod_flag = (*root != HA_OFFSET_ERROR) ? share->base.key_reflength : 0;
   _mi_kpointer(info, info->buff + 2, *root); /* if nod */
-  t_length = (*keyinfo->pack_key)(keyinfo, nod_flag, (uchar *)0, (uchar *)0,
-                                  (uchar *)0, key, &s_temp);
+  t_length =
+      (*keyinfo->pack_key)(keyinfo, nod_flag, (uchar *)nullptr,
+                           (uchar *)nullptr, (uchar *)nullptr, key, &s_temp);
   mi_putint(info->buff, t_length + 2 + nod_flag, nod_flag);
   (*keyinfo->store_key)(keyinfo, info->buff + 2 + nod_flag, &s_temp);
   info->buff_used = info->page_changed = true; /* info->buff is used */
@@ -414,10 +416,10 @@ int _mi_insert(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key, uchar *anc_buff,
   nod_flag = mi_test_if_nod(anc_buff);
   a_length = mi_getint(anc_buff);
   endpos = anc_buff + a_length;
-  prev_key = (key_pos == anc_buff + 2 + nod_flag ? (uchar *)0 : key_buff);
-  t_length = (*keyinfo->pack_key)(keyinfo, nod_flag,
-                                  (key_pos == endpos ? (uchar *)0 : key_pos),
-                                  prev_key, prev_key, key, &s_temp);
+  prev_key = (key_pos == anc_buff + 2 + nod_flag ? (uchar *)nullptr : key_buff);
+  t_length = (*keyinfo->pack_key)(
+      keyinfo, nod_flag, (key_pos == endpos ? (uchar *)nullptr : key_pos),
+      prev_key, prev_key, key, &s_temp);
 #ifndef DBUG_OFF
   if (key_pos != anc_buff + 2 + nod_flag &&
       (keyinfo->flag & (HA_BINARY_PACK_KEY | HA_PACK_KEY))) {
@@ -465,7 +467,7 @@ int _mi_insert(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key, uchar *anc_buff,
       DBUG_ASSERT((*b & 128) == 0);
       blen = *b++;
       uint alen = get_key_length(&a);
-      DBUG_ASSERT(info->ft1_to_ft2 == 0);
+      DBUG_ASSERT(info->ft1_to_ft2 == nullptr);
       if (alen == blen && ha_compare_text(keyinfo->seg->charset, a, alen, b,
                                           blen, false) == 0) {
         /* yup. converting */
@@ -473,7 +475,7 @@ int _mi_insert(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key, uchar *anc_buff,
             (DYNAMIC_ARRAY *)my_malloc(mi_key_memory_MI_INFO_ft1_to_ft2,
                                        sizeof(DYNAMIC_ARRAY), MYF(MY_WME));
         my_init_dynamic_array(info->ft1_to_ft2,
-                              mi_key_memory_MI_INFO_ft1_to_ft2, ft2len, NULL,
+                              mi_key_memory_MI_INFO_ft1_to_ft2, ft2len, nullptr,
                               300, 50);
 
         /*
@@ -514,7 +516,7 @@ int _mi_insert(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key, uchar *anc_buff,
 int _mi_split_page(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key, uchar *buff,
                    uchar *key_buff, bool insert_last_key) {
   uint length, a_length, key_ref_length, t_length, nod_flag, key_length;
-  uchar *key_pos, *pos, *after_key = NULL;
+  uchar *key_pos, *pos, *after_key = nullptr;
   my_off_t new_pos;
   MI_KEY_PARAM s_temp;
   DBUG_TRACE;
@@ -552,8 +554,9 @@ int _mi_split_page(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key, uchar *buff,
   /* Store new page */
   if (!(*keyinfo->get_key)(keyinfo, nod_flag, &key_pos, key_buff)) return -1;
 
-  t_length = (*keyinfo->pack_key)(keyinfo, nod_flag, (uchar *)0, (uchar *)0,
-                                  (uchar *)0, key_buff, &s_temp);
+  t_length = (*keyinfo->pack_key)(keyinfo, nod_flag, (uchar *)nullptr,
+                                  (uchar *)nullptr, (uchar *)nullptr, key_buff,
+                                  &s_temp);
   length = (uint)((buff + a_length) - key_pos);
   memcpy((uchar *)info->buff + key_ref_length + t_length, (uchar *)key_pos,
          (size_t)length);
@@ -600,7 +603,7 @@ uchar *_mi_find_half_pos(uint nod_flag, MI_KEYDEF *keyinfo, uchar *page,
   do {
     lastpos = page;
     if (!(length = (*keyinfo->get_key)(keyinfo, nod_flag, &page, key)))
-      return 0;
+      return nullptr;
   } while (page < end);
   *return_key_length = length;
   *after_key = page;
@@ -617,7 +620,7 @@ uchar *_mi_find_half_pos(uint nod_flag, MI_KEYDEF *keyinfo, uchar *page,
 static uchar *_mi_find_last_pos(MI_KEYDEF *keyinfo, uchar *page, uchar *key,
                                 uint *return_key_length, uchar **after_key) {
   uint keys, length, last_length = 0, key_ref_length;
-  uchar *end, *lastpos, *prevpos = NULL;
+  uchar *end, *lastpos, *prevpos = nullptr;
   uchar key_buff[MI_MAX_KEY_BUFF];
   DBUG_TRACE;
 
@@ -646,7 +649,7 @@ static uchar *_mi_find_last_pos(MI_KEYDEF *keyinfo, uchar *page, uchar *key,
     if (!(length = (*keyinfo->get_key)(keyinfo, 0, &page, key_buff))) {
       mi_print_error(keyinfo->share, HA_ERR_CRASHED);
       set_my_errno(HA_ERR_CRASHED);
-      return 0;
+      return nullptr;
     }
   }
   *return_key_length = last_length;
@@ -905,7 +908,7 @@ int mi_init_bulk_insert(MI_INFO *info, ulong cache_size, ha_rows rows) {
       init_tree(&info->bulk_insert[i], cache_size * key[i].maxlength, 0,
                 keys_compare, false, keys_free, params++);
     } else
-      info->bulk_insert[i].root = 0;
+      info->bulk_insert[i].root = nullptr;
   }
 
   return 0;
@@ -927,6 +930,6 @@ void mi_end_bulk_insert(MI_INFO *info) {
       }
     }
     my_free(info->bulk_insert);
-    info->bulk_insert = 0;
+    info->bulk_insert = nullptr;
   }
 }

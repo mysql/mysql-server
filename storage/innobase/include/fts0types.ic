@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -36,8 +36,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ha_prototypes.h"
 #include "rem0cmp.h"
 
-/** Duplicate a string.
- @return < 0 if n1 < n2, 0 if n1 == n2, > 0 if n1 > n2 */
+/** Duplicate a string. */
 UNIV_INLINE
 void fts_string_dup(fts_string_t *dst,       /*!< in: dup to here */
                     const fts_string_t *src, /*!< in: src string */
@@ -150,9 +149,9 @@ ulint fts_select_index_by_hash(const CHARSET_INFO *cs, const byte *str,
                                ulint len) {
   int char_len;
 
-  ut_ad(!(str == NULL && len > 0));
+  ut_ad(!(str == nullptr && len > 0));
 
-  if (str == NULL || len == 0) {
+  if (str == nullptr || len == 0) {
     return 0;
   }
 

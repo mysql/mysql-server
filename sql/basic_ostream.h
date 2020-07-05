@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,8 @@
 
 #ifndef BASIC_OSTREAM_INCLUDED
 #define BASIC_OSTREAM_INCLUDED
+#include <my_byteorder.h>
+#include "libbinlogevents/include/compression/base.h"
 #include "my_sys.h"
 #include "sql_string.h"
 
@@ -159,10 +161,24 @@ class StringBuffer_ostream : public Basic_ostream,
   StringBuffer_ostream(const StringBuffer_ostream &) = delete;
   StringBuffer_ostream &operator=(const StringBuffer_ostream &) = delete;
 
-  bool write(const unsigned char *buffer, my_off_t length) override {
+  virtual bool write(const unsigned char *buffer, my_off_t length) override {
     return StringBuffer<BUFFER_SIZE>::append(
         reinterpret_cast<const char *>(buffer), length);
   }
+};
+
+class Compressed_ostream : public Basic_ostream {
+ private:
+  binary_log::transaction::compression::Compressor *m_compressor;
+
+ public:
+  Compressed_ostream();
+  virtual ~Compressed_ostream() override;
+  Compressed_ostream(const Compressed_ostream &) = delete;
+  Compressed_ostream &operator=(const Compressed_ostream &) = delete;
+  binary_log::transaction::compression::Compressor *get_compressor();
+  void set_compressor(binary_log::transaction::compression::Compressor *);
+  bool write(const unsigned char *buffer, my_off_t length) override;
 };
 
 #endif  // BASIC_OSTREAM_INCLUDED

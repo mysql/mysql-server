@@ -148,7 +148,7 @@ bool Character_sets::populate(THD *thd) const {
   // therefore be deleted from the DD since they are not supported anymore.
   for (std::set<Object_id>::const_iterator del_it = prev_cset_ids.begin();
        del_it != prev_cset_ids.end(); ++del_it) {
-    const Charset *del_cset = NULL;
+    const Charset *del_cset = nullptr;
     if (thd->dd_client()->acquire(*del_it, &del_cset)) return true;
 
     DBUG_ASSERT(del_cset);

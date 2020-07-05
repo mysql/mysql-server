@@ -163,7 +163,7 @@ bool row_undo_search_clust_to_pcur(
   mtr_t mtr;
   row_ext_t **ext;
   const rec_t *rec;
-  mem_heap_t *heap = NULL;
+  mem_heap_t *heap = nullptr;
   ulint offsets_[REC_OFFS_NORMAL_SIZE];
   ulint *offsets = offsets_;
   rec_offs_init(offsets_);
@@ -200,12 +200,12 @@ bool row_undo_search_clust_to_pcur(
       /* REDUNDANT and COMPACT formats store a local
       768-byte prefix of each externally stored
       column. No cache is needed. */
-      ext = NULL;
-      node->ext = NULL;
+      ext = nullptr;
+      node->ext = nullptr;
     }
 
-    node->row = row_build(ROW_COPY_DATA, clust_index, rec, offsets, NULL, NULL,
-                          NULL, ext, node->heap);
+    node->row = row_build(ROW_COPY_DATA, clust_index, rec, offsets, nullptr,
+                          nullptr, nullptr, ext, node->heap);
 
     /* We will need to parse out virtual column info from undo
     log, first mark them DATA_MISSING. So we will know if the
@@ -223,8 +223,8 @@ bool row_undo_search_clust_to_pcur(
       row_upd_replace(node->trx, node->undo_row, &node->undo_ext, clust_index,
                       node->update, node->heap);
     } else {
-      node->undo_row = NULL;
-      node->undo_ext = NULL;
+      node->undo_row = nullptr;
+      node->undo_ext = nullptr;
     }
 
     btr_pcur_store_position(&node->pcur, &mtr);
@@ -251,8 +251,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   trx_t *trx;
   roll_ptr_t roll_ptr;
 
-  ut_ad(node != NULL);
-  ut_ad(thr != NULL);
+  ut_ad(node != nullptr);
+  ut_ad(thr != nullptr);
 
   trx = node->trx;
   ut_ad(trx->in_rollback);
@@ -311,7 +311,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 }
 
 void row_convert_impl_to_expl_if_needed(btr_cur_t *cursor, undo_node_t *node) {
-  ulint *offsets = NULL;
+  ulint *offsets = nullptr;
   /* In case of partial rollback implicit lock on the
   record is released in the middle of transaction, which
   can break the serializability of IODKU and REPLACE
@@ -322,7 +322,7 @@ void row_convert_impl_to_expl_if_needed(btr_cur_t *cursor, undo_node_t *node) {
   lock on the record to explict. When the record is actually
   deleted this lock be inherited by the next record.  */
 
-  if (!node->partial || (node->trx == NULL) ||
+  if (!node->partial || (node->trx == nullptr) ||
       node->trx->isolation_level < trx_t::REPEATABLE_READ) {
     return;
   }

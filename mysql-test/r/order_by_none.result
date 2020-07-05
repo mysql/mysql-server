@@ -191,8 +191,8 @@ LEFT JOIN t2 USING(c)
 LEFT JOIN t3 ON t3.c = t1.c;
 a	b	if(b = 1,i,if(b = 2,v,''))
 1	1	50
-3	2	123 Park Place
 2	1	25
+3	2	123 Park Place
 4	2	453 Boardwalk
 SELECT    a,b,if(b = 1,i,if(b = 2,v,''))
 FROM      t1
@@ -200,8 +200,8 @@ LEFT JOIN t2 ON t1.c = t2.c
 LEFT JOIN t3 ON t3.c = t1.c;
 a	b	if(b = 1,i,if(b = 2,v,''))
 1	1	50
-3	2	123 Park Place
 2	1	25
+3	2	123 Park Place
 4	2	453 Boardwalk
 SELECT    a,b,if(b = 1,i,if(b = 2,v,''))
 FROM      t1
@@ -1586,7 +1586,7 @@ Created_tmp_tables	0
 flush status;
 EXPLAIN SELECT a FROM t1 IGNORE INDEX (PRIMARY, ab) GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	PRIMARY,ab	NULL	NULL	NULL	128	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	128	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` IGNORE INDEX (`ab`) IGNORE INDEX (PRIMARY) group by `test`.`t1`.`a`
 SELECT a FROM t1 IGNORE INDEX (PRIMARY, ab) GROUP BY a;
@@ -2991,7 +2991,7 @@ EXPLAIN
 SELECT * FROM t1 USE INDEX FOR ORDER BY (a), t2 WHERE t1.a < 2 ORDER BY t1.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	a	a	5	NULL	2	100.00	Using where; Using temporary; Using filesort
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` USE INDEX FOR ORDER BY (`a`) join `test`.`t2` where (`test`.`t1`.`a` < 2) order by `test`.`t1`.`a`
 # should have "using filesort"
@@ -2999,7 +2999,7 @@ EXPLAIN
 SELECT * FROM t1 FORCE INDEX FOR JOIN (a), t2 WHERE t1.a < 2 ORDER BY t1.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	a	a	5	NULL	2	100.00	Using where; Using temporary; Using filesort
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` FORCE INDEX FOR JOIN (`a`) join `test`.`t2` where (`test`.`t1`.`a` < 2) order by `test`.`t1`.`a`
 DROP TABLE t1, t2;
@@ -3022,7 +3022,7 @@ ORDER by c
 LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	10	10.00	Using where; Using temporary; Using filesort
-1	SIMPLE	t1	NULL	index	a	a	8	NULL	10	10.00	Using where; Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	index	a	a	8	NULL	10	10.00	Using where; Using index; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `c`,`test`.`t1`.`a` AS `a` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`b` = `test`.`t2`.`a`) and (`test`.`t2`.`b` = 1)) group by `test`.`t1`.`a` order by `c` limit 2
 DROP TABLE t1, t2;

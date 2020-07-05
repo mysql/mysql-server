@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -220,6 +220,7 @@ public:
       PartitionBalance_ForRAByNode = NDB_PARTITION_BALANCE_FOR_RA_BY_NODE,
     };
 
+    Object(const Object&) = default;
   private:
     Object&operator=(const Object&);
   };
@@ -2298,6 +2299,7 @@ public:
        * @struct  Element
        * @brief   Object to be stored in an NdbDictionary::Dictionary::List
        */
+      List& operator=(const List&) = default;
       struct Element {
 	unsigned id;            ///< Id of object
         Object::Type type;      ///< Type of object

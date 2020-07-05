@@ -43,6 +43,10 @@ if(mysqld.global.gr_notices_unsupported === undefined){
     mysqld.global.gr_notices_unsupported = 0;
 }
 
+if(mysqld.global.transaction_count === undefined){
+    mysqld.global.transaction_count = 0;
+}
+
 var nodes = function(host, port_and_state) {
   return port_and_state.map(function (current_value) {
     return [ current_value[0], host, current_value[0], current_value[1], current_value[2]];
@@ -60,13 +64,24 @@ var nodes = function(host, port_and_state) {
       gr_id: mysqld.global.gr_id
     };
 
+    var router_start_transaction =
+      common_stmts.get("router_start_transaction", options);
+
+    var router_set_gr_consistency_level = common_stmts.get("router_set_gr_consistency_level", {});
+    if (stmt === router_set_gr_consistency_level.stmt) {
+        return router_set_gr_consistency_level;
+    }
+    var router_set_session_options = common_stmts.get("router_set_session_options", {});
+    if (stmt === router_set_session_options.stmt) {
+        return router_set_session_options;
+    }
+
     // first node is PRIMARY
     options.group_replication_primary_member = options.group_replication_membership[mysqld.global.primary_id][0];
 
     // prepare the responses for common statements
     var common_responses = common_stmts.prepare_statement_responses([
       "select_port",
-      "router_start_transaction",
       "router_commit",
       "router_select_schema_version",
       "router_select_group_replication_primary_member",
@@ -113,6 +128,10 @@ var nodes = function(host, port_and_state) {
             message: "Invalid notice name group_replication/membership/quorum_loss"
           }
         }
+    }
+    else if (stmt === router_start_transaction.stmt) {
+      mysqld.global.transaction_count++;
+      return router_start_transaction;
     }
     else {
       return common_stmts.unknown_statement_response(stmt);

@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_desc\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/23/2019
+.\"      Date: 03/06/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_DESC\FR" "1" "11/23/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDB_DESC\FR" "1" "03/06/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -54,7 +54,8 @@ ndb_desc \-c \fIconnection_string\fR \fIindex_name\fR \-d \fIdb_name\fR \-t \fIt
 Additional options that can be used with
 \fBndb_desc\fR
 are listed later in this section\&.
-Sample Output.PP
+Sample Output
+.PP
 MySQL table creation and population statements:
 .sp
 .if n \{\
@@ -122,8 +123,8 @@ uk(name) \- OrderedIndex
 uk$unique(name) \- UniqueHashIndex
 \-\- Per partition info \-\-
 Partition       Row count       Commit count    Frag fixed memory       Frag varsized memory    Extent_space    Free extent_space
-0               2               2               32768                   32768                   0               0               
-1               4               4               32768                   32768                   0               0               
+0               2               2               32768                   32768                   0               0
+1               4               4               32768                   32768                   0               0
 NDBT_ProgramExit: 0 \- OK
 .fi
 .if n \{\
@@ -441,8 +442,8 @@ uk(name) \- OrderedIndex
 uk$unique(name) \- UniqueHashIndex
 \-\- Per partition info \-\-
 Partition       Row count       Commit count    Frag fixed memory       Frag varsized memory    Extent_space    Free extent_space
-0               2               2               32768                   32768                   1048576         1044440        
-1               4               4               32768                   32768                   1048576         1044400        
+0               2               2               32768                   32768                   1048576         1044440
+1               4               4               32768                   32768                   1048576         1044400
 NDBT_ProgramExit: 0 \- OK
 .fi
 .if n \{\
@@ -479,7 +480,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.286.\ \&Command\-line options for the ndb_desc program
+.B Table\ \&22.257.\ \&Command\-line options for the ndb_desc program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -500,83 +501,83 @@ l l l
 l l l.
 T{
 .PP
---blob-info,
+\fB--blob-info\fR,
 .PP
--b
+\fB \fR\fB-b\fR\fB \fR
 T}:T{
 Include partition information for BLOB tables in output. Requires that
               the -p option also be used
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---database=dbname,
+\fB--database=dbname\fR,
 .PP
--d
+\fB \fR\fB-d\fR\fB \fR
 T}:T{
 Name of database containing table
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---extra-node-info,
+\fB--extra-node-info\fR,
 .PP
--n
+\fB \fR\fB-n\fR\fB \fR
 T}:T{
 Include partition-to-data-node mappings in output. Requires that the -p
               option also be used
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---extra-partition-info,
+\fB--extra-partition-info\fR,
 .PP
--p
+\fB \fR\fB-p\fR\fB \fR
 T}:T{
 Display information about partitions
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---retries=#,
+\fB--retries=#\fR,
 .PP
--r
+\fB \fR\fB-r\fR\fB \fR
 T}:T{
 Number of times to retry the connection (once per second)
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---table=tbl_name,
+\fB--table=tbl_name\fR,
 .PP
--t
+\fB \fR\fB-t\fR\fB \fR
 T}:T{
 Specify the table in which to find an index. When this option is used,
-              -p and -n have no effect and are ignored.
+              -p and -n have no effect and are ignored
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---unqualified,
+\fB--unqualified\fR,
 .PP
--u
+\fB \fR\fB-u\fR\fB \fR
 T}:T{
 Use unqualified table names
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 .TE
 .sp 1
@@ -695,7 +696,7 @@ In NDB 7\&.5\&.3 and later, table indexes listed in the output are ordered by ID
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

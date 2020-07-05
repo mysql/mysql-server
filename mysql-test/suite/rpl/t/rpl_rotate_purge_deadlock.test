@@ -18,6 +18,12 @@ source include/master-slave.inc;
 # any issue.
 # 
 
+# this test case requires a deterministic binary log size
+# so that automatic purging is exercized. Therefore, cannot
+# run with compression on.
+--source include/not_binlog_transaction_compression_on.inc
+
+
 connection master;
 source include/show_binary_logs.inc;
 create table t1 (f text) engine=innodb;

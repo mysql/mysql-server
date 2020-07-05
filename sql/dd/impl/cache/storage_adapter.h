@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -233,7 +233,6 @@ class Storage_adapter {
   /**
     Sync a dictionary object from persistent to core storage.
 
-    @tparam      K         Key type.
     @tparam      T         Dictionary object type.
     @param       thd       Thread context.
     @param       key       Key for object to get from persistent storage.

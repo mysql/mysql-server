@@ -34,6 +34,10 @@
 #     channels are deleted in multi-source. set it to 1, if channel deletion
 #     is not required.
 #
+#  $rpl_skip_stop_slave
+#     If set to '1' the slaves are not stopped. Useful if the slaves are stopped
+#     in the test case before sourcing this file.
+#
 #   $rpl_only_running_threads
 #     If one or both of the IO and SQL threads is stopped, sync and
 #     stop only the threads that are running.  See
@@ -145,7 +149,10 @@ if ($rpl_group_replication)
 
 if (!$rpl_group_replication)
 {
-  --source include/rpl_stop_slaves.inc
+  if (!$rpl_skip_stop_slave)
+  {
+    --source include/rpl_stop_slaves.inc
+  }
 }
 
 # Restore the server state by deleting all channels

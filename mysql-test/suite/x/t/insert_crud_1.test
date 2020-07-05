@@ -414,7 +414,7 @@ Mysqlx.Crud.Insert {
     }}
   }
 }
--->expecterror ER_X_DOC_ID_DUPLICATE
+-->expecterror ER_X_DUPLICATE_ENTRY
 -->recvresult
 -->echo "Error expected as non unique value for _id provided for member of JSON doc "
 -->sql
@@ -743,7 +743,7 @@ END_MESSAGE
        $find = "insert_json_doc";
        $str =~ s/$find/$replace/g;
        print OUTPUT "$str\n";
-       print OUTPUT "-->expecterror ER_SUCCESS,ER_X_DOC_ID_DUPLICATE\n";
+       print OUTPUT "-->expecterror ER_SUCCESS,ER_X_DUPLICATE_ENTRY\n";
        print OUTPUT "-->recvresult\n";
     }
  }

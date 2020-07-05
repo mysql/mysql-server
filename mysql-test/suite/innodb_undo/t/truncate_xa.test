@@ -10,6 +10,13 @@
 
 --source include/have_innodb_default_undo_tablespaces.inc
 
+--echo #
+--echo # Do a slow shutdown and restart to clear out the undo logs
+--echo #
+SET GLOBAL innodb_fast_shutdown = 0;
+--let $shutdown_server_timeout = 300
+--source include/restart_mysqld.inc
+
 CREATE TABLE t1 (a SERIAL, b INT, c TEXT);
 
 --echo #

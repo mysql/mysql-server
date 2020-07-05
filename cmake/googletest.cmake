@@ -207,7 +207,7 @@ IF(MY_COMPILER_IS_GNU_OR_CLANG)
     COMPILE_FLAGS "-Wno-undef -Wno-conversion")
 ENDIF()
 
-IF(SOLARIS)
+IF(MY_COMPILER_IS_SUNPRO)
   ## https://community.oracle.com/thread/4106985
   ## Assertion: (../lnk/symdescr.cc, line 96) while processing ....
   IF(NOT EXISTS ${CMAKE_BINARY_DIR}/hack/src/)
@@ -266,7 +266,7 @@ FOREACH(googletest_library
     )
 ENDFOREACH()
 
-IF(SOLARIS)
+IF(MY_COMPILER_IS_SUNPRO)
   ADD_DEFINITIONS(-DGTEST_LANG_CXX11=1)
   LIST(INSERT GMOCK_INCLUDE_DIRS 0 ${CMAKE_BINARY_DIR}/hack)
 ENDIF()

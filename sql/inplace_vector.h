@@ -77,16 +77,16 @@ class Inplace_vector {
     DBUG_ASSERT(index <= m_obj_count);
     size_t arr_id = index / array_size;
     size_t slot_id = index % array_size;
-    objtype *ptr = NULL;
+    objtype *ptr = nullptr;
 
     DBUG_ASSERT(arr_id <= m_obj_arrays.size());
 
     // Appending a new slot causes appending a new array.
     if (arr_id == m_obj_arrays.size()) {
       DBUG_ASSERT(slot_id == 0);
-      if (m_outof_mem) return NULL;
+      if (m_outof_mem) return nullptr;
       append_new_array();
-      if (m_outof_mem) return NULL;
+      if (m_outof_mem) return nullptr;
     }
 
     ptr = m_obj_arrays[arr_id];
@@ -174,7 +174,7 @@ class Inplace_vector {
   bool resize(size_t new_size, const objtype &val = objtype()) {
     if (new_size > size()) {
       for (size_t i = size(); i < new_size; i++) {
-        if (push_back(val) == NULL) return true;
+        if (push_back(val) == nullptr) return true;
       }
     } else if (new_size < size()) {
       // Destroy objects at tail.

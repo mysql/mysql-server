@@ -142,3 +142,7 @@ let SEARCH_PATTERN= CA certificate .* is self signed.;
 --source include/wait_until_count_sessions.inc
 
 #------------------------------------------------------------------------------
+
+# Restore default settings in opt file and clean up
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc

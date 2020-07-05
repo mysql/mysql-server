@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -110,7 +110,7 @@ int ClassicProtocol::copy_packets(int sender, int receiver,
         mysql_protocol::ErrorPacket server_error;
         try {
           server_error = mysql_protocol::ErrorPacket(buffer_err);
-        } catch (const mysql_protocol::packet_error &e) {
+        } catch (const mysql_protocol::packet_error &) {
           log_debug("Received packet that failed to parse correctly; aborting");
           return -1;
         }

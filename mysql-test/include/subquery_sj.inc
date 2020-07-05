@@ -98,13 +98,13 @@ explain select * from t1 where a in (select t10.pk from t10, t12 where t12.pk=t1
 
 --echo subqueries within outer joins go into ON expr.
 # TODO: psergey: check if case conversions like those are ok (it broke on  windows)
---replace_result a A b B
+--replace_regex /\ba\b/A/ /\bb\b/B/
 explain
 select * from t1 left join (t2 a, t2 b) on ( a.a= t1.a and b.a in (select pk from t10));
 
 # TODO: psergey: check if case conversions like those are ok (it broke on  windows)
 --echo t2 should be wrapped into OJ-nest, so we have "t1 LJ (t2 J t10)"
---replace_result a A b B
+--replace_regex /\ba\b/A/ /\bb\b/B/
 explain
 select * from t1 left join t2 on (t2.a= t1.a and t2.a in (select pk from t10));
 
@@ -5070,6 +5070,7 @@ WHERE (a, a) IN
 ;
 
 eval explain $query;
+--sorted_result
 eval $query;
 
 DROP TABLE t1, t2;
@@ -6333,6 +6334,7 @@ FROM t2 LEFT JOIN t1 ON t2.vc=t1.vc
 WHERE t2.vc IN (SELECT vc FROM t2 AS t3);
 
 eval explain format=json $query;
+--sorted_result
 eval $query;
 
 DROP TABLE t1, t2;
@@ -6364,7 +6366,9 @@ FROM t1 AS alias1
 eval explain $query;
 
 eval PREPARE stmt FROM "$query";
+--sorted_result
 EXECUTE stmt;
+--sorted_result
 EXECUTE stmt;
 
 DEALLOCATE PREPARE stmt;
@@ -6498,7 +6502,8 @@ INSERT INTO t2 VALUES
  (15,7,'2008-07-02 00:00:00','g','g'), (16,4,'1900-01-01 00:00:00','p','p'),
  (17,1,'2002-12-08 11:34:58','q','q'), (18,9,'1900-01-01 00:00:00','w','w'),
  (19,4,'1900-01-01 00:00:00','d','d'), (20,8,'2002-08-25 20:35:06','e','e');
- 
+
+--sorted_result
 SELECT alias1.col_datetime_key
 FROM t2 AS alias1
      RIGHT JOIN t2 AS alias2
@@ -6528,6 +6533,7 @@ WHERE (alias2.col_varchar_key, alias2.col_varchar_key) IN
         WHERE sq2_alias2.col_int_key < 2);
 
 eval explain format=json $query;
+--sorted_result
 eval $query;
 
 DROP TABLE t1, t2;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -828,8 +828,7 @@ class Slave_worker : public Relay_log_info {
 
     @param[in] thd          The THD object of current thread.
 
-    @return
-      @retval returns std::tuple<bool, bool, uint> where each element has
+    @returns std::tuple<bool, bool, uint> where each element has
               following meaning:
 
               first element of tuple is function return value and determines:

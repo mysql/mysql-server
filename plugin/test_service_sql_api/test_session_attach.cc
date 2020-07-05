@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -394,7 +394,7 @@ mysql_declare_plugin(test_daemon){
     MYSQL_DAEMON_PLUGIN,
     &test_sql_service_plugin,
     "test_session_attach",
-    "Oracle Corp",
+    PLUGIN_AUTHOR_ORACLE,
     "Test session THDVAR",
     PLUGIN_LICENSE_GPL,
     test_sql_service_plugin_init,   /* Plugin Init      */

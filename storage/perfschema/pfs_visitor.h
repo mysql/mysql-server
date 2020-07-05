@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -434,7 +434,7 @@ class PFS_connection_transaction_visitor : public PFS_connection_visitor {
 class PFS_connection_error_visitor : public PFS_connection_visitor {
  public:
   /** Constructor. */
-  PFS_connection_error_visitor(PFS_error_class *klass, int index);
+  PFS_connection_error_visitor(PFS_error_class *klass, uint index);
   virtual ~PFS_connection_error_visitor();
   virtual void visit_global();
   virtual void visit_host(PFS_host *pfs);
@@ -445,7 +445,7 @@ class PFS_connection_error_visitor : public PFS_connection_visitor {
   /** EVENT_NAME instrument index. */
   uint m_index;
   /** index of a specific error. */
-  int m_error_index;
+  uint m_error_index;
   /** Error statistic collected. */
   PFS_error_single_stat m_stat;
 };

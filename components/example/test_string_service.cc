@@ -46,7 +46,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 mysql_service_status_t test_string_service_init() {
   FILE *outfile;
 
-  my_h_string out_string = NULL;
+  my_h_string out_string = nullptr;
   const char *test_text = "Hello MySql-8.0";
   const char *empty_test_text = "";
   char low_test_text[MAX_BUFFER_LENGTH];
@@ -67,7 +67,7 @@ mysql_service_status_t test_string_service_init() {
     // In buffer=NULL in convert from buffer
     if (mysql_service_mysql_string_converter->convert_from_buffer(
             &out_string,
-            NULL,  // its a input buffer
+            nullptr,  // its a input buffer
             strlen(test_text), "utf8")) {
       WRITE_LOG("Buffer=NULL in convert from buffer: passed.\n");
     };
@@ -124,7 +124,7 @@ mysql_service_status_t test_string_service_init() {
       WRITE_LOG("Convert from buffer passed.\n");
       // NULL as in_string in get number of chars
       if (mysql_service_mysql_string_character_access->get_char_length(
-              NULL, &out_length)) {
+              nullptr, &out_length)) {
         WRITE_LOG("NULL as input spring in get_char_length passed.\n");
       }
       // valid get number of chars
@@ -141,7 +141,7 @@ mysql_service_status_t test_string_service_init() {
       out_length = 0;
       // NULL as in_string in get number of bytes
       if (mysql_service_mysql_string_byte_access->get_byte_length(
-              NULL, &out_length)) {
+              nullptr, &out_length)) {
         WRITE_LOG("NULL as input buffer in get_byte_length passed.\n");
       }
       // valid get number of bytes
@@ -156,12 +156,12 @@ mysql_service_status_t test_string_service_init() {
         }
       }
       // Convert to low string
-      my_h_string low_string = NULL;
+      my_h_string low_string = nullptr;
       if (mysql_service_mysql_string_factory->create(&low_string)) {
         WRITE_LOG("Create lower string object failed.\n");
       } else {
         // NULL as input buffer in tolower
-        if (mysql_service_mysql_string_case->tolower(&low_string, NULL)) {
+        if (mysql_service_mysql_string_case->tolower(&low_string, nullptr)) {
           WRITE_LOG("NULL as input buffer in tolower passed.\n");
         }
         if (mysql_service_mysql_string_case->tolower(&low_string, out_string)) {
@@ -170,7 +170,7 @@ mysql_service_status_t test_string_service_init() {
           WRITE_LOG("Tolower passed:\n");
           // NULL as input buffer in Convert string to buffer
           if (mysql_service_mysql_string_converter->convert_to_buffer(
-                  NULL, low_test_text, MAX_BUFFER_LENGTH, "utf8")) {
+                  nullptr, low_test_text, MAX_BUFFER_LENGTH, "utf8")) {
             WRITE_LOG("NULL as input buffer in Convert to buffer passed.\n");
           }
           // Convert low string to buffer
@@ -185,12 +185,12 @@ mysql_service_status_t test_string_service_init() {
       }
       mysql_service_mysql_string_factory->destroy(low_string);
       // Convert to upper string
-      my_h_string upper_string = NULL;
+      my_h_string upper_string = nullptr;
       if (mysql_service_mysql_string_factory->create(&upper_string)) {
         WRITE_LOG("Create upper string object failed.\n");
       } else {
         // NULL as input buffer in toupper
-        if (mysql_service_mysql_string_case->toupper(&upper_string, NULL)) {
+        if (mysql_service_mysql_string_case->toupper(&upper_string, nullptr)) {
           WRITE_LOG("NULL as input buffer in toupper passed.\n");
         }
         if (mysql_service_mysql_string_case->toupper(&upper_string,
@@ -237,9 +237,9 @@ mysql_service_status_t test_string_service_init() {
         WRITE_LOG("Get byte with index > strlen passed.\n");
       }
       // Iterator functions:
-      my_h_string_iterator out_iterator = NULL;
+      my_h_string_iterator out_iterator = nullptr;
       // NULL as input buffer in iterator_create
-      if (mysql_service_mysql_string_iterator->iterator_create(NULL,
+      if (mysql_service_mysql_string_iterator->iterator_create(nullptr,
                                                                &out_iterator)) {
         WRITE_LOG("NULL as input buffer in create iterator passed.\n");
       }
@@ -252,19 +252,19 @@ mysql_service_status_t test_string_service_init() {
         WRITE_LOG("Create iterator passed.\n");
         // NULL as iterator in get_next
         if (mysql_service_mysql_string_iterator->iterator_get_next(
-                NULL, &out_iter_char)) {
+                nullptr, &out_iter_char)) {
           WRITE_LOG("NULL as Iterator in get next passed.\n");
         }
         // NULL as iterator in is_lower
-        if (mysql_service_mysql_string_ctype->is_lower(NULL, &out)) {
+        if (mysql_service_mysql_string_ctype->is_lower(nullptr, &out)) {
           WRITE_LOG("NULL as iterator in Is lower passed.\n");
         }
         // NULL as iterator in is_upper
-        if (mysql_service_mysql_string_ctype->is_upper(NULL, &out)) {
+        if (mysql_service_mysql_string_ctype->is_upper(nullptr, &out)) {
           WRITE_LOG("NULL as iterator in is_upper passed.\n");
         }
         // NULL as iterator in is_digit
-        if (mysql_service_mysql_string_ctype->is_digit(NULL, &out)) {
+        if (mysql_service_mysql_string_ctype->is_digit(nullptr, &out)) {
           WRITE_LOG("NULL as iterator in is_digit passed.\n");
         }
         while (mysql_service_mysql_string_iterator->iterator_get_next(

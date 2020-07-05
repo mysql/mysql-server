@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,7 @@ Item_processing_data::Item_processing_data(
 
 Item_processing_data::~Item_processing_data() {
   // Check if it is last item in the chain.
-  if (get_parent_item_data() == NULL) delete m_chain_data;
+  if (get_parent_item_data() == nullptr) delete m_chain_data;
 }
 
 Chain_data *Item_processing_data::get_chain() const { return m_chain_data; }
@@ -71,7 +71,7 @@ I_chain_element *Item_processing_data::get_processing_chain_element() const {
 }
 
 bool Item_processing_data::have_completion_callback() {
-  return m_completion_callback != NULL;
+  return m_completion_callback != nullptr;
 }
 
 bool Item_processing_data::had_chain_created() const {
@@ -88,9 +88,9 @@ void Item_processing_data::set_chain(Chain_data *chain_data) {
 
 bool Item_processing_data::call_completion_callback_at_end() {
   if (m_active_executions == 0) {
-    if (m_completion_callback != NULL) {
+    if (m_completion_callback != nullptr) {
       (*m_completion_callback)(this);
-      m_completion_callback = NULL;
+      m_completion_callback = nullptr;
     }
     return true;
   }

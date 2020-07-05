@@ -49,7 +49,7 @@
 #include "typelib.h"
 #include "welcome_copyright_notice.h" /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
-static char *host = 0, *opt_password = 0, *user = 0;
+static char *host = nullptr, *opt_password = nullptr, *user = nullptr;
 static bool opt_show_keys = false, opt_compress = false, opt_count = false,
             opt_status = false;
 static bool tty_password = false, opt_table_type = false;
@@ -57,7 +57,7 @@ static bool debug_info_flag = false, debug_check_flag = false;
 static uint my_end_arg = 0;
 static uint opt_verbose = 0;
 static const char *default_charset = MYSQL_AUTODETECT_CHARSET_NAME;
-static char *opt_plugin_dir = 0, *opt_default_auth = 0;
+static char *opt_plugin_dir = nullptr, *opt_default_auth = nullptr;
 static uint opt_enable_cleartext_plugin = 0;
 static bool using_opt_enable_cleartext_plugin = false;
 
@@ -68,7 +68,7 @@ static char *opt_compress_algorithm = nullptr;
 static char *shared_memory_base_name = 0;
 #endif
 static uint opt_protocol = 0;
-static char *opt_bind_addr = NULL;
+static char *opt_bind_addr = nullptr;
 
 static void get_options(int *argc, char ***argv);
 static uint opt_mysql_port = 0;
@@ -84,8 +84,8 @@ static void print_res_header(MYSQL_RES *result);
 static void print_res_top(MYSQL_RES *result);
 static void print_res_row(MYSQL_RES *result, MYSQL_ROW cur);
 
-static const char *load_default_groups[] = {"mysqlshow", "client", 0};
-static char *opt_mysql_unix_port = 0;
+static const char *load_default_groups[] = {"mysqlshow", "client", nullptr};
+static char *opt_mysql_unix_port = nullptr;
 
 int main(int argc, char **argv) {
   int error;
@@ -101,7 +101,7 @@ int main(int argc, char **argv) {
 
   get_options(&argc, &argv);
 
-  wild = 0;
+  wild = nullptr;
   if (argc) {
     char *pos = argv[argc - 1], *to;
     for (to = pos; *pos; pos++, to++) {
@@ -169,7 +169,7 @@ int main(int argc, char **argv) {
     mysql_options(&mysql, MYSQL_ENABLE_CLEARTEXT_PLUGIN,
                   (char *)&opt_enable_cleartext_plugin);
 
-  mysql_options(&mysql, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
+  mysql_options(&mysql, MYSQL_OPT_CONNECT_ATTR_RESET, nullptr);
   mysql_options4(&mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "program_name",
                  "mysqlshow");
   set_server_public_key(&mysql);
@@ -211,47 +211,56 @@ int main(int argc, char **argv) {
 
 static struct my_option my_long_options[] = {
     {"bind-address", 0, "IP address to bind to.", (uchar **)&opt_bind_addr,
-     (uchar **)&opt_bind_addr, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     (uchar **)&opt_bind_addr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr,
+     0, nullptr},
     {"character-sets-dir", 'c', "Directory for character set files.",
-     &charsets_dir, &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     &charsets_dir, &charsets_dir, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
     {"default-character-set", OPT_DEFAULT_CHARSET,
-     "Set the default character set.", &default_charset, &default_charset, 0,
-     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     "Set the default character set.", &default_charset, &default_charset,
+     nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"count", OPT_COUNT,
      "Show number of rows per table (may be slow for non-MyISAM tables).",
-     &opt_count, &opt_count, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_count, &opt_count, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"compress", 'C', "Use compression in server/client protocol.",
-     &opt_compress, &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-    {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.", 0, 0, 0,
-     GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_compress, &opt_compress, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr,
+     0, nullptr},
+    {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.", nullptr,
+     nullptr, nullptr, GET_STR, OPT_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"debug-check", OPT_DEBUG_CHECK,
      "Check memory and open file usage at exit.", &debug_check_flag,
-     &debug_check_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &debug_check_flag, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.",
-     &debug_info_flag, &debug_info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &debug_info_flag, &debug_info_flag, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
     {"default_auth", OPT_DEFAULT_AUTH,
      "Default authentication client-side plugin to use.", &opt_default_auth,
-     &opt_default_auth, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_default_auth, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"enable_cleartext_plugin", OPT_ENABLE_CLEARTEXT_PLUGIN,
      "Enable/disable the clear text authentication plugin.",
-     &opt_enable_cleartext_plugin, &opt_enable_cleartext_plugin, 0, GET_BOOL,
-     OPT_ARG, 0, 0, 0, 0, 0, 0},
-    {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
-     0, 0, 0, 0, 0},
-    {"host", 'h', "Connect to host.", &host, &host, 0, GET_STR, REQUIRED_ARG, 0,
-     0, 0, 0, 0, 0},
+     &opt_enable_cleartext_plugin, &opt_enable_cleartext_plugin, nullptr,
+     GET_BOOL, OPT_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"help", '?', "Display this help and exit.", nullptr, nullptr, nullptr,
+     GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"host", 'h', "Connect to host.", &host, &host, nullptr, GET_STR,
+     REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"status", 'i', "Shows a lot of extra information about each table.",
-     &opt_status, &opt_status, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-    {"keys", 'k', "Show keys for table.", &opt_show_keys, &opt_show_keys, 0,
-     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_status, &opt_status, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
+    {"keys", 'k', "Show keys for table.", &opt_show_keys, &opt_show_keys,
+     nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"password", 'p',
      "Password to use when connecting to server. If password is not given, "
      "it's "
      "solicited on the tty.",
-     0, 0, 0, GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
+     nullptr, nullptr, nullptr, GET_PASSWORD, OPT_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
-     &opt_plugin_dir, &opt_plugin_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0,
-     0},
+     &opt_plugin_dir, &opt_plugin_dir, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
     {"port", 'P',
      "Port number to use for connection or 0 for default to, in "
      "order of preference, my.cnf, $MYSQL_TCP_PORT, "
@@ -259,15 +268,15 @@ static struct my_option my_long_options[] = {
      "/etc/services, "
 #endif
      "built-in default (" STRINGIFY_ARG(MYSQL_PORT) ").",
-     &opt_mysql_port, &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0,
-     0},
+     &opt_mysql_port, &opt_mysql_port, nullptr, GET_UINT, REQUIRED_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
 #ifdef _WIN32
     {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
      NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
     {"protocol", OPT_MYSQL_PROTOCOL,
-     "The protocol to use for connection (tcp, socket, pipe, memory).", 0, 0, 0,
-     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     "The protocol to use for connection (tcp, socket, pipe, memory).", nullptr,
+     nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
 #if defined(_WIN32)
     {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
      "Base name of shared memory.", &shared_memory_base_name,
@@ -275,33 +284,35 @@ static struct my_option my_long_options[] = {
      0},
 #endif
     {"show-table-type", 't', "Show table type column.", &opt_table_type,
-     &opt_table_type, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_table_type, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"socket", 'S', "The socket file to use for connection.",
-     &opt_mysql_unix_port, &opt_mysql_unix_port, 0, GET_STR, REQUIRED_ARG, 0, 0,
-     0, 0, 0, 0},
+     &opt_mysql_unix_port, &opt_mysql_unix_port, nullptr, GET_STR, REQUIRED_ARG,
+     0, 0, 0, nullptr, 0, nullptr},
 #include "caching_sha2_passwordopt-longopts.h"
 #include "sslopt-longopts.h"
 
-    {"user", 'u', "User for login if not current user.", &user, &user, 0,
-     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+    {"user", 'u', "User for login if not current user.", &user, &user, nullptr,
+     GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"verbose", 'v',
      "More verbose output; you can use this multiple times to get even more "
      "verbose output.",
-     0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-    {"version", 'V', "Output version information and exit.", 0, 0, 0,
-     GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+     nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
+    {"version", 'V', "Output version information and exit.", nullptr, nullptr,
+     nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"compression-algorithms", 0,
      "Use compression algorithm in server/client protocol. Valid values "
      "are any combination of 'zstd','zlib','uncompressed'.",
-     &opt_compress_algorithm, &opt_compress_algorithm, 0, GET_STR, REQUIRED_ARG,
-     0, 0, 0, 0, 0, 0},
+     &opt_compress_algorithm, &opt_compress_algorithm, nullptr, GET_STR,
+     REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"zstd-compression-level", 0,
      "Use this compression level in the client/server protocol, in case "
      "--compression-algorithms=zstd. Valid range is between 1 and 22, "
      "inclusive. Default is 3.",
-     &opt_zstd_compress_level, &opt_zstd_compress_level, 0, GET_UINT,
-     REQUIRED_ARG, 3, 1, 22, 0, 0, 0},
-    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
+     &opt_zstd_compress_level, &opt_zstd_compress_level, nullptr, GET_UINT,
+     REQUIRED_ARG, 3, 1, 22, nullptr, 0, nullptr},
+    {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
+     0, nullptr, 0, nullptr}};
 
 static void usage(void) {
   print_version();
@@ -406,7 +417,7 @@ static int list_dbs(MYSQL *mysql, const char *wild) {
   char query[NAME_LEN + 100];
   MYSQL_FIELD *field;
   MYSQL_RES *result;
-  MYSQL_ROW row = NULL, rrow;
+  MYSQL_ROW row = nullptr, rrow;
 
   if (!(result = mysql_list_dbs(mysql, wild))) {
     fprintf(stderr, "%s: Cannot list databases: %s\n", my_progname,
@@ -425,9 +436,9 @@ static int list_dbs(MYSQL *mysql, const char *wild) {
     if (!my_strcasecmp(&my_charset_latin1, row[0], wild)) {
       mysql_free_result(result);
       if (opt_status)
-        return list_table_status(mysql, wild, NULL);
+        return list_table_status(mysql, wild, nullptr);
       else
-        return list_tables(mysql, wild, NULL);
+        return list_tables(mysql, wild, nullptr);
     }
   }
 
@@ -451,7 +462,7 @@ static int list_dbs(MYSQL *mysql, const char *wild) {
 
     if (opt_verbose) {
       if (!(mysql_select_db(mysql, row[0]))) {
-        MYSQL_RES *tresult = mysql_list_tables(mysql, (char *)NULL);
+        MYSQL_RES *tresult = mysql_list_tables(mysql, (char *)nullptr);
         if (mysql_affected_rows(mysql) > 0) {
           sprintf(tables, "%6lu", (ulong)mysql_affected_rows(mysql));
           rowcount = 0;
@@ -465,7 +476,7 @@ static int list_dbs(MYSQL *mysql, const char *wild) {
                 MYSQL_RES *rresult;
                 if ((rresult = mysql_store_result(mysql))) {
                   rrow = mysql_fetch_row(rresult);
-                  rowcount += (ulong)my_strtoull(rrow[0], (char **)0, 10);
+                  rowcount += (ulong)my_strtoull(rrow[0], (char **)nullptr, 10);
                   mysql_free_result(rresult);
                 }
               }
@@ -490,7 +501,7 @@ static int list_dbs(MYSQL *mysql, const char *wild) {
     else
       print_row(row[0], length, tables, 6, rows, 12, NullS);
 
-    row = NULL;
+    row = nullptr;
   }
 
   print_trailer(length, (opt_verbose > 0 ? 6 : 0), (opt_verbose > 1 ? 12 : 0),
@@ -564,7 +575,7 @@ static int list_tables(MYSQL *mysql, const char *db, const char *table) {
     counter++;
     if (opt_verbose > 0) {
       if (!(mysql_select_db(mysql, db))) {
-        MYSQL_RES *rresult = mysql_list_fields(mysql, row[0], NULL);
+        MYSQL_RES *rresult = mysql_list_fields(mysql, row[0], nullptr);
         ulong rowcount = 0L;
         if (!rresult) {
           my_stpcpy(fields, "N/A");
@@ -579,7 +590,8 @@ static int list_tables(MYSQL *mysql, const char *db, const char *table) {
             if (!(mysql_query(mysql, query))) {
               if ((rresult = mysql_store_result(mysql))) {
                 rrow = mysql_fetch_row(rresult);
-                rowcount += (unsigned long)my_strtoull(rrow[0], (char **)0, 10);
+                rowcount +=
+                    (unsigned long)my_strtoull(rrow[0], (char **)nullptr, 10);
                 mysql_free_result(rresult);
               }
               sprintf(rows, "%10lu", rowcount);
@@ -679,7 +691,7 @@ static int list_fields(MYSQL *mysql, const char *db, const char *table,
       return 1;
     }
     row = mysql_fetch_row(result);
-    rows = (ulong)my_strtoull(row[0], (char **)0, 10);
+    rows = (ulong)my_strtoull(row[0], (char **)nullptr, 10);
     mysql_free_result(result);
   }
 

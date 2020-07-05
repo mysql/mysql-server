@@ -107,7 +107,7 @@ Warnings:
 Note	1003	with recursive `q` (`b`) as (/* select#2 */ select 1 AS `1` union all /* select#3 */ select (1 + `q`.`b`) AS `1+b` from `q` where (`q`.`b` < 2000)) /* select#1 */ select min(`q`.`b`) AS `min(b)`,max(`q`.`b`) AS `max(b)`,avg(`q`.`b`) AS `avg(b)` from `q` where (`q`.`b` = 300)
 show status like 'Created_tmp_disk_tables';
 Variable_name	Value
-Created_tmp_disk_tables	2
+Created_tmp_disk_tables	1
 with recursive q (b) as
 (select 1 union all select 1+b from q where b<2000)
 select min(b),max(b),avg(b) from q where b=300;
@@ -115,7 +115,7 @@ min(b)	max(b)	avg(b)
 300	300	300.0000
 show status like 'Created_tmp_disk_tables';
 Variable_name	Value
-Created_tmp_disk_tables	3
+Created_tmp_disk_tables	2
 # Verify that rows come out in insertion order.
 # If they didn't, the sequences of @c and of 'b'
 # would not be identical and the sum wouldn't be

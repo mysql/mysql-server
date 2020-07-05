@@ -6970,16 +6970,6 @@ SELECT DISTINCT f1_key
 FROM t2 
 WHERE f1_key != table2.f1_key AND f1_key >= table1.f1 );
 f1	f1_key
-v	c
-v	d
-v	d
-v	d
-v	j
-v	m
-v	s
-v	t
-v	v
-v	y
 s	c
 s	d
 s	d
@@ -6990,6 +6980,16 @@ s	s
 s	t
 s	v
 s	y
+v	c
+v	d
+v	d
+v	d
+v	j
+v	m
+v	s
+v	t
+v	v
+v	y
 explain SELECT table1.f1, table2.f1_key
 FROM t1 AS table1, t2 AS table2
 WHERE EXISTS 
@@ -7397,7 +7397,7 @@ WHERE (sq4_alias1.col_varchar_key + NULL) IS NULL OR
 sq4_alias1.col_varchar_key = @var3 ) AS alias3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	UNCACHEABLE DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Note	1003	/* select#1 */ select NULL AS `@var3:=12`,NULL AS `pk`,NULL AS `col_int_nokey`,NULL AS `col_int_key`,NULL AS `col_time_key`,NULL AS `col_varchar_key`,NULL AS `col_varchar_nokey` from (/* select#2 */ select (@var3:=12) AS `@var3:=12`,NULL AS `pk`,NULL AS `col_int_nokey`,NULL AS `col_int_key`,NULL AS `col_time_key`,NULL AS `col_varchar_key`,NULL AS `col_varchar_nokey` from `test`.`t1` `sq4_alias1` where (((NULL + NULL) is null) or (NULL = (@`var3`)))) `alias3`

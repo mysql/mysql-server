@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -389,6 +389,10 @@ typedef void (*ib_cb_t)(void);
 #define IB_CFG_BINLOG_ENABLED 0x1
 #define IB_CFG_MDL_ENABLED 0x2
 #define IB_CFG_DISABLE_ROWLOCK 0x4
+
+/** Used by ib_read_tuple to determine number of bytes to allocate for new slot
+if needed */
+static const size_t REC_BUF_SLOT_SIZE = 16384;
 
 /** The first argument to the InnoDB message logging function. By default
 it's set to stderr. You should treat ib_msg_stream_t as a void*, since

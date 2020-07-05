@@ -161,7 +161,7 @@ class Transaction_ctx {
       m_rw_ha_count = 0;
       reset_unsafe_rollback_flags();
     }
-    bool is_empty() const { return m_ha_list == NULL; }
+    bool is_empty() const { return m_ha_list == nullptr; }
   };
 
  private:
@@ -222,7 +222,7 @@ class Transaction_ctx {
 
   void cleanup() {
     DBUG_TRACE;
-    m_savepoints = NULL;
+    m_savepoints = nullptr;
     m_xid_state.cleanup();
     m_rpl_transaction_ctx.cleanup();
     m_transaction_write_set_ctx.clear_write_set();
@@ -232,7 +232,7 @@ class Transaction_ctx {
   }
 
   bool is_active(enum_trx_scope scope) const {
-    return m_scope_info[scope].m_ha_list != NULL;
+    return m_scope_info[scope].m_ha_list != nullptr;
   }
 
   void push_unsafe_rollback_warnings(THD *thd);
@@ -356,7 +356,7 @@ class Transaction_ctx {
 
   void reset_scope(enum_trx_scope scope) {
     DBUG_TRACE;
-    m_scope_info[scope].m_ha_list = 0;
+    m_scope_info[scope].m_ha_list = nullptr;
     m_scope_info[scope].m_no_2pc = false;
     m_scope_info[scope].m_rw_ha_count = 0;
     return;
@@ -414,8 +414,8 @@ class Ha_trx_info {
   void register_ha(Transaction_ctx::THD_TRANS *trans, handlerton *ht_arg) {
     DBUG_TRACE;
     DBUG_ASSERT(m_flags == 0);
-    DBUG_ASSERT(m_ht == NULL);
-    DBUG_ASSERT(m_next == NULL);
+    DBUG_ASSERT(m_ht == nullptr);
+    DBUG_ASSERT(m_next == nullptr);
 
     m_ht = ht_arg;
     m_flags = (int)TRX_READ_ONLY; /* Assume read-only at start. */
@@ -434,8 +434,8 @@ class Ha_trx_info {
 
   void reset() {
     DBUG_TRACE;
-    m_next = NULL;
-    m_ht = NULL;
+    m_next = nullptr;
+    m_ht = nullptr;
     m_flags = 0;
     return;
   }
@@ -452,7 +452,7 @@ class Ha_trx_info {
     return m_flags & (int)TRX_READ_WRITE;
   }
 
-  bool is_started() const { return m_ht != NULL; }
+  bool is_started() const { return m_ht != nullptr; }
 
   /**
     Mark this transaction read-write if the argument is read-write.

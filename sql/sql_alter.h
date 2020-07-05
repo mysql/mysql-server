@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -69,7 +69,7 @@ class Alter_drop {
 
   Alter_drop(drop_type par_type, const char *par_name)
       : name(par_name), type(par_type) {
-    DBUG_ASSERT(par_name != NULL);
+    DBUG_ASSERT(par_name != nullptr);
   }
 };
 
@@ -135,7 +135,7 @@ class Alter_index_visibility {
  public:
   Alter_index_visibility(const char *name, bool is_visible)
       : m_name(name), m_is_visible(is_visible) {
-    assert(name != NULL);
+    assert(name != nullptr);
   }
 
   const char *name() const { return m_name; }
@@ -420,7 +420,11 @@ class Alter_info {
   /// ALTER TABLE [db.]table [ RENAME [TO|AS|=] [new_db.]new_table ]
   LEX_CSTRING new_db_name;
 
-  /// New table name in the "RENAME [TO] <table_name>" clause or NULL_STR
+  /// New table name in the
+  /// \code
+  /// RENAME [TO] <table_name>
+  /// \endcode
+  /// clause or NULL_STR
   LEX_CSTRING new_table_name;
 
   explicit Alter_info(MEM_ROOT *mem_root)

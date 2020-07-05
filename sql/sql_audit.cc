@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -70,8 +70,8 @@ class Audit_error_handler : public Internal_error_handler {
     @brief Blocked copy constructor (private).
   */
   Audit_error_handler(const Audit_error_handler &obj MY_ATTRIBUTE((unused)))
-      : m_thd(NULL),
-        m_warning_message(NULL),
+      : m_thd(nullptr),
+        m_warning_message(nullptr),
         m_error_reported(false),
         m_active(false) {}
 
@@ -292,12 +292,20 @@ static inline bool check_audit_mask(const unsigned long *lhs,
 */
 inline const CHARSET_INFO *thd_get_audit_query(THD *thd,
                                                MYSQL_LEX_CSTRING *query) {
-  if (!thd->rewritten_query.length()) mysql_rewrite_query(thd);
+  /*
+    If we haven't tried to rewrite the query to obfuscate passwords
+    etc. yet, do so now.
+  */
+  if (thd->rewritten_query().length() == 0) mysql_rewrite_query(thd);
 
-  if (thd->rewritten_query.length()) {
-    query->str = thd->rewritten_query.ptr();
-    query->length = thd->rewritten_query.length();
-    return thd->rewritten_query.charset();
+  /*
+    If there was something to rewrite, use the rewritten query;
+    otherwise, just use the original as submitted by the client.
+  */
+  if (thd->rewritten_query().length() > 0) {
+    query->str = thd->rewritten_query().ptr();
+    query->length = thd->rewritten_query().length();
+    return thd->rewritten_query().charset();
   } else {
     query->str = thd->query().str;
     query->length = thd->query().length;
@@ -718,7 +726,7 @@ int mysql_audit_notify(mysql_event_server_shutdown_subclass_t subclass,
     return mysql_audit_notify(thd.thd, subclass, reason, exit_code);
   }
 
-  return mysql_audit_notify(NULL, subclass, reason, exit_code);
+  return mysql_audit_notify(nullptr, subclass, reason, exit_code);
 }
 
 /*
@@ -1030,10 +1038,10 @@ static bool acquire_plugins(THD *thd, plugin_ref plugin, void *arg) {
   /* Prevent from adding the same plugin more than one time. */
   if (!thd->audit_class_plugins.exists(plugin)) {
     /* lock the plugin and add it to the list */
-    plugin = my_plugin_lock(NULL, &plugin);
+    plugin = my_plugin_lock(nullptr, &plugin);
 
     /* The plugin could not be acquired. */
-    if (plugin == NULL) {
+    if (plugin == nullptr) {
       /* Add this plugin mask to non subscribed mask. */
       add_audit_mask(evt->not_subscribed_mask, data->class_mask);
       return false;
@@ -1082,7 +1090,8 @@ int mysql_audit_acquire_plugins(THD *thd, mysql_event_class_t event_class,
                                     {
                                         0,
                                     }};
-    plugin_foreach_func *funcs[] = {acquire_lookup_mask, acquire_plugins, NULL};
+    plugin_foreach_func *funcs[] = {acquire_lookup_mask, acquire_plugins,
+                                    nullptr};
     /*
       Acquire lookup_mask, which contains mask of all plugins that subscribe
       event specified by the event_class and event_subclass
@@ -1133,7 +1142,7 @@ void mysql_audit_release(THD *thd) {
   }
 
   /* Now we actually unlock the plugins */
-  plugin_unlock_list(NULL, thd->audit_class_plugins.begin(),
+  plugin_unlock_list(nullptr, thd->audit_class_plugins.begin(),
                      thd->audit_class_plugins.size());
 
   /* Reset the state of thread values */
@@ -1271,13 +1280,13 @@ static bool calc_class_mask(THD *, plugin_ref plugin, void *arg) {
 int finalize_audit_plugin(st_plugin_int *plugin) {
   unsigned long event_class_mask[MYSQL_AUDIT_CLASS_MASK_SIZE];
 
-  if (plugin->plugin->deinit && plugin->plugin->deinit(NULL)) {
+  if (plugin->plugin->deinit && plugin->plugin->deinit(nullptr)) {
     DBUG_PRINT("warning", ("Plugin '%s' deinit function returned error.",
                            plugin->name.str));
     DBUG_EXECUTE("finalize_audit_plugin", return 1;);
   }
 
-  plugin->data = NULL;
+  plugin->data = nullptr;
   memset(&event_class_mask, 0, sizeof(event_class_mask));
 
   /* Iterate through all the installed plugins to create new mask */

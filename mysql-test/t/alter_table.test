@@ -3476,7 +3476,7 @@ SELECT * FROM t1;
 DROP TABLE t1;
 
 
---echo # Collation cannot be changed inplace for indexed columns/Fields
+--echo # Charset cannot be changed inplace for indexed columns
 CREATE TABLE t1(c VARCHAR(1) CHARSET ASCII UNIQUE KEY);
 INSERT INTO t1 VALUES('a');
 SELECT * FROM t1;
@@ -3484,10 +3484,40 @@ SELECT * FROM t1;
 ALTER TABLE t1 MODIFY COLUMN c VARCHAR(1) CHARSET BINARY, ALGORITHM = INPLACE;
 DROP TABLE t1;
 
+--echo # Collation cannot be changed inplace for indexed columns even
+--echo # if the character set stays the same (see bug#30386119).
+CREATE TABLE t1(c VARCHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci PRIMARY KEY);
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 MODIFY COLUMN c VARCHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_as_ci, ALGORITHM = INPLACE;
+--echo # Using the copy algorithm works.
+ALTER TABLE t1 MODIFY COLUMN c VARCHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_as_ci, ALGORITHM = COPY;
+DROP TABLE t1;
+
+--echo # Collation cannot be changed inplace for non-indexed columns if an index
+--echo # on the column is added in the same statement.
+CREATE TABLE t1(c VARCHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci);
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 MODIFY COLUMN c VARCHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_as_ci, ADD UNIQUE INDEX(c), ALGORITHM = INPLACE;
+--echo # Using the copy algorithm works.
+ALTER TABLE t1 MODIFY COLUMN c VARCHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_as_ci, ADD UNIQUE INDEX(c), ALGORITHM = COPY;
+DROP TABLE t1;
+
+--echo # Add a composite index using a prefix key part.
+CREATE TABLE t1(i INT, c VARCHAR(10) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci);
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 MODIFY COLUMN c VARCHAR(10) CHARSET utf8mb4 COLLATE utf8mb4_0900_as_ci, ADD INDEX idx(i, c(5)), ALGORITHM = INPLACE;
+--echo # Using the copy algorithm works.
+ALTER TABLE t1 MODIFY COLUMN c VARCHAR(10) CHARSET utf8mb4 COLLATE utf8mb4_0900_as_ci, ADD INDEX idx(i, c(5)), ALGORITHM = COPY;
+DROP TABLE t1;
+
+--echo # Collation can be changed inplace for indexed columns if the index is dropped
+--echo # in the same statement.
+CREATE TABLE t1(c VARCHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci, UNIQUE INDEX idx(c));
+ALTER TABLE t1 MODIFY COLUMN c VARCHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_as_ci, DROP INDEX idx, ALGORITHM = INPLACE;
+DROP TABLE t1;
 
 --echo # No change (charset or otherwise) which makes
 --echo # Field::max_display_length exceed 255, can be done inplace
-
 CREATE TABLE t1(c VARCHAR(1) CHARSET ASCII);
 INSERT INTO t1 VALUES('a');
 SELECT * FROM t1;

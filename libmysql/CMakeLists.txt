@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -243,9 +243,8 @@ IF(WIN32)
 ENDIF()
 
 # LDAP authentication SASL client plugin
-MESSAGE(STATUS "Creating LDAP authentication SASL client library.")
 ADD_SUBDIRECTORY(authentication_ldap)
-  
+
 # Merge several convenience libraries into one big mysqlclient
 MERGE_CONVENIENCE_LIBRARIES(mysqlclient ${LIBS_TO_MERGE} COMPONENT Development)
 TARGET_LINK_LIBRARIES(mysqlclient PRIVATE ${LIBS_TO_LINK})
@@ -290,6 +289,11 @@ MERGE_LIBRARIES_SHARED(libmysql ${LIBS_TO_MERGE}
   ${CLIENT_API_NONBLOCKING_FUNCTIONS}
   COMPONENT SharedLibraries)
 TARGET_LINK_LIBRARIES(libmysql PRIVATE ${LIBS_TO_LINK})
+
+IF(LINUX_STANDALONE AND KERBEROS_CUSTOM_LIBRARY)
+  ADD_DEPENDENCIES(libmysql ${kerberos_target})
+  ADD_DEPENDENCIES(mysqlclient ${kerberos_target})
+ENDIF()
 
 IF(WIN32)
   # So that libmysql_api_test below can find the .dll
@@ -378,6 +382,14 @@ IF(MY_COMPILER_IS_GNU)
   ADD_COMPILE_FLAGS(
     ${CMAKE_CURRENT_BINARY_DIR}/api_test.c
     COMPILE_FLAGS -Wstrict-prototypes
+    )
+ENDIF()
+
+MY_CHECK_CXX_COMPILER_WARNING("-Wmissing-profile" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  ADD_COMPILE_FLAGS(
+    ${CMAKE_CURRENT_BINARY_DIR}/api_test.c
+    COMPILE_FLAGS ${HAS_WARN_FLAG}
     )
 ENDIF()
 

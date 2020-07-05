@@ -12,6 +12,13 @@
 #
 # Bug#19545298 REPLICATION FAILS WITH ERRNO 1755
 
+# this test case requires the IO thread to parse the
+# events coming in and rotate the relay log after a
+# table map event. With compression a transaction is
+# compressed inside a transaction payload event, thence
+# this test is not applicable
+--source include/not_binlog_transaction_compression_on.inc
+
 --source include/not_group_replication_plugin.inc
 --source include/have_binlog_format_row.inc
 --source include/have_debug.inc

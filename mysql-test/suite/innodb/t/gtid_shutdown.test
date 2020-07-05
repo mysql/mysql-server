@@ -1,0 +1,32 @@
+--source include/have_log_bin.inc
+
+reset master;
+
+create table t1 (col1 int primary key);
+
+--let $idx = 0
+
+while($idx < 3){
+  --echo
+  --exec echo Test GTID with innodb_fast_shutdown = $idx
+  --echo ---------------------------------------
+
+  --eval set global innodb_fast_shutdown = $idx
+  select @@innodb_fast_shutdown as shutdown_mode;
+
+  --inc $idx
+
+  --eval insert into t1 values ($idx + 1)
+  --eval insert into t1 values (5*$idx + 1)
+  --eval insert into t1 values (7*$idx + 1)
+
+  --source include/restart_mysqld.inc
+
+  select * from t1 order by col1;
+
+  select sum(interval_end - interval_start + 1) as count_gtid
+  from mysql.gtid_executed group by source_uuid;
+}
+
+--echo
+drop table t1;

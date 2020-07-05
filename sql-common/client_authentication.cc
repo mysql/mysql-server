@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,6 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 
-#if defined(HAVE_OPENSSL)
 #include <openssl/err.h>
 #include <openssl/pem.h>
 #include <openssl/rsa.h>
@@ -72,6 +71,8 @@ int sha256_password_deinit(void) {
   return 0;
 }
 
+static RSA *g_public_key = nullptr;
+
 /**
   Reads and parse RSA public key data from a file.
 
@@ -79,31 +80,28 @@ int sha256_password_deinit(void) {
 
   @return Pointer to the RSA public key storage buffer
 */
-
-static RSA *g_public_key = NULL;
-
 static RSA *rsa_init(MYSQL *mysql) {
-  RSA *key = NULL;
+  RSA *key = nullptr;
 
   mysql_mutex_lock(&g_public_key_mutex);
   key = g_public_key;
   mysql_mutex_unlock(&g_public_key_mutex);
 
-  if (key != NULL) return key;
+  if (key != nullptr) return key;
 
-  FILE *pub_key_file = NULL;
+  FILE *pub_key_file = nullptr;
 
-  if (mysql->options.extension != NULL &&
-      mysql->options.extension->server_public_key_path != NULL &&
+  if (mysql->options.extension != nullptr &&
+      mysql->options.extension->server_public_key_path != nullptr &&
       mysql->options.extension->server_public_key_path[0] != '\0') {
     pub_key_file =
         fopen(mysql->options.extension->server_public_key_path, "rb");
   }
   /* No public key is used; return 0 without errors to indicate this. */
   else
-    return 0;
+    return nullptr;
 
-  if (pub_key_file == NULL) {
+  if (pub_key_file == nullptr) {
     /*
       If a key path was submitted but no key located then we print an error
       message. Else we just report that there is no public key.
@@ -111,18 +109,19 @@ static RSA *rsa_init(MYSQL *mysql) {
     my_message_local(WARNING_LEVEL, EE_FAILED_TO_LOCATE_SERVER_PUBLIC_KEY,
                      mysql->options.extension->server_public_key_path);
 
-    return 0;
+    return nullptr;
   }
 
   mysql_mutex_lock(&g_public_key_mutex);
-  key = g_public_key = PEM_read_RSA_PUBKEY(pub_key_file, 0, 0, 0);
+  key = g_public_key =
+      PEM_read_RSA_PUBKEY(pub_key_file, nullptr, nullptr, nullptr);
   mysql_mutex_unlock(&g_public_key_mutex);
   fclose(pub_key_file);
-  if (g_public_key == NULL) {
+  if (g_public_key == nullptr) {
     ERR_clear_error();
     my_message_local(WARNING_LEVEL, EE_PUBLIC_KEY_NOT_IN_PEM_FORMAT,
                      mysql->options.extension->server_public_key_path);
-    return 0;
+    return nullptr;
   }
 
   return key;
@@ -143,7 +142,7 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   bool uses_password = mysql->passwd[0] != 0;
   unsigned char encrypted_password[MAX_CIPHER_LENGTH];
   static char request_public_key = '\1';
-  RSA *public_key = NULL;
+  RSA *public_key = nullptr;
   bool got_public_key_from_server = false;
   bool connection_is_secure = false;
   unsigned char scramble_pkt[20];
@@ -169,7 +168,7 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   */
   memcpy(scramble_pkt, pkt, SCRAMBLE_LENGTH);
 
-  if (mysql_get_ssl_cipher(mysql) != NULL) connection_is_secure = true;
+  if (mysql_get_ssl_cipher(mysql) != nullptr) connection_is_secure = true;
 
   /* If connection isn't secure attempt to get the RSA public key file */
   if (!connection_is_secure) {
@@ -188,7 +187,7 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
       /*
         If no public key; request one from the server.
       */
-      if (public_key == NULL) {
+      if (public_key == nullptr) {
         if (vio->write_packet(vio, (const unsigned char *)&request_public_key,
                               1))
           return CR_ERROR;
@@ -198,9 +197,9 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
         if ((packet_len = vio->read_packet(vio, &packet)) == -1)
           return CR_ERROR;
         BIO *bio = BIO_new_mem_buf(packet, packet_len);
-        public_key = PEM_read_bio_RSA_PUBKEY(bio, NULL, NULL, NULL);
+        public_key = PEM_read_bio_RSA_PUBKEY(bio, nullptr, nullptr, nullptr);
         BIO_free(bio);
-        if (public_key == 0) {
+        if (public_key == nullptr) {
           ERR_clear_error();
           return CR_ERROR;
         }
@@ -265,10 +264,10 @@ net_async_status sha256_password_auth_client_nonblocking(MYSQL_PLUGIN_VIO *vio,
   net_async_status status = NET_ASYNC_NOT_READY;
   unsigned char encrypted_password[MAX_CIPHER_LENGTH];
   static char request_public_key = '\1';
-  static RSA *public_key = NULL;
+  static RSA *public_key = nullptr;
   bool got_public_key_from_server = false;
   int io_result;
-  bool connection_is_secure = (mysql_get_ssl_cipher(mysql) != NULL);
+  bool connection_is_secure = (mysql_get_ssl_cipher(mysql) != nullptr);
   unsigned char scramble_pkt[20];
   unsigned char *pkt;
   unsigned int passwd_len =
@@ -305,7 +304,7 @@ net_async_status sha256_password_auth_client_nonblocking(MYSQL_PLUGIN_VIO *vio,
     case client_auth_sha256_password_plugin_status::SHA256_REQUEST_PUBLIC_KEY: {
       public_key = rsa_init(mysql);
       /* If no public key; request one from the server. */
-      if (public_key == NULL) {
+      if (public_key == nullptr) {
         status = vio->write_packet_nonblocking(
             vio, (const unsigned char *)&request_public_key, 1, &io_result);
         if (status == NET_ASYNC_NOT_READY) {
@@ -326,7 +325,7 @@ net_async_status sha256_password_auth_client_nonblocking(MYSQL_PLUGIN_VIO *vio,
           client_auth_sha256_password_plugin_status::SHA256_READ_PUBLIC_KEY;
       /* FALLTHROUGH */
     case client_auth_sha256_password_plugin_status::SHA256_READ_PUBLIC_KEY:
-      if (public_key == NULL) {
+      if (public_key == nullptr) {
         status = vio->read_packet_nonblocking(vio, &pkt, &io_result);
         if (status == NET_ASYNC_NOT_READY) {
           return NET_ASYNC_NOT_READY;
@@ -336,9 +335,9 @@ net_async_status sha256_password_auth_client_nonblocking(MYSQL_PLUGIN_VIO *vio,
           return NET_ASYNC_COMPLETE;
         }
         BIO *bio = BIO_new_mem_buf(pkt, io_result);
-        public_key = PEM_read_bio_RSA_PUBKEY(bio, NULL, NULL, NULL);
+        public_key = PEM_read_bio_RSA_PUBKEY(bio, nullptr, nullptr, nullptr);
         BIO_free(bio);
-        if (public_key == 0) {
+        if (public_key == nullptr) {
           ERR_clear_error();
           *result = CR_ERROR;
           return NET_ASYNC_COMPLETE;
@@ -418,7 +417,7 @@ static bool is_secure_transport(MYSQL *mysql) {
   if (!mysql || !mysql->net.vio) return false;
   switch (mysql->net.vio->type) {
     case VIO_TYPE_SSL: {
-      if (mysql_get_ssl_cipher(mysql) == NULL) return false;
+      if (mysql_get_ssl_cipher(mysql) == nullptr) return false;
     }
     // Fall through
     case VIO_TYPE_SHARED_MEMORY:
@@ -431,6 +430,10 @@ static bool is_secure_transport(MYSQL *mysql) {
   return false;
 }
 
+static char request_public_key = '\2';
+static char fast_auth_success = '\3';
+static char perform_full_authentication = '\4';
+
 /**
   Authenticate the client using the RSA or TLS and a SHA2 salted password.
 
@@ -441,16 +444,11 @@ static bool is_secure_transport(MYSQL *mysql) {
     @retval CR_ERROR An error occurred.
     @retval CR_OK Authentication succeeded.
 */
-
-static char request_public_key = '\2';
-static char fast_auth_success = '\3';
-static char perform_full_authentication = '\4';
-
 int caching_sha2_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   bool uses_password = mysql->passwd[0] != 0;
   unsigned char encrypted_password[MAX_CIPHER_LENGTH];
   // static char request_public_key= '\1';
-  RSA *public_key = NULL;
+  RSA *public_key = nullptr;
   bool got_public_key_from_server = false;
   bool connection_is_secure = false;
   unsigned char scramble_pkt[20];
@@ -521,7 +519,7 @@ int caching_sha2_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
     if (!connection_is_secure) {
       public_key = rsa_init(mysql);
 
-      if (public_key == NULL && mysql->options.extension &&
+      if (public_key == nullptr && mysql->options.extension &&
           mysql->options.extension->get_server_public_key) {
         // If no public key; request one from the server.
         if (vio->write_packet(vio, (const unsigned char *)&request_public_key,
@@ -530,9 +528,9 @@ int caching_sha2_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
 
         if ((pkt_len = vio->read_packet(vio, &pkt)) <= 0) return CR_ERROR;
         BIO *bio = BIO_new_mem_buf(pkt, pkt_len);
-        public_key = PEM_read_bio_RSA_PUBKEY(bio, NULL, NULL, NULL);
+        public_key = PEM_read_bio_RSA_PUBKEY(bio, nullptr, nullptr, nullptr);
         BIO_free(bio);
-        if (public_key == 0) {
+        if (public_key == nullptr) {
           ERR_clear_error();
           DBUG_PRINT("info", ("Failed to parse public key"));
           return CR_ERROR;
@@ -608,7 +606,7 @@ net_async_status caching_sha2_password_auth_client_nonblocking(
   int io_result;
   net_async_status status = NET_ASYNC_NOT_READY;
   static unsigned char encrypted_password[MAX_CIPHER_LENGTH];
-  static RSA *public_key = NULL;
+  static RSA *public_key = nullptr;
   bool connection_is_secure = is_secure_transport(mysql);
   bool got_public_key_from_server = false;
   static unsigned char scramble_pkt[20];
@@ -727,7 +725,7 @@ net_async_status caching_sha2_password_auth_client_nonblocking(
       {
         public_key = rsa_init(mysql);
 
-        if (public_key == NULL && mysql->options.extension &&
+        if (public_key == nullptr && mysql->options.extension &&
             mysql->options.extension->get_server_public_key) {
           status = vio->write_packet_nonblocking(
               vio, (const unsigned char *)&request_public_key, 1, &io_result);
@@ -746,7 +744,7 @@ net_async_status caching_sha2_password_auth_client_nonblocking(
       /* FALLTHROUGH */
     case client_auth_caching_sha2_password_plugin_status::
         CACHING_SHA2_READ_PUBLIC_KEY: {
-      if (public_key == NULL && mysql->options.extension &&
+      if (public_key == nullptr && mysql->options.extension &&
           mysql->options.extension->get_server_public_key) {
         status = vio->read_packet_nonblocking(vio, &pkt, &io_result);
         if (status == NET_ASYNC_NOT_READY) {
@@ -758,9 +756,9 @@ net_async_status caching_sha2_password_auth_client_nonblocking(
         }
         int pkt_len = 0;
         BIO *bio = BIO_new_mem_buf(pkt, pkt_len);
-        public_key = PEM_read_bio_RSA_PUBKEY(bio, NULL, NULL, NULL);
+        public_key = PEM_read_bio_RSA_PUBKEY(bio, nullptr, nullptr, nullptr);
         BIO_free(bio);
-        if (public_key == 0) {
+        if (public_key == nullptr) {
           ERR_clear_error();
           DBUG_PRINT("info", ("Failed to parse public key"));
           *result = CR_ERROR;
@@ -847,8 +845,6 @@ void STDCALL mysql_reset_server_public_key(void) {
   DBUG_TRACE;
   mysql_mutex_lock(&g_public_key_mutex);
   if (g_public_key) RSA_free(g_public_key);
-  g_public_key = NULL;
+  g_public_key = nullptr;
   mysql_mutex_unlock(&g_public_key_mutex);
 }
-
-#endif

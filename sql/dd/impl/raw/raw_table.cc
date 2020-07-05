@@ -84,14 +84,14 @@ bool Raw_table::find_record(const Object_key &key,
 
   // Row not found.
   if (rc == HA_ERR_KEY_NOT_FOUND || rc == HA_ERR_END_OF_FILE) {
-    r.reset(NULL);
+    r.reset(nullptr);
     return false;
   }
 
   // Got unexpected error.
   if (rc) {
     table->file->print_error(rc, MYF(0));
-    r.reset(NULL);
+    r.reset(nullptr);
     return true;
   }
 
@@ -148,7 +148,7 @@ bool Raw_table::open_record_set(const Object_key *key,
                                 std::unique_ptr<Raw_record_set> &rs) {
   DBUG_TRACE;
 
-  Raw_key *access_key = NULL;
+  Raw_key *access_key = nullptr;
 
   // Create specific access key if submitted.
   if (key) {
@@ -203,14 +203,14 @@ bool Raw_table::find_last_record(const Object_key &key,
 
   // Row not found.
   if (rc == HA_ERR_KEY_NOT_FOUND || rc == HA_ERR_END_OF_FILE) {
-    r.reset(NULL);
+    r.reset(nullptr);
     return false;
   }
 
   // Got unexpected error.
   if (rc) {
     table->file->print_error(rc, MYF(0));
-    r.reset(NULL);
+    r.reset(nullptr);
     return true;
   }
 

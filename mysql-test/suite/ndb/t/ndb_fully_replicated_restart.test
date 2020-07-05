@@ -220,6 +220,9 @@ insert into t1 values
 #
 --echo "Wait reconnect"
 --source include/ndb_not_readonly.inc
+connection mysqld2;
+--source include/ndb_not_readonly.inc
+connection default;
 
 begin;
 # pk lookup

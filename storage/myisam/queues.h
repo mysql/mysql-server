@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -81,7 +81,9 @@ static inline bool queue_is_full(QUEUE *queue) {
   return queue->elements == queue->max_elements;
 }
 
-static inline bool is_queue_inited(QUEUE *queue) { return queue->root != NULL; }
+static inline bool is_queue_inited(QUEUE *queue) {
+  return queue->root != nullptr;
+}
 
 #ifdef __cplusplus
 }

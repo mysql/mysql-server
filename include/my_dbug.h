@@ -116,9 +116,11 @@ class AutoDebugTrace {
     const char *end = strchr(function, '(');
 
     if (end == nullptr) {
-      _db_enter_(function, strlen(function), filename, line, &m_stack_frame);
+      _db_enter_(function, static_cast<int>(strlen(function)), filename, line,
+                 &m_stack_frame);
     } else {
-      _db_enter_(function, end - function, filename, line, &m_stack_frame);
+      _db_enter_(function, static_cast<int>(end - function), filename, line,
+                 &m_stack_frame);
     }
   }
 

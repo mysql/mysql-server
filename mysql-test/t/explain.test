@@ -467,3 +467,92 @@ DROP TABLE t1, t2;
 
 --echo # End of test for Bug#23209903
 
+--echo #
+--echo # Bug#29115386: CONTRIBUTION: IMPOSSIBLE WHERE FOR A!=A, A<A, A>A
+--echo #
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(NULL);
+
+--echo # Expect "Impossible WHERE" when "a<>a, a<a, a>a" is
+--echo # present in WHERE clause. In select clause the same
+--echo # conditions will evaulate to false only when "a"
+--echo # has non-null values. For NULL value, it evaluates
+--echo # to NULL (UNKNOWN RESULT).
+EXPLAIN SELECT * FROM t1 WHERE a<>a;
+SELECT COUNT(*) FROM t1 WHERE a<>a;
+SELECT a<>a FROM t1;
+EXPLAIN SELECT * FROM t1 WHERE a>a;
+SELECT COUNT(*) FROM t1 WHERE a>a;
+SELECT a>a FROM t1;
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE a<a;
+SELECT COUNT(*) FROM t1 WHERE a<a;
+SELECT a<a FROM t1;
+--echo # a<=>a evaluates to true when the result is "UNKNOWN"
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE a<=>a;
+SELECT COUNT(*) FROM t1 WHERE a<=>a;
+SELECT a<=>a FROM t1;
+--echo # No optimization done for "a<=a, a>=a, a=a" as
+--echo # the result does not evaulate to "FALSE"
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE a<=a;
+SELECT COUNT(*) FROM t1 WHERE a<=a;
+SELECT a<=a FROM t1;
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE a>=a;
+SELECT COUNT(*) FROM t1 WHERE a>=a;
+SELECT a>=a FROM t1;
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE a=a;
+SELECT COUNT(*) FROM t1 WHERE a=a;
+SELECT a=a FROM t1;
+--echo # Do not expect "Impossible WHERE" as
+--echo # we skip conditions with truth value tests
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE a<>a IS NOT FALSE;
+SELECT COUNT(*) FROM t1 WHERE a<>a IS NOT FALSE;
+--echo # Expect "Impossible WHERE" as the value of
+--echo # "a" is non-NULL since a=1 is true
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE (a=1 and a<>a IS NOT FALSE);
+SELECT COUNT(*) FROM t1 WHERE (a=1 AND a<>a IS NOT FALSE);
+--echo # No "Impossible WHERE" as it is an OR condition
+EXPLAIN SELECT * FROM t1 WHERE (a=1 OR a<>a);
+SELECT * FROM t1 WHERE (a= 1 OR a<>a);
+--echo # "Impossible WHERE" as it is an AND condition
+EXPLAIN SELECT * FROM t1 WHERE (a=1 AND a<>a);
+SELECT * FROM t1 WHERE (a=1 AND a<>a);
+
+UPDATE t1 SET a = 2 WHERE a IS NULL;
+ALTER TABLE t1 MODIFY a INT NOT NULL;
+
+--echo # Expect "Impossible WHERE" for never true values like
+--echo # a<>a, a<a, a>a and always true for a<=>a, a<=a, a>=a
+--echo # and a=a
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE a!=a;
+SELECT COUNT(*) FROM t1 WHERE a<>a;
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE a>a;
+SELECT COUNT(*) FROM t1 WHERE a>a;
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE a<a;
+SELECT COUNT(*) FROM t1 WHERE a<a;
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE a<=>a;
+SELECT COUNT(*) FROM t1 WHERE a<=>a;
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE a<=a;
+SELECT COUNT(*) FROM t1 WHERE a<=a;
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE a>=a;
+SELECT COUNT(*) FROM t1 WHERE a>=a;
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE a=a;
+SELECT COUNT(*) FROM t1 WHERE a=a;
+--echo # Do not expect "Impossible WHERE" as
+--echo # we skip conditions with truth value tests
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE a<>a IS NOT FALSE;
+SELECT COUNT(*) FROM t1 WHERE a<>a IS NOT FALSE;
+--echo # Expect "Impossible WHERE" as the value of
+--echo # "a" is non-NULL since a=1 is true
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE (a =1 and a<>a IS NOT FALSE);
+SELECT COUNT(*) FROM t1 WHERE (a=1 AND a<>a IS NOT FALSE);
+--echo # No "Impossible WHERE" as it is an OR condition
+EXPLAIN SELECT * FROM t1 WHERE (a=1 OR a<>a);
+SELECT * FROM t1 WHERE (a=1 OR a<>a);
+--echo # "Impossible WHERE" as it is an AND condition
+EXPLAIN SELECT * FROM t1 WHERE (a=1 AND a<>a);
+SELECT * FROM t1 WHERE (a=1 AND a<>a);
+
+
+DROP TABLE t1;
+

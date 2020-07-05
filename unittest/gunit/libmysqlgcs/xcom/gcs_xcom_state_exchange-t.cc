@@ -154,8 +154,8 @@ class XComStateExchangeTest : public GcsBaseTest {
   void DecodeStateExchangeMessage(
       Gcs_protocol_version encoder_protocol_version) {
     /* Encode a message. */
-    uchar *buffer = NULL;
-    uchar *slider = NULL;
+    uchar *buffer = nullptr;
+    uchar *slider = nullptr;
     uint64_t buffer_len = 0;
     uint64_t exchangeable_header_len = 0;
     uint64_t exchangeable_data_len = 0;
@@ -171,7 +171,7 @@ class XComStateExchangeTest : public GcsBaseTest {
 
     Xcom_member_state encoded_member_state(dummy_view_id, dummy_cfg_id,
                                            encoder_protocol_version,
-                                           dummy_snapshot, NULL, 0);
+                                           dummy_snapshot, nullptr, 0);
 
     /*
       Allocate a buffer that will contain the header, the data, and the packet
@@ -258,14 +258,14 @@ TEST_F(XComStateExchangeTest, StateExchangeBroadcastJoinerTest) {
 
   bool leaving = state_exchange->state_exchange(
       configuration_id, total_members, left_members, joined_members,
-      data_to_exchange, NULL, &group_name, *mi, nodes);
+      data_to_exchange, nullptr, &group_name, *mi, nodes);
 
   ASSERT_FALSE(leaving);
 
   delete mi;
 }
 
-uchar *copied_payload = NULL;
+uchar *copied_payload = nullptr;
 uint64_t copied_length = 0;
 enum_gcs_error copy_message_content(const Gcs_message &msg) {
   copied_length = msg.get_message_data().get_payload_length();
@@ -318,7 +318,7 @@ TEST_F(XComStateExchangeTest, StateExchangeProcessStatesPhase) {
   */
   bool leaving = state_exchange->state_exchange(
       configuration_id, total_members, left_members, joined_members,
-      data_to_exchange, NULL, &group_name, *member_id_1, nodes);
+      data_to_exchange, nullptr, &group_name, *member_id_1, nodes);
   ASSERT_FALSE(leaving);
 
   /*
@@ -353,8 +353,9 @@ TEST_F(XComStateExchangeTest, StateExchangeProcessStatesPhase) {
   */
   const Gcs_xcom_view_identifier view_id_2(99999, 0);
   Gcs_xcom_synode_set snapshot;
-  Xcom_member_state *state_2 = new Xcom_member_state(
-      view_id_2, configuration_id, Gcs_protocol_version::V1, snapshot, NULL, 0);
+  Xcom_member_state *state_2 =
+      new Xcom_member_state(view_id_2, configuration_id,
+                            Gcs_protocol_version::V1, snapshot, nullptr, 0);
   can_install = state_exchange->process_member_state(state_2, *member_id_2,
                                                      Gcs_protocol_version::V1,
                                                      Gcs_protocol_version::V1);
@@ -402,13 +403,13 @@ TEST_F(XComStateExchangeTest, StateExchangeChoosingView) {
   /*
     If there is one view, there is no much choice and the view is picked.
   */
-  Gcs_xcom_view_identifier *new_view_id = NULL;
+  Gcs_xcom_view_identifier *new_view_id = nullptr;
 
   Gcs_xcom_view_identifier view_id_1(99999, 0);
   Gcs_xcom_synode_set snapshot;
   Xcom_member_state *state_1 = new Xcom_member_state(
       view_id_1, configuration_id, Gcs_protocol_version::HIGHEST_KNOWN,
-      snapshot, NULL, 0);
+      snapshot, nullptr, 0);
   (*member_states)[*member_id_1] = state_1;
   new_view_id = state_exchange->get_new_view_id();
   ASSERT_EQ(member_states->size(), 1u);
@@ -422,7 +423,7 @@ TEST_F(XComStateExchangeTest, StateExchangeChoosingView) {
   Gcs_xcom_view_identifier view_id_2(88888, 0);
   Xcom_member_state *state_2 = new Xcom_member_state(
       view_id_2, configuration_id, Gcs_protocol_version::HIGHEST_KNOWN,
-      snapshot, NULL, 0);
+      snapshot, nullptr, 0);
   (*member_states)[*member_id_2] = state_2;
   new_view_id = state_exchange->get_new_view_id();
   ASSERT_EQ(member_states->size(), 2u);
@@ -437,7 +438,7 @@ TEST_F(XComStateExchangeTest, StateExchangeChoosingView) {
   Gcs_xcom_view_identifier view_id_3(66666, 0);
   Xcom_member_state *state_3 = new Xcom_member_state(
       view_id_3, configuration_id, Gcs_protocol_version::HIGHEST_KNOWN,
-      snapshot, NULL, 0);
+      snapshot, nullptr, 0);
   (*member_states)[*member_id_3] = state_3;
   new_view_id = state_exchange->get_new_view_id();
   ASSERT_EQ(member_states->size(), 3u);
@@ -459,7 +460,7 @@ TEST_F(XComStateExchangeTest, StateExchangeChoosingView) {
   Gcs_xcom_view_identifier view_id_4(77777, 1);
   Xcom_member_state *state_4 = new Xcom_member_state(
       view_id_4, configuration_id, Gcs_protocol_version::HIGHEST_KNOWN,
-      snapshot, NULL, 0);
+      snapshot, nullptr, 0);
   (*member_states)[*member_id_4] = state_4;
   new_view_id = state_exchange->get_new_view_id();
   ASSERT_EQ(member_states->size(), 4u);
@@ -492,7 +493,7 @@ TEST_F(XComStateExchangeTest, StateExchangeWrongAssumptionsView) {
     is a bug in the state exchange messages and members are not
     proposing the correct views.
   */
-  Gcs_xcom_view_identifier *new_view_id = NULL;
+  Gcs_xcom_view_identifier *new_view_id = nullptr;
   std::map<Gcs_member_identifier, Xcom_member_state *>::iterator state_it;
 
   std::string member_1_addr("127.0.0.1:12345");
@@ -524,17 +525,17 @@ TEST_F(XComStateExchangeTest, StateExchangeWrongAssumptionsView) {
   Gcs_xcom_synode_set snapshot;
   Xcom_member_state *state_1 = new Xcom_member_state(
       view_id_1, configuration_id, Gcs_protocol_version::HIGHEST_KNOWN,
-      snapshot, NULL, 0);
+      snapshot, nullptr, 0);
   (*member_states)[*member_id_1] = state_1;
 
   Gcs_xcom_view_identifier view_id_2(88888, 1);
   Xcom_member_state *state_2 = new Xcom_member_state(
       view_id_2, configuration_id, Gcs_protocol_version::HIGHEST_KNOWN,
-      snapshot, NULL, 0);
+      snapshot, nullptr, 0);
   (*member_states)[*member_id_2] = state_2;
   new_view_id = state_exchange->get_new_view_id();
   ASSERT_EQ(member_states->size(), 2u);
-  ASSERT_TRUE(new_view_id == NULL);
+  ASSERT_TRUE(new_view_id == nullptr);
 
   for (state_it = member_states->begin(); state_it != member_states->end();
        state_it++)
@@ -548,17 +549,17 @@ TEST_F(XComStateExchangeTest, StateExchangeWrongAssumptionsView) {
   Gcs_xcom_view_identifier view_id_3(99999, 1);
   Xcom_member_state *state_3 = new Xcom_member_state(
       view_id_3, configuration_id, Gcs_protocol_version::HIGHEST_KNOWN,
-      snapshot, NULL, 0);
+      snapshot, nullptr, 0);
   (*member_states)[*member_id_3] = state_3;
 
   Gcs_xcom_view_identifier view_id_4(99999, 2);
   Xcom_member_state *state_4 = new Xcom_member_state(
       view_id_4, configuration_id, Gcs_protocol_version::HIGHEST_KNOWN,
-      snapshot, NULL, 0);
+      snapshot, nullptr, 0);
   (*member_states)[*member_id_4] = state_4;
   new_view_id = state_exchange->get_new_view_id();
   ASSERT_EQ(member_states->size(), 2u);
-  ASSERT_TRUE(new_view_id == NULL);
+  ASSERT_TRUE(new_view_id == nullptr);
   (void)new_view_id;
 
   for (state_it = member_states->begin(); state_it != member_states->end();
@@ -612,7 +613,7 @@ TEST_F(XComStateExchangeTest, StateExchangeDiscardSynodes) {
     Send a state exchange message on behalf of member 1.
   */
   state_exchange->state_exchange(configuration_id, total_members, left_members,
-                                 joined_members, data_to_exchange, NULL,
+                                 joined_members, data_to_exchange, nullptr,
                                  &group_name, *member_id_1, nodes);
 
   /*
@@ -623,7 +624,7 @@ TEST_F(XComStateExchangeTest, StateExchangeDiscardSynodes) {
   Gcs_xcom_synode_set snapshot;
   Xcom_member_state *state_1 = new Xcom_member_state(
       view_id_1, invalid_configuration_id, Gcs_protocol_version::HIGHEST_KNOWN,
-      snapshot, NULL, 0);
+      snapshot, nullptr, 0);
   bool can_install = state_exchange->process_member_state(
       state_1, *member_id_1, Gcs_protocol_version::V1,
       Gcs_protocol_version::V1);

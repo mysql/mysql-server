@@ -2955,13 +2955,13 @@ PREPARE stmt FROM 'EXPLAIN SELECT 1 FROM t1 RIGHT JOIN t1 t2 ON 1';
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` `t2` left join `test`.`t1` on(true) where true
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` `t2` left join `test`.`t1` on(true) where true
 DEALLOCATE PREPARE stmt;
@@ -3941,3 +3941,14 @@ slave	07:30:31	2015-04-24 13:30:31	2015-04-24 07:30:31	07:30:30.502	2015-04-24 1
 # Cleanup
 DROP DATABASE client_test_db;
 DROP TABLE bug19894382;
+#
+# Bug#30438038: MAIN.LOCK_MULTI_BUG38499 FAILS ON PB2
+#
+CREATE TABLE t(a INT, b INT);
+INSERT INTO t VALUES (1, 1), (2, 2), (3, 3), (4, 4);
+PREPARE ps FROM
+'UPDATE t, (SELECT 1 FROM t UNION SELECT 2 FROM t) e SET a = 0 WHERE FALSE';
+EXECUTE ps;
+EXECUTE ps;
+DROP PREPARE ps;
+DROP TABLE t;

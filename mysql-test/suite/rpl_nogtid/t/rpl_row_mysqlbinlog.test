@@ -9,6 +9,12 @@
 # Include Section
 # Make sure that we have row based bin log
 -- source include/have_binlog_format_row.inc
+
+# make sure that we do not have compression enabled, otherwise
+# the event size and binary log files generated for this test
+# to work will not be created
+--source include/not_binlog_transaction_compression_on.inc
+
 -- source include/master-slave.inc
 
 # Setup Section

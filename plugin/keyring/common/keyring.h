@@ -84,7 +84,8 @@ template <typename T>
 bool mysql_key_fetch(const char *key_id, char **key_type, const char *user_id,
                      void **key, size_t *key_len, const char *plugin_name) {
   try {
-    std::unique_ptr<IKey> key_to_fetch(new T(key_id, NULL, user_id, NULL, 0));
+    std::unique_ptr<IKey> key_to_fetch(
+        new T(key_id, nullptr, user_id, nullptr, 0));
     return mysql_key_fetch(std::move(key_to_fetch), key_type, key, key_len);
   } catch (...) {
     log_operation_error("fetch a key", plugin_name);
@@ -110,7 +111,8 @@ template <typename T>
 bool mysql_key_remove(const char *key_id, const char *user_id,
                       const char *plugin_name) {
   try {
-    std::unique_ptr<IKey> key_to_remove(new T(key_id, NULL, user_id, NULL, 0));
+    std::unique_ptr<IKey> key_to_remove(
+        new T(key_id, nullptr, user_id, nullptr, 0));
     return mysql_key_remove(std::move(key_to_remove));
   } catch (...) {
     log_operation_error("remove a key", plugin_name);

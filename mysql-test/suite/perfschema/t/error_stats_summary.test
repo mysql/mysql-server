@@ -149,3 +149,101 @@ drop procedure signalError;
 drop procedure bigError;
 drop user user1@localhost;
 drop user user2@localhost;
+
+#-------------------------------------------------------------
+# BUG#30311574 PERFORMANCE SCHEMA ERROR STATS FOR IMPOSSIBLE ERRORS
+#-------------------------------------------------------------
+
+# List specific errors to make sure instrumentation is correct.
+# - ER_HASHCHK : obsolete
+# - ER_NO : not an error
+# - ER_YES : not an error
+# - ER_CANT_CREATE_FILE : first in range 1000
+# - WARN_NAMED_PIPE_ACCESS_EVERYONE : last in range 1000
+# - ER_FILE_CORRUPT : first in range 3000
+# - ER_AUDIT_LOG_UDF_READ_INVALID_MAX_ARRAY_LENGTH_ARG_VALUE : last in range 3000
+# - ER_UNSUPPORT_COMPRESSED_TEMPORARY_TABLE : first in range 3500
+# - ER_DA_UDF_INVALID_RETURN_TYPE_TO_SET_CHARSET : last in range 3500
+# - ER_PARSER_TRACE : first in range 10000 (global only)
+# - ER_GR_ELECTED_PRIMARY_GTID_INFORMATION : last in range 10000 (global only)
+
+select distinct ERROR_NUMBER, ERROR_NAME
+  from performance_schema.events_errors_summary_by_thread_by_error
+  where ERROR_NAME in (
+    'ER_HASHCHK',
+    'ER_NO',
+    'ER_YES',
+    'ER_CANT_CREATE_FILE',
+    'WARN_NAMED_PIPE_ACCESS_EVERYONE',
+    'ER_FILE_CORRUPT',
+    'ER_AUDIT_LOG_UDF_READ_INVALID_MAX_ARRAY_LENGTH_ARG_VALUE',
+    'ER_UNSUPPORT_COMPRESSED_TEMPORARY_TABLE',
+    'ER_DA_UDF_INVALID_RETURN_TYPE_TO_SET_CHARSET',
+    'ER_PARSER_TRACE',
+    'ER_GR_ELECTED_PRIMARY_GTID_INFORMATION')
+  order by ERROR_NUMBER;
+
+select distinct ERROR_NUMBER, ERROR_NAME
+  from performance_schema.events_errors_summary_by_account_by_error
+  where ERROR_NAME in (
+    'ER_HASHCHK',
+    'ER_NO',
+    'ER_YES',
+    'ER_CANT_CREATE_FILE',
+    'WARN_NAMED_PIPE_ACCESS_EVERYONE',
+    'ER_FILE_CORRUPT',
+    'ER_AUDIT_LOG_UDF_READ_INVALID_MAX_ARRAY_LENGTH_ARG_VALUE',
+    'ER_UNSUPPORT_COMPRESSED_TEMPORARY_TABLE',
+    'ER_DA_UDF_INVALID_RETURN_TYPE_TO_SET_CHARSET',
+    'ER_PARSER_TRACE',
+    'ER_GR_ELECTED_PRIMARY_GTID_INFORMATION')
+  order by ERROR_NUMBER;
+
+select distinct ERROR_NUMBER, ERROR_NAME
+  from performance_schema.events_errors_summary_by_user_by_error
+  where ERROR_NAME in (
+    'ER_HASHCHK',
+    'ER_NO',
+    'ER_YES',
+    'ER_CANT_CREATE_FILE',
+    'WARN_NAMED_PIPE_ACCESS_EVERYONE',
+    'ER_FILE_CORRUPT',
+    'ER_AUDIT_LOG_UDF_READ_INVALID_MAX_ARRAY_LENGTH_ARG_VALUE',
+    'ER_UNSUPPORT_COMPRESSED_TEMPORARY_TABLE',
+    'ER_DA_UDF_INVALID_RETURN_TYPE_TO_SET_CHARSET',
+    'ER_PARSER_TRACE',
+    'ER_GR_ELECTED_PRIMARY_GTID_INFORMATION')
+  order by ERROR_NUMBER;
+
+select distinct ERROR_NUMBER, ERROR_NAME
+  from performance_schema.events_errors_summary_by_host_by_error
+  where ERROR_NAME in (
+    'ER_HASHCHK',
+    'ER_NO',
+    'ER_YES',
+    'ER_CANT_CREATE_FILE',
+    'WARN_NAMED_PIPE_ACCESS_EVERYONE',
+    'ER_FILE_CORRUPT',
+    'ER_AUDIT_LOG_UDF_READ_INVALID_MAX_ARRAY_LENGTH_ARG_VALUE',
+    'ER_UNSUPPORT_COMPRESSED_TEMPORARY_TABLE',
+    'ER_DA_UDF_INVALID_RETURN_TYPE_TO_SET_CHARSET',
+    'ER_PARSER_TRACE',
+    'ER_GR_ELECTED_PRIMARY_GTID_INFORMATION')
+  order by ERROR_NUMBER;
+
+select distinct ERROR_NUMBER, ERROR_NAME
+  from performance_schema.events_errors_summary_global_by_error
+  where ERROR_NAME in (
+    'ER_HASHCHK',
+    'ER_NO',
+    'ER_YES',
+    'ER_CANT_CREATE_FILE',
+    'WARN_NAMED_PIPE_ACCESS_EVERYONE',
+    'ER_FILE_CORRUPT',
+    'ER_AUDIT_LOG_UDF_READ_INVALID_MAX_ARRAY_LENGTH_ARG_VALUE',
+    'ER_UNSUPPORT_COMPRESSED_TEMPORARY_TABLE',
+    'ER_DA_UDF_INVALID_RETURN_TYPE_TO_SET_CHARSET',
+    'ER_PARSER_TRACE',
+    'ER_GR_ELECTED_PRIMARY_GTID_INFORMATION')
+  order by ERROR_NUMBER;
+

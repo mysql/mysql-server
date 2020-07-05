@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -81,7 +81,7 @@ uint64_t My_xp_util::getsystime() {
 #else
   /* TODO: check for other possibilities for hi-res timestamping */
   struct timeval tv;
-  gettimeofday(&tv, NULL);
+  gettimeofday(&tv, nullptr);
   return (uint64_t)tv.tv_sec * 10000000 + (uint64_t)tv.tv_usec * 10;
 #endif
 }

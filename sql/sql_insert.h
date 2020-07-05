@@ -135,12 +135,13 @@ are found inside the COPY_INFO.
         autoinc_value_of_last_inserted_row(0),
         info(COPY_INFO::INSERT_OPERATION, target_columns,
              // manage_defaults
-             (target_columns == NULL || target_columns->elements != 0), duplic),
+             (target_columns == nullptr || target_columns->elements != 0),
+             duplic),
         update(COPY_INFO::UPDATE_OPERATION, update_fields, update_values),
         insert_into_view(table_list_par && table_list_par->is_view()) {
-    DBUG_ASSERT(target_or_source_columns != NULL);
+    DBUG_ASSERT(target_or_source_columns != nullptr);
     DBUG_ASSERT(target_columns == target_or_source_columns ||
-                target_columns == NULL);
+                target_columns == nullptr);
   }
 
  public:

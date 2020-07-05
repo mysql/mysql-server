@@ -93,3 +93,4 @@ USER()
 native_user@localhost
 DROP USER sha256@localhost, native_user@localhost, caching_sha2@localhost;
 DROP DATABASE wl11381;
+# restart:

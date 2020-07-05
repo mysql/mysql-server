@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -39,7 +39,7 @@ struct BaseInserter {
       : m_ctx(ctx),
         m_err(DB_SUCCESS),
         m_prev_page_no(ctx->get_page_no()),
-        m_cur_blob_block(NULL),
+        m_cur_blob_block(nullptr),
         m_cur_blob_page_no(FIL_NULL) {}
 
   /** Start the BLOB mtr.

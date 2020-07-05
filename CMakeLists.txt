@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -95,6 +95,11 @@ CMAKE_POLICY(SET CMP0051 NEW)
 # Disallow use of the LOCATION property for build targets.
 IF(POLICY CMP0026)
   CMAKE_POLICY(SET CMP0026 NEW)
+ENDIF()
+
+# INTERPROCEDURAL_OPTIMIZATION is enforced when enabled (CMake 3.9+)
+IF(POLICY CMP0069)
+  CMAKE_POLICY(SET CMP0069 NEW)
 ENDIF()
 
 # In CMake 3.12 and above, the
@@ -222,22 +227,32 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
     IF(MY_UNAME)
       EXEC_PROGRAM(${MY_UNAME} ARGS -r OUTPUT_VARIABLE MY_HOST_SYSTEM_VERSION)
       IF(MY_HOST_SYSTEM_NAME MATCHES "Linux" AND
-          (MY_HOST_SYSTEM_VERSION MATCHES "\\.el[67](uek)?\\.")
+          (MY_HOST_SYSTEM_VERSION MATCHES "\\.el[678](uek)?\\.")
           OR
-          (MY_HOST_FILESYSTEM_NAME MATCHES "\\.el[67]\\."))
+          (MY_HOST_FILESYSTEM_NAME MATCHES "\\.el[678]\\."))
         MESSAGE(STATUS
-          "This is el6 or el7 as found from 'uname -r' or 'rpm -qf /'")
+          "This is el6, el7 or el8 as found from 'uname -r' or 'rpm -qf /'")
         MESSAGE(STATUS "We probably need some devtoolset compiler")
+        # el6 /opt/rh/devtoolset-8/root/usr/bin/gcc
+        # el7 /opt/rh/devtoolset-9/root/usr/bin/gcc
+        # el8 /opt/rh/gcc-toolset-9/root/usr/bin/gcc
+        SET(ALTERNATIVE_PATHS
+          "/opt/rh/devtoolset-9"
+          "/opt/rh/gcc-toolset-9"
+          "/opt/rh/devtoolset-8"
+          )
+        FOREACH(OPT_PATH ${ALTERNATIVE_PATHS})
+          FIND_PROGRAM(ALTERNATIVE_GCC gcc
+            NO_DEFAULT_PATH
+            PATHS "${OPT_PATH}/root/usr/bin")
+          FIND_PROGRAM(ALTERNATIVE_GPP g++
+            NO_DEFAULT_PATH
+            PATHS "${OPT_PATH}/root/usr/bin")
+          FIND_PROGRAM(ALTERNATIVE_ENABLE enable
+            NO_DEFAULT_PATH
+            PATHS "${OPT_PATH}")
+        ENDFOREACH()
 
-        FIND_PROGRAM(ALTERNATIVE_GCC gcc
-          NO_DEFAULT_PATH
-          PATHS "/opt/rh/devtoolset-8/root/usr/bin")
-        FIND_PROGRAM(ALTERNATIVE_GPP g++
-          NO_DEFAULT_PATH
-          PATHS "/opt/rh/devtoolset-8/root/usr/bin")
-        FIND_PROGRAM(ALTERNATIVE_ENABLE enable
-          NO_DEFAULT_PATH
-          PATHS "/opt/rh/devtoolset-8/")
         IF(ALTERNATIVE_GCC AND ALTERNATIVE_GPP)
           SET(CMAKE_C_COMPILER ${ALTERNATIVE_GCC})
           SET(CMAKE_CXX_COMPILER ${ALTERNATIVE_GPP})
@@ -400,6 +415,8 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   SET(MY_COMPILER_IS_CLANG 1)
 ELSEIF(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
   SET(MY_COMPILER_IS_GNU 1)
+ELSEIF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
+  SET(MY_COMPILER_IS_SUNPRO 1)
 ENDIF()
 
 IF(MY_COMPILER_IS_CLANG OR MY_COMPILER_IS_GNU)
@@ -499,6 +516,8 @@ INCLUDE(icu)
 INCLUDE(libevent)
 INCLUDE(ssl)
 INCLUDE(sasl)
+INCLUDE(ldap)
+INCLUDE(kerberos)
 INCLUDE(rpc)
 INCLUDE(readline)
 INCLUDE(protobuf)
@@ -540,8 +559,27 @@ IF(NOT WITHOUT_SERVER)
   OPTION(WITH_UNIT_TESTS "Compile MySQL with unit tests" ON)
   OPTION(WITH_ROUTER "Build MySQL Router" ON)
 ENDIF()
+
+IF(EXISTS ${CMAKE_SOURCE_DIR}/internal/CMakeLists.txt)
+  SET(WITH_INTERNAL_DEFAULT 1)
+ELSE()
+  SET(WITH_INTERNAL_DEFAULT 0)
+ENDIF()
+
+IF(NOT DEFINED WITH_INTERNAL)
+  SET(WITH_INTERNAL ${WITH_INTERNAL_DEFAULT})
+ENDIF()
+
+# On windows we need a non-standard package for SASL.
+IF(WITH_INTERNAL AND (NOT WIN32 OR WITH_SASL))
+  SET(WITH_AUTHENTICATION_LDAP_DEFAULT ON)
+ELSE()
+  SET(WITH_AUTHENTICATION_LDAP_DEFAULT OFF)
+ENDIF()
+
 OPTION(WITH_AUTHENTICATION_LDAP
-  "Report error if the LDAP authentication plugin cannot be built." OFF)
+  "Report error if the LDAP authentication plugin cannot be built."
+  ${WITH_AUTHENTICATION_LDAP_DEFAULT})
 
 OPTION(WITH_LOCK_ORDER
   "Build the lock order mutex instrumentation code." OFF)
@@ -552,6 +590,17 @@ IF(WITH_LOCK_ORDER)
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     )
 ENDIF()
+
+IF(DEFINED WITH_LTO_DEFAULT)
+  SET(WITH_LTO_DEFAULT ${WITH_LTO_DEFAULT})
+ELSE()
+  SET(WITH_LTO_DEFAULT OFF)
+ENDIF()
+
+OPTION(WITH_LTO
+  "Enable the link-time optimizer. Currently works for gcc7/gcc8/gcc9/macos only."
+  ${WITH_LTO_DEFAULT}
+  )
 
 include(CheckCSourceCompiles)
 include(CheckCXXSourceCompiles)
@@ -753,7 +802,8 @@ ENDIF()
 
 # Use lld for Clang if available and not explicitly disabled.
 # Also works for gcc on Debian/Ubuntu. Do 'apt install lld'.
-IF(LINUX)
+# LTO build fails with lld, so turn it off by default.
+IF(LINUX AND NOT WITH_LTO)
   OPTION(USE_LD_LLD "Use llvm lld linker" ON)
 ELSE()
   OPTION(USE_LD_LLD "Use llvm lld linker" OFF)
@@ -1026,7 +1076,6 @@ INCLUDE(configure.cmake)
 
 # Common defines and includes
 ADD_DEFINITIONS(-DHAVE_CONFIG_H)
-ADD_DEFINITIONS(-DHAVE_OPENSSL)            # TODO: remove #ifdef from C++ code
 ADD_DEFINITIONS(-D__STDC_LIMIT_MACROS)     # Enable C99 limit macros
 ADD_DEFINITIONS(-D__STDC_FORMAT_MACROS)    # Enable C99 printf format macros
 ADD_DEFINITIONS(-D_USE_MATH_DEFINES)       # Get access to M_PI, M_E, etc. in math.h
@@ -1045,45 +1094,43 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/include
   )
 
-
-IF(DEFINED WITH_LTO_DEFAULT)
-  SET(WITH_LTO_DEFAULT ${WITH_LTO_DEFAULT})
-ELSE()
-  SET(WITH_LTO_DEFAULT OFF)
-ENDIF()
-
-OPTION(WITH_LTO
-  "Enable the link-time optimizer. Currently works for gcc7/gcc8 only."
-  ${WITH_LTO_DEFAULT}
-  )
 IF(WITH_LTO)
-  MY_CHECK_CXX_COMPILER_FLAG("-flto" CXX_LTO_RESULT)
-  IF(NOT CXX_LTO_RESULT)
-    MESSAGE(FATAL_ERROR "Compiler does not support -flto")
-  ENDIF()
-  STRING_APPEND(CMAKE_C_FLAGS   " -flto")
-  STRING_APPEND(CMAKE_CXX_FLAGS " -flto")
-
-  # Test for parallel linking.
-  SET(NUM_PROCESSING_UNITS 4)
-  MY_CHECK_CXX_COMPILER_FLAG(
-    "-flto=${NUM_PROCESSING_UNITS}" CXX_LTO_PARALLEL_RESULT)
-  IF(CXX_LTO_PARALLEL_RESULT)
-    FIND_PROGRAM(NPROC_EXECUTABLE nproc)
-    IF(NPROC_EXECUTABLE)
-      EXECUTE_PROCESS(COMMAND ${NPROC_EXECUTABLE}
-        OUTPUT_VARIABLE NPROC_NUM
-        RESULT_VARIABLE NPROC_RESULT
-        OUTPUT_STRIP_TRAILING_WHITESPACE)
-      IF(NOT NPROC_RESULT)
-        SET(NUM_PROCESSING_UNITS ${NPROC_NUM})
-      ENDIF()
-    ENDIF()
-    STRING_APPEND(CMAKE_CXX_LINK_FLAGS      " -flto=${NUM_PROCESSING_UNITS}")
-    STRING_APPEND(CMAKE_SHARED_LINKER_FLAGS " -flto=${NUM_PROCESSING_UNITS}")
+  IF(APPLE)
+    # Requires CMake 3.9+
+    INCLUDE(CheckIPOSupported)
+    # Will terminate cmake if the check fails.
+    CHECK_IPO_SUPPORTED()
+    # macOS has problems with enabling LTO for shared libs, so we only set it
+    # as target property for mysqld later.
   ELSE()
-    STRING_APPEND(CMAKE_CXX_LINK_FLAGS      " -flto")
-    STRING_APPEND(CMAKE_SHARED_LINKER_FLAGS " -flto")
+    MY_CHECK_CXX_COMPILER_FLAG("-flto" CXX_LTO_RESULT)
+    IF(NOT CXX_LTO_RESULT)
+      MESSAGE(FATAL_ERROR "Compiler does not support -flto")
+    ENDIF()
+    STRING_APPEND(CMAKE_C_FLAGS   " -flto")
+    STRING_APPEND(CMAKE_CXX_FLAGS " -flto")
+
+    # Test for parallel linking.
+    SET(NUM_PROCESSING_UNITS 4)
+    MY_CHECK_CXX_COMPILER_FLAG(
+      "-flto=${NUM_PROCESSING_UNITS}" CXX_LTO_PARALLEL_RESULT)
+    IF(CXX_LTO_PARALLEL_RESULT)
+      FIND_PROGRAM(NPROC_EXECUTABLE nproc)
+      IF(NPROC_EXECUTABLE)
+        EXECUTE_PROCESS(COMMAND ${NPROC_EXECUTABLE}
+          OUTPUT_VARIABLE NPROC_NUM
+          RESULT_VARIABLE NPROC_RESULT
+          OUTPUT_STRIP_TRAILING_WHITESPACE)
+        IF(NOT NPROC_RESULT)
+          SET(NUM_PROCESSING_UNITS ${NPROC_NUM})
+        ENDIF()
+      ENDIF()
+      STRING_APPEND(CMAKE_CXX_LINK_FLAGS      " -flto=${NUM_PROCESSING_UNITS}")
+      STRING_APPEND(CMAKE_SHARED_LINKER_FLAGS " -flto=${NUM_PROCESSING_UNITS}")
+    ELSE()
+      STRING_APPEND(CMAKE_CXX_LINK_FLAGS      " -flto")
+      STRING_APPEND(CMAKE_SHARED_LINKER_FLAGS " -flto")
+    ENDIF()
   ENDIF()
 
   # On some platforms (Fedora) we *must* use gcc-ar / gcc-ranlib
@@ -1187,9 +1234,106 @@ IF(BUILD_BUNDLED_ZSTD)
   ADD_SUBDIRECTORY(extra/zstd)
 ENDIF()
 
-# Add system openssl.
+IF(LINUX)
+  # Look up patchelf(1) here, before doing SSL/KERBEROS/SASL/LDAP config.
+  FIND_PROGRAM(PATCHELF_EXECUTABLE patchelf)
+  ADD_CUSTOM_TARGET(copy_linux_custom_dlls)
+  SET(KNOWN_CUSTOM_LIBRARIES "" CACHE INTERNAL "" FORCE)
+ENDIF()
+
+# If all custom packages are in the same directory:
+IF(WITH_CUSTOM_LIBRARIES)
+  FILE(GLOB WITH_SSL      "${WITH_CUSTOM_LIBRARIES}/openssl*")
+  FILE(GLOB WITH_KERBEROS "${WITH_CUSTOM_LIBRARIES}/krb5*")
+  FILE(GLOB WITH_SASL     "${WITH_CUSTOM_LIBRARIES}/cyrus-sasl*")
+  FILE(GLOB WITH_LDAP     "${WITH_CUSTOM_LIBRARIES}/openldap*")
+  FOREACH(WITH_OPT WITH_SSL WITH_KERBEROS WITH_SASL WITH_LDAP)
+    IF(IS_DIRECTORY ${${WITH_OPT}})
+      SET(${WITH_OPT} ${${WITH_OPT}} CACHE INTERNAL "" FORCE)
+      MESSAGE(STATUS "${WITH_OPT} ${${WITH_SSL}}")
+    ELSE()
+      MESSAGE(WARNING "${WITH_OPT} not found") # This should be FATAL_ERROR
+    ENDIF()
+  ENDFOREACH()
+ENDIF()
+
+# Add system/custom openssl.
 MYSQL_CHECK_SSL()
 MYSQL_CHECK_SSL_DLLS()
+
+# Add Kerberos library
+MYSQL_CHECK_KERBEROS()
+MYSQL_CHECK_KERBEROS_DLLS()
+
+# Add SASL library
+MYSQL_CHECK_SASL()
+MYSQL_CHECK_SASL_DLLS()
+
+# Add LDAP library
+MYSQL_CHECK_LDAP()
+MYSQL_CHECK_LDAP_DLLS()
+
+# Custom versions of LDAP / SASL / SSL.
+IF(LINUX AND KNOWN_CUSTOM_LIBRARIES)
+  # Custom libraries are not targets, we install them as FILES.
+  # INSTALL_RPATH must must be set depending on binary type
+  # EXECUTABLE MODULE_LIBRARY SHARED_LIBRARY, see ADD_INSTALL_RPATH_FOR_OPENSSL
+  SET(LINUX_INSTALL_RPATH_ORIGIN 1)
+
+  # Debug versions of plugins may be installed to <root>/lib/plugin/debug
+  FOREACH(LINK_FLAG
+      CMAKE_MODULE_LINKER_FLAGS_DEBUG
+      CMAKE_SHARED_LINKER_FLAGS_DEBUG
+      )
+    STRING_APPEND(${LINK_FLAG} " -Wl,-rpath,'\$ORIGIN/../../private'")
+    MESSAGE(STATUS "${LINK_FLAG} ${${LINK_FLAG}}")
+  ENDFOREACH()
+  IF(NOT PATCHELF_EXECUTABLE)
+    MESSAGE(FATAL_ERROR "Please install the patchelf(1) utility.")
+  ENDIF()
+  VERIFY_CUSTOM_LIBRARY_DEPENDENCIES()
+ENDIF()
+
+IF(WITH_AUTHENTICATION_LDAP)
+  IF(LINUX AND KNOWN_CUSTOM_LIBRARIES)
+    # LDAP / SASL / KERBEROS / SSL must all be "system" or "custom", not a mix.
+    IF(WITH_LDAP STREQUAL "system" OR
+        WITH_SASL STREQUAL "system" OR
+#       WITH_KERBEROS STREQUAL "system" OR # enable this later
+        WITH_SSL STREQUAL "system")
+      MESSAGE(WARNING "-DWITH_AUTHENTICATION_LDAP=ON")
+      MESSAGE(FATAL_ERROR "Inconsistent options for LDAP/SASL/KERBEROS/SSL")
+    ENDIF()
+  ELSEIF(WIN32)
+    # system LDAP, but SASL needs to be explicitly added
+    IF(NOT SASL_LIBRARY_DLL OR NOT SASL_SCRAM_PLUGIN)
+      MESSAGE(WARNING "-DWITH_AUTHENTICATION_LDAP=ON")
+      MESSAGE(FATAL_ERROR "Missing SASL and/or SCRAM libraries.")
+    ENDIF()
+  ELSEIF(APPLE)
+    # system LDAP and SASL, but there is no scram plugin.
+  ELSEIF(SOLARIS)
+    # 11.3 has system LDAP and SASL, but there is no scram plugin.
+  ELSE()
+    # We must have "system" LDAP, KERBEROS and SASL (SSL is always required)
+    SET(LDAP_WARN_GIVEN)
+    SET(SASL_WARN_GIVEN)
+    SET(KERBEROS_WARN_GIVEN)
+    WARN_MISSING_SYSTEM_LDAP(LDAP_WARN_GIVEN)
+    WARN_MISSING_SYSTEM_SASL(SASL_WARN_GIVEN)
+    WARN_MISSING_SYSTEM_KERBEROS(KERBEROS_WARN_GIVEN)
+    IF(LDAP_WARN_GIVEN OR SASL_WARN_GIVEN OR KERBEROS_WARN_GIVEN)
+      # SUSE linux: may or may not have SCRAM, do not break the build.
+      IF(LINUX_SUSE)
+        MESSAGE(WARNING
+          "-DWITH_AUTHENTICATION_LDAP=ON, but missing system libraries")
+      ELSE()
+        MESSAGE(FATAL_ERROR
+          "-DWITH_AUTHENTICATION_LDAP=ON, but missing system libraries")
+      ENDIF()
+    ENDIF()
+  ENDIF()
+ENDIF()
 
 # Add system/bundled editline.
 MYSQL_CHECK_EDITLINE()
@@ -1199,8 +1343,6 @@ MYSQL_CHECK_LIBEVENT()
 MYSQL_CHECK_LZ4()
 # Add icu library
 MYSQL_CHECK_ICU()
-# Add SASL library
-MYSQL_CHECK_SASL()
 # Add protoc and libprotobuf
 IF(NOT WITHOUT_SERVER)
   MYSQL_CHECK_PROTOBUF()
@@ -1261,6 +1403,8 @@ IF(LINUX)
 ENDIF()
 
 IF(WITH_PROTOBUF STREQUAL "bundled")
+  # Protobuf library is a target, installed to <root>/${INSTALL_PRIV_LIBDIR}
+  # INSTALL_RPATH must be set for all binaries linking with libprotobuf.
   SET(UNIX_INSTALL_RPATH_ORIGIN_PRIV_LIBDIR 1)
   ADD_SUBDIRECTORY(extra/protobuf)
 ENDIF()
@@ -1297,7 +1441,8 @@ IF(NOT WITHOUT_SERVER)
   # We *could* test 'uname -v' VERSION_LESS 11.4 here.
   # A clean build takes roughly the same time with or without -xO1
   # Link time of mysqld is roughly 10% faster with -xO1.
-  IF(SOLARIS_SPARC AND CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG")
+  IF(SOLARIS_SPARC AND MY_COMPILER_IS_SUNPRO AND
+      CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG")
     MESSAGE(STATUS
       "Adding -xO1 for debug builds on Solaris ${MY_KERNEL_VERSION}")
     STRING_APPEND(CMAKE_CXX_FLAGS_DEBUG " -xO1")
@@ -1345,6 +1490,7 @@ IF(NOT WITHOUT_SERVER AND WITH_UNIT_TESTS)
   ADD_LIBRARY(server_unittest_library STATIC ${DUMMY_SOURCE_FILE})
   TARGET_LINK_LIBRARIES(server_unittest_library perfschema)
   TARGET_LINK_LIBRARIES(server_unittest_library sql_main)
+  TARGET_LINK_LIBRARIES(server_unittest_library minchassis)
   TARGET_LINK_LIBRARIES(server_unittest_library ${ICU_LIBRARIES})
 ENDIF()
 
@@ -1356,7 +1502,7 @@ IF(NOT WITHOUT_SERVER)
   ADD_SUBDIRECTORY(mysql-test)
   ADD_SUBDIRECTORY(mysql-test/lib/My/SafeProcess)
   ADD_SUBDIRECTORY(support-files)
-  IF(EXISTS ${CMAKE_SOURCE_DIR}/internal/CMakeLists.txt)
+  IF(WITH_INTERNAL)
     ADD_SUBDIRECTORY(internal)
   ENDIF()
 ENDIF()
@@ -1515,7 +1661,12 @@ IF(UNIX)
     COMMAND ${CMAKE_COMMAND} -E make_directory plugin_output_directory
     COMMAND ${CMAKE_COMMAND} -E make_directory runtime_output_directory
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-  )
+    )
+  IF(SASL_CUSTOM_LIBRARY)
+    EXECUTE_PROCESS(
+      COMMAND ${CMAKE_COMMAND} -E make_directory library_output_directory/sasl2
+    )
+  ENDIF()
 ENDIF()
 
 # Pre-create directories for library_output_directory and

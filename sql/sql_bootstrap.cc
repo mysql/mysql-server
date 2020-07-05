@@ -137,7 +137,7 @@ int read_bootstrap_query(char *query, size_t *query_length, MYSQL_FILE *input,
       return READ_BOOTSTRAP_IO;
     }
 
-    if (line == NULL) {
+    if (line == nullptr) {
       if (query_len == 0) {
         state->m_last_error = READ_BOOTSTRAP_EOF;
         return READ_BOOTSTRAP_EOF;

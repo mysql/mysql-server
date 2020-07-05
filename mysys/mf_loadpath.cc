@@ -84,7 +84,7 @@ char *my_load_path(char *to, const char *path, const char *own_path_prefix) {
     and path is not a hard-path.
     If path is hard path or home dir, return the path.
   */
-  else if (own_path_prefix != NULL &&
+  else if (own_path_prefix != nullptr &&
            !(path[0] == FN_HOMELIB && path[1] == FN_LIBCHAR) &&
            !test_if_hard_path(path)) {
     (void)strxnmov(buff, sizeof(buff) - 1, own_path_prefix, path, NullS);

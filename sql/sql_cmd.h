@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -195,6 +195,14 @@ class Sql_cmd {
   */
   const handlerton *secondary_engine() const { return m_secondary_engine; }
 
+  void set_optional_transform_prepared(bool value) {
+    m_prepared_with_optional_transform = value;
+  }
+
+  bool is_optional_transform_prepared() {
+    return m_prepared_with_optional_transform;
+  }
+
  protected:
   Sql_cmd() : m_owner(nullptr), m_prepared(false), prepare_only(true) {}
 
@@ -231,6 +239,12 @@ class Sql_cmd {
     not be considered for executing this statement.
   */
   bool m_secondary_engine_enabled{true};
+
+  /**
+    Keeps track of whether the statement was prepared optional
+    transformation.
+  */
+  bool m_prepared_with_optional_transform{false};
 
   /**
     The secondary storage engine to use for execution of this

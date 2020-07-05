@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2018, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -592,7 +592,7 @@ static bool drop_remnants(bool force) {
   if (!redo_log_archive_file_pathname.empty()) {
     /* purecov: begin inspected */
     os_file_delete_if_exists(redo_log_archive_file_key,
-                             redo_log_archive_file_pathname.c_str(), NULL);
+                             redo_log_archive_file_pathname.c_str(), nullptr);
     /* purecov: end */
   }
   return false;
@@ -641,12 +641,17 @@ void redo_log_archive_deinit() {
 int validate_redo_log_archive_dirs(THD *thd MY_ATTRIBUTE((unused)),
                                    SYS_VAR *var MY_ATTRIBUTE((unused)),
                                    void *save, struct st_mysql_value *value) {
-  ut_a(save != NULL);
-  ut_a(value != NULL);
+  ut_a(save != nullptr);
+  ut_a(value != nullptr);
   char buff[STRING_BUFFER_USUAL_SIZE];
   int len = sizeof(buff);
   int ret = 0;
   const char *irla_dirs = value->val_str(value, buff, &len);
+
+  if (irla_dirs && (irla_dirs == buff)) {
+    irla_dirs = thd_strmake(thd, irla_dirs, len);
+  }
+
   /* Parse the variable contents. */
   const char *ptr = irla_dirs;
   while ((ptr != nullptr) && (*ptr != '\0')) {
@@ -1223,7 +1228,7 @@ static bool redo_log_archive_start(THD *thd, const char *label,
       /* Found cases, where the file had been created in spite of !success. */
       /* purecov: begin inspected */
       os_file_delete_if_exists(redo_log_archive_file_key, file_pathname.c_str(),
-                               NULL);
+                               nullptr);
       /* purecov: end */
     }
     my_error(ER_INNODB_REDO_LOG_ARCHIVE_FILE_CREATE, MYF(0),
@@ -1243,7 +1248,7 @@ static bool redo_log_archive_start(THD *thd, const char *label,
   if (consume_event == nullptr) {
     os_file_close(file_handle);
     os_file_delete_if_exists(redo_log_archive_file_key, file_pathname.c_str(),
-                             NULL);
+                             nullptr);
     my_error(ER_STD_BAD_ALLOC_ERROR, MYF(0), "redo_log_archive_consume_event",
              "redo_log_archive_start");
     mutex_exit(&redo_log_archive_admin_mutex);
@@ -1308,7 +1313,7 @@ static bool redo_log_archive_start(THD *thd, const char *label,
       redo_log_archive_file_handle.m_file = OS_FILE_CLOSED;
     }
     os_file_delete_if_exists(redo_log_archive_file_key,
-                             redo_log_archive_file_pathname.c_str(), NULL);
+                             redo_log_archive_file_pathname.c_str(), nullptr);
     redo_log_archive_file_pathname.clear();
     /* Keep recorded_error */
     redo_log_archive_session_ending = false;
@@ -1429,7 +1434,7 @@ static bool redo_log_archive_stop(THD *thd) {
     DBUG_PRINT("redo_log_archive", ("Delete redo log archive file '%s'",
                                     redo_log_archive_file_pathname.c_str()));
     os_file_delete_if_exists(redo_log_archive_file_key,
-                             redo_log_archive_file_pathname.c_str(), NULL);
+                             redo_log_archive_file_pathname.c_str(), nullptr);
   }
   redo_log_archive_file_pathname.clear();
   /* Keep recorded_error */
@@ -1809,7 +1814,7 @@ static void redo_log_archive_consumer() {
     /* purecov: begin inspected */
     if (!redo_log_archive_file_pathname.empty()) {
       os_file_delete_if_exists(redo_log_archive_file_key,
-                               redo_log_archive_file_pathname.c_str(), NULL);
+                               redo_log_archive_file_pathname.c_str(), nullptr);
       /*
         Do not clear the filename here. Redo log archiving is not yet inactive.
       */

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -33,20 +33,20 @@
  */
 
 #include "mysql/harness/config_parser.h"
-#include "mysql/harness/filesystem.h"
-
-#include "utilities.h"
 
 #include <algorithm>
 #include <cassert>
 #include <fstream>
 #include <ios>
+#include <iterator>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 
+#include "mysql/harness/filesystem.h"
+#include "utilities.h"
+
 using std::ostringstream;
-using std::shared_ptr;
 
 using mysql_harness::utility::find_range_first;
 using mysql_harness::utility::matches_glob;
@@ -350,7 +350,8 @@ void Config::do_read_file(const Path &path) {
 }
 
 void Config::do_read_stream(std::istream &input) {
-  ConfigSection *current = NULL;
+  ConfigSection *current = nullptr;
+
   std::string line;
   while (getline(input, line)) {
     strip(&line);
@@ -366,39 +367,54 @@ void Config::do_read_stream(std::istream &input) {
         throw syntax_error(message);
       }
 
-      // Remove leading and trailing brackets
-      line.erase(0, 1);
-      line.erase(line.size() - 1);
-
       // Extract the key, if configured to allow keys. Otherwise, the
       // key will be the empty string and the section name is all
       // within the brackets.
-      std::string section_name(line);
+      std::string section_name(std::next(line.begin()), std::prev(line.end()));
       std::string section_key;
       if (flags_ & allow_keys) {
         // Split line at first colon
-        auto pos = line.find_last_of(':');
-        if (pos != std::string::npos) {
-          section_key = std::string(line, pos + 1);
+        const auto colon_pos = section_name.find_first_of(':');
 
-          // Check that the section key is correct
-          if (section_key.size() == 0 ||
-              !std::all_of(section_key.begin(), section_key.end(), isident)) {
-            std::string message("Invalid section key '" + section_key + "'");
+        // found a colon
+        if (colon_pos != std::string::npos) {
+          section_key = std::string(section_name, colon_pos + 1);
+
+          if (section_key.empty()) {
+            const std::string message("section key in config-section '" + line +
+                                      "' may not be empty.");
             throw syntax_error(message);
           }
 
-          section_name.erase(pos);
+          // Check that the section key is correct
+          const auto invalid_char_pos =
+              std::find_if_not(section_key.begin(), section_key.end(), isident);
+          if (section_key.end() != invalid_char_pos) {
+            const std::string message(
+                "config-section '" + line + "' contains invalid character '" +
+                *invalid_char_pos + "' in section key '" + section_key +
+                "'. Only alpha-numeric characters and _ are valid.");
+            throw syntax_error(message);
+          }
+
+          section_name.erase(colon_pos);
         }
       }
 
+      if (section_name.empty()) {
+        const std::string message("section name in config-section '" + line +
+                                  "' may not be empty.");
+        throw syntax_error(message);
+      }
+
       // Check that the section name consists of allowable characters only
-      if (!std::all_of(section_name.begin(), section_name.end(), isident)) {
-        std::string message("Invalid section name '" + section_name + "'");
-        if (!(flags_ & allow_keys) &&
-            line.find_last_of(':') != std::string::npos) {
-          message += " (keys not configured)";
-        }
+      const auto invalid_char_pos =
+          std::find_if_not(section_name.begin(), section_name.end(), isident);
+      if (section_name.end() != invalid_char_pos) {
+        std::string message(
+            "config-section '" + line + "' contains invalid character '" +
+            *invalid_char_pos + "' in section name '" + section_name +
+            "'. Only alpha-numeric characters and _ are valid.");
         throw syntax_error(message);
       }
 
@@ -416,7 +432,7 @@ void Config::do_read_stream(std::istream &input) {
         current = &add(section_name,
                        section_key);  // throws syntax_error, bad_section
     } else {                          // if (line[0] != '[')
-      if (current == NULL)
+      if (current == nullptr)
         throw syntax_error("Option line before start of section");
       // Got option line
       std::string::size_type pos = line.find_first_of(":=");
@@ -434,8 +450,6 @@ void Config::do_read_stream(std::istream &input) {
       current->add(option, value);  // throws syntax_error, bad_section
     }
   }
-
-  if (line.size() > 0) throw syntax_error("Unterminated last line");
 }
 
 bool Config::empty() const { return sections_.empty(); }

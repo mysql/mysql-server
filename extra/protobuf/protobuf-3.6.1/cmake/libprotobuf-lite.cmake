@@ -103,7 +103,7 @@ IF(protobuf_BUILD_SHARED_LIBS)
     ELSEIF(UNIX)
       INSTALL(TARGETS libprotobuf-lite
         LIBRARY
-        DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
+        DESTINATION "${ROUTER_INSTALL_LIBDIR}"
         COMPONENT Router
         NAMELINK_SKIP
         )

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -84,8 +84,13 @@
 #define PFS_MAX_MEMORY_CLASS 450
 #endif
 
-#ifndef PFS_MAX_SERVER_ERRORS
-#define PFS_MAX_SERVER_ERRORS ((total_error_count - obsolete_error_count) + 1)
+#ifndef PFS_MAX_GLOBAL_SERVER_ERRORS
+#define PFS_MAX_GLOBAL_SERVER_ERRORS \
+  (1 + pfs_session_error_stat_count + pfs_global_error_stat_count)
+#endif
+
+#ifndef PFS_MAX_SESSION_SERVER_ERRORS
+#define PFS_MAX_SESSION_SERVER_ERRORS (1 + pfs_session_error_stat_count)
 #endif
 
 /** Sizing hints, from the server configuration. */
@@ -317,8 +322,7 @@ void pre_initialize_performance_schema();
   @param [out] error_bootstrap Error instrumentation service bootstrap
   @param [out] data_lock_bootstrap Data Lock instrumentation service bootstrap
   @param [out] system_bootstrap System instrumentation service bootstrap
-  @returns
-    @retval 0 success
+  @retval 0 success
 */
 int initialize_performance_schema(
     PFS_global_param *param, PSI_thread_bootstrap **thread_bootstrap,

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -70,15 +70,15 @@ static ib_list_node_t *ib_list_add_after(
 
     ut_a(!prev_node);
 
-    node->prev = NULL;
-    node->next = NULL;
+    node->prev = nullptr;
+    node->next = nullptr;
 
     list->first = node;
     list->last = node;
   } else if (!prev_node) {
     /* Start of list. */
 
-    node->prev = NULL;
+    node->prev = nullptr;
     node->next = list->first;
 
     list->first->prev = node;
@@ -136,5 +136,5 @@ void ib_list_remove(ib_list_t *list,      /*!< in: list */
     list->last = node->prev;
   }
 
-  node->prev = node->next = NULL;
+  node->prev = node->next = nullptr;
 }

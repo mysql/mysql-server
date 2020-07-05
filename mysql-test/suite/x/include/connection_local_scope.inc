@@ -23,7 +23,7 @@
 --enable_result_log
 --enable_query_log
 
---let $accounts_host=/$ip%$interface/localhost/
+--let $accounts_host=/$ip%$interface/localhost/ /user1@[a-zA-Z0-9:._%-]+/user1@localhost/ /'user2'@'[^']+'/'user2'@'localhost'/
 
 --echo # Account user1 was created with interface name.
 --echo # The authentication must be succesful

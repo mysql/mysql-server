@@ -74,6 +74,12 @@
 --source include/have_debug.inc
 --source include/master-slave.inc
 
+# this test case requires that certain events appear in a given
+# order in the relay log. With compression, only GTID and a
+# Transaction_payload event shall appear, which makes this test
+# case invalid in that scenario.
+--source include/not_binlog_transaction_compression_on.inc
+
 --disable_warnings
 call mtr.add_suppression("Recovery from master pos .*");
 call mtr.add_suppression("Error in Log_event::read_log_event()");

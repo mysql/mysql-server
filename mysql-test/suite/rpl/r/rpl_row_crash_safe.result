@@ -26,6 +26,7 @@ slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
   `Privilege_checks_username` char(32) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL COMMENT 'Username part of PRIVILEGE_CHECKS_USER.',
   `Privilege_checks_hostname` char(255) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL COMMENT 'Hostname part of PRIVILEGE_CHECKS_USER.',
   `Require_row_format` tinyint(1) NOT NULL COMMENT 'Indicates whether the channel shall only accept row based events.',
+  `Require_table_primary_key_check` enum('STREAM','ON','OFF') NOT NULL DEFAULT 'STREAM' COMMENT 'Indicates what is the channel policy regarding tables having primary keys on create and alter table queries',
   PRIMARY KEY (`Channel_name`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Relay Log Information'
 SHOW CREATE TABLE mysql.slave_worker_info;
@@ -63,6 +64,7 @@ slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
   `Privilege_checks_username` char(32) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL COMMENT 'Username part of PRIVILEGE_CHECKS_USER.',
   `Privilege_checks_hostname` char(255) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL COMMENT 'Hostname part of PRIVILEGE_CHECKS_USER.',
   `Require_row_format` tinyint(1) NOT NULL COMMENT 'Indicates whether the channel shall only accept row based events.',
+  `Require_table_primary_key_check` enum('STREAM','ON','OFF') NOT NULL DEFAULT 'STREAM' COMMENT 'Indicates what is the channel policy regarding tables having primary keys on create and alter table queries',
   PRIMARY KEY (`Channel_name`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Relay Log Information'
 SHOW CREATE TABLE mysql.slave_worker_info;
@@ -199,16 +201,16 @@ FAILURE d,crash_after_apply and OUTCOME O2
 rpl_mixing_engines.inc [commands=T]
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (7, 1);
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -228,8 +230,8 @@ FAILURE d,crash_after_apply and OUTCOME O2
 rpl_mixing_engines.inc [commands=T-trig]
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_5(trans_id, stmt_id) VALUES (8, 1);
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -238,8 +240,8 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -263,8 +265,8 @@ rpl_mixing_engines.inc [commands=T-func]
 SELECT fc_i_tt_5_suc (9, 1);
 fc_i_tt_5_suc (9, 1)
 fc_i_tt_5_suc
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -275,8 +277,8 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -300,15 +302,14 @@ FAILURE d,crash_after_apply and OUTCOME O2
 rpl_mixing_engines.inc [commands=T-proc]
 -b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_tt_5_suc (10, 1);
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
 master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -317,15 +318,14 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
 master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -347,20 +347,20 @@ FAILURE d,crash_after_apply and OUTCOME O2
 rpl_mixing_engines.inc [commands=B T T-trig C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (11, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_5(trans_id, stmt_id) VALUES (11, 4);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -371,8 +371,8 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T-trig C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -396,22 +396,22 @@ FAILURE d,crash_after_apply and OUTCOME O2
 rpl_mixing_engines.inc [commands=B T T-func C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (12, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
 SELECT fc_i_tt_5_suc (12, 4);
 fc_i_tt_5_suc (12, 4)
 fc_i_tt_5_suc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -424,8 +424,8 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T-func C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -451,20 +451,20 @@ FAILURE d,crash_after_apply and OUTCOME O2
 rpl_mixing_engines.inc [commands=B T T-proc C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (13, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_tt_5_suc (13, 4);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -479,8 +479,8 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T-proc C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -508,20 +508,20 @@ FAILURE d,crash_after_apply and OUTCOME O2
 rpl_mixing_engines.inc [commands=B T-trig T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_5(trans_id, stmt_id) VALUES (14, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (14, 4);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -532,8 +532,8 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-trig T C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -557,22 +557,22 @@ FAILURE d,crash_after_apply and OUTCOME O2
 rpl_mixing_engines.inc [commands=B T-func T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
 SELECT fc_i_tt_5_suc (15, 2);
 fc_i_tt_5_suc (15, 2)
 fc_i_tt_5_suc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (15, 4);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -585,8 +585,8 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-func T C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -612,20 +612,20 @@ FAILURE d,crash_after_apply and OUTCOME O2
 rpl_mixing_engines.inc [commands=B T-proc T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_tt_5_suc (16, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (16, 4);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -640,8 +640,8 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-proc T C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -669,16 +669,16 @@ FAILURE d,crash_before_update_pos and OUTCOME O1
 rpl_mixing_engines.inc [commands=T]
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (17, 1);
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -698,8 +698,8 @@ FAILURE d,crash_before_update_pos and OUTCOME O1
 rpl_mixing_engines.inc [commands=T-trig]
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_5(trans_id, stmt_id) VALUES (18, 1);
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -708,8 +708,8 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -733,8 +733,8 @@ rpl_mixing_engines.inc [commands=T-func]
 SELECT fc_i_tt_5_suc (19, 1);
 fc_i_tt_5_suc (19, 1)
 fc_i_tt_5_suc
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -745,8 +745,8 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -770,15 +770,14 @@ FAILURE d,crash_before_update_pos and OUTCOME O1
 rpl_mixing_engines.inc [commands=T-proc]
 -b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_tt_5_suc (20, 1);
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
 master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -787,15 +786,14 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
 master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -817,20 +815,20 @@ FAILURE d,crash_before_update_pos and OUTCOME O1
 rpl_mixing_engines.inc [commands=B T T-trig C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (21, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_5(trans_id, stmt_id) VALUES (21, 4);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -841,8 +839,8 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T-trig C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -866,22 +864,22 @@ FAILURE d,crash_before_update_pos and OUTCOME O1
 rpl_mixing_engines.inc [commands=B T T-func C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (22, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
 SELECT fc_i_tt_5_suc (22, 4);
 fc_i_tt_5_suc (22, 4)
 fc_i_tt_5_suc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -894,8 +892,8 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T-func C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -921,20 +919,20 @@ FAILURE d,crash_before_update_pos and OUTCOME O1
 rpl_mixing_engines.inc [commands=B T T-proc C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (23, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_tt_5_suc (23, 4);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -949,8 +947,8 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T-proc C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -978,20 +976,20 @@ FAILURE d,crash_before_update_pos and OUTCOME O1
 rpl_mixing_engines.inc [commands=B T-trig T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_5(trans_id, stmt_id) VALUES (24, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (24, 4);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -1002,8 +1000,8 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-trig T C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -1027,22 +1025,22 @@ FAILURE d,crash_before_update_pos and OUTCOME O1
 rpl_mixing_engines.inc [commands=B T-func T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
 SELECT fc_i_tt_5_suc (25, 2);
 fc_i_tt_5_suc (25, 2)
 fc_i_tt_5_suc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (25, 4);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -1055,8 +1053,8 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-func T C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -1082,20 +1080,20 @@ FAILURE d,crash_before_update_pos and OUTCOME O1
 rpl_mixing_engines.inc [commands=B T-proc T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_tt_5_suc (26, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (26, 4);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -1110,8 +1108,8 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-proc T C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -1139,16 +1137,16 @@ FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
 rpl_mixing_engines.inc [commands=T]
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (27, 1);
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -1168,8 +1166,8 @@ FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
 rpl_mixing_engines.inc [commands=T-trig]
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_5(trans_id, stmt_id) VALUES (28, 1);
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -1178,8 +1176,8 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -1203,8 +1201,8 @@ rpl_mixing_engines.inc [commands=T-func]
 SELECT fc_i_tt_5_suc (29, 1);
 fc_i_tt_5_suc (29, 1)
 fc_i_tt_5_suc
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -1215,8 +1213,8 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -1240,15 +1238,14 @@ FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
 rpl_mixing_engines.inc [commands=T-proc]
 -b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_tt_5_suc (30, 1);
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
 master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -1257,15 +1254,14 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
 master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -1287,20 +1283,20 @@ FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
 rpl_mixing_engines.inc [commands=B T T-trig C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (31, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_5(trans_id, stmt_id) VALUES (31, 4);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -1311,8 +1307,8 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T-trig C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -1336,22 +1332,22 @@ FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
 rpl_mixing_engines.inc [commands=B T T-func C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (32, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
 SELECT fc_i_tt_5_suc (32, 4);
 fc_i_tt_5_suc (32, 4)
 fc_i_tt_5_suc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -1364,8 +1360,8 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T-func C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -1391,20 +1387,20 @@ FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
 rpl_mixing_engines.inc [commands=B T T-proc C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (33, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_tt_5_suc (33, 4);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -1419,8 +1415,8 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T-proc C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -1448,20 +1444,20 @@ FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
 rpl_mixing_engines.inc [commands=B T-trig T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_5(trans_id, stmt_id) VALUES (34, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (34, 4);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -1472,8 +1468,8 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-trig T C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -1497,22 +1493,22 @@ FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
 rpl_mixing_engines.inc [commands=B T-func T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
 SELECT fc_i_tt_5_suc (35, 2);
 fc_i_tt_5_suc (35, 2)
 fc_i_tt_5_suc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (35, 4);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -1525,8 +1521,8 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-func T C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -1552,20 +1548,20 @@ FAILURE d,crash_after_update_pos_before_apply and OUTCOME O1
 rpl_mixing_engines.inc [commands=B T-proc T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_tt_5_suc (36, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (36, 4);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -1580,8 +1576,8 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-proc T C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -1609,16 +1605,16 @@ FAILURE d,crash_after_commit_before_update_pos and OUTCOME O2
 rpl_mixing_engines.inc [commands=T]
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (37, 1);
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -1638,8 +1634,8 @@ FAILURE d,crash_after_commit_before_update_pos and OUTCOME O2
 rpl_mixing_engines.inc [commands=T-trig]
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_5(trans_id, stmt_id) VALUES (38, 1);
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -1648,8 +1644,8 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -1673,8 +1669,8 @@ rpl_mixing_engines.inc [commands=T-func]
 SELECT fc_i_tt_5_suc (39, 1);
 fc_i_tt_5_suc (39, 1)
 fc_i_tt_5_suc
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -1685,8 +1681,8 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -1710,15 +1706,14 @@ FAILURE d,crash_after_commit_before_update_pos and OUTCOME O2
 rpl_mixing_engines.inc [commands=T-proc]
 -b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_tt_5_suc (40, 1);
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
 master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -1727,15 +1722,14 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
 master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -1757,20 +1751,20 @@ FAILURE d,crash_after_commit_before_update_pos and OUTCOME O2
 rpl_mixing_engines.inc [commands=B T T-trig C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (41, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_5(trans_id, stmt_id) VALUES (41, 4);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -1781,8 +1775,8 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T-trig C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -1806,22 +1800,22 @@ FAILURE d,crash_after_commit_before_update_pos and OUTCOME O2
 rpl_mixing_engines.inc [commands=B T T-func C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (42, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
 SELECT fc_i_tt_5_suc (42, 4);
 fc_i_tt_5_suc (42, 4)
 fc_i_tt_5_suc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -1834,8 +1828,8 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T-func C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -1861,20 +1855,20 @@ FAILURE d,crash_after_commit_before_update_pos and OUTCOME O2
 rpl_mixing_engines.inc [commands=B T T-proc C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (43, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_tt_5_suc (43, 4);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -1889,8 +1883,8 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T-proc C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -1918,20 +1912,20 @@ FAILURE d,crash_after_commit_before_update_pos and OUTCOME O2
 rpl_mixing_engines.inc [commands=B T-trig T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_5(trans_id, stmt_id) VALUES (44, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (44, 4);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -1942,8 +1936,8 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-trig T C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -1967,22 +1961,22 @@ FAILURE d,crash_after_commit_before_update_pos and OUTCOME O2
 rpl_mixing_engines.inc [commands=B T-func T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-func << -b-b-b-b-b-b-b-b-b-b-b-
 SELECT fc_i_tt_5_suc (45, 2);
 fc_i_tt_5_suc (45, 2)
 fc_i_tt_5_suc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (45, 4);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -1995,8 +1989,8 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-func T C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -2022,20 +2016,20 @@ FAILURE d,crash_after_commit_before_update_pos and OUTCOME O2
 rpl_mixing_engines.inc [commands=B T-proc T C]
 -b-b-b-b-b-b-b-b-b-b-b- >> B << -b-b-b-b-b-b-b-b-b-b-b-
 BEGIN;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> B << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T-proc << -b-b-b-b-b-b-b-b-b-b-b-
 CALL pc_i_tt_5_suc (46, 2);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T-proc << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (46, 4);
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+include/show_binlog_events.inc
 -e-e-e-e-e-e-e-e-e-e-e- >> T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
 COMMIT;
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -2050,8 +2044,8 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -e-e-e-e-e-e-e-e-e-e-e- >> C << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T-proc T C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_6)
@@ -2082,16 +2076,16 @@ FAILURE d,crash_after_commit_and_update_pos and OUTCOME O2
 rpl_mixing_engines.inc [commands=N]
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (47, 1);
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
@@ -2111,8 +2105,8 @@ FAILURE d,crash_after_commit_and_update_pos and OUTCOME O2
 rpl_mixing_engines.inc [commands=N-trig]
 -b-b-b-b-b-b-b-b-b-b-b- >> N-trig << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_5(trans_id, stmt_id) VALUES (48, 1);
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_6)
@@ -2121,8 +2115,8 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-trig << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-trig << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_6)
@@ -2146,8 +2140,8 @@ rpl_mixing_engines.inc [commands=N-func]
 SELECT fc_i_nt_5_suc (49, 1);
 fc_i_nt_5_suc (49, 1)
 fc_i_nt_5_suc
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_6)
@@ -2158,8 +2152,8 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> N-func << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N-func << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_5)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_6)

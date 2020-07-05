@@ -1603,6 +1603,8 @@ DROP TABLE t1;
 (select 1 into @var) union (select 1);
 ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 (select 1) union (select 1 into @var);
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
 select @var;
 @var
 1
@@ -1741,8 +1743,14 @@ UNION
 SELECT a FROM t1 WHERE 0
 ) alias;
 SELECT a FROM t1 UNION SELECT a INTO @v FROM t1;
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
 SELECT a FROM t1 UNION SELECT a INTO OUTFILE 'union.out.file5' FROM t1;
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
 SELECT a FROM t1 UNION SELECT a INTO OUTFILE 'union.out.file6' FROM t1;
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
 SELECT a INTO @v FROM t1 UNION SELECT a FROM t1;
 ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT a INTO OUTFILE 'union.out.file7' FROM t1 UNION SELECT a FROM t1;
@@ -3316,4 +3324,21 @@ Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	3
+DROP TABLE t1;
+#
+# Bug #30655712: EMPTY RESULTSET FOR SUBQUERY WITH UNION AND TEXT COLUMN WITH CONSTANT EXPRESSION
+#
+CREATE TABLE t1 (
+pk INTEGER NOT NULL,
+b BLOB,
+PRIMARY KEY (pk)
+);
+INSERT INTO t1 VALUES (1,'');
+EXPLAIN FORMAT=tree SELECT * FROM ( SELECT * FROM t1 WHERE pk=1 UNION SELECT * FROM t1 WHERE FALSE ) d1;
+EXPLAIN
+-> Rows fetched before execution
+
+SELECT * FROM ( SELECT * FROM t1 WHERE pk=1 UNION SELECT * FROM t1 WHERE FALSE ) d1;
+pk	b
+1	
 DROP TABLE t1;

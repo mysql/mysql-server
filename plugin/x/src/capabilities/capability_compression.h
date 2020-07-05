@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,8 @@
 #include "plugin/x/ngs/include/ngs/compression_types.h"
 #include "plugin/x/src/capabilities/handler.h"
 #include "plugin/x/src/capabilities/set_variable_adaptor.h"
-#include "plugin/x/src/xpl_system_variables.h"
+#include "plugin/x/src/helper/optional_value.h"
+#include "plugin/x/src/variables/system_variables.h"
 
 namespace xpl {
 namespace iface {
@@ -40,9 +41,6 @@ namespace iface {
 class Client;
 
 }  // namespace iface
-}  // namespace xpl
-
-namespace xpl {
 
 class Capability_compression : public Capability_handler {
  public:
@@ -61,8 +59,9 @@ class Capability_compression : public Capability_handler {
 
   iface::Client *m_client;
   ngs::Compression_algorithm m_algorithm{ngs::Compression_algorithm::k_none};
-  int32_t m_max_messages{-1};
+  int64_t m_max_messages{-1};
   bool m_combine_messages{true};
+  Optional_value<int64_t> m_level;
 
   const Set_variable_adaptor<ngs::Compression_algorithm> m_algorithms_variable{
       Plugin_system_variables::m_compression_algorithms,

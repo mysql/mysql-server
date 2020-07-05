@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -152,7 +152,7 @@ class Element_map {
     DBUG_ASSERT(element);
     typename Element_map_type::const_iterator it = m_map.find(key);
     if (it == m_map.end())
-      *element = NULL;
+      *element = nullptr;
     else {
       DBUG_ASSERT(it->second);
       *element = it->second;

@@ -111,6 +111,41 @@ localhost
 EOF
 END_OF_PROCEDURE
 
+--write_file $MYSQL_TMP_DIR/create_file_repo_with_no_require_table_primary_key_check.inc END_OF_PROCEDURE
+  --write_file $MYSQLD_DATADIR/$filename
+11
+./slave-relay-bin.000001
+4
+
+0
+0
+0
+1
+
+root
+localhost
+0
+EOF
+END_OF_PROCEDURE
+
+--write_file $MYSQL_TMP_DIR/create_file_repo_with_invalid_require_table_primary_key_check.inc END_OF_PROCEDURE
+  --write_file $MYSQLD_DATADIR/$filename
+12
+./slave-relay-bin.000001
+4
+
+0
+0
+0
+1
+
+root
+localhost
+0
+6
+EOF
+END_OF_PROCEDURE
+
 --let $MYSQLD_DATADIR= `select @@datadir`
 --let $filename = `SELECT @@relay_log_info_file`
 
@@ -137,6 +172,12 @@ if ($sub_testcase == no_flag_no_priv_user) {
 if ($sub_testcase == no_flag_with_priv_user) {
   --source $MYSQL_TMP_DIR/create_file_repo_with_no_require_flag_with_priv_user.inc
 }
+if ($sub_testcase == no_require_table_primary_key_check) {
+  --source $MYSQL_TMP_DIR/create_file_repo_with_no_require_table_primary_key_check.inc
+}
+if ($sub_testcase == invalid_require_table_primary_key_check) {
+  --source $MYSQL_TMP_DIR/create_file_repo_with_invalid_require_table_primary_key_check.inc
+}
 
 --let $rpl_server_parameters= $rpl_server_restart_parameters
 
@@ -149,3 +190,5 @@ if ($sub_testcase == no_flag_with_priv_user) {
 --remove_file $MYSQL_TMP_DIR/create_file_repo_with_PCU_has_@.inc
 --remove_file $MYSQL_TMP_DIR/create_file_repo_with_anon_PCU.inc
 --remove_file $MYSQL_TMP_DIR/create_file_repo_with_nonexist_PCU.inc
+--remove_file $MYSQL_TMP_DIR/create_file_repo_with_no_require_table_primary_key_check.inc
+--remove_file $MYSQL_TMP_DIR/create_file_repo_with_invalid_require_table_primary_key_check.inc

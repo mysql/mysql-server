@@ -137,8 +137,17 @@ c1	c2	c3	c4
 1	a	a	NULL
 2	b	b	2
 DROP TABLE t3;
+Restore metadata and data but do not create indexes
+Confirm that the tables haven't been synced
 SHOW TABLES;
 Tables_in_test
+Rebuild indexes in NDB
+Confirm that the tables have been synced
+SHOW TABLES;
+Tables_in_test
+t1
+t2
+t3
 SELECT * FROM t1;
 c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 1	1	2.5	a	23:59:59	2018-01-30	2018-01-30 13:46:00	b	c	d

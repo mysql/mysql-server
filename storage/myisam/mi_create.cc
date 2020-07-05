@@ -402,8 +402,8 @@ int mi_create(const char *name, uint keys, MI_KEYDEF *keydefs, uint columns,
     block_length =
         (keydef->block_length ? my_round_up_to_next_power(keydef->block_length)
                               : myisam_block_size);
-    block_length = MY_MAX(block_length, MI_MIN_KEY_BLOCK_LENGTH);
-    block_length = MY_MIN(block_length, MI_MAX_KEY_BLOCK_LENGTH);
+    block_length = std::max(block_length, MI_MIN_KEY_BLOCK_LENGTH);
+    block_length = std::min(block_length, MI_MAX_KEY_BLOCK_LENGTH);
 
     keydef->block_length = (uint16)MI_BLOCK_SIZE(
         length - real_length_diff, pointer, MI_MAX_KEYPTR_SIZE, block_length);
@@ -478,7 +478,7 @@ int mi_create(const char *name, uint keys, MI_KEYDEF *keydefs, uint columns,
   share.state.process = (ulong)getpid();
   share.state.unique = (ulong)0;
   share.state.update_count = (ulong)0;
-  share.state.version = (ulong)time((time_t *)0);
+  share.state.version = (ulong)time((time_t *)nullptr);
   share.state.sortkey = (ushort)~0;
   share.state.auto_increment = ci->auto_increment;
   share.options = options;
@@ -491,7 +491,7 @@ int mi_create(const char *name, uint keys, MI_KEYDEF *keydefs, uint columns,
     got from MYI file header (see also myisampack.c:save_state)
   */
   share.base.key_reflength =
-      mi_get_pointer_length(MY_MAX(ci->key_file_length, tmp), 3);
+      mi_get_pointer_length(std::max(ci->key_file_length, tmp), 3);
   share.base.keys = share.state.header.keys = keys;
   share.state.header.uniques = uniques;
   share.state.header.fulltext_keys = fulltext_keys;
@@ -524,10 +524,10 @@ int mi_create(const char *name, uint keys, MI_KEYDEF *keydefs, uint columns,
   share.base.min_block_length =
       (share.base.pack_reclength + 3 < MI_EXTEND_BLOCK_LENGTH &&
        !share.base.blobs)
-          ? MY_MAX(share.base.pack_reclength, MI_MIN_BLOCK_LENGTH)
+          ? std::max(share.base.pack_reclength, ulong{MI_MIN_BLOCK_LENGTH})
           : MI_EXTEND_BLOCK_LENGTH;
   if (!(flags & HA_DONT_TOUCH_DATA))
-    share.state.create_time = (long)time((time_t *)0);
+    share.state.create_time = (long)time((time_t *)nullptr);
 
   if (!internal_table) mysql_mutex_lock(&THR_LOCK_myisam);
 
@@ -565,7 +565,7 @@ int mi_create(const char *name, uint keys, MI_KEYDEF *keydefs, uint columns,
     fn_format(filename, name, "", MI_NAME_IEXT,
               MY_UNPACK_FILENAME | MY_RETURN_REAL_PATH |
                   (have_iext ? MY_REPLACE_EXT : MY_APPEND_EXT));
-    linkname_ptr = 0;
+    linkname_ptr = nullptr;
     /* Replace the current file */
     create_flag = (flags & HA_CREATE_KEEP_FILES) ? 0 : MY_DELETE_OLD;
   }
@@ -622,7 +622,7 @@ int mi_create(const char *name, uint keys, MI_KEYDEF *keydefs, uint columns,
       } else {
         fn_format(filename, name, "", MI_NAME_DEXT,
                   MY_UNPACK_FILENAME | MY_APPEND_EXT);
-        linkname_ptr = 0;
+        linkname_ptr = nullptr;
         create_flag = (flags & HA_CREATE_KEEP_FILES) ? 0 : MY_DELETE_OLD;
       }
       if ((dfile = mysql_file_create_with_symlink(

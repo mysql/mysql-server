@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -123,6 +123,7 @@ struct st_ndb_status {
 int ndbcluster_commit(handlerton *, THD *thd, bool all);
 
 class ha_ndbcluster : public handler, public Partition_handler {
+  friend class ha_ndbcluster_cond;
   friend class ndb_pushed_builder_ctx;
 
  public:
@@ -356,14 +357,16 @@ class ha_ndbcluster : public handler, public Partition_handler {
                                     const key_range *start_key,
                                     const key_range *end_key);
 
+  int engine_push(AQP::Table_access *table) override;
+
  private:
   bool maybe_pushable_join(const char *&reason) const;
 
  public:
-  int assign_pushed_join(const ndb_pushed_join *pushed_join);
   uint number_of_pushed_joins() const override;
   const TABLE *member_of_pushed_join() const override;
   const TABLE *parent_of_pushed_join() const override;
+  table_map tables_in_pushed_join() const override;
 
   int index_read_pushed(uchar *buf, const uchar *key,
                         key_part_map keypart_map) override;

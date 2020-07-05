@@ -164,3 +164,7 @@ disconnect native_con2;
 --disable_async_client
 DROP USER sha256@localhost, native_user@localhost, caching_sha2@localhost;
 DROP DATABASE wl11381;
+
+# restore default options
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc

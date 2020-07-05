@@ -151,22 +151,26 @@ INSERT INTO t2 VALUES (2,25);
 INSERT INTO t3 VALUES (1,'123 Park Place');
 INSERT INTO t3 VALUES (2,'453 Boardwalk');
 
+--sorted_result
 SELECT    a,b,if(b = 1,i,if(b = 2,v,''))
 FROM      t1
 LEFT JOIN t2 USING(c)
 LEFT JOIN t3 ON t3.c = t1.c;
 
+--sorted_result
 SELECT    a,b,if(b = 1,i,if(b = 2,v,''))
 FROM      t1
 LEFT JOIN t2 ON t1.c = t2.c
 LEFT JOIN t3 ON t3.c = t1.c;
 
+--sorted_result
 SELECT    a,b,if(b = 1,i,if(b = 2,v,''))
 FROM      t1
 LEFT JOIN t2 USING(c)
 LEFT JOIN t3 ON t3.c = t1.c
 ORDER BY a;
 
+--sorted_result
 SELECT    a,b,if(b = 1,i,if(b = 2,v,''))
 FROM      t1
 LEFT JOIN t2 ON t1.c = t2.c

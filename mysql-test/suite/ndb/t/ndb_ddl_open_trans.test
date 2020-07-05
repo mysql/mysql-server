@@ -9,7 +9,6 @@ set @@global.ndb_schema_dist_lock_wait_timeout = 1;
 
 --disable_query_log
 # This test provokes various failures to lock metadata on second mysqld
-connection server2;
 call mtr.add_suppression("Failed to acquire exclusive metadata lock");
 call mtr.add_suppression("Failed to rename table definition in DD, continue");
 call mtr.add_suppression("Failed to update table definition in DD");
@@ -17,6 +16,7 @@ call mtr.add_suppression("Failed to update schema version for database");
 call mtr.add_suppression("Failed to execute 'ALTER DATABASE'");
 call mtr.add_suppression("Failed to execute 'DROP DATABASE'");
 call mtr.add_suppression("NDB: Distribution of ALTER TABLE");
+call mtr.add_suppression("Got error '1062: Duplicate entry");
 --enable_query_log
 
 #

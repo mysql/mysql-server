@@ -22,7 +22,7 @@ VARIABLE_NAME LIKE '%slave%') AND
 'innodb_master_thread_disabled_debug'))
 ORDER BY VARIABLE_NAME;
 
-include/assert.inc ['Expect 83 variables in the table.']
+include/assert.inc ['Expect 85 variables in the table.']
 
 # Test SET PERSIST
 SET PERSIST binlog_cache_size = @@GLOBAL.binlog_cache_size;
@@ -50,6 +50,8 @@ SET PERSIST binlog_row_metadata = @@GLOBAL.binlog_row_metadata;
 SET PERSIST binlog_row_value_options = @@GLOBAL.binlog_row_value_options;
 SET PERSIST binlog_rows_query_log_events = @@GLOBAL.binlog_rows_query_log_events;
 SET PERSIST binlog_stmt_cache_size = @@GLOBAL.binlog_stmt_cache_size;
+SET PERSIST binlog_transaction_compression = @@GLOBAL.binlog_transaction_compression;
+SET PERSIST binlog_transaction_compression_level_zstd = @@GLOBAL.binlog_transaction_compression_level_zstd;
 SET PERSIST binlog_transaction_dependency_history_size = @@GLOBAL.binlog_transaction_dependency_history_size;
 SET PERSIST binlog_transaction_dependency_tracking = @@GLOBAL.binlog_transaction_dependency_tracking;
 SET PERSIST enforce_gtid_consistency = @@GLOBAL.enforce_gtid_consistency;
@@ -133,16 +135,16 @@ SET PERSIST sync_master_info = @@GLOBAL.sync_master_info;
 SET PERSIST sync_relay_log = @@GLOBAL.sync_relay_log;
 SET PERSIST sync_relay_log_info = @@GLOBAL.sync_relay_log_info;
 
-include/assert.inc ['Expect 65 persisted variables in persisted_variables table.']
+include/assert.inc ['Expect 67 persisted variables in persisted_variables table.']
 
 ############################################################
 # 2. Restart server, it must preserve the persisted variable
 #    settings. Verify persisted configuration.
 # restart
 
-include/assert.inc ['Expect 65 persisted variables in persisted_variables table.']
-include/assert.inc ['Expect 65 persisted variables shown as PERSISTED in variables_info table.']
-include/assert.inc ['Expect 65 persisted variables with matching persisted and global values.']
+include/assert.inc ['Expect 67 persisted variables in persisted_variables table.']
+include/assert.inc ['Expect 67 persisted variables shown as PERSISTED in variables_info table.']
+include/assert.inc ['Expect 67 persisted variables with matching persisted and global values.']
 
 ############################################################
 # 3. Test RESET PERSIST IF EXISTS. Verify persisted variable
@@ -172,6 +174,8 @@ RESET PERSIST IF EXISTS binlog_row_metadata;
 RESET PERSIST IF EXISTS binlog_row_value_options;
 RESET PERSIST IF EXISTS binlog_rows_query_log_events;
 RESET PERSIST IF EXISTS binlog_stmt_cache_size;
+RESET PERSIST IF EXISTS binlog_transaction_compression;
+RESET PERSIST IF EXISTS binlog_transaction_compression_level_zstd;
 RESET PERSIST IF EXISTS binlog_transaction_dependency_history_size;
 RESET PERSIST IF EXISTS binlog_transaction_dependency_tracking;
 RESET PERSIST IF EXISTS enforce_gtid_consistency;

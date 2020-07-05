@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -68,23 +68,23 @@ Source0:        https://cdn.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src
 Source1:        https://downloads.sourceforge.net/boost/@BOOST_PACKAGE_NAME@.tar.bz2
 %if 0%{?rhel} >= 8
 BuildRequires:  cmake >= 3.6.1
-BuildRequires:  gcc
-BuildRequires:  gcc-c++
 BuildRequires:  libtirpc-devel
 BuildRequires:  rpcgen
 %else
 BuildRequires:  cmake3 >= 3.6.1
-BuildRequires:  devtoolset-8-gcc
-BuildRequires:  devtoolset-8-gcc-c++
 %endif
+%{?el6:BuildRequires:  devtoolset-8-gcc}
+%{?el6:BuildRequires:  devtoolset-8-gcc-c++}
+%{?el7:BuildRequires:  devtoolset-9-gcc}
+%{?el7:BuildRequires:  devtoolset-9-gcc-c++}
+%{?el8:BuildRequires:  gcc-toolset-9-gcc}
+%{?el8:BuildRequires:  gcc-toolset-9-gcc-c++}
 BuildRequires:  bison >= 2.1
-BuildRequires:  perl
-BuildRequires:  perl(Time::HiRes)
-BuildRequires:  perl(Env)
 BuildRequires:  time
 BuildRequires:  cyrus-sasl-devel
 BuildRequires:  libaio-devel
 %if 0%{?commercial}
+BuildRequires:  krb5-devel
 BuildRequires:  libcurl-devel
 %endif
 BuildRequires:  ncurses-devel
@@ -224,7 +224,7 @@ for f in innochecksum ibd2sdi myisamchk myisam_ftdump myisamlog myisampack \
          my_safe_process mysqlbinlog mysqlcheck mysql_client_test \
          mysql_config_editor mysqld_multi mysqld_safe mysqldumpslow mysqlimport \
          mysql_secure_installation mysqlshow mysqlslap mysqltest mysqltest_safe_process mysqlxtest \
-         perror lz4_decompress zlib_decompress ; do
+         comp_err perror lz4_decompress zlib_decompress ; do
     rm -f %{buildroot}%{_bindir}/$f
 done
 
@@ -311,6 +311,7 @@ rm -f %{buildroot}%{_datadir}/mysql-*/{mysql.server,mysqld_multi.server,mysql-lo
 rm -rf %{buildroot}/usr/share/mysql-*/mcc
 rm -f %{buildroot}/lib/memcached_path.pl
 rm -f %{buildroot}/%{_libdir}/mysql/libndbclient*
+rm -f %{buildroot}/%{_bindir}/memclient
 rm -rf %{buildroot}%{_datadir}/mysql-*/nodejs/
 rm -rf %{buildroot}%{_datadir}/mysql-*/java/
 %endif
@@ -359,14 +360,12 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_sbindir}/ndb_mgmd
 %attr(755, root, root) %{_sbindir}/ndbd
 %attr(755, root, root) %{_sbindir}/ndbmtd
-%attr(755, root, root) %{_bindir}/memclient
 %attr(755, root, root) %{_sbindir}/memcached
 %attr(755, root, root) %{_libdir}/mysql/ndb_engine.so
 %{_datadir}/mysql-*/memcache-api/
 %endif
 
 %attr(755, root, root) %{_sbindir}/mysqld
-%attr(755, root, root) %{_bindir}/comp_err
 %attr(755, root, root) %{_bindir}/mysql
 %attr(755, root, root) %{_bindir}/mysqladmin
 %attr(755, root, root) %{_bindir}/mysqldump
@@ -471,6 +470,9 @@ rm -r $(readlink var) var
 %dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
 %changelog
+* Wed Jan 8 2020 Piotr Obrzut <piotr.obrzut@oracle.com> - 8.0.20-1
+- Remove Perl dependency for cluster
+
 * Wed Aug 14 2019 Rahul Sisondia <rahul.sisondia@oracle.com> - 8.0.19-1
 - Added component_test_udf_services test component
 

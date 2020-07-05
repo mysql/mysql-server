@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -96,3 +96,11 @@ mt_get_thr_stat(class SimulatedBlock *, ndb_thr_stat* dst)
   dst->name = "main";
 }
 
+void mt_get_spin_stat(class SimulatedBlock *, ndb_spin_stat *dst)
+{
+  memset(dst, 0, sizeof(* dst));
+}
+
+void mt_set_spin_stat(class SimulatedBlock *, ndb_spin_stat *dst)
+{
+}

@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -55,7 +55,6 @@
 #include "field_types.h"     // enum_field_types
 #include "integer_digits.h"  // count_digits, write_digits, write_two_digits
 #include "my_byteorder.h"    // int3store
-#include "my_dbug.h"         // DBUG_ASSERT
 #include "my_systime.h"      // localtime_r
 #include "myisampack.h"      // mi_int2store
 #include "template_utils.h"  // pointer_cast
@@ -252,9 +251,8 @@ bool check_time_range_quick(const MYSQL_TIME &my_time) {
 /**
   Check datetime, date, or normalized time (i.e. time without days) range.
   @param my_time  Datetime value.
-  @returns
-  @retval   false on success
-  @retval   true  on error
+  @retval false on success
+  @retval true  on error
 */
 bool check_datetime_range(const MYSQL_TIME &my_time) {
   /*
@@ -2100,7 +2098,7 @@ longlong TIME_to_longlong_packed(const MYSQL_TIME &my_time) {
     case MYSQL_TIMESTAMP_DATE:
       return TIME_to_longlong_date_packed(my_time);
     case MYSQL_TIMESTAMP_DATETIME_TZ:
-      DBUG_ASSERT(false);  // Should not be this type at this point.
+      assert(false);  // Should not be this type at this point.
     case MYSQL_TIMESTAMP_DATETIME:
       return TIME_to_longlong_datetime_packed(my_time);
     case MYSQL_TIMESTAMP_TIME:

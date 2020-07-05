@@ -1,6 +1,6 @@
 #ifndef _EVENT_QUEUE_H_
 #define _EVENT_QUEUE_H_
-/* Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,30 +57,30 @@ extern PSI_mutex_key key_LOCK_event_queue;
 extern PSI_cond_key key_COND_queue_state;
 #endif /* HAVE_PSI_INTERFACE */
 
-/**
-  Compares the execute_at members of two Event_queue_element instances.
-  Used as compare operator for the prioritized queue when shifting
-  elements inside.
-
-  SYNOPSIS
-    event_queue_element_compare_q()
-    @param left     First Event_queue_element object
-    @param right    Second Event_queue_element object
-
-  @retval
-   -1   left->execute_at < right->execute_at
-    0   left->execute_at == right->execute_at
-    1   left->execute_at > right->execute_at
-
-  @remark
-    execute_at.second_part is not considered during comparison
-*/
 struct Event_queue_less {
   /// Maps compare function to strict weak ordering required by Priority_queue.
   bool operator()(Event_queue_element *left, Event_queue_element *right) {
     return event_queue_element_compare_q(left, right) > 0;
   }
 
+  /**
+    Compares the execute_at members of two Event_queue_element instances.
+    Used as compare operator for the prioritized queue when shifting
+    elements inside.
+
+    SYNOPSIS
+      event_queue_element_compare_q()
+      @param left     First Event_queue_element object
+      @param right    Second Event_queue_element object
+
+    @retval
+     -1   left->execute_at < right->execute_at
+      0   left->execute_at == right->execute_at
+      1   left->execute_at > right->execute_at
+
+    @remark
+      execute_at.second_part is not considered during comparison
+  */
   int event_queue_element_compare_q(Event_queue_element *left,
                                     Event_queue_element *right) {
     if (left->m_status == Event_parse_data::DISABLED)

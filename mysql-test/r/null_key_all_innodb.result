@@ -83,7 +83,7 @@ EXPLAIN SELECT SQL_CALC_FOUND_ROWS * FROM t1 LEFT JOIN t2 ON t1.a=t2.a
 LEFT JOIN t3 ON t2.b=t3.b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	idx	NULL	NULL	NULL	#	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	idx	NULL	NULL	NULL	#	100.00	Using where; Using join buffer (hash join)
 1	SIMPLE	t3	NULL	ref	idx	idx	5	test.t2.b	#	100.00	Using index
 Warnings:
 Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
@@ -93,11 +93,11 @@ SELECT SQL_CALC_FOUND_ROWS * FROM t1 LEFT JOIN t2 ON t1.a=t2.a
 LEFT JOIN t3 ON t2.b=t3.b;
 a	a	b	b
 1	1	1	NULL
-3	3	1	NULL
 2	NULL	NULL	NULL
+3	3	1	NULL
 4	NULL	NULL	NULL
-Warnings:
 Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
+Warnings:
 SELECT FOUND_ROWS();
 FOUND_ROWS()
 4

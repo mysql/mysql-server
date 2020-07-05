@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -56,8 +56,8 @@ void dict_mem_fill_index_struct(
         heap, 1 + n_fields * sizeof(dict_field_t));
   } else {
     index->name = index_name;
-    index->heap = NULL;
-    index->fields = NULL;
+    index->heap = nullptr;
+    index->fields = nullptr;
   }
 
   /* Assign a ulint to a 4-bit-mapped field.

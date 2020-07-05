@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -28,8 +28,8 @@
 #include <functional>
 
 #include "plugin/x/ngs/include/ngs/client_list.h"
-#include "plugin/x/ngs/include/ngs/server_properties.h"
 #include "plugin/x/src/interface/connection_acceptor.h"
+#include "plugin/x/src/server/server_properties.h"
 
 namespace xpl {
 namespace iface {
@@ -44,17 +44,15 @@ class Server_task {
     Task_context() {
       m_on_connection = [](Connection_acceptor &) {};
     }
-    Task_context(const On_connection &on_connection, const bool skip_networking,
+    Task_context(const On_connection &on_connection,
                  ngs::Server_properties *properties,
                  ngs::Client_list *client_list)
         : m_on_connection(on_connection),
-          m_skip_networking(skip_networking),
           m_properties(properties),
           m_client_list(client_list) {}
 
    public:
     On_connection m_on_connection;  // = [](iface::Connection_acceptor &) {};
-    bool m_skip_networking = false;
     ngs::Server_properties *m_properties = nullptr;
     ngs::Client_list *m_client_list = nullptr;
   };

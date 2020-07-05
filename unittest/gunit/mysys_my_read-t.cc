@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,7 +52,7 @@ class MockRead {
   MOCK_METHOD3(mockread, ssize_t(int, void *, size_t));
 };
 
-MockRead *mockfs = NULL;
+MockRead *mockfs = nullptr;
 
 ssize_t mockfs_read(int fd, void *buf, size_t count) {
   return mockfs->mockread(fd, buf, count);
@@ -66,7 +66,7 @@ class MysysMyReadTest : public ::testing::Test {
   virtual void TearDown() {
     mock_read = nullptr;
     delete mockfs;
-    mockfs = NULL;
+    mockfs = nullptr;
   }
 };
 

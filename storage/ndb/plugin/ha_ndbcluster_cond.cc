@@ -1243,8 +1243,13 @@ static void ndb_serialize_cond(const Item *item, void *arg) {
   }
 }
 
-ha_ndbcluster_cond::ha_ndbcluster_cond()
-    : m_ndb_cond(), m_scan_filter_code(nullptr), m_unpushed_cond(nullptr) {}
+ha_ndbcluster_cond::ha_ndbcluster_cond(ha_ndbcluster *handler)
+    : m_handler(handler),
+      m_ndb_cond(),
+      m_scan_filter_code(nullptr),
+      m_pushed_cond(nullptr),
+      m_remainder_cond(nullptr),
+      m_unpushed_cond(nullptr) {}
 
 ha_ndbcluster_cond::~ha_ndbcluster_cond() { m_ndb_cond.destroy_elements(); }
 
@@ -1255,6 +1260,8 @@ void ha_ndbcluster_cond::cond_clear() {
   DBUG_TRACE;
   m_ndb_cond.destroy_elements();
   m_scan_filter_code.reset();
+  m_pushed_cond = nullptr;
+  m_remainder_cond = nullptr;
   m_unpushed_cond = nullptr;
 }
 
@@ -1486,9 +1493,17 @@ static List<const Ndb_item> cond_push_boolean_term(Item *term, TABLE *table,
         Item *remainder = nullptr;
         List<const Ndb_item> code = cond_push_boolean_term(
             cond_arg, table, ndb_table, other_tbls_ok, pushed_cond, remainder);
-        if (remainder != nullptr) {
-          item_func->arguments()[0] = remainder;
-          remainder_cond = term;
+
+        if (remainder == nullptr)
+          remainder_cond = nullptr;  // Pushed all
+        else if (remainder == cond_arg)
+          remainder_cond = term;  // Nothing pushed
+        else {
+          // There is a partial remainder
+          // Create a new, modified trigger, with the remainder condition
+          remainder_cond = new (*THR_MALLOC) Item_func_trig_cond(
+              remainder, nullptr, func_trig->get_join(), func_trig->idx(),
+              Item_func_trig_cond::IS_NOT_NULL_COMPL);
         }
         return code;
       }
@@ -1528,45 +1543,60 @@ static List<const Ndb_item> cond_push_boolean_term(Item *term, TABLE *table,
 }
 
 /*
-  Push a condition, return any remainder condition
+  Prepare a condition for being pushed. May be called multiple times,
+  with different conditions, which will erase the effect of the
+  previous 'try'.
+  When decided that last 'try' will be used as the pushed condition,
+  we need to call use_cond_push() to make it available for the handler
+  to be used.
  */
-const Item *ha_ndbcluster_cond::cond_push(const Item *cond, TABLE *table,
-                                          const NDBTAB *ndb_table,
-                                          bool other_tbls_ok,
-                                          Item *&pushed_cond) {
+void ha_ndbcluster_cond::prep_cond_push(const Item *cond, bool other_tbls_ok) {
   DBUG_TRACE;
 
   // Build lists of the boolean terms either 'pushed', or being a 'remainder'
   Item *item = const_cast<Item *>(cond);
+  Item *pushed_cond = nullptr;
   Item *remainder = nullptr;
-  List<const Ndb_item> code = cond_push_boolean_term(
-      item, table, ndb_table, other_tbls_ok, pushed_cond, remainder);
+  m_ndb_cond =
+      cond_push_boolean_term(item, m_handler->table, m_handler->m_table,
+                             other_tbls_ok, pushed_cond, remainder);
 
-  // Save the serialized representation of the code
-  m_ndb_cond = code;
+  m_pushed_cond = pushed_cond;
+  m_remainder_cond = remainder;
+}
 
-  if (pushed_cond != nullptr &&
-      !(pushed_cond->used_tables() & ~table->pos_in_table_list->map())) {
+/*
+  Make a pushed condition prepared with prep_cond_push() available for
+  the handler to really be used against the storage engine.
+*/
+int ha_ndbcluster_cond::use_cond_push(const Item *&pushed_cond,
+                                      const Item *&remainder_cond) {
+  DBUG_TRACE;
+
+  const TABLE *const table = m_handler->table;
+  if (m_pushed_cond != nullptr &&
+      !(m_pushed_cond->used_tables() & ~table->pos_in_table_list->map())) {
     /**
      * pushed_cond had no dependencies outside of this 'table'.
      * Code for pushed condition can be generated now, and reused
      * for all later API requests to 'table'
      */
-    NdbInterpretedCode code(ndb_table);
+    NdbInterpretedCode code(m_handler->m_table);
     NdbScanFilter filter(&code);
     const int ret = generate_scan_filter_from_cond(filter);
     if (unlikely(ret != 0)) {
-      // Failed to 'generate' the pushed code.
+      cond_clear();
       pushed_cond = nullptr;
-      m_ndb_cond.destroy_elements();
-      remainder = item;
+      return ret;
     } else {
       // Success, save the generated code.
       DBUG_ASSERT(code.getWordsUsed() > 0);
       m_scan_filter_code.copy(code);
     }
   }
-  return remainder;
+  pushed_cond = m_pushed_cond;
+  remainder_cond = m_remainder_cond;
+  return 0;
 }
 
 int ha_ndbcluster_cond::build_scan_filter_predicate(
@@ -1576,7 +1606,8 @@ int ha_ndbcluster_cond::build_scan_filter_predicate(
   const Ndb_item *ndb_item = *cond.ref();
   switch (ndb_item->type) {
     case NDB_FUNCTION: {
-      const Ndb_item *b, *field1, *field2 = nullptr, *value = nullptr;
+      const Ndb_item *b = nullptr;
+      const Ndb_item *field1, *field2 = nullptr, *value = nullptr;
       const Ndb_item *a = cond++;
       if (a == nullptr) break;
 
@@ -1654,9 +1685,9 @@ int ha_ndbcluster_cond::build_scan_filter_predicate(
         }
       }
 
-      const bool field1_maybe_null = field1->get_field()->maybe_null();
+      const bool field1_maybe_null = field1->get_field()->is_nullable();
       const bool field2_maybe_null =
-          field2 && field2->get_field()->maybe_null();
+          field2 && field2->get_field()->is_nullable();
       bool added_null_check = false;
 
       if (field1_maybe_null || field2_maybe_null) {

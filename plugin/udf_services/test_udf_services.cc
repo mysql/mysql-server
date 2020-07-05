@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,48 +62,48 @@ mysql_declare_plugin(test_udf_services){
     MYSQL_DAEMON_PLUGIN,
     &test_udf_services_plugin,
     "test_udf_services",
-    "Georgi Kodinov",
+    PLUGIN_AUTHOR_ORACLE,
     "MySQL mtr test framework",
     PLUGIN_LICENSE_GPL,
-    NULL,   /* Plugin Init          */
-    NULL,   /* Plugin Check uninstall */
-    NULL,   /* Plugin Deinit        */
-    0x0100, /* Plugin version: 1.0  */
-    NULL,   /* status variables     */
-    NULL,   /* system variables     */
-    NULL,   /* config options       */
-    0,      /* flags                */
+    nullptr, /* Plugin Init          */
+    nullptr, /* Plugin Check uninstall */
+    nullptr, /* Plugin Deinit        */
+    0x0100,  /* Plugin version: 1.0  */
+    nullptr, /* status variables     */
+    nullptr, /* system variables     */
+    nullptr, /* config options       */
+    0,       /* flags                */
 },
     {
         MYSQL_DAEMON_PLUGIN,
         &test_udf_registration_plugin,
         "test_udf_registration",
-        "Georgi Kodinov",
+        PLUGIN_AUTHOR_ORACLE,
         "MySQL mtr test framework",
         PLUGIN_LICENSE_GPL,
         test_udf_registration_init,   /* Plugin Init          */
-        NULL,                         /* Plugin Check uninstall */
+        nullptr,                      /* Plugin Check uninstall */
         test_udf_registration_deinit, /* Plugin Deinit        */
         0x0100,                       /* Plugin version: 1.0  */
-        NULL,                         /* status variables     */
-        NULL,                         /* system variables     */
-        NULL,                         /* config options       */
+        nullptr,                      /* status variables     */
+        nullptr,                      /* system variables     */
+        nullptr,                      /* config options       */
         0,                            /* flags                */
     },
     {
         MYSQL_DAEMON_PLUGIN,
         &test_udf_extension_services_plugin,
         "test_udf_extension_services",
-        "Oracle Corp",
+        PLUGIN_AUTHOR_ORACLE,
         "MySQL mtr test framework",
         PLUGIN_LICENSE_GPL,
         test_udf_extension_init,   /* Plugin Init          */
-        NULL,                      /* Plugin Check uninstall */
+        nullptr,                   /* Plugin Check uninstall */
         test_udf_extension_deinit, /* Plugin Deinit        */
         0x0100,                    /* Plugin version: 1.0  */
-        NULL,                      /* status variables     */
-        NULL,                      /* system variables     */
-        NULL,                      /* config options       */
+        nullptr,                   /* status variables     */
+        nullptr,                   /* system variables     */
+        nullptr,                   /* config options       */
         0,                         /* flags                */
     } mysql_declare_plugin_end;
 
@@ -118,7 +118,7 @@ mysql_declare_plugin(test_udf_services){
 
   Must be present otherwise the server refuses to load
 
-  @param      initrd    Return value from xxxx_init
+  @param      initid    Return value from xxxx_init
   @param      args      Array of arguments
   @param[out] message   Error message in case of error.
   @retval     false     success
@@ -134,7 +134,7 @@ PLUGIN_EXPORT bool test_udf_services_udf_init(
 /**
   A UDF function returning 0.
 
-  @param      initrd    Return value from xxxx_init
+  @param      initid    Return value from xxxx_init
   @param      args      Array of arguments
   @param[out] is_null   If the result is null, store 1 here
   @param[out] error     On error store 1 here
@@ -178,7 +178,7 @@ static int test_udf_registration_init(MYSQL_PLUGIN /*p */) {
   }
   ret = udf->udf_register("test_udf_registration_udf", INT_RESULT,
                           (Udf_func_any)test_udf_services_udf,
-                          test_udf_services_udf_init, NULL);
+                          test_udf_services_udf_init, nullptr);
 
   reg->release(
       reinterpret_cast<my_h_service>(const_cast<udf_registration_t *>(udf)));
@@ -226,9 +226,8 @@ end:
   Plugin init function that registers a UDF.
   A newly created UDF must be registered here.
 
-  @returns
-    @retval false UDF registered successfully.
-    @retval true  Otherwise.
+  @retval false UDF registered successfully.
+  @retval true  Otherwise.
 */
 static int test_udf_extension_init(MYSQL_PLUGIN /*p */) {
   bool ret = true;
@@ -367,9 +366,8 @@ end:
 /**
   Plugin deinit function that unregisters a UDF
 
-  @returns
-    @retval false UDF unregistered successfully.
-    @retval true  Otherwise.
+  @retval false UDF unregistered successfully.
+  @retval true  Otherwise.
 */
 static int test_udf_extension_deinit(MYSQL_PLUGIN /* p */) {
   bool ret = true;

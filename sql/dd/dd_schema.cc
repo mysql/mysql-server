@@ -49,11 +49,11 @@ bool schema_exists(THD *thd, const char *schema_name, bool *exists) {
   // We must make sure the schema is released and unlocked in the right order.
   Schema_MDL_locker mdl_handler(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  const dd::Schema *sch = NULL;
+  const dd::Schema *sch = nullptr;
   bool error = mdl_handler.ensure_locked(schema_name) ||
                thd->dd_client()->acquire(schema_name, &sch);
   DBUG_ASSERT(exists);
-  *exists = (sch != NULL);
+  *exists = (sch != nullptr);
   // Error has been reported by the dictionary subsystem.
   return error;
 }

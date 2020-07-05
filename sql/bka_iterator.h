@@ -44,8 +44,6 @@
   (for EXPLAIN ANALYZE) the actual table read. Second, and more importantly,
   we can have other iterators between the BKAIterator and MultiRangeRowIterator,
   in particular FilterIterator.
-
-  Currently, we only support BKA inner joins. This will change in the future.
  */
 
 #include <stddef.h>
@@ -97,6 +95,7 @@ class BKAIterator final : public RowIterator {
       rows, we can't load as many outer rows).
     @param mrr_iterator Pointer to the MRR iterator at the bottom of
       inner_input. Used to send row ranges and buffers.
+    @param join_type What kind of join we are executing.
    */
   BKAIterator(THD *thd, JOIN *join,
               unique_ptr_destroy_only<RowIterator> outer_input,
@@ -105,7 +104,7 @@ class BKAIterator final : public RowIterator {
               size_t max_memory_available,
               size_t mrr_bytes_needed_for_single_inner_row,
               float expected_inner_rows_per_outer_row,
-              MultiRangeRowIterator *mrr_iterator);
+              MultiRangeRowIterator *mrr_iterator, JoinType join_type);
 
   bool Init() override;
 
@@ -125,9 +124,7 @@ class BKAIterator final : public RowIterator {
     }
   }
 
-  std::vector<std::string> DebugString() const override {
-    return {"Batched key access inner join"};
-  }
+  std::vector<std::string> DebugString() const override;
 
   std::vector<Child> children() const override {
     return std::vector<Child>{
@@ -145,6 +142,16 @@ class BKAIterator final : public RowIterator {
   /// Clear out the MEM_ROOT and prepare for reading rows anew.
   void BeginNewBatch();
 
+  /// If there are more outer rows, begin the next batch. If not,
+  /// move to the EOF state.
+  void BatchFinished();
+
+  /// Find the next unmatched row, and load it for output as a NULL-complemented
+  /// row. (Assumes the NULL row flag has already been set on the inner table
+  /// iterator.) Returns 0 if a row was found, -1 if no row was found. (Errors
+  /// cannot happen.)
+  int MakeNullComplementedRow();
+
   /// Read a batch of outer rows (BeginNewBatch() must have been called
   /// earlier). Returns -1 for no outer rows found (sets state to END_OF_ROWS),
   /// 0 for OK (sets state to RETURNING_JOINED_ROWS) or 1 for error.
@@ -160,8 +167,20 @@ class BKAIterator final : public RowIterator {
 
     /**
       We are returning rows from the MultiRangeRowIterator.
+      (For antijoins, we are looking up the rows, but don't actually
+      return them.)
      */
     RETURNING_JOINED_ROWS,
+
+    /**
+      We are an outer join or antijoin, and we're returning NULL-complemented
+      rows for those outer rows that never had a matching inner row. Note that
+      this is done in the BKAIterator and not the MRR iterator for two reasons:
+      First, it gives more sensible EXPLAIN ANALYZE numbers. Second, the
+      NULL-complemented rows could be filtered inadvertently by a FilterIterator
+      before they reach the BKAIterator.
+     */
+    RETURNING_NULL_COMPLEMENTED_ROWS,
 
     /**
       Both the outer and inner side are out of rows.
@@ -225,6 +244,14 @@ class BKAIterator final : public RowIterator {
 
   /// See mrr_iterator in the constructor.
   MultiRangeRowIterator *const m_mrr_iterator;
+
+  /// The join type of the BKA join.
+  JoinType m_join_type;
+
+  /// If we are synthesizing NULL-complemented rows (for an outer join or
+  /// antijoin), points to the next row within "m_rows" that we haven't
+  /// considered yet.
+  hash_join_buffer::BufferRow *m_current_pos;
 };
 
 /**
@@ -235,9 +262,6 @@ class MultiRangeRowIterator final : public TableRowIterator {
  public:
   /**
     @param thd Thread handle.
-    @param join The JOIN we are part of.
-    @param outer_input_tables QEP_TAB for each outer table involved.
-      Used to know which fields we are to read back from the buffer.
     @param cache_idx_cond See m_cache_idx_cond.
     @param table The inner table to scan.
     @param keep_current_rowid If true, get the row ID on the inner table
@@ -246,9 +270,28 @@ class MultiRangeRowIterator final : public TableRowIterator {
     @param ref The index condition we are looking up on.
     @param mrr_flags Flags passed on to MRR.
    */
-  MultiRangeRowIterator(THD *thd, JOIN *join, qep_tab_map outer_input_tables,
-                        Item *cache_idx_cond, TABLE *table,
+  MultiRangeRowIterator(THD *thd, Item *cache_idx_cond, TABLE *table,
                         bool keep_current_rowid, TABLE_REF *ref, int mrr_flags);
+
+  /**
+    Tell the MRR iterator which tables are on the left side of the BKA join
+    (the MRR iterator is always alone on the right side). This is needed so
+    that it can unpack the rows into the right tables, with the right format.
+
+    Must be called exactly once, before first Init(). Set by BKAIterator's
+    constructor; it's not easily available at the point where we construct
+    MultiRangeRowIterator.
+   */
+  void set_outer_input_tables(JOIN *join, qep_tab_map outer_input_tables);
+
+  /**
+    Tell the MRR iterator what kind of BKA join it is part of.
+
+    Must be called exactly once, before first Init(). Set by BKAIterator's
+    constructor; it's not easily available at the point where we construct
+    MultiRangeRowIterator.
+   */
+  void set_join_type(JoinType join_type) { m_join_type = join_type; }
 
   /**
     Specify which outer rows to read inner rows for.
@@ -268,6 +311,42 @@ class MultiRangeRowIterator final : public TableRowIterator {
   void set_mrr_buffer(uchar *ptr, size_t size) {
     m_mrr_buffer.buffer = ptr;
     m_mrr_buffer.buffer_end = ptr + size;
+  }
+
+  /**
+    Specify an unused chunk of memory that we can use to mark which inner rows
+    have been read (by the parent BKA iterator) or not. This is used for outer
+    joins to know which rows need NULL-complemented versions, and for semijoins
+    and antijoins to avoid matching the same inner row more than once.
+
+    Must be called before Init() for semijoins, outer joins and antijoins, and
+    never called otherwise. There must be room at least for one bit per row
+    given in set_rows().
+   */
+  void set_match_flag_buffer(uchar *ptr) { m_match_flag_buffer = ptr; }
+
+  /**
+    Mark that the BKA iterator has seen the last row we returned from Read().
+    (It could have been discarded by a FilterIterator before it reached them.)
+    Will be a no-op for inner joins; see set_match_flag_buffer()..
+   */
+  void MarkLastRowAsRead() {
+    if (m_match_flag_buffer != nullptr) {
+      size_t row_number = std::distance(m_begin, m_last_row_returned);
+      m_match_flag_buffer[row_number / 8] |= 1 << (row_number % 8);
+    }
+  }
+
+  /**
+    Check whether the given row has been marked as read
+    (using MarkLastRowAsRead()) or not. Used internally when doing semijoins,
+    and also by the BKAIterator when synthesizing NULL-complemented rows for
+    outer joins or antijoins.
+   */
+  bool RowHasBeenRead(const hash_join_buffer::BufferRow *row) const {
+    DBUG_ASSERT(m_match_flag_buffer != nullptr);
+    size_t row_number = std::distance(m_begin, row);
+    return m_match_flag_buffer[row_number / 8] & (1 << (row_number % 8));
   }
 
   /**
@@ -300,11 +379,17 @@ class MultiRangeRowIterator final : public TableRowIterator {
     return (reinterpret_cast<MultiRangeRowIterator *>(seq))
         ->MrrSkipIndexTuple(range_info);
   }
+  static bool MrrSkipRecordCallbackThunk(range_seq_t seq, char *range_info,
+                                         uchar *) {
+    return (reinterpret_cast<MultiRangeRowIterator *>(seq))
+        ->MrrSkipRecord(range_info);
+  }
 
   // Callbacks we get from the handler during the actual read.
   range_seq_t MrrInitCallback(uint n_ranges, uint flags);
   uint MrrNextCallback(KEY_MULTI_RANGE *range);
   bool MrrSkipIndexTuple(char *range_info);
+  bool MrrSkipRecord(char *range_info);
 
   /**
     There are certain conditions that would normally be pushed down to indexes,
@@ -358,13 +443,23 @@ class MultiRangeRowIterator final : public TableRowIterator {
   /// Used during the MRR callbacks.
   const hash_join_buffer::BufferRow *m_current_pos;
 
+  /// What row we last returned from Read() (used for MarkLastRowAsRead()).
+  const hash_join_buffer::BufferRow *m_last_row_returned;
+
   /// Temporary space for storing inner rows, used by MRR.
   /// Set by set_mrr_buffer().
   HANDLER_BUFFER m_mrr_buffer;
 
+  /// See set_match_flag_buffer().
+  uchar *m_match_flag_buffer = nullptr;
+
   /// Tables and columns needed for each outer row. Same as m_outer_input_tables
   /// in the corresponding BKAIterator.
   hash_join_buffer::TableCollection m_outer_input_tables;
+
+  /// The join type of the BKA join we are part of. Same as m_join_type in the
+  /// corresponding BKAIterator.
+  JoinType m_join_type = JoinType::INNER;
 };
 
 #endif  // SQL_BKA_ITERATOR_H_

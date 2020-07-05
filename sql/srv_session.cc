@@ -878,7 +878,7 @@ bool Srv_session::attach() {
 
   const char *new_stack = THR_srv_session_thread
                               ? THR_stack_start_address
-                              : (old_thd ? old_thd->thread_stack : NULL);
+                              : (old_thd ? old_thd->thread_stack : nullptr);
 
   /*
     Attach optimistically, as this will set thread_stack,
@@ -945,7 +945,7 @@ bool Srv_session::detach() {
   thd.restore_globals();
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  set_psi(NULL);
+  set_psi(nullptr);
 #endif
   /*
     We can't call PSI_THREAD_CALL(set_connection_type)(NO_VIO_TYPE) here because
@@ -1019,7 +1019,7 @@ bool Srv_session::close() {
   thd.disconnect();
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  set_psi(NULL);
+  set_psi(nullptr);
 #endif
 
   thd.release_resources();
@@ -1050,7 +1050,7 @@ void Srv_session::set_attached(const char *stack) {
 */
 void Srv_session::set_detached() {
   state = SRV_SESSION_DETACHED;
-  thd_set_thread_stack(&thd, NULL);
+  thd_set_thread_stack(&thd, nullptr);
 }
 
 int Srv_session::execute_command(enum enum_server_command command,
@@ -1101,10 +1101,10 @@ int Srv_session::execute_command(enum enum_server_command command,
   */
   if (command != COM_QUERY) thd.reset_for_next_command();
 
-  DBUG_ASSERT(thd.m_statement_psi == NULL);
-  thd.m_statement_psi =
-      MYSQL_START_STATEMENT(&thd.m_statement_state, stmt_info_new_packet.m_key,
-                            thd.db().str, thd.db().length, thd.charset(), NULL);
+  DBUG_ASSERT(thd.m_statement_psi == nullptr);
+  thd.m_statement_psi = MYSQL_START_STATEMENT(
+      &thd.m_statement_state, stmt_info_new_packet.m_key, thd.db().str,
+      thd.db().length, thd.charset(), nullptr);
   int ret = dispatch_command(&thd, data, command);
 
   thd.pop_protocol();

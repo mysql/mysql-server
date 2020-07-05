@@ -83,8 +83,18 @@ Mysqlx.Crud.Find {
 
 -->echo Try to send number of object more than the X Protocol limit 101 (2 * 51)
 -->callmacro Send_crud_find_with_repeated_nested_objects	51
--->expecterror ER_X_BAD_MESSAGE
--->recvresult
+## Following commands in this context can't be used
+## -->expecterror ER_X_BAD_MESSAGE
+## -->recvresult
+## It's because, error is always printed with message.
+## X Plugin error message depends on Protobuf version, thus
+## this test must not check it.
+noquery_result;
+recvmessage Mysqlx.Error {
+  code: 5000
+};
+query_result;
+echo Received error message with code: ER_X_BAD_MESSAGE;
 #
 # After error 5000, connection is disconnected by the X Plugin, abort the client connection
 # it is in invalid state
@@ -142,8 +152,20 @@ Mysqlx.Connection.CapabilitiesSet {
 
 -->echo Try to send number of object more than the X Protocol limit 101 (2 * 51)
 -->callmacro Send_capabilities_set_with_repeated_nested_objects	51
--->expecterror ER_X_BAD_MESSAGE
--->recvresult
+
+## Following commands in this context can't be used
+## -->expecterror ER_X_BAD_MESSAGE
+## -->recvresult
+## It's because, error is always printed with message.
+## X Plugin error message depends on Protobuf version, thus
+## this test must not check it.
+noquery_result;
+recvmessage Mysqlx.Error {
+  code: 5000
+};
+query_result;
+echo Received error message with code: ER_X_BAD_MESSAGE;
+
 #
 # After error 5000, connection is disconnected by the X Plugin, abort the client connection
 # it is in invalid state

@@ -33,7 +33,7 @@ std::atomic<int32> connection_events_loop_aborted_flag;
 thread_local THD *current_thd = nullptr;
 ulong log_error_verbosity;
 ulong opt_log_timestamps = 0;
-char *opt_log_error_services = NULL;
+char *opt_log_error_services = nullptr;
 const char *log_error_dest = "stderr";
 
 void THD::debug_assert_query_locked() const {}
@@ -44,7 +44,7 @@ void log_write_errstream(const char *buffer MY_ATTRIBUTE((unused)),
                          size_t length MY_ATTRIBUTE((unused))) {}
 
 const char *mysql_errno_to_symbol(int mysql_errno MY_ATTRIBUTE((unused))) {
-  return NULL;
+  return nullptr;
 }
 
 int mysql_symbol_to_errno(const char *error_symbol MY_ATTRIBUTE((unused))) {
@@ -52,7 +52,7 @@ int mysql_symbol_to_errno(const char *error_symbol MY_ATTRIBUTE((unused))) {
 }
 
 const char *mysql_errno_to_sqlstate(uint mysql_errno MY_ATTRIBUTE((unused))) {
-  return NULL;
+  return nullptr;
 }
 
 int mysql_errno_to_builtin(uint mysql_errno MY_ATTRIBUTE((unused))) {
@@ -68,7 +68,7 @@ int log_message(int log_type MY_ATTRIBUTE((unused)), ...) { return -1; }
 
 const char *error_message_for_error_log(
     int mysql_errno MY_ATTRIBUTE((unused))) {
-  return NULL;
+  return nullptr;
 }
 
 void push_warning(THD *thd MY_ATTRIBUTE((unused)),

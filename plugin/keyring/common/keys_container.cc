@@ -39,10 +39,10 @@ Keys_container::Keys_container(ILogger *logger)
     : keys_hash(new Keys_container::Key_hash(system_charset_info,
                                              key_memory_KEYRING)),
       logger(logger),
-      keyring_io(NULL) {}
+      keyring_io(nullptr) {}
 
 Keys_container::~Keys_container() {
-  if (keyring_io != NULL) delete keyring_io;
+  if (keyring_io != nullptr) delete keyring_io;
 }
 
 bool Keys_container::init(IKeyring_io *keyring_io,
@@ -108,14 +108,14 @@ void Keys_container::allocate_and_set_data_for_key(
 }
 
 IKey *Keys_container::fetch_key(IKey *key) {
-  DBUG_ASSERT(key->get_key_data() == NULL);
+  DBUG_ASSERT(key->get_key_data() == nullptr);
   DBUG_ASSERT(key->get_key_type_as_string()->empty());
 
   IKey *fetched_key = get_key_from_hash(key);
 
-  if (fetched_key == NULL) return NULL;
+  if (fetched_key == nullptr) return nullptr;
 
-  if (fetched_key->get_key_type_as_string()->empty()) return NULL;
+  if (fetched_key->get_key_type_as_string()->empty()) return nullptr;
 
   allocate_and_set_data_for_key(key, fetched_key->get_key_type_as_string(),
                                 fetched_key->get_key_data(),
@@ -148,7 +148,7 @@ bool Keys_container::remove_key_from_hash(IKey *key) {
 
 bool Keys_container::remove_key(IKey *key) {
   IKey *fetched_key_to_delete = get_key_from_hash(key);
-  if (fetched_key_to_delete == NULL || flush_to_backup() ||
+  if (fetched_key_to_delete == nullptr || flush_to_backup() ||
       remove_key_from_hash(fetched_key_to_delete))
     return true;
   if (flush_to_storage(fetched_key_to_delete, REMOVE_KEY)) {
@@ -165,22 +165,22 @@ bool Keys_container::remove_key(IKey *key) {
 
 bool Keys_container::load_keys_from_keyring_storage() {
   bool was_error = false;
-  ISerialized_object *serialized_keys = NULL;
+  ISerialized_object *serialized_keys = nullptr;
   was_error = keyring_io->get_serialized_object(&serialized_keys);
-  while (was_error == false && serialized_keys != NULL) {
-    IKey *key_loaded = NULL;
+  while (was_error == false && serialized_keys != nullptr) {
+    IKey *key_loaded = nullptr;
     while (serialized_keys->has_next_key()) {
-      if (serialized_keys->get_next_key(&key_loaded) || key_loaded == NULL ||
+      if (serialized_keys->get_next_key(&key_loaded) || key_loaded == nullptr ||
           key_loaded->is_key_valid() == false ||
           store_key_in_hash(key_loaded)) {
         was_error = true;
         delete key_loaded;
         break;
       }
-      key_loaded = NULL;
+      key_loaded = nullptr;
     }
     delete serialized_keys;
-    serialized_keys = NULL;
+    serialized_keys = nullptr;
     if (was_error == false && keyring_io->has_next_serialized_object())
       was_error = keyring_io->get_serialized_object(&serialized_keys);
   }
@@ -193,7 +193,7 @@ bool Keys_container::flush_to_storage(IKey *key, Key_operation operation) {
   ISerialized_object *serialized_object =
       keyring_io->get_serializer()->serialize(*keys_hash, key, operation);
 
-  if (serialized_object == NULL ||
+  if (serialized_object == nullptr ||
       keyring_io->flush_to_storage(serialized_object)) {
     logger->log(ERROR_LEVEL, ER_KEYRING_FAILED_TO_FLUSH_KEYS_TO_KEYRING);
     delete serialized_object;
@@ -205,9 +205,9 @@ bool Keys_container::flush_to_storage(IKey *key, Key_operation operation) {
 
 bool Keys_container::flush_to_backup() {
   ISerialized_object *serialized_object =
-      keyring_io->get_serializer()->serialize(*keys_hash, NULL, NONE);
+      keyring_io->get_serializer()->serialize(*keys_hash, nullptr, NONE);
 
-  if (serialized_object == NULL ||
+  if (serialized_object == nullptr ||
       keyring_io->flush_to_backup(serialized_object)) {
     logger->log(ERROR_LEVEL, ER_KEYRING_FAILED_TO_FLUSH_KEYS_TO_KEYRING_BACKUP);
     delete serialized_object;

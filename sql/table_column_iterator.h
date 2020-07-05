@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -99,7 +99,8 @@ class Table_columns_view {
   template <typename U = ExclusionFilter>
   Table_columns_view(
       typename std::enable_if<std::is_same<
-          U, std::function<bool(TABLE const *, size_t)>>::value>::type * = 0);
+          U, std::function<bool(TABLE const *, size_t)>>::value>::type * =
+          nullptr);
   /**
     Constructor that takes the target `TABLE` object, only available when the
     predicate type is a lambda function.
@@ -148,12 +149,12 @@ class Table_columns_view {
    */
   Table_columns_view &set_filter(ExclusionFilter rhs);
 
-  //--> Deleted constructors and methods to remove default move/copy semantics
+  // --> Deleted constructors and methods to remove default move/copy semantics
   Table_columns_view(const Table_columns_view &rhs) = delete;
   Table_columns_view(Table_columns_view &&rhs) = delete;
   Table_columns_view &operator=(const Table_columns_view &rhs) = delete;
   Table_columns_view &operator=(Table_columns_view &&rhs) = delete;
-  //<--
+  // <--
 
   /**
     Iterator class to allow iterating over the replicatable fields in a TABLE
@@ -463,7 +464,9 @@ Table_columns_view<F> &Table_columns_view<F>::translate_bitmap(
   for (size_t d = 0, s = 0; d != destination.n_bits && s != source.n_bits;
        ++d) {
     if (!this->is_excluded(d)) {
-      if (bitmap_is_set(&source, s)) bitmap_set_bit(&destination, d);
+      if (bitmap_is_set(&source, static_cast<uint>(s))) {
+        bitmap_set_bit(&destination, static_cast<uint>(d));
+      }
       ++s;
     }
   }

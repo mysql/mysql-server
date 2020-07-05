@@ -3428,3 +3428,15 @@ DROP TABLE bug19894382;
 --remove_file $MYSQLTEST_VARDIR/log/bug19894382.out.log
 --remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug19894382.binlog
 --rmdir $MYSQLTEST_VARDIR/tmp/test
+
+--echo #
+--echo # Bug#30438038: MAIN.LOCK_MULTI_BUG38499 FAILS ON PB2
+--echo #
+CREATE TABLE t(a INT, b INT);
+INSERT INTO t VALUES (1, 1), (2, 2), (3, 3), (4, 4);
+PREPARE ps FROM
+  'UPDATE t, (SELECT 1 FROM t UNION SELECT 2 FROM t) e SET a = 0 WHERE FALSE';
+EXECUTE ps;
+EXECUTE ps;  # The second execution used to fail.
+DROP PREPARE ps;
+DROP TABLE t;

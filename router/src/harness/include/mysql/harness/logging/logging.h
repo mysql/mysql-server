@@ -97,6 +97,12 @@ enum class LogLevel {
   kFatal,
 
   /**
+   * System message. These messages are always logged, such as state changes
+   * during startup and shutdown.
+   */
+  kSystem,
+
+  /**
    * Error message. indicate that something is not working properly and
    * actions need to be taken. However, the router continue
    * operating but the particular thread issuing the error message
@@ -116,6 +122,12 @@ enum class LogLevel {
    * the behaviour of the router during normal operation.
    */
   kInfo,
+
+  /**
+   * Note level contains additional information over the normal informational
+   * messages.
+   */
+  kNote,
 
   /**
    * Debug message. Message contain internal details that can be
@@ -207,11 +219,15 @@ extern "C" {
  * We need to declare these first, because __attribute__ can only be used in
  * declarations.
  */
+static inline void log_system(const char *fmt, ...)
+    ATTRIBUTE_GCC_FORMAT(printf, 1, 2);
 static inline void log_error(const char *fmt, ...)
     ATTRIBUTE_GCC_FORMAT(printf, 1, 2);
 static inline void log_warning(const char *fmt, ...)
     ATTRIBUTE_GCC_FORMAT(printf, 1, 2);
 static inline void log_info(const char *fmt, ...)
+    ATTRIBUTE_GCC_FORMAT(printf, 1, 2);
+static inline void log_note(const char *fmt, ...)
     ATTRIBUTE_GCC_FORMAT(printf, 1, 2);
 static inline void log_debug(const char *fmt, ...)
     ATTRIBUTE_GCC_FORMAT(printf, 1, 2);
@@ -219,6 +235,15 @@ static inline void log_debug(const char *fmt, ...)
 /*
  * Define inline functions that pick up the log domain defined for the module.
  */
+
+static inline void log_system(const char *fmt, ...) {
+  extern void HARNESS_EXPORT log_message(LogLevel level, const char *module,
+                                         const char *fmt, va_list ap);
+  va_list ap;
+  va_start(ap, fmt);
+  log_message(LogLevel::kSystem, MYSQL_ROUTER_LOG_DOMAIN, fmt, ap);
+  va_end(ap);
+}
 
 static inline void log_error(const char *fmt, ...) {
   extern void HARNESS_EXPORT log_message(LogLevel level, const char *module,
@@ -244,6 +269,15 @@ static inline void log_info(const char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
   log_message(LogLevel::kInfo, MYSQL_ROUTER_LOG_DOMAIN, fmt, ap);
+  va_end(ap);
+}
+
+static inline void log_note(const char *fmt, ...) {
+  extern void HARNESS_EXPORT log_message(LogLevel level, const char *module,
+                                         const char *fmt, va_list ap);
+  va_list ap;
+  va_start(ap, fmt);
+  log_message(LogLevel::kNote, MYSQL_ROUTER_LOG_DOMAIN, fmt, ap);
   va_end(ap);
 }
 
@@ -276,9 +310,11 @@ static inline bool log_level_is_handled(LogLevel level) {
  * convenience macro to avoid common boilerplate
  */
 #define IMPORT_LOG_FUNCTIONS()               \
+  using mysql_harness::logging::log_system;  \
   using mysql_harness::logging::log_error;   \
   using mysql_harness::logging::log_warning; \
   using mysql_harness::logging::log_info;    \
+  using mysql_harness::logging::log_note;    \
   using mysql_harness::logging::log_debug;
 
 #endif  // MYSQL_HARNESS_LOGGING_INCLUDED

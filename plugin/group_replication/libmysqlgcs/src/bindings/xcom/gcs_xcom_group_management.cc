@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,7 @@ Gcs_xcom_group_management::Gcs_xcom_group_management(
           m_gid->get_group_id().size())),
       m_nodes_mutex() {
   m_nodes_mutex.init(key_GCS_MUTEX_Gcs_xcom_group_management_m_nodes_mutex,
-                     NULL);
+                     nullptr);
 }
 
 Gcs_xcom_group_management::~Gcs_xcom_group_management() {
@@ -95,7 +95,7 @@ enum_gcs_error Gcs_xcom_group_management::modify_configuration(
   const std::string *peer_nodes_str =
       reconfigured_group.get_parameter("peer_nodes");
 
-  if (peer_nodes_str == NULL) {
+  if (peer_nodes_str == nullptr) {
     MYSQL_GCS_LOG_ERROR("No peer list was provided to reconfigure the group.")
     return GCS_NOK;
   }

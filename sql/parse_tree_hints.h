@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -85,6 +85,13 @@ class PT_hint : public Parse_tree_node {
   */
   virtual void append_args(const THD *thd MY_ATTRIBUTE((unused)),
                            String *str MY_ATTRIBUTE((unused))) const {}
+  bool supports_view() {
+    /*
+      Only index hints are supported to be used in views.
+      Other hints can be added separately.
+    */
+    return (type() >= INDEX_HINT_ENUM && type() <= ORDER_INDEX_HINT_ENUM);
+  }
 };
 
 class PT_hint_list : public Parse_tree_node {

@@ -292,7 +292,7 @@ static buf_buddy_free_t *buf_buddy_alloc_zip(buf_pool_t *buf_pool, ulint i) {
   buf = UT_LIST_GET_FIRST(buf_pool->zip_free[i]);
 
   if (buf_get_withdraw_depth(buf_pool)) {
-    while (buf != NULL &&
+    while (buf != nullptr &&
            buf_frame_will_withdrawn(buf_pool, reinterpret_cast<byte *>(buf))) {
       /* This should be withdrawn, not to be allocated */
       buf = UT_LIST_GET_NEXT(list, buf);
@@ -541,7 +541,7 @@ static bool buf_buddy_relocate(buf_pool_t *buf_pool, void *src, void *dst,
     ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
 
     bpage = UT_LIST_GET_FIRST(buf_pool->LRU);
-    while (bpage != NULL) {
+    while (bpage != nullptr) {
       if (bpage->zip.data == src) {
         hash_lock = buf_page_hash_lock_get(buf_pool, bpage->id);
         rw_lock_x_lock(hash_lock);
@@ -550,7 +550,7 @@ static bool buf_buddy_relocate(buf_pool_t *buf_pool, void *src, void *dst,
       bpage = UT_LIST_GET_NEXT(LRU, bpage);
     }
 
-    if (bpage == NULL) {
+    if (bpage == nullptr) {
       mutex_enter(&buf_pool->zip_free_mutex);
       return (false);
     }
@@ -709,7 +709,7 @@ to by the buffer pool
 @retval true	if succeeded or if failed because the block was fixed
 @retval false	if failed because of no free blocks. */
 bool buf_buddy_realloc(buf_pool_t *buf_pool, void *buf, ulint size) {
-  buf_block_t *block = NULL;
+  buf_block_t *block = nullptr;
   ulint i = buf_buddy_get_slot(size);
 
   ut_ad(!mutex_own(&buf_pool->zip_mutex));
@@ -721,11 +721,11 @@ bool buf_buddy_realloc(buf_pool_t *buf_pool, void *buf, ulint size) {
     block = reinterpret_cast<buf_block_t *>(buf_buddy_alloc_zip(buf_pool, i));
   }
 
-  if (block == NULL) {
+  if (block == nullptr) {
     /* Try allocating from the buf_pool->free list. */
     block = buf_LRU_get_free_only(buf_pool);
 
-    if (block == NULL) {
+    if (block == nullptr) {
       return (false); /* free_list was not enough */
     }
 
@@ -765,12 +765,12 @@ void buf_buddy_condense_free(buf_pool_t *buf_pool) {
     buf_buddy_free_t *buf = UT_LIST_GET_FIRST(buf_pool->zip_free[i]);
 
     /* seek to withdraw target */
-    while (buf != NULL &&
+    while (buf != nullptr &&
            !buf_frame_will_withdrawn(buf_pool, reinterpret_cast<byte *>(buf))) {
       buf = UT_LIST_GET_NEXT(list, buf);
     }
 
-    while (buf != NULL) {
+    while (buf != nullptr) {
       buf_buddy_free_t *next = UT_LIST_GET_NEXT(list, buf);
 
       buf_buddy_free_t *buddy = reinterpret_cast<buf_buddy_free_t *>(
@@ -778,8 +778,9 @@ void buf_buddy_condense_free(buf_pool_t *buf_pool) {
 
       /* seek to the next withdraw target */
       while (true) {
-        while (next != NULL && !buf_frame_will_withdrawn(
-                                   buf_pool, reinterpret_cast<byte *>(next))) {
+        while (next != nullptr &&
+               !buf_frame_will_withdrawn(buf_pool,
+                                         reinterpret_cast<byte *>(next))) {
           next = UT_LIST_GET_NEXT(list, next);
         }
 

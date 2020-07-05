@@ -129,7 +129,7 @@ Got expected error:
 Mysqlx.Error {
   severity: ERROR
   code: 5017
-  msg: "Invalid validation.level argument. Allowed values are \'OFF\' and \'STRICT\'"
+  msg: "Invalid \"validation.level\" argument. Allowed values are \'OFF\' and \'STRICT\'"
   sql_state: "HY000"
 }
 
@@ -169,7 +169,7 @@ Got expected error:
 Mysqlx.Error {
   severity: ERROR
   code: 5182
-  msg: "Validation schema is not a valid JSON"
+  msg: "Validation schema is not a valid JSON document"
   sql_state: "HY000"
 }
 
@@ -224,7 +224,7 @@ _utf8mb4\'{"description":"base"}\'
 
 command ok
 GENERATION_EXPRESSION
-_utf8mb4\'{"description": "modified"}\'
+_utf8mb4\'{"description":"modified"}\'
 0 rows affected
 
 0 rows affected
@@ -260,7 +260,7 @@ command ok
 
 command ok
 GENERATION_EXPRESSION
-_utf8mb4\'{"description": "test"}\'
+_utf8mb4\'{"description":"test"}\'
 0 rows affected
 
 0 rows affected
@@ -283,7 +283,7 @@ Got expected error:
 Mysqlx.Error {
   severity: ERROR
   code: 5017
-  msg: "Invalid validation.level argument. Allowed values are \'OFF\' and \'STRICT\'"
+  msg: "Invalid \"validation.level\" argument. Allowed values are \'OFF\' and \'STRICT\'"
   sql_state: "HY000"
 }
 
@@ -423,7 +423,7 @@ Got expected error:
 Mysqlx.Error {
   severity: ERROR
   code: 5017
-  msg: "Invalid validation.level argument. Allowed values are \'OFF\' and \'STRICT\'"
+  msg: "Invalid \"validation.level\" argument. Allowed values are \'OFF\' and \'STRICT\'"
   sql_state: "HY000"
 }
 

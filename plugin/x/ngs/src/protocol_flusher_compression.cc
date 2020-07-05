@@ -44,13 +44,13 @@ using Encoding_buffer = protocol::Encoding_buffer;
 
 class Compression_deflate : public ::protocol::Compression_buffer_interface {
  public:
-  Compression_deflate() {
+  explicit Compression_deflate(const int32_t level) {
     DBUG_TRACE;
     m_stream.zalloc = Z_NULL;
     m_stream.zfree = Z_NULL;
     m_stream.opaque = Z_NULL;
 
-    m_error = Z_OK != deflateInit(&m_stream, Z_DEFAULT_COMPRESSION);
+    m_error = Z_OK != deflateInit(&m_stream, level);
   }
 
   ~Compression_deflate() override { deflateEnd(&m_stream); }
@@ -132,12 +132,13 @@ class Compression_deflate : public ::protocol::Compression_buffer_interface {
 
 class Compression_lz4 : public ::protocol::Compression_buffer_interface {
  public:
-  Compression_lz4() {
+  explicit Compression_lz4(const int32_t level) {
     DBUG_TRACE;
     LZ4F_createCompressionContext(&m_ctxt, LZ4F_VERSION);
     m_pref.frameInfo.contentSize = 0;
     m_pref.autoFlush = 1;
     m_pref.frameInfo.blockMode = LZ4F_blockIndependent;
+    m_pref.compressionLevel = level;
   }
 
   ~Compression_lz4() override { LZ4F_freeCompressionContext(m_ctxt); }
@@ -364,8 +365,18 @@ class Compression_lz4 : public ::protocol::Compression_buffer_interface {
 
 class Compression_zstandard : public ::protocol::Compression_buffer_interface {
  public:
-  Compression_zstandard() : m_stream{ZSTD_createCStream()} {
-    m_error = ZSTD_isError(ZSTD_initCStream(m_stream, -1));
+  explicit Compression_zstandard(const int32_t level)
+      : m_stream{ZSTD_createCStream()} {
+#if ZSTD_VERSION_NUMBER < 10400
+    is_error(ZSTD_initCStream(m_stream, level));
+#else
+
+    if (is_error(ZSTD_CCtx_reset(m_stream, ZSTD_reset_session_only)) ||
+        is_error(ZSTD_CCtx_refCDict(m_stream, nullptr)) ||
+        is_error(
+            ZSTD_CCtx_setParameter(m_stream, ZSTD_c_compressionLevel, level)))
+      return;
+#endif
   }
 
   ~Compression_zstandard() override { ZSTD_freeCStream(m_stream); }
@@ -380,16 +391,31 @@ class Compression_zstandard : public ::protocol::Compression_buffer_interface {
     DBUG_TRACE;
     if (m_error) return false;
 
-    auto in_page = input_buffer->m_front;
     auto out_page = output_buffer->m_current;
-
     if (out_page->is_full()) {
       out_page = output_buffer->get_next_page();
     }
 
+    auto in_page = input_buffer->m_front;
+    uint32_t size = 0;
     while (in_page) {
-      ZSTD_inBuffer in_buffer{in_page->m_begin_data, in_page->get_used_bytes(),
-                              0};
+      size += in_page->get_used_bytes();
+      in_page = in_page->m_next_page;
+    }
+
+#if ZSTD_VERSION_NUMBER < 10400
+    // is_error(ZSTD_resetCStream(m_stream, size));
+#else
+    if (is_error(ZSTD_CCtx_reset(m_stream, ZSTD_reset_session_only)) ||
+        is_error(ZSTD_CCtx_setPledgedSrcSize(m_stream, size)))
+      return false;
+#endif
+
+    in_page = input_buffer->m_front;
+    ZSTD_inBuffer in_buffer;
+    while (in_page) {
+      in_buffer =
+          ZSTD_inBuffer{in_page->m_begin_data, in_page->get_used_bytes(), 0};
 
       m_all_uncompressed += in_buffer.size;
 
@@ -397,13 +423,13 @@ class Compression_zstandard : public ::protocol::Compression_buffer_interface {
         ZSTD_outBuffer out_buffer{out_page->m_current_data,
                                   out_page->get_free_bytes(), 0};
 
-        auto result = ZSTD_compressStream(m_stream, &out_buffer, &in_buffer);
-
-        if (ZSTD_isError(result)) {
-          log_error(ER_XPLUGIN_COMPRESSION_ERROR, ZSTD_getErrorName(result));
-          m_error = true;
+#if ZSTD_VERSION_NUMBER < 10400
+        if (is_error(ZSTD_compressStream(m_stream, &out_buffer, &in_buffer)))
+#else
+        if (is_error(ZSTD_compressStream2(m_stream, &out_buffer, &in_buffer,
+                                          ZSTD_e_continue)))
+#endif
           return false;
-        }
 
         out_page->m_current_data += out_buffer.pos;
         m_all_compressed += out_buffer.pos;
@@ -415,17 +441,25 @@ class Compression_zstandard : public ::protocol::Compression_buffer_interface {
       in_page = in_page->m_next_page;
     }
 
-    ZSTD_outBuffer flush_buffer{out_page->m_current_data,
+    size_t result = 0;
+    do {
+      ZSTD_outBuffer out_buffer{out_page->m_current_data,
                                 out_page->get_free_bytes(), 0};
-    auto result = ZSTD_flushStream(m_stream, &flush_buffer);
-    if (ZSTD_isError(result)) {
-      log_error(ER_XPLUGIN_COMPRESSION_ERROR, ZSTD_getErrorName(result));
-      m_error = true;
-      return false;
-    }
+#if ZSTD_VERSION_NUMBER < 10400
+      result = ZSTD_flushStream(m_stream, &out_buffer);
+#else
+      result =
+          ZSTD_compressStream2(m_stream, &out_buffer, &in_buffer, ZSTD_e_end);
+#endif
 
-    out_page->m_current_data += flush_buffer.pos;
-    m_all_compressed += flush_buffer.pos;
+      if (is_error(result)) return false;
+
+      out_page->m_current_data += out_buffer.pos;
+      m_all_compressed += out_buffer.pos;
+
+      if (result != 0 && out_buffer.pos == out_buffer.size)
+        out_page = output_buffer->get_next_page();
+    } while (result);
 
     return true;
   }
@@ -437,6 +471,13 @@ class Compression_zstandard : public ::protocol::Compression_buffer_interface {
   }
 
  private:
+  bool is_error(const uint64_t result) {
+    if (!ZSTD_isError(result)) return false;
+    log_error(ER_XPLUGIN_COMPRESSION_ERROR, ZSTD_getErrorName(result));
+    m_error = true;
+    return true;
+  }
+
   ZSTD_CStream *m_stream;
   uint32_t m_all_compressed = 0;
   uint32_t m_all_uncompressed = 0;
@@ -490,22 +531,22 @@ void Protocol_flusher_compression::set_write_timeout(const uint32_t timeout) {
 
 void Protocol_flusher_compression::set_compression_options(
     const Compression_algorithm algo, const Compression_style style,
-    const int64_t max_num_of_messages) {
+    const int64_t max_num_of_messages, const int32_t level) {
   DBUG_TRACE;
   // Set the compression once.
   if (m_comp_algorithm.get()) return;
 
   switch (algo) {
     case Compression_algorithm::k_deflate:
-      m_comp_algorithm.reset(new details::Compression_deflate());
+      m_comp_algorithm.reset(new details::Compression_deflate(level));
       break;
 
     case Compression_algorithm::k_lz4:
-      m_comp_algorithm.reset(new details::Compression_lz4());
+      m_comp_algorithm.reset(new details::Compression_lz4(level));
       break;
 
     case Compression_algorithm::k_zstd:
-      m_comp_algorithm.reset(new details::Compression_zstandard());
+      m_comp_algorithm.reset(new details::Compression_zstandard(level));
       break;
 
     case Compression_algorithm::k_none:

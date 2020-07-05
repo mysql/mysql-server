@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2659,7 +2659,6 @@ BackupRestore::table_compatible_check(TableS & tableS)
     BaseString& stagingName = tableS.m_stagingName;
     stagingName.assfmt("%s%s%s", tableS.getTableName(),
                        NDB_RESTORE_STAGING_SUFFIX, m_instance_name);
-
     NdbDictionary::Table* stagingTable = new NdbDictionary::Table;
 
     // handle very many rows
@@ -3365,37 +3364,54 @@ BackupRestore::endOfTablesFK()
   return true;
 }
 
-static Uint64 extract_auto_val(const char *data, int size)
+static Uint64 extract_auto_val(const char *data,
+                               int size,
+                               NdbDictionary::Column::Type type)
 {
   union {
-    Uint8  u8;
-    Uint16 u16;
-    Uint32 u32;
+    Int8  i8;
+    Int16 i16;
+    Int32 i32;
   } val;
-  Uint64 v;
+  Int64 v; /* Get sign-extension on assignment */
   switch(size){
   case 64:
     memcpy(&v,data,8);
     break;
   case 32:
-    memcpy(&val.u32,data,4);
-    v= val.u32;
+    memcpy(&val.i32,data,4);
+    v= val.i32;
     break;
   case 24:
-    v= uint3korr((unsigned char*)data);
+    v= sint3korr((unsigned char*)data);
     break;
   case 16:
-    memcpy(&val.u16,data,2);
-    v= val.u16;
+    memcpy(&val.i16,data,2);
+    v= val.i16;
     break;
   case 8:
-    memcpy(&val.u8,data,1);
-    v= val.u8;
+    memcpy(&val.i8,data,1);
+    v= val.i8;
     break;
   default:
     return 0;
   };
-  return v;
+
+  /* Don't return negative signed values */
+  if (unlikely(v & 0x80000000))
+  {
+    if (type == NdbDictionary::Column::Bigint ||
+        type == NdbDictionary::Column::Int ||
+        type == NdbDictionary::Column::Mediumint ||
+        type == NdbDictionary::Column::Smallint ||
+        type == NdbDictionary::Column::Tinyint)
+    {
+      /* Negative signed value */
+      v = 0;
+    }
+  }
+
+  return (Uint64) v;
 }
 
 void
@@ -3554,7 +3570,9 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
         }
 	if (j == 0 && tup.getTable()->have_auto_inc(i))
         {
-          Uint64 usedAutoVal = extract_auto_val(dataPtr, size * arraySize);
+          Uint64 usedAutoVal = extract_auto_val(dataPtr,
+                                                size * arraySize,
+                                                attr_desc->m_column->getType());
           Uint32 orig_table_id = tup.getTable()->m_dictTable->getTableId();
           update_next_auto_val(orig_table_id, usedAutoVal + 1);
         }
@@ -3918,7 +3936,9 @@ retry:
     
     if (tup.m_table->have_auto_inc(attr->Desc->attrId))
     {
-      Uint64 usedAutoVal = extract_auto_val(dataPtr, size * arraySize);
+      Uint64 usedAutoVal = extract_auto_val(dataPtr,
+                                            size * arraySize,
+                                            attr->Desc->m_column->getType());
       Uint32 orig_table_id = tup.m_table->m_dictTable->getTableId();
       update_next_auto_val(orig_table_id, usedAutoVal + 1);
     }

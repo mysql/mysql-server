@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -122,7 +122,7 @@ vector<my_option> Abstract_options_provider::generate_options() {
 void Abstract_options_provider::options_parsed() {}
 
 Abstract_options_provider::Abstract_options_provider()
-    : m_are_options_created(false), m_option_changed_listener(NULL) {}
+    : m_are_options_created(false), m_option_changed_listener(nullptr) {}
 
 Abstract_options_provider::~Abstract_options_provider() {
   for (vector<I_option *>::iterator it = this->m_options_created.begin();
@@ -133,7 +133,7 @@ Abstract_options_provider::~Abstract_options_provider() {
 
 void Abstract_options_provider::set_option_changed_listener(
     I_option_changed_listener *listener) {
-  DBUG_ASSERT(this->m_option_changed_listener == NULL);
+  DBUG_ASSERT(this->m_option_changed_listener == nullptr);
   this->m_option_changed_listener = listener;
 }
 
@@ -163,7 +163,7 @@ void Abstract_options_provider::notify_option_name_changed(I_option *source,
   this->m_name_usage.insert(std::make_pair(new_name, source));
 
   // If we have listener we should inform it too.
-  if (this->m_option_changed_listener != NULL) {
+  if (this->m_option_changed_listener != nullptr) {
     this->m_option_changed_listener->notify_option_name_changed(source,
                                                                 old_name);
   }
@@ -197,7 +197,7 @@ void Abstract_options_provider::notify_option_optid_changed(I_option *source,
   this->m_optid_usage.insert(std::make_pair(new_optid, source));
 
   // If we have listener we should inform it too.
-  if (this->m_option_changed_listener != NULL) {
+  if (this->m_option_changed_listener != nullptr) {
     this->m_option_changed_listener->notify_option_optid_changed(source,
                                                                  old_optid);
   }

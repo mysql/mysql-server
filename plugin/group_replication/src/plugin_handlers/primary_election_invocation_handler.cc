@@ -121,7 +121,7 @@ int Primary_election_handler::execute_primary_election(
 
   primary_member_info = group_member_mgr->get_group_member_info(primary_uuid);
 
-  if (primary_member_info == NULL) {
+  if (primary_member_info == nullptr) {
     if (all_members_info->size() != 1) {
       // There are no servers in the group or they are all recovering WARN the
       // user
@@ -343,7 +343,7 @@ bool Primary_election_handler::pick_primary_member(
 #ifndef DBUG_OFF
   int n = 0;
 #endif
-  Group_member_info *the_primary = NULL;
+  Group_member_info *the_primary = nullptr;
 
   std::vector<Group_member_info *>::iterator it;
   std::vector<Group_member_info *>::iterator lowest_version_end;
@@ -370,7 +370,7 @@ bool Primary_election_handler::pick_primary_member(
 #endif
 
     Group_member_info *member = *it;
-    if (local_member_info->in_primary_mode() && the_primary == NULL &&
+    if (local_member_info->in_primary_mode() && the_primary == nullptr &&
         member->get_role() == Group_member_info::MEMBER_ROLE_PRIMARY) {
       the_primary = member;
 #ifndef DBUG_OFF
@@ -399,9 +399,9 @@ bool Primary_election_handler::pick_primary_member(
      To pick leaders from only lowest version members loop
      till lowest_version_end.
     */
-    if (the_primary == NULL) {
+    if (the_primary == nullptr) {
       for (it = all_members_info->begin();
-           it != lowest_version_end && the_primary == NULL; it++) {
+           it != lowest_version_end && the_primary == nullptr; it++) {
         Group_member_info *member_info = *it;
 
         DBUG_ASSERT(member_info);
@@ -412,7 +412,7 @@ bool Primary_election_handler::pick_primary_member(
     }
   }
 
-  if (the_primary == NULL) return true;
+  if (the_primary == nullptr) return true;
 
   primary_uuid.assign(the_primary->get_uuid());
   return false;

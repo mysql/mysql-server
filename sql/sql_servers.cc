@@ -222,7 +222,7 @@ static bool servers_load(THD *thd, TABLE *table) {
   init_sql_alloc(key_memory_servers, &mem, ACL_ALLOC_BLOCK_SIZE, 0);
 
   unique_ptr_destroy_only<RowIterator> iterator =
-      init_table_iterator(thd, table, NULL, false,
+      init_table_iterator(thd, table, nullptr, false,
                           /*ignore_not_found_rows=*/false);
   if (iterator == nullptr) return true;
 
@@ -362,7 +362,7 @@ static bool get_server_from_table_to_cache(TABLE *table) {
 static bool close_cached_connection_tables(THD *thd,
                                            const char *connection_string,
                                            size_t connection_length) {
-  TABLE_LIST tmp, *tables = NULL;
+  TABLE_LIST tmp, *tables = nullptr;
   bool result = false;
   DBUG_TRACE;
   DBUG_ASSERT(thd);
@@ -431,22 +431,22 @@ static bool close_cached_connection_tables(THD *thd,
 }
 
 void Server_options::reset() {
-  m_server_name.str = NULL;
+  m_server_name.str = nullptr;
   m_server_name.length = 0;
   m_port = PORT_NOT_SET;
-  m_host.str = NULL;
+  m_host.str = nullptr;
   m_host.length = 0;
-  m_db.str = NULL;
+  m_db.str = nullptr;
   m_db.length = 0;
-  m_username.str = NULL;
+  m_username.str = nullptr;
   m_db.length = 0;
-  m_password.str = NULL;
+  m_password.str = nullptr;
   m_password.length = 0;
-  m_scheme.str = NULL;
+  m_scheme.str = nullptr;
   m_scheme.length = 0;
-  m_socket.str = NULL;
+  m_socket.str = nullptr;
   m_socket.length = 0;
-  m_owner.str = NULL;
+  m_owner.str = nullptr;
   m_owner.length = 0;
 }
 
@@ -619,7 +619,7 @@ bool Sql_cmd_common_server::check_and_open_table(THD *thd) {
   TABLE_LIST tables("mysql", "servers", TL_WRITE);
 
   table = open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT);
-  return (table == NULL);
+  return (table == nullptr);
 }
 
 bool Sql_cmd_create_server::execute(THD *thd) {
@@ -870,15 +870,15 @@ static FOREIGN_SERVER *clone_server(MEM_ROOT *mem, const FOREIGN_SERVER *server,
   buffer->server_name_length = server->server_name_length;
 
   /* TODO: We need to examine which of these can really be NULL */
-  buffer->db = server->db ? strdup_root(mem, server->db) : NULL;
-  buffer->scheme = server->scheme ? strdup_root(mem, server->scheme) : NULL;
+  buffer->db = server->db ? strdup_root(mem, server->db) : nullptr;
+  buffer->scheme = server->scheme ? strdup_root(mem, server->scheme) : nullptr;
   buffer->username =
-      server->username ? strdup_root(mem, server->username) : NULL;
+      server->username ? strdup_root(mem, server->username) : nullptr;
   buffer->password =
-      server->password ? strdup_root(mem, server->password) : NULL;
-  buffer->socket = server->socket ? strdup_root(mem, server->socket) : NULL;
-  buffer->owner = server->owner ? strdup_root(mem, server->owner) : NULL;
-  buffer->host = server->host ? strdup_root(mem, server->host) : NULL;
+      server->password ? strdup_root(mem, server->password) : nullptr;
+  buffer->socket = server->socket ? strdup_root(mem, server->socket) : nullptr;
+  buffer->owner = server->owner ? strdup_root(mem, server->owner) : nullptr;
+  buffer->host = server->host ? strdup_root(mem, server->host) : nullptr;
 
   return buffer;
 }
@@ -894,7 +894,7 @@ FOREIGN_SERVER *get_server_by_name(MEM_ROOT *mem, const char *server_name,
 
   if (!server_name || !strlen(server_name)) {
     DBUG_PRINT("info", ("server_name not defined!"));
-    return (FOREIGN_SERVER *)NULL;
+    return (FOREIGN_SERVER *)nullptr;
   }
 
   DBUG_PRINT("info", ("locking servers_cache"));
@@ -904,7 +904,7 @@ FOREIGN_SERVER *get_server_by_name(MEM_ROOT *mem, const char *server_name,
   if (it == servers_cache->end()) {
     DBUG_PRINT("info", ("server_name %s length %u not found!", server_name,
                         (unsigned)server_name_length));
-    server = (FOREIGN_SERVER *)NULL;
+    server = (FOREIGN_SERVER *)nullptr;
   }
   /* otherwise, make copy of server */
   else

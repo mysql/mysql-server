@@ -35,6 +35,12 @@ IF(WIN32)
   ADD_DEFINITIONS(-DPROTOBUF_USE_DLLS)
 ENDIF()
 
+# --yplg_out: protoc-gen-yplg: Plugin killed by signal 11.
+IF(SOLARIS_SPARC AND MY_COMPILER_IS_GNU AND
+    CMAKE_BUILD_TYPE_UPPER MATCHES "REL")
+  ADD_COMPILE_OPTIONS("-O0")
+ENDIF()
+
 ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="mysqlx")
 
 INCLUDE(source_files.cmake)
@@ -88,7 +94,7 @@ ADD_COMPILE_FLAGS(${xplugin_SRC}
 )
 
 # assertion failed in function assert_with_dumps() @ ssa.c:621 when using -xO3
-IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
+IF(MY_COMPILER_IS_SUNPRO)
   ADD_COMPILE_FLAGS(${MYSQLX_PROJECT_DIR}/ngs/src/client.cc
     COMPILE_FLAGS "-xO2"
   )

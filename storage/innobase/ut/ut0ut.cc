@@ -66,7 +66,7 @@ ulong spin_wait_pause_multiplier = 50;
 /** Returns system time. We do not specify the format of the time returned:
  the only way to manipulate it is to use the function ut_difftime.
  @return system time */
-ib_time_t ut_time(void) { return (time(NULL)); }
+ib_time_t ut_time(void) { return (time(nullptr)); }
 
 /** Returns the number of microseconds since epoch. Uses the monotonic clock.
  @return us since epoch or 0 if failed to retrieve */
@@ -192,7 +192,7 @@ std::string ut_get_name(const trx_t *trx, const char *name) {
   const char *bufend;
 
   bufend = innobase_convert_name(buf, sizeof buf, name, strlen(name),
-                                 trx ? trx->mysql_thd : NULL);
+                                 trx ? trx->mysql_thd : nullptr);
   buf[bufend - buf] = '\0';
   return (std::string(buf, 0, bufend - buf));
 }
@@ -211,7 +211,7 @@ void ut_print_name(FILE *f,          /*!< in: output stream */
   const char *bufend;
 
   bufend = innobase_convert_name(buf, sizeof buf, name, strlen(name),
-                                 trx ? trx->mysql_thd : NULL);
+                                 trx ? trx->mysql_thd : nullptr);
 
   if (fwrite(buf, 1, bufend - buf, f) != (size_t)(bufend - buf)) {
     perror("fwrite");
@@ -239,7 +239,7 @@ char *ut_format_name(const char *name, char *formatted, ulint formatted_size) {
   char *end;
 
   end = innobase_convert_name(formatted, formatted_size, name, strlen(name),
-                              NULL);
+                              nullptr);
 
   /* If the space in 'formatted' was completely used, then sacrifice
   the last character in order to write '\0' at the end. */
@@ -485,6 +485,20 @@ const char *ut_strerr(dberr_t num) {
           "of stored column");
     case DB_COMPUTE_VALUE_FAILED:
       return ("Compute generated column failed");
+    case DB_V1_DBLWR_INIT_FAILED:
+      return (
+          "Failed to initialize the doublewrite extents "
+          "in the system tablespace");
+    case DB_V1_DBLWR_CREATE_FAILED:
+      return (
+          "Failed to create the doublewrite extents "
+          "in the system tablespace");
+    case DB_DBLWR_INIT_FAILED:
+      return ("Failed to create a doublewrite instance");
+    case DB_DBLWR_NOT_EXISTS:
+      return (
+          "Failed to find a doublewrite buffer "
+          "in the system tablespace");
     case DB_INVALID_ENCRYPTION_META:
       return ("Invalid encryption meta-data information");
     case DB_ABORT_INCOMPLETE_CLONE:
@@ -503,6 +517,8 @@ const char *ut_strerr(dberr_t num) {
       return ("Btree level limit exceeded");
     case DB_END_SAMPLE_READ:
       return ("Sample reader has been requested to stop sampling");
+    case DB_OUT_OF_RESOURCES:
+      return ("System has run out of resources");
 
     case DB_ERROR_UNSET:;
       /* Fall through. */

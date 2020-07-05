@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -98,12 +98,12 @@ struct st_row_connect_status {
   ulonglong queueing_trx_immediate_commit_timestamp;
   ulonglong queueing_trx_start_queue_timestamp;
 
-  st_row_connect_status() : received_transaction_set(NULL) {}
+  st_row_connect_status() : received_transaction_set(nullptr) {}
 
   void cleanup() {
-    if (received_transaction_set != NULL) {
+    if (received_transaction_set != nullptr) {
       my_free(received_transaction_set);
-      received_transaction_set = NULL;
+      received_transaction_set = nullptr;
     }
   }
 };

@@ -115,7 +115,7 @@ dberr_t z_update(InsertContext &ctx, trx_t *trx, dict_index_t *index,
     }
   }
 
-  blobref.set_offset(lob_version, 0);
+  blobref.set_offset(lob_version, nullptr);
 
   if (!ctx.is_bulk()) {
     ctx.zblob_write_blobref(field_no, ctx.m_mtr);

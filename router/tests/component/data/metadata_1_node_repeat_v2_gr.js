@@ -14,9 +14,11 @@ var gr_memberships = require("gr_memberships");
 var gr_node_host = "127.0.0.1";
 
 var group_replication_membership_online =
-  gr_memberships.single_host(gr_node_host, [
-    [ mysqld.session.port, "ONLINE", "uuid" ],
-  ]);
+  gr_memberships.single_host(gr_node_host,
+    [
+      [ mysqld.session.port, "ONLINE" ]
+    ], "uuid"
+  );
 
 var options = {
   group_replication_membership: group_replication_membership_online,
@@ -27,6 +29,8 @@ options.group_replication_primary_member = options.group_replication_membership[
 
 // prepare the responses for common statements
 var common_responses = common_stmts.prepare_statement_responses([
+  "router_set_session_options",
+  "router_set_gr_consistency_level",
   "select_port",
   "router_start_transaction",
   "router_commit",

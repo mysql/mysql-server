@@ -7,8 +7,6 @@
 --source include/have_debug_sync.inc
 --source include/count_sessions.inc
 
---source suite/innodb/include/force_cats.inc
-
 CREATE TABLE t1 (col1 INT PRIMARY KEY, col2 int);
 
 --echo Connection: default
@@ -75,7 +73,5 @@ SELECT * FROM t1 ORDER BY col1;
 SET DEBUG='-d,ib_force_release_gap_lock_prepare';
 
 DROP TABLE t1;
-
---source suite/innodb/include/discourage_cats.inc
 
 --source include/wait_until_count_sessions.inc

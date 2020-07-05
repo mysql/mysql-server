@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2019 Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -61,8 +61,8 @@ class Histogram_sampler {
   @return error code */
   dberr_t buffer_next();
 
-  /** End buffering in the middle of sampling.
-  @return error code */
+  /** End parallel read in case the reader thread is still active and wait for
+  its exit. This can happen if we're ending sampling prematurely. */
   void buffer_end();
 
   /** Set the buffer.
@@ -93,6 +93,15 @@ class Histogram_sampler {
 
   /** Signal that the buffering of the row is complete. */
   void signal_end_of_buffering();
+
+  /** Set the error state.
+  @param[in] err                Error state to set to. */
+  void set_error_state(dberr_t err) { m_err = err; }
+
+  /** @return true if in error state. */
+  bool is_error_set() const MY_ATTRIBUTE((warn_unused_result)) {
+    return (m_err != DB_SUCCESS);
+  }
 
   /** Convert the row in InnoDB format to MySQL format and store in the buffer
   for server to use. */
@@ -151,11 +160,6 @@ class Histogram_sampler {
 
   /** Sampling seed to be used for sampling */
   int m_sampling_seed{};
-
-  /** Bool variable which is set to true if sampling was completed. There
-  could be a case (in case of RAPID) that sampling might be abandoned in the
-  middle. This variable is used to identify this case. */
-  static bool m_sampling_done;
 
   /** BLOB heap per thread.
 

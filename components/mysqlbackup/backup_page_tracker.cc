@@ -1,6 +1,26 @@
 /************************************************************************
                       Mysql Enterprise Backup
- Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License, version 2.0,
+ as published by the Free Software Foundation.
+
+ This program is also distributed with certain software (including
+ but not limited to OpenSSL) that is licensed under separate terms,
+ as designated in a particular file or component or in included license
+ documentation.  The authors of MySQL hereby grant you an additional
+ permission to link the program and your derivative works with the
+ separately licensed software that they have included with MySQL.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License, version 2.0, for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  *************************************************************************/
 
 #include "backup_page_tracker.h"
@@ -37,8 +57,6 @@ bool Backup_page_tracker::backup_id_update() {
 
 /**
    Make a list of the UDFs exposed by mysqlbackup page_tracking.
-
-   @return None
 */
 void Backup_page_tracker::initialize_udf_list() {
   m_udf_list.push_back(new udf_data_t(
@@ -145,8 +163,6 @@ bool Backup_page_tracker::set_page_tracking_init(UDF_INIT *, UDF_ARGS *,
 
 /**
    Callback method for initialization of UDF "mysqlbackup_page_track_set".
-
-   @return None
 */
 void Backup_page_tracker::set_page_tracking_deinit(
     UDF_INIT *initid MY_ATTRIBUTE((unused))) {}
@@ -200,8 +216,6 @@ bool Backup_page_tracker::page_track_get_start_lsn_init(UDF_INIT *, UDF_ARGS *,
 /**
    Callback method for initialization of UDF
    "mysqlbackup_page_track_get_start_lsn"
-
-   @return None
 */
 void Backup_page_tracker::page_track_get_start_lsn_deinit(
     UDF_INIT *initid MY_ATTRIBUTE((unused))) {}
@@ -246,8 +260,6 @@ bool Backup_page_tracker::page_track_get_changed_page_count_init(UDF_INIT *,
 /**
    Callback method for initialization of UDF
    "mysqlbackup_page_track_get_changed_page_count".
-
-   @return None
 */
 void Backup_page_tracker::page_track_get_changed_page_count_deinit(
     UDF_INIT *initid MY_ATTRIBUTE((unused))) {}
@@ -299,8 +311,6 @@ bool Backup_page_tracker::page_track_get_changed_pages_init(UDF_INIT *,
 /**
    Callback method for initialization of UDF
    "mysqlbackup_page_track_get_changed_pages".
-
-   @return None
 */
 void Backup_page_tracker::page_track_get_changed_pages_deinit(
     UDF_INIT *initid MY_ATTRIBUTE((unused))) {

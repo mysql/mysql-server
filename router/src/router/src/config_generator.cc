@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -57,10 +57,10 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/vt100.h"
 #include "mysqld_error.h"
-#include "mysqlrouter/sha1.h"
 #include "mysqlrouter/uri.h"
 #include "random_generator.h"
 #include "router_app.h"
+#include "sha1.h"  // compute_sha1_hash() from mysql's include/
 #include "tcp_address.h"
 #include "utils.h"
 IMPORT_LOG_FUNCTIONS()
@@ -93,6 +93,10 @@ static const std::chrono::milliseconds kDefaultMetadataTTL =
     std::chrono::milliseconds(500);
 static const std::chrono::milliseconds kDefaultMetadataTTLGRNotificationsON =
     std::chrono::milliseconds(60 * 1000);
+static const std::chrono::milliseconds kDefaultAuthCacheTTL =
+    std::chrono::seconds(-1);
+static const std::chrono::milliseconds kDefaultAuthCacheRefreshInterval =
+    std::chrono::milliseconds(2000);
 static constexpr uint32_t kMaxRouterId =
     999999;  // max router id is 6 digits due to username size constraints
 static constexpr unsigned kNumRandomChars = 12;
@@ -123,6 +127,7 @@ struct account_exists : public std::runtime_error {
 };
 }  // namespace
 
+#ifndef _WIN32
 // hint we offer to user when opening dir or file fails with "permission denied"
 const char kAppArmorMsg[] =
     "This may be caused by insufficient rights or AppArmor settings.\n"
@@ -132,6 +137,7 @@ const char kAppArmorMsg[] =
     "Example:\n\n"
     "  /path/to/your/output/dir rw,\n"
     "  /path/to/your/output/dir/** rw,";
+#endif
 
 static bool is_valid_name(const std::string &name) {
   if (!name.empty()) {
@@ -358,7 +364,7 @@ bool ConfigGenerator::warn_on_no_ssl(
 void ConfigGenerator::parse_bootstrap_options(
     const std::map<std::string, std::string> &bootstrap_options) {
   if (bootstrap_options.find("base-port") != bootstrap_options.end()) {
-    char *end = NULL;
+    char *end = nullptr;
     const char *tmp = bootstrap_options.at("base-port").c_str();
     int base_port = static_cast<int>(std::strtol(tmp, &end, 10));
     int max_base_port = (kMaxTCPPortNumber - kAllocatedTCPPortCount + 1);
@@ -699,8 +705,9 @@ void ConfigGenerator::bootstrap_directory_deployment(
   }
 
   if (!Path(directory).is_directory()) {
-    throw std::runtime_error("Can't use " + directory +
-                             " for bootstrap, it is not directory.");
+    throw std::runtime_error("Expected bootstrap directory '" + directory +
+                             "' to be a directory, but its type is: " +
+                             mysqlrouter::to_string(Path(directory).type()));
   }
 
   set_file_owner(user_options, directory);
@@ -890,7 +897,7 @@ ConfigGenerator::Options ConfigGenerator::fill_options(
   bool skip_x_protocol = false;
   int base_port = 0;
   if (user_options.find("base-port") != user_options.end()) {
-    char *end = NULL;
+    char *end = nullptr;
     const char *tmp = user_options.at("base-port").c_str();
     base_port = static_cast<int>(std::strtol(tmp, &end, 10));
     int max_base_port = (kMaxTCPPortNumber - kAllocatedTCPPortCount + 1);
@@ -970,7 +977,7 @@ unsigned get_password_retries(
     return kDefaultPasswordRetries;
   }
 
-  char *end = NULL;
+  char *end = nullptr;
   const char *tmp = user_options.at("password-retries").c_str();
   unsigned result = static_cast<unsigned>(std::strtoul(tmp, &end, 10));
   if (result == 0 || result > kMaxPasswordRetries || end != tmp + strlen(tmp)) {
@@ -985,10 +992,9 @@ unsigned get_password_retries(
 
 std::string compute_password_hash(const std::string &password) {
   uint8_t hash_stage1[SHA1_HASH_SIZE];
-  my_sha1::compute_sha1_hash(hash_stage1, password.c_str(), password.length());
+  compute_sha1_hash(hash_stage1, password.c_str(), password.length());
   uint8_t hash_stage2[SHA1_HASH_SIZE];
-  my_sha1::compute_sha1_hash(hash_stage2, (const char *)hash_stage1,
-                             SHA1_HASH_SIZE);
+  compute_sha1_hash(hash_stage2, (const char *)hash_stage1, SHA1_HASH_SIZE);
 
   std::stringstream ss;
   ss << "*";
@@ -1053,6 +1059,10 @@ class ClusterAwareDecorator {
   virtual ~ClusterAwareDecorator() = default;
 
  protected:
+  void connect(MySQLSession &session, const std::string &host,
+               const unsigned port);
+  void setup_session(MySQLSession &session);
+
   ClusterMetadata &metadata_;
   const std::string &cluster_initial_username_;
   const std::string &cluster_initial_password_;
@@ -1062,6 +1072,27 @@ class ClusterAwareDecorator {
   unsigned long connection_timeout_;
   std::set<MySQLErrorc> failure_codes_;
 };
+
+void ClusterAwareDecorator::connect(MySQLSession &session,
+                                    const std::string &host,
+                                    const unsigned port) {
+  try {
+    session.connect(host, port, cluster_initial_username_,
+                    cluster_initial_password_, "", "", connection_timeout_);
+  } catch (const std::exception &) {
+    if (session.is_connected()) session.disconnect();
+    throw;
+  }
+}
+
+void ClusterAwareDecorator::setup_session(MySQLSession &session) {
+  try {
+    return mysqlrouter::setup_metadata_session(session);
+  } catch (const std::exception &) {
+    if (session.is_connected()) session.disconnect();
+    throw;
+  }
+}
 
 /**
  * Cluster (GR or AR) aware failover.
@@ -1169,13 +1200,20 @@ R ClusterAwareDecorator::failover_on_failure(std::function<R()> wrapped_func) {
                port);
 
       try {
-        metadata_.get_session().connect(host, port, cluster_initial_username_,
-                                        cluster_initial_password_, "", "",
-                                        connection_timeout_);
+        connect(metadata_.get_session(), host, port);
       } catch (const std::exception &inner_e) {
         log_info("Failed connecting to %s:%ld: %s, trying next", host.c_str(),
                  port, inner_e.what());
+        continue;
       }
+
+      try {
+        setup_session(metadata_.get_session());
+      } catch (const std::exception &inner_e) {
+        log_info("Failed setting up a metadata session %s:%ld: %s, trying next",
+                 host.c_str(), port, inner_e.what());
+      }
+
       // if this fails, we should just skip it and go to the next
     } while (!metadata_.get_session().is_connected());
   } while (true);
@@ -1185,7 +1223,11 @@ void ConfigGenerator::set_log_file_permissions(
     const std::map<std::string, std::string> &default_paths,
     const std::map<std::string, std::string> &user_options,
     const Options &options) {
-#ifndef _WIN32
+#ifdef _WIN32
+  UNREFERENCED_PARAMETER(default_paths);
+  UNREFERENCED_PARAMETER(user_options);
+  UNREFERENCED_PARAMETER(options);
+#else
   /* Currently at this point the logger is not yet initialized but while
    * bootstraping with the --user=<user> option we need to create a log file and
    * chown it to the <user>. Otherwise when the router gets launched later (not
@@ -1574,7 +1616,7 @@ std::string ConfigGenerator::fetch_password_from_keyring(
   try {
     return mysql_harness::get_keyring()->fetch(username,
                                                kKeyringAttributePassword);
-  } catch (const std::out_of_range &e) {
+  } catch (const std::out_of_range &) {
     throw std::runtime_error(R"(Failed retrieving password for user ')"s +
                              username + R"(' from keyring:
 
@@ -1752,14 +1794,14 @@ static std::string find_executable_path() {
   harness_assert(!g_program_name.empty());
 
   if (g_program_name.find('/') != std::string::npos) {
-    char *tmp = realpath(g_program_name.c_str(), NULL);
+    char *tmp = realpath(g_program_name.c_str(), nullptr);
     harness_assert(tmp);  // will fail if g_program_name provides bogus path
     std::string path(tmp);
     free(tmp);
     return path;
   } else {
     std::string path(std::getenv("PATH"));
-    char *last = NULL;
+    char *last = nullptr;
     char *p = strtok_r(&path[0], ":", &last);
     while (p) {
       if (*p && p[strlen(p) - 1] == '/') p[strlen(p) - 1] = 0;
@@ -1767,7 +1809,7 @@ static std::string find_executable_path() {
       if (access(tmp.c_str(), R_OK | X_OK) == 0) {
         return tmp;
       }
-      p = strtok_r(NULL, ":", &last);
+      p = strtok_r(nullptr, ":", &last);
     }
   }
 #endif
@@ -1907,6 +1949,12 @@ void ConfigGenerator::create_config(
               << "user=" << username << "\n"
               << "metadata_cluster=" << metadata_cluster << "\n"
               << "ttl=" << mysqlrouter::ms_to_seconds_string(ttl) << "\n"
+              << "auth_cache_ttl="
+              << mysqlrouter::ms_to_seconds_string(kDefaultAuthCacheTTL) << "\n"
+              << "auth_cache_refresh_interval="
+              << mysqlrouter::ms_to_seconds_string(
+                     kDefaultAuthCacheRefreshInterval)
+              << "\n"
               << use_gr_notifications;
 
   // SSL options
@@ -2227,7 +2275,7 @@ void ConfigGenerator::throw_account_exists(const MySQLSession::Error &e,
   std::string msg = "Account(s) ";
 
   bool is_first{true};
-  for (const std::string a : accounts) {
+  for (const std::string &a : accounts) {
     if (is_first) {
       is_first = false;
     } else {
@@ -2737,7 +2785,10 @@ void ConfigGenerator::set_script_permissions(
     const std::string &script_path,
     const std::map<std::string, std::string> &options) {
 // we only call this method from unix-specific code
-#ifndef _WIN32
+#ifdef _WIN32
+  UNREFERENCED_PARAMETER(script_path);
+  UNREFERENCED_PARAMETER(options);
+#else
   if (::chmod(script_path.c_str(), kStrictDirectoryPerm) < 0) {
     std::cerr << "Could not change permissions for " << script_path << ": "
               << get_strerror(errno) << "\n";
@@ -2750,6 +2801,8 @@ void ConfigGenerator::create_start_script(
     const std::string &directory, bool interactive_master_key,
     const std::map<std::string, std::string> &options) {
 #ifdef _WIN32
+  UNREFERENCED_PARAMETER(interactive_master_key);
+  UNREFERENCED_PARAMETER(options);
 
   std::ofstream script;
   std::string script_path = directory + "/start.ps1";
@@ -2838,6 +2891,7 @@ void ConfigGenerator::create_stop_script(
     const std::string &directory,
     const std::map<std::string, std::string> &options) {
 #ifdef _WIN32
+  UNREFERENCED_PARAMETER(options);
 
   std::ofstream script;
   const std::string script_path = directory + "/stop.ps1";
@@ -2938,7 +2992,10 @@ bool ConfigGenerator::backup_config_file_if_different(
 void ConfigGenerator::set_file_owner(
     const std::map<std::string, std::string> &options,
     const std::string &file_path) {
-#ifndef _WIN32
+#ifdef _WIN32
+  UNREFERENCED_PARAMETER(options);
+  UNREFERENCED_PARAMETER(file_path);
+#else
   bool change_owner =
       (options.count("user") != 0) && (!options.at("user").empty());
   if (change_owner) {

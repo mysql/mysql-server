@@ -39,6 +39,7 @@
 #include "sql/dd/dd.h"                       // enum_dd_init_type
 #include "sql/dd/dd_schema.h"                // dd::schema_exists
 #include "sql/dd/dd_table.h"                 // dd::table_exists
+#include "sql/dd/dd_utility.h"               // check_if_server_ddse_readonly
 #include "sql/dd/impl/dictionary_impl.h"     // dd::Dictionary_impl
 #include "sql/dd/impl/system_registry.h"     // dd::System_tables
 #include "sql/dd/impl/tables/dd_properties.h"  // dd::tables::UNKNOWN_P_S_VERSION
@@ -64,8 +65,6 @@ class Schema;
 }  // namespace dd
 
 using namespace dd;
-
-bool check_if_server_ddse_readonly(THD *thd, const char *schema_name_abbrev);
 
 namespace {
 
@@ -267,7 +266,7 @@ bool initialize_pfs(THD *thd) {
     Stop server restart if P_S version is changed and the server is
     started with DDSE in read-only mode.
   */
-  if (check_if_server_ddse_readonly(thd, PERFORMANCE_SCHEMA_DB_NAME.str))
+  if (dd::check_if_server_ddse_readonly(thd, PERFORMANCE_SCHEMA_DB_NAME.str))
     return true;
 
   handlerton *pfs_se =

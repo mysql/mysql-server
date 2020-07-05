@@ -1,7 +1,7 @@
 #ifndef COMPONENTS_SERVICES_MYSQL_SOCKET_BITS_H
 #define COMPONENTS_SERVICES_MYSQL_SOCKET_BITS_H
 
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,7 +56,7 @@ struct MYSQL_SOCKET {
   @sa mysql_socket_setfd
 */
 static inline MYSQL_SOCKET mysql_socket_invalid() {
-  MYSQL_SOCKET mysql_socket = {INVALID_SOCKET, NULL};
+  MYSQL_SOCKET mysql_socket = {INVALID_SOCKET, nullptr};
   return mysql_socket;
 }
 

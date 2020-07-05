@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -140,7 +140,7 @@ static void mock_dd_obj(dd::Index_element *ie) {
   ie->set_order(dd::Index_element::ORDER_DESC);
 }
 
-static void mock_dd_obj(dd::Index *i, dd::Column *c = NULL) {
+static void mock_dd_obj(dd::Index *i, dd::Column *c = nullptr) {
   static dd::Object_id curid = 10000;
   dynamic_cast<dd::Entity_object_impl *>(i)->set_id(curid++);
   i->set_comment("mocked index comment");
@@ -182,7 +182,7 @@ static void mock_dd_obj(dd::Partition_value *pv) {
   pv->set_value_utf8("mocked partition value");
 }
 
-static void mock_dd_obj(dd::Partition *p, dd::Index *ix = NULL) {
+static void mock_dd_obj(dd::Partition *p, dd::Index *ix = nullptr) {
   p->set_number(42);
   p->set_engine("mocked partition engine");
   p->set_comment("mocked comment");

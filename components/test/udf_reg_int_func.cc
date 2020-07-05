@@ -59,7 +59,7 @@ long long myfunc_int(UDF_INIT *, UDF_ARGS *args, unsigned char *,
   unsigned i;
 
   for (i = 0; i < args->arg_count; i++) {
-    if (args->args[i] == NULL) continue;
+    if (args->args[i] == nullptr) continue;
     switch (args->arg_type[i]) {
       case STRING_RESULT: /* Add string lengths */
         val += args->lengths[i];
@@ -85,7 +85,7 @@ static mysql_service_status_t init() {
   bool ret_int = false;
   ret_int = mysql_service_udf_registration->udf_register(
       "myfunc_int", INT_RESULT, (Udf_func_any)myfunc_int, myfunc_int_init,
-      NULL);
+      nullptr);
   return ret_int;
 }
 

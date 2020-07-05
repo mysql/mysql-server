@@ -29,8 +29,8 @@
 #include "my_base.h"
 #include "my_inttypes.h"
 #include "sql/field.h"
+#include "sql/mem_root_allocator.h"
 #include "sql/mem_root_array.h"
-#include "sql/memroot_allocator.h"
 #include "sql/thr_malloc.h"
 
 class KEY;
@@ -41,7 +41,7 @@ struct CHARSET_INFO;
 struct MEM_ROOT;
 
 template <typename T>
-using Memroot_vector = std::vector<T, Memroot_allocator<T>>;
+using Mem_root_vector = std::vector<T, Mem_root_allocator<T>>;
 
 /**
    Helper class for copy_funcs(); represents an Item to copy from table to
@@ -80,8 +80,8 @@ class Temp_table_param {
     @see setup_copy_fields
     @see copy_fields
   */
-  Memroot_vector<Item_copy *> grouped_expressions;
-  Memroot_vector<Copy_field> copy_fields;
+  Mem_root_vector<Item_copy *> grouped_expressions;
+  Mem_root_vector<Copy_field> copy_fields;
 
   uchar *group_buff;
   Func_ptr_array *items_to_copy; /* Fields in tmp table */
@@ -196,8 +196,8 @@ class Temp_table_param {
   Window *m_window;
 
   Temp_table_param(MEM_ROOT *mem_root = *THR_MALLOC)
-      : grouped_expressions(Memroot_allocator<Item_copy *>(mem_root)),
-        copy_fields(Memroot_allocator<Copy_field>(mem_root)),
+      : grouped_expressions(Mem_root_allocator<Item_copy *>(mem_root)),
+        copy_fields(Mem_root_allocator<Copy_field>(mem_root)),
         group_buff(nullptr),
         items_to_copy(nullptr),
         keyinfo(nullptr),

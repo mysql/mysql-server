@@ -56,14 +56,19 @@ CREATE TABLE t1(a int primary key);
 --echo # Commit a transaction and see there is reported progress
 --echo # On the secondaries the stage reports waiting for a step completion
 
+--let $rpl_connection_name= server_1_1
+--source include/rpl_connection.inc
+
+SET @@GLOBAL.DEBUG='+d,group_replication_before_message_broadcast';
+BEGIN;
+INSERT INTO t1 VALUES (1);
+--send COMMIT
+
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
 
-BEGIN;
-INSERT INTO t1 VALUES (1);
-
---let $rpl_connection_name= server_1_1
---source include/rpl_connection.inc
+--let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now'
+--source include/wait_condition.inc
 
 BEGIN;
 INSERT INTO t1 VALUES (2);
@@ -118,10 +123,16 @@ INSERT INTO t1 VALUES (2);
 --let $assert_cond= "$work_completed" = "0"
 --source include/assert.inc
 
---let $rpl_connection_name= server_1
+--let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
-COMMIT;
+SET DEBUG_SYNC='now SIGNAL waiting';
+SET @@GLOBAL.DEBUG='-d,group_replication_before_message_broadcast';
+
+--let $rpl_connection_name= server_1_1
+--source include/rpl_connection.inc
+
+--reap;
 
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%" AND event_name NOT LIKE "%stage/group_rpl/Group Replication%" and work_completed=1
 --source include/wait_condition.inc
@@ -152,7 +163,7 @@ COMMIT;
 SET @@GLOBAL.read_only= 0;
 LOCK TABLE t1 READ;
 
---let $rpl_connection_name= server_1_1
+--let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
 
 COMMIT;

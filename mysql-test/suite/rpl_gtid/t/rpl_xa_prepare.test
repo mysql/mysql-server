@@ -28,6 +28,11 @@
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 
+# this test case requires that certain events appear in the
+# relay log, therefore they cannot be enclosed in a Transaction_payload
+# event.
+--source include/not_binlog_transaction_compression_on.inc
+
 --source include/have_myisam.inc
 # This test script changes SQL thread coordinates in between
 # which is not possible if AUTO_POSITION is active. So disable

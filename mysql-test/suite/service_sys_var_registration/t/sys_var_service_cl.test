@@ -87,3 +87,11 @@ SELECT @@test_component.uint_sys_var;
 UNINSTALL COMPONENT "file://component_test_sys_var_service";
 let $MYSQLD_DATADIR= `select @@datadir`;
 remove_file $MYSQLD_DATADIR/test_component_sys_var_service.log;
+
+# Restore default settings
+let $restart_parameters = restart:;
+--source include/restart_mysqld.inc
+
+--remove_file $MYSQLTEST_VARDIR/tmp/sys_reg.cnf
+--remove_file $MYSQLTEST_VARDIR/tmp/sys_reg_2.cnf
+--remove_file $MYSQLTEST_VARDIR/tmp/sys_reg_3.cnf

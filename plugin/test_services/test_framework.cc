@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -77,15 +77,15 @@ mysql_declare_plugin(test_daemon){
     MYSQL_DAEMON_PLUGIN,
     &test_services_plugin,
     "test_framework",
-    "Horst Hunger",
+    PLUGIN_AUTHOR_ORACLE,
     "Test framework",
     PLUGIN_LICENSE_GPL,
     test_services_plugin_init,   /* Plugin Init */
-    NULL,                        /* Plugin Check uninstall */
+    nullptr,                     /* Plugin Check uninstall */
     test_services_plugin_deinit, /* Plugin Deinit */
     0x0100 /* 1.0 */,
-    NULL, /* status variables                */
-    NULL, /* system variables                */
-    NULL, /* config options                  */
-    0,    /* flags                           */
+    nullptr, /* status variables                */
+    nullptr, /* system variables                */
+    nullptr, /* config options                  */
+    0,       /* flags                           */
 } mysql_declare_plugin_end;

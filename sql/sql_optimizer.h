@@ -41,18 +41,18 @@
 #include <memory>
 #include <utility>
 
+#include "field_types.h"
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_table_map.h"
 #include "sql/field.h"
 #include "sql/item.h"
-#include "sql/item_subselect.h"
 #include "sql/mem_root_array.h"
 #include "sql/opt_explain_format.h"  // Explain_sort_clause
 #include "sql/row_iterator.h"
 #include "sql/sql_array.h"
-#include "sql/sql_executor.h"  // Next_select_func
+#include "sql/sql_executor.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_opt_exec_shared.h"
@@ -61,6 +61,7 @@
 #include "sql/temp_table_param.h"
 
 class COND_EQUAL;
+class Item_subselect;
 class Item_sum;
 class Opt_trace_context;
 class THD;
@@ -160,7 +161,7 @@ class ORDER_with_src {
   ORDER *operator->() const { return order; }
 
   void clean() {
-    order = NULL;
+    order = nullptr;
     src = ESC_none;
     flags = ESP_none;
   }
@@ -255,8 +256,6 @@ class JOIN {
     @see make_group_fields, alloc_group_fields, JOIN::exec
   */
   bool streaming_aggregation{false};
-  /// Whether we've seen at least one row already
-  bool seen_first_record{false};
   /// If query contains GROUP BY clause
   bool grouped;
   /// If true, send produced rows using query_result
@@ -312,7 +311,11 @@ class JOIN {
    */
   /******* Join optimization state members end *******/
 
-  Next_select_func first_select;
+  /// A hook that secondary storage engines can use to override the executor
+  /// completely.
+  using Override_executor_func = bool (*)(JOIN *);
+  Override_executor_func override_executor_func = nullptr;
+
   /**
     The cost of best complete join plan found so far during optimization,
     after optimization phase - cost of picked join order (not taking into
@@ -627,7 +630,6 @@ class JOIN {
 
   bool optimize();
   void reset();
-  void exec();
   bool prepare_result();
   bool destroy();
   bool alloc_func_list();
@@ -692,8 +694,6 @@ class JOIN {
                           Item_sum ***func);
   bool switch_slice_for_rollup_fields(List<Item> &all_fields,
                                       List<Item> &fields);
-  bool rollup_send_data(uint idx);
-  bool rollup_write_data(uint idx, QEP_TAB *qep_tab);
   bool finalize_table_conditions();
   /**
     Release memory and, if possible, the open tables held by this execution
@@ -720,7 +720,7 @@ class JOIN {
   */
   bool send_row_on_empty_set() const {
     return (do_send_rows && tmp_table_param.sum_func_count != 0 &&
-            group_list == NULL && !group_optimized_away &&
+            group_list == nullptr && !group_optimized_away &&
             select_lex->having_value != Item::COND_FALSE);
   }
 
@@ -772,7 +772,7 @@ class JOIN {
   */
   bool fts_index_access(JOIN_TAB *tab);
 
-  Next_select_func get_end_select_func();
+  QEP_TAB::enum_op_type get_end_select_func();
   /**
      Propagate dependencies between tables due to outer join relations.
 
@@ -781,29 +781,12 @@ class JOIN {
   bool propagate_dependencies();
 
   /**
-    Returns whether one should send the current row on to the output,
-    or ignore it. (In particular, this implements OFFSET handling
-    in the non-iterator executor.)
-   */
-  bool should_send_current_row() {
-    if (!do_send_rows) {
-      return false;
-    }
-    if (unit->offset_limit_cnt > 0) {
-      --unit->offset_limit_cnt;
-      return false;
-    } else {
-      return true;
-    }
-  }
-
-  /**
     Handle offloading of query parts to the underlying engines, when
     such is supported by their implementation.
 
-    @returns 0 if success, 1 if error
+    @returns false if success, true if error
   */
-  int push_to_engines();
+  bool push_to_engines();
 
   RowIterator *root_iterator() const { return m_root_iterator.get(); }
   unique_ptr_destroy_only<RowIterator> release_root_iterator() {
@@ -966,8 +949,7 @@ class JOIN {
   bool add_having_as_tmp_table_cond(uint curr_tmp_table);
   bool make_tmp_tables_info();
   void set_plan_state(enum_plan_state plan_state_arg);
-  bool compare_costs_of_subquery_strategies(
-      Item_exists_subselect::enum_exec_method *method);
+  bool compare_costs_of_subquery_strategies(SubqueryExecMethod *method);
   ORDER *remove_const(ORDER *first_order, Item *cond, bool change_list,
                       bool *simple_order, bool group_by);
 
@@ -1023,6 +1005,8 @@ class JOIN {
     aggregation, it might yield a single one.
    */
   void create_iterators_for_zero_rows();
+
+  void create_iterators_for_index_subquery();
 
   /** @{ Helpers for create_iterators. */
   void create_table_iterators();
@@ -1085,13 +1069,14 @@ bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
 bool remove_eq_conds(THD *thd, Item *cond, Item **retcond,
                      Item::cond_result *cond_value);
 bool optimize_cond(THD *thd, Item **conds, COND_EQUAL **cond_equal,
-                   List<TABLE_LIST> *join_list, Item::cond_result *cond_value);
+                   mem_root_deque<TABLE_LIST *> *join_list,
+                   Item::cond_result *cond_value);
 Item *substitute_for_best_equal_field(THD *thd, Item *cond,
                                       COND_EQUAL *cond_equal,
                                       JOIN_TAB **table_join_idx);
 bool build_equal_items(THD *thd, Item *cond, Item **retcond,
                        COND_EQUAL *inherited, bool do_inherit,
-                       List<TABLE_LIST> *join_list,
+                       mem_root_deque<TABLE_LIST *> *join_list,
                        COND_EQUAL **cond_equal_ref);
 bool is_indexed_agg_distinct(JOIN *join, List<Item_field> *out_args);
 Key_use_array *create_keyuse_for_table(THD *thd, uint keyparts,
@@ -1100,7 +1085,7 @@ Key_use_array *create_keyuse_for_table(THD *thd, uint keyparts,
 Item_field *get_best_field(Item_field *item_field, COND_EQUAL *cond_equal);
 Item *make_cond_for_table(THD *thd, Item *cond, table_map tables,
                           table_map used_table, bool exclude_expensive_cond);
-uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
+uint build_bitmap_for_nested_joins(mem_root_deque<TABLE_LIST *> *join_list,
                                    uint first_unused);
 
 /**
@@ -1123,7 +1108,8 @@ ORDER *create_order_from_distinct(THD *thd, Ref_item_array ref_item_array,
    @param  v  Expression
  */
 inline bool field_time_cmp_date(const Field *f, const Item *v) {
-  return f->is_temporal() && !f->is_temporal_with_date() &&
+  const enum_field_types ft = f->type();
+  return is_temporal_type(ft) && !is_temporal_type_with_date(ft) &&
          v->is_temporal_with_date();
 }
 
@@ -1228,5 +1214,26 @@ extern const char *antijoin_null_cond;
   evaluated during optimization, or true otherwise
 */
 bool evaluate_during_optimization(const Item *item, const SELECT_LEX *select);
+
+/**
+  Find the multiple equality predicate containing a field.
+
+  The function retrieves the multiple equalities accessed through
+  the cond_equal structure from current level and up looking for
+  an equality containing a field. It stops retrieval as soon as the equality
+  is found and set up inherited_fl to true if it's found on upper levels.
+
+  @param cond_equal          multiple equalities to search in
+  @param item_field          field to look for
+  @param[out] inherited_fl   set up to true if multiple equality is found
+                             on upper levels (not on current level of
+                             cond_equal)
+
+  @return
+    - Item_equal for the found multiple equality predicate if a success;
+    - nullptr otherwise.
+*/
+Item_equal *find_item_equal(COND_EQUAL *cond_equal,
+                            const Item_field *item_field, bool *inherited_fl);
 
 #endif /* SQL_OPTIMIZER_INCLUDED */

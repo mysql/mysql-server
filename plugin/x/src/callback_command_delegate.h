@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -40,11 +40,13 @@ class Callback_command_delegate : public ngs::Command_delegate {
   struct Field_value {
     Field_value();
     Field_value(const Field_value &other);
+    explicit Field_value(const char *str, size_t length);
+
     explicit Field_value(const longlong &num, bool unsign = false);
     explicit Field_value(const decimal_t &decimal);
     explicit Field_value(const double num);
     explicit Field_value(const MYSQL_TIME &time);
-    explicit Field_value(const char *str, size_t length);
+
     Field_value &operator=(const Field_value &other);
 
     ~Field_value();
@@ -71,8 +73,8 @@ class Callback_command_delegate : public ngs::Command_delegate {
     void clone_fields(const Row_data &other);
   };
 
-  typedef std::function<Row_data *()> Start_row_callback;
-  typedef std::function<bool(Row_data *)> End_row_callback;
+  using Start_row_callback = std::function<Row_data *()>;
+  using End_row_callback = std::function<bool(Row_data *)>;
 
   Callback_command_delegate();
   Callback_command_delegate(Start_row_callback start_row,

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -65,12 +65,12 @@ static void hint_lex_init_maps(CHARSET_INFO *cs,
 bool init_state_maps(CHARSET_INFO *cs) {
   uint i;
   uchar *ident_map;
-  enum my_lex_states *state_map = NULL;
+  enum my_lex_states *state_map = nullptr;
 
   lex_state_maps_st *lex_state_maps = (lex_state_maps_st *)my_once_alloc(
       sizeof(lex_state_maps_st), MYF(MY_WME));
 
-  if (lex_state_maps == NULL) return true;  // OOM
+  if (lex_state_maps == nullptr) return true;  // OOM
 
   cs->state_maps = lex_state_maps;
   state_map = lex_state_maps->main_map;

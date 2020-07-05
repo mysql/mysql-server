@@ -69,21 +69,21 @@ struct st_find_field {
 /* Used fields */
 
 static struct st_find_field init_used_fields[] = {
-    {"help_topic", "help_topic_id", 0},
-    {"help_topic", "name", 0},
-    {"help_topic", "help_category_id", 0},
-    {"help_topic", "description", 0},
-    {"help_topic", "example", 0},
+    {"help_topic", "help_topic_id", nullptr},
+    {"help_topic", "name", nullptr},
+    {"help_topic", "help_category_id", nullptr},
+    {"help_topic", "description", nullptr},
+    {"help_topic", "example", nullptr},
 
-    {"help_category", "help_category_id", 0},
-    {"help_category", "parent_category_id", 0},
-    {"help_category", "name", 0},
+    {"help_category", "help_category_id", nullptr},
+    {"help_category", "parent_category_id", nullptr},
+    {"help_category", "name", nullptr},
 
-    {"help_keyword", "help_keyword_id", 0},
-    {"help_keyword", "name", 0},
+    {"help_keyword", "help_keyword_id", nullptr},
+    {"help_keyword", "name", nullptr},
 
-    {"help_relation", "help_topic_id", 0},
-    {"help_relation", "help_keyword_id", 0}};
+    {"help_relation", "help_topic_id", nullptr},
+    {"help_relation", "help_keyword_id", nullptr}};
 
 enum enum_used_fields {
   help_topic_help_topic_id = 0,
@@ -127,8 +127,8 @@ static bool init_fields(THD *thd, TABLE_LIST *tables,
     /* We have to use 'new' here as field will be re_linked on free */
     Item_field *field = new Item_field(
         context, "mysql", find_fields->table_name, find_fields->field_name);
-    if (!(find_fields->field = find_field_in_tables(thd, field, tables, NULL, 0,
-                                                    REPORT_ALL_ERRORS,
+    if (!(find_fields->field = find_field_in_tables(thd, field, tables, nullptr,
+                                                    nullptr, REPORT_ALL_ERRORS,
                                                     false,  // No priv checking
                                                     true)))
       return true;
@@ -218,7 +218,7 @@ static int search_topics(THD *thd, QEP_TAB *topics,
   DBUG_TRACE;
 
   unique_ptr_destroy_only<RowIterator> iterator =
-      init_table_iterator(thd, NULL, topics, false,
+      init_table_iterator(thd, nullptr, topics, false,
                           /*ignore_not_found_rows=*/false);
   if (iterator == nullptr) return 0;
 
@@ -257,7 +257,7 @@ static int search_keyword(THD *thd, QEP_TAB *keywords,
   DBUG_TRACE;
 
   unique_ptr_destroy_only<RowIterator> iterator =
-      init_table_iterator(thd, NULL, keywords, false,
+      init_table_iterator(thd, nullptr, keywords, false,
                           /*ignore_not_found_rows=*/false);
   if (iterator == nullptr) return 0;
 
@@ -375,7 +375,7 @@ static int search_categories(THD *thd, QEP_TAB *categories,
   DBUG_TRACE;
 
   unique_ptr_destroy_only<RowIterator> iterator =
-      init_table_iterator(thd, NULL, categories, false,
+      init_table_iterator(thd, nullptr, categories, false,
                           /*ignore_not_found_rows=*/false);
   if (iterator == nullptr) return 0;
 
@@ -407,7 +407,7 @@ static void get_all_items_for_category(THD *thd, QEP_TAB *items, Field *pfname,
   DBUG_TRACE;
 
   unique_ptr_destroy_only<RowIterator> iterator =
-      init_table_iterator(thd, NULL, items, false,
+      init_table_iterator(thd, nullptr, items, false,
                           /*ignore_not_found_rows=*/false);
   if (iterator == nullptr) return;
   while (!iterator->Read()) {
@@ -718,7 +718,8 @@ bool mysqld_help(THD *thd, const char *mask) {
       if (send_header_2(thd, false)) goto error;
     } else if (count_categories > 1) {
       if (send_header_2(thd, false) ||
-          send_variant_2_list(mem_root, protocol, &categories_list, "Y", 0))
+          send_variant_2_list(mem_root, protocol, &categories_list, "Y",
+                              nullptr))
         goto error;
     } else {
       Field *topic_cat_id = used_fields[help_topic_help_category_id].field;
@@ -759,7 +760,7 @@ bool mysqld_help(THD *thd, const char *mask) {
   } else {
     /* First send header and functions */
     if (send_header_2(thd, false) ||
-        send_variant_2_list(mem_root, protocol, &topics_list, "N", 0))
+        send_variant_2_list(mem_root, protocol, &topics_list, "N", nullptr))
       goto error;
 
     QEP_TAB_standalone qep_tab_st;
@@ -768,9 +769,9 @@ bool mysqld_help(THD *thd, const char *mask) {
     if (prepare_select_for_name(thd, mask, mlen, tables[1].table,
                                 used_fields[help_category_name].field, &tab))
       goto error;
-    search_categories(thd, &tab, used_fields, &categories_list, 0);
+    search_categories(thd, &tab, used_fields, &categories_list, nullptr);
     /* Then send categories */
-    if (send_variant_2_list(mem_root, protocol, &categories_list, "Y", 0))
+    if (send_variant_2_list(mem_root, protocol, &categories_list, "Y", nullptr))
       goto error;
   }
 

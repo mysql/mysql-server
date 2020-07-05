@@ -121,3 +121,4 @@ insert into t values (2);
 insert into t values (2);
 drop table t;
 drop table t2;
+# restart:

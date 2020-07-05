@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -418,7 +418,7 @@ bool my_longlong_to_time_with_warn(longlong nr, MYSQL_TIME *ltime) {
   @param  in_dst_time_gap - pointer to bool which is set to true if t represents
                             value which doesn't exists (falls into the spring
                             time-gap) or to false otherwise.
-  @return
+
   @retval  Number seconds in UTC since start of Unix Epoch corresponding to t.
   @retval  0 - t contains datetime value which is out of TIMESTAMP range.
 */

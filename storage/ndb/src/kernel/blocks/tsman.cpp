@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2185,12 +2185,22 @@ Tsman::execALLOC_EXTENT_REQ(Signal* signal)
                              (*ext_fragment_id),
                              ts_ptr.p->m_total_used_extents));
       file_ptr.p->m_online.m_first_free_extent = next_free;
+      tmp.remove(file_ptr);
       if (next_free == RNIL)
       {
-	thrjam(jamBuf);
-	Local_datafile_list full(m_file_pool, ts_ptr.p->m_full_files);
-	tmp.remove(file_ptr);
+        thrjam(jamBuf);
+        Local_datafile_list full(m_file_pool, ts_ptr.p->m_full_files);
         full.addFirst(file_ptr);
+      }
+      else
+      {
+        /**
+         * Ensure that we round robin allocation of extents on all available
+         * data files. This ensures that we get a sort of RAID on the defined
+         * data files in the tablespace.
+         */
+        thrjam(jamBuf);
+        tmp.addLast(file_ptr);
       }
       
       /**
@@ -3416,6 +3426,20 @@ Tsman::client_unlock()
       ndbrequire(ret == 0);
     }
   }
+}
+
+bool Tsman::is_datafile_ready(Uint32 file_no)
+{
+  Ptr<Datafile> file_ptr;
+  Datafile file_key;
+  file_key.m_file_no = file_no;
+  if (m_file_hash.find(file_ptr, file_key))
+  {
+    if (file_ptr.p->m_state == Datafile::FS_CREATING)
+      return false;
+    return true;
+  }
+  return false;
 }
 
 void Tsman::lock_extent_page(Uint32 file_no, Uint32 page_no)

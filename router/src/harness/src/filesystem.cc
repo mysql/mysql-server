@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -116,6 +116,17 @@ bool Path::is_regular() const {
   return type() == FileType::REGULAR_FILE;
 }
 
+bool Path::is_absolute() const {
+  validate_non_empty_path();  // throws std::invalid_argument
+#ifdef _WIN32
+  if (path_[0] == '\\' || path_[0] == '/' || path_[1] == ':') return true;
+  return false;
+#else
+  if (path_[0] == '/') return true;
+  return false;
+#endif
+}
+
 bool Path::exists() const {
   validate_non_empty_path();  // throws std::invalid_argument
   return type() != FileType::FILE_NOT_FOUND && type() != FileType::STATUS_ERROR;
@@ -141,12 +152,42 @@ Path Path::join(const Path &other) const {
   return result;
 }
 
+static const char *file_type_name(Path::FileType type) {
+  switch (type) {
+    case Path::FileType::DIRECTORY_FILE:
+      return "a directory";
+    case Path::FileType::CHARACTER_FILE:
+      return "a character device";
+    case Path::FileType::BLOCK_FILE:
+      return "a block device";
+    case Path::FileType::EMPTY_PATH:
+      return "an empty path";
+    case Path::FileType::FIFO_FILE:
+      return "a FIFO";
+    case Path::FileType::FILE_NOT_FOUND:
+      return "not found";
+    case Path::FileType::REGULAR_FILE:
+      return "a regular file";
+    case Path::FileType::TYPE_UNKNOWN:
+      return "unknown";
+    case Path::FileType::STATUS_ERROR:
+      return "error";
+    case Path::FileType::SOCKET_FILE:
+      return "a socket";
+    case Path::FileType::SYMLINK_FILE:
+      return "a symlink";
+  }
+
+  // in case a non-enum value is passed in, return 'undefined'
+  // [should never happen]
+  //
+  // note: don't use 'default:' in the switch to get a warning for
+  // 'unhandled enunaration' when new values are added.
+  return "undefined";
+}
+
 std::ostream &operator<<(std::ostream &out, Path::FileType type) {
-  static const char *type_names[]{
-      "ERROR",        "not found",        "regular", "directory", "symlink",
-      "block device", "character device", "FIFO",    "socket",    "UNKNOWN",
-  };
-  out << type_names[static_cast<int>(type)];
+  out << file_type_name(type);
   return out;
 }
 
@@ -692,5 +733,15 @@ void make_file_readable_for_everyone(const std::string &file_name) {
   }
 }
 #endif
+
+void make_file_readonly(const std::string &file_name) {
+#ifdef _WIN32
+  set_everyone_group_access_rights(file_name,
+                                   FILE_GENERIC_EXECUTE | FILE_GENERIC_READ);
+#else
+  throwing_chmod(file_name,
+                 S_IRUSR | S_IXUSR | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+#endif
+}
 
 }  // namespace mysql_harness

@@ -355,8 +355,8 @@ static void z_purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
   }
 
   if (ctx->get_page_zip() != nullptr) {
-    ref.set_page_no(FIL_NULL, 0);
-    ref.set_length(0, 0);
+    ref.set_page_no(FIL_NULL, nullptr);
+    ref.set_length(0, nullptr);
     ctx->zblob_write_blobref(ctx->m_field_no, mtr);
   } else {
     /* Note that page_zip will be NULL in

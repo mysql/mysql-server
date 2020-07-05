@@ -23,7 +23,7 @@
 #ifndef XCOM_SSL_TRANSPORT_H
 #define XCOM_SSL_TRANSPORT_H
 
-#ifdef XCOM_HAVE_OPENSSL
+#ifndef XCOM_WITHOUT_OPENSSL
 #ifdef WIN32
 // In OpenSSL before 1.1.0, we need this first.
 #include <winsock2.h>
@@ -195,5 +195,5 @@ extern SSL_CTX *client_ctx;
 #ifdef __cplusplus
 }
 #endif
-#endif /* XCOM_HAVE_OPENSSL */
+#endif /* !XCOM_WITHOUT_OPENSSL */
 #endif /* XCOM_SSL_TRANSPORT_H */

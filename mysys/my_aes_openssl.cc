@@ -47,25 +47,12 @@ int dummy_function_needed_by_xplugin() {
 
 /* keep in sync with enum my_aes_opmode in my_aes.h */
 const char *my_aes_opmode_names[] = {
-    "aes-128-ecb",
-    "aes-192-ecb",
-    "aes-256-ecb",
-    "aes-128-cbc",
-    "aes-192-cbc",
-    "aes-256-cbc",
-    "aes-128-cfb1",
-    "aes-192-cfb1",
-    "aes-256-cfb1",
-    "aes-128-cfb8",
-    "aes-192-cfb8",
-    "aes-256-cfb8",
-    "aes-128-cfb128",
-    "aes-192-cfb128",
-    "aes-256-cfb128",
-    "aes-128-ofb",
-    "aes-192-ofb",
-    "aes-256-ofb",
-    NULL /* needed for the type enumeration */
+    "aes-128-ecb",    "aes-192-ecb",    "aes-256-ecb",    "aes-128-cbc",
+    "aes-192-cbc",    "aes-256-cbc",    "aes-128-cfb1",   "aes-192-cfb1",
+    "aes-256-cfb1",   "aes-128-cfb8",   "aes-192-cfb8",   "aes-256-cfb8",
+    "aes-128-cfb128", "aes-192-cfb128", "aes-256-cfb128", "aes-128-ofb",
+    "aes-192-ofb",    "aes-256-ofb",    nullptr /* needed for the type
+                                                   enumeration */
 };
 
 /* keep in sync with enum my_aes_opmode in my_aes.h */
@@ -122,7 +109,7 @@ static const EVP_CIPHER *aes_evp_type(const my_aes_opmode mode) {
     case my_aes_256_ofb:
       return EVP_aes_256_ofb();
     default:
-      return NULL;
+      return nullptr;
   }
 }
 

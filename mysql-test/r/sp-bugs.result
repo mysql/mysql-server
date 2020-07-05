@@ -502,3 +502,29 @@ EXECUTE stmt USING @var;
 CONCAT(UNIX_TIMESTAMP(?))
 1546290000
 DEALLOCATE PREPARE stmt;
+#
+# Bug#30561920 - Handler fails to trigger on error 1049 or SQLSTATE 42000
+#                or plain SQLEXCEPTION
+#
+CREATE FUNCTION func1() RETURNS INT
+BEGIN
+DECLARE EXIT HANDLER FOR SQLEXCEPTION RETURN NULL;
+SELECT * INTO @a FROM fake_table;
+RETURN 1;
+END|
+CREATE FUNCTION func2() RETURNS INT
+BEGIN
+DECLARE EXIT HANDLER FOR SQLEXCEPTION RETURN NULL;
+SELECT * INTO @a FROM fake_db.fake_table;
+RETURN 1;
+END|
+SELECT func1();
+func1()
+NULL
+# Without fix, exit handler is not triggered and unknown DB error
+# is reported.
+SELECT func2();
+func2()
+NULL
+DROP FUNCTION func1;
+DROP FUNCTION func2;

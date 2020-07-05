@@ -49,8 +49,20 @@
 #include "sql/sql_opt_exec_shared.h"
 #include "sql/table.h"
 
+using hash_join_buffer::BufferRow;
+using hash_join_buffer::TableCollection;
 using std::string;
 using std::vector;
+
+static bool NeedMatchFlags(JoinType join_type) {
+  return join_type == JoinType::OUTER || join_type == JoinType::SEMI ||
+         join_type == JoinType::ANTI;
+}
+
+static size_t BytesNeededForMatchFlags(size_t rows) {
+  // One bit per row.
+  return (rows + 7) / 8;
+}
 
 BKAIterator::BKAIterator(THD *thd, JOIN *join,
                          unique_ptr_destroy_only<RowIterator> outer_input,
@@ -59,7 +71,8 @@ BKAIterator::BKAIterator(THD *thd, JOIN *join,
                          size_t max_memory_available,
                          size_t mrr_bytes_needed_for_single_inner_row,
                          float expected_inner_rows_per_outer_row,
-                         MultiRangeRowIterator *mrr_iterator)
+                         MultiRangeRowIterator *mrr_iterator,
+                         JoinType join_type)
     : RowIterator(thd),
       m_outer_input(move(outer_input)),
       m_inner_input(move(inner_input)),
@@ -69,7 +82,8 @@ BKAIterator::BKAIterator(THD *thd, JOIN *join,
       m_max_memory_available(max_memory_available),
       m_mrr_bytes_needed_for_single_inner_row(
           mrr_bytes_needed_for_single_inner_row),
-      m_mrr_iterator(mrr_iterator) {
+      m_mrr_iterator(mrr_iterator),
+      m_join_type(join_type) {
   DBUG_ASSERT(m_outer_input != nullptr);
   DBUG_ASSERT(m_inner_input != nullptr);
 
@@ -85,6 +99,9 @@ BKAIterator::BKAIterator(THD *thd, JOIN *join,
       it.qep_tab->rowid_status = ROWID_PROVIDED_BY_ITERATOR_READ_CALL;
     }
   }
+
+  m_mrr_iterator->set_outer_input_tables(join, outer_input_tables);
+  m_mrr_iterator->set_join_type(join_type);
 }
 
 bool BKAIterator::Init() {
@@ -106,7 +123,7 @@ bool BKAIterator::Init() {
 
 void BKAIterator::BeginNewBatch() {
   m_mem_root.ClearForReuse();
-  new (&m_rows) Mem_root_array<hash_join_buffer::BufferRow>(&m_mem_root);
+  new (&m_rows) Mem_root_array<BufferRow>(&m_mem_root);
   m_bytes_used = 0;
   m_state = State::NEED_OUTER_ROWS;
 }
@@ -151,6 +168,12 @@ int BKAIterator::ReadOuterRows() {
     size_t total_bytes_needed_after_this_row =
         m_bytes_used + row_size +
         (m_mrr_bytes_needed_per_row + sizeof(m_rows[0])) * (m_rows.size() + 1);
+
+    if (NeedMatchFlags(m_join_type)) {
+      total_bytes_needed_after_this_row +=
+          BytesNeededForMatchFlags(m_rows.size() + 1);
+    }
+
     if (!m_rows.empty() &&
         total_bytes_needed_after_this_row > m_max_memory_available) {
       // Out of memory, so end the batch and send it.
@@ -165,7 +188,7 @@ int BKAIterator::ReadOuterRows() {
     }
     memcpy(row, m_outer_row_buffer.ptr(), row_size);
 
-    m_rows.push_back(hash_join_buffer::BufferRow(row, row_size));
+    m_rows.push_back(BufferRow(row, row_size));
     m_bytes_used += row_size;
   }
 
@@ -202,51 +225,122 @@ int BKAIterator::ReadOuterRows() {
   m_mrr_iterator->set_rows(m_rows.begin(), m_rows.end());
   m_mrr_iterator->set_mrr_buffer(m_mem_root.ArrayAlloc<uchar>(mrr_buffer_size),
                                  mrr_buffer_size);
+  if (NeedMatchFlags(m_join_type)) {
+    const size_t bytes_needed = BytesNeededForMatchFlags(m_rows.size());
+    m_mrr_iterator->set_match_flag_buffer(
+        m_mem_root.ArrayAlloc<uchar>(bytes_needed));
+  }
   if (m_inner_input->Init()) {
     return 1;
   }
 
   // Probe the rows we've got using MRR.
   m_state = State::RETURNING_JOINED_ROWS;
+  m_mrr_iterator->SetNullRowFlag(false);
   return 0;
+}
+
+void BKAIterator::BatchFinished() {
+  // End of joined rows; start reading the next batch if there are
+  // more outer rows.
+  if (m_end_of_outer_rows) {
+    m_state = State::END_OF_ROWS;
+  } else {
+    BeginNewBatch();
+    DBUG_ASSERT(m_state == State::NEED_OUTER_ROWS);
+  }
+}
+
+int BKAIterator::MakeNullComplementedRow() {
+  // Find the next row that hasn't been matched to anything yet.
+  while (m_current_pos != m_rows.end()) {
+    if (m_mrr_iterator->RowHasBeenRead(m_current_pos)) {
+      ++m_current_pos;
+    } else {
+      // Return a NULL-complemented row. (Our table already has the NULL flag
+      // set.)
+      hash_join_buffer::LoadIntoTableBuffers(m_outer_input_tables,
+                                             m_current_pos->data());
+      ++m_current_pos;
+      return 0;
+    }
+  }
+
+  // No more NULL-complemented rows to return.
+  m_mrr_iterator->SetNullRowFlag(false);
+  return -1;
 }
 
 int BKAIterator::Read() {
   for (;;) {  // Termination condition within loop.
-    if (m_state == State::END_OF_ROWS) {
-      return -1;
-    }
-
-    if (m_state == State::NEED_OUTER_ROWS) {
-      int err = ReadOuterRows();
-      if (err != 0) {
-        return err;
-      }
-    }
-
-    DBUG_ASSERT(m_state == State::RETURNING_JOINED_ROWS);
-    int err = m_inner_input->Read();
-    if (err == -1) {
-      // End of joined rows; start reading the next batch if there are
-      // more outer rows.
-      if (m_end_of_outer_rows) {
-        m_state = State::END_OF_ROWS;
+    switch (m_state) {
+      case State::END_OF_ROWS:
         return -1;
-      } else {
-        BeginNewBatch();
-        DBUG_ASSERT(m_state == State::NEED_OUTER_ROWS);
-        continue;
+      case State::NEED_OUTER_ROWS: {
+        int err = ReadOuterRows();
+        if (err != 0) {
+          return err;
+        }
+        break;
+      }
+      case State::RETURNING_JOINED_ROWS: {
+        int err = m_inner_input->Read();
+        if (err != -1) {
+          if (err == 0) {
+            m_mrr_iterator->MarkLastRowAsRead();
+            if (m_join_type == JoinType::ANTI) {
+              break;
+            }
+          }
+
+          // A row or an error; pass it through (unless we are an antijoin).
+          return err;
+        }
+
+        // No more joined rows in this batch. Go to the next batch -- but
+        // if we're an outer join or antijoin, first create NULL-complemented
+        // rows for the ones in this batch that we didn't match to anything.
+        if (m_join_type == JoinType::OUTER || m_join_type == JoinType::ANTI) {
+          m_state = State::RETURNING_NULL_COMPLEMENTED_ROWS;
+          m_current_pos = m_rows.begin();
+          m_mrr_iterator->SetNullRowFlag(true);
+        } else {
+          BatchFinished();
+          break;
+        }
+      }
+      // Fall through.
+      case State::RETURNING_NULL_COMPLEMENTED_ROWS: {
+        int err = MakeNullComplementedRow();
+        if (err != -1) {
+          return err;
+        }
+
+        BatchFinished();
+        break;
       }
     }
-
-    // A row or an error; pass it through.
-    return err;
   }
 }
 
-MultiRangeRowIterator::MultiRangeRowIterator(THD *thd, JOIN *join,
-                                             qep_tab_map outer_input_tables,
-                                             Item *cache_idx_cond, TABLE *table,
+vector<string> BKAIterator::DebugString() const {
+  switch (m_join_type) {
+    case JoinType::INNER:
+      return {"Batched key access inner join"};
+    case JoinType::SEMI:
+      return {"Batched key access semijoin"};
+    case JoinType::OUTER:
+      return {"Batched key access left join"};
+    case JoinType::ANTI:
+      return {"Batched key access antijoin"};
+    default:
+      DBUG_ASSERT(false);
+      return {"Batched key access unknown join"};
+  }
+}
+
+MultiRangeRowIterator::MultiRangeRowIterator(THD *thd, Item *cache_idx_cond,
+                                             TABLE *table,
                                              bool keep_current_rowid,
                                              TABLE_REF *ref, int mrr_flags)
     : TableRowIterator(thd, table),
@@ -255,8 +349,12 @@ MultiRangeRowIterator::MultiRangeRowIterator(THD *thd, JOIN *join,
       m_table(table),
       m_file(table->file),
       m_ref(ref),
-      m_mrr_flags(mrr_flags),
-      m_outer_input_tables(join, outer_input_tables) {}
+      m_mrr_flags(mrr_flags) {}
+
+void MultiRangeRowIterator::set_outer_input_tables(
+    JOIN *join, qep_tab_map outer_input_tables) {
+  m_outer_input_tables = TableCollection(join, outer_input_tables);
+}
 
 bool MultiRangeRowIterator::Init() {
   /*
@@ -276,6 +374,18 @@ bool MultiRangeRowIterator::Init() {
   if (m_cache_idx_cond != nullptr) {
     seq_funcs.skip_index_tuple =
         MultiRangeRowIterator::MrrSkipIndexTupleCallbackThunk;
+  }
+  if (m_join_type == JoinType::SEMI || m_join_type == JoinType::ANTI) {
+    seq_funcs.skip_record = MultiRangeRowIterator::MrrSkipRecordCallbackThunk;
+  }
+  if (m_match_flag_buffer != nullptr) {
+    DBUG_ASSERT(NeedMatchFlags(m_join_type));
+
+    // Reset all the match flags.
+    memset(m_match_flag_buffer, 0,
+           BytesNeededForMatchFlags(std::distance(m_begin, m_end)));
+  } else {
+    DBUG_ASSERT(!NeedMatchFlags(m_join_type));
   }
 
   /**
@@ -332,8 +442,7 @@ uint MultiRangeRowIterator::MrrNextCallback(KEY_MULTI_RANGE *range) {
   // at the row in question, and ends right after it (exclusive).
 
   range->range_flag = EQ_RANGE;
-  range->ptr =
-      const_cast<char *>(pointer_cast<const char *>(m_current_pos->data()));
+  range->ptr = const_cast<char *>(pointer_cast<const char *>(m_current_pos));
 
   range->start_key.key = m_ref->key_buff;
   range->start_key.keypart_map = (1 << m_ref->key_parts) - 1;  // All keyparts.
@@ -348,29 +457,43 @@ uint MultiRangeRowIterator::MrrNextCallback(KEY_MULTI_RANGE *range) {
 }
 
 bool MultiRangeRowIterator::MrrSkipIndexTuple(char *range_info) {
+  BufferRow *rec_ptr = pointer_cast<BufferRow *>(range_info);
+
   // The index condition depends on fields from the outer tables (or we would
   // not be called), so we need to load the relevant rows before checking it.
   // range_info tells us which outer row we are talking about; it corresponds to
   // range->ptr in MrrNextCallback(), and points to the serialized outer row in
   // BKAIterator's m_row array.
-  hash_join_buffer::LoadIntoTableBuffers(m_outer_input_tables,
-                                         pointer_cast<uchar *>(range_info));
+  hash_join_buffer::LoadIntoTableBuffers(m_outer_input_tables, rec_ptr->data());
 
   // Skip this tuple if the index condition is false.
   return !m_cache_idx_cond->val_int();
+}
+
+bool MultiRangeRowIterator::MrrSkipRecord(char *range_info) {
+  BufferRow *rec_ptr = pointer_cast<BufferRow *>(range_info);
+  return RowHasBeenRead(rec_ptr);
 }
 
 int MultiRangeRowIterator::Read() {
   // Read a row from the MRR buffer. rec_ptr tells us which outer row
   // this corresponds to; it corresponds to range->ptr in MrrNextCallback(),
   // and points to the serialized outer row in BKAIterator's m_row array.
-  uchar *rec_ptr = nullptr;
-  int error = m_file->ha_multi_range_read_next(pointer_cast<char **>(&rec_ptr));
-  if (error != 0) {
-    return HandleError(error);
-  }
+  BufferRow *rec_ptr = nullptr;
+  do {
+    int error =
+        m_file->ha_multi_range_read_next(pointer_cast<char **>(&rec_ptr));
+    if (error != 0) {
+      return HandleError(error);
+    }
 
-  hash_join_buffer::LoadIntoTableBuffers(m_outer_input_tables, rec_ptr);
+    // NDB never calls mrr_funcs.skip_record(), so we need to recheck here.
+    // See bug #30594210.
+  } while (m_join_type == JoinType::SEMI && RowHasBeenRead(rec_ptr));
+
+  hash_join_buffer::LoadIntoTableBuffers(m_outer_input_tables, rec_ptr->data());
+
+  m_last_row_returned = rec_ptr;
 
   if (m_keep_current_rowid) {
     m_file->position(m_table->record[0]);

@@ -617,16 +617,17 @@ int ThreadContext::drop_users(ChangeNotice *notice,
    from SHOW CREATE USER, so its exact format is known. For idempotence, it
    must be rewritten as several statements. The final result is:
       CREATE USER IF NOT EXISTS user@host;
-      ALTER USER user@host ... ;
       REVOKE ALL ON *.* FROM user@host;
-      GRANT ... TO user@host;
-      GRANT ... TO user@host;
-      ALTER USER user@host DEFAULT ROLE r;
+      ALTER USER user@host ...;   [CLEAR RESOURCE LIMITS]
+      ALTER USER user@host ...;   [SET VALUES FROM SHOW CREATE USER]
 */
 void ThreadContext::create_user(std::string &name, std::string &statement) {
   const std::string create_user("CREATE USER IF NOT EXISTS ");
   const std::string alter_user("ALTER USER ");
   const std::string revoke_all("REVOKE ALL ON *.* FROM ");
+  const std::string set_resource_defaults(
+      " WITH MAX_QUERIES_PER_HOUR 0 MAX_UPDATES_PER_HOUR 0 "
+      " MAX_CONNECTIONS_PER_HOUR 0 MAX_USER_CONNECTIONS 0");
 
   /* Run statement CREATE USER IF NOT EXISTS */
   if (!get_local_user(name)) {
@@ -634,6 +635,12 @@ void ThreadContext::create_user(std::string &name, std::string &statement) {
                  name.c_str());
     run_acl_statement(create_user + name);
   }
+
+  /* Revoke any privileges the user may have had prior to this snapshot. */
+  run_acl_statement(revoke_all + name);
+
+  /* Clear resource limits (this is not included in SHOW CREATE USER) */
+  run_acl_statement(alter_user + name + set_resource_defaults);
 
   /* Rewrite CREATE to ALTER */
   statement = statement.replace(0, 6, "ALTER");
@@ -658,9 +665,6 @@ void ThreadContext::create_user(std::string &name, std::string &statement) {
 
   /* Run the rest of the statement. */
   run_acl_statement(statement.erase(default_role_pos, role_clause_len));
-
-  /* Revoke any privileges the user may have had prior to this snapshot. */
-  run_acl_statement(revoke_all + name);
 }
 
 /* Apply the snapshot in m_current_rows,
@@ -849,10 +853,6 @@ Ndb_stored_grants::Strategy ThreadContext::handle_change(ChangeNotice *notice) {
     /* ALTER USER, SET PASSWORD, or GRANT or REVOKE of misc. privileges */
     rebuild_local_cache = false;
     update_list = &m_intersection;
-    /* Distribute ALTER USER and SET PASSWORD as snapshot refreshes
-       in order to avoid transmitting plaintext passwords. */
-    if (operation == SQLCOM_ALTER_USER || operation == SQLCOM_SET_PASSWORD)
-      dist_as_snapshot = true;
   }
 
   /* drop_users() will DROP USER or REVOKE NDB_STORED_USER, as appropriate */

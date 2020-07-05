@@ -34,7 +34,7 @@ Server_ongoing_transactions_handler::Server_ongoing_transactions_handler()
 
 bool Server_ongoing_transactions_handler::initialize_server_service(
     Plugin_stage_monitor_handler *stage_handler_arg) {
-  SERVICE_TYPE(registry) *registry = NULL;
+  SERVICE_TYPE(registry) *registry = nullptr;
   if (!registry_module || !(registry = registry_module->get_registry_handle()))
     return true; /* purecov: inspected */
   registry->acquire("mysql_ongoing_transactions_query", &generic_service);
@@ -44,7 +44,7 @@ bool Server_ongoing_transactions_handler::initialize_server_service(
 
 Server_ongoing_transactions_handler::~Server_ongoing_transactions_handler() {
   mysql_mutex_destroy(&query_wait_lock);
-  SERVICE_TYPE(registry) *registry = NULL;
+  SERVICE_TYPE(registry) *registry = nullptr;
   if (!registry_module ||
       !(registry = registry_module->get_registry_handle())) {
     DBUG_ASSERT(0); /* purecov: inspected */
@@ -70,7 +70,7 @@ int Server_ongoing_transactions_handler::
     wait_for_current_transaction_load_execution(bool *abort_flag,
                                                 my_thread_id id_to_ignore) {
   group_transaction_observation_manager->register_transaction_observer(this);
-  unsigned long *thread_id_array = NULL;
+  unsigned long *thread_id_array = nullptr;
   unsigned long size = 0;
   bool error = get_server_running_transactions(&thread_id_array, &size);
 
@@ -78,7 +78,7 @@ int Server_ongoing_transactions_handler::
   if (!error)
     transactions_to_wait.insert(thread_id_array, thread_id_array + size);
   my_free(thread_id_array);
-  thread_id_array = NULL;
+  thread_id_array = nullptr;
 
   if (id_to_ignore) {
     transactions_to_wait.erase(id_to_ignore);
@@ -110,7 +110,7 @@ int Server_ongoing_transactions_handler::
     std::set<my_thread_id> current_transactions;
     current_transactions.insert(thread_id_array, thread_id_array + size);
     my_free(thread_id_array);
-    thread_id_array = NULL;
+    thread_id_array = nullptr;
 
     mysql_mutex_lock(&query_wait_lock);
     for (my_thread_id thread_id : transactions_to_wait) {

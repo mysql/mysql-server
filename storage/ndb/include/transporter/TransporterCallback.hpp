@@ -39,7 +39,9 @@
 #include <kernel_types.h> 
 #include "TransporterDefinitions.hpp" 
 #include "TransporterRegistry.hpp"
- 
+
+class Transporter;
+
 /**
  * The TransporterReceiveCallback class encapsulates
  * the receive aspects of the transporter code that is
@@ -131,6 +133,8 @@ public:
   TransporterReceiveHandle() : m_active(false) {}
   volatile bool m_active;
 #endif
+  Uint32 nTCPTransporters;
+  Uint32 nSHMTransporters;
 };
 
 /**
@@ -170,8 +174,8 @@ public:
    * failures, e.g. a couple of direct transitions from CONNECTING
    * to DISCONNECTING in the TransporterRegistry.
    */
-  virtual void enable_send_buffer(NodeId node) = 0;
-  virtual void disable_send_buffer(NodeId node) = 0;
+  virtual void enable_send_buffer(NodeId, TrpId) = 0;
+  virtual void disable_send_buffer(NodeId, TrpId) = 0;
 
   /**
    * The transporter periodically calls this method, indicating the number
@@ -195,8 +199,10 @@ public:
    *
    * See src/common/transporter/trp.txt for more information.
    */
-  virtual void lock_transporter(NodeId node) { }
-  virtual void unlock_transporter(NodeId node) { }
+  virtual void lock_transporter(NodeId, TrpId) { }
+  virtual void unlock_transporter(NodeId, TrpId) { }
+  virtual void lock_send_transporter(NodeId, TrpId) { }
+  virtual void unlock_send_transporter(NodeId, TrpId) { }
 
   /**
    * ToDo: In current patch, these are not used, instead we use default
@@ -227,7 +233,10 @@ public:
    *
    * Nothing should be returned from a node with a disabled send buffer.
    */
-  virtual Uint32 get_bytes_to_send_iovec(NodeId, struct iovec *dst, Uint32) = 0;
+  virtual Uint32 get_bytes_to_send_iovec(NodeId node,
+                                         TrpId id,
+                                         struct iovec *dst,
+                                         Uint32) = 0;
 
   /**
    * Called when data has been sent, allowing to free / reuse the space. Passes
@@ -242,7 +251,7 @@ public:
    *
    * Like get_bytes_to_send_iovec(), this is called during performSend().
    */
-  virtual Uint32 bytes_sent(NodeId node, Uint32 bytes) = 0;
+  virtual Uint32 bytes_sent(NodeId, TrpId, Uint32 bytes) = 0;
 
   virtual ~TransporterCallback() {}
 };
@@ -312,8 +321,12 @@ public:
    * delivered through get_bytes_to_send_iovec() or not) for one node; the
    * method must return NULL rather than allow to exceed this amount.
    */
-  virtual Uint32 *getWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio,
-                              Uint32 max_use, SendStatus *error) = 0;
+  virtual Uint32 *getWritePtr(NodeId,
+                              TrpId, 
+                              Uint32 lenBytes,
+                              Uint32 prio,
+                              Uint32 max_use,
+                              SendStatus *error) = 0;
   /**
    * Called when new signal is packed.
    *
@@ -321,7 +334,10 @@ public:
    * was made available to send with get_bytes_to_send_iovec(), but has not
    * yet been marked as really sent from bytes_sent()).
    */
-  virtual Uint32 updateWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio) = 0;
+  virtual Uint32 updateWritePtr(NodeId,
+                                TrpId,
+                                Uint32 lenBytes,
+                                Uint32 prio) = 0;
 
   /**
    * Provide a mechanism to check the level of risk in using the send buffer.
@@ -335,7 +351,7 @@ public:
    * send to the remote node with the hope of freeing up send buffer for the
    * signal to be queued.
    */
-  virtual bool forceSend(NodeId node) = 0;
+  virtual bool forceSend(NodeId, TrpId) = 0;
 
   virtual ~TransporterSendBufferHandle() {}
 };

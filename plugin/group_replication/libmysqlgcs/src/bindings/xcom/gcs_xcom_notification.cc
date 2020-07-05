@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -108,18 +108,18 @@ void Global_view_notification::do_execute() {
 }
 
 Local_view_notification::Local_view_notification(
-    xcom_local_view_functor *functor, synode_no message_id,
+    xcom_local_view_functor *functor, synode_no config_id,
     Gcs_xcom_nodes *xcom_nodes, synode_no max_synode)
 
     : m_functor(functor),
-      m_message_id(message_id),
+      m_config_id(config_id),
       m_xcom_nodes(xcom_nodes),
       m_max_synode(max_synode) {}
 
 Local_view_notification::~Local_view_notification() {}
 
 void Local_view_notification::do_execute() {
-  (*m_functor)(m_message_id, m_xcom_nodes, m_max_synode);
+  (*m_functor)(m_config_id, m_xcom_nodes, m_max_synode);
 }
 
 Expel_notification::Expel_notification(xcom_expel_functor *functor)
@@ -155,9 +155,9 @@ void *process_notification_thread(void *ptr_object) {
   Gcs_xcom_engine *engine = static_cast<Gcs_xcom_engine *>(ptr_object);
   engine->process();
 
-  My_xp_thread_util::exit(0);
+  My_xp_thread_util::exit(nullptr);
 
-  return NULL;
+  return nullptr;
 }
 
 Gcs_xcom_engine::Gcs_xcom_engine()
@@ -169,7 +169,7 @@ Gcs_xcom_engine::Gcs_xcom_engine()
   m_wait_for_notification_cond.init(
       key_GCS_COND_Gcs_xcom_engine_m_wait_for_notification_cond);
   m_wait_for_notification_mutex.init(
-      key_GCS_MUTEX_Gcs_xcom_engine_m_wait_for_notification_mutex, NULL);
+      key_GCS_MUTEX_Gcs_xcom_engine_m_wait_for_notification_mutex, nullptr);
 }
 
 Gcs_xcom_engine::~Gcs_xcom_engine() {
@@ -182,20 +182,26 @@ void Gcs_xcom_engine::initialize(
   MYSQL_GCS_LOG_DEBUG("Gcs_xcom_engine::initialize invoked!");
   assert(m_notification_queue.empty());
   assert(m_schedule);
-  m_engine_thread.create(key_GCS_THD_Gcs_xcom_engine_m_engine_thread, NULL,
+  m_engine_thread.create(key_GCS_THD_Gcs_xcom_engine_m_engine_thread, nullptr,
                          process_notification_thread, (void *)this);
 }
 
 void Gcs_xcom_engine::finalize(xcom_finalize_functor *functor) {
   MYSQL_GCS_LOG_DEBUG("Gcs_xcom_engine::finalize invoked!");
-  push(new Finalize_notification(this, functor));
-  m_engine_thread.join(NULL);
+  auto *notification = new Finalize_notification(this, functor);
+  bool scheduled = push(notification);
+  if (!scheduled) {
+    MYSQL_GCS_LOG_DEBUG(
+        "Tried to enqueue a finalize but the member is about to stop.")
+    delete notification;
+  }
+  m_engine_thread.join(nullptr);
   assert(m_notification_queue.empty());
   assert(!m_schedule);
 }
 
 void Gcs_xcom_engine::process() {
-  Gcs_xcom_notification *notification = NULL;
+  Gcs_xcom_notification *notification = nullptr;
   bool stop = false;
 
   while (!stop) {
@@ -218,7 +224,7 @@ void Gcs_xcom_engine::process() {
 }
 
 void Gcs_xcom_engine::cleanup() {
-  Gcs_xcom_notification *notification = NULL;
+  Gcs_xcom_notification *notification = nullptr;
 
   m_wait_for_notification_mutex.lock();
   m_schedule = false;

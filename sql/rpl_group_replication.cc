@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,8 @@
 #include "mysql/plugin.h"
 #include "mysql/plugin_group_replication.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysqld_error.h"  // ER_*
+#include "mysqld_error.h"       // ER_*
+#include "sql/clone_handler.h"  // is_data_dropped
 #include "sql/log.h"
 #include "sql/log_event.h"           // MAX_MAX_ALLOWED_PACKET
 #include "sql/mysqld.h"              // mysqld_port
@@ -58,16 +59,15 @@ extern ulong opt_rli_repository_id;
   Struct to share server ssl variables
 */
 void st_server_ssl_variables::init() {
-  have_ssl_opt = false;
-  ssl_ca = NULL;
-  ssl_capath = NULL;
-  tls_version = NULL;
-  tls_ciphersuites = NULL;
-  ssl_cert = NULL;
-  ssl_cipher = NULL;
-  ssl_key = NULL;
-  ssl_crl = NULL;
-  ssl_crlpath = NULL;
+  ssl_ca = nullptr;
+  ssl_capath = nullptr;
+  tls_version = nullptr;
+  tls_ciphersuites = nullptr;
+  ssl_cert = nullptr;
+  ssl_cipher = nullptr;
+  ssl_key = nullptr;
+  ssl_crl = nullptr;
+  ssl_crlpath = nullptr;
   ssl_fips_mode = 0;
 }
 
@@ -100,10 +100,11 @@ int group_replication_init() { return initialize_channel_service_interface(); }
 bool is_group_replication_plugin_loaded() {
   bool result = false;
 
-  plugin_ref plugin = my_plugin_lock_by_name(
-      0, group_replication_plugin_name_str, MYSQL_GROUP_REPLICATION_PLUGIN);
+  plugin_ref plugin =
+      my_plugin_lock_by_name(nullptr, group_replication_plugin_name_str,
+                             MYSQL_GROUP_REPLICATION_PLUGIN);
   if (plugin != nullptr) {
-    plugin_unlock(0, plugin);
+    plugin_unlock(nullptr, plugin);
     result = true;
   }
 
@@ -113,8 +114,9 @@ bool is_group_replication_plugin_loaded() {
 int group_replication_start(char **error_message) {
   int result = 1;
 
-  plugin_ref plugin = my_plugin_lock_by_name(
-      0, group_replication_plugin_name_str, MYSQL_GROUP_REPLICATION_PLUGIN);
+  plugin_ref plugin =
+      my_plugin_lock_by_name(nullptr, group_replication_plugin_name_str,
+                             MYSQL_GROUP_REPLICATION_PLUGIN);
   if (plugin != nullptr) {
     /*
       We need to take global_sid_lock because
@@ -135,7 +137,7 @@ int group_replication_start(char **error_message) {
     result = plugin_handle->start(error_message);
     gtid_mode_lock->unlock();
 
-    plugin_unlock(0, plugin);
+    plugin_unlock(nullptr, plugin);
   } else {
     LogErr(ERROR_LEVEL, ER_GROUP_REPLICATION_PLUGIN_NOT_INSTALLED);
   }
@@ -146,13 +148,14 @@ int group_replication_start(char **error_message) {
 int group_replication_stop(char **error_message) {
   int result = 1;
 
-  plugin_ref plugin = my_plugin_lock_by_name(
-      0, group_replication_plugin_name_str, MYSQL_GROUP_REPLICATION_PLUGIN);
+  plugin_ref plugin =
+      my_plugin_lock_by_name(nullptr, group_replication_plugin_name_str,
+                             MYSQL_GROUP_REPLICATION_PLUGIN);
   if (plugin != nullptr) {
     st_mysql_group_replication *plugin_handle =
         (st_mysql_group_replication *)plugin_decl(plugin)->info;
     result = plugin_handle->stop(error_message);
-    plugin_unlock(0, plugin);
+    plugin_unlock(nullptr, plugin);
   } else {
     LogErr(ERROR_LEVEL, ER_GROUP_REPLICATION_PLUGIN_NOT_INSTALLED);
   }
@@ -163,13 +166,14 @@ int group_replication_stop(char **error_message) {
 bool is_group_replication_running() {
   bool result = false;
 
-  plugin_ref plugin = my_plugin_lock_by_name(
-      0, group_replication_plugin_name_str, MYSQL_GROUP_REPLICATION_PLUGIN);
+  plugin_ref plugin =
+      my_plugin_lock_by_name(nullptr, group_replication_plugin_name_str,
+                             MYSQL_GROUP_REPLICATION_PLUGIN);
   if (plugin != nullptr) {
     st_mysql_group_replication *plugin_handle =
         (st_mysql_group_replication *)plugin_decl(plugin)->info;
     result = plugin_handle->is_running();
-    plugin_unlock(0, plugin);
+    plugin_unlock(nullptr, plugin);
   }
 
   return result;
@@ -178,13 +182,14 @@ bool is_group_replication_running() {
 bool is_group_replication_cloning() {
   bool result = false;
 
-  plugin_ref plugin = my_plugin_lock_by_name(
-      0, group_replication_plugin_name_str, MYSQL_GROUP_REPLICATION_PLUGIN);
-  if (plugin != NULL) {
+  plugin_ref plugin =
+      my_plugin_lock_by_name(nullptr, group_replication_plugin_name_str,
+                             MYSQL_GROUP_REPLICATION_PLUGIN);
+  if (plugin != nullptr) {
     st_mysql_group_replication *plugin_handle =
         (st_mysql_group_replication *)plugin_decl(plugin)->info;
     result = plugin_handle->is_cloning();
-    plugin_unlock(0, plugin);
+    plugin_unlock(nullptr, plugin);
   }
 
   return result;
@@ -194,13 +199,14 @@ int set_group_replication_retrieved_certification_info(
     View_change_log_event *view_change_event) {
   int result = 1;
 
-  plugin_ref plugin = my_plugin_lock_by_name(
-      0, group_replication_plugin_name_str, MYSQL_GROUP_REPLICATION_PLUGIN);
+  plugin_ref plugin =
+      my_plugin_lock_by_name(nullptr, group_replication_plugin_name_str,
+                             MYSQL_GROUP_REPLICATION_PLUGIN);
   if (plugin != nullptr) {
     st_mysql_group_replication *plugin_handle =
         (st_mysql_group_replication *)plugin_decl(plugin)->info;
     result = plugin_handle->set_retrieved_certification_info(view_change_event);
-    plugin_unlock(0, plugin);
+    plugin_unlock(nullptr, plugin);
   }
 
   return result;
@@ -210,13 +216,14 @@ bool get_group_replication_connection_status_info(
     const GROUP_REPLICATION_CONNECTION_STATUS_CALLBACKS &callbacks) {
   bool result = true;
 
-  plugin_ref plugin = my_plugin_lock_by_name(
-      0, group_replication_plugin_name_str, MYSQL_GROUP_REPLICATION_PLUGIN);
+  plugin_ref plugin =
+      my_plugin_lock_by_name(nullptr, group_replication_plugin_name_str,
+                             MYSQL_GROUP_REPLICATION_PLUGIN);
   if (plugin != nullptr) {
     st_mysql_group_replication *plugin_handle =
         (st_mysql_group_replication *)plugin_decl(plugin)->info;
     result = plugin_handle->get_connection_status_info(callbacks);
-    plugin_unlock(0, plugin);
+    plugin_unlock(nullptr, plugin);
   }
 
   return result;
@@ -227,13 +234,14 @@ bool get_group_replication_group_members_info(
     const GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS &callbacks) {
   bool result = true;
 
-  plugin_ref plugin = my_plugin_lock_by_name(
-      0, group_replication_plugin_name_str, MYSQL_GROUP_REPLICATION_PLUGIN);
+  plugin_ref plugin =
+      my_plugin_lock_by_name(nullptr, group_replication_plugin_name_str,
+                             MYSQL_GROUP_REPLICATION_PLUGIN);
   if (plugin != nullptr) {
     st_mysql_group_replication *plugin_handle =
         (st_mysql_group_replication *)plugin_decl(plugin)->info;
     result = plugin_handle->get_group_members_info(index, callbacks);
-    plugin_unlock(0, plugin);
+    plugin_unlock(nullptr, plugin);
   }
 
   return result;
@@ -244,13 +252,14 @@ bool get_group_replication_group_member_stats_info(
     const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS &callbacks) {
   bool result = true;
 
-  plugin_ref plugin = my_plugin_lock_by_name(
-      0, group_replication_plugin_name_str, MYSQL_GROUP_REPLICATION_PLUGIN);
+  plugin_ref plugin =
+      my_plugin_lock_by_name(nullptr, group_replication_plugin_name_str,
+                             MYSQL_GROUP_REPLICATION_PLUGIN);
   if (plugin != nullptr) {
     st_mysql_group_replication *plugin_handle =
         (st_mysql_group_replication *)plugin_decl(plugin)->info;
     result = plugin_handle->get_group_member_stats_info(index, callbacks);
-    plugin_unlock(0, plugin);
+    plugin_unlock(nullptr, plugin);
   }
 
   return result;
@@ -259,13 +268,14 @@ bool get_group_replication_group_member_stats_info(
 unsigned int get_group_replication_members_number_info() {
   unsigned int result = 0;
 
-  plugin_ref plugin = my_plugin_lock_by_name(
-      0, group_replication_plugin_name_str, MYSQL_GROUP_REPLICATION_PLUGIN);
+  plugin_ref plugin =
+      my_plugin_lock_by_name(nullptr, group_replication_plugin_name_str,
+                             MYSQL_GROUP_REPLICATION_PLUGIN);
   if (plugin != nullptr) {
     st_mysql_group_replication *plugin_handle =
         (st_mysql_group_replication *)plugin_decl(plugin)->info;
     result = plugin_handle->get_members_number_info();
-    plugin_unlock(0, plugin);
+    plugin_unlock(nullptr, plugin);
   }
 
   return result;
@@ -274,7 +284,7 @@ unsigned int get_group_replication_members_number_info() {
 /** helper function to @ref get_server_parameters */
 inline char *my_strdup_nullable(OptionalString from) {
   return from.c_str() == nullptr
-             ? NULL
+             ? nullptr
              : my_strdup(PSI_INSTRUMENT_ME, from.c_str(), MYF(0));
 }
 
@@ -338,11 +348,6 @@ void get_server_ssl_parameters(st_server_ssl_variables *server_ssl_variables) {
   SslAcceptorContext::read_parameters(&ca, &capath, &version, &cert, &cipher,
                                       &ciphersuites, &key, &crl, &crlpath);
 
-#ifdef HAVE_OPENSSL
-  server_ssl_variables->have_ssl_opt = true;
-#else
-  server_ssl_variables->have_ssl_opt = false;
-#endif
   server_ssl_variables->ssl_ca = my_strdup_nullable(ca);
   server_ssl_variables->ssl_capath = my_strdup_nullable(capath);
   server_ssl_variables->tls_version = my_strdup_nullable(version);
@@ -460,3 +465,5 @@ unsigned long get_max_slave_max_allowed_packet() {
 }
 
 bool is_server_restarting_after_clone() { return clone_startup; }
+
+bool is_server_data_dropped() { return Clone_handler::is_data_dropped(); }

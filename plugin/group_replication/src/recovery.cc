@@ -46,7 +46,7 @@ static char recovery_channel_name[] = "group_replication_recovery";
 static void *launch_handler_thread(void *arg) {
   Recovery_module *handler = (Recovery_module *)arg;
   handler->recovery_thread_handle();
-  return 0;
+  return nullptr;
 }
 
 Recovery_module::Recovery_module(Applier_module_interface *applier,
@@ -367,7 +367,7 @@ cleanup:
       Gcs_operations::get_gcs_engine());
 
   my_thread_end();
-  my_thread_exit(0);
+  my_thread_exit(nullptr);
 
   return error; /* purecov: inspected */
 }

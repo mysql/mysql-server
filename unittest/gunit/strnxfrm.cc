@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,8 @@
 
 #include "unittest/gunit/strnxfrm.h"
 
+#include <algorithm>
+
 #include "my_inttypes.h"
 #include "my_macros.h"
 
@@ -34,7 +36,7 @@ size_t strnxfrm_orig(const CHARSET_INFO *cs, uchar *dst, size_t dstlen,
   const uchar *map = cs->sort_order;
   uchar *d0 = dst;
   size_t frmlen;
-  if ((frmlen = MY_MIN(dstlen, nweights)) > srclen) frmlen = srclen;
+  if ((frmlen = std::min<size_t>(dstlen, nweights)) > srclen) frmlen = srclen;
   if (dst != src) {
     const uchar *end;
     for (end = src + frmlen; src < end;) *dst++ = map[*src++];
@@ -54,7 +56,7 @@ size_t strnxfrm_orig_unrolled(const CHARSET_INFO *cs, uchar *dst, size_t dstlen,
   size_t frmlen;
   const uchar *end;
   const uchar *remainder;
-  if ((frmlen = MY_MIN(dstlen, nweights)) > srclen) frmlen = srclen;
+  if ((frmlen = std::min<size_t>(dstlen, nweights)) > srclen) frmlen = srclen;
   end = src + frmlen;
   remainder = src + (frmlen % 8);
   if (dst != src) {
@@ -106,7 +108,7 @@ size_t strnxfrm_new(const CHARSET_INFO *cs, uchar *dst, size_t dstlen,
   uchar *d0 = dst;
   const uchar *end;
   size_t frmlen;
-  if ((frmlen = MY_MIN(dstlen, nweights)) > srclen) frmlen = srclen;
+  if ((frmlen = std::min<size_t>(dstlen, nweights)) > srclen) frmlen = srclen;
   for (end = src + frmlen; src < end;) *dst++ = map[*src++];
   return my_strxfrm_pad(cs, d0, dst, d0 + dstlen, (uint)(nweights - frmlen),
                         flags);
@@ -120,7 +122,7 @@ size_t strnxfrm_new_unrolled(const CHARSET_INFO *cs, uchar *dst, size_t dstlen,
   const uchar *end;
   const uchar *remainder;
   size_t frmlen;
-  if ((frmlen = MY_MIN(dstlen, nweights)) > srclen) frmlen = srclen;
+  if ((frmlen = std::min<size_t>(dstlen, nweights)) > srclen) frmlen = srclen;
   end = src + frmlen;
   remainder = src + (frmlen % 8);
   for (; src < remainder;) *dst++ = map[*src++];

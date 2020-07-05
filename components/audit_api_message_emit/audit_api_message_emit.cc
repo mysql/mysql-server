@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -191,9 +191,8 @@ char *collation_name = const_cast<char *>(collation);
   @param [in, out]  args      UDF arguments structure
   @param [out]      handler   Error handler
 
-  @return
-    @retval false Set the charset of all arguments successully
-    @retval true  Otherwise
+  @retval false Set the charset of all arguments successully
+  @retval true  Otherwise
 */
 static bool set_args_charset_info(UDF_ARGS *args, IError_handler &handler) {
   for (size_t index = 0; index < args->arg_count; ++index) {
@@ -213,9 +212,8 @@ static bool set_args_charset_info(UDF_ARGS *args, IError_handler &handler) {
   @param [in, out]  initid    A pointer to the UDF_INIT structure
   @param [out]      handler   Error handler that keeps the error message
 
-  @return
-    @retval false Charset info of return value set successfully.
-    @retval true  Otherwise
+  @retval false Charset info of return value set successfully.
+  @retval true  Otherwise
 */
 bool set_return_value_charset_info(UDF_INIT *initid, IError_handler &handler) {
   if (mysql_service_mysql_udf_metadata->result_set(
@@ -240,7 +238,6 @@ bool set_return_value_charset_info(UDF_INIT *initid, IError_handler &handler) {
                           set to false, if the provided argument count is
                           greater, this does not return error.
 
-  @return
   @retval -1  None of the argument definition was matched.
   @retval >=0 n-th argument definition was matched.
 */
@@ -328,7 +325,6 @@ static int arg_check(IError_handler &handler, unsigned int arg_count,
   @param handler Error handler used for error handling.
   @param args    UDF_ARGS structure.
 
-  @return
   @retval false Succeeded. Arguments are ok.
   @retval true  Failed. Error is reported via specified handler.
 */
@@ -574,7 +570,7 @@ static bool emit_init(UDF_INIT *initd, UDF_ARGS *args, char *message) {
 static mysql_service_status_t init() {
   return mysql_service_udf_registration->udf_register(
       "audit_api_message_emit_udf", STRING_RESULT, (Udf_func_any)emit,
-      (Udf_func_init)emit_init, NULL);
+      (Udf_func_init)emit_init, nullptr);
 }
 
 /**

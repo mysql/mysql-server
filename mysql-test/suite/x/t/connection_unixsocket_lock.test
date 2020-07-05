@@ -67,6 +67,9 @@ let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/mysqlx.c
 
 
 ## Cleanup
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
+
 --remove_file $MYSQL_TMP_DIR/check_unixsocket.tmp
 --remove_file $MYSQL_TMP_DIR/check_connection.tmp
 --remove_file $MYSQL_TMP_DIR/mysqlx.custom.lock

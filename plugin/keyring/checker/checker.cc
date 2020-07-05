@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,14 +34,13 @@ const std::string Checker::eofTAG = "EOF";
 
 /**
   checks if keyring file structure is invalid
-  @param (I) file       - file handle to be checked
-  @param (I) file_size  - total file size
-  @param (I) digest     - file digest value
-  @param (O) type       - (optional) architecture type of file int lengths
+  @param[in] file       - file handle to be checked
+  @param[in] file_size  - total file size
+  @param[in] digest     - file digest value
+  @param[out] arch       - (optional) architecture type of file int lengths
 
-  @return
-    @retval false   - file structure is valid
-    @retval true    - file structure is invalid
+  @retval false   - file structure is valid
+  @retval true    - file structure is invalid
  */
 bool Checker::check_file_structure(File file, size_t file_size, Digest *digest,
                                    Converter::Arch *arch) {

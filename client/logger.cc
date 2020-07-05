@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,7 @@ using namespace std;
 
 ostream &operator<<(ostream &os, const Datetime &) {
   const char format[] = "%Y-%m-%d %X";
-  time_t t(time(NULL));
+  time_t t(time(nullptr));
   tm tm(*localtime(&t));
   std::locale loc(cout.getloc());
   ostringstream sout;

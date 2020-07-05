@@ -216,7 +216,7 @@ class Message_decoder::Compressed_message_decoder {
 
   protocol::Decompression_input_stream m_zlib_stream{
       m_decoder->get_decompression_algorithm(), m_input_stream};
-};  // namespace ngs
+};
 
 using Decode_error = Message_decoder::Decode_error;
 

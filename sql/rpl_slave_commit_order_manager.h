@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,11 +53,10 @@ class Commit_order_manager {
 
     @param[in] worker The worker which is executing the transaction.
 
-    @return
-      @retval false  All previous transactions succeed, so this transaction can
-                     go ahead and commit.
-      @retval true   One or more previous transactions rollback, so this
-                     transaction should rollback.
+    @retval false  All previous transactions succeed, so this transaction can
+                   go ahead and commit.
+    @retval true   One or more previous transactions rollback, so this
+                   transaction should rollback.
   */
   bool wait(Slave_worker *worker);
 
@@ -88,9 +87,8 @@ class Commit_order_manager {
   /**
     Get rollback status.
 
-    @return
-      @retval true   Transactions in the queue should rollback.
-      @retval false  Transactions in the queue shouldn't rollback.
+    @retval true   Transactions in the queue should rollback.
+    @retval false  Transactions in the queue shouldn't rollback.
   */
   bool get_rollback_status();
 
@@ -235,10 +233,9 @@ class Commit_order_manager {
 
     @param[in] thd  The THD object of current thread.
 
-    @return
-      @retval false  All previous transactions succeed, so this transaction can
-                     go ahead and commit.
-      @retval true   The transaction is marked to rollback.
+    @retval false  All previous transactions succeed, so this transaction can
+                   go ahead and commit.
+    @retval true   The transaction is marked to rollback.
   */
   static bool wait(THD *thd);
 
@@ -257,9 +254,8 @@ class Commit_order_manager {
 
     @param[in] thd    The THD object of current thread.
 
-    @return
-      @retval true   Current transaction should rollback.
-      @retval false  Current transaction shouldn't rollback.
+    @retval true   Current transaction should rollback.
+    @retval false  Current transaction shouldn't rollback.
   */
   static bool get_rollback_status(THD *thd);
 
@@ -281,9 +277,8 @@ class Commit_order_manager {
 
     @param[in] thd  The THD object of current thread.
 
-    @return
-      @retval true   Allow thread to wait for it turn
-      @retval false  Do not allow thread to wait for it turn
+    @retval true   Allow thread to wait for it turn
+    @retval false  Do not allow thread to wait for it turn
   */
   static bool wait_for_its_turn_before_flush_stage(THD *thd);
 };
@@ -302,9 +297,8 @@ class Commit_order_manager {
 
   @param[in] thd  The THD object of current thread.
 
-  @return
-    @retval false  Commit_order_manager object is not intialized
-    @retval true   Commit_order_manager object is intialized
+  @retval false  Commit_order_manager object is not intialized
+  @retval true   Commit_order_manager object is intialized
 */
 bool has_commit_order_manager(THD *thd);
 

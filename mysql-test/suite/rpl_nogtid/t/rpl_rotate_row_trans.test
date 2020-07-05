@@ -28,6 +28,13 @@
 source include/have_debug.inc;
 source include/have_debug_sync.inc;
 
+# test requires that IO thread searches for WRITE_ROWS_EVENT
+# which in case compression is enabled this is wrapped in
+# a transaction payload event, thence the signal needed below
+# is never emitted. Test is incompatible with compression,
+# skipping it.
+--source include/not_binlog_transaction_compression_on.inc
+
 --disable_query_log
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 --enable_query_log

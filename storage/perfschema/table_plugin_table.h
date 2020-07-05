@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -102,7 +102,7 @@ class table_plugin_table : public PFS_engine_table {
 class PFS_plugin_table_index : public PFS_engine_index_abstract {
  public:
   PFS_plugin_table_index(PFS_engine_table_proxy *st_table)
-      : m_st_table(st_table), m_idx(0), m_plugin_index(NULL) {}
+      : m_st_table(st_table), m_idx(0), m_plugin_index(nullptr) {}
 
   ~PFS_plugin_table_index() {}
 

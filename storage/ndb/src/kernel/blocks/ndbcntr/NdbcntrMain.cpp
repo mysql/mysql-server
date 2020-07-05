@@ -88,18 +88,25 @@
 
 extern EventLogger * g_eventLogger;
 
-#ifdef VM_TRACE
+#if (defined(VM_TRACE) || defined(ERROR_INSERT))
+//#define DEBUG_NODE_STOP 1
 //#define DEBUG_LOCAL_SYSFILE 1
 //#define DEBUG_LCP 1
 //#define DEBUG_UNDO 1
 //#define DEBUG_REDO_CONTROL 1
-#define DEBUG_NODE_GROUP_START 1
+//#define DEBUG_NODE_GROUP_START 1
 #endif
 
 #ifdef DEBUG_NODE_GROUP_START
 #define DEB_NODE_GROUP_START(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_NODE_GROUP_START(arglist) do { } while (0)
+#endif
+
+#ifdef DEBUG_NODE_STOP
+#define DEB_NODE_STOP(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_NODE_STOP(arglist) do { } while (0)
 #endif
 
 #ifdef DEBUG_REDO_CONTROL
@@ -848,9 +855,10 @@ STTOR Phase 3
 Next step is to run the STTOR phase 3. Most modules that need the list of
 nodes in the cluster reads this in this phase. DBDIH reads the nodes in this
 phase, DBDICT sets the restart type. Next NDBCNTR receives this phase and
-starts NDB_STTOR phase 2. In this phase DBLQH sets up connections from its
-operation records to the operation records in DBACC and DBTUP. This is done
-in parallel for all DBLQH module instances.
+starts NDB_STTOR phase 2. This phase starts by setting up any node group
+transporters specified in the configuration.  In this phase DBLQH sets up
+connections from its operation records to the operation records in DBACC and
+DBTUP. This is done in parallel for all DBLQH module instances.
 
 DBDIH now prepares the node restart process by locking the meta data. This
 means that we will wait until any ongoing meta data operation is completed
@@ -2187,6 +2195,7 @@ Ndbcntr::execCNTR_START_CONF(Signal * signal)
   m_cntr_start_conf = true;
   g_eventLogger->info("NDBCNTR master accepted us into cluster,"
                       " start NDB start phase 1");
+
   switch (ctypeOfStart)
   {
     case NodeState::ST_INITIAL_START:
@@ -2904,6 +2913,45 @@ void Ndbcntr::ph2GLab(Signal* signal)
 void Ndbcntr::startPhase3Lab(Signal* signal) 
 {
   g_eventLogger->info("Start NDB start phase 2");
+  /**
+   * NDB start phase 2 runs in STTOR start phase 3.
+   * At this point we have set up communication to all nodes that will
+   * be part of the startup. Before proceeding with the rest of the
+   * restart/start we will now set up multiple transporters to those
+   * nodes that require this.
+   *
+   * To avoid doing this concurrently with other start phases we will
+   * do it now, we want to have communication setup already, but we
+   * want as little activity on the channels as possible to make it
+   * easier to setup the new transporters between nodes in the same
+   * node group.
+   *
+   * When coming back to NDBCNTR from QMGR (QMGR controls this set up
+   * of multiple transporters) we have connection to other nodes set
+   * up with multiple transporters. This will have impact on the
+   * update rate we can sustain and also on the copy fragment phase
+   * that will be faster than with only one transporter.
+   */
+  if (ctypeOfStart != NodeState::ST_INITIAL_NODE_RESTART &&
+      ctypeOfStart != NodeState::ST_NODE_RESTART)
+  {
+    jam();
+    signal->theData[0] = reference();
+    sendSignal(QMGR_REF, GSN_SET_UP_MULTI_TRP_REQ, signal, 1, JBB);
+    return;
+  }
+  else
+  {
+    jam();
+    ph3ALab(signal);
+  }
+}
+
+void
+Ndbcntr::execSET_UP_MULTI_TRP_CONF(Signal* signal)
+{
+  g_eventLogger->info("Completed setting up multiple transporters to nodes"
+                      " in the same node group");
   ph3ALab(signal);
   return;
 }//Ndbcntr::startPhase3Lab()
@@ -3166,6 +3214,7 @@ void Ndbcntr::execNDB_STARTCONF(Signal* signal)
 /*******************************/
 void Ndbcntr::startPhase5Lab(Signal* signal) 
 {
+  g_eventLogger->info("Start NDB start phase 4");
   ph5ALab(signal);
   return;
 }//Ndbcntr::startPhase5Lab()
@@ -4019,7 +4068,7 @@ void Ndbcntr::execSCHEMA_TRANS_END_CONF(Signal* signal)
   jamEntry();
   c_schemaTransId = 0;
   c_schemaTransKey = RNIL;
-  startInsertTransactions(signal);
+  waitpoint52Lab(signal);
 }
 
 void Ndbcntr::execSCHEMA_TRANS_END_REF(Signal* signal)
@@ -4294,171 +4343,8 @@ void Ndbcntr::execCREATE_TABLE_CONF(Signal* signal)
   table.tableId = conf->tableId;
   table.tableVersion = conf->tableVersion;
   createSystableLab(signal, conf->senderData + 1);
-  //startInsertTransactions(signal);
   return;
 }//Ndbcntr::execDICTTABCONF()
-
-/*******************************/
-/*  DICTRELEASECONF            */
-/*******************************/
-void Ndbcntr::startInsertTransactions(Signal* signal) 
-{
-  jamEntry();
-
-  ckey = 1;
-  ctransidPhase = ZTRUE;
-  signal->theData[0] = 0;
-  signal->theData[1] = reference();
-  sendSignal(DBTC_REF, GSN_TCSEIZEREQ, signal, 2, JBB);
-  return;
-}//Ndbcntr::startInsertTransactions()
-
-/*******************************/
-/*  TCSEIZECONF                */
-/*******************************/
-void Ndbcntr::execTCSEIZECONF(Signal* signal) 
-{
-  jamEntry();
-  ctcConnectionP = signal->theData[1];
-  ctcReference = signal->theData[2];
-  crSystab7Lab(signal);
-  return;
-}//Ndbcntr::execTCSEIZECONF()
-
-const unsigned int RowsPerCommit = 16;
-void Ndbcntr::crSystab7Lab(Signal* signal) 
-{
-  UintR tkey;
-  UintR Tmp;
-  
-  TcKeyReq * const tcKeyReq = (TcKeyReq *)&signal->theData[0];
-  
-  UintR reqInfo_Start = 0;
-  tcKeyReq->setOperationType(reqInfo_Start, ZINSERT); // Insert
-  tcKeyReq->setKeyLength    (reqInfo_Start, 1);
-  tcKeyReq->setAIInTcKeyReq (reqInfo_Start, 5);
-  tcKeyReq->setAbortOption  (reqInfo_Start, TcKeyReq::AbortOnError);
-
-/* KEY LENGTH = 1, ATTRINFO LENGTH IN TCKEYREQ = 5 */
-  cresponses = 0;
-  const UintR guard0 = ckey + (RowsPerCommit - 1);
-  for (Tmp = ckey; Tmp <= guard0; Tmp++) {
-    UintR reqInfo = reqInfo_Start;
-    if (Tmp == ckey) { // First iteration, Set start flag
-      jam();
-      tcKeyReq->setStartFlag(reqInfo, 1);
-    } //if
-    if (Tmp == guard0) { // Last iteration, Set commit flag
-      jam();
-      tcKeyReq->setCommitFlag(reqInfo, 1);      
-      tcKeyReq->setExecuteFlag(reqInfo, 1);
-    } //if
-    if (ctransidPhase == ZTRUE) {
-      jam();
-      tkey = 0;
-      tkey = tkey - Tmp;
-    } else {
-      jam();
-      tkey = Tmp;
-    }//if
-
-    tcKeyReq->apiConnectPtr      = ctcConnectionP;
-    tcKeyReq->attrLen            = 5;
-    tcKeyReq->tableId            = g_sysTable_SYSTAB_0.tableId;
-    tcKeyReq->requestInfo        = reqInfo;
-    tcKeyReq->tableSchemaVersion = g_sysTable_SYSTAB_0.tableVersion;
-    tcKeyReq->transId1           = 0;
-    tcKeyReq->transId2           = ckey;
-
-//-------------------------------------------------------------
-// There is no optional part in this TCKEYREQ. There is one
-// key word and five ATTRINFO words.
-//-------------------------------------------------------------
-    Uint32* tKeyDataPtr          = &tcKeyReq->scanInfo;
-    Uint32* tAIDataPtr           = &tKeyDataPtr[1];
-
-    tKeyDataPtr[0]               = tkey;
-
-    AttributeHeader::init(&tAIDataPtr[0], 0, 1 << 2);
-    tAIDataPtr[1]                = tkey;
-    AttributeHeader::init(&tAIDataPtr[2], 1, 2 << 2);
-    tAIDataPtr[3]                = (tkey << 16);
-    tAIDataPtr[4]                = 1;    
-    sendSignal(ctcReference, GSN_TCKEYREQ, signal,
-	       TcKeyReq::StaticLength + 6, JBB);
-  }//for
-  ckey = ckey + RowsPerCommit;
-  return;
-}//Ndbcntr::crSystab7Lab()
-
-/*******************************/
-/*  TCKEYCONF09                */
-/*******************************/
-void Ndbcntr::execTCKEYCONF(Signal* signal) 
-{
-  const TcKeyConf * const keyConf = (TcKeyConf *)&signal->theData[0];
-  
-  jamEntry();
-  cgciSystab = keyConf->gci_hi;
-  UintR confInfo = keyConf->confInfo;
-  
-  if (TcKeyConf::getMarkerFlag(confInfo)){
-    Uint32 transId1 = keyConf->transId1;
-    Uint32 transId2 = keyConf->transId2;
-    signal->theData[0] = transId1;
-    signal->theData[1] = transId2;
-    sendSignal(ctcReference, GSN_TC_COMMIT_ACK, signal, 2, JBB);
-  }//if
-  
-  cresponses = cresponses + TcKeyConf::getNoOfOperations(confInfo);
-  if (TcKeyConf::getCommitFlag(confInfo)){
-    jam();
-    ndbrequire(cresponses == RowsPerCommit);
-
-    crSystab8Lab(signal);
-    return;
-  }
-  return;
-}//Ndbcntr::tckeyConfLab()
-
-void Ndbcntr::crSystab8Lab(Signal* signal) 
-{
-  if (ckey < ZSIZE_SYSTAB) {
-    jam();
-    crSystab7Lab(signal);
-    return;
-  } else if (ctransidPhase == ZTRUE) {
-    jam();
-    ckey = 1;
-    ctransidPhase = ZFALSE;
-    // skip 2nd loop - tupleid sequence now created on first use
-  }//if
-  signal->theData[0] = ctcConnectionP;
-  signal->theData[1] = reference();
-  signal->theData[2] = 0;
-  sendSignal(ctcReference, GSN_TCRELEASEREQ, signal, 2, JBB);
-  return;
-}//Ndbcntr::crSystab8Lab()
-
-/*******************************/
-/*  TCRELEASECONF              */
-/*******************************/
-void Ndbcntr::execTCRELEASECONF(Signal* signal) 
-{
-  jamEntry();
-  g_eventLogger->info("Creation of System Tables Completed");
-  waitpoint52Lab(signal);
-  return;
-}//Ndbcntr::execTCRELEASECONF()
-
-void Ndbcntr::crSystab9Lab(Signal* signal) 
-{
-  signal->theData[0] = 0; // user ptr
-  signal->theData[1] = reference();
-  signal->theData[2] = 0;
-  sendSignalWithDelay(DBDIH_REF, GSN_GETGCIREQ, signal, 100, 3);
-  return;
-}//Ndbcntr::crSystab9Lab()
 
 /*******************************/
 /*  GETGCICONF                 */
@@ -4467,48 +4353,9 @@ void Ndbcntr::execGETGCICONF(Signal* signal)
 {
   jamEntry();
 
-#ifndef NO_GCP
-  if (signal->theData[1] < cgciSystab) {
-    jam();
-/*--------------------------------------*/
-/* MAKE SURE THAT THE SYSTABLE IS       */
-/* NOW SAFE ON DISK                     */
-/*--------------------------------------*/
-    crSystab9Lab(signal);
-    return;
-  }//if
-#endif
   waitpoint52Lab(signal);
   return;
 }//Ndbcntr::execGETGCICONF()
-
-void Ndbcntr::execTCKEYREF(Signal* signal) 
-{
-  jamEntry();
-  systemErrorLab(signal, __LINE__);
-  return;
-}//Ndbcntr::execTCKEYREF()
-
-void Ndbcntr::execTCROLLBACKREP(Signal* signal) 
-{
-  jamEntry();
-  systemErrorLab(signal, __LINE__);
-  return;
-}//Ndbcntr::execTCROLLBACKREP()
-
-void Ndbcntr::execTCRELEASEREF(Signal* signal) 
-{
-  jamEntry();
-  systemErrorLab(signal, __LINE__);
-  return;
-}//Ndbcntr::execTCRELEASEREF()
-
-void Ndbcntr::execTCSEIZEREF(Signal* signal) 
-{
-  jamEntry();
-  systemErrorLab(signal, __LINE__);
-  return;
-}//Ndbcntr::execTCSEIZEREF()
 
 
 /*---------------------------------------------------------------------------*/
@@ -4685,7 +4532,7 @@ Ndbcntr::execRESUME_REQ(Signal* signal)
 {
   //ResumeReq * const req = (ResumeReq *)&signal->theData[0];
   //ResumeRef * const ref = (ResumeRef *)&signal->theData[0];
-  
+
   jamEntry();
 
   signal->theData[0] = NDB_LE_SingleUser;
@@ -4694,7 +4541,7 @@ Ndbcntr::execRESUME_REQ(Signal* signal)
 
   //Uint32 senderData = req->senderData;
   //BlockReference senderRef = req->senderRef;
-  NodeState newState(NodeState::SL_STARTED);		  
+  NodeState newState(NodeState::SL_STARTED);
   updateNodeState(signal, newState);
   c_stopRec.stopReq.senderRef=0;
   send_node_started_rep(signal);
@@ -4863,6 +4710,7 @@ Ndbcntr::execSTOP_REQ(Signal* signal)
     sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
   }
 
+  DEB_NODE_STOP(("Setting node state to SL_STOPPING_1"));
   NodeState newState(NodeState::SL_STOPPING_1, 
 		     StopReq::getSystemStop(c_stopRec.stopReq.requestInfo));
   
@@ -5003,6 +4851,7 @@ Ndbcntr::StopRecord::checkApiTimeout(Signal* signal){
      NdbTick_Elapsed(stopInitiatedTime, now).milliSec() >= (Uint64)timeout){
     // || checkWithApiInSomeMagicWay)
     jam();
+    DEB_NODE_STOP(("Setting node state to SL_STOPPING_2"));
     NodeState newState(NodeState::SL_STOPPING_2, 
 		       StopReq::getSystemStop(stopReq.requestInfo));
     if(stopReq.singleuser) {
@@ -5022,6 +4871,12 @@ void
 Ndbcntr::StopRecord::checkTcTimeout(Signal* signal){
   const Int32 timeout = stopReq.transactionTimeout;
   const NDB_TICKS now = NdbTick_getCurrentTicks();
+#ifdef DEBUG_NODE_STOP
+  const Int32 elapsed = NdbTick_Elapsed(stopInitiatedTime, now).milliSec();
+  DEB_NODE_STOP(("timeout: %d, elapsed: %d",
+                 timeout,
+                 elapsed));
+#endif
   if(timeout >= 0 &&
      NdbTick_Elapsed(stopInitiatedTime, now).milliSec() >= (Uint64)timeout){
     // || checkWithTcInSomeMagicWay)
@@ -5039,6 +4894,7 @@ Ndbcntr::StopRecord::checkTcTimeout(Signal* signal){
       } 
       else
       {
+        DEB_NODE_STOP(("WAIT_GCP_REQ CompleteForceStart"));
 	WaitGCPReq * req = (WaitGCPReq*)&signal->theData[0];
 	req->senderRef = cntr.reference();
 	req->senderData = StopRecord::SR_CLUSTER_SHUTDOWN;
@@ -5108,6 +4964,7 @@ void Ndbcntr::execABORT_ALL_CONF(Signal* signal)
   else 
     {
       jam();
+      DEB_NODE_STOP(("Setting node state to SL_STOPPING_3"));
       NodeState newState(NodeState::SL_STOPPING_3, 
 			 StopReq::getSystemStop(c_stopRec.stopReq.requestInfo));
       updateNodeState(signal, newState);
@@ -5142,6 +4999,7 @@ Ndbcntr::StopRecord::checkLqhTimeout_1(Signal* signal){
     
     ChangeNodeStateReq * req = (ChangeNodeStateReq*)&signal->theData[0];
 
+    DEB_NODE_STOP(("Setting node state to SL_STOPPING_4"));
     NodeState newState(NodeState::SL_STOPPING_4, 
 		       StopReq::getSystemStop(stopReq.requestInfo));
     req->nodeState = newState;
@@ -5191,6 +5049,7 @@ void Ndbcntr::execSTOP_ME_CONF(Signal* signal)
     return;
   }
 
+  DEB_NODE_STOP(("2:Setting node state to SL_STOPPING_4"));
   NodeState newState(NodeState::SL_STOPPING_4, 
 		     StopReq::getSystemStop(c_stopRec.stopReq.requestInfo));
   updateNodeState(signal, newState);
@@ -5330,6 +5189,7 @@ void Ndbcntr::execWAIT_GCP_CONF(Signal* signal)
   
   {  
     ndbrequire(StopReq::getSystemStop(c_stopRec.stopReq.requestInfo));
+    DEB_NODE_STOP(("2:Setting node state to SL_STOPPING_3"));
     NodeState newState(NodeState::SL_STOPPING_3, true); 
     
     /**
@@ -7101,38 +6961,38 @@ void Ndbcntr::sendWAIT_ALL_COMPLETE_LCP_CONF(Signal *signal)
 void Ndbcntr::get_node_group_mask(Signal *signal,
                                   NodeId node_id,
                                   NdbNodeBitmask& mask)
-{ 
+{
   CheckNodeGroups * sd = (CheckNodeGroups*)signal->getDataPtrSend();
   sd->blockRef = reference();
   sd->requestType =
     CheckNodeGroups::Direct |
     CheckNodeGroups::GetNodeGroupMembers;
   sd->nodeId = node_id;
-  EXECUTE_DIRECT_MT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal,
-                   CheckNodeGroups::SignalLength, 0);
+  EXECUTE_DIRECT_MT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal, 
+		    CheckNodeGroups::SignalLength, 0);
   jamEntry();
   mask.assign(sd->mask);
 }
 
 bool Ndbcntr::is_nodegroup_starting(Signal *signal, NodeId node_id)
-{ 
+{
   NdbNodeBitmask mask;
   get_node_group_mask(signal, node_id, mask);
   for (Uint32 i = 1; i < MAX_NDB_NODES; i++)
-  { 
+  {
     if (mask.get(i) && i != getOwnNodeId())
-    { 
+    {
       jam();
       jamLine(Uint16(i));
       /* Node i is in same node group */
       if (is_node_starting(i))
-      { 
-        jam(); 
+      {
+        jam();
         return true;
       }
     }
   }
-  jam(); 
+  jam();
   return false;
 }
 

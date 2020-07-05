@@ -290,19 +290,24 @@ class HashJoinRowBuffer {
   /// holds.
   ///
   /// @param thd the thread handler
+  /// @param reject_duplicate_keys If true, reject rows with duplicate keys.
+  ///        If a row is rejected, the function will still return ROW_STORED.
+  /// @param store_rows_with_null_in_condition Whether to store rows where the
+  ///        join conditions contains SQL NULL.
   ///
   /// @retval ROW_STORED the row was stored.
   /// @retval BUFFER_FULL the row was stored, and the buffer is full.
   /// @retval FATAL_ERROR an unrecoverable error occured (most likely,
   ///         malloc failed). It is the callers responsibility to call
   ///         my_error().
-  StoreRowResult StoreRow(THD *thd);
+  StoreRowResult StoreRow(THD *thd, bool reject_duplicate_keys,
+                          bool store_rows_with_null_in_condition);
 
   size_t size() const { return m_hash_map->size(); }
 
   bool empty() const { return m_hash_map->empty(); }
 
-  using hash_map_type = memroot_unordered_multimap<Key, BufferRow, KeyHasher>;
+  using hash_map_type = mem_root_unordered_multimap<Key, BufferRow, KeyHasher>;
 
   using hash_map_iterator = hash_map_type::const_iterator;
 
@@ -311,9 +316,20 @@ class HashJoinRowBuffer {
     return m_hash_map->equal_range(key);
   }
 
+  hash_map_iterator find(const Key &key) const { return m_hash_map->find(key); }
+
   hash_map_iterator begin() const { return m_hash_map->begin(); }
 
   hash_map_iterator end() const { return m_hash_map->end(); }
+
+  hash_map_iterator LastRowStored() const {
+    DBUG_ASSERT(Initialized());
+    return m_last_row_stored;
+  }
+
+  bool Initialized() const { return m_hash_map.get() != nullptr; }
+
+  bool contains(const Key &key) const { return find(key) != end(); }
 
  private:
   const std::vector<HashJoinCondition> m_join_conditions;
@@ -334,6 +350,14 @@ class HashJoinRowBuffer {
 
   // The maximum size of the buffer, given in bytes.
   const size_t m_max_mem_available;
+
+  // The last row that was stored in the hash table, or end() if the hash table
+  // is empty. We may have to put this row back into the tables' record buffers
+  // if we have a child iterator that expects the record buffers to contain the
+  // last row returned by the storage engine (the probe phase of hash join may
+  // put any row in the hash table in the tables' record buffer). See
+  // HashJoinIterator::BuildHashTable() for an example of this.
+  hash_map_iterator m_last_row_stored;
 };
 
 }  // namespace hash_join_buffer

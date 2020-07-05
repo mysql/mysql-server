@@ -80,7 +80,7 @@ class MY_LOCALE_ERRMSGS {
 #endif
 
   /** Has the error message file been sucessfully loaded? */
-  bool is_loaded() const { return errmsgs != NULL; }
+  bool is_loaded() const { return errmsgs != nullptr; }
 
   /** Deallocate error message strings. */
   void destroy();

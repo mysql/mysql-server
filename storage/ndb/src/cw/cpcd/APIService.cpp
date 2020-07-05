@@ -171,6 +171,7 @@ void CPCDAPISession::runSession() {
     }
   }
   ndb_socket_close(m_socket);
+  ndb_socket_invalidate(&m_socket);
 }
 
 void CPCDAPISession::stopSession() {

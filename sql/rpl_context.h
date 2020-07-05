@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,8 @@
 #include <memory>
 
 #include "my_inttypes.h"  // IWYU pragma: keep
+
+#include "sql/system_variables.h"
 
 class Gtid_set;
 class Sid_map;
@@ -252,6 +254,20 @@ class Last_used_gtid_tracker_ctx {
   std::unique_ptr<Gtid> m_last_used_gtid;
 };
 
+class Transaction_compression_ctx {
+ public:
+  static const size_t DEFAULT_COMPRESSION_BUFFER_SIZE;
+
+  Transaction_compression_ctx();
+  virtual ~Transaction_compression_ctx();
+
+  binary_log::transaction::compression::Compressor *get_compressor(
+      THD *session);
+
+ protected:
+  binary_log::transaction::compression::Compressor *m_compressor{nullptr};
+};
+
 /*
   This class SHALL encapsulate the replication context associated with the THD
   object.
@@ -261,6 +277,7 @@ class Rpl_thd_context {
   Session_consistency_gtids_ctx m_session_gtids_ctx;
   Dependency_tracker_ctx m_dependency_tracker_ctx;
   Last_used_gtid_tracker_ctx m_last_used_gtid_tracker_ctx;
+  Transaction_compression_ctx m_transaction_compression_ctx;
   /** If this thread is a channel, what is its type*/
   enum_rpl_channel_type rpl_channel_type;
 
@@ -286,6 +303,10 @@ class Rpl_thd_context {
 
   void set_rpl_channel_type(enum_rpl_channel_type rpl_channel_type_arg) {
     rpl_channel_type = rpl_channel_type_arg;
+  }
+
+  inline Transaction_compression_ctx &transaction_compression_ctx() {
+    return m_transaction_compression_ctx;
   }
 };
 

@@ -60,4 +60,5 @@ ok
 FLUSH PRIVILEGES;
 Application terminated with expected error: Access denied for user 'nonblank'@'localhost' (using password: YES) (code 1045)
 ok
+# restart:
 DROP USER nonblank@localhost;

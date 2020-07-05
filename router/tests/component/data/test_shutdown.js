@@ -21,6 +21,8 @@ var options = {
 options.group_replication_primary_member = options.group_replication_membership[0][0];
 
 var common_responses = common_stmts.prepare_statement_responses([
+  "router_set_session_options",
+  "router_set_gr_consistency_level",
   "select_port",
   "router_select_schema_version",
   "router_select_metadata",

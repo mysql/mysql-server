@@ -185,6 +185,7 @@ TEST_F(Xcl_session_impl_tests_connect, connect_nullptrs) {
       .WillRepeatedly(Return(XError{}));
   EXPECT_CALL(*m_mock_protocol, execute_authenticate("", "", "", "MYSQL41"))
       .WillOnce(Return(XError{}));
+  EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
 
   EXPECT_CALL(*m_mock_protocol, add_notice_handler(_, Handler_position::Begin,
                                                    Handler_priority_low))
@@ -217,6 +218,7 @@ TEST_F(Xcl_session_impl_tests_connect, connect_localhost_nullptrs) {
       .WillRepeatedly(Return(XError{}));
   EXPECT_CALL(*m_mock_protocol, execute_authenticate("", "", "", "MYSQL41"))
       .WillOnce(Return(XError{}));
+  EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
 
   EXPECT_CALL(*m_mock_protocol, add_notice_handler(_, Handler_position::Begin,
                                                    Handler_priority_low))
@@ -349,6 +351,7 @@ TEST_P(Xcl_session_impl_tests_challenge_response_connect_param,
               execute_authenticate(expected_user, expected_pass,
                                    expected_schema, this->GetParam().m_auth))
       .WillOnce(Return(XError{}));
+  EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
 
   auto error = (this->*GetParam().m_open)(expected_error_code_success);
 
@@ -372,6 +375,7 @@ TEST_P(Xcl_session_impl_tests_challenge_response_connect_param,
               execute_authenticate(expected_user, expected_pass,
                                    expected_schema, this->GetParam().m_auth))
       .WillOnce(Return(XError{}));
+  EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
 
   m_sut->set_capability(XSession::Capability_can_handle_expired_password, true);
   auto error = (this->*GetParam().m_open)(expected_error_code_success);
@@ -413,6 +417,7 @@ TEST_P(Xcl_session_impl_tests_challenge_response_connect_param,
               execute_authenticate(expected_user, expected_pass,
                                    expected_schema, this->GetParam().m_auth))
       .WillOnce(Return(XError{expected_error_code, ""}));
+  EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
 
   auto error = (this->*GetParam().m_open)(expected_error_code_success);
 
@@ -454,6 +459,7 @@ TEST_P(Xcl_session_impl_tests_plain_connect_param,
               execute_authenticate(expected_user, expected_pass,
                                    expected_schema, this->GetParam().m_auth))
       .WillOnce(Return(XError{}));
+  EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
 
   auto error = (this->*GetParam().m_open)(expected_error_code_success);
 
@@ -518,6 +524,7 @@ TEST_P(Xcl_session_impl_tests_plain_connect_param, connect_plain_tls) {
               execute_authenticate(expected_user, expected_pass,
                                    expected_schema, this->GetParam().m_auth))
       .WillOnce(Return(XError{}));
+  EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
 
   auto error = (this->*GetParam().m_open)(expected_error_code_success);
 

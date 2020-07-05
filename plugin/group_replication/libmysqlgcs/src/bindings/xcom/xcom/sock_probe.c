@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -101,7 +101,8 @@ node_no xcom_find_node_index(node_list *nodes) {
         for (j = 0; j < number_of_interfaces(s); j++) {
           struct sockaddr *tmp_sockaddr = NULL;
           get_sockaddr_address(s, j, &tmp_sockaddr);
-          if (sockaddr_default_eq(addr->ai_addr, tmp_sockaddr) &&
+          if (tmp_sockaddr != NULL &&
+              sockaddr_default_eq(addr->ai_addr, tmp_sockaddr) &&
               is_if_running(s, j)) {
             retval = i;
             if (saved_addr) freeaddrinfo(saved_addr);
@@ -143,7 +144,8 @@ node_no xcom_mynode_match(char *name, xcom_port port) {
       for (j = 0; j < number_of_interfaces(s); j++) {
         struct sockaddr *tmp_sockaddr = NULL;
         get_sockaddr_address(s, j, &tmp_sockaddr);
-        if (sockaddr_default_eq(addr->ai_addr, tmp_sockaddr) &&
+        if (tmp_sockaddr != NULL &&
+            sockaddr_default_eq(addr->ai_addr, tmp_sockaddr) &&
             is_if_running(s, j)) {
           retval = 1;
           goto end_loop;

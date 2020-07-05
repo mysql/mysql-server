@@ -31,6 +31,7 @@
 
 #include <string.h>
 #include <sys/types.h>
+#include <algorithm>
 #include <cstring>
 
 #include "m_string.h"
@@ -71,8 +72,8 @@ char *fn_format(char *to, const char *name, const char *dir,
   const char *ext;
   size_t dev_length;
   DBUG_TRACE;
-  DBUG_ASSERT(name != NULL);
-  DBUG_ASSERT(extension != NULL);
+  DBUG_ASSERT(name != nullptr);
+  DBUG_ASSERT(extension != nullptr);
   DBUG_PRINT("enter", ("name: %s  dir: %s  extension: %s  flag: %d", name, dir,
                        extension, flag));
 
@@ -81,11 +82,11 @@ char *fn_format(char *to, const char *name, const char *dir,
   size_t length = dirname_part(dev, name, &dev_length);
   name += length;
   if (length == 0 || (flag & MY_REPLACE_DIR)) {
-    DBUG_ASSERT(dir != NULL);
+    DBUG_ASSERT(dir != nullptr);
     /* Use given directory */
     convert_dirname(dev, dir, NullS); /* Fix to this OS */
   } else if ((flag & MY_RELATIVE_PATH) && !test_if_hard_path(dev)) {
-    DBUG_ASSERT(dir != NULL);
+    DBUG_ASSERT(dir != nullptr);
     /* Put 'dir' before the given path */
     strmake(buff, dev, sizeof(buff) - 1);
     pos = convert_dirname(dev, dir, NullS);
@@ -117,7 +118,7 @@ char *fn_format(char *to, const char *name, const char *dir,
     tmp_length = strlength(startpos);
     DBUG_PRINT("error",
                ("dev: '%s'  ext: '%s'  length: %u", dev, ext, (uint)length));
-    (void)strmake(to, startpos, MY_MIN(tmp_length, FN_REFLEN - 1));
+    (void)strmake(to, startpos, std::min(tmp_length, size_t{FN_REFLEN - 1}));
   } else {
     if (to == startpos) {
       memmove(buff, name, length); /* Save name for last copy */

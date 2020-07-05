@@ -92,12 +92,12 @@ enum_gcs_error Gcs_async_buffer::initialize() {
       key_GCS_COND_Gcs_async_buffer_m_wait_for_events_cond);
   m_free_buffer_cond->init(key_GCS_COND_Gcs_async_buffer_m_free_buffer_cond);
   m_free_buffer_mutex->init(key_GCS_MUTEX_Gcs_async_buffer_m_free_buffer_mutex,
-                            NULL);
+                            nullptr);
 
   m_terminated = false;
   if ((ret_thread =
-           m_consumer->create(key_GCS_THD_Gcs_ext_logger_impl_m_consumer, NULL,
-                              consumer_function, (void *)this))) {
+           m_consumer->create(key_GCS_THD_Gcs_ext_logger_impl_m_consumer,
+                              nullptr, consumer_function, (void *)this))) {
     /* purecov: begin deadcode */
     std::cerr << "Unable to create Gcs_async_buffer consumer thread, "
               << ret_thread << std::endl;
@@ -126,7 +126,7 @@ enum_gcs_error Gcs_async_buffer::finalize() {
   m_free_buffer_mutex->unlock();
 
   // Wait for consumer to finish processing events
-  m_consumer->join(NULL);
+  m_consumer->join(nullptr);
 
   m_wait_for_events_cond->destroy();
   m_free_buffer_cond->destroy();
@@ -260,9 +260,9 @@ void *consumer_function(void *ptr) {
   Gcs_async_buffer *l = static_cast<Gcs_async_buffer *>(ptr);
   l->consume_events();
 
-  My_xp_thread_util::exit(0);
+  My_xp_thread_util::exit(nullptr);
 
-  return NULL;
+  return nullptr;
 }
 
 const std::string Gcs_async_buffer::get_information() const {
@@ -281,7 +281,7 @@ enum_gcs_error Gcs_output_sink::initialize() {
   int ret_out = 0;
 
   if (!m_initialized) {
-    ret_out = setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
+    ret_out = setvbuf(stdout, nullptr, _IOLBF, BUFSIZ);
   }
 
   if (ret_out == 0) {
@@ -339,7 +339,7 @@ enum_gcs_error Gcs_default_debugger::finalize() { return m_sink->finalize(); }
 /**
   Reference to the default debugger which is used internally by GCS and XCOM.
 */
-Gcs_default_debugger *Gcs_debug_manager::m_debugger = NULL;
+Gcs_default_debugger *Gcs_debug_manager::m_debugger = nullptr;
 
 #ifndef XCOM_STANDALONE
 Gcs_file_sink::Gcs_file_sink(const std::string &file_name,
@@ -357,13 +357,13 @@ enum_gcs_error Gcs_file_sink::get_file_name(char *file_name_buffer) const {
     If the file name contains either or the other, it is ignored and the
     file is created in the path defined in m_dir_name.
   */
-  assert(file_name_buffer != NULL);
+  assert(file_name_buffer != nullptr);
 
   /*
     Format the file name that will be used to store debug information.
   */
   if (fn_format(file_name_buffer, m_file_name.c_str(), m_dir_name.c_str(), "",
-                flags) == NULL)
+                flags) == nullptr)
     return GCS_NOK;
 
   return GCS_OK;
@@ -394,7 +394,7 @@ enum_gcs_error Gcs_file_sink::initialize() {
     Check if the file exists and if so whether the owner has write
     permissions.
   */
-  if (my_stat(file_name_buffer, &f_stat, MYF(0)) != NULL) {
+  if (my_stat(file_name_buffer, &f_stat, MYF(0)) != nullptr) {
     if (!(f_stat.st_mode & MY_S_IWRITE)) {
       MYSQL_GCS_LOG_ERROR("Error in associated permissions to file '"
                           << file_name_buffer << "'.");

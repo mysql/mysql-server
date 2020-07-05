@@ -105,6 +105,11 @@ create table t2 (a int NOT NULL, b int, primary key (a));
 insert into t11 values (0, 10),(1, 11),(2, 12);
 insert into t12 values (33, 10),(0, 11),(2, 12);
 insert into t2 values (1, 21),(2, 12),(3, 23);
+analyze table t11,t12,t2;
+Table	Op	Msg_type	Msg_text
+test.t11	analyze	status	OK
+test.t12	analyze	status	OK
+test.t2	analyze	status	OK
 select * from t11;
 a	b
 0	10
@@ -136,6 +141,11 @@ delete ignore t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b <> (select
 Warnings:
 Warning	1242	Subquery returns more than 1 row
 Warning	1242	Subquery returns more than 1 row
+analyze table t11,t12,t2;
+Table	Op	Msg_type	Msg_text
+test.t11	analyze	status	OK
+test.t12	analyze	status	OK
+test.t2	analyze	status	OK
 select * from t11;
 a	b
 0	10
@@ -145,6 +155,11 @@ a	b
 0	11
 33	10
 insert into t11 values (2, 12);
+analyze table t11,t12,t2;
+Table	Op	Msg_type	Msg_text
+test.t11	analyze	status	OK
+test.t12	analyze	status	OK
+test.t2	analyze	status	OK
 delete from t11 where t11.b <> (select b from t2 where t11.a < t2.a);
 ERROR 21000: Subquery returns more than 1 row
 select * from t11;
@@ -156,6 +171,11 @@ delete ignore from t11 where t11.b <> (select b from t2 where t11.a < t2.a);
 Warnings:
 Warning	1242	Subquery returns more than 1 row
 Warning	1242	Subquery returns more than 1 row
+analyze table t11,t12,t2;
+Table	Op	Msg_type	Msg_text
+test.t11	analyze	status	OK
+test.t12	analyze	status	OK
+test.t2	analyze	status	OK
 select * from t11;
 a	b
 0	10

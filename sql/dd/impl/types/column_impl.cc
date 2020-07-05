@@ -89,7 +89,7 @@ Column_impl::Column_impl()
       m_default_value_utf8_null(true),
       m_options(default_valid_option_keys),
       m_se_private_data(),
-      m_table(NULL),
+      m_table(nullptr),
       m_elements(),
       m_collation_id(INVALID_OBJECT_ID),
       m_is_explicit_collation(false),

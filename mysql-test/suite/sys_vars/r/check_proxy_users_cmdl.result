@@ -32,3 +32,4 @@ CALL mtr.add_suppression("option 'check_proxy_users': boolean value '' was not r
 SELECT @@global.check_proxy_users;
 @@global.check_proxy_users
 0
+# restart:

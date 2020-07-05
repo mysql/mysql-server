@@ -102,9 +102,9 @@ Table	Create Table
 bar	CREATE TABLE `bar` (
   `doc` json DEFAULT NULL,
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
-  `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type": "object"}') VIRTUAL,
+  `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type":"object"}') VIRTUAL,
   PRIMARY KEY (`_id`),
-  CONSTRAINT `$val_strict_E8D46CE25265E545D225A8A6F1BAF642FEBEE5CB` CHECK (json_schema_valid(`_json_schema`,`doc`)) /*!80016 NOT ENFORCED */
+  CONSTRAINT `$val_strict_E8D46CE25265E545D225A8A6F1BAF642FEBEE5CB` CHECK (json_schema_valid(`_json_schema`,`doc`))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN DROP TABLE IF EXISTS xtest.foo
@@ -616,9 +616,9 @@ Table	Create Table
 bar	CREATE TABLE `bar` (
   `doc` json DEFAULT NULL,
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
-  `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type": "object"}') VIRTUAL,
+  `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type":"object"}') VIRTUAL,
   PRIMARY KEY (`_id`),
-  CONSTRAINT `$val_strict_E8D46CE25265E545D225A8A6F1BAF642FEBEE5CB` CHECK (json_schema_valid(`_json_schema`,`doc`)) /*!80016 NOT ENFORCED */
+  CONSTRAINT `$val_strict_E8D46CE25265E545D225A8A6F1BAF642FEBEE5CB` CHECK (json_schema_valid(`_json_schema`,`doc`))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN DROP TABLE IF EXISTS xtest.foo
@@ -1142,9 +1142,9 @@ Table	Create Table
 bar	CREATE TABLE `bar` (
   `doc` json DEFAULT NULL,
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
-  `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type": "object"}') VIRTUAL,
+  `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type":"object"}') VIRTUAL,
   PRIMARY KEY (`_id`),
-  CONSTRAINT `$val_strict_E8D46CE25265E545D225A8A6F1BAF642FEBEE5CB` CHECK (json_schema_valid(`_json_schema`,`doc`)) /*!80016 NOT ENFORCED */
+  CONSTRAINT `$val_strict_E8D46CE25265E545D225A8A6F1BAF642FEBEE5CB` CHECK (json_schema_valid(`_json_schema`,`doc`))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN DROP TABLE IF EXISTS xtest.foo

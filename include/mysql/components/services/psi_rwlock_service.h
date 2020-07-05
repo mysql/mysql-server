@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -76,7 +76,5 @@ end_rwlock_wrwait_v1_t end_rwlock_wrwait;
 /** @sa unlock_rwlock_v2_t. */
 unlock_rwlock_v2_t unlock_rwlock;
 END_SERVICE_DEFINITION(psi_rwlock_v2)
-
-#define REQUIRES_PSI_RWLOCK_SERVICE REQUIRES_SERVICE(psi_rwlock_v2)
 
 #endif /* COMPONENTS_SERVICES_PSI_RWLOCK_SERVICE_H */

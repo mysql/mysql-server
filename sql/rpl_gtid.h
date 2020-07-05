@@ -26,6 +26,7 @@
 #include <atomic>
 #include <list>
 
+#include "libbinlogevents/include/compression/base.h"
 #include "libbinlogevents/include/uuid.h"
 #include "map_helpers.h"
 #include "my_dbug.h"
@@ -1041,6 +1042,12 @@ struct Trx_monitoring_info {
   ulong transaction_retries;
   /// True when the transaction is retrying
   bool is_retrying;
+  /// The compression type
+  binary_log::transaction::compression::type compression_type;
+  /// The compressed bytes
+  ulonglong compressed_bytes;
+  /// The uncompressed bytes
+  ulonglong uncompressed_bytes;
 
   /// Constructor
   Trx_monitoring_info();
@@ -1226,9 +1233,9 @@ class Gtid_monitoring_info {
     Clear only the last_processed_trx monitoring info.
   */
   void clear_last_processed_trx();
+
   /**
     Sets the initial monitoring information.
-
     @param gtid_arg         The Gtid to be stored.
     @param original_ts_arg  The original commit timestamp of the GTID.
     @param immediate_ts_arg The immediate commit timestamp of the GTID.
@@ -1238,6 +1245,9 @@ class Gtid_monitoring_info {
   */
   void start(Gtid gtid_arg, ulonglong original_ts_arg,
              ulonglong immediate_ts_arg, bool skipped_arg = false);
+
+  void update(binary_log::transaction::compression::type t, size_t payload_size,
+              size_t uncompressed_size);
 
   /**
     Sets the final information, copy processing info to last_processed
@@ -2876,8 +2886,8 @@ class Gtid_state {
     This variable can be read and modified in four places:
     - During server startup, holding global_sid_lock.wrlock;
     - By a client thread holding global_sid_lock.wrlock (doing a RESET MASTER);
-    - By a client thread calling MYSQL_BIN_LOG::write_gtid function (often the
-      group commit FLUSH stage leader). It will call
+    - By a client thread calling MYSQL_BIN_LOG::write_transaction function
+    (often the group commit FLUSH stage leader). It will call
       Gtid_state::generate_automatic_gtid, that will acquire
       global_sid_lock.rdlock and lock_sidno(get_server_sidno()) when getting a
       new automatically generated GTID;

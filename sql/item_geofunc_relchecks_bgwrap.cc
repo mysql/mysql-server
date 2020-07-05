@@ -86,13 +86,13 @@ int BG_wrap<Geom_types>::multipoint_within_geometry(Geometry *g1, Geometry *g2,
                                                     bool *pnull_value) {
   int result = 0;
   Geometry::wkbType gt2 = g2->get_type();
-  const void *data_ptr = NULL;
+  const void *data_ptr = nullptr;
 
   Multipoint mpts(g1->get_data_ptr(), g1->get_data_size(), g1->get_flags(),
                   g1->get_srid());
   if (gt2 == Geometry::wkb_polygon) {
     data_ptr = g2->normalize_ring_order();
-    if (data_ptr == NULL) {
+    if (data_ptr == nullptr) {
       my_error(ER_GIS_INVALID_DATA, MYF(0), "st_within");
       *pnull_value = true;
       return result;
@@ -103,7 +103,7 @@ int BG_wrap<Geom_types>::multipoint_within_geometry(Geometry *g1, Geometry *g2,
     result = multipoint_within_geometry_internal(mpts, plg);
   } else if (gt2 == Geometry::wkb_multipolygon) {
     data_ptr = g2->normalize_ring_order();
-    if (data_ptr == NULL) {
+    if (data_ptr == nullptr) {
       *pnull_value = true;
       my_error(ER_GIS_INVALID_DATA, MYF(0), "st_within");
       return result;
@@ -397,7 +397,7 @@ int BG_wrap<Geom_types>::multipoint_disjoint_geometry(Geometry *g1,
                                                       bool *pnull_value) {
   int result = 0;
   Geometry::wkbType gt2 = g2->get_type();
-  const void *data_ptr = NULL;
+  const void *data_ptr = nullptr;
 
   Multipoint mpts1(g1->get_data_ptr(), g1->get_data_size(), g1->get_flags(),
                    g1->get_srid());
@@ -422,7 +422,7 @@ int BG_wrap<Geom_types>::multipoint_disjoint_geometry(Geometry *g1,
     } break;
     case Geometry::wkb_polygon: {
       data_ptr = g2->normalize_ring_order();
-      if (data_ptr == NULL) {
+      if (data_ptr == nullptr) {
         *pnull_value = true;
         my_error(ER_GIS_INVALID_DATA, MYF(0), "st_disjoint");
         return result;
@@ -434,7 +434,7 @@ int BG_wrap<Geom_types>::multipoint_disjoint_geometry(Geometry *g1,
     } break;
     case Geometry::wkb_multipolygon: {
       data_ptr = g2->normalize_ring_order();
-      if (data_ptr == NULL) {
+      if (data_ptr == nullptr) {
         *pnull_value = true;
         my_error(ER_GIS_INVALID_DATA, MYF(0), "st_disjoint");
         return result;
@@ -1146,7 +1146,7 @@ int BG_wrap<Geom_types>::multilinestring_touches_polygon(Geometry *g1,
                                                          Geometry *g2,
                                                          bool *pnull_value) {
   const void *data_ptr = g2->normalize_ring_order();
-  if (data_ptr == NULL) {
+  if (data_ptr == nullptr) {
     *pnull_value = true;
     my_error(ER_GIS_INVALID_DATA, MYF(0), "st_touches");
     return 0;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -189,14 +189,16 @@ pax_machine *hash_get(synode_no synode) {
     }
   })
 
-  linkage *bucket = &hash_table->pax_hash[synode_hash(synode)];
+  if (hash_table != NULL) {
+    linkage *bucket = &hash_table->pax_hash[synode_hash(synode)];
 
-  FWD_ITER(bucket, pax_machine, {
-    if (synode_eq(link_iter->synode, synode)) {
-      /* cached_machine = link_iter; */
-      return link_iter;
-    }
-  });
+    FWD_ITER(bucket, pax_machine, {
+      if (synode_eq(link_iter->synode, synode)) {
+        /* cached_machine = link_iter; */
+        return link_iter;
+      }
+    });
+  }
   return NULL;
 }
 

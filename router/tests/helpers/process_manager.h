@@ -47,10 +47,6 @@
 
 using mysql_harness::Path;
 
-/** @brief maximum number of parameters that can be passed to the launched
- * process */
-constexpr size_t kMaxLaunchedProcessParams{30};
-
 /** @class ProcessManager
  *
  * Manages collecion of the processes
@@ -84,6 +80,8 @@ class ProcessManager {
   void check_exit_code(
       ProcessWrapper &process, int expected_exit_code = EXIT_SUCCESS,
       std::chrono::milliseconds timeout = kDefaultWaitForExitTimeout);
+
+  void dump_all();
 
   /**
    * ensures given port is ready for accepting connections, prints some debug
@@ -191,13 +189,15 @@ class ProcessManager {
    * sections)
    * @param default_section [DEFAULT] section parameters
    * @param name config file name
+   * @param extra_defaults addional parameters to add to [DEFAULT]
    *
    * @return path to the created file
    */
   std::string create_config_file(
       const std::string &directory, const std::string &sections = "",
       const std::map<std::string, std::string> *default_section = nullptr,
-      const std::string &name = "mysqlrouter.conf") const;
+      const std::string &name = "mysqlrouter.conf",
+      const std::string &extra_defaults = "") const;
 
   // returns full path to the file
   std::string create_state_file(const std::string &dir_name,
@@ -228,10 +228,6 @@ class ProcessManager {
       const std::map<std::string, std::string> *params) const;
 
  private:
-  void get_params(const std::string &command,
-                  const std::vector<std::string> &params_vec,
-                  const char *out_params[kMaxLaunchedProcessParams]) const;
-
   void check_port(bool should_be_ready, ProcessWrapper &process, uint16_t port,
                   std::chrono::milliseconds timeout,
                   const std::string &hostname);

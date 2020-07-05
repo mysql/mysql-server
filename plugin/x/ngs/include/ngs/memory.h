@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -49,7 +49,7 @@ class PFS_allocator : public std::allocator<T> {
     typedef PFS_allocator<U> other;
   };
 
-  T *allocate(size_t n, const void *hint MY_ATTRIBUTE((unused)) = 0) {
+  T *allocate(size_t n, const void *hint MY_ATTRIBUTE((unused)) = nullptr) {
     return reinterpret_cast<T *>(my_malloc(
         IS_PSI_AVAILABLE(KEY_memory_x_objects, 0), sizeof(T) * n, MYF(MY_WME)));
   }
@@ -62,7 +62,7 @@ class PFS_allocator : public std::allocator<T> {
 // instrumented deallocator
 template <class T>
 void free_object(T *ptr) {
-  if (ptr != NULL) {
+  if (ptr != nullptr) {
     ptr->~T();
     my_free(ptr);
   }

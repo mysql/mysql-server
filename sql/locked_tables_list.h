@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -111,7 +111,7 @@ class Locked_tables_list {
 
   void unlock_locked_tables(THD *thd);
   ~Locked_tables_list() {
-    unlock_locked_tables(0);
+    unlock_locked_tables(nullptr);
     DBUG_ASSERT(m_rename_tablespace_mdls.empty());
   }
   bool init_locked_tables(THD *thd);

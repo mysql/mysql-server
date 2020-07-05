@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1538,38 +1538,55 @@ static const MY_UNICASE_CHARACTER cA8[256] = {
     {0xA8FF, 0xA8FF, 0xA8FF}};
 
 static const MY_UNICASE_CHARACTER *my_caseinfo_pages_gb2312[256] = {
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 0 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 1 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 2 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 3 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 4 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 5 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 6 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 7 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 8 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 9 */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, cA2,  cA3,  NULL, NULL, cA6,  cA7, /* A */
-    cA8,  NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* B */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* C */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* D */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* E */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* F */
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, /* 0 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* 1 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* 2 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* 3 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* 4 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* 5 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* 6 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* 7 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* 8 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* 9 */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, cA2,     cA3,
+    nullptr, nullptr, cA6,     cA7, /* A */
+    cA8,     nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* B */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* C */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* D */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* E */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, /* F */
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr};
 
 static MY_UNICASE_INFO my_caseinfo_gb2312 = {0xFFFF, my_caseinfo_pages_gb2312};
 
@@ -6506,7 +6523,7 @@ static MY_COLLATION_HANDLER my_collation_ci_handler = {
     my_hash_sort_simple,
     my_propagate_simple};
 
-static MY_CHARSET_HANDLER my_charset_handler = {NULL, /* init */
+static MY_CHARSET_HANDLER my_charset_handler = {nullptr, /* init */
                                                 ismbchar_gb2312,
                                                 mbcharlen_gb2312,
                                                 my_numchars_mb,
@@ -6541,19 +6558,19 @@ CHARSET_INFO my_charset_gb2312_chinese_ci = {
     MY_CS_COMPILED | MY_CS_PRIMARY, /* state      */
     "gb2312",                       /* cs name    */
     "gb2312_chinese_ci",            /* name */
-    "",                             /* comment    */
-    NULL,                           /* tailoring */
-    NULL,                           /* coll_param */
+    "GB2312 Simplified Chinese",    /* comment    */
+    nullptr,                        /* tailoring */
+    nullptr,                        /* coll_param */
     ctype_gb2312,
     to_lower_gb2312,
     to_upper_gb2312,
     sort_order_gb2312,
-    NULL,                /* uca          */
-    NULL,                /* tab_to_uni   */
-    NULL,                /* tab_from_uni */
+    nullptr,             /* uca          */
+    nullptr,             /* tab_to_uni   */
+    nullptr,             /* tab_from_uni */
     &my_caseinfo_gb2312, /* caseinfo     */
-    NULL,                /* state_map    */
-    NULL,                /* ident_map    */
+    nullptr,             /* state_map    */
+    nullptr,             /* ident_map    */
     1,                   /* strxfrm_multiply */
     1,                   /* caseup_multiply  */
     1,                   /* casedn_multiply  */
@@ -6576,19 +6593,19 @@ CHARSET_INFO my_charset_gb2312_bin = {
     MY_CS_COMPILED | MY_CS_BINSORT, /* state      */
     "gb2312",                       /* cs name    */
     "gb2312_bin",                   /* name */
-    "",                             /* comment    */
-    NULL,                           /* tailoring */
-    NULL,                           /* coll_param */
+    "GB2312 Simplified Chinese",    /* comment    */
+    nullptr,                        /* tailoring */
+    nullptr,                        /* coll_param */
     ctype_gb2312,
     to_lower_gb2312,
     to_upper_gb2312,
-    NULL,                /* sort_order   */
-    NULL,                /* uca          */
-    NULL,                /* tab_to_uni   */
-    NULL,                /* tab_from_uni */
+    nullptr,             /* sort_order   */
+    nullptr,             /* uca          */
+    nullptr,             /* tab_to_uni   */
+    nullptr,             /* tab_from_uni */
     &my_caseinfo_gb2312, /* caseinfo     */
-    NULL,                /* state_map    */
-    NULL,                /* ident_map    */
+    nullptr,             /* state_map    */
+    nullptr,             /* ident_map    */
     1,                   /* strxfrm_multiply */
     1,                   /* caseup_multiply  */
     1,                   /* casedn_multiply  */

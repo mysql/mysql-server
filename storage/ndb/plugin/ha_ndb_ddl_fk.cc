@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -174,26 +174,8 @@ const char *lex2str(const LEX_CSTRING &str, char (&buf)[buf_size]) {
   return buf;
 }
 
-static void ndb_fk_casedn(char *name) {
-  DBUG_ASSERT(name != 0);
-  uint length = (uint)strlen(name);
-  DBUG_ASSERT(files_charset_info != 0 &&
-              files_charset_info->casedn_multiply == 1);
-  files_charset_info->cset->casedn(files_charset_info, name, length, name,
-                                   length);
-}
-
-static int ndb_fk_casecmp(const char *name1, const char *name2) {
-  if (!lower_case_table_names) {
-    return strcmp(name1, name2);
-  }
-  char tmp1[FN_LEN + 1];
-  char tmp2[FN_LEN + 1];
-  strcpy(tmp1, name1);
-  strcpy(tmp2, name2);
-  ndb_fk_casedn(tmp1);
-  ndb_fk_casedn(tmp2);
-  return strcmp(tmp1, tmp2);
+inline static int ndb_fk_casecmp(const char *name1, const char *name2) {
+  return my_strcasecmp(files_charset_info, name1, name2);
 }
 
 extern bool ndb_show_foreign_key_mock_tables(THD *thd);
@@ -1436,10 +1418,6 @@ int ha_ndbcluster::create_fks(THD *thd, Ndb *ndb) {
     } else {
       parent_name[0] = 0;
     }
-    if (lower_case_table_names) {
-      ndb_fk_casedn(parent_db);
-      ndb_fk_casedn(parent_name);
-    }
     setDbName(ndb, parent_db);
     Ndb_table_guard parent_tab(dict, parent_name);
     if (parent_tab.get_table() == 0) {
@@ -1559,7 +1537,6 @@ int ha_ndbcluster::create_fks(THD *thd, Ndb *ndb) {
     DBUG_ASSERT(fk->name.str && fk->name.length);
 
     lex2str(fk->name, fk_name);
-    if (lower_case_table_names) ndb_fk_casedn(fk_name);
 
     ndbfk.setName(fk_name);
     ndbfk.setParent(*parent_tab.get_table(), parent_index, parentcols);

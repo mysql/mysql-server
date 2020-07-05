@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,7 +55,8 @@ public:
   /**
    * Copy operator
    */
-  LogLevel & operator= (const LogLevel &);
+  LogLevel & operator= (const LogLevel &) = default;
+  LogLevel(const LogLevel&) = default;
 
   enum EventCategory {
     llInvalid = -1,
@@ -111,13 +112,6 @@ private:
 inline
 LogLevel::LogLevel(){
   clear();
-}
-
-inline
-LogLevel & 
-LogLevel::operator= (const LogLevel & org){
-  memcpy(logLevelData, org.logLevelData, sizeof(logLevelData));
-  return * this;
 }
 
 inline

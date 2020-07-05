@@ -40,7 +40,7 @@ int myrg_extra(MYRG_INFO *info, enum ha_extra_function function,
 
   if (!info->children_attached) return 1;
   if (function == HA_EXTRA_RESET_STATE) {
-    info->current_table = 0;
+    info->current_table = nullptr;
     info->last_used_table = info->open_tables;
   }
   for (file = info->open_tables; file != info->end_table; file++) {
@@ -55,7 +55,7 @@ int myrg_reset(MYRG_INFO *info) {
   MYRG_TABLE *file;
   DBUG_TRACE;
 
-  info->current_table = 0;
+  info->current_table = nullptr;
   info->last_used_table = info->open_tables;
 
   /*

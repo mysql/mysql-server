@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,7 @@
 #pragma clang diagnostic ignored "-Wconversion"
 #endif
 
-#include "gmock/gmock.h"
+#include <gmock/gmock.h>
 
 #ifdef __clang__
 #pragma clang diagnostic pop
@@ -156,4 +156,9 @@ TEST_F(Bug21771595, InvalidPort) {
     ASSERT_THAT(exc.what(),
                 HasSubstr("Invalid bind address, was '127.0.0.1', port -1"));
   }
+}
+
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }

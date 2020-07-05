@@ -77,12 +77,12 @@ Loopback_Transporter::disconnectImpl()
 {
   NDB_SOCKET_TYPE pair[] = { theSocket, m_send_socket };
 
-  get_callback_obj()->lock_transporter(remoteNodeId);
+  get_callback_obj()->lock_transporter(remoteNodeId, m_transporter_index);
 
   ndb_socket_invalidate(&theSocket);
   ndb_socket_invalidate(&m_send_socket);
 
-  get_callback_obj()->unlock_transporter(remoteNodeId);
+  get_callback_obj()->unlock_transporter(remoteNodeId, m_transporter_index);
 
   if (ndb_socket_valid(pair[0]))
     ndb_socket_close(pair[0]);

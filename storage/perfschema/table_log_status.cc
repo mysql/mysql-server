@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,8 +58,8 @@ Plugin_table table_log_status::m_table_def(
 PFS_engine_table_share table_log_status::m_share = {
     &pfs_readonly_acl,
     table_log_status::create,
-    NULL,                            /* write_row */
-    NULL,                            /* delete_all_rows */
+    nullptr,                         /* write_row */
+    nullptr,                         /* delete_all_rows */
     table_log_status::get_row_count, /* records */
     sizeof(PFS_simple_index),        /* ref length */
     &m_table_lock,

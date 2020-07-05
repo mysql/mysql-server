@@ -1,0 +1,61 @@
+# Scenario:
+# con1 acquires a shared lock on row B
+# con2 acquires a shared lock on row A
+# con2 requests an exclusive lock on row B and has to wait for con1
+# con3 requests an exclusive lock on row A, and would have to wait for con2,
+#      but con3 is a HP trx and does not want to wait, so it
+#      decides to kill con2
+# con3 commits
+# con2 observes a deadlock
+# con1 commits
+
+--source include/have_debug_sync.inc
+--source include/count_sessions.inc
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0);
+CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (0);
+
+--connect(con1,localhost,root,,test)
+--connect(con2,localhost,root,,test)
+--connect(con3,localhost,root,,test)
+
+--connection con1
+    --echo # On connection 1
+    BEGIN;
+    SELECT * FROM t2 WHERE c1=0 FOR SHARE;
+
+--connection con2
+    --echo # On connection 2
+    BEGIN;
+    SELECT * FROM t1 WHERE c1=0 FOR SHARE;
+    SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL con2_will_wait';
+    --send SELECT * FROM t2 WHERE c1=0 FOR UPDATE
+
+--connection con3
+    --echo # On connection 3
+    SET DEBUG_SYNC = 'now WAIT_FOR con2_will_wait';
+    --source include/start_transaction_high_prio.inc
+    SELECT * FROM t1 WHERE c1=0 FOR UPDATE;
+    COMMIT;
+
+--connection con2
+    --echo # On connection 2
+    --error ER_LOCK_DEADLOCK
+    --reap
+    COMMIT;
+
+--connection con1
+    --echo # On connection 1
+    COMMIT;
+
+--connection default
+--disconnect con1
+--disconnect con2
+--disconnect con3
+
+DROP TABLE t1;
+DROP TABLE t2;
+
+--source include/wait_until_count_sessions.inc

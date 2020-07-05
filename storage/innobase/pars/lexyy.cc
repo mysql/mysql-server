@@ -264,7 +264,7 @@ struct yy_buffer_state
 /* Stack of input buffers. */
 static size_t yy_buffer_stack_top = 0; /**< index of top of stack. */
 static size_t yy_buffer_stack_max = 0; /**< capacity of stack. */
-static YY_BUFFER_STATE * yy_buffer_stack = 0; /**< Stack as an array. */
+static YY_BUFFER_STATE *yy_buffer_stack = nullptr; /**< Stack as an array. */
 
 /* We provide macros for accessing buffer states in case in the
  * future we want to put the buffer states in a more general
@@ -287,7 +287,7 @@ static yy_size_t yy_n_chars;		/* number of characters read into yy_ch_buf */
 yy_size_t yyleng;
 
 /* Points to current character in buffer. */
-static char *yy_c_buf_p = (char *) 0;
+static char *yy_c_buf_p = (char *)nullptr;
 static int yy_init = 0;		/* whether we need to initialize */
 static int yy_start = 0;	/* start state number */
 
@@ -932,12 +932,12 @@ string_append(
 	const char*	str,	/*!< in: string to be appended */
 	ulint		len)	/*!< in: length of the string */
 {
-	if (stringbuf == NULL) {
-		stringbuf = static_cast<char*>(malloc(1));
-		stringbuf_len_alloc = 1;
-	}
+  if (stringbuf == nullptr) {
+    stringbuf = static_cast<char *>(malloc(1));
+    stringbuf_len_alloc = 1;
+  }
 
-	if (stringbuf_len + len > stringbuf_len_alloc) {
+        if (stringbuf_len + len > stringbuf_len_alloc) {
 		while (stringbuf_len + len > stringbuf_len_alloc) {
 			stringbuf_len_alloc <<= 1;
 		}
@@ -2333,9 +2333,9 @@ static int yy_get_next_buffer (void)
 				}
 			else
 				/* Can't grow it, we don't own it. */
-				b->yy_ch_buf = 0;
+                                b->yy_ch_buf = nullptr;
 
-			if ( ! b->yy_ch_buf )
+                        if ( ! b->yy_ch_buf )
 				YY_FATAL_ERROR(
 				"fatal error - scanner input buffer overflow" );
 
@@ -2625,9 +2625,9 @@ static void yy_load_buffer_state  (void)
 		return;
 
 	if ( b == YY_CURRENT_BUFFER ) /* Not sure if we should pop here. */
-		YY_CURRENT_BUFFER_LVALUE = (YY_BUFFER_STATE) 0;
+          YY_CURRENT_BUFFER_LVALUE = (YY_BUFFER_STATE) nullptr;
 
-	if ( b->yy_is_our_buffer )
+        if ( b->yy_is_our_buffer )
 		yyfree((void *) b->yy_ch_buf  );
 
 	yyfree((void *) b  );
@@ -2696,18 +2696,16 @@ static void yy_load_buffer_state  (void)
  */
 MY_ATTRIBUTE((unused)) static void yypush_buffer_state (YY_BUFFER_STATE new_buffer )
 {
-    	if (new_buffer == NULL)
-		return;
+  if (new_buffer == nullptr) return;
 
-	yyensure_buffer_stack();
+  yyensure_buffer_stack();
 
-	/* This block is copied from yy_switch_to_buffer. */
-	if ( YY_CURRENT_BUFFER )
-		{
-		/* Flush out information for old buffer. */
-		*(yy_c_buf_p) = (yy_hold_char);
-		YY_CURRENT_BUFFER_LVALUE->yy_buf_pos = (yy_c_buf_p);
-		YY_CURRENT_BUFFER_LVALUE->yy_n_chars = (yy_n_chars);
+  /* This block is copied from yy_switch_to_buffer. */
+  if (YY_CURRENT_BUFFER) {
+    /* Flush out information for old buffer. */
+    *(yy_c_buf_p) = (yy_hold_char);
+    YY_CURRENT_BUFFER_LVALUE->yy_buf_pos = (yy_c_buf_p);
+    YY_CURRENT_BUFFER_LVALUE->yy_n_chars = (yy_n_chars);
 		}
 
 	/* Only push if top exists. Otherwise, replace top. */
@@ -2730,8 +2728,8 @@ MY_ATTRIBUTE((unused)) static void yypop_buffer_state (void)
 		return;
 
 	yy_delete_buffer(YY_CURRENT_BUFFER );
-	YY_CURRENT_BUFFER_LVALUE = NULL;
-	if ((yy_buffer_stack_top) > 0)
+        YY_CURRENT_BUFFER_LVALUE = nullptr;
+        if ((yy_buffer_stack_top) > 0)
 		--(yy_buffer_stack_top);
 
 	if (YY_CURRENT_BUFFER) {
@@ -2899,20 +2897,20 @@ static int yy_init_globals (void)
      * This function is called from yylex_destroy(), so don't allocate here.
      */
 
-    (yy_buffer_stack) = 0;
-    (yy_buffer_stack_top) = 0;
-    (yy_buffer_stack_max) = 0;
-    (yy_c_buf_p) = (char *) 0;
-    (yy_init) = 0;
-    (yy_start) = 0;
+        (yy_buffer_stack) = nullptr;
+        (yy_buffer_stack_top) = 0;
+        (yy_buffer_stack_max) = 0;
+        (yy_c_buf_p) = (char *)nullptr;
+        (yy_init) = 0;
+        (yy_start) = 0;
 
 /* Defined in main.c */
 #ifdef YY_STDINIT
     yyin = stdin;
     yyout = stdout;
 #else
-    yyin = (FILE *) 0;
-    yyout = (FILE *) 0;
+  yyin = (FILE *)nullptr;
+  yyout = (FILE *)nullptr;
 #endif
 
     /* For future reference: Set errno on error, since we are called by
@@ -2928,19 +2926,19 @@ MY_ATTRIBUTE((unused)) static int yylex_destroy  (void)
     /* Pop the buffer stack, destroying each element. */
 	while(YY_CURRENT_BUFFER){
 		yy_delete_buffer(YY_CURRENT_BUFFER  );
-		YY_CURRENT_BUFFER_LVALUE = NULL;
-		yypop_buffer_state();
+                YY_CURRENT_BUFFER_LVALUE = nullptr;
+                yypop_buffer_state();
 	}
 
 	/* Destroy the stack itself. */
 	yyfree((yy_buffer_stack) );
-	(yy_buffer_stack) = NULL;
+        (yy_buffer_stack) = nullptr;
 
-    /* Reset the globals. This is important in a non-reentrant scanner so the next time
-     * yylex() is called, initialization will occur. */
-    yy_init_globals( );
+        /* Reset the globals. This is important in a non-reentrant scanner so
+         * the next time yylex() is called, initialization will occur. */
+        yy_init_globals();
 
-    return 0;
+        return 0;
 }
 
 /*
@@ -3003,7 +3001,7 @@ pars_lexer_close(void)
 {
 	yylex_destroy();
 	free(stringbuf);
-	stringbuf = NULL;
-	stringbuf_len_alloc = stringbuf_len = 0;
+        stringbuf = nullptr;
+        stringbuf_len_alloc = stringbuf_len = 0;
 }
 

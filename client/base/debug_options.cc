@@ -36,13 +36,13 @@ using namespace Mysql::Tools::Base::Options;
 using Mysql::Tools::Base::Abstract_program;
 using std::placeholders::_1;
 
-static Debug_options *primary_debug_options = NULL;
+static Debug_options *primary_debug_options = nullptr;
 static uint my_end_arg;
 
 static void debug_do_exit() { my_end(::my_end_arg); }
 
 Debug_options::Debug_options(Abstract_program *program) : m_program(program) {
-  if (::primary_debug_options == NULL) {
+  if (::primary_debug_options == nullptr) {
     primary_debug_options = this;
     /*
       We don't want to call this routine in destructor, as we want it being

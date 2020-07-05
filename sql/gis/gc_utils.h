@@ -1,7 +1,7 @@
 #ifndef SQL_GIS_GC_UTILS_H_INCLUDED
 #define SQL_GIS_GC_UTILS_H_INCLUDED
 
-// Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -74,9 +74,9 @@ void split_gc(const Geometrycollection *gc, std::unique_ptr<Multipoint> *mpt,
 ///
 /// @param[in] semi_major Semi-major axis of ellipsoid.
 /// @param[in] semi_minor Semi-minor axis of ellipsoid.
-/// @param[inout] mpt All points in the geometrycollection.
-/// @param[inout] mls All linestrings in the geometrycollection.
-/// @param[inout] mpy All polygons in the geometrycollection.
+/// @param[in,out] mpt All points in the geometrycollection.
+/// @param[in,out] mls All linestrings in the geometrycollection.
+/// @param[in,out] mpy All polygons in the geometrycollection.
 void gc_union(double semi_major, double semi_minor,
               std::unique_ptr<Multipoint> *mpt,
               std::unique_ptr<Multilinestring> *mls,

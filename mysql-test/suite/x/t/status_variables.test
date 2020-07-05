@@ -11,7 +11,7 @@
 # Please update the test case when the variable count changes
 # add/remove variable
 let $wait_condition=
-  SELECT COUNT(*)=76 FROM performance_schema.global_status where variable_name like "Mysqlx_%";
+  SELECT COUNT(*)=78 FROM performance_schema.global_status where variable_name like "Mysqlx_%";
 --source include/wait_condition_or_abort.inc
 
 # Values for variables that were overwritten by MTR
@@ -325,3 +325,10 @@ if (`SELECT CONVERT(@@version_compile_os using latin1) IN ("Win32","Win64","Wind
 --let $assert_cond= [SHOW STATUS LIKE "Mysqlx_cursor_fetch", Value, 1] = 0
 --source include/assert.inc
 
+--let $assert_text= No connections were made, Mysqlx_compression_algorithm must match default value which is ''.
+--let $assert_cond= [select VARIABLE_VALUE="" as Value from performance_schema.global_status WHERE VARIABLE_NAME like "Mysqlx_compression_algorithm", Value, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_compression_level must match default value which is ''.
+--let $assert_cond= [select VARIABLE_VALUE="" as Value from performance_schema.global_status WHERE VARIABLE_NAME like "Mysqlx_compression_level", Value, 1] = 1
+--source include/assert.inc

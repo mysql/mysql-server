@@ -1658,14 +1658,28 @@ ERROR 42000: Result consisted of more than one row
 ((SELECT 1) UNION (SELECT 2 INTO @v FROM t1));
 ERROR 42000: Result consisted of more than one row
 SELECT 1 UNION SELECT 1 INTO @v FROM t1;
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
 (SELECT 1) UNION SELECT 1 INTO @v FROM t1;
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
 (SELECT 1) UNION (SELECT 1 INTO @v FROM t1);
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
 ((SELECT 1) UNION (SELECT 1 INTO @v FROM t1));
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
 SELECT 1 UNION SELECT 2 INTO OUTFILE 'parser.test.file1';
 SELECT 1 UNION (SELECT 2 INTO OUTFILE 'parser.test.file2');
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
 (SELECT 1) UNION SELECT 2 INTO OUTFILE 'parser.test.file3';
 (SELECT 1) UNION (SELECT 2 INTO OUTFILE 'parser.test.file4');
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
 ((SELECT 1) UNION (SELECT 2 INTO OUTFILE 'parser.test.file5'));
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
 SELECT * FROM (SELECT a INTO @v FROM t1) t1a;
 ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT * FROM (SELECT a INTO @v) t1a;
@@ -1909,9 +1923,9 @@ a	d	b	c
 # This result should differ from the result sets above.
 SELECT * FROM t1 NATURAL LEFT JOIN (t2 NATURAL RIGHT JOIN t3);
 a	b	d	c
-3	3	3	3
 1	1	NULL	NULL
 2	2	NULL	NULL
+3	3	3	3
 DROP TABLE t1, t2, t3;
 #
 # Bug#22995438: BUILD INDEX DEFINITION SYNTAX BOTTOM-UP
@@ -1983,11 +1997,7 @@ DROP TABLE t1;
 #
 # Warning on hints in CREATE or ALTER VIEW:
 CREATE VIEW v1 AS SELECT /*+ QB_NAME(a) */ 1;
-Warnings:
-Warning	3515	Hints aren't supported in CREATE or ALTER VIEW
 ALTER VIEW v1 AS SELECT /*+ QB_NAME(a) */ 1;
-Warnings:
-Warning	3515	Hints aren't supported in CREATE or ALTER VIEW
 SELECT * FROM v1;
 1
 1
@@ -2594,3 +2604,50 @@ SELECT -1 || '0';
 -1 || '0'
 -10
 SET sql_mode=DEFAULT;
+#
+# WL#13559: Deprecate syntax: confusing combinations of UNION and INTO
+#
+#
+# No warning expected:
+#
+SELECT 1 UNION SELECT 1 INTO @var;
+(SELECT 1 UNION SELECT 1 INTO @var);
+SELECT 1 UNION SELECT 1 FROM DUAL INTO @var;
+(SELECT 1 UNION SELECT 1 FROM DUAL INTO @var);
+SELECT 1 UNION SELECT 1 FROM DUAL FOR UPDATE INTO @var;
+(SELECT 1 UNION SELECT 1 FROM DUAL FOR UPDATE INTO @var);
+#
+# Deprecation warning expected:
+#
+SELECT 1 UNION SELECT 1 INTO @var FROM DUAL;
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
+SELECT 1 UNION (SELECT 1 INTO @var FROM DUAL);
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
+SELECT 1 UNION SELECT 1 FROM DUAL INTO @var FOR UPDATE;
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
+(SELECT 1 UNION SELECT 1 FROM DUAL INTO @var FOR UPDATE);
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
+SELECT 1 UNION SELECT 1 INTO @var FOR UPDATE;
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
+(SELECT 1 UNION SELECT 1 INTO @var FOR UPDATE);
+Warnings:
+Warning	3962	The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead.
+#
+# Syntax error expected:
+#
+SELECT 1 UNION (SELECT 1 FROM DUAL INTO @var);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @var)' at line 1
+#
+# Bug#30871301: CTE CAN FAIL WITH A PARSE ERROR ON PSEUDO-COMMENTS
+#
+WITH cte AS (SELECT 0 /*! ) */ SELECT * FROM cte a, cte b;
+0	0
+0	0
+WITH cte AS /*! ( */ SELECT 0) SELECT * FROM cte a, cte b;
+0	0
+0	0

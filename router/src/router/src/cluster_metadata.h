@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -139,7 +139,7 @@ class ClusterMetadata {
 
  protected:
   // throws MySQLSession::Error, std::out_of_range, std::logic_error
-  virtual bool check_metadata_is_supported() = 0;
+  virtual uint64_t query_cluster_count() = 0;
 
   MySQLSession *mysql_;
   mysql_harness::SocketOperationsBase *socket_operations_;
@@ -154,7 +154,7 @@ class ClusterMetadataGR : public ClusterMetadata {
                         mysql_harness::SocketOperations::instance())
       : ClusterMetadata(schema_version, mysql, sockops) {}
 
-  virtual ~ClusterMetadataGR() override = default;
+  ~ClusterMetadataGR() override = default;
 
   // For GR cluster Group Replication ID
   std::string get_cluster_type_specific_id() override;
@@ -173,7 +173,7 @@ class ClusterMetadataGRV1 : public ClusterMetadataGR {
                           mysql_harness::SocketOperations::instance())
       : ClusterMetadataGR(schema_version, mysql, sockops) {}
 
-  virtual ~ClusterMetadataGRV1() override = default;
+  ~ClusterMetadataGRV1() override = default;
 
   mysqlrouter::ClusterType get_type() override {
     return mysqlrouter::ClusterType::GR_V1;
@@ -203,7 +203,7 @@ class ClusterMetadataGRV1 : public ClusterMetadataGR {
       const std::string &new_accounts) const override;
 
  protected:
-  bool check_metadata_is_supported() override;
+  uint64_t query_cluster_count() override;
 };
 
 class ClusterMetadataGRV2 : public ClusterMetadataGR {
@@ -214,7 +214,7 @@ class ClusterMetadataGRV2 : public ClusterMetadataGR {
                           mysql_harness::SocketOperations::instance())
       : ClusterMetadataGR(schema_version, mysql, sockops) {}
 
-  virtual ~ClusterMetadataGRV2() override = default;
+  ~ClusterMetadataGRV2() override = default;
 
   mysqlrouter::ClusterType get_type() override {
     return mysqlrouter::ClusterType::GR_V2;
@@ -243,7 +243,7 @@ class ClusterMetadataGRV2 : public ClusterMetadataGR {
       const std::string &new_accounts) const override;
 
  protected:
-  bool check_metadata_is_supported() override;
+  uint64_t query_cluster_count() override;
 };
 
 class ClusterMetadataAR : public ClusterMetadata {
@@ -294,7 +294,7 @@ class ClusterMetadataAR : public ClusterMetadata {
       override;
 
  protected:
-  bool check_metadata_is_supported() override;
+  uint64_t query_cluster_count() override;
 };
 
 MetadataSchemaVersion get_metadata_schema_version(MySQLSession *mysql);

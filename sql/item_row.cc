@@ -43,7 +43,7 @@ Item_row::Item_row(const POS &pos, Item *head, List<Item> &tail)
   // TODO: think placing 2-3 component items in item (as it done for function)
   arg_count = 1 + tail.elements;
   items = (Item **)(*THR_MALLOC)->Alloc(sizeof(Item *) * arg_count);
-  if (items == NULL) {
+  if (items == nullptr) {
     arg_count = 0;
     return;  // OOM
   }
@@ -62,7 +62,7 @@ Item_row::Item_row(Item *head, List<Item> &tail)
   // TODO: think placing 2-3 component items in item (as it done for function)
   arg_count = 1 + tail.elements;
   items = (Item **)(*THR_MALLOC)->Alloc(sizeof(Item *) * arg_count);
-  if (items == NULL) {
+  if (items == nullptr) {
     arg_count = 0;
     return;  // OOM
   }
@@ -142,9 +142,11 @@ void Item_row::split_sum_func(THD *thd, Ref_item_array ref_item_array,
 void Item_row::update_used_tables() {
   used_tables_cache = 0;
   m_accum_properties = 0;
+  not_null_tables_cache = 0;
   for (uint i = 0; i < arg_count; i++) {
     items[i]->update_used_tables();
     used_tables_cache |= items[i]->used_tables();
+    not_null_tables_cache |= items[i]->not_null_tables();
     add_accum_properties(items[i]);
   }
 }
@@ -190,7 +192,7 @@ bool Item_row::walk(Item_processor processor, enum_walk walk, uchar *arg) {
 Item *Item_row::transform(Item_transformer transformer, uchar *arg) {
   for (uint i = 0; i < arg_count; i++) {
     Item *new_item = items[i]->transform(transformer, arg);
-    if (new_item == NULL) return NULL; /* purecov: inspected */
+    if (new_item == nullptr) return nullptr; /* purecov: inspected */
 
     /*
       THD::change_item_tree() should be called only if the tree was

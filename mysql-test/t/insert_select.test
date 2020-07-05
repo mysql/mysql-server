@@ -130,7 +130,9 @@ drop table t1;
 #            with ON DUPLICATE and SELECT
 create table t1(x int, y int);
 create table t2(x int, z int);
+--disable_ps_protocol # Different number of warnings until WL#6570.
 insert into t1(x,y) select x,z from t2 on duplicate key update x=values(x);
+--enable_ps_protocol
 --error 1054
 insert into t1(x,y) select x,z from t2 on duplicate key update x=values(z);
 --error 1054

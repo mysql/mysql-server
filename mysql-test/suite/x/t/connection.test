@@ -14,7 +14,7 @@
 call mtr.add_suppression("Plugin mysqlx reported: 'Unable to switch context to user mysql.session'");
 call mtr.add_suppression("Plugin mysqlx reported: 'Unable to accept connection, disconnecting client'");
 call mtr.add_suppression("Plugin mysqlx reported: 'Could not open internal MySQL session'");
-call mtr.add_suppression("Plugin mysqlx reported: '.*: Error initializing session for connection: Could not open session'");
+call mtr.add_suppression("Plugin mysqlx reported: '.*: Error initializing session for connection: Too many connections'");
 call mtr.add_suppression("Plugin 'mysqlx' has ref_count=5 after shutdown");
 call mtr.add_suppression("Plugin 'mysqlx' will be forced to shutdown");
 
@@ -708,7 +708,14 @@ source ../include/connection_test_helpers.inc;
 --exec $MYSQLXTEST -uabc --no-auth --file=$MYSQL_TMP_DIR/mysqlx-connection_locked_user.tmp 2>&1
 --sleep 2
 
+show status like 'Mysqlx_connections_closed';
+show status like 'Mysqlx_connections_accepted';
+show status like 'Mysqlx_connection_accept_errors';
+
 ## Cleanup
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
+
 drop user xplugin@localhost;
 drop user nonblank@localhost;
 drop user blank@localhost;
@@ -717,9 +724,10 @@ drop user con1@localhost;
 drop user con2@localhost;
 drop user mysqlcon1@localhost;
 drop user mysqlcon2@localhost;
-show status like 'Mysqlx_connections_closed';
-show status like 'Mysqlx_connections_accepted';
-show status like 'Mysqlx_connection_accept_errors';
+drop user ''@localhost;
+drop user special@localhost;
+drop user session@localhost;
+
 SET GLOBAL mysqlx_connect_timeout = DEFAULT;
 --remove_file $MYSQL_TMP_DIR/mysqlx-connection_session_track.tmp
 --remove_file $MYSQL_TMP_DIR/mysqlx-connection_uninstallplugin.tmp

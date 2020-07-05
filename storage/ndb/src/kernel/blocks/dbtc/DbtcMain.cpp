@@ -10598,7 +10598,7 @@ void Dbtc::checkScanActiveInFailedLqh(Signal* signal,
           for (Uint32 j = ptr.p->m_first_index; j < ptr.p->m_next_index; j++)
           {
             const BlockReference blockRef =
-              ptr.p->m_frag_location_array[j].blockRef;
+              ptr.p->m_frag_location_array[j].preferredBlockRef;
             const NodeId nodeId = refToNode(blockRef);
             if (nodeId == failedNodeId)
             {
@@ -13373,6 +13373,7 @@ Dbtc::ScanFragRec::ScanFragRec()
   m_ops(0),
   m_apiPtr(RNIL),
   m_totalLen(0),
+  m_hasMore(0),
   nextList(RNIL),
   prevList(RNIL)
 {
@@ -13428,7 +13429,7 @@ Dbtc::initScanrec(ScanRecordPtr scanptr,
   scanptr.p->m_scan_cookie = DihScanTabConf::InvalidCookie;
   scanptr.p->m_close_scan_req = false;
   scanptr.p->m_pass_all_confs =  ScanTabReq::getPassAllConfsFlag(ri);
-  scanptr.p->m_4word_conf = ScanTabReq::get4WordConf(ri);
+  scanptr.p->m_extended_conf = ScanTabReq::getExtendedConf(ri);
   scanptr.p->scanKeyInfoPtr = RNIL;
   scanptr.p->scanAttrInfoPtr = RNIL;
 
@@ -13726,8 +13727,8 @@ void Dbtc::execDIH_SCAN_TAB_CONF(Signal* signal,
 static
 int compareFragLocation(const void * a, const void * b)
 {
-  return (((Dbtc::ScanFragLocation*)a)->blockRef -
-          ((Dbtc::ScanFragLocation*)b)->blockRef);
+  return (((Dbtc::ScanFragLocation*)a)->primaryBlockRef -
+          ((Dbtc::ScanFragLocation*)b)->primaryBlockRef);
 }
 
 /********************************************************************
@@ -13782,6 +13783,8 @@ void Dbtc::sendDihGetNodesLab(Signal* signal, ScanRecordPtr scanptr, ApiConnectR
    * is used, there cant be any other signals processed inbetween
    * which close the scan, or drop the table.
    */
+  bool is_multi_spj_scan =
+    ScanFragReq::getMultiFragFlag(scanP->scanRequestInfo);
   ScanFragLocationPtr fragLocationPtr;
   {
     Local_ScanFragLocation_list list(m_fragLocationPool,
@@ -13819,7 +13822,8 @@ void Dbtc::sendDihGetNodesLab(Signal* signal, ScanRecordPtr scanptr, ApiConnectR
     const bool success = sendDihGetNodeReq(signal,
                                            scanptr,
                                            fragLocationPtr,
-                                           scanP->scanNextFragId);
+                                           scanP->scanNextFragId,
+                                           is_multi_spj_scan);
     if (unlikely(!success))
     {
       jam();
@@ -13840,7 +13844,7 @@ void Dbtc::sendDihGetNodesLab(Signal* signal, ScanRecordPtr scanptr, ApiConnectR
    * multiFrag scans could easily find fragId's to be included in
    * the same multiFragment SCAN_FRAGREQ
    */
-  if (ScanFragReq::getMultiFragFlag(scanP->scanRequestInfo))
+  if (is_multi_spj_scan)
   {
     jam();
     Uint32 i;
@@ -13856,14 +13860,22 @@ void Dbtc::sendDihGetNodesLab(Signal* signal, ScanRecordPtr scanptr, ApiConnectR
     {
       for (Uint32 j = ptr.p->m_first_index; j < ptr.p->m_next_index; j++)
       {
-        const BlockReference blockRef =
-          ptr.p->m_frag_location_array[j].blockRef;
-        const NodeId nodeId = refToNode(blockRef);
-        ndbassert(refToMain(blockRef) == DBSPJ);
+        const BlockReference primaryBlockRef =
+          ptr.p->m_frag_location_array[j].primaryBlockRef;
+        const BlockReference preferredBlockRef =
+          ptr.p->m_frag_location_array[j].preferredBlockRef;
+
+        const NodeId primaryNodeId = refToNode(primaryBlockRef);
+        const NodeId preferredNodeId = refToNode(preferredBlockRef);
+        ndbassert(refToMain(primaryBlockRef) == DBSPJ);
+        ndbassert(refToMain(preferredBlockRef) == DBSPJ);
 
         ndbassert(i < MAX_NDB_PARTITIONS);
         fragLocations[i].fragId = ptr.p->m_frag_location_array[j].fragId;
-        fragLocations[i].blockRef = numberToRef(DBSPJ, spjInstance, nodeId);
+        fragLocations[i].primaryBlockRef =
+          numberToRef(DBSPJ, spjInstance, primaryNodeId);
+        fragLocations[i].preferredBlockRef =
+          numberToRef(DBSPJ, spjInstance, preferredNodeId);
         i++;
       }
     }
@@ -13880,7 +13892,10 @@ void Dbtc::sendDihGetNodesLab(Signal* signal, ScanRecordPtr scanptr, ApiConnectR
       {
         ndbassert(i < MAX_NDB_PARTITIONS);
         ptr.p->m_frag_location_array[j].fragId   = fragLocations[i].fragId;
-        ptr.p->m_frag_location_array[j].blockRef = fragLocations[i].blockRef;
+        ptr.p->m_frag_location_array[j].primaryBlockRef =
+          fragLocations[i].primaryBlockRef;
+        ptr.p->m_frag_location_array[j].preferredBlockRef =
+          fragLocations[i].preferredBlockRef;
         i++;
       }
     }
@@ -14025,7 +14040,8 @@ void Dbtc::releaseScanResources(Signal* signal,
 bool Dbtc::sendDihGetNodeReq(Signal* signal,
                              ScanRecordPtr scanptr,
                              ScanFragLocationPtr & fragLocationPtr,
-                             Uint32 scanFragId)
+                             Uint32 scanFragId,
+                             bool is_multi_spj_scan)
 {
   jamDebug();
   DiGetNodesReq * const req = (DiGetNodesReq *)&signal->theData[0];
@@ -14106,6 +14122,7 @@ bool Dbtc::sendDihGetNodeReq(Signal* signal,
    * they are safe to read from backup replicas without causing
    * more deadlocks than otherwise would happen.
    */
+  NodeId primaryNodeId = nodeId;
   Uint32 TreadBackup = (tabPtr.p->m_flags & TableRecord::TR_READ_BACKUP);
   if (TreadBackup &&
       (ScanFragReq::getReadCommittedFlag(scanptr.p->scanRequestInfo) ||
@@ -14160,7 +14177,7 @@ bool Dbtc::sendDihGetNodeReq(Signal* signal,
     blockInstance = (conf->reqinfo >> 24) & 127;
   }
   // Else, it is a 'viaSPJ request':
-  else if (ScanFragReq::getMultiFragFlag(scanptr.p->scanRequestInfo))
+  else if (is_multi_spj_scan)
   {
     //SPJ instance is set together with qsort'ing of m_fragLocations
     blockInstance = 0;
@@ -14183,8 +14200,19 @@ bool Dbtc::sendDihGetNodeReq(Signal* signal,
    * If this is the last SCANFRAGREQ, sendScanFragReq will release
    * the KeyInfo and AttrInfo sections when sending.
    */
-  const BlockReference blockRef = numberToRef(scanptr.p->m_scan_block_no,
-                                              blockInstance, nodeId);
+  NodeId preferredNodeId = nodeId;
+  if (!is_multi_spj_scan)
+  {
+    primaryNodeId = nodeId;
+  }
+  else
+  {
+    jam();
+  }
+  const BlockReference primaryBlockRef = numberToRef(
+                  scanptr.p->m_scan_block_no, blockInstance, primaryNodeId);
+  const BlockReference preferredBlockRef = numberToRef(
+                  scanptr.p->m_scan_block_no, blockInstance, preferredNodeId);
 
   //Build list of fragId locations.
   {
@@ -14207,9 +14235,11 @@ bool Dbtc::sendDihGetNodeReq(Signal* signal,
     }
     fragLocationPtr.p->m_next_index = index + 1;
     fragLocationPtr.p->m_frag_location_array[index].fragId = lqhScanFragId;
-    fragLocationPtr.p->m_frag_location_array[index].blockRef = blockRef;
+    fragLocationPtr.p->m_frag_location_array[index].primaryBlockRef =
+      primaryBlockRef;
+    fragLocationPtr.p->m_frag_location_array[index].preferredBlockRef =
+      preferredBlockRef;
   }
-
   return true;
 }//Dbtc::sendDihGetNodeReq
 
@@ -14383,6 +14413,7 @@ void Dbtc::sendFragScansLab(Signal* signal,
       // Prepare an 'empty result' reply for this 'scanFragP'
       scanFragP.p->m_ops = 0;
       scanFragP.p->m_totalLen = 0;
+      scanFragP.p->m_hasMore = 0;
       scanFragP.p->m_scan_frag_conf_status = 1;
       scanFragP.p->scanFragState = ScanFragRec::QUEUED_FOR_DELIVERY;
       scanFragP.p->stopFragTimer();
@@ -14529,6 +14560,9 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
   const ScanFragConf * const conf = (ScanFragConf*)&signal->theData[0];
   const Uint32 noCompletedOps = conf->completedOps;
   const Uint32 status = conf->fragmentCompleted;
+  const Uint32 activeMask =
+    (signal->getLength() >= ScanFragConf::SignalLength_ext)
+      ? conf->activeMask : 0;
 
   scanFragptr.i = conf->senderData;
   if (!c_scan_frag_pool.getValidPtr(scanFragptr))
@@ -14634,13 +14668,6 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
     }
     return;
   }
- /* 
-  Uint32 totalLen = 0;
-  for(Uint32 i = 0; i<noCompletedOps; i++){
-    Uint32 tmp = conf->opReturnDataLen[i];
-    totalLen += tmp;
-  }
- */ 
   {
     Local_ScanFragRec_dllist run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
     Local_ScanFragRec_dllist queued(c_scan_frag_pool, scanptr.p->m_queued_scan_frags);
@@ -14669,6 +14696,7 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
   scanFragptr.p->m_scan_frag_conf_status = status;
   scanFragptr.p->m_ops = noCompletedOps;
   scanFragptr.p->m_totalLen = total_len;
+  scanFragptr.p->m_hasMore = activeMask;
   scanFragptr.p->scanFragState = ScanFragRec::QUEUED_FOR_DELIVERY;
 
   if (scanptr.p->m_queued_count > /** Min */ 0)
@@ -15099,22 +15127,31 @@ Dbtc::seizeScanrec(Signal* signal)
 void
 Dbtc::get_next_frag_location(ScanFragLocationPtr fragLocationPtr,
                              Uint32 & fragId,
-                             Uint32 & blockRef)
+                             Uint32 & primaryBlockRef,
+                             Uint32 & preferredBlockRef)
 {
   Uint32 index = fragLocationPtr.p->m_first_index;
   fragId = fragLocationPtr.p->m_frag_location_array[index].fragId;
-  blockRef = fragLocationPtr.p->m_frag_location_array[index].blockRef;
+  primaryBlockRef =
+    fragLocationPtr.p->m_frag_location_array[index].primaryBlockRef;
+  preferredBlockRef =
+    fragLocationPtr.p->m_frag_location_array[index].preferredBlockRef;
 }
                       
 void
 Dbtc::get_and_step_next_frag_location(ScanFragLocationPtr & fragLocationPtr,
                                       ScanRecord *scanPtrP,
                                       Uint32 & fragId,
-                                      Uint32 & blockRef)
+                                      Uint32 & primaryBlockRef,
+                                      Uint32 & preferredBlockRef)
 {
   Uint32 index = fragLocationPtr.p->m_first_index;
   fragId = fragLocationPtr.p->m_frag_location_array[index].fragId;
-  blockRef = fragLocationPtr.p->m_frag_location_array[index].blockRef;
+  primaryBlockRef =
+    fragLocationPtr.p->m_frag_location_array[index].primaryBlockRef;
+  preferredBlockRef =
+    fragLocationPtr.p->m_frag_location_array[index].preferredBlockRef;
+
   index++;
   if (likely(index < fragLocationPtr.p->m_next_index))
   {
@@ -15143,19 +15180,20 @@ bool Dbtc::sendScanFragReq(Signal* signal,
   jam();
   ScanRecord* const scanP = scanptr.p;
 
-  Uint32 fragId, lqhBlockRef;
+  Uint32 fragId, primaryLqhBlockRef, preferredLqhBlockRef;
   get_and_step_next_frag_location(fragLocationPtr,
                                   scanptr.p,
                                   fragId,
-                                  lqhBlockRef);
+                                  primaryLqhBlockRef,
+                                  preferredLqhBlockRef);
 
   scanP->scanNextFragId++;
 
-  const NodeId nodeId = refToNode(lqhBlockRef);
+  const NodeId nodeId = refToNode(preferredLqhBlockRef);
   Uint32 requestInfo = scanP->scanRequestInfo;
 
   ndbassert(scanFragP.p->scanFragState == ScanFragRec::IDLE);
-  scanFragP.p->lqhBlockref = lqhBlockRef;
+  scanFragP.p->lqhBlockref = preferredLqhBlockRef;
   scanFragP.p->lqhScanFragId = fragId;
   scanFragP.p->m_connectCount = getNodeInfo(nodeId).m_connectCount;
 
@@ -15174,27 +15212,75 @@ bool Dbtc::sendScanFragReq(Signal* signal,
   if (ScanFragReq::getMultiFragFlag(scanP->scanRequestInfo))
   {
     jam();
+    /**
+     * Fragment locations use a bit more involved model for SPJ queries
+     * that use multiple SPJ workers. We want as much execution of the
+     * query done locally as possible and we want to ensure that the
+     * query execution is done within one location domain if possible.
+     *
+     * At the same time we want to ensure that we use the correct amount
+     * of SPJ workers for the query as prepared by the NDB API. The NDB
+     * API has prepared one SPJ worker for each data node that owns a
+     * primary partition in the cluster.
+     *
+     * What we do is that when we combine several SPJ workers into one
+     * since it is handled locally within one SPJ node we will increase
+     * the batch size of that SPJ worker accordingly to ensure that we
+     * make use of all the available batch size that the NDB API provided
+     * for us.
+     *
+     * What we do is that we select the SPJ worker to be set according to
+     * the preferred node to execute the query. This means that with
+     * READ_BACKUP and FULLY_REPLICATED tables we will pick this node to
+     * execute the query.
+     *
+     * When we use location domains we will prefer to use the execute
+     * the query in the location domain where we are residing. This will
+     * avoid all network traffic between location domains for the SPJ
+     * queries. This will help avoiding network bottlenecks and ensure
+     * that we make proper use of the bandwidth between location domains
+     * mainly for write requests that need to pass over location domain
+     * borders to ensure all replicas are updated.
+     *
+     * TODO: More work and thought is required to consider the execution
+     * of queries involving a mix of FULLY_REPLICATED tables and tables
+     * with normal partitioning.
+     */
     Uint32 *fragIds = &signal->theData[25]; // temp storage
     *(fragIds++) = scanFragP.p->lqhScanFragId;
 
     /**
-     * The fragLocations are sorted on blockRef. 
+     * The fragLocations are sorted on primaryBlockRef. 
      * Append all fragIds at same block to this SCAN_FRAGREQ.
+     * Use preferredBlockRef to decide which SPJ to place
+     * this SCAN_FRAGREQ.
      */
 
     while (fragLocationPtr.p != NULL)
     {
-      get_next_frag_location(fragLocationPtr, fragId, lqhBlockRef);
-      if (lqhBlockRef != scanFragP.p->lqhBlockref)
+      Uint32 thisPrimaryLqhBlockRef;
+      Uint32 thisPreferredLqhBlockRef;
+      get_next_frag_location(fragLocationPtr,
+                             fragId,
+                             thisPrimaryLqhBlockRef,
+                             thisPreferredLqhBlockRef);
+      jam();
+      if (thisPrimaryLqhBlockRef != primaryLqhBlockRef)
+      {
+        jam();
+        jamLine(Uint16(fragId));
         break;
-      jamDebug();
+      }
+      ndbrequire(preferredLqhBlockRef == scanFragP.p->lqhBlockref);
       *(fragIds++) = fragId;
       scanP->scanNextFragId++;
       get_and_step_next_frag_location(fragLocationPtr,
                                       scanptr.p,
                                       fragId,
-                                      lqhBlockRef);
+                                      thisPrimaryLqhBlockRef,
+                                      thisPreferredLqhBlockRef);
     }
+    jam();
 
     Ptr<SectionSegment> fragIdPtr;
     const Uint32 length = (fragIds-&signal->theData[25]);
@@ -15375,17 +15461,27 @@ void Dbtc::sendScanTabConf(Signal* signal,
 {
   jamDebug();
   Uint32* ops = signal->getDataPtrSend()+4;
-  Uint32 op_count = scanPtr.p->m_queued_count;
-
-  Uint32 words_per_op = 4;
+  const Uint32 op_count = scanPtr.p->m_queued_count;
   const Uint32 ref = apiConnectptr.p->ndbapiBlockref;
-  if (!scanPtr.p->m_4word_conf)
-  {
-    jamDebug();
-    words_per_op = 3;
-  }
 
-  if (4 + words_per_op * op_count > 25)
+  Uint32 words_per_op = 3;
+  if (scanPtr.p->m_extended_conf)
+  {
+    // Use 4 or 5 word extended conf signal?
+    const Uint32 apiVersion = getNodeInfo(refToNode(ref)).m_version;
+    ndbassert(apiVersion != 0);
+    if (ndbd_send_active_bitmask(apiVersion))
+    {
+      jamDebug();
+      words_per_op = 5;
+    }
+    else
+    {
+      jamDebug();
+      words_per_op = 4;
+    }
+  }
+  if (ScanTabConf::SignalLength + (words_per_op * op_count) > 25)
   {
     jamDebug();
     ops += 21;
@@ -15414,7 +15510,13 @@ void Dbtc::sendScanTabConf(Signal* signal,
       
       * ops++ = curr.p->m_apiPtr;
       * ops++ = done ? RNIL : curr.i;
-      if (words_per_op == 4)
+      if (words_per_op == 5)
+      {
+        * ops++ = curr.p->m_ops;
+        * ops++ = curr.p->m_totalLen;
+        * ops++ = curr.p->m_hasMore;
+      }
+      else if (words_per_op == 4)
       {
         * ops++ = curr.p->m_ops;
         * ops++ = curr.p->m_totalLen;
@@ -15463,7 +15565,7 @@ void Dbtc::sendScanTabConf(Signal* signal,
     }
   }
   
-  if (4 + words_per_op * op_count > 25)
+  if (ScanTabConf::SignalLength + (words_per_op * op_count) > 25)
   {
     jamDebug();
     LinearSectionPtr ptr[3];
@@ -15476,7 +15578,7 @@ void Dbtc::sendScanTabConf(Signal* signal,
   {
     jamDebug();
     sendSignal(ref, GSN_SCAN_TABCONF, signal,
-	       ScanTabConf::SignalLength + words_per_op * op_count, JBB);
+	       ScanTabConf::SignalLength + (words_per_op * op_count), JBB);
   }
   scanPtr.p->m_queued_count = 0;
 
@@ -20855,7 +20957,7 @@ Dbtc::fk_scanFromChildTable(Signal* signal,
   ScanTabReq::setDistributionKeyFlag(ri, 0);
   ScanTabReq::setViaSPJFlag(ri, 0);
   ScanTabReq::setPassAllConfsFlag(ri, 0);
-  ScanTabReq::set4WordConf(ri, 0);
+  ScanTabReq::setExtendedConf(ri, 0);
   req->requestInfo = ri;
   req->transId1 = regApiPtr->transid[0];
   req->transId2 = regApiPtr->transid[1];
@@ -22599,7 +22701,6 @@ Dbtc::execROUTE_ORD(Signal* signal)
   releaseSections(handle);
   warningEvent("Unable to route GSN: %d from %x to %x",
 	       gsn, srcRef, dstRef);
-
 }
 
 /**

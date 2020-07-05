@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -98,9 +98,9 @@ class MDLSyncThread : public Thread {
         m_sync(sync_arg),
         m_lock_grabbed(grabbed_arg),
         m_lock_release(release_arg),
-        m_pre_table(NULL),
+        m_pre_table(nullptr),
         m_pre_mdl_type(MDL_INTENTION_EXCLUSIVE),
-        m_pre_sync(NULL) {}
+        m_pre_sync(nullptr) {}
 
   MDLSyncThread(const char *main_table_arg, enum_mdl_type main_mdl_type_arg,
                 const char *sync_arg, Notification *grabbed_arg,
@@ -192,11 +192,11 @@ TEST_F(MDLSyncTest, IsDestroyedFastPath) {
   MDLSyncThread thread1("table", MDL_SHARED,
                         "mdl_remove_random_unused_after_is_destroyed_set "
                         "SIGNAL marked WAIT_FOR resume_removal",
-                        NULL, NULL);
+                        nullptr, nullptr);
   MDLSyncThread thread2("table", MDL_SHARED,
                         "mdl_acquire_lock_is_destroyed_fast_path "
                         "SIGNAL resume_removal",
-                        NULL, NULL);
+                        nullptr, nullptr);
 
   /*
     Start the first thread which acquires S lock on a table and immediately
@@ -235,11 +235,11 @@ TEST_F(MDLSyncTest, IsDestroyedSlowPath) {
   MDLSyncThread thread1("table", MDL_SHARED,
                         "mdl_remove_random_unused_after_is_destroyed_set "
                         "SIGNAL marked WAIT_FOR resume_removal",
-                        NULL, NULL);
+                        nullptr, nullptr);
   MDLSyncThread thread2("table", MDL_SHARED_NO_READ_WRITE,
                         "mdl_acquire_lock_is_destroyed_slow_path "
                         "SIGNAL resume_removal",
-                        NULL, NULL);
+                        nullptr, nullptr);
 
   /*
     Start the first thread which acquires S lock on a table and immediately
@@ -278,8 +278,8 @@ TEST_F(MDLSyncTest, DoubleDestroyTakeOne) {
   MDLSyncThread thread1("table", MDL_SHARED,
                         "mdl_remove_random_unused_before_search "
                         "SIGNAL before_search WAIT_FOR start_search",
-                        NULL, NULL);
-  MDLSyncThread thread2("table", MDL_SHARED, NULL, NULL, NULL);
+                        nullptr, nullptr);
+  MDLSyncThread thread2("table", MDL_SHARED, nullptr, nullptr, nullptr);
 
   /*
     Start the first thread which acquires S lock on a table and immediately
@@ -322,11 +322,11 @@ TEST_F(MDLSyncTest, DoubleDestroyTakeTwo) {
   MDLSyncThread thread1("table", MDL_SHARED,
                         "mdl_remove_random_unused_after_search "
                         "SIGNAL found WAIT_FOR resume_destroy",
-                        NULL, NULL);
+                        nullptr, nullptr);
   MDLSyncThread thread2("table", MDL_SHARED,
                         "mdl_remove_random_unused_after_is_destroyed_set "
                         "SIGNAL resume_destroy",
-                        NULL, NULL);
+                        nullptr, nullptr);
 
   /*
     Start the first thread which acquires S lock on a table and immediately
@@ -374,8 +374,8 @@ TEST_F(MDLSyncTest, DestroyUsed) {
   MDLSyncThread thread1("table", MDL_SHARED,
                         "mdl_remove_random_unused_after_search "
                         "SIGNAL found WAIT_FOR resume_destroy",
-                        NULL, NULL);
-  MDLSyncThread thread2("table", MDL_SHARED, NULL, &lock_grabbed,
+                        nullptr, nullptr);
+  MDLSyncThread thread2("table", MDL_SHARED, nullptr, &lock_grabbed,
                         &lock_release);
 
   /*
@@ -423,17 +423,17 @@ TEST_F(MDLSyncTest, DestroyUsed) {
 
 TEST_F(MDLSyncTest, PriorityDeadlock) {
   Notification first_grabbed, first_release;
-  MDLSyncThread thread1("alpha", MDL_SHARED_READ, NULL, &first_grabbed,
+  MDLSyncThread thread1("alpha", MDL_SHARED_READ, nullptr, &first_grabbed,
                         &first_release);
   MDLSyncThread thread2("alpha", MDL_SHARED_NO_READ_WRITE,
-                        "mdl_acquire_lock_wait SIGNAL snrw_blocked ", NULL,
-                        NULL);
+                        "mdl_acquire_lock_wait SIGNAL snrw_blocked ", nullptr,
+                        nullptr);
   MDLSyncThread thread3("alpha", MDL_SHARED_READ,
                         "mdl_acquire_lock_wait SIGNAL sr_blocked "
                         "WAIT_FOR sr_resume",
-                        NULL, NULL, "beta", MDL_SHARED_WRITE, NULL);
-  MDLSyncThread thread4("beta", MDL_SHARED_NO_WRITE, NULL, NULL, NULL, "alpha",
-                        MDL_SHARED_NO_WRITE, NULL);
+                        nullptr, nullptr, "beta", MDL_SHARED_WRITE, nullptr);
+  MDLSyncThread thread4("beta", MDL_SHARED_NO_WRITE, nullptr, nullptr, nullptr,
+                        "alpha", MDL_SHARED_NO_WRITE, nullptr);
 
   /*
     Set "max_write_lock_count" to low value to ensure that switch of priority
@@ -511,19 +511,19 @@ TEST_F(MDLSyncTest, PriorityDeadlock) {
 
 TEST_F(MDLSyncTest, PriorityDeadlock2) {
   Notification first_grabbed, first_release, second_grabbed, second_release;
-  MDLSyncThread thread1("alpha", MDL_SHARED_WRITE, NULL, &first_grabbed,
+  MDLSyncThread thread1("alpha", MDL_SHARED_WRITE, nullptr, &first_grabbed,
                         &first_release);
-  MDLSyncThread thread2("alpha", MDL_SHARED_READ, NULL, &second_grabbed,
+  MDLSyncThread thread2("alpha", MDL_SHARED_READ, nullptr, &second_grabbed,
                         &second_release);
   MDLSyncThread thread3("alpha", MDL_SHARED_NO_READ_WRITE,
-                        "mdl_acquire_lock_wait SIGNAL snrw_blocked ", NULL,
-                        NULL);
+                        "mdl_acquire_lock_wait SIGNAL snrw_blocked ", nullptr,
+                        nullptr);
   MDLSyncThread thread4("alpha", MDL_SHARED_READ,
                         "mdl_acquire_lock_wait SIGNAL sr_blocked "
                         "WAIT_FOR sr_resume",
-                        NULL, NULL, "beta", MDL_SHARED_WRITE, NULL);
-  MDLSyncThread thread5("beta", MDL_SHARED_NO_WRITE, NULL, NULL, NULL, "alpha",
-                        MDL_SHARED_NO_WRITE,
+                        nullptr, nullptr, "beta", MDL_SHARED_WRITE, nullptr);
+  MDLSyncThread thread5("beta", MDL_SHARED_NO_WRITE, nullptr, nullptr, nullptr,
+                        "alpha", MDL_SHARED_NO_WRITE,
                         "mdl_acquire_lock_wait SIGNAL snw_blocked");
 
   /*
@@ -634,7 +634,7 @@ TEST_F(MDLSyncTest, IsDestroyedFindLockOwner) {
   MDLSyncThread thread1("table", MDL_EXCLUSIVE,
                         "mdl_remove_random_unused_after_is_destroyed_set "
                         "SIGNAL marked WAIT_FOR resume_removal",
-                        NULL, NULL);
+                        nullptr, nullptr);
   MDL_key mdl_key(MDL_key::TABLE, "db", "table");
   MDLSyncContextVisitor dummy_visitor;
 

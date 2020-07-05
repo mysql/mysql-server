@@ -85,7 +85,7 @@ MI_INFO *test_if_reopen(char *filename) {
     if (!strcmp(share->unique_file_name, filename) && share->last_version)
       return info;
   }
-  return 0;
+  return nullptr;
 }
 
 /******************************************************************************
@@ -113,7 +113,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
   ST_FILE_ID file_id = {0, 0};
   DBUG_TRACE;
 
-  m_info = NULL;
+  m_info = nullptr;
   kfile = -1;
   lock_error = 1;
   errpos = 0;
@@ -126,7 +126,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
     if (realpath_err || (*myisam_test_invalid_symlink)(name_buff) ||
         my_is_symlink(name_buff, &file_id)) {
       set_my_errno(HA_WRONG_CREATE_OPTION);
-      return NULL;
+      return nullptr;
     }
   }
 
@@ -333,7 +333,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
     my_stpcpy(share->index_file_name, index_name);
     my_stpcpy(share->data_file_name, data_name);
 
-    share->blocksize = MY_MIN(IO_SIZE, myisam_block_size);
+    share->blocksize = std::min(ulong{IO_SIZE}, myisam_block_size);
     {
       HA_KEYSEG *pos = share->keyparts;
       uint32 ftkey_nr = 1;
@@ -449,7 +449,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
     for (i = j = offset = 0; i < share->base.fields; i++) {
       disk_pos = mi_recinfo_read(disk_pos, &share->rec[i]);
       share->rec[i].pack_type = 0;
-      share->rec[i].huff_tree = 0;
+      share->rec[i].huff_tree = nullptr;
       share->rec[i].offset = offset;
       if (share->rec[i].type == (int)FIELD_BLOB) {
         share->blobs[j].pack_length =
@@ -486,7 +486,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
     share->base.margin_key_file_length =
         (share->base.max_key_file_length -
          (keys ? MI_INDEX_BLOCK_MARGIN * share->blocksize * keys : 0));
-    share->blocksize = MY_MIN(IO_SIZE, myisam_block_size);
+    share->blocksize = std::min(ulong{IO_SIZE}, myisam_block_size);
     share->data_file_type = STATIC_RECORD;
     if (share->options & HA_OPTION_COMPRESS_RECORD) {
       share->data_file_type = COMPRESSED_RECORD;
@@ -545,7 +545,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
     goto err;
   errpos = 6;
 
-  if (!share->have_rtree) info.rtree_recursion_state = NULL;
+  if (!share->have_rtree) info.rtree_recursion_state = nullptr;
 
   my_stpcpy(info.filename, name);
   memcpy(info.blobs, share->blobs, sizeof(MI_BLOB) * share->base.blobs);
@@ -569,8 +569,8 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
   if (mode == O_RDONLY) share->options |= HA_OPTION_READ_ONLY_DATA;
   info.lock_type = F_UNLCK;
   info.quick_mode = false;
-  info.bulk_insert = 0;
-  info.ft1_to_ft2 = 0;
+  info.bulk_insert = nullptr;
+  info.ft1_to_ft2 = nullptr;
   info.errkey = -1;
   info.page_changed = true;
   mysql_mutex_lock(&share->intern_lock);
@@ -652,7 +652,7 @@ err:
   }
   if (!internal_table) mysql_mutex_unlock(&THR_LOCK_myisam);
   set_my_errno(save_errno);
-  return NULL;
+  return nullptr;
 } /* mi_open_share */
 
 uchar *mi_alloc_rec_buff(MI_INFO *info, ulong length, uchar **buf) {
@@ -665,10 +665,11 @@ uchar *mi_alloc_rec_buff(MI_INFO *info, ulong length, uchar **buf) {
     /* to simplify initial init of info->rec_buf in mi_open and mi_extra */
     if (length == (ulong)-1) {
       if (info->s->options & HA_OPTION_COMPRESS_RECORD)
-        length = MY_MAX(info->s->base.pack_reclength, info->s->max_pack_length);
+        length =
+            std::max(info->s->base.pack_reclength, info->s->max_pack_length);
       else
         length = info->s->base.pack_reclength;
-      length = MY_MAX(length, info->s->base.max_key_length);
+      length = std::max<ulong>(length, info->s->base.max_key_length);
       /* Avoid unnecessary realloc */
       if (newptr && length == old_length) return newptr;
     }
@@ -702,7 +703,7 @@ void mi_setup_functions(MYISAM_SHARE *share) {
     share->read_record = _mi_read_pack_record;
     share->read_rnd = _mi_read_rnd_pack_record;
     if (!(share->options & HA_OPTION_TEMP_COMPRESS_RECORD))
-      share->calc_checksum = 0; /* No checksum */
+      share->calc_checksum = nullptr; /* No checksum */
     else if (share->options & HA_OPTION_PACK_RECORD)
       share->calc_checksum = mi_checksum;
     else
@@ -736,7 +737,7 @@ void mi_setup_functions(MYISAM_SHARE *share) {
   }
   share->file_read = mi_nommap_pread;
   share->file_write = mi_nommap_pwrite;
-  if (!(share->options & HA_OPTION_CHECKSUM)) share->calc_checksum = 0;
+  if (!(share->options & HA_OPTION_CHECKSUM)) share->calc_checksum = nullptr;
   return;
 }
 
@@ -1153,7 +1154,7 @@ uchar *mi_keyseg_read(uchar *ptr, HA_KEYSEG *keyseg) {
   keyseg->null_pos = mi_uint4korr(ptr);
   ptr += 4;
   keyseg->bit_end = 0;
-  keyseg->charset = 0;  /* Will be filled in later */
+  keyseg->charset = nullptr; /* Will be filled in later */
   if (keyseg->null_bit) /* We adjust bit_pos if null_bit is last in the byte */
     keyseg->bit_pos =
         (uint16)(keyseg->null_pos + (keyseg->null_bit == (1 << 7)));

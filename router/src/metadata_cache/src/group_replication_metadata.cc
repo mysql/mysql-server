@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,15 +23,16 @@
 */
 
 #include "group_replication_metadata.h"
-#include "metadata.h"
-#include "mysql/harness/logging/logging.h"
-#include "mysqlrouter/mysql_session.h"
 
-#include <assert.h>  // <cassert> is flawed: assert() lands in global namespace on Ubuntu 14.04, not std::
+#include <cassert>
 #include <cstdlib>
 #include <cstring>
 #include <memory>
 #include <sstream>
+
+#include "metadata.h"
+#include "mysql/harness/logging/logging.h"
+#include "mysqlrouter/mysql_session.h"
 
 using mysqlrouter::MySQLSession;
 IMPORT_LOG_FUNCTIONS()
@@ -80,7 +81,7 @@ static std::string find_group_replication_primary_member(
                      result_processor);
   } catch (const MySQLSession::Error &e) {
     throw metadata_cache::metadata_error(e.what());
-  } catch (const metadata_cache::metadata_error &e) {
+  } catch (const metadata_cache::metadata_error &) {
     throw;
   } catch (...) {
     assert(
@@ -197,7 +198,7 @@ std::map<std::string, GroupReplicationMember> fetch_group_replication_members(
 
   } catch (const MySQLSession::Error &e) {
     throw metadata_cache::metadata_error(e.what());
-  } catch (const metadata_cache::metadata_error &e) {
+  } catch (const metadata_cache::metadata_error &) {
     throw;
   } catch (...) {
     assert(

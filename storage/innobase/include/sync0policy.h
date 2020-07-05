@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -80,11 +80,11 @@ class MutexDebug {
 
     /** Reset to unlock state */
     void release() UNIV_NOTHROW {
-      m_mutex = NULL;
+      m_mutex = nullptr;
 
       m_thread_id = os_thread_id_t(ULINT_UNDEFINED);
 
-      m_filename = NULL;
+      m_filename = nullptr;
 
       m_line = ULINT_UNDEFINED;
     }
@@ -383,7 +383,7 @@ class BlockMutexPolicy
 
     meta.get_counter()->sum_deregister(m_count);
 
-    m_count = NULL;
+    m_count = nullptr;
 
     ut_d(MutexDebug<MutexType>::destroy());
   }

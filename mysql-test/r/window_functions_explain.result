@@ -1173,7 +1173,7 @@ EXPLAIN
                 "rows_examined_per_scan": 7,
                 "rows_produced_per_join": 5,
                 "filtered": "14.29",
-                "using_join_buffer": "Block Nested Loop",
+                "using_join_buffer": "hash join",
                 "cost_info": {
                   "read_cost": "0.25",
                   "eval_cost": "0.50",
@@ -1366,7 +1366,7 @@ EXPLAIN
                   "rows_examined_per_scan": 7,
                   "rows_produced_per_join": 5,
                   "filtered": "14.29",
-                  "using_join_buffer": "Block Nested Loop",
+                  "using_join_buffer": "hash join",
                   "cost_info": {
                     "read_cost": "0.25",
                     "eval_cost": "0.50",
@@ -1445,7 +1445,7 @@ EXPLAIN
               "rows_examined_per_scan": 7,
               "rows_produced_per_join": 5,
               "filtered": "14.29",
-              "using_join_buffer": "Block Nested Loop",
+              "using_join_buffer": "hash join",
               "cost_info": {
                 "read_cost": "0.25",
                 "eval_cost": "0.50",
@@ -1533,7 +1533,7 @@ EXPLAIN
                   "rows_examined_per_scan": 7,
                   "rows_produced_per_join": 5,
                   "filtered": "14.29",
-                  "using_join_buffer": "Block Nested Loop",
+                  "using_join_buffer": "hash join",
                   "cost_info": {
                     "read_cost": "0.25",
                     "eval_cost": "0.50",
@@ -1616,7 +1616,7 @@ EXPLAIN
                 "rows_examined_per_scan": 7,
                 "rows_produced_per_join": 5,
                 "filtered": "14.29",
-                "using_join_buffer": "Block Nested Loop",
+                "using_join_buffer": "hash join",
                 "cost_info": {
                   "read_cost": "0.25",
                   "eval_cost": "0.50",
@@ -1643,7 +1643,7 @@ WINDOW w AS (ORDER BY AVG(id) DESC)
 ORDER BY `rank` DESC;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	u	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using temporary; Using filesort
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	7	14.29	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	7	14.29	Using where; Using join buffer (hash join)
 Warnings:
 Note	3598	To get information about window functions use EXPLAIN FORMAT=JSON
 Note	1003	/* select#1 */ select `test`.`u`.`sex` AS `sex`,avg(`test`.`u`.`id`) AS `uids`,rank() OVER `w` AS `rank` from `test`.`t1` `u` join `test`.`t2` where (`test`.`t2`.`user_id` = `test`.`u`.`id`) group by `test`.`u`.`sex` window `w` AS (ORDER BY avg(`test`.`u`.`id`) desc )  order by `rank` desc
@@ -1805,7 +1805,7 @@ EXPLAIN
             "rows_examined_per_scan": 7,
             "rows_produced_per_join": 7,
             "filtered": "14.29",
-            "using_join_buffer": "Block Nested Loop",
+            "using_join_buffer": "hash join",
             "cost_info": {
               "read_cost": "0.25",
               "eval_cost": "0.70",
@@ -1874,7 +1874,7 @@ EXPLAIN
               "rows_examined_per_scan": 7,
               "rows_produced_per_join": 7,
               "filtered": "14.29",
-              "using_join_buffer": "Block Nested Loop",
+              "using_join_buffer": "hash join",
               "cost_info": {
                 "read_cost": "0.25",
                 "eval_cost": "0.70",
@@ -2587,7 +2587,7 @@ EXPLAIN
               "rows_examined_per_scan": 7,
               "rows_produced_per_join": 7,
               "filtered": "14.29",
-              "using_join_buffer": "Block Nested Loop",
+              "using_join_buffer": "hash join",
               "cost_info": {
                 "read_cost": "0.25",
                 "eval_cost": "0.70",
@@ -2661,7 +2661,7 @@ EXPLAIN
               "rows_examined_per_scan": 7,
               "rows_produced_per_join": 7,
               "filtered": "14.29",
-              "using_join_buffer": "Block Nested Loop",
+              "using_join_buffer": "hash join",
               "cost_info": {
                 "read_cost": "0.25",
                 "eval_cost": "0.70",
@@ -2735,7 +2735,7 @@ EXPLAIN
               "rows_examined_per_scan": 7,
               "rows_produced_per_join": 7,
               "filtered": "14.29",
-              "using_join_buffer": "Block Nested Loop",
+              "using_join_buffer": "hash join",
               "cost_info": {
                 "read_cost": "0.25",
                 "eval_cost": "0.70",
@@ -2886,7 +2886,7 @@ EXPLAIN
           "rows_examined_per_scan": 7,
           "rows_produced_per_join": 7,
           "filtered": "14.29",
-          "using_join_buffer": "Block Nested Loop",
+          "using_join_buffer": "hash join",
           "cost_info": {
             "read_cost": "0.25",
             "eval_cost": "0.70",
@@ -2962,7 +2962,7 @@ EXPLAIN
               "rows_examined_per_scan": 7,
               "rows_produced_per_join": 7,
               "filtered": "14.29",
-              "using_join_buffer": "Block Nested Loop",
+              "using_join_buffer": "hash join",
               "cost_info": {
                 "read_cost": "0.25",
                 "eval_cost": "0.70",
@@ -3040,7 +3040,7 @@ EXPLAIN
               "rows_examined_per_scan": 7,
               "rows_produced_per_join": 7,
               "filtered": "14.29",
-              "using_join_buffer": "Block Nested Loop",
+              "using_join_buffer": "hash join",
               "cost_info": {
                 "read_cost": "0.25",
                 "eval_cost": "0.70",
@@ -3117,7 +3117,7 @@ EXPLAIN
               "rows_examined_per_scan": 7,
               "rows_produced_per_join": 49,
               "filtered": "100.00",
-              "using_join_buffer": "Block Nested Loop",
+              "using_join_buffer": "hash join",
               "cost_info": {
                 "read_cost": "0.25",
                 "eval_cost": "4.90",
@@ -3215,7 +3215,7 @@ EXPLAIN
                     "rows_examined_per_scan": 7,
                     "rows_produced_per_join": 49,
                     "filtered": "100.00",
-                    "using_join_buffer": "Block Nested Loop",
+                    "using_join_buffer": "hash join",
                     "cost_info": {
                       "read_cost": "0.25",
                       "eval_cost": "4.90",
@@ -3336,7 +3336,7 @@ EXPLAIN
                       "rows_examined_per_scan": 7,
                       "rows_produced_per_join": 7,
                       "filtered": "14.29",
-                      "using_join_buffer": "Block Nested Loop",
+                      "using_join_buffer": "hash join",
                       "cost_info": {
                         "read_cost": "0.25",
                         "eval_cost": "0.70",
@@ -15314,7 +15314,7 @@ EXPLAIN
             "rows_examined_per_scan": 20,
             "rows_produced_per_join": 20,
             "filtered": "100.00",
-            "using_join_buffer": "Block Nested Loop",
+            "using_join_buffer": "hash join",
             "cost_info": {
               "read_cost": "0.25",
               "eval_cost": "2.00",
@@ -15408,7 +15408,7 @@ EXPLAIN
                 "rows_examined_per_scan": 1,
                 "rows_produced_per_join": 1,
                 "filtered": "100.00",
-                "using_join_buffer": "Block Nested Loop",
+                "using_join_buffer": "hash join",
                 "cost_info": {
                   "read_cost": "0.25",
                   "eval_cost": "0.10",
@@ -16668,7 +16668,7 @@ SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t 
                 "write_method": "write_all_rows",
                 "adding_sort_to_previous_table": {
                   "filesort": {
-                    "adding_sort_to_table_in_plan_at_position": 1
+                    "adding_sort_to_table": ""
                   }
                 }
               },
@@ -16693,11 +16693,11 @@ SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t 
                 "write_method": "write_all_rows",
                 "adding_sort_to_previous_table": {
                   "filesort": {
-                    "adding_sort_to_table_in_plan_at_position": 2
+                    "adding_sort_to_table": ""
                   }
                 },
                 "filesort": {
-                  "adding_sort_to_table_in_plan_at_position": 3
+                  "adding_sort_to_table": ""
                 }
               }
             ]
@@ -16767,11 +16767,11 @@ SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t 
                         }
                       },
                       {
-                        "sorting_table_in_plan_at_position": 1,
+                        "sorting_table": "<temporary>",
                         "filesort_information": [
                           {
                             "direction": "asc",
-                            "field": "i"
+                            "expression": "`t`.`i`"
                           }
                         ],
                         "filesort_priority_queue_optimization": {
@@ -16797,11 +16797,11 @@ SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t 
                   }
                 },
                 {
-                  "sorting_table_in_plan_at_position": 2,
+                  "sorting_table": "<temporary>",
                   "filesort_information": [
                     {
                       "direction": "desc",
-                      "field": "i"
+                      "expression": "`t`.`i`"
                     }
                   ],
                   "filesort_priority_queue_optimization": {
@@ -16827,11 +16827,11 @@ SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t 
             }
           },
           {
-            "sorting_table_in_plan_at_position": 3,
+            "sorting_table": "<temporary>",
             "filesort_information": [
               {
                 "direction": "asc",
-                "field": "i"
+                "expression": "`t`.`i`"
               }
             ],
             "filesort_priority_queue_optimization": {

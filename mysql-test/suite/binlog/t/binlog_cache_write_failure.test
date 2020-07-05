@@ -105,11 +105,10 @@ SET GLOBAL binlog_error_action = IGNORE_ERROR;
 BEGIN;
 INSERT INTO t1 VALUES (repeat('a', 8192));
 
-SET SESSION debug = "+d,simulate_tmpdir_partition_full";
+SET SESSION debug = "+d,fault_injection_reinit_io_cache_while_flushing_to_file";
 --replace_regex /.*Error writing file.*/Error writing file <tmp_file_name> (Errcode: ##)/
 COMMIT;
-SET SESSION debug = "-d,simulate_tmpdir_partition_full";
-#SET SESSION debug = "-d,simulate_no_free_space_error";
+SET SESSION debug = "-d,fault_injection_reinit_io_cache_while_flushing_to_file";
 
 # Check that transaction is committed
 --let $assert_cond = COUNT(*) = 1 FROM t1;
@@ -149,7 +148,7 @@ BEGIN;
 INSERT INTO t2 VALUES (repeat('b', 8192));
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-SET SESSION debug = "+d,simulate_tmpdir_partition_full";
+SET SESSION debug = "+d,fault_injection_reinit_io_cache_while_flushing_to_file";
 --error ER_BINLOG_LOGGING_IMPOSSIBLE
 COMMIT;
 

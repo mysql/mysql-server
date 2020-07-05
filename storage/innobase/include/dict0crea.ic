@@ -55,7 +55,7 @@ dberr_t dict_create_add_foreign_id(
 {
   DBUG_TRACE;
 
-  if (foreign->id == NULL) {
+  if (foreign->id == nullptr) {
     /* Generate a new constraint id */
     ulint namelen = strlen(name);
     char *id = static_cast<char *>(mem_heap_alloc(foreign->heap, namelen + 20));

@@ -267,8 +267,10 @@ while ($point < 13)
 --let $assert_cond= "[SHOW BINARY LOGS, Encrypted, 3]" = "No"
 --source include/assert.inc
 --let $binlog_file= master-bin.000002
+--let $binlog_start= query_get_value(SHOW BINLOG EVENTS IN '$binlog_file' LIMIT 1, End_log_pos, 1)
 --let $keep_gtid_events= 1
 --source include/show_binlog_events.inc
+--let $binlog_start =
 
 --echo # Part 3
 # Start slave threads so it can sync with master
@@ -385,6 +387,9 @@ UNINSTALL PLUGIN keyring_file;
 --source include/assert_grep.inc
 --remove_file $output_file
 --remove_file $error_file
+
+--let $binlog_file =
+--let $binlog_start =
 
 # Cleanup
 --remove_file $keyring_file

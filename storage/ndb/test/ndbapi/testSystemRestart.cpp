@@ -3057,8 +3057,6 @@ int runBug45154(NDBT_Context* ctx, NDBT_Step* step)
 {
   Ndb* pNdb = GETNDB(step);
   NdbDictionary::Dictionary * pDict = pNdb->getDictionary();
-  int result = NDBT_OK;
-  Uint32 loops = ctx->getNumLoops();
   Uint32 rows = ctx->getNumRecords();
   NdbRestarter restarter;
 
@@ -3066,73 +3064,100 @@ int runBug45154(NDBT_Context* ctx, NDBT_Step* step)
   int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_CHECKPOINT, 0 };
   NdbLogEventHandle handle =
     ndb_mgm_create_logevent_handle(restarter.handle, filter);
-
   struct ndb_logevent event;
 
-  Uint32 frag_data[128];
-  bzero(frag_data, sizeof(frag_data));
-
-  NdbDictionary::HashMap map;
-  pDict->getDefaultHashMap(map, 2*restarter.getNumDbNodes());
-  pDict->createHashMap(map);
-
-  pDict->getDefaultHashMap(map, restarter.getNumDbNodes());
-  pDict->createHashMap(map);  
-
-  for(Uint32 i = 0; i < loops && result != NDBT_FAILED; i++)
+  for(int i = 0; i < ctx->getNumLoops(); i++)
   {
+    /* Create a table with disk storage and a fairly large number of fragments.
+       Insert some rows, force an LCP, then drop the table.
+       Recreate the table with the same id, but fewer fragments.
+       Insert some rows, then force a system restart.
+    */
     ndbout_c("loop %u", i);
-
-    NdbDictionary::Table copy = *ctx->getTab();
-    copy.setName("BUG_45154");
-    copy.setFragmentType(NdbDictionary::Object::DistrKeyLin);
-    copy.setFragmentCount(2 * restarter.getNumDbNodes());
-    copy.setPartitionBalance(
-      NdbDictionary::Object::PartitionBalance_Specific);
-    copy.setFragmentData(frag_data, 2*restarter.getNumDbNodes());
     pDict->dropTable("BUG_45154");
-    int res = pDict->createTable(copy);
-    if (res != 0)
+    NdbDictionary::Table copy1(* NDBT_Tables::getTable(ctx->getTableName(0)));
+    NdbDictionary::Table copy2(* NDBT_Tables::getTable(ctx->getTableName(0)));
+    const NdbDictionary::Table* actualTable;
+    int tableId;
+    unsigned int nFragments;
+
+    // Create table with disk storage and a fairly large number of fragments
+    copy1.setName("BUG_45154");
+    copy1.setDefaultNoPartitionsFlag(true);
+    copy1.setFragmentType(NdbDictionary::Object::HashMapPartition);
+    copy1.setPartitionBalance(NdbDictionary::Object::PartitionBalance_ForRAByLDMx4);
+    if (pDict->createTable(copy1) != 0)
     {
       ndbout << pDict->getNdbError() << endl;
       return NDBT_FAILED;
     }
-    const NdbDictionary::Table* copyptr= pDict->getTable("BUG_45154");
+    actualTable= pDict->getTable("BUG_45154");
+    tableId = actualTable->getTableId();
+    nFragments = actualTable->getPartitionCount();
+    ndbout_c("[1st table] Id: %u  Fragments: %u (%s)", tableId, nFragments,
+               actualTable->getPartitionBalanceString());
 
+    // Insert rows
     {
-      HugoTransactions hugoTrans(*copyptr);
+      HugoTransactions hugoTrans(*actualTable);
       hugoTrans.loadTable(pNdb, rows);
     }
 
+    // LCP
     int dump[] = { DumpStateOrd::DihStartLcpImmediately };
     for (int l = 0; l<2; l++)
     {
-      CHECK(restarter.dumpStateAllNodes(dump, 1) == 0);
+      if(restarter.dumpStateAllNodes(dump, 1) != 0)
+      {
+        g_err << "Failed at line " << __LINE__ << endl;
+        return NDBT_FAILED;
+      }
       while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
             event.type != NDB_LE_LocalCheckpointStarted);
       while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
             event.type != NDB_LE_LocalCheckpointCompleted);
     }
 
+    // Drop the table
     pDict->dropTable("BUG_45154");
-    copy.setFragmentCount(restarter.getNumDbNodes());
-    copy.setPartitionBalance(
-      NdbDictionary::Object::PartitionBalance_Specific);
-    copy.setFragmentData(frag_data, restarter.getNumDbNodes());
-    res = pDict->createTable(copy);
-    if (res != 0)
+
+   // Recreate the table with the same id, but fewer fragments.
+    copy2.setName("BUG_45154");
+    copy2.setDefaultNoPartitionsFlag(true);
+    copy2.setFragmentType(NdbDictionary::Object::HashMapPartition);
+    copy2.setPartitionBalance(NdbDictionary::Object::PartitionBalance_ForRAByLDM);
+    if (pDict->createTable(copy2) != 0)
     {
       ndbout << pDict->getNdbError() << endl;
       return NDBT_FAILED;
     }
-    copyptr = pDict->getTable("BUG_45154");
+    actualTable= pDict->getTable("BUG_45154");
 
+    ndbout_c("[2nd table] Id: %u  Fragments: %u (%s)",
+             actualTable->getTableId(), actualTable->getPartitionCount(),
+             actualTable->getPartitionBalanceString());
+
+    if(actualTable->getTableId() != tableId)
     {
-      HugoTransactions hugoTrans(*copyptr);
+      ndbout << "FAIL: Table Id was not reused" << endl;
+      return NDBT_FAILED;
+    }
+
+    if(actualTable->getPartitionCount() >= nFragments)
+    {
+      ndbout << "FAIL: Second table does not have fewer fragments" << endl;
+      return NDBT_FAILED;
+    }
+
+    // Insert rows
+    {
+      HugoTransactions hugoTrans(*actualTable);
       hugoTrans.loadTable(pNdb, rows);
       for (Uint32 pp = 0; pp<3; pp++)
         hugoTrans.scanUpdateRecords(pNdb, rows);
     }
+
+    // System restart
     restarter.restartAll(false, true, true);
     restarter.waitClusterNoStart();
     restarter.startAll();
@@ -3143,7 +3168,7 @@ int runBug45154(NDBT_Context* ctx, NDBT_Step* step)
   }
 
   ctx->stopTest();
-  return result;
+  return NDBT_OK;
 }
 
 int runBug46651(NDBT_Context* ctx, NDBT_Step* step)

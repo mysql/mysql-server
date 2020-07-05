@@ -69,7 +69,7 @@ class Clone_persist_gtid {
  public:
   /** Constructor: start gtid thread */
   Clone_persist_gtid() {
-    m_event = os_event_create(0);
+    m_event = os_event_create(nullptr);
     /* No background is created yet. */
     m_thread_active.store(false);
     m_gtid_trx_no.store(0);

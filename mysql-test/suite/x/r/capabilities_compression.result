@@ -13,6 +13,7 @@
 #    c. Send algorithm capability with invalid type (not scalar)
 #    d. Send server_max_combine_messages capability with invalid type (not scalar)
 #    e. Send server_combine_mixed_messages capability with invalid type (not scalar)
+#    f. Send level capability with invalid type (not integer)
 
 #
 # I.1
@@ -45,7 +46,7 @@ Mysqlx.Error {
 Mysqlx.Error {
   severity: ERROR
   code: 5178
-  msg: "Invalid or unsupported option for \'compression\'"
+  msg: "Invalid or unsupported option \'compression.wrong\'"
   sql_state: "HY000"
 }
 
@@ -69,7 +70,7 @@ ok
 Mysqlx.Error {
   severity: ERROR
   code: 5179
-  msg: "The algorithm and at least one style is required for \'compression\'"
+  msg: "The algorithm is required for \'compression\'"
   sql_state: "HY000"
 }
 
@@ -106,6 +107,16 @@ Mysqlx.Error {
 
 #
 # I.3.e
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'compression\'"
+  sql_state: "HY000"
+}
+
+
+#
+# I.3.f
 Mysqlx.Error {
   severity: ERROR
   code: 5001

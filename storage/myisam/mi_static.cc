@@ -37,7 +37,7 @@
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_memory.h"
 
-LIST *myisam_open_list = 0;
+LIST *myisam_open_list = nullptr;
 uchar myisam_file_magic[] = {
     (uchar)254,
     (uchar)254,

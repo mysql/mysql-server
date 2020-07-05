@@ -708,7 +708,7 @@ Index *Table_impl::get_index(Object_id index_id) {
     if (i->id() == index_id) return i;
   }
 
-  return NULL;
+  return nullptr;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -749,7 +749,7 @@ Partition *Table_impl::get_partition(Object_id partition_id) {
     if (i->id() == partition_id) return i;
   }
 
-  return NULL;
+  return nullptr;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -954,7 +954,7 @@ Partition *Table_impl::get_partition(const String_type &name) {
     if (i->name() == name) return i;
   }
 
-  return NULL;
+  return nullptr;
 }
 
 ///////////////////////////////////////////////////////////////////////////

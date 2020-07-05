@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -242,6 +242,7 @@ private:
   void client_unlock();
   void client_lock(Uint32 instance);
   void client_unlock(Uint32 instance);
+  bool is_datafile_ready(Uint32 file_no);
   void lock_extent_page(Uint32 file_no, Uint32 page_no);
   void unlock_extent_page(Uint32 file_no, Uint32 page_no);
   void lock_extent_page(Datafile*, Uint32 page_no);
@@ -414,6 +415,11 @@ public:
   int unmap_page(Local_key*, Uint32 bits);
 
   /**
+   * Check if datafile is ready for checkpoints.
+   */
+  bool is_datafile_ready(Uint32 file_no);
+
+  /**
    * Lock/Unlock extent page to ensure that access to this extent
    * page is serialised.
    */
@@ -551,6 +557,13 @@ Tablespace_client::get_page_free_bits(Local_key *key,
 				      unsigned* commited)
 {
   return m_tsman->get_page_free_bits(m_signal, key, uncommited, commited);
+}
+
+inline
+bool
+Tablespace_client::is_datafile_ready(Uint32 file_no)
+{
+  return m_tsman->is_datafile_ready(file_no);
 }
 
 inline

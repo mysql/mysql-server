@@ -11,7 +11,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (id int unsigned NOT NULL PRIMARY KEY);
 ALTER TABLE t1 DISCARD TABLESPACE;
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: Schema mismatch (Table data_dir flag don't match, server table has data_dir flag = 0 and .ibd file has data_dir flag = 1)
+ERROR HY000: Schema mismatch (Table location flags do not match. The source table uses a DATA DIRECTORY but the destination table does not.)
 DROP TABLE t1;
 #
 # Test-case-2
@@ -23,7 +23,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (id int unsigned NOT NULL PRIMARY KEY) DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
 ALTER TABLE t1 DISCARD TABLESPACE;
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: Schema mismatch (Table data_dir flag don't match, server table has data_dir flag = 1 and .ibd file has data_dir flag = 0)
+ERROR HY000: Schema mismatch (Table location flags do not match. The source table does not use a DATA DIRECTORY but the destination table does.)
 DROP TABLE t1;
 #
 # Bug #30190199 ERROR WHEN IMPORTING TABLESPACE WITH DIFFERENT DATA
@@ -38,7 +38,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (id int unsigned NOT NULL PRIMARY KEY);
 ALTER TABLE t1 DISCARD TABLESPACE;
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: Schema mismatch (Table data_dir flag don't match, server table has data_dir flag = 0 and the meta-data file has data_dir flag = 1)
+ERROR HY000: Schema mismatch (Table location flags do not match. The source table uses a DATA DIRECTORY but the destination table does not.)
 DROP TABLE t1;
 #
 # Test-case-4
@@ -50,7 +50,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (id int unsigned NOT NULL PRIMARY KEY) DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
 ALTER TABLE t1 DISCARD TABLESPACE;
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: Schema mismatch (Table data_dir flag don't match, server table has data_dir flag = 1 and the meta-data file has data_dir flag = 0)
+ERROR HY000: Schema mismatch (Table location flags do not match. The source table does not use a DATA DIRECTORY but the destination table does.)
 DROP TABLE t1;
 #
 # Cleanup

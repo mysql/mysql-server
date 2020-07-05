@@ -216,11 +216,11 @@ create event e_55 on schedule at 20000101000000 do drop table t;
 show events;
 
 --error ER_PARSE_ERROR
-create event e_55 on schedule at 20200101000000 starts 10000101000000 do drop table t;
+create event e_55 on schedule at 20380101000000 starts 10000101000000 do drop table t;
 --error ER_PARSE_ERROR
-create event e_55 on schedule at 20200101000000 ends 10000101000000 do drop table t;
+create event e_55 on schedule at 20380101000000 ends 10000101000000 do drop table t;
 --error ER_PARSE_ERROR
-create event e_55 on schedule at 20200101000000 starts 10000101000000 ends 10000101000000 do drop table t;
+create event e_55 on schedule at 20380101000000 starts 10000101000000 ends 10000101000000 do drop table t;
 --error ER_WRONG_VALUE
 create event e_55 on schedule every 10 hour starts 10000101000000 do drop table t;
 
@@ -722,7 +722,7 @@ SHOW EVENTS;
 
 # This will update event time zone.
 SET TIME_ZONE= '-03:00';
-ALTER EVENT e1 ON SCHEDULE EVERY 1 DAY ENDS '2030-01-03 00:00:00'
+ALTER EVENT e1 ON SCHEDULE EVERY 1 DAY ENDS '2038-01-03 00:00:00'
   ON COMPLETION PRESERVE DISABLE;
 SHOW EVENTS;
 
@@ -1033,7 +1033,7 @@ SET GLOBAL READ_ONLY = 1;
 --echo
 
 --error ER_OPTION_PREVENTS_STATEMENT
-CREATE EVENT e1 ON SCHEDULE AT '2020-01-01 00:00:00' DO SET @a = 1;
+CREATE EVENT e1 ON SCHEDULE AT '2038-01-01 00:00:00' DO SET @a = 1;
 
 --echo
 
@@ -1057,7 +1057,7 @@ DROP EVENT e1;
 
 --echo
 
-CREATE EVENT e1 ON SCHEDULE AT '2020-01-01 00:00:00' DO SET @a = 1;
+CREATE EVENT e1 ON SCHEDULE AT '2038-01-01 00:00:00' DO SET @a = 1;
 
 --echo
 

@@ -226,3 +226,14 @@ field1, field3, field4, field5;
 SET @@SESSION.sort_buffer_size=default;
 
 DROP TABLE F, H;
+
+# Verify that JSON columns, despite being blobs, are not sorted by row ID.
+
+CREATE TABLE t1 (
+  pk INTEGER,
+  j JSON
+);
+
+EXPLAIN FORMAT=tree SELECT j FROM t1 ORDER BY pk;
+
+DROP TABLE t1;

@@ -1,7 +1,7 @@
 #ifndef SQL_ARRAY_INCLUDED
 #define SQL_ARRAY_INCLUDED
 
-/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,13 +43,13 @@ class Bounds_checked_array {
   // Convenience typedef, same typedef name as std::vector
   typedef Element_type value_type;
 
-  Bounds_checked_array() : m_array(NULL), m_size(0) {}
+  Bounds_checked_array() : m_array(nullptr), m_size(0) {}
 
   Bounds_checked_array(Element_type *el, size_t size_arg)
       : m_array(el), m_size(size_arg) {}
 
   void reset() {
-    m_array = NULL;
+    m_array = nullptr;
     m_size = 0;
   }
 
@@ -94,7 +94,7 @@ class Bounds_checked_array {
   size_t element_size() const { return sizeof(Element_type); }
   size_t size() const { return m_size; }
 
-  bool is_null() const { return m_array == NULL; }
+  bool is_null() const { return m_array == nullptr; }
 
   void pop_front() {
     DBUG_ASSERT(m_size > 0);

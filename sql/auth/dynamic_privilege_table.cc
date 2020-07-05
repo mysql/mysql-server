@@ -97,7 +97,7 @@ bool populate_dynamic_privilege_caches(THD *thd, TABLE_LIST *tablelst) {
   TABLE *table = tablelst[0].table;
   table->use_all_columns();
   unique_ptr_destroy_only<RowIterator> iterator =
-      init_table_iterator(thd, table, NULL, false,
+      init_table_iterator(thd, table, nullptr, false,
                           /*ignore_not_found_rows=*/false);
   if (iterator == nullptr) {
     my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
@@ -123,7 +123,7 @@ bool populate_dynamic_privilege_caches(THD *thd, TABLE_LIST *tablelst) {
     while (!error && !(read_rec_errcode = iterator->Read())) {
       char *host =
           get_field(&tmp_mem, table->field[MYSQL_DYNAMIC_PRIV_FIELD_HOST]);
-      if (host == 0) host = &percentile_character[0];
+      if (host == nullptr) host = &percentile_character[0];
       char *user =
           get_field(&tmp_mem, table->field[MYSQL_DYNAMIC_PRIV_FIELD_USER]);
       if (user == nullptr) user = &empty_str;

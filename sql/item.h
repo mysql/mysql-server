@@ -1,7 +1,7 @@
 #ifndef ITEM_INCLUDED
 #define ITEM_INCLUDED
 
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -69,6 +69,8 @@
 
 class Item;
 class Item_field;
+class Item_singlerow_subselect;
+class Item_sum;
 class Json_wrapper;
 class Protocol;
 class SELECT_LEX;
@@ -243,7 +245,7 @@ class DTCollation {
 class Mark_field {
  public:
   Mark_field(TABLE *table, enum_mark_columns mark) : table(table), mark(mark) {}
-  Mark_field(enum_mark_columns mark) : table(NULL), mark(mark) {}
+  Mark_field(enum_mark_columns mark) : table(nullptr), mark(mark) {}
 
   /**
      If == NULL, update map of any table.
@@ -450,20 +452,20 @@ struct Name_resolution_context {
   Security_context *security_ctx;
 
   Name_resolution_context()
-      : outer_context(NULL),
-        next_context(NULL),
-        table_list(NULL),
-        select_lex(NULL),
-        view_error_handler_arg(NULL),
-        security_ctx(NULL) {
+      : outer_context(nullptr),
+        next_context(nullptr),
+        table_list(nullptr),
+        select_lex(nullptr),
+        view_error_handler_arg(nullptr),
+        security_ctx(nullptr) {
     DBUG_PRINT("outer_field", ("creating ctx %p", this));
   }
 
   void init() {
     resolve_in_select_list = false;
     view_error_handler = false;
-    first_name_resolution_table = NULL;
-    last_name_resolution_table = NULL;
+    first_name_resolution_table = nullptr;
+    last_name_resolution_table = nullptr;
   }
 
   void resolve_in_table_list_only(TABLE_LIST *tables) {
@@ -516,9 +518,6 @@ class Name_resolution_context_state {
   TABLE_LIST *save_next_local;
 
  public:
-  Name_resolution_context_state() {} /* Remove gcc warning */
-
- public:
   /* Save the state of a name resolution context. */
   void save_state(Name_resolution_context *context, TABLE_LIST *table_list) {
     save_table_list = context->table_list;
@@ -535,6 +534,10 @@ class Name_resolution_context_state {
     context->table_list = save_table_list;
     context->first_name_resolution_table = save_first_name_resolution_table;
     context->resolve_in_select_list = save_resolve_in_select_list;
+  }
+
+  void update_next_local(TABLE_LIST *table_list) {
+    save_next_local = table_list;
   }
 
   TABLE_LIST *get_first_name_resolution_table() {
@@ -600,7 +603,7 @@ class Bool3 {
   value m_val;
   /*
     No operator to convert Bool3 to bool (or int) - intentionally: how
-    would you map UNKNOWN3 to true/false?
+    would you map unknown3 to true/false?
     It is because we want to block such conversions that Bool3 is a class
     instead of a plain enum.
   */
@@ -644,7 +647,7 @@ class Settable_routine_parameter {
 
   virtual void set_out_param_info(Send_field *info MY_ATTRIBUTE((unused))) {}
 
-  virtual const Send_field *get_out_param_info() const { return NULL; }
+  virtual const Send_field *get_out_param_info() const { return nullptr; }
 };
 
 /*
@@ -659,8 +662,80 @@ class Settable_routine_parameter {
 
 */
 typedef bool (Item::*Item_analyzer)(uchar **argp);
+
+/**
+  Type for transformers used by Item::transform and Item::compile
+  @param arg  Argument used by the transformer. Really a typeless pointer
+              in spite of the uchar type (historical reasons). The
+              transformer needs to cast this to the desired pointer type
+  @returns    The transformed item
+*/
 typedef Item *(Item::*Item_transformer)(uchar *arg);
 typedef void (*Cond_traverser)(const Item *item, void *arg);
+
+/**
+  Re-usable shortcut, when it does not make sense to do copy objects of a
+  class named "myclass"; add this to a private section of the class. The
+  implementations are intentionally not created, so if someone tries to use
+  them like in "myclass A= B" there will be a linker error.
+*/
+#define FORBID_COPY_CTOR_AND_ASSIGN_OP(myclass) \
+  myclass(myclass const &);                     \
+  void operator=(myclass const &)
+
+/**
+  Utility mixin class to be able to walk() only parts of item trees.
+
+  Used with PREFIX+POSTFIX walk: in the prefix call of the Item
+  processor, we process the item X, may decide that its children should not
+  be processed (just like if they didn't exist): processor calls stop_at(X)
+  for that. Then walk() goes to a child Y; the processor tests is_stopped(Y)
+  which returns true, so processor sees that it must not do any processing
+  and returns immediately. Finally, the postfix call to the processor on X
+  tests is_stopped(X) which returns "true" and understands that the
+  not-to-be-processed children have been skipped so calls restart(). Thus,
+  any sibling of X, any part of the Item tree not under X, can then be
+  processed.
+*/
+class Item_tree_walker {
+ protected:
+  Item_tree_walker() : stopped_at_item(nullptr) {}
+  ~Item_tree_walker() { DBUG_ASSERT(!stopped_at_item); }
+
+  /// Stops walking children of this item
+  void stop_at(const Item *i) {
+    DBUG_ASSERT(!stopped_at_item);
+    stopped_at_item = i;
+  }
+
+  /**
+   @returns if we are stopped. If item 'i' is where we stopped, restarts the
+   walk for next items.
+   */
+  bool is_stopped(const Item *i) {
+    if (stopped_at_item) {
+      /*
+       Walking was disabled for a tree part rooted a one ancestor of 'i' or
+       rooted at 'i'.
+       */
+      if (stopped_at_item == i) {
+        /*
+         Walking was disabled for the tree part rooted at 'i'; we have now just
+         returned back to this root (POSTFIX call), left the tree part:
+         enable the walk again, for other tree parts.
+         */
+        stopped_at_item = nullptr;
+      }
+      // No further processing to do for this item:
+      return true;
+    }
+    return false;
+  }
+
+ private:
+  const Item *stopped_at_item;
+  FORBID_COPY_CTOR_AND_ASSIGN_OP(Item_tree_walker);
+};
 
 class Item : public Parse_tree_node {
   typedef Parse_tree_node super;
@@ -904,7 +979,7 @@ class Item : public Parse_tree_node {
   void init_make_field(Send_field *tmp_field, enum enum_field_types type);
   virtual void cleanup();
   virtual void make_field(Send_field *field);
-  virtual Field *make_string_field(TABLE *table);
+  virtual Field *make_string_field(TABLE *table) const;
   virtual bool fix_fields(THD *, Item **);
   /**
     Fix after tables have been moved from one select_lex level to the parent
@@ -1274,7 +1349,7 @@ class Item : public Parse_tree_node {
   /**
     Determine correct string field type, based on string length
 
-    @param max_bytes Maximum string size, in number of bytes @todo
+    @param max_bytes Maximum string size, in number of bytes
   */
   static enum_field_types string_field_type(uint32 max_bytes) {
     if (max_bytes >= 16777216)
@@ -1299,8 +1374,6 @@ class Item : public Parse_tree_node {
     return NON_MONOTONIC;
   }
 
-  /// For template-compatibility with Field
-  inline bool is_null_value() { return null_value; }
   /*
     Convert "func_arg $CMP$ const" half-interval into "FUNC(func_arg) $CMP2$
     const2"
@@ -1674,7 +1747,7 @@ class Item : public Parse_tree_node {
   */
   String *error_str() {
     null_value = maybe_null;
-    return null_value ? NULL : make_empty_result();
+    return null_value ? nullptr : make_empty_result();
   }
 
   /**
@@ -1750,10 +1823,10 @@ class Item : public Parse_tree_node {
 
   virtual Field *get_tmp_table_field() {
     DBUG_TRACE;
-    return 0;
+    return nullptr;
   }
   /* This is also used to create fields in CREATE ... SELECT: */
-  virtual Field *tmp_table_field(TABLE *) { return 0; }
+  virtual Field *tmp_table_field(TABLE *) { return nullptr; }
   virtual const char *full_name() const {
     return item_name.is_set() ? item_name.ptr() : "???";
   }
@@ -1876,6 +1949,11 @@ class Item : public Parse_tree_node {
   void print_for_order(const THD *thd, String *str, enum_query_type query_type,
                        bool used_alias) const;
 
+  /**
+    Updates used tables, not null tables information and accumulates
+    properties up the item tree, cf. used_tables_cache, not_null_tables_cache
+    and m_accum_properties.
+  */
   virtual void update_used_tables() {}
 
   virtual void split_sum_func(THD *, Ref_item_array, List<Item> &) {}
@@ -1991,15 +2069,15 @@ class Item : public Parse_tree_node {
 
     @returns Returned item tree after transformation, NULL if error
 
-    @details
-
     Transformation is performed as follows:
 
+    @code
     transform()
     {
       transform children if any;
       return this->*some_transformer(...);
     }
+    @endcode
 
     Note that unlike Item::compile(), transform() does not support an analyzer
     function, ie. all children are unconditionally invoked.
@@ -2022,10 +2100,9 @@ class Item : public Parse_tree_node {
 
     @returns Returned item tree after transformation, NULL if error
 
-    @details
-
     The process of this transformation is assumed to be as follows:
 
+    @code
     compile()
     {
       if (this->*some_analyzer(...))
@@ -2036,6 +2113,7 @@ class Item : public Parse_tree_node {
       else
         return this;
     }
+    @endcode
 
     i.e. analysis is performed top-down while transformation is done
     bottom-up. If no transformation is applied, the item is returned unchanged.
@@ -2075,6 +2153,35 @@ class Item : public Parse_tree_node {
   }
 
   virtual bool collect_item_field_processor(uchar *) { return false; }
+
+  class Collect_item_fields : public Item_tree_walker {
+   public:
+    List<Item_field> *m_item_fields;
+    Collect_item_fields(List<Item_field> *fields) : m_item_fields(fields) {}
+    FORBID_COPY_CTOR_AND_ASSIGN_OP(Collect_item_fields);
+
+    friend class Item_sum;
+    friend class Item_field;
+  };
+
+  class Collect_item_fields_or_view_refs : public Item_tree_walker {
+   public:
+    List<Item> *m_item_fields_or_view_refs;
+    SELECT_LEX *m_transformed_block;
+    Collect_item_fields_or_view_refs(List<Item> *fields_or_vr,
+                                     SELECT_LEX *transformed_block)
+        : m_item_fields_or_view_refs(fields_or_vr),
+          m_transformed_block(transformed_block) {}
+    FORBID_COPY_CTOR_AND_ASSIGN_OP(Collect_item_fields_or_view_refs);
+
+    friend class Item_sum;
+    friend class Item_field;
+    friend class Item_view_ref;
+  };
+
+  virtual bool collect_item_field_or_view_ref_processor(uchar *) {
+    return false;
+  }
 
   /**
     Item::walk function. Set bit in table->tmp_set for all fields in
@@ -2128,6 +2235,16 @@ class Item : public Parse_tree_node {
     return false;
   }
 
+  /// Traverse the item tree and replace fields that are outside of reach with
+  /// fields that are within reach. This is used by hash join when it detects
+  /// that a join condition refers to a field that is outside of reach, due to
+  /// equality propagation. See
+  /// Item_func::ensure_multi_equality_fields_are_available_walker for more
+  /// details.
+  virtual bool ensure_multi_equality_fields_are_available_walker(uchar *) {
+    return false;
+  }
+
  protected:
   /**
     Helper function for mark_field_in_map(uchar *arg).
@@ -2137,7 +2254,7 @@ class Item : public Parse_tree_node {
   */
   static inline bool mark_field_in_map(Mark_field *mark_field, Field *field) {
     TABLE *table = mark_field->table;
-    if (table != NULL && table != field->table) return false;
+    if (table != nullptr && table != field->table) return false;
 
     table = field->table;
     table->mark_column_used(field, mark_field->mark);
@@ -2233,6 +2350,32 @@ class Item : public Parse_tree_node {
     return Bool3::false3();
   }
 
+  /// argument used by walk method collect_scalar_subqueries ("css")
+  struct Collect_scalar_subquery_info : public Item_tree_walker {
+    enum Location { L_SELECT = 1, L_WHERE = 2, L_HAVING = 4, L_JOIN_COND = 8 };
+    struct Css_info {
+      int8 m_location{0};  ///< set of locations
+      /// the scalar subquery
+      Item_singlerow_subselect *item{nullptr};
+      /// Where did we find item above? Used when m_location == L_JOIN_COND,
+      /// nullptr for other locations.
+      Item *m_join_condition{nullptr};
+    };
+
+    /// accumulated all scalar subqueries found
+    std::vector<Css_info> list;
+    /// we are currently looking at this kind of clause, cf. enum Location
+    int8 m_location;
+    Item *m_join_condition_context{nullptr};
+    Collect_scalar_subquery_info() {}
+    friend class Item_sum;
+    friend class Item_singlerow_subselect;
+  };
+
+  virtual bool collect_scalar_subqueries(uchar *) { return false; }
+  virtual bool collect_grouped_aggregates(uchar *) { return false; }
+  virtual bool collect_subqueries(uchar *) { return false; }
+  virtual bool update_depended_from(uchar *) { return false; }
   /**
     Check if an aggregate is referenced from within the GROUP BY
     clause of the query block in which it is aggregated. Such
@@ -2300,7 +2443,7 @@ class Item : public Parse_tree_node {
   */
   virtual bool check_partition_func_processor(uchar *) { return true; }
   virtual bool subst_argument_checker(uchar **arg) {
-    if (*arg) *arg = NULL;
+    if (*arg) *arg = nullptr;
     return true;
   }
   virtual bool explain_subquery_checker(uchar **) { return true; }
@@ -2358,15 +2501,15 @@ class Item : public Parse_tree_node {
   // Row emulation
   virtual uint cols() const { return 1; }
   virtual Item *element_index(uint) { return this; }
-  virtual Item **addr(uint) { return 0; }
+  virtual Item **addr(uint) { return nullptr; }
   virtual bool check_cols(uint c);
   // It is not row => null inside is impossible
   virtual bool null_inside() { return false; }
   // used in row subselects to get value of elements
   virtual void bring_value() {}
 
-  Field *tmp_table_field_from_field_type(TABLE *table, bool fixed_length);
-  virtual Item_field *field_for_view_update() { return 0; }
+  Field *tmp_table_field_from_field_type(TABLE *table, bool fixed_length) const;
+  virtual Item_field *field_for_view_update() { return nullptr; }
   /**
     Informs an item that it is wrapped in a truth test, in case it wants to
     transforms itself to implement this test by itself.
@@ -2378,6 +2521,74 @@ class Item : public Parse_tree_node {
     return nullptr;
   }
   virtual Item *update_value_transformer(uchar *) { return this; }
+
+  struct Item_replacement {
+    SELECT_LEX *m_trans_block;  ///< Transformed query block
+    SELECT_LEX *m_curr_block;   ///< Transformed query block or a contained
+    ///< subquery. Pushed when diving into
+    ///< subqueries.
+    Item_replacement(SELECT_LEX *transformed_block, SELECT_LEX *current_block)
+        : m_trans_block(transformed_block), m_curr_block(current_block) {}
+  };
+  struct Item_field_replacement : Item_replacement {
+    Field *m_target;           ///< The field to be replaced
+    Item_field *m_item;        ///< The replacement field
+    bool m_keep_alias{false};  ///< Needed for SELECT list alias preservation
+    Item_field_replacement(Field *target, Item_field *item, SELECT_LEX *select,
+                           bool keep)
+        : Item_replacement(select, select),
+          m_target(target),
+          m_item(item),
+          m_keep_alias(keep) {}
+  };
+
+  struct Item_view_ref_replacement : Item_replacement {
+    Item *m_target;  ///< The item identifying the view_ref to be replaced
+    Field *m_field;  ///< The replacement field
+    ///< subquery. Pushed when diving into
+    ///< subqueries.
+    Item_view_ref_replacement(Item *target, Field *field, SELECT_LEX *select)
+        : Item_replacement(select, select), m_target(target), m_field(field) {}
+  };
+
+  struct Aggregate_replacement {
+    Item_sum *m_target;
+    Item_field *m_replacement;
+    Aggregate_replacement(Item_sum *target, Item_field *replacement)
+        : m_target(target), m_replacement(replacement) {}
+  };
+
+  /**
+    When walking the item tree seeing an Item_singlerow_subselect matching
+    a target, replace it with a substitute field used when transforming
+    scalar subqueries into derived tables. Cf.
+    SELECT_LEX::transform_scalar_subqueries_to_derived.
+  */
+  virtual Item *replace_scalar_subquery(uchar *) { return this; }
+
+  /**
+    Transform processor used by SELECT_LEX::transform_grouped_to_derived
+    to replace fields which used to be at the transformed query block
+    with corresponding fields in the new derived table containing the grouping
+    operation of the original transformed query block.
+  */
+  virtual Item *replace_item_field(uchar *) { return this; }
+  virtual Item *replace_item_view_ref(uchar *) { return this; }
+  virtual Item *replace_aggregate(uchar *) { return this; }
+  virtual bool update_context(uchar *) { return false; }
+
+  struct Aggregate_ref_update {
+    Item_sum *m_target;
+    SELECT_LEX *m_owner;
+    Aggregate_ref_update(Item_sum *target, SELECT_LEX *owner)
+        : m_target(target), m_owner(owner) {}
+  };
+
+  /**
+    A walker processor overridden by Item_aggregate_ref, q.v.
+  */
+  virtual bool update_aggr_refs(uchar *) { return false; }
+
   virtual Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs);
   void delete_self() {
     cleanup();
@@ -2392,7 +2603,7 @@ class Item : public Parse_tree_node {
     if this Item is not Settable_routine_parameter.
   */
   virtual Settable_routine_parameter *get_settable_routine_parameter() {
-    return 0;
+    return nullptr;
   }
   inline bool is_temporal_with_date() const {
     return is_temporal_type_with_date(real_type_to_type(data_type()));
@@ -2447,7 +2658,7 @@ class Item : public Parse_tree_node {
   virtual bool is_expensive() {
     if (is_expensive_cache < 0)
       is_expensive_cache =
-          walk(&Item::is_expensive_processor, enum_walk::POSTFIX, NULL);
+          walk(&Item::is_expensive_processor, enum_walk::POSTFIX, nullptr);
     return is_expensive_cache;
   }
 
@@ -2561,7 +2772,7 @@ class Item : public Parse_tree_node {
 
   void mark_subqueries_optimized_away() {
     if (has_subquery())
-      walk(&Item::subq_opt_away_processor, enum_walk::POSTFIX, NULL);
+      walk(&Item::subq_opt_away_processor, enum_walk::POSTFIX, nullptr);
   }
 
   /**
@@ -2716,6 +2927,15 @@ class Item : public Parse_tree_node {
     For items that represent scalar or row subqueries, it is true if
     one of the returned columns could be null, or if the subquery
     could return zero rows.
+
+    It is worth noting that this information is correct only until
+    equality propagation has been run by the optimization phase.
+    Indeed, consider:
+     select * from t1, t2,t3 where t1.pk=t2.a and t1.pk+1...
+    the '+' is not nullable as t1.pk is not nullable;
+    but if the optimizer chooses plan is t2-t3-t1, then, due to equality
+    propagation it will replace t1.pk in '+' with t2.a (as t2 is before t1
+    in plan), making the '+' capable of returning NULL when t2.a is NULL.
   */
   bool maybe_null;
   bool null_value;  ///< True if item is null
@@ -3101,7 +3321,7 @@ class Item_num : public Item_basic_constant {
   typedef Item_basic_constant super;
 
  public:
-  Item_num() { collation.set_numeric(); } /* Remove gcc warning */
+  Item_num() { collation.set_numeric(); }
   explicit Item_num(const POS &pos) : super(pos) { collation.set_numeric(); }
 
   virtual Item_num *neg() = 0;
@@ -3171,8 +3391,8 @@ class Item_ident : public Item {
         table_name(table_name_arg),
         field_name(field_name_arg),
         cached_field_index(NO_CACHED_FIELD_INDEX),
-        cached_table(NULL),
-        depended_from(NULL) {
+        cached_table(nullptr),
+        depended_from(nullptr) {
     item_name.set(field_name_arg);
   }
 
@@ -3187,8 +3407,8 @@ class Item_ident : public Item {
         table_name(table_name_arg),
         field_name(field_name_arg),
         cached_field_index(NO_CACHED_FIELD_INDEX),
-        cached_table(NULL),
-        depended_from(NULL) {
+        cached_table(nullptr),
+        depended_from(nullptr) {
     item_name.set(field_name_arg);
   }
 
@@ -3235,6 +3455,13 @@ class Item_ident : public Item {
     return true;
   }
 
+  ///< Used for permanent transformations so we can re-bind. Remove after
+  ///< WL#6570.
+  void set_orig_names() {
+    orig_field_name = field_name;
+    orig_table_name = table_name;
+  }
+
  protected:
   /**
     Function to print column name for a table
@@ -3263,8 +3490,15 @@ class Item_ident : public Item {
              const char *db_name_arg, const char *table_name_arg) const;
 
  public:
-  bool change_context_processor(uchar *cntx) override {
-    context = reinterpret_cast<Name_resolution_context *>(cntx);
+  ///< Argument object to change_context_processor
+  struct Change_context {
+    Name_resolution_context *m_context;
+    bool m_permanent{false};  // Can be removed with WL#6570
+    Change_context(Name_resolution_context *context, bool permanent = false)
+        : m_context(context), m_permanent(permanent) {}
+  };
+  bool change_context_processor(uchar *arg) override {
+    context = reinterpret_cast<Change_context *>(arg)->m_context;
     return false;
   }
 
@@ -3282,6 +3516,16 @@ class Item_ident : public Item {
     return ((walk & enum_walk::PREFIX) && (this->*processor)(arg)) ||
            ((walk & enum_walk::POSTFIX) && (this->*processor)(arg));
   }
+
+  /**
+    Argument structure for walk processor Item::update_depended_from
+  */
+  struct Depended_change {
+    SELECT_LEX *old_depended_from;  // the transformed query block
+    SELECT_LEX *new_depended_from;  // the new derived table for grouping
+  };
+
+  bool update_depended_from(uchar *) override;
 
   /**
      @returns true if a part of this Item's full name (name or table name) is
@@ -3358,7 +3602,24 @@ class Item_field : public Item_ident {
   Field *result_field{nullptr};
 
  public:
+  void set_item_equal_all_join_nests(Item_equal *item_equal) {
+    if (item_equal != nullptr) {
+      item_equal_all_join_nests = item_equal;
+    }
+  }
+
   Item_equal *item_equal;
+
+  // A list of fields that are considered "equal" to this field. E.g., a query
+  // on the form "a JOIN b ON a.i = b.i JOIN c ON b.i = c.i" would consider
+  // a.i, b.i and c.i equal due to equality propagation. This is the same as
+  // "item_equal" above, except that "item_equal" will only contain fields from
+  // the same join nest. This is used by hash join and BKA when they need to
+  // undo multi-equality propagation done by the optimizer. (The optimizer may
+  // generate join conditions that references unreachable fields for said
+  // iterators.) The split is done because NDB expects the list to only
+  // contain fields from the same join nest.
+  Item_equal *item_equal_all_join_nests{nullptr};
   bool no_const_subst;
   /*
     if any_privileges set to true then here real effective privileges will
@@ -3390,8 +3651,7 @@ class Item_field : public Item_ident {
   Item_field(THD *thd, Name_resolution_context *context_arg, Field *field);
   /*
     If this constructor is used, fix_fields() won't work, because
-    db_name, table_name and column_name are unknown. It's necessary to call
-    reset_field() before fix_fields() for all fields created this way.
+    db_name, table_name and column_name are unknown.
   */
   Item_field(Field *field);
 
@@ -3438,6 +3698,7 @@ class Item_field : public Item_ident {
   }
   Item *get_tmp_table_item(THD *thd) override;
   bool collect_item_field_processor(uchar *arg) override;
+  bool collect_item_field_or_view_ref_processor(uchar *arg) override;
   bool add_field_to_set_processor(uchar *arg) override;
   bool add_field_to_cond_set_processor(uchar *) override;
   bool remove_column_from_bitmap(uchar *arg) override;
@@ -3460,6 +3721,13 @@ class Item_field : public Item_ident {
   Item_equal *find_item_equal(COND_EQUAL *cond_equal) const;
   bool subst_argument_checker(uchar **arg) override;
   Item *equal_fields_propagator(uchar *arg) override;
+  Item *replace_item_field(uchar *) override;
+  /// Argument to update_context
+  struct Context_info {
+    SELECT_LEX *old_block;
+    SELECT_LEX *new_block;
+  };
+  bool update_context(uchar *) override;
   bool set_no_const_sub(uchar *) override;
   Item *replace_equal_field(uchar *) override;
   inline uint32 max_disp_length() { return field->max_display_length(); }
@@ -3527,10 +3795,6 @@ class Item_field : public Item_ident {
   float get_cond_filter_default_probability(double max_distinct_values,
                                             float default_filter) const;
 
-  friend class Item_default_value;
-  friend class Item_insert_value;
-  friend class SELECT_LEX_UNIT;
-
   /**
      @note that field->table->alias_name_used is reliable only if
      thd->lex->need_correct_ident() is true.
@@ -3553,6 +3817,22 @@ class Item_field : public Item_ident {
   bool replace_field_processor(uchar *arg) override;
   bool strip_db_table_name_processor(uchar *) override;
 };
+
+// See if the provided item points to a reachable field (one that belongs to a
+// table within 'reachable_tables'). If not, go through the list of 'equal'
+// items in the item and see if we have a field that is reachable. If any such
+// field is found, create a new Item_field that points to this reachable field
+// and return it. If the provided item is already reachable, or if we cannot
+// find a reachable field, return the provided item unchanged. This is used when
+// creating a hash join iterator, where the join condition may point to a
+// non-reachable field due to multi-equality propagation during optimization.
+// (Ideally, the optimizer should not set up such condition in the first place.
+// This is difficult, if not impossible, to accomplish, given that the plan
+// created by the optimizer does not map 100% to the iterator executor.) Note
+// that if the field is not reachable, and we cannot find a reachable field, we
+// provided field is returned unchanged. The effect is that the hash join will
+// degrade into a nested loop.
+Item_field *FindEqualField(Item_field *item_field, table_map reachable_tables);
 
 class Item_null : public Item_basic_constant {
   typedef Item_basic_constant super;
@@ -3904,7 +4184,7 @@ class Item_int : public Item_num {
   }
 
   Item_int(const POS &pos, const LEX_STRING &num, int dummy_error = 0)
-      : Item_int(pos, num, my_strtoll10(num.str, NULL, &dummy_error),
+      : Item_int(pos, num, my_strtoll10(num.str, nullptr, &dummy_error),
                  static_cast<uint>(num.length)) {}
 
  private:
@@ -4410,7 +4690,7 @@ class Item_static_string_func : public Item_string {
 class Item_partition_func_safe_string : public Item_string {
  public:
   Item_partition_func_safe_string(const Name_string name, size_t length,
-                                  const CHARSET_INFO *cs = NULL)
+                                  const CHARSET_INFO *cs = nullptr)
       : Item_string(name, NullS, 0, cs) {
     max_length = static_cast<uint32>(length);
   }
@@ -4441,7 +4721,7 @@ class Item_blob final : public Item_partition_func_safe_string {
 class Item_empty_string : public Item_partition_func_safe_string {
  public:
   Item_empty_string(const char *header, size_t length,
-                    const CHARSET_INFO *cs = NULL)
+                    const CHARSET_INFO *cs = nullptr)
       : Item_partition_func_safe_string(Name_string(header, strlen(header)), 0,
                                         cs ? cs : &my_charset_utf8_general_ci) {
     max_length = static_cast<uint32>(length * collation.collation->mbmaxlen);
@@ -4556,7 +4836,6 @@ class Item_result_field : public Item {
   // Constructor used for Item_sum/Item_cond_and/or (see Item comment)
   Item_result_field(THD *thd, const Item_result_field *item)
       : Item(thd, item), result_field(item->result_field) {}
-  ~Item_result_field() override {} /* Required with gcc 2.95 */
   Field *get_tmp_table_field() override { return result_field; }
   Field *tmp_table_field(TABLE *) override { return result_field; }
   table_map used_tables() const override { return 1; }
@@ -4656,12 +4935,12 @@ class Item_ref : public Item_ident {
   Item_ref(Name_resolution_context *context_arg, const char *db_arg,
            const char *table_name_arg, const char *field_name_arg)
       : Item_ident(context_arg, db_arg, table_name_arg, field_name_arg),
-        ref(NULL),
+        ref(nullptr),
         chop_ref(!ref) {}
   Item_ref(const POS &pos, const char *db_arg, const char *table_name_arg,
            const char *field_name_arg)
       : Item_ident(pos, db_arg, table_name_arg, field_name_arg),
-        ref(NULL),
+        ref(nullptr),
         chop_ref(!ref) {}
 
   /*
@@ -4748,7 +5027,7 @@ class Item_ref : public Item_ident {
   bool walk(Item_processor processor, enum_walk walk, uchar *arg) override {
     return ((walk & enum_walk::PREFIX) && (this->*processor)(arg)) ||
            // For having clauses 'ref' will consistently =NULL.
-           (ref != NULL ? (*ref)->walk(processor, walk, arg) : false) ||
+           (ref != nullptr ? (*ref)->walk(processor, walk, arg) : false) ||
            ((walk & enum_walk::POSTFIX) && (this->*processor)(arg));
   }
   Item *transform(Item_transformer, uchar *arg) override;
@@ -4779,7 +5058,7 @@ class Item_ref : public Item_ident {
     return ref && result_type() == ROW_RESULT ? (*ref)->element_index(i) : this;
   }
   Item **addr(uint i) override {
-    return ref && result_type() == ROW_RESULT ? (*ref)->addr(i) : 0;
+    return ref && result_type() == ROW_RESULT ? (*ref)->addr(i) : nullptr;
   }
   bool check_cols(uint c) override {
     return ref && result_type() == ROW_RESULT ? (*ref)->check_cols(c)
@@ -4841,7 +5120,7 @@ class Item_view_ref final : public Item_ref {
                 const char *alias_name_arg, const char *table_name_arg,
                 const char *field_name_arg, TABLE_LIST *tl)
       : Item_ref(context_arg, item, alias_name_arg, field_name_arg),
-        first_inner_table(NULL) {
+        first_inner_table(nullptr) {
     orig_table_name = table_name_arg;
     cached_table = tl;
     if (cached_table->is_inner_table_of_outer_join()) {
@@ -4879,10 +5158,10 @@ class Item_view_ref final : public Item_ref {
           created using other views
 */
   table_map used_tables() const override {
-    if (depended_from != NULL) return OUTER_REF_TABLE_BIT;
+    if (depended_from != nullptr) return OUTER_REF_TABLE_BIT;
 
     table_map inner_map = (*ref)->used_tables();
-    return !(inner_map & ~INNER_TABLE_BIT) && first_inner_table != NULL
+    return !(inner_map & ~INNER_TABLE_BIT) && first_inner_table != nullptr
                ? (*ref)->real_item()->type() == FIELD_ITEM
                      ? down_cast<Item_field *>((*ref)->real_item())
                            ->table_ref->map()
@@ -4909,7 +5188,7 @@ class Item_view_ref final : public Item_ref {
     if (mark_field->mark != MARK_COLUMNS_NONE)
       // Set the same flag for all the objects that *ref depends on.
       (*ref)->walk(&Item::propagate_set_derived_used,
-                   enum_walk::SUBQUERY_POSTFIX, NULL);
+                   enum_walk::SUBQUERY_POSTFIX, nullptr);
     return get_result_field()
                ? Item::mark_field_in_map(mark_field, get_result_field())
                : false;
@@ -4922,6 +5201,9 @@ class Item_view_ref final : public Item_ref {
   bool val_json(Json_wrapper *wr) override;
   bool is_null() override;
   bool send(Protocol *prot, String *tmp) override;
+  bool change_context_processor(uchar *arg) override;
+  bool collect_item_field_or_view_ref_processor(uchar *arg) override;
+  Item *replace_item_view_ref(uchar *arg) override;
 
  protected:
   type_conversion_status save_in_field_inner(Field *field,
@@ -4949,8 +5231,6 @@ class Item_view_ref final : public Item_ref {
   See also comments of the Item_field::fix_outer_field() function.
 */
 
-class Item_sum;
-
 class Item_outer_ref final : public Item_ref {
   typedef Item_ref super;
 
@@ -4972,11 +5252,11 @@ class Item_outer_ref final : public Item_ref {
   bool found_in_select_list;
   Item_outer_ref(Name_resolution_context *context_arg, Item_ident *ident_arg,
                  SELECT_LEX *qualifying)
-      : Item_ref(context_arg, 0, ident_arg->table_name, ident_arg->field_name,
-                 false),
+      : Item_ref(context_arg, nullptr, ident_arg->table_name,
+                 ident_arg->field_name, false),
         qualifying(qualifying),
         outer_ref(ident_arg),
-        in_sum_func(0),
+        in_sum_func(nullptr),
         found_in_select_list(false) {
     ref = &outer_ref;
     set_properties();
@@ -4988,8 +5268,8 @@ class Item_outer_ref final : public Item_ref {
       : Item_ref(context_arg, item, table_name_arg, field_name_arg,
                  alias_of_expr_arg),
         qualifying(qualifying),
-        outer_ref(0),
-        in_sum_func(0),
+        outer_ref(nullptr),
+        in_sum_func(nullptr),
         found_in_select_list(true) {}
   bool fix_fields(THD *, Item **) override;
   void fix_after_pullout(SELECT_LEX *parent_select,
@@ -5369,7 +5649,7 @@ class Item_copy_decimal final : public Item_copy {
 
   String *val_str(String *) override;
   my_decimal *val_decimal(my_decimal *) override {
-    return null_value ? NULL : &cached_value;
+    return null_value ? nullptr : &cached_value;
   }
   double val_real() override;
   longlong val_int() override;
@@ -5474,8 +5754,8 @@ class Item_default_value final : public Item_field {
 
  public:
   Item *arg;
-  Item_default_value(const POS &pos, Item *a = NULL)
-      : super(pos, NULL, NULL, NULL), arg(a) {}
+  Item_default_value(const POS &pos, Item *a = nullptr)
+      : super(pos, nullptr, nullptr, nullptr), arg(a) {}
   bool itemize(Parse_context *pc, Item **res) override;
   enum Type type() const override { return DEFAULT_VALUE_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const override;
@@ -5518,14 +5798,28 @@ class Item_insert_value final : public Item_field {
 
  public:
   Item *arg;
+
+  /**
+    Constructs an Item_insert_value that represents a call to the deprecated
+    VALUES function.
+  */
   Item_insert_value(const POS &pos, Item *a)
-      : Item_field(pos, NULL, NULL, NULL), arg(a) {}
+      : Item_field(pos, nullptr, nullptr, nullptr),
+        arg(a),
+        m_is_values_function(true) {}
+
+  /**
+    Constructs an Item_insert_value that represents a derived table that wraps a
+    table value constructor.
+  */
   Item_insert_value(Name_resolution_context *context_arg, Item *a)
-      : Item_field(context_arg, nullptr, nullptr, nullptr), arg(a) {}
+      : Item_field(context_arg, nullptr, nullptr, nullptr),
+        arg(a),
+        m_is_values_function(false) {}
 
   bool itemize(Parse_context *pc, Item **res) override {
     if (skip_itemize(res)) return false;
-    return super::itemize(pc, res) || arg->itemize(pc, &arg);
+    return Item_field::itemize(pc, res) || arg->itemize(pc, &arg);
   }
 
   enum Type type() const override { return INSERT_VALUE_ITEM; }
@@ -5550,6 +5844,14 @@ class Item_insert_value final : public Item_field {
     func_arg->banned_function_name = "values";
     return true;
   }
+
+ private:
+  /**
+    This flag is true if the item represents a call to the deprecated VALUES
+    function. It is false if the item represents a derived table that wraps a
+    table value constructor.
+  */
+  const bool m_is_values_function;
 };
 
 /**
@@ -5583,24 +5885,24 @@ class Item_trigger_field final : public Item_field,
   Item_trigger_field(Name_resolution_context *context_arg,
                      enum_trigger_variable_type trigger_var_type_arg,
                      const char *field_name_arg, ulong priv, const bool ro)
-      : Item_field(context_arg, (const char *)NULL, (const char *)NULL,
+      : Item_field(context_arg, (const char *)nullptr, (const char *)nullptr,
                    field_name_arg),
         trigger_var_type(trigger_var_type_arg),
-        next_trig_field_list(NULL),
+        next_trig_field_list(nullptr),
         field_idx((uint)-1),
         original_privilege(priv),
         want_privilege(priv),
-        table_grants(NULL),
+        table_grants(nullptr),
         read_only(ro) {}
   Item_trigger_field(const POS &pos,
                      enum_trigger_variable_type trigger_var_type_arg,
                      const char *field_name_arg, ulong priv, const bool ro)
-      : Item_field(pos, NULL, NULL, field_name_arg),
+      : Item_field(pos, nullptr, nullptr, field_name_arg),
         trigger_var_type(trigger_var_type_arg),
         field_idx((uint)-1),
         original_privilege(priv),
         want_privilege(priv),
-        table_grants(NULL),
+        table_grants(nullptr),
         read_only(ro) {}
   void setup_field(Table_trigger_field_support *table_triggers,
                    GRANT_INFO *table_grant_info);
@@ -5610,7 +5912,7 @@ class Item_trigger_field final : public Item_field,
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
   table_map used_tables() const override { return 0; }
-  Field *get_tmp_table_field() override { return 0; }
+  Field *get_tmp_table_field() override { return nullptr; }
   Item *copy_or_same(THD *) override { return this; }
   Item *get_tmp_table_item(THD *thd) override { return copy_or_same(thd); }
   void cleanup() override;
@@ -5628,11 +5930,11 @@ class Item_trigger_field final : public Item_field,
 
  public:
   Settable_routine_parameter *get_settable_routine_parameter() override {
-    return (read_only ? 0 : this);
+    return (read_only ? nullptr : this);
   }
 
   bool set_value(THD *thd, Item **it) {
-    bool ret = set_value(thd, NULL, it);
+    bool ret = set_value(thd, nullptr, it);
     if (!ret)
       bitmap_set_bit(triggers->get_subject_table()->fields_set_during_insert,
                      field_idx);
@@ -5681,18 +5983,18 @@ class Item_cache : public Item_basic_constant {
 
  public:
   Item_cache()
-      : example(NULL),
+      : example(nullptr),
         used_table_map(0),
-        cached_field(NULL),
+        cached_field(nullptr),
         value_cached(false) {
     fixed = true;
     maybe_null = true;
     null_value = true;
   }
   Item_cache(enum_field_types field_type_arg)
-      : example(NULL),
+      : example(nullptr),
         used_table_map(0),
-        cached_field(NULL),
+        cached_field(nullptr),
         value_cached(false) {
     set_data_type(field_type_arg);
     fixed = true;
@@ -5704,7 +6006,7 @@ class Item_cache : public Item_basic_constant {
 
   void fix_after_pullout(SELECT_LEX *parent_select,
                          SELECT_LEX *removed_select) override {
-    if (example == NULL) return;
+    if (example == nullptr) return;
     example->fix_after_pullout(parent_select, removed_select);
     used_table_map = example->used_tables();
   }
@@ -5888,7 +6190,7 @@ class Item_cache_str final : public Item_cache {
  public:
   Item_cache_str(const Item *item)
       : Item_cache(item->data_type()),
-        value(0),
+        value(nullptr),
         is_varbinary(item->type() == FIELD_ITEM &&
                      data_type() == MYSQL_TYPE_VARCHAR &&
                      !((const Item_field *)item)->field->has_charset()) {
@@ -5917,7 +6219,7 @@ class Item_cache_row final : public Item_cache {
 
  public:
   Item_cache_row()
-      : Item_cache(), values(0), item_count(2), save_array(false) {}
+      : Item_cache(), values(nullptr), item_count(2), save_array(false) {}
 
   /**
     'allocate' is only used in Item_cache_row::setup()
@@ -5941,11 +6243,11 @@ class Item_cache_row final : public Item_cache {
   }
   String *val_str(String *) override {
     illegal_method_call("val_str");
-    return 0;
+    return nullptr;
   }
   my_decimal *val_decimal(my_decimal *) override {
     illegal_method_call("val_decimal");
-    return 0;
+    return nullptr;
   }
   bool get_date(MYSQL_TIME *, my_time_flags_t) override {
     illegal_method_call("get_date");
@@ -5971,7 +6273,7 @@ class Item_cache_row final : public Item_cache {
     if (save_array)
       memset(values, 0, item_count * sizeof(Item **));
     else
-      values = 0;
+      values = nullptr;
     return;
   }
   bool cache_value() override;

@@ -565,3 +565,5 @@ SHOW TABLES;
 eval set global innodb_file_per_table=$innodb_file_per_table_orig;
 -- enable_query_log
 
+--let $restart_parameters= restart:
+--source include/restart_mysqld_no_echo.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -131,8 +131,8 @@ static void pack_field(uchar **pack_ptr, Field *field, size_t rec_offset,
     }
     DBUG_PRINT("info", ("stored in full format"));
   }
-  *pack_ptr = field->pack(*pack_ptr, field->ptr + rec_offset,
-                          field->max_data_length(), true);
+  *pack_ptr = field->pack_with_metadata_bytes(
+      *pack_ptr, field->ptr + rec_offset, field->max_data_length());
 }
 
 /**
@@ -722,7 +722,7 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
       DBUG_ASSERT(pack_ptr != nullptr);
 
       if (null_bits.get()) {
-        if (f->maybe_null()) {
+        if (f->is_nullable()) {
           DBUG_PRINT("debug", ("Was NULL"));
           /**
             Calling reset just in case one is unpacking on top a

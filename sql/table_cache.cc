@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,7 @@ PSI_mutex_info Table_cache::m_mutex_keys[] = {
 
 bool Table_cache::init() {
   mysql_mutex_init(m_lock_key, &m_lock, MY_MUTEX_INIT_FAST);
-  m_unused_tables = NULL;
+  m_unused_tables = nullptr;
   m_table_count = 0;
   return false;
 }
@@ -160,7 +160,7 @@ void Table_cache::print_tables() {
     }
   }
 
-  if (m_unused_tables != NULL) {
+  if (m_unused_tables != nullptr) {
     TABLE *start_link = m_unused_tables;
     TABLE *lnk = m_unused_tables;
     do {

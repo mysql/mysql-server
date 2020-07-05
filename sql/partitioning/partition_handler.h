@@ -350,7 +350,7 @@ class Partition_handler {
 
     @return handler or NULL if not supported.
   */
-  virtual handler *get_handler() { return NULL; }
+  virtual handler *get_handler() { return nullptr; }
 };
 
 /// Maps compare function to strict weak ordering required by Priority_queue.
@@ -416,7 +416,7 @@ class Partition_helper {
   */
   bool init_partitioning(MEM_ROOT *mem_root MY_ATTRIBUTE((unused))) {
 #ifndef DBUG_OFF
-    m_key_not_found_partitions.bitmap = NULL;
+    m_key_not_found_partitions.bitmap = nullptr;
 #endif
     return false;
   }

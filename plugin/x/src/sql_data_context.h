@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -52,7 +52,9 @@ class Account_verification_handler;
 class Sql_data_context : public iface::Sql_session {
  public:
   Sql_data_context()
-      : m_mysql_session(NULL), m_last_sql_errno(0), m_password_expired(false) {}
+      : m_mysql_session(nullptr),
+        m_last_sql_errno(0),
+        m_password_expired(false) {}
 
   ~Sql_data_context() override;
 
@@ -99,8 +101,9 @@ class Sql_data_context : public iface::Sql_session {
   ngs::Error_code reset() override;
   bool is_sql_mode_set(const std::string &mode) override;
 
-  ngs::Error_code init();
-  ngs::Error_code init(const int client_port, const Connection_type type);
+  ngs::Error_code init(const bool is_admin = false);
+  ngs::Error_code init(const int client_port, const Connection_type type,
+                       const bool is_admin = false);
   void deinit();
 
   MYSQL_THD get_thd() const;
@@ -108,7 +111,7 @@ class Sql_data_context : public iface::Sql_session {
   bool kill();
   bool is_acl_disabled();
   void switch_to_local_user(const std::string &username);
-  bool wait_api_ready(std::function<bool()> exiting);
+  static bool wait_api_ready(std::function<bool()> exiting);
 
  private:
   Sql_data_context(const Sql_data_context &) = delete;
@@ -116,7 +119,7 @@ class Sql_data_context : public iface::Sql_session {
 
   MYSQL_SESSION mysql_session() const { return m_mysql_session; }
 
-  bool is_api_ready() const;
+  static bool is_api_ready();
   // Get data which are parts of the string printed by
   // USER() function
   std::string get_user_name() const;

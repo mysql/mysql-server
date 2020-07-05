@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -366,7 +366,9 @@ struct Tablespace {
   @return true if it should be truncated, false if not. */
   bool needs_truncation() {
     /* If it is already inactive, even implicitly, then proceed. */
+    m_rsegs->s_lock();
     if (m_rsegs->is_inactive_implicit() || m_rsegs->is_inactive_explicit()) {
+      m_rsegs->s_unlock();
       return (true);
     }
 
@@ -374,10 +376,12 @@ struct Tablespace {
     yet, don't bother checking the size. */
     if (!srv_undo_log_truncate || m_rsegs == nullptr || m_rsegs->is_empty() ||
         m_rsegs->is_init()) {
+      m_rsegs->s_unlock();
       return (false);
     }
 
     ut_ad(m_rsegs->is_active());
+    m_rsegs->s_unlock();
 
     page_no_t trunc_size = ut_max(
         static_cast<page_no_t>(srv_max_undo_tablespace_size / srv_page_size),
@@ -920,6 +924,13 @@ class Truncate {
   /** Set local rseg purge truncate frequency */
   void set_rseg_truncate_frequency(ulint frequency) {
     m_purge_rseg_truncate_frequency = frequency;
+  }
+
+  /** Check if the given space id is equal to the space ID that is marked for
+  truncation.
+  @return true if they are equal, false otherwise. */
+  bool is_equal(space_id_t space_id) const {
+    return (m_space_id_marked == space_id);
   }
 
  private:

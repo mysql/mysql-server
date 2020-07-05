@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -50,7 +50,7 @@ bufferfixed and latched */
 UNIV_INLINE
 byte *fut_get_ptr(space_id_t space, const page_size_t &page_size,
                   fil_addr_t addr, rw_lock_type_t rw_latch, mtr_t *mtr,
-                  buf_block_t **ptr_block = NULL)
+                  buf_block_t **ptr_block = nullptr)
     MY_ATTRIBUTE((warn_unused_result));
 
 #ifndef UNIV_HOTBACKUP

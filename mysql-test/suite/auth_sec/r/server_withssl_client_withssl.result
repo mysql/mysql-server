@@ -123,3 +123,4 @@ Tanjotuser1@localhost
 2 for GLOBAL Expected
 2 for SESSION Expected
 DROP USER 'Tanjotuser1'@'localhost';
+# restart:

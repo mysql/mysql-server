@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -67,7 +67,5 @@ void *os_mem_alloc_large(ulint *n);
 @param[in]	ptr	pointer returned by os_mem_alloc_large()
 @param[in]	size	size returned by os_mem_alloc_large() */
 void os_mem_free_large(void *ptr, ulint size);
-
-#include "os0proc.ic"
 
 #endif

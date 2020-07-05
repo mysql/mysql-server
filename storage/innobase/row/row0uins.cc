@@ -109,10 +109,10 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
   if (online && dict_index_is_online_ddl(index)) {
     const rec_t *rec = btr_cur_get_rec(btr_cur);
-    mem_heap_t *heap = NULL;
+    mem_heap_t *heap = nullptr;
     const ulint *offsets =
-        rec_get_offsets(rec, index, NULL, ULINT_UNDEFINED, &heap);
-    row_log_table_delete(node->trx, rec, node->row, index, offsets, NULL);
+        rec_get_offsets(rec, index, nullptr, ULINT_UNDEFINED, &heap);
+    row_log_table_delete(node->trx, rec, node->row, index, offsets, nullptr);
     mem_heap_free(heap);
   }
 
@@ -322,23 +322,23 @@ static void row_undo_ins_parse_undo_rec(undo_node_t *node, THD *thd,
   ut_ad(type == TRX_UNDO_INSERT_REC);
   node->rec_type = type;
 
-  node->update = NULL;
+  node->update = nullptr;
 
   node->table = dd_table_open_on_id(table_id, thd, mdl, false, true);
 
   /* Skip the UNDO if we can't find the table or the .ibd file. */
-  if (node->table == NULL) {
+  if (node->table == nullptr) {
   } else if (node->table->ibd_file_missing) {
   close_table:
     dd_table_close(node->table, thd, mdl, false);
 
-    node->table = NULL;
+    node->table = nullptr;
   } else {
     ut_ad(!node->table->skip_alter_undo);
 
     clust_index = node->table->first_index();
 
-    if (clust_index != NULL) {
+    if (clust_index != nullptr) {
       ptr = trx_undo_rec_get_row_ref(ptr, clust_index, &node->ref, node->heap);
 
       if (!row_undo_search_clust_to_pcur(node)) {
@@ -398,7 +398,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
   heap = mem_heap_create(1024);
 
-  while (index != NULL) {
+  while (index != nullptr) {
     dtuple_t *entry;
 
     if (index->type & DICT_FTS) {
@@ -472,7 +472,7 @@ dberr_t row_undo_ins(undo_node_t *node, /*!< in: row undo node */
   row_undo_ins_parse_undo_rec(node, thd,
                               dd_mdl_for_undo(node->trx) ? &mdl : nullptr);
 
-  if (node->table == NULL) {
+  if (node->table == nullptr) {
     return (DB_SUCCESS);
   }
 
@@ -497,7 +497,7 @@ dberr_t row_undo_ins(undo_node_t *node, /*!< in: row undo node */
 
   dd_table_close(node->table, thd, &mdl, false);
 
-  node->table = NULL;
+  node->table = nullptr;
 
   return (err);
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -183,7 +183,8 @@ extern PSI_rwlock_key key_GR_RWLOCK_cert_stable_gtid_set,
     key_GR_RWLOCK_plugin_stop,
     key_GR_RWLOCK_transaction_observation_list,
     key_GR_RWLOCK_transaction_consistency_manager_map,
-    key_GR_RWLOCK_transaction_consistency_manager_prepared_transactions_on_my_applier;
+    key_GR_RWLOCK_transaction_consistency_manager_prepared_transactions_on_my_applier,
+    key_GR_RWLOCK_flow_control_module_info;
 
 extern PSI_stage_info info_GR_STAGE_autorejoin,
     info_GR_STAGE_multi_primary_mode_switch_pending_transactions,

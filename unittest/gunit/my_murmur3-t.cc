@@ -46,7 +46,7 @@ TEST(Murmur3, Basic) {
 /* Test for empty key. */
 
 TEST(Murmur3, Empty) {
-  uint hash = murmur3_32(NULL, 0, 0);
+  uint hash = murmur3_32(nullptr, 0, 0);
   EXPECT_EQ(0U, hash);
 }
 

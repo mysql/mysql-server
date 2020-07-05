@@ -1,7 +1,7 @@
 SET GLOBAL innodb_lock_wait_timeout=600;
 DESCRIBE INFORMATION_SCHEMA.INNODB_TRX;
 Field	Type	Null	Key	Default	Extra
-trx_id	varchar(18)	NO			
+trx_id	bigint unsigned	NO			
 trx_state	varchar(13)	NO			
 trx_started	datetime	NO			
 trx_requested_lock_id	varchar(105)	YES			
@@ -25,6 +25,7 @@ trx_adaptive_hash_latched	int	NO
 trx_adaptive_hash_timeout	bigint unsigned	NO			
 trx_is_read_only	int	NO			
 trx_autocommit_non_locking	int	NO			
+trx_schedule_weight	bigint unsigned	YES			
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (
 c01 INT,
@@ -76,6 +77,46 @@ SELECT trx_state, trx_isolation_level, trx_last_foreign_key_error
 FROM INFORMATION_SCHEMA.INNODB_TRX;
 trx_state	trx_isolation_level	trx_last_foreign_key_error
 RUNNING	REPEATABLE READ	`test`.`t2`, CONSTRAINT `fk1` FOREIGN KEY (`c02`) REFERENCES `t1` (`c01`)
+CREATE TABLE t0 (
+id INT PRIMARY KEY,
+trx_mysql_thread_id BIGINT
+) ENGINE=InnoDB;
+INSERT INTO t0 VALUES (1, CONNECTION_ID());
+BEGIN;
+SELECT * FROM t1 FOR SHARE;
+c01	c02
+1	2
+2	4
+3	6
+4	8
+INSERT INTO t0 VALUES (2, CONNECTION_ID());
+BEGIN;
+SELECT * FROM t1 FOR UPDATE;
+INSERT INTO t0 VALUES (3, CONNECTION_ID());
+BEGIN;
+SELECT * FROM t1 FOR SHARE;
+SELECT t0.id, trx_schedule_weight
+FROM INFORMATION_SCHEMA.INNODB_TRX
+JOIN t0 USING(trx_mysql_thread_id)
+ORDER BY t0.id;
+id	trx_schedule_weight
+1	NULL
+2	2
+3	1
+ROLLBACK;
+c01	c02
+1	2
+2	4
+3	6
+4	8
+ROLLBACK;
+c01	c02
+1	2
+2	4
+3	6
+4	8
+ROLLBACK;
 DROP TABLE t2;
 DROP TABLE t1;
+DROP TABLE t0;
 SET GLOBAL innodb_lock_wait_timeout=default;

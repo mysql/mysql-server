@@ -1,7 +1,7 @@
 #ifndef THR_COND_INCLUDED
 #define THR_COND_INCLUDED
 
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -76,7 +76,7 @@ static inline int native_cond_init(native_cond_t *cond) {
   return 0;
 #else
   /* pthread_condattr_t is not used in MySQL */
-  return pthread_cond_init(cond, NULL);
+  return pthread_cond_init(cond, nullptr);
 #endif
 }
 

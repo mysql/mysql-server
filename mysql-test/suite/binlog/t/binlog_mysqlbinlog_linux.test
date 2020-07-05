@@ -6,6 +6,9 @@
 # no need to run the tests in this file more than one combination
 --source include/have_binlog_format_row.inc
 
+# this test checks compression, so needs binlog not compressed
+--source include/not_binlog_transaction_compression_on.inc
+
 #
 # WL#2726
 #

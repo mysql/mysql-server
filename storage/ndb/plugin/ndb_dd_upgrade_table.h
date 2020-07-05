@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 #include "sql/dd/string_type.h"
 
 class THD;
+class Ndb_dd_client;
 
 namespace dd {
 namespace ndb_upgrade {
@@ -34,26 +35,20 @@ namespace ndb_upgrade {
   Migrate table to Data Dictionary.
 
   @param[in]  thd                        Thread handle.
+  @param[in]  dd_client                  Pointer to Ndb_dd_client object.
   @param[in]  schema_name                Name of the database.
   @param[in]  table_name                 Name of the table.
   @param[in]  frm_data                   Unpacked frm data.
   @param[in]  unpacked_len               Unpacked length of frm data.
-  @param[in]  is_fix_view_cols_and_deps  Fix view col data, table and
-                                         routines dependency.
-  @param[in]  compare_definitions        Controls whether a check is done to see
-                                         if the DD table definition created
-                                         matches the NDB Dictionary table
-                                         definition
 
   @retval true   ON SUCCESS
   @retval false  ON FAILURE
 */
-bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
+bool migrate_table_to_dd(THD *thd, Ndb_dd_client *dd_client,
+                         const String_type &schema_name,
                          const String_type &table_name,
                          const unsigned char *frm_data,
-                         const unsigned int unpacked_len,
-                         bool is_fix_view_cols_and_deps,
-                         bool compare_definitions);
+                         const unsigned int unpacked_len);
 
 }  // namespace ndb_upgrade
 }  // namespace dd

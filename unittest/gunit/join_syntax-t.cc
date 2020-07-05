@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,7 @@ void check_name_resolution_tables(std::initializer_list<const char *> aliases,
                                   SQL_I_List<TABLE_LIST> tables) {
   TABLE_LIST *table_list = tables.first;
   for (auto alias : aliases) {
-    ASSERT_FALSE(table_list == NULL);
+    ASSERT_FALSE(table_list == nullptr);
     EXPECT_STREQ(alias, table_list->alias)
         << "Wrong table alias " << table_list->alias << ", expected " << alias
         << ".";

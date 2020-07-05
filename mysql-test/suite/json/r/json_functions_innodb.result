@@ -7089,9 +7089,9 @@ insert into t_ooa values
 ( 1, '{ "a": "foot", "b": "fool", "c": "food" }', null );
 select id, doc, one_or_all, json_search( doc, one_or_all, 'foo%' ) from t_ooa order by id;
 id	doc	one_or_all	json_search( doc, one_or_all, 'foo%' )
-1	{"a": "foot", "b": "fool", "c": "food"}	one	"$.a"
-1	{"a": "foot", "b": "fool", "c": "food"}	all	["$.a", "$.b", "$.c"]
 1	{"a": "foot", "b": "fool", "c": "food"}	NULL	NULL
+1	{"a": "foot", "b": "fool", "c": "food"}	all	["$.a", "$.b", "$.c"]
+1	{"a": "foot", "b": "fool", "c": "food"}	one	"$.a"
 select id, doc, json_search( doc, 'one', 'foo%' ) from t_ooa order by id;
 id	doc	json_search( doc, 'one', 'foo%' )
 1	{"a": "foot", "b": "fool", "c": "food"}	"$.a"
@@ -8318,7 +8318,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`j` AS `j`,`test`.`t1`.`i` AS `i` fr
 EXPLAIN SELECT * FROM t1 AS a, t1 AS b WHERE a.j > b.i ORDER BY b.i, a.i;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	a	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
-1	SIMPLE	b	NULL	ALL	NULL	NULL	NULL	NULL	6	33.33	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	b	NULL	ALL	NULL	NULL	NULL	NULL	6	33.33	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`a`.`j` AS `j`,`test`.`a`.`i` AS `i`,`test`.`b`.`j` AS `j`,`test`.`b`.`i` AS `i` from `test`.`t1` `a` join `test`.`t1` `b` where (`test`.`a`.`j` > `test`.`b`.`i`) order by `test`.`b`.`i`,`test`.`a`.`i`
 SELECT * FROM t1 WHERE j > i ORDER BY i;
@@ -8361,7 +8361,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`j` AS `j`,`test`.`t1`.`i` AS `i` fr
 EXPLAIN SELECT * FROM t1 AS a, t1 AS b WHERE a.j > b.i ORDER BY b.i, a.i;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	a	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
-1	SIMPLE	b	NULL	ALL	t1_idx	NULL	NULL	NULL	6	33.33	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	b	NULL	ALL	t1_idx	NULL	NULL	NULL	6	33.33	Using where; Using join buffer (hash join)
 Warnings:
 Warning	1739	Cannot use range access on index 't1_idx' due to type or collation conversion on field 'i'
 Note	1003	/* select#1 */ select `test`.`a`.`j` AS `j`,`test`.`a`.`i` AS `i`,`test`.`b`.`j` AS `j`,`test`.`b`.`i` AS `i` from `test`.`t1` `a` join `test`.`t1` `b` where (`test`.`a`.`j` > `test`.`b`.`i`) order by `test`.`b`.`i`,`test`.`a`.`i`
@@ -8538,16 +8538,22 @@ DROP TABLE t;
 CREATE TABLE t(id INT PRIMARY KEY, j JSON);
 INSERT INTO t VALUES (1, '[1]')
 ON DUPLICATE KEY UPDATE j = JSON_OBJECT("a", VALUES(j));
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
 SELECT * FROM t;
 id	j
 1	[1]
 INSERT INTO t VALUES (1, '[1,2]')
 ON DUPLICATE KEY UPDATE j = JSON_OBJECT("ab", VALUES(j));
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
 SELECT * FROM t;
 id	j
 1	{"ab": [1, 2]}
 INSERT INTO t VALUES (1, '[1,2,3]')
 ON DUPLICATE KEY UPDATE j = JSON_OBJECT("abc", VALUES(j));
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
 SELECT * FROM t;
 id	j
 1	{"abc": [1, 2, 3]}
@@ -11122,3 +11128,12 @@ SELECT (5, 1) IN ((1, CAST(5 AS JSON)),(5, CAST(1 AS JSON)));
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON within a ROW in the IN operator'
 DROP TABLE t1;
+#
+# Bug#30753642: ASSERTION `FALSE' FAILED. IN ITEM_JSON::VAL_STR
+#
+CREATE TABLE t(a DATETIME);
+INSERT INTO t VALUES ('2019-01-13 00:00:00');
+SELECT 1 IN (SELECT 1 FROM t WHERE JSON_OBJECT('a', 'b') = a);
+1 IN (SELECT 1 FROM t WHERE JSON_OBJECT('a', 'b') = a)
+0
+DROP TABLE t;

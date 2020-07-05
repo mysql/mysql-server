@@ -78,6 +78,6 @@ int heap_scan(HP_INFO *info, uchar *record) {
   }
   info->update = HA_STATE_PREV_FOUND | HA_STATE_NEXT_FOUND | HA_STATE_AKTIV;
   memcpy(record, info->current_ptr, (size_t)share->reclength);
-  info->current_hash_ptr = 0; /* Can't use read_next */
+  info->current_hash_ptr = nullptr; /* Can't use read_next */
   return 0;
 } /* heap_scan */

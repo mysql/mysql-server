@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -102,10 +102,6 @@ bool Sql_check_constraint_spec::expr_refers_column(const char *column_name) {
       return true;
   }
   return false;
-}
-
-Sql_table_check_constraint::~Sql_table_check_constraint() {
-  if (m_val_gen != nullptr) delete m_val_gen;
 }
 
 bool is_slave_with_master_without_check_constraints_support(THD *thd) {

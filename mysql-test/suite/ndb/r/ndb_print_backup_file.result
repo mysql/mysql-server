@@ -132,6 +132,102 @@ ndb_print_backup_file suite/ndb/backups/bug54613/BACKUP-2.2.ctl
 33362 bytes in output
 ndb_print_backup_file suite/ndb/backups/hashmap/BACKUP-1.2.ctl
 6425 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-1-OF-4/BACKUP-1-0.1.Data
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-1-OF-4/BACKUP-1-0.2.Data
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-1-OF-4/BACKUP-1.1.ctl
+72905 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-1-OF-4/BACKUP-1.1.log
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-1-OF-4/BACKUP-1.2.ctl
+72905 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-1-OF-4/BACKUP-1.2.log
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-2-OF-4/BACKUP-1-0.1.Data
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-2-OF-4/BACKUP-1-0.2.Data
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-2-OF-4/BACKUP-1.1.ctl
+72905 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-2-OF-4/BACKUP-1.1.log
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-2-OF-4/BACKUP-1.2.ctl
+72905 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-2-OF-4/BACKUP-1.2.log
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-3-OF-4/BACKUP-1-0.1.Data
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-3-OF-4/BACKUP-1-0.2.Data
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-3-OF-4/BACKUP-1.1.ctl
+72905 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-3-OF-4/BACKUP-1.1.log
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-3-OF-4/BACKUP-1.2.ctl
+72905 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-3-OF-4/BACKUP-1.2.log
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-4-OF-4/BACKUP-1-0.1.Data
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-4-OF-4/BACKUP-1-0.2.Data
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-4-OF-4/BACKUP-1.1.ctl
+72905 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-4-OF-4/BACKUP-1.1.log
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-4-OF-4/BACKUP-1.2.ctl
+72905 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor/BACKUP-1-PART-4-OF-4/BACKUP-1.2.log
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-1-OF-4/BACKUP-1-0.1.Data
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-1-OF-4/BACKUP-1-0.2.Data
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-1-OF-4/BACKUP-1.1.ctl
+62930 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-1-OF-4/BACKUP-1.1.log
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-1-OF-4/BACKUP-1.2.ctl
+62930 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-1-OF-4/BACKUP-1.2.log
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-2-OF-4/BACKUP-1-0.1.Data
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-2-OF-4/BACKUP-1-0.2.Data
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-2-OF-4/BACKUP-1.1.ctl
+62930 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-2-OF-4/BACKUP-1.1.log
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-2-OF-4/BACKUP-1.2.ctl
+62930 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-2-OF-4/BACKUP-1.2.log
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-3-OF-4/BACKUP-1-0.1.Data
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-3-OF-4/BACKUP-1-0.2.Data
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-3-OF-4/BACKUP-1.1.ctl
+62930 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-3-OF-4/BACKUP-1.1.log
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-3-OF-4/BACKUP-1.2.ctl
+62930 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-3-OF-4/BACKUP-1.2.log
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-4-OF-4/BACKUP-1-0.1.Data
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-4-OF-4/BACKUP-1-0.2.Data
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-4-OF-4/BACKUP-1.1.ctl
+62930 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-4-OF-4/BACKUP-1.1.log
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-4-OF-4/BACKUP-1.2.ctl
+62930 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_80_minor_fk/BACKUP-1-PART-4-OF-4/BACKUP-1.2.log
+173 bytes in output
 ndb_print_backup_file suite/ndb/backups/metadata_upgrade_advanced_backup/BACKUP-1-0.1.Data
 173 bytes in output
 ndb_print_backup_file suite/ndb/backups/metadata_upgrade_advanced_backup/BACKUP-1-0.2.Data

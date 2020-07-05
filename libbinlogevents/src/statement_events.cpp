@@ -36,11 +36,11 @@ namespace binary_log {
 */
 Query_event::Query_event(Log_event_type type_arg)
     : Binary_log_event(type_arg),
-      query(0),
-      db(0),
-      user(0),
+      query(nullptr),
+      db(nullptr),
+      user(nullptr),
       user_len(0),
-      host(0),
+      host(nullptr),
       host_len(0),
       db_len(0),
       q_len(0) {}
@@ -59,9 +59,9 @@ Query_event::Query_event(
       query(query_arg),
       db(db_arg),
       catalog(catalog_arg),
-      user(0),
+      user(nullptr),
       user_len(0),
-      host(0),
+      host(nullptr),
       host_len(0),
       thread_id(thread_id_arg),
       db_len(0),
@@ -109,13 +109,13 @@ static void copy_str_and_move(Log_event_header::Byte **dst, const char **src,
 Query_event::Query_event(const char *buf, const Format_description_event *fde,
                          Log_event_type event_type)
     : Binary_log_event(&buf, fde),
-      query(0),
-      db(0),
-      catalog(0),
-      time_zone_str(0),
-      user(0),
+      query(nullptr),
+      db(nullptr),
+      catalog(nullptr),
+      time_zone_str(nullptr),
+      user(nullptr),
       user_len(0),
-      host(0),
+      host(nullptr),
       host_len(0),
       db_len(0),
       status_vars_len(0),
@@ -421,7 +421,7 @@ User_var_event::User_var_event(const char *buf,
      */
     charset_number = 63;
     val_len = 0;
-    val = 0;
+    val = nullptr;
   } else {
     uint8_t type_tmp;
     READER_TRY_SET(type_tmp, read<uint8_t>);

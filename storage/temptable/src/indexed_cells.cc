@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -183,7 +183,7 @@ Cell Indexed_cells::cell_from_mysql_buf_index_read(size_t i,
   DBUG_ASSERT(p - m_mysql_buf < m_length);
 
   bool is_null;
-  if (mysql_field->real_maybe_null()) {
+  if (mysql_field->is_nullable()) {
     is_null = p[0] != '\0';
   } else {
     is_null = false;
@@ -197,22 +197,22 @@ Cell Indexed_cells::cell_from_mysql_buf_index_read(size_t i,
   switch (user_data_offset_in_cell) {
     case 0:
       /* No is-NULL-byte (defined as NOT NULL), no length bytes. */
-      DBUG_ASSERT(!mysql_field->real_maybe_null());
+      DBUG_ASSERT(!mysql_field->is_nullable());
       data_length = mysql_key_part->length;
       break;
     case 1:
       /* is-NULL-byte (can be NULL), no length bytes. */
-      DBUG_ASSERT(mysql_field->real_maybe_null());
+      DBUG_ASSERT(mysql_field->is_nullable());
       data_length = mysql_key_part->length;
       break;
     case 2:
       /* No is-NULL-byte (defined as NOT NULL), 2 bytes for length. */
-      DBUG_ASSERT(!mysql_field->real_maybe_null());
+      DBUG_ASSERT(!mysql_field->is_nullable());
       data_length = p[0] | (static_cast<uint16_t>(p[1]) << 8);
       break;
     case 3:
       /* is-NULL-byte (can be NULL), 2 bytes for length. */
-      DBUG_ASSERT(mysql_field->real_maybe_null());
+      DBUG_ASSERT(mysql_field->is_nullable());
       data_length = p[1] | (static_cast<uint16_t>(p[2]) << 8);
       break;
     default:

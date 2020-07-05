@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -168,6 +168,9 @@ static void start(mysql_harness::PluginFuncEnv *env) {
     }
 
     std::chrono::milliseconds ttl{config.ttl};
+    std::chrono::milliseconds auth_cache_ttl{config.auth_cache_ttl};
+    std::chrono::milliseconds auth_cache_refresh_interval{
+        config.auth_cache_refresh_interval};
     std::string metadata_cluster{config.metadata_cluster};
 
     // Initialize the defaults.
@@ -196,12 +199,13 @@ static void start(mysql_harness::PluginFuncEnv *env) {
 
     const std::string replicaset_id = config.get_cluster_type_specific_id();
 
-    md_cache->cache_init(
-        config.cluster_type, config.router_id, replicaset_id,
-        config.metadata_servers_addresses, {config.user, password}, ttl,
-        make_ssl_options(section), metadata_cluster, config.connect_timeout,
-        config.read_timeout, config.thread_stack_size,
-        config.use_gr_notifications, config.get_view_id());
+    md_cache->cache_init(config.cluster_type, config.router_id, replicaset_id,
+                         config.metadata_servers_addresses,
+                         {config.user, password}, ttl, auth_cache_ttl,
+                         auth_cache_refresh_interval, make_ssl_options(section),
+                         metadata_cluster, config.connect_timeout,
+                         config.read_timeout, config.thread_stack_size,
+                         config.use_gr_notifications, config.get_view_id());
 
     // register callback
     md_cache_dynamic_state = std::move(config.metadata_cache_dynamic_state);
@@ -242,12 +246,12 @@ mysql_harness::Plugin METADATA_API harness_plugin_metadata_cache = {
     "Metadata Cache, managing information fetched from the Metadata Server",
     VERSION_NUMBER(0, 0, 1),
     0,
-    NULL,  // Requires
+    nullptr,  // Requires
     0,
-    NULL,  // Conflicts
+    nullptr,  // Conflicts
     init,
-    NULL,
-    start,  // start
-    NULL    // stop
+    nullptr,
+    start,   // start
+    nullptr  // stop
 };
 }

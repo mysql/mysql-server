@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -159,7 +159,7 @@ static inline void inline_mysql_end_stage() { PSI_STAGE_CALL(end_stage)(); }
 #ifdef HAVE_PSI_STAGE_INTERFACE
 static inline void inline_mysql_stage_set_work_completed(
     PSI_stage_progress *progress, ulonglong val) {
-  if (progress != NULL) {
+  if (progress != nullptr) {
     progress->m_work_completed = val;
   }
 }
@@ -173,7 +173,7 @@ static inline ulonglong inline_mysql_stage_get_work_completed(
 #ifdef HAVE_PSI_STAGE_INTERFACE
 static inline void inline_mysql_stage_inc_work_completed(
     PSI_stage_progress *progress, ulonglong val) {
-  if (progress != NULL) {
+  if (progress != nullptr) {
     progress->m_work_completed += val;
   }
 }
@@ -182,7 +182,7 @@ static inline void inline_mysql_stage_inc_work_completed(
 #ifdef HAVE_PSI_STAGE_INTERFACE
 static inline void inline_mysql_stage_set_work_estimated(
     PSI_stage_progress *progress, ulonglong val) {
-  if (progress != NULL) {
+  if (progress != nullptr) {
     progress->m_work_estimated = val;
   }
 }

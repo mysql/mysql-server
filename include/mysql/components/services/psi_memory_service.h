@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,5 @@ memory_claim_v1_t memory_claim;
 /** @sa memory_free_v1_t. */
 memory_free_v1_t memory_free;
 END_SERVICE_DEFINITION(psi_memory_v1)
-
-#define REQUIRES_PSI_MEMORY_SERVICE REQUIRES_SERVICE(psi_memory_v1)
 
 #endif /* COMPONENTS_SERVICES_PSI_MEMORY_SERVICE_H */

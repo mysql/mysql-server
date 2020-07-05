@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -135,7 +135,7 @@ static std::string test_part_result_type_tostring(TestPartResult::Type type) {
 static std::string format_file_location(
     const TestPartResult &test_part_result) {
   const char *const file = test_part_result.file_name();
-  const char *const file_name = file == NULL ? "unknown file" : file;
+  const char *const file_name = file == nullptr ? "unknown file" : file;
   const int line = test_part_result.line_number();
   std::stringstream str_stream;
   str_stream << file_name << ":";

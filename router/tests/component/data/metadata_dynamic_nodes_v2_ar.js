@@ -43,8 +43,9 @@ if(mysqld.global.error_on_md_query === undefined){
     mysqld.global.error_on_md_query = 0;
 }
 
-if(mysqld.global.empty_result_from_cluster_type_query === undefined){
-    mysqld.global.empty_result_from_cluster_type_query = 0;
+
+if(mysqld.global.cluster_type === undefined){
+    mysqld.global.cluster_type = "ar";
 }
 
 var nodes = function(host, port_and_state) {
@@ -63,7 +64,7 @@ var nodes = function(host, port_and_state) {
       cluster_id: mysqld.global.gr_id,
       view_id: mysqld.global.view_id,
       primary_port: group_replication_membership_online[mysqld.global.primary_id][2],
-      cluster_type: "ar",
+      cluster_type: mysqld.global.cluster_type,
       innodb_cluster_name: "test",
     };
 
@@ -73,10 +74,17 @@ var nodes = function(host, port_and_state) {
     var select_port =
         common_stmts.get("select_port", options);
 
+    var router_set_session_options =
+        common_stmts.get("router_set_session_options", options);
+
+    var router_set_gr_consistency_level =
+        common_stmts.get("router_set_gr_consistency_level", options);
+
     // prepare the responses for common statements
     var common_responses = common_stmts.prepare_statement_responses([
       "router_commit",
       "router_rollback",
+      "router_select_cluster_type_v2",
       "router_select_schema_version",
       "router_select_view_id_v2_ar",
       "router_update_last_check_in_v2",
@@ -98,6 +106,12 @@ var nodes = function(host, port_and_state) {
     if (stmt === select_port.stmt) {
       return select_port;
     }
+    if (stmt === router_set_session_options.stmt) {
+      return router_set_session_options;
+    }
+    if (stmt === router_set_gr_consistency_level.stmt) {
+      return router_set_gr_consistency_level;
+    }
     else if (stmt === router_start_transaction.stmt) {
       mysqld.global.transaction_count++;
       return router_start_transaction;
@@ -111,20 +125,6 @@ var nodes = function(host, port_and_state) {
           message: "Syntax Error at: " + stmt
         }
       }
-    }
-    else if (stmt === router_select_cluster_type.stmt) {
-      if (mysqld.global.empty_result_from_cluster_type_query === 1)
-        return { "result": {
-                  "columns": [
-                    {
-                      "type": "STRING",
-                      "name": "cluster_type"
-                    }
-                   ],
-                   "rows": []
-                }}
-      else
-        return router_select_cluster_type;
     }
     else if (common_responses.hasOwnProperty(stmt)) {
       return common_responses[stmt];

@@ -1,7 +1,7 @@
 #ifndef GEOFUNC_INTERNAL_INCLUDED
 #define GEOFUNC_INTERNAL_INCLUDED
 
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -123,7 +123,7 @@ void make_rtree_bggeom(const MultiGeometry &mg, Rtree_index *rtree);
 
 inline Gis_geometry_collection *empty_collection(String *str,
                                                  gis::srid_t srid) {
-  return new Gis_geometry_collection(srid, Geometry::wkb_invalid_type, NULL,
+  return new Gis_geometry_collection(srid, Geometry::wkb_invalid_type, nullptr,
                                      str);
 }
 
@@ -189,7 +189,7 @@ class Var_resetter {
   Var_resetter &operator=(const Var_resetter &);
 
  public:
-  Var_resetter() : valref(NULL) {}
+  Var_resetter() : valref(nullptr) {}
 
   Var_resetter(Valtype *v, const Valtype &oval) : valref(v), oldval(oval) {}
 

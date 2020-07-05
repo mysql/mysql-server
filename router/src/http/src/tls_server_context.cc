@@ -144,7 +144,8 @@ void TlsServerContext::init_tmp_dh(const std::string &dh_params) {
       throw std::runtime_error("failed to open dh-param file '" + dh_params +
                                "'");
     }
-    dh2048.reset(PEM_read_bio_DHparams(pem_bio.get(), NULL, NULL, NULL));
+    dh2048.reset(
+        PEM_read_bio_DHparams(pem_bio.get(), nullptr, nullptr, nullptr));
     if (!dh2048) {
       throw TlsError("failed to parse dh-param file");
     }
@@ -216,7 +217,7 @@ void TlsServerContext::verify(TlsVerify verify, std::bitset<2> tls_opts) {
   if (tls_opts.test(TlsVerifyOpts::kFailIfNoPeerCert)) {
     mode |= SSL_VERIFY_FAIL_IF_NO_PEER_CERT;
   }
-  SSL_CTX_set_verify(ssl_ctx_.get(), mode, NULL);
+  SSL_CTX_set_verify(ssl_ctx_.get(), mode, nullptr);
 }
 
 void TlsServerContext::cipher_list(const std::string &ciphers) {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,7 +50,7 @@ int My_xp_thread_server::create_detached(
   native_thread_attr_t my_attr;
   bool using_my_attr = false;
 
-  if (attr == NULL) {
+  if (attr == nullptr) {
     My_xp_thread_util::attr_init(&my_attr);
     attr = &my_attr;
     using_my_attr = true;

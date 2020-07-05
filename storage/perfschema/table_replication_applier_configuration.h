@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,6 +34,7 @@
 
 #include "my_base.h"
 #include "sql/rpl_info.h" /*CHANNEL_NAME_LENGTH*/
+#include "sql/rpl_rli.h"  /*enum_require_table_primary_key*/
 #include "storage/perfschema/pfs_engine_table.h"
 #include "storage/perfschema/table_helper.h"
 
@@ -61,6 +62,8 @@ struct st_row_applier_config {
   bool desired_delay_is_set;
   std::string privilege_checks_user{""};
   enum_rpl_yes_no requires_row_format;
+  Relay_log_info::enum_require_table_primary_key
+      require_table_primary_key_check;
 };
 
 class PFS_index_rpl_applier_config : public PFS_engine_index {

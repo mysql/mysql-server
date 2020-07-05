@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,8 +59,8 @@ class SqlTableTest : public ::testing::Test {
   be promoted.
  */
 TEST_F(SqlTableTest, PromoteFirstTimestampColumn1) {
-  Mock_create_field column_1_definition(MYSQL_TYPE_TIMESTAMP, NULL, NULL);
-  Mock_create_field column_2_definition(MYSQL_TYPE_TIMESTAMP, NULL, NULL);
+  Mock_create_field column_1_definition(MYSQL_TYPE_TIMESTAMP, nullptr, nullptr);
+  Mock_create_field column_2_definition(MYSQL_TYPE_TIMESTAMP, nullptr, nullptr);
   column_1_definition.flags |= NOT_NULL_FLAG;
   column_2_definition.flags |= NOT_NULL_FLAG;
   List<Create_field> definitions;
@@ -79,8 +79,10 @@ TEST_F(SqlTableTest, PromoteFirstTimestampColumn1) {
   be promoted.
  */
 TEST_F(SqlTableTest, PromoteFirstTimestampColumn2) {
-  Mock_create_field column_1_definition(MYSQL_TYPE_TIMESTAMP2, NULL, NULL);
-  Mock_create_field column_2_definition(MYSQL_TYPE_TIMESTAMP2, NULL, NULL);
+  Mock_create_field column_1_definition(MYSQL_TYPE_TIMESTAMP2, nullptr,
+                                        nullptr);
+  Mock_create_field column_2_definition(MYSQL_TYPE_TIMESTAMP2, nullptr,
+                                        nullptr);
   column_1_definition.flags |= NOT_NULL_FLAG;
   column_2_definition.flags |= NOT_NULL_FLAG;
   List<Create_field> definitions;
@@ -99,8 +101,9 @@ TEST_F(SqlTableTest, PromoteFirstTimestampColumn2) {
  */
 TEST_F(SqlTableTest, PromoteFirstTimestampColumn3) {
   Item_string *item_str = new Item_string("1", 1, &my_charset_latin1);
-  Mock_create_field column_1_definition(MYSQL_TYPE_TIMESTAMP, item_str, NULL);
-  Mock_create_field column_2_definition(MYSQL_TYPE_TIMESTAMP, NULL, NULL);
+  Mock_create_field column_1_definition(MYSQL_TYPE_TIMESTAMP, item_str,
+                                        nullptr);
+  Mock_create_field column_2_definition(MYSQL_TYPE_TIMESTAMP, nullptr, nullptr);
   column_2_definition.flags |= NOT_NULL_FLAG;
   List<Create_field> definitions;
   definitions.push_front(&column_1_definition);

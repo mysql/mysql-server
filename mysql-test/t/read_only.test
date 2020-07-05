@@ -568,6 +568,7 @@ connection default;
 DROP TABLE t1;
 DROP USER test@localhost;
 SET GLOBAL read_only= @save_read_only;
+--remove_files_wildcard $MYSQLD_DATADIR/test t2*
 --disconnect con1
 --disconnect con2
 

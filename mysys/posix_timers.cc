@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -92,7 +92,7 @@ int my_timer_set(my_timer_t *timer, unsigned long time) {
   spec.it_interval.tv_nsec = 0;
   spec.it_value.tv_sec = static_cast<time_t>(time / 1000);
   spec.it_value.tv_nsec = static_cast<long>((time % 1000) * 1000000);
-  return timer_settime(timer->id, 0, &spec, NULL);
+  return timer_settime(timer->id, 0, &spec, nullptr);
 }
 
 /**

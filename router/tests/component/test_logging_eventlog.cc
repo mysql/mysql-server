@@ -647,7 +647,7 @@ TEST_F(RouterEventlogTest, application_running_as_process_preconfig) {
 
   // expected message
   constexpr char expected_message[] =
-      "Error: Failed reading configuration file: bogus.conf\n";
+      "Error: The configuration file 'bogus.conf' does not exist.\n";
   EventlogMatcher error_matcher(expected_message);
 
   // Since we're NOT expecting the error message to appear in Eventlog, we need

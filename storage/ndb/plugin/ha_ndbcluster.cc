@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -362,8 +362,6 @@ bool ndb_show_foreign_key_mock_tables(THD *thd) {
 static int ndbcluster_end(handlerton *, ha_panic_function);
 static bool ndbcluster_show_status(handlerton *, THD *, stat_print_fn *,
                                    enum ha_stat_type);
-static int ndbcluster_make_pushed_join(handlerton *, THD *,
-                                       const AQP::Join_plan *);
 
 static int ndbcluster_get_tablespace(THD *thd, LEX_CSTRING db_name,
                                      LEX_CSTRING table_name,
@@ -2066,6 +2064,11 @@ err:
   // before returning
   release_indexes(dict, 1 /* invalidate */);
 
+  //  Release field to column map
+  if (m_table_map != nullptr) {
+    delete m_table_map;
+    m_table_map = nullptr;
+  }
   // Release NdbRecord's allocated for the table
   if (m_ndb_record != NULL) {
     dict->releaseRecord(m_ndb_record);
@@ -2267,7 +2270,7 @@ static void ndb_set_record_specification(
   DBUG_ASSERT(ndb_column);
   spec->column = ndb_column;
   spec->offset = Uint32(table->field[field_no]->ptr - table->record[0]);
-  if (table->field[field_no]->real_maybe_null()) {
+  if (table->field[field_no]->is_nullable()) {
     spec->nullbit_byte_offset = Uint32(table->field[field_no]->null_offset());
     spec->nullbit_bit_in_byte =
         null_bit_mask_to_bit_number(table->field[field_no]->null_bit);
@@ -2569,7 +2572,7 @@ bool ha_ndbcluster::check_index_fields_not_null(KEY *key_info) const {
 
   for (; key_part != end; key_part++) {
     Field *field = key_part->field;
-    if (field->maybe_null()) return true;
+    if (field->is_nullable()) return true;
   }
 
   return false;
@@ -8256,7 +8259,7 @@ static int create_ndb_column(THD *thd, NDBCOL &col, Field *field,
       return HA_ERR_UNSUPPORTED;
   }
   // Set nullable and pk
-  col.setNullable(field->maybe_null());
+  col.setNullable(field->is_nullable());
   col.setPrimaryKey(field->flags & PRI_KEY_FLAG);
   if ((field->flags & FIELD_IN_PART_FUNC_FLAG) != 0) {
     col.setPartitionKey(true);
@@ -11125,7 +11128,7 @@ ha_ndbcluster::ha_ndbcluster(handlerton *hton, TABLE_SHARE *table_arg)
       m_disable_pushed_join(false),
       m_active_query(NULL),
       m_pushed_operation(NULL),
-      m_cond(),
+      m_cond(this),
       m_multi_cursor(NULL) {
   uint i;
 
@@ -12305,7 +12308,6 @@ static int ndbcluster_init(void *handlerton_ptr) {
                 HTON_SUPPORTS_FOREIGN_KEYS | HTON_SUPPORTS_ATOMIC_DDL;
   hton->discover = ndbcluster_discover;
   hton->table_exists_in_engine = ndbcluster_table_exists_in_engine;
-  hton->make_pushed_join = ndbcluster_make_pushed_join;
   hton->is_supported_system_table = is_supported_system_table;
 
   // Install dummy callbacks to avoid writing <tablename>_<id>.SDI files
@@ -13980,74 +13982,102 @@ int ha_ndbcluster::read_multi_range_fetch_next() {
 }
 
 /**
- * Try to find pushable subsets of a join plan.
- * @param hton unused (maybe useful for other engines).
- * @param thd Thread.
- * @param plan The join plan to examine.
- * @return Possible error code.
+ * Try to find parts of queries which can be pushed down to
+ * storage engines for faster execution. This is typically
+ * conditions which can filter out result rows on the SE,
+ * and/or entire joins between tables.
+ *
+ * @param table_aqp The specific table in the join plan to examine.
+ * @return Possible error code, '0' if no errors.
  */
-
-static int ndbcluster_make_pushed_join(handlerton *, THD *thd,
-                                       const AQP::Join_plan *plan) {
+int ha_ndbcluster::engine_push(AQP::Table_access *table_aqp) {
   DBUG_TRACE;
+  THD *const thd = table->in_use;
+  const AQP::Join_plan *const plan = table_aqp->get_join_plan();
 
-  if (THDVAR(thd, join_pushdown)) {
-    ndb_pushed_builder_ctx pushed_builder(*plan);
+  const bool has_descendants =
+      table_aqp->get_access_no() < plan->get_access_count() - 1;
 
-    for (uint i = 0; i < plan->get_access_count() - 1; i++) {
-      const AQP::Table_access *const join_root = plan->get_table_access(i);
-      const ndb_pushed_join *pushed_join = NULL;
+  if (has_descendants &&                // Need descendants to join with
+      THDVAR(thd, join_pushdown) &&     // Enabled 'ndb_join_pushdown'
+      m_pushed_join_member == nullptr)  // Not pushed yet
+  {
+    const ndb_pushed_join *pushed_join = nullptr;
 
-      // Try to build a ndb_pushed_join starting from 'join_root'
-      int error = pushed_builder.make_pushed_join(join_root, pushed_join);
-      if (unlikely(error)) {
-        if (error < 0)  // getNdbError() gives us the error code
-        {
-          ERR_SET(pushed_builder.getNdbError(), error);
-        }
-        join_root->get_table()->file->print_error(error, MYF(0));
-        return error;
+    // Try to build a ndb_pushed_join starting from 'table_aqp'
+    ndb_pushed_builder_ctx pushed_builder(m_thd_ndb, table_aqp);
+    int error = pushed_builder.make_pushed_join(pushed_join);
+    if (unlikely(error)) {
+      if (error < 0)  // getNdbError() gives us the error code
+      {
+        ERR_SET(pushed_builder.getNdbError(), error);
       }
+      print_error(error, MYF(0));
+      return error;
+    }
 
-      // Assign any produced pushed_join definitions to
-      // the ha_ndbcluster instance representing its root.
-      if (pushed_join != NULL) {
-        ha_ndbcluster *const handler =
-            static_cast<ha_ndbcluster *>(join_root->get_table()->file);
+    /*
+       Assign any produced pushed_join definitions to the involved
+       ha_ndbcluster instances, such that the prepared NdbQuery
+       might be instantiated at execution time.
+    */
+    if (pushed_join != nullptr) {
+      m_thd_ndb->m_pushed_queries_defined++;
+      DBUG_PRINT("info", ("Created pushed join with %d child operations",
+                          pushed_join->get_operation_count() - 1));
 
-        error = handler->assign_pushed_join(pushed_join);
-        if (unlikely(error)) {
-          delete pushed_join;
-          handler->print_error(error, MYF(0));
-          return error;
-        }
+      for (uint i = 0; i < pushed_join->get_operation_count(); i++) {
+        const TABLE *const tab = pushed_join->get_table(i);
+        ha_ndbcluster *child = dynamic_cast<ha_ndbcluster *>(tab->file);
+        child->m_pushed_join_member = pushed_join;
+        child->m_pushed_join_operation = i;
       }
     }
   }
-  return 0;
-}
 
-/**
- * In case a pushed join having the table for this handler as its root
- * has been produced. ::assign_pushed_join() is responsible for setting
- * up this ha_ndbcluster instance such that the prepared NdbQuery
- * might be instantiated at execution time.
- */
-int ha_ndbcluster::assign_pushed_join(const ndb_pushed_join *pushed_join) {
-  DBUG_TRACE;
-  m_thd_ndb->m_pushed_queries_defined++;
+  /*
+    If enabled by optimizer settings, (parts of) the table condition may
+    by pushed down to the SE-engine for evaluation.
+    Note that for child in a pushed join, any conditions were already pushed
+    above.
+  */
+  if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN)) {
+    if (m_pushed_join_operation <= PUSHED_ROOT)  // Not a pushed join child
+    {
+      const Item *cond = table_aqp->get_condition();
+      if (cond == nullptr) return 0;
 
-  for (uint i = 0; i < pushed_join->get_operation_count(); i++) {
-    const TABLE *const tab = pushed_join->get_table(i);
-    DBUG_ASSERT(tab->file->ht == ht);
-    ha_ndbcluster *child = static_cast<ha_ndbcluster *>(tab->file);
-    child->m_pushed_join_member = pushed_join;
-    child->m_pushed_join_operation = i;
+      const AQP::enum_access_type jt = table_aqp->get_access_type();
+      if ((jt == AQP::AT_PRIMARY_KEY || jt == AQP::AT_UNIQUE_KEY ||
+           jt == AQP::AT_OTHER) &&  // CONST or SYSTEM
+          !member_of_pushed_join()) {
+        /*
+          It is of limited value to push a condition to a single row
+          access method if not member of a pushed join , so we skip cond_push()
+          for these. The exception is if we are member of a pushed join, where
+          execution of entire join branches may be eliminated.
+        */
+        return 0;
+      }
+
+      /*
+        If a join cache is referred by this table, there is not a single
+        specific row from the 'other tables' to compare rows from this table
+        against. Thus, other tables can not be referred in this case.
+      */
+      const bool other_tbls_ok = thd->lex->sql_command == SQLCOM_SELECT &&
+                                 !table_aqp->uses_join_cache();
+
+      /* Push condition to handler, possibly leaving a remainder */
+      m_cond.prep_cond_push(cond, other_tbls_ok);
+    }
+
+    // Use whatever conditions got pushed, either as part of a pushed join
+    // or not
+    const Item *remainder;
+    if (m_cond.use_cond_push(pushed_cond, remainder) == 0)
+      table_aqp->set_condition(const_cast<Item *>(remainder));
   }
-
-  DBUG_PRINT("info", ("Assigned pushed join with %d child operations",
-                      pushed_join->get_operation_count() - 1));
-
   return 0;
 }
 
@@ -14229,10 +14259,24 @@ const TABLE *ha_ndbcluster::parent_of_pushed_join() const {
   return NULL;
 }
 
+table_map ha_ndbcluster::tables_in_pushed_join() const {
+  if (!member_of_pushed_join()) {
+    return 0;
+  }
+
+  table_map map = 0;
+  for (uint i = 0; i < m_pushed_join_member->get_operation_count(); ++i) {
+    map |= m_pushed_join_member->get_table(i)->pos_in_table_list->map();
+  }
+  return map;
+}
+
 /*
   Condition pushdown
 */
 /**
+  Condition pushdown
+
   Push a condition to ndbcluster storage engine for evaluation
   during table and index scans. The conditions will be cleared
   by calling handler::extra(HA_EXTRA_RESET) or handler::reset().
@@ -14249,6 +14293,11 @@ const TABLE *ha_ndbcluster::parent_of_pushed_join() const {
   handler::pushed_cond will be assigned the (part of) the condition
   which we accepted to be pushed down.
 
+  Note that this handler call has been partly deprecated by
+  ::engine_push() which does both join- and condition pushdown.
+  The only remaining intended usage for ::cond_push() is simple
+  update and delete queries, where the join part is not relevant.
+
   @param cond          Condition to be pushed down.
   @param other_tbls_ok Are other tables allowed to be referred
                        from the condition terms pushed down.
@@ -14262,19 +14311,14 @@ const Item *ha_ndbcluster::cond_push(const Item *cond, bool other_tbls_ok) {
   DBUG_ASSERT(pushed_cond == nullptr);
   DBUG_ASSERT(cond != nullptr);
   DBUG_EXECUTE("where", print_where(ha_thd(), cond, m_tabname, QT_ORDINARY););
+  m_cond.prep_cond_push(cond, other_tbls_ok);
 
-  if (m_pushed_join_member != nullptr &&
-      m_pushed_join_operation > PUSHED_ROOT) {
-    // This is a 'child' in a pushed join operation. Field values from
-    // other tables are not known yet when we generate the scan filters.
-    other_tbls_ok = false;
-  }
+  const Item *remainder;
+  if (unlikely(m_cond.use_cond_push(pushed_cond, remainder) != 0))
+    return cond;  // Failed to accept pushed condition, entire 'cond' is
+                  // remainder
 
-  Item *pushed;
-  const Item *rem = m_cond.cond_push(
-      cond, table, down_cast<const NDBTAB *>(m_table), other_tbls_ok, pushed);
-  pushed_cond = pushed;
-  return rem;
+  return remainder;
 }
 
 /*
@@ -14901,7 +14945,7 @@ enum_alter_inplace_result ha_ndbcluster::supported_inplace_field_change(
   }
 
   // Check if nullable change
-  if (new_field->maybe_null() != old_field->maybe_null()) {
+  if (new_field->is_nullable() != old_field->is_nullable()) {
     return inplace_unsupported(ha_alter_info,
                                "Altering if field is nullable is "
                                "not supported");
@@ -17847,7 +17891,7 @@ mysql_declare_plugin(ndbcluster){
     MYSQL_STORAGE_ENGINE_PLUGIN,
     &ndbcluster_storage_engine,
     ndbcluster_hton_name,
-    "MySQL AB",
+    PLUGIN_AUTHOR_ORACLE,
     "Clustered, fault-tolerant tables",
     PLUGIN_LICENSE_GPL,
     ndbcluster_init,   /* plugin init */

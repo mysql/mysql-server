@@ -59,7 +59,7 @@ constexpr size_t Create_field::LONGBLOB_MAX_SIZE_IN_BYTES;
 Create_field::Create_field(Field *old_field, Field *orig_field)
     : hidden(old_field->hidden()),
       field_name(old_field->field_name),
-      change(NULL),
+      change(nullptr),
       comment(old_field->comment),
       sql_type(old_field->real_type()),
       decimals(old_field->decimals()),
@@ -69,7 +69,7 @@ Create_field::Create_field(Field *old_field, Field *orig_field)
       is_explicit_collation(false),
       geom_type(Field::GEOM_GEOMETRY),
       field(old_field),
-      maybe_null(old_field->maybe_null()),
+      is_nullable(old_field->is_nullable()),
       is_zerofill(false),  // Init to avoid UBSAN warnings
       is_unsigned(false),  // Init to avoid UBSAN warnings
       treat_bit_as_char(
@@ -213,11 +213,11 @@ bool Create_field::init(
     charset = fld_charset;
 
   auto_flags = Field::NONE;
-  maybe_null = !(fld_type_modifier & NOT_NULL_FLAG);
+  is_nullable = !(fld_type_modifier & NOT_NULL_FLAG);
   this->hidden = hidden;
   is_array = is_array_arg;
 
-  if (fld_default_value != NULL &&
+  if (fld_default_value != nullptr &&
       fld_default_value->type() == Item::FUNC_ITEM) {
     // We have a function default for insertions.
     constant_default = nullptr;
@@ -465,7 +465,7 @@ bool Create_field::init(
       flags |= ZEROFILL_FLAG | UNSIGNED_FLAG;
       /* Fall through */
     case MYSQL_TYPE_TIMESTAMP2:
-      if (display_width_in_codepoints == NULL) {
+      if (display_width_in_codepoints == nullptr) {
         m_max_display_width_in_codepoints =
             MAX_DATETIME_WIDTH + (decimals ? (1 + decimals) : 0);
       } else if (m_max_display_width_in_codepoints != MAX_DATETIME_WIDTH) {
@@ -571,7 +571,8 @@ bool Create_field::init(
 */
 void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
                                       uint32 length_arg, uint32 decimals_arg,
-                                      bool maybe_null_arg, bool is_unsigned_arg,
+                                      bool is_nullable_arg,
+                                      bool is_unsigned_arg,
                                       uint pack_length_override_arg,
                                       const char *fld_name) {
   DBUG_TRACE;
@@ -580,7 +581,7 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
   sql_type = sql_type_arg;
   m_max_display_width_in_codepoints = length_arg;
   auto_flags = Field::NONE;
-  interval = 0;
+  interval = nullptr;
   charset = &my_charset_bin;
   geom_type = Field::GEOM_GEOMETRY;
 
@@ -613,7 +614,7 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
       break;
   }
 
-  maybe_null = maybe_null_arg;
+  is_nullable = is_nullable_arg;
 
   is_zerofill = false;
   is_unsigned = is_unsigned_arg;
@@ -725,7 +726,11 @@ size_t Create_field::pack_length(bool dont_override) const {
                                                       : interval->count);
     }
     case MYSQL_TYPE_NEWDECIMAL: {
-      return max_display_width_in_bytes();
+      DBUG_ASSERT(decimals <= DECIMAL_MAX_SCALE);
+      uint precision = my_decimal_length_to_precision(
+          max_display_width_in_bytes(), decimals, (flags & UNSIGNED_FLAG));
+      precision = std::min(precision, static_cast<uint>(DECIMAL_MAX_PRECISION));
+      return my_decimal_get_binary_size(precision, decimals);
     }
     case MYSQL_TYPE_BIT: {
       if (treat_bit_as_char) {
@@ -763,13 +768,6 @@ size_t Create_field::key_length() const {
         return pack_length();
       }
       return pack_length() + (max_display_width_in_bytes() & 7 ? 1 : 0);
-    }
-    case MYSQL_TYPE_NEWDECIMAL: {
-      DBUG_ASSERT(decimals <= DECIMAL_MAX_SCALE);
-      uint precision = my_decimal_length_to_precision(
-          max_display_width_in_bytes(), decimals, (flags & UNSIGNED_FLAG));
-      precision = std::min(precision, static_cast<uint>(DECIMAL_MAX_PRECISION));
-      return my_decimal_get_binary_size(precision, decimals);
     }
     default: {
       return pack_length(is_array);

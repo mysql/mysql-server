@@ -58,11 +58,11 @@ class SELECT_LEX_UNIT;
   This array must be in sync with Extra_tag enum.
 */
 static const char *json_extra_tags[ET_total] = {
-    NULL,                                  // ET_none
+    nullptr,                               // ET_none
     "using_temporary_table",               // ET_USING_TEMPORARY
     "using_filesort",                      // ET_USING_FILESORT
     "index_condition",                     // ET_USING_INDEX_CONDITION
-    NULL,                                  // ET_USING
+    nullptr,                               // ET_USING
     "range_checked_for_each_record",       // ET_RANGE_CHECKED_FOR_EACH_RECORD
     "pushed_condition",                    // ET_USING_PUSHED_CONDITION
     "using_where",                         // ET_USING_WHERE
@@ -74,13 +74,13 @@ static const char *json_extra_tags[ET_total] = {
     "using_index_for_skip_scan",           // ET_USING_INDEX_FOR_SKIP_SCAN
     "distinct",                            // ET_DISTINCT
     "loosescan",                           // ET_LOOSESCAN
-    NULL,                                  // ET_START_TEMPORARY
-    NULL,                                  // ET_END_TEMPORARY
+    nullptr,                               // ET_START_TEMPORARY
+    nullptr,                               // ET_END_TEMPORARY
     "first_match",                         // ET_FIRST_MATCH
-    NULL,                                  // ET_MATERIALIZE
-    NULL,                                  // ET_START_MATERIALIZE
-    NULL,                                  // ET_END_MATERIALIZE
-    NULL,                                  // ET_SCAN
+    nullptr,                               // ET_MATERIALIZE
+    nullptr,                               // ET_START_MATERIALIZE
+    nullptr,                               // ET_END_MATERIALIZE
+    nullptr,                               // ET_SCAN
     "using_join_buffer",                   // ET_USING_JOIN_BUFFER
     "const_row_not_found",                 // ET_CONST_ROW_NOT_FOUND
     "unique_row_not_found",                // ET_UNIQUE_ROW_NOT_FOUND
@@ -275,7 +275,7 @@ class context : public Explain_context {
 
   virtual class qep_row *entry() {
     DBUG_ASSERT(0);
-    return NULL;
+    return nullptr;
   }
   virtual enum_mod_type get_mod_type() { return MT_NONE; }
 
@@ -426,7 +426,7 @@ class subquery_ctx : virtual public context, public qep_row {
  public:
   subquery_ctx(enum_parsing_context type_arg, const char *name_arg,
                context *parent_arg)
-      : context(type_arg, name_arg, parent_arg), subquery(NULL) {}
+      : context(type_arg, name_arg, parent_arg), subquery(nullptr) {}
 
   virtual qep_row *entry() { return this; }
 
@@ -514,7 +514,7 @@ class subquery_ctx : virtual public context, public qep_row {
 
  public:
   virtual void set_child(context *child) {
-    DBUG_ASSERT(subquery == NULL);
+    DBUG_ASSERT(subquery == nullptr);
     DBUG_ASSERT(child->type == CTX_JOIN || child->type == CTX_UNION);
     subquery = child;
   }
@@ -720,7 +720,7 @@ class union_result_ctx : public table_base_ctx, public unit_ctx {
       : context(CTX_UNION_RESULT, K_UNION_RESULT, parent_arg),
         table_base_ctx(CTX_UNION_RESULT, K_UNION_RESULT, parent_arg),
         unit_ctx(CTX_UNION_RESULT, K_UNION_RESULT, parent_arg),
-        message(NULL) {}
+        message(nullptr) {}
 
   // Remove warnings: 'inherits ... from ... via dominance'
   virtual size_t id(bool hide) { return table_base_ctx::id(hide); }
@@ -956,7 +956,7 @@ class simple_sort_ctx : public joinable_ctx {
                   Explain_sort_clause clause)
       : context(type_arg, name_arg, parent_arg),
         joinable_ctx(type_arg, name_arg, parent_arg),
-        join_tab(NULL),
+        join_tab(nullptr),
         using_tmptable(flags->get(clause, ESP_USING_TMPTABLE)),
         using_filesort(flags->get(clause, ESP_USING_FILESORT)) {}
 
@@ -1221,7 +1221,7 @@ class window_ctx : public join_ctx {
         obj->add(K_USING_FILESORT, true);
         Opt_trace_array sort_order(json, K_FILESORT_KEY);
         ORDER *ord = w->sorting_order();
-        for (; ord != NULL; ord = ord->next) {
+        for (; ord != nullptr; ord = ord->next) {
           String str;
           (*ord->item)
               ->print_for_order(current_thd, &str,
@@ -1595,7 +1595,7 @@ class union_ctx : public unit_ctx {
   explicit union_ctx(context *parent_arg)
       : context(CTX_UNION, K_QUERY_BLOCK, parent_arg),
         unit_ctx(CTX_UNION, K_QUERY_BLOCK, parent_arg),
-        union_result(NULL) {}
+        union_result(nullptr) {}
 
  private:
   virtual bool format_body(Opt_trace_context *json, Opt_trace_object *) {
@@ -1624,7 +1624,7 @@ class union_ctx : public unit_ctx {
   virtual bool dependent() { return query_specs.head()->dependent(); }
 
   virtual void set_union_result(union_result_ctx *ctx) {
-    DBUG_ASSERT(union_result == NULL);
+    DBUG_ASSERT(union_result == nullptr);
     union_result = ctx;
     union_result->push_down_query_specs(&query_specs);
   }
@@ -1666,7 +1666,7 @@ bool Explain_format_JSON::begin_context(enum_parsing_context ctx_arg,
   context *prev_context = current_context;
   switch (ctx_arg) {
     case CTX_JOIN:
-      DBUG_ASSERT(current_context == NULL ||
+      DBUG_ASSERT(current_context == nullptr ||
                   // subqueries:
                   current_context->type == CTX_SELECT_LIST ||
                   current_context->type == CTX_UPDATE_VALUE ||
@@ -1680,7 +1680,7 @@ bool Explain_format_JSON::begin_context(enum_parsing_context ctx_arg,
                   current_context->type == CTX_GROUP_BY_SQ ||
                   current_context->type == CTX_QUERY_SPEC);
       if ((current_context = new (*THR_MALLOC)
-               join_ctx(CTX_JOIN, K_QUERY_BLOCK, current_context)) == NULL)
+               join_ctx(CTX_JOIN, K_QUERY_BLOCK, current_context)) == nullptr)
         return true;
       break;
     case CTX_ORDER_BY: {
@@ -1688,7 +1688,7 @@ bool Explain_format_JSON::begin_context(enum_parsing_context ctx_arg,
       sort_ctx *ctx = new (*THR_MALLOC) sort_with_subqueries_ctx(
           CTX_ORDER_BY, K_ORDERING_OPERATION, current_context, SQ_ORDER_BY,
           flags, ESC_ORDER_BY);
-      if (ctx == NULL) return true;
+      if (ctx == nullptr) return true;
       current_context->set_sort(ctx);
       current_context = ctx;
       break;
@@ -1701,7 +1701,7 @@ bool Explain_format_JSON::begin_context(enum_parsing_context ctx_arg,
       sort_ctx *ctx = new (*THR_MALLOC) sort_with_subqueries_ctx(
           CTX_GROUP_BY, K_GROUPING_OPERATION, current_context, SQ_GROUP_BY,
           flags, ESC_GROUP_BY);
-      if (ctx == NULL) return true;
+      if (ctx == nullptr) return true;
       current_context->set_sort(ctx);
       current_context = ctx;
       break;
@@ -1712,7 +1712,7 @@ bool Explain_format_JSON::begin_context(enum_parsing_context ctx_arg,
       sort_ctx *ctx =
           new (*THR_MALLOC) sort_ctx(CTX_DISTINCT, K_DUPLICATES_REMOVAL,
                                      current_context, flags, ESC_DISTINCT);
-      if (ctx == NULL) return true;
+      if (ctx == nullptr) return true;
       current_context->set_sort(ctx);
       current_context = ctx;
       break;
@@ -1726,7 +1726,7 @@ bool Explain_format_JSON::begin_context(enum_parsing_context ctx_arg,
       sort_ctx *ctx =
           new (*THR_MALLOC) sort_ctx(CTX_BUFFER_RESULT, K_BUFFER_RESULT,
                                      current_context, flags, ESC_BUFFER_RESULT);
-      if (ctx == NULL) return true;
+      if (ctx == nullptr) return true;
       current_context->set_sort(ctx);
       current_context = ctx;
       break;
@@ -1745,7 +1745,7 @@ bool Explain_format_JSON::begin_context(enum_parsing_context ctx_arg,
                   current_context->type == CTX_SIMPLE_DISTINCT);
       join_tab_ctx *ctx =
           new (*THR_MALLOC) join_tab_ctx(CTX_QEP_TAB, current_context);
-      if (ctx == NULL || current_context->add_join_tab(ctx)) return true;
+      if (ctx == nullptr || current_context->add_join_tab(ctx)) return true;
       current_context = ctx;
       break;
     }
@@ -1762,7 +1762,7 @@ bool Explain_format_JSON::begin_context(enum_parsing_context ctx_arg,
           CTX_SIMPLE_ORDER_BY, K_ORDERING_OPERATION, current_context,
           SQ_ORDER_BY, flags, ESC_ORDER_BY);
 
-      if (ctx == NULL || current_context->add_join_tab(ctx)) return true;
+      if (ctx == nullptr || current_context->add_join_tab(ctx)) return true;
       current_context = ctx;
       break;
     }
@@ -1780,7 +1780,7 @@ bool Explain_format_JSON::begin_context(enum_parsing_context ctx_arg,
       simple_sort_ctx *ctx = new (*THR_MALLOC) simple_sort_with_subqueries_ctx(
           CTX_SIMPLE_GROUP_BY, K_GROUPING_OPERATION, current_context,
           SQ_GROUP_BY, flags, ESC_GROUP_BY);
-      if (ctx == NULL || current_context->add_join_tab(ctx)) return true;
+      if (ctx == nullptr || current_context->add_join_tab(ctx)) return true;
       current_context = ctx;
       break;
     }
@@ -1797,7 +1797,7 @@ bool Explain_format_JSON::begin_context(enum_parsing_context ctx_arg,
       simple_sort_ctx *ctx = new (*THR_MALLOC)
           simple_sort_ctx(CTX_SIMPLE_DISTINCT, K_DUPLICATES_REMOVAL,
                           current_context, flags, ESC_DISTINCT);
-      if (ctx == NULL || current_context->add_join_tab(ctx)) return true;
+      if (ctx == nullptr || current_context->add_join_tab(ctx)) return true;
       current_context = ctx;
       break;
     }
@@ -1810,7 +1810,7 @@ bool Explain_format_JSON::begin_context(enum_parsing_context ctx_arg,
                   current_context->type == CTX_BUFFER_RESULT ||
                   current_context->type == CTX_DUPLICATES_WEEDOUT);
       materialize_ctx *ctx = new (*THR_MALLOC) materialize_ctx(current_context);
-      if (ctx == NULL || current_context->add_join_tab(ctx)) return true;
+      if (ctx == nullptr || current_context->add_join_tab(ctx)) return true;
       current_context = ctx;
       break;
     }
@@ -1824,38 +1824,40 @@ bool Explain_format_JSON::begin_context(enum_parsing_context ctx_arg,
                   current_context->type == CTX_MATERIALIZATION);
       duplication_weedout_ctx *ctx =
           new (*THR_MALLOC) duplication_weedout_ctx(current_context);
-      if (ctx == NULL || current_context->add_join_tab(ctx)) return true;
+      if (ctx == nullptr || current_context->add_join_tab(ctx)) return true;
       current_context = ctx;
       break;
     }
     case CTX_SELECT_LIST: {
       subquery_ctx *ctx = new (*THR_MALLOC)
-          subquery_ctx(CTX_SELECT_LIST, NULL, current_context);
-      if (ctx == NULL || current_context->add_subquery(SQ_SELECT_LIST, ctx))
+          subquery_ctx(CTX_SELECT_LIST, nullptr, current_context);
+      if (ctx == nullptr || current_context->add_subquery(SQ_SELECT_LIST, ctx))
         return true;
       current_context = ctx;
       break;
     }
     case CTX_UPDATE_VALUE: {
       subquery_ctx *ctx = new (*THR_MALLOC)
-          subquery_ctx(CTX_UPDATE_VALUE, NULL, current_context);
-      if (ctx == NULL || current_context->add_subquery(SQ_UPDATE_VALUE, ctx))
+          subquery_ctx(CTX_UPDATE_VALUE, nullptr, current_context);
+      if (ctx == nullptr || current_context->add_subquery(SQ_UPDATE_VALUE, ctx))
         return true;
       current_context = ctx;
       break;
     }
     case CTX_INSERT_VALUES: {
       subquery_ctx *ctx = new (*THR_MALLOC)
-          subquery_ctx(CTX_INSERT_VALUES, NULL, current_context);
-      if (ctx == NULL || current_context->add_subquery(SQ_INSERT_VALUES, ctx))
+          subquery_ctx(CTX_INSERT_VALUES, nullptr, current_context);
+      if (ctx == nullptr ||
+          current_context->add_subquery(SQ_INSERT_VALUES, ctx))
         return true;
       current_context = ctx;
       break;
     }
     case CTX_INSERT_UPDATE: {
       subquery_ctx *ctx = new (*THR_MALLOC)
-          subquery_ctx(CTX_INSERT_UPDATE, NULL, current_context);
-      if (ctx == NULL || current_context->add_subquery(SQ_INSERT_UPDATE, ctx))
+          subquery_ctx(CTX_INSERT_UPDATE, nullptr, current_context);
+      if (ctx == nullptr ||
+          current_context->add_subquery(SQ_INSERT_UPDATE, ctx))
         return true;
       current_context = ctx;
       break;
@@ -1863,52 +1865,53 @@ bool Explain_format_JSON::begin_context(enum_parsing_context ctx_arg,
     case CTX_DERIVED: {
       current_context = new (*THR_MALLOC) subquery_ctx(
           CTX_DERIVED, K_MATERIALIZED_FROM_SUBQUERY, current_context);
-      if (current_context == NULL) return true;
+      if (current_context == nullptr) return true;
       break;
     }
     case CTX_OPTIMIZED_AWAY_SUBQUERY: {
       subquery_ctx *ctx = new (*THR_MALLOC)
-          subquery_ctx(CTX_OPTIMIZED_AWAY_SUBQUERY, NULL, current_context);
-      if (ctx == NULL || current_context->add_subquery(SQ_OPTIMIZED_AWAY, ctx))
+          subquery_ctx(CTX_OPTIMIZED_AWAY_SUBQUERY, nullptr, current_context);
+      if (ctx == nullptr ||
+          current_context->add_subquery(SQ_OPTIMIZED_AWAY, ctx))
         return true;
       current_context = ctx;
       break;
     }
     case CTX_WHERE: {
-      DBUG_ASSERT(subquery != NULL);
+      DBUG_ASSERT(subquery != nullptr);
       subquery_ctx *ctx =
-          new (*THR_MALLOC) subquery_ctx(CTX_WHERE, NULL, current_context);
-      if (ctx == NULL || current_context->add_where_subquery(ctx, subquery))
+          new (*THR_MALLOC) subquery_ctx(CTX_WHERE, nullptr, current_context);
+      if (ctx == nullptr || current_context->add_where_subquery(ctx, subquery))
         return true;
       current_context = ctx;
       break;
     }
     case CTX_HAVING: {
       subquery_ctx *ctx =
-          new (*THR_MALLOC) subquery_ctx(CTX_HAVING, NULL, current_context);
-      if (ctx == NULL || current_context->add_subquery(SQ_HAVING, ctx))
+          new (*THR_MALLOC) subquery_ctx(CTX_HAVING, nullptr, current_context);
+      if (ctx == nullptr || current_context->add_subquery(SQ_HAVING, ctx))
         return true;
       current_context = ctx;
       break;
     }
     case CTX_ORDER_BY_SQ: {
       subquery_ctx *ctx = new (*THR_MALLOC)
-          subquery_ctx(CTX_ORDER_BY_SQ, NULL, current_context);
-      if (ctx == NULL || current_context->add_subquery(SQ_ORDER_BY, ctx))
+          subquery_ctx(CTX_ORDER_BY_SQ, nullptr, current_context);
+      if (ctx == nullptr || current_context->add_subquery(SQ_ORDER_BY, ctx))
         return true;
       current_context = ctx;
       break;
     }
     case CTX_GROUP_BY_SQ: {
       subquery_ctx *ctx = new (*THR_MALLOC)
-          subquery_ctx(CTX_GROUP_BY_SQ, NULL, current_context);
-      if (ctx == NULL || current_context->add_subquery(SQ_GROUP_BY, ctx))
+          subquery_ctx(CTX_GROUP_BY_SQ, nullptr, current_context);
+      if (ctx == nullptr || current_context->add_subquery(SQ_GROUP_BY, ctx))
         return true;
       current_context = ctx;
       break;
     }
     case CTX_UNION:
-      DBUG_ASSERT(current_context == NULL ||
+      DBUG_ASSERT(current_context == nullptr ||
                   // subqueries:
                   current_context->type == CTX_SELECT_LIST ||
                   current_context->type == CTX_UPDATE_VALUE ||
@@ -1920,22 +1923,22 @@ bool Explain_format_JSON::begin_context(enum_parsing_context ctx_arg,
                   current_context->type == CTX_GROUP_BY_SQ ||
                   current_context->type == CTX_QUERY_SPEC);
       current_context = new (*THR_MALLOC) union_ctx(current_context);
-      if (current_context == NULL) return true;
+      if (current_context == nullptr) return true;
       break;
     case CTX_UNION_RESULT: {
       DBUG_ASSERT(current_context->type == CTX_UNION);
       union_result_ctx *ctx =
           new (*THR_MALLOC) union_result_ctx(current_context);
-      if (ctx == NULL) return true;
+      if (ctx == nullptr) return true;
       current_context->set_union_result(ctx);
       current_context = ctx;
       break;
     }
     case CTX_QUERY_SPEC: {
       DBUG_ASSERT(current_context->type == CTX_UNION);
-      subquery_ctx *ctx =
-          new (*THR_MALLOC) subquery_ctx(CTX_QUERY_SPEC, NULL, current_context);
-      if (ctx == NULL || current_context->add_query_spec(ctx)) return true;
+      subquery_ctx *ctx = new (*THR_MALLOC)
+          subquery_ctx(CTX_QUERY_SPEC, nullptr, current_context);
+      if (ctx == nullptr || current_context->add_query_spec(ctx)) return true;
       current_context = ctx;
       break;
     }
@@ -1956,13 +1959,13 @@ bool Explain_format_JSON::begin_context(enum_parsing_context ctx_arg,
                   current_context->type == CTX_SIMPLE_DISTINCT ||
                   current_context->type == CTX_UNION_RESULT);
       joinable_ctx *ctx = new (*THR_MALLOC) message_ctx(current_context);
-      if (ctx == NULL || current_context->add_join_tab(ctx)) return true;
+      if (ctx == nullptr || current_context->add_join_tab(ctx)) return true;
       current_context = ctx;
       break;
     }
     case CTX_WINDOW: {
       window_ctx *ctx = new (*THR_MALLOC) window_ctx(current_context);
-      if (ctx == NULL) return true;
+      if (ctx == nullptr) return true;
       current_context->set_window(ctx);
       current_context = ctx;
       break;
@@ -1981,7 +1984,7 @@ bool Explain_format_JSON::end_context(enum_parsing_context ctx) {
   DBUG_ASSERT(current_context->type == ctx);
 
   bool ret = false;
-  if (current_context->parent == NULL) {
+  if (current_context->parent == nullptr) {
     Item *item;
     Opt_trace_context json;
     const size_t max_size = ULONG_MAX;
@@ -2013,7 +2016,7 @@ bool Explain_format_JSON::end_context(enum_parsing_context ctx) {
       item = new Item_null();
 
     List<Item> field_list;
-    ret = (item == NULL || field_list.push_back(item) ||
+    ret = (item == nullptr || field_list.push_back(item) ||
            output->send_data(current_thd, field_list));
   } else if (ctx == CTX_DERIVED) {
     if (!current_context->parent->find_and_set_derived(current_context)) {
@@ -2031,7 +2034,7 @@ bool Explain_format_JSON::send_headers(Query_result *result) {
 
   List<Item> field_list;
   Item *item = new Item_empty_string("EXPLAIN", 78, system_charset_info);
-  if (item == NULL || field_list.push_back(item)) return true;
+  if (item == nullptr || field_list.push_back(item)) return true;
   return result->send_result_set_metadata(
       current_thd, field_list, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
 }
@@ -2040,7 +2043,7 @@ void qep_row::format_extra(Opt_trace_object *obj) {
   List_iterator<qep_row::extra> it(col_extra);
   qep_row::extra *e;
   while ((e = it++)) {
-    DBUG_ASSERT(json_extra_tags[e->tag] != NULL);
+    DBUG_ASSERT(json_extra_tags[e->tag] != nullptr);
     if (e->data)
       obj->add_utf8(json_extra_tags[e->tag], e->data);
     else

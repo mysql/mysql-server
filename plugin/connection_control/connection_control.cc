@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,8 +60,51 @@ using connection_control::Error_handler;
 Connection_control_statistics g_statistics;
 Connection_control_variables g_variables;
 
-Connection_event_coordinator *g_connection_event_coordinator = 0;
-MYSQL_PLUGIN connection_control_plugin_info = 0;
+Connection_event_coordinator *g_connection_event_coordinator = nullptr;
+MYSQL_PLUGIN connection_control_plugin_info = nullptr;
+
+/* Performance Schema instrumentation */
+
+PSI_mutex_key key_connection_delay_mutex = PSI_NOT_INSTRUMENTED;
+
+static PSI_mutex_info all_connection_delay_mutex_info[] = {
+    {&key_connection_delay_mutex, "connection_delay_mutex", 0, 0,
+     PSI_DOCUMENT_ME}};
+
+PSI_rwlock_key key_connection_event_delay_lock;
+
+static PSI_rwlock_info all_connection_delay_rwlock_info[] = {
+    {&key_connection_event_delay_lock, "connection_event_delay_lock",
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}};
+
+PSI_cond_key key_connection_delay_wait = PSI_NOT_INSTRUMENTED;
+
+static PSI_cond_info all_connection_delay_cond_info[] = {
+    {&key_connection_delay_wait, "connection_delay_wait_condition", 0, 0,
+     PSI_DOCUMENT_ME}};
+
+PSI_stage_info stage_waiting_in_connection_control_plugin = {
+    0, "Waiting in connection_control plugin", 0, PSI_DOCUMENT_ME};
+
+static PSI_stage_info *all_connection_delay_stage_info[] = {
+    &stage_waiting_in_connection_control_plugin};
+
+static void init_performance_schema() {
+  const char *category = "conn_delay";
+
+  int count_mutex = array_elements(all_connection_delay_mutex_info);
+  mysql_mutex_register(category, all_connection_delay_mutex_info, count_mutex);
+
+  int count_rwlock = array_elements(all_connection_delay_rwlock_info);
+  mysql_rwlock_register(category, all_connection_delay_rwlock_info,
+                        count_rwlock);
+
+  int count_cond = array_elements(all_connection_delay_cond_info);
+  mysql_cond_register(category, all_connection_delay_cond_info, count_cond);
+
+  int count_stage = array_elements(all_connection_delay_stage_info);
+  mysql_stage_register(category, all_connection_delay_stage_info, count_stage);
+}
 
 /**
   event_notify() implementation for connection_control
@@ -106,6 +149,12 @@ static int connection_control_notify(MYSQL_THD thd,
 */
 
 static int connection_control_init(MYSQL_PLUGIN plugin_info) {
+  /*
+    Declare all performance schema instrumentation up front,
+    so it is discoverable.
+  */
+  init_performance_schema();
+
   // Initialize error logging service.
   if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs)) return 1;
 
@@ -139,9 +188,9 @@ static int connection_control_init(MYSQL_PLUGIN plugin_info) {
 
 static int connection_control_deinit(void *arg MY_ATTRIBUTE((unused))) {
   delete g_connection_event_coordinator;
-  g_connection_event_coordinator = 0;
+  g_connection_event_coordinator = nullptr;
   connection_control::deinit_connection_delay_event();
-  connection_control_plugin_info = 0;
+  connection_control_plugin_info = nullptr;
 
   deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
   return 0;
@@ -150,7 +199,7 @@ static int connection_control_deinit(void *arg MY_ATTRIBUTE((unused))) {
 /** Connection_control plugin descriptor */
 static struct st_mysql_audit connection_control_descriptor = {
     MYSQL_AUDIT_INTERFACE_VERSION, /* interface version */
-    NULL,                          /* release_thd() */
+    nullptr,                       /* release_thd() */
     connection_control_notify,     /* event_notify() */
     {
         0, /* MYSQL_AUDIT_GENERAL_CLASS */
@@ -368,7 +417,7 @@ static MYSQL_SYSVAR_LONGLONG(
 SYS_VAR *connection_control_system_variables[OPT_LAST + 1] = {
     MYSQL_SYSVAR(failed_connections_threshold),
     MYSQL_SYSVAR(min_connection_delay), MYSQL_SYSVAR(max_connection_delay),
-    NULL};
+    nullptr};
 
 /**
   Function to display value for status variable :
@@ -381,7 +430,8 @@ SYS_VAR *connection_control_system_variables[OPT_LAST + 1] = {
   @returns Always returns success.
 */
 
-static int show_delay_generated(MYSQL_THD, SHOW_VAR *var, char *buff) {
+static int show_delay_generated(MYSQL_THD thd MY_ATTRIBUTE((unused)),
+                                SHOW_VAR *var, char *buff) {
   var->type = SHOW_LONGLONG;
   var->value = buff;
   longlong *value = reinterpret_cast<longlong *>(buff);
@@ -396,35 +446,35 @@ SHOW_VAR
 connection_control_status_variables[STAT_LAST + 1] = {
     {"Connection_control_delay_generated", (char *)&show_delay_generated,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
-    {0, 0, enum_mysql_show_type(0), enum_mysql_show_scope(0)}};
+    {nullptr, nullptr, enum_mysql_show_type(0), enum_mysql_show_scope(0)}};
 
 mysql_declare_plugin(audit_log){
     MYSQL_AUDIT_PLUGIN,                  /* plugin type                   */
     &connection_control_descriptor,      /* type specific descriptor      */
     "CONNECTION_CONTROL",                /* plugin name                   */
-    "Oracle Inc",                        /* author                        */
+    PLUGIN_AUTHOR_ORACLE,                /* author                        */
     "Connection event processing",       /* description                   */
     PLUGIN_LICENSE_GPL,                  /* license                       */
     connection_control_init,             /* plugin initializer            */
-    NULL,                                /* plugin check uninstall        */
+    nullptr,                             /* plugin check uninstall        */
     connection_control_deinit,           /* plugin deinitializer          */
     0x0100,                              /* version                       */
     connection_control_status_variables, /* status variables              */
     connection_control_system_variables, /* system variables              */
-    NULL,                                /* reserverd                     */
+    nullptr,                             /* reserverd                     */
     0                                    /* flags                         */
 },
     {MYSQL_INFORMATION_SCHEMA_PLUGIN,
      &connection_control_failed_attempts_view,
      "CONNECTION_CONTROL_FAILED_LOGIN_ATTEMPTS",
-     "Oracle Inc",
+     PLUGIN_AUTHOR_ORACLE,
      "I_S table providing a view into failed attempts statistics",
      PLUGIN_LICENSE_GPL,
      connection_control_failed_attempts_view_init,
-     NULL,
-     NULL,
+     nullptr,
+     nullptr,
      0x0100,
-     NULL,
-     NULL,
-     NULL,
+     nullptr,
+     nullptr,
+     nullptr,
      0} mysql_declare_plugin_end;

@@ -169,8 +169,8 @@ class Key_use {
  public:
   // We need the default constructor for unit testing.
   Key_use()
-      : table_ref(NULL),
-        val(NULL),
+      : table_ref(nullptr),
+        val(nullptr),
         used_tables(0),
         key(0),
         keypart(0),
@@ -178,7 +178,7 @@ class Key_use {
         keypart_map(0),
         ref_table_rows(0),
         null_rejecting(false),
-        cond_guard(NULL),
+        cond_guard(nullptr),
         sj_pred_no(UINT_MAX),
         bound_keyparts(0),
         fanout(0.0),
@@ -730,10 +730,10 @@ class JOIN_TAB : public QEP_shared_owner {
 
 inline JOIN_TAB::JOIN_TAB()
     : QEP_shared_owner(),
-      table_ref(NULL),
-      m_keyuse(NULL),
-      m_join_cond_ref(NULL),
-      cond_equal(NULL),
+      table_ref(nullptr),
+      m_keyuse(nullptr),
+      m_join_cond_ref(nullptr),
+      cond_equal(nullptr),
       worst_seeks(0.0),
       const_keys(),
       checked_keys(),
@@ -747,7 +747,7 @@ inline JOIN_TAB::JOIN_TAB()
       used_fieldlength(0),
       use_quick(QS_NONE),
       m_use_join_cache(0),
-      emb_sj_nest(NULL),
+      emb_sj_nest(nullptr),
       embedding_map(0),
       join_cache_flags(0),
       reversed_access(false) {}
@@ -802,6 +802,24 @@ class store_key {
   virtual enum store_key_result copy_inner() = 0;
 };
 
+class store_key_field final : public store_key {
+  Copy_field m_copy_field;
+  const char *m_field_name;
+
+ public:
+  store_key_field(THD *thd, Field *to_field_arg, uchar *ptr,
+                  uchar *null_ptr_arg, uint length, Field *from_field,
+                  const char *name_arg);
+
+  const char *name() const override { return m_field_name; }
+
+  // Change the source field to be another field. Used only by
+  // CreateBKAIterator, when rewriting multi-equalities used in ref access.
+  void replace_from_field(Field *from_field);
+
+ protected:
+  enum store_key_result copy_inner() override;
+};
 class store_key_item : public store_key {
  protected:
   Item *item;
@@ -879,13 +897,13 @@ bool and_conditions(Item **e1, Item *e2);
   @return the new AND item
 */
 static inline Item *and_items(Item *cond, Item *item) {
-  DBUG_ASSERT(item != NULL);
+  DBUG_ASSERT(item != nullptr);
   return (cond ? (new Item_cond_and(cond, item)) : item);
 }
 
 /// A variant of the above, guaranteed to return Item_bool_func.
 static inline Item_bool_func *and_items(Item *cond, Item_bool_func *item) {
-  DBUG_ASSERT(item != NULL);
+  DBUG_ASSERT(item != nullptr);
   return (cond ? (new Item_cond_and(cond, item)) : item);
 }
 
@@ -901,8 +919,8 @@ bool test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER_with_src *order,
                               TABLE *table, Key_map usable_keys, int key,
                               ha_rows select_limit, int *new_key,
                               int *new_key_direction, ha_rows *new_select_limit,
-                              uint *new_used_key_parts = NULL,
-                              uint *saved_best_key_parts = NULL);
+                              uint *new_used_key_parts = nullptr,
+                              uint *saved_best_key_parts = nullptr);
 /**
   Calculate properties of ref key: key length, number of used key parts,
   dependency map, possibility of null.

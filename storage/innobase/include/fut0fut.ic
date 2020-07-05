@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -57,7 +57,7 @@ byte *fut_get_ptr(space_id_t space, const page_size_t &page_size,
   ptr = buf_block_get_frame(block) + addr.boffset;
 
   buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
-  if (ptr_block != NULL) {
+  if (ptr_block != nullptr) {
     *ptr_block = block;
   }
 

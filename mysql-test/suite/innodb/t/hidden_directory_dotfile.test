@@ -75,4 +75,6 @@ DROP TABLESPACE ts2;
 --remove_file $MYSQL_TMP_DIR/.other_dir/ts2.ibd
 --rmdir $MYSQL_TMP_DIR/.other_dir/test
 --rmdir $MYSQL_TMP_DIR/.other_dir
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
 

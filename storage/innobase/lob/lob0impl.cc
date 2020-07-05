@@ -427,7 +427,7 @@ dberr_t z_insert(InsertContext *ctx, trx_t *trx, ref_t &ref,
   ut_ad(remain > 0);
 
   if (ref.length() > 0) {
-    ref.set_length(len, 0);
+    ref.set_length(len, nullptr);
     if (!ctx->is_bulk()) {
       ctx->zblob_write_blobref(field->field_no, ctx->m_mtr);
     }
@@ -510,8 +510,8 @@ dberr_t z_insert(InsertContext *ctx, trx_t *trx, ref_t &ref,
   field_ref = ctx->get_field_ref(field->field_no);
   ref.set_ref(field_ref);
 
-  ref.update(space_id, first_page_no, 1, 0);
-  ref.set_length(len, 0);
+  ref.update(space_id, first_page_no, 1, nullptr);
+  ref.set_length(len, nullptr);
 
   ctx->make_nth_extern(field->field_no);
 

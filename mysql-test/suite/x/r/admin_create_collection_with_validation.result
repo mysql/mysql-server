@@ -49,6 +49,13 @@ create schema xtest default charset 'utf8mb4';
 # 2. Validation contains valid fields along with unknown fields.
 # 3. Options is different type than "object".
 
+## IV. Create collection with empty validation level.
+#
+# 1. Check empty validation level for validation encoded as protobuf
+#    string.
+# 2. Check empty validation level for validation encoded as
+#    Mysqlx.Datatypes.Object.
+
 #
 # I.1
 
@@ -57,7 +64,7 @@ Table	Create Table
 test_coll	CREATE TABLE `test_coll` (
   `doc` json DEFAULT NULL,
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
-  `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{ "id": "http://json-schema.org/geo", "$schema": "http://json-schema.org/draft-06/schema#", "description": "A geographical coordinate", "type": "object", "properties": {   "latitude": {"type": "number", "minimum": -90, "maximum": 90},   "longitude": {"type": "number", "minimum": -180, "maximum": 180}}, "required": ["latitude", "longitude"]}') VIRTUAL,
+  `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"id":"http://json-schema.org/geo","$schema":"http://json-schema.org/draft-06/schema#","description":"A geographical coordinate","type":"object","properties":{"latitude":{"type":"number","minimum":-90,"maximum":90},"longitude":{"type":"number","minimum":-180,"maximum":180}},"required":["latitude","longitude"]}') VIRTUAL,
   PRIMARY KEY (`_id`),
   CONSTRAINT `$val_strict_889D1D09A01D7029B101675FBE738D1897A37F32` CHECK (json_schema_valid(`_json_schema`,`doc`))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -224,7 +231,7 @@ Got expected error:
 Mysqlx.Error {
   severity: ERROR
   code: 5017
-  msg: "Invalid validation.level argument. Allowed values are \'OFF\' and \'STRICT\'"
+  msg: "Invalid \"validation.level\" argument. Allowed values are \'OFF\' and \'STRICT\'"
   sql_state: "HY000"
 }
 
@@ -235,7 +242,7 @@ Got expected error:
 Mysqlx.Error {
   severity: ERROR
   code: 5017
-  msg: "Invalid validation.level argument. Allowed values are \'OFF\' and \'STRICT\'"
+  msg: "Invalid \"validation.level\" argument. Allowed values are \'OFF\' and \'STRICT\'"
   sql_state: "HY000"
 }
 
@@ -277,7 +284,7 @@ test_coll	CREATE TABLE `test_coll` (
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{}') VIRTUAL,
   PRIMARY KEY (`_id`),
-  CONSTRAINT `$val_strict_889D1D09A01D7029B101675FBE738D1897A37F32` CHECK (json_schema_valid(`_json_schema`,`doc`)) /*!80016 NOT ENFORCED */
+  CONSTRAINT `$val_strict_889D1D09A01D7029B101675FBE738D1897A37F32` CHECK (json_schema_valid(`_json_schema`,`doc`))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 
@@ -293,7 +300,7 @@ test_coll	CREATE TABLE `test_coll` (
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{}') VIRTUAL,
   PRIMARY KEY (`_id`),
-  CONSTRAINT `$val_strict_889D1D09A01D7029B101675FBE738D1897A37F32` CHECK (json_schema_valid(`_json_schema`,`doc`)) /*!80016 NOT ENFORCED */
+  CONSTRAINT `$val_strict_889D1D09A01D7029B101675FBE738D1897A37F32` CHECK (json_schema_valid(`_json_schema`,`doc`))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 
@@ -331,6 +338,26 @@ Mysqlx.Error {
   sql_state: "HY000"
 }
 
+
+#
+# VI.1
+
+command ok
+
+1 rows affected
+Got expected error: Document is not valid according to the schema assigned to collection. The JSON document location '#' failed requirement 'required' at JSON Schema location '#'. (code 5180)
+
+0 rows affected
+
+#
+# VI.2
+
+command ok
+
+1 rows affected
+Got expected error: Document is not valid according to the schema assigned to collection. The JSON document location '#' failed requirement 'required' at JSON Schema location '#'. (code 5180)
+
+0 rows affected
 Mysqlx.Ok {
   msg: "bye!"
 }
@@ -385,6 +412,13 @@ ok
 # 2. Validation contains valid fields along with unknown fields.
 # 3. Options is different type than "object".
 
+## IV. Create collection with empty validation level.
+#
+# 1. Check empty validation level for validation encoded as protobuf
+#    string.
+# 2. Check empty validation level for validation encoded as
+#    Mysqlx.Datatypes.Object.
+
 #
 # I.1
 
@@ -393,7 +427,7 @@ Table	Create Table
 test_coll	CREATE TABLE `test_coll` (
   `doc` json DEFAULT NULL,
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
-  `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{ "id": "http://json-schema.org/geo", "$schema": "http://json-schema.org/draft-06/schema#", "description": "A geographical coordinate", "type": "object", "properties": {   "latitude": {"type": "number", "minimum": -90, "maximum": 90},   "longitude": {"type": "number", "minimum": -180, "maximum": 180}}, "required": ["latitude", "longitude"]}') VIRTUAL,
+  `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"id":"http://json-schema.org/geo","$schema":"http://json-schema.org/draft-06/schema#","description":"A geographical coordinate","type":"object","properties":{"latitude":{"type":"number","minimum":-90,"maximum":90},"longitude":{"type":"number","minimum":-180,"maximum":180}},"required":["latitude","longitude"]}') VIRTUAL,
   PRIMARY KEY (`_id`),
   CONSTRAINT `$val_strict_889D1D09A01D7029B101675FBE738D1897A37F32` CHECK (json_schema_valid(`_json_schema`,`doc`))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -560,7 +594,7 @@ Got expected error:
 Mysqlx.Error {
   severity: ERROR
   code: 5017
-  msg: "Invalid validation.level argument. Allowed values are \'OFF\' and \'STRICT\'"
+  msg: "Invalid \"validation.level\" argument. Allowed values are \'OFF\' and \'STRICT\'"
   sql_state: "HY000"
 }
 
@@ -571,7 +605,7 @@ Got expected error:
 Mysqlx.Error {
   severity: ERROR
   code: 5017
-  msg: "Invalid validation.level argument. Allowed values are \'OFF\' and \'STRICT\'"
+  msg: "Invalid \"validation.level\" argument. Allowed values are \'OFF\' and \'STRICT\'"
   sql_state: "HY000"
 }
 
@@ -613,7 +647,7 @@ test_coll	CREATE TABLE `test_coll` (
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{}') VIRTUAL,
   PRIMARY KEY (`_id`),
-  CONSTRAINT `$val_strict_889D1D09A01D7029B101675FBE738D1897A37F32` CHECK (json_schema_valid(`_json_schema`,`doc`)) /*!80016 NOT ENFORCED */
+  CONSTRAINT `$val_strict_889D1D09A01D7029B101675FBE738D1897A37F32` CHECK (json_schema_valid(`_json_schema`,`doc`))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 
@@ -629,7 +663,7 @@ test_coll	CREATE TABLE `test_coll` (
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{}') VIRTUAL,
   PRIMARY KEY (`_id`),
-  CONSTRAINT `$val_strict_889D1D09A01D7029B101675FBE738D1897A37F32` CHECK (json_schema_valid(`_json_schema`,`doc`)) /*!80016 NOT ENFORCED */
+  CONSTRAINT `$val_strict_889D1D09A01D7029B101675FBE738D1897A37F32` CHECK (json_schema_valid(`_json_schema`,`doc`))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 
@@ -667,6 +701,26 @@ Mysqlx.Error {
   sql_state: "HY000"
 }
 
+
+#
+# VI.1
+
+command ok
+
+1 rows affected
+Got expected error: Document is not valid according to the schema assigned to collection. The JSON document location '#' failed requirement 'required' at JSON Schema location '#'. (code 5180)
+
+0 rows affected
+
+#
+# VI.2
+
+command ok
+
+1 rows affected
+Got expected error: Document is not valid according to the schema assigned to collection. The JSON document location '#' failed requirement 'required' at JSON Schema location '#'. (code 5180)
+
+0 rows affected
 Mysqlx.Ok {
   msg: "bye!"
 }
@@ -700,7 +754,7 @@ test_coll	CREATE TABLE `test_coll` (
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"description":"bar"}') VIRTUAL,
   PRIMARY KEY (`_id`),
-  CONSTRAINT `$val_strict_889D1D09A01D7029B101675FBE738D1897A37F32` CHECK (json_schema_valid(`_json_schema`,`doc`)) /*!80016 NOT ENFORCED */
+  CONSTRAINT `$val_strict_889D1D09A01D7029B101675FBE738D1897A37F32` CHECK (json_schema_valid(`_json_schema`,`doc`))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 
@@ -719,7 +773,7 @@ test_coll	CREATE TABLE `test_coll` (
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"description":"foo"}') VIRTUAL,
   PRIMARY KEY (`_id`),
-  CONSTRAINT `$val_strict_889D1D09A01D7029B101675FBE738D1897A37F32` CHECK (json_schema_valid(`_json_schema`,`doc`)) /*!80016 NOT ENFORCED */
+  CONSTRAINT `$val_strict_889D1D09A01D7029B101675FBE738D1897A37F32` CHECK (json_schema_valid(`_json_schema`,`doc`))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 
@@ -735,7 +789,7 @@ test_coll	CREATE TABLE `test_coll` (
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"description":"custom schema"}') VIRTUAL,
   PRIMARY KEY (`_id`),
-  CONSTRAINT `$val_strict_889D1D09A01D7029B101675FBE738D1897A37F32` CHECK (json_schema_valid(`_json_schema`,`doc`)) /*!80016 NOT ENFORCED */
+  CONSTRAINT `$val_strict_889D1D09A01D7029B101675FBE738D1897A37F32` CHECK (json_schema_valid(`_json_schema`,`doc`))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 

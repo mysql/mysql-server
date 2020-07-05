@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -699,7 +699,7 @@ ER_CANT_SET_PERSISTED
   eng "Failed to set persisted options."
 
 ER_JSON_PARSE_ERROR
-  eng "JSON parsing error"
+  eng "Persisted config file is corrupt. Please ensure mysqld-auto.cnf file is valid JSON."
 
 ER_CONFIG_OPTION_WITHOUT_GROUP
   eng "Found option without preceding group in config file"
@@ -8718,7 +8718,7 @@ ER_IB_MSG_1061
   eng "Cannot create %s"
 
 ER_IB_MSG_1062
-  eng "Setting log file %s size to %llu MB"
+  eng "Setting log file %s size to %llu MB. Progress : %u%%"
 
 ER_IB_MSG_1063
   eng "Cannot set log file %s to size %llu MB"
@@ -10338,12 +10338,12 @@ ER_PLUGIN_NO_INSTALL_DUP
 
 # When using this error message, use the ER_WARN_DEPRECATED_SYNTAX error
 # code.
-ER_WARN_DEPRECATED_SQL_CALC_FOUND_ROWS
+OBSOLETE_ER_WARN_DEPRECATED_SQL_CALC_FOUND_ROWS
   eng "SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead."
 
 # When using this error message, use the ER_WARN_DEPRECATED_SYNTAX error
 # code.
-ER_WARN_DEPRECATED_FOUND_ROWS
+OBSOLETE_ER_WARN_DEPRECATED_FOUND_ROWS
   eng "FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead."
 
 ER_BINLOG_UNSAFE_DEFAULT_EXPRESSION_IN_SUBSTATEMENT
@@ -10664,6 +10664,168 @@ ER_RPL_RELAY_LOG_RECOVERY_INFO_AFTER_CLONE
 
 ER_IB_MSG_57_UNDO_SPACE_DELETE_FAIL
   eng "Failed to delete 5.7 undo tablespace: %s during upgrade"
+
+ER_IB_MSG_DBLWR_1285
+  eng "Empty doublewrite file: %s"
+
+ER_IB_MSG_DBLWR_1286
+  eng "Using '%s' for doublewrite"
+
+ER_IB_MSG_DBLWR_1287
+  eng  "Error reading doublewrite buffer from the system tablespace"
+
+ER_IB_MSG_DBLWR_1288
+  eng "Cannot create doublewrite buffer: you must increase your buffer pool size. Cannot continue operation."
+
+ER_IB_MSG_DBLWR_1290
+  eng "The page in the doublewrite file is corrupt. Cannot continue operation. You can try to recover the database with innodb_force_recovery=6"
+
+ER_IB_MSG_DBLWR_1291
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1292
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1293
+  eng "Doublewrite file create failed: %s"
+
+ER_IB_MSG_DBLWR_1294
+  eng "DBLWRThread: pthread_setaffinity() failed!"
+
+ER_IB_MSG_DBLWR_1295
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1296
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1297
+  eng "Doublewrite file read failed: %s"
+
+ER_IB_MSG_DBLWR_1298
+  eng "Dump of the data file page:"
+
+ER_IB_MSG_DBLWR_1300
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1301
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1304
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1305
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1306
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1307
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1308
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1309
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1310
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1311
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1312
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1313
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1314
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1315
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1316
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1317
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1318
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1319
+  eng "Doublewrite load file %s size %lu is not a multiple of the configured page size %lu""
+
+ER_IB_MSG_DBLWR_1320
+  eng "Doublewrite file %s truncate failed"
+
+ER_IB_MSG_DBLWR_1321
+  eng "Doublewrite file %s failed to writ zeros"
+
+ER_IB_MSG_DBLWR_1322
+  eng "Doublewrite create file %s size %lu is not a multiple of the configured page size %lu""
+
+ER_IB_MSG_DBLWR_1323
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1324
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1325
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1326
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1327
+  eng "%s"
+
+ER_IB_MSG_GTID_FLUSH_AT_SHUTDOWN
+  eng "Could not flush all GTIDs during slow shutdown. Will recover GTIDs when server restarts."
+
+ER_IB_MSG_57_STAT_SPACE_DELETE_FAIL
+  eng "Failed to delete 5.7 stat tablespace: %s during upgrade"
+
+ER_NDBINFO_UPGRADING_SCHEMA
+  eng "Installing ndbinfo schema version %s"
+
+ER_NDBINFO_NOT_UPGRADING_SCHEMA
+  eng "Installed ndbinfo schema is current. Not upgrading."
+
+ER_NDBINFO_UPGRADING_SCHEMA_FAIL
+  eng "Failed to upgrade ndbinfo schema."
+
+ER_IB_MSG_CREATE_LOG_FILE
+  eng "Creating log file %s"
+
+ER_IB_MSG_INNODB_START_INITIALIZE
+  eng "InnoDB initialization has started."
+
+ER_IB_MSG_INNODB_END_INITIALIZE
+  eng "InnoDB initialization has ended."
+
+ER_IB_MSG_PAGE_ARCH_NO_RESET_POINTS
+  eng "Could not find appropriate reset points."
+
+ER_IB_WRN_PAGE_ARCH_FLUSH_DATA
+  eng "Unable to flush. Page archiving data may be corrupt in case of a crash."
+
+ER_IB_ERR_PAGE_ARCH_INVALID_DOUBLE_WRITE_BUF
+  eng "Page archiver's doublewrite buffer for %ld is not valid."
+
+ER_IB_ERR_PAGE_ARCH_RECOVERY_FAILED
+  eng "Page archiver system's recovery failed."
+
+ER_IB_ERR_PAGE_ARCH_INVALID_FORMAT
+  eng "Invalid archived file name format. The archived file is supposed to have the format %s + [0-9]*."
+
+ER_INVALID_XPLUGIN_SOCKET_SAME_AS_SERVER
+  eng "X Plugins UNIX socket must use different file than MySQL server. X Plugin won't be accessible through UNIX socket"
+
+ER_INNODB_UNABLE_TO_ACQUIRE_DD_OBJECT
+  eng "%s"
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt

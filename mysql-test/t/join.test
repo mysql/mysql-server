@@ -450,6 +450,7 @@ select * from t1 natural join (t2 natural join (t3 natural join t4));
 # BUG#15355: this query fails in 'prepared statements' mode
 # select * from ((t3 natural join (t1 natural join t2)) natural join t4) natural join t5;
 # select * from ((t3 natural left join (t1 natural left join t2)) natural left join t4) natural left join t5;
+--sorted_result
 select * from t5 natural right join (t4 natural right join ((t2 natural right join t1) natural right join t3));
 select * from (t1 natural join t2), (t3 natural join t4);
 # MySQL extension - nested comma ',' operator instead of cross join.
@@ -493,6 +494,7 @@ select * from (t1 cross join t2) join (t3 cross join t4) on (a < y and t2.b < t3
 select * from (t1, t2) join (t3, t4) on (a < y and t2.b < t3.c);
 --sorted_result
 select * from (t1 natural join t2) join (t3 natural join t4) on a = y;
+--sorted_result
 select * from ((t3 join (t1 join t2 on c > a) on t3.b < t2.a) join t4 on y > t1.c) join t5 on z = t1.b + 3;
 
 # MySQL extension - refererence qualified coalesced columns
@@ -1253,3 +1255,159 @@ SELECT t1.i AS a, (SELECT t2.i FROM t t2 WHERE t1.j = t2.j ORDER BY j DESC, i DE
 SHOW STATUS LIKE 'Handler_read_key';
 
 DROP TABLE t;
+
+# New tests needn't use MyISAM
+set global default_storage_engine=innodb;
+set session default_storage_engine=innodb;
+
+--echo #
+--echo # Bug#30350696 REFERENCE FROM DERIVED TABLE JOIN CONDITION TO PRECEDING TABLE COLUMN FAILS
+--echo # Bug#11748138 ERROR 1054 (42S22): UNKNOWN COLUMN 'T2.I2' IN 'ON CLAUSE'
+--echo #
+
+# Test for outer references placed in ON conditions of JOIN operators.
+
+create table t(a int, b int);
+insert into t values(1,10),(2,20);
+# to test the iterator executor:
+set optimizer_switch="block_nested_loop=off";
+
+# Show that the subquery is re-calculated as needed.
+
+let query=
+ select t1.*, (select count(*)
+               from t t2
+               left join t t3 on t3.a>t2.a-t1.a)
+ from t t1;
+eval explain format=tree $query;
+eval $query;
+
+# let the reference be in GROUP BY, to test "odd" Items_ref:
+let query=
+ select t1.a, (select count(*)
+               from t t2
+               left join t t3 on t3.a>t2.a-t1.a)
+ from t t1
+ group by t1.a;
+eval explain format=tree $query;
+eval $query;
+
+# let it belong to a merged view (other odd Item_ref):
+create view v1 as select * from t;
+let query=
+ select v1.*, (select count(*)
+               from t t2
+               left join t t3 on t3.a>t2.a-v1.a)
+ from v1;
+eval explain format=tree $query;
+eval $query;
+drop view v1;
+
+# Push the reference very deep:
+
+let query=
+ select t1.*, (select * from
+                (select count(*)
+                 from t t2
+                 left join t t3 on t3.a>t2.a-t1.a) as dt)
+ from t t1;
+eval explain format=tree $query;
+eval $query;
+
+# Put the reference in a derived table
+
+let query=
+ select t1.*, dt.c
+ from t t1,
+ (select count(*) as c
+  from t t2
+  left join t t3 on t3.a>t2.a-t1.a) as dt;
+--error ER_BAD_FIELD_ERROR
+eval explain format=tree $query;
+
+# Put the reference in a lateral derived table
+
+let query=
+ select t1.*, dt.c
+ from t t1,
+ lateral
+ (select count(*) as c
+  from t t2
+  left join t t3 on t3.a>t2.a-t1.a) as dt;
+eval explain format=tree $query;
+eval $query;
+
+# Above had "comma" syntax; also try "JOIN" and "CROSS JOIN"
+
+let query=
+ select t1.*, dt.c
+ from t t1 cross join
+ lateral
+ (select count(*) as c
+  from t t2
+  left join t t3 on t3.a>t2.a-t1.a) as dt;
+eval explain format=tree $query;
+eval $query;
+
+let query=
+ select t1.*, dt.c
+ from t t1 join
+ lateral
+ (select count(*) as c
+  from t t2
+  left join t t3 on t3.a>t2.a-t1.a) as dt
+ on true;
+eval explain format=tree $query;
+eval $query;
+
+# Verify that an outer reference in a subquery doesn't have
+# more scope that if it was at the place of the subquery.
+# In first query, t0.a is wrong as ON cannot see tables
+# of the FROM clause except the operands of the JOIN.
+# In second query, it must be wrong too.
+
+--error ER_BAD_FIELD_ERROR
+select t1.* from t t0 cross join (t t1 join t t2 on 100=t0.a);
+--error ER_BAD_FIELD_ERROR
+select t1.* from t t0 cross join (t t1 join t t2
+                                       on 100=(select count(*)
+                                               from t t3
+                                                    left join t t4
+                                                    on t4.a>t3.a-t0.a));
+# If we remove the parenthesis, it becomes correct, as the subquery
+# is now the condition of the _outermost_ join.
+
+select t1.* from t t0 cross join t t1 join t t2
+                                      on 100=(select count(*)
+                                              from t t3
+                                                   left join t t4
+                                                   on t4.a>t3.a-t0.a);
+
+set optimizer_switch=default;
+drop table t;
+
+# This was a bug in 8.0: the outer reference t1.a
+# was located in a derived table, which got merged,
+# so the reference ended up in an ON clause (merging moves
+# derived table's WHERE to ON in the parent query),
+# and as sj_corr_tables didn't look at ON clauses,
+# it was thought the inner part of the semijoin wasn't correlated
+# and thus materialization was wrongly chosen, and result was wrong.
+
+create table t(a int);
+insert into t values(1),(2);
+# Try to use materialization:
+set optimizer_switch="firstmatch=off,block_nested_loop=off";
+let query=
+ select * from t t1
+ where t1.a in (select dt.a
+                from t t2
+                left join (select * from t t3 where t3.a>t1.a) dt
+                on true);
+eval explain format=tree $query;
+eval $query;
+
+drop table t;
+set optimizer_switch=default;
+
+set global default_storage_engine=myisam;

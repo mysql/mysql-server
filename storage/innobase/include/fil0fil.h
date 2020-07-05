@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -212,7 +212,7 @@ struct fil_node_t {
 };
 
 /* Type of (un)encryption operation in progress for Tablespace. */
-enum encryption_op_type { ENCRYPTION = 1, UNENCRYPTION = 2, NONE };
+enum encryption_op_type { ENCRYPTION = 1, DECRYPTION = 2, NONE };
 
 /** Tablespace or log data space */
 struct fil_space_t {
@@ -301,13 +301,13 @@ struct fil_space_t {
   Encryption::Type encryption_type;
 
   /** Encrypt key */
-  byte encryption_key[ENCRYPTION_KEY_LEN];
+  byte encryption_key[Encryption::KEY_LEN];
 
   /** Encrypt key length*/
   ulint encryption_klen;
 
   /** Encrypt initial vector */
-  byte encryption_iv[ENCRYPTION_KEY_LEN];
+  byte encryption_iv[Encryption::KEY_LEN];
 
   /** Encryption is in progress */
   encryption_op_type encryption_op_in_progress;
@@ -346,7 +346,15 @@ constexpr size_t FIL_SPACE_MAGIC_N = 89472;
 constexpr size_t FIL_NODE_MAGIC_N = 89389;
 
 /** Common InnoDB file extentions */
-enum ib_file_suffix { NO_EXT = 0, IBD = 1, CFG = 2, CFP = 3, IBT = 4, IBU = 5 };
+enum ib_file_suffix {
+  NO_EXT = 0,
+  IBD = 1,
+  CFG = 2,
+  CFP = 3,
+  IBT = 4,
+  IBU = 5,
+  DWR = 6
+};
 
 extern const char *dot_ext[];
 
@@ -355,6 +363,7 @@ extern const char *dot_ext[];
 #define DOT_CFP dot_ext[CFP]
 #define DOT_IBT dot_ext[IBT]
 #define DOT_IBU dot_ext[IBU]
+#define DOT_DWR dot_ext[DWR]
 
 #ifdef _WIN32
 /* Initialization of m_abs_path() produces warning C4351:
@@ -599,9 +608,13 @@ class Fil_path {
     return (path);
   }
 
-  /** @return true if the path is an absolute path. */
-  bool is_relative_path() const MY_ATTRIBUTE((warn_unused_result)) {
-    return (type_of_path(m_path) == relative);
+  /** Determine if a path is a relative path or not.
+  @param[in]  path  OS directory or file path to evaluate
+  @retval true if the path is relative
+  @retval false if the path is absolute or file_name_only */
+  static bool is_relative_path(const std::string &path)
+      MY_ATTRIBUTE((warn_unused_result)) {
+    return (type_of_path(path) == relative);
   }
 
   /** @return true if the path is an absolute path. */
@@ -610,17 +623,18 @@ class Fil_path {
   }
 
   /** Determine if a path is an absolute path or not.
-  @param[in]	path		OS directory or file path to evaluate
-  @retval true if an absolute path
-  @retval false if a relative path */
-  static bool is_absolute_path(const std::string &path) {
+  @param[in]  path  OS directory or file path to evaluate
+  @retval true if the path is absolute
+  @retval false if the path is relative or file_name_only */
+  static bool is_absolute_path(const std::string &path)
+      MY_ATTRIBUTE((warn_unused_result)) {
     return (type_of_path(path) == absolute);
   }
 
-  /** Determine if a path is an absolute path or not.
-  @param[in]	path		OS directory or file path to evaluate
-  @retval true if an absolute path
-  @retval false if a relative path */
+  /** Determine what type of path is provided.
+  @param[in]  path  OS directory or file path to evaluate
+  @return the type of filepath; 'absolute', 'relative',
+  'file_name_only', or 'invalid' if the path is empty. */
   static path_type type_of_path(const std::string &path)
       MY_ATTRIBUTE((warn_unused_result)) {
     if (path.empty()) {
@@ -628,15 +642,15 @@ class Fil_path {
     }
 
     /* The most likely type is a file name only with no separators. */
-    if (path.find('\\', 0) == std::string::npos &&
-        path.find('/', 0) == std::string::npos) {
+    auto first_separator = path.find_first_of(SEPARATOR);
+    if (first_separator == std::string::npos) {
       return (file_name_only);
     }
 
     /* Any string that starts with an OS_SEPARATOR is
     an absolute path. This includes any OS and even
     paths like "\\Host\share" on Windows. */
-    if (path.at(0) == '\\' || path.at(0) == '/') {
+    if (first_separator == 0) {
       return (absolute);
     }
 
@@ -1014,8 +1028,8 @@ constexpr page_type_t FIL_PAGE_SDI_BLOB = 18;
 /** Commpressed SDI BLOB page */
 constexpr page_type_t FIL_PAGE_SDI_ZBLOB = 19;
 
-/** Available for future use */
-constexpr page_type_t FIL_PAGE_TYPE_UNUSED = 20;
+/** Legacy doublewrite buffer page. */
+constexpr page_type_t FIL_PAGE_TYPE_LEGACY_DBLWR = 20;
 
 /** Rollback Segment Array page */
 constexpr page_type_t FIL_PAGE_TYPE_RSEG_ARRAY = 21;

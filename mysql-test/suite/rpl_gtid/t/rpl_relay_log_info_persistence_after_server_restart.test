@@ -37,7 +37,7 @@
 # Procedure that checks if the PFS data regarding `PRIVILEGE_CHECKS_USER` is
 # updated.
 --write_file $MYSQLTEST_VARDIR/tmp/check_pfs.inc PROCEDURE
-  --let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE Privilege_Checks_User = "$applier_user" AND Require_Row_Format = 1`
+  --let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE Privilege_Checks_User = "$applier_user" AND Require_Row_Format = 1 AND Require_table_primary_key_check = 'OFF'`
   --let $assert_text = The performance_schema.replication_applier_configuration holds saved data: PCU=$applier_user & RRF=1
   --let $assert_cond = 0 != $count
   --source include/assert.inc
@@ -50,6 +50,7 @@ PROCEDURE
 --let $applier_user = 'u'@'localhost'
 --let $rpl_privilege_checks_user = *:$applier_user
 --let $rpl_require_row_format = *:1
+--let $rpl_require_table_primary_key_check= *:OFF
 --let $rpl_privilege_checks_user_additional_grants = CREATE,INSERT,DROP
 --source include/master-slave.inc
 

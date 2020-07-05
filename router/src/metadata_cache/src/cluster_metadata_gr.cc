@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -177,8 +177,9 @@ void GRClusterMetadata::update_replicaset_status(
 
       // check status of all nodes; updates instances
       // ------------------vvvvvvvvvvvvvvvvvv
-      metadata_cache::ReplicasetStatus status =
-          check_replicaset_status(replicaset.members, member_status);
+      bool metadata_gr_discrepancy{false};
+      metadata_cache::ReplicasetStatus status = check_replicaset_status(
+          replicaset.members, member_status, metadata_gr_discrepancy);
       switch (status) {
         case metadata_cache::ReplicasetStatus::AvailableWritable:  // we have
                                                                    // quorum,
@@ -207,6 +208,7 @@ void GRClusterMetadata::update_replicaset_status(
 
       if (found_quorum) {
         replicaset.single_primary_mode = single_primary_mode;
+        replicaset.md_discrepancy = metadata_gr_discrepancy;
         break;  // break out of the member iteration loop
       }
 
@@ -216,11 +218,11 @@ void GRClusterMetadata::update_replicaset_status(
           "replicaset '%s': %s",
           mi_addr.c_str(), name.c_str(), e.what());
       continue;  // faulty server, next!
-    } catch (...) {
+    } catch (const std::exception &e) {
       log_warning(
           "Unable to fetch live group_replication member data from %s from "
-          "replicaset '%s'",
-          mi_addr.c_str(), name.c_str());
+          "replicaset '%s': %s",
+          mi_addr.c_str(), name.c_str(), e.what());
       continue;  // faulty server, next!
     }
 
@@ -243,8 +245,8 @@ void GRClusterMetadata::update_replicaset_status(
 
 metadata_cache::ReplicasetStatus GRClusterMetadata::check_replicaset_status(
     std::vector<metadata_cache::ManagedInstance> &instances,
-    const std::map<std::string, GroupReplicationMember> &member_status) const
-    noexcept {
+    const std::map<std::string, GroupReplicationMember> &member_status,
+    bool &metadata_gr_discrepancy) const noexcept {
   // In ideal world, the best way to write this function would be to completely
   // ignore nodes in `instances` and operate on information from `member_status`
   // only. However, there is one problem: the host:port information contained
@@ -260,6 +262,8 @@ metadata_cache::ReplicasetStatus GRClusterMetadata::check_replicaset_status(
   // Detect violation of above assumption (alarm if there's a node in
   // `member_status` not present in `instances`). It's O(n*m), but the CPU time
   // is negligible while keeping code simple.
+
+  metadata_gr_discrepancy = false;
   for (const auto &status_node : member_status) {
     using MI = metadata_cache::ManagedInstance;
     auto found = std::find_if(instances.begin(), instances.end(),
@@ -268,6 +272,7 @@ metadata_cache::ReplicasetStatus GRClusterMetadata::check_replicaset_status(
                                        metadata_node.mysql_server_uuid;
                               });
     if (found == instances.end()) {
+      metadata_gr_discrepancy = true;
       log_error(
           "Member %s:%d (%s) found in replicaset, yet is not defined in "
           "metadata!",
@@ -320,6 +325,7 @@ metadata_cache::ReplicasetStatus GRClusterMetadata::check_replicaset_status(
       }
     } else {
       member.mode = ServerMode::Unavailable;
+      metadata_gr_discrepancy = true;
       log_warning(
           "Member %s:%d (%s) defined in metadata not found in actual "
           "replicaset",
@@ -350,9 +356,12 @@ metadata_cache::ReplicasetStatus GRClusterMetadata::check_replicaset_status(
 }
 
 void GRClusterMetadata::reset_metadata_backend(const ClusterType type) {
-  using namespace std::placeholders;
-  ConnectCallback connect_clb =
-      std::bind(&GRClusterMetadata::do_connect, this, _1, _2);
+  ConnectCallback connect_clb = [this](
+                                    mysqlrouter::MySQLSession &sess,
+                                    const metadata_cache::ManagedInstance &mi) {
+    return do_connect(sess, mi);
+  };
+
   switch (type) {
     case ClusterType::GR_V1:
       metadata_backend_ =
@@ -372,6 +381,20 @@ void GRClusterMetadata::reset_metadata_backend(const ClusterType type) {
 mysqlrouter::ClusterType GRClusterMetadata::get_cluster_type() {
   if (!metadata_backend_) return ClusterType::GR_V1;
   return metadata_backend_->get_cluster_type();
+}
+
+GRClusterMetadata::auth_credentials_t GRClusterMetadata::fetch_auth_credentials(
+    const std::string &cluster_name) {
+  if (!metadata_backend_) return {};
+  switch (metadata_backend_->get_cluster_type()) {
+    case mysqlrouter::ClusterType::GR_V1:
+      log_warning(
+          "metadata_cache authentication backend is not supported for metadata "
+          "version 1.0");
+      return {};
+    default:
+      return ClusterMetadata::fetch_auth_credentials(cluster_name);
+  }
 }
 
 GRClusterMetadata::ReplicaSetsByName

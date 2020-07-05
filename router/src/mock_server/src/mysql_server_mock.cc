@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,18 +24,9 @@
 
 #include "mysql_server_mock.h"
 
-#include "common.h"  // rename_thread()
-#include "duktape_statement_reader.h"
-#include "mock_session.h"
-#include "mysql_protocol_utils.h"
-#include "socket_operations.h"
-
-#include "mysql/harness/logging/logging.h"
-IMPORT_LOG_FUNCTIONS()
-#include "mysql/harness/mpmc_queue.h"
-
 #include <atomic>
 #include <condition_variable>
+#include <csignal>
 #include <cstring>
 #include <deque>
 #include <functional>
@@ -51,7 +42,6 @@ IMPORT_LOG_FUNCTIONS()
 #include <netdb.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
-#include <signal.h>
 #include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -63,7 +53,15 @@ IMPORT_LOG_FUNCTIONS()
 #include <ws2tcpip.h>
 #endif
 
-using namespace std::placeholders;
+#include "common.h"  // rename_thread()
+#include "duktape_statement_reader.h"
+#include "mock_session.h"
+#include "mysql_protocol_utils.h"
+#include "socket_operations.h"
+
+#include "mysql/harness/logging/logging.h"
+IMPORT_LOG_FUNCTIONS()
+#include "mysql/harness/mpmc_queue.h"
 
 namespace server_mock {
 
@@ -290,7 +288,7 @@ void MySQLServerMock::handle_connections(mysql_harness::PluginFuncEnv *env) {
     tv.tv_sec = 0;
     tv.tv_usec = 10000;
 
-    int err = select(listener_ + 1, &fds, NULL, NULL, &tv);
+    int err = select(listener_ + 1, &fds, nullptr, nullptr, &tv);
 
     if (err < 0) {
       std::cerr << std::system_error(get_last_socket_error_code(),

@@ -1,0 +1,69 @@
+#
+# WL#3549: binlog compression
+#
+# This test file contains tests for performance_schema.binary_log_transaction_compression_stats
+# that require a server restart
+#
+#
+--source include/have_binlog_format_row.inc
+
+# slow test
+--source include/not_valgrind.inc
+
+# setup
+--let $saved_binlog_transaction_compression_session_master = `SELECT @@SESSION.binlog_transaction_compression`
+--let $saved_binlog_transaction_compression_global_master = `SELECT @@GLOBAL.binlog_transaction_compression`
+--let $trx_size_bytes = 1000000
+--let $pfs_table = performance_schema.binary_log_transaction_compression_stats
+
+#
+# Test 1: Issue one transaction and then restart the server note that
+# the stats are gone
+#
+
+SET SESSION binlog_transaction_compression = ON;
+CREATE TABLE t1 (c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT);
+--eval INSERT INTO t1 VALUES (2, REPEAT('b', $trx_size_bytes))
+DROP TABLE t1;
+
+# there are two row (DDL - compression is none, DML - compression is ZSTD)
+# in the table
+--let $nrows = `SELECT COUNT(*) FROM $pfs_table`
+--let $assert_cond = $nrows = 2
+--let $assert_text = Number of rows in $pfs_table = 2
+--source include/assert.inc
+
+# now lets restart the server
+--source include/restart_mysqld.inc
+
+# there are zero rows in the table
+--let $nrows = `SELECT COUNT(*) FROM $pfs_table`
+--let $assert_cond = $nrows = 0
+--let $assert_text = Number of rows in $pfs_table = 0
+--source include/assert.inc
+
+#
+# Test 2: Restart the server with the binary log disabled
+#
+
+--let $restart_parameters=restart:--skip-log-bin
+--source include/restart_mysqld.inc
+
+SET SESSION binlog_transaction_compression = ON;
+CREATE TABLE t1 (c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT);
+--eval INSERT INTO t1 VALUES (2, REPEAT('b', $trx_size_bytes))
+DROP TABLE t1;
+
+# there are zero rows in the table
+--let $nrows = `SELECT COUNT(*) FROM $pfs_table`
+--let $assert_cond = $nrows = 0
+--let $assert_text = Number of rows in $pfs_table = 0
+--source include/assert.inc
+
+--let $restart_parameters=
+--source include/restart_mysqld.inc
+
+# clean up
+
+--eval SET SESSION binlog_transaction_compression = $saved_binlog_transaction_compression_session_master
+--eval SET GLOBAL binlog_transaction_compression = $saved_binlog_transaction_compression_global_master

@@ -24,8 +24,15 @@ ADD_WSHADOW_WARNING()
 
 ADD_SUBDIRECTORY(gunit)
 
+INCLUDE(ProcessorCount)
+ProcessorCount(CORES)
+IF (CORES EQUAL 0)
+  SET(CORES 1)
+ENDIF()
+
 ADD_CUSTOM_TARGET(
   test-unit
-  COMMAND ctest
+  COMMAND ctest --progress --parallel ${CORES} --output-on-failure --timeout=300
   WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+  USES_TERMINAL
 )

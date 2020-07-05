@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,17 +24,13 @@
 
 #include "mysqlrouter/utils.h"
 
-#include "common.h"
-#include "mysql/harness/filesystem.h"
-#include "mysql/harness/string_utils.h"
-
-#include <string.h>
 #include <algorithm>
 #include <cassert>
 #include <cctype>
 #include <climits>
 #include <cstdarg>
 #include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <functional>
 #include <iomanip>
@@ -58,6 +54,10 @@ namespace {
 extern "C" bool g_windows_service;
 }
 #endif
+
+#include "common.h"
+#include "mysql/harness/filesystem.h"
+#include "mysql/harness/string_utils.h"
 
 using mysql_harness::trim;
 using std::string;
@@ -101,47 +101,6 @@ void MockOfstream::open(const char *filename,
 #else
   return std::string("C:\\temp\\mysqlrouter_mockfile") + std::to_string(i);
 #endif
-}
-
-std::vector<string> wrap_string(const string &to_wrap, size_t width,
-                                size_t indent_size) {
-  size_t curr_pos = 0;
-  size_t wrap_pos = 0;
-  size_t prev_pos = 0;
-  string work{to_wrap};
-  std::vector<string> res{};
-  auto indent = string(indent_size, ' ');
-  auto real_width = width - indent_size;
-
-  size_t str_size = work.size();
-  if (str_size < real_width) {
-    res.push_back(indent + work);
-  } else {
-    work.erase(std::remove(work.begin(), work.end(), '\r'), work.end());
-    std::replace(work.begin(), work.end(), '\t', ' '), work.end();
-    str_size = work.size();
-
-    do {
-      curr_pos = prev_pos + real_width;
-
-      // respect forcing newline
-      wrap_pos = work.find("\n", prev_pos);
-      if (wrap_pos == string::npos || wrap_pos > curr_pos) {
-        // No new line found till real_width
-        wrap_pos = work.find_last_of(" ", curr_pos);
-      }
-      if (wrap_pos != string::npos) {
-        res.push_back(indent + work.substr(prev_pos, wrap_pos - prev_pos));
-        prev_pos = wrap_pos + 1;  // + 1 to skip space
-      } else {
-        break;
-      }
-    } while (str_size - prev_pos > real_width ||
-             work.find("\n", prev_pos) != string::npos);
-    res.push_back(indent + work.substr(prev_pos));
-  }
-
-  return res;
 }
 
 bool my_check_access(const std::string &path) {
@@ -333,9 +292,9 @@ uint16_t get_tcp_port(const string &data) {
     port = data.empty()
                ? 0
                : static_cast<int>(std::strtol(data.c_str(), nullptr, 10));
-  } catch (const std::invalid_argument &exc) {
+  } catch (const std::invalid_argument &) {
     throw std::runtime_error("convertion to integer failed");
-  } catch (const std::out_of_range &exc) {
+  } catch (const std::out_of_range &) {
     throw std::runtime_error("impossible port number (out-of-range)");
   }
 
@@ -523,7 +482,10 @@ void write_windows_event_log(const std::string &msg) {
 bool is_valid_socket_name(const std::string &socket, std::string &err_msg) {
   bool result = true;
 
-#ifndef _WIN32
+#ifdef _WIN32
+  UNREFERENCED_PARAMETER(socket);
+  UNREFERENCED_PARAMETER(err_msg);
+#else
   result = socket.size() <= (sizeof(sockaddr_un().sun_path) - 1);
   err_msg = "Socket file path can be at most " +
             to_string(sizeof(sockaddr_un().sun_path) - 1) +
@@ -538,13 +500,13 @@ static RET strtoX_checked_common(const char *value,
                                  RET default_value) noexcept {
   static_assert(std::is_integral<RET>::value,
                 "This template function is meant for integers.");
-  static_assert(sizeof(RET) <= sizeof(decltype(
-                                   std::strtol((char *)0, (char **)0, (int)0))),
+  static_assert(sizeof(RET) <= sizeof(decltype(std::strtol(
+                                   (char *)nullptr, (char **)nullptr, (int)0))),
                 "This function uses strtol() to convert signed integers, "
                 "therefore the integer bit width cannot be larger than what it "
                 "supports.");
   static_assert(sizeof(RET) <= sizeof(decltype(std::strtoul(
-                                   (char *)0, (char **)0, (int)0))),
+                                   (char *)nullptr, (char **)nullptr, (int)0))),
                 "This function uses strtoul() to convert unsigned integers, "
                 "therefore the integer bit width cannot be larger than what it "
                 "supports.");

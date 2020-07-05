@@ -309,7 +309,11 @@ public:
   void* get_page(Uint32 i) const; /* Note, no checks, i must be valid. */
   void* get_valid_page(Uint32 i) const; /* DO NOT USE see why at definition */
 
-  void* alloc_page(Uint32 type, Uint32* i, enum AllocZone, bool locked = false);
+  void* alloc_page(Uint32 type,
+                   Uint32* i,
+                   enum AllocZone,
+                   bool locked = false,
+                   bool use_max_part = true);
   void* alloc_spare_page(Uint32 type, Uint32* i, enum AllocZone);
   void release_page(Uint32 type, Uint32 i, bool locked = false);
   

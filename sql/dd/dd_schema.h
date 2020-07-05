@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -88,7 +88,7 @@ class Schema_MDL_locker {
   MDL_ticket *m_ticket;  // MDL ticket.
 
  public:
-  Schema_MDL_locker(THD *thd) : m_thd(thd), m_ticket(NULL) {}
+  Schema_MDL_locker(THD *thd) : m_thd(thd), m_ticket(nullptr) {}
 
   /**
     Make sure we have an IX meta data lock on the schema name.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,6 +42,8 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"            // check_access
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
+#include "sql/dd/properties.h"               // dd::Properties
+#include "sql/dd/types/table.h"              // dd::Table
 #include "sql/dd_table_share.h"              // open_table_def
 #include "sql/debug_sync.h"                  // DEBUG_SYNC
 #include "sql/handler.h"
@@ -434,6 +436,15 @@ bool Sql_cmd_alter_table_exchange_partition::exchange_partition(
   /* Tables were successfully opened above. */
   DBUG_ASSERT(part_table_def != nullptr && swap_table_def != nullptr);
 
+  if (part_table_def->options().exists("secondary_engine") ||
+      swap_table_def->options().exists("secondary_engine")) {
+    /* Exchange operation is not allowed for tables with secondary engine
+     * since it's not currently supported by change propagation
+     */
+    my_error(ER_SECONDARY_ENGINE_DDL, MYF(0));
+    return true;
+  }
+
   DEBUG_SYNC(thd, "swap_partition_before_exchange");
 
   int ha_error = part_handler->exchange_partition(swap_part_id, part_table_def,
@@ -443,8 +454,8 @@ bool Sql_cmd_alter_table_exchange_partition::exchange_partition(
     handlerton *hton = part_table->file->ht;
     part_table->file->print_error(ha_error, MYF(0));
     // Close TABLE instances which marked as old earlier.
-    close_all_tables_for_name(thd, swap_table->s, false, NULL);
-    close_all_tables_for_name(thd, part_table->s, false, NULL);
+    close_all_tables_for_name(thd, swap_table->s, false, nullptr);
+    close_all_tables_for_name(thd, part_table->s, false, nullptr);
     /*
       Rollback all possible changes to data-dictionary and SE which
       Partition_handler::exchange_partitions() might have done before
@@ -467,8 +478,8 @@ bool Sql_cmd_alter_table_exchange_partition::exchange_partition(
       handlerton *hton = part_table->file->ht;
 
       // Close TABLE instances which marked as old earlier.
-      close_all_tables_for_name(thd, swap_table->s, false, NULL);
-      close_all_tables_for_name(thd, part_table->s, false, NULL);
+      close_all_tables_for_name(thd, swap_table->s, false, nullptr);
+      close_all_tables_for_name(thd, part_table->s, false, nullptr);
 
       /*
         Ensure that we call post-DDL hook and re-open tables even
@@ -511,8 +522,8 @@ bool Sql_cmd_alter_table_exchange_partition::exchange_partition(
         tables. Ignore the fact that the statement might fail due to binlog
         write failure.
       */
-      close_all_tables_for_name(thd, swap_table->s, false, NULL);
-      close_all_tables_for_name(thd, part_table->s, false, NULL);
+      close_all_tables_for_name(thd, swap_table->s, false, nullptr);
+      close_all_tables_for_name(thd, part_table->s, false, nullptr);
       (void)thd->locked_tables_list.reopen_tables(thd);
 
       if (write_bin_log(thd, true, thd->query().str, thd->query().length))
@@ -640,6 +651,14 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd) {
   /* Table was successfully opened above. */
   DBUG_ASSERT(table_def != nullptr);
 
+  if (table_def->options().exists("secondary_engine")) {
+    /* Truncate operation is not allowed for tables with secondary engine
+     * since it's not currently supported by change propagation
+     */
+    my_error(ER_SECONDARY_ENGINE_DDL, MYF(0));
+    return true;
+  }
+
   if (hton->partition_flags() & HA_TRUNCATE_PARTITION_PRECLOSE) {
     /*
       Storage engine requires closing all open table instances before
@@ -721,7 +740,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd) {
       Since we about to update table definition in the data-dictionary below
       we need to remove its TABLE/TABLE_SHARE from TDC now.
     */
-    close_all_tables_for_name(thd, first_table->table->s, false, NULL);
+    close_all_tables_for_name(thd, first_table->table->s, false, nullptr);
   }
 
   if (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) {

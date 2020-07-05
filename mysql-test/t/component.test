@@ -14,7 +14,9 @@ INSTALL COMPONENT "file://component_example_component1";
 UNINSTALL COMPONENT "file://component_example_component1";
 
 --echo # Load not existing
---error ER_COMPONENTS_CANT_LOAD
+# To hide the path of the file
+--replace_regex /.*Can\'t open shared library.*/Can't open shared library/
+--error ER_CANT_OPEN_LIBRARY
 INSTALL COMPONENT "file://component_example_component4";
 
 --echo # Load with unsatisfied dependencies
@@ -178,7 +180,8 @@ SELECT COUNT(*) FROM mysql.component;
 --echo # Name of component is invalid
 --error ER_COMPONENTS_NO_SCHEME
 INSTALL COMPONENT "dynamic_loader_test_lib1";
---error ER_COMPONENTS_CANT_LOAD
+--replace_regex /.*Can\'t open shared library.*/Can't open shared library/
+--error ER_CANT_OPEN_LIBRARY
 INSTALL COMPONENT "file://dynamic_loader_test_lib2", "dynamic_loader_test_lib3";
 --error ER_COMPONENTS_UNLOAD_NOT_LOADED
 UNINSTALL COMPONENT "fle://dynamic_loader_test_lib1", "file://dynamic_loader_test_lib3";
@@ -188,7 +191,8 @@ UNINSTALL COMPONENT "dynamic_loader_test_lib2";
 INSTALL COMPONENT "file://localhost/tmp/dynamic_loader_test_lib1";
 --error ER_COMPONENTS_NO_SCHEME_SERVICE
 INSTALL COMPONENT "http://dynamic_loader_test_lib1";
---error ER_COMPONENTS_CANT_LOAD
+--replace_regex /.*Can\'t open shared library.*/Can't open shared library/
+--error ER_CANT_OPEN_LIBRARY
 INSTALL COMPONENT "file://dynamic_loader_test_lib2", "http://dynamic_loader_test_lib3";
 --error ER_COMPONENTS_UNLOAD_NOT_LOADED
 UNINSTALL COMPONENT "file://dynamic_loader_test_lib1", "http://dynamic_loader_test_lib3";

@@ -62,7 +62,6 @@
 #define ZBLOCK_STTOR 3
 
 #define ZSIZE_NDB_BLOCKS_REC 16 /* MAX BLOCKS IN NDB                    */
-#define ZSIZE_SYSTAB 2048
 #define ZSTART_PHASE_1 1
 #define ZSTART_PHASE_2 2
 #define ZSTART_PHASE_3 3
@@ -227,16 +226,10 @@ private:
   void execDUMP_STATE_ORD(Signal* signal);
   void execREAD_CONFIG_REQ(Signal* signal);
   void execSTTOR(Signal* signal);
-  void execTCSEIZECONF(Signal* signal);
-  void execTCSEIZEREF(Signal* signal);
-  void execTCRELEASECONF(Signal* signal);
-  void execTCRELEASEREF(Signal* signal);
-  void execTCKEYCONF(Signal* signal);
-  void execTCKEYREF(Signal* signal);
-  void execTCROLLBACKREP(Signal* signal);
   void execGETGCICONF(Signal* signal);
   void execDIH_RESTARTCONF(Signal* signal);
   void execDIH_RESTARTREF(Signal* signal);
+  void execSET_UP_MULTI_TRP_CONF(Signal*);
   void execSCHEMA_TRANS_BEGIN_CONF(Signal* signal);
   void execSCHEMA_TRANS_BEGIN_REF(Signal* signal);
   void execSCHEMA_TRANS_END_CONF(Signal* signal);
@@ -278,7 +271,6 @@ private:
   void beginSchemaTransLab(Signal* signal);
   void endSchemaTransLab(Signal* signal);
   void sendCreateTabReq(Signal* signal, const char* buffer, Uint32 bufLen);
-  void startInsertTransactions(Signal* signal);
   void initData(Signal* signal);
   void resetStartVariables(Signal* signal);
   void sendCntrStartReq(Signal* signal);
@@ -296,9 +288,6 @@ private:
   void createHashMap(Signal*, Uint32 index);
   void createSystableLab(Signal* signal, unsigned index);
   void createDDObjects(Signal*, unsigned index);
-  void crSystab7Lab(Signal* signal);
-  void crSystab8Lab(Signal* signal);
-  void crSystab9Lab(Signal* signal);
 
   void startPhase1Lab(Signal* signal);
   void startPhase2Lab(Signal* signal);
@@ -392,16 +381,9 @@ private:
   /*
     2.4 COMMON STORED VARIABLES
   */
-  UintR cgciSystab;
-  UintR ckey;
-  //UintR csystabId;
   UintR cnoWaitrep6;
   UintR cnoWaitrep7;
-  UintR ctcConnectionP;
-  Uint32 ctcReference;
   UintR ctcReqInfo;
-  Uint8 ctransidPhase;
-  Uint16 cresponses;
 
   Uint8 cstartPhase;
   Uint16 cinternalStartphase;
@@ -471,8 +453,8 @@ public:
     } m_state;
     SignalCounter m_stop_req_counter;
   };
-  bool is_node_starting(NodeId);
   bool is_node_started(NodeId);
+  bool is_node_starting(NodeId);
 private:
   bool is_nodegroup_starting(Signal*, NodeId);
   void get_node_group_mask(Signal*, NodeId, NdbNodeBitmask&);

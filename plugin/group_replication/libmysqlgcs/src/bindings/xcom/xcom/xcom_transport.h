@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -92,9 +92,8 @@ int flush_srv_buf(server *s, int64_t *ret);
   @param[out]    s   Pointer to server. Server timestamp updated if not 0.
   @param[out]    ret Number of bytes read, or -1 if failure.
 
-  @return
-    @retval 0 if task should terminate.
-    @retval 1 if it should continue.
+  @retval 0 if task should terminate.
+  @retval 1 if it should continue.
 */
 
 int buffered_read_msg(connection_descriptor *rfd, srv_buf *buf, pax_msg *p,
@@ -108,9 +107,8 @@ int buffered_read_msg(connection_descriptor *rfd, srv_buf *buf, pax_msg *p,
   @param[in,out] s   Pointer to server. Server timestamp updated if not 0.
   @param[in,out] ret Number of bytes read, or -1 if failure.
 
-  @return
-    @retval 0 if task should terminate.
-    @retval 1 if it should continue.
+  @retval 0 if task should terminate.
+  @retval 1 if it should continue.
 */
 int read_msg(connection_descriptor *rfd, pax_msg *p, server *s, int64_t *ret);
 
@@ -157,7 +155,7 @@ void shutdown_connection(connection_descriptor *con);
 void reset_connection(connection_descriptor *con);
 void close_connection(connection_descriptor *con);
 
-#ifdef XCOM_HAVE_OPENSSL
+#ifndef XCOM_WITHOUT_OPENSSL
 void ssl_free_con(connection_descriptor *con);
 void ssl_shutdown_con(connection_descriptor *con);
 #endif
@@ -218,7 +216,7 @@ int get_ip_and_port(char *address, char ip[IP_MAX_SIZE], xcom_port *port);
  * If all of the above hold true we are able to proceed and add the node. Else,
  * we must fail.
  *
- * @return 1 in case of success.
+ * @retval 1 in case of success.
  */
 int is_new_node_eligible_for_ipv6(xcom_proto incoming_proto,
                                   const site_def *current_site_def);

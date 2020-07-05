@@ -177,6 +177,7 @@ int Until_gtids::init(const char *gtid_set_str) {
 }
 
 bool Until_before_gtids::check_at_start_slave() {
+  DBUG_TRACE;
   global_sid_lock->wrlock();
   if (m_gtids.is_intersection_nonempty(gtid_state->get_executed_gtids())) {
     char *buffer;
@@ -193,6 +194,7 @@ bool Until_before_gtids::check_at_start_slave() {
 }
 
 bool Until_before_gtids::check_before_dispatching_event(const Log_event *ev) {
+  DBUG_TRACE;
   if (ev->get_type_code() == binary_log::GTID_LOG_EVENT) {
     Gtid_log_event *gev =
         const_cast<Gtid_log_event *>(down_cast<const Gtid_log_event *>(ev));

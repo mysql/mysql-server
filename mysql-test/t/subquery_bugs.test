@@ -977,6 +977,19 @@ SELECT 1 FROM t1 AS table2 LEFT JOIN (SELECT 'c') AS table3(f1)
 
 DROP TABLE t1;
 
+--echo # Bug#30309982: Sig6 in Item_subselect::exec()
+
+CREATE VIEW v1 AS
+SELECT 1
+FROM (SELECT 1) AS table1(pk) JOIN
+     (SELECT 1) AS table2
+     ON table1.pk = (SELECT 1)
+WHERE table1.pk IN ((SELECT 1), 2);
+
+SELECT * FROM v1;
+
+DROP VIEW v1;
+
 --echo #
 --echo # Bug#30515233 DISTINCT INSIDE LATERAL DERIVED TABLE BREAKS IN ITERATOR EXECUTOR
 --echo #
@@ -991,3 +1004,173 @@ t AS upper JOIN LATERAL
  WHERE (t.a > upper.a)) der ;
 
 DROP TABLE t;
+
+--echo #
+--echo # Bug #30717861: WL#13377 REGRESSION, ITEM REFS ARE SUBSTITUTED TO REFER TABLES NOT YET AVAILABLE
+--echo #
+
+CREATE TABLE t1 (
+  col_int INTEGER,
+  pk INTEGER
+);
+
+INSERT INTO t1 VALUES (6,24),(7,0),(8,2),(0,15);
+
+CREATE TABLE t2 (
+  pk INTEGER,
+  UNIQUE ( pk )
+);
+
+INSERT INTO t2 VALUES (6),(27),(41);
+
+CREATE TABLE t3 (
+  pk INTEGER
+);
+
+INSERT INTO t3 VALUES (4),(40),(46);
+
+CREATE TABLE t4 (
+  col_int INTEGER
+);
+
+ANALYZE TABLE t1, t2, t3, t4;
+
+# Verify that the IS NOT NULL condition added on t3 refers to t3 and not t1,
+# even though we have substituted t3 with t1 elsewhere when re-resolving
+# multi-equalities for the hash join condition.
+EXPLAIN FORMAT=tree
+  SELECT * FROM
+    t1
+      JOIN t2 ON t1.pk = t2.pk
+      JOIN t3 ON t2.pk = t3.pk
+  WHERE (t1.col_int + t2.pk) IN ( SELECT col_int FROM t4 );
+
+DROP TABLE t1, t2, t3, t4;
+
+CREATE TABLE t1 (
+  col1 CHAR(16),
+  UNIQUE KEY col1_idx (col1)
+);
+
+CREATE TABLE t2 (
+  col1 INTEGER,
+  col2 INTEGER,
+  UNIQUE KEY ix1 (col1)
+);
+
+CREATE TABLE t3 (
+  col1 INTEGER,
+  col2 INTEGER NOT NULL,
+  UNIQUE KEY ix1 (col1)
+);
+
+ANALYZE TABLE t1,t2,t3;
+
+# Very much like the previous test case; verify that the BETWEEN attached to t3
+# refers to t3 and not to t2, even though we have substituted t3 with t2
+# elsewhere when re-resolving multi-equalities for the hash join condition.
+EXPLAIN FORMAT=tree
+  SELECT /*+ JOIN_ORDER(t3,t2,t1) */ * FROM t1
+  WHERE t1.col1 = ANY (
+    SELECT t1.col1 + t2.col2
+    FROM t2 JOIN t3 ON t2.col2 = t3.col2 AND t2.col1 =  t3.col1
+    WHERE t2.col2 BETWEEN 2 AND 9
+  );
+
+DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug#30659623 ASSERT IN SQL/ITEM_SUBSELECT.CC:3571: SUBSELECT_HASH_SJ_ENGINE::EXEC()
+--echo #
+
+CREATE TABLE t1 (col_int_key INT);
+
+INSERT INTO t1 VALUES (NULL);
+
+CREATE TABLE t2 (
+  col_int_key INT, col_int_unique INT,
+  UNIQUE KEY (col_int_unique), KEY (col_int_key)
+);
+
+INSERT INTO t2 VALUES (26,14),(3,46),(45,2),(18,30),(11,22),(19,8),(41,3),(1,5),
+(1,9),(38,4),(13,38),(32,12),(11,7),(2,26),(5,10),(16,45);
+
+CREATE TABLE t3 (pk INT NOT NULL PRIMARY KEY);
+
+ANALYZE TABLE t1,t2,t3;
+
+let $query=
+SELECT *
+FROM t1
+  LEFT JOIN t2 ON t1.col_int_key = t2.col_int_key
+  JOIN t3 ON t1.col_int_key =  t3.pk
+WHERE t3.pk+6 NOT IN (
+  SELECT /*+ subquery(materialization) */
+    table1s.col_int_unique AS field4 FROM t2 AS table1s);
+
+eval explain format = tree $query;
+eval $query;
+
+DROP TABLE t1,t2,t3;
+
+--echo # Bug#30837240 Assertion 'item->is_bool_func()' failed
+
+CREATE TABLE t1 (
+  col_datetime datetime DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_char char(1) DEFAULT NULL,
+  col_char_key char(1) DEFAULT NULL,
+  col_tinyint tinyint DEFAULT NULL,
+  col_tinyint_key tinyint DEFAULT NULL
+);
+
+CREATE TABLE t2 (
+  col_real_key double DEFAULT NULL,
+  col_mediumint mediumint DEFAULT NULL
+);
+
+CREATE TABLE t3 (
+  col_varchar varchar(1) DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL
+);
+
+let $query=
+SELECT COUNT(table1.col_datetime) AS field1
+FROM t1 AS table1 RIGHT JOIN t1 AS table2
+     ON table1.col_varchar_key = table2.col_char
+WHERE table1.col_char_key IN
+       (SELECT sq2_t1.col_real_key
+        FROM t2 AS sq2_t1 JOIN
+               t3 AS sq2_t2 JOIN t1 AS sq2_t3
+               ON INSTR(sq2_t3.col_tinyint, 'K') = sq2_t2.col_varchar
+             ON sq2_t3.col_varchar_key = sq2_t2.col_varchar_key
+        WHERE sq2_t1.col_mediumint IN
+               (SELECT sq1_t1.col_varchar_key
+                FROM t1 AS sq1_t1 JOIN t1 AS sq1_t2
+                     ON sq1_t2.col_tinyint_key = table1.col_tinyint_key
+               )
+       ) OR
+      RTRIM(table1.col_tinyint_key) IS NOT NULL;
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug #30912972 ASSERTION KEYLEN == M_START_KEY.LENGTH FAILED|PARTITION_HANDLER.CC
+--echo #
+
+CREATE TABLE t1 (
+  col_int_key bigint DEFAULT NULL,
+  KEY(col_int_key)
+) PARTITION BY KEY(col_int_key) PARTITIONS 10;
+
+INSERT INTO t1 VALUES
+(NULL);
+
+SELECT 42
+WHERE 11 NOT IN
+(SELECT col_int_key FROM t1);
+
+DROP TABLE t1;

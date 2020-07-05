@@ -391,7 +391,7 @@ inline uint32_t fsp_header_get_field(const page_t *page, ulint field) {
 /** Read the flags from the tablespace header page.
 @param[in]	page	first page of a tablespace
 @return the contents of FSP_SPACE_FLAGS */
-inline ulint fsp_header_get_flags(const page_t *page) {
+inline uint32_t fsp_header_get_flags(const page_t *page) {
   return (fsp_header_get_field(page, FSP_SPACE_FLAGS));
 }
 
@@ -445,7 +445,7 @@ ulint fsp_header_get_encryption_offset(const page_size_t &page_size);
 @param[in]      update_fsp_flags	if it need to update the space flags
 @param[in,out]	mtr			mini-transaction
 @return true if success. */
-bool fsp_header_write_encryption(space_id_t space_id, ulint space_flags,
+bool fsp_header_write_encryption(space_id_t space_id, uint32_t space_flags,
                                  byte *encrypt_info, bool update_fsp_flags,
                                  bool rotate_encryption, mtr_t *mtr);
 

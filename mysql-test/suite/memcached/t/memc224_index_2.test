@@ -187,7 +187,7 @@ EOF
 SELECT c1,c11,c2,c21 FROM t1;
 
 connection default;
-# Stop plugin befor innodb_memcached configuration
+# Stop plugin before innodb_memcached configuration
 UNINSTALL PLUGIN daemon_memcached;
 # We can never drop primary key
 ALTER TABLE test.t1 DROP PRIMARY KEY;
@@ -216,7 +216,7 @@ EOF
 SELECT c1,c11,c2,c21 FROM t1;
 
 connection default;
-# Stop plugin befor innodb_memcached configuration
+# Stop plugin before innodb_memcached configuration
 UNINSTALL PLUGIN daemon_memcached;
 ALTER TABLE test.t1 ADD CONSTRAINT PRIMARY KEY (c1);
 --let $memcached_address=127.0.0.1:11224

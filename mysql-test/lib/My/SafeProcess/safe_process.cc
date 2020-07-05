@@ -172,7 +172,7 @@ extern "C" void handle_signal(int sig) {
 }
 
 int main(int argc, char *const argv[]) {
-  char *const *child_argv = 0;
+  char *const *child_argv = nullptr;
   pid_t own_pid = getpid();
   pid_t parent_pid = getppid();
   bool nocore = false;
@@ -186,11 +186,11 @@ int main(int argc, char *const argv[]) {
   sa_abort.sa_flags = 0;
   sigemptyset(&sa_abort.sa_mask);
   /* Install signal handlers */
-  sigaction(SIGTERM, &sa, NULL);
-  sigaction(SIGSEGV, &sa, NULL);
-  sigaction(SIGINT, &sa, NULL);
-  sigaction(SIGCHLD, &sa, NULL);
-  sigaction(SIGABRT, &sa_abort, NULL);
+  sigaction(SIGTERM, &sa, nullptr);
+  sigaction(SIGSEGV, &sa, nullptr);
+  sigaction(SIGINT, &sa, nullptr);
+  sigaction(SIGCHLD, &sa, nullptr);
+  sigaction(SIGABRT, &sa_abort, nullptr);
 
   sprintf(safe_process_name, "safe_process[%ld]", (long)own_pid);
 
@@ -208,7 +208,7 @@ int main(int argc, char *const argv[]) {
       } else if (strncmp(arg, "--parent-pid", 12) == 0) {
         /* Override parent_pid with a value provided by user */
         const char *start;
-        if ((start = strstr(arg, "=")) == NULL)
+        if ((start = strstr(arg, "=")) == nullptr)
           die("Could not find start of option value in '%s'", arg);
         start++; /* Step past = */
         if ((parent_pid = atoi(start)) == 0)
@@ -221,7 +221,7 @@ int main(int argc, char *const argv[]) {
         die("Unknown option: %s", arg);
     }
   }
-  if (!child_argv || *child_argv == 0) die("nothing to do");
+  if (!child_argv || *child_argv == nullptr) die("nothing to do");
 
   message("parent_pid: %d", static_cast<int>(parent_pid));
 

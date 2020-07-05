@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -71,7 +71,7 @@ class Hold_transactions {
     Method to verify if thread is killed
   */
   bool is_thread_killed() {
-    return current_thd != NULL && current_thd->is_killed();
+    return current_thd != nullptr && current_thd->is_killed();
   }
 
   /** is plugin currently applying backlog */

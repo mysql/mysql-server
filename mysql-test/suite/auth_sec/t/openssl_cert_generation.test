@@ -461,3 +461,7 @@ connection default;
 --remove_file $MYSQLTEST_VARDIR/mysqld.1/data/public_key.pem
 
 #-----------------------------------------------------------------------------
+
+# Restore default settings in opt file and clean up
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc

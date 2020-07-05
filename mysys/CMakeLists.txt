@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,7 @@ ADD_WSHADOW_WARNING()
 SET(MY_TIME_SOURCES my_time.cc my_systime.cc)
 
 ADD_CONVENIENCE_LIBRARY(mytime ${MY_TIME_SOURCES})
-IF(SOLARIS_INTEL)
+IF(SOLARIS_INTEL AND MY_COMPILER_IS_SUNPRO)
   # Sun Studio 12.6 generates code that segfaults for std::chrono stuff.
   TARGET_COMPILE_OPTIONS(mytime_objlib PRIVATE $<$<CONFIG:RelWithDebInfo>:-xO1>)
 ENDIF()
@@ -176,6 +176,11 @@ ADD_CONVENIENCE_LIBRARY(mysys ${MYSYS_SOURCES}
   ${SSL_LIBRARIES}
   )
 
+# For targets that link with mysys, and are independent of other targets.
+IF(TARGET copy_openssl_dlls)
+  ADD_DEPENDENCIES(mysys copy_openssl_dlls)
+ENDIF()
+
 # Need explicit pthread for gcc -fsanitize=address
 IF(CMAKE_USE_PTHREADS_INIT AND CMAKE_C_FLAGS MATCHES "-fsanitize=")
   TARGET_LINK_LIBRARIES(mysys pthread)
@@ -186,9 +191,18 @@ IF(WIN32)
 ENDIF()
 
 # Bug in std::call_once in optimized mode
-IF(SOLARIS_SPARC AND MY_COMPILER_IS_GNU)
+IF(SOLARIS_SPARC AND MY_COMPILER_IS_GNU AND
+    CMAKE_BUILD_TYPE_UPPER MATCHES "REL")
   ADD_COMPILE_FLAGS(charset.cc COMPILE_FLAGS "-O0")
 ENDIF()
+
+# MD5_Init() and others are deprecated.
+IF(SOLARIS AND MY_COMPILER_IS_GNU_OR_CLANG)
+  ADD_COMPILE_FLAGS(my_md5.cc COMPILE_FLAGS "-Wno-deprecated-declarations")
+ENDIF()
+
+# We are not interesting in profiling tests.
+DISABLE_MISSING_PROFILE_WARNING()
 
 MYSQL_ADD_EXECUTABLE(thr_lock
   thr_lock.cc

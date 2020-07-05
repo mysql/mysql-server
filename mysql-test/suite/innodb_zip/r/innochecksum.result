@@ -96,6 +96,6 @@ Pattern "Error while setting value \'strict_crc32\' to \'write\'" found
 Pattern "Error while setting value \'strict_innodb\' to \'write\'" found
 Pattern "Error while setting value \'crc23\' to \'write\'" found
 # Restart the server
-# restart: --innodb_checksum_algorithm=innodb --innodb_file_per_table=on
+# restart
 DROP TABLE tab1;
 SET GLOBAL innodb_file_per_table=default;

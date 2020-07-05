@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -114,11 +114,6 @@ class Sql_check_constraint_share {
                              const LEX_CSTRING &expr_str, bool is_enforced)
       : m_name(name), m_expr_str(expr_str), m_is_enforced(is_enforced) {}
 
-  ~Sql_check_constraint_share() {
-    if (m_name.str != nullptr) delete m_name.str;
-    if (m_expr_str.str != nullptr) delete m_expr_str.str;
-  }
-
   /// Constraint name.
   LEX_CSTRING &name() { return m_name; }
   /// Check expression in string form.
@@ -135,15 +130,6 @@ class Sql_check_constraint_share {
 
   /// Check constraint state.
   bool m_is_enforced{true};
-
- private:
-  /**
-    Delete default copy and assignment operator to avoid accidental destruction
-    of shallow copied Sql_table_check_constraint_share objects.
-  */
-  Sql_check_constraint_share(const Sql_check_constraint_share &) = delete;
-  Sql_check_constraint_share &operator=(const Sql_check_constraint_share &) =
-      delete;
 };
 
 /**
@@ -166,8 +152,6 @@ class Sql_table_check_constraint : public Sql_check_constraint_share {
         m_val_gen(val_gen),
         m_table(table) {}
 
-  ~Sql_table_check_constraint();
-
   /// Value generator.
   Value_generator *value_generator() { return m_val_gen; }
   void set_value_generator(Value_generator *val_gen) { m_val_gen = val_gen; }
@@ -181,15 +165,6 @@ class Sql_table_check_constraint : public Sql_check_constraint_share {
 
   /// Parent table reference.
   TABLE *m_table{nullptr};
-
- private:
-  /**
-    Delete default copy and assignment operator to avoid accidental destruction
-    of shallow copied Sql_table_check_constraint objects.
-  */
-  Sql_table_check_constraint(const Sql_table_check_constraint &) = delete;
-  Sql_table_check_constraint &operator=(const Sql_table_check_constraint &) =
-      delete;
 };
 
 /// Type for the list of Sql_check_constraint_spec elements.
@@ -198,11 +173,11 @@ using Sql_check_constraint_spec_list =
 
 /// Type for the list of Sql_check_constraint_share elements.
 using Sql_check_constraint_share_list =
-    Mem_root_array<Sql_check_constraint_share *>;
+    Mem_root_array<Sql_check_constraint_share>;
 
 /// Type for the list of Sql_table_check_constraint elements.
 using Sql_table_check_constraint_list =
-    Mem_root_array<Sql_table_check_constraint *>;
+    Mem_root_array<Sql_table_check_constraint>;
 
 /**
   Method to check if server is a slave server and master server is on a

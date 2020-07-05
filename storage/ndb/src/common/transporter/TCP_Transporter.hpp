@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,6 +56,7 @@ class TCP_Transporter : public Transporter {
 private:
   // Initialize member variables
   TCP_Transporter(TransporterRegistry&, const TransporterConfiguration* conf);
+  TCP_Transporter(TransporterRegistry&, const TCP_Transporter*);
 
   // Disconnect, delete send buffers and receive buffer
   virtual ~TCP_Transporter();
@@ -101,6 +102,8 @@ private:
   inline bool hasReceiveData () const {
     return receiveBuffer.sizeOfData > 0;
   }
+
+  void shutdown();
 protected:
   /**
    * Setup client/server and perform connect/accept

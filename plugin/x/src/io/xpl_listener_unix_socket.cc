@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -366,7 +366,9 @@ std::vector<std::string> Listener_unix_socket::get_configuration_variables()
   return result;
 }
 
-std::string Listener_unix_socket::get_last_error() { return m_last_error; }
+std::string Listener_unix_socket::get_last_error() const {
+  return m_last_error;
+}
 
 bool Listener_unix_socket::setup_listener(On_connection on_connection) {
   Unixsocket_creator unixsocket_creator(*m_operations_factory);
@@ -399,7 +401,7 @@ void Listener_unix_socket::close_listener() {
       m_state.set_and_return_old(iface::Listener::State::k_stopped))
     return;
 
-  if (NULL == m_unix_socket) return;
+  if (nullptr == m_unix_socket) return;
 
   const bool should_unlink_unix_socket =
       INVALID_SOCKET != m_unix_socket->get_socket_fd();
@@ -409,6 +411,10 @@ void Listener_unix_socket::close_listener() {
 
   Unixsocket_creator unixsocket_creator(*m_operations_factory);
   unixsocket_creator.unlink_unixsocket_file(m_unix_socket_path);
+}
+
+void Listener_unix_socket::pre_loop() {
+  if (m_unix_socket) m_unix_socket->set_socket_thread_owner();
 }
 
 void Listener_unix_socket::loop() {}

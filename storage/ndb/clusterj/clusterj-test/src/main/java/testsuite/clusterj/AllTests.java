@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -43,10 +43,10 @@ public class AllTests {
 
     private static String jarFile = "";
 
-    private static boolean onlyRunSlowTests = false; 
+    private static boolean enableDebugTests = false;
 
     private static void usage() {
-        System.out.println("Usage: java -cp <jar file>:... AllTests <jar file> [--only-run-slow-tests]");
+        System.out.println("Usage: java -cp <jar file>:... AllTests <jar file> [--enable-debug-tests]");
         System.out.println("Will run all tests in the given jar file.");
         System.exit(2);
     }
@@ -55,23 +55,18 @@ public class AllTests {
         return fileName.endsWith("Test.class");
     }
 
-    private static boolean isSlowTestAnnotationPresent(Class<?> candidate) {
+    private static boolean isAnnotationPresent(Class<?> candidate, String requiredAnnotation) {
         for (Annotation annotation: candidate.getAnnotations()) {
-            if (annotation.toString().contains("SlowTest")) {
+            if (annotation.toString().contains(requiredAnnotation)) {
                 return true;
             }
         }
         return false;
-    } 
+    }
 
     private static boolean isIgnoreAnnotationPresent(Class<?> candidate) {
-        for (Annotation annotation: candidate.getAnnotations()) {
-            if (annotation.toString().contains("Ignore")) {
-                return true;
-            }
-        }
-        return false;
-    } 
+        return isAnnotationPresent(candidate, "Ignore");
+    }
 
     private static boolean isTestClass(Class<?> klass) {
         return klass.getName().endsWith("Test")
@@ -79,12 +74,12 @@ public class AllTests {
             && Test.class.isAssignableFrom(klass);
     }
 
-    private static boolean isSlowTest(Class<?> klass) {
-        return isSlowTestAnnotationPresent(klass);
+    private static boolean isDebugTestAnnotationPresent(Class<?> candidate)  {
+        return isAnnotationPresent(candidate, "DebugTest");
     }
 
     private static boolean isTestDisabled(Class<?> klass) {
-        return isIgnoreAnnotationPresent(klass);
+        return (isIgnoreAnnotationPresent(klass) || (!enableDebugTests && isDebugTestAnnotationPresent(klass)));
     }
 
     private static List<Class<?>> getClasses(File jarFile) throws IOException, ClassNotFoundException {
@@ -126,40 +121,46 @@ public class AllTests {
         List<Class<?>> classes = getClasses(new File(jarFile));
         for (Class<?> klass : classes) {
             if (isTestClass(klass) && !isTestDisabled(klass)) {
-                if ((isSlowTest(klass) && onlyRunSlowTests)
-                        || (!isSlowTest(klass) && !onlyRunSlowTests)) {
-                    suite.addTestSuite((Class)klass);
-                }
+                suite.addTestSuite((Class)klass);
             }
         }
         return suite;
     }
 
     /**
-     * Usage: java -cp ... AllTests file.jar [--only-run-slow-tests]
+     * Usage: java -cp ... AllTests file.jar [--enable-debug-tests]
      *
-     * --only-run-slow-tests parameter only run test in classes annotated with @SlowTest,
-     * else these tests will be skipped.
+     * --enable-debug-tests parameter additionally runs tests annotated
+     * with @DebugTest, else these tests will be skipped.
      *
      * @param args the command line arguments
      */
     public static void main(String[] args) throws Exception {
-        if (args.length > 0 && args.length <= 2) {
-            jarFile = args[0];
-            if (args.length > 1) {
-                if (args[1].equalsIgnoreCase("--only-run-slow-tests")) {
-                    onlyRunSlowTests = true;
-                }
-            }
-            System.out.println("Running all tests in '" + jarFile + "'");
-            TestSuite suite = (TestSuite) suite();
-            System.out.println("Found '" + suite.testCount() + "' test classes in jar file.");
-            TestResult res = junit.textui.TestRunner.run(suite);
-            System.out.println("Finished running tests in '" + jarFile + "'");
-            System.exit(res.wasSuccessful() ? 0 : 1);
-        } else {
+
+        if (args.length < 0 || args.length > 2) {
             usage();
+            return;
         }
+
+        // First argument is the jarfile
+        jarFile = args[0];
+
+        // Optional debug-build argument
+        if (args.length == 2) {
+            if (args[1].equalsIgnoreCase("--enable-debug-tests")) {
+                enableDebugTests = true;
+            } else {
+                usage();
+                return;
+            }
+        }
+
+        System.out.println("Running all tests in '" + jarFile + "'");
+        TestSuite suite = (TestSuite) suite();
+        System.out.println("Found '" + suite.testCount() + "' test classes in jar file.");
+        TestResult res = junit.textui.TestRunner.run(suite);
+        System.out.println("Finished running tests in '" + jarFile + "'");
+        System.exit(res.wasSuccessful() ? 0 : 1);
     }
 }
 

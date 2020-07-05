@@ -68,9 +68,9 @@ static int g_fd;
   excluding the header part.
 */
 static size_t file_size;
-static const char *opt_user = NULL, *opt_password = NULL, *opt_host = NULL,
-                  *opt_login_path = "client", *opt_socket = NULL,
-                  *opt_port = NULL;
+static const char *opt_user = nullptr, *opt_password = nullptr,
+                  *opt_host = nullptr, *opt_login_path = "client",
+                  *opt_socket = nullptr, *opt_port = nullptr;
 
 static char my_login_file[FN_REFLEN];
 static char my_key[LOGIN_KEY_LEN];
@@ -137,94 +137,104 @@ static struct my_option my_program_long_options[] = {
     {"debug", '#', "This is a non-debug version. Catch this and exit.", 0, 0, 0,
      GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #else
-    {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.", 0, 0, 0,
-     GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+    {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.", nullptr,
+     nullptr, nullptr, GET_STR, OPT_ARG, 0, 0, 0, nullptr, 0, nullptr},
 #endif
-    {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
-     0, 0, 0, 0, 0},
-    {"verbose", 'v', "Write more information.", &opt_verbose, &opt_verbose, 0,
-     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-    {"version", 'V', "Output version information and exit.", 0, 0, 0,
-     GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
+    {"help", '?', "Display this help and exit.", nullptr, nullptr, nullptr,
+     GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"verbose", 'v', "Write more information.", &opt_verbose, &opt_verbose,
+     nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"version", 'V', "Output version information and exit.", nullptr, nullptr,
+     nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
+     0, nullptr, 0, nullptr}};
 
 /* Command-specific options. */
 
 /* SET command options. */
 static struct my_option my_set_command_options[] = {
-    {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
-     0, 0, 0, 0, 0},
+    {"help", '?', "Display this help and exit.", nullptr, nullptr, nullptr,
+     GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"host", 'h', "Host name to be entered into the login file.", &opt_host,
-     &opt_host, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_host, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"login-path", 'G',
      "Name of the login path to use in the login file. "
      "(Default : client)",
-     &opt_login_path, &opt_login_path, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0,
-     0},
+     &opt_login_path, &opt_login_path, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
     {"password", 'p', "Prompt for password to be entered into the login file.",
-     0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+     nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"user", 'u', "User name to be entered into the login file.", &opt_user,
-     &opt_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_user, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"socket", 'S', "Socket path to be entered into login file.", &opt_socket,
-     &opt_socket, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_socket, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"port", 'P', "Port number to be entered into login file.", &opt_port,
-     &opt_port, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_port, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"warn", 'w',
      "Warn and ask for confirmation if set command attempts to "
      "overwrite an existing login path (enabled by default).",
-     &opt_warn, &opt_warn, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
-    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
+     &opt_warn, &opt_warn, nullptr, GET_BOOL, NO_ARG, 1, 0, 0, nullptr, 0,
+     nullptr},
+    {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
+     0, nullptr, 0, nullptr}};
 
 /* REMOVE command options. */
 static struct my_option my_remove_command_options[] = {
-    {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
-     0, 0, 0, 0, 0},
+    {"help", '?', "Display this help and exit.", nullptr, nullptr, nullptr,
+     GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"host", 'h', "Remove host name from the login path.", &opt_remove_host,
-     &opt_remove_host, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_remove_host, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"login-path", 'G',
      "Name of the login path from which options to "
      "be removed (entire path would be removed if none of user, password, "
      "host, socket, or port options are specified). (Default : client)",
-     &opt_login_path, &opt_login_path, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0,
-     0},
+     &opt_login_path, &opt_login_path, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
     {"password", 'p', "Remove password from the login path.", &opt_remove_pass,
-     &opt_remove_pass, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_remove_pass, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"user", 'u', "Remove user name from the login path.", &opt_remove_user,
-     &opt_remove_user, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_remove_user, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"warn", 'w',
      "Warn and ask for confirmation if remove command attempts "
      "to remove the default login path (client) if no login path is specified "
      "(enabled by default).",
-     &opt_warn, &opt_warn, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+     &opt_warn, &opt_warn, nullptr, GET_BOOL, NO_ARG, 1, 0, 0, nullptr, 0,
+     nullptr},
     {"socket", 'S', "Remove socket path from the login path.",
-     &opt_remove_socket, &opt_remove_socket, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
-     0},
+     &opt_remove_socket, &opt_remove_socket, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
     {"port", 'P', "Remove port number from the login path.", &opt_remove_port,
-     &opt_remove_port, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
+     &opt_remove_port, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
+     0, nullptr, 0, nullptr}};
 
 /* PRINT command options. */
 static struct my_option my_print_command_options[] = {
     {"all", OPT_CONFIG_ALL, "Used with print command to print all login paths.",
-     &opt_all, &opt_all, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-    {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
-     0, 0, 0, 0, 0},
+     &opt_all, &opt_all, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
+    {"help", '?', "Display this help and exit.", nullptr, nullptr, nullptr,
+     GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"login-path", 'G',
      "Name of the login path to use in the login file. "
      "(Default : client)",
-     &opt_login_path, &opt_login_path, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0,
-     0},
-    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
+     &opt_login_path, &opt_login_path, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
+    {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
+     0, nullptr, 0, nullptr}};
 
 /* RESET command options. */
 static struct my_option my_reset_command_options[] = {
-    {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
-     0, 0, 0, 0, 0},
-    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
+    {"help", '?', "Display this help and exit.", nullptr, nullptr, nullptr,
+     GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
+     0, nullptr, 0, nullptr}};
 
 /* HELP command options. */
 static struct my_option my_help_command_options[] = {
-    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
+    {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
+     0, nullptr, 0, nullptr}};
 
 extern "C" {
 static bool my_program_get_one_option(
@@ -337,8 +347,8 @@ static struct my_command_data command_data[] = {
      "if it does not exist.",
      my_reset_command_options, my_reset_command_get_one_option},
     {MY_CONFIG_HELP, "help", "Display a help message and exit.",
-     my_help_command_options, NULL},
-    {0, NULL, NULL, NULL, NULL}};
+     my_help_command_options, nullptr},
+    {0, nullptr, nullptr, nullptr, nullptr}};
 
 int main(int argc, char *argv[]) {
   MY_INIT(argv[0]);
@@ -384,9 +394,9 @@ static int do_handle_options(int argc, char *argv[]) {
   /* Handle program options. */
 
   /* Prepare a list of supported commands to be used by my_handle_options(). */
-  for (i = 0; (command_data[i].name != NULL) && (i < MAX_COMMAND_LIMIT); i++)
+  for (i = 0; (command_data[i].name != nullptr) && (i < MAX_COMMAND_LIMIT); i++)
     command_list[i] = command_data[i].name;
-  command_list[i] = NULL;
+  command_list[i] = nullptr;
 
   if ((rc = my_handle_options(&argc, &argv, my_program_long_options,
                               my_program_get_one_option, command_list, false)))
@@ -395,7 +405,7 @@ static int do_handle_options(int argc, char *argv[]) {
   if (argc == 0) /* No command specified. */
     goto done;
 
-  for (i = 0; command_data[i].name != NULL; i++) {
+  for (i = 0; command_data[i].name != nullptr; i++) {
     if (!strcmp(command_data[i].name, argv[0])) {
       command = i;
       break;
@@ -412,7 +422,7 @@ static int do_handle_options(int argc, char *argv[]) {
   /* Prepare a command line (argv) using the rest of the options. */
   argv_cmd[0] = saved_argv[0];
   memcpy((uchar *)(argv_cmd + 1), (uchar *)(argv), (argc * sizeof(char *)));
-  argv_cmd[argc_cmd] = 0;
+  argv_cmd[argc_cmd] = nullptr;
 
   if ((rc = handle_options(&argc_cmd, &argv_cmd, command_data[command].options,
                            command_data[command].get_one_option_func)))
@@ -533,7 +543,7 @@ static int set_command(void) {
   dynstr_append(&path_buf, "\n");
 
   /* Warn if login path already exists */
-  if (opt_warn && ((locate_login_path(&file_buf, opt_login_path)) != NULL)) {
+  if (opt_warn && ((locate_login_path(&file_buf, opt_login_path)) != nullptr)) {
     int choice;
     printf(
         "WARNING : \'%s\' path already exists and will be "
@@ -578,7 +588,7 @@ static int remove_command(void) {
     goto done; /* Nothing to remove, skip.. */
 
   /* Warn if no login path is specified. */
-  if (opt_warn && ((locate_login_path(&file_buf, opt_login_path)) != NULL) &&
+  if (opt_warn && ((locate_login_path(&file_buf, opt_login_path)) != nullptr) &&
       (login_path_specified == false)) {
     int choice;
     printf(
@@ -765,7 +775,7 @@ error:
 static void print_login_path(DYNAMIC_STRING *file_buf, const char *path_name) {
   DBUG_TRACE;
 
-  char *start = NULL, *end = NULL, temp = '\0';
+  char *start = nullptr, *end = nullptr, temp = '\0';
 
   if (file_buf->length == 0) goto done; /* Nothing to print. */
 
@@ -803,9 +813,9 @@ done:
 static void mask_password_and_print(char *buf) {
   DBUG_TRACE;
   const char *password_str = "\npassword = ", *mask = "*****";
-  char *next = NULL;
+  char *next = nullptr;
 
-  while ((next = strstr(buf, password_str)) != NULL) {
+  while ((next = strstr(buf, password_str)) != nullptr) {
     while (*buf != 0 && buf != next) putc(*(buf++), stdout);
     printf("%s", password_str);
     printf("%s\n", mask);
@@ -854,7 +864,7 @@ static void remove_option(DYNAMIC_STRING *file_buf, const char *path_name,
                           const char *option_name) {
   DBUG_TRACE;
 
-  char *start = NULL, *end = NULL;
+  char *start = nullptr, *end = nullptr;
   char *search_str;
   size_t search_len, shift_len;
   bool option_found = false;
@@ -863,7 +873,7 @@ static void remove_option(DYNAMIC_STRING *file_buf, const char *path_name,
                                  (uint)strlen(option_name) + 2, MYF(MY_WME));
   sprintf(search_str, "\n%s", option_name);
 
-  if ((start = locate_login_path(file_buf, path_name)) == NULL)
+  if ((start = locate_login_path(file_buf, path_name)) == nullptr)
     /* login path was not found, skip.. */
     goto done;
 
@@ -913,10 +923,10 @@ done:
 static void remove_login_path(DYNAMIC_STRING *file_buf, const char *path_name) {
   DBUG_TRACE;
 
-  char *start = NULL, *end = NULL;
+  char *start = nullptr, *end = nullptr;
   int to_move, len, diff;
 
-  if ((start = locate_login_path(file_buf, path_name)) == NULL)
+  if ((start = locate_login_path(file_buf, path_name)) == nullptr)
     /* login path was not found, skip.. */
     goto done;
 
@@ -989,7 +999,7 @@ static char *locate_login_path(DYNAMIC_STRING *file_buf,
                                const char *path_name) {
   DBUG_TRACE;
 
-  char *addr = NULL;
+  char *addr = nullptr;
   DYNAMIC_STRING dy_path_name;
 
   init_dynamic_string(&dy_path_name, "", 512, 512);
@@ -1031,7 +1041,7 @@ static int encrypt_and_write_file(DYNAMIC_STRING *file_buf) {
   DBUG_TRACE;
 
   bool done = false;
-  char cipher[MY_LINE_MAX], *tmp = NULL;
+  char cipher[MY_LINE_MAX], *tmp = nullptr;
   uint bytes_read = 0, len = 0;
   int enc_len = 0;  // Can be negative.
 
@@ -1158,7 +1168,7 @@ static int encrypt_buffer(const char *plain, int plain_len, char cipher[],
 
   if (my_aes_encrypt((const unsigned char *)plain, plain_len,
                      (unsigned char *)cipher, (const unsigned char *)my_key,
-                     LOGIN_KEY_LEN, my_aes_128_ecb, NULL) == aes_len)
+                     LOGIN_KEY_LEN, my_aes_128_ecb, nullptr) == aes_len)
     return aes_len;
 
   verbose_msg("Error! Couldn't encrypt the buffer.\n");
@@ -1183,7 +1193,7 @@ static int decrypt_buffer(const char *cipher, int cipher_len, char plain[]) {
   if ((aes_length =
            my_aes_decrypt((const unsigned char *)cipher, cipher_len,
                           (unsigned char *)plain, (const unsigned char *)my_key,
-                          LOGIN_KEY_LEN, my_aes_128_ecb, NULL)) > 0)
+                          LOGIN_KEY_LEN, my_aes_128_ecb, nullptr)) > 0)
     return aes_length;
 
   verbose_msg("Error! Couldn't decrypt the buffer.\n");

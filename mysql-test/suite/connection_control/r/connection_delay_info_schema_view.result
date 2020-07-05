@@ -6,6 +6,16 @@
 # Install connection_control plugin
 INSTALL PLUGIN connection_control SONAME 'CONNECTION_CONTROL_LIB';
 INSTALL PLUGIN connection_control_failed_login_attempts SONAME 'CONNECTION_CONTROL_LIB';
+# Performance schema
+# Verify the instrumentation provided
+SELECT * FROM performance_schema.setup_instruments
+WHERE NAME LIKE "%/conn_delay/%"
+  ORDER BY NAME;
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+stage/conn_delay/Waiting in connection_control plugin	YES	YES		0	NULL
+wait/synch/cond/conn_delay/connection_delay_wait_condition	YES	YES		0	NULL
+wait/synch/mutex/conn_delay/connection_delay_mutex	YES	YES		0	NULL
+wait/synch/rwlock/conn_delay/connection_event_delay_lock	YES	YES	singleton	0	NULL
 # Create user accounts for testing
 CREATE USER u1@localhost IDENTIFIED BY 'abcd';
 CREATE USER u2@localhost IDENTIFIED BY 'abcd';

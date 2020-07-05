@@ -90,7 +90,9 @@ DELIMITER ;$$
 --connect(my_user_con, localhost, my_user,,,)
 INSERT into my_db.t1 values(5);
 --echo # Inserts are now allowed if grants are given through role
+--disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT into my_db.t1 values(8) on duplicate key UPDATE id = values(id) + 800;
+--enable_ps_protocol
 CALL my_db.foo_proc();
 CALL my_db.baz_proc();
 

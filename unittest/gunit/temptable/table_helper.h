@@ -32,7 +32,10 @@
 #include "my_inttypes.h"
 #include "sql/current_thd.h"
 #include "sql/field.h"
+#include "sql/handler.h"
 #include "sql/key.h"
+#include "sql/sql_class.h"
+#include "sql/table.h"
 #include "unittest/gunit/mock_field_long.h"
 #include "unittest/gunit/temptable/mock_field_varstring.h"
 
@@ -122,7 +125,7 @@ inline void Table_helper::add_field_varstring(const char *name, uint char_len,
 inline void Table_helper::add_field(const Field &field) {
   EXPECT_FALSE(m_finalized);
 
-  auto new_field = field.clone();
+  auto new_field = field.clone(m_thd->mem_root);
   new_field->field_index = static_cast<uint16>(m_fields.size());
 
   m_fields.push_back(new_field);

@@ -95,18 +95,6 @@ Uint32 ndbGetOwnVersion();
 
 #ifdef __cplusplus
 }
-
-/*
- * Send both cntr_started and started bitmasks in CNTR_START_CONF
- */
-#define NDBD_SEND_STARTED_BITMASK NDB_MAKE_VERSION(8,0,19)
-static
-inline
-int
-ndbd_send_started_bitmask(Uint32 x)
-{
-  return x >= NDBD_SEND_STARTED_BITMASK;
-}
 #endif
 
 #define NDB_VERSION_STRING ndbGetOwnVersionString()
@@ -333,11 +321,7 @@ int
 ndbd_enable_redo_control(Uint32 x)
 {
   const Uint32 major = (x >> 16) & 0xFF;
-  if (major < 7)
-  {
-    return 0;
-  }
-  else if (major == 7)
+  if (major < 8)
   {
     return x >= NDBD_ENABLE_REDO_CONTROL_76;
   }
@@ -516,6 +500,30 @@ ndb_config_version_v2(Uint32 x)
  */
 #define NDB_SHORT_OPAQUE_METADATA_MAX_BYTES 6000
 
+/**
+ * Multiple transporters per node in same node group is available.
+ */
+#define NDBD_MULTI_NODE_GROUP_TRANSPORTERS_v8 NDB_MAKE_VERSION(8,0,20)
+static
+inline
+int
+ndbd_use_multi_ng_trps(Uint32 x)
+{
+  return x >= NDBD_MULTI_NODE_GROUP_TRANSPORTERS_v8;
+}
+
+/*
+ * Send both cntr_started and started bitmasks in CNTR_START_CONF
+ */
+#define NDBD_SEND_STARTED_BITMASK NDB_MAKE_VERSION(8,0,19)
+static
+inline
+int
+ndbd_send_started_bitmask(Uint32 x)
+{
+  return x >= NDBD_SEND_STARTED_BITMASK;
+}
+
 // New limitations from WL#12757
 
 #define NDBD_80_PROTOCOL_ACCEPT_74 NDB_MAKE_VERSION(7,4,6)
@@ -554,4 +562,18 @@ ndbd_protocol_accepted_by_8_0(Uint32 x)
   }
   return 1;
 }
+
+/*
+ * Send/expect the extra 'still active' word as part of ScanTabConf and
+ * ScanFragConf signals.
+ */
+#define NDBD_SEND_ACTIVE_BITMASK NDB_MAKE_VERSION(8,0,20)
+static
+inline
+int
+ndbd_send_active_bitmask(Uint32 x)
+{
+  return x >= NDBD_SEND_ACTIVE_BITMASK;
+}
+
 #endif

@@ -191,3 +191,6 @@ SELECT COUNT(*) FROM t1;
 DROP TABLE t1;
 DROP TABLESPACE encrypt_ts;
 remove_file $MYSQL_TMP_DIR/mysecret_keyring;
+
+--let $restart_parameters= restart:
+--source include/restart_mysqld.inc

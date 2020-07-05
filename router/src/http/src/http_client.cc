@@ -158,7 +158,7 @@ HttpClientConnection::HttpClientConnection(IOContext &io_ctx,
   bufferevent *bev =
       bufferevent_socket_new(ev_base(), -1, BEV_OPT_CLOSE_ON_FREE);
   pImpl_->conn.reset(evhttp_connection_base_bufferevent_new(
-      ev_base(), NULL, bev, address.c_str(), port));
+      ev_base(), nullptr, bev, address.c_str(), port));
 }
 
 void HttpClientConnectionBase::make_request(HttpRequest *req,
@@ -214,7 +214,7 @@ HttpsClientConnection::HttpsClientConnection(IOContext &io_ctx,
   bufferevent_openssl_set_allow_dirty_shutdown(bev, 1);
 
   pImpl_->conn.reset(evhttp_connection_base_bufferevent_new(
-      ev_base(), NULL, bev, address.c_str(), port));
+      ev_base(), nullptr, bev, address.c_str(), port));
 #else
   (void)io_ctx;
   (void)tls_ctx;

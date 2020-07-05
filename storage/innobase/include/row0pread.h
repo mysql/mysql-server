@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2018, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -116,7 +116,8 @@ class Parallel_reader {
   using Start = std::function<dberr_t(size_t thread_id)>;
 
   /** Callback to finalise callers state. */
-  using Finish = std::function<dberr_t(size_t thread_id)>;
+  using Finish =
+      std::function<dberr_t(Parallel_reader::Ctx *ctx, size_t thread_id)>;
 
   /** Callback to process the rows. */
   using F = std::function<dberr_t(const Ctx *)>;
@@ -150,17 +151,24 @@ class Parallel_reader {
   /** Scan (Scan_ctx) configuration. */
   struct Config {
     /** Constructor.
-    @param[in] scan_range       Range to scan.
-    @param[in] index            Cluster index to scan.
-    @param[in] read_level       Btree level from which records need to be read.
+    @param[in] scan_range   Range to scan.
+    @param[in] index        Cluster index to scan.
+    @param[in] read_level   Btree level from which records need to be read.
+    @param[in] partition_id Partition id if it the index to be scanned belongs
+    to a partitioned table.
+    @param[in] read_ahead   If true then start read ahead threads.
   */
     Config(const Scan_range &scan_range, dict_index_t *index,
-           size_t read_level = 0)
+           size_t read_level = 0,
+           size_t partition_id = std::numeric_limits<size_t>::max(),
+           bool read_ahead = false)
         : m_scan_range(scan_range),
           m_index(index),
           m_is_compact(dict_table_is_comp(index->table)),
           m_page_size(dict_tf_to_fsp_flags(index->table->flags)),
-          m_read_level(read_level) {}
+          m_read_level(read_level),
+          m_partition_id(partition_id),
+          m_read_ahead(read_ahead) {}
 
     /** Copy constructor.
     @param[in] config           Instance to copy from. */
@@ -169,7 +177,9 @@ class Parallel_reader {
           m_index(config.m_index),
           m_is_compact(config.m_is_compact),
           m_page_size(config.m_page_size),
-          m_read_level(config.m_read_level) {}
+          m_read_level(config.m_read_level),
+          m_partition_id(config.m_partition_id),
+          m_read_ahead(config.m_read_ahead) {}
 
     /** Range to scan. */
     const Scan_range m_scan_range;
@@ -183,11 +193,15 @@ class Parallel_reader {
     /** Tablespace page size. */
     const page_size_t m_page_size;
 
-    /** if true then enable separate read ahead threads. */
-    bool m_read_ahead{true};
-
     /** Btree level from which records need to be read. */
     size_t m_read_level{0};
+
+    /** Partition id if the index to be scanned belongs to a partitioned table,
+    else std::numeric_limits<size_t>::max(). */
+    size_t m_partition_id{std::numeric_limits<size_t>::max()};
+
+    /** if true then enable separate read ahead threads. */
+    bool m_read_ahead{false};
   };
 
   /** Constructor.
@@ -209,6 +223,13 @@ class Parallel_reader {
     const auto RELAXED = std::memory_order_relaxed;
     auto active = s_active_threads.fetch_sub(n_threads, RELAXED);
     ut_a(active >= n_threads);
+  }
+
+  /** Fallback to single threaded mode in case of out of resource
+  issue where extra threads cannot be spawned. */
+  void fallback_to_single_threaded_mode() {
+    m_single_threaded_mode = true;
+    reset_error_state();
   }
 
   /** Add scan context.
@@ -275,6 +296,9 @@ class Parallel_reader {
   Parallel_reader &operator=(const Parallel_reader &) = delete;
 
  private:
+  /** Reset error state. */
+  void reset_error_state() { m_err = DB_SUCCESS; }
+
   /** Release unused threads back to the pool.
   @param[in] unused_threads     Number of threads to "release". */
   void release_unused_threads(size_t unused_threads) {
@@ -317,8 +341,9 @@ class Parallel_reader {
   @param[in] n_pages            Read ahead batch size. */
   void read_ahead_worker(page_no_t n_pages);
 
-  /** Start the read ahead worker threads. */
-  void read_ahead();
+  /** Start the read ahead worker threads.
+  @return error code */
+  dberr_t read_ahead();
 
  private:
   /** Read ahead request. */
@@ -363,8 +388,15 @@ class Parallel_reader {
   /** Scan contexts. */
   Scan_ctxs m_scan_ctxs{};
 
+  /** True if we fallback to single threaded mode in case of out of resource
+  issue where extra threads cannot be spawned. */
+  bool m_single_threaded_mode{false};
+
   /** For signalling worker threads about events. */
   os_event_t m_event{};
+
+  /** Value returned by previous call of os_event_reset() on m_event. */
+  uint64_t m_sig_count;
 
   /** Counter for allocating scan context IDs. */
   size_t m_scan_ctx_id{};
@@ -443,9 +475,6 @@ class Parallel_reader::Scan_ctx {
     /** Tuple representation inside m_rec, for two Iter instances in a range
     m_tuple will be [first->m_tuple, second->m_tuple). */
     const dtuple_t *m_tuple{};
-
-    /** Number of externally stored columns. */
-    ulint m_n_ext{ULINT_UNDEFINED};
 
     /** Persistent cursor.*/
     btr_pcur_t *m_pcur{};
@@ -679,6 +708,13 @@ class Parallel_reader::Ctx {
     return (m_scan_ctx->m_config.m_index);
   }
 
+  /** @return the partition id of the index.
+  @note this is std::numeric_limits<size_t>::max() if the index does not
+  belong to a partition. */
+  size_t partition_id() const MY_ATTRIBUTE((warn_unused_result)) {
+    return m_scan_ctx->m_config.m_partition_id;
+  }
+
  private:
   /** Traverse the pages by key order.
   @return DB_SUCCESS or error code. */
@@ -699,6 +735,12 @@ class Parallel_reader::Ctx {
   /** Split the context into sub-ranges and add them to the execution queue.
   @return DB_SUCCESS or error code. */
   dberr_t split() MY_ATTRIBUTE((warn_unused_result));
+
+  /** @return true if in error state. */
+  bool is_error_set() const MY_ATTRIBUTE((warn_unused_result)) {
+    return (m_scan_ctx->m_reader->m_err.load(std::memory_order_relaxed) !=
+            DB_SUCCESS);
+  }
 
  private:
   /** Context ID. */

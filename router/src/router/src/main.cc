@@ -1,5 +1,5 @@
 ﻿/*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -153,7 +153,6 @@ static void preconfig_log_init(bool use_os_logger_initially) noexcept {
 int real_main(int argc, char **argv, bool use_os_logger_initially) {
   preconfig_log_init(use_os_logger_initially);
 
-  mysql_harness::rename_thread("main");
   init_DIM();
 
   // TODO This is very ugly, it should not be a global. It's defined in
@@ -164,7 +163,7 @@ int real_main(int argc, char **argv, bool use_os_logger_initially) {
   g_program_name = argv[0];
 
   mysqlrouter::MySQLClientThreadToken api_token;
-  if (mysql_library_init(argc, argv, NULL)) {
+  if (mysql_library_init(argc, argv, nullptr)) {
     log_error("Could not initialize MySQL library");
     return 1;
   }

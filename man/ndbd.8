@@ -2,12 +2,12 @@
 .\"     Title: \fBndbd\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/23/2019
+.\"      Date: 03/06/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDBD\FR" "8" "11/23/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDBD\FR" "8" "03/06/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -50,7 +50,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.279.\ \&Command\-line options for the ndbd program
+.B Table\ \&22.250.\ \&Command\-line options for the ndbd program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -79,156 +79,155 @@ l l l
 l l l.
 T{
 .PP
---bind-address=name
+\fB \fR\fB--bind-address=name\fR\fB \fR
 T}:T{
 Local bind address
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---connect-delay=#
+\fB \fR\fB--connect-delay=#\fR\fB \fR
 T}:T{
 Time to wait between attempts to contact a management server, in
               seconds; 0 means do not wait between attempts
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---connect-retries=#
+\fB \fR\fB--connect-retries=#\fR\fB \fR
 T}:T{
 Set the number of times to retry a connection before giving up; 0 means
               1 attempt only (and no retries)
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---connect-retry-delay=#
+\fB \fR\fB--connect-retry-delay=#\fR\fB \fR
 T}:T{
 Time to wait between attempts to contact a management server, in
               seconds; 0 means do not wait between attempts
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---daemon,
+\fB--daemon\fR,
 .PP
--d
+\fB \fR\fB-d\fR\fB \fR
 T}:T{
 Start ndbd as daemon (default); override with --nodaemon
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---foreground
+\fB \fR\fB--foreground\fR\fB \fR
 T}:T{
 Run ndbd in foreground, provided for debugging purposes (implies
               --nodaemon)
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---initial
+\fB \fR\fB--initial\fR\fB \fR
 T}:T{
 Perform initial start of ndbd, including cleaning the file system.
               Consult the documentation before using this option
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---initial-start
+\fB \fR\fB--initial-start\fR\fB \fR
 T}:T{
 Perform partial initial start (requires --nowait-nodes)
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---install[=name]
+\fB \fR\fB--install[=name]\fR\fB \fR
 T}:T{
 Used to install the data node process as a Windows service. Does not
-              apply on non-Windows platforms.
+              apply on non-Windows platforms
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---logbuffer-size=#
+\fB \fR\fB--logbuffer-size=#\fR\fB \fR
 T}:T{
 Control size of log buffer. For use when debugging with many log
               messages being generated; default is sufficient for normal
-              operations.
+              operations
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---nostart,
-.PP
--n
-T}:T{
-Don't start ndbd immediately; ndbd waits for command to start from
-              ndb_mgmd
-T}:T{
-.PP
-All NDB 8.0 releases
-T}
-T{
-.PP
---nodaemon
+\fB \fR\fB--nodaemon\fR\fB \fR
 T}:T{
 Do not start ndbd as daemon; provided for testing purposes
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---nowait-nodes=list
+\fB--nostart\fR,
+.PP
+\fB \fR\fB-n\fR\fB \fR
+T}:T{
+Do not start ndbd immediately; ndbd waits for command to start from
+              ndb_mgmd
+T}:T{
+.PP
+(Supported in all MySQL 8.0 based releases)
+T}
+T{
+.PP
+\fB \fR\fB--nowait-nodes=list\fR\fB \fR
 T}:T{
 Do not wait for these data nodes to start (takes comma-separated list of
-              node IDs). Also requires --ndb-nodeid to be used.
+              node IDs). Also requires --ndb-nodeid to be used
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---remove[=name]
+\fB \fR\fB--remove[=name]\fR\fB \fR
 T}:T{
 Used to remove a data node process that was previously installed as a
-              Windows service. Does not apply on non-Windows platforms.
+              Windows service. Does not apply on non-Windows platforms
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---verbose,
+\fB--verbose\fR,
 .PP
--v
+\fB \fR\fB-v\fR\fB \fR
 T}:T{
-Causes the data log to write extra debugging information to the node
-              log.
+Causes the data log to write extra debugging information to the node log
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 .TE
 .sp 1
@@ -1374,7 +1373,7 @@ Section\ \&22.1.7, \(lqKnown Limitations of NDB Cluster\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

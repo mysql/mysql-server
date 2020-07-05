@@ -1,6 +1,6 @@
 #ifndef SQL_DATA_CHANGE_INCLUDED
 #define SQL_DATA_CHANGE_INCLUDED
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -170,14 +170,14 @@ class COPY_INFO {
             bool manage_defaults, enum_duplicates duplicate_handling)
       : m_optype(optype),
         m_changed_columns(inserted_columns),
-        m_changed_columns2(NULL),
+        m_changed_columns2(nullptr),
         m_manage_defaults(manage_defaults),
-        m_function_default_columns(NULL),
+        m_function_default_columns(nullptr),
         handle_duplicates(duplicate_handling),
         stats(),
         escape_char(0),
         last_errno(0),
-        update_values(NULL) {
+        update_values(nullptr) {
     DBUG_ASSERT(optype == INSERT_OPERATION);
   }
 
@@ -210,12 +210,12 @@ class COPY_INFO {
         m_changed_columns(inserted_columns),
         m_changed_columns2(inserted_columns2),
         m_manage_defaults(manage_defaults),
-        m_function_default_columns(NULL),
+        m_function_default_columns(nullptr),
         handle_duplicates(duplicates_handling),
         stats(),
         escape_char(escape_character),
         last_errno(0),
-        update_values(NULL) {
+        update_values(nullptr) {
     DBUG_ASSERT(optype == INSERT_OPERATION);
   }
 
@@ -232,9 +232,9 @@ class COPY_INFO {
   COPY_INFO(operation_type optype, List<Item> *fields, List<Item> *values)
       : m_optype(optype),
         m_changed_columns(fields),
-        m_changed_columns2(NULL),
+        m_changed_columns2(nullptr),
         m_manage_defaults(true),
-        m_function_default_columns(NULL),
+        m_function_default_columns(nullptr),
         handle_duplicates(DUP_ERROR),
         stats(),
         escape_char(0),
@@ -297,7 +297,7 @@ class COPY_INFO {
      invoking this function.
   */
   bool function_defaults_apply(const TABLE *) const {
-    DBUG_ASSERT(m_function_default_columns != NULL);
+    DBUG_ASSERT(m_function_default_columns != nullptr);
     return !bitmap_is_clear_all(m_function_default_columns);
   }
 
@@ -306,7 +306,7 @@ class COPY_INFO {
     that may set the column.
   */
   bool function_defaults_apply_on_columns(MY_BITMAP *map) {
-    DBUG_ASSERT(m_function_default_columns != NULL);
+    DBUG_ASSERT(m_function_default_columns != nullptr);
     return bitmap_is_overlapping(m_function_default_columns, map);
   }
 

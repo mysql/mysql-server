@@ -38,6 +38,7 @@ SELECT t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
        ON t6.b >= 2 AND t5.b=t7.b AND
           (t8.a > 0 OR t8.c IS NULL);
 
+--sorted_result
 SELECT t5.a,t5.b,t6.a,t6.b,t7.a,t7.b,t8.a,t8.b
   FROM t5 
        LEFT JOIN 

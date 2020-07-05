@@ -403,8 +403,6 @@ class PrecomputedAggregateIterator final : public RowIterator {
   int m_output_slice;
 };
 
-enum class JoinType { INNER, OUTER, ANTI, SEMI };
-
 /**
   A simple nested loop join, taking in two iterators (left/outer and
   right/inner) and joining them together. This may, of course, scan the inner
@@ -1013,7 +1011,8 @@ class RemoveDuplicatesIterator final : public RowIterator {
 
   In this case, the query tree without this iterator would ostensibly look like
 
-    -> Table scan on t1
+    -> Nested loop join
+       -> Table scan on t1
        -> Remove duplicates on t2_idx
           -> Nested loop semijoin
              -> Index scan on t2 using t2_idx

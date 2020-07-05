@@ -28,6 +28,12 @@
 #include <SocketClient.hpp>
 #include <SocketAuthenticator.hpp>
 
+#if 0
+#define DEBUG_FPRINTF(arglist) do { fprintf arglist ; } while (0)
+#else
+#define DEBUG_FPRINTF(a)
+#endif
+
 SocketClient::SocketClient(SocketAuthenticator *sa) :
   m_connect_timeout_millisec(0),// Blocking connect by default
   m_last_used_port(0),
@@ -132,6 +138,7 @@ SocketClient::connect(const char* server_hostname,
   {
     if (!init())
     {
+      DEBUG_FPRINTF((stderr, "Failed init in connect\n"));
       return m_sockfd;
     }
   }
@@ -144,6 +151,7 @@ SocketClient::connect(const char* server_hostname,
   // Resolve server address
   if (Ndb_getInAddr(&server_addr.sin_addr, server_hostname))
   {
+    DEBUG_FPRINTF((stderr, "Failed Ndb_getInAddr in connect\n"));
     ndb_socket_close(m_sockfd);
     ndb_socket_invalidate(&m_sockfd);
     return m_sockfd;
@@ -152,18 +160,22 @@ SocketClient::connect(const char* server_hostname,
   // Set socket non blocking
   if (ndb_socket_nonblock(m_sockfd, true) < 0)
   {
+    DEBUG_FPRINTF((stderr, "Failed to set socket nonblocking in connect\n"));
     ndb_socket_close(m_sockfd);
     ndb_socket_invalidate(&m_sockfd);
     return m_sockfd;
   }
 
   // Start non blocking connect
+  DEBUG_FPRINTF((stderr, "Connect to %s:%u\n",
+                         server_hostname, server_port));
   int r = ndb_connect_inet(m_sockfd, &server_addr);
   if (r == 0)
     goto done; // connected immediately.
 
   if (r < 0 && NONBLOCKERR(ndb_socket_errno())) {
     // Start of non blocking connect failed
+    DEBUG_FPRINTF((stderr, "Failed to to connect_inet in connect\n"));
     ndb_socket_close(m_sockfd);
     ndb_socket_invalidate(&m_sockfd);
     return m_sockfd;
@@ -175,6 +187,7 @@ SocketClient::connect(const char* server_hostname,
   {
     // Nothing has happened on the socket after timeout
     // or an error occurred
+    DEBUG_FPRINTF((stderr, "Timeout after connect_inet in connect\n"));
     ndb_socket_close(m_sockfd);
     ndb_socket_invalidate(&m_sockfd);
     return m_sockfd;
@@ -188,6 +201,7 @@ SocketClient::connect(const char* server_hostname,
     ndb_socket_len_t len= sizeof(so_error);
     if (ndb_getsockopt(m_sockfd, SOL_SOCKET, SO_ERROR, &so_error, &len) < 0)
     {
+      DEBUG_FPRINTF((stderr, "Failed to set sockopt in connect\n"));
       ndb_socket_close(m_sockfd);
       ndb_socket_invalidate(&m_sockfd);
       return m_sockfd;
@@ -195,6 +209,7 @@ SocketClient::connect(const char* server_hostname,
 
     if (so_error)
     {
+      DEBUG_FPRINTF((stderr, "so_error: %d in connect\n", so_error));
       ndb_socket_close(m_sockfd);
       ndb_socket_invalidate(&m_sockfd);
       return m_sockfd;
@@ -204,6 +219,7 @@ SocketClient::connect(const char* server_hostname,
 done:
   if (ndb_socket_nonblock(m_sockfd, false) < 0)
   {
+    DEBUG_FPRINTF((stderr, "ndb_socket_nonblock failed in connect\n"));
     ndb_socket_close(m_sockfd);
     ndb_socket_invalidate(&m_sockfd);
     return m_sockfd;
@@ -216,6 +232,7 @@ done:
   if (m_auth) {
     if (!m_auth->client_authenticate(m_sockfd))
     {
+      DEBUG_FPRINTF((stderr, "authenticate failed in connect\n"));
       ndb_socket_close(m_sockfd);
       ndb_socket_invalidate(&m_sockfd);
       return m_sockfd;

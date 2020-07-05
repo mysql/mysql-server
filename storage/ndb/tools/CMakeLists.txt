@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -80,7 +80,7 @@ MYSQL_ADD_EXECUTABLE(ndb_waiter
   waiter.cpp
   COMPONENT ClusterTools
   ENABLE_EXPORTS
-  LINK_LIBRARIES ndbclient_static ndbNDBT
+  LINK_LIBRARIES ndbclient_static
   )
 MYSQL_ADD_EXECUTABLE(ndb_drop_table
   drop_tab.cpp
@@ -110,7 +110,7 @@ MYSQL_ADD_EXECUTABLE(ndb_show_tables
   listTables.cpp
   COMPONENT ClusterTools
   ENABLE_EXPORTS
-  LINK_LIBRARIES ndbclient_static ndbNDBT
+  LINK_LIBRARIES ndbclient_static
   )
 MYSQL_ADD_EXECUTABLE(ndb_select_all
   select_all.cpp
@@ -161,18 +161,6 @@ MYSQL_ADD_EXECUTABLE(ndb_config
   COMPONENT ClusterTools
   ENABLE_EXPORTS
   LINK_LIBRARIES ndbclient_static
-  )
-# Build ndbinfo_sql and run it to create ndbinfo.sql
-MYSQL_ADD_EXECUTABLE(ndbinfo_sql
-  ndbinfo_sql.cpp
-  SKIP_INSTALL
-  ENABLE_EXPORTS
-  LINK_LIBRARIES ndbclient_static
-  )
-
-ADD_CUSTOM_COMMAND(TARGET ndbinfo_sql POST_BUILD
-  COMMAND $<TARGET_FILE:ndbinfo_sql>
-  > ${PROJECT_BINARY_DIR}/storage/ndb/tools/ndbinfo.sql
   )
 
 MYSQL_ADD_EXECUTABLE(ndb_index_stat

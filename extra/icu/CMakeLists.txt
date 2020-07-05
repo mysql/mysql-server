@@ -40,7 +40,7 @@
 
 PROJECT (ICU)
 
-IF(LINUX)
+IF(MY_COMPILER_IS_GNU_OR_CLANG)
   SET(ICU_LINUX_COMPILE_OPTIONS
     "-Wno-undef"
     "-Wno-deprecated-declarations"

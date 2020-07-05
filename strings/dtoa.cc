@@ -50,16 +50,13 @@
 
 #include "my_config.h"
 
+#include <algorithm>
 #include <limits>
 
 #include "decimal.h"
 #include "my_inttypes.h"
-#include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 
-#ifdef HAVE_ENDIAN_H
-#include <endian.h>
-#endif
 #include <errno.h>
 #include <float.h>
 #include <stdlib.h>
@@ -130,7 +127,7 @@ static size_t my_fcvt_internal(double x, int precision, bool shorten, char *to,
   char *res, *src, *end, *dst = to;
   char buf[DTOA_BUFF_SIZE];
   DBUG_ASSERT(precision >= 0 && precision < DECIMAL_NOT_SPECIFIED &&
-              to != NULL);
+              to != nullptr);
 
   res = dtoa(x, 5, precision, &decpt, &sign, &end, buf, sizeof(buf));
 
@@ -138,7 +135,7 @@ static size_t my_fcvt_internal(double x, int precision, bool shorten, char *to,
     dtoa_free(res, buf, sizeof(buf));
     *to++ = '0';
     *to = '\0';
-    if (error != NULL) *error = true;
+    if (error != nullptr) *error = true;
     return 1;
   }
 
@@ -162,11 +159,11 @@ static size_t my_fcvt_internal(double x, int precision, bool shorten, char *to,
   if (precision > 0 && !shorten) {
     if (len <= decpt) *dst++ = '.';
 
-    for (i = precision - MY_MAX(0, (len - decpt)); i > 0; i--) *dst++ = '0';
+    for (i = precision - std::max(0, (len - decpt)); i > 0; i--) *dst++ = '0';
   }
 
   *dst = '\0';
-  if (error != NULL) *error = false;
+  if (error != nullptr) *error = false;
 
   dtoa_free(res, buf, sizeof(buf));
 
@@ -309,22 +306,23 @@ size_t my_gcvt(double x, my_gcvt_arg_type type, int width, char *to,
   char *res, *src, *end, *dst = to, *dend = dst + width;
   char buf[DTOA_BUFF_SIZE];
   bool have_space, force_e_format;
-  DBUG_ASSERT(width > 0 && to != NULL);
+  DBUG_ASSERT(width > 0 && to != nullptr);
 
   /* We want to remove '-' from equations early */
   if (x < 0.) width--;
 
-  res = dtoa(x, 4, type == MY_GCVT_ARG_DOUBLE ? width : MY_MIN(width, FLT_DIG),
-             &decpt, &sign, &end, buf, sizeof(buf));
+  res =
+      dtoa(x, 4, type == MY_GCVT_ARG_DOUBLE ? width : std::min(width, FLT_DIG),
+           &decpt, &sign, &end, buf, sizeof(buf));
   if (decpt == DTOA_OVERFLOW) {
     dtoa_free(res, buf, sizeof(buf));
     *to++ = '0';
     *to = '\0';
-    if (error != NULL) *error = true;
+    if (error != nullptr) *error = true;
     return 1;
   }
 
-  if (error != NULL) *error = false;
+  if (error != nullptr) *error = false;
 
   src = res;
   len = (int)(end - res);
@@ -403,7 +401,7 @@ size_t my_gcvt(double x, my_gcvt_arg_type type, int width, char *to,
     /* Do we have to truncate any digits? */
     if (width < len) {
       if (width < decpt) {
-        if (error != NULL) *error = true;
+        if (error != nullptr) *error = true;
         width = decpt;
       }
 
@@ -455,7 +453,7 @@ size_t my_gcvt(double x, my_gcvt_arg_type type, int width, char *to,
 
     if (width <= 0) {
       /* Overflow */
-      if (error != NULL) *error = true;
+      if (error != nullptr) *error = true;
       width = 0;
     }
 
@@ -518,10 +516,10 @@ end:
 double my_strtod(const char *str, const char **end, int *error) {
   char buf[DTOA_BUFF_SIZE];
   double res;
-  DBUG_ASSERT(
-      end != NULL &&
-      ((str != NULL && *end != NULL) || (str == NULL && *end == NULL)) &&
-      error != NULL);
+  DBUG_ASSERT(end != nullptr &&
+              ((str != nullptr && *end != nullptr) ||
+               (str == nullptr && *end == nullptr)) &&
+              error != nullptr);
 
   res = my_strtod_int(str, end, error, buf, sizeof(buf));
   return (*error == 0) ? res : (res < 0 ? -DBL_MAX : DBL_MAX);
@@ -605,8 +603,7 @@ typedef union {
   ULong L[2];
 } U;
 
-#if defined(WORDS_BIGENDIAN) || \
-    (defined(__FLOAT_WORD_ORDER) && (__FLOAT_WORD_ORDER == __BIG_ENDIAN))
+#if defined(WORDS_BIGENDIAN)
 #define word0(x) (x)->L[0]
 #define word1(x) (x)->L[1]
 #else
@@ -1008,7 +1005,7 @@ static Bigint p5_a[] = {
 #define P5A_MAX (sizeof(p5_a) / sizeof(*p5_a) - 1)
 
 static Bigint *pow5mult(Bigint *b, int k, Stack_alloc *alloc) {
-  Bigint *b1, *p5, *p51 = NULL;
+  Bigint *b1, *p5, *p51 = nullptr;
   int i;
   static int p05[3] = {5, 25, 125};
   bool overflow = false;
@@ -1287,7 +1284,8 @@ static double my_strtod_int(const char *s00, const char **se, int *error,
   U aadj2, adj, rv, rv0;
   Long L;
   ULong y, z;
-  Bigint *bb = NULL, *bb1, *bd = NULL, *bd0, *bs = NULL, *delta = NULL;
+  Bigint *bb = nullptr, *bb1, *bd = nullptr, *bd0, *bs = nullptr,
+         *delta = nullptr;
 #ifdef Honor_FLT_ROUNDS
   int rounding;
 #endif
@@ -1436,7 +1434,7 @@ dig_done:
   if (k > 9) {
     dval(&rv) = tens[k - 9] * dval(&rv) + z;
   }
-  bd0 = 0;
+  bd0 = nullptr;
   if (nd <= DBL_DIG
 #ifndef Honor_FLT_ROUNDS
       && Flt_Rounds == 1
@@ -1965,7 +1963,7 @@ static char *dtoa(double dd, int mode, int ndigits, int *decpt, int *sign,
   Long L;
   int denorm;
   ULong x;
-  Bigint *b, *b1, *delta, *mlo = NULL, *mhi, *S;
+  Bigint *b, *b1, *delta, *mlo = nullptr, *mhi, *S;
   U d2, eps, u;
   double ds;
   char *s, *s0;
@@ -2158,7 +2156,7 @@ static char *dtoa(double dd, int mode, int ndigits, int *decpt, int *sign,
     dval(&eps) = ieps * dval(&u) + 7.;
     word0(&eps) -= (P - 1) * Exp_msk1;
     if (ilim == 0) {
-      S = mhi = 0;
+      S = mhi = nullptr;
       dval(&u) -= 5.;
       if (dval(&u) > dval(&eps)) goto one_digit;
       if (dval(&u) < -dval(&eps)) goto no_digits;
@@ -2210,7 +2208,7 @@ static char *dtoa(double dd, int mode, int ndigits, int *decpt, int *sign,
     /* Yes. */
     ds = tens[k];
     if (ndigits < 0 && ilim <= 0) {
-      S = mhi = 0;
+      S = mhi = nullptr;
       if (ilim < 0 || dval(&u) <= 5 * ds) goto no_digits;
       goto one_digit;
     }
@@ -2258,7 +2256,7 @@ static char *dtoa(double dd, int mode, int ndigits, int *decpt, int *sign,
 
   m2 = b2;
   m5 = b5;
-  mhi = mlo = 0;
+  mhi = mlo = nullptr;
   if (leftright) {
     i = denorm ? be + (Bias + (P - 1) - 1 + 1) : 1 + P - bbits;
     b2 += i;

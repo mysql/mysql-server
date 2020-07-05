@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -108,6 +108,7 @@ const char *client_errors[] = {
     "Set FIPS mode ON/STRICT failed",
     "Compression protocol not supported with asynchronous protocol",
     "Connection failed due to wrongly configured compression algorithm",
+    "SSO user not found, Please perform SSO authentication using kerberos.",
     ""};
 
 static const char *get_client_errmsg(int nr) {

@@ -1,7 +1,7 @@
 #ifndef LOGGER_UTIL_INCLUDED
 #define LOGGER_UTIL_INCLUDED
 /*
-   Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,7 +48,7 @@ std::ostream &operator<<(std::ostream &os, const Gen_spaces &gen);
 class Log : public std::ostream {
  public:
   Log(std::ostream &str, std::string logclass)
-      : std::ostream(NULL), m_buffer(str, logclass) {
+      : std::ostream(nullptr), m_buffer(str, logclass) {
     this->init(&m_buffer);
   }
   void enabled(bool s) { m_buffer.enabled(s); }

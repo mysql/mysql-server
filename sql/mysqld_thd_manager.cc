@@ -50,7 +50,7 @@
 #include "thr_mutex.h"
 
 std::atomic<uint> Global_THD_manager::atomic_global_thd_count{0U};
-Global_THD_manager *Global_THD_manager::thd_manager = NULL;
+Global_THD_manager *Global_THD_manager::thd_manager = nullptr;
 
 static inline int thd_partition(my_thread_id thread_id) {
   return thread_id % Global_THD_manager::NUM_PARTITIONS;
@@ -178,14 +178,14 @@ Global_THD_manager::~Global_THD_manager() {
   This method do not require mutex guard as it is called only from main thread.
 */
 bool Global_THD_manager::create_instance() {
-  if (thd_manager == NULL)
+  if (thd_manager == nullptr)
     thd_manager = new (std::nothrow) Global_THD_manager();
-  return (thd_manager == NULL);
+  return (thd_manager == nullptr);
 }
 
 void Global_THD_manager::destroy_instance() {
   delete thd_manager;
-  thd_manager = NULL;
+  thd_manager = nullptr;
 }
 
 void Global_THD_manager::add_thd(THD *thd) {
@@ -298,7 +298,7 @@ THD *Global_THD_manager::find_thd(Find_THD_Impl *func) {
         std::find_if(thd_list[i].begin(), thd_list[i].end(), find_thd);
     if (it != thd_list[i].end()) return (*it);
   }
-  return NULL;
+  return nullptr;
 }
 
 // Optimized version of the above function for when we know
@@ -312,7 +312,7 @@ THD *Global_THD_manager::find_thd(Find_thd_with_id *func) {
   THD_array::const_iterator it = std::find_if(
       thd_list[partition].begin(), thd_list[partition].end(), find_thd);
   if (it != thd_list[partition].end()) return (*it);
-  return NULL;
+  return nullptr;
 }
 
 void inc_thread_created() {

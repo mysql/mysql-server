@@ -1,0 +1,81 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[Connection Master]
+USE test;
+SELECT @@datadir;
+@@datadir
+MASTER_DATADIR
+#ib_16384_0.dblwr
+SELECT @@innodb_doublewrite_dir;
+@@innodb_doublewrite_dir
+MASTER_DOUBLEWRITE_DIR/#DBWL-DIR
+SELECT @@innodb_doublewrite_files;
+@@innodb_doublewrite_files
+1
+SELECT @@innodb_doublewrite_pages;
+@@innodb_doublewrite_pages
+10
+SELECT @@innodb_doublewrite_batch_size;
+@@innodb_doublewrite_batch_size
+10
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+USE test;
+SELECT @@datadir;
+@@datadir
+SLAVE_DATADIR
+#ib_16384_0.dblwr
+#ib_16384_1.dblwr
+SELECT @@innodb_doublewrite_dir;
+@@innodb_doublewrite_dir
+SLAVE_DOUBLEWRITE_DIR/##%DBWL-DIR
+SELECT @@innodb_doublewrite_files;
+@@innodb_doublewrite_files
+2
+SELECT @@innodb_doublewrite_pages;
+@@innodb_doublewrite_pages
+2
+SELECT @@innodb_doublewrite_batch_size;
+@@innodb_doublewrite_batch_size
+0
+[Connection Master]
+USE test;
+CREATE TABLE tab(c1 int,c2 TEXT);
+INSERT INTO tab VALUES(1,'Testing of WL#5655');
+SELECT * FROM tab;
+c1	c2
+1	Testing of WL#5655
+SET GLOBAL innodb_doublewrite_dir=$MYSQL_TMP_DIR/"#DBWL-DIR";
+ERROR HY000: Variable 'innodb_doublewrite_dir' is a read only variable
+SET GLOBAL innodb_doublewrite_files=1;
+ERROR HY000: Variable 'innodb_doublewrite_files' is a read only variable
+SET GLOBAL innodb_doublewrite_pages=10;
+ERROR HY000: Variable 'innodb_doublewrite_pages' is a read only variable
+SET GLOBAL innodb_doublewrite_batch_size=1;
+ERROR HY000: Variable 'innodb_doublewrite_batch_size' is a read only variable
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+USE test;
+SELECT * FROM tab;
+c1	c2
+1	Testing of WL#5655
+SET GLOBAL innodb_doublewrite_dir=$MYSQL_TMP_DIR/"#DBWL-DIR";
+ERROR HY000: Variable 'innodb_doublewrite_dir' is a read only variable
+SET GLOBAL innodb_doublewrite_files=1;
+ERROR HY000: Variable 'innodb_doublewrite_files' is a read only variable
+SET GLOBAL innodb_doublewrite_pages=10;
+ERROR HY000: Variable 'innodb_doublewrite_pages' is a read only variable
+SET GLOBAL innodb_doublewrite_batch_size=1;
+ERROR HY000: Variable 'innodb_doublewrite_batch_size' is a read only variable
+[Connection Master]
+USE test;
+DROP TABLE tab;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+USE test;
+SELECT * FROM tab;
+ERROR 42S02: Table 'test.tab' doesn't exist
+include/rpl_end.inc

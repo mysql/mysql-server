@@ -183,7 +183,7 @@ bool Storage_adapter::get(THD *thd, const K &key, enum_tx_isolation isolation,
   }
 
   // Restore the object from the record.
-  Entity_object *new_object = NULL;
+  Entity_object *new_object = nullptr;
   if (r.get() &&
       table.restore_object_from_record(&trx.otx, *r.get(), &new_object)) {
     DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());

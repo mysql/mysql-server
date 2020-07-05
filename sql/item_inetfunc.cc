@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -137,7 +137,7 @@ String *Item_func_inet_ntoa::val_str(String *str) {
 
     Also return null if n > 255.255.255.255
   */
-  if (args[0]->null_value) return NULL;
+  if (args[0]->null_value) return nullptr;
   if (n > (ulonglong)4294967295LL) {
     char buf[256];
     String err(buf, sizeof(buf), system_charset_info);
@@ -147,7 +147,7 @@ String *Item_func_inet_ntoa::val_str(String *str) {
                         ER_WRONG_VALUE_FOR_TYPE,
                         ER_THD(current_thd, ER_WRONG_VALUE_FOR_TYPE), "integer",
                         err.c_ptr_safe(), func_name());
-    return NULL;
+    return nullptr;
   }
   null_value = false;
 
@@ -229,7 +229,7 @@ String *Item_func_inet_str_base::val_str_ascii(String *buffer) {
       args[0]->result_type() != STRING_RESULT)  // (2)
   {
     // NULL value can be checked only after calling a val_* func
-    if (args[0]->null_value) return NULL;
+    if (args[0]->null_value) return nullptr;
     goto err;
   }
 
@@ -247,7 +247,7 @@ err:
                       ER_WRONG_VALUE_FOR_TYPE,
                       ER_THD(current_thd, ER_WRONG_VALUE_FOR_TYPE), "string",
                       err.c_ptr_safe(), func_name());
-  return NULL;
+  return nullptr;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -412,7 +412,7 @@ static bool str_to_ipv6(const char *str, int str_length,
   char *ipv6_bytes = (char *)ipv6_address;
   char *ipv6_bytes_end = ipv6_bytes + IN6_ADDR_SIZE;
   char *dst = ipv6_bytes;
-  char *gap_ptr = NULL;
+  char *gap_ptr = nullptr;
   const char *group_start_ptr = p;
   int chars_in_group = 0;
   int group_value = 0;

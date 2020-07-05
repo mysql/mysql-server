@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,8 @@ class MetadataCacheTest : public ::testing::Test {
         cache(kRouterId, "0000-0001", {TCPAddress("localhost", 32275)},
               get_instance(mysqlrouter::ClusterType::GR_V1, "admin", "admin", 1,
                            1, 1, mysqlrouter::SSLOptions(), false, 0),
-              std::chrono::seconds(10), mysqlrouter::SSLOptions(),
+              std::chrono::seconds(10), std::chrono::seconds(-1),
+              std::chrono::seconds(20), mysqlrouter::SSLOptions(),
               "replicaset-1") {
     cache.refresh();
   }
@@ -106,6 +107,15 @@ class MetadataCacheTest2 : public ::testing::Test {
   void expect_sql_metadata() {
     MySQLSessionReplayer &m = *session;
 
+    m.expect_execute(
+        "SET @@SESSION.autocommit=1, @@SESSION.character_set_client=utf8, "
+        "@@SESSION.character_set_results=utf8, "
+        "@@SESSION.character_set_connection=utf8, "
+        "@@SESSION.sql_mode='ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_"
+        "DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION'");
+    m.then_ok();
+    m.expect_execute("SET @@SESSION.group_replication_consistency='EVENTUAL'");
+    m.then_ok();
     m.expect_execute("START TRANSACTION");
     m.then_ok();
 
@@ -209,7 +219,8 @@ TEST_F(MetadataCacheTest2, basic_test) {
   expect_sql_members();
 
   GRMetadataCache mc(kRouterId, gr_id, metadata_servers, cmeta,
-                     std::chrono::seconds(10), mysqlrouter::SSLOptions(),
+                     std::chrono::seconds(10), std::chrono::seconds(-1),
+                     std::chrono::seconds(20), mysqlrouter::SSLOptions(),
                      "cluster-1");
   mc.refresh();
 
@@ -240,7 +251,8 @@ TEST_F(MetadataCacheTest2, metadata_server_connection_failures) {
   expect_sql_metadata();
   expect_sql_members();
   GRMetadataCache mc(kRouterId, gr_id, metadata_servers, cmeta,
-                     std::chrono::seconds(10), mysqlrouter::SSLOptions(),
+                     std::chrono::seconds(10), std::chrono::seconds(-1),
+                     std::chrono::seconds(20), mysqlrouter::SSLOptions(),
                      "cluster-1");
   mc.refresh();
   expect_cluster_routable(mc);

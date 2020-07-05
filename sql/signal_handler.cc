@@ -25,6 +25,7 @@
 #include <signal.h>
 #include <sys/types.h>
 #include <time.h>
+#include <algorithm>
 #include <atomic>
 
 #include "lex_string.h"
@@ -87,7 +88,7 @@ extern "C" void handle_fatal_signal(int sig) {
   const long secs = utc_time.wSecond;
 #else
   /* Using time() instead of my_time() to avoid looping */
-  const time_t curr_time = time(NULL);
+  const time_t curr_time = time(nullptr);
   /* Calculate time of day */
   const long tmins = curr_time / 60;
   const long thrs = tmins / 60;
@@ -152,7 +153,8 @@ extern "C" void handle_fatal_signal(int sig) {
         "Some pointers may be invalid and cause the dump to abort.\n");
 
     my_safe_printf_stderr("Query (%p): ", thd->query().str);
-    my_safe_puts_stderr(thd->query().str, MY_MIN(1024U, thd->query().length));
+    my_safe_puts_stderr(thd->query().str,
+                        std::min(size_t{1024}, thd->query().length));
     my_safe_printf_stderr("Connection ID (thread ID): %u\n", thd->thread_id());
     my_safe_printf_stderr("Status: %s\n\n", kreason);
   }

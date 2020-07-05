@@ -203,7 +203,10 @@ while ($_dt_tables)
   {
     --echo $statement
   }
+  set @save_sbs = @@sort_buffer_size;
+  set @@sort_buffer_size = 1048576;
   --eval $statement
+  set @@sort_buffer_size = @save_sbs;
 
   # Compare files.
   if ($_dt_prev_outfile)

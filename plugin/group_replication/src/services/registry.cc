@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@ const std::string Registry_module_interface::SVC_NAME_REGISTRY_QUERY =
 
 bool Registry_module::initialize() {
   bool res = false;
-  my_h_service h = NULL;
+  my_h_service h = nullptr;
   m_registry = mysql_plugin_registry_acquire();
   if (!m_registry) {
     /* purecov: begin inspected */
@@ -70,14 +70,14 @@ bool Registry_module::finalize() {
     if (m_registry->release(h))
       res = true; /* purecov: inspected */
     else
-      m_registry_query = NULL;
+      m_registry_query = nullptr;
   }
 
   /* release the registry handle */
   if (m_registry && mysql_plugin_registry_release(m_registry))
     res = true; /* purecov: inspected */
   else
-    m_registry = NULL;
+    m_registry = nullptr;
 
   return res;
 }

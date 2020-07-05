@@ -246,7 +246,7 @@ static void buf_dump(ibool obey_shutdown) {
   buf_dump_status(STATUS_INFO, "Dumping buffer pool(s) to %s", full_filename);
 
   f = fopen(tmp_filename, "w");
-  if (f == NULL) {
+  if (f == nullptr) {
     buf_dump_status(STATUS_ERR, "Cannot open '%s' for writing: %s",
                     tmp_filename, strerror(errno));
     return;
@@ -287,7 +287,7 @@ static void buf_dump(ibool obey_shutdown) {
 
     dump = static_cast<buf_dump_t *>(ut_malloc_nokey(n_pages * sizeof(*dump)));
 
-    if (dump == NULL) {
+    if (dump == nullptr) {
       mutex_exit(&buf_pool->LRU_list_mutex);
       fclose(f);
       buf_dump_status(STATUS_ERR, "Cannot allocate " ULINTPF " bytes: %s",
@@ -297,7 +297,7 @@ static void buf_dump(ibool obey_shutdown) {
     }
 
     for (bpage = UT_LIST_GET_FIRST(buf_pool->LRU), j = 0;
-         bpage != NULL && j < n_pages;
+         bpage != nullptr && j < n_pages;
          bpage = UT_LIST_GET_NEXT(LRU, bpage), j++) {
       ut_a(buf_page_in_file(bpage));
 
@@ -454,7 +454,7 @@ static void buf_load() {
   buf_load_status(STATUS_INFO, "Loading buffer pool(s) from %s", full_filename);
 
   f = fopen(full_filename, "r");
-  if (f == NULL) {
+  if (f == nullptr) {
     buf_load_status(STATUS_ERR, "Cannot open '%s' for reading: %s",
                     full_filename, strerror(errno));
     return;
@@ -506,7 +506,7 @@ static void buf_load() {
     return;
   }
 
-  if (dump == NULL) {
+  if (dump == nullptr) {
     fclose(f);
     buf_load_status(STATUS_ERR, "Cannot allocate " ULINTPF " bytes: %s",
                     (ulint)(dump_n * sizeof(*dump)), strerror(errno));
@@ -592,20 +592,20 @@ static void buf_load() {
     const space_id_t this_space_id = BUF_DUMP_SPACE(dump[i]);
 
     if (this_space_id != cur_space_id) {
-      if (space != NULL) {
+      if (space != nullptr) {
         fil_space_release(space);
       }
 
       cur_space_id = this_space_id;
       space = fil_space_acquire_silent(cur_space_id);
 
-      if (space != NULL) {
+      if (space != nullptr) {
         const page_size_t cur_page_size(space->flags);
         page_size.copy_from(cur_page_size);
       }
     }
 
-    if (space == NULL) {
+    if (space == nullptr) {
       continue;
     }
 
@@ -629,7 +629,7 @@ static void buf_load() {
     }
 
     if (buf_load_abort_flag) {
-      if (space != NULL) {
+      if (space != nullptr) {
         fil_space_release(space);
       }
       buf_load_abort_flag = FALSE;
@@ -648,7 +648,7 @@ static void buf_load() {
     buf_load_throttle_if_needed(&last_check_time, &last_activity_cnt, i);
   }
 
-  if (space != NULL) {
+  if (space != nullptr) {
     fil_space_release(space);
   }
 

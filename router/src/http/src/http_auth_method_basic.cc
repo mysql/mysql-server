@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,7 @@ HttpAuthMethodBasic::AuthData HttpAuthMethodBasic::decode_authorization(
   std::vector<uint8_t> decoded;
   try {
     decoded = Base64::decode(http_auth_data);
-  } catch (const std::runtime_error &e) {
+  } catch (const std::runtime_error &) {
     ec = std::make_error_code(std::errc::invalid_argument);
     return {};
   }

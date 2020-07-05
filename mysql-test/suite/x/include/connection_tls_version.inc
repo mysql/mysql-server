@@ -81,11 +81,12 @@ EOF
 --exec $MYSQLXTEST --expect-error CR_SSL_CONNECTION_ERROR --tls-version=TLSv3 $XTESTPARAMS 2>&1
 
 
-# Postamble
+# Cleanup
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
+
 --source include/xplugin_drop_user.inc
 --remove_file $xtest_file
 
 DROP USER user5_mysqlx@localhost;
 SET GLOBAL mysqlx_connect_timeout = DEFAULT;
-
-

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,15 +25,15 @@
 #ifndef PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_PROTOCOL_CONFIG_H_
 #define PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_PROTOCOL_CONFIG_H_
 
-#include <stdint.h>
+#include <cstdint>
+#include <limits>
 #include <list>
 #include <memory>
 
-#include "plugin/x/src/helper/chrono.h"
-
 #include "plugin/x/ngs/include/ngs/compression_types.h"
-#include "plugin/x/src/global_timeouts.h"
-#include "plugin/x/src/xpl_system_variables.h"
+#include "plugin/x/src/helper/chrono.h"
+#include "plugin/x/src/variables/system_variables_defaults.h"
+#include "plugin/x/src/variables/timeout_config.h"
 
 namespace ngs {
 
@@ -43,23 +43,7 @@ class Protocol_global_config {
 
   xpl::chrono::Seconds connect_timeout;
   xpl::chrono::Milliseconds connect_timeout_hysteresis;
-  uint32_t m_wait_timeout = Global_timeouts::Default::k_wait_timeout;
-  uint32_t m_interactive_timeout =
-      Global_timeouts::Default::k_interactive_timeout;
-  uint32_t m_read_timeout = Global_timeouts::Default::k_read_timeout;
-  uint32_t m_write_timeout = Global_timeouts::Default::k_write_timeout;
-
-  void set_global_timeouts(const Global_timeouts &timeouts) {
-    m_interactive_timeout = timeouts.interactive_timeout;
-    m_wait_timeout = timeouts.wait_timeout;
-    m_read_timeout = timeouts.read_timeout;
-    m_write_timeout = timeouts.write_timeout;
-  }
-
-  Global_timeouts get_global_timeouts() const {
-    return {m_interactive_timeout, m_wait_timeout, m_read_timeout,
-            m_write_timeout};
-  }
+  xpl::Timeouts_config m_timeouts;
 
   Protocol_global_config()
       : max_message_size(16 * 1024 * 1024),
@@ -72,8 +56,8 @@ class Protocol_config {
   explicit Protocol_config(
       const std::shared_ptr<Protocol_global_config> &global)
       : m_global(global) {}
-
   Compression_algorithm m_compression_algorithm = Compression_algorithm::k_none;
+  int32_t m_compression_level = std::numeric_limits<int32_t>::min();
   std::shared_ptr<Protocol_global_config> m_global;
 };
 

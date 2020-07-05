@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -74,8 +74,8 @@ static inline struct PSI_prepared_stmt *inline_mysql_create_prepared_stmt(
     void *identity, uint stmt_id, PSI_statement_locker *locker,
     const char *stmt_name, size_t stmt_name_length, const char *sqltext,
     size_t sqltext_length) {
-  if (locker == NULL) {
-    return NULL;
+  if (locker == nullptr) {
+    return nullptr;
   }
   return PSI_PS_CALL(create_prepared_stmt)(identity, stmt_id, locker, stmt_name,
                                            stmt_name_length, sqltext,
@@ -84,28 +84,28 @@ static inline struct PSI_prepared_stmt *inline_mysql_create_prepared_stmt(
 
 static inline void inline_mysql_execute_prepared_stmt(
     PSI_statement_locker *locker, PSI_prepared_stmt *prepared_stmt) {
-  if (prepared_stmt != NULL && locker != NULL) {
+  if (prepared_stmt != nullptr && locker != nullptr) {
     PSI_PS_CALL(execute_prepared_stmt)(locker, prepared_stmt);
   }
 }
 
 static inline void inline_mysql_destroy_prepared_stmt(
     PSI_prepared_stmt *prepared_stmt) {
-  if (prepared_stmt != NULL) {
+  if (prepared_stmt != nullptr) {
     PSI_PS_CALL(destroy_prepared_stmt)(prepared_stmt);
   }
 }
 
 static inline void inline_mysql_reprepare_prepared_stmt(
     PSI_prepared_stmt *prepared_stmt) {
-  if (prepared_stmt != NULL) {
+  if (prepared_stmt != nullptr) {
     PSI_PS_CALL(reprepare_prepared_stmt)(prepared_stmt);
   }
 }
 
 static inline void inline_mysql_set_prepared_stmt_text(
     PSI_prepared_stmt *prepared_stmt, const char *text, uint text_len) {
-  if (prepared_stmt != NULL) {
+  if (prepared_stmt != nullptr) {
     PSI_PS_CALL(set_prepared_stmt_text)(prepared_stmt, text, text_len);
   }
 }

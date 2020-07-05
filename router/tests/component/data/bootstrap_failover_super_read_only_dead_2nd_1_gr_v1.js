@@ -16,6 +16,8 @@ var options = {
 };
 
 var common_responses = common_stmts.prepare_statement_responses([
+  "router_set_session_options",
+  "router_set_gr_consistency_level",
   "router_select_schema_version",
   "router_count_clusters_v1",
   "router_check_member_state",

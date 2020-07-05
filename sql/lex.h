@@ -1,7 +1,7 @@
 #ifndef LEX_INCLUDED
 #define LEX_INCLUDED
 
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -467,6 +467,7 @@ static const SYMBOL symbols[] = {
     {SYM("NUMERIC", NUMERIC_SYM)},
     {SYM("NVARCHAR", NVARCHAR_SYM)},
     {SYM("OF", OF_SYM)},
+    {SYM("OFF", OFF_SYM)},
     {SYM("OFFSET", OFFSET_SYM)},
     {SYM("OJ", OJ_SYM)},
     {SYM("OLD", OLD_SYM)},
@@ -568,6 +569,8 @@ static const SYMBOL symbols[] = {
     {SYM("REPEAT", REPEAT_SYM)},
     {SYM("REQUIRE", REQUIRE_SYM)},
     {SYM("REQUIRE_ROW_FORMAT", REQUIRE_ROW_FORMAT_SYM)},
+    {SYM("REQUIRE_TABLE_PRIMARY_KEY_CHECK",
+         REQUIRE_TABLE_PRIMARY_KEY_CHECK_SYM)},
     {SYM("RESET", RESET_SYM)},
     {SYM("RESPECT", RESPECT_SYM)},
     {SYM("RESIGNAL", RESIGNAL_SYM)},
@@ -668,6 +671,7 @@ static const SYMBOL symbols[] = {
     {SYM("STORAGE", STORAGE_SYM)},
     {SYM("STORED", STORED_SYM)},
     {SYM("STRAIGHT_JOIN", STRAIGHT_JOIN)},
+    {SYM("STREAM", STREAM_SYM)},
     {SYM("STRING", STRING_SYM)},
     {SYM("SUBCLASS_ORIGIN", SUBCLASS_ORIGIN_SYM)},
     {SYM("SUBJECT", SUBJECT_SYM)},
@@ -845,6 +849,14 @@ static const SYMBOL symbols[] = {
     {SYM_H("SKIP_SCAN", SKIP_SCAN_HINT)},
     {SYM_H("NO_SKIP_SCAN", NO_SKIP_SCAN_HINT)},
     {SYM_H("HASH_JOIN", HASH_JOIN_HINT)},
-    {SYM_H("NO_HASH_JOIN", NO_HASH_JOIN_HINT)}};
+    {SYM_H("NO_HASH_JOIN", NO_HASH_JOIN_HINT)},
+    {SYM_H("INDEX", INDEX_HINT)},
+    {SYM_H("NO_INDEX", NO_INDEX_HINT)},
+    {SYM_H("JOIN_INDEX", JOIN_INDEX_HINT)},
+    {SYM_H("NO_JOIN_INDEX", NO_JOIN_INDEX_HINT)},
+    {SYM_H("GROUP_INDEX", GROUP_INDEX_HINT)},
+    {SYM_H("NO_GROUP_INDEX", NO_GROUP_INDEX_HINT)},
+    {SYM_H("ORDER_INDEX", ORDER_INDEX_HINT)},
+    {SYM_H("NO_ORDER_INDEX", NO_ORDER_INDEX_HINT)}};
 
 #endif /* LEX_INCLUDED */

@@ -1,7 +1,7 @@
 #ifndef HISTOGRAMS_VALUE_MAP_INCLUDED
 #define HISTOGRAMS_VALUE_MAP_INCLUDED
 
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,7 +42,7 @@
 class String;
 class my_decimal;
 template <class T>
-class Memroot_allocator;
+class Mem_root_allocator;
 
 namespace histograms {
 
@@ -216,7 +216,7 @@ class Value_map final : public Value_map_base {
  private:
   using value_map_type =
       std::map<T, ha_rows, Histogram_comparator,
-               Memroot_allocator<std::pair<const T, ha_rows>>>;
+               Mem_root_allocator<std::pair<const T, ha_rows>>>;
 
   value_map_type m_value_map;
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -181,9 +181,8 @@ class Multisource_info {
     @param[in]  channel_name      channel name
     @param[in]  mi                pointer to master info corresponding
                                   to this channel
-    @return
-      @retval      false       succesfully added
-      @retval      true        couldn't add channel
+    @retval      false       succesfully added
+    @retval      true        couldn't add channel
   */
   bool add_mi(const char *channel_name, Master_info *mi);
 
@@ -194,8 +193,7 @@ class Multisource_info {
 
     @param[in]  channel_name  channel name for the master info object.
 
-    @return
-      @retval                 pointer to the master info object if exists
+    @returns                  pointer to the master info object if exists
                               in the map. Otherwise, NULL;
   */
   Master_info *get_mi(const char *channel_name);
@@ -281,9 +279,8 @@ class Multisource_info {
     @param channel    the channel name to test
     @param is_applier compare only with applier name
 
-    @return
-      @retval      true   the name is a reserved name
-      @retval      false  non reserved name
+    @retval      true   the name is a reserved name
+    @retval      false  non reserved name
   */
   bool is_group_replication_channel_name(const char *channel,
                                          bool is_applier = false);
@@ -324,7 +321,7 @@ class Multisource_info {
 
   /* Initialize the rpl_pfs_mi array to NULLs */
   inline void init_rpl_pfs_mi() {
-    for (uint i = 0; i < MAX_CHANNELS; i++) rpl_pfs_mi[i] = 0;
+    for (uint i = 0; i < MAX_CHANNELS; i++) rpl_pfs_mi[i] = nullptr;
   }
 
   /**

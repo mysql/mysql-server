@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_blob_tool\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/23/2019
+.\"      Date: 03/06/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_BLOB_TOOL\FR" "1" "11/23/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDB_BLOB_TOOL\FR" "1" "03/06/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -93,7 +93,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.283.\ \&Command\-line options for the ndb_blob_tool program
+.B Table\ \&22.254.\ \&Command\-line options for the ndb_blob_tool program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -109,58 +109,173 @@ l l l
 l l l
 l l l
 l l l
+l l l
+l l l
 l l l.
 T{
 .PP
---check-orphans
+\fB \fR\fB--add-missing\fR\fB \fR
 T}:T{
-Check for orphan blob parts
+Write dummy blob parts to take place of those which are missing
 T}:T{
 .PP
-All NDB 8.0 releases
+ADDED: NDB 8.0.20
 T}
 T{
 .PP
---database=db_name,
-.PP
--d
+\fB \fR\fB--check-missing\fR\fB \fR
 T}:T{
-Database to find the table in.
+Check for blobs having inline parts but missing one or more parts from
+              parts table
 T}:T{
 .PP
-All NDB 8.0 releases
+ADDED: NDB 8.0.20
 T}
 T{
 .PP
---delete-orphans
+\fB \fR\fB--check-orphans\fR\fB \fR
 T}:T{
-Delete orphan blob parts
+Check for blob parts having no corresponding inline parts
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---dump-file=file
+\fB--database=db_name\fR,
+.PP
+\fB \fR\fB-d\fR\fB \fR
+T}:T{
+Database to find the table in
+T}:T{
+.PP
+(Supported in all MySQL 8.0 based releases)
+T}
+T{
+.PP
+\fB \fR\fB--delete-orphans\fR\fB \fR
+T}:T{
+Delete blob parts having no corresponding inline parts
+T}:T{
+.PP
+(Supported in all MySQL 8.0 based releases)
+T}
+T{
+.PP
+\fB \fR\fB--dump-file=file\fR\fB \fR
 T}:T{
 Write orphan keys to specified file
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---verbose,
+\fB--verbose\fR,
 .PP
--v
+\fB \fR\fB-v\fR\fB \fR
 T}:T{
 Verbose output
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 .TE
 .sp 1
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-add\-missing\fR
+.TS
+allbox tab(:);
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--add-missing
+T}
+T{
+\fBIntroduced\fR
+T}:T{
+8.0.20-ndb-8.0.20
+T}
+T{
+\fBType\fR
+T}:T{
+Boolean
+T}
+T{
+\fBDefault Value\fR
+T}:T{
+FALSE
+T}
+.TE
+.sp 1
+For each inline part in NDB Cluster tables which has no corresponding BLOB part, write a dummy BLOB part of the required length, consisting of spaces\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-check\-missing\fR
+.TS
+allbox tab(:);
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--check-missing
+T}
+T{
+\fBIntroduced\fR
+T}:T{
+8.0.20-ndb-8.0.20
+T}
+T{
+\fBType\fR
+T}:T{
+Boolean
+T}
+T{
+\fBDefault Value\fR
+T}:T{
+FALSE
+T}
+.TE
+.sp 1
+Check for inline parts in NDB Cluster tables which have no corresponding BLOB parts\&.
+.RE
 .sp
 .RS 4
 .ie n \{\
@@ -200,7 +315,7 @@ FALSE
 T}
 .TE
 .sp 1
-Check for orphaned BLOB parts in NDB Cluster tables\&.
+Check for BLOB parts in NDB Cluster tables which have no corresponding inline parts\&.
 .RE
 .sp
 .RS 4
@@ -283,7 +398,7 @@ FALSE
 T}
 .TE
 .sp 1
-Remove orphaned BLOB parts from NDB Cluster tables\&.
+Remove BLOB parts from NDB Cluster tables which have no corresponding inline parts\&.
 .RE
 .sp
 .RS 4
@@ -368,7 +483,8 @@ T}
 .sp 1
 Provide extra information in the tool\*(Aqs output regarding its progress\&.
 .RE
-Example.PP
+Example
+.PP
 First we create an
 NDB
 table in the
@@ -460,11 +576,11 @@ BLOB
 column parts are created by
 NDB
 for this column\&. See
-Section\ \&11.8, \(lqData Type Storage Requirements\(rq, for more information\&.
+Section\ \&11.7, \(lqData Type Storage Requirements\(rq, for more information\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

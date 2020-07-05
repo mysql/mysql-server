@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -53,18 +53,14 @@
 
 IMPORT_LOG_FUNCTIONS()
 
+using namespace std::string_literals;
+
 static constexpr const char kSectionName[]{"http_auth_realm"};
 
 using mysql_harness::ARCHITECTURE_DESCRIPTOR;
 using mysql_harness::Plugin;
 using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::PluginFuncEnv;
-
-std::error_code HttpAuthRealm::authenticate(const std::string &username,
-                                            const std::string &password) const {
-  return HttpAuthBackendComponent::get_instance().authenticate(
-      backend(), username, password);
-}
 
 namespace {
 class PluginConfig : public mysqlrouter::BasePluginConfig {
@@ -129,6 +125,13 @@ static void init(PluginFuncEnv *env) {
         continue;
       }
 
+      if (section->key.empty()) {
+        set_error(env, mysql_harness::kConfigInvalidArgument,
+                  "The config section [%s] requires a name, like [%s:example]",
+                  kSectionName, kSectionName);
+        return;
+      }
+
       PluginConfig config(section);
 
       if (config.method != kMethodNameBasic) {
@@ -139,10 +142,20 @@ static void init(PluginFuncEnv *env) {
       }
 
       if (known_backends.find(config.backend) == known_backends.end()) {
+        std::string section_name = section->name;
+        if (!section->key.empty()) section_name += ":" + section->key;
+
+        const std::string backend_msg =
+            (known_backends.empty())
+                ? "No [http_auth_backend:" + config.backend +
+                      "] section defined."
+                : "Known [http_auth_backend:<...>] section" +
+                      (known_backends.size() > 1 ? "s"s : ""s) + ": " +
+                      mysql_harness::join(known_backends, ", ");
+
         throw std::invalid_argument(
-            "unknown authentication backend for [http_auth_realm] '" +
-            section->key + "': " + config.backend +
-            ", known backend(s): " + mysql_harness::join(known_backends, ","));
+            "The option 'backend=" + config.backend + "' in [" + section_name +
+            "] does not match any http_auth_backend. " + backend_msg);
       }
 
       auth_realms->insert({section->key, std::make_shared<HttpAuthRealm>(

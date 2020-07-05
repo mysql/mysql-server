@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -563,9 +563,10 @@ public:
 
     /**
      * This function is called when a waited for signal arrives.
-     * Return 'true' if this completes the wait for this treeNode
+     * Sets Request::m_completed_tree_nodes if this completed the
+     * wait for this treeNode
      */
-    bool (Dbspj::*m_countSignal)(const Signal*,Ptr<Request>,Ptr<TreeNode>);
+    void (Dbspj::*m_countSignal)(const Signal*, Ptr<Request>, Ptr<TreeNode>, Uint32 cnt);
 
     /**
      * This function is used when getting a LQHKEYREF
@@ -685,7 +686,6 @@ public:
       m_state = SFH_NOT_STARTED;
       m_rangePtrI = RNIL;
       m_readBackup = readBackup;
-      reset_ranges();
     }
 
     Uint32 m_magic;
@@ -694,16 +694,6 @@ public:
     Uint8 m_state;
     Uint8 m_readBackup;
     Uint32 m_ref;
-
-    void reset_ranges() {
-      // m_rangePtrI is explicitly managed...in code
-      m_range_builder.m_range_cnt = m_range_builder.m_range_size = 0;
-    }
-    struct RangeBuilder
-    {
-      Uint32 m_range_size;
-      Uint16 m_range_cnt; // too set bounds info correctly
-    } m_range_builder;
     Uint32 m_rangePtrI;
     union {
       Uint32 nextList;
@@ -1014,6 +1004,12 @@ public:
        */
       T_SORTED_ORDER = 0x100000,
 
+      /**
+       * Allow FirstMatch elimination when multiple rows matching the
+       * same key or range
+       */
+      T_FIRST_MATCH = 0x200000,
+
       // End marker...
       T_END = 0
     };
@@ -1212,9 +1208,9 @@ public:
     TreeNodeCursor_list::Head m_cursor_nodes;
     Uint32 m_cnt_active;       // No of "running" nodes
     TreeNodeBitMask
-           m_active_nodes;     // Nodes which will return more data in NEXTREQ
+      m_active_tree_nodes;     // Nodes which will return more data in NEXTREQ
     TreeNodeBitMask
-           m_completed_nodes;  // Nodes wo/ any 'outstanding' signals
+      m_completed_tree_nodes;  // Nodes wo/ any 'outstanding' signals
     Uint32 m_rows;             // Rows accumulated in current batch
     Uint32 m_outstanding;      // Outstanding signals, when 0, batch is done
     Uint16 m_lookup_node_data[MAX_NDB_NODES];
@@ -1510,7 +1506,7 @@ private:
   Uint32 appendParamHeadToPattern(Local_pattern_store&,const RowPtr::Linear&,
                                   Uint32);
 
-  Uint32 appendTreeToSection(Uint32 & ptrI, SectionReader &, Uint32);
+  Uint32 appendReaderToSection(Uint32 & ptrI, SectionReader&, Uint32);
   Uint32 appendColToSection(Uint32 & ptrI, const RowPtr::Linear&, Uint32 col, bool& hasNull);
   Uint32 appendColToSection(Uint32 & ptrI, const RowPtr::Section&, Uint32 col, bool& hasNull);
   Uint32 appendPkColToSection(Uint32 & ptrI, const RowPtr::Section&,Uint32 col);
@@ -1566,7 +1562,7 @@ private:
   void lookup_start(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void lookup_resume(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void lookup_send(Signal*, Ptr<Request>, Ptr<TreeNode>);
-  bool lookup_countSignal(const Signal*, Ptr<Request>, Ptr<TreeNode>);
+  void lookup_countSignal(const Signal*, Ptr<Request>, Ptr<TreeNode>, Uint32 cnt);
   void lookup_execLQHKEYREF(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void lookup_execLQHKEYCONF(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void lookup_stop_branch(Signal*, Ptr<Request>, Ptr<TreeNode>, Uint32 err);
@@ -1603,7 +1599,7 @@ private:
                        DABuffer param, Uint32 paramBits);
   void scanFrag_start(Signal*, Ptr<Request>,Ptr<TreeNode>);
   void scanFrag_prepare(Signal*, Ptr<Request>, Ptr<TreeNode>);
-  bool scanFrag_countSignal(const Signal*, Ptr<Request>, Ptr<TreeNode>);
+  void scanFrag_countSignal(const Signal*, Ptr<Request>, Ptr<TreeNode>, Uint32 cnt);
   void scanFrag_execSCAN_FRAGREF(Signal*, Ptr<Request>, Ptr<TreeNode>,
                                  Ptr<ScanFragHandle>);
   void scanFrag_execSCAN_FRAGCONF(Signal*, Ptr<Request>, Ptr<TreeNode>,

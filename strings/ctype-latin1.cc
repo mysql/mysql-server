@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -280,28 +280,38 @@ static const uchar pl21[256] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00};
 static const uchar *uni_to_cs[256] = {
-    pl00, pl01, pl02, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, pl20, pl21, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL};
+    pl00,    pl01,    pl02,    nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    pl20,    pl21,    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr};
 
 extern "C" {
 static int my_mb_wc_latin1(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
@@ -326,8 +336,8 @@ static int my_wc_mb_latin1(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 }
 }  // extern "C"
 
-static MY_CHARSET_HANDLER my_charset_handler = {NULL, /* init */
-                                                NULL,
+static MY_CHARSET_HANDLER my_charset_handler = {nullptr, /* init */
+                                                nullptr,
                                                 my_mbcharlen_8bit,
                                                 my_numchars_8bit,
                                                 my_charpos_8bit,
@@ -361,19 +371,19 @@ CHARSET_INFO my_charset_latin1 = {
     MY_CS_COMPILED | MY_CS_PRIMARY, /* state */
     "latin1",                       /* cs name    */
     "latin1_swedish_ci",            /* name      */
-    "",                             /* comment   */
-    NULL,                           /* tailoring */
-    NULL,                           /* coll_param */
+    "cp1252 West European",         /* comment   */
+    nullptr,                        /* tailoring */
+    nullptr,                        /* coll_param */
     ctype_latin1,
     to_lower_latin1,
     to_upper_latin1,
     sort_order_latin1,
-    NULL,                /* uca          */
+    nullptr,             /* uca          */
     cs_to_uni,           /* tab_to_uni   */
-    NULL,                /* tab_from_uni */
+    nullptr,             /* tab_from_uni */
     &my_unicase_default, /* caseinfo     */
-    NULL,                /* state_map    */
-    NULL,                /* ident_map    */
+    nullptr,             /* state_map    */
+    nullptr,             /* ident_map    */
     1,                   /* strxfrm_multiply */
     1,                   /* caseup_multiply  */
     1,                   /* casedn_multiply  */
@@ -629,19 +639,19 @@ CHARSET_INFO my_charset_latin1_german2_ci = {
     MY_CS_COMPILED | MY_CS_STRNXFRM, /* state     */
     "latin1",                        /* cs name    */
     "latin1_german2_ci",             /* name      */
-    "",                              /* comment   */
-    NULL,                            /* tailoring */
-    NULL,                            /* coll_param */
+    "cp1252 West European",          /* comment   */
+    nullptr,                         /* tailoring */
+    nullptr,                         /* coll_param */
     ctype_latin1,
     to_lower_latin1,
     to_upper_latin1,
     sort_order_latin1_de,
-    NULL,                /* uca          */
+    nullptr,             /* uca          */
     cs_to_uni,           /* tab_to_uni   */
-    NULL,                /* tab_from_uni */
+    nullptr,             /* tab_from_uni */
     &my_unicase_default, /* caseinfo     */
-    NULL,                /* state_map    */
-    NULL,                /* ident_map    */
+    nullptr,             /* state_map    */
+    nullptr,             /* ident_map    */
     2,                   /* strxfrm_multiply */
     1,                   /* caseup_multiply  */
     1,                   /* casedn_multiply  */
@@ -664,19 +674,19 @@ CHARSET_INFO my_charset_latin1_bin = {
     MY_CS_COMPILED | MY_CS_BINSORT, /* state     */
     "latin1",                       /* cs name    */
     "latin1_bin",                   /* name      */
-    "",                             /* comment   */
-    NULL,                           /* tailoring */
-    NULL,                           /* coll_param */
+    "cp1252 West European",         /* comment   */
+    nullptr,                        /* tailoring */
+    nullptr,                        /* coll_param */
     ctype_latin1,
     to_lower_latin1,
     to_upper_latin1,
-    NULL,                /* sort_order   */
-    NULL,                /* uca          */
+    nullptr,             /* sort_order   */
+    nullptr,             /* uca          */
     cs_to_uni,           /* tab_to_uni   */
-    NULL,                /* tab_from_uni */
+    nullptr,             /* tab_from_uni */
     &my_unicase_default, /* caseinfo     */
-    NULL,                /* state_map    */
-    NULL,                /* ident_map    */
+    nullptr,             /* state_map    */
+    nullptr,             /* ident_map    */
     1,                   /* strxfrm_multiply */
     1,                   /* caseup_multiply  */
     1,                   /* casedn_multiply  */

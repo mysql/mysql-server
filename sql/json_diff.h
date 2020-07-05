@@ -1,7 +1,7 @@
 #ifndef JSON_DIFF_INCLUDED
 #define JSON_DIFF_INCLUDED
 
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,7 @@
 #include <vector>
 
 #include "sql/json_path.h"
-#include "sql/memroot_allocator.h"
+#include "sql/mem_root_allocator.h"
 
 class Field_json;
 class Json_dom;
@@ -137,7 +137,7 @@ class Json_diff final {
 class Json_diff_vector {
  public:
   /// Type of the allocator for the underlying invector.
-  typedef Memroot_allocator<Json_diff> allocator_type;
+  typedef Mem_root_allocator<Json_diff> allocator_type;
   /// Type of the underlying vector
   typedef std::vector<Json_diff, allocator_type> vector;
   /// Type of iterator over the underlying vector
@@ -146,7 +146,7 @@ class Json_diff_vector {
   typedef vector::const_iterator const_iterator;
   /**
     Constructor
-    @param arg Memroot_allocator to use for the vector
+    @param arg Mem_root_allocator to use for the vector
   */
   Json_diff_vector(allocator_type arg);
   /**

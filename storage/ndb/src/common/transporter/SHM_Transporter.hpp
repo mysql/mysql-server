@@ -41,6 +41,7 @@ class SHM_Transporter : public Transporter {
   friend class TransporterRegistry;
 public:
   SHM_Transporter(TransporterRegistry &,
+                  TrpId transporterIndex,
 		  const char *lHostName,
 		  const char *rHostName, 
 		  int r_port,
@@ -55,7 +56,10 @@ public:
 		  bool preSendChecksum,
                   Uint32 spintime,
                   Uint32 send_buffer_size);
-  
+
+  SHM_Transporter(TransporterRegistry &,
+                  const SHM_Transporter*);
+ 
   /**
    * SHM destructor
    */
@@ -172,11 +176,6 @@ protected:
   int m_remote_pid;
   Uint32 m_signal_threshold;
 
-  Uint32 m_spintime;
-  Uint32 get_spintime()
-  {
-    return m_spintime;
-  }
 private:
   bool _shmSegCreated;
   bool _attached;

@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -9283,6 +9283,30 @@ ER_SDI_OPERATION_FAILED_MISSING_RECORD
 
 ER_DEPENDENT_BY_CHECK_CONSTRAINT
   eng "Check constraint '%-.192s' uses column '%-.192s', hence column cannot be dropped or renamed."
+
+ER_GRP_OPERATION_NOT_ALLOWED_GR_MUST_STOP
+   eng "This operation cannot be performed while Group Replication is running; run STOP GROUP_REPLICATION first"
+
+# When using this error message, use the ER_WARN_DEPRECATED_SYNTAX error code.
+ER_WARN_DEPRECATED_JSON_TABLE_ON_ERROR_ON_EMPTY
+  eng "Specifying an ON EMPTY clause after the ON ERROR clause in a JSON_TABLE column definition is deprecated syntax and will be removed in a future release. Specify ON EMPTY before ON ERROR instead."
+
+ER_WARN_DEPRECATED_INNER_INTO
+  eng "The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead."
+
+# When using this error message, use the ER_WARN_DEPRECATED_SYNTAX error code.
+ER_WARN_DEPRECATED_VALUES_FUNCTION_ALWAYS_NULL
+  eng "The VALUES function is deprecated and will be removed in a future release. It always returns NULL in this context. If you meant to access a value from the VALUES clause of the INSERT statement, consider using an alias (INSERT INTO ... VALUES (...) AS alias) and reference alias.col instead of VALUES(col) in the ON DUPLICATE KEY UPDATE clause."
+
+# When using this error message, use the ER_WARN_DEPRECATED_SYNTAX error
+# code.
+ER_WARN_DEPRECATED_SQL_CALC_FOUND_ROWS
+  eng "SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead."
+
+# When using this error message, use the ER_WARN_DEPRECATED_SYNTAX error
+# code.
+ER_WARN_DEPRECATED_FOUND_ROWS
+  eng "FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead."
 
 #
 #  End of 8.0 error messages (server-to-client).

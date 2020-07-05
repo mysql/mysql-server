@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -199,7 +199,8 @@ ssize_t vio_pending(MYSQL_VIO vio);
 int vio_timeout(MYSQL_VIO vio, uint which, int timeout_sec);
 /* Connect to a peer. */
 bool vio_socket_connect(MYSQL_VIO vio, struct sockaddr *addr, socklen_t len,
-                        bool nonblocking, int timeout);
+                        bool nonblocking, int timeout,
+                        bool *connect_done = nullptr);
 
 bool vio_get_normalized_ip_string(const struct sockaddr *addr,
                                   size_t addr_length, char *ip_string,
@@ -211,7 +212,6 @@ int vio_getnameinfo(const struct sockaddr *sa, char *hostname,
                     size_t hostname_size, char *port, size_t port_size,
                     int flags);
 
-#if defined(HAVE_OPENSSL)
 extern "C" {
 #include <openssl/opensslv.h>
 }
@@ -245,6 +245,7 @@ enum enum_ssl_init_error {
   SSL_TLS_VERSION_INVALID,
   SSL_FIPS_MODE_INVALID,
   SSL_FIPS_MODE_FAILED,
+  SSL_INITERR_ECDHFAIL,
   SSL_INITERR_LASTERR
 };
 const char *sslGetErrString(enum enum_ssl_init_error err);
@@ -278,8 +279,6 @@ struct st_VioSSLFd *new_VioSSLAcceptorFd(
 void free_vio_ssl_acceptor_fd(struct st_VioSSLFd *fd);
 
 void vio_ssl_end();
-
-#endif /* HAVE_OPENSSL */
 
 void ssl_start(void);
 void vio_end(void);
@@ -404,13 +403,11 @@ struct Vio {
 #endif
   HANDLE hPipe{nullptr};
 #endif
-#ifdef HAVE_OPENSSL
   void *ssl_arg = {nullptr};
   struct PSI_socket_locker *m_psi_read_locker = {nullptr};
   PSI_socket_locker_state m_psi_read_state;
   struct PSI_socket_locker *m_psi_write_locker = {nullptr};
   PSI_socket_locker_state m_psi_write_state;
-#endif /* HAVE_OPENSSL */
 #if defined(_WIN32)
   HANDLE handle_file_map = {nullptr};
   char *handle_map = {nullptr};
@@ -444,10 +441,6 @@ struct Vio {
   Vio &operator=(Vio &&vio);
 };
 
-#ifdef HAVE_OPENSSL
 #define SSL_handle SSL *
-#else
-#define SSL_handle void *
-#endif
 
 #endif /* vio_violite_h_ */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 #endif
 
 #include <sys/types.h>
+#include <algorithm>
 #include <string>
 #include <unordered_map>
 
@@ -516,17 +517,17 @@ class Deferred_log_events {
 */
 
 std::pair<my_off_t, std::pair<uint, bool>> read_field_metadata(
-    const uchar *metadata_ptr, enum_field_types type);
+    const uchar *buffer, enum_field_types binlog_type);
 
 // NB. number of printed bit values is limited to sizeof(buf) - 1
-#define DBUG_PRINT_BITSET(N, FRM, BS)                           \
-  do {                                                          \
-    char buf[256];                                              \
-    uint i;                                                     \
-    for (i = 0; i < MY_MIN(sizeof(buf) - 1, (BS)->n_bits); i++) \
-      buf[i] = bitmap_is_set((BS), i) ? '1' : '0';              \
-    buf[i] = '\0';                                              \
-    DBUG_PRINT((N), ((FRM), buf));                              \
+#define DBUG_PRINT_BITSET(N, FRM, BS)                                   \
+  do {                                                                  \
+    char buf[256];                                                      \
+    uint i;                                                             \
+    for (i = 0; i < std::min(uint{sizeof(buf) - 1}, (BS)->n_bits); i++) \
+      buf[i] = bitmap_is_set((BS), i) ? '1' : '0';                      \
+    buf[i] = '\0';                                                      \
+    DBUG_PRINT((N), ((FRM), buf));                                      \
   } while (0)
 
 #ifdef MYSQL_SERVER

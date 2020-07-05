@@ -5,48 +5,47 @@
 #
 SET GLOBAL innodb_fast_shutdown = 0;
 # restart
-show variables like 'innodb_doublewrite';
+SHOW VARIABLES LIKE 'innodb_doublewrite';
 Variable_name	Value
 innodb_doublewrite	ON
-show variables like 'innodb_fil_make_page_dirty_debug';
+SHOW VARIABLES LIKE 'innodb_fil_make_page_dirty_debug';
 Variable_name	Value
-innodb_fil_make_page_dirty_debug	0
-show variables like 'innodb_saved_page_number_debug';
+innodb_fil_make_page_dirty_debug	4294967295
+SHOW VARIABLES LIKE 'innodb_saved_page_number_debug';
 Variable_name	Value
 innodb_saved_page_number_debug	0
 create table t1 (f1 int primary key, f2 blob) engine=innodb;
-start transaction;
-insert into t1 values(1, repeat('#',12));
-insert into t1 values(2, repeat('+',12));
-insert into t1 values(3, repeat('/',12));
-insert into t1 values(4, repeat('-',12));
-insert into t1 values(5, repeat('.',12));
-commit work;
+START TRANSACTION;
+INSERT INTO t1 VALUES(1, repeat('#',12));
+INSERT INTO t1 VALUES(2, repeat('+',12));
+INSERT INTO t1 VALUES(3, repeat('/',12));
+INSERT INTO t1 VALUES(4, repeat('-',12));
+INSERT INTO t1 VALUES(5, repeat('.',12));
+COMMIT WORK;
 # ---------------------------------------------------------------
 # Test Begin: Test if recovery works if first page of user
 # tablespace is full of zeroes.
-select space from information_schema.innodb_tables
-where name = 'test/t1' into @space_id;
 # Wait for purge to complete
 # Ensure that dirty pages of table t1 is flushed.
-flush tables t1 for export;
-unlock tables;
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+SELECT space FROM INFORMATION_SCHEMA.INNODB_TABLESPACEs
+WHERE name = 'test/t1' INTO @space_id;
 SET GLOBAL innodb_checkpoint_disabled=1;
-begin;
-insert into t1 values (6, repeat('%', 12));
+BEGIN;
+INSERT INTO t1 VALUES (6, repeat('%', 12));
+SET GLOBAL innodb_checkpoint_disabled = 1;
 # Make the first page dirty for table t1
-set global innodb_saved_page_number_debug = 0;
-set global innodb_fil_make_page_dirty_debug = @space_id;
-# Ensure that dirty pages of table t1 are flushed.
-set global innodb_buf_flush_list_now = 1;
-# Kill the server
+SET GLOBAL innodb_saved_page_number_debug = 0;
+SET GLOBAL innodb_fil_make_page_dirty_debug = @space_id;
+ERROR HY000: Lost connection to MySQL server during query
 # Make the first page (page_no=0) of the user tablespace
 # full of zeroes.
 # restart
-check table t1;
+CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
-select f1, f2 from t1;
+SELECT f1, f2 FROM t1;
 f1	f2
 1	############
 2	++++++++++++
@@ -57,26 +56,25 @@ f1	f2
 # ---------------------------------------------------------------
 # Test Begin: Test if recovery works if first page of user
 # tablespace is corrupted.
-select space from information_schema.innodb_tables
-where name = 'test/t1' into @space_id;
+SELECT space from INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE name = 'test/t1' INTO @space_id;
 # Ensure that dirty pages of table t1 is flushed.
-flush tables t1 for export;
-unlock tables;
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
 SET GLOBAL innodb_checkpoint_disabled=1;
-begin;
-insert into t1 values (6, repeat('%', 12));
+BEGIN;
+INSERT INTO t1 VALUES (6, repeat('%', 12));
+SET GLOBAL innodb_checkpoint_disabled = 1;
 # Make the first page dirty for table t1
-set global innodb_saved_page_number_debug = 0;
-set global innodb_fil_make_page_dirty_debug = @space_id;
-# Ensure that dirty pages of table t1 are flushed.
-set global innodb_buf_flush_list_now = 1;
-# Kill the server
+SET GLOBAL innodb_saved_page_number_debug = 0;
+SET GLOBAL innodb_fil_make_page_dirty_debug = @space_id;
+ERROR HY000: Lost connection to MySQL server during query
 # Corrupt the first page (page_no=0) of the user tablespace.
 # restart
-check table t1;
+CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
-select f1, f2 from t1;
+SELECT f1, f2 FROM t1;
 f1	f2
 1	############
 2	++++++++++++
@@ -87,26 +85,25 @@ f1	f2
 # ---------------------------------------------------------------
 # Test Begin: Test if recovery works if 2nd page of user
 # tablespace is full of zeroes.
-select space from information_schema.innodb_tables
-where name = 'test/t1' into @space_id;
+SELECT space FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE name = 'test/t1' INTO @space_id;
 # Ensure that dirty pages of table t1 is flushed.
-flush tables t1 for export;
-unlock tables;
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
 SET GLOBAL innodb_checkpoint_disabled=1;
-begin;
-insert into t1 values (6, repeat('%', 400));
+BEGIN;
+INSERT INTO t1 VALUES (6, repeat('%', 400));
+SET GLOBAL innodb_checkpoint_disabled = 1;
 # Make the 2nd page dirty for table t1
-set global innodb_saved_page_number_debug = 1;
-set global innodb_fil_make_page_dirty_debug = @space_id;
-# Ensure that dirty pages of table t1 are flushed.
-set global innodb_buf_flush_list_now = 1;
-# Kill the server
+SET GLOBAL innodb_saved_page_number_debug = 1;
+SET GLOBAL innodb_fil_make_page_dirty_debug = @space_id;
+ERROR HY000: Lost connection to MySQL server during query
 # Make the 2nd page (page_no=1) of the tablespace all zeroes.
 # restart
-check table t1;
+CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
-select f1, f2 from t1;
+SELECT f1, f2 FROM t1;
 f1	f2
 1	############
 2	++++++++++++
@@ -117,26 +114,25 @@ f1	f2
 # ---------------------------------------------------------------
 # Test Begin: Test if recovery works if 2nd page of user
 # tablespace is corrupted.
-select space from information_schema.innodb_tables
-where name = 'test/t1' into @space_id;
+SELECT space FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE name = 'test/t1' into @space_id;
 # Ensure that dirty pages of table t1 is flushed.
-flush tables t1 for export;
-unlock tables;
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
 SET GLOBAL innodb_checkpoint_disabled=1;
-begin;
-insert into t1 values (6, repeat('%', 400));
+BEGIN;
+INSERT INTO t1 VALUES (6, repeat('%', 400));
+SET GLOBAL innodb_checkpoint_disabled = 1;
 # Make the 2nd page dirty for table t1
-set global innodb_saved_page_number_debug = 1;
-set global innodb_fil_make_page_dirty_debug = @space_id;
-# Ensure that the dirty pages of table t1 are flushed.
-set global innodb_buf_flush_list_now = 1;
-# Kill the server
+SET GLOBAL innodb_saved_page_number_debug = 1;
+SET GLOBAL innodb_fil_make_page_dirty_debug = @space_id;
+ERROR HY000: Lost connection to MySQL server during query
 # Corrupt the 2nd page (page_no=1) of the user tablespace.
 # restart
-check table t1;
+CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
-select f1, f2 from t1;
+SELECT f1, f2 FROM t1;
 f1	f2
 1	############
 2	++++++++++++
@@ -147,23 +143,21 @@ f1	f2
 # ---------------------------------------------------------------
 # Test Begin: Test if recovery works if first page of
 # system tablespace is full of zeroes.
-begin;
-insert into t1 values (6, repeat('%', 400));
-# Ensure that all dirty pages in the system are flushed.
-set global innodb_buf_flush_list_now = 1;
+SET GLOBAL innodb_master_thread_disabled_debug=1;
+BEGIN;
+INSERT INTO t1 VALUES (6, repeat('%', 400));
+SET GLOBAL innodb_checkpoint_disabled = 1;
 # Make the first page dirty for system tablespace
-set global innodb_saved_page_number_debug = 0;
-set global innodb_fil_make_page_dirty_debug = 0;
-# Ensure that the dirty page of system tablespace is also flushed.
-set global innodb_buf_flush_list_now = 1;
-# Kill the server
+SET GLOBAL innodb_saved_page_number_debug = 0;
+SET GLOBAL innodb_fil_make_page_dirty_debug = 0;
+ERROR HY000: Lost connection to MySQL server during query
 # Make the first page (page_no=0) of the system tablespace
 # all zeroes.
 # restart
-check table t1;
+CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
-select f1, f2 from t1;
+SELECT f1, f2 FROM t1;
 f1	f2
 1	############
 2	++++++++++++
@@ -174,22 +168,20 @@ f1	f2
 # ---------------------------------------------------------------
 # Test Begin: Test if recovery works if first page of
 # system tablespace is corrupted.
-begin;
-insert into t1 values (6, repeat('%', 400));
-# Ensure that all dirty pages in the system are flushed.
-set global innodb_buf_flush_list_now = 1;
+SET GLOBAL innodb_master_thread_disabled_debug=1;
+BEGIN;
+INSERT INTO t1 VALUES (6, repeat('%', 400));
+SET GLOBAL innodb_checkpoint_disabled = 1;
 # Make the first page dirty for system tablespace
-set global innodb_saved_page_number_debug = 0;
-set global innodb_fil_make_page_dirty_debug = 0;
-# Ensure that the dirty page of system tablespace is also flushed.
-set global innodb_buf_flush_list_now = 1;
-# Kill the server
+SET GLOBAL innodb_saved_page_number_debug = 0;
+SET GLOBAL innodb_fil_make_page_dirty_debug = 0;
+ERROR HY000: Lost connection to MySQL server during query
 # Corrupt the first page (page_no=0) of the system tablespace.
 # restart
-check table t1;
+CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
-select f1, f2 from t1;
+SELECT f1, f2 FROM t1;
 f1	f2
 1	############
 2	++++++++++++
@@ -200,23 +192,21 @@ f1	f2
 # ---------------------------------------------------------------
 # Test Begin: Test if recovery works if 2nd page of
 # system tablespace is full of zeroes.
-begin;
-insert into t1 values (6, repeat('%', 400));
-# Ensure that all dirty pages in the system are flushed.
-set global innodb_buf_flush_list_now = 1;
+SET GLOBAL innodb_master_thread_disabled_debug=1;
+BEGIN;
+INSERT INTO t1 VALUES (6, repeat('%', 400));
+SET GLOBAL innodb_checkpoint_disabled = 1;
 # Make the second page dirty for system tablespace
-set global innodb_saved_page_number_debug = 1;
-set global innodb_fil_make_page_dirty_debug = 0;
-# Ensure that the dirty page of system tablespace is also flushed.
-set global innodb_buf_flush_list_now = 1;
-# Kill the server
+SET GLOBAL innodb_saved_page_number_debug = 1;
+SET GLOBAL innodb_fil_make_page_dirty_debug = 0;
+ERROR HY000: Lost connection to MySQL server during query
 # Make the 2nd page (page_no=1) of the system tablespace
 # all zeroes.
 # restart
-check table t1;
+CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
-select f1, f2 from t1;
+SELECT f1, f2 FROM t1;
 f1	f2
 1	############
 2	++++++++++++
@@ -227,23 +217,21 @@ f1	f2
 # ---------------------------------------------------------------
 # Test Begin: Test if recovery works if 2nd page of
 # system tablespace is corrupted.
-begin;
-insert into t1 values (6, repeat('%', 400));
-# Ensure that all dirty pages in the system are flushed.
-set global innodb_buf_flush_list_now = 1;
+SET GLOBAL innodb_master_thread_disabled_debug=1;
+BEGIN;
+INSERT INTO t1 VALUES (6, repeat('%', 400));
+SET GLOBAL innodb_checkpoint_disabled = 1;
 # Make the second page dirty for system tablespace
-set global innodb_saved_page_number_debug = 1;
-set global innodb_fil_make_page_dirty_debug = 0;
-# Ensure that the dirty page of system tablespace is also flushed.
-set global innodb_buf_flush_list_now = 1;
-# Kill the server
+SET GLOBAL innodb_saved_page_number_debug = 1;
+SET GLOBAL innodb_fil_make_page_dirty_debug = 0;
+ERROR HY000: Lost connection to MySQL server during query
 # Make the 2nd page (page_no=1) of the system tablespace
 # all zeroes.
 # restart
-check table t1;
+CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
-select f1, f2 from t1;
+SELECT f1, f2 FROM t1;
 f1	f2
 1	############
 2	++++++++++++
@@ -252,15 +240,4 @@ f1	f2
 5	............
 # Test End
 # ---------------------------------------------------------------
-drop table t1;
-#
-# BUG#20511314 - INNODB: FAILING ASSERTION: FOUND IN BUF0BUF.CC LINE 3856
-#
-SET GLOBAL innodb_fil_make_page_dirty_debug=38098908;
-#
-# Bug#22311319 - SERVER CRASHES ON INVALID VALUE FOR VARIABLE
-#		INNODB_SAVED_PAGE_NUMBER_DEBUG
-#
-set global innodb_saved_page_number_debug=461461461;
-set global innodb_fil_make_page_dirty_debug=0;
-set global innodb_saved_page_number_debug=default;
+DROP TABLE t1;

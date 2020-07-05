@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -95,12 +95,9 @@ void Hint_scanner::syntax_warning(const char *msg) const {
 
 /**
   Add hint tokens to main lexer's digest calculation buffer.
-
-  @note This function adds transformed hint keyword token values with the help
-        of the TOK_HINT_ADJUST() adjustment macro.
 */
 void Hint_scanner::add_hint_token_digest() {
-  if (digest_state == NULL) return;  // cant add: digest buffer is full
+  if (digest_state == nullptr) return;  // cant add: digest buffer is full
 
   if (prev_token == 0 || prev_token == HINT_ERROR) return;  // nothing to add
 
@@ -169,11 +166,19 @@ void Hint_scanner::add_hint_token_digest() {
           case NO_SKIP_SCAN_HINT:
           case HASH_JOIN_HINT:
           case NO_HASH_JOIN_HINT:
+          case INDEX_HINT:
+          case NO_INDEX_HINT:
+          case JOIN_INDEX_HINT:
+          case NO_JOIN_INDEX_HINT:
+          case GROUP_INDEX_HINT:
+          case NO_GROUP_INDEX_HINT:
+          case ORDER_INDEX_HINT:
+          case NO_ORDER_INDEX_HINT:
             break;
           default:
             DBUG_ASSERT(false);
         }
-        add_digest(TOK_HINT_ADJUST(prev_token));
+        add_digest(prev_token);
       }
   }
 }

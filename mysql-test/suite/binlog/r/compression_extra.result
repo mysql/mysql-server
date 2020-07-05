@@ -1,0 +1,32 @@
+SET SESSION binlog_transaction_compression = ON;
+CREATE TABLE t1(c1 INT PRIMARY KEY, data TEXT(30000));
+CREATE TABLE t2(c1 INT PRIMARY KEY, data TEXT(30000));
+RESET MASTER;
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT ('a', 1000));
+INSERT INTO t2 VALUES (1, REPEAT ('b', 1000));
+COMMIT;
+include/assert.inc [Query event has same end_log_pos as the Transaction_payload_event]
+include/assert.inc [Table_map event has same end_log_pos as the Transaction_payload_event]
+include/assert.inc [Write_rows event has same end_log_pos as the Transaction_payload_event]
+include/assert.inc [Table_map event has same end_log_pos as the Transaction_payload_event]
+include/assert.inc [Write_rows event has same end_log_pos as the Transaction_payload_event]
+include/assert.inc [Xid event has same end_log_pos as the Transaction_payload_event]
+DROP TABLE IF EXISTS t1, t2;
+SET SESSION binlog_transaction_compression = SAVED;
+RESET MASTER;
+TRUNCATE performance_schema.binary_log_transaction_compression_stats;
+SET SESSION binlog_transaction_compression = ON;
+CREATE TABLE t1(c1 INT PRIMARY KEY, data TEXT(30000));
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT ('1', 1000));
+COMMIT;
+SET @@binlog_transaction_compression_level_zstd = 10;
+BEGIN;
+INSERT INTO t1 VALUES (2, REPEAT ('2', 1000));
+COMMIT;
+DROP TABLE t1;
+SET SESSION binlog_transaction_compression = SAVED;
+SET SESSION binlog_transaction_compression_level_zstd = SAVED;
+TRUNCATE performance_schema.binary_log_transaction_compression_stats;
+RESET MASTER;

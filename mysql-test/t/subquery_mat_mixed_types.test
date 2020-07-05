@@ -44,8 +44,10 @@ while ($c)
 {
 if ($c == 1)
 {
-# Test semijoin materialization
-set optimizer_switch='semijoin=on,firstmatch=off,loosescan=off,duplicateweedout=off,materialization=on,subquery_materialization_cost_based=on';
+# Test semijoin materialization. When semijoin transformation doesn't
+# apply (HAVING), between IN-to-EXISTS and subquery materialization we
+# force the latter to get repeatability.
+set optimizer_switch='semijoin=on,firstmatch=off,loosescan=off,duplicateweedout=off,materialization=on,subquery_materialization_cost_based=off';
 }
 dec $c;
 
@@ -54,6 +56,15 @@ dec $c;
 SET TIMESTAMP=UNIX_TIMESTAMP(20150413000000);
 # Note that results of comparing TIME with DATETIME/TIMESTAMP are not
 # consistent between IN-to-EXISTS and materializations, see bug#75644.
+
+# Below we use EXPLAIN to see if materialization is chosen when it
+# should. In some cases, duplicates-weedout is chosen, which is
+# correct; but then the two tables are ordered in a not fully
+# repeatable way (probably because they're similar in size and cost of
+# access). All we want to know is if materialization was chosen or not.
+# So we eliminate all columns of EXPLAIN but the one which tells if
+# materialization was chosen or not ("SUBQUERY" word, and not
+# "DEPENDENT SUBQUERY"; "SIMPLE" denotes another strategy).
 
 let $table_count= 13;
 let $i= 1;
@@ -65,12 +76,15 @@ while ($i <= $table_count)
        if ($i != $j)
        {
           let $stmt1= SELECT * FROM t$i STRAIGHT_JOIN t$j WHERE t$i.c1=t$j.c1;
+          --replace_column 1 # 3 # 4 # 5 # 6 # 7 # 8 # 9 # 10 # 11 # 12 #
           eval EXPLAIN $stmt1;
           eval $stmt1;
           let $stmt2= SELECT * FROM t$i WHERE c1 IN (SELECT c1 FROM t$j);
+          --replace_column 1 # 3 # 4 # 5 # 6 # 7 # 8 # 9 # 10 # 11 # 12 #
           eval EXPLAIN $stmt2;
           eval $stmt2;
           let $stmt3= SELECT * FROM t$i GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t$j);
+          --replace_column 1 # 3 # 4 # 5 # 6 # 7 # 8 # 9 # 10 # 11 # 12 #
           eval EXPLAIN $stmt3;
           eval $stmt3;
           if ($i == 11)
@@ -82,6 +96,7 @@ while ($i <= $table_count)
           }
           let $stmt4= SELECT 1 FROM t$i WHERE (SELECT 1 FROM t$i WHERE ASCII(c1) = 50) IN
                                               (SELECT 1 FROM t$j WHERE ASCII(c1) = 50);
+          --replace_column 1 # 3 # 4 # 5 # 6 # 7 # 8 # 9 # 10 # 11 # 12 #
           eval EXPLAIN $stmt4;
           eval $stmt4;
           if ($i == 11)
@@ -104,18 +119,22 @@ SET TIMESTAMP=UNIX_TIMESTAMP(20140413000000);
 let $i=8;
 let $j=9;
 let $stmt1= SELECT * FROM t$i STRAIGHT_JOIN t$j WHERE t$i.c1=t$j.c1;
+--replace_column 1 # 3 # 4 # 5 # 6 # 7 # 8 # 9 # 10 # 11 # 12 #
 eval EXPLAIN $stmt1;
 eval $stmt1;
 let $stmt2= SELECT * FROM t$i WHERE c1 IN (SELECT c1 FROM t$j);
+--replace_column 1 # 3 # 4 # 5 # 6 # 7 # 8 # 9 # 10 # 11 # 12 #
 eval EXPLAIN $stmt2;
 eval $stmt2;
 
 let $i=9;
 let $j=8;
 let $stmt1= SELECT * FROM t$i STRAIGHT_JOIN t$j WHERE t$i.c1=t$j.c1;
+--replace_column 1 # 3 # 4 # 5 # 6 # 7 # 8 # 9 # 10 # 11 # 12 #
 eval EXPLAIN $stmt1;
 eval $stmt1;
 let $stmt2= SELECT * FROM t$i WHERE c1 IN (SELECT c1 FROM t$j);
+--replace_column 1 # 3 # 4 # 5 # 6 # 7 # 8 # 9 # 10 # 11 # 12 #
 eval EXPLAIN $stmt2;
 eval $stmt2;
 

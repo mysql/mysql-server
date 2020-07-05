@@ -28,13 +28,6 @@ ID	STATE	ERROR_NO
 1	Failed	3862
 select ID, STAGE, STATE from performance_schema.clone_progress;
 ID	STAGE	STATE
-1	DROP DATA	Failed
-1	FILE COPY	Not Started
-1	PAGE COPY	Not Started
-1	REDO COPY	Not Started
-1	FILE SYNC	Not Started
-1	RESTART	Not Started
-1	RECOVERY	Not Started
 SET DEBUG_SYNC = 'now SIGNAL resume_ddl';
 # In connection CON1
 # In connection DEFAULT
@@ -79,13 +72,6 @@ ID	STATE	ERROR_NO
 1	Failed	3862
 select ID, STAGE, STATE from performance_schema.clone_progress;
 ID	STAGE	STATE
-1	DROP DATA	Failed
-1	FILE COPY	Not Started
-1	PAGE COPY	Not Started
-1	REDO COPY	Not Started
-1	FILE SYNC	Not Started
-1	RESTART	Not Started
-1	RECOVERY	Not Started
 SET DEBUG_SYNC = 'now SIGNAL resume_ddl';
 # In connection CON1
 # In connection DEFAULT
@@ -136,13 +122,6 @@ ID	STATE	ERROR_NO
 1	Failed	3862
 select ID, STAGE, STATE from performance_schema.clone_progress;
 ID	STAGE	STATE
-1	DROP DATA	Failed
-1	FILE COPY	Not Started
-1	PAGE COPY	Not Started
-1	REDO COPY	Not Started
-1	FILE SYNC	Not Started
-1	RESTART	Not Started
-1	RECOVERY	Not Started
 SET DEBUG_SYNC = 'now SIGNAL resume_ddl';
 # In connection CON1
 # In connection DEFAULT
@@ -197,13 +176,6 @@ ID	STATE	ERROR_NO
 1	Failed	3862
 select ID, STAGE, STATE from performance_schema.clone_progress;
 ID	STAGE	STATE
-1	DROP DATA	Failed
-1	FILE COPY	Not Started
-1	PAGE COPY	Not Started
-1	REDO COPY	Not Started
-1	FILE SYNC	Not Started
-1	RESTART	Not Started
-1	RECOVERY	Not Started
 SET DEBUG_SYNC = 'now SIGNAL resume_ddl';
 # In connection CON1
 # In connection DEFAULT
@@ -254,13 +226,6 @@ ID	STATE	ERROR_NO
 1	Failed	3862
 select ID, STAGE, STATE from performance_schema.clone_progress;
 ID	STAGE	STATE
-1	DROP DATA	Failed
-1	FILE COPY	Not Started
-1	PAGE COPY	Not Started
-1	REDO COPY	Not Started
-1	FILE SYNC	Not Started
-1	RESTART	Not Started
-1	RECOVERY	Not Started
 SET DEBUG_SYNC = 'now SIGNAL resume_ddl';
 # In connection CON1
 # In connection DEFAULT
@@ -326,13 +291,6 @@ ID	STATE	ERROR_NO
 1	Failed	3862
 select ID, STAGE, STATE from performance_schema.clone_progress;
 ID	STAGE	STATE
-1	DROP DATA	Failed
-1	FILE COPY	Not Started
-1	PAGE COPY	Not Started
-1	REDO COPY	Not Started
-1	FILE SYNC	Not Started
-1	RESTART	Not Started
-1	RECOVERY	Not Started
 SET DEBUG_SYNC = 'now SIGNAL resume_ddl';
 # In connection CON1
 # In connection DEFAULT
@@ -383,13 +341,6 @@ ID	STATE	ERROR_NO
 1	Failed	3862
 select ID, STAGE, STATE from performance_schema.clone_progress;
 ID	STAGE	STATE
-1	DROP DATA	Failed
-1	FILE COPY	Not Started
-1	PAGE COPY	Not Started
-1	REDO COPY	Not Started
-1	FILE SYNC	Not Started
-1	RESTART	Not Started
-1	RECOVERY	Not Started
 SET DEBUG_SYNC = 'now SIGNAL resume_ddl';
 # In connection CON1
 # In connection DEFAULT
@@ -435,13 +386,6 @@ ID	STATE	ERROR_NO
 1	Failed	3862
 select ID, STAGE, STATE from performance_schema.clone_progress;
 ID	STAGE	STATE
-1	DROP DATA	Failed
-1	FILE COPY	Not Started
-1	PAGE COPY	Not Started
-1	REDO COPY	Not Started
-1	FILE SYNC	Not Started
-1	RESTART	Not Started
-1	RECOVERY	Not Started
 SET DEBUG_SYNC = 'now SIGNAL resume_ddl';
 # In connection CON1
 # In connection DEFAULT
@@ -484,13 +428,6 @@ ID	STATE	ERROR_NO
 1	Failed	3862
 select ID, STAGE, STATE from performance_schema.clone_progress;
 ID	STAGE	STATE
-1	DROP DATA	Failed
-1	FILE COPY	Not Started
-1	PAGE COPY	Not Started
-1	REDO COPY	Not Started
-1	FILE SYNC	Not Started
-1	RESTART	Not Started
-1	RECOVERY	Not Started
 SET DEBUG_SYNC = 'now SIGNAL resume_ddl';
 # In connection CON1
 # In connection DEFAULT

@@ -1,0 +1,73 @@
+reset master;
+create table t1 (col1 int primary key);
+
+Test GTID with innodb_fast_shutdown = 0
+---------------------------------------
+set global innodb_fast_shutdown = 0;
+select @@innodb_fast_shutdown as shutdown_mode;
+shutdown_mode
+0
+insert into t1 values (1 + 1);
+insert into t1 values (5*1 + 1);
+insert into t1 values (7*1 + 1);
+# restart
+select * from t1 order by col1;
+col1
+2
+6
+8
+select sum(interval_end - interval_start + 1) as count_gtid
+from mysql.gtid_executed group by source_uuid;
+count_gtid
+4
+
+Test GTID with innodb_fast_shutdown = 1
+---------------------------------------
+set global innodb_fast_shutdown = 1;
+select @@innodb_fast_shutdown as shutdown_mode;
+shutdown_mode
+1
+insert into t1 values (2 + 1);
+insert into t1 values (5*2 + 1);
+insert into t1 values (7*2 + 1);
+# restart
+select * from t1 order by col1;
+col1
+2
+3
+6
+8
+11
+15
+select sum(interval_end - interval_start + 1) as count_gtid
+from mysql.gtid_executed group by source_uuid;
+count_gtid
+7
+
+Test GTID with innodb_fast_shutdown = 2
+---------------------------------------
+set global innodb_fast_shutdown = 2;
+select @@innodb_fast_shutdown as shutdown_mode;
+shutdown_mode
+2
+insert into t1 values (3 + 1);
+insert into t1 values (5*3 + 1);
+insert into t1 values (7*3 + 1);
+# restart
+select * from t1 order by col1;
+col1
+2
+3
+4
+6
+8
+11
+15
+16
+22
+select sum(interval_end - interval_start + 1) as count_gtid
+from mysql.gtid_executed group by source_uuid;
+count_gtid
+10
+
+drop table t1;

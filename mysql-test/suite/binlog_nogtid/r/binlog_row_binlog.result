@@ -675,6 +675,7 @@ insert into t3(b) values ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 *** show new binlog index after rotating ***
 File binlog.000002
 drop table t3;
+RESET MASTER;
 #
 # Bug #45998: database crashes when running "create as select"
 #

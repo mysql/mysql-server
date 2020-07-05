@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -96,7 +96,8 @@ void request_json(RestClient &rest_client, const std::string &uri,
 
   // HEAD doesn't return a body
   if (http_method != HttpMethod::Head &&
-      http_status_code != HttpStatusCode::Unauthorized) {
+      http_status_code != HttpStatusCode::Unauthorized &&
+      http_status_code != HttpStatusCode::Forbidden) {
     auto resp_body = req.get_input_buffer();
     ASSERT_GT(resp_body.length(), 0u);
     auto resp_body_content = resp_body.pop_front(resp_body.length());

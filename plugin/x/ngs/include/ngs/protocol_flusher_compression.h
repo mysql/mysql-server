@@ -29,7 +29,7 @@
 #include <functional>
 #include <memory>
 
-#include "my_inttypes.h"
+#include "my_inttypes.h"  // NOLINT(build/include_subdir)
 
 #include "plugin/x/ngs/include/ngs/compression_types.h"
 #include "plugin/x/protocol/encoders/encoding_xrow.h"
@@ -79,7 +79,8 @@ class Protocol_flusher_compression : public xpl::iface::Protocol_flusher {
 
   void set_compression_options(const Compression_algorithm algo,
                                const Compression_style style,
-                               const int64_t max_num_of_messages);
+                               const int64_t max_num_of_messages,
+                               const int32_t level);
 
   void handle_compression(const uint8_t id, const bool can_be_compressed);
   void abort_last_compressed();

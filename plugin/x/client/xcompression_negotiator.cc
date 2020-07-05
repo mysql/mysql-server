@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -109,6 +109,10 @@ bool Capabilities_negotiator::update_compression_options(
   *out_algorithm = m_choosen_algorithm;
 
   return true;
+}
+
+bool Capabilities_negotiator::is_compression_preferred() const {
+  return m_compression_mode == Compression_negotiation::k_preferred;
 }
 
 bool Capabilities_negotiator::is_compression_required() const {

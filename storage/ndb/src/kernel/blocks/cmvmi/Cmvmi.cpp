@@ -1521,14 +1521,16 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
   {
     if (check_block(Backup, val))
     {
-      sendSignal(BACKUP_REF, GSN_DUMP_STATE_ORD, signal, signal->length(), JBB);
+      sendSignal(BACKUP_REF, GSN_DUMP_STATE_ORD, signal,
+                 signal->length(), JBB);
     }
     else if (check_block(TC, val))
     {
     }
     else if (check_block(LQH, val))
     {
-      sendSignal(DBLQH_REF, GSN_DUMP_STATE_ORD, signal, signal->length(), JBB);
+      sendSignal(DBLQH_REF, GSN_DUMP_STATE_ORD, signal,
+                 signal->length(), JBB);
     }
     else if (check_block(CMVMI, val))
     {
@@ -1711,6 +1713,11 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
           delete[] sec_alloc;
         }
       }
+    }
+    else if (check_block(THRMAN, val))
+    {
+      sendSignal(THRMAN_REF, GSN_DUMP_STATE_ORD, signal,
+                 signal->length(), JBB);
     }
     return;
   }

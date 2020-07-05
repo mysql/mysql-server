@@ -57,7 +57,7 @@ INSERT INTO rplvars (varname, varvalue)
 # If this count differs, it means a variable has been added or removed.
 # In that case, this testcase needs to be updated accordingly.
 --echo
---let $expected=83
+--let $expected=85
 --let $assert_text= 'Expect $expected variables in the table.'
 --let $assert_cond= [SELECT COUNT(*) as count FROM rplvars, count, 1] = $expected
 --source include/assert.inc
@@ -77,7 +77,7 @@ while ( $varid <= $countvars )
   --eval SET PERSIST_ONLY $varnames = @@GLOBAL.$varnames
 
   #  TODO: Remove/update this once Bug#27322592 is FIXED.
-  if (`SELECT '$varnames' IN ('binlog_direct_non_transactional_updates', 'binlog_order_commits', 'binlog_rows_query_log_events', 'log_bin_trust_function_creators', 'log_slow_slave_statements', 'log_statements_unsafe_for_binlog', 'master_verify_checksum', 'slave_allow_batching', 'slave_compressed_protocol', 'slave_preserve_commit_order', 'slave_sql_verify_checksum', 'relay_log_purge', 'rpl_semi_sync_master_enabled', 'rpl_semi_sync_master_wait_no_slave', 'rpl_semi_sync_slave_enabled', 'binlog_gtid_simple_recovery', 'log_slave_updates', 'relay_log_recovery', 'binlog_rotate_encryption_master_key_at_startup')`)
+  if (`SELECT '$varnames' IN ('binlog_direct_non_transactional_updates', 'binlog_order_commits', 'binlog_rows_query_log_events', 'log_bin_trust_function_creators', 'log_slow_slave_statements', 'log_statements_unsafe_for_binlog', 'master_verify_checksum', 'slave_allow_batching', 'slave_compressed_protocol', 'slave_preserve_commit_order', 'slave_sql_verify_checksum', 'relay_log_purge', 'rpl_semi_sync_master_enabled', 'rpl_semi_sync_master_wait_no_slave', 'rpl_semi_sync_slave_enabled', 'binlog_gtid_simple_recovery', 'log_slave_updates', 'relay_log_recovery', 'binlog_rotate_encryption_master_key_at_startup', 'binlog_transaction_compression')`)
   {
     --disable_query_log
       --eval SELECT varvalue INTO @varvalues FROM rplvars WHERE id=$varid
@@ -89,7 +89,7 @@ while ( $varid <= $countvars )
 }
 
 --echo
---let $expected=72
+--let $expected=74
 --let $assert_text= 'Expect $expected persisted variables in persisted_variables table.'
 --let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = $expected
 --source include/assert.inc

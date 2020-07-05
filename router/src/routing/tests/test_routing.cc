@@ -336,8 +336,8 @@ static int connect_socket(const char *path) {
 #endif
 
 static bool call_until(std::function<bool()> f, int timeout = 2) {
-  time_t start = time(NULL);
-  while (time(NULL) - start < timeout) {
+  time_t start = time(nullptr);
+  while (time(nullptr) - start < timeout) {
     if (f()) return true;
 
     // wait a bit and let other threads run

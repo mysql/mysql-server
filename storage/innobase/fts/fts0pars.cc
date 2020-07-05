@@ -477,13 +477,12 @@ static const yytype_uint8 yyrline[] =
 #if YYDEBUG || YYERROR_VERBOSE || YYTOKEN_TABLE
 /* YYTNAME[SYMBOL-NUM] -- String name of the symbol SYMBOL-NUM.
    First, the terminals, then, starting at YYNTOKENS, nonterminals.  */
-static const char *const yytname[] =
-{
-  "$end", "error", "$undefined", "FTS_OPER", "FTS_TEXT", "FTS_TERM",
-  "FTS_NUMB", "'+'", "'-'", "'~'", "'<'", "'>'", "'('", "')'", "'*'",
-  "'@'", "$accept", "query", "expr_lst", "sub_expr", "expr", "prefix",
-  "term", "text", 0
-};
+static const char *const yytname[] = {
+    "$end",     "error",    "$undefined", "FTS_OPER", "FTS_TEXT",
+    "FTS_TERM", "FTS_NUMB", "'+'",        "'-'",      "'~'",
+    "'<'",      "'>'",      "'('",        "')'",      "'*'",
+    "'@'",      "$accept",  "query",      "expr_lst", "sub_expr",
+    "expr",     "prefix",   "term",       "text",     nullptr};
 #endif
 
 # ifdef YYPRINT
@@ -982,12 +981,12 @@ static int
 yysyntax_error (YYSIZE_T *yymsg_alloc, char **yymsg,
                 yytype_int16 *yyssp, int yytoken)
 {
-  YYSIZE_T yysize0 = yytnamerr (0, yytname[yytoken]);
+  YYSIZE_T yysize0 = yytnamerr(nullptr, yytname[yytoken]);
   YYSIZE_T yysize = yysize0;
   YYSIZE_T yysize1;
   enum { YYERROR_VERBOSE_ARGS_MAXIMUM = 5 };
   /* Internationalized format string. */
-  const char *yyformat = 0;
+  const char *yyformat = nullptr;
   /* Arguments of yyformat. */
   char const *yyarg[YYERROR_VERBOSE_ARGS_MAXIMUM];
   /* Number of reported tokens (one for the "unexpected", one per
@@ -1047,7 +1046,7 @@ yysyntax_error (YYSIZE_T *yymsg_alloc, char **yymsg,
                     break;
                   }
                 yyarg[yycount++] = yytname[yyx];
-                yysize1 = yysize + yytnamerr (0, yytname[yyx]);
+                yysize1 = yysize + yytnamerr(nullptr, yytname[yyx]);
                 if (! (yysize <= yysize1
                        && yysize1 <= YYSTACK_ALLOC_MAXIMUM))
                   return 2;
@@ -1446,8 +1445,8 @@ yyreduce:
 /* Line 1806 of yacc.c  */
 #line 85 "fts0pars.y"
     {
-		(yyval.node) = NULL;
-	}
+      (yyval.node) = nullptr;
+        }
     break;
 
   case 4:

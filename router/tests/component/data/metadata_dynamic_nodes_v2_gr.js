@@ -40,16 +40,16 @@ if(mysqld.global.primary_id === undefined){
     mysqld.global.primary_id = 0;
 }
 
-if(mysqld.global.empty_result_from_cluster_type_query === undefined){
-    mysqld.global.empty_result_from_cluster_type_query = 0;
-}
-
 if(mysqld.global.mysqlx_wait_timeout_unsupported === undefined){
     mysqld.global.mysqlx_wait_timeout_unsupported = 0;
 }
 
 if(mysqld.global.gr_notices_unsupported === undefined){
     mysqld.global.gr_notices_unsupported = 0;
+}
+
+if(mysqld.global.cluster_type === undefined){
+    mysqld.global.cluster_type = "gr";
 }
 
 var nodes = function(host, port_and_state) {
@@ -66,7 +66,7 @@ var nodes = function(host, port_and_state) {
     var options = {
       group_replication_membership: group_replication_membership_online,
       gr_id: mysqld.global.gr_id,
-      cluster_type: "gr",
+      cluster_type: mysqld.global.cluster_type,
     };
 
     // first node is PRIMARY
@@ -74,6 +74,9 @@ var nodes = function(host, port_and_state) {
 
     // prepare the responses for common statements
     var common_responses = common_stmts.prepare_statement_responses([
+      "router_set_session_options",
+      "router_set_gr_consistency_level",
+      "router_select_cluster_type_v2",
       "select_port",
       "router_commit",
       "router_rollback",
@@ -93,28 +96,11 @@ var nodes = function(host, port_and_state) {
     var router_start_transaction =
         common_stmts.get("router_start_transaction", options);
 
-    var router_select_cluster_type =
-        common_stmts.get("router_select_cluster_type_v2", options);
-
     if (common_responses.hasOwnProperty(stmt)) {
       return common_responses[stmt];
     }
     else if ((res = common_stmts.handle_regex_stmt(stmt, common_responses_regex)) !== undefined) {
       return res;
-    }
-    else if (stmt === router_select_cluster_type.stmt) {
-      if (mysqld.global.empty_result_from_cluster_type_query === 1)
-        return { "result": {
-                  "columns": [
-                    {
-                      "type": "STRING",
-                      "name": "cluster_type"
-                    }
-                   ],
-                   "rows": []
-                }}
-      else
-        return router_select_cluster_type;
     }
     else if (stmt === router_start_transaction.stmt) {
       mysqld.global.transaction_count++;

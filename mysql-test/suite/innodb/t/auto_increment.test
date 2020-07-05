@@ -2284,3 +2284,6 @@ SELECT * FROM loads;
 --disconnect conn2
 
 DROP TABLE loads;
+
+--let $restart_parameters=restart:
+--source include/restart_mysqld.inc

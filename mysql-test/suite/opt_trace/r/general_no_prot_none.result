@@ -2791,7 +2791,7 @@ set @@session.optimizer_prune_level=0;
 explain select * from t1,t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2`
 select * from information_schema.OPTIMIZER_TRACE;
@@ -2990,7 +2990,7 @@ set @@optimizer_trace_features="greedy_search=off";
 explain select * from t1,t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2`
 select * from information_schema.OPTIMIZER_TRACE;
@@ -11532,7 +11532,7 @@ insert into v1 values("z", 100)	{
         "select#": 2,
         "steps": [
           {
-            "expanded_query": "/* select#2 */ select straight_join `t1`.`id` AS `id`,`t1`.`data` AS `data` from `t1` where (`t1`.`id` < 'c')"
+            "expanded_query": "/* select#2 */ select `t1`.`id` AS `id`,`t1`.`data` AS `data` from `t1` where (`t1`.`id` < 'c')"
           }
         ] /* steps */
       } /* join_preparation */
@@ -11560,7 +11560,7 @@ delete from v1 where data=100	{
               "select#": 2,
               "steps": [
                 {
-                  "expanded_query": "/* select#2 */ select straight_join `t1`.`id` AS `id`,`t1`.`data` AS `data` from `t1` where (`t1`.`id` < 'c')"
+                  "expanded_query": "/* select#2 */ select `t1`.`id` AS `id`,`t1`.`data` AS `data` from `t1` where (`t1`.`id` < 'c')"
                 }
               ] /* steps */
             } /* join_preparation */
@@ -11895,21 +11895,6 @@ explain select * from v1 where id="b"	{
       "join_explain": {
         "select#": 1,
         "steps": [
-          {
-            "creating_tmp_table": {
-              "tmp_table_info": {
-                "table": "`v1`",
-                "in_plan_at_position": 0,
-                "columns": 2,
-                "row_length": 69,
-                "key_length": 64,
-                "unique_constraint": false,
-                "makes_grouped_rows": false,
-                "cannot_insert_duplicates": false,
-                "location": "TempTable"
-              } /* tmp_table_info */
-            } /* creating_tmp_table */
-          },
           {
             "join_explain": {
               "select#": 2,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,7 @@
 
 Gcs_interface *Gcs_interface_factory::get_interface_implementation(
     enum_available_interfaces binding) {
-  Gcs_interface *retval = NULL;
+  Gcs_interface *retval = nullptr;
   switch (binding) {
     case XCOM:
       retval = Gcs_xcom_interface::get_interface();

@@ -1,0 +1,80 @@
+Backup restored
+Restart server 1 to trigger schema synchronization
+# restart
+SHOW TABLES;
+Tables_in_test
+t1
+t2
+t3
+t4
+t5
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int NOT NULL,
+  `b` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t1;
+a	b
+1	a
+2	bb
+3	ccc
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` int NOT NULL AUTO_INCREMENT,
+  `c2` int unsigned NOT NULL,
+  `c3` float DEFAULT NULL,
+  `c4` varchar(255) DEFAULT NULL,
+  `c5` time DEFAULT NULL,
+  `c6` date DEFAULT NULL,
+  `c7` datetime DEFAULT NULL,
+  `c8` blob,
+  `c9` char(30) DEFAULT NULL,
+  `c10` varbinary(255) DEFAULT NULL,
+  PRIMARY KEY (`c1`),
+  UNIQUE KEY `xc2` (`c2`)
+) ENGINE=ndbcluster AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t2;
+c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
+1	1	2.5	a	23:59:59	2018-01-30	2018-01-30 13:46:00	b	c	d
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `c1` int NOT NULL,
+  `c2` int GENERATED ALWAYS AS ((`c1` * `c1`)) VIRTUAL,
+  PRIMARY KEY (`c1`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t3(c1) VALUES(14);
+SELECT * FROM t3;
+c1	c2
+14	196
+2	4
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `c1` int NOT NULL AUTO_INCREMENT,
+  `c2` varchar(100) DEFAULT NULL,
+  `c3` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=ndbcluster AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=0,PARTITION_BALANCE=FOR_RP_BY_NODE'
+SELECT * FROM t4;
+c1	c2	c3
+1	a	a
+SHOW CREATE TABLE t5;
+Table	Create Table
+t5	CREATE TABLE `t5` (
+  `a` int NOT NULL,
+  `b` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t5;
+a	b
+1	Lipstick on a pig
+DROP TABLE t1, t2, t3, t4, t5;
+ALTER TABLESPACE ts1
+DROP DATAFILE 'ts1_datafile.dat';
+DROP TABLESPACE ts1;
+DROP LOGFILE GROUP lg1
+ENGINE NDB;

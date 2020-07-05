@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -126,7 +126,7 @@ ulint mach_write_compressed(byte *b, ulint n);
 @param[in]	n	ulint integer to be stored
 @return compressed size in bytes */
 UNIV_INLINE
-ulint mach_get_compressed_size(ulint n) MY_ATTRIBUTE((const));
+uint32_t mach_get_compressed_size(ulint n) MY_ATTRIBUTE((const));
 
 /** Read a 32-bit integer in a compressed form.
 @param[in,out]	b	pointer to memory where to read;

@@ -208,7 +208,9 @@ create table t1 (a int, b int);
 insert into t1 (a,b) values (a,b);
 insert into t1 SET a=1, b=a+1;
 insert into t1 (a,b) select 1,2;
+--disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO t1 ( a ) SELECT 0 ON DUPLICATE KEY UPDATE a = a + VALUES (a);
+--enable_ps_protocol
 --error ER_FIELD_SPECIFIED_TWICE
 prepare stmt1 from ' replace into t1 (a,a) select 100, ''hundred'' ';
 --error ER_WRONG_VALUE_COUNT_ON_ROW
@@ -932,3 +934,16 @@ INSERT INTO t2
 FLUSH TABLES;
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # WL#13325: Deprecate VALUES syntax in INSERT ... ON DUPLICATE KEY UPDATE
+--echo #
+CREATE TABLE t(id INT PRIMARY KEY, x INT);
+--disable_ps_protocol # Different number of warnings until WL#6570.
+INSERT INTO t VALUES (0, 0) ON DUPLICATE KEY UPDATE x = VALUES(x) + 1;
+--enable_ps_protocol
+INSERT INTO t VALUES (0, 0)
+       ON DUPLICATE KEY UPDATE x = (SELECT VALUES(x)+1 FROM t t1);
+SELECT VALUES(x) FROM t;
+INSERT INTO t VALUES (1, VALUES(x));
+DROP TABLE t;

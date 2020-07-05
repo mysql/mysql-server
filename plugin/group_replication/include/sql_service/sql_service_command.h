@@ -53,7 +53,7 @@ class Sql_service_commands {
        @retval >0 - failure
   */
   long internal_set_super_read_only(Sql_service_interface *sql_interface,
-                                    void *arg = NULL);
+                                    void *arg = nullptr);
 
   /**
     Internal method to reset the super read only mode.
@@ -66,7 +66,7 @@ class Sql_service_commands {
        @retval >0 - failure
   */
   long internal_reset_super_read_only(Sql_service_interface *sql_interface,
-                                      void *arg = NULL);
+                                      void *arg = nullptr);
 
   /**
     Internal method to reset the super read only mode.
@@ -79,7 +79,7 @@ class Sql_service_commands {
        @retval >0 - failure
   */
   long internal_reset_read_only(Sql_service_interface *sql_interface,
-                                void *arg = NULL);
+                                void *arg = nullptr);
 
   /**
    Internal method to get the super read only mode.
@@ -92,7 +92,7 @@ class Sql_service_commands {
    @retval  1  In read super mode
   */
   long internal_get_server_super_read_only(Sql_service_interface *sql_interface,
-                                           void *arg = NULL);
+                                           void *arg = nullptr);
 
   /**
     Internal method to get the super read only mode.
@@ -105,7 +105,7 @@ class Sql_service_commands {
     @retval  1  In read super mode
   */
   long internal_get_server_read_only(Sql_service_interface *sql_interface,
-                                     void *arg = NULL);
+                                     void *arg = nullptr);
 
   /**
     Method to return the server gtid_executed by executing the corresponding
@@ -162,7 +162,7 @@ class Sql_service_commands {
     @retval >0 - Failure
   */
   long internal_kill_session(Sql_service_interface *sql_interface,
-                             void *session_id = NULL);
+                             void *session_id = nullptr);
 
   /**
    Method to set a variable using SET PERSIST_ONLY
@@ -173,7 +173,7 @@ class Sql_service_commands {
     @retval !=0    Error
   */
   long internal_set_persist_only_variable(Sql_service_interface *sql_interface,
-                                          void *variable_args = NULL);
+                                          void *variable_args = nullptr);
 
   /**
     Method to remotely clone a server
@@ -186,7 +186,7 @@ class Sql_service_commands {
       @retval !=0    Error on execution
   */
   long internal_clone_server(Sql_service_interface *sql_interface,
-                             void *variable_args = NULL);
+                             void *variable_args = nullptr);
 
   /**
     Method to execute a given query
@@ -199,7 +199,7 @@ class Sql_service_commands {
       @retval !=0    Error on execution
   */
   long internal_execute_query(Sql_service_interface *sql_interface,
-                              void *variable_args = NULL);
+                              void *variable_args = nullptr);
 
   /**
     Method to execute a given conditional query
@@ -212,7 +212,7 @@ class Sql_service_commands {
       @retval !=0    Error on execution
   */
   long internal_execute_conditional_query(Sql_service_interface *sql_interface,
-                                          void *variable_args = NULL);
+                                          void *variable_args = nullptr);
 
   /**
     Internal method to set the offline mode.
@@ -225,7 +225,7 @@ class Sql_service_commands {
        @retval >0 - failure
   */
   long internal_set_offline_mode(Sql_service_interface *sql_interface,
-                                 void *arg = NULL);
+                                 void *arg = nullptr);
 };
 
 struct st_session_method {
@@ -343,7 +343,7 @@ class Sql_service_command_interface {
   */
   int establish_session_connection(enum_plugin_con_isolation isolation_param,
                                    const char *user,
-                                   void *plugin_pointer = NULL);
+                                   void *plugin_pointer = nullptr);
 
   /**
     Terminates the old connection and creates a new one to the server.
@@ -359,7 +359,7 @@ class Sql_service_command_interface {
       @retval !=0    Error
   */
   int reestablish_connection(enum_plugin_con_isolation isolation_param,
-                             const char *user, void *plugin_pointer = NULL);
+                             const char *user, void *plugin_pointer = nullptr);
   /**
     Was this session killed?
 

@@ -1238,7 +1238,7 @@ FROM t2 JOIN t1 ON ( t1.pk >= t2.col_int_key
 AND t1.col_varchar_key != t2.col_varchar_key );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	pk_2	pk_2	47	NULL	#	#	Using index
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t2`.`col_int_key` AS `col_int_key`,`test`.`t1`.`col_varchar_key` AS `col_varchar_key`,`test`.`t2`.`col_varchar_key` AS `col_varchar_key` from `test`.`t2` join `test`.`t1` where ((`test`.`t1`.`pk` >= `test`.`t2`.`col_int_key`) and (`test`.`t1`.`col_varchar_key` <> `test`.`t2`.`col_varchar_key`))
 SELECT t1.pk, t2.col_int_key, 
@@ -1247,12 +1247,12 @@ FROM t2 JOIN t1 ON ( t1.pk >= t2.col_int_key
 AND t1.col_varchar_key != t2.col_varchar_key );
 pk	col_int_key	col_varchar_key	col_varchar_key
 3	2	ksatefqs	kqukkoe
-4	2	sate	kqukkoe
-5	2	a	kqukkoe
-5	5	a	qukkoeiws
 3	3	ksatefqs	kkoeiwsgp
+4	2	sate	kqukkoe
 4	3	sate	kkoeiwsgp
+5	2	a	kqukkoe
 5	3	a	kkoeiwsgp
+5	5	a	qukkoeiws
 EXPLAIN SELECT STRAIGHT_JOIN t1.pk, t2.col_int_key,
 t1.col_varchar_key, t2.col_varchar_key FROM
 t2 JOIN t1 ON ( t1.pk >= t2.col_int_key AND 
@@ -1633,6 +1633,9 @@ pk	col_int_key
 2	1
 ALTER TABLE t1 ADD INDEX key1 (pk);
 ALTER TABLE t1 ADD INDEX key2 (col_int_key);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT * FROM t1 WHERE pk IN (6,2)
 OR (col_int_key >= 7 AND col_int_key < 13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra

@@ -453,10 +453,8 @@ class ha_innobase : public handler {
                     Reader::Load_fn load_fn, Reader::End_fn end_fn) override;
 
   /** End of the parallel scan.
-  @param[in]      scan_ctx      A scan context created by parallel_scan_init.
-  @return error code
-  @retval 0 on success */
-  int parallel_scan_end(void *scan_ctx) override;
+  @param[in]      scan_ctx      A scan context created by parallel_scan_init. */
+  void parallel_scan_end(void *scan_ctx) override;
 
   bool check_if_incompatible_data(HA_CREATE_INFO *info,
                                   uint table_changes) override;
@@ -744,7 +742,7 @@ bool innobase_index_name_is_reserved(
 @return true if the table is intended to use a file_per_table tablespace. */
 UNIV_INLINE
 bool tablespace_is_file_per_table(const HA_CREATE_INFO *create_info) {
-  return (create_info->tablespace != NULL &&
+  return (create_info->tablespace != nullptr &&
           (0 ==
            strcmp(create_info->tablespace, dict_sys_t::s_file_per_table_name)));
 }
@@ -755,7 +753,7 @@ or system tablespace.
 @return true if the table will use a shared general or system tablespace. */
 UNIV_INLINE
 bool tablespace_is_shared_space(const HA_CREATE_INFO *create_info) {
-  return (create_info->tablespace != NULL &&
+  return (create_info->tablespace != nullptr &&
           create_info->tablespace[0] != '\0' &&
           (0 !=
            strcmp(create_info->tablespace, dict_sys_t::s_file_per_table_name)));
@@ -767,7 +765,8 @@ bool tablespace_is_shared_space(const HA_CREATE_INFO *create_info) {
 UNIV_INLINE
 bool tablespace_is_general_space(const HA_CREATE_INFO *create_info) {
   return (
-      create_info->tablespace != NULL && create_info->tablespace[0] != '\0' &&
+      create_info->tablespace != nullptr &&
+      create_info->tablespace[0] != '\0' &&
       (0 !=
        strcmp(create_info->tablespace, dict_sys_t::s_file_per_table_name)) &&
       (0 != strcmp(create_info->tablespace, dict_sys_t::s_temp_space_name)) &&
@@ -779,7 +778,7 @@ bool tablespace_is_general_space(const HA_CREATE_INFO *create_info) {
 @return true if tablespace is a shared tablespace. */
 UNIV_INLINE
 bool is_shared_tablespace(const char *tablespace_name) {
-  if (tablespace_name != NULL && tablespace_name[0] != '\0' &&
+  if (tablespace_name != nullptr && tablespace_name[0] != '\0' &&
       (strcmp(tablespace_name, dict_sys_t::s_file_per_table_name) != 0)) {
     return true;
   }
@@ -1008,7 +1007,7 @@ class innobase_basic_ddl {
   static int create_impl(THD *thd, const char *name, TABLE *form,
                          HA_CREATE_INFO *create_info, Table *dd_tab,
                          bool file_per_table, bool evictable, bool skip_strict,
-                         ulint old_flags, ulint old_flags2);
+                         uint32_t old_flags, uint32_t old_flags2);
 
   /** Drop an InnoDB table.
   @tparam		Table		dd::Table or dd::Partition
@@ -1123,10 +1122,10 @@ class innobase_truncate {
   bool m_keep_autoinc;
 
   /** flags of the table to be truncated, which should not change */
-  uint64_t m_flags;
+  uint32_t m_flags;
 
   /** flags2 of the table to be truncated, which should not change */
-  uint64_t m_flags2;
+  uint32_t m_flags2;
 };
 
 /**

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -161,7 +161,7 @@ static que_node_t *opt_look_for_col_in_comparison_before(
   if ((cmp_type == OPT_EQUAL) && (search_cond->func != '=') &&
       (search_cond->func != PARS_LIKE_TOKEN_EXACT) &&
       (search_cond->func != PARS_LIKE_TOKEN_PREFIX)) {
-    return (NULL);
+    return (nullptr);
 
   } else if ((cmp_type == OPT_COMPARISON) && (search_cond->func != '<') &&
              (search_cond->func != '>') &&
@@ -169,7 +169,7 @@ static que_node_t *opt_look_for_col_in_comparison_before(
              (search_cond->func != PARS_LE_TOKEN) &&
              (search_cond->func != PARS_LIKE_TOKEN_PREFIX) &&
              (search_cond->func != PARS_LIKE_TOKEN_SUFFIX)) {
-    return (NULL);
+    return (nullptr);
   }
 
   arg = search_cond->args;
@@ -210,7 +210,7 @@ static que_node_t *opt_look_for_col_in_comparison_before(
     }
   }
 
-  return (NULL);
+  return (nullptr);
 }
 
 /** Looks in a search condition if a column value is already restricted by the
@@ -232,8 +232,8 @@ static que_node_t *opt_look_for_col_in_cond_before(
   func_node_t *new_cond;
   que_node_t *exp;
 
-  if (search_cond == NULL) {
-    return (NULL);
+  if (search_cond == nullptr) {
+    return (nullptr);
   }
 
   ut_a(que_node_get_type(search_cond) == QUE_NODE_FUNC);
@@ -258,8 +258,8 @@ static que_node_t *opt_look_for_col_in_cond_before(
 
   exp = opt_look_for_col_in_comparison_before(cmp_type, col_no, search_cond,
                                               sel_node, nth_table, op);
-  if (exp == NULL) {
-    return (NULL);
+  if (exp == nullptr) {
+    return (nullptr);
   }
 
   /* If we will fetch in an ascending order, we cannot utilize an upper
@@ -267,10 +267,10 @@ static que_node_t *opt_look_for_col_in_cond_before(
   limit */
 
   if (sel_node->asc && ((*op == '<') || (*op == PARS_LE_TOKEN))) {
-    return (NULL);
+    return (nullptr);
 
   } else if (!sel_node->asc && ((*op == '>') || (*op == PARS_GE_TOKEN))) {
-    return (NULL);
+    return (nullptr);
   }
 
   return (exp);
@@ -524,7 +524,7 @@ static void opt_search_plan_for_table(
   n_fields = opt_calc_n_fields_from_goodness(best_goodness);
 
   if (n_fields == 0) {
-    plan->tuple = NULL;
+    plan->tuple = nullptr;
     plan->n_exact_match = 0;
   } else {
     plan->tuple = dtuple_create(pars_sym_tab_global->heap, n_fields);
@@ -553,7 +553,7 @@ static void opt_search_plan_for_table(
     plan->unique_search = FALSE;
   }
 
-  plan->old_vers_heap = NULL;
+  plan->old_vers_heap = nullptr;
 
   btr_pcur_init(&(plan->pcur));
   btr_pcur_init(&(plan->clust_pcur));
@@ -648,7 +648,7 @@ static void opt_find_test_conds(sel_node_t *sel_node, /*!< in: select node */
   ulint fclass;
   plan_t *plan;
 
-  if (cond == NULL) {
+  if (cond == nullptr) {
     return;
   }
 
@@ -699,7 +699,7 @@ static void opt_normalize_cmp_conds(
         /* Switch the order of the arguments */
 
         cond->args = arg2;
-        que_node_list_add_last(NULL, arg2);
+        que_node_list_add_last(nullptr, arg2);
         que_node_list_add_last(arg2, arg1);
 
         /* Invert the operator */
@@ -757,14 +757,14 @@ void opt_find_all_cols(
   sym_node_t *col_node;
   ulint col_pos;
 
-  if (exp == NULL) {
+  if (exp == nullptr) {
     return;
   }
 
   if (que_node_get_type(exp) == QUE_NODE_FUNC) {
     func_node = static_cast<func_node_t *>(exp);
 
-    for (arg = func_node->args; arg != 0; arg = que_node_get_next(arg)) {
+    for (arg = func_node->args; arg != nullptr; arg = que_node_get_next(arg)) {
       opt_find_all_cols(copy_val, index, col_list, plan, arg);
     }
 
@@ -842,7 +842,7 @@ static void opt_find_copy_cols(
   func_node_t *new_cond;
   plan_t *plan;
 
-  if (search_cond == NULL) {
+  if (search_cond == nullptr) {
     return;
   }
 
@@ -893,7 +893,8 @@ static void opt_classify_cols(sel_node_t *sel_node, /*!< in: select node */
   /* All select list columns should be copied: therefore TRUE as the
   first argument */
 
-  for (exp = sel_node->select_list; exp != 0; exp = que_node_get_next(exp)) {
+  for (exp = sel_node->select_list; exp != nullptr;
+       exp = que_node_get_next(exp)) {
     opt_find_all_cols(TRUE, plan->index, &(plan->columns), plan, exp);
   }
 
@@ -931,8 +932,8 @@ static void opt_clust_access(sel_node_t *sel_node, /*!< in: select node */
   plan->no_prefetch = FALSE;
 
   if (index->is_clustered()) {
-    plan->clust_map = NULL;
-    plan->clust_ref = NULL;
+    plan->clust_map = nullptr;
+    plan->clust_ref = nullptr;
 
     return;
   }
@@ -998,7 +999,7 @@ void opt_search_plan(sel_node_t *sel_node) /*!< in: parsed select node */
 
   table_node = sel_node->table_list;
 
-  if (sel_node->order_by == NULL) {
+  if (sel_node->order_by == nullptr) {
     sel_node->asc = TRUE;
   } else {
     order_by = sel_node->order_by;

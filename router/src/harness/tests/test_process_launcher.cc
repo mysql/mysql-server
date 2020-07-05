@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -73,7 +73,8 @@ INSTANTIATE_TEST_CASE_P(Spec, ArgQuoteTest,
 // cmdline_from_args
 
 struct CmdLineQuoteParam {
-  std::vector<const char *> args;
+  std::string executable_path;
+  std::vector<std::string> args;
 
   std::string expected;
 };
@@ -83,15 +84,16 @@ class CmdLineQuoteTest
       public ::testing::WithParamInterface<CmdLineQuoteParam> {};
 
 TEST_P(CmdLineQuoteTest, quote) {
-  ASSERT_EQ(mysql_harness::win32::cmdline_from_args(GetParam().args.data()),
+  ASSERT_EQ(mysql_harness::win32::cmdline_from_args(GetParam().executable_path,
+                                                    GetParam().args),
             GetParam().expected);
 }
 
 const CmdLineQuoteParam cmdline_quote_params[] = {
-    {{"foo", "bar", nullptr}, "foo bar"},
-    {{"foo bar", "bar", nullptr}, R"("foo bar" bar)"},
-    {{R"(c:\foo bar\)", "bar", nullptr}, R"("c:\foo bar\\" bar)"},
-    {{R"(c:\foo bar\)", "--bar", "", nullptr}, R"("c:\foo bar\\" --bar "")"},
+    {"foo", {"bar"}, "foo bar"},
+    {"foo bar", {"bar"}, R"("foo bar" bar)"},
+    {R"(c:\foo bar\)", {"bar"}, R"("c:\foo bar\\" bar)"},
+    {R"(c:\foo bar\)", {"--bar", ""}, R"("c:\foo bar\\" --bar "")"},
 };
 
 INSTANTIATE_TEST_CASE_P(Spec, CmdLineQuoteTest,

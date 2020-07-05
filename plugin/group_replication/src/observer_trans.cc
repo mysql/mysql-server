@@ -51,7 +51,7 @@
 void cleanup_transaction_write_set(
     Transaction_write_set *transaction_write_set) {
   DBUG_TRACE;
-  if (transaction_write_set != NULL) {
+  if (transaction_write_set != nullptr) {
     my_free(transaction_write_set->write_set);
     my_free(transaction_write_set);
   }
@@ -236,7 +236,7 @@ int group_replication_trans_before_commit(Trans_param *param) {
     return 0;
   }
 
-  DBUG_ASSERT(applier_module != NULL && recovery_module != NULL);
+  DBUG_ASSERT(applier_module != nullptr && recovery_module != nullptr);
   Group_member_info::Group_member_status member_status =
       local_member_info->get_recovery_status();
 
@@ -275,15 +275,15 @@ int group_replication_trans_before_commit(Trans_param *param) {
   }
 
   const Gtid_specification gtid_specification = {ASSIGNED_GTID, gtid};
-  Gtid_log_event *gle = NULL;
+  Gtid_log_event *gle = nullptr;
 
-  Transaction_context_log_event *tcle = NULL;
+  Transaction_context_log_event *tcle = nullptr;
 
   const enum_group_replication_consistency_level consistency_level =
       static_cast<enum_group_replication_consistency_level>(
           param->group_replication_consistency);
 
-  Transaction_message_interface *transaction_msg = NULL;
+  Transaction_message_interface *transaction_msg = nullptr;
   enum enum_gcs_error send_error = GCS_OK;
 
   // Binlog cache.
@@ -294,7 +294,7 @@ int group_replication_trans_before_commit(Trans_param *param) {
   */
   bool is_dml = !param->is_atomic_ddl;
   bool may_have_sbr_stmts = !is_dml;
-  Binlog_cache_storage *cache_log = NULL;
+  Binlog_cache_storage *cache_log = nullptr;
   my_off_t cache_log_position = 0;
   const my_off_t trx_cache_log_position = param->trx_cache_log->length();
   const my_off_t stmt_cache_log_position = param->stmt_cache_log->length();
@@ -346,14 +346,14 @@ int group_replication_trans_before_commit(Trans_param *param) {
       a transaction may have not write set at all because it didn't
       change any data, it will just persist that GTID as applied.
     */
-    if ((write_set == NULL) && (!is_gtid_specified)) {
+    if ((write_set == nullptr) && (!is_gtid_specified)) {
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FAILED_TO_EXTRACT_TRANS_WRITE_SET,
                    param->thread_id);
       error = pre_wait_error;
       goto err;
     }
 
-    if (write_set != NULL) {
+    if (write_set != nullptr) {
       if (add_write_set(tcle, write_set)) {
         /* purecov: begin inspected */
         cleanup_transaction_write_set(write_set);

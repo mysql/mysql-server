@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -88,8 +88,7 @@ namespace details {
 
     @param stream   Protobuf zero output stream
 
-    @return
-      @retval == true stream has more data
+    @retval true stream has more data
   */
 bool has_data(ZeroCopyInputStream *stream) {
   const void *data;
@@ -185,6 +184,12 @@ XError Protocol_impl::execute_authenticate(const std::string &user,
 void Protocol_impl::use_compression(const Compression_algorithm algo) {
   DBUG_TRACE;
   m_compression->reinitialize(algo);
+}
+
+void Protocol_impl::use_compression(const Compression_algorithm algo,
+                                    const int32_t level) {
+  DBUG_TRACE;
+  m_compression->reinitialize(algo, level);
 }
 
 std::unique_ptr<XProtocol::Capabilities>
@@ -860,6 +865,12 @@ XError Protocol_impl::send_compressed_multiple_frames(
   int total_size = 0;
 
   {
+    for (const auto &message : messages)
+      total_size += message.second->ByteSize() + 5;
+
+    auto algo = m_compression->compression_algorithm();
+    if (algo) algo->set_pledged_source_size(total_size);
+
     StringOutputStream out_stream(&compressed_messages);
     auto compressed_out_stream = m_compression->uplink(&out_stream);
 
@@ -874,15 +885,12 @@ XError Protocol_impl::send_compressed_multiple_frames(
       const auto msg_id = message.first;
       const auto header_msg_id = static_cast<Header_message_type_id>(msg_id);
       const auto msg = message.second;
-      const auto msg_size = msg->ByteSize();
 
       dispatch_send_message(msg_id, *msg);
 
-      cos.WriteLittleEndian32(msg_size + 1);
+      cos.WriteLittleEndian32(msg->ByteSize() + 1);
       cos.WriteRaw(&header_msg_id, 1);
       msg->SerializeToCodedStream(&cos);
-
-      total_size += msg_size + 5;
     }
   }
 

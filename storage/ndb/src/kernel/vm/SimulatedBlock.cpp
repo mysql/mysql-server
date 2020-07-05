@@ -569,6 +569,15 @@ SimulatedBlock::getSignalsInJBB()
 }
 
 void
+SimulatedBlock::startChangeNeighbourNode()
+{
+  /* We only treat neighbour nodes in a special manner in ndbmtd. */
+#ifdef NDBD_MULTITHREADED
+  mt_startChangeNeighbourNode();
+#endif
+}
+
+void
 SimulatedBlock::setNeighbourNode(NodeId node)
 {
   /* We only treat neighbour nodes in a special manner in ndbmtd. */
@@ -582,6 +591,15 @@ SimulatedBlock::setNoSend()
 {
 #ifdef NDBD_MULTITHREADED
   mt_setNoSend(m_threadId);
+#endif
+}
+
+void
+SimulatedBlock::endChangeNeighbourNode()
+{
+  /* We only treat neighbour nodes in a special manner in ndbmtd. */
+#ifdef NDBD_MULTITHREADED
+  mt_endChangeNeighbourNode();
 #endif
 }
 
@@ -618,12 +636,38 @@ SimulatedBlock::setSendNodeOverloadStatus(OverloadStatus new_status)
 }
 
 Uint32
-SimulatedBlock::getSpintime()
+SimulatedBlock::getConfiguredSpintime()
 {
 #ifdef NDBD_MULTITHREADED
-  return mt_getSpintime(m_threadId);
+  return mt_getConfiguredSpintime(m_threadId);
 #else
   return 0;
+#endif
+}
+
+void
+SimulatedBlock::setSpintime(Uint32 new_spintime)
+{
+#ifdef NDBD_MULTITHREADED
+  mt_setSpintime(m_threadId, new_spintime);
+#endif
+}
+
+Uint32
+SimulatedBlock::getWakeupLatency()
+{
+#ifdef NDBD_MULTITHREADED
+  return mt_getWakeupLatency();
+#else
+  return 25;
+#endif
+}
+
+void
+SimulatedBlock::setWakeupLatency(Uint32 latency)
+{
+#ifdef NDBD_MULTITHREADED
+  mt_setWakeupLatency(latency);
 #endif
 }
 
@@ -719,6 +763,60 @@ SimulatedBlock::getNumThreads()
 #endif
 }
 
+void
+SimulatedBlock::flush_send_buffers()
+{
+#ifdef NDBD_MULTITHREADED
+  mt_flush_send_buffers(m_threadId);
+#endif
+}
+
+void
+SimulatedBlock::set_watchdog_counter()
+{
+#ifdef NDBD_MULTITHREADED
+  mt_set_watchdog_counter(m_threadId);
+#endif
+}
+
+void
+SimulatedBlock::assign_recv_thread_new_trp(Uint32 trp_id)
+{
+#ifdef NDBD_MULTITHREADED
+  mt_assign_recv_thread_new_trp(trp_id);
+#endif
+}
+
+void
+SimulatedBlock::assign_multi_trps_to_send_threads()
+{
+#ifdef NDBD_MULTITHREADED
+  mt_assign_multi_trps_to_send_threads();
+#endif
+}
+
+bool
+SimulatedBlock::epoll_add_trp(NodeId node_id, TrpId trp_id)
+{
+#ifdef NDBD_MULTITHREADED
+  return mt_epoll_add_trp(m_threadId, node_id, trp_id);
+#else
+  require(false);
+  return false;
+#endif
+}
+
+bool
+SimulatedBlock::is_recv_thread_for_new_trp(NodeId node_id, TrpId trp_id)
+{
+#ifdef NDBD_MULTITHREADED
+  return mt_is_recv_thread_for_new_trp(m_threadId, node_id, trp_id);
+#else
+  require(false);
+  return false;
+#endif
+}
+
 void 
 SimulatedBlock::sendSignal(BlockReference ref, 
 			   GlobalSignalNumber gsn, 
@@ -798,10 +896,11 @@ SimulatedBlock::sendSignal(BlockReference ref,
     ss = mt_send_remote(m_threadId, &sh, jobBuffer, &signal->theData[0],
                         recNode, 0);
 #else
+    TrpId trp_id = 0;
     ss = globalTransporterRegistry.
            prepareSend(getNonMTTransporterSendHandle(),
                        &sh, jobBuffer,
-                       &signal->theData[0], recNode,
+                       &signal->theData[0], recNode, trp_id,
                        (LinearSectionPtr*)0);
 #endif
     
@@ -908,10 +1007,11 @@ ndbrequire(noOfSections == 0);
     ss = mt_send_remote(m_threadId, &sh, jobBuffer, &signal->theData[0],
                         recNode, 0);
 #else
+    TrpId trp_id = 0;
     ss = globalTransporterRegistry.
            prepareSend(getNonMTTransporterSendHandle(),
                        &sh, jobBuffer, 
-                       &signal->theData[0], recNode,
+                       &signal->theData[0], recNode, trp_id,
                        (LinearSectionPtr*)0);
 #endif
 
@@ -1030,10 +1130,11 @@ ndbrequire(signal->header.m_noOfSections == 0);
     ss = mt_send_remote(m_threadId, &sh, jobBuffer, &signal->theData[0],
                         recNode, ptr);
 #else
+    TrpId trp_id = 0;
     ss = globalTransporterRegistry.
            prepareSend(getNonMTTransporterSendHandle(),
                        &sh, jobBuffer,
-                       &signal->theData[0], recNode,
+                       &signal->theData[0], recNode, trp_id,
                        ptr);
 #endif
 
@@ -1163,10 +1264,11 @@ ndbrequire(signal->header.m_noOfSections == 0);
     ss = mt_send_remote(m_threadId, &sh, jobBuffer, &signal->theData[0],
                         recNode, ptr);
 #else
+    TrpId trp_id = 0;
     ss = globalTransporterRegistry.
            prepareSend(getNonMTTransporterSendHandle(),
                        &sh, jobBuffer,
-                       &signal->theData[0], recNode,
+                       &signal->theData[0], recNode, trp_id,
                        ptr);
 #endif
 
@@ -1275,10 +1377,11 @@ ndbrequire(signal->header.m_noOfSections == 0);
     ss = mt_send_remote(m_threadId, &sh, jobBuffer, &signal->theData[0],
                         recNode, &g_sectionSegmentPool, sections->m_ptr);
 #else
+    TrpId trp_id = 0;
     ss = globalTransporterRegistry.
            prepareSend(getNonMTTransporterSendHandle(),
                        &sh, jobBuffer,
-                       &signal->theData[0], recNode,
+                       &signal->theData[0], recNode, trp_id,
                        g_sectionSegmentPool, sections->m_ptr);
 #endif
 
@@ -1406,10 +1509,11 @@ ndbrequire(signal->header.m_noOfSections == 0);
     ss = mt_send_remote(m_threadId, &sh, jobBuffer, &signal->theData[0],
                         recNode, &g_sectionSegmentPool, sections->m_ptr);
 #else
+    TrpId trp_id = 0;
     ss = globalTransporterRegistry.
            prepareSend(getNonMTTransporterSendHandle(),
                        &sh, jobBuffer,
-                       &signal->theData[0], recNode,
+                       &signal->theData[0], recNode, trp_id,
                        g_sectionSegmentPool, sections->m_ptr);
 #endif
 
@@ -1538,10 +1642,11 @@ ndbrequire(signal->header.m_noOfSections == 0);
     ss = mt_send_remote(m_threadId, &sh, jobBuffer, &signal->theData[0],
                         recNode, &g_sectionSegmentPool, sections->m_ptr);
 #else
+    TrpId trp_id = 0;
     ss = globalTransporterRegistry.
            prepareSend(getNonMTTransporterSendHandle(),
                        &sh, jobBuffer,
-                       &signal->theData[0], recNode,
+                       &signal->theData[0], recNode, trp_id,
                        g_sectionSegmentPool, sections->m_ptr);
 #endif
 
@@ -1679,10 +1784,11 @@ ndbrequire(signal->header.m_noOfSections == 0);
     ss = mt_send_remote(m_threadId, &sh, jobBuffer, &signal->theData[0],
                         recNode, &g_sectionSegmentPool, sections->m_ptr);
 #else
+    TrpId trp_id = 0;
     ss = globalTransporterRegistry.
            prepareSend(getNonMTTransporterSendHandle(),
                        &sh, jobBuffer,
-                       &signal->theData[0], recNode,
+                       &signal->theData[0], recNode, trp_id,
                        g_sectionSegmentPool, sections->m_ptr);
 #endif
 
@@ -5236,10 +5342,10 @@ SimulatedBlock::assertOwnThread()
 #endif
 
 Uint32
-SimulatedBlock::get_recv_thread_idx(NodeId nodeId)
+SimulatedBlock::get_recv_thread_idx(TrpId trp_id)
 {
 #ifdef NDBD_MULTITHREADED
-  return mt_get_recv_thread_idx(nodeId);
+  return mt_get_recv_thread_idx(trp_id);
 #else
   return 0;
 #endif

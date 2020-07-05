@@ -1,7 +1,7 @@
 #ifndef ITEM_SUM_INCLUDED
 #define ITEM_SUM_INCLUDED
 
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -466,9 +466,9 @@ class Item_sum : public Item_result_field {
     block; none, or just the first or both cells may be non-zero. They are
     filled with references to the group aggregate (for example if it is the
     argument of a function; it is then a pointer to that function's args[i]
-    pointer). "ref_by" stands for "referenced by".
+    pointer).
   */
-  Item **ref_by[2];
+  Item **referenced_by[2];
   Item_sum *next_sum;     ///< next in the circular chain of registered objects
   Item_sum *in_sum_func;  ///< the containing set function if any
   SELECT_LEX *base_select;  ///< query block where function is placed
@@ -514,7 +514,7 @@ class Item_sum : public Item_result_field {
   }
 
   Item_sum(Item *a)
-      : m_window(NULL),
+      : m_window(nullptr),
         m_window_resolved(false),
         next_sum(nullptr),
         allow_group_via_temp_table(true),
@@ -624,7 +624,28 @@ class Item_sum : public Item_result_field {
   }
   virtual void make_unique() { force_copy_fields = true; }
   virtual Field *create_tmp_field(bool group, TABLE *table);
+
+  /// argument used by walk method collect_grouped_aggregates ("cga")
+  struct Collect_grouped_aggregate_info {
+    /// accumulated all aggregates found
+    std::vector<Item_sum *> list;
+    /**
+      The query block we walk from. All found aggregates must aggregate in
+      this; if some aggregate in outer query blocks, break off transformation.
+    */
+    SELECT_LEX *m_select{nullptr};
+    /// true: break off transformation
+    bool m_break_off{false};
+    Collect_grouped_aggregate_info(SELECT_LEX *select) : m_select(select) {}
+  };
+
+  bool collect_grouped_aggregates(uchar *) override;
+  Item *replace_aggregate(uchar *) override;
+  bool collect_scalar_subqueries(uchar *) override;
+  bool collect_item_field_or_view_ref_processor(uchar *) override;
+
   bool walk(Item_processor processor, enum_walk walk, uchar *arg) override;
+  Item *transform(Item_transformer transformer, uchar *arg) override;
   bool clean_up_after_removal(uchar *arg) override;
   bool aggregate_check_group(uchar *arg) override;
   bool aggregate_check_distinct(uchar *arg) override;
@@ -642,7 +663,7 @@ class Item_sum : public Item_result_field {
 
   /* Initialization of distinct related members */
   void init_aggregator() {
-    aggr = NULL;
+    aggr = nullptr;
     with_distinct = false;
     force_copy_fields = false;
   }
@@ -855,9 +876,9 @@ class Aggregator_distinct : public Aggregator {
  public:
   Aggregator_distinct(Item_sum *sum)
       : Aggregator(sum),
-        table(NULL),
-        tmp_table_param(NULL),
-        tree(NULL),
+        table(nullptr),
+        tmp_table_param(nullptr),
+        tree(nullptr),
         const_distinct(NOT_CONST),
         use_distinct_values(false) {}
   ~Aggregator_distinct() override;
@@ -1577,9 +1598,9 @@ class Item_sum_hybrid : public Item_sum {
   Item_sum_hybrid(Item *item_par, bool is_min)
       : Item_sum(item_par),
         m_is_min(is_min),
-        value(0),
-        arg_cache(0),
-        cmp(0),
+        value(nullptr),
+        arg_cache(nullptr),
+        cmp(nullptr),
         hybrid_type(INT_RESULT),
         was_values(true),
         m_nulls_first(false),
@@ -1593,9 +1614,9 @@ class Item_sum_hybrid : public Item_sum {
   Item_sum_hybrid(const POS &pos, Item *item_par, bool is_min, PT_window *w)
       : Item_sum(pos, item_par, w),
         m_is_min(is_min),
-        value(0),
-        arg_cache(0),
-        cmp(0),
+        value(nullptr),
+        arg_cache(nullptr),
+        cmp(nullptr),
         hybrid_type(INT_RESULT),
         was_values(true),
         m_nulls_first(false),
@@ -1610,7 +1631,7 @@ class Item_sum_hybrid : public Item_sum {
       : Item_sum(thd, item),
         m_is_min(item->m_is_min),
         value(item->value),
-        arg_cache(0),
+        arg_cache(nullptr),
         hybrid_type(item->hybrid_type),
         was_values(item->was_values),
         m_nulls_first(item->m_nulls_first),
@@ -1897,7 +1918,7 @@ class Item_udf_sum : public Item_sum {
 
  public:
   Item_udf_sum(const POS &pos, udf_func *udf_arg, PT_item_list *opt_list)
-      : Item_sum(pos, opt_list, NULL), udf(udf_arg) {
+      : Item_sum(pos, opt_list, nullptr), udf(udf_arg) {
     allow_group_via_temp_table = false;
   }
   Item_udf_sum(THD *thd, Item_udf_sum *item)
@@ -2115,7 +2136,7 @@ class Item_func_group_concat final : public Item_sum {
   enum Sumfunctype sum_func() const override { return GROUP_CONCAT_FUNC; }
   const char *func_name() const override { return "group_concat"; }
   Item_result result_type() const override { return STRING_RESULT; }
-  Field *make_string_field(TABLE *table_arg) override;
+  Field *make_string_field(TABLE *table_arg) const override;
   void clear() override;
   bool add() override;
   void reset_field() override { DBUG_ASSERT(0); }   // not used
@@ -2149,8 +2170,8 @@ class Item_func_group_concat final : public Item_sum {
   void no_rows_in_result() override {}
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
-  bool change_context_processor(uchar *cntx) override {
-    context = reinterpret_cast<Name_resolution_context *>(cntx);
+  bool change_context_processor(uchar *arg) override {
+    context = reinterpret_cast<Item_ident::Change_context *>(arg)->m_context;
     return false;
   }
 

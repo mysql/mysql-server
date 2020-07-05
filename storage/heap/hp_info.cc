@@ -27,8 +27,8 @@
 #include "storage/heap/heapdef.h"
 
 void heap_position(HP_INFO *info, HP_HEAP_POSITION *pos) {
-  pos->ptr =
-      ((info->update & HA_STATE_AKTIV) ? info->current_ptr : (HEAP_PTR)0);
+  pos->ptr = ((info->update & HA_STATE_AKTIV) ? info->current_ptr
+                                              : (HEAP_PTR) nullptr);
   pos->record_no = info->current_record;
 }
 

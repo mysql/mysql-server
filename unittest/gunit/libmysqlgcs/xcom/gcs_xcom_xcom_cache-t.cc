@@ -50,7 +50,7 @@ void *cache_task(void *ptr) {
     do_cache_maintenance();
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
-  return NULL;
+  return nullptr;
 }
 
 class GcsXComXComCache : public GcsBaseTest {
@@ -67,11 +67,11 @@ class GcsXComXComCache : public GcsBaseTest {
 
  protected:
   GcsXComXComCache()
-      : m_addr(0),
+      : m_addr(nullptr),
         m_payload_size(0),
-        m_na(0),
-        m_sd(0),
-        m_thread(NULL),
+        m_na(nullptr),
+        m_sd(nullptr),
+        m_thread(nullptr),
         m_run(false) {}
   ~GcsXComXComCache() {}
 
@@ -91,10 +91,10 @@ class GcsXComXComCache : public GcsBaseTest {
   virtual void TearDown() {
     m_run = false;
     if (m_thread) {
-      m_thread->join(NULL);
+      m_thread->join(nullptr);
       delete m_thread;
     }
-    push_site_def(NULL);
+    push_site_def(nullptr);
     free_site_defs();
     delete_node_address(1, m_na);
     cleanup_cache();
@@ -103,9 +103,9 @@ class GcsXComXComCache : public GcsBaseTest {
   }
 
   virtual void cache_msg(synode_no synode) {
-    pax_machine *pm = NULL;
+    pax_machine *pm = nullptr;
     pm = get_cache(synode);
-    ASSERT_TRUE(pm != NULL);
+    ASSERT_TRUE(pm != nullptr);
     ASSERT_TRUE(synode_eq(pm->synode, synode));
     unchecked_replace_pax_msg(&pm->proposer.msg, pax_msg_new(synode, m_sd));
     pm->proposer.msg->a = clone_app_data(&m_a);
@@ -214,9 +214,9 @@ TEST_F(GcsXComXComCache, XComCacheTestIterateForward) {
   basic_test_generic(50000, 3000000);
   synode_no synode = {1, 1, 0};
   while (synode.msgno < m_synode.msgno) {
-    pax_machine *pm = NULL;
+    pax_machine *pm = nullptr;
     pm = get_cache(synode);
-    ASSERT_TRUE(pm != NULL);
+    ASSERT_TRUE(pm != nullptr);
     ASSERT_TRUE(synode_eq(pm->synode, synode));
     synode.msgno++;
   }
@@ -234,9 +234,9 @@ TEST_F(GcsXComXComCache, XComCacheTestAccessRecent) {
   basic_test_generic(50000, 3000000);
   u_int iterations = 3000000;
   while (iterations > 0) {
-    pax_machine *pm = NULL;
+    pax_machine *pm = nullptr;
     pm = get_cache(m_synode);
-    ASSERT_TRUE(pm != NULL);
+    ASSERT_TRUE(pm != nullptr);
     ASSERT_TRUE(synode_eq(pm->synode, m_synode));
     iterations--;
   }
@@ -337,7 +337,7 @@ TEST_F(GcsXComXComCache, XComCacheTestLengthDecreaseWithTask) {
   ASSERT_EQ(get_xcom_cache_length(), 3050000);
   m_thread = new My_xp_thread_impl();
   m_run = true;
-  m_thread->create(PSI_NOT_INSTRUMENTED, NULL, cache_task, (void *)&m_run);
+  m_thread->create(PSI_NOT_INSTRUMENTED, nullptr, cache_task, (void *)&m_run);
   /*
     Wait for the task to decrease the size
   */

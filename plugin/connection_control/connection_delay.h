@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -128,7 +128,7 @@ class Connection_delay_action : public Connection_event_observer,
   /** Destructor */
   ~Connection_delay_action() {
     deinit();
-    m_lock = 0;
+    m_lock = nullptr;
   }
 
   void init(Connection_event_coordinator_services *coordinator);
@@ -137,10 +137,6 @@ class Connection_delay_action : public Connection_event_observer,
     Set threshold value.
 
     @param threshold [in]        New threshold value
-
-    @returns whether threshold value was changed successfully or not
-      @retval true  Success
-      @retval false Failure. Invalid threshold value specified.
   */
 
   void set_threshold(int64 threshold) {

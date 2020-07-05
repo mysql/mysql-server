@@ -538,7 +538,7 @@ WHERE EXISTS (SELECT *
 FROM DUAL
 WHERE (c2 = 2));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	c1_c2_idx	NULL	NULL	NULL	6	100.00	Using where; Using temporary
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Using temporary
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1276	Field or reference 'test.t1.c2' of SELECT #2 was resolved in SELECT #1
@@ -551,7 +551,7 @@ FROM DUAL
 WHERE (c2 = 2)),
 3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	c1_c2_idx	NULL	NULL	NULL	6	100.00	Using where; Using temporary
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Using temporary
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1276	Field or reference 'test.t1.c2' of SELECT #2 was resolved in SELECT #1
@@ -638,7 +638,7 @@ EXPLAIN SELECT DISTINCT c1
 FROM t1 IGNORE INDEX(ukey)
 WHERE pk IN (1,231) and c1 IS NOT NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	PRIMARY,ukey	PRIMARY	4	NULL	2	90.00	Using where; Using temporary
+1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	4	NULL	2	90.00	Using where; Using temporary
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`c1` AS `c1` from `test`.`t1` IGNORE INDEX (`ukey`) where ((`test`.`t1`.`pk` in (1,231)) and (`test`.`t1`.`c1` is not null))
 SELECT DISTINCT c1

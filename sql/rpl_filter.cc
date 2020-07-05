@@ -997,7 +997,7 @@ TABLE_RULE_ENT *Rpl_filter::find_wild(Table_rule_array *a, const char *key,
       return e;
   }
 
-  return 0;
+  return nullptr;
 }
 
 void Rpl_filter::free_string_array(Table_rule_array *a) {

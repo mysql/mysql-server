@@ -174,8 +174,8 @@ class ProcessWrapper {
   }
 
  private:
-  ProcessWrapper(const std::string &app_cmd, const char **args,
-                 bool include_stderr)
+  ProcessWrapper(const std::string &app_cmd,
+                 const std::vector<std::string> &args, bool include_stderr)
       : launcher_(app_cmd.c_str(), args, include_stderr) {
     launcher_.start();
   }

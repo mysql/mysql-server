@@ -23,7 +23,7 @@
 # We require rapidjson version 1.1.0 or higher.
 # -DWITH_RAPIDJSON=bundled is the default
 
-IF(CMAKE_CXX_COMPILER_ID STREQUAL "SunPro")
+IF(MY_COMPILER_IS_SUNPRO)
   # Oracle Developer Studio 12.x isn't detected as c++11 compliant by rapidjson
   # automatically.
   ADD_DEFINITIONS(-DRAPIDJSON_HAS_CXX11_RANGE_FOR=1)

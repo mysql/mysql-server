@@ -852,10 +852,6 @@ unlink: t1.cfg
 DROP DATABASE test_wl5522;
 set global innodb_monitor_disable = all;
 set global innodb_monitor_reset_all = all;
-set global innodb_monitor_enable = default;
-set global innodb_monitor_disable = default;
-set global innodb_monitor_reset = default;
-set global innodb_monitor_reset_all = default;
 SET GLOBAL INNODB_FILE_PER_TABLE=1;
 count_alloc WHERE event_name like 'memory/innodb/other'
 count_alloc

@@ -8,3 +8,4 @@ Pattern "CA certificate .*ca.pem is self signed." found
 # Search for : CA certificate *ca2.pem is self signed.
 Pattern "CA certificate .*ca2.pem is self signed." found
 # Global Cleanup
+# restart:

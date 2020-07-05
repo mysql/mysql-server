@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -122,7 +122,7 @@ dberr_t arch_init() {
       return (DB_OUT_OF_MEMORY);
     }
 
-    log_archiver_thread_event = os_event_create(0);
+    log_archiver_thread_event = os_event_create(nullptr);
   }
 
   if (arch_page_sys == nullptr) {
@@ -132,12 +132,17 @@ dberr_t arch_init() {
       return (DB_OUT_OF_MEMORY);
     }
 
-    page_archiver_thread_event = os_event_create(0);
+    page_archiver_thread_event = os_event_create(nullptr);
+  }
+
+  if (srv_read_only_mode) {
+    arch_page_sys->set_read_only_mode();
+    return DB_SUCCESS;
   }
 
   arch_page_sys->recover();
 
-  return (DB_SUCCESS);
+  return DB_SUCCESS;
 }
 
 /** Free Page and Log archiver system */
@@ -201,7 +206,8 @@ dberr_t Arch_Group::write_to_file(Arch_File_Ctx *from_file, byte *from_buffer,
 
     if (partial_write) {
       DBUG_EXECUTE_IF("crash_after_partial_block_dblwr_flush", DBUG_SUICIDE(););
-      err = m_file_ctx.write(from_file, from_buffer, m_file_ctx.get_offset(),
+      err = m_file_ctx.write(from_file, from_buffer,
+                             static_cast<uint>(m_file_ctx.get_offset()),
                              write_size);
     } else {
       DBUG_EXECUTE_IF("crash_after_full_block_dblwr_flush", DBUG_SUICIDE(););
@@ -409,7 +415,7 @@ dberr_t Arch_File_Ctx::open_next(lsn_t start_lsn, uint64_t file_offset) {
   return (error);
 }
 
-dberr_t Arch_File_Ctx::read(byte *to_buffer, uint offset, uint size) {
+dberr_t Arch_File_Ctx::read(byte *to_buffer, uint64_t offset, uint size) {
   ut_ad(offset + size <= m_size);
   ut_ad(!is_closed());
 

@@ -132,7 +132,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `j` json DEFAULT NULL,
-  `680963a1f6dcb151c3e713b46b4c3452` bigint array GENERATED ALWAYS AS (cast(`j` as unsigned array)) VIRTUAL,
+  `680963a1f6dcb151c3e713b46b4c3452` bigint unsigned array GENERATED ALWAYS AS (cast(`j` as unsigned array)) VIRTUAL,
   KEY `mv_idx` ((cast(`j` as unsigned array)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT 680963a1f6dcb151c3e713b46b4c3452 FROM t1 ;

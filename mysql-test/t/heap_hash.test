@@ -320,3 +320,38 @@ EXPLAIN SELECT c2, COUNT(c1) FROM t1 GROUP BY c2;
 SELECT c2, COUNT(c1) FROM t1 GROUP BY c2;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#29527115 MYSQL USES COMPOSITE HASH INDEX WHEN NOT POSSIBLE AND RETURNS WRONG RESULT.
+--echo #
+
+CREATE TABLE t1 (
+  f1 int NOT NULL,
+  f2 int NOT NULL,
+  f3 date NOT NULL,
+  KEY k1 (f2,f3) USING HASH
+) ENGINE=MEMORY;
+
+INSERT INTO t1 VALUES
+(1, 15409, '2019-02-25'), (2, 15911, '2019-02-25'), (3, 15929, '2019-02-25'), (4, 15936, '2019-02-25'),
+(5, 16004, '2019-02-25'), (6, 16005, '2019-02-25'), (7, 16007, '2019-02-25'),(8, 16029, '2019-02-25'),
+(9, 16031, '2019-02-25'), (10, 16052, '2019-02-25'), (11, 16054, '2019-02-25'), (12, 16040, '2019-02-25'),
+(13, 12485, '2019-02-25'), (14, 15892, '2019-02-25'), (15, 16035, '2019-02-25'), (16, 16060, '2019-02-25'),
+(17, 16066, '2019-02-25'), (18, 16093, '2019-02-25'), (19, 16057, '2019-02-25'), (20, 16027, '2019-02-25'),
+(21, 15988, '2019-02-25');
+
+SET eq_range_index_dive_limit = 1;
+# Range is not used
+let $query = SELECT COUNT(1) FROM t1 WHERE f2 IN (15409,15911);
+eval EXPLAIN $query;
+eval $query;
+let $query = SELECT COUNT(1) FROM t1 WHERE f2 IN (15409,15911) AND f3 > '2018-02-25';
+eval EXPLAIN $query;
+eval $query;
+# Range is used.
+let $query = SELECT COUNT(1) FROM t1 WHERE f2 IN (15409,15911) AND f3 = '2019-02-25';
+eval EXPLAIN $query;
+eval $query;
+SET eq_range_index_dive_limit = DEFAULT;
+
+DROP TABLE t1;

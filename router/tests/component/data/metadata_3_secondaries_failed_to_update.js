@@ -24,6 +24,8 @@ var router_select_group_replication_primary_member =
 
 // prepare the responses for common statements
 var common_responses = common_stmts.prepare_statement_responses([
+  "router_set_session_options",
+  "router_set_gr_consistency_level",
   "select_port",
   "router_start_transaction",
   "router_commit",

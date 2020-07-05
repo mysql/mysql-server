@@ -63,7 +63,7 @@ void Object_queue::queue_thread() {
 
     if (m_is_queue_running.load() == false) break;
 
-    Item_processing_data *item_to_process = NULL;
+    Item_processing_data *item_to_process = nullptr;
     {
       std::lock_guard<std::mutex> lock(m_queue_mutex);
       if (m_items_ready_for_processing.size() > 0) {
@@ -72,7 +72,7 @@ void Object_queue::queue_thread() {
       }
     }
 
-    if (item_to_process != NULL) {
+    if (item_to_process != nullptr) {
       this->format_object(item_to_process);
       this->object_processing_ends(item_to_process);
     }
@@ -96,7 +96,7 @@ void Object_queue::read_object(Item_processing_data *item_to_process) {
   Abstract_dump_task *dump_task = dynamic_cast<Abstract_dump_task *>(
       item_to_process->get_process_task_object());
 
-  if (dump_task == NULL) {
+  if (dump_task == nullptr) {
     (*this->get_message_handler())(Mysql::Tools::Base::Message_data(
         0, "Not supported operation called.",
         Mysql::Tools::Base::Message_type_error));

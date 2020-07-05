@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 #include <signal.h>
 #include <time.h>
 
+#include <mutex_lock.h>
 #include <mysql/components/services/log_builtins.h>
 #include "my_byteorder.h"
 #include "my_dbug.h"
@@ -47,7 +48,7 @@ bool applier_thread_is_exiting = false;
 static void *launch_handler_thread(void *arg) {
   Applier_module *handler = (Applier_module *)arg;
   handler->applier_thread_handle();
-  return 0;
+  return nullptr;
 }
 
 Applier_module::Applier_module()
@@ -56,11 +57,11 @@ Applier_module::Applier_module()
       applier_error(0),
       suspended(false),
       waiting_for_applier_suspension(false),
-      shared_stop_write_lock(NULL),
-      incoming(NULL),
-      pipeline(NULL),
+      shared_stop_write_lock(nullptr),
+      incoming(nullptr),
+      pipeline(nullptr),
       stop_wait_timeout(LONG_TIMEOUT),
-      applier_channel_observer(NULL) {
+      applier_channel_observer(nullptr) {
   mysql_mutex_init(key_GR_LOCK_applier_module_run, &run_lock,
                    MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_GR_COND_applier_module_run, &run_cond);
@@ -74,7 +75,7 @@ Applier_module::Applier_module()
 Applier_module::~Applier_module() {
   if (this->incoming) {
     while (!this->incoming->empty()) {
-      Packet *packet = NULL;
+      Packet *packet = nullptr;
       this->incoming->pop(&packet);
       delete packet;
     }
@@ -103,7 +104,7 @@ int Applier_module::setup_applier_module(Handler_pipeline_type pipeline_type,
 
   stop_wait_timeout = stop_timeout;
 
-  pipeline = NULL;
+  pipeline = nullptr;
 
   if ((error = get_pipeline(pipeline_type, &pipeline))) {
     return error;
@@ -194,7 +195,7 @@ void Applier_module::set_applier_thread_context() {
   thd->thread_stack = (char *)&thd;
   thd->store_globals();
   // Protocol is only initiated because of process list status
-  thd->get_protocol_classic()->init_net(0);
+  thd->get_protocol_classic()->init_net(nullptr);
   /*
     We only set the thread type so the applier thread shows up
     in the process list.
@@ -262,11 +263,11 @@ int Applier_module::apply_view_change_packet(
     Format_description_log_event *fde_evt, Continuation *cont) {
   int error = 0;
 
-  Gtid_set *group_executed_set = NULL;
-  Sid_map *sid_map = NULL;
+  Gtid_set *group_executed_set = nullptr;
+  Sid_map *sid_map = nullptr;
   if (!view_change_packet->group_executed_set.empty()) {
-    sid_map = new Sid_map(NULL);
-    group_executed_set = new Gtid_set(sid_map, NULL);
+    sid_map = new Sid_map(nullptr);
+    group_executed_set = new Gtid_set(sid_map, nullptr);
     if (intersect_group_executed_sets(view_change_packet->group_executed_set,
                                       group_executed_set)) {
       LogPluginErr(
@@ -274,11 +275,11 @@ int Applier_module::apply_view_change_packet(
           ER_GRP_RPL_ERROR_GTID_EXECUTION_INFO); /* purecov: inspected */
       delete sid_map;                            /* purecov: inspected */
       delete group_executed_set;                 /* purecov: inspected */
-      group_executed_set = NULL;                 /* purecov: inspected */
+      group_executed_set = nullptr;              /* purecov: inspected */
     }
   }
 
-  if (group_executed_set != NULL) {
+  if (group_executed_set != nullptr) {
     if (get_certification_handler()
             ->get_certifier()
             ->set_group_stable_transactions_set(group_executed_set)) {
@@ -333,8 +334,8 @@ int Applier_module::apply_data_packet(Data_packet *data_packet,
     Data_packet *new_packet = new Data_packet(payload, event_len);
     payload = payload + event_len;
 
-    std::list<Gcs_member_identifier> *online_members = NULL;
-    if (NULL != data_packet->m_online_members) {
+    std::list<Gcs_member_identifier> *online_members = nullptr;
+    if (nullptr != data_packet->m_online_members) {
       online_members =
           new std::list<Gcs_member_identifier>(*data_packet->m_online_members);
     }
@@ -401,10 +402,10 @@ int Applier_module::applier_thread_handle() {
   applier_thd_state.set_initialized();
   mysql_mutex_unlock(&run_lock);
 
-  Handler_THD_setup_action *thd_conf_action = NULL;
-  Format_description_log_event *fde_evt = NULL;
-  Continuation *cont = NULL;
-  Packet *packet = NULL;
+  Handler_THD_setup_action *thd_conf_action = nullptr;
+  Format_description_log_event *fde_evt = nullptr;
+  Continuation *cont = nullptr;
+  Packet *packet = nullptr;
   bool loop_termination = false;
   int packet_application_error = 0;
 
@@ -567,7 +568,7 @@ end:
 
   my_thread_end();
   applier_thread_is_exiting = true;
-  my_thread_exit(0);
+  my_thread_exit(nullptr);
 
   return local_applier_error; /* purecov: inspected */
 }
@@ -593,7 +594,7 @@ int Applier_module::initialize_applier_thread() {
 
   while (applier_thd_state.is_alive_not_running() && !applier_error) {
     DBUG_PRINT("sleep", ("Waiting for applier thread to start"));
-    if (current_thd != NULL && current_thd->is_killed()) {
+    if (current_thd != nullptr && current_thd->is_killed()) {
       applier_error = 1;
       applier_killed_status = true;
       LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_UNBLOCK_WAITING_THD);
@@ -612,7 +613,7 @@ int Applier_module::initialize_applier_thread() {
 
 int Applier_module::terminate_applier_pipeline() {
   int error = 0;
-  if (pipeline != NULL) {
+  if (pipeline != nullptr) {
     if ((error = pipeline->terminate_pipeline())) {
       LogPluginErr(
           WARNING_LEVEL,
@@ -620,7 +621,7 @@ int Applier_module::terminate_applier_pipeline() {
     }
     // delete anyway, as we can't do much on error cases
     delete pipeline;
-    pipeline = NULL;
+    pipeline = nullptr;
   }
   return error;
 }
@@ -773,10 +774,10 @@ void Applier_module::interrupt_applier_suspension_wait() {
 
 bool Applier_module::is_applier_thread_waiting() {
   DBUG_TRACE;
-  Event_handler *event_applier = NULL;
+  Event_handler *event_applier = nullptr;
   Event_handler::get_handler_by_role(pipeline, APPLIER, &event_applier);
 
-  if (event_applier == NULL) return false; /* purecov: inspected */
+  if (event_applier == nullptr) return false; /* purecov: inspected */
 
   bool result = ((Applier_handler *)event_applier)->is_applier_thread_waiting();
 
@@ -787,7 +788,7 @@ int Applier_module::wait_for_applier_event_execution(
     double timeout, bool check_and_purge_partial_transactions) {
   DBUG_TRACE;
   int error = 0;
-  Event_handler *event_applier = NULL;
+  Event_handler *event_applier = nullptr;
   Event_handler::get_handler_by_role(pipeline, APPLIER, &event_applier);
 
   if (event_applier && !(error = ((Applier_handler *)event_applier)
@@ -826,7 +827,7 @@ int Applier_module::wait_for_applier_event_execution(std::string &retrieved_set,
                                                      bool update_THD_status) {
   DBUG_TRACE;
   int error = 0;
-  Event_handler *event_applier = NULL;
+  Event_handler *event_applier = nullptr;
   Event_handler::get_handler_by_role(pipeline, APPLIER, &event_applier);
 
   if (event_applier) {
@@ -861,7 +862,7 @@ bool Applier_module::wait_for_current_events_execution(
 }
 
 Certification_handler *Applier_module::get_certification_handler() {
-  Event_handler *event_applier = NULL;
+  Event_handler *event_applier = nullptr;
   Event_handler::get_handler_by_role(pipeline, CERTIFIER, &event_applier);
 
   // The only certification handler for now
@@ -875,8 +876,8 @@ int Applier_module::intersect_group_executed_sets(
   std::vector<std::string>::iterator set_iterator;
   for (set_iterator = gtid_sets.begin(); set_iterator != gtid_sets.end();
        set_iterator++) {
-    Gtid_set member_set(sid_map, NULL);
-    Gtid_set intersection_result(sid_map, NULL);
+    Gtid_set member_set(sid_map, nullptr);
+    Gtid_set intersection_result(sid_map, nullptr);
 
     std::string exec_set_str = (*set_iterator);
 
@@ -931,4 +932,40 @@ bool Applier_module::queue_and_wait_on_queue_checkpoint(
     std::shared_ptr<Continuation> checkpoint_condition) {
   incoming->push(new Queue_checkpoint_packet(checkpoint_condition));
   return checkpoint_condition->wait() != 0;
+}
+
+Pipeline_member_stats *Applier_module::get_local_pipeline_stats() {
+  // We need run_lock to get protection against STOP GR command.
+
+  MUTEX_LOCK(guard, &run_lock);
+  Pipeline_member_stats *stats = nullptr;
+  auto cert = applier_module->get_certification_handler();
+  auto cert_module = (cert ? cert->get_certifier() : nullptr);
+  if (cert_module) {
+    stats = new Pipeline_member_stats(
+        get_pipeline_stats_member_collector(), get_message_queue_size(),
+        cert_module->get_negative_certified(),
+        cert_module->get_certification_info_size());
+    {
+      char *committed_transactions_buf = nullptr;
+      size_t committed_transactions_buf_length = 0;
+      int outcome = cert_module->get_group_stable_transactions_set_string(
+          &committed_transactions_buf, &committed_transactions_buf_length);
+      if (!outcome && committed_transactions_buf_length > 0)
+        stats->set_transaction_committed_all_members(
+            committed_transactions_buf, committed_transactions_buf_length);
+      my_free(committed_transactions_buf);
+    }
+    {
+      std::string last_conflict_free_transaction;
+      cert_module->get_last_conflict_free_transaction(
+          &last_conflict_free_transaction);
+      stats->set_transaction_last_conflict_free(last_conflict_free_transaction);
+    }
+
+  } else {
+    stats = new Pipeline_member_stats(get_pipeline_stats_member_collector(),
+                                      get_message_queue_size(), 0, 0);
+  }
+  return stats;
 }

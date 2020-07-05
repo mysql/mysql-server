@@ -1,7 +1,8 @@
 # Tests for PERFORMANCE_SCHEMA
 
 # Setup
-
+--source include/have_myisam.inc
+--source include/force_myisam_default.inc
 update performance_schema.setup_instruments set enabled='NO';
 update performance_schema.setup_instruments set enabled='YES'
   where name like "wait/io/file/myisam/%";

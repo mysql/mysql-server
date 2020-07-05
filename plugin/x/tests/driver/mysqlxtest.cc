@@ -153,7 +153,7 @@ std::istream &get_input(Driver_command_line_options *opt, std::ifstream &file,
     }
 
     file.open(opt->m_run_file.c_str());
-    file.rdbuf()->pubsetbuf(NULL, 0);
+    file.rdbuf()->pubsetbuf(nullptr, 0);
 
     if (!file.is_open()) {
       std::cerr << "ERROR: Could not open file " << opt->m_run_file << "\n";

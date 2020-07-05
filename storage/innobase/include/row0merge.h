@@ -282,7 +282,7 @@ and then stage->inc() will be called for each record processed.
 @return DB_SUCCESS or error code */
 dberr_t row_merge_sort(trx_t *trx, const row_merge_dup_t *dup,
                        merge_file_t *file, row_merge_block_t *block, int *tmpfd,
-                       ut_stage_alter_t *stage = NULL);
+                       ut_stage_alter_t *stage = nullptr);
 
 /** Allocate a sort buffer.
  @return own: sort buffer */

@@ -39,7 +39,8 @@ var defaults = {
   router_id: 1,
   // let the test that uses it set it explicitly, going with some default would mean failures
   // each time the version is bumped up (which we don't even control)
-  router_version: ""
+  router_version: "",
+  rest_user_credentials: []
 };
 
 function ensure_type(options, field, expected_type) {
@@ -686,13 +687,13 @@ exports.get = function get(stmt_key, options) {
     },
 
     router_count_clusters_v1: {
-      stmt: "select ((select count(*) from " +
-            "mysql_innodb_cluster_metadata.clusters)=1) as has_one_gr_cluster",
+      stmt: "select count(*) from " +
+            "mysql_innodb_cluster_metadata.clusters",
       result: {
         columns: [
           {
             "type": "LONGLONG",
-            "name": "has_one_gr_cluster"
+            "name": "count(*)"
           }
          ],
          rows: [
@@ -704,13 +705,13 @@ exports.get = function get(stmt_key, options) {
     },
 
     router_count_clusters_v2: {
-      stmt: "select ((select count(*) from " +
-             "mysql_innodb_cluster_metadata.v2_gr_clusters)=1) as has_one_gr_cluster",
+      stmt: "select count(*) from " +
+             "mysql_innodb_cluster_metadata.v2_gr_clusters",
       result: {
         columns: [
           {
             "type": "LONGLONG",
-            "name": "has_one_gr_cluster"
+            "name": "count(*)"
           }
          ],
          rows: [
@@ -722,13 +723,13 @@ exports.get = function get(stmt_key, options) {
     },
 
     router_count_clusters_v2_ar: {
-      stmt: "select ((select count(*) from " +
-            "mysql_innodb_cluster_metadata.v2_ar_clusters)=1) as has_one_ar_cluster",
+      stmt: "select count(*) from " +
+            "mysql_innodb_cluster_metadata.v2_ar_clusters",
       result: {
         columns: [
           {
             "type": "LONGLONG",
-            "name": "has_one_ar_cluster"
+            "name": "count(*)"
            }
         ],
         rows: [
@@ -857,7 +858,7 @@ exports.get = function get(stmt_key, options) {
             "name": "cluster_type"
           }
          ],
-         "rows": [[options.cluster_type]]
+         "rows": options.cluster_type === "" ? [] : [[options.cluster_type]]
       }
     },
 
@@ -955,6 +956,59 @@ exports.get = function get(stmt_key, options) {
       "stmt": "UPDATE mysql_innodb_cluster_metadata.v2_routers set last_check_in = " +
               "NOW() where router_id = " + options.router_id,
       "ok": {}
+    },
+
+    router_set_session_options:
+    {
+      "stmt": "SET @@SESSION.autocommit=1, @@SESSION.character_set_client=utf8, " +
+              "@@SESSION.character_set_results=utf8, @@SESSION.character_set_connection=utf8, " +
+              "@@SESSION.sql_mode='ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES," +
+              "NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION'",
+      "ok": {}
+    },
+
+    router_set_gr_consistency_level:
+    {
+      "stmt": "SET @@SESSION.group_replication_consistency='EVENTUAL'",
+      "ok": {}
+    },
+
+    router_select_rest_accounts_credentials:
+    {
+      "stmt": "SELECT user, authentication_string, privileges, " +
+              "authentication_method FROM " +
+              "mysql_innodb_cluster_metadata.v2_router_rest_accounts WHERE " +
+              "cluster_id=(SELECT cluster_id FROM " +
+              "mysql_innodb_cluster_metadata.v2_clusters WHERE cluster_name='"
+              + options.innodb_cluster_name + "')",
+      "result": {
+        "columns": [
+          {
+            "type": "STRING",
+            "name": "user"
+          },
+          {
+            "type": "STRING",
+            "name": "authentication_string"
+          },
+          {
+            "type": "STRING",
+            "name": "privileges"
+          },
+          {
+            "type": "STRING",
+            "name": "authentication_method"
+          }
+        ],
+        "rows": options["rest_user_credentials"].map(function(currentValue) {
+              return [
+                currentValue[0],
+                currentValue[1],
+                currentValue[2] === "" ? null : currentValue[2],
+                currentValue[3],
+              ]
+        })
+      }
     },
   };
 

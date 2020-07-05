@@ -77,14 +77,14 @@ void *my_once_alloc(size_t Size, myf MyFlags) {
     if (max_left * 4 < my_once_extra && get_size < my_once_extra)
       get_size = my_once_extra; /* Normal alloc */
 
-    if ((next = (USED_MEM *)malloc(get_size)) == 0) {
+    if ((next = (USED_MEM *)malloc(get_size)) == nullptr) {
       set_my_errno(errno);
       if (MyFlags & (MY_FAE + MY_WME))
         my_error(EE_OUTOFMEMORY, MYF(ME_FATALERROR), get_size);
-      return ((uchar *)0);
+      return ((uchar *)nullptr);
     }
     DBUG_PRINT("test", ("my_once_malloc %lu byte malloced", (ulong)get_size));
-    next->next = 0;
+    next->next = nullptr;
     next->size = (uint)get_size;
     next->left = (uint)(get_size - ALIGN_SIZE(sizeof(USED_MEM)));
     *prev = next;
@@ -125,5 +125,5 @@ void my_once_free(void) {
     next = next->next;
     free((uchar *)old);
   }
-  my_once_root_block = 0;
+  my_once_root_block = nullptr;
 } /* my_once_free */

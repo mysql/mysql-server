@@ -17,6 +17,10 @@
 ###############################################################################
 
 --source include/have_binlog_format_row.inc
+
+# this test requires creating a large binlog that triggers rotation
+# with compression turned on this is not deterministic
+--source include/not_binlog_transaction_compression_on.inc
 --let $MYSQLD_DATADIR= `select @@datadir`
 
 --echo #

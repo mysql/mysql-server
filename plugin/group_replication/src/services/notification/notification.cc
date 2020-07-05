@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,7 @@ static int notify_group_membership(Notification_context &ctx,
                                    my_h_service svc) {
   int svc_ko = 0;
   const char *view_id = ctx.get_view_id().c_str();
-  SERVICE_TYPE(group_membership_listener) *listener = NULL;
+  SERVICE_TYPE(group_membership_listener) *listener = nullptr;
 
   /* now that we have the handler for it, notify */
   listener = reinterpret_cast<SERVICE_TYPE(group_membership_listener) *>(svc);
@@ -55,7 +55,7 @@ static int notify_group_member_status(Notification_context &ctx,
                                       my_h_service svc) {
   int svc_ko = 0;
   const char *view_id = ctx.get_view_id().c_str();
-  SERVICE_TYPE(group_member_status_listener) *listener = NULL;
+  SERVICE_TYPE(group_member_status_listener) *listener = nullptr;
 
   /* now that we have the handler for it, notify */
   listener =
@@ -82,11 +82,11 @@ static int notify_group_member_status(Notification_context &ctx,
   @return false on success, true otherwise.
  */
 static bool notify(SvcTypes svc_type, Notification_context &ctx) {
-  SERVICE_TYPE(registry) *r = NULL;
-  SERVICE_TYPE(registry_query) *rq = NULL;
-  my_h_service_iterator h_ret_it = NULL;
-  my_h_service h_listener_svc = NULL;
-  my_h_service h_listener_default_svc = NULL;
+  SERVICE_TYPE(registry) *r = nullptr;
+  SERVICE_TYPE(registry_query) *rq = nullptr;
+  my_h_service_iterator h_ret_it = nullptr;
+  my_h_service h_listener_svc = nullptr;
+  my_h_service h_listener_default_svc = nullptr;
   bool res = false;
   bool default_notified = false;
   std::string svc_name;
@@ -136,11 +136,11 @@ static bool notify(SvcTypes svc_type, Notification_context &ctx) {
   }
 
   /* notify all listeners */
-  while (h_ret_it != NULL &&
+  while (h_ret_it != nullptr &&
          /* is_valid returns false on success */
          rq->is_valid(h_ret_it) == false) {
     int svc_ko = 0;
-    const char *next_svc_name = NULL;
+    const char *next_svc_name = nullptr;
 
     /* get next registered listener */
     if (rq->get(h_ret_it, &next_svc_name)) goto err; /* purecov: inspected */

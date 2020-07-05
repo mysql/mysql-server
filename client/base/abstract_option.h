@@ -126,7 +126,7 @@ T_type *Abstract_option<T_type>::set_short_character(char code) {
   this->m_option_structure.id = (int)code;
 
   // Inform that it has changed
-  if (this->m_option_changed_listener != NULL) {
+  if (this->m_option_changed_listener != nullptr) {
     this->m_option_changed_listener->notify_option_optid_changed(this,
                                                                  old_optid);
   }
@@ -139,12 +139,12 @@ Abstract_option<T_type>::Abstract_option(void *value, ulong var_type,
                                          std::string name,
                                          std::string description,
                                          longlong default_value)
-    : m_option_changed_listener(NULL) {
+    : m_option_changed_listener(nullptr) {
   this->m_option_structure.block_size = 0;
   this->m_option_structure.max_value = 0;
   this->m_option_structure.min_value = 0;
-  this->m_option_structure.typelib = NULL;
-  this->m_option_structure.u_max_value = NULL;
+  this->m_option_structure.typelib = nullptr;
+  this->m_option_structure.u_max_value = nullptr;
 
   this->m_option_structure.app_type = this;
   this->m_option_structure.arg_type = REQUIRED_ARG;
@@ -166,7 +166,7 @@ Abstract_option<T_type>::Abstract_option(void *value, ulong var_type,
 
   this->m_option_structure.value = value;
   this->m_option_structure.var_type = var_type;
-  this->m_option_structure.arg_source = 0;
+  this->m_option_structure.arg_source = nullptr;
 }
 
 template <typename T_type>
@@ -177,7 +177,7 @@ my_option Abstract_option<T_type>::get_my_option() {
 template <typename T_type>
 void Abstract_option<T_type>::set_option_changed_listener(
     I_option_changed_listener *listener) {
-  DBUG_ASSERT(this->m_option_changed_listener == NULL);
+  DBUG_ASSERT(this->m_option_changed_listener == nullptr);
 
   this->m_option_changed_listener = listener;
 }

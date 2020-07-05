@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -204,7 +204,7 @@ void init_m_by_emp_by_mtype_share(PFS_engine_table_share_proxy *share) {
   share->m_ref_length = sizeof(POS_m_by_emp_by_mtype);
   share->m_acl = READONLY;
   share->get_row_count = m_by_emp_by_mtype_get_row_count;
-  share->delete_all_rows = NULL; /* READONLY TABLE */
+  share->delete_all_rows = nullptr; /* READONLY TABLE */
 
   /* Initialize PFS_engine_table_proxy */
   share->m_proxy_engine_table = {m_by_emp_by_mtype_rnd_next,
@@ -215,11 +215,11 @@ void init_m_by_emp_by_mtype_share(PFS_engine_table_share_proxy *share) {
                                  m_by_emp_by_mtype_index_next,
                                  m_by_emp_by_mtype_read_column_value,
                                  m_by_emp_by_mtype_reset_position,
-                                 NULL, /* READONLY TABLE */
-                                 NULL, /* READONLY TABLE */
-                                 NULL, /* READONLY TABLE */
-                                 NULL, /* READONLY TABLE */
-                                 NULL, /* READONLY TABLE */
+                                 nullptr, /* READONLY TABLE */
+                                 nullptr, /* READONLY TABLE */
+                                 nullptr, /* READONLY TABLE */
+                                 nullptr, /* READONLY TABLE */
+                                 nullptr, /* READONLY TABLE */
                                  m_by_emp_by_mtype_open_table,
                                  m_by_emp_by_mtype_close_table};
 }

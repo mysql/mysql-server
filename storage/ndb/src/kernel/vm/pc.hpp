@@ -267,6 +267,12 @@ extern thread_local Uint32 NDB_THREAD_TLS_RES_OWNER;
 #define NO_GCP
 #endif
 #define ZUNDEFINED_GCI_LIMIT 1
+#define DEFAULT_SPIN_TIME 0
+#define MEASURE_SPIN_TIME 60
+#define MAX_SPIN_TIME 500
+#define MAX_SPIN_OVERHEAD 10000
+#define MIN_SPINTIME_PER_CALL 300
+#define MAX_SPINTIME_PER_CALL 8000
 
 /**
  * Ndb kernel blocks assertion handling

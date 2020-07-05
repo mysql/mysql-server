@@ -41,19 +41,6 @@ IF(NOT SYSTEM_TYPE)
   ENDIF()
 ENDIF()
 
-# Check to see if we are using LLVM's libc++ rather than e.g. libstd++
-# Can then check HAVE_LLBM_LIBCPP later without including e.g. ciso646.
-CHECK_CXX_SOURCE_RUNS("
-#include <ciso646>
-int main()
-{
-#ifdef _LIBCPP_VERSION
-  return 0;
-#else
-  return 1;
-#endif
-}" HAVE_LLVM_LIBCPP)
-
 # Same for structs, setting HAVE_STRUCT_<name> instead
 FUNCTION(MY_CHECK_STRUCT_SIZE type defbase)
   CHECK_TYPE_SIZE("struct ${type}" SIZEOF_${defbase})
@@ -211,17 +198,12 @@ CHECK_INCLUDE_FILES (endian.h HAVE_ENDIAN_H)
 CHECK_INCLUDE_FILES (execinfo.h HAVE_EXECINFO_H)
 CHECK_INCLUDE_FILES (fpu_control.h HAVE_FPU_CONTROL_H)
 CHECK_INCLUDE_FILES (grp.h HAVE_GRP_H)
-CHECK_INCLUDE_FILES (ieeefp.h HAVE_IEEEFP_H)
 CHECK_INCLUDE_FILES (langinfo.h HAVE_LANGINFO_H)
 CHECK_INCLUDE_FILES (malloc.h HAVE_MALLOC_H)
 CHECK_INCLUDE_FILES (netinet/in.h HAVE_NETINET_IN_H)
 CHECK_INCLUDE_FILES (poll.h HAVE_POLL_H)
 CHECK_INCLUDE_FILES (pwd.h HAVE_PWD_H)
-IF(WITH_ASAN)
-  CHECK_INCLUDE_FILES (sanitizer/lsan_interface.h HAVE_LSAN_INTERFACE_H)
-ENDIF()
 CHECK_INCLUDE_FILES (strings.h HAVE_STRINGS_H) # Used by NDB
-CHECK_INCLUDE_FILES (sys/cdefs.h HAVE_SYS_CDEFS_H) # Used by libedit
 CHECK_INCLUDE_FILES (sys/ioctl.h HAVE_SYS_IOCTL_H)
 CHECK_INCLUDE_FILES (sys/mman.h HAVE_SYS_MMAN_H)
 CHECK_INCLUDE_FILES (sys/prctl.h HAVE_SYS_PRCTL_H)
@@ -236,19 +218,9 @@ CHECK_INCLUDE_FILES (sys/wait.h HAVE_SYS_WAIT_H)
 CHECK_INCLUDE_FILES (sys/param.h HAVE_SYS_PARAM_H) # Used by NDB/libevent
 CHECK_INCLUDE_FILES (fnmatch.h HAVE_FNMATCH_H)
 CHECK_INCLUDE_FILES (sys/un.h HAVE_SYS_UN_H)
-CHECK_INCLUDE_FILES (vis.h HAVE_VIS_H) # Used by libedit
 # Cyrus SASL 2.1.26 on Solaris 11.4 has a bug that requires sys/types.h
 # to be included before checking if sasl/sasl.h exists
 CHECK_INCLUDE_FILES ("sys/types.h;sasl/sasl.h" HAVE_SASL_SASL_H)
-
-# For libevent
-CHECK_INCLUDE_FILES(sys/devpoll.h HAVE_DEVPOLL)
-IF(HAVE_DEVPOLL)
-  # Duplicate symbols, but keep it to avoid changing libevent code.
-  SET(HAVE_SYS_DEVPOLL_H 1)
-ENDIF()
-CHECK_INCLUDE_FILES(sys/epoll.h HAVE_SYS_EPOLL_H)
-CHECK_SYMBOL_EXISTS (TAILQ_FOREACH "sys/queue.h" HAVE_TAILQFOREACH)
 
 #
 # Tests for functions
@@ -271,7 +243,6 @@ CHECK_SYMBOL_EXISTS(fdatasync "unistd.h" HAVE_DECL_FDATASYNC)
 CHECK_FUNCTION_EXISTS (fedisableexcept HAVE_FEDISABLEEXCEPT)
 CHECK_FUNCTION_EXISTS (fsync HAVE_FSYNC)
 CHECK_FUNCTION_EXISTS (gethrtime HAVE_GETHRTIME)
-CHECK_FUNCTION_EXISTS (getnameinfo HAVE_GETNAMEINFO)
 CHECK_FUNCTION_EXISTS (getpass HAVE_GETPASS)
 CHECK_FUNCTION_EXISTS (getpassphrase HAVE_GETPASSPHRASE)
 CHECK_FUNCTION_EXISTS (getpwnam HAVE_GETPWNAM)
@@ -285,19 +256,15 @@ CHECK_FUNCTION_EXISTS (getgid HAVE_GETGID)
 CHECK_FUNCTION_EXISTS (getegid HAVE_GETEGID)
 CHECK_FUNCTION_EXISTS (madvise HAVE_MADVISE)
 CHECK_FUNCTION_EXISTS (malloc_info HAVE_MALLOC_INFO)
-CHECK_FUNCTION_EXISTS (memrchr HAVE_MEMRCHR)
 CHECK_FUNCTION_EXISTS (mlock HAVE_MLOCK)
 CHECK_FUNCTION_EXISTS (mlockall HAVE_MLOCKALL)
 CHECK_FUNCTION_EXISTS (mmap64 HAVE_MMAP64)
 CHECK_FUNCTION_EXISTS (poll HAVE_POLL)
 CHECK_FUNCTION_EXISTS (posix_fallocate HAVE_POSIX_FALLOCATE)
 CHECK_FUNCTION_EXISTS (posix_memalign HAVE_POSIX_MEMALIGN)
-CHECK_FUNCTION_EXISTS (pread HAVE_PREAD) # Used by NDB
 CHECK_FUNCTION_EXISTS (pthread_condattr_setclock HAVE_PTHREAD_CONDATTR_SETCLOCK)
 CHECK_FUNCTION_EXISTS (pthread_getaffinity_np HAVE_PTHREAD_GETAFFINITY_NP)
 CHECK_FUNCTION_EXISTS (pthread_sigmask HAVE_PTHREAD_SIGMASK)
-CHECK_FUNCTION_EXISTS (setfd HAVE_SETFD) # Used by libevent (never true)
-CHECK_FUNCTION_EXISTS (sigaction HAVE_SIGACTION)
 CHECK_FUNCTION_EXISTS (sleep HAVE_SLEEP)
 CHECK_FUNCTION_EXISTS (stpcpy HAVE_STPCPY)
 CHECK_FUNCTION_EXISTS (stpncpy HAVE_STPNCPY)
@@ -305,8 +272,6 @@ CHECK_FUNCTION_EXISTS (strlcpy HAVE_STRLCPY)
 CHECK_FUNCTION_EXISTS (strndup HAVE_STRNDUP) # Used by libbinlogevents
 CHECK_FUNCTION_EXISTS (strlcat HAVE_STRLCAT)
 CHECK_FUNCTION_EXISTS (strsignal HAVE_STRSIGNAL)
-CHECK_FUNCTION_EXISTS (fgetln HAVE_FGETLN)
-CHECK_FUNCTION_EXISTS (strsep HAVE_STRSEP)
 CHECK_FUNCTION_EXISTS (tell HAVE_TELL)
 CHECK_FUNCTION_EXISTS (vasprintf HAVE_VASPRINTF)
 CHECK_FUNCTION_EXISTS (memalign HAVE_MEMALIGN)
@@ -314,15 +279,6 @@ CHECK_FUNCTION_EXISTS (nl_langinfo HAVE_NL_LANGINFO)
 CHECK_FUNCTION_EXISTS (ntohll HAVE_HTONLL)
 
 CHECK_FUNCTION_EXISTS (epoll_create HAVE_EPOLL)
-# Temperarily  Quote event port out as we encounter error in port_getn
-# on solaris x86
-# CHECK_FUNCTION_EXISTS (port_create HAVE_EVENT_PORTS)
-CHECK_FUNCTION_EXISTS (inet_ntop HAVE_INET_NTOP)
-CHECK_FUNCTION_EXISTS (kqueue HAVE_WORKING_KQUEUE)
-CHECK_SYMBOL_EXISTS (timeradd "sys/time.h" HAVE_TIMERADD)
-CHECK_SYMBOL_EXISTS (timerclear "sys/time.h" HAVE_TIMERCLEAR)
-CHECK_SYMBOL_EXISTS (timercmp "sys/time.h" HAVE_TIMERCMP)
-CHECK_SYMBOL_EXISTS (timerisset "sys/time.h" HAVE_TIMERISSET)
 
 #--------------------------------------------------------------------
 # Support for WL#2373 (Use cycle counter for timing)
@@ -351,24 +307,6 @@ CHECK_CXX_SOURCE_COMPILES(
 int main() {
   long long int foo = O_TMPFILE;
 }" HAVE_O_TMPFILE)
-
-# On Solaris, it is only visible in C99 mode
-CHECK_SYMBOL_EXISTS(isinf "math.h" HAVE_C_ISINF)
-
-# isinf() prototype not found on Solaris
-CHECK_CXX_SOURCE_COMPILES(
-"#include  <math.h>
-int main() { 
-  isinf(0.0); 
-  return 0;
-}" HAVE_CXX_ISINF)
-
-IF (HAVE_C_ISINF AND HAVE_CXX_ISINF)
-  SET(HAVE_ISINF 1 CACHE INTERNAL "isinf visible in C and C++" FORCE)
-ELSE()
-  SET(HAVE_ISINF 0 CACHE INTERNAL "isinf visible in C and C++" FORCE)
-ENDIF()
-
 
 # The results of these four checks are only needed here, not in code.
 CHECK_FUNCTION_EXISTS (timer_create HAVE_TIMER_CREATE)
@@ -404,14 +342,37 @@ ENDIF()
 INCLUDE(TestBigEndian)
 TEST_BIG_ENDIAN(WORDS_BIGENDIAN)
 
+# The header for glibc versions less than 2.9 will not
+# have the endian conversion macros defined.
+IF(HAVE_ENDIAN_H)
+  CHECK_SYMBOL_EXISTS(le64toh endian.h HAVE_LE64TOH)
+  CHECK_SYMBOL_EXISTS(le32toh endian.h HAVE_LE32TOH)
+  CHECK_SYMBOL_EXISTS(le16toh endian.h HAVE_LE16TOH)
+  CHECK_SYMBOL_EXISTS(htole64 endian.h HAVE_HTOLE64)
+  CHECK_SYMBOL_EXISTS(htole32 endian.h HAVE_HTOLE32)
+  CHECK_SYMBOL_EXISTS(htole16 endian.h HAVE_HTOLE16)
+  IF(HAVE_LE32TOH AND HAVE_LE16TOH AND HAVE_LE64TOH AND
+      HAVE_HTOLE64 AND HAVE_HTOLE32 AND HAVE_HTOLE16)
+    # Used by libbinlogevents and libmysqlgcs.
+    SET(HAVE_ENDIAN_CONVERSION_MACROS 1)
+  ENDIF()
+ENDIF()
+
 #
 # Tests for type sizes (and presence)
 #
 INCLUDE (CheckTypeSize)
 
-set(CMAKE_REQUIRED_DEFINITIONS ${CMAKE_REQUIRED_DEFINITIONS}
-        -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64
-        -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS)
+LIST(APPEND CMAKE_REQUIRED_DEFINITIONS
+  -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64
+  -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS
+  )
+
+IF(SOLARIS)
+  LIST(APPEND CMAKE_REQUIRED_DEFINITIONS
+    -D_POSIX_PTHREAD_SEMANTICS -D_REENTRANT -D_PTHREADS
+    )
+ENDIF()
 
 SET(CMAKE_EXTRA_INCLUDE_FILES stdint.h stdio.h sys/types.h time.h)
 
@@ -437,15 +398,6 @@ ENDFUNCTION()
 # We are only interested in presence for these
 MY_CHECK_TYPE_SIZE(ulong ULONG)
 MY_CHECK_TYPE_SIZE(u_int32_t U_INT32_T)
-SET(CMAKE_EXTRA_INCLUDE_FILES sys/socket.h)
-MY_CHECK_TYPE_SIZE(socklen_t SOCKLEN_T) # needed for libevent
-
-IF(HAVE_IEEEFP_H)
-  SET(CMAKE_EXTRA_INCLUDE_FILES ieeefp.h)
-  MY_CHECK_TYPE_SIZE(fp_except FP_EXCEPT)
-ENDIF()
-
-SET(CMAKE_EXTRA_INCLUDE_FILES)
 
 # Support for tagging symbols with __attribute__((visibility("hidden")))
 MY_CHECK_CXX_COMPILER_FLAG("-fvisibility=hidden" HAVE_VISIBILITY_HIDDEN)
@@ -577,44 +529,12 @@ int main()
   return 0;
 }" HAVE_BUILTIN_EXPECT)
 
-# GCC has __builtin_stpcpy but still calls stpcpy
-IF(NOT SOLARIS OR NOT MY_COMPILER_IS_GNU)
-  CHECK_C_SOURCE_COMPILES("
-  int main()
-  {
-    char foo1[1];
-    char foo2[1];
-    __builtin_stpcpy(foo1, foo2);
-    return 0;
-  }" HAVE_BUILTIN_STPCPY)
+# Only check for __builtin_stpcpy() if stpcpy() is available.
+# Oracle Developer Studio requires <string.h> to be included in order
+# to use __builtin_stpcpy.
+IF(HAVE_STPCPY)
+  CHECK_SYMBOL_EXISTS(__builtin_stpcpy "string.h" HAVE_BUILTIN_STPCPY)
 ENDIF()
-
-CHECK_CXX_SOURCE_COMPILES("
-  int main()
-  {
-    int foo= -10; int bar= 10;
-    long long int foo64= -10; long long int bar64= 10;
-    if (!__atomic_fetch_add(&foo, bar, __ATOMIC_SEQ_CST) || foo)
-      return -1;
-    bar= __atomic_exchange_n(&foo, bar, __ATOMIC_SEQ_CST);
-    if (bar || foo != 10)
-      return -1;
-    bar= __atomic_compare_exchange_n(&bar, &foo, 15, 0,
-                                     __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
-    if (bar)
-      return -1;
-    if (!__atomic_fetch_add(&foo64, bar64, __ATOMIC_SEQ_CST) || foo64)
-      return -1;
-    bar64= __atomic_exchange_n(&foo64, bar64, __ATOMIC_SEQ_CST);
-    if (bar64 || foo64 != 10)
-      return -1;
-    bar64= __atomic_compare_exchange_n(&bar64, &foo64, 15, 0,
-                                       __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
-    if (bar64)
-      return -1;
-    return 0;
-  }"
-  HAVE_GCC_ATOMIC_BUILTINS)
 
 CHECK_CXX_SOURCE_COMPILES("
   int main()
@@ -732,9 +652,9 @@ CHECK_INCLUDE_FILES(numa.h HAVE_NUMA_H)
 CHECK_INCLUDE_FILES(numaif.h HAVE_NUMAIF_H)
 
 IF(HAVE_NUMA_H AND HAVE_NUMAIF_H)
-    SET(SAVE_CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES})
-    SET(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES} numa)
-    CHECK_C_SOURCE_COMPILES(
+  SET(SAVE_CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES})
+  SET(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES} numa)
+  CHECK_C_SOURCE_COMPILES(
     "
     #include <numa.h>
     #include <numaif.h>
@@ -745,9 +665,9 @@ IF(HAVE_NUMA_H AND HAVE_NUMAIF_H)
        return all_nodes != NULL;
     }"
     HAVE_LIBNUMA)
-    SET(CMAKE_REQUIRED_LIBRARIES ${SAVE_CMAKE_REQUIRED_LIBRARIES})
+  SET(CMAKE_REQUIRED_LIBRARIES ${SAVE_CMAKE_REQUIRED_LIBRARIES})
 ELSE()
-    SET(HAVE_LIBNUMA 0)
+  SET(HAVE_LIBNUMA 0)
 ENDIF()
 
 IF(NOT HAVE_LIBNUMA)
@@ -755,9 +675,9 @@ IF(NOT HAVE_LIBNUMA)
 ENDIF()
 
 IF(HAVE_LIBNUMA AND HAVE_NUMA_H AND HAVE_NUMAIF_H)
-   OPTION(WITH_NUMA "Explicitly set NUMA memory allocation policy" ON)
+  OPTION(WITH_NUMA "Explicitly set NUMA memory allocation policy" ON)
 ELSE()
-   OPTION(WITH_NUMA "Explicitly set NUMA memory allocation policy" OFF)
+  OPTION(WITH_NUMA "Explicitly set NUMA memory allocation policy" OFF)
 ENDIF()
 
 IF(WITH_NUMA AND NOT HAVE_LIBNUMA)
@@ -767,6 +687,6 @@ IF(WITH_NUMA AND NOT HAVE_LIBNUMA)
 ENDIF()
 
 IF(HAVE_LIBNUMA AND NOT WITH_NUMA)
-   SET(HAVE_LIBNUMA 0)
-   MESSAGE(STATUS "Disabling NUMA on user's request")
+  SET(HAVE_LIBNUMA 0)
+  MESSAGE(STATUS "Disabling NUMA on user's request")
 ENDIF()

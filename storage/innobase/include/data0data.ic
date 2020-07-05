@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -56,8 +56,8 @@ void dfield_set_type(
     dfield_t *field,     /*!< in: SQL data field */
     const dtype_t *type) /*!< in: pointer to data type struct */
 {
-  ut_ad(field != NULL);
-  ut_ad(type != NULL);
+  ut_ad(field != nullptr);
+  ut_ad(type != nullptr);
 
   field->type = *type;
 }
@@ -78,7 +78,7 @@ void *dfield_get_data(const dfield_t *field) /*!< in: field */
 /** Gets length of field data.
  @return length of data; UNIV_SQL_NULL if SQL null data */
 UNIV_INLINE
-ulint dfield_get_len(const dfield_t *field) /*!< in: field */
+uint32_t dfield_get_len(const dfield_t *field) /*!< in: field */
 {
   ut_ad(field);
   ut_ad((field->len == UNIV_SQL_NULL) || (field->data != &data_error));
@@ -192,7 +192,7 @@ void dfield_write_mbr(dfield_t *field,   /*!< in: field */
 UNIV_INLINE
 void dfield_set_null(dfield_t *field) /*!< in/out: field */
 {
-  dfield_set_data(field, NULL, UNIV_SQL_NULL);
+  dfield_set_data(field, nullptr, UNIV_SQL_NULL);
 }
 
 /** Copies the data and len fields. */
@@ -200,8 +200,8 @@ UNIV_INLINE
 void dfield_copy_data(dfield_t *field1,       /*!< out: field to copy to */
                       const dfield_t *field2) /*!< in: field to copy from */
 {
-  ut_ad(field1 != NULL);
-  ut_ad(field2 != NULL);
+  ut_ad(field1 != nullptr);
+  ut_ad(field2 != nullptr);
 
   field1->data = field2->data;
   field1->len = field2->len;
@@ -225,7 +225,7 @@ void dfield_dup(dfield_t *field,  /*!< in/out: data field */
   ut_ad(!dfield_is_multi_value(field) ||
         dfield_get_len(field) != UNIV_MULTI_VALUE_ARRAY_MARKER);
 
-  if (!dfield_is_null(field) && field->data != NULL) {
+  if (!dfield_is_null(field) && field->data != nullptr) {
     UNIV_MEM_ASSERT_RW(field->data, field->len);
     field->data = mem_heap_dup(heap, field->data, field->len);
   }
@@ -233,6 +233,8 @@ void dfield_dup(dfield_t *field,  /*!< in/out: data field */
 
 UNIV_INLINE
 bool dfield_is_multi_value(const dfield_t *field) {
+  /* The value should be initialized already. */
+  ut_ad(field->type.prtype != DATA_ERROR);
   return ((field->type.prtype & DATA_MULTI_VALUE) != 0);
 }
 
@@ -422,7 +424,7 @@ dtuple_t *dtuple_create_from_mem(void *buf, ulint buf_size, ulint n_fields,
   dtuple_t *tuple;
   ulint n_t_fields = n_fields + n_v_fields;
 
-  ut_ad(buf != NULL);
+  ut_ad(buf != nullptr);
   ut_a(buf_size >= DTUPLE_EST_ALLOC(n_t_fields));
 
   tuple = (dtuple_t *)buf;
@@ -434,7 +436,7 @@ dtuple_t *dtuple_create_from_mem(void *buf, ulint buf_size, ulint n_fields,
   if (n_v_fields > 0) {
     tuple->v_fields = &tuple->fields[n_fields];
   } else {
-    tuple->v_fields = NULL;
+    tuple->v_fields = nullptr;
   }
 
 #ifdef UNIV_DEBUG
@@ -602,26 +604,6 @@ ulint dtuple_get_data_size(const dtuple_t *tuple, /*!< in: typed data tuple */
   }
 
   return (sum);
-}
-
-/** Computes the number of externally stored fields in a data tuple.
- @return number of externally stored fields */
-UNIV_INLINE
-ulint dtuple_get_n_ext(const dtuple_t *tuple) /*!< in: tuple */
-{
-  ulint n_ext = 0;
-  ulint n_fields = tuple->n_fields;
-  ulint i;
-
-  ut_ad(tuple);
-  ut_ad(dtuple_check_typed(tuple));
-  ut_ad(tuple->magic_n == DATA_TUPLE_MAGIC_N);
-
-  for (i = 0; i < n_fields; i++) {
-    n_ext += dtuple_get_nth_field(tuple, i)->ext;
-  }
-
-  return (n_ext);
 }
 
 /** Sets types of fields binary in a tuple. */

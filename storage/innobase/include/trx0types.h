@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -48,10 +48,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** printf(3) format used for printing DB_TRX_ID and other system fields */
 #define TRX_ID_FMT IB_ID_FMT
-
-/** maximum length that a formatted trx_t::id could take, not including
-the terminating NUL character. */
-static const ulint TRX_ID_MAX_LEN = 17;
 
 /** Space id of the transaction system page (the system tablespace) */
 static const space_id_t TRX_SYS_SPACE = 0;
@@ -185,6 +181,45 @@ typedef ib_mutex_t TrxSysMutex;
 
 /** The rollback segment memory object */
 struct trx_rseg_t {
+#ifdef UNIV_DEBUG
+  /** Validate the curr_size member by re-calculating it.
+  @param[in]  take_mutex  take the rseg->mutex. default is true.
+  @return true if valid, false otherwise. */
+  bool validate_curr_size(bool take_mutex = true);
+#endif /* UNIV_DEBUG */
+
+  /** Enter the rseg->mutex. */
+  void latch() {
+    mutex_enter(&mutex);
+    ut_ad(validate_curr_size(false));
+  }
+
+  /** Exit the rseg->mutex. */
+  void unlatch() {
+    ut_ad(validate_curr_size(false));
+    mutex_exit(&mutex);
+  }
+
+  /** Decrement the current size of the rollback segment by the given number
+  of pages.
+  @param[in]  npages  number of pages to reduce in size. */
+  void decr_curr_size(page_no_t npages = 1) {
+    ut_ad(curr_size >= npages);
+    curr_size -= npages;
+  }
+
+  /** Increment the current size of the rollback segment by the given number
+  of pages. */
+  void incr_curr_size() { ++curr_size; }
+
+  /* Get the current size of the rollback segment in pages.
+   @return current size of the rollback segment in pages. */
+  page_no_t get_curr_size() const { return (curr_size); }
+
+  /* Set the current size of the rollback segment in pages.
+  @param[in]  npages  new value for the current size. */
+  void set_curr_size(page_no_t npages) { curr_size = npages; }
+
   /*--------------------------------------------------------*/
   /** rollback segment id == the index of its slot in the trx
   system file copy */
@@ -206,9 +241,11 @@ struct trx_rseg_t {
   /** maximum allowed size in pages */
   ulint max_size;
 
+ private:
   /** current size in pages */
-  ulint curr_size;
+  page_no_t curr_size;
 
+ public:
   /*--------------------------------------------------------*/
   /* Fields for update undo logs */
   /** List of update undo logs */
@@ -242,7 +279,18 @@ struct trx_rseg_t {
 
   /** Reference counter to track rseg allocated transactions. */
   std::atomic<ulint> trx_ref_count;
+
+  std::ostream &print(std::ostream &out) const {
+    out << "[trx_rseg_t: this=" << (void *)this << ", id=" << id
+        << ", space_id=" << space_id << ", page_no=" << page_no
+        << ", curr_size=" << curr_size << "]";
+    return (out);
+  }
 };
+
+inline std::ostream &operator<<(std::ostream &out, const trx_rseg_t &rseg) {
+  return (rseg.print(out));
+}
 
 using Rsegs_Vector = std::vector<trx_rseg_t *, ut_allocator<trx_rseg_t *>>;
 using Rseg_Iterator = Rsegs_Vector::iterator;
@@ -540,7 +588,7 @@ typedef std::vector<trx_id_t, ut_allocator<trx_id_t>> trx_ids_t;
 /** Mapping read-write transactions from id to transaction instance, for
 creating read views and during trx id lookup for MVCC and locking. */
 struct TrxTrack {
-  explicit TrxTrack(trx_id_t id, trx_t *trx = NULL) : m_id(id), m_trx(trx) {
+  explicit TrxTrack(trx_id_t id, trx_t *trx = nullptr) : m_id(id), m_trx(trx) {
     // Do nothing
   }
 

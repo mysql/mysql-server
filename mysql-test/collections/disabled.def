@@ -61,6 +61,7 @@ max_parts.innodb_partition_open_files_limit                 : BUG#27423163 Test 
 
 # perfschema suite test
 perfschema.threads_history      : BUG#27712231
+perfschema.ssl                  : BUG#30910698
 
 # rpl_gtid suite tests
 rpl_gtid.rpl_gtid_delete_memory_table_after_start_server : BUG#24351040
@@ -72,7 +73,6 @@ rpl_nogtid.rpl_binlog_format_errors               : BUG#29776083 EXPLICIT BINLOG
 
 # rpl suite tests
 rpl.rpl_io_thd_wait_for_disk_space_stress : BUG#23581287 Disabled until bug is fixed.
-rpl.rpl_multi_source_corrupt_repository   : Bug#28765425 Disabled until the bug is fixed
 
 # sysschema suite tests
 sysschema.v_wait_classes_global_by_avg_latency : BUG#21550054 Test fails too often.

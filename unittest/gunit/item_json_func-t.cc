@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,6 @@ class ItemJsonFuncTest : public ::testing::Test {
   void SetUp() override {
     initializer.SetUp();
     m_table.in_use = thd();
-    init_alloc_root(PSI_NOT_INSTRUMENTED, &m_table.mem_root, 256, 0);
   }
 
   void TearDown() override {

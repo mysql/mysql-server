@@ -153,7 +153,7 @@ static void find_and_set_explicit_duration_for_schema_mdl(
 */
 
 bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list) {
-  TABLE_LIST *ren_table = 0;
+  TABLE_LIST *ren_table = nullptr;
   DBUG_TRACE;
 
   mysql_ha_rm_tables(thd, table_list);
@@ -168,7 +168,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list) {
   if (query_logger.is_log_table_enabled(QUERY_LOG_GENERAL) ||
       query_logger.is_log_table_enabled(QUERY_LOG_SLOW)) {
     int to_table;
-    const char *rename_log_table[2] = {NULL, NULL};
+    const char *rename_log_table[2] = {nullptr, nullptr};
 
     /*
       Rules for rename of a log table:
@@ -194,7 +194,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list) {
         log_table_rename--;
         if (rename_log_table[log_table_rename]) {
           if (to_table)
-            rename_log_table[log_table_rename] = NULL;
+            rename_log_table[log_table_rename] = nullptr;
           else {
             /*
               Two renames of "log_table TO" w/o rename "TO log_table" in
@@ -286,8 +286,8 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list) {
     */
   }
 
-  if (lock_table_names(thd, table_list, 0, thd->variables.lock_wait_timeout, 0,
-                       &schema_reqs) ||
+  if (lock_table_names(thd, table_list, nullptr,
+                       thd->variables.lock_wait_timeout, 0, &schema_reqs) ||
       lock_trigger_names(thd, table_list))
     return true;
 
@@ -472,7 +472,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list) {
         Error happened and we failed to revert all changes. We simply close
         all tables involved.
       */
-      thd->locked_tables_list.unlink_all_closed_tables(thd, NULL, 0);
+      thd->locked_tables_list.unlink_all_closed_tables(thd, nullptr, 0);
       /*
         We need to keep metadata locks on both old and new table names
         to avoid breaking foreign key invariants for LOCK TABLES.
@@ -514,7 +514,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list) {
     pointer to new (reversed) list
 */
 static TABLE_LIST *reverse_table_list(TABLE_LIST *table_list) {
-  TABLE_LIST *prev = 0;
+  TABLE_LIST *prev = nullptr;
 
   while (table_list) {
     TABLE_LIST *next = table_list->next_local;
@@ -601,7 +601,7 @@ static bool do_rename(THD *thd, TABLE_LIST *ren_table, const char *new_db,
   // not exist. Next is to act based on the table type.
   switch (from_at->type()) {
     case dd::enum_table_type::BASE_TABLE: {
-      handlerton *hton = NULL;
+      handlerton *hton = nullptr;
       dd::Table *from_table = dynamic_cast<dd::Table *>(from_at);
       // If the engine is not found, my_error() has already been called
       if (dd::table_storage_engine(thd, from_table, &hton)) return true;
@@ -909,5 +909,5 @@ static TABLE_LIST *rename_tables(
                   fk_invalidator))
       return ren_table;
   }
-  return 0;
+  return nullptr;
 }

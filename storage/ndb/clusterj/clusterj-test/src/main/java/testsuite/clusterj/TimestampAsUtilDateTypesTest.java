@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,16 +55,6 @@ create unique index idx_timestamp_not_null_both on timestamptypes(timestamp_not_
 
  */
 public class TimestampAsUtilDateTypesTest extends AbstractClusterJModelTest {
-
-    @Override
-    public void localSetUp() {
-        super.localSetUp();
-        getConnection();
-        resetLocalSystemDefaultTimeZone(connection);
-        connection = null;
-        getConnection();
-        setAutoCommit(connection, false);
-    }
 
     static int NUMBER_OF_INSTANCES = 10;
 

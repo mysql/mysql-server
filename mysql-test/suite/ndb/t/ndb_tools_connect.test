@@ -62,6 +62,7 @@ drop table t1;
 --echo Testing ndb_show_tables
 --error 1
 --exec $NDB_SHOW_TABLES --ndb-connectstring=no_such_host --connect-retry-delay=1 --connect-retries=3
+--echo
 
 --echo Testing ndb_waiter
 --replace_regex /line.*/line=no_such_host/

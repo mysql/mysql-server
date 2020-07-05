@@ -350,7 +350,7 @@ EXPLAIN
           "rows_examined_per_scan": 3,
           "rows_produced_per_join": 3,
           "filtered": "100.00",
-          "using_join_buffer": "Block Nested Loop",
+          "using_join_buffer": "hash join",
           "cost_info": {
             "read_cost": "0.25",
             "eval_cost": "0.30",
@@ -485,7 +485,7 @@ EXPLAIN
           "rows_examined_per_scan": 3,
           "rows_produced_per_join": 3,
           "filtered": "100.00",
-          "using_join_buffer": "Block Nested Loop",
+          "using_join_buffer": "hash join",
           "cost_info": {
             "read_cost": "0.25",
             "eval_cost": "0.30",
@@ -956,7 +956,7 @@ EXPLAIN
           "rows_examined_per_scan": 3,
           "rows_produced_per_join": 9,
           "filtered": "100.00",
-          "using_join_buffer": "Block Nested Loop",
+          "using_join_buffer": "hash join",
           "cost_info": {
             "read_cost": "0.25",
             "eval_cost": "0.90",
@@ -1089,7 +1089,7 @@ EXPLAIN
           "rows_examined_per_scan": 3,
           "rows_produced_per_join": 9,
           "filtered": "100.00",
-          "using_join_buffer": "Block Nested Loop",
+          "using_join_buffer": "hash join",
           "cost_info": {
             "read_cost": "0.25",
             "eval_cost": "0.90",
@@ -1134,7 +1134,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	update `test`.`t1` `t11` join (/* select#2 */ select straight_join 1 AS `1`) `t12` set `test`.`t11`.`a` = (`test`.`t11`.`a` + 10)
+Note	1003	update `test`.`t1` `t11` join (/* select#2 */ select 1 AS `1`) `t12` set `test`.`t11`.`a` = (`test`.`t11`.`a` + 10)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -1197,7 +1197,7 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Note	1003	update `test`.`t1` `t11` join (/* select#2 */ select straight_join 1 AS `1`) `t12` set `test`.`t11`.`a` = (`test`.`t11`.`a` + 10)
+Note	1003	update `test`.`t1` `t11` join (/* select#2 */ select 1 AS `1`) `t12` set `test`.`t11`.`a` = (`test`.`t11`.`a` + 10)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -1381,7 +1381,7 @@ EXPLAIN
           "rows_examined_per_scan": 3,
           "rows_produced_per_join": 3,
           "filtered": "100.00",
-          "using_join_buffer": "Block Nested Loop",
+          "using_join_buffer": "hash join",
           "cost_info": {
             "read_cost": "0.25",
             "eval_cost": "0.30",
@@ -3162,7 +3162,7 @@ EXPLAIN INSERT INTO t2 SELECT * FROM t1 JOIN t1 AS tt USING(i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t2	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	tt	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	tt	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	insert into `test`.`t2` /* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` join `test`.`t1` `tt` where (`test`.`tt`.`i` = `test`.`t1`.`i`)
 FLUSH STATUS;
@@ -3208,7 +3208,7 @@ EXPLAIN
             "rows_examined_per_scan": 3,
             "rows_produced_per_join": 3,
             "filtered": "33.33",
-            "using_join_buffer": "Block Nested Loop",
+            "using_join_buffer": "hash join",
             "cost_info": {
               "read_cost": "0.25",
               "eval_cost": "0.30",
@@ -3264,7 +3264,7 @@ EXPLAIN
           "rows_examined_per_scan": 3,
           "rows_produced_per_join": 3,
           "filtered": "33.33",
-          "using_join_buffer": "Block Nested Loop",
+          "using_join_buffer": "hash join",
           "cost_info": {
             "read_cost": "0.25",
             "eval_cost": "0.30",
@@ -4166,16 +4166,16 @@ Variable_name	Value
 Handler_read_key	9
 Handler_read_next	7
 Handler_read_rnd	4
-Sort_range	1
 Sort_rows	4
+Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	4
 Handler_read_key	13
 Handler_read_next	7
 Handler_read_rnd	8
-Sort_range	1
 Sort_rows	4
+Sort_scan	1
 
 DROP TABLE t1, t2;
 #36
@@ -5189,16 +5189,16 @@ Variable_name	Value
 Handler_read_key	9
 Handler_read_next	7
 Handler_read_rnd	4
-Sort_range	1
 Sort_rows	4
+Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_key	13
 Handler_read_next	7
 Handler_read_rnd	8
 Handler_update	4
-Sort_range	1
 Sort_rows	4
+Sort_scan	1
 
 DROP TABLE t1, t2;
 #46
@@ -5927,7 +5927,7 @@ EXPLAIN
           "rows_examined_per_scan": 1,
           "rows_produced_per_join": 2,
           "filtered": "100.00",
-          "using_join_buffer": "Block Nested Loop",
+          "using_join_buffer": "hash join",
           "cost_info": {
             "read_cost": "0.25",
             "eval_cost": "0.20",
@@ -6065,7 +6065,7 @@ EXPLAIN
           "rows_examined_per_scan": 1,
           "rows_produced_per_join": 1,
           "filtered": "100.00",
-          "using_join_buffer": "Block Nested Loop",
+          "using_join_buffer": "hash join",
           "cost_info": {
             "read_cost": "0.25",
             "eval_cost": "0.10",
@@ -6406,7 +6406,7 @@ EXPLAIN
           "rows_examined_per_scan": 2,
           "rows_produced_per_join": 2,
           "filtered": "100.00",
-          "using_join_buffer": "Block Nested Loop",
+          "using_join_buffer": "hash join",
           "cost_info": {
             "read_cost": "0.25",
             "eval_cost": "0.20",
@@ -6554,7 +6554,7 @@ EXPLAIN
           "rows_examined_per_scan": 2,
           "rows_produced_per_join": 2,
           "filtered": "50.00",
-          "using_join_buffer": "Block Nested Loop",
+          "using_join_buffer": "hash join",
           "cost_info": {
             "read_cost": "0.25",
             "eval_cost": "0.20",
@@ -6574,7 +6574,7 @@ EXPLAIN
           "rows_examined_per_scan": 2,
           "rows_produced_per_join": 4,
           "filtered": "100.00",
-          "using_join_buffer": "Block Nested Loop",
+          "using_join_buffer": "hash join",
           "cost_info": {
             "read_cost": "0.25",
             "eval_cost": "0.40",
@@ -7662,7 +7662,7 @@ EXPLAIN
           "rows_examined_per_scan": 3,
           "rows_produced_per_join": 9,
           "filtered": "100.00",
-          "using_join_buffer": "Block Nested Loop",
+          "using_join_buffer": "hash join",
           "cost_info": {
             "read_cost": "0.25",
             "eval_cost": "0.90",
@@ -7944,7 +7944,7 @@ EXPLAIN
           "rows_examined_per_scan": 3,
           "rows_produced_per_join": 9,
           "filtered": "100.00",
-          "using_join_buffer": "Block Nested Loop",
+          "using_join_buffer": "hash join",
           "cost_info": {
             "read_cost": "0.25",
             "eval_cost": "0.90",
@@ -7995,7 +7995,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	SUBQUERY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 3	DERIVED	a11	NULL	index	PRIMARY	PRIMARY	4	NULL	1	100.00	Using index
-3	DERIVED	a21	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+3	DERIVED	a21	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 3	DERIVED	a12	NULL	eq_ref	PRIMARY	PRIMARY	4	test.a11.c1	1	100.00	Using index
 Warnings:
 Note	1003	update `test`.`t3` set `test`.`t3`.`c3` = (/* select#2 */ select count(`d1`.`c1`) from (/* select#3 */ select `test`.`a11`.`c1` AS `c1` from `test`.`t1` `a11` straight_join `test`.`t2` `a21` join `test`.`t1` `a12` where ((`test`.`a21`.`c2` = `test`.`a11`.`c1`) and (`test`.`a12`.`c1` = `test`.`a11`.`c1`))) `d1`)
@@ -8020,7 +8020,7 @@ INSERT INTO t1 VALUES (1), (2);
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 USING(id) GROUP BY t1.id;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`id` = `test`.`t1`.`id`)) where true group by `test`.`t1`.`id`
 DROP TABLE t1,t2;
@@ -8211,11 +8211,11 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `t1` from `test`.`t1` where (
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
-Sort_range	1
+Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_key	2
-Sort_range	1
+Sort_scan	1
 
 DROP TABLE t1;
 #

@@ -222,3 +222,6 @@ SET @@global.general_log=0;
 --remove_file $MYSQLD_LOG_GENERAL
 --remove_file $MYSQLD_LOG_GENERAL.1
 
+# Restore default settings
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc

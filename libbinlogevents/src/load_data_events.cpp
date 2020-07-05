@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -87,7 +87,7 @@ Delete_file_event::Delete_file_event(const char *buf,
 
 Append_block_event::Append_block_event(const char *buf,
                                        const Format_description_event *fde)
-    : Binary_log_event(&buf, fde), block(0) {
+    : Binary_log_event(&buf, fde), block(nullptr) {
   BAPI_ENTER(
       "Append_block_event::Append_block_event(const char*, const "
       "Format_description_event*)");

@@ -1,6 +1,6 @@
 #ifndef SQL_PLIST_H
 #define SQL_PLIST_H
-/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -80,13 +80,13 @@ class I_P_List : public C, public I {
     is a bad idea.
   */
  public:
-  I_P_List() : I(&m_first), m_first(NULL) {}
+  I_P_List() : I(&m_first), m_first(nullptr) {}
   inline void empty() {
-    m_first = NULL;
+    m_first = nullptr;
     C::reset();
     I::set_last(&m_first);
   }
-  inline bool is_empty() const { return (m_first == NULL); }
+  inline bool is_empty() const { return (m_first == nullptr); }
   inline void push_front(T *a) {
     *B::next_ptr(a) = m_first;
     if (m_first)
@@ -106,7 +106,7 @@ class I_P_List : public C, public I {
     C::inc();
   }
   inline void insert_after(T *pos, T *a) {
-    if (pos == NULL)
+    if (pos == nullptr)
       push_front(a);
     else {
       *B::next_ptr(a) = *B::next_ptr(pos);

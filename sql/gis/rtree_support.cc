@@ -1,4 +1,4 @@
-// Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -41,9 +41,11 @@
 #include "sql/gis/box.h"
 #include "sql/gis/box_traits.h"
 #include "sql/gis/covered_by_functor.h"
+#include "sql/gis/disjoint_functor.h"
 #include "sql/gis/equals_functor.h"
 #include "sql/gis/geometries.h"
 #include "sql/gis/geometries_cs.h"
+#include "sql/gis/intersects_functor.h"
 #include "sql/gis/mbr_utils.h"
 #include "sql/gis/srid.h"
 #include "sql/gis/wkb.h"
@@ -141,17 +143,66 @@ bool mbr_equal_cmp(const dd::Spatial_reference_system *srs, rtr_mbr_t *a,
   return result;
 }
 
-bool mbr_intersect_cmp(rtr_mbr_t *a MY_ATTRIBUTE((unused)),
-                       rtr_mbr_t *b MY_ATTRIBUTE((unused))) {
-  // This assertion contains the old return value of the function. Given a valid
-  // box, it should always be true.
-  DBUG_ASSERT((b->xmin <= a->xmax || b->xmax >= a->xmin) &&
-              (b->ymin <= a->ymax || b->ymax >= a->ymin));
-  return true;
+bool mbr_intersect_cmp(const dd::Spatial_reference_system *srs, rtr_mbr_t *a,
+                       rtr_mbr_t *b) {
+  try {
+    gis::Intersects intersects(srs ? srs->semi_major_axis() : 0.0,
+                               srs ? srs->semi_minor_axis() : 0.0);
+    if (srs == nullptr || srs->is_cartesian()) {
+      gis::Cartesian_box a_box(gis::Cartesian_point(a->xmin, a->ymin),
+                               gis::Cartesian_point(a->xmax, a->ymax));
+      gis::Cartesian_box b_box(gis::Cartesian_point(b->xmin, b->ymin),
+                               gis::Cartesian_point(b->xmax, b->ymax));
+      return intersects(&a_box, &b_box);
+    } else {
+      DBUG_ASSERT(srs->is_geographic());
+      gis::Geographic_box a_box(
+          gis::Geographic_point(srs->to_radians(a->xmin),
+                                srs->to_radians(a->ymin)),
+          gis::Geographic_point(srs->to_radians(a->xmax),
+                                srs->to_radians(a->ymax)));
+      gis::Geographic_box b_box(
+          gis::Geographic_point(srs->to_radians(b->xmin),
+                                srs->to_radians(b->ymin)),
+          gis::Geographic_point(srs->to_radians(b->xmax),
+                                srs->to_radians(b->ymax)));
+      return intersects(&a_box, &b_box);
+    }
+  } catch (...) {
+    assert(false); /* purecov: inspected */
+  }
+  return false; /* purecov: dead code */
 }
 
-bool mbr_disjoint_cmp(rtr_mbr_t *a, rtr_mbr_t *b) {
-  return !mbr_intersect_cmp(a, b);
+bool mbr_disjoint_cmp(const dd::Spatial_reference_system *srs, rtr_mbr_t *a,
+                      rtr_mbr_t *b) {
+  try {
+    gis::Disjoint disjoint(srs ? srs->semi_major_axis() : 0.0,
+                           srs ? srs->semi_minor_axis() : 0.0);
+    if (srs == nullptr || srs->is_cartesian()) {
+      gis::Cartesian_box a_box(gis::Cartesian_point(a->xmin, a->ymin),
+                               gis::Cartesian_point(a->xmax, a->ymax));
+      gis::Cartesian_box b_box(gis::Cartesian_point(b->xmin, b->ymin),
+                               gis::Cartesian_point(b->xmax, b->ymax));
+      return disjoint(&a_box, &b_box);
+    } else {
+      DBUG_ASSERT(srs->is_geographic());
+      gis::Geographic_box a_box(
+          gis::Geographic_point(srs->to_radians(a->xmin),
+                                srs->to_radians(a->ymin)),
+          gis::Geographic_point(srs->to_radians(a->xmax),
+                                srs->to_radians(a->ymax)));
+      gis::Geographic_box b_box(
+          gis::Geographic_point(srs->to_radians(b->xmin),
+                                srs->to_radians(b->ymin)),
+          gis::Geographic_point(srs->to_radians(b->xmax),
+                                srs->to_radians(b->ymax)));
+      return disjoint(&a_box, &b_box);
+    }
+  } catch (...) {
+    assert(false); /* purecov: inspected */
+  }
+  return false; /* purecov: dead code */
 }
 
 bool mbr_within_cmp(const dd::Spatial_reference_system *srs, rtr_mbr_t *a,

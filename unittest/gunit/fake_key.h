@@ -2,7 +2,7 @@
 #define FAKE_KEY_INCLUDED
 
 /*
-   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,7 +59,7 @@ class Fake_KEY : public KEY {
     Only member variables needed for the rec_per_key interface are
     currently initialized.
 
-    @param user_defined_key_parts_arg number of key parts defined for index
+    @param user_defined_parts_arg number of key parts defined for index
     @param actual_key_parts_arg number of additional primary key parts
                                 included in index
     @param unique        unique or non-unique key

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -114,7 +114,7 @@ class List;
 @endverbatim
   SELECT terminates after executing the first subquery if the related IN
   predicate is false, so we won't see @c JOIN::optimize() tracing for subq2;
-  whereas EXPLAIN SELECT analyzes all subqueries (see loop at the end of @c
+  whereas EXPLAIN SELECT analyzes all subqueries (see loop at the end of
   @c select_describe()).
 
   @section USER_SELECT_TRACING_STATEMENTS How a user traces only certain
@@ -426,7 +426,7 @@ class Opt_trace_iterator {
   void get_value(Opt_trace_info *info) const;
 
   /// @returns whether iterator is positioned to the end.
-  bool at_end() const { return cursor == NULL; }
+  bool at_end() const { return cursor == nullptr; }
 
  private:
   /// Pointer to context, from which traces are retrieved
@@ -530,7 +530,7 @@ class Opt_trace_struct {
   */
   Opt_trace_struct &add_alnum(const char *value) {
     if (likely(!started)) return *this;
-    return do_add(NULL, value, strlen(value), false);
+    return do_add(nullptr, value, strlen(value), false);
   }
 
   /**
@@ -549,7 +549,7 @@ class Opt_trace_struct {
   /// Variant of add_utf8() for adding to an array (no key)
   Opt_trace_struct &add_utf8(const char *value, size_t val_length) {
     if (likely(!started)) return *this;
-    return do_add(NULL, value, val_length, true);
+    return do_add(nullptr, value, val_length, true);
   }
 
   /// Variant of add_utf8() where 'value' is 0-terminated
@@ -561,7 +561,7 @@ class Opt_trace_struct {
   /// Variant of add_utf8() where 'value' is 0-terminated
   Opt_trace_struct &add_utf8(const char *value) {
     if (likely(!started)) return *this;
-    return do_add(NULL, value, strlen(value), true);
+    return do_add(nullptr, value, strlen(value), true);
   }
 
   /**
@@ -579,7 +579,7 @@ class Opt_trace_struct {
   }
   Opt_trace_struct &add(Item *item) {
     if (likely(!started)) return *this;
-    return do_add(NULL, item);
+    return do_add(nullptr, item);
   }
 
  public:
@@ -589,7 +589,7 @@ class Opt_trace_struct {
   }
   Opt_trace_struct &add(bool value) {
     if (likely(!started)) return *this;
-    return do_add(NULL, value);
+    return do_add(nullptr, value);
   }
   Opt_trace_struct &add(const char *key, int value) {
     if (likely(!started)) return *this;
@@ -597,7 +597,7 @@ class Opt_trace_struct {
   }
   Opt_trace_struct &add(int value) {
     if (likely(!started)) return *this;
-    return do_add(NULL, static_cast<longlong>(value));
+    return do_add(nullptr, static_cast<longlong>(value));
   }
   Opt_trace_struct &add(const char *key, uint value) {
     if (likely(!started)) return *this;
@@ -605,7 +605,7 @@ class Opt_trace_struct {
   }
   Opt_trace_struct &add(uint value) {
     if (likely(!started)) return *this;
-    return do_add(NULL, static_cast<ulonglong>(value));
+    return do_add(nullptr, static_cast<ulonglong>(value));
   }
   Opt_trace_struct &add(const char *key, ulong value) {
     if (likely(!started)) return *this;
@@ -613,7 +613,7 @@ class Opt_trace_struct {
   }
   Opt_trace_struct &add(ulong value) {
     if (likely(!started)) return *this;
-    return do_add(NULL, static_cast<ulonglong>(value));
+    return do_add(nullptr, static_cast<ulonglong>(value));
   }
   Opt_trace_struct &add(const char *key, longlong value) {
     if (likely(!started)) return *this;
@@ -621,7 +621,7 @@ class Opt_trace_struct {
   }
   Opt_trace_struct &add(longlong value) {
     if (likely(!started)) return *this;
-    return do_add(NULL, value);
+    return do_add(nullptr, value);
   }
   Opt_trace_struct &add(const char *key, ulonglong value) {
     if (likely(!started)) return *this;
@@ -629,7 +629,7 @@ class Opt_trace_struct {
   }
   Opt_trace_struct &add(ulonglong value) {
     if (likely(!started)) return *this;
-    return do_add(NULL, value);
+    return do_add(nullptr, value);
   }
   Opt_trace_struct &add(const char *key, double value) {
     if (likely(!started)) return *this;
@@ -637,7 +637,7 @@ class Opt_trace_struct {
   }
   Opt_trace_struct &add(double value) {
     if (likely(!started)) return *this;
-    return do_add(NULL, value);
+    return do_add(nullptr, value);
   }
   /// Adds a 64-bit integer to trace, in hexadecimal format
   Opt_trace_struct &add_hex(const char *key, uint64 value) {
@@ -646,7 +646,7 @@ class Opt_trace_struct {
   }
   Opt_trace_struct &add_hex(uint64 value) {
     if (likely(!started)) return *this;
-    return do_add_hex(NULL, value);
+    return do_add_hex(nullptr, value);
   }
   /// Adds a JSON null object (==Python's "None")
   Opt_trace_struct &add_null(const char *key) {
@@ -832,7 +832,7 @@ class Opt_trace_object : public Opt_trace_struct {
   Opt_trace_object(
       Opt_trace_context *ctx,
       Opt_trace_context::feature_value feature = Opt_trace_context::MISC)
-      : Opt_trace_struct(ctx, true, NULL, feature) {}
+      : Opt_trace_struct(ctx, true, nullptr, feature) {}
 };
 
 /**
@@ -862,7 +862,7 @@ class Opt_trace_array : public Opt_trace_struct {
   Opt_trace_array(
       Opt_trace_context *ctx,
       Opt_trace_context::feature_value feature = Opt_trace_context::MISC)
-      : Opt_trace_struct(ctx, false, NULL, feature) {}
+      : Opt_trace_struct(ctx, false, nullptr, feature) {}
 };
 
 /**
@@ -910,12 +910,12 @@ class Opt_trace_disable_I_S {
       ctx = ctx_arg;
       ctx->disable_I_S_for_this_and_children();
     } else
-      ctx = NULL;
+      ctx = nullptr;
   }
 
   /// Destructor. Restores trace's "enabled" property to its previous value.
   ~Opt_trace_disable_I_S() {
-    if (ctx != NULL) ctx->restore_I_S();
+    if (ctx != nullptr) ctx->restore_I_S();
   }
 
  private:
@@ -932,31 +932,31 @@ class Opt_trace_disable_I_S {
 
 //@{
 
-/**
-  Instantiate this class to start tracing a THD's actions (generally at a
-  statement's start), and to set the "original" query (not transformed, as
-  sent by client) for the new trace. Destructor will end the trace.
-
-  If in a routine's instruction, there is no "query". To be helpful to the
-  user, we craft a query using the instruction's print(). We don't leave this
-  to the caller, because it would be inefficient if tracing is off.
-
-  @param  thd          the THD
-  @param  tbl          list of tables read/written by the statement.
-  @param  sql_command  SQL command being prepared or executed
-  @param  set_vars     what variables are set by this command (only used if
-                       sql_command is SQLCOM_SET_OPTION)
-  @param  query        query
-  @param  length       query's length
-  @param  instr        routine's instruction, if applicable; if so, 'query'
-                       and 'query_length' above are ignored
-  @param  charset      charset which was used to encode this query
-
-  @note Each sub-statement is responsible for ending the trace which it
-  has started; this class achieves this by keeping some memory inside.
-*/
 class Opt_trace_start {
  public:
+  /**
+    Instantiate this class to start tracing a THD's actions (generally at a
+    statement's start), and to set the "original" query (not transformed, as
+    sent by client) for the new trace. Destructor will end the trace.
+
+    If in a routine's instruction, there is no "query". To be helpful to the
+    user, we craft a query using the instruction's print(). We don't leave this
+    to the caller, because it would be inefficient if tracing is off.
+
+    @param  thd_arg       the THD
+    @param  tbl           list of tables read/written by the statement.
+    @param  sql_command   SQL command being prepared or executed
+    @param  set_vars      what variables are set by this command (only used if
+                          sql_command is SQLCOM_SET_OPTION)
+    @param  query         query
+    @param  query_length  query's length
+    @param  instr         routine's instruction, if applicable; if so, 'query'
+                          and 'query_length' above are ignored
+    @param  query_charset charset which was used to encode this query
+
+    @note Each sub-statement is responsible for ending the trace which it
+    has started; this class achieves this by keeping some memory inside.
+  */
   Opt_trace_start(THD *thd_arg, TABLE_LIST *tbl,
                   enum enum_sql_command sql_command,
                   List<set_var_base> *set_vars, const char *query,

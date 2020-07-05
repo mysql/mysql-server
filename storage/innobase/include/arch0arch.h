@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -166,6 +166,9 @@ enum Arch_State {
 
   /** Archiver is idle */
   ARCH_STATE_IDLE,
+
+  /** Server is in read only mode, and hence the archiver */
+  ARCH_STATE_READ_ONLY,
 
   /** Archiver is aborted */
   ARCH_STATE_ABORT
@@ -555,7 +558,7 @@ class Arch_File_Ctx {
   @param[in]		offset		file offset from where to read
   @param[in]		size		size of data to read in bytes
   @return error code */
-  dberr_t read(byte *to_buffer, const uint offset, const uint size);
+  dberr_t read(byte *to_buffer, const uint64_t offset, const uint size);
 
   /** Write data to this file context from the given file offset.
   Data source is another file context or buffer. If buffer is NULL, data is
@@ -626,7 +629,7 @@ class Arch_File_Ctx {
 
   /* Fetch offset of the file open in this context.
   @return file offset */
-  uint get_offset() const { return (m_offset); }
+  uint64_t get_offset() const { return (m_offset); }
 
   /** Get number of files
   @return current file count */
@@ -904,8 +907,7 @@ class Arch_Group {
   }
 
   /** Attach a client to the archive group.
-  @param[in]	is_durable	true, if durable tracking is requested
-  @return	number of client references */
+  @param[in]	is_durable	true, if durable tracking is requested */
   void attach(bool is_durable) {
     ut_ad(mutex_own(m_arch_mutex));
     ++m_num_active;
@@ -1623,8 +1625,10 @@ class Arch_Page_Sys {
   void arch_oper_mutex_exit() { mutex_exit(&m_oper_mutex); }
 
   /* Save information at the time of a reset considered as the reset point.
-  @return error code */
-  void save_reset_point(bool is_durable);
+  @param[in]  is_durable  true if it's durable page tracking
+  @return true if the reset point information stored in the data block needs to
+  be flushed to disk before returning to the caller, else false */
+  bool save_reset_point(bool is_durable);
 
   /** Wait for reset info to be flushed to disk.
   @param[in]	request_block	block number until which blocks need to be
@@ -1717,6 +1721,9 @@ class Arch_Page_Sys {
   /** Print information related to the archiver for debugging purposes. */
   void print();
 #endif
+
+  /** Set the state of the archiver system to read only. */
+  void set_read_only_mode() { m_state = ARCH_STATE_READ_ONLY; }
 
   /** Check if archiver system is in initial state
   @return true, if page ID archiver state is #ARCH_STATE_INIT */

@@ -1,4 +1,4 @@
-# Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -287,8 +287,6 @@ IF(APPLE)
 ENDIF()
 
 IF(APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
-  ADD_DEPENDENCIES(ndb_engine copy_openssl_dlls)
-
   ADD_CUSTOM_COMMAND(TARGET ndb_engine POST_BUILD
     COMMAND install_name_tool -change
     "${CRYPTO_VERSION}" "@loader_path/${CRYPTO_VERSION}"

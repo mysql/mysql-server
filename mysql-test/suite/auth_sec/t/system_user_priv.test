@@ -504,3 +504,9 @@ disconnect non_sys_usr_con;
 --source include/wait_until_count_sessions.inc
 
 call mtr.add_suppression(".*Cannot set mandatory_roles: AuthId.* privilege.");
+
+RESET PERSIST mandatory_roles;
+
+# Restore default settings in opt file and clean up
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc

@@ -32,6 +32,9 @@
 #include <memory>
 #include <set>
 
+#include "plugin/x/protocol/stream/compression/compression_algorithm_interface.h"
+#include "plugin/x/protocol/stream/compression/decompression_algorithm_interface.h"
+
 namespace xcl {
 
 /**
@@ -76,6 +79,17 @@ class XCompression {
   virtual bool reinitialize(const Compression_algorithm algorithm) = 0;
 
   /**
+    Reinitialize 'uplink' and 'downlink' compression context using set
+    algorithm and compression level.
+
+    Some compression algorithm may be only set before session or capability
+    setup, in that case setting such algorithm may fail. Also some algorithms
+    set once may be not changeable.
+  */
+  virtual bool reinitialize(const Compression_algorithm algorithm,
+                            const int32_t level) = 0;
+
+  /**
     Downlink compression stream
 
     This method returns a stream that can be used with compression done
@@ -92,6 +106,24 @@ class XCompression {
     layers without possibility for user interaction.
   */
   virtual Output_stream_ptr uplink(Output_stream *data_stream) = 0;
+
+  /**
+    Uplink compression algorithm
+
+    This method returns an algorithm that can be used with compression done
+    on X message level.
+  */
+  virtual protocol::Compression_algorithm_interface *compression_algorithm()
+      const = 0;
+
+  /**
+    Downlink compression algorithm
+
+    This method returns an algorithm that can be used with decompression done
+    on X message level.
+  */
+  virtual protocol::Decompression_algorithm_interface *decompression_algorithm()
+      const = 0;
 };
 
 }  // namespace xcl

@@ -46,6 +46,12 @@
 #include "my_default.h"
 #include "map_helpers.h"
 
+#define require(a) \
+  if (!(a)) \
+  { \
+    fprintf(stderr, "#a"); \
+    abort(); \
+  }
 
 #define BLUE_COLOR 1
 #define GREEN_COLOR 2
@@ -64,6 +70,7 @@ struct thread_result_type
   unsigned int thread_exec;
   unsigned int thread_send;
   unsigned int thread_buffer_full;
+  unsigned int thread_spin;
   unsigned int thread_sleeping;
   unsigned int elapsed_time;
 };
@@ -147,7 +154,8 @@ query_mysql()
       sizeof(buf),
       "SELECT cs.thr_no, ts.thread_name, cs.OS_user, cs.OS_system, cs.OS_idle,"
       " cs.thread_exec, cs.thread_send, cs.thread_buffer_full, cs.thread_sleeping,"
-      " cs.elapsed_time FROM cpustat as cs, threads as ts WHERE"
+      " cs.elapsed_time, cs.thread_spinning"
+      " FROM cpustat as cs, threads as ts WHERE"
       " cs.node_id = %u AND"
       " cs.thr_no = ts.thr_no AND"
       " cs.node_id = ts.node_id",
@@ -162,7 +170,7 @@ query_mysql()
     return 2;
 
   int num_fields = mysql_num_fields(result);
-  if (num_fields != 10)
+  if (num_fields != 11)
   {
     return 3;
   }
@@ -180,7 +188,7 @@ query_mysql()
   }
   THREAD_RESULT *tr_array =
     (THREAD_RESULT*)malloc(sizeof(THREAD_RESULT) * num_rows);
-  assert(tr_array != NULL);
+  require(tr_array != NULL);
   thread_result = tr_array;
 
   ndb_threads = 0;
@@ -190,30 +198,32 @@ query_mysql()
     THREAD_RESULT *tr = &thread_result[ndb_threads];
     unsigned long *lengths;
     lengths = mysql_fetch_lengths(result);
-    assert(row[0]);
+    require(row[0]);
     sscanf(row[0], "%u", &tr->thr_no);
-    assert(row[1]);
+    require(row[1]);
     sscanf(row[1], "%31s", tr->thr_name);
-    assert(row[2]);
+    require(row[2]);
     sscanf(row[2], "%u", &tr->OS_user);
-    assert(row[3]);
+    require(row[3]);
     sscanf(row[3], "%u", &tr->OS_system);
-    assert(row[4]);
+    require(row[4]);
     sscanf(row[4], "%u", &tr->OS_idle);
-    assert(row[5]);
+    require(row[5]);
     sscanf(row[5], "%u", &tr->thread_exec);
-    assert(row[6]);
+    require(row[6]);
     sscanf(row[6], "%u", &tr->thread_send);
-    assert(row[7]);
+    require(row[7]);
     sscanf(row[7], "%u", &tr->thread_buffer_full);
-    assert(row[8]);
+    require(row[8]);
     sscanf(row[8], "%u", &tr->thread_sleeping);
-    assert(row[9]);
+    require(row[9]);
     sscanf(row[9], "%u", &tr->elapsed_time);
+    require(row[10]);
+    sscanf(row[10], "%u", &tr->thread_spin);
     ndb_threads++;
   }
   mysql_free_result(result);
-  assert((uint64_t)ndb_threads == num_rows);
+  require((uint64_t)ndb_threads == num_rows);
   return 0;
 }
 
@@ -459,7 +469,8 @@ static void init_sort_order(unsigned int *sort_order,
   {
     unsigned int meas_load = tr[i].thread_exec +
                              tr[i].thread_send +
-                             tr[i].thread_buffer_full;
+                             tr[i].thread_buffer_full +
+                             tr[i].thread_spin;
     unsigned int os_load = tr[i].OS_user +
                            tr[i].OS_system;
     unsigned int load = meas_load;
@@ -635,7 +646,7 @@ int main(int argc, char **argv)
       {
         unsigned int blue_dots = (tr->OS_user * total_dots) / 100;
         unsigned int green_dots = (tr->OS_system * total_dots) / 100;
-        assert(total_dots >= (blue_dots + green_dots));
+        require(total_dots >= (blue_dots + green_dots));
         unsigned int white_dots = total_dots - (blue_dots + green_dots);
         unsigned int percentage = tr->OS_user + tr->OS_system;
 
@@ -700,15 +711,46 @@ int main(int argc, char **argv)
       }
       if (opt_measured_load)
       {
-
+        if (tr->thread_buffer_full > 100)
+        {
+          tr->thread_buffer_full = 100;
+          tr->thread_send = 0;
+          tr->thread_spin = 0;
+          tr->thread_exec = 0;
+        }
+        else if (tr->thread_exec + tr->thread_buffer_full > 100)
+        {
+          tr->thread_exec = 100 - tr->thread_buffer_full;
+          tr->thread_send = 0;
+          tr->thread_spin = 0;
+        }
+        else if (tr->thread_exec +
+                 tr->thread_buffer_full +
+                 tr->thread_send > 100)
+        {
+          tr->thread_send = 100 -
+            (tr->thread_buffer_full + tr->thread_exec);
+          tr->thread_spin = 0;
+        }
+        else if (tr->thread_exec +
+                 tr->thread_buffer_full +
+                 tr->thread_send +
+                 tr->thread_spin > 100)
+        {
+          tr->thread_spin = 100 -
+            (tr->thread_buffer_full + tr->thread_exec + tr->thread_send);
+        }
         unsigned int blue_dots = (tr->thread_exec * total_dots) / 100;
         unsigned int yellow_dots = (tr->thread_send * total_dots) / 100;
+        unsigned int green_dots = (tr->thread_spin * total_dots) / 100;
         unsigned int red_dots = (tr->thread_buffer_full * total_dots) / 100;
-        assert(total_dots >= (blue_dots + yellow_dots + red_dots));
-        unsigned int white_dots = total_dots - (blue_dots + yellow_dots + red_dots);
+        require(total_dots >= (blue_dots + yellow_dots + red_dots + green_dots));
+        unsigned int white_dots = total_dots -
+                                  (blue_dots + yellow_dots + green_dots + red_dots);
         unsigned int percentage = tr->thread_exec +
                                     tr->thread_send +
-                                    tr->thread_buffer_full;
+                                    tr->thread_buffer_full +
+                                    tr->thread_spin;
         if (opt_text)
         {
           if (lines_used++ >= height)
@@ -719,7 +761,10 @@ int main(int argc, char **argv)
                  tr->thr_name,
                  tr->thr_no);
           unsigned int idle;
-          if ((tr->thread_exec + tr->thread_send + tr->thread_buffer_full) >
+          if ((tr->thread_exec +
+               tr->thread_send +
+               tr->thread_buffer_full +
+               tr->thread_spin) >
                100)
           {
             idle = 0;
@@ -727,18 +772,27 @@ int main(int argc, char **argv)
           else
           {
             idle = (100 -
-              (tr->thread_exec + tr->thread_send + tr->thread_buffer_full));
+              (tr->thread_exec +
+               tr->thread_send +
+               tr->thread_buffer_full +
+               tr->thread_spin));
           }
-          printw("exec: %3u%c, send: %3u%c, full: %3u%c idle: %3u%c] %3u%c\n\r",
+          printw("exec: %3u%c, send: %3u%c, spin: %3u%c, full: %3u%c"
+                 " idle: %3u%c] %3u%c\n\r",
                  tr->thread_exec,
                  percentage_sign,
                  tr->thread_send,
+                 percentage_sign,
+                 tr->thread_spin,
                  percentage_sign,
                  tr->thread_buffer_full,
                  percentage_sign,
                  idle,
                  percentage_sign,
-                 (tr->thread_exec + tr->thread_send + tr->thread_buffer_full),
+                 (tr->thread_exec +
+                  tr->thread_send +
+                  tr->thread_buffer_full +
+                  tr->thread_spin),
                  percentage_sign);
         }
         if (opt_graph)
@@ -750,6 +804,7 @@ int main(int argc, char **argv)
           printw("%4s thr_no %2u user view [",
                  tr->thr_name,
                  tr->thr_no);
+
           if (use_color)
             attron(COLOR_PAIR(BLUE_COLOR));
           for (unsigned int j = 0; j < blue_dots; j++)
@@ -759,6 +814,12 @@ int main(int argc, char **argv)
             attron(COLOR_PAIR(YELLOW_COLOR));
           for (unsigned int j = 0; j < yellow_dots; j++)
             print_dark_shade();
+
+          if (use_color)
+            attron(COLOR_PAIR(GREEN_COLOR));
+          for (unsigned int j = 0; j < green_dots; j++)
+            print_medium_shade();
+
           if (use_color)
             attron(COLOR_PAIR(RED_COLOR));
           for (unsigned int j = 0; j < red_dots; j++)
@@ -768,6 +829,7 @@ int main(int argc, char **argv)
             attron(COLOR_PAIR(DEFAULT_COLOR));
           for (unsigned int j = 0; j < white_dots; j++)
             print_space();
+
           printw("] %3u%c\n\r", percentage, percentage_sign);
         }
       }

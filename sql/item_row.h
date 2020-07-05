@@ -103,11 +103,11 @@ class Item_row : public Item {
   }
   String *val_str(String *) override {
     illegal_method_call("val_str");
-    return 0;
+    return nullptr;
   }
   my_decimal *val_decimal(my_decimal *) override {
     illegal_method_call("val_decimal");
-    return 0;
+    return nullptr;
   }
   bool get_date(MYSQL_TIME *, my_time_flags_t) override {
     illegal_method_call("get_date");

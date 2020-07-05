@@ -23,13 +23,9 @@
 #ifndef SQL_AUTHENTICATION_INCLUDED
 #define SQL_AUTHENTICATION_INCLUDED
 
+#include <openssl/rsa.h>
 #include <stddef.h>
 #include <sys/types.h>
-
-#if defined(HAVE_OPENSSL)
-#include <openssl/rsa.h>
-#endif
-
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_thread_local.h"    // my_thread_id
@@ -96,7 +92,6 @@ struct MPVIO_EXT : public MYSQL_PLUGIN_VIO {
   bool can_authenticate();
 };
 
-#if defined(HAVE_OPENSSL)
 class String;
 
 bool init_rsa_keys(void);
@@ -118,10 +113,10 @@ class Rsa_authentication_keys {
 
  public:
   Rsa_authentication_keys(char **private_key_path, char **public_key_path)
-      : m_public_key(0),
-        m_private_key(0),
+      : m_public_key(nullptr),
+        m_private_key(nullptr),
         m_cipher_len(0),
-        m_pem_public_key(0),
+        m_pem_public_key(nullptr),
         m_private_key_path(private_key_path),
         m_public_key_path(public_key_path) {}
   ~Rsa_authentication_keys() {}
@@ -136,8 +131,6 @@ class Rsa_authentication_keys {
   bool read_rsa_keys();
   const char *get_public_key_as_pem(void) { return m_pem_public_key; }
 };
-
-#endif /* HAVE_OPENSSL */
 
 /* Data Structures */
 
@@ -203,7 +196,7 @@ class Cached_authentication_plugins {
   static const char *get_plugin_name(cached_plugins_enum plugin_index) {
     if (plugin_index < PLUGIN_LAST)
       return cached_plugins_names[plugin_index].str;
-    return 0;
+    return nullptr;
   }
 
   Cached_authentication_plugins();
@@ -220,7 +213,7 @@ class Cached_authentication_plugins {
   */
   plugin_ref get_cached_plugin_ref(cached_plugins_enum plugin_index) {
     if (plugin_index < PLUGIN_LAST) return cached_plugins[plugin_index];
-    return 0;
+    return nullptr;
   }
 
   plugin_ref cached_plugins[(uint)PLUGIN_LAST];

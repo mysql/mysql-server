@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <string>
 
@@ -35,14 +36,12 @@
 #include "plugin/x/ngs/include/ngs/protocol_decoder.h"
 #include "plugin/x/ngs/include/ngs/protocol_encoder_compression.h"
 #include "plugin/x/src/capabilities/configurator.h"
-#include "plugin/x/src/global_timeouts.h"
 #include "plugin/x/src/helper/chrono.h"
 #include "plugin/x/src/helper/multithread/mutex.h"
 #include "plugin/x/src/interface/client.h"
 #include "plugin/x/src/interface/protocol_encoder.h"
 #include "plugin/x/src/interface/server.h"
 #include "plugin/x/src/interface/vio.h"
-#include "plugin/x/src/xpl_system_variables.h"
 
 #ifndef WIN32
 #include <netinet/in.h>
@@ -54,7 +53,7 @@ class Client : public xpl::iface::Client {
  public:
   Client(std::shared_ptr<xpl::iface::Vio> connection,
          xpl::iface::Server &server, Client_id client_id,
-         xpl::iface::Protocol_monitor *pmon, const Global_timeouts &timeouts);
+         xpl::iface::Protocol_monitor *pmon);
   ~Client() override;
 
   xpl::Mutex &get_session_exit_mutex() override { return m_session_exit_mutex; }
@@ -64,7 +63,7 @@ class Client : public xpl::iface::Client {
   }
 
  public:  // impl iface::Client
-  void run(const bool skip_resolve_name) override;
+  void run() override;
 
   void activate_tls() override;
 
@@ -110,9 +109,9 @@ class Client : public xpl::iface::Client {
 
   bool handle_session_connect_attr_set(ngs::Message_request &command);
 
-  void configure_compression_opts(const Compression_algorithm algo,
-                                  const int64_t max_msg,
-                                  const bool combine) override;
+  void configure_compression_opts(
+      const Compression_algorithm algo, const int64_t max_msg,
+      const bool combine, const xpl::Optional_value<int64_t> &level) override;
 
   void handle_message(Message_request *message) override;
 
@@ -178,13 +177,18 @@ class Client : public xpl::iface::Client {
   bool m_is_interactive = false;
   bool m_is_compression_encoder_injected = false;
 
-  uint32_t m_read_timeout = Global_timeouts::Default::k_read_timeout;
-  uint32_t m_write_timeout = Global_timeouts::Default::k_write_timeout;
+  uint32_t m_read_timeout;
+  uint32_t m_write_timeout;
 
   Compression_algorithm m_cached_compression_algorithm =
       Compression_algorithm::k_none;
   int64_t m_cached_max_msg = -1;
   bool m_cached_combine_msg = false;
+  int32_t m_cached_compression_level = 3;
+
+  int32_t get_adjusted_compression_level(
+      const Compression_algorithm algo,
+      const xpl::Optional_value<int64_t> &level) const;
 
   Error_code read_one_message_and_dispatch();
 
@@ -215,7 +219,7 @@ class Client : public xpl::iface::Client {
   void set_close_reason_if_non_fatal(const Close_reason reason);
   void update_counters();
 
-  void on_client_addr(const bool skip_resolve_name);
+  void on_client_addr();
   void on_accept();
   bool create_session();
 };

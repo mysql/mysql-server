@@ -152,7 +152,7 @@ class PTI_simple_ident_q_2d : public PTI_simple_ident_q_3d {
  public:
   PTI_simple_ident_q_2d(const POS &pos, const char *table_arg,
                         const char *field_arg)
-      : super(pos, NULL, table_arg, field_arg) {}
+      : super(pos, nullptr, table_arg, field_arg) {}
 
   bool itemize(Parse_context *pc, Item **res) override;
 };
@@ -355,7 +355,7 @@ class PTI_literal_underscore_charset_hex_num : public Item_string {
 
     set_repertoire_from_value();
     set_cs_specified(true);
-    return check_well_formed_result(&str_value, true, true) == NULL;
+    return check_well_formed_result(&str_value, true, true) == nullptr;
   }
 };
 
@@ -374,7 +374,7 @@ class PTI_literal_underscore_charset_bin_num : public Item_string {
     if (super::itemize(pc, res)) return true;
 
     set_cs_specified(true);
-    return check_well_formed_result(&str_value, true, true) == NULL;
+    return check_well_formed_result(&str_value, true, true) == nullptr;
   }
 };
 
@@ -428,7 +428,8 @@ class PTI_count_sym : public Item_sum_count {
   typedef Item_sum_count super;
 
  public:
-  PTI_count_sym(const POS &pos, PT_window *w) : super(pos, (Item *)NULL, w) {}
+  PTI_count_sym(const POS &pos, PT_window *w)
+      : super(pos, (Item *)nullptr, w) {}
 
   bool itemize(Parse_context *pc, Item **res) override;
 };

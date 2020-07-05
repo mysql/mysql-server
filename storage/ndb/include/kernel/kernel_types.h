@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,8 @@
 #include "ndb_global.h"
 #include "ndb_limits.h"
 
-typedef Uint16 NodeId; 
+typedef Uint16 NodeId;
+typedef Uint16 TrpId;
 typedef Uint16 BlockNumber;
 typedef Uint16 BlockInstance;
 typedef Uint32 BlockReference;
@@ -68,7 +69,7 @@ struct Local_key
   bool isNull() const { return m_page_no == RNIL; }
   void setNull() { m_page_no= RNIL; m_file_no= m_page_idx= ~0;}
 
-  static bool isInvalid(Uint32 lk1, Uint32 lk2)
+  static bool isInvalid(Uint32 lk1, Uint32)
   {
     return lk1 == INVALID_PAGE_NO;
   }

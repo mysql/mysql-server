@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -42,7 +42,7 @@ std::error_code HttpAuthBackendComponent::authenticate(
   if (auto backends = auth_backends_.lock()) {
     auto it = backends->find(inst);
     if (it == backends->end()) {
-      return std::make_error_code(HttpAuthErrc::kBackendNotFound);
+      return make_error_code(HttpAuthErrc::kBackendNotFound);
     }
 
     return it->second->authenticate(username, authdata);

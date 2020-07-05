@@ -31,7 +31,7 @@ DEFINE_BOOL_METHOD(send, (const char *tag, const unsigned char *data,
                           const size_t data_length)) {
   DBUG_TRACE;
 
-  if (NULL == local_member_info) return true;
+  if (nullptr == local_member_info) return true;
 
   Group_member_info::Group_member_status member_status =
       local_member_info->get_recovery_status();
@@ -81,7 +81,7 @@ static void *launch_message_service_handler_thread(void *arg) {
   DBUG_TRACE;
   Message_service_handler *handler = (Message_service_handler *)arg;
   handler->dispatcher();
-  return 0;
+  return nullptr;
 }
 
 Message_service_handler::Message_service_handler()
@@ -202,7 +202,7 @@ void Message_service_handler::dispatcher() {
   mysql_mutex_unlock(&m_message_service_run_lock);
 
   my_thread_end();
-  my_thread_exit(0);
+  my_thread_exit(nullptr);
 }
 
 int Message_service_handler::terminate() {

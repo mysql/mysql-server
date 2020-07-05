@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -986,12 +986,12 @@ DECLARE_NDBINFO_TABLE(DISKSTATS_1SEC, 13) =
   }
 };
 
-#define DBINFOTBL(x) { Ndbinfo::x##_TABLEID, (Ndbinfo::Table*)&ndbinfo_##x }
+#define DBINFOTBL(x) { Ndbinfo::x##_TABLEID, (const Ndbinfo::Table*)&ndbinfo_##x }
 
 static
 struct ndbinfo_table_list_entry {
   Ndbinfo::TableId id;
-  Ndbinfo::Table * table;
+  const Ndbinfo::Table * table;
 } ndbinfo_tables[] = {
   // NOTE! the tables must be added to the list in the same order
   // as they are in "enum TableId"

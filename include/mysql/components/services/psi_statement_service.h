@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -189,7 +189,5 @@ end_sp_v1_t end_sp;
 /** @sa drop_sp_v1_t. */
 drop_sp_v1_t drop_sp;
 END_SERVICE_DEFINITION(psi_statement_v2)
-
-#define REQUIRES_PSI_STATEMENT_SERVICE REQUIRES_SERVICE(psi_statement_v2)
 
 #endif /* COMPONENTS_SERVICES_PSI_STATEMENT_SERVICE_H */

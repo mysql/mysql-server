@@ -785,9 +785,13 @@ ClusterMgr::execAPI_REGREQ(const Uint32 * theData){
   conf->minDbVersion= 0;
   conf->nodeState= node.m_state;
 
+  DEBUG_FPRINTF((stderr, "set_confirmed on node: %u\n", nodeId));
   node.set_confirmed(true);
   if (safe_sendSignal(&signal, nodeId) != 0)
+  {
+    DEBUG_FPRINTF((stderr, "reset_confirmed on node: %u\n", nodeId));
     node.set_confirmed(false);
+  }
 }
 
 void
@@ -820,6 +824,8 @@ ClusterMgr::execAPI_REGCONF(const NdbApiSignal * signal,
       node.compatible = ndbCompatible_api_ndb(NDB_VERSION,
 					      node.m_info.m_version);
   }
+
+  DEBUG_FPRINTF((stderr, "2:set_confirmed on node %u\n", nodeId));
 
   node.set_confirmed(true);
 
@@ -1224,7 +1230,6 @@ ClusterMgr::reportDisconnected(NodeId nodeId)
    */
   if (unlikely(!node_connected))
   {
-    assert(node_connected);
     if (theFacade.m_poll_owner != this)
       unlock();
     return;

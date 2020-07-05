@@ -50,7 +50,7 @@ char *fn_same(char *to, const char *name, int flag) {
   DBUG_PRINT("enter", ("to: %s  name: %s  flag: %d", to, name, flag));
 
   if ((ext = strrchr(name + dirname_part(dev, name, &dev_length),
-                     FN_EXTCHAR)) == 0)
+                     FN_EXTCHAR)) == nullptr)
     ext = "";
 
   return fn_format(to, to, dev, ext, flag);

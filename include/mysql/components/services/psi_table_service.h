@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -52,7 +52,5 @@ end_table_lock_wait_v1_t end_table_lock_wait;
 /** @sa end_table_lock_wait_v1_t. */
 unlock_table_v1_t unlock_table;
 END_SERVICE_DEFINITION(psi_table_v1)
-
-#define REQUIRES_PSI_TABLE_SERVICE REQUIRES_SERVICE(psi_table_v1)
 
 #endif /* COMPONENTS_SERVICES_PSI_TABLE_SERVICE_H */

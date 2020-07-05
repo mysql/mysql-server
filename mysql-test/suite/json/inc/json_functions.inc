@@ -2410,6 +2410,7 @@ insert into t_ooa values
 ( 1, '{ "a": "foot", "b": "fool", "c": "food" }', 'all' ),
 ( 1, '{ "a": "foot", "b": "fool", "c": "food" }', null );
 
+--sorted_result
 select id, doc, one_or_all, json_search( doc, one_or_all, 'foo%' ) from t_ooa order by id;
 select id, doc, json_search( doc, 'one', 'foo%' ) from t_ooa order by id;
 select id, doc, json_search( doc, 'all', 'foo%' ) from t_ooa order by id;
@@ -2456,6 +2457,7 @@ insert into tt(i, j)
 insert into tt(i, si)
   select count(*), json_extract('{"key17": {"a": {"b": "c"}}, "key88": 100}',
                                '$.key88');
+--sorted_result
 select * from tt order by i;
 
 # This exercises Item_copy_json::val_real
@@ -3042,6 +3044,7 @@ DROP TABLE t;
 --echo # JSON should work with INSERT .. ON DUPLICATE KEY UPDATE
 --echo #
 CREATE TABLE t(id INT PRIMARY KEY, j JSON);
+--disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO t VALUES (1, '[1]')
 ON DUPLICATE KEY UPDATE j = JSON_OBJECT("a", VALUES(j));
 SELECT * FROM t;
@@ -3050,6 +3053,7 @@ ON DUPLICATE KEY UPDATE j = JSON_OBJECT("ab", VALUES(j));
 SELECT * FROM t;
 INSERT INTO t VALUES (1, '[1,2,3]')
 ON DUPLICATE KEY UPDATE j = JSON_OBJECT("abc", VALUES(j));
+--enable_ps_protocol
 SELECT * FROM t;
 DROP TABLE t;
 
@@ -4124,6 +4128,14 @@ SELECT (5, CAST(1 AS JSON)) IN ((1, CAST(5 AS JSON)),(5, CAST(1 AS JSON)));
 SELECT (5, 1) IN ((1, CAST(5 AS JSON)),(5, CAST(1 AS JSON)));
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#30753642: ASSERTION `FALSE' FAILED. IN ITEM_JSON::VAL_STR
+--echo #
+CREATE TABLE t(a DATETIME);
+INSERT INTO t VALUES ('2019-01-13 00:00:00');
+SELECT 1 IN (SELECT 1 FROM t WHERE JSON_OBJECT('a', 'b') = a);
+DROP TABLE t;
 
 # Local Variables:
 # mode: sql

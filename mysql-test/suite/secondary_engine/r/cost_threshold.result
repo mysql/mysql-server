@@ -42,18 +42,18 @@ Last_query_cost	0.549000
 EXPLAIN SELECT * FROM v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t7	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t8	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t9	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t10	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t12	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t13	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
+1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
+1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
+1	SIMPLE	t7	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
+1	SIMPLE	t8	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
+1	SIMPLE	t9	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
+1	SIMPLE	t10	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
+1	SIMPLE	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
+1	SIMPLE	t12	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
+1	SIMPLE	t13	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x1`,`test`.`t2`.`x` AS `x2`,`test`.`t3`.`x` AS `x3`,`test`.`t4`.`x` AS `x4`,`test`.`t5`.`x` AS `x5`,`test`.`t6`.`x` AS `x6`,`test`.`t7`.`x` AS `x7`,`test`.`t8`.`x` AS `x8`,`test`.`t9`.`x` AS `x9`,`test`.`t10`.`x` AS `x10`,`test`.`t11`.`x` AS `x11`,`test`.`t12`.`x` AS `x12`,`test`.`t13`.`x` AS `x13` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` join `test`.`t1` `t4` join `test`.`t1` `t5` join `test`.`t1` `t6` join `test`.`t1` `t7` join `test`.`t1` `t8` join `test`.`t1` `t9` join `test`.`t1` `t10` join `test`.`t1` `t11` join `test`.`t1` `t12` join `test`.`t1` `t13`
 SHOW STATUS LIKE 'Last_query_cost';
@@ -131,48 +131,50 @@ NULL
 EXPLAIN SELECT * FROM v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using secondary engine MOCK
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
-1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
-1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
-1	SIMPLE	t7	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
-1	SIMPLE	t8	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
-1	SIMPLE	t9	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
-1	SIMPLE	t10	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
-1	SIMPLE	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
-1	SIMPLE	t12	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
-1	SIMPLE	t13	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+1	SIMPLE	t7	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+1	SIMPLE	t8	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+1	SIMPLE	t9	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+1	SIMPLE	t10	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+1	SIMPLE	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+1	SIMPLE	t12	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+1	SIMPLE	t13	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x1`,`test`.`t2`.`x` AS `x2`,`test`.`t3`.`x` AS `x3`,`test`.`t4`.`x` AS `x4`,`test`.`t5`.`x` AS `x5`,`test`.`t6`.`x` AS `x6`,`test`.`t7`.`x` AS `x7`,`test`.`t8`.`x` AS `x8`,`test`.`t9`.`x` AS `x9`,`test`.`t10`.`x` AS `x10`,`test`.`t11`.`x` AS `x11`,`test`.`t12`.`x` AS `x12`,`test`.`t13`.`x` AS `x13` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` join `test`.`t1` `t4` join `test`.`t1` `t5` join `test`.`t1` `t6` join `test`.`t1` `t7` join `test`.`t1` `t8` join `test`.`t1` `t9` join `test`.`t1` `t10` join `test`.`t1` `t11` join `test`.`t1` `t12` join `test`.`t1` `t13`
 SELECT * FROM v1;
 x1	x2	x3	x4	x5	x6	x7	x8	x9	x10	x11	x12	x13
 EXPLAIN SELECT * FROM t1 WHERE x = (SELECT COUNT(*) FROM v1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using secondary engine MOCK
-2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using secondary engine MOCK
-2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
-2	SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
-2	SUBQUERY	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
-2	SUBQUERY	t5	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
-2	SUBQUERY	t6	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
-2	SUBQUERY	t7	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
-2	SUBQUERY	t8	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
-2	SUBQUERY	t9	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
-2	SUBQUERY	t10	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
-2	SUBQUERY	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
-2	SUBQUERY	t12	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
-2	SUBQUERY	t13	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (hash join); Using secondary engine MOCK
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using secondary engine MOCK
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+2	DERIVED	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+2	DERIVED	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+2	DERIVED	t5	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+2	DERIVED	t6	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+2	DERIVED	t7	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+2	DERIVED	t8	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+2	DERIVED	t9	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+2	DERIVED	t10	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+2	DERIVED	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+2	DERIVED	t12	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+2	DERIVED	t13	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`x` = (/* select#2 */ select count(0) from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` join `test`.`t1` `t4` join `test`.`t1` `t5` join `test`.`t1` `t6` join `test`.`t1` `t7` join `test`.`t1` `t8` join `test`.`t1` `t9` join `test`.`t1` `t10` join `test`.`t1` `t11` join `test`.`t1` `t12` join `test`.`t1` `t13`))
+Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` join (/* select#2 */ select count(0) AS `COUNT(*)` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` join `test`.`t1` `t4` join `test`.`t1` `t5` join `test`.`t1` `t6` join `test`.`t1` `t7` join `test`.`t1` `t8` join `test`.`t1` `t9` join `test`.`t1` `t10` join `test`.`t1` `t11` join `test`.`t1` `t12` join `test`.`t1` `t13`) `derived_1_0` where (`test`.`t1`.`x` = `derived_1_0`.`COUNT(*)`)
 SELECT * FROM t1 WHERE x = (SELECT COUNT(*) FROM v1);
 x	y
 EXPLAIN SELECT * FROM t1 tt WHERE x = (SELECT SUM(x) FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	tt	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using secondary engine MOCK
-2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using secondary engine MOCK
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	tt	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (hash join); Using secondary engine MOCK
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using secondary engine MOCK
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tt`.`x` AS `x`,`test`.`tt`.`y` AS `y` from `test`.`t1` `tt` where (`test`.`tt`.`x` = (/* select#2 */ select sum(`test`.`t1`.`x`) from `test`.`t1`))
+Note	1003	/* select#1 */ select `test`.`tt`.`x` AS `x`,`test`.`tt`.`y` AS `y` from `test`.`t1` `tt` join (/* select#2 */ select sum(`test`.`t1`.`x`) AS `SUM(x)` from `test`.`t1`) `derived_1_0` where (`test`.`tt`.`x` = `derived_1_0`.`SUM(x)`)
 SELECT * FROM t1 tt WHERE x = (SELECT SUM(x) FROM t1);
 x	y
 EXPLAIN SELECT * FROM t1 tt
@@ -218,40 +220,41 @@ SELECT (SELECT y FROM t1 WHERE x = 1);
 EXPLAIN SELECT * FROM v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using secondary engine MOCK
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
-1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
-1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
-1	SIMPLE	t7	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
-1	SIMPLE	t8	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
-1	SIMPLE	t9	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
-1	SIMPLE	t10	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
-1	SIMPLE	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
-1	SIMPLE	t12	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
-1	SIMPLE	t13	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+1	SIMPLE	t7	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+1	SIMPLE	t8	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+1	SIMPLE	t9	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+1	SIMPLE	t10	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+1	SIMPLE	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+1	SIMPLE	t12	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+1	SIMPLE	t13	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x1`,`test`.`t2`.`x` AS `x2`,`test`.`t3`.`x` AS `x3`,`test`.`t4`.`x` AS `x4`,`test`.`t5`.`x` AS `x5`,`test`.`t6`.`x` AS `x6`,`test`.`t7`.`x` AS `x7`,`test`.`t8`.`x` AS `x8`,`test`.`t9`.`x` AS `x9`,`test`.`t10`.`x` AS `x10`,`test`.`t11`.`x` AS `x11`,`test`.`t12`.`x` AS `x12`,`test`.`t13`.`x` AS `x13` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` join `test`.`t1` `t4` join `test`.`t1` `t5` join `test`.`t1` `t6` join `test`.`t1` `t7` join `test`.`t1` `t8` join `test`.`t1` `t9` join `test`.`t1` `t10` join `test`.`t1` `t11` join `test`.`t1` `t12` join `test`.`t1` `t13`
 SELECT * FROM v1;
 x1	x2	x3	x4	x5	x6	x7	x8	x9	x10	x11	x12	x13
 EXPLAIN SELECT * FROM t1 WHERE x = (SELECT COUNT(*) FROM v1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using secondary engine MOCK
-2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using secondary engine MOCK
-2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
-2	SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
-2	SUBQUERY	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
-2	SUBQUERY	t5	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
-2	SUBQUERY	t6	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
-2	SUBQUERY	t7	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
-2	SUBQUERY	t8	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
-2	SUBQUERY	t9	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
-2	SUBQUERY	t10	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
-2	SUBQUERY	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
-2	SUBQUERY	t12	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
-2	SUBQUERY	t13	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop); Using secondary engine MOCK
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (hash join); Using secondary engine MOCK
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using secondary engine MOCK
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+2	DERIVED	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+2	DERIVED	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+2	DERIVED	t5	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+2	DERIVED	t6	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+2	DERIVED	t7	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+2	DERIVED	t8	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+2	DERIVED	t9	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+2	DERIVED	t10	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+2	DERIVED	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+2	DERIVED	t12	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
+2	DERIVED	t13	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`x` = (/* select#2 */ select count(0) from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` join `test`.`t1` `t4` join `test`.`t1` `t5` join `test`.`t1` `t6` join `test`.`t1` `t7` join `test`.`t1` `t8` join `test`.`t1` `t9` join `test`.`t1` `t10` join `test`.`t1` `t11` join `test`.`t1` `t12` join `test`.`t1` `t13`))
+Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` join (/* select#2 */ select count(0) AS `COUNT(*)` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` join `test`.`t1` `t4` join `test`.`t1` `t5` join `test`.`t1` `t6` join `test`.`t1` `t7` join `test`.`t1` `t8` join `test`.`t1` `t9` join `test`.`t1` `t10` join `test`.`t1` `t11` join `test`.`t1` `t12` join `test`.`t1` `t13`) `derived_1_0` where (`test`.`t1`.`x` = `derived_1_0`.`COUNT(*)`)
 SELECT * FROM t1 WHERE x = (SELECT COUNT(*) FROM v1);
 x	y
 EXPLAIN SELECT * FROM t1 tt WHERE x = (SELECT SUM(x) FROM t1);
@@ -296,18 +299,18 @@ Note	1003	/* select#1 */ select (/* select#2 */ select `test`.`t1`.`y` from `tes
 EXPLAIN SELECT * FROM v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t7	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t8	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t9	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t10	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t12	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	t13	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
+1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
+1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
+1	SIMPLE	t7	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
+1	SIMPLE	t8	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
+1	SIMPLE	t9	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
+1	SIMPLE	t10	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
+1	SIMPLE	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
+1	SIMPLE	t12	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
+1	SIMPLE	t13	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x1`,`test`.`t2`.`x` AS `x2`,`test`.`t3`.`x` AS `x3`,`test`.`t4`.`x` AS `x4`,`test`.`t5`.`x` AS `x5`,`test`.`t6`.`x` AS `x6`,`test`.`t7`.`x` AS `x7`,`test`.`t8`.`x` AS `x8`,`test`.`t9`.`x` AS `x9`,`test`.`t10`.`x` AS `x10`,`test`.`t11`.`x` AS `x11`,`test`.`t12`.`x` AS `x12`,`test`.`t13`.`x` AS `x13` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` join `test`.`t1` `t4` join `test`.`t1` `t5` join `test`.`t1` `t6` join `test`.`t1` `t7` join `test`.`t1` `t8` join `test`.`t1` `t9` join `test`.`t1` `t10` join `test`.`t1` `t11` join `test`.`t1` `t12` join `test`.`t1` `t13`
 EXPLAIN SELECT * FROM t1 WHERE x = (SELECT COUNT(*) FROM v1);

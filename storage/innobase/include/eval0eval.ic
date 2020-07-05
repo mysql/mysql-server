@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -113,7 +113,7 @@ void eval_node_set_int_val(que_node_t *node, /*!< in: expression node */
 
   data = static_cast<byte *>(dfield_get_data(dfield));
 
-  if (data == NULL) {
+  if (data == nullptr) {
     data = eval_node_alloc_val_buf(node, 4);
   }
 
@@ -150,7 +150,7 @@ ibool eval_node_get_ibool_val(que_node_t *node) /*!< in: query graph node */
 
   data = static_cast<byte *>(dfield_get_data(dfield));
 
-  ut_ad(data != NULL);
+  ut_ad(data != nullptr);
 
   return (mach_read_from_1(data));
 }
@@ -167,7 +167,7 @@ void eval_node_set_ibool_val(func_node_t *func_node, /*!< in: function node */
 
   data = static_cast<byte *>(dfield_get_data(dfield));
 
-  if (data == NULL) {
+  if (data == nullptr) {
     /* Allocate 1 byte to hold the value */
 
     data = eval_node_alloc_val_buf(func_node, 1);

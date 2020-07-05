@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -94,6 +94,11 @@ public:
    * than checking count() == 0.
    */
   static bool isclear(unsigned size, const Uint32 data[]);
+
+  /**
+   * is_set -  Check if all bits are set.
+   */
+  static bool is_set(unsigned size, const Uint32 data[]);
 
   /**
    * count - Count number of set bits.
@@ -371,6 +376,16 @@ BitmaskImpl::isclear(unsigned size, const Uint32 data[])
 {
   for (unsigned i = 0; i < size; i++) {
     if (data[i] != 0)
+      return false;
+  }
+  return true;
+}
+
+inline bool
+BitmaskImpl::is_set(unsigned size, const Uint32 data[])
+{
+  for (unsigned i = 0; i < size; i++) {
+    if (data[i] != -1U)
       return false;
   }
   return true;
@@ -954,6 +969,12 @@ public:
   bool isclear() const;
 
   /**
+   * is_set -  Check if all bits are set.
+   */
+  static bool is_set(const Uint32 data[]);
+  bool is_set() const;
+
+  /**
    * count - Count number of set bits.
    */
   static unsigned count(const Uint32 data[]);
@@ -1239,6 +1260,20 @@ inline bool
 BitmaskPOD<size>::isclear() const
 {
   return BitmaskPOD<size>::isclear(rep.data);
+}
+
+template <unsigned size>
+inline bool
+BitmaskPOD<size>::is_set(const Uint32 data[])
+{
+  return BitmaskImpl::is_set(size, data);
+}
+
+template <unsigned size>
+inline bool
+BitmaskPOD<size>::is_set() const
+{
+  return BitmaskPOD<size>::is_set(rep.data);
 }
 
 template <unsigned size>

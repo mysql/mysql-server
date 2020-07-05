@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -65,7 +65,7 @@ int chars_2_decimal(const char *chars, my_decimal *to);
  */
 class Server_initializer {
  public:
-  Server_initializer() : m_thd(NULL) {}
+  Server_initializer() : m_thd(nullptr) {}
 
   // Invoke these from corresponding functions in test fixture classes.
   void SetUp();

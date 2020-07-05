@@ -298,6 +298,7 @@ Replication slave	Server Admin	To read binary log events from the master
 SERVICE_CONNECTION_ADMIN	Server Admin	
 SESSION_VARIABLES_ADMIN	Server Admin	
 SET_USER_ID	Server Admin	
+SHOW_ROUTINE	Server Admin	
 SYSTEM_USER	Server Admin	
 SYSTEM_VARIABLES_ADMIN	Server Admin	
 Select	Tables	To retrieve rows from table

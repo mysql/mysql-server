@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -120,7 +120,7 @@ class Handler_applier_configuration_action : public Pipeline_action {
         applier_shutdown_timeout(plugin_shutdown_timeout),
         group_sidno(group_sidno),
         initialization_conf(true) {
-    DBUG_ASSERT(applier_name != NULL);
+    DBUG_ASSERT(applier_name != nullptr);
   }
 
   /**
@@ -130,7 +130,7 @@ class Handler_applier_configuration_action : public Pipeline_action {
   */
   Handler_applier_configuration_action(ulong plugin_shutdown_timeout)
       : Pipeline_action(HANDLER_APPLIER_CONF_ACTION),
-        applier_name(NULL),
+        applier_name(nullptr),
         reset_logs(false),
         applier_shutdown_timeout(plugin_shutdown_timeout),
         group_sidno(0),
@@ -155,9 +155,8 @@ class Handler_applier_configuration_action : public Pipeline_action {
    Informs if this is a action with configurations for initialization or just
    timeout configurations.
 
-   @return
-     @retval true    if initialization action
-     @retval false   if timeout configuration action
+   @retval true    if initialization action
+   @retval false   if timeout configuration action
   */
   bool is_initialization_conf() { return initialization_conf; }
 

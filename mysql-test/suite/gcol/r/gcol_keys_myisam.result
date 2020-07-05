@@ -538,7 +538,7 @@ EXPLAIN SELECT * FROM t1 ORDER BY f1 + 1	{
           {
             "considering_tmp_tables": [
               {
-                "adding_sort_to_table_in_plan_at_position": 0
+                "adding_sort_to_table": "t1"
               } /* filesort */
             ] /* considering_tmp_tables */
           }

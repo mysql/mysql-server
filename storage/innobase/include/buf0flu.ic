@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -94,7 +94,7 @@ void buf_flush_note_modification(
 
   /* Don't allow to set flush observer from non-null to null,
   or from one observer to another. */
-  ut_ad(block->page.flush_observer == NULL ||
+  ut_ad(block->page.flush_observer == nullptr ||
         block->page.flush_observer == observer);
   block->page.flush_observer = observer;
 

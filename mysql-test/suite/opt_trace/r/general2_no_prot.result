@@ -447,8 +447,8 @@ ON t2.i = t1.i
 WHERE t3.i IS NULL
 ;
 i	i	i
-3	3	NULL
 2	NULL	NULL
+3	3	NULL
 select TRACE from information_schema.OPTIMIZER_TRACE;
 TRACE
 {
@@ -711,8 +711,8 @@ HAVING ('v', 'i') NOT IN (SELECT f2, MIN(f2) FROM t1)
 ORDER BY f2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
-1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
-1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (hash join)
 2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`f2` AS `f2` from `test`.`t1` join `test`.`t2` join `test`.`t3` where (`test`.`t2`.`f2` = `test`.`t3`.`f2`) having true order by `test`.`t1`.`f2`
@@ -1175,7 +1175,7 @@ TRACE
                 "write_method": "write_all_rows"
               },
               {
-                "adding_sort_to_table_in_plan_at_position": 3
+                "adding_sort_to_table": ""
               } /* filesort */
             ] /* considering_tmp_tables */
           }
@@ -1187,11 +1187,11 @@ TRACE
         "select#": 1,
         "steps": [
           {
-            "sorting_table_in_plan_at_position": 3,
+            "sorting_table": "<temporary>",
             "filesort_information": [
               {
                 "direction": "asc",
-                "field": "f2"
+                "expression": "`t1`.`f2`"
               }
             ] /* filesort_information */,
             "filesort_priority_queue_optimization": {
@@ -5337,7 +5337,7 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
                 "write_method": "continuously_update_group_row"
               },
               {
-                "adding_sort_to_table_in_plan_at_position": 2
+                "adding_sort_to_table": ""
               } /* filesort */
             ] /* considering_tmp_tables */
           }
@@ -5370,11 +5370,11 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
             } /* temp_table_aggregate */
           },
           {
-            "sorting_table_in_plan_at_position": 2,
+            "sorting_table": "<temporary>",
             "filesort_information": [
               {
                 "direction": "asc",
-                "field": "col_int_key"
+                "expression": "`alias1`.`col_int_key`"
               }
             ] /* filesort_information */,
             "filesort_priority_queue_optimization": {
@@ -5393,7 +5393,8 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": "NNN",
               "sort_algorithm": "std::sort",
-              "sort_mode": "<fixed_sort_key, packed_additional_fields>"
+              "unpacked_addon_fields": "skip_heuristic",
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             } /* filesort_summary */
           }
         ] /* steps */

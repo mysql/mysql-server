@@ -1,23 +1,52 @@
---source include/have_debug.inc
+SELECT COUNT(@@GLOBAL.innodb_doublewrite_batch_size);
+--echo 1 Expected
 
-#
-# exists as global only
-#
-select @@global.innodb_doublewrite_batch_size between 1 and 127;
-select @@global.innodb_doublewrite_batch_size;
+
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
-select @@session.innodb_doublewrite_batch_size;
-show global variables like 'innodb_doublewrite_batch_size';
-show session variables like 'innodb_doublewrite_batch_size';
+SET @@GLOBAL.innodb_doublewrite_batch_size=1;
+--echo Expected error 'Read only variable'
+
+SELECT COUNT(@@GLOBAL.innodb_doublewrite_batch_size);
+--echo 1 Expected
+
+
 --disable_warnings
-select * from performance_schema.global_variables where variable_name='innodb_doublewrite_batch_size';
-select * from performance_schema.session_variables where variable_name='innodb_doublewrite_batch_size';
+SELECT @@GLOBAL.innodb_doublewrite_batch_size = VARIABLE_VALUE
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME='innodb_doublewrite_batch_size';
 --enable_warnings
+--echo 1 Expected
 
-#
-# show that it's read-only
-#
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
-set global innodb_doublewrite_batch_size=1;
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
-set @@session.innodb_doublewrite_batch_size='some';
+SELECT COUNT(@@GLOBAL.innodb_doublewrite_batch_size);
+--echo 1 Expected
+
+--disable_warnings
+SELECT COUNT(VARIABLE_VALUE)
+FROM performance_schema.global_variables 
+WHERE VARIABLE_NAME='innodb_doublewrite_batch_size';
+--enable_warnings
+--echo 1 Expected
+
+SELECT @@innodb_doublewrite_batch_size = @@GLOBAL.innodb_doublewrite_pages;
+--echo 0 Expected
+
+
+SELECT COUNT(@@innodb_doublewrite_batch_size);
+--echo 1 Expected
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.innodb_doublewrite_batch_size);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.innodb_doublewrite_batch_size);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+SELECT COUNT(@@GLOBAL.innodb_doublewrite_batch_size);
+--echo 1 Expected
+
+--Error ER_BAD_FIELD_ERROR
+SELECT innodb_doublewrite_batch_size = @@SESSION.innodb_doublewrite_pages;
+--echo Expected error 'Readonly variable'
+
+

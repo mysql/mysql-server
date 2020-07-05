@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -37,11 +37,11 @@ struct HttpAuthBackendParam {
   std::error_code auth_ec;
 };
 
-class HttpAuthBackendTest
+class HttpPasswdAuthBackendTest
     : public ::testing::Test,
       public ::testing::WithParamInterface<HttpAuthBackendParam> {};
 
-TEST_P(HttpAuthBackendTest, ensure) {
+TEST_P(HttpPasswdAuthBackendTest, ensure) {
   HttpAuthBackendHtpasswd m;
 
   std::istringstream ss(GetParam().mcf_line);
@@ -60,7 +60,7 @@ const char kMcfSha512_myName_test[]{
     "\n"};
 
 INSTANTIATE_TEST_CASE_P(
-    Spec, HttpAuthBackendTest,
+    Spec, HttpPasswdAuthBackendTest,
     ::testing::Values(
         HttpAuthBackendParam{
             "valid_user", kMcfSha512_myName_test, {}, "myName", "test", {}},
@@ -69,44 +69,40 @@ INSTANTIATE_TEST_CASE_P(
                              {},
                              "myName",
                              "test",
-                             std::make_error_code(McfErrc::kUserNotFound)},
+                             make_error_code(McfErrc::kUserNotFound)},
         HttpAuthBackendParam{"user_not_found",
                              kMcfSha512_myName_test,
                              {},
                              "someother",
                              "test",
-                             std::make_error_code(McfErrc::kUserNotFound)},
-        HttpAuthBackendParam{
-            "wrong_password",
-            kMcfSha512_myName_test,
-            {},
-            "myName",
-            "wrongpassword",
-            std::make_error_code(McfErrc::kPasswordNotMatched)},
+                             make_error_code(McfErrc::kUserNotFound)},
+        HttpAuthBackendParam{"wrong_password",
+                             kMcfSha512_myName_test,
+                             {},
+                             "myName",
+                             "wrongpassword",
+                             make_error_code(McfErrc::kPasswordNotMatched)},
         HttpAuthBackendParam{"unknown_scheme",
                              "myName:$3$\n",
                              {},
                              "myName",
                              "wrongpassword",
-                             std::make_error_code(McfErrc::kUnknownScheme)},
+                             make_error_code(McfErrc::kUnknownScheme)},
         HttpAuthBackendParam{"empty_mcf",
                              "",
                              {},
                              "myName",
                              "wrongpassword",
-                             std::make_error_code(McfErrc::kUserNotFound)},
-        HttpAuthBackendParam{"empty_username", ":$3$\n",
-                             std::make_error_code(McfErrc::kParseError),
-                             "myName", "wrongpassword",
-                             std::make_error_code(McfErrc::kUserNotFound)},
-        HttpAuthBackendParam{"empty_password", "foo:\n",
-                             std::make_error_code(McfErrc::kParseError),
-                             "myName", "wrongpassword",
-                             std::make_error_code(McfErrc::kUserNotFound)},
-        HttpAuthBackendParam{"empty_all", ":\n",
-                             std::make_error_code(McfErrc::kParseError),
-                             "myName", "wrongpassword",
-                             std::make_error_code(McfErrc::kUserNotFound)}),
+                             make_error_code(McfErrc::kUserNotFound)},
+        HttpAuthBackendParam{
+            "empty_username", ":$3$\n", make_error_code(McfErrc::kParseError),
+            "myName", "wrongpassword", make_error_code(McfErrc::kUserNotFound)},
+        HttpAuthBackendParam{
+            "empty_password", "foo:\n", make_error_code(McfErrc::kParseError),
+            "myName", "wrongpassword", make_error_code(McfErrc::kUserNotFound)},
+        HttpAuthBackendParam{
+            "empty_all", ":\n", make_error_code(McfErrc::kParseError), "myName",
+            "wrongpassword", make_error_code(McfErrc::kUserNotFound)}),
     [](::testing::TestParamInfo<HttpAuthBackendParam> param_info) {
       return param_info.param.test_name;
     });

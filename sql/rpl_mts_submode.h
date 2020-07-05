@@ -25,9 +25,11 @@
 #include <stddef.h>
 #include <sys/types.h>
 #include <atomic>
+#include <set>
 #include <utility>
 
 #include "libbinlogevents/include/binlog_event.h"  // SEQ_UNINIT
+#include "log_event.h"
 #include "my_inttypes.h"
 #include "my_thread_local.h"   // my_thread_id
 #include "prealloced_array.h"  // Prealloced_array
@@ -81,6 +83,14 @@ class Mts_submode {
   virtual int wait_for_workers_to_finish(Relay_log_info *rli,
                                          Slave_worker *ignore = nullptr) = 0;
 
+  /**
+    Sets additional context before the event is set to execute.
+   */
+  virtual bool set_multi_threaded_applier_context(const Relay_log_info &,
+                                                  Log_event &) {
+    return false;
+  }
+
   virtual ~Mts_submode() {}
 };
 
@@ -91,16 +101,24 @@ class Mts_submode {
 class Mts_submode_database : public Mts_submode {
  public:
   Mts_submode_database() { type = MTS_PARALLEL_TYPE_DB_NAME; }
-  int schedule_next_event(Relay_log_info *rli, Log_event *ev);
+  int schedule_next_event(Relay_log_info *rli, Log_event *ev) override;
   void attach_temp_tables(THD *thd, const Relay_log_info *rli,
-                          Query_log_event *ev);
+                          Query_log_event *ev) override;
   void detach_temp_tables(THD *thd, const Relay_log_info *rli,
-                          Query_log_event *ev);
+                          Query_log_event *ev) override;
   Slave_worker *get_least_occupied_worker(Relay_log_info *,
-                                          Slave_worker_array *ws, Log_event *);
-  ~Mts_submode_database() {}
+                                          Slave_worker_array *ws,
+                                          Log_event *) override;
+  ~Mts_submode_database() override {}
   int wait_for_workers_to_finish(Relay_log_info *rli,
-                                 Slave_worker *ignore = nullptr);
+                                 Slave_worker *ignore = nullptr) override;
+  bool set_multi_threaded_applier_context(const Relay_log_info &rli,
+                                          Log_event &ev) override;
+
+ private:
+  bool unfold_transaction_payload_event(Format_description_event &fde,
+                                        Transaction_payload_log_event &tple,
+                                        std::vector<Log_event *> &events);
 };
 
 /**
@@ -145,14 +163,14 @@ class Mts_submode_logical_clock : public Mts_submode {
 
  public:
   Mts_submode_logical_clock();
-  int schedule_next_event(Relay_log_info *rli, Log_event *ev);
+  int schedule_next_event(Relay_log_info *rli, Log_event *ev) override;
   void attach_temp_tables(THD *thd, const Relay_log_info *rli,
-                          Query_log_event *ev);
+                          Query_log_event *ev) override;
   void detach_temp_tables(THD *thd, const Relay_log_info *rli,
-                          Query_log_event *);
+                          Query_log_event *) override;
   Slave_worker *get_least_occupied_worker(Relay_log_info *rli,
                                           Slave_worker_array *ws,
-                                          Log_event *ev);
+                                          Log_event *ev) override;
   /* Sets the force new group variable */
   inline void start_new_group() {
     force_new_group = true;
@@ -163,7 +181,7 @@ class Mts_submode_logical_clock : public Mts_submode {
   */
   void withdraw_delegated_job() { delegated_jobs--; }
   int wait_for_workers_to_finish(Relay_log_info *rli,
-                                 Slave_worker *ignore = nullptr);
+                                 Slave_worker *ignore = nullptr) override;
   bool wait_for_last_committed_trx(Relay_log_info *rli,
                                    longlong last_committed_arg);
   /*
@@ -187,7 +205,7 @@ class Mts_submode_logical_clock : public Mts_submode {
 
   longlong get_lwm_timestamp(Relay_log_info *rli, bool need_lock);
   longlong estimate_lwm_timestamp() { return last_lwm_timestamp.load(); }
-  ~Mts_submode_logical_clock() {}
+  ~Mts_submode_logical_clock() override {}
 };
 
 #endif /*MTS_SUBMODE_H*/

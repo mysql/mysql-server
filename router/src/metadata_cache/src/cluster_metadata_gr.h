@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -116,6 +116,19 @@ class METADATA_API GRClusterMetadata : public ClusterMetadata {
    */
   mysqlrouter::ClusterType get_cluster_type() override;
 
+  /** @brief Get authentication data of the rest users from the metadata.
+   *
+   * Authentication data is stored in the router_rest_accounts table. This
+   * method fetches the following information: username, password hash,
+   * privileges and name of the authentication mechanism that should be used.
+   *
+   * @param cluster_name - name of the cluster
+   *
+   * @returns authentication data of the rest users stored in the metadata
+   */
+  auth_credentials_t fetch_auth_credentials(
+      const std::string &cluster_name) override;
+
  protected:
   /** @brief Queries the metadata server for the list of instances and
    * replicasets that belong to the desired cluster.
@@ -140,8 +153,8 @@ class METADATA_API GRClusterMetadata : public ClusterMetadata {
 
   metadata_cache::ReplicasetStatus check_replicaset_status(
       std::vector<metadata_cache::ManagedInstance> &instances,
-      const std::map<std::string, GroupReplicationMember> &member_status) const
-      noexcept;
+      const std::map<std::string, GroupReplicationMember> &member_status,
+      bool &metadata_gr_discrepancy) const noexcept;
 
   void reset_metadata_backend(const mysqlrouter::ClusterType type);
   std::unique_ptr<GRMetadataBackend> metadata_backend_;

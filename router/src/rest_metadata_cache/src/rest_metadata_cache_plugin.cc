@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -45,6 +45,8 @@
 #include "rest_metadata_cache_list.h"
 #include "rest_metadata_cache_status.h"
 IMPORT_LOG_FUNCTIONS()
+
+using namespace std::string_literals;
 
 static const char kSectionName[]{"rest_metadata_cache"};
 static const char kRequireRealm[]{"require_realm"};
@@ -105,10 +107,21 @@ static void init(mysql_harness::PluginFuncEnv *env) {
 
       if (!config.require_realm.empty() &&
           (known_realms.find(config.require_realm) == known_realms.end())) {
+        std::string section_name = section->name;
+        if (!section->key.empty()) section_name += ":" + section->key;
+
+        const std::string realm_msg =
+            (known_realms.empty())
+                ? "No [http_auth_realm:" + config.require_realm +
+                      "] section defined."
+                : "Known [http_auth_realm:<...>] section" +
+                      (known_realms.size() > 1 ? "s"s : ""s) + ": " +
+                      mysql_harness::join(known_realms, ", ");
+
         throw std::invalid_argument(
-            "unknown authentication realm for [" + std::string(kSectionName) +
-            "] '" + section->key + "': " + config.require_realm +
-            ", known realm(s): " + mysql_harness::join(known_realms, ","));
+            "The option 'require_realm=" + config.require_realm + "' in [" +
+            section_name + "] does not match any http_auth_realm. " +
+            realm_msg);
       }
 
       require_realm_metadata_cache = config.require_realm;

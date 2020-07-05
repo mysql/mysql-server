@@ -65,8 +65,9 @@ namespace logging {
 
 /*static*/
 const std::map<std::string, LogLevel> Registry::kLogLevels{
-    {"fatal", LogLevel::kFatal},     {"error", LogLevel::kError},
-    {"warning", LogLevel::kWarning}, {"info", LogLevel::kInfo},
+    {"fatal", LogLevel::kFatal}, {"system", LogLevel::kSystem},
+    {"error", LogLevel::kError}, {"warning", LogLevel::kWarning},
+    {"info", LogLevel::kInfo},   {"note", LogLevel::kNote},
     {"debug", LogLevel::kDebug},
 };
 

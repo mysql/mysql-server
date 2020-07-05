@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@
 
 class Addon_fields;
 class Field;
-class QEP_TAB;
+class JOIN;
 class RowIterator;
 class Sort_result;
 class THD;
@@ -49,8 +49,11 @@ enum class Addon_fields_status;
 class Filesort {
  public:
   THD *m_thd;
-  /// The QEP entry for the table to be sorted
-  QEP_TAB *const qep_tab;
+  /// The table we are sorting.
+  TABLE *const table;
+  /// If true, do not free the filesort buffers (use if you expect to sort many
+  /// times, like in an uncacheable subquery).
+  const bool keep_buffers;
   /// Maximum number of rows to return
   ha_rows limit;
   /// ORDER BY list with some precalculated info for filesort
@@ -67,12 +70,11 @@ class Filesort {
   // TODO: Consider moving this into private members of Filesort.
   Sort_param m_sort_param;
 
-  Filesort(THD *thd, QEP_TAB *tab_arg, ORDER *order, ha_rows limit_arg,
-           bool force_stable_sort, bool remove_duplicates,
+  Filesort(THD *thd, TABLE *table, bool keep_buffers, ORDER *order,
+           ha_rows limit_arg, bool force_stable_sort, bool remove_duplicates,
            bool force_sort_positions);
 
-  Addon_fields *get_addon_fields(ulong max_length_for_sort_data,
-                                 Field **ptabfield, uint sortlength,
+  Addon_fields *get_addon_fields(TABLE *table,
                                  Addon_fields_status *addon_fields_status,
                                  uint *plength, uint *ppackable_length);
 
@@ -100,5 +102,25 @@ void change_double_for_sort(double nr, uchar *to);
 
 /// Declared here so we can unit test it.
 uint sortlength(THD *thd, st_sort_field *sortorder, uint s_length);
+
+/// Declared here for Item_func_weight_string.
+longlong get_int_sort_key_for_item(Item *item);
+
+// Avoid pulling in sql/field.h.
+template <bool Is_big_endian>
+void copy_integer(uchar *to, size_t to_length, const uchar *from,
+                  size_t from_length, bool is_unsigned);
+
+static inline void copy_native_longlong(uchar *to, size_t to_length,
+                                        longlong val, bool is_unsigned) {
+#ifdef WORDS_BIGENDIAN
+  constexpr bool Is_big_endian = true;
+#else
+  constexpr bool Is_big_endian = false;
+#endif
+  copy_integer<Is_big_endian>(to, to_length,
+                              static_cast<uchar *>(static_cast<void *>(&val)),
+                              sizeof(longlong), is_unsigned);
+}
 
 #endif /* FILESORT_INCLUDED */

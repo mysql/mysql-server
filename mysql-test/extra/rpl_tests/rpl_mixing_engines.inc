@@ -33,14 +33,17 @@
 
 --let $rme_initial_commands= $commands
 
+--let $saved_$keep_transaction_payload_events = $keep_transaction_payload_events
+--let $saved_keep_gtid_events = $keep_gtid_events
+
+# this makes this test case agnostic w.r.t. compression
+--let $keep_transaction_payload_events = 0
+
+# this means that the test can run with or without gtids
+--let $keep_gtid_events = 0
+
 if ($commands == 'configure')
 {
-  let $binlog_filter=
-  /Anonymous_Gtid/Gtid/
-  /GTID_NEXT= '([0-9a-f:\-]+|ANONYMOUS)'/GTID_NEXT= Gtid_set/
-  /COMMIT \/\* xid=[0-9]+ \*\//COMMIT \/* XID *\//
-  /[ ]*\/\* xid=[0-9]+ \*\///
-  /table_id: [0-9]+/table_id: #/;
   connection master;
   --disable_query_log
   if ($database_name != 'test')
@@ -611,7 +614,8 @@ while ($commands != '')
   --let $commands= `SELECT LTRIM(SUBSTRING('$commands', LENGTH('$command') + 1))`
   inc $stmt_id;
 
-  let $binlog_start= $pos_command;
+  --let $binlog_start = $pos_command
+  --let $binlog_file = query_get_value(SHOW MASTER STATUS, File, 1)
   if ($verbose)
   {
     # Use other connection because query show binlog events
@@ -619,9 +623,7 @@ while ($commands != '')
     # binlog_format=mixed, if there are open temporary tables. This is
     # due to BUG#13692513.
     --connection server_1
-    replace_column 2 # 4 # 5 #;
-    --replace_regex $binlog_filter
-    eval show binlog events from $binlog_start;
+    --source include/show_binlog_events.inc
     --connection master
     --echo -e-e-e-e-e-e-e-e-e-e-e- >> $command << -e-e-e-e-e-e-e-e-e-e-e-
   }
@@ -630,9 +632,7 @@ while ($commands != '')
     let $binlog_start= $pos_trans_command;
     --echo -b-b-b-b-b-b-b-b-b-b-b- >> $rme_initial_commands << -b-b-b-b-b-b-b-b-b-b-b-
     --connection server_1
-    replace_column 2 # 4 # 5 #;
-    --replace_regex $binlog_filter
-    eval show binlog events from $binlog_start;
+    --source include/show_binlog_events.inc
     --connection master
     --echo -e-e-e-e-e-e-e-e-e-e-e- >> $rme_initial_commands << -e-e-e-e-e-e-e-e-e-e-e-
     --echo
@@ -643,3 +643,7 @@ while ($commands != '')
 }
 
 --let $commands= $rme_initial_commands
+--let $binlog_file =
+--let $binlog_start =
+--let $keep_transaction_payload_events = $saved_keep_transaction_payload_events
+--let $keep_gtid_events = $saved_keep_gtid_events

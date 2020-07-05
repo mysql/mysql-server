@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,7 +24,6 @@
 
 #include "storage/ndb/plugin/ha_ndbcluster_binlog.h"
 
-#include <mysql/psi/mysql_thread.h>
 #include <unordered_map>
 
 #include "my_dbug.h"
@@ -41,6 +40,7 @@
 #include "sql/rpl_injector.h"
 #include "sql/rpl_slave.h"
 #include "sql/sql_lex.h"
+#include "sql/sql_rewrite.h"
 #include "sql/sql_table.h"  // build_table_filename
 #include "sql/sql_thd_internal_api.h"
 #include "sql/thd_raii.h"
@@ -57,7 +57,6 @@
 #include "storage/ndb/plugin/ndb_dd_disk_data.h"
 #include "storage/ndb/plugin/ndb_dd_schema.h"
 #include "storage/ndb/plugin/ndb_dd_table.h"
-#include "storage/ndb/plugin/ndb_global_schema_lock.h"
 #include "storage/ndb/plugin/ndb_global_schema_lock_guard.h"
 #include "storage/ndb/plugin/ndb_local_connection.h"
 #include "storage/ndb/plugin/ndb_log.h"
@@ -74,7 +73,6 @@
 #include "storage/ndb/plugin/ndb_thd.h"
 
 typedef NdbDictionary::Event NDBEVENT;
-typedef NdbDictionary::Object NDBOBJ;
 typedef NdbDictionary::Column NDBCOL;
 typedef NdbDictionary::Table NDBTAB;
 
@@ -599,8 +597,17 @@ static void ndbcluster_acl_notify(THD *thd,
     return;
   }
 
-  const std::string &query = notice->get_query_for_logging();
+  /* Obtain the query in a form suitable for writing to the error log.
+     The password is replaced with the string "<secret>".
+  */
+  std::string query;
+  if (thd->rewritten_query().length())
+    query.assign(thd->rewritten_query().ptr(), thd->rewritten_query().length());
+  else
+    query.assign(thd->query().str, thd->query().length);
+  DBUG_ASSERT(query.length());
   ndb_log_verbose(9, "ACL considering: %s", query.c_str());
+
   std::string user_list;
   bool dist_use_db = false;   // Prepend "use [db];" to statement
   bool dist_refresh = false;  // All participants must refresh their caches
@@ -635,6 +642,19 @@ static void ndbcluster_acl_notify(THD *thd,
 
   DBUG_ASSERT(strategy == Ndb_stored_grants::Strategy::STATEMENT);
   ndb_log_verbose(9, "ACL change distribution: STATEMENT");
+
+  /* If the notice contains rewrite_params, query is an ALTER USER or SET
+     PASSWORD statement and must be rewritten again, as if for the binlog,
+     replacing a plaintext password with a crytpographic hash.
+  */
+  if (notice->get_rewrite_params()) {
+    String rewritten_query;
+    mysql_rewrite_acl_query(thd, rewritten_query, Consumer_type::BINLOG,
+                            notice->get_rewrite_params(), false);
+    query.assign(rewritten_query.c_ptr_safe(), rewritten_query.length());
+    DBUG_ASSERT(query.length());
+  }
+
   if (!schema_dist_client.acl_notify(
           dist_use_db ? notice->get_db().c_str() : nullptr, query.c_str(),
           query.length(), dist_refresh))
@@ -795,6 +815,7 @@ static bool migrate_table_with_old_extra_metadata(
     return false;
   }
 
+  dd_client.commit();
   return true;
 }
 
@@ -1380,19 +1401,18 @@ class Ndb_binlog_setup {
             "Skipping setup of table '%s.%s', it has "
             "unsupported extra metadata version %d.",
             schema_name, table_name, version);
+        free(unpacked_data);
         return true;  // Skipped
       }
 
       if (version == 1) {
-        const bool migrate_result = migrate_table_with_old_extra_metadata(
-            thd, ndb, schema_name, table_name, unpacked_data, unpacked_len,
-            force_overwrite);
-
-        if (!migrate_result) {
+        // Migrate table with version 1 metadata to DD and return
+        if (!migrate_table_with_old_extra_metadata(
+                thd, ndb, schema_name, table_name, unpacked_data, unpacked_len,
+                force_overwrite)) {
           free(unpacked_data);
           return false;
         }
-
         free(unpacked_data);
         return true;
       }
@@ -2059,17 +2079,23 @@ class Ndb_binlog_setup {
   }
 
   /**
-     @brief Detect if this is an initial restart by comparing
-            the schema UUID from DD with the one in NDB.
-            If they differ, then this is a initial restart.
-     @param dd_schema_uuid       Schema UUID retrieved from the DD.
-     @param ndb_schema_uuid      Schema UUID retrieved from NDB.
+     @brief Detect if the binlog is being setup during an initial data node
+            start/restart or a normal data node restart.
+     @param thd_ndb       The Thd_ndb object.
 
-     @return true if this is a initial start/restart. false otherwise.
+     @return true if this is an initial data node start/restart.
+             false otherwise.
    */
-  bool detect_initial_restart(const dd::String_type &dd_schema_uuid,
-                              const std::string &ndb_schema_uuid) {
+  bool detect_initial_restart(Thd_ndb *thd_ndb) {
     DBUG_TRACE;
+
+    // Retrieve the old schema UUID stored in DD.
+    dd::String_type dd_schema_uuid;
+    if (!ndb_dd_get_schema_uuid(m_thd, &dd_schema_uuid)) {
+      DBUG_ASSERT(false);
+      ndb_log_warning("Failed to read the schema UUID of DD");
+      return false;
+    }
 
     if (dd_schema_uuid.empty()) {
       // DD didn't have any schema UUID previously.
@@ -2082,8 +2108,30 @@ class Ndb_binlog_setup {
       return true;
     }
 
-    if (dd_schema_uuid.compare(ndb_schema_uuid.c_str()) == 0) {
-      // Schema UUID is the same.
+    // Check if ndb_schema table exists in NDB
+    Ndb_schema_dist_table schema_dist_table(thd_ndb);
+    if (!schema_dist_table.exists()) {
+      // ndb_schema table does not exist in NDB yet but
+      // the DD already has a schema UUID.
+      // This is an initial system restart.
+      ndb_log_info("Detected an initial system restart");
+      return true;
+    }
+
+    // Retrieve the old schema uuid stored in NDB
+    std::string ndb_schema_uuid;
+    if (!schema_dist_table.open() ||
+        !schema_dist_table.get_schema_uuid(&ndb_schema_uuid)) {
+      DBUG_ASSERT(false);
+      return false;
+    }
+    // Since the ndb_schema table exists already, the schema UUID also cannot be
+    // empty as whichever mysqld created the table would also have updated the
+    // schema UUID in NDB.
+    DBUG_ASSERT(!ndb_schema_uuid.empty());
+
+    if (ndb_schema_uuid == dd_schema_uuid.c_str()) {
+      // Schema UUIDs are the same.
       // This is either a normal system restart or an upgrade.
       // Any upgrade from versions having schema UUID to another
       // newer version will be handled here.
@@ -2091,7 +2139,12 @@ class Ndb_binlog_setup {
       return false;
     }
 
-    // Schema UUID doesn't match. This is an initial system restart.
+    // Schema UUIDs don't match. This mysqld was previously connected to a
+    // cluster whose schema UUID is stored in DD. It is now connecting to a new
+    // cluster for the first time which already has a different schema UUID as
+    // this is not the first mysqld connecting to that cluster.
+    // From this mysqld's perspective, this will be treated as an
+    // initial system restart.
     ndb_log_info("Detected an initial system restart");
     return true;
   }
@@ -2138,12 +2191,11 @@ class Ndb_binlog_setup {
     Thd_ndb::Options_guard thd_ndb_options(thd_ndb);
     thd_ndb_options.set(Thd_ndb::ALLOW_BINLOG_SETUP);
 
-    // If the ndb_schema table gets upgraded, it will reinstall
-    // the table in DD and will delete the current schema UUID.
-    // So, save the schema UUID of DD before trying to upgrade the table.
-    dd::String_type dd_schema_uuid_old;
-    if (!ndb_dd_get_schema_uuid(m_thd, &dd_schema_uuid_old)) {
-      ndb_log_warning("Failed to read the schema UUID of DD");
+    // Check if this is a initial restart/start
+    const bool initial_system_restart = detect_initial_restart(thd_ndb);
+
+    // Remove tables that have been deleted from NDB Dictionary
+    if (!remove_deleted_ndb_tables_from_dd(initial_system_restart)) {
       return false;
     }
 
@@ -2165,25 +2217,17 @@ class Ndb_binlog_setup {
       return false;
     }
 
-    // Retrieve the new schema UUID from NDB
-    std::string ndb_schema_uuid;
-    if (!schema_dist_table.get_schema_uuid(&ndb_schema_uuid)) return false;
+    // If this is an initial start/restart, update the schema UUID in DD
+    if (initial_system_restart) {
+      // Retrieve the new schema UUID from NDB
+      std::string ndb_schema_uuid;
+      if (!schema_dist_table.get_schema_uuid(&ndb_schema_uuid)) return false;
 
-    // Check if this is a initial restart/start
-    bool initial_system_restart =
-        detect_initial_restart(dd_schema_uuid_old, ndb_schema_uuid);
-
-    // If initial start/restart, update the schema UUID in DD
-    if (initial_system_restart &&
-        !ndb_dd_update_schema_uuid(m_thd, ndb_schema_uuid)) {
-      ndb_log_warning("Failed to update schema uuid in DD.");
-      return false;
-    }
-
-    // Remove tables deleted in NDB or
-    // all NDB tables if this is an initial start/restart
-    if (!remove_deleted_ndb_tables_from_dd(initial_system_restart)) {
-      return false;
+      // Update it in DD
+      if (!ndb_dd_update_schema_uuid(m_thd, ndb_schema_uuid)) {
+        ndb_log_warning("Failed to update schema uuid in DD.");
+        return false;
+      }
     }
 
     Ndb_schema_result_table schema_result_table(thd_ndb);

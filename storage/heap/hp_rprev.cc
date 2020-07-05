@@ -66,7 +66,7 @@ int heap_rprev(HP_INFO *info, uchar *record) {
       else
         pos = hp_search(info, share->keydef + info->lastinx, info->lastkey, 2);
     } else {
-      pos = 0; /* Read next after last */
+      pos = nullptr; /* Read next after last */
       set_my_errno(HA_ERR_KEY_NOT_FOUND);
     }
   }

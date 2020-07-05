@@ -25,6 +25,7 @@
 
 #include "my_base.h"
 #include "my_time.h"  // interval_type
+#include "sql/comp_creator.h"
 #include "sql/handler.h"
 #include "sql/item_create.h"    // Cast_target
 #include "sql/key_spec.h"       // keytype, fk_option

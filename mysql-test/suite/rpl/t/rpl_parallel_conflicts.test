@@ -44,8 +44,6 @@ call mtr.add_suppression('Error reading slave worker configuration');
 --enable_query_log
 --enable_result_log
 
-create view coord_wait_list  as SELECT id from Information_Schema.processlist where state like 'Waiting for Slave Worker%';
-
 source include/stop_slave.inc;
 
 set @save.slave_parallel_workers= @@global.slave_parallel_workers;
@@ -91,16 +89,36 @@ begin;
 use d3;
 insert into d3.t1 values (null);
 use d1;
-insert into d1.t1 values (null); #  will be block at this point on Coord
+insert into d1.t1 values (null); #  will be block at this point on Coord if no transaction compression used
 commit;
 
 connection slave;
 
---echo *** Coordinator must be in waiting for a Worker to unassign from a partition ***
+--echo Either the coordinator is waiting for a worker to unlock d1
+--echo (binlog transaction compression OFF) or the coordinator
+--echo has scheduled the 2nd transaction to the sane worker (binlog
+--echo transaction compression ON)
 
-let $count= 1;
-let $table= coord_wait_list;
-source include/wait_until_rows_count.inc;
+--let $wait_condition=SELECT COUNT(*) = 1 FROM performance_schema.data_locks WHERE object_schema="d2" AND object_name="t1" AND lock_status="WAITING"
+--source include/wait_condition.inc
+
+if (`SELECT @@global.binlog_transaction_compression = FALSE`)
+{
+  #
+  # note that if no compression used, then the coordinator had
+  # started to assign 2nd transaction to the a second worker,
+  # since it schedules event by event (blocks when the 2nd
+  # event for the 2nd transaction is scheduled - d1's event).
+  #
+  # if compression is on, then the coordinator knows beforehand
+  # which databases a transaction is going to touch, as it inspects
+  # the payload event and gathers all the information about the
+  # transaction events. Then it does not wait  and assigns 2nd
+  # transaction to the worker handling d1 already.
+  #
+  --let $wait_condition=SELECT COUNT(*) = 1 FROM performance_schema.threads WHERE processlist_state LIKE 'Waiting for Slave Worker to release partition' AND name = 'thread/sql/slave_sql'
+  --source include/wait_condition.inc
+}
 
 # release the Worker
 rollback;
@@ -216,7 +234,6 @@ drop database d3;
 --source include/sync_slave_sql_with_master.inc
 #connection slave;
 
-drop view coord_wait_list;
 set @@global.slave_parallel_workers= @save.slave_parallel_workers;
 
 --source include/rpl_end.inc

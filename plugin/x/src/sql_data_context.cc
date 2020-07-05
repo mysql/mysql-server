@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -29,8 +29,11 @@
 #include <sstream>
 #include <string>
 
+#include "mysql/components/my_service.h"
+#include "mysql/components/services/mysql_admin_session.h"
 #include "mysql/plugin.h"
 #include "mysql/service_command.h"
+
 #include "plugin/x/src/helper/get_system_variable.h"
 #include "plugin/x/src/mysql_variables.h"
 #include "plugin/x/src/notices.h"
@@ -44,9 +47,33 @@
 
 namespace xpl {
 
+namespace details {
+
+class Admin_session_factory {
+ public:
+  Admin_session_factory()
+      : m_registry{mysql_plugin_registry_acquire()},
+        m_admin_session{"mysql_admin_session", m_registry} {}
+
+  ~Admin_session_factory() { mysql_plugin_registry_release(m_registry); }
+
+  MYSQL_SESSION create(srv_session_error_cb error_cb, void *context) {
+    if (!m_admin_session.is_valid()) return nullptr;
+
+    return m_admin_session->open(error_cb, context);
+  }
+
+ private:
+  SERVICE_TYPE(registry) * m_registry;
+  my_service<SERVICE_TYPE(mysql_admin_session)> m_admin_session;
+};
+
+}  // namespace details
+
 ngs::Error_code Sql_data_context::init(const int client_port,
-                                       const Connection_type type) {
-  ngs::Error_code error = init();
+                                       const Connection_type type,
+                                       const bool is_admin) {
+  ngs::Error_code error = init(is_admin);
   if (error) return error;
 
   if ((error = set_connection_type(type))) return error;
@@ -57,15 +84,30 @@ ngs::Error_code Sql_data_context::init(const int client_port,
   return ngs::Error_code();
 }
 
-ngs::Error_code Sql_data_context::init() {
-  m_mysql_session =
-      srv_session_open(&Sql_data_context::default_completion_handler, this);
+ngs::Error_code Sql_data_context::init(const bool is_admin) {
+  if (is_admin) {
+    details::Admin_session_factory factory;
+    m_mysql_session =
+        factory.create(&Sql_data_context::default_completion_handler, this);
+
+  } else {
+    m_mysql_session =
+        srv_session_open(&Sql_data_context::default_completion_handler, this);
+  }
+
   log_debug(
       "sqlsession init: %p [%i]", m_mysql_session,
       m_mysql_session ? srv_session_info_get_session_id(m_mysql_session) : -1);
   if (!m_mysql_session) {
     if (ER_SERVER_ISNT_AVAILABLE == m_last_sql_errno)
       return ngs::Error_code(ER_SERVER_ISNT_AVAILABLE, "Server API not ready");
+
+    if (ER_CON_COUNT_ERROR == m_last_sql_errno)
+      return ngs::Error_code(m_last_sql_errno, m_last_sql_error);
+
+    if (ER_CON_COUNT_ERROR == m_last_sql_errno)
+      return ngs::Error_code(m_last_sql_errno, m_last_sql_error);
+
     log_error(ER_XPLUGIN_FAILED_TO_OPEN_INTERNAL_SESSION);
     return ngs::Error_code(ER_X_SESSION, "Could not open session");
   }
@@ -79,13 +121,14 @@ void Sql_data_context::deinit() {
     log_debug("sqlsession deinit: %p [%i]", m_mysql_session,
               srv_session_info_get_session_id(m_mysql_session));
     srv_session_close(m_mysql_session);
-    m_mysql_session = NULL;
+    m_mysql_session = nullptr;
   }
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
   PSI_THREAD_CALL(delete_current_thread)();
 
-  PSI_thread *psi = PSI_THREAD_CALL(new_thread)(KEY_thread_x_worker, NULL, 0);
+  PSI_thread *psi =
+      PSI_THREAD_CALL(new_thread)(KEY_thread_x_worker, nullptr, 0);
   PSI_THREAD_CALL(set_thread_os_id)(psi);
   PSI_THREAD_CALL(set_thread)(psi);
 #endif /* HAVE_PSI_THREAD_INTERFACE */
@@ -101,7 +144,7 @@ bool Sql_data_context::kill() {
     log_debug("sqlsession init (for kill): %p [%i]", m_mysql_session,
               m_mysql_session ? srv_session_info_get_session_id(m_mysql_session)
                               : -1);
-    MYSQL_SESSION session = srv_session_open(kill_completion_handler, NULL);
+    MYSQL_SESSION session = srv_session_open(kill_completion_handler, nullptr);
     bool ok = false;
     if (session) {
       MYSQL_SECURITY_CONTEXT scontext;
@@ -112,7 +155,7 @@ bool Sql_data_context::kill() {
       } else {
         const char *user = MYSQL_SESSION_USER;
         const char *host = MYSQLXSYS_HOST;
-        if (security_context_lookup(scontext, user, host, NULL, NULL)) {
+        if (security_context_lookup(scontext, user, host, nullptr, nullptr)) {
           log_warning(ER_XPLUGIN_FAILED_TO_SWITCH_SECURITY_CTX, user);
         } else {
           COM_DATA data;
@@ -124,9 +167,8 @@ bool Sql_data_context::kill() {
           data.com_query.length = static_cast<unsigned int>(qb.get().length());
 
           if (!command_service_run_command(
-                  session, COM_QUERY, &data,
-                  mysqld::get_charset_utf8mb4_general_ci(), deleg.callbacks(),
-                  deleg.representation(), &deleg)) {
+                  session, COM_QUERY, &data, mysqld::get_default_charset(),
+                  deleg.callbacks(), deleg.representation(), &deleg)) {
             if (!deleg.get_error())
               ok = true;
             else
@@ -178,7 +220,8 @@ Sql_data_context::~Sql_data_context() {
 }
 
 void Sql_data_context::switch_to_local_user(const std::string &user) {
-  ngs::Error_code error = switch_to_user(user.c_str(), "localhost", NULL, NULL);
+  ngs::Error_code error =
+      switch_to_user(user.c_str(), "localhost", nullptr, nullptr);
   if (error) throw error;
 }
 
@@ -196,7 +239,7 @@ ngs::Error_code Sql_data_context::authenticate(
   std::string authenticated_user_name = get_authenticated_user_name();
   std::string authenticated_user_host = get_authenticated_user_host();
 
-  error = switch_to_user(MYSQL_SESSION_USER, MYSQLXSYS_HOST, NULL, NULL);
+  error = switch_to_user(MYSQL_SESSION_USER, MYSQLXSYS_HOST, nullptr, nullptr);
 
   if (error) {
     const char *session_user = MYSQL_SESSION_USER;
@@ -231,11 +274,10 @@ ngs::Error_code Sql_data_context::authenticate(
           static_cast<unsigned long>(strlen(db));  // NOLINT(runtime/int)
 
       Callback_command_delegate callback_delegate;
-      if (command_service_run_command(m_mysql_session, COM_INIT_DB, &data,
-                                      mysqld::get_charset_utf8mb4_general_ci(),
-                                      callback_delegate.callbacks(),
-                                      callback_delegate.representation(),
-                                      &callback_delegate))
+      if (command_service_run_command(
+              m_mysql_session, COM_INIT_DB, &data,
+              mysqld::get_default_charset(), callback_delegate.callbacks(),
+              callback_delegate.representation(), &callback_delegate))
         return ngs::Error_code(ER_NO_DB_ERROR, "Could not set database");
       error = callback_delegate.get_error();
     }
@@ -284,7 +326,7 @@ bool Sql_data_context::is_acl_disabled() {
   MYSQL_LEX_CSTRING value{"", 0};
 
   if (get_security_context_value(get_thd(), "priv_user", &value)) {
-    return 0 != value.length && NULL != strstr(value.str, "skip-grants ");
+    return 0 != value.length && nullptr != strstr(value.str, "skip-grants ");
   }
 
   return false;
@@ -385,7 +427,7 @@ bool Sql_data_context::is_killed() const {
   return srv_session_info_killed(m_mysql_session);
 }
 
-bool Sql_data_context::is_api_ready() const {
+bool Sql_data_context::is_api_ready() {
   return 0 != srv_session_server_is_available();
 }
 
@@ -488,10 +530,9 @@ ngs::Error_code Sql_data_context::execute_server_command(
     iface::Resultset *rset) {
   ngs::Command_delegate &deleg = rset->get_callbacks();
   deleg.reset();
-  if (command_service_run_command(m_mysql_session, cmd, &cmd_data,
-                                  mysqld::get_charset_utf8mb4_general_ci(),
-                                  deleg.callbacks(), deleg.representation(),
-                                  &deleg)) {
+  if (command_service_run_command(
+          m_mysql_session, cmd, &cmd_data, mysqld::get_default_charset(),
+          deleg.callbacks(), deleg.representation(), &deleg)) {
     return ngs::Error_code(ER_X_SERVICE_ERROR,
                            "Internal error executing command");
   }
@@ -506,7 +547,7 @@ ngs::Error_code Sql_data_context::reset() {
   COM_DATA data;
   Callback_command_delegate deleg;
   if (command_service_run_command(m_mysql_session, COM_RESET_CONNECTION, &data,
-                                  mysqld::get_charset_utf8mb4_general_ci(),
+                                  mysqld::get_default_charset(),
                                   deleg.callbacks(), deleg.representation(),
                                   &deleg)) {
     return ngs::Error_code(ER_X_SERVICE_ERROR,

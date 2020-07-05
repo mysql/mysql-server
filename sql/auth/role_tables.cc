@@ -209,7 +209,7 @@ bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst) {
 
   {
     roles_edges_table->use_all_columns();
-    iterator = init_table_iterator(thd, roles_edges_table, NULL, false,
+    iterator = init_table_iterator(thd, roles_edges_table, nullptr, false,
                                    /*ignore_not_found_rows=*/false);
     if (iterator == nullptr) {
       my_error(ER_TABLE_CORRUPT, MYF(0), roles_edges_table->s->db.str,
@@ -252,7 +252,7 @@ bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst) {
 
     default_role_table->use_all_columns();
 
-    iterator = init_table_iterator(thd, default_role_table, NULL, false,
+    iterator = init_table_iterator(thd, default_role_table, nullptr, false,
                                    /*ignore_not_found_records=*/false);
     DBUG_EXECUTE_IF("dbug_fail_in_role_cache_reinit", iterator = nullptr;);
     if (iterator == nullptr) {

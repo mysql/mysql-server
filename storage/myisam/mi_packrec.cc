@@ -26,6 +26,8 @@
 
 #include <sys/types.h>
 
+#include <algorithm>
+
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -652,7 +654,7 @@ static uint find_longest_bitstream(uint16 *table, uint16 *end) {
       return OFFSET_TABLE_SIZE;
     }
     length2 = find_longest_bitstream(next, end) + 1;
-    length = MY_MAX(length, length2);
+    length = std::max(length, length2);
   }
   return length;
 }
@@ -759,7 +761,7 @@ static unpack_function_t get_unpack_function(MI_COLUMNDEF *rec) {
       return &uf_varchar2;
     case FIELD_LAST:
     default:
-      return 0; /* This should never happend */
+      return nullptr; /* This should never happend */
   }
 }
 
@@ -1252,7 +1254,7 @@ uint _mi_pack_get_block_info(MI_INFO *myisam, MI_BIT_BUFF *bit_buff,
   }
   info->filepos = filepos + head_length;
   if (file > 0) {
-    info->offset = MY_MIN(info->rec_len, ref_length - head_length);
+    info->offset = std::min<ulong>(info->rec_len, ref_length - head_length);
     memcpy(*rec_buff_p, header + head_length, info->offset);
   }
   return 0;
@@ -1403,7 +1405,7 @@ static uchar *_mi_mempack_get_block_info(MI_INFO *myisam, MI_BIT_BUFF *bit_buff,
                                &info->blob_len);
     /* mi_alloc_rec_buff sets my_errno on error */
     if (!(mi_alloc_rec_buff(myisam, info->blob_len, rec_buff_p)))
-      return 0; /* not enough memory */
+      return nullptr; /* not enough memory */
     bit_buff->blob_pos = (uchar *)*rec_buff_p;
     bit_buff->blob_end = (uchar *)*rec_buff_p + info->blob_len;
   }

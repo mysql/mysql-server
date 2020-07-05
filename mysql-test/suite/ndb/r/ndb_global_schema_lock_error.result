@@ -1,4 +1,3 @@
-call mtr.add_suppression("Failed to acquire global schema lock");
 Restarting all nodes "no start"
 Waiting for not started
 CREATE DATABASE test2;

@@ -22,6 +22,10 @@
 --source include/have_binlog_format_statement.inc
 --source include/master-slave.inc
 
+# this test needs to deterministically create a large enough binlog
+# file. Skip test when compression is on.
+--source include/not_binlog_transaction_compression_on.inc
+
 # Suppression of error messages
 #CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format');
 FLUSH LOGS;

@@ -58,9 +58,9 @@
 static const char *opt_ssl_ca = nullptr;
 static const char *opt_ssl_key = nullptr;
 static const char *opt_ssl_cert = nullptr;
-static char *opt_ssl_capath = NULL, *opt_ssl_cipher = NULL,
-            *opt_tls_ciphersuites = NULL, *opt_ssl_crl = NULL,
-            *opt_ssl_crlpath = NULL, *opt_tls_version = NULL;
+static char *opt_ssl_capath = nullptr, *opt_ssl_cipher = nullptr,
+            *opt_tls_ciphersuites = nullptr, *opt_ssl_crl = nullptr,
+            *opt_ssl_crlpath = nullptr, *opt_tls_version = nullptr;
 
 static PolyLock_mutex lock_ssl_ctx(&LOCK_tls_ctx_options);
 
@@ -287,10 +287,10 @@ int SslAcceptorContext::show_ssl_ctx_get_session_cache_mode(THD *,
 
 static char *my_asn1_time_to_string(ASN1_TIME *time, char *buf, int len) {
   int n_read;
-  char *res = NULL;
+  char *res = nullptr;
   BIO *bio = BIO_new(BIO_s_mem());
 
-  if (bio == NULL) return NULL;
+  if (bio == nullptr) return nullptr;
 
   if (!ASN1_TIME_print(bio, time)) goto end;
 
@@ -314,14 +314,14 @@ int SslAcceptorContext::show_ssl_get_server_not_before(THD *, SHOW_VAR *var,
     X509 *cert = SSL_get_certificate(c);
     ASN1_TIME *not_before = X509_get_notBefore(cert);
 
-    if (not_before == NULL) {
+    if (not_before == nullptr) {
       var->value = empty_c_string;
       return 0;
     }
 
     var->value =
         my_asn1_time_to_string(not_before, buff, SHOW_VAR_FUNC_BUFF_SIZE);
-    if (var->value == NULL) {
+    if (var->value == nullptr) {
       var->value = empty_c_string;
       return 1;
     }
@@ -340,14 +340,14 @@ int SslAcceptorContext::show_ssl_get_server_not_after(THD *, SHOW_VAR *var,
     X509 *cert = SSL_get_certificate(c);
     ASN1_TIME *not_after = X509_get_notAfter(cert);
 
-    if (not_after == NULL) {
+    if (not_after == nullptr) {
       var->value = empty_c_string;
       return 0;
     }
 
     var->value =
         my_asn1_time_to_string(not_after, buff, SHOW_VAR_FUNC_BUFF_SIZE);
-    if (var->value == NULL) {
+    if (var->value == nullptr) {
       var->value = empty_c_string;
       return 1;
     }
@@ -520,16 +520,17 @@ bool SslAcceptorContext::singleton_init(bool use_ssl_arg) {
   @retval non-null The text of the error from the library
 */
 static const char *verify_store_cert(SSL_CTX *ctx, SSL *ssl) {
-  const char *result = NULL;
+  const char *result = nullptr;
   X509 *cert = SSL_get_certificate(ssl);
   X509_STORE_CTX *sctx = X509_STORE_CTX_new();
 
-  if (NULL != sctx &&
-      0 != X509_STORE_CTX_init(sctx, SSL_CTX_get_cert_store(ctx), cert, NULL) &&
+  if (nullptr != sctx &&
+      0 != X509_STORE_CTX_init(sctx, SSL_CTX_get_cert_store(ctx), cert,
+                               nullptr) &&
       !X509_verify_cert(sctx)) {
     result = X509_verify_cert_error_string(X509_STORE_CTX_get_error(sctx));
   }
-  if (sctx != NULL) X509_STORE_CTX_free(sctx);
+  if (sctx != nullptr) X509_STORE_CTX_free(sctx);
   return result;
 }
 
@@ -611,8 +612,8 @@ ssl_artifacts_status SslAcceptorContext::auto_detect_ssl() {
 }
 
 static int warn_one(const char *file_name) {
-  char *issuer = NULL;
-  char *subject = NULL;
+  char *issuer = nullptr;
+  char *subject = nullptr;
   X509 *ca_cert;
   BIO *bio;
   FILE *fp;
@@ -629,7 +630,7 @@ static int warn_one(const char *file_name) {
     return 1;
   }
   BIO_set_fp(bio, fp, BIO_NOCLOSE);
-  ca_cert = PEM_read_bio_X509(bio, 0, 0, 0);
+  ca_cert = PEM_read_bio_X509(bio, nullptr, nullptr, nullptr);
   BIO_free(bio);
 
   if (!ca_cert) {
@@ -638,8 +639,8 @@ static int warn_one(const char *file_name) {
     return 0;
   }
 
-  issuer = X509_NAME_oneline(X509_get_issuer_name(ca_cert), 0, 0);
-  subject = X509_NAME_oneline(X509_get_subject_name(ca_cert), 0, 0);
+  issuer = X509_NAME_oneline(X509_get_issuer_name(ca_cert), nullptr, 0);
+  subject = X509_NAME_oneline(X509_get_subject_name(ca_cert), nullptr, 0);
 
   /* Suppressing warning which is not relevant during initialization */
   if (!strcmp(issuer, subject) &&
@@ -690,7 +691,7 @@ int SslAcceptorContext::warn_self_signed_ca() {
     my_dirend(ca_dir);
     dynstr_free(&file_path);
 
-    ca_dir = 0;
+    ca_dir = nullptr;
     memset(&file_path, 0, sizeof(file_path));
   }
   return ret_val;
@@ -721,13 +722,13 @@ void SslAcceptorContext::read_parameters(
 static Sys_var_charptr Sys_ssl_ca(
     "ssl_ca", "CA file in PEM format (check OpenSSL docs, implies --ssl)",
     PERSIST_AS_READONLY GLOBAL_VAR(opt_ssl_ca),
-    CMD_LINE(REQUIRED_ARG, OPT_SSL_CA), IN_FS_CHARSET, DEFAULT(0),
+    CMD_LINE(REQUIRED_ARG, OPT_SSL_CA), IN_FS_CHARSET, DEFAULT(nullptr),
     &lock_ssl_ctx);
 
 static Sys_var_charptr Sys_ssl_capath(
     "ssl_capath", "CA directory (check OpenSSL docs, implies --ssl)",
     PERSIST_AS_READONLY GLOBAL_VAR(opt_ssl_capath),
-    CMD_LINE(REQUIRED_ARG, OPT_SSL_CAPATH), IN_FS_CHARSET, DEFAULT(0),
+    CMD_LINE(REQUIRED_ARG, OPT_SSL_CAPATH), IN_FS_CHARSET, DEFAULT(nullptr),
     &lock_ssl_ctx);
 
 static Sys_var_charptr Sys_tls_version(
@@ -745,35 +746,36 @@ static Sys_var_charptr Sys_tls_version(
 static Sys_var_charptr Sys_ssl_cert(
     "ssl_cert", "X509 cert in PEM format (implies --ssl)",
     PERSIST_AS_READONLY GLOBAL_VAR(opt_ssl_cert),
-    CMD_LINE(REQUIRED_ARG, OPT_SSL_CERT), IN_FS_CHARSET, DEFAULT(0),
+    CMD_LINE(REQUIRED_ARG, OPT_SSL_CERT), IN_FS_CHARSET, DEFAULT(nullptr),
     &lock_ssl_ctx);
 
 static Sys_var_charptr Sys_ssl_cipher(
     "ssl_cipher", "SSL cipher to use (implies --ssl)",
     PERSIST_AS_READONLY GLOBAL_VAR(opt_ssl_cipher),
-    CMD_LINE(REQUIRED_ARG, OPT_SSL_CIPHER), IN_FS_CHARSET, DEFAULT(0),
+    CMD_LINE(REQUIRED_ARG, OPT_SSL_CIPHER), IN_FS_CHARSET, DEFAULT(nullptr),
     &lock_ssl_ctx);
 
 static Sys_var_charptr Sys_tls_ciphersuites(
     "tls_ciphersuites", "TLS v1.3 ciphersuite to use (implies --ssl)",
     PERSIST_AS_READONLY GLOBAL_VAR(opt_tls_ciphersuites),
-    CMD_LINE(REQUIRED_ARG, OPT_TLS_CIPHERSUITES), IN_FS_CHARSET, DEFAULT(0),
-    &lock_ssl_ctx);
+    CMD_LINE(REQUIRED_ARG, OPT_TLS_CIPHERSUITES), IN_FS_CHARSET,
+    DEFAULT(nullptr), &lock_ssl_ctx);
 
 static Sys_var_charptr Sys_ssl_key("ssl_key",
                                    "X509 key in PEM format (implies --ssl)",
                                    PERSIST_AS_READONLY GLOBAL_VAR(opt_ssl_key),
                                    CMD_LINE(REQUIRED_ARG, OPT_SSL_KEY),
-                                   IN_FS_CHARSET, DEFAULT(0), &lock_ssl_ctx);
+                                   IN_FS_CHARSET, DEFAULT(nullptr),
+                                   &lock_ssl_ctx);
 
 static Sys_var_charptr Sys_ssl_crl(
     "ssl_crl", "CRL file in PEM format (check OpenSSL docs, implies --ssl)",
     PERSIST_AS_READONLY GLOBAL_VAR(opt_ssl_crl),
-    CMD_LINE(REQUIRED_ARG, OPT_SSL_CRL), IN_FS_CHARSET, DEFAULT(0),
+    CMD_LINE(REQUIRED_ARG, OPT_SSL_CRL), IN_FS_CHARSET, DEFAULT(nullptr),
     &lock_ssl_ctx);
 
 static Sys_var_charptr Sys_ssl_crlpath(
     "ssl_crlpath", "CRL directory (check OpenSSL docs, implies --ssl)",
     PERSIST_AS_READONLY GLOBAL_VAR(opt_ssl_crlpath),
-    CMD_LINE(REQUIRED_ARG, OPT_SSL_CRLPATH), IN_FS_CHARSET, DEFAULT(0),
+    CMD_LINE(REQUIRED_ARG, OPT_SSL_CRLPATH), IN_FS_CHARSET, DEFAULT(nullptr),
     &lock_ssl_ctx);

@@ -35,6 +35,12 @@
 #include "ndb_socket.h"
 #include <OwnProcessInfo.hpp>
 
+#if 0
+#define DEBUG_FPRINTF(arglist) do { fprintf arglist ; } while (0)
+#else
+#define DEBUG_FPRINTF(a)
+#endif
+
 SocketServer::SocketServer(unsigned maxSessions) :
   m_sessions(10),
   m_services(5),
@@ -162,6 +168,9 @@ SocketServer::setup(SocketServer::Service * service,
     DBUG_RETURN(false);
   }
 
+  DEBUG_FPRINTF((stderr, "Listening on port: %u\n",
+                (Uint32)*port));
+
   ServiceInstance i;
   i.m_socket = sock;
   i.m_service = service;
@@ -172,7 +181,6 @@ SocketServer::setup(SocketServer::Service * service,
 
   DBUG_RETURN(true);
 }
-
 
 bool
 SocketServer::doAccept()
@@ -286,12 +294,14 @@ SocketServer::doRun(){
 
     if(m_sessions.size() >= m_maxSessions){
       // Don't accept more connections yet
+      DEBUG_FPRINTF((stderr, "Too many connections\n"));
       NdbSleep_MilliSleep(200);
       continue;
     }
 
     if (!doAccept()){
       // accept failed, step back
+      DEBUG_FPRINTF((stderr, "Accept failed\n"));
       NdbSleep_MilliSleep(200);
     }
   }
@@ -412,7 +422,10 @@ sessionThread_C(void* _sc){
   if(!si->m_stop)
     si->runSession();
   else
+  {
     ndb_socket_close(si->m_socket);
+    ndb_socket_invalidate(&si->m_socket);
+  }
 
   // Mark the thread as stopped to allow the
   // session resources to be released

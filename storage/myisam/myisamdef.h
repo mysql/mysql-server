@@ -459,7 +459,7 @@ struct MI_SORT_PARAM {
 
 #define get_pack_length(length) ((length) >= 255 ? 3 : 1)
 
-#define MI_MIN_BLOCK_LENGTH 20    /* Because of delete-link */
+#define MI_MIN_BLOCK_LENGTH 20U   /* Because of delete-link */
 #define MI_EXTEND_BLOCK_LENGTH 20 /* Don't use to small record-blocks */
 #define MI_SPLIT_LENGTH ((MI_EXTEND_BLOCK_LENGTH + 4) * 2)
 #define MI_MAX_DYN_BLOCK_HEADER 20 /* Max prefix of record-block */
@@ -710,7 +710,7 @@ struct MI_BLOCK_INFO { /* Parameter to _mi_get_block_info */
 #define USE_BUFFER_INIT (((1024L * 512L - MALLOC_OVERHEAD) / IO_SIZE) * IO_SIZE)
 #define READ_BUFFER_INIT (1024L * 256L - MALLOC_OVERHEAD)
 #define SORT_BUFFER_INIT (2048L * 1024L - MALLOC_OVERHEAD)
-#define MIN_SORT_BUFFER (4096 - MALLOC_OVERHEAD)
+#define MIN_SORT_BUFFER (4096ULL - MALLOC_OVERHEAD)
 
 enum myisam_log_commands {
   MI_LOG_OPEN,

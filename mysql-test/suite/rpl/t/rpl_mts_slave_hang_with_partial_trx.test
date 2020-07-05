@@ -29,6 +29,12 @@
 # that all data was correctly applied on slave.
 #
 
+# this test relies on a debug point that is triggered after
+# the IO thread encounters a write rows log event. This is
+# impossible with compression, since the IO thread will not
+# parse transaction payload events
+--source include/not_binlog_transaction_compression_on.inc
+
 --source include/not_group_replication_plugin.inc
 # This test case uses a debug point based on RBR
 --source include/have_binlog_format_row.inc

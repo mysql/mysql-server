@@ -29,7 +29,7 @@ static void *launch_handler_thread(void *arg) {
   Primary_election_primary_process *handler =
       (Primary_election_primary_process *)arg;
   handler->primary_election_process_handler();
-  return 0;
+  return nullptr;
 }
 
 Primary_election_primary_process::Primary_election_primary_process()
@@ -133,7 +133,7 @@ int Primary_election_primary_process::primary_election_process_handler() {
   int error = 0;
   std::string err_msg;
 
-  THD *thd = NULL;
+  THD *thd = nullptr;
   thd = new THD;
   my_thread_init();
   thd->set_new_thread_id();

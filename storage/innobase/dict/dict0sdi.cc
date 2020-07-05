@@ -57,7 +57,7 @@ static dberr_t dict_sdi_exists(const dd::Tablespace &tablespace,
     return (DB_ERROR);
   }
 
-  ut_ad(check_trx_exists(current_thd) != NULL);
+  ut_ad(check_trx_exists(current_thd) != nullptr);
 
   if (fsp_is_undo_tablespace(*space_id) || fsp_is_system_temporary(*space_id)) {
     /* Claim Success */

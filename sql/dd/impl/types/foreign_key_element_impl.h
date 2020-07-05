@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,10 +53,10 @@ class Foreign_key_element_impl : public Weak_object_impl,
                                  public Foreign_key_element {
  public:
   Foreign_key_element_impl()
-      : m_foreign_key(NULL), m_column(NULL), m_ordinal_position(0) {}
+      : m_foreign_key(nullptr), m_column(nullptr), m_ordinal_position(0) {}
 
   Foreign_key_element_impl(Foreign_key_impl *foreign_key)
-      : m_foreign_key(foreign_key), m_column(NULL), m_ordinal_position(0) {}
+      : m_foreign_key(foreign_key), m_column(nullptr), m_ordinal_position(0) {}
 
   Foreign_key_element_impl(const Foreign_key_element_impl &src,
                            Foreign_key_impl *parent, Column *column);

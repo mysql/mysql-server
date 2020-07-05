@@ -23,6 +23,7 @@ not ok
 in main, line 0:ERROR: Not a directory, while connecting to  SOCKET (code 2002)
 not ok
 call mtr.add_suppression("Plugin mysqlx reported: .Setup of socket: '\(.+\)' failed, lock file wasn't allocated by X Plugin");
+call mtr.add_suppression("Plugin mysqlx reported: .* X Plugin won't be accessible through UNIX socket");
 # restart: --loose-mysqlx-socket= SOCKET
 # restart: --loose-mysqlx-socket= SOCKET
 RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
@@ -49,3 +50,4 @@ call mtr.add_suppression("Plugin mysqlx reported: .Setup of socket: '\(.+\)' fai
 # restart: --loose-mysqlx-socket= SOCKET
 in main, line 0:ERROR: UNIX Socket file name too long, size should be less or equal LENGTH (code 2005)
 not ok
+# restart:

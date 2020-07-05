@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@ bool regex_pattern_matches(const std::string &s, const std::string &pattern) {
   if (r) {
     throw std::runtime_error("Error compiling regex pattern: " + pattern);
   }
-  r = regexec(&regex, s.c_str(), 0, NULL, 0);
+  r = regexec(&regex, s.c_str(), 0, nullptr, 0);
   regfree(&regex);
   return (r == 0);
 }

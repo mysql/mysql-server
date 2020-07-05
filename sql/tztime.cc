@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,8 @@
 #endif
 
 #include "sql/tztime.h"
+
+#include <algorithm>
 
 #include <fcntl.h>
 #include <math.h>
@@ -234,7 +236,7 @@ static bool tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage) {
       uchar buf[sizeof(struct tzhead) + sizeof(my_time_t) * TZ_MAX_TIMES +
                 TZ_MAX_TIMES + sizeof(TRAN_TYPE_INFO) * TZ_MAX_TYPES +
 #ifdef ABBR_ARE_USED
-                MY_MAX(TZ_MAX_CHARS + 1, (2 * (MY_TZNAME_MAX + 1))) +
+                std::max(TZ_MAX_CHARS + 1, (2 * (MY_TZNAME_MAX + 1))) +
 #endif
                 sizeof(LS_INFO) * TZ_MAX_LEAPS];
     } u;
@@ -1028,7 +1030,6 @@ void adjust_time_zone_displacement(const Time_zone *tz, MYSQL_TIME *mt) {
 */
 class Time_zone_system : public Time_zone {
  public:
-  Time_zone_system() {} /* Remove gcc warning */
   virtual my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t,
                                     bool *in_dst_time_gap) const;
   virtual void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const;
@@ -1115,7 +1116,6 @@ const String *Time_zone_system::get_name() const { return &tz_SYSTEM_name; }
 */
 class Time_zone_utc : public Time_zone {
  public:
-  Time_zone_utc() {} /* Remove gcc warning */
   virtual my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t,
                                     bool *in_dst_time_gap) const;
   virtual void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const;
@@ -1134,20 +1134,12 @@ class Time_zone_utc : public Time_zone {
                         value passed doesn't really exist (i.e. falls into
                         spring time-gap) and is not touched otherwise.
 
-  DESCRIPTION
-    Since Time_zone_utc is used only internally for my_time_t -> TIME
-    conversions, this function of Time_zone interface is not implemented for
-    this class and should not be called.
-
   RETURN VALUE
-    0
+    Corresponding my_time_t value, or 0 in case of error.
 */
 my_time_t Time_zone_utc::TIME_to_gmt_sec(
-    const MYSQL_TIME *t MY_ATTRIBUTE((unused)),
-    bool *in_dst_time_gap MY_ATTRIBUTE((unused))) const {
-  /* Should be never called */
-  DBUG_ASSERT(0);
-  return 0;
+    const MYSQL_TIME *mt, bool *in_dst_time_gap MY_ATTRIBUTE((unused))) const {
+  return sec_since_epoch(*mt);
 }
 
 /*
@@ -1188,7 +1180,7 @@ void Time_zone_utc::gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const {
 const String *Time_zone_utc::get_name() const {
   /* Should be never called */
   DBUG_ASSERT(0);
-  return 0;
+  return nullptr;
 }
 
 /*
@@ -1408,7 +1400,7 @@ static bool tz_inited = false;
   shared by all time zones.
 */
 static uint tz_leapcnt = 0;
-static LS_INFO *tz_lsis = 0;
+static LS_INFO *tz_lsis = nullptr;
 
 /*
   Shows whenever we have found time zone tables during start-up.
@@ -1725,17 +1717,17 @@ void my_tz_free() {
 
 static Time_zone *tz_load_from_open_tables(const String *tz_name,
                                            TABLE_LIST *tz_tables) {
-  TABLE *table = 0;
-  TIME_ZONE_INFO *tz_info = NULL;
+  TABLE *table = nullptr;
+  TIME_ZONE_INFO *tz_info = nullptr;
   Tz_names_entry *tmp_tzname;
-  Time_zone *return_val = 0;
+  Time_zone *return_val = nullptr;
   int res;
   uint tzid, ttid;
   my_time_t ttime;
   char buff[MAX_FIELD_WIDTH];
   String abbr(buff, sizeof(buff), &my_charset_latin1);
-  char *alloc_buff = NULL;
-  char *tz_name_buff = NULL;
+  char *alloc_buff = nullptr;
+  char *tz_name_buff = nullptr;
   /*
     Temporary arrays that are used for loading of data for filling
     TIME_ZONE_INFO structure
@@ -1744,7 +1736,7 @@ static Time_zone *tz_load_from_open_tables(const String *tz_name,
   uchar types[TZ_MAX_TIMES];
   TRAN_TYPE_INFO ttis[TZ_MAX_TYPES];
 #ifdef ABBR_ARE_USED
-  char chars[MY_MAX(TZ_MAX_CHARS + 1, (2 * (MY_TZNAME_MAX + 1)))];
+  char chars[std::max(TZ_MAX_CHARS + 1, (2 * (MY_TZNAME_MAX + 1)))];
 #endif
   /*
     Used as a temporary tz_info until we decide that we actually want to
@@ -1934,7 +1926,7 @@ static Time_zone *tz_load_from_open_tables(const String *tz_name,
   }
 
   (void)table->file->ha_index_end();
-  table = 0;
+  table = nullptr;
 
   /*
     Let us check how correct our time zone description is. We don't check for
@@ -1949,7 +1941,7 @@ static Time_zone *tz_load_from_open_tables(const String *tz_name,
   if (!(alloc_buff = (char *)tz_storage.Alloc(sizeof(TIME_ZONE_INFO) +
                                               tz_name->length() + 1))) {
     LogErr(ERROR_LEVEL, ER_TZ_OOM_LOADING_TIME_ZONE_DESCRIPTION);
-    return 0;
+    return nullptr;
   }
 
   /* Move the temporary tz_info into the allocated area */

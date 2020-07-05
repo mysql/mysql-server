@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,9 @@
 #include <ndb_opts.h>
 
 #include <NdbApi.hpp>
-#include <NDBT.hpp>
+#include <NdbOut.hpp>
+
+#include <NdbToolsProgramExitCodes.hpp>
 
 static int _fully_qualified = 0;
 static int _parsable = 0;
@@ -55,8 +57,7 @@ fatal(char const* fmt, ...)
     va_end(ap);
     ndbout << buf;
     ndbout << endl;
-    NDBT_ProgramExit(NDBT_FAILED);
-    exit(1);
+    exit(NdbToolsProgramExitCode::FAILED);
 }
 
 static void
@@ -74,8 +75,7 @@ fatal(const NdbError ndberr, char const* fmt, ...)
     ndbout << buf;
     ndbout << " - " << ndberr;
     ndbout << endl;
-    NDBT_ProgramExit(NDBT_FAILED);
-    exit(1);
+    exit(NdbToolsProgramExitCode::FAILED);
 }
 
 static void
@@ -286,7 +286,7 @@ list(const NdbDictionary::Dictionary* dict,
         }
     }
     if (_parsable) {
-      exit(0);
+      exit(NdbToolsProgramExitCode::OK);
     }
 }
 
@@ -333,17 +333,17 @@ int main(int argc, char** argv) {
 #endif
   bool using_default_database = false;
   if (opts.handle_options())
-    return NDBT_ProgramExit(NDBT_WRONGARGS);
+    return NdbToolsProgramExitCode::WRONG_ARGS;
   if(_dbname && argc==0) {
     ndbout << "-d option given without table name." << endl;
-    return NDBT_ProgramExit(NDBT_WRONGARGS);
+    return NdbToolsProgramExitCode::WRONG_ARGS;
   }
   if (argc>0)
       _tabname = argv[0];
   if (argc > 1) {
     ndbout << "Wrong Argument" << endl;
     ndbout << "Please use the option --help for usage." << endl;
-    return NDBT_ProgramExit(NDBT_WRONGARGS);
+    return NdbToolsProgramExitCode::WRONG_ARGS;
   }
 
   std::unique_ptr<Ndb_cluster_connection>
@@ -395,7 +395,7 @@ int main(int argc, char** argv) {
         ndbout << "Table " << _tabname << ": not found - "
                << dict->getNdbError() << endl;
       }
-      return NDBT_ProgramExit(NDBT_FAILED);
+      return NdbToolsProgramExitCode::FAILED;
     }
   }
   for (int i = 0; _loops == 0 || i < _loops; i++) {
@@ -403,7 +403,7 @@ int main(int argc, char** argv) {
          static_cast<NdbDictionary::Object::Type>(_type),
          ndb->usingFullyQualifiedNames());
   }
-  return NDBT_ProgramExit(NDBT_OK);
+  return NdbToolsProgramExitCode::OK;
 }
 
 // vim: set sw=4:

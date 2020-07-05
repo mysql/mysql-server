@@ -42,6 +42,8 @@ keyring_operations
 keyring_operations
 mandatory_roles
 mandatory_roles
+max_length_for_sort_data
+max_length_for_sort_data
 partial_revokes
 partial_revokes
 password_require_current

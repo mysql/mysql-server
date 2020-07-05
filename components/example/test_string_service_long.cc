@@ -50,7 +50,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 mysql_service_status_t test_string_service_init() {
   FILE *outfile;
 
-  my_h_string out_string = NULL;
+  my_h_string out_string = nullptr;
 #define TEST_TEXT_LIT_LENGTH 16
   const char *test_text_lit = "Hello Mysql-8.0!";  // 16 chars
   char *test_text;  // Buffer filled with test_text_lit
@@ -123,7 +123,7 @@ mysql_service_status_t test_string_service_init() {
         WRITE_LOG("Number of bytes: %d\n", out_length);
       }
       // Convert to low string
-      my_h_string low_string = NULL;
+      my_h_string low_string = nullptr;
       if (mysql_service_mysql_string_factory->create(&low_string)) {
         WRITE_LOG("%s\n", "Create lower string object failed.");
       } else {
@@ -142,7 +142,7 @@ mysql_service_status_t test_string_service_init() {
       }
       mysql_service_mysql_string_factory->destroy(low_string);
       // Convert to upper string
-      my_h_string upper_string = NULL;
+      my_h_string upper_string = nullptr;
       if (mysql_service_mysql_string_factory->create(&upper_string)) {
         WRITE_LOG("%s\n", "Create upper string object failed.");
       } else {
@@ -187,7 +187,7 @@ mysql_service_status_t test_string_service_init() {
         WRITE_LOG("%s\n", "Get byte with index > strlen passed.");
       }
       // Iterator functions:
-      my_h_string_iterator out_iterator = NULL;
+      my_h_string_iterator out_iterator = nullptr;
       if (mysql_service_mysql_string_iterator->iterator_create(out_string,
                                                                &out_iterator)) {
         WRITE_LOG("%s\n", "Create iterator failed.");

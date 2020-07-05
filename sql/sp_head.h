@@ -125,7 +125,7 @@ class sp_name {
 
   sp_name(const LEX_CSTRING &db, const LEX_STRING &name, bool use_explicit_name)
       : m_db(db), m_name(name), m_explicit_name(use_explicit_name) {
-    m_qname.str = 0;
+    m_qname.str = nullptr;
     m_qname.length = 0;
   }
 
@@ -151,14 +151,14 @@ class sp_parser_data {
 
  public:
   sp_parser_data()
-      : m_current_stmt_start_ptr(NULL),
-        m_option_start_ptr(NULL),
-        m_param_start_ptr(NULL),
-        m_param_end_ptr(NULL),
-        m_body_start_ptr(NULL),
+      : m_current_stmt_start_ptr(nullptr),
+        m_option_start_ptr(nullptr),
+        m_param_start_ptr(nullptr),
+        m_param_end_ptr(nullptr),
+        m_body_start_ptr(nullptr),
         m_cont_level(0),
-        m_saved_memroot(NULL),
-        m_saved_item_list(NULL) {}
+        m_saved_memroot(nullptr),
+        m_saved_item_list(nullptr) {}
 
   ///////////////////////////////////////////////////////////////////////
 
@@ -188,7 +188,7 @@ class sp_parser_data {
     @retval true if SP-body statement is being parsed.
     @retval false otherwise.
   */
-  bool is_parsing_sp_body() const { return m_saved_memroot != NULL; }
+  bool is_parsing_sp_body() const { return m_saved_memroot != nullptr; }
 
   ///////////////////////////////////////////////////////////////////////
 
@@ -687,7 +687,7 @@ class sp_head {
   */
   bool restore_lex(THD *thd);
 
-  char *name(uint *lenp = 0) const {
+  char *name(uint *lenp = nullptr) const {
     if (lenp) *lenp = (uint)m_name.length;
     return m_name.str;
   }
@@ -696,6 +696,7 @@ class sp_head {
     Create Field-object corresponding to the RETURN field of a stored function.
     This operation makes sense for stored functions only.
 
+    @param thd              thread context.
     @param field_max_length the max length (in the sense of Item classes).
     @param field_name       the field name (item name).
     @param table            the field's table.
@@ -703,8 +704,10 @@ class sp_head {
     @return newly created and initialized Field-instance,
     or NULL in case of error.
   */
-  Field *create_result_field(size_t field_max_length, const char *field_name,
-                             TABLE *table);
+  Field *create_result_field(THD *thd, size_t field_max_length,
+                             const char *field_name, TABLE *table) const;
+
+  void returns_type(THD *thd, String *result) const;
 
   void set_info(longlong created, longlong modified, st_sp_chistics *chistics,
                 sql_mode_t sql_mode);

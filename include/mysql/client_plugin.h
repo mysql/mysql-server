@@ -1,5 +1,5 @@
 #ifndef MYSQL_CLIENT_PLUGIN_INCLUDED
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -79,6 +79,8 @@ extern "C" {
 #define MYSQL_CLIENT_TRACE_PLUGIN_INTERFACE_VERSION 0x0100
 
 #define MYSQL_CLIENT_MAX_PLUGINS 4
+
+#define MYSQL_CLIENT_PLUGIN_AUTHOR_ORACLE "Oracle Corporation"
 
 #define mysql_declare_client_plugin(X)           \
   MYSQL_PLUGIN_EXPORT st_mysql_client_plugin_##X \

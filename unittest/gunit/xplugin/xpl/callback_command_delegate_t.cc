@@ -50,7 +50,7 @@ const longlong EXPECTED_VALUE_INTEGER = 1;
 const longlong EXPECTED_VALUE_LONGLONG = 2;
 const longlong EXPECTED_IS_LONGLONG_UNSIGNED = true;
 const longlong EXPECTED_IS_LONGLONG_UNSIGNED_DEFAULT = false;
-const decimal_t EXPECTED_VALUE_DECIMAL = {0, 1, 2, false, NULL};
+const decimal_t EXPECTED_VALUE_DECIMAL = {0, 1, 2, false, nullptr};
 const double EXPECTED_VALUE_DOUBLE = 20.0;
 const MysqlTime EXPECTED_VALUE_DATATIME(2017, 12, 20, 20, 30, 00, 0, false,
                                         MYSQL_TIMESTAMP_DATETIME);
@@ -124,7 +124,7 @@ class Callback_command_delegate_testsuite : public Test {
     ASSERT_EQ(expect_success, m_sut->get_datetime(&EXPECTED_VALUE_DATATIME, 0));
     ASSERT_EQ(expect_success,
               m_sut->get_string(EXPECTED_VALUE_STRING,
-                                strlen(EXPECTED_VALUE_STRING), NULL));
+                                strlen(EXPECTED_VALUE_STRING), nullptr));
     ASSERT_EQ(expected_result, static_cast<bool>(m_sut->end_row()));
   }
 
@@ -222,7 +222,7 @@ TEST_F(Callback_command_delegate_testsuite,
 TEST_F(Callback_command_delegate_testsuite,
        process_data_verify_that_callbacks_are_called_but_container_is_missing) {
   const bool expect_failure = true;
-  Callback_command_delegate::Row_data *expected_container = NULL;
+  Callback_command_delegate::Row_data *expected_container = nullptr;
 
   create_sut_with_callback_mock();
 

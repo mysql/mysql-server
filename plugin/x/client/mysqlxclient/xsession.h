@@ -326,6 +326,20 @@ class XSession {
      */
     Compression_max_combine_messages,
 
+    /** The server can compress messages at a given level.
+
+      Default: -2^63 (default level depend on compression algorithm
+                      and the server configuration)
+      Option type: INTEGER
+     */
+    Compression_level_server,
+    /** The client can compress messages at a given level.
+
+      Default: -2^63 (default level depend on compression algorithm;
+                      deflate_stream:3, lz4_frame:2, zstd_stream:3)
+      Option type: INTEGER
+     */
+    Compression_level_client,
   };
 
  public:

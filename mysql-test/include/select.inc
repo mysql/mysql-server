@@ -3808,6 +3808,7 @@ insert into t1 values (3, 1, 2, 'def');
 insert into t2 values (1, 'A1', 1);
 insert into t3 values (1, '1980-01-01');
 
+--sorted_result
 SELECT a.f3, cr.f4, count(*) count
 FROM t2 a
 STRAIGHT_JOIN t1 cr ON cr.f2 = a.f1

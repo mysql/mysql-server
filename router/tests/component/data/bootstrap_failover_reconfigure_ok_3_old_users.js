@@ -11,6 +11,8 @@ var common_responses = common_stmts.prepare_statement_responses([
 ], options);
 
 var common_responses_regex = common_stmts.prepare_statement_responses_regex([
+  "router_set_session_options",
+  "router_set_gr_consistency_level",
   "router_create_user_if_not_exists",
   "router_select_router_address",
   "router_create_user",

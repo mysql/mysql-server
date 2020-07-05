@@ -79,3 +79,7 @@ EOF
 --remove_file $MYSQLTEST_VARDIR/mysqld.1/data/client-cert.pem
 --remove_file $MYSQLTEST_VARDIR/mysqld.1/data/client-key.pem
 --remove_file $X509_SUBJECT_LOG
+
+# Restore default settings in opt file and clean up
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc

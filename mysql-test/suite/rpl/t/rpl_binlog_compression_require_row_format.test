@@ -1,0 +1,165 @@
+#
+# This file contains test cases that test a combination of binlog transaction
+# compression and require row format on the applier.
+#
+
+
+#
+# ==== Purpose ====
+#
+# The following test verifies that the applier configured with require_row_format=TRUE
+# and binary log compression work together properly.
+#
+# ==== Implementation ====
+#
+# The test does:
+# 1. configure require_row_format to TRUE on the slave
+# 2. enables compression on the master
+# 3. generate one large transaction on the master, which is compressed
+#    and as such, is put in the Transaction_payload_event envelope
+# 4. assert that the right set of events are generated into the binary log
+# 5. assert that the right set of events are copied to the relay log
+# 6. assert that the events are applied successfully
+# 7. assert that the content of the tables between master and slave match
+# 8. assert that the slave's binary log shows the right set of events
+# 9. clean up
+#
+# ==== References ====
+#
+# WL#3549: binlog compression
+#
+
+--source include/master-slave.inc
+--source include/have_binlog_format_row.inc
+
+# saves the current setting of keep_transaction_payload_events
+# we will turn it on (even if they are disabled), so we can
+# assert that show binlog events shall produce the expected
+# output
+--let $saved_keep_transaction_payload_events= $keep_transaction_payload_events
+--let $keep_transaction_payload_events= 1
+
+--source include/rpl_connection_master.inc
+--let $saved_binlog_transaction_compression_master = `SELECT @@global.binlog_transaction_compression`
+
+--source include/rpl_connection_slave.inc
+--let $saved_binlog_transaction_compression_slave = `SELECT @@global.binlog_transaction_compression`
+
+#
+# enable compression for the slave applier threads
+# enable require_row_format on the channel
+#
+--source include/stop_slave.inc
+SET @@global.binlog_transaction_compression=TRUE;
+
+--let $saved_change_master_require_row_format = `SELECT IF (require_row_format = 'YES', 1, 0) FROM performance_schema.replication_applier_configuration WHERE CHANNEL_NAME=''`
+CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1 FOR CHANNEL '';
+--source include/start_slave.inc
+
+#
+# Reset the master and enable compression
+#
+
+--source include/rpl_connection_master.inc
+--source include/rpl_reset.inc
+
+--source include/rpl_connection_master.inc
+SET @@session.binlog_transaction_compression=TRUE;
+
+--source include/rpl_connection_slave.inc
+FLUSH LOGS;
+--source include/rpl_connection_master.inc
+FLUSH LOGS;
+
+#
+# Now, start the test
+#
+
+# 1. on master insert a large transaction
+CREATE TABLE t1 (c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT);
+BEGIN;
+--let $nrows = 10
+while ($nrows > 0)
+{
+  --eval INSERT INTO t1 VALUES ($nrows, REPEAT('a', 1000000))
+  --dec $nrows
+}
+COMMIT;
+--let $checksum_master = query_get_value(CHECKSUM TABLE t1 EXTENDED, Checksum, 1)
+
+# assert that SHOW BINLOG EVENTS shows the correct output
+--echo BINLOG EVENTS on master [$compression_type]
+--let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $keep_transaction_payload_events = 1
+--source include/show_binlog_events.inc
+
+--source include/rpl_connection_slave.inc
+--source include/start_slave_io.inc
+
+# 2. make sure it is copied fine to the relay log
+--source include/rpl_connection_master.inc
+--source include/sync_slave_io_with_master.inc
+
+# assert that SHOW RELAYLOG EVENTS shows the correct output
+--echo RELAY LOG EVENTS for $compression_type
+--let $binlog_file= LAST
+--source include/show_relaylog_events.inc
+
+# 3. make sure it is applied fine to the slave
+--source include/start_slave_sql.inc
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+
+# 4. lets compare contents of the table on master and slave
+--let $checksum_slave = query_get_value(CHECKSUM TABLE t1 EXTENDED, Checksum, 1)
+
+# 5. assert that tables have the same contents
+#    We use checksums, because the diff_tables requires
+#    modifications to the sort_buffer_size.
+#    Plain selects cause a valgrind warning in temp tables...
+--let $assert_cond= $checksum_master = $checksum_slave
+--let $assert_text= Assert that master and slave tables have the same content
+--source include/assert.inc
+
+# assert that SHOW BINLOG EVENTS shows the correct output
+--echo BINLOG EVENTS on slave contain compressed events
+--let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $keep_transaction_payload_events = 1
+--source include/show_binlog_events.inc
+
+# 6. clean up the test database
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+
+# If we got here, then transaction boundary parser has
+# worked fine with compression and require_row_format
+
+#
+# Clean up: reset variables and channel
+#
+--let $keep_transaction_payload_events= $saved_keep_transaction_payload_events
+--let $saved_keep_transaction_payload_events=
+
+--source include/rpl_connection_master.inc
+--replace_result $saved_binlog_transaction_compression_master SAVED
+--eval SET @@global.binlog_transaction_compression=$saved_binlog_transaction_compression_master
+
+--source include/rpl_connection_slave.inc
+--replace_result $saved_binlog_transaction_compression_slave SAVED
+--eval SET @@global.binlog_transaction_compression=$saved_binlog_transaction_compression_slave
+--source include/stop_slave.inc
+--replace_result $saved_change_master_require_row_format SAVED
+--eval CHANGE MASTER TO REQUIRE_ROW_FORMAT=$saved_change_master_require_row_format
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+--source include/rpl_reset.inc
+
+#
+# =========================
+# End of test case
+# =========================
+
+# end the test case
+--source include/rpl_end.inc

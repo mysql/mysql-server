@@ -52,7 +52,6 @@
 //#define DEBUG_LCP_LGMAN 1
 //#define DEBUG_LCP_SKIP_DELETE 1
 #endif
-//#define DEBUG_LCP_SKIP_DELETE 1
 
 #ifdef DEBUG_LCP
 #define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)

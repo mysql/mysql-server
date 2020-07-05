@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -36,8 +36,9 @@
 
 #include "mysqlrouter/http_server_component.h"
 #include "posix_re.h"
+#include "socket_operations.h"  // mysql_harness::socket_t
 
-using harness_socket_t = evutil_socket_t;
+using harness_socket_t = mysql_harness::socket_t;
 
 void stop_eventloop(evutil_socket_t, short, void *cb_arg);
 
@@ -112,7 +113,7 @@ class HttpRequestThread {
   std::unique_ptr<evhttp, decltype(&evhttp_free)> ev_http;
   std::unique_ptr<event, decltype(&event_free)> ev_shutdown_timer;
 
-  harness_socket_t accept_fd_{-1};
+  harness_socket_t accept_fd_{mysql_harness::kInvalidSocket};
 };
 
 class HttpServer {

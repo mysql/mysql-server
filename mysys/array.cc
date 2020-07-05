@@ -33,6 +33,8 @@
 #include <string.h>
 #include <sys/types.h>
 
+#include <algorithm>
+
 #include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -68,14 +70,14 @@ bool my_init_dynamic_array(DYNAMIC_ARRAY *array, PSI_memory_key psi_key,
                            uint init_alloc, uint alloc_increment) {
   DBUG_TRACE;
   if (!alloc_increment) {
-    alloc_increment = MY_MAX((8192 - MALLOC_OVERHEAD) / element_size, 16);
+    alloc_increment = std::max((8192 - MALLOC_OVERHEAD) / element_size, 16U);
     if (init_alloc > 8 && alloc_increment > init_alloc * 2)
       alloc_increment = init_alloc * 2;
   }
 
   if (!init_alloc) {
     init_alloc = alloc_increment;
-    init_buffer = 0;
+    init_buffer = nullptr;
   }
   array->elements = 0;
   array->max_element = init_alloc;
@@ -148,14 +150,14 @@ void *alloc_dynamic(DYNAMIC_ARRAY *array) {
                 (array->max_element + array->alloc_increment) *
                     array->size_of_element,
                 MYF(MY_WME))))
-        return 0;
+        return nullptr;
       memcpy(new_ptr, array->buffer, array->elements * array->size_of_element);
     } else if (!(new_ptr = (char *)my_realloc(
                      array->m_psi_key, array->buffer,
                      (array->max_element + array->alloc_increment) *
                          array->size_of_element,
                      MYF(MY_WME | MY_ALLOW_ZERO_PTR))))
-      return 0;
+      return nullptr;
     array->buffer = (uchar *)new_ptr;
     array->max_element += array->alloc_increment;
   }
@@ -178,7 +180,7 @@ void delete_dynamic(DYNAMIC_ARRAY *array) {
     array->elements = 0;
   else if (array->buffer) {
     my_free(array->buffer);
-    array->buffer = 0;
+    array->buffer = nullptr;
     array->elements = array->max_element = 0;
   }
 }

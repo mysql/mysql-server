@@ -36,3 +36,78 @@ CREATE TABLE abc.memorytable (id INT NOT NULL) ENGINE=MEMORY;
 # restart
 SELECT * FROM information_schema.TABLES WHERE TABLE_SCHEMA = 'abc';
 DROP DATABASE abc;
+#
+# Bug#30769965
+# duplicate entry for key 'primary' when querying
+# information_schema.tables
+#
+# When we run I_S query, we attempt to update the table
+# 'mysql.table_stats'.  There exists no entry in mysql.table_stats
+# for table db1.t1, when I_S query started execution. Once the I_S
+# query starts execution it sees only the snapshot image of
+# mysql.table_stats. Meanwhile I_S query is still executing, there
+# can be a thread that creates a table db1.t1. The I_S query being
+# executed first would attempt to update the dynamic statistics for
+# db1.t1.  This can lead to DUPLICATE KEY error.
+#
+# Test using InnoDB table.
+#
+CREATE TABLE t0 (c0 INT);
+INSERT INTO t0 VALUES (1),(2),(3),(4),(5);
+INSERT INTO t0 SELECT * FROM t0;
+INSERT INTO t0 SELECT * FROM t0;
+INSERT INTO t0 SELECT * FROM t0;
+INSERT INTO t0 SELECT * FROM t0;
+# Wait just before inserting dynamic statistics for t0.
+SET DEBUG_SYNC='before_insert_into_dd SIGNAL parked WAIT_FOR cont1';
+SELECT TABLE_NAME, ENGINE, TABLE_ROWS
+FROM INFORMATION_SCHEMA.TABLES WHERE table_name='t0';
+# In another connection, query I_S.TABLES to cause
+# dynamic statistics to be inserted before con1.
+SET DEBUG_SYNC= 'now WAIT_FOR parked';
+SELECT TABLE_NAME, ENGINE, TABLE_ROWS
+FROM INFORMATION_SCHEMA.TABLES WHERE table_name='t0';
+TABLE_NAME	ENGINE	TABLE_ROWS
+t0	InnoDB	80
+SET DEBUG_SYNC= 'now SIGNAL cont1';
+TABLE_NAME	ENGINE	TABLE_ROWS
+t0	InnoDB	80
+SELECT TABLE_NAME, ENGINE, TABLE_ROWS
+FROM INFORMATION_SCHEMA.TABLES WHERE table_name='t0';
+TABLE_NAME	ENGINE	TABLE_ROWS
+t0	InnoDB	80
+# Cleanup
+DROP TABLE t0;
+SET GLOBAL DEBUG=DEFAULT;
+SET DEBUG_SYNC = 'RESET';
+#
+# Testing MYISAM table path.
+#
+CREATE TABLE t0 (c0 INT) ENGINE=MyISAM;
+INSERT INTO t0 VALUES (1),(2),(3),(4),(5);
+INSERT INTO t0 SELECT * FROM t0;
+INSERT INTO t0 SELECT * FROM t0;
+INSERT INTO t0 SELECT * FROM t0;
+INSERT INTO t0 SELECT * FROM t0;
+# Wait just before inserting dynamic statistics for t0.
+SET DEBUG_SYNC='before_insert_into_dd SIGNAL parked WAIT_FOR cont1';
+SELECT TABLE_NAME, ENGINE, TABLE_ROWS
+FROM INFORMATION_SCHEMA.TABLES WHERE table_name='t0';
+# In another connection, query I_S.TABLES to cause
+# dynamic statistics to be inserted before con1.
+SET DEBUG_SYNC= 'now WAIT_FOR parked';
+SELECT TABLE_NAME, ENGINE, TABLE_ROWS
+FROM INFORMATION_SCHEMA.TABLES WHERE table_name='t0';
+TABLE_NAME	ENGINE	TABLE_ROWS
+t0	MyISAM	80
+SET DEBUG_SYNC= 'now SIGNAL cont1';
+TABLE_NAME	ENGINE	TABLE_ROWS
+t0	MyISAM	80
+SELECT TABLE_NAME, ENGINE, TABLE_ROWS
+FROM INFORMATION_SCHEMA.TABLES WHERE table_name='t0';
+TABLE_NAME	ENGINE	TABLE_ROWS
+t0	MyISAM	80
+# Cleanup
+DROP TABLE t0;
+SET GLOBAL DEBUG=DEFAULT;
+SET DEBUG_SYNC = 'RESET';

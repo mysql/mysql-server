@@ -33,7 +33,6 @@
 #include <stddef.h>
 
 #include "lex_string.h"
-#include "m_ctype.h"
 #include "sql/parse_tree_node_base.h"  // POS
 
 /**
@@ -45,6 +44,7 @@ class Item;
 class PT_item_list;
 class THD;
 struct Cast_type;
+struct CHARSET_INFO;
 struct udf_func;
 enum enum_field_types : int;
 

@@ -57,7 +57,7 @@ class Decompression_algorithm_zstd : public Decompression_algorithm_interface {
         ZSTD_decompressStream(m_stream, &out_buffer, &m_in_buffer);
     if (ZSTD_isError(result)) {
       m_invalid = true;
-      DBUG_LOG("debug", "zstd error:" << ZSTD_getErrorName(result));
+      DBUG_LOG("debug", "ZSTD error: " << ZSTD_getErrorName(result));
       *out_size = 0;
       return false;
     }

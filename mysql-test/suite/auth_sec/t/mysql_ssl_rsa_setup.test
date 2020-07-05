@@ -353,6 +353,10 @@ EOF
 
 # cleanup
 
+# Restore default settings in opt file and clean up
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
+
 --remove_file $mysqladmin_log
 --remove_file $CADIR_LOCATION/ca.pem
 --remove_file $CADIR_LOCATION/ca-key.pem
@@ -362,5 +366,6 @@ EOF
 --remove_file $CADIR_LOCATION/client-key.pem
 --remove_file $CADIR_LOCATION/private_key.pem
 --remove_file $CADIR_LOCATION/public_key.pem
+--rmdir $CADIR_LOCATION
 
 #------------------------------------------------------------------------------

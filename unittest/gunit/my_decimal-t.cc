@@ -205,7 +205,7 @@ Mod_data mod_test_input[] = {{"234", "10", "4"},
                              {"999", "0.1", "0.0"},
                              {"999", "0.7", "0.1"},
                              {"10", "123", "10"},
-                             {NULL, NULL, NULL}};
+                             {nullptr, nullptr, nullptr}};
 
 TEST_F(DecimalTest, Modulo) {
   my_decimal expected_result;

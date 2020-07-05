@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -243,7 +243,7 @@ UNIV_INLINE
 void *ib_vector_remove(ib_vector_t *vec, /*!< in: vector */
                        const void *elem) /*!< in: value to remove */
 {
-  void *current = NULL;
+  void *current = nullptr;
   void *next;
   ulint i;
   ulint old_used_count = vec->used;
@@ -263,7 +263,7 @@ void *ib_vector_remove(ib_vector_t *vec, /*!< in: vector */
     }
   }
 
-  return ((old_used_count != vec->used) ? current : NULL);
+  return ((old_used_count != vec->used) ? current : nullptr);
 }
 
 /********************************************************************
@@ -287,7 +287,7 @@ void ib_vector_free(ib_vector_t *vec) /* in, own: vector */
   when the heap is freed all the elements are freed too. */
 
   /* Only the heap allocator uses the arg field. */
-  ut_ad(vec->allocator->arg != NULL);
+  ut_ad(vec->allocator->arg != nullptr);
 
   mem_heap_free((mem_heap_t *)vec->allocator->arg);
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,5 @@ set_socket_info_v1_t set_socket_info;
 /** @sa set_socket_thread_owner_v1_t. */
 set_socket_thread_owner_v1_t set_socket_thread_owner;
 END_SERVICE_DEFINITION(psi_socket_v1)
-
-#define REQUIRES_PSI_SOCKET_SERVICE REQUIRES_SERVICE(psi_socket_v1)
 
 #endif /* COMPONENTS_SERVICES_PSI_SOCKET_SERVICE_H */

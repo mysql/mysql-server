@@ -311,7 +311,7 @@ int thd_tablespace_op(const MYSQL_THD thd) {
     code and the Alter_info::flags.
   */
   if (thd->lex->sql_command != SQLCOM_ALTER_TABLE) return 0;
-  DBUG_ASSERT(thd->lex->alter_info != NULL);
+  DBUG_ASSERT(thd->lex->alter_info != nullptr);
 
   return (thd->lex->alter_info->flags & (Alter_info::ALTER_DISCARD_TABLESPACE |
                                          Alter_info::ALTER_IMPORT_TABLESPACE))
@@ -324,7 +324,7 @@ static void set_thd_stage_info(MYSQL_THD thd, const PSI_stage_info *new_stage,
                                const char *calling_func,
                                const char *calling_file,
                                const unsigned int calling_line) {
-  if (thd == NULL) thd = current_thd;
+  if (thd == nullptr) thd = current_thd;
 
   thd->enter_stage(new_stage, old_stage, calling_func, calling_file,
                    calling_line);
@@ -369,10 +369,10 @@ void thd_set_ha_data(MYSQL_THD thd, const struct handlerton *hton,
                      const void *ha_data) {
   plugin_ref *lock = &thd->get_ha_data(hton->slot)->lock;
   if (ha_data && !*lock)
-    *lock = ha_lock_engine(NULL, hton);
+    *lock = ha_lock_engine(nullptr, hton);
   else if (!ha_data && *lock) {
-    plugin_unlock(NULL, *lock);
-    *lock = NULL;
+    plugin_unlock(nullptr, *lock);
+    *lock = nullptr;
   }
   *thd_ha_data(thd, hton) = const_cast<void *>(ha_data);
 }
@@ -484,7 +484,7 @@ char *thd_security_context(MYSQL_THD thd, char *buffer, size_t length,
     We have to copy the new string to the destination buffer because the string
     was reallocated to a larger buffer to be able to fit.
   */
-  DBUG_ASSERT(buffer != NULL);
+  DBUG_ASSERT(buffer != nullptr);
   length = min(str.length(), length - 1);
   memcpy(buffer, str.c_ptr_quick(), length);
   /* Make sure that the new string is null terminated */
@@ -644,7 +644,7 @@ void thd_wait_end(MYSQL_THD thd) {
 void thd_report_row_lock_wait(THD *self, THD *wait_for) {
   DBUG_TRACE;
 
-  if (self != NULL && wait_for != NULL && is_mts_worker(self) &&
+  if (self != nullptr && wait_for != nullptr && is_mts_worker(self) &&
       is_mts_worker(wait_for))
     Commit_order_manager::check_and_report_deadlock(self, wait_for);
 }

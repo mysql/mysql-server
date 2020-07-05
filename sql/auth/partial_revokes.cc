@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -110,9 +110,8 @@ DB_restrictions &DB_restrictions::operator=(DB_restrictions &&restrictions) {
 
   @param [in] restrictions DB_restrictions object to be compared with this
 
-  @returns
-    @retval true    If both DB_restrictions are same
-    @retval false   Otherwise
+  @retval true    If both DB_restrictions are same
+  @retval false   Otherwise
 
 */
 bool DB_restrictions::operator==(const DB_restrictions &restrictions) const {
@@ -358,9 +357,8 @@ bool DB_restrictions::has_more_restrictions(const DB_restrictions &other,
   @param [in]     rights    access specified in the SQL statement
   @param [in]     is_grant_revoke_all_on_db  flag that indicates if the
                             REVOKE/GRANT ALL was executed on a DB
-  @returns
-    @retval   A restriction aggregator object
-    @retval   nullptr, if partial_revokes system variable is OFF
+  @returns A restriction aggregator object
+  @retval  nullptr if partial_revokes system variable is OFF
 */
 std::unique_ptr<Restrictions_aggregator>
 Restrictions_aggregator_factory::create(THD *thd, const ACL_USER *acl_user,
@@ -462,8 +460,7 @@ Restrictions_aggregator_factory::create(
   Returns the grantor user name and host id.
   @param  [in]  sctx Security context
 
-  @returns
-    @retval Grantor's user name and host info
+  @returns Grantor's user name and host info
 */
 Auth_id Restrictions_aggregator_factory::fetch_grantor(
     const Security_context *sctx) {
@@ -480,8 +477,7 @@ Auth_id Restrictions_aggregator_factory::fetch_grantor(
 
   @param [in]  acl_user user handle from ACL_Cache
 
-  @returns
-    @retval Grantee's user name and host info
+  @returns Grantee's user name and host info
 */
 Auth_id Restrictions_aggregator_factory::fetch_grantee(
     const ACL_USER *acl_user) {
@@ -499,8 +495,7 @@ Auth_id Restrictions_aggregator_factory::fetch_grantee(
   @param  [in]  thd Thread handle
   @param  [in]  db  Database name for which privileges to be fetched.
 
-  @returns
-    @retval privilege access to the grantor on the specified database
+  @returns privilege access to the grantor on the specified database
 */
 ulong Restrictions_aggregator_factory::fetch_grantor_db_access(THD *thd,
                                                                const char *db) {
@@ -517,8 +512,7 @@ ulong Restrictions_aggregator_factory::fetch_grantor_db_access(THD *thd,
   @param  [in]  acl_user  user handle from ACL_Cache
   @param  [in]  db        Database name for which privileges to be fetched.
 
-  @returns
-    @retval privilege access to the grantee on the specified database
+  @returns privilege access to the grantee on the specified database
 */
 ulong Restrictions_aggregator_factory::fetch_grantee_db_access(
     THD *thd, const ACL_USER *acl_user, const char *db) {
@@ -533,9 +527,6 @@ ulong Restrictions_aggregator_factory::fetch_grantee_db_access(
   @param  [in]  db            Database name for which privileges to be fetched.
   @param  [out] global_access fetch grantor's global access
   @param  [out] restrictions  fetch grantor's restrictions
-
-  @returns
-    @retval global privilege access to the grantor
 */
 void Restrictions_aggregator_factory::fetch_grantor_access(
     const Security_context *sctx, const char *db, ulong &global_access,
@@ -829,8 +820,7 @@ void DB_restrictions_aggregator::aggregate_restrictions(
 
   @param [in] db_name   Database name for which we need to fetch the DB level
                         access.
-  @returns
-    @retval DB level access.
+  @returns DB level access.
 */
 ulong DB_restrictions_aggregator::get_grantee_db_access(
     const std::string &db_name) const {
@@ -893,8 +883,7 @@ DB_restrictions_aggregator_set_role::DB_restrictions_aggregator_set_role(
   -  Checks possible descrepancy between DB access being granted and
      existing restrictions.
 
-  @returns
-    @retval Status  Moves the object in the appropiate status.
+  @returns Status   Moves the object in the appropiate status.
                     For instance :
                     - Validated, if validation was performed successfuly
                     - NO_op, if there is no aggregation of privileges required.
@@ -989,8 +978,7 @@ DB_restrictions_aggregator_global_grant::
   -  Checks possible descrepancy between DB access being granted and
      existing restrictions.
 
-  @returns
-    @retval Status  Moves the object in the appropiate status.
+  @returns Status   Moves the object in the appropiate status.
                     For instance :
                     - Validated, if validation was performed successfuly
                     - NO_op, if there is no aggregation of privileges required.
@@ -1071,8 +1059,7 @@ DB_restrictions_aggregator_global_revoke::
   Evaluates the restrictions list of grantor and grantee, as well as requested
   privilege.
 
-  @returns
-    @retval Status  Moves the object in the appropiate status.
+  @returns Status   Moves the object in the appropiate status.
                     For instance :
                     - Validated, if validation was performed successfuly
                     - NO_op, if there is no aggregation of privileges required.
@@ -1138,8 +1125,7 @@ void DB_restrictions_aggregator_global_revoke::aggregate(
   - Check if grantee has same DB level privilege as well as
     restriction list on the  database
 
-  @returns
-    @retval Status  Moves the object in the appropiate status.
+  @returns  Status  Moves the object in the appropiate status.
                     For instance :
                     - Validated, if validation was performed successfuly
                     - NO_op, if there is no aggregation of privileges required.

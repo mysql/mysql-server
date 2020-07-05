@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,5 @@ destroy_metadata_lock_v1_t destroy_metadata_lock;
 start_metadata_wait_v1_t start_metadata_wait;
 end_metadata_wait_v1_t end_metadata_wait;
 END_SERVICE_DEFINITION(psi_mdl_v1)
-
-#define REQUIRES_PSI_MDL_SERVICE REQUIRES_SERVICE(psi_mdl_v1)
 
 #endif /* COMPONENTS_SERVICES_PSI_MDL_SERVICE_H */

@@ -1227,13 +1227,6 @@ DROP DATABASE test_wl5522;
 set global innodb_monitor_disable = all;
 set global innodb_monitor_reset_all = all;
 
--- disable_warnings
-set global innodb_monitor_enable = default;
-set global innodb_monitor_disable = default;
-set global innodb_monitor_reset = default;
-set global innodb_monitor_reset_all = default;
--- enable_warnings
-
 --disable_query_log
 call mtr.add_suppression("\\[Warning\\] .* Please refer to .*innodb-troubleshooting-datadict.html for how to resolve the issue.");
 call mtr.add_suppression("\\[Warning\\] .* Ignoring tablespace `test_wl5522/t1` because it could not be opened");
@@ -1263,4 +1256,5 @@ call mtr.add_suppression("\\[ERROR\\] .* The error means that another program is
 
 eval SET GLOBAL INNODB_FILE_PER_TABLE=$innodb_file_per_table;
 
--- source suite/innodb/include/check_pfs_mem_other_is_zero.inc
+--source include/innodb_monitor_restore.inc
+--source suite/innodb/include/check_pfs_mem_other_is_zero.inc

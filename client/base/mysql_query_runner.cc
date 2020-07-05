@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -125,12 +125,12 @@ int64 Mysql_query_runner::run_query_unguarded(string query) {
 
   MYSQL_RES *results = mysql_use_result(m_connection);
 
-  if (results != NULL) {
+  if (results != nullptr) {
     for (;;) {
       // Feed result callbacks with results.
       MYSQL_ROW row = mysql_fetch_row(results);
 
-      if (row == NULL) {
+      if (row == nullptr) {
         // NULL row indicates end of rows or error
         if (mysql_errno(m_connection) == 0)
           break;
@@ -160,7 +160,7 @@ int64 Mysql_query_runner::run_query_unguarded(string query) {
 
   // Get all notes, warnings and errors of last query.
   if (0 != mysql_query(m_connection, "SHOW WARNINGS") ||
-      NULL == (results = mysql_use_result(m_connection))) {
+      nullptr == (results = mysql_use_result(m_connection))) {
     this->report_mysql_error();
     return 0;
   }
@@ -170,7 +170,7 @@ int64 Mysql_query_runner::run_query_unguarded(string query) {
     // Feed message callbacks with results.
     MYSQL_ROW row = mysql_fetch_row(results);
 
-    if (row == NULL) {
+    if (row == nullptr) {
       // End of rows or an error.
       if (mysql_errno(m_connection) != 0) this->report_mysql_error();
       break;
@@ -297,7 +297,7 @@ void Mysql_query_runner::cleanup_result(
 
 Mysql_query_runner::Row::Row(MYSQL_RES *mysql_result_info,
                              unsigned int column_count, MYSQL_ROW row)
-    : m_buffer(NULL),
+    : m_buffer(nullptr),
       m_buffer_capacity(0),
       m_buffer_size(0),
       m_mysql_result_info(mysql_result_info) {
@@ -315,7 +315,7 @@ Mysql_query_runner::Row::Row(MYSQL_RES *mysql_result_info,
 }
 
 Mysql_query_runner::Row::~Row() {
-  if (m_buffer != NULL) free(m_buffer);
+  if (m_buffer != nullptr) free(m_buffer);
 }
 
 std::string Mysql_query_runner::Row::operator[](std::size_t index) const {
@@ -325,7 +325,7 @@ std::string Mysql_query_runner::Row::operator[](std::size_t index) const {
 }
 
 void Mysql_query_runner::Row::push_back(char *buff, std::size_t length) {
-  if (buff != NULL) {
+  if (buff != nullptr) {
     // Prepare buffer to be able to contain new data.
     this->reserve(m_buffer_starts.size(), m_buffer_size + length + 1);
     // Copy data.

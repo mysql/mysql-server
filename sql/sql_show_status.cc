@@ -109,29 +109,29 @@ static SELECT_LEX *build_query(const POS &pos, THD *thd,
   /* ... VARIABLE_NAME ... */
   PTI_simple_ident_ident *ident_name;
   ident_name = new (thd->mem_root) PTI_simple_ident_ident(pos, col_name);
-  if (ident_name == NULL) return NULL;
+  if (ident_name == nullptr) return nullptr;
 
   /* ... VARIABLE_NAME as Variable_name ... */
   PTI_expr_with_alias *expr_name;
   expr_name = new (thd->mem_root)
       PTI_expr_with_alias(pos, ident_name, pos.cpp, as_name);
-  if (expr_name == NULL) return NULL;
+  if (expr_name == nullptr) return nullptr;
 
   /* ... VARIABLE_VALUE ... */
   PTI_simple_ident_ident *ident_value;
   ident_value = new (thd->mem_root) PTI_simple_ident_ident(pos, col_value);
-  if (ident_value == NULL) return NULL;
+  if (ident_value == nullptr) return nullptr;
 
   /* ... VARIABLE_VALUE as Value ... */
   PTI_expr_with_alias *expr_value;
   expr_value = new (thd->mem_root)
       PTI_expr_with_alias(pos, ident_value, pos.cpp, as_value);
-  if (expr_value == NULL) return NULL;
+  if (expr_value == nullptr) return nullptr;
 
   /* ... VARIABLE_NAME as Variable_name, VARIABLE_VALUE as Value ... */
   PT_select_item_list *item_list;
   item_list = new (thd->mem_root) PT_select_item_list();
-  if (item_list == NULL) return NULL;
+  if (item_list == nullptr) return nullptr;
   item_list->push_back(expr_name);
   item_list->push_back(expr_value);
 
@@ -143,28 +143,28 @@ static SELECT_LEX *build_query(const POS &pos, THD *thd,
   /* ... performance_schema ... */
   LEX_CSTRING tmp_db_name;
   if (lex_string_strmake(thd->mem_root, &tmp_db_name, pfs.str, pfs.length))
-    return NULL;
+    return nullptr;
 
   /* ... <table_name> ... */
   LEX_CSTRING tmp_table_name;
   if (lex_string_strmake(thd->mem_root, &tmp_table_name, table_name.str,
                          table_name.length))
-    return NULL;
+    return nullptr;
 
   /* ... performance_schema.<table_name> ... */
   Table_ident *table_ident;
   table_ident = new (thd->mem_root) Table_ident(tmp_db_name, tmp_table_name);
-  if (table_ident == NULL) return NULL;
+  if (table_ident == nullptr) return nullptr;
 
   /* ... FROM performance_schema.<table_name> ... */
   PT_table_factor_table_ident *table_factor;
   table_factor = new (thd->mem_root)
-      PT_table_factor_table_ident(table_ident, NULL, NULL_CSTR, NULL);
-  if (table_factor == NULL) return NULL;
+      PT_table_factor_table_ident(table_ident, nullptr, NULL_CSTR, nullptr);
+  if (table_factor == nullptr) return nullptr;
 
   Mem_root_array_YY<PT_table_reference *> table_reference_list;
   table_reference_list.init(thd->mem_root);
-  if (table_reference_list.push_back(table_factor)) return NULL;
+  if (table_reference_list.push_back(table_factor)) return nullptr;
 
   /* Form subquery */
   /* SELECT VARIABLE_NAME as Variable_name, VARIABLE_VALUE as Value FROM
@@ -173,70 +173,70 @@ static SELECT_LEX *build_query(const POS &pos, THD *thd,
   query_specification =
       new (thd->mem_root) PT_query_specification(options, item_list,
                                                  table_reference_list,  // from
-                                                 NULL);                 // where
-  if (query_specification == NULL) return NULL;
+                                                 nullptr);              // where
+  if (query_specification == nullptr) return nullptr;
 
   PT_query_expression *query_expression;
   query_expression =
       new (thd->mem_root) PT_query_expression(query_specification);
-  if (query_expression == NULL) return NULL;
+  if (query_expression == nullptr) return nullptr;
 
   PT_subquery *sub_query;
   sub_query = new (thd->mem_root) PT_subquery(pos, query_expression);
-  if (sub_query == NULL) return NULL;
+  if (sub_query == nullptr) return nullptr;
 
   Create_col_name_list column_names;
   column_names.init(thd->mem_root);
   PT_derived_table *derived_table;
   derived_table = new (thd->mem_root)
       PT_derived_table(false, sub_query, table_name, &column_names);
-  if (derived_table == NULL) return NULL;
+  if (derived_table == nullptr) return nullptr;
 
   Mem_root_array_YY<PT_table_reference *> table_reference_list1;
   table_reference_list1.init(thd->mem_root);
-  if (table_reference_list1.push_back(derived_table)) return NULL;
+  if (table_reference_list1.push_back(derived_table)) return nullptr;
 
   /* SELECT * ... */
   PTI_simple_ident_ident *ident_star;
   ident_star = new (thd->mem_root) PTI_simple_ident_ident(pos, star);
-  if (ident_star == NULL) return NULL;
+  if (ident_star == nullptr) return nullptr;
 
   PT_select_item_list *item_list1;
   item_list1 = new (thd->mem_root) PT_select_item_list();
-  if (item_list1 == NULL) return NULL;
+  if (item_list1 == nullptr) return nullptr;
   item_list1->push_back(ident_star);
 
   /* Process where clause */
-  Item *where_clause = NULL;
+  Item *where_clause = nullptr;
 
-  if (wild != NULL) {
+  if (wild != nullptr) {
     /* ... Variable_name ... */
     PTI_simple_ident_ident *ident_name_where;
     ident_name_where = new (thd->mem_root) PTI_simple_ident_ident(pos, as_name);
-    if (ident_name_where == NULL) return NULL;
+    if (ident_name_where == nullptr) return nullptr;
 
     /* ... <value> ... */
     LEX_STRING *lex_string;
     lex_string = static_cast<LEX_STRING *>(thd->alloc(sizeof(LEX_STRING)));
-    if (lex_string == NULL) return NULL;
+    if (lex_string == nullptr) return nullptr;
     lex_string->length = wild->length();
     lex_string->str = thd->strmake(wild->ptr(), wild->length());
-    if (lex_string->str == NULL) return NULL;
+    if (lex_string->str == nullptr) return nullptr;
 
     PTI_text_literal_text_string *wild_string;
     wild_string = new (thd->mem_root) PTI_text_literal_text_string(
         pos, false, *lex_string);  // TODO WL#6629 check is_7bit
-    if (wild_string == NULL) return NULL;
+    if (wild_string == nullptr) return nullptr;
 
     /* ... Variable_name LIKE <value> ... */
     Item_func_like *func_like;
     func_like = new (thd->mem_root)
-        Item_func_like(pos, ident_name_where, wild_string, NULL);
-    if (func_like == NULL) return NULL;
+        Item_func_like(pos, ident_name_where, wild_string, nullptr);
+    if (func_like == nullptr) return nullptr;
 
     /* ... WHERE Variable_name LIKE <value> ... */
     where_clause = new (thd->mem_root) PTI_where(pos, func_like);
-    if (where_clause == NULL) return NULL;
+    if (where_clause == nullptr) return nullptr;
   } else {
     where_clause = where_cond;
   }
@@ -249,20 +249,20 @@ static SELECT_LEX *build_query(const POS &pos, THD *thd,
       new (thd->mem_root) PT_query_specification(options, item_list1,
                                                  table_reference_list1,  // from
                                                  where_clause);  // where
-  if (query_specification2 == NULL) return NULL;
+  if (query_specification2 == nullptr) return nullptr;
 
   PT_query_expression *query_expression2;
   query_expression2 =
       new (thd->mem_root) PT_query_expression(query_specification2);
-  if (query_expression2 == NULL) return NULL;
+  if (query_expression2 == nullptr) return nullptr;
 
   LEX *lex = thd->lex;
   SELECT_LEX *current_select = lex->current_select();
   Parse_context pc(thd, current_select);
-  if (thd->is_error()) return NULL;
+  if (thd->is_error()) return nullptr;
 
   lex->sql_command = SQLCOM_SELECT;
-  if (query_expression2->contextualize(&pc)) return NULL;
+  if (query_expression2->contextualize(&pc)) return nullptr;
 
   /* contextualize sets to COM_SELECT */
   lex->sql_command = command;

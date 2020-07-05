@@ -376,7 +376,7 @@ test
 explain select * from v0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	#	NULL	index	PRIMARY	name	194	NULL	#	#	Using index; Using temporary; Using filesort
-1	SIMPLE	#	NULL	ALL	catalog_id,default_collation_id	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	#	NULL	ALL	catalog_id,default_collation_id	NULL	NULL	NULL	#	#	Using where; Using join buffer (hash join)
 1	SIMPLE	#	NULL	eq_ref	PRIMARY,character_set_id	PRIMARY	8	mysql.sch.default_collation_id	#	#	NULL
 1	SIMPLE	#	NULL	eq_ref	PRIMARY	PRIMARY	8	mysql.col.character_set_id	#	#	Using index
 Warnings:
@@ -904,7 +904,8 @@ if new.j = -1 then
 set @fired:= "Yes";
 end if;
 end	AFTER	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
-select * from information_schema.triggers where trigger_schema in ('mysql', 'information_schema', 'test', 'mysqltest');
+select * from information_schema.triggers where trigger_schema in ('mysql', 'information_schema', 'test', 'mysqltest')
+order by trigger_name;
 TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
 def	test	trg1	INSERT	def	test	t1	1	NULL	begin
 if new.j > 10 then
@@ -2889,4 +2890,23 @@ TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE
 def	test	v1	VIEW	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL	NULL	NULL	NULL	VIEW
 SET OPTIMIZER_SWITCH=default;
 DROP VIEW v1;
+DROP TABLE t1;
+#
+# Bug#30476213 ASSERTION TEMPTABLE..HANDLER..GET_ERROR_MESSAGE
+#
+SET @@SESSION.optimizer_switch="derived_merge=off";
+LOCK TABLE mysql.user READ;
+# Without the fix, this statement fails.
+SELECT * FROM information_schema.ST_GEOMETRY_COLUMNS;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	SRS_NAME	SRS_ID	GEOMETRY_TYPE_NAME
+UNLOCK TABLES;
+#
+# Bug#30764651 ASSERTION "TEMPTABLE..HANDLER..INIT_TABLE_HANDLE_FOR_HANDLER"
+#
+CREATE TABLE t1 (f1 INT);
+FLUSH TABLES t1 FOR EXPORT;
+# Without the fix, this statement fails in debug build.
+SELECT * FROM INFORMATION_SCHEMA.APPLICABLE_ROLES;
+USER	HOST	GRANTEE	GRANTEE_HOST	ROLE_NAME	ROLE_HOST	IS_GRANTABLE	IS_DEFAULT	IS_MANDATORY
+UNLOCK TABLES;
 DROP TABLE t1;

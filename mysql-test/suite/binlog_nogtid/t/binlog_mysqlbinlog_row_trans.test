@@ -6,6 +6,13 @@
 --let $engine_type= InnoDB
 
 --source include/have_binlog_format_row.inc
+
+#
+# The test case records the output of mysqlbinlog, thence if compression
+# is enabled, then it fails as the compression event is output.
+#
+--source include/not_binlog_transaction_compression_on.inc
+
 --source include/have_log_bin.inc
 
 --echo #

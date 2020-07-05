@@ -32,6 +32,9 @@
 #
 --source include/master-slave.inc
 
+# this test uses large transactions, tence cannot use compression
+--source include/not_binlog_transaction_compression_on.inc
+
 --echo ###################################################
 --echo # Step 1                                          #
 --echo ###################################################

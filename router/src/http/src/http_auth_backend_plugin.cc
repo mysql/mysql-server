@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -43,9 +43,11 @@
 
 #include "mysqlrouter/http_auth_backend_component.h"
 #include "mysqlrouter/http_auth_backend_export.h"
+#include "mysqlrouter/metadata_cache.h"
 #include "mysqlrouter/plugin_config.h"
 
 #include "http_auth_backend.h"
+#include "http_auth_backend_metadata_cache.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -91,6 +93,9 @@ class HttpAuthBackendFactory {
       }
 
       return s;
+    } else if (name == "metadata_cache") {
+      auto s = std::make_shared<HttpAuthBackendMetadataCache>();
+      return s;
     } else {
       throw std::invalid_argument("unknown backend=" + name +
                                   " in section: " + section->name);
@@ -135,6 +140,13 @@ static void init(PluginFuncEnv *env) {
         continue;
       }
 
+      if (section->key.empty()) {
+        set_error(env, mysql_harness::kConfigInvalidArgument,
+                  "The config section [%s] requires a name, like [%s:example]",
+                  kSectionName, kSectionName);
+        return;
+      }
+
       PluginConfig config(section);
 
       auth_backends->insert({section->key, HttpAuthBackendFactory::create(
@@ -150,6 +162,37 @@ static void init(PluginFuncEnv *env) {
   }
 }
 
+static void start(PluginFuncEnv *env) {
+  const mysql_harness::ConfigSection *section = get_config_section(env);
+
+  PluginConfig config(section);
+  if (config.backend == "metadata_cache") {
+    auto *cache_api = metadata_cache::MetadataCacheAPI::instance();
+
+    if (cache_api->is_initialized()) {
+      // metada_cache is already running, we need to force update cache
+      cache_api->enable_fetch_auth_metadata();
+      cache_api->force_cache_update();
+    } else {
+      while (!cache_api->is_initialized()) {
+        if (!(!env || is_running(env))) return;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      }
+      cache_api->enable_fetch_auth_metadata();
+    }
+
+    try {
+      // verify that auth_cache timers are greater than the ttl and that
+      // auth_cache_refresh_interval is smaller than auth_cache_ttl
+      cache_api->check_auth_metadata_timers();
+    } catch (const std::invalid_argument &e) {
+      log_error("%s", e.what());
+      set_error(env, mysql_harness::kConfigInvalidArgument, "%s", e.what());
+      clear_running(env);
+    }
+  }
+}
+
 extern "C" {
 Plugin HTTP_AUTH_BACKEND_EXPORT harness_plugin_http_auth_backend = {
     PLUGIN_ABI_VERSION,
@@ -162,7 +205,7 @@ Plugin HTTP_AUTH_BACKEND_EXPORT harness_plugin_http_auth_backend = {
     nullptr,  // conflicts
     init,     // init
     nullptr,  // deinit
-    nullptr,  // start
+    start,    // start
     nullptr,  // stop
 };
 }

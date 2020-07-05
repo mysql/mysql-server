@@ -195,6 +195,4 @@ tablespaces to dictionary table mysql.tablespaces */
 using missing_sys_tblsp_t = std::set<fil_space_t *, space_compare>;
 extern missing_sys_tblsp_t missing_spaces;
 
-#include "dict0load.ic"
-
 #endif

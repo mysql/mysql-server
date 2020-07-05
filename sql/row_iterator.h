@@ -285,4 +285,7 @@ class TableRowIterator : public RowIterator {
 std::vector<std::string> FullDebugString(const THD *thd,
                                          const RowIterator &iterator);
 
+// Used to describe what kind of join an iterator is executing.
+enum class JoinType { INNER, OUTER, ANTI, SEMI };
+
 #endif  // SQL_ROW_ITERATOR_H_

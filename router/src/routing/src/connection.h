@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -139,11 +139,11 @@ class MySQLRoutingConnection {
   /** @brief callback that is called when thread of execution completes */
   std::function<void(MySQLRoutingConnection *)> remove_callback_;
   /** @brief socket used to communicate with client */
-  int client_socket_;
+  routing::native_handle_type client_socket_;
   /** @brief client's address */
   const sockaddr_storage client_addr_;
   /** @brief socket used to communicate with server */
-  int server_socket_;
+  routing::native_handle_type server_socket_;
   mysql_harness::TCPAddress server_address_;
   /** @brief true if connection should be disconnected */
   std::atomic<bool> disconnect_{false};

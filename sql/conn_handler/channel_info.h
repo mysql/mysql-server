@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,7 +50,7 @@ class Channel_info {
   /**
     Create and initialize a Vio object.
 
-    @retval   return a pointer to the initialized a vio object.
+    @returns a pointer to the initialized a vio object.
   */
   virtual Vio *create_and_init_vio() const = 0;
 
@@ -62,11 +62,8 @@ class Channel_info {
   /**
     Instantiate and initialize THD object and vio.
 
-    @return
-      @retval
-        THD* pointer to initialized THD object.
-      @retval
-        NULL THD object allocation fails.
+    @returns pointer to initialized THD object.
+    @retval NULL THD object allocation fails.
   */
   virtual THD *create_thd();
 

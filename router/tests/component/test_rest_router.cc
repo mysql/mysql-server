@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -344,11 +344,10 @@ TEST_F(RestRouterApiTest, invalid_realm) {
   check_exit_code(router, EXIT_FAILURE, wait_for_process_exit_timeout);
 
   const std::string router_output = router.get_full_logfile();
-  EXPECT_NE(
-      router_output.find("Configuration error: unknown authentication "
-                         "realm for [rest_router] '': invalidrealm, known "
-                         "realm(s): somerealm"),
-      router_output.npos)
+  EXPECT_NE(router_output.find(
+                "Configuration error: The option 'require_realm=invalidrealm' "
+                "in [rest_router] does not match any http_auth_realm."),
+            router_output.npos)
       << router_output;
 }
 

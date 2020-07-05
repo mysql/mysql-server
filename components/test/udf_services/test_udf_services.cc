@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,9 +38,8 @@ REQUIRES_SERVICE_PLACEHOLDER(mysql_udf_metadata);
   Plugin init function that registers a UDF.
   A newly created UDF must be registered here.
 
-  @returns
-    @retval false UDF registered successfully.
-    @retval true  Otherwise.
+  @retval false UDF registered successfully.
+  @retval true  Otherwise.
 */
 static int test_udf_extension_init() {
   bool ret = true;
@@ -176,9 +175,8 @@ end:
 /**
   Plugin deinit function that unregisters a UDF
 
-  @returns
-    @retval false UDF unregistered successfully.
-    @retval true  Otherwise.
+  @retval false UDF unregistered successfully.
+  @retval true  Otherwise.
 */
 static int test_udf_extension_deinit() {
   bool ret = true;

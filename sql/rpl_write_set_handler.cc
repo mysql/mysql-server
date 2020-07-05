@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,7 +55,7 @@
 #define HASH_STRING_SEPARATOR "½"
 
 const char *transaction_write_set_hashing_algorithms[] = {"OFF", "MURMUR32",
-                                                          "XXHASH64", 0};
+                                                          "XXHASH64", nullptr};
 
 const char *get_write_set_algorithm_string(unsigned int algorithm) {
   switch (algorithm) {
@@ -169,13 +169,16 @@ static void check_foreign_key(
 
 #ifndef DBUG_OFF
 static void debug_check_for_write_sets(
-    std::vector<std::string> &key_list_to_hash) {
+    std::vector<std::string> &key_list_to_hash,
+    std::vector<uint64> &hash_list) {
   DBUG_EXECUTE_IF(
       "PKE_assert_single_primary_key_generated_insert",
       DBUG_ASSERT(key_list_to_hash.size() == 1);
       DBUG_ASSERT(key_list_to_hash[0] ==
                   "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
-                  "4t1" HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1"););
+                  "4t1" HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1");
+      DBUG_ASSERT(hash_list.size() == 1);
+      DBUG_ASSERT(hash_list[0] == 340395741608101502ULL););
 
   DBUG_EXECUTE_IF(
       "PKE_assert_single_primary_key_generated_update",
@@ -186,7 +189,10 @@ static void debug_check_for_write_sets(
               "4t1" HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1" ||
           key_list_to_hash[0] ==
               "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
-              "4t1" HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1"););
+              "4t1" HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1");
+      DBUG_ASSERT(hash_list.size() == 1);
+      DBUG_ASSERT(hash_list[0] == 8563267070232261320ULL ||
+                  hash_list[0] == 340395741608101502ULL););
 
   DBUG_EXECUTE_IF(
       "PKE_assert_multi_primary_key_generated_insert",
@@ -194,7 +200,9 @@ static void debug_check_for_write_sets(
       DBUG_ASSERT(key_list_to_hash[0] ==
                   "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
                   "4t1" HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR
-                  "12" HASH_STRING_SEPARATOR "1"););
+                  "12" HASH_STRING_SEPARATOR "1");
+      DBUG_ASSERT(hash_list.size() == 1);
+      DBUG_ASSERT(hash_list[0] == 13655149628280894901ULL););
 
   DBUG_EXECUTE_IF(
       "PKE_assert_multi_primary_key_generated_update",
@@ -207,7 +215,10 @@ static void debug_check_for_write_sets(
           key_list_to_hash[0] ==
               "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
               "4t1" HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR
-              "12" HASH_STRING_SEPARATOR "1"););
+              "12" HASH_STRING_SEPARATOR "1");
+      DBUG_ASSERT(hash_list.size() == 1);
+      DBUG_ASSERT(hash_list[0] == 16833405476607614310ULL ||
+                  hash_list[0] == 13655149628280894901ULL););
 
   DBUG_EXECUTE_IF(
       "PKE_assert_single_primary_unique_key_generated_insert",
@@ -221,7 +232,11 @@ static void debug_check_for_write_sets(
               "4t1" HASH_STRING_SEPARATOR "22" HASH_STRING_SEPARATOR "1" &&
           key_list_to_hash[2] ==
               "c3" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
-              "4t1" HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1"););
+              "4t1" HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1");
+      DBUG_ASSERT(hash_list.size() == 3);
+      DBUG_ASSERT(hash_list[0] == 340395741608101502ULL &&
+                  hash_list[1] == 12796928550717161120ULL &&
+                  hash_list[2] == 11199547876733116431ULL););
 
   DBUG_EXECUTE_IF(
       "PKE_assert_single_primary_unique_key_generated_update",
@@ -244,7 +259,14 @@ static void debug_check_for_write_sets(
                "4t1" HASH_STRING_SEPARATOR "22" HASH_STRING_SEPARATOR "1" &&
            key_list_to_hash[2] ==
                "c3" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
-               "4t1" HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1")););
+               "4t1" HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1"));
+      DBUG_ASSERT(hash_list.size() == 3);
+      DBUG_ASSERT((hash_list[0] == 7803002059431370747ULL &&
+                   hash_list[1] == 12796928550717161120ULL &&
+                   hash_list[2] == 11199547876733116431ULL) ||
+                  (hash_list[0] == 340395741608101502ULL &&
+                   hash_list[1] == 12796928550717161120ULL &&
+                   hash_list[2] == 11199547876733116431ULL)););
 
   DBUG_EXECUTE_IF(
       "PKE_assert_multi_primary_unique_key_generated_insert",
@@ -259,7 +281,11 @@ static void debug_check_for_write_sets(
               "4t1" HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1" &&
           key_list_to_hash[2] ==
               "c" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
-              "4t1" HASH_STRING_SEPARATOR "24" HASH_STRING_SEPARATOR "1"););
+              "4t1" HASH_STRING_SEPARATOR "24" HASH_STRING_SEPARATOR "1");
+      DBUG_ASSERT(hash_list.size() == 3);
+      DBUG_ASSERT(hash_list[0] == 13655149628280894901ULL &&
+                  hash_list[1] == 8954424140835647185ULL &&
+                  hash_list[2] == 3520344117573337805ULL););
 
   DBUG_EXECUTE_IF(
       "PKE_assert_multi_primary_unique_key_generated_update",
@@ -284,7 +310,14 @@ static void debug_check_for_write_sets(
                "4t1" HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1" &&
            key_list_to_hash[2] ==
                "c" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
-               "4t1" HASH_STRING_SEPARATOR "24" HASH_STRING_SEPARATOR "1")););
+               "4t1" HASH_STRING_SEPARATOR "24" HASH_STRING_SEPARATOR "1"));
+      DBUG_ASSERT(hash_list.size() == 3);
+      DBUG_ASSERT((hash_list[0] == 13655149628280894901ULL &&
+                   hash_list[1] == 8954424140835647185ULL &&
+                   hash_list[2] == 3520344117573337805ULL) ||
+                  (hash_list[0] == 17122769277112661326ULL &&
+                   hash_list[1] == 8954424140835647185ULL &&
+                   hash_list[2] == 3520344117573337805ULL)););
 
   DBUG_EXECUTE_IF(
       "PKE_assert_multi_foreign_key_generated_insert",
@@ -302,7 +335,12 @@ static void debug_check_for_write_sets(
               "4t1" HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1" &&
           key_list_to_hash[3] ==
               "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
-              "4t2" HASH_STRING_SEPARATOR "25" HASH_STRING_SEPARATOR "1"););
+              "4t2" HASH_STRING_SEPARATOR "25" HASH_STRING_SEPARATOR "1");
+      DBUG_ASSERT(hash_list.size() == 4);
+      DBUG_ASSERT(hash_list[0] == 3283233640848908273ULL &&
+                  hash_list[1] == 17221725733811443497ULL &&
+                  hash_list[2] == 340395741608101502ULL &&
+                  hash_list[3] == 14682037479339770823ULL););
 
   DBUG_EXECUTE_IF(
       "PKE_assert_multi_foreign_key_generated_update",
@@ -333,7 +371,16 @@ static void debug_check_for_write_sets(
                "4t1" HASH_STRING_SEPARATOR "23" HASH_STRING_SEPARATOR "1" &&
            key_list_to_hash[3] ==
                "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
-               "4t2" HASH_STRING_SEPARATOR "25" HASH_STRING_SEPARATOR "1")););
+               "4t2" HASH_STRING_SEPARATOR "25" HASH_STRING_SEPARATOR "1"));
+      DBUG_ASSERT(hash_list.size() == 4);
+      DBUG_ASSERT((hash_list[0] == 3283233640848908273ULL &&
+                   hash_list[1] == 17221725733811443497ULL &&
+                   hash_list[2] == 340395741608101502ULL &&
+                   hash_list[3] == 14682037479339770823ULL) ||
+                  (hash_list[0] == 12666755939597291234ULL &&
+                   hash_list[1] == 17221725733811443497ULL &&
+                   hash_list[2] == 8563267070232261320ULL &&
+                   hash_list[3] == 14682037479339770823ULL)););
 
   DBUG_EXECUTE_IF(
       "PKE_assert_foreign_key_on_referenced_unique_key_parent_generated_insert",
@@ -344,7 +391,10 @@ static void debug_check_for_write_sets(
               "4t1" HASH_STRING_SEPARATOR "22" HASH_STRING_SEPARATOR "1" &&
           key_list_to_hash[1] ==
               "c2" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
-              "4t1" HASH_STRING_SEPARATOR "22" HASH_STRING_SEPARATOR "1"););
+              "4t1" HASH_STRING_SEPARATOR "22" HASH_STRING_SEPARATOR "1");
+      DBUG_ASSERT(hash_list.size() == 2);
+      DBUG_ASSERT(hash_list[0] == 16097759999475440183ULL &&
+                  hash_list[1] == 12796928550717161120ULL););
 
   DBUG_EXECUTE_IF(
       "PKE_assert_foreign_key_on_referenced_unique_key_generated_insert",
@@ -355,7 +405,10 @@ static void debug_check_for_write_sets(
               "4t2" HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1" &&
           key_list_to_hash[1] ==
               "c2" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
-              "4t1" HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1"););
+              "4t1" HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1");
+      DBUG_ASSERT(hash_list.size() == 2);
+      DBUG_ASSERT(hash_list[0] == 10002085147685770725ULL &&
+                  hash_list[1] == 8692935619695688993ULL););
 
   DBUG_EXECUTE_IF(
       "PKE_assert_foreign_key_on_referenced_unique_key_generated_update",
@@ -372,7 +425,12 @@ static void debug_check_for_write_sets(
                "4t2" HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1" &&
            key_list_to_hash[1] ==
                "c2" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
-               "4t1" HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1")););
+               "4t1" HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1"));
+      DBUG_ASSERT(hash_list.size() == 2);
+      DBUG_ASSERT((hash_list[0] == 10002085147685770725ULL &&
+                   hash_list[1] == 12796928550717161120ULL) ||
+                  (hash_list[0] == 10002085147685770725ULL &&
+                   hash_list[1] == 8692935619695688993ULL)););
 
   DBUG_EXECUTE_IF(
       "PKE_assert_foreign_key_on_referenced_non_unique_key_parent_generated_"
@@ -380,21 +438,27 @@ static void debug_check_for_write_sets(
       DBUG_ASSERT(key_list_to_hash.size() == 1);
       DBUG_ASSERT(key_list_to_hash[0] ==
                   "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
-                  "4t1" HASH_STRING_SEPARATOR "22" HASH_STRING_SEPARATOR "1"););
+                  "4t1" HASH_STRING_SEPARATOR "22" HASH_STRING_SEPARATOR "1");
+      DBUG_ASSERT(hash_list.size() == 1);
+      DBUG_ASSERT(hash_list[0] == 16097759999475440183ULL););
 
   DBUG_EXECUTE_IF(
       "PKE_assert_foreign_key_on_referenced_non_unique_key_generated_insert",
       DBUG_ASSERT(key_list_to_hash.size() == 1);
       DBUG_ASSERT(key_list_to_hash[0] ==
                   "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
-                  "4t2" HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1"););
+                  "4t2" HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1");
+      DBUG_ASSERT(hash_list.size() == 1);
+      DBUG_ASSERT(hash_list[0] == 10002085147685770725ULL););
 
   DBUG_EXECUTE_IF(
       "PKE_assert_foreign_key_on_referenced_non_unique_key_generated_update",
       DBUG_ASSERT(key_list_to_hash.size() == 1);
       DBUG_ASSERT(key_list_to_hash[0] ==
                   "PRIMARY" HASH_STRING_SEPARATOR "test" HASH_STRING_SEPARATOR
-                  "4t2" HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1"););
+                  "4t2" HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "1");
+      DBUG_ASSERT(hash_list.size() == 1);
+      DBUG_ASSERT(hash_list[0] == 10002085147685770725ULL););
 }
 #endif
 
@@ -404,12 +468,14 @@ static void debug_check_for_write_sets(
   @param[in] pke - the string to be hashed.
   @param[in] thd - THD object pointing to current thread.
   @param[in] write_sets - list of all write sets
+  @param[in] hash_list - list of all hashes
 */
 
 static void generate_hash_pke(const std::string &pke, THD *thd
 #ifndef DBUG_OFF
                               ,
-                              std::vector<std::string> &write_sets
+                              std::vector<std::string> &write_sets,
+                              std::vector<uint64> &hash_list
 #endif
 ) {
   DBUG_TRACE;
@@ -422,6 +488,7 @@ static void generate_hash_pke(const std::string &pke, THD *thd
 
 #ifndef DBUG_OFF
   write_sets.push_back(pke);
+  hash_list.push_back(hash);
 #endif
   DBUG_PRINT("info", ("pke: %s; hash: %" PRIu64, pke.c_str(), hash));
 }
@@ -433,13 +500,15 @@ static void generate_hash_pke(const std::string &pke, THD *thd
   @param[in] thd         - THD object pointing to current thread.
   @param[in] fld         - multi-valued keypart's field
   @param[in] write_sets  - DEBUG ONLY, vector of added PKEs
+  @param[in] hash_list   - DEBUG ONLY, list of all hashes
 */
 
 static void generate_mv_hash_pke(const std::string &prefix_pke, THD *thd,
                                  Field *fld
 #ifndef DBUG_OFF
                                  ,
-                                 std::vector<std::string> &write_sets
+                                 std::vector<std::string> &write_sets,
+                                 std::vector<uint64> &hash_list
 #endif
 ) {
   Field_typed_array *field = down_cast<Field_typed_array *>(fld);
@@ -473,7 +542,7 @@ static void generate_mv_hash_pke(const std::string &prefix_pke, THD *thd,
       generate_hash_pke(pke, thd
 #ifndef DBUG_OFF
                         ,
-                        write_sets
+                        write_sets, hash_list
 #endif
       );
     }
@@ -539,6 +608,7 @@ void add_pke(TABLE *table, THD *thd, uchar *record) {
 
 #ifndef DBUG_OFF
     std::vector<std::string> write_sets;
+    std::vector<uint64> hash_list;
 #endif
 
     for (uint key_number = 0; key_number < table->s->keys; key_number++) {
@@ -605,7 +675,7 @@ void add_pke(TABLE *table, THD *thd, uchar *record) {
           generate_mv_hash_pke(pke, thd, mv_field
 #ifndef DBUG_OFF
                                ,
-                               write_sets
+                               write_sets, hash_list
 #endif
           );
           mv_field->move_field_offset(-ptrdiff);
@@ -613,7 +683,7 @@ void add_pke(TABLE *table, THD *thd, uchar *record) {
           generate_hash_pke(pke, thd
 #ifndef DBUG_OFF
                             ,
-                            write_sets
+                            write_sets, hash_list
 #endif
           );
         }
@@ -686,7 +756,7 @@ void add_pke(TABLE *table, THD *thd, uchar *record) {
             generate_hash_pke(pke_prefix, thd
 #ifndef DBUG_OFF
                               ,
-                              write_sets
+                              write_sets, hash_list
 #endif
             );
             writeset_hashes_added = true;
@@ -701,7 +771,7 @@ void add_pke(TABLE *table, THD *thd, uchar *record) {
       ws_ctx->set_has_related_foreign_keys();
 
 #ifndef DBUG_OFF
-    debug_check_for_write_sets(write_sets);
+    debug_check_for_write_sets(write_sets, hash_list);
 #endif
   }
 

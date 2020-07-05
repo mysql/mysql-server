@@ -969,6 +969,13 @@ test.t	analyze	status	OK
 SELECT a, b, MIN(d) FROM t
 WHERE (a > 4) AND (c = 3 or c = 40) AND (d > 7)  GROUP BY a, b;
 a	b	MIN(d)
+10	1	8
+10	2	8
+10	3	8
+10	4	8
+10	5	8
+11	3	20
+11	NULL	30
 5	1	8
 5	2	8
 5	3	8
@@ -994,16 +1001,16 @@ a	b	MIN(d)
 9	3	8
 9	4	8
 9	5	8
-10	1	8
-10	2	8
-10	3	8
-10	4	8
-10	5	8
-11	NULL	30
-11	3	20
 SELECT a, b, MIN(d) FROM t
 WHERE (a > 4) AND (c = 3 or c = 40) AND (d > 7)  GROUP BY a, b;
 a	b	MIN(d)
+10	1	8
+10	2	8
+10	3	8
+10	4	8
+10	5	8
+11	3	20
+11	NULL	30
 5	1	8
 5	2	8
 5	3	8
@@ -1029,13 +1036,6 @@ a	b	MIN(d)
 9	3	8
 9	4	8
 9	5	8
-10	1	8
-10	2	8
-10	3	8
-10	4	8
-10	5	8
-11	NULL	30
-11	3	20
 ALTER TABLE t DROP KEY k2;
 EXPLAIN SELECT a, b FROM t  WHERE (a > 4) AND (c = 3 OR c > 6)  GROUP BY a, b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra

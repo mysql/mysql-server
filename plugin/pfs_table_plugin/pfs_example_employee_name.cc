@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -183,7 +183,7 @@ int ename_index_read(PSI_index_handle *index, PSI_key_reader *reader,
 /* Read the next indexed value */
 int ename_index_next(PSI_table_handle *handle) {
   Ename_Table_Handle *h = (Ename_Table_Handle *)handle;
-  Ename_index *i = NULL;
+  Ename_index *i = nullptr;
 
   switch (h->index_num) {
     case 0:

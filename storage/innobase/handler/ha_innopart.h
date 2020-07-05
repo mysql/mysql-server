@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -33,6 +33,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sys/types.h>
 
 #include "ha_innodb.h"
+#include "my_compiler.h"
 #include "partitioning/partition_handler.h"
 #include "row0mysql.h"
 #include "ut0bitset.h"
@@ -86,7 +87,7 @@ class Ha_innopart_share : public Partition_share {
   @param[in]	part_id	Partition number.
   @param[in]	table	Table. */
   inline void set_table_part(uint part_id, dict_table_t *table) {
-    ut_ad(m_table_parts != NULL);
+    ut_ad(m_table_parts != nullptr);
     ut_ad(part_id < m_tot_parts);
     m_table_parts[part_id] = table;
   }
@@ -101,7 +102,7 @@ class Ha_innopart_share : public Partition_share {
   @param[in]	part_id	Partition number.
   @return	InnoDB table. */
   inline dict_table_t *get_table_part(uint part_id) const {
-    ut_ad(m_table_parts != NULL);
+    ut_ad(m_table_parts != nullptr);
     ut_ad(part_id < m_tot_parts);
     return (m_table_parts[part_id]);
   }
@@ -484,13 +485,13 @@ class ha_innopart : public ha_innobase,
 
   FT_INFO *ft_init_ext(uint flags, uint inx, String *key) override {
     ut_ad(0);
-    return (NULL);
+    return (nullptr);
   }
 
   FT_INFO *ft_init_ext_with_hints(uint inx, String *key,
                                   Ft_hints *hints) override {
     ut_ad(0);
-    return (NULL);
+    return (nullptr);
   }
 
   int ft_read(uchar *buf) override {
@@ -577,10 +578,8 @@ class ha_innopart : public ha_innobase,
   /** Run the parallel read of data.
   @param[in]      parallel_scan_ctx a scan context created by
                                     parallel_scan_init
-  @return error code
-  @retval 0 on success
   */
-  int parallel_scan_end(void *parallel_scan_ctx) override;
+  void parallel_scan_end(void *parallel_scan_ctx) override;
 
  private:
   /** Pointer to Ha_innopart_share on the TABLE_SHARE. */
@@ -700,9 +699,9 @@ class ha_innopart : public ha_innobase,
   /** Set the autoinc column max value.
   This should only be called once from ha_innobase::open().
   Therefore there's no need for a covering lock.
-  @param[in]	-	If locking should be skipped. Not used!
+  @param[in]	no_lock	If locking should be skipped. Not used!
   @return 0 on success else error code. */
-  int initialize_auto_increment(bool /* no_lock */) override;
+  int initialize_auto_increment(bool no_lock MY_ATTRIBUTE((unused))) override;
 
   /** Save currently highest auto increment value.
   @param[in]	nr	Auto increment value to save. */

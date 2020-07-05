@@ -1,5 +1,5 @@
 /* Copyright (c) 2002 MySQL AB & tommy@valley.ne.jp
-   Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -144,7 +144,7 @@ static int my_strnncollsp_binary(const CHARSET_INFO *cs, const uchar *s,
 static int my_strnncoll_8bit_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                                  const uchar *s, size_t slen, const uchar *t,
                                  size_t tlen, bool t_is_prefix) {
-  size_t len = MY_MIN(slen, tlen);
+  size_t len = std::min(slen, tlen);
   int cmp = memcmp(s, t, len);
   return cmp ? cmp : (int)((t_is_prefix ? len : slen) - tlen);
 }
@@ -178,7 +178,7 @@ static int my_strnncollsp_8bit_bin(
   size_t length;
   int res;
 
-  end = a + (length = MY_MIN(a_length, b_length));
+  end = a + (length = std::min(a_length, b_length));
   while (a < end) {
     if (*a++ != *b++) return ((int)a[-1] - (int)b[-1]);
   }
@@ -479,8 +479,8 @@ static MY_COLLATION_HANDLER my_collation_binary_handler = {
     my_propagate_simple};
 
 static MY_CHARSET_HANDLER my_charset_handler = {
-    NULL,              /* init */
-    NULL,              /* ismbchar      */
+    nullptr,           /* init */
+    nullptr,           /* ismbchar      */
     my_mbcharlen_8bit, /* mbcharlen     */
     my_numchars_8bit,
     my_charpos_8bit,
@@ -514,19 +514,19 @@ CHARSET_INFO my_charset_bin = {
     MY_CS_COMPILED | MY_CS_BINSORT | MY_CS_PRIMARY, /* state */
     "binary",                                       /* cs name    */
     "binary",                                       /* name          */
-    "",                                             /* comment       */
-    NULL,                                           /* tailoring     */
-    NULL,                                           /* coll_param    */
+    "Binary pseudo charset",                        /* comment       */
+    nullptr,                                        /* tailoring     */
+    nullptr,                                        /* coll_param    */
     ctype_bin,                                      /* ctype         */
     bin_char_array,                                 /* to_lower      */
     bin_char_array,                                 /* to_upper      */
-    NULL,                                           /* sort_order    */
-    NULL,                                           /* uca           */
-    NULL,                                           /* tab_to_uni    */
-    NULL,                                           /* tab_from_uni  */
+    nullptr,                                        /* sort_order    */
+    nullptr,                                        /* uca           */
+    nullptr,                                        /* tab_to_uni    */
+    nullptr,                                        /* tab_from_uni  */
     &my_unicase_default,                            /* caseinfo     */
-    NULL,                                           /* state_map    */
-    NULL,                                           /* ident_map    */
+    nullptr,                                        /* state_map    */
+    nullptr,                                        /* ident_map    */
     1,                                              /* strxfrm_multiply */
     1,                                              /* caseup_multiply  */
     1,                                              /* casedn_multiply  */

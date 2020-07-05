@@ -847,8 +847,10 @@ CREATE TABLE t1 (c1 INTEGER PRIMARY KEY, c2 TEXT, c3 INTEGER);
 
 INSERT INTO t1(c1) VALUES(0);
 
+--disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO t1(c1) VALUES(0) ON DUPLICATE KEY
 UPDATE c2 = VALUES(c2), c3 = NULL;
+--enable_ps_protocol
 
 SELECT * FROM t1;
 DROP TABLE t1;

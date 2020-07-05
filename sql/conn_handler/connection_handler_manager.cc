@@ -52,11 +52,12 @@ struct Connection_handler_functions;
 uint Connection_handler_manager::connection_count = 0;
 ulong Connection_handler_manager::max_used_connections = 0;
 ulong Connection_handler_manager::max_used_connections_time = 0;
-THD_event_functions *Connection_handler_manager::event_functions = NULL;
-THD_event_functions *Connection_handler_manager::saved_event_functions = NULL;
+THD_event_functions *Connection_handler_manager::event_functions = nullptr;
+THD_event_functions *Connection_handler_manager::saved_event_functions =
+    nullptr;
 mysql_mutex_t Connection_handler_manager::LOCK_connection_count;
 mysql_cond_t Connection_handler_manager::COND_connection_count;
-Connection_handler_manager *Connection_handler_manager::m_instance = NULL;
+Connection_handler_manager *Connection_handler_manager::m_instance = nullptr;
 ulong Connection_handler_manager::thread_handling =
     SCHEDULER_ONE_THREAD_PER_CONNECTION;
 uint Connection_handler_manager::max_threads = 0;
@@ -146,7 +147,7 @@ bool Connection_handler_manager::init() {
   */
   Per_thread_connection_handler::init();
 
-  Connection_handler *connection_handler = NULL;
+  Connection_handler *connection_handler = nullptr;
   switch (Connection_handler_manager::thread_handling) {
     case SCHEDULER_ONE_THREAD_PER_CONNECTION:
       connection_handler = new (std::nothrow) Per_thread_connection_handler();
@@ -158,7 +159,7 @@ bool Connection_handler_manager::init() {
       DBUG_ASSERT(false);
   }
 
-  if (connection_handler == NULL) {
+  if (connection_handler == nullptr) {
     // This is a static member function.
     Per_thread_connection_handler::destroy();
     return true;
@@ -167,7 +168,7 @@ bool Connection_handler_manager::init() {
   m_instance =
       new (std::nothrow) Connection_handler_manager(connection_handler);
 
-  if (m_instance == NULL) {
+  if (m_instance == nullptr) {
     delete connection_handler;
     // This is a static member function.
     Per_thread_connection_handler::destroy();
@@ -208,9 +209,9 @@ void Connection_handler_manager::wait_till_no_connection() {
 void Connection_handler_manager::destroy_instance() {
   Per_thread_connection_handler::destroy();
 
-  if (m_instance != NULL) {
+  if (m_instance != nullptr) {
     delete m_instance;
-    m_instance = NULL;
+    m_instance = nullptr;
     mysql_mutex_destroy(&LOCK_connection_count);
     mysql_cond_destroy(&COND_connection_count);
   }
@@ -236,12 +237,12 @@ void Connection_handler_manager::load_connection_handler(
 }
 
 bool Connection_handler_manager::unload_connection_handler() {
-  DBUG_ASSERT(m_saved_connection_handler != NULL);
-  if (m_saved_connection_handler == NULL) return true;
+  DBUG_ASSERT(m_saved_connection_handler != nullptr);
+  if (m_saved_connection_handler == nullptr) return true;
   delete m_connection_handler;
   m_connection_handler = m_saved_connection_handler;
   Connection_handler_manager::thread_handling = m_saved_thread_handling;
-  m_saved_connection_handler = NULL;
+  m_saved_connection_handler = nullptr;
   m_saved_thread_handling = 0;
   max_threads = m_connection_handler->get_max_threads();
   return false;
@@ -264,7 +265,7 @@ void Connection_handler_manager::process_new_connection(
 
 THD *create_thd(Channel_info *channel_info) {
   THD *thd = channel_info->create_thd();
-  if (thd == NULL)
+  if (thd == nullptr)
     channel_info->send_error_and_close_channel(ER_OUT_OF_RESOURCES, 0, false);
 
   return thd;
@@ -282,12 +283,12 @@ void increment_aborted_connects() {
 
 int my_connection_handler_set(Connection_handler_functions *chf,
                               THD_event_functions *tef) {
-  DBUG_ASSERT(chf != NULL && tef != NULL);
-  if (chf == NULL || tef == NULL) return 1;
+  DBUG_ASSERT(chf != nullptr && tef != nullptr);
+  if (chf == nullptr || tef == nullptr) return 1;
 
   Plugin_connection_handler *conn_handler =
       new (std::nothrow) Plugin_connection_handler(chf);
-  if (conn_handler == NULL) return 1;
+  if (conn_handler == nullptr) return 1;
 
   Connection_handler_manager::get_instance()->load_connection_handler(
       conn_handler);

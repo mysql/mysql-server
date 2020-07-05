@@ -53,10 +53,10 @@ constexpr size_t VARLEN_PREFIX = 4;
 struct Merge_chunk {
  public:
   Merge_chunk()
-      : m_current_key(NULL),
+      : m_current_key(nullptr),
         m_file_position(0),
-        m_buffer_start(NULL),
-        m_buffer_end(NULL),
+        m_buffer_start(nullptr),
+        m_buffer_end(nullptr),
         m_rowcount(0),
         m_mem_count(0),
         m_max_keys(0) {}
@@ -74,7 +74,7 @@ struct Merge_chunk {
   }
   void set_buffer_start(uchar *start) { m_buffer_start = start; }
   void set_buffer_end(uchar *end) {
-    DBUG_ASSERT(m_buffer_end == NULL || end <= m_buffer_end);
+    DBUG_ASSERT(m_buffer_end == nullptr || end <= m_buffer_end);
     m_buffer_end = end;
   }
 
@@ -140,7 +140,7 @@ typedef Bounds_checked_array<Merge_chunk> Merge_chunk_array;
 */
 class Sort_result {
  public:
-  Sort_result() : sorted_result_in_fsbuf(false), sorted_result_end(NULL) {}
+  Sort_result() : sorted_result_in_fsbuf(false), sorted_result_end(nullptr) {}
 
   bool has_result_in_memory() const {
     return sorted_result || sorted_result_in_fsbuf;

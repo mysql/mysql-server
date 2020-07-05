@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -64,16 +64,16 @@ Item_processing_data *Abstract_chain_element::object_to_be_processed_in_child(
       (current_item_data->have_completion_callback() ||
        this->need_callbacks_in_child())
           ? &m_item_processed_callback
-          : NULL);
+          : nullptr);
 }
 
 Item_processing_data *Abstract_chain_element::new_task_created(
     I_dump_task *dump_task_created) {
-  return new Item_processing_data(NULL, dump_task_created, this,
+  return new Item_processing_data(nullptr, dump_task_created, this,
                                   this->need_callbacks_in_child()
                                       ? &m_item_processed_complete_callback
-                                      : NULL,
-                                  NULL);
+                                      : nullptr,
+                                  nullptr);
 }
 
 Item_processing_data *Abstract_chain_element::new_chain_created(
@@ -95,7 +95,7 @@ Item_processing_data *Abstract_chain_element::new_chain_created(
           (current_item_data->have_completion_callback() ||
            this->need_callbacks_in_child())
               ? &m_item_processed_complete_callback
-              : NULL);
+              : nullptr);
   current_item_data->set_had_chain_created();
   this->report_new_chain_created(new_item_to_process);
   return new_item_to_process;
@@ -103,7 +103,7 @@ Item_processing_data *Abstract_chain_element::new_chain_created(
 
 void Abstract_chain_element::object_processing_ends(
     Item_processing_data *processed_item) {
-  if (processed_item != NULL && processed_item->end_processing()) {
+  if (processed_item != nullptr && processed_item->end_processing()) {
     this->report_object_processing_ended(processed_item);
     if (processed_item->call_completion_callback_at_end()) {
       delete processed_item;

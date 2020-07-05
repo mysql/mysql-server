@@ -476,7 +476,7 @@ EXPLAIN
             "rows_examined_per_scan": 5,
             "rows_produced_per_join": 25,
             "filtered": "100.00",
-            "using_join_buffer": "Block Nested Loop",
+            "using_join_buffer": "hash join",
             "cost_info": {
               "read_cost": "0.25",
               "eval_cost": "2.50",
@@ -674,7 +674,7 @@ EXPLAIN
             "rows_examined_per_scan": 5,
             "rows_produced_per_join": 25,
             "filtered": "100.00",
-            "using_join_buffer": "Block Nested Loop",
+            "using_join_buffer": "hash join",
             "cost_info": {
               "read_cost": "0.25",
               "eval_cost": "2.50",
@@ -748,7 +748,7 @@ EXPLAIN
             "rows_examined_per_scan": 5,
             "rows_produced_per_join": 25,
             "filtered": "100.00",
-            "using_join_buffer": "Block Nested Loop",
+            "using_join_buffer": "hash join",
             "cost_info": {
               "read_cost": "0.25",
               "eval_cost": "2.50",
@@ -808,7 +808,7 @@ EXPLAIN
               "rows_examined_per_scan": 5,
               "rows_produced_per_join": 25,
               "filtered": "100.00",
-              "using_join_buffer": "Block Nested Loop",
+              "using_join_buffer": "hash join",
               "cost_info": {
                 "read_cost": "0.25",
                 "eval_cost": "2.50",
@@ -871,7 +871,7 @@ EXPLAIN
             "rows_examined_per_scan": 5,
             "rows_produced_per_join": 5,
             "filtered": "20.00",
-            "using_join_buffer": "Block Nested Loop",
+            "using_join_buffer": "hash join",
             "cost_info": {
               "read_cost": "0.25",
               "eval_cost": "0.50",
@@ -938,7 +938,7 @@ EXPLAIN
             "rows_examined_per_scan": 5,
             "rows_produced_per_join": 5,
             "filtered": "20.00",
-            "using_join_buffer": "Block Nested Loop",
+            "using_join_buffer": "hash join",
             "cost_info": {
               "read_cost": "0.25",
               "eval_cost": "0.50",
@@ -1002,7 +1002,7 @@ EXPLAIN
             "rows_examined_per_scan": 5,
             "rows_produced_per_join": 5,
             "filtered": "20.00",
-            "using_join_buffer": "Block Nested Loop",
+            "using_join_buffer": "hash join",
             "cost_info": {
               "read_cost": "0.25",
               "eval_cost": "0.50",
@@ -1064,7 +1064,7 @@ EXPLAIN
             "rows_examined_per_scan": 5,
             "rows_produced_per_join": 5,
             "filtered": "20.00",
-            "using_join_buffer": "Block Nested Loop",
+            "using_join_buffer": "hash join",
             "cost_info": {
               "read_cost": "0.25",
               "eval_cost": "0.50",
@@ -1212,7 +1212,7 @@ EXPLAIN
             "rows_produced_per_join": 5,
             "filtered": "20.00",
             "distinct": true,
-            "using_join_buffer": "Block Nested Loop",
+            "using_join_buffer": "hash join",
             "cost_info": {
               "read_cost": "0.25",
               "eval_cost": "0.50",
@@ -1364,7 +1364,7 @@ EXPLAIN
               "rows_produced_per_join": 5,
               "filtered": "100.00",
               "distinct": true,
-              "using_join_buffer": "Block Nested Loop",
+              "using_join_buffer": "hash join",
               "cost_info": {
                 "read_cost": "0.27",
                 "eval_cost": "0.50",
@@ -1756,7 +1756,7 @@ EXPLAIN
           "table_name": "t2",
           "used_columns": [
           "used_columns": [
-          "using_join_buffer": "Block Nested Loop",
+          "using_join_buffer": "hash join",
           ],
           ],
           }
@@ -1888,7 +1888,7 @@ EXPLAIN
           "rows_examined_per_scan": 5,
           "rows_produced_per_join": 5,
           "filtered": "100.00",
-          "using_join_buffer": "Block Nested Loop",
+          "using_join_buffer": "hash join",
           "cost_info": {
             "read_cost": "0.25",
             "eval_cost": "0.50",
@@ -2021,7 +2021,7 @@ EXPLAIN
             "rows_examined_per_scan": 5,
             "rows_produced_per_join": 5,
             "filtered": "20.00",
-            "using_join_buffer": "Block Nested Loop",
+            "using_join_buffer": "hash join",
             "cost_info": {
               "read_cost": "0.25",
               "eval_cost": "0.50",
@@ -2386,7 +2386,7 @@ EXPLAIN
             "rows_examined_per_scan": 5,
             "rows_produced_per_join": 25,
             "filtered": "100.00",
-            "using_join_buffer": "Block Nested Loop",
+            "using_join_buffer": "hash join",
             "cost_info": {
               "read_cost": "0.25",
               "eval_cost": "2.50",
@@ -2584,7 +2584,7 @@ EXPLAIN
             "rows_examined_per_scan": 5,
             "rows_produced_per_join": 25,
             "filtered": "100.00",
-            "using_join_buffer": "Block Nested Loop",
+            "using_join_buffer": "hash join",
             "cost_info": {
               "read_cost": "0.25",
               "eval_cost": "2.50",
@@ -2654,7 +2654,7 @@ EXPLAIN
             "rows_examined_per_scan": 5,
             "rows_produced_per_join": 25,
             "filtered": "100.00",
-            "using_join_buffer": "Block Nested Loop",
+            "using_join_buffer": "hash join",
             "cost_info": {
               "read_cost": "0.25",
               "eval_cost": "2.50",
@@ -2714,7 +2714,7 @@ EXPLAIN
               "rows_examined_per_scan": 5,
               "rows_produced_per_join": 25,
               "filtered": "100.00",
-              "using_join_buffer": "Block Nested Loop",
+              "using_join_buffer": "hash join",
               "cost_info": {
                 "read_cost": "0.25",
                 "eval_cost": "2.50",
@@ -2777,7 +2777,7 @@ EXPLAIN
             "rows_examined_per_scan": 5,
             "rows_produced_per_join": 5,
             "filtered": "20.00",
-            "using_join_buffer": "Block Nested Loop",
+            "using_join_buffer": "hash join",
             "cost_info": {
               "read_cost": "0.25",
               "eval_cost": "0.50",
@@ -2839,7 +2839,7 @@ EXPLAIN
             "rows_examined_per_scan": 5,
             "rows_produced_per_join": 5,
             "filtered": "20.00",
-            "using_join_buffer": "Block Nested Loop",
+            "using_join_buffer": "hash join",
             "cost_info": {
               "read_cost": "0.25",
               "eval_cost": "0.50",
@@ -2898,7 +2898,7 @@ EXPLAIN
             "rows_examined_per_scan": 5,
             "rows_produced_per_join": 5,
             "filtered": "20.00",
-            "using_join_buffer": "Block Nested Loop",
+            "using_join_buffer": "hash join",
             "cost_info": {
               "read_cost": "0.25",
               "eval_cost": "0.50",
@@ -2957,7 +2957,7 @@ EXPLAIN
             "rows_examined_per_scan": 5,
             "rows_produced_per_join": 5,
             "filtered": "20.00",
-            "using_join_buffer": "Block Nested Loop",
+            "using_join_buffer": "hash join",
             "cost_info": {
               "read_cost": "0.25",
               "eval_cost": "0.50",
@@ -3102,7 +3102,7 @@ EXPLAIN
             "rows_produced_per_join": 5,
             "filtered": "20.00",
             "distinct": true,
-            "using_join_buffer": "Block Nested Loop",
+            "using_join_buffer": "hash join",
             "cost_info": {
               "read_cost": "0.25",
               "eval_cost": "0.50",
@@ -3254,7 +3254,7 @@ EXPLAIN
               "rows_produced_per_join": 5,
               "filtered": "100.00",
               "distinct": true,
-              "using_join_buffer": "Block Nested Loop",
+              "using_join_buffer": "hash join",
               "cost_info": {
                 "read_cost": "0.27",
                 "eval_cost": "0.50",
@@ -3645,7 +3645,7 @@ EXPLAIN
           "table_name": "t2",
           "used_columns": [
           "used_columns": [
-          "using_join_buffer": "Block Nested Loop",
+          "using_join_buffer": "hash join",
           ],
           ],
           }
@@ -3777,7 +3777,7 @@ EXPLAIN
           "rows_examined_per_scan": 5,
           "rows_produced_per_join": 5,
           "filtered": "100.00",
-          "using_join_buffer": "Block Nested Loop",
+          "using_join_buffer": "hash join",
           "cost_info": {
             "read_cost": "0.25",
             "eval_cost": "0.50",
@@ -3906,7 +3906,7 @@ EXPLAIN
             "rows_examined_per_scan": 5,
             "rows_produced_per_join": 5,
             "filtered": "20.00",
-            "using_join_buffer": "Block Nested Loop",
+            "using_join_buffer": "hash join",
             "cost_info": {
               "read_cost": "0.25",
               "eval_cost": "0.50",

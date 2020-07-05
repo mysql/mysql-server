@@ -34,6 +34,7 @@
 
 void Dbdih::initData() 
 {
+  m_set_up_multi_trp_in_node_restart = false;
   cpageFileSize = ZPAGEREC;
 
   // Records with constant sizes
@@ -349,10 +350,10 @@ Dbdih::Dbdih(Block_context& ctx):
 
   addRecSignal(GSN_DROP_NODEGROUP_IMPL_REQ,
                &Dbdih::execDROP_NODEGROUP_IMPL_REQ);
-
-
   addRecSignal(GSN_DIH_GET_TABINFO_REQ,
                &Dbdih::execDIH_GET_TABINFO_REQ);
+  addRecSignal(GSN_SET_UP_MULTI_TRP_CONF,
+               &Dbdih::execSET_UP_MULTI_TRP_CONF);
 #if 0
   addRecSignal(GSN_DIH_GET_TABINFO_REF,
                &Dbdih::execDIH_GET_TABINFO_REF);

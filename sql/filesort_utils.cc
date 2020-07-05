@@ -53,12 +53,11 @@ namespace {
   See the accompanying unit tests, which measure various implementations.
  */
 inline bool my_mem_compare(const uchar *s1, const uchar *s2, size_t len) {
-  DBUG_ASSERT(len > 0);
-  DBUG_ASSERT(s1 != NULL);
-  DBUG_ASSERT(s2 != NULL);
-  do {
-    if (*s1++ != *s2++) return *--s1 < *--s2;
-  } while (--len != 0);
+  DBUG_ASSERT(s1 != nullptr);
+  DBUG_ASSERT(s2 != nullptr);
+  for (size_t i = 0; i < len; ++i) {
+    if (s1[i] != s2[i]) return s1[i] < s2[i];
+  }
   return false;
 }
 
@@ -182,7 +181,7 @@ unsigned Filesort_buffer::sort_buffer(Sort_param *param, uint count) {
     So we're a bit conservative, and stay with quicksort up to 100 records.
   */
   if (count <= 100 && !force_stable_sort) {
-    if (param->max_compare_length() < 10) {
+    if (key_len < 10) {
       param->m_sort_algorithm = Sort_param::FILESORT_ALG_STD_SORT;
       sort(it_begin, it_end, Mem_compare(key_len));
       if (param->m_remove_duplicates) {
@@ -193,7 +192,7 @@ unsigned Filesort_buffer::sort_buffer(Sort_param *param, uint count) {
       return count;
     }
     param->m_sort_algorithm = Sort_param::FILESORT_ALG_STD_SORT;
-    sort(it_begin, it_end, Mem_compare_longkey(param->max_compare_length()));
+    sort(it_begin, it_end, Mem_compare_longkey(key_len));
     if (param->m_remove_duplicates) {
       auto new_end = unique(it_begin, it_end,
                             Equality_from_less<Mem_compare_longkey>(

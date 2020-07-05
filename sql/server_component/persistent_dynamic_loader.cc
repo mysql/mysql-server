@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -31,9 +31,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <utility>
 #include <vector>
 
-#include "../components/mysql_server/dynamic_loader.h"
-#include "../components/mysql_server/persistent_dynamic_loader.h"
-#include "../components/mysql_server/server_component.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "mutex_lock.h"
@@ -53,6 +50,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
 #include "mysqld_error.h"
+#include "persistent_dynamic_loader_imp.h"
 #include "scope_guard.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // commit_and_close_mysql_tables
@@ -75,6 +73,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "thr_mutex.h"
 
 class THD;
+SERVICE_TYPE(dynamic_loader) * dynamic_loader_srv;
 
 typedef std::string my_string;
 
@@ -86,10 +85,10 @@ enum enum_component_table_field {
 };
 
 static const TABLE_FIELD_TYPE component_table_fields[CT_FIELD_COUNT] = {
-    {{STRING_WITH_LEN("component_id")}, {STRING_WITH_LEN("int")}, {NULL, 0}},
+    {{STRING_WITH_LEN("component_id")}, {STRING_WITH_LEN("int")}, {nullptr, 0}},
     {{STRING_WITH_LEN("component_group_id")},
      {STRING_WITH_LEN("int")},
-     {NULL, 0}},
+     {nullptr, 0}},
     {{STRING_WITH_LEN("component_urn")},
      {STRING_WITH_LEN("text")},
      {STRING_WITH_LEN("utf8")}}};
@@ -227,7 +226,7 @@ bool mysql_persistent_dynamic_loader_imp::init(void *thdp) {
         create_scope_guard([&thd]() { commit_and_close_mysql_tables(thd); });
 
     unique_ptr_destroy_only<RowIterator> iterator =
-        init_table_iterator(thd, component_table, NULL, false,
+        init_table_iterator(thd, component_table, nullptr, false,
                             /*ignore_not_found_rows=*/false);
     if (iterator == nullptr) {
       push_warning(thd, Sql_condition::SL_WARNING, ER_COMPONENT_TABLE_INCORRECT,
@@ -290,7 +289,7 @@ bool mysql_persistent_dynamic_loader_imp::init(void *thdp) {
         urns.push_back(group_it->c_str());
       }
       /* We continue process despite of any errors. */
-      mysql_dynamic_loader_imp::load(urns.data(), (int)urns.size());
+      dynamic_loader_srv->load(urns.data(), (int)urns.size());
     }
 
     mysql_persistent_dynamic_loader_imp::is_initialized = true;
@@ -406,7 +405,7 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
 
       component_table->file->ha_release_auto_increment();
     }
-    if (mysql_dynamic_loader_imp::load(urns, component_count)) {
+    if (dynamic_loader_srv->load(urns, component_count)) {
       return true;
     }
 
@@ -474,7 +473,7 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
       close_mysql_tables(thd);
     });
 
-    DBUG_ASSERT(component_table->key_info != NULL);
+    DBUG_ASSERT(component_table->key_info != nullptr);
 
     for (int i = 0; i < component_count; ++i) {
       /* Find component ID used in component table using memory mapping. */
@@ -513,7 +512,7 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
       mysql_persistent_dynamic_loader_imp::component_id_by_urn.erase(it);
     }
 
-    bool result = mysql_dynamic_loader_imp::unload(urns, component_count);
+    bool result = dynamic_loader_srv->unload(urns, component_count);
     if (result) {
       /* No need to specify error, underlying service implementation would add
         one. */

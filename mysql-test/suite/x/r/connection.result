@@ -1,7 +1,7 @@
 call mtr.add_suppression("Plugin mysqlx reported: 'Unable to switch context to user mysql.session'");
 call mtr.add_suppression("Plugin mysqlx reported: 'Unable to accept connection, disconnecting client'");
 call mtr.add_suppression("Plugin mysqlx reported: 'Could not open internal MySQL session'");
-call mtr.add_suppression("Plugin mysqlx reported: '.*: Error initializing session for connection: Could not open session'");
+call mtr.add_suppression("Plugin mysqlx reported: '.*: Error initializing session for connection: Too many connections'");
 call mtr.add_suppression("Plugin 'mysqlx' has ref_count=5 after shutdown");
 call mtr.add_suppression("Plugin 'mysqlx' will be forced to shutdown");
 #
@@ -9,8 +9,8 @@ call mtr.add_suppression("Plugin 'mysqlx' will be forced to shutdown");
 #
 RUN SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS,PLUGIN_TYPE from information_schema.plugins where PLUGIN_NAME LIKE '%mysqlx%'
 PLUGIN_NAME	PLUGIN_VERSION	PLUGIN_STATUS	PLUGIN_TYPE
-mysqlx	1.0	ACTIVE	DAEMON
 mysqlx_cache_cleaner	1.0	ACTIVE	AUDIT
+mysqlx	1.0	ACTIVE	DAEMON
 0 rows affected
 RUN create user xplugin@localhost identified by 'xplugin'
 
@@ -1304,9 +1304,9 @@ open 3rd xprotocol connection where 2 sessions already opened
 connecting...
 active session is now 'con2'
 Mysqlx.Error {
-  severity: ERROR
-  code: 5011
-  msg: "Could not open session"
+  severity: FATAL
+  code: 1040
+  msg: "Too many connections"
   sql_state: "HY000"
 }
 
@@ -1338,14 +1338,6 @@ ok
 connecting...
 Got expected error: Access denied for user 'abc'@'localhost'. Account is locked. (code 3118)
 ok
-drop user xplugin@localhost;
-drop user nonblank@localhost;
-drop user blank@localhost;
-drop user abc@localhost;
-drop user con1@localhost;
-drop user con2@localhost;
-drop user mysqlcon1@localhost;
-drop user mysqlcon2@localhost;
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
 Mysqlx_connections_closed	15
@@ -1355,4 +1347,16 @@ Mysqlx_connections_accepted	15
 show status like 'Mysqlx_connection_accept_errors';
 Variable_name	Value
 Mysqlx_connection_accept_errors	0
+# restart:
+drop user xplugin@localhost;
+drop user nonblank@localhost;
+drop user blank@localhost;
+drop user abc@localhost;
+drop user con1@localhost;
+drop user con2@localhost;
+drop user mysqlcon1@localhost;
+drop user mysqlcon2@localhost;
+drop user ''@localhost;
+drop user special@localhost;
+drop user session@localhost;
 SET GLOBAL mysqlx_connect_timeout = DEFAULT;

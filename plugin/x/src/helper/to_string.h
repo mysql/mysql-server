@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@ namespace detail {
 template <typename T>
 inline std::string to_string(const my_gcvt_arg_type arg_type, T value) {
   char buffer[100];
-  my_gcvt(value, arg_type, sizeof(buffer) - 1, buffer, NULL);
+  my_gcvt(value, arg_type, sizeof(buffer) - 1, buffer, nullptr);
   return buffer;
 }
 

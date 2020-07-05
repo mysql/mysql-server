@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -97,9 +97,13 @@ class Dictionary_impl : public Dictionary {
 
   virtual uint get_actual_P_S_version(THD *thd);
 
+  virtual bool get_actual_ndbinfo_schema_version(THD *thd, uint *version);
+
   uint set_I_S_version(THD *thd, uint version);
 
   uint set_P_S_version(THD *thd, uint version);
+
+  uint set_ndbinfo_schema_version(THD *thd, uint version);
 
   virtual const Object_table *get_dd_table(const String_type &schema_name,
                                            const String_type &table_name) const;

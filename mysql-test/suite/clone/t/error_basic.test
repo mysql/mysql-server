@@ -38,7 +38,6 @@ SET GLOBAL MAX_ALLOWED_PACKET = 512 * 1024;
 
 --connection default
 --disconnect con1
---force-rmdir $CLONE_DATADIR
 
 --echo # 1B-c. MAX_ALLOWED_PACKET 2M should pass
 SET GLOBAL MAX_ALLOWED_PACKET = 2 * 1024 * 1024;

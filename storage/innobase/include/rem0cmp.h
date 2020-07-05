@@ -195,8 +195,7 @@ int cmp_rec_rec_simple(
 @param[in] offsets1 rec_get_offsets(rec1, index)
 @param[in] offsets2 rec_get_offsets(rec2, index)
 @param[in] index B-tree index
-@param[in] spatial_index_non_leaf true if record present in spatial index non
-leaf
+@param[in] spatial_index_non_leaf true if record is in spatial non leaf page
 @param[in] nulls_unequal true if this is for index cardinality
 statistics estimation, and innodb_stats_method=nulls_unequal
 or innodb_stats_method=nulls_ignored
@@ -221,8 +220,7 @@ are treated as equal.
 @param[in]	offsets1		rec_get_offsets(rec1, index)
 @param[in]	offsets2		rec_get_offsets(rec2, index)
 @param[in]	index			B-tree index
-@param[in]	spatial_index_non_leaf	true if record is in spatial non leaf
-page
+@param[in]	spatial_index_non_leaf  true if spatial index non leaf records
 @param[out]	matched_fields	number of completely matched fields
 within the first field not completely matched
 @param[in]  cmp_btree_recs  true if the both the records are b-tree records
@@ -231,7 +229,7 @@ respectively */
 UNIV_INLINE
 int cmp_rec_rec(const rec_t *rec1, const rec_t *rec2, const ulint *offsets1,
                 const ulint *offsets2, const dict_index_t *index,
-                bool spatial_index_non_leaf, ulint *matched_fields = NULL,
+                bool spatial_index_non_leaf, ulint *matched_fields = nullptr,
                 bool cmp_btree_recs = true);
 
 /** Compare two data fields.

@@ -315,3 +315,6 @@ SELECT * FROM t1 WHERE MATCH(a) AGAINST("')'@7" IN BOOLEAN MODE);
 DROP TABLE t1;
 
 UNINSTALL PLUGIN simple_parser;
+
+--let $restart_parameters=
+--source include/restart_mysqld.inc

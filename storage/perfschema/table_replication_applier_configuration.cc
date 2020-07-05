@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -59,6 +59,9 @@ Plugin_table table_replication_applier_configuration::m_table_def(
     "    COMMENT 'User name for the security context of the applier.',\n"
     "  REQUIRE_ROW_FORMAT ENUM('YES', 'NO') not null COMMENT "
     "    'Indicates whether the channel shall only accept row based events.',\n"
+    "  REQUIRE_TABLE_PRIMARY_KEY_CHECK ENUM('STREAM','ON','OFF') not null"
+    "    COMMENT 'Indicates what is the channel policy regarding tables having"
+    " primary keys on create and alter table queries',\n"
     "  PRIMARY KEY (CHANNEL_NAME) USING HASH\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
@@ -68,8 +71,8 @@ Plugin_table table_replication_applier_configuration::m_table_def(
 PFS_engine_table_share table_replication_applier_configuration::m_share = {
     &pfs_readonly_acl,
     table_replication_applier_configuration::create,
-    NULL, /* write_row */
-    NULL, /* delete_all_rows */
+    nullptr, /* write_row */
+    nullptr, /* delete_all_rows */
     table_replication_applier_configuration::get_row_count,
     sizeof(pos_t), /* ref length */
     &m_table_lock,
@@ -157,7 +160,7 @@ int table_replication_applier_configuration::rnd_pos(const void *pos) {
 
 int table_replication_applier_configuration::index_init(
     uint idx MY_ATTRIBUTE((unused)), bool) {
-  PFS_index_rpl_applier_config *result = NULL;
+  PFS_index_rpl_applier_config *result = nullptr;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_rpl_applier_config);
   m_opened_index = result;
@@ -192,8 +195,8 @@ int table_replication_applier_configuration::index_next(void) {
 
 int table_replication_applier_configuration::make_row(Master_info *mi) {
   DBUG_TRACE;
-  DBUG_ASSERT(mi != NULL);
-  DBUG_ASSERT(mi->rli != NULL);
+  DBUG_ASSERT(mi != nullptr);
+  DBUG_ASSERT(mi->rli != nullptr);
 
   mysql_mutex_lock(&mi->data_lock);
   mysql_mutex_lock(&mi->rli->data_lock);
@@ -224,6 +227,9 @@ int table_replication_applier_configuration::make_row(Master_info *mi) {
 
   m_row.requires_row_format =
       mi->rli->is_row_format_required() ? PS_RPL_YES : PS_RPL_NO;
+
+  m_row.require_table_primary_key_check =
+      mi->rli->get_require_table_primary_key_check();
 
   mysql_mutex_unlock(&mi->rli->data_lock);
   mysql_mutex_unlock(&mi->data_lock);
@@ -259,6 +265,9 @@ int table_replication_applier_configuration::read_row_values(TABLE *table,
           break;
         case 3: /** require_row_format */
           set_field_enum(f, m_row.requires_row_format);
+          break;
+        case 4: /** require_table_primary_key_check */
+          set_field_enum(f, m_row.require_table_primary_key_check);
           break;
         default:
           DBUG_ASSERT(false);

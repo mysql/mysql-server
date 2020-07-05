@@ -207,7 +207,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	gp1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 1	SIMPLE	p1	NULL	const	col_varchar_key,col_varchar_key_2	col_varchar_key	10	const	1	100.00	NULL
 1	SIMPLE	p2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.p1.col_int_key	1	100.00	Using index; FirstMatch(gp1)
-1	SIMPLE	gp2	NULL	index	NULL	col_datetime_key	5	NULL	2	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	gp2	NULL	index	NULL	col_datetime_key	5	NULL	2	100.00	Using where; Using index; Using join buffer (hash join)
 Warnings:
 Warning	1292	Incorrect datetime value: '6' for column 'col_datetime_key' at row 1
 Note	1003	/* select#1 */ select `test`.`gp1`.`col_datetime_key` AS `g1` from `test`.`cc` `gp1` left join `test`.`c` `gp2` on((`test`.`gp2`.`col_datetime_key` <> cast(`test`.`gp1`.`col_time_nokey` as datetime))) semi join (`test`.`bb` `p1` left join `test`.`bb` `p2` on((`test`.`p1`.`col_int_key` = `test`.`p2`.`pk`))) where ((`test`.`gp1`.`col_varchar_nokey` = 'b') and ('b' = `test`.`p1`.`col_varchar_key`)) having (`g1` > 6)
@@ -1408,3 +1408,13 @@ b	a
 ALTER TABLE t1 DROP COLUMN a, ADD COLUMN a INT DEFAULT 0, DROP KEY fi, ADD KEY fi((a + 10)), ALGORITHM=INPLACE;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: INPLACE ADD or DROP of virtual columns cannot be combined with other ALTER TABLE actions. Try ALGORITHM=COPY.
 DROP TABLES t1;
+#
+# Bug #30417361: MAKE THE SORTING CODE INDEPENDENT OF QEP_TABS
+#
+CREATE TABLE t1 (i INTEGER, a INTEGER, vgc INTEGER GENERATED ALWAYS AS (-a) VIRTUAL);
+INSERT INTO t1 (i, a) VALUES (1, 1), (2, 2);
+SELECT i FROM t1 ORDER BY vgc;
+i
+2
+1
+DROP TABLE t1;

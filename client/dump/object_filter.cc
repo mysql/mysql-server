@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -198,9 +198,9 @@ bool Object_filter::is_object_included_by_lists(
 }
 
 bool Object_filter::is_object_included_in_dump(Abstract_data_object *object) {
-  if (object == NULL) return true;
-  if (dynamic_cast<Database *>(object) == NULL &&
-      dynamic_cast<Privilege *>(object) == NULL) {
+  if (object == nullptr) return true;
+  if (dynamic_cast<Database *>(object) == nullptr &&
+      dynamic_cast<Privilege *>(object) == nullptr) {
     /*
       All objects except database/event/users need to check for schema
       inclusion rules.
@@ -213,20 +213,20 @@ bool Object_filter::is_object_included_in_dump(Abstract_data_object *object) {
   }
   std::vector<std::pair<std::string, std::string>> *include_list;
   std::vector<std::pair<std::string, std::string>> *exclude_list;
-  bool *dump_switch = NULL;
+  bool *dump_switch = nullptr;
 
-  if (dynamic_cast<Table *>(object) != NULL) {
+  if (dynamic_cast<Table *>(object) != nullptr) {
     include_list = &m_tables_included;
     exclude_list = &m_tables_excluded;
-  } else if (dynamic_cast<Database *>(object) != NULL) {
+  } else if (dynamic_cast<Database *>(object) != nullptr) {
     include_list = &m_databases_included;
     exclude_list = &m_databases_excluded;
-  } else if (dynamic_cast<Stored_procedure *>(object) != NULL ||
-             dynamic_cast<Mysql_function *>(object) != NULL) {
+  } else if (dynamic_cast<Stored_procedure *>(object) != nullptr ||
+             dynamic_cast<Mysql_function *>(object) != nullptr) {
     include_list = &m_routines_included;
     exclude_list = &m_routines_excluded;
     dump_switch = &m_dump_routines;
-  } else if (dynamic_cast<Trigger *>(object) != NULL) {
+  } else if (dynamic_cast<Trigger *>(object) != nullptr) {
     /*
       Check if table on which this trigger is defined is in
       excluded list
@@ -244,11 +244,11 @@ bool Object_filter::is_object_included_in_dump(Abstract_data_object *object) {
     include_list = &m_triggers_included;
     exclude_list = &m_triggers_excluded;
     dump_switch = &m_dump_triggers;
-  } else if (dynamic_cast<Event_scheduler_event *>(object) != NULL) {
+  } else if (dynamic_cast<Event_scheduler_event *>(object) != nullptr) {
     include_list = &m_events_included;
     exclude_list = &m_events_excluded;
     dump_switch = &m_dump_events;
-  } else if (dynamic_cast<Privilege *>(object) != NULL) {
+  } else if (dynamic_cast<Privilege *>(object) != nullptr) {
     if (m_dump_users || m_users_included.size() > 0 ||
         m_users_excluded.size() > 0) {
       include_list = &m_users_included;
@@ -260,7 +260,7 @@ bool Object_filter::is_object_included_in_dump(Abstract_data_object *object) {
   } else
     return true;
 
-  return (dump_switch == NULL || *dump_switch) &&
+  return (dump_switch == nullptr || *dump_switch) &&
          is_object_included_by_lists(object->get_schema(), object->get_name(),
                                      include_list, exclude_list);
 }

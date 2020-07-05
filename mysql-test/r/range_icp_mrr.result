@@ -252,37 +252,37 @@ test.t1	analyze	status	OK
 explain select * from t1, t1 t2 where t1.y = 8 and t2.x between 7 and t1.y+0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	y	y	5	const	1	100.00	NULL
-1	SIMPLE	t2	NULL	range	x	x	5	NULL	2	100.00	Using index condition; Using MRR; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	range	x	x	5	NULL	2	100.00	Using index condition; Using MRR; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y`,`test`.`t2`.`x` AS `x`,`test`.`t2`.`y` AS `y` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t1`.`y` = 8) and (`test`.`t2`.`x` between 7 and <cache>((8 + 0))))
 explain select * from t1, t1 t2 where t1.y = 8 and t2.x >= 7 and t2.x <= t1.y+0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	y	y	5	const	1	100.00	NULL
-1	SIMPLE	t2	NULL	range	x	x	5	NULL	2	100.00	Using index condition; Using MRR; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	range	x	x	5	NULL	2	100.00	Using index condition; Using MRR; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y`,`test`.`t2`.`x` AS `x`,`test`.`t2`.`y` AS `y` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t1`.`y` = 8) and (`test`.`t2`.`x` >= 7) and (`test`.`t2`.`x` <= <cache>((8 + 0))))
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x between t1.y-1 and t1.y+1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	y	y	5	const	1	100.00	NULL
-1	SIMPLE	t2	NULL	range	x	x	5	NULL	3	100.00	Using index condition; Using MRR; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	range	x	x	5	NULL	3	100.00	Using index condition; Using MRR; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y`,`test`.`t2`.`x` AS `x`,`test`.`t2`.`y` AS `y` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t1`.`y` = 2) and (`test`.`t2`.`x` between <cache>((2 - 1)) and <cache>((2 + 1))))
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x >= t1.y-1 and t2.x <= t1.y+1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	y	y	5	const	1	100.00	NULL
-1	SIMPLE	t2	NULL	range	x	x	5	NULL	3	100.00	Using index condition; Using MRR; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	range	x	x	5	NULL	3	100.00	Using index condition; Using MRR; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y`,`test`.`t2`.`x` AS `x`,`test`.`t2`.`y` AS `y` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t1`.`y` = 2) and (`test`.`t2`.`x` >= <cache>((2 - 1))) and (`test`.`t2`.`x` <= <cache>((2 + 1))))
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x between 0 and t1.y;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	y	y	5	const	1	100.00	NULL
-1	SIMPLE	t2	NULL	range	x	x	5	NULL	2	100.00	Using index condition; Using MRR; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	range	x	x	5	NULL	2	100.00	Using index condition; Using MRR; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y`,`test`.`t2`.`x` AS `x`,`test`.`t2`.`y` AS `y` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t1`.`y` = 2) and (`test`.`t2`.`x` between 0 and 2))
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x >= 0 and t2.x <= t1.y;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	y	y	5	const	1	100.00	NULL
-1	SIMPLE	t2	NULL	range	x	x	5	NULL	2	100.00	Using index condition; Using MRR; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	range	x	x	5	NULL	2	100.00	Using index condition; Using MRR; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y`,`test`.`t2`.`x` AS `x`,`test`.`t2`.`y` AS `y` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t1`.`y` = 2) and (`test`.`t2`.`x` >= 0) and (`test`.`t2`.`x` <= 2))
 explain select count(*) from t1 where x in (1);
@@ -307,14 +307,14 @@ INSERT INTO t2 VALUES (0),(0),(1),(1),(2),(2);
 explain select * from t1, t2 where (t1.key1 <t2.keya + 1) and t2.keya=3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ref	j1	j1	4	const	1	100.00	Using index
-1	SIMPLE	t1	NULL	index	i1	i1	4	NULL	7	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	index	i1	i1	4	NULL	7	100.00	Using where; Using index; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t2`.`keya` AS `keya` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`keya` = 3) and (`test`.`t1`.`key1` < <cache>((3 + 1))))
 explain select * from t1 force index(i1), t2 force index(j1) where 
 (t1.key1 <t2.keya + 1) and t2.keya=3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ref	j1	j1	4	const	1	100.00	Using index
-1	SIMPLE	t1	NULL	index	i1	i1	4	NULL	7	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	index	i1	i1	4	NULL	7	100.00	Using where; Using index; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t2`.`keya` AS `keya` from `test`.`t1` FORCE INDEX (`i1`) join `test`.`t2` FORCE INDEX (`j1`) where ((`test`.`t2`.`keya` = 3) and (`test`.`t1`.`key1` < <cache>((3 + 1))))
 DROP TABLE t1,t2;
@@ -2680,7 +2680,7 @@ b
 EXPLAIN SELECT * FROM t1, t2 WHERE a=b ORDER BY BINARY a, BINARY b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
-1	SIMPLE	t2	NULL	index	b	b	259	NULL	5	20.00	Using where; Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	index	b	b	259	NULL	5	20.00	Using where; Using index; Using join buffer (hash join)
 Warnings:
 Warning	1739	Cannot use ref access on index 'b' due to type or collation conversion on field 'b'
 Warning	1739	Cannot use range access on index 'b' due to type or collation conversion on field 'b'
@@ -2696,7 +2696,7 @@ a	b
 EXPLAIN SELECT * FROM t1, t2 WHERE b=a ORDER BY BINARY a, BINARY b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
-1	SIMPLE	t2	NULL	index	b	b	259	NULL	5	20.00	Using where; Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	index	b	b	259	NULL	5	20.00	Using where; Using index; Using join buffer (hash join)
 Warnings:
 Warning	1739	Cannot use ref access on index 'b' due to type or collation conversion on field 'b'
 Warning	1739	Cannot use range access on index 'b' due to type or collation conversion on field 'b'
@@ -3021,7 +3021,7 @@ FROM t4 JOIN t1
 WHERE (t1.a, t1.b) IN ((t4.a, t4.b), (0, 0));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	640	100.00	NULL
-1	SIMPLE	t1	NULL	index	x	x	10	NULL	4098	2.00	Using where; Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	index	x	x	10	NULL	4098	2.00	Using where; Using index; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t4` join `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`) in ((`test`.`t4`.`a`,`test`.`t4`.`b`),<cache>((0,0))))
 EXPLAIN
@@ -3030,7 +3030,7 @@ FROM t4 JOIN t1
 WHERE (t1.a, t1.b) IN ((t4.a, t4.b), (1, 1));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	640	100.00	NULL
-1	SIMPLE	t1	NULL	index	x	x	10	NULL	4098	2.00	Using where; Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	index	x	x	10	NULL	4098	2.00	Using where; Using index; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t4` join `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`) in ((`test`.`t4`.`a`,`test`.`t4`.`b`),<cache>((1,1))))
 #

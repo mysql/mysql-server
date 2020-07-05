@@ -704,12 +704,7 @@ USE test;
 DROP SCHEMA my_schema;
 SET GLOBAL innodb_monitor_disable   = all;
 SET GLOBAL innodb_monitor_reset_all = all;
---disable_warnings
-SET GLOBAL innodb_monitor_enable    = default;
-SET GLOBAL innodb_monitor_disable   = default;
-SET GLOBAL innodb_monitor_reset     = default;
-SET GLOBAL innodb_monitor_reset_all = default;
---enable_warnings
 SET GLOBAL innodb_monitor_disable   = "innodb_rwlock_sx_%";
 SET GLOBAL innodb_monitor_reset     = "innodb_rwlock_sx_%";
 
+--source include/innodb_monitor_restore.inc

@@ -179,7 +179,7 @@ test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 USING (f1) WHERE t2.f1 IS NULL;
 EXPLAIN
 -> Filter: (t2.f1 is null)  (cost=2.80 rows=3)
-    -> Nested loop anti-join  (cost=2.80 rows=3)
+    -> Nested loop antijoin  (cost=2.80 rows=3)
         -> Index scan on t1 using PRIMARY  (cost=0.55 rows=3)
         -> Filter: (t2.f1 = t1.f1)  (cost=0.48 rows=1)
             -> Table scan on t2  (cost=0.48 rows=3)
@@ -221,7 +221,7 @@ EXPLAIN
     -> Table scan on t1
 
 DROP TABLE t1;
-CREATE TABLE t1 ( a BLOB, b INT );
+CREATE TABLE t1 ( a LONGBLOB, b INT );
 INSERT INTO t1 VALUES ('a', 0);
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -232,7 +232,7 @@ EXPLAIN
     -> Table scan on t1  (cost=0.35 rows=1)
     -> Select #2 (subquery in condition; dependent)
         -> Group aggregate: group_concat(t.b separator ',')
-            -> Sort row IDs: <temporary>.a
+            -> Sort row IDs: t1.a
                 -> Table scan on <temporary>
                     -> Temporary table
                         -> Table scan on t  (cost=0.35 rows=1)
@@ -382,7 +382,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT ( SELECT f1 FROM t1 AS inner_t1 WHERE inner_t1.f1 > t1.f1 LIMIT 1 ) AS tmp1 FROM t1 ORDER BY tmp1;
 EXPLAIN
--> Sort: <temporary>.tmp1
+-> Sort: `<temporary>`.tmp1
     -> Stream results
         -> Index scan on t1 using PRIMARY  (cost=0.55 rows=3)
 -> Select #2 (subquery in projection; dependent)
@@ -586,7 +586,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT a FROM t1 WHERE a NOT IN ( SELECT b FROM t1 WHERE b > 2 );
 EXPLAIN
--> Nested loop anti-join
+-> Nested loop antijoin
     -> Table scan on t1  (cost=0.55 rows=3)
     -> Single-row index lookup on <subquery2> using <auto_distinct_key> (b=t1.a)
         -> Materialize with deduplication
@@ -701,10 +701,13 @@ EXPLAIN
 DROP TABLE t1, t2;
 CREATE TABLE t1 (a INTEGER, b INTEGER, PRIMARY KEY ( a ));
 INSERT INTO t1 VALUES (1,3), (2,4), (3,5);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN ANALYZE SELECT * FROM t1 AS a JOIN t1 AS b ON a.a=b.b ORDER BY a.b+b.a LIMIT 3;
 EXPLAIN
 -> Limit: 3 row(s)  (actual time=N.NNN..N.NNN rows=1 loops=1)
-    -> Sort: <temporary>.tmp_field_0, limit input to 3 row(s) per chunk  (actual time=N.NNN..N.NNN rows=1 loops=1)
+    -> Sort: `<temporary>`.`(a.b + b.a)`, limit input to 3 row(s) per chunk  (actual time=N.NNN..N.NNN rows=1 loops=1)
         -> Stream results  (actual time=N.NNN..N.NNN rows=1 loops=1)
             -> Nested loop inner join  (cost=1.60 rows=3) (actual time=N.NNN..N.NNN rows=1 loops=1)
                 -> Filter: (b.b is not null)  (cost=0.55 rows=3) (actual time=N.NNN..N.NNN rows=3 loops=1)
@@ -728,6 +731,9 @@ EXPLAIN
 
 CREATE TABLE t1 ( f1 INT PRIMARY KEY );
 INSERT INTO t1 VALUES (1), (2), (3);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1, ( SELECT f1 FROM t1 UNION SELECT f1 + 10 FROM t1 ) d1;
 EXPLAIN
 -> Nested loop inner join
@@ -747,23 +753,6 @@ EXPLAIN
             -> Index scan on t1 using PRIMARY  (cost=0.55 rows=3)
 
 DROP TABLE t1;
-CREATE TABLE t1 (
-c1 INTEGER,
-c2 INTEGER
-);
-CREATE TABLE t2 (
-c1 INTEGER,
-c2 INTEGER
-);
-CREATE TABLE t3 (
-c1 INTEGER,
-c2 INTEGER
-);
-set optimizer_switch='block_nested_loop=on';
-EXPLAIN ANALYZE SELECT * FROM t1 JOIN t2 ON t1.c1 = t2.c2 JOIN t3 ON t2.c2 > t3.c2;
-ERROR 42000: This version of MySQL doesn't yet support 'EXPLAIN ANALYZE on this query'
-set optimizer_switch='block_nested_loop=off';
-DROP TABLE t1, t2, t3;
 #
 # Bug #30444266: EXPLAIN ANALYZE DOES NOT EXECUTE THE SUBQUERIES IN THE SELECT LIST
 #

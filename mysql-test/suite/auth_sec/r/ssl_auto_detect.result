@@ -52,3 +52,4 @@ Pattern "CA certificate .* is self signed." found
 Variable_name	Value
 Ssl_cipher	SSL_CIPHER
 # Global Cleanup
+# restart:

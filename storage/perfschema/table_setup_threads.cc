@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -62,8 +62,8 @@ Plugin_table table_setup_threads::m_table_def(
 PFS_engine_table_share table_setup_threads::m_share = {
     &pfs_updatable_acl,
     table_setup_threads::create,
-    NULL, /* write_row */
-    NULL, /* delete_all_rows */
+    nullptr, /* write_row */
+    nullptr, /* delete_all_rows */
     table_setup_threads::get_row_count,
     sizeof(pos_t),
     &m_table_lock,
@@ -97,7 +97,7 @@ void table_setup_threads::reset_position(void) {
 }
 
 int table_setup_threads::rnd_next(void) {
-  PFS_thread_class *instr_class = NULL;
+  PFS_thread_class *instr_class = nullptr;
 
   /* Do not advertise threads when disabled. */
   if (!pfs_initialized) {
@@ -119,7 +119,7 @@ int table_setup_threads::rnd_next(void) {
 }
 
 int table_setup_threads::rnd_pos(const void *pos) {
-  PFS_thread_class *instr_class = NULL;
+  PFS_thread_class *instr_class = nullptr;
 
   /* Do not advertise threads when disabled. */
   if (!pfs_initialized) {
@@ -149,7 +149,7 @@ int table_setup_threads::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
 }
 
 int table_setup_threads::index_next(void) {
-  PFS_thread_class *instr_class = NULL;
+  PFS_thread_class *instr_class = nullptr;
 
   /* Do not advertise threads when disabled. */
   if (!pfs_initialized) {
@@ -225,7 +225,7 @@ int table_setup_threads::read_row_values(TABLE *table, unsigned char *buf,
           break;
         case 5: /* DOCUMENTATION */
           doc = m_row.m_instr_class->m_documentation;
-          if (doc != NULL) {
+          if (doc != nullptr) {
             set_field_blob(f, doc, strlen(doc));
           } else {
             f->set_null();

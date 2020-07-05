@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -841,7 +841,7 @@ bool dd_table_discard_tablespace(THD *thd, const dict_table_t *table,
       ut_a(false);
     }
 
-    ut_a(dd_space != NULL);
+    ut_a(dd_space != nullptr);
 
     dd_tablespace_set_state(
         dd_space, discard ? DD_SPACE_STATE_DISCARDED : DD_SPACE_STATE_NORMAL);
@@ -898,9 +898,26 @@ dict_table_t *dd_table_open_on_name(THD *thd, MDL_ticket **mdl,
   }
 
   bool skip_mdl = !(thd && mdl);
-  if (!skip_mdl &&
-      dd_mdl_acquire(thd, mdl, db_name.c_str(), tbl_name.c_str())) {
-    return nullptr;
+
+  if (!skip_mdl) {
+    if (dict_locked) {
+      /* We cannot acquire MDL while holding dict_sys->mutex. The reason that
+      the caller has already locked this mutex is so that the dict_table_t
+      that we will find and return to it will not be dropped while the caller
+      is using it. So it is safe to exit, get the mdl and enter again before
+      finding this dict_table_t. */
+      mutex_exit(&dict_sys->mutex);
+    }
+
+    bool got_mdl = dd_mdl_acquire(thd, mdl, db_name.c_str(), tbl_name.c_str());
+
+    if (dict_locked) {
+      mutex_enter(&dict_sys->mutex);
+    }
+
+    if (got_mdl) {
+      return nullptr;
+    }
   }
 
   if (!dict_locked) {
@@ -1013,8 +1030,7 @@ void dd_table_close(dict_table_t *table, THD *thd, MDL_ticket **mdl,
                              `d1/d2\d3`.`t3\t4/t5`
                             should look like:
                             d1@002fd2@005cd3/t3@005ct4@002ft5
-                            both on Windows and on Linux.
-@return None. */
+                            both on Windows and on Linux. */
 static void replace_space_name_in_file_name(dd::Tablespace_file *dd_file,
                                             dd::String_type new_space_name) {
   ut_ad(std::count(new_space_name.begin(), new_space_name.end(),
@@ -1741,7 +1757,7 @@ void dd_add_instant_columns(const TABLE *old_table, const TABLE *altered_table,
     ulint charset_no;
     ulint mtype = get_innobase_type_from_mysql_type(&unsigned_type, field);
 
-    nulls_allowed = field->real_maybe_null() ? 0 : DATA_NOT_NULL;
+    nulls_allowed = field->is_nullable() ? 0 : DATA_NOT_NULL;
 
     binary_type = field->binary() ? DATA_BINARY_TYPE : 0;
 
@@ -2968,7 +2984,7 @@ static inline dict_table_t *dd_fill_dict_table(const Table *dd_tab,
     ulint charset_no;
     ulint mtype = get_innobase_type_from_mysql_type(&unsigned_type, field);
 
-    nulls_allowed = field->real_maybe_null() ? 0 : DATA_NOT_NULL;
+    nulls_allowed = field->is_nullable() ? 0 : DATA_NOT_NULL;
 
     /* Convert non nullable fields in FTS AUX tables as nullable.
     This is because in 5.7, we created FTS AUX tables clustered
@@ -3269,7 +3285,7 @@ dberr_t dd_table_load_fk_from_dd(dict_table_t *m_table,
 
     bool truncated;
     build_table_filename(buf, sizeof(buf), db_name.c_str(), tb_name.c_str(),
-                         NULL, 0, &truncated);
+                         nullptr, 0, &truncated);
 
     char norm_name[FN_REFLEN * 2];
 
@@ -3502,7 +3518,7 @@ dberr_t dd_table_check_for_child(dd::cache::Dictionary_client *client,
       char buf[2 * NAME_CHAR_LEN * 5 + 2 + 1];
       bool truncated;
       build_table_filename(buf, sizeof(buf), db_name.c_str(), tb_name.c_str(),
-                           NULL, 0, &truncated);
+                           nullptr, 0, &truncated);
 
       char full_name[FN_REFLEN];
 
@@ -3679,7 +3695,7 @@ from the fil_system first, then from the DD.
 template <typename Table>
 void dd_get_and_save_data_dir_path(dict_table_t *table, const Table *dd_table,
                                    bool dict_mutex_own) {
-  mem_heap_t *heap = NULL;
+  mem_heap_t *heap = nullptr;
 
   if (!DICT_TF_HAS_DATA_DIR(table->flags) || table->data_dir_path != nullptr) {
     return;
@@ -3757,7 +3773,7 @@ void dd_get_meta_data_filename(dict_table_t *table, dd::Table *dd_table,
 template <typename Table>
 void dd_load_tablespace(const Table *dd_table, dict_table_t *table,
                         mem_heap_t *heap, dict_err_ignore_t ignore_err,
-                        ulint expected_fsp_flags) {
+                        uint32_t expected_fsp_flags) {
   ut_ad(!table->is_temporary());
   ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -3934,7 +3950,7 @@ uses a general tablespace.
 Try to read it from the fil_system_t first, then from DD.
 @param[in]	table		Table object
 @param[in]	dd_table	Global DD table or partition object
-@param[in]	dict_mutex_own)	true if dict_sys->mutex is owned already */
+@param[in]	dict_mutex_own 	true if dict_sys->mutex is owned already */
 template <typename Table>
 void dd_get_and_save_space_name(dict_table_t *table, const Table *dd_table,
                                 bool dict_mutex_own) {
@@ -3944,7 +3960,7 @@ void dd_get_and_save_space_name(dict_table_t *table, const Table *dd_table,
   }
 
   bool use_cache = true;
-  if (table->tablespace != NULL) {
+  if (table->tablespace != nullptr) {
     if (srv_sys_tablespaces_open &&
         dict_table_has_temp_general_tablespace_name(table->tablespace)) {
       /* We previous saved the temporary name,
@@ -3959,7 +3975,7 @@ void dd_get_and_save_space_name(dict_table_t *table, const Table *dd_table,
   if (use_cache) {
     fil_space_t *space = fil_space_acquire_silent(table->space);
 
-    if (space != NULL) {
+    if (space != nullptr) {
       /* Use this name unless it is a temporary general
       tablespace name and we can now replace it. */
       if (!srv_sys_tablespaces_open ||
@@ -4030,7 +4046,7 @@ dict_table_t *dd_open_table_one(dd::cache::Dictionary_client *client,
 
   /* Create dict_table_t for the table */
   dict_table_t *m_table = dd_fill_dict_table(
-      dd_table, table, norm_name, NULL, zip_allowed, strict, thd, implicit);
+      dd_table, table, norm_name, nullptr, zip_allowed, strict, thd, implicit);
 
   if (m_table == nullptr) {
     return (nullptr);
@@ -4038,8 +4054,8 @@ dict_table_t *dd_open_table_one(dd::cache::Dictionary_client *client,
 
   /* Create dict_index_t for the table */
   int ret;
-  ret = dd_fill_dict_index(dd_table->table(), table, m_table, NULL, zip_allowed,
-                           strict, thd);
+  ret = dd_fill_dict_index(dd_table->table(), table, m_table, nullptr,
+                           zip_allowed, strict, thd);
 
   if (ret != 0) {
     return (nullptr);
@@ -4240,7 +4256,7 @@ static void dd_open_table_one_on_name(const char *name, bool dict_locked,
 
   table = dict_table_check_if_in_cache_low(name);
 
-  if (table != NULL) {
+  if (table != nullptr) {
     /* If the table is in cached already, do nothing. */
     if (!dict_locked) {
       mutex_exit(&dict_sys->mutex);
@@ -4301,7 +4317,7 @@ static void dd_open_table_one_on_name(const char *name, bool dict_locked,
   }
 
 func_exit:
-  if (table != NULL) {
+  if (table != nullptr) {
     dd_table_close(table, thd, &mdl, false);
   } else {
     dd_mdl_release(thd, &mdl);
@@ -4375,7 +4391,7 @@ template dict_table_t *dd_open_table<dd::Partition>(
 @param[in]     mtr             the mini-transaction
 @return the next rec of the dd system table */
 static const rec_t *dd_getnext_system_low(btr_pcur_t *pcur, mtr_t *mtr) {
-  rec_t *rec = NULL;
+  rec_t *rec = nullptr;
   bool is_comp = dict_table_is_comp(pcur->index()->table);
 
   while (!rec || rec_get_deleted_flag(rec, is_comp)) {
@@ -4387,7 +4403,7 @@ static const rec_t *dd_getnext_system_low(btr_pcur_t *pcur, mtr_t *mtr) {
       /* end of index */
       btr_pcur_close(pcur);
 
-      return (NULL);
+      return (nullptr);
     }
   }
 
@@ -4456,13 +4472,13 @@ const char *dd_process_dd_tables_rec_and_mtr_commit(
     dict_table_t *dd_tables, MDL_ticket **mdl, mtr_t *mtr) {
   ulint len;
   const byte *field;
-  const char *err_msg = NULL;
+  const char *err_msg = nullptr;
   ulint table_id;
 
   ut_ad(!rec_get_deleted_flag(rec, dict_table_is_comp(dd_tables)));
   ut_ad(mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_S_FIX));
 
-  ulint *offsets = rec_get_offsets(rec, dd_tables->first_index(), NULL,
+  ulint *offsets = rec_get_offsets(rec, dd_tables->first_index(), nullptr,
                                    ULINT_UNDEFINED, &heap);
 
   const dd::Object_table &dd_object_table = dd::get_dd_table<dd::Table>();
@@ -4473,7 +4489,7 @@ const char *dd_process_dd_tables_rec_and_mtr_commit(
 
   /* If "engine" field is not "innodb", return. */
   if (strncmp((const char *)field, "InnoDB", 6) != 0) {
-    *table = NULL;
+    *table = nullptr;
     mtr_commit(mtr);
     return (err_msg);
   }
@@ -4485,7 +4501,7 @@ const char *dd_process_dd_tables_rec_and_mtr_commit(
       &len);
 
   if (len != 8) {
-    *table = NULL;
+    *table = nullptr;
     mtr_commit(mtr);
     return (err_msg);
   }
@@ -4495,7 +4511,7 @@ const char *dd_process_dd_tables_rec_and_mtr_commit(
 
   /* Skip mysql.* tables. */
   if (dict_sys_t::is_dd_table_id(table_id)) {
-    *table = NULL;
+    *table = nullptr;
     mtr_commit(mtr);
     return (err_msg);
   }
@@ -4526,14 +4542,14 @@ const char *dd_process_dd_partitions_rec_and_mtr_commit(
     dict_table_t *dd_tables, MDL_ticket **mdl, mtr_t *mtr) {
   ulint len;
   const byte *field;
-  const char *err_msg = NULL;
+  const char *err_msg = nullptr;
   ulint table_id;
 
   ut_ad(mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_S_FIX));
 
   ut_ad(!rec_get_deleted_flag(rec, dict_table_is_comp(dd_tables)));
 
-  ulint *offsets = rec_get_offsets(rec, dd_tables->first_index(), NULL,
+  ulint *offsets = rec_get_offsets(rec, dd_tables->first_index(), nullptr,
                                    ULINT_UNDEFINED, &heap);
 
   const dd::Object_table &dd_object_table = dd::get_dd_table<dd::Partition>();
@@ -4545,7 +4561,7 @@ const char *dd_process_dd_partitions_rec_and_mtr_commit(
 
   /* If "engine" field is not "innodb", return. */
   if (strncmp((const char *)field, "InnoDB", 6) != 0) {
-    *table = NULL;
+    *table = nullptr;
     mtr_commit(mtr);
     return (err_msg);
   }
@@ -4557,7 +4573,7 @@ const char *dd_process_dd_partitions_rec_and_mtr_commit(
       &len);
   /* When table is partitioned table, the se_private_id is null. */
   if (len != 8) {
-    *table = NULL;
+    *table = nullptr;
     mtr_commit(mtr);
     return (err_msg);
   }
@@ -4567,7 +4583,7 @@ const char *dd_process_dd_partitions_rec_and_mtr_commit(
 
   /* Skip mysql.* tables. */
   if (dict_sys_t::is_dd_table_id(table_id)) {
-    *table = NULL;
+    *table = nullptr;
     mtr_commit(mtr);
     return (err_msg);
   }
@@ -4610,7 +4626,7 @@ bool dd_process_dd_columns_rec(mem_heap_t *heap, const rec_t *rec,
 
   ut_ad(!rec_get_deleted_flag(rec, dict_table_is_comp(dd_columns)));
 
-  ulint *offsets = rec_get_offsets(rec, dd_columns->first_index(), NULL,
+  ulint *offsets = rec_get_offsets(rec, dd_columns->first_index(), nullptr,
                                    ULINT_UNDEFINED, &heap);
 
   const dd::Object_table &dd_object_table = dd::get_dd_table<dd::Column>();
@@ -4670,7 +4686,7 @@ bool dd_process_dd_columns_rec(mem_heap_t *heap, const rec_t *rec,
   if (!p->get(dd_index_key_strings[DD_TABLE_ID], (uint64 *)table_id)) {
     THD *thd = current_thd;
     dict_table_t *table;
-    MDL_ticket *mdl = NULL;
+    MDL_ticket *mdl = nullptr;
 
     /* Commit before we try to load the table. */
     mtr_commit(mtr);
@@ -4764,7 +4780,7 @@ bool dd_process_dd_virtual_columns_rec(mem_heap_t *heap, const rec_t *rec,
 
   ut_ad(!rec_get_deleted_flag(rec, dict_table_is_comp(dd_columns)));
 
-  ulint *offsets = rec_get_offsets(rec, dd_columns->first_index(), NULL,
+  ulint *offsets = rec_get_offsets(rec, dd_columns->first_index(), nullptr,
                                    ULINT_UNDEFINED, &heap);
 
   const dd::Object_table &dd_object_table = dd::get_dd_table<dd::Column>();
@@ -4823,8 +4839,8 @@ bool dd_process_dd_virtual_columns_rec(mem_heap_t *heap, const rec_t *rec,
   if (!p->get(dd_index_key_strings[DD_TABLE_ID], (uint64 *)table_id)) {
     THD *thd = current_thd;
     dict_table_t *table;
-    MDL_ticket *mdl = NULL;
-    dict_v_col_t *vcol = NULL;
+    MDL_ticket *mdl = nullptr;
+    dict_v_col_t *vcol = nullptr;
 
     /* Commit before we try to load the table. */
     mtr_commit(mtr);
@@ -4837,7 +4853,7 @@ bool dd_process_dd_virtual_columns_rec(mem_heap_t *heap, const rec_t *rec,
 
     vcol = dict_table_get_nth_v_col_mysql(table, origin_pos);
 
-    if (vcol == NULL || vcol->num_base == 0) {
+    if (vcol == nullptr || vcol->num_base == 0) {
       dd_table_close(table, thd, &mdl, true);
       delete p;
       return (false);
@@ -4887,7 +4903,7 @@ bool dd_process_dd_indexes_rec(mem_heap_t *heap, const rec_t *rec,
 
   ut_ad(!rec_get_deleted_flag(rec, dict_table_is_comp(dd_indexes)));
 
-  ulint *offsets = rec_get_offsets(rec, dd_indexes->first_index(), NULL,
+  ulint *offsets = rec_get_offsets(rec, dd_indexes->first_index(), nullptr,
                                    ULINT_UNDEFINED, &heap);
 
   const dd::Object_table &dd_object_table = dd::get_dd_table<dd::Index>();
@@ -4995,7 +5011,7 @@ bool dd_process_dd_indexes_rec(mem_heap_t *heap, const rec_t *rec,
       }
     }
 
-    for (const dict_index_t *t_index = table->first_index(); t_index != NULL;
+    for (const dict_index_t *t_index = table->first_index(); t_index != nullptr;
          t_index = t_index->next()) {
       if (t_index->space == space_id && t_index->id == index_id) {
         *index = t_index;
@@ -5038,7 +5054,7 @@ bool dd_process_dd_indexes_rec_simple(mem_heap_t *heap, const rec_t *rec,
 
   ut_ad(!rec_get_deleted_flag(rec, dict_table_is_comp(dd_indexes)));
 
-  ulint *offsets = rec_get_offsets(rec, dd_indexes->first_index(), NULL,
+  ulint *offsets = rec_get_offsets(rec, dd_indexes->first_index(), nullptr,
                                    ULINT_UNDEFINED, &heap);
 
   const dd::Object_table &dd_object_table = dd::get_dd_table<dd::Index>();
@@ -5115,7 +5131,7 @@ bool dd_process_dd_tablespaces_rec(mem_heap_t *heap, const rec_t *rec,
 
   ut_ad(!rec_get_deleted_flag(rec, dict_table_is_comp(dd_spaces)));
 
-  ulint *offsets = rec_get_offsets(rec, dd_spaces->first_index(), NULL,
+  ulint *offsets = rec_get_offsets(rec, dd_spaces->first_index(), nullptr,
                                    ULINT_UNDEFINED, &heap);
 
   const dd::Object_table &dd_object_table = dd::get_dd_table<dd::Tablespace>();
@@ -5240,13 +5256,13 @@ bool dd_get_fts_tablespace_id(const dict_table_t *parent_table,
     /* Currently the tablespace id is hard coded as 0 */
     dd_space_id = space_id;
 
-    const dd::Tablespace *index_space = NULL;
+    const dd::Tablespace *index_space = nullptr;
     if (client->acquire<dd::Tablespace>(space_id, &index_space)) {
       return (false);
     }
 
     uint32 id;
-    if (index_space == NULL) {
+    if (index_space == nullptr) {
       return (false);
     } else if (index_space->se_private_data().get(
                    dd_space_key_strings[DD_SPACE_ID], &id) ||
@@ -5449,7 +5465,7 @@ bool dd_create_fts_index_table(const dict_table_t *parent_table,
 
   dd_write_table(dd_space_id, dd_table, table);
 
-  MDL_ticket *mdl_ticket = NULL;
+  MDL_ticket *mdl_ticket = nullptr;
   if (dd::acquire_exclusive_table_mdl(thd, db_name.c_str(), table_name.c_str(),
                                       false, &mdl_ticket)) {
     ut_ad(0);
@@ -5590,7 +5606,7 @@ bool dd_create_fts_common_table(const dict_table_t *parent_table,
 
   dd_write_table(dd_space_id, dd_table, table);
 
-  MDL_ticket *mdl_ticket = NULL;
+  MDL_ticket *mdl_ticket = nullptr;
   if (dd::acquire_exclusive_table_mdl(thd, db_name.c_str(), table_name.c_str(),
                                       false, &mdl_ticket)) {
     return (false);
@@ -5622,7 +5638,7 @@ bool dd_drop_fts_table(const char *name, bool file_per_table) {
   dd::cache::Dictionary_client *client = dd::get_dd_client(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(client);
 
-  MDL_ticket *mdl_ticket = NULL;
+  MDL_ticket *mdl_ticket = nullptr;
   if (dd::acquire_exclusive_table_mdl(thd, db_name.c_str(), table_name.c_str(),
                                       false, &mdl_ticket)) {
     return (false);

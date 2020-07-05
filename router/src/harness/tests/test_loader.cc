@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,12 +25,25 @@
 // must have this first, before #includes that rely on it
 #include <gtest/gtest_prod.h>
 
+////////////////////////////////////////
+// Standard include files
+#include <algorithm>
+#include <stdexcept>
+#include <string>
+#include <vector>
+
+////////////////////////////////////////
+// Third-party include files
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/loader.h"
 #include "mysql/harness/plugin.h"
 
 #include "dim.h"
 #include "exception.h"
+#include "mysql/harness/string_utils.h"
 #include "utilities.h"
 
 ////////////////////////////////////////
@@ -40,24 +53,6 @@
 ////////////////////////////////////////
 // Test system include files
 #include "test/helpers.h"
-
-////////////////////////////////////////
-// Third-party include files
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
-
-////////////////////////////////////////
-// Standard include files
-#include <algorithm>
-#include <cstdlib>
-#include <cstring>
-#include <iostream>
-#include <stdexcept>
-#include <string>
-#include <vector>
-
-using std::cout;
-using std::endl;
 
 using mysql_harness::bad_section;
 using mysql_harness::Loader;
@@ -70,7 +65,7 @@ Path g_here;
 
 class LoaderTest : public ::testing::TestWithParam<const char *> {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     std::map<std::string, std::string> params;
     params["program"] = "harness";
     test_data_dir_ = mysql_harness::get_tests_data_dir(g_here.str());
@@ -81,7 +76,7 @@ class LoaderTest : public ::testing::TestWithParam<const char *> {
     loader = new Loader("harness", *config_);
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     delete loader;
     loader = nullptr;
   }
@@ -93,7 +88,7 @@ class LoaderTest : public ::testing::TestWithParam<const char *> {
 
 class LoaderReadTest : public LoaderTest {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     LoaderTest::SetUp();
     loader->get_config().read(Path(test_data_dir_).join(GetParam()));
   }
@@ -120,15 +115,15 @@ TEST_P(LoaderReadTest, Loading) {
   EXPECT_THROW(loader->load("routertestplugin_bad_two"), bad_plugin);
 
   // These should all be OK.
-  Plugin *ext1 = loader->load("routertestplugin_example", "one");
+  const Plugin *ext1 = loader->load("routertestplugin_example", "one");
   EXPECT_NE(ext1, nullptr);
   EXPECT_STREQ("An example plugin", ext1->brief);
 
-  Plugin *ext2 = loader->load("routertestplugin_example", "two");
+  const Plugin *ext2 = loader->load("routertestplugin_example", "two");
   EXPECT_NE(ext2, nullptr);
   EXPECT_STREQ("An example plugin", ext2->brief);
 
-  Plugin *ext3 = loader->load("routertestplugin_magic");
+  const Plugin *ext3 = loader->load("routertestplugin_magic");
   EXPECT_NE(ext3, nullptr);
   EXPECT_STREQ("A magic plugin", ext3->brief);
 }
@@ -197,6 +192,18 @@ const char *bad_cfgs[] = {
 
 INSTANTIATE_TEST_CASE_P(TestLoaderBad, LoaderTest,
                         ::testing::ValuesIn(bad_cfgs));
+
+/*
+   @test arch-descriptor has 3 slashes
+ * @test arch-descriptor has no empty parts
+ */
+TEST(TestPlugin, ArchDescriptor) {
+  auto parts =
+      mysql_harness::split_string(mysql_harness::ARCHITECTURE_DESCRIPTOR, '/');
+
+  EXPECT_THAT(parts, ::testing::SizeIs(4));
+  EXPECT_THAT(parts, ::testing::Not(::testing::Contains("")));
+}
 
 int main(int argc, char *argv[]) {
   g_here = Path(argv[0]).dirname();

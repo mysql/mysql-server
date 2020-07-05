@@ -176,3 +176,4 @@ select (select plugin from mysql.user where User='Tanjotuser3' and Host='localho
 1 Expected
 DROP USER 'Tanjotuser2'@'localhost';
 DROP USER 'Tanjotuser3'@'localhost';
+# restart:

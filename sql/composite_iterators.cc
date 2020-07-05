@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -612,10 +612,14 @@ int NestedLoopIterator::Read() {
       if (m_pfs_batch_mode) {
         m_source_inner->StartPSIBatchMode();
       }
+
+      // Init() could read the NULL row flags (e.g., when building a hash
+      // table), so unset them before instead of after.
+      m_source_inner->SetNullRowFlag(false);
+
       if (m_source_inner->Init()) {
         return 1;
       }
-      m_source_inner->SetNullRowFlag(false);
       m_state = READING_FIRST_INNER_ROW;
     }
     DBUG_ASSERT(m_state == READING_INNER_ROWS ||
@@ -675,7 +679,7 @@ vector<string> NestedLoopIterator::DebugString() const {
     case JoinType::OUTER:
       return {"Nested loop left join"};
     case JoinType::ANTI:
-      return {"Nested loop anti-join"};
+      return {"Nested loop antijoin"};
     case JoinType::SEMI:
       return {"Nested loop semijoin"};
     default:
@@ -1471,7 +1475,7 @@ bool TemptableAggregateIterator::Init() {
           }
         }
       }
-      if (create_ondisk_from_heap(thd(), table(), error, false, NULL)) {
+      if (create_ondisk_from_heap(thd(), table(), error, false, nullptr)) {
         end_unique_index.commit();
         return true;  // Not a table_is_full error.
       }
@@ -1564,6 +1568,10 @@ WeedoutIterator::WeedoutIterator(THD *thd,
 bool WeedoutIterator::Init() {
   if (m_sj->tmp_table->file->ha_delete_all_rows()) {
     return true;
+  }
+  if (m_sj->tmp_table->hash_field != nullptr &&
+      !m_sj->tmp_table->file->inited) {
+    m_sj->tmp_table->file->ha_index_init(0, false);
   }
   return m_source->Init();
 }
@@ -1792,7 +1800,18 @@ int WindowingIterator::Read() {
 }
 
 vector<string> WindowingIterator::DebugString() const {
-  return {"Window aggregate"};
+  string buf = "Window aggregate: ";
+  bool first = true;
+  for (const Func_ptr &func : *(m_temp_table_param->items_to_copy)) {
+    if (func.func()->m_is_window_function) {
+      if (!first) {
+        buf += ", ";
+      }
+      buf += ItemToString(func.func());
+      first = false;
+    }
+  }
+  return {buf};
 }
 
 BufferingWindowingIterator::BufferingWindowingIterator(
@@ -1957,7 +1976,25 @@ int BufferingWindowingIterator::ReadBufferedRow(bool new_partition_or_eof) {
 }
 
 vector<string> BufferingWindowingIterator::DebugString() const {
-  return {"Window aggregate with buffering"};
+  string buf;
+  if (m_window->optimizable_row_aggregates() ||
+      m_window->optimizable_range_aggregates() ||
+      m_window->static_aggregates()) {
+    buf = "Window aggregate with buffering: ";
+  } else {
+    buf = "Window multi-pass aggregate with buffering: ";
+  }
+  bool first = true;
+  for (const Func_ptr &func : *(m_temp_table_param->items_to_copy)) {
+    if (func.func()->m_is_window_function) {
+      if (!first) {
+        buf += ", ";
+      }
+      buf += ItemToString(func.func());
+      first = false;
+    }
+  }
+  return {buf};
 }
 
 MaterializeInformationSchemaTableIterator::

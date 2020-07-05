@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,7 +66,7 @@ class Rpl_applier_reader::Stage_controller {
   }
 
   void enter_stage() {
-    DBUG_ASSERT(m_state = LOCKED);
+    DBUG_ASSERT(m_state == LOCKED);
     m_thd->ENTER_COND(m_cond, m_mutex, &m_new_stage, &m_old_stage);
     m_state = IN_STAGE;
   }
@@ -515,7 +515,10 @@ void Rpl_applier_reader::debug_print_next_event_positions() {
   DBUG_ASSERT(m_relaylog_file_reader.position() >= BIN_LOG_HEADER_SIZE);
   DBUG_ASSERT(m_relaylog_file_reader.position() ==
                   m_rli->get_event_relay_log_pos() ||
-              m_rli->is_parallel_exec());
+              (m_rli->is_parallel_exec() ||
+               // TODO: double check that this is safe:
+               (m_rli->info_thd != nullptr &&
+                m_rli->info_thd->variables.binlog_trx_compression)));
 
   DBUG_PRINT(
       "info",

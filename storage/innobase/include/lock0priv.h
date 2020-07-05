@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -121,6 +121,13 @@ bool lock_mode_is_next_key_lock(ulint mode) {
   return (mode & ~(LOCK_MODE_MASK)) == LOCK_ORDINARY;
 }
 
+/** Gets the nth bit of a record lock.
+@param[in]	lock	record lock
+@param[in]	i	index of the bit
+@return true if bit set also if i == ULINT_UNDEFINED return false */
+UNIV_INLINE
+bool lock_rec_get_nth_bit(const lock_t *lock, ulint i);
+
 /** Lock struct; protected by lock_sys->mutex */
 struct lock_t {
   /** transaction owning the lock */
@@ -163,11 +170,11 @@ struct lock_t {
   uint64_t m_seq;
 #endif /* UNIV_DEBUG */
 
-  /** Remove GAP lock from a next Key Lock */
-  void remove_gap_lock() {
+  /** Unlock the GAP Lock part of this Next Key Lock */
+  void unlock_gap_lock() {
     ut_ad(!is_gap());
     ut_ad(!is_insert_intention());
-    ut_ad(is_record_lock());
+    ut_ad(is_next_key_lock());
 
     type_mode |= LOCK_REC_NOT_GAP;
   }
@@ -200,6 +207,11 @@ struct lock_t {
   /** @return true if the insert intention bit is set */
   bool is_insert_intention() const {
     return (type_mode & LOCK_INSERT_INTENTION);
+  }
+
+  /** @return true iff this lock is (at least) on supremum pseudo-record */
+  bool includes_supremum() const {
+    return (lock_rec_get_nth_bit(this, PAGE_HEAP_NO_SUPREMUM));
   }
 
   /** @return the lock mode */
@@ -681,7 +693,7 @@ class RecLock {
         m_rec_id(rec_id) {
     ut_ad(is_predicate_lock(m_mode));
 
-    init(NULL);
+    init(nullptr);
   }
 
   /**
@@ -693,7 +705,7 @@ class RecLock {
   @param[in] mode		The lock mode
   @param[in] prdt		The predicate for the rtree lock */
   RecLock(que_thr_t *thr, dict_index_t *index, const buf_block_t *block,
-          ulint heap_no, ulint mode, lock_prdt_t *prdt = NULL)
+          ulint heap_no, ulint mode, lock_prdt_t *prdt = nullptr)
       : m_thr(thr),
         m_trx(thr_get_trx(thr)),
         m_mode(mode),
@@ -712,7 +724,7 @@ class RecLock {
       : m_thr(), m_trx(), m_mode(mode), m_index(index), m_rec_id(rec_id) {
     ut_ad(is_predicate_lock(m_mode));
 
-    init(NULL);
+    init(nullptr);
   }
 
   /**
@@ -745,22 +757,15 @@ class RecLock {
                                 we've managed to jump in front of other waiting
                                 transactions and got the lock granted, so there
                                 is no need to wait. */
-  dberr_t add_to_waitq(const lock_t *wait_for, const lock_prdt_t *prdt = NULL);
+  dberr_t add_to_waitq(const lock_t *wait_for,
+                       const lock_prdt_t *prdt = nullptr);
 
   /**
   Create a lock for a transaction and initialise it.
   @param[in, out] trx		Transaction requesting the new lock
-  @param[in] add_to_hash		add the lock to hash table
   @param[in] prdt			Predicate lock (optional)
   @return new lock instance */
-  lock_t *create(trx_t *trx, bool add_to_hash,
-                 const lock_prdt_t *prdt = nullptr);
-
-  /**
-  Check of the lock is on m_rec_id.
-  @param[in] lock			Lock to compare with
-  @return true if the record lock is on m_rec_id*/
-  bool is_on_row(const lock_t *lock) const;
+  lock_t *create(trx_t *trx, const lock_prdt_t *prdt = nullptr);
 
   /**
   Create the lock instance
@@ -783,34 +788,6 @@ class RecLock {
   void prepare() const;
 
   /**
-  Jump the queue for the record over all low priority transactions and
-  add the lock. If all current granted locks are compatible, grant the
-  lock. Otherwise, mark all granted transaction for asynchronous
-  rollback and add to hit list.
-  @param[in, out]	lock		Lock being requested
-  @param[in]	conflict_lock	First conflicting lock from the head
-  @return true if the lock is granted */
-  bool jump_queue(lock_t *lock, const lock_t *conflict_lock);
-
-  /** Find position in lock queue and add the high priority transaction
-  lock. Intention and GAP only locks can be granted even if there are
-  waiting locks in front of the queue. To add the High priority
-  transaction in a safe position we keep the following rule.
-
-  1. If the lock can be granted, add it before the first waiting lock
-  in the queue so that all currently waiting locks need to do conflict
-  check before getting granted.
-
-  2. If the lock has to wait, add it after the last granted lock or the
-  last waiting high priority transaction in the queue whichever is later.
-  This ensures that the transaction is granted only after doing conflict
-  check with all granted transactions.
-  @param[in]      lock            Lock being requested
-  @param[in]      conflict_lock   First conflicting lock from the head
-  @return true if the lock can be granted */
-  bool lock_add_priority(lock_t *lock, const lock_t *conflict_lock);
-
-  /**
   Setup the requesting transaction state for lock grant
   @param[in,out] lock	Lock for which to change state */
   void set_wait_state(lock_t *lock);
@@ -818,9 +795,8 @@ class RecLock {
   /**
   Add the lock to the record lock hash and the transaction's lock list
   @param[in,out] lock	Newly created record lock to add to the
-                          rec hash and the transaction lock list
-  @param[in] add_to_hash	If the lock should be added to the hash table */
-  void lock_add(lock_t *lock, bool add_to_hash);
+                          rec hash and the transaction lock list */
+  void lock_add(lock_t *lock);
 
   /**
   Setup the context from the requirements */
@@ -828,7 +804,7 @@ class RecLock {
     ut_ad(lock_mutex_own());
     ut_ad(!srv_read_only_mode);
     ut_ad(m_index->is_clustered() || !dict_index_is_online_ddl(m_index));
-    ut_ad(m_thr == NULL || m_trx == thr_get_trx(m_thr));
+    ut_ad(m_thr == nullptr || m_trx == thr_get_trx(m_thr));
 
     m_size = is_predicate_lock(m_mode) ? lock_size(m_mode) : lock_size(page);
 
@@ -940,9 +916,8 @@ const lock_t *lock_rec_get_prev(
 
 /** Cancels a waiting lock request and releases possible other transactions
 waiting behind it.
-@param[in,out]	lock		Waiting lock request
-@param[in]	use_fcfs	true -> use first come first served strategy */
-void lock_cancel_waiting_and_release(lock_t *lock, bool use_fcfs);
+@param[in,out]	lock		Waiting lock request */
+void lock_cancel_waiting_and_release(lock_t *lock);
 
 /** This function is a wrapper around several functions which need to be called
 in particular order to wake up a transaction waiting for a lock.
@@ -969,13 +944,6 @@ trx_id_t lock_clust_rec_some_has_impl(
 UNIV_INLINE
 const lock_t *lock_rec_get_next_on_page_const(
     const lock_t *lock); /*!< in: a record lock */
-
-/** Gets the nth bit of a record lock.
-@param[in]	lock	record lock
-@param[in]	i	index of the bit
-@return true if bit set also if i == ULINT_UNDEFINED return false */
-UNIV_INLINE
-bool lock_rec_get_nth_bit(const lock_t *lock, ulint i);
 
 /** Gets the number of bits in a record lock bitmap.
  @return number of bits */
@@ -1027,13 +995,6 @@ UNIV_INLINE
 const lock_t *lock_rec_get_next_const(ulint heap_no, const lock_t *lock);
 
 /** Gets the first explicit lock request on a record.
-@param[in]	hash		Record hash
-@param[in]	rec_id		Record ID
-@return	first lock, nullptr if none exists */
-UNIV_INLINE
-lock_t *lock_rec_get_first(hash_table_t *hash, const RecID &rec_id);
-
-/** Gets the first explicit lock request on a record.
 @param[in]	hash	hash chain the lock on
 @param[in]	block	block containing the record
 @param[in]	heap_no	heap number of the record
@@ -1065,18 +1026,6 @@ bool lock_mode_stronger_or_eq(enum lock_mode mode1, enum lock_mode mode2);
  @return LOCK_WAIT if waiting, 0 if not */
 UNIV_INLINE
 ulint lock_get_wait(const lock_t *lock); /*!< in: lock */
-
-/** Looks for a suitable type record lock struct by the same trx on the same
-page. This can be used to save space when a new record lock should be set on a
-page: no new struct is needed, if a suitable old is found.
-@param[in]	type_mode	lock type_mode field
-@param[in]	heap_no		heap number of the record
-@param[in]	lock		lock_rec_get_first_on_page()
-@param[in]	trx		transaction
-@return lock or NULL */
-UNIV_INLINE
-lock_t *lock_rec_find_similar_on_page(ulint type_mode, ulint heap_no,
-                                      lock_t *lock, const trx_t *trx);
 
 /** Checks if a transaction has the specified table lock, or stronger. This
 function should only be called by the thread that owns the transaction.

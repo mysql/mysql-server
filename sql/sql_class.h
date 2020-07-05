@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -196,7 +196,7 @@ class thd_scheduler {
  public:
   void *data; /* scheduler-specific data structure */
 
-  thd_scheduler() : data(NULL) {}
+  thd_scheduler() : data(nullptr) {}
 
   ~thd_scheduler() {}
 };
@@ -413,6 +413,7 @@ class Item_change_record : public ilink<Item_change_record> {
   Item **place;
   Item *old_value;
   Item *new_value;
+  bool m_cancel{false};
 };
 
 typedef I_List<Item_change_record> Item_change_list;
@@ -691,7 +692,7 @@ struct Ha_data {
   */
   plugin_ref lock;
 
-  Ha_data() : ha_ptr(NULL), ha_ptr_backup(NULL), lock(NULL) {}
+  Ha_data() : ha_ptr(nullptr), ha_ptr_backup(nullptr), lock(nullptr) {}
 };
 
 /**
@@ -709,8 +710,8 @@ class Global_read_lock {
 
   Global_read_lock()
       : m_state(GRL_NONE),
-        m_mdl_global_shared_lock(NULL),
-        m_mdl_blocks_commits_lock(NULL) {}
+        m_mdl_global_shared_lock(nullptr),
+        m_mdl_blocks_commits_lock(nullptr) {}
 
   bool lock_global_read_lock(THD *thd);
   void unlock_global_read_lock(THD *thd);
@@ -862,7 +863,6 @@ class THD : public MDL_context_owner,
   */
   resourcegroups::Resource_group_ctx m_resource_group_ctx;
 
- public:
   /**
     In some cases, we may want to modify the query (i.e. replace
     passwords with their hashes before logging the statement etc.).
@@ -877,9 +877,17 @@ class THD : public MDL_context_owner,
     may follow at a later date, both pre- and post parsing of the query.
     Rewriting of binloggable statements must preserve all pertinent
     information.
-  */
-  String rewritten_query;
 
+    Similar restrictions as for m_query_string (see there) hold for locking:
+    - Value may only be (re)set from owning thread (current_thd)
+    - Value must be modified using (reset|swap)_rewritten_query().
+      Doing so will protect the update with LOCK_thd_query.
+    - The owner (current_thd) may read the value without holding the lock.
+    - Other threads may read the value, but must hold LOCK_thd_query to do so.
+  */
+  String m_rewritten_query;
+
+ public:
   /* Used to execute base64 coded binlog events in MySQL server */
   Relay_log_info *rli_fake;
   /* Slave applier execution context */
@@ -1182,8 +1190,8 @@ class THD : public MDL_context_owner,
     explicit Query_plan(THD *thd_arg)
         : thd(thd_arg),
           sql_command(SQLCOM_END),
-          lex(NULL),
-          modification_plan(NULL),
+          lex(nullptr),
+          modification_plan(nullptr),
           is_ps(false) {}
 
     /**
@@ -2167,11 +2175,16 @@ class THD : public MDL_context_owner,
     return system_thread == SYSTEM_THREAD_SERVER_INITIALIZE;
   }
 
+  // Check if this THD is executing statements passed through a init file.
+  bool is_init_file_system_thread() const {
+    return system_thread == SYSTEM_THREAD_INIT_FILE;
+  }
+
   // Check if this THD belongs to a bootstrap system thread. Note that
   // this thread type may execute statements submitted by the user.
   bool is_bootstrap_system_thread() const {
     return is_dd_system_thread() || is_initialize_system_thread() ||
-           system_thread == SYSTEM_THREAD_INIT_FILE;
+           is_init_file_system_thread();
   }
 
   // Check if this THD belongs to a server upgrade thread. Server upgrade
@@ -2252,7 +2265,8 @@ class THD : public MDL_context_owner,
   /**@{*/
   void set_trans_pos(const char *file, my_off_t pos) {
     DBUG_TRACE;
-    DBUG_ASSERT(((file == 0) && (pos == 0)) || ((file != 0) && (pos != 0)));
+    DBUG_ASSERT(((file == nullptr) && (pos == 0)) ||
+                ((file != nullptr) && (pos != 0)));
     if (file) {
       DBUG_PRINT("enter", ("file: %s, pos: %llu", file, pos));
       // Only the file name should be used, not the full path
@@ -2262,8 +2276,8 @@ class THD : public MDL_context_owner,
       DBUG_ASSERT(strlen(m_trans_log_file) <= FN_REFLEN);
       strcpy(m_trans_fixed_log_file, m_trans_log_file);
     } else {
-      m_trans_log_file = NULL;
-      m_trans_fixed_log_file = NULL;
+      m_trans_log_file = nullptr;
+      m_trans_fixed_log_file = nullptr;
     }
 
     m_trans_end_pos = pos;
@@ -2327,6 +2341,13 @@ class THD : public MDL_context_owner,
     KILLED_NO_VALUE /* means neither of the states */
   };
   std::atomic<killed_state> killed;
+
+  /**
+    Whether we are currently in the execution phase of an EXPLAIN ANALYZE query.
+    If so, send_kill_message() won't actually set an error; we will add a
+    warning near the end of the execution instead.
+   */
+  bool running_explain_analyze = false;
 
   /**
     When operation on DD tables is in progress then THD is set to kill immune
@@ -2480,6 +2501,29 @@ class THD : public MDL_context_owner,
   // We don't want to load/unload plugins for unit tests.
   bool m_enable_plugins;
 
+  /**
+     Used by some transformations that need Item:transform to make a permanent
+     transform. Will be voided by WL#6570.
+  */
+  bool m_permanent_transform{false};
+
+  /**
+     RAII class to push m_permanent_transform in a scope
+  */
+  class Permanent_transform {
+   private:
+    bool m_old_value;
+    THD *m_thd;
+
+   public:
+    Permanent_transform(THD *thd) {
+      m_thd = thd;
+      m_old_value = thd->m_permanent_transform;
+      thd->m_permanent_transform = true;
+    }
+    ~Permanent_transform() { m_thd->m_permanent_transform = m_old_value; }
+  };
+
   THD(bool enable_plugins = true);
 
   /*
@@ -2527,20 +2571,16 @@ class THD : public MDL_context_owner,
     mysql_mutex_unlock(&LOCK_thd_data);
   }
 
-  inline void set_ssl(Vio *vio MY_ATTRIBUTE((unused))) {
-#ifdef HAVE_OPENSSL
+  inline void set_ssl(Vio *vio) {
     mysql_mutex_lock(&LOCK_thd_data);
     m_SSL = (SSL *)vio->ssl_arg;
     mysql_mutex_unlock(&LOCK_thd_data);
-#else
-    m_SSL = NULL;
-#endif
   }
 
   inline void clear_active_vio() {
     mysql_mutex_lock(&LOCK_thd_data);
-    active_vio = 0;
-    m_SSL = NULL;
+    active_vio = nullptr;
+    m_SSL = nullptr;
     mysql_mutex_unlock(&LOCK_thd_data);
   }
 
@@ -2621,10 +2661,10 @@ class THD : public MDL_context_owner,
     */
     mysql_mutex_assert_not_owner(current_mutex.load());
     mysql_mutex_lock(&LOCK_current_cond);
-    current_mutex = NULL;
-    current_cond = NULL;
+    current_mutex = nullptr;
+    current_cond = nullptr;
     mysql_mutex_unlock(&LOCK_current_cond);
-    enter_stage(stage, NULL, src_function, src_file, src_line);
+    enter_stage(stage, nullptr, src_function, src_file, src_line);
     return;
   }
 
@@ -2908,6 +2948,18 @@ class THD : public MDL_context_owner,
   const CHARSET_INFO *charset() const { return variables.character_set_client; }
   void update_charset();
 
+  /**
+    Update the place with new_value.
+    If THD::m_permanent_transform is false:
+      - Use a plain assignment (iff THD::stmt_area->is_regular())
+        or assign and register place for rollback.
+    If THD::m_permanent_transform is true:
+      - we a) remove any rollback requests for this location and b) do the
+        assignment without registering any rollback request.
+
+    @param place     The location at which we want set a new value
+    @param new_value The new value
+  */
   void change_item_tree(Item **place, Item *new_value);
 
   /**
@@ -2934,9 +2986,24 @@ class THD : public MDL_context_owner,
                       the new value, but which need to be rolled back to
                       the old value.
                       This location must also contain the new value.
+    @returns old_value if one was found, else nullptr
   */
-  void replace_rollback_place(Item **new_place);
+  Item *replace_rollback_place(Item **new_place);
 
+  /**
+    Place has an alias of a new value which should possibly be rolled back.
+    If so, this location should be rolled back as well.
+    The value will already be registered with a rollback value in another
+    place. Find that rollback value, and register a rollback record for this
+    place as well, using the same rollback value.
+
+    @param place the location of the alias
+  */
+  void alias_rollback(Item **place);
+
+  void update_ident_context(SELECT_LEX *orig_block, SELECT_LEX *new_block);
+  void cancel_rollback(Item *new_item);
+  void cancel_rollback_at(Item **place);
   /**
     Restore locations set by calls to nocheck_register_item_tree_change().  The
     value to be restored depends on whether replace_rollback_place()
@@ -3068,7 +3135,7 @@ class THD : public MDL_context_owner,
   Gtid_set *get_gtid_next_list() {
     return variables.gtid_next_list.is_non_null
                ? variables.gtid_next_list.gtid_set
-               : NULL;
+               : nullptr;
   }
 
   /// Return the value of @@gtid_next_list: either a Gtid_set or NULL.
@@ -3123,12 +3190,12 @@ class THD : public MDL_context_owner,
     A1. If GTID_NEXT = 'AUTOMATIC' and GTID_MODE = OFF/OFF_PERMISSIVE:
         The thread acquires anonymous ownership in
         gtid_state->generate_automatic_gtid called from
-        MYSQL_BIN_LOG::write_gtid.
+        MYSQL_BIN_LOG::write_transaction.
 
     A2. If GTID_NEXT = 'AUTOMATIC' and GTID_MODE = ON/ON_PERMISSIVE:
         The thread generates the GTID and acquires ownership in
         gtid_state->generate_automatic_gtid called from
-        MYSQL_BIN_LOG::write_gtid.
+        MYSQL_BIN_LOG::write_transaction.
 
     A3. If GTID_NEXT = 'UUID:NUMBER': The thread acquires ownership in
         the following ways:
@@ -3428,7 +3495,7 @@ class THD : public MDL_context_owner,
     }
     owned_gtid.clear();
     owned_sid.clear();
-    owned_gtid.dbug_print(NULL, "set owned_gtid in clear_owned_gtids");
+    owned_gtid.dbug_print(nullptr, "set owned_gtid in clear_owned_gtids");
   }
 
   /** @return true, if owned GTID is empty or waiting for deferred cleanup. */
@@ -3514,7 +3581,7 @@ class THD : public MDL_context_owner,
     a statement is parsed but before it's executed.
   */
   bool copy_db_to(char const **p_db, size_t *p_db_length) const {
-    if (m_db.str == NULL) {
+    if (m_db.str == nullptr) {
       my_error(ER_NO_DB_ERROR, MYF(0));
       return true;
     }
@@ -3708,11 +3775,18 @@ class THD : public MDL_context_owner,
   */
   const String normalized_query();
 
+  /**
+    Set query to be displayed in performance schema (threads table etc.).
+  */
   void set_query_for_display(const char *query_arg MY_ATTRIBUTE((unused)),
                              size_t query_length_arg MY_ATTRIBUTE((unused))) {
-    MYSQL_SET_STATEMENT_TEXT(m_statement_psi, query_arg, query_length_arg);
+    // Set in pfs events statements table
+    MYSQL_SET_STATEMENT_TEXT(m_statement_psi, query_arg,
+                             static_cast<uint>(query_length_arg));
 #ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_THREAD_CALL(set_thread_info)(query_arg, query_length_arg);
+    // Set in pfs threads table
+    PSI_THREAD_CALL(set_thread_info)
+    (query_arg, static_cast<uint>(query_length_arg));
 #endif
   }
   void reset_query_for_display(void) { set_query_for_display(nullptr, 0); }
@@ -3727,6 +3801,46 @@ class THD : public MDL_context_owner,
   }
   void set_query(LEX_CSTRING query_arg);
   void reset_query() { set_query(LEX_CSTRING()); }
+
+  /**
+    Set the rewritten query (with passwords obfuscated etc.) on the THD.
+    Wraps this in the LOCK_thd_query mutex to protect against race conditions
+    with SHOW PROCESSLIST inspecting that string.
+
+    This uses swap() and therefore "steals" the argument from the caller;
+    the caller MUST take care not to try to use its own string after calling
+    this function! This is an optimization for mysql_rewrite_query() so we
+    don't copy its temporary string (which may get very long, up to
+    @@max_allowed_packet).
+
+    Using this outside of mysql_rewrite_query() is almost certainly wrong;
+    please check with the runtime team!
+
+    @param query_arg  The rewritten query to use for slow/bin/general logging.
+                      The value will be released in the caller and MUST NOT
+                      be used there after calling this function.
+  */
+  void swap_rewritten_query(String &query_arg);
+
+  /**
+    Get the rewritten query (with passwords obfuscated etc.) from the THD.
+    If done from a different thread (from the one that the rewritten_query
+    is set on), the caller must hold LOCK_thd_query while calling this!
+  */
+  const String &rewritten_query() const {
+#ifndef DBUG_OFF
+    if (current_thd != this) mysql_mutex_assert_owner(&LOCK_thd_query);
+#endif
+    return m_rewritten_query;
+  }
+
+  /**
+    Reset thd->m_rewritten_query. Protected with the LOCK_thd_query mutex.
+ */
+  void reset_rewritten_query() {
+    String empty;
+    swap_rewritten_query(empty);
+  }
 
   /**
     Assign a new value to thd->query_id.
@@ -4207,7 +4321,6 @@ void reattach_engine_ha_data_to_thd(THD *thd, const struct handlerton *hton);
   Check if engine substitution is allowed in the current thread context.
 
   @param thd         thread context
-  @return
   @retval            true if engine substitution is allowed
   @retval            false otherwise
 */
@@ -4219,9 +4332,8 @@ inline bool is_engine_substitution_allowed(const THD *thd) {
 /**
   Returns if the user of the session has the SYSTEM_USER privilege or not.
 
-  @returns
-    @retval true  User has SYSTEM_USER privilege
-    @retval false Otherwise
+  @retval true  User has SYSTEM_USER privilege
+  @retval false Otherwise
 */
 inline bool THD::is_system_user() {
   return m_is_system_user.load(std::memory_order_seq_cst);

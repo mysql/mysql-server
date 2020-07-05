@@ -390,6 +390,7 @@ let SEARCH_PATTERN= Incorrect unsigned integer value: '18446744073709551616';
 
 # Cleanup
 --echo # Restart the server
+--let $restart_parameters= restart: --innodb_checksum_algorithm=crc32
 --source include/start_mysqld.inc
 
 DROP TABLE tab1;

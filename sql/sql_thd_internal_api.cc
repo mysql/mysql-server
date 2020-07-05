@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,6 +21,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/sql_thd_internal_api.h"
+
+#include <algorithm>
 
 #include "my_config.h"
 
@@ -109,6 +111,11 @@ THD *create_thd(bool enable_plugins, bool background_thread, bool bound,
 
 void destroy_thd(THD *thd) {
   thd->release_resources();
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  PSI_THREAD_CALL(delete_thread)(thd->get_psi());
+  thd->set_psi(nullptr);
+#endif /* HAVE_PSI_THREAD_INTERFACE */
+
   // TODO: Purge threads currently terminate too late for them to be added.
   if (thd->system_thread != SYSTEM_THREAD_BACKGROUND) {
     Global_THD_manager *thd_manager = Global_THD_manager::get_instance();
@@ -164,15 +171,15 @@ extern "C" void thd_set_waiting_for_disk_space(void *opaque_thd,
 
 void thd_increment_bytes_sent(size_t length) {
   THD *thd = current_thd;
-  if (likely(thd != NULL)) { /* current_thd==NULL when close_connection() calls
-                                net_send_error() */
+  if (likely(thd != nullptr)) { /* current_thd==NULL when close_connection()
+                                calls net_send_error() */
     thd->status_var.bytes_sent += length;
   }
 }
 
 void thd_increment_bytes_received(size_t length) {
   THD *thd = current_thd;
-  if (likely(thd != NULL)) thd->status_var.bytes_received += length;
+  if (likely(thd != nullptr)) thd->status_var.bytes_received += length;
 }
 
 partition_info *thd_get_work_part_info(THD *thd) { return thd->work_part_info; }
@@ -191,7 +198,7 @@ LEX_CSTRING thd_query_unsafe(THD *thd) {
 size_t thd_query_safe(THD *thd, char *buf, size_t buflen) {
   mysql_mutex_lock(&thd->LOCK_thd_query);
   LEX_CSTRING query_string = thd->query();
-  size_t len = MY_MIN(buflen - 1, query_string.length);
+  size_t len = std::min(buflen - 1, query_string.length);
   if (len > 0) strncpy(buf, query_string.str, len);
   buf[len] = '\0';
   mysql_mutex_unlock(&thd->LOCK_thd_query);
@@ -223,7 +230,7 @@ bool thd_sqlcom_can_generate_row_events(const THD *thd) {
 enum durability_properties thd_get_durability_property(const THD *thd) {
   enum durability_properties ret = HA_REGULAR_DURABILITY;
 
-  if (thd != NULL) ret = thd->durability_property;
+  if (thd != nullptr) ret = thd->durability_property;
 
   return ret;
 }
@@ -238,7 +245,7 @@ bool thd_is_strict_mode(const THD *thd) { return thd->is_strict_mode(); }
 bool thd_is_error(const THD *thd) { return thd->is_error(); }
 
 bool is_mysql_datadir_path(const char *path) {
-  if (path == NULL || strlen(path) >= FN_REFLEN) return false;
+  if (path == nullptr || strlen(path) >= FN_REFLEN) return false;
 
   char mysql_data_dir[FN_REFLEN], path_dir[FN_REFLEN];
   convert_dirname(path_dir, path, NullS);
@@ -257,7 +264,7 @@ bool is_mysql_datadir_path(const char *path) {
 }
 
 int mysql_tmpfile_path(const char *path, const char *prefix) {
-  DBUG_ASSERT(path != NULL);
+  DBUG_ASSERT(path != nullptr);
   DBUG_ASSERT((strlen(path) + strlen(prefix)) <= FN_REFLEN);
 
   char filename[FN_REFLEN];
@@ -272,7 +279,8 @@ int mysql_tmpfile_path(const char *path, const char *prefix) {
 
 bool thd_is_bootstrap_thread(THD *thd) {
   DBUG_ASSERT(thd);
-  return thd->is_bootstrap_system_thread();
+  return (thd->is_bootstrap_system_thread() &&
+          !thd->is_init_file_system_thread());
 }
 
 bool thd_is_dd_update_stmt(const THD *thd) {

@@ -49,8 +49,8 @@
 #include "mysys/mysys_priv.h"
 #endif
 
-static void (*before_sync_wait)(void) = 0;
-static void (*after_sync_wait)(void) = 0;
+static void (*before_sync_wait)(void) = nullptr;
+static void (*after_sync_wait)(void) = nullptr;
 
 void thr_set_sync_wait_callback(void (*before_wait)(void),
                                 void (*after_wait)(void)) {

@@ -55,9 +55,9 @@ bool log_notification_to_test_table(std::string msg) {
   ulong srv_err = 0;
   bool was_read_only = false;
   Sql_service_command_interface *sql_cmd = new Sql_service_command_interface();
-  Sql_service_interface *sql_intf = NULL;
+  Sql_service_interface *sql_intf = nullptr;
   enum_plugin_con_isolation trx_iso =
-      current_thd == NULL ? PSESSION_INIT_THREAD : PSESSION_USE_THREAD;
+      current_thd == nullptr ? PSESSION_INIT_THREAD : PSESSION_USE_THREAD;
   std::stringstream ss;
 
   ss.str("");
@@ -186,8 +186,8 @@ DEFINE_BOOL_METHOD(
 
 static void handle_example_listener(int action) {
   SERVICE_TYPE(registry) *r = mysql_plugin_registry_acquire();
-  SERVICE_TYPE(registry_registration) *reg_reg = NULL;
-  my_h_service h_reg_svc = NULL;
+  SERVICE_TYPE(registry_registration) *reg_reg = nullptr;
+  my_h_service h_reg_svc = nullptr;
   int error = 0;
 
   if (!r) goto err; /* purecov: inspected */

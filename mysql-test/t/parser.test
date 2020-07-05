@@ -1763,9 +1763,12 @@ INSERT INTO t2 VALUES         (2, 2), (3, 3), (4, 4);
 INSERT INTO t3 VALUES                 (3, 3), (4, 4), (5, 5);
 
 --echo # The two queries below should produce identical result sets.
+--sorted_result
 SELECT * FROM t1 NATURAL LEFT JOIN t2 NATURAL RIGHT JOIN t3;
+--sorted_result
 SELECT * FROM (t1 NATURAL LEFT JOIN t2) NATURAL RIGHT JOIN t3;
 --echo # This result should differ from the result sets above.
+--sorted_result
 SELECT * FROM t1 NATURAL LEFT JOIN (t2 NATURAL RIGHT JOIN t3);
 
 DROP TABLE t1, t2, t3;
@@ -2502,3 +2505,47 @@ SELECT 1 ^ 100, 1 ^ '10' || '0';
 SELECT -1 || '0';
 
 SET sql_mode=DEFAULT;
+
+--echo #
+--echo # WL#13559: Deprecate syntax: confusing combinations of UNION and INTO
+--echo #
+
+--echo #
+--echo # No warning expected:
+--echo #
+
+SELECT 1 UNION SELECT 1 INTO @var;
+(SELECT 1 UNION SELECT 1 INTO @var);
+
+SELECT 1 UNION SELECT 1 FROM DUAL INTO @var;
+(SELECT 1 UNION SELECT 1 FROM DUAL INTO @var);
+
+SELECT 1 UNION SELECT 1 FROM DUAL FOR UPDATE INTO @var;
+(SELECT 1 UNION SELECT 1 FROM DUAL FOR UPDATE INTO @var);
+
+--echo #
+--echo # Deprecation warning expected:
+--echo #
+
+SELECT 1 UNION SELECT 1 INTO @var FROM DUAL;
+SELECT 1 UNION (SELECT 1 INTO @var FROM DUAL);
+
+SELECT 1 UNION SELECT 1 FROM DUAL INTO @var FOR UPDATE;
+(SELECT 1 UNION SELECT 1 FROM DUAL INTO @var FOR UPDATE);
+
+SELECT 1 UNION SELECT 1 INTO @var FOR UPDATE;
+(SELECT 1 UNION SELECT 1 INTO @var FOR UPDATE);
+
+--echo #
+--echo # Syntax error expected:
+--echo #
+
+--error ER_PARSE_ERROR
+SELECT 1 UNION (SELECT 1 FROM DUAL INTO @var);
+
+--echo #
+--echo # Bug#30871301: CTE CAN FAIL WITH A PARSE ERROR ON PSEUDO-COMMENTS
+--echo #
+
+WITH cte AS (SELECT 0 /*! ) */ SELECT * FROM cte a, cte b;
+WITH cte AS /*! ( */ SELECT 0) SELECT * FROM cte a, cte b;

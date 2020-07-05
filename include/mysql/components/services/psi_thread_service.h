@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -111,7 +111,5 @@ notify_session_disconnect_v1_t notify_session_disconnect;
 /** @sa notify_session_change_user_v1_t. */
 notify_session_change_user_v1_t notify_session_change_user;
 END_SERVICE_DEFINITION(psi_thread_v3)
-
-#define REQUIRES_PSI_THREAD_SERVICE REQUIRES_SERVICE(psi_thread_v3)
 
 #endif /* COMPONENTS_SERVICES_PSI_THREAD_SERVICE_H */

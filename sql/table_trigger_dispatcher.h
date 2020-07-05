@@ -114,7 +114,7 @@ class Table_trigger_dispatcher : public Table_trigger_field_support {
 
   bool has_triggers(enum_trigger_event_type event,
                     enum_trigger_action_time_type action_time) const {
-    return get_triggers(event, action_time) != NULL;
+    return get_triggers(event, action_time) != nullptr;
   }
 
   bool has_update_triggers() const {

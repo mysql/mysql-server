@@ -168,8 +168,8 @@ void *mem_heap_alloc(mem_heap_t *heap, ulint n) {
       mem_block_get_free(block) + MEM_SPACE_NEEDED(n)) {
     block = mem_heap_add_block(heap, n);
 
-    if (block == NULL) {
-      return (NULL);
+    if (block == nullptr) {
+      return (nullptr);
     }
   }
 
@@ -241,7 +241,7 @@ void mem_heap_free_heap_top(mem_heap_t *heap, byte *old_top) {
 
   block = UT_LIST_GET_LAST(heap->base);
 
-  while (block != NULL) {
+  while (block != nullptr) {
     if (((byte *)block + mem_block_get_free(block) >= old_top) &&
         ((byte *)block <= old_top)) {
       /* Found the right block */
@@ -461,17 +461,17 @@ mem_heap_t *mem_heap_create_func(ulint size,
     size = MEM_BLOCK_START_SIZE;
   }
 
-  block = mem_heap_create_block(NULL, size, type, file_name, line);
+  block = mem_heap_create_block(nullptr, size, type, file_name, line);
 
-  if (block == NULL) {
-    return (NULL);
+  if (block == nullptr) {
+    return (nullptr);
   }
 
 #ifndef UNIV_HOTBACKUP
 #ifndef UNIV_LIBRARY
   /* The first block should not be in buffer pool,
   because it might be relocated to resize buffer pool. */
-  ut_ad(block->buf_block == NULL);
+  ut_ad(block->buf_block == nullptr);
 #endif /* !UNIV_LIBRARY */
 #endif /* UNIV_HOTBACKUP */
 
@@ -503,7 +503,7 @@ void mem_heap_free(mem_heap_t *heap) {
 #endif /* !UNIV_LIBRARY */
 #endif /* !UNIV_HOTBACKUP */
 
-  while (block != NULL) {
+  while (block != nullptr) {
     /* Store the contents of info before freeing current block
     (it is erased in freeing) */
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -168,7 +168,7 @@ inline dict_table_t *dd_table_open_on_id_in_mem(table_id_t table_id,
 }
 
 /** Returns a cached table object based on table name.
-@param[in]	table_id	table id
+@param[in]	name		table name
 @param[in]	dict_locked	TRUE=data dictionary locked
 @return table, NULL if does not exist */
 inline dict_table_t *dd_table_open_on_name_in_mem(const char *name,
@@ -226,7 +226,7 @@ inline bool create_table_check_doc_id_col(THD *thd, const TABLE *form,
     if (innobase_strcasecmp(field->field_name, FTS_DOC_ID_COL_NAME) == 0) {
       /* Note the name is case sensitive due to
       our internal query parser */
-      if (col_type == DATA_INT && !field->real_maybe_null() &&
+      if (col_type == DATA_INT && !field->is_nullable() &&
           col_len == sizeof(doc_id_t) &&
           (strcmp(field->field_name, FTS_DOC_ID_COL_NAME) == 0)) {
         *doc_id_col = i;

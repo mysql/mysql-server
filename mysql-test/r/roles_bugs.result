@@ -76,8 +76,14 @@ END $$
 INSERT into my_db.t1 values(5);
 # Inserts are now allowed if grants are given through role
 INSERT into my_db.t1 values(8) on duplicate key UPDATE id = values(id) + 800;
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
 CALL my_db.foo_proc();
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
 CALL my_db.baz_proc();
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
 # Now revoke all privileges from the roles and user
 REVOKE ALL ON *.* FROM my_role;
 REVOKE ALL ON *.* FROM foo@localhost;

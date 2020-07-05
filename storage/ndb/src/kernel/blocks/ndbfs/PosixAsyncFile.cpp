@@ -62,7 +62,6 @@ PosixAsyncFile::PosixAsyncFile(SimulatedBlock& fs) :
   use_gz(0)
 {
   memset(&nzf,0,sizeof(nzf));
-  init_mutex();
 }
 
 int PosixAsyncFile::init()
@@ -639,18 +638,6 @@ int PosixAsyncFile::readBuffer(Request *req, char *buf,
   int return_value;
   req->par.readWrite.pages[0].size = 0;
   off_t seek_val;
-#if ! defined(HAVE_PREAD)
-  FileGuard guard(this);
-  if(!use_gz)
-  {
-    while((seek_val= lseek(theFd, offset, SEEK_SET)) == (off_t)-1
-          && errno == EINTR) {};
-    if(seek_val == (off_t)-1)
-    {
-      return errno;
-    }
-  }
-#endif
   if(use_gz)
   {
     while((seek_val= ndbzseek(&nzf, offset, SEEK_SET)) == (off_t)-1
@@ -666,17 +653,10 @@ int PosixAsyncFile::readBuffer(Request *req, char *buf,
   while (size > 0) {
     size_t bytes_read = 0;
 
-#if  ! defined(HAVE_PREAD)
-    if(use_gz)
-      return_value = ndbzread(&nzf, buf, size, &error);
-    else
-      return_value = ::read(theFd, buf, size);
-#else // UNIX
     if(!use_gz)
       return_value = ::pread(theFd, buf, size, offset);
     else
       return_value = ndbzread(&nzf, buf, size, &error);
-#endif
     if (return_value == -1 && errno == EINTR) {
       DEBUG(ndbout_c("EINTR in read"));
       continue;
@@ -721,10 +701,6 @@ int PosixAsyncFile::readBuffer(Request *req, char *buf,
 
 void PosixAsyncFile::readvReq(Request *request)
 {
-#if ! defined(HAVE_PREAD)
-  readReq(request);
-  return;
-#else
   int return_value;
   int length = 0;
   struct iovec iov[20]; // the parameter in the signal restricts this to 20 deep
@@ -742,7 +718,6 @@ void PosixAsyncFile::readvReq(Request *request)
     request->error = 1011;
     return;
   }
-#endif
 }
 
 int PosixAsyncFile::writeBuffer(const char *buf, size_t size, off_t offset)
@@ -753,17 +728,6 @@ int PosixAsyncFile::writeBuffer(const char *buf, size_t size, off_t offset)
 
   m_write_wo_sync += size;
 
-#if ! defined(HAVE_PWRITE)
-  FileGuard guard(this);
-  off_t seek_val;
-  while((seek_val= lseek(theFd, offset, SEEK_SET)) == (off_t)-1
-	&& errno == EINTR) {};
-  if(seek_val == (off_t)-1)
-  {
-    return errno;
-  }
-#endif
-
   while (size > 0) {
     if (size < bytes_to_write){
       // We are at the last chunk
@@ -771,17 +735,10 @@ int PosixAsyncFile::writeBuffer(const char *buf, size_t size, off_t offset)
     }
     size_t bytes_written = 0;
 
-#if ! defined(HAVE_PWRITE)
-    if(use_gz)
-      return_value= ndbzwrite(&nzf, buf, bytes_to_write);
-    else
-      return_value = ::write(theFd, buf, bytes_to_write);
-#else // UNIX
     if(use_gz)
       return_value= ndbzwrite(&nzf, buf, bytes_to_write);
     else
       return_value = ::pwrite(theFd, buf, bytes_to_write, offset);
-#endif
     if (return_value == -1 && errno == EINTR) {
       bytes_written = 0;
       DEBUG(ndbout_c("EINTR in write"));
@@ -998,8 +955,6 @@ PosixAsyncFile::~PosixAsyncFile()
   if(nz_mempool.mem)
     ndbd_free(nz_mempool.mem, nz_mempool.size);
   nz_mempool.mem = NULL;
-
-  destroy_mutex();
 }
 
 void PosixAsyncFile::createDirectories()

@@ -15,11 +15,6 @@
 #  Run the test with --record option.
 #########################
 
-let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH $KEYRING_PLUGIN keyring_file.so
---replace_regex /\.dll/.so/
---source include/restart_mysqld_no_echo.inc
-
 let $MYSQLD_DATADIR = `SELECT @@datadir`;
 
 let $source_db = test;
@@ -27,6 +22,7 @@ let $source_db = test;
 let $dest_db = test;
 
 if ($MTR_RECORD == 1) {
+--disable_query_log
 # Create a table with encryption
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 INSERT INTO t1 VALUES(0, "aaaaa");
@@ -50,9 +46,9 @@ eval FLUSH TABLES $source_db.t1 FOR EXPORT;
 UNLOCK TABLES;
 
 DROP TABLE t1;
+--enable_query_log
 }
 
-if ($MTR_RECORD == 0) {
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 eval ALTER TABLE $dest_db.t1 DISCARD TABLESPACE;
 
@@ -64,7 +60,3 @@ SELECT * FROM t1;
 
 # Cleanup
 DROP TABLE t1;
-
---remove_file $MYSQL_TMP_DIR/mysecret_keyring
-}
-

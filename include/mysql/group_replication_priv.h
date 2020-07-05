@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -209,5 +209,10 @@ unsigned long get_max_slave_max_allowed_packet();
   @returns if the server is restarting after a clone
 */
 bool is_server_restarting_after_clone();
+
+/**
+  @returns if the server already dropped its data when cloning
+*/
+bool is_server_data_dropped();
 
 #endif /* GROUP_REPLICATION_PRIV_INCLUDE */

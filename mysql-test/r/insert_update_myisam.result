@@ -31,6 +31,8 @@ PRIMARY KEY  (a)
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 ( a ) SELECT 0 ON DUPLICATE KEY UPDATE a = a + VALUES (a) ;
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
 DROP TABLE t1;
 SET SQL_MODE='NO_AUTO_VALUE_ON_ZERO';
 CREATE TABLE `t1` (

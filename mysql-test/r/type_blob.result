@@ -1268,6 +1268,8 @@ CREATE TABLE t1 (c1 INTEGER PRIMARY KEY, c2 TEXT, c3 INTEGER);
 INSERT INTO t1(c1) VALUES(0);
 INSERT INTO t1(c1) VALUES(0) ON DUPLICATE KEY
 UPDATE c2 = VALUES(c2), c3 = NULL;
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
 SELECT * FROM t1;
 c1	c2	c3
 0	NULL	NULL

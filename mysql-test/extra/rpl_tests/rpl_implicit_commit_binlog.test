@@ -702,6 +702,12 @@ while ($ddl_cases >= 1)
   }
   if ($check_position_of_commit_event == yes)
   {
+    if (`SELECT @@session.binlog_transaction_compression = TRUE AND @@session.binlog_format='ROW'`)
+    {
+      # there is an extra event when compression is enabled: Transaction_payload_event
+      --let $commit_event_row_number = `SELECT $commit_event_row_number + 1`
+    }
+
     --let $assert_cond= SUBSTRING("[SHOW BINLOG EVENTS FROM $first_binlog_position LIMIT $commit_event_row_number, Info, $commit_event_row_number]", 1, 6) = "COMMIT"
     --let $assert_text= There should be a COMMIT event at the specified position (test#$ddl_cases)
     --source include/assert.inc

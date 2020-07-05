@@ -1,55 +1,14 @@
-
-
-################## mysql-test\t\innodb_doublewrite_basic.test #################
-#                                                                             #
-# Variable Name: innodb_doublewrite                                           #
-# Scope: Global                                                               #
-# Access Type: Static                                                         #
-# Data Type: boolean                                                          #
-#                                                                             #
-#                                                                             #
-# Creation Date: 2008-02-07                                                   #
-# Author : Sharique Abdullah                                                  #
-#                                                                             #
-#                                                                             #
-# Description:Test Cases of Dynamic System Variable innodb_doublewrite        #
-#             that checks the behavior of this variable in the following ways #
-#              * Value Check                                                  #
-#              * Scope Check                                                  #
-#                                                                             #
-# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
-#  server-system-variables.html                                               #
-#                                                                             #
-###############################################################################
-
-
---echo '#---------------------BS_STVARS_026_01----------------------#'
-####################################################################
-#   Displaying default value                                       #
-####################################################################
 SELECT COUNT(@@GLOBAL.innodb_doublewrite);
 --echo 1 Expected
 
-
---echo '#---------------------BS_STVARS_026_02----------------------#'
-####################################################################
-#   Check if Value can set                                         #
-####################################################################
-
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SET @@GLOBAL.innodb_doublewrite=1;
---echo Expected error 'Read only variable'
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.innodb_doublewrite=off;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.innodb_doublewrite=on;
 
 SELECT COUNT(@@GLOBAL.innodb_doublewrite);
 --echo 1 Expected
 
-
-
-
---echo '#---------------------BS_STVARS_026_03----------------------#'
-#################################################################
-# Check if the value in GLOBAL Table matches value in variable  #
-#################################################################
 
 --disable_warnings
 SELECT IF(@@GLOBAL.innodb_doublewrite, "ON", "OFF") = VARIABLE_VALUE
@@ -68,21 +27,9 @@ WHERE VARIABLE_NAME='innodb_doublewrite';
 --enable_warnings
 --echo 1 Expected
 
-
-
---echo '#---------------------BS_STVARS_026_04----------------------#'
-################################################################################
-#  Check if accessing variable with and without GLOBAL point to same variable  #
-################################################################################
 SELECT @@innodb_doublewrite = @@GLOBAL.innodb_doublewrite;
 --echo 1 Expected
 
-
-
---echo '#---------------------BS_STVARS_026_05----------------------#'
-################################################################################
-#   Check if innodb_doublewrite can be accessed with and without @@ sign       #
-################################################################################
 
 SELECT COUNT(@@innodb_doublewrite);
 --echo 1 Expected
@@ -97,9 +44,4 @@ SELECT COUNT(@@SESSION.innodb_doublewrite);
 
 SELECT COUNT(@@GLOBAL.innodb_doublewrite);
 --echo 1 Expected
-
---Error ER_BAD_FIELD_ERROR
-SELECT innodb_doublewrite = @@SESSION.innodb_doublewrite;
---echo Expected error 'Readonly variable'
-
 

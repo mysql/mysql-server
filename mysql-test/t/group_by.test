@@ -391,6 +391,7 @@ CREATE TABLE t3 (
 );
 INSERT INTO t3 VALUES (3, 'Yes');
 
+--sorted_result
 select * from t1 AS m LEFT JOIN t2 AS c1 ON m.c1id = 
 c1.id AND c1.active = 'Yes' LEFT JOIN t3 AS c2 ON m.c2id = c2.id AND 
 c2.active = 'Yes' WHERE m.pid=1  AND (c1.id IS NOT NULL OR c2.id IS NOT NULL);

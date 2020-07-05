@@ -75,7 +75,7 @@ void mlog_write_initial_log_record(
   log_ptr = mlog_open(mtr, 11);
 
   /* If no logging is requested, we may return now */
-  if (log_ptr == NULL) {
+  if (log_ptr == nullptr) {
     return;
   }
 
@@ -130,7 +130,7 @@ byte *mlog_parse_initial_log_record(
     page_no_t *page_no)  /*!< out: page number */
 {
   if (end_ptr < ptr + 1) {
-    return (NULL);
+    return (nullptr);
   }
 
   *type = (mlog_id_t)((ulint)*ptr & ~MLOG_SINGLE_REC_FLAG);
@@ -139,12 +139,12 @@ byte *mlog_parse_initial_log_record(
   ptr++;
 
   if (end_ptr < ptr + 2) {
-    return (NULL);
+    return (nullptr);
   }
 
   *space = mach_parse_compressed(&ptr, end_ptr);
 
-  if (ptr != NULL) {
+  if (ptr != nullptr) {
     *page_no = mach_parse_compressed(&ptr, end_ptr);
   }
 
@@ -169,7 +169,7 @@ byte *mlog_parse_nbytes(
   ut_a(!page || !page_zip || !fil_page_index_page_check(page));
 
   if (end_ptr < ptr + 2) {
-    return (NULL);
+    return (nullptr);
   }
 
   offset = mach_read_from_2(ptr);
@@ -178,14 +178,14 @@ byte *mlog_parse_nbytes(
   if (offset >= UNIV_PAGE_SIZE) {
     recv_sys->found_corrupt_log = TRUE;
 
-    return (NULL);
+    return (nullptr);
   }
 
   if (type == MLOG_8BYTES) {
     dval = mach_u64_parse_compressed(&ptr, end_ptr);
 
-    if (ptr == NULL) {
-      return (NULL);
+    if (ptr == nullptr) {
+      return (nullptr);
     }
 
     if (page) {
@@ -200,8 +200,8 @@ byte *mlog_parse_nbytes(
 
   val = mach_parse_compressed(&ptr, end_ptr);
 
-  if (ptr == NULL) {
-    return (NULL);
+  if (ptr == nullptr) {
+    return (nullptr);
   }
 
   switch (type) {
@@ -238,7 +238,7 @@ byte *mlog_parse_nbytes(
     default:
     corrupt:
       recv_sys->found_corrupt_log = TRUE;
-      ptr = NULL;
+      ptr = nullptr;
   }
 
   return (const_cast<byte *>(ptr));
@@ -266,12 +266,12 @@ void mlog_write_ulint(
       ut_error;
   }
 
-  if (mtr != 0) {
+  if (mtr != nullptr) {
     byte *log_ptr = mlog_open(mtr, 11 + 2 + 5);
 
     /* If no logging is requested, we may return now */
 
-    if (log_ptr != 0) {
+    if (log_ptr != nullptr) {
       log_ptr = mlog_write_initial_log_record_fast(ptr, type, log_ptr, mtr);
 
       mach_write_to_2(log_ptr, page_offset(ptr));
@@ -292,11 +292,11 @@ void mlog_write_ull(byte *ptr,       /*!< in: pointer where to write */
 {
   mach_write_to_8(ptr, val);
 
-  if (mtr != 0) {
+  if (mtr != nullptr) {
     byte *log_ptr = mlog_open(mtr, 11 + 2 + 9);
 
     /* If no logging is requested, we may return now */
-    if (log_ptr != 0) {
+    if (log_ptr != nullptr) {
       log_ptr =
           mlog_write_initial_log_record_fast(ptr, MLOG_8BYTES, log_ptr, mtr);
 
@@ -340,7 +340,7 @@ void mlog_log_string(byte *ptr,  /*!< in: pointer written to */
   log_ptr = mlog_open(mtr, 30);
 
   /* If no logging is requested, we may return now */
-  if (log_ptr == NULL) {
+  if (log_ptr == nullptr) {
     return;
   }
 
@@ -374,7 +374,7 @@ byte *mlog_parse_string(
         fil_page_get_type(page) != FIL_PAGE_RTREE));
 
   if (end_ptr < ptr + 4) {
-    return (NULL);
+    return (nullptr);
   }
 
   offset = mach_read_from_2(ptr);
@@ -385,11 +385,11 @@ byte *mlog_parse_string(
   if (offset >= UNIV_PAGE_SIZE || len + offset > UNIV_PAGE_SIZE) {
     recv_sys->found_corrupt_log = TRUE;
 
-    return (NULL);
+    return (nullptr);
   }
 
   if (end_ptr < ptr + len) {
-    return (NULL);
+    return (nullptr);
   }
 
   if (page) {
@@ -424,7 +424,7 @@ byte *mlog_open_and_write_index(
   if (!page_rec_is_comp(rec)) {
     log_start = log_ptr = mlog_open(mtr, 11 + size);
     if (!log_ptr) {
-      return (NULL); /* logging is disabled */
+      return (nullptr); /* logging is disabled */
     }
     log_ptr = mlog_write_initial_log_record_fast(rec, type, log_ptr, mtr);
     log_end = log_ptr + 11 + size;
@@ -448,7 +448,7 @@ byte *mlog_open_and_write_index(
     log_start = log_ptr = mlog_open(mtr, alloc);
 
     if (!log_ptr) {
-      return (NULL); /* logging is disabled */
+      return (nullptr); /* logging is disabled */
     }
 
     log_end = log_ptr + alloc;
@@ -504,7 +504,7 @@ byte *mlog_open_and_write_index(
         log_start = log_ptr = mlog_open(mtr, alloc);
 
         if (!log_ptr) {
-          return (NULL); /* logging is disabled */
+          return (nullptr); /* logging is disabled */
         }
         log_end = log_ptr + alloc;
       }
@@ -514,14 +514,14 @@ byte *mlog_open_and_write_index(
   }
   if (size == 0) {
     mlog_close(mtr, log_ptr);
-    log_ptr = NULL;
+    log_ptr = nullptr;
   } else if (log_ptr + size > log_end) {
     mlog_close(mtr, log_ptr);
     log_ptr = mlog_open(mtr, size);
   }
   return (log_ptr);
 #else  /* !UNIV_HOTBACKUP */
-  return (NULL);
+  return (nullptr);
 #endif /* !UNIV_HOTBACKUP */
 }
 
@@ -543,7 +543,7 @@ byte *mlog_parse_index(byte *ptr,            /*!< in: buffer */
 
   if (comp) {
     if (end_ptr < ptr + 4) {
-      return (NULL);
+      return (nullptr);
     }
     n = mach_read_from_2(ptr);
     ptr += 2;
@@ -565,7 +565,7 @@ byte *mlog_parse_index(byte *ptr,            /*!< in: buffer */
     ptr += 2;
     ut_ad(n_uniq <= n);
     if (end_ptr < ptr + n * 2) {
-      return (NULL);
+      return (nullptr);
     }
   } else {
     n = n_uniq = 1;
@@ -591,7 +591,7 @@ byte *mlog_parse_index(byte *ptr,            /*!< in: buffer */
       the rest is 0 or 0x7fff for variable-length fields,
       and 1..0x7ffe for fixed-length fields. */
       dict_mem_table_add_col(
-          table, NULL, NULL,
+          table, nullptr, nullptr,
           ((len + 1) & 0x7fff) <= 1 ? DATA_BINARY : DATA_FIXBINARY,
           len & 0x8000 ? DATA_NOT_NULL : 0, len & 0x7fff);
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -34,6 +34,8 @@
 #include <string.h>
 #include <sys/types.h>
 
+#include <algorithm>
+
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_byteorder.h"
@@ -60,7 +62,7 @@ static unsigned long lfactor[9] = {
 static inline int my_bincmp(const uchar *s, const uchar *se, const uchar *t,
                             const uchar *te) {
   int slen = (int)(se - s), tlen = (int)(te - t);
-  int len = MY_MIN(slen, tlen);
+  int len = std::min(slen, tlen);
   int cmp = memcmp(s, t, len);
   return cmp ? cmp : slen - tlen;
 }
@@ -120,7 +122,7 @@ static long my_strntol_mb2_or_mb4(const CHARSET_INFO *cs, const char *nptr,
       }
     } else /* No more characters or bad multibyte sequence */
     {
-      if (endptr != NULL) *endptr = pointer_cast<const char *>(s);
+      if (endptr != nullptr) *endptr = pointer_cast<const char *>(s);
       err[0] = (cnv == MY_CS_ILSEQ) ? EILSEQ : EDOM;
       return 0;
     }
@@ -154,7 +156,7 @@ bs:
         res += wc;
       }
     } else if (cnv == MY_CS_ILSEQ) {
-      if (endptr != NULL) *endptr = pointer_cast<const char *>(s);
+      if (endptr != nullptr) *endptr = pointer_cast<const char *>(s);
       err[0] = EILSEQ;
       return 0;
     } else {
@@ -163,7 +165,7 @@ bs:
     }
   } while (true);
 
-  if (endptr != NULL) *endptr = pointer_cast<const char *>(s);
+  if (endptr != nullptr) *endptr = pointer_cast<const char *>(s);
 
   if (s == save) {
     err[0] = EDOM;
@@ -215,7 +217,7 @@ static ulong my_strntoul_mb2_or_mb4(const CHARSET_INFO *cs, const char *nptr,
       }
     } else /* No more characters or bad multibyte sequence */
     {
-      if (endptr != NULL) *endptr = pointer_cast<const char *>(s);
+      if (endptr != nullptr) *endptr = pointer_cast<const char *>(s);
       err[0] = (cnv == MY_CS_ILSEQ) ? EILSEQ : EDOM;
       return 0;
     }
@@ -249,7 +251,7 @@ bs:
         res += wc;
       }
     } else if (cnv == MY_CS_ILSEQ) {
-      if (endptr != NULL) *endptr = pointer_cast<const char *>(s);
+      if (endptr != nullptr) *endptr = pointer_cast<const char *>(s);
       err[0] = EILSEQ;
       return 0;
     } else {
@@ -258,7 +260,7 @@ bs:
     }
   } while (true);
 
-  if (endptr != NULL) *endptr = pointer_cast<const char *>(s);
+  if (endptr != nullptr) *endptr = pointer_cast<const char *>(s);
 
   if (s == save) {
     err[0] = EDOM;
@@ -305,7 +307,7 @@ static longlong my_strntoll_mb2_or_mb4(const CHARSET_INFO *cs, const char *nptr,
       }
     } else /* No more characters or bad multibyte sequence */
     {
-      if (endptr != NULL) *endptr = pointer_cast<const char *>(s);
+      if (endptr != nullptr) *endptr = pointer_cast<const char *>(s);
       err[0] = (cnv == MY_CS_ILSEQ) ? EILSEQ : EDOM;
       return 0;
     }
@@ -339,7 +341,7 @@ bs:
         res += wc;
       }
     } else if (cnv == MY_CS_ILSEQ) {
-      if (endptr != NULL) *endptr = pointer_cast<const char *>(s);
+      if (endptr != nullptr) *endptr = pointer_cast<const char *>(s);
       err[0] = EILSEQ;
       return 0;
     } else {
@@ -348,7 +350,7 @@ bs:
     }
   } while (true);
 
-  if (endptr != NULL) *endptr = pointer_cast<const char *>(s);
+  if (endptr != nullptr) *endptr = pointer_cast<const char *>(s);
 
   if (s == save) {
     err[0] = EDOM;
@@ -400,7 +402,7 @@ static ulonglong my_strntoull_mb2_or_mb4(const CHARSET_INFO *cs,
       }
     } else /* No more characters or bad multibyte sequence */
     {
-      if (endptr != NULL) *endptr = pointer_cast<const char *>(s);
+      if (endptr != nullptr) *endptr = pointer_cast<const char *>(s);
       err[0] = (cnv == MY_CS_ILSEQ) ? EILSEQ : EDOM;
       return 0;
     }
@@ -434,7 +436,7 @@ bs:
         res += wc;
       }
     } else if (cnv == MY_CS_ILSEQ) {
-      if (endptr != NULL) *endptr = pointer_cast<const char *>(s);
+      if (endptr != nullptr) *endptr = pointer_cast<const char *>(s);
       err[0] = EILSEQ;
       return 0;
     } else {
@@ -443,7 +445,7 @@ bs:
     }
   } while (true);
 
-  if (endptr != NULL) *endptr = pointer_cast<const char *>(s);
+  if (endptr != nullptr) *endptr = pointer_cast<const char *>(s);
 
   if (s == save) {
     err[0] = EDOM;
@@ -1248,7 +1250,7 @@ static int my_wildcmp_utf16_bin(const CHARSET_INFO *cs, const char *str,
                                 const char *wildend, int escape, int w_one,
                                 int w_many) {
   return my_wildcmp_unicode(cs, str, str_end, wildstr, wildend, escape, w_one,
-                            w_many, NULL);
+                            w_many, nullptr);
 }
 
 static int my_strnncoll_utf16_bin(const CHARSET_INFO *cs, const uchar *s,
@@ -1375,7 +1377,7 @@ static MY_COLLATION_HANDLER my_collation_utf16_bin_handler = {
     my_propagate_simple};
 
 MY_CHARSET_HANDLER my_charset_utf16_handler = {
-    NULL,               /* init         */
+    nullptr,            /* init         */
     my_ismbchar_utf16,  /* ismbchar     */
     my_mbcharlen_utf16, /* mbcharlen    */
     my_numchars_utf16,
@@ -1412,18 +1414,18 @@ CHARSET_INFO my_charset_utf16_general_ci = {
     "utf16",             /* cs name    */
     "utf16_general_ci",  /* name         */
     "UTF-16 Unicode",    /* comment      */
-    NULL,                /* tailoring    */
-    NULL,                /* coll_param   */
-    NULL,                /* ctype        */
-    NULL,                /* to_lower     */
-    NULL,                /* to_upper     */
-    NULL,                /* sort_order   */
-    NULL,                /* uca          */
-    NULL,                /* tab_to_uni   */
-    NULL,                /* tab_from_uni */
+    nullptr,             /* tailoring    */
+    nullptr,             /* coll_param   */
+    nullptr,             /* ctype        */
+    nullptr,             /* to_lower     */
+    nullptr,             /* to_upper     */
+    nullptr,             /* sort_order   */
+    nullptr,             /* uca          */
+    nullptr,             /* tab_to_uni   */
+    nullptr,             /* tab_from_uni */
     &my_unicase_default, /* caseinfo     */
-    NULL,                /* state_map    */
-    NULL,                /* ident_map    */
+    nullptr,             /* state_map    */
+    nullptr,             /* ident_map    */
     1,                   /* strxfrm_multiply */
     1,                   /* caseup_multiply  */
     1,                   /* casedn_multiply  */
@@ -1448,18 +1450,18 @@ CHARSET_INFO my_charset_utf16_bin = {
     "utf16",             /* cs name      */
     "utf16_bin",         /* name         */
     "UTF-16 Unicode",    /* comment      */
-    NULL,                /* tailoring    */
-    NULL,                /* coll_param   */
-    NULL,                /* ctype        */
-    NULL,                /* to_lower     */
-    NULL,                /* to_upper     */
-    NULL,                /* sort_order   */
-    NULL,                /* uca          */
-    NULL,                /* tab_to_uni   */
-    NULL,                /* tab_from_uni */
+    nullptr,             /* tailoring    */
+    nullptr,             /* coll_param   */
+    nullptr,             /* ctype        */
+    nullptr,             /* to_lower     */
+    nullptr,             /* to_upper     */
+    nullptr,             /* sort_order   */
+    nullptr,             /* uca          */
+    nullptr,             /* tab_to_uni   */
+    nullptr,             /* tab_from_uni */
     &my_unicase_default, /* caseinfo     */
-    NULL,                /* state_map    */
-    NULL,                /* ident_map    */
+    nullptr,             /* state_map    */
+    nullptr,             /* ident_map    */
     1,                   /* strxfrm_multiply */
     1,                   /* caseup_multiply  */
     1,                   /* casedn_multiply  */
@@ -1531,7 +1533,7 @@ static size_t my_lengthsp_utf16le(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 }  // extern "C"
 
 static MY_CHARSET_HANDLER my_charset_utf16le_handler = {
-    NULL, /* init         */
+    nullptr, /* init         */
     my_ismbchar_utf16,
     my_mbcharlen_utf16,
     my_numchars_utf16,
@@ -1568,18 +1570,18 @@ CHARSET_INFO my_charset_utf16le_general_ci = {
     "utf16le",            /* cs name    */
     "utf16le_general_ci", /* name         */
     "UTF-16LE Unicode",   /* comment      */
-    NULL,                 /* tailoring    */
-    NULL,                 /* coll_param   */
-    NULL,                 /* ctype        */
-    NULL,                 /* to_lower     */
-    NULL,                 /* to_upper     */
-    NULL,                 /* sort_order   */
-    NULL,                 /* uca          */
-    NULL,                 /* tab_to_uni   */
-    NULL,                 /* tab_from_uni */
+    nullptr,              /* tailoring    */
+    nullptr,              /* coll_param   */
+    nullptr,              /* ctype        */
+    nullptr,              /* to_lower     */
+    nullptr,              /* to_upper     */
+    nullptr,              /* sort_order   */
+    nullptr,              /* uca          */
+    nullptr,              /* tab_to_uni   */
+    nullptr,              /* tab_from_uni */
     &my_unicase_default,  /* caseinfo     */
-    NULL,                 /* state_map    */
-    NULL,                 /* ident_map    */
+    nullptr,              /* state_map    */
+    nullptr,              /* ident_map    */
     1,                    /* strxfrm_multiply */
     1,                    /* caseup_multiply  */
     1,                    /* casedn_multiply  */
@@ -1604,18 +1606,18 @@ CHARSET_INFO my_charset_utf16le_bin = {
     "utf16le",           /* cs name      */
     "utf16le_bin",       /* name         */
     "UTF-16LE Unicode",  /* comment      */
-    NULL,                /* tailoring    */
-    NULL,                /* coll_param   */
-    NULL,                /* ctype        */
-    NULL,                /* to_lower     */
-    NULL,                /* to_upper     */
-    NULL,                /* sort_order   */
-    NULL,                /* uca          */
-    NULL,                /* tab_to_uni   */
-    NULL,                /* tab_from_uni */
+    nullptr,             /* tailoring    */
+    nullptr,             /* coll_param   */
+    nullptr,             /* ctype        */
+    nullptr,             /* to_lower     */
+    nullptr,             /* to_upper     */
+    nullptr,             /* sort_order   */
+    nullptr,             /* uca          */
+    nullptr,             /* tab_to_uni   */
+    nullptr,             /* tab_from_uni */
     &my_unicase_default, /* caseinfo     */
-    NULL,                /* state_map    */
-    NULL,                /* ident_map    */
+    nullptr,             /* state_map    */
+    nullptr,             /* ident_map    */
     1,                   /* strxfrm_multiply */
     1,                   /* caseup_multiply  */
     1,                   /* casedn_multiply  */
@@ -2182,7 +2184,7 @@ static int my_wildcmp_utf32_bin(const CHARSET_INFO *cs, const char *str,
                                 const char *wildend, int escape, int w_one,
                                 int w_many) {
   return my_wildcmp_unicode(cs, str, str_end, wildstr, wildend, escape, w_one,
-                            w_many, NULL);
+                            w_many, nullptr);
 }
 
 static int my_strnncoll_utf32_bin(const CHARSET_INFO *cs, const uchar *s,
@@ -2229,7 +2231,7 @@ static int my_strnncollsp_utf32_bin(
   se = s + slen;
   te = t + tlen;
 
-  for (minlen = MY_MIN(slen, tlen); minlen; minlen -= 4) {
+  for (minlen = std::min(slen, tlen); minlen; minlen -= 4) {
     my_wc_t s_wc = my_utf32_get(s);
     my_wc_t t_wc = my_utf32_get(t);
     if (s_wc != t_wc) return s_wc > t_wc ? 1 : -1;
@@ -2302,7 +2304,7 @@ static MY_COLLATION_HANDLER my_collation_utf32_bin_handler = {
     my_hash_sort_utf32,
     my_propagate_simple};
 
-MY_CHARSET_HANDLER my_charset_utf32_handler = {NULL, /* init */
+MY_CHARSET_HANDLER my_charset_utf32_handler = {nullptr, /* init */
                                                my_ismbchar_utf32,
                                                my_mbcharlen_utf32,
                                                my_numchars_utf32,
@@ -2339,18 +2341,18 @@ CHARSET_INFO my_charset_utf32_general_ci = {
     "utf32",             /* cs name    */
     "utf32_general_ci",  /* name         */
     "UTF-32 Unicode",    /* comment      */
-    NULL,                /* tailoring    */
-    NULL,                /* coll_param   */
-    NULL,                /* ctype        */
-    NULL,                /* to_lower     */
-    NULL,                /* to_upper     */
-    NULL,                /* sort_order   */
-    NULL,                /* uca          */
-    NULL,                /* tab_to_uni   */
-    NULL,                /* tab_from_uni */
+    nullptr,             /* tailoring    */
+    nullptr,             /* coll_param   */
+    nullptr,             /* ctype        */
+    nullptr,             /* to_lower     */
+    nullptr,             /* to_upper     */
+    nullptr,             /* sort_order   */
+    nullptr,             /* uca          */
+    nullptr,             /* tab_to_uni   */
+    nullptr,             /* tab_from_uni */
     &my_unicase_default, /* caseinfo     */
-    NULL,                /* state_map    */
-    NULL,                /* ident_map    */
+    nullptr,             /* state_map    */
+    nullptr,             /* ident_map    */
     1,                   /* strxfrm_multiply */
     1,                   /* caseup_multiply  */
     1,                   /* casedn_multiply  */
@@ -2375,18 +2377,18 @@ CHARSET_INFO my_charset_utf32_bin = {
     "utf32",             /* cs name    */
     "utf32_bin",         /* name         */
     "UTF-32 Unicode",    /* comment      */
-    NULL,                /* tailoring    */
-    NULL,                /* coll_param   */
-    NULL,                /* ctype        */
-    NULL,                /* to_lower     */
-    NULL,                /* to_upper     */
-    NULL,                /* sort_order   */
-    NULL,                /* uca          */
-    NULL,                /* tab_to_uni   */
-    NULL,                /* tab_from_uni */
+    nullptr,             /* tailoring    */
+    nullptr,             /* coll_param   */
+    nullptr,             /* ctype        */
+    nullptr,             /* to_lower     */
+    nullptr,             /* to_upper     */
+    nullptr,             /* sort_order   */
+    nullptr,             /* uca          */
+    nullptr,             /* tab_to_uni   */
+    nullptr,             /* tab_from_uni */
     &my_unicase_default, /* caseinfo     */
-    NULL,                /* state_map    */
-    NULL,                /* ident_map    */
+    nullptr,             /* state_map    */
+    nullptr,             /* ident_map    */
     1,                   /* strxfrm_multiply */
     1,                   /* caseup_multiply  */
     1,                   /* casedn_multiply  */
@@ -2646,7 +2648,7 @@ static int my_strnncollsp_ucs2(const CHARSET_INFO *cs, const uchar *s,
   se = s + slen;
   te = t + tlen;
 
-  for (minlen = MY_MIN(slen, tlen); minlen; minlen -= 2) {
+  for (minlen = std::min(slen, tlen); minlen; minlen -= 2) {
     int s_wc = uni_plane->page[s[0]] ? (int)uni_plane->page[s[0]][s[1]].sort
                                      : (((int)s[0]) << 8) + (int)s[1];
 
@@ -2702,7 +2704,7 @@ static size_t my_well_formed_len_ucs2(
   size_t nbytes = ((size_t)(e - b)) & ~(size_t)1;
   *error = 0;
   nchars *= 2;
-  return MY_MIN(nbytes, nchars);
+  return std::min(nbytes, nchars);
 }
 
 static int my_wildcmp_ucs2_ci(const CHARSET_INFO *cs, const char *str,
@@ -2719,7 +2721,7 @@ static int my_wildcmp_ucs2_bin(const CHARSET_INFO *cs, const char *str,
                                const char *wildend, int escape, int w_one,
                                int w_many) {
   return my_wildcmp_unicode(cs, str, str_end, wildstr, wildend, escape, w_one,
-                            w_many, NULL);
+                            w_many, nullptr);
 }
 
 static int my_strnncoll_ucs2_bin(const CHARSET_INFO *cs, const uchar *s,
@@ -2761,7 +2763,7 @@ static int my_strnncollsp_ucs2_bin(
   se = s + slen;
   te = t + tlen;
 
-  for (minlen = MY_MIN(slen, tlen); minlen; minlen -= 2) {
+  for (minlen = std::min(slen, tlen); minlen; minlen -= 2) {
     int s_wc = s[0] * 256 + s[1];
     int t_wc = t[0] * 256 + t[1];
     if (s_wc != t_wc) return s_wc > t_wc ? 1 : -1;
@@ -2837,7 +2839,7 @@ static MY_COLLATION_HANDLER my_collation_ucs2_bin_handler = {
     my_hash_sort_ucs2_bin,
     my_propagate_simple};
 
-MY_CHARSET_HANDLER my_charset_ucs2_handler = {NULL,              /* init */
+MY_CHARSET_HANDLER my_charset_ucs2_handler = {nullptr,           /* init */
                                               my_ismbchar_ucs2,  /* ismbchar  */
                                               my_mbcharlen_ucs2, /* mbcharlen */
                                               my_numchars_ucs2,
@@ -2873,19 +2875,19 @@ CHARSET_INFO my_charset_ucs2_general_ci = {
         MY_CS_NONASCII,
     "ucs2",              /* cs name    */
     "ucs2_general_ci",   /* name         */
-    "",                  /* comment      */
-    NULL,                /* tailoring    */
-    NULL,                /* coll_param   */
+    "UCS-2 Unicode",     /* comment      */
+    nullptr,             /* tailoring    */
+    nullptr,             /* coll_param   */
     ctype_ucs2,          /* ctype        */
     to_lower_ucs2,       /* to_lower     */
     to_upper_ucs2,       /* to_upper     */
     to_upper_ucs2,       /* sort_order   */
-    NULL,                /* uca          */
-    NULL,                /* tab_to_uni   */
-    NULL,                /* tab_from_uni */
+    nullptr,             /* uca          */
+    nullptr,             /* tab_to_uni   */
+    nullptr,             /* tab_from_uni */
     &my_unicase_default, /* caseinfo     */
-    NULL,                /* state_map    */
-    NULL,                /* ident_map    */
+    nullptr,             /* state_map    */
+    nullptr,             /* ident_map    */
     1,                   /* strxfrm_multiply */
     1,                   /* caseup_multiply  */
     1,                   /* casedn_multiply  */
@@ -2909,19 +2911,19 @@ CHARSET_INFO my_charset_ucs2_general_mysql500_ci = {
         MY_CS_NONASCII,         /* state */
     "ucs2",                     /* cs name          */
     "ucs2_general_mysql500_ci", /* name             */
-    "",                         /* comment          */
-    NULL,                       /* tailoring        */
-    NULL,                       /* coll_param       */
+    "UCS-2 Unicode",            /* comment          */
+    nullptr,                    /* tailoring        */
+    nullptr,                    /* coll_param       */
     ctype_ucs2,                 /* ctype            */
     to_lower_ucs2,              /* to_lower         */
     to_upper_ucs2,              /* to_upper         */
     to_upper_ucs2,              /* sort_order       */
-    NULL,                       /* uca              */
-    NULL,                       /* tab_to_uni       */
-    NULL,                       /* tab_from_uni     */
+    nullptr,                    /* uca              */
+    nullptr,                    /* tab_to_uni       */
+    nullptr,                    /* tab_from_uni     */
     &my_unicase_mysql500,       /* caseinfo         */
-    NULL,                       /* state_map        */
-    NULL,                       /* ident_map        */
+    nullptr,                    /* state_map        */
+    nullptr,                    /* ident_map        */
     1,                          /* strxfrm_multiply */
     1,                          /* caseup_multiply  */
     1,                          /* casedn_multiply  */
@@ -2944,19 +2946,19 @@ CHARSET_INFO my_charset_ucs2_bin = {
     MY_CS_COMPILED | MY_CS_BINSORT | MY_CS_UNICODE | MY_CS_NONASCII,
     "ucs2",              /* cs name    */
     "ucs2_bin",          /* name         */
-    "",                  /* comment      */
-    NULL,                /* tailoring    */
-    NULL,                /* coll_param   */
+    "UCS-2 Unicode",     /* comment      */
+    nullptr,             /* tailoring    */
+    nullptr,             /* coll_param   */
     ctype_ucs2,          /* ctype        */
     to_lower_ucs2,       /* to_lower     */
     to_upper_ucs2,       /* to_upper     */
-    NULL,                /* sort_order   */
-    NULL,                /* uca          */
-    NULL,                /* tab_to_uni   */
-    NULL,                /* tab_from_uni */
+    nullptr,             /* sort_order   */
+    nullptr,             /* uca          */
+    nullptr,             /* tab_to_uni   */
+    nullptr,             /* tab_from_uni */
     &my_unicase_default, /* caseinfo     */
-    NULL,                /* state_map    */
-    NULL,                /* ident_map    */
+    nullptr,             /* state_map    */
+    nullptr,             /* ident_map    */
     1,                   /* strxfrm_multiply */
     1,                   /* caseup_multiply  */
     1,                   /* casedn_multiply  */

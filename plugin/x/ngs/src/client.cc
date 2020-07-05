@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -35,8 +35,7 @@
 #include <functional>
 #include <sstream>
 
-#include "my_dbug.h"  // NOLINT(build/include_subdir)
-
+#include "my_dbug.h"     // NOLINT(build/include_subdir)
 #include "my_macros.h"   // NOLINT(build/include_subdir)
 #include "my_systime.h"  // my_sleep NOLINT(build/include_subdir)
 
@@ -45,6 +44,9 @@
 #include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/ngs/include/ngs/protocol_encoder.h"
 #include "plugin/x/ngs/include/ngs/scheduler.h"
+#include "plugin/x/protocol/stream/compression/compression_algorithm_lz4.h"
+#include "plugin/x/protocol/stream/compression/compression_algorithm_zlib.h"
+#include "plugin/x/protocol/stream/compression/compression_algorithm_zstd.h"
 #include "plugin/x/src/capabilities/capability_compression.h"
 #include "plugin/x/src/capabilities/handler_auth_mech.h"
 #include "plugin/x/src/capabilities/handler_client_interactive.h"
@@ -56,9 +58,8 @@
 #include "plugin/x/src/interface/session.h"
 #include "plugin/x/src/interface/ssl_context.h"
 #include "plugin/x/src/operations_factory.h"
+#include "plugin/x/src/variables/xpl_global_status_variables.h"
 #include "plugin/x/src/xpl_error.h"
-#include "plugin/x/src/xpl_global_status_variables.h"
-#include "plugin/x/src/xpl_performance_schema.h"
 
 namespace ngs {
 
@@ -76,28 +77,29 @@ class No_idle_processing : public xpl::iface::Waiting_for_io {
 
 Client::Client(std::shared_ptr<xpl::iface::Vio> connection,
                xpl::iface::Server &server, Client_id client_id,
-               xpl::iface::Protocol_monitor *pmon,
-               const Global_timeouts &timeouts)
+               xpl::iface::Protocol_monitor *pmon)
     : m_client_id(client_id),
       m_server(server),
       m_connection(connection),
       m_config(std::make_shared<Protocol_config>(m_server.get_config())),
       m_dispatcher(this),
-      m_decoder(&m_dispatcher, m_connection, pmon, m_config,
-                timeouts.wait_timeout, timeouts.read_timeout),
+      m_decoder(&m_dispatcher, m_connection, pmon, m_config),
       m_client_addr("n/c"),
       m_client_port(0),
       m_state(State::k_invalid),
       m_removed(false),
       m_protocol_monitor(pmon),
       m_session_exit_mutex(KEY_mutex_x_client_session_exit),
-      m_msg_buffer(NULL),
+      m_msg_buffer(nullptr),
       m_msg_buffer_size(0),
       m_supports_expired_passwords(false) {
   snprintf(m_id, sizeof(m_id), "%llu", static_cast<ulonglong>(client_id));
-  m_decoder.set_wait_timeout(timeouts.wait_timeout);
-  m_decoder.set_read_timeout(m_read_timeout = timeouts.read_timeout);
-  m_write_timeout = timeouts.write_timeout;
+
+  const auto &timeouts = m_config->m_global->m_timeouts;
+
+  set_wait_timeout(timeouts.m_wait_timeout);
+  set_write_timeout(timeouts.m_write_timeout);
+  set_read_timeout(timeouts.m_read_timeout);
 }
 
 Client::~Client() {
@@ -111,10 +113,7 @@ xpl::chrono::Time_point Client::get_accept_time() const {
   return m_accept_time;
 }
 
-void Client::reset_accept_time() {
-  m_accept_time = xpl::chrono::now();
-  m_server.restart_client_supervision_timer();
-}
+void Client::reset_accept_time() { m_accept_time = xpl::chrono::now(); }
 
 void Client::activate_tls() {
   log_debug("%s: enabling TLS for client", client_id());
@@ -361,7 +360,7 @@ void Client::remove_client_from_server() {
   }
 }
 
-void Client::on_client_addr(const bool skip_resolve) {
+void Client::on_client_addr() {
   m_client_addr.resize(INET6_ADDRSTRLEN);
 
   switch (m_connection->get_type()) {
@@ -379,6 +378,8 @@ void Client::on_client_addr(const bool skip_resolve) {
   }
 
   // turn IP to hostname for auth uses
+  const bool skip_resolve = xpl::Plugin_system_variables::get_system_variable(
+                                "skip_name_resolve") == "ON";
   if (skip_resolve) return;
 
   m_client_host = "";
@@ -409,8 +410,8 @@ void Client::on_accept() {
 
   m_connection->set_thread_owner();
 
-  // it can be accessed directly (no other thread access thus object)
-  m_state = State::k_accepted;
+  auto expected = State::k_invalid;
+  m_state.compare_exchange_strong(expected, State::k_accepted);
 
   set_encoder(ngs::allocate_object<Protocol_encoder>(
       m_connection,
@@ -448,9 +449,11 @@ void Client::on_session_auth_success(xpl::iface::Session *) {
     }
 
     get_protocol_compression_or_install_it()->set_compression_options(
-        m_cached_compression_algorithm, style, m_cached_max_msg);
+        m_cached_compression_algorithm, style, m_cached_max_msg,
+        m_cached_compression_level);
 
     m_config->m_compression_algorithm = m_cached_compression_algorithm;
+    m_config->m_compression_level = m_cached_compression_level;
   }
 }
 
@@ -523,9 +526,9 @@ Error_code Client::read_one_message_and_dispatch() {
   return decode_error.get_logic_error();
 }
 
-void Client::run(const bool skip_name_resolve) {
+void Client::run() {
   try {
-    on_client_addr(skip_name_resolve);
+    on_client_addr();
     on_accept();
 
     while (m_state != State::k_closing && m_session) {
@@ -554,7 +557,10 @@ void Client::run(const bool skip_name_resolve) {
 }
 
 void Client::set_write_timeout(const uint32_t write_timeout) {
-  m_encoder->get_flusher()->set_write_timeout(write_timeout);
+  if (m_encoder) {
+    m_encoder->get_flusher()->set_write_timeout(write_timeout);
+  }
+  m_write_timeout = write_timeout;
 }
 
 void Client::set_read_timeout(const uint32_t read_timeout) {
@@ -589,12 +595,13 @@ Protocol_encoder_compression *Client::get_protocol_compression_or_install_it() {
   return reinterpret_cast<Protocol_encoder_compression *>(m_encoder.get());
 }
 
-void Client::configure_compression_opts(const Compression_algorithm algo,
-                                        const int64_t max_msg,
-                                        const bool combine) {
+void Client::configure_compression_opts(
+    const Compression_algorithm algo, const int64_t max_msg, const bool combine,
+    const xpl::Optional_value<int64_t> &level) {
   m_cached_compression_algorithm = algo;
   m_cached_max_msg = max_msg;
   m_cached_combine_msg = combine;
+  m_cached_compression_level = get_adjusted_compression_level(algo, level);
 }
 
 bool Client::create_session() {
@@ -612,6 +619,7 @@ bool Client::create_session() {
   if (error) {
     log_warning(ER_XPLUGIN_FAILED_TO_INITIALIZE_SESSION, client_id(),
                 error.message.c_str());
+    error.severity = Error_code::FATAL;
     m_encoder->send_result(error);
     return false;
   }
@@ -622,4 +630,49 @@ bool Client::create_session() {
   }
   return true;
 }
+
+namespace {
+inline int32_t adjust_level(const xpl::Optional_value<int64_t> &level,
+                            const int32_t default_, const int32_t min,
+                            const int32_t max) {
+  if (!level.has_value()) return default_ > max ? max : default_;
+  if (level.value() < min) return min;
+  if (level.value() > max) return max;
+  return level.value();
+}
+}  // namespace
+
+int32_t Client::get_adjusted_compression_level(
+    const Compression_algorithm algo,
+    const xpl::Optional_value<int64_t> &level) const {
+  using Variables = xpl::Plugin_system_variables;
+  switch (algo) {
+    case Compression_algorithm::k_deflate:
+      return adjust_level(
+          level, *Variables::m_deflate_default_compression_level.value(),
+          protocol::Compression_algorithm_zlib::get_level_min(),
+          *Variables::m_deflate_max_client_compression_level.value());
+
+    case Compression_algorithm::k_lz4:
+      return adjust_level(
+          level, *Variables::m_lz4_default_compression_level.value(),
+          protocol::Compression_algorithm_lz4::get_level_min(),
+          *Variables::m_lz4_max_client_compression_level.value());
+
+    case Compression_algorithm::k_zstd:
+      return adjust_level(
+          level.has_value() && level.value() == 0
+              ? xpl::Optional_value<int64_t>(1)
+              : level,
+          *Variables::m_zstd_default_compression_level.value(),
+          protocol::Compression_algorithm_zstd::get_level_min(),
+          *Variables::m_zstd_max_client_compression_level.value());
+
+    case Compression_algorithm::k_none:  // fall-through
+    default: {
+    }
+  }
+  return 1;
+}
+
 }  // namespace ngs

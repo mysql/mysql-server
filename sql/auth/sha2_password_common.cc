@@ -100,7 +100,7 @@ bool SHA256_digest::retrieve_digest(unsigned char *digest,
                         "digest length is not as expected."));
     return true;
   }
-  m_ok = EVP_DigestFinal_ex(md_context, m_digest, NULL);
+  m_ok = EVP_DigestFinal_ex(md_context, m_digest, nullptr);
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   EVP_MD_CTX_cleanup(md_context);
 #else  /* OPENSSL_VERSION_NUMBER < 0x10100000L */
@@ -135,11 +135,11 @@ void SHA256_digest::init() {
     return;
   }
 
-  m_ok = (bool)EVP_DigestInit_ex(md_context, EVP_sha256(), NULL);
+  m_ok = (bool)EVP_DigestInit_ex(md_context, EVP_sha256(), nullptr);
 
   if (!m_ok) {
     EVP_MD_CTX_destroy(md_context);
-    md_context = NULL;
+    md_context = nullptr;
     DBUG_PRINT("info", ("Failed to initialize digest context"));
   }
 }
@@ -150,7 +150,7 @@ void SHA256_digest::init() {
 
 void SHA256_digest::deinit() {
   if (md_context) EVP_MD_CTX_destroy(md_context);
-  md_context = NULL;
+  md_context = nullptr;
   m_ok = false;
 }
 
@@ -182,7 +182,7 @@ Generate_scramble::Generate_scramble(
 
 Generate_scramble::~Generate_scramble() {
   if (m_digest_generator) delete m_digest_generator;
-  m_digest_generator = 0;
+  m_digest_generator = nullptr;
 }
 
 /**
@@ -296,7 +296,7 @@ Validate_scramble::Validate_scramble(
 
 Validate_scramble::~Validate_scramble() {
   if (m_digest_generator) delete m_digest_generator;
-  m_digest_generator = 0;
+  m_digest_generator = nullptr;
 }
 
 /**
@@ -315,9 +315,9 @@ Validate_scramble::~Validate_scramble() {
 
 bool Validate_scramble::validate() {
   DBUG_TRACE;
-  unsigned char *digest_stage1 = 0;
-  unsigned char *digest_stage2 = 0;
-  unsigned char *scramble_stage1 = 0;
+  unsigned char *digest_stage1 = nullptr;
+  unsigned char *digest_stage2 = nullptr;
+  unsigned char *scramble_stage1 = nullptr;
 
   switch (m_digest_type) {
     case Digest_info::SHA256_DIGEST: {

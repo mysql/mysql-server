@@ -1,4 +1,4 @@
-include/group_replication.inc [rpl_server_count=3]
+include/group_replication.inc [rpl_server_count=2]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -24,21 +24,9 @@ call mtr.add_suppression("\\[GCS\\] The member was unable to join the group.*");
 call mtr.add_suppression("Timeout on wait for view after joining group");
 call mtr.add_suppression("Error connecting to the local group communication engine instance");
 SET SESSION sql_log_bin= 1;
-[connection server3]
-SET @tls_version_save= @@GLOBAL.tls_version;
-SET @tls_ciphersuites_save= @@GLOBAL.tls_ciphersuites;
-SET @ssl_cipher_save= @@GLOBAL.ssl_cipher;
-SET @group_replication_ssl_mode_save= @@GLOBAL.group_replication_ssl_mode;
-SET @@GLOBAL.group_replication_ssl_mode= REQUIRED;
-SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("\\[GCS\\] Error connecting to all peers. Member join failed. Local port:*");
-call mtr.add_suppression("\\[GCS\\] The member was unable to join the group.*");
-call mtr.add_suppression("Timeout on wait for view after joining group");
-call mtr.add_suppression("Error connecting to the local group communication engine instance");
-SET SESSION sql_log_bin= 1;
 
 ############################################################
-# 1. 3 members group with OpenSSL 1.1.1
+# 1. 2 members group with OpenSSL 1.1.1
 #    Verify that it is not possible to start group replication  when :
 #      * TLS version is 1.3
 #      * Intersection of the allowed TLS chipersuites for all the members
@@ -47,8 +35,6 @@ SET SESSION sql_log_bin= 1;
 #    server1: --tls-ciphersuites='TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384'
 #    server2: --tls-version='TLSv1.3'
 #    server2: --tls-ciphersuites='TLS_CHACHA20_POLY1305_SHA256:TLS_AES_128_CCM_SHA256'
-#    server3: --tls-version='TLSv1.3'
-#    server3: --tls-ciphersuites='TLS_AES_128_CCM_8_SHA256'
 #    Outcome: group will not work.
 [connection server1]
 SET @@GLOBAL.tls_version= 'TLSv1.3';
@@ -62,14 +48,6 @@ SET @@GLOBAL.tls_ciphersuites= 'TLS_CHACHA20_POLY1305_SHA256:TLS_AES_128_CCM_SHA
 ALTER INSTANCE RELOAD TLS;
 START GROUP_REPLICATION;
 ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
-[connection server3]
-SET GLOBAL group_replication_group_name= "GROUP_REPLICATION_GROUP_NAME";
-SET @@GLOBAL.tls_version= 'TLSv1.3';
-SET @@GLOBAL.tls_ciphersuites= 'TLS_AES_128_CCM_8_SHA256';
-ALTER INSTANCE RELOAD TLS;
-START GROUP_REPLICATION;
-ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
-include/assert_grep.inc [Found the expected error line in the server log.]
 include/assert_grep.inc [Found the expected error line in the server log.]
 [connection server1]
 include/stop_group_replication.inc
@@ -117,12 +95,6 @@ ALTER INSTANCE RELOAD TLS;
 SET @@GLOBAL.group_replication_ssl_mode= @group_replication_ssl_mode_save;
 SET @@GLOBAL.tls_version= @tls_version_save;
 SET @@GLOBAL.tls_ciphersuites= @tls_ciphersuites_save;
-SET @@GLOBAL.ssl_cipher = @ssl_cipher_save;
-ALTER INSTANCE RELOAD TLS;
-[connection server3]
-SET @@GLOBAL.group_replication_ssl_mode= @group_replication_ssl_mode_save;
-SET @@GLOBAL.tls_version= @tls_version_save;
-SET @@GLOBAL.tls_ciphersuites = @tls_ciphersuites_save;
 SET @@GLOBAL.ssl_cipher = @ssl_cipher_save;
 ALTER INSTANCE RELOAD TLS;
 include/group_replication_end.inc

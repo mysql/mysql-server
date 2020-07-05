@@ -75,7 +75,8 @@ extern "C" int init_queue(QUEUE *queue, PSI_memory_key psi_key,
                           void *first_cmp_arg) {
   DBUG_TRACE;
   if ((queue->root = (uchar **)my_malloc(
-           psi_key, (max_elements + 1) * sizeof(void *), MYF(MY_WME))) == 0)
+           psi_key, (max_elements + 1) * sizeof(void *), MYF(MY_WME))) ==
+      nullptr)
     return 1;
   queue->elements = 0;
   queue->compare = compare;
@@ -147,7 +148,7 @@ static int resize_queue(QUEUE *queue, PSI_memory_key psi_key,
   if (queue->max_elements == max_elements) return 0;
   if ((new_root = (uchar **)my_realloc(psi_key, (void *)queue->root,
                                        (max_elements + 1) * sizeof(void *),
-                                       MYF(MY_WME))) == 0)
+                                       MYF(MY_WME))) == nullptr)
     return 1;
   queue->elements = std::min(queue->elements, max_elements);
   queue->max_elements = max_elements;
@@ -172,7 +173,7 @@ static int resize_queue(QUEUE *queue, PSI_memory_key psi_key,
 void delete_queue(QUEUE *queue) {
   DBUG_TRACE;
   my_free(queue->root);
-  queue->root = NULL;
+  queue->root = nullptr;
 }
 
 /* Code for insert, search and delete of elements */

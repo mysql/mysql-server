@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -103,11 +103,11 @@ static void append_to_back(ORDER **first_next, ORDER *column) {
 }
 
 ORDER *Window::first_partition_by() const {
-  return m_partition_by != NULL ? m_partition_by->value.first : NULL;
+  return m_partition_by != nullptr ? m_partition_by->value.first : nullptr;
 }
 
 ORDER *Window::first_order_by() const {
-  return m_order_by != NULL ? m_order_by->value.first : NULL;
+  return m_order_by != nullptr ? m_order_by->value.first : nullptr;
 }
 
 bool Window::check_window_functions(THD *thd, SELECT_LEX *select) {
@@ -1296,6 +1296,8 @@ void Window::cleanup(THD *thd) {
   if (m_needs_frame_buffering && m_frame_buffer != nullptr) {
     (void)m_frame_buffer->file->ha_index_or_rnd_end();
     free_tmp_table(thd, m_frame_buffer);
+    destroy(m_frame_buffer_param);
+    m_frame_buffer_param = nullptr;
   }
 
   for (auto it : {&m_order_by_items, &m_partition_items}) {
@@ -1342,7 +1344,7 @@ void Window::reset_execution_state(Reset_level level) {
       {
         for (auto it : {m_partition_by, m_order_by}) {
           if (it != nullptr) {
-            for (ORDER *o = it->value.first; o != NULL; o = o->next)
+            for (ORDER *o = it->value.first; o != nullptr; o = o->next)
               o->item = &o->item_ptr;
           }
         }

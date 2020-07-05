@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -180,7 +180,7 @@ bool btr_search_own_any(ulint mode) {
 @return latch */
 UNIV_INLINE
 rw_lock_t *btr_get_search_latch(const dict_index_t *index) {
-  ut_ad(index != NULL);
+  ut_ad(index != nullptr);
 
   ulint ifold = ut_fold_ulint_pair(static_cast<ulint>(index->id),
                                    static_cast<ulint>(index->space));
@@ -194,7 +194,7 @@ A table is selected from an array of tables using pair of index-id, space-id.
 @return hash table */
 UNIV_INLINE
 hash_table_t *btr_get_search_table(const dict_index_t *index) {
-  ut_ad(index != NULL);
+  ut_ad(index != nullptr);
 
   ulint ifold = ut_fold_ulint_pair(static_cast<ulint>(index->id),
                                    static_cast<ulint>(index->space));

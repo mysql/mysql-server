@@ -65,6 +65,7 @@ c1	c2
 7	hhhhh
 8	iiiii
 9	jjjjj
+# restart:
 SELECT * FROM test.t1 LIMIT 10;
 c1	c2
 0	aaaaa

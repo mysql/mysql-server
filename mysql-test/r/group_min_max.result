@@ -1538,7 +1538,7 @@ where exists ( select * from t2 where t2.c > 'b1' )
 group by a1,a2,b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	index	NULL	idx_t2_1	163	NULL	164	33.33	Using where; Using index; Using temporary; FirstMatch
-1	SIMPLE	t1	NULL	index	idx_t1_1,idx_t1_2	idx_t1_1	163	NULL	128	100.00	Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	index	idx_t1_1,idx_t1_2	idx_t1_1	163	NULL	128	100.00	Using index; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,min(`test`.`t1`.`c`) AS `min(c)`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t2`.`c` > 'b1') group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain select a1,a2,b,min(c),max(c) from t1 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
@@ -2593,7 +2593,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1_outer	NULL	index	NULL	a	10	NULL	20	100.00	Using where; Using index
 2	SUBQUERY	t1	NULL	range	a	a	5	NULL	11	100.00	Using index for group-by
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` `t1_outer` where <in_optimizer>(`test`.`t1_outer`.`a`,`test`.`t1_outer`.`a` in ( <materialize> (/* select#2 */ select max(`test`.`t1`.`b`) from `test`.`t1` group by `test`.`t1`.`a` having (`test`.`t1`.`a` < 2) ), <primary_index_lookup>(`test`.`t1_outer`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1_outer`.`a` = `materialized-subquery`.`max(b)`)))))
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` `t1_outer` where <in_optimizer>(`test`.`t1_outer`.`a`,`test`.`t1_outer`.`a` in ( <materialize> (/* select#2 */ select max(`test`.`t1`.`b`) from `test`.`t1` group by `test`.`t1`.`a` having (`test`.`t1`.`a` < 2) ), <primary_index_lookup>(`test`.`t1_outer`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1_outer`.`a` = `<materialized_subquery>`.`max(b)`)))))
 EXPLAIN SELECT 1 FROM t1 AS t1_outer GROUP BY a HAVING 
 a > (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2606,7 +2606,7 @@ ON t1_outer1.a = (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2)
 AND t1_outer1.b = t1_outer2.b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_outer1	NULL	ref	a	a	5	const	5	100.00	Using where; Using index
-1	PRIMARY	t1_outer2	NULL	index	NULL	a	10	NULL	20	10.00	Using where; Using index; Using join buffer (Block Nested Loop)
+1	PRIMARY	t1_outer2	NULL	index	NULL	a	10	NULL	20	10.00	Using where; Using index; Using join buffer (hash join)
 2	SUBQUERY	t1	NULL	range	a	a	5	NULL	11	100.00	Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` `t1_outer1` join `test`.`t1` `t1_outer2` where ((`test`.`t1_outer2`.`b` = `test`.`t1_outer1`.`b`) and (`test`.`t1_outer1`.`a` = (/* select#2 */ select max(`test`.`t1`.`b`) from `test`.`t1` group by `test`.`t1`.`a` having (`test`.`t1`.`a` < 2))))
@@ -3365,7 +3365,7 @@ SELECT 1 FROM t1 GROUP BY a HAVING COUNT(DISTINCT b) > 1;
 EXPLAIN SELECT COUNT(DISTINCT t1_1.a) FROM t1 t1_1, t1 t1_2 GROUP BY t1_1.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1_1	NULL	index	a	a	10	NULL	32	100.00	Using index; Using temporary; Using filesort
-1	SIMPLE	t1_2	NULL	index	NULL	a	10	NULL	32	100.00	Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1_2	NULL	index	NULL	a	10	NULL	32	100.00	Using index; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select count(distinct `test`.`t1_1`.`a`) AS `COUNT(DISTINCT t1_1.a)` from `test`.`t1` `t1_1` join `test`.`t1` `t1_2` group by `test`.`t1_1`.`a`
 SELECT COUNT(DISTINCT t1_1.a) FROM t1 t1_1, t1 t1_2 GROUP BY t1_1.a;

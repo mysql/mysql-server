@@ -37,8 +37,7 @@ TEST_F(RouterUserOptionTest, UserOptionNoSudo) {
 
   check_exit_code(router, EXIT_FAILURE);
   EXPECT_TRUE(router.expect_output(
-      "Error: One can only use the -u/--user switch if running as root"))
-      << router.get_full_output();
+      "Error: One can only use the -u/--user switch if running as root"));
 
   // That's more to test the framework itself:
   // The consecutive calls to exit_code() should be possible  and return the
@@ -54,8 +53,7 @@ TEST_F(RouterUserOptionTest, UserOptionBeforeBootstrap) {
 
   check_exit_code(router, EXIT_FAILURE);
   EXPECT_TRUE(router.expect_output(
-      "Error: One can only use the -u/--user switch if running as root"))
-      << router.get_full_output();
+      "Error: One can only use the -u/--user switch if running as root"));
 
   check_exit_code(router, EXIT_FAILURE);
 }
@@ -66,8 +64,7 @@ TEST_F(RouterUserOptionTest, UserOptionOnWindows) {
   auto &router = launch_router(
       {"--bootstrap=127.0.0.1:5000", "--user=mysqlrouter"}, EXIT_FAILURE);
 
-  ASSERT_TRUE(router.expect_output("Error: unknown option '--user'."))
-      << router.get_full_output();
+  ASSERT_TRUE(router.expect_output("Error: unknown option '--user'."));
   check_exit_code(router, EXIT_FAILURE);
 }
 #endif

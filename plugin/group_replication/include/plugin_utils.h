@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -511,9 +511,9 @@ class Wait_ticket {
 
   /**
     Check if there are waiting tickets.
-    @return
-         @retval true    empty
-         @retval false   otherwise
+
+    @retval true    empty
+    @retval false   otherwise
   */
   bool empty() {
     bool result = false;
@@ -529,9 +529,8 @@ class Wait_ticket {
     Register ticker with status ongoing.
 
     @param       key     The key that identifies the ticket
-    @return
-         @retval 0       success
-         @retval !=0     key already exists, error on insert or it is blocked
+    @retval 0       success
+    @retval !=0     key already exists, error on insert or it is blocked
   */
   int registerTicket(const K &key) {
     int error = 0;
@@ -568,13 +567,12 @@ class Wait_ticket {
     @param       key       The key that identifies the ticket
     @param       timeout   maximum time in seconds to wait
                            by default is 0, which means no timeout
-    @return
-         @retval 0         success
-         @retval !=0       key doesn't exist, or the Ticket is blocked
+    @retval 0         success
+    @retval !=0       key doesn't exist, or the Ticket is blocked
   */
   int waitTicket(const K &key, ulong timeout = 0) {
     int error = 0;
-    CountDownLatch *cdl = NULL;
+    CountDownLatch *cdl = nullptr;
 
     mysql_mutex_lock(&lock);
 
@@ -590,7 +588,7 @@ class Wait_ticket {
       cdl = it->second;
     mysql_mutex_unlock(&lock);
 
-    if (cdl != NULL) {
+    if (cdl != nullptr) {
       cdl->wait(timeout);
       error = cdl->get_error() ? 1 : 0;
 
@@ -615,9 +613,8 @@ class Wait_ticket {
     @param       key                   The key that identifies the ticket
     @param       release_due_to_error  Inform the thread waiting that the
                                         release is due to a error
-    @return
-         @retval 0         success
-         @retval !=0       (key doesn't exist)
+    @retval 0         success
+    @retval !=0       (key doesn't exist)
   */
   int releaseTicket(const K &key, bool release_due_to_error = false) {
     int error = 0;
@@ -702,7 +699,7 @@ class Shared_writelock {
       : shared_write_lock(arg), write_lock_in_use(false) {
     DBUG_TRACE;
 
-    DBUG_ASSERT(arg != NULL);
+    DBUG_ASSERT(arg != nullptr);
 
     mysql_mutex_init(key_GR_LOCK_write_lock_protection, &write_lock,
                      MY_MUTEX_INIT_FAST);
@@ -756,9 +753,8 @@ class Shared_writelock {
   /**
     Grab a read lock only if there is no write lock acquired.
 
-    @return
-         @retval 0         read lock acquired
-         @retval !=0       there is a write lock acquired
+    @retval 0         read lock acquired
+    @retval !=0       there is a write lock acquired
   */
   int try_grab_read_lock() {
     int res = 0;
@@ -858,9 +854,8 @@ class Plugin_waitlock {
   /**
     Checks whether thread should be blocked
 
-    @return
-         @retval true      thread should be blocked
-         @retval false     thread should not be blocked
+    @retval true      thread should be blocked
+    @retval false     thread should not be blocked
   */
   bool is_waiting() {
     mysql_mutex_lock(wait_lock);

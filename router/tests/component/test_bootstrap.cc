@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -195,8 +195,7 @@ void CommonBootstrapTest::bootstrap_failover(
                            kRootPassword + "\n"s);
 
   ASSERT_NO_FATAL_FAILURE(
-      check_exit_code(router, expected_exitcode, wait_for_exit_timeout))
-      << std::get<0>(mock_servers[0]).get_full_output();
+      check_exit_code(router, expected_exitcode, wait_for_exit_timeout));
 
   // split the output into lines
   std::vector<std::string> lines;
@@ -210,23 +209,16 @@ void CommonBootstrapTest::bootstrap_failover(
 
   for (auto const &re_str : expected_output_regex) {
     EXPECT_THAT(lines, ::testing::Contains(::testing::ContainsRegex(re_str)))
-        << "router:" << router.get_full_output() << std::endl
         << mock_servers;
   }
 
   if (EXIT_SUCCESS == expected_exitcode) {
-    // fetch all the content for debugging
-    for (auto &mock_server : mock_servers) {
-      std::get<0>(mock_server).get_full_output();
-    }
     const std::string cluster_type_name = cluster_type == ClusterType::RS_V2
                                               ? "InnoDB ReplicaSet"
                                               : "InnoDB Cluster";
     EXPECT_THAT(lines, ::testing::Contains(
                            "# MySQL Router configured for the " +
-                           cluster_type_name + " '" + cluster_name + "'"))
-        << "router:" << router.get_full_output() << std::endl
-        << mock_servers;
+                           cluster_type_name + " '" + cluster_name + "'"));
 
     config_file = bootstrap_dir.name() + "/mysqlrouter.conf";
 
@@ -291,6 +283,8 @@ router_id=1)";
   const char *expected_config_gr_part2 =
       R"(metadata_cluster=mycluster
 ttl=0.5
+auth_cache_ttl=-1
+auth_cache_refresh_interval=2
 use_gr_notifications=0
 
 [routing:mycluster_rw]
@@ -331,6 +325,8 @@ router_id=1)";
   const char *expected_config_ar_part2 =
       R"(metadata_cluster=mycluster
 ttl=0.5
+auth_cache_ttl=-1
+auth_cache_refresh_interval=2
 
 [routing:mycluster_rw]
 bind_address=0.0.0.0
@@ -373,7 +369,7 @@ protocol=x)";
   EXPECT_TRUE(config_file_str.find(config_file_expected1) !=
                   std::string::npos &&
               config_file_str.find(config_file_expected2) != std::string::npos)
-      << "Unexptected config file output:" << std::endl
+      << "Unexpected config file output:" << std::endl
       << config_file_str << std::endl
       << "Expected:" << config_file_expected1 << std::endl
       << config_file_expected2;
@@ -618,6 +614,138 @@ TEST_F(CommonBootstrapTest, BootstrapWhileMetadataUpgradeInProgress) {
          "rerun the bootstrap when it is finished."},
         10s, {0, 0, 0});
   }
+}
+
+/**
+ * @test
+ *       verify that the router's \c --bootstrap handles --pid-file option on
+ *       command line correctly
+ *       TS_FR12_01
+ */
+TEST_F(CommonBootstrapTest, BootstrapPidfileOpt) {
+  TempDirectory mytmp;
+  std::string pidfile =
+      mysql_harness::Path(mytmp.name()).join("test.pid").str();
+
+  {
+    std::vector<Config> config{
+        {"127.0.0.1", port_pool_.get_next_available(),
+         port_pool_.get_next_available(),
+         get_data_dir().join("bootstrap_gr.js").str()},
+    };
+
+    std::vector<std::string> router_options = {
+        "--pid-file",
+        pidfile,
+        "--bootstrap=" + config.at(0).ip + ":" +
+            std::to_string(config.at(0).port),
+        "-d",
+        bootstrap_dir.name(),
+        "--report-host",
+        my_hostname};
+
+    bootstrap_failover(config, ClusterType::GR_V2, router_options, EXIT_FAILURE,
+                       {"^Error: Option --pid-file cannot be used together "
+                        "with -B/--bootstrap"},
+                       10s);
+  }
+}
+
+/**
+ * @test
+ *       verify that the router's \c --bootstrap handles pid_file option in
+ *       config file correctly
+ *       TS_FR13_01
+ */
+TEST_F(CommonBootstrapTest, BootstrapPidfileCfg) {
+  TempDirectory mytmp;
+  TempDirectory conf_dir("conf");
+  std::string pidfile =
+      mysql_harness::Path(mytmp.name()).real_path().join("test.pid").str();
+
+  auto params = get_DEFAULT_defaults();
+  params["pid_file"] = pidfile;
+  std::string conf_file = create_config_file(conf_dir.name(), "", &params);
+
+  {
+    std::vector<Config> config{
+        {"127.0.0.1", port_pool_.get_next_available(),
+         port_pool_.get_next_available(),
+         get_data_dir().join("bootstrap_gr.js").str()},
+    };
+
+    std::vector<std::string> router_options = {
+        "-c",
+        conf_file,
+        "--bootstrap=" + config.at(0).ip + ":" +
+            std::to_string(config.at(0).port),
+        "-d",
+        bootstrap_dir.name(),
+        "--report-host",
+        my_hostname};
+
+    bootstrap_failover(config, ClusterType::GR_V2, router_options);
+
+    ASSERT_FALSE(mysql_harness::Path(pidfile.c_str()).exists());
+  }
+
+  // Post check that pid_file is not included in config
+  const std::string config_file_str = get_file_output(config_file);
+
+  EXPECT_TRUE(config_file_str.find("pid_file") == std::string::npos)
+      << "config file includes pid_file setting :" << std::endl
+      << config_file_str << std::endl;
+}
+
+/**
+ * @test
+ *       verify that the router's \c --bootstrap does not create a pidfile when
+ *       ROUTER_PID is specified
+ *       TS_FR13_02
+ */
+TEST_F(CommonBootstrapTest, BootstrapPidfileEnv) {
+  // Set ROUTER_PID
+  TempDirectory mytmp;
+  std::string pidfile =
+      mysql_harness::Path(mytmp.name()).real_path().join("test.pid").str();
+#ifdef _WIN32
+  int err_code = _putenv_s("ROUTER_PID", pidfile.c_str());
+#else
+  int err_code = ::setenv("ROUTER_PID", pidfile.c_str(), 1);
+#endif
+  if (err_code) throw std::runtime_error("Failed to add ROUTER_PID");
+
+  {
+    std::vector<Config> config{
+        {"127.0.0.1", port_pool_.get_next_available(),
+         port_pool_.get_next_available(),
+         get_data_dir().join("bootstrap_gr.js").str()},
+    };
+
+    std::vector<std::string> router_options = {
+        "--bootstrap=" + config.at(0).ip + ":" +
+            std::to_string(config.at(0).port),
+        "-d", bootstrap_dir.name(), "--report-host", my_hostname};
+
+    bootstrap_failover(config, ClusterType::GR_V2, router_options);
+
+    ASSERT_FALSE(mysql_harness::Path(pidfile.c_str()).exists());
+  }
+
+  // reset ROUTER_PID
+#ifdef _WIN32
+  err_code = _putenv_s("ROUTER_PID", "");
+#else
+  err_code = ::unsetenv("ROUTER_PID");
+#endif
+  if (err_code) throw std::runtime_error("Failed to remove ROUTER_PID");
+
+  // Post check that pid_file is not included in config
+  const std::string config_file_str = get_file_output(config_file);
+
+  EXPECT_TRUE(config_file_str.find("pid_file") == std::string::npos)
+      << "config file includes pid_file setting :" << std::endl
+      << config_file_str << std::endl;
 }
 
 class RouterBootstrapFailoverSuperReadonly
@@ -1047,17 +1175,13 @@ TEST_F(RouterBootstrapTest,
   EXPECT_TRUE(
       router.expect_output("Error: Could not create file "
                            "'.*/mysqlrouter.conf.bak'",
-                           true))
-      << router.get_full_output() << std::endl
-      << "server: " << server_mock.get_full_output();
+                           true));
 
   // expect that the bootstrap success message (bootstrap report) is not
   // displayed
   EXPECT_FALSE(
       router.expect_output("MySQL Router configured for the "
-                           "InnoDB cluster 'mycluster'"))
-      << router.get_full_output() << std::endl
-      << "server: " << server_mock.get_full_output();
+                           "InnoDB cluster 'mycluster'"));
 
   server_mock.kill();
 }
@@ -1564,8 +1688,7 @@ class AccountReuseTestBase : public CommonBootstrapTest {
     constexpr bool debug = true;
     auto &server_mock = launch_mysql_server_mock(
         json_stmts, server_port, EXIT_SUCCESS, debug, server_http_port);
-    EXPECT_TRUE(wait_for_port_ready(server_port))
-        << server_mock.get_full_output();
+    EXPECT_TRUE(wait_for_port_ready(server_port));
     return server_mock;
   }
 
@@ -1712,11 +1835,11 @@ class AccountReuseTestBase : public CommonBootstrapTest {
       }
     }
 
-    for (const std::string output : exp_output) {
+    for (const std::string &output : exp_output) {
       EXPECT_TRUE(router.expect_output(output)) << "-------- expected output:\n"
                                                 << output << std::endl;
     }
-    for (const std::string output : unexp_output) {
+    for (const std::string &output : unexp_output) {
       EXPECT_FALSE(router.expect_output(output))
           << "-------- unexpected output:\n"
           << output << std::endl;
@@ -2154,8 +2277,7 @@ TEST_F(AccountReuseBadCmdlineTest, account_without_bootstrap_switch) {
 
   // check if the bootstraping was successful
   EXPECT_TRUE(router.expect_output(
-      "Option --account can only be used together with -B/--bootstrap"))
-      << router.get_full_output() << std::endl;
+      "Option --account can only be used together with -B/--bootstrap"));
   check_exit_code(router, EXIT_FAILURE);
 }
 
@@ -2172,8 +2294,7 @@ TEST_F(AccountReuseBadCmdlineTest, account_argument_missing) {
 
   // check if the bootstraping was successful
   EXPECT_TRUE(
-      router.expect_output("option '--account' expects a value, got nothing"))
-      << router.get_full_output() << std::endl;
+      router.expect_output("option '--account' expects a value, got nothing"));
   check_exit_code(router, EXIT_FAILURE);
 }
 
@@ -2189,9 +2310,8 @@ TEST_F(AccountReuseBadCmdlineTest, account_argument_empty) {
       ProcessManager::launch_router({"-B=0", "--account", ""}, EXIT_FAILURE);
 
   // check if the bootstraping was successful
-  EXPECT_TRUE(
-      router.expect_output("Error: Value for --account option cannot be empty"))
-      << router.get_full_output() << std::endl;
+  EXPECT_TRUE(router.expect_output(
+      "Error: Value for --account option cannot be empty"));
   check_exit_code(router, EXIT_FAILURE);
 }
 
@@ -2205,8 +2325,7 @@ TEST_F(AccountReuseBadCmdlineTest, account_given_twice) {
       {"-B=0", "--account", "user1", "--account", "user2"}, EXIT_FAILURE);
 
   // check if the bootstraping was successful
-  EXPECT_TRUE(router.expect_output(" Option --account can only be given once"))
-      << router.get_full_output() << std::endl;
+  EXPECT_TRUE(router.expect_output(" Option --account can only be given once"));
   check_exit_code(router, EXIT_FAILURE);
 }
 
@@ -2224,8 +2343,7 @@ TEST_F(AccountReuseBadCmdlineTest, account_create_without_account_switch) {
 
   // check if the bootstraping was successful
   EXPECT_TRUE(router.expect_output(
-      "Option --account-create can only be used together with --account"))
-      << router.get_full_output() << std::endl;
+      "Option --account-create can only be used together with --account"));
   check_exit_code(router, EXIT_FAILURE);
 }
 
@@ -2243,8 +2361,7 @@ TEST_F(AccountReuseBadCmdlineTest, account_create_argument_missing) {
 
   // check if the bootstraping was successful
   EXPECT_TRUE(router.expect_output(
-      "option '--account-create' expects a value, got nothing"))
-      << router.get_full_output() << std::endl;
+      "option '--account-create' expects a value, got nothing"));
   check_exit_code(router, EXIT_FAILURE);
 }
 
@@ -2263,8 +2380,7 @@ TEST_F(AccountReuseBadCmdlineTest, account_create_illegal_value) {
   // check if the bootstraping was successful
   EXPECT_TRUE(
       router.expect_output("Invalid value for --account-create option.  Valid "
-                           "values: always, if-not-exists, never"))
-      << router.get_full_output() << std::endl;
+                           "values: always, if-not-exists, never"));
   check_exit_code(router, EXIT_FAILURE);
 }
 
@@ -2281,8 +2397,7 @@ TEST_F(AccountReuseBadCmdlineTest, account_create_given_twice) {
 
   // check if the bootstraping was successful
   EXPECT_TRUE(
-      router.expect_output("Option --account-create can only be given once"))
-      << router.get_full_output() << std::endl;
+      router.expect_output("Option --account-create can only be given once"));
   check_exit_code(router, EXIT_FAILURE);
 }
 
@@ -2305,8 +2420,7 @@ TEST_F(AccountReuseBadCmdlineTest, account_create_never_and_account_host) {
   // check if the bootstraping was successful
   EXPECT_TRUE(
       router.expect_output("Option '--account-create never' cannot be used "
-                           "together with '--account-host <host>'"))
-      << router.get_full_output() << std::endl;
+                           "together with '--account-host <host>'"));
   check_exit_code(router, EXIT_FAILURE);
 }
 
@@ -2322,8 +2436,7 @@ TEST_F(AccountReuseBadCmdlineTest, strict_without_bootstrap_switch) {
 
   // check if the bootstraping was successful
   EXPECT_TRUE(router.expect_output(
-      "Option --strict can only be used together with -B/--bootstrap"))
-      << router.get_full_output() << std::endl;
+      "Option --strict can only be used together with -B/--bootstrap"));
   check_exit_code(router, EXIT_FAILURE);
 }
 
@@ -5829,9 +5942,7 @@ TEST_F(RouterAccountHostTest, multiple_host_patterns) {
 
     // check if the bootstraping was successful
     EXPECT_TRUE(router.expect_output(
-        "MySQL Router configured for the InnoDB Cluster 'test'", false, 5s))
-        << "router: " << router.get_full_output() << std::endl
-        << "server: " << server_mock.get_full_output();
+        "MySQL Router configured for the InnoDB Cluster 'test'", false, 5s));
 
     check_exit_code(router, EXIT_SUCCESS);
 
@@ -5883,8 +5994,7 @@ TEST_F(RouterAccountHostTest, argument_missing) {
 
   // check if the bootstraping was successful
   EXPECT_TRUE(router.expect_output(
-      "option '--account-host' expects a value, got nothing"))
-      << router.get_full_output() << std::endl;
+      "option '--account-host' expects a value, got nothing"));
   check_exit_code(router, EXIT_FAILURE);
 }
 
@@ -5899,8 +6009,7 @@ TEST_F(RouterAccountHostTest, without_bootstrap_flag) {
 
   // check if the bootstraping was successful
   EXPECT_TRUE(router.expect_output(
-      "Option --account-host can only be used together with -B/--bootstrap"))
-      << router.get_full_output() << std::endl;
+      "Option --account-host can only be used together with -B/--bootstrap"));
   check_exit_code(router, EXIT_FAILURE);
 }
 
@@ -5935,10 +6044,7 @@ TEST_F(RouterAccountHostTest, illegal_hostname) {
       router.expect_output("Error executing MySQL query \".*\": String "
                            "'veryveryveryveryveryveryveryveryveryveryveryveryve"
                            "ryveryverylonghost' is too long for host name",
-                           true))
-      << router.get_full_output() << std::endl
-      << "server:\n"
-      << server_mock.get_full_output();
+                           true));
   check_exit_code(router, EXIT_FAILURE);
 }
 
@@ -5970,9 +6076,7 @@ TEST_F(RouterReportHostTest, typical_usage) {
     // check if the bootstraping was successful
     EXPECT_TRUE(
         router.expect_output("MySQL Router configured for the "
-                             "InnoDB Cluster 'mycluster'"))
-        << router.get_full_output() << std::endl
-        << "server: " << server_mock.get_full_output();
+                             "InnoDB Cluster 'mycluster'"));
     check_exit_code(router, EXIT_SUCCESS);
 
     server_mock.kill();
@@ -6006,8 +6110,7 @@ TEST_F(RouterReportHostTest, multiple_hostnames) {
 
   // check if the bootstraping was successful
   EXPECT_TRUE(
-      router.expect_output("Option --report-host can only be used once."))
-      << router.get_full_output() << std::endl;
+      router.expect_output("Option --report-host can only be used once."));
   check_exit_code(router, EXIT_FAILURE);
 }
 
@@ -6024,8 +6127,7 @@ TEST_F(RouterReportHostTest, argument_missing) {
 
   // check if the bootstraping was successful
   EXPECT_TRUE(router.expect_output(
-      "option '--report-host' expects a value, got nothing"))
-      << router.get_full_output() << std::endl;
+      "option '--report-host' expects a value, got nothing"));
   check_exit_code(router, EXIT_FAILURE);
 }
 
@@ -6040,8 +6142,7 @@ TEST_F(RouterReportHostTest, without_bootstrap_flag) {
 
   // check if the bootstraping was successful
   EXPECT_TRUE(router.expect_output(
-      "Option --report-host can only be used together with -B/--bootstrap"))
-      << router.get_full_output() << std::endl;
+      "Option --report-host can only be used together with -B/--bootstrap"));
   check_exit_code(router, EXIT_FAILURE);
 }
 
@@ -6062,9 +6163,8 @@ TEST_F(RouterReportHostTest, invalid_hostname) {
       {"--bootstrap", "1.2.3.4:5678", "--report-host", "^bad^hostname^"}, 1);
 
   // check if the bootstraping was successful
-  EXPECT_TRUE(
-      router.expect_output("Error: Option --report-host has an invalid value."))
-      << router.get_full_output() << std::endl;
+  EXPECT_TRUE(router.expect_output(
+      "Error: Option --report-host has an invalid value."));
   check_exit_code(router, EXIT_FAILURE);
 }
 
@@ -6255,8 +6355,7 @@ TEST_F(RouterReportHostTest, ConfUseGrNotificationsNoBootstrap) {
 
   EXPECT_TRUE(
       router.expect_output("Error: Option --conf-use-gr-notifications can only "
-                           "be used together with -B/--bootstrap"))
-      << router.get_full_output() << std::endl;
+                           "be used together with -B/--bootstrap"));
   check_exit_code(router, EXIT_FAILURE);
 }
 
@@ -6271,8 +6370,7 @@ TEST_F(RouterReportHostTest, ConfUseGrNotificationsHasValue) {
 
   EXPECT_TRUE(
       router.expect_output("Error: option '--conf-use-gr-notifications' does "
-                           "not expect a value, but got a value"))
-      << router.get_full_output() << std::endl;
+                           "not expect a value, but got a value"));
   check_exit_code(router, EXIT_FAILURE);
 }
 
@@ -6459,8 +6557,7 @@ TEST_F(ErrorReportTest, ConfUseGrNotificationsAsyncReplicaset) {
 
   EXPECT_TRUE(
       router.expect_output("Error: The parameter 'use-gr-notifications' is "
-                           "valid only for GR cluster type"))
-      << router.get_full_output() << std::endl;
+                           "valid only for GR cluster type"));
   check_exit_code(router, EXIT_FAILURE);
 }
 

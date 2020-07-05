@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -6045,7 +6045,8 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
      (ERROR_INSERTED(5104) &&
       LqhKeyReq::getOperation(Treqinfo) == ZINSERT) ||
      (ERROR_INSERTED(5105) &&
-      LqhKeyReq::getOperation(Treqinfo) == ZUPDATE))
+      LqhKeyReq::getOperation(Treqinfo) == ZUPDATE) ||
+      ERROR_INSERTED(5098))
   {
     jam();
     releaseSections(handle);
@@ -14213,6 +14214,15 @@ void Dblqh::storedProcConfScanLab(Signal* signal,
     closeScanLab(signal, tcConnectptr.p);
     return;
   }//if
+  if (scanPtr->check_scan_batch_completed())
+  {
+    jam();
+    scanPtr->m_last_row = 0;
+    scanPtr->scanState = ScanRecord::WAIT_SCAN_NEXTREQ;
+    scanPtr->scan_lastSeen = __LINE__;
+    sendScanFragConf(signal, ZFALSE, tcConnectptr.p);
+    return;
+  }
   Fragrecord::FragStatus fragstatus = fragptr.p->fragStatus;
   if (likely(is_scan_ok(scanPtr, fragstatus)))
   {
@@ -14999,8 +15009,8 @@ void Dblqh::scanTupkeyConfLab(Signal* signal,
   ScanRecord * const scanPtr = scanptr.p;
   Uint32 scan_direct_count = m_scan_direct_count;
   const TupKeyConf * conf = (TupKeyConf *)signal->getDataPtr();
-  UintR tdata4 = conf->readLength;
-  UintR tdata5 = conf->lastRow;
+  Uint32 read_len = conf->readLength;
+  Uint32 last_row = conf->lastRow | scanPtr->m_first_match_flag;
   m_scan_direct_count = scan_direct_count + 1;
 
   if (!scanPtr->lcpScan)
@@ -15047,13 +15057,13 @@ void Dblqh::scanTupkeyConfLab(Signal* signal,
   {
     jam();
     // Inform API about keyinfo len aswell
-    tdata4 += sendKeyinfo20(signal, scanPtr, regTcPtr);
+    read_len += sendKeyinfo20(signal, scanPtr, regTcPtr);
   }//if
   ndbrequire(scanPtr->m_curr_batch_size_rows < MAX_PARALLEL_OP_PER_SCAN);
-  scanPtr->m_exec_direct_batch_size_words += tdata4;
-  scanPtr->m_curr_batch_size_bytes+= tdata4 * sizeof(Uint32);
+  scanPtr->m_exec_direct_batch_size_words += read_len;
+  scanPtr->m_curr_batch_size_bytes+= read_len * sizeof(Uint32);
   scanPtr->m_curr_batch_size_rows = rows + 1;
-  scanPtr->m_last_row = tdata5;
+  scanPtr->m_last_row = last_row;
 
   const NodeBitmask& all = globalTransporterRegistry.get_status_slowdown();
   if (unlikely(!all.isclear()))
@@ -15070,7 +15080,7 @@ void Dblqh::scanTupkeyConfLab(Signal* signal,
     }
   }
 
-  if (scanPtr->check_scan_batch_completed() | tdata5)
+  if (scanPtr->check_scan_batch_completed() || last_row)
   {
     if (scanPtr->scanLockHold == ZTRUE)
     {
@@ -15423,11 +15433,13 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
   const Uint32 readCommitted = ScanFragReq::getReadCommittedFlag(reqinfo);
   const Uint32 rangeScan = ScanFragReq::getRangeScanFlag(reqinfo);
   const Uint32 prioAFlag = ScanFragReq::getPrioAFlag(reqinfo);
+  const Uint32 firstMatch = ScanFragReq::getFirstMatchFlag(reqinfo);
 
   scanPtr->scanLockMode = scanLockMode;
   scanPtr->readCommitted = readCommitted;
   scanPtr->rangeScan = rangeScan;
   scanPtr->prioAFlag = prioAFlag;
+  scanPtr->m_first_match_flag = firstMatch;
 
   const Uint32 descending = ScanFragReq::getDescendingFlag(reqinfo);
   Uint32 tupScan = ScanFragReq::getTupScanFlag(reqinfo);
@@ -16609,6 +16621,7 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
     scanPtr->m_exec_direct_batch_size_words = 0;
     scanPtr->readCommitted = 0;
     scanPtr->prioAFlag = ZFALSE;
+    scanPtr->m_first_match_flag = 0;
     scanPtr->scanStoredProcId = RNIL;
     scanPtr->scanAccPtr = RNIL;
     scanPtr->scan_lastSeen = __LINE__;
@@ -17526,7 +17539,6 @@ void Dblqh::tupCopyCloseConfLab(Signal* signal,
       ref->tableId = fragptr.p->tabRef;
       ref->fragId = fragptr.p->fragId;
       ref->errorCode = tcConnectptr.p->errorCode;
-      ndbassert(false);
       sendSignal(tcConnectptr.p->clientBlockref, GSN_COPY_FRAGREF, signal,
                  CopyFragRef::SignalLength, JBB);
     }

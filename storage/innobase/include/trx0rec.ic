@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -83,16 +83,19 @@ undo_no_t trx_undo_rec_get_undo_no(
   return (mach_u64_read_much_compressed(ptr));
 }
 
-/** Copies the undo record to the heap.
- @return own: copy of undo log record */
 UNIV_INLINE
-trx_undo_rec_t *trx_undo_rec_copy(
-    const trx_undo_rec_t *undo_rec, /*!< in: undo log record */
-    mem_heap_t *heap)               /*!< in: heap where copied */
-{
-  ulint len;
+trx_undo_rec_t *trx_undo_rec_copy(const page_t *undo_page, uint32_t undo_offset,
+                                  mem_heap_t *heap) {
+  ut_ad(undo_offset < UNIV_PAGE_SIZE);
+  trx_undo_rec_t *undo_rec = (trx_undo_rec_t *)(undo_page + undo_offset);
 
-  len = mach_read_from_2(undo_rec) - ut_align_offset(undo_rec, UNIV_PAGE_SIZE);
+  /* Read the offset of next undo record from the current undo record
+  and subtract it from current undo log record offset to get the length
+  of undo record */
+  uint32_t next_undo_offset = mach_read_from_2(undo_rec);
+  ut_a(next_undo_offset > undo_offset);
+
+  uint32_t len = next_undo_offset - undo_offset;
   ut_ad(len < UNIV_PAGE_SIZE);
   return ((trx_undo_rec_t *)mem_heap_dup(heap, undo_rec, len));
 }

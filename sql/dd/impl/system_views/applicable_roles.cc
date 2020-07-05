@@ -1,4 +1,4 @@
-/* Copyright (c) 2019 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -81,8 +81,8 @@ const String_type &Applicable_roles::cte_expression() {
       "        FALSE "
       "      FROM JSON_TABLE(INTERNAL_GET_MANDATORY_ROLES_JSON(),"
       "            '$[*]' COLUMNS ("
-      "            ROLE_NAME VARCHAR(255) PATH '$.ROLE_NAME', "
-      "            ROLE_HOST VARCHAR(255) PATH '$.ROLE_HOST') "
+      "            ROLE_NAME VARCHAR(255) CHARSET utf8mb4 PATH '$.ROLE_NAME', "
+      "            ROLE_HOST VARCHAR(255) CHARSET utf8mb4 PATH '$.ROLE_HOST') "
       "            ) mandatory_roles "
       "      WHERE CONCAT(QUOTE(ROLE_NAME),'@', "
       "                   CONVERT(QUOTE(ROLE_HOST) using utf8mb4)) NOT IN "

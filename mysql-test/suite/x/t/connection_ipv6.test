@@ -132,6 +132,9 @@ EOF
 
 
 ## Cleanup
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
+
 DROP USER `user_localhost`@`localhost`;
 DROP USER `user_127_0_0_1`@`127.0.0.1`;
 DROP USER `user_::1`@`::1`;

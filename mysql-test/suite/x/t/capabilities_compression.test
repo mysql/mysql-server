@@ -227,6 +227,46 @@ Mysqlx.Connection.CapabilitiesSet {
 }
 -->recvtype Mysqlx.Error
 
+-->echo
+-->echo #
+-->echo # I.3.f
+Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "compression"
+      value {
+        type: OBJECT
+        obj {
+          fld {
+            key: "algorithm"
+            value {
+              type: SCALAR
+              scalar {
+                type: V_STRING
+                v_string {
+                  value: "deflate_stream"
+                }
+              }
+            }
+          }
+          fld {
+            key: "level"
+            value {
+              type: SCALAR
+              scalar {
+                type: V_STRING
+                v_string {
+                  value: "1"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+-->recvtype Mysqlx.Error
 
 EOF
 
@@ -245,6 +285,7 @@ EOF
 --echo #    c. Send algorithm capability with invalid type (not scalar)
 --echo #    d. Send server_max_combine_messages capability with invalid type (not scalar)
 --echo #    e. Send server_combine_mixed_messages capability with invalid type (not scalar)
+--echo #    f. Send level capability with invalid type (not integer)
 
 --echo
 --echo #

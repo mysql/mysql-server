@@ -36,7 +36,7 @@ Transaction_consistency_info::Transaction_consistency_info(
     std::list<Gcs_member_identifier> *members_that_must_prepare_the_transaction)
     : m_thread_id(thread_id),
       m_local_transaction(local_transaction),
-      m_sid_specified(sid != NULL ? true : false),
+      m_sid_specified(sid != nullptr ? true : false),
       m_sidno(sidno),
       m_gno(gno),
       m_consistency_level(consistency_level),
@@ -46,7 +46,7 @@ Transaction_consistency_info::Transaction_consistency_info(
       m_transaction_prepared_remotely(false) {
   DBUG_TRACE;
   DBUG_ASSERT(m_consistency_level >= GROUP_REPLICATION_CONSISTENCY_AFTER);
-  DBUG_ASSERT(NULL != m_members_that_must_prepare_the_transaction);
+  DBUG_ASSERT(nullptr != m_members_that_must_prepare_the_transaction);
   DBUG_PRINT(
       "info",
       ("thread_id: %u; local_transaction: %d; gtid: %d:%llu; sid_specified: "
@@ -56,7 +56,7 @@ Transaction_consistency_info::Transaction_consistency_info(
        m_consistency_level, m_transaction_prepared_locally,
        m_transaction_prepared_remotely));
 
-  if (NULL != sid) {
+  if (nullptr != sid) {
     m_sid.copy_from(*sid);
   } else {
     m_sid.clear();
@@ -145,7 +145,7 @@ int Transaction_consistency_info::after_applier_prepare(
         return 0;
       };);
 
-  Transaction_prepared_message message((m_sid_specified ? &m_sid : NULL),
+  Transaction_prepared_message message((m_sid_specified ? &m_sid : nullptr),
                                        m_gno);
   if (gcs_module->send_message(message)) {
     /* purecov: begin inspected */
@@ -410,7 +410,7 @@ int Transaction_consistency_manager::handle_remote_prepare(
   DBUG_TRACE;
   rpl_sidno sidno = 0;
 
-  if (sid != NULL) {
+  if (sid != nullptr) {
     /*
      This transaction has a UUID different from the group name,
      thence we need to fetch the corresponding sidno from the

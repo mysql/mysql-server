@@ -1,4 +1,4 @@
-# Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -763,7 +763,7 @@
    ...
    fun:_Z19my_b_flush_io_cacheP8IO_CACHEi
    fun:_Z11_my_b_writeP8IO_CACHEPKhm
-   fun:_Z10my_b_writeP8IO_CACHEPKhm
+   ...
    fun:_Z*10write_keysP10Sort_paramP13Filesort_infojP8IO_CACHES4_
    ...
    fun:_Z8filesortP3THDP8Filesort*
@@ -776,6 +776,81 @@
    ...
    fun:_Z19my_b_flush_io_cacheP8IO_CACHEi
    fun:_Z8filesortP3THDP8Filesort*
+}
+
+# http://www.openldap.org/its/index.cgi/Software%20Bugs?id=9081;page=23
+# Memory leak in ldap_initialize/ldap_unbind
+# Version: 2.4.48
+# Fixed in RE24 (2.4.49)
+{
+   OpenLDAP bug 9081
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:calloc
+   fun:ber_memcalloc_x
+   fun:ber_memcalloc
+   fun:ber_sockbuf_alloc
+   fun:ldap_create
+   fun:ldap_initialize
+}
+
+# sasl_client_init will load all available plugins with _sasl_load_plugins().
+# It seems some of the SASL plugin have leaks.
+# We *do* call sasl_client_done, which calls _sasl_done_with_plugins
+# Both LSAN and Valgrind report leaks.
+{
+   Loading SASL plugins 1
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   ...
+   fun:sasl_client_add_plugin
+}
+
+{
+   Loading SASL plugins 2
+   Memcheck:Leak
+   match-leak-kinds: indirect
+   fun:malloc
+   ...
+   fun:sasl_client_add_plugin
+}
+
+{
+   Unloading SASL plugins
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:dlclose
+   fun:_sasl_done_with_plugins
+}
+
+{
+   cyrus libsasl2 still reachable one
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:sasl_client_init
+}
+
+{
+   cyrus libsasl2 still reachable two
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:calloc
+   ...
+   fun:sasl_client_init
+}
+
+{
+   cyrus libsasl2 still reachable three
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:sasl_set_path
 }
 
 {
@@ -898,6 +973,13 @@
 }
 
 {
+   OpenSSL conditional jump in RAND_DRBG_generate
+   Memcheck:Cond
+   ...
+   fun:RAND_DRBG_generate
+}
+
+{
    OpenSSL uninitialised value of size 8 in new_VioSSLFd
    Memcheck:Value8
    fun:BN_num_bits_word
@@ -990,12 +1072,18 @@
 
 # supress uninitialized because some SSL libraries do random like that
 {
-   OpenSSL conditional jump in generate_user_salt due to randomness
+   OpenSSL conditional jump in generate_user_salt due to randomness 1
    Memcheck:Cond
    fun:generate_user_salt
    fun:native_password_authenticate
 }
 
+{
+   OpenSSL conditional jump in generate_user_salt due to randomness 2
+   Memcheck:Cond
+   fun:_Z18generate_user_saltPci
+   fun:_ZL34caching_sha2_password_authenticateP16MYSQL_PLUGIN_VIOP22MYSQL_SERVER_AUTH_INFO
+}
 
 # Remove the NUMA ones below when https://github.com/numactl/numactl/issues/3
 # is resolved.
@@ -2457,6 +2545,7 @@
    Syscall param socketcall.sendto(msg) points to uninitialised byte(s)
    Memcheck:Param
    socketcall.sendto(msg)
+   ...
    fun:send
    fun:*
    ...

@@ -1,7 +1,7 @@
 #ifndef SQL_BASIC_ROW_ITERATORS_H_
 #define SQL_BASIC_ROW_ITERATORS_H_
 
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -197,10 +197,8 @@ class SortBufferIterator final : public TableRowIterator {
   the table on disk.
 
   Used when the above (comment on SortBufferIterator) is not true, UPDATE,
-  DELETE and so forth and SELECT's involving BLOB's. It is also used when the
-  addon_field buffer is not allocated due to that its size was bigger than the
-  session variable max_length_for_sort_data. Finally, it is used for the
-  result of Unique, which returns row IDs in the same format as filesort.
+  DELETE and so forth and SELECT's involving large BLOBs. It is also used for
+  the result of Unique, which returns row IDs in the same format as filesort.
   In this case the record data is fetched from the handler using the saved
   reference using the rnd_pos handler call.
  */
@@ -342,7 +340,9 @@ class FakeSingleRowIterator final : public RowIterator {
     return {"Rows fetched before execution"};
   }
 
-  void SetNullRowFlag(bool) override { DBUG_ASSERT(false); }
+  void SetNullRowFlag(bool is_null_row MY_ATTRIBUTE((unused))) override {
+    DBUG_ASSERT(!is_null_row);
+  }
 
   void UnlockRow() override {}
 
@@ -385,11 +385,20 @@ class UnqualifiedCountIterator final : public RowIterator {
   A simple iterator that takes no input and produces zero output rows.
   Used when the optimizer has figured out ahead of time that a given table
   can produce no output (e.g. SELECT ... WHERE 2+2 = 5).
+
+  The child iterator is optional (can be nullptr) if SetNullRowFlag() is
+  not to be called. It is used when a subtree used on the inner side of an
+  outer join is found to be never executable, and replaced with a
+  ZeroRowsIterator; in that case, we need to forward the SetNullRowFlag call
+  to it. This child is not printed as part of the iterator tree.
  */
 class ZeroRowsIterator final : public RowIterator {
  public:
-  ZeroRowsIterator(THD *thd, const char *reason)
-      : RowIterator(thd), m_reason(reason) {}
+  ZeroRowsIterator(THD *thd, const char *reason,
+                   unique_ptr_destroy_only<RowIterator> child_iterator)
+      : RowIterator(thd),
+        m_reason(reason),
+        m_child_iterator(std::move(child_iterator)) {}
 
   bool Init() override { return false; }
 
@@ -399,12 +408,16 @@ class ZeroRowsIterator final : public RowIterator {
     return {std::string("Zero rows (") + m_reason + ")"};
   }
 
-  void SetNullRowFlag(bool) override { DBUG_ASSERT(false); }
+  void SetNullRowFlag(bool is_null_row) override {
+    DBUG_ASSERT(m_child_iterator != nullptr);
+    m_child_iterator->SetNullRowFlag(is_null_row);
+  }
 
   void UnlockRow() override {}
 
  private:
   const char *m_reason;
+  unique_ptr_destroy_only<RowIterator> m_child_iterator;
 };
 
 class SELECT_LEX;

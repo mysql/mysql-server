@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -49,7 +49,5 @@ inc_transaction_release_savepoint_v1_t inc_transaction_release_savepoint;
 /** @sa end_transaction_v1_t. */
 end_transaction_v1_t end_transaction;
 END_SERVICE_DEFINITION(psi_transaction_v1)
-
-#define REQUIRES_PSI_TRANSACTION_SERVICE REQUIRES_SERVICE(psi_transaction_v1)
 
 #endif /* COMPONENTS_SERVICES_PSI_TRANSACTION_SERVICE_H */

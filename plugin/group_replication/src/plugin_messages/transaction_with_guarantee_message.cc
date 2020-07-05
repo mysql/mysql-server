@@ -80,7 +80,7 @@ Transaction_with_guarantee_message::decode_and_get_consistency_level(
   DBUG_TRACE;
 
   // Get first payload item pointer and size.
-  const unsigned char *payload_data = NULL;
+  const unsigned char *payload_data = nullptr;
   size_t payload_size = 0;
   get_first_payload_item_raw_data(buffer, &payload_data, &payload_size);
 

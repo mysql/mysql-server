@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -110,7 +110,8 @@ bool is_valid_json_schema(const char *document_str, size_t document_length,
 
 Json_schema_validator::Json_schema_validator(
     const rapidjson::Document &schema_document)
-    : m_cached_schema(schema_document, &m_remote_document_provider) {}
+    : m_cached_schema(schema_document, /*uri=*/nullptr, /*uriLength=*/0,
+                      &m_remote_document_provider) {}
 
 unique_ptr_destroy_only<const Json_schema_validator>
 create_json_schema_validator(MEM_ROOT *mem_root, const char *json_schema_str,

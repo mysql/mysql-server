@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -29,9 +29,8 @@
 #include <functional>
 #include <memory>
 
-#include "my_inttypes.h"
+#include "my_inttypes.h"  // NOLINT(build/include_subdir)
 
-#include "plugin/x/src/global_timeouts.h"
 #include "plugin/x/src/interface/protocol_flusher.h"
 #include "plugin/x/src/interface/protocol_monitor.h"
 #include "plugin/x/src/interface/vio.h"
@@ -93,10 +92,8 @@ class Protocol_flusher : public xpl::iface::Protocol_flusher {
   protocol::XMessage_encoder *m_encoder;
   //  Page_output_stream *m_page_output_stream;
   xpl::iface::Protocol_monitor *m_protocol_monitor;
+  uint32_t m_write_timeout;
   std::shared_ptr<xpl::iface::Vio> m_socket;
-  uint32_t m_write_timeout =
-      static_cast<uint32_t>(Global_timeouts::Default::k_write_timeout);
-
   bool m_flush = false;
   bool m_io_error = false;
   Error_handler m_on_error;

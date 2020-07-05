@@ -730,9 +730,9 @@ class Gcs_debug_manager : public Gcs_debug_options {
   static enum_gcs_error finalize() {
     enum_gcs_error ret = GCS_NOK;
 
-    if (m_debugger != NULL) {
+    if (m_debugger != nullptr) {
       ret = m_debugger->finalize();
-      m_debugger = NULL;
+      m_debugger = nullptr;
     }
 
     return ret;

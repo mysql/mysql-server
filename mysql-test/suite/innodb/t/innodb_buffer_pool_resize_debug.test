@@ -232,3 +232,6 @@ let $wait_condition =
   FROM performance_schema.global_status
   WHERE LOWER(variable_name) = 'innodb_buffer_pool_resize_status';
 --source include/wait_condition.inc
+
+--let $restart_parameters= restart:
+--source include/restart_mysqld.inc

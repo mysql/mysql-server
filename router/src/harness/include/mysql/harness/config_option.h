@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -93,7 +93,7 @@ class ConfigOption {
     std::string value;
     try {
       value = section->get(name_);
-    } catch (const mysql_harness::bad_option &e) {
+    } catch (const mysql_harness::bad_option &) {
       if (is_required()) {
         return stdx::make_unexpected(make_error_code(option_errc::not_found));
       }

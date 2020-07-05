@@ -211,8 +211,19 @@ let $restart_parameters = restart: --mysqlx-socket=$MYSQL_TMP_DIR/valid_mysqlx.s
 --exec $MYSQLXTEST --plain-auth --socket=$MYSQL_TMP_DIR/valid_mysqlx.sock -uroot --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.tmp 2>&1
 
 ## Cleanup
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
+
 DROP TABLE `city`;
-DROP USER user_127_0_0_1@127.0.0.1,user_8_8_8_8@8.8.8.8, user_all@'%', user_localhost@localhost, user_localhost_8_8_8_8@8.8.8.8, user_localhost_8_8_8_8@localhost;
+
+DROP USER user_127_0_0_1@127.0.0.1;
+DROP USER user_8_8_8_8@8.8.8.8;
+DROP USER user_all@'%';
+DROP USER user_localhost@localhost;
+DROP USER user_localhost_8_8_8_8@localhost;
+DROP USER user_localhost_8_8_8_8@8.8.8.8;
+DROP USER user_requires_ssl;
+
 --remove_file $MYSQL_TMP_DIR/basic_connection.tmp
 --remove_file $MYSQL_TMP_DIR/parallel_connections.tmp
 --remove_file $MYSQL_TMP_DIR/plain_connection.tmp

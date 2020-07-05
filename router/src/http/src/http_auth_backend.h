@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -29,14 +29,26 @@
 #include <string>
 #include <system_error>
 
+#include "my_rapidjson_size_t.h"
+
+#include <rapidjson/document.h>
+
 #include <sys/stat.h>
 #include <sys/types.h>
+
+#include "mysqlrouter/http_auth_backend_lib_export.h"
 
 /**
  * Base class of all AuthBackends.
  */
-class HttpAuthBackend {
+class HTTP_AUTH_BACKEND_LIB_EXPORT HttpAuthBackend {
  public:
+  HttpAuthBackend() = default;
+  HttpAuthBackend(const HttpAuthBackend &) = default;
+  HttpAuthBackend(HttpAuthBackend &&) = default;
+  HttpAuthBackend &operator=(const HttpAuthBackend &) = default;
+  HttpAuthBackend &operator=(HttpAuthBackend &&) = default;
+
   /**
    * authentication username with authdata against backend.
    */
@@ -106,7 +118,8 @@ class FileModified {
  * @see
  * https://github.com/P-H-C/phc-string-format/blob/master/phc-sf-spec.md
  */
-class HttpAuthBackendHtpasswd : public HttpAuthBackend {
+class HTTP_AUTH_BACKEND_LIB_EXPORT HttpAuthBackendHtpasswd
+    : public HttpAuthBackend {
  public:
   using key_type = std::string;
   using value_type = std::string;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,7 @@ void Composite_options_provider::add_providers(I_options_provider *first, ...) {
   for (;;) {
     Options::I_options_provider *options_provider =
         va_arg(options_to_add, I_options_provider *);
-    if (options_provider == NULL) {
+    if (options_provider == nullptr) {
       break;
     }
 

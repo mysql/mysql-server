@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -103,8 +103,8 @@ server_error errors[] = {
 #ifndef IN_DOXYGEN
 #include <mysqld_ername.h>
 
-    {0, 0, 0, 0, 0, 0}  // DUMMY ROW
-#endif                  /* IN_DOXYGEN */
+    {nullptr, 0, nullptr, nullptr, nullptr, 0}  // DUMMY ROW
+#endif                                          /* IN_DOXYGEN */
 };
 }
 
@@ -282,8 +282,6 @@ int check_source(const char *file_name) {
 
 /**
   Read paths of source files from stdin, one per line, and verify the files.
-
-  @param   file_name  The path-and-name of a source file to verify (C-string)
 
   @retval  number of detected issues
 */

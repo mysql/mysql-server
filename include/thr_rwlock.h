@@ -1,7 +1,7 @@
 #ifndef THR_RWLOCK_INCLUDED
 #define THR_RWLOCK_INCLUDED
 
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,7 +62,7 @@ static inline int native_rw_init(native_rw_lock_t *rwp) {
   return 0;
 #else
   /* pthread_rwlockattr_t is not used in MySQL */
-  return pthread_rwlock_init(rwp, NULL);
+  return pthread_rwlock_init(rwp, nullptr);
 #endif
 }
 

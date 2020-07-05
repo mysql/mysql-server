@@ -34,7 +34,7 @@ namespace gcs_parameters_unittest {
 
 class GcsParametersTest : public GcsBaseTest {
  protected:
-  GcsParametersTest() : m_gcs(NULL) {}
+  GcsParametersTest() : m_gcs(nullptr) {}
 
   virtual void SetUp() {
     m_gcs = Gcs_xcom_interface::get_interface();

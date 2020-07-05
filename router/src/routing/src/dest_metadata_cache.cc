@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,8 +23,6 @@
 */
 
 #include "dest_metadata_cache.h"
-#include "mysqlrouter/routing.h"
-#include "utils.h"
 
 #include <algorithm>
 #include <chrono>
@@ -38,8 +36,10 @@
 
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
+#include "mysqlrouter/routing.h"
 #include "mysqlrouter/utils.h"
 #include "tcp_address.h"
+#include "utils.h"
 
 using mysqlrouter::to_string;
 using std::out_of_range;
@@ -373,8 +373,6 @@ void DestMetadataCacheGroup::init() {
 }
 
 void DestMetadataCacheGroup::subscribe_for_metadata_cache_changes() {
-  using namespace std::placeholders;
-
   cache_api_->add_listener(ha_replicaset_, this);
   subscribed_for_metadata_cache_changes_ = true;
 }

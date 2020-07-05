@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -21,11 +21,12 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 ADD_WSHADOW_WARNING()
+DISABLE_MISSING_PROFILE_WARNING()
 
 IF(NOT CMAKE_CROSSCOMPILING)
   MYSQL_ADD_EXECUTABLE(comp_err
     comp_err.cc
-    COMPONENT Server
+    COMPONENT Test
     LINK_LIBRARIES mysys
     )
 ENDIF()
@@ -72,6 +73,8 @@ FILE(MAKE_DIRECTORY ${PROJECT_BINARY_DIR}/${INSTALL_MYSQLSHAREDIR})
 #
 ADD_CUSTOM_COMMAND(OUTPUT
   ${PROJECT_BINARY_DIR}/include/mysqld_error.h 
+  ${PROJECT_BINARY_DIR}/include/mysqld_ername.h
+  ${PROJECT_BINARY_DIR}/include/mysqld_errmsg.h
   ${PROJECT_BINARY_DIR}/${INSTALL_MYSQLSHAREDIR}/english/errmsg.sys
   COMMAND comp_err
   --charset=${PROJECT_SOURCE_DIR}/share/charsets
@@ -90,6 +93,8 @@ ADD_CUSTOM_COMMAND(OUTPUT
 ADD_CUSTOM_TARGET(GenError ALL
   DEPENDS 
   ${PROJECT_BINARY_DIR}/include/mysqld_error.h
+  ${PROJECT_BINARY_DIR}/include/mysqld_ername.h
+  ${PROJECT_BINARY_DIR}/include/mysqld_errmsg.h
   ${PROJECT_BINARY_DIR}/${INSTALL_MYSQLSHAREDIR}/english/errmsg.sys
   ${PROJECT_SOURCE_DIR}/share/messages_to_error_log.txt
   ${PROJECT_SOURCE_DIR}/share/messages_to_clients.txt)
@@ -104,21 +109,18 @@ MYSQL_ADD_EXECUTABLE(range_check_err
 # Set InnoDB mutex type
 ADD_DEFINITIONS(-DMUTEX_EVENT)
 
-## Most executables depend on SSL shared libraries (through mysys).
-## For these executables, we need them to be available during build.
-IF( (WIN32 AND WITH_SSL_PATH AND HAVE_CRYPTO_DLL) OR
-    (APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
-    )
+# The copied shared libraries must be available at build time.
+IF(TARGET copy_openssl_dlls)
   ADD_DEPENDENCIES(GenError copy_openssl_dlls)
   ADD_DEPENDENCIES(comp_client_err copy_openssl_dlls)
   ADD_DEPENDENCIES(comp_err copy_openssl_dlls)
 ENDIF()
 
-IF(LINUX_INSTALL_RPATH_ORIGIN)
-  ADD_DEPENDENCIES(GenError copy_openssl_dlls)
-  ADD_DEPENDENCIES(comp_client_err copy_openssl_dlls)
-  ADD_DEPENDENCIES(comp_err copy_openssl_dlls)
-ENDIF()
+MYSQL_ADD_EXECUTABLE(static_thread_local_test
+  static_thread_local_test.cc
+  SKIP_INSTALL
+  EXCLUDE_FROM_ALL
+  )
 
 MYSQL_ADD_EXECUTABLE(my_print_defaults
   my_print_defaults.cc

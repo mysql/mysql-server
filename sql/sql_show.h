@@ -122,21 +122,21 @@ const char *get_one_variable(THD *thd, const SHOW_VAR *variable,
                              enum_var_type value_type, SHOW_TYPE show_type,
                              System_status_var *status_var,
                              const CHARSET_INFO **charset, char *buff,
-                             size_t *length, bool *is_null = NULL);
+                             size_t *length, bool *is_null = nullptr);
 
 const char *get_one_variable_ext(THD *running_thd, THD *target_thd,
                                  const SHOW_VAR *variable,
                                  enum_var_type value_type, SHOW_TYPE show_type,
                                  System_status_var *status_var,
                                  const CHARSET_INFO **charset, char *buff,
-                                 size_t *length, bool *is_null = NULL);
+                                 size_t *length, bool *is_null = nullptr);
 
 /* These functions were under INNODB_COMPATIBILITY_HOOKS */
 int get_quote_char_for_identifier(const THD *thd, const char *name,
                                   size_t length);
 
 void show_sql_type(enum_field_types type, bool is_array, uint metadata,
-                   String *str, const CHARSET_INFO *field_cs = NULL);
+                   String *str, const CHARSET_INFO *field_cs = nullptr);
 
 bool do_fill_information_schema_table(THD *thd, TABLE_LIST *table_list,
                                       QEP_TAB *qep_tab);

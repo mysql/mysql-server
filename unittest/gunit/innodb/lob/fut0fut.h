@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -38,7 +38,7 @@ inline byte *fut_get_ptr(fil_addr_t addr, buf_block_t **ptr_block = nullptr) {
   block = buf_page_get(addr.page);
   ptr = buf_block_get_frame(block) + addr.boffset;
 
-  if (ptr_block != NULL) {
+  if (ptr_block != nullptr) {
     *ptr_block = block;
   }
 

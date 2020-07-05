@@ -60,12 +60,12 @@ Country_record country_array[] =
   }
 
 /* Log file */
-FILE *outfile = NULL;
+FILE *outfile = nullptr;
 const char *filename = "pfs_example_component_population.log";
 char log_text[MAX_BUFFER_LENGTH] = {'\0'};
 
 /* Collection of table shares to be added to performance schema */
-PFS_engine_table_share_proxy *share_list[2] = {NULL, NULL};
+PFS_engine_table_share_proxy *share_list[2] = {nullptr, nullptr};
 unsigned int share_list_count = 2;
 
 /* Prepare and insert rows in pfs_example_continent table */
@@ -139,8 +139,8 @@ mysql_service_status_t pfs_example_component_population_init() {
   WRITE_LOG("pfs_example_component_population init:\n");
 
   /* Initialize mutex */
-  native_mutex_init(&LOCK_continent_records_array, NULL);
-  native_mutex_init(&LOCK_country_records_array, NULL);
+  native_mutex_init(&LOCK_continent_records_array, nullptr);
+  native_mutex_init(&LOCK_country_records_array, nullptr);
 
   /* Instantiate and initialize PFS_engine_table_share_proxy */
   init_continent_share(&continent_st_share);

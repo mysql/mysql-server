@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -55,6 +55,10 @@ class MetadataCachePluginConfig final : public mysqlrouter::BasePluginConfig {
             section, metadata_cache::kDefaultMetadataPort)),
         user(get_option_string(section, "user")),
         ttl(get_option_milliseconds(section, "ttl", 0.0, 3600.0)),
+        auth_cache_ttl(
+            get_option_milliseconds(section, "auth_cache_ttl", -1, 3600.0)),
+        auth_cache_refresh_interval(get_option_milliseconds(
+            section, "auth_cache_refresh_interval", 0.001, 3600.0)),
         metadata_cluster(get_option_string(section, "metadata_cluster")),
         connect_timeout(
             get_uint_option<uint16_t>(section, "connect_timeout", 1)),
@@ -69,6 +73,14 @@ class MetadataCachePluginConfig final : public mysqlrouter::BasePluginConfig {
         section->has("use_gr_notifications")) {
       throw std::invalid_argument(
           "option 'use_gr_notifications' is not valid for cluster type 'rs'");
+    }
+    if (auth_cache_ttl > std::chrono::seconds(-1) &&
+        auth_cache_ttl < std::chrono::milliseconds(1)) {
+      throw std::invalid_argument(
+          "'auth_cache_ttl' option value '" +
+          get_option_string(section, "auth_cache_ttl") +
+          "' should be in range 0.001 and 3600 inclusive or -1 for "
+          "auth_cache_ttl disabled");
     }
   }
 
@@ -86,6 +98,12 @@ class MetadataCachePluginConfig final : public mysqlrouter::BasePluginConfig {
   const std::string user;
   /** @brief TTL used for storing data in the cache */
   const std::chrono::milliseconds ttl;
+  /** @brief TTL used for limiting the lifetime of the rest user authentication
+   * data stored in the metadata */
+  const std::chrono::milliseconds auth_cache_ttl;
+  /** @brief Refresh rate of the rest user authentication data stored in the
+   * cache */
+  const std::chrono::milliseconds auth_cache_refresh_interval;
   /** @brief Cluster in the metadata */
   const std::string metadata_cluster;
   /** @brief connect_timeout The time in seconds after which trying to connect

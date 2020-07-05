@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,7 +24,7 @@
 
 Ldap_logger::Ldap_logger() {
   m_log_level = LDAP_LOG_LEVEL_NONE;
-  m_log_writer = NULL;
+  m_log_writer = nullptr;
   m_log_writer = new Ldap_log_writer_error();
 }
 

@@ -344,6 +344,7 @@ INSERT INTO dd_published_schema
   VALUES('80017', 1,
     '76c4ef5922cfd8e2a736e538ada4b03b6b122fbd0df2ac5abfbd999e3316b17b');
 
+--sorted_result
 SELECT IFNULL(CONCAT('The schema checksum corresponds to DD version ',
                      version, '.'),
               CONCAT('No DD version found with schema checksum ',

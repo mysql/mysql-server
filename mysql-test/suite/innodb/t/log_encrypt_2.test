@@ -17,21 +17,6 @@ call mtr.add_suppression("You need to use --log-bin to make --binlog-format work
 
 SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
 
-CREATE TABLE t1(c1 int) ENGINE=InnoDB ENCRYPTION="Y";
-
-DROP TABLE t1;
-
-# Restart the server with keyring loaded
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- send_shutdown
--- source include/wait_until_disconnected.inc
---exec echo "restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring2 $KEYRING_PLUGIN_OPT --innodb_redo_log_encrypt=ON" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-
-SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
-
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 --enable_warnings
@@ -65,13 +50,10 @@ INSERT INTO t1 select * from t1;
 SELECT * FROM t1 LIMIT 10;
 
 # Restart to confirm the encryption info can be retrieved properly.
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- send_shutdown
--- source include/wait_until_disconnected.inc
---exec echo "restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring2 $KEYRING_PLUGIN_OPT --innodb_redo_log_encrypt=ON" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--let $restart_parameters= restart:
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH
+--replace_regex /\.dll/.so/
+--source include/restart_mysqld.inc
 
 SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
 
@@ -97,20 +79,18 @@ INSERT INTO t1 VALUES(8, "iiiii");
 INSERT INTO t1 VALUES(9, "jjjjj");
 
 # Restart to confirm the encryption info can be retrieved properly.
---source include/kill_mysqld.inc
---exec echo "restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring2 $KEYRING_PLUGIN_OPT --innodb_redo_log_encrypt=ON" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+
+--let $restart_parameters= restart:
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH
+--replace_regex /\.dll/.so/
+--source include/kill_and_restart_mysqld.inc
 
 SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
 
 SELECT * FROM t1 LIMIT 10;
 DROP TABLE t1;
 
-
-
-let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring2 --general-log --log-output=FILE --general_log_file=$MYSQL_TMP_DIR/keyring_query_log $KEYRING_PLUGIN_OPT --innodb_redo_log_encrypt=ON;
+--let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring2 --general-log --log-output=FILE --general_log_file=$MYSQL_TMP_DIR/keyring_query_log $KEYRING_PLUGIN_OPT --innodb_redo_log_encrypt=ON
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH
 --replace_regex /\.dll/.so/
 --source include/restart_mysqld.inc
@@ -151,9 +131,12 @@ INSERT INTO tde_db.t1 VALUES(4, null);
 SELECT * FROM tde_db.t1 LIMIT 10;
 DROP DATABASE tde_db;
 #
+--let $restart_parameters = restart:
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH
+--replace_regex /\.dll/.so/
+--source include/restart_mysqld.inc
 
 # Cleanup
 --remove_file $MYSQL_TMP_DIR/keyring_query_log
---remove_file $MYSQL_TMP_DIR/mysecret_keyring2
 --remove_file $MYSQL_TMP_DIR/mysqlpump_encrypt.sql
 eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table;

@@ -200,7 +200,11 @@ class Transaction_boundary_parser {
       All non DDL/DML events: Format_desc, Rotate,
       Previous_gtids, Stop, etc.
     */
-    EVENT_BOUNDARY_TYPE_IGNORE = 7
+    EVENT_BOUNDARY_TYPE_IGNORE = 7,
+    /*
+      Transaction payload boundary.
+     */
+    EVENT_BOUNDARY_TYPE_TRANSACTION_PAYLOAD = 8
   };
 
   /*
@@ -216,9 +220,13 @@ class Transaction_boundary_parser {
       DML-2: Query(BEGIN)
       DML-3: Statements
       DML-4: (Query(COMMIT) | Query([XA] ROLLBACK) | Xid | Xa_prepare)
+
+    Compressed DML/DDL has the format:
+      DDL-1: GTID
+      RAW-1: Transaction_Payload
   */
   enum enum_event_parser_state {
-    /* NONE is set after DDL-3 or DML-4 */
+    /* NONE is set after DDL-3 or DML-4 or RAW-1*/
     EVENT_PARSER_NONE,
     /* GTID is set after DDL-1 or DML-1 */
     EVENT_PARSER_GTID,

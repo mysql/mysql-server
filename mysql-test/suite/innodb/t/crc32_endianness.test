@@ -18,7 +18,7 @@ ROW_FORMAT=COMPACT;
 ALTER TABLE crc32_big_endian DISCARD TABLESPACE;
 ALTER TABLE crc32_little_endian DISCARD TABLESPACE;
 
--- exec unzip -qo $MYSQL_TEST_DIR/suite/innodb/t/crc32_endianness.zip -d $MYSQLTEST_VARDIR/tmp/crc32_endianness
+-- exec unzip -qo $MYSQL_TEST_DIR/std_data/crc32_endianness.zip -d $MYSQLTEST_VARDIR/tmp/crc32_endianness
 
 -- let DATADIR = `SELECT @@datadir`
 

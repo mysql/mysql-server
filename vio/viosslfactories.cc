@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <string>
+
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -36,19 +38,30 @@
 #include "mysys_err.h"
 #include "vio/vio_priv.h"
 
-#ifdef HAVE_OPENSSL
 #include <openssl/dh.h>
 
-#define TLS_VERSION_OPTION_SIZE 256
-#define SSL_CIPHER_LIST_SIZE 4096
+#if OPENSSL_VERSION_NUMBER < 0x10002000L
+#include <openssl/ec.h>
+#endif /* OPENSSL_VERSION_NUMBER < 0x10002000L */
 
-static const char tls_ciphers_list[] =
+#define TLS_VERSION_OPTION_SIZE 256
+
+using std::string;
+
+/*
+  1. Cipher preference order: P1 > A1 > A2 > D1
+  2. Blocked ciphers are not allowed
+*/
+
+static const string mandatory_p1 = {
     "ECDHE-ECDSA-AES128-GCM-SHA256:"
     "ECDHE-ECDSA-AES256-GCM-SHA384:"
     "ECDHE-RSA-AES128-GCM-SHA256:"
-    "ECDHE-RSA-AES256-GCM-SHA384:"
     "ECDHE-ECDSA-AES128-SHA256:"
-    "ECDHE-RSA-AES128-SHA256:"
+    "ECDHE-RSA-AES128-SHA256"};
+
+static const string optional_a1 = {
+    "ECDHE-RSA-AES256-GCM-SHA384:"
     "ECDHE-ECDSA-AES256-SHA384:"
     "ECDHE-RSA-AES256-SHA384:"
     "DHE-RSA-AES128-GCM-SHA256:"
@@ -58,33 +71,71 @@ static const char tls_ciphers_list[] =
     "DHE-DSS-AES256-GCM-SHA384:"
     "DHE-RSA-AES256-SHA256:"
     "DHE-DSS-AES256-SHA256:"
-    "ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:"
-    "ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:"
-    "DHE-DSS-AES128-SHA:DHE-RSA-AES128-SHA:"
-    "TLS_DHE_DSS_WITH_AES_256_CBC_SHA:DHE-RSA-AES256-SHA:"
-    "AES128-GCM-SHA256:DH-DSS-AES128-GCM-SHA256:"
-    "ECDH-ECDSA-AES128-GCM-SHA256:AES256-GCM-SHA384:"
-    "DH-DSS-AES256-GCM-SHA384:ECDH-ECDSA-AES256-GCM-SHA384:"
-    "AES128-SHA256:DH-DSS-AES128-SHA256:ECDH-ECDSA-AES128-SHA256:AES256-SHA256:"
-    "DH-DSS-AES256-SHA256:ECDH-ECDSA-AES256-SHA384:AES128-SHA:"
-    "DH-DSS-AES128-SHA:ECDH-ECDSA-AES128-SHA:AES256-SHA:"
-    "DH-DSS-AES256-SHA:ECDH-ECDSA-AES256-SHA:DHE-RSA-AES256-GCM-SHA384:"
-    "DH-RSA-AES128-GCM-SHA256:ECDH-RSA-AES128-GCM-SHA256:DH-RSA-AES256-GCM-"
-    "SHA384:"
-    "ECDH-RSA-AES256-GCM-SHA384:DH-RSA-AES128-SHA256:"
-    "ECDH-RSA-AES128-SHA256:DH-RSA-AES256-SHA256:"
-    "ECDH-RSA-AES256-SHA384:ECDHE-RSA-AES128-SHA:"
-    "ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA:"
-    "ECDHE-ECDSA-AES256-SHA:DHE-DSS-AES128-SHA:DHE-RSA-AES128-SHA:"
-    "TLS_DHE_DSS_WITH_AES_256_CBC_SHA:DHE-RSA-AES256-SHA:"
-    "AES128-SHA:DH-DSS-AES128-SHA:ECDH-ECDSA-AES128-SHA:AES256-SHA:"
-    "DH-DSS-AES256-SHA:ECDH-ECDSA-AES256-SHA:DH-RSA-AES128-SHA:"
-    "ECDH-RSA-AES128-SHA:DH-RSA-AES256-SHA:ECDH-RSA-AES256-SHA:DES-CBC3-SHA";
-static const char tls_cipher_blocked[] =
-    "!aNULL:!eNULL:!EXPORT:!LOW:!MD5:!DES:!RC2:!RC4:!PSK:"
-    "!DHE-DSS-DES-CBC3-SHA:!DHE-RSA-DES-CBC3-SHA:"
-    "!ECDH-RSA-DES-CBC3-SHA:!ECDH-ECDSA-DES-CBC3-SHA:"
-    "!ECDHE-RSA-DES-CBC3-SHA:!ECDHE-ECDSA-DES-CBC3-SHA:";
+    "DHE-RSA-AES256-GCM-SHA384"};
+
+static const std::string optional_a2 = {
+    "DH-DSS-AES128-GCM-SHA256:"
+    "ECDH-ECDSA-AES128-GCM-SHA256:"
+    "DH-DSS-AES256-GCM-SHA384:"
+    "ECDH-ECDSA-AES256-GCM-SHA384:"
+    "DH-DSS-AES128-SHA256:"
+    "ECDH-ECDSA-AES128-SHA256:"
+    "DH-DSS-AES256-SHA256:"
+    "ECDH-ECDSA-AES256-SHA384:"
+    "DH-RSA-AES128-GCM-SHA256:"
+    "ECDH-RSA-AES128-GCM-SHA256:"
+    "DH-RSA-AES256-GCM-SHA384:"
+    "ECDH-RSA-AES256-GCM-SHA384:"
+    "DH-RSA-AES128-SHA256:"
+    "ECDH-RSA-AES128-SHA256:"
+    "DH-RSA-AES256-SHA256:"
+    "ECDH-RSA-AES256-SHA384"};
+
+static const std::string optional_d1 = {
+    "ECDHE-RSA-AES128-SHA:"
+    "ECDHE-ECDSA-AES128-SHA:"
+    "ECDHE-RSA-AES256-SHA:"
+    "ECDHE-ECDSA-AES256-SHA:"
+    "DHE-DSS-AES128-SHA:"
+    "DHE-RSA-AES128-SHA:"
+    "DHE-DSS-AES256-SHA:"
+    "DHE-RSA-AES256-SHA:"
+    "DH-DSS-AES128-SHA:"
+    "ECDH-ECDSA-AES128-SHA:"
+    "AES256-SHA:"
+    "DH-DSS-AES256-SHA:"
+    "ECDH-ECDSA-AES256-SHA:"
+    "DH-RSA-AES128-SHA:"
+    "ECDH-RSA-AES128-SHA:"
+    "DH-RSA-AES256-SHA:"
+    "ECDH-RSA-AES256-SHA:"
+    "CAMELLIA256-SHA:"
+    "CAMELLIA128-SHA:"
+    "AES128-GCM-SHA256:"
+    "AES256-GCM-SHA384:"
+    "AES128-SHA256:"
+    "AES256-SHA256:"
+    "AES128-SHA"};
+
+static const string tls_cipher_blocked = {
+    "!aNULL:"
+    "!eNULL:"
+    "!EXPORT:"
+    "!LOW:"
+    "!MD5:"
+    "!DES:"
+    "!RC2:"
+    "!RC4:"
+    "!PSK:"
+    "!DES-CBC3-SHA:"
+    "!DHE-DSS-DES-CBC3-SHA:"
+    "!DHE-RSA-DES-CBC3-SHA:"
+    "!ECDH-RSA-DES-CBC3-SHA:"
+    "!ECDH-ECDSA-DES-CBC3-SHA:"
+    "!ECDHE-RSA-DES-CBC3-SHA:"
+    "!ECDHE-ECDSA-DES-CBC3-SHA:"
+    "!DH-RSA-DES-CBC3-SHA:"
+    "!DH-DSS-DES-CBC3-SHA"};
 
 static bool ssl_initialized = false;
 
@@ -133,16 +184,16 @@ static unsigned char dh2048_g[] = {
 static DH *get_dh2048(void) {
   DH *dh;
   if ((dh = DH_new())) {
-    BIGNUM *p = BN_bin2bn(dh2048_p, sizeof(dh2048_p), NULL);
-    BIGNUM *g = BN_bin2bn(dh2048_g, sizeof(dh2048_g), NULL);
+    BIGNUM *p = BN_bin2bn(dh2048_p, sizeof(dh2048_p), nullptr);
+    BIGNUM *g = BN_bin2bn(dh2048_g, sizeof(dh2048_g), nullptr);
     if (!p || !g
 #if OPENSSL_VERSION_NUMBER >= 0x10100000L
-        || !DH_set0_pqg(dh, p, NULL, g)
+        || !DH_set0_pqg(dh, p, nullptr, g)
 #endif /* OPENSSL_VERSION_NUMBER >= 0x10100000L */
     ) {
       /* DH_free() will free 'p' and 'g' at once. */
       DH_free(dh);
-      return NULL;
+      return nullptr;
     }
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
     dh->p = p;
@@ -179,7 +230,8 @@ static const char *ssl_error_string[] = {
     "SSL_CTX_new failed",
     "SSL context is not usable without certificate and private key",
     "SSL_CTX_set_tmp_dh failed",
-    "TLS version is invalid"};
+    "TLS version is invalid",
+    "Failed to set ecdh information"};
 
 const char *sslGetErrString(enum enum_ssl_init_error e) {
   DBUG_ASSERT(SSL_INITERR_NOERROR < e && e < SSL_INITERR_LASTERR);
@@ -476,7 +528,7 @@ uint get_fips_mode() { return FIPS_mode(); }
 
 long process_tls_version(const char *tls_version) {
   const char *separator = ",";
-  char *token, *lasts = NULL;
+  char *token, *lasts = nullptr;
 
 #ifdef HAVE_TLSv13
   const char *tls_version_name_list[] = {"TLSv1", "TLSv1.1", "TLSv1.2",
@@ -513,7 +565,7 @@ long process_tls_version(const char *tls_version) {
         break;
       }
     }
-    token = my_strtok_r(NULL, separator, &lasts);
+    token = my_strtok_r(nullptr, separator, &lasts);
   }
 
   if (!tls_found)
@@ -533,7 +585,10 @@ static struct st_VioSSLFd *new_VioSSLFd(
   struct st_VioSSLFd *ssl_fd;
   long ssl_ctx_options = SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;
   int ret_set_cipherlist = 0;
-  char cipher_list[SSL_CIPHER_LIST_SIZE] = {0};
+  string cipher_list;
+#if OPENSSL_VERSION_NUMBER < 0x10002000L
+  EC_KEY *eckey = nullptr;
+#endif /* OPENSSL_VERSION_NUMBER < 0x10002000L */
   DBUG_TRACE;
   DBUG_PRINT(
       "enter",
@@ -548,7 +603,7 @@ static struct st_VioSSLFd *new_VioSSLFd(
     *error = SSL_TLS_VERSION_INVALID;
     DBUG_PRINT("error", ("TLS version invalid : %s", sslGetErrString(*error)));
     report_errors();
-    return 0;
+    return nullptr;
   }
 
   ssl_ctx_options = (ssl_ctx_options | ssl_ctx_flags) &
@@ -560,7 +615,7 @@ static struct st_VioSSLFd *new_VioSSLFd(
                      | SSL_OP_NO_TICKET);
   if (!(ssl_fd = ((struct st_VioSSLFd *)my_malloc(
             key_memory_vio_ssl_fd, sizeof(struct st_VioSSLFd), MYF(0)))))
-    return 0;
+    return nullptr;
 
   if (!(ssl_fd->ssl_context = SSL_CTX_new(is_client ?
 #ifdef HAVE_TLSv13
@@ -575,7 +630,7 @@ static struct st_VioSSLFd *new_VioSSLFd(
     DBUG_PRINT("error", ("%s", sslGetErrString(*error)));
     report_errors();
     my_free(ssl_fd);
-    return 0;
+    return nullptr;
   }
 
 #ifdef HAVE_TLSv13
@@ -583,7 +638,7 @@ static struct st_VioSSLFd *new_VioSSLFd(
     Set OpenSSL TLS v1.3 ciphersuites.
     Note that an empty list is permissible.
   */
-  if (NULL != ciphersuites) {
+  if (nullptr != ciphersuites) {
     /*
       Note: if TLSv1.3 is enabled but TLSv1.3 ciphersuite list is empty
       (that's permissible and mentioned in the documentation),
@@ -601,7 +656,7 @@ static struct st_VioSSLFd *new_VioSSLFd(
     NOTE: SSL_CTX_set_cipher_list will return 0 if
     none of the provided ciphers could be selected
   */
-  strncpy(cipher_list, tls_cipher_blocked, SSL_CIPHER_LIST_SIZE - 1);
+  cipher_list += tls_cipher_blocked + ":";
 
   /*
     If ciphers are specified explicitly by caller, use them.
@@ -611,11 +666,14 @@ static struct st_VioSSLFd *new_VioSSLFd(
     Note that we have already consumed tls_cipher_blocked
     worth of space.
   */
-  strncat(cipher_list, cipher == 0 ? tls_ciphers_list : cipher,
-          SSL_CIPHER_LIST_SIZE - strlen(cipher_list) - 1);
+  if (cipher == nullptr) {
+    cipher_list += mandatory_p1 + ":" + optional_a1 + ":" + optional_a2 + ":" +
+                   optional_d1;
+  } else
+    cipher_list.append(cipher);
 
   if (ret_set_cipherlist ==
-      SSL_CTX_set_cipher_list(ssl_fd->ssl_context, cipher_list)) {
+      SSL_CTX_set_cipher_list(ssl_fd->ssl_context, cipher_list.c_str())) {
     *error = SSL_INITERR_CIPHERS;
     goto error;
   }
@@ -671,6 +729,26 @@ static struct st_VioSSLFd *new_VioSSLFd(
   }
   DH_free(dh);
 
+  /* ECDH stuff */
+#if OPENSSL_VERSION_NUMBER < 0x10002000L
+  /* We choose P-256 curve. */
+  eckey = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
+  if (!eckey) {
+    *error = SSL_INITERR_ECDHFAIL;
+    goto error;
+  }
+  if (SSL_CTX_set_tmp_ecdh(ssl_fd->ssl_context, eckey) != 1) {
+    EC_KEY_free(eckey);
+    *error = SSL_INITERR_ECDHFAIL;
+    goto error;
+  }
+#else
+  if (SSL_CTX_set_ecdh_auto(ssl_fd->ssl_context, 1) == 0) {
+    *error = SSL_INITERR_ECDHFAIL;
+    goto error;
+  }
+#endif /* OPENSSL_VERSION_NUMBER < 0x10002000L */
+
   SSL_CTX_set_options(ssl_fd->ssl_context, ssl_ctx_options);
 
   DBUG_PRINT("exit", ("OK 1"));
@@ -682,7 +760,7 @@ error:
   report_errors();
   SSL_CTX_free(ssl_fd->ssl_context);
   my_free(ssl_fd);
-  return 0;
+  return nullptr;
 }
 
 /************************ VioSSLConnectorFd
@@ -699,17 +777,17 @@ struct st_VioSSLFd *new_VioSSLConnectorFd(
     Turn off verification of servers certificate if both
     ca_file and ca_path is set to NULL
   */
-  if (ca_file == 0 && ca_path == 0) verify = SSL_VERIFY_NONE;
+  if (ca_file == nullptr && ca_path == nullptr) verify = SSL_VERIFY_NONE;
 
   if (!(ssl_fd = new_VioSSLFd(key_file, cert_file, ca_file, ca_path, cipher,
                               ciphersuites, true, error, crl_file, crl_path,
                               ssl_ctx_flags))) {
-    return 0;
+    return nullptr;
   }
 
   /* Init the VioSSLFd as a "connector" ie. the client side */
 
-  SSL_CTX_set_verify(ssl_fd->ssl_context, verify, NULL);
+  SSL_CTX_set_verify(ssl_fd->ssl_context, verify, nullptr);
 
   return ssl_fd;
 }
@@ -725,14 +803,14 @@ struct st_VioSSLFd *new_VioSSLAcceptorFd(
   if (!(ssl_fd = new_VioSSLFd(key_file, cert_file, ca_file, ca_path, cipher,
                               ciphersuites, false, error, crl_file, crl_path,
                               ssl_ctx_flags))) {
-    return 0;
+    return nullptr;
   }
   /* Init the the VioSSLFd as a "acceptor" ie. the server side */
 
   /* Set max number of cached sessions, returns the previous size */
   SSL_CTX_sess_set_cache_size(ssl_fd->ssl_context, 128);
 
-  SSL_CTX_set_verify(ssl_fd->ssl_context, verify, NULL);
+  SSL_CTX_set_verify(ssl_fd->ssl_context, verify, nullptr);
 
   /*
     Set session_id - an identifier for this server session
@@ -748,4 +826,3 @@ void free_vio_ssl_acceptor_fd(struct st_VioSSLFd *fd) {
   SSL_CTX_free(fd->ssl_context);
   my_free(fd);
 }
-#endif /* HAVE_OPENSSL */

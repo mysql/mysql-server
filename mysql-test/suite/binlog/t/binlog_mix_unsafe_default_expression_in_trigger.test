@@ -40,11 +40,12 @@ CREATE TABLE t3 (y DOUBLE DEFAULT (PI()));
 
 --echo # Test R1.
 
+--let $event_sequence = !Gtid_or_anon # !Begin # Table_map # Table_map # Write_rows # Write_rows # Xid
+
 CREATE TRIGGER t2_trigger AFTER INSERT ON t2
 FOR EACH ROW INSERT INTO t1 VALUES ();
 --source include/save_binlog_position.inc
 INSERT INTO t2 VALUES ();
---let $event_sequence = !Gtid_or_anon # !Begin # Table_map # Table_map # Write_rows # Write_rows # Xid
 --source include/assert_binlog_events.inc
 DROP TRIGGER t2_trigger;
 
@@ -52,7 +53,6 @@ CREATE TRIGGER t2_trigger AFTER INSERT ON t2
 FOR EACH ROW INSERT INTO t1(a) VALUES (1);
 --source include/save_binlog_position.inc
 INSERT INTO t2 VALUES ();
---let $event_sequence = !Gtid_or_anon # !Begin # Table_map # Table_map # Write_rows # Write_rows # Xid
 --source include/assert_binlog_events.inc
 DROP TRIGGER t2_trigger;
 
@@ -60,7 +60,6 @@ CREATE TRIGGER t2_trigger AFTER INSERT ON t2
 FOR EACH ROW INSERT INTO t1(b) VALUES (DEFAULT);
 --source include/save_binlog_position.inc
 INSERT INTO t2 VALUES ();
---let $event_sequence = !Gtid_or_anon # !Begin # Table_map # Table_map # Write_rows # Write_rows # Xid
 --source include/assert_binlog_events.inc
 DROP TRIGGER t2_trigger;
 
@@ -68,15 +67,14 @@ CREATE TRIGGER t2_trigger AFTER INSERT ON t2
 FOR EACH ROW INSERT INTO t1(b) VALUES (1);
 --source include/save_binlog_position.inc
 INSERT INTO t2 VALUES ();
---let $event_sequence = !Gtid_or_anon # !Begin # Table_map # Table_map # Write_rows # Write_rows # Xid
 --source include/assert_binlog_events.inc
 DROP TRIGGER t2_trigger;
 
+--let $event_sequence = !Gtid_or_anon # !Begin # Table_map # Table_map # Write_rows # Update_rows # Xid
 CREATE TRIGGER t2_trigger AFTER INSERT ON t2
 FOR EACH ROW UPDATE t1 SET a = DEFAULT;
 --source include/save_binlog_position.inc
 INSERT INTO t2 VALUES ();
---let $event_sequence = !Gtid_or_anon # !Begin # Table_map # Table_map # Write_rows # Update_rows # Xid
 --source include/assert_binlog_events.inc
 DROP TRIGGER t2_trigger;
 
@@ -84,7 +82,6 @@ CREATE TRIGGER t2_trigger AFTER INSERT ON t2
 FOR EACH ROW UPDATE t1 SET b = DEFAULT;
 --source include/save_binlog_position.inc
 INSERT INTO t2 VALUES ();
---let $event_sequence = !Gtid_or_anon # !Begin # Table_map # Table_map # Write_rows # Update_rows # Xid
 --source include/assert_binlog_events.inc
 DROP TRIGGER t2_trigger;
 
@@ -109,7 +106,6 @@ INSERT INTO t1 VALUES ();
 --source include/assert_binlog_events.inc
 --source include/save_binlog_position.inc
 INSERT INTO t1 (b) VALUES (DEFAULT);
---let $event_sequence = !Gtid_or_anon # !Begin # Table_map # Write_rows # Xid
 --source include/assert_binlog_events.inc
 
 # Logged in STATEMENT format when the DEFAULT expression is not used.

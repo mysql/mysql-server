@@ -265,9 +265,7 @@ class StateFileDynamicChangesTest : public StateFileTest {
  protected:
   void SetUp() override { StateFileTest::SetUp(); }
 
-  void kill_server(ProcessWrapper *server) {
-    EXPECT_NO_THROW(server->kill()) << server->get_full_output();
-  }
+  void kill_server(ProcessWrapper *server) { EXPECT_NO_THROW(server->kill()); }
 };
 
 struct StateFileTestParam {
@@ -318,12 +316,25 @@ TEST_P(StateFileMetadataServersChangedInRuntimeTest,
     cluster_nodes.push_back(&ProcessManager::launch_mysql_server_mock(
         trace_file, cluster_nodes_ports[i], EXIT_SUCCESS, false,
         cluster_http_ports[i], 0, "", bind_address));
-    ASSERT_NO_FATAL_FAILURE(check_port_ready(
-        *cluster_nodes[i], cluster_nodes_ports[i], kDefaultPortReadyTimeout,
-        param.ipv6 ? "::1" : "127.0.0.1"));
+    try {
+      ASSERT_NO_FATAL_FAILURE(check_port_ready(
+          *cluster_nodes[i], cluster_nodes_ports[i], kDefaultPortReadyTimeout,
+          param.ipv6 ? "::1" : "127.0.0.1"));
+    } catch (const std::system_error &e) {
+      // the only expected system-error is "address-no-available" in case of
+      // trying to bind to ipv6 when ipv6 is disabled on the host
+      ASSERT_EQ(e.code(),
+                make_error_condition(std::errc::address_not_available));
+
+      // there is no good synchronization point for waiting for the mock's
+      // signal handler to be setup
+      //
+      // - nothing is written to the log
+      std::this_thread::sleep_for(100ms);
+      return;
+    }
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
-                    .wait_for_rest_endpoint_ready())
-        << cluster_nodes[i]->get_full_output();
+                    .wait_for_rest_endpoint_ready());
 
     SCOPED_TRACE(
         "// Make our metadata server to return single node as a replicaset "
@@ -349,8 +360,8 @@ TEST_P(StateFileMetadataServersChangedInRuntimeTest,
       router_port, "PRIMARY", "first-available");
 
   SCOPED_TRACE("// Launch ther router with the initial state file");
-  auto &router = launch_router(temp_test_dir.name(), metadata_cache_section,
-                               routing_section, state_file);
+  launch_router(temp_test_dir.name(), metadata_cache_section, routing_section,
+                state_file);
 
   SCOPED_TRACE(
       "// Check our state file content, it should not change yet, there is "
@@ -360,8 +371,7 @@ TEST_P(StateFileMetadataServersChangedInRuntimeTest,
       state_file, kGroupId,
       {"mysql://" + node_host + ":" + std::to_string(cluster_nodes_ports[0])},
       10 * kTTL))
-      << get_file_output(state_file)
-      << "\nrouter: " << router.get_full_logfile();
+      << get_file_output(state_file);
 
   SCOPED_TRACE(
       "// Now change the response from the metadata server to return 3 gr "
@@ -381,8 +391,7 @@ TEST_P(StateFileMetadataServersChangedInRuntimeTest,
        "mysql://" + node_host + ":" + std::to_string(cluster_nodes_ports[1]),
        "mysql://" + node_host + ":" + std::to_string(cluster_nodes_ports[2])},
       std::chrono::milliseconds(10 * kTTL)))
-      << get_file_output(state_file)
-      << "\nrouter: " << router.get_full_logfile();
+      << get_file_output(state_file);
 
   ///////////////////////////////////////////////////
 
@@ -419,8 +428,7 @@ TEST_P(StateFileMetadataServersChangedInRuntimeTest,
       {"mysql://" + node_host + ":" + std::to_string(cluster_nodes_ports[1]),
        "mysql://" + node_host + ":" + std::to_string(cluster_nodes_ports[2])},
       10000ms))
-      << get_file_output(state_file)
-      << "\nrouter: " << router.get_full_logfile();
+      << get_file_output(state_file);
 }
 
 INSTANTIATE_TEST_CASE_P(
@@ -465,8 +473,7 @@ TEST_P(StateFileMetadataServersInaccessibleTest, MetadataServersInaccessible) {
       trace_file, cluster_node_port, EXIT_SUCCESS, false, cluster_http_port));
   ASSERT_NO_FATAL_FAILURE(check_port_ready(cluster_node, cluster_node_port));
   ASSERT_TRUE(
-      MockServerRestClient(cluster_http_port).wait_for_rest_endpoint_ready())
-      << cluster_node.get_full_output();
+      MockServerRestClient(cluster_http_port).wait_for_rest_endpoint_ready());
 
   SCOPED_TRACE(
       "// Make our metadata server return single node as a replicaset "
@@ -502,8 +509,7 @@ TEST_P(StateFileMetadataServersInaccessibleTest, MetadataServersInaccessible) {
   EXPECT_TRUE(wait_state_file_contains(
       state_file, kGroupId,
       {"mysql://127.0.0.1:" + std::to_string(cluster_node_port)}, 10000ms))
-      << get_file_output(state_file)
-      << "\nrouter: " << router.get_full_logfile();
+      << get_file_output(state_file);
 }
 
 INSTANTIATE_TEST_CASE_P(
@@ -547,8 +553,7 @@ TEST_P(StateFileGroupReplicationIdDiffersTest, GroupReplicationIdDiffers) {
       trace_file, cluster_node_port, EXIT_SUCCESS, false, cluster_http_port);
   ASSERT_NO_FATAL_FAILURE(check_port_ready(cluster_node, cluster_node_port));
   ASSERT_TRUE(
-      MockServerRestClient(cluster_http_port).wait_for_rest_endpoint_ready())
-      << cluster_node.get_full_output();
+      MockServerRestClient(cluster_http_port).wait_for_rest_endpoint_ready());
 
   SCOPED_TRACE(
       "// Make our metadata server to return single node as a replicaset "
@@ -588,14 +593,12 @@ TEST_P(StateFileGroupReplicationIdDiffersTest, GroupReplicationIdDiffers) {
       state_file, kStateFileGroupId,
       {"mysql://127.0.0.1:" + std::to_string(cluster_node_port)},
       std::chrono::milliseconds(10 * kTTL)))
-      << get_file_output(state_file)
-      << "\nrouter: " << router.get_full_logfile();
+      << get_file_output(state_file);
 
   SCOPED_TRACE("// We expect an error in the logfile");
   EXPECT_TRUE(wait_log_file_contains(
       router, "Failed fetching metadata from any of the 1 metadata servers",
-      10 * kTTL))
-      << router.get_full_logfile();
+      10 * kTTL));
 
   // now try to connect to the router port, we expect error 2003
   std::string out_port_unused;
@@ -650,8 +653,7 @@ TEST_P(StateFileSplitBrainScenarioTest, SplitBrainScenario) {
     cluster_nodes.push_back(&ProcessManager::launch_mysql_server_mock(
         trace_file, port_connect, EXIT_SUCCESS, false, port_http));
     ASSERT_NO_FATAL_FAILURE(check_port_ready(*cluster_nodes[i], port_connect));
-    ASSERT_TRUE(MockServerRestClient(port_http).wait_for_rest_endpoint_ready())
-        << cluster_nodes[i]->get_full_output();
+    ASSERT_TRUE(MockServerRestClient(port_http).wait_for_rest_endpoint_ready());
   }
 
   SCOPED_TRACE(
@@ -692,8 +694,8 @@ TEST_P(StateFileSplitBrainScenarioTest, SplitBrainScenario) {
       router_port, "PRIMARY", "first-available");
 
   SCOPED_TRACE("// Launch ther router with the initial state file");
-  auto &router = launch_router(temp_test_dir.name(), metadata_cache_section,
-                               routing_section, state_file);
+  launch_router(temp_test_dir.name(), metadata_cache_section, routing_section,
+                state_file);
   SCOPED_TRACE(
       "// Check our state file content, it should now contain only the nodes "
       "from the first group.");
@@ -707,8 +709,7 @@ TEST_P(StateFileSplitBrainScenarioTest, SplitBrainScenario) {
   EXPECT_TRUE(wait_state_file_contains(state_file, kClusterGroupId,
                                        expected_gr_nodes,
                                        std::chrono::milliseconds(10 * kTTL)))
-      << get_file_output(state_file)
-      << "\nrouter: " << router.get_full_logfile();
+      << get_file_output(state_file);
 
   SCOPED_TRACE(
       "// Try to connect to the router port, we expect first port from the "
@@ -766,8 +767,7 @@ TEST_F(StateFileDynamicChangesTest, EmptyMetadataServersList) {
       "'bootstrap_server_addresses' is the configuration file is empty "
       "or not set and list of 'cluster-metadata-servers' in "
       "'dynamic_config'-file is empty, too.",
-      3 * kTTL))
-      << router.get_full_logfile();
+      3 * kTTL));
 
   // now try to connect to the router port, we expect error 2003
   std::string out_port_unused;
@@ -1134,7 +1134,7 @@ TEST_P(StateFileAccessRightsTest, ParametrizedStateFileSchemaTest) {
       },
       std::chrono::milliseconds(1));
 
-  EXPECT_TRUE(found) << router.get_full_logfile();
+  EXPECT_TRUE(found);
 }
 
 INSTANTIATE_TEST_CASE_P(

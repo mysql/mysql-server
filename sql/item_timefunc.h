@@ -165,7 +165,7 @@ class Item_func_month final : public Item_func {
   }
   String *val_str(String *str) override {
     longlong nr = val_int();
-    if (null_value) return 0;
+    if (null_value) return nullptr;
     str->set(nr, collation.collation);
     return str;
   }
@@ -359,7 +359,7 @@ class Item_func_weekday : public Item_func {
   String *val_str(String *str) override {
     DBUG_ASSERT(fixed == 1);
     str->set(val_int(), &my_charset_bin);
-    return null_value ? 0 : str;
+    return null_value ? nullptr : str;
   }
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override {
     return get_date_from_int(ltime, fuzzydate);
@@ -922,7 +922,7 @@ class Item_time_literal final : public Item_time_func {
     @param dec_arg  number of fractional digits in ltime.
   */
   Item_time_literal(MYSQL_TIME *ltime, uint dec_arg) {
-    set_data_type_time(MY_MIN(dec_arg, DATETIME_MAX_DECIMALS));
+    set_data_type_time(std::min(dec_arg, uint(DATETIME_MAX_DECIMALS)));
     cached_time.set_time(ltime, decimals);
     fixed = true;
   }
@@ -968,7 +968,7 @@ class Item_datetime_literal final : public Item_datetime_func {
                    time zone upon storage.
   */
   Item_datetime_literal(MYSQL_TIME *ltime, uint dec_arg, const Time_zone *tz) {
-    set_data_type_datetime(MY_MIN(dec_arg, DATETIME_MAX_DECIMALS));
+    set_data_type_datetime(std::min(dec_arg, uint{DATETIME_MAX_DECIMALS}));
     cached_time.set_datetime(ltime, decimals, tz);
     fixed = true;
   }
@@ -1299,7 +1299,8 @@ class Item_func_sec_to_time final : public Item_time_func {
   Item_func_sec_to_time(const POS &pos, Item *item)
       : Item_time_func(pos, item) {}
   bool resolve_type(THD *) override {
-    set_data_type_time(MY_MIN(args[0]->decimals, DATETIME_MAX_DECIMALS));
+    set_data_type_time(
+        std::min(args[0]->decimals, uint8{DATETIME_MAX_DECIMALS}));
     maybe_null = true;
     return false;
   }
@@ -1510,7 +1511,7 @@ class Item_func_timediff final : public Item_time_func {
   const char *func_name() const override { return "timediff"; }
   bool resolve_type(THD *) override {
     set_data_type_time(
-        MY_MAX(args[0]->time_precision(), args[1]->time_precision()));
+        std::max(args[0]->time_precision(), args[1]->time_precision()));
     maybe_null = true;
     return false;
   }
@@ -1524,7 +1525,8 @@ class Item_func_maketime final : public Item_time_func {
     maybe_null = true;
   }
   bool resolve_type(THD *) override {
-    set_data_type_time(MY_MIN(args[2]->decimals, DATETIME_MAX_DECIMALS));
+    set_data_type_time(
+        std::min(args[2]->decimals, uint8{DATETIME_MAX_DECIMALS}));
     return false;
   }
   const char *func_name() const override { return "maketime"; }

@@ -30,8 +30,8 @@
 
 #include <gmock/gmock.h>
 
-#include "plugin/x/src/interface/sha256_password_cache.h"
 #include "plugin/x/src/cache_based_verification.h"
+#include "plugin/x/src/interface/sha256_password_cache.h"
 
 namespace xpl {
 namespace test {
@@ -54,8 +54,7 @@ class Mock_sha256_password_cache : public iface::SHA256_password_cache {
 
 class Mock_cache_based_verification : public Cache_based_verification {
  public:
-  explicit Mock_cache_based_verification(
-      iface::SHA256_password_cache *cache)
+  explicit Mock_cache_based_verification(iface::SHA256_password_cache *cache)
       : Cache_based_verification(cache) {}
   MOCK_CONST_METHOD0(get_salt, const std::string &());
 };

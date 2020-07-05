@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -136,7 +136,8 @@ PSI_rwlock_key key_GR_RWLOCK_cert_stable_gtid_set,
     key_GR_RWLOCK_plugin_stop,
     key_GR_RWLOCK_transaction_observation_list,
     key_GR_RWLOCK_transaction_consistency_manager_map,
-    key_GR_RWLOCK_transaction_consistency_manager_prepared_transactions_on_my_applier;
+    key_GR_RWLOCK_transaction_consistency_manager_prepared_transactions_on_my_applier,
+    key_GR_RWLOCK_flow_control_module_info;
 /* clang-format on */
 
 #ifdef HAVE_PSI_INTERFACE
@@ -437,7 +438,9 @@ static PSI_thread_info all_group_replication_psi_thread_keys[] = {
     {&key_GR_THD_recovery, "THD_recovery", PSI_FLAG_SINGLETON, 0,
      PSI_DOCUMENT_ME},
     {&key_GR_THD_autorejoin, "THD_autorejoin", PSI_FLAG_SINGLETON, 0,
-     PSI_DOCUMENT_ME}};
+     PSI_DOCUMENT_ME},
+    {&key_GR_THD_message_service_handler, "THD_message_service_handler",
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}};
 
 static PSI_rwlock_info all_group_replication_psi_rwlock_keys[] = {
     {&key_GR_RWLOCK_cert_stable_gtid_set, "RWLOCK_certifier_stable_gtid_set",
@@ -468,6 +471,8 @@ static PSI_rwlock_info all_group_replication_psi_rwlock_keys[] = {
     {&key_GR_RWLOCK_transaction_consistency_manager_prepared_transactions_on_my_applier,
      "RWLOCK_transaction_consistency_manager_prepared_transactions_on_my_"
      "applier",
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+    {&key_GR_RWLOCK_flow_control_module_info, "RWLOCK_flow_control_module_info",
      PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}};
 
 static PSI_stage_info *all_group_replication_stages_keys[] = {
@@ -498,7 +503,7 @@ static PSI_stage_info *all_group_replication_stages_keys[] = {
 void register_group_replication_mutex_psi_keys(PSI_mutex_info mutexes[],
                                                size_t mutex_count) {
   const char *category = "group_rpl";
-  if (mutexes != NULL) {
+  if (mutexes != nullptr) {
     mysql_mutex_register(category, mutexes, static_cast<int>(mutex_count));
   }
 }
@@ -506,7 +511,7 @@ void register_group_replication_mutex_psi_keys(PSI_mutex_info mutexes[],
 void register_group_replication_cond_psi_keys(PSI_cond_info conds[],
                                               size_t cond_count) {
   const char *category = "group_rpl";
-  if (conds != NULL) {
+  if (conds != nullptr) {
     mysql_cond_register(category, conds, static_cast<int>(cond_count));
   }
 }
@@ -514,7 +519,7 @@ void register_group_replication_cond_psi_keys(PSI_cond_info conds[],
 void register_group_replication_thread_psi_keys(PSI_thread_info threads[],
                                                 size_t thread_count) {
   const char *category = "group_rpl";
-  if (threads != NULL) {
+  if (threads != nullptr) {
     mysql_thread_register(category, threads, static_cast<int>(thread_count));
   }
 }

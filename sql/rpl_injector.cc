@@ -58,7 +58,7 @@ inline injector::transaction::transaction(MYSQL_BIN_LOG *log, THD *thd)
   /*
      Next pos is unknown until after commit of the Binlog transaction
   */
-  m_next_pos.m_file_name = 0;
+  m_next_pos.m_file_name = nullptr;
   m_next_pos.m_file_pos = 0;
 
   /*
@@ -254,7 +254,7 @@ inline injector::injector() {}
 
 static injector *s_injector = nullptr;
 injector *injector::instance() {
-  if (s_injector == 0) s_injector = new injector;
+  if (s_injector == nullptr) s_injector = new injector;
   /* "There can be only one [instance]" */
   return s_injector;
 }
@@ -262,8 +262,8 @@ injector *injector::instance() {
 void injector::free_instance() {
   injector *inj = s_injector;
 
-  if (inj != 0) {
-    s_injector = 0;
+  if (inj != nullptr) {
+    s_injector = nullptr;
     delete inj;
   }
 }

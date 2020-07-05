@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,7 +62,7 @@ class Connection_acceptor {
         Connection_handler_manager::get_instance();
     while (!connection_events_loop_aborted()) {
       Channel_info *channel_info = m_listener->listen_for_connection_event();
-      if (channel_info != NULL) mgr->process_new_connection(channel_info);
+      if (channel_info != nullptr) mgr->process_new_connection(channel_info);
     }
   }
 

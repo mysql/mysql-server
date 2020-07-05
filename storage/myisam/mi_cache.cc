@@ -42,6 +42,8 @@
 
 #include <sys/types.h>
 
+#include <algorithm>
+
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
@@ -69,7 +71,7 @@ int _mi_read_cache(IO_CACHE *info, uchar *buff, my_off_t pos, uint length,
       (offset = (my_off_t)(pos - info->pos_in_file)) <
           (my_off_t)(info->read_end - info->request_pos)) {
     in_buff_pos = info->request_pos + (uint)offset;
-    in_buff_length = MY_MIN(length, (size_t)(info->read_end - in_buff_pos));
+    in_buff_length = std::min<size_t>(length, (info->read_end - in_buff_pos));
     memcpy(buff, info->request_pos + (uint)offset, (size_t)in_buff_length);
     if (!(length -= in_buff_length)) return 0;
     pos += in_buff_length;

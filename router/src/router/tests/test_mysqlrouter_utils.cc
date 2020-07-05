@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,10 +26,10 @@
  * Test free functions found in utils.cc
  */
 
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
-
 #include <cstdlib>
+
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include "mysql/harness/filesystem.h"
 #include "mysqlrouter/utils.h"
@@ -37,14 +37,13 @@
 using std::string;
 
 using mysqlrouter::substitute_envvar;
-using mysqlrouter::wrap_string;
 
 using ::testing::ContainerEq;
 using ::testing::StrEq;
 
 class SubstituteEnvVarTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     static char env[64];
 
     snprintf(env, sizeof(env), "%s=%s", env_name.c_str(), env_value.c_str());
@@ -54,41 +53,8 @@ class SubstituteEnvVarTest : public ::testing::Test {
   string env_value{"MySQLRouterTest"};
 };
 
-class WrapStringTest : public ::testing::Test {
- protected:
-  virtual void SetUp() {}
-  string one_line{
-      "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut ac tempor "
-      "ligula. Curabitur imperdiet sem eget "
-      "tincidunt viverra. Integer lacinia, velit vel aliquam finibus, dui "
-      "turpis aliquet leo, pharetra finibus neque "
-      "elit id sapien. Nunc hendrerit ut felis nec gravida. Proin a mi id "
-      "ligula pharetra pulvinar ut in sapien. "
-      "Cras lorem libero, mollis consectetur leo et, sollicitudin scelerisque "
-      "mauris. Nunc semper dignissim libero, "
-      "vitae ullamcorper arcu luctus eu."};
-  string with_newlines{
-      "Lorem ipsum dolor sit amet, consectetur adipiscing elit.\nUt ac tempor "
-      "ligula. Curabitur imperdiet sem eget "
-      "tincidunt viverra. Integer lacinia, velit\nvel aliquam finibus, dui "
-      "turpis aliquet leo, pharetra finibus neque "
-      "elit id sapien. Nunc hendrerit ut felis nec\ngravida. Proin a mi id "
-      "ligula pharetra pulvinar ut in sapien. "
-      "Cras lorem libero, mollis consectetur\nleo et, sollicitudin scelerisque "
-      "mauris. Nunc semper dignissim libero, "
-      "vitae ullamcorper arcu luctus\neu."};
-
-  string short_line_less72{
-      "Lorem ipsum dolor sit amet, consectetur adipiscing elit."};
-
-  string custom_indents{
-      "           Lorem ipsum dolor      sit amet,\n"
-      "           consectetur adipiscing elit."};
-};
-
 class StringFormatTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {}
 };
 
 /*! \brief Tests mysqlrouter::substitute_envvar()
@@ -146,104 +112,6 @@ TEST_F(SubstituteEnvVarTest, UnknownEnvironmentVariable) {
 }
 
 /*
- * Tests mysqlrouter::wrap_string()
- */
-
-TEST_F(WrapStringTest, ShortLine) {
-  std::vector<string> lines = wrap_string(short_line_less72, 72, 0);
-
-  std::vector<string> exp{short_line_less72};
-  ASSERT_THAT(lines, ContainerEq(exp));
-}
-
-TEST_F(WrapStringTest, OneLine72width) {
-  std::vector<string> lines = wrap_string(one_line, 72, 0);
-
-  std::vector<string> exp{
-      "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut ac tempor",
-      "ligula. Curabitur imperdiet sem eget tincidunt viverra. Integer "
-      "lacinia,",
-      "velit vel aliquam finibus, dui turpis aliquet leo, pharetra finibus",
-      "neque elit id sapien. Nunc hendrerit ut felis nec gravida. Proin a mi "
-      "id",
-      "ligula pharetra pulvinar ut in sapien. Cras lorem libero, mollis",
-      "consectetur leo et, sollicitudin scelerisque mauris. Nunc semper",
-      "dignissim libero, vitae ullamcorper arcu luctus eu.",
-  };
-
-  ASSERT_THAT(lines, ContainerEq(exp));
-}
-
-TEST_F(WrapStringTest, OneLine72widthIndent4) {
-  std::vector<string> lines = wrap_string(one_line, 72, 4);
-
-  std::vector<string> exp{
-      "    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut ac",
-      "    tempor ligula. Curabitur imperdiet sem eget tincidunt viverra.",
-      "    Integer lacinia, velit vel aliquam finibus, dui turpis aliquet leo,",
-      "    pharetra finibus neque elit id sapien. Nunc hendrerit ut felis nec",
-      "    gravida. Proin a mi id ligula pharetra pulvinar ut in sapien. Cras",
-      "    lorem libero, mollis consectetur leo et, sollicitudin scelerisque",
-      "    mauris. Nunc semper dignissim libero, vitae ullamcorper arcu luctus",
-      "    eu.",
-  };
-
-  ASSERT_THAT(lines, ContainerEq(exp));
-}
-
-TEST_F(WrapStringTest, RespectNewLine) {
-  std::vector<string> lines = wrap_string(with_newlines, 80, 0);
-
-  std::vector<string> exp{
-      "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
-      "Ut ac tempor ligula. Curabitur imperdiet sem eget tincidunt viverra. "
-      "Integer",
-      "lacinia, velit",
-      "vel aliquam finibus, dui turpis aliquet leo, pharetra finibus neque "
-      "elit id",
-      "sapien. Nunc hendrerit ut felis nec",
-      "gravida. Proin a mi id ligula pharetra pulvinar ut in sapien. Cras "
-      "lorem libero,",
-      "mollis consectetur",
-      "leo et, sollicitudin scelerisque mauris. Nunc semper dignissim libero, "
-      "vitae",
-      "ullamcorper arcu luctus",
-      "eu.",
-  };
-
-  ASSERT_THAT(lines, ContainerEq(exp));
-}
-
-TEST_F(WrapStringTest, RespectNewLineIndent2) {
-  std::vector<string> lines = wrap_string(with_newlines, 60, 2);
-
-  std::vector<string> exp{
-      "  Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
-      "  Ut ac tempor ligula. Curabitur imperdiet sem eget",
-      "  tincidunt viverra. Integer lacinia, velit",
-      "  vel aliquam finibus, dui turpis aliquet leo, pharetra",
-      "  finibus neque elit id sapien. Nunc hendrerit ut felis nec",
-      "  gravida. Proin a mi id ligula pharetra pulvinar ut in",
-      "  sapien. Cras lorem libero, mollis consectetur",
-      "  leo et, sollicitudin scelerisque mauris. Nunc semper",
-      "  dignissim libero, vitae ullamcorper arcu luctus",
-      "  eu.",
-  };
-  ASSERT_THAT(lines, ContainerEq(exp));
-}
-
-TEST_F(WrapStringTest, CustomeIndents) {
-  std::vector<string> lines = wrap_string(custom_indents, 72, 5);
-
-  std::vector<string> exp{
-      "                Lorem ipsum dolor      sit amet,",
-      "                consectetur adipiscing elit.",
-  };
-
-  ASSERT_THAT(lines, ContainerEq(exp));
-}
-
-/*
  * Tests mysqlrouter::string_format()
  */
 TEST_F(StringFormatTest, Simple) {
@@ -251,4 +119,9 @@ TEST_F(StringFormatTest, Simple) {
             mysqlrouter::string_format("%d + %d = %d", 5, 5, 10));
   EXPECT_EQ(std::string("Spam is 5"),
             mysqlrouter::string_format("%s is %d", "Spam", 5));
+}
+
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }

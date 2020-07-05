@@ -579,8 +579,7 @@ TEST_F(MasterKeyReaderWriterTest, ConnectToMetadataServerPass) {
   };
 
   EXPECT_TRUE(find_in_file(logging_folder + "/mysqlrouter.log", matcher,
-                           std::chrono::milliseconds(10000)))
-      << router.get_full_logfile("mysqlrouter.log", logging_folder);
+                           std::chrono::milliseconds(10000)));
 }
 
 /**

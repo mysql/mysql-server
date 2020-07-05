@@ -102,9 +102,12 @@ enum log_header_format_t {
   it had to point the beginning of a group of log records). */
   LOG_HEADER_FORMAT_8_0_3 = 3,
 
+  /** Expand ulint compressed form. */
+  LOG_HEADER_FORMAT_8_0_19 = 4,
+
   /** The redo log format identifier
   corresponding to the current format version. */
-  LOG_HEADER_FORMAT_CURRENT = LOG_HEADER_FORMAT_8_0_3
+  LOG_HEADER_FORMAT_CURRENT = LOG_HEADER_FORMAT_8_0_19
 };
 
 /** The state of a log group */

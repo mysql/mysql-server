@@ -374,11 +374,11 @@ TEST_F(GeometryManipulationTest, ResizeAssignmentTest) {
   Gis_geometry_collection geocol(0, Geometry::wkb_multipolygon, &str1, &str2);
 
   ls4 = ls5;
-  EXPECT_EQ(ls4.get_ptr() == NULL && ls4.get_nbytes() == 0, true);
-  EXPECT_EQ(ls5.get_ptr() == NULL && ls5.get_nbytes() == 0, true);
+  EXPECT_EQ(ls4.get_ptr() == nullptr && ls4.get_nbytes() == 0, true);
+  EXPECT_EQ(ls5.get_ptr() == nullptr && ls5.get_nbytes() == 0, true);
   plgn3 = plgn4;
   plgn3.to_wkb_unparsed();
-  EXPECT_EQ(plgn3.get_ptr() == NULL && plgn3.get_nbytes() == 0, true);
+  EXPECT_EQ(plgn3.get_ptr() == nullptr && plgn3.get_nbytes() == 0, true);
 
   ls4 = ls6;
   EXPECT_EQ(ls4.get_ptr() != ls6.get_ptr() &&

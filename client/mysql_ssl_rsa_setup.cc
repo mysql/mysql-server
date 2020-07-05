@@ -108,41 +108,43 @@ Sql_string_t ext_files[] = {create_string("cav3.ext"),
 Log info(cout, "NOTE");
 Log error(cerr, "ERROR");
 
-char **defaults_argv = 0;
-static char *opt_datadir = 0;
+char **defaults_argv = nullptr;
+static char *opt_datadir = nullptr;
 static char default_data_dir[] = MYSQL_DATADIR;
-static char *opt_suffix = 0;
+static char *opt_suffix = nullptr;
 static char default_suffix[] = MYSQL_SERVER_VERSION;
 #if HAVE_CHOWN
-static char *opt_userid = 0;
-struct passwd *user_info = 0;
+static char *opt_userid = nullptr;
+struct passwd *user_info = nullptr;
 #endif /* HAVE_CHOWN */
 Path dir_string;
 Sql_string_t suffix_string;
 bool opt_verbose;
 
-static const char *load_default_groups[] = {"mysql_ssl_rsa_setup", "mysqld", 0};
+static const char *load_default_groups[] = {"mysql_ssl_rsa_setup", "mysqld",
+                                            nullptr};
 
 static struct my_option my_options[] = {
-    {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
-     0, 0, 0, 0, 0},
-    {"verbose", 'v', "Be more verbose when running program", &opt_verbose, 0, 0,
-     GET_BOOL, NO_ARG, false, 0, 0, 0, 0, 0},
-    {"version", 'V', "Print program version and exit", 0, 0, 0, GET_NO_ARG,
-     NO_ARG, 0, 0, 0, 0, 0, 0},
+    {"help", '?', "Display this help and exit.", nullptr, nullptr, nullptr,
+     GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"verbose", 'v', "Be more verbose when running program", &opt_verbose,
+     nullptr, nullptr, GET_BOOL, NO_ARG, false, 0, 0, nullptr, 0, nullptr},
+    {"version", 'V', "Print program version and exit", nullptr, nullptr,
+     nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"datadir", 'd', "Directory to store generated files.", &opt_datadir,
-     &opt_datadir, 0, GET_STR_ALLOC, REQUIRED_ARG, (longlong)&default_data_dir,
-     0, 0, 0, 0, 0},
+     &opt_datadir, nullptr, GET_STR_ALLOC, REQUIRED_ARG,
+     (longlong)&default_data_dir, 0, 0, nullptr, 0, nullptr},
     {"suffix", 's', "Suffix to be added in certificate subject line",
-     &opt_suffix, &opt_suffix, 0, GET_STR_ALLOC, REQUIRED_ARG,
-     (longlong)&default_suffix, 0, 0, 0, 0, 0},
+     &opt_suffix, &opt_suffix, nullptr, GET_STR_ALLOC, REQUIRED_ARG,
+     (longlong)&default_suffix, 0, 0, nullptr, 0, nullptr},
 #if HAVE_CHOWN
     {"uid", 0, "The effective user id to be used for file permission",
-     &opt_userid, &opt_userid, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0,
-     0},
+     &opt_userid, &opt_userid, nullptr, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
 #endif /* HAVE_CHOWN */
     /* END TOKEN */
-    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
+    {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
+     0, nullptr, 0, nullptr}};
 
 /* Helper Functions */
 
@@ -199,7 +201,7 @@ static int set_file_pair_permission(const Sql_string_t &priv,
 
 static bool file_exists(const Sql_string_t &filename) {
   MY_STAT file_stat;
-  if (my_stat(filename.c_str(), &file_stat, MYF(0)) == NULL) return false;
+  if (my_stat(filename.c_str(), &file_stat, MYF(0)) == nullptr) return false;
 
   return true;
 }

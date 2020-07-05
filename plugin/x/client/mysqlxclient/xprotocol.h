@@ -916,6 +916,9 @@ class XProtocol {
                                       const std::string &method = "") = 0;
 
   virtual void use_compression(const Compression_algorithm algo) = 0;
+
+  virtual void use_compression(const Compression_algorithm algo,
+                               const int32_t level) = 0;
 };
 
 }  // namespace xcl

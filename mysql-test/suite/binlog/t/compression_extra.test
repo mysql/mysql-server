@@ -1,0 +1,83 @@
+#
+# WL#3549
+#
+# Additional tests
+#
+--source include/have_binlog_format_row.inc
+
+--let $saved_binlog_transaction_compression_session = `SELECT @@SESSION.binlog_transaction_compression`
+--let $saved_binlog_transaction_compression_level_zstd_session = `SELECT @@SESSION.binlog_transaction_compression_level_zstd`
+--let $pfs_table = performance_schema.binary_log_transaction_compression_stats
+
+#
+# Test 1: Check that end_log_pos is the same for all events
+# packed inside Transaction_payload_event
+#
+
+SET SESSION binlog_transaction_compression = ON;
+CREATE TABLE t1(c1 INT PRIMARY KEY, data TEXT(30000));
+CREATE TABLE t2(c1 INT PRIMARY KEY, data TEXT(30000));
+
+RESET MASTER;
+
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT ('a', 1000));
+INSERT INTO t2 VALUES (1, REPEAT ('b', 1000));
+COMMIT;
+
+# 1 - Format_desc event, 2 - Previous_gtids event, 3 - Gtid event
+--let $tple_elp= query_get_value(SHOW BINLOG EVENTS, End_log_pos, 4)
+
+--let $i = 5
+
+while ($i < 11)
+{
+  # 5 - Query, 6 - Table_map, 7 - Write_rows, 8 - Table_map, 9 - Write_rows, 10 - Xid
+  if ($i == 5) { let $evt_expected = Query; }
+  if ($i == 6) { let $evt_expected = Table_map; }
+  if ($i == 7) { let $evt_expected = Write_rows; }
+  if ($i == 8) { let $evt_expected = Table_map; }
+  if ($i == 9) { let $evt_expected = Write_rows; }
+  if ($i == 10) { let $evt_expected = Xid; }
+
+  --let $evt_elp= query_get_value(SHOW BINLOG EVENTS, End_log_pos, $i)
+  --let $assert_text = $evt_expected event has same end_log_pos as the Transaction_payload_event
+  --let $assert_cond = $evt_elp = $tple_elp
+  --source include/assert.inc
+
+  --inc $i
+}
+
+DROP TABLE IF EXISTS t1, t2;
+--replace_result $saved_binlog_transaction_compression_session SAVED
+--eval SET SESSION binlog_transaction_compression = $saved_binlog_transaction_compression_session
+RESET MASTER;
+--eval TRUNCATE $pfs_table
+
+#
+# Test 2: coverage for the compression level
+#
+
+SET SESSION binlog_transaction_compression = ON;
+CREATE TABLE t1(c1 INT PRIMARY KEY, data TEXT(30000));
+
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT ('1', 1000));
+COMMIT;
+
+SET @@binlog_transaction_compression_level_zstd = 10;
+
+BEGIN;
+INSERT INTO t1 VALUES (2, REPEAT ('2', 1000));
+COMMIT;
+
+DROP TABLE t1;
+
+--replace_result $saved_binlog_transaction_compression_session SAVED
+--eval SET SESSION binlog_transaction_compression = $saved_binlog_transaction_compression_session
+
+--replace_result $saved_binlog_transaction_compression_level_zstd_session SAVED
+--eval SET SESSION binlog_transaction_compression_level_zstd = $saved_binlog_transaction_compression_level_zstd_session
+
+--eval TRUNCATE $pfs_table
+RESET MASTER;

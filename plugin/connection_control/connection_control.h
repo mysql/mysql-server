@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,10 +23,18 @@
 #ifndef CONNECTION_CONTROL_H
 #define CONNECTION_CONTROL_H
 
+#include <mysql/psi/mysql_cond.h>
+#include <mysql/psi/mysql_mutex.h>
 #include <mysql/psi/mysql_rwlock.h>
+#include <mysql/psi/mysql_stage.h>
 #include <mysql/psi/mysql_thread.h> /* mysql_rwlock_t */
 
 #include "plugin/connection_control/connection_control_data.h"
+
+extern PSI_mutex_key key_connection_delay_mutex;
+extern PSI_rwlock_key key_connection_event_delay_lock;
+extern PSI_cond_key key_connection_delay_wait;
+extern PSI_stage_info stage_waiting_in_connection_control_plugin;
 
 namespace connection_control {
 

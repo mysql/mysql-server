@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -395,7 +395,7 @@ to release and reacquire dict_operation_lock
 @param[in,out]	handler		intrinsic temporary table handle, or NULL
 @return error code or DB_SUCCESS */
 dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
-                                 dict_table_t *handler = NULL);
+                                 dict_table_t *handler = nullptr);
 /** Drop a table for MySQL. If the data dictionary was not already locked
 by the transaction, the transaction will be committed.  Otherwise, the
 data dictionary will remain locked.
@@ -403,7 +403,7 @@ data dictionary will remain locked.
 @param[in,out]	trx		data dictionary transaction
 @return error code or DB_SUCCESS */
 inline dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx) {
-  return (row_drop_table_for_mysql(name, trx, true, NULL));
+  return (row_drop_table_for_mysql(name, trx, true, nullptr));
 }
 
 /** Discards the tablespace of a table which stored in an .ibd file. Discarding
@@ -909,6 +909,9 @@ struct row_prebuilt_t {
     dtuple_set_n_fields(m_stop_tuple, 0);
   }
 
+  /** @return true iff the operation can skip concurrency ticket. */
+  bool skip_concurrency_ticket() const;
+
   /** It is unsafe to copy this struct, and moving it would be non-trivial,
   because we want to keep in sync with row_is_reading_range_guard_t. Therefore
   it is much safer/easier to just forbid such operations.  */
@@ -987,8 +990,6 @@ void innobase_rename_vc_templ(dict_table_t *table);
 #define ROW_READ_WITH_LOCKS 0
 #define ROW_READ_TRY_SEMI_CONSISTENT 1
 #define ROW_READ_DID_SEMI_CONSISTENT 2
-
-#include "row0mysql.ic"
 
 #ifdef UNIV_DEBUG
 /** Wait for the background drop list to become empty. */

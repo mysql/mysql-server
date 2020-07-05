@@ -646,9 +646,15 @@ let $restart_parameters = restart: --ssl=1;
 --echo capabilities.result checks the presence of tls cap
 --exec $MYSQLXTEST -u x_root --password='' -h127.0.0.1 --no-auth --file=$MYSQL_TMP_DIR/mysqlx-capabilities-get.tmp 2>&1
 
+## Cleanup
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
+
 --remove_file $MYSQL_TMP_DIR/mysqlx-capabilities-get-success.tmp
 --remove_file $MYSQL_TMP_DIR/mysqlx-capabilities-failure.tmp
 --remove_file $MYSQL_TMP_DIR/mysqlx-setcapabilities-invalid.tmp
 --remove_file $MYSQL_TMP_DIR/mysqlx-setcapabilities-tls-invalid.tmp
 --remove_file $MYSQL_TMP_DIR/mysqlx-capabilities-get.tmp
+--remove_file $MYSQL_TMP_DIR/mysqlx-check-bool-capabilities.tmp
 --source include/xplugin_drop_user.inc
+

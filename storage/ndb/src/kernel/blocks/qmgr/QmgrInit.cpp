@@ -36,12 +36,32 @@
 void Qmgr::initData() 
 {
   creadyDistCom = ZFALSE;
+  m_current_switch_multi_trp_node = 0;
+  m_get_num_multi_trps_sent = 0;
+  m_initial_set_up_multi_trp_done = false;
+  m_ref_set_up_multi_trp_req = 0;
 
   // Records with constant sizes
   nodeRec = new NodeRec[MAX_NODES];
   for (Uint32 i = 0; i<MAX_NODES; i++)
   {
     nodeRec[i].m_secret = 0;
+    nodeRec[i].m_count_multi_trp_ref = 0;
+    nodeRec[i].m_initial_set_up_multi_trp_done = false;
+    nodeRec[i].m_is_multi_trp_setup = false;
+    nodeRec[i].m_is_get_num_multi_trp_active = false;
+    nodeRec[i].m_is_activate_trp_ready_for_me = false;
+    nodeRec[i].m_is_activate_trp_ready_for_other = false;
+    nodeRec[i].m_is_freeze_thread_completed = false;
+    nodeRec[i].m_is_ready_to_switch_trp = false;
+    nodeRec[i].m_is_preparing_switch_trp = false;
+    nodeRec[i].m_is_using_multi_trp = false;
+    nodeRec[i].m_set_up_multi_trp_started = false;
+    nodeRec[i].m_used_num_multi_trps = 0;
+    nodeRec[i].m_num_activated_trps = 0;
+    nodeRec[i].m_multi_trp_blockref = 0;
+    nodeRec[i].m_check_multi_trp_connect_loop_count = 0;
+    nodeRec[i].m_is_in_same_nodegroup = false;
   }
 
   nodeFailRec = new NodeFailRec[MAX_DATA_NODE_FAILURES];
@@ -243,6 +263,19 @@ Qmgr::Qmgr(Block_context& ctx)
 
   addRecSignal(GSN_DIH_RESTARTREF, &Qmgr::execDIH_RESTARTREF);
   addRecSignal(GSN_DIH_RESTARTCONF, &Qmgr::execDIH_RESTARTCONF);
+
+  addRecSignal(GSN_SET_UP_MULTI_TRP_REQ, &Qmgr::execSET_UP_MULTI_TRP_REQ);
+  addRecSignal(GSN_GET_NUM_MULTI_TRP_REQ, &Qmgr::execGET_NUM_MULTI_TRP_REQ);
+  addRecSignal(GSN_GET_NUM_MULTI_TRP_CONF, &Qmgr::execGET_NUM_MULTI_TRP_CONF);
+  addRecSignal(GSN_GET_NUM_MULTI_TRP_REF, &Qmgr::execGET_NUM_MULTI_TRP_REF);
+  addRecSignal(GSN_FREEZE_ACTION_REQ, &Qmgr::execFREEZE_ACTION_REQ);
+  addRecSignal(GSN_FREEZE_THREAD_CONF, &Qmgr::execFREEZE_THREAD_CONF);
+  addRecSignal(GSN_ACTIVATE_TRP_REQ, &Qmgr::execACTIVATE_TRP_REQ);
+  addRecSignal(GSN_ACTIVATE_TRP_CONF, &Qmgr::execACTIVATE_TRP_CONF);
+  addRecSignal(GSN_SWITCH_MULTI_TRP_REQ, &Qmgr::execSWITCH_MULTI_TRP_REQ);
+  addRecSignal(GSN_SWITCH_MULTI_TRP_CONF, &Qmgr::execSWITCH_MULTI_TRP_CONF);
+  addRecSignal(GSN_SWITCH_MULTI_TRP_REF, &Qmgr::execSWITCH_MULTI_TRP_REF);
+
   addRecSignal(GSN_NODE_VERSION_REP, &Qmgr::execNODE_VERSION_REP);
   addRecSignal(GSN_START_ORD, &Qmgr::execSTART_ORD);
 

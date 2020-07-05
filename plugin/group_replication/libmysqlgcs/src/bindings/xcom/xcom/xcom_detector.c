@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -285,10 +285,12 @@ int detector_task(task_arg arg MY_ATTRIBUTE((unused))) {
   DBGOHK(FN;);
   while (!xcom_shutdown) {
     {
+#if TASK_DBUG_ON
       site_def *p_site = (site_def *)get_proposer_site();
+      if (!p_site) p_site = (site_def *)get_site_def();
+#endif
       site_def *x_site = (site_def *)get_executor_site();
 
-      if (!p_site) p_site = (site_def *)get_site_def();
       DBGOHK(FN; SYCEXP(executed_msg); SYCEXP(max_synode));
       DBGOHK(FN; PTREXP(p_site); NDBG(get_nodeno(p_site), u));
       DBGOHK(FN; PTREXP(x_site); NDBG(get_nodeno(x_site), u));

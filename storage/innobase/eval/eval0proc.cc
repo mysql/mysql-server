@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1998, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1998, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -78,23 +78,23 @@ que_thr_t *if_step(que_thr_t *thr) /*!< in: query thread */
 
         elsif_node = static_cast<elsif_node_t *>(que_node_get_next(elsif_node));
 
-        if (elsif_node == NULL) {
-          thr->run_node = NULL;
+        if (elsif_node == nullptr) {
+          thr->run_node = nullptr;
 
           break;
         }
       }
     } else {
-      thr->run_node = NULL;
+      thr->run_node = nullptr;
     }
   } else {
     /* Move to the next statement */
-    ut_ad(que_node_get_next(thr->prev_node) == NULL);
+    ut_ad(que_node_get_next(thr->prev_node) == nullptr);
 
-    thr->run_node = NULL;
+    thr->run_node = nullptr;
   }
 
-  if (thr->run_node == NULL) {
+  if (thr->run_node == nullptr) {
     thr->run_node = que_node_get_parent(node);
   }
 
@@ -113,7 +113,7 @@ que_thr_t *while_step(que_thr_t *thr) /*!< in: query thread */
   ut_ad(que_node_get_type(node) == QUE_NODE_WHILE);
 
   ut_ad((thr->prev_node == que_node_get_parent(node)) ||
-        (que_node_get_next(thr->prev_node) == NULL));
+        (que_node_get_next(thr->prev_node) == nullptr));
 
   /* Evaluate the condition */
 
@@ -173,7 +173,7 @@ que_thr_t *for_step(que_thr_t *thr) /*!< in: query thread */
     /* Move to the next statement */
     thr->run_node = que_node_get_next(thr->prev_node);
 
-    if (thr->run_node != NULL) {
+    if (thr->run_node != nullptr) {
       return (thr);
     }
 

@@ -95,15 +95,15 @@ Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)
 }
 
 Alter_table_ctx::Alter_table_ctx()
-    : datetime_field(NULL),
+    : datetime_field(nullptr),
       error_if_not_empty(false),
       tables_opened(0),
-      db(NULL),
-      table_name(NULL),
-      alias(NULL),
-      new_db(NULL),
-      new_name(NULL),
-      new_alias(NULL),
+      db(nullptr),
+      table_name(nullptr),
+      alias(nullptr),
+      new_db(nullptr),
+      new_name(nullptr),
+      new_alias(nullptr),
       fk_info(nullptr),
       fk_count(0),
       fk_max_generated_name_number(0)
@@ -117,7 +117,7 @@ Alter_table_ctx::Alter_table_ctx()
 Alter_table_ctx::Alter_table_ctx(THD *thd, TABLE_LIST *table_list,
                                  uint tables_opened_arg, const char *new_db_arg,
                                  const char *new_name_arg)
-    : datetime_field(NULL),
+    : datetime_field(nullptr),
       error_if_not_empty(false),
       tables_opened(tables_opened_arg),
       new_db(new_db_arg),
@@ -245,8 +245,8 @@ bool Sql_cmd_alter_table::execute(THD *thd) {
 
   {
     partition_info *part_info = thd->lex->part_info;
-    if (part_info != NULL && has_external_data_or_index_dir(*part_info) &&
-        check_access(thd, FILE_ACL, any_db, NULL, NULL, false, false))
+    if (part_info != nullptr && has_external_data_or_index_dir(*part_info) &&
+        check_access(thd, FILE_ACL, any_db, nullptr, nullptr, false, false))
 
       return true;
   }
@@ -267,7 +267,7 @@ bool Sql_cmd_alter_table::execute(THD *thd) {
                    &first_table->grant.m_internal, false, false) ||
       check_access(thd, INSERT_ACL | CREATE_ACL, alter_info.new_db_name.str,
                    &priv,
-                   NULL, /* Don't use first_tab->grant with sel_lex->db */
+                   nullptr, /* Don't use first_tab->grant with sel_lex->db */
                    false, false))
     return true; /* purecov: inspected */
 
@@ -337,7 +337,7 @@ bool Sql_cmd_alter_table::execute(THD *thd) {
   if (create_info.index_file_name)
     push_warning_printf(thd, Sql_condition::SL_WARNING, WARN_OPTION_IGNORED,
                         ER_THD(thd, WARN_OPTION_IGNORED), "INDEX DIRECTORY");
-  create_info.data_file_name = create_info.index_file_name = NULL;
+  create_info.data_file_name = create_info.index_file_name = nullptr;
 
   thd->enable_slow_log = opt_log_slow_admin_statements;
 

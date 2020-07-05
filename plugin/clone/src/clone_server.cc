@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -178,8 +178,23 @@ int Server::init_storage(Ha_clone_mode mode, uchar *com_buf, size_t com_len) {
   if (err != 0) {
     return (err);
   }
-  /* Send locators back to client */
   m_storage_initialized = true;
+
+  if (m_is_master && mode == HA_CLONE_MODE_START) {
+    /* Validate local configurations. */
+    err = validate_local_params(get_thd());
+
+    if (err == 0) {
+      /* Send current server parameters for validation. */
+      err = send_params();
+    }
+
+    if (err != 0) {
+      return (err);
+    }
+  }
+
+  /* Send locators back to client */
   err = send_locators();
 
   return (err);
@@ -200,16 +215,10 @@ int Server::parse_command_buffer(uchar command, uchar *com_buf, size_t com_len,
 
     case COM_INIT:
       m_is_master = true;
-      err = init_storage(HA_CLONE_MODE_START, com_buf, com_len);
-      if (err == 0) {
-        /* Validate local configurations. */
-        err = validate_local_params(get_thd());
 
-        if (err == 0) {
-          /* Send current server parameters for validation. */
-          err = send_params();
-        }
-      }
+      /* Initialize storage, send locators and validating configurations.  */
+      err = init_storage(HA_CLONE_MODE_START, com_buf, com_len);
+
       log_error(get_thd(), false, err, "COM_INIT: Storage Initialize");
       break;
 

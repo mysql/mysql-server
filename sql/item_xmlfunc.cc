@@ -785,7 +785,7 @@ static Item_bool_func *eq_func(int oper, Item *a, Item *b) {
     case MY_XPATH_LEX_LESS:
       return new Item_func_lt(a, b);
   }
-  return 0;
+  return nullptr;
 }
 
 /*
@@ -815,7 +815,7 @@ static Item_bool_func *eq_func_reverse(int oper, Item *a, Item *b) {
     case MY_XPATH_LEX_LESS:
       return new Item_func_gt(a, b);
   }
-  return 0;
+  return nullptr;
 }
 
 /*
@@ -841,7 +841,7 @@ static Item *create_comparator(MY_XPATH *xpath, int oper, MY_XPATH_LEX *context,
                     "comparison of two nodesets is not supported: '%.*s'",
                     MYF(0), static_cast<int>(len), context->beg);
 
-    return 0;  // TODO: Comparison of two nodesets
+    return nullptr;  // TODO: Comparison of two nodesets
   } else {
     /*
      Compare a node set to a scalar value.
@@ -880,9 +880,9 @@ static Item *create_comparator(MY_XPATH *xpath, int oper, MY_XPATH_LEX *context,
 */
 static Item_nodeset_func *nametestfunc(MY_XPATH *xpath, int type, Item *arg,
                                        const char *beg, size_t len) {
-  DBUG_ASSERT(arg != 0);
+  DBUG_ASSERT(arg != nullptr);
   DBUG_ASSERT(arg->type() == Item::XPATH_NODESET);
-  DBUG_ASSERT(beg != 0);
+  DBUG_ASSERT(beg != nullptr);
   DBUG_ASSERT(len > 0);
 
   Item_nodeset_func *res;
@@ -953,7 +953,7 @@ static struct my_xpath_keyword_names_st my_keyword_names[] = {
     {MY_XPATH_LEX_OR, "or", 2, 0},
     {MY_XPATH_LEX_DIV, "div", 3, 0},
     {MY_XPATH_LEX_MOD, "mod", 3, 0},
-    {0, NULL, 0, 0}};
+    {0, nullptr, 0, 0}};
 
 static struct my_xpath_keyword_names_st my_axis_names[] = {
     {MY_XPATH_LEX_AXIS, "ancestor", 8, MY_XPATH_AXIS_ANCESTOR},
@@ -972,14 +972,14 @@ static struct my_xpath_keyword_names_st my_axis_names[] = {
     {MY_XPATH_LEX_AXIS, "preceding-sibling", 17,
      MY_XPATH_AXIS_PRECEDING_SIBLING},
     {MY_XPATH_LEX_AXIS, "self", 4, MY_XPATH_AXIS_SELF},
-    {0, NULL, 0, 0}};
+    {0, nullptr, 0, 0}};
 
 static struct my_xpath_keyword_names_st my_nodetype_names[] = {
     {MY_XPATH_LEX_NODETYPE, "comment", 7, 0},
     {MY_XPATH_LEX_NODETYPE, "text", 4, 0},
     {MY_XPATH_LEX_NODETYPE, "processing-instruction", 22, 0},
     {MY_XPATH_LEX_NODETYPE, "node", 4, 0},
-    {0, NULL, 0, 0}};
+    {0, nullptr, 0, 0}};
 
 /*
   Lookup a keyword
@@ -1039,7 +1039,7 @@ static Item *create_func_number(MY_XPATH *xpath, Item **args, uint nargs) {
   if (nargs > 0) {
     arg = args[0];
   } else {
-    arg = xpath->context != NULL ? xpath->context : xpath->rootelement;
+    arg = xpath->context != nullptr ? xpath->context : xpath->rootelement;
   }
   return new Item_xpath_cast_number(arg);
 }
@@ -1047,7 +1047,7 @@ static Item *create_func_number(MY_XPATH *xpath, Item **args, uint nargs) {
 static Item *create_func_string_length(MY_XPATH *xpath, Item **args,
                                        uint nargs) {
   Item *arg = nargs ? args[0] : xpath->context;
-  return arg ? new Item_func_char_length(arg) : 0;
+  return arg ? new Item_func_char_length(arg) : nullptr;
 }
 
 static Item *create_func_round(MY_XPATH *, Item **args, uint) {
@@ -1055,11 +1055,12 @@ static Item *create_func_round(MY_XPATH *, Item **args, uint) {
 }
 
 static Item *create_func_last(MY_XPATH *xpath, Item **, uint) {
-  return xpath->context ? new Item_func_xpath_count(xpath->context) : NULL;
+  return xpath->context ? new Item_func_xpath_count(xpath->context) : nullptr;
 }
 
 static Item *create_func_position(MY_XPATH *xpath, Item **, uint) {
-  return xpath->context ? new Item_func_xpath_position(xpath->context) : NULL;
+  return xpath->context ? new Item_func_xpath_position(xpath->context)
+                        : nullptr;
 }
 
 static Item *create_func_contains(MY_XPATH *, Item **args, uint) {
@@ -1078,12 +1079,12 @@ static Item *create_func_substr(MY_XPATH *, Item **args, uint nargs) {
 }
 
 static Item *create_func_count(MY_XPATH *, Item **args, uint) {
-  if (args[0]->type() != Item::XPATH_NODESET) return 0;
+  if (args[0]->type() != Item::XPATH_NODESET) return nullptr;
   return new Item_func_xpath_count(args[0]);
 }
 
 static Item *create_func_sum(MY_XPATH *xpath, Item **args, uint) {
-  if (args[0]->type() != Item::XPATH_NODESET) return 0;
+  if (args[0]->type() != Item::XPATH_NODESET) return nullptr;
   return new Item_func_xpath_sum(args[0], xpath->pxml);
 }
 
@@ -1093,45 +1094,45 @@ static Item *create_func_sum(MY_XPATH *xpath, Item **args, uint) {
 */
 static MY_XPATH_FUNC my_func_names3[] = {{"sum", 3, 1, 1, create_func_sum},
                                          {"not", 3, 1, 1, create_func_not},
-                                         {0, 0, 0, 0, 0}};
+                                         {nullptr, 0, 0, 0, nullptr}};
 
 static MY_XPATH_FUNC my_func_names4[] = {{"last", 4, 0, 0, create_func_last},
                                          {"true", 4, 0, 0, create_func_true},
-                                         {"name", 4, 0, 1, 0},
-                                         {"lang", 4, 1, 1, 0},
-                                         {0, 0, 0, 0, 0}};
+                                         {"name", 4, 0, 1, nullptr},
+                                         {"lang", 4, 1, 1, nullptr},
+                                         {nullptr, 0, 0, 0, nullptr}};
 
 static MY_XPATH_FUNC my_func_names5[] = {{"count", 5, 1, 1, create_func_count},
                                          {"false", 5, 0, 0, create_func_false},
                                          {"floor", 5, 1, 1, create_func_floor},
                                          {"round", 5, 1, 1, create_func_round},
-                                         {0, 0, 0, 0, 0}};
+                                         {nullptr, 0, 0, 0, nullptr}};
 
 static MY_XPATH_FUNC my_func_names6[] = {
     {"concat", 6, 2, 255, create_func_concat},
     {"number", 6, 0, 1, create_func_number},
-    {"string", 6, 0, 1, 0},
-    {0, 0, 0, 0, 0}};
+    {"string", 6, 0, 1, nullptr},
+    {nullptr, 0, 0, 0, nullptr}};
 
 /* Other functions, with name longer than 6, all together */
 static MY_XPATH_FUNC my_func_names[] = {
-    {"id", 2, 1, 1, 0},
+    {"id", 2, 1, 1, nullptr},
     {"boolean", 7, 1, 1, create_func_bool},
     {"ceiling", 7, 1, 1, create_func_ceiling},
     {"position", 8, 0, 0, create_func_position},
     {"contains", 8, 2, 2, create_func_contains},
     {"substring", 9, 2, 3, create_func_substr},
-    {"translate", 9, 3, 3, 0},
+    {"translate", 9, 3, 3, nullptr},
 
-    {"local-name", 10, 0, 1, 0},
-    {"starts-with", 11, 2, 2, 0},
-    {"namespace-uri", 13, 0, 1, 0},
+    {"local-name", 10, 0, 1, nullptr},
+    {"starts-with", 11, 2, 2, nullptr},
+    {"namespace-uri", 13, 0, 1, nullptr},
     {"string-length", 13, 0, 1, create_func_string_length},
-    {"substring-after", 15, 2, 2, 0},
-    {"normalize-space", 15, 0, 1, 0},
-    {"substring-before", 16, 2, 2, 0},
+    {"substring-after", 15, 2, 2, nullptr},
+    {"normalize-space", 15, 0, 1, nullptr},
+    {"substring-before", 16, 2, 2, nullptr},
 
-    {NULL, 0, 0, 0, 0}};
+    {nullptr, 0, 0, 0, nullptr}};
 
 /*
   Lookup a function by name
@@ -1149,7 +1150,7 @@ static MY_XPATH_FUNC *my_xpath_function(const char *beg, const char *end) {
   size_t length = end - beg;
   switch (length) {
     case 1:
-      return 0;
+      return nullptr;
     case 3:
       function_names = my_func_names3;
       break;
@@ -1169,7 +1170,7 @@ static MY_XPATH_FUNC *my_xpath_function(const char *beg, const char *end) {
     if (k->create && length == k->length &&
         !native_strncasecmp(beg, k->name, length))
       return k;
-  return NULL;
+  return nullptr;
 }
 
 /* Initialize a lex analizer token */
@@ -2217,7 +2218,7 @@ static int my_xpath_parse_VariableReference(MY_XPATH *xpath) {
 #endif
       xpath->item = down_cast<Item *>(splocal);
     } else {
-      xpath->item = NULL;
+      xpath->item = nullptr;
       DBUG_ASSERT(xpath->query.end > dollar_pos);
       size_t len = xpath->query.end - dollar_pos;
       len = std::min(len, size_t(32));
@@ -2284,7 +2285,7 @@ static int my_xpath_parse(MY_XPATH *xpath, const char *str,
 }
 
 bool Item_xml_str_func::resolve_type(THD *) {
-  nodeset_func = NULL;
+  nodeset_func = nullptr;
 
   if (agg_arg_charsets_for_comparison(collation, args, arg_count)) return true;
 
@@ -2485,14 +2486,14 @@ String *Item_func_xml_extractvalue::val_str(String *str) {
   if (!nodeset_func && parse_xpath(args[1])) {
     DBUG_ASSERT(maybe_null);
     null_value = true;
-    return NULL;
+    return nullptr;
   }
 
   tmp_value.set("", 0, collation.collation);
   if (!nodeset_func || !(res = args[0]->val_str(str)) ||
       !parse_xml(res, &pxml) || !(res = nodeset_func->val_str(&tmp_value))) {
     null_value = true;
-    return 0;
+    return nullptr;
   }
   return res;
 }

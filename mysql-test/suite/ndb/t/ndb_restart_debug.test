@@ -1,6 +1,8 @@
 --source include/have_ndb.inc
 --source include/have_ndb_debug.inc
 
+call mtr.add_suppression("Could not acquire global schema lock");
+
 #
 # Setup
 #

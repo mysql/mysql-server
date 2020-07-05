@@ -110,7 +110,7 @@ void Group_service_message::decode_payload(const uchar *buffer, const uchar *) {
 bool Group_service_message::set_tag(const char *tag) {
   DBUG_TRACE;
 
-  if (tag != NULL && strlen(tag) != 0) {
+  if (tag != nullptr && strlen(tag) != 0) {
     m_tag.assign(tag);
     return false;
   }

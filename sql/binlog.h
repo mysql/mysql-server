@@ -1,5 +1,5 @@
 #ifndef BINLOG_H_INCLUDED
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -623,7 +623,8 @@ class MYSQL_BIN_LOG : public TC_LOG {
                    be skipped and @c false otherwise (the normal case).
   */
   int ordered_commit(THD *thd, bool all, bool skip_commit = false);
-  void handle_binlog_flush_or_sync_error(THD *thd, bool need_lock_log);
+  void handle_binlog_flush_or_sync_error(THD *thd, bool need_lock_log,
+                                         const char *message);
   bool do_write_cache(Binlog_cache_storage *cache,
                       class Binlog_event_writer *writer);
   void report_binlog_write_error();
@@ -702,8 +703,8 @@ class MYSQL_BIN_LOG : public TC_LOG {
     @return Returns false if succeeds, otherwise true is returned.
   */
   bool assign_automatic_gtids_to_flush_group(THD *first_seen);
-  bool write_gtid(THD *thd, binlog_cache_data *cache_data,
-                  class Binlog_event_writer *writer);
+  bool write_transaction(THD *thd, binlog_cache_data *cache_data,
+                         Binlog_event_writer *writer);
 
   /**
      Write a dml into statement cache and then flush it into binlog. It writes
@@ -835,8 +836,6 @@ class MYSQL_BIN_LOG : public TC_LOG {
 
     @param slave_executed_gtid_set     GTID set executed by slave
     @param errmsg                      Pointer to the error message
-
-    @return void
   */
   void report_missing_purged_gtids(const Gtid_set *slave_executed_gtid_set,
                                    const char **errmsg);
@@ -860,8 +859,6 @@ class MYSQL_BIN_LOG : public TC_LOG {
     @param previous_gtid_set           Previous GTID set found
     @param slave_executed_gtid_set     GTID set executed by slave
     @param errmsg                      Pointer to the error message
-
-    @return void
   */
   void report_missing_gtids(const Gtid_set *previous_gtid_set,
                             const Gtid_set *slave_executed_gtid_set,

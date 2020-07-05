@@ -315,7 +315,7 @@ static bool fill_dd_view_columns(THD *thd, View *view_obj,
       Field *from_field, *default_field;
       tmp_field = create_tmp_field(thd, &table, item, item->type(), nullptr,
                                    &from_field, &default_field, false, false,
-                                   false, false);
+                                   false, false, false);
     }
     if (!tmp_field) {
       my_error(ER_OUT_OF_RESOURCES, MYF(ME_FATALERROR));
@@ -362,7 +362,7 @@ static bool fill_dd_view_columns(THD *thd, View *view_obj,
     cr_field->after = nullptr;
     cr_field->offset = 0;
     cr_field->pack_length_override = 0;
-    cr_field->maybe_null = !(tmp_field->flags & NOT_NULL_FLAG);
+    cr_field->is_nullable = !(tmp_field->flags & NOT_NULL_FLAG);
     cr_field->is_zerofill = (tmp_field->flags & ZEROFILL_FLAG);
     cr_field->is_unsigned = (tmp_field->flags & UNSIGNED_FLAG);
 

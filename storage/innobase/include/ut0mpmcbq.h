@@ -1,5 +1,5 @@
 /*****************************************************************************
-Copyright (c) 2017, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -37,8 +37,7 @@ class mpmc_bq {
   /** Constructor
   @param[in]	n_elems		Max number of elements allowed */
   explicit mpmc_bq(size_t n_elems)
-      : m_ring(
-            reinterpret_cast<cell_t *>(UT_NEW_ARRAY_NOKEY(aligned_t, n_elems))),
+      : m_ring(reinterpret_cast<Cell *>(UT_NEW_ARRAY_NOKEY(Aligned, n_elems))),
         m_capacity(n_elems - 1) {
     /* Should be a power of 2 */
     ut_a((n_elems >= 2) && ((n_elems & (n_elems - 1)) == 0));
@@ -57,15 +56,16 @@ class mpmc_bq {
   /** Enqueue an element
   @param[in]	data		Element to insert, it will be copied
   @return true on success */
-  bool enqueue(T const &data) {
-    /* m_enqueue_pos only wraps at MAX(m_enqueue_pos), instead we use the
-    capacity to convert the sequence to an array index. This is why the ring
-    buffer must be a size which is a power of 2. This also allows the
-    sequence to double as a ticket/lock. */
+  bool enqueue(T const &data) MY_ATTRIBUTE((warn_unused_result)) {
+    /* m_enqueue_pos only wraps at MAX(m_enqueue_pos), instead
+    we use the capacity to convert the sequence to an array
+    index. This is why the ring buffer must be a size which
+    is a power of 2. This also allows the sequence to double
+    as a ticket/lock. */
 
     size_t pos = m_enqueue_pos.load(std::memory_order_relaxed);
 
-    cell_t *cell;
+    Cell *cell;
 
     for (;;) {
       cell = &m_ring[pos & m_capacity];
@@ -111,8 +111,8 @@ class mpmc_bq {
   /** Dequeue an element
   @param[out]	data		Element read from the queue
   @return true on success */
-  bool dequeue(T &data) {
-    cell_t *cell;
+  bool dequeue(T &data) MY_ATTRIBUTE((warn_unused_result)) {
+    Cell *cell;
     size_t pos = m_dequeue_pos.load(std::memory_order_relaxed);
 
     for (;;) {
@@ -120,18 +120,13 @@ class mpmc_bq {
 
       size_t seq = cell->m_pos.load(std::memory_order_acquire);
 
-      intptr_t diff;
-
-      diff = (intptr_t)seq - (intptr_t)(pos + 1);
-
-      /* If they are the same then it means this slot
-      is empty */
+      auto diff = (intptr_t)seq - (intptr_t)(pos + 1);
 
       if (diff == 0) {
         /* Claim our spot by moving the head. If head isn't the same as we last
         checked then that means someone beat us to the punch. Weak compare is
         faster, but can return spurious results. Which in this instance is
-        OK, because it's in the loop */
+        OK, because it's in the loop. */
 
         if (m_dequeue_pos.compare_exchange_weak(pos, pos + 1,
                                                 std::memory_order_relaxed)) {
@@ -140,13 +135,10 @@ class mpmc_bq {
 
       } else if (diff < 0) {
         /* The queue is empty */
-
         return (false);
 
       } else {
-        /* Under normal circumstances this branch
-        should never be taken */
-
+        /* Under normal circumstances this branch should never be taken. */
         pos = m_dequeue_pos.load(std::memory_order_relaxed);
       }
     }
@@ -162,33 +154,58 @@ class mpmc_bq {
   }
 
   /** @return the capacity of the queue */
-  size_t capacity() const { return (m_capacity + 1); }
+  size_t capacity() const MY_ATTRIBUTE((warn_unused_result)) {
+    return (m_capacity + 1);
+  }
+
+  /** @return true if the queue is empty. */
+  bool empty() const MY_ATTRIBUTE((warn_unused_result)) {
+    size_t pos = m_dequeue_pos.load(std::memory_order_relaxed);
+
+    for (;;) {
+      auto cell = &m_ring[pos & m_capacity];
+
+      size_t seq = cell->m_pos.load(std::memory_order_acquire);
+
+      auto diff = (intptr_t)seq - (intptr_t)(pos + 1);
+
+      if (diff == 0) {
+        return (false);
+      } else if (diff < 0) {
+        return (true);
+      } else {
+        pos = m_dequeue_pos.load(std::memory_order_relaxed);
+      }
+    }
+
+    return (false);
+  }
 
  private:
-  using pad_t = byte[INNOBASE_CACHE_LINE_SIZE];
+  using Pad = byte[INNOBASE_CACHE_LINE_SIZE];
 
-  struct cell_t {
+  struct Cell {
     std::atomic<size_t> m_pos;
     T m_data;
   };
 
-  typedef typename std::aligned_storage<
-      sizeof(cell_t), std::alignment_of<cell_t>::value>::type aligned_t;
+  using Aligned =
+      typename std::aligned_storage<sizeof(Cell),
+                                    std::alignment_of<Cell>::value>::type;
 
-  pad_t m_pad0;
-  cell_t *const m_ring;
+  Pad m_pad0;
+  Cell *const m_ring;
   size_t const m_capacity;
-  pad_t m_pad1;
+  Pad m_pad1;
   std::atomic<size_t> m_enqueue_pos;
-  pad_t m_pad2;
+  Pad m_pad2;
   std::atomic<size_t> m_dequeue_pos;
-  pad_t m_pad3;
+  Pad m_pad3;
 
-  // Disable copying
   mpmc_bq(mpmc_bq &&) = delete;
-  mpmc_bq(mpmc_bq const &) = delete;
+  mpmc_bq(const mpmc_bq &) = delete;
   mpmc_bq &operator=(mpmc_bq &&) = delete;
-  mpmc_bq &operator=(mpmc_bq const &) = delete;
+  mpmc_bq &operator=(const mpmc_bq &) = delete;
 };
 
 #endif /* ut0mpmcbq_h */

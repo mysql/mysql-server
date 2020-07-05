@@ -21,6 +21,7 @@
 CALL mtr.add_suppression("The option expire_logs_days cannot be used together*");
 --source include/have_binlog_format_row.inc
 --source include/not_windows.inc
+--source include/not_binlog_transaction_compression_on.inc
 
 --let $saved_expire_logs_days= `SELECT @@GLOBAL.expire_logs_days`
 --let $saved_binlog_expire_logs_seconds= `SELECT @@GLOBAL.binlog_expire_logs_seconds`

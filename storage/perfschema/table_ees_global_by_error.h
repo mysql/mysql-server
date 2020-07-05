@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -79,7 +79,9 @@ struct pos_ees_global_by_error : public PFS_simple_index {
 
   inline void next(void) { m_index++; }
 
-  inline bool has_more_error(void) { return (m_index < max_server_errors); }
+  inline bool has_more_error(void) {
+    return (m_index < max_global_server_errors);
+  }
 
   inline void next_error(void) { m_index++; }
 };
@@ -112,7 +114,7 @@ class table_ees_global_by_error : public PFS_engine_table {
   ~table_ees_global_by_error() {}
 
  protected:
-  int make_row(int error_index);
+  int make_row(uint error_index);
 
  private:
   /** Table share lock. */

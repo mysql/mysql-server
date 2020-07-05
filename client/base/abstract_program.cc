@@ -41,7 +41,7 @@ bool Abstract_program::callback_option_parsed(int, const struct my_option *opt,
   // Check if option uses My::Tools::Base::Options, and it should.
   Options::I_option *app_type = (Options::I_option *)opt->app_type;
   Options::I_option *option = dynamic_cast<Options::I_option *>(app_type);
-  if (option != NULL) {
+  if (option != nullptr) {
     option->call_callbacks(argument);
   }
   return false;
@@ -127,7 +127,9 @@ void Abstract_program::aggregate_options() {
             &Abstract_program::options_by_name_comparer);
 
   // Adding sentinel, handle_options assume input as array with sentinel.
-  my_option sentinel = {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0};
+  my_option sentinel = {nullptr, 0,          nullptr, nullptr, nullptr,
+                        nullptr, GET_NO_ARG, NO_ARG,  0,       0,
+                        0,       nullptr,    0,       nullptr};
   this->m_options.push_back(sentinel);
 }
 

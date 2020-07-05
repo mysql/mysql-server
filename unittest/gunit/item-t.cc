@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,20 +25,31 @@
 #include <limits.h>
 #include <stddef.h>
 #include <sys/types.h>
+#include <memory>
+#include <new>
 
+#include "decimal.h"
+#include "field_types.h"
 #include "lex_string.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_alloc.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_table_map.h"
+#include "mysql_time.h"
 #include "mysys_err.h"
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/item_create.h"
 #include "sql/item_strfunc.h"
 #include "sql/item_timefunc.h"
+#include "sql/json_dom.h"
+#include "sql/my_decimal.h"
 #include "sql/sql_class.h"
 #include "sql/sql_lex.h"
 #include "sql/tztime.h"
+#include "sql_string.h"
 #include "unittest/gunit/fake_table.h"
 #include "unittest/gunit/mock_field_timestamp.h"
 #include "unittest/gunit/mysys_util.h"
@@ -67,12 +78,12 @@ class ItemTest : public ::testing::Test {
 class Mock_field_long : public Field_long {
  public:
   Mock_field_long(uint32 length)
-      : Field_long(0,            // ptr_arg
+      : Field_long(nullptr,      // ptr_arg
                    length,       // len_arg
-                   NULL,         // null_ptr_arg
+                   nullptr,      // null_ptr_arg
                    0,            // null_bit_arg
                    Field::NONE,  // auto_flags_arg
-                   0,            // field_name_arg
+                   nullptr,      // field_name_arg
                    false,        // zero_arg
                    false)        // unsigned_arg
   {
@@ -108,12 +119,12 @@ class Mock_field_string : public Field_string {
 
  public:
   Mock_field_string(uint32 length, const CHARSET_INFO *cs = &my_charset_latin1)
-      : Field_string(0,            // ptr_arg
+      : Field_string(nullptr,      // ptr_arg
                      length,       // len_arg
-                     NULL,         // null_ptr_arg
+                     nullptr,      // null_ptr_arg
                      0,            // null_bit_arg
                      Field::NONE,  // auto_flags_arg
-                     NULL,         // field_name_arg
+                     nullptr,      // field_name_arg
                      cs)           // char set
   {
     m_fake_tbl = new Fake_TABLE(this);
@@ -133,7 +144,7 @@ class Mock_field_string : public Field_string {
 
   ~Mock_field_string() {
     delete m_fake_tbl;
-    m_fake_tbl = NULL;
+    m_fake_tbl = nullptr;
   }
 };
 
@@ -148,11 +159,11 @@ class Mock_field_varstring : public Field_varstring {
  public:
   Mock_field_varstring(uint32 length, TABLE_SHARE *share,
                        const CHARSET_INFO *cs = &my_charset_latin1)
-      : Field_varstring(length,  // len_arg
-                        false,   // maybe_null_arg
-                        NULL,    // field_name_arg
-                        share,   // share
-                        cs)      // char set
+      : Field_varstring(length,   // len_arg
+                        false,    // maybe_null_arg
+                        nullptr,  // field_name_arg
+                        share,    // share
+                        cs)       // char set
   {
     m_fake_tbl = new Fake_TABLE(this);
 
@@ -171,7 +182,7 @@ class Mock_field_varstring : public Field_varstring {
 
   ~Mock_field_varstring() {
     delete m_fake_tbl;
-    m_fake_tbl = NULL;
+    m_fake_tbl = nullptr;
   }
 };
 
@@ -359,7 +370,7 @@ TEST_F(ItemTest, ItemEqual) {
       new Item_equal(new Item_string(STRING_WITH_LEN(foo), &my_charset_bin),
                      new Item_field(&mft));
 
-  EXPECT_FALSE(item_equal->fix_fields(thd(), NULL));
+  EXPECT_FALSE(item_equal->fix_fields(thd(), nullptr));
   EXPECT_EQ(1, item_equal->val_int());
 }
 
@@ -375,7 +386,7 @@ TEST_F(ItemTest, ItemFuncExportSet) {
                                  sep_string, new Item_int(4));
     Parse_context pc(thd(), thd()->lex->current_select());
     EXPECT_FALSE(export_set->itemize(&pc, &export_set));
-    EXPECT_FALSE(export_set->fix_fields(thd(), NULL));
+    EXPECT_FALSE(export_set->fix_fields(thd(), nullptr));
     EXPECT_EQ(&str, export_set->val_str(&str));
     EXPECT_STREQ("off,on,off,off", str.c_ptr_safe());
   }
@@ -386,7 +397,7 @@ TEST_F(ItemTest, ItemFuncExportSet) {
                                  sep_string, new Item_int(0));
     Parse_context pc(thd(), thd()->lex->current_select());
     EXPECT_FALSE(export_set->itemize(&pc, &export_set));
-    EXPECT_FALSE(export_set->fix_fields(thd(), NULL));
+    EXPECT_FALSE(export_set->fix_fields(thd(), nullptr));
     EXPECT_EQ(&str, export_set->val_str(&str));
     EXPECT_STREQ("", str.c_ptr_safe());
   }
@@ -399,7 +410,7 @@ TEST_F(ItemTest, ItemFuncExportSet) {
   const ulonglong repeat = max_packet_size / 2;
   Item *item_int_repeat = new Item_int(repeat);
   Item *string_x = new Item_string(STRING_WITH_LEN("x"), &my_charset_bin);
-  String *const null_string = NULL;
+  String *const null_string = nullptr;
   thd()->variables.max_allowed_packet = max_packet_size;
   {
     // Testing overflow caused by 'on-string'.
@@ -411,7 +422,7 @@ TEST_F(ItemTest, ItemFuncExportSet) {
     Parse_context pc(thd(), thd()->lex->current_select());
     SCOPED_TRACE("");
     EXPECT_FALSE(export_set->itemize(&pc, &export_set));
-    EXPECT_FALSE(export_set->fix_fields(thd(), NULL));
+    EXPECT_FALSE(export_set->fix_fields(thd(), nullptr));
     EXPECT_EQ(null_string, export_set->val_str(&str));
     EXPECT_STREQ("", str.c_ptr_safe());
     EXPECT_EQ(1, error_handler.handle_called());
@@ -425,7 +436,7 @@ TEST_F(ItemTest, ItemFuncExportSet) {
     Parse_context pc(thd(), thd()->lex->current_select());
     SCOPED_TRACE("");
     EXPECT_FALSE(export_set->itemize(&pc, &export_set));
-    EXPECT_FALSE(export_set->fix_fields(thd(), NULL));
+    EXPECT_FALSE(export_set->fix_fields(thd(), nullptr));
     EXPECT_EQ(null_string, export_set->val_str(&str));
     EXPECT_STREQ("", str.c_ptr_safe());
     EXPECT_EQ(1, error_handler.handle_called());
@@ -439,7 +450,7 @@ TEST_F(ItemTest, ItemFuncExportSet) {
     Parse_context pc(thd(), thd()->lex->current_select());
     SCOPED_TRACE("");
     EXPECT_FALSE(export_set->itemize(&pc, &export_set));
-    EXPECT_FALSE(export_set->fix_fields(thd(), NULL));
+    EXPECT_FALSE(export_set->fix_fields(thd(), nullptr));
     EXPECT_EQ(null_string, export_set->val_str(&str));
     EXPECT_STREQ("", str.c_ptr_safe());
     EXPECT_EQ(1, error_handler.handle_called());
@@ -461,7 +472,7 @@ TEST_F(ItemTest, ItemFuncExportSet) {
     Parse_context pc(thd(), thd()->lex->current_select());
     SCOPED_TRACE("");
     EXPECT_FALSE(export_set->itemize(&pc, &export_set));
-    EXPECT_FALSE(export_set->fix_fields(thd(), NULL));
+    EXPECT_FALSE(export_set->fix_fields(thd(), nullptr));
     EXPECT_EQ(null_string, export_set->val_str(&str));
     EXPECT_STREQ("", str.c_ptr_safe());
     EXPECT_EQ(1, error_handler.handle_called());
@@ -478,7 +489,7 @@ TEST_F(ItemTest, ItemFuncIntDivOverflow) {
   Item_func_int_div *quotient = new Item_func_int_div(dividend, divisor);
 
   Mock_error_handler error_handler(thd(), ER_TRUNCATED_WRONG_VALUE);
-  EXPECT_FALSE(quotient->fix_fields(thd(), NULL));
+  EXPECT_FALSE(quotient->fix_fields(thd(), nullptr));
   initializer.set_expected_error(ER_DATA_OUT_OF_RANGE);
   quotient->val_int();
 }
@@ -492,7 +503,7 @@ TEST_F(ItemTest, ItemFuncIntDivUnderflow) {
   Item_func_int_div *quotient = new Item_func_int_div(dividend, divisor);
 
   Mock_error_handler error_handler(thd(), ER_TRUNCATED_WRONG_VALUE);
-  EXPECT_FALSE(quotient->fix_fields(thd(), NULL));
+  EXPECT_FALSE(quotient->fix_fields(thd(), nullptr));
   EXPECT_EQ(0, quotient->val_int());
 }
 
@@ -501,7 +512,7 @@ TEST_F(ItemTest, ItemFuncNegLongLongMin) {
   const longlong longlong_min = LLONG_MIN;
   Item_func_neg *item_neg = new Item_func_neg(new Item_int(longlong_min));
 
-  EXPECT_FALSE(item_neg->fix_fields(thd(), NULL));
+  EXPECT_FALSE(item_neg->fix_fields(thd(), nullptr));
   initializer.set_expected_error(ER_DATA_OUT_OF_RANGE);
   EXPECT_EQ(0, item_neg->int_op());
 }
@@ -519,7 +530,7 @@ TEST_F(ItemTest, ItemFuncSetUserVar) {
   Item_func_set_user_var *user_var =
       new Item_func_set_user_var(var_name, item_str, false);
   EXPECT_FALSE(user_var->set_entry(thd(), true));
-  EXPECT_FALSE(user_var->fix_fields(thd(), NULL));
+  EXPECT_FALSE(user_var->fix_fields(thd(), nullptr));
   EXPECT_EQ(val1, user_var->val_int());
 
   my_decimal decimal;
@@ -555,7 +566,7 @@ TEST_F(ItemTest, OutOfMemory) {
 // We never use dynamic_cast, but we expect it to work.
 TEST_F(ItemTest, DynamicCast) {
   Item *item = new Item_int(42);
-  const Item_int *null_item = NULL;
+  const Item_int *null_item = nullptr;
   EXPECT_NE(null_item, dynamic_cast<Item_int *>(item));
 }
 
@@ -566,7 +577,7 @@ TEST_F(ItemTest, ItemFuncXor) {
 
   Item_func_xor *item_xor = new Item_func_xor(item_zero, item_one_a);
 
-  EXPECT_FALSE(item_xor->fix_fields(thd(), NULL));
+  EXPECT_FALSE(item_xor->fix_fields(thd(), nullptr));
   EXPECT_EQ(1, item_xor->val_int());
   EXPECT_EQ(1U, item_xor->decimal_precision());
 
@@ -574,7 +585,7 @@ TEST_F(ItemTest, ItemFuncXor) {
 
   Item_func_xor *item_xor_same = new Item_func_xor(item_one_a, item_one_b);
 
-  EXPECT_FALSE(item_xor_same->fix_fields(thd(), NULL));
+  EXPECT_FALSE(item_xor_same->fix_fields(thd(), nullptr));
   EXPECT_EQ(0, item_xor_same->val_int());
   EXPECT_FALSE(item_xor_same->val_bool());
   EXPECT_FALSE(item_xor_same->is_null());
@@ -584,7 +595,7 @@ TEST_F(ItemTest, ItemFuncXor) {
   EXPECT_STREQ("(0 xor 1)", print_buffer.c_ptr_safe());
 
   Item *neg_xor = item_xor->truth_transformer(thd(), Item::BOOL_NEGATED);
-  EXPECT_FALSE(neg_xor->fix_fields(thd(), NULL));
+  EXPECT_FALSE(neg_xor->fix_fields(thd(), nullptr));
   EXPECT_EQ(0, neg_xor->val_int());
   EXPECT_DOUBLE_EQ(0.0, neg_xor->val_real());
   EXPECT_FALSE(neg_xor->val_bool());
@@ -595,7 +606,7 @@ TEST_F(ItemTest, ItemFuncXor) {
   EXPECT_STREQ("((not(0)) xor 1)", print_buffer.c_ptr_safe());
 
   Item_func_xor *item_xor_null = new Item_func_xor(item_zero, new Item_null());
-  EXPECT_FALSE(item_xor_null->fix_fields(thd(), NULL));
+  EXPECT_FALSE(item_xor_null->fix_fields(thd(), nullptr));
 
   EXPECT_EQ(0, item_xor_null->val_int());
   EXPECT_TRUE(item_xor_null->is_null());
@@ -759,8 +770,8 @@ TEST_F(ItemTest, ItemFuncConvIntMin) {
                                        new Item_int(INT_MIN));  // to_base
   Parse_context pc(thd(), thd()->lex->current_select());
   EXPECT_FALSE(item_conv->itemize(&pc, &item_conv));
-  EXPECT_FALSE(item_conv->fix_fields(thd(), NULL));
-  const String *null_string = NULL;
+  EXPECT_FALSE(item_conv->fix_fields(thd(), nullptr));
+  const String *null_string = nullptr;
   String str;
   EXPECT_EQ(null_string, item_conv->val_str(&str));
 }
@@ -771,33 +782,33 @@ TEST_F(ItemTest, ItemDecimalTypecast) {
   pos.cpp.start = pos.cpp.end = pos.raw.start = pos.raw.end = msg;
   // Sun Studio needs this null_item,
   // it fails to compile EXPECT_EQ(NULL, create_func_cast());
-  const Item *null_item = NULL;
+  const Item *null_item = nullptr;
 
   Cast_type type;
   type.target = ITEM_CAST_DECIMAL;
 
   type.length = "123456789012345678901234567890";
-  type.dec = NULL;
+  type.dec = nullptr;
 
   {
     initializer.set_expected_error(ER_TOO_BIG_PRECISION);
-    EXPECT_EQ(null_item, create_func_cast(thd(), pos, NULL, &type));
+    EXPECT_EQ(null_item, create_func_cast(thd(), pos, nullptr, &type));
   }
 
   {
     char buff[20];
     snprintf(buff, sizeof(buff) - 1, "%d", DECIMAL_MAX_PRECISION + 1);
     type.length = buff;
-    type.dec = NULL;
+    type.dec = nullptr;
     initializer.set_expected_error(ER_TOO_BIG_PRECISION);
-    EXPECT_EQ(null_item, create_func_cast(thd(), pos, NULL, &type));
+    EXPECT_EQ(null_item, create_func_cast(thd(), pos, nullptr, &type));
   }
 
   {
-    type.length = NULL;
+    type.length = nullptr;
     type.dec = "123456789012345678901234567890";
     initializer.set_expected_error(ER_TOO_BIG_SCALE);
-    EXPECT_EQ(null_item, create_func_cast(thd(), pos, NULL, &type));
+    EXPECT_EQ(null_item, create_func_cast(thd(), pos, nullptr, &type));
   }
 
   {
@@ -806,7 +817,7 @@ TEST_F(ItemTest, ItemDecimalTypecast) {
     type.length = buff;
     type.dec = buff;
     initializer.set_expected_error(ER_TOO_BIG_SCALE);
-    EXPECT_EQ(null_item, create_func_cast(thd(), pos, NULL, &type));
+    EXPECT_EQ(null_item, create_func_cast(thd(), pos, nullptr, &type));
   }
 }
 
@@ -835,6 +846,70 @@ TEST_F(ItemTest, CompareEmptyStrings) {
   comparator.set_cmp_func(owner, &item1, &item2, false);
 
   EXPECT_EQ(0, comparator.compare_binary_string());
+}
+
+TEST_F(ItemTest, ItemJson) {
+  MEM_ROOT *const mem_root = initializer.thd()->mem_root;
+
+  const Item_name_string name(Name_string(STRING_WITH_LEN("json")));
+
+  Json_string jstr("123");
+  Item_json *item = new Item_json(
+      make_unique_destroy_only<Json_wrapper>(mem_root, &jstr, true), name);
+
+  Json_wrapper wr;
+  EXPECT_FALSE(item->val_json(&wr));
+  EXPECT_EQ(&jstr, wr.get_dom());
+
+  String string_buffer;
+  const String *str = item->val_str(&string_buffer);
+  EXPECT_EQ("\"123\"", to_string(*str));
+  EXPECT_EQ(item->collation.collation, str->charset());
+
+  EXPECT_EQ(123.0, item->val_real());
+  EXPECT_EQ(123, item->val_int());
+
+  my_decimal decimal_buffer;
+  const my_decimal *decimal = item->val_decimal(&decimal_buffer);
+  double dbl = 0;
+  EXPECT_EQ(E_DEC_OK, decimal2double(decimal, &dbl));
+  EXPECT_EQ(123.0, dbl);
+
+  Item *clone = item->clone_item();
+  EXPECT_NE(item, clone);
+  EXPECT_TRUE(item->eq(clone, true));
+  EXPECT_FALSE(clone->val_json(&wr));
+  EXPECT_NE(&jstr, wr.get_dom());
+  EXPECT_EQ(0, wr.compare(Json_wrapper(&jstr, true)));
+  EXPECT_EQ(123, clone->val_int());
+
+  const MysqlTime date(2020, 1, 2);
+  EXPECT_EQ(MYSQL_TIMESTAMP_DATE, date.time_type);
+  item = new Item_json(
+      make_unique_destroy_only<Json_wrapper>(
+          mem_root, std::unique_ptr<Json_dom>(new (std::nothrow) Json_datetime(
+                        date, MYSQL_TYPE_DATE))),
+      name);
+  MYSQL_TIME time_result;
+  EXPECT_FALSE(item->get_date(&time_result, 0));
+  EXPECT_EQ(date.time_type, time_result.time_type);
+  EXPECT_EQ(date.year, time_result.year);
+  EXPECT_EQ(date.month, time_result.month);
+  EXPECT_EQ(date.day, time_result.day);
+
+  const MysqlTime time(0, 0, 0, 10, 20, 30, 40, false, MYSQL_TIMESTAMP_TIME);
+  item = new Item_json(
+      make_unique_destroy_only<Json_wrapper>(
+          mem_root, std::unique_ptr<Json_dom>(new (std::nothrow) Json_datetime(
+                        time, MYSQL_TYPE_TIME))),
+      name);
+  EXPECT_FALSE(item->get_time(&time_result));
+  EXPECT_EQ(time.time_type, time_result.time_type);
+  EXPECT_EQ(time.hour, time_result.hour);
+  EXPECT_EQ(time.minute, time_result.minute);
+  EXPECT_EQ(time.second, time_result.second);
+  EXPECT_EQ(time.second_part, time_result.second_part);
+  EXPECT_EQ(time.neg, time_result.neg);
 }
 
 }  // namespace item_unittest

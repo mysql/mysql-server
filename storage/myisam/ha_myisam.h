@@ -63,7 +63,7 @@ ICP_RESULT index_cond_func_myisam(void *arg);
 
 class Myisam_handler_share : public Handler_share {
  public:
-  Myisam_handler_share() : m_share(NULL) {}
+  Myisam_handler_share() : m_share(nullptr) {}
   ~Myisam_handler_share() {}
   MYISAM_SHARE *m_share;
 };

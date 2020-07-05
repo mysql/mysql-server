@@ -359,7 +359,7 @@ struct mtr_t {
   /** Set flush observer
   @param[in]	observer	flush observer */
   void set_flush_observer(FlushObserver *observer) {
-    ut_ad(observer == NULL || m_impl.m_log_mode == MTR_LOG_NO_REDO);
+    ut_ad(observer == nullptr || m_impl.m_log_mode == MTR_LOG_NO_REDO);
 
     m_impl.m_flush_observer = observer;
   }

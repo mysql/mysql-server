@@ -14,6 +14,9 @@
 --source include/have_myisam.inc
 --source include/master-slave.inc
 
+# sql_slave_skip_counter is not supported with compression
+--source include/not_binlog_transaction_compression_on.inc
+
 --connection slave
 
 call mtr.add_suppression("Slave SQL for channel '':.* Could not execute Write_rows event on table test.t1");

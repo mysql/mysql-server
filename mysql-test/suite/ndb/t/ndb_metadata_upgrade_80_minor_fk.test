@@ -1,0 +1,91 @@
+--source include/have_multi_ndb.inc
+--source suite/ndb/include/backup_restore_setup.inc
+--source suite/ndb/include/have_little_endian.inc
+
+#
+# The backup being restored was created using the following commands in 8.0.18:
+#
+# CREATE TABLE parent (
+#   c1 int PRIMARY KEY,
+#   c2 int,
+#   UNIQUE p_ukc2(c2)
+# ) ENGINE NDB;
+#
+# INSERT INTO parent VALUES(1, 10),(2, 20);
+#
+# CREATE TABLE child (
+#   c1 int,
+#   c2 int,
+#   INDEX c_xc1 (c1),
+#   INDEX c_xc2 (c2),
+#   CONSTRAINT c_fk1
+#     FOREIGN KEY (c1)
+#     REFERENCES parent(c1),
+#   CONSTRAINT c_fk2
+#     FOREIGN KEY (c2)
+#     REFERENCES parent(c2)
+# ) ENGINE NDB;
+#
+# INSERT INTO child
+#   VALUES (1, 10), (2, 20), (1, 20), (2, 10);
+#
+# CREATE TABLE self_ref (
+#   c1 int NOT NULL,
+#   c2 int,
+#   UNIQUE sr_ukc1(c1),
+#   CONSTRAINT sr_fk1
+#     FOREIGN KEY (c2)
+#     REFERENCES self_ref(c1)
+#     ON DELETE CASCADE
+#     ON UPDATE SET DEFAULT
+# ) ENGINE NDB;
+#
+# INSERT INTO self_ref VALUES(1,1), (2,1);
+#
+
+--exec $NDB_RESTORE -b 1 -n 1 -m -r --backup-path=$NDB_SAVED_BACKUPS/metadata_upgrade_80_minor_fk >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 2 -r --backup-path=$NDB_SAVED_BACKUPS/metadata_upgrade_80_minor_fk >> $NDB_TOOLS_OUTPUT
+
+--echo Backup restored
+
+# Test upgrade of the metadata during schema synchronization
+--echo Restart server 1 to trigger schema synchronization
+let $mysqld_name=mysqld.1.1;
+--source include/restart_mysqld.inc
+
+# Check if the tables have been synced
+SHOW TABLES;
+
+# Check table definitions, data, and constraints
+SHOW CREATE TABLE parent;
+--sorted_result
+SELECT * FROM parent;
+SHOW CREATE TABLE child;
+--sorted_result
+SELECT * FROM child;
+--echo # Check foreign key constraints
+INSERT INTO parent VALUES (3, 30);
+--error ER_ROW_IS_REFERENCED_2
+DELETE FROM parent WHERE c1 = 1;
+--sorted_result
+SELECT * FROM parent;
+INSERT INTO child VALUES (3, 30);
+--error ER_NO_REFERENCED_ROW_2
+INSERT INTO child VALUES (4, 40);
+--sorted_result
+SELECT * FROM child;
+SHOW CREATE TABLE self_ref;
+--sorted_result
+SELECT * FROM self_ref;
+INSERT INTO self_ref VALUES (3, 2);
+--error ER_NO_REFERENCED_ROW_2
+INSERT INTO self_ref VALUES (4, 5);
+DELETE FROM self_ref WHERE c1 = 1;
+--sorted_result
+SELECT * FROM self_ref;
+
+# Clean-up
+DROP TABLE child;
+DROP TABLE parent;
+DROP TABLE self_ref;
+--remove_file $NDB_TOOLS_OUTPUT

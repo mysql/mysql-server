@@ -1,0 +1,38 @@
+# Tests for PERFORMANCE_SCHEMA
+
+#
+# WL#3549
+#
+
+# This test verifies the correct behaviour in case of invalid
+# usage of DMLs on the table
+
+--let $table = performance_schema.binary_log_transaction_compression_stats
+
+--disable_result_log
+--eval SELECT * FROM $table LIMIT 1
+--eval SELECT * FROM $table WHERE log_type='BINARY' OR COMPRESSION_TYPE='LZ4'
+--enable_result_log
+
+--error ER_TABLEACCESS_DENIED_ERROR
+--eval INSERT INTO $table SET log_type='BINARY', compression_type='LZ4', transaction_counter=1, compressed_bytes_counter=2, uncompressed_bytes_counter=1, last_transaction_id="gtid", last_transaction_compressed_bytes=1, last_transaction_uncompressed_bytes=1, las_transaction_timestamp=now()
+
+--error ER_TABLEACCESS_DENIED_ERROR
+--eval UPDATE $table SET log_type='BINARY'
+
+--error ER_TABLEACCESS_DENIED_ERROR
+--eval UPDATE $table SET log_type='BINARY' WHERE compression_type="LZ4"
+
+--error ER_TABLEACCESS_DENIED_ERROR
+--eval DELETE FROM $table WHERE log_type='BINARY'
+
+--error ER_TABLEACCESS_DENIED_ERROR
+--eval DELETE FROM $table
+
+--error ER_TABLEACCESS_DENIED_ERROR
+--eval LOCK TABLES $table READ
+UNLOCK TABLES;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+--eval LOCK TABLES $table WRITE
+UNLOCK TABLES;

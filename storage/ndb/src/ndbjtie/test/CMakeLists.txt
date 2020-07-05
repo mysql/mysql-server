@@ -100,6 +100,15 @@ IF(WITH_ASAN)
   RETURN()
 ENDIF()
 
+# Needed on Windows, to find SSL .dlls at runtime.
+IF(WIN32)
+  SET(JAVATEST_WORKING_DIRECTORY
+    WORKING_DIRECTORY
+    "${CMAKE_BINARY_DIR}/runtime_output_directory/${JAVA_SUBDIR}")
+ENDIF()
+
+MESSAGE(STATUS "JAVATEST_WORKING_DIRECTORY is ${JAVATEST_WORKING_DIRECTORY}")
+
 ADD_TEST(
   NAME test_ndbjtie_mutils
   COMMAND
@@ -107,6 +116,7 @@ ADD_TEST(
   "-classpath" "${TEST_JAR}${JAVA_SEPERATOR}${NDBJTIE_JAR}"
   "-Djava.library.path=${CMAKE_BINARY_DIR}/library_output_directory/${JAVA_SUBDIR}"
   "test.MySqlUtilsTest"
+  ${JAVATEST_WORKING_DIRECTORY}
 )
 
 ADD_TEST(
@@ -117,6 +127,7 @@ ADD_TEST(
   "-Djava.library.path=${CMAKE_BINARY_DIR}/library_output_directory/${JAVA_SUBDIR}${JAVA_SEPERATOR}${BIN_DIR}"
   "-Dtest.NdbJTieConstantsTest.ndbjtie_jar_file=${NDBJTIE_JAR}"
   "test.NdbJTieConstantsTest"
+  ${JAVATEST_WORKING_DIRECTORY}
 )
 
 ADD_TEST(
@@ -126,6 +137,7 @@ ADD_TEST(
   "-classpath" "${TEST_JAR}${JAVA_SEPERATOR}${NDBJTIE_JAR}${JAVA_SEPERATOR}${MYJAPI_TEST_JAR}"
   "-Djava.library.path=${CMAKE_BINARY_DIR}/library_output_directory/${JAVA_SUBDIR}${JAVA_SEPERATOR}${MYJAPI_TEST_DIR}/${JAVA_SUBDIR}${JAVA_SEPERATOR}${BIN_DIR}"
   "test.NdbJTieMultiLibTest"
+  ${JAVATEST_WORKING_DIRECTORY}
 )
 
 ADD_TEST(
@@ -135,6 +147,7 @@ ADD_TEST(
   "-classpath" "${TEST_JAR}${JAVA_SEPERATOR}${NDBJTIE_JAR}"
   "-Djava.library.path=${CMAKE_BINARY_DIR}/library_output_directory/${JAVA_SUBDIR}"
   "test.NdbJTieSmokeTest"
+  ${JAVATEST_WORKING_DIRECTORY}
 )
 
 SET(UNLOAD_TEST "com.mysql.jtie.test.MyLoadUnloadTest")
@@ -150,6 +163,7 @@ ADD_TEST(
   "-D${UNLOAD_TEST}.target_class_name=test.MySqlUtilsTest"
   "-D${UNLOAD_TEST}.target_method_name=test"
   "test.MyLoadUnloadTest"
+  ${JAVATEST_WORKING_DIRECTORY}
 )
 
 
@@ -164,6 +178,7 @@ ADD_TEST(
   "-D${UNLOAD_TEST}.target_method_name=test"
   "-Dtest.NdbJTieConstantsTest.ndbjtie_jar_file=${NDBJTIE_JAR}"
   "test.MyLoadUnloadTest"
+  ${JAVATEST_WORKING_DIRECTORY}
 )
 
 ADD_TEST(
@@ -176,6 +191,7 @@ ADD_TEST(
   "-D${UNLOAD_TEST}.target_class_name=test.NdbJTieMultiLibTest"
   "-D${UNLOAD_TEST}.target_method_name=test"
   "test.MyLoadUnloadTest"
+  ${JAVATEST_WORKING_DIRECTORY}
 )
 
 ADD_TEST(
@@ -188,4 +204,5 @@ ADD_TEST(
   "-D${UNLOAD_TEST}.target_class_name=test.NdbJTieSmokeTest"
   "-D${UNLOAD_TEST}.target_method_name=test"
   "test.MyLoadUnloadTest"
+  ${JAVATEST_WORKING_DIRECTORY}
 )

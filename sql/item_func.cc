@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -193,7 +193,7 @@ void Item_func::set_arguments(List<Item> &list, bool context_free) {
 
 Item_func::Item_func(const POS &pos, PT_item_list *opt_list)
     : super(pos), allowed_arg_cols(1) {
-  if (opt_list == NULL) {
+  if (opt_list == nullptr) {
     args = tmp_arg;
     arg_count = 0;
   } else
@@ -396,7 +396,7 @@ Item *Item_func::transform(Item_transformer transformer, uchar *argument) {
     Item **arg, **arg_end;
     for (arg = args, arg_end = args + arg_count; arg != arg_end; arg++) {
       Item *new_item = (*arg)->transform(transformer, argument);
-      if (new_item == NULL) return NULL; /* purecov: inspected */
+      if (new_item == nullptr) return nullptr; /* purecov: inspected */
 
       /*
         THD::change_item_tree() should be called only if the tree was
@@ -436,7 +436,7 @@ Item *Item_func::compile(Item_analyzer analyzer, uchar **arg_p,
       */
       uchar *arg_v = *arg_p;
       Item *new_item = (*arg)->compile(analyzer, &arg_v, transformer, arg_t);
-      if (new_item == NULL) return NULL;
+      if (new_item == nullptr) return nullptr;
       if (*arg != new_item) current_thd->change_item_tree(arg, new_item);
     }
   }
@@ -456,6 +456,7 @@ void Item_func::split_sum_func(THD *thd, Ref_item_array ref_item_array,
 
 void Item_func::update_used_tables() {
   used_tables_cache = get_initial_pseudo_tables();
+  not_null_tables_cache = 0;
 
   /*
     Rollup property not always derivable from arguments, so don't reset that,
@@ -469,6 +470,7 @@ void Item_func::update_used_tables() {
   for (uint i = 0; i < arg_count; i++) {
     args[i]->update_used_tables();
     used_tables_cache |= args[i]->used_tables();
+    if (null_on_null) not_null_tables_cache |= args[i]->not_null_tables();
     add_accum_properties(args[i]);
   }
 }
@@ -522,7 +524,7 @@ bool Item_func::eq(const Item *item, bool binary_cmp) const {
 }
 
 Field *Item_func::tmp_table_field(TABLE *table) {
-  Field *field = NULL;
+  Field *field = nullptr;
 
   switch (result_type()) {
     case INT_RESULT:
@@ -554,7 +556,7 @@ Field *Item_func::tmp_table_field(TABLE *table) {
     default:
       // This case should never be chosen
       DBUG_ASSERT(0);
-      field = 0;
+      field = nullptr;
       break;
   }
   if (field) field->init(table);
@@ -564,7 +566,7 @@ Field *Item_func::tmp_table_field(TABLE *table) {
 my_decimal *Item_func::val_decimal(my_decimal *decimal_value) {
   DBUG_ASSERT(fixed);
   longlong nr = val_int();
-  if (null_value) return 0; /* purecov: inspected */
+  if (null_value) return nullptr; /* purecov: inspected */
   int2my_decimal(E_DEC_FATAL_ERROR, nr, unsigned_flag, decimal_value);
   return decimal_value;
 }
@@ -572,7 +574,7 @@ my_decimal *Item_func::val_decimal(my_decimal *decimal_value) {
 String *Item_real_func::val_str(String *str) {
   DBUG_ASSERT(fixed == 1);
   double nr = val_real();
-  if (null_value) return 0; /* purecov: inspected */
+  if (null_value) return nullptr; /* purecov: inspected */
   str->set_real(nr, decimals, collation.collation);
   return str;
 }
@@ -580,7 +582,7 @@ String *Item_real_func::val_str(String *str) {
 my_decimal *Item_real_func::val_decimal(my_decimal *decimal_value) {
   DBUG_ASSERT(fixed);
   double nr = val_real();
-  if (null_value) return 0; /* purecov: inspected */
+  if (null_value) return nullptr; /* purecov: inspected */
   double2my_decimal(E_DEC_FATAL_ERROR, nr, decimal_value);
   return decimal_value;
 }
@@ -655,13 +657,13 @@ const Item_field *Item_func::contributes_to_filter(
     exactly one unread table: the table filtering is currently
     calculated for.
   */
-  if ((used_tables() & ~read_tables) != filter_for_table) return NULL;
+  if ((used_tables() & ~read_tables) != filter_for_table) return nullptr;
 
   /*
     Whether or not this Item_func has an operand that is a field in
     'filter_for_table' that is not in 'fields_to_ignore'.
   */
-  Item_field *usable_field = NULL;
+  Item_field *usable_field = nullptr;
 
   /*
     Whether or not this Item_func has an operand that can be used as
@@ -688,7 +690,7 @@ const Item_field *Item_func::contributes_to_filter(
         calculated and its accompanying filtering effect is too
         uncertain. See WL#7384.
       */
-      return NULL;
+      return nullptr;
     }  // ... if subquery.
 
     const table_map used_tabs = args[i]->used_tables();
@@ -732,7 +734,7 @@ const Item_field *Item_func::contributes_to_filter(
       found_comparable = true;
     }
   }
-  return (found_comparable ? usable_field : NULL);
+  return (found_comparable ? usable_field : nullptr);
 }
 
 /**
@@ -764,7 +766,7 @@ Item_field *get_gc_for_expr(Item_func **func, Field *fld, Item_result type,
     strings. See also the comment below.
   */
   if (type == STRING_RESULT && expr->data_type() == MYSQL_TYPE_JSON)
-    return NULL;
+    return nullptr;
 
   /*
     In order to match expressions against a functional index's expression,
@@ -798,7 +800,7 @@ Item_field *get_gc_for_expr(Item_func **func, Field *fld, Item_result type,
   */
   if (!strcmp(expr->func_name(), "json_unquote") &&
       strcmp((*func)->func_name(), "json_unquote")) {
-    if (!expr->arguments()[0]->can_be_substituted_for_gc()) return NULL;
+    if (!expr->arguments()[0]->can_be_substituted_for_gc()) return nullptr;
     expr = down_cast<Item_func *>(expr->arguments()[0]);
   }
 
@@ -811,15 +813,15 @@ Item_field *get_gc_for_expr(Item_func **func, Field *fld, Item_result type,
       // Temporary mark the field in order to check correct value conversion
       fld->table->mark_column_used(fld, MARK_COLUMNS_TEMP);
       *found = fld;
-      return NULL;
+      return nullptr;
     }
     // Mark field for read
     fld->table->mark_column_used(fld, MARK_COLUMNS_READ);
     Item_field *field = new Item_field(fld);
     return field;
   }
-  if (found) *found = NULL;
-  return NULL;
+  if (found) *found = nullptr;
+  return nullptr;
 }
 
 /**
@@ -1148,7 +1150,7 @@ double Item_int_func::val_real() {
 String *Item_int_func::val_str(String *str) {
   DBUG_ASSERT(fixed == 1);
   longlong nr = val_int();
-  if (null_value) return 0;
+  if (null_value) return nullptr;
   str->set_int(nr, unsigned_flag, collation.collation);
   return str;
 }
@@ -1322,7 +1324,7 @@ String *Item_func_numhybrid::val_str(String *str) {
   switch (hybrid_type) {
     case DECIMAL_RESULT: {
       my_decimal decimal_value, *val;
-      if (!(val = decimal_op(&decimal_value))) return 0;  // null is set
+      if (!(val = decimal_op(&decimal_value))) return nullptr;  // null is set
       my_decimal_round(E_DEC_FATAL_ERROR, val, decimals, false, val);
       str->set_charset(collation.collation);
       my_decimal2string(E_DEC_FATAL_ERROR, val, str);
@@ -1330,13 +1332,13 @@ String *Item_func_numhybrid::val_str(String *str) {
     }
     case INT_RESULT: {
       longlong nr = int_op();
-      if (null_value) return 0; /* purecov: inspected */
+      if (null_value) return nullptr; /* purecov: inspected */
       str->set_int(nr, unsigned_flag, collation.collation);
       break;
     }
     case REAL_RESULT: {
       double nr = real_op();
-      if (null_value) return 0; /* purecov: inspected */
+      if (null_value) return nullptr; /* purecov: inspected */
       str->set_real(nr, decimals, collation.collation);
       break;
     }
@@ -1468,7 +1470,7 @@ my_decimal *Item_func_numhybrid::val_decimal(my_decimal *decimal_value) {
           break;
       }
       String *res;
-      if (!(res = str_op(&str_value))) return NULL;
+      if (!(res = str_op(&str_value))) return nullptr;
 
       str2my_decimal(E_DEC_FATAL_ERROR, res->ptr(), res->length(),
                      res->charset(), decimal_value);
@@ -1637,7 +1639,7 @@ my_decimal *Item_typecast_decimal::val_decimal(my_decimal *dec) {
   bool sign;
   uint precision;
 
-  if ((null_value = args[0]->null_value)) return NULL;
+  if ((null_value = args[0]->null_value)) return nullptr;
   my_decimal_round(E_DEC_FATAL_ERROR, tmp, decimals, false, dec);
   sign = dec->sign();
   if (unsigned_flag) {
@@ -1800,14 +1802,14 @@ my_decimal *Item_func_plus::decimal_op(my_decimal *decimal_value) {
   my_decimal value1, *val1;
   my_decimal value2, *val2;
   val1 = args[0]->val_decimal(&value1);
-  if ((null_value = args[0]->null_value)) return 0;
+  if ((null_value = args[0]->null_value)) return nullptr;
   val2 = args[1]->val_decimal(&value2);
   if (!(null_value =
             (args[1]->null_value || check_decimal_overflow(my_decimal_add(
                                         E_DEC_FATAL_ERROR & ~E_DEC_OVERFLOW,
                                         decimal_value, val1, val2)) > 3)))
     return decimal_value;
-  return 0;
+  return nullptr;
 }
 
 /**
@@ -1899,10 +1901,10 @@ my_decimal *Item_func_minus::decimal_op(my_decimal *decimal_value) {
   my_decimal value2, *val2;
 
   val1 = args[0]->val_decimal(&value1);
-  if ((null_value = args[0]->null_value)) return NULL;
+  if ((null_value = args[0]->null_value)) return nullptr;
 
   val2 = args[1]->val_decimal(&value2);
-  if ((null_value = args[1]->null_value)) return NULL;
+  if ((null_value = args[1]->null_value)) return nullptr;
 
   if ((null_value = check_decimal_overflow(
                         my_decimal_sub(E_DEC_FATAL_ERROR & ~E_DEC_OVERFLOW,
@@ -2026,14 +2028,14 @@ my_decimal *Item_func_mul::decimal_op(my_decimal *decimal_value) {
   my_decimal value1, *val1;
   my_decimal value2, *val2;
   val1 = args[0]->val_decimal(&value1);
-  if ((null_value = args[0]->null_value)) return 0;
+  if ((null_value = args[0]->null_value)) return nullptr;
   val2 = args[1]->val_decimal(&value2);
   if (!(null_value =
             (args[1]->null_value || (check_decimal_overflow(my_decimal_mul(
                                          E_DEC_FATAL_ERROR & ~E_DEC_OVERFLOW,
                                          decimal_value, val1, val2)) > 3))))
     return decimal_value;
-  return 0;
+  return nullptr;
 }
 
 void Item_func_mul::result_precision() {
@@ -2067,15 +2069,15 @@ my_decimal *Item_func_div::decimal_op(my_decimal *decimal_value) {
   int err;
 
   val1 = args[0]->val_decimal(&value1);
-  if ((null_value = args[0]->null_value)) return 0;
+  if ((null_value = args[0]->null_value)) return nullptr;
   val2 = args[1]->val_decimal(&value2);
-  if ((null_value = args[1]->null_value)) return 0;
+  if ((null_value = args[1]->null_value)) return nullptr;
   if ((err = check_decimal_overflow(
            my_decimal_div(E_DEC_FATAL_ERROR & ~E_DEC_OVERFLOW & ~E_DEC_DIV_ZERO,
                           decimal_value, val1, val2, prec_increment))) > 3) {
     if (err == E_DEC_DIV_ZERO) signal_divide_by_null();
     null_value = true;
-    return 0;
+    return nullptr;
   }
   return decimal_value;
 }
@@ -2253,9 +2255,9 @@ my_decimal *Item_func_mod::decimal_op(my_decimal *decimal_value) {
   my_decimal value2, *val2;
 
   val1 = args[0]->val_decimal(&value1);
-  if ((null_value = args[0]->null_value)) return 0;
+  if ((null_value = args[0]->null_value)) return nullptr;
   val2 = args[1]->val_decimal(&value2);
-  if ((null_value = args[1]->null_value)) return 0;
+  if ((null_value = args[1]->null_value)) return nullptr;
   switch (my_decimal_mod(E_DEC_FATAL_ERROR & ~E_DEC_DIV_ZERO, decimal_value,
                          val1, val2)) {
     case E_DEC_TRUNCATED:
@@ -2266,7 +2268,7 @@ my_decimal *Item_func_mod::decimal_op(my_decimal *decimal_value) {
       // Fall through.
     default:
       null_value = true;
-      return 0;
+      return nullptr;
   }
 }
 
@@ -2316,7 +2318,7 @@ my_decimal *Item_func_neg::decimal_op(my_decimal *decimal_value) {
     my_decimal_neg(decimal_value);
     return decimal_value;
   }
-  return 0;
+  return nullptr;
 }
 
 void Item_func_neg::fix_num_length_and_dec() {
@@ -2374,7 +2376,7 @@ my_decimal *Item_func_abs::decimal_op(my_decimal *decimal_value) {
     if (decimal_value->sign()) my_decimal_neg(decimal_value);
     return decimal_value;
   }
-  return 0;
+  return nullptr;
 }
 
 bool Item_func_abs::resolve_type(THD *thd) {
@@ -2482,8 +2484,7 @@ double Item_func_acos::val_real() {
   DBUG_ASSERT(fixed == 1);
   /* One can use this to defer SELECT processing. */
   DEBUG_SYNC(current_thd, "before_acos_function");
-  // the volatile's for BUG #2338 to calm optimizer down (because of gcc's bug)
-  volatile double value = args[0]->val_real();
+  double value = args[0]->val_real();
   if ((null_value = (args[0]->null_value || (value < -1.0 || value > 1.0))))
     return 0.0;
   return acos(value);
@@ -2491,8 +2492,7 @@ double Item_func_acos::val_real() {
 
 double Item_func_asin::val_real() {
   DBUG_ASSERT(fixed == 1);
-  // the volatile's for BUG #2338 to calm optimizer down (because of gcc's bug)
-  volatile double value = args[0]->val_real();
+  double value = args[0]->val_real();
   if ((null_value = (args[0]->null_value || (value < -1.0 || value > 1.0))))
     return 0.0;
   return asin(value);
@@ -2947,11 +2947,7 @@ longlong Item_func_ceiling::int_op() {
 }
 
 double Item_func_ceiling::real_op() {
-  /*
-    the volatile's for BUG #3051 to calm optimizer down (because of gcc's
-    bug)
-  */
-  volatile double value = args[0]->val_real();
+  double value = args[0]->val_real();
   null_value = args[0]->null_value;
   return ceil(value);
 }
@@ -2962,7 +2958,7 @@ my_decimal *Item_func_ceiling::decimal_op(my_decimal *decimal_value) {
             (args[0]->null_value ||
              my_decimal_ceiling(E_DEC_FATAL_ERROR, value, decimal_value) > 1)))
     return decimal_value;
-  return 0;
+  return nullptr;
 }
 
 longlong Item_func_floor::int_op() {
@@ -2987,11 +2983,7 @@ longlong Item_func_floor::int_op() {
 }
 
 double Item_func_floor::real_op() {
-  /*
-    the volatile's for BUG #3051 to calm optimizer down (because of gcc's
-    bug)
-  */
-  volatile double value = args[0]->val_real();
+  double value = args[0]->val_real();
   null_value = args[0]->null_value;
   return floor(value);
 }
@@ -3002,7 +2994,7 @@ my_decimal *Item_func_floor::decimal_op(my_decimal *decimal_value) {
             (args[0]->null_value ||
              my_decimal_floor(E_DEC_FATAL_ERROR, value, decimal_value) > 1)))
     return decimal_value;
-  return 0;
+  return nullptr;
 }
 
 bool Item_func_round::resolve_type(THD *) {
@@ -3095,37 +3087,27 @@ bool Item_func_round::resolve_type(THD *) {
 
 double my_double_round(double value, longlong dec, bool dec_unsigned,
                        bool truncate) {
-  double tmp;
   bool dec_negative = (dec < 0) && !dec_unsigned;
   int log_10_size = array_elements(log_10);  // 309
   if (dec_negative && dec <= -log_10_size) return 0.0;
 
   ulonglong abs_dec = dec_negative ? -dec : dec;
-  /*
-    tmp2 is here to avoid return the value with 80 bit precision
-    This will fix that the test round(0.1,1) = round(0.1,1) is true
-    Tagging with volatile is no guarantee, it may still be optimized away...
-  */
-  volatile double tmp2 = 0.0;
 
-  tmp = (abs_dec < array_elements(log_10) ? log_10[abs_dec]
-                                          : pow(10.0, (double)abs_dec));
+  double tmp = (abs_dec < array_elements(log_10) ? log_10[abs_dec]
+                                                 : pow(10.0, (double)abs_dec));
 
-  // Pre-compute these, to avoid optimizing away e.g. 'floor(v/tmp) * tmp'.
-  volatile double value_div_tmp = value / tmp;
-  volatile double value_mul_tmp = value * tmp;
+  double value_mul_tmp = value * tmp;
+  if (!dec_negative && !std::isfinite(value_mul_tmp)) return value;
 
-  if (!dec_negative && !std::isfinite(value_mul_tmp))
-    tmp2 = value;
-  else if (truncate) {
+  double value_div_tmp = value / tmp;
+  if (truncate) {
     if (value >= 0.0)
-      tmp2 = dec < 0 ? floor(value_div_tmp) * tmp : floor(value_mul_tmp) / tmp;
+      return dec < 0 ? floor(value_div_tmp) * tmp : floor(value_mul_tmp) / tmp;
     else
-      tmp2 = dec < 0 ? ceil(value_div_tmp) * tmp : ceil(value_mul_tmp) / tmp;
-  } else
-    tmp2 = dec < 0 ? rint(value_div_tmp) * tmp : rint(value_mul_tmp) / tmp;
+      return dec < 0 ? ceil(value_div_tmp) * tmp : ceil(value_mul_tmp) / tmp;
+  }
 
-  return tmp2;
+  return dec < 0 ? rint(value_div_tmp) * tmp : rint(value_mul_tmp) / tmp;
 }
 
 double Item_func_round::real_op() {
@@ -3140,13 +3122,20 @@ double Item_func_round::real_op() {
 }
 
 /*
-  Rounds a given value to a power of 10 specified as the 'to' argument,
-  avoiding overflows when the value is close to the ulonglong range boundary.
+  Rounds a given value to a power of 10 specified as the 'to' argument.
 */
-
-static inline ulonglong my_unsigned_round(ulonglong value, ulonglong to) {
+static inline ulonglong my_unsigned_round(ulonglong value, ulonglong to,
+                                          bool *round_overflow) {
   ulonglong tmp = value / to * to;
-  return (value - tmp < (to >> 1)) ? tmp : tmp + to;
+  if (value - tmp < (to >> 1)) {
+    return tmp;
+  } else {
+    if (test_if_sum_overflows_ull(tmp, to)) {
+      *round_overflow = true;
+      return 0;
+    }
+    return tmp + to;
+  }
 }
 
 longlong Item_func_round::int_op() {
@@ -3166,13 +3155,48 @@ longlong Item_func_round::int_op() {
   tmp = log_10_int[abs_dec];
 
   if (truncate)
-    value =
-        (unsigned_flag) ? ((ulonglong)value / tmp) * tmp : (value / tmp) * tmp;
-  else
-    value = (unsigned_flag || value >= 0)
-                ? my_unsigned_round((ulonglong)value, tmp)
-                : -(longlong)my_unsigned_round((ulonglong)-value, tmp);
-  return value;
+    return (unsigned_flag) ? ((ulonglong)value / tmp) * tmp
+                           : (value / tmp) * tmp;
+  else if (unsigned_flag || value >= 0) {
+    bool round_overflow = false;
+    ulonglong rounded_value =
+        my_unsigned_round(static_cast<ulonglong>(value), tmp, &round_overflow);
+    if (!unsigned_flag && rounded_value > LLONG_MAX)
+      return raise_integer_overflow();
+    if (round_overflow) return raise_integer_overflow();
+    return rounded_value;
+  } else {
+    // We round "towards nearest", so
+    // -9223372036854775808 should round to
+    // -9223372036854775810 which underflows, or
+    // -9223372036854775800 which is OK, or
+    // -9223372036854776000 which underflows, and so on ...
+    if (value == LLONG_MIN) {
+      switch (abs_dec) {
+        case 0:
+          return LLONG_MIN;
+        case 1:
+        case 3:
+        case 4:
+        case 5:
+        case 6:
+        case 8:
+        case 9:
+        case 10:
+        case 14:
+        case 19:
+          return raise_integer_overflow();
+        default:
+          return (LLONG_MIN / tmp) * tmp;
+      }
+    }
+    bool not_used = false;
+    ulonglong rounded_value =
+        my_unsigned_round(static_cast<ulonglong>(-value), tmp, &not_used);
+    if (rounded_value > LLONG_MAX) return raise_integer_overflow();
+
+    return -static_cast<longlong>(rounded_value);
+  }
 }
 
 my_decimal *Item_func_round::decimal_op(my_decimal *decimal_value) {
@@ -3187,7 +3211,7 @@ my_decimal *Item_func_round::decimal_op(my_decimal *decimal_value) {
                       my_decimal_round(E_DEC_FATAL_ERROR, value, (int)dec,
                                        truncate, decimal_value) > 1)))
     return decimal_value;
-  return 0;
+  return nullptr;
 }
 
 bool Item_func_rand::itemize(Parse_context *pc, Item **res) {
@@ -3353,7 +3377,8 @@ bool Item_func_min_max::cmp_datetimes(longlong *value) {
   for (uint i = 0; i < arg_count; i++) {
     Item **arg = args + i;
     bool is_null;
-    longlong tmp = get_datetime_value(thd, &arg, 0, temporal_item, &is_null);
+    longlong tmp =
+        get_datetime_value(thd, &arg, nullptr, temporal_item, &is_null);
 
     // Check if we need to stop (because of error or KILL)  and stop the loop
     if ((null_value = thd->is_error())) return true;
@@ -3565,14 +3590,14 @@ longlong Item_func_rollup_const::val_int() {
 String *Item_func_rollup_const::val_str(String *str) {
   DBUG_ASSERT(fixed == 1);
   String *res = args[0]->val_str(str);
-  if ((null_value = args[0]->null_value)) return 0;
+  if ((null_value = args[0]->null_value)) return nullptr;
   return res;
 }
 
 my_decimal *Item_func_rollup_const::val_decimal(my_decimal *dec) {
   DBUG_ASSERT(fixed == 1);
   my_decimal *res = args[0]->val_decimal(dec);
-  if ((null_value = args[0]->null_value)) return 0;
+  if ((null_value = args[0]->null_value)) return nullptr;
   return res;
 }
 
@@ -3848,7 +3873,7 @@ longlong Item_func_find_in_set::val_int() {
 
 longlong Item_func_bit_count::val_int() {
   DBUG_ASSERT(fixed);
-  if (bit_func_returns_binary(args[0], NULL)) {
+  if (bit_func_returns_binary(args[0], nullptr)) {
     String *s = args[0]->val_str(&str_value);
     if (args[0]->null_value || !s) return error_int();
 
@@ -3899,7 +3924,7 @@ udf_handler::~udf_handler() {
 void udf_handler::cleanup() {
   if (!not_original) {
     if (initialized) {
-      if (u_d->func_deinit != NULL) {
+      if (u_d->func_deinit != nullptr) {
         Udf_func_deinit deinit = u_d->func_deinit;
         (*deinit)(&initid);
       }
@@ -4031,7 +4056,7 @@ bool udf_handler::fix_fields(THD *thd, Item_result_field *func, uint arg_count,
   initid.maybe_null = func->maybe_null;
   initid.const_item = used_tables_cache == 0;
   initid.decimals = func->decimals;
-  initid.ptr = 0;
+  initid.ptr = nullptr;
   initid.extension = &m_return_value_extension;
 
   if (u_d->func_init) {
@@ -4044,7 +4069,7 @@ bool udf_handler::fix_fields(THD *thd, Item_result_field *func, uint arg_count,
        For a constant argument i, args->args[i] points to the argument value.
        For non-constant, args->args[i] is NULL.
       */
-      f_args.args[i] = NULL; /* Non-const unless updated below. */
+      f_args.args[i] = nullptr; /* Non-const unless updated below. */
 
       f_args.lengths[i] = arguments[i]->max_length;
       f_args.maybe_null[i] = arguments[i]->maybe_null;
@@ -4110,7 +4135,7 @@ bool udf_handler::get_arguments() {
   if (error) return true;  // Got an error earlier
   char *to = num_buffer;
   for (uint i = 0; i < f_args.arg_count; i++) {
-    f_args.args[i] = 0;
+    f_args.args[i] = nullptr;
     switch (f_args.arg_type[i]) {
       case STRING_RESULT:
         if (get_and_convert_string(i)) return true;
@@ -4182,14 +4207,14 @@ String *udf_handler::val_str(String *str, String *save_str) {
   ulong res_length;
   DBUG_TRACE;
 
-  if (get_arguments()) return 0;
+  if (get_arguments()) return nullptr;
   Udf_func_string func = reinterpret_cast<Udf_func_string>(u_d->func);
 
   if ((res_length = str->alloced_length()) <
       MAX_FIELD_WIDTH) {  // This happens VERY seldom
     if (str->alloc(MAX_FIELD_WIDTH)) {
       error = 1;
-      return 0;
+      return nullptr;
     }
   }
   char *res =
@@ -4198,7 +4223,7 @@ String *udf_handler::val_str(String *str, String *save_str) {
   if (is_null_tmp || !res || error)  // The !res is for safety
   {
     DBUG_PRINT("info", ("Null or error"));
-    return 0;
+    return nullptr;
   }
 
   String *res_str = result_string(res, res_length, str, save_str);
@@ -4216,14 +4241,14 @@ my_decimal *udf_handler::val_decimal(bool *null_value, my_decimal *dec_buf) {
 
   if (get_arguments()) {
     *null_value = true;
-    return 0;
+    return nullptr;
   }
   Udf_func_string func = reinterpret_cast<Udf_func_string>(u_d->func);
 
   char *res = func(&initid, &f_args, buf, &res_length, &is_null, &error);
   if (is_null || error) {
     *null_value = true;
-    return 0;
+    return nullptr;
   }
   const char *end = res + res_length;
   str2my_decimal(E_DEC_FATAL_ERROR, res, dec_buf, &end);
@@ -4240,8 +4265,7 @@ my_decimal *udf_handler::val_decimal(bool *null_value, my_decimal *dec_buf) {
   @param [out] str The input result string passed to the udf() method
   @param [out] save_str Keeps copy of the returned String
 
-  @returns
-    @retval A pointer to either the str or save_str that points
+  @returns A pointer to either the str or save_str that points
             to final result String
 */
 String *udf_handler::result_string(const char *res, size_t res_length,
@@ -4281,9 +4305,8 @@ void udf_handler::get_string(uint index) {
 
   @param [in] index of the argument to be looked in the arguments array
 
-  @returns
-    @retval false Able to fetch the argument details
-    @retval true  Otherwise
+  @retval false Able to fetch the argument details
+  @retval true  Otherwise
 */
 bool udf_handler::get_and_convert_string(uint index) {
   String *res = args[index]->val_str(&buffers[index]);
@@ -4342,7 +4365,7 @@ double Item_func_udf_float::val_real() {
 String *Item_func_udf_float::val_str(String *str) {
   DBUG_ASSERT(fixed == 1);
   double nr = val_real();
-  if (null_value) return 0; /* purecov: inspected */
+  if (null_value) return nullptr; /* purecov: inspected */
   str->set_real(nr, decimals, &my_charset_bin);
   return str;
 }
@@ -4356,7 +4379,7 @@ longlong Item_func_udf_int::val_int() {
 String *Item_func_udf_int::val_str(String *str) {
   DBUG_ASSERT(fixed == 1);
   longlong nr = val_int();
-  if (null_value) return 0;
+  if (null_value) return nullptr;
   str->set_int(nr, unsigned_flag, &my_charset_bin);
   return str;
 }
@@ -4388,7 +4411,7 @@ my_decimal *Item_func_udf_decimal::val_decimal(my_decimal *dec_buf) {
 
 String *Item_func_udf_decimal::val_str(String *str) {
   my_decimal dec_buf, *dec = udf.val_decimal(&null_value, &dec_buf);
-  if (null_value) return 0;
+  if (null_value) return nullptr;
   if (str->length() < DECIMAL_MAX_STR_LENGTH)
     str->length(DECIMAL_MAX_STR_LENGTH);
   my_decimal_round(E_DEC_FATAL_ERROR, dec, decimals, false, &dec_buf);
@@ -4471,23 +4494,23 @@ longlong Item_master_pos_wait::val_int() {
 
   } else {
     if (channel_map.get_num_instances() > 1) {
-      mi = NULL;
+      mi = nullptr;
       my_error(ER_SLAVE_MULTIPLE_CHANNELS_CMD, MYF(0));
     } else
       mi = channel_map.get_default_channel_mi();
   }
 
-  if (mi != NULL) mi->inc_reference();
+  if (mi != nullptr) mi->inc_reference();
 
   channel_map.unlock();
 
-  if (mi == NULL || (event_count = mi->rli->wait_for_pos(thd, log_name, pos,
-                                                         timeout)) == -2) {
+  if (mi == nullptr || (event_count = mi->rli->wait_for_pos(thd, log_name, pos,
+                                                            timeout)) == -2) {
     null_value = true;
     event_count = 0;
   }
 
-  if (mi != NULL) mi->dec_reference();
+  if (mi != nullptr) mi->dec_reference();
   return event_count;
 }
 
@@ -4516,7 +4539,7 @@ longlong Item_wait_for_executed_gtid_set::val_int() {
 
   null_value = false;
 
-  if (gtid_text == NULL) {
+  if (gtid_text == nullptr) {
     my_error(ER_MALFORMED_GTID_SET_SPECIFICATION, MYF(0), "NULL");
     return 0;
   }
@@ -4528,7 +4551,7 @@ longlong Item_wait_for_executed_gtid_set::val_int() {
     return 0;
   }
 
-  Gtid_set wait_for_gtid_set(global_sid_map, NULL);
+  Gtid_set wait_for_gtid_set(global_sid_map, nullptr);
 
   global_sid_lock->rdlock();
   if (get_gtid_mode(GTID_MODE_LOCK_SID) == GTID_MODE_OFF) {
@@ -4618,7 +4641,7 @@ longlong Item_master_gtid_set_wait::val_int() {
 
   String *gtid = args[0]->val_str(&value);
   THD *thd = current_thd;
-  Master_info *mi = NULL;
+  Master_info *mi = nullptr;
   double timeout = (arg_count >= 2) ? args[1]->val_real() : 0;
   if (timeout < 0) {
     if (thd->is_strict_mode()) {
@@ -4652,7 +4675,7 @@ longlong Item_master_gtid_set_wait::val_int() {
   } else {
     if (channel_map.get_num_instances() > 1) {
       channel_map.unlock();
-      mi = NULL;
+      mi = nullptr;
       my_error(ER_SLAVE_MULTIPLE_CHANNELS_CMD, MYF(0));
       return 0;
     } else
@@ -4682,7 +4705,7 @@ longlong Item_master_gtid_set_wait::val_int() {
      */
     null_value = true;
 
-  if (mi != NULL) mi->dec_reference();
+  if (mi != nullptr) mi->dec_reference();
 
   gtid_state->end_gtid_wait();
 
@@ -4705,11 +4728,11 @@ longlong Item_func_gtid_subset::val_int() {
   int ret = 1;
   enum_return_status status;
   // get strings without lock
-  if ((string1 = args[0]->val_str(&buf1)) != NULL &&
-      (charp1 = string1->c_ptr_safe()) != NULL &&
-      (string2 = args[1]->val_str(&buf2)) != NULL &&
-      (charp2 = string2->c_ptr_safe()) != NULL) {
-    Sid_map sid_map(NULL /*no rwlock*/);
+  if ((string1 = args[0]->val_str(&buf1)) != nullptr &&
+      (charp1 = string1->c_ptr_safe()) != nullptr &&
+      (string2 = args[1]->val_str(&buf2)) != nullptr &&
+      (charp2 = string2->c_ptr_safe()) != nullptr) {
+    Sid_map sid_map(nullptr /*no rwlock*/);
     // compute sets while holding locks
     const Gtid_set sub_set(&sid_map, charp1, &status);
     if (status == RETURN_STATUS_OK) {
@@ -5035,7 +5058,7 @@ longlong Item_func_get_lock::val_int() {
   ull = reinterpret_cast<User_level_lock *>(
       my_malloc(key_memory_User_level_lock, sizeof(User_level_lock), MYF(0)));
 
-  if (ull == NULL) {
+  if (ull == nullptr) {
     thd->mdl_context.release_lock(ull_request.ticket);
     return 0;
   }
@@ -5427,7 +5450,7 @@ longlong Item_func_sleep::val_int() {
   mysql_cond_init(key_item_func_sleep_cond, &cond);
   mysql_mutex_lock(&LOCK_item_func_sleep);
 
-  thd->ENTER_COND(&cond, &LOCK_item_func_sleep, &stage_user_sleep, NULL);
+  thd->ENTER_COND(&cond, &LOCK_item_func_sleep, &stage_user_sleep, nullptr);
 
   error = 0;
   thd_wait_begin(thd, THD_WAIT_SLEEP);
@@ -5438,7 +5461,7 @@ longlong Item_func_sleep::val_int() {
   }
   thd_wait_end(thd);
   mysql_mutex_unlock(&LOCK_item_func_sleep);
-  thd->EXIT_COND(NULL);
+  thd->EXIT_COND(nullptr);
 
   mysql_cond_destroy(&cond);
 
@@ -5459,7 +5482,7 @@ static user_var_entry *get_variable(THD *thd, const Name_string &name,
   user_var_entry *entry = find_or_nullptr(thd->user_vars, key);
   if (entry == nullptr && cs != nullptr) {
     entry = user_var_entry::create(thd, name, cs);
-    if (entry == nullptr) return 0;
+    if (entry == nullptr) return nullptr;
     thd->user_vars.emplace(
         key, unique_ptr_with_deleter<user_var_entry>(entry, &free_user_var));
   }
@@ -5468,7 +5491,7 @@ static user_var_entry *get_variable(THD *thd, const Name_string &name,
 
 void Item_func_set_user_var::cleanup() {
   Item_func::cleanup();
-  entry = NULL;
+  entry = nullptr;
 }
 
 bool Item_func_set_user_var::set_entry(THD *thd, bool create_if_not_exists) {
@@ -5480,14 +5503,14 @@ bool Item_func_set_user_var::set_entry(THD *thd, bool create_if_not_exists) {
             ? (args[0]->collation.derivation == DERIVATION_NUMERIC
                    ? default_charset()
                    : args[0]->collation.collation)
-            : NULL;
+            : nullptr;
 
     /* Protects thd->user_vars. */
     mysql_mutex_lock(&thd->LOCK_thd_data);
     entry = get_variable(thd, name, cs);
     mysql_mutex_unlock(&thd->LOCK_thd_data);
 
-    if (entry == NULL) {
+    if (entry == nullptr) {
       entry_thread_id = 0;
       return true;
     }
@@ -5571,7 +5594,7 @@ user_var_entry *user_var_entry::create(THD *thd, const Name_string &name,
                                        const CHARSET_INFO *cs) {
   if (check_column_name(name.ptr())) {
     my_error(ER_ILLEGAL_USER_VAR, MYF(0), name.ptr());
-    return NULL;
+    return nullptr;
   }
 
   user_var_entry *entry;
@@ -5579,7 +5602,7 @@ user_var_entry *user_var_entry::create(THD *thd, const Name_string &name,
       ALIGN_SIZE(sizeof(user_var_entry)) + (name.length() + 1) + extra_size;
   if (!(entry = (user_var_entry *)my_malloc(key_memory_user_var_entry, size,
                                             MYF(MY_WME | ME_FATALERROR))))
-    return NULL;
+    return nullptr;
   entry->init(thd, name, cs);
   return entry;
 }
@@ -5592,7 +5615,7 @@ bool user_var_entry::mem_realloc(size_t length) {
   } else {
     /* Allocate an external buffer */
     if (m_length != length) {
-      if (m_ptr == internal_buffer_ptr()) m_ptr = 0;
+      if (m_ptr == internal_buffer_ptr()) m_ptr = nullptr;
       if (!(m_ptr = (char *)my_realloc(
                 key_memory_user_var_entry_value, m_ptr, length,
                 MYF(MY_ALLOW_ZERO_PTR | MY_WME | ME_FATALERROR))))
@@ -5604,7 +5627,7 @@ bool user_var_entry::mem_realloc(size_t length) {
 
 void user_var_entry::init(THD *thd, const Simple_cstring &name,
                           const CHARSET_INFO *cs) {
-  DBUG_ASSERT(thd != NULL);
+  DBUG_ASSERT(thd != nullptr);
   m_owner = thd;
   copy_name(name);
   reset_value();
@@ -5690,12 +5713,12 @@ bool user_var_entry::store(const void *ptr, size_t length, Item_result type,
 }
 
 void user_var_entry::lock() {
-  DBUG_ASSERT(m_owner != NULL);
+  DBUG_ASSERT(m_owner != nullptr);
   mysql_mutex_lock(&m_owner->LOCK_thd_data);
 }
 
 void user_var_entry::unlock() {
-  DBUG_ASSERT(m_owner != NULL);
+  DBUG_ASSERT(m_owner != nullptr);
   mysql_mutex_unlock(&m_owner->LOCK_thd_data);
 }
 
@@ -5715,7 +5738,7 @@ bool Item_func_set_user_var::update_hash(const void *ptr, uint length,
   else
     null_value = args[0]->null_value;
 
-  if (ptr == NULL) {
+  if (ptr == nullptr) {
     DBUG_ASSERT(length == 0);
     null_value = true;
   }
@@ -5737,7 +5760,7 @@ bool Item_func_set_user_var::update_hash(const void *ptr, uint length,
 /** Get the value of a variable as a double. */
 
 double user_var_entry::val_real(bool *null_value) const {
-  if ((*null_value = (m_ptr == 0))) return 0.0;
+  if ((*null_value = (m_ptr == nullptr))) return 0.0;
 
   switch (m_type) {
     case REAL_RESULT:
@@ -5762,7 +5785,7 @@ double user_var_entry::val_real(bool *null_value) const {
 /** Get the value of a variable as an integer. */
 
 longlong user_var_entry::val_int(bool *null_value) const {
-  if ((*null_value = (m_ptr == 0))) return 0LL;
+  if ((*null_value = (m_ptr == nullptr))) return 0LL;
 
   switch (m_type) {
     case REAL_RESULT:
@@ -5791,7 +5814,7 @@ longlong user_var_entry::val_int(bool *null_value) const {
 
 String *user_var_entry::val_str(bool *null_value, String *str,
                                 uint decimals) const {
-  if ((*null_value = (m_ptr == 0))) return (String *)0;
+  if ((*null_value = (m_ptr == nullptr))) return (String *)nullptr;
 
   switch (m_type) {
     case REAL_RESULT:
@@ -5809,7 +5832,7 @@ String *user_var_entry::val_str(bool *null_value, String *str,
       break;
     case STRING_RESULT:
       if (str->copy(m_ptr, m_length, collation.collation))
-        str = 0;  // EOM error
+        str = nullptr;  // EOM error
       break;
     case ROW_RESULT:
     case INVALID_RESULT:
@@ -5823,7 +5846,7 @@ String *user_var_entry::val_str(bool *null_value, String *str,
 
 my_decimal *user_var_entry::val_decimal(bool *null_value,
                                         my_decimal *val) const {
-  if ((*null_value = (m_ptr == 0))) return 0;
+  if ((*null_value = (m_ptr == nullptr))) return nullptr;
 
   switch (m_type) {
     case REAL_RESULT:
@@ -5970,7 +5993,7 @@ bool Item_func_set_user_var::update() {
     }
     case STRING_RESULT: {
       if (!save_result.vstr)  // Null value
-        res = update_hash(NULL, 0, STRING_RESULT, &my_charset_bin,
+        res = update_hash(nullptr, 0, STRING_RESULT, &my_charset_bin,
                           DERIVATION_IMPLICIT, false);
       else
         res = update_hash(save_result.vstr->ptr(), save_result.vstr->length(),
@@ -5980,7 +6003,7 @@ bool Item_func_set_user_var::update() {
     }
     case DECIMAL_RESULT: {
       if (!save_result.vdec)  // Null value
-        res = update_hash(NULL, 0, DECIMAL_RESULT, &my_charset_bin,
+        res = update_hash(nullptr, 0, DECIMAL_RESULT, &my_charset_bin,
                           DERIVATION_IMPLICIT, false);
       else
         res = update_hash(save_result.vdec, sizeof(my_decimal), DECIMAL_RESULT,
@@ -6056,7 +6079,7 @@ bool Item_func_set_user_var::send(Protocol *protocol, String *str_arg) {
 void Item_func_set_user_var::make_field(Send_field *tmp_field) {
   if (result_field) {
     result_field->make_send_field(tmp_field);
-    DBUG_ASSERT(tmp_field->table_name != 0);
+    DBUG_ASSERT(tmp_field->table_name != nullptr);
     if (Item::item_name.is_set())
       tmp_field->col_name = Item::item_name.ptr();  // Use user supplied name
   } else
@@ -6120,7 +6143,7 @@ type_conversion_status Item_func_set_user_var::save_in_field(
     result = entry->val_str(&null_value, &str_value, decimals);
 
     if (null_value) {
-      str_value.set_quick(0, 0, cs);
+      str_value.set_quick(nullptr, 0, cs);
       return set_field_to_null_with_conversions(field, no_conversions);
     }
 
@@ -6128,7 +6151,7 @@ type_conversion_status Item_func_set_user_var::save_in_field(
 
     field->set_notnull();
     error = field->store(result->ptr(), result->length(), cs);
-    str_value.set_quick(0, 0, cs);
+    str_value.set_quick(nullptr, 0, cs);
   } else if (result_type() == REAL_RESULT) {
     double nr = entry->val_real(&null_value);
     if (null_value) return set_field_to_null(field);
@@ -6182,7 +6205,7 @@ double Item_func_get_user_var::val_real() {
 
 my_decimal *Item_func_get_user_var::val_decimal(my_decimal *dec) {
   DBUG_ASSERT(fixed == 1);
-  if (!var_entry) return 0;
+  if (!var_entry) return nullptr;
   return var_entry->val_decimal(&null_value, dec);
 }
 
@@ -6221,7 +6244,7 @@ static int get_var_with_binlog(THD *thd, enum_sql_command sql_command,
 
   /* Protects thd->user_vars. */
   mysql_mutex_lock(&thd->LOCK_thd_data);
-  var_entry = get_variable(thd, name, NULL);
+  var_entry = get_variable(thd, name, nullptr);
   mysql_mutex_unlock(&thd->LOCK_thd_data);
 
   /*
@@ -6266,10 +6289,10 @@ static int get_var_with_binlog(THD *thd, enum_sql_command sql_command,
     }
     thd->lex = sav_lex;
     mysql_mutex_lock(&thd->LOCK_thd_data);
-    var_entry = get_variable(thd, name, NULL);
+    var_entry = get_variable(thd, name, nullptr);
     mysql_mutex_unlock(&thd->LOCK_thd_data);
 
-    if (var_entry == NULL) goto err;
+    if (var_entry == nullptr) goto err;
   } else if (var_entry->used_query_id == thd->query_id ||
              mysql_bin_log.is_query_in_union(thd, var_entry->used_query_id)) {
     /*
@@ -6308,7 +6331,7 @@ static int get_var_with_binlog(THD *thd, enum_sql_command sql_command,
   if (!var_entry->ptr()) {
     /* NULL value*/
     user_var_event->length = 0;
-    user_var_event->value = 0;
+    user_var_event->value = nullptr;
   } else {
     // Avoid memcpy of a my_decimal object, use copy CTOR instead.
     user_var_event->length = var_entry->length();
@@ -6446,13 +6469,13 @@ bool Item_user_var_as_out_param::fix_fields(THD *thd, Item **ref) {
   /* Protects thd->user_vars. */
   mysql_mutex_lock(&thd->LOCK_thd_data);
   entry = get_variable(thd, name, cs);
-  if (entry != NULL) {
+  if (entry != nullptr) {
     entry->set_type(STRING_RESULT);
     entry->update_query_id = thd->query_id;
   }
   mysql_mutex_unlock(&thd->LOCK_thd_data);
 
-  if (entry == NULL) return true;
+  if (entry == nullptr) return true;
 
   return false;
 }
@@ -6483,12 +6506,12 @@ longlong Item_user_var_as_out_param::val_int() {
 
 String *Item_user_var_as_out_param::val_str(String *) {
   DBUG_ASSERT(0);
-  return 0;
+  return nullptr;
 }
 
 my_decimal *Item_user_var_as_out_param::val_decimal(my_decimal *) {
   DBUG_ASSERT(0);
-  return 0;
+  return nullptr;
 }
 
 void Item_user_var_as_out_param::print(const THD *thd, String *str,
@@ -6745,7 +6768,7 @@ longlong Item_func_get_system_var::val_int() {
     case SHOW_CHAR:
     case SHOW_CHAR_PTR:
     case SHOW_LEX_STRING: {
-      String *str_val = val_str(NULL);
+      String *str_val = val_str(nullptr);
       // Treat empty strings as NULL, like val_real() does.
       if (str_val && str_val->length())
         cached_llval = longlong_from_string_with_check(
@@ -6775,18 +6798,18 @@ String *Item_func_get_system_var::val_str(String *str) {
   if (cache_present && thd->query_id == used_query_id) {
     if (cache_present & GET_SYS_VAR_CACHE_STRING) {
       null_value = cached_null_value;
-      return null_value ? NULL : &cached_strval;
+      return null_value ? nullptr : &cached_strval;
     } else if (cache_present & GET_SYS_VAR_CACHE_LONG) {
       null_value = cached_null_value;
       if (!null_value) cached_strval.set(cached_llval, collation.collation);
       cache_present |= GET_SYS_VAR_CACHE_STRING;
-      return null_value ? NULL : &cached_strval;
+      return null_value ? nullptr : &cached_strval;
     } else if (cache_present & GET_SYS_VAR_CACHE_DOUBLE) {
       null_value = cached_null_value;
       if (!null_value)
         cached_strval.set_real(cached_dval, decimals, collation.collation);
       cache_present |= GET_SYS_VAR_CACHE_STRING;
-      return null_value ? NULL : &cached_strval;
+      return null_value ? nullptr : &cached_strval;
     }
   }
 
@@ -6810,11 +6833,11 @@ String *Item_func_get_system_var::val_str(String *str) {
                          : strlen(cptr);
         if (str->copy(cptr, len, collation.collation)) {
           null_value = true;
-          str = NULL;
+          str = nullptr;
         }
       } else {
         null_value = true;
-        str = NULL;
+        str = nullptr;
       }
       mysql_mutex_unlock(&LOCK_global_system_variables);
       break;
@@ -6992,10 +7015,10 @@ bool Item_func_match::init_search(THD *thd) {
   /* Check if init_search() has been called before */
   if (ft_handler && !master) {
     /*
-      We should reset ft_handler as it is cleaned up
-      at the end of SortingIterator::DoSort().
-      (necessary in case of re-execution of subquery).
-      TODO: SortingIterator::DoSort() should not clean up ft_handler.
+      We should reset ft_handler (necessary in case of re-execution of
+      subquery), as it is cleaned up when initializing the
+      SortBufferIndirectIterator / SortFileIndirectIterator.
+      TODO: Those iterators should not clean up ft_handler.
     */
     if (join_key) table->file->ft_handler = ft_handler;
     return false;
@@ -7007,7 +7030,7 @@ bool Item_func_match::init_search(THD *thd) {
       return true;
     for (uint i = 0; i < arg_count; i++) fields.push_back(args[i]);
     concat_ws = new Item_func_concat_ws(fields);
-    if (concat_ws == NULL) return true;
+    if (concat_ws == nullptr) return true;
     /*
       Above function used only to get value and do not need fix_fields for it:
       Item_string - basic constant
@@ -7024,7 +7047,7 @@ bool Item_func_match::init_search(THD *thd) {
     return false;
   }
 
-  String *ft_tmp = 0;
+  String *ft_tmp = nullptr;
 
   // MATCH ... AGAINST (NULL) is meaningless, but possible
   if (!(ft_tmp = key_item()->val_str(&value))) {
@@ -7044,7 +7067,7 @@ bool Item_func_match::init_search(THD *thd) {
     return true;
   }
 
-  DBUG_ASSERT(master == NULL);
+  DBUG_ASSERT(master == nullptr);
   ft_handler = table->file->ft_init_ext_with_hints(key, ft_tmp, get_hints());
   if (thd->is_error()) return true;
 
@@ -7084,7 +7107,7 @@ static void update_table_read_set(const Field *field) {
 bool Item_func_match::fix_fields(THD *thd, Item **ref) {
   DBUG_ASSERT(fixed == 0);
   DBUG_ASSERT(arg_count > 0);
-  Item *item = NULL;  // Safe as arg_count is > 1
+  Item *item = nullptr;  // Safe as arg_count is > 1
 
   maybe_null = true;
   join_key = false;
@@ -7271,7 +7294,7 @@ bool Item_func_match::fix_index(const THD *thd) {
   }
 
 err:
-  if (table_ref != 0 &&
+  if (table_ref != nullptr &&
       allows_search_on_non_indexed_columns(table_ref->table)) {
     key = NO_SUCH_KEY;
     return false;
@@ -7303,7 +7326,7 @@ bool Item_func_match::eq(const Item *item, bool binary_cmp) const {
 double Item_func_match::val_real() {
   DBUG_ASSERT(fixed == 1);
   DBUG_TRACE;
-  if (ft_handler == NULL) return -1.0;
+  if (ft_handler == nullptr) return -1.0;
 
   TABLE *const table = table_ref->table;
   if (key != NO_SUCH_KEY && table->has_null_row())  // NULL row from outer join
@@ -7317,7 +7340,7 @@ double Item_func_match::val_real() {
 
   if (key == NO_SUCH_KEY) {
     String *a = concat_ws->val_str(&value);
-    if ((null_value = (a == 0)) || !a->length()) return 0;
+    if ((null_value = (a == nullptr)) || !a->length()) return 0;
     return ft_handler->please->find_relevance(ft_handler, (uchar *)a->ptr(),
                                               a->length());
   }
@@ -7410,11 +7433,12 @@ Item *get_system_var(Parse_context *pc, enum_var_type var_type, LEX_STRING name,
     component_name = &component;  // Empty string
   }
 
-  if (!(var = find_sys_var(thd, base_name->str, base_name->length))) return 0;
+  if (!(var = find_sys_var(thd, base_name->str, base_name->length)))
+    return nullptr;
   if (component.str) {
     if (!var->is_struct()) {
       my_error(ER_VARIABLE_IS_NOT_STRUCT, MYF(0), base_name->str);
-      return 0;
+      return nullptr;
     }
   }
   thd->lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
@@ -7448,10 +7472,7 @@ longlong Item_func_row_count::val_int() {
 Item_func_sp::Item_func_sp(const POS &pos, const LEX_STRING &db_name,
                            const LEX_STRING &fn_name, bool use_explicit_name,
                            PT_item_list *opt_list)
-    : Item_func(pos, opt_list),
-      m_sp(NULL),
-      dummy_table(NULL),
-      sp_result_field(NULL) {
+    : Item_func(pos, opt_list), m_sp(nullptr), sp_result_field(nullptr) {
   /*
     Set to false here, which is the default according to SQL standard.
     RETURNS NULL ON NULL INPUT can be implemented by modifying this member.
@@ -7467,7 +7488,7 @@ Item_func_sp::Item_func_sp(const POS &pos, const LEX_STRING &db_name,
 bool Item_func_sp::itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
   if (super::itemize(pc, res)) return true;
-  if (m_name == NULL) return true;  // OOM
+  if (m_name == nullptr) return true;  // OOM
 
   THD *thd = pc->thd;
   LEX *lex = thd->lex;
@@ -7475,7 +7496,7 @@ bool Item_func_sp::itemize(Parse_context *pc, Item **res) {
   context = lex->current_context();
   lex->safe_to_cache_query = false;
 
-  if (m_name->m_db.str == NULL) {
+  if (m_name->m_db.str == nullptr) {
     if (thd->lex->copy_db_to(&m_name->m_db.str, &m_name->m_db.length)) {
       my_error(ER_NO_DB_ERROR, MYF(0));
       return true;
@@ -7485,20 +7506,15 @@ bool Item_func_sp::itemize(Parse_context *pc, Item **res) {
   m_name->init_qname(thd);
   sp_add_own_used_routine(lex, thd, Sroutine_hash_entry::FUNCTION, m_name);
 
-  dummy_table = (TABLE *)sql_calloc(sizeof(TABLE) + sizeof(TABLE_SHARE));
-  if (dummy_table == NULL) return true;
-  dummy_table->s = (TABLE_SHARE *)(dummy_table + 1);
-
   return false;
 }
 
 void Item_func_sp::cleanup() {
   if (sp_result_field) {
     destroy(sp_result_field);
-    sp_result_field = NULL;
+    sp_result_field = nullptr;
   }
-  m_sp = NULL;
-  if (dummy_table != NULL) dummy_table->alias = NULL;
+  m_sp = nullptr;
   Item_func::cleanup();
   set_stored_program();
 }
@@ -7547,7 +7563,7 @@ static void my_missing_function_error(const LEX_STRING &token,
   @brief Initialize the result field by creating a temporary dummy table
     and assign it to a newly created field object. Meta data used to
     create the field is fetched from the sp_head belonging to the stored
-    proceedure found in the stored procedure functon cache.
+    procedure found in the stored procedure function cache.
 
   @note This function should be called from fix_fields to init the result
     field. It is some what related to Item_field.
@@ -7563,11 +7579,10 @@ static void my_missing_function_error(const LEX_STRING &token,
 
 bool Item_func_sp::init_result_field(THD *thd) {
   LEX_CSTRING empty_name = {STRING_WITH_LEN("")};
-  TABLE_SHARE *share;
   DBUG_TRACE;
 
-  DBUG_ASSERT(m_sp == NULL);
-  DBUG_ASSERT(sp_result_field == NULL);
+  DBUG_ASSERT(m_sp == nullptr);
+  DBUG_ASSERT(sp_result_field == nullptr);
 
   Internal_error_handler_holder<View_error_handler, TABLE_LIST> view_handler(
       thd, context->view_error_handler, context->view_error_handler_arg);
@@ -7582,29 +7597,23 @@ bool Item_func_sp::init_result_field(THD *thd) {
      Below we "create" a dummy table by initializing
      the needed pointers.
    */
+  TABLE *dummy_table = new (thd->mem_root) TABLE;
+  if (dummy_table == nullptr) return true;
+  TABLE_SHARE *share = new (thd->mem_root) TABLE_SHARE;
+  if (share == nullptr) return true;
 
-  share = dummy_table->s;
+  dummy_table->s = share;
   dummy_table->alias = "";
   if (maybe_null) dummy_table->set_nullable();
   dummy_table->in_use = thd;
   dummy_table->copy_blobs = true;
   share->table_cache_key = empty_name;
+  share->db = empty_name;
   share->table_name = empty_name;
 
-  if (!(sp_result_field = m_sp->create_result_field(max_length, item_name.ptr(),
-                                                    dummy_table))) {
-    return true;
-  }
-
-  // Add 1 for null byte.
-  dummy_table->record[0] =
-      thd->mem_root->ArrayAlloc<uchar>(sp_result_field->pack_length() + 1);
-  if (dummy_table->record[0] == nullptr) return true;
-
-  sp_result_field->move_field(dummy_table->record[0] + 1,
-                              dummy_table->record[0], 1);
-
-  return false;
+  sp_result_field =
+      m_sp->create_result_field(thd, max_length, item_name.ptr(), dummy_table);
+  return sp_result_field == nullptr;
 }
 
 /**
@@ -8175,30 +8184,28 @@ longlong Item_func_can_access_routine::val_int() {
     return 1;
 
   /*
-    Before WL#7897 changes, full access to routine information is provided to
-    the definer of routine and to the user having SELECT privilege on
-    mysql.proc. But as part of WL#7897, mysql.proc table is removed. Now, non
-    definer user can not have full access on the routine. So backup of routine
-    or getting exact create string of stored routine is not possible with this
-    change.
-    So as workaround for this issue, currently full access on stored routine
-    provided to any user having global SELECT privilege.
-    Correct solution to this issue will be provided with the WL#8131
-    and WL#9049.
+    Check if user has full access to the routine properties (i.e including
+    stored routine code), or partial access (i.e to view its other properties).
   */
+
+  char user_name_holder[USERNAME_LENGTH + 1];
+  LEX_STRING user_name = {user_name_holder, USERNAME_LENGTH};
+
+  char host_name_holder[HOSTNAME_LENGTH + 1];
+  LEX_STRING host_name = {host_name_holder, HOSTNAME_LENGTH};
+
+  parse_user(definer_ptr->ptr(), definer_ptr->length(), user_name.str,
+             &user_name.length, host_name.str, &host_name.length);
+
   THD *thd = current_thd;
-  char sp_user[USER_HOST_BUFF_SIZE];
-  strxmov(sp_user, thd->security_context()->priv_user().str, "@",
-          thd->security_context()->priv_host().str, NullS);
-  bool full_access = (thd->security_context()->check_access(
-                          SELECT_ACL, schema_name_ptr->ptr()) ||
-                      !strcmp(sp_user, definer_ptr->ptr()));
+  bool full_access = has_full_view_routine_access(thd, schema_name_ptr->ptr(),
+                                                  user_name.str, host_name.str);
 
   if (check_full_access) {
     return full_access ? 1 : 0;
-  } else if (!full_access &&
-             check_some_routine_access(thd, schema_name_ptr->ptr(),
-                                       routine_name_ptr->ptr(), is_procedure)) {
+  } else if (!full_access && !has_partial_view_routine_access(
+                                 thd, schema_name_ptr->ptr(),
+                                 routine_name_ptr->ptr(), is_procedure)) {
     return 0;
   }
 
@@ -8241,8 +8248,8 @@ longlong Item_func_can_access_event::val_int() {
   if (is_infoschema_db(schema_name_ptr->ptr())) return 1;
 
   // Check access
-  if (check_access(thd, EVENT_ACL, schema_name_ptr->ptr(), NULL, NULL, false,
-                   true)) {
+  if (check_access(thd, EVENT_ACL, schema_name_ptr->ptr(), nullptr, nullptr,
+                   false, true)) {
     return 0;
   }
 
@@ -8850,8 +8857,6 @@ longlong Item_func_internal_index_column_cardinality::val_int() {
                          - Tablespace_se_private_data
 
   @param[out] null_value Marked true indicating NULL, if there is no value.
-
-  @returns void
 */
 
 void retrieve_tablespace_statistics(THD *thd, Item **args, bool *null_value) {
@@ -9050,12 +9055,9 @@ Item_func_version::Item_func_version(const POS &pos)
                               strlen(server_version), system_charset_info,
                               DERIVATION_SYSCONST) {}
 
-/**
-  @brief
-
+/*
     Syntax:
       string get_dd_char_length()
-
 */
 longlong Item_func_internal_dd_char_length::val_int() {
   DBUG_TRACE;
@@ -9324,4 +9326,15 @@ longlong Item_func_internal_is_enabled_role::val_int() {
   }
 
   return 0;
+}
+
+bool Item_func::ensure_multi_equality_fields_are_available_walker(uchar *arg) {
+  const table_map reachable_tables = *pointer_cast<table_map *>(arg);
+  for (uint i = 0; i < arg_count; ++i) {
+    if (args[i]->type() == FIELD_ITEM) {
+      args[i] =
+          FindEqualField(down_cast<Item_field *>(args[i]), reachable_tables);
+    }
+  }
+  return false;
 }

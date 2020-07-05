@@ -1,0 +1,10 @@
+#
+# Bug#30311271 RAND() < RAND() RESULTS IN IMPOSSIBLE WHERE
+#
+# See that the optimizer does not consider two instances of RAND() as
+# equal.
+EXPLAIN FORMAT=tree SELECT 1 WHERE RAND() < RAND();
+EXPLAIN
+-> Filter: (rand() < rand())
+    -> Rows fetched before execution
+

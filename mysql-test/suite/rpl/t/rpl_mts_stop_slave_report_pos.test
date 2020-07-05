@@ -26,6 +26,9 @@
 --source include/have_binlog_format_row.inc
 --source include/have_debug.inc
 --source include/only_mts_slave_parallel_workers.inc
+# do not execute when binlog compression is on as the debug
+# point below is not activated
+--source include/not_binlog_transaction_compression_on.inc
 --source include/master-slave.inc
 
 # Do some DMLs on master and sync with slave to make sure that one checkpoint

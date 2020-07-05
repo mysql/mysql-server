@@ -48,10 +48,10 @@ int MY_ATTRIBUTE((visibility("default")))
 
 static char *my_asn1_time_to_string(ASN1_TIME *time, char *buf, size_t len) {
   int n_read;
-  char *res = NULL;
+  char *res = nullptr;
   BIO *bio = BIO_new(BIO_s_mem());
 
-  if (bio == NULL) return NULL;
+  if (bio == nullptr) return nullptr;
 
   if (!ASN1_TIME_print(bio, time)) goto end;
 
@@ -106,14 +106,14 @@ void ssl_wrapper_cipher(Vio *vio, char *buffer, const size_t buffer_size) {
 */
 long ssl_wrapper_cipher_list(Vio *vio, const char **clipher_list,
                              const long maximun_num_of_elements) {
-  const char *cipher = NULL;
+  const char *cipher = nullptr;
   int index = 0;
   long element = 0;
 
   while (element < maximun_num_of_elements) {
     cipher = SSL_get_cipher_list((SSL *)vio->ssl_arg, index++);
 
-    if (NULL == cipher) break;
+    if (nullptr == cipher) break;
 
     clipher_list[element++] = cipher;
   }
@@ -148,7 +148,7 @@ long ssl_wrapper_verify_mode(Vio *vio) {
 */
 void ssl_wrapper_get_peer_certificate_issuer(Vio *vio, char *issuer,
                                              const size_t issuer_size) {
-  X509 *cert = NULL;
+  X509 *cert = nullptr;
   if (!(cert = SSL_get_peer_certificate((SSL *)vio->ssl_arg))) {
     issuer[0] = '\0';
     return;
@@ -168,7 +168,7 @@ void ssl_wrapper_get_peer_certificate_issuer(Vio *vio, char *issuer,
 */
 void ssl_wrapper_get_peer_certificate_subject(Vio *vio, char *subject,
                                               const size_t subject_size) {
-  X509 *cert = NULL;
+  X509 *cert = nullptr;
   if (!(cert = SSL_get_peer_certificate((SSL *)vio->ssl_arg))) {
     subject[0] = '\0';
     return;
@@ -193,7 +193,7 @@ long ssl_wrapper_get_verify_result_and_cert(Vio *vio) {
   if (X509_V_OK != (result = SSL_get_verify_result((SSL *)vio->ssl_arg)))
     return result;
 
-  X509 *cert = NULL;
+  X509 *cert = nullptr;
   if (!(cert = SSL_get_peer_certificate((SSL *)vio->ssl_arg))) return -1;
 
   X509_free(cert);
@@ -239,7 +239,7 @@ void ssl_wrapper_ctx_server_not_after(struct st_VioSSLFd *vio_ssl,
                                       char *no_after,
                                       const size_t no_after_size) {
   SSL *ssl = SSL_new(vio_ssl->ssl_context);
-  if (NULL == ssl) {
+  if (nullptr == ssl) {
     no_after[0] = '\0';
     return;
   }
@@ -268,7 +268,7 @@ void ssl_wrapper_ctx_server_not_before(struct st_VioSSLFd *vio_ssl,
                                        char *no_before,
                                        const size_t no_before_size) {
   SSL *ssl = SSL_new(vio_ssl->ssl_context);
-  if (NULL == ssl) {
+  if (nullptr == ssl) {
     no_before[0] = '\0';
     return;
   }

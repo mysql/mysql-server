@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,19 @@
 */
 
 #include "cluster_metadata.h"
+
+#include <algorithm>
+#include <chrono>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <sstream>
+#include <stdexcept>
+#include <vector>
+
+#include <errmsg.h>
+#include <mysql.h>
+
 #include "dim.h"
 #include "group_replication_metadata.h"
 #include "mysql/harness/logging/logging.h"
@@ -32,19 +45,6 @@
 #include "mysqlrouter/utils.h"
 #include "mysqlrouter/utils_sqlstring.h"
 #include "tcp_address.h"
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <algorithm>
-#include <chrono>
-#include <cstdlib>
-#include <sstream>
-#include <stdexcept>
-#include <vector>
-
-#include <errmsg.h>
-#include <mysql.h>
 
 using mysqlrouter::ClusterType;
 using mysqlrouter::MySQLSession;
@@ -117,7 +117,7 @@ bool ClusterMetadata::do_connect(MySQLSession &connection,
   }
 }
 
-bool ClusterMetadata::connect(
+bool ClusterMetadata::connect_and_setup_session(
     const metadata_cache::ManagedInstance &metadata_server) noexcept {
   // Get a clean metadata server connection object
   // (RAII will close the old one if needed).
@@ -130,16 +130,23 @@ bool ClusterMetadata::connect(
   }
 
   if (do_connect(*metadata_connection_, metadata_server)) {
-    log_debug("Connected with metadata server running on %s:%i",
-              metadata_server.host.c_str(), metadata_server.port);
-    return true;
+    try {
+      mysqlrouter::setup_metadata_session(*metadata_connection_);
+      log_debug("Connected with metadata server running on %s:%i",
+                metadata_server.host.c_str(), metadata_server.port);
+      return true;
+    } catch (const std::exception &e) {
+      // setting up the session failed
+      log_warning("Failed setting up the session on Metadata Server %s:%d: %s",
+                  metadata_server.host.c_str(), metadata_server.port, e.what());
+    }
+  } else {
+    // connection attempt failed
+    log_warning("Failed connecting with Metadata Server %s:%d: %s (%i)",
+                metadata_server.host.c_str(), metadata_server.port,
+                metadata_connection_->last_error(),
+                metadata_connection_->last_errno());
   }
-
-  // connection attempt failed
-  log_warning("Failed connecting with Metadata Server %s:%d: %s (%i)",
-              metadata_server.host.c_str(), metadata_server.port,
-              metadata_connection_->last_error(),
-              metadata_connection_->last_errno());
 
   metadata_connection_.reset();
   return false;
@@ -189,7 +196,7 @@ bool set_instance_ports(metadata_cache::ManagedInstance &instance,
       const std::string x_port = get_string(row[x_port_column]);
       const auto addr_port = mysqlrouter::split_addr_port(x_port);
       instance.xport = addr_port.second != 0 ? addr_port.second : 33060;
-    } catch (const std::runtime_error &e) {
+    } catch (const std::runtime_error &) {
       // There is a Shell bug (#27677227) that can cause the mysqlx port be
       // invalid in the metadata (>65535). For the backward compatibility we
       // need to tolerate this and still let the node be used for classic
@@ -293,4 +300,42 @@ bool ClusterMetadata::update_router_last_check_in(
 
   transaction.commit();
   return true;
+}
+
+ClusterMetadata::auth_credentials_t ClusterMetadata::fetch_auth_credentials(
+    const std::string &cluster_name) {
+  ClusterMetadata::auth_credentials_t auth_credentials;
+  sqlstring query =
+      "SELECT user, authentication_string, privileges, authentication_method "
+      "FROM mysql_innodb_cluster_metadata.v2_router_rest_accounts WHERE "
+      "cluster_id=(SELECT cluster_id FROM "
+      "mysql_innodb_cluster_metadata.v2_clusters WHERE cluster_name=?)";
+  query << cluster_name << sqlstring::end;
+
+  auto result_processor =
+      [&auth_credentials](const MySQLSession::Row &row) -> bool {
+    JsonDocument privileges;
+    if (row[2] != nullptr) privileges.Parse<0>(get_string(row[2]).c_str());
+
+    const auto username = get_string(row[0]);
+    if (privileges.HasParseError()) {
+      log_warning(
+          "Skipping user '%s': invalid privilege format '%s', authentication "
+          "will not be possible",
+          username.c_str(), get_string(row[2]).c_str());
+    } else if (get_string(row[3]) != "modular_crypt_format") {
+      log_warning(
+          "Skipping user '%s': authentication method '%s' is not supported for "
+          "metadata_cache authentication",
+          username.c_str(), get_string(row[3]).c_str());
+    } else {
+      auth_credentials[username] =
+          std::make_pair(get_string(row[1]), std::move(privileges));
+    }
+    return true;
+  };
+
+  if (metadata_connection_)
+    metadata_connection_->query(query, result_processor);
+  return auth_credentials;
 }

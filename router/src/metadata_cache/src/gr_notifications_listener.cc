@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -51,9 +51,18 @@ const auto kXSesssionPingTimeout = kXSesssionWaitTimeout / 2;
 
 namespace {
 struct NodeId {
+#ifdef _WIN32
+  using native_handle_type = SOCKET;
+  static const native_handle_type kInvalidSocket{INVALID_SOCKET};
+#else
+  using native_handle_type = int;
+  static const native_handle_type kInvalidSocket{-1};
+#endif
+
   std::string host;
   uint16_t port;
-  int fd;
+
+  native_handle_type fd;
 
   bool operator==(const NodeId &other) const {
     if (host != other.host) return false;
@@ -457,7 +466,7 @@ void GRNotificationListener::Impl::set_mysqlx_wait_timeout(
 xcl::XError GRNotificationListener::Impl::ping(
     xcl::XSession &session) noexcept {
   xcl::XError out_error;
-  session.execute_stmt("xplugin", "ping", {}, &out_error);
+  session.execute_stmt("mysqlx", "ping", {}, &out_error);
 
   return out_error;
 }
@@ -486,14 +495,14 @@ void GRNotificationListener::Impl::reconfigure(
 
   // check if there are some new nodes that we should connect to
   for (const auto &instance : instances) {
-    NodeId node_id{instance.host, instance.xport, -1};
+    NodeId node_id{instance.host, instance.xport, NodeId::kInvalidSocket};
     if (std::find_if(
             sessions_.begin(), sessions_.end(),
             [&node_id](const std::pair<const NodeId, NodeSession> &node) {
               return node.first.host == node_id.host &&
                      node.first.port == node_id.port;
             }) == sessions_.end()) {
-      NodeId node_id{instance.host, instance.xport, -1};
+      NodeId node_id{instance.host, instance.xport, NodeId::kInvalidSocket};
       NodeSession session;
       // If we could not connect it's not fatal, we only log it and live with
       // the node not being monitored for GR notifications.

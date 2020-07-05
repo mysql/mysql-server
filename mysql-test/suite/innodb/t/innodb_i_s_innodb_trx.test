@@ -15,19 +15,19 @@ DROP TABLE IF EXISTS t1;
 -- enable_warnings
 
 CREATE TABLE t1 (
-	c01 INT,
-	c02 INT,
-	PRIMARY KEY (c01)
+  c01 INT,
+  c02 INT,
+  PRIMARY KEY (c01)
 ) ENGINE=INNODB STATS_AUTO_RECALC=0;
 
 INSERT INTO t1 VALUES
 (1,2),(2,4),(3,6),(4,8);
 
 CREATE TABLE t2 (
-	c01 INT,
-	c02 INT,
-	PRIMARY KEY (c01),
-	CONSTRAINT fk1 FOREIGN KEY (c02) REFERENCES t1 (c01)
+  c01 INT,
+  c02 INT,
+  PRIMARY KEY (c01),
+  CONSTRAINT fk1 FOREIGN KEY (c02) REFERENCES t1 (c01)
 ) ENGINE=INNODB STATS_AUTO_RECALC=0;
 
 INSERT INTO t2 VALUES
@@ -93,8 +93,73 @@ FROM INFORMATION_SCHEMA.INNODB_TRX;
 -- disconnect con_trx
 -- disconnect con_verify_innodb_trx
 
+# Check that trx_schedule_weight is computed and reported:
+# con_3 waits for con_2, which waits for con_1, so we want their weights to be:
+# con_1 -> NULL
+# con_2 -> 2
+# con_3 -> 1
+# A helper table to map con_1,...,con_3 to their connection ids
+CREATE TABLE t0 (
+  id INT PRIMARY KEY,
+  trx_mysql_thread_id BIGINT
+) ENGINE=InnoDB;
+
+-- connect (con_1,localhost,root,,)
+  INSERT INTO t0 VALUES (1, CONNECTION_ID());
+  BEGIN;
+  SELECT * FROM t1 FOR SHARE;
+
+-- connect (con_2,localhost,root,,)
+  INSERT INTO t0 VALUES (2, CONNECTION_ID());
+  BEGIN;
+  -- send SELECT * FROM t1 FOR UPDATE
+
+-- connection default
+  let $wait_condition=
+    SELECT trx_schedule_weight > 0
+    FROM INFORMATION_SCHEMA.INNODB_TRX
+    JOIN t0 USING(trx_mysql_thread_id)
+    WHERE t0.id = 2;
+  -- source include/wait_condition.inc
+
+-- connect (con_3,localhost,root,,)
+  INSERT INTO t0 VALUES (3, CONNECTION_ID());
+  BEGIN;
+  -- send SELECT * FROM t1 FOR SHARE
+
+-- connection default
+  let $wait_condition=
+    SELECT trx_schedule_weight > 0
+    FROM INFORMATION_SCHEMA.INNODB_TRX
+    JOIN t0 USING(trx_mysql_thread_id)
+    WHERE t0.id = 3;
+  -- source include/wait_condition.inc
+
+  SELECT t0.id, trx_schedule_weight
+  FROM INFORMATION_SCHEMA.INNODB_TRX
+  JOIN t0 USING(trx_mysql_thread_id)
+  ORDER BY t0.id;
+
+-- connection con_1
+  ROLLBACK;
+
+-- connection con_2
+  -- reap
+  ROLLBACK;
+
+-- connection con_3
+  -- reap
+  ROLLBACK;
+
+-- connection default
+-- disconnect con_1
+-- disconnect con_2
+-- disconnect con_3
+
+
 DROP TABLE t2;
 DROP TABLE t1;
+DROP TABLE t0;
 
 -- source include/wait_until_count_sessions.inc
 

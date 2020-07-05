@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_mgmd\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/23/2019
+.\"      Date: 03/06/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_MGMD\FR" "8" "11/23/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDB_MGMD\FR" "8" "03/06/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -45,7 +45,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.281.\ \&Command\-line options for the ndb_mgmd program
+.B Table\ \&22.252.\ \&Command\-line options for the ndb_mgmd program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -81,43 +81,40 @@ T}:T{
 Local bind address
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
 \fB \fR\fB--config-cache[=TRUE|FALSE]\fR\fB \fR
 T}:T{
-Enable the management server configuration cache; TRUE by default.
+Enable the management server configuration cache; TRUE by default
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
-\fB--config-file=file\fR
-(>=),
+\fB--config-file=file\fR,
 .PP
-\fB-f\fR
-(>=)
+\fB \fR\fB-f\fR\fB \fR
 T}:T{
 Specify the cluster configuration file; in NDB-6.4.0 and later, needs
               --reload or --initial to override configuration cache if
               present
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
 \fB--configdir=directory\fR,
 .PP
-\fB--config-dir=directory\fR
-(>=7.0.8)
+\fB \fR\fB--config-dir=directory\fR\fB \fR
 T}:T{
 Specify the cluster management server's configuration cache directory
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -128,7 +125,7 @@ T}:T{
 Run ndb_mgmd in daemon mode (default)
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -138,17 +135,17 @@ Causes the management server reload its configuration data from the
               configuration file, bypassing the configuration cache
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
 \fB \fR\fB--install[=name]\fR\fB \fR
 T}:T{
 Used to install the management server process as a Windows service. Does
-              not apply on non-Windows platforms.
+              not apply on non-Windows platforms
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -158,17 +155,17 @@ Run ndb_mgmd in interactive mode (not officially supported in
               production; for testing purposes only)
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
 \fB \fR\fB--log-name=name\fR\fB \fR
 T}:T{
 A name to use when writing messages applying to this node in the cluster
-              log.
+              log
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -177,7 +174,7 @@ T}:T{
 Read cluster configuration data from the my.cnf file
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -186,7 +183,7 @@ T}:T{
 Do not provide any node id checks
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -195,17 +192,17 @@ T}:T{
 Do not run ndb_mgmd as a daemon
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
 \fB \fR\fB--nowait-nodes=list\fR\fB \fR
 T}:T{
 Do not wait for these management nodes when starting this management
-              server. Also requires --ndb-nodeid to be used.
+              server. Also requires --ndb-nodeid to be used
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -216,7 +213,7 @@ T}:T{
 Print full configuration and exit
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -226,7 +223,7 @@ Causes the management server to compare the configuration file with its
               configuration cache
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -235,10 +232,10 @@ T}:T{
 Used to remove a management server process that was previously installed
               as a Windows service, optionally specifying the name of
               the service to be removed. Does not apply on non-Windows
-              platforms.
+              platforms
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -246,10 +243,10 @@ T{
 .PP
 \fB \fR\fB-v\fR\fB \fR
 T}:T{
-Write additional information to the log.
+Write additional information to the log
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 .TE
 .sp 1
@@ -1388,7 +1385,7 @@ is the process ID file used when running the management server as a daemon\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

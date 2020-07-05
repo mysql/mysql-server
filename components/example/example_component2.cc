@@ -55,7 +55,7 @@ METADATA("mysql.author", "Oracle Corporation"),
   initialization/de-initialization methods, so we are fine to just use NULL
   values here. */
 DECLARE_COMPONENT(example_component2, "mysql:example_component2")
-NULL, NULL END_DECLARE_COMPONENT();
+nullptr, nullptr END_DECLARE_COMPONENT();
 
 /* Defines list of Components contained in this library. Note that for now
   we assume that library will have exactly one Component. */

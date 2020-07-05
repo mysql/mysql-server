@@ -6,17 +6,17 @@
 #
 # ==== Implementation ====
 #
-# 1) Create a new database and a table on the group.
-# 2) Stop the applier for `server1`.
-# 3) Verify that `REQUIRE_ROW_FORMAT` is set for the GR channels.
-# 4) Create a new user, grant it `REPLICATION_APPLIER` privileges and set it as
+#  1) Create a new database and a table on the group.
+#  2) Stop GR on `server1`.
+#  3) Verify that `REQUIRE_ROW_FORMAT` is set for the GR channels.
+#  4) Create a new user, grant it `REPLICATION_APPLIER` privileges and set it as
 #    the `PRIVILEGE_CHECKS_USER` user.
-# 5) Execute an `INSERT` statement on `server2`.
-# 6) Start `server1` and expect an error as the user doesn't have INSERT
-#    privilege.
-# 7) Stop slave and grant INSERT privilege.
-# 8) Start server1
-# 9) Ensure that table was properly replicated
+#  5) Start `server1`.
+#  6) Execute an `INSERT` statement on `server2`.
+#  7) Expect an error as the user doesn't have INSERT privilege.
+#  8) Stop slave and grant INSERT privilege.
+#  9) Start server1
+# 10) Ensure that table was properly replicated
 #
 # ==== References ====
 #
@@ -46,8 +46,8 @@ SET @@sql_log_bin = 1;
 --source include/rpl_sync.inc
 
 --echo
---echo # 2) Stop the applier for `server1`.
---source include/gr_stop_applier_sql_thread.inc
+--echo # 2) Stop GR on `server1`.
+--source include/stop_group_replication.inc
 
 --echo
 --echo # 3) Verify that `REQUIRE_ROW_FORMAT` is set for the GR channels.
@@ -77,34 +77,43 @@ SET @@sql_log_bin = 1;
 --source include/assert.inc
 
 --echo
---echo # 5) Execute an `INSERT` statement on `server2`.
+--echo # 5) Start `server1`.
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+--let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE Privilege_Checks_User = "$applier_user"`
+--let $assert_text = Privilege_checks_user column in performance_schema.replication_applier_configuration is set to $applier_user
+--let $assert_cond = 1 = $count
+--source include/assert.inc
+
+--echo
+--echo # 6) Execute an `INSERT` statement on `server2`.
 --let $rpl_connection_name = server2
 --source include/rpl_connection.inc
 INSERT INTO db1.t1 VALUES (1), (2);
 
 --echo
---echo # 6) Start `server1` and expect an error as the user doesn't have INSERT
---echo #    privilege.
+--echo # 7) Expect an error as the user doesn't have INSERT privilege.
 --let $rpl_connection_name = server1
 --source include/rpl_connection.inc
-START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
 --let $explicit_default_wait_timeout = 12000
 --let $group_replication_member_state = ERROR
 --source include/gr_wait_for_member_state.inc
 
 --echo
---echo # 6) Stop slave and grant INSERT privilege.
+--echo # 8) Stop slave and grant INSERT privilege.
 --source include/stop_group_replication.inc
 SET @@sql_log_bin = 0;
 --eval GRANT INSERT ON *.* TO $applier_user
 SET @@sql_log_bin = 1;
 
 --echo
---echo # 8) Start server1
+--echo # 9) Start server1
 --source include/start_group_replication.inc
 
 --echo
---echo # 9) Ensure that table was properly replicated
+--echo # 10) Ensure that table was properly replicated
 --source include/rpl_sync.inc
 --let $count = `SELECT COUNT(*) FROM db1.t1`
 --let $assert_text = Table properly replicated in server1

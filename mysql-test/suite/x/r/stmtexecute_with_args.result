@@ -222,7 +222,7 @@ Mysqlx.Resultset.ColumnMetaData {
 
 Mysqlx.Resultset.ColumnMetaData {
   type: BYTES
-  collation: 45
+  collation: 255
   length: 44
   flags: 16
 }
@@ -277,7 +277,7 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: ""
   schema: ""
   catalog: "def"
-  collation: 45
+  collation: 255
   length: 44
   flags: 16
 }

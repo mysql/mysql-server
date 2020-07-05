@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -43,7 +43,7 @@ class Socket_acceptors_task : public xpl::iface::Server_task {
 
  public:
   Socket_acceptors_task(
-      xpl::iface::Listener_factory &listener_factory,
+      const xpl::iface::Listener_factory &listener_factory,
       const std::string &tcp_bind_address, const std::string &network_namespace,
       const uint16_t tcp_port, const uint32_t tcp_port_open_timeout,
       const std::string &unix_socket_file, const uint32_t backlog,
@@ -74,6 +74,7 @@ class Socket_acceptors_task : public xpl::iface::Server_task {
 
   std::shared_ptr<xpl::iface::Socket_events> m_event;
   std::string m_bind_address;
+  std::string m_unix_socket_file;
   std::unique_ptr<xpl::iface::Listener> m_tcp_socket;
   std::unique_ptr<xpl::iface::Listener> m_unix_socket;
 

@@ -16,10 +16,12 @@ include/start_group_replication.inc
 # On the primary the stage reports waiting for pending transactions to finish
 # Commit a transaction and see there is reported progress
 # On the secondaries the stage reports waiting for a step completion
-[connection server_1]
+[connection server_1_1]
+SET @@GLOBAL.DEBUG='+d,group_replication_before_message_broadcast';
 BEGIN;
 INSERT INTO t1 VALUES (1);
-[connection server_1_1]
+COMMIT;
+[connection server_1]
 BEGIN;
 INSERT INTO t1 VALUES (2);
 [connection server2]
@@ -32,8 +34,10 @@ include/assert.inc [The completed work is 0]
 include/assert.inc [The stage should be "Multi-primary Switch: waiting on another member step completion"]
 include/assert.inc [The estimated work is 1]
 include/assert.inc [The completed work is 0]
-[connection server_1]
-COMMIT;
+[connection server1]
+SET DEBUG_SYNC='now SIGNAL waiting';
+SET @@GLOBAL.DEBUG='-d,group_replication_before_message_broadcast';
+[connection server_1_1]
 include/assert.inc [The stage should be "Multi-primary Switch: waiting for pending transactions to finish"]
 include/assert.inc [The estimated work is 2]
 include/assert.inc [The completed work is 1]
@@ -44,7 +48,7 @@ include/assert.inc [The completed work is 1]
 [connection server_2_1]
 SET @@GLOBAL.read_only= 0;
 LOCK TABLE t1 READ;
-[connection server_1_1]
+[connection server_1]
 COMMIT;
 [connection server_2]
 include/assert.inc [The stage should be "Multi-primary Switch: applying buffered transactions"]

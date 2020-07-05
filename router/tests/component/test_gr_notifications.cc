@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -97,11 +97,12 @@ class GrNotificationsTest : public RouterComponentTest {
            use_gr_notifications + "\n" + "ttl=" + ttl_str + "\n\n";
   }
 
-  std::string get_metadata_cache_routing_section(uint16_t router_port,
-                                                 const std::string &role,
-                                                 const std::string &strategy) {
+  std::string get_metadata_cache_routing_section(
+      uint16_t router_port, const std::string &role,
+      const std::string &strategy, const std::string &name = "test_default") {
     std::string result =
-        "[routing:test_default]\n"
+        "[routing:" + name +
+        "]\n"
         "bind_port=" +
         std::to_string(router_port) + "\n" +
         "destinations=metadata-cache://test/default?role=" + role + "\n" +
@@ -148,20 +149,35 @@ class GrNotificationsTest : public RouterComponentTest {
   void set_mock_metadata(const uint16_t http_port, const std::string &gr_id,
                          const std::vector<uint16_t> &gr_node_ports,
                          const std::vector<uint16_t> &gr_node_xports,
-                         const bool send = false) {
+                         const bool send = false,
+                         const std::vector<uint16_t> &cluster_node_ports = {}) {
     JsonAllocator allocator;
     gr_id_.reset(new JsonValue(gr_id.c_str(), gr_id.length(), allocator));
 
-    gr_nodes_.reset(new JsonValue(rapidjson::kArrayType));
     size_t i{0};
+    gr_nodes_.reset(new JsonValue(rapidjson::kArrayType));
     for (auto &gr_node : gr_node_ports) {
       JsonValue node(rapidjson::kArrayType);
-      node.PushBack(JsonValue((int)gr_node), allocator);
+      node.PushBack(JsonValue(static_cast<int>(gr_node)), allocator);
       node.PushBack(JsonValue("ONLINE", strlen("ONLINE"), allocator),
                     allocator);
-      node.PushBack(JsonValue((int)gr_node_xports[i++]), allocator);
+      node.PushBack(JsonValue(static_cast<int>(gr_node_xports[i++])),
+                    allocator);
       gr_nodes_->PushBack(node, allocator);
     }
+
+    i = 0;
+    cluster_nodes_.reset(new JsonValue(rapidjson::kArrayType));
+    for (auto &cluster_node : cluster_node_ports) {
+      JsonValue node(rapidjson::kArrayType);
+      node.PushBack(JsonValue(static_cast<int>(cluster_node)), allocator);
+      node.PushBack(JsonValue("ONLINE", strlen("ONLINE"), allocator),
+                    allocator);
+      node.PushBack(JsonValue(static_cast<int>(gr_node_xports[i++])),
+                    allocator);
+      cluster_nodes_->PushBack(node, allocator);
+    }
+
     if (send) {
       send_globals(http_port);
     }
@@ -212,6 +228,9 @@ class GrNotificationsTest : public RouterComponentTest {
     if (gr_nodes_) {
       json_doc.AddMember("gr_nodes", *gr_nodes_, allocator);
     }
+    if (cluster_nodes_) {
+      json_doc.AddMember("cluster_nodes", *cluster_nodes_, allocator);
+    }
     if (notices_) {
       json_doc.AddMember("notices", *notices_, allocator);
     }
@@ -240,22 +259,41 @@ class GrNotificationsTest : public RouterComponentTest {
         dir, create_state_file_content(group_id, node_ports));
   }
 
-  int wait_for_md_queries(int expected_md_queries_count, uint16_t http_port) {
-    int md_queries_count, retries{0};
+  int get_current_queries_count(const uint16_t http_port) {
+    const std::string server_globals =
+        MockServerRestClient(http_port).get_globals_as_json_string();
+    return get_ttl_queries_count(server_globals);
+  }
+
+  int wait_for_md_queries(const int expected_md_queries_count,
+                          const uint16_t http_port,
+                          std::chrono::milliseconds timeout = 5000ms) {
+    int md_queries_count;
     do {
       std::this_thread::sleep_for(100ms);
-      const std::string server_globals =
-          MockServerRestClient(http_port).get_globals_as_json_string();
-      md_queries_count = get_ttl_queries_count(server_globals);
-    } while (md_queries_count != expected_md_queries_count && retries++ < 50);
+      md_queries_count = get_current_queries_count(http_port);
+      timeout -= 100ms;
+    } while (md_queries_count != expected_md_queries_count && timeout > 0ms);
 
     return md_queries_count;
+  }
+
+  bool wait_for_new_md_query(const uint16_t http_port,
+                             std::chrono::milliseconds timeout = 5000ms) {
+    int md_queries_count = get_current_queries_count(http_port);
+
+    return wait_for_md_queries(md_queries_count + 1, http_port, timeout) ==
+           md_queries_count + 1;
   }
 
   TcpPortPool port_pool_;
   std::unique_ptr<JsonValue> notices_;
   std::unique_ptr<JsonValue> gr_id_;
   std::unique_ptr<JsonValue> gr_nodes_;
+  std::unique_ptr<JsonValue>
+      cluster_nodes_;  // these can be different than GR nodes if we want to
+                       // test the unconsistency between cluster metadata and GR
+                       // metadata
   bool mysqlx_wait_timeout_unsupported{false};
   bool gr_notices_unsupported{false};
 };
@@ -350,8 +388,8 @@ TEST_P(GrNotificationsParamTest, GrNotification) {
       router_port, "PRIMARY", "first-available");
 
   SCOPED_TRACE("// Launch ther router");
-  auto &router = launch_router(temp_test_dir.name(), metadata_cache_section,
-                               routing_section, state_file);
+  launch_router(temp_test_dir.name(), metadata_cache_section, routing_section,
+                state_file);
 
   std::this_thread::sleep_for(test_params.router_uptime);
 
@@ -364,10 +402,7 @@ TEST_P(GrNotificationsParamTest, GrNotification) {
   // there are not metadata refresh triggered by the notifications
   int md_queries_count =
       wait_for_md_queries(expected_md_queries_count, cluster_http_ports[0]);
-  ASSERT_EQ(expected_md_queries_count, md_queries_count)
-      << "mock[0]: " << cluster_nodes[0]->get_full_output() << "\n"
-      << "mock[1]: " << cluster_nodes[1]->get_full_output() << "\n"
-      << "router: " << router.get_full_logfile();
+  ASSERT_EQ(expected_md_queries_count, md_queries_count);
 }
 
 INSTANTIATE_TEST_CASE_P(
@@ -529,7 +564,7 @@ INSTANTIATE_TEST_CASE_P(
                   GroupReplicationStateChanged_Type_MEMBERSHIP_VIEW_CHANGE,
               "abcdefg",
               {0}},
-             {1500ms,
+             {2500ms,
               Mysqlx::Notice::Frame::GROUP_REPLICATION_STATE_CHANGED,
               true,
               Mysqlx::Notice::
@@ -636,10 +671,7 @@ TEST_P(GrNotificationNoXPortTest, GrNotificationNoXPort) {
   // we only expect initial ttl read (hence 1), because x-port is not valid
   // there are not metadata refresh triggered by the notifications
   int md_queries_count = wait_for_md_queries(1, cluster_http_ports[0]);
-  ASSERT_EQ(1, md_queries_count)
-      << "mock[0]: " << cluster_nodes[0]->get_full_output() << "\n"
-      << "mock[1]: " << cluster_nodes[1]->get_full_output() << "\n"
-      << "router: " << router.get_full_logfile();
+  ASSERT_EQ(1, md_queries_count);
 
   // we expect that the router will not be able to connect to both nodes on
   // the x-port. that can take up to 2 * 10s as 10 seconds is a timeout we use
@@ -686,7 +718,7 @@ TEST_P(GrNotificationMysqlxWaitTimeoutUnsupportedTest,
       MockServerRestClient(cluster_http_port).wait_for_rest_endpoint_ready())
       << cluster_node.get_full_output();
 
-  SCOPED_TRACE("// Make our metadata server return 1 metadata server");
+  SCOPED_TRACE("// Make our metadata server return 1 cluster node");
   set_mock_metadata(cluster_http_port, kGroupId, {cluster_classic_port},
                     {cluster_x_port});
   // instrumentate the mock to treat the mysqlx_wait_timeout as unsupported
@@ -724,9 +756,7 @@ TEST_P(GrNotificationMysqlxWaitTimeoutUnsupportedTest,
   // Even tho the mysqlx_wait_timeout is not supported we still expect that
   // the GR notifications work fine
   int md_queries_count = wait_for_md_queries(2, cluster_http_port);
-  ASSERT_GT(md_queries_count, 1)
-      << "mock: " << cluster_node.get_full_output() << "\n"
-      << "router: " << router.get_full_logfile();
+  ASSERT_GT(md_queries_count, 1);
 
   // there should be no WARNINGs nor ERRORs in the log file
   const std::string log_content = router.get_full_logfile();
@@ -792,16 +822,15 @@ TEST_P(GrNotificationNoticesUnsupportedTest, GrNotificationNoticesUnsupported) {
   // There should be only single (initial) md refresh as there are no
   // notifications
   int md_queries_count = wait_for_md_queries(1, cluster_http_port);
-  ASSERT_EQ(md_queries_count, 1)
-      << "mock: " << cluster_node.get_full_output() << "\n"
-      << "router: " << router.get_full_logfile();
+  ASSERT_EQ(md_queries_count, 1);
 
-  const std::string log_content = router.get_full_logfile();
-  EXPECT_TRUE(
-      pattern_found(log_content,
-                    "WARNING.* Failed enabling notices on the node.* This "
-                    "MySQL server version does not support GR notifications.*"))
-      << log_content;
+  const bool found = wait_log_contains(
+      router,
+      "WARNING.* Failed enabling notices on the node.* This "
+      "MySQL server version does not support GR notifications.*",
+      2s);
+
+  EXPECT_TRUE(found);
 }
 
 INSTANTIATE_TEST_CASE_P(GrNotificationNoticesUnsupported,
@@ -866,8 +895,8 @@ TEST_P(GrNotificationXPortConnectionFailureTest,
       router_port, "PRIMARY", "first-available");
 
   SCOPED_TRACE("// Launch ther router");
-  auto &router = launch_router(temp_test_dir.name(), metadata_cache_section,
-                               routing_section, state_file);
+  launch_router(temp_test_dir.name(), metadata_cache_section, routing_section,
+                state_file);
 
   std::this_thread::sleep_for(1s);
   EXPECT_TRUE(cluster_nodes[1]->kill() == 0)
@@ -877,10 +906,7 @@ TEST_P(GrNotificationXPortConnectionFailureTest,
   // we only xpect initial ttl read plus the one caused by the x-protocol
   // notifier connection to the node we killed
   int md_queries_count = wait_for_md_queries(2, cluster_http_ports[0]);
-  ASSERT_EQ(2, md_queries_count)
-      << "mock[0]: " << cluster_nodes[0]->get_full_output() << "\n"
-      << "mock[1]: " << cluster_nodes[1]->get_full_output() << "\n"
-      << "router: " << router.get_full_logfile();
+  ASSERT_EQ(2, md_queries_count);
 }
 
 INSTANTIATE_TEST_CASE_P(GrNotificationXPortConnectionFailure,
@@ -955,6 +981,147 @@ INSTANTIATE_TEST_CASE_P(
                             "Configuration error: option use_gr_notifications "
                             "in [metadata_cache:test] needs value between 0 "
                             "and 1 inclusive, was 'invalid'"}));
+
+/**
+ * @test
+ *      Verify that if the Router sees inconsistent metadata after receiving the
+ * GR notification it will adopt to the new metadata once it gets consistent
+ * again.
+ */
+TEST_F(GrNotificationsTest, GrNotificationInconsistentMetadata) {
+  TempDirectory temp_test_dir;
+
+  const unsigned kClusterNodesCount = 2;
+  std::vector<ProcessWrapper *> cluster_nodes;
+  std::vector<uint16_t> nodes_ports;
+  std::vector<uint16_t> nodes_xports;
+  std::vector<uint16_t> http_ports;
+  for (unsigned i = 0; i < kClusterNodesCount; ++i) {
+    nodes_ports.push_back(port_pool_.get_next_available());
+    nodes_xports.push_back(port_pool_.get_next_available());
+    http_ports.push_back(port_pool_.get_next_available());
+  }
+
+  SCOPED_TRACE(
+      "// Launch 2 server mocks that will act as our metadata servers");
+  const auto trace_file =
+      get_data_dir().join("metadata_dynamic_nodes_v2_gr_incons_md.js").str();
+  for (unsigned i = 0; i < kClusterNodesCount; ++i) {
+    cluster_nodes.push_back(&ProcessManager::launch_mysql_server_mock(
+        trace_file, nodes_ports[i], EXIT_SUCCESS, false, http_ports[i],
+        nodes_xports[i]));
+    ASSERT_NO_FATAL_FAILURE(
+        check_port_ready(*cluster_nodes[i], nodes_ports[i], 5000ms));
+    if (i == 0) {
+      ASSERT_NO_FATAL_FAILURE(
+          check_port_ready(*cluster_nodes[i], nodes_xports[i], 5000ms));
+    }
+    ASSERT_TRUE(
+        MockServerRestClient(http_ports[i]).wait_for_rest_endpoint_ready())
+        << cluster_nodes[i]->get_full_output();
+
+    set_mock_metadata(http_ports[i], "00-000", nodes_ports, nodes_xports,
+                      /*sent=*/false, nodes_ports);
+
+    SCOPED_TRACE(
+        "// Schedule the GR notification to be sent (on first node only)");
+    if (i == 0) {
+      set_mock_notices(
+          0, http_ports[i],
+          {{2000ms,
+            Mysqlx::Notice::Frame::GROUP_REPLICATION_STATE_CHANGED,
+            true,
+            Mysqlx::Notice::
+                GroupReplicationStateChanged_Type_MEMBERSHIP_VIEW_CHANGE,
+            "abcdefg",
+            {0}}},
+          /*send=*/true);
+    } else {
+      set_mock_notices(0, http_ports[i], {},
+                       /*send=*/true);
+    }
+  }
+
+  SCOPED_TRACE("// Create a router state file");
+  const std::string state_file =
+      create_state_file(temp_test_dir.name(), "00-000", nodes_ports);
+
+  SCOPED_TRACE(
+      "// Create a configuration file sections with high ttl so that "
+      "metadata updates were triggered by the GR notifications");
+  const std::string metadata_cache_section =
+      get_metadata_cache_section(/*use_gr_notifications=*/"1", kTTL);
+  const uint16_t router_port_rw = port_pool_.get_next_available();
+  const std::string routing_section_rw = get_metadata_cache_routing_section(
+      router_port_rw, "PRIMARY", "first-available", "rw");
+  const uint16_t router_port_ro = port_pool_.get_next_available();
+  const std::string routing_section_ro = get_metadata_cache_routing_section(
+      router_port_ro, "SECONDARY", "round-robin", "ro");
+
+  SCOPED_TRACE("// Launch ther router");
+  launch_router(temp_test_dir.name(), metadata_cache_section,
+                routing_section_rw + routing_section_ro, state_file);
+
+  EXPECT_TRUE(wait_for_md_queries(1, http_ports[0]));
+  wait_for_new_md_query(http_ports[0], 1000ms);
+  EXPECT_TRUE(wait_for_port_ready(router_port_ro));
+
+  SCOPED_TRACE("// Prepare a new node before adding it to the cluster");
+  nodes_ports.push_back(port_pool_.get_next_available());
+  nodes_xports.push_back(port_pool_.get_next_available());
+  http_ports.push_back(port_pool_.get_next_available());
+  cluster_nodes.push_back(&ProcessManager::launch_mysql_server_mock(
+      trace_file, nodes_ports[2], EXIT_SUCCESS, false, http_ports[2],
+      nodes_xports[2]));
+  ASSERT_NO_FATAL_FAILURE(
+      check_port_ready(*cluster_nodes[2], nodes_ports[2], 5000ms));
+  ASSERT_TRUE(
+      MockServerRestClient(http_ports[2]).wait_for_rest_endpoint_ready())
+      << cluster_nodes[2]->get_full_output();
+  const std::vector<uint16_t> cluster_nodes_ports{nodes_ports[0],
+                                                  nodes_ports[1]};
+
+  SCOPED_TRACE(
+      "// Mimic adding a node to the cluster, first it should be only visible "
+      "in the cluster metadata not in the GR performance_schema table");
+
+  // cluster metadata should be missing a newly added node, GR metaadata should
+  // already have it
+  for (size_t i = 0; i <= 2; i++) {
+    set_mock_metadata(http_ports[i], "00-000", nodes_ports, nodes_xports,
+                      /*send=*/true, cluster_nodes_ports);
+  }
+
+  // wait for the md update resulting from the GR notification that we have
+  // scheduled
+  ASSERT_TRUE(wait_for_new_md_query(http_ports[0]));
+  wait_for_new_md_query(http_ports[0], 1000ms);
+
+  SCOPED_TRACE("// Now let the metadata be consistent again");
+  // GR tables and cluster metadata should both contain the newly added node
+  for (size_t i = 0; i <= 2; i++) {
+    set_mock_metadata(http_ports[i], "00-000", nodes_ports, nodes_xports,
+                      /*send=*/true, nodes_ports);
+  }
+
+  wait_for_new_md_query(http_ports[0], 1000ms);
+  wait_for_new_md_query(http_ports[0], 1000ms);
+
+  SCOPED_TRACE(
+      "// Make 2 connections to the RO port, the newly added node should be "
+      "used for the routing");
+  std::set<uint16_t> used_ports;
+  for (size_t i = 0; i < 2; i++) {
+    MySQLSession client;
+    ASSERT_NO_FATAL_FAILURE(client.connect("127.0.0.1", router_port_ro,
+                                           "username", "password", "", ""));
+
+    auto result{client.query_one("select @@port")};
+    used_ports.insert(
+        static_cast<uint16_t>(std::stoul(std::string((*result)[0]))));
+  }
+  EXPECT_EQ(1u, used_ports.count(nodes_ports[2]));
+}
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();

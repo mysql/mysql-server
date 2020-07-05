@@ -402,7 +402,7 @@ where (c1, c2) in (select b1, b2 from t2i where b2 > '0')) and
 a1 = c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (hash join)
 4	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 5	DEPENDENT SUBQUERY	t2i	NULL	index_subquery	it2i1,it2i2,it2i3	it2i3	66	func,func	2	100.00	Using where; Using index
 2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
@@ -1320,9 +1320,9 @@ HAVING COUNT(*) > 0
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	table1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	PRIMARY	table2	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
-2	DEPENDENT SUBQUERY	innr	NULL	index	col_int_key	col_int_key	5	NULL	2	50.00	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `pk`,NULL AS `pk` from <constant table> left join `test`.`t2` `table2` on((<in_optimizer>(NULL,<exists>(/* select#2 */ select 1 from `test`.`t1` `innr` where (`test`.`innr`.`col_int_nokey` > `test`.`innr`.`col_int_nokey`) group by `test`.`innr`.`col_int_key` having ((count(0) > 0) and (<cache>(NULL) = <ref_null_helper>(`test`.`innr`.`col_int_key`))))) and multiple equal('1', NULL)))
+Note	1003	/* select#1 */ select '1' AS `pk`,NULL AS `pk` from <constant table> left join `test`.`t2` `table2` on((<in_optimizer>(NULL,<exists>(/* select#2 */ select `test`.`innr`.`col_int_key` from `test`.`t1` `innr` where false group by `test`.`innr`.`col_int_key` having ((count(0) > 0) and (<cache>(NULL) = <ref_null_helper>(`test`.`innr`.`col_int_key`))))) and multiple equal('1', NULL)))
 FLUSH STATUS;
 SELECT table1.pk, table2.pk
 FROM t2 AS table1 LEFT JOIN t2 AS table2
@@ -1368,7 +1368,7 @@ explain select t1.a, t2.a, (t1.a,t1.a) in (select a,a from t2 as t3)
 from t1 join t2 on t1.a+t2.a=1000;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
 2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,<in_optimizer>((`test`.`t1`.`a`,`test`.`t1`.`a`),<exists>(/* select#2 */ select 1,1 from `test`.`t2` `t3` where ((<cache>(`test`.`t1`.`a`) = `test`.`t3`.`a`) and (<cache>(`test`.`t1`.`a`) = `test`.`t3`.`a`)) having (<is_not_null_test>(`test`.`t3`.`a`) and <is_not_null_test>(`test`.`t3`.`a`)))) AS `(t1.a,t1.a) in (select a,a from t2 as t3)` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`a` + `test`.`t2`.`a`) = 1000)
@@ -1382,7 +1382,7 @@ explain select t1.a, t2.a, (t2.a,t2.a) in (select a,a from t2 as t3)
 from t1 left join t2 on t1.a+t2.a=1000;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
 2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`a`),<exists>(/* select#2 */ select 1,1 from `test`.`t2` `t3` where (<if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t3`.`a`) or <cache>((`test`.`t3`.`a` is null))), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t3`.`a`) or <cache>((`test`.`t3`.`a` is null))), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`a`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`a`), true)))) AS `(t2.a,t2.a) in (select a,a from t2 as t3)` from `test`.`t1` left join `test`.`t2` on(((`test`.`t1`.`a` + `test`.`t2`.`a`) = 1000)) where true
@@ -1398,7 +1398,7 @@ explain select t1.a, t2.a, (t1.a,t1.a) in (select a,a from t2 as t3)
 from t1 join t2 on t1.a+t2.a=1000;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
 2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	56.25	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,<in_optimizer>((`test`.`t1`.`a`,`test`.`t1`.`a`),<exists>(/* select#2 */ select 1,1 from `test`.`t2` `t3` where (((<cache>(`test`.`t1`.`a`) = `test`.`t3`.`a`) or (`test`.`t3`.`a` is null)) and ((<cache>(`test`.`t1`.`a`) = `test`.`t3`.`a`) or (`test`.`t3`.`a` is null))) having (<is_not_null_test>(`test`.`t3`.`a`) and <is_not_null_test>(`test`.`t3`.`a`)))) AS `(t1.a,t1.a) in (select a,a from t2 as t3)` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`a` + `test`.`t2`.`a`) = 1000)
@@ -1418,7 +1418,7 @@ from t1 join t2 on t1.a+t2.a=3
 where (t2.a,t2.a) in (select a,a from t2 as t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
 2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` where (<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`a`),<exists>(/* select#2 */ select 1,1 from `test`.`t2` `t3` where ((<cache>(`test`.`t2`.`a`) = `test`.`t3`.`a`) and (<cache>(`test`.`t2`.`a`) = `test`.`t3`.`a`)))) and ((`test`.`t1`.`a` + `test`.`t2`.`a`) = 3))
@@ -1435,7 +1435,7 @@ from t1 join t2 on t1.a+t2.a=3
 where (t2.a,t2.a) not in (select a,a from t2 as t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
 2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` where (<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`a`),<exists>(/* select#2 */ select 1,1 from `test`.`t2` `t3` where ((<cache>(`test`.`t2`.`a`) = `test`.`t3`.`a`) and (<cache>(`test`.`t2`.`a`) = `test`.`t3`.`a`)) having (<is_not_null_test>(`test`.`t3`.`a`) and <is_not_null_test>(`test`.`t3`.`a`))) is false) and ((`test`.`t1`.`a` + `test`.`t2`.`a`) = 3))
@@ -1472,7 +1472,7 @@ explain select t1.a, t2.a, t2.a in (select * from t2 as t3)
 from t1 left join t2 on t1.a+t2.a=1000;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
 2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,<in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` `t3` where <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t3`.`a`) or (`test`.`t3`.`a` is null)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`a`), true))) AS `t2.a in (select * from t2 as t3)` from `test`.`t1` left join `test`.`t2` on(((`test`.`t1`.`a` + `test`.`t2`.`a`) = 1000)) where true
@@ -1487,7 +1487,7 @@ explain select t1.a, t2.a, (t2.a,t2.a) in (select a,a from t2 as t3)
 from t1 left join t2 on t1.a+t2.a=1000;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
 2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`a`),<exists>(/* select#2 */ select 1,1 from `test`.`t2` `t3` where (<if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t3`.`a`) or (`test`.`t3`.`a` is null)), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t3`.`a`) or (`test`.`t3`.`a` is null)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`a`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`a`), true)))) AS `(t2.a,t2.a) in (select a,a from t2 as t3)` from `test`.`t1` left join `test`.`t2` on(((`test`.`t1`.`a` + `test`.`t2`.`a`) = 1000)) where true
@@ -1705,7 +1705,7 @@ UPDATE t2 SET a=3 WHERE a=0;
 EXPLAIN SELECT * FROM t2,t3 WHERE t2.a IN (SELECT * FROM t1 WHERE a <> 2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
-1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Using join buffer (hash join)
 2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t3`.`a` AS `a` from `test`.`t2` join `test`.`t3` where <in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t1` where ((`test`.`t1`.`a` <> 2) and (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`))))
@@ -1920,7 +1920,7 @@ AND o.c4=7 XOR o.pk=3 ORDER BY o.pk;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	o	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using filesort
 2	DEPENDENT SUBQUERY	innr2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
-2	DEPENDENT SUBQUERY	innr	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	innr	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`o`.`c2` AS `x` from `test`.`t1` `o` where ((<in_optimizer>(`test`.`o`.`c1`,<exists>(/* select#2 */ select 1 from `test`.`t2` `innr2` join `test`.`t3` `innr` where ((`test`.`innr`.`c4` = `test`.`innr2`.`c4k`) and ((`test`.`innr`.`c1` = 6) or (`test`.`innr`.`c1` <> `test`.`innr`.`pk`)) and <if>(outer_field_is_not_null, ((<cache>(`test`.`o`.`c1`) = `test`.`innr2`.`c4k`) or (`test`.`innr2`.`c4k` is null)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`innr`.`c4`), true))) and (`test`.`o`.`c4` = 7)) xor (`test`.`o`.`pk` = 3)) order by `test`.`o`.`pk`
 SELECT o.c2 AS x FROM t1 AS o

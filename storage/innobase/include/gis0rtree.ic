@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -42,7 +42,7 @@ void rtr_page_cal_mbr(const dict_index_t *index, /*!< in: index */
   rec_t *rec;
   const byte *field;
   ulint len;
-  ulint *offsets = NULL;
+  ulint *offsets = nullptr;
   double bmin, bmax;
   double *amin;
   double *amax;
@@ -82,7 +82,7 @@ void rtr_page_cal_mbr(const dict_index_t *index, /*!< in: index */
 
     rec = page_rec_get_next(rec);
 
-    if (rec == NULL) {
+    if (rec == nullptr) {
       break;
     }
   } while (!page_rec_is_supremum(rec));
@@ -186,10 +186,10 @@ node_visit_t *rtr_get_parent_node(
 {
   ulint num;
   ulint tree_height = btr_cur->tree_height;
-  node_visit_t *found_node = NULL;
+  node_visit_t *found_node = nullptr;
 
   if (level >= tree_height) {
-    return (NULL);
+    return (nullptr);
   }
 
   mutex_enter(&btr_cur->rtr_info->rtr_path_mutex);
@@ -198,7 +198,7 @@ node_visit_t *rtr_get_parent_node(
 
   if (!num) {
     mutex_exit(&btr_cur->rtr_info->rtr_path_mutex);
-    return (NULL);
+    return (nullptr);
   }
 
   if (is_insert) {
@@ -235,7 +235,7 @@ btr_pcur_t *rtr_get_parent_cursor(
 {
   node_visit_t *found_node = rtr_get_parent_node(btr_cur, level, is_insert);
 
-  return ((found_node) ? found_node->cursor : NULL);
+  return ((found_node) ? found_node->cursor : nullptr);
 }
 
 /** Reinitialize a R-Tree search info in btr_cur_t */

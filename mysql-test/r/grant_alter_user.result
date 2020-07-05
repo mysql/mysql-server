@@ -1029,3 +1029,4 @@ SELECT 1;
 1
 1
 DROP USER bug22205360@localhost;
+# restart:

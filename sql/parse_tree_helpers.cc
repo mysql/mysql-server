@@ -79,7 +79,7 @@ Item_splocal *create_item_for_sp_var(THD *thd, LEX_CSTRING name,
 
   if (!spv) {
     my_error(ER_SP_UNDECLARED_VAR, MYF(0), name.str);
-    return NULL;
+    return nullptr;
   }
 
   DBUG_ASSERT(pctx && spv);
@@ -89,7 +89,7 @@ Item_splocal *create_item_for_sp_var(THD *thd, LEX_CSTRING name,
       This variable doesn't exist in the original query: shouldn't be
       substituted for logging.
     */
-    query_start_ptr = NULL;
+    query_start_ptr = nullptr;
   }
 
   if (query_start_ptr) {
@@ -111,7 +111,7 @@ Item_splocal *create_item_for_sp_var(THD *thd, LEX_CSTRING name,
 bool find_sys_var_null_base(THD *thd, struct sys_var_with_base *tmp) {
   tmp->var = find_sys_var(thd, tmp->base_name.str, tmp->base_name.length);
 
-  if (tmp->var == NULL)
+  if (tmp->var == nullptr)
     my_error(ER_UNKNOWN_SYSTEM_VARIABLE, MYF(0), tmp->base_name.str);
   else
     tmp->base_name = NULL_CSTR;
@@ -208,7 +208,8 @@ bool set_trigger_new_row(Parse_context *pc, LEX_CSTRING trigger_field_name,
   Item_trigger_field *trg_fld = new (pc->mem_root) Item_trigger_field(
       POS(), TRG_NEW_ROW, trigger_field_name.str, UPDATE_ACL, false);
 
-  if (trg_fld == NULL || trg_fld->itemize(pc, (Item **)&trg_fld)) return true;
+  if (trg_fld == nullptr || trg_fld->itemize(pc, (Item **)&trg_fld))
+    return true;
   DBUG_ASSERT(trg_fld->type() == Item::TRIGGER_FIELD_ITEM);
 
   sp_instr_set_trigger_field *i = new (pc->mem_root)
@@ -272,7 +273,7 @@ void sp_create_assignment_lex(THD *thd, const char *option_ptr) {
     reliably. So, we set the start pointer of the current statement
     to NULL.
   */
-  sp->m_parser_data.set_current_stmt_start_ptr(NULL);
+  sp->m_parser_data.set_current_stmt_start_ptr(nullptr);
   sp->m_parser_data.set_option_start_ptr(option_ptr);
 
   /* Inherit from outer lex. */
@@ -390,7 +391,7 @@ bool resolve_engine(THD *thd, const LEX_CSTRING &name, bool is_temp_table,
   }
   push_warning_printf(thd, Sql_condition::SL_WARNING, ER_UNKNOWN_STORAGE_ENGINE,
                       ER_THD(thd, ER_UNKNOWN_STORAGE_ENGINE), name.str);
-  *ret = NULL;
+  *ret = nullptr;
   return false;
 }
 
@@ -411,7 +412,7 @@ bool apply_privileges(
 
   for (PT_role_or_privilege *p : privs) {
     Privilege *privilege = p->get_privilege(thd);
-    if (privilege == NULL) return true;
+    if (privilege == nullptr) return true;
 
     if (privilege->type == Privilege::DYNAMIC) {
       // We can push a reference to the PT object since it will have the same
@@ -432,13 +433,13 @@ bool apply_privileges(
       auto grant = static_cast<Static_privilege *>(privilege)->grant;
       auto columns = static_cast<Static_privilege *>(privilege)->columns;
 
-      if (columns == NULL)
+      if (columns == nullptr)
         lex->grant |= grant;
       else {
         for (auto &c : *columns) {
           auto new_str =
               new (thd->mem_root) String(c.str, c.length, system_charset_info);
-          if (new_str == NULL) return true;
+          if (new_str == nullptr) return true;
           List_iterator<LEX_COLUMN> iter(lex->columns);
           class LEX_COLUMN *point;
           while ((point = iter++)) {
@@ -451,7 +452,7 @@ bool apply_privileges(
             point->rights |= grant;
           else {
             LEX_COLUMN *col = new (thd->mem_root) LEX_COLUMN(*new_str, grant);
-            if (col == NULL) return true;
+            if (col == nullptr) return true;
             lex->columns.push_back(col);
           }
         }

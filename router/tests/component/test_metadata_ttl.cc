@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -35,6 +35,7 @@
 #include "mysqlrouter/rest_client.h"
 #include "rest_api_testutils.h"
 #include "router_component_test.h"
+#include "router_component_testutils.h"
 #include "router_config.h"
 #include "tcp_port_pool.h"
 
@@ -94,24 +95,22 @@ class MetadataChacheTTLTest : public RouterComponentTest {
     return result;
   }
 
-  int get_int_field_value(const std::string &json_string,
-                          const std::string &field_name) {
+  auto get_array_field_value(const std::string &json_string,
+                             const std::string &field_name) {
+    std::vector<std::string> result;
+
     rapidjson::Document json_doc;
     json_doc.Parse(json_string.c_str());
-    EXPECT_TRUE(json_doc.HasMember(field_name.c_str()));
-    EXPECT_TRUE(json_doc[field_name.c_str()].IsInt());
+    EXPECT_TRUE(json_doc.HasMember(field_name.c_str()))
+        << "json:" << json_string;
+    EXPECT_TRUE(json_doc[field_name.c_str()].IsArray()) << json_string;
 
-    return json_doc[field_name.c_str()].GetInt();
-  }
+    auto arr = json_doc[field_name.c_str()].GetArray();
+    for (size_t i = 0; i < arr.Size(); ++i) {
+      result.push_back(arr[i].GetString());
+    }
 
-  std::string get_string_field_value(const std::string &json_string,
-                                     const std::string &field_name) {
-    rapidjson::Document json_doc;
-    json_doc.Parse(json_string.c_str());
-    EXPECT_TRUE(json_doc.HasMember(field_name.c_str()));
-    EXPECT_TRUE(json_doc[field_name.c_str()].IsString());
-
-    return json_doc[field_name.c_str()].GetString();
+    return result;
   }
 
   int get_ttl_queries_count(const std::string &json_string) {
@@ -124,29 +123,6 @@ class MetadataChacheTTLTest : public RouterComponentTest {
 
   int get_update_last_check_in_count(const std::string &json_string) {
     return get_int_field_value(json_string, "update_last_check_in_count");
-  }
-
-  bool wait_log_contains(const ProcessWrapper &router,
-                         const std::string &needle,
-                         std::chrono::milliseconds timeout) {
-    if (getenv("WITH_VALGRIND")) {
-      timeout *= 10;
-    }
-
-    const auto MSEC_STEP = 50ms;
-    bool found = false;
-    const auto started = std::chrono::steady_clock::now();
-    do {
-      const std::string log_content = router.get_full_logfile();
-      found = (log_content.find(needle) != log_content.npos);
-      if (!found) {
-        auto step = std::min(timeout, MSEC_STEP);
-        std::this_thread::sleep_for(std::chrono::milliseconds(step));
-        timeout -= step;
-      }
-    } while (!found && timeout > std::chrono::steady_clock::now() - started);
-
-    return found;
   }
 
   bool wait_for_refresh_thread_started(
@@ -187,7 +163,7 @@ class MetadataChacheTTLTest : public RouterComponentTest {
         {"-c", conf_file}, expected_exitcode, true, false);
     if (wait_for_md_refresh_started) {
       bool ready = wait_for_refresh_thread_started(router, 5000ms);
-      EXPECT_TRUE(ready) << router.get_full_logfile();
+      EXPECT_TRUE(ready);
     }
 
     return router;
@@ -289,9 +265,9 @@ TEST_P(MetadataChacheTTLTestParam, CheckTTLValid) {
     // it is timing based test so to decrease random failures chances let's
     // take some error marigin, we kverify that number of metadata queries
     // falls into <expected_count-1, expected_count+1>
-    EXPECT_THAT(ttl_count, IsBetween(test_params.expected_md_queries_count - 1,
-                                     test_params.expected_md_queries_count + 1))
-        << router.get_full_logfile();
+    EXPECT_THAT(ttl_count,
+                IsBetween(test_params.expected_md_queries_count - 1,
+                          test_params.expected_md_queries_count + 1));
   } else {
     // we only check that the TTL was queried at least N times
     EXPECT_GE(ttl_count, test_params.expected_md_queries_count);
@@ -464,7 +440,7 @@ TEST_P(MetadataChacheTTLTestInstanceListUnordered, InstancesListUnordered) {
                                metadata_cache_section, routing_section,
                                EXIT_SUCCESS, true);
 
-  std::this_thread::sleep_for(std::chrono::milliseconds(500));
+  EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0]));
 
   SCOPED_TRACE("// instruct the mocks to return nodes in reverse order");
   std::vector<uint16_t> node_classic_ports_reverse(node_classic_ports.rbegin(),
@@ -473,7 +449,8 @@ TEST_P(MetadataChacheTTLTestInstanceListUnordered, InstancesListUnordered) {
     set_mock_metadata(node_http_ports[i], kGroupID, node_classic_ports_reverse,
                       1);
   }
-  std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+  EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0]));
 
   SCOPED_TRACE("// check it is not treated as a change");
   const std::string needle = "Potential changes detected in cluster";
@@ -544,11 +521,8 @@ TEST_P(MetadataChacheTTLTestInvalidMysqlXPort, InvalidMysqlXPort) {
       "// Even though the metadata contains invalid mysqlx port we still "
       "should be able to connect on the classic port");
   MySQLSession client;
-  try {
-    client.connect("127.0.0.1", router_port, "username", "password", "", "");
-  } catch (...) {
-    FAIL() << router.get_full_logfile();
-  }
+  ASSERT_NO_FATAL_FAILURE(
+      client.connect("127.0.0.1", router_port, "username", "password", "", ""));
 }
 
 INSTANTIATE_TEST_CASE_P(
@@ -611,7 +585,7 @@ TEST_F(MetadataChacheTTLTest, CheckMetadataUpgradeBetweenTTLs) {
   EXPECT_GE(1, count_str_occurences(log_content, needle)) << log_content;
 
   SCOPED_TRACE(
-      "// there should no be any cluster change reported caused by the version "
+      "// there should be no cluster change reported caused by the version "
       "upgrade");
   needle = "Potential changes detected in cluster";
   // 1 is expected, that comes from the inital reading of the metadata
@@ -660,10 +634,9 @@ TEST_P(CheckRouterVersionUpdateOnceTest, CheckRouterVersionUpdateOnce) {
       {md_server_port}, GetParam().cluster_type, GetParam().ttl);
   const std::string routing_section = get_metadata_cache_routing_section(
       router_port, "PRIMARY", "first-available");
-  auto &router =
-      launch_router(temp_test_dir.name(), conf_dir.name(),
-                    metadata_cache_section, routing_section, EXIT_SUCCESS,
-                    /*wait_for_md_refresh_started=*/true);
+  launch_router(temp_test_dir.name(), conf_dir.name(), metadata_cache_section,
+                routing_section, EXIT_SUCCESS,
+                /*wait_for_md_refresh_started=*/true);
 
   SCOPED_TRACE("// let the router run for about 10 ttl periods");
   std::this_thread::sleep_for(1s);
@@ -672,18 +645,27 @@ TEST_P(CheckRouterVersionUpdateOnceTest, CheckRouterVersionUpdateOnce) {
   std::string server_globals =
       MockServerRestClient(md_server_http_port).get_globals_as_json_string();
   const int version_upd_count = get_update_version_count(server_globals);
-  EXPECT_EQ(1, version_upd_count) << router.get_full_logfile();
+  EXPECT_EQ(1, version_upd_count);
 
   SCOPED_TRACE(
       "// Let's check if the first query is starting a trasaction and the "
       "second checking the version");
-  const std::string &first_sql =
-      get_string_field_value(server_globals, "first_query");
-  const std::string &second_sql =
-      get_string_field_value(server_globals, "second_query");
-  EXPECT_STREQ("START TRANSACTION", first_sql.c_str());
+
+  const auto queries = get_array_field_value(server_globals, "queries");
+  EXPECT_EQ(4u, queries.size()) << server_globals;
+
+  EXPECT_STREQ(
+      "SET @@SESSION.autocommit=1, @@SESSION.character_set_client=utf8, "
+      "@@SESSION.character_set_results=utf8, "
+      "@@SESSION.character_set_connection=utf8, "
+      "@@SESSION.sql_mode='ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_"
+      "DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION'",
+      queries.at(0).c_str());
+  EXPECT_STREQ("SET @@SESSION.group_replication_consistency='EVENTUAL'",
+               queries.at(1).c_str());
+  EXPECT_STREQ("START TRANSACTION", queries.at(2).c_str());
   EXPECT_STREQ("SELECT * FROM mysql_innodb_cluster_metadata.schema_version",
-               second_sql.c_str());
+               queries.at(3).c_str());
 
   if (GetParam().cluster_type != ClusterType::GR_V1) {
     SCOPED_TRACE("// last_check_in should be attempted at least once");
@@ -691,7 +673,7 @@ TEST_P(CheckRouterVersionUpdateOnceTest, CheckRouterVersionUpdateOnce) {
         MockServerRestClient(md_server_http_port).get_globals_as_json_string();
     const int last_check_in_upd_count =
         get_update_last_check_in_count(server_globals);
-    EXPECT_GE(1, last_check_in_upd_count) << router.get_full_logfile();
+    EXPECT_GE(1, last_check_in_upd_count);
   }
 }
 
@@ -774,7 +756,7 @@ TEST_P(PermissionErrorOnVersionUpdateTest, PermissionErrorOnVersionUpdate) {
   std::string server_globals =
       MockServerRestClient(md_server_http_port).get_globals_as_json_string();
   const int version_upd_count = get_update_version_count(server_globals);
-  EXPECT_EQ(1, version_upd_count) << router.get_full_logfile();
+  EXPECT_EQ(1, version_upd_count);
 
   SCOPED_TRACE(
       "// It should still not be fatal, the router should accept the "
@@ -839,8 +821,7 @@ TEST_P(UpgradeInProgressTest, UpgradeInProgress) {
   MySQLSession client;
   std::this_thread::sleep_for(500ms);
   ASSERT_NO_FATAL_FAILURE(
-      client.connect("127.0.0.1", router_port, "username", "password", "", ""))
-      << router.get_full_logfile();
+      client.connect("127.0.0.1", router_port, "username", "password", "", ""));
 
   SCOPED_TRACE("// let's mimmic start of the metadata update now");
   auto globals = mock_GR_metadata_as_json("", {md_server_port});
@@ -867,8 +848,7 @@ TEST_P(UpgradeInProgressTest, UpgradeInProgress) {
   server_globals =
       MockServerRestClient(md_server_http_port).get_globals_as_json_string();
   const int metadata_upd_count2 = get_ttl_queries_count(server_globals);
-  EXPECT_EQ(metadata_upd_count, metadata_upd_count2)
-      << router.get_full_logfile();
+  EXPECT_EQ(metadata_upd_count, metadata_upd_count2);
 
   SCOPED_TRACE(
       "// Even though the upgrade is in progress the existing connection "
@@ -900,6 +880,114 @@ INSTANTIATE_TEST_CASE_P(
         MetadataTTLTestParams("metadata_dynamic_nodes_version_update_v2_ar.js",
                               "metadata_upgrade_in_progress_ar_v2",
                               ClusterType::RS_V2, "0.1")),
+    get_test_description);
+
+/**
+ * @test
+ * Verify that when the cluster node returns empty dataset from the
+ * v2_this_instance view, the router fails over to the other known nodes to try
+ * to read the metadata (BUG#30733189)
+ */
+class NodeRemovedTest
+    : public MetadataChacheTTLTest,
+      public ::testing::WithParamInterface<MetadataTTLTestParams> {};
+
+TEST_P(NodeRemovedTest, NodeRemoved) {
+  TempDirectory temp_test_dir;
+  TempDirectory conf_dir("conf");
+  const size_t NUM_NODES = 2;
+  std::vector<uint16_t> node_ports, node_http_ports;
+  std::vector<ProcessWrapper *> cluster_nodes;
+
+  SCOPED_TRACE("// launch cluster with 2 nodes");
+  const std::string json_metadata =
+      get_data_dir().join(GetParam().tracefile).str();
+
+  for (size_t i = 0; i < NUM_NODES; ++i) {
+    node_ports.push_back(port_pool_.get_next_available());
+    node_http_ports.push_back(port_pool_.get_next_available());
+
+    cluster_nodes.push_back(&launch_mysql_server_mock(
+        json_metadata, node_ports[i], EXIT_SUCCESS, false, node_http_ports[i]));
+    ASSERT_NO_FATAL_FAILURE(check_port_ready(*cluster_nodes[i], node_ports[i]));
+    ASSERT_TRUE(
+        MockServerRestClient(node_http_ports[i]).wait_for_rest_endpoint_ready())
+        << cluster_nodes[i]->get_full_output();
+    set_mock_metadata(node_http_ports[i], "", node_ports);
+  }
+
+  for (size_t i = 0; i < NUM_NODES; ++i) {
+    ASSERT_NO_FATAL_FAILURE(check_port_ready(*cluster_nodes[i], node_ports[i]));
+    ASSERT_TRUE(
+        MockServerRestClient(node_http_ports[i]).wait_for_rest_endpoint_ready())
+        << cluster_nodes[i]->get_full_output();
+    set_mock_metadata(node_http_ports[i], "", node_ports);
+  }
+
+  SCOPED_TRACE("// launch the router with metadata-cache configuration");
+  const auto router_port = port_pool_.get_next_available();
+
+  const std::string metadata_cache_section = get_metadata_cache_section(
+      node_ports, GetParam().cluster_type, GetParam().ttl);
+  const std::string routing_section = get_metadata_cache_routing_section(
+      router_port, "PRIMARY", "first-available");
+  auto &router =
+      launch_router(temp_test_dir.name(), conf_dir.name(),
+                    metadata_cache_section, routing_section, EXIT_SUCCESS,
+                    /*wait_for_md_refresh_started=*/true);
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port));
+
+  EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
+  SCOPED_TRACE(
+      "// Make a connection to the primary, it should be the first node");
+  {
+    MySQLSession client;
+    ASSERT_NO_FATAL_FAILURE(client.connect("127.0.0.1", router_port, "username",
+                                           "password", "", ""));
+
+    auto result{client.query_one("select @@port")};
+    EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result)[0]))),
+              node_ports[0]);
+  }
+
+  SCOPED_TRACE(
+      "// Mimic the removal of the first node, this_instance view on this node "
+      "should return empty dataset");
+  auto globals = mock_GR_metadata_as_json("", node_ports);
+  JsonAllocator allocator;
+  globals.AddMember("cluster_type", "", allocator);
+  const auto globals_str = json_to_string(globals);
+  MockServerRestClient(node_http_ports[0]).set_globals(globals_str);
+
+  SCOPED_TRACE(
+      "// Tell the second node that it is a new Primary and the only member of "
+      "the cluster");
+  set_mock_metadata(node_http_ports[1], "", {node_ports[1]});
+
+  SCOPED_TRACE(
+      "// Connect to the router primary port, the connection should be ok and "
+      "we should be connected to the new primary now");
+  EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[1], 2));
+  SCOPED_TRACE("// let us make some user connection via the router port");
+  {
+    MySQLSession client;
+    ASSERT_NO_FATAL_FAILURE(client.connect("127.0.0.1", router_port, "username",
+                                           "password", "", ""));
+
+    auto result{client.query_one("select @@port")};
+    EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result)[0]))),
+              node_ports[1]);
+  }
+}
+
+INSTANTIATE_TEST_CASE_P(
+    NodeRemoved, NodeRemovedTest,
+    ::testing::Values(MetadataTTLTestParams("metadata_dynamic_nodes_v2_gr.js",
+                                            "node_removed_gr_v2",
+                                            ClusterType::GR_V2, "0.1"),
+                      MetadataTTLTestParams("metadata_dynamic_nodes_v2_ar.js",
+                                            "node_removed_ar_v2",
+                                            ClusterType::RS_V2, "0.1")),
     get_test_description);
 
 int main(int argc, char *argv[]) {

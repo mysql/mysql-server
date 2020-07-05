@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,6 @@
 #include <string.h>
 #include <vector>
 
-#include "../components/mysql_server/server_component.h"  // imp_*
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
@@ -37,6 +36,7 @@
 #include "mysql/mysql_lex_string.h"
 #include "mysqld_error.h"
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
+#include "sql/mysqld.h"                      // srv_registry
 #include "sql/resourcegroups/resource_group_mgr.h"  // Resource_group_mgr
 #include "sql/sql_backup_lock.h"  // acquire_shared_backup_lock
 #include "sql/sql_class.h"        // THD
@@ -45,7 +45,7 @@
 
 bool Sql_cmd_install_component::execute(THD *thd) {
   my_service<SERVICE_TYPE(persistent_dynamic_loader)> service_dynamic_loader(
-      "persistent_dynamic_loader", &imp_mysql_server_registry);
+      "persistent_dynamic_loader", srv_registry);
   if (service_dynamic_loader) {
     my_error(ER_COMPONENTS_CANT_ACQUIRE_SERVICE_IMPLEMENTATION, MYF(0),
              "persistent_dynamic_loader");
@@ -79,7 +79,7 @@ bool Sql_cmd_install_component::execute(THD *thd) {
 
 bool Sql_cmd_uninstall_component::execute(THD *thd) {
   my_service<SERVICE_TYPE(persistent_dynamic_loader)> service_dynamic_loader(
-      "persistent_dynamic_loader", &imp_mysql_server_registry);
+      "persistent_dynamic_loader", srv_registry);
   if (service_dynamic_loader) {
     my_error(ER_COMPONENTS_CANT_ACQUIRE_SERVICE_IMPLEMENTATION, MYF(0),
              "persistent_dynamic_loader");

@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -77,10 +77,9 @@ class ha_ndbinfo : public handler {
  private:
   void unpack_record(uchar *dst_row);
 
-  bool is_open(void) const;
-  bool is_closed(void) const { return !is_open(); }
-
-  bool is_offline(void) const;
+  bool is_open() const;
+  bool is_closed() const;
+  bool is_offline() const;
 
   struct ha_ndbinfo_impl &m_impl;
 };

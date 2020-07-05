@@ -303,7 +303,7 @@ static LF_SLIST *linsert(std::atomic<LF_SLIST *> *head, CHARSET_INFO *cs,
     pointer is safe, because dummy nodes are never freed - initialize_bucket()
     uses this fact.
   */
-  return res ? 0 : cursor.curr;
+  return res ? nullptr : cursor.curr;
 }
 
 /*
@@ -379,7 +379,7 @@ static LF_SLIST *my_lsearch(std::atomic<LF_SLIST *> *head, CHARSET_INFO *cs,
   }
   lf_unpin(pins, 0);
   lf_unpin(pins, 1);
-  return res ? cursor.curr : 0;
+  return res ? cursor.curr : nullptr;
 }
 
 static inline const uchar *hash_key(const LF_HASH *hash, const uchar *record,
@@ -613,7 +613,7 @@ void *lf_hash_search(LF_HASH *hash, LF_PINS *pins, const void *key,
   }
   found = my_lsearch(el, hash->charset, my_reverse_bits(hashnr) | 1,
                      pointer_cast<const uchar *>(key), keylen, pins);
-  return found ? found + 1 : 0;
+  return found ? found + 1 : nullptr;
 }
 
 /**
@@ -706,7 +706,7 @@ void *lf_hash_random_match(LF_HASH *hash, LF_PINS *pins,
   lf_unpin(pins, 0);
   lf_unpin(pins, 1);
 
-  return res ? cursor.curr + 1 : 0;
+  return res ? cursor.curr + 1 : nullptr;
 }
 
 static const uchar *dummy_key = pointer_cast<const uchar *>("");
@@ -721,7 +721,7 @@ static int initialize_bucket(LF_HASH *hash, std::atomic<LF_SLIST *> *node,
   uint parent = my_clear_highest_bit(bucket);
   LF_SLIST *dummy =
       (LF_SLIST *)my_malloc(key_memory_lf_slist, sizeof(LF_SLIST), MYF(MY_WME));
-  LF_SLIST *tmp = 0, *cur;
+  LF_SLIST *tmp = nullptr, *cur;
   std::atomic<LF_SLIST *> *el = static_cast<std::atomic<LF_SLIST *> *>(
       lf_dynarray_lvalue(&hash->array, parent));
   if (unlikely(!el || !dummy)) {

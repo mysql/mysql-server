@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -371,77 +371,39 @@ struct PFS_prepared_stmt_stat {
 
 /**
   Statistics for statement usage.
-  This structure uses lazy initialization,
-  controlled by member @c m_timer1_stat.m_count.
 */
 struct PFS_statement_stat {
   PFS_single_stat m_timer1_stat;
-  ulonglong m_error_count;
-  ulonglong m_warning_count;
-  ulonglong m_rows_affected;
-  ulonglong m_lock_time;
-  ulonglong m_rows_sent;
-  ulonglong m_rows_examined;
-  ulonglong m_created_tmp_disk_tables;
-  ulonglong m_created_tmp_tables;
-  ulonglong m_select_full_join;
-  ulonglong m_select_full_range_join;
-  ulonglong m_select_range;
-  ulonglong m_select_range_check;
-  ulonglong m_select_scan;
-  ulonglong m_sort_merge_passes;
-  ulonglong m_sort_range;
-  ulonglong m_sort_rows;
-  ulonglong m_sort_scan;
-  ulonglong m_no_index_used;
-  ulonglong m_no_good_index_used;
+  ulonglong m_error_count{0};
+  ulonglong m_warning_count{0};
+  ulonglong m_rows_affected{0};
+  ulonglong m_lock_time{0};
+  ulonglong m_rows_sent{0};
+  ulonglong m_rows_examined{0};
+  ulonglong m_created_tmp_disk_tables{0};
+  ulonglong m_created_tmp_tables{0};
+  ulonglong m_select_full_join{0};
+  ulonglong m_select_full_range_join{0};
+  ulonglong m_select_range{0};
+  ulonglong m_select_range_check{0};
+  ulonglong m_select_scan{0};
+  ulonglong m_sort_merge_passes{0};
+  ulonglong m_sort_range{0};
+  ulonglong m_sort_rows{0};
+  ulonglong m_sort_scan{0};
+  ulonglong m_no_index_used{0};
+  ulonglong m_no_good_index_used{0};
 
-  PFS_statement_stat() { reset(); }
+  void reset() { new (this) PFS_statement_stat(); }
 
-  inline void reset() { m_timer1_stat.m_count = 0; }
+  void aggregate_counted() { m_timer1_stat.aggregate_counted(); }
 
-  inline void mark_used() { delayed_reset(); }
-
- private:
-  inline void delayed_reset(void) {
-    if (m_timer1_stat.m_count == 0) {
-      m_timer1_stat.reset();
-      m_error_count = 0;
-      m_warning_count = 0;
-      m_rows_affected = 0;
-      m_lock_time = 0;
-      m_rows_sent = 0;
-      m_rows_examined = 0;
-      m_created_tmp_disk_tables = 0;
-      m_created_tmp_tables = 0;
-      m_select_full_join = 0;
-      m_select_full_range_join = 0;
-      m_select_range = 0;
-      m_select_range_check = 0;
-      m_select_scan = 0;
-      m_sort_merge_passes = 0;
-      m_sort_range = 0;
-      m_sort_rows = 0;
-      m_sort_scan = 0;
-      m_no_index_used = 0;
-      m_no_good_index_used = 0;
-    }
-  }
-
- public:
-  inline void aggregate_counted() {
-    delayed_reset();
-    m_timer1_stat.aggregate_counted();
-  }
-
-  inline void aggregate_value(ulonglong value) {
-    delayed_reset();
+  void aggregate_value(ulonglong value) {
     m_timer1_stat.aggregate_value(value);
   }
 
-  inline void aggregate(const PFS_statement_stat *stat) {
+  void aggregate(const PFS_statement_stat *stat) {
     if (stat->m_timer1_stat.m_count != 0) {
-      delayed_reset();
       m_timer1_stat.aggregate_no_check(&stat->m_timer1_stat);
 
       m_error_count += stat->m_error_count;
@@ -565,11 +527,13 @@ struct PFS_error_single_stat {
   }
 };
 
-/* Statistics for all server errors. */
+/** Statistics for all server errors. */
 struct PFS_error_stat {
+  /** The number of errors, including +1 for the NULL row. */
+  size_t m_max_errors;
   PFS_error_single_stat *m_stat;
 
-  PFS_error_stat() { m_stat = NULL; }
+  PFS_error_stat() : m_max_errors(0), m_stat(nullptr) {}
 
   const PFS_error_single_stat *get_stat(uint error_index) const {
     return &m_stat[error_index];
@@ -577,7 +541,7 @@ struct PFS_error_stat {
 
   ulonglong count(void) {
     ulonglong total = 0;
-    for (uint i = 0; i < max_server_errors + 1; i++) {
+    for (uint i = 0; i < m_max_errors; i++) {
       total += m_stat[i].count();
     }
     return total;
@@ -585,40 +549,41 @@ struct PFS_error_stat {
 
   ulonglong count(uint error_index) { return m_stat[error_index].count(); }
 
-  inline void init(PFS_builtin_memory_class *memory_class) {
-    if (max_server_errors == 0) {
+  inline void init(PFS_builtin_memory_class *memory_class, size_t max_errors) {
+    if (max_errors == 0) {
       return;
     }
 
-    /* allocate memory for errors' stats. +1 is for NULL row */
-    m_stat = PFS_MALLOC_ARRAY(memory_class, max_server_errors + 1,
+    m_max_errors = max_errors;
+    /* Allocate memory for errors' stats. The NULL row is already included. */
+    m_stat = PFS_MALLOC_ARRAY(memory_class, m_max_errors,
                               sizeof(PFS_error_single_stat),
                               PFS_error_single_stat, MYF(MY_ZEROFILL));
     reset();
   }
 
   inline void cleanup(PFS_builtin_memory_class *memory_class) {
-    if (m_stat == NULL) {
+    if (m_stat == nullptr) {
       return;
     }
 
-    PFS_FREE_ARRAY(memory_class, max_server_errors + 1,
-                   sizeof(PFS_error_single_stat), m_stat);
-    m_stat = NULL;
+    PFS_FREE_ARRAY(memory_class, m_max_errors, sizeof(PFS_error_single_stat),
+                   m_stat);
+    m_stat = nullptr;
   }
 
   inline void reset() {
-    if (m_stat == NULL) {
+    if (m_stat == nullptr) {
       return;
     }
 
-    for (uint i = 0; i < max_server_errors + 1; i++) {
+    for (uint i = 0; i < m_max_errors; i++) {
       m_stat[i].reset();
     }
   }
 
   inline void aggregate_count(int error_index, int error_operation) {
-    if (m_stat == NULL) {
+    if (m_stat == nullptr) {
       return;
     }
 
@@ -627,20 +592,25 @@ struct PFS_error_stat {
   }
 
   inline void aggregate(const PFS_error_single_stat *stat, uint error_index) {
-    if (m_stat == NULL) {
+    if (m_stat == nullptr) {
       return;
     }
 
-    DBUG_ASSERT(error_index <= max_server_errors);
+    DBUG_ASSERT(error_index < m_max_errors);
     m_stat[error_index].aggregate(stat);
   }
 
   inline void aggregate(const PFS_error_stat *stat) {
-    if (m_stat == NULL) {
+    if (m_stat == nullptr) {
       return;
     }
 
-    for (uint i = 0; i < max_server_errors + 1; i++) {
+    /*
+      Sizes can be different, for example when aggregating
+      per session statistics into global statistics.
+    */
+    size_t common_max = std::min(m_max_errors, stat->m_max_errors);
+    for (uint i = 0; i < common_max; i++) {
       m_stat[i].aggregate(&stat->m_stat[i]);
     }
   }
@@ -1239,7 +1209,7 @@ struct PFS_memory_shared_stat {
     if ((m_alloc_count_capacity >= 1) && (m_alloc_size_capacity >= size)) {
       m_alloc_count_capacity--;
       m_alloc_size_capacity -= size;
-      return NULL;
+      return nullptr;
     }
 
     delta->reset();
@@ -1271,7 +1241,7 @@ struct PFS_memory_shared_stat {
     m_free_size += old_size;
 
     if (new_size == old_size) {
-      return NULL;
+      return nullptr;
     }
 
     if (new_size > old_size) {
@@ -1281,7 +1251,7 @@ struct PFS_memory_shared_stat {
 
       if (m_alloc_size_capacity >= size_delta) {
         m_alloc_size_capacity -= size_delta;
-        return NULL;
+        return nullptr;
       }
 
       delta->reset();
@@ -1294,7 +1264,7 @@ struct PFS_memory_shared_stat {
 
       if (m_free_size_capacity >= size_delta) {
         m_free_size_capacity -= size_delta;
-        return NULL;
+        return nullptr;
       }
 
       delta->reset();
@@ -1317,7 +1287,7 @@ struct PFS_memory_shared_stat {
     if ((m_free_count_capacity >= 1) && (m_free_size_capacity >= size)) {
       m_free_count_capacity--;
       m_free_size_capacity -= size;
-      return NULL;
+      return nullptr;
     }
 
     delta->reset();
@@ -1390,7 +1360,7 @@ struct PFS_memory_shared_stat {
     }
 
     if (!has_remaining) {
-      return NULL;
+      return nullptr;
     }
 
     delta_buffer->m_alloc_count_delta = remaining_alloc_count;
@@ -1479,7 +1449,7 @@ struct PFS_memory_safe_stat {
     if ((m_alloc_count_capacity >= 1) && (m_alloc_size_capacity >= size)) {
       m_alloc_count_capacity--;
       m_alloc_size_capacity -= size;
-      return NULL;
+      return nullptr;
     }
 
     delta->reset();
@@ -1511,7 +1481,7 @@ struct PFS_memory_safe_stat {
     m_free_size += old_size;
 
     if (new_size == old_size) {
-      return NULL;
+      return nullptr;
     }
 
     if (new_size > old_size) {
@@ -1521,7 +1491,7 @@ struct PFS_memory_safe_stat {
 
       if (m_alloc_size_capacity >= size_delta) {
         m_alloc_size_capacity -= size_delta;
-        return NULL;
+        return nullptr;
       }
 
       delta->reset();
@@ -1534,7 +1504,7 @@ struct PFS_memory_safe_stat {
 
       if (m_free_size_capacity >= size_delta) {
         m_free_size_capacity -= size_delta;
-        return NULL;
+        return nullptr;
       }
 
       delta->reset();
@@ -1557,7 +1527,7 @@ struct PFS_memory_safe_stat {
     if ((m_free_count_capacity >= 1) && (m_free_size_capacity >= size)) {
       m_free_count_capacity--;
       m_free_size_capacity -= size;
-      return NULL;
+      return nullptr;
     }
 
     delta->reset();

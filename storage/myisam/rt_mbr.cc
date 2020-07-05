@@ -22,6 +22,8 @@
 
 #include "storage/myisam/rt_mbr.h"
 
+#include <algorithm>
+
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_double2ulonglong.h"
@@ -302,8 +304,8 @@ int rtree_d_mbr(HA_KEYSEG *keyseg, uchar *a, uint key_length, double *res) {
     bmin = korr_func(b);                               \
     amax = korr_func(a + len);                         \
     bmax = korr_func(b + len);                         \
-    amin = MY_MIN(amin, bmin);                         \
-    amax = MY_MAX(amax, bmax);                         \
+    amin = std::min(amin, bmin);                       \
+    amax = std::max(amax, bmax);                       \
     store_func(c, amin);                               \
     store_func(c + len, amax);                         \
   }
@@ -315,8 +317,8 @@ int rtree_d_mbr(HA_KEYSEG *keyseg, uchar *a, uint key_length, double *res) {
     bmin = get_func(b);                              \
     amax = get_func(a + len);                        \
     bmax = get_func(b + len);                        \
-    amin = MY_MIN(amin, bmin);                       \
-    amax = MY_MAX(amax, bmax);                       \
+    amin = std::min(amin, bmin);                     \
+    amax = std::max(amax, bmax);                     \
     store_func(c, amin);                             \
     store_func(c + len, amax);                       \
   }
@@ -389,8 +391,8 @@ int rtree_combine_rect(HA_KEYSEG *keyseg, uchar *a, uchar *b, uchar *c,
     bmin = korr_func(b);                       \
     amax = korr_func(a + len);                 \
     bmax = korr_func(b + len);                 \
-    amin = MY_MAX(amin, bmin);                 \
-    amax = MY_MIN(amax, bmax);                 \
+    amin = std::max(amin, bmin);               \
+    amax = std::min(amax, bmax);               \
     if (amin >= amax) return 0;                \
     res *= amax - amin;                        \
   }
@@ -402,8 +404,8 @@ int rtree_combine_rect(HA_KEYSEG *keyseg, uchar *a, uchar *b, uchar *c,
     bmin = get_func(b);                      \
     amax = get_func(a + len);                \
     bmax = get_func(b + len);                \
-    amin = MY_MAX(amin, bmin);               \
-    amax = MY_MIN(amax, bmax);               \
+    amin = std::max(amin, bmin);             \
+    amax = std::min(amax, bmax);             \
     if (amin >= amax) return 0;              \
     res *= amax - amin;                      \
   }
@@ -466,26 +468,28 @@ double rtree_overlapping_area(HA_KEYSEG *keyseg, uchar *a, uchar *b,
   return res;
 }
 
-#define RT_AREA_INC_KORR(type, korr_func, len)                                \
-  {                                                                           \
-    type amin, amax, bmin, bmax;                                              \
-    amin = korr_func(a);                                                      \
-    bmin = korr_func(b);                                                      \
-    amax = korr_func(a + len);                                                \
-    bmax = korr_func(b + len);                                                \
-    a_area *= (((double)amax) - ((double)amin));                              \
-    loc_ab_area *= ((double)MY_MAX(amax, bmax) - (double)MY_MIN(amin, bmin)); \
+#define RT_AREA_INC_KORR(type, korr_func, len)                         \
+  {                                                                    \
+    type amin, amax, bmin, bmax;                                       \
+    amin = korr_func(a);                                               \
+    bmin = korr_func(b);                                               \
+    amax = korr_func(a + len);                                         \
+    bmax = korr_func(b + len);                                         \
+    a_area *= (((double)amax) - ((double)amin));                       \
+    loc_ab_area *=                                                     \
+        ((double)std::max(amax, bmax) - (double)std::min(amin, bmin)); \
   }
 
-#define RT_AREA_INC_GET(type, get_func, len)                                  \
-  {                                                                           \
-    type amin, amax, bmin, bmax;                                              \
-    amin = get_func(a);                                                       \
-    bmin = get_func(b);                                                       \
-    amax = get_func(a + len);                                                 \
-    bmax = get_func(b + len);                                                 \
-    a_area *= (((double)amax) - ((double)amin));                              \
-    loc_ab_area *= ((double)MY_MAX(amax, bmax) - (double)MY_MIN(amin, bmin)); \
+#define RT_AREA_INC_GET(type, get_func, len)                           \
+  {                                                                    \
+    type amin, amax, bmin, bmax;                                       \
+    amin = get_func(a);                                                \
+    bmin = get_func(b);                                                \
+    amax = get_func(a + len);                                          \
+    bmax = get_func(b + len);                                          \
+    a_area *= (((double)amax) - ((double)amin));                       \
+    loc_ab_area *=                                                     \
+        ((double)std::max(amax, bmax) - (double)std::min(amin, bmin)); \
   }
 
 /*
@@ -558,26 +562,28 @@ safe_end:
   return loc_ab_area - a_area;
 }
 
-#define RT_PERIM_INC_KORR(type, korr_func, len)                             \
-  {                                                                         \
-    type amin, amax, bmin, bmax;                                            \
-    amin = korr_func(a);                                                    \
-    bmin = korr_func(b);                                                    \
-    amax = korr_func(a + len);                                              \
-    bmax = korr_func(b + len);                                              \
-    a_perim += (((double)amax) - ((double)amin));                           \
-    *ab_perim += ((double)MY_MAX(amax, bmax) - (double)MY_MIN(amin, bmin)); \
+#define RT_PERIM_INC_KORR(type, korr_func, len)                        \
+  {                                                                    \
+    type amin, amax, bmin, bmax;                                       \
+    amin = korr_func(a);                                               \
+    bmin = korr_func(b);                                               \
+    amax = korr_func(a + len);                                         \
+    bmax = korr_func(b + len);                                         \
+    a_perim += (((double)amax) - ((double)amin));                      \
+    *ab_perim +=                                                       \
+        ((double)std::max(amax, bmax) - (double)std::min(amin, bmin)); \
   }
 
-#define RT_PERIM_INC_GET(type, get_func, len)                               \
-  {                                                                         \
-    type amin, amax, bmin, bmax;                                            \
-    amin = get_func(a);                                                     \
-    bmin = get_func(b);                                                     \
-    amax = get_func(a + len);                                               \
-    bmax = get_func(b + len);                                               \
-    a_perim += (((double)amax) - ((double)amin));                           \
-    *ab_perim += ((double)MY_MAX(amax, bmax) - (double)MY_MIN(amin, bmin)); \
+#define RT_PERIM_INC_GET(type, get_func, len)                          \
+  {                                                                    \
+    type amin, amax, bmin, bmax;                                       \
+    amin = get_func(a);                                                \
+    bmin = get_func(b);                                                \
+    amax = get_func(a + len);                                          \
+    bmax = get_func(b + len);                                          \
+    a_perim += (((double)amax) - ((double)amin));                      \
+    *ab_perim +=                                                       \
+        ((double)std::max(amax, bmax) - (double)std::min(amin, bmin)); \
   }
 
 /*

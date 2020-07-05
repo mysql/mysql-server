@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_error_reporter\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/23/2019
+.\"      Date: 03/06/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_ERROR_REPORTER\FR" "1" "11/23/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDB_ERROR_REPORTER\FR" "1" "03/06/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -47,7 +47,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.289.\ \&Command\-line options for the ndb_error_reporter program
+.B Table\ \&22.260.\ \&Command\-line options for the ndb_error_reporter program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -65,40 +65,40 @@ l l l
 l l l.
 T{
 .PP
---connection-timeout=timeout
+\fB \fR\fB--connection-timeout=timeout\fR\fB \fR
 T}:T{
-Number of seconds to wait when connecting to nodes before timing out.
+Number of seconds to wait when connecting to nodes before timing out
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---dry-scp
+\fB \fR\fB--dry-scp\fR\fB \fR
 T}:T{
-Disable scp with remote hosts; used only for testing.
+Disable scp with remote hosts; used only for testing
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---fs
+\fB \fR\fB--fs\fR\fB \fR
 T}:T{
 Include file system data in error report; can use a large amount of disk
               space
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---skip-nodegroup=nodegroup_id
+\fB \fR\fB--skip-nodegroup=nodegroup_id\fR\fB \fR
 T}:T{
-Skip all nodes in the node group having this ID.
+Skip all nodes in the node group having this ID
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 .TE
 .sp 1
@@ -297,7 +297,7 @@ Skip all nodes belong to the node group having the supplied node group ID\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

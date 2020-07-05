@@ -31,7 +31,7 @@
 #include <memory>
 #include <utility>
 
-#include "my_dbug.h"
+#include "my_dbug.h"  // NOLINT(build/include_subdir)
 
 #include "plugin/x/protocol/stream/compression/compression_algorithm_interface.h"
 
@@ -39,10 +39,11 @@ namespace protocol {
 
 class Compression_algorithm_lz4 : public Compression_algorithm_interface {
  public:
-  Compression_algorithm_lz4() {
+  explicit Compression_algorithm_lz4(const int32_t level) {
     LZ4F_createCompressionContext(&m_ctxt, LZ4F_VERSION);
     m_lz4f_frame_preferences.frameInfo.contentSize = 0;
     m_lz4f_frame_preferences.autoFlush = 0;
+    m_lz4f_frame_preferences.compressionLevel = level;
 
     // Get compression buffer size for average input data size
     const auto k_compress_bound =
@@ -57,6 +58,8 @@ class Compression_algorithm_lz4 : public Compression_algorithm_interface {
   }
 
   ~Compression_algorithm_lz4() override { LZ4F_freeCompressionContext(m_ctxt); }
+
+  void set_pledged_source_size(const int /*src_size*/) override {}
 
   void set_input(uint8_t *in_ptr, const int in_size) override {
     DBUG_LOG("debug", "set_input (size:" << in_size << ")");
@@ -104,6 +107,9 @@ class Compression_algorithm_lz4 : public Compression_algorithm_interface {
 
     return true;
   }
+
+  static int32_t get_level_min() { return 0; }
+  static int32_t get_level_max() { return 16; }
 
  private:
   using Compression_method = bool (Compression_algorithm_lz4::*)(uint8_t *,
@@ -214,7 +220,7 @@ class Compression_algorithm_lz4 : public Compression_algorithm_interface {
   }
 
   bool unsecure_flush(uint8_t *output_ptr, int *output_size,
-                      const bool limit_intput) {
+                      const bool /*limit_intput*/) {
     DBUG_TRACE;
     auto data_ptr = output_ptr;
     auto data_size = *output_size;

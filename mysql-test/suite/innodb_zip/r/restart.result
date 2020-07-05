@@ -1258,3 +1258,5 @@ mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATA
 # Cleanup
 #
 DROP DATABASE move_test;
+# restart
+set global innodb_file_per_table=1;

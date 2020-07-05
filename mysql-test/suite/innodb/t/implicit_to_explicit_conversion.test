@@ -158,6 +158,8 @@ INSERT INTO t1 (id) VALUES (1),(3);
         WAIT_FOR c2_can_convert";
     SET DEBUG_SYNC = "after_lock_rec_convert_impl_to_expl_for_trx
         SIGNAL c2_done_conversion";
+    SET DEBUG_SYNC = "after_lock_clust_rec_read_check_and_lock
+        SIGNAL c2_done_locking";
     --send SELECT * FROM t1 WHERE id=2 FOR UPDATE
 
 --connection C1
@@ -180,6 +182,7 @@ INSERT INTO t1 (id) VALUES (1),(3);
     SET DEBUG_SYNC = "now WAIT_FOR c3_will_lock";
     SET DEBUG_SYNC = "now SIGNAL c2_can_convert";
     SET DEBUG_SYNC = "now WAIT_FOR c2_done_conversion";
+    SET DEBUG_SYNC = "now WAIT_FOR c2_done_locking";
     SET DEBUG_SYNC = "now SIGNAL c3_can_lock";
     SET DEBUG_SYNC = "now WAIT_FOR c3_will_wait";
     SET DEBUG_SYNC = "now SIGNAL c1_can_commit";
@@ -237,6 +240,8 @@ INSERT INTO t1 (id) VALUES (1),(3);
         WAIT_FOR c2_can_convert";
     SET DEBUG_SYNC = "after_lock_rec_convert_impl_to_expl_for_trx
         SIGNAL c2_done_conversion";
+    SET DEBUG_SYNC = "after_lock_clust_rec_read_check_and_lock
+        SIGNAL c2_done_locking";
     --send SELECT * FROM t1 WHERE id=2 FOR UPDATE
 
 --connection C1
@@ -261,7 +266,9 @@ INSERT INTO t1 (id) VALUES (1),(3);
     SET DEBUG_SYNC = "now WAIT_FOR c3_will_lock";
     SET DEBUG_SYNC = "now SIGNAL c2_can_convert";
     SET DEBUG_SYNC = "now WAIT_FOR c2_done_conversion";
+    SET DEBUG_SYNC = "now WAIT_FOR c2_done_locking";
     SET DEBUG_SYNC = "now SIGNAL c3_can_lock";
+
     SET DEBUG_SYNC = "now WAIT_FOR c3_will_wait";
     SET DEBUG_SYNC = "now SIGNAL c1_can_commit";
     COMMIT;

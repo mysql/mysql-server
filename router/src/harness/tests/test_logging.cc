@@ -36,7 +36,7 @@
 #endif
 
 ////////////////////////////////////////
-// Third-party include files
+// Third-party include'files
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -59,6 +59,8 @@ using mysql_harness::logging::Handler;
 using mysql_harness::logging::log_debug;
 using mysql_harness::logging::log_error;
 using mysql_harness::logging::log_info;
+using mysql_harness::logging::log_note;
+using mysql_harness::logging::log_system;
 using mysql_harness::logging::log_warning;
 using mysql_harness::logging::Logger;
 using mysql_harness::logging::LogLevel;
@@ -552,9 +554,11 @@ TEST_F(LoggingTest, Messages) {
     EXPECT_THAT(buffer.str(), HasSubstr(level_str));
   };
 
+  check_message("Slippery spaghetti", LogLevel::kSystem, " SYSTEM ");
   check_message("Crazy noodles", LogLevel::kError, " ERROR ");
   check_message("Sloth tantrum", LogLevel::kWarning, " WARNING ");
   check_message("Russel's teapot", LogLevel::kInfo, " INFO ");
+  check_message("Rabbit hole", LogLevel::kNote, " NOTE ");
   check_message("Bugs galore", LogLevel::kDebug, " DEBUG ");
 
   // Ensure no truncation of long messages
@@ -702,9 +706,9 @@ TEST_P(LogLevelTest, Level) {
   g_registry->remove_handler("TestStreamHandler");
 }
 
-const LogLevel all_levels[]{LogLevel::kFatal, LogLevel::kError,
-                            LogLevel::kWarning, LogLevel::kInfo,
-                            LogLevel::kDebug};
+const LogLevel all_levels[]{
+    LogLevel::kFatal, LogLevel::kSystem, LogLevel::kError, LogLevel::kWarning,
+    LogLevel::kInfo,  LogLevel::kNote,   LogLevel::kDebug};
 
 INSTANTIATE_TEST_CASE_P(CheckLogLevel, LogLevelTest,
                         Combine(ValuesIn(all_levels), ValuesIn(all_levels)));
@@ -785,29 +789,53 @@ TEST(FunctionalTest, Handlers) {
   attach_handler_to_all_loggers(*g_registry, StreamHandler::kDefaultName);
 
   set_log_level_for_all_loggers(*g_registry, LogLevel::kDebug);
+  expect_log(log_system, buffer, "SYSTEM");
   expect_log(log_error, buffer, "ERROR");
   expect_log(log_warning, buffer, "WARNING");
   expect_log(log_info, buffer, "INFO");
+  expect_log(log_note, buffer, "NOTE");
   expect_log(log_debug, buffer, "DEBUG");
 
+  set_log_level_for_all_loggers(*g_registry, LogLevel::kNote);
+  expect_log(log_system, buffer, "SYSTEM");
+  expect_log(log_error, buffer, "ERROR");
+  expect_log(log_warning, buffer, "WARNING");
+  expect_log(log_info, buffer, "INFO");
+  expect_log(log_note, buffer, "NOTE");
+  expect_no_log(log_debug, buffer);
+
   set_log_level_for_all_loggers(*g_registry, LogLevel::kError);
+  expect_log(log_system, buffer, "SYSTEM");
   expect_log(log_error, buffer, "ERROR");
   expect_no_log(log_warning, buffer);
   expect_no_log(log_info, buffer);
+  expect_no_log(log_note, buffer);
   expect_no_log(log_debug, buffer);
 
   set_log_level_for_all_loggers(*g_registry, LogLevel::kWarning);
+  expect_log(log_system, buffer, "SYSTEM");
   expect_log(log_error, buffer, "ERROR");
   expect_log(log_warning, buffer, "WARNING");
   expect_no_log(log_info, buffer);
+  expect_no_log(log_note, buffer);
+  expect_no_log(log_debug, buffer);
+
+  set_log_level_for_all_loggers(*g_registry, LogLevel::kSystem);
+  expect_log(log_system, buffer, "SYSTEM");
+  expect_no_log(log_error, buffer);
+  expect_no_log(log_warning, buffer);
+  expect_no_log(log_info, buffer);
+  expect_no_log(log_note, buffer);
   expect_no_log(log_debug, buffer);
 
   // Check that nothing is logged when the handler is unregistered.
   g_registry->remove_handler(StreamHandler::kDefaultName);
   set_log_level_for_all_loggers(*g_registry, LogLevel::kNotSet);
+  expect_no_log(log_system, buffer);
   expect_no_log(log_error, buffer);
   expect_no_log(log_warning, buffer);
   expect_no_log(log_info, buffer);
+  expect_no_log(log_note, buffer);
   expect_no_log(log_debug, buffer);
 }
 

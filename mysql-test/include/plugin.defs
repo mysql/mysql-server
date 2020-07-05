@@ -29,6 +29,7 @@
 # with name1, name2 etc from the comma separated list of plugin names
 # in the optional 4th argument.
 auth_test_plugin                        plugin_output_directory PLUGIN_AUTH      test_plugin_server,cleartext_plugin_server
+mysql_clone                             plugin_output_directory CLONE_PLUGIN    clone
 qa_auth_interface                       plugin_output_directory PLUGIN_AUTH_INTERFACE qa_auth_interface
 qa_auth_server                          plugin_output_directory PLUGIN_AUTH_SERVER    qa_auth_server
 qa_auth_client                          plugin_output_directory PLUGIN_AUTH_CLIENT    qa_auth_client
@@ -105,6 +106,9 @@ component_test_backup_lock_service   plugin_output_directory  TEST_BACKUP_LOCK_S
 component_test_pfs_notification         plugin_output_directory  TEST_PFS_NOTIFICATION_SERVICE
 component_test_pfs_resource_group       plugin_output_directory  TEST_PFS_RESOURCE_GROUP_SERVICE
 component_log_sink_json         plugin_output_directory  LOGGING_COMPONENTS
+
+# Test-only component to reset the state of X plugin
+component_mysqlx_global_reset   plugin_output_directory    MYSQLXGLOBALRESET
 
 # pfs_example_plugin_employee plugin
 pfs_example_plugin_employee    plugin_output_directory  PFS_EXAMPLE_PLUGIN_EMPLOYEE pfs_example_plugin_employee

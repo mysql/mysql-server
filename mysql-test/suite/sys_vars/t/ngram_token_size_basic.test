@@ -50,3 +50,7 @@ let $restart_parameters = restart: --ngram_token_size=10;
 --disable_warnings
 select * from performance_schema.global_variables where variable_name='ngram_token_size';
 --enable_warnings
+
+# restore default values
+let $restart_parameters = restart:;
+source include/restart_mysqld.inc;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -96,7 +96,8 @@ static char log_error_filter_decompile[LOG_FILTER_DUMP_BUFF_SIZE] = "";
 static SHOW_VAR show_var_filter_rules_decompile[] = {
     {LOG_FILTER_LANGUAGE_NAME "." LOG_FILTER_STATUS_NAME,
      (char *)&log_error_filter_decompile, SHOW_CHAR, SHOW_SCOPE_GLOBAL},
-    {0, 0, SHOW_UNDEF, SHOW_SCOPE_UNDEF}  // null terminator required
+    {nullptr, nullptr, SHOW_UNDEF,
+     SHOW_SCOPE_UNDEF}  // null terminator required
 };
 
 /*
@@ -1762,7 +1763,7 @@ REQUIRES_SERVICE(component_sys_variable_register),
 
 /* component description */
 BEGIN_COMPONENT_METADATA(log_filter_dragnet)
-METADATA("mysql.author", "T.A. Nuernberg, Oracle Corporation"),
+METADATA("mysql.author", "Oracle Corporation"),
     METADATA("mysql.license", "GPL"), METADATA("log_service_type", "filter"),
     END_COMPONENT_METADATA();
 

@@ -1,4 +1,4 @@
--- Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License, version 2.0,
@@ -774,6 +774,13 @@ FROM mysql.user WHERE super_priv = 'Y' AND @hadTableEncryptionAdminPriv = 0 AND 
 DELETE FROM global_grants WHERE user = 'mysql.session' AND host = 'localhost' AND priv = 'TABLE_ENCRYPTION_ADMIN';
 COMMIT;
 
+-- Add the privilege SHOW_ROUTINE for every user who has global SELECT privilege
+-- provided that there isn't a user who already has the privilege SHOW_ROUTINE
+SET @hadShowRoutinePriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'SHOW_ROUTINE');
+INSERT INTO global_grants SELECT user, host, 'SHOW_ROUTINE', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE select_priv = 'Y' AND @hadShowRoutinePriv = 0 AND user NOT IN ('mysql.infoschema','mysql.session','mysql.sys');
+COMMIT;
+
 # Activate the new, possible modified privilege tables
 # This should not be needed, but gives us some extra testing that the above
 # changes was correct
@@ -860,6 +867,9 @@ ALTER TABLE slave_relay_log_info MODIFY Relay_log_name TEXT CHARACTER SET utf8 C
                                  MODIFY Sql_delay INTEGER COMMENT 'The number of seconds that the slave must lag behind the master.',
                                  MODIFY Number_of_workers INTEGER UNSIGNED,
                                  MODIFY Id INTEGER UNSIGNED COMMENT 'Internal Id that uniquely identifies this record.';
+
+# Columns added to keep information about REQUIRE_TABLE_PRIMARY_KEY_CHECK replication field
+ALTER TABLE slave_relay_log_info ADD Require_table_primary_key_check ENUM('STREAM','ON','OFF') NOT NULL DEFAULT 'STREAM' COMMENT 'Indicates what is the channel policy regarding tables having primary keys on create and alter table queries' AFTER Require_row_format;
 
 #
 # Drop legacy NDB distributed privileges function & procedures

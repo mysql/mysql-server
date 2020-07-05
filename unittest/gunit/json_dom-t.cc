@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,13 +51,12 @@ class JsonDomTest : public ::testing::Test {
  protected:
   Base_mock_field_json m_field{};
   Fake_TABLE m_table{&m_field};
-  virtual void SetUp() {
+  void SetUp() override {
     initializer.SetUp();
     m_field.make_writable();
     m_table.in_use = thd();
-    init_alloc_root(PSI_NOT_INSTRUMENTED, &m_table.mem_root, 256, 0);
   }
-  virtual void TearDown() {
+  void TearDown() override {
     m_table.cleanup_partial_update();
     initializer.TearDown();
   }
@@ -243,7 +242,7 @@ TEST_F(JsonDomTest, BasicTest) {
   /* Object access: key look-up */
   EXPECT_EQ(enum_json_type::J_OBJECT, elt->json_type());
   Json_object *const object_elt = down_cast<Json_object *>(elt);
-  EXPECT_TRUE(object_elt != NULL);
+  EXPECT_TRUE(object_elt != nullptr);
   const Json_dom *const elt2 = object_elt->get(std::string("key1"));
   EXPECT_EQ(std::string("null"), format(elt2));
 
@@ -337,7 +336,7 @@ TEST_F(JsonDomTest, BasicTest) {
   const char *encoded = "vrr+yg==";
   char *buff = new char[static_cast<size_t>(
       base64_needed_decoded_length(static_cast<int>(std::strlen(encoded))))];
-  EXPECT_EQ(4, base64_decode(encoded, std::strlen(encoded), buff, NULL, 0));
+  EXPECT_EQ(4, base64_decode(encoded, std::strlen(encoded), buff, nullptr, 0));
   EXPECT_EQ(0xCAFEBABE, uint4korr(buff));
   delete[] buff;
 
@@ -1245,10 +1244,10 @@ TEST_F(JsonDomTest, ApplyJsonDiffs_CollectBinaryDiffs) {
   Run a microbenchmarks that tests how fast Json_wrapper::seek() is on
   a wrapper that wraps a Json_dom.
 
-  @param num_iterations  the number of iterations to run
-  @param path            the JSON path to search for
-  @param need_only_one   true if the search should stop after the first match
-  @param expected_hits   the number of expected matches
+  @param num_iterations   the number of iterations to run
+  @param path             the JSON path to search for
+  @param need_only_one    true if the search should stop after the first match
+  @param expected_matches the number of expected matches
 */
 static void benchmark_dom_seek(size_t num_iterations, const Json_path &path,
                                bool need_only_one, size_t expected_matches) {
@@ -1303,10 +1302,10 @@ BENCHMARK(BM_JsonDomSearchKey)
   Run a microbenchmarks that tests how fast Json_wrapper::seek() is on
   a wrapper that wraps a binary JSON value.
 
-  @param num_iterations  the number of iterations to run
-  @param path            the JSON path to search for
-  @param need_only_one   true if the search should stop after the first match
-  @param expected_hits   the number of expected matches
+  @param num_iterations   the number of iterations to run
+  @param path             the JSON path to search for
+  @param need_only_one    true if the search should stop after the first match
+  @param expected_matches the number of expected matches
 */
 static void benchmark_binary_seek(size_t num_iterations, const Json_path &path,
                                   bool need_only_one, size_t expected_matches) {

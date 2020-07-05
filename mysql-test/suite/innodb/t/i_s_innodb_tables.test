@@ -1,0 +1,81 @@
+--source include/have_debug_sync.inc
+
+--echo #
+--echo # Bug#30591967  BACKUP FAILS WITH "CANNOT STORE RESULT" ERROR
+--echo # WHEN DDL EXECUTED IN PARALLEL
+--echo #
+
+--echo #
+--echo # Case 1 : Using non-partitioned table.
+--echo #
+
+CREATE DATABASE db1;
+CREATE TABLE db1.t1 (f1 INT) ENGINE='InnoDB';
+--replace_column 1 # 5 #
+SELECT * FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE name like 'db1/t1';
+
+
+--echo # Evict db1.t1 from innodb cache by restarting the server.
+--source include/restart_mysqld.inc
+
+connect (con1,localhost,root,,);
+
+--echo # Wait after acquiring table object, but before schema object is acquired.
+SET GLOBAL DEBUG= '+d,before_acquire_schema_by_private_id';
+SET DEBUG_SYNC="wait_before_acquire_schema_by_private_id SIGNAL cond1 WAIT_FOR cond2";
+--send SELECT * FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE name = 'db1/t1';
+
+--echo # Drop the schema db1 in other session.
+connection default;
+SET DEBUG_SYNC= 'now WAIT_FOR cond1';
+DROP DATABASE db1;
+SET DEBUG_SYNC= 'now SIGNAL cond2';
+
+--echo # Continue acquiring db1. reap results
+--echo # in a error ER_BAD_DB_ERROR without fix.
+connection con1;
+--reap
+
+--echo # Cleanup
+connection default;
+SET DEBUG_SYNC= 'RESET';
+SET GLOBAL DEBUG= DEFAULT;
+disconnect con1;
+
+--echo #
+--echo # Case 2 : Using partitioned table.
+--echo #
+
+CREATE DATABASE db1;
+CREATE TABLE db1.t1 (a INT NOT NULL, b INT NOT NULL)
+PARTITION BY KEY (a) PARTITIONS 1;
+--replace_column 1 # 5 #
+SELECT * FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE name like 'db1/t1#p#p0';
+
+
+--echo # Evict db1.t1 from innodb cache by restarting the server.
+--source include/restart_mysqld.inc
+
+connect (con1,localhost,root,,);
+
+--echo # Wait after acquiring table object, but before schema object is acquired.
+SET GLOBAL DEBUG= '+d,before_acquire_schema_by_private_id';
+SET DEBUG_SYNC="wait_before_acquire_schema_by_private_id SIGNAL cond1 WAIT_FOR cond2";
+--send SELECT * FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE name = 'db1/t1#p#p0';
+
+--echo # Drop the schema db1 in other session.
+connection default;
+SET DEBUG_SYNC= 'now WAIT_FOR cond1';
+DROP DATABASE db1;
+SET DEBUG_SYNC= 'now SIGNAL cond2';
+
+--echo # Continue acquiring db1. reap results
+--echo # in a error ER_BAD_DB_ERROR without fix.
+connection con1;
+--reap
+
+--echo # Cleanup
+connection default;
+SET DEBUG_SYNC= 'RESET';
+SET GLOBAL DEBUG= DEFAULT;
+disconnect con1;

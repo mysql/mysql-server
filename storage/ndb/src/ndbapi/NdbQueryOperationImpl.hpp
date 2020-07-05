@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -94,6 +94,9 @@ private:
   NdbBulkAllocator(const NdbBulkAllocator&);
   NdbBulkAllocator& operator= (const NdbBulkAllocator&);
 };
+
+/** Bitmask of the possible node participants in a SPJ query */
+typedef Bitmask<(NDB_SPJ_MAX_TREE_NODES+31)/32> SpjTreeNodeMask;
 
 /** This class is the internal implementation of the interface defined by
  * NdbQuery. This class should thus not be visible to the application 
@@ -619,6 +622,9 @@ public:
   Uint32 getNoOfChildOperations() const;
   NdbQueryOperationImpl& getChildOperation(Uint32 i) const;
 
+  SpjTreeNodeMask getDescendants() const;
+  SpjTreeNodeMask getDependants() const;
+
   /** A shorthand for getting the root operation. */
   NdbQueryOperationImpl& getRoot() const
   { return m_queryImpl.getRoot(); }
@@ -670,12 +676,17 @@ public:
 
   /** Called once per complete (within batch) fragment when a SCAN_TABCONF 
    * signal is received.
-   * @param tcPtrI not in use.
-   * @param rowCount Number of rows for this fragment, including all rows from 
+   * @param tcPtrI
+   * @param rowCount Number of rows for this fragment, including all rows from
    * descendant lookup operations.
+   * @param resultsMask
+   * @param completedMask
    * @param receiver The receiver object that shall process the results.*/
-  bool execSCAN_TABCONF(Uint32 tcPtrI, Uint32 rowCount, Uint32 nodeMask,
-                        const NdbReceiver* receiver); 
+  bool execSCAN_TABCONF(Uint32 tcPtrI,
+                        Uint32 rowCount,
+                        Uint32 resultsMask,
+                        Uint32 completedMask,
+                        const NdbReceiver* receiver);
 
   const NdbQueryOperation& getInterface() const
   { return m_interface; }
@@ -782,6 +793,9 @@ private:
   NdbQueryOperationImpl* m_parent;
   /** Children of this operation.*/
   Vector<NdbQueryOperationImpl*> m_children;
+
+  /** Other node/branches depending on this node, without being a child */
+  Vector<NdbQueryOperationImpl*> m_dependants;
 
   /** Buffer for parameters in serialized format */
   Uint32Buffer m_params;

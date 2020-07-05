@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,7 @@ class Mock_gcs_log_sink : public Sink_interface {
 class LoggingDebuggingSystemTest : public GcsBaseTestNoLogging {
  protected:
   LoggingDebuggingSystemTest()
-      : common_sink(NULL), logger(NULL), debugger(NULL) {}
+      : common_sink(nullptr), logger(nullptr), debugger(nullptr) {}
 
   virtual void SetUp() {
     common_sink = new Gcs_async_buffer(new Mock_gcs_log_sink());
@@ -53,15 +53,15 @@ class LoggingDebuggingSystemTest : public GcsBaseTestNoLogging {
     Gcs_log_manager::finalize();
 
     delete logger;
-    logger = NULL;
+    logger = nullptr;
 
     Gcs_debug_manager::finalize();
 
     delete debugger;
-    debugger = NULL;
+    debugger = nullptr;
 
     delete common_sink;
-    common_sink = NULL;
+    common_sink = nullptr;
   }
 
   Gcs_async_buffer *common_sink;
@@ -102,8 +102,8 @@ TEST_F(LoggingDebuggingSystemTest, DefaultLifecycle) {
       log_event(ContainsRegex("This message belongs to logging level .*"), _))
       .Times(3);
 
-  ASSERT_EQ(true, Gcs_log_manager::get_logger() == NULL);
-  ASSERT_EQ(true, Gcs_debug_manager::get_debugger() == NULL);
+  ASSERT_EQ(true, Gcs_log_manager::get_logger() == nullptr);
+  ASSERT_EQ(true, Gcs_debug_manager::get_debugger() == nullptr);
 
   Gcs_log_manager::initialize(logger);
   Gcs_debug_manager::initialize(debugger);
@@ -127,8 +127,8 @@ TEST_F(LoggingDebuggingSystemTest, DefaultLifecycle) {
 
   ASSERT_EQ(GCS_OK, initialized);
 
-  ASSERT_EQ(true, Gcs_log_manager::get_logger() != NULL);
-  ASSERT_EQ(true, Gcs_debug_manager::get_debugger() != NULL);
+  ASSERT_EQ(true, Gcs_log_manager::get_logger() != nullptr);
+  ASSERT_EQ(true, Gcs_debug_manager::get_debugger() != nullptr);
 
   gcs_log_level_t level;
 
@@ -149,8 +149,8 @@ TEST_F(LoggingDebuggingSystemTest, DefaultLifecycle) {
 
   delete group_id;
 
-  ASSERT_EQ(true, Gcs_log_manager::get_logger() == NULL);
-  ASSERT_EQ(true, Gcs_debug_manager::get_debugger() == NULL);
+  ASSERT_EQ(true, Gcs_log_manager::get_logger() == nullptr);
+  ASSERT_EQ(true, Gcs_debug_manager::get_debugger() == nullptr);
 }
 
 #ifndef XCOM_STANDALONE

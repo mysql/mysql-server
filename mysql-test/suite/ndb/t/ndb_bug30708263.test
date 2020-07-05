@@ -1,0 +1,31 @@
+--source include/have_ndb.inc
+
+CREATE TABLE e (
+  pk int NOT NULL,
+  col_int_unique int DEFAULT NULL,
+  UNIQUE KEY ix1 (col_int_unique)
+) ENGINE=ndbcluster;
+
+INSERT INTO e values (1, 12), (5, 20), (11, 8), (16, 10);
+
+let $query = SELECT STRAIGHT_JOIN
+  table1.pk, table2.pk, table3.pk
+FROM e AS table1
+  LEFT JOIN e AS table2 ON table1.pk = table2.pk
+  LEFT JOIN e AS table3 ON table2.col_int_unique = table3.col_int_unique;
+
+--echo # If NDB join pushdown is enabled, the query should use nested loop
+--echo # instead of hash join (NDB expects joins to be executed using nested
+--echo # loop).
+
+SET ndb_join_pushdown = on;
+eval EXPLAIN FORMAT=tree $query;
+--sorted_result
+eval $query;
+
+SET ndb_join_pushdown = off;
+eval EXPLAIN FORMAT=tree $query;
+--sorted_result
+eval $query;
+
+DROP TABLE e;

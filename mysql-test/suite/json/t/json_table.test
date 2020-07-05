@@ -57,8 +57,8 @@ let $query= select * from
     '[{"x":"3"},{"a":2},{"b":1},{"a":0},{"a":[1,2]}]',
     '$[*]' columns (id for ordinality,
              jpath varchar(100) path '$.a'
-                default '66' on error
-                default '33' on empty,
+                default '33' on empty
+                default '66' on error,
              jsn_path json path '$.a' default '{"x":33}' on empty,
              jexst int exists path '$.b')
   ) as tt;
@@ -632,7 +632,7 @@ AS alias1;
 --echo #
 --echo # Bug# #25472875: ERROR SHOULD BE THROWN FOR INCORRECT VALUES
 --echo #
---error ER_INVALID_DEFAULT
+--error ER_JT_VALUE_OUT_OF_RANGE
 SELECT *
   FROM JSON_TABLE('{"a":"1993-01-01"}',
                   '$' COLUMNS (jp DATE PATH '$.b' DEFAULT '1000' ON EMPTY))
@@ -1342,3 +1342,95 @@ CALL p();
 CALL p();
 DROP PROCEDURE p;
 DROP TABLE t;
+
+--echo #
+--echo # WL#13512: Deprecate ON ERROR before ON EMPTY in JSON_TABLE syntax
+--echo #
+SELECT * FROM
+  JSON_TABLE('{}', '$' COLUMNS (x VARCHAR(10) PATH '$.x'
+                                DEFAULT '"a"' ON ERROR DEFAULT '"b"' ON EMPTY)) jt;
+SELECT * FROM
+  JSON_TABLE('{}', '$' COLUMNS (x VARCHAR(10) PATH '$.x'
+                                NULL ON ERROR NULL ON EMPTY)) jt;
+SELECT * FROM
+  JSON_TABLE('{"x":"c"}', '$' COLUMNS (x VARCHAR(10) PATH '$.x'
+                                       ERROR ON ERROR ERROR ON EMPTY)) jt;
+--echo #
+--echo # Bug#30628330: INSERT WITH JSON_TABLE FAILS DUE TO WARNING INVOKED
+--echo #               WITH ON ERROR CLAUSE
+--echo #
+CREATE TABLE t(id INT, a TINYINT, b VARCHAR(3), c DATE, d DECIMAL);
+# This statement used to fail with "data too long".
+INSERT INTO t SELECT * FROM
+  JSON_TABLE(JSON_ARRAY(JSON_OBJECT('a', 1, 'b', 'abc'),
+                        JSON_OBJECT('a', 2, 'b', 'abcd'),
+                        JSON_OBJECT('a', 1000, 'b', 'xyz'),
+                        JSON_OBJECT('c', TIME'12:00:00', 'd', 1e308)),
+             '$[*]' COLUMNS (id FOR ORDINALITY,
+                             a TINYINT PATH '$.a' DEFAULT '111' ON ERROR,
+                             b VARCHAR(3) PATH '$.b' DEFAULT '"ERR"' ON ERROR,
+                             c DATE PATH '$.c' DEFAULT '"2001-01-01"' ON ERROR,
+                             d DECIMAL PATH '$.c' DEFAULT '999' ON ERROR)
+            ) AS jt;
+SELECT * FROM t ORDER BY id;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#30263373: INCORRECT OUTPUT FROM TABLE_FUNCTION_JSON::PRINT()
+--echo #
+
+CREATE VIEW v AS SELECT * FROM
+  JSON_TABLE('[123]', '$[*]' COLUMNS (`name with space 1` INT PATH '$',
+                                      `name with space 2` FOR ORDINALITY)) jt;
+# Used to fail with a syntax error, due to unquoted column names in
+# the view definition.
+SELECT * FROM v;
+DROP VIEW v;
+
+CREATE VIEW v AS SELECT HEX(x), HEX(y) FROM
+  JSON_TABLE('["abc"]', '$[*]' COLUMNS (x BINARY(10) PATH '$',
+                                        y VARBINARY(10) PATH '$')) jt;
+# Used to say CHAR(10) and VARCHAR(10) instead of BINARY(10) and VARBINARY(10).
+SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS
+  WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'v';
+SELECT * FROM v;
+DROP VIEW v;
+
+CREATE VIEW v AS SELECT * FROM
+  JSON_TABLE('[123]', '$[*]' COLUMNS(ti  TINYINT   PATH '$',
+                                     si  SMALLINT  PATH '$',
+                                     mi  MEDIUMINT PATH '$',
+                                     i   INT       PATH '$',
+                                     bi  BIGINT    PATH '$',
+                                     tiu TINYINT UNSIGNED   PATH '$',
+                                     siu SMALLINT UNSIGNED  PATH '$',
+                                     miu MEDIUMINT UNSIGNED PATH '$',
+                                     iu  INT UNSIGNED       PATH '$',
+                                     biu BIGINT UNSIGNED    PATH '$')) jt;
+# Used to lack the UNSIGNED attribute for the unsigned columns.
+SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS
+  WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'v';
+SELECT * FROM v;
+DROP VIEW v;
+
+CREATE VIEW v AS SELECT * FROM
+  JSON_TABLE('[]', '$[*]' COLUMNS (g GEOMETRY PATH '$',
+                                   ls LINESTRING PATH '$')) AS jt;
+# Used to say GEOMETRY for both columns.
+SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS
+  WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'v';
+SELECT * FROM v;
+DROP VIEW v;
+
+CREATE VIEW v AS SELECT * FROM
+  JSON_TABLE('["abc"]', '$[*]' COLUMNS
+    (x VARCHAR(10) CHARSET latin1 PATH '$',
+     y VARCHAR(10) COLLATE utf8mb4_de_pb_0900_ai_ci PATH '$',
+     z LONGTEXT COLLATE utf8mb4_bin PATH '$')) jt;
+# Character set and collation information wasn't included.
+SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS
+  WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'v';
+# Used to return the default collation instead of the collation
+# specified in the JSON_TABLE column definitions.
+SELECT x, y, z, COLLATION(x) c_x, COLLATION(y) c_y, COLLATION(z) c_z FROM v;
+DROP VIEW v;

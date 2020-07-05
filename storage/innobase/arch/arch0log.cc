@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -266,6 +266,11 @@ int Arch_Log_Sys::start(Arch_Group *&group, lsn_t &start_lsn, byte *header,
 
   arch_mutex_enter();
 
+  if (m_state == ARCH_STATE_READ_ONLY) {
+    arch_mutex_exit();
+    return 0;
+  }
+
   /* Wait for idle state, if preparing to idle. */
   if (!wait_idle()) {
     int err = 0;
@@ -424,6 +429,11 @@ int Arch_Log_Sys::stop(Arch_Group *group, lsn_t &stop_lsn, byte *log_blk,
   }
 
   arch_mutex_enter();
+
+  if (m_state == ARCH_STATE_READ_ONLY) {
+    arch_mutex_exit();
+    return 0;
+  }
 
   auto count_active_client = group->detach(stop_lsn, nullptr);
   ut_ad(group->is_referenced());

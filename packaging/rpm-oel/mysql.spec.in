@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,10 @@
 # Pass path to the AWS SDK install
 %{?with_aws_sdk: %global aws_sdk_option -DWITH_KEYRING_AWS=1 -DWITH_AWS_SDK=%{with_aws_sdk}}
 %{?with_aws_sdk: %global aws_sdk 1}
+
+# Pass alternative ssl setting if provided. Can be used for newer OpenSSL.
+%{?with_ssl: %global ssl_option -DWITH_SSL=%{with_ssl}}
+%{?with_ssl: %global ssl_bundled 1}
 
 # Regression tests may take a long time, override the default to skip them
 %{!?runselftest:%global runselftest 0}
@@ -106,15 +110,17 @@ Source90:       filter-provides.sh
 Source91:       filter-requires.sh
 %if 0%{?rhel} >= 8
 BuildRequires:  cmake >= 3.6.1
-BuildRequires:  gcc
-BuildRequires:  gcc-c++
 BuildRequires:  libtirpc-devel
 BuildRequires:  rpcgen
 %else
 BuildRequires:  cmake3 >= 3.6.1
-BuildRequires:  devtoolset-8-gcc
-BuildRequires:  devtoolset-8-gcc-c++
 %endif
+%{?el6:BuildRequires:  devtoolset-8-gcc}
+%{?el6:BuildRequires:  devtoolset-8-gcc-c++}
+%{?el7:BuildRequires:  devtoolset-9-gcc}
+%{?el7:BuildRequires:  devtoolset-9-gcc-c++}
+%{?el8:BuildRequires:  gcc-toolset-9-gcc}
+%{?el8:BuildRequires:  gcc-toolset-9-gcc-c++}
 BuildRequires:  bison >= 2.1
 BuildRequires:  perl
 %{?el7:BuildRequires: perl(Env)}
@@ -150,6 +156,10 @@ BuildRequires:  perl(Time::localtime)
 BuildRequires:  time
 BuildRequires:  libaio-devel
 %if 0%{?commercial}
+BuildRequires:  cyrus-sasl-gssapi
+%{?el7:BuildRequires: cyrus-sasl-scram}
+%{?el8:BuildRequires: cyrus-sasl-scram}
+BuildRequires:  krb5-devel
 BuildRequires:  libcurl-devel
 %endif
 BuildRequires:  ncurses-devel
@@ -166,10 +176,10 @@ BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
 %if 0%{?rhel} > 6
 # For rpm => 4.9 only: https://fedoraproject.org/wiki/Packaging:AutoProvidesAndRequiresFiltering
-%global _privatelibs libprotobuf.*
+%global _privatelibs libprotobuf.*|libmysqlharness.so.*|libmysqlrouter.so.*|libmysqlrouter_http.*\.so\..*%{?ssl_bundled:|libssl\.so\..*|libcrypto\.so\..*}
 %global _privateperl perl\\((GD|hostnames|lib::mtr|lib::v1|mtr_|My::)
 %global __requires_exclude ^((%{_privatelibs})|(%{_privateperl}))
-%global __provides_exclude_from ^(/usr/share/(mysql|mysql-test)/.*|%{_libdir}/mysql/plugin/.*\\.so|%{_libdir}/mysql/private/.*|%{_libdir}/mysqlrouter/.*)$
+%global __provides_exclude_from ^(/usr/share/(mysql|mysql-test)/.*|%{_libdir}/mysql/plugin/.*\\.so|%{_libdir}/mysql/private/.*|%{_libdir}/mysqlrouter/.*|%{_libdir}/mysqlrouter/private/.*)$
 %else
 # https://fedoraproject.org/wiki/EPEL:Packaging#Generic_Filtering_on_EPEL6
 %global __perl_provides %{SOURCE90}
@@ -738,6 +748,7 @@ fi
     -DWITH_EMBEDDED_SERVER=1 \
     -DWITH_EMBEDDED_SHARED_LIBRARY=1 \
     -DWITH_SSL=system \
+    -DWITH_ZLIB=system \
     -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
     -DCOMPILATION_COMMENT_SERVER="%{compilation_comment_server_release}" \
     -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
@@ -778,9 +789,8 @@ mkdir debug
            -DWITH_CURL=system \
            %{?aws_sdk_option} \
 %endif
+           %{?ssl_option} \
            -DWITH_INNODB_MEMCACHED=1 \
-           -DROUTER_INSTALL_LIBDIR="%{_lib}" \
-           -DROUTER_INSTALL_PLUGINDIR="%{_lib}/mysqlrouter" \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DMYSQLX_UNIX_ADDR="/var/run/mysqld/mysqlx.sock" \
            -DFEATURE_SET="%{feature_set}" \
@@ -821,9 +831,8 @@ mkdir release
            -DWITH_CURL=system \
            %{?aws_sdk_option} \
 %endif
+           %{?ssl_option} \
            -DWITH_INNODB_MEMCACHED=1 \
-           -DROUTER_INSTALL_LIBDIR="%{_lib}" \
-           -DROUTER_INSTALL_PLUGINDIR="%{_lib}/mysqlrouter" \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DMYSQLX_UNIX_ADDR="/var/run/mysqld/mysqlx.sock" \
            -DFEATURE_SET="%{feature_set}" \
@@ -904,11 +913,6 @@ rm -rf %{buildroot}%{_datadir}/mysql-*/mysql.server
 rm -rf %{buildroot}%{_datadir}/mysql-*/mysqld_multi.server
 rm -f %{buildroot}%{_datadir}/mysql-*/win_install_firewall.sql
 rm -f %{buildroot}%{_datadir}/mysql-*/audit_log_filter_win_install.sql
-
-# remove some unwanted router files
-rm -rf %{buildroot}/%{_libdir}/libmysqlharness.{a,so}
-rm -rf %{buildroot}/%{_libdir}/libmysqlrouter.so
-rm -rf %{buildroot}/%{_libdir}/libmysqlrouter_http.so
 
 %check
 %if 0%{?runselftest} || 0%{?with_unittests}
@@ -1039,7 +1043,6 @@ fi
 %config(noreplace) %{_sysconfdir}/my.cnf
 %dir %{_sysconfdir}/my.cnf.d
 
-%attr(755, root, root) %{_bindir}/comp_err
 %attr(755, root, root) %{_bindir}/innochecksum
 %attr(755, root, root) %{_bindir}/ibd2sdi
 %attr(755, root, root) %{_bindir}/my_print_defaults
@@ -1313,7 +1316,6 @@ fi
 %files devel
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
-%attr(644, root, root) %{_mandir}/man1/comp_err.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_config.1*
 %attr(755, root, root) %{_bindir}/mysql_config
 %ifarch %{multiarchs}
@@ -1335,6 +1337,12 @@ fi
 %dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
 %{_libdir}/mysql/libmysqlclient.so.21*
+%if 0%{?ssl_bundled}
+%attr(755, root, root) %{_libdir}/mysql/private/libssl.so
+%attr(755, root, root) %{_libdir}/mysql/private/libssl.so.1.1
+%attr(755, root, root) %{_libdir}/mysql/private/libcrypto.so
+%attr(755, root, root) %{_libdir}/mysql/private/libcrypto.so.1.1
+%endif # ssl_bundled
 
 %if 0%{?compatlib}
 %files libs-compat
@@ -1352,6 +1360,7 @@ fi
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
 %attr(-, root, root) %{_datadir}/mysql-test
+%attr(755, root, root) %{_bindir}/comp_err
 %attr(755, root, root) %{_bindir}/mysql_client_test
 %if 0%{?systemd}
 %attr(755, root, root) %{_bindir}/mysqld_safe
@@ -1359,6 +1368,7 @@ fi
 %attr(755, root, root) %{_bindir}/mysqltest
 %attr(755, root, root) %{_bindir}/mysqltest_safe_process
 %attr(755, root, root) %{_bindir}/mysqlxtest
+%attr(644, root, root) %{_mandir}/man1/comp_err.1*
 
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_test_plugin.so
@@ -1635,15 +1645,22 @@ fi
 %else
 %{_sysconfdir}/init.d/mysqlrouter
 %endif
-%{_libdir}/libmysqlharness.so.*
-%{_libdir}/libmysqlrouter.so.*
-%{_libdir}/libmysqlrouter_http.so.*
+%{_libdir}/mysqlrouter/private/libmysqlharness.so.*
+%{_libdir}/mysqlrouter/private/libmysqlrouter.so.*
+%{_libdir}/mysqlrouter/private/libmysqlrouter_http.so.*
+%{_libdir}/mysqlrouter/private/libmysqlrouter_http_auth_backend.so.*
+%{_libdir}/mysqlrouter/private/libmysqlrouter_http_auth_realm.so.*
+%{_libdir}/mysqlrouter/private/libprotobuf-lite.so.3.6.1
 %dir %{_libdir}/mysqlrouter
-%{_libdir}/mysqlrouter/*.so*
+%dir %{_libdir}/mysqlrouter/private
+%{_libdir}/mysqlrouter/*.so
 %dir %attr(755, mysqlrouter, mysqlrouter) /var/log/mysqlrouter
 %dir %attr(755, mysqlrouter, mysqlrouter) /var/run/mysqlrouter
 
 %changelog
+* Tue Feb 04 2020 Bjorn Munch <bjorn.munch@oracle.com> - 8.0.20-1
+- Again add back support for alternative with_ssl, now with bundled openssl
+
 * Wed Aug 14 2019 Rahul Sisondia <rahul.sisondia@oracle.com> - 8.0.19-1
 - Added component_test_udf_services test component
 

@@ -19,13 +19,6 @@ ID	STATE	ERROR_NO
 1	Failed	3862
 select ID, STAGE, STATE from performance_schema.clone_progress;
 ID	STAGE	STATE
-1	DROP DATA	Failed
-1	FILE COPY	Not Started
-1	PAGE COPY	Not Started
-1	REDO COPY	Not Started
-1	FILE SYNC	Not Started
-1	RESTART	Not Started
-1	RECOVERY	Not Started
 # 1B-b. MAX_ALLOWED_PACKET size too low for remote clone
 SET GLOBAL MAX_ALLOWED_PACKET = 512 * 1024;
 SET GLOBAL clone_autotune_concurrency = OFF;
@@ -38,13 +31,6 @@ ID	STATE	ERROR_NO
 1	Failed	3862
 select ID, STAGE, STATE from performance_schema.clone_progress;
 ID	STAGE	STATE
-1	DROP DATA	Failed
-1	FILE COPY	Not Started
-1	PAGE COPY	Not Started
-1	REDO COPY	Not Started
-1	FILE SYNC	Not Started
-1	RESTART	Not Started
-1	RECOVERY	Not Started
 # 1B-c. MAX_ALLOWED_PACKET 2M should pass
 SET GLOBAL MAX_ALLOWED_PACKET = 2 * 1024 * 1024;
 SET GLOBAL clone_autotune_concurrency = OFF;

@@ -1,4 +1,4 @@
-# Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -63,6 +63,7 @@ ADD_DYNAMIC_STATE_SCHEMA_COMMAND(STATIC)
 
 SET(harness_source
   loader.cc
+  dynamic_loader.cc
   utilities.cc
   config_parser.cc
   designator.cc
@@ -104,13 +105,11 @@ IF(WIN32)
   LIST(APPEND harness_source
     filesystem-windows.cc
     utilities-windows.cc
-    loader-windows.cc
     logging/eventlog_plugin.cc)
 ELSE()
   LIST(APPEND harness_source
     filesystem-posix.cc
     utilities-posix.cc
-    loader-posix.cc
     logging/syslog_plugin.cc)
 ENDIF()
 
@@ -138,6 +137,12 @@ SET(common_libraries ${CMAKE_DL_LIBS} ${CMAKE_THREAD_LIBS_INIT}
   ${SHLWAPI_LIBRARIES} ${WINSOCK_LIBRARIES} ${SSL_LIBRARIES} mysys)
 
 SET(INSTALL_INCLUDE_DIR "include/mysql/harness")
+
+## for plugin.h.in
+SET(MYSQL_HARNESS_ARCH_CPU ${MYSQL_MACHINE_TYPE})
+SET(MYSQL_HARNESS_ARCH_OS ${CMAKE_SYSTEM_NAME})
+SET(MYSQL_HARNESS_ARCH_COMPILER ${CMAKE_CXX_COMPILER_ID}-${CMAKE_CXX_COMPILER_VERSION})
+SET(MYSQL_HARNESS_ARCH_RUNTIME "*")
 
 CONFIGURE_FILE(plugin.h.in ${MySQLRouter_BINARY_DIR}/${INSTALL_INCLUDE_DIR}/plugin.h
   ESCAPE_QUOTES @ONLY)

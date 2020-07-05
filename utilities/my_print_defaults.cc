@@ -64,47 +64,52 @@ static struct my_option my_long_options[] = {
      "Deprecated, please use --defaults-file instead. "
      "Name of config file to read; if no extension is given, default "
      "extension (e.g., .ini or .cnf) will be added",
-     &config_file, &config_file, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     &config_file, &config_file, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
 #ifdef DBUG_OFF
     {"debug", '#', "This is a non-debug version. Catch this and exit", 0, 0, 0,
      GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #else
     {"debug", '#', "Output debug log", &default_dbug_option,
-     &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+     &default_dbug_option, nullptr, GET_STR, OPT_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
 #endif
     {"defaults-file", 'c',
      "Like --config-file, except: if first option, "
      "then read this file only, do not read global or per-user config "
      "files; should be the first option",
-     &config_file, &config_file, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     &config_file, &config_file, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
     {"defaults-extra-file", 'e',
      "Read this file after the global config file and before the config "
      "file in the users home directory; should be the first option",
-     &my_defaults_extra_file, &my_defaults_extra_file, 0, GET_STR, REQUIRED_ARG,
-     0, 0, 0, 0, 0, 0},
+     &my_defaults_extra_file, &my_defaults_extra_file, nullptr, GET_STR,
+     REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"defaults-group-suffix", 'g',
      "In addition to the given groups, read also groups with this suffix",
-     &my_defaults_group_suffix, &my_defaults_group_suffix, 0, GET_STR,
-     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     &my_defaults_group_suffix, &my_defaults_group_suffix, nullptr, GET_STR,
+     REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"extra-file", 'e', "Deprecated. Synonym for --defaults-extra-file.",
-     &my_defaults_extra_file, &my_defaults_extra_file, 0, GET_STR, REQUIRED_ARG,
-     0, 0, 0, 0, 0, 0},
+     &my_defaults_extra_file, &my_defaults_extra_file, nullptr, GET_STR,
+     REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"no-defaults", 'n',
      "Ignore reading of default option file(s), "
      "except for login file.",
-     0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+     nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"login-path", 'l', "Path to be read from under the login file.",
-     &my_login_path, &my_login_path, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0,
-     0},
+     &my_login_path, &my_login_path, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
     {"show", 's', "Show passwords in plain text.", &show_passwords,
-     &show_passwords, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-    {"help", '?', "Display this help message and exit.", 0, 0, 0, GET_NO_ARG,
-     NO_ARG, 0, 0, 0, 0, 0, 0},
-    {"verbose", 'v', "Increase the output level", 0, 0, 0, GET_NO_ARG, NO_ARG,
-     0, 0, 0, 0, 0, 0},
-    {"version", 'V', "Output version information and exit.", 0, 0, 0,
-     GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
+     &show_passwords, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"help", '?', "Display this help message and exit.", nullptr, nullptr,
+     nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"verbose", 'v', "Increase the output level", nullptr, nullptr, nullptr,
+     GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"version", 'V', "Output version information and exit.", nullptr, nullptr,
+     nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
+     0, nullptr, 0, nullptr}};
 
 static void usage(bool version) {
   print_version();
@@ -177,7 +182,7 @@ int main(int argc, char **argv) {
   count = args_used + 1;
   arguments = tmp_arguments;
   memcpy((char *)arguments, (char *)org_argv, count * sizeof(*org_argv));
-  arguments[count] = 0;
+  arguments[count] = nullptr;
 
   /* Check out the args */
   if (!(load_default_groups = static_cast<const char **>(my_malloc(

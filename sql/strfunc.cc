@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,8 @@
 /* Some useful string utility functions used by the MySQL server */
 
 #include "sql/strfunc.h"
+
+#include <string.h>
 
 #include "m_ctype.h"  // my_charset_latin1
 #include "my_alloc.h"
@@ -60,7 +62,7 @@ ulonglong find_set(const TYPELIB *lib, const char *str, size_t length,
   const CHARSET_INFO *strip = cs ? cs : &my_charset_latin1;
   const char *end = str + strip->cset->lengthsp(strip, str, length);
   ulonglong found = 0;
-  *err_pos = 0;  // No error yet
+  *err_pos = nullptr;  // No error yet
   *err_len = 0;
   if (str != end) {
     const char *start = str;
@@ -224,7 +226,6 @@ uint check_word(TYPELIB *lib, const char *val, const char *end,
 size_t strconvert(const CHARSET_INFO *from_cs, const char *from,
                   CHARSET_INFO *to_cs, char *to, size_t to_length,
                   uint *errors) {
-  int cnvres;
   my_wc_t wc;
   char *to_start = to;
   uchar *to_end = (uchar *)to + to_length - 1;
@@ -234,13 +235,12 @@ size_t strconvert(const CHARSET_INFO *from_cs, const char *from,
 
   while (true) {
     /*
-      Using 'from + 10' is safe:
-      - it is enough to scan a single character in any character set.
-      - if remaining string is shorter than 10, then mb_wc will return
-        with error because of unexpected '\0' character.
+      Lookahead of max 10 bytes should suffice for all character sets.
     */
-    if ((cnvres = (*mb_wc)(from_cs, &wc, pointer_cast<const uchar *>(from),
-                           pointer_cast<const uchar *>(from) + 10)) > 0) {
+    const size_t max_char_len = strnlen(from, 10);
+    int cnvres = (*mb_wc)(from_cs, &wc, pointer_cast<const uchar *>(from),
+                          pointer_cast<const uchar *>(from) + max_char_len);
+    if (cnvres > 0) {
       if (!wc) break;
       from += cnvres;
     } else if (cnvres == MY_CS_ILSEQ) {

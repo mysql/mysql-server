@@ -35,7 +35,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 EXPLAIN FORMAT=TRADITIONAL FOR QUERY 'SELECT * FROM t1 WHERE f1 IN (SELECT * FROM t1)'
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1); Using join buffer (hash join)
 EXPLAIN FORMAT=TRADITIONAL FOR QUERY 'SELECT * FROM t1 UNION ALL SELECT * FROM t1 ORDER BY 1'
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
@@ -129,7 +129,7 @@ EXPLAIN
           "filtered": "50.00",
           "using_where": true,
           "first_match": "t1",
-          "using_join_buffer": "Block Nested Loop",
+          "using_join_buffer": "hash join",
           "cost_info": {
             "read_cost": "0.25",
             "eval_cost": "0.20",
@@ -725,7 +725,7 @@ EXPLAIN
           "rows_examined_per_scan": 17,
           "rows_produced_per_join": 96,
           "filtered": "100.00",
-          "using_join_buffer": "Block Nested Loop",
+          "using_join_buffer": "hash join",
           "cost_info": {
             "read_cost": "0.25",
             "eval_cost": "9.63",
@@ -805,7 +805,7 @@ EXPLAIN
           "rows_examined_per_scan": 17,
           "rows_produced_per_join": 96,
           "filtered": "100.00",
-          "using_join_buffer": "Block Nested Loop",
+          "using_join_buffer": "hash join",
           "cost_info": {
             "read_cost": "0.25",
             "eval_cost": "9.63",
@@ -885,7 +885,7 @@ EXPLAIN
           "rows_examined_per_scan": 17,
           "rows_produced_per_join": 96,
           "filtered": "100.00",
-          "using_join_buffer": "Block Nested Loop",
+          "using_join_buffer": "hash join",
           "cost_info": {
             "read_cost": "0.25",
             "eval_cost": "9.63",
@@ -1134,6 +1134,9 @@ PRIMARY KEY (pk)
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into h2 values (1),(2),(3),(4),(5),(6),(7),(8),(9);
+ANALYZE TABLE h2;
+Table	Op	Msg_type	Msg_text
+mysqltest1.h2	analyze	status	OK
 CREATE TABLE aa3 (
 col_int_key int(11) DEFAULT NULL,
 KEY col_int_key (col_int_key)

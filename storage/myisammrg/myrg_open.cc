@@ -52,10 +52,10 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking) {
   uint files = 0, i, dir_length, length, key_parts = 0, min_keys = 0;
   ulonglong file_offset = 0;
   char name_buff[FN_REFLEN * 2], buff[FN_REFLEN], *end;
-  MYRG_INFO *m_info = 0;
+  MYRG_INFO *m_info = nullptr;
   File fd;
   IO_CACHE file;
-  MI_INFO *isam = 0;
+  MI_INFO *isam = nullptr;
   uint found_merge_insert_method = 0;
   size_t name_buff_length;
   bool bad_children = false;
@@ -192,7 +192,7 @@ err:
       (void)mysql_file_close(fd, MYF(0));
   }
   set_my_errno(save_errno);
-  return NULL;
+  return nullptr;
 }
 
 /**
@@ -218,7 +218,7 @@ err:
 MYRG_INFO *myrg_parent_open(const char *parent_name,
                             int (*callback)(void *, const char *),
                             void *callback_param) {
-  MYRG_INFO *m_info = NULL;
+  MYRG_INFO *m_info = nullptr;
   int rc;
   int errpos;
   int save_errno;
@@ -332,7 +332,7 @@ err:
       (void)mysql_file_close(fd, MYF(0));
   }
   set_my_errno(save_errno);
-  return NULL;
+  return nullptr;
   /* purecov: end */
 }
 
@@ -409,7 +409,7 @@ int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
       key_parts = myisam->s->base.key_parts;
       if (*need_compat_check && m_info->rec_per_key_part) {
         my_free(m_info->rec_per_key_part);
-        m_info->rec_per_key_part = NULL;
+        m_info->rec_per_key_part = nullptr;
       }
       if (!m_info->rec_per_key_part) {
         if (!(m_info->rec_per_key_part =
@@ -471,7 +471,7 @@ err:
   switch (errpos) {
     case 1:
       my_free(m_info->rec_per_key_part);
-      m_info->rec_per_key_part = NULL;
+      m_info->rec_per_key_part = nullptr;
   }
   mysql_mutex_unlock(&m_info->mutex);
   set_my_errno(save_errno);

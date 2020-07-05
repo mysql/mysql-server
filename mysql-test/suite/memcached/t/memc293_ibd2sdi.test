@@ -476,7 +476,7 @@ DROP TABLE t1;
 DROP TABLESPACE ts1;
 SET DEBUG = '-d, skip_sdi';
 
-# Stop plugin befor innodb_memcached configuration
+# Stop plugin before innodb_memcached configuration
 UNINSTALL PLUGIN daemon_memcached;
 
 DROP DATABASE innodb_memcache;

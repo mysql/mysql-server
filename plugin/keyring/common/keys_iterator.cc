@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,7 +55,7 @@ void Keys_iterator::init() {
 bool Keys_iterator::get_key(Key_metadata **km) {
   /* if list is empty */
   if (key_metadata_list_iterator == key_metadata_list.end()) {
-    *km = NULL;
+    *km = nullptr;
     return false;
   } else {
     std::unique_ptr<Key_metadata> key_meta(new Key_metadata());
@@ -71,7 +71,7 @@ bool Keys_iterator::get_key(Key_metadata **km) {
   Release all internal pointers.
 */
 void Keys_iterator::deinit() {
-  this->logger = NULL;
+  this->logger = nullptr;
   this->key_metadata_list.clear();
 }
 

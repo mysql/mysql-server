@@ -5,7 +5,7 @@ SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS,PLUGIN_TYPE,
        PLUGIN_LIBRARY,PLUGIN_LIBRARY_VERSION,PLUGIN_AUTHOR,PLUGIN_DESCRIPTION
 FROM information_schema.plugins WHERE PLUGIN_NAME = 'ndbinfo';
 PLUGIN_NAME	PLUGIN_VERSION	PLUGIN_STATUS	PLUGIN_TYPE	PLUGIN_LIBRARY	PLUGIN_LIBRARY_VERSION	PLUGIN_AUTHOR	PLUGIN_DESCRIPTION
-ndbinfo	0.1	ACTIVE	STORAGE ENGINE	NULL	NULL	Sun Microsystems Inc.	MySQL Cluster system information storage engine
+ndbinfo	0.1	ACTIVE	STORAGE ENGINE	NULL	NULL	Oracle Corporation	MySQL Cluster system information storage engine
 
 ## Creation of temporary tables should not be supported by NDBINFO engine
 CREATE TEMPORARY TABLE `t1` (
@@ -923,6 +923,7 @@ SELECT DISTINCT(node_id) FROM ndbinfo.counters ORDER BY node_id;
 node_id
 Warnings:
 Note	1	'NDBINFO' has been started in offline mode since the 'NDBCLUSTER' engine is disabled or @@global.ndbinfo_offline is turned on - no rows can be returned
+Note	1	'NDBINFO' has been started in offline mode since the 'NDBCLUSTER' engine is disabled or @@global.ndbinfo_offline is turned on - no rows can be returned
 
 DROP VIEW view_on_table_which_does_not_exist_in_ndb;
 DROP TABLE ndb$does_not_exist_in_ndb;
@@ -1399,139 +1400,7 @@ delete from t1 where a%30=0;
 
 
 
-explain select count(*) from t1 as x1 join t1 as x2 on x1.c=x2.b;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x1	#	ALL	NULL	NULL	NULL	NULL	97	100.00	Parent of 2 pushed join@1
-1	SIMPLE	x2	#	ref	PRIMARY	PRIMARY	4	ndbinfo.x1.c	1	100.00	Child of 'x1' in pushed join@1
-Warnings:
-Note	1003	/* select#1 */ select count(0) AS `count(*)` from `ndbinfo`.`t1` `x1` join `ndbinfo`.`t1` `x2` where (`ndbinfo`.`x2`.`b` = `ndbinfo`.`x1`.`c`)
-select count(*) from t1 as x1 join t1 as x2 on x1.c=x2.b;
-count(*)
-1
 
-tot_qd_frag_scans
-4
-select * from frag_ops;;
-fq_name	ndbinfo/def/NDB$BLOB_
-parent_fq_name	ndbinfo/def/t1
-type	User table
-frag_count	16
-tot_key_reads	1
-tot_key_inserts	218
-tot_key_updates	0
-tot_key_writes	0
-tot_key_deletes	28
-tot_key_refs	0
-log_tot_key_attrinfo_bytes	16
-tot_key_keyinfo_bytes	2964
-tot_key_prog_bytes	0
-tot_key_inst_exec	0
-tot_key_bytes_returned	268
-tot_frag_scans	0
-tot_scan_rows_examined	0
-tot_scan_rows_returned	0
-tot_scan_bytes_returned	0
-tot_scan_prog_bytes	0
-tot_scan_bound_bytes	0
-tot_scan_inst_exec	0
-conc_qd_frag_scans	0
-tot_commits	246
-fq_name	ndbinfo/def/t1
-parent_fq_name	NULL
-type	User table
-frag_count	16
-tot_key_reads	19
-tot_key_inserts	205
-tot_key_updates	236
-tot_key_writes	0
-tot_key_deletes	10
-tot_key_refs	4
-log_tot_key_attrinfo_bytes	16
-tot_key_keyinfo_bytes	3760
-tot_key_prog_bytes	0
-tot_key_inst_exec	0
-tot_key_bytes_returned	4220
-tot_frag_scans	56
-tot_scan_rows_examined	306
-tot_scan_rows_returned	215
-tot_scan_bytes_returned	5468
-tot_scan_prog_bytes	288
-tot_scan_bound_bytes	0
-tot_scan_inst_exec	305
-conc_qd_frag_scans	0
-tot_commits	450
-fq_name	ix1$unique
-parent_fq_name	ndbinfo/def/t1
-type	Unique hash index
-frag_count	16
-tot_key_reads	3
-tot_key_inserts	222
-tot_key_updates	0
-tot_key_writes	0
-tot_key_deletes	28
-tot_key_refs	3
-log_tot_key_attrinfo_bytes	12
-tot_key_keyinfo_bytes	1012
-tot_key_prog_bytes	0
-tot_key_inst_exec	0
-tot_key_bytes_returned	0
-tot_frag_scans	0
-tot_scan_rows_examined	0
-tot_scan_rows_returned	0
-tot_scan_bytes_returned	0
-tot_scan_prog_bytes	0
-tot_scan_bound_bytes	0
-tot_scan_inst_exec	0
-conc_qd_frag_scans	0
-tot_commits	250
-fq_name	PRIMARY
-parent_fq_name	ndbinfo/def/t1
-type	Ordered index
-frag_count	16
-tot_key_reads	0
-tot_key_inserts	0
-tot_key_updates	0
-tot_key_writes	0
-tot_key_deletes	0
-tot_key_refs	0
-log_tot_key_attrinfo_bytes	0
-tot_key_keyinfo_bytes	0
-tot_key_prog_bytes	0
-tot_key_inst_exec	0
-tot_key_bytes_returned	0
-tot_frag_scans	32
-tot_scan_rows_examined	20
-tot_scan_rows_returned	20
-tot_scan_bytes_returned	588
-tot_scan_prog_bytes	576
-tot_scan_bound_bytes	9888
-tot_scan_inst_exec	58
-conc_qd_frag_scans	0
-tot_commits	0
-fq_name	ndbinfo/def/t2
-parent_fq_name	NULL
-type	User table
-frag_count	16
-tot_key_reads	0
-tot_key_inserts	6
-tot_key_updates	0
-tot_key_writes	0
-tot_key_deletes	0
-tot_key_refs	0
-log_tot_key_attrinfo_bytes	7
-tot_key_keyinfo_bytes	24
-tot_key_prog_bytes	0
-tot_key_inst_exec	0
-tot_key_bytes_returned	0
-tot_frag_scans	8
-tot_scan_rows_examined	0
-tot_scan_rows_returned	0
-tot_scan_bytes_returned	0
-tot_scan_prog_bytes	32
-tot_scan_bound_bytes	0
-tot_scan_inst_exec	0
-conc_qd_frag_scans	0
-tot_commits	6
 explain select count(*)
 from t2 as tx, t2 as ty
 where tx.a in (1,3,5)
@@ -1689,9 +1558,10 @@ angel_process_id	int unsigned	YES		NULL
 process_name	varchar(512)	YES		NULL	
 service_URI	varchar(512)	YES		NULL	
 set @@ndbinfo_show_hidden=default;
-show create table processes;
-View	Create View	character_set_client	collation_connection
-processes	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `processes` AS select distinct `ndb$processes`.`node_id` AS `node_id`,(case `ndb$processes`.`node_type` when 0 then 'NDB' when 1 then 'API' when 2 then 'MGM' else NULL end) AS `node_type`,`ndb$processes`.`node_version` AS `node_version`,nullif(`ndb$processes`.`process_id`,0) AS `process_id`,nullif(`ndb$processes`.`angel_process_id`,0) AS `angel_process_id`,`ndb$processes`.`process_name` AS `process_name`,`ndb$processes`.`service_URI` AS `service_URI` from `ndb$processes` order by `ndb$processes`.`node_id`	latin1	latin1_swedish_ci
+SELECT view_definition from information_schema.views
+  WHERE table_schema = 'ndbinfo' and table_name = 'processes';
+VIEW_DEFINITION
+select distinct `ndbinfo`.`ndb$processes`.`node_id` AS `node_id`,(case `ndbinfo`.`ndb$processes`.`node_type` when 0 then 'NDB' when 1 then 'API' when 2 then 'MGM' else NULL end) AS `node_type`,`ndbinfo`.`ndb$processes`.`node_version` AS `node_version`,nullif(`ndbinfo`.`ndb$processes`.`process_id`,0) AS `process_id`,nullif(`ndbinfo`.`ndb$processes`.`angel_process_id`,0) AS `angel_process_id`,`ndbinfo`.`ndb$processes`.`process_name` AS `process_name`,`ndbinfo`.`ndb$processes`.`service_URI` AS `service_URI` from `ndbinfo`.`ndb$processes` order by `ndbinfo`.`ndb$processes`.`node_id`
 
 SELECT reporting_node_id, node_id, node_type,
 replace(replace(process_name,"-debug",""),".exe","") AS process_name

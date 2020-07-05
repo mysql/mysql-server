@@ -90,6 +90,16 @@ if($remote_clone) {
 
   connection default;
 
+  --echo # Valgrind failures for Bug 29717909 MEMORY LIFETIME OF VARIABLES BETWEEN CHECK AND UPDATE INCORRECTLY MANAGED
+  select @@clone_valid_donor_list;
+  set @blah = '127.0.0.1:8976';
+  SET GLOBAL clone_valid_donor_list = @blah;
+  select @@clone_valid_donor_list;
+  SET GLOBAL clone_valid_donor_list = default;
+  select @@clone_valid_donor_list;
+  SET GLOBAL clone_valid_donor_list = NULL;
+  select @@clone_valid_donor_list;
+
   --echo # Error: space in clone_valid_donor_list
   --replace_result $HOST HOST $PORT PORT
   --error ER_CLONE_SYS_CONFIG

@@ -720,7 +720,7 @@ EXPLAIN
           "rows_examined_per_scan": 5,
           "rows_produced_per_join": 50,
           "filtered": "100.00",
-          "using_join_buffer": "Block Nested Loop",
+          "using_join_buffer": "hash join",
           "cost_info": {
             "read_cost": "0.25",
             "eval_cost": "5.00",
@@ -740,7 +740,7 @@ EXPLAIN
           "rows_examined_per_scan": 4,
           "rows_produced_per_join": 200,
           "filtered": "100.00",
-          "using_join_buffer": "Block Nested Loop",
+          "using_join_buffer": "hash join",
           "cost_info": {
             "read_cost": "0.25",
             "eval_cost": "20.00",

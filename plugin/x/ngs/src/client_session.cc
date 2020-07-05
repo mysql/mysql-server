@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -138,7 +138,7 @@ bool Session::handle_auth_message(const Message_request &command) {
   int8_t type = command.get_message_type();
 
   if (type == Mysqlx::ClientMessages::SESS_AUTHENTICATE_START &&
-      m_auth_handler.get() == NULL) {
+      m_auth_handler.get() == nullptr) {
     const Mysqlx::Session::AuthenticateStart &authm =
         static_cast<const Mysqlx::Session::AuthenticateStart &>(
             *command.get_message());
@@ -147,8 +147,8 @@ bool Session::handle_auth_message(const Message_request &command) {
               m_client->client_id(), m_id, authm.mech_name().c_str(),
               authm.auth_data().c_str());
 
-    m_auth_handler =
-        m_client->server().get_auth_handler(authm.mech_name(), this);
+    m_auth_handler = m_client->server().get_authentications().get_auth_handler(
+        authm.mech_name(), this);
     if (!m_auth_handler.get()) {
       log_debug("%s.%u: Invalid authentication method %s",
                 m_client->client_id(), m_id, authm.mech_name().c_str());

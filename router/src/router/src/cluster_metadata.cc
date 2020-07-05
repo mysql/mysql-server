@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -474,12 +474,21 @@ static bool check_group_has_quorum(MySQLSession *mysql) {
 }
 
 void ClusterMetadata::require_metadata_is_ok() {
-  if (!check_metadata_is_supported()) {  // throws MySQLSession::Error,
-                                         // std::out_of_range,
-                                         // std::logic_error
+  uint64_t cluster_count =
+      query_cluster_count();  // throws MySQLSession::Error,
+                              // std::out_of_range,
+                              // std::logic_error
+  if (cluster_count == 0) {
     throw std::runtime_error(
-        "The provided server contains an unsupported cluster "
-        "metadata.");
+        "Expected the metadata server to contain configuration for one "
+        "cluster, found none.\n\nSee "
+        "https://dev.mysql.com/doc/refman/8.0/en/"
+        "mysql-innodb-cluster-creating.html about how to create a cluster.");
+  } else if (cluster_count != 1) {
+    throw std::runtime_error(
+        "Expected the metadata server to contain configuration for one "
+        "cluster, found " +
+        std::to_string(cluster_count));
   }
 }
 
@@ -563,20 +572,19 @@ std::string ClusterMetadataGR::get_cluster_type_specific_id() {
   throw std::logic_error("No result returned for metadata query");
 }
 
-static bool check_gr_metadata_is_supported(MySQLSession *mysql,
-                                           const bool metadata_v2) {
+static uint64_t query_gr_cluster_count(MySQLSession *mysql,
+                                       const bool metadata_v2) {
   // check if there's only 1 GR cluster
   std::string query;
 
   if (metadata_v2) {
     query =
-        "select ((select count(*) from "
-        "mysql_innodb_cluster_metadata.v2_gr_clusters)=1) as "
-        "has_one_gr_cluster";
+        "select count(*) from "
+        "mysql_innodb_cluster_metadata.v2_gr_clusters";
   } else {
     query =
-        "select ((select count(*) from "
-        "mysql_innodb_cluster_metadata.clusters)=1) as has_one_gr_cluster";
+        "select count(*) from "
+        "mysql_innodb_cluster_metadata.clusters";
   }
 
   std::unique_ptr<MySQLSession::ResultRow> result(
@@ -596,12 +604,12 @@ static bool check_gr_metadata_is_supported(MySQLSession *mysql,
   throw std::logic_error("No result returned for metadata query");
 }
 
-bool ClusterMetadataGRV1::check_metadata_is_supported() {
-  return check_gr_metadata_is_supported(mysql_, /*metadata_v2=*/false);
+uint64_t ClusterMetadataGRV1::query_cluster_count() {
+  return query_gr_cluster_count(mysql_, /*metadata_v2=*/false);
 }
 
-bool ClusterMetadataGRV2::check_metadata_is_supported() {
-  return check_gr_metadata_is_supported(mysql_, /*metadata_v2=*/true);
+uint64_t ClusterMetadataGRV2::query_cluster_count() {
+  return query_gr_cluster_count(mysql_, /*metadata_v2=*/true);
 }
 
 static ClusterInfo query_metadata_servers(MySQLSession *mysql,
@@ -726,11 +734,11 @@ std::vector<std::string> ClusterMetadataGRV2::get_routing_mode_queries(
                                      cluster_name);
 }
 
-bool ClusterMetadataAR::check_metadata_is_supported() {
+uint64_t ClusterMetadataAR::query_cluster_count() {
   // check if there's only 1 cluster and that it is ar type
   std::string q =
-      "select ((select count(*) from "
-      "mysql_innodb_cluster_metadata.v2_ar_clusters)=1) as has_one_ar_cluster";
+      "select count(*) from "
+      "mysql_innodb_cluster_metadata.v2_ar_clusters";
 
   std::unique_ptr<MySQLSession::ResultRow> result(
       mysql_->query_one(q));  // throws MySQLSession::Error
@@ -742,9 +750,7 @@ bool ClusterMetadataAR::check_metadata_is_supported() {
           "expected 1 got " +
           std::to_string(result->size()));
     }
-    const bool has_one_cluster = strtoi_checked((*result)[0]) == 1;
-
-    return has_one_cluster;
+    return strtoi_checked((*result)[0]);
   }
   throw std::logic_error("No result returned for metadata query");
 }
@@ -831,7 +837,7 @@ static ClusterType get_cluster_type(MySQLSession *mysql) {
     }
   }
 
-  throw std::logic_error(
+  throw std::runtime_error(
       "No result returned for v2_this_instance metadata query");
 }
 
@@ -940,6 +946,30 @@ std::vector<std::string> ClusterMetadataGRV2::get_grant_statements(
 std::vector<std::string> ClusterMetadataAR::get_grant_statements(
     const std::string &new_accounts) const {
   return get_grant_statements_v2(new_accounts);
+}
+
+// default SQL_MODE as of 8.0.19
+constexpr const char *kDefaultSqlMode =
+    "ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,"
+    "NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION";
+
+void setup_metadata_session(MySQLSession &session) {
+  session.execute(
+      "SET @@SESSION.autocommit=1, @@SESSION.character_set_client=utf8, "
+      "@@SESSION.character_set_results=utf8, "
+      "@@SESSION.character_set_connection=utf8, @@SESSION.sql_mode='"s +
+      kDefaultSqlMode + "'");
+
+  try {
+    session.execute("SET @@SESSION.group_replication_consistency='EVENTUAL'");
+  } catch (const MySQLSession::Error &e) {
+    if (e.code() != ER_UNKNOWN_SYSTEM_VARIABLE) {
+      // ER_UNKNOWN_SYSTEM_VARIABLE is ok, means that this version does not
+      // support group_replication_consistency so we don't have to worry about
+      // it
+      throw;
+    }
+  }
 }
 
 }  // namespace mysqlrouter

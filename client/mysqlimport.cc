@@ -67,16 +67,18 @@ static bool verbose = false, lock_tables = false, ignore_errors = false,
             tty_password = false;
 static bool debug_info_flag = false, debug_check_flag = false;
 static uint opt_use_threads = 0, opt_local_file = 0, my_end_arg = 0;
-static char *opt_password = 0, *current_user = 0, *current_host = 0,
-            *current_db = 0, *fields_terminated = 0, *lines_terminated = 0,
-            *enclosed = 0, *opt_enclosed = 0, *escaped = 0, *opt_columns = 0;
+static char *opt_password = nullptr, *current_user = nullptr,
+            *current_host = nullptr, *current_db = nullptr,
+            *fields_terminated = nullptr, *lines_terminated = nullptr,
+            *enclosed = nullptr, *opt_enclosed = nullptr, *escaped = nullptr,
+            *opt_columns = nullptr;
 static const char *default_charset = MYSQL_AUTODETECT_CHARSET_NAME;
 static uint opt_enable_cleartext_plugin = 0;
 static bool using_opt_enable_cleartext_plugin = false;
 static uint opt_mysql_port = 0, opt_protocol = 0;
-static char *opt_bind_addr = NULL;
-static char *opt_mysql_unix_port = 0;
-static char *opt_plugin_dir = 0, *opt_default_auth = 0;
+static char *opt_bind_addr = nullptr;
+static char *opt_mysql_unix_port = nullptr;
+static char *opt_plugin_dir = nullptr, *opt_default_auth = nullptr;
 static longlong opt_ignore_lines = -1;
 static uint opt_zstd_compress_level = default_zstd_compression_level;
 static char *opt_compress_algorithm = nullptr;
@@ -90,20 +92,23 @@ static char *shared_memory_base_name = 0;
 
 static struct my_option my_long_options[] = {
     {"bind-address", 0, "IP address to bind to.", (uchar **)&opt_bind_addr,
-     (uchar **)&opt_bind_addr, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     (uchar **)&opt_bind_addr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr,
+     0, nullptr},
     {"character-sets-dir", OPT_CHARSETS_DIR,
-     "Directory for character set files.", &charsets_dir, &charsets_dir, 0,
-     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     "Directory for character set files.", &charsets_dir, &charsets_dir,
+     nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"default-character-set", OPT_DEFAULT_CHARSET,
-     "Set the default character set.", &default_charset, &default_charset, 0,
-     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     "Set the default character set.", &default_charset, &default_charset,
+     nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"columns", 'c',
      "Use only these columns to import the data to. Give the column names in a "
      "comma separated list. This is same as giving columns to LOAD DATA "
      "INFILE.",
-     &opt_columns, &opt_columns, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_columns, &opt_columns, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
     {"compress", 'C', "Use compression in server/client protocol.",
-     &opt_compress, &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_compress, &opt_compress, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr,
+     0, nullptr},
 #ifdef DBUG_OFF
     {"debug", '#', "This is a non-debug version. Catch this and exit.", 0, 0, 0,
      GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
@@ -114,69 +119,77 @@ static struct my_option my_long_options[] = {
      "This is a non-debug version. Catch this and exit.", 0, 0, 0, GET_DISABLED,
      NO_ARG, 0, 0, 0, 0, 0, 0},
 #else
-    {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.", 0, 0, 0,
-     GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+    {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.", nullptr,
+     nullptr, nullptr, GET_STR, OPT_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"debug-check", OPT_DEBUG_CHECK,
      "Check memory and open file usage at exit.", &debug_check_flag,
-     &debug_check_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &debug_check_flag, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.",
-     &debug_info_flag, &debug_info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &debug_info_flag, &debug_info_flag, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
 #endif
     {"default_auth", OPT_DEFAULT_AUTH,
      "Default authentication client-side plugin to use.", &opt_default_auth,
-     &opt_default_auth, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_default_auth, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"delete", 'd', "First delete all rows from table.", &opt_delete,
-     &opt_delete, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_delete, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"enable_cleartext_plugin", OPT_ENABLE_CLEARTEXT_PLUGIN,
      "Enable/disable the clear text authentication plugin.",
-     &opt_enable_cleartext_plugin, &opt_enable_cleartext_plugin, 0, GET_BOOL,
-     OPT_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_enable_cleartext_plugin, &opt_enable_cleartext_plugin, nullptr,
+     GET_BOOL, OPT_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"fields-terminated-by", OPT_FTB,
      "Fields in the input file are terminated by the given string.",
-     &fields_terminated, &fields_terminated, 0, GET_STR, REQUIRED_ARG, 0, 0, 0,
-     0, 0, 0},
+     &fields_terminated, &fields_terminated, nullptr, GET_STR, REQUIRED_ARG, 0,
+     0, 0, nullptr, 0, nullptr},
     {"fields-enclosed-by", OPT_ENC,
      "Fields in the import file are enclosed by the given character.",
-     &enclosed, &enclosed, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     &enclosed, &enclosed, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"fields-optionally-enclosed-by", OPT_O_ENC,
      "Fields in the input file are optionally enclosed by the given character.",
-     &opt_enclosed, &opt_enclosed, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_enclosed, &opt_enclosed, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
     {"fields-escaped-by", OPT_ESC,
      "Fields in the input file are escaped by the given character.", &escaped,
-     &escaped, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     &escaped, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"force", 'f', "Continue even if we get an SQL error.", &ignore_errors,
-     &ignore_errors, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-    {"help", '?', "Displays this help and exits.", 0, 0, 0, GET_NO_ARG, NO_ARG,
-     0, 0, 0, 0, 0, 0},
-    {"host", 'h', "Connect to host.", &current_host, &current_host, 0, GET_STR,
-     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     &ignore_errors, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"help", '?', "Displays this help and exits.", nullptr, nullptr, nullptr,
+     GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"host", 'h', "Connect to host.", &current_host, &current_host, nullptr,
+     GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"ignore", 'i', "If duplicate unique key was found, keep old row.", &ignore,
-     &ignore, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &ignore, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"ignore-lines", OPT_IGN_LINES, "Ignore first n lines of data infile.",
-     &opt_ignore_lines, &opt_ignore_lines, 0, GET_LL, REQUIRED_ARG, 0, 0, 0, 0,
-     0, 0},
+     &opt_ignore_lines, &opt_ignore_lines, nullptr, GET_LL, REQUIRED_ARG, 0, 0,
+     0, nullptr, 0, nullptr},
     {"lines-terminated-by", OPT_LTB,
      "Lines in the input file are terminated by the given string.",
-     &lines_terminated, &lines_terminated, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0,
-     0, 0},
+     &lines_terminated, &lines_terminated, nullptr, GET_STR, REQUIRED_ARG, 0, 0,
+     0, nullptr, 0, nullptr},
     {"local", 'L', "Read all files through the client.", &opt_local_file,
-     &opt_local_file, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_local_file, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"lock-tables", 'l', "Lock all tables for write (this disables threads).",
-     &lock_tables, &lock_tables, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &lock_tables, &lock_tables, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"low-priority", OPT_LOW_PRIORITY,
      "Use LOW_PRIORITY when updating the table.", &opt_low_priority,
-     &opt_low_priority, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &opt_low_priority, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"password", 'p',
      "Password to use when connecting to server. If password is not given it's "
      "asked from the tty.",
-     0, 0, 0, GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
+     nullptr, nullptr, nullptr, GET_PASSWORD, OPT_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
 #ifdef _WIN32
     {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
      NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
     {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
-     &opt_plugin_dir, &opt_plugin_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0,
-     0},
+     &opt_plugin_dir, &opt_plugin_dir, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
     {"port", 'P',
      "Port number to use for connection or 0 for default to, in "
      "order of preference, my.cnf, $MYSQL_TCP_PORT, "
@@ -184,52 +197,55 @@ static struct my_option my_long_options[] = {
      "/etc/services, "
 #endif
      "built-in default (" STRINGIFY_ARG(MYSQL_PORT) ").",
-     &opt_mysql_port, &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0,
-     0},
+     &opt_mysql_port, &opt_mysql_port, nullptr, GET_UINT, REQUIRED_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
     {"protocol", OPT_MYSQL_PROTOCOL,
-     "The protocol to use for connection (tcp, socket, pipe, memory).", 0, 0, 0,
-     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     "The protocol to use for connection (tcp, socket, pipe, memory).", nullptr,
+     nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"replace", 'r', "If duplicate unique key was found, replace old row.",
-     &replace, &replace, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+     &replace, &replace, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
 #if defined(_WIN32)
     {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
      "Base name of shared memory.", &shared_memory_base_name,
      &shared_memory_base_name, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0,
      0},
 #endif
-    {"silent", 's', "Be more silent.", &silent, &silent, 0, GET_BOOL, NO_ARG, 0,
-     0, 0, 0, 0, 0},
+    {"silent", 's', "Be more silent.", &silent, &silent, nullptr, GET_BOOL,
+     NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"socket", 'S', "The socket file to use for connection.",
-     &opt_mysql_unix_port, &opt_mysql_unix_port, 0, GET_STR, REQUIRED_ARG, 0, 0,
-     0, 0, 0, 0},
+     &opt_mysql_unix_port, &opt_mysql_unix_port, nullptr, GET_STR, REQUIRED_ARG,
+     0, 0, 0, nullptr, 0, nullptr},
 #include "caching_sha2_passwordopt-longopts.h"
 #include "sslopt-longopts.h"
 
     {"use-threads", OPT_USE_THREADS,
      "Load files in parallel. The argument is the number "
      "of threads to use for loading data.",
-     &opt_use_threads, &opt_use_threads, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0,
-     0, 0},
+     &opt_use_threads, &opt_use_threads, nullptr, GET_UINT, REQUIRED_ARG, 0, 0,
+     0, nullptr, 0, nullptr},
     {"user", 'u', "User for login if not current user.", &current_user,
-     &current_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+     &current_user, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
     {"verbose", 'v', "Print info about the various stages.", &verbose, &verbose,
-     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-    {"version", 'V', "Output version information and exit.", 0, 0, 0,
-     GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+     nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"version", 'V', "Output version information and exit.", nullptr, nullptr,
+     nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"compression-algorithms", 0,
      "Use compression algorithm in server/client protocol. Valid values "
      "are any combination of 'zstd','zlib','uncompressed'.",
-     &opt_compress_algorithm, &opt_compress_algorithm, 0, GET_STR, REQUIRED_ARG,
-     0, 0, 0, 0, 0, 0},
+     &opt_compress_algorithm, &opt_compress_algorithm, nullptr, GET_STR,
+     REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"zstd-compression-level", 0,
      "Use this compression level in the client/server protocol, in case "
      "--compression-algorithms=zstd. Valid range is between 1 and 22, "
      "inclusive. Default is 3.",
-     &opt_zstd_compress_level, &opt_zstd_compress_level, 0, GET_UINT,
-     REQUIRED_ARG, 3, 1, 22, 0, 0, 0},
-    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
+     &opt_zstd_compress_level, &opt_zstd_compress_level, nullptr, GET_UINT,
+     REQUIRED_ARG, 3, 1, 22, nullptr, 0, nullptr},
+    {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
+     0, nullptr, 0, nullptr}};
 
-static const char *load_default_groups[] = {"mysqlimport", "client", 0};
+static const char *load_default_groups[] = {"mysqlimport", "client", nullptr};
 
 static void usage(void) {
   print_version();
@@ -342,7 +358,7 @@ static int write_to_table(char *filename, MYSQL *mysql) {
   if (!opt_local_file)
     my_stpcpy(hard_path, filename);
   else
-    my_load_path(hard_path, filename, NULL); /* filename includes the path */
+    my_load_path(hard_path, filename, nullptr); /* filename includes the path */
 
   if (opt_delete) {
     if (verbose)
@@ -427,13 +443,13 @@ static MYSQL *db_connect(char *host, char *database, char *user, char *passwd) {
   if (verbose) fprintf(stdout, "Connecting to %s\n", host ? host : "localhost");
   if (opt_use_threads && !lock_tables) {
     native_mutex_lock(&init_mutex);
-    if (!(mysql = mysql_init(NULL))) {
+    if (!(mysql = mysql_init(nullptr))) {
       native_mutex_unlock(&init_mutex);
-      return 0;
+      return nullptr;
     }
     native_mutex_unlock(&init_mutex);
-  } else if (!(mysql = mysql_init(NULL)))
-    return 0;
+  } else if (!(mysql = mysql_init(nullptr)))
+    return nullptr;
   if (opt_compress) mysql_options(mysql, MYSQL_OPT_COMPRESS, NullS);
 
   if (opt_compress_algorithm)
@@ -447,7 +463,7 @@ static MYSQL *db_connect(char *host, char *database, char *user, char *passwd) {
     mysql_options(mysql, MYSQL_OPT_LOCAL_INFILE, (char *)&opt_local_file);
   if (SSL_SET_OPTIONS(mysql)) {
     fprintf(stderr, "%s", SSL_SET_OPTIONS_ERROR);
-    return 0;
+    return nullptr;
   }
   if (opt_protocol)
     mysql_options(mysql, MYSQL_OPT_PROTOCOL, (char *)&opt_protocol);
@@ -469,7 +485,7 @@ static MYSQL *db_connect(char *host, char *database, char *user, char *passwd) {
                   (char *)&opt_enable_cleartext_plugin);
 
   mysql_options(mysql, MYSQL_SET_CHARSET_NAME, default_charset);
-  mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
+  mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_RESET, nullptr);
   mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "program_name",
                  "mysqlimport");
   set_server_public_key(mysql);
@@ -560,7 +576,7 @@ extern "C" {
 static void *worker_thread(void *arg) {
   int error;
   char *raw_table_name = (char *)arg;
-  MYSQL *mysql = 0;
+  MYSQL *mysql = nullptr;
 
   if (mysql_thread_init()) goto error;
 
@@ -588,8 +604,8 @@ error:
   native_cond_signal(&count_threshold);
   native_mutex_unlock(&counter_mutex);
   mysql_thread_end();
-  my_thread_exit(0);
-  return 0;
+  my_thread_exit(nullptr);
+  return nullptr;
 }
 }  // extern "C"
 
@@ -614,15 +630,15 @@ int main(int argc, char **argv) {
     my_thread_attr_init(&attr);
     my_thread_attr_setdetachstate(&attr, MY_THREAD_CREATE_JOINABLE);
 
-    native_mutex_init(&init_mutex, NULL);
-    native_mutex_init(&counter_mutex, NULL);
+    native_mutex_init(&init_mutex, nullptr);
+    native_mutex_init(&counter_mutex, nullptr);
     native_cond_init(&count_threshold);
 
     /* Count the number of tables. This number denotes the total number
        of threads spawn.
     */
     save_argv = argv;
-    for (table_count = 0; *argv != NULL; argv++) table_count++;
+    for (table_count = 0; *argv != nullptr; argv++) table_count++;
     argv = save_argv;
 
     if (!(worker_threads = (my_thread_handle *)my_malloc(
@@ -630,7 +646,7 @@ int main(int argc, char **argv) {
               MYF(0))))
       return -2;
 
-    for (counter = 0; *argv != NULL; argv++) /* Loop through tables */
+    for (counter = 0; *argv != nullptr; argv++) /* Loop through tables */
     {
       native_mutex_lock(&counter_mutex);
       while (counter == opt_use_threads) {
@@ -671,13 +687,13 @@ int main(int argc, char **argv) {
     my_thread_attr_destroy(&attr);
 
     for (i = 0; i < worker_thread_count; i++) {
-      if (my_thread_join(&worker_threads[i], NULL))
+      if (my_thread_join(&worker_threads[i], nullptr))
         fprintf(stderr, "%s: Could not join worker thread.\n", my_progname);
     }
 
     my_free(worker_threads);
   } else {
-    MYSQL *mysql = 0;
+    MYSQL *mysql = nullptr;
     if (!(mysql = db_connect(current_host, current_db, current_user,
                              opt_password))) {
       return (1); /* purecov: deadcode */
@@ -690,7 +706,7 @@ int main(int argc, char **argv) {
     }
 
     if (lock_tables) lock_table(mysql, argc, argv);
-    for (; *argv != NULL; argv++)
+    for (; *argv != nullptr; argv++)
       if ((error = write_to_table(*argv, mysql)))
         if (exitcode == 0) exitcode = error;
     db_disconnect(current_host, mysql);

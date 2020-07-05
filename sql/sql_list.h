@@ -1,6 +1,6 @@
 #ifndef INCLUDES_MYSQL_SQL_LIST_H
 #define INCLUDES_MYSQL_SQL_LIST_H
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,7 @@ class SQL_I_List {
 
   inline void empty() {
     elements = 0;
-    first = NULL;
+    first = nullptr;
     next = &first;
   }
 
@@ -69,7 +69,7 @@ class SQL_I_List {
     elements++;
     (*next) = element;
     next = next_ptr;
-    *next = NULL;
+    *next = nullptr;
   }
 
   inline void save_and_clear(SQL_I_List<T> *save) {
@@ -120,7 +120,7 @@ struct list_node {
       : next(next_par), info(info_par) {}
   list_node() /* For end_of_list */
   {
-    info = 0;
+    info = nullptr;
     next = this;
   }
 };
@@ -222,7 +222,7 @@ class base_list {
     }
   }
   inline void *pop(void) {
-    if (first == &end_of_list) return 0;
+    if (first == &end_of_list) return nullptr;
     list_node *tmp = first;
     first = first->next;
     if (!--elements) last = &first;
@@ -261,7 +261,16 @@ class base_list {
   inline list_node *first_node() { return first; }
   inline void *head() { return first->info; }
   inline const void *head() const { return first->info; }
-  inline void **head_ref() { return first != &end_of_list ? &first->info : 0; }
+  inline void **head_ref() {
+    return first != &end_of_list ? &first->info : nullptr;
+  }
+  // Can be removed after WL#6570
+  inline void **tail_ref() {
+    if (first == &end_of_list) return nullptr;
+    list_node *n = first;
+    while (n->next != &end_of_list) n = n->next;
+    return &n->info;
+  }
   inline bool is_empty() const { return first == &end_of_list; }
   inline list_node *last_ref() { return &end_of_list; }
   inline uint size() const { return elements; }
@@ -342,15 +351,16 @@ class base_list_iterator {
   }
 
  public:
-  base_list_iterator() : list(0), el(0), prev(0), current(0) {}
+  base_list_iterator()
+      : list(nullptr), el(nullptr), prev(nullptr), current(nullptr) {}
 
   base_list_iterator(base_list &list_par) { init(list_par); }
 
   inline void init(base_list &list_par) {
     list = &list_par;
     el = &list_par.first;
-    prev = 0;
-    current = 0;
+    prev = nullptr;
+    current = nullptr;
   }
 
   inline void *next(void) {
@@ -368,7 +378,7 @@ class base_list_iterator {
   inline void rewind(void) { el = &list->first; }
   inline void *replace(void *element) {  // Return old element
     void *tmp = current->info;
-    DBUG_ASSERT(current->info != 0);
+    DBUG_ASSERT(current->info != nullptr);
     current->info = element;
     return tmp;
   }
@@ -388,7 +398,7 @@ class base_list_iterator {
   {
     list->remove(prev);
     el = prev;
-    current = 0;  // Safeguard
+    current = nullptr;  // Safeguard
   }
   void after(void *element)  // Insert element after current
   {
@@ -408,7 +418,7 @@ class base_list_iterator {
     return &current->info;
   }
   inline bool is_last(void) { return el == list->last; }
-  inline bool is_before_first() const { return current == NULL; }
+  inline bool is_before_first() const { return current == nullptr; }
   bool prepend(void *a, MEM_ROOT *mem_root) {
     if (list->push_front(a, mem_root)) return true;
 
@@ -456,6 +466,7 @@ class List : public base_list {
     return static_cast<const T *>(base_list::head());
   }
   inline T **head_ref() { return (T **)base_list::head_ref(); }
+  inline T **tail_ref() { return (T **)base_list::tail_ref(); }
   inline T *pop() { return (T *)base_list::pop(); }
   inline void concat(List<T> *list) { base_list::concat(list); }
   inline void disjoin(List<T> *list) { base_list::disjoin(list); }
@@ -670,14 +681,14 @@ class ilink {
   T **prev, *next;
 
  public:
-  ilink() : prev(NULL), next(NULL) {}
+  ilink() : prev(nullptr), next(nullptr) {}
 
   void unlink() {
     /* Extra tests because element doesn't have to be linked */
     if (prev) *prev = next;
     if (next) next->prev = prev;
-    prev = NULL;
-    next = NULL;
+    prev = nullptr;
+    next = nullptr;
   }
 
   friend class base_ilist<T>;
@@ -689,7 +700,7 @@ class ilink {
 class i_string : public ilink<i_string> {
  public:
   const char *ptr;
-  i_string() : ptr(0) {}
+  i_string() : ptr(nullptr) {}
   i_string(const char *s) : ptr(s) {}
 };
 
@@ -698,7 +709,7 @@ class i_string_pair : public ilink<i_string_pair> {
  public:
   const char *key;
   const char *val;
-  i_string_pair() : key(0), val(0) {}
+  i_string_pair() : key(nullptr), val(nullptr) {}
   i_string_pair(const char *key_arg, const char *val_arg)
       : key(key_arg), val(val_arg) {}
 };
@@ -745,13 +756,13 @@ class base_ilist {
 
   // Unlink first element, and return it.
   T *get() {
-    if (is_empty()) return NULL;
+    if (is_empty()) return nullptr;
     T *first_link = first;
     first_link->unlink();
     return first_link;
   }
 
-  T *head() { return is_empty() ? NULL : first; }
+  T *head() { return is_empty() ? nullptr : first; }
 
   /**
     Moves list elements to new owner, and empties current owner (i.e. this).
@@ -786,13 +797,13 @@ class base_ilist_iterator {
 
  public:
   base_ilist_iterator(base_ilist<T> &list_par)
-      : list(&list_par), el(&list_par.first), current(NULL) {}
+      : list(&list_par), el(&list_par.first), current(nullptr) {}
 
   // The sentinel is not a T, but at least it is a POD
   T *next(void) SUPPRESS_UBSAN {
     /* This is coded to allow push_back() while iterating */
     current = *el;
-    if (current == static_cast<T *>(&list->sentinel)) return NULL;
+    if (current == static_cast<T *>(&list->sentinel)) return nullptr;
     el = &current->next;
     return current;
   }

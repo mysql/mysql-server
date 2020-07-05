@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -410,7 +410,7 @@ class Client {
 
   /** Check if network error
   @param[in]	err		error code
-  @param[in]	prtocol_error	include protocol error
+  @param[in]	protocol_error	include protocol error
   @return true if network error */
   static bool is_network_error(int err, bool protocol_error);
 
@@ -618,9 +618,10 @@ class Client {
                       bool skip_loc, bool &is_last);
 
   /** Handle error and check if needs to exit
-  @param[in]	current_error	error number
-  @param[in,out]	first_err	first error that has occurred
-  @param[in,out]	first_err_time	time for first error in milliseconds
+  @param[in]	current_err			error number
+  @param[in,out]	first_error		first error that has occurred
+  @param[in,out]	first_error_time	time for first error in
+  milliseconds
   @return true if the caller needs to exit */
   bool handle_error(int current_err, int &first_error,
                     ulonglong &first_error_time);

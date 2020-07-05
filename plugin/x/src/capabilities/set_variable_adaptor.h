@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -29,10 +29,9 @@
 #include <string>
 #include <vector>
 
-#include "plugin/x/src/helper/string_case.h"
-#include "plugin/x/src/set_variable.h"
-
 #include "my_dbug.h"  // NOLINT(build/include_subdir)
+#include "plugin/x/src/helper/string_case.h"
+#include "plugin/x/src/variables/set_variable.h"
 
 namespace xpl {
 
@@ -42,21 +41,24 @@ class Set_variable_adaptor {
   Set_variable_adaptor(const Set_variable &variable,
                        const std::initializer_list<Enum> &label_map)
       : m_variable{variable}, m_label_map{label_map} {
-    DBUG_ASSERT(m_variable.get_labels().size() - 1 == label_map.size());
+    DBUG_ASSERT(m_variable.get_labels_count() == label_map.size());
   }
 
   bool is_allowed_value(const std::string &val) const {
     const auto id = get_id(val);
-    return id < m_variable.get_labels().size() - 1
+    return id < m_variable.get_labels_count()
                ? m_variable.get_value() & (static_cast<ulonglong>(1) << id)
                : false;
   }
 
   void get_allowed_values(std::vector<std::string> *values) const {
     values->clear();
-    for (ulonglong i = 0; i < m_variable.get_labels().size() - 1; ++i) {
-      if (m_variable.get_value() & (static_cast<ulonglong>(1) << i))
-        values->push_back(to_lower(m_variable.get_labels()[i]));
+    const auto &value = m_variable.get_value();
+    std::vector<std::string> labels;
+    m_variable.get_labels(&labels);
+    for (ulonglong i = 0; i < labels.size(); ++i) {
+      if (value & (static_cast<ulonglong>(1) << i))
+        values->push_back(to_lower(labels[i]));
     }
   }
 
@@ -65,12 +67,11 @@ class Set_variable_adaptor {
   }
 
  private:
-  std::vector<const char *>::size_type get_id(const std::string &val) const {
-    const auto label = to_upper(val);
-    const auto i = std::find_if(
-        m_variable.get_labels().begin(), m_variable.get_labels().end() - 1,
-        [&label](const char *l) { return std::strcmp(label.c_str(), l) == 0; });
-    return std::distance(m_variable.get_labels().begin(), i);
+  std::vector<std::string>::size_type get_id(const std::string &val) const {
+    std::vector<std::string> labels;
+    m_variable.get_labels(&labels);
+    const auto i = std::find(labels.begin(), labels.end(), to_upper(val));
+    return std::distance(labels.begin(), i);
   }
 
   const Set_variable &m_variable;

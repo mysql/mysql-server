@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -128,24 +128,6 @@ void lock_prdt_set_prdt(lock_t *lock,             /*!< in: lock */
                         const lock_prdt_t *prdt); /*!< in: Predicate */
 
 #if 0
-
-/*********************************************************************//**
-Checks if a predicate lock request for a new lock has to wait for
-request lock2.
-@return true if new lock has to wait for lock2 to be removed */
-UNIV_INLINE
-bool
-lock_prdt_has_to_wait(
-	const trx_t*	trx,	/*!< in: trx of new lock */
-	ulint		type_mode,/*!< in: precise mode of the new lock
-				to set: LOCK_S or LOCK_X, possibly
-				ORed to LOCK_PREDICATE or LOCK_PRDT_PAGE,
-				LOCK_INSERT_INTENTION */
-	lock_prdt_t*	prdt,	/*!< in: lock predicate to check */
-	const lock_t*	lock2);	/*!< in: another record lock; NOTE that
-				it is assumed that this has a lock bit
-				set on the same record as in the new
-				lock we are setting */
 
 /*********************************************************************//**
 Get predicate lock's minimum bounding box

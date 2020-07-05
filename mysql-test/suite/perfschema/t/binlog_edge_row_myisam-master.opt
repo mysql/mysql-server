@@ -1,0 +1,1 @@
+--binlog-ignore-db=my_local_db

@@ -545,7 +545,7 @@ TEST_F(XComCommunicationTest, SuccessfulSynodRecoveryTest) {
   /* Mock the connection to the donor. */
   EXPECT_CALL(*mock_proxy, xcom_client_open_connection(_, _))
       .Times(1)
-      .WillOnce(Return(::new_connection(0, 0)));
+      .WillOnce(Return(::new_connection(0, nullptr)));
 
   /*
    Mock the request-reply interaction with the remote XCom.
@@ -668,7 +668,7 @@ TEST_F(XComCommunicationTest, UnsuccessfulSynodRecoveryTest) {
   /* Mock the connection to the donor. */
   EXPECT_CALL(*mock_proxy, xcom_client_open_connection(_, _))
       .Times(1)
-      .WillOnce(Return(::new_connection(0, 0)));
+      .WillOnce(Return(::new_connection(0, nullptr)));
 
   /*
    Mock the request-reply interaction with the remote XCom.

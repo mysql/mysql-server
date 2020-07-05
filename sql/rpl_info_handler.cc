@@ -32,7 +32,7 @@ bool operator!(Rpl_info_handler::enum_field_get_status status) {
 #include <iostream>
 Rpl_info_handler::Rpl_info_handler(const int nparam,
                                    MY_BITMAP const *nullable_bitmap)
-    : field_values(0),
+    : field_values(nullptr),
       ninfo(nparam),
       cursor((my_off_t)0),
       prv_error(false),
@@ -47,7 +47,7 @@ Rpl_info_handler::Rpl_info_handler(const int nparam,
   */
   if (field_values && field_values->init()) {
     delete field_values;
-    field_values = 0;
+    field_values = nullptr;
   }
   bitmap_init(&nullable_fields, nullptr, nparam);
   bitmap_clear_all(&nullable_fields);

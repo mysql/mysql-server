@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -637,6 +637,7 @@ public:
     Uint8 statScan;
     Uint8 m_stop_batch;
     Uint8 prioAFlag;
+    Uint8 m_first_match_flag;
   };
   STATIC_CONST(DBLQH_SCAN_RECORD_TRANSIENT_POOL_INDEX = 1);
   typedef Ptr<ScanRecord> ScanRecordPtr;

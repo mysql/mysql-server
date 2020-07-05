@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,13 +33,13 @@ extern "C" {
 
 static inline void task_dump_err(int err) {
   if (err) {
-#ifdef XCOM_HAVE_OPENSSL
+#ifndef XCOM_WITHOUT_OPENSSL
     if (is_ssl_err(err)) {
       MAY_DBG(FN; NDBG(to_ssl_err(err), d));
     } else {
 #endif
       MAY_DBG(FN; NDBG(to_errno(err), d); STREXP(strerror(err)));
-#ifdef XCOM_HAVE_OPENSSL
+#ifndef XCOM_WITHOUT_OPENSSL
     }
 #endif
   }

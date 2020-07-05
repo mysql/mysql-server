@@ -688,6 +688,9 @@ SELECT COUNT(*) FROM t1 WHERE b like 'abc%';
 COUNT(*)
 4
 # k4 index used since it's  covering.
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT COUNT(*) FROM t1 WHERE a > 4 AND b like 'abc%';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	PRIMARY,k2,k3,k4	k4	4	NULL	2	66.67	Using where; Using index

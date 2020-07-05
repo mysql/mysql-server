@@ -93,7 +93,7 @@ int ReplSemiSyncSlave::slaveStart(Binlog_relay_IO_param *param) {
 int ReplSemiSyncSlave::slaveStop(Binlog_relay_IO_param *) {
   if (rpl_semi_sync_slave_status) rpl_semi_sync_slave_status = 0;
   if (mysql_reply) mysql_close(mysql_reply);
-  mysql_reply = 0;
+  mysql_reply = nullptr;
   return 0;
 }
 

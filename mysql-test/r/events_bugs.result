@@ -42,11 +42,11 @@ Warnings:
 Note	1588	Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. The event was dropped immediately after creation.
 show events;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
-create event e_55 on schedule at 20200101000000 starts 10000101000000 do drop table t;
+create event e_55 on schedule at 20380101000000 starts 10000101000000 do drop table t;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'starts 10000101000000 do drop table t' at line 1
-create event e_55 on schedule at 20200101000000 ends 10000101000000 do drop table t;
+create event e_55 on schedule at 20380101000000 ends 10000101000000 do drop table t;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ends 10000101000000 do drop table t' at line 1
-create event e_55 on schedule at 20200101000000 starts 10000101000000 ends 10000101000000 do drop table t;
+create event e_55 on schedule at 20380101000000 starts 10000101000000 ends 10000101000000 do drop table t;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'starts 10000101000000 ends 10000101000000 do drop table t' at line 1
 create event e_55 on schedule every 10 hour starts 10000101000000 do drop table t;
 ERROR HY000: Incorrect STARTS value: '10000101000000'
@@ -411,16 +411,16 @@ SHOW EVENTS;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
 events_test	e1	root@localhost	+02:00	ONE TIME	2000-01-02 00:00:00	NULL	NULL	NULL	NULL	DISABLED	1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 SET TIME_ZONE= '-03:00';
-ALTER EVENT e1 ON SCHEDULE EVERY 1 DAY ENDS '2030-01-03 00:00:00'
+ALTER EVENT e1 ON SCHEDULE EVERY 1 DAY ENDS '2038-01-03 00:00:00'
   ON COMPLETION PRESERVE DISABLE;
 SHOW EVENTS;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
-events_test	e1	root@localhost	-03:00	RECURRING	NULL	1	DAY	2005-12-31 20:58:59	2030-01-03 00:00:00	DISABLED	1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+events_test	e1	root@localhost	-03:00	RECURRING	NULL	1	DAY	2005-12-31 20:58:59	2038-01-03 00:00:00	DISABLED	1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 SET TIME_ZONE= '+04:00';
 ALTER EVENT e1 DO SELECT 2;
 SHOW EVENTS;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
-events_test	e1	root@localhost	-03:00	RECURRING	NULL	1	DAY	2005-12-31 20:58:59	2030-01-03 00:00:00	DISABLED	1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+events_test	e1	root@localhost	-03:00	RECURRING	NULL	1	DAY	2005-12-31 20:58:59	2038-01-03 00:00:00	DISABLED	1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 DROP EVENT e1;
 SET TIME_ZONE='+05:00';
 CREATE EVENT e1 ON SCHEDULE EVERY 1 DAY STARTS '2006-01-01 00:00:00' DO
@@ -570,7 +570,7 @@ USE test;
 SHOW GRANTS FOR CURRENT_USER;
 Grants for root@localhost
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
-GRANT APPLICATION_PASSWORD_ADMIN,AUDIT_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,BINLOG_ENCRYPTION_ADMIN,CLONE_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,INNODB_REDO_LOG_ARCHIVE,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_APPLIER,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SERVICE_CONNECTION_ADMIN,SESSION_VARIABLES_ADMIN,SET_USER_ID,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT APPLICATION_PASSWORD_ADMIN,AUDIT_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,BINLOG_ENCRYPTION_ADMIN,CLONE_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,INNODB_REDO_LOG_ARCHIVE,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_APPLIER,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SERVICE_CONNECTION_ADMIN,SESSION_VARIABLES_ADMIN,SET_USER_ID,SHOW_ROUTINE,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
 GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 SET GLOBAL event_scheduler = ON;
 CREATE TABLE events_test.event_log
@@ -647,7 +647,7 @@ SET GLOBAL READ_ONLY = 1;
 # Connection: u1_con (mysqltest_u1@localhost/events_test).
 #
 
-CREATE EVENT e1 ON SCHEDULE AT '2020-01-01 00:00:00' DO SET @a = 1;
+CREATE EVENT e1 ON SCHEDULE AT '2038-01-01 00:00:00' DO SET @a = 1;
 ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
 
 ALTER EVENT e1 COMMENT 'comment';
@@ -660,7 +660,7 @@ ERROR HY000: The MySQL server is running with the --read-only option so it canno
 # Connection: root_con (root@localhost/events_test).
 #
 
-CREATE EVENT e1 ON SCHEDULE AT '2020-01-01 00:00:00' DO SET @a = 1;
+CREATE EVENT e1 ON SCHEDULE AT '2038-01-01 00:00:00' DO SET @a = 1;
 
 ALTER EVENT e1 COMMENT 'comment';
 

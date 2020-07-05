@@ -62,8 +62,8 @@ using std::ostringstream;
 
 using namespace std::chrono_literals;
 
-static const char *const level_str[] = {"FATAL", "ERROR", "WARNING", "INFO",
-                                        "DEBUG"};
+static const char *const level_str[] = {"FATAL", "SYSTEM", "ERROR", "WARNING",
+                                        "INFO",  "NOTE",   "DEBUG"};
 
 namespace mysql_harness {
 

@@ -78,7 +78,7 @@ Index_impl::Index_impl()
       m_algorithm(IA_BTREE),
       m_is_algorithm_explicit(false),
       m_is_visible(true),
-      m_table(NULL),
+      m_table(nullptr),
       m_elements(),
       m_tablespace_id(INVALID_OBJECT_ID) {}
 

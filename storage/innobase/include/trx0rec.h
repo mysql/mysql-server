@@ -49,11 +49,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "que0types.h"
 
 /** Copies the undo record to the heap.
-@param[in]	undo_rec	undo log record
+@param[in]	undo_page	Undo Page
+@param[in]	undo_offset	offset of the undo record in the page
 @param[in]	heap		heap where copied
-@return own: copy of undo log record */
+@return copy of undo log record */
 UNIV_INLINE
-trx_undo_rec_t *trx_undo_rec_copy(const trx_undo_rec_t *undo_rec,
+trx_undo_rec_t *trx_undo_rec_copy(const page_t *undo_page, uint32_t undo_offset,
                                   mem_heap_t *heap);
 
 /** Reads the undo log record type.

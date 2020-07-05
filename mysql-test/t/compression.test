@@ -7,108 +7,108 @@ CREATE USER wl12475@localhost;
 
 SELECT @@global.protocol_compression_algorithms;
 --echo # should report empty string and 0 for method and level
---exec $MYSQL -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --echo # should report zlib and 6 for method and level
---exec $MYSQL --compression-algorithms="zlib" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zlib" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --echo # should report zstd and 3 for method and level
---exec $MYSQL --compression-algorithms="zstd" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --echo # should report zstd and 11 for method and level
---exec $MYSQL --compression-algorithms="zstd" --zstd-compression-level=11 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd" --zstd-compression-level=11 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --echo # should report zlib and 6 for method and level --zstd-compression-level for zlib compression is ignored
---exec $MYSQL --compression-algorithms="zlib" --zstd-compression-level=9 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zlib" --zstd-compression-level=9 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 
 # check for invalid level
---exec $MYSQL --compression-algorithms="zstd" --zstd-compression-level=23 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd" --zstd-compression-level=23 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 
 --echo # check all possible client compression-algorithm/level for default server configuration
 SET @@global.protocol_compression_algorithms=default;
---exec $MYSQL -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zlib" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zlib" --zstd-compression-level=3 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zlib,uncompressed" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zlib,uncompressed"  --zstd-compression-level=3 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zstd" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zstd" --zstd-compression-level=13 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zstd,uncompressed" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zstd,uncompressed" --zstd-compression-level=11 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="uncompressed" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zlib" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zlib" --zstd-compression-level=3 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zlib,uncompressed" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zlib,uncompressed"  --zstd-compression-level=3 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd" --zstd-compression-level=13 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd,uncompressed" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd,uncompressed" --zstd-compression-level=11 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="uncompressed" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --echo # compression-level is ignored without --compression-algorithms
---exec $MYSQL --zstd-compression-level=11 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL --zstd-compression-level=11 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --echo # client is configured with both algorithms so report error
---exec $MYSQL --compression-algorithms="zstd,zlib,uncompressed" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd,zlib,uncompressed" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --echo # existing --compress option should still work
---exec $MYSQL --compress -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compress --compression-algorithms="zlib" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL --compress -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compress --compression-algorithms="zlib" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --echo # multiple values of zstd,zlib,uncompressed
---exec $MYSQL --compression-algorithms="zstd,zlib,uncompressed" --zstd-compression-level=8 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zlib,zstd,uncompressed" --zstd-compression-level=6 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="uncompressed,zstd,zlib" --zstd-compression-level=0 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="uncompressed,zlib,zstd" --zstd-compression-level=0 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zstd,uncompressed,zlib" --zstd-compression-level=8 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zlib,uncompressed,zstd" --zstd-compression-level=6 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd,zlib,uncompressed" --zstd-compression-level=8 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zlib,zstd,uncompressed" --zstd-compression-level=6 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="uncompressed,zstd,zlib" --zstd-compression-level=0 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="uncompressed,zlib,zstd" --zstd-compression-level=0 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd,uncompressed,zlib" --zstd-compression-level=8 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zlib,uncompressed,zstd" --zstd-compression-level=6 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --echo # multiple values of zstd,zlib,uncompressed without compression level
---exec $MYSQL --compression-algorithms="zstd,zlib,uncompressed" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zlib,zstd,uncompressed" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="uncompressed,zstd,zlib" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="uncompressed,zlib,zstd" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zstd,uncompressed,zlib" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zlib,uncompressed,zstd" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd,zlib,uncompressed" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zlib,zstd,uncompressed" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="uncompressed,zstd,zlib" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="uncompressed,zlib,zstd" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd,uncompressed,zlib" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zlib,uncompressed,zstd" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --echo # multiple duplicate values
---exec $MYSQL --compression-algorithms="zstd,zstd,zstd" --zstd-compression-level=8 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zlib,zlib" --zstd-compression-level=2 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="uncompressed,zlib,zlib" --zstd-compression-level=0 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="uncompressed,uncompressed,zstd" --zstd-compression-level=0 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd,zstd,zstd" --zstd-compression-level=8 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zlib,zlib" --zstd-compression-level=2 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="uncompressed,zlib,zlib" --zstd-compression-level=0 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="uncompressed,uncompressed,zstd" --zstd-compression-level=0 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --echo # compression level with default compression algorithm which is uncompressed
---exec $MYSQL --zstd-compression-level=28 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL --zstd-compression-level=28 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --echo # invalid algorithm values
 --error 1
---exec $MYSQL --compression-algorithms="zstd,xyz" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd,xyz" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --echo # empty algorithm values 
 --error 1
---exec $MYSQL --compression-algorithms="" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --echo # invalid and algorithm values
 --error 1
---exec $MYSQL --compression-algorithms="" --compression-algorithms="lz4" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="" --compression-algorithms="lz4" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --echo # make new connection with zlib compression
 --connect(con1, localhost, wl12475,,,,,SSL,,zlib)
-select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1;
+select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1;
 disconnect con1;
 --echo # make new connection without compression
 --connect(con1, localhost, wl12475,,,,,SSL)
-select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1;
+select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1;
 disconnect con1;
 --echo # make new connection with zstd compression
 --connect(con1, localhost, wl12475,,,,,SSL,,zstd,9)
-select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1;
+select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1;
 disconnect con1;
 connection default;
 
 --echo # check all possible client compression-algorithm/level for server configured with only "zstd"
 SET GLOBAL protocol_compression_algorithms="zstd";
 --error 1
---exec $MYSQL -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --error 1
---exec $MYSQL --compression-algorithms="zlib" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"a
+--exec $MYSQL --compression-algorithms="zlib" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"a
 --error 1
---exec $MYSQL --compression-algorithms="zlib" --zstd-compression-level=3 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zlib" --zstd-compression-level=3 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --error 1
---exec $MYSQL --compression-algorithms="zlib,uncompressed" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zlib,uncompressed" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --error 1
---exec $MYSQL --compression-algorithms="zlib,uncompressed" --zstd-compression-level=13 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zstd" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zstd" --zstd-compression-level=3 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zstd,uncompressed" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zstd,uncompressed" --zstd-compression-level=11 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zlib,uncompressed" --zstd-compression-level=13 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd" --zstd-compression-level=3 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd,uncompressed" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd,uncompressed" --zstd-compression-level=11 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --error 1
---exec $MYSQL --compression-algorithms="uncompressed" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="uncompressed" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --error 1
---exec $MYSQL --compression-algorithms="uncompressed" --zstd-compression-level=11 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zstd,zlib,uncompressed" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="uncompressed" --zstd-compression-level=11 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd,zlib,uncompressed" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --echo # check existing --compress option
 --error 1
---exec $MYSQL --compress -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL --compress -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --error 1
---exec $MYSQL --compress --compression-algorithms="zlib" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL --compress --compression-algorithms="zlib" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --echo # make new connection with zlib compression
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error 2066
@@ -119,71 +119,71 @@ SET GLOBAL protocol_compression_algorithms="zstd";
 --connect(con1, localhost, wl12475,,,,,SSL)
 --echo # make new connection with zstd compression
 --connect(con1, localhost, wl12475,,,,,SSL,,zstd,9)
-select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1;
+select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1;
 disconnect con1;
 connection default;
 
 --echo # check all possible client compression-algorithm/level for server configured with only "zstd,uncompressed"
 SET GLOBAL protocol_compression_algorithms="zstd,uncompressed";
---exec $MYSQL -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --error 1
---exec $MYSQL --compression-algorithms="zlib" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zlib" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --error 1
---exec $MYSQL --compression-algorithms="zlib" --zstd-compression-level=3 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zlib,uncompressed" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zlib,uncompressed" --zstd-compression-level=3 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zstd" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zstd" --zstd-compression-level=11 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zstd,uncompressed" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zstd,uncompressed" --zstd-compression-level=13 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="uncompressed" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="uncompressed" --zstd-compression-level=11 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zstd,zlib,uncompressed" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zlib" --zstd-compression-level=3 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zlib,uncompressed" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zlib,uncompressed" --zstd-compression-level=3 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd" --zstd-compression-level=11 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd,uncompressed" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd,uncompressed" --zstd-compression-level=13 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="uncompressed" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="uncompressed" --zstd-compression-level=11 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd,zlib,uncompressed" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --echo # check existing --compress option
---exec $MYSQL --compress -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compress --compression-algorithms="zlib,uncompressed" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL --compress -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compress --compression-algorithms="zlib,uncompressed" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --echo # make new connection with zlib compression
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error 2066
 --connect(con1, localhost, wl12475,,,,,SSL,,zlib)
 --echo # make new connection without compression
 --connect(con1, localhost, wl12475,,,,,SSL)
-select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1;
+select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1;
 disconnect con1;
 connection default;
 --echo # make new connection with zstd compression
 --connect(con1, localhost, wl12475,,,,,SSL,,zstd,9)
-select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1;
+select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1;
 disconnect con1;
 connection default;
 
 --echo # check all possible client compression-algorithm/level for server configured with only "zlib"
 SET GLOBAL protocol_compression_algorithms="zlib";
 --error 1
---exec $MYSQL -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zlib" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zlib" --zstd-compression-level=4 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zlib,uncompressed" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zlib,uncompressed" --zstd-compression-level=3 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zlib" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zlib" --zstd-compression-level=4 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zlib,uncompressed" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zlib,uncompressed" --zstd-compression-level=3 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --error 1
---exec $MYSQL --compression-algorithms="zstd" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --error 1
---exec $MYSQL --compression-algorithms="zstd" --zstd-compression-level=3 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd" --zstd-compression-level=3 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --error 1
---exec $MYSQL --compression-algorithms="zstd,uncompressed" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd,uncompressed" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --error 1
---exec $MYSQL --compression-algorithms="zstd,uncompressed" --zstd-compression-level=11 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd,uncompressed" --zstd-compression-level=11 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --error 1
---exec $MYSQL --compression-algorithms="uncompressed" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="uncompressed" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --error 1
---exec $MYSQL --compression-algorithms="uncompressed" --zstd-compression-level=11 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zstd,zlib,uncompressed" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="uncompressed" --zstd-compression-level=11 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd,zlib,uncompressed" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --echo # check existing --compress option
---exec $MYSQL --compress -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compress --compression-algorithms="zlib" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL --compress -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compress --compression-algorithms="zlib" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --echo # make new connection with zlib compression
 --connect(con1, localhost, wl12475,,,,,SSL,,zlib)
-select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1;
+select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1;
 disconnect con1;
 --echo # make new connection without compression
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
@@ -197,31 +197,31 @@ connection default;
 
 --echo # check all possible client compression-algorithm/level for server configured with only "zlib,uncompressed"
 SET GLOBAL protocol_compression_algorithms="zlib,uncompressed";
---exec $MYSQL -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zlib" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zlib"  --zstd-compression-level=3 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zlib,uncompressed" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zlib,uncompressed" --zstd-compression-level=3 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zlib" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zlib"  --zstd-compression-level=3 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zlib,uncompressed" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zlib,uncompressed" --zstd-compression-level=3 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --error 1
---exec $MYSQL --compression-algorithms="zstd" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --error 1
---exec $MYSQL --compression-algorithms="zstd" --zstd-compression-level=11 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zstd,uncompressed" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zstd,uncompressed" --zstd-compression-level=11 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="uncompressed" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="uncompressed" --zstd-compression-level=11 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zstd,zlib,uncompressed" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zstd,zlib,uncompressed" --zstd-compression-level=11 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd" --zstd-compression-level=11 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd,uncompressed" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd,uncompressed" --zstd-compression-level=11 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="uncompressed" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="uncompressed" --zstd-compression-level=11 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd,zlib,uncompressed" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd,zlib,uncompressed" --zstd-compression-level=11 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --echo # existing --compress option
---exec $MYSQL --compress -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compress --compression-algorithms="zlib" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL --compress -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compress --compression-algorithms="zlib" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --echo # make new connection with zlib compression
 --connect(con1, localhost, wl12475,,,,,SSL,,zlib)
-select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1;
+select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1;
 disconnect con1;
 --echo # make new connection without compression
 --connect(con1, localhost, wl12475,,,,,SSL)
-select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1;
+select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1;
 disconnect con1;
 --echo # make new connection with zstd compression
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
@@ -232,26 +232,26 @@ connection default;
 --echo # check all possible client compression-algorithm/level for server configured with "zlib,zstd"
 SET GLOBAL protocol_compression_algorithms="zlib,zstd";
 --error 1
---exec $MYSQL -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zlib" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zlib" --zstd-compression-level=3 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zlib,uncompressed" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zlib,uncompressed" --zstd-compression-level=3 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zstd" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zstd" --zstd-compression-level=16 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zstd,uncompressed" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zstd,uncompressed" --zstd-compression-level=16 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zlib" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zlib" --zstd-compression-level=3 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zlib,uncompressed" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zlib,uncompressed" --zstd-compression-level=3 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd" --zstd-compression-level=16 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd,uncompressed" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd,uncompressed" --zstd-compression-level=16 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --error 1
---exec $MYSQL --compression-algorithms="uncompressed" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="uncompressed" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --error 1
---exec $MYSQL --compression-algorithms="uncompressed" --zstd-compression-level=16 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zstd,zlib,uncompressed" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="uncompressed" --zstd-compression-level=16 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd,zlib,uncompressed" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --echo # existing --compress option should still work
---exec $MYSQL --compress -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compress --compression-algorithms="zlib" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL --compress -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compress --compression-algorithms="zlib" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --echo # make new connection with zlib compression
 --connect(con1, localhost, wl12475,,,,,SSL,,zlib)
-select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1;
+select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1;
 disconnect con1;
 --echo # make new connection without compression
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
@@ -259,40 +259,40 @@ disconnect con1;
 --connect(con1, localhost, wl12475,,,,,SSL)
 --echo # make new connection with zstd compression
 --connect(con1, localhost, wl12475,,,,,SSL,,zstd,9)
-select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1;
+select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1;
 disconnect con1;
 connection default;
 
 --echo # check all possible client compression-algorithm/level for server not configured with any compression algorithm
 SET GLOBAL protocol_compression_algorithms="uncompressed";
---exec $MYSQL -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --error 1
---exec $MYSQL --compression-algorithms="zlib" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zlib" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --error 1
---exec $MYSQL --compression-algorithms="zlib" --zstd-compression-level=3 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zlib,uncompressed" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zlib,uncompressed" --zstd-compression-level=3 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zlib" --zstd-compression-level=3 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zlib,uncompressed" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zlib,uncompressed" --zstd-compression-level=3 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --error 1
---exec $MYSQL --compression-algorithms="zstd" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --error 1
---exec $MYSQL --compression-algorithms="zstd" --zstd-compression-level=16 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zstd,uncompressed" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zstd,uncompressed" --zstd-compression-level=16 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="uncompressed" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="uncompressed" --zstd-compression-level=16 -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compression-algorithms="zstd,zlib,uncompressed" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd" --zstd-compression-level=16 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd,uncompressed" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd,uncompressed" --zstd-compression-level=16 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="uncompressed" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="uncompressed" --zstd-compression-level=16 -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compression-algorithms="zstd,zlib,uncompressed" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --echo # existing --compress option
---exec $MYSQL --compress -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL --compress -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --error 1
---exec $MYSQL --compress --compression-algorithms="zlib" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
---exec $MYSQL --compress --compression-algorithms="zlib,uncompressed" -e "select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1"
+--exec $MYSQL --compress --compression-algorithms="zlib" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
+--exec $MYSQL --compress --compression-algorithms="zlib,uncompressed" -e "select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1"
 --echo # make new connection with zlib compression
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error 2066
 --connect(con1, localhost, wl12475,,,,,SSL,,zlib)
 --echo # make new connection without compression
 --connect(con1, localhost, wl12475,,,,,SSL)
-select * from performance_schema.session_status where variable_name like '%COMPRESSION%' order by 1;
+select * from performance_schema.session_status where variable_name like 'COMPRESSION%' order by 1;
 disconnect con1;
 --echo # make new connection with zstd compression
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT

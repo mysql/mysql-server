@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -261,6 +261,18 @@ class Remote_clone_handler : public Group_event_observer {
       @retval != 0 some error occurred
   */
   int kill_clone_query();
+
+  /**
+    Given a error code it evaluates if the error is critical or not.
+    Basically it tells us if there is still data in the server.
+
+    @param[in] error_code the clone returned error
+
+    @return
+      @retval true  error is critical
+      @retval false error is not critical
+  */
+  bool evaluate_error_code(int error_code);
 
 #ifndef DBUG_OFF
   /**

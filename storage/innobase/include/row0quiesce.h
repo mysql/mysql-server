@@ -47,6 +47,9 @@ struct trx_t;
 #define IB_EXPORT_CFG_VERSION_V3 3
 /** The v4 .cfg has the is_ascending boolean written for each index column. */
 #define IB_EXPORT_CFG_VERSION_V4 4
+/** The v5 .cfg writes number of nullable column in table before first instant
+ * column. */
+#define IB_EXPORT_CFG_VERSION_V5 5
 /** Future version used to test that the correct error message is returned. */
 #define IB_EXPORT_CFG_VERSION_V99 99
 
@@ -66,7 +69,5 @@ dberr_t row_quiesce_set_state(
 void row_quiesce_table_complete(
     dict_table_t *table, /*!< in: quiesce this table */
     trx_t *trx);         /*!< in/out: transaction/session */
-
-#include "row0quiesce.ic"
 
 #endif /* row0quiesce_h */

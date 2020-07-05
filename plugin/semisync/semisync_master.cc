@@ -83,19 +83,19 @@ ActiveTranx::ActiveTranx(mysql_mutex_t *lock, unsigned long trace_level)
                                            * of max_connections */
       lock_(lock) {
   /* No transactions are in the list initially. */
-  trx_front_ = NULL;
-  trx_rear_ = NULL;
+  trx_front_ = nullptr;
+  trx_rear_ = nullptr;
 
   /* Create the hash table to find a transaction's ending event. */
   trx_htb_ = new TranxNode *[num_entries_];
-  for (int idx = 0; idx < num_entries_; ++idx) trx_htb_[idx] = NULL;
+  for (int idx = 0; idx < num_entries_; ++idx) trx_htb_[idx] = nullptr;
 
   LogErr(INFORMATION_LEVEL, ER_SEMISYNC_RPL_INIT_FOR_TRX);
 }
 
 ActiveTranx::~ActiveTranx() {
   delete[] trx_htb_;
-  trx_htb_ = NULL;
+  trx_htb_ = nullptr;
   num_entries_ = 0;
 }
 
@@ -200,7 +200,7 @@ bool ActiveTranx::is_tranx_end_pos(const char *log_file_name,
   unsigned int hash_val = get_hash_value(log_file_name, log_file_pos);
   TranxNode *entry = trx_htb_[hash_val];
 
-  while (entry != NULL) {
+  while (entry != nullptr) {
     if (compare(entry, log_file_name, log_file_pos) == 0) break;
 
     entry = entry->hash_next_;
@@ -210,8 +210,8 @@ bool ActiveTranx::is_tranx_end_pos(const char *log_file_name,
     LogErr(INFORMATION_LEVEL, ER_SEMISYNC_PROBE_LOG_INFO_IN_ENTRY, kWho,
            log_file_name, (unsigned long)log_file_pos, hash_val);
 
-  function_exit(kWho, (entry != NULL));
-  return (entry != NULL);
+  function_exit(kWho, (entry != nullptr));
+  return (entry != nullptr);
 }
 
 int ActiveTranx::signal_waiting_sessions_all() {
@@ -239,7 +239,7 @@ int ActiveTranx::signal_waiting_sessions_up_to(const char *log_file_name,
                                  log_file_name, log_file_pos);
   }
 
-  return function_exit(kWho, (entry != NULL));
+  return function_exit(kWho, (entry != nullptr));
 }
 
 TranxNode *ActiveTranx::find_active_tranx_node(const char *log_file_name,
@@ -266,7 +266,7 @@ int ActiveTranx::clear_active_tranx_nodes(const char *log_file_name,
 
   function_enter(kWho);
 
-  if (log_file_name != NULL) {
+  if (log_file_name != nullptr) {
     new_front = trx_front_;
 
     while (new_front) {
@@ -277,10 +277,10 @@ int ActiveTranx::clear_active_tranx_nodes(const char *log_file_name,
     }
   } else {
     /* If log_file_name is NULL, clear everything. */
-    new_front = NULL;
+    new_front = nullptr;
   }
 
-  if (new_front == NULL) {
+  if (new_front == nullptr) {
     /* No active transaction nodes after the call. */
 
     /* Clear the hash table. */
@@ -288,9 +288,9 @@ int ActiveTranx::clear_active_tranx_nodes(const char *log_file_name,
     allocator_.free_all_nodes();
 
     /* Clear the active transaction list. */
-    if (trx_front_ != NULL) {
-      trx_front_ = NULL;
-      trx_rear_ = NULL;
+    if (trx_front_ != nullptr) {
+      trx_front_ = nullptr;
+      trx_rear_ = nullptr;
     }
 
     if (trace_level_ & kTraceDetail)
@@ -310,7 +310,7 @@ int ActiveTranx::clear_active_tranx_nodes(const char *log_file_name,
       unsigned int hash_val =
           get_hash_value(curr_node->log_name_, curr_node->log_pos_);
       TranxNode **hash_ptr = &(trx_htb_[hash_val]);
-      while ((*hash_ptr) != NULL) {
+      while ((*hash_ptr) != nullptr) {
         if ((*hash_ptr) == curr_node) {
           (*hash_ptr) = curr_node->hash_next_;
           break;
@@ -442,10 +442,10 @@ int ReplSemiSyncMaster::enableMaster() {
   lock();
 
   if (!getMasterEnabled()) {
-    if (active_tranxs_ == NULL)
+    if (active_tranxs_ == nullptr)
       active_tranxs_ = new ActiveTranx(&LOCK_binlog_, trace_level_);
 
-    if (active_tranxs_ != NULL) {
+    if (active_tranxs_ != nullptr) {
       commit_file_name_inited_ = false;
       reply_file_name_inited_ = false;
       wait_file_name_inited_ = false;
@@ -483,7 +483,7 @@ int ReplSemiSyncMaster::disableMaster() {
 
     if (active_tranxs_ && active_tranxs_->is_empty()) {
       delete active_tranxs_;
-      active_tranxs_ = NULL;
+      active_tranxs_ = nullptr;
     }
 
     reply_file_name_inited_ = false;
@@ -647,16 +647,16 @@ int ReplSemiSyncMaster::commitTrx(const char *trx_wait_binlog_name,
   /* Acquire the mutex. */
   lock();
 
-  TranxNode *entry = NULL;
-  mysql_cond_t *thd_cond = NULL;
+  TranxNode *entry = nullptr;
+  mysql_cond_t *thd_cond = nullptr;
   bool is_semi_sync_trans = true;
-  if (active_tranxs_ != NULL && trx_wait_binlog_name) {
+  if (active_tranxs_ != nullptr && trx_wait_binlog_name) {
     entry = active_tranxs_->find_active_tranx_node(trx_wait_binlog_name,
                                                    trx_wait_binlog_pos);
     if (entry) thd_cond = &entry->cond;
   }
   /* This must be called after acquired the lock */
-  THD_ENTER_COND(NULL, thd_cond, &LOCK_binlog_,
+  THD_ENTER_COND(nullptr, thd_cond, &LOCK_binlog_,
                  &stage_waiting_for_semi_sync_ack_from_slave, &old_stage);
 
   if (getMasterEnabled() && trx_wait_binlog_name) {
@@ -827,7 +827,7 @@ int ReplSemiSyncMaster::commitTrx(const char *trx_wait_binlog_name,
                                              trx_wait_binlog_pos);
 
   unlock();
-  THD_EXIT_COND(NULL, &old_stage);
+  THD_EXIT_COND(nullptr, &old_stage);
   return function_exit(kWho, 0);
 }
 void ReplSemiSyncMaster::set_wait_no_slave(const void *val) {
@@ -982,7 +982,7 @@ int ReplSemiSyncMaster::updateSyncHeader(unsigned char *packet,
       /*
        * We only wait if the event is a transaction's ending event.
        */
-      assert(active_tranxs_ != NULL);
+      assert(active_tranxs_ != nullptr);
       sync = active_tranxs_->is_tranx_end_pos(log_file_name, log_file_pos);
     }
   } else {
@@ -1049,7 +1049,7 @@ int ReplSemiSyncMaster::writeTranxInBinlog(const char *log_file_name,
   }
 
   if (is_on()) {
-    assert(active_tranxs_ != NULL);
+    assert(active_tranxs_ != nullptr);
     if (active_tranxs_->insert_tranx_node(log_file_name, log_file_pos)) {
       /*
         if insert tranx_node failed, print a warning message
@@ -1170,7 +1170,7 @@ void ReplSemiSyncMaster::setExportStats() {
 }
 
 int ReplSemiSyncMaster::setWaitSlaveCount(unsigned int new_value) {
-  const AckInfo *ackinfo = NULL;
+  const AckInfo *ackinfo = nullptr;
   int result = 0;
 
   const char *kWho = "ReplSemiSyncMaster::updateWaitSlaves";
@@ -1181,7 +1181,7 @@ int ReplSemiSyncMaster::setWaitSlaveCount(unsigned int new_value) {
   result = ack_container_.resize(new_value, &ackinfo);
   if (result == 0) {
     rpl_semi_sync_master_wait_for_slave_count = new_value;
-    if (ackinfo != NULL)
+    if (ackinfo != nullptr)
       reportReplyBinlog(ackinfo->binlog_name, ackinfo->binlog_pos);
   }
 
@@ -1191,7 +1191,7 @@ int ReplSemiSyncMaster::setWaitSlaveCount(unsigned int new_value) {
 
 const AckInfo *AckContainer::insert(int server_id, const char *log_file_name,
                                     my_off_t log_file_pos) {
-  const AckInfo *ret_ack = NULL;
+  const AckInfo *ret_ack = nullptr;
 
   const char *kWho = "AckContainer::insert";
   function_enter(kWho);
@@ -1214,7 +1214,7 @@ const AckInfo *AckContainer::insert(int server_id, const char *log_file_name,
 
     /* Find the minimum ack which is smaller than the inserted ack. */
     min_ack = minAck(log_file_name, log_file_pos);
-    if (likely(min_ack == NULL)) {
+    if (likely(min_ack == nullptr)) {
       m_greatest_ack.set(server_id, log_file_name, log_file_pos);
 
       /* Remove all slaves which have minimum ack position from the ack array */
@@ -1246,19 +1246,19 @@ int AckContainer::resize(unsigned int size, const AckInfo **ackinfo) {
   if (size - 1 == m_size) return 0;
 
   m_size = size - 1;
-  m_ack_array = NULL;
+  m_ack_array = nullptr;
   if (m_size) {
     m_ack_array = (AckInfo *)DBUG_EVALUATE_IF(
         "rpl_semisync_simulate_allocate_ack_container_failure", NULL,
         my_malloc(0, sizeof(AckInfo) * (size - 1), MYF(MY_ZEROFILL)));
-    if (m_ack_array == NULL) {
+    if (m_ack_array == nullptr) {
       m_ack_array = old_ack_array;
       m_size = old_array_size;
       return -1;
     }
   }
 
-  if (old_ack_array != NULL) {
+  if (old_ack_array != nullptr) {
     for (i = 0; i < old_array_size; i++) {
       const AckInfo *ack = insert(old_ack_array[i]);
       if (ack) *ackinfo = ack;

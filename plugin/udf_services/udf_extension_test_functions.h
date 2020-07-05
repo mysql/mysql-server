@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,9 +39,8 @@
   @param [in,out] args    Array of arguments
   @param [out]    message Error message set by the user in case something went
                           wrong.
-  @returns
-    @retval true    If UDF initialization failed
-    @retval false   Otherwise
+  @retval true    If UDF initialization failed
+  @retval false   Otherwise
 */
 PLUGIN_EXPORT bool test_result_charset_init(UDF_INIT *initid, UDF_ARGS *args,
                                             char *message);
@@ -58,9 +57,8 @@ PLUGIN_EXPORT bool test_result_charset_init(UDF_INIT *initid, UDF_ARGS *args,
   @param [out]    is_null Flag indicating if the result vale could be null.
   @param [out]    error   Flag indicating if UDF execution returned error.
 
-  @returns
-    @retval true    If UDF initialization failed
-    @retval false   Otherwise
+  @retval true    If UDF initialization failed
+  @retval false   Otherwise
 */
 PLUGIN_EXPORT char *test_result_charset(UDF_INIT *initid, UDF_ARGS *args,
                                         char *result, unsigned long *length,
@@ -83,9 +81,8 @@ PLUGIN_EXPORT void test_result_charset_deinit(UDF_INIT *initid);
   @param [in,out] args    Array of arguments
   @param [out]    message Error message set by the user in case something went
                           wrong.
-  @returns
-    @retval true    If UDF initialization failed
-    @retval false   Otherwise
+  @retval true    If UDF initialization failed
+  @retval false   Otherwise
 */
 PLUGIN_EXPORT bool test_args_charset_init(UDF_INIT *initid, UDF_ARGS *args,
                                           char *message);
@@ -102,9 +99,8 @@ PLUGIN_EXPORT bool test_args_charset_init(UDF_INIT *initid, UDF_ARGS *args,
   @param [out]    is_null Flag indicating if the result vale could be null.
   @param [out]    error   Flag indicating if UDF execution returned error.
 
-  @returns
-    @retval true    If UDF initialization failed
-    @retval false   Otherwise
+  @retval true    If UDF initialization failed
+  @retval false   Otherwise
 */
 PLUGIN_EXPORT char *test_args_charset(UDF_INIT *initid, UDF_ARGS *args,
                                       char *result, unsigned long *length,
@@ -127,9 +123,8 @@ PLUGIN_EXPORT void test_args_charset_deinit(UDF_INIT *initid);
   @param [in,out] args    Array of arguments
   @param [out]    message Error message set by the user in case something went
                           wrong.
-  @returns
-    @retval true    If UDF initialization failed
-    @retval false   Otherwise
+  @retval true    If UDF initialization failed
+  @retval false   Otherwise
 */
 PLUGIN_EXPORT bool test_result_collation_init(UDF_INIT *initid, UDF_ARGS *args,
                                               char *message);
@@ -145,9 +140,8 @@ PLUGIN_EXPORT bool test_result_collation_init(UDF_INIT *initid, UDF_ARGS *args,
   @param [out]    is_null Flag indicating if the result vale could be null.
   @param [out]    error   Flag indicating if UDF execution returned error.
 
-  @returns
-    @retval true    If UDF initialization failed
-    @retval false   Otherwise
+  @retval true    If UDF initialization failed
+  @retval false   Otherwise
 */
 PLUGIN_EXPORT char *test_result_collation(UDF_INIT *initid, UDF_ARGS *args,
                                           char *result, unsigned long *length,
@@ -170,9 +164,8 @@ PLUGIN_EXPORT void test_result_collation_deinit(UDF_INIT *initid);
   @param [in,out] args    Array of arguments
   @param [out]    message Error message set by the user in case something went
                           wrong.
-  @returns
-    @retval true    If UDF initialization failed
-    @retval false   Otherwise
+  @retval true    If UDF initialization failed
+  @retval false   Otherwise
 */
 PLUGIN_EXPORT bool test_args_collation_init(UDF_INIT *initid, UDF_ARGS *args,
                                             char *message);
@@ -188,9 +181,8 @@ PLUGIN_EXPORT bool test_args_collation_init(UDF_INIT *initid, UDF_ARGS *args,
   @param [out]    is_null Flag indicating if the result vale could be null.
   @param [out]    error   Flag indicating if UDF execution returned error.
 
-  @returns
-    @retval true    If UDF initialization failed
-    @retval false   Otherwise
+  @retval true    If UDF initialization failed
+  @retval false   Otherwise
 */
 PLUGIN_EXPORT char *test_args_collation(UDF_INIT *initid, UDF_ARGS *args,
                                         char *result, unsigned long *length,
@@ -213,9 +205,8 @@ PLUGIN_EXPORT void test_args_collation_deinit(UDF_INIT *initid);
   @param [in,out] args    Array of arguments
   @param [out]    message Error message set by the user in case something went
                           wrong.
-  @returns
-    @retval true    If UDF initialization failed
-    @retval false   Otherwise
+  @retval true    If UDF initialization failed
+  @retval false   Otherwise
 */
 PLUGIN_EXPORT bool test_result_charset_with_value_init(UDF_INIT *initid,
                                                        UDF_ARGS *args,
@@ -234,9 +225,8 @@ PLUGIN_EXPORT bool test_result_charset_with_value_init(UDF_INIT *initid,
   @param [out]    is_null Flag indicating if the result vale could be null.
   @param [out]    error   Flag indicating if UDF execution returned error.
 
-  @returns
-    @retval true    If UDF initialization failed
-    @retval false   Otherwise
+  @retval true    If UDF initialization failed
+  @retval false   Otherwise
 */
 PLUGIN_EXPORT char *test_result_charset_with_value(UDF_INIT *initid,
                                                    UDF_ARGS *args, char *result,
@@ -260,9 +250,8 @@ PLUGIN_EXPORT void test_result_charset_with_value_deinit(UDF_INIT *initid);
   @param [in,out] args    Array of arguments
   @param [out]    message Error message set by the user in case something went
                           wrong.
-  @returns
-    @retval true    If UDF initialization failed
-    @retval false   Otherwise
+  @retval true    If UDF initialization failed
+  @retval false   Otherwise
 */
 PLUGIN_EXPORT bool test_args_charset_with_value_init(UDF_INIT *initid,
                                                      UDF_ARGS *args,
@@ -280,9 +269,8 @@ PLUGIN_EXPORT bool test_args_charset_with_value_init(UDF_INIT *initid,
   @param [out]    is_null Flag indicating if the result vale could be null.
   @param [out]    error   Flag indicating if UDF execution returned error.
 
-  @returns
-    @retval true    If UDF initialization failed
-    @retval false   Otherwise
+  @retval true    If UDF initialization failed
+  @retval false   Otherwise
 */
 PLUGIN_EXPORT char *test_args_charset_with_value(UDF_INIT *initid,
                                                  UDF_ARGS *args, char *result,
@@ -306,9 +294,8 @@ PLUGIN_EXPORT void test_args_charset_with_value_deinit(UDF_INIT *initid);
   @param [in,out] args    Array of arguments
   @param [out]    message Error message set by the user in case something went
                           wrong.
-  @returns
-    @retval true    If UDF initialization failed
-    @retval false   Otherwise
+  @retval true    If UDF initialization failed
+  @retval false   Otherwise
 */
 PLUGIN_EXPORT bool test_result_collation_with_value_init(UDF_INIT *initid,
                                                          UDF_ARGS *args,
@@ -326,9 +313,8 @@ PLUGIN_EXPORT bool test_result_collation_with_value_init(UDF_INIT *initid,
   @param [out]    is_null Flag indicating if the result vale could be null.
   @param [out]    error   Flag indicating if UDF execution returned error.
 
-  @returns
-    @retval true    If UDF initialization failed
-    @retval false   Otherwise
+  @retval true    If UDF initialization failed
+  @retval false   Otherwise
 */
 PLUGIN_EXPORT char *test_result_collation_with_value(
     UDF_INIT *initid, UDF_ARGS *args, char *result, unsigned long *length,
@@ -347,10 +333,12 @@ PLUGIN_EXPORT void test_result_collation_with_value_deinit(UDF_INIT *initid);
   as specified by the user in the second argument and sets the same for the
   first UDF argument.
 
-  @param      initid    Return value from xxxx_init
-  @param      args      Array of arguments
-  @param[out] is_null   If the result is null, store 1 here
-  @param[out] error     On error store 1 here
+  @param [in,out] initid  Return value from xxxx_init
+  @param [in,out] args    Array of arguments
+  @param [out]    message Error message set by the user in case something went
+                          wrong.
+  @retval true    If UDF initialization failed
+  @retval false   Otherwise
 */
 PLUGIN_EXPORT bool test_args_collation_with_value_init(UDF_INIT *initid,
                                                        UDF_ARGS *args,
@@ -369,9 +357,8 @@ PLUGIN_EXPORT bool test_args_collation_with_value_init(UDF_INIT *initid,
   @param [out]    is_null Flag indicating if the result vale could be null.
   @param [out]    error   Flag indicating if UDF execution returned error.
 
-  @returns
-    @retval true    If UDF initialization failed
-    @retval false   Otherwise
+  @retval true    If UDF initialization failed
+  @retval false   Otherwise
 */
 PLUGIN_EXPORT char *test_args_collation_with_value(UDF_INIT *initid,
                                                    UDF_ARGS *args, char *result,

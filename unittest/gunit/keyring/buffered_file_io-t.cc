@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -67,11 +67,11 @@ TEST_F(Buffered_file_io_test, InitWithNotExisitingKeyringFile) {
   Buffered_file_io buffered_io(logger);
   remove(file_name.c_str());
   EXPECT_EQ(buffered_io.init(&file_name), 0);
-  ISerialized_object *serialized_object = NULL;
+  ISerialized_object *serialized_object = nullptr;
 
   EXPECT_EQ(buffered_io.get_serialized_object(&serialized_object), 0);
   // The keyring file is new so no keys should be available
-  ASSERT_TRUE(serialized_object == NULL);
+  ASSERT_TRUE(serialized_object == nullptr);
 
   remove(file_name.c_str());
 }
@@ -105,17 +105,17 @@ TEST_F(Buffered_file_io_test, WriteAndFetchKey) {
 
   Buffered_file_io *buffered_io_2 = new Buffered_file_io(logger);
   buffered_io_2->init(&file_name);
-  IKey *retrieved_key = NULL;
-  IKey *retrieved_key2 = NULL;
-  ISerialized_object *serialized_keys = NULL;
+  IKey *retrieved_key = nullptr;
+  IKey *retrieved_key2 = nullptr;
+  ISerialized_object *serialized_keys = nullptr;
   EXPECT_EQ(buffered_io_2->get_serialized_object(&serialized_keys), 0);
-  ASSERT_TRUE(serialized_keys != NULL);
+  ASSERT_TRUE(serialized_keys != nullptr);
 
   EXPECT_EQ(serialized_keys->has_next_key(), true);
   EXPECT_EQ(serialized_keys->get_next_key(&retrieved_key), false);
   EXPECT_EQ(serialized_keys->has_next_key(), false);
   EXPECT_EQ(serialized_keys->get_next_key(&retrieved_key2), true);
-  ASSERT_TRUE(retrieved_key2 == NULL);
+  ASSERT_TRUE(retrieved_key2 == nullptr);
 
   EXPECT_STREQ("Robert_add_keyRoberts_add_key_type",
                retrieved_key->get_key_signature()->c_str());
@@ -169,22 +169,22 @@ TEST_F(Buffered_file_io_test, Write2KeysAndFetchKeys) {
 
   Buffered_file_io *buffered_io_2 = new Buffered_file_io(logger);
   buffered_io_2->init(&file_name);
-  IKey *retrieved_key1 = NULL;
-  IKey *retrieved_key2 = NULL;
-  IKey *retrieved_key3 = NULL;
-  ISerialized_object *serialized_keys = NULL;
+  IKey *retrieved_key1 = nullptr;
+  IKey *retrieved_key2 = nullptr;
+  IKey *retrieved_key3 = nullptr;
+  ISerialized_object *serialized_keys = nullptr;
   EXPECT_EQ(buffered_io_2->get_serialized_object(&serialized_keys), 0);
-  ASSERT_TRUE(serialized_keys != NULL);
+  ASSERT_TRUE(serialized_keys != nullptr);
 
   EXPECT_EQ(serialized_keys->has_next_key(), true);
   EXPECT_EQ(serialized_keys->get_next_key(&retrieved_key1), false);
-  ASSERT_TRUE(retrieved_key1 != NULL);
+  ASSERT_TRUE(retrieved_key1 != nullptr);
   EXPECT_EQ(serialized_keys->has_next_key(), true);
   EXPECT_EQ(serialized_keys->get_next_key(&retrieved_key2), false);
-  ASSERT_TRUE(retrieved_key2 != NULL);
+  ASSERT_TRUE(retrieved_key2 != nullptr);
   EXPECT_EQ(serialized_keys->has_next_key(), false);
   EXPECT_EQ(serialized_keys->get_next_key(&retrieved_key3), true);
-  ASSERT_TRUE(retrieved_key3 == NULL);
+  ASSERT_TRUE(retrieved_key3 == nullptr);
 
   EXPECT_STREQ("Robert_add_key1Roberts_add_key1_type",
                retrieved_key1->get_key_signature()->c_str());

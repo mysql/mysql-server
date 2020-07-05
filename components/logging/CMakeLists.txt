@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,10 @@ MYSQL_ADD_COMPONENT(log_filter_dragnet
   log_filter_dragnet.cc
   MODULE_ONLY
   )
+
+# We are not interesting in profiling tests.
+DISABLE_MISSING_PROFILE_WARNING()
+
 MYSQL_ADD_COMPONENT(log_sink_test
   log_sink_test.cc
   MODULE_ONLY

@@ -39,6 +39,7 @@
 #include "plugin/x/client/mysqlxclient/xconnection.h"
 #include "plugin/x/client/mysqlxclient/xsession.h"
 #include "plugin/x/protocol/stream/compression/compression_algorithm_interface.h"
+#include "plugin/x/src/helper/optional_value.h"
 #include "plugin/x/tests/driver/formatters/console.h"
 
 struct Connection_options {
@@ -71,6 +72,7 @@ struct Connection_options {
   std::string compression_mode{"DISABLED"};
   bool compression_combine_mixed_messages{true};
   int64_t compression_max_combine_messages{0};
+  xpl::Optional_value<int32_t> compression_level;
 
   bool is_ssl_set() const {
     return !ssl_ca.empty() || !ssl_ca_path.empty() || !ssl_cert.empty() ||
@@ -89,7 +91,8 @@ class Session_holder {
   protocol::Compression_algorithm_interface *get_algorithm();
   xcl::XSession *get_session();
 
-  bool enable_compression(const xcl::Compression_algorithm algorithm);
+  bool enable_compression(const xcl::Compression_algorithm algorithm,
+                          const int64_t level);
   void clear_received_messages();
   bool try_get_number_of_received_messages(const std::string message_name,
                                            uint64_t *value) const;

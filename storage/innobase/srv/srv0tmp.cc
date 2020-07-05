@@ -121,7 +121,7 @@ dberr_t Tablespace::create() {
   if (!ret) {
     return (DB_ERROR);
   }
-  buf_LRU_flush_or_remove_pages(m_space_id, BUF_REMOVE_FLUSH_WRITE, NULL);
+  buf_LRU_flush_or_remove_pages(m_space_id, BUF_REMOVE_FLUSH_WRITE, nullptr);
   return (DB_SUCCESS);
 }
 

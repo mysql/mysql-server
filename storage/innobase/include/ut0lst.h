@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -142,10 +142,10 @@ void ut_list_prepend(List &list, typename List::elem_type *elem) {
 
   UT_LIST_IS_INITIALISED(list);
 
-  elem_node.prev = 0;
+  elem_node.prev = nullptr;
   elem_node.next = list.start;
 
-  if (list.start != 0) {
+  if (list.start != nullptr) {
     typename List::node_type &base_node = list.start->*list.node;
 
     ut_ad(list.start != elem);
@@ -155,7 +155,7 @@ void ut_list_prepend(List &list, typename List::elem_type *elem) {
 
   list.start = elem;
 
-  if (list.end == 0) {
+  if (list.end == nullptr) {
     list.end = elem;
   }
 
@@ -178,10 +178,10 @@ void ut_list_append(List &list, typename List::elem_type *elem,
 
   UT_LIST_IS_INITIALISED(list);
 
-  node.next = 0;
+  node.next = nullptr;
   node.prev = list.end;
 
-  if (list.end != 0) {
+  if (list.end != nullptr) {
     typename List::node_type &base_node = get_node(*list.end);
 
     ut_ad(list.end != elem);
@@ -191,7 +191,7 @@ void ut_list_append(List &list, typename List::elem_type *elem,
 
   list.end = elem;
 
-  if (list.start == 0) {
+  if (list.start == nullptr) {
     list.start = elem;
   }
 
@@ -228,7 +228,7 @@ void ut_list_insert(List &list, typename List::elem_type *elem1,
   elem2_node.prev = elem1;
   elem2_node.next = elem1_node.next;
 
-  if (elem1_node.next != NULL) {
+  if (elem1_node.next != nullptr) {
     typename List::node_type &next_node = elem1_node.next->*list.node;
 
     next_node.prev = elem2;
@@ -260,7 +260,7 @@ void ut_list_remove(List &list, typename List::node_type &node,
   ut_a(list.count > 0);
   UT_LIST_IS_INITIALISED(list);
 
-  if (node.next != NULL) {
+  if (node.next != nullptr) {
     typename List::node_type &next_node = get_node(*node.next);
 
     next_node.prev = node.prev;
@@ -268,7 +268,7 @@ void ut_list_remove(List &list, typename List::node_type &node,
     list.end = node.prev;
   }
 
-  if (node.prev != NULL) {
+  if (node.prev != nullptr) {
     typename List::node_type &prev_node = get_node(*node.prev);
 
     prev_node.next = node.next;
@@ -276,8 +276,8 @@ void ut_list_remove(List &list, typename List::node_type &node,
     list.start = node.next;
   }
 
-  node.next = 0;
-  node.prev = 0;
+  node.next = nullptr;
+  node.prev = nullptr;
 
   --list.count;
 }
@@ -347,7 +347,7 @@ void ut_list_map(const List &list, Functor &functor) {
 
   UT_LIST_IS_INITIALISED(list);
 
-  for (typename List::elem_type *elem = list.start; elem != 0;
+  for (typename List::elem_type *elem = list.start; elem != nullptr;
        elem = (elem->*list.node).next, ++count) {
     functor(elem);
   }
@@ -359,7 +359,7 @@ template <typename List>
 void ut_list_reverse(List &list) {
   UT_LIST_IS_INITIALISED(list);
 
-  for (typename List::elem_type *elem = list.start; elem != 0;
+  for (typename List::elem_type *elem = list.start; elem != nullptr;
        elem = (elem->*list.node).prev) {
     (elem->*list.node).reverse();
   }
@@ -380,7 +380,7 @@ void ut_list_validate(const List &list, Functor &functor) {
   /* Validate the list backwards. */
   ulint count = 0;
 
-  for (typename List::elem_type *elem = list.end; elem != 0;
+  for (typename List::elem_type *elem = list.end; elem != nullptr;
        elem = (elem->*list.node).prev) {
     ++count;
   }
@@ -418,7 +418,8 @@ template <typename List>
 bool ut_list_exists(List &list, typename List::elem_type *elem) {
   typename List::elem_type *e1;
 
-  for (e1 = UT_LIST_GET_FIRST(list); e1 != NULL; e1 = (e1->*list.node).next) {
+  for (e1 = UT_LIST_GET_FIRST(list); e1 != nullptr;
+       e1 = (e1->*list.node).next) {
     if (elem == e1) {
       return (true);
     }

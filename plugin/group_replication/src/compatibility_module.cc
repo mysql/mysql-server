@@ -26,7 +26,7 @@
 
 #include "my_dbug.h"
 
-Compatibility_module::Compatibility_module() : local_version(NULL) {}
+Compatibility_module::Compatibility_module() : local_version(nullptr) {}
 
 Compatibility_module::Compatibility_module(Member_version &local_version) {
   this->local_version = new Member_version(local_version.get_version());

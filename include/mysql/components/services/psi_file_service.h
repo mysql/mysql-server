@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -73,7 +73,5 @@ start_file_rename_wait_v1_t start_file_rename_wait;
 /** @sa rename_file_close_wait_v1_t. */
 end_file_rename_wait_v1_t end_file_rename_wait;
 END_SERVICE_DEFINITION(psi_file_v2)
-
-#define REQUIRES_PSI_FILE_SERVICE REQUIRES_SERVICE(psi_file_v2)
 
 #endif /* COMPONENTS_SERVICES_PSI_FILE_SERVICE_H */

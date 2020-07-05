@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_waiter\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/23/2019
+.\"      Date: 03/06/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_WAITER\FR" "1" "11/23/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDB_WAITER\FR" "1" "03/06/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -141,7 +141,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.304.\ \&Command\-line options for the ndb_waiter program
+.B Table\ \&22.275.\ \&Command\-line options for the ndb_waiter program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -161,64 +161,64 @@ l l l
 l l l.
 T{
 .PP
---no-contact,
+\fB--no-contact\fR,
 .PP
--n
+\fB \fR\fB-n\fR\fB \fR
 T}:T{
 Wait for cluster to reach NO CONTACT state
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---not-started
+\fB \fR\fB--not-started\fR\fB \fR
 T}:T{
 Wait for cluster to reach NOT STARTED state
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---single-user
+\fB \fR\fB--single-user\fR\fB \fR
 T}:T{
 Wait for cluster to enter single user mode
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---timeout=#,
+\fB--timeout=#\fR,
 .PP
--t
+\fB \fR\fB-t\fR\fB \fR
 T}:T{
 Wait this many seconds, then exit whether or not cluster has reached
               desired state; default is 2 minutes (120 seconds)
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---nowait-nodes=list
+\fB \fR\fB--nowait-nodes=list\fR\fB \fR
 T}:T{
-List of nodes not to be waited for.
+List of nodes not to be waited for
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---wait-nodes=list,
+\fB--wait-nodes=list\fR,
 .PP
--w
+\fB \fR\fB-w\fR\fB \fR
 T}:T{
-List of nodes to be waited for.
+List of nodes to be waited for
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 .TE
 .sp 1
@@ -233,6 +233,7 @@ ndb_waiter [\-c \fIconnection_string\fR]
 .if n \{\
 .RE
 .\}
+.sp
 Additional Options
 .sp
 .RS 4
@@ -440,11 +441,11 @@ State node 2 STARTED
 State node 3 STARTED
 State node 4 STARTED
 Waiting for cluster enter state STARTED
-NDBT_ProgramExit: 0 \- OK
 .fi
 .if n \{\
 .RE
 .\}
+.sp
 .if n \{\
 .sp
 .\}
@@ -465,10 +466,16 @@ localhost, and reports
 Connecting to mgmsrv at (null)\&.
 .sp .5v
 .RE
+.PP
+Prior to NDB 8\&.0\&.20, this program printed
+NDBT_ProgramExit \- \fIstatus\fR
+upon completion of its run, due to an unnecessary dependency on the
+NDBT
+testing library\&. This dependency has been removed, eliminating the extraneous output\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

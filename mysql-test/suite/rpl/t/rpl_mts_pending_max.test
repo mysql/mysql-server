@@ -30,6 +30,11 @@
 # Row format is choosen so that event size can be changed easily.
 --source include/have_binlog_format_row.inc
 
+# This test requires an artificial large transaction and relies
+# on its size to test the functionality. Skipping compression
+# so that the test is deterministic
+--source include/not_binlog_transaction_compression_on.inc
+
 # The test is designed to work for slave_parallel_type=database
 # (db1 and db2 queries)
 --source include/have_slave_parallel_type_database.inc

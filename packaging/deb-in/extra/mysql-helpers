@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -87,6 +87,7 @@ verify_ready() {
 		MYSQLFILES=$(get_mysql_option ${INSTANCE} secure-file-priv "/var/lib/mysql-files")
 		MYSQLKEYRING=$(dirname $(get_mysql_option ${INSTANCE} keyring-file-data "/var/lib/mysql-keyring/keyring"))
 		MYSQLLOG=$(dirname $(get_mysql_option ${INSTANCE} log-error "/var/log/mysql/error.log"))
+		MYSQLRUN=/var/run/mysqld
 
 		if ! getent group mysql >/dev/null; then
 			addgroup --system mysql >/dev/null
@@ -140,6 +141,10 @@ verify_ready() {
 		if [ ${ERROR_FLAG} = 1 ]; then
 			echo "Errors found. Aborting."
 			exit 1
+		fi
+
+		if [ ! -d ${MYSQLRUN} -a ! -L ${MYSQLRUN} ]; then
+		            install -d -m0755 -omysql -gmysql ${MYSQLRUN}
 		fi
 }
 

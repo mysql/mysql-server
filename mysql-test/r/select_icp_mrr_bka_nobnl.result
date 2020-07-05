@@ -1267,7 +1267,7 @@ test.t2	analyze	status	OK
 test.t3	analyze	status	Table is already up to date
 EXPLAIN FORMAT=tree select fld3,period,price,price2 from t2,t3 where t2.fld1=t3.t2nr and period >= 1001 and period <= 1002 and t2.companynr = 37 order by fld3,period, price;
 EXPLAIN
--> Sort: <temporary>.fld3, <temporary>.period, <temporary>.price
+-> Sort: t2.fld3, t3.period, t3.price
     -> Stream results
         -> Batched key access inner join
             -> Batch input rows

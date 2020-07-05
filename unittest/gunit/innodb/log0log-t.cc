@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,6 +43,9 @@
 #include "ut0byte.h"
 #include "ut0new.h"
 #include "ut0rnd.h"
+
+#include <mysql/components/minimal_chassis.h> /* minimal_chassis_init() */
+#include <mysql/components/service.h>         /* SERVICE_TYPE_NO_CONST */
 
 static std::map<std::string, std::vector<std::string>> log_sync_points = {
     {"log_buffer_exclussive_access",
@@ -178,6 +181,8 @@ static bool log_test_general_init() {
   return (true);
 }
 
+extern SERVICE_TYPE_NO_CONST(registry) * srv_registry;
+
 static bool log_test_init() {
   if (!log_test_general_init()) {
     return (false);
@@ -253,7 +258,11 @@ static bool log_test_init() {
 
   log_start(log, 1, lsn, lsn);
 
+  /* Below function will initialize the srv_registry variable which is
+  required for the mysql_plugin_registry_acquire() */
+  minimal_chassis_init(&srv_registry, NULL);
   log_start_background_threads(log);
+  minimal_chassis_deinit(srv_registry, NULL);
 
   srv_is_being_started = false;
   return (true);
@@ -263,6 +272,7 @@ static bool log_test_recovery() {
   srv_is_being_started = true;
   recv_sys_create();
 
+  /** DBLWR directory is the current directory. */
   recv_sys_init(4 * 1024 * 1024);
 
   const bool result = log_sys_init(srv_n_log_files, srv_log_file_size,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -120,7 +120,8 @@
   performance_schema tables changed in MySQL 8.0.17
   - WL#12571 increases the HOST name length from 60 to 255.
 
-  Version published is now 800171. The next number to use is 80018.
+
+  Version published is now 80020. The next number to use is 80021.
 
   80018:
 
@@ -137,8 +138,15 @@
   TLS_CIPHERSUITES
   - replication_applier_configuration, added column
   REQUIRE_ROW_FORMAT
+
+  80020:
+
+  performance_schema tables changed in MySQL 8.0.20
+  - WL#3549 created binary_log_transaction_compression_stats
+  - replication_applier_configuration, added column
+  REQUIRE_TABLE_PRIMARY_KEY_CHECK
 */
 
-static const uint PFS_DD_VERSION = 80019;
+static const uint PFS_DD_VERSION = 80020;
 
 #endif /* PFS_DD_VERSION_H */

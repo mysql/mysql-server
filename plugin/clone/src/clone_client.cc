@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -577,8 +577,6 @@ int Client::pfs_begin_state() {
   s_progress_data.init_stage(get_data_dir());
   mysql_mutex_unlock(&s_table_mutex);
 
-  /* Move to first stage. */
-  pfs_change_stage(0);
   return (0);
 }
 
@@ -1035,7 +1033,8 @@ int Client::remote_command(Command_RPC com, bool use_aux) {
   /* Receive response from remote server */
   err = receive_response(com, use_aux);
 
-  /* Check and match remote server parameters. */
+  /* Re-Check and match remote server parameters. Old server 8.0.17-19
+  would send configurations later and this is must to recheck it. */
   if (com == COM_INIT && err == 0) {
     err = validate_remote_params();
 
@@ -1044,7 +1043,6 @@ int Client::remote_command(Command_RPC com, bool use_aux) {
       err = validate_local_params(get_thd());
     }
   }
-
   return (err);
 }
 
@@ -1400,6 +1398,18 @@ int Client::set_locators(const uchar *buffer, size_t length) {
     hton_clone_apply_end(m_server_thd, m_share->m_storage_vec, m_tasks, 0);
     m_storage_initialized = false;
 
+    /* Check and match remote server parameters. */
+    err = validate_remote_params();
+    if (err != 0) {
+      return (err);
+    }
+
+    /* Validate local configurations. */
+    err = validate_local_params(get_thd());
+    if (err != 0) {
+      return (err);
+    }
+
     /* If cloning to current data directory, prevent any DDL. */
     if (get_data_dir() == nullptr) {
       auto failed = mysql_service_mysql_backup_lock->acquire(
@@ -1411,6 +1421,9 @@ int Client::set_locators(const uchar *buffer, size_t length) {
       m_acquired_backup_lock = true;
     }
   }
+
+  /* Move to first stage only after validations are over. */
+  pfs_change_stage(0);
 
   /* Re-initialize SE locators based on remote locators */
   err = hton_clone_apply_begin(m_server_thd, m_share->m_data_dir,

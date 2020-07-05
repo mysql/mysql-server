@@ -61,7 +61,7 @@ bool Command_line_options::check_arg_with_value(char **argv, int &argi,
       (larg &&
        strncmp(argv[argi], larg, MAXIMUM_LENGTH_OF_ARGUMENT_NAME) == 0)) {
     // value must be in next arg
-    if (argv[argi + 1] != NULL) {
+    if (argv[argi + 1] != nullptr) {
       value = argv[++argi];
     } else {
       std::cerr << argv[0] << ": option " << argv[argi]

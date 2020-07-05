@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -167,7 +167,7 @@ ha_example::ha_example(handlerton *hton, TABLE_SHARE *table_arg)
   This array is optional, so every SE need not implement it.
 */
 static st_handler_tablename ha_example_system_tables[] = {
-    {(const char *)NULL, (const char *)NULL}};
+    {(const char *)nullptr, (const char *)nullptr}};
 
 /**
   @brief Check if the given db.tablename is a system table for this SE.
@@ -177,9 +177,8 @@ static st_handler_tablename ha_example_system_tables[] = {
   @param is_sql_layer_system_table  if the supplied db.table_name is a SQL
                                     layer system table.
 
-  @return
-    @retval true   Given db.table_name is supported system table.
-    @retval false  Given db.table_name is not a supported system table.
+  @retval true   Given db.table_name is supported system table.
+  @retval false  Given db.table_name is not a supported system table.
 */
 static bool example_is_supported_system_table(const char *db,
                                               const char *table_name,
@@ -220,7 +219,7 @@ int ha_example::open(const char *, int, uint, const dd::Table *) {
   DBUG_TRACE;
 
   if (!(share = get_share())) return 1;
-  thr_lock_data_init(&share->lock, &lock, NULL);
+  thr_lock_data_init(&share->lock, &lock, nullptr);
 
   return 0;
 }
@@ -713,11 +712,11 @@ ha_rows ha_example::records_in_range(uint, key_range *, key_range *) {
   return 10;  // low number to force index usage
 }
 
-static MYSQL_THDVAR_STR(last_create_thdvar, PLUGIN_VAR_MEMALLOC, NULL, NULL,
-                        NULL, NULL);
+static MYSQL_THDVAR_STR(last_create_thdvar, PLUGIN_VAR_MEMALLOC, nullptr,
+                        nullptr, nullptr, nullptr);
 
-static MYSQL_THDVAR_UINT(create_count_thdvar, 0, NULL, NULL, NULL, 0, 0, 1000,
-                         0);
+static MYSQL_THDVAR_UINT(create_count_thdvar, 0, nullptr, nullptr, nullptr, 0,
+                         0, 1000, 0);
 
 /**
   @brief
@@ -775,52 +774,52 @@ static longlong srv_signed_longlong_var = 0;
 const char *enum_var_names[] = {"e1", "e2", NullS};
 
 TYPELIB enum_var_typelib = {array_elements(enum_var_names) - 1,
-                            "enum_var_typelib", enum_var_names, NULL};
+                            "enum_var_typelib", enum_var_names, nullptr};
 
 static MYSQL_SYSVAR_ENUM(enum_var,                        // name
                          srv_enum_var,                    // varname
                          PLUGIN_VAR_RQCMDARG,             // opt
                          "Sample ENUM system variable.",  // comment
-                         NULL,                            // check
-                         NULL,                            // update
+                         nullptr,                         // check
+                         nullptr,                         // update
                          0,                               // def
                          &enum_var_typelib);              // typelib
 
 static MYSQL_SYSVAR_ULONG(ulong_var, srv_ulong_var, PLUGIN_VAR_RQCMDARG,
-                          "0..1000", NULL, NULL, 8, 0, 1000, 0);
+                          "0..1000", nullptr, nullptr, 8, 0, 1000, 0);
 
 static MYSQL_SYSVAR_DOUBLE(double_var, srv_double_var, PLUGIN_VAR_RQCMDARG,
-                           "0.500000..1000.500000", NULL, NULL, 8.5, 0.5,
+                           "0.500000..1000.500000", nullptr, nullptr, 8.5, 0.5,
                            1000.5,
                            0);  // reserved always 0
 
 static MYSQL_THDVAR_DOUBLE(double_thdvar, PLUGIN_VAR_RQCMDARG,
-                           "0.500000..1000.500000", NULL, NULL, 8.5, 0.5,
+                           "0.500000..1000.500000", nullptr, nullptr, 8.5, 0.5,
                            1000.5, 0);
 
 static MYSQL_SYSVAR_INT(signed_int_var, srv_signed_int_var, PLUGIN_VAR_RQCMDARG,
-                        "INT_MIN..INT_MAX", NULL, NULL, -10, INT_MIN, INT_MAX,
-                        0);
+                        "INT_MIN..INT_MAX", nullptr, nullptr, -10, INT_MIN,
+                        INT_MAX, 0);
 
 static MYSQL_THDVAR_INT(signed_int_thdvar, PLUGIN_VAR_RQCMDARG,
-                        "INT_MIN..INT_MAX", NULL, NULL, -10, INT_MIN, INT_MAX,
-                        0);
+                        "INT_MIN..INT_MAX", nullptr, nullptr, -10, INT_MIN,
+                        INT_MAX, 0);
 
 static MYSQL_SYSVAR_LONG(signed_long_var, srv_signed_long_var,
-                         PLUGIN_VAR_RQCMDARG, "LONG_MIN..LONG_MAX", NULL, NULL,
-                         -10, LONG_MIN, LONG_MAX, 0);
+                         PLUGIN_VAR_RQCMDARG, "LONG_MIN..LONG_MAX", nullptr,
+                         nullptr, -10, LONG_MIN, LONG_MAX, 0);
 
 static MYSQL_THDVAR_LONG(signed_long_thdvar, PLUGIN_VAR_RQCMDARG,
-                         "LONG_MIN..LONG_MAX", NULL, NULL, -10, LONG_MIN,
+                         "LONG_MIN..LONG_MAX", nullptr, nullptr, -10, LONG_MIN,
                          LONG_MAX, 0);
 
 static MYSQL_SYSVAR_LONGLONG(signed_longlong_var, srv_signed_longlong_var,
-                             PLUGIN_VAR_RQCMDARG, "LLONG_MIN..LLONG_MAX", NULL,
-                             NULL, -10, LLONG_MIN, LLONG_MAX, 0);
+                             PLUGIN_VAR_RQCMDARG, "LLONG_MIN..LLONG_MAX",
+                             nullptr, nullptr, -10, LLONG_MIN, LLONG_MAX, 0);
 
 static MYSQL_THDVAR_LONGLONG(signed_longlong_thdvar, PLUGIN_VAR_RQCMDARG,
-                             "LLONG_MIN..LLONG_MAX", NULL, NULL, -10, LLONG_MIN,
-                             LLONG_MAX, 0);
+                             "LLONG_MIN..LLONG_MAX", nullptr, nullptr, -10,
+                             LLONG_MIN, LLONG_MAX, 0);
 
 static SYS_VAR *example_system_variables[] = {
     MYSQL_SYSVAR(enum_var),
@@ -835,7 +834,7 @@ static SYS_VAR *example_system_variables[] = {
     MYSQL_SYSVAR(signed_long_thdvar),
     MYSQL_SYSVAR(signed_longlong_var),
     MYSQL_SYSVAR(signed_longlong_thdvar),
-    NULL};
+    nullptr};
 
 // this is an example of SHOW_FUNC
 static int show_func_example(MYSQL_THD, SHOW_VAR *var, char *buf) {
@@ -864,14 +863,15 @@ example_vars_t example_vars = {100, 20.01, "three hundred", true, false, 8250};
 static SHOW_VAR show_status_example[] = {
     {"var1", (char *)&example_vars.var1, SHOW_LONG, SHOW_SCOPE_GLOBAL},
     {"var2", (char *)&example_vars.var2, SHOW_DOUBLE, SHOW_SCOPE_GLOBAL},
-    {0, 0, SHOW_UNDEF, SHOW_SCOPE_UNDEF}  // null terminator required
+    {nullptr, nullptr, SHOW_UNDEF,
+     SHOW_SCOPE_UNDEF}  // null terminator required
 };
 
 static SHOW_VAR show_array_example[] = {
     {"array", (char *)show_status_example, SHOW_ARRAY, SHOW_SCOPE_GLOBAL},
     {"var3", (char *)&example_vars.var3, SHOW_CHAR, SHOW_SCOPE_GLOBAL},
     {"var4", (char *)&example_vars.var4, SHOW_BOOL, SHOW_SCOPE_GLOBAL},
-    {0, 0, SHOW_UNDEF, SHOW_SCOPE_UNDEF}};
+    {nullptr, nullptr, SHOW_UNDEF, SHOW_SCOPE_UNDEF}};
 
 static SHOW_VAR func_status[] = {
     {"example_func_example", (char *)show_func_example, SHOW_FUNC,
@@ -882,21 +882,21 @@ static SHOW_VAR func_status[] = {
      SHOW_SCOPE_GLOBAL},
     {"example_status", (char *)show_array_example, SHOW_ARRAY,
      SHOW_SCOPE_GLOBAL},
-    {0, 0, SHOW_UNDEF, SHOW_SCOPE_UNDEF}};
+    {nullptr, nullptr, SHOW_UNDEF, SHOW_SCOPE_UNDEF}};
 
 mysql_declare_plugin(example){
     MYSQL_STORAGE_ENGINE_PLUGIN,
     &example_storage_engine,
     "EXAMPLE",
-    "Brian Aker, MySQL AB",
+    PLUGIN_AUTHOR_ORACLE,
     "Example storage engine",
     PLUGIN_LICENSE_GPL,
     example_init_func, /* Plugin Init */
-    NULL,              /* Plugin check uninstall */
-    NULL,              /* Plugin Deinit */
+    nullptr,           /* Plugin check uninstall */
+    nullptr,           /* Plugin Deinit */
     0x0001 /* 0.1 */,
     func_status,              /* status variables */
     example_system_variables, /* system variables */
-    NULL,                     /* config options */
+    nullptr,                  /* config options */
     0,                        /* flags */
 } mysql_declare_plugin_end;

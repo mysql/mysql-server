@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,16 +27,6 @@
  *
  */
 
-#include "dest_round_robin.h"
-#include "destination.h"
-#include "mysql/harness/config_parser.h"
-#include "mysql/harness/loader.h"
-#include "mysql/harness/logging/logging.h"
-#include "mysql/harness/logging/registry.h"
-#include "mysqlrouter/routing.h"
-#include "mysqlrouter/utils.h"
-#include "test/helpers.h"
-
 #include <fstream>
 #include <string>
 #include <thread>
@@ -48,11 +38,21 @@
 #pragma clang diagnostic ignored "-Wsign-conversion"
 #endif
 
-#include "gmock/gmock.h"
+#include <gmock/gmock.h>
 
 #ifdef __clang__
 #pragma clang diagnostic pop
 #endif
+
+#include "dest_round_robin.h"
+#include "destination.h"
+#include "mysql/harness/config_parser.h"
+#include "mysql/harness/loader.h"
+#include "mysql/harness/logging/logging.h"
+#include "mysql/harness/logging/registry.h"
+#include "mysqlrouter/routing.h"
+#include "mysqlrouter/utils.h"
+#include "test/helpers.h"
 
 using mysql_harness::TCPAddress;
 using mysqlrouter::to_string;
@@ -207,3 +207,8 @@ std::vector<TCPAddress> const Bug21962350::servers{
     TCPAddress("s2.example.com", 3306),
     TCPAddress("s3.example.com", 3306),
 };
+
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}

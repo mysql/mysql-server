@@ -37,3 +37,39 @@ SELECT * FROM t1 AS alias1 JOIN t1 AS alias2 ON alias1.f1=alias2.f2 ORDER BY ali
 DROP TABLE t1;
 
 SET optimizer_switch=DEFAULT;
+
+# Verify that we can sort data with large blobs (larger than the sort buffer).
+
+SET sort_buffer_size=32768;
+
+CREATE TABLE t1 (
+  f1 INTEGER,
+  f2 LONGBLOB
+);
+
+INSERT INTO t1 VALUES ( 2, REPEAT('-', 1048576) );
+INSERT INTO t1 VALUES ( 1, REPEAT('x', 1048576) );
+
+--replace_regex /x{1024}/x{1024}/ /-{1024}/-{1024}/
+SELECT * FROM t1 ORDER BY f1;
+
+DROP TABLE t1;
+SET sort_buffer_size=DEFAULT;
+
+--echo #
+--echo # Bug #30687020: ORDER BY DOES NOT WORK FOR A COLUMN WITH A STRING FUNCTION AND UTF8MB4_0900_AI_C
+--echo #
+
+CREATE TABLE t1 ( f1 VARCHAR(100) );
+INSERT INTO t1 VALUES (''), (NULL), (''), (NULL);
+SELECT CONCAT(f1, '') AS dummy FROM t1 ORDER BY dummy;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #30791074: WEIGHT_STRING: ASSERTION `0' FAILED. IN TIME_ZONE_UTC::TIME_TO_GMT_SEC
+--echo #
+
+CREATE TABLE t1 ( f1 INTEGER );
+INSERT INTO t1 VALUES (0), (1), (101);
+SELECT * FROM t1 ORDER BY UNIX_TIMESTAMP(f1);
+DROP TABLE t1;

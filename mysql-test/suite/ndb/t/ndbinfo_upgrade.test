@@ -9,15 +9,6 @@ USE ndbinfo;
 #   and skip to upgrade the schema of ndbinfo
 #
 
-# Supress the warning which occurs on second mysqld when it
-# tries to create the performance_schema database although
-# it already exists(since the DROP DATABASE was not allowed
-# due to local tables)
-connect (mysqld2,127.0.0.1,root,,test,$MASTER_MYPORT1,);
-connection mysqld2;
-call mtr.add_suppression("Can\'t create database \'performance_schema\'; database exists");
-connection default;
-
 SELECT COUNT(*) FROM nodes;
 
 # Drop table ndbinfo.ndb$nodes to be able to detect if
@@ -35,3 +26,12 @@ SELECT COUNT(*) FROM nodes;
 
 # The underlying table should have been created and nodes view be readable
 SELECT COUNT(*) FROM nodes;
+
+# Check for the ER_NDBINFO_UPGRADING_SCHEMA message in the server log.
+#
+--let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.1.1.err
+--let $assert_only_after=^CURRENT_TEST: ndb.ndbinfo_upgrade\$|Shutdown complete
+--let $assert_text=Require ER_NDBINFO_UPGRADING_SCHEMA message in server log
+--let $assert_select=Installing ndbinfo schema version
+--let $assert_count=1
+--source include/assert_grep.inc

@@ -26,13 +26,10 @@ SHOW VARIABLES LIKE 'innodb_flush_method';
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 
 # Restart the server with keyring loaded
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- send_shutdown
--- source include/wait_until_disconnected.inc
---exec echo "restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring10 $KEYRING_PLUGIN_OPT" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH $KEYRING_PLUGIN keyring_file.so
+--replace_regex /\.dll/.so/
+--let $restart_parameters= restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring10 $KEYRING_PLUGIN_OPT
+--source include/restart_mysqld.inc
 
 SELECT * FROM t1 LIMIT 10;
 
@@ -41,3 +38,5 @@ DROP TABLE t1;
 # Cleanup
 --remove_file $MYSQL_TMP_DIR/mydummy_key
 --remove_file $MYSQL_TMP_DIR/mysecret_keyring10
+--let $restart_parameters= restart:
+--source include/restart_mysqld.inc

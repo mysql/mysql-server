@@ -32,14 +32,14 @@
 #include "storage/myisam/ftdefs.h"
 #include "storage/myisam/myisamdef.h"
 
-static CHARSET_INFO *ft_stopword_cs = NULL;
+static CHARSET_INFO *ft_stopword_cs = nullptr;
 
 struct FT_STOPWORD {
   const char *pos;
   uint len;
 };
 
-static TREE *stopwords3 = NULL;
+static TREE *stopwords3 = nullptr;
 
 static int FT_STOPWORD_cmp(const void *, const void *a, const void *b) {
   const FT_STOPWORD *w1 = static_cast<const FT_STOPWORD *>(a);
@@ -58,7 +58,7 @@ static int ft_add_stopword(const char *w) {
   FT_STOPWORD sw;
   return !w ||
          (((sw.len = (uint)strlen(sw.pos = w)) >= ft_min_word_len) &&
-          (tree_insert(stopwords3, &sw, 0, stopwords3->custom_arg) == NULL));
+          (tree_insert(stopwords3, &sw, 0, stopwords3->custom_arg) == nullptr));
 }
 
 int ft_init_stopwords() {
@@ -123,14 +123,14 @@ int is_stopword(char *word, uint len) {
   FT_STOPWORD sw;
   sw.pos = word;
   sw.len = len;
-  return tree_search(stopwords3, &sw, stopwords3->custom_arg) != NULL;
+  return tree_search(stopwords3, &sw, stopwords3->custom_arg) != nullptr;
 }
 
 void ft_free_stopwords() {
   if (stopwords3) {
     delete_tree(stopwords3); /* purecov: inspected */
     my_free(stopwords3);
-    stopwords3 = 0;
+    stopwords3 = nullptr;
   }
-  ft_stopword_file = 0;
+  ft_stopword_file = nullptr;
 }

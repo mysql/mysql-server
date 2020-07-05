@@ -2711,23 +2711,30 @@ cleanup:
 
   return result;
 }
+
+int
+checkCanStopAllButOneNodeInGroup(NDBT_Context * ctx, NDBT_Step *step)
+{
+  NdbRestarter restarter;
+  Vector<int> node_groups;
+  int replicas;
+  restarter.getNodeGroups(node_groups, &replicas);
+
+  if(restarter.getMaxConcurrentNodeFailures() <= replicas - 1)
+  {
+    printf("SKIPPING - Cluster configuration not supported for this test.\n");
+    return NDBT_SKIPPED;
+  }
+  return NDBT_OK;
+}
+
+
 int 
 runBug33793(NDBT_Context* ctx, NDBT_Step* step)
 {
-  //int result = NDBT_OK;
   int loops = ctx->getNumLoops();
-
   NdbRestarter restarter;
-  // Restart all but one node in a node group
-  int numNodesToRestart = (restarter.getNumDbNodes() / restarter.getNumNodeGroups()) - 1;
-  
-  if ((restarter.getNumDbNodes() < 2) ||
-      (numNodesToRestart > restarter.getMaxConcurrentNodeFailures()))
-  {
-    printf("SKIPPING the test since the test attempts to restart more than"
-           " half of the data nodes");
-    return NDBT_OK;
-  }
+
   // This should really wait for applier to start...10s is likely enough
   NdbSleep_SecSleep(10);
 
@@ -5879,6 +5886,7 @@ TESTCASE("StallingSubscriber",
   STEP(errorInjectStalling);
 }
 TESTCASE("Bug33793", ""){
+  INITIALIZER(checkCanStopAllButOneNodeInGroup);
   INITIALIZER(runCreateEvent);
   STEP(runEventListenerUntilStopped);
   STEP(runBug33793);

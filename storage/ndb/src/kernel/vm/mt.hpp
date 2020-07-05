@@ -69,7 +69,9 @@ void mt_getSendBufferLevel(Uint32 self, NodeId node, SB_LevelType &level);
 Uint32 mt_getSignalsInJBB(Uint32 self);
 NDB_TICKS mt_getHighResTimer(Uint32 self);
 void mt_setNoSend(Uint32 self);
+void mt_startChangeNeighbourNode();
 void mt_setNeighbourNode(NodeId node);
+void mt_endChangeNeighbourNode();
 void mt_setWakeupThread(Uint32 self, Uint32 wakeup_instance);
 void mt_setOverloadStatus(Uint32 self,
                          OverloadStatus new_status);
@@ -81,7 +83,12 @@ void mt_getPerformanceTimers(Uint32 self,
                              Uint64 & spin_time,
                              Uint64 & buffer_full_sleep,
                              Uint64 & micros_send);
-Uint32 mt_getSpintime(Uint32 self);
+
+Uint32 mt_getConfiguredSpintime(Uint32 self);
+void mt_setSpintime(Uint32 self, Uint32 new_spintime);
+Uint32 mt_getWakeupLatency(void);
+void mt_setWakeupLatency(Uint32);
+
 const char *mt_getThreadName(Uint32 self);
 const char *mt_getThreadDescription(Uint32 self);
 void mt_getSendPerformanceTimers(Uint32 send_instance,
@@ -93,6 +100,14 @@ void mt_getSendPerformanceTimers(Uint32 send_instance,
                                  Uint64 & elapsed_time_os);
 Uint32 mt_getNumSendThreads();
 Uint32 mt_getNumThreads();
+void mt_flush_send_buffers(Uint32 self);
+void mt_set_watchdog_counter(Uint32 self);
+void mt_assign_recv_thread_new_trp(Uint32 trp_id);
+void mt_assign_multi_trps_to_send_threads();
+bool mt_epoll_add_trp(Uint32 self, NodeId node_id, TrpId trp_id);
+bool mt_is_recv_thread_for_new_trp(Uint32 self,
+                                   NodeId node_id,
+                                   TrpId trp_id);
 
 SendStatus mt_send_remote(Uint32 self, const SignalHeader *sh, Uint8 prio,
                           const Uint32 *data, NodeId nodeId,
@@ -166,8 +181,25 @@ struct ndb_thr_stat
   Uint64 remote_sent_priob;
 };
 
+
 void
 mt_get_thr_stat(class SimulatedBlock *, ndb_thr_stat* dst);
+
+#define NUM_SPIN_INTERVALS 16
+struct ndb_spin_stat
+{
+  Uint32 m_sleep_longer_spin_time;
+  Uint32 m_sleep_shorter_spin_time;
+  Uint32 m_num_waits;
+  Uint32 m_micros_sleep_times[NUM_SPIN_INTERVALS];
+  Uint32 m_spin_interval[NUM_SPIN_INTERVALS];
+};
+
+void
+mt_get_spin_stat(class SimulatedBlock *, ndb_spin_stat *dst);
+
+void
+mt_set_spin_stat(class SimulatedBlock *, ndb_spin_stat *dst);
 
 /**
  * Get TransporterReceiveHandle for a specific trpman instance
@@ -182,7 +214,7 @@ mt_get_trp_receive_handle(unsigned instance);
  *   (or MAX_NODES is none)
  */
 Uint32
-mt_get_recv_thread_idx(NodeId nodeId);
+mt_get_recv_thread_idx(TrpId trp_id);
 
 #if defined(USE_INIT_GLOBAL_VARIABLES)
 void mt_enable_global_variables(Uint32 self);

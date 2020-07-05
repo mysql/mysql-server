@@ -652,8 +652,8 @@ class Table_map_event : public Binary_log_event {
         m_tbllen(tbllen),
         m_colcnt(colcnt),
         m_field_metadata_size(0),
-        m_field_metadata(0),
-        m_null_bits(0),
+        m_field_metadata(nullptr),
+        m_null_bits(nullptr),
         m_optional_metadata_len(0),
         m_optional_metadata(nullptr) {
     if (dbnam) m_dbnam = std::string(dbnam, m_dblen);
@@ -687,10 +687,10 @@ class Table_map_event : public Binary_log_event {
 
   Table_map_event()
       : Binary_log_event(TABLE_MAP_EVENT),
-        m_coltype(0),
+        m_coltype(nullptr),
         m_field_metadata_size(0),
-        m_field_metadata(0),
-        m_null_bits(0),
+        m_field_metadata(nullptr),
+        m_null_bits(nullptr),
         m_optional_metadata_len(0),
         m_optional_metadata(nullptr) {}
 
@@ -1147,7 +1147,8 @@ class Rows_query_event : public virtual Ignorable_event {
     It is the minimal constructor, and all it will do is set the type_code as
     ROWS_QUERY_LOG_EVENT in the header object in Binary_log_event.
   */
-  Rows_query_event() : Ignorable_event(ROWS_QUERY_LOG_EVENT), m_rows_query(0) {}
+  Rows_query_event()
+      : Ignorable_event(ROWS_QUERY_LOG_EVENT), m_rows_query(nullptr) {}
 
   virtual ~Rows_query_event();
 

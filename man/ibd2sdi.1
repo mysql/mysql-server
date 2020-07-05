@@ -2,12 +2,12 @@
 .\"     Title: \fBibd2sdi\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/23/2019
+.\"      Date: 03/06/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBIBD2SDI\FR" "1" "11/23/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBIBD2SDI\FR" "1" "03/06/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -102,7 +102,8 @@ The files of a multi\-file tablespace must be specified in order of the ascendin
 outputs SDI (containing id, type, and data fields) in
 JSON
 format\&.
-ibd2sdi Options.PP
+ibd2sdi Options
+.PP
 \fBibd2sdi\fR
 supports the following options:
 .sp
@@ -210,6 +211,11 @@ shell> \fBibd2sdi \-\-debug=d:t /tmp/ibd2sdi\&.trace\fR
 .if n \{\
 .RE
 .\}
+.sp
+This option is available only if MySQL was built using
+\fBWITH_DEBUG\fR\&. MySQL release binaries provided by Oracle are
+\fInot\fR
+built using this option\&.
 .RE
 .sp
 .RS 4
@@ -496,7 +502,7 @@ shell> \fBibd2sdi \-\-skip\-pretty \&.\&./data/test/t1\&.ibd\fR
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

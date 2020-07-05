@@ -98,7 +98,7 @@ class CapabilitiesConfiguratorTestSuite : public Test {
 
     ngs::Memory_instrumented<Capabilities>::Unique_ptr cap(sut->get());
 
-    ASSERT_TRUE(NULL != cap.get());
+    ASSERT_TRUE(nullptr != cap.get());
     ASSERT_EQ(static_cast<int>(supported_handlers.size()),
               cap->capabilities_size());
 

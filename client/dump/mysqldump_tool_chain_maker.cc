@@ -47,19 +47,19 @@ I_object_reader *Mysqldump_tool_chain_maker::create_chain(
     Chain_data *, I_dump_task *dump_task) {
   Table_rows_dump_task *rows_task =
       dynamic_cast<Table_rows_dump_task *>(dump_task);
-  if (rows_task != NULL &&
+  if (rows_task != nullptr &&
       (m_options->m_skip_rows_data ||
        rows_task->get_related_table()->get_type() == "FEDERATED" ||
        rows_task->get_related_table()->get_type() == "MRG_ISAM" ||
        !this->compare_no_case_latin_with_db_string(
            "MRG_MyISAM", rows_task->get_related_table()->get_type()))) {
-    return NULL;
+    return nullptr;
   }
 
   Abstract_data_object *object =
       dynamic_cast<Abstract_data_object *>(dump_task->get_related_db_object());
   if (!m_options->is_object_included_in_dump(object)) {
-    return NULL;
+    return nullptr;
   }
   /*
     View dependency check is moved post filteration. This will ensure that
@@ -68,7 +68,7 @@ I_object_reader *Mysqldump_tool_chain_maker::create_chain(
     view in another database which user is not interested to dump. I_S views
     are skipped from this check.
   */
-  if (object && (dynamic_cast<View *>(object) != NULL) &&
+  if (object && (dynamic_cast<View *>(object) != nullptr) &&
       my_strcasecmp(&my_charset_latin1, object->get_schema().c_str(),
                     INFORMATION_SCHEMA_DB_NAME)) {
     Mysql::Tools::Base::Mysql_query_runner *runner = this->get_runner();
@@ -77,13 +77,13 @@ I_object_reader *Mysqldump_tool_chain_maker::create_chain(
                           this->get_quoted_object_full_name(
                               object->get_schema(), object->get_name()) +
                           " READ") != 0)
-      return NULL;
+      return nullptr;
     else
       runner->run_query(std::string("UNLOCK TABLES"));
     delete runner;
   }
 
-  if (m_main_object_reader == NULL) {
+  if (m_main_object_reader == nullptr) {
     I_output_writer *writer;
     if (m_options->m_result_file.has_value())
       writer = new File_writer(this->get_message_handler(),
@@ -94,7 +94,7 @@ I_object_reader *Mysqldump_tool_chain_maker::create_chain(
                                    this->get_object_id_generator());
     if (writer->init()) {
       delete writer;
-      return NULL;
+      return nullptr;
     }
     m_all_created_elements.push_back(writer);
     if (m_options->m_compress_output_algorithm.has_value()) {
@@ -102,14 +102,14 @@ I_object_reader *Mysqldump_tool_chain_maker::create_chain(
           m_options->m_compress_output_algorithm.value();
       boost::to_lower(algorithm_name);
 
-      Abstract_output_writer_wrapper *compression_writer_as_wrapper = NULL;
-      I_output_writer *compression_writer_as_writer = NULL;
+      Abstract_output_writer_wrapper *compression_writer_as_wrapper = nullptr;
+      I_output_writer *compression_writer_as_writer = nullptr;
       if (algorithm_name == "lz4") {
         Compression_lz4_writer *compression_writer = new Compression_lz4_writer(
             this->get_message_handler(), this->get_object_id_generator());
         if (compression_writer->init()) {
           delete compression_writer;
-          return NULL;
+          return nullptr;
         }
         compression_writer_as_wrapper = compression_writer;
         compression_writer_as_writer = compression_writer;
@@ -120,7 +120,7 @@ I_object_reader *Mysqldump_tool_chain_maker::create_chain(
                                         Z_DEFAULT_COMPRESSION);
         if (compression_writer->init()) {
           delete compression_writer;
-          return NULL;
+          return nullptr;
         }
         compression_writer_as_wrapper = compression_writer;
         compression_writer_as_writer = compression_writer;
@@ -128,7 +128,7 @@ I_object_reader *Mysqldump_tool_chain_maker::create_chain(
         this->pass_message(Mysql::Tools::Base::Message_data(
             0, "Unknown compression method: " + algorithm_name,
             Mysql::Tools::Base::Message_type_error));
-        return NULL;
+        return nullptr;
       }
       compression_writer_as_wrapper->register_output_writer(writer);
       writer = compression_writer_as_writer;
@@ -160,7 +160,7 @@ I_object_reader *Mysqldump_tool_chain_maker::create_chain(
   Abstract_data_object *data_object =
       dynamic_cast<Abstract_data_object *>(dump_task->get_related_db_object());
 
-  int object_queue_id = (data_object != NULL)
+  int object_queue_id = (data_object != nullptr)
                             ? (m_options->get_object_queue_id_for_schema(
                                   data_object->get_schema()))
                             : 0;
@@ -216,5 +216,5 @@ Mysqldump_tool_chain_maker::Mysqldump_tool_chain_maker(
           connection_provider, message_handler,
           options->m_mysql_chain_element_options),
       m_options(options),
-      m_main_object_reader(NULL),
+      m_main_object_reader(nullptr),
       m_program(program) {}

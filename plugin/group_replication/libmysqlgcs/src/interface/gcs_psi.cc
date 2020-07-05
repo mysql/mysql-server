@@ -181,14 +181,14 @@ static uint64_t current_count = 0;
 */
 extern "C" int psi_report_mem_alloc(size_t size) {
 #ifdef HAVE_PSI_MEMORY_INTERFACE
-  PSI_thread *owner = NULL;
+  PSI_thread *owner = nullptr;
   PSI_memory_key key = key_MEM_XCOM_xcom_cache;
   if (PSI_MEMORY_CALL(memory_alloc)(key, size, &owner) ==
       PSI_NOT_INSTRUMENTED) {
     return 0;
   }
   /* This instrument is flagged global, so there should be no thread owner. */
-  DBUG_ASSERT(owner == NULL);
+  DBUG_ASSERT(owner == nullptr);
 #endif /* HAVE_PSI_MEMORY_INTERFACE */
   current_count += size;
   return 1;
@@ -204,7 +204,7 @@ extern "C" void psi_report_mem_free(size_t size, int is_instrumented) {
   current_count -= size;
 
 #ifdef HAVE_PSI_MEMORY_INTERFACE
-  PSI_MEMORY_CALL(memory_free)(key_MEM_XCOM_xcom_cache, size, NULL);
+  PSI_MEMORY_CALL(memory_free)(key_MEM_XCOM_xcom_cache, size, nullptr);
 #endif /* HAVE_PSI_MEMORY_INTERFACE */
 }
 

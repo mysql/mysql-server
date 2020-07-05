@@ -39,7 +39,7 @@ bool check_if_granted_role(LEX_CSTRING user, LEX_CSTRING host, LEX_CSTRING role,
                            LEX_CSTRING role_host);
 bool find_if_granted_role(Role_vertex_descriptor v, LEX_CSTRING role,
                           LEX_CSTRING role_host,
-                          Role_vertex_descriptor *found_vertex = 0);
+                          Role_vertex_descriptor *found_vertex = nullptr);
 void iterate_comma_separated_quoted_string(
     std::string str, const std::function<bool(const std::string)> &f);
 void get_granted_roles(Role_vertex_descriptor &v,

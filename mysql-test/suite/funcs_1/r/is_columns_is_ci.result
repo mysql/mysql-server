@@ -10,8 +10,8 @@ def	information_schema	ADMINISTRABLE_ROLE_AUTHORIZATIONS	USER	1	NULL	YES	varchar
 def	information_schema	ADMINISTRABLE_ROLE_AUTHORIZATIONS	HOST	2	NULL	YES	varchar	256	768	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select			NULL
 def	information_schema	ADMINISTRABLE_ROLE_AUTHORIZATIONS	GRANTEE	3	NULL	YES	varchar	97	388	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(97)			select			NULL
 def	information_schema	ADMINISTRABLE_ROLE_AUTHORIZATIONS	GRANTEE_HOST	4	NULL	YES	varchar	256	1024	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(256)			select			NULL
-def	information_schema	ADMINISTRABLE_ROLE_AUTHORIZATIONS	ROLE_NAME	5	NULL	YES	varchar	255	765	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(255)			select			NULL
-def	information_schema	ADMINISTRABLE_ROLE_AUTHORIZATIONS	ROLE_HOST	6	NULL	YES	varchar	256	768	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select			NULL
+def	information_schema	ADMINISTRABLE_ROLE_AUTHORIZATIONS	ROLE_NAME	5	NULL	YES	varchar	255	1020	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(255)			select			NULL
+def	information_schema	ADMINISTRABLE_ROLE_AUTHORIZATIONS	ROLE_HOST	6	NULL	YES	varchar	256	1024	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(256)			select			NULL
 def	information_schema	ADMINISTRABLE_ROLE_AUTHORIZATIONS	IS_GRANTABLE	7		NO	varchar	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select			NULL
 def	information_schema	ADMINISTRABLE_ROLE_AUTHORIZATIONS	IS_DEFAULT	8	NULL	YES	varchar	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select			NULL
 def	information_schema	ADMINISTRABLE_ROLE_AUTHORIZATIONS	IS_MANDATORY	9		NO	varchar	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select			NULL
@@ -19,8 +19,8 @@ def	information_schema	APPLICABLE_ROLES	USER	1	NULL	YES	varchar	97	291	NULL	NULL
 def	information_schema	APPLICABLE_ROLES	HOST	2	NULL	YES	varchar	256	768	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select			NULL
 def	information_schema	APPLICABLE_ROLES	GRANTEE	3	NULL	YES	varchar	97	388	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(97)			select			NULL
 def	information_schema	APPLICABLE_ROLES	GRANTEE_HOST	4	NULL	YES	varchar	256	1024	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(256)			select			NULL
-def	information_schema	APPLICABLE_ROLES	ROLE_NAME	5	NULL	YES	varchar	255	765	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(255)			select			NULL
-def	information_schema	APPLICABLE_ROLES	ROLE_HOST	6	NULL	YES	varchar	256	768	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select			NULL
+def	information_schema	APPLICABLE_ROLES	ROLE_NAME	5	NULL	YES	varchar	255	1020	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(255)			select			NULL
+def	information_schema	APPLICABLE_ROLES	ROLE_HOST	6	NULL	YES	varchar	256	1024	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(256)			select			NULL
 def	information_schema	APPLICABLE_ROLES	IS_GRANTABLE	7		NO	varchar	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select			NULL
 def	information_schema	APPLICABLE_ROLES	IS_DEFAULT	8	NULL	YES	varchar	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select			NULL
 def	information_schema	APPLICABLE_ROLES	IS_MANDATORY	9		NO	varchar	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select			NULL
@@ -74,8 +74,8 @@ def	information_schema	COLUMN_STATISTICS	SCHEMA_NAME	1	NULL	NO	varchar	64	192	NU
 def	information_schema	COLUMN_STATISTICS	TABLE_NAME	2	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	COLUMN_STATISTICS	COLUMN_NAME	3	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	COLUMN_STATISTICS	HISTOGRAM	4	NULL	NO	json	NULL	NULL	NULL	NULL	NULL	NULL	NULL	json			select			NULL
-def	information_schema	ENABLED_ROLES	ROLE_NAME	1	NULL	YES	varchar	255	765	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(255)			select			NULL
-def	information_schema	ENABLED_ROLES	ROLE_HOST	2	NULL	YES	varchar	255	765	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(255)			select			NULL
+def	information_schema	ENABLED_ROLES	ROLE_NAME	1	NULL	YES	varchar	255	1020	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(255)			select			NULL
+def	information_schema	ENABLED_ROLES	ROLE_HOST	2	NULL	YES	varchar	255	1020	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(255)			select			NULL
 def	information_schema	ENABLED_ROLES	IS_DEFAULT	3	NULL	YES	varchar	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select			NULL
 def	information_schema	ENABLED_ROLES	IS_MANDATORY	4		NO	varchar	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select			NULL
 def	information_schema	ENGINES	ENGINE	1		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
@@ -146,7 +146,7 @@ def	information_schema	FILES	CHECK_TIME	35	NULL	YES	binary	0	0	NULL	NULL	NULL	NU
 def	information_schema	FILES	CHECKSUM	36	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	FILES	STATUS	37	NULL	YES	varchar	256	768	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select			NULL
 def	information_schema	FILES	EXTRA	38	NULL	YES	varchar	256	768	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select			NULL
-def	information_schema	KEYWORDS	WORD	1	NULL	YES	varchar	29	87	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(29)			select			NULL
+def	information_schema	KEYWORDS	WORD	1	NULL	YES	varchar	31	124	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(31)			select			NULL
 def	information_schema	KEYWORDS	RESERVED	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select			NULL
 def	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_CATALOG	1	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA	2	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
@@ -344,10 +344,10 @@ def	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	ORGANIZATION	3	NULL	YES	varc
 def	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	ORGANIZATION_COORDSYS_ID	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select			NULL
 def	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	DEFINITION	5	NULL	NO	varchar	4096	12288	NULL	NULL	NULL	utf8	utf8_bin	varchar(4096)			select			NULL
 def	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	DESCRIPTION	6	NULL	YES	varchar	2048	6144	NULL	NULL	NULL	utf8	utf8_bin	varchar(2048)			select			NULL
-def	information_schema	ST_UNITS_OF_MEASURE	UNIT_NAME	1	NULL	YES	varchar	255	765	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(255)			select			NULL
-def	information_schema	ST_UNITS_OF_MEASURE	UNIT_TYPE	2	NULL	YES	varchar	7	21	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(7)			select			NULL
+def	information_schema	ST_UNITS_OF_MEASURE	UNIT_NAME	1	NULL	YES	varchar	255	1020	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(255)			select			NULL
+def	information_schema	ST_UNITS_OF_MEASURE	UNIT_TYPE	2	NULL	YES	varchar	7	28	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(7)			select			NULL
 def	information_schema	ST_UNITS_OF_MEASURE	CONVERSION_FACTOR	3	NULL	YES	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double			select			NULL
-def	information_schema	ST_UNITS_OF_MEASURE	DESCRIPTION	4	NULL	YES	varchar	255	765	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(255)			select			NULL
+def	information_schema	ST_UNITS_OF_MEASURE	DESCRIPTION	4	NULL	YES	varchar	255	1020	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	varchar(255)			select			NULL
 def	information_schema	TABLES	TABLE_CATALOG	1	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	TABLES	TABLE_SCHEMA	2	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	TABLES	TABLE_NAME	3	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
@@ -528,8 +528,8 @@ COL_CML	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	C
 3.0000	information_schema	ADMINISTRABLE_ROLE_AUTHORIZATIONS	HOST	varchar	256	768	utf8	utf8_general_ci	varchar(256)
 4.0000	information_schema	ADMINISTRABLE_ROLE_AUTHORIZATIONS	GRANTEE	varchar	97	388	utf8mb4	utf8mb4_0900_ai_ci	varchar(97)
 4.0000	information_schema	ADMINISTRABLE_ROLE_AUTHORIZATIONS	GRANTEE_HOST	varchar	256	1024	utf8mb4	utf8mb4_0900_ai_ci	varchar(256)
-3.0000	information_schema	ADMINISTRABLE_ROLE_AUTHORIZATIONS	ROLE_NAME	varchar	255	765	utf8	utf8_general_ci	varchar(255)
-3.0000	information_schema	ADMINISTRABLE_ROLE_AUTHORIZATIONS	ROLE_HOST	varchar	256	768	utf8	utf8_general_ci	varchar(256)
+4.0000	information_schema	ADMINISTRABLE_ROLE_AUTHORIZATIONS	ROLE_NAME	varchar	255	1020	utf8mb4	utf8mb4_0900_ai_ci	varchar(255)
+4.0000	information_schema	ADMINISTRABLE_ROLE_AUTHORIZATIONS	ROLE_HOST	varchar	256	1024	utf8mb4	utf8mb4_0900_ai_ci	varchar(256)
 3.0000	information_schema	ADMINISTRABLE_ROLE_AUTHORIZATIONS	IS_GRANTABLE	varchar	3	9	utf8	utf8_general_ci	varchar(3)
 3.0000	information_schema	ADMINISTRABLE_ROLE_AUTHORIZATIONS	IS_DEFAULT	varchar	3	9	utf8	utf8_general_ci	varchar(3)
 3.0000	information_schema	ADMINISTRABLE_ROLE_AUTHORIZATIONS	IS_MANDATORY	varchar	3	9	utf8	utf8_general_ci	varchar(3)
@@ -537,8 +537,8 @@ COL_CML	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	C
 3.0000	information_schema	APPLICABLE_ROLES	HOST	varchar	256	768	utf8	utf8_general_ci	varchar(256)
 4.0000	information_schema	APPLICABLE_ROLES	GRANTEE	varchar	97	388	utf8mb4	utf8mb4_0900_ai_ci	varchar(97)
 4.0000	information_schema	APPLICABLE_ROLES	GRANTEE_HOST	varchar	256	1024	utf8mb4	utf8mb4_0900_ai_ci	varchar(256)
-3.0000	information_schema	APPLICABLE_ROLES	ROLE_NAME	varchar	255	765	utf8	utf8_general_ci	varchar(255)
-3.0000	information_schema	APPLICABLE_ROLES	ROLE_HOST	varchar	256	768	utf8	utf8_general_ci	varchar(256)
+4.0000	information_schema	APPLICABLE_ROLES	ROLE_NAME	varchar	255	1020	utf8mb4	utf8mb4_0900_ai_ci	varchar(255)
+4.0000	information_schema	APPLICABLE_ROLES	ROLE_HOST	varchar	256	1024	utf8mb4	utf8mb4_0900_ai_ci	varchar(256)
 3.0000	information_schema	APPLICABLE_ROLES	IS_GRANTABLE	varchar	3	9	utf8	utf8_general_ci	varchar(3)
 3.0000	information_schema	APPLICABLE_ROLES	IS_DEFAULT	varchar	3	9	utf8	utf8_general_ci	varchar(3)
 3.0000	information_schema	APPLICABLE_ROLES	IS_MANDATORY	varchar	3	9	utf8	utf8_general_ci	varchar(3)
@@ -592,8 +592,8 @@ NULL	information_schema	COLUMNS	SRS_ID	int	NULL	NULL	NULL	NULL	int unsigned
 3.0000	information_schema	COLUMN_STATISTICS	TABLE_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	COLUMN_STATISTICS	COLUMN_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
 NULL	information_schema	COLUMN_STATISTICS	HISTOGRAM	json	NULL	NULL	NULL	NULL	json
-3.0000	information_schema	ENABLED_ROLES	ROLE_NAME	varchar	255	765	utf8	utf8_general_ci	varchar(255)
-3.0000	information_schema	ENABLED_ROLES	ROLE_HOST	varchar	255	765	utf8	utf8_general_ci	varchar(255)
+4.0000	information_schema	ENABLED_ROLES	ROLE_NAME	varchar	255	1020	utf8mb4	utf8mb4_0900_ai_ci	varchar(255)
+4.0000	information_schema	ENABLED_ROLES	ROLE_HOST	varchar	255	1020	utf8mb4	utf8mb4_0900_ai_ci	varchar(255)
 3.0000	information_schema	ENABLED_ROLES	IS_DEFAULT	varchar	3	9	utf8	utf8_general_ci	varchar(3)
 3.0000	information_schema	ENABLED_ROLES	IS_MANDATORY	varchar	3	9	utf8	utf8_general_ci	varchar(3)
 3.0476	information_schema	ENGINES	ENGINE	varchar	21	64	utf8	utf8_general_ci	varchar(64)
@@ -664,7 +664,7 @@ NULL	information_schema	FILES	CHECK_TIME	binary	0	0	NULL	NULL	binary(0)
 NULL	information_schema	FILES	CHECKSUM	binary	0	0	NULL	NULL	binary(0)
 3.0000	information_schema	FILES	STATUS	varchar	256	768	utf8	utf8_general_ci	varchar(256)
 3.0000	information_schema	FILES	EXTRA	varchar	256	768	utf8	utf8_general_ci	varchar(256)
-3.0000	information_schema	KEYWORDS	WORD	varchar	29	87	utf8	utf8_general_ci	varchar(29)
+4.0000	information_schema	KEYWORDS	WORD	varchar	31	124	utf8mb4	utf8mb4_0900_ai_ci	varchar(31)
 NULL	information_schema	KEYWORDS	RESERVED	int	NULL	NULL	NULL	NULL	int
 3.0000	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_CATALOG	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA	varchar	64	192	utf8	utf8_bin	varchar(64)
@@ -862,10 +862,10 @@ NULL	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	SRS_ID	int	NULL	NULL	NULL	N
 NULL	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	ORGANIZATION_COORDSYS_ID	int	NULL	NULL	NULL	NULL	int unsigned
 3.0000	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	DEFINITION	varchar	4096	12288	utf8	utf8_bin	varchar(4096)
 3.0000	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	DESCRIPTION	varchar	2048	6144	utf8	utf8_bin	varchar(2048)
-3.0000	information_schema	ST_UNITS_OF_MEASURE	UNIT_NAME	varchar	255	765	utf8	utf8_general_ci	varchar(255)
-3.0000	information_schema	ST_UNITS_OF_MEASURE	UNIT_TYPE	varchar	7	21	utf8	utf8_general_ci	varchar(7)
+4.0000	information_schema	ST_UNITS_OF_MEASURE	UNIT_NAME	varchar	255	1020	utf8mb4	utf8mb4_0900_ai_ci	varchar(255)
+4.0000	information_schema	ST_UNITS_OF_MEASURE	UNIT_TYPE	varchar	7	28	utf8mb4	utf8mb4_0900_ai_ci	varchar(7)
 NULL	information_schema	ST_UNITS_OF_MEASURE	CONVERSION_FACTOR	double	NULL	NULL	NULL	NULL	double
-3.0000	information_schema	ST_UNITS_OF_MEASURE	DESCRIPTION	varchar	255	765	utf8	utf8_general_ci	varchar(255)
+4.0000	information_schema	ST_UNITS_OF_MEASURE	DESCRIPTION	varchar	255	1020	utf8mb4	utf8mb4_0900_ai_ci	varchar(255)
 3.0000	information_schema	TABLES	TABLE_CATALOG	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	TABLES	TABLE_SCHEMA	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	TABLES	TABLE_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)

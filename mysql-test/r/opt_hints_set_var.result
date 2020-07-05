@@ -389,13 +389,6 @@ VARIABLE_VALUE
 MEMORY
 VARIABLE_VALUE
 TempTable
-CALL test_hint("SET_VAR(max_length_for_sort_data=4)", "max_length_for_sort_data");
-VARIABLE_VALUE
-4096
-VARIABLE_VALUE
-4
-VARIABLE_VALUE
-4096
 SELECT /*+ SET_VAR(max_points_in_geometry=1048576) */
 st_astext(st_buffer(point(-5,0),8772, st_buffer_strategy( 'point_circle',1024*1024*1024))) as result;
 ERROR HY000: Parameter points_per_circle exceeds the maximum number of points in a geometry (1048576) in function st_buffer_strategy.
@@ -431,7 +424,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ref	a	a	5	test.t1.b	1	100.00	Using index
 1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.t1.b	1	100.00	NULL
 2	MATERIALIZED	t3	NULL	index	NULL	a	10	NULL	3	100.00	Using index
-2	MATERIALIZED	t4	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
+2	MATERIALIZED	t4	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` semi join (`test`.`t3` join `test`.`t1` `t4`) where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`<subquery2>`.`b` = `test`.`t1`.`b`) and (`test`.`t4`.`b` = `test`.`t3`.`b`))
 EXPLAIN SELECT /*+ SET_VAR(optimizer_search_depth=1) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
@@ -439,8 +432,8 @@ t2.a IN (SELECT t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	index	NULL	a	10	NULL	3	100.00	Using where; Using index; Start temporary
 1	SIMPLE	t2	NULL	ref	a	a	5	test.t3.b	1	100.00	Using index
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; End temporary; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select /*+ SET_VAR(optimizer_search_depth=1) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` semi join (`test`.`t3` join `test`.`t1` `t4`) where ((`test`.`t2`.`a` = `test`.`t3`.`b`) and (`test`.`t1`.`b` = `test`.`t3`.`b`) and (`test`.`t4`.`b` = `test`.`t3`.`b`))
 EXPLAIN SELECT /*+ SET_VAR(optimizer_prune_level=0) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
@@ -448,9 +441,9 @@ t2.a IN (SELECT t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using where
 1	SIMPLE	t2	NULL	ref	a	a	5	<subquery2>.b	1	100.00	Using index
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (hash join)
 2	MATERIALIZED	t3	NULL	index	NULL	a	10	NULL	3	100.00	Using index
-2	MATERIALIZED	t4	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
+2	MATERIALIZED	t4	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select /*+ SET_VAR(optimizer_prune_level=0) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` semi join (`test`.`t3` join `test`.`t1` `t4`) where ((`test`.`t2`.`a` = `<subquery2>`.`b`) and (`test`.`t1`.`b` = `<subquery2>`.`b`) and (`test`.`t4`.`b` = `test`.`t3`.`b`))
 CALL test_hint("SET_VAR(optimizer_search_depth=1)", "optimizer_search_depth");
@@ -560,6 +553,11 @@ VARIABLE_VALUE
 262144
 CREATE TABLE t1 (f1 CHAR(255));
 INSERT INTO t1 VALUES ('aaa'), ('bbb'), ('ccc'), ('ddd'), ('eee');
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;

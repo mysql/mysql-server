@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,9 +60,8 @@ class Gtid_table_access_context : public System_table_access {
     @param[out]    table     We will store the open table here
     @param[in]     is_write  If true, the access will be for modifying the table
 
-    @return
-      @retval true  failed
-      @retval false success
+    @retval true  failed
+    @retval false success
   */
   bool init(THD **thd, TABLE **table, bool is_write);
   /**
@@ -76,9 +75,8 @@ class Gtid_table_access_context : public System_table_access {
     @param error       If there was an error while updating the table
     @param need_commit Need to commit current transaction if it is true
 
-    @return
-      @retval true  failed
-      @retval false success
+    @retval true  failed
+    @retval false success
   */
   bool deinit(THD *thd, TABLE *table, bool error, bool need_commit);
   /**
@@ -93,8 +91,7 @@ class Gtid_table_access_context : public System_table_access {
     a thread is created in order to be able to access a table. And reset a
     new "statement".
 
-    @return
-      @retval THD* Pointer to thread structure
+    @returns THD* Pointer to thread structure
   */
   THD *create_thd();
   void drop_thd(THD *thd);
@@ -276,9 +273,8 @@ class Gtid_table_persistor {
     @param[out] is_complete  True if the gtid_executed table
                              is compressd completely.
 
-    @return
-      @retval 0    OK.
-      @retval -1   Error.
+    @retval 0    OK.
+    @retval -1   Error.
   */
   int compress_first_consecutive_range(TABLE *table, bool &is_complete);
   /**
@@ -289,9 +285,8 @@ class Gtid_table_persistor {
     @param  gno_start The first GNO of the gtid interval.
     @param  gno_end  The last GNO of the gtid interval.
 
-    @return
-      @retval 0    OK.
-      @retval -1   Error.
+    @retval 0    OK.
+    @retval -1   Error.
   */
   int fill_fields(Field **fields, const char *sid, rpl_gno gno_start,
                   rpl_gno gno_end);
@@ -303,9 +298,8 @@ class Gtid_table_persistor {
     @param  gno_start The first GNO of the gtid interval.
     @param  gno_end  The last GNO of the gtid interval.
 
-    @return
-      @retval 0    OK.
-      @retval -1   Error.
+    @retval 0    OK.
+    @retval -1   Error.
   */
   int write_row(TABLE *table, const char *sid, rpl_gno gno_start,
                 rpl_gno gno_end);
@@ -319,9 +313,8 @@ class Gtid_table_persistor {
     @param  gno_start    The first GNO of the gtid interval.
     @param  new_gno_end  The new last GNO of the gtid interval.
 
-    @return
-      @retval 0    OK.
-      @retval -1   Error.
+    @retval 0    OK.
+    @retval -1   Error.
   */
   int update_row(TABLE *table, const char *sid, rpl_gno gno_start,
                  rpl_gno new_gno_end);
@@ -330,9 +323,8 @@ class Gtid_table_persistor {
 
     @param  table Reference to a table object.
 
-    @return
-      @retval 0    OK.
-      @retval -1   Error.
+    @retval 0    OK.
+    @retval -1   Error.
   */
   int delete_all(TABLE *table);
   /**

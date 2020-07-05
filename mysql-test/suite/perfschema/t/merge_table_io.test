@@ -1,5 +1,7 @@
 # Tests for PERFORMANCE_SCHEMA table io
 
+--source include/have_myisam.inc
+--source include/force_myisam_default.inc
 --source ../include/table_io_setup_helper.inc
 
 let $engine_type= MyISAM;

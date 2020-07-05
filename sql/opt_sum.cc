@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -175,8 +175,7 @@ static int get_index_min_value(TABLE *table, TABLE_REF *ref,
          Check if case 1 from above holds. If it does, we should read
          the skipped tuple.
       */
-      if (item_field->field->real_maybe_null() &&
-          ref->key_buff[prefix_len] == 1 &&
+      if (item_field->field->is_nullable() && ref->key_buff[prefix_len] == 1 &&
           /*
             Last keypart (i.e. the argument to MIN) is set to NULL by
             find_key_for_maxmin only if all other keyparts are bound
@@ -186,7 +185,7 @@ static int get_index_min_value(TABLE *table, TABLE_REF *ref,
           */
           (error == HA_ERR_KEY_NOT_FOUND ||
            key_cmp_if_same(table, ref->key_buff, ref->key, prefix_len))) {
-        DBUG_ASSERT(item_field->field->real_maybe_null());
+        DBUG_ASSERT(item_field->field->is_nullable());
         error = table->file->ha_index_read_map(
             table->record[0], ref->key_buff,
             make_prev_keypart_map(ref->key_parts), HA_READ_KEY_EXACT);
@@ -314,6 +313,10 @@ bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
    */
   if (where_tables & (OUTER_REF_TABLE_BIT | RAND_TABLE_BIT)) return false;
 
+  if (!select->sj_nests.empty())
+    // Cannot optimize when there is a semijoin or antijoin
+    return false;
+
   /*
     Analyze outer join dependencies, and, if possible, compute the number
     of returned rows.
@@ -392,11 +395,10 @@ bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
           /*
             If the expr in COUNT(expr) can never be null we can change this
             to the number of rows in the tables if this number is exact and
-            there are no outer joins nor semi-joins.
+            there are no outer joins.
           */
           if (conds == nullptr && !item_count->get_arg(0)->maybe_null &&
-              !inner_tables && !select->has_sj_nests && !select->has_aj_nests &&
-              tables_filled) {
+              !inner_tables && tables_filled) {
             if (delay_ha_records_to_exec_phase) {
               aggr_delayed = true;
             } else {
@@ -425,7 +427,7 @@ bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
                   the optimization phase by init_fts_funcs(), but search will
                   still only be done once.
           */
-          else if (tables->next_leaf == NULL &&  // 1
+          else if (tables->next_leaf == nullptr &&  // 1
                    (func_type == Item_func::FT_FUNC ||
                     func_type == Item_func::MATCH_FUNC) &&  // 2
                    (tables->table->file->ha_table_flags() &
@@ -438,8 +440,8 @@ bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
                     : down_cast<Item_func_match *>(
                           down_cast<Item_func_match_predicate *>(conds)
                               ->arguments()[0]);
-            fts_item->get_master()->set_hints(NULL, FT_NO_RANKING, HA_POS_ERROR,
-                                              false);
+            fts_item->get_master()->set_hints(nullptr, FT_NO_RANKING,
+                                              HA_POS_ERROR, false);
             if (fts_item->init_search(thd)) break;
             row_count = fts_item->get_count();
             have_exact_count = true;
@@ -870,7 +872,7 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
         If we have a non-nullable index, we cannot use it,
         since set_null will be ignored, and we will compare uninitialized data.
       */
-      if (!part->field->real_maybe_null()) return false;
+      if (!part->field->is_nullable()) return false;
       part->field->set_null();
       *key_ptr = (uchar)1;
     } else {

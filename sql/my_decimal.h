@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -394,10 +394,9 @@ inline int my_decimal_mod(uint mask, my_decimal *res, const my_decimal *a,
 }
 
 /**
-  @return
-    @retval -1 if a @< b
-    @retval 1 if a @> b
-    @retval 0 if a == b
+  @retval -1 if a @< b
+  @retval 1 if a @> b
+  @retval 0 if a == b
 */
 inline int my_decimal_cmp(const my_decimal *a, const my_decimal *b) {
   return decimal_cmp(a, b);

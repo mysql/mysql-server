@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -77,9 +77,6 @@ class Gcs_xcom_proxy {
 
     @param n the length of the list
     @param na the list to delete
-
-    @return false on success, true otherwise. In case of an error, memory may
-    not have been completely freed.
   */
 
   virtual void delete_node_address(unsigned int n, node_address *na) = 0;

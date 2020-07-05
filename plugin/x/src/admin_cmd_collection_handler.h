@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -54,8 +54,8 @@ class Admin_command_collection_handler {
   bool is_collection(const std::string &schema, const std::string &name);
 
   ngs::Error_code get_validation_info(
-      Admin_command_arguments_object &validation,
-      std::string *out_validation_schema, bool *out_enforce) const;
+      const Command_arguments::Object &validation,
+      Command_arguments::Any *validation_schema, bool *enforce) const;
 
   std::string generate_constraint_name(const std::string &coll_name) const;
 
@@ -67,11 +67,12 @@ class Admin_command_collection_handler {
       const std::string &name,
       const Command_arguments::Object &validation) const;
 
-  ngs::Error_code check_schema(const std::string &schema) const;
+  ngs::Error_code check_schema(const Command_arguments::Any &validation_schema,
+                               std::string *schema) const;
 
   ngs::Error_code modify_collection_validation(
       const std::string &schema, const std::string &collection,
-      ::Mysqlx::Datatypes::Object &validation);
+      const Command_arguments::Object &validation);
 
   class Collection_option_handler {
    public:

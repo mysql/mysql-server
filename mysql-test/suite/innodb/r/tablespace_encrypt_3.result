@@ -149,3 +149,4 @@ COUNT(*)
 32
 DROP TABLE t1;
 DROP TABLESPACE encrypt_ts;
+# restart:

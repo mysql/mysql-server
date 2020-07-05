@@ -45,7 +45,7 @@ static std::string cxx_demangle_name(const char *mangled) {
 #if defined(__GNUC__) && defined(__cplusplus)
   // gcc and clang are mangling the names
   std::shared_ptr<char> demangled_name(
-      abi::__cxa_demangle(mangled, 0, 0, nullptr), [&](char *p) {
+      abi::__cxa_demangle(mangled, nullptr, nullptr, nullptr), [&](char *p) {
         if (p) free(p);
       });
 

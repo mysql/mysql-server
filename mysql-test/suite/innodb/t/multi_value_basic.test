@@ -3,6 +3,24 @@
 
 --source include/count_sessions.inc
 
+# Bug 30709525 - We need more entries in the multi value index
+# to hit the case where the internal InnoDB row_merge_buf_t size
+# is exceeded twice (currently 2MB, cca 150k values in json arrays)
+CREATE TABLE t1 (id INT UNSIGNED NOT NULL, arr JSON NOT NULL, PRIMARY KEY (id));
+
+let $record = 0;
+let $total_records = 15000;
+
+--disable_query_log
+while ($record<$total_records)
+{
+  eval INSERT INTO t1(id, arr) VALUES($record, '[0,1,2,3,4,5,6,7,8,9]');
+  inc $record;
+}
+--enable_query_log
+ALTER TABLE t1 ADD INDEX test_categories ((CAST(arr AS UNSIGNED ARRAY)));
+DROP TABLE t1;
+
 CREATE TABLE t1 (id INT NOT NULL KEY AUTO_INCREMENT, f1 JSON);
 CREATE INDEX i1 ON t1((CAST(f1->"$[*]" AS UNSIGNED ARRAY)));
 INSERT INTO t1(f1) VALUES(CAST('[1333,1321]' AS JSON));

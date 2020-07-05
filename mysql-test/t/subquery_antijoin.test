@@ -434,6 +434,7 @@ FROM t1 AS alias1 LEFT JOIN t1 AS alias2
   ON NOT EXISTS ( SELECT * FROM t1 AS alias3 WHERE ( SELECT 1 FROM DUAL ) IS NULL );
 
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 DROP TABLE t1;
@@ -449,3 +450,15 @@ SELECT c1 FROM t1
                    FROM (SELECT c1 FROM t1) AS dt
                    WHERE FALSE);
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#30691682 MIN/MAX ISSUE WITH NOT EXISTS SUBQUERY
+--echo #
+
+CREATE TABLE t1(a INT NOT NULL, index (a));
+CREATE TABLE t2(a INT NOT NULL);
+INSERT INTO t1 VALUES(1),(2);
+INSERT INTO t2 VALUES(2),(3);
+explain SELECT MAX(t1.a) FROM t1 WHERE a NOT IN (SELECT a FROM t2);
+SELECT MAX(t1.a) FROM t1 WHERE a NOT IN (SELECT a FROM t2);
+DROP TABLE t1, t2;

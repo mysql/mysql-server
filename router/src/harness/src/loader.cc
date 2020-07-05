@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -56,6 +56,7 @@
 #include "exception.h"
 #include "harness_assert.h"
 #include "my_stacktrace.h"
+#include "mysql/harness/dynamic_loader.h"
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/logging/registry.h"
@@ -134,6 +135,7 @@ void request_application_shutdown() {
   request_application_shutdown(SHUTDOWN_REQUESTED);
 }
 
+#ifdef USE_POSIX_SIGNALS
 /**
  * notify a "log_reopen" is requested.
  *
@@ -146,6 +148,7 @@ static void request_log_reopen() {
   }
   log_reopen_cond.notify_one();
 }
+#endif
 
 namespace {
 #ifdef USE_POSIX_SIGNALS
@@ -199,7 +202,7 @@ static void register_fatal_signal_handler() {
   };
 
   for (const auto &sig : g_fatal_signals) {
-    (void)sigaction(sig, &sa, NULL);
+    (void)sigaction(sig, &sa, nullptr);
   }
 #endif
 }
@@ -510,8 +513,77 @@ void PluginThreads::wait_all_stopped(std::exception_ptr &first_exc) {
 
 Loader::~Loader() {}
 
-Plugin *Loader::load_from(const std::string &plugin_name,
-                          const std::string &library_name) {
+Loader::PluginInfo::PluginInfo(const std::string &folder,
+                               const std::string &libname) {
+  DynamicLoader dyn_loader(folder);
+
+  auto res = dyn_loader.load(libname);
+  if (!res) {
+    /* dlerror() from glibc returns:
+     *
+     * ```
+     * {filename}: cannot open shared object file: No such file or directory
+     * {filename}: cannot open shared object file: Permission denied
+     * {filename}: file too short
+     * {filename}: invalid ELF header
+     * ```
+     *
+     * msvcrt returns:
+     *
+     * ```
+     * Module not found.
+     * Access denied.
+     * Bad EXE format for %1
+     * ```
+     */
+    throw bad_plugin(
+#ifdef _WIN32
+        // prepend filename on windows too, as it is done by glibc too
+        folder + "/" + libname + ".dll: " +
+#endif
+        (res.error() == make_error_code(DynamicLoaderErrc::kDlError)
+             ? dyn_loader.error_msg()
+             : res.error().message()));
+  }
+
+  module_ = std::move(res.value());
+}
+
+void Loader::PluginInfo::load_plugin_descriptor(const std::string &name) {
+  const std::string symbol = "harness_plugin_" + name;
+
+  const auto res = module_.symbol(symbol);
+  if (!res) {
+    /* dlerror() from glibc returns:
+     *
+     * ```
+     * {filename}: undefined symbol: {symbol}
+     * ```
+     *
+     * msvcrt returns:
+     *
+     * ```
+     * Procedure not found.
+     * ```
+     */
+    throw bad_plugin(
+#ifdef _WIN32
+        module_.filename() + ": " +
+#endif
+        (res.error() == make_error_code(DynamicLoaderErrc::kDlError)
+             ? module_.error_msg()
+             : res.error().message())
+#ifdef _WIN32
+        + ": " + symbol
+#endif
+    );
+  }
+
+  plugin_ = reinterpret_cast<const Plugin *>(res.value());
+}
+
+const Plugin *Loader::load_from(const std::string &plugin_name,
+                                const std::string &library_name) {
   std::string error;
   setup_info();
 
@@ -522,10 +594,10 @@ Plugin *Loader::load_from(const std::string &plugin_name,
 
   PluginInfo info(plugin_folder_, library_name);  // throws bad_plugin
 
-  info.load_plugin(plugin_name);  // throws bad_plugin
+  info.load_plugin_descriptor(plugin_name);  // throws bad_plugin
 
   // Check that ABI version and architecture match
-  auto plugin = info.plugin;
+  auto plugin = info.plugin();
   if ((plugin->abi_version & 0xFF00) != (PLUGIN_ABI_VERSION & 0xFF00) ||
       (plugin->abi_version & 0xFF) > (PLUGIN_ABI_VERSION & 0xFF)) {
     ostringstream buffer;
@@ -546,7 +618,7 @@ Plugin *Loader::load_from(const std::string &plugin_name,
       Designator designator(req);
 
       // Load the plugin using the plugin name.
-      Plugin *dep_plugin{nullptr};
+      const Plugin *dep_plugin{nullptr};
 
       try {
         dep_plugin =
@@ -579,12 +651,13 @@ Plugin *Loader::load_from(const std::string &plugin_name,
   return plugin;
 }
 
-Plugin *Loader::load(const std::string &plugin_name, const std::string &key) {
+const Plugin *Loader::load(const std::string &plugin_name,
+                           const std::string &key) {
   log_debug("  plugin '%s:%s' loading", plugin_name.c_str(), key.c_str());
 
   if (BuiltinPlugins::instance().has(plugin_name)) {
     Plugin *plugin = BuiltinPlugins::instance().get_plugin(plugin_name);
-    PluginInfo info(nullptr, plugin);
+    PluginInfo info(plugin);
     plugins_.emplace(plugin_name, std::move(info));
     return plugin;
   } else {
@@ -596,7 +669,7 @@ Plugin *Loader::load(const std::string &plugin_name, const std::string &key) {
   }
 }
 
-Plugin *Loader::load(const std::string &plugin_name) {
+const Plugin *Loader::load(const std::string &plugin_name) {
   log_debug("  plugin '%s' loading", plugin_name.c_str());
 
   Config::SectionList plugins = config_.get(plugin_name);  // throws bad_section
@@ -655,14 +728,18 @@ size_t Loader::external_plugins_to_load_count() {
 void Loader::load_all() {
   log_debug("Loading all plugins.");
 
-  platform_specific_init();
-  for (std::pair<const std::string &, std::string> name : available()) {
+  std::string section_name;
+  std::string section_key;
+
+  for (auto const &section : available()) {
     try {
-      load(name.first, name.second);
+      std::tie(section_name, section_key) = section;
+      load(section_name, section_key);
     } catch (const bad_plugin &e) {
-      log_error("  plugin '%s' failed to load: %s", name.first.c_str(),
-                e.what());
-      throw;
+      throw bad_plugin(utility::string_format(
+          "Loading plugin for config-section '[%s%s%s]' failed: %s",
+          section_name.c_str(), !section_key.empty() ? ":" : "",
+          section_key.c_str(), e.what()));
     }
   }
 }
@@ -877,7 +954,7 @@ std::exception_ptr Loader::init_all() {
     const std::string &plugin_name = *it;
     PluginInfo &info = plugins_.at(plugin_name);
 
-    if (!info.plugin->init) {
+    if (!info.plugin()->init) {
       log_debug("  plugin '%s' doesn't implement init()", plugin_name.c_str());
       continue;
     }
@@ -886,7 +963,7 @@ std::exception_ptr Loader::init_all() {
     PluginFuncEnv env(&appinfo_, nullptr);
 
     std::exception_ptr eptr;
-    call_plugin_function(&env, eptr, info.plugin->init, "init",
+    call_plugin_function(&env, eptr, info.plugin()->init, "init",
                          plugin_name.c_str());
     if (eptr) {
       // erase this and all remaining plugins from the list, so that
@@ -920,7 +997,7 @@ void Loader::start_all() {
     // start all the plugins (call plugin's start() function)
     for (const ConfigSection *section : config_.sections()) {
       PluginInfo &plugin = plugins_.at(section->name);
-      void (*fptr)(PluginFuncEnv *) = plugin.plugin->start;
+      void (*fptr)(PluginFuncEnv *) = plugin.plugin()->start;
 
       if (!fptr) {
         log_debug("  plugin '%s:%s' doesn't implement start()",
@@ -1081,7 +1158,7 @@ std::exception_ptr Loader::stop_all() {
   std::exception_ptr first_eptr;
   for (const ConfigSection *section : config_.sections()) {
     PluginInfo &plugin = plugins_.at(section->name);
-    void (*fptr)(PluginFuncEnv *) = plugin.plugin->stop;
+    void (*fptr)(PluginFuncEnv *) = plugin.plugin()->stop;
 
     assert(plugin_start_env_.count(section));
     assert(plugin_start_env_[section]->get_config_section() == section);
@@ -1121,7 +1198,7 @@ std::exception_ptr Loader::deinit_all() {
   for (const std::string &plugin_name : deinit_order) {
     const PluginInfo &info = plugins_.at(plugin_name);
 
-    if (!info.plugin->deinit) {
+    if (!info.plugin()->deinit) {
       log_debug("  plugin '%s' doesn't implement deinit()",
                 plugin_name.c_str());
       continue;
@@ -1130,7 +1207,7 @@ std::exception_ptr Loader::deinit_all() {
     log_debug("  plugin '%s' deinitializing", plugin_name.c_str());
     PluginFuncEnv env(&appinfo_, nullptr);
 
-    call_plugin_function(&env, first_eptr, info.plugin->deinit, "deinit",
+    call_plugin_function(&env, first_eptr, info.plugin()->deinit, "deinit",
                          plugin_name.c_str());
   }
 
@@ -1169,10 +1246,10 @@ bool Loader::visit(const std::string &designator,
 
     case Status::UNVISITED: {
       (*status)[info.plugin] = Status::ONGOING;
-      if (Plugin *plugin = plugins_.at(info.plugin).plugin) {
+      if (const Plugin *plugin = plugins_.at(info.plugin).plugin()) {
         for (auto required :
              make_range(plugin->requires, plugin->requires_length)) {
-          assert(required != NULL);
+          assert(required != nullptr);
           bool succeeded = visit(required, status, order);
           if (!succeeded) return false;
         }

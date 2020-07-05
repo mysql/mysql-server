@@ -155,7 +155,7 @@ int continent_index_read(PSI_index_handle *index, PSI_key_reader *reader,
 /* Read the next indexed value */
 int continent_index_next(PSI_table_handle *handle) {
   Continent_Table_Handle *h = (Continent_Table_Handle *)handle;
-  Continent_index *i = NULL;
+  Continent_index *i = nullptr;
 
   switch (h->index_num) {
     case 0:
@@ -255,7 +255,7 @@ void init_continent_share(PFS_engine_table_share_proxy *share) {
   share->m_ref_length = sizeof(Continent_POS);
   share->m_acl = READONLY;
   share->get_row_count = continent_get_row_count;
-  share->delete_all_rows = NULL; /* READONLY TABLE */
+  share->delete_all_rows = nullptr; /* READONLY TABLE */
 
   /* Initialize PFS_engine_table_proxy */
   share->m_proxy_engine_table = {
@@ -263,10 +263,10 @@ void init_continent_share(PFS_engine_table_share_proxy *share) {
       continent_index_init, continent_index_read, continent_index_next,
       continent_read_column_value, continent_reset_position,
       /* READONLY TABLE */
-      NULL, /* write_column_value */
-      NULL, /* write_row_values */
-      NULL, /* update_column_value */
-      NULL, /* update_row_values */
-      NULL, /* delete_row_values */
+      nullptr, /* write_column_value */
+      nullptr, /* write_row_values */
+      nullptr, /* update_column_value */
+      nullptr, /* update_row_values */
+      nullptr, /* delete_row_values */
       continent_open_table, continent_close_table};
 }

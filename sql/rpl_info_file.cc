@@ -563,7 +563,7 @@ long init_ulongvar_from_file(ulong *var, IO_CACHE *f, ulong default_val) {
 
   long length;
   if ((length = static_cast<long>(my_b_gets(f, buf, sizeof(buf))))) {
-    *var = strtoul(buf, 0, 10);
+    *var = strtoul(buf, nullptr, 10);
     return length;
   } else if (default_val) {
     *var = default_val;

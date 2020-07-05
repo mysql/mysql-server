@@ -22,7 +22,15 @@
 
 SET(REPLICATION_SOURCES
   ${CMAKE_SOURCE_DIR}/libbinlogevents/src/binlog_event.cpp
+  ${CMAKE_SOURCE_DIR}/libbinlogevents/src/codecs/binary.cpp
+  ${CMAKE_SOURCE_DIR}/libbinlogevents/src/codecs/factory.cpp
+  ${CMAKE_SOURCE_DIR}/libbinlogevents/src/compression/base.cpp
+  ${CMAKE_SOURCE_DIR}/libbinlogevents/src/compression/factory.cpp
+  ${CMAKE_SOURCE_DIR}/libbinlogevents/src/compression/iterator.cpp
+  ${CMAKE_SOURCE_DIR}/libbinlogevents/src/compression/zstd.cpp
+  ${CMAKE_SOURCE_DIR}/libbinlogevents/src/compression/none.cpp
   ${CMAKE_SOURCE_DIR}/libbinlogevents/src/control_events.cpp
+  ${CMAKE_SOURCE_DIR}/libbinlogevents/src/event_reader.cpp
   ${CMAKE_SOURCE_DIR}/libbinlogevents/src/load_data_events.cpp
   ${CMAKE_SOURCE_DIR}/libbinlogevents/src/rows_event.cpp
   ${CMAKE_SOURCE_DIR}/libbinlogevents/src/statement_events.cpp
@@ -32,7 +40,7 @@ SET(REPLICATION_SOURCES
 # Configure for building static library
 ADD_LIBRARY(binlogstandalone_static STATIC ${REPLICATION_SOURCES})
 
-TARGET_LINK_LIBRARIES(binlogstandalone_static ${ZLIB_LIBRARIES})
+TARGET_LINK_LIBRARIES(binlogstandalone_static ${ZSTD_LIBRARY})
 
 SET_TARGET_PROPERTIES(binlogstandalone_static
   PROPERTIES OUTPUT_NAME "binlogstandalone"

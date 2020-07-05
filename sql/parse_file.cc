@@ -69,37 +69,37 @@ File_parser *sql_parse_prepare(const LEX_STRING *file_name, MEM_ROOT *mem_root,
 
   if (!mysql_file_stat(key_file_fileparser, file_name->str, &stat_info,
                        MYF(MY_WME))) {
-    return 0;
+    return nullptr;
   }
 
   if (stat_info.st_size > INT_MAX - 1) {
     my_error(ER_FPARSER_TOO_BIG_FILE, MYF(0), file_name->str);
-    return 0;
+    return nullptr;
   }
 
   if (!(parser = new (mem_root) File_parser)) {
-    return 0;
+    return nullptr;
   }
 
   if (!(buff = (char *)mem_root->Alloc(static_cast<size_t>(stat_info.st_size) +
                                        1))) {
-    return 0;
+    return nullptr;
   }
 
   if ((file = mysql_file_open(key_file_fileparser, file_name->str, O_RDONLY,
                               MYF(MY_WME))) < 0) {
-    return 0;
+    return nullptr;
   }
 
   if ((len = mysql_file_read(file, (uchar *)buff,
                              static_cast<size_t>(stat_info.st_size),
                              MYF(MY_WME))) == MY_FILE_ERROR) {
     mysql_file_close(file, MYF(MY_WME));
-    return 0;
+    return nullptr;
   }
 
   if (mysql_file_close(file, MYF(MY_WME))) {
-    return 0;
+    return nullptr;
   }
 
   end = buff + len;
@@ -127,7 +127,7 @@ File_parser *sql_parse_prepare(const LEX_STRING *file_name, MEM_ROOT *mem_root,
 frm_error:
   if (bad_format_errors) {
     my_error(ER_FPARSER_BAD_HEADER, MYF(0), file_name->str);
-    return 0;
+    return nullptr;
   } else
     return parser;  // upper level have to check parser->ok()
 }
@@ -150,11 +150,11 @@ static const char *parse_string(const char *ptr, const char *end,
   // get string length
   const char *eol = strchr(ptr, '\n');
 
-  if (eol >= end) return 0;
+  if (eol >= end) return nullptr;
 
   str->length = eol - ptr;
 
-  if (!(str->str = strmake_root(mem_root, ptr, str->length))) return 0;
+  if (!(str->str = strmake_root(mem_root, ptr, str->length))) return nullptr;
   return eol + 1;
 }
 
@@ -228,10 +228,10 @@ static const char *parse_escaped_string(const char *ptr, const char *end,
                                         MEM_ROOT *mem_root, LEX_STRING *str) {
   const char *eol = strchr(ptr, '\n');
 
-  if (eol == 0 || eol >= end ||
+  if (eol == nullptr || eol >= end ||
       !(str->str = (char *)mem_root->Alloc((eol - ptr) + 1)) ||
       read_escaped_string(ptr, eol, str))
-    return 0;
+    return nullptr;
 
   return eol + 1;
 }
@@ -258,7 +258,7 @@ static const char *parse_quoted_escaped_string(const char *ptr, const char *end,
   bool escaped = false;
 
   // starting '
-  if (*(ptr++) != '\'') return 0;
+  if (*(ptr++) != '\'') return nullptr;
 
   // find ending '
   for (eol = ptr; (*eol != '\'' || escaped) && eol < end; eol++) {
@@ -268,7 +268,7 @@ static const char *parse_quoted_escaped_string(const char *ptr, const char *end,
   // process string
   if (eol >= end || !(str->str = (char *)mem_root->Alloc(result_len + 1)) ||
       read_escaped_string(ptr, eol, str))
-    return 0;
+    return nullptr;
 
   return eol + 1;
 }
@@ -414,7 +414,7 @@ bool File_parser::parse(uchar *base, MEM_ROOT *mem_root,
             {
               int not_used;
               *((ulonglong *)(base + parameter->offset)) =
-                  my_strtoll10(ptr, 0, &not_used);
+                  my_strtoll10(ptr, nullptr, &not_used);
             }
             ptr = eol + 1;
             break;

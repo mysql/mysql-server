@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,9 @@ class METADATA_API ARMetadataCache : public MetadataCache {
    * @param metadata_servers The servers that store the metadata
    * @param cluster_metadata metadata of the cluster
    * @param ttl The TTL of the cached data
+   * @param auth_credentials_ttl TTL of the rest user authentication data
+   * @param auth_credentials_refresh_rate Refresh rate of the rest user
+   *                                      authentication data
    * @param ssl_options SSL related options for connection
    * @param cluster_name The name of the desired cluster in the metadata server
    * @param thread_stack_size The maximum memory allocated for thread's stack
@@ -44,13 +47,16 @@ class METADATA_API ARMetadataCache : public MetadataCache {
   ARMetadataCache(
       const unsigned router_id, const std::string &cluster_id,
       const std::vector<mysql_harness::TCPAddress> &metadata_servers,
-      std::shared_ptr<MetaData> cluster_metadata, std::chrono::milliseconds ttl,
+      std::shared_ptr<MetaData> cluster_metadata,
+      const std::chrono::milliseconds ttl,
+      const std::chrono::milliseconds auth_credentials_ttl,
+      const std::chrono::milliseconds auth_credentials_refresh_rate,
       const mysqlrouter::SSLOptions &ssl_options,
       const std::string &cluster_name,
       size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes)
       : MetadataCache(router_id, cluster_id, metadata_servers, cluster_metadata,
-                      ttl, ssl_options, cluster_name, thread_stack_size,
-                      false) {}
+                      ttl, auth_credentials_ttl, auth_credentials_refresh_rate,
+                      ssl_options, cluster_name, thread_stack_size, false) {}
 
   bool refresh() override;
 

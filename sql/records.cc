@@ -225,7 +225,7 @@ unique_ptr_destroy_only<RowIterator> create_table_iterator(
     examined_rows = &qep_tab->join()->examined_rows;
   }
 
-  QUICK_SELECT_I *quick = qep_tab ? qep_tab->quick() : NULL;
+  QUICK_SELECT_I *quick = qep_tab ? qep_tab->quick() : nullptr;
   if (table->unique_result.io_cache &&
       my_b_inited(table->unique_result.io_cache)) {
     DBUG_PRINT("info", ("using SortFileIndirectIterator"));

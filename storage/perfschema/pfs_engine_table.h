@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -193,7 +193,10 @@ class PFS_engine_table {
     @param pos              address of the m_pos position member
   */
   PFS_engine_table(const PFS_engine_table_share *share, void *pos)
-      : m_share_ptr(share), m_pos_ptr(pos), m_normalizer(NULL), m_index(NULL) {}
+      : m_share_ptr(share),
+        m_pos_ptr(pos),
+        m_normalizer(nullptr),
+        m_index(nullptr) {}
 
   /** Table share. */
   const PFS_engine_table_share *m_share_ptr;
@@ -304,7 +307,7 @@ class PFS_engine_key {
 
 class PFS_engine_index_abstract {
  public:
-  PFS_engine_index_abstract() : m_fields(0), m_key_info(NULL) {}
+  PFS_engine_index_abstract() : m_fields(0), m_key_info(nullptr) {}
 
   virtual ~PFS_engine_index_abstract() {}
 
@@ -322,22 +325,22 @@ class PFS_engine_index : public PFS_engine_index_abstract {
  public:
   PFS_engine_index(PFS_engine_key *key_1)
       : m_key_ptr_1(key_1),
-        m_key_ptr_2(NULL),
-        m_key_ptr_3(NULL),
-        m_key_ptr_4(NULL) {}
+        m_key_ptr_2(nullptr),
+        m_key_ptr_3(nullptr),
+        m_key_ptr_4(nullptr) {}
 
   PFS_engine_index(PFS_engine_key *key_1, PFS_engine_key *key_2)
       : m_key_ptr_1(key_1),
         m_key_ptr_2(key_2),
-        m_key_ptr_3(NULL),
-        m_key_ptr_4(NULL) {}
+        m_key_ptr_3(nullptr),
+        m_key_ptr_4(nullptr) {}
 
   PFS_engine_index(PFS_engine_key *key_1, PFS_engine_key *key_2,
                    PFS_engine_key *key_3)
       : m_key_ptr_1(key_1),
         m_key_ptr_2(key_2),
         m_key_ptr_3(key_3),
-        m_key_ptr_4(NULL) {}
+        m_key_ptr_4(nullptr) {}
 
   PFS_engine_index(PFS_engine_key *key_1, PFS_engine_key *key_2,
                    PFS_engine_key *key_3, PFS_engine_key *key_4)

@@ -38,15 +38,15 @@
 extern "C" {
 
 bool load_rewrite_rules_init(UDF_INIT *, UDF_ARGS *, char *message) {
-  if (get_rewriter_plugin_info() != NULL) return false;
+  if (get_rewriter_plugin_info() != nullptr) return false;
   strncpy(message, "Rewriter plugin needs to be installed.", MYSQL_ERRMSG_SIZE);
   return true;
 }
 
 char *load_rewrite_rules(UDF_INIT *, UDF_ARGS *, char *, unsigned long *length,
                          unsigned char *is_null, unsigned char *) {
-  DBUG_ASSERT(get_rewriter_plugin_info() != NULL);
-  const char *message = NULL;
+  DBUG_ASSERT(get_rewriter_plugin_info() != nullptr);
+  const char *message = nullptr;
   if (refresh_rules_table()) {
     message = "Loading of some rule(s) failed.";
     *length = static_cast<unsigned long>(strlen(message));

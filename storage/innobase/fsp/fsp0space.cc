@@ -83,7 +83,7 @@ void Tablespace::file_found(Datafile &file) {
 @param[in]	is_temp	whether this is a temporary tablespace
 @return DB_SUCCESS or error code */
 dberr_t Tablespace::open_or_create(bool is_temp) {
-  fil_space_t *space = NULL;
+  fil_space_t *space = nullptr;
   dberr_t err = DB_SUCCESS;
 
   ut_ad(!m_files.empty());
@@ -111,7 +111,7 @@ dberr_t Tablespace::open_or_create(bool is_temp) {
     bool atomic_write;
 
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
-    if (!srv_use_doublewrite_buf) {
+    if (!dblwr::enabled) {
       atomic_write = fil_fusionio_enable_atomic_write(it->m_handle);
     } else {
       atomic_write = false;
@@ -194,7 +194,7 @@ dberr_t Tablespace::add_datafile(const char *datafile_added) {
   /* The path provided ends in ".ibd".  This was assured by
   validate_create_tablespace_info() */
   ut_d(const char *dot = strrchr(datafile_added, '.'));
-  ut_ad(dot != NULL && Fil_path::has_suffix(IBD, dot));
+  ut_ad(dot != nullptr && Fil_path::has_suffix(IBD, dot));
 
   std::string filepath{datafile_added};
 

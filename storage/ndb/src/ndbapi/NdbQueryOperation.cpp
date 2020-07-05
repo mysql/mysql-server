@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,7 +42,6 @@
 #include "AttributeHeader.hpp"
 
 #include <Bitmask.hpp>
-#include <NodeBitmask.hpp>
 
 #if 0
 #define DEBUG_CRASH() assert(false)
@@ -308,10 +307,16 @@ public:
    * This method is used for marking which streams belonging to this
    * NdbWorker which has remaining batches for a sub scan
    * instantiated from the current batch of its parent operation.
+   *
+   * moreMask:   Set of streams which we may receive more result from
+   *             in *next* batch.
+   * activeMask: Set of streams currently not returned their last row.
+   *             (Will return 'more' in next or later REQuests)
    */
-  void setRemainingSubScans(Uint32 nodeMask)
-  { 
-    m_remainingScans = nodeMask;
+  void setRemainingSubScans(Uint32 moreMask, Uint32 activeMask)
+  {
+    m_nextScans.assign(SpjTreeNodeMask::Size, &moreMask);
+    m_activeScans.assign(SpjTreeNodeMask::Size, &activeMask);
   }
 
   /** Release resources after last row has been returned */
@@ -367,10 +372,27 @@ private:
   bool m_confReceived;
 
   /**
+   * A bitmask of operation id's which has been set up to receive more
+   * ResultSets by prepareNextReceiveSet().
+   */
+  SpjTreeNodeMask m_preparedReceiveSet;
+
+  /**
    * A bitmask of operation id's for which we will receive more
    * ResultSets in a NEXTREQ.
+   * Note: This is the next set of op's to be prepared (before NEXTREQ)
+   * Note: Due to protocol legacy, only the uppermost scan op's in the branch
+   *       getting new rows are set - However, all descendants will also get
+   *       new ResultSets.
    */
-  Uint32 m_remainingScans;
+  SpjTreeNodeMask m_nextScans;
+
+  /**
+   * A bitmask of operation id's still being 'active' on the SPJ side.
+   * These will sooner or later return 'm_nextScans', but not necessarily
+   * in the next round. It follows from this that 'active' contains 'remaining'.
+   */
+  SpjTreeNodeMask m_activeScans;
 
   /** 
    * Used for implementing a hash map from root receiver ids to a 
@@ -455,8 +477,8 @@ public:
    */
   void prepare();
 
-  /** Prepare for receiving next batch of scan results. */
-  void prepareNextReceiveSet();
+  /** Prepare for receiving next batch of scan results, return nodes prepared */
+  SpjTreeNodeMask prepareNextReceiveSet();
     
   NdbReceiver& getReceiver()
   { return m_receiver; }
@@ -480,9 +502,9 @@ public:
   /**
    * A complete batch has been received from the 'worker' delivering to NdbResultStream.
    * Update whatever required before the appl. are allowed to navigate the result.
-   * @return true if node and all its siblings have returned all rows.
    */ 
-  bool prepareResultSet(Uint32 remainingScans);
+  void prepareResultSet(SpjTreeNodeMask expectingResults,
+                        SpjTreeNodeMask stillActiveScans);
 
   /**
    * Navigate within the current ResultSet to resp. first and next row.
@@ -494,30 +516,30 @@ public:
   Uint16 firstResult();
   Uint16 nextResult();
 
-  /** 
+  /**
    * Returns true if last row matching the current parent tuple has been 
    * consumed.
    */
   bool isEmpty() const
   { return m_iterState == Iter_finished; }
 
-  /** 
-   * This method 
-   * returns true if this result stream holds the last batch of a sub scan.
+  Uint32 getInternalOpNo() const
+  { return m_operation.getInternalOpNo(); }
+
+  /**
+   * Returns true if this result stream holds the last batch of a sub scan.
    * This means that it is the last batch of the scan that was instantiated 
    * from the current batch of its parent operation.
    */
-  bool isSubScanComplete(Uint32 remainingScans) const
+  bool isSubScanComplete(SpjTreeNodeMask remainingScans) const
   { 
     /**
      * Find the node number seen by the SPJ block. Since a unique index
      * operation will have two distincts nodes in the tree used by the
      * SPJ block, this number may be different from 'opNo'.
      */
-    const Uint32 internalOpNo = m_operation.getInternalOpNo();
-
-    const bool complete = !((remainingScans >> internalOpNo) & 1);
-    return complete; 
+    const Uint32 internalOpNo = getInternalOpNo();
+    return !remainingScans.get(internalOpNo);
   }
 
   bool isScanQuery() const
@@ -528,6 +550,15 @@ public:
 
   bool isInnerJoin() const
   { return (m_properties & Is_Inner_Join); }
+
+  bool isOuterJoin() const
+  { return !(m_properties & Is_Inner_Join); }
+
+  bool isFirstInner() const
+  { return (m_properties & Is_First_Inner); }
+
+  bool useFirstMatch() const
+  { return (m_properties & Is_First_Match); }
 
   /** For debugging.*/
   friend NdbOut& operator<<(NdbOut& out, const NdbResultStream&);
@@ -563,12 +594,45 @@ public:
     Uint16 m_hash_head; // Index of first item in TupleSet[] matching a hashed parentId.
     Uint16 m_hash_next; // 'next' index matching 
 
-    bool   m_skip;      // Skip this tuple in result processing for now
+    /**
+     * If the n'th bit is set, then a matching tuple for the n'th child has been seen.
+     * The information is aggregated by the ancestors as well, such that the topmost
+     * node in the tree can check that there are matching childs for all descendants.
+     * When NULL extended rows are allowed to be produced, 'matching bits' are set
+     * even for these
+     *
+     * Bit 0 has a special usage as a 'skip bit' for the row. If set the row
+     * should be ignored.
+     *
+     * Note that there are no children with an m_internalOpNo of 0, so using
+     * bit-0 as a skip bit should not interfere with matching of child rows.
+     *
+     * There is also a special skip-firstMatch usage of m_matchingChild, where
+     * all bits are set. (Also include the normal bit-0 skip). Using the normal
+     * interpretation of the bits, that translate into: 'Skip the root tuple itself,
+     * even if all 31 children had a match'.
+     * That is an impossible contradiction of the join semantics,
+     * so this special all-set bit pattern could not happen elsewhere.
+     */
+    SpjTreeNodeMask m_hasMatchingChild;
 
-    /** If the n'th bit is set, then a matching tuple for the n,th child has been seen. 
-     * This information is needed when generating left join tuples for those tuples
-     * that had no matching children.*/
-    Bitmask<(NDB_SPJ_MAX_TREE_NODES+31)/32> m_hasMatchingChild;
+    /**
+     * m_hadMatchingChild keep track of previous matches found for this tuple.
+     * Has two usages, depending on whether it is an outer- or firstMatch-semi-join:
+     *
+     * outer-join:
+     *   The aggregated set of (outer joined) nests which matched this tuple.
+     *   (NULL-extensions excluded.) Only the bit representing the firstInner
+     *   of the nest having a matching set of rows is set. Needed in order to
+     *   decide when/if a NULL extension of the rows on this outer joined
+     *   nest should be emitted or not.
+     *
+     * firstMatch semi-join:
+     *   The aggregated set of treeNodes which has a previous match with tuple.
+     *   Used to decide if a firstMatch had already been found for this tuple,
+     *   such that further matches should be skipped.
+     */
+    SpjTreeNodeMask m_hadMatchingChild;
 
     explicit TupleSet() : m_hash_head(tupleNotFound)
     {}
@@ -592,11 +656,25 @@ private:
   /** ResultStream for my parent operation, or NULL if I am root */
   NdbResultStream* const m_parent;
 
+  /**
+   * The dependants node map contain those nodes depending on (the existence of)
+   * this internalOpNo. That includes all Op's in the same join nest *after*
+   * this op as well as all nodes in other join nests which are nested within
+   * the nest of this Op. In terms of QueryOperands that translates to:
+   *  - All children of this op.
+   *  - All Op's in branches referring this op as a firstUpper/Inner
+   *
+   * By convention this node itself is also contained in the dependants map
+   */
+  const SpjTreeNodeMask m_dependants;
+
   const enum properties
   {
     Is_Scan_Query = 0x01,
     Is_Scan_Result = 0x02,
-    Is_Inner_Join = 0x10
+    Is_Inner_Join = 0x10,  // As opposed to outer join
+    Is_First_Match = 0x20,   // Return FirstMatch only
+    Is_First_Inner = 0x40
   } m_properties;
 
   /** The receiver object that unpacks transid_AI messages.*/
@@ -644,6 +722,35 @@ private:
   Uint16 findTupleWithParentId(Uint16 parentId) const;
 
   Uint16 findNextTuple(Uint16 tupleNo) const;
+
+  /** Set/clear/check whether the specified tupleNo should become invisible */
+  void setSkipped(Uint16 tupleNo)
+  { m_tupleSet[tupleNo].m_hasMatchingChild.set(0U); }
+
+  void clearSkipped(Uint16 tupleNo)
+  { m_tupleSet[tupleNo].m_hasMatchingChild.clear(0U); }
+
+  bool isSkipped(Uint16 tupleNo) const
+  { return m_tupleSet[tupleNo].m_hasMatchingChild.get(0U); }
+
+  /**
+   * The skip methods above are a 'one time'-skip, where the tuples are
+   * skipped for this result batch only, and the skip recalculated for the
+   * next batch. For FirstMatch we need to skip the matched row for multiple
+   * batches, so we have a special variant for doing firstMatch-skip.
+   * (Also see comment for the 'm_matchingChild' member variable).
+   *
+   * Note that a firstMatch-skip also implies a 'normal' skip, but not the
+   * other way around.
+   */
+  void setSkippedFirstMatch(Uint16 tupleNo)
+  { m_tupleSet[tupleNo].m_hasMatchingChild.set(); }
+
+  void clearSkippedFirstMatch(Uint16 tupleNo)
+  { m_tupleSet[tupleNo].m_hasMatchingChild.clear(); }
+
+  bool isSkippedFirstMatch(Uint16 tupleNo) const
+  { return m_tupleSet[tupleNo].m_hasMatchingChild.is_set(); }
 
   /** No copying.*/
   NdbResultStream(const NdbResultStream&);
@@ -731,14 +838,23 @@ NdbResultStream::NdbResultStream(NdbQueryOperationImpl& operation,
   m_parent(operation.getParentOperation()
         ? &worker.getResultStream(*operation.getParentOperation())
         : NULL),
+  m_dependants(operation.getDependants()),
   m_properties(
     (enum properties)
      ((operation.getQueryDef().isScanQuery()
        ? Is_Scan_Query : 0)
      | (operation.getQueryOperationDef().isScanOperation()
        ? Is_Scan_Result : 0)
-     | (operation.getQueryOperationDef().getMatchType() != NdbQueryOptions::MatchAll
-       ? Is_Inner_Join : 0))),
+     | (operation.getQueryOperationDef().getMatchType() & NdbQueryOptions::MatchFirst
+	? Is_First_Match : 0)
+     | (operation.getQueryOperationDef().getMatchType() & NdbQueryOptions::MatchNonNull
+       ? Is_Inner_Join : 0)
+     // Is_first_Inner; if outer joined (with upper nest) and another firstInner
+     // than this 'operation' not specified
+     | ((operation.getQueryOperationDef().getMatchType() & NdbQueryOptions::MatchNonNull) == 0 &&
+        (operation.getQueryOperationDef().getFirstInner() == &operation.getQueryOperationDef() ||
+         operation.getQueryOperationDef().getFirstInner() == nullptr)
+       ? Is_First_Inner : 0))),
   m_receiver(operation.getQuery().getNdbTransaction().getNdb()),
   m_resultSets(), m_read(0xffffffff), m_recv(0),
   m_iterState(Iter_finished),
@@ -823,7 +939,7 @@ NdbResultStream::findTupleWithParentId(Uint16 parentId) const
     while (currentRow != tupleNotFound)
     {
       assert(currentRow < m_maxRows);
-      if (m_tupleSet[currentRow].m_skip == false &&
+      if (!isSkipped(currentRow) &&
           m_tupleSet[currentRow].m_parentId == parentId)
       {
         return currentRow;
@@ -851,7 +967,7 @@ NdbResultStream::findNextTuple(Uint16 tupleNo) const
     while (nextRow != tupleNotFound)
     {
       assert(nextRow < m_maxRows);
-      if (m_tupleSet[nextRow].m_skip == false &&
+      if (!isSkipped(nextRow) &&
           m_tupleSet[nextRow].m_parentId == parentId)
       {
         return nextRow;
@@ -931,9 +1047,11 @@ NdbResultStream::execTRANSID_AI(const Uint32 *ptr, Uint32 len,
  * This NdbResultStream, and all its sibling will receive a batch
  * of results from the datanodes.
  */
-void
+SpjTreeNodeMask
 NdbResultStream::prepareNextReceiveSet()
 {
+  SpjTreeNodeMask prepared;
+
   if (isScanQuery())          // Doublebuffered ResultSet[] if isScanQuery()
   {
     m_recv = (m_recv+1) % 2;  // Receive into next ResultSet
@@ -941,6 +1059,7 @@ NdbResultStream::prepareNextReceiveSet()
   }
 
   m_resultSets[m_recv].prepareReceive(m_receiver);
+  prepared.set(getInternalOpNo());
 
   /**
    * If this stream will get new rows in the next batch, then so will
@@ -950,99 +1069,300 @@ NdbResultStream::prepareNextReceiveSet()
        childNo++)
   {
     NdbQueryOperationImpl& child = m_operation.getChildOperation(childNo);
-    m_worker.getResultStream(child).prepareNextReceiveSet();
+    prepared.bitOR(m_worker.getResultStream(child).prepareNextReceiveSet());
   }
+  return prepared;
 } //NdbResultStream::prepareNextReceiveSet
 
 /**
  * Make preparations for another batch of result to be read:
  *  - Advance to next NdbResultSet. (or reuse last)
  *  - Fill in parent/child result correlations in m_tupleSet[]
- *  - ... or reset m_tupleSet[] if we reuse the previous.
+ *    for those getting a new ResulSet in this batch.
  *  - Apply inner/outer join filtering to remove non qualifying 
  *    rows.
  */
-bool 
-NdbResultStream::prepareResultSet(Uint32 remainingScans)
+void
+NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
+                                  const SpjTreeNodeMask stillActive)
 {
-  bool isComplete = isSubScanComplete(remainingScans); //Childs with more rows
-
   /**
    * Prepare NdbResultSet for reading - either the next
    * 'new' received from datanodes or reuse the last as has been 
    * determined by ::prepareNextReceiveSet()
    */
-  const bool newResults = (m_read != m_recv);
   m_read = m_recv;
   const NdbResultSet& readResult = m_resultSets[m_read];
 
-  if (m_tupleSet!=NULL)
+  if (m_tupleSet != nullptr &&
+      expectingResults.get(getInternalOpNo()))
   {
-    if (newResults)
-    {
-      buildResultCorrelations();
-    }
-    else
-    {
-      // Makes all rows in 'TupleSet' available (clear 'm_skip' flag)
-      for (Uint32 tupleNo=0; tupleNo<readResult.getRowCount(); tupleNo++)
-      {
-        m_tupleSet[tupleNo].m_skip = false;
-      }
-    }
+    buildResultCorrelations();
   }
 
-  /**
-   * Recursively iterate all child results depth first. 
-   * Filter away any result rows which should not be visible (yet) - 
-   * Either due to incomplete child batches, or the join being an 'inner join'.
-   * Set result itterator state to 'before first' resultrow.
-   */
-  for (Uint32 childNo=0; childNo < m_operation.getNoOfChildOperations(); childNo++)
+  SpjTreeNodeMask firstMatchedNodes;
+
+  for (int childNo=m_operation.getNoOfChildOperations()-1; childNo>=0; childNo--)
   {
     const NdbQueryOperationImpl& child = m_operation.getChildOperation(childNo);
     NdbResultStream& childStream = m_worker.getResultStream(child);
-    const bool allSubScansComplete = childStream.prepareResultSet(remainingScans);
-
-    Uint32 childId = child.getQueryOperationDef().getOpNo();
-
-    /* Condition 1) & 2) calc'ed outside loop, see comments further below: */
-    const bool skipNonMatches = !allSubScansComplete ||      // 1)
-                                childStream.isInnerJoin();   // 2)
-
-    if (m_tupleSet!=NULL)
+    if (expectingResults.overlaps(childStream.m_dependants))
     {
-      for (Uint32 tupleNo=0; tupleNo<readResult.getRowCount(); tupleNo++)
-      {
-        if (!m_tupleSet[tupleNo].m_skip)
-        {
-          Uint16 tupleId = getTupleId(tupleNo);
-          if (childStream.findTupleWithParentId(tupleId)!=tupleNotFound)
-            m_tupleSet[tupleNo].m_hasMatchingChild.set(childId);
+      // childStream got new result rows
+      childStream.prepareResultSet(expectingResults,stillActive);
+    }
+    else if (traceSignals)
+    {
+      ndbout << "prepareResultSet"
+             << ", no new 'expecting', ignore"
+             << ", opNo: " << getInternalOpNo()
+             << ", child: " << childStream.getInternalOpNo()
+             << ", expectingResults': " << expectingResults.rep.data[0]
+             << ", 'dependants': " << childStream.m_dependants.rep.data[0]
+             << endl;
+    }
+    // Collect set of treeNodes involved in a firstMatch
+    if (childStream.useFirstMatch())
+    {
+      firstMatchedNodes.bitOR(childStream.m_dependants);
+    }
+  }
 
-          /////////////////////////////////
-          //  No child matched for this row. Making parent row visible
-          //  will cause a NULL (outer join) row to be produced.
-          //  Skip NULL row production when:
-          //    1) Some child batches are not complete; they may contain later matches.
-          //    2) Join type is 'inner join', skip as no child are matching.
-          //    3) A match was found in a previous batch.
-          //  Condition 1) & 2) above is precalculated in 'bool skipNonMatches'
-          //
-          else if (skipNonMatches                                       // 1 & 2)
-               ||  m_tupleSet[tupleNo].m_hasMatchingChild.get(childId)) // 3)
-            m_tupleSet[tupleNo].m_skip = true;
+  // The 'highest order' child treeNode in expectingResults decides
+  // whether firstMatch elimination should be done in result set or not.
+  const uint firstInExpected = expectingResults.find_first();
+
+  // Prepare rows from the NdbQueryOperation's accessible now
+  if (m_tupleSet != nullptr)
+  {
+    const SpjTreeNodeMask descendants = m_operation.getDescendants();
+    const Uint32 rowCount = readResult.getRowCount();
+    for (Uint32 tupleNo=0; tupleNo < rowCount; tupleNo++)
+    {
+      /**
+       * FirstMatch handling: If this tupleNo already found a match from all
+       * tables we skip it from further result processing:
+       */
+      if (!firstMatchedNodes.isclear() &&    // Some childrens are semi-joins
+          m_tupleSet[tupleNo].m_hadMatchingChild.contains(firstMatchedNodes))
+      {
+        // We have already found a match for (all of) our firstMatchedNodes.
+        // Should we skip potentially duplicates now? :
+
+        if (firstMatchedNodes.get(firstInExpected))
+        {
+          // Got a new set of firstMatch'ed rows, starting with semi-joined tables.
+          // Skip parent rows which already had its 'firstMatch'
+          if (traceSignals) {
+            ndbout << "prepareResultSet, useFirstMatch"
+                   << ", expecting overlaps -> skip tupleNo"
+                   << ", opNo: " << getInternalOpNo()
+                   << ", row: "  << tupleNo
+                   << endl;
+          }
+
+          // Done with this tupleNo
+          setSkippedFirstMatch(tupleNo);
+          continue;  // Skip further processing of this row
+        }
+        else if (!firstMatchedNodes.overlaps(expectingResults))
+        {
+          // No semi joined tables affected by the 'expecting'.
+          // Do nothing, except keeping 'isSkipped' if already set.
+          if (traceSignals) {
+            ndbout << "prepareResultSet, Join doesn't overlaps FirstMatchNodes"
+                   << ", opNo: " << getInternalOpNo()
+                   << ", row: "  << tupleNo
+                   << ", isSkipped?: " << isSkippedFirstMatch(tupleNo)
+                   << endl;
+          }
+          if (isSkippedFirstMatch(tupleNo))  // already had a firstMatch
+            continue;
+        }
+        else
+        {
+          // Set of new children rows start with a full-join. Thus, the
+          // firstMatch handling is reset as part of preparing the new
+          // joined result set.
+          if (traceSignals) {
+            ndbout << "prepareResultSet, Join-useFirstMatch"
+                   << ", cleared 'hadMatching'-> un-skip"
+                   << ", opNo: " << getInternalOpNo()
+                   << ", row: "  << tupleNo
+                   << endl;
+          }
+          m_tupleSet[tupleNo].m_hadMatchingChild.bitANDC(firstMatchedNodes);
+          clearSkippedFirstMatch(tupleNo);
+        }
+      } // FirstMatch
+
+      for (int childNo=m_operation.getNoOfChildOperations()-1; childNo>=0; childNo--)
+      {	
+        const NdbQueryOperationImpl& child = m_operation.getChildOperation(childNo);
+        const NdbResultStream& childStream = m_worker.getResultStream(child);
+        const Uint32 childId = childStream.getInternalOpNo();
+        const Uint16 tupleId = getTupleId(tupleNo);
+        const Uint16 childIx = childStream.findTupleWithParentId(tupleId);
+
+        /**
+         * For each children; try to locate a matching row for tupleNo.
+         * Note down in hasMatchingChild when matching (grand-) children
+         * are found. If we failed to find a match for an inner joined child,
+         * we can immediately conclude that this tupleNo should be skipped
+         * from the ResultSet.
+         */
+        if (childIx != tupleNotFound)  // Found a matching child
+        {
+          if (traceSignals) {
+            ndbout << "prepareResultSet"
+                   << ", MATCHED"
+                   << ", opNo: " << getInternalOpNo()
+                   << ", row: " << tupleNo
+                   << ", child: " << childId
+                   << ", with extra 'dependants': " << childStream.m_dependants.rep.data[0]
+                   << endl;
+          }
+          m_tupleSet[tupleNo].m_hasMatchingChild.set(childId);
+
+          // Inform all parents about existence of matching grand-children as well
+          m_tupleSet[tupleNo].m_hasMatchingChild.bitOR(
+              childStream.m_tupleSet[childIx].m_hasMatchingChild);
+        }
+        else    // Didn't match
+        {
+          if (traceSignals) {
+            ndbout << "prepareResultSet"
+                   << ", NO MATCH"
+                   << ", opNo: " << getInternalOpNo()
+                   << ", row: " << tupleNo
+                   << ", child: " << childId
+                   << ", with extra 'dependants': " << childStream.m_dependants.rep.data[0]
+                   << endl;
+          }
+          m_tupleSet[tupleNo].m_hasMatchingChild.clear(childId);
+        }
+
+        /**
+         * Need extra match handling on nest-level, that is when we have completed
+         * the firstInner of an outer joined nest. (Note that this loop iterate the
+         * childNo's from last to first).
+         *
+         * This is the place were we also need to check the match properties of
+         * any extra dependencies defined with setFirstInnerJoin(), setUpperJoin()
+         */
+        if (childStream.isFirstInner())  // 'First inner of outer join'
+        {
+          // The join_nest now has complete 'Matching' info for all dependants.
+          // Assert that m_dependants at least contain the (grand-)children
+          DBUG_ASSERT(childStream.m_dependants.get(childId));
+          DBUG_ASSERT(childStream.m_dependants.contains(
+                          childStream.m_operation.getDescendants()));
+
+          if (m_tupleSet[tupleNo].m_hasMatchingChild.contains(childStream.m_dependants))
+          {
+            // Found a match for dependants, remember that to avoid later NULL extensions
+            m_tupleSet[tupleNo].m_hadMatchingChild.set(childId);
+            if (traceSignals) {
+              ndbout << "prepareResultSet"
+                     << ", matched 'innerNest'"
+                     << ", opNo: " << getInternalOpNo()
+                     << ", row: " << tupleNo
+                     << ", child: " << childId
+                     << endl;
+            }
+          }
+          // Below we did not find a match in this result batch
+          else if (m_tupleSet[tupleNo].m_hadMatchingChild.get(childId))
+          {
+            // We had a match in a previous batch -> No NULL extensions
+            if (traceSignals) {
+              ndbout << "prepareResultSet"
+                     << ", no NULLs (previous matches)"
+                     << ", opNo: " << getInternalOpNo()
+                     << ", row: " << tupleNo
+                     << ", child: " << childId
+                     << ", had matches: " << m_tupleSet[tupleNo].m_hadMatchingChild.rep.data[0]
+                     << endl;
+            }
+          }
+          else if (stillActive.overlaps(childStream.m_dependants))
+          {
+            // More rows pending, may have a future match, cant conclude yet
+            if (traceSignals) {
+              ndbout << "prepareResultSet"
+                     << ", no NULLs (still active)"
+                     << ", opNo: " << getInternalOpNo()
+                     << ", row: " << tupleNo
+                     << ", child: " << childId
+                     << ", nestDependants: " << childStream.m_dependants.rep.data[0]
+                     << endl;
+            }
+          }
+          else
+          {
+            // No previous match found and no more rows expected.
+            // Create an NULL-extended row for this join-nest by treating
+            // it as if the descendants matched (which it sort of does as
+            // NULL is an acceptable outcome in an outer join).
+            // This allows tupleNo to be non-skipped wrt to this nest only
+            // (See 'setSkipped()' immediatley below)
+            m_tupleSet[tupleNo].m_hasMatchingChild.bitOR(childStream.m_dependants);
+
+            if (traceSignals) {
+              ndbout << "prepareResultSet"
+                     << ", NULL-extend (never matched)"
+                     << ", opNo: " << getInternalOpNo()
+                     << ", row: " << tupleNo
+                     << ", child: " << childId
+                     << ", nestDependants: " << childStream.m_dependants.rep.data[0]
+                     << endl;
+            }
+
+          }
+        }  //if (isOuterJoin())
+      } //for (childNo..)
+
+      /**
+       * If some descendants of tupleNo didnt 'Match' (possibly with a NULL-row)
+       * this tuple need to be skipped for now. May still be included in later
+       * result batches though, with a new set of descendants' row either matching
+       * or allowing NULL extensions.
+       */
+      if (!m_tupleSet[tupleNo].m_hasMatchingChild.contains(descendants))
+      {
+        setSkipped(tupleNo);
+        if (traceSignals) {
+          ndbout << "prepareResultSet"
+                 << ", Not all desc has matches -> skip tuple"
+                 << ", opNo: " << getInternalOpNo()
+                 << ", row: " << tupleNo
+                 << endl;
         }
       }
-    }
-    isComplete &= allSubScansComplete;
-  }
+      else
+      {
+        clearSkipped(tupleNo);
+        if (!firstMatchedNodes.isclear())  // Some childrens are semi-joins
+        {
+          if (m_tupleSet[tupleNo].m_hasMatchingChild.contains(firstMatchedNodes))
+          {
+            m_tupleSet[tupleNo].m_hadMatchingChild.bitOR(firstMatchedNodes);
+            if (traceSignals) {
+              ndbout << "prepareResultSet"
+                     << ", matched 'semiNest'"
+                     << ", opNo: " << getInternalOpNo()
+                     << ", row: " << tupleNo
+                     << endl;
+            }
+          }
+        }
+      }
+    } //for (tupleNo..)
+  } //if (m_tupleSet ..)
 
   // Set current position 'before first'
   m_iterState = Iter_notStarted;
   m_currentRow = tupleNotFound;
-
-  return isComplete; 
 } // NdbResultStream::prepareResultSet()
 
 
@@ -1079,9 +1399,9 @@ NdbResultStream::buildResultCorrelations()
                                 ? readResult.m_correlations[tupleNo].getParentTupleId()
                                 : tupleNotFound;
 
-      m_tupleSet[tupleNo].m_skip     = false;
       m_tupleSet[tupleNo].m_parentId = parentId;
       m_tupleSet[tupleNo].m_tupleId  = tupleId;
+      m_tupleSet[tupleNo].m_hadMatchingChild.clear();
       m_tupleSet[tupleNo].m_hasMatchingChild.clear();
 
       /* Insert into parentId-hashmap */
@@ -1168,10 +1488,13 @@ NdbWorker::NdbWorker():
   m_availResultSets(0),
   m_outstandingResults(0),
   m_confReceived(false),
-  m_remainingScans(0xffffffff),
+  m_preparedReceiveSet(),
+  m_nextScans(),
+  m_activeScans(),
   m_idMapHead(-1),
   m_idMapNext(-1)
 {
+  m_nextScans.set();
 }
 
 NdbWorker::~NdbWorker()
@@ -1281,16 +1604,17 @@ void NdbWorker::prepareNextReceiveSet()
   assert(m_workerNo!=voidWorkerNo);
   assert(m_outstandingResults == 0);
 
+  m_preparedReceiveSet.clear();
   for (unsigned opNo=0; opNo<m_query->getNoOfOperations(); opNo++) 
   {
     NdbResultStream& resultStream = getResultStream(opNo);
-    if (!resultStream.isSubScanComplete(m_remainingScans))
+    if (!resultStream.isSubScanComplete(m_nextScans))
     {
       /**
        * Reset resultStream and all its descendants, since all these
        * streams will get a new set of rows in the next batch.
        */ 
-      resultStream.prepareNextReceiveSet();
+      m_preparedReceiveSet.bitOR(resultStream.prepareNextReceiveSet());
     }
   }
   m_confReceived = false;
@@ -1312,7 +1636,7 @@ void NdbWorker::grabNextResultSet()  // Need mutex
   m_pendingRequests--;
 
   NdbResultStream& rootStream = getResultStream(0);
-  rootStream.prepareResultSet(m_remainingScans);  
+  rootStream.prepareResultSet(m_preparedReceiveSet, m_activeScans);
 
   /* Position at the first (sorted?) row available from this worker.
    */
@@ -3163,7 +3487,7 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
     ScanTabReq::setDescendingFlag(reqInfo, descending);
     ScanTabReq::setTupScanFlag(reqInfo, tupScan);
     ScanTabReq::setNoDiskFlag(reqInfo, !root.diskInUserProjection());
-    ScanTabReq::set4WordConf(reqInfo, 1);
+    ScanTabReq::setExtendedConf(reqInfo, 1);
 
     // Assume LockMode LM_ReadCommited, set related lock flags
     ScanTabReq::setLockMode(reqInfo, false);  // not exclusive
@@ -3293,7 +3617,7 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
       numSections= 2;
     }
 
-    int res;
+    int res = 0;
     const Uint32 long_sections_size = m_keyInfo.getSize() + m_attrInfo.getSize();
     const Uint32 nodeVersion = impl->getNodeNdbVersion(nodeId);
     if (long_sections_size <= NDB_MAX_LONG_SECTIONS_SIZE)
@@ -3866,6 +4190,7 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
   m_operationDef(def),
   m_parent(NULL),
   m_children(0),
+  m_dependants(0),
   m_params(),
   m_resultBuffer(NULL),
   m_resultRef(NULL),
@@ -3895,7 +4220,7 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
   if (parent != NULL)
   { 
     const Uint32 ix = parent->getOpNo();
-    assert (ix < m_queryImpl.getNoOfOperations());
+    assert (ix < def.getOpNo());
     m_parent = &m_queryImpl.getQueryOperation(ix);
     const int res = m_parent->m_children.push_back(this);
     UNUSED(res);
@@ -3905,6 +4230,28 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
     */
     assert(res == 0);
   }
+
+  // Register the extra 'out of branch' (!isChildOf()) dependencies.
+  // If we are not an ancestor of the 'first' treeNode of the join-nest
+  // we are embedded within, we need to added to 'm_dependants' as
+  // such an 'out of branch' dependant for this 'first_inner'
+  const NdbQueryOperationDefImpl* firstInEmbeddingNestDef =
+    def.getFirstInEmbeddingNest();
+  if (firstInEmbeddingNestDef != nullptr &&
+      !def.isChildOf(firstInEmbeddingNestDef))
+  {
+    const Uint32 ix = firstInEmbeddingNestDef->getOpNo();
+    NdbQueryOperationImpl* firstInEmbeddingNest =
+        &m_queryImpl.getQueryOperation(ix);
+
+    const int res = firstInEmbeddingNest->m_dependants.push_back(this);
+    if (res != 0)
+    {
+      queryImpl.setErrorCode(Err_MemoryAlloc);
+      return;
+    }
+  }
+
   if (def.getType()==NdbQueryOperationDef::OrderedIndexScan)
   {  
     const NdbQueryOptions::ScanOrdering defOrdering = 
@@ -3993,6 +4340,36 @@ Int32 NdbQueryOperationImpl::getNoOfDescendantOperations() const
     children += 1 + getChildOperation(i).getNoOfDescendantOperations();
 
   return children;
+}
+
+SpjTreeNodeMask
+NdbQueryOperationImpl::getDescendants() const
+{
+  SpjTreeNodeMask descendants;
+  for (unsigned i = 0; i < getNoOfChildOperations(); i++)
+  {
+    descendants.bitOR(getChildOperation(i).getDescendants());
+    descendants.set(getChildOperation(i).getInternalOpNo());
+  }
+  return descendants;
+}
+
+SpjTreeNodeMask
+NdbQueryOperationImpl::getDependants() const
+{
+  SpjTreeNodeMask dependants;
+  dependants.set(getInternalOpNo());
+
+  for (unsigned i = 0; i < m_children.size(); i++)
+  {
+    dependants.bitOR(m_children[i]->getDependants());
+  }
+  // Add extra dependants in sub-branches not being children
+  for (unsigned i = 0; i < m_dependants.size(); i++)
+  {
+    dependants.bitOR(m_dependants[i]->getDependants());
+  }
+  return dependants;
 }
 
 Uint32
@@ -5194,13 +5571,14 @@ NdbQueryOperationImpl::execTCKEYREF(const NdbApiSignal* aSignal)
 } //NdbQueryOperationImpl::execTCKEYREF
 
 bool
-NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI, 
+NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
                                         Uint32 rowCount,
-                                        Uint32 nodeMask,
+                                        Uint32 moreMask,
+                                        Uint32 activeMask,
                                         const NdbReceiver* receiver)
 {
-  assert((tcPtrI==RNIL && nodeMask==0) || 
-         (tcPtrI!=RNIL && nodeMask!=0));
+  assert((tcPtrI==RNIL && moreMask==0) ||
+         (tcPtrI!=RNIL && moreMask!=0));
   assert(checkMagicNumber());
   // For now, only the root operation may be a scan.
   assert(&getRoot() == this);
@@ -5215,19 +5593,22 @@ NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
     assert(false);
     return false;
   }
-  // Prepare for SCAN_NEXTREQ, tcPtrI==RNIL, nodeMask==0 -> EOF
-  worker->setConfReceived(tcPtrI);
-  worker->setRemainingSubScans(nodeMask);
-  worker->incrOutstandingResults(rowCount);
 
   if(traceSignals){
     ndbout << "NdbQueryOperationImpl::execSCAN_TABCONF"
            << " from workerNo=" << worker->getWorkerNo()
            << " rows " << rowCount
-           << " nodeMask: H'" << hex << nodeMask << ")"
+           << " moreMask: H'" << hex << moreMask
+           << " activeMask: H'" << hex << activeMask
            << " tcPtrI " << tcPtrI
            << endl;
   }
+  DBUG_ASSERT(moreMask!=0 || activeMask==0);
+
+  // Prepare for SCAN_NEXTREQ, tcPtrI==RNIL, moreMask==0 -> EOF
+  worker->setConfReceived(tcPtrI);
+  worker->setRemainingSubScans(moreMask,activeMask);
+  worker->incrOutstandingResults(rowCount);
 
   bool ret = false;
   if (worker->isFragBatchComplete())

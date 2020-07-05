@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -69,7 +69,7 @@ void sym_tab_free_private(sym_tab_t *sym_tab) /*!< in, own: symbol table */
   func_node_t *func;
   THD *thd = current_thd;
 
-  for (sym = UT_LIST_GET_FIRST(sym_tab->sym_list); sym != NULL;
+  for (sym = UT_LIST_GET_FIRST(sym_tab->sym_list); sym != nullptr;
        sym = UT_LIST_GET_NEXT(sym_list, sym)) {
     /* Close the tables opened in pars_retrieve_table_def(). */
 
@@ -80,7 +80,7 @@ void sym_tab_free_private(sym_tab_t *sym_tab) /*!< in, own: symbol table */
         dd_table_close(sym->table, nullptr, nullptr, false);
       }
 
-      sym->table = NULL;
+      sym->table = nullptr;
       sym->resolved = FALSE;
       sym->token_type = SYM_UNSET;
       sym->mdl = nullptr;
@@ -97,7 +97,7 @@ void sym_tab_free_private(sym_tab_t *sym_tab) /*!< in, own: symbol table */
     }
   }
 
-  for (func = UT_LIST_GET_FIRST(sym_tab->func_node_list); func != NULL;
+  for (func = UT_LIST_GET_FIRST(sym_tab->func_node_list); func != nullptr;
        func = UT_LIST_GET_NEXT(func_node_list, func)) {
     eval_node_free_val_buf(func);
   }
@@ -116,11 +116,11 @@ sym_node_t *sym_tab_add_int_lit(sym_tab_t *sym_tab, /*!< in: symbol table */
 
   node->common.type = QUE_NODE_SYMBOL;
 
-  node->table = NULL;
+  node->table = nullptr;
   node->resolved = TRUE;
   node->token_type = SYM_LIT;
 
-  node->indirection = NULL;
+  node->indirection = nullptr;
 
   dtype_set(dfield_get_type(&node->common.val), DATA_INT, 0, 4);
 
@@ -130,12 +130,12 @@ sym_node_t *sym_tab_add_int_lit(sym_tab_t *sym_tab, /*!< in: symbol table */
   dfield_set_data(&(node->common.val), data, 4);
 
   node->common.val_buf_size = 0;
-  node->prefetch_buf = NULL;
-  node->cursor_def = NULL;
+  node->prefetch_buf = nullptr;
+  node->cursor_def = nullptr;
 
   UT_LIST_ADD_LAST(sym_tab->sym_list, node);
 
-  node->like_node = NULL;
+  node->like_node = nullptr;
 
   node->sym_table = sym_tab;
 
@@ -157,26 +157,26 @@ sym_node_t *sym_tab_add_str_lit(sym_tab_t *sym_tab, /*!< in: symbol table */
 
   node->common.type = QUE_NODE_SYMBOL;
 
-  node->table = NULL;
+  node->table = nullptr;
   node->resolved = TRUE;
   node->token_type = SYM_LIT;
 
-  node->indirection = NULL;
+  node->indirection = nullptr;
 
   dtype_set(dfield_get_type(&node->common.val), DATA_VARCHAR, DATA_ENGLISH, 0);
 
-  data =
-      (len) ? static_cast<byte *>(mem_heap_dup(sym_tab->heap, str, len)) : NULL;
+  data = (len) ? static_cast<byte *>(mem_heap_dup(sym_tab->heap, str, len))
+               : nullptr;
 
   dfield_set_data(&(node->common.val), data, len);
 
   node->common.val_buf_size = 0;
-  node->prefetch_buf = NULL;
-  node->cursor_def = NULL;
+  node->prefetch_buf = nullptr;
+  node->cursor_def = nullptr;
 
   UT_LIST_ADD_LAST(sym_tab->sym_list, node);
 
-  node->like_node = NULL;
+  node->like_node = nullptr;
 
   node->sym_table = sym_tab;
 
@@ -201,13 +201,13 @@ sym_node_t *sym_tab_add_bound_lit(
       mem_heap_alloc(sym_tab->heap, sizeof(sym_node_t)));
 
   node->common.type = QUE_NODE_SYMBOL;
-  node->common.brother = node->common.parent = NULL;
+  node->common.brother = node->common.parent = nullptr;
 
-  node->table = NULL;
+  node->table = nullptr;
   node->resolved = TRUE;
   node->token_type = SYM_LIT;
 
-  node->indirection = NULL;
+  node->indirection = nullptr;
 
   switch (blit->type) {
     case DATA_FIXBINARY:
@@ -247,13 +247,13 @@ sym_node_t *sym_tab_add_bound_lit(
   dfield_set_data(&(node->common.val), blit->address, blit->length);
 
   node->common.val_buf_size = 0;
-  node->prefetch_buf = NULL;
-  node->cursor_def = NULL;
+  node->prefetch_buf = nullptr;
+  node->cursor_def = nullptr;
 
   UT_LIST_ADD_LAST(sym_tab->sym_list, node);
 
   blit->node = node;
-  node->like_node = NULL;
+  node->like_node = nullptr;
   node->sym_table = sym_tab;
 
   return (node);
@@ -287,12 +287,12 @@ sym_node_t *sym_tab_rebind_lit(
 
   if (node->prefetch_buf) {
     sel_col_prefetch_buf_free(node->prefetch_buf);
-    node->prefetch_buf = NULL;
+    node->prefetch_buf = nullptr;
   }
 
   if (node->cursor_def) {
     que_graph_free_recursive(node->cursor_def);
-    node->cursor_def = NULL;
+    node->cursor_def = nullptr;
   }
 
   return (node);
@@ -309,23 +309,23 @@ sym_node_t *sym_tab_add_null_lit(sym_tab_t *sym_tab) /*!< in: symbol table */
 
   node->common.type = QUE_NODE_SYMBOL;
 
-  node->table = NULL;
+  node->table = nullptr;
   node->resolved = TRUE;
   node->token_type = SYM_LIT;
 
-  node->indirection = NULL;
+  node->indirection = nullptr;
 
   dfield_get_type(&node->common.val)->mtype = DATA_ERROR;
 
   dfield_set_null(&node->common.val);
 
   node->common.val_buf_size = 0;
-  node->prefetch_buf = NULL;
-  node->cursor_def = NULL;
+  node->prefetch_buf = nullptr;
+  node->cursor_def = nullptr;
 
   UT_LIST_ADD_LAST(sym_tab->sym_list, node);
 
-  node->like_node = NULL;
+  node->like_node = nullptr;
 
   node->sym_table = sym_tab;
 
@@ -373,10 +373,10 @@ sym_node_t *sym_tab_add_bound_id(sym_tab_t *sym_tab, /*!< in: symbol table */
 
   node->common.type = QUE_NODE_SYMBOL;
 
-  node->table = NULL;
+  node->table = nullptr;
   node->resolved = FALSE;
   node->token_type = SYM_UNSET;
-  node->indirection = NULL;
+  node->indirection = nullptr;
 
   node->name = mem_heap_strdup(sym_tab->heap, bid->id);
   node->name_len = strlen(node->name);
@@ -386,10 +386,10 @@ sym_node_t *sym_tab_add_bound_id(sym_tab_t *sym_tab, /*!< in: symbol table */
   dfield_set_null(&node->common.val);
 
   node->common.val_buf_size = 0;
-  node->prefetch_buf = NULL;
-  node->cursor_def = NULL;
+  node->prefetch_buf = nullptr;
+  node->cursor_def = nullptr;
 
-  node->like_node = NULL;
+  node->like_node = nullptr;
 
   node->sym_table = sym_tab;
 

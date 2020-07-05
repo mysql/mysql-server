@@ -600,6 +600,7 @@ let $query= SELECT t1.pk, t2.col_int_key,
 
 --replace_column 10 # 11 #
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 let $query= SELECT STRAIGHT_JOIN t1.pk, t2.col_int_key,
@@ -898,6 +899,8 @@ eval $query;
 
 ALTER TABLE t1 ADD INDEX key1 (pk);
 ALTER TABLE t1 ADD INDEX key2 (col_int_key);
+
+ANALYZE TABLE t1;
 
 eval EXPLAIN $query;
 eval $query;

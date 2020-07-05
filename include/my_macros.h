@@ -44,9 +44,6 @@
 #define QUOTE_ARG(x) #x               /* Quote argument (before cpp) */
 #define STRINGIFY_ARG(x) QUOTE_ARG(x) /* Quote argument, after cpp */
 
-#define MY_MAX(a, b) ((a) > (b) ? (a) : (b))
-#define MY_MIN(a, b) ((a) < (b) ? (a) : (b))
-
 #define test_all_bits(a, b) (((a) & (b)) == (b))
 
 #endif  // MY_MACROS_INCLUDED

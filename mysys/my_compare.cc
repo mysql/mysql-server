@@ -54,7 +54,7 @@ int ha_compare_text(const CHARSET_INFO *charset_info, const uchar *a,
 
 static int compare_bin(const uchar *a, uint a_length, const uchar *b,
                        uint b_length, bool part_key, bool skip_end_space) {
-  uint length = MY_MIN(a_length, b_length);
+  uint length = std::min(a_length, b_length);
   const uchar *end = a + length;
   int flag;
 
@@ -169,7 +169,7 @@ int ha_key_cmp(const HA_KEYSEG *keyseg, const uchar *a, const uchar *b,
         continue; /* To next key part */
       }
     }
-    end = a + MY_MIN(keyseg->length, key_length);
+    end = a + std::min<uint>(keyseg->length, key_length);
     next_key_length = key_length - keyseg->length;
 
     switch ((enum ha_base_keytype)keyseg->type) {

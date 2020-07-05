@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -475,11 +475,16 @@ public:
    * methods on all clients known by TF to handle theirs thread local
    * send buffers.
    */
-  void enable_send_buffer(NodeId node);
-  void disable_send_buffer(NodeId node);
+  void enable_send_buffer(NodeId nodeId, TrpId trp_id);
+  void disable_send_buffer(NodeId nodeId, TrpId trp_id);
 
-  Uint32 get_bytes_to_send_iovec(NodeId node, struct iovec *dst, Uint32 max);
-  Uint32 bytes_sent(NodeId node, Uint32 bytes);
+  Uint32 get_bytes_to_send_iovec(NodeId nodeId,
+                                 TrpId trp_id,
+                                 struct iovec *dst,
+                                 Uint32 max);
+  Uint32 bytes_sent(NodeId nodeId,
+                    TrpId trp_id,
+                    Uint32 bytes);
 
 #ifdef ERROR_INSERT
   void consume_sendbuffer(Uint32 bytes_remain);

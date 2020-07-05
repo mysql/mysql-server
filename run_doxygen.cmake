@@ -1,4 +1,4 @@
-# Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -48,13 +48,11 @@ FOREACH(LINE ${IGNORE_FILE_LINES})
   ENDIF()
 ENDFOREACH()
 
-# Convert ERROR_FILE contents to a list of lines, and sort it
+# Convert ERROR_FILE contents to a list of lines
 FILE(READ ${ERROR_FILE} ERROR_FILE_CONTENTS)
 IF(ERROR_FILE_CONTENTS)
   STRING(REPLACE ";" "\\\\;" ERROR_FILE_CONTENTS ${ERROR_FILE_CONTENTS})
   STRING(REPLACE "\n" ";" ERROR_FILE_LINES ${ERROR_FILE_CONTENTS})
-  LIST(SORT ERROR_FILE_LINES)
-  LIST(REMOVE_DUPLICATES ERROR_FILE_LINES)
 ENDIF()
 
 FILE(REMOVE ${TOFIX_FILE})

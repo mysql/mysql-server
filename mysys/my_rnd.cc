@@ -34,9 +34,6 @@
 #include <mysql_com.h>
 #include <openssl/err.h>
 #include <openssl/rand.h>
-#if !defined(HAVE_OPENSSL)
-#error not using an SSL library not supported
-#endif
 
 /*
   A wrapper to use OpenSSL PRNGs.

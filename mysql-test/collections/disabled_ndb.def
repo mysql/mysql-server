@@ -31,9 +31,6 @@ ndb.ndb_parallel_undo_log : BUG#28794807 FIX NDB.NDB_PARALLEL_UNDO_LOG TESTCASE 
 # Problem with ndb_index_stat tables missing from DD
 ndb.ndb_statistics0 : BUG#27543602 NDB_INDEX_STAT* TABLES ARE MISSING FROM DD AFTER AN INITIAL SYSTEM RESTART
 
-# Clusterj fails in windows due to Bug#28532563
-ndb.clusterj @windows: BUG#28532563 CLUSTERJ MTR TEST FAILS IN WINDOWS DUE TO NOT BEING ABLE TO LOAD LIBNDBCLIENT
-
 # Failure to acquire MDL lock properly during drop database with uppercase
 # database name, affects lower_case_table_names=2 platform
 ndb.ndb_addnode_restart @darwin: BUG#27307793 IDENTIFIERS AND LOWER_CASE_TABLE_NAMES=2 INCONCISTENCY

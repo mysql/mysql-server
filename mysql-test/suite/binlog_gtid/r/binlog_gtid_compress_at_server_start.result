@@ -1,0 +1,19 @@
+RESET MASTER;
+#
+# 1. Create a table with 2 values.
+#    Wait that each transaction appears individually in the table
+CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY) ENGINE=INNODB;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+#
+# 2. Assert the table is not compressed
+include/assert.inc [COMMITTED_GTIDS SERVER_UUID:1-3]
+include/assert.inc [The mysql gtid table should have 3 rows]
+#
+# 3. Restart the server
+#    Assert the table is compressed
+# restart
+include/assert.inc [The mysql gtid table should have 1 row]
+#
+# 4. Cleanup
+DROP TABLE t1;

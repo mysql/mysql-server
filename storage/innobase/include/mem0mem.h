@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -411,7 +411,7 @@ class mem_heap_allocator {
     // Do nothing
   }
 
-  ~mem_heap_allocator() { m_heap = 0; }
+  ~mem_heap_allocator() { m_heap = nullptr; }
 
   size_type max_size() const { return (ULONG_MAX / sizeof(T)); }
 
@@ -422,7 +422,7 @@ class mem_heap_allocator {
   allocated by mem_heap_allocator) can be used as a hint to the
   implementation about where the new memory should be allocated in
   order to improve locality. */
-  pointer allocate(size_type n, const_pointer hint = 0) {
+  pointer allocate(size_type n, const_pointer hint = nullptr) {
     return (reinterpret_cast<pointer>(mem_heap_alloc(m_heap, n * sizeof(T))));
   }
 

@@ -57,3 +57,5 @@ let debug_point=log_wait_for_flush_before_flushed_to_disk_lsn;
 let client_cnt=5;
 let debug_point=log_wait_for_flush_before_wait;
 --source suite/innodb/include/innodb_redo_debug.inc
+
+call mtr.add_suppression("Database page corruption or a failed file read of page");

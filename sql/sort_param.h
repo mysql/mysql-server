@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,7 @@
 
 #include "field_types.h"   // enum_field_types
 #include "my_base.h"       // ha_rows
-#include "my_byteorder.h"  // uint2korr
+#include "my_byteorder.h"  // uint4korr
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"          // mysql_com.h needs my_socket
@@ -50,8 +50,6 @@ enum class Addon_fields_status {
   keep_rowid,
   row_not_packable,
   row_contains_blob,
-  max_length_for_sort_data,
-  row_too_large,
   skip_heuristic,
   using_priority_queue
 };
@@ -70,10 +68,6 @@ inline const char *addon_fields_text(Addon_fields_status afs) {
       return "row_not_packable";
     case Addon_fields_status::row_contains_blob:
       return "row_contains_blob";
-    case Addon_fields_status::max_length_for_sort_data:
-      return "max_length_for_sort_data";
-    case Addon_fields_status::row_too_large:
-      return "row_too_large";
     case Addon_fields_status::skip_heuristic:
       return "skip_heuristic";
     case Addon_fields_status::using_priority_queue:
@@ -85,15 +79,13 @@ inline const char *addon_fields_text(Addon_fields_status afs) {
 
 /// Struct that holds information about a sort field.
 struct st_sort_field {
-  const Field *field;  ///< Field to sort
-  Item *item;          ///< Item if not sorting fields
+  Item *item;  ///< Item to sort
 
   /// Length of sort field. Beware, can be 0xFFFFFFFFu (infinite)!
   uint length;
 
-  uint suffix_length;           ///< Length suffix (0-4)
-  Item_result result_type;      ///< Type of item (not used for fields)
-  enum_field_types field_type;  ///< Field type of the field or item
+  Item_result result_type;      ///< Type of item
+  enum_field_types field_type;  ///< Field type of the item
   bool reverse;                 ///< if descending sort
   bool is_varlen;               ///< If key part has variable length
   bool maybe_null;              ///< If key part is nullable
@@ -134,7 +126,7 @@ class Addon_fields {
  public:
   Addon_fields(Addon_fields_array arr)
       : m_field_descriptors(arr),
-        m_addon_buf(NULL),
+        m_addon_buf(nullptr),
         m_addon_buf_length(0),
         m_using_packed_addons(false) {
     DBUG_ASSERT(!arr.is_null());
@@ -146,7 +138,7 @@ class Addon_fields {
 
   /// SortFileIterator needs an extra buffer when unpacking.
   uchar *allocate_addon_buf(uint sz) {
-    if (m_addon_buf != NULL) {
+    if (m_addon_buf != nullptr) {
       DBUG_ASSERT(m_addon_buf_length == sz);
       return m_addon_buf;
     }
@@ -162,16 +154,12 @@ class Addon_fields {
 
   bool using_packed_addons() const { return m_using_packed_addons; }
 
-  static bool can_pack_addon_fields(uint record_length) {
-    return (record_length <= (0xFFFF));
-  }
-
   /**
     @returns Total number of bytes used for packed addon fields.
     the size of the length field + size of null bits + sum of field sizes.
    */
   static uint read_addon_length(uchar *p) {
-    return size_of_length_field + uint2korr(p);
+    return size_of_length_field + uint4korr(p);
   }
 
   /**
@@ -179,10 +167,10 @@ class Addon_fields {
    */
   static void store_addon_length(uchar *p, uint sz) {
     // We actually store the length of everything *after* the length field.
-    int2store(p, sz - size_of_length_field);
+    int4store(p, sz - size_of_length_field);
   }
 
-  static const uint size_of_length_field = 2;
+  static const uint size_of_length_field = 4;
 
  private:
   Addon_fields_array m_field_descriptors;
@@ -302,12 +290,14 @@ class Sort_param {
   /// Decide whether we are to use addon fields (sort rows instead of sorting
   /// row IDs or not). See using_addon_fields().
   ///
-  /// fixed_sort_length is the number of bytes used for fixed-size fields.
-  /// Unlike m_fixed_sort_length (which can be set up after this), it does not
-  /// include the size of the row ID and of variable-length fields.
+  /// Note that currently, this function must _not_ be called from the Filesort
+  /// constructor, as the read sets are not fully set up at that time
+  /// (see filter_virtual_gcol_base_cols(), which runs very late in
+  /// optimization). If we want to change this, we can probably have
+  /// make_sortkey() check the read set at runtime, at the cost of slightly less
+  /// precise estimation of packed row size.
   void decide_addon_fields(Filesort *file_sort, TABLE *table,
-                           ulong max_length_for_sort_data,
-                           uint fixed_sort_length, bool sort_positions);
+                           bool sort_positions);
 
   /**
     Initialize this struct for filesort() usage.
@@ -317,23 +307,21 @@ class Sort_param {
     @param sf_array  initialization value for local_sortorder
     @param sortlen   length of sorted columns
     @param table     table to be sorted
-    @param max_length_for_sort_data from thd->variables
     @param maxrows   HA_POS_ERROR or possible LIMIT value
     @param remove_duplicates if true, items with duplicate keys will be removed
   */
   void init_for_filesort(Filesort *file_sort,
                          Bounds_checked_array<st_sort_field> sf_array,
-                         uint sortlen, TABLE *table,
-                         ulong max_length_for_sort_data, ha_rows maxrows,
+                         uint sortlen, TABLE *table, ha_rows maxrows,
                          bool remove_duplicates);
 
   /// Enables the packing of addons if possible.
-  void try_to_pack_addons(ulong max_length_for_sort_data);
+  void try_to_pack_addons();
 
   /// Are we packing the "addon fields"?
   bool using_packed_addons() const {
-    DBUG_ASSERT(m_using_packed_addons ==
-                (addon_fields != NULL && addon_fields->using_packed_addons()));
+    DBUG_ASSERT(m_using_packed_addons == (addon_fields != nullptr &&
+                                          addon_fields->using_packed_addons()));
     return m_using_packed_addons;
   }
 
@@ -345,21 +333,27 @@ class Sort_param {
 
   /// Are we using "addon fields"? Note that decide_addon_fields() or
   /// init_for_filesort() must be called before checking this.
-  bool using_addon_fields() const { return addon_fields != NULL; }
+  bool using_addon_fields() const { return addon_fields != nullptr; }
 
   /**
     Stores key fields in *dst.
     Then appends either *ref_pos (the @<rowid@>) or the "addon fields".
-    @param  dst     out Where to store the result
-    @param  ref_pos in  Where to find the @<rowid@>
+    @param  [out] dst   Where to store the result
+    @param  ref_pos     Where to find the @<rowid@>
+    @param  [in,out] longest_addons
+       The longest addon field row (sum of all addon fields for any single
+       given row) found.
     @returns Number of bytes stored, or UINT_MAX if the result could not
       provably fit within the destination buffer.
    */
-  uint make_sortkey(Bounds_checked_array<uchar> dst, const uchar *ref_pos);
+  uint make_sortkey(Bounds_checked_array<uchar> dst, const uchar *ref_pos,
+                    size_t *longest_addons);
 
   // Adapter for Bounded_queue.
   uint make_sortkey(uchar *dst, size_t dst_len, const uchar *ref_pos) {
-    return make_sortkey(Bounds_checked_array<uchar>(dst, dst_len), ref_pos);
+    size_t longest_addons = 0;  // Unused.
+    return make_sortkey(Bounds_checked_array<uchar>(dst, dst_len), ref_pos,
+                        &longest_addons);
   }
 
   /// Stores the length of a variable-sized key.

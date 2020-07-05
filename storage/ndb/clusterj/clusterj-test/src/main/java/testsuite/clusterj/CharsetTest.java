@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,12 +58,12 @@ import testsuite.clusterj.model.CharsetUtf8;
  *   d) create a String from the characters in the CharBuffer that could fit into the column
  *   e) add the String to the list of String
  *   f) continue from c) until all characters have been represented in the list of String
- *   g) remove all rows of the table
- *   h) use JDBC or clusterj to write a row in the database for each String in the list
- *   i) use JDBC or clusterj to read all rows and compare the String to the list of Strings
+ *   g) use JDBC or clusterj to write a row in the database for each String in the list
+ *   h) use JDBC or clusterj to read all rows and compare the String to the list of Strings
+ *   i) remove all rows of the table
  *
  */
-public class CharsetTest extends AbstractClusterJModelTest {
+public class CharsetTest extends AbstractClusterJTest {
 
     @Override
     public void localSetUp() {
@@ -72,100 +72,55 @@ public class CharsetTest extends AbstractClusterJModelTest {
         setAutoCommit(connection, false);
     }
 
+    @Override
+    public Properties modifyProperties() {
+        // Modify JDBC properties to add server character encoding
+        Properties modifiedProps = new Properties();
+        modifiedProps.putAll(props);
+        modifiedProps.put("characterEncoding", "utf8");
+        return modifiedProps;
+    }
+
     public void testLatin1() {
-        writeJDBCreadJDBC("windows-1252", "charsetlatin1", CharsetLatin1.class, ColumnDescriptor.SMALL);
-        writeJDBCreadJDBC("windows-1252", "charsetlatin1", CharsetLatin1.class, ColumnDescriptor.MEDIUM);
-        writeJDBCreadJDBC("windows-1252", "charsetlatin1", CharsetLatin1.class, ColumnDescriptor.LARGE);
-
-        writeJDBCreadNDB("windows-1252", "charsetlatin1", CharsetLatin1.class, ColumnDescriptor.SMALL);
-        writeJDBCreadNDB("windows-1252", "charsetlatin1", CharsetLatin1.class, ColumnDescriptor.MEDIUM);
-        writeJDBCreadNDB("windows-1252", "charsetlatin1", CharsetLatin1.class, ColumnDescriptor.LARGE);
-
-        writeNDBreadJDBC("windows-1252", "charsetlatin1", CharsetLatin1.class, ColumnDescriptor.SMALL);
-        writeNDBreadJDBC("windows-1252", "charsetlatin1", CharsetLatin1.class, ColumnDescriptor.MEDIUM);
-        writeNDBreadJDBC("windows-1252", "charsetlatin1", CharsetLatin1.class, ColumnDescriptor.LARGE);
-
-        writeNDBreadNDB("windows-1252", "charsetlatin1", CharsetLatin1.class, ColumnDescriptor.SMALL);
-        writeNDBreadNDB("windows-1252", "charsetlatin1", CharsetLatin1.class, ColumnDescriptor.MEDIUM);
-        writeNDBreadNDB("windows-1252", "charsetlatin1", CharsetLatin1.class, ColumnDescriptor.LARGE);
-
-        failOnError();
+        testCharset("windows-1252", "charsetlatin1", CharsetLatin1.class);
     }
 
     public void testUtf8() {
-        writeJDBCreadJDBC("UTF-8", "charsetutf8", CharsetUtf8.class, ColumnDescriptor.SMALL);
-        writeJDBCreadJDBC("UTF-8", "charsetutf8", CharsetUtf8.class, ColumnDescriptor.MEDIUM);
-        writeJDBCreadJDBC("UTF-8", "charsetutf8", CharsetUtf8.class, ColumnDescriptor.LARGE);
-
-        writeJDBCreadNDB("UTF-8", "charsetutf8", CharsetUtf8.class, ColumnDescriptor.SMALL);
-        writeJDBCreadNDB("UTF-8", "charsetutf8", CharsetUtf8.class, ColumnDescriptor.MEDIUM);
-        writeJDBCreadNDB("UTF-8", "charsetutf8", CharsetUtf8.class, ColumnDescriptor.LARGE);
-
-        writeNDBreadJDBC("UTF-8", "charsetutf8", CharsetUtf8.class, ColumnDescriptor.SMALL);
-        writeNDBreadJDBC("UTF-8", "charsetutf8", CharsetUtf8.class, ColumnDescriptor.MEDIUM);
-        writeNDBreadJDBC("UTF-8", "charsetutf8", CharsetUtf8.class, ColumnDescriptor.LARGE);
-
-        writeNDBreadNDB("UTF-8", "charsetutf8", CharsetUtf8.class, ColumnDescriptor.SMALL);
-        writeNDBreadNDB("UTF-8", "charsetutf8", CharsetUtf8.class, ColumnDescriptor.MEDIUM);
-        writeNDBreadNDB("UTF-8", "charsetutf8", CharsetUtf8.class, ColumnDescriptor.LARGE);
-
-        failOnError();
+        testCharset("UTF-8", "charsetutf8", CharsetUtf8.class);
     }
 
     public void testSjis() {
-        /* These tests are excluded due to a JDBC error:
-         * java.sql.SQLException: 
-         * Failed to insert charsetsjis at instance 0 errant string: [... 165 167 168... ]
-         * Incorrect string value: '\xC2\xA5\xC2\xA7\xC2\xA8...' for column 'smallcolumn' at row 1
-                                at com.mysql.jdbc.SQLError.createSQLException(SQLError.java:1055)
-                                at com.mysql.jdbc.SQLError.createSQLException(SQLError.java:956)
-                                at com.mysql.jdbc.MysqlIO.checkErrorPacket(MysqlIO.java:3558)
-                                at com.mysql.jdbc.MysqlIO.checkErrorPacket(MysqlIO.java:3490)
-                                at com.mysql.jdbc.MysqlIO.sendCommand(MysqlIO.java:1959)
-                                at com.mysql.jdbc.MysqlIO.sqlQueryDirect(MysqlIO.java:2109)
-                                at com.mysql.jdbc.ConnectionImpl.execSQL(ConnectionImpl.java:2648)
-                                at com.mysql.jdbc.PreparedStatement.executeInternal(PreparedStatement.java:2077)
-                                at com.mysql.jdbc.PreparedStatement.execute(PreparedStatement.java:1356)
-                                at testsuite.clusterj.CharsetTest.writeToJDBC(CharsetTest.java:317)
-        writeJDBCreadJDBC("SJIS", "charsetsjis", CharsetSjis.class, ColumnDescriptor.SMALL);
-        writeJDBCreadJDBC("SJIS", "charsetsjis", CharsetSjis.class, ColumnDescriptor.MEDIUM);
-        writeJDBCreadJDBC("SJIS", "charsetsjis", CharsetSjis.class, ColumnDescriptor.LARGE);
-         */
-
-        writeNDBreadJDBC("SJIS", "charsetsjis", CharsetSjis.class, ColumnDescriptor.SMALL);
-        writeNDBreadJDBC("SJIS", "charsetsjis", CharsetSjis.class, ColumnDescriptor.MEDIUM);
-        writeNDBreadJDBC("SJIS", "charsetsjis", CharsetSjis.class, ColumnDescriptor.LARGE);
-
-        writeNDBreadNDB("SJIS", "charsetsjis", CharsetSjis.class, ColumnDescriptor.SMALL);
-        writeNDBreadNDB("SJIS", "charsetsjis", CharsetSjis.class, ColumnDescriptor.MEDIUM);
-        writeNDBreadNDB("SJIS", "charsetsjis", CharsetSjis.class, ColumnDescriptor.LARGE);
-
-        failOnError();
+        testCharset("SJIS", "charsetsjis", CharsetSjis.class);
     }
 
     public void testBig5() {
-        writeJDBCreadJDBC("big5", "charsetbig5", CharsetBig5.class, ColumnDescriptor.SMALL);
-        writeJDBCreadJDBC("big5", "charsetbig5", CharsetBig5.class, ColumnDescriptor.MEDIUM);
-        writeJDBCreadJDBC("big5", "charsetbig5", CharsetBig5.class, ColumnDescriptor.LARGE);
+        testCharset("big5", "charsetbig5", CharsetBig5.class);
+    }
 
-        writeJDBCreadNDB("big5", "charsetbig5", CharsetBig5.class, ColumnDescriptor.SMALL);
-        writeJDBCreadNDB("big5", "charsetbig5", CharsetBig5.class, ColumnDescriptor.MEDIUM);
-        writeJDBCreadNDB("big5", "charsetbig5", CharsetBig5.class, ColumnDescriptor.LARGE);
+    protected void testCharset(String charsetName, String tableName,
+            Class<? extends CharsetModel> modelClass) {
 
-        writeNDBreadJDBC("big5", "charsetbig5", CharsetBig5.class, ColumnDescriptor.SMALL);
-        writeNDBreadJDBC("big5", "charsetbig5", CharsetBig5.class, ColumnDescriptor.MEDIUM);
-        writeNDBreadJDBC("big5", "charsetbig5", CharsetBig5.class, ColumnDescriptor.LARGE);
+        writeJDBCreadJDBC(charsetName, tableName, modelClass, ColumnDescriptor.SMALL);
+        writeJDBCreadJDBC(charsetName, tableName, modelClass, ColumnDescriptor.MEDIUM);
+        writeJDBCreadJDBC(charsetName, tableName, modelClass, ColumnDescriptor.LARGE);
 
-        writeNDBreadNDB("big5", "charsetbig5", CharsetBig5.class, ColumnDescriptor.SMALL);
-        writeNDBreadNDB("big5", "charsetbig5", CharsetBig5.class, ColumnDescriptor.MEDIUM);
-        writeNDBreadNDB("big5", "charsetbig5", CharsetBig5.class, ColumnDescriptor.LARGE);
+        writeJDBCreadNDB(charsetName, tableName, modelClass, ColumnDescriptor.SMALL);
+        writeJDBCreadNDB(charsetName, tableName, modelClass, ColumnDescriptor.MEDIUM);
+        writeJDBCreadNDB(charsetName, tableName, modelClass, ColumnDescriptor.LARGE);
+
+        writeNDBreadJDBC(charsetName, tableName, modelClass, ColumnDescriptor.SMALL);
+        writeNDBreadJDBC(charsetName, tableName, modelClass, ColumnDescriptor.MEDIUM);
+        writeNDBreadJDBC(charsetName, tableName, modelClass, ColumnDescriptor.LARGE);
+
+        writeNDBreadNDB(charsetName, tableName, modelClass, ColumnDescriptor.SMALL);
+        writeNDBreadNDB(charsetName, tableName, modelClass, ColumnDescriptor.MEDIUM);
+        writeNDBreadNDB(charsetName, tableName, modelClass, ColumnDescriptor.LARGE);
 
         failOnError();
     }
 
     protected void writeJDBCreadJDBC(String charsetName, String tableName, Class<? extends CharsetModel> modelClass,
             ColumnDescriptor columnDescriptor) {
-        removeAll(modelClass);
         List<String> result = null;
         List<String> strings = generateStrings(columnDescriptor, charsetName);
         List<CharsetModel> instances = generateInstances(columnDescriptor, modelClass, strings);
@@ -173,11 +128,11 @@ public class CharsetTest extends AbstractClusterJModelTest {
         result = readFromJDBC(columnDescriptor, tableName);
         if (debug) System.out.println("Returned results of size " + result.size());
         verify("writeJDBCreadJDBC ", strings, result, columnDescriptor);
+        removeAll(modelClass);
     }
 
     protected void writeJDBCreadNDB(String charsetName, String tableName, Class<? extends CharsetModel> modelClass,
             ColumnDescriptor columnDescriptor) {
-        removeAll(modelClass);
         List<String> result = null;
         List<String> strings = generateStrings(columnDescriptor, charsetName);
         List<CharsetModel> instances = generateInstances(columnDescriptor, modelClass, strings);
@@ -185,11 +140,11 @@ public class CharsetTest extends AbstractClusterJModelTest {
         result = readFromNDB(columnDescriptor, modelClass);
         if (debug) System.out.println("Returned results of size " + result.size());
         verify("writeJDBCreadNDB ", strings, result, columnDescriptor);
+        removeAll(modelClass);
     }
 
     protected void writeNDBreadJDBC(String charsetName, String tableName, Class<? extends CharsetModel> modelClass,
             ColumnDescriptor columnDescriptor) {
-        removeAll(modelClass);
         List<String> result = null;
         List<String> strings = generateStrings(columnDescriptor, charsetName);
         List<CharsetModel> instances = generateInstances(columnDescriptor, modelClass, strings);
@@ -197,11 +152,11 @@ public class CharsetTest extends AbstractClusterJModelTest {
         result = readFromJDBC(columnDescriptor, tableName);
         if (debug) System.out.println("Returned results of size " + result.size());
         verify("writeNDBreadJDBC ", strings, result, columnDescriptor);
+        removeAll(modelClass);
     }
 
     protected void writeNDBreadNDB(String charsetName, String tableName, Class<? extends CharsetModel> modelClass,
             ColumnDescriptor columnDescriptor) {
-        removeAll(modelClass);
         List<String> result = null;
         List<String> strings = generateStrings(columnDescriptor, charsetName);
         List<CharsetModel> instances = generateInstances(columnDescriptor, modelClass, strings);
@@ -209,6 +164,7 @@ public class CharsetTest extends AbstractClusterJModelTest {
         result = readFromNDB(columnDescriptor, modelClass);
         if (debug) System.out.println("Returned results of size " + result.size());
         verify("writeNDBreadNDB ", strings, result, columnDescriptor);
+        removeAll(modelClass);
     }
 
     private void verify(String where, List<String> expecteds, List<String> actuals, ColumnDescriptor columnDescriptor) {
@@ -306,10 +262,6 @@ public class CharsetTest extends AbstractClusterJModelTest {
         int i = 0;
         String value = "";
         try {
-            Properties extraProperties = new Properties();
-            extraProperties.put("characterEncoding", "utf8");
-            getConnection(extraProperties);
-            setAutoCommit(connection, false);
             preparedStatement = connection.prepareStatement(statement);
             if (debug) System.out.println(preparedStatement.toString());
             for (i = 0; i < instances.size(); ++i) {
@@ -317,8 +269,6 @@ public class CharsetTest extends AbstractClusterJModelTest {
                 preparedStatement.setInt(1, instance.getId());
                 value = columnDescriptor.get(instance);
                 preparedStatement.setString(2, value);
-//                if (debug) System.out.println("Value set to column is size " + value.length());
-//                if (debug) System.out.println(" value " + value);
                 preparedStatement.execute();
             }
             connection.commit();

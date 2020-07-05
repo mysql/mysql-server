@@ -225,7 +225,7 @@ enum latch_level_t {
 
   SYNC_FIL_SHARD,
 
-  SYNC_DOUBLEWRITE,
+  SYNC_DBLWR,
 
   SYNC_PAGE_ARCH_OPER,
 
@@ -352,6 +352,7 @@ enum latch_id_t {
   LATCH_ID_BUF_POOL_ZIP_FREE,
   LATCH_ID_BUF_POOL_ZIP_HASH,
   LATCH_ID_BUF_POOL_FLUSH_STATE,
+  LATCH_ID_DBLWR,
   LATCH_ID_CACHE_LAST_READ,
   LATCH_ID_DICT_FOREIGN_ERR,
   LATCH_ID_DICT_SYS,
@@ -404,7 +405,6 @@ enum latch_id_t {
   LATCH_ID_SRV_MISC_TMPFILE,
   LATCH_ID_SRV_MONITOR_FILE,
   LATCH_ID_SYNC_THREAD,
-  LATCH_ID_BUF_DBLWR,
   LATCH_ID_TRX_UNDO,
   LATCH_ID_TRX_POOL,
   LATCH_ID_TRX_POOL_MANAGER,
@@ -453,6 +453,7 @@ enum latch_id_t {
   LATCH_ID_CLONE_TASK,
   LATCH_ID_CLONE_SNAPSHOT,
   LATCH_ID_PARALLEL_READ,
+  LATCH_ID_DBLR,
   LATCH_ID_REDO_LOG_ARCHIVE_ADMIN_MUTEX,
   LATCH_ID_REDO_LOG_ARCHIVE_QUEUE_MUTEX,
   LATCH_ID_TEST_MUTEX,
@@ -475,7 +476,7 @@ struct OSMutex {
     InitializeCriticalSection((LPCRITICAL_SECTION)&m_mutex);
 #else
     {
-      int ret = pthread_mutex_init(&m_mutex, NULL);
+      int ret = pthread_mutex_init(&m_mutex, nullptr);
       ut_a(ret == 0);
     }
 #endif /* _WIN32 */
@@ -1021,7 +1022,7 @@ struct latch_t {
     for library. We will never reach here because
     mutexes are disabled in library. */
     ut_error;
-    return (NULL);
+    return (nullptr);
 #endif /* !UNIV_LIBRARY */
   }
 

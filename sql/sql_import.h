@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@ class Sql_cmd_import_table : public Sql_cmd {
   /**
     Called by sql_yacc.yy.
 
-    @param patterns - Memroot_array_YY of all the sdi file patterns
+    @param patterns - Mem_root_array_YY of all the sdi file patterns
     provided as arguments.
    */
   Sql_cmd_import_table(const Sdi_patterns_type &patterns);

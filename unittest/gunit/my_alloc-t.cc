@@ -52,7 +52,7 @@ class Mock_global_error_handler {
       EXPECT_GT(m_handle_called, 0);
     }
     error_handler_hook = m_old_error_handler_hook;
-    current = NULL;
+    current = nullptr;
   }
 
   void error_handler(uint err) {
@@ -71,7 +71,7 @@ class Mock_global_error_handler {
   void (*m_old_error_handler_hook)(uint, const char *, myf);
 };
 
-Mock_global_error_handler *Mock_global_error_handler::current = NULL;
+Mock_global_error_handler *Mock_global_error_handler::current = nullptr;
 
 /*
   Error handler function.
@@ -127,7 +127,7 @@ TEST_P(MyAllocTest, WithMemoryLimit) {
 }
 
 TEST_F(MyAllocTest, CheckErrorReporting) {
-  const void *null_pointer = NULL;
+  const void *null_pointer = nullptr;
   EXPECT_TRUE(m_root.Alloc(1000));
   m_root.set_max_capacity(100);
   EXPECT_EQ(null_pointer, m_root.Alloc(1000));

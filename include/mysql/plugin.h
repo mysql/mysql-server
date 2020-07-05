@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -123,6 +123,8 @@ struct MYSQL_XID {
 #define PLUGIN_LICENSE_PROPRIETARY_STRING "PROPRIETARY"
 #define PLUGIN_LICENSE_GPL_STRING "GPL"
 #define PLUGIN_LICENSE_BSD_STRING "BSD"
+
+#define PLUGIN_AUTHOR_ORACLE "Oracle Corporation"
 
 /*
   Macros for beginning and ending plugin declarations.  Between

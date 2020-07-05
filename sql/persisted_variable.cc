@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -155,7 +155,7 @@ struct sort_tv_by_timestamp {
   }
 };
 
-Persisted_variables_cache *Persisted_variables_cache::m_instance = NULL;
+Persisted_variables_cache *Persisted_variables_cache::m_instance = nullptr;
 
 /* Standard Constructors for st_persist_var */
 
@@ -207,16 +207,18 @@ int Persisted_variables_cache::init(int *argc, char ***argv) {
 
   int temp_argc = *argc;
   MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
-  char *ptr, **res, *datadir = NULL;
-  char dir[FN_REFLEN] = {0};
+  char *ptr, **res, *datadir = nullptr;
+  char dir[FN_REFLEN] = {0}, local_datadir_buffer[FN_REFLEN] = {0};
   const char *dirs = NULL;
   bool persist_load = true;
 
   my_option persist_options[] = {
-      {"persisted_globals_load", 0, "", &persist_load, &persist_load, 0,
-       GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
-      {"datadir", 0, "", &datadir, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-      {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
+      {"persisted_globals_load", 0, "", &persist_load, &persist_load, nullptr,
+       GET_BOOL, OPT_ARG, 1, 0, 0, nullptr, 0, nullptr},
+      {"datadir", 0, "", &datadir, nullptr, nullptr, GET_STR, OPT_ARG, 0, 0, 0,
+       nullptr, 0, nullptr},
+      {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
+       0, nullptr, 0, nullptr}};
 
   /* create temporary args list and pass it to handle_options */
   init_alloc_root(key_memory_persisted_variables, &alloc, 512, 0);
@@ -228,7 +230,8 @@ int Persisted_variables_cache::init(int *argc, char ***argv) {
   memcpy((uchar *)res, (char *)(*argv), (*argc) * sizeof(char *));
 
   my_getopt_skip_unknown = true;
-  if (my_handle_options(&temp_argc, &res, persist_options, NULL, NULL, true)) {
+  if (my_handle_options(&temp_argc, &res, persist_options, nullptr, nullptr,
+                        true)) {
     free_root(&alloc, MYF(0));
     return 1;
   }
@@ -237,19 +240,26 @@ int Persisted_variables_cache::init(int *argc, char ***argv) {
 
   persisted_globals_load = persist_load;
 
-  // mysql_real_data_home must be initialized at this point
-  DBUG_ASSERT(mysql_real_data_home[0]);
+  if (!datadir) {
+    // mysql_real_data_home must be initialized at this point
+    DBUG_ASSERT(mysql_real_data_home[0]);
+    /*
+      mysql_home_ptr should also be initialized at this point.
+      See calculate_mysql_home_from_my_progname() for details
+    */
+    DBUG_ASSERT(mysql_home_ptr && mysql_home_ptr[0]);
+    convert_dirname(local_datadir_buffer, mysql_real_data_home, NullS);
+    (void)my_load_path(local_datadir_buffer, local_datadir_buffer,
+                       mysql_home_ptr);
+    datadir = local_datadir_buffer;
+  }
 
-  /*
-    if datadir is set then search in this data dir else search in
-    MYSQL_DATADIR
-  */
-  dirs = ((datadir) ? datadir : mysql_real_data_home);
+  dirs = datadir;
   unpack_dirname(dir, dirs);
   my_realpath(datadir_buffer, dir, MYF(0));
   unpack_dirname(datadir_buffer, datadir_buffer);
   if (fn_format(dir, MYSQL_PERSIST_CONFIG_NAME, datadir_buffer, ".cnf",
-                MY_UNPACK_FILENAME | MY_SAFE_PATH) == NULL)
+                MY_UNPACK_FILENAME | MY_SAFE_PATH) == nullptr)
     return 1;
   m_persist_filename = string(dir);
 
@@ -266,7 +276,7 @@ int Persisted_variables_cache::init(int *argc, char ***argv) {
   Return a singleton object
 */
 Persisted_variables_cache *Persisted_variables_cache::get_instance() {
-  DBUG_ASSERT(m_instance != NULL);
+  DBUG_ASSERT(m_instance != nullptr);
   return m_instance;
 }
 
@@ -430,7 +440,7 @@ String *Persisted_variables_cache::get_variable_value(THD *thd,
   show->value = (char *)system_var;
 
   mysql_mutex_lock(&LOCK_global_system_variables);
-  value = get_one_variable(thd, show, OPT_GLOBAL, show->type, NULL, &fromcs,
+  value = get_one_variable(thd, show, OPT_GLOBAL, show->type, nullptr, &fromcs,
                            val_buf, &val_length, is_null);
   mysql_mutex_unlock(&LOCK_global_system_variables);
 
@@ -621,12 +631,11 @@ bool Persisted_variables_cache::open_persist_file(int flag) {
 }
 
 /**
-  Close persisted config file
-   @return void
+  Close persisted config file.
 */
 void Persisted_variables_cache::close_persist_file() {
   mysql_file_fclose(m_fd, MYF(0));
-  m_fd = NULL;
+  m_fd = nullptr;
 }
 
 /**
@@ -657,9 +666,9 @@ bool Persisted_variables_cache::load_persist_file() {
 */
 bool Persisted_variables_cache::set_persist_options(bool plugin_options) {
   THD *thd;
-  LEX lex_tmp, *sav_lex = NULL;
+  LEX lex_tmp, *sav_lex = nullptr;
   List<set_var_base> tmp_var_list;
-  vector<st_persist_var> *persist_variables = NULL;
+  vector<st_persist_var> *persist_variables = nullptr;
   bool result = false, new_thd = false;
   const std::vector<std::string> priv_list = {
       "ENCRYPTION_KEY_ADMIN", "ROLE_ADMIN", "SYSTEM_VARIABLES_ADMIN",
@@ -726,15 +735,15 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options) {
       persist_variables->begin(), persist_variables->end());
 
   for (auto iter = sorted_vars.begin(); iter != sorted_vars.end(); iter++) {
-    Item *res = NULL;
-    set_var *var = NULL;
-    sys_var *sysvar = NULL;
+    Item *res = nullptr;
+    set_var *var = nullptr;
+    sys_var *sysvar = nullptr;
     string var_name = iter->key;
 
     LEX_CSTRING base_name = {var_name.c_str(), var_name.length()};
 
     sysvar = intern_find_sys_var(var_name.c_str(), var_name.length());
-    if (sysvar == NULL) {
+    if (sysvar == nullptr) {
       /*
         for plugin variables we report a warning in error log,
         keep track of this variable so that it is set when plugin
@@ -1023,7 +1032,7 @@ err:
 int Persisted_variables_cache::read_persist_file() {
   char buff[4096] = {0};
   string parsed_value;
-  const char *error = NULL;
+  const char *error = nullptr;
   size_t offset = 0;
 
   if ((check_file_permissions(m_persist_filename.c_str(), false)) < 2)
@@ -1108,7 +1117,7 @@ bool Persisted_variables_cache::append_read_only_variables(
     string persist_option = "--loose_" + iter.key + "=" + iter.value;
     char *tmp;
 
-    if (NULL == (tmp = strdup_root(&alloc, persist_option.c_str())) ||
+    if (nullptr == (tmp = strdup_root(&alloc, persist_option.c_str())) ||
         my_args.push_back(tmp))
       return true;
   }
@@ -1132,7 +1141,7 @@ bool Persisted_variables_cache::append_read_only_variables(
       /* copy arguments from persistent config file */
       memcpy((res + *argc + 1), &my_args[0], my_args.size() * sizeof(char *));
     }
-    res[my_args.size() + *argc + 1] = 0; /* last null */
+    res[my_args.size() + *argc + 1] = nullptr; /* last null */
     (*argc) += (int)my_args.size() + 1;
     *argv = res;
     if (plugin_options)
