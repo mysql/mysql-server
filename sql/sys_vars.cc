@@ -6160,8 +6160,7 @@ static bool check_gtid_purged(sys_var *self, THD *thd, set_var *var) {
     return true;
   }
 
-  if (!var->value ||
-      check_session_admin_outside_trx_outside_sf_outside_sp(self, thd, var))
+  if (!var->value || check_session_admin_outside_trx_outside_sf(self, thd, var))
     return true;
 
   if (var->value->result_type() != STRING_RESULT ||
