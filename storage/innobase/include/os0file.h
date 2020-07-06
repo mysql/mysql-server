@@ -1299,15 +1299,16 @@ to original un-instrumented file I/O APIs */
                                            n, o)                               \
   os_file_read_no_error_handling_func(type, file_name, file, buf, offset, n, o)
 
-#define os_file_read_no_error_handling_int_fd(type, file_name, file, buf, \
-                                              offset, n, o)               \
-  os_file_read_no_error_handling_func(type, file_name, file, buf, offset, n, o)
+#define os_file_read_no_error_handling_int_fd(type, file_name, file, buf,     \
+                                              offset, n, o)                   \
+  os_file_read_no_error_handling_func(type, file_name, OS_FILE_FROM_FD(file), \
+                                      buf, offset, n, o)
 
 #define os_file_write_pfs(type, name, file, buf, offset, n) \
   os_file_write_func(type, name, file, buf, offset, n)
 
 #define os_file_write_int_fd(type, name, file, buf, offset, n) \
-  os_file_write_func(type, name, file, buf, offset, n)
+  os_file_write_func(type, name, OS_FILE_FROM_FD(file), buf, offset, n)
 
 #define os_file_flush_pfs(file) os_file_flush_func(file)
 
