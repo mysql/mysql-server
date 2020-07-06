@@ -3007,6 +3007,31 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`a2`.`col_int` AS `col_int`,`test`.`a1`.`col_int` AS `col_int`,`test`.`t1`.`col_int` AS `col_int` from `test`.`t1` `a2` left join (/* select#2 */ select count(0) AS `COUNT(*)` from `test`.`t1`) `derived_1_2` on(true) left join `test`.`t1` `a1` on(<nop>((1 <= `derived_1_2`.`COUNT(*)`))) left join `test`.`t1` on(true) where true
 SELECT *
+FROM ((t1 AS a2
+LEFT JOIN
+t1 AS a1
+ON  1 <= ALL (SELECT COUNT(*) FROM t1))
+LEFT JOIN
+t1
+ON true);
+col_int	col_int	col_int
+EXPLAIN SELECT *
+FROM ((t1 AS a2
+LEFT JOIN
+t1 AS a1
+ON  1 <= ALL (SELECT COUNT(*) FROM t1))
+LEFT JOIN
+t1
+ON true);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	a2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+1	PRIMARY	a1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`a2`.`col_int` AS `col_int`,`test`.`a1`.`col_int` AS `col_int`,`test`.`t1`.`col_int` AS `col_int` from `test`.`t1` `a2` left join (/* select#2 */ select count(0) AS `COUNT(*)` from `test`.`t1`) `derived_1_2` on(true) left join `test`.`t1` `a1` on(<not>((1 > `derived_1_2`.`COUNT(*)`))) left join `test`.`t1` on(true) where true
+SELECT *
 FROM (t1
 RIGHT JOIN
 (t1 AS a1
@@ -4359,4 +4384,49 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where true
 DROP TABLE t1;
+#
+# Bug#31462120 ASSERTION `NESTED_JOIN_LIST->SIZE() == 2' FAILED AT SQL/SQL_RESOLVER.CC
+#
+CREATE TABLE a (col_varchar_key varchar(1));
+SELECT table1.col_varchar_key
+FROM ( SELECT sub1_t2.*
+FROM (a
+JOIN
+(a AS sub1_t2)
+ON sub1_t2.col_varchar_key IN (SELECT col_varchar_key FROM a))
+WHERE EXISTS (SELECT sub2_t1.col_varchar_key
+FROM a AS sub2_t1))  AS table1
+JOIN
+(a AS table2
+JOIN
+a
+ON 1 >= (SELECT MIN( col_varchar_key) FROM a))
+ON true;
+col_varchar_key
+EXPLAIN SELECT table1.col_varchar_key
+FROM ( SELECT sub1_t2.*
+FROM (a
+JOIN
+(a AS sub1_t2)
+ON sub1_t2.col_varchar_key IN (SELECT col_varchar_key FROM a))
+WHERE EXISTS (SELECT sub2_t1.col_varchar_key
+FROM a AS sub2_t1))  AS table1
+JOIN
+(a AS table2
+JOIN
+a
+ON 1 >= (SELECT MIN( col_varchar_key) FROM a))
+ON true;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	a	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	sub1_t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
+1	PRIMARY	sub2_t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(sub1_t2); Using join buffer (hash join)
+1	PRIMARY	a	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(sub2_t1); Using join buffer (hash join)
+1	PRIMARY	table2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
+1	PRIMARY	a	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
+1	PRIMARY	<derived5>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
+5	DERIVED	a	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`sub1_t2`.`col_varchar_key` AS `col_varchar_key` from `test`.`a` join `test`.`a` `sub1_t2` semi join (`test`.`a`) semi join (`test`.`a` `sub2_t1`) join `test`.`a` `table2` join (/* select#5 */ select min(`test`.`a`.`col_varchar_key`) AS `MIN( col_varchar_key)` from `test`.`a` having (1 >= min(`test`.`a`.`col_varchar_key`))) `derived_1_5` join `test`.`a` where (`test`.`a`.`col_varchar_key` = `test`.`sub1_t2`.`col_varchar_key`)
+DROP TABLE a;
 SET optimizer_switch='subquery_to_derived=default';
