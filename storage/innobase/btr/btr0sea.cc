@@ -371,7 +371,6 @@ btr_search_t *btr_search_info_create(mem_heap_t *heap) {
 
   info->ref_count = 0;
   info->root_guess = nullptr;
-  info->withdraw_clock = 0;
 
   info->hash_analysis = 0;
   info->n_hash_potential = 0;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -36,6 +36,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "btr0btr.h"
 #include "btr0cur.h"
 #include "btr0types.h"
+#include "buf0block_hint.h"
 #include "data0data.h"
 #include "dict0dict.h"
 #include "mtr0mtr.h"
@@ -559,15 +560,11 @@ struct btr_pcur_t {
   btr_pcur_pos_t m_rel_pos{BTR_PCUR_UNSET};
 
   /** buffer block when the position was stored */
-  buf_block_t *m_block_when_stored{nullptr};
+  buf::Block_hint m_block_when_stored;
 
   /** the modify clock value of the buffer block when the cursor position
   was stored */
   uint64_t m_modify_clock{0};
-
-  /** the withdraw clock value of the buffer pool when the cursor
-  position was stored */
-  ulint m_withdraw_clock{0};
 
   /** position() and restore_position() state. */
   pcur_pos_t m_pos_state{BTR_PCUR_NOT_POSITIONED};
@@ -605,6 +602,7 @@ inline void btr_pcur_t::init(size_t read_level) {
   m_btr_cur.rtr_info = nullptr;
   m_read_level = read_level;
   import_ctx = nullptr;
+  m_block_when_stored.clear();
 }
 
 /** Initializes and opens a persistent cursor to an index tree

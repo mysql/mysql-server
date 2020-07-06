@@ -1448,7 +1448,6 @@ static trx_undo_t *trx_undo_mem_create(trx_rseg_t *rseg, ulint id, ulint type,
   undo->empty = TRUE;
   undo->top_page_no = page_no;
   undo->guess_block = nullptr;
-  undo->withdraw_clock = 0;
 
   return (undo);
 }

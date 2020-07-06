@@ -902,16 +902,30 @@ class BtrContext {
 
 #ifndef UNIV_HOTBACKUP
 
-  /** Increment the buffer fix count of the clustered index record
-  block. */
+  /** Increment the buffer fix count of the clustered index record block.
+  This is to be called before commit_btr_mtr() which decrements the count when
+  you want to prevent the block from being freed:
+    rec_block_fix();   // buf_fix_count++
+    commit_btr_mtr();  // releasing mtr internally does buf_fix_count--
+    start_btr_mtr();
+    rec_block_unfix(); // calls btr_block_get() which does buf_fix_count++ and
+                       // then does buf_fix_count--
+  */
   void rec_block_fix() {
     m_rec_offset = page_offset(m_rec);
     m_btr_page_no = page_get_page_no(buf_block_get_frame(m_block));
     buf_block_buf_fix_inc(m_block, __FILE__, __LINE__);
   }
 
-  /** Decrement the buffer fix count of the clustered index record
-  block. */
+  /** Decrement the buffer fix count of the clustered index record block,
+  X-latching it before, so that the overall buffer_fix_count doesn't change.
+  This is done to restore X-latch on the page after mtr restart:
+    rec_block_fix();   // buf_fix_count++
+    commit_btr_mtr();  // releasing mtr internally does buf_fix_count--
+    start_btr_mtr();
+    rec_block_unfix(); // calls btr_block_get() which does buf_fix_count++ and
+                       // then does buf_fix_count--
+  */
   void rec_block_unfix() {
     space_id_t space_id = space();
     page_id_t page_id(space_id, m_btr_page_no);
@@ -926,7 +940,10 @@ class BtrContext {
     page_cur->rec = buf_block_get_frame(page_cur->block) + m_rec_offset;
 
     buf_block_buf_fix_dec(page_cur->block);
-
+    /* This decrement above is paired with increment in rec_block_fix(), and
+    there is another increment done within btr_block_get(), so overall the block
+    should be buffer-fixed and thus safe to be used. */
+    ut_ad(page_cur->block->page.buf_fix_count > 0);
     recalc();
   }
 #endif /* !UNIV_HOTBACKUP */

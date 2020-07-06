@@ -76,9 +76,6 @@ struct btr_latch_leaves_t {
 #include "row0types.h"
 #endif /* !UNIV_HOTBACKUP */
 
-#define BTR_CUR_ADAPT
-#define BTR_CUR_HASH_ADAPT
-
 #ifdef UNIV_DEBUG
 /** Returns the page cursor component of a tree cursor.
  @return pointer to page cursor component */
