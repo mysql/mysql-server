@@ -212,7 +212,8 @@ class TestRestApiEnable : public RouterComponentTest {
   }
 
   void assert_rest_works(const uint16_t port) {
-    wait_for_port_ready(port);
+    const auto uri = std::string(rest_api_basepath) + "/router/status";
+    wait_for_rest_endpoint_ready(uri, port);
 
     const auto ca_file =
         datadir_path.join(cert_filenames.at(CertFile::k_ca_cert));
@@ -236,8 +237,6 @@ class TestRestApiEnable : public RouterComponentTest {
         io_ctx, std::move(tls_ctx), gr_member_ip, port);
     RestClient rest_client(std::move(https_client));
 
-    wait_for_port_ready(port);
-    const auto uri = std::string(rest_api_basepath) + "/router/status";
     JsonDocument json_doc;
     // We do not care to authenticate, just check if we got a response
     ASSERT_NO_FATAL_FAILURE(request_json(rest_client, uri, HttpMethod::Get,

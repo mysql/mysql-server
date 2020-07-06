@@ -268,7 +268,7 @@ class GrNotificationsTest : public RouterComponentTest {
 
   int wait_for_md_queries(const int expected_md_queries_count,
                           const uint16_t http_port,
-                          std::chrono::milliseconds timeout = 5s) {
+                          std::chrono::milliseconds timeout = 40s) {
     auto kRetrySleep = 100ms;
     if (getenv("WITH_VALGRIND")) {
       timeout *= 10;
@@ -285,12 +285,14 @@ class GrNotificationsTest : public RouterComponentTest {
     return md_queries_count;
   }
 
-  bool wait_for_new_md_query(const uint16_t http_port,
-                             std::chrono::milliseconds timeout = 5s) {
+  bool wait_for_new_md_queries(const int expected_new_queries_count,
+                               const uint16_t http_port,
+                               std::chrono::milliseconds timeout = 40s) {
     int md_queries_count = get_current_queries_count(http_port);
 
-    return wait_for_md_queries(md_queries_count + 1, http_port, timeout) >=
-           md_queries_count + 1;
+    return wait_for_md_queries(md_queries_count + expected_new_queries_count,
+                               http_port, timeout) >=
+           md_queries_count + expected_new_queries_count;
   }
 
   TcpPortPool port_pool_;
@@ -655,8 +657,10 @@ TEST_P(GrNotificationNoXPortTest, GrNotificationNoXPort) {
       router_port, "PRIMARY", "first-available");
 
   SCOPED_TRACE("// Launch the router");
+  // we use longer timeout here as failing to connect on x port (which is what
+  // this test does) takes a few seconds on Solaris
   auto &router = launch_router(temp_test_dir.name(), metadata_cache_section,
-                               routing_section, state_file);
+                               routing_section, state_file, EXIT_SUCCESS, 30s);
 
   SCOPED_TRACE("// Let the router run for a while");
   std::this_thread::sleep_for(500ms);
@@ -1035,8 +1039,7 @@ TEST_F(GrNotificationsTest, GrNotificationInconsistentMetadata) {
   launch_router(temp_test_dir.name(), metadata_cache_section,
                 routing_section_rw + routing_section_ro, state_file);
 
-  EXPECT_TRUE(wait_for_md_queries(1, http_ports[0]));
-  wait_for_new_md_query(http_ports[0], 1s);
+  wait_for_new_md_queries(2, http_ports[0], 1s);
   EXPECT_TRUE(wait_for_port_ready(router_port_ro));
 
   SCOPED_TRACE("// Prepare a new node before adding it to the cluster");
@@ -1067,8 +1070,7 @@ TEST_F(GrNotificationsTest, GrNotificationInconsistentMetadata) {
 
   // wait for the md update resulting from the GR notification that we have
   // scheduled
-  ASSERT_TRUE(wait_for_new_md_query(http_ports[0]));
-  wait_for_new_md_query(http_ports[0], 1000ms);
+  wait_for_new_md_queries(2, http_ports[0], 2000ms);
 
   SCOPED_TRACE("// Now let the metadata be consistent again");
   // GR tables and cluster metadata should both contain the newly added node
@@ -1077,8 +1079,9 @@ TEST_F(GrNotificationsTest, GrNotificationInconsistentMetadata) {
                       /*send=*/true, nodes_ports);
   }
 
-  wait_for_new_md_query(http_ports[0], 1000ms);
-  wait_for_new_md_query(http_ports[0], 1000ms);
+  // we wait 5 query refresh cycles for slower machines to be sure the changes
+  // on the mock server side propagated to the Router
+  wait_for_new_md_queries(5, http_ports[0], 2000ms);
 
   SCOPED_TRACE(
       "// Make 2 connections to the RO port, the newly added node should be "
