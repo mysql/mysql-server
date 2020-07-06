@@ -23026,12 +23026,12 @@ const char *ERROR_CREATING_MSG =
     "Please refer to " REFMAN "error-creating-innodb.html";
 
 const char *OPERATING_SYSTEM_ERROR_MSG =
-    "Some operating system error numbers are described at"
-    " " REFMAN "operating-system-error-codes.html";
+    "Refer to your operating system documentation for operating"
+    " system error code information.";
 
 const char *FOREIGN_KEY_CONSTRAINTS_MSG =
     "Please refer to " REFMAN
-    "innodb-foreign-key-constraints.html"
+    "create-table-foreign-keys.html"
     " for correct foreign key definition.";
 
 const char *INNODB_PARAMETERS_MSG =

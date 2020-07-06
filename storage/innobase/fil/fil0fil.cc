@@ -5400,7 +5400,7 @@ static dberr_t fil_create_tablespace(space_id_t space_id, const char *name,
 
     if (ret != 0) {
       ib::error(ER_IB_MSG_303, path, ulonglong{size * page_size.physical()},
-                ret, REFMAN);
+                ret);
       success = false;
     } else {
       success = true;
@@ -6592,9 +6592,9 @@ bool Fil_shard::space_extend(fil_space_t *space, page_no_t size) {
             << ". Check"
                " that the disk is not full or a disk quota"
                " exceeded. Make sure the file system supports"
-               " this function. Some operating system error"
-               " numbers are described at " REFMAN
-               "operating-system-error-codes.html";
+               " this function. Refer to your operating system"
+               " documentation for operating system error code"
+               " information.";
       }
 
       err = DB_IO_ERROR;
