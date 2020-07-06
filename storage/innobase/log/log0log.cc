@@ -531,8 +531,6 @@ bool log_sys_init(uint32_t n_files, uint64_t file_size, space_id_t space_id) {
   log.sn_lock.create(
 #ifdef UNIV_PFS_RWLOCK
       log_sn_lock_key,
-#else
-      PSI_NOT_INSTRUMENTED,
 #endif
       SYNC_LOG_SN, 64);
 

@@ -75,7 +75,11 @@ Lock_mutex &Latches::Table_shards::get_mutex(const dict_table_t &table) {
 thread_local size_t Latches::Unique_sharded_rw_lock::m_shard_id{NOT_IN_USE};
 
 Latches::Unique_sharded_rw_lock::Unique_sharded_rw_lock() {
-  rw_lock.create(lock_sys_global_rw_lock_key, SYNC_LOCK_SYS_GLOBAL, 64);
+  rw_lock.create(
+#ifdef UNIV_PFS_RWLOCK
+      lock_sys_global_rw_lock_key,
+#endif
+      SYNC_LOCK_SYS_GLOBAL, 64);
 }
 
 Latches::Unique_sharded_rw_lock::~Unique_sharded_rw_lock() { rw_lock.free(); }

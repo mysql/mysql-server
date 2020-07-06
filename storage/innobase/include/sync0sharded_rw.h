@@ -61,13 +61,20 @@ in single rw-lock when a lot of threads need to acquire s-lock very often,
 but x-lock is very rare. */
 class Sharded_rw_lock {
  public:
-  void create(mysql_pfs_key_t pfs_key, latch_level_t latch_level,
-              size_t n_shards) {
+  void create(
+#ifdef UNIV_PFS_RWLOCK
+      mysql_pfs_key_t pfs_key,
+#endif
+      latch_level_t latch_level, size_t n_shards) {
     m_n_shards = n_shards;
 
     m_shards = static_cast<Shard *>(ut_zalloc_nokey(sizeof(Shard) * n_shards));
 
-    for_each([pfs_key, latch_level](rw_lock_t &lock) {
+    for_each([
+#ifdef UNIV_PFS_RWLOCK
+                 pfs_key,
+#endif
+                 latch_level](rw_lock_t &lock) {
       static_cast<void>(latch_level);  // clang -Wunused-lambda-capture
       rw_lock_create(pfs_key, &lock, latch_level);
     });
@@ -151,8 +158,12 @@ class Sharded_rw_lock {
 
 class Sharded_rw_lock {
  public:
-  void create(mysql_pfs_key_t pfs_key, latch_level_t latch_level,
-              size_t n_shards) {}
+  void create(
+#ifdef UNIV_PFS_RWLOCK
+      mysql_pfs_key_t pfs_key,
+#endif
+      latch_level_t latch_level, size_t n_shards) {
+  }
 
   void free() {}
 
