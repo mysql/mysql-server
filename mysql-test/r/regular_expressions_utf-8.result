@@ -1152,3 +1152,10 @@ t1	CREATE TABLE `t1` (
   `regexp_replace(x'01', x'01', x'02')` longblob NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
+#
+# Bug #31514995 REGEXP::CHECK_ICU_STATUS: ASSERTION `FALSE' FAILED.
+#
+do regexp_like(0, "^{18446744073709551616");
+ERROR HY000: Decimal number in regular expression is too large.
+do regexp_instr(0, "^{18446744073709551616");
+ERROR HY000: Decimal number in regular expression is too large.
