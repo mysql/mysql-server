@@ -55,8 +55,7 @@ insert into test.t1 values (4, 4, 4, 4);
 
 ### Execute new SHOW [FULL] PROCESSLIST and SELECT on performance_schema.processlist
 
-set @@global.performance_schema_show_processlist = 1;
-
+set @@global.performance_schema_show_processlist = on;
 
 SHOW FULL PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
@@ -95,8 +94,7 @@ ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 
 ### Execute legacy SHOW [FULL] PROCESSLIST and SELECT on information_schema.processlist
 
-set @@global.performance_schema_show_processlist = 0;
-
+set @@global.performance_schema_show_processlist = off;
 
 SHOW FULL PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
@@ -136,7 +134,7 @@ ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 ### Verify feature code path
 
 # Enable SHOW PROCESSLIST via the Performance Schema
-set @@global.performance_schema_show_processlist = 1;
+set @@global.performance_schema_show_processlist = on;
 
 # Connection default, send SHOW PROCESSLIST
 SET DEBUG_SYNC='pfs_show_processlist_performance_schema SIGNAL pfs_processlist_pfs WAIT_FOR continue';
@@ -160,7 +158,7 @@ Id	User	Host	db	Command	Time	State	Info
 ### Verify legacy code path
 
 # Enable the legacy SHOW PROCESSLIST
-set @@global.performance_schema_show_processlist = 0;
+set @@global.performance_schema_show_processlist = off;
 
 # Connection default, send SHOW PROCESSLIST
 SET DEBUG_SYNC='RESET';

@@ -80,16 +80,16 @@ let $wait_condition = select count(*) >= 4 from information_schema.processlist
 --echo
 --echo ### Execute new SHOW [FULL] PROCESSLIST and SELECT on performance_schema.processlist
 --echo
-set @@global.performance_schema_show_processlist = 1;
---echo
+let $pfs_spl = on;
+--source ../include/processlist_set.inc
 --source ../include/processlist_load.inc
 
 --echo
 --echo
 --echo ### Execute legacy SHOW [FULL] PROCESSLIST and SELECT on information_schema.processlist
 --echo
-set @@global.performance_schema_show_processlist = 0;
---echo
+let $pfs_spl = off;
+--source ../include/processlist_set.inc
 --source ../include/processlist_load.inc
 
 --echo
@@ -97,7 +97,8 @@ set @@global.performance_schema_show_processlist = 0;
 --echo ### Verify feature code path
 --echo
 --echo # Enable SHOW PROCESSLIST via the Performance Schema
-set @@global.performance_schema_show_processlist = 1;
+let $pfs_spl = on;
+--source ../include/processlist_set.inc
 
 --echo
 --echo # Connection default, send SHOW PROCESSLIST
@@ -124,7 +125,8 @@ SET DEBUG_SYNC='now SIGNAL continue';
 --echo ### Verify legacy code path
 --echo
 --echo # Enable the legacy SHOW PROCESSLIST
-set @@global.performance_schema_show_processlist = 0;
+let $pfs_spl = off;
+--source ../include/processlist_set.inc
 
 --echo
 --echo # Connection default, send SHOW PROCESSLIST

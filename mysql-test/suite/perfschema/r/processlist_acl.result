@@ -64,7 +64,7 @@ update test.t1 set s1 = s1 + 1, s2 = s2 + 2;;
 ### Expect all users
 
 # New SHOW PROCESSLIST
-set @@global.performance_schema_show_processlist = 1;
+set @@global.performance_schema_show_processlist = on;
 
 # Connection con_all_1
 
@@ -109,7 +109,7 @@ ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 <Id>	user_none	<Host>	test	Sleep	<Time>	<State>	NULL
 
 # Legacy SHOW PROCESSLIST
-set @@global.performance_schema_show_processlist = 0;
+set @@global.performance_schema_show_processlist = off;
 
 # Connection con_all_1
 
@@ -158,7 +158,7 @@ ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 ### Expect processes only from user_none
 
 # New SHOW PROCESSLIST
-set @@global.performance_schema_show_processlist = 1;
+set @@global.performance_schema_show_processlist = on;
 
 # Connection con_none_1
 
@@ -195,7 +195,7 @@ Expect 0
 0
 
 # Legacy SHOW PROCESSLIST
-set @@global.performance_schema_show_processlist = 0;
+set @@global.performance_schema_show_processlist = off;
 
 # Connection con_none_1
 

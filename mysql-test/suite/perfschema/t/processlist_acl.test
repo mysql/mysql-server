@@ -87,7 +87,8 @@ let $wait_condition = select count(*) >= 2 from information_schema.processlist
 --echo ### Expect all users
 --echo
 --echo # New SHOW PROCESSLIST
-set @@global.performance_schema_show_processlist = 1;
+let $pfs_spl = on;
+--source ../include/processlist_set.inc
 
 --echo
 --echo # Connection con_all_1
@@ -97,7 +98,8 @@ set @@global.performance_schema_show_processlist = 1;
 --echo
 --echo # Legacy SHOW PROCESSLIST
 --connection default
-set @@global.performance_schema_show_processlist = 0;
+let $pfs_spl = off;
+--source ../include/processlist_set.inc
 
 --echo
 --echo # Connection con_all_1
@@ -111,7 +113,8 @@ set @@global.performance_schema_show_processlist = 0;
 --echo
 --echo # New SHOW PROCESSLIST
 --connection default
-set @@global.performance_schema_show_processlist = 1;
+let $pfs_spl = on;
+--source ../include/processlist_set.inc
 
 --echo
 --echo # Connection con_none_1
@@ -127,7 +130,8 @@ select count(*) as "Expect 0" from performance_schema.processlist
 --echo
 --echo # Legacy SHOW PROCESSLIST
 --connection default
-set @@global.performance_schema_show_processlist = 0;
+let $pfs_spl = off;
+--source ../include/processlist_set.inc
 
 --echo
 --echo # Connection con_none_1
