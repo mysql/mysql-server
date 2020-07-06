@@ -6767,8 +6767,6 @@ bool SELECT_LEX::transform_scalar_subqueries_to_join_with_derived(THD *thd) {
       if (replace_subquery_in_expr(thd, subq, tl, ord->item)) return true;
     }
 
-    m_scalar_replaced.push_back(subq);
-
     OPT_TRACE_TRANSFORM(&thd->opt_trace, trace_wrapper, trace_object,
                         tl->derived_unit()->first_select()->select_number,
                         "scalar subquery", "derived table");

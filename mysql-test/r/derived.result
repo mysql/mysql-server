@@ -4516,3 +4516,13 @@ field1
 execute s;
 field1
 DROP TABLE t1, t2;
+# Bug#31565009: Simplification of condition when seeing false and
+#               <cond> leaks tmp tables opened
+CREATE TABLE t1 (i int);
+SELECT t1.i
+FROM t1
+WHERE FALSE AND
+t1.i > (SELECT MAX(a)
+FROM (SELECT 8 AS a UNION SELECT 3) AS tt);
+i
+DROP TABLE t1;

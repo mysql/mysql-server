@@ -2009,10 +2009,6 @@ class SELECT_LEX {
   /// replaced by a field during scalar_to_derived transformation
   uint n_scalar_subqueries{0};
 
-  /// To make sure we can release any associated tmp file resources when we can
-  /// no longer reach these via the item tree (they have been replaced).
-  mem_root_deque<Item_singlerow_subselect *> m_scalar_replaced;
-
   /// Number of materialized derived tables and views in this query block.
   uint materialized_derived_table_count{0};
   /// Number of partitioned tables
