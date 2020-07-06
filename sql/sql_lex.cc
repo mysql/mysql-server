@@ -2107,7 +2107,6 @@ SELECT_LEX::SELECT_LEX(MEM_ROOT *mem_root, Item *where, Item *having)
       first_context(&context),
       top_join_list(mem_root),
       join_list(&top_join_list),
-      m_scalar_replaced(mem_root),
       m_where_cond(where),
       m_having_cond(having) {}
 
@@ -2256,7 +2255,11 @@ void SELECT_LEX_UNIT::exclude_tree(THD *thd) {
     sl->destroy();
     sl->invalidate();
     sl = next_select;
+    slave = sl;
   }
+  // Remove the internal objects for this query expression.
+  cleanup(thd, true);
+  destroy();
   // exclude currect unit from list of nodes
   if (prev) (*prev) = next;
   if (next) next->prev = prev;
@@ -4685,15 +4688,6 @@ bool SELECT_LEX::walk(Item_processor processor, enum_walk walk, uchar *arg) {
         }
       }
     }
-  }
-
-  // We cannot reach replaced subqueries which may have tmp table resources
-  // allocated via query item tree, since they have been replaced.
-  // So, dive into the saved copies instead to clean up.
-  for (auto scalar_subq : m_scalar_replaced) {
-    if (processor == &Item::clean_up_after_removal &&
-        scalar_subq->walk(processor, walk, arg))
-      return true;
   }
   return false;
 }
