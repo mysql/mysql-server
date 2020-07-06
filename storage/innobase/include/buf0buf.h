@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -98,13 +98,6 @@ struct fil_addr_t;
 
 extern	buf_pool_t*	buf_pool_ptr;	/*!< The buffer pools
 					of the database */
-
-extern	volatile bool	buf_pool_withdrawing; /*!< true when withdrawing buffer
-					pool pages might cause page relocation */
-
-extern	volatile ulint	buf_withdraw_clock; /*!< the clock is incremented
-					every time a pointer to a page may
-					become obsolete */
 
 #ifdef UNIV_DEBUG
 extern my_bool	buf_disable_resize_buffer_pool_debug; /*!< if TRUE, resizing
@@ -1248,25 +1241,18 @@ This function does not return if the block is not identified.
 buf_block_t*
 buf_block_from_ahi(const byte* ptr);
 
+
 /********************************************************************//**
 Find out if a pointer belongs to a buf_block_t. It can be a pointer to
-the buf_block_t itself or a member of it
+the buf_block_t itself or a member of it. This functions checks one of
+the buffer pool instances.
 @return TRUE if ptr belongs to a buf_block_t struct */
 ibool
-buf_pointer_is_block_field(
-/*=======================*/
-	const void*		ptr);	/*!< in: pointer not
-					dereferenced */
-/** Find out if a pointer corresponds to a buf_block_t::mutex.
-@param m in: mutex candidate
-@return TRUE if m is a buf_block_t::mutex */
-#define buf_pool_is_block_mutex(m)			\
-	buf_pointer_is_block_field((const void*)(m))
-/** Find out if a pointer corresponds to a buf_block_t::lock.
-@param l in: rw-lock candidate
-@return TRUE if l is a buf_block_t::lock */
-#define buf_pool_is_block_lock(l)			\
-	buf_pointer_is_block_field((const void*)(l))
+buf_pointer_is_block_field_instance(
+/*================================*/
+       const buf_pool_t*  buf_pool,   /*!< in: buffer pool instance */
+       const void*        ptr);       /*!< in: pointer not dereferenced */
+
 
 /** Inits a page for read to the buffer buf_pool. If the page is
 (1) already in buf_pool, or
@@ -1500,14 +1486,6 @@ buf_get_nth_chunk_block(
 	const buf_pool_t* buf_pool,	/*!< in: buffer pool instance */
 	ulint		n,		/*!< in: nth chunk in the buffer pool */
 	ulint*		chunk_size);	/*!< in: chunk size */
-
-/** Verify the possibility that a stored page is not in buffer pool.
-@param[in]	withdraw_clock	withdraw clock when stored the page
-@retval true	if the page might be relocated */
-UNIV_INLINE
-bool
-buf_pool_is_obsolete(
-	ulint	withdraw_clock);
 
 /** Calculate aligned buffer pool size based on srv_buf_pool_chunk_unit,
 if needed.
