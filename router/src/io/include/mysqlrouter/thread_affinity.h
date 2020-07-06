@@ -73,7 +73,7 @@ class IO_COMPONENT_EXPORT ThreadAffinity {
 
   // set CPU affinity
   stdx::expected<void, std::error_code> affinity(
-      std::bitset<max_cpus> cpus) const noexcept;
+      std::bitset<ThreadAffinity::max_cpus> cpus) const noexcept;
 
  private:
   native_handle_type thread_id_;
