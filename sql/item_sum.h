@@ -1167,14 +1167,7 @@ class Item_sum_num_field : public Item_sum_hybrid_field {
   bool get_time(MYSQL_TIME *ltime) override {
     return get_time_from_numeric(ltime); /* Decimal or real */
   }
-  bool is_null() override {
-    /*
-      TODO : Implement error handling for this function as
-      update_null_value() can return error.
-    */
-    (void)update_null_value();
-    return null_value;
-  }
+  bool is_null() override { return update_null_value() || null_value; }
 };
 
 class Item_avg_field : public Item_sum_num_field {

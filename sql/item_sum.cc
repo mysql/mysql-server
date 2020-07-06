@@ -4425,6 +4425,8 @@ bool Item_func_group_concat::setup(THD *thd) {
     Item *item = args[i];
     fields.push_back(item);
     if (item->const_item() && item->is_null()) {
+      // "is_null()" may cause error:
+      if (thd->is_error()) return true;
       always_null = true;
       return false;
     }

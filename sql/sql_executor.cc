@@ -6535,8 +6535,10 @@ bool change_to_use_tmp_fields_except_sums(mem_root_deque<Item *> *fields,
     } else if (item->has_rollup_expr()) {
       // Delay processing until below; see comment.
       new_item = item->copy_or_same(thd);
+      if (new_item == nullptr) return true;
     } else {
       new_item = item->get_tmp_table_item(thd);
+      if (new_item == nullptr) return true;
     }
 
     new_item->update_used_tables();
@@ -6563,7 +6565,8 @@ bool change_to_use_tmp_fields_except_sums(mem_root_deque<Item *> *fields,
     }
   }
 
-  return thd->is_fatal_error();
+  assert(!thd->is_error());
+  return false;
 }
 
 /**

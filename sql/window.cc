@@ -573,7 +573,7 @@ bool Window::before_or_after_frame(bool before) {
       buffer, we must update the item's null_value
     */
     Item *candidate = cur_row->get_item();
-    (void)candidate->update_null_value();
+    if (candidate->update_null_value()) return true;
 
     const bool asc = o_expr->direction == ORDER_ASC;
     o_expr = o_expr->next;
