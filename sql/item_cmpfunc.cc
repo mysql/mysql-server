@@ -6481,7 +6481,9 @@ bool Item_func_comparison::is_null() {
 
   // Fast path: If the operands are scalar, the result of the comparison is NULL
   // if and only if at least one of the operands is NULL.
-  if (args[0]->cols() == 1) return args[0]->is_null() || args[1]->is_null();
+  if (args[0]->cols() == 1) {
+    return (null_value = args[0]->is_null() || args[1]->is_null());
+  }
 
   // If the operands are rows, we need to evaluate the comparison operator to
   // find out if it is NULL. Fall back to the implementation in Item_func, which

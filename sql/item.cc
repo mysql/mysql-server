@@ -7125,8 +7125,6 @@ bool Item::update_null_value() {
 */
 
 bool Item::evaluate(THD *thd, String *buffer) {
-  bool result = false;  // Will be set if null_value == 0
-
   switch (data_type()) {
     case MYSQL_TYPE_INVALID:
     default:
@@ -7187,7 +7185,9 @@ bool Item::evaluate(THD *thd, String *buffer) {
       break;
     }
   }
-  result = thd->is_error();
+  const bool result = thd->is_error();
+  // Convention: set NULL value indicator on error
+  if (result) null_value = true;
   return result;
 }
 
@@ -9759,12 +9759,7 @@ bool Item_cache_row::null_inside() {
     if (values[i]->cols() > 1) {
       if (values[i]->null_inside()) return true;
     } else {
-      /*
-        TODO : Implement error handling for this function as
-        update_null_value() can return error.
-      */
-      values[i]->update_null_value();
-      if (values[i]->null_value) return true;
+      if (values[i]->update_null_value() || values[i]->null_value) return true;
     }
   }
   return false;

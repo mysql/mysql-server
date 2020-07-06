@@ -187,14 +187,7 @@ class Item_subselect : public Item_result_field {
   bool assigned() const { return value_assigned; }
   void assigned(bool a) { value_assigned = a; }
   enum Type type() const override;
-  bool is_null() override {
-    /*
-      TODO : Implement error handling for this function as
-      update_null_value() can return error.
-    */
-    (void)update_null_value();
-    return null_value;
-  }
+  bool is_null() override { return update_null_value() || null_value; }
   bool fix_fields(THD *thd, Item **ref) override;
   void fix_after_pullout(SELECT_LEX *parent_select,
                          SELECT_LEX *removed_select) override;

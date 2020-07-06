@@ -453,14 +453,7 @@ class Item_func : public Item_result_field, public Func_args_handle {
   inline bool get_arg0_time(MYSQL_TIME *ltime) {
     return (null_value = args[0]->get_time(ltime));
   }
-  bool is_null() override {
-    /*
-      TODO : Implement error handling for this function as
-      update_null_value() can return error.
-    */
-    (void)update_null_value();
-    return null_value;
-  }
+  bool is_null() override { return update_null_value() || null_value; }
   void signal_divide_by_null();
   void signal_invalid_argument_for_log();
   friend class udf_handler;
@@ -844,14 +837,7 @@ class Item_func_numhybrid : public Item_func {
   */
   virtual bool date_op(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) = 0;
   virtual bool time_op(MYSQL_TIME *ltime) = 0;
-  bool is_null() override {
-    /*
-      TODO : Implement error handling for this function as
-      update_null_value() can return error.
-    */
-    (void)update_null_value();
-    return null_value;
-  }
+  bool is_null() override { return update_null_value() || null_value; }
 };
 
 /* function where type of result detected by first argument */

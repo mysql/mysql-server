@@ -2203,11 +2203,20 @@ class Item : public Parse_tree_node {
     without fully evaluating it, instead of calling val*() then
     checking null_value. Used in Item_func_isnull/Item_func_isnotnull
     and Item_sum_count/Item_sum_count_distinct.
-    Any new item which can be NULL must implement this method.
+    Any item which can be NULL must implement this method.
+
+    @retval false if the expression is not NULL.
+    @retval true if the expression is NULL, or evaluation caused an error.
+            The null_value member is set according to the return value.
   */
   virtual bool is_null() { return false; }
 
-  /// Make sure the null_value member has a correct value.
+  /**
+    Make sure the null_value member has a correct value.
+    null_value is set true also when evaluation causes error.
+
+    @returns false if success, true if error
+  */
   bool update_null_value();
 
   /**
