@@ -218,8 +218,10 @@ static void memo_slot_release(mtr_memo_slot_t *slot) {
 #ifndef UNIV_HOTBACKUP
       block = reinterpret_cast<buf_block_t *>(slot->object);
 
-      buf_block_unfix(block);
       buf_page_release_latch(block, slot->type);
+      /* The buf_page_release_latch(block,..) call was last action dereferencing
+      the `block`, so we can unfix the `block` now, but not sooner.*/
+      buf_block_unfix(block);
 #endif /* !UNIV_HOTBACKUP */
       break;
 

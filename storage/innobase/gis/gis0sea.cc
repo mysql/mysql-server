@@ -1156,10 +1156,12 @@ static bool rtr_cur_restore_position(
 
   ut_ad(latch_mode == BTR_CONT_MODIFY_TREE);
 
-  if (!buf_pool_is_obsolete(r_cursor->m_withdraw_clock) &&
-      buf_page_optimistic_get(RW_X_LATCH, r_cursor->m_block_when_stored,
-                              r_cursor->m_modify_clock, Page_fetch::NORMAL,
-                              __FILE__, __LINE__, mtr)) {
+  if (r_cursor->m_block_when_stored.run_with_hint([&](buf_block_t *hint) {
+        return hint != nullptr &&
+               buf_page_optimistic_get(
+                   RW_X_LATCH, hint, r_cursor->m_modify_clock,
+                   Page_fetch::NORMAL, __FILE__, __LINE__, mtr);
+      })) {
     ut_ad(r_cursor->m_pos_state == BTR_PCUR_IS_POSITIONED);
 
     ut_ad(r_cursor->m_rel_pos == BTR_PCUR_ON);

@@ -2252,11 +2252,9 @@ dberr_t trx_undo_report_row_operation(
   }
 
   page_no = undo->last_page_no;
-
-  undo_block = buf_page_get_gen(
-      page_id_t(undo->space, page_no), undo->page_size, RW_X_LATCH,
-      buf_pool_is_obsolete(undo->withdraw_clock) ? nullptr : undo->guess_block,
-      Page_fetch::NORMAL, __FILE__, __LINE__, &mtr);
+  undo_block = buf_page_get_gen(page_id_t(undo->space, page_no),
+                                undo->page_size, RW_X_LATCH, undo->guess_block,
+                                Page_fetch::NORMAL, __FILE__, __LINE__, &mtr);
 
   buf_block_dbg_add_level(undo_block, SYNC_TRX_UNDO_PAGE);
 
@@ -2318,14 +2316,13 @@ dberr_t trx_undo_report_row_operation(
       mtr_commit(&mtr);
     } else {
       /* Success */
-      undo->withdraw_clock = buf_withdraw_clock;
+      undo->guess_block = undo_block;
       mtr_commit(&mtr);
 
       undo->empty = FALSE;
       undo->top_page_no = page_no;
       undo->top_offset = offset;
       undo->top_undo_no = trx->undo_no;
-      undo->guess_block = undo_block;
 
       trx->undo_no++;
       trx->undo_rseg_space = undo_ptr->rseg->space_id;

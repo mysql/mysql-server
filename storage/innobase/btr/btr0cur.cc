@@ -336,6 +336,8 @@ bool btr_cur_optimistic_latch_leaves(buf_block_t *block,
                                      const char *file, ulint line, mtr_t *mtr) {
   ulint mode;
   page_no_t left_page_no;
+  ut_ad(block->page.buf_fix_count > 0);
+  ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 
   switch (*latch_mode) {
     case BTR_SEARCH_LEAF:
@@ -346,20 +348,10 @@ bool btr_cur_optimistic_latch_leaves(buf_block_t *block,
     case BTR_MODIFY_PREV:
       mode = *latch_mode == BTR_SEARCH_PREV ? RW_S_LATCH : RW_X_LATCH;
 
-      buf_page_mutex_enter(block);
-      if (buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE) {
-        buf_page_mutex_exit(block);
-        return (false);
-      }
-      /* pin the block not to be relocated */
-      buf_block_buf_fix_inc(block, file, line);
-      buf_page_mutex_exit(block);
-
       rw_lock_s_lock(&block->lock);
       if (block->modify_clock != modify_clock) {
         rw_lock_s_unlock(&block->lock);
-
-        goto unpin_failed;
+        return false;
       }
       left_page_no = btr_page_get_prev(buf_block_get_frame(block), mtr);
       rw_lock_s_unlock(&block->lock);
@@ -374,30 +366,31 @@ bool btr_cur_optimistic_latch_leaves(buf_block_t *block,
       } else {
         cursor->left_block = nullptr;
       }
-
       if (buf_page_optimistic_get(mode, block, modify_clock,
                                   cursor->m_fetch_mode, file, line, mtr)) {
         if (btr_page_get_prev(buf_block_get_frame(block), mtr) ==
             left_page_no) {
-          /* adjust buf_fix_count */
-          buf_block_buf_fix_dec(block);
+          /* We've entered this function with the block already buffer-fixed,
+          and buf_page_optimistic_get() buffer-fixes it again. The caller should
+          unfix the block once (to undo their buffer-fixing). */
+          ut_ad(2 <= block->page.buf_fix_count);
           *latch_mode = mode;
-          return (true);
+          return true;
         } else {
-          /* release the block */
+          /* release the block, which will also decrement the buf_fix_count once
+          undoing the increment in successful buf_page_optimistic_get() */
           btr_leaf_page_release(block, mode, mtr);
         }
       }
-
+      /* If we are still here then buf_page_optimistic_get() did not buffer-fix
+      the page, but it should still be buffer-fixed as it was before the call.*/
+      ut_ad(0 < block->page.buf_fix_count);
       /* release the left block */
       if (cursor->left_block != nullptr) {
         btr_leaf_page_release(cursor->left_block, mode, mtr);
       }
-    unpin_failed:
-      /* unpin the block */
-      buf_block_buf_fix_dec(block);
 
-      return (false);
+      return false;
 
     default:
       ut_error;
@@ -647,7 +640,6 @@ void btr_cur_search_to_nth_level(
 {
   page_t *page = nullptr; /* remove warning */
   buf_block_t *block;
-  buf_block_t *guess;
   ulint height;
   ulint up_match;
   ulint up_bytes;
@@ -685,9 +677,7 @@ void btr_cur_search_to_nth_level(
 
   DBUG_TRACE;
 
-#ifdef BTR_CUR_ADAPT
   btr_search_t *info;
-#endif /* BTR_CUR_ADAPT */
   mem_heap_t *heap = nullptr;
   ulint offsets_[REC_OFFS_NORMAL_SIZE];
   ulint *offsets = offsets_;
@@ -770,18 +760,7 @@ void btr_cur_search_to_nth_level(
   cursor->flag = BTR_CUR_BINARY;
   cursor->index = index;
 
-#ifndef BTR_CUR_ADAPT
-  guess = NULL;
-#else
   info = btr_search_get_info(index);
-
-  if (!buf_pool_is_obsolete(info->withdraw_clock)) {
-    guess = info->root_guess;
-  } else {
-    guess = nullptr;
-  }
-
-#ifdef BTR_CUR_HASH_ADAPT
 
 #ifdef UNIV_SEARCH_PERF_STAT
   info->n_searches++;
@@ -811,8 +790,6 @@ void btr_cur_search_to_nth_level(
 
     return;
   }
-#endif /* BTR_CUR_HASH_ADAPT */
-#endif /* BTR_CUR_ADAPT */
   btr_cur_n_non_sea++;
   DBUG_EXECUTE_IF("non_ahi_search",
                   DBUG_ASSERT(!strcmp(index->table->name.m_name, "test/t1")););
@@ -973,8 +950,11 @@ search_loop:
 retry_page_get:
   ut_ad(n_blocks < BTR_MAX_LEVELS);
   tree_savepoints[n_blocks] = mtr_set_savepoint(mtr);
-  block = buf_page_get_gen(page_id, page_size, rw_latch, guess, fetch, file,
-                           line, mtr);
+  block =
+      buf_page_get_gen(page_id, page_size, rw_latch,
+                       (height == ULINT_UNDEFINED ? info->root_guess : nullptr),
+                       fetch, file, line, mtr);
+
   tree_blocks[n_blocks] = block;
 
   if (block == nullptr) {
@@ -1142,12 +1122,7 @@ retry_page_get:
       rtr_get_mbr_from_tuple(tuple, &cursor->rtr_info->mbr);
     }
 
-#ifdef BTR_CUR_ADAPT
-    if (block != guess) {
-      info->root_guess = block;
-      info->withdraw_clock = buf_withdraw_clock;
-    }
-#endif
+    info->root_guess = block;
   }
 
   if (height == 0) {
@@ -1317,7 +1292,6 @@ retry_page_get:
     ut_ad(height > 0);
 
     height--;
-    guess = nullptr;
 
     node_ptr = page_cur_get_rec(page_cursor);
 
@@ -1612,8 +1586,6 @@ retry_page_get:
     /* btr_insert_into_right_sibling() might cause
     deleting node_ptr at upper level */
 
-    guess = nullptr;
-
     if (height == 0) {
       /* release the leaf pages if latched */
       for (uint i = 0; i < 3; i++) {
@@ -1671,7 +1643,6 @@ retry_page_get:
     cursor->up_match = up_match;
     cursor->up_bytes = up_bytes;
 
-#ifdef BTR_CUR_ADAPT
     /* We do a dirty read of btr_search_enabled here.  We
     will properly check btr_search_enabled again in
     btr_search_build_page_hash_index() before building a
@@ -1679,7 +1650,6 @@ retry_page_get:
     if (btr_search_enabled && !index->disable_ahi) {
       btr_search_info_update(index, cursor);
     }
-#endif
     ut_ad(cursor->up_match != ULINT_UNDEFINED || mode != PAGE_CUR_GE);
     ut_ad(cursor->up_match != ULINT_UNDEFINED || mode != PAGE_CUR_LE);
     ut_ad(cursor->low_match != ULINT_UNDEFINED || mode != PAGE_CUR_LE);
@@ -2906,7 +2876,6 @@ dberr_t btr_cur_optimistic_insert(
     }
   }
 
-#ifdef BTR_CUR_HASH_ADAPT
   if (!index->disable_ahi) {
     if (!reorg && leaf && (cursor->flag == BTR_CUR_HASH)) {
       btr_search_update_hash_node_on_insert(cursor);
@@ -2914,7 +2883,6 @@ dberr_t btr_cur_optimistic_insert(
       btr_search_update_hash_on_insert(cursor);
     }
   }
-#endif /* BTR_CUR_HASH_ADAPT */
 
   if (!(flags & BTR_NO_LOCKING_FLAG) && inherit) {
     lock_update_insert(block, *rec);
@@ -3078,11 +3046,9 @@ dberr_t btr_cur_pessimistic_insert(
     }
   }
 
-#ifdef BTR_CUR_ADAPT
   if (!index->disable_ahi) {
     btr_search_update_hash_on_insert(cursor);
   }
-#endif
   if (inherit && !(flags & BTR_NO_LOCKING_FLAG)) {
     lock_update_insert(btr_cur_get_block(cursor), *rec);
   }
