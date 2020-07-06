@@ -1239,7 +1239,7 @@ DROP TABLE c2;
 
 --echo #
 --echo # Bug#30622834 WL#12885: ASSERTION `SELECT_LEX->IS_RECURSIVE()' FAILED
---echo #
+--echo # Update: these are no longer transformed after Bug#31566339
 CREATE TABLE t1(col_int INT);
 
 let $query =
@@ -2178,5 +2178,17 @@ eval $query;
 eval EXPLAIN $query;
 
 DROP TABLE a;
+
+
+--echo #
+--echo # Bug#31566339 WRONG RESULT WITH OPTIMIZER_SWITCH SUBQUERY_TO_DERIVED ON: ANY
+--echo #
+
+CREATE TABLE t1(pk int primary key);
+INSERT INTO t1 VALUES(1),(2),(3),(4),(5);
+ANALYZE TABLE t1;
+--echo # Used to return NULL
+SELECT SUM(pk) FROM t1 WHERE ( pk >= ANY ( SELECT MAX(1) FROM DUAL) );
+DROP TABLE t1;
 
 SET optimizer_switch='subquery_to_derived=default';

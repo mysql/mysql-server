@@ -320,6 +320,7 @@ class Item_singlerow_subselect : public Item_subselect {
   void bring_value() override;
 
   bool collect_scalar_subqueries(uchar *) override;
+  virtual bool is_maxmin() const { return false; }
 
   /**
     Argument for walk method replace_scalar_subquery
@@ -370,6 +371,7 @@ class Item_maxmin_subselect final : public Item_singlerow_subselect {
   bool any_value() { return was_values; }
   void register_value() { was_values = true; }
   void reset_value_registration() override { was_values = false; }
+  bool is_maxmin() const override { return true; }
 };
 
 /* exists subselect */

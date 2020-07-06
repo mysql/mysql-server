@@ -2631,11 +2631,12 @@ bool Item_singlerow_subselect::collect_scalar_subqueries(uchar *arg) {
 
   // Skip transformation if more than one column is selected or column contains
   // a non-deterministic function.
-  // Also exclude scalar subqueries with references to outer query blocks
+  // Also exclude scalar subqueries with references to outer query blocks and
+  // Item_maxmin_subselect (ALL/ANY -> MAX/MIN transform artifact)
   Item *i = unit->first_select()->single_visible_field();
   if (i == nullptr || info->is_stopped(this) ||
       (map & ~PSEUDO_TABLE_BITS) != 0 || (map & OUTER_REF_TABLE_BIT) != 0 ||
-      (map & RAND_TABLE_BIT)) {
+      (map & RAND_TABLE_BIT) || is_maxmin()) {
     return false;
   }
 
