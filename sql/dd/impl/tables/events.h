@@ -79,7 +79,8 @@ class Events : public Entity_object_table_impl {
     INDEX_UK_SCHEMA_ID_NAME = static_cast<uint>(Common_index::UK_NAME),
     INDEX_K_CLIENT_COLLATION_ID,
     INDEX_K_CONNECTION_COLLATION_ID,
-    INDEX_K_SCHEMA_COLLATION_ID
+    INDEX_K_SCHEMA_COLLATION_ID,
+    INDEX_K_DEFINER
   };
 
   enum enum_foreign_keys {
@@ -97,6 +98,15 @@ class Events : public Entity_object_table_impl {
                                 const String_type &event_name);
 
   static Object_key *create_key_by_schema_id(Object_id schema_id);
+
+  /**
+    Create a key to find all events for a given definer.
+
+    @param definer   Name of the definer.
+
+    @returns Pointer to Object_key.
+  */
+  static Object_key *create_key_by_definer(const String_type &definer);
 };
 
 ///////////////////////////////////////////////////////////////////////////

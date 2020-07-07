@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -527,6 +527,69 @@ String_type Sub_partition_range_key::str() const {
   dd::Stringstream_type ss;
   ss << m_parent_partition_id_column_no << ":" << m_parent_partition_id << ":"
      << m_table_id_column_no << ":" << m_table_id;
+  return ss.str();
+}
+
+///////////////////////////////////////////////////////////////////////////
+// Definer_reference_range_key
+///////////////////////////////////////////////////////////////////////////
+
+Raw_key *Definer_reference_range_key::create_access_key(
+    Raw_table *db_table) const {
+  TABLE *t = db_table->get_table();
+
+  t->use_all_columns();
+
+  t->field[m_definer_column_no]->store(m_definer.c_str(), m_definer.length(),
+                                       &my_charset_bin);
+  t->field[m_definer_column_no]->set_notnull();
+
+  KEY *key_info = t->key_info + m_index_no;
+
+  // Use one column of the key.
+  // TODO: Investigate why HA_WHOLE_KEY does not give the expected result.
+  Raw_key *k = new (std::nothrow) Raw_key(m_index_no, key_info->key_length, 1);
+
+  key_copy(k->key, t->record[0], key_info, k->key_len);
+
+  return k;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+String_type Definer_reference_range_key::str() const { return m_definer; }
+
+///////////////////////////////////////////////////////////////////////////
+// View_definer_reference_range_key
+///////////////////////////////////////////////////////////////////////////
+
+Raw_key *View_definer_reference_range_key::create_access_key(
+    Raw_table *db_table) const {
+  TABLE *t = db_table->get_table();
+
+  t->use_all_columns();
+
+  t->field[m_table_type_column_no]->store(m_table_type, true);
+  t->field[m_definer_column_no]->store(m_definer.c_str(), m_definer.length(),
+                                       &my_charset_bin);
+  t->field[m_definer_column_no]->set_notnull();
+
+  KEY *key_info = t->key_info + m_index_no;
+
+  // Use two columns of the key.
+  // TODO: Investigate why HA_WHOLE_KEY does not give the expected result.
+  Raw_key *k = new (std::nothrow) Raw_key(m_index_no, key_info->key_length, 3);
+
+  key_copy(k->key, t->record[0], key_info, k->key_len);
+
+  return k;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+String_type View_definer_reference_range_key::str() const {
+  dd::Stringstream_type ss;
+  ss << m_table_type << ":" << m_definer;
   return ss.str();
 }
 

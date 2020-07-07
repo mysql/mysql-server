@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -104,6 +104,7 @@ Triggers::Triggers() {
   m_target_def.add_index(INDEX_K_SCHEMA_COLLATION_ID,
                          "INDEX_K_SCHEMA_COLLATION_ID",
                          "KEY(schema_collation_id)");
+  m_target_def.add_index(INDEX_K_DEFINER, "INDEX_K_DEFINER", "KEY(definer)");
 
   m_target_def.add_foreign_key(FK_SCHEMA_ID, "FK_SCHEMA_ID",
                                "FOREIGN KEY (schema_id) "
@@ -181,6 +182,13 @@ bool Triggers::get_trigger_table_id(THD *thd, Object_id schema_id,
   if (record.get()) *oid = read_table_id(*record.get());
 
   return false;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+Object_key *Triggers::create_key_by_definer(const String_type &definer) {
+  return new (std::nothrow)
+      Definer_reference_range_key(INDEX_K_DEFINER, FIELD_DEFINER, definer);
 }
 
 ///////////////////////////////////////////////////////////////////////////

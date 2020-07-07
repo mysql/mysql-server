@@ -322,7 +322,7 @@ user()	current_user()
 user3_bug14834@localhost	user1_bug14834@localhost
 drop user user1_bug14834@localhost;
 Warnings:
-Warning	4005	User 'user1_bug14834'@'localhost' is referenced as a definer account in a procedure.
+Warning	4005	User 'user1_bug14834'@'localhost' is referenced as a definer account in a stored routine.
 drop user user2_bug14834@localhost;
 drop user user3_bug14834@localhost;
 drop database db_bug14834;
@@ -403,7 +403,7 @@ RETURN 3	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 DROP USER mysqltest_1@localhost;
 DROP USER mysqltest_2@localhost;
 Warnings:
-Warning	4005	User 'mysqltest_2'@'localhost' is referenced as a definer account in a procedure.
+Warning	4005	User 'mysqltest_2'@'localhost' is referenced as a definer account in a stored routine.
 DROP DATABASE mysqltest;
 
 ---> connection: root
@@ -439,7 +439,7 @@ bug13198_f1()
 ---> connection: root
 DROP USER mysqltest_1@localhost;
 Warnings:
-Warning	4005	User 'mysqltest_1'@'localhost' is referenced as a definer account in a procedure.
+Warning	4005	User 'mysqltest_1'@'localhost' is referenced as a definer account in a stored routine.
 
 ---> connection: mysqltest_2_con
 USE mysqltest;
@@ -1214,7 +1214,7 @@ SET @@global.partial_revokes = @start_partial_revokes;
 
 DROP USER usr_no_priv@localhost, usr_show_routine@localhost, usr_definer@localhost, usr_role@localhost, usr_create_routine@localhost, usr_alter_routine@localhost, usr_execute@localhost;
 Warnings:
-Warning	4005	User 'usr_definer'@'localhost' is referenced as a definer account in a procedure.
+Warning	4005	User 'usr_definer'@'localhost' is referenced as a definer account in a stored routine.
 DROP ROLE role_show_routine;
 DROP SCHEMA testdb;
 delete from mysql.db;
