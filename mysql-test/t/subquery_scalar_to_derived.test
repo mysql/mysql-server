@@ -1257,6 +1257,19 @@ eval EXPLAIN $query;
 
 let $query =
 SELECT *
+FROM ((t1 AS a2
+       LEFT JOIN
+       t1 AS a1
+       ON  1 <= ALL (SELECT COUNT(*) FROM t1))
+     LEFT JOIN
+     t1
+     ON true);
+
+eval $query;
+eval EXPLAIN $query;
+
+let $query =
+SELECT *
 FROM (t1
       RIGHT JOIN
       (t1 AS a1
@@ -2138,5 +2151,32 @@ eval EXPLAIN $query;
 
 DROP TABLE t1;
 
+
+--echo #
+--echo # Bug#31462120 ASSERTION `NESTED_JOIN_LIST->SIZE() == 2' FAILED AT SQL/SQL_RESOLVER.CC
+--echo #
+
+CREATE TABLE a (col_varchar_key varchar(1));
+
+let $query=
+SELECT table1.col_varchar_key
+FROM ( SELECT sub1_t2.*
+       FROM (a
+            JOIN
+            (a AS sub1_t2)
+            ON sub1_t2.col_varchar_key IN (SELECT col_varchar_key FROM a))
+       WHERE EXISTS (SELECT sub2_t1.col_varchar_key
+                     FROM a AS sub2_t1))  AS table1
+     JOIN
+     (a AS table2
+       JOIN
+       a
+       ON 1 >= (SELECT MIN( col_varchar_key) FROM a))
+     ON true;
+
+eval $query;
+eval EXPLAIN $query;
+
+DROP TABLE a;
 
 SET optimizer_switch='subquery_to_derived=default';
