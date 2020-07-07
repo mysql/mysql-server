@@ -950,7 +950,6 @@ SELECT COUNT(*) > 0 AS "Expect 1" FROM events_test.event_log;
 #
 --echo connection default;
 connection default;
-DROP USER evtest1@localhost;
 # 2. If we meet BUG#28924 again than a server crash happens within the next
 #    few seconds
 # 3. Check that the event is never executed again
@@ -970,6 +969,7 @@ SELECT COUNT(*) > @row_cnt AS "Expect 0" FROM events_test.event_log;
 # Cleanup
 disconnect e1;
 DROP EVENT events_test.ev_sched_1823;
+DROP USER evtest1@localhost;
 DROP TABLE events_test.event_log;
 SET GLOBAL event_scheduler = OFF;
 SET @@session.autocommit = @save_session_autocommit;

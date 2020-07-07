@@ -1631,6 +1631,8 @@ SELECT fn2();
 fn2()
 2
 DROP USER 'userbug33464'@'localhost';
+Warnings:
+Warning	4005	User 'userbug33464'@'localhost' is referenced as a definer account in a procedure.
 DROP FUNCTION fn1;
 DROP FUNCTION fn2;
 DROP PROCEDURE sp3;
@@ -2811,6 +2813,8 @@ VIEW_DEFINITION
 
 # Cleanup
 DROP USER mysqluser1@localhost, MySQLuser1@localhost;
+Warnings:
+Warning	4005	User 'mysqluser1'@'localhost' is referenced as a definer account in a view.
 DROP DATABASE mysqltest_1;
 #
 # Test prepared statements and REVOKE between PREPARE and EXECUTE
