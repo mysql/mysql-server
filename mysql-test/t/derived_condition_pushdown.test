@@ -501,6 +501,12 @@ SELECT * FROM
   GROUP BY dt1.f1) AS dt2
 WHERE dt2.f1 > 3;
 
+# Test with const conditions: shouldn't be pushed down (no benefit)
+let query= SELECT /*+ no_merge(dt,dt1) */ * FROM
+((SELECT f1, f2 FROM t1) as dt, (SELECT f1, f2 FROM t1) as dt1) WHERE FALSE;
+eval EXPLAIN $query;
+eval $query;
+
 # Test for optimizer hints DERIVED_CONDIITON_PUSHDOWN and
 # NO_DERIVED_CONDITION_PUSHDOWN
 

@@ -1038,6 +1038,17 @@ GROUP BY dt1.f1) AS dt2
 WHERE dt2.f1 > 3;
 f1
 4
+EXPLAIN SELECT /*+ no_merge(dt,dt1) */ * FROM
+((SELECT f1, f2 FROM t1) as dt, (SELECT f1, f2 FROM t1) as dt1) WHERE FALSE;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+3	DERIVED	t1	NULL	index	NULL	f1_2	10	NULL	12	100.00	Using index
+2	DERIVED	t1	NULL	index	NULL	f1_2	10	NULL	12	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_MERGE(`dt`@`select#1`) NO_MERGE(`dt1`@`select#1`) */ `dt`.`f1` AS `f1`,`dt`.`f2` AS `f2`,`dt1`.`f1` AS `f1`,`dt1`.`f2` AS `f2` from (/* select#2 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1`) `dt` join (/* select#3 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1`) `dt1` where false
+SELECT /*+ no_merge(dt,dt1) */ * FROM
+((SELECT f1, f2 FROM t1) as dt, (SELECT f1, f2 FROM t1) as dt1) WHERE FALSE;
+f1	f2	f1	f2
 set optimizer_switch="derived_merge=off";
 EXPLAIN FORMAT=tree SELECT /*+ NO_DERIVED_CONDITION_PUSHDOWN(dt2) */ * FROM
 (SELECT * FROM (SELECT * FROM t1) as dt1) as dt2 WHERE f1 > 3;
