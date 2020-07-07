@@ -856,6 +856,34 @@ const Item_field *Item_func::contributes_to_filter(
   return (found_comparable ? usable_field : nullptr);
 }
 
+bool Item_func::check_column_in_window_functions(uchar *arg) {
+  // Pushing conditions having non-deterministic results must be done with
+  // care, or it may result in eliminating rows which would have
+  // otherwise contributed to aggregations.
+  // For Ex: SELECT * FROM (SELECT a AS x, SUM(b) FROM t1 GROUP BY a) dt
+  //         WHERE x>5*RAND() AND x<3.
+  // In this case, x<3 is pushed to the WHERE clause of the derived table
+  // because there is grouping on "a". If we did the same for the random
+  // condition, this condition might reduce the number of rows that get
+  // qualified for grouping, resulting in wrong values for SUM. Similarly for
+  // window functions. So we refrain from pushing the random condition
+  // past the last operation done in the derived table's
+  // materialization. Therefore, if there are window functions we cannot push
+  // to HAVING, and if there is GROUP BY we cannot push to WHERE.
+  // See also Item_field::check_column_from_derived_table.
+  if (!(used_tables() & RAND_TABLE_BIT)) return false;
+  TABLE_LIST *tl = pointer_cast<TABLE_LIST *>(arg);
+  SELECT_LEX *select = tl->derived_unit()->first_select();
+  return !select->m_windows.is_empty();
+}
+
+bool Item_func::check_column_in_group_by(uchar *arg) {
+  if (!(used_tables() & RAND_TABLE_BIT)) return false;
+  TABLE_LIST *tl = pointer_cast<TABLE_LIST *>(arg);
+  SELECT_LEX *select = tl->derived_unit()->first_select();
+  return select->is_grouped();
+}
+
 /**
   Return new Item_field if given expression matches GC
 

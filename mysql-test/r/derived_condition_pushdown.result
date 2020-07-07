@@ -718,24 +718,35 @@ EXPLAIN
             -> Index scan on t1 using f1  (cost=*** rows=***)
 
 EXPLAIN FORMAT=tree SELECT * FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1) as dt
-WHERE f1 > 3*rand();
+WHERE f1 > 3*RAND() AND f1 < 10;
 EXPLAIN
--> Filter: (dt.f1 > (3 * rand()))
-    -> Table scan on dt  (cost=*** rows=***)
-        -> Materialize
+-> Table scan on dt  (cost=*** rows=***)
+    -> Materialize
+        -> Filter: (t1.f1 > (3 * rand()))
             -> Group aggregate: sum(t1.f2)
-                -> Index scan on t1 using f1_2  (cost=*** rows=***)
+                -> Filter: (t1.f1 < 10)  (cost=*** rows=***)
+                    -> Index range scan on t1 using f1_2  (cost=*** rows=***)
 
 EXPLAIN FORMAT=tree SELECT * FROM
 (SELECT f1, SUM(f2) OVER(PARTITION BY f1) FROM t1) as dt
-WHERE f1 > 3*rand();
+WHERE f1 > 3*RAND() AND f1 < 10;
 EXPLAIN
 -> Filter: (dt.f1 > (3 * rand()))
     -> Table scan on dt  (cost=*** rows=***)
         -> Materialize
             -> Window aggregate with buffering: sum(t1.f2) OVER (PARTITION BY t1.f1 ) 
                 -> Sort: t1.f1  (cost=*** rows=***)
-                    -> Index scan on t1 using f1_2
+                    -> Filter: (t1.f1 < 10)  (cost=*** rows=***)
+                        -> Index range scan on t1 using f1_2  (cost=*** rows=***)
+
+EXPLAIN FORMAT=tree SELECT * FROM
+(SELECT f1 FROM t1) as dt
+WHERE f1 > 3*RAND() AND f1<10;
+EXPLAIN
+-> Table scan on dt  (cost=*** rows=***)
+    -> Materialize  (cost=*** rows=***)
+        -> Filter: ((t1.f1 > (3 * rand())) and (t1.f1 < 10))  (cost=*** rows=***)
+            -> Index range scan on t1 using f1  (cost=*** rows=***)
 
 EXPLAIN FORMAT=tree SELECT f1
 FROM (SELECT f1 FROM t1 UNION SELECT f2 FROM t1) as dt
@@ -788,15 +799,18 @@ DECLARE retn INTEGER;
 SELECT count(f1) FROM t1 INTO retn;
 RETURN retn;
 END|
-EXPLAIN FORMAT=tree SELECT * FROM (SELECT * FROM t1) as dt WHERE p() = 1;
+EXPLAIN FORMAT=tree SELECT * FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1) as dt
+WHERE p() = 1;
 EXPLAIN
--> Filter: (p() = 1)  (cost=*** rows=***)
-    -> Table scan on dt  (cost=*** rows=***)
-        -> Materialize  (cost=*** rows=***)
-            -> Table scan on t1  (cost=*** rows=***)
+-> Table scan on dt  (cost=*** rows=***)
+    -> Materialize
+        -> Filter: (p() = 1)
+            -> Group aggregate: sum(t1.f2)
+                -> Index scan on t1 using f1_2  (cost=*** rows=***)
 
-SELECT * FROM (SELECT * FROM t1) as dt WHERE p() = 1;
-f1	f2	f3
+SELECT * FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1) as dt
+WHERE p() = 1;
+f1	SUM(f2)
 DROP FUNCTION p;
 CREATE FUNCTION p() RETURNS INTEGER DETERMINISTIC
 BEGIN
@@ -804,15 +818,18 @@ DECLARE retn INTEGER;
 SELECT count(f1) FROM t1 INTO retn;
 RETURN retn;
 END|
-EXPLAIN FORMAT=tree SELECT * FROM (SELECT * FROM t1) as dt WHERE p() = 1;
+EXPLAIN FORMAT=tree SELECT * FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1) as dt
+WHERE p() = 1;
 EXPLAIN
 -> Table scan on dt  (cost=*** rows=***)
-    -> Materialize  (cost=*** rows=***)
-        -> Filter: <cache>((p() = 1))  (cost=*** rows=***)
-            -> Table scan on t1  (cost=*** rows=***)
+    -> Materialize
+        -> Group aggregate: sum(t1.f2)
+            -> Filter: <cache>((p() = 1))  (cost=*** rows=***)
+                -> Index scan on t1 using f1_2  (cost=*** rows=***)
 
-SELECT * FROM (SELECT * FROM t1) as dt WHERE p() = 1;
-f1	f2	f3
+SELECT * FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1) as dt
+WHERE p() = 1;
+f1	SUM(f2)
 DROP FUNCTION p;
 CREATE PROCEDURE p()
 BEGIN
