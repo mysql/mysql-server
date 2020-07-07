@@ -2195,9 +2195,9 @@ class SELECT_LEX {
   bool transform_grouped_to_derived(THD *thd, bool *break_off);
   bool replace_subquery_in_expr(THD *thd, Item_singlerow_subselect *subquery,
                                 TABLE_LIST *tr, Item **expr);
-  bool nest_derived(THD *thd, Item *join_cond,
-                    mem_root_deque<TABLE_LIST *> *join_list,
-                    TABLE_LIST *new_derived_table);
+  TABLE_LIST *nest_derived(THD *thd, Item *join_cond,
+                           mem_root_deque<TABLE_LIST *> *join_list,
+                           TABLE_LIST *new_derived_table);
 
   bool resolve_table_value_constructor_values(THD *thd);
 
@@ -4532,7 +4532,4 @@ bool accept_for_order(SQL_I_List<ORDER> orders, Select_lex_visitor *visitor);
 bool accept_table(TABLE_LIST *t, Select_lex_visitor *visitor);
 bool accept_for_join(mem_root_deque<TABLE_LIST *> *tables,
                      Select_lex_visitor *visitor);
-TABLE_LIST *nest_join(THD *thd, SELECT_LEX *select, TABLE_LIST *embedding,
-                      mem_root_deque<TABLE_LIST *> *jlist, size_t table_cnt,
-                      const char *legend);
 #endif /* SQL_LEX_INCLUDED */
