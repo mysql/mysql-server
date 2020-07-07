@@ -186,6 +186,8 @@ SHOW TRIGGERS FROM db_datadict;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
 trg1	INSERT	t1	SET @test_before = 2, new.f1 = @test_before	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	testuser1@localhost	utf8mb4	utf8mb4_0900_ai_ci	latin1_swedish_ci
 DROP USER 'testuser1'@'localhost';
+Warnings:
+Warning	4005	User 'testuser1'@'localhost' is referenced as a definer account in a trigger.
 DROP USER 'testuser2'@'localhost';
 DROP USER 'testuser3'@'localhost';
 DROP USER 'testuser4'@'localhost';

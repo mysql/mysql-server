@@ -2619,6 +2619,8 @@ DROP TABLE t1;
 # BUG#25185947 -- issues with renaming root user
 #
 RENAME USER root@localhost TO master@localhost;
+Warnings:
+Warning	4005	User 'root'@'localhost' is referenced as a definer account in a procedure.
 FLUSH PRIVILEGES;
 # Without patch, SHOW DATABASES returns error ERROR 1449 (HY000):
 # The user specified as a definer ('root'@'localhost') does not exist
@@ -2631,6 +2633,8 @@ performance_schema
 sys
 test
 RENAME USER master@localhost TO root@localhost;
+Warnings:
+Warning	4005	User 'root'@'localhost' is referenced as a definer account in a procedure.
 FLUSH PRIVILEGES;
 #
 # Bug#27041452 assertion

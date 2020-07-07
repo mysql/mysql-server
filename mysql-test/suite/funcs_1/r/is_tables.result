@@ -162,6 +162,8 @@ tb3
 v3
 # Close connection testuser1, testuser2, testuser3
 DROP USER 'testuser1'@'localhost';
+Warnings:
+Warning	4005	User 'testuser1'@'localhost' is referenced as a definer account in a view.
 DROP USER 'testuser2'@'localhost';
 DROP USER 'testuser3'@'localhost';
 DROP DATABASE db_datadict;

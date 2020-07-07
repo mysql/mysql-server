@@ -741,6 +741,8 @@ GRANT SELECT ON db17254.t1 TO inv_17254@localhost;
 GRANT CREATE VIEW ON db17254.* TO def_17254@localhost;
 CREATE VIEW v1 AS SELECT * FROM t1;
 DROP USER def_17254@localhost;
+Warnings:
+Warning	4005	User 'def_17254'@'localhost' is referenced as a definer account in a view.
 for a user
 SELECT * FROM v1;
 ERROR 42000: SELECT command denied to user 'inv_17254'@'localhost' for table 'v1'
@@ -854,6 +856,8 @@ SHOW CREATE VIEW v2;
 View	Create View	character_set_client	collation_connection
 v2	CREATE ALGORITHM=UNDEFINED DEFINER=`u29908_1`@`localhost` SQL SECURITY INVOKER VIEW `v2` AS select `t1`.`f1` AS `f1` from `t1`	utf8mb4	utf8mb4_0900_ai_ci
 DROP USER u29908_1@localhost;
+Warnings:
+Warning	4005	User 'u29908_1'@'localhost' is referenced as a definer account in a view.
 DROP USER u29908_2@localhost;
 DROP DATABASE mysqltest_29908;
 #######################################################################
@@ -1155,6 +1159,8 @@ explain select * from v1;
 ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
 ... as root again at last: clean-up time!
 drop user alice@localhost;
+Warnings:
+Warning	4005	User 'alice'@'localhost' is referenced as a definer account in a view.
 drop user bob@localhost;
 drop user cecil@localhost;
 drop user dan@localhost;
@@ -1429,6 +1435,8 @@ v_mysqluser1_v1	CREATE ALGORITHM=UNDEFINED DEFINER=`mysqluser1`@`localhost` SQL 
 Warnings:
 Warning	1356	View 'mysqltest2.v_mysqluser1_v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 DROP USER mysqluser1@localhost;
+Warnings:
+Warning	4005	User 'mysqluser1'@'localhost' is referenced as a definer account in a view.
 DROP DATABASE mysqltest1;
 DROP DATABASE mysqltest2;
 USE test;
@@ -2581,6 +2589,8 @@ REVOKE SELECT(cs) ON test1.t1 FROM user1@localhost;
 SELECT cs FROM test1.v1_multi;
 ERROR HY000: View 'test1.v1_multi' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 DROP USER user1@localhost;
+Warnings:
+Warning	4005	User 'user1'@'localhost' is referenced as a definer account in a view.
 DROP DATABASE test1;
 #
 # Bug#20032855 STRICT MODE REVEALS UNDERLYING PRIVILEGE ERROR
@@ -2681,6 +2691,8 @@ SELECT DEFINER FROM information_schema.VIEWS WHERE TABLE_NAME='silly_view';
 DEFINER
 user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
 DROP USER user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
+Warnings:
+Warning	4005	User 'user_name_robert_golebiowski'@'oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char' is referenced as a definer account in a view.
 DROP VIEW silly_view;
 DROP TABLE silly_one;
 #
@@ -2724,5 +2736,7 @@ disconnect con1;
 connection default;
 DROP USER `u1`@`localhost`;
 DROP USER `u2`@`localhost`;
+Warnings:
+Warning	4005	User 'u2'@'localhost' is referenced as a definer account in a view.
 DROP VIEW v1;
 DROP TABLE t1;

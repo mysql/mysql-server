@@ -361,6 +361,8 @@ TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE
 db_datadict	v2	VIEW
 # Switch to connection default and close connections testuser1 and testuser2
 DROP USER 'testuser1'@'localhost';
+Warnings:
+Warning	4005	User 'testuser1'@'localhost' is referenced as a definer account in a view.
 DROP USER 'testuser2'@'localhost';
 DROP DATABASE db_datadict;
 #########################################################################

@@ -609,7 +609,6 @@ SELECT COUNT(*) > 0 AS "Expect 1" FROM events_test.event_log;
 Expect 1
 1
 connection default;
-DROP USER evtest1@localhost;
 Sleep 4 seconds
 SELECT COUNT(*) INTO @row_cnt FROM events_test.event_log;
 Sleep 4 seconds
@@ -617,6 +616,7 @@ SELECT COUNT(*) > @row_cnt AS "Expect 0" FROM events_test.event_log;
 Expect 0
 0
 DROP EVENT events_test.ev_sched_1823;
+DROP USER evtest1@localhost;
 DROP TABLE events_test.event_log;
 SET GLOBAL event_scheduler = OFF;
 SET @@session.autocommit = @save_session_autocommit;

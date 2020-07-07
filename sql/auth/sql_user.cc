@@ -59,6 +59,13 @@
 #include "sql/auth/auth_common.h"
 #include "sql/auth/dynamic_privilege_table.h"
 #include "sql/auth/sql_security_ctx.h"
+#include "sql/dd/cache/dictionary_client.h"
+#include "sql/dd/types/function.h"   // dd::Function
+#include "sql/dd/types/procedure.h"  // dd::Procedure
+#include "sql/dd/types/routine.h"
+#include "sql/dd/types/table.h"    // dd::Table
+#include "sql/dd/types/trigger.h"  // dd::Trigger
+#include "sql/dd/types/view.h"
 #include "sql/debug_sync.h"  // DEBUG_SYNC
 #include "sql/field.h"
 #include "sql/handler.h"
@@ -2058,6 +2065,153 @@ end:
   return result;
 }
 
+/**
+  This function checks if a user which is referenced as a definer account
+  in objects like view, trigger, event, procedure or function has SET_USER_ID
+  privilege or not and report error or warning based on that.
+
+  @param thd               The current thread
+  @param user_name         user name which is referenced as a definer account
+  @param object_type       Can be a view, trigger, event, procedure or function
+
+  @retval false      user_name has SET_USER_ID privilege
+  @retval true       user_name does not have SET_USER_ID privilege
+*/
+bool check_set_user_id_priv(THD *thd, const LEX_USER *user_name,
+                            const std::string &object_type) {
+  String wrong_user;
+  std::string operation;
+  switch (thd->lex->sql_command) {
+    case SQLCOM_CREATE_USER:
+      operation = "CREATE USER";
+      break;
+    case SQLCOM_DROP_USER:
+      operation = "DROP USER";
+      break;
+    case SQLCOM_RENAME_USER:
+      operation = "RENAME USER";
+      break;
+    default:
+      DBUG_ASSERT(0);
+  }
+  log_user(thd, &wrong_user, const_cast<LEX_USER *>(user_name), false);
+  if (!(thd->security_context()
+            ->has_global_grant(STRING_WITH_LEN("SET_USER_ID"))
+            .first)) {
+    my_error(ER_CANNOT_USER_REFERENCED_AS_DEFINER, MYF(0), operation.c_str(),
+             wrong_user.c_ptr_safe(), object_type.c_str());
+    return true;
+  } else {
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_USER_REFERENCED_AS_DEFINER,
+                        ER_THD(thd, ER_USER_REFERENCED_AS_DEFINER),
+                        wrong_user.c_ptr_safe(), object_type.c_str());
+    return false;
+  }
+}
+
+/**
+  Check if CREATE/RENAME/DROP USER should be allowed or not by checking
+  if user is referenced as definer in stored programs like procedure,
+  functions, triggers, events and views or not.
+
+  @param thd               The current thread.
+  @param list              The users to check for.
+
+  @retval false      OK
+  @retval true       Error
+*/
+static bool check_orphaned_definers(THD *thd, List<LEX_USER> &list) {
+  if (list.is_empty()) {
+    DBUG_ASSERT(0);
+    return false;
+  }
+  LEX_USER *user_name;
+  List_iterator<LEX_USER> user_list(list);
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  // Fetch all Schemas
+  std::vector<const dd::Schema *> schemas;
+  if (thd->dd_client()->fetch_global_components(&schemas)) return true;
+
+  // iterate over each user to check if it is referenced in other objects.
+  while ((user_name = user_list++) != nullptr) {
+    std::string user(user_name->user.str, user_name->user.length);
+    std::string host(user_name->host.str, user_name->host.length);
+    for (const dd::Schema *schema_obj : schemas) {
+      // Fetch all events in a schema
+      std::vector<const dd::Event *> events;
+      if (thd->dd_client()->fetch_schema_components(schema_obj, &events))
+        return true;
+      for (const dd::Event *event_obj : events) {
+        if (user.compare(event_obj->definer_user().c_str()) == 0) {
+          if (host.compare(event_obj->definer_host().c_str()) == 0) {
+            return check_set_user_id_priv(thd, user_name,
+                                          std::string("an event"));
+          } else
+            continue;
+        }
+      }
+
+      std::vector<const dd::View *> views;
+      if (thd->dd_client()->fetch_schema_components(schema_obj, &views))
+        return true;
+      for (const dd::View *view_obj : views) {
+        /* skip system views like IS.TABLES, IS.VIEWS etc */
+        if (view_obj->is_system_view()) continue;
+        if (user.compare(view_obj->definer_user().c_str()) == 0) {
+          if (host.compare(view_obj->definer_host().c_str()) == 0) {
+            return check_set_user_id_priv(thd, user_name,
+                                          std::string("a view"));
+          } else
+            continue;
+        }
+      }
+
+      std::vector<const dd::Routine *> routines;
+      if (thd->dd_client()->fetch_schema_components(schema_obj, &routines))
+        return true;
+      for (const dd::Routine *routine_obj : routines) {
+        if (user.compare(routine_obj->definer_user().c_str()) == 0) {
+          if (host.compare(routine_obj->definer_host().c_str()) == 0) {
+            return check_set_user_id_priv(thd, user_name,
+                                          std::string("a procedure"));
+          } else
+            continue;
+        }
+      }
+
+      std::vector<const dd::Function *> functions;
+      if (thd->dd_client()->fetch_schema_components(schema_obj, &functions))
+        return true;
+      for (const dd::Function *function_obj : functions) {
+        if (user.compare(function_obj->definer_user().c_str()) == 0) {
+          if (host.compare(function_obj->definer_host().c_str()) == 0) {
+            return check_set_user_id_priv(thd, user_name,
+                                          std::string("a function"));
+          } else
+            continue;
+        }
+      }
+
+      std::vector<const dd::Table *> tables;
+      if (thd->dd_client()->fetch_schema_components(schema_obj, &tables))
+        return true;
+      for (const dd::Table *table_obj : tables) {
+        for (const dd::Trigger *trigger_obj : table_obj->triggers()) {
+          if (user.compare(trigger_obj->definer_user().c_str()) == 0) {
+            if (host.compare(trigger_obj->definer_host().c_str()) == 0) {
+              return check_set_user_id_priv(thd, user_name,
+                                            std::string("a trigger"));
+            } else
+              continue;
+          }
+        }
+      }
+    }
+  }
+  return false;
+}
+
 /*
   Create a list of users.
 
@@ -2088,6 +2242,8 @@ bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,
   Userhostpassword_list generated_passwords;
   DBUG_TRACE;
 
+  /* check if CREATE user is allowed on this user list or not. */
+  if (check_orphaned_definers(thd, list)) return true;
   /*
     This statement will be replicated as a statement, even when using
     row-based replication.  The binlog state will be cleared here to
@@ -2354,6 +2510,9 @@ bool mysql_drop_user(THD *thd, List<LEX_USER> &list, bool if_exists,
   std::set<LEX_USER *> audit_users;
   DBUG_TRACE;
 
+  /* check if DROP user is allowed on this user list or not. */
+  if (check_orphaned_definers(thd, list)) return true;
+
   /*
     Make sure that none of the authids we're about to drop is used as a
     mandatory role. Mandatory roles needs to be disabled first before the
@@ -2523,6 +2682,8 @@ bool mysql_rename_user(THD *thd, List<LEX_USER> &list) {
     }
   }
 
+  /* check if RENAME user is allowed on this user list or not. */
+  if (check_orphaned_definers(thd, list)) return true;
   /*
     This statement will be replicated as a statement, even when using
     row-based replication.  The binlog state will be cleared here to

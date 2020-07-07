@@ -285,5 +285,7 @@ SET @@global.partial_revokes = @start_partial_revokes;
 # Cleanup.
 
 DROP USER usr_no_priv@localhost, usr_show_routine@localhost, usr_definer@localhost, usr_role@localhost, usr_create_routine@localhost, usr_alter_routine@localhost, usr_execute@localhost;
+Warnings:
+Warning	4005	User 'usr_definer'@'localhost' is referenced as a definer account in a procedure.
 DROP ROLE role_show_routine;
 DROP SCHEMA testdb;

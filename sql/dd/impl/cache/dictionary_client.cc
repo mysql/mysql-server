@@ -2895,6 +2895,9 @@ template bool Dictionary_client::fetch_schema_components(
 template bool Dictionary_client::fetch_schema_components(
     const Schema *, std::vector<const Routine *> *);
 
+template bool Dictionary_client::fetch_schema_components(
+    const Schema *, std::vector<const Function *> *);
+
 template bool Dictionary_client::fetch_global_components(
     std::vector<const Charset *> *);
 
