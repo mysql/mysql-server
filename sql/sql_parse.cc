@@ -6294,6 +6294,34 @@ TABLE_LIST *SELECT_LEX::end_nested_join() {
 }
 
 /**
+  Plumbing for nest_last_join, q.v.
+*/
+TABLE_LIST *nest_join(THD *thd, SELECT_LEX *select, TABLE_LIST *embedding,
+                      mem_root_deque<TABLE_LIST *> *jlist, size_t table_cnt,
+                      const char *legend) {
+  DBUG_TRACE;
+
+  TABLE_LIST *const ptr = TABLE_LIST::new_nested_join(thd->mem_root, legend,
+                                                      embedding, jlist, select);
+  if (ptr == nullptr) return nullptr;
+
+  mem_root_deque<TABLE_LIST *> *const embedded_list =
+      &ptr->nested_join->join_list;
+
+  for (uint i = 0; i < table_cnt; i++) {
+    TABLE_LIST *table = jlist->front();
+    jlist->pop_front();
+    table->join_list = embedded_list;
+    table->embedding = ptr;
+    embedded_list->push_back(table);
+    if (table->natural_join) ptr->is_natural_join = true;
+  }
+  jlist->push_front(ptr);
+
+  return ptr;
+}
+
+/**
   Nest last join operations.
 
   The function nest last table_cnt join operations as if they were
@@ -6309,26 +6337,8 @@ TABLE_LIST *SELECT_LEX::end_nested_join() {
 */
 
 TABLE_LIST *SELECT_LEX::nest_last_join(THD *thd, size_t table_cnt) {
-  DBUG_TRACE;
-
-  TABLE_LIST *const ptr = TABLE_LIST::new_nested_join(
-      thd->mem_root, "(nest_last_join)", embedding, join_list, this);
-  if (ptr == nullptr) return nullptr;
-
-  mem_root_deque<TABLE_LIST *> *const embedded_list =
-      &ptr->nested_join->join_list;
-
-  for (uint i = 0; i < table_cnt; i++) {
-    TABLE_LIST *table = join_list->front();
-    join_list->pop_front();
-    table->join_list = embedded_list;
-    table->embedding = ptr;
-    embedded_list->push_back(table);
-    if (table->natural_join) ptr->is_natural_join = true;
-  }
-  join_list->push_front(ptr);
-
-  return ptr;
+  return nest_join(thd, this, embedding, join_list, table_cnt,
+                   "(nest_last_join)");
 }
 
 /**

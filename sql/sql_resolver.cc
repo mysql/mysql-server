@@ -5477,28 +5477,8 @@ TABLE_LIST *SELECT_LEX::synthesize_derived(THD *thd, SELECT_LEX_UNIT *unit,
     if (join_cond != nullptr) {
       // impossible if table subquery:
       DBUG_ASSERT(derived_table->m_was_scalar_subquery);
-      // peel off any semi-joins and save
-      mem_root_deque<TABLE_LIST *> sj(thd->mem_root);
-      uint siz = join_list->size();
-      for (uint j = 0; j < siz - 1; j++) {
-        DBUG_ASSERT(join_list->front()->is_sj_nest());
-        sj.push_back(join_list->front());
-        join_list->pop_front();
-      }
-
-      TABLE_LIST *old_nest = join_list->front();
-      DBUG_ASSERT(!old_nest->is_sj_or_aj_nest());
-      join_list->pop_front();
-      DBUG_ASSERT(join_list->size() == 0);
-      TABLE_LIST *new_nest = nest_derived(
-          thd, join_cond, &old_nest->nested_join->join_list, derived_table);
-      if (new_nest == nullptr) return nullptr;
-
-      // add back any semi-joins
-      while (sj.size() > 0) {
-        if (add_joined_table(sj.back())) return nullptr;
-        sj.pop_back();
-      }
+      if (nest_derived(thd, join_cond, join_list, derived_table))
+        return nullptr;
     } else {
       // The derived table is not for a subquery in a join condition
       if (add_joined_table(derived_table)) return nullptr;
@@ -6327,123 +6307,84 @@ static void remember_transform(THD *thd, SELECT_LEX *select) {
   In the original join nest before transformation may look like this
   (the join order list is reversed relative to the logical order):
 
-   (nest_last_join)
+   (nest_join)
       t2  LEFT OUTER        ON .. = ..       (inner table)
       t1                                     (outer table)
 
    After the transformation we have this nest structure:
 
-   (nest_last_join)
+   (nest_join)
       t2 LEFT OUTER         ON  .. = ..
       (nest_last_join)
          derived_1_0 LEFT OUTER ON true
          t1
 
   The method will recursively inspect and rebuild join nests as needed since
-  the join with the condition may be deeply nested. Special treatment
-  for semi-join and anti-join nests is present.
+  the join with the condition may be deeply nested.
 
   @param   thd           the session context
-  @param   join_cond     the join condition which identified the join we want to
+  @param   join_cond     the join condition which identifies the join we want to
                          nest into
   @param   nested_join_list
                          the join list at the current nesting level
   @param   derived_table the table we want to nest
 
-  @returns the new resulting nest, or nullptr on error
+  @returns true on error
 */
-TABLE_LIST *SELECT_LEX::nest_derived(
-    THD *thd, Item *join_cond, mem_root_deque<TABLE_LIST *> *nested_join_list,
-    TABLE_LIST *derived_table) {
-  DBUG_ASSERT(nested_join_list->size() == 2);
-  TABLE_LIST *old_inner = nested_join_list->front();
-  TABLE_LIST *old_outer = nested_join_list->back();
-  nested_join_list->clear();
-
-  if (join_cond == old_inner->join_cond() ||
-      join_cond == old_outer->join_cond()) {
-    // We found the correct join, insert the new derived table
-    if (add_joined_table(old_outer)) return nullptr;
-    if (add_joined_table(derived_table)) return nullptr;
-    if (nest_last_join(thd) == nullptr) return nullptr;
-    if (add_joined_table(old_inner)) return nullptr;
-
-    if (join_cond == old_outer->join_cond()) {
-      // A join condition on the outer table: can happen after another
-      // transform, e.g. merging a single-table view moves view's WHERE to
-      // table's ON. Ok with us, should be safe to put derived table after it.
-      // Just move the join condition up to the resulting (outer) nest.
-      old_outer->set_join_cond(nullptr);
-      join_list->back()->set_join_cond(join_cond);
-    }
-  } else {
-    // We need to look deeper.
-    enum Kind { OUTER = 0, INNER = 1 };
-    TABLE_LIST *new_joinees[2] = {old_outer, old_inner};
-    if (old_inner->is_aj_nest()) {
-      DBUG_ASSERT(std::strcmp(old_outer->alias, "(aj-left-nest)") == 0);
-
-      // peel off any semi-joins and save
-      mem_root_deque<TABLE_LIST *> sj(thd->mem_root);
-      uint siz = old_outer->nested_join->join_list.size();
-      for (uint i = 0; i < siz - 1; i++) {
-        DBUG_ASSERT(old_outer->nested_join->join_list.front()->is_sj_nest());
-        sj.push_back(old_outer->nested_join->join_list.front());
-        old_outer->nested_join->join_list.pop_front();
-      }
-      TABLE_LIST *nest = old_outer->nested_join->join_list.front();
-      old_outer->nested_join->join_list.pop_front();
-
-      TABLE_LIST *new_nest = nest_derived(
-          thd, join_cond, &nest->nested_join->join_list, derived_table);
-      if (new_nest == nullptr) return nullptr;
-      join_list->pop_front();  // undo this, too early
-
-      new_nest->embedding = old_outer;
-      old_outer->nested_join->join_list.push_front(new_nest);
-
-      // add back any semi-joins
-      while (sj.size() > 0) {
-        old_outer->nested_join->join_list.push_front(sj.back());
-        sj.pop_back();
-      }
-    } else {
-      for (auto &tl : new_joinees) {
-        if (tl->nested_join != nullptr &&
-            tl->nested_join->join_list.size() != 1) {
-          TABLE_LIST *new_nest = nest_derived(
-              thd, join_cond, &tl->nested_join->join_list, derived_table);
-          if (new_nest == nullptr) return nullptr;
-          if (tl != new_nest) {
-            // update any references to the old nest to the new one
-            for (auto sj : *sj_candidates)
-              if (sj->embedding_join_nest == tl)
-                sj->embedding_join_nest = new_nest;
-          }
-          tl = new_nest;
-          // eliminate unwanted side effect: we are not ready to set join_list
-          DBUG_ASSERT(join_list->size() == 1);
-          join_list->pop_front();
+bool SELECT_LEX::nest_derived(THD *thd, Item *join_cond,
+                              mem_root_deque<TABLE_LIST *> *nested_join_list,
+                              TABLE_LIST *derived_table) {
+  // Locate join nest in which the joinee with the condition sits
+  const bool found MY_ATTRIBUTE((unused)) = walk_join_list(
+      *nested_join_list,
+      [join_cond, &nested_join_list](TABLE_LIST *tr) mutable -> bool {
+        if (tr->join_cond() == join_cond) {
+          nested_join_list = &tr->embedding->nested_join->join_list;
+          return true;  // break off walk
         }
-      }
+        return false;
+      });
 
-      if (new_joinees[INNER] != old_inner) {
-        // The inner table carries the join information we need to copy over
-        new_joinees[INNER]->set_join_cond(old_inner->join_cond());
-        new_joinees[INNER]->outer_join = old_inner->outer_join;
-        new_joinees[INNER]->straight = old_inner->straight;
-      }
-    }
+  DBUG_ASSERT(found);
 
-    // We have (hopefully ;-) pushed the derived table into a deeper nest, now
-    // rebuild the nest at this level
-    for (auto tl : new_joinees)
-      if (add_joined_table(tl)) return nullptr;
+  // Make a copy of the join list, outer before inner joinees, so we
+  // can rebuild the join_list after inserting the derived table in a nest
+  // with the outer(s)
+  mem_root_deque<TABLE_LIST *> copy_list(*THR_MALLOC);
+  auto &jlist = *nested_join_list;
+  for (auto tl : jlist) copy_list.push_front(tl);
+  jlist.clear();
+
+  auto it = std::find_if(copy_list.begin(), copy_list.end(),
+                         [join_cond](TABLE_LIST *tl) -> bool {
+                           return tl->join_cond() == join_cond;
+                         });
+  DBUG_ASSERT(it != copy_list.end());  // assert that we found it
+  const size_t idx = it - copy_list.begin();
+
+  // Insert back all outer tables to the inner containing the condition.
+  // Normally only one.
+  for (size_t i = 0; i < idx; i++) {
+    jlist.push_front(copy_list[i]);
   }
 
-  return nest_last_join(thd);
-}
+  // Insert the derived table and nest it with the outer(s)
+  jlist.push_front(derived_table);
+  derived_table->join_list = &jlist;
+  derived_table->embedding = copy_list[idx]->embedding;
 
+  if (nest_join(thd, this, copy_list[idx]->embedding, &jlist, idx + 1,
+                "(nest_join)") == nullptr)
+    return true;
+
+  // Insert back the inner containing the JOIN condition and any subsequent
+  // joinees
+  for (size_t i = idx; i < copy_list.size(); i++) {
+    jlist.push_front(copy_list[i]);
+  }
+
+  return false;
+}
 /**
   Converts a subquery to a derived table and inserts it into the FROM
   clause of the owning query block
