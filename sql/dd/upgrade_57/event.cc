@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -534,7 +534,14 @@ static bool migrate_event_to_dd(THD *thd, TABLE *event_table) {
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Schema *schema = nullptr;
   if (thd->dd_client()->acquire(et_parse_data.dbname.str, &schema)) return true;
-  DBUG_ASSERT(schema != nullptr);
+
+  if (schema == nullptr) {
+    // Schema does not exist. Fail with an error indicating the presence of an
+    // orphan event.
+    LogErr(ERROR_LEVEL, ER_UPGRADE_NONEXISTENT_SCHEMA, et_parse_data.dbname.str,
+           "event", et_parse_data.name.str, "events");
+    return true;
+  }
 
   if (dd::create_event(thd, *schema, et_parse_data.name.str, event_body.str,
                        event_body_utf8.str, &user_info, &et_parse_data)) {

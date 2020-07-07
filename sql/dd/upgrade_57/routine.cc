@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -385,11 +385,21 @@ static bool migrate_routine_to_dd(THD *thd, TABLE *proc_table) {
   Disable_autocommit_guard autocommit_guard(thd);
 
   // This function fixes sp_head to use in sp_create_routine()
-  if (db_load_routine(thd, routine_type, sp_db_str.str, sp_db_str.length,
-                      sp_name_str.str, sp_name_str.length, &sp,
-                      thd->variables.sql_mode, params, returns, body, &chistics,
-                      definer_user_name_holder, definer_host_name_holder,
-                      created, modified, creation_ctx)) {
+  enum_sp_return_code sp_ret_code = db_load_routine(
+      thd, routine_type, sp_db_str.str, sp_db_str.length, sp_name_str.str,
+      sp_name_str.length, &sp, thd->variables.sql_mode, params, returns, body,
+      &chistics, definer_user_name_holder, definer_host_name_holder, created,
+      modified, creation_ctx);
+
+  if (sp_ret_code != SP_OK) {
+    if (sp_ret_code == SP_NO_DB_ERROR) {
+      // Schema does not exist. Fail with an error indicating the presence of an
+      // orphan routine.
+      LogErr(ERROR_LEVEL, ER_UPGRADE_NONEXISTENT_SCHEMA, sp_db_str.str,
+             "routine", sp_name_str.str, "routines");
+      goto err;
+    }
+
     /*
       Parsing of routine body failed. Use empty routine body and report a
       warning if the routine does not belong to sys schema. Sys schema routines

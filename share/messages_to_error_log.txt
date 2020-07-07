@@ -11079,6 +11079,9 @@ ER_ERROR_LOG_DESTINATION_NOT_A_FILE
 ER_NO_ERROR_LOG_PARSER_CONFIGURED
   eng "None of the log-sinks selected with --log-error-services=... provides a log-parser. The server will not be able to make the previous runs' error-logs available in performance_schema.error_log."
 
+ER_UPGRADE_NONEXISTENT_SCHEMA
+  eng "The schema \"%.64s\" referenced by %.16s \"%.128s\" does not exist. Please clean up any orphan %.16s before upgrading."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

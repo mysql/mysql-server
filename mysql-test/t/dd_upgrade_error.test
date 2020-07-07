@@ -251,6 +251,88 @@ let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
 --force-rmdir $MYSQL_TMP_DIR/data57_upgrade_trigger_order
 
 
+--echo
+--echo # ------------------------------------------------------------------
+--echo # Bug#31335554 8.0 CRASHES ON UPGRADING DATADIR WITH ORPHAN EVENTS
+--echo # ------------------------------------------------------------------
+
+
+--echo
+--echo # Testcase 1: Upgrading with orphan event should fail with an error.
+
+--echo
+--echo # Copy the 5.7 data zip file to working directory.
+--copy_file $MYSQLTEST_VARDIR/std_data/upgrade/data_57_orphan_event.zip $MYSQL_TMP_DIR/data_57_orphan_event.zip
+
+--echo # Check that the zip file exists in the working directory.
+--file_exists $MYSQL_TMP_DIR/data_57_orphan_event.zip
+
+--echo # Unzip 5.7 data directory.
+--exec unzip -qo $MYSQL_TMP_DIR/data_57_orphan_event.zip -d $MYSQL_TMP_DIR/data_57_orphan_event
+
+--echo # Set data directory to the 5.7 data directory.
+--let $MYSQLD_DATADIR1= $MYSQL_TMP_DIR/data_57_orphan_event/db
+
+--echo # Set log directory.
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/data_57_orphan_event.log
+
+--replace_result $MYSQLD MYSQLD $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQLD_LOG MYSQLD_LOG
+
+--echo # Start server to trigger upgrade.
+--echo # Upgrade will fail due to presence of orphan event.
+--error 1
+--exec $MYSQLD --no-defaults $extra_args --innodb_dedicated_server=OFF --secure-file-priv="" --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR1
+
+--echo
+--echo # Should find this error in the log.
+--let SEARCH_FILE= $MYSQLD_LOG
+--let SEARCH_PATTERN= The schema "the_cake_is_a_lie" referenced by event "e1" does not exist\. Please clean up any orphan events before upgrading\.
+--source include/search_pattern.inc
+
+--echo
+--echo # Cleanup.
+--remove_file $MYSQL_TMP_DIR/data_57_orphan_event.zip
+--force-rmdir $MYSQL_TMP_DIR/data_57_orphan_event
+
+--echo
+--echo # Testcase 2: Upgrading with orphan routine should fail with an error.
+
+--echo
+--echo # Copy the 5.7 data zip file to working directory.
+--copy_file $MYSQLTEST_VARDIR/std_data/upgrade/data_57_orphan_routine.zip $MYSQL_TMP_DIR/data_57_orphan_routine.zip
+
+--echo # Check that the zip file exists in the working directory.
+--file_exists $MYSQL_TMP_DIR/data_57_orphan_routine.zip
+
+--echo # Unzip 5.7 data directory.
+--exec unzip -qo $MYSQL_TMP_DIR/data_57_orphan_routine.zip -d $MYSQL_TMP_DIR/data_57_orphan_routine
+
+--echo # Set data directory to the 5.7 data directory.
+--let $MYSQLD_DATADIR1= $MYSQL_TMP_DIR/data_57_orphan_routine/db
+
+--echo # Set log directory.
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/data_57_orphan_routine.log
+
+--replace_result $MYSQLD MYSQLD $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQLD_LOG MYSQLD_LOG
+
+--echo # Start server to trigger upgrade.
+--echo # Upgrade will fail due to presence of orphan routine.
+--error 1
+--exec $MYSQLD --no-defaults $extra_args --innodb_dedicated_server=OFF --secure-file-priv="" --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR1
+
+--echo
+--echo # Should find this error in the log.
+--let SEARCH_FILE= $MYSQLD_LOG
+--let SEARCH_PATTERN= The schema "xyz" referenced by routine "p1" does not exist\. Please clean up any orphan routines before upgrading\.
+--source include/search_pattern.inc
+
+--echo
+--echo # Cleanup.
+--remove_file $MYSQL_TMP_DIR/data_57_orphan_routine.zip
+--force-rmdir $MYSQL_TMP_DIR/data_57_orphan_routine
+--echo
+
+
 --echo # ------------------------------------------------------------------
 --echo # End-of-test cleanup.
 --echo # ------------------------------------------------------------------
