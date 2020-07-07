@@ -533,7 +533,6 @@ DROP USER 'u1'@'%';
 Warnings:
 Warning	4005	User 'u1'@'%' is referenced as a definer account in a view.
 FLUSH PRIVILEGES;
-Pattern "\[NOTE\] \(1449\) The user specified as a definer \('u1'@'%'\) does not exist" found
 Pattern "\[ERROR\] \(1449\) The user specified as a definer \('u1'@'%'\) does not exist" found
 CREATE USER 'u1'@'%' IDENTIFIED BY 'abc';
 Warnings:
