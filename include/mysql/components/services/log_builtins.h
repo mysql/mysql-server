@@ -41,6 +41,7 @@
 #endif
 #include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
 
 #include <my_compiler.h>
 #if defined(MYSQL_SERVER) && !defined(MYSQL_DYNAMIC_PLUGIN)
@@ -1371,10 +1372,15 @@ inline void LogEvent::set_message(const char *fmt, va_list ap) {
   if ((ll != nullptr) && (msg != nullptr)) {
     char buf[LOG_BUFF_MAX];
     if (msg_tag != nullptr) {
-      snprintf(buf, LOG_BUFF_MAX - 1, "%s: \'%s\'", msg_tag, fmt);
+      snprintf(buf, LOG_BUFF_MAX, "%s: \'%s\'", msg_tag, fmt);
       fmt = buf;
     }
-    size_t len = log_msg(msg, LOG_BUFF_MAX - 1, fmt, ap);
+    size_t len = log_msg(msg, LOG_BUFF_MAX, fmt, ap);
+    if (len >= LOG_BUFF_MAX) {
+      const char ellipsis[] = " <...>";
+      len = LOG_BUFF_MAX - 1;
+      strcpy(&msg[LOG_BUFF_MAX - sizeof(ellipsis)], ellipsis);
+    }
     log_set_lexstring(log_line_item_set(this->ll, LOG_ITEM_LOG_MESSAGE), msg,
                       len);
   }
