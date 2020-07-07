@@ -9,6 +9,12 @@
 select @@global.performance_schema_show_processlist into @save_processlist;
 
 --echo
+--echo # Control user
+create user user0@localhost;
+grant ALL on *.* to user0@localhost;
+
+--echo # Test users
+--echo
 create user user1@localhost, user2@localhost,
             user3@localhost, user4@localhost;
 --echo
@@ -23,6 +29,9 @@ flush privileges;
 show grants for user1@localhost;
 
 --echo
+--echo # Connect (con_user0, localhost, user0, , )
+connect (con_user0, localhost, user0, , );
+
 --echo # Connect (con_user1, localhost, user1, , )
 connect (con_user1, localhost, user1, , );
 
@@ -40,15 +49,10 @@ connect (con_user4, localhost, user4, , );
 --echo ### Compare the SHOW PROCESSLIST Host column between the new and old implementations
 --echo
 --echo ## New SHOW PROCESSLIST
---connection default
-set @@global.performance_schema_show_processlist = 1;
-
---echo
-# 1 <Id> 2 <User> 3 <Host> 4 <db> 5 <Command> 6 <Time> 7 <State> 8 <Info>
---replace_column 1 <Id> 3 <Host> 6 <Time> 7 <State>
---replace_regex /Waiting on empty queue/WAITING/ /Waiting for next activation/WAITING/ /Daemon/<Command>/ /Connect/<Command>/
---sorted_result
-SHOW FULL PROCESSLIST;
+--connection con_user0
+let $pfs_spl = on;
+--source ../include/processlist_set.inc
+--source ../include/processlist_load.inc
 
 --echo
 --echo # Connection user1
@@ -59,13 +63,10 @@ let $host_new = query_get_value(SHOW FULL PROCESSLIST, Host, 1);
 
 --echo
 --echo ## Legacy SHOW PROCESSLIST
---connection default
-set @@global.performance_schema_show_processlist = 0;
---echo
---replace_column 1 <Id> 3 <Host> 6 <Time> 7 <State>
---replace_regex /Waiting on empty queue/WAITING/ /Waiting for next activation/WAITING/ /Daemon/<Command>/ /Connect/<Command>/
---sorted_result
-SHOW FULL PROCESSLIST;
+--connection con_user0
+let $pfs_spl = off;
+--source ../include/processlist_set.inc
+--source ../include/processlist_load.inc
 
 --echo
 --echo # Connection user1
@@ -89,8 +90,8 @@ if ($host_new != $host_old)
 --echo
 --echo ### Compare the processlist  Host column between Performance Schema and the Information Schema
 --echo
---echo # Connection default
---connection default
+--echo # Connection con_user0
+--connection con_user0
 let $count_new = `select count(*) from performance_schema.processlist`;
 let $count_old = `select count(*) from information_schema.processlist`;
 let $count_join = `select count(*) from performance_schema.processlist pspl
@@ -121,6 +122,9 @@ if ($count_old != $count_join)
 --echo ### Clean up ###
 --echo
 
+--echo # Disconnect con_user0
+--connection con_user0
+--disconnect con_user0
 --echo # Disconnect con_user1
 --connection con_user1
 --disconnect con_user1
@@ -137,6 +141,7 @@ if ($count_old != $count_join)
 --echo # Connection default
 --connection default
 --echo
+drop user user0@localhost;
 drop user user1@localhost;
 drop user user2@localhost;
 drop user user3@localhost;

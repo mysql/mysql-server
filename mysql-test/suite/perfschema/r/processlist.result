@@ -60,8 +60,8 @@ set @@global.performance_schema_show_processlist = on;
 SHOW FULL PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
 <Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
 <Id>	root	<Host>	test	Query	<Time>	<State>	SHOW FULL PROCESSLIST
-<Id>	root	<Host>	test	Sleep	<Time>	<State>	NULL
 <Id>	user1	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)
 <Id>	user2	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2, s3 = s3 + 3, s4 = ((s4 + 4) * (s4 + 5)) + 12345 + 67890 + 11111 + 22222 + 33333 + 44444 + 55555 + 99999
 <Id>	user3	<Host>	test	Query	<Time>	<State>	delete from test.t1 where s1 = 3
@@ -73,7 +73,7 @@ select * from performance_schema.processlist order by user, id;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 <Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
 <Id>	root	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id
-<Id>	root	<Host>	test	Sleep	<Time>	<State>	NULL
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
 <Id>	user1	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)
 <Id>	user2	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2, s3 = s3 + 3, s4 = ((s4 + 4) * (s4 + 5)) + 12345 + 67890 + 11111 + 22222 + 33333 + 44444 + 55555 + 99999
 <Id>	user3	<Host>	test	Query	<Time>	<State>	delete from test.t1 where s1 = 3
@@ -85,7 +85,7 @@ select * from information_schema.processlist order by user, id;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 <Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
 <Id>	root	<Host>	test	Query	<Time>	<State>	select * from information_schema.processlist order by user, id
-<Id>	root	<Host>	test	Sleep	<Time>	<State>	NULL
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
 <Id>	user1	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)
 <Id>	user2	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2, s3 = s3 + 3, s4 = ((s4 + 4) * (s4 + 5)) + 12345 + 67890 + 11111 + 22222 + 33333 + 44444 + 55555 + 99999
 <Id>	user3	<Host>	test	Query	<Time>	<State>	delete from test.t1 where s1 = 3
@@ -99,8 +99,8 @@ set @@global.performance_schema_show_processlist = off;
 SHOW FULL PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
 <Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
 <Id>	root	<Host>	test	Query	<Time>	<State>	SHOW FULL PROCESSLIST
-<Id>	root	<Host>	test	Sleep	<Time>	<State>	NULL
 <Id>	user1	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)
 <Id>	user2	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2, s3 = s3 + 3, s4 = ((s4 + 4) * (s4 + 5)) + 12345 + 67890 + 11111 + 22222 + 33333 + 44444 + 55555 + 99999
 <Id>	user3	<Host>	test	Query	<Time>	<State>	delete from test.t1 where s1 = 3
@@ -112,7 +112,7 @@ select * from performance_schema.processlist order by user, id;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 <Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
 <Id>	root	<Host>	test	Query	<Time>	<State>	select * from performance_schema.processlist order by user, id
-<Id>	root	<Host>	test	Sleep	<Time>	<State>	NULL
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
 <Id>	user1	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)
 <Id>	user2	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2, s3 = s3 + 3, s4 = ((s4 + 4) * (s4 + 5)) + 12345 + 67890 + 11111 + 22222 + 33333 + 44444 + 55555 + 99999
 <Id>	user3	<Host>	test	Query	<Time>	<State>	delete from test.t1 where s1 = 3
@@ -124,7 +124,7 @@ select * from information_schema.processlist order by user, id;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 <Id>	event_scheduler	<Host>	NULL	<Command>	<Time>	<State>	NULL
 <Id>	root	<Host>	test	Query	<Time>	<State>	select * from information_schema.processlist order by user, id
-<Id>	root	<Host>	test	Sleep	<Time>	<State>	NULL
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	NULL
 <Id>	user1	<Host>	test	Query	<Time>	<State>	insert into test.t1 values (0, 0, 0, 0)
 <Id>	user2	<Host>	test	Query	<Time>	<State>	update test.t1 set s1 = s1 + 1, s2 = s2 + 2, s3 = s3 + 3, s4 = ((s4 + 4) * (s4 + 5)) + 12345 + 67890 + 11111 + 22222 + 33333 + 44444 + 55555 + 99999
 <Id>	user3	<Host>	test	Query	<Time>	<State>	delete from test.t1 where s1 = 3
