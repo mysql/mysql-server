@@ -19,8 +19,14 @@
 select @@global.performance_schema_show_processlist into @save_processlist;
 
 --echo
-create user user_all@localhost, user_none@localhost;
+--echo # Control users
+create user user_00@localhost, user_01@localhost;
+grant ALL   on *.* to user_00@localhost;
+grant ALL   on *.* to user_01@localhost;
+
 --echo
+--echo # Test users
+create user user_all@localhost, user_none@localhost;
 grant ALL   on *.* to user_all@localhost;
 grant USAGE on *.* to user_none@localhost;
 --echo
@@ -36,8 +42,11 @@ use test;
 create table test.t1 (s1 int, s2 int, s3 int, s4 int);
 
 --echo
---echo # Connect (con0, localhost, root, , )
-connect (con0, localhost, root, , );
+--echo # Connect (con_00, localhost, user_00, , )
+connect (con_00, localhost, user_00, , );
+
+--echo # Connect (con_01, localhost, user_01, , )
+connect (con_01, localhost, user_01, , );
 --echo
 insert into test.t1 values(1, 1, 1, 1);
 insert into test.t1 values(2, 2, 2, 2);
@@ -73,8 +82,8 @@ connect (con_none_4, localhost, user_none, , );
 --send update test.t1 set s1 = s1 + 1, s2 = s2 + 2;
 
 --echo
---echo # Connection default
---connection default
+--echo # Connection con_00
+--connection con_00
 
 --echo
 --echo # Wait for queries to appear in the processlist table
@@ -83,27 +92,25 @@ let $wait_condition = select count(*) >= 2 from information_schema.processlist
 --source include/wait_condition.inc
 
 --echo
+--echo # Connection con_all_1
+--connection con_all_1
+
+# Note: For consistent results on PB2, the setup and execution are conducted
+# from con_all_1 to overwrite Command and Info columns.
+
+--echo
 --echo ### Execute SHOW PROCESSLIST with all privileges
 --echo ### Expect all users
 --echo
 --echo # New SHOW PROCESSLIST
 let $pfs_spl = on;
 --source ../include/processlist_set.inc
-
---echo
---echo # Connection con_all_1
---connection con_all_1
 --source ../include/processlist_load.inc
 
 --echo
 --echo # Legacy SHOW PROCESSLIST
---connection default
 let $pfs_spl = off;
 --source ../include/processlist_set.inc
-
---echo
---echo # Connection con_all_1
---connection con_all_1
 --source ../include/processlist_load.inc
 
 --echo
@@ -112,7 +119,7 @@ let $pfs_spl = off;
 --echo ### Expect processes only from user_none
 --echo
 --echo # New SHOW PROCESSLIST
---connection default
+--connection con_00
 let $pfs_spl = on;
 --source ../include/processlist_set.inc
 
@@ -129,7 +136,7 @@ select count(*) as "Expect 0" from performance_schema.processlist
 
 --echo
 --echo # Legacy SHOW PROCESSLIST
---connection default
+--connection con_00
 let $pfs_spl = off;
 --source ../include/processlist_set.inc
 
@@ -138,16 +145,19 @@ let $pfs_spl = off;
 --connection con_none_1
 --source ../include/processlist_load.inc
 
-
 --echo
 --echo
 --echo ### Clean up ###
 --echo
 
---echo # Connection con0, unlock test.t1, disconnect
---connection con0
+--echo # Disconnect con_00
+--connection con_00
+--disconnect con_00
+
+--echo # Connection con_01, unlock test.t1, disconnect
+--connection con_01
 unlock tables;
---disconnect con0
+--disconnect con_01
 
 --echo # Disconnect con_all_1
 --connection con_all_1
@@ -181,6 +191,8 @@ unlock tables;
 
 --echo
 drop table test.t1;
+drop user user_00@localhost;
+drop user user_01@localhost;
 drop user user_all@localhost;
 drop user user_none@localhost;
 --echo
