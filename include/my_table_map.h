@@ -24,9 +24,7 @@
 #ifndef MY_TABLE_MAP_INCLUDED
 #define MY_TABLE_MAP_INCLUDED
 
-#include "my_dbug.h"
-#include "my_inttypes.h"
-#include "sql/join_optimizer/bit_utils.h"
+#include <stdint.h>
 
 using table_map = uint64_t;    // Used for table bits in join.
 using nesting_map = uint64_t;  // Used for flags of nesting constructs.

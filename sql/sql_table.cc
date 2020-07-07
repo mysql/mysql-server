@@ -108,6 +108,7 @@
 #include "sql/item.h"
 #include "sql/item_timefunc.h"  // Item_func_now_local
 #include "sql/join_optimizer/access_path.h"
+#include "sql/join_optimizer/bit_utils.h"
 #include "sql/key.h"       // KEY
 #include "sql/key_spec.h"  // Key_part_spec
 #include "sql/lock.h"      // mysql_lock_remove, lock_tablespace_names
