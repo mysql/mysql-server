@@ -396,8 +396,8 @@ void Client::on_client_addr() {
 
 void Client::on_accept() {
   DBUG_TRACE;
-  log_debug("%s: Accepted client connection from %s", client_id(),
-            client_address());
+  log_debug("%s: Accepted client connection from %s (sock:%i)", client_id(),
+            client_address(), m_connection->get_fd());
 
   DBUG_EXECUTE_IF("client_accept_timeout", {
     int32_t i = 0;

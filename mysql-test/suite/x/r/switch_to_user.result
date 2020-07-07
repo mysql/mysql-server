@@ -1,0 +1,43 @@
+## I. Reproduce race condition between authenticating session and listing
+#     session:
+# 1. Create X Protocol session(X1) using "x_root" account and hang it while
+#    authenticating (sync point: syncpoint_xpl_switch_to_user_execute, syncpoint_xpl_switch_to_user_enter)
+# 2. Create classic protocol session(C1) and list all session,
+#    hang it at "x_root" row generation
+# 3. Ensure that X1, changes session user, after that wakeup C1
+# 4. Show at C1, processlist results
+
+
+#
+# I.1
+# Adding debug point 'syncpoint_xpl_switch_to_user_enter' to @@GLOBAL.debug
+# Adding debug point 'syncpoint_xpl_switch_to_user_execute' to @@GLOBAL.debug
+# Adding debug point 'test_fill_proc_with_x_root' to @@GLOBAL.debug
+SET SESSION DEBUG_SYNC="now WAIT_FOR reached_xpl_switch_to_user_enter";
+SET SESSION DEBUG_SYNC="now SIGNAL continue_xpl_switch_to_user_enter";
+SET SESSION DEBUG_SYNC="now WAIT_FOR reached_xpl_switch_to_user_execute";
+SET SESSION DEBUG_SYNC="now SIGNAL continue_xpl_switch_to_user_execute";
+
+#
+# I.2
+SET SESSION DEBUG_SYNC="now WAIT_FOR reached_xpl_switch_to_user_enter";
+SET SESSION DEBUG_SYNC="fill_proc_list_ended SIGNAL reached_sql_show";
+SET SESSION DEBUG_SYNC="fill_proc_list_with_x_root SIGNAL reached_sql_show WAIT_FOR continue_sql_show";
+SELECT IF(count(user),"Grater than zero", "None") as NoClients  from information_schema.processlist order by user;
+
+#
+# I.3
+SET SESSION DEBUG_SYNC="now WAIT_FOR reached_sql_show";
+SET SESSION DEBUG_SYNC="now SIGNAL continue_xpl_switch_to_user_enter";
+SET SESSION DEBUG_SYNC="now WAIT_FOR reached_xpl_switch_to_user_execute";
+SET SESSION DEBUG_SYNC="now SIGNAL continue_sql_show";
+
+#
+# I.4
+NoClients
+Grater than zero
+# Removing debug point 'syncpoint_xpl_switch_to_user_enter' from @@GLOBAL.debug
+# Removing debug point 'syncpoint_xpl_switch_to_user_execute' from @@GLOBAL.debug
+# Removing debug point 'test_fill_proc_with_x_root' from @@GLOBAL.debug
+SET SESSION DEBUG_SYNC="now SIGNAL continue_xpl_switch_to_user_execute";
+SET SESSION DEBUG_SYNC="RESET";
