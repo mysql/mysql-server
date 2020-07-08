@@ -53,35 +53,21 @@ class Monitor {
 };
 
 /**
- * Wrapper to make Base notifyable.
- *
- * adds a method 'notify_one()' to the wrapped class.
- *
- * used by WaitableMonitor.
- */
-template <class Base>
-class Notifyable : public Base {
- public:
-  template <class... Args>
-  Notifyable(std::condition_variable &cv, Args &&... args)
-      : Base{std::forward<Args>(args)...}, cv_{cv} {}
-
-  void notify_one() noexcept { cv_.notify_one(); }
-
- private:
-  std::condition_variable &cv_;
-};
-
-/**
  * Monitor can be waited for.
  *
  * wraps T by with Notifyable to add '.notify_one' to T.
  */
 template <class T>
-class WaitableMonitor : public Monitor<Notifyable<T>> {
+class WaitableMonitor : public Monitor<T> {
  public:
-  WaitableMonitor(T t)
-      : Monitor<Notifyable<T>>{Notifyable<T>{cv_, std::move(t)}} {}
+  using Monitor<T>::Monitor;
+
+  template <class F>
+  auto serialize_with_cv(F f) const {
+    std::lock_guard<std::mutex> lk{this->mtx_};
+
+    return f(this->t_, cv_);
+  }
 
   /**
    * wait_for time or pred is true.
@@ -97,8 +83,15 @@ class WaitableMonitor : public Monitor<Notifyable<T>> {
                         [this, pred]() { return pred(this->t_); });
   }
 
+  template <class Pred>
+  auto wait(Pred pred) {
+    std::unique_lock<std::mutex> lk{this->mtx_};
+
+    return cv_.wait(lk, [this, pred]() { return pred(this->t_); });
+  }
+
  private:
-  std::condition_variable cv_;
+  mutable std::condition_variable cv_;
 };
 
 #endif

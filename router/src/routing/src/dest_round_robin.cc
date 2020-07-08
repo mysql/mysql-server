@@ -131,7 +131,7 @@ Destinations DestRoundRobin::destinations() {
 DestRoundRobin::~DestRoundRobin() {
   stopper_.set_value();
 
-  quarantine_([](auto &q) { q.notify_one(); });
+  quarantine_.serialize_with_cv([](auto &, auto &cv) { cv.notify_one(); });
   quarantine_thread_.join();
 }
 
@@ -142,13 +142,13 @@ void DestRoundRobin::add_to_quarantine(const size_t index) noexcept {
     return;
   }
 
-  quarantine_([this, index](auto &q) {
+  quarantine_.serialize_with_cv([this, index](auto &q, auto &cv) {
     if (!q.has(index)) {
       log_debug("Quarantine destination server %s (index %zu)",
                 destinations_.at(index).str().c_str(), index);
 
       q.add(index);
-      q.notify_one();
+      cv.notify_one();
     }
   });
 }

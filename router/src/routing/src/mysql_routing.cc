@@ -61,6 +61,7 @@
 #include "dest_next_available.h"
 #include "dest_round_robin.h"
 #include "mysql/harness/filesystem.h"  // make_file_private
+#include "mysql/harness/loader.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/net_ts/impl/resolver.h"
 #include "mysql/harness/net_ts/impl/socket.h"
@@ -70,6 +71,7 @@
 #include "mysql/harness/net_ts/local.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/stdx/io/file_handle.h"
+#include "mysql/harness/stdx/monitor.h"
 #include "mysqlrouter/io_component.h"
 #include "mysqlrouter/io_thread.h"
 #include "mysqlrouter/metadata_cache.h"
@@ -195,44 +197,6 @@ void MySQLRouting::start(mysql_harness::PluginFuncEnv *env) {
   }
 }
 
-class FinishedObservable;
-
-class FinishedObserver {
- public:
-  using observable_type = std::shared_ptr<void>;
-
-  void observe(observable_type owner) { observer_ = owner; }
-
-  void wait() {
-    // wait until the acceptors finished.
-    std::unique_lock<std::mutex> lk(m_);
-    cond_.wait(lk, [&]() { return observer_.expired(); });
-  }
-
-  friend class FinishedObservable;
-
- private:
-  std::mutex m_;
-  std::condition_variable cond_;
-
-  std::weak_ptr<void> observer_;
-};
-
-class FinishedObservable {
- public:
-  using observable_type = FinishedObserver::observable_type;
-
-  explicit FinishedObservable(FinishedObserver &observer)
-      : observable_{nullptr, [&](auto &) { observer.cond_.notify_one(); }} {
-    observer.observe(observable_);
-  }
-
-  observable_type observable() { return observable_; }
-
- private:
-  observable_type observable_;
-};
-
 class ConnectorBase {
  public:
   enum class State {
@@ -304,9 +268,6 @@ void ConnectorBase::state(State next_state) {
 
 /**
  * a simple move-only type to track ownership.
- *
- * used to track if a ref-to-socket must be explicitly released by the Connector
- * or not.
  */
 class Owner {
  public:
@@ -713,6 +674,8 @@ class Connector : public ConnectorBase {
   std::error_code last_ec_;
 };
 
+struct Nothing {};
+
 template <class Protocol>
 class Acceptor {
  public:
@@ -721,63 +684,83 @@ class Acceptor {
   using acceptor_socket_type = typename protocol_type::acceptor;
   using acceptor_endpoint_type = typename protocol_type::endpoint;
 
-  Acceptor(MySQLRouting *r, std::list<IoThread> &io_threads,
+  Acceptor(MySQLRouting *r, mysql_harness::PluginFuncEnv *env,
+           std::list<IoThread> &io_threads,
            acceptor_socket_type &acceptor_socket,
            const acceptor_endpoint_type &acceptor_endpoint,
            SocketContainer<protocol_type> &connector_container,
-           FinishedObservable::observable_type ref_count)
+           WaitableMonitor<Nothing> &waitable)
       : r_(r),
+        env_(env),
         io_threads_{io_threads},
         acceptor_socket_(acceptor_socket),
         acceptor_endpoint_{acceptor_endpoint},
         connector_container_{connector_container},
         cur_io_thread_{io_threads_.begin()},
-        ref_count_{std::move(ref_count)},
+        waitable_{waitable},
         debug_is_logged_{
             log_level_is_handled(mysql_harness::logging::LogLevel::kDebug)} {}
 
-  void operator()(std::error_code ec) {
-    if (ec) {
-      // TODO(jkneschk): in case we get EMFILE or ENFILE
-      //
-      // we should continue to accept connections.
-      if (ec != std::errc::operation_canceled) {
-        log_error("[%s] Failed accepting connection: %s",
-                  r_->get_context().get_name().c_str(), ec.message().c_str());
-      }
-      return;
+  Acceptor(const Acceptor &) = delete;
+  Acceptor(Acceptor &&) = default;
+
+  Acceptor &operator=(const Acceptor &) = delete;
+  Acceptor &operator=(Acceptor &&) = default;
+
+  ~Acceptor() {
+    if (last_one_) {
+      // in case this is the last destructor, notify the waitable that we are
+      // finished.
+      waitable_.serialize_with_cv([this](auto &, auto &cv) {
+        acceptor_socket_.close();
+        cv.notify_one();
+      });
     }
+  }
 
-    while (true) {
-      typename protocol_type::endpoint client_endpoint;
-      auto sock_res =
-          acceptor_socket_.accept(cur_io_thread_->context(),
-                                  client_endpoint
-#if defined(__linux__) || defined(__FreeBSD__) || defined(__sun)
-                                  // set the accepted socket non-blocking
-                                  ,
-                                  SOCK_NONBLOCK
-#endif
-          );
-      if (sock_res) {
-        // on Linux and AF_UNIX, the client_endpoint will be empty [only family
-        // is set]
+  void operator()(std::error_code ec) {
+    waitable_([this, ec](auto &) {
+      if (ec) {
+        // TODO(jkneschk): in case we get EMFILE or ENFILE
         //
-        // in that case, use the acceptor's endpoint
-        if (client_endpoint.size() == 2) {
-          client_endpoint = acceptor_endpoint_;
+        // we should continue to accept connections.
+        if (ec != std::errc::operation_canceled) {
+          log_error("[%s] Failed accepting connection: %s",
+                    r_->get_context().get_name().c_str(), ec.message().c_str());
         }
+        return;
+      }
 
-        // round-robin the io-threads for each successfully accepted
-        // connection
-        cur_io_thread_ = std::next(cur_io_thread_);
+      while (is_running(env_)) {
+        typename protocol_type::endpoint client_endpoint;
+        auto sock_res =
+            acceptor_socket_.accept(cur_io_thread_->context(),
+                                    client_endpoint
+#if defined(__linux__) || defined(__FreeBSD__) || defined(__sun)
+                                    // set the accepted socket non-blocking
+                                    ,
+                                    SOCK_NONBLOCK
+#endif
+            );
+        if (sock_res) {
+          // on Linux and AF_UNIX, the client_endpoint will be empty [only
+          // family is set]
+          //
+          // in that case, use the acceptor's endpoint
+          if (client_endpoint.size() == 2) {
+            client_endpoint = acceptor_endpoint_;
+          }
 
-        if (cur_io_thread_ == io_threads_.end()) {
-          cur_io_thread_ = io_threads_.begin();
-        }
+          // round-robin the io-threads for each successfully accepted
+          // connection
+          cur_io_thread_ = std::next(cur_io_thread_);
 
-        // accepted
-        auto sock = std::move(sock_res.value());
+          if (cur_io_thread_ == io_threads_.end()) {
+            cur_io_thread_ = io_threads_.begin();
+          }
+
+          // accepted
+          auto sock = std::move(sock_res.value());
 
 #if 0 && defined(SO_INCOMING_CPU)
         // try to run the socket-io on the CPU which also handles the kernels
@@ -815,15 +798,15 @@ class Acceptor {
         }
 #endif
 
-        if (debug_is_logged_) {
-          if (std::is_same<protocol_type, net::ip::tcp>::value) {
-            log_debug("[%s] fd=%d connection accepted at %s",
-                      r_->get_context().get_name().c_str(),
-                      sock.native_handle(),
-                      r_->get_context().get_bind_address().str().c_str());
+          if (debug_is_logged_) {
+            if (std::is_same<protocol_type, net::ip::tcp>::value) {
+              log_debug("[%s] fd=%d connection accepted at %s",
+                        r_->get_context().get_name().c_str(),
+                        sock.native_handle(),
+                        r_->get_context().get_bind_address().str().c_str());
 #ifdef NET_TS_HAS_UNIX_SOCKET
-          } else if (std::is_same<protocol_type,
-                                  local::stream_protocol>::value) {
+            } else if (std::is_same<protocol_type,
+                                    local::stream_protocol>::value) {
 #if 0 && !defined(_WIN32)
             // if the messages wouldn't be logged, don't get the peercreds
             pid_t peer_pid;
@@ -843,69 +826,71 @@ class Acceptor {
             } else
             // fall through
 #endif
-            log_debug("[%s] fd=%d connection accepted at %s",
-                      r_->get_context().get_name().c_str(),
-                      sock.native_handle(),
-                      r_->get_context().get_bind_named_socket().str().c_str());
+              log_debug(
+                  "[%s] fd=%d connection accepted at %s",
+                  r_->get_context().get_name().c_str(), sock.native_handle(),
+                  r_->get_context().get_bind_named_socket().str().c_str());
 #endif
+            }
           }
-        }
 
-        if (r_->get_context().is_blocked<protocol_type>(client_endpoint)) {
-          const std::string msg = "Too many connection errors from " +
-                                  mysqlrouter::to_string(client_endpoint);
-          r_->get_context().get_protocol().send_error(
-              sock.native_handle(), 1129, msg, "HY000",
-              r_->get_context().get_name());
-          // log_info("%s", msg.c_str());
-          sock.close();
-        } else if (r_->get_context().info_active_routes_.load(
-                       std::memory_order_relaxed) >=
-                   r_->get_max_connections()) {
-          r_->get_context().get_protocol().send_error(
-              sock.native_handle(), 1040,
-              "Too many connections to MySQL Router", "08004",
-              r_->get_context().get_name());
+          if (r_->get_context().is_blocked<protocol_type>(client_endpoint)) {
+            const std::string msg = "Too many connection errors from " +
+                                    mysqlrouter::to_string(client_endpoint);
+            r_->get_context().get_protocol().send_error(
+                sock.native_handle(), 1129, msg, "HY000",
+                r_->get_context().get_name());
+            // log_info("%s", msg.c_str());
+            sock.close();
+          } else if (r_->get_context().info_active_routes_.load(
+                         std::memory_order_relaxed) >=
+                     r_->get_max_connections()) {
+            r_->get_context().get_protocol().send_error(
+                sock.native_handle(), 1040,
+                "Too many connections to MySQL Router", "08004",
+                r_->get_context().get_name());
 
-          sock.close();  // no shutdown() before close()
+            sock.close();  // no shutdown() before close()
 
-          log_warning("[%s] reached max active connections (%d max=%d)",
-                      r_->get_context().get_name().c_str(),
-                      r_->get_context().info_active_routes_.load(),
-                      r_->get_max_connections());
+            log_warning("[%s] reached max active connections (%d max=%d)",
+                        r_->get_context().get_name().c_str(),
+                        r_->get_context().info_active_routes_.load(),
+                        r_->get_max_connections());
+          } else {
+            Connector<protocol_type>(r_, std::move(sock), client_endpoint,
+                                     connector_container_)
+                .async_run();
+          }
+        } else if (sock_res.error() ==
+                   make_error_condition(std::errc::operation_would_block)) {
+          // nothing more to accept, wait for the next batch
+          acceptor_socket_.async_wait(net::socket_base::wait_read,
+                                      std::move(*this));
+          break;
+        } else if (sock_res.error() ==
+                   make_error_condition(std::errc::bad_file_descriptor)) {
+          // our socket got closed, leave the loop and exit the acceptor
+          break;
         } else {
-          Connector<protocol_type>(r_, std::move(sock), client_endpoint,
-                                   connector_container_)
-              .async_run();
+          // something unexpected happened, retry
+          log_warning("accepting new connection failed at accept(): %s, %s",
+                      mysqlrouter::to_string(sock_res.error()).c_str(),
+                      sock_res.error().message().c_str());
+
+          // in case of EMFILE|ENFILE we may want to use a timer to sleep
+          // for a while before we start accepting again.
+
+          acceptor_socket_.async_wait(net::socket_base::wait_read,
+                                      std::move(*this));
+          break;
         }
-      } else if (sock_res.error() ==
-                 make_error_condition(std::errc::operation_would_block)) {
-        // nothing more to accept, wait for the next batch
-        acceptor_socket_.async_wait(net::socket_base::wait_read,
-                                    std::move(*this));
-        break;
-      } else if (sock_res.error() ==
-                 make_error_condition(std::errc::bad_file_descriptor)) {
-        // our socket got closed, leave the loop and exit the acceptor
-        break;
-      } else {
-        // something unexpected happened, retry
-        log_warning("accepting new connection failed at accept(): %s, %s",
-                    mysqlrouter::to_string(sock_res.error()).c_str(),
-                    sock_res.error().message().c_str());
-
-        // in case of EMFILE|ENFILE we may want to use a timer to sleep
-        // for a while before we start accepting again.
-
-        acceptor_socket_.async_wait(net::socket_base::wait_read,
-                                    std::move(*this));
-        break;
       }
-    }
+    });
   }
 
  private:
   MySQLRouting *r_;
+  mysql_harness::PluginFuncEnv *env_;
 
   std::list<IoThread> &io_threads_;
 
@@ -914,9 +899,22 @@ class Acceptor {
   SocketContainer<protocol_type> &connector_container_;
 
   std::list<IoThread>::iterator cur_io_thread_;
-  FinishedObservable::observable_type ref_count_;
+  WaitableMonitor<Nothing> &waitable_;
 
   bool debug_is_logged_{};
+
+  /*
+   * used to close the socket in the last round of the acceptor:
+   *
+   * - async_wait(..., std::move(*this));
+   *
+   * will invoke the move-constructor and destroys the moved-from object, which
+   * should be a no-op.
+   *
+   * In case the acceptor's operator() finishes without calling async_wait(), it
+   * exits and it will be destroyed, and close its socket as it is the last-one.
+   */
+  Owner last_one_;
 };
 
 void MySQLRouting::disconnect_all() {
@@ -962,27 +960,16 @@ void MySQLRouting::start_acceptor(mysql_harness::PluginFuncEnv *env) {
   // the threads
   auto &io_threads = IoComponent::get_instance().io_threads();
 
-  /* The current MySQLRouting object must out-live the Acceptors that refer to
-   * them.
-   *
-   * 1. Pass a shared_ptr<void> as ref-count into the acceptors, which
-   * increment the ref-count
-   * 2. the ref-count signals a condition-variable when the ref-count goes to
-   * zero
-   * 3. take a weak_ptr<void> on the ref-count to observe it going to zero
-   */
-  FinishedObserver acceptor_finished_observer;
-
   {
-    FinishedObservable ref_count(acceptor_finished_observer);
+    WaitableMonitor<Nothing> acceptor_waitable{Nothing{}};
 
     if (tcp_socket().is_open()) {
       tcp_socket().native_non_blocking(true);
       tcp_socket().async_wait(
           net::socket_base::wait_read,
-          Acceptor<net::ip::tcp>(
-              this, io_threads, tcp_socket(), service_tcp_endpoint_,
-              tcp_connector_container_, ref_count.observable()));
+          Acceptor<net::ip::tcp>(this, env, io_threads, tcp_socket(),
+                                 service_tcp_endpoint_,
+                                 tcp_connector_container_, acceptor_waitable));
     }
 #if !defined(_WIN32)
     if (service_named_socket_.is_open()) {
@@ -990,31 +977,33 @@ void MySQLRouting::start_acceptor(mysql_harness::PluginFuncEnv *env) {
       service_named_socket_.async_wait(
           net::socket_base::wait_read,
           Acceptor<local::stream_protocol>(
-              this, io_threads, service_named_socket_, service_named_endpoint_,
-              unix_socket_connector_container_, ref_count.observable()));
+              this, env, io_threads, service_named_socket_,
+              service_named_endpoint_, unix_socket_connector_container_,
+              acceptor_waitable));
     }
 #endif
 
+    // wait for the signal to shutdown.
     wait_for_stop(env, 0);
+
+    // 1. close and wait for acceptors to close
+    // 2. cancel all connectors and wait for them to finish
+    // 3. close all connections and wait for them to finish
+    //
+    acceptor_waitable.wait([this](auto &) {
+      if (service_tcp_.is_open()) {
+        service_tcp_.cancel();
+#if !defined(_WIN32)
+      } else if (service_named_socket_.is_open()) {
+        service_named_socket_.cancel();
+#endif
+      } else {
+        return true;
+      }
+
+      return false;
+    });
   }
-
-  // 1. close and wait for acceptors to close
-  // 2. cancel all connectors and wait for them to finish
-  // 3. close all connections and wait for them to finish
-
-  // cancel accepting sockets
-  service_tcp_.cancel();
-#if !defined(_WIN32)
-  service_named_socket_.cancel();
-#endif
-
-  // wait until the acceptors finished.
-  acceptor_finished_observer.wait();
-
-  tcp_socket().close();
-#if !defined(_WIN32)
-  service_named_socket_.close();
-#endif
 
   // close client sockets which aren't connected to a backend yet
   tcp_connector_container_.disconnect_all();
@@ -1068,8 +1057,8 @@ void MySQLRouting::create_connection(
 }
 
 // throws std::runtime_error
-/*static*/ void MySQLRouting::set_unix_socket_permissions(
-    const char *socket_file) {
+/*static*/
+void MySQLRouting::set_unix_socket_permissions(const char *socket_file) {
 #ifdef _WIN32  // Windows doesn't have Unix sockets
   UNREFERENCED_PARAMETER(socket_file);
 #else

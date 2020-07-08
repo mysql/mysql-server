@@ -68,9 +68,9 @@ TEST(WaitableMonitor, move_only) {
   EXPECT_EQ(0, m([](const auto &v) { return v.value(); }));
 
   std::thread thr([&m]() {
-    m([](auto &v) {
+    m.serialize_with_cv([](auto &v, auto &cv) {
       v.value(1);
-      v.notify_one();
+      cv.notify_one();
     });
   });
 
