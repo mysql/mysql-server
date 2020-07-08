@@ -43,6 +43,8 @@ private:
   int line;
   int dirty;
   int have_lock=LOCK_UN;
+  unsigned long long fpos = 0;
+
   inline void debug(std::string message) {
     if(debug_flag) {
       std::cerr << line << ":" << message << "\n";
@@ -100,6 +102,7 @@ private:
   int replay (int mode=MODE_UNSET) {
     dbug("replay");
     fseek(log,0,SEEK_SET);
+    fpos = 0;
     unsigned long long bitnum;
     while(!feof(log)) {
       bitnum = 0;
@@ -300,8 +303,9 @@ public:
     lock(LOCK_SH);
     int bit_offset;
     unsigned long long at_byte = (bitnum / MAX_BITS) + ((bit_offset = (bitnum % MAX_BITS)) != 0) - 1;
-    if(at_byte == 0 || at_byte != ftell(fp)) {
+    if(at_byte == 0 || at_byte != fpos) {
       fseek(fp, at_byte, SEEK_SET);
+      fpos = at_byte;
       size_t sz = fread(&bits, 8, 1, fp);
       if(sz == 0 || feof(fp)) return 0;
     }
@@ -335,7 +339,8 @@ public:
     long int at_byte = (bitnum / MAX_BITS) + ((bit_offset = (bitnum % MAX_BITS)) != 0) - 1;
 
     /* read the bits into memory */
-    if(force_read || at_byte != ftell(fp)) {
+    if(force_read || at_byte != fpos) {
+      fpos = at_byte;
       fseek(fp, at_byte, SEEK_SET);
       sz = fread(&bits, BLOCK_SIZE, 1, fp);
       if(ferror(fp)) return 0;
@@ -347,7 +352,11 @@ public:
     else
       bits &= ~(1 << bit_offset);
 
-    fseek(fp, at_byte, SEEK_SET);
+    if(at_byte != fpos) {
+      fseek(fp, at_byte, SEEK_SET);
+      fpos = at_byte;
+    }
+
     sz = fwrite(&bits, BLOCK_SIZE, 1, fp);
     /* position back so that we don't read the block in again*/
     fseek(fp, at_byte, SEEK_SET); 

@@ -26,7 +26,7 @@ ExternalProject_Add(
   CONFIGURE_COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/src/fastbit-2.0.3/configure --prefix=${CMAKE_CURRENT_SOURCE_DIR}
   PREFIX ${CMAKE_CURRENT_SOURCE_DIR}/
   PATCH_COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/patch_fastbit.sh ${CMAKE_CURRENT_SOURCE_DIR}
-  BUILD_COMMAND make -j8 && make install
+  BUILD_COMMAND make -j4 && make install
   BUILD_IN_SOURCE 1
 )
 
@@ -35,6 +35,7 @@ SET(WARP_PLUGIN_MANDATORY TRUE)
 
 SET(WARP_SOURCES  ha_warp.cc ha_warp.h)
 SET(FASTBIT_LIBS ${CMAKE_CURRENT_SOURCE_DIR}/lib/libfastbit.a  ${CMAKE_CURRENT_SOURCE_DIR}/lib/libfastbit.la  ${CMAKE_CURRENT_SOURCE_DIR}/lib/libfastbit.so  ${CMAKE_CURRENT_SOURCE_DIR}/lib/libfastbit.so.1  ${CMAKE_CURRENT_SOURCE_DIR}/lib/libfastbit.so.1.0.0)
+SET(COMPILE_FLAGS "-O3")
 
 MYSQL_ADD_PLUGIN(warp ${WARP_SOURCES} STORAGE_ENGINE MANDATORY)
 add_library(fastbit SHARED IMPORTED)

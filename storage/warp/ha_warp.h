@@ -200,6 +200,9 @@ class ha_warp : public handler {
   /* storage for BLOBS */
   MEM_ROOT blobroot; 
 
+  /* set to true if the table has deleted rows */
+  bool has_deleted_rows = false;
+
  public:
   ha_warp(handlerton *hton, TABLE_SHARE *table_arg);
  

@@ -133,10 +133,17 @@ ha_warp::ha_warp(handlerton *hton, TABLE_SHARE *table_arg)
       }
 
 void ha_warp::open_deleted_bitmap(int lock_mode) {
+  struct stat st;
   if(deleted_bitmap != NULL) {
     return;
   }
   std::string deleted_rid_file = std::string(share->data_dir_name) + "/deleted.rids";
+  stat(deleted_rid_file.c_str(), &st);
+  if(!st.st_size) {
+    has_deleted_rows = false;
+  } else {
+    has_deleted_rows = true;
+  }
   deleted_bitmap = new sparsebitmap(deleted_rid_file,lock_mode, 0);
 }
 
@@ -152,6 +159,7 @@ void ha_warp::close_deleted_bitmap() {
 
 bool ha_warp::is_deleted(uint64_t rownum) {
   open_deleted_bitmap(LOCK_SH);
+  if(!has_deleted_rows) return false;
   return deleted_bitmap->is_set(rownum);
 }
 
@@ -271,7 +279,7 @@ int ha_warp::encode_quote(uchar *) {
        cX column. NOT NULL columns do not have an associated NULL
        marker.  Note the trailing comma (also above).
     */
-    if((*field)->real_maybe_null()) {
+    if((*field)->is_nullable()) {
       buffer.append(",0,");
     } else {
       buffer.append(',');
@@ -334,10 +342,12 @@ static WARP_SHARE *get_share(const char *table_name, TABLE *) {
 bool ha_warp::check_and_repair(THD *thd) {
   HA_CHECK_OPT check_opt;
   DBUG_ENTER("ha_warp::check_and_repair");
-
+  /*
   check_opt.init();
 
   DBUG_RETURN(repair(thd, &check_opt));
+  */
+  DBUG_RETURN(-1);
 }
 
 bool ha_warp::is_crashed() const {
@@ -383,7 +393,7 @@ int ha_warp::set_column_set() {
       column_set += std::string("c") + std::to_string((*field)->field_index);
       
       /* Add the NULL bitmap for the column if the column is NULLable */
-      if((*field)->real_maybe_null()) {
+      if((*field)->is_nullable()) {
         column_set += "," + std::string("n") + std::to_string((*field)->field_index);
       }
       column_set += ",";
@@ -415,7 +425,7 @@ int ha_warp::set_column_set(uint32_t idxno) {
 
   for(uint32_t i=0; i < table->key_info[idxno].actual_key_parts;++i) {
     uint16_t fieldno = table->key_info[idxno].key_part[i].field->field_index;
-    bool may_be_null = table->key_info[idxno].key_part[i].field->real_maybe_null();
+    bool may_be_null = table->key_info[idxno].key_part[i].field->is_nullable();
     ++count;
     
     /* this column must be read from disk */
@@ -467,7 +477,7 @@ int ha_warp::find_current_row(uchar *buf, ibis::table::cursor *cursor) {
       std::string cname = "c" + std::to_string((*field)->field_index);
       std::string nname = "n" + std::to_string((*field)->field_index);
       
-      if((*field)->real_maybe_null()) {
+      if((*field)->is_nullable()) {
         unsigned char is_null=0;
         
         rc = cursor->getColumnAsUByte(nname.c_str(),is_null);
@@ -863,6 +873,7 @@ int ha_warp::update_row(const uchar *, uchar *new_data) {
 */
 int ha_warp::delete_row(const uchar *) {
   DBUG_ENTER("ha_warp::delete_row");
+  has_deleted_rows = true;
   deleted_bitmap->set_bit(current_rowid);
 
   ha_statistic_increment(&System_status_var::ha_delete_count);
@@ -1065,7 +1076,7 @@ void ha_warp::create_writer(TABLE* table_arg) {
 
     ibis::TYPE_T datatype = ibis::UNKNOWN_TYPE;
     bool is_unsigned = (*field)->flags & UNSIGNED_FLAG;
-    bool is_nullable = (*field)->real_maybe_null();
+    bool is_nullable = (*field)->is_nullable();
 
     /* create a tablex object to create the metadata for the table */
     switch((*field)->real_type()) {
@@ -1726,7 +1737,7 @@ int ha_warp::make_where_clause(const uchar *key, key_part_map keypart_map, enum 
     }
 
     /* exclude NULL columns */
-    //if(f->real_maybe_null()) {
+    //if(f->is_nullable()) {
     //  where_clause += " and n" + std::to_string(f->field_index) + " = 0";
     //}
   }
@@ -1977,7 +1988,7 @@ bool ha_warp::append_column_filter(const Item* cond, std::string &push_where_cla
       */
       if((*arg)->type() == Item::Type::FIELD_ITEM) {
         auto field_index = ((Item_field*)(*arg))->field->field_index;
-        field_may_be_null = ((Item_field*)(*arg))->field->real_maybe_null();
+        field_may_be_null = ((Item_field*)(*arg))->field->is_nullable();
 
         /* this is the common case, where just the ordinal position is emitted */
         if(!is_is_null && !is_isnot_null) {
