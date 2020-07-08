@@ -982,19 +982,6 @@ bool Ndb_dd_sync::synchronize_databases() const {
 bool Ndb_dd_sync::migrate_table_with_old_extra_metadata(
     const char *schema_name, const char *table_name, void *unpacked_data,
     Uint32 unpacked_len, bool force_overwrite) const {
-#ifndef BUG27543602
-  // Temporary workaround for Bug 27543602
-  if (strcmp("mysql", schema_name) == 0 &&
-      (strcmp("ndb_index_stat_head", table_name) == 0 ||
-       strcmp("ndb_index_stat_sample", table_name) == 0)) {
-    ndb_log_info(
-        "Skipped installation of the ndb_index_stat table '%s.%s'. "
-        "The table can still be accessed using NDB tools",
-        schema_name, table_name);
-    return true;
-  }
-#endif
-
   ndb_log_info(
       "Table '%s.%s' has obsolete extra metadata. "
       "The table is installed into the data dictionary "

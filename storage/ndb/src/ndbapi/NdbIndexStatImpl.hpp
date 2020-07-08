@@ -38,11 +38,6 @@ class NdbRecAttr;
 class NdbOperation;
 class NdbEventOperation;
 
-extern const uint g_ndb_index_stat_head_frm_len;
-extern const uint8 g_ndb_index_stat_head_frm_data[];
-extern const uint g_ndb_index_stat_sample_frm_len;
-extern const uint8 g_ndb_index_stat_sample_frm_data[];
-
 class NdbIndexStatImpl : public NdbIndexStat {
 public:
   friend class NdbIndexStat;
