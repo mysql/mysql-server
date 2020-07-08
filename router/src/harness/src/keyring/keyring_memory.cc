@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,12 +23,16 @@
 */
 
 #include "keyring/keyring_memory.h"
+
+#include <algorithm>
 #include <cstdint>
 #include <cstring>
 #include <stdexcept>
-#include "my_aes.h"
 
-constexpr auto kAesMode = my_aes_256_cbc;
+#include <openssl/evp.h>
+
+#include "mysql/harness/tls_cipher.h"
+
 constexpr unsigned char kAesIv[] = {0x39, 0x62, 0x9f, 0x52, 0x7f, 0x76,
                                     0x9a, 0xae, 0xcd, 0xca, 0xf7, 0x04,
                                     0x65, 0x8e, 0x5d, 0x88};
@@ -50,7 +54,7 @@ static std::size_t serialize(char *buffer, std::size_t offset, const void *data,
 // correct offset.
 static std::size_t serialize(char *buffer, std::size_t offset,
                              std::size_t value) {
-  std::uint32_t value_u32 = static_cast<std::uint32_t>(value);
+  auto value_u32 = static_cast<std::uint32_t>(value);
 
   return serialize(buffer, offset, &value_u32, sizeof(value_u32));
 }
@@ -229,20 +233,20 @@ std::vector<char> KeyringMemory::serialize(const std::string &key) const {
 
   ::serialize(buffer.data(), entries_);
 
+  TlsCipher cipher(EVP_aes_256_cbc());
+
   // Encrypt buffer.
-  auto aes_buffer_size =
-      my_aes_get_size(static_cast<uint32_t>(buffer_size), kAesMode);
-  std::vector<char> aes_buffer(static_cast<std::size_t>(aes_buffer_size));
+  std::vector<char> aes_buffer(cipher.size(buffer_size));
 
-  auto encrypted_size =
-      my_aes_encrypt(reinterpret_cast<const unsigned char *>(buffer.data()),
-                     static_cast<uint32_t>(buffer_size),
-                     reinterpret_cast<unsigned char *>(aes_buffer.data()),
-                     reinterpret_cast<const unsigned char *>(key.data()),
-                     static_cast<uint32_t>(key.length()), kAesMode, kAesIv);
+  auto encrypted_res = cipher.encrypt(
+      reinterpret_cast<const uint8_t *>(buffer.data()), buffer.size(),
+      reinterpret_cast<uint8_t *>(aes_buffer.data()),
+      reinterpret_cast<const uint8_t *>(key.data()), key.length(), kAesIv);
 
-  if (encrypted_size < 0)
-    throw std::runtime_error("Keyring encryption failed.");
+  if (!encrypted_res) {
+    throw std::system_error(encrypted_res.error(),
+                            "Keyring encryption failed.");
+  }
 
   return aes_buffer;
 }
@@ -252,18 +256,19 @@ void KeyringMemory::parse(const std::string &key, const char *buffer,
   // Decrypt buffer.
   std::vector<char> decrypted_buffer(buffer_size);
 
-  auto decrypted_size =
-      my_aes_decrypt(reinterpret_cast<const unsigned char *>(buffer),
-                     static_cast<uint32_t>(buffer_size),
-                     reinterpret_cast<unsigned char *>(decrypted_buffer.data()),
-                     reinterpret_cast<const unsigned char *>(key.data()),
-                     static_cast<uint32_t>(key.length()), kAesMode, kAesIv);
+  auto decrypted_res =
+      TlsCipher(EVP_aes_256_cbc())
+          .decrypt(reinterpret_cast<const uint8_t *>(buffer), buffer_size,
+                   reinterpret_cast<uint8_t *>(decrypted_buffer.data()),
+                   reinterpret_cast<const uint8_t *>(key.data()), key.length(),
+                   kAesIv);
 
-  if (decrypted_size < 0) throw decryption_error("Keyring decryption failed.");
+  if (!decrypted_res) {
+    throw decryption_error("Keyring decryption failed.");
+  }
 
   // Parse keyring data.
-  ::parse(decrypted_buffer.data(), static_cast<std::size_t>(decrypted_size),
-          entries_);
+  ::parse(decrypted_buffer.data(), decrypted_res.value(), entries_);
 }
 
 }  // namespace mysql_harness

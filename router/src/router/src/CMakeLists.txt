@@ -27,9 +27,6 @@ ENDIF()
 
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/../include/mysqlrouter)
 
-SET(MY_AES_IMPL ${CMAKE_SOURCE_DIR}/mysys/my_aes_openssl.cc)
-
-
 SET(lib_source_files
   auto_cleaner.cc
   certificate_generator.cc
@@ -44,10 +41,8 @@ SET(lib_source_files
   keyring_info.cc
   plugin_config.cc
   common/log_filter.cc
-  # common/my_aes.cc
   common/mysql_session.cc
   common/utils_sqlstring.cc
-  # ${MY_AES_IMPL}
   )
 IF(WIN32)
   LIST(APPEND lib_source_files

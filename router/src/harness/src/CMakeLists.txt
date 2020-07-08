@@ -89,6 +89,7 @@ SET(harness_source
   sd_notify.cc
   socket_operations.cc
   tcp_address.cc
+  tls_cipher.cc
   tty.cc
   vt100.cc
   vt100_filter.cc
@@ -96,7 +97,7 @@ SET(harness_source
   keyring/keyring_memory.cc
   keyring/keyring_file.cc
   keyring/master_key_file.cc
-  my_aes_openssl.cc)
+  )
 
 IF(WIN32)
   LIST(APPEND harness_source
@@ -131,7 +132,7 @@ ELSE()
 ENDIF()
 
 SET(common_libraries ${CMAKE_DL_LIBS} ${CMAKE_THREAD_LIBS_INIT}
-  ${SHLWAPI_LIBRARIES} ${WINSOCK_LIBRARIES} ${SSL_LIBRARIES} mysys)
+  ${SHLWAPI_LIBRARIES} ${WINSOCK_LIBRARIES} ${SSL_LIBRARIES})
 
 SET(INSTALL_INCLUDE_DIR "include/mysql/harness")
 
@@ -158,7 +159,9 @@ ENDIF()
 # create harness library - dynamic version
 ADD_LIBRARY(harness-library SHARED
   ${harness_source} ${GENERATED_SOURCES_SHARED})
-TARGET_LINK_LIBRARIES(harness-library ${common_libraries})
+
+# mysys is need for my_print_stacktrace
+TARGET_LINK_LIBRARIES(harness-library ${common_libraries} mysys)
 TARGET_INCLUDE_DIRECTORIES(harness-library PUBLIC
   ../include ${CMAKE_CURRENT_BINARY_DIR}/src_SHARED)
 
