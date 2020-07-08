@@ -481,6 +481,7 @@ const struct st_command_service_cbs sql_cbs = {
     sql_handle_ok,
     sql_handle_error,
     sql_shutdown,
+    nullptr,
 };
 
 static void get_data_integer(void *ctx) {

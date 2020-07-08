@@ -1,0 +1,41 @@
+## Test verfies if session that executed sleep, is `killed` when connection breaks.
+
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+## Test starts here
+--write_file $MYSQL_TMP_DIR/sleep.xpl
+echo;
+echo #;
+echo # I.1;
+-->stmtsql SELECT SLEEP(60 * 60 /* 60 minutes */);
+
+echo;
+echo #;
+echo # I.2;
+-->closesession abort
+
+EOF
+
+--echo
+--echo
+--echo ## I. Verify that call to sleep SQL is terminated after disconnection
+--echo #
+--echo # 1. Send 1 hour sleep command to server through X Protocol
+--echo # 2. Disconnect without waiting for response
+--echo # 3. Verify that sleep was terminated (almost right away)
+--echo
+--exec $MYSQLXTEST  -ux_root --password='' --file=$MYSQL_TMP_DIR/sleep.xpl 2>&1
+
+
+--echo
+--echo #
+--echo # I.3 Wait maximum of 30 seconds for closure of X Connection
+let $count_sessions= 1;
+let $wait_timeout= 300;
+--source include/wait_until_count_sessions.inc
+--echo Success, there is only one session left
+
+## Cleanup
+--remove_files_wildcard $MYSQL_TMP_DIR *.xpl
+--source include/xplugin_drop_user.inc

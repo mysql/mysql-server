@@ -90,6 +90,7 @@ libtest_sql_sqlmode                     plugin_output_directory TEST_SQL_SQLMODE
 libtest_sql_replication                 plugin_output_directory TEST_SQL_REPLICATION
 libtest_sql_errors                      plugin_output_directory TEST_SQL_ERRORS
 libtest_sql_stmt                        plugin_output_directory TEST_SQL_STMT
+libtest_sql_sleep_is_connected          plugin_output_directory TEST_SQL_SLEEP_IS_CONNECTED
 libtest_sql_reset_connection            plugin_output_directory TEST_SQL_RESET_CONNECTION
 connection_control                      plugin_output_directory  CONNECTION_CONTROL_PLUGIN    connection_control
 # Test component

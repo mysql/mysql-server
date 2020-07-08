@@ -83,6 +83,7 @@ class Streaming_command_delegate : public ngs::Command_delegate {
 
   void handle_error(uint32_t sql_errno, const char *const err_msg,
                     const char *const sqlstate) override;
+  bool connection_alive() override;
 
   enum cs_text_or_binary representation() const override {
     return CS_BINARY_REPRESENTATION;

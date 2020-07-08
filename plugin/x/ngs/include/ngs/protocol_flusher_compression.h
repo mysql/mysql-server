@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -76,6 +76,10 @@ class Protocol_flusher_compression : public xpl::iface::Protocol_flusher {
   bool is_going_to_flush() override;
 
   void set_write_timeout(const uint32_t timeout) override;
+
+  xpl::iface::Vio *get_connection() override {
+    return m_flusher->get_connection();
+  }
 
   void set_compression_options(const Compression_algorithm algo,
                                const Compression_style style,

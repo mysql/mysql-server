@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -107,7 +107,8 @@ class Command_delegate {
         &Command_delegate::call_get_string,
         &Command_delegate::call_handle_ok,
         &Command_delegate::call_handle_error,
-        &Command_delegate::call_shutdown};
+        &Command_delegate::call_shutdown,
+        &Command_delegate::call_connection_alive};
     return &cbs;
   }
 
@@ -415,6 +416,15 @@ class Command_delegate {
   */
   virtual void shutdown(int flag MY_ATTRIBUTE((unused))) { m_killed = true; }
 
+  /*
+   Check if connection bound to this srv_session is alive
+
+   @returns
+   true  connected
+   false disconnected
+  */
+  virtual bool connection_alive() { return false; }
+
  private:
   static int call_start_result_metadata(void *ctx, uint num_cols, uint flags,
                                         const CHARSET_INFO *resultcs) {
@@ -520,6 +530,10 @@ class Command_delegate {
 
   static void call_shutdown(void *ctx, int flag) {
     static_cast<Command_delegate *>(ctx)->shutdown(flag);
+  }
+
+  static bool call_connection_alive(void *ctx) {
+    return static_cast<Command_delegate *>(ctx)->connection_alive();
   }
 };
 }  // namespace ngs

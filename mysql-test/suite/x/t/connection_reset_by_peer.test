@@ -33,7 +33,8 @@ DELIMITER ;
 
 -->closesession abort
 
--->wait_for 3	SELECT COUNT(*) FROM information_schema.processlist 
+
+-->wait_for 1	SELECT COUNT(*) FROM performance_schema.processlist WHERE user = 'x_root'
 
 -->stmtadmin list_clients
 -->recvresult client_id user host
@@ -42,7 +43,6 @@ DELIMITER ;
 
 -->callmacro Long_run	xtest.long1	mysql.user
 -->callmacro Long_run	xtest.long2	xtest.empty
-
 
 EOF
 

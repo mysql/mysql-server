@@ -608,6 +608,7 @@ const struct st_command_service_cbs protocol_callbacks = {
     handle_ok,
     handle_error,
     handle_shutdown,
+    nullptr,
 };
 
 /****************************************************************************************/

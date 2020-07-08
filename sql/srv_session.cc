@@ -564,6 +564,8 @@ static void err_handle_error(void *ctx, uint err_errno, const char *err_msg,
 
 static void err_shutdown(void *, int) {}
 
+static bool err_alive(void *) { return true; }
+
 const struct st_command_service_cbs error_protocol_callbacks = {
     err_start_result_metadata,
     err_field_metadata,
@@ -583,7 +585,8 @@ const struct st_command_service_cbs error_protocol_callbacks = {
     err_get_string,
     err_handle_ok,
     err_handle_error,
-    err_shutdown};
+    err_shutdown,
+    err_alive};
 
 /**
   Modifies the PSI structures to (de)install a THD

@@ -477,6 +477,11 @@ static void sql_handle_error(void *ctx, uint sql_errno,
 
 static void sql_shutdown(void *, int) { DBUG_TRACE; }
 
+static bool sql_alive(void *) {
+  DBUG_TRACE;
+  return true;
+}
+
 const struct st_command_service_cbs protocol_callbacks = {
     sql_start_result_metadata,
     sql_field_metadata,
@@ -497,6 +502,7 @@ const struct st_command_service_cbs protocol_callbacks = {
     sql_handle_ok,
     sql_handle_error,
     sql_shutdown,
+    sql_alive,
 };
 
 #define WRITE_DASHED_LINE() \

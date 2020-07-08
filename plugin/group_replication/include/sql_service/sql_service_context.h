@@ -240,6 +240,11 @@ class Sql_service_context : public Sql_service_context_base {
   */
   void shutdown(int flag) override;
 
+  /**
+     Check if the connection is still alive.
+  */
+  bool connection_alive() override { return true; }
+
  private:
   /* executed command result store */
   Sql_resultset *resultset;

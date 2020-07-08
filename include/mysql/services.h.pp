@@ -180,6 +180,7 @@ typedef void (*handle_ok_t)(void *ctx, uint server_status,
 typedef void (*handle_error_t)(void *ctx, uint sql_errno, const char *err_msg,
                                const char *sqlstate);
 typedef void (*shutdown_t)(void *ctx, int server_shutdown);
+typedef bool (*connection_alive_t)(void *ctx);
 struct st_command_service_cbs {
   start_result_metadata_t start_result_metadata;
   field_metadata_t field_metadata;
@@ -200,6 +201,7 @@ struct st_command_service_cbs {
   handle_ok_t handle_ok;
   handle_error_t handle_error;
   shutdown_t shutdown;
+  connection_alive_t connection_alive;
 };
 enum cs_text_or_binary {
   CS_TEXT_REPRESENTATION = 1,

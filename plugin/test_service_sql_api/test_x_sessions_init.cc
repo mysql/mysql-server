@@ -27,15 +27,15 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
-#include <mysql/components/my_service.h>
-#include <mysql/components/services/log_builtins.h>
-#include <mysqld_error.h>
+#include "mysql/components/my_service.h"
+#include "mysql/components/services/log_builtins.h"
 
-#include "my_dbug.h"
-#include "my_inttypes.h"
-#include "my_io.h"
-#include "my_sys.h"  // my_write, my_malloc
-#include "template_utils.h"
+#include "my_dbug.h"         // NOLINT(build/include_subdir)
+#include "my_inttypes.h"     // NOLINT(build/include_subdir)
+#include "my_io.h"           // NOLINT(build/include_subdir)
+#include "my_sys.h"          // NOLINT(build/include_subdir)
+#include "mysqld_error.h"    // NOLINT(build/include_subdir)
+#include "template_utils.h"  // NOLINT(build/include_subdir)
 
 static const char *log_filename = "test_x_sessions_init";
 
@@ -45,11 +45,11 @@ static const char *log_filename = "test_x_sessions_init";
 
 #define WRITE_STR(format)                         \
   snprintf(buffer, sizeof(buffer), "%s", format); \
-  my_write(outfile, (uchar *)buffer, strlen(buffer), MYF(0))
+  my_write(outfile, reinterpret_cast<uchar *>(buffer), strlen(buffer), MYF(0))
 
 #define WRITE_VAL(format, value)                   \
   snprintf(buffer, sizeof(buffer), format, value); \
-  my_write(outfile, (uchar *)buffer, strlen(buffer), MYF(0))
+  my_write(outfile, reinterpret_cast<uchar *>(buffer), strlen(buffer), MYF(0))
 
 static const char *sep =
     "========================================================================"
@@ -100,7 +100,8 @@ const struct st_command_service_cbs sql_cbs = {
     nullptr,  // sql_get_string,
     nullptr,  // sql_handle_ok,
     nullptr,  // sql_handle_error,
-    nullptr   // sql_shutdown,
+    nullptr,  // sql_shutdown,
+    nullptr,  // sql_alive,
 };
 
 static SERVICE_TYPE(registry) *reg_srv = nullptr;

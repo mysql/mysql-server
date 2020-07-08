@@ -85,6 +85,8 @@ class Protocol_flusher : public xpl::iface::Protocol_flusher {
     m_write_timeout = timeout;
   }
 
+  xpl::iface::Vio *get_connection() override { return m_socket.get(); }
+
  private:
   bool flush();
 

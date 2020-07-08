@@ -478,6 +478,7 @@ const struct st_command_service_cbs sql_cbs = {
     sql_handle_ok,
     sql_handle_error,
     sql_shutdown,
+    nullptr,
 };
 
 enum cs_text_or_binary txt_or_bin;

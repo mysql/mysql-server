@@ -265,13 +265,22 @@ int Protocol_callback::shutdown(bool server_shutdown) {
 /**
   Returns if the connection is alive or dead.
 
-  @note This function always returns true as in many places in the server this
-  is a prerequisite for continuing operations.
+  @note If there's no callback provided, this function always returns true
+  because, in many places in the server, this is a prerequisite for continuing
+  operations. If the user is connection bound, a callback function should be
+  provided, to have a possibility to stop execution of operations when the user
+  disconnected.
 
   @return
-    true  alive
+    true   connected
+    false  disconnected
 */
-bool Protocol_callback::connection_alive() const { return true; }
+bool Protocol_callback::connection_alive() const {
+  if (callbacks.connection_alive)
+    return callbacks.connection_alive(callbacks_ctx);
+
+  return true;
+}
 
 /**
   Should return protocol's reading/writing status. Returns 0 (idle) as it this

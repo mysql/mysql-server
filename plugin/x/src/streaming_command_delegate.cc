@@ -600,4 +600,10 @@ void Streaming_command_delegate::handle_out_param_in_handle_ok(
       (m_sent_result && more_results && !out_params) ? true : false;
 }
 
+bool Streaming_command_delegate::connection_alive() {
+  auto connection = m_proto->get_flusher()->get_connection();
+
+  return vio_is_connected(connection->get_vio());
+}
+
 }  // namespace xpl

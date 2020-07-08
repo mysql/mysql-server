@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,8 @@ namespace xpl {
 
 ngs::Error_code Stmt_command_handler::execute(
     const Mysqlx::Sql::StmtExecute &msg) {
-  log_debug("%s: %s", m_session->client().client_id(), msg.stmt().c_str());
+  log_debug("%s: %s", m_session->client().client_id(),
+            msg.stmt().substr(0, MBYTE(1)).c_str());
 
   if (msg.namespace_() == Sql_statement_builder::k_sql_namespace ||
       !msg.has_namespace_())

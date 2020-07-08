@@ -418,6 +418,7 @@ const struct st_command_service_cbs protocol_callbacks = {
     sql_handle_ok,
     sql_handle_error,
     sql_shutdown,
+    nullptr,
 };
 
 #define WRITE_DASHED_LINE() \
