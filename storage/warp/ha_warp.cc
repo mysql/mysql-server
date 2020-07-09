@@ -1807,10 +1807,46 @@ int ha_warp::index_read_idx_map (uchar *buf, uint idxno, const uchar *key, key_p
   DBUG_RETURN(rc);
 }
 
-/* This is where the magic really happens from a MySQL standpoint, since it allows
-    index usage that MySQL would not normally support.  I really should put more 
-    care into this part of the code, but I'm incredibly depressed right now and I
-    just want to get something basically working for an initial public release. :/
+/**
+ * This function replaces (for SELECT queries) the handler::cond_push
+ * function.  Instead of using an array of ITEM* it uses an 
+ * abstract query plan.
+ * This function now calls ha_warp::cond_push to do the work that it used
+ * to do in 8.0.20
+ * @param table_aqp The specific table in the join plan to examine.
+ * @return Possible error code, '0' if no errors.
+ */
+int ha_warp::engine_push(AQP::Table_access *table_aqp) {
+  DBUG_TRACE;
+  const Item* remainder = NULL;
+
+  THD const* thd = table->in_use;
+  if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN)) {
+    const Item *cond = table_aqp->get_condition();
+    if (cond == nullptr) return 0;
+
+    /*
+      If a join cache is referred by this table, there is not a single
+      specific row from the 'other tables' to compare rows from this table
+      against. Thus, other tables can not be referred in this case.
+    */
+    const bool other_tbls_ok = thd->lex->sql_command == SQLCOM_SELECT &&
+                               !table_aqp->uses_join_cache();
+
+    /* Push condition to handler, possibly leaving a remainder */
+    remainder = cond_push(cond, other_tbls_ok);
+   
+    table_aqp->set_condition(const_cast<Item *>(remainder));
+  }
+  return 0;
+}
+
+/* This is the ECP (engine condition pushdown) handler code.  This is where the WARP 
+   magic really happens from a MySQL standpoint, since it allows index usage that 
+   MySQL would not normally support and provides automatic indexing for filter 
+   conditions.  
+   
+   This code is called from ha_warp::engine_push in 8.0.20+
 */
 const Item* ha_warp::cond_push(const Item *cond,	bool other_tbls_ok) {
   /* only pushdown for SELECT */

@@ -23,6 +23,7 @@
 #define HA_WARP_HDR
 #define MYSQL_SERVER 1
 #include "sql/sql_class.h"
+#include "sql/sql_lex.h"
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"
 
@@ -37,6 +38,7 @@
 #include "sql/dd/dd.h"
 #include "sql/dd/dd_table.h"
 #include "sql/dd/dd_schema.h"
+#include "sql/abstract_query_plan.h"
 
 #include <fcntl.h>
 #include <mysql/plugin.h>
@@ -295,6 +297,7 @@ class ha_warp : public handler {
     ulonglong * 	nb_reserved_values 
   );
 
+  int engine_push(AQP::Table_access *table_aqp);
   const Item* cond_push(const Item *cond,	bool other_tbls_ok );
 	
   int rename_table(const char * from, const char * to, const dd::Table* , dd::Table* ) {
