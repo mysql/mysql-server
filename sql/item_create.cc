@@ -1574,6 +1574,7 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"ST_NUMINTERIORRINGS", SQL_FN(Item_func_numinteriorring, 1)},
     {"ST_NUMPOINTS", SQL_FN(Item_func_numpoints, 1)},
     {"ST_OVERLAPS", SQL_FN(Item_func_st_overlaps, 2)},
+    {"ST_POINTATDISTANCE", SQL_FN(Item_func_st_pointatdistance, 2)},
     {"ST_POINTFROMGEOHASH", SQL_FN(Item_func_pointfromgeohash, 2)},
     {"ST_POINTFROMTEXT", SQL_FACTORY(Pointfromtext_instantiator)},
     {"ST_POINTFROMWKB", SQL_FACTORY(Pointfromwkb_instantiator)},

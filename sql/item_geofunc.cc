@@ -66,6 +66,7 @@
 #include "sql/gis/is_simple.h"
 #include "sql/gis/is_valid.h"
 #include "sql/gis/length.h"
+#include "sql/gis/line_interpolate.h"
 #include "sql/gis/simplify.h"
 #include "sql/gis/srid.h"
 #include "sql/gis/st_units_of_measure.h"
@@ -5576,6 +5577,77 @@ double Item_func_st_distance_sphere::val_real() {
   DBUG_ASSERT(!null_value);
 
   return result;
+}
+
+String *Item_func_lineinterpolate::val_str(String *str) {
+  String *swkb = args[0]->val_str(str);
+  const double distance = args[1]->val_real();
+
+  if (args[0]->null_value || args[1]->null_value) {
+    return null_return_str();
+  }
+
+  if (!swkb) {
+    /*
+    We've already found out that args[0]->null_value is false.
+    Therefore, this should never happen.
+    */
+    DBUG_ASSERT(false);
+    my_error(ER_INTERNAL_ERROR, MYF(0), func_name());
+    return error_str();
+  }
+
+  /*
+  This class keeps a register of shared objects that are automatically released
+  when the instance goes out of scope.
+  **/
+  std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
+      new dd::cache::Dictionary_client::Auto_releaser(
+          current_thd->dd_client()));
+
+  const dd::Spatial_reference_system *srs;
+  std::unique_ptr<gis::Geometry> g;
+  if (gis::parse_geometry(current_thd, func_name(), swkb, &srs, &g)) {
+    DBUG_ASSERT(current_thd->is_error());
+    return error_str();
+  }
+  DBUG_ASSERT(g);
+
+  if (g->type() != gis::Geometry_type::kLinestring) {
+    my_error(ER_UNEXPECTED_GEOMETRY_TYPE, MYF(0), "LINESTRING",
+             gis::type_to_name(g->type()), func_name());
+    return error_str();
+  }
+
+  double length;
+  if (gis::length(srs, g.get(), &length, &null_value)) {
+    DBUG_ASSERT(current_thd->is_error());
+    return error_str();
+  }
+
+  double const real_distance =
+      isFractionalDistance() ? distance * length : distance;
+  if (real_distance < 0 || real_distance > length) {
+    my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "Distance", func_name());
+    return error_str();
+  }
+
+  std::unique_ptr<gis::Geometry> target_g;
+  if (gis::line_interpolate_point(srs, g.get(), real_distance,
+                                  returnMultiplePoints(), func_name(),
+                                  &target_g, &null_value)) {
+    DBUG_ASSERT(current_thd->is_error());
+    return error_str();
+  }
+
+  if (target_g.get() == nullptr) {
+    // There should always be an output geometry for valid input.
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_str();
+  }
+
+  write_geometry(srs, *target_g, str);
+  return str;
 }
 
 String *Item_func_st_transform::val_str(String *str) {

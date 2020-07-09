@@ -227,6 +227,7 @@ SET(SERVER_TESTS
   gis_hausdorff_distance
   gis_is_simple
   gis_isvalid
+  gis_line_interpolate_point
   gis_relops
   gis_rtree_support
   gis_srs

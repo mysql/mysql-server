@@ -294,6 +294,7 @@ SET(SQL_GIS_SOURCES
   gis/is_simple.cc
   gis/is_valid.cc
   gis/length.cc
+  gis/line_interpolate.cc
   gis/mbr_utils.cc
   gis/overlaps.cc
   gis/ring_flip_visitor.cc

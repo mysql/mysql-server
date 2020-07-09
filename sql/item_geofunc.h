@@ -1873,6 +1873,34 @@ class Item_func_st_distance_sphere : public Item_real_func {
   }
 };
 
+// The abstract superclass for interpolating point(s) along a line.
+class Item_func_lineinterpolate : public Item_geometry_func {
+ public:
+  Item_func_lineinterpolate(const POS &pos, Item *a, Item *b)
+      : Item_geometry_func(pos, a, b) {}
+  String *val_str(String *str) override;
+
+ protected:
+  virtual bool isFractionalDistance() const = 0;
+  virtual bool returnMultiplePoints() const = 0;
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_GEOMETRY)) return true;
+    if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_DOUBLE)) return true;
+    return Item_geometry_func::resolve_type(thd);
+  }
+};
+
+class Item_func_st_pointatdistance final : public Item_func_lineinterpolate {
+ public:
+  Item_func_st_pointatdistance(const POS &pos, Item *a, Item *b)
+      : Item_func_lineinterpolate(pos, a, b) {}
+
+ protected:
+  const char *func_name() const override { return "st_pointatdistance"; }
+  bool isFractionalDistance() const override { return false; }
+  bool returnMultiplePoints() const override { return false; }
+};
+
 /// This class implements ST_Transform function that transforms a geometry from
 /// one SRS to another.
 class Item_func_st_transform final : public Item_geometry_func {
