@@ -76,6 +76,29 @@ static void init_warp_psi_keys(void) {
 }
 #endif /* HAVE_PSI_INTERFACE */
 
+struct st_mysql_storage_engine warp_storage_engine = {
+  MYSQL_HANDLERTON_INTERFACE_VERSION
+};
+static int warp_init_func(void *p);
+static int warp_done_func(void *p);
+
+mysql_declare_plugin(warp) {
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &warp_storage_engine,
+  "WARP",
+  "Justin Swanhart",
+  "WARP columnar storage engine(using FastBit 2.0.3 storage)",
+  PLUGIN_LICENSE_GPL,
+  warp_init_func, /* Plugin Init */
+  NULL,           /* Plugin check uninstall */
+  warp_done_func, /* Plugin Deinit */
+  0x203 /* Based on Fastbit 2.0.3 */,
+  NULL, /* status variables                */
+  system_variables, /* system variables    */
+  NULL, /* config options                  */
+  0,    /* flags                           */
+} mysql_declare_plugin_end;
+
 /*
   If frm_error() is called in table.cc this is called to find out what file
   extensions exist for this handler.  Our table name, however, is not a set
@@ -339,7 +362,7 @@ static WARP_SHARE *get_share(const char *table_name, TABLE *) {
   DBUG_RETURN(share);
 }
 
-bool ha_warp::check_and_repair(THD *thd) {
+bool ha_warp::check_and_repair(THD *) {
   HA_CHECK_OPT check_opt;
   DBUG_ENTER("ha_warp::check_and_repair");
   /*
@@ -704,7 +727,9 @@ int ha_warp::open(const char *name, int, uint, const dd::Table *) {
      need to figure out how to get MySQL to allow concurrent 
      insert for LDI 
   */
-  auto get_status = [](void*, int concurrent_insert) { 
+
+ // auto get_status = [](void*, int concurrent_insert) { 
+ auto get_status = [](void*, int) { 
     return; 
   };
 
@@ -1222,7 +1247,8 @@ void ha_warp::create_writer(TABLE* table_arg) {
   Note that the internal Fastbit columns are named after the field numbers
   in the MySQL table.
 */
-int ha_warp::create(const char *name, TABLE *table_arg, HA_CREATE_INFO *info,
+//int ha_warp::create(const char *name, TABLE *table_arg, HA_CREATE_INFO *info,
+int ha_warp::create(const char *name, TABLE *table_arg, HA_CREATE_INFO *,
                     dd::Table *) {
   DBUG_ENTER("ha_warp::create");
   int rc = 0;
@@ -1263,28 +1289,8 @@ bool ha_warp::check_if_incompatible_data(HA_CREATE_INFO *, uint) {
   return COMPATIBLE_DATA_YES;
 }
 
-struct st_mysql_storage_engine warp_storage_engine = {
-    MYSQL_HANDLERTON_INTERFACE_VERSION};
-
-mysql_declare_plugin(warp){
-    MYSQL_STORAGE_ENGINE_PLUGIN,
-    &warp_storage_engine,
-    "WARP",
-    "Justin Swanhart",
-    "WARP columnar storage engine(using FastBit 2.0.3 storage)",
-    PLUGIN_LICENSE_GPL,
-    warp_init_func, /* Plugin Init */
-    NULL,           /* Plugin check uninstall */
-    warp_done_func, /* Plugin Deinit */
-    0x203 /* Based on Fastbit 2.0.3 */,
-    NULL, /* status variables                */
-    system_variables, /* system variables    */
-    NULL, /* config options                  */
-    0,    /* flags                           */
-} mysql_declare_plugin_end;
 
 
-#include "storage/warp/ha_warp.h"
 /* This is where table scans happen.  While most storage engines
    scan ALL rows in this function, the WARP engine supports 
    engine condition pushdown.  This means that the WHERE clause in
@@ -1494,9 +1500,13 @@ void ha_warp::get_auto_increment	(
 
 
 int ha_warp::index_init(uint idxno, bool sorted) {
+  DBUG_ENTER("ha_warp::index_init");
+  // just prevents unused variable warning
+  if(sorted) sorted = sorted;
+  
   /*FIXME: bitmap indexes are not sorted so figure out what the sorted arg means...*/
   assert(!sorted);
-  DBUG_ENTER("ha_warp::index_init");
+
   DBUG_PRINT("ha_warp::index_init",("Key #%d, sorted:%d",idxno, sorted));
   DBUG_RETURN(index_init(idxno));
 }

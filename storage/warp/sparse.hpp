@@ -336,7 +336,7 @@ public:
     int bit_offset;
 
     /* where to read at in file */
-    long int at_byte = (bitnum / MAX_BITS) + ((bit_offset = (bitnum % MAX_BITS)) != 0) - 1;
+    unsigned long long at_byte = (bitnum / MAX_BITS) + ((bit_offset = (bitnum % MAX_BITS)) != 0) - 1;
 
     /* read the bits into memory */
     if(force_read || at_byte != fpos) {
