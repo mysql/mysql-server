@@ -917,6 +917,11 @@ bool Condition_pushdown::make_cond_for_derived() {
 
 Item *Condition_pushdown::extract_cond_for_table(Item *cond) {
   cond->marker = Item::MARKER_NONE;
+  if (cond->const_item() && (m_checking_purpose == CHECK_FOR_DERIVED)) {
+    // There is no benefit in pushing a constant condition, we can as well
+    // evaluate it at the top query's level.
+    return nullptr;
+  }
   // Make a new condition
   if (cond->type() == Item::COND_ITEM) {
     Item_cond *and_or_cond = down_cast<Item_cond *>(cond);
@@ -1104,6 +1109,7 @@ bool Condition_pushdown::replace_columns_in_cond() {
         m_having_cond->transform(&Item::replace_with_derived_expr_ref,
                                  pointer_cast<uchar *>(m_derived_table));
     if (new_cond == nullptr) return true;
+    new_cond->update_used_tables();  // as it's using different tables now
     m_having_cond = new_cond;
   }
   if (m_where_cond) {
@@ -1111,6 +1117,7 @@ bool Condition_pushdown::replace_columns_in_cond() {
         m_where_cond->transform(&Item::replace_with_derived_expr,
                                 pointer_cast<uchar *>(m_derived_table));
     if (new_cond == nullptr) return true;
+    new_cond->update_used_tables();
     m_where_cond = new_cond;
   }
   return false;

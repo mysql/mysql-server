@@ -688,22 +688,11 @@ class Item_func : public Item_result_field, public Func_args_handle {
   }
   bool check_column_from_derived_table(
       uchar *arg MY_ATTRIBUTE((unused))) override {
-    // Pushing conditions having non-deterministic results is not correct. If
-    // pushed, might result in eliminating rows which would have otherwise
-    // contributed to aggregations.
-    // For Ex: SELECT * FROM (select a as x, sum(b) from t1 group by a) dt
-    // where x>5*rand();
-    // In this case, the condition would get pushed to the where clause of the
-    // derived table because it is grouping on "a". However the result of the
-    // condition depends on function rand() which might reduce the rows that
-    // get qualified for grouping, resulting in wrong aggregate values.
-    // Similarly for window functions too.
-    // For queries without grouping and window functions, the derived table
-    // most likely will get merged.
-    // So pushing conditions with non-deterministic results is not allowed
-    // completely. See also Item_field::check_column_from_derived_table.
-    return (used_tables() & RAND_TABLE_BIT);
+    return false;
   }
+  bool check_column_in_window_functions(uchar *arg) override;
+  bool check_column_in_group_by(uchar *arg) override;
+
   longlong val_int_from_real();
 };
 

@@ -340,19 +340,35 @@ eval PREPARE p FROM "EXPLAIN FORMAT=tree $query";
 eval EXECUTE p USING @p1;
 
 # Test for not supported conditions.
-# Test with non-deterministic expressions in conditions. These cannot be
-# pushed down
+
+# Test with non-deterministic expressions in column of derived
+# table. These cannot be pushed down.
 let query = SELECT * FROM (SELECT RAND() as a FROM t1) as dt
             WHERE a > 0.5;
 --replace_regex /cost=\d+.\d+/cost=***/  /rows=\d+/rows=***/
 eval EXPLAIN FORMAT=tree $query;
+
+# Test with non-deterministic expressions in conditions. These can be
+# pushed down, but not so early that they would modify the order of
+# operations in the computation of the derived table's content.
+
+# RAND goes to HAVING, <10 goes to WHERE
 let query = SELECT * FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1) as dt
-            WHERE f1 > 3*rand();
+            WHERE f1 > 3*RAND() AND f1 < 10;
 --replace_regex /cost=\d+.\d+/cost=***/  /rows=\d+/rows=***/
 eval EXPLAIN FORMAT=tree $query;
+
+# RAND doesn't move, <10 goes to WHERE
 let query = SELECT * FROM
             (SELECT f1, SUM(f2) OVER(PARTITION BY f1) FROM t1) as dt
-            WHERE f1 > 3*rand();
+            WHERE f1 > 3*RAND() AND f1 < 10;
+--replace_regex /cost=\d+.\d+/cost=***/  /rows=\d+/rows=***/
+eval EXPLAIN FORMAT=tree $query;
+
+# RAND and <10 go to WHERE
+let query = SELECT * FROM
+            (SELECT f1 FROM t1) as dt
+            WHERE f1 > 3*RAND() AND f1<10;
 --replace_regex /cost=\d+.\d+/cost=***/  /rows=\d+/rows=***/
 eval EXPLAIN FORMAT=tree $query;
 
@@ -371,8 +387,8 @@ let query = SELECT f1 FROM
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
-# With WHERE condition having a stored routine: it is pushed down only
-# when it is deterministic
+# With WHERE condition having a stored routine: it is pushed down more
+# if it is deterministic
 DELIMITER |;
 CREATE FUNCTION p() RETURNS INTEGER
 BEGIN
@@ -382,7 +398,8 @@ BEGIN
 END|
 DELIMITER ;|
 
-let query = SELECT * FROM (SELECT * FROM t1) as dt WHERE p() = 1;
+let query = SELECT * FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1) as dt
+            WHERE p() = 1;
 --replace_regex /cost=\d+.\d+/cost=***/  /rows=\d+/rows=***/
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
@@ -397,7 +414,6 @@ BEGIN
 END|
 DELIMITER ;|
 
-let query = SELECT * FROM (SELECT * FROM t1) as dt WHERE p() = 1;
 --replace_regex /cost=\d+.\d+/cost=***/  /rows=\d+/rows=***/
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
@@ -500,6 +516,12 @@ SELECT * FROM
  (SELECT dt1.f1 FROM (SELECT f1 FROM t1) AS dt1, t1 AS t0
   GROUP BY dt1.f1) AS dt2
 WHERE dt2.f1 > 3;
+
+# Test with const conditions: shouldn't be pushed down (no benefit)
+let query= SELECT /*+ no_merge(dt,dt1) */ * FROM
+((SELECT f1, f2 FROM t1) as dt, (SELECT f1, f2 FROM t1) as dt1) WHERE FALSE;
+eval EXPLAIN $query;
+eval $query;
 
 # Test for optimizer hints DERIVED_CONDIITON_PUSHDOWN and
 # NO_DERIVED_CONDITION_PUSHDOWN
