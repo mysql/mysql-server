@@ -6470,7 +6470,19 @@ static bool open_secondary_engine_tables(THD *thd, uint flags) {
     if (tl->is_placeholder()) continue;
     TABLE *primary_table = tl->table;
     tl->table = nullptr;
-    if (open_table(thd, tl, &ot_ctx)) return true;
+    if (open_table(thd, tl, &ot_ctx)) {
+      if (!thd->is_error()) {
+        /*
+          open_table() has not registered any error, implying that we can
+          retry the failed open; but it is complicated to do so reliably, so we
+          prefer to simply fail and re-prepare the statement in the primary
+          engine, as an exceptional case. So we register an error.
+        */
+        my_error(ER_SECONDARY_ENGINE_PLUGIN, MYF(0),
+                 "Transient error when opening tables in RAPID");
+      }
+      return true;
+    }
     DBUG_ASSERT(tl->table->s->is_secondary_engine());
     tl->table->file->ha_set_primary_handler(primary_table->file);
   }
