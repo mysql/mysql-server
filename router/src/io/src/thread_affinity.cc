@@ -24,6 +24,8 @@
 
 #include "mysqlrouter/thread_affinity.h"
 
+#include "my_compiler.h"
+
 #if defined(__linux__) || defined(__FreeBSD__) || defined(__APPLE__)
 #include <pthread.h>  // pthread_self(), pthread_setaffinity_np (linux), pthread_mach_thread_np
 #endif
@@ -112,7 +114,8 @@ ThreadAffinity::affinity() const noexcept {
 }
 
 stdx::expected<void, std::error_code> ThreadAffinity::affinity(
-    std::bitset<ThreadAffinity::max_cpus> cpus) const noexcept {
+    std::bitset<ThreadAffinity::max_cpus> cpus
+        MY_ATTRIBUTE((unused))) const noexcept {
 #if defined(__linux__) || defined(__FreeBSD__)
   thread_affinity_cpu_set_type cpuset;
 

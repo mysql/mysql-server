@@ -39,6 +39,7 @@
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/item_cmpfunc.h"
+#include "sql/join_optimizer/bit_utils.h"
 #include "sql/psi_memory_key.h"
 #include "sql/sql_class.h"
 #include "sql/sql_executor.h"

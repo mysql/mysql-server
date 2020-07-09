@@ -35,6 +35,7 @@
 #include "sql/hash_join_buffer.h"
 #include "sql/hash_join_iterator.h"
 #include "sql/item_cmpfunc.h"
+#include "sql/join_optimizer/bit_utils.h"
 #include "sql/row_iterator.h"
 #include "sql/sql_executor.h"
 #include "sql/sql_optimizer.h"
