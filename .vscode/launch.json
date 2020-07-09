@@ -1,0 +1,27 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+    
+      {
+        "name": "g++ build and debug active file",
+        "type": "cppdbg",
+        "request": "launch",
+        "program": "/home/greenlion/warp/build_debug/runtime_output_directory/mysqld", 
+        "args": [],
+        "stopAtEntry": false,
+        "cwd": "/home/greenlion/mysql_data",
+        "environment": [],
+        "externalConsole": false,
+        "MIMode": "gdb",
+        "setupCommands": [
+          {
+            "description": "Enable pretty-printing for gdb",
+            "text": "-enable-pretty-printing",
+            "ignoreFailures": true
+          }
+        ],
+        "preLaunchTask": "g++ build active file",
+        "miDebuggerPath": "/usr/bin/gdb"
+      }
+    ]
+  }

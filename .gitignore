@@ -17,7 +17,6 @@ source_downloads
 [._]sw[a-p]
 
 # Configuration files for Visual Studio Code
-.vscode/
 boost/
 release/
 debug/
