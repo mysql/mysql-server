@@ -180,6 +180,15 @@ void MetadataCache::refresh_thread() {
 
       {
         std::unique_lock<std::mutex> lock(refresh_wait_mtx_);
+        // frist check if we were not told to leave or refresh again while we
+        // were outside of the wait_for
+        if (terminated_) return;
+        if (refresh_requested_) {
+          auth_cache_force_update = true;
+          refresh_requested_ = false;
+          break;  // go to the refresh() in the outer loop
+        }
+
         if (sleep_for >= auth_cache_ttl_left) {
           refresh_wait_.wait_for(lock, auth_cache_ttl_left);
           ttl_left -= auth_cache_ttl_left;
