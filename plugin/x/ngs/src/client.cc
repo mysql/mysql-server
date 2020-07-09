@@ -462,11 +462,6 @@ void Client::on_session_close(xpl::iface::Session *s MY_ATTRIBUTE((unused))) {
 
   // no more open sessions, disconnect
   disconnect_and_trigger_close();
-
-  if (s->state_before_close() != xpl::iface::Session::State::k_authenticating) {
-    ++xpl::Global_status_variables::instance().m_closed_sessions_count;
-  }
-
   remove_client_from_server();
 }
 

@@ -52,6 +52,10 @@ Session::~Session() {
 
   if (m_failed_auth_count > 0 && !m_was_authenticated)
     ++Global_status_variables::instance().m_rejected_sessions_count;
+
+  if (state_before_close() != xpl::iface::Session::State::k_authenticating) {
+    ++Global_status_variables::instance().m_closed_sessions_count;
+  }
 }
 
 // handle a message while in Ready state
