@@ -1810,10 +1810,11 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "true"},
 
   {
-    CFG_DB_ENCRYPTED_BACKUP,
-    "EncryptedBackup",
+    CFG_DB_REQUIRE_ENCRYPTED_BACKUP,
+    "RequireEncryptedBackup",
     DB_TOKEN,
-    "Use openssl to encrypt BACKUPs as they are written",
+    "If set to one only encrypted backups are allowed. If zero both encrypted "
+    "and unencrypted backups are allowed.",
     ConfigInfo::CI_USED,
     0,
     ConfigInfo::CI_INT,
