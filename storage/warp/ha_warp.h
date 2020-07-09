@@ -287,7 +287,13 @@ class ha_warp : public handler {
   int index_read_map (uchar *buf, const uchar *key, key_part_map keypart_map, enum ha_rkey_function find_flag);
   int index_read_idx_map (uchar *buf, uint idxno, const uchar *key, key_part_map keypart_map, enum ha_rkey_function find_flag);
   int make_where_clause(const uchar *key, key_part_map keypart_map, enum ha_rkey_function find_flag, std::string& where_clause);
-  void get_auto_increment(ulonglong, ulonglong, ulonglong, ulonglong *, ulonglong *);
+  void get_auto_increment	(	
+    ulonglong 	offset,
+    ulonglong 	increment,
+    ulonglong 	nb_desired_values,
+    ulonglong * 	first_value,
+    ulonglong * 	nb_reserved_values 
+  );
 
   const Item* cond_push(const Item *cond,	bool other_tbls_ok );
 	

@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA 
-
+IF(COMPILE_TESTS)
 ADD_WSHADOW_WARNING()
 
 ADD_SUBDIRECTORY(gunit)
@@ -36,3 +36,4 @@ ADD_CUSTOM_TARGET(
   WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
   USES_TERMINAL
 )
+ENDIF(COMPILE_TESTS)

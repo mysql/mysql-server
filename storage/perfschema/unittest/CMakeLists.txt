@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
-
+IF(COMPILE_TESTS)
 ADD_DEFINITIONS(-DMYSQL_SERVER)
 
 ADD_LIBRARY(pfs_server_stubs STATIC pfs_server_stubs.cc)
@@ -69,3 +69,4 @@ TARGET_LINK_LIBRARIES(pfs_connect_attr-t
   server_unittest_library
   ${MYSQLD_STATIC_PLUGIN_LIBS}
   )
+ENDIF(COMPILE_TESTS)

@@ -1489,21 +1489,12 @@ ha_rows ha_warp::records_in_range(uint , key_range *, key_range *) {
   
 }
 
-void ha_warp::get_auto_increment	(	
-  ulonglong 	offset,
-  ulonglong 	increment,
-  ulonglong 	nb_desired_values,
-  ulonglong * 	first_value,
-  ulonglong * 	nb_reserved_values 
-);
-
-
 
 int ha_warp::index_init(uint idxno, bool sorted) {
   DBUG_ENTER("ha_warp::index_init");
   // just prevents unused variable warning
   if(sorted) sorted = sorted;
-  
+
   /*FIXME: bitmap indexes are not sorted so figure out what the sorted arg means...*/
   assert(!sorted);
 
