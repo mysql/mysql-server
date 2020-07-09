@@ -43,7 +43,7 @@ bool ndbxfrm_writefile::is_open() const
   return m_file_format != FF_UNKNOWN;
 }
 
-int ndbxfrm_writefile::open(ndb_file& file, bool compress, byte* pwd, size_t pwd_len)
+int ndbxfrm_writefile::open(ndb_file& file, bool compress, byte* pwd, size_t pwd_len, int kdf_iter_count)
 {
   m_eof = false;
   m_file_eof = false;
@@ -99,7 +99,6 @@ int ndbxfrm_writefile::open(ndb_file& file, bool compress, byte* pwd, size_t pwd
       byte salt[ndb_openssl_evp::SALT_LEN];
       openssl_evp.generate_salt256(salt);
       ndbxfrm1.set_encryption_salts(salt, ndb_openssl_evp::SALT_LEN, 1);
-      Uint32 kdf_iter_count = 100000;
       openssl_evp.derive_and_add_key_iv_pair(pwd, pwd_len, kdf_iter_count, salt);
       ndbxfrm1.set_encryption_kdf(1 /* pbkdf2_sha256 */);
       ndbxfrm1.set_encryption_kdf_iter_count(kdf_iter_count);

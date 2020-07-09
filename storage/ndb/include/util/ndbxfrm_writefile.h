@@ -36,7 +36,7 @@ public:
   ndbxfrm_writefile();
   bool eof() const { return m_eof; }
   bool is_open() const;
-  int open(ndb_file& file, bool compress, byte* pwd, size_t pwd_len);
+  int open(ndb_file& file, bool compress, byte* pwd, size_t pwd_len, int kdf_iter_count);
   int close(bool no_flush);
   bool is_encrypted() const { return m_encrypted; }
   int write_forward(ndbxfrm_input_iterator* in);
